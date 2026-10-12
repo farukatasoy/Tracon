@@ -166,6 +166,181 @@ public sealed class AgentRunJobHandlerTests
         agent.LastOptions.Variant.ShouldBe("control");
     }
 
+    /// <summary>
+    /// F-369: the labels the HTTP layer resolved travel in the payload with the
+    /// user, and the run (with every sub-agent and tool under it) reads both
+    /// from the scope the worker opens.
+    /// </summary>
+    [Fact]
+    public async Task The_payloads_user_and_labels_open_the_scope_the_run_reads()
+    {
+        var agent = new ScriptedAgent();
+        var handler = NewHandler(new SingleAgentCatalog(agent));
+        var runId = TraconId.NewId();
+
+        await handler.ExecuteAsync(BuildContext(runId, "hello", payload: new
+        {
+            runId = runId.ToString(),
+            message = "hello",
+            userId = "ada",
+            labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" },
+        }));
+
+        agent.SeenUserId.ShouldBe("ada");
+        agent.SeenLabels.ShouldNotBeNull()["team"].ShouldBe("payments");
+    }
+
+    /// <summary>
+    /// A payload is durable data a schedule can write by hand. Labels that are
+    /// not an object of strings, or that break a limit, are dropped rather
+    /// than thrown on: throwing would fail the job on every attempt, and labels
+    /// only describe the run.
+    /// </summary>
+    [Theory]
+    [InlineData("not-an-object")]
+    [InlineData("a-value-that-is-not-a-string")]
+    [InlineData("more-labels-than-allowed")]
+    public async Task Malformed_payload_labels_are_dropped_and_the_run_still_runs(string shape)
+    {
+        var agent = new ScriptedAgent();
+        var handler = NewHandler(new SingleAgentCatalog(agent));
+        var runId = TraconId.NewId();
+
+        object labels = shape switch
+        {
+            "not-an-object" => "team=payments",
+            "a-value-that-is-not-a-string" => new Dictionary<string, object>(StringComparer.Ordinal) { ["team"] = 7 },
+            _ => Enumerable.Range(0, RunLabels.MaxCount + 1)
+                .ToDictionary(static index => $"key-{index}", static _ => "value", StringComparer.Ordinal),
+        };
+
+        await handler.ExecuteAsync(BuildContext(runId, "hello", payload: new
+        {
+            runId = runId.ToString(),
+            message = "hello",
+            userId = "ada",
+            labels,
+        }));
+
+        agent.Inputs.ShouldBe(["hello"]);
+        agent.SeenUserId.ShouldBe("ada");
+        agent.SeenLabels.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// F-367: a store error on the session save after the model answered is
+    /// tried again while the worker can prove its lease; the turn is not.
+    /// </summary>
+    [Fact]
+    public async Task A_session_save_that_fails_once_is_tried_again_and_the_turn_is_not()
+    {
+        var store = new FlakySessionStore(failures: 1, () => new TimeoutException("The store did not answer in time."));
+        var agent = new ScriptedAgent();
+        var handler = NewHandler(new SingleAgentCatalog(agent), sessionStore: store);
+        var runId = TraconId.NewId();
+
+        await handler.ExecuteAsync(BuildContext(runId, "hello", sessionId: "s-1", provableLease: TimeSpan.FromMinutes(1)));
+
+        agent.Inputs.ShouldBe(["hello"]);
+        store.CreateCalls.ShouldBe(2);
+        (await store.GetAsync("s-1")).ShouldNotBeNull();
+    }
+
+    /// <summary>The window is the lease the worker can prove, fixed at the first error.</summary>
+    [Fact]
+    public async Task A_session_store_that_keeps_failing_is_given_up_on_when_the_lease_window_closes()
+    {
+        var store = new FlakySessionStore(failures: int.MaxValue, () => new TimeoutException("The store did not answer in time."));
+        var agent = new ScriptedAgent();
+        var handler = NewHandler(new SingleAgentCatalog(agent), sessionStore: store);
+        var runId = TraconId.NewId();
+
+        var failure = await Should.ThrowAsync<NonRetryableJobException>(() => handler.ExecuteAsync(
+            BuildContext(runId, "hello", sessionId: "s-1", provableLease: TimeSpan.FromMilliseconds(500))).AsTask());
+
+        failure.Code.ShouldBe(QueuedTurn.SessionSaveFailedCode);
+        failure.Message.ShouldStartWith(QueuedTurn.SessionSaveFailedCode);
+        failure.InnerException.ShouldBeOfType<TimeoutException>();
+        store.CreateCalls.ShouldBeGreaterThan(1);
+        agent.Inputs.ShouldBe(["hello"]);
+    }
+
+    /// <summary>
+    /// Tracon's own refusal (a turn that conflicts with another, an owner that
+    /// cannot be resolved) gets the same answer on every try.
+    /// </summary>
+    [Fact]
+    public async Task A_session_save_Tracon_refuses_is_not_tried_again()
+    {
+        var store = new FlakySessionStore(
+            failures: int.MaxValue,
+            () => new TraconSessionConflictException("Another request saved this session first."));
+        var handler = NewHandler(new SingleAgentCatalog(new ScriptedAgent()), sessionStore: store);
+        var runId = TraconId.NewId();
+
+        var failure = await Should.ThrowAsync<NonRetryableJobException>(() => handler.ExecuteAsync(
+            BuildContext(runId, "hello", sessionId: "s-1", provableLease: TimeSpan.FromMinutes(1))).AsTask());
+
+        failure.InnerException.ShouldBeOfType<TraconSessionConflictException>();
+        store.CreateCalls.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// A turn that asks for approval saves its session before the approval is
+    /// listed. When that save is given up on, nothing is listed, and the run
+    /// closes Failed with the job's code: an approval without its session
+    /// cannot be answered.
+    /// </summary>
+    [Fact]
+    public async Task An_approval_whose_session_cannot_be_saved_is_not_listed_and_its_run_fails_with_the_code()
+    {
+        var runs = new InMemoryRunStore();
+        var approvals = new InMemoryPendingApprovalStore();
+        var store = new FlakySessionStore(failures: int.MaxValue, () => new TimeoutException("The store did not answer in time."));
+
+        var recordingAgent = new RunRecordingAgent(
+            new ApprovalRequestingAgent(),
+            runs,
+            FixedTenantContext.Default,
+            new TraconRunRecordingOptions(),
+            NullLogger<RunRecordingAgent>.Instance);
+
+        var handler = new AgentRunJobHandler(
+            new SingleAgentCatalog(recordingAgent),
+            new AgentSessionManager(store, FixedTenantContext.Default),
+            runs,
+            approvals,
+            new InMemoryExperimentStore(),
+            Options.Create(new TraconOptions()),
+            timeProvider: null,
+            logger: NullLogger<AgentRunJobHandler>.Instance);
+
+        var runId = TraconId.NewId();
+
+        await Should.ThrowAsync<NonRetryableJobException>(
+            () => handler.ExecuteAsync(BuildContext(runId, "cancel it", sessionId: "session-1")).AsTask());
+
+        (await approvals.ListPendingAsync()).ShouldBeEmpty();
+
+        var run = (await runs.GetRunAsync(runId)).ShouldNotBeNull();
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error.ShouldNotBeNull().Type.ShouldBe(QueuedTurn.SessionSaveFailedCode);
+    }
+
+    /// <summary>Without a worker there is no lease to prove, so the save is tried once.</summary>
+    [Fact]
+    public async Task Without_a_lease_a_failed_session_save_is_tried_once()
+    {
+        var store = new FlakySessionStore(failures: 1, () => new TimeoutException("The store did not answer in time."));
+        var handler = NewHandler(new SingleAgentCatalog(new ScriptedAgent()), sessionStore: store);
+        var runId = TraconId.NewId();
+
+        await Should.ThrowAsync<NonRetryableJobException>(
+            () => handler.ExecuteAsync(BuildContext(runId, "hello", sessionId: "s-1")).AsTask());
+
+        store.CreateCalls.ShouldBe(1);
+    }
+
     /// <summary>A job enqueued before the fields existed keeps its earlier behavior.</summary>
     [Fact]
     public async Task A_payload_without_the_new_fields_resolves_the_current_version_with_the_default_culture()
@@ -307,10 +482,11 @@ public sealed class AgentRunJobHandlerTests
     private static AgentRunJobHandler NewHandler(
         IAgentCatalog catalog,
         IRunStore? runs = null,
-        IExperimentStore? experiments = null)
+        IExperimentStore? experiments = null,
+        ISessionStore? sessionStore = null)
         => new(
             catalog,
-            new AgentSessionManager(new InMemorySessionStore(), FixedTenantContext.Default),
+            new AgentSessionManager(sessionStore ?? new InMemorySessionStore(), FixedTenantContext.Default),
             runs ?? new InMemoryRunStore(),
             new InMemoryPendingApprovalStore(),
             experiments ?? new InMemoryExperimentStore(),
@@ -323,9 +499,12 @@ public sealed class AgentRunJobHandlerTests
         string message,
         string targetName = "fake-agent",
         string? sessionId = null,
-        object? payload = null)
+        object? payload = null,
+        TimeSpan? provableLease = null)
         => new()
         {
+            // What the worker reports: the lease it can prove, less its margin.
+            ProvableLeaseRemaining = provableLease is { } lease ? () => lease : null,
             Job = new JobRecord
             {
                 Id = runId,
@@ -363,6 +542,35 @@ public sealed class AgentRunJobHandlerTests
 
             return new(agent);
         }
+    }
+
+    /// <summary>
+    /// Fails the first <paramref name="failures"/> session creations, then
+    /// writes through to an in-memory store.
+    /// </summary>
+    private sealed class FlakySessionStore(int failures, Func<Exception> fault) : ISessionStore
+    {
+        private readonly InMemorySessionStore _inner = new();
+        private int _createCalls;
+
+        public int CreateCalls => Volatile.Read(ref _createCalls);
+
+        public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
+            => Interlocked.Increment(ref _createCalls) <= failures
+                ? throw fault()
+                : ((ISessionStore)_inner).TryCreateAsync(record, cancellationToken);
+
+        public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default)
+            => _inner.SaveAsync(record, cancellationToken);
+
+        public ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
+            => _inner.GetAsync(sessionId, cancellationToken);
+
+        public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default)
+            => _inner.DeleteAsync(sessionId, cancellationToken);
+
+        public ValueTask<IReadOnlyList<SessionRecord>> QueryAsync(SessionQuery query, CancellationToken cancellationToken = default)
+            => _inner.QueryAsync(query, cancellationToken);
     }
 
     private sealed class StubToolApprovalPresenter(ToolApprovalPresentation presentation) : IToolApprovalPresenter
@@ -436,6 +644,12 @@ public sealed class AgentRunJobHandlerTests
 
         public TraconRunOptions? LastOptions { get; private set; }
 
+        /// <summary>The ambient user the run saw: what a sub-agent or a tool under it reads.</summary>
+        public string? SeenUserId { get; private set; }
+
+        /// <summary>The ambient labels the run saw.</summary>
+        public IReadOnlyDictionary<string, string>? SeenLabels { get; private set; }
+
         public override string Name => "fake-agent";
 
         public override string Description => "for tests";
@@ -450,6 +664,8 @@ public sealed class AgentRunJobHandlerTests
             Inputs.Add(last);
             LastRunId = (options as TraconRunOptions)?.RunId;
             LastOptions = options as TraconRunOptions;
+            SeenUserId = AmbientRunAttributionScope.CurrentUserId;
+            SeenLabels = AmbientRunAttributionScope.CurrentLabels;
 
             return Task.FromResult(new AgentResponse(new ChatMessage(ChatRole.Assistant, $"ok:{last}")));
         }

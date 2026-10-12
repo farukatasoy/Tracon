@@ -5,8 +5,12 @@ namespace Tracon;
 /// Deliberately narrow: only the provider and the model name, not a full
 /// <see cref="ModelBinding"/>. A fallback binding embedding another fallback
 /// chain would produce a recursive type that is hard to validate and to
-/// reason about; the fallback call uses the fallback model's own defaults for
-/// every other setting.
+/// reason about. The fallback call receives the same request options as the
+/// primary call — temperature, top-p, <c>maxOutputTokens</c>, the response format
+/// and the tools — with only the model name replaced. The primary binding's
+/// <see cref="ModelBinding.ProviderSettings"/> do not carry over: they shape the
+/// primary provider's client, and the fallback provider's client is built
+/// without them.
 /// </remarks>
 public sealed record ModelFallback
 {

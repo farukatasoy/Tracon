@@ -36,7 +36,11 @@ public static partial class JobHandlerKeys
     /// <summary>Runs an agent as a batch over a set of inputs.</summary>
     public const string AgentBatch = "tracon.agent-batch";
 
-    /// <summary>Runs a workflow, or responds to a pending workflow.</summary>
+    /// <summary>Runs a workflow once for each pending item of the job.</summary>
+    /// <remarks>
+    /// The handler only starts runs. It does not resume a run or answer a pending
+    /// request: those go through the resume and respond endpoints.
+    /// </remarks>
     public const string Workflow = "tracon.workflow";
 
     /// <summary>An evaluation (eval) run over a suite's cases.</summary>

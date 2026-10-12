@@ -59,6 +59,7 @@ public sealed class RetentionExecutorTests
         runs.Count.ShouldBe(1);
         dataStore.DeleteCalls.ShouldBe(0);
         dataStore.ArchiveReadCalls.ShouldBe(0);
+        dataStore.ArchiveBatchCalls.ShouldBe(0);
 
         var history = await store.ListRunsAsync(Tenant, RetentionTargets.RunEvents, 0, 10);
         history[0].CompletedAt.ShouldNotBeNull();
@@ -74,14 +75,59 @@ public sealed class RetentionExecutorTests
 
         await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30, archive: true);
         dataStore.ArchiveRowsToReturn = [new ArchiveRow { Json = "{}" }];
-        dataStore.DeleteBatchSizes.Enqueue(1);
-        dataStore.DeleteBatchSizes.Enqueue(0);
 
         var runs = await executor.RunAsync(Tenant, RetentionTargets.RunEvents);
 
         sink.WriteCalls.ShouldBe(1);
         runs[0].ArchivedRows.ShouldBe(1);
         runs[0].DeletedRows.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// 🚨 F-372: archive mode read one batch in time order and then deleted
+    /// another batch in no order, so rows that were never archived were
+    /// deleted. It now deletes only through the store's archive batch, which
+    /// deletes the rows it handed to the sink — never through a plain batch delete.
+    /// </summary>
+    [Fact]
+    public async Task Archive_mode_deletes_only_the_rows_the_sink_received()
+    {
+        var sink = new RecordingArchiveSink();
+        var (executor, store, dataStore) = Build(archiveSink: sink, batchSize: 2);
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30, archive: true);
+        dataStore.ArchiveBatches.Enqueue([new ArchiveRow { Json = "{\"seq\":1}" }, new ArchiveRow { Json = "{\"seq\":2}" }]);
+        dataStore.ArchiveBatches.Enqueue([new ArchiveRow { Json = "{\"seq\":3}" }]);
+
+        var runs = await executor.RunAsync(Tenant, RetentionTargets.RunEvents);
+
+        dataStore.DeleteCalls.ShouldBe(0);
+        dataStore.ArchiveReadCalls.ShouldBe(0);
+        dataStore.ArchiveBatchCalls.ShouldBe(2);
+        sink.Rows.Select(static row => row.Json).ShouldBe(["{\"seq\":1}", "{\"seq\":2}", "{\"seq\":3}"]);
+        runs[0].ArchivedRows.ShouldBe(3);
+        runs[0].DeletedRows.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_failed_archive_write_deletes_nothing_and_fails_the_run()
+    {
+        var sink = new RecordingArchiveSink { Failure = new InvalidOperationException("The archive is not reachable.") };
+        var (executor, store, dataStore) = Build(archiveSink: sink);
+
+        await SavePolicyAsync(store, RetentionTargets.RunEvents, maxAgeDays: 30, archive: true);
+        dataStore.ArchiveRowsToReturn = [new ArchiveRow { Json = "{}" }];
+
+        await Should.ThrowAsync<InvalidOperationException>(async ()
+            => await executor.RunAsync(Tenant, RetentionTargets.RunEvents));
+
+        dataStore.DeleteCalls.ShouldBe(0);
+        dataStore.DeletedByArchive.ShouldBe(0);
+
+        var history = await store.ListRunsAsync(Tenant, RetentionTargets.RunEvents, 0, 10);
+        history[0].Error.ShouldNotBeNull();
+        history[0].DeletedRows.ShouldBe(0);
+        history[0].ArchivedRows.ShouldBe(0);
     }
 
     [Fact]
@@ -230,6 +276,14 @@ public sealed class RetentionExecutorTests
 
         public int ArchiveReadCalls { get; private set; }
 
+        public int ArchiveBatchCalls { get; private set; }
+
+        /// <summary>The rows the archive batches deleted: only rows whose archive write returned.</summary>
+        public int DeletedByArchive { get; private set; }
+
+        /// <summary>The batches <see cref="ArchiveBatchAsync"/> hands out, one per call.</summary>
+        public Queue<IReadOnlyList<ArchiveRow>> ArchiveBatches { get; } = new();
+
         public int RowLimitCalls { get; private set; }
 
         public long CountToReturn { get; set; }
@@ -286,11 +340,51 @@ public sealed class RetentionExecutorTests
 
             return new ValueTask<int>(DeleteBatchSizes.Count > 0 ? DeleteBatchSizes.Dequeue() : 0);
         }
+
+        /// <summary>The store contract in miniature: it deletes exactly the rows it archived, after the write returns.</summary>
+        public async ValueTask<int> ArchiveBatchAsync(
+            string target,
+            string? tenantId,
+            DateTimeOffset cutoff,
+            int batchSize,
+            Func<IReadOnlyList<ArchiveRow>, CancellationToken, ValueTask> archiveAsync,
+            CancellationToken cancellationToken = default)
+        {
+            LastCutoffUsed = cutoff;
+            ArchiveBatchCalls++;
+
+            IReadOnlyList<ArchiveRow> rows;
+
+            if (ArchiveBatches.Count > 0)
+            {
+                rows = ArchiveBatches.Dequeue();
+            }
+            else
+            {
+                rows = ArchiveRowsToReturn;
+                ArchiveRowsToReturn = [];
+            }
+
+            if (rows.Count == 0)
+            {
+                return 0;
+            }
+
+            await archiveAsync(rows, cancellationToken);
+
+            DeletedByArchive += rows.Count;
+
+            return rows.Count;
+        }
     }
 
     private sealed class RecordingArchiveSink : IArchiveSink
     {
         public int WriteCalls { get; private set; }
+
+        public List<ArchiveRow> Rows { get; } = [];
+
+        public Exception? Failure { get; init; }
 
         public ValueTask WriteAsync(
             string target,
@@ -299,6 +393,13 @@ public sealed class RetentionExecutorTests
             CancellationToken cancellationToken = default)
         {
             WriteCalls++;
+
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
+            Rows.AddRange(rows);
 
             return ValueTask.CompletedTask;
         }

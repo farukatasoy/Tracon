@@ -69,6 +69,17 @@ public static class TraconWorkflowFunctionExtensions
     /// hand-writing their orchestration logic, which is out of scope.
     /// </para>
     /// <para>
+    /// <strong><typeparamref name="TInput"/> must take what the node before it
+    /// passes on.</strong> An agent node takes and passes on a
+    /// <c>List&lt;ChatMessage&gt;</c>, and a run starts by sending the user's
+    /// message as one, so a function that follows an agent or comes first takes a
+    /// <c>List&lt;ChatMessage&gt;</c> (or a type it can be assigned to, such as
+    /// <c>IEnumerable&lt;ChatMessage&gt;</c>). Saving a chain that breaks this is a
+    /// <c>400</c> that names both nodes, and a run of such a chain fails before its
+    /// first node: Microsoft Agent Framework drops a message no handler takes,
+    /// without an error, so the chain would otherwise end with no output.
+    /// </para>
+    /// <para>
     /// <strong>The handler must be idempotent when the workflow enables
     /// checkpointing</strong> (the default). Measured: resuming
     /// from the run's LATEST checkpoint after it has already completed does
@@ -85,9 +96,11 @@ public static class TraconWorkflowFunctionExtensions
     /// <code>
     /// builder.AddTracon()
     ///        .UseWorkflows()
-    ///        .AddWorkflowFunction&lt;string, string&gt;(
+    ///        .AddWorkflowFunction&lt;List&lt;ChatMessage&gt;, List&lt;ChatMessage&gt;&gt;(
     ///            "normalise",
-    ///            provider => (input, context, cancellationToken) => ValueTask.FromResult(input.Trim().ToUpperInvariant()));
+    ///            provider => (messages, context, cancellationToken) =>
+    ///                ValueTask.FromResult&lt;List&lt;ChatMessage&gt;&gt;(
+    ///                    [new ChatMessage(ChatRole.User, messages[^1].Text.Trim().ToUpperInvariant())]));
     /// </code>
     /// </example>
     /// </remarks>
@@ -211,10 +224,10 @@ public static class TraconWorkflowFunctionExtensions
     /// <code>
     /// builder.AddTracon()
     ///        .UseWorkflows()
-    ///        .AddWorkflowFunction&lt;string, string, TtsSettings&gt;(
+    ///        .AddWorkflowFunction&lt;List&lt;ChatMessage&gt;, string, TtsSettings&gt;(
     ///            "tts",
-    ///            provider => (text, settings, context, cancellationToken) =>
-    ///                ValueTask.FromResult($"{settings.Voice} at {settings.LoudnessLufs} LUFS: {text}"),
+    ///            provider => (messages, settings, context, cancellationToken) =>
+    ///                ValueTask.FromResult($"{settings.Voice} at {settings.LoudnessLufs} LUFS: {messages[^1].Text}"),
     ///            options => options.Description = "Text to speech");
     /// </code>
     /// </example>

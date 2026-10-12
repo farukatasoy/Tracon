@@ -93,16 +93,26 @@ public sealed record ModelBinding
     /// </para>
     /// <para>
     /// A fallback link carries only a provider and a model, not a full
-    /// <see cref="ModelBinding"/>: <see cref="Temperature"/>,
-    /// <see cref="ProviderSettings"/>, and the other fields do not carry over
-    /// to the fallback call. A fallback model that needs its own settings is a
-    /// separate configuration concern, not something this chain expresses.
+    /// <see cref="ModelBinding"/>. The fallback call receives the primary call's
+    /// request options — <see cref="Temperature"/>, <see cref="TopP"/>,
+    /// <see cref="MaxOutputTokens"/>, <see cref="ResponseFormat"/> and the tools —
+    /// with only the model name replaced. <see cref="ProviderSettings"/> do not
+    /// carry over: they configure the primary provider's client. A fallback model
+    /// that needs its own settings is a separate configuration concern, not something
+    /// this chain expresses.
     /// </para>
     /// <para>
     /// Switching to a fallback is never silent: the run record gets an
     /// explicit <c>ModelFallbackUsed</c> event, and cost and model attribution
     /// (<c>RunStatistics.ByModel</c>) reflect the model that actually answered,
     /// not the primary binding.
+    /// </para>
+    /// <para>
+    /// That applies to the agent's own binding. A binding the run calls on the
+    /// side, such as the context compaction summarizer or the judge of an
+    /// <c>aiJudge</c> loop criterion, keeps its fallback to that call: the run
+    /// keeps the agent's model and gets no event, the call's tokens are priced
+    /// at the model that answered, and the switch is logged.
     /// </para>
     /// </remarks>
     public IReadOnlyList<ModelFallback> Fallbacks { get; init; } = [];

@@ -102,7 +102,10 @@ public sealed class HealthCheckTests
     public async Task Open_circuit_breaker_returns_Degraded()
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
-        server.ChatCompletionStatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest;
+
+        // 401: not retried by the client, and it counts against the provider. A
+        // 400 does not count since F-354 (it rejects the request, not the provider).
+        server.ChatCompletionStatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status401Unauthorized;
 
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: builder => builder.UseOpenAICompatible("local-test", o => o.Endpoint = server.BaseAddress),

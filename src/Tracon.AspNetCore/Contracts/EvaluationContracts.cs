@@ -52,6 +52,14 @@ public sealed record EvalCaseInput
     public IReadOnlyList<string> ExpectedTools { get; init; } = [];
 
     /// <summary>Text to give the model as extra context.</summary>
+    /// <remarks>
+    /// The agent receives it through the document channel, ahead of the query,
+    /// and the evaluator receives it as the case's context. Plain text goes as
+    /// one document named <c>context</c>. A promoted case stores the run's
+    /// documents here as document channel blocks, and each block goes back as
+    /// its own document; send the text back unchanged to keep that. See
+    /// <c>EvalCase.Context</c>.
+    /// </remarks>
     public string? Context { get; init; }
 
     /// <summary>

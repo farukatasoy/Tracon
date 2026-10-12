@@ -64,8 +64,10 @@ public sealed class TenantCoverageTests
              "TryClaimThresholdNotificationAsync"],
         ["SqlRetentionPolicyStore"] =
             ["ListPoliciesAsync", "GetPolicyAsync", "SavePolicyAsync", "DeletePolicyAsync", "CreateRunAsync", "ListRunsAsync"],
+        // ArchiveBatchAsync: RetentionStoreContract.Archive_batches_delete_only_the_rows_they_archived
+        // archives and deletes tenant A while tenant B's row stays.
         ["SqlRetentionStore"] =
-            ["CountOlderThanAsync", "ReadForArchiveAsync", "DeleteBatchAsync", "FindRowLimitCutoffAsync"],
+            ["CountOlderThanAsync", "ReadForArchiveAsync", "DeleteBatchAsync", "ArchiveBatchAsync", "FindRowLimitCutoffAsync"],
         ["SqlRunScoreStore"] = ["UpsertAsync", "ListAsync", "DeleteAsync", "SummarizeAsync"],
         // 🚨 Four write paths moved from exempt to covered on 2026-08-08
         // (K-355): AppendEventAsync, CompleteRunAsync, UpdateRunCostAsync and

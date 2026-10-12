@@ -34,6 +34,21 @@ public abstract class RetentionStoreContract : StoreCancellationContract<IRetent
     /// <returns>The completion task.</returns>
     protected abstract ValueTask SeedOldRowAsync(string tenantId);
 
+    /// <summary>
+    /// Writes a row like <see cref="SeedOldRowAsync(string)"/> that started at
+    /// <paramref name="startedAt"/>.
+    /// </summary>
+    /// <param name="tenantId">The tenant that owns the row.</param>
+    /// <param name="startedAt">When the row started; older than the cutoff date.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// The default ignores <paramref name="startedAt"/> and calls
+    /// <see cref="SeedOldRowAsync(string)"/>. Override it: the archive case
+    /// writes rows whose time order is the reverse of their write order, and
+    /// that is the order that shows a delete which does not follow the archive.
+    /// </remarks>
+    protected virtual ValueTask SeedOldRowAsync(string tenantId, DateTimeOffset startedAt) => SeedOldRowAsync(tenantId);
+
     /// <summary>A cutoff date newer than all seeded rows.</summary>
     private static DateTimeOffset Cutoff { get; } = new(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -108,6 +123,61 @@ public abstract class RetentionStoreContract : StoreCancellationContract<IRetent
     }
 
     [Fact]
+    public async Task Archive_batches_delete_only_the_rows_they_archived()
+    {
+        // 🚨 F-372: archive mode read a batch in time order and then deleted a
+        // batch in no order. With more matching rows than one batch, the two
+        // sets differ: rows that were never archived were deleted. The rows are
+        // written newest first, so their time order is the reverse of their
+        // write order.
+        const int BatchSize = 3;
+        const int RowCount = (2 * BatchSize) + 1;
+        var newest = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        for (var i = 0; i < RowCount; i++)
+        {
+            await SeedOldRowAsync(TenantA, newest.AddMinutes(-i));
+        }
+
+        await SeedOldRowAsync(TenantB);
+
+        var archived = new List<string>();
+
+        while (true)
+        {
+            var (rows, deleted) = await ArchiveOneBatchAsync(BatchSize);
+            archived.AddRange(rows.Select(static row => row.Json));
+            deleted.ShouldBeLessThanOrEqualTo(rows.Count, "A batch deleted more rows than it archived.");
+
+            if (deleted < BatchSize)
+            {
+                break;
+            }
+        }
+
+        (await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, TenantA, Cutoff)).ShouldBe(0);
+        archived.Distinct(StringComparer.Ordinal).Count().ShouldBe(RowCount, "A row was deleted without being archived.");
+        (await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, TenantB, Cutoff)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_failed_archive_write_deletes_nothing()
+    {
+        // Data that cannot be archived is not dropped (phase 25 decision): the
+        // archive write runs before the delete, and its failure stops the delete.
+        await SeedOldRowAsync(TenantA);
+
+        await Should.ThrowAsync<InvalidOperationException>(async () => await Store.ArchiveBatchAsync(
+            RetentionTargets.VoiceSessions,
+            TenantA,
+            Cutoff,
+            batchSize: 100,
+            static (_, _) => throw new InvalidOperationException("The archive is not reachable.")));
+
+        (await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, TenantA, Cutoff)).ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Row_limit_threshold_counts_only_the_given_tenant()
     {
         // Two rows for tenant A, one row for tenant B. The "at most 2 rows"
@@ -120,6 +190,26 @@ public abstract class RetentionStoreContract : StoreCancellationContract<IRetent
 
         (await Store.FindRowLimitCutoffAsync(RetentionTargets.VoiceSessions, TenantA, maxRows: 3)).ShouldBeNull();
         (await Store.FindRowLimitCutoffAsync(RetentionTargets.VoiceSessions, TenantA, maxRows: 2)).ShouldNotBeNull();
+    }
+
+    /// <summary>Archives and deletes one batch the way the retention run does.</summary>
+    private async Task<(IReadOnlyList<ArchiveRow> Rows, int Deleted)> ArchiveOneBatchAsync(int batchSize)
+    {
+        var rows = new List<ArchiveRow>();
+
+        var deleted = await Store.ArchiveBatchAsync(
+            RetentionTargets.VoiceSessions,
+            TenantA,
+            Cutoff,
+            batchSize,
+            (batch, _) =>
+            {
+                rows.AddRange(batch);
+
+                return ValueTask.CompletedTask;
+            });
+
+        return (rows, deleted);
     }
 
     [Fact]

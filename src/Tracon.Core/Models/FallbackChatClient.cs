@@ -488,9 +488,40 @@ internal sealed class FallbackChatClient : DelegatingChatClient
         FallbackSkipReason reason,
         CancellationToken cancellationToken)
     {
-        TraconRunContext.Current?.FallbackAttribution?.Record(usedLink.Provider, usedLink.Model);
+        var scope = TraconRunContext.Current;
 
-        if (TraconRunContext.Current?.Writer is not { } writer)
+        // 🚨 F-360. A side-channel call (the compaction summarizer, an aiJudge
+        // judge) runs inside the run's scope on a binding of its own. Its
+        // fallback is that call's, not the run's: writing the run's attribution
+        // made runs.model_id name the judge's fallback model, priced the agent's
+        // own tokens at it, and wrote a ModelFallbackUsed event the agent's model
+        // never caused. The side channel learns the answering model here and
+        // prices its own share at it.
+        if (scope?.SideChannelFallback is { } sideChannel)
+        {
+            sideChannel.Record(usedLink.Provider, usedLink.Model);
+
+            // The run's event stream no longer carries this fallback, so the
+            // log is where an operator sees that a side channel's primary failed.
+            var logger = _loggerFactory?.CreateLogger("Tracon.ModelProvider");
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "A side-channel model call fell back from {PrimaryProvider}/{PrimaryModel} to {FallbackProvider}/{FallbackModel} ({Reason}). The run's own model is unchanged.",
+                    _primaryBinding.Provider,
+                    _primaryBinding.Model,
+                    usedLink.Provider,
+                    usedLink.Model,
+                    reason.ToWireValue());
+            }
+
+            return;
+        }
+
+        scope?.FallbackAttribution?.Record(usedLink.Provider, usedLink.Model);
+
+        if (scope?.Writer is not { } writer)
         {
             return;
         }

@@ -97,7 +97,11 @@ function CaseEditor({
       </Field>
       <div className="sm:col-span-2">
         <Field label={t('agentEditor.context')} hint={t('evals.contextHint')}>
-          <TextInput
+          {/* Multi-line on purpose: a promoted case keeps the run's documents
+              here as line-based blocks, and a single-line input drops the line
+              breaks on the first edit (F-343). */}
+          <TextArea
+            rows={3}
             value={evalCase.context ?? ''}
             onChange={(event) => onChange({ ...evalCase, context: event.target.value || null })}
           />

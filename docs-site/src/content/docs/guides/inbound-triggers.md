@@ -99,6 +99,12 @@ a queued agent run. For an agent target, the response also carries `runId`;
 poll `GET /api/runs/{runId}` for the outcome. For a workflow target, `runId`
 is `null` until the queued job runs — poll `GET /api/jobs/{jobId}` instead.
 
+The queued run carries the user and labels your `IRunAttributionContext`
+resolves for the accept request — for example labels read from a header the
+sender sets. An attribution that breaks a label limit is a `400`, as on every
+endpoint that starts a run
+([run attribution](/concepts/runs/#who-ran-it-and-for-what)).
+
 ```json
 {
   "runId": "01a01890-1652-7183-9d50-6efd430644a3",

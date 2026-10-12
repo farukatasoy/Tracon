@@ -268,7 +268,8 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             // synchronous caller), the status label follows the same principle: an answered
             // run STAYS in this state (K-014, the same principle as RunStatus.AwaitingInput).
             // Writing a row into the `pending_approvals` store is a separate decision and
-            // DID NOT CHANGE (K-372) - only the queue path (AgentRunJobHandler) writes it;
+            // DID NOT CHANGE (K-372) - only the queue path writes it (the queued-run,
+            // approval-resume and continuation handlers, through QueuedTurn, F-370);
             // this change does not reopen the risk of a double decision race.
             if (start.Scope.Depth == 0 &&
                 ChildRunApproval.CollectRequests(response.Messages) is { Count: > 0 } pendingRequests)

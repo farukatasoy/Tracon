@@ -164,7 +164,7 @@ is the list.
 | Idempotency | `Idempotency-Key` | Same tenant, operation, and key return the stored response instead of running twice |
 | Singleton execution | `Tracon:SingletonExecution` | A distributed lease selects one active executor for singleton services |
 | Run reconciliation | `Tracon:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
-| Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound run resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat` |
+| Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound agent run at the root of its tree resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat`; a workflow run is resumed from its checkpoints instead |
 | Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` or `options.RetryPolicy` | A transient provider error retries a single node without failing the run or costing an extra super-step |
 | Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 
@@ -874,11 +874,21 @@ order and does not change which case is which. `expectedOutput` reaches `contain
 a case also carries an `expectedTools` field for record-keeping, but the tool names a
 `toolCalled` check verifies come from the suite's own check definition, shown above.
 
+A case's `context` is reference text for the agent. It reaches the agent through the
+[document channel](/concepts/governance/#the-document-channel), ahead of the query —
+the messages a run with `documents` sends. Plain text goes as one document named
+`context`. Text made only of document blocks (`-----BEGIN TRACON DOCUMENT-----` …
+`-----END TRACON DOCUMENT-----`), which is what a promoted run's documents become, goes
+back as one document per block, unchanged. The evaluator receives the same text as the
+case's context, for checks that judge an answer against reference material.
+
 For an agent that declares [parameters](/concepts/agents/#parameters), a case's own
 `parameters` field supplies the values that run's instructions bind against. A case
 missing a value the agent requires fails outright, with a reason naming which
 parameter is missing — the same check `POST /api/agents/{name}/run` applies, so a
 case that would fail in production fails here too, before any model call is made.
+The case run records the values it was bound with, defaults included, as every other
+run does.
 
 Running a suite queues a job. Each case runs in its own fresh session against the
 agent and produces its own run row, so a failing check can be traced to the exact
@@ -962,11 +972,34 @@ The eval run screen carries the same comparison, with a baseline picker and the
 `Regressed` group open by default.
 
 Cases can also be **promoted from a real run** — a production conversation that went
-wrong becomes a regression case in one request. The query comes from the run's
-`RunStarted` event, so failed and sessionless runs can be promoted. A run from a
-multi-turn session is accepted only when it has no previous turn; otherwise a single
-query cannot represent the conversation that produced the answer. Promoting the same
-run twice returns the existing case rather than duplicating it.
+wrong becomes a regression case in one request:
+
+```bash
+curl -X POST http://localhost:5081/tracon/api/evals/support/cases/from-run/$RUN_ID
+```
+
+Promotion copies the run's recorded input, so the case's run sends the agent the
+messages the production run sent: the request's whole text becomes `query`, the
+documents it carried become `context`, and the parameter values it was bound with become
+`parameters`. Failed and sessionless runs can be promoted too. Promoting the same run
+twice returns the existing case rather than duplicating it.
+
+A promotion refuses rather than build a case that leaves part of the run's input
+behind:
+
+| Answer | When |
+|---|---|
+| `409` | The run's session has an earlier turn — a single query cannot represent the conversation that produced the answer |
+| `422` | The request carried an attachment or other non-text content, or the recorded input holds a message besides the documents and the request |
+| `422` | The input was not recorded and the run carried documents |
+| `422` | No request text can be read, for example a run that sent only documents |
+
+When no input was recorded — `RunRecording:RecordRunInput` was off, or retention
+removed the record — the query comes from the run's `RunStarted` event instead, and
+that is the query only. Its text is cut at `RunRecording:MaxPayloadLength` (8,192
+characters by default); a cut query keeps the `…[truncated]` marker, so the case shows
+it is incomplete and you can correct it in the case list. The promotion's audit entry
+(`eval.case.promoted`) records which source was used and whether the query was cut.
 
 ## Online evaluation
 
@@ -1712,6 +1745,14 @@ When a policy has `archive: true`, cleanup first sends its batch to the register
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
 growth for protection from silent data loss.
 
+An archiving run deletes exactly the rows it sent to the sink, and only after the
+sink returns. If the sink throws, nothing in that batch is deleted. A row that
+changes between the read and the delete (for example, a session that is used again)
+stays, and a later run archives it again, so your sink can receive the same row more
+than once. If you write your own `IRetentionStore`, override `ArchiveBatchAsync`: its
+default reads and deletes in two separate calls, which can delete a row that was never
+archived. `RetentionStoreContract` in `Tracon.Testing.Contracts.Xunit` checks this.
+
 The `attachments` target deletes only **orphaned** attachments: those with no
 session id, or whose session id has no owner in the same tenant. An owner is a
 session, or a [workflow](/concepts/workflows/#checkpoints) run with that session id
@@ -1778,9 +1819,13 @@ A bare `DELETE` previews the row counts per target and deletes nothing.
 `?dryRun=false` is required to actually erase.
 :::
 
-Erasure removes the session, run, conversation, attachment, score, and voice-session
-rows that belong to the subject — including summarized conversation messages, which
-retention otherwise keeps forever. It never touches the audit trail: an audit record
+Erasure removes the session, run, conversation, attachment, score, voice-session, and
+[workflow checkpoint](/concepts/workflows/#checkpoints) rows that belong to the
+subject — including summarized conversation messages, which retention otherwise keeps
+forever. Checkpoints are matched by the subject's session ids and run ids, and their
+state can hold the subject's own messages. Erasure has no exemption for a run that
+waits for input: retention keeps such a run's checkpoints so the request stays
+answerable, but an erasure deletes the run itself, together with its checkpoints. It never touches the audit trail: an audit record
 is "who did what", not the subject's own data, and stays intact and verifiable after
 an erasure. The erasure itself **is** written there, with the row count per target; if
 that write fails, the whole erasure rolls back.
@@ -1793,7 +1838,9 @@ bytes are gone, the rows stay and point at nothing; repeating the request finish
 the erasure. A preview (`dryRun`) never touches the bytes.
 
 Export returns every matching row, keyed by target, as one JSON document.
-Attachment file bytes are not included — only their metadata.
+Attachment file bytes are not included — only their metadata. A workflow checkpoint's
+`state` is the framework's own serialized format: export returns it as the stored
+JSON text (a string), the same way it returns session state.
 
 ## Content protection
 
@@ -1955,6 +2002,14 @@ names of both header maps enter the audit trail; no header value does. Delivery 
 that it was queued, not how it went. The delivery history has one entry per event
 carrying the latest status and attempt count — retries update that entry rather than
 adding rows.
+
+A delivery your receiver accepted with a `2xx` is not sent again because Tracon could
+not record the result. Tracon tries the result writes again for a third of the job
+lease; a write that still fails is logged with a reference, and the history entry
+keeps its earlier status. A retry of the job that finds the entry already `Delivered`,
+`Failed`, or `Dropped` sends nothing. Delivery is still at-least-once: a worker that
+stops between the send and the record can send the same event twice, so deduplicate
+on the `X-Tracon-Delivery` header, which carries the delivery id.
 
 Address validation happens inside the socket connect callback, so the address
 validated is the address connected to. See
@@ -2135,7 +2190,9 @@ A run can spend tokens on more than one model: the context compaction
 summarizer and the judge of an `aiJudge` loop criterion can run on models of
 their own. Their tokens are in the run's `usage`, and the tenant's quota
 consumes the same total. Each model's share is priced at that model's own price,
-and `cost` is the sum of the shares. Such a cost carries no unit price — the
+and `cost` is the sum of the shares. When the summarizer's or the judge's binding
+falls back, its share is priced at the fallback model that answered, and
+`modelId` still names the agent's model. Such a cost carries no unit price — the
 three per-million fields are `null`, because one rate cannot describe a total
 that several rates produced. A model with no price adds nothing to `cost`; its
 tokens are not priced at the agent's rate. When no model of the run has a price,
@@ -2322,13 +2379,17 @@ pipeline:
 public sealed class ClaimsRunAttributionContext(IHttpContextAccessor accessor)
     : IRunAttributionContext
 {
-    public string? UserId =>
-        accessor.HttpContext?.User.FindFirst("sub")?.Value;
+    // Outside a request there is no HttpContext: read the ambient scope, which
+    // is how a queued or scheduled run gets the identity it was queued with.
+    public string? UserId => accessor.HttpContext is { } http
+        ? http.User.FindFirst("sub")?.Value
+        : AmbientRunAttributionScope.CurrentUserId;
 
-    public IReadOnlyDictionary<string, string>? Labels =>
-        accessor.HttpContext?.Request.Headers.TryGetValue("X-Job", out var job) == true
+    public IReadOnlyDictionary<string, string>? Labels => accessor.HttpContext is { } http
+        ? http.Request.Headers.TryGetValue("X-Job", out var job)
             ? new Dictionary<string, string> { ["job"] = job.ToString() }
-            : null;
+            : null
+        : AmbientRunAttributionScope.CurrentLabels;
 }
 
 // Registered BEFORE AddTracon(); Tracon uses TryAdd, so yours wins.
@@ -2337,7 +2398,8 @@ builder.Services.AddSingleton<IRunAttributionContext, ClaimsRunAttributionContex
 
 Register nothing and nothing changes: both columns stay `NULL` and no behaviour
 differs. For work that runs outside a request — a queued job, a scheduled run, a
-direct .NET call — use the ambient scope instead:
+direct .NET call — use the ambient scope instead. The built-in context reads it; a
+context of your own reads it only if it falls back to it, as the one above does:
 
 ```csharp
 using (AmbientRunAttributionScope.Begin("user-42", labels: null))
@@ -2362,6 +2424,20 @@ their own error shape).
 A workflow run carries its attribution the way an agent run does: its row, the
 `TraconRunContext.Current.UserId` and `Labels` every node and tool of the
 workflow reads, and the run and user a `quota.threshold` webhook names.
+
+A queued agent run (`Prefer: respond-async`) reads the user and the labels when
+the request arrives, and both travel with the job, so the run's sub-agents and
+tools see them on the worker. A run that resumes after an approval decision, or
+that continues an interrupted run, runs under the user and labels of the run it
+continues. On the worker, Tracon replays these values through
+`AmbientRunAttributionScope`, which the built-in `IRunAttributionContext` reads.
+A context you register yourself reads them only if it asks: when there is no
+request, return `AmbientRunAttributionScope.CurrentUserId` and `CurrentLabels`.
+
+A run an inbound trigger starts, and a workflow or agent batch queued through
+`IJobDispatcher`, also carry the user and labels resolved when they were queued. A
+schedule has no caller: its runs carry the attribution its payload names, or none
+([schedule payloads](/guides/background-work/#attribute-the-runs-a-schedule-starts)).
 
 :::caution
 Labels and user ids are **query** dimensions, not **metric** dimensions. They
@@ -2539,8 +2615,9 @@ with `tracon.job.unknown-handler-key`, and the key itself is written to the
 log rather than to `errorMessage`, for the same reason a foreign exception's
 text is: the key may have come from an untrusted source, and that field is read
 back over HTTP. A job whose worker died and whose attempt limit is used up fails
-with `tracon.job.attempts-exhausted`. Match on the code, never on the sentence
-around it.
+with `tracon.job.attempts-exhausted`. A queued run whose turn finished but whose
+session could not be saved fails with `tracon.job.session-save-failed`; the model
+is not called again. Match on the code, never on the sentence around it.
 
 ## Replay and comparison
 
@@ -3188,19 +3265,20 @@ It is off by default and can only be turned on in code, with a mandatory
 acknowledgement flag, an interpreter allowlist that starts empty, and skill roots
 given in code.
 
-Every execution passes six gates in order, and if any is closed the process never
-starts:
+Every execution passes five gates in order, and if any is closed the process never
+starts. After the fifth gate the call waits for a free slot under the concurrency
+quota; the quota delays a script, it never refuses one:
 
 ```mermaid
 flowchart LR
     accTitle: Skill script security gates
-    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, argument validation, the audit write, and the concurrency quota all pass in order.
+    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, argument validation and the audit write all pass in order; it then waits for a free slot under the concurrency quota.
     G1["1. enabled"] --> G2["2. valid grant<br/>pinned to this content"]
     G2 --> G3["3. extension on the<br/>interpreter allowlist"]
     G3 --> G4["4. argument size<br/>and schema"]
     G4 --> G5["5. written to<br/>the audit trail"]
-    G5 --> G6["6. concurrency quota"]
-    G6 --> RUN["separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
+    G5 --> Q["waits for a slot<br/>(concurrency quota)"]
+    Q --> RUN["separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
 ```
 
 :::danger[Gate five is an exception to an exception]
@@ -3372,6 +3450,19 @@ new WorkflowDefinition
 other. Only `Sequential` supports function nodes: the ready-made builders for
 the other four patterns accept only agents.
 
+Each node must take what the node before it passes on. An agent node takes and passes
+on a `List<ChatMessage>`, and a run starts by sending the user's message as one, so the
+first node must take a `List<ChatMessage>` too. A function's types are the two type
+arguments of its registration (`inputType` and `outputType` on
+`GET /api/workflows/functions`). A node that takes a wider type, such as
+`IEnumerable<ChatMessage>` or `object`, accepts the narrower one; a function that
+declares `object` as its output is not checked against the next node. Saving a chain
+that breaks this answers `400` and names both nodes and both types: Microsoft Agent
+Framework drops a message that no handler takes, without an error, so the chain would
+end every run `Completed` with no output. A run of a chain stored before this check,
+or after a deployment changed a function's types, fails before its first node runs and
+says the same.
+
 The console builds such a chain too: **Workflows → New workflow**, then *Add an agent*
 and *Add a function*, which picks from the functions registered in code. The arrows
 reorder the steps and ✕ removes one. The function picker appears only for `Sequential`,
@@ -3418,14 +3509,14 @@ voice, a loudness target, a destination folder. Register it with a settings type
 operator fills in the values on each workflow's node:
 
 ```csharp
-tracon.AddWorkflowFunction<string, AudioClip, TtsSettings>(
+tracon.AddWorkflowFunction<List<ChatMessage>, AudioClip, TtsSettings>(
     "tts",
     services =>
     {
         var speech = services.GetRequiredService<ITextToSpeech>();
 
-        return (text, settings, context, cancellationToken) =>
-            speech.SpeakAsync(text, settings.Voice, settings.LoudnessLufs, cancellationToken);
+        return (messages, settings, context, cancellationToken) =>
+            speech.SpeakAsync(messages[^1].Text, settings.Voice, settings.LoudnessLufs, cancellationToken);
     },
     options => options.Description = "Text to speech");
 
@@ -3614,12 +3705,16 @@ the workflow progresses. The response also carries MAF's generated Mermaid text.
 
 A workflow run's `error` follows the [same redaction rule as an agent
 run](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from): a
-node failure from your own code keeps its message, a failure from a provider,
-library, or transport carries only its exception type and a correlation id.
+node that throws a `TraconException` keeps its message. Any other exception —
+your own node's included — carries only its exception type and a correlation id,
+and its message goes to the server log under the same id. Throw a
+`TraconException` when a node's message is meant for the person reading the run.
 
 A workflow run ends `Canceled` only when the run was actually cancelled — the
-caller's request going away, the workflow's own `MaxDuration` elapsing, or
-`Tracon:Workflows:RunTimeout` being reached. A node whose model or tool call
+caller's request going away, `POST /api/runs/{id}/cancel`, or
+`Tracon:Workflows:RunTimeout` being reached. The call-tree budget's
+`AgentGraph.MaxDuration` is not one of these: a step it refuses ends the run
+`Failed` with `run_budget_exceeded` (see below). A node whose model or tool call
 never came back ends the run `Failed` instead, even though .NET surfaces an
 `HttpClient` timeout as a `TaskCanceledException`. The same holds for the steps
 around the graph: an agent catalog that times out while the workflow resolves, and
@@ -3663,6 +3758,15 @@ from the latest.
 
 Resuming opens a **new** run. The original is never rewritten, so "what happened, then
 what we did about it" stays two readable records rather than one edited one.
+
+A workflow run whose process stopped is closed as `Failed` by
+[run reconciliation](/guides/reliability/#reconcile-runs-left-behind-by-a-crash), like
+any other orphaned run. Automatic run continuation does not pick it up, and does not
+pick up any of its steps: continuation repeats an agent turn, and a workflow run is
+not one. With continuation on, the run's event stream records a
+`RunContinuationBlocked` event that names the call to make instead,
+`POST /api/workflows/runs/{runId}/resume`. Resuming from the latest checkpoint repeats
+the step the stop cut short, so the idempotency rule for function nodes above applies.
 
 Checkpoints survive a process restart only with a SQL provider registered
 (`UsePostgreSql()`, `UseSqlServer()`, or `UseSqlite()`). The in-memory store keeps at
@@ -3722,6 +3826,15 @@ only a run in `AwaitingInput` has any. The answer is matched to the request that
 re-published with the same id when execution resumes. A very long prompt is cut at
 the event payload limit (`RunRecording:MaxPayloadLength`) and marked
 `…[truncated]`; the request is still listed and can still be answered.
+
+The answer must fit the request's `form`: `approved` for `Boolean`, `text` for `Text`,
+`data` that reads into the port's response type for `Json`, and for `PlanReview`
+either an approval or `approved: false` with the revision in `text`. An answer that
+does not fit is refused with `400` before anything runs, and no new run opens. The
+detail names the port and the missing or unreadable field. A request recorded by
+Tracon 1.0.0-preview.3 or earlier does not carry its response type's assembly: for it,
+a `data` value that does not read into the type is still reported on the stream, as a
+failed run.
 
 This is the same append-only shape as tool approvals: the waiting run stays as it was,
 and the response opens a new one.
@@ -4322,7 +4435,9 @@ Database policies take precedence. When no database policy exists and
 `Tracon:Retention:Enabled` is true, configuration falls back to built-in target
 defaults, such as 30 days for run events and 14 days for spans. With retention
 disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
-`IArchiveSink` is registered; data loss is the failure mode the worker avoids.
+`IArchiveSink` is registered; data loss is the failure mode the worker avoids. With a
+sink, each batch deletes only the rows the sink received — see
+[Retention](/concepts/governance/#retention).
 
 Cleanup runs through the job queue. Preview a policy before you execute it:
 
@@ -4335,9 +4450,9 @@ curl -X POST 'http://localhost:5081/tracon/api/retention/run'
 
 A durable `audit_log` can be **verified**: `GET /api/audit/verify` walks a
 hash chain and reports whether any entry was altered or deleted after it was
-written. And because sessions, runs, and conversations are real rows now, a data
-subject's content can be found and erased by identity, not just aged out — see
-[Data subject rights](/concepts/governance/#data-subject-rights).
+written. And because sessions, runs, conversations, and workflow checkpoints are real
+rows now, a data subject's content can be found and erased by identity, not just aged
+out — see [Data subject rights](/concepts/governance/#data-subject-rights).
 
 Both endpoints accept an optional `tenantId` filter; leaving it out never means
 "every tenant" — it resolves to the caller's own ambient tenant. A custom
@@ -5154,6 +5269,16 @@ The run that asked for approval stays `AwaitingApproval` — it is finished. The
 continuation is a separate run in the same session, so a client watching for a
 result should follow the session rather than the original run id.
 
+The continuation can ask for approval again, for example for the next tool in a
+chain. It then ends `AwaitingApproval` too, and its request appears in
+`GET /api/approvals/pending` like the first one; decide it the same way and the
+chain goes on. A run that [run reconciliation](#singleton-services-and-orphaned-run-recovery)
+continues after a crash puts its requests in the same list.
+
+The continuation runs under the user and labels of the run that asked for
+approval, so its tools and sub-agents see the same attribution. The person who
+decided is recorded in the audit trail, not as the run's user.
+
 The continuation runs on the agent version of the run that asked for approval and
 counts in the same experiment arm. This stays true when someone saves a new version
 while the approval waits: the tool call and its answer are one turn. A code agent
@@ -5184,6 +5309,19 @@ short database outage neither fails a finished run nor runs it a second time. On
 a write that keeps failing until the lease is about to run out leaves the job to
 lease expiry, and with one attempt that fails it with
 `tracon.job.attempts-exhausted`.
+
+The session the run saves is part of the same turn, and the same rule applies to
+it: a store error on the session save is tried again under the lease, and the model
+is not called again. If the save still fails, the job fails with
+`tracon.job.session-save-failed` on that attempt, whatever its attempt limit, and
+the run keeps the status the turn gave it.
+
+Two built-in handlers apply the same rule to their own last write. An eval run whose
+cases have all run is not marked `Failed` because the write that closes it failed:
+the handler tries that write again for a third of the lease, and if it still fails,
+the next attempt of the job runs no case again and only repeats the write. A webhook
+delivery the receiver accepted is not sent again because its result could not be
+written ([webhooks](/concepts/governance/#webhooks)).
 
 ## Create a recurring schedule
 
@@ -5242,6 +5380,38 @@ A stored item is text, and a plain-text item whose content happens to be a JSON 
 with a string `message` member is read as structured. Quote or reshape such text if it
 is ever a real input.
 :::
+
+### Attribute the runs a schedule starts
+
+A schedule has no caller when it fires, so its runs carry no
+[user or labels](/concepts/runs/#who-ran-it-and-for-what) unless the payload names
+them. For `tracon.workflow` and `tracon.agent-batch`, wrap the items in an envelope —
+an object whose only members are `items`, `userId`, and `labels`:
+
+```json
+"payload": {
+  "items": [ "Summarize yesterday's escalations." ],
+  "userId": "user-42",
+  "labels": { "job": "nightly-digest" }
+}
+```
+
+The items read exactly as a top-level array does, and every run the job starts carries
+that user and those labels; the workflow's nodes and tools read them from
+`TraconRunContext.Current`. The labels obey the same limits as on every run — at most
+8, keys up to 64 characters, values up to 256 — and saving or triggering a schedule
+whose envelope breaks one, or names a member of the wrong type, is a `400`. An object
+with any other member keeps its old meaning: one item. Only the Admin role can write a
+schedule, so the attribution it names is an administrator's statement; Tracon does not
+check it against your identity pipeline. **Trigger now** runs with the schedule's own
+attribution, or with the one the trigger request's payload names, not the caller's.
+
+Work you queue yourself carries an attribution without an envelope. A workflow or agent
+batch queued through `IJobDispatcher` keeps the user and labels `IRunAttributionContext`
+resolves at the time of the call — your request's, or an open
+`AmbientRunAttributionScope`'s with the built-in context — and Tracon writes them into
+the stored payload as this envelope. A workflow an
+[inbound trigger](/guides/inbound-triggers/) starts keeps the accept request's.
 
 `handlerKey` names the handler that runs the jobs this schedule produces. Only
 the keys the server allows over HTTP are accepted —
@@ -5490,15 +5660,25 @@ whose status is no longer `Pending`; see
   the handler does not run again for it. The worker stops a third of the lease
   before the lease it can prove runs out, so its write never lands on another
   worker's attempt; it logs an error, and the job takes the lease-expiry path above.
+- A queued agent turn — a queued run, an approval continuation, a run continuation —
+  saves its session after the model answers. A store error on that save is tried
+  again the same way, and the model is not called again. If the save still fails,
+  the job fails with `tracon.job.session-save-failed`, and the reference in the
+  message names the log entry that carries the cause. A turn that asked for
+  approval saves its session before the approval is listed; when that save fails,
+  its run closes `Failed` with the same code, because an approval without its
+  session cannot be answered.
 - `JobRetryException.RetryAfter` asks the queue to delay the next attempt. Other
   failures can be retried immediately.
 - A missing handler marks the job as failed.
 - Lease-renewal, polling, and dispatch errors are logged; later ticks continue. A
   failed renewal is retried on the next tick, a third of the lease later.
-- Cancellation is cooperative. A running handler sees cancellation between items and
-  must also pass its token to long operations. A cancelled job stays `Cancelled`, even
-  when its handler throws on the way out, and a job cancelled before its handler
-  starts does not start.
+- Cancellation is cooperative, and it reaches a running handler only through
+  `JobContext.IsCancelledAsync`: the built-in handlers check it between items, and a
+  long handler must check it itself. The token `ExecuteAsync` receives is cancelled
+  only when the worker shuts down, so passing it on does not make a cancel request
+  arrive sooner. A cancelled job stays `Cancelled`, even when its handler throws on
+  the way out, and a job cancelled before its handler starts does not start.
 - A batch with both successful and failed items finishes as `Completed`. A batch in
   which every item fails finishes as `Failed`. Inspect item counters, not only the job
   status. An item is recorded as failed only when its own run failed; a store error
@@ -5524,7 +5704,7 @@ idempotent.
 | A job is `Completed` but work is missing | Inspect `failedItems` and the individual item records; mixed-result batches still complete |
 | A schedule never fires | Validate the five-field cron, host time-zone identifier, enabled flag, and next occurrence; remember that daylight-saving gaps are skipped |
 | More jobs run than expected | Multiply `MaxConcurrentJobs` by the number of worker processes |
-| Cancellation takes time | It is a request, not a forced thread abort; pass the cancellation token through every long-running handler operation |
+| Cancellation takes time | It is a request, not a forced thread abort. The handler sees it when it calls `JobContext.IsCancelledAsync`, which the built-in handlers do between items; a long single item runs to its end |
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
 | A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |
@@ -7559,6 +7739,12 @@ a queued agent run. For an agent target, the response also carries `runId`;
 poll `GET /api/runs/{runId}` for the outcome. For a workflow target, `runId`
 is `null` until the queued job runs — poll `GET /api/jobs/{jobId}` instead.
 
+The queued run carries the user and labels your `IRunAttributionContext`
+resolves for the accept request — for example labels read from a header the
+sender sets. An attribution that breaks a label limit is a `400`, as on every
+endpoint that starts a run
+([run attribution](/concepts/runs/#who-ran-it-and-for-what)).
+
 ```json
 {
   "runId": "01a01890-1652-7183-9d50-6efd430644a3",
@@ -8407,8 +8593,10 @@ was actually cancelled.
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
-`TraconContentFilteredException` itself. Throwing instead makes the circuit
-breaker count a healthy provider as failing. And a `TraconException` thrown
+`TraconContentFilteredException` itself. Throwing instead leaves the decision to
+your exception: one with no readable HTTP status counts against the provider's
+circuit as a connection failure does, so a healthy provider can look like it is
+failing. And a `TraconException` thrown
 from `CreateChatClient` is wrapped as a compilation error naming the agent, while
 every other exception propagates raw — so use it for configuration or binding
 problems the host author can act on.
@@ -10630,9 +10818,18 @@ an open circuit do not reach the provider and throw
 `TraconProviderUnavailableException`; its `ProviderName` and `RetryAfter` tell an
 HTTP or job caller when recovery can be tried.
 
-A successful provider call resets the consecutive failure count. Caller cancellation
-and `TraconContentBlockedException` do not count as provider failures. Other
-provider-client failures do. After the break duration, new calls can probe recovery;
+A successful provider call resets the consecutive failure count. Only a failure that
+shows the provider is unhealthy counts: no connection, a timeout, a `5xx`, `408` or
+`429` response, or a `401`/`403`, because a rejected key fails every caller in the
+same way. Any other permanent `4xx`, for example a `400` or a `404`, rejects the
+request and not the provider, so it does not count. On a setup-time key that several
+tenants share, one tenant's bad requests therefore cannot open the circuit for the
+others. A failure that starts inside Tracon does not count either: caller
+cancellation, `TraconContentBlockedException`, an exhausted run budget, a missing
+attachment, or a tool failure. The status is read from
+`HttpRequestException.StatusCode` or from an `HTTP nnn` exception message, the same
+rule the fallback chain uses; a failure whose status cannot be read counts as a
+connection failure does. After the break duration, new calls can probe recovery;
 a successful probe closes the circuit.
 
 | Setting | Default | Validation |
@@ -10667,9 +10864,13 @@ empty:
 }
 ```
 
-A fallback link carries only a provider and a model name — none of the primary
-binding's temperature, `maxOutputTokens`, or `providerSettings` carry over. Give
-the fallback model its own settings through a separate agent if it needs them.
+A fallback link names only a provider and a model. The fallback call gets the
+same request options as the primary call — `temperature`, `topP`,
+`maxOutputTokens`, `responseFormat` and the tools — with only the model name
+replaced, so a structured-output agent keeps its schema on the fallback model.
+The primary binding's `providerSettings` do not carry over: they configure the
+primary provider's client. If the fallback model needs its own provider settings,
+or rejects one of the primary's sampling settings, give it a separate agent.
 
 The chain tries the next link only for a transient failure: the local circuit
 already open, a `5xx`/`429` response, or a bare connection error. It never falls
@@ -10688,6 +10889,13 @@ A fallback switch is never silent. The run record gets a `ModelFallbackUsed`
 event naming the primary and fallback bindings, and cost and the `runs.model_id`
 column both reflect the model that actually answered — not the primary
 binding. `RunStatistics.ByModel` groups by the real model too.
+
+This applies to the agent's own model binding. The context compaction summarizer
+and the judge of an `aiJudge` loop criterion call models on bindings of their own,
+and those bindings can have fallbacks too. When one of them falls back, the run
+keeps the agent's model and gets no `ModelFallbackUsed` event; that call's tokens
+are priced at the fallback model that answered, and the switch is logged on the
+`Tracon.ModelProvider` category.
 
 If every link in the chain fails, the error surfaces the **first** failure, not
 the last one — the root cause across a chain of transient errors is more useful
@@ -10854,6 +11062,14 @@ safe to repeat — typically because it carries its own idempotency key — opts
 one tool back in when registering it. A run with no session, or one whose chain has
 already reached `MaxAttempts`, is never continued.
 
+Only an agent turn at the root of its run tree is continued. A workflow run is resumed
+from its checkpoints instead: it stays `Failed`, and its event stream records a
+`RunContinuationBlocked` event that names `POST /api/workflows/runs/{runId}/resume`
+(see [Checkpoints](/concepts/workflows/#checkpoints)). A sub-run — a workflow step or a
+callable agent's run — is not continued on its own either. It carries its root's
+session and nothing waits for its answer, so it stays `Failed` with the same kind of
+event, and the run at the root of its tree is the one that is continued or resumed.
+
 The new run's record links back to the interrupted one, so an operator reading the
 run tree can see that a run continued another rather than starting fresh.
 
@@ -10984,7 +11200,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 | Two nodes perform the same periodic scan | Confirm singleton execution is enabled and backed by the same SQL database; in-memory leases are process-local |
 | A cancel request returns `409` | The run is terminal, the live owner restarted, or the request reached another node |
 | A child call is refused | Inspect depth, child-run count, and total-token budget on the root tree |
-| An orphaned run never continues | Confirm `RunContinuation.Enabled` and `RunReconciliation.Enabled` are both on, the run had a session, and its chain has not already reached `MaxAttempts` |
+| An orphaned run never continues | Confirm `RunContinuation.Enabled` and `RunReconciliation.Enabled` are both on, the run had a session, and its chain has not already reached `MaxAttempts`. A workflow run or a sub-run is never continued: read its `RunContinuationBlocked` event, and resume a workflow run with `POST /api/workflows/runs/{runId}/resume` |
 | A continuation stops instead of finishing | A tool it called has no recorded result and no matching arguments in the new turn; check the tool's argument stability, or whether its effect blocks continuation entirely |
 | A run request returns `503` right after a deploy | The process is draining; retry shortly, or lower `Drain.Timeout` if deploys should not wait this long |
 
@@ -18137,7 +18353,9 @@ that takes the JSON for the function's settings type, with the fields it takes l
 under it. Save is disabled while that text is not JSON; whether the object fits the
 function is the server's answer, which names the node and the member and shows above the
 form. Settings are stored with the workflow and shown to everyone who can read it, so
-the field says not to put a secret there.
+the field says not to put a secret there. The server also refuses a chain whose step
+cannot take what the step before it passes on (see
+[Function nodes](/concepts/workflows/#function-nodes)); that answer names both steps.
 
 Before a save that changes the chain, the editor says what it is about to do. It stores a
 chain that holds a function as a node list and a chain without one as a plain agent list,
@@ -18151,7 +18369,9 @@ resumes execution from the checkpoint as a new run. The card opens for any waiti
 run, wherever it started — over HTTP, from a job, or in another tab: follow the
 **workflow screen** link on its run page, or open `workflows/<name>?runId=<run id>`.
 The answered run keeps its *awaiting input* status and its request, so answering it
-a second time starts a separate branch.
+a second time starts a separate branch. An answer that does not fit the request — a
+`Json` request's text that does not read into the port's type, for example — is refused
+before anything runs, and the screen shows the server's reason.
 
 ## Evals and experiments
 
@@ -18355,8 +18575,9 @@ the record as it was.
 
 - The agent editor supports structured output, harness settings, and compaction. It
   has no control for provider-specific `ProviderSettings`, static `McpResourceUris`,
-  or a Knowledge vector binding. It keeps them as they are; change them through code
-  or the management HTTP API.
+  a Knowledge vector binding, or the harness `loop` (its criteria, iteration limit
+  and failure policies). It keeps them as they are; change them through code or the
+  management HTTP API.
 - The workflow editor keeps a workflow's run parameter schema as it is and has no control
   for it. Change the schema with `PUT /api/workflows/{name}`.
 - A quota's agent and period identify the rule, so they are locked while you edit

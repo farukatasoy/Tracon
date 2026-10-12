@@ -263,15 +263,29 @@ public sealed class ModelProviderCircuitBreakerTests
     }
 
     [Fact]
-    public async Task Wrap_counts_a_failed_call_as_a_failure()
+    public async Task Wrap_counts_a_failed_provider_call_as_a_failure()
     {
+        // The registry puts ProviderFailureTaggingChatClient right above the raw
+        // client; the tag is how the breaker knows the provider itself failed.
         var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 1));
-        var inner = new ThrowingChatClient();
-        using var wrapped = breaker.Wrap(Provider, inner);
+        using var wrapped = breaker.Wrap(Provider, new ProviderFailureTaggingChatClient(new ThrowingChatClient()));
+
+        await Should.ThrowAsync<ForeignProviderInvocationException>(() => wrapped.GetResponseAsync([]));
+
+        breaker.IsOpen(Provider, out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Wrap_does_not_count_a_failure_thrown_above_the_provider()
+    {
+        // F-354: without the provider-boundary tag the failure came from a
+        // Tracon ring or a tool inside the circuit, not from the provider.
+        var breaker = new ModelProviderCircuitBreaker(Monitor(o => o.FailureThreshold = 1));
+        using var wrapped = breaker.Wrap(Provider, new ThrowingChatClient());
 
         await Should.ThrowAsync<InvalidOperationException>(() => wrapped.GetResponseAsync([]));
 
-        breaker.IsOpen(Provider, out _).ShouldBeTrue();
+        breaker.IsOpen(Provider, out _).ShouldBeFalse();
     }
 
     [Fact]

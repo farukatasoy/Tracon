@@ -153,6 +153,7 @@ Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_concurrent_promo
 Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_does_not_separate_sourceless_cases_from_hand_written_ones() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_returns_the_existing_case_the_second_time_for_the_same_source_run_id() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_stores_source_fields_and_expected_fields() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.EvalStoreContract.AddCaseAsync_stores_the_parameter_values_of_a_promoted_run() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.EvalStoreContract.Case_result_is_recorded_and_filtered_by_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.EvalStoreContract.DeleteSuiteAsync_also_deletes_its_cases_and_runs() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.EvalStoreContract.DiffRunsAsync_counts_a_case_recorded_twice_once() -> System.Threading.Tasks.Task!
@@ -336,6 +337,8 @@ Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Saved_policy_is_re
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Saving_the_same_target_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Tenant_specific_record_takes_precedence_over_the_wildcard() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionStoreContract
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.A_failed_archive_write_deletes_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RetentionStoreContract.Archive_batches_delete_only_the_rows_they_archived() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionStoreContract.Archive_read_returns_only_the_given_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionStoreContract.Count_covers_only_the_given_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionStoreContract.Delete_does_NOT_touch_the_others_data() -> System.Threading.Tasks.Task!
@@ -412,6 +415,7 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_does_no
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_marks_a_stale_Running_row_as_Failed() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_never_touches_a_Queued_row() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_reports_ContinuedFromRunId_on_the_claimed_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_reports_the_kind_and_the_tree_position_on_the_claimed_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.CompleteRunAsync_does_not_close_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Completion_leaves_the_model_id_unchanged_when_no_override_is_given() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Completion_leaves_the_model_provider_unchanged_when_no_override_is_given() -> System.Threading.Tasks.Task!
@@ -919,6 +923,7 @@ virtual Tracon.Testing.Contracts.Storage.AuditLogContract.QualifiedAuditLogTable
 virtual Tracon.Testing.Contracts.Storage.AuditLogContract.SupportsRawTamper.get -> bool
 virtual Tracon.Testing.Contracts.Storage.PendingApprovalStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask
 virtual Tracon.Testing.Contracts.Storage.RunInputStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask
+virtual Tracon.Testing.Contracts.Storage.RetentionStoreContract.SeedOldRowAsync(string! tenantId, System.DateTimeOffset startedAt) -> System.Threading.Tasks.ValueTask
 virtual Tracon.Testing.Contracts.Storage.RunStoreContract.CreateScoreStoreAsync() -> System.Threading.Tasks.ValueTask<Tracon.IRunScoreStore?>
 virtual Tracon.Testing.Contracts.Storage.StoreCancellationContract<TStore>.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>

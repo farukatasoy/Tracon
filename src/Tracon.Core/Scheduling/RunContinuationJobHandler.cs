@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -28,6 +29,11 @@ namespace Tracon;
 /// only calls past the interruption point actually run.
 /// </para>
 /// <para>
+/// Only a root agent run is continued (<see cref="RunContinuationEligibility"/>):
+/// a workflow run resumes from its checkpoints, and a sub-run has nobody
+/// waiting for its answer.
+/// </para>
+/// <para>
 /// A code-defined agent (no persistent <see cref="AgentDefinition"/>) cannot
 /// be continued: there is no definition to recompile with the playback
 /// wrapper. The same limit applies to an agent that uses skills or callable
@@ -35,6 +41,14 @@ namespace Tracon;
 /// wrapper never sees, so a completed skill or sub-agent call could not be
 /// told apart from one past the interruption point; continuation is refused
 /// rather than risk a silent repeat.
+/// </para>
+/// <para>
+/// The continued turn runs under the user and labels of the interrupted run,
+/// through <see cref="AmbientRunAttributionScope"/>, so its row, its tools and
+/// its sub-agents carry them. It ends like any queued turn
+/// (<see cref="QueuedTurn"/>): a turn that asks for approval puts the request in
+/// the mailbox after the session is saved, and a store error on that save is
+/// tried again, never the turn.
 /// </para>
 /// </remarks>
 internal sealed class RunContinuationJobHandler(
@@ -44,9 +58,13 @@ internal sealed class RunContinuationJobHandler(
     AgentDefinitionCompiler compiler,
     AgentSessionManager sessions,
     IEnumerable<IAgentDecorator> decorators,
+    IPendingApprovalStore approvalStore,
+    IOptions<TraconOptions> options,
     TimeProvider? timeProvider = null,
     ILogger<RunContinuationJobHandler>? logger = null,
-    ParameterizedAgentFactory? parameterFactory = null) : IJobHandler
+    ParameterizedAgentFactory? parameterFactory = null,
+    IOptionsMonitor<TraconApprovalOptions>? approvalOptionsMonitor = null,
+    IWebhookPublisher? webhookPublisher = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -62,6 +80,38 @@ internal sealed class RunContinuationJobHandler(
 
         var (sourceRunId, continuationRunId) = ParsePayload(context.Job.Payload);
 
+        RunRecord source;
+
+        try
+        {
+            source = await runStore.GetRunAsync(sourceRunId, cancellationToken).ConfigureAwait(false)
+                ?? throw new TraconException(
+                    $"There is no run with id '{sourceRunId}'; it cannot be continued. The job will be marked as failed.");
+
+            // F-344: the reconciler no longer queues a continuation for a workflow
+            // run or a sub-run, but a job queued before that rule - or by hand -
+            // still arrives here. Refused on the kind first: a workflow named like
+            // an agent would otherwise run that agent in the workflow's session.
+            if (RunContinuationEligibility.Refusal(source) is { } refusal)
+            {
+                throw new TraconException($"Automatic continuation was refused: {refusal}");
+            }
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            await FailQueuedRunAsync(continuationRunId, context.Job.TenantId, exception, cancellationToken)
+                .ConfigureAwait(false);
+
+            throw;
+        }
+
+        // 🚨 F-369 class scan: opened in THIS method's own body, before the
+        // session is opened (a session the crash left unsaved is claimed here)
+        // and around the run and its save. Without it the continued turn ran
+        // under no user and no labels: its row, its tools and its sub-agents.
+        var (userId, labels) = QueuedRunAttribution.FromRecord(source);
+        using var attribution = AmbientRunAttributionScope.Begin(userId, labels);
+
         Microsoft.Agents.AI.AIAgent agent;
         Microsoft.Agents.AI.AgentSession session;
         RunInputRecord input;
@@ -73,10 +123,6 @@ internal sealed class RunContinuationJobHandler(
 
         try
         {
-            var source = await runStore.GetRunAsync(sourceRunId, cancellationToken).ConfigureAwait(false)
-                ?? throw new TraconException(
-                    $"There is no run with id '{sourceRunId}'; it cannot be continued. The job will be marked as failed.");
-
             sessionId = source.SessionId
                 ?? throw new TraconException(
                     $"Run '{sourceRunId}' has no session; a sessionless run has no turn to continue.");
@@ -185,6 +231,14 @@ internal sealed class RunContinuationJobHandler(
             throw;
         }
 
+        // F-370 class scan: a continued turn can ask for approval, and nothing
+        // but the mailbox can answer it. Session first, approvals second, both
+        // before AwaitingApproval is published; a store error on the save is
+        // tried again, never the turn (F-367).
+        var turn = new QueuedTurn(
+            sessions, approvalStore, options, approvalOptionsMonitor, webhookPublisher, _clock, logger,
+            context, continuationRunId, agent, session);
+
         await agent.RunAsync(
             input.Messages,
             session,
@@ -197,10 +251,11 @@ internal sealed class RunContinuationJobHandler(
                 Variant = variant,
                 ContinuedFromRunId = sourceRunId,
                 ParameterValues = parameterValues,
+                BeforePendingApprovalIsPublished = turn.BeforePendingApprovalIsPublishedAsync,
             },
             cancellationToken).ConfigureAwait(false);
 
-        await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+        await turn.SaveSessionAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private Microsoft.Agents.AI.AIAgent Decorate(Microsoft.Agents.AI.AIAgent agent, AgentDescriptor descriptor)

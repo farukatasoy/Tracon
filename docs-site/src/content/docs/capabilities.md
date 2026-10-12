@@ -153,7 +153,7 @@ is the list.
 | Idempotency | `Idempotency-Key` | Same tenant, operation, and key return the stored response instead of running twice |
 | Singleton execution | `Tracon:SingletonExecution` | A distributed lease selects one active executor for singleton services |
 | Run reconciliation | `Tracon:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
-| Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound run resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat` |
+| Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound agent run at the root of its tree resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat`; a workflow run is resumed from its checkpoints instead |
 | Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` or `options.RetryPolicy` | A transient provider error retries a single node without failing the run or costing an extra super-step |
 | Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 

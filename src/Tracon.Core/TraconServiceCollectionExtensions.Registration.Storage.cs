@@ -158,7 +158,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IJobStore>(),
             provider.GetRequiredService<IRunStore>(),
             provider.GetRequiredService<IOptionsMonitor<TraconInboundTriggerOptions>>(),
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>(),
+            provider.GetService<IRunAttributionContext>()));
 
         // 🚨 Every handler -- built-in and consumer alike -- is registered
         // SCOPED and keyed. The worker resolves it from a fresh scope per
@@ -300,7 +301,8 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetRequiredService<IOptions<TraconOptions>>(),
                 provider.GetService<IConfiguration>(),
                 provider.GetService<TimeProvider>(),
-                provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>()));
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>(),
+                schedulingOptions: provider.GetService<IOptionsMonitor<TraconSchedulingOptions>>()));
 
         // Idempotency-Key support (Phase 43). The store is always registered
         // (K-018: first-class); InMemoryIdempotencyStore is sufficient for a
@@ -363,7 +365,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IJobStore>(),
             provider.GetRequiredService<JobHandlerRegistry>(),
             provider.GetRequiredService<IOptionsMonitor<TraconSchedulingOptions>>(),
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>(),
+            provider.GetService<IRunAttributionContext>()));
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());

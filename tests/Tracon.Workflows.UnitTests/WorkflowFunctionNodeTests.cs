@@ -65,7 +65,10 @@ public sealed class WorkflowFunctionNodeTests
     public async Task Mixed_chain_compiles_and_the_function_node_is_classified_correctly_in_the_graph()
     {
         var host = new WorkflowTestHost("writer");
-        host.AddFunction<string, string>("uppercase", static (input, _, _) => new ValueTask<string>(input.ToUpperInvariant()));
+
+        // The function takes the chat message list the agent node passes on: the
+        // compiler refuses a chain whose types do not fit (F-341).
+        host.AddFunction<List<ChatMessage>, List<ChatMessage>>("uppercase", static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages));
 
         var workflow = await host.Compiler.CompileAsync(new WorkflowDefinition
         {

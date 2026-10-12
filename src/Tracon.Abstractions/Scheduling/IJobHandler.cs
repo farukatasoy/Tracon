@@ -118,4 +118,17 @@ public sealed class JobContext
     /// cancellation by checking this between items.
     /// </summary>
     public required Func<CancellationToken, ValueTask<bool>> IsCancelledAsync { get; init; }
+
+    /// <summary>
+    /// Reads the time left on the lease the worker can prove it holds, less
+    /// the worker's safety margin. Zero or negative once that point is reached.
+    /// </summary>
+    /// <remarks>
+    /// Internal on purpose: the built-in worker sets it for Tracon's own
+    /// handlers, so a store write that belongs to work already done (a queued
+    /// run's session) can be tried again without outliving the lease.
+    /// <see langword="null"/> when the worker did not build the context; such a
+    /// write is then tried once.
+    /// </remarks>
+    internal Func<TimeSpan>? ProvableLeaseRemaining { get; init; }
 }

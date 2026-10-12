@@ -75,8 +75,9 @@ public sealed class WorkflowFunctionSettingsTests
     {
         // 5: a node whose settings element stayed unset (not null) is the one value System.Text.Json
         // cannot write. One such node would fail this whole list - every workflow, not just its own.
+        // The function takes the chat message list the agent node before it passes on (F-341).
         await using var host = await StartAsync(static builder => builder
-            .AddWorkflowFunction<string, string>("plain", static _ => static (input, _, _) => new ValueTask<string>(input)));
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>("plain", static _ => static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages)));
 
         await SaveOkAsync(host, "with-settings", Chain("""{"voice":"alloy"}"""));
         await SaveOkAsync(host, "without-settings", [Node(Writer, "Agent"), Node("plain", "Function")]);

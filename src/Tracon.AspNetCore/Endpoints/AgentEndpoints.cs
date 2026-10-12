@@ -1095,6 +1095,11 @@ internal static class AgentEndpoints
 
         var now = DateTimeOffset.UtcNow;
 
+        // Read once, so the placeholder row and the job payload carry the same
+        // values (RunAttributionGate already checked them above).
+        var queuedUserId = attributionContext?.UserId;
+        var queuedLabels = attributionContext?.Labels;
+
         // Placeholder row: if the client calls GET /api/runs/{id} with this id
         // before the worker picks up the job and ACTUALLY runs the agent, it
         // should see Queued, not 404. When StartRunAsync is called a SECOND
@@ -1115,8 +1120,8 @@ internal static class AgentEndpoints
                 // second StartRunAsync call carries no user, and the store's
                 // upsert COALESCEs rather than overwrites, so this value
                 // survives.
-                UserId = attributionContext?.UserId,
-                Labels = attributionContext?.Labels,
+                UserId = queuedUserId,
+                Labels = queuedLabels,
                 SessionId = request.SessionId,
             },
             cancellationToken).ConfigureAwait(false);
@@ -1140,7 +1145,8 @@ internal static class AgentEndpoints
                     runId,
                     request.Message,
                     request.SessionId,
-                    attributionContext?.UserId,
+                    queuedUserId,
+                    queuedLabels,
                     request.Culture,
                     assignment,
                     request.Parameters,
@@ -1178,6 +1184,7 @@ internal static class AgentEndpoints
         string message,
         string? sessionId,
         string? userId,
+        IReadOnlyDictionary<string, string>? labels,
         string? culture,
         ExperimentAssignment? assignment,
         IReadOnlyDictionary<string, string>? parameters,
@@ -1220,6 +1227,12 @@ internal static class AgentEndpoints
             // AmbientRunAttributionScope so the session manager resolves the
             // owner from the one source it uses everywhere else.
             userId,
+
+            // F-369: the labels travel with the user, for the same reason. The
+            // runs row kept them through the placeholder, but the worker opened
+            // its scope without them, so the run's sub-agents and tools saw
+            // none. Absent when there are none, as an older build wrote it.
+            labels = labels is { Count: > 0 } ? labels : null,
         });
 
     /// <summary>

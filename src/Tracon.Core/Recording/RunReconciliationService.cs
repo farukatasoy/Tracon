@@ -130,11 +130,14 @@ internal sealed class RunReconciliationService(
     /// enqueues it or records why not.
     /// </summary>
     /// <remarks>
-    /// Checked in order: enabled AND session-bound AND within
+    /// Checked in order: enabled AND session-bound, then a root agent turn
+    /// (<see cref="RunContinuationEligibility"/>), then within
     /// <see cref="TraconRunContinuationOptions.MaxAttempts"/>, then
     /// whether every tool the run called may safely run again. Any step
     /// failing closed just RETURNS — the row is already correctly
-    /// <see cref="RunStatus.Failed"/> from the claim.
+    /// <see cref="RunStatus.Failed"/> from the claim. A refusal the operator
+    /// can act on (not a root agent turn, an unsafe tool) is also written to
+    /// the run as a <see cref="RunEventType.RunContinuationBlocked"/> event.
     /// </remarks>
     private async Task TryContinueAsync(RunRecord record, CancellationToken cancellationToken)
     {
@@ -147,26 +150,40 @@ internal sealed class RunReconciliationService(
             return;
         }
 
-        if (!await WithinContinuationLimitAsync(record, continuation.MaxAttempts, cancellationToken).ConfigureAwait(false))
+        // F-344: a workflow root, a workflow step or a callable sub-agent's run is
+        // not an agent turn of its own. The claim already closed it as Failed;
+        // the event says why nothing follows, and for a workflow how to resume it.
+        if (RunContinuationEligibility.Refusal(record) is { } refusal)
         {
+            await WriteBlockedEventAsync(record, refusal, cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        // 🚨 ListToolInvocationsAsync reads its tenant IMPLICITLY from the
-        // ambient ITenantContext (unlike QueryRunsAsync); this background
-        // loop carries no ambient tenant on its own, so it is opened here for
-        // the source run's OWN tenant. Without this, the call silently
-        // returns empty and every run would look tool-free (K memory note).
+        // 🚨 GetRunAsync (the chain walk) and ListToolInvocationsAsync read their
+        // tenant IMPLICITLY from the ambient ITenantContext (unlike
+        // QueryRunsAsync); this background loop carries no ambient tenant on its
+        // own, so it is opened here for the source run's OWN tenant. Without it,
+        // the tool ledger silently reads empty and every run looks tool-free
+        // (K memory note), and the chain walk stops at the first ancestor, so
+        // MaxAttempts above 1 never sees the older links (F-344 class scan).
         string? unsafeTool;
 
         using (AmbientTenantScope.Begin(tenantId))
         {
+            if (!await WithinContinuationLimitAsync(record, continuation.MaxAttempts, cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
             unsafeTool = await FindUnsafeToolAsync(record.Id, cancellationToken).ConfigureAwait(false);
         }
 
         if (unsafeTool is not null)
         {
-            await WriteBlockedEventAsync(record, unsafeTool, cancellationToken).ConfigureAwait(false);
+            await WriteBlockedEventAsync(
+                record,
+                $"tool '{unsafeTool}' may not be safely repeated (destructive or external effect, not declared SafeToRepeat).",
+                cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -238,25 +255,28 @@ internal sealed class RunReconciliationService(
         return null;
     }
 
-    private async Task WriteBlockedEventAsync(RunRecord record, string unsafeTool, CancellationToken cancellationToken)
+    /// <summary>Records on the run why automatic continuation did not follow.</summary>
+    /// <param name="record">The claimed run.</param>
+    /// <param name="reason">The clause that follows "Automatic continuation was refused: ".</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    private async Task WriteBlockedEventAsync(RunRecord record, string reason, CancellationToken cancellationToken)
     {
         try
         {
-            var sequence = -1L;
-
-            await foreach (var runEvent in runStore.ReadEventsAsync(record.Id, cancellationToken: cancellationToken).ConfigureAwait(false))
-            {
-                sequence = runEvent.Sequence;
-            }
+            // 🚨 The last sequence, not the events: ReadEventsAsync filters by the
+            // AMBIENT tenant, and this loop has none of its own. For another
+            // tenant's run it read nothing, the event took sequence 0 - the one
+            // the claim's RunFailed event already holds - and the write was
+            // refused as a duplicate, so the refusal never reached the run.
+            var last = await runStore.GetLastEventSequenceAsync(record.Id, cancellationToken).ConfigureAwait(false);
 
             await runStore.AppendEventAsync(
                 new RunEvent
                 {
                     RunId = record.Id,
-                    Sequence = sequence + 1,
+                    Sequence = (last ?? -1) + 1,
                     Type = RunEventType.RunContinuationBlocked,
-                    Text = $"Automatic continuation was refused: tool '{unsafeTool}' may not be safely repeated " +
-                           "(destructive or external effect, not declared SafeToRepeat).",
+                    Text = $"Automatic continuation was refused: {reason}",
                     Timestamp = _clock.GetUtcNow(),
                     TenantId = record.TenantId,
                 },

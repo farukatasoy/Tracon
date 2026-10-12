@@ -268,7 +268,7 @@ public sealed class WorkflowRunnerTests
         var message = resumedRun.Error!.Message;
 
         (message.Contains(original.StateMafVersion, StringComparison.Ordinal)
-            || message.Contains("executor ids are generated in process memory", StringComparison.Ordinal))
+            || message.Contains("the graph's structure differs", StringComparison.Ordinal))
             .ShouldBeTrue(message);
 
         (await host.CheckpointStore.ReadAsync(host.TenantContext.TenantId, original.SessionId, original.CheckpointId))

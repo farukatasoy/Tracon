@@ -497,6 +497,14 @@ When a policy has `archive: true`, cleanup first sends its batch to the register
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
 growth for protection from silent data loss.
 
+An archiving run deletes exactly the rows it sent to the sink, and only after the
+sink returns. If the sink throws, nothing in that batch is deleted. A row that
+changes between the read and the delete (for example, a session that is used again)
+stays, and a later run archives it again, so your sink can receive the same row more
+than once. If you write your own `IRetentionStore`, override `ArchiveBatchAsync`: its
+default reads and deletes in two separate calls, which can delete a row that was never
+archived. `RetentionStoreContract` in `Tracon.Testing.Contracts.Xunit` checks this.
+
 The `attachments` target deletes only **orphaned** attachments: those with no
 session id, or whose session id has no owner in the same tenant. An owner is a
 session, or a [workflow](/concepts/workflows/#checkpoints) run with that session id
@@ -563,9 +571,13 @@ A bare `DELETE` previews the row counts per target and deletes nothing.
 `?dryRun=false` is required to actually erase.
 :::
 
-Erasure removes the session, run, conversation, attachment, score, and voice-session
-rows that belong to the subject — including summarized conversation messages, which
-retention otherwise keeps forever. It never touches the audit trail: an audit record
+Erasure removes the session, run, conversation, attachment, score, voice-session, and
+[workflow checkpoint](/concepts/workflows/#checkpoints) rows that belong to the
+subject — including summarized conversation messages, which retention otherwise keeps
+forever. Checkpoints are matched by the subject's session ids and run ids, and their
+state can hold the subject's own messages. Erasure has no exemption for a run that
+waits for input: retention keeps such a run's checkpoints so the request stays
+answerable, but an erasure deletes the run itself, together with its checkpoints. It never touches the audit trail: an audit record
 is "who did what", not the subject's own data, and stays intact and verifiable after
 an erasure. The erasure itself **is** written there, with the row count per target; if
 that write fails, the whole erasure rolls back.
@@ -578,7 +590,9 @@ bytes are gone, the rows stay and point at nothing; repeating the request finish
 the erasure. A preview (`dryRun`) never touches the bytes.
 
 Export returns every matching row, keyed by target, as one JSON document.
-Attachment file bytes are not included — only their metadata.
+Attachment file bytes are not included — only their metadata. A workflow checkpoint's
+`state` is the framework's own serialized format: export returns it as the stored
+JSON text (a string), the same way it returns session state.
 
 ## Content protection
 
@@ -740,6 +754,14 @@ names of both header maps enter the audit trail; no header value does. Delivery 
 that it was queued, not how it went. The delivery history has one entry per event
 carrying the latest status and attempt count — retries update that entry rather than
 adding rows.
+
+A delivery your receiver accepted with a `2xx` is not sent again because Tracon could
+not record the result. Tracon tries the result writes again for a third of the job
+lease; a write that still fails is logged with a reference, and the history entry
+keeps its earlier status. A retry of the job that finds the entry already `Delivered`,
+`Failed`, or `Dropped` sends nothing. Delivery is still at-least-once: a worker that
+stops between the send and the record can send the same event twice, so deduplicate
+on the `X-Tracon-Delivery` header, which carries the delivery id.
 
 Address validation happens inside the socket connect callback, so the address
 validated is the address connected to. See

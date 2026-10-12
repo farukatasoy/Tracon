@@ -1,5 +1,7 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
+using System.Text;
 
 namespace Tracon;
 
@@ -392,6 +394,95 @@ internal abstract class SqlDialect
     /// keeps does not always come first, so it cannot fill every batch.
     /// </remarks>
     public abstract string BuildRetentionSelectBatchSql(string table, string columns, string wherePredicate);
+
+    /// <summary>
+    /// Builds the SQL text that deletes the rows matching
+    /// <paramref name="wherePredicate"/> whose key is one of
+    /// <paramref name="rowCount"/> given keys.
+    /// </summary>
+    /// <param name="table">The schema-prefixed table name.</param>
+    /// <param name="wherePredicate">The SQL condition that refers to <c>@cutoff</c>.</param>
+    /// <param name="keyColumns">The target's key columns, unquoted.</param>
+    /// <param name="rowCount">The number of keys; at least 1.</param>
+    /// <returns>
+    /// Runnable SQL. Parameters: <c>@cutoff</c> and, for each row and key column,
+    /// the name <see cref="RetentionKeyParameterName"/> gives.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The delete half of the archive mode: the rows it deletes are the rows
+    /// that were archived, so their keys are listed instead of a batch size. The condition is checked again, and a row that stopped matching
+    /// after it was read stays.
+    /// </para>
+    /// <para>
+    /// A one-column key is an <c>IN</c> list. A composite key is an <c>OR</c> of
+    /// equalities, because SQL Server has no row-value <c>IN</c>. The same text
+    /// runs on every provider; only <see cref="QuoteIdentifier"/> differs.
+    /// </para>
+    /// </remarks>
+    public virtual string BuildRetentionDeleteKeysSql(
+        string table,
+        string wherePredicate,
+        IReadOnlyList<string> keyColumns,
+        int rowCount)
+    {
+        ArgumentNullException.ThrowIfNull(keyColumns);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(rowCount);
+
+        if (keyColumns.Count == 0)
+        {
+            throw new ArgumentException("A retention target needs at least one key column.", nameof(keyColumns));
+        }
+
+        var columns = keyColumns.Select(column => $"{table}.{QuoteIdentifier(column)}").ToArray();
+        var keys = new StringBuilder();
+
+        if (columns.Length == 1)
+        {
+            keys.Append(columns[0]).Append(" IN (");
+
+            for (var row = 0; row < rowCount; row++)
+            {
+                keys.Append(row == 0 ? "@" : ", @").Append(RetentionKeyParameterName(row, 0));
+            }
+
+            keys.Append(')');
+        }
+        else
+        {
+            for (var row = 0; row < rowCount; row++)
+            {
+                keys.Append(row == 0 ? "(" : " OR (");
+
+                for (var column = 0; column < columns.Length; column++)
+                {
+                    keys.Append(column == 0 ? string.Empty : " AND ")
+                        .Append(columns[column])
+                        .Append(" = @")
+                        .Append(RetentionKeyParameterName(row, column));
+                }
+
+                keys.Append(')');
+            }
+        }
+
+        return $"DELETE FROM {table} WHERE ({wherePredicate}) AND ({keys});";
+    }
+
+    /// <summary>
+    /// Gets the parameter name, without the leading <c>@</c>, that
+    /// <see cref="BuildRetentionDeleteKeysSql"/> uses for one key column of one row.
+    /// </summary>
+    /// <param name="row">The row's position in the key list.</param>
+    /// <param name="column">The column's position in the key.</param>
+    /// <returns>The parameter name.</returns>
+    public static string RetentionKeyParameterName(int row, int column)
+        => string.Create(CultureInfo.InvariantCulture, $"key_{row}_{column}");
+
+    /// <summary>Quotes a column name so that a reserved word (<c>key</c>) is safe to use.</summary>
+    /// <param name="name">The unquoted name.</param>
+    /// <returns>The quoted name. PostgreSQL and SQLite use double quotes.</returns>
+    public virtual string QuoteIdentifier(string name) => $"\"{name}\"";
 
     /// <summary>
     /// Builds the SQL text that returns the value of the ordering expression for the

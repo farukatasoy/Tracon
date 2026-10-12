@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.AI.Evaluation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -39,8 +40,11 @@ internal sealed class EvalJobHandler(
     ILogger<EvalJobHandler>? logger = null,
     IEnumerable<CodeAgentRegistration>? codeRegistrations = null,
     IWebhookPublisher? webhookPublisher = null,
-    IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null) : IJobHandler
+    IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null,
+    TimeProvider? timeProvider = null) : IJobHandler
 {
+    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {
@@ -56,9 +60,15 @@ internal sealed class EvalJobHandler(
             .ConfigureAwait(false)
             ?? throw new TraconException($"No eval run record was found for job id '{context.Job.Id}'.");
 
+        SuiteOutcome outcome;
+
+        // 🚨 F-365: ONLY the cases sit in this try. The write that closes the
+        // run sat in it too, so a store error while recording a finished eval
+        // was caught here as the eval's own failure: the run was written Failed
+        // and the error thrown on, and the worker ran the job again or dropped it.
         try
         {
-            await RunSuiteAsync(context, suite, evalRun, modelOverride, numRepetitions, agentVersion, cancellationToken)
+            outcome = await RunSuiteAsync(context, suite, evalRun, modelOverride, numRepetitions, agentVersion, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
@@ -98,9 +108,29 @@ internal sealed class EvalJobHandler(
 
             throw;
         }
+
+        // The cases are done; a store error from here on is the store's. The
+        // write is tried again, and the completion is the same on every try. If
+        // the store keeps refusing it, the error goes to the worker, and the
+        // next attempt runs no case again: every case's item is already
+        // reported, so it only repeats this write.
+        await new JobOutcomeWriteRetry(context.Job.Id, schedulingOptions?.CurrentValue, _clock, logger)
+            .RunAsync(
+                () => evalStore.CompleteRunAsync(outcome.Completion, CancellationToken.None),
+                $"record eval run {evalRun.Id}'s outcome",
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        await PublishCompletedAsync(context.Job.TenantId, outcome.Summary, suite.Name, suite.AgentName).ConfigureAwait(false);
     }
 
-    private async ValueTask RunSuiteAsync(
+    /// <summary>Runs the suite's cases and returns what the eval run is closed with.</summary>
+    /// <remarks>
+    /// Writes nothing that closes the run: the caller writes the returned
+    /// completion outside the try that guards the cases, so a store error on
+    /// that write is never taken for a failed case.
+    /// </remarks>
+    private async ValueTask<SuiteOutcome> RunSuiteAsync(
         JobContext context,
         EvalSuite suite,
         EvalRun evalRun,
@@ -250,11 +280,13 @@ internal sealed class EvalJobHandler(
                 cancellationToken).ConfigureAwait(false);
         }
 
-        await evalStore.CompleteRunAsync(
+        var status = cancelled ? EvalRunStatus.Cancelled : EvalRunStatus.Completed;
+
+        return new SuiteOutcome(
             new EvalRunCompletion
             {
                 EvalRunId = evalRun.Id,
-                Status = cancelled ? EvalRunStatus.Cancelled : EvalRunStatus.Completed,
+                Status = status,
                 CompletedAt = DateTimeOffset.UtcNow,
                 Total = cases.Count,
                 Passed = passedCases,
@@ -262,23 +294,22 @@ internal sealed class EvalJobHandler(
                 InputTokens = inputTokens,
                 OutputTokens = outputTokens,
             },
-            CancellationToken.None).ConfigureAwait(false);
-
-        await PublishCompletedAsync(
-            context.Job.TenantId,
             evalRun with
             {
-                Status = cancelled ? EvalRunStatus.Cancelled : EvalRunStatus.Completed,
+                Status = status,
                 AgentVersion = agentVersion ?? evalRun.AgentVersion,
                 Total = cases.Count,
                 Passed = passedCases,
                 Failed = failedCases,
                 InputTokens = inputTokens,
                 OutputTokens = outputTokens,
-            },
-            suite.Name,
-            suite.AgentName).ConfigureAwait(false);
+            });
     }
+
+    /// <summary>What a finished suite closes its eval run with.</summary>
+    /// <param name="Completion">The write that closes the run.</param>
+    /// <param name="Summary">The run as <c>eval.completed</c> reports it.</param>
+    private readonly record struct SuiteOutcome(EvalRunCompletion Completion, EvalRun Summary);
 
     /// <summary>Publishes <c>eval.completed</c> for an evaluation run that reached its final status.</summary>
     /// <remarks>
@@ -340,6 +371,12 @@ internal sealed class EvalJobHandler(
         int numRepetitions,
         CancellationToken cancellationToken)
     {
+        // The values the case run is bound with, defaults included - what every
+        // other run path records (ParameterizedAgentFactory.BindAsync), so a
+        // replay of this run, or a promotion of it, repeats them. Null for an
+        // agent that declares no parameters.
+        IReadOnlyDictionary<string, string>? boundValues = null;
+
         // 🚨 Checked BEFORE any call reaches the provider - the same
         // "missing/unknown parameter never runs" rule
         // POST /api/agents/{name}/run applies (AgentParameterGate). A
@@ -401,8 +438,11 @@ internal sealed class EvalJobHandler(
                     sourceOrigin,
                     AgentDefinitionLookup.SourceName(sourceOrigin)),
                 decorators);
+
+            boundValues = ParameterValueSet.Resolve(schemaDefinition.Parameters, evalCase.Parameters);
         }
 
+        var messages = BuildCaseMessages(evalCase);
         var allRepetitionsPassed = true;
         long inputTokens = 0;
         long outputTokens = 0;
@@ -416,7 +456,7 @@ internal sealed class EvalJobHandler(
             {
                 response = await agent
                     .RunAsync(
-                        evalCase.Query,
+                        messages,
                         session: null,
                         options: new TraconRunOptions
                         {
@@ -426,6 +466,7 @@ internal sealed class EvalJobHandler(
                             // F-331: the case run measures the PINNED version; without
                             // this its row fell back to the descriptor's version.
                             AgentVersion = agentVersion,
+                            ParameterValues = boundValues,
                         },
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -458,6 +499,8 @@ internal sealed class EvalJobHandler(
             inputTokens += response.Usage?.InputTokenCount ?? 0;
             outputTokens += response.Usage?.OutputTokenCount ?? 0;
 
+            // The evaluator keeps getting the context as well: a groundedness
+            // style check judges the answer against that reference text.
             var evalItem = new EvalItem(evalCase.Query, response.Text, [.. response.Messages])
             {
                 ExpectedOutput = evalCase.ExpectedOutput,
@@ -496,6 +539,35 @@ internal sealed class EvalJobHandler(
         }
 
         return (allRepetitionsPassed, inputTokens, outputTokens);
+    }
+
+    /// <summary>The document name a plain-text <see cref="EvalCase.Context"/> reaches the agent under.</summary>
+    internal const string ContextDocumentName = "context";
+
+    // 🚨 F-343: the case used to run as RunAsync(Query) and the context reached
+    // the evaluator only. The agent under test never saw the reference text a
+    // production run carried, so a promoted case measured a different input
+    // than the run it stood for.
+
+    /// <summary>
+    /// Builds the messages a case run sends: the case's context through the
+    /// document channel, then the query - the order a production run with
+    /// documents uses (<c>AgentEndpoints.BuildMessagesAsync</c>).
+    /// </summary>
+    /// <remarks>
+    /// A promoted context holds the run's document blocks verbatim and goes back
+    /// as one document each (<see cref="DocumentChannelMessageBuilder.BuildFromText"/>),
+    /// so the case repeats the messages the run sent.
+    /// </remarks>
+    internal static IReadOnlyList<ChatMessage> BuildCaseMessages(EvalCase evalCase)
+    {
+        ArgumentNullException.ThrowIfNull(evalCase);
+
+        var query = new ChatMessage(ChatRole.User, evalCase.Query);
+
+        return string.IsNullOrWhiteSpace(evalCase.Context)
+            ? [query]
+            : [.. DocumentChannelMessageBuilder.BuildFromText(evalCase.Context, ContextDocumentName), query];
     }
 
     private static (string SuiteName, string? ModelId, int NumRepetitions, int? AgentVersion) ParsePayload(JsonElement payload)

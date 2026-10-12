@@ -22,6 +22,15 @@ namespace Tracon;
 /// A name that was valid at save time may resolve to a private address by
 /// delivery time (DNS rebinding).
 /// </para>
+/// <para>
+/// A delivery the recipient accepted is <strong>not sent again</strong> because
+/// its result could not be written. The writes that follow a
+/// <c>2xx</c> are tried again within one lease renewal interval
+/// (<see cref="JobOutcomeWriteRetry"/>); one that still fails is logged with a
+/// reference and the attempt ends normally. A delivery that is no longer
+/// <see cref="WebhookDeliveryStatus.Pending"/> was settled by an earlier attempt
+/// and is not attempted again: its item is reported and nothing is sent.
+/// </para>
 /// </remarks>
 internal sealed class WebhookDeliveryJobHandler(
     IWebhookStore store,
@@ -31,7 +40,8 @@ internal sealed class WebhookDeliveryJobHandler(
     IConfiguration? configuration = null,
     TimeProvider? timeProvider = null,
     ILogger<WebhookDeliveryJobHandler>? logger = null,
-    IOptionsMonitor<TraconEgressOptions>? egressOptions = null) : IJobHandler
+    IOptionsMonitor<TraconEgressOptions>? egressOptions = null,
+    IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -50,6 +60,17 @@ internal sealed class WebhookDeliveryJobHandler(
 
         var delivery = await store.GetDeliveryAsync(deliveryId, cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"No webhook delivery record was found: {deliveryId}.");
+
+        // 🚨 F-366: only a Pending delivery is attempted. Any other status was
+        // written by an earlier attempt of this job that then failed before the
+        // job could finish, and the worker leased the job again. Without this
+        // check that attempt sent a delivery its recipient had already accepted.
+        if (delivery.Status != WebhookDeliveryStatus.Pending)
+        {
+            await ReportSettledAsync(delivery, context, cancellationToken).ConfigureAwait(false);
+
+            return;
+        }
 
         var subscription = await FindSubscriptionAsync(delivery, cancellationToken).ConfigureAwait(false);
         var attempt = context.Job.Attempt;
@@ -134,29 +155,11 @@ internal sealed class WebhookDeliveryJobHandler(
 
         if (outcome.Succeeded)
         {
-            await store.RecordDeliveryResultAsync(
-                new WebhookDeliveryResult
-                {
-                    DeliveryId = delivery.Id,
-                    Status = WebhookDeliveryStatus.Delivered,
-                    Attempt = attempt,
-                    ResponseCode = outcome.StatusCode,
-                    RecordedAt = now,
-                },
-                cancellationToken).ConfigureAwait(false);
-
-            await store
-                .RecordSubscriptionOutcomeAsync(subscription.Id, succeeded: true, options.DisableAfterConsecutiveFailures, now, cancellationToken)
+            // 🚨 F-366: the three result writes sat right here, so one store
+            // error after the recipient answered 2xx failed the attempt, the
+            // worker released the job, and the next attempt delivered it again.
+            await RecordDeliveredAsync(subscription, delivery, attempt, outcome.StatusCode, now, options, context, cancellationToken)
                 .ConfigureAwait(false);
-
-            await context.ReportItemAsync(
-                new JobItemResult
-                {
-                    JobId = context.Job.Id,
-                    Seq = context.Items[0].Seq,
-                    Status = JobItemStatus.Completed,
-                },
-                cancellationToken).ConfigureAwait(false);
 
             return;
         }
@@ -397,6 +400,160 @@ internal sealed class WebhookDeliveryJobHandler(
         {
             logger.LogWarning("Webhook delivery dropped ({DeliveryId}): {Reason}", delivery.Id, reason);
         }
+    }
+
+    /// <summary>Records a delivery its recipient accepted, and never sends it again.</summary>
+    /// <param name="subscription">The subscription the delivery went to.</param>
+    /// <param name="delivery">The delivery.</param>
+    /// <param name="attempt">The attempt that delivered it.</param>
+    /// <param name="statusCode">The recipient's status code.</param>
+    /// <param name="now">The time of the result.</param>
+    /// <param name="options">The webhook options of this attempt.</param>
+    /// <param name="context">The job context.</param>
+    /// <param name="cancellationToken">Ends the pauses between tries (the worker's shutdown token).</param>
+    /// <remarks>
+    /// <para>
+    /// A store error here must not fail the attempt: the worker would release
+    /// the job, and the next attempt would send the delivery again. Each write
+    /// is tried again within one shared window; all three are safe to repeat (a
+    /// second identical write changes nothing, and a reported item is counted
+    /// once).
+    /// </para>
+    /// <para>
+    /// A write that still fails is logged with a reference, and the attempt ends
+    /// normally. Throwing would hand the job back to the worker, and the next
+    /// attempt would find the delivery still <see cref="WebhookDeliveryStatus.Pending"/>
+    /// and send it again: a missing result row is the smaller harm than a
+    /// second delivery. The writes take no cancellation token, so a shutdown
+    /// that arrives right after the recipient accepted does not cancel the
+    /// record that keeps the next attempt from sending again.
+    /// </para>
+    /// </remarks>
+    private async ValueTask RecordDeliveredAsync(
+        WebhookSubscription subscription,
+        WebhookDelivery delivery,
+        int attempt,
+        int? statusCode,
+        DateTimeOffset now,
+        TraconWebhookOptions options,
+        JobContext context,
+        CancellationToken cancellationToken)
+    {
+        var recording = new JobOutcomeWriteRetry(context.Job.Id, schedulingOptions?.CurrentValue, _clock, logger);
+
+        await TryRecordAsync(
+            recording,
+            () => store.RecordDeliveryResultAsync(
+                new WebhookDeliveryResult
+                {
+                    DeliveryId = delivery.Id,
+                    Status = WebhookDeliveryStatus.Delivered,
+                    Attempt = attempt,
+                    ResponseCode = statusCode,
+                    RecordedAt = now,
+                },
+                CancellationToken.None),
+            $"record webhook delivery {delivery.Id} as delivered",
+            delivery.Id,
+            cancellationToken).ConfigureAwait(false);
+
+        await TryRecordAsync(
+            recording,
+            async () => await store
+                .RecordSubscriptionOutcomeAsync(subscription.Id, succeeded: true, options.DisableAfterConsecutiveFailures, now, CancellationToken.None)
+                .ConfigureAwait(false),
+            $"record the success on webhook subscription '{subscription.Name}'",
+            delivery.Id,
+            cancellationToken).ConfigureAwait(false);
+
+        await TryRecordAsync(
+            recording,
+            () => context.ReportItemAsync(
+                new JobItemResult
+                {
+                    JobId = context.Job.Id,
+                    Seq = context.Items[0].Seq,
+                    Status = JobItemStatus.Completed,
+                },
+                CancellationToken.None),
+            $"report webhook delivery {delivery.Id}'s job item",
+            delivery.Id,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Runs one write that follows an accepted delivery; a write that still fails is logged.</summary>
+    /// <param name="recording">The window the writes of this delivery share.</param>
+    /// <param name="write">The store write.</param>
+    /// <param name="step">What the write records, for the log.</param>
+    /// <param name="deliveryId">The delivery, for the log.</param>
+    /// <param name="cancellationToken">Ends the pauses between tries (the worker's shutdown token).</param>
+    private async ValueTask TryRecordAsync(
+        JobOutcomeWriteRetry recording,
+        Func<ValueTask> write,
+        string step,
+        Guid deliveryId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await recording.RunAsync(write, step, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            var correlationId = SafeErrorText.NewCorrelationId();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(
+                    exception,
+                    "Webhook delivery {DeliveryId} reached its recipient, but Tracon could not {Step}. It is not sent again. (ref: {CorrelationId})",
+                    deliveryId,
+                    step,
+                    correlationId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Ends an attempt for a delivery an earlier attempt already settled: its item
+    /// is reported from the recorded status, and nothing is sent.
+    /// </summary>
+    /// <param name="delivery">The delivery, in a status other than <see cref="WebhookDeliveryStatus.Pending"/>.</param>
+    /// <param name="context">The job context.</param>
+    /// <param name="cancellationToken">Ends the pauses between tries (the worker's shutdown token).</param>
+    /// <remarks>
+    /// A report that keeps failing is thrown on: the worker may lease the job
+    /// again, and that attempt comes back here without sending.
+    /// </remarks>
+    private async ValueTask ReportSettledAsync(
+        WebhookDelivery delivery,
+        JobContext context,
+        CancellationToken cancellationToken)
+    {
+        var delivered = delivery.Status == WebhookDeliveryStatus.Delivered;
+
+        if (logger is not null && logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Webhook delivery {DeliveryId} is already {Status}; it is not attempted again.",
+                delivery.Id,
+                delivery.Status);
+        }
+
+        await new JobOutcomeWriteRetry(context.Job.Id, schedulingOptions?.CurrentValue, _clock, logger)
+            .RunAsync(
+                () => context.ReportItemAsync(
+                    new JobItemResult
+                    {
+                        JobId = context.Job.Id,
+                        Seq = context.Items[0].Seq,
+                        Status = delivered ? JobItemStatus.Completed : JobItemStatus.Failed,
+                        Error = delivered ? null : delivery.Error,
+                    },
+                    CancellationToken.None),
+                $"report webhook delivery {delivery.Id}'s job item",
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async ValueTask<DeliveryOutcome> SendAsync(

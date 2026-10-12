@@ -2406,6 +2406,50 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task ClaimOrphanedRunsAsync_reports_the_kind_and_the_tree_position_on_the_claimed_record()
+    {
+        // Same reason as the ContinuedFromRunId case above: reconciliation decides
+        // from the CLAIMED record whether a run may be continued, and only a root
+        // agent run may (F-344). A store that dropped Kind or ParentRunId here would
+        // send a workflow root or a workflow step into agent continuation.
+        AmbientTenant.TenantId = TenantA;
+
+        var workflowRunId = TraconId.NewId();
+        var stepRunId = TraconId.NewId();
+        var startedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+
+        await Store.StartRunAsync(TestData.Run(workflowRunId, "podcast") with
+        {
+            StartedAt = startedAt,
+            Kind = RunKind.Workflow,
+            WorkflowName = "podcast",
+        });
+        await Store.StartRunAsync(TestData.Run(stepRunId) with
+        {
+            StartedAt = startedAt,
+            ParentRunId = workflowRunId,
+            RootRunId = workflowRunId,
+            Depth = 1,
+        });
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        var workflow = claimed.Single(record => record.Id == workflowRunId);
+        workflow.Kind.ShouldBe(RunKind.Workflow);
+        workflow.WorkflowName.ShouldBe("podcast");
+        workflow.ParentRunId.ShouldBeNull();
+        workflow.Depth.ShouldBe(0);
+
+        var step = claimed.Single(record => record.Id == stepRunId);
+        step.Kind.ShouldBe(RunKind.Agent);
+        step.ParentRunId.ShouldBe(workflowRunId);
+        step.RootRunId.ShouldBe(workflowRunId);
+        step.Depth.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task ClaimOrphanedRunsAsync_does_not_touch_a_Running_row_within_the_threshold()
     {
         AmbientTenant.TenantId = TenantA;

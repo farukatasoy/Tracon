@@ -1027,7 +1027,7 @@ export interface paths {
         put?: never;
         /**
          * Promotes a run to an eval case in a single request.
-         * @description The query is read from the run's own session; runs without a session cannot be promoted. If the same run is promoted a second time, the existing case is returned (200, not 201).
+         * @description The case copies the run's recorded input: the query, the documents it carried and the parameter values it was bound with. Without a recorded input the query comes from the RunStarted event. A run whose input a case cannot carry is refused (422). If the same run is promoted a second time, the existing case is returned (200, not 201).
          */
         post: operations["TraconPromoteRunToEvalCase"];
         delete?: never;
@@ -2561,7 +2561,7 @@ export interface paths {
         };
         /**
          * Exports a data subject's content as one JSON document.
-         * @description '{id}' is resolved through IDataSubjectResolver, which is registered by the consumer — Tracon does not store personal identity. Without a registered resolver this returns 409, never an empty document. The document holds every column of every matching row, keyed by target table (session state, runs, run inputs, attachment METADATA only — no file bytes, voice session summaries, run scores, conversations, conversation items, and responses); a target with no matching rows is present as an empty array, not omitted.
+         * @description '{id}' is resolved through IDataSubjectResolver, which is registered by the consumer — Tracon does not store personal identity. Without a registered resolver this returns 409, never an empty document. The document holds every column of every matching row, keyed by target table (session state, runs, run inputs, attachment METADATA only — no file bytes, voice session summaries, run scores, workflow checkpoints, conversations, conversation items, and responses); a target with no matching rows is present as an empty array, not omitted.
          */
         get: operations["TraconExportDataSubject"];
         put?: never;

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.Agents.AI.Workflows.Checkpointing;
 using Microsoft.Extensions.AI;
 
 namespace Tracon;
@@ -46,11 +47,45 @@ internal static class WorkflowRequestDescriptor
             PortId = request.PortInfo.PortId,
             RequestType = request.PortInfo.RequestType.TypeName,
             ResponseType = request.PortInfo.ResponseType.TypeName,
+            ResponseAssembly = request.PortInfo.ResponseType.AssemblyName,
             Prompt = Prompt(request),
             Form = Form(request),
         };
 
         return JsonSerializer.Serialize(snapshot, Options);
+    }
+
+    /// <summary>
+    /// Reads what a response to the request recorded in a
+    /// <see cref="RunEventType.WorkflowRequest"/> event must carry.
+    /// </summary>
+    /// <param name="runEvent">The event.</param>
+    /// <returns>The recorded request; <see langword="null"/> if the event carries no request id.</returns>
+    /// <remarks>
+    /// <see cref="WorkflowResponseFactory.Check"/> reads this to refuse a response of the wrong
+    /// shape before a run opens. The form is <see langword="null"/> when the payload
+    /// lost it (only an event written before the form moved ahead of the prompt can), and the
+    /// response type is <see langword="null"/> when the payload predates its assembly name: in
+    /// both cases the early check says less, and the republished request is the judge.
+    /// </remarks>
+    public static RecordedRequest? ReadRecorded(RunEvent runEvent)
+    {
+        ArgumentNullException.ThrowIfNull(runEvent);
+
+        var (snapshot, requestId) = ReadSnapshot(runEvent);
+
+        if (string.IsNullOrEmpty(requestId))
+        {
+            return null;
+        }
+
+        return new RecordedRequest(
+            requestId,
+            snapshot?.PortId ?? string.Empty,
+            snapshot?.Form,
+            snapshot is { ResponseType: { Length: > 0 } typeName, ResponseAssembly: { Length: > 0 } assembly }
+                ? new TypeId(assembly, typeName)
+                : null);
     }
 
     /// <summary>
@@ -79,9 +114,7 @@ internal static class WorkflowRequestDescriptor
     {
         ArgumentNullException.ThrowIfNull(runEvent);
 
-        var snapshot = runEvent.Payload is { Length: > 0 } payload ? Read(payload) : null;
-
-        var requestId = runEvent.Text is { Length: > 0 } text ? text : snapshot?.RequestId;
+        var (snapshot, requestId) = ReadSnapshot(runEvent);
 
         if (string.IsNullOrEmpty(requestId))
         {
@@ -99,6 +132,17 @@ internal static class WorkflowRequestDescriptor
             Form = snapshot?.Form ?? FormFor(snapshot?.RequestType, snapshot?.ResponseType),
             RequestedAt = runEvent.Timestamp,
         };
+    }
+
+    /// <summary>
+    /// Reads an event's payload and its request id. The id comes from the event's
+    /// <see cref="RunEvent.Text"/>, which carries nothing else; see <see cref="Parse"/>.
+    /// </summary>
+    private static (Snapshot? Snapshot, string? RequestId) ReadSnapshot(RunEvent runEvent)
+    {
+        var snapshot = runEvent.Payload is { Length: > 0 } payload ? Read(payload) : null;
+
+        return (snapshot, runEvent.Text is { Length: > 0 } text ? text : snapshot?.RequestId);
     }
 
     /// <summary>Reads a payload, a complete one or one cut short.</summary>
@@ -162,6 +206,7 @@ internal static class WorkflowRequestDescriptor
             "portId" when reader.TokenType == JsonTokenType.String => snapshot with { PortId = reader.GetString() },
             "requestType" when reader.TokenType == JsonTokenType.String => snapshot with { RequestType = reader.GetString() },
             "responseType" when reader.TokenType == JsonTokenType.String => snapshot with { ResponseType = reader.GetString() },
+            "responseAssembly" when reader.TokenType == JsonTokenType.String => snapshot with { ResponseAssembly = reader.GetString() },
             "prompt" when reader.TokenType == JsonTokenType.String => snapshot with { Prompt = reader.GetString() },
             "form" when reader.TokenType == JsonTokenType.String
                 && Enum.TryParse<WorkflowRequestForm>(reader.GetString(), ignoreCase: false, out var form)
@@ -305,6 +350,10 @@ internal static class WorkflowRequestDescriptor
     /// The order is part of the format: <see cref="Prompt"/>, the only field
     /// whose length the request decides, is written LAST, so a payload cut at
     /// <c>MaxPayloadLength</c> loses nothing but the prompt's tail.
+    /// <see cref="ResponseAssembly"/> is the assembly half of the port's
+    /// response type: with <see cref="ResponseType"/> it resolves the type a
+    /// <c>data</c> answer must read into, before a run opens. An event written
+    /// before it existed has none, and only that check is skipped.
     /// </remarks>
     private sealed record Snapshot
     {
@@ -321,9 +370,21 @@ internal static class WorkflowRequestDescriptor
         public string? ResponseType { get; init; }
 
         [JsonPropertyOrder(4)]
-        public WorkflowRequestForm? Form { get; init; }
+        public string? ResponseAssembly { get; init; }
 
         [JsonPropertyOrder(5)]
+        public WorkflowRequestForm? Form { get; init; }
+
+        [JsonPropertyOrder(6)]
         public string? Prompt { get; init; }
     }
 }
+
+/// <summary>What a response to a recorded request must carry.</summary>
+/// <param name="RequestId">The request id.</param>
+/// <param name="PortId">The port that raised it; empty when the payload lost it.</param>
+/// <param name="Form">The answer form; <see langword="null"/> when the payload lost it.</param>
+/// <param name="ResponseType">
+/// The port's response type; <see langword="null"/> when the payload predates its assembly name.
+/// </param>
+internal sealed record RecordedRequest(string RequestId, string PortId, WorkflowRequestForm? Form, TypeId? ResponseType);

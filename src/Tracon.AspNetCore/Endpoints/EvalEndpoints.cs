@@ -131,9 +131,11 @@ internal static class EvalEndpoints
             .WithSummary("Promotes a run to an eval case in a single request.")
             .Accepts<EvalCasePromotionRequest>(true, "application/json")
             .WithDescription(
-                "The query is read from the run's own session; runs without a session " +
-                "cannot be promoted. If the same run is promoted a second time, the " +
-                "existing case is returned (200, not 201).");
+                "The case copies the run's recorded input: the query, the documents it " +
+                "carried and the parameter values it was bound with. Without a recorded " +
+                "input the query comes from the RunStarted event. A run whose input a case " +
+                "cannot carry is refused (422). If the same run is promoted a second time, " +
+                "the existing case is returned (200, not 201).");
 
         builder.MapPost("/api/evals/{name}/run", TriggerRunAsync)
             .RequireRole(roles.Operator)
@@ -534,8 +536,14 @@ internal static class EvalEndpoints
             case RunPromotionStatus.NoQuery:
                 return TypedResults.Problem(
                     title: "Run query could not be read",
-                    detail: $"The query for run '{runId}' could not be read. Runs without a session, " +
-                             "or sessions whose history cannot be read, cannot be promoted.",
+                    detail: $"The query for run '{runId}' could not be read: neither its recorded input " +
+                             "nor its RunStarted event carries a request text.",
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+
+            case RunPromotionStatus.UnsupportedInput:
+                return TypedResults.Problem(
+                    title: "Run input cannot become an eval case",
+                    detail: $"Run '{runId}' cannot be promoted without losing part of its input: {outcome.Detail}",
                     statusCode: StatusCodes.Status422UnprocessableEntity);
 
             case RunPromotionStatus.MultiTurn:
@@ -564,6 +572,11 @@ internal static class EvalEndpoints
                         writer.WriteString("suiteId", suite.Id);
                         writer.WriteString("runId", runId);
                         writer.WriteString("sourceKind", outcome.Case.SourceKind.ToString());
+
+                        // F-343: whether the case holds the run's whole input or
+                        // only the RunStarted text, and whether that text was cut.
+                        writer.WriteString("inputSource", outcome.InputSource.ToString());
+                        writer.WriteBoolean("queryTruncated", outcome.QueryTruncated);
                     }),
                     cancellationToken).ConfigureAwait(false);
 

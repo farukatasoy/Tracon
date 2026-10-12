@@ -187,9 +187,12 @@ public sealed class WorkflowEndpointTests
             .AddAgent(TestData.Definition("writer"))
             .AddAgent(TestData.Definition("editor"))
             .UseWorkflows()
-            .AddWorkflowFunction<string, string>(
+
+            // F-341: each node takes what the one before it passes on - an agent
+            // node passes on a chat message list, so the function takes one too.
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
                 "uppercase",
-                static _ => (input, _, _) => new ValueTask<string>(input.ToUpperInvariant())));
+                static _ => (messages, _, _) => new ValueTask<List<ChatMessage>>(messages)));
 
         using var saved = await SaveAsync(host, "mixed-chain", new WorkflowSaveRequest
         {
