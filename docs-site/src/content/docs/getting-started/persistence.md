@@ -169,6 +169,12 @@ column on `tool_approval_rules`, which also joins the rule's uniqueness index.
 Existing rules keep a `NULL` fingerprint on purpose, so a standing rule for a tool
 of an MCP server asks once more after the upgrade
 ([approval rules](/concepts/governance/)).
+
+The `run_input_parameters` migration only adds: a nullable `parameters` column on
+`run_inputs`. Existing rows keep `NULL` on purpose, which means "nothing was
+recorded". A replay, a continuation after a crash or an approval resume of such a
+run is refused when the agent declares [parameters](/concepts/agents/#parameters),
+instead of running on the defaults.
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
