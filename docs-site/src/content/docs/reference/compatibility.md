@@ -223,6 +223,11 @@ servers such as Ollama, LM Studio, and vLLM. Compatibility means the selected se
 implements the surface you enable. It does not mean every server supports every
 model feature.
 
+A harness agent's hosted web search (`HarnessSettings.EnableWebSearch`, off by
+default) is such a feature. The Chat Completions surface (`openai`, `azure-openai`,
+and a compatible registration) accepts it only for search models and answers `400`
+for the others; the Responses surface offers it to every model.
+
 ## UI, API, configuration, and code ownership
 
 The console is an operator surface. It does not turn deployment authority into a web

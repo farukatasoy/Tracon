@@ -61,6 +61,40 @@ describe('AgentEditorScreen', () => {
     expect((screen.getByTestId('agent-model') as HTMLInputElement).value).toBe('claude');
   });
 
+  it('turning web search on clears the old off switch a stored definition carries', async () => {
+    // Web search is opt-in since F-315; a definition saved before it may still
+    // carry disableWebSearch: true, and the server refuses both at once.
+    let sent: { harness?: { enableWebSearch?: boolean; disableWebSearch?: boolean } } | undefined;
+
+    restoreFetch = installApiMock([
+      ...baseOverrides(),
+      fixture('GET', 'api/agents/:name', {
+        descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+        definition: { ...fullDefinition, harness: { disableWebSearch: true } },
+      }),
+      {
+        method: 'POST',
+        pattern: 'api/agents/validate',
+        handler: (_params, _url, body) => {
+          sent = body as typeof sent;
+
+          return { valid: true, inconclusive: false, messages: [] };
+        },
+      },
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<AgentEditorScreen name="support" />);
+
+    await user.click(await screen.findByLabelText('Enable web search'));
+    await user.click(screen.getByTestId('agent-validate'));
+
+    await waitFor(() => {
+      expect(sent?.harness).toMatchObject({ enableWebSearch: true, disableWebSearch: false });
+    });
+  });
+
   it('defaults the provider for a new agent once the catalogue loads (HATA-S4-009)', async () => {
     restoreFetch = installApiMock(baseOverrides());
 

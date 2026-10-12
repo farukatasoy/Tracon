@@ -397,11 +397,24 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // FunctionInvokingChatClient instance - the one that actually drives
         // the tool-call loop. false by default (K1): the loop runs one call
         // at a time exactly as it does today (Phase 81, F-134).
+        //
+        // ToolLoopIterationLimit is a harness agent's MaximumIterationsPerRequest
+        // (F-315, K-892): MAF puts its own loop ABOVE this pipeline, but this
+        // loop is the one that sees and runs the tool calls, so the limit is
+        // only real here.
         var pipelineBuilder = chatClient
             .AsBuilder()
             .UseFunctionInvocation(
                 _loggerFactory,
-                fic => fic.AllowConcurrentInvocation = binding.AllowConcurrentToolCalls);
+                fic =>
+                {
+                    fic.AllowConcurrentInvocation = binding.AllowConcurrentToolCalls;
+
+                    if (binding.ToolLoopIterationLimit is { } limit)
+                    {
+                        fic.MaximumIterationsPerRequest = limit;
+                    }
+                });
 
         // 🚨 The budget ring sits in the SAME slot as the response cache ring
         // below: INSIDE the tool-call loop, OUTSIDE the cache and telemetry

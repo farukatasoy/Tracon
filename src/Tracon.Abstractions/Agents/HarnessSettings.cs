@@ -30,10 +30,29 @@ public sealed record HarnessSettings
     public bool DisableTodoProvider { get; init; }
 
     /// <summary>Gets a value that turns off file memory.</summary>
+    /// <remarks>
+    /// File memory is off unless <c>MemorySettings.EnableFileMemory</c> turns
+    /// it on; it then uses the registered <c>AgentFileStore</c>, never a
+    /// directory of the server. A definition that sets both is refused when
+    /// the agent is compiled.
+    /// </remarks>
     public bool DisableFileMemory { get; init; }
 
     /// <summary>Gets a value that turns off web search.</summary>
+    /// <remarks>
+    /// Web search is off unless <see cref="EnableWebSearch"/> turns it on. A
+    /// definition that sets both is refused when the agent is compiled.
+    /// </remarks>
     public bool DisableWebSearch { get; init; }
+
+    /// <summary>Gets a value that turns on the model provider's hosted web search.</summary>
+    /// <remarks>
+    /// The search runs at the model provider and is billed by it. Not every
+    /// provider surface offers it: the OpenAI Chat Completions surface accepts
+    /// it only for search models and answers <c>400</c> otherwise, while the
+    /// Responses surface (<c>openai-responses</c>) offers it to every model.
+    /// </remarks>
+    public bool EnableWebSearch { get; init; }
 
     /// <summary>
     /// Gets a value that turns off automatic tool approval. Once turned off, every tool
@@ -42,6 +61,13 @@ public sealed record HarnessSettings
     public bool DisableToolAutoApproval { get; init; }
 
     /// <summary>Gets a value that turns off the agent skills provider.</summary>
+    /// <remarks>
+    /// The provider is on only when the definition names skills
+    /// (<c>AgentDefinition.SkillNames</c>), and it offers only those skills;
+    /// it never reads skills from the server's working directory. A definition
+    /// that names skills and sets this value is refused when the agent is
+    /// compiled.
+    /// </remarks>
     public bool DisableAgentSkillsProvider { get; init; }
 
     /// <summary>Gets a value that turns off the agent mode provider.</summary>

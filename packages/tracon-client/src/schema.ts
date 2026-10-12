@@ -4407,6 +4407,8 @@ export interface components {
             disableFileMemory?: boolean;
             /** @description Gets a value that turns off web search. */
             disableWebSearch?: boolean;
+            /** @description Gets a value that turns on the model provider's hosted web search. */
+            enableWebSearch?: boolean;
             /**
              * @description Gets a value that turns off automatic tool approval. Once turned off, every tool
              *     call waits for an explicit approval.
