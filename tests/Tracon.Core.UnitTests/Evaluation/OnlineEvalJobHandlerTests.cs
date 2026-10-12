@@ -42,6 +42,41 @@ public sealed class OnlineEvalJobHandlerTests
     }
 
     [Fact]
+    public async Task A_run_inputs_record_with_no_messages_is_judged_like_a_missing_one()
+    {
+        // 🚨 F-294: a workflow run that declares parameters writes a run_inputs row
+        // that holds its values and no messages. Before that row existed the judge
+        // skipped such a run; with it, the judge would score blind (an empty input).
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var runId = await SeedRunAsync(runs, withOutput: true);
+
+        var inputs = new InMemoryRunInputStore();
+        await inputs.SaveAsync(new RunInputRecord
+        {
+            RunId = runId,
+            TenantId = Tenant,
+            Messages = [],
+            Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["tone"] = "formal" },
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var scores = new InMemoryRunScoreStore();
+        var judged = false;
+        var handler = BuildHandler(runs, inputs, scores, [new ScriptedJudge("model", _ =>
+        {
+            judged = true;
+            return JudgeVerdict.Headline("model", 80);
+        })]);
+        var reported = new List<JobItemResult>();
+
+        await handler.ExecuteAsync(ExecutionContext(runId, reported));
+
+        reported.Single().Status.ShouldBe(JobItemStatus.Completed);
+        judged.ShouldBeFalse();
+        (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Nothing_is_written_when_no_judge_is_registered()
     {
         var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));

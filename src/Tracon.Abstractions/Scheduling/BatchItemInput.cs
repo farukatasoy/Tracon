@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace Tracon;
@@ -21,6 +22,13 @@ namespace Tracon;
 /// with a string <c>message</c> member is therefore read as structured. A real
 /// collision would need a type marker on the stored item (a migration); that is
 /// not added until a collision is measured.
+/// </para>
+/// <para>
+/// <strong>Text from outside the operator's hands is wrapped.</strong> A webhook
+/// body or a field of one is the sender's text, not the operator's. Read as an
+/// item it could name parameter values, which reach the model's instructions.
+/// <see cref="Envelope"/> turns such text into <c>{"message": "..."}</c>, so the
+/// whole text stays the message whatever it contains.
 /// </para>
 /// <para>
 /// A structured item with a malformed member is not silently run as plain text:
@@ -53,6 +61,27 @@ internal sealed record BatchItemInput
 
     /// <summary>Gets whether the item carries at least one parameter value.</summary>
     public bool HasParameterValues => Parameters is { Count: > 0 };
+
+    /// <summary>
+    /// Wraps text so it is always read as a message and never as a structured item.
+    /// </summary>
+    /// <param name="message">The text of an item that came from outside the operator's hands.</param>
+    /// <returns>A JSON object whose only member is the string <c>message</c>.</returns>
+    public static string Envelope(string message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        using var stream = new MemoryStream();
+
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("message", message);
+            writer.WriteEndObject();
+        }
+
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
 
     /// <summary>Reads one item's input.</summary>
     /// <param name="input">The stored item text.</param>

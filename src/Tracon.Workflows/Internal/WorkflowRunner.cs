@@ -402,7 +402,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             recorded ?? throw new TraconException(
                 $"Run '{source.Id}' cannot be {verb}: workflow '{source.WorkflowName}' declares parameters, and " +
                 "this run did not record the values it started with. A run records them when it starts, " +
-                "unless 'Tracon:RunRecording:RecordRunInput' is off or the run predates parameter recording; " +
+                "unless 'Tracon:RunRecording:RecordRunInput' is off, the run predates parameter recording, " +
+                "or the run input store failed while saving them (the host log names the run); " +
                 "continuing it on the defaults would change the instructions its agents were given."));
         var check = AgentParameterValidator.ValidateValues(schema, values);
 

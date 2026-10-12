@@ -25,7 +25,7 @@ public sealed class WorkflowParameterBindingTests
 {
     private const string Writer = "writer";
     private const string Editor = "editor";
-    private const string ModelName = "param-model";
+    internal const string ModelName = "param-model";
     private const string Workflow = "podcast";
 
     [Fact]
