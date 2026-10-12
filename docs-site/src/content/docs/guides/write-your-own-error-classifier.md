@@ -95,6 +95,11 @@ your taxonomy is incomplete, not a failure.
 If your classifier throws, the run still reaches its terminal state: the
 class comes from the built-in classifier instead, and the failure is logged.
 
+The same class decides whether a workflow function node with a
+`WorkflowNodeRetryPolicy` is retried. One rule runs before your classifier
+there: a failure that carries a permanent HTTP status (any `4xx` except `408`
+and `429`) is never retried, whatever class you return.
+
 ## Read next
 
 - [Reliable runs](/guides/reliability/#fall-back-to-a-secondary-provider) — the fallback chain this seam sits in front of

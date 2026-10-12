@@ -690,6 +690,19 @@ internal static partial class FallbackRetryClassifier
             return FallbackSkipReason.None;
         }
 
+        // 🚨 F-338: a permanent 4xx never moves to the next link. The next
+        // provider gets the same request: a bad body, an unknown model name or
+        // a conflict does not get better on another provider, and switching
+        // hides the mistake. Only 401/403 were checked before, so a 404 on an
+        // SDK wrapper type fell through to the transport rule at the end and
+        // switched. Checked before every rule that can retry, across the whole
+        // graph, and read with the same helper the workflow node retry uses,
+        // so the two retry decisions cannot disagree about a status.
+        if (ProviderHttpStatus.IsPermanentFailure(exception))
+        {
+            return FallbackSkipReason.None;
+        }
+
         // Checked before the message patterns below: a timed-out call carries
         // no HTTP status to recognize, and its own exception type is the only
         // signal there is.
@@ -712,7 +725,9 @@ internal static partial class FallbackRetryClassifier
             // switch costs more than the switch saves. Checked across the
             // whole graph, and BEFORE any "retry" match, so an auth failure
             // wrapped alongside an unrelated retryable-looking inner frame
-            // still wins.
+            // still wins. The F-338 veto above reads only the FIRST status in
+            // the graph; this loop is what still finds a 401/403 behind an
+            // outer frame that carries a 5xx.
             if (AuthenticationStatusPattern().IsMatch(candidate.Message))
             {
                 return FallbackSkipReason.None;
@@ -732,13 +747,17 @@ internal static partial class FallbackRetryClassifier
             }
         }
 
-        // No frame in the graph carries a recognizable HTTP status: the call
-        // never got far enough to receive one (connection refused, DNS,
-        // stream reset, ...). At this point a known transport/SDK-client
-        // type is itself the signal — a status-less ClientResultException/
-        // RequestFailedException is, by construction, a connection failure,
-        // not an unrecognized 4xx (those carry "HTTP nnn" and were already
-        // handled above).
+        // No frame in the graph carries a 5xx/429 status, and none carries a
+        // permanent 4xx (the veto at the top). Usually the call never got far
+        // enough to receive a status (connection refused, DNS, stream reset,
+        // ...). At this point a known transport/SDK-client type is itself the
+        // signal — a status-less ClientResultException/RequestFailedException
+        // is, by construction, a connection failure. 🚨 This comment used to
+        // say an unrecognized 4xx "was already handled above"; only 401/403
+        // were, and every other 4xx on a wrapper type switched provider here
+        // (F-338). A status that can still reach this point is a transient
+        // one: 408, or a 5xx/429 that only HttpRequestException.StatusCode
+        // carries.
         foreach (var candidate in Flatten(exception))
         {
             if (TransportExceptionTypePattern().IsMatch(candidate.GetType().FullName ?? string.Empty))
@@ -865,9 +884,9 @@ internal static partial class FallbackRetryClassifier
     // 🚨 Measured (phase 62 audit): includes the SDK WRAPPER types too
     // (clientresultexception/requestfailedexception/apiexception), not just
     // the bare .NET ones — this is safe ONLY because this pattern is checked
-    // LAST, after every status-bearing message (including 401/403) already
-    // had a chance to match above. A wrapper exception with no status text
-    // is, by construction, a connection-level failure.
+    // LAST, after every permanent 4xx (the F-338 veto) and every 5xx/429
+    // message already had a chance to match above. A wrapper exception with
+    // no status text is, by construction, a connection-level failure.
     [GeneratedRegex(
         @"httprequestexception|socketexception|ioexception|clientresultexception|requestfailedexception|apiexception|aggregateexception",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,

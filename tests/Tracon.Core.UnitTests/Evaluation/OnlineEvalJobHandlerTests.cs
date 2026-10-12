@@ -300,6 +300,46 @@ public sealed class OnlineEvalJobHandlerTests
         (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
     }
 
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.Unauthorized)]
+    [InlineData(System.Net.HttpStatusCode.NotFound)]
+    public async Task A_judge_that_gets_a_permanent_client_error_fails_the_item_without_a_retry(System.Net.HttpStatusCode status)
+    {
+        // F-338 class scan: every judge exception was retryable, so a judge
+        // whose model answers 401 or 404 was retried up to MaxAttempts with
+        // backoff, and each attempt sent the same rejected request.
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+        var scores = new InMemoryRunScoreStore();
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            scores,
+            [new AsyncJudge("rejected", (_, _) => throw new HttpRequestException("rejected", null, status))]);
+        var reported = new List<JobItemResult>();
+
+        await handler.ExecuteAsync(ExecutionContext(runId, reported));
+
+        reported.Single().Status.ShouldBe(JobItemStatus.Failed);
+        reported.Single().Error.ShouldBe("rejected (judge_failed)");
+    }
+
+    [Fact]
+    public async Task A_judge_that_gets_a_server_error_is_retried()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            new InMemoryRunScoreStore(),
+            [new AsyncJudge("unavailable", static (_, _) => throw new HttpRequestException("down", null, System.Net.HttpStatusCode.ServiceUnavailable))]);
+
+        await Should.ThrowAsync<JobRetryException>(() => handler.ExecuteAsync(ExecutionContext(runId, [])).AsTask());
+    }
+
     [Fact]
     public async Task Judge_timeout_cuts_off_the_wait_when_the_judge_ignores_cancellation()
     {

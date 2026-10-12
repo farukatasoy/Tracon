@@ -74,6 +74,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A workflow node retry, the model fallback chain and an online evaluation
+  judge no longer repeat a permanent client error. `RunErrorClass.ProviderError`
+  covers every provider HTTP error, `4xx` included, and the node retry read only
+  that class: a node that got a `401` from `EnsureSuccessStatusCode()`, or a
+  model call that got a `404 (model_not_found)`, ran
+  `WorkflowNodeRetryPolicy.MaxAttempts` times, and a retried `409` on a
+  non-idempotent call could repeat its side effect. The fallback chain moved to
+  the next provider on any `4xx` other than `401`/`403` that an SDK exception
+  type carried, so the next provider got the same bad request, and an online
+  evaluation job retried a judge whose model answered `401` or `404`. A failure
+  that carries a permanent HTTP status (every `4xx` except `408` and `429`,
+  read from `HttpRequestException.StatusCode` or from `HTTP nnn` text in the
+  exception chain) is now thrown on the first attempt, never moves to the next
+  link, and fails the judge's item without a retry. **Behavior change:** a
+  registered `IRunErrorClassifier` can no longer make such a failure retry a
+  workflow node; an `IProviderRetryClassifier` that returns `Retry` still
+  moves to the next link. `runs.error_class` values are unchanged.
 - A harness agent on the OpenAI Chat Completions provider (`openai`,
   `azure-openai` and a compatible registration) no longer fails with `400`.
   The harness sent the provider's hosted web search on every request

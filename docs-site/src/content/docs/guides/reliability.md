@@ -117,9 +117,11 @@ the fallback model its own settings through a separate agent if it needs them.
 
 The chain tries the next link only for a transient failure: the local circuit
 already open, a `5xx`/`429` response, or a bare connection error. It never falls
-back on an authentication error (`401`/`403`) or a canceled request — masking a
-misconfigured key behind a silent provider switch costs more than the switch
-saves. A provider's own content/safety filter is not a fallback trigger either;
+back on an authentication error (`401`/`403`), on any other permanent `4xx` (every
+`4xx` except `408` and `429`, for example a `404` for an unknown model name), or on a
+canceled request — masking a misconfigured key or a bad request behind a silent
+provider switch costs more than the switch saves, and the next provider gets the
+same request. A provider's own content/safety filter is not a fallback trigger either;
 that decision is made once, after whichever link actually answered.
 
 Registering an `IProviderRetryClassifier` overrides this decision for a
@@ -411,7 +413,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 |---|---|
 | Every call fails fast with provider unavailable | Inspect the provider circuit and `RetryAfter`; fix upstream health before adding retries |
 | A run's response came from an unexpected model | Check the run's events for `ModelFallbackUsed`; the primary provider was unavailable for that call |
-| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a `401`/`403` or a canceled request never retries by design |
+| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a permanent `4xx` such as `401`, `403`, or `404`, or a canceled request, never retries by design |
 | The same idempotency key returns `422` | Method, path, or raw JSON bytes changed; reuse the original serialization or issue a new key for a new operation |
 | A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another |
 | An idempotent request returns `400` | Remove streaming or shorten the key to `MaxKeyLength` |
