@@ -320,6 +320,56 @@ describe('WorkflowEditorScreen - the settings field', () => {
     expect(screen.queryByText('This is not valid JSON.')).toBeNull();
   });
 
+  // Retry is Save again. After a failed save it used to send the draft whatever the settings text
+  // held, and text that is not JSON became `null` - which a full-replace save takes for "no
+  // settings", so the stored ones were erased.
+  it('holds Retry back, like Save, while the settings text is not JSON, and sends nothing then', async () => {
+    const user = userEvent.setup();
+    let answers = 0;
+
+    open(mixed, [
+      {
+        method: 'PUT',
+        pattern: 'api/workflows/:name',
+        handler: (_params, _url, body) => {
+          sent.push(body);
+          answers += 1;
+
+          return answers === 1
+            ? new Response(
+                JSON.stringify({ title: 'Workflow definition invalid', detail: "Function node 'word-count' has invalid settings." }),
+                { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+              )
+            : stored({});
+        },
+      },
+    ]);
+
+    const field = await screen.findByTestId('workflow-settings-word-count');
+
+    fireEvent.change(field, { target: { value: '{"langauge":"en"}' } });
+    await user.click(await screen.findByTestId('workflow-save'));
+
+    // The server refused it: its message shows, with Retry.
+    await screen.findByText(/Function node 'word-count' has invalid settings\./);
+    await screen.findByTestId('error-retry');
+    expect(sent).toHaveLength(1);
+
+    // The text stops being JSON: Save is held back, and so is Retry.
+    fireEvent.change(field, { target: { value: '{ "language": ' } });
+
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
+    expect(screen.queryByTestId('error-retry')).toBeNull();
+    expect(sent).toHaveLength(1);
+
+    // JSON again: Retry is back, and what it sends is the settings as typed - never null.
+    fireEvent.change(field, { target: { value: '{"language":"en"}' } });
+    await user.click(await screen.findByTestId('error-retry'));
+    await waitFor(() => expect(sent).toHaveLength(2));
+
+    expect(sent[1]).toMatchObject({ nodes: [expect.anything(), { name: 'word-count', settings: { language: 'en' } }] });
+  });
+
   it('leaves the verdict on valid JSON to the server: an object the type cannot hold is sent as typed', async () => {
     const user = userEvent.setup();
 

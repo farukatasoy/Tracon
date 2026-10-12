@@ -83,11 +83,22 @@ export function chainBody(
   };
 }
 
-/** The settings as the request carries them: parsed JSON, or `null` for none. */
+/**
+ * The settings as the request carries them: parsed JSON, or `null` for none.
+ *
+ * 🚨 Text that is not JSON is neither: a full-replace save (K-725) would take `null` for "no
+ * settings" and erase what the node stores. The screen holds Save and Retry back while
+ * `hasInvalidSettings` is true; this is the last line, so no future caller can turn a typing
+ * slip into a silent deletion.
+ */
 function settingsValue(text: string): unknown {
   const parsed = parseSettings(text);
 
-  return parsed.ok ? parsed.value : null;
+  if (!parsed.ok) {
+    throw new Error('A function step holds settings that are not valid JSON, so no request was built.');
+  }
+
+  return parsed.value;
 }
 
 export type SettingsParse = { ok: true; value: unknown } | { ok: false };
