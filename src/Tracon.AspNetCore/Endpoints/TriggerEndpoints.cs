@@ -317,6 +317,15 @@ internal static class TriggerEndpoints
         var validated = validation.Validated!;
         var triggerTenant = new FixedTenantContext(validated.Trigger.TenantId);
 
+        // F-337: the attribution is checked before the run starts, as on every
+        // other run-starting endpoint; the claimed delivery is released.
+        if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
+        {
+            await dispatcher.ReleaseAsync(validated, cancellationToken).ConfigureAwait(false);
+
+            return attributionProblem;
+        }
+
         // Same 403 shape as every other run-starting endpoint (phase 139,
         // F-185): a trigger cannot bypass the installation's run
         // authorization policy just because it has no bearer token.

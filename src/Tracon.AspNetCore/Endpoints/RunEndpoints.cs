@@ -635,6 +635,13 @@ internal static class RunEndpoints
 
         var request = bound!;
 
+        // F-337: a replay starts a new run, so its attribution is checked
+        // first, like every other run-starting endpoint.
+        if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
+        {
+            return attributionProblem;
+        }
+
         if (request.ToolMode == ReplayToolMode.LiveTools &&
             roles.Admin is { } adminPolicy &&
             authorization is not null)

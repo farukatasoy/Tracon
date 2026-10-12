@@ -39,6 +39,21 @@ internal static class RunAttributionGate
     /// <see langword="null"/>.
     /// </returns>
     public static IResult? Check(IRunAttributionContext? attribution)
+        => Validate(attribution) is { } detail
+            ? Results.Problem(
+                title: "Invalid run attribution",
+                detail: detail,
+                statusCode: StatusCodes.Status400BadRequest)
+            : null;
+
+    /// <summary>Checks the current attribution; produces the reason it is invalid.</summary>
+    /// <param name="attribution">The attribution context, or <see langword="null"/> when none is registered.</param>
+    /// <returns>
+    /// The sentence a <c>400</c> carries when a limit is broken; otherwise
+    /// <see langword="null"/>. An endpoint with its own error shape (the
+    /// OpenAI-compatible ones) wraps the sentence itself.
+    /// </returns>
+    public static string? Validate(IRunAttributionContext? attribution)
     {
         if (attribution is null)
         {
@@ -70,13 +85,10 @@ internal static class RunAttributionGate
             return null;
         }
 
-        return Results.Problem(
-            title: "Invalid run attribution",
-            detail: error +
-                    $" At most {RunLabels.MaxCount} labels are allowed, keys are at most " +
-                    $"{RunLabels.MaxKeyLength} characters and values at most {RunLabels.MaxValueLength}. " +
-                    "The run did not start; labels are never trimmed to fit.",
-            statusCode: StatusCodes.Status400BadRequest);
+        return error +
+               $" At most {RunLabels.MaxCount} labels are allowed, keys are at most " +
+               $"{RunLabels.MaxKeyLength} characters and values at most {RunLabels.MaxValueLength}. " +
+               "The run did not start; labels are never trimmed to fit.";
     }
 
     /// <summary>
