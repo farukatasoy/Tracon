@@ -88,7 +88,10 @@ def _faz_no(p: pathlib.Path) -> int:
 # K-646 eklenince dosya 25_116 B'ye (butceyi ASTI) cikti. Esik 114 -> 88
 # indirildi (%17 bos, 58.0'in %15 hedefinin biraz USTUNDE - K-646 boyutundaki
 # birkac kararlik bir tampon icin).
-ARSIV_ESIK = 88
+# Faz 195 (2026-10-12): esik 88 -> 84. K-900..K-902 eklenince dosya 26_088 B'ye
+# (butceyi ASTI) cikti; uc basligi kisaltmak yetmedi (25_108 B). Sicak yolda
+# en yeni 84 karar kalir (24_581 B); en eski dort karar arsiv indeksine gecti.
+ARSIV_ESIK = 84
 
 BASLANGIC_BUTCESI = {
     "AGENTS.md": 12_000,

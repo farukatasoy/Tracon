@@ -679,6 +679,7 @@ Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Another_tenants
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Deleted_definition_is_not_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Deleting_a_nonexistent_definition_returns_false() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Every_save_increments_the_version() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Function_node_settings_survive_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Incoming_version_value_is_ignored() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Listing_is_sorted_by_name() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Magentic_manager_name_is_preserved() -> System.Threading.Tasks.Task!
@@ -686,6 +687,7 @@ Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Node_list_survi
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Parameter_schema_survives_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Same_name_is_independent_across_tenants() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saved_definition_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saving_again_without_node_settings_clears_them() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.WorkflowDefinitionStoreContract() -> void
 Tracon.Testing.Contracts.Tools.CustomToolContract
 Tracon.Testing.Contracts.Tools.CustomToolContract.Concurrent_server_calls_complete() -> System.Threading.Tasks.Task!

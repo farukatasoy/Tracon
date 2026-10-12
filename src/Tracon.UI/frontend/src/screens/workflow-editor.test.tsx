@@ -1,56 +1,435 @@
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { fixture, installApiMock } from '../test/api-fixtures';
-import { renderScreen, screen, waitFor, within } from '../test/render';
+import { fixture, installApiMock, type FixtureRoute } from '../test/api-fixtures';
+import { fireEvent, renderScreen, screen, waitFor, within } from '../test/render';
 import { WorkflowEditorScreen } from './workflow-editor';
 
-const mixed = {
-  name: 'mixed-chain',
-  displayName: null,
-  description: 'Summarizes, then counts words.',
-  kind: 'Sequential',
-  agentNames: [],
+const stamp = '2026-10-10T09:00:00Z';
+
+/** The shape the server answers with for a stored workflow; `overrides` is what a case changes. */
+function stored(overrides: Record<string, unknown>): Record<string, unknown> {
+  return {
+    name: 'chain',
+    displayName: null,
+    description: 'Summarizes, then counts words.',
+    kind: 'Sequential',
+    agentNames: [],
+    nodes: [],
+    parameters: [],
+    managerAgentName: null,
+    maxIterations: null,
+    handoffInstructions: null,
+    requirePlanApproval: false,
+    tenantId: 'default',
+    version: 1,
+    updatedAt: stamp,
+    ...overrides,
+  };
+}
+
+const mixed = stored({
   nodes: [
-    { name: 'summarizer', kind: 'Agent' },
-    { name: 'word-count', kind: 'Function' },
+    { name: 'summarizer', kind: 'Agent', settings: null },
+    { name: 'word-count', kind: 'Function', settings: { language: 'en', limit: 3 } },
   ],
-  managerAgentName: null,
-  maxIterations: null,
-  handoffInstructions: null,
-  requirePlanApproval: false,
-  tenantId: 'default',
-  version: 1,
-  updatedAt: '2026-10-10T09:00:00Z',
-};
+});
 
-describe('WorkflowEditorScreen', () => {
-  let restoreFetch: () => void;
+const agentsOnly = stored({ agentNames: ['summarizer', 'drafter'] });
 
-  afterEach(() => {
-    restoreFetch();
-  });
+const agents = [
+  { name: 'summarizer', origin: 'Code' },
+  { name: 'drafter', origin: 'Database' },
+  { name: 'reviewer', origin: 'Database' },
+];
 
-  // The editor used to open this workflow with an EMPTY participant list and a
-  // disabled Save. Adding an agent enabled Save and replaced the chain — the
-  // function node was erased without a word (full replace, K-725).
-  it('shows a function-node chain read-only and keeps the kind it needs', async () => {
-    restoreFetch = installApiMock([
-      fixture('GET', 'api/agents', [{ name: 'summarizer', origin: 'Code' }]),
-      fixture('GET', 'api/workflows/:name', mixed),
-    ]);
+/** What the code registered: one function with settings, one without. */
+const functions = [
+  {
+    name: 'word-count',
+    inputType: 'System.String',
+    outputType: 'System.String',
+    settingsSchema: {
+      type: 'object',
+      properties: { language: { type: 'string' }, limit: { type: 'integer' } },
+      required: ['language'],
+      additionalProperties: false,
+    },
+  },
+  { name: 'pass-through', inputType: 'System.String', outputType: 'System.String', settingsSchema: null },
+];
 
-    renderScreen(<WorkflowEditorScreen name="mixed-chain" />);
+const sent: unknown[] = [];
 
-    const chain = await screen.findByTestId('workflow-nodes');
-    const steps = within(chain).getAllByRole('listitem');
+/** Opens the editor on a stored workflow (or a new one) and records every PUT body. */
+function open(definition: Record<string, unknown> | null, extra: FixtureRoute[] = []): void {
+  sent.length = 0;
 
-    expect(steps.map((step) => step.textContent)).toEqual(['1summarizeragent', '2word-countfunction']);
+  // The first route that matches answers, so a case's own routes go ahead of the defaults.
+  restoreFetch = installApiMock([
+    ...extra,
+    fixture('GET', 'api/agents', agents),
+    fixture('GET', 'api/workflows/functions', functions),
+    ...(definition === null ? [] : [fixture('GET', 'api/workflows/:name', definition)]),
+    {
+      method: 'PUT',
+      pattern: 'api/workflows/:name',
+      handler: (_params, _url, body) => {
+        sent.push(body);
 
-    // The kind is locked: a function node runs in a Sequential chain only.
+        return stored({});
+      },
+    },
+  ]);
+
+  renderScreen(definition === null ? <WorkflowEditorScreen /> : <WorkflowEditorScreen name="chain" />);
+}
+
+let restoreFetch: () => void = () => undefined;
+
+afterEach(() => {
+  restoreFetch();
+});
+
+async function save(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  const button = await screen.findByTestId('workflow-save');
+
+  await waitFor(() => expect(button).toHaveProperty('disabled', false));
+  await user.click(button);
+  await waitFor(() => expect(sent).toHaveLength(1));
+}
+
+/** The chain as the screen shows it: `Kind:name`, in order. */
+function steps(): string[] {
+  return screen
+    .getAllByTestId('workflow-step')
+    .map((step) => `${step.getAttribute('data-kind')}:${step.getAttribute('data-name')}`);
+}
+
+describe('WorkflowEditorScreen - the chain', () => {
+  // The editor used to open this workflow with an EMPTY participant list and a disabled Save.
+  // Adding an agent enabled Save and replaced the chain - the function node was erased without
+  // a word (full replace, K-725). It then showed the chain read-only; now it edits it.
+  it('opens a function-node chain with its settings and keeps the pattern the chain needs', async () => {
+    open(mixed);
+
+    await screen.findByTestId('workflow-participants');
+
+    expect(steps()).toEqual(['Agent:summarizer', 'Function:word-count']);
+
+    // The settings come back as JSON text the operator can edit.
+    expect(screen.getByTestId('workflow-settings-word-count')).toHaveProperty(
+      'value',
+      JSON.stringify({ language: 'en', limit: 3 }, null, 2),
+    );
+
+    // The pattern is locked: a function node runs in a Sequential chain only, and the screen says why.
     expect(screen.getByRole('combobox', { name: /^Kind/ })).toHaveProperty('disabled', true);
-
-    // No agent picker: picking an agent here is what used to erase the chain.
-    expect(screen.queryByRole('combobox', { name: /^Participants/ })).toBeNull();
+    screen.getByText('Function nodes run only in a Sequential chain.');
 
     await waitFor(() => expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', false));
+  });
+
+  it('builds a chain from agents and functions and sends it as nodes with the settings on their node', async () => {
+    const user = userEvent.setup();
+
+    open(null);
+
+    await user.type(await screen.findByTestId('workflow-name'), 'narrated');
+    await user.selectOptions(await screen.findByTestId('workflow-add-agent'), 'summarizer');
+    await user.selectOptions(await screen.findByTestId('workflow-add-function'), 'word-count');
+    fireEvent.change(screen.getByTestId('workflow-settings-word-count'), { target: { value: '{"language":"en"}' } });
+
+    await save(user);
+
+    expect(sent[0]).toStrictEqual({
+      displayName: null,
+      description: null,
+      kind: 'Sequential',
+      agentNames: [],
+      nodes: [
+        { name: 'summarizer', kind: 'Agent', settings: null },
+        { name: 'word-count', kind: 'Function', settings: { language: 'en' } },
+      ],
+      parameters: [],
+      managerAgentName: null,
+      maxIterations: null,
+      handoffInstructions: null,
+      requirePlanApproval: false,
+    });
+  });
+
+  it('moves and removes steps and keeps each step with its own settings', async () => {
+    const user = userEvent.setup();
+
+    open(
+      stored({
+        nodes: [
+          { name: 'word-count', kind: 'Function', settings: { language: 'tr' } },
+          { name: 'summarizer', kind: 'Agent', settings: null },
+          { name: 'pass-through', kind: 'Function', settings: null },
+        ],
+      }),
+    );
+
+    await screen.findByTestId('workflow-participants');
+    await user.click(screen.getByRole('button', { name: 'Move function word-count down' }));
+
+    expect(steps()).toEqual(['Agent:summarizer', 'Function:word-count', 'Function:pass-through']);
+
+    // The settings text moved with its step.
+    expect(screen.getByTestId('workflow-settings-word-count')).toHaveProperty('value', JSON.stringify({ language: 'tr' }, null, 2));
+
+    await user.click(screen.getByRole('button', { name: 'Remove function pass-through' }));
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      nodes: [
+        { name: 'summarizer', kind: 'Agent', settings: null },
+        { name: 'word-count', kind: 'Function', settings: { language: 'tr' } },
+      ],
+    });
+  });
+});
+
+describe('WorkflowEditorScreen - the stored form', () => {
+  // 13: one canonical form. The last function leaving the chain returns it to the agent list; an
+  // empty node list with agents left in it would be the same chain written the other way.
+  it('saves a chain with no function left as agentNames and says so beforehand', async () => {
+    const user = userEvent.setup();
+
+    open(mixed);
+
+    await user.click(await screen.findByRole('button', { name: 'Remove function word-count' }));
+
+    expect(screen.getByTestId('workflow-form-notice').textContent).toContain('plain agent list');
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ kind: 'Sequential', agentNames: ['summarizer'], nodes: [] });
+  });
+
+  it('saves a chain that gets its first function as nodes, with agentNames empty', async () => {
+    const user = userEvent.setup();
+
+    open(agentsOnly);
+
+    await user.selectOptions(await screen.findByTestId('workflow-add-function'), 'word-count');
+
+    expect(screen.getByTestId('workflow-form-notice').textContent).toContain('node list');
+
+    fireEvent.change(screen.getByTestId('workflow-settings-word-count'), { target: { value: '{"language":"en"}' } });
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      kind: 'Sequential',
+      agentNames: [],
+      nodes: [
+        { name: 'summarizer', kind: 'Agent', settings: null },
+        { name: 'drafter', kind: 'Agent', settings: null },
+        { name: 'word-count', kind: 'Function', settings: { language: 'en' } },
+      ],
+    });
+  });
+
+  it('writes an agent-only node list (saved over HTTP) as the plain agent list', async () => {
+    const user = userEvent.setup();
+
+    open(
+      stored({
+        nodes: [
+          { name: 'summarizer', kind: 'Agent', settings: null },
+          { name: 'drafter', kind: 'Agent', settings: null },
+        ],
+      }),
+    );
+
+    await screen.findByTestId('workflow-participants');
+
+    expect(screen.getByTestId('workflow-form-notice').textContent).toContain('plain agent list');
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ agentNames: ['summarizer', 'drafter'], nodes: [] });
+  });
+
+  it('says nothing about the stored form when a save leaves it as it is', async () => {
+    open(mixed);
+
+    await screen.findByTestId('workflow-participants');
+
+    expect(screen.queryByTestId('workflow-form-notice')).toBeNull();
+  });
+});
+
+describe('WorkflowEditorScreen - the pattern', () => {
+  // 14: a function node runs in a Sequential chain only.
+  it('offers no function picker outside the Sequential pattern', async () => {
+    const user = userEvent.setup();
+
+    open(agentsOnly);
+
+    await screen.findByTestId('workflow-add-function');
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Kind/ }), 'Concurrent');
+
+    expect(screen.queryByTestId('workflow-add-function')).toBeNull();
+
+    // The chain itself is untouched by the pattern change.
+    expect(steps()).toEqual(['Agent:summarizer', 'Agent:drafter']);
+  });
+
+  it('keeps the pattern fixed while the chain holds a function, and releases it when the function goes', async () => {
+    const user = userEvent.setup();
+
+    open(mixed);
+
+    const kind = await screen.findByRole('combobox', { name: /^Kind/ });
+
+    expect(kind).toHaveProperty('disabled', true);
+
+    await user.click(screen.getByRole('button', { name: 'Remove function word-count' }));
+
+    expect(kind).toHaveProperty('disabled', false);
+  });
+
+  it('does not offer a function that is already in the chain', async () => {
+    open(mixed);
+
+    const picker = await screen.findByTestId('workflow-add-function');
+
+    expect(within(picker).queryByRole('option', { name: 'word-count' })).toBeNull();
+    within(picker).getByRole('option', { name: 'pass-through' });
+  });
+});
+
+describe('WorkflowEditorScreen - the settings field', () => {
+  it('refuses to send text that is not JSON, says why, and lets go once it is', async () => {
+    open(mixed);
+
+    const field = await screen.findByTestId('workflow-settings-word-count');
+    const button = screen.getByTestId('workflow-save');
+
+    fireEvent.change(field, { target: { value: '{ "language": ' } });
+
+    expect(button).toHaveProperty('disabled', true);
+    screen.getByText('This is not valid JSON.');
+
+    fireEvent.change(field, { target: { value: '{ "language": "en" }' } });
+
+    expect(button).toHaveProperty('disabled', false);
+    expect(screen.queryByText('This is not valid JSON.')).toBeNull();
+  });
+
+  it('leaves the verdict on valid JSON to the server: an object the type cannot hold is sent as typed', async () => {
+    const user = userEvent.setup();
+
+    open(mixed);
+
+    fireEvent.change(await screen.findByTestId('workflow-settings-word-count'), { target: { value: '{"langauge":"en"}' } });
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      nodes: [expect.anything(), { name: 'word-count', settings: { langauge: 'en' } }],
+    });
+  });
+
+  it('lists the members the function takes, with their types and which are required', async () => {
+    open(mixed);
+
+    const list = await screen.findByTestId('workflow-settings-fields-word-count');
+
+    expect(list.textContent).toContain('language (string, required)');
+    expect(list.textContent).toContain('limit (integer)');
+  });
+
+  it('shows no field for a function that takes no settings, and says so', async () => {
+    const user = userEvent.setup();
+
+    open(agentsOnly);
+
+    await user.selectOptions(await screen.findByTestId('workflow-add-function'), 'pass-through');
+
+    expect(screen.queryByTestId('workflow-settings-pass-through')).toBeNull();
+    screen.getByText('This function takes no settings.');
+  });
+
+  it('keeps the field of a function that lost its settings while the step still carries some, so they can be cleared', async () => {
+    open(
+      stored({
+        nodes: [
+          { name: 'summarizer', kind: 'Agent', settings: null },
+          { name: 'pass-through', kind: 'Function', settings: { old: true } },
+        ],
+      }),
+    );
+
+    expect(await screen.findByTestId('workflow-settings-pass-through')).toHaveProperty('value', JSON.stringify({ old: true }, null, 2));
+    expect(screen.getAllByText('This function takes no settings.').length).toBeGreaterThan(0);
+  });
+
+  it('flags a function the server does not have, at its own step', async () => {
+    open(
+      stored({
+        nodes: [
+          { name: 'summarizer', kind: 'Agent', settings: null },
+          { name: 'retired', kind: 'Function', settings: null },
+        ],
+      }),
+    );
+
+    await screen.findByTestId('workflow-function-missing');
+  });
+
+  it('keeps the chain, and its settings, when the function list cannot be loaded', async () => {
+    open(mixed, [fixture('GET', 'api/workflows/functions', { title: 'boom' }, 500)]);
+
+    // The chain is the record; the function list is only what adding a step needs.
+    await screen.findByTestId('workflow-participants');
+
+    expect(steps()).toEqual(['Agent:summarizer', 'Function:word-count']);
+    expect(await screen.findByText('The list of functions could not be loaded.')).toBeTruthy();
+    expect(screen.queryByTestId('workflow-function-missing')).toBeNull();
+    expect(screen.getByTestId('workflow-settings-word-count')).toHaveProperty(
+      'value',
+      JSON.stringify({ language: 'en', limit: 3 }, null, 2),
+    );
+  });
+});
+
+describe('WorkflowEditorScreen - what a save changes', () => {
+  // 195.4: a structural edit makes a run that waits to be resumed unresumable (measured), so the
+  // screen says so; a settings or description edit does not, so it stays quiet.
+  it('stays quiet about waiting runs for an edit of the settings or the description', async () => {
+    open(mixed);
+
+    fireEvent.change(await screen.findByTestId('workflow-settings-word-count'), { target: { value: '{"language":"tr"}' } });
+    fireEvent.change(screen.getByLabelText('Description', { exact: true }), { target: { value: 'Reworded.' } });
+
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+  });
+
+  it('warns before a save that changes the steps, the order or the pattern', async () => {
+    const user = userEvent.setup();
+
+    open(agentsOnly);
+
+    await screen.findByTestId('workflow-participants');
+
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+
+    await user.selectOptions(await screen.findByTestId('workflow-add-agent'), 'reviewer');
+
+    expect(screen.getByTestId('workflow-structure-notice').textContent).toContain('cannot be resumed');
+  });
+
+  it('does not warn on a new workflow, which has no run to strand', async () => {
+    const user = userEvent.setup();
+
+    open(null);
+
+    await user.selectOptions(await screen.findByTestId('workflow-add-agent'), 'summarizer');
+
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+    expect(screen.queryByTestId('workflow-form-notice')).toBeNull();
   });
 });

@@ -116,3 +116,5 @@
   `mv` ile değiştir (`sudo cp ~/.dotnet/dotnet …/dotnet.new && sudo mv -f
   …/dotnet.new …/dotnet`). Yerinde `cp` aynı kilitlenmeyi yeniden üretir.
 
+
+- **🚨 `dotnet user-secrets list` değerleri HAM basar** (2026-10-12, Faz 195): yalnız bağlantı dizesi parolasını maskelemek yetmez; sağlayıcı anahtarları (OpenAI, Anthropic, Google, ElevenLabs, OpenRouter) da çıktıdadır ve çıktı oturum kaydına girer. Yalnız ADLARI listele: `dotnet user-secrets list | cut -d= -f1`. Anahtarsız (Echo) koşum için `ASPNETCORE_ENVIRONMENT=Production` ver: user-secrets yüklenmez, depo bellek içi olur, `openAiEnabled` kapanır. Development'ta Postgres kapalıysa uygulama bağlanamayıp ÇÖKER.

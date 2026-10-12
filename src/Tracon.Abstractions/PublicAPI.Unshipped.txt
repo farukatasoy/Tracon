@@ -1329,6 +1329,7 @@ Tracon.IWorkflowDefinitionStore.SaveAsync(string! tenantId, Tracon.WorkflowDefin
 Tracon.IWorkflowFunctionCatalog
 Tracon.IWorkflowFunctionCatalog.Contains(string! name) -> bool
 Tracon.IWorkflowFunctionCatalog.List() -> System.Collections.Generic.IReadOnlyList<Tracon.WorkflowFunctionDescriptor!>!
+Tracon.IWorkflowFunctionCatalog.ValidateSettings(string! name, System.Text.Json.JsonElement? settings) -> string?
 Tracon.IWorkflowRunner
 Tracon.IWorkflowRunner.GetAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDescriptor?>
 Tracon.IWorkflowRunner.GetGraphAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowGraph?>
@@ -4358,6 +4359,10 @@ Tracon.WorkflowFunctionDescriptor.Name.get -> string!
 Tracon.WorkflowFunctionDescriptor.Name.init -> void
 Tracon.WorkflowFunctionDescriptor.OutputType.get -> System.Type!
 Tracon.WorkflowFunctionDescriptor.OutputType.init -> void
+Tracon.WorkflowFunctionDescriptor.SettingsSchema.get -> System.Text.Json.JsonElement?
+Tracon.WorkflowFunctionDescriptor.SettingsSchema.init -> void
+Tracon.WorkflowFunctionDescriptor.SettingsType.get -> System.Type?
+Tracon.WorkflowFunctionDescriptor.SettingsType.init -> void
 Tracon.WorkflowFunctionDescriptor.WorkflowFunctionDescriptor() -> void
 Tracon.WorkflowGraph
 Tracon.WorkflowGraph.<Clone>$() -> Tracon.WorkflowGraph!
@@ -4417,6 +4422,8 @@ Tracon.WorkflowNodeReference.Kind.get -> Tracon.WorkflowNodeKind
 Tracon.WorkflowNodeReference.Kind.init -> void
 Tracon.WorkflowNodeReference.Name.get -> string!
 Tracon.WorkflowNodeReference.Name.init -> void
+Tracon.WorkflowNodeReference.Settings.get -> System.Text.Json.JsonElement?
+Tracon.WorkflowNodeReference.Settings.init -> void
 Tracon.WorkflowNodeReference.WorkflowNodeReference() -> void
 Tracon.WorkflowPendingRequest
 Tracon.WorkflowPendingRequest.<Clone>$() -> Tracon.WorkflowPendingRequest!

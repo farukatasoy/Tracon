@@ -93,9 +93,19 @@ new WorkflowDefinition
 other. Only `Sequential` supports function nodes: the ready-made builders for
 the other four patterns accept only agents.
 
-The console lists such a chain in the workflow editor but cannot change it yet.
-Saving there keeps the chain as it is; create or change it with
-`PUT /api/workflows/{name}`.
+The console builds such a chain too: **Workflows → New workflow**, then *Add an agent*
+and *Add a function*, which picks from the functions registered in code. The arrows
+reorder the steps and ✕ removes one. The function picker appears only for `Sequential`,
+and the pattern stays `Sequential` while the chain holds a function.
+
+A chain of agents only can be stored in either form over HTTP, `agentNames` or `nodes`,
+and both keep working. The console writes one form per chain: **`nodes` when the chain
+holds at least one function, `agentNames` otherwise.** Removing the last function in the
+console therefore saves the chain back as a plain agent list on the built-in sequential
+pattern, and adding the first one saves it as a node list. The editor says which form it
+is about to store. The difference you can observe is token streaming: an agent step in a
+node list does not stream its tokens into the workflow's live event feed (its own run row
+keeps the full message history), while the built-in pattern does.
 
 The factory passed to `AddWorkflowFunction` runs once, when the function
 registry is built — not once per run. Every workflow compile shares the same
@@ -122,9 +132,86 @@ super-step that follows it, and the handler runs again with the same input. A
 handler with a real side effect must tolerate being called more than once.
 :::
 
+### Give a function settings
+
+One function often serves several workflows with a different configuration in each: a
+voice, a loudness target, a destination folder. Register it with a settings type, and an
+operator fills in the values on each workflow's node:
+
+```csharp
+tracon.AddWorkflowFunction<string, AudioClip, TtsSettings>(
+    "tts",
+    services =>
+    {
+        var speech = services.GetRequiredService<ITextToSpeech>();
+
+        return (text, settings, context, cancellationToken) =>
+            speech.SpeakAsync(text, settings.Voice, settings.LoudnessLufs, cancellationToken);
+    },
+    options => options.Description = "Text to speech");
+
+public sealed record TtsSettings
+{
+    public required string Voice { get; init; }
+
+    public double LoudnessLufs { get; init; } = -16;
+}
+```
+
+```bash
+curl -sS -X PUT http://localhost:5081/tracon/api/workflows/narrated \
+     -H 'Content-Type: application/json' -d '{
+       "kind": "Sequential",
+       "nodes": [
+         { "name": "writer", "kind": "Agent" },
+         { "name": "tts", "kind": "Function", "settings": { "voice": "alloy", "loudnessLufs": -14 } }
+       ]
+     }'
+```
+
+In the console the same object goes into the **Settings** field of the function's step,
+with the fields the function takes listed under it.
+
+- **The code declares the shape; the operator writes values.** Settings are values, not
+  expressions: nothing in them is evaluated, and a run parameter is not substituted into
+  them. A function that needs a run's value reads it with `context.GetRunParameters()`.
+- **A save checks the settings by reading them into your type.** An unknown field (a
+  misspelled name), a missing `required` member, a number written as text, an enum written
+  as a number and a `null` where the member does not allow one are all refused with `400`,
+  and the message names the node and the member. A node without settings is read as `{}`,
+  so a type with a `required` member refuses a node that carries none — you hear about it
+  when you save, not in the first run. Names are camelCase and matched without regard to
+  case. The function receives exactly the object that was checked.
+- **Some settings are refused whatever the type.** Settings on an agent node, settings that
+  are not a JSON object, and settings on a function that declares no settings type.
+- **A change takes effect on the next run.** The graph is built again for every run, so
+  the run in progress keeps the settings it started with. A resume reads the current
+  settings, and an older checkpoint stays usable: the settings are not part of the node's
+  identity, its name and place in the chain are.
+- **A settings type that changed since the workflow was saved fails the run by name.**
+  The run ends `Failed` before any node runs, and the error names the workflow, the node
+  and the member. Save the workflow again with settings that fit. The same happens to a
+  function that stopped taking settings while a stored node still carries some.
+- **Never put a secret in settings.** They are stored in the workflow definition, appear
+  in the audit trail and are returned to everyone who can read the workflow. Make the
+  setting the *name* of the configuration key (`"apiKeyConfigurationKey": "Tts:ApiKey"`)
+  and read the value from `IConfiguration` inside the factory.
+- **A chain uses a function once.** A node's name is its identity in the graph, so the
+  same function cannot appear twice in one chain; register it under a second name when it
+  should run twice.
+- **Size.** One node's settings may be at most `MaxNodeSettingsLength` bytes of JSON
+  (16 KiB by default) when a workflow is saved.
+
+`GET /api/workflows/functions` returns each function with `settingsSchema`, the JSON
+schema of its settings type, and `null` for a function that takes none. The console lists
+the fields from it. It is for display: the check is the read described above, so what the
+schema says and what a save accepts cannot drift apart.
+
 ### Retry a node on a transient error
 
-`AddWorkflowFunction` takes an optional retry policy:
+`AddWorkflowFunction` takes an optional retry policy. For the settings overload it is
+`options.RetryPolicy` on the `WorkflowFunctionOptions` callback, and every attempt sees the same
+settings:
 
 ```csharp
 tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(

@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -17,8 +17,8 @@
 > `src/Tracon.UI/frontend/src/components/workflow-graph.tsx` ·
 > `src/Tracon.UI/frontend/src/lib/workflow-graph.ts` ·
 > `samples/Tracon.Api/Program.cs` (yalnız `AddWorkflow(...)` blokları:
-> `summarize-and-translate`, `summarize-and-approve`; ve Faz 71'in `AddWorkflowFunction(...)`
-> bloğu: `word-count`).
+> `summarize-and-translate`, `summarize-and-approve`; ve `AddWorkflowFunction(...)`
+> blokları: `word-count` (Faz 71), `speak` (Faz 195, ayarlı)).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -2324,10 +2324,11 @@ curl -s -X PUT "$APU/api/workflows/mixed-chain" -H "$APB" -H 'content-type: appl
 3. `GET /api/workflows/mixed-chain` ve `GET /api/workflows/mixed-chain/graph` oku.
 
 **Beklenen sonuç**
-- Editör zinciri sırayla ve salt okunur gösterir: `summarizer` (agent),
-  `word-count` (function). Altındaki not, zincirin konsoldan henüz
-  değiştirilemediğini söyler.
-- **Kind** `Sequential`'da kilitlidir. Agent seçici yoktur. **Save** açıktır.
+- Editör zinciri sırayla gösterir: `summarizer` (agent), `word-count`
+  (function). Satırlarda taşıma okları ve ✕ vardır (Faz 195'ten beri zincir
+  konsoldan düzenlenir; bu case artık "başka bir alanı kaydetmek zinciri
+  silmez" kapısıdır).
+- **Kind** `Sequential`'da kilitlidir ve nedenini söyler. **Save** açıktır.
 - Kayıtta açıklama değişmiştir. `nodes` iki düğümü aynı sırayla taşır,
   `agentNames` boştur. Graf hâlâ bir `Function` düğümü çizer.
 - 🚨 Eski kusur: editör boş katılımcı listesiyle açılıyordu. Agent eklenip
@@ -2695,3 +2696,198 @@ Konsol. Otomatik karşılığı: `workflow-detail.test.tsx` ·
   Run kapalıdır. Ekran başlığı playground'daki alan bölümüyle aynı görünümdedir.
 - Çalıştırma `parameters` gövdesiyle gider; çıktı MT-WF-127'deki gibi olur.
 - Editör kaydından sonra `parameters` dizisi aynen durur.
+
+---
+
+### MT-WF-132 — Konsolda ayarlı fonksiyon düğümlü zincir kurulur, kaydedilir ve çalışır (Faz 195, F-292, F-295) · 👤 görsel
+
+Mutlu yol, baştan sona. Otomatik karşılığı: `WorkflowTests.A_chain_built_in_the_console_with_function_settings_is_saved_and_runs`
+(E2E) · `workflow-editor.test.tsx`; görünüm 👤 insan gerekir.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 195 |
+| **İlgili karar** | K-900, K-901 |
+
+**Ön koşul**
+- Örnek uygulama **Echo** kipinde (`Tracon__Providers__OpenAI__ApiKey=` boş);
+  `speak` fonksiyonu (ayarlı) ve `summarizer` agent'ı kayıtlı.
+
+**Adımlar**
+1. Konsolda `Workflows → New workflow`. Ad `narrated`; desen `Sequential`.
+2. **Add an agent…** → `summarizer`. **Add a function…** → `speak`.
+3. `speak` satırının altındaki **Settings of speak** alanına
+   `{"voice":"alloy","loudnessLufs":-14}` yaz. Alanın altındaki **Fields** satırını oku.
+4. **Save**. Açılan detay ekranında mesaja `Hello` yaz ve **Run**'a bas.
+5. `GET $APU/api/workflows/narrated` oku.
+
+**Beklenen sonuç**
+- 3. adımda **Fields** satırı `voice (string, required); loudnessLufs (number);
+  apiKeyConfigurationKey (string?)` der. Alanın ipucu "Never put a secret here" der.
+- Kayıt: `agentNames` boş, `nodes` iki düğüm; ikincinin `settings`'i yazılan nesnedir,
+  birincinin `settings`'i `null`'dır.
+- Run `Completed` olur; çıktı `Echo: Hello \n\n[spoken by alloy at -14 LUFS]`.
+- Ölçüldü (2026-10-12, örnek uygulama, bellek içi): yukarıdaki çıktı HTTP ile alındı; konsol akışı
+  E2E ile kanıtlıdır.
+
+---
+
+### MT-WF-133 — Ayarda bilinmeyen alan, eksik zorunlu alan veya nesne olmayan değer kayıtta `400` olur ve mesaj düğümü ile alanı adlandırır (Faz 195, F-295)
+
+Hata yolları. Otomatik karşılığı: `WorkflowFunctionSettingsValidationTests` ·
+`WorkflowTests.A_misspelled_settings_member_is_refused_and_the_servers_answer_is_shown`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 195 |
+| **İlgili karar** | K-900 |
+
+**Ön koşul**
+- MT-WF-132'nin ön koşulu.
+
+**Girilecek veri**
+```bash
+put() { curl -s -w "\n[HTTP %{http_code}]\n" -X PUT "$APU/api/workflows/narrated-bad" -H "$APB" \
+        -H 'Content-Type: application/json' -d "$1"; }
+put '{"kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent"},{"name":"speak","kind":"Function","settings":{"voise":"alloy"}}]}'
+put '{"kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent"},{"name":"speak","kind":"Function"}]}'
+put '{"kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent"},{"name":"speak","kind":"Function","settings":[1,2]}]}'
+put '{"kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent","settings":{"x":1}},{"name":"speak","kind":"Function","settings":{"voice":"a"}}]}'
+put '{"kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent"},{"name":"word-count","kind":"Function","settings":{"x":1}}]}'
+```
+
+**Adımlar**
+1. Beş çağrıyı sırayla koş; her yanıtın `detail` alanını oku.
+2. `GET $APU/api/workflows/narrated-bad` oku.
+3. Konsolda aynı `{"voise":"alloy"}` metnini `speak`'in Settings alanına yazıp **Save**'e bas.
+
+**Beklenen sonuç**
+- Beşi de `400`, `title` `Workflow definition invalid`. `detail` sırasıyla:
+  `Function node 'speak' has invalid settings: The JSON property 'voise' could not be mapped to any .NET member … Path: $.voise` ·
+  `… missing required properties including: 'voice'.` ·
+  `Node 'speak' in workflow 'narrated-bad' has 'settings' that are a JSON array. Settings must be a JSON object …` ·
+  `Node 'summarizer' … is an agent node but carries 'settings' …` ·
+  `Function node 'word-count' carries settings, but the function declares none …`.
+- Hiçbir mesaj girilen **değeri** tekrarlamaz; yalnız alan adı ve yol görünür.
+- `GET` `404` döner: reddedilen tanım saklanmaz.
+- Konsolda sunucunun aynı metni formun üstünde görünür ve düzenleyici açık kalır.
+
+---
+
+### MT-WF-134 — Konsol zinciri tek kanonik biçimde yazar: son fonksiyon silinince `agentNames`, ilk fonksiyon eklenince `nodes` (Faz 195, F-292) · 👤 görsel
+
+Otomatik karşılığı: `workflow-editor.test.tsx` ("the stored form") · `workflow-steps.test.ts`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 195 |
+| **İlgili karar** | K-901 |
+
+**Ön koşul**
+- `narrated` MT-WF-132'deki gibi kayıtlı.
+
+**Adımlar**
+1. Konsolda `narrated → Edit`. `speak` satırındaki ✕'e bas. Notlara bak.
+2. **Save**. `GET $APU/api/workflows/narrated` oku.
+3. Yeniden `Edit`. **Add a function…** → `speak`; ayarı yaz; **Save**. `GET` oku.
+4. API ile yalnız agent'lı bir `nodes` listesi yaz
+   (`{"kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent"}]}`), konsolda aç ve **Save**'e bas. `GET` oku.
+
+**Beklenen sonuç**
+- 1. adımda iki not görünür: biçim notu ("saved as a plain agent list …") ve yapı uyarısı
+  ("… cannot be resumed after you save …").
+- 2. adımda yanıt `agentNames: ["summarizer"]`, `nodes: []` taşır.
+- 3. adımda yanıt `nodes` iki düğüm, `agentNames: []` taşır; biçim notu "node list" der.
+- 4. adımda kayıt `agentNames: ["summarizer"]`, `nodes: []` olur (kanonik biçim).
+- Sunucu iki biçimi de kabul eder: 4. adımın API çağrısı `200` döner.
+
+---
+
+### MT-WF-135 — Fonksiyonlu zincirde desen kilitlidir; fonksiyon seçici yalnız `Sequential`'da görünür (Faz 195, F-292) · 👤 görsel
+
+Otomatik karşılığı: `workflow-editor.test.tsx` ("the pattern").
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 195 |
+| **İlgili karar** | K-901 |
+
+**Ön koşul**
+- `narrated` MT-WF-132'deki gibi; ayrıca yalnız agent'lı bir `Sequential` workflow (`review`).
+
+**Adımlar**
+1. `narrated → Edit`. **Kind** seçicisine tıklamayı dene; nedenini okuyan satıra bak.
+2. `review → Edit`. **Add a function…** seçicisini gör. **Kind**'ı `Concurrent` yap.
+
+**Beklenen sonuç**
+- 1. adımda **Kind** devre dışıdır ve "Function nodes run only in a Sequential chain." der.
+- 2. adımda seçici `Sequential`'da görünür; `Concurrent`'te kaybolur ve adımlar yerinde kalır.
+
+---
+
+### MT-WF-136 — Ayar değişikliği sonraki run'da geçerlidir; eski checkpoint'ten resume reddedilmez, yapı değişikliği reddedilir (Faz 195, F-295)
+
+Otomatik karşılığı: `WorkflowFunctionSettingsResumeTests` ·
+`WorkflowFunctionSettingsConcurrencyTests` · `WorkflowStructuralChangeResumeTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 195 |
+| **İlgili karar** | K-900 |
+
+**Ön koşul**
+- `narrated` `{"voice":"alloy","loudnessLufs":-14}` ayarıyla kayıtlı ve bir kez koşmuş (`$RID`);
+  `GET $APU/api/workflows/runs/$RID/checkpoints` iki kayıt döner, ilki (`parentCheckpointId` `null`)
+  fonksiyondan ÖNCEDİR (`$CP0`).
+
+**Adımlar**
+1. `PUT` ile `speak` ayarını `{"voice":"nova","loudnessLufs":-20}` yap. Yeni run başlat.
+2. `POST $APU/api/workflows/runs/$RID/resume` gövde `{"checkpointId":"$CP0"}`.
+3. `PUT` ile zinciri yalnız agent'a indir (`{"kind":"Sequential","agentNames":["summarizer"]}`) ve 2. adımı tekrarla.
+
+**Beklenen sonuç**
+- 1. adım: run `Completed`, çıktı `Echo: Hello \n\n[spoken by nova at -20 LUFS]`.
+- 2. adım: resume `Completed`; fonksiyon YENİ ayarla yeniden koşar (aynı çıktı). Ayar executor kimliğinin
+  parçası değildir, bu yüzden eski checkpoint uyumludur.
+- 3. adım: `RunFailed`; mesaj `Workflow 'narrated' cannot be resumed from this checkpoint: the graph's
+  structure differs from when the checkpoint was written …` der. Konsolun yapı uyarısı bunu önceden söyler.
+- Ölçüldü (2026-10-12, örnek uygulama, bellek içi): üç adımın çıktısı yukarıdaki gibi alındı.
+
+---
+
+### MT-WF-137 — `GET /api/workflows/functions` ayarlı fonksiyon için `settingsSchema` taşır, ayarsız için `null` (Faz 195, F-295)
+
+Otomatik karşılığı: `WorkflowFunctionCatalogSchemaTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 195 |
+| **İlgili karar** | K-900 |
+
+**Ön koşul**
+- Örnek uygulama; `speak` (ayarlı), `word-count` ve `narrate` (ayarsız) kayıtlı.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/workflows/functions" -H "$APB"
+```
+
+**Beklenen sonuç**
+- `speak` için `settingsSchema` bir nesne şemasıdır: `properties` altında `voice` (`string`),
+  `loudnessLufs` (`number`), `apiKeyConfigurationKey` (`["string","null"]`); `required` `["voice"]`;
+  `additionalProperties` `false`.
+- `word-count` ve `narrate` için `settingsSchema` `null`'dır.
+- Şema yalnız gösterim içindir: kayıt, şemaya değil ayar tipine okunarak denetlenir (MT-WF-133).
+

@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Tracon;
 
 /// <summary>Describes a function node registered in code.</summary>
@@ -14,4 +16,31 @@ public sealed record WorkflowFunctionDescriptor
 
     /// <summary>Gets the CLR type the function returns.</summary>
     public required Type OutputType { get; init; }
+
+    /// <summary>
+    /// Gets the settings type the function declares, or <see langword="null"/> when
+    /// the function takes no settings. A node that points to a function with no
+    /// settings type must not carry <see cref="WorkflowNodeReference.Settings"/>.
+    /// </summary>
+    public Type? SettingsType { get; init; }
+
+    /// <summary>
+    /// Gets the JSON schema of <see cref="SettingsType"/>, or <see langword="null"/>
+    /// when the function takes no settings.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>For display only.</strong> The schema helps an operator write a
+    /// valid object; the check itself is the strict deserialization into
+    /// <see cref="SettingsType"/>, so what the function receives is exactly what was
+    /// checked.
+    /// </para>
+    /// <para>
+    /// A settings type the schema exporter cannot describe is reported as the bare
+    /// object schema <c>{"type":"object"}</c> with no fields listed, never as
+    /// <see langword="null"/>: a missing schema means "no settings", and a function
+    /// that takes settings must not look like one that does not.
+    /// </para>
+    /// </remarks>
+    public JsonElement? SettingsSchema { get; init; }
 }

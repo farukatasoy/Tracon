@@ -728,14 +728,11 @@ tracon.AddWorkflow(
 // pipeline has steps (formatting, counting, file I/O) that are not AI calls
 // and previously could not enter a workflow graph at all.
 //
-// A workflow whose "nodes" field uses this function is created through
-// PUT /tracon/api/workflows/{name} - AddWorkflow() is for a free-form
-// graph defined ENTIRELY in code; a "nodes" list is a stored definition like
-// any agent-only Sequential workflow, just with a function mixed in. 🚨 The
-// console's workflow editor does NOT offer a function picker yet (phase 71
-// shipped the read side only - the graph draws a function node distinctly
-// from an agent node); building one from the UI still requires this HTTP
-// call directly, or a future phase's editor work.
+// A workflow whose "nodes" field uses this function is a stored definition
+// like any agent-only Sequential workflow, just with a function mixed in:
+// AddWorkflow() is for a free-form graph defined ENTIRELY in code. Build it in
+// the console (Workflows > New workflow > Add function) or save it over HTTP
+// with PUT /tracon/api/workflows/{name}.
 tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
     "word-count",
     static _ => (messages, _, _) =>
@@ -772,6 +769,39 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
         return new ValueTask<List<ChatMessage>>([new ChatMessage(ChatRole.User, $"[{voice}] {text}")]);
     },
     "Prefixes the text with the run's 'voice' parameter. Runs no model call.");
+
+// A function with SETTINGS (F-295). The function's code declares the shape
+// (SpeakSettings); an operator writes values for it on the workflow's node, in the
+// console or over HTTP, so ONE registration serves several workflows with a
+// different voice in each:
+//
+//   PUT /tracon/api/workflows/narrated
+//   {"kind":"Sequential","nodes":[
+//     {"name":"support","kind":"Agent"},
+//     {"name":"speak","kind":"Function","settings":{"voice":"alloy","loudnessLufs":-14}}]}
+//
+// The settings are checked when the workflow is saved - an unknown field, a missing
+// "voice" or a value of the wrong type answers 400 naming the node and the member -
+// and again when a run starts. A change takes effect on the NEXT run. 🚨 Settings
+// are stored in the definition and shown to every reader of the workflow: never put a
+// secret in them. Name its configuration key instead (see SpeakSettings).
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
+    "speak",
+    static _ => (messages, settings, _, _) =>
+    {
+        var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                   ?? string.Empty;
+
+        return new ValueTask<List<ChatMessage>>(
+        [
+            new ChatMessage(
+                ChatRole.User,
+                string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"{text}\n\n[spoken by {settings.Voice} at {settings.LoudnessLufs} LUFS]")),
+        ]);
+    },
+    static options => options.Description = "Pretends to read the text aloud: makes no sound and no model call. The voice and the loudness come from the node's settings.");
 
 if (!openAiEnabled)
 {

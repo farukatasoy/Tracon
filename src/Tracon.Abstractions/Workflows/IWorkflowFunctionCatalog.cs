@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Tracon;
 
 /// <summary>
@@ -19,4 +21,31 @@ public interface IWorkflowFunctionCatalog
     /// <param name="name">The function name. Comparison is case-sensitive.</param>
     /// <returns><see langword="true"/> if the function is registered.</returns>
     bool Contains(string name);
+
+    /// <summary>
+    /// Checks the settings of a function node against the settings type the
+    /// function declares.
+    /// </summary>
+    /// <param name="name">The function name. Comparison is case-sensitive.</param>
+    /// <param name="settings">
+    /// The node's <see cref="WorkflowNodeReference.Settings"/>, or <see langword="null"/>
+    /// when the node carries none.
+    /// </param>
+    /// <returns>
+    /// A user-facing message that names the function and the problem, or
+    /// <see langword="null"/> when the settings are valid. A function that declares
+    /// no settings type is valid only with <see langword="null"/>. A function that
+    /// declares one is checked by reading the object into it: an unknown field, a
+    /// missing required member, a value of the wrong type and a <c>null</c> in a
+    /// member that does not allow it are all refused. An absent object is read as
+    /// <c>{}</c>, so a type with a required member refuses a node that has no
+    /// settings.
+    /// </returns>
+    /// <remarks>
+    /// This is the save-time check (<c>PUT /api/workflows/{name}</c>): the function
+    /// registry is fixed for the lifetime of the process, so checking early is an
+    /// honest guarantee, unlike an agent name. The compiler checks again when a
+    /// run starts, because the settings type can change between deployments.
+    /// </remarks>
+    string? ValidateSettings(string name, JsonElement? settings);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
@@ -14,12 +14,20 @@ import {
   Select,
   TextArea,
   TextInput,
-  cx,
-  type FieldIds,
 } from '../components/ui';
-import { Tooltip } from '../components/tooltip';
 import { KIND_HINT } from './workflows';
-import type { AgentParameter, WorkflowNodeReference, WorkflowSaveRequest } from '@tracon/client';
+import { StepList } from './workflow-editor/steps';
+import {
+  canonicalForm,
+  chainBody,
+  hasFunction,
+  hasInvalidSettings,
+  shapeOf,
+  stepsOf,
+  storedFormOf,
+  type Step,
+} from '../lib/workflow-steps';
+import type { AgentParameter, WorkflowFunctionResponse, WorkflowSaveRequest } from '@tracon/client';
 import type { AgentDescriptor, WorkflowDefinition, WorkflowKind } from '../lib/server-types';
 
 const KINDS: WorkflowKind[] = ['Sequential', 'Concurrent', 'Handoff', 'GroupChat', 'Magentic'];
@@ -32,17 +40,16 @@ interface Draft {
   displayName: string;
   description: string;
   kind: WorkflowKind;
-  agentNames: string[];
   /**
-   * The agent/function chain of a `Sequential` workflow that mixes function
-   * nodes in — carried, never edited here.
+   * The chain: agents, and for a `Sequential` workflow function nodes with their settings.
    *
-   * 🚨 `PUT /api/workflows/{name}` is a full replace (K-725). Before this field
-   * the editor opened such a workflow with an EMPTY participant list, and
-   * adding an agent so that Save would enable replaced the whole chain with
+   * 🚨 `PUT /api/workflows/{name}` is a full replace (K-725). The steps are written back in
+   * the form the chain needs (`chainBody`) - `nodes` when it holds a function, `agentNames`
+   * otherwise - and the other field is always sent empty. Before phase 195 the editor did not
+   * edit `nodes` at all, and adding an agent to a function-node chain replaced the chain with
    * that one agent: the function nodes were gone, with no warning.
    */
-  nodes: WorkflowNodeReference[];
+  steps: Step[];
   /**
    * The run parameters the workflow declares - carried, never edited here
    * (F-294). The console has no schema editor yet; the agent editor treats its
@@ -64,8 +71,7 @@ const EMPTY: Draft = {
   displayName: '',
   description: '',
   kind: 'Sequential',
-  agentNames: [],
-  nodes: [],
+  steps: [],
   parameters: [],
   managerAgentName: '',
   maxIterations: '',
@@ -76,19 +82,21 @@ const EMPTY: Draft = {
 /**
  * Create or edit a workflow definition.
  *
- * The form only wires together agents that already exist — it never defines
- * behaviour. That is the security boundary from decision K2: a workflow built
- * here arranges the catalogue, it cannot add to it.
+ * The form only wires together agents that already exist, and the functions the code
+ * registered - it never defines behaviour. That is the security boundary from decision K2: a
+ * workflow built here arranges the catalogue, it cannot add to it. A function node's settings
+ * are values for a shape the function's code declares, not code and not an expression.
  *
- * A workflow that mixes function nodes in is shown, not edited: its chain is
- * listed read-only and travels back unchanged, so its name and description can
- * still be changed here. The kind stays `Sequential`, the only pattern a
- * function node can run in.
+ * The chain is one list of steps (`StepList`). A `Sequential` workflow may mix function nodes
+ * in; every other pattern takes agents only. The form writes the canonical shape for what the
+ * chain holds - `nodes` with a function in it, `agentNames` without - and says so before the
+ * save when that is a change (`StoredFormNotice`).
  *
  * Validation is deliberately *not* duplicated from the server. The rules live
- * in `WorkflowDefinitionValidator` and both the save endpoint and the compiler
- * use them; a second copy here would drift. The form only disables the button
- * for the obvious cases and shows the server's own message otherwise.
+ * in `WorkflowDefinitionValidator` and the function registry, and both the save endpoint and
+ * the compiler use them; a second copy here would drift. The form only disables the button
+ * for the obvious cases (an empty chain, text that is not JSON) and shows the server's own
+ * message otherwise.
  */
 export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   const t = useT();
@@ -110,7 +118,27 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
     enabled: editing,
   });
 
+  // The functions a Sequential chain may add. Asked for on every editor, not only when a function is
+  // already in the chain: adding the first one is the main thing this list is for.
+  const functions = useQuery({
+    queryKey: ['workflow-functions'],
+    queryFn: () =>
+      unwrap(client.GET('/api/workflows/functions')) as Promise<WorkflowFunctionResponse[]>,
+  });
+
   const [draft, setDraft] = useState<Draft>(EMPTY);
+
+  // What the server holds now, so the screen can say when a save changes it.
+  const loaded = useMemo(
+    () =>
+      existing.data === undefined
+        ? undefined
+        : {
+            shape: shapeOf(existing.data.kind, stepsOf(existing.data)),
+            form: storedFormOf(existing.data),
+          },
+    [existing.data],
+  );
 
   useEffect(() => {
     const loaded = existing.data;
@@ -124,8 +152,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       displayName: loaded.displayName ?? '',
       description: loaded.description ?? '',
       kind: loaded.kind,
-      agentNames: loaded.agentNames,
-      nodes: loaded.nodes,
+      steps: stepsOf(loaded),
       parameters: loaded.parameters ?? [],
       managerAgentName: loaded.managerAgentName ?? '',
       maxIterations: loaded.maxIterations == null ? '' : String(loaded.maxIterations),
@@ -140,8 +167,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         displayName: blank(draft.displayName),
         description: blank(draft.description),
         kind: draft.kind,
-        agentNames: draft.agentNames,
-        nodes: draft.nodes,
+        ...chainBody(draft.kind, draft.steps),
         parameters: draft.parameters,
 
         // Fields that belong to another pattern are sent as null, not as an
@@ -200,13 +226,16 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   }
 
   const available = agents.data ?? [];
-  const mixed = draft.nodes.length > 0;
-  const tooFew = NEEDS_TWO.includes(draft.kind) && draft.agentNames.length < 2;
+  const mixed = hasFunction(draft.steps);
+  const tooFew = NEEDS_TWO.includes(draft.kind) && draft.steps.length < 2;
+  const sequential = draft.kind === 'Sequential';
+  const participantNames = draft.steps.map((step) => step.name);
 
   const blocked =
     draft.name.trim().length === 0 ||
-    (mixed ? draft.nodes : draft.agentNames).length === 0 ||
+    draft.steps.length === 0 ||
     tooFew ||
+    hasInvalidSettings(draft.steps) ||
     (draft.kind === 'Magentic' && draft.managerAgentName.trim().length === 0);
 
   return (
@@ -287,31 +316,44 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               </Select>
             </Field>
 
-            {mixed ? (
-              <NodeChain nodes={draft.nodes} />
-            ) : (
-              /* The render-prop form: "needs two agents" used to be a loose
-                 paragraph under the picker, which no screen reader ties to the
-                 control and no keyboard user is told about. */
-              <Field
-                label={t('workflowEditor.participants')}
-                required
-                hint={
-                  draft.kind === 'Sequential'
-                    ? t('workflowEditor.orderMatters')
-                    : t('workflowEditor.orderIgnored')
-                }
-                error={tooFew ? t('workflowEditor.needsTwo', { kind: draft.kind }) : undefined}
-              >
-                {(ids) => (
-                  <AgentPicker
-                    ids={ids}
-                    available={available.map((agent) => agent.name)}
-                    selected={draft.agentNames}
-                    onChange={(agentNames) => setDraft({ ...draft, agentNames })}
-                  />
-                )}
-              </Field>
+            {/* The render-prop form: "needs two agents" used to be a loose
+                paragraph under the picker, which no screen reader ties to the
+                control and no keyboard user is told about. */}
+            <Field
+              label={t('workflowEditor.participants')}
+              required
+              hint={
+                draft.kind === 'Sequential'
+                  ? t('workflowEditor.orderMatters')
+                  : t('workflowEditor.orderIgnored')
+              }
+              error={tooFew ? t('workflowEditor.needsTwo', { kind: draft.kind }) : undefined}
+            >
+              {(ids) => (
+                <StepList
+                  ids={ids}
+                  agents={available.map((agent) => agent.name)}
+                  steps={draft.steps}
+                  onChange={(steps) => setDraft({ ...draft, steps })}
+                  functions={
+                    sequential
+                      ? {
+                          items: functions.data,
+                          error: functions.isError ? functions.error : null,
+                          retry: () => void functions.refetch(),
+                        }
+                      : undefined
+                  }
+                />
+              )}
+            </Field>
+
+            {loaded !== undefined && (
+              <ChainNotices
+                kind={draft.kind}
+                steps={draft.steps}
+                loaded={loaded}
+              />
             )}
 
             {draft.kind === 'Magentic' && (
@@ -326,7 +368,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
                 >
                   <option value="">{t('workflowEditor.chooseAgent')}</option>
                   {available
-                    .filter((agent) => !draft.agentNames.includes(agent.name))
+                    .filter((agent) => !participantNames.includes(agent.name))
                     .map((agent) => (
                       <option key={agent.name} value={agent.name}>
                         {agent.name}
@@ -414,139 +456,57 @@ function PlanApproval({
 }
 
 /**
- * The agent/function chain of a mixed `Sequential` workflow, read-only.
+ * What a save is about to do to the stored workflow, said before it happens.
  *
- * Not a `Field`: there is no control to label. The list says what the chain is,
- * and the note says why it cannot be changed here — phase 71 shipped the read
- * side of function nodes only, and a node picker is still to come.
+ * Two separate things, both only for a workflow that already exists:
+ *
+ * - **The stored form changes.** The console writes `nodes` when the chain holds a function and
+ *   `agentNames` when it does not (one canonical form), whatever form it loaded. The agent step
+ *   of a node list runs on the hand-built graph, which does not stream its tokens live; an
+ *   agent-only list runs on the built-in sequential pattern.
+ * - **The graph changes.** A new pattern, step or order is a different graph, and a run that is
+ *   waiting to be resumed belongs to the old one: its saved state is refused afterwards
+ *   (measured, phase 195). A settings or description change is not such a change.
  */
-function NodeChain({ nodes }: { nodes: readonly WorkflowNodeReference[] }): ReactNode {
-  const t = useT();
-
-  return (
-    <div>
-      <p className="mb-1 text-xs font-medium text-muted">{t('workflowEditor.participants')}</p>
-      <ol className="flex flex-col gap-1.5" data-testid="workflow-nodes">
-        {nodes.map((node, index) => (
-          <li
-            key={node.name}
-            className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-base"
-          >
-            <span className="w-5 text-xs text-subtle">{index + 1}</span>
-            <span className="flex-1">{node.name}</span>
-            <Badge tone={node.kind === 'Function' ? 'info' : 'neutral'}>
-              {node.kind === 'Function' ? t('graph.legend.function') : t('graph.legend.agent')}
-            </Badge>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-1 text-xs text-subtle">{t('workflowEditor.nodesReadOnly')}</p>
-    </div>
-  );
-}
-
-/** Ordered multi-select. Order is what makes a `Sequential` chain a chain. */
-function AgentPicker({
-  available,
-  selected,
-  onChange,
-  ids,
+function ChainNotices({
+  kind,
+  steps,
+  loaded,
 }: {
-  available: readonly string[];
-  selected: readonly string[];
-  onChange: (names: string[]) => void;
-  /**
-   * The field bindings, put on the one real control this composite has — the
-   * "add an agent" select. A `<div>` cannot carry `aria-invalid`, and the
-   * ordered list of chosen agents is output rather than an input.
-   */
-  ids?: FieldIds;
+  kind: WorkflowKind;
+  steps: readonly Step[];
+  loaded: { shape: string; form: 'agentNames' | 'nodes' };
 }): ReactNode {
   const t = useT();
-  const unselected = available.filter((agent) => !selected.includes(agent));
+  const form = canonicalForm(kind, steps);
+  const formChanged = form !== loaded.form;
+  const shapeChanged = shapeOf(kind, steps) !== loaded.shape;
+
+  if (!formChanged && !shapeChanged) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col gap-2">
-      <ol className="flex flex-col gap-1.5" data-testid="workflow-participants">
-        {selected.map((agent, index) => (
-          <li
-            key={agent}
-            className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-base"
-          >
-            <span className="w-5 text-xs text-subtle">{index + 1}</span>
-            <span className="flex-1">{agent}</span>
-
-            <Tooltip text={t('workflowEditor.moveUp')}>
-              <button
-                type="button"
-                aria-label={t('workflowEditor.moveUpAgent', { agent })}
-                disabled={index === 0}
-                className={cx('px-1 text-muted hover:text-fg', index === 0 && 'opacity-30')}
-                onClick={() => onChange(swap([...selected], index, index - 1))}
-              >
-                ↑
-              </button>
-            </Tooltip>
-            <Tooltip text={t('workflowEditor.moveDown')}>
-              <button
-                type="button"
-                aria-label={t('workflowEditor.moveDownAgent', { agent })}
-                disabled={index === selected.length - 1}
-                className={cx(
-                  'px-1 text-muted hover:text-fg',
-                  index === selected.length - 1 && 'opacity-30',
-                )}
-                onClick={() => onChange(swap([...selected], index, index + 1))}
-              >
-                ↓
-              </button>
-            </Tooltip>
-            <button
-              type="button"
-              aria-label={t('workflowEditor.removeAgent', { agent })}
-              className="px-1 text-muted hover:text-danger"
-              onClick={() => onChange(selected.filter((name) => name !== agent))}
-            >
-              ✕
-            </button>
-          </li>
-        ))}
-      </ol>
-
-      {unselected.length > 0 && (
-        <Select
-          {...(ids ?? {})}
-          value=""
-          onChange={(value) => {
-            if (value.length > 0) {
-              onChange([...selected, value]);
-            }
-          }}
+      {formChanged && (
+        <p
+          className="rounded-md border border-line bg-raised p-3 text-sm text-muted"
+          data-testid="workflow-form-notice"
         >
-          <option value="">{t('workflowEditor.addAgent')}</option>
-          {unselected.map((agent) => (
-            <option key={agent} value={agent}>
-              {agent}
-            </option>
-          ))}
-        </Select>
+          {form === 'nodes' ? t('workflowEditor.formNodes') : t('workflowEditor.formAgents')}
+        </p>
+      )}
+      {(shapeChanged || formChanged) && (
+        <p
+          className="flex items-start gap-2 rounded-md border border-line bg-raised p-3 text-sm text-muted"
+          data-testid="workflow-structure-notice"
+        >
+          <Badge tone="warn">!</Badge>
+          <span>{t('workflowEditor.structureChanged')}</span>
+        </p>
       )}
     </div>
   );
-}
-
-function swap(items: string[], from: number, to: number): string[] {
-  const moved = items[from];
-  const replaced = items[to];
-
-  if (moved === undefined || replaced === undefined) {
-    return items;
-  }
-
-  items[from] = replaced;
-  items[to] = moved;
-
-  return items;
 }
 
 function blank(value: string): string | null {

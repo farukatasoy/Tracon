@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Tracon.Workflows.UnitTests;
 
 /// <summary>
@@ -176,6 +178,66 @@ public sealed class WorkflowDefinitionValidatorTests
 
         WorkflowDefinitionValidator.Validate(definition).ShouldBeNull();
     }
+
+    [Fact]
+    public void A_function_node_may_carry_a_settings_object()
+    {
+        var definition = NodeDefinition(
+            WorkflowKind.Sequential,
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent },
+                Function("tts", """{"voice":"alloy"}"""),
+            ]);
+
+        WorkflowDefinitionValidator.Validate(definition).ShouldBeNull();
+    }
+
+    [Fact]
+    public void An_agent_node_that_carries_settings_is_rejected_and_named()
+    {
+        // F-295: an agent's behavior is set in its own definition. A value on its node would
+        // look like a setting that works while nothing reads it.
+        var definition = NodeDefinition(
+            WorkflowKind.Sequential,
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent, Settings = Parse("""{"tone":"formal"}""") },
+                Function("tts", null),
+            ]);
+
+        var message = WorkflowDefinitionValidator.Validate(definition);
+
+        message.ShouldNotBeNull();
+        message.ShouldContain("Node 'writer'", Case.Sensitive);
+        message.ShouldContain("agent node", Case.Sensitive);
+        message.ShouldContain("'settings'", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData("[1,2]", "array")]
+    [InlineData("\"loud\"", "string")]
+    [InlineData("3", "number")]
+    [InlineData("true", "true")]
+    public void Settings_that_are_not_a_JSON_object_are_rejected(string settings, string kind)
+    {
+        var definition = NodeDefinition(
+            WorkflowKind.Sequential,
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent },
+                Function("tts", settings),
+            ]);
+
+        var message = WorkflowDefinitionValidator.Validate(definition);
+
+        message.ShouldNotBeNull();
+        message.ShouldContain("Node 'tts'", Case.Sensitive);
+        message.ShouldContain("JSON object", Case.Sensitive);
+        message.ShouldContain(kind, Case.Sensitive);
+    }
+
+    private static WorkflowNodeReference Function(string name, string? settings)
+        => new() { Name = name, Kind = WorkflowNodeKind.Function, Settings = settings is null ? null : Parse(settings) };
+
+    private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone();
 
     private static WorkflowDefinition Definition(WorkflowKind kind, IReadOnlyList<string> agentNames)
         => new()

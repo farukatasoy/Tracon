@@ -19,4 +19,4 @@ Tracon.Testing=6
 Tracon.Testing.Contracts.Xunit=49
 Tracon.UI=1
 Tracon.Voice=2
-Tracon.Workflows=6
+Tracon.Workflows=7

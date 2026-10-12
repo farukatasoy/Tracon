@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
 using static Microsoft.Playwright.Assertions;
@@ -54,6 +55,9 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
     private const string SeededTriggerName = "helpdesk-webhook";
 
+    /// <summary>The stored workflow the editor screenshot opens: an agent, then a function with settings.</summary>
+    private const string SeededWorkflowName = "narrated";
+
     /// <summary>
     /// The failure text the run-detail capture is recognised by.
     /// </summary>
@@ -82,6 +86,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         ("sessions", "/sessions", SeededSessionId),
         ("jobs", "/jobs", SeededScheduleName),
         ("workflows", "/workflows", "summarize-and-translate"),
+        ("workflow-editor", $"/workflows/{SeededWorkflowName}/edit", "Settings of speak"),
         ("evals", "/evals", "Evals"),
         ("experiments", "/experiments", "Experiments"),
         ("approvals", "/approvals", "Order ORD-7"),
@@ -98,13 +103,24 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
     [Fact]
     public async Task Every_documented_screen_renders_and_is_captured()
     {
-        await using var host = await UiHost.StartAsync();
+        // The workflow editor screen shows a function that takes settings, and a second one the
+        // chain does not use yet, so the picker for adding a function is on the screen too.
+        await using var host = await UiHost.StartAsync(configureTracon: static tracon => tracon
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, Ui.WorkflowTests.SpeakSettings>(
+                "speak",
+                static _ => static (messages, _, _, _) => ValueTask.FromResult(messages),
+                static options => options.Description = "Reads the text aloud.")
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+                "word-count",
+                static _ => static (messages, _, _) => ValueTask.FromResult(messages),
+                "Counts the words."));
 
         // A screenshot of an empty console teaches nothing. Two real runs — one plain,
         // one that calls a tool — give the dashboard, the run list, and the agent
         // detail screen something to show.
         await SeedRunsAsync(host);
         await SeedCatalogAsync(host);
+        await SeedNarratedWorkflowAsync(host);
         await SeedPendingApprovalAsync(host);
 
         var directory = ResolveOutputDirectory();
@@ -196,6 +212,28 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
                     $"in the {theme} theme; it probably rendered blank.");
             }
         }
+    }
+
+    /// <summary>
+    /// Stores the workflow the editor screenshot opens: an agent, then a function that takes
+    /// settings, with the settings an operator would have written.
+    /// </summary>
+    private static async Task SeedNarratedWorkflowAsync(UiHost host)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+
+        await EnsureSuccessAsync(client.PutAsJsonAsync(
+            $"{host.Prefix}/api/workflows/{SeededWorkflowName}",
+            new
+            {
+                description = "Answers, then reads the answer aloud.",
+                kind = "Sequential",
+                nodes = new object[]
+                {
+                    new { name = "support", kind = "Agent" },
+                    new { name = "speak", kind = "Function", settings = new { voice = "alloy", loudnessLufs = -14 } },
+                },
+            }));
     }
 
     /// <summary>
