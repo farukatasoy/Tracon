@@ -18,8 +18,13 @@ internal static class WorkflowEventMapper
 {
     /// <summary>Converts a single MAF event into a Tracon event draft.</summary>
     /// <param name="workflowEvent">The event to convert.</param>
+    /// <param name="failureText">
+    /// The text a failure event carries: the display-safe text the runner
+    /// logged the exception under (<c>SafeErrorText</c>), never the
+    /// exception's own message. Ignored for every other event.
+    /// </param>
     /// <returns>The conversion result.</returns>
-    public static WorkflowEventMapping Map(WorkflowEvent workflowEvent)
+    public static WorkflowEventMapping Map(WorkflowEvent workflowEvent, string? failureText = null)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
 
@@ -50,10 +55,13 @@ internal static class WorkflowEventMapper
                 Payload = DescribeCompletion(completed),
             },
 
+            // F-334 (K-640): the exception's own message can carry a host:port
+            // or a request detail its producer put there; the runner passes
+            // the safe text it logged instead.
             ExecutorFailedEvent failed => new RunEventDraft(RunEventType.ExecutorFailed)
             {
                 Text = failed.ExecutorId,
-                Payload = failed.Data?.Message,
+                Payload = failureText,
             },
 
             ExecutorInvokedEvent invoked => new RunEventDraft(RunEventType.ExecutorInvoked)
@@ -78,7 +86,7 @@ internal static class WorkflowEventMapper
             WorkflowErrorEvent error => new RunEventDraft(RunEventType.ExecutorFailed)
             {
                 Text = error.Exception?.GetType().Name,
-                Payload = error.Exception?.Message,
+                Payload = failureText,
             },
 
             WorkflowWarningEvent warning => new RunEventDraft(RunEventType.SuperStepCompleted)

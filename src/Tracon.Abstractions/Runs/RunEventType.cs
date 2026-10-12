@@ -113,8 +113,14 @@ public enum RunEventType
 
     /// <summary>
     /// An executor failed. <c>Text</c> carries the executor id and <c>Payload</c>
-    /// the error message.
+    /// a display-safe error text: a Tracon exception's own message, otherwise
+    /// <c>&lt;Type&gt; failed. (ref: &lt;id&gt;)</c>, where the id names the log
+    /// entry that holds the full exception.
     /// </summary>
+    /// <remarks>
+    /// A graph-level error is written with the same type; its <c>Text</c> is
+    /// the exception's type name.
+    /// </remarks>
     ExecutorFailed = 16,
 
     /// <summary>

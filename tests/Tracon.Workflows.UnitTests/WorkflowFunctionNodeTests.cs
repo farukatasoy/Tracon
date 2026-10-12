@@ -193,6 +193,56 @@ public sealed class WorkflowFunctionNodeTests
     }
 
     [Fact]
+    public async Task A_failed_node_event_carries_the_safe_text_and_never_the_raw_message()
+    {
+        // F-334 (K-640): ToRunError wrote the root row's safe text, but the
+        // ExecutorFailed event of the same failure wrote the exception's own
+        // message - a host:port the node's HTTP client put there - to the
+        // event table and the stream. One failure, stored once safely and once raw.
+        var host = new WorkflowTestHost("one");
+
+        host.AddFunction<List<ChatMessage>, List<ChatMessage>>(
+            "render",
+            static (_, _, _) => throw new HttpRequestException("connect to media-worker:8080 failed"));
+
+        await host.SaveAsync(new WorkflowDefinition
+        {
+            Name = "render-chain",
+            Kind = WorkflowKind.Sequential,
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "one", Kind = WorkflowNodeKind.Agent },
+                new WorkflowNodeReference { Name = "render", Kind = WorkflowNodeKind.Function },
+            ],
+        });
+
+        var streamed = await Collect(host.CreateRunner(), "render-chain", "hi");
+
+        var runs = await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 });
+        var root = runs.Single(run => run.Kind == RunKind.Workflow);
+        var stored = new List<RunEvent>();
+
+        await foreach (var runEvent in host.RunStore.ReadEventsAsync(root.Id))
+        {
+            stored.Add(runEvent);
+        }
+
+        foreach (var runEvent in streamed.Concat(stored))
+        {
+            (runEvent.Text ?? string.Empty).ShouldNotContain("media-worker", Case.Sensitive);
+            (runEvent.Payload ?? string.Empty).ShouldNotContain("media-worker", Case.Sensitive);
+        }
+
+        var failed = stored.Where(runEvent => runEvent.Type == RunEventType.ExecutorFailed).ToList();
+        failed.ShouldNotBeEmpty();
+        failed.ShouldAllBe(runEvent => runEvent.Payload!.Contains(nameof(HttpRequestException)) && runEvent.Payload.Contains("(ref: "));
+
+        // The event and the row name the same log entry: one failure, one ref.
+        var reference = root.Error!.Message[root.Error.Message.IndexOf("(ref: ", StringComparison.Ordinal)..];
+        failed.ShouldAllBe(runEvent => runEvent.Payload!.EndsWith(reference, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Cancellation_requested_inside_a_function_node_still_records_Canceled()
     {
         // Same shape as WorkflowCancellationTests.Cancellation_during_a_step_records_Canceled_not_Completed:

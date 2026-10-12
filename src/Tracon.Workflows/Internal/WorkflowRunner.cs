@@ -745,6 +745,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
             var delivered = new HashSet<string>(StringComparer.Ordinal);
 
+            // F-334 (K-640): the failure an executor event reports is logged
+            // ONCE, under one ref, and the same ref names it on the event and
+            // on the run row - MAF can report one exception as an executor
+            // failure, a graph error and a thrown step.
+            (Exception Exception, string CorrelationId)? loggedFailure = null;
+
             // 🚨 The stream must be reopened AFTER the response is sent.
             // Measured (phase 16): SendResponseAsync queues a message, but the
             // WatchStreamAsync enumerator being consumed at that moment has
@@ -806,7 +812,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         }
                         catch (Exception exception)
                         {
-                            stepFailure = PumpedEvent.FromFailure(ToRunError(exception, execution.RunId));
+                            stepFailure = PumpedEvent.FromFailure(ToRunError(exception, execution.RunId, loggedFailure));
                         }
 
                         if (stepFailure is { } failed)
@@ -858,7 +864,15 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             }
                         }
 
-                        var mapping = WorkflowEventMapper.Map(workflowEvent);
+                        string? failureText = null;
+
+                        if (FailureOf(workflowEvent) is { } reported)
+                        {
+                            loggedFailure = LogFailure(reported, execution.RunId, workflowEvent, loggedFailure);
+                            failureText = SafeErrorText.ForPersistence(loggedFailure.Value.Exception, loggedFailure.Value.CorrelationId);
+                        }
+
+                        var mapping = WorkflowEventMapper.Map(workflowEvent, failureText);
 
                         if (!mapping.IsKnown)
                         {
@@ -892,7 +906,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         // looked green in the list but had no result.
                         if (workflowEvent is WorkflowErrorEvent graphError)
                         {
-                            yield return PumpedEvent.FromFailure(ToRunError(graphError, execution.RunId));
+                            yield return PumpedEvent.FromFailure(ToRunError(graphError, execution.RunId, loggedFailure));
                         }
                     }
                 }
@@ -1407,17 +1421,22 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// direct code error (for example a genuine `AggregateException` with
     /// multiple inner exceptions) is left as is.
     /// </remarks>
-    private RunError ToRunError(Exception exception, Guid runId)
+    private RunError ToRunError(Exception exception, Guid runId, (Exception Exception, string CorrelationId)? logged = null)
     {
-        var unwrapped = exception switch
-        {
-            TargetInvocationException { InnerException: { } inner } => inner,
-            AggregateException { InnerExceptions.Count: 1 } aggregate => aggregate.InnerExceptions[0],
-            _ => exception,
-        };
+        var unwrapped = UnwrapInvocation(exception);
+        string correlationId;
 
-        var correlationId = SafeErrorText.NewCorrelationId();
-        _logger.LogError(unwrapped, "Workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+        if (logged is { } previous && ReferenceEquals(previous.Exception, unwrapped))
+        {
+            // Already logged with its detail when its event was written; the
+            // row names the same entry instead of logging it again.
+            correlationId = previous.CorrelationId;
+        }
+        else
+        {
+            correlationId = SafeErrorText.NewCorrelationId();
+            _logger.LogError(unwrapped, "Workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+        }
 
         // 🚨 The SAME stable identity the agent run path writes (F-314): a
         // TraconException's ErrorType, not its CLR name. The class is added
@@ -1460,10 +1479,63 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         return error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
     }
 
+    /// <summary>Strips one reflection/handler-invocation wrapper (the rule <c>ToRunError</c> describes).</summary>
+    private static Exception UnwrapInvocation(Exception exception)
+        => exception switch
+        {
+            TargetInvocationException { InnerException: { } inner } => inner,
+            AggregateException { InnerExceptions.Count: 1 } aggregate => aggregate.InnerExceptions[0],
+            _ => exception,
+        };
+
+    /// <summary>The exception a failure event reports, or <see langword="null"/> for any other event.</summary>
+    private static Exception? FailureOf(WorkflowEvent workflowEvent)
+        => workflowEvent switch
+        {
+            ExecutorFailedEvent failed => failed.Data,
+            WorkflowErrorEvent error => error.Exception,
+            _ => null,
+        };
+
+    /// <summary>
+    /// Logs a failure event's exception with its full detail, once, and returns
+    /// the exception and the ref its display-safe text carries.
+    /// </summary>
+    /// <remarks>
+    /// The event table, the stream and every run event sink get only
+    /// <see cref="SafeErrorText.ForPersistence"/>; the detail lives in the log
+    /// under the ref. An exception already logged keeps its ref.
+    /// </remarks>
+    // K-640, F-334.
+    private (Exception Exception, string CorrelationId) LogFailure(
+        Exception failure,
+        Guid runId,
+        WorkflowEvent workflowEvent,
+        (Exception Exception, string CorrelationId)? previous)
+    {
+        var unwrapped = UnwrapInvocation(failure);
+
+        if (previous is { } logged && ReferenceEquals(logged.Exception, unwrapped))
+        {
+            return logged;
+        }
+
+        var correlationId = SafeErrorText.NewCorrelationId();
+
+        _logger.LogError(
+            unwrapped,
+            "Workflow run {RunId} node {ExecutorId} failed. (ref: {CorrelationId})",
+            runId,
+            (workflowEvent as ExecutorFailedEvent)?.ExecutorId,
+            correlationId);
+
+        return (unwrapped, correlationId);
+    }
+
     /// <summary>Converts a graph-level error into a run error.</summary>
-    private RunError ToRunError(WorkflowErrorEvent failure, Guid runId)
+    private RunError ToRunError(WorkflowErrorEvent failure, Guid runId, (Exception Exception, string CorrelationId)? logged = null)
         => failure.Exception is { } exception
-            ? ToRunError(exception, runId)
+            ? ToRunError(exception, runId, logged)
             : new RunError
             {
                 Type = nameof(WorkflowErrorEvent),

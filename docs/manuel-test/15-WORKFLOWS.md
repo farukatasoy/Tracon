@@ -2094,10 +2094,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/kayitsiz-fonksiyo
 
 ---
 
-### MT-WF-114 — Patlayan fonksiyon düğümü → `ExecutorFailed`, gerçek hata mesajı görünür
+### MT-WF-114 — Patlayan fonksiyon düğümü → `ExecutorFailed`, hata güvenli metinle görünür
 
 **Gerçekten koşuldu ve doğrulandı** (unit test:
-`WorkflowFunctionNodeTests.A_function_node_that_throws_fails_the_run_with_the_real_error`).
+`WorkflowFunctionNodeTests.A_function_node_that_throws_fails_the_run_without_leaking_the_raw_message`;
+2026-10-12'de F-334 ile yeniden yazıldı — eski adı ve "gerçek mesaj" iddiası
+K-640'a aykırıydı).
 
 | | |
 |---|---|
@@ -2107,10 +2109,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/kayitsiz-fonksiyo
 | **İlgili karar** | K-401 (aynı sarmalayıcı-soyma mekanizması) |
 
 **Beklenen sonuç**
-- Çalıştırma `Failed` olarak kapanır; kaydedilen hata mesajı fonksiyonun
-  gerçekten fırlattığı istisnanın metnini taşır (K-401'in
-  `TargetInvocationException`/tek-elemanlı `AggregateException` soyma
-  mantığı, MAF'ın kendi çağrı zincirinden gelen sarmalayıcıyı da kapsar).
+- Çalıştırma `Failed` olarak kapanır. Hata mesajı ve `ExecutorFailed` yükü
+  fonksiyonun fırlattığı istisnanın **tipini** ve bir `ref` taşır
+  (`InvalidOperationException failed. (ref: …)`); istisnanın kendi metni
+  yalnız günlükte, aynı `ref` ile durur (K-640). Tip, sarmalayıcının değil
+  gerçek istisnanındır (K-401'in `TargetInvocationException`/tek-elemanlı
+  `AggregateException` soyma mantığı).
 
 ---
 
@@ -2230,7 +2234,7 @@ bunu iki gerçek koşumu (`flaky`/`baseline`) karşılaştırarak kanıtlar).
 `WorkflowNodeRetryTests.A_permanent_error_is_never_retried` `TraconException`
 (kalıcı, `CompilationFailed` sınıfına düşen) fırlatan bir düğümün TEK bir
 denemede yukarı fırlatıldığını ölçer;
-`WorkflowFunctionNodeTests.A_function_node_that_throws_fails_the_run_with_the_real_error`
+`WorkflowFunctionNodeTests.A_function_node_that_throws_fails_the_run_without_leaking_the_raw_message`
 (Faz 71, retry'sız) ile AYNI temel davranışın retry POLİTİKASI VARKEN de
 korunduğunu tamamlar.
 
@@ -2252,9 +2256,9 @@ korunduğunu tamamlar.
 **Beklenen sonuç**
 - Fonksiyon **bir kez** çağrılır — `MaxAttempts = 3` olmasına RAĞMEN yeniden
   denenmez, çünkü hata sınıfı geçici değildir.
-- Koşu `Failed` biter; `error.message` fonksiyonun gerçek istisna metnini
-  taşır (metin eşleştirmesi değil, tipli sağlayıcı hatası sınıflandırması —
-  Faz 44).
+- Koşu `Failed` biter; `error.message` istisnanın tipini ve bir `ref` taşır,
+  metnini taşımaz (K-640; sınıflandırma metin eşleştirmesi değil, tipli
+  sağlayıcı hatasıdır — Faz 44).
 
 ---
 
@@ -2447,3 +2451,37 @@ Otomatik karşılığı: `WorkflowNodeRetryTests`, `WorkflowNodeRetryEndpointTes
 - `503` ile düğüm **üç kez** çağrılır; geçici hata yine yeniden denenir.
 - 🚨 Eski kusur: `401` ile düğüm üç kez çağrıldı.
 - Koşum sonunda geçici düğüm ve workflow geri alınır.
+
+---
+
+### MT-WF-125 — Patlayan düğümün `ExecutorFailed` olayı ham istisna metnini taşımaz (kusur-giderme, 2026-10-12, F-334)
+
+Regresyon. Run satırı güvenli metni yazıyordu, ama aynı hatanın
+`ExecutorFailed` olayı istisnanın kendi mesajını olay tablosuna, SSE akışına ve
+her sink'e yazıyordu. Otomatik karşılığı:
+`WorkflowFunctionNodeTests.A_failed_node_event_carries_the_safe_text_and_never_the_raw_message`,
+`WorkflowFailureTextTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-640 |
+
+**Ön koşul**
+- Örnek uygulamada bir fonksiyon düğümü
+  `throw new HttpRequestException("connect to media-worker:8080 failed")` atar.
+- Agent → bu fonksiyon zincirini taşıyan bir workflow.
+
+**Adımlar**
+1. Workflow'u konsoldan çalıştır; akıştaki hata satırını oku.
+2. `GET /api/runs/{workflowRunId}/events` ve `GET /api/runs/{workflowRunId}` oku.
+3. Günlükte `ref` değerini ara.
+
+**Beklenen sonuç**
+- Akışta, olaylarda ve run satırında `media-worker:8080` geçmez.
+- `ExecutorFailed` yükü ve `error.message` `HttpRequestException failed. (ref: <id>)`
+  taşır; iki yerdeki `ref` aynıdır.
+- Günlükte aynı `ref` ile tek bir hata girdisi istisnanın tamamını taşır.
+- 🚨 Eski kusur: `ExecutorFailed` yükü `connect to media-worker:8080 failed` idi.
