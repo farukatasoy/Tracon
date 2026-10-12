@@ -3748,7 +3748,7 @@ namespace Tracon.Client.Generated
         /// Starts a new run with recorded input.
         /// </summary>
         /// <remarks>
-        /// The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened.
+        /// The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. An agent that declares parameters is replayed with the values the source run was bound with; 'parameters' changes the names it gives and keeps the rest, and a name the replayed version does not declare returns 400. A run that recorded no values (input recording was off, or it predates parameter recording) cannot be replayed when the agent declares parameters, and returns 400. A workflow run is not replayed; it is continued from its checkpoints.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -23557,6 +23557,14 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("toolMode")]
         public ReplayToolMode ToolMode { get; set; } = default!;
 
+        /// <summary>
+        /// Parameter values laid over the ones the source run was bound with.
+        /// <br/>Left empty, the replay runs with exactly the source run's values.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.IDictionary<string, string>? Parameters { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -27167,6 +27175,14 @@ namespace Tracon.Client.Generated
         public bool RequirePlanApproval { get; set; } = default!;
 
         /// <summary>
+        /// Gets the run parameters the workflow accepts. Empty for a workflow that
+        /// <br/>takes none.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = new System.Collections.Generic.List<AgentParameter>();
+
+        /// <summary>
         /// Gets the tenant the definition belongs to. `null` for workflows defined in code.
         /// </summary>
 
@@ -27240,6 +27256,14 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("nodes")]
         public System.Collections.Generic.ICollection<WorkflowNodeReference> Nodes { get; set; } = new System.Collections.Generic.List<WorkflowNodeReference>();
+
+        /// <summary>
+        /// Gets the run parameters the workflow accepts. Empty for a workflow that
+        /// <br/>takes none, and always empty for a workflow defined in code.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = new System.Collections.Generic.List<AgentParameter>();
 
         /// <summary>
         /// Gets the definition version. Always 1 for code-defined workflows.
@@ -27671,6 +27695,16 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("sessionId")]
         public string? SessionId { get; set; } = default!;
 
+        /// <summary>
+        /// Values for the parameters the workflow declares, by name. A missing
+        /// <br/>required value, an undeclared name or an over-long value is refused with
+        /// <br/>`400` before the stream starts. Every agent step receives the values
+        /// <br/>its own schema declares.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.IDictionary<string, string>? Parameters { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -27744,6 +27778,14 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("requirePlanApproval")]
         public bool RequirePlanApproval { get; set; } = default!;
+
+        /// <summary>
+        /// The run parameters the workflow accepts. Leave empty for a workflow that
+        /// <br/>takes none. Replaced as a whole on every save, like every other field.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.ICollection<AgentParameter>? Parameters { get; set; } = default!;
 
     }
 

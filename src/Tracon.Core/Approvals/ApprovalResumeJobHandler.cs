@@ -30,6 +30,13 @@ namespace Tracon;
 /// version. The culture is not stored on the run record, so the new run uses the
 /// default instructions.
 /// </para>
+/// <para>
+/// F-294: an agent that declares parameters resumes with the values the source run
+/// recorded. Resuming it on the defaults would answer the tool call under
+/// different instructions than the ones that asked for it, so a source that
+/// recorded none (input recording off, or a run from before parameter recording)
+/// is refused - the decision cannot be applied, and the message says why.
+/// </para>
 /// </remarks>
 internal sealed class ApprovalResumeJobHandler(
     IAgentCatalog catalog,
@@ -38,7 +45,9 @@ internal sealed class ApprovalResumeJobHandler(
     IPendingApprovalStore approvalStore,
     Microsoft.Agents.AI.ChatHistoryProvider chatHistory,
     TimeProvider? timeProvider = null,
-    ILogger<ApprovalResumeJobHandler>? logger = null) : IJobHandler
+    ILogger<ApprovalResumeJobHandler>? logger = null,
+    IRunInputStore? inputStore = null,
+    ParameterizedAgentFactory? parameterFactory = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -68,6 +77,7 @@ internal sealed class ApprovalResumeJobHandler(
         ChatMessage approvalMessage;
         int? pinnedVersion;
         RunRecord source;
+        IReadOnlyDictionary<string, string>? parameterValues;
 
         try
         {
@@ -97,6 +107,9 @@ internal sealed class ApprovalResumeJobHandler(
             agent = resolved
                 ?? throw new TraconException(
                     $"The agent named '{agentName}' was not found. The job will be marked as failed.");
+
+            (agent, parameterValues) = await BindRecordedValuesAsync(
+                agent, agentName, pinnedVersion, source, context.Job.TenantId, cancellationToken).ConfigureAwait(false);
 
             session = await sessions
                 .GetOrCreateSessionAsync(agent, approval.SessionId, cancellationToken)
@@ -134,10 +147,76 @@ internal sealed class ApprovalResumeJobHandler(
                 // An arm names a version; a run on the current version is in none.
                 ExperimentId = pinnedVersion is null ? null : source.ExperimentId,
                 Variant = pinnedVersion is null ? null : source.Variant,
+                ParameterValues = parameterValues,
             },
             cancellationToken).ConfigureAwait(false);
 
         await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Re-binds the resolved agent with the values the source run recorded, when
+    /// the agent declares parameters.
+    /// </summary>
+    /// <returns>
+    /// The agent to resume on and the values it was bound with
+    /// (<see langword="null"/> for an agent that declares none).
+    /// </returns>
+    /// <exception cref="TraconException">
+    /// The source recorded no values for an agent that needs them, or the agent
+    /// no longer accepts the ones it recorded.
+    /// </exception>
+    private async ValueTask<(Microsoft.Agents.AI.AIAgent Agent, IReadOnlyDictionary<string, string>? Values)> BindRecordedValuesAsync(
+        Microsoft.Agents.AI.AIAgent resolved,
+        string agentName,
+        int? pinnedVersion,
+        RunRecord source,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        // The guard the compiler puts on an agent that declares a schema tells
+        // us so without a store read; every other agent resumes as before.
+        if (parameterFactory is null || resolved.GetService<UnboundParameterGuard>() is null)
+        {
+            return (resolved, null);
+        }
+
+        var (definition, origin) = await parameterFactory
+            .FindAsync(agentName, pinnedVersion, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (definition is not { Parameters.Count: > 0 })
+        {
+            return (resolved, null);
+        }
+
+        var record = inputStore is null
+            ? null
+            : await inputStore.GetAsync(tenantId, source.Id, cancellationToken).ConfigureAwait(false);
+
+        var recorded = parameterFactory.ResolveRecorded(definition.Parameters, record?.Parameters, overrides: null);
+
+        if (recorded.Problem == RecordedValuesProblem.NotRecorded)
+        {
+            throw new TraconException(
+                $"Agent '{agentName}' declares parameters, and run '{source.Id}' did not record the values it was " +
+                "bound with ('Tracon:RunRecording:RecordRunInput' was off, or the run predates parameter recording); " +
+                "answering the tool call on the defaults would run under different instructions than the ones that " +
+                "asked for it. The decision cannot be applied.");
+        }
+
+        if (recorded.Problem == RecordedValuesProblem.Invalid)
+        {
+            throw new TraconException(
+                $"Agent '{agentName}' no longer accepts the values run '{source.Id}' was bound with. " +
+                $"{recorded.Detail} The decision cannot be applied.");
+        }
+
+        var bound = await parameterFactory
+            .CompileAsync(definition, origin, culture: null, recorded.Values, cancellationToken)
+            .ConfigureAwait(false);
+
+        return (bound, recorded.Values);
     }
 
     /// <summary>Finds the unanswered approval request with the supplied identifier in the session history.</summary>

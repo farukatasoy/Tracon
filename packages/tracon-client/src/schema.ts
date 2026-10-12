@@ -595,7 +595,7 @@ export interface paths {
         put?: never;
         /**
          * Starts a new run with recorded input.
-         * @description The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened.
+         * @description The input is preserved, the conditions change: 'agentVersion', 'modelId', and 'toolMode'. The default 'toolMode' value is 'ReplayTools', and NO tool actually runs — recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. 'LiveTools' ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 — its body runs in the caller's browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN's input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. An agent that declares parameters is replayed with the values the source run was bound with; 'parameters' changes the names it gives and keeps the rest, and a name the replayed version does not declare returns 400. A run that recorded no values (input recording was off, or it predates parameter recording) cannot be replayed when the agent declares parameters, and returns 400. A workflow run is not replayed; it is continued from its checkpoints.
          */
         post: operations["TraconReplayRun"];
         delete?: never;
@@ -6163,6 +6163,13 @@ export interface components {
             modelId?: null | string;
             /** @description The tool behavior. Defaults to ReplayToolMode.ReplayTools. */
             toolMode?: components["schemas"]["ReplayToolMode"];
+            /**
+             * @description Parameter values laid over the ones the source run was bound with.
+             *     Left empty, the replay runs with exactly the source run's values.
+             */
+            parameters?: null | {
+                [key: string]: string;
+            };
         };
         /** @description Result of a replay. */
         RunReplayResponse: {
@@ -7891,6 +7898,11 @@ export interface components {
              *     WorkflowKind.Magentic.
              */
             requirePlanApproval?: boolean;
+            /**
+             * @description Gets the run parameters the workflow accepts. Empty for a workflow that
+             *     takes none.
+             */
+            parameters?: components["schemas"]["AgentParameter"][];
             /** @description Gets the tenant the definition belongs to. `null` for workflows defined in code. */
             tenantId?: null | string;
             /**
@@ -7922,6 +7934,11 @@ export interface components {
              *     uses function nodes. Empty for every other definition.
              */
             nodes?: components["schemas"]["WorkflowNodeReference"][];
+            /**
+             * @description Gets the run parameters the workflow accepts. Empty for a workflow that
+             *     takes none, and always empty for a workflow defined in code.
+             */
+            parameters?: components["schemas"]["AgentParameter"][];
             /**
              * Format: int32
              * @description Gets the definition version. Always 1 for code-defined workflows.
@@ -8081,6 +8098,15 @@ export interface components {
              *     Checkpoints are grouped under this value.
              */
             sessionId?: null | string;
+            /**
+             * @description Values for the parameters the workflow declares, by name. A missing
+             *     required value, an undeclared name or an over-long value is refused with
+             *     `400` before the stream starts. Every agent step receives the values
+             *     its own schema declares.
+             */
+            parameters?: null | {
+                [key: string]: string;
+            };
         };
         /** @description Request to save a workflow definition. */
         WorkflowSaveRequest: {
@@ -8112,6 +8138,11 @@ export interface components {
              *     WorkflowKind.Magentic.
              */
             requirePlanApproval?: boolean;
+            /**
+             * @description The run parameters the workflow accepts. Leave empty for a workflow that
+             *     takes none. Replaced as a whole on every save, like every other field.
+             */
+            parameters?: null | components["schemas"]["AgentParameter"][];
         };
     };
     responses: never;

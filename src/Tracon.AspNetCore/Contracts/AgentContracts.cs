@@ -386,10 +386,15 @@ public sealed record AgentRunRequest
     /// here and a default in the schema keeps the run from starting at all.
     /// </para>
     /// <para>
-    /// Only a run that is not queued carries values. A queued run
-    /// (<c>Prefer: respond-async</c>) rejects this field; it binds every
-    /// parameter's default, and an agent with a required parameter that has
-    /// no default is refused with the same <c>400</c>.
+    /// A queued run (<c>Prefer: respond-async</c>) carries them too: they are
+    /// checked here against the schema of the version the worker will run,
+    /// travel in the job's payload, and are checked again where the run executes.
+    /// Note that the job payload is not a protected column: the values are
+    /// stored there in plain form, beside the message text.
+    /// </para>
+    /// <para>
+    /// The run records the values it was bound with, defaults included. A replay
+    /// and a continuation repeat them.
     /// </para>
     /// </remarks>
     public IReadOnlyDictionary<string, string>? Parameters { get; init; }

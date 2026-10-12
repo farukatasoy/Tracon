@@ -1710,7 +1710,7 @@
           "Runs"
         ],
         "summary": "Starts a new run with recorded input.",
-        "description": "The input is preserved, the conditions change: \u0027agentVersion\u0027, \u0027modelId\u0027, and \u0027toolMode\u0027. The default \u0027toolMode\u0027 value is \u0027ReplayTools\u0027, and NO tool actually runs \u2014 recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. \u0027LiveTools\u0027 ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 \u2014 its body runs in the caller\u0027s browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN\u0027s input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run\u0027s id; a denial returns 403 before any run row is opened.",
+        "description": "The input is preserved, the conditions change: \u0027agentVersion\u0027, \u0027modelId\u0027, and \u0027toolMode\u0027. The default \u0027toolMode\u0027 value is \u0027ReplayTools\u0027, and NO tool actually runs \u2014 recorded results are replayed. Replaying a call with no recorded result STOPS the replay and returns 422. \u0027LiveTools\u0027 ACTUALLY runs tools, produces side effects, requires the Admin role, and returns 409 if a tool requires approval. An agent carrying a client-side tool (AddClientTool) cannot be replayed in ANY tool mode and also returns 409 \u2014 its body runs in the caller\u0027s browser and no call to it was recorded. Replay is sessionless: if the source run belongs to a session, only that TURN\u0027s input is replayed; the conversation history is not carried over. Replay STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run\u0027s id; a denial returns 403 before any run row is opened. An agent that declares parameters is replayed with the values the source run was bound with; \u0027parameters\u0027 changes the names it gives and keeps the rest, and a name the replayed version does not declare returns 400. A run that recorded no values (input recording was off, or it predates parameter recording) cannot be replayed when the agent declares parameters, and returns 400. A workflow run is not replayed; it is continued from its checkpoints.",
         "operationId": "TraconReplayRun",
         "parameters": [
           {
@@ -14590,6 +14590,16 @@
           "toolMode": {
             "description": "The tool behavior. Defaults to ReplayToolMode.ReplayTools.",
             "$ref": "#/components/schemas/ReplayToolMode"
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Parameter values laid over the ones the source run was bound with.\nLeft empty, the replay runs with exactly the source run\u0027s values."
           }
         },
         "description": "A replay request."
@@ -18068,6 +18078,13 @@
             "type": "boolean",
             "description": "Gets whether the plan the manager agent builds must be approved by a\nhuman before execution starts. Applies only to\nWorkflowKind.Magentic."
           },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentParameter"
+            },
+            "description": "Gets the run parameters the workflow accepts. Empty for a workflow that\ntakes none."
+          },
           "tenantId": {
             "type": [
               "null",
@@ -18148,6 +18165,13 @@
               "$ref": "#/components/schemas/WorkflowNodeReference"
             },
             "description": "Gets the mixed agent/function node list for a Sequential workflow that\nuses function nodes. Empty for every other definition."
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentParameter"
+            },
+            "description": "Gets the run parameters the workflow accepts. Empty for a workflow that\ntakes none, and always empty for a workflow defined in code."
           },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -18481,6 +18505,16 @@
               "string"
             ],
             "description": "Identifier of the execution session. If left empty, one is generated.\nCheckpoints are grouped under this value."
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Values for the parameters the workflow declares, by name. A missing\nrequired value, an undeclared name or an over-long value is refused with\n\u0060400\u0060 before the stream starts. Every agent step receives the values\nits own schema declares."
           }
         },
         "description": "Request to run a workflow."
@@ -18553,6 +18587,16 @@
           "requirePlanApproval": {
             "type": "boolean",
             "description": "Whether the manager agent\u0027s plan must be approved by a human. Only for\nWorkflowKind.Magentic."
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AgentParameter"
+            },
+            "description": "The run parameters the workflow accepts. Leave empty for a workflow that\ntakes none. Replaced as a whole on every save, like every other field."
           }
         },
         "description": "Request to save a workflow definition."
