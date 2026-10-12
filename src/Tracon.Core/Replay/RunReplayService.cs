@@ -255,9 +255,10 @@ internal sealed class RunReplayService
             RecordedValuesProblem.NotRecorded => (null, RunReplayPreparation.Failed(
                 RunReplayOutcome.NotSupported,
                 $"Agent '{definition.Name}' declares parameters, and run '{sourceRunId}' did not record the values " +
-                "it was bound with ('Tracon:RunRecording:RecordRunInput' was off, or the run predates parameter " +
-                "recording). A replay on the defaults would run with different instructions from the source run's, " +
-                "so this run cannot be replayed.")),
+                "it was bound with ('Tracon:RunRecording:RecordRunInput' was off, the run predates parameter " +
+                "recording, or it came from an entry point that carries no values, such as the OpenAI-compatible " +
+                "endpoints, MCP, A2A or voice). A replay on the defaults would run with different instructions " +
+                "from the source run's, so this run cannot be replayed.")),
             _ => (null, RunReplayPreparation.Failed(
                 RunReplayOutcome.NotSupported,
                 $"The parameter values for the replay of run '{sourceRunId}' are not valid for agent " +

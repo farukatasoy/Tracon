@@ -301,7 +301,102 @@ public sealed class InboundTriggerDispatcherTests
 
         var items = await jobStore.ListItemsAsync(dispatched.JobId);
         items.ShouldHaveSingleItem();
-        items[0].Input.ShouldBe(Body);
+
+        // The body is wrapped (see the test below); read back it is the same text.
+        BatchItemInput.Parse(items[0].Input).Message.ShouldBe(Body);
+    }
+
+    [Theory]
+    [InlineData("""{"message":"hi","parameters":{"tone":"injected"}}""")]
+    [InlineData("""{"message":"hello","user":"bob"}""")]
+    public async Task A_workflow_trigger_body_runs_as_the_message_and_never_names_parameter_values(string body)
+    {
+        // 🚨 F-294: the body is the SENDER's text. Read as a structured batch item,
+        // `parameters` would let the sender choose the workflow's values, which reach
+        // the model's instructions, and an unknown member would fail the item. The
+        // pair under test is the dispatcher's output and the handler's input.
+        var store = new InMemoryInboundTriggerStore();
+        await store.UpsertAsync(NewTrigger() with
+        {
+            TargetKind = InboundTriggerTargetKind.Workflow,
+            TargetName = "demo-workflow",
+        });
+
+        var jobStore = new InMemoryJobStore();
+        var (dispatcher, clock) = CreateDispatcher(triggerStore: store, jobStore: jobStore);
+
+        var timestamp = clock.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
+        var signature = WebhookSigner.Sign(body, clock.GetUtcNow(), Secret);
+
+        var validation = await dispatcher.ValidateAsync(TenantId, TriggerName, body, timestamp, signature);
+        var dispatched = await dispatcher.EnqueueAsync(validation.Validated!);
+
+        var job = (await jobStore.GetAsync(TenantId, dispatched.JobId))!;
+        var items = await jobStore.ListItemsAsync(dispatched.JobId);
+        var runner = new RecordingWorkflowRunner();
+        var reported = new List<JobItemResult>();
+
+        await new WorkflowJobHandler(runner).ExecuteAsync(
+            new JobContext
+            {
+                Job = job,
+                Items = items,
+                ReportItemAsync = (result, _) =>
+                {
+                    reported.Add(result);
+                    return default;
+                },
+                IsCancelledAsync = _ => new ValueTask<bool>(false),
+            });
+
+        var request = runner.Requests.ShouldHaveSingleItem();
+        request.Message.ShouldBe(body);
+        request.Parameters.ShouldBeNull();
+        reported.ShouldHaveSingleItem().Status.ShouldBe(JobItemStatus.Completed);
+    }
+
+    /// <summary>Keeps the request it was asked to run; the other members are never called here.</summary>
+    private sealed class RecordingWorkflowRunner : IWorkflowRunner
+    {
+        public List<WorkflowRunRequest> Requests { get; } = [];
+
+        public ValueTask<IReadOnlyList<WorkflowDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<WorkflowGraph?> GetGraphAsync(string name, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListPendingRequestsAsync(
+            Guid runId,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public IAsyncEnumerable<RunEvent> RespondStreamingAsync(
+            WorkflowRespondRequest request,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public IAsyncEnumerable<RunEvent> ResumeStreamingAsync(
+            WorkflowResumeRequest request,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public async IAsyncEnumerable<RunEvent> RunStreamingAsync(
+            WorkflowRunRequest request,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+
+            var runId = TraconId.NewId();
+            var now = DateTimeOffset.UtcNow;
+
+            yield return new RunEvent { RunId = runId, Sequence = 0, Type = RunEventType.RunStarted, Timestamp = now };
+            await Task.Yield();
+            yield return new RunEvent { RunId = runId, Sequence = 1, Type = RunEventType.RunCompleted, Timestamp = now };
+        }
     }
 
     private static InboundTrigger NewTrigger(bool enabled = true)
