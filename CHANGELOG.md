@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- A failed workflow node no longer writes its exception's own message to the
+  run's events. The run row already carried only the exception's type and a
+  correlation id, but the `ExecutorFailed` event of the same failure carried
+  the raw message - a host and port, a request detail - to the event table, the
+  SSE stream and every run event sink. The event now carries the same
+  display-safe text as the row (`<Type> failed. (ref: <id>)`, or a Tracon
+  exception's own message), and both name the same log entry.
 - A harness agent no longer reads skills from, or writes memory files to, the
   server's working directory. Microsoft Agent Framework's harness falls back
   to the process's working directory when it is not given a source: with no

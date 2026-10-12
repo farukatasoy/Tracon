@@ -62,14 +62,28 @@ public sealed class WorkflowEventMapperTests
     }
 
     [Fact]
-    public void Executor_error_is_mapped()
+    public void Executor_error_is_mapped_with_the_safe_text_it_is_given()
     {
+        // F-334: the mapper never reads an exception's own message; the runner
+        // hands it the text it logged under a correlation id.
         var mapping = WorkflowEventMapper.Map(
-            new ExecutorFailedEvent("writer", new InvalidOperationException("blew up")));
+            new ExecutorFailedEvent("writer", new InvalidOperationException("blew up")),
+            "InvalidOperationException failed. (ref: 0a1b2c3d)");
 
         mapping.Draft!.Value.Type.ShouldBe(RunEventType.ExecutorFailed);
         mapping.Draft!.Value.Text.ShouldBe("writer");
-        mapping.Draft!.Value.Payload.ShouldBe("blew up");
+        mapping.Draft!.Value.Payload.ShouldBe("InvalidOperationException failed. (ref: 0a1b2c3d)");
+    }
+
+    [Fact]
+    public void Graph_error_is_mapped_with_the_safe_text_it_is_given()
+    {
+        var mapping = WorkflowEventMapper.Map(
+            new WorkflowErrorEvent(new InvalidOperationException("internal host:9000")),
+            "InvalidOperationException failed. (ref: 0a1b2c3d)");
+
+        mapping.Draft!.Value.Type.ShouldBe(RunEventType.ExecutorFailed);
+        mapping.Draft!.Value.Payload.ShouldBe("InvalidOperationException failed. (ref: 0a1b2c3d)");
     }
 
     [Fact]

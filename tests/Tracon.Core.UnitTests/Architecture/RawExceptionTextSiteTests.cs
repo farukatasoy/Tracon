@@ -51,6 +51,17 @@ public sealed class RawExceptionTextSiteTests
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
+    /// <summary>
+    /// A run event draft: its initializer writes to the event table, the stream
+    /// and every sink, so it is a persistent write site even outside any
+    /// <c>catch</c> (F-334: the workflow event mapper put an executor's
+    /// exception message into <c>ExecutorFailed</c> from a pattern match).
+    /// </summary>
+    private static readonly Regex RunEventDraftCreation = new(
+        @"\bnew\s+RunEventDraft\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
     private static readonly Regex AccessModifierLine = new(
         @"^\s*(?:\[[^\]]*\]\s*)*(?:public|private|protected|internal)\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
@@ -150,6 +161,49 @@ public sealed class RawExceptionTextSiteTests
     }
 
     /// <summary>
+    /// A run event draft that writes an exception's own message is a site even
+    /// when no <c>catch</c> is near it — the shape of the workflow event
+    /// mapper before F-334.
+    /// </summary>
+    [Fact]
+    public void Scan_reports_a_run_event_draft_that_references_Message()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-raw-exception-text-test");
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(directory.FullName, "Sample.cs"),
+                """
+                namespace Sample;
+
+                public static class Mapper
+                {
+                    public static object Map(object workflowEvent)
+                        => workflowEvent switch
+                        {
+                            ExecutorFailedEvent failed => new RunEventDraft(RunEventType.ExecutorFailed)
+                            {
+                                Text = failed.ExecutorId,
+                                Payload = failed.Data?.Message,
+                            },
+                            _ => null,
+                        };
+
+                    public static object Other(RunError error)
+                        => new RunEventDraft(RunEventType.RunFailed) { Text = error.Type };
+                }
+                """);
+
+            Scan(directory.FullName).ShouldBe(new[] { "Sample.cs:Map" });
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
     /// A <c>catch</c> naming a specific, non-<c>Exception</c> type is not the
     /// shape this scan targets, even when it references <c>.Message</c>.
     /// </summary>
@@ -208,6 +262,13 @@ public sealed class RawExceptionTextSiteTests
 
             for (var i = 0; i < lines.Length; i++)
             {
+                if (RunEventDraftCreation.IsMatch(lines[i]) &&
+                    DraftInitializerReferencesMessage(lines, i) &&
+                    FindEnclosingMethod(lines, i) is { } draftMethod)
+                {
+                    sites.Add($"{relative}:{draftMethod}");
+                }
+
                 if (!CatchException.IsMatch(lines[i]))
                 {
                     continue;
@@ -247,6 +308,51 @@ public sealed class RawExceptionTextSiteTests
         }
 
         return sites;
+    }
+
+    /// <summary>
+    /// Whether the object initializer of a <c>new RunEventDraft(...)</c> on
+    /// <paramref name="lineIndex"/> references <c>.Message</c>. The initializer
+    /// is either on the same line (<c>{ Text = ... }</c>) or opens on the next
+    /// line with a lone <c>{</c> and closes at the same indent.
+    /// </summary>
+    private static bool DraftInitializerReferencesMessage(string[] lines, int lineIndex)
+    {
+        var line = lines[lineIndex];
+        var creation = RunEventDraftCreation.Match(line).Index;
+
+        if (line.IndexOf('{', creation) is var open and >= 0)
+        {
+            var close = line.IndexOf('}', open);
+            var body = close > open ? line[open..close] : line[open..];
+
+            return body.Contains(".Message", StringComparison.Ordinal);
+        }
+
+        if (lineIndex + 1 >= lines.Length || !lines[lineIndex + 1].TrimStart().StartsWith('{'))
+        {
+            return false;
+        }
+
+        var indent = IndentOf(lines[lineIndex + 1]);
+
+        for (var j = lineIndex + 2; j < lines.Length; j++)
+        {
+            if (lines[j].TrimStart().StartsWith('}') && IndentOf(lines[j]) == indent)
+            {
+                return false;
+            }
+
+            var trimmed = lines[j].TrimStart();
+
+            if (!trimmed.StartsWith("//", StringComparison.Ordinal) &&
+                lines[j].Contains(".Message", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int IndentOf(string line)

@@ -5,3 +5,4 @@
 # never reaches a persistent field or external response). New entries this refresh
 # added carry a placeholder reason that MUST be replaced by hand.
 src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs:HandleAsync | JsonException/ArgumentException/InvalidOperationException/NotSupportedException here describe why the CALLER'S OWN request body could not be parsed (self-referential 400 feedback, same pattern as WorkflowResponseFactory), never an upstream provider or infra detail.
+src/Tracon.Core/Recording/RunEventWriter.cs:CompleteAsync | RunFailed carries RunError.Message, which every producer already builds with SafeErrorText (an exception of ours keeps its message, any other becomes "<Type> failed. (ref: id)"); no exception's own message reaches this draft.

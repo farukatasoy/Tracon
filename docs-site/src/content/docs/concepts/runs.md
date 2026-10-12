@@ -440,8 +440,11 @@ your server's own log — that is where you debug a specific failure from, not f
 the run record.
 
 This applies everywhere a run, job, or webhook delivery can fail: the
-`error`/`error_message` field on a run, job, or webhook delivery, and the error
-body of the HTTP, SSE, and MCP endpoints, all follow the same rule.
+`error`/`error_message` field on a run, job, or webhook delivery, the error
+body of the HTTP, SSE, and MCP endpoints, and the `payload` of a workflow's
+`ExecutorFailed` event all follow the same rule. One failure carries one
+correlation id: the workflow's `ExecutorFailed` event and its run row name the
+same log entry.
 
 A failure the queue itself produces — rather than a handler — carries a stable
 code instead of prose. A job queued for a handler key nobody registered fails
