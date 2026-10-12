@@ -18,6 +18,7 @@ import {
   Th,
 } from '../components/ui';
 import { Link } from '../lib/router';
+import { stepsOf } from '../lib/workflow-steps';
 import { Toolbar, ToolbarField } from '../components/toolbar';
 import { PlusIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
@@ -119,7 +120,7 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
               <tr>
                 <Th>{t('workflows.column.workflow')}</Th>
                 <Th>{t('workflows.column.pattern')}</Th>
-                <Th>{t('nav.agents')}</Th>
+                <Th>{t('workflows.column.participants')}</Th>
                 <Th>{t('common.source')}</Th>
                 <Th>{t('common.updated')}</Th>
               </tr>
@@ -146,9 +147,7 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
                       </Badge>
                     )}
                   </Td>
-                  <Td className="text-muted">
-                    {workflow.agentNames.length === 0 ? '—' : workflow.agentNames.join(' → ')}
-                  </Td>
+                  <Td className="text-muted">{participantsOf(workflow)}</Td>
                   <Td>
                     {/* A code-defined workflow cannot be edited here: it ships with the
                         deployment and wins over any stored definition of the same name. */}
@@ -178,6 +177,17 @@ export function WorkflowsScreen({ meta }: { meta: Meta }): ReactNode {
       )}
     </>
   );
+}
+
+/**
+ * The steps of a stored workflow in the order they are listed, from whichever form it was
+ * saved in: the console writes a chain that holds a function as `nodes`, and a definition
+ * saved over HTTP can use either.
+ */
+function participantsOf(workflow: WorkflowDescriptor): string {
+  const names = stepsOf(workflow).map((step) => step.name);
+
+  return names.length === 0 ? '—' : names.join(' → ');
 }
 
 /**

@@ -20,6 +20,7 @@ export const trWorkflows: Pick<Messages, keyof typeof enWorkflows> = {
   "workflows.empty.body": "Bir workflow, elinizdeki agent'ları birbirine bağlar. Burada tanımlayın veya kodda şununla kaydedin:",
   "workflows.column.workflow": 'Workflow',
   "workflows.column.pattern": 'Desen',
+  "workflows.column.participants": 'Katılımcılar',
   "workflows.codeGraph": 'kod grafiği',
   "workflows.codeGraphTitle": 'Kodda bir fabrika tarafından kuruldu; grafiğine bakın.',
   "workflows.originCode": 'kod',
