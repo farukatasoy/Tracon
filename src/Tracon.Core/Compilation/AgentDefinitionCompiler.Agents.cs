@@ -259,10 +259,20 @@ public sealed partial class AgentDefinitionCompiler
             MaximumIterationsPerRequest = harness.MaximumIterationsPerRequest,
             DisableCompaction = harness.DisableCompaction,
             DisableTodoProvider = harness.DisableTodoProvider,
-            DisableFileMemory = harness.DisableFileMemory,
-            DisableWebSearch = harness.DisableWebSearch,
+
+            // F-339 · F-315 (K-892): MAF turns these three on by itself, and
+            // each one falls back to something no definition asked for. With
+            // no FileMemoryStore it writes model content under the process's
+            // working directory (./agent-file-memory) — outside the tenant
+            // stores, retention and erasure; with no AgentSkillsSource it reads
+            // SKILL.md files from the working directory, past the SkillNames
+            // filter; and it adds the provider's paid hosted web search, which
+            // the Chat Completions surface refuses with a 400. Each one is on
+            // only when the definition turns it on.
+            DisableFileMemory = harness.DisableFileMemory || definition.Memory is not { EnableFileMemory: true },
+            DisableWebSearch = !harness.EnableWebSearch,
+            DisableAgentSkillsProvider = harness.DisableAgentSkillsProvider || definition.SkillNames.Count == 0,
             DisableToolAutoApproval = harness.DisableToolAutoApproval,
-            DisableAgentSkillsProvider = harness.DisableAgentSkillsProvider,
             DisableAgentModeProvider = harness.DisableAgentModeProvider,
 
             // The harness produces its own internal spans. Without a source
@@ -282,7 +292,30 @@ public sealed partial class AgentDefinitionCompiler
 
         if (definition.SkillNames.Count > 0)
         {
+            // MAF ignores the source when the provider is off, so the named
+            // skills would be dropped without a word (K1 zero surprise).
+            if (harness.DisableAgentSkillsProvider)
+            {
+                throw new TraconCompilationException(
+                    $"Agent '{definition.Name}' names skills, but " +
+                    $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableAgentSkillsProvider)} is turned off.")
+                {
+                    AgentName = definition.Name,
+                };
+            }
+
             options.AgentSkillsSource = CreateSkillsSource(definition);
+        }
+
+        if (harness is { EnableWebSearch: true, DisableWebSearch: true })
+        {
+            throw new TraconCompilationException(
+                $"Agent '{definition.Name}' turns web search on with " +
+                $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.EnableWebSearch)} and off with " +
+                $"{nameof(HarnessSettings)}.{nameof(HarnessSettings.DisableWebSearch)}.")
+            {
+                AgentName = definition.Name,
+            };
         }
 
         if (CreateChildAgents(definition, callableAgents) is { } build)
@@ -376,7 +409,7 @@ public sealed partial class AgentDefinitionCompiler
             options.LoopAgentOptions = loopOptions;
         }
 
-        return chatClient.AsHarnessAgent(options, _loggerFactory, _services);
+        return new HarnessLoopBoundaryChatClient(chatClient).AsHarnessAgent(options, _loggerFactory, _services);
 #pragma warning restore MAAI001
     }
 }

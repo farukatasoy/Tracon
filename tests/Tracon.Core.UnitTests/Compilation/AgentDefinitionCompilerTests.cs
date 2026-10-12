@@ -33,6 +33,44 @@ public sealed class AgentDefinitionCompilerTests
     }
 
     [Fact]
+    public void Naming_skills_while_the_skills_provider_is_off_stops_compilation()
+    {
+        // MAF ignores the skill source when its provider is off, so the named
+        // skills would vanish without a word (F-339, K-892).
+        var definition = TestData.Definition(harness: new HarnessSettings { DisableAgentSkillsProvider = true }) with
+        {
+            SkillNames = ["summarize"],
+        };
+
+        var exception = Should.Throw<TraconCompilationException>(() => CreateCompiler().Compile(definition));
+
+        exception.Message.ShouldContain(nameof(HarnessSettings.DisableAgentSkillsProvider));
+    }
+
+    [Fact]
+    public void Turning_web_search_on_and_off_at_once_stops_compilation()
+    {
+        var definition = TestData.Definition(harness: new HarnessSettings { EnableWebSearch = true, DisableWebSearch = true });
+
+        var exception = Should.Throw<TraconCompilationException>(() => CreateCompiler().Compile(definition));
+
+        exception.Message.ShouldContain(nameof(HarnessSettings.EnableWebSearch));
+        exception.Message.ShouldContain(nameof(HarnessSettings.DisableWebSearch));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    public void A_harness_iteration_limit_below_one_stops_compilation(int limit)
+    {
+        var definition = TestData.Definition(harness: new HarnessSettings { MaximumIterationsPerRequest = limit });
+
+        var exception = Should.Throw<TraconCompilationException>(() => CreateCompiler().Compile(definition));
+
+        exception.Message.ShouldContain(nameof(HarnessSettings.MaximumIterationsPerRequest));
+    }
+
+    [Fact]
     public void Model_settings_are_carried_to_the_chat_options()
     {
         var client = new FakeChatClient();

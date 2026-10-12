@@ -1728,3 +1728,39 @@ kill %1
 
 **Beklenen sonuç**
 - `grep -c` çıktısı `0`'dır.
+
+---
+
+### MT-OAI-094 — Harness agent'ı Chat Completions sağlayıcısında tool çağrısını tamamlar (kusur-giderme, 2026-10-12, F-315)
+
+Regresyon. Harness agent'ının ilk isteği `400 unknown_parameter: web_search_options`
+alıyordu. Web araması kapatılınca akışlı run tool çağrısından sonra
+`400 messages.[1].role` alıyordu: ikinci istek yalnız sistem mesajını ve tool
+sonucunu taşıyordu. Otomatik karşılığı:
+`HarnessDefaultsTests.A_harness_agent_on_the_chat_completions_provider_finishes_a_tool_call`
+(akışlı ve akışsız, `ScriptedChatCompletionsServer`).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-892 |
+
+**Ön koşul**
+- Örnek uygulama, gerçek OpenAI anahtarı.
+- `harness-cc` agent'ı: `model: {"provider":"openai","model":"gpt-5.4-mini"}`,
+  `harness: {}`, bir kod tool'u (`get_order_status`).
+
+**Adımlar**
+1. Konsolun oyun alanından (akışlı) "A-17 siparişi nerede?" gönder.
+2. Aynı istemi `Prefer: respond-async` olmadan akışsız gönder.
+3. Agent'ı `harness: {"enableWebSearch": true}` ile kaydet ve 1. adımı tekrarla.
+
+**Beklenen sonuç**
+- Adım 1–2: run `Completed`; model `get_order_status` çağırır ve sonucu yanıtlar.
+- Adım 3: sağlayıcı `400 unknown_parameter: web_search_options` döner (arama
+  modeli olmayan model); run `ProviderError` ile düşer. Bu beklenen davranıştır:
+  web araması yalnız açıkça açılır.
+- 🚨 Eski kusur: adım 1 her harness agent'ında `400` aldı; `disableWebSearch`
+  ile ilk tur geçti, tool çağrısından sonra `messages.[1].role` hatası geldi.

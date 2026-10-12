@@ -527,6 +527,28 @@ without calling any model — useful in CI. A validation failure there is not an
 error: the response is `200` with a report, because "this definition is invalid" is an
 answer, not a transport failure.
 
+### What a harness agent turns on
+
+A `HarnessSettings` value turns on Microsoft Agent Framework's harness: context
+compaction, todo tracking and the agent mode provider. Three more harness
+features stay off until the definition asks for each one:
+
+| Feature | Turned on by | What it never does |
+|---|---|---|
+| Skills | `SkillNames`, and only the named skills | Read `SKILL.md` files from the server's working directory |
+| File memory | `Memory.EnableFileMemory`, on the registered `AgentFileStore` | Write files under the server's working directory |
+| Web search | `Harness.EnableWebSearch`, the provider's hosted search | Turn on because the harness has it |
+
+A definition that turns a feature on and sets its `Disable*` switch is a
+compilation error. Hosted web search runs at the model provider, which bills it,
+and depends on the provider surface: OpenAI Chat Completions (`openai`) accepts it
+only for search models and answers `400` otherwise, while `openai-responses`
+offers it to every model.
+
+`MaximumIterationsPerRequest` bounds the tool-call loop of one invocation, on a
+fallback model too. At the limit the last model call offers no function tools,
+so the model has to answer.
+
 Compiled agents are cached by name, version, and a fingerprint of their dependencies,
 so changing a skill, the tenant's egress policy, or an MCP server that serves one of
 the agent's tools invalidates the agents that use it. The next run compiles again.
@@ -5951,7 +5973,14 @@ tracon.AddAgent(new AgentDefinition
 
 The compiler checks conflicts before the run. For example, it rejects
 `Memory.EnableFileMemory = true` together with `Harness.DisableFileMemory = true`.
-The same rule applies to compaction and todo tracking.
+The same rule applies to compaction and todo tracking, to `SkillNames` together
+with `Harness.DisableAgentSkillsProvider = true`, and to
+`Harness.EnableWebSearch` together with `Harness.DisableWebSearch`.
+
+A harness does not add file memory, skills or web search on its own. File memory
+needs `Memory.EnableFileMemory`, skills need `SkillNames`, and web search needs
+`Harness.EnableWebSearch`. The harness never reads skills from the server's working
+directory and never writes memory files there.
 
 ## Choose a compaction strategy
 
@@ -5994,7 +6023,8 @@ context behavior when upgrading MAF packages.
 
 All `MemorySettings` flags default to `false`.
 
-`EnableFileMemory` adds MAF file memory. On a plain agent, `EnableTodo` adds todo
+`EnableFileMemory` adds MAF file memory, on a plain agent and on a harness agent
+alike: without it a harness agent has no file memory. On a plain agent, `EnableTodo` adds todo
 tracking. A harness already keeps todo tracking on unless
 `Harness.DisableTodoProvider` is true. `EnableTextSearch` searches the registered
 `AgentFileStore`. The default file store is in memory. `UsePostgreSql()`,
@@ -14546,6 +14576,11 @@ The OpenAI-compatible path covers services such as OpenRouter and Groq and local
 servers such as Ollama, LM Studio, and vLLM. Compatibility means the selected server
 implements the surface you enable. It does not mean every server supports every
 model feature.
+
+A harness agent's hosted web search (`HarnessSettings.EnableWebSearch`, off by
+default) is such a feature. The Chat Completions surface (`openai`, `azure-openai`,
+and a compatible registration) accepts it only for search models and answers `400`
+for the others; the Responses surface offers it to every model.
 
 ## UI, API, configuration, and code ownership
 

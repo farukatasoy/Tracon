@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- A harness agent no longer reads skills from, or writes memory files to, the
+  server's working directory. Microsoft Agent Framework's harness falls back
+  to the process's working directory when it is not given a source: with no
+  skill source it loaded every `SKILL.md` it found there, past the agent's
+  `SkillNames`, the skill's enabled flag and the tenant's scope; with no file
+  store it wrote what the model chose under `./agent-file-memory`, outside the
+  tenant stores, retention and erasure. Every harness agent got both,
+  including one saved from the console. Skills are now offered only when the
+  definition names them, and file memory only when `Memory.EnableFileMemory`
+  is true, on the registered `AgentFileStore`. A definition that names skills
+  while `Harness.DisableAgentSkillsProvider` is true is refused when it is
+  compiled; its skills were dropped without a word.
 - A tenant's egress policy and its own provider key now reach every model an
   agent calls, not only the agent's own model. The model that summarizes the
   conversation during compaction (`Compaction.SummarizationModel`, or
@@ -62,6 +74,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A harness agent on the OpenAI Chat Completions provider (`openai`,
+  `azure-openai` and a compatible registration) no longer fails with `400`.
+  The harness sent the provider's hosted web search on every request
+  (`unknown_parameter: web_search_options` for a model that does not search;
+  it is now off by default, see Changed), and a streamed run lost the
+  conversation after its first tool call: the next request carried only the
+  system message and the tool result (`messages.[1].role`). The harness's
+  history layer wrote a marker onto each streamed update, and the tool loop
+  under it, holding the same object, took the conversation for one the
+  service stores. Each update now reaches the harness as a copy.
+- `HarnessSettings.MaximumIterationsPerRequest` now bounds the tool-call loop.
+  It reached the harness's own loop, which never sees a tool call: the loop
+  that runs the tools kept its default of 40, so a limit of 2 still made 7
+  model calls. The limit now reaches that loop and the loop of every fallback
+  model, and at the limit the last call offers the model no function tools.
+  A value below 1 is refused when the agent is compiled.
+- A fallback model runs the agent's tools with the agent's
+  `ModelBinding.AllowConcurrentToolCalls`. The fallback link built its client
+  from the provider and model alone, so concurrent tool calls turned off when
+  the chain moved to a fallback.
 - A workflow run whose node works quietly for a while is no longer cancelled
   by its own silence. The workflow stream wrote nothing between events, the
   console stops reading a stream after 30 seconds of silence, and a closed
@@ -233,6 +265,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `HarnessSettings.EnableWebSearch`: turns on the model provider's hosted web
+  search for a harness agent.
 - `TraconEndpointOptions.StreamKeepAliveInterval`: the longest a streaming
   endpoint stays silent before it writes an SSE comment. Default 15 seconds;
   keep it below the shortest idle timeout between the server and its readers,
@@ -266,6 +300,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- A harness agent no longer gets the provider's hosted web search by default.
+  Set `HarnessSettings.EnableWebSearch` to turn it on; the search runs at the
+  provider and is billed by it, and the Chat Completions surface accepts it
+  only for search models. A definition that sets both `EnableWebSearch` and
+  `DisableWebSearch` is refused when it is compiled. The console's harness
+  section shows "Enable web search" in place of "Disable web search".
 - A failed workflow run's `error.type` is the same stable identity an agent
   run records - `loop_unsatisfied`, `run_budget_exceeded`, `upstream_error` -
   instead of the exception's CLR name, and the run now carries an error class

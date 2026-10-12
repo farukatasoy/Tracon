@@ -107,7 +107,14 @@ tracon.AddAgent(new AgentDefinition
 
 The compiler checks conflicts before the run. For example, it rejects
 `Memory.EnableFileMemory = true` together with `Harness.DisableFileMemory = true`.
-The same rule applies to compaction and todo tracking.
+The same rule applies to compaction and todo tracking, to `SkillNames` together
+with `Harness.DisableAgentSkillsProvider = true`, and to
+`Harness.EnableWebSearch` together with `Harness.DisableWebSearch`.
+
+A harness does not add file memory, skills or web search on its own. File memory
+needs `Memory.EnableFileMemory`, skills need `SkillNames`, and web search needs
+`Harness.EnableWebSearch`. The harness never reads skills from the server's working
+directory and never writes memory files there.
 
 ## Choose a compaction strategy
 
@@ -150,7 +157,8 @@ context behavior when upgrading MAF packages.
 
 All `MemorySettings` flags default to `false`.
 
-`EnableFileMemory` adds MAF file memory. On a plain agent, `EnableTodo` adds todo
+`EnableFileMemory` adds MAF file memory, on a plain agent and on a harness agent
+alike: without it a harness agent has no file memory. On a plain agent, `EnableTodo` adds todo
 tracking. A harness already keeps todo tracking on unless
 `Harness.DisableTodoProvider` is true. `EnableTextSearch` searches the registered
 `AgentFileStore`. The default file store is in memory. `UsePostgreSql()`,

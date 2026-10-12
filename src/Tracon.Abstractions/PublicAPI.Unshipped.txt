@@ -948,6 +948,8 @@ Tracon.HarnessSettings.DisableToolAutoApproval.get -> bool
 Tracon.HarnessSettings.DisableToolAutoApproval.init -> void
 Tracon.HarnessSettings.DisableWebSearch.get -> bool
 Tracon.HarnessSettings.DisableWebSearch.init -> void
+Tracon.HarnessSettings.EnableWebSearch.get -> bool
+Tracon.HarnessSettings.EnableWebSearch.init -> void
 Tracon.HarnessSettings.Equals(Tracon.HarnessSettings? other) -> bool
 Tracon.HarnessSettings.HarnessInstructions.get -> string?
 Tracon.HarnessSettings.HarnessInstructions.init -> void

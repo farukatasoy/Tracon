@@ -119,6 +119,7 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
     disableTodoProvider: true,
     disableFileMemory: true,
     disableWebSearch: true,
+    enableWebSearch: false,
     disableToolAutoApproval: true,
     disableAgentSkillsProvider: true,
     disableAgentModeProvider: true,

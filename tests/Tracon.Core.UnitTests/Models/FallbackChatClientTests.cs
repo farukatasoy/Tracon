@@ -324,6 +324,30 @@ public sealed class FallbackChatClientTests
     private static ThrowingStreamChatClient FailingAfterFirstChunkClient()
         => new(new InvalidOperationException("HTTP 500 (mid-stream)"), sawUpdateFirst: true);
 
+    [Fact]
+    public async Task Fallback_link_runs_the_tool_loop_with_the_primarys_loop_settings()
+    {
+        // The link runs the same agent's tools, so their thread-safety setting
+        // is the agent's, not the model's. The link's binding was built from
+        // Provider and Model alone and dropped it (F-315 class scan, 2026-10-12).
+        var primary = new FakeModelProvider(
+            new FakeChatClient(_ => throw new TraconProviderUnavailableException("circuit open") { ProviderName = "primary" }),
+            name: "primary");
+        var fallback = new FakeModelProvider(
+            new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "fallback answer"))),
+            name: "fallback");
+
+        using var chatClient = new ModelProviderRegistry([primary, fallback]).CreateChatClient(
+            Binding(primary: "primary", fallbackProvider: "fallback", fallbackModel: "fallback-model") with
+            {
+                AllowConcurrentToolCalls = true,
+            });
+
+        await chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken);
+
+        fallback.LastBinding.ShouldNotBeNull().AllowConcurrentToolCalls.ShouldBeTrue();
+    }
+
     private static IChatClient RegistryWithFallback(FakeChatClient primaryClient, FakeChatClient fallbackClient)
     {
         var primary = new FakeModelProvider(primaryClient, name: "primary");
