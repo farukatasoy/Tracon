@@ -207,6 +207,13 @@ public static class TraconWorkflowFunctionExtensions
     /// console and is for display only - the read above is the check.
     /// </para>
     /// <para>
+    /// <strong>The console reads a JSON number as a double</strong>, like every JavaScript
+    /// client, so an integer beyond 9007199254740991 (2^53 - 1) loses its low digits when an
+    /// operator opens a workflow and saves it again. Numbers are read strictly, so a string
+    /// cannot fill a numeric member: declare an identifier that wide (a snowflake or a 64-bit
+    /// database key) as a <see cref="string"/>.
+    /// </para>
+    /// <para>
     /// The settings type is plain code. Settings are values, so a secret has no place
     /// in it - name the configuration key instead:
     /// </para>
@@ -267,8 +274,29 @@ public static class TraconWorkflowFunctionExtensions
     /// </exception>
     /// <exception cref="TraconException"><typeparamref name="TSettings"/> is a type no settings could be read into.</exception>
     /// <remarks>
+    /// <para>
     /// See <see cref="AddWorkflowFunction{TInput,TOutput,TSettings}(ITraconBuilder,string,Func{IServiceProvider,Func{TInput,TSettings,IWorkflowContext,CancellationToken,ValueTask{TOutput}}})"/>
     /// for how the settings are checked and what they must never hold.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .UseWorkflows()
+    ///        .AddWorkflowFunction&lt;List&lt;ChatMessage&gt;, string, TtsSettings&gt;(
+    ///            "tts",
+    ///            provider => (messages, settings, context, cancellationToken) =>
+    ///                ValueTask.FromResult($"{settings.Voice}: {messages[^1].Text}"),
+    ///            options =>
+    ///            {
+    ///                options.Description = "Text to speech";
+    ///                options.RetryPolicy = new WorkflowNodeRetryPolicy
+    ///                {
+    ///                    MaxAttempts = 3,
+    ///                    InitialDelay = TimeSpan.FromSeconds(1),
+    ///                };
+    ///            });
+    /// </code>
+    /// </example>
     /// </remarks>
     public static ITraconBuilder AddWorkflowFunction<TInput, TOutput, TSettings>(
         this ITraconBuilder builder,
