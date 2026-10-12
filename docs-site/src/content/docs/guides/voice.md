@@ -79,7 +79,13 @@ tracon.AddAgent(new AgentDefinition
 | `list_voices` | Provider voice names, identifiers, and safe scalar attributes out |
 
 Generated audio is stored through the normal attachment contract. The model receives
-an attachment ID, not a large byte array.
+an attachment ID, not a large byte array. The file name takes its extension from the
+type the attachment guard detects — `.mp3`, `.ogg` or `.wav` — not from the requested
+format.
+
+`UseVoice()` validates `Tracon:Voice` when the application starts. A missing key, an
+unknown `Provider` or a headerless `OutputFormat` stops the host before the first
+request, not at the first tool call.
 
 ### Voice attributes
 
@@ -125,6 +131,12 @@ If pricing is not configured, cost stays `null`; zero would claim the call was f
 If the provider omits billed characters, the text length is used and marked as an
 estimate.
 
+Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
+`ProviderName` of the implementation that did the work — `elevenlabs` for the built-in
+client — not the `Tracon:Voice:Provider` setting. `{model}` is `SynthesisModelId` or
+`TranscriptionModelId`; when it is empty, only the built-in client falls back to its
+own default model.
+
 ### Character-level timing
 
 `POST /api/voice/speak` accepts `includeTimestamps` (default `false`). When set, the
@@ -140,9 +152,12 @@ into words, or producing a subtitle format such as SRT or VTT, is left to the
 consumer — the raw per-character form is what the provider gives, and turning it into
 something else is application-specific.
 
+### Use your own speech provider
+
 The built-in implementation uses ElevenLabs through raw `HttpClient` and
 source-generated JSON. The package adds no NuGet dependency and remains AOT
-compatible. To replace it, register your implementation first; `TryAdd` preserves it:
+compatible. To replace it, register your implementation **before** `UseVoice()`;
+`TryAdd` preserves it:
 
 ```csharp
 builder.Services.AddSingleton<ISpeechSynthesizer, ContosoSpeechProvider>();
@@ -151,9 +166,31 @@ builder.Services.AddSingleton<ISpeechTranscriber, ContosoSpeechProvider>();
 builder.AddTracon().UseVoice(options =>
 {
     options.DefaultVoiceId = "customer-care";
-    options.MaxCharactersPerRequest = 5_000;
+    options.SynthesisModelId = "contoso-tts-1";
 });
 ```
+
+With both contracts registered first, no API key is needed. `Provider`, `ApiKey`
+and `Endpoint` configure only the built-in client, so they are neither required nor
+validated. The other settings still apply and are still validated at startup: the
+`speak` tool passes `OutputFormat` and `SynthesisModelId` to your synthesizer, and
+`transcribe` passes `TranscriptionModelId` to your transcriber. Replace only one
+contract and the built-in client serves the other — the key is then still required.
+
+`UseVoice()` reads the service collection when you call it. A registration added
+after the call wins resolution but not validation: the host stops at startup with a
+message that says to register first.
+
+Three behaviors follow the bound implementation, not the settings:
+
+| Behavior | Read from |
+|---|---|
+| Character limit of `speak` and `POST /api/voice/speak` | `ISpeechSynthesizer.MaxCharactersPerRequest` |
+| Price lookup | `Tracon:Pricing:Voice:{ProviderName}:{model}` of the synthesizer or transcriber that did the work |
+| `GET /api/voice/health` | Your synthesizer's own `IVoiceHealthCheck`, when it implements one; otherwise a voice-list call that reports your `ProviderName` |
+
+With no model identifier set, your provider's cost stays `null`: Tracon does not
+borrow the built-in client's default model or its price.
 
 ## Enable live conversation
 
@@ -496,6 +533,14 @@ required middleware when voice conversation is registered.
 Browsers cannot add an `Authorization` header to the handshake. Send the token in the
 documented `Sec-WebSocket-Protocol` subprotocol. Do not put it in the query string;
 URLs reach browser, server, and proxy logs.
+
+### Startup stops with `VoiceOptions: no API key was given`
+
+The built-in ElevenLabs client serves at least one of the two speech contracts, and
+it has no key. The message names the contract it still serves. Set the key with
+`dotnet user-secrets set "Tracon:Voice:ApiKey" "..."`, or register your own
+`ISpeechSynthesizer` and `ISpeechTranscriber` **before** `UseVoice()`. A
+registration after `UseVoice()` is not seen, and the message is the same.
 
 ### Voice conversation reports `501`
 

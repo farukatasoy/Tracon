@@ -44,7 +44,7 @@ public sealed class SecretLeakTests
     [Fact]
     public void Validation_message_does_NOT_carry_the_key_or_the_address()
     {
-        var validator = new VoiceOptionsValidator();
+        var validator = new VoiceOptionsValidator(new VoiceProviderBinding(customSynthesizer: false, customTranscriber: false));
 
         var result = validator.Validate(
             name: null,

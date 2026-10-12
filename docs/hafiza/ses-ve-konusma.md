@@ -115,6 +115,7 @@
   Test edilebilir olan şey istisnanın mesajındaki durum kodudur
   (`error.Message.ShouldContain("404")`); gövde birebirliği ise yapısal olarak,
   tek bir yardımcıyı paylaşarak sağlanır.
+- **🚨 `UseVoice` tüketicinin sağlayıcısını yalnız ÇAĞRI ANINDA görür** (F-336): ElevenLabs kuralları yalnız yerleşik istemci bir sözleşmeye hizmet ederken uygulanır (`VoiceProviderBinding`, `TryAdd`'den önce koleksiyon taraması; doğrulayıcıda çözümleme döngü kurar). Fiyat, `speak` limiti ve sağlık bağlı uygulamanın `ProviderName`/limitini okur. Test anahtarsız, gerçek `UseVoice` + `IStartupValidator` ile (`CustomVoiceProviderTests`).
 
 
 ## Saglayici barindirmali canli ses (Faz 161)

@@ -230,6 +230,9 @@ public sealed class VoiceConversationTests
 
         var body = await TraconTestHost.ReadJsonAsync(listing);
         body.GetArrayLength().ShouldBe(1);
+
+        // F-336 class scan: the driver named every saved voice '*.bin'.
+        body[0].GetProperty("fileName").GetString().ShouldNotBeNull().ShouldEndWith(".mp3");
     }
 
     [Fact]

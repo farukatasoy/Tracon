@@ -438,8 +438,9 @@ network access.
 
 ## Voice
 
-The voice symptoms (`404`, `400`, `401`, `501`, and rejected audio) are answered next
-to the feature, in [Voice → Troubleshooting](/guides/voice/#troubleshooting).
+The voice symptoms (`404`, `400`, `401`, `501`, rejected audio, and a startup failure
+that asks for a voice API key) are answered next to the feature, in
+[Voice → Troubleshooting](/guides/voice/#troubleshooting).
 
 ## Webhooks, retention, and operations
 

@@ -20,7 +20,21 @@ public sealed class VoiceOptions
     /// </remarks>
     public const string DefaultOutputFormat = "mp3_44100_128";
 
-    /// <summary>Provider name. Currently only <c>elevenlabs</c> is supported.</summary>
+    /// <summary>
+    /// The built-in client to use. Currently only <c>elevenlabs</c> is supported.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This setting, <see cref="ApiKey"/> and <see cref="Endpoint"/> configure the
+    /// built-in client only. When your own <see cref="ISpeechSynthesizer"/> and
+    /// <see cref="ISpeechTranscriber"/> are registered BEFORE <c>UseVoice</c>, the
+    /// three are not validated and not required.
+    /// </para>
+    /// <para>
+    /// Prices in <c>Tracon:Pricing:Voice</c> are keyed by the <c>ProviderName</c>
+    /// of the implementation that did the work, not by this value.
+    /// </para>
+    /// </remarks>
     public string Provider { get; set; } = VoiceProviderNames.ElevenLabs;
 
     /// <summary>

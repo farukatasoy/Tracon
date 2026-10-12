@@ -96,7 +96,7 @@ internal sealed class TranscribeTool : VoiceToolBase
                 .ConfigureAwait(false);
         }
 
-        ReportUsage(transcript, pricing, options);
+        ReportUsage(transcript, pricing, transcriber);
 
         return transcript.LanguageCode is { Length: > 0 } language
             ? $"[lang={language}] {transcript.Text}"
@@ -106,22 +106,21 @@ internal sealed class TranscribeTool : VoiceToolBase
     /// <summary>Attaches the usage measurement to the current call.</summary>
     /// <remarks>
     /// If the provider did not report the duration, the measurement is NOT
-    /// reported at all — writing zero seconds would mean "free".
+    /// reported at all — writing zero seconds would mean "free". The price is
+    /// keyed by the bound transcriber's provider name.
     /// </remarks>
-    private static void ReportUsage(SpeechTranscript transcript, VoicePricing pricing, VoiceOptions options)
+    private static void ReportUsage(SpeechTranscript transcript, VoicePricing pricing, ISpeechTranscriber transcriber)
     {
         if (transcript.AudioDuration is not { } duration)
         {
             return;
         }
 
-        var modelId = options.TranscriptionModelId ?? ElevenLabsSpeechClient.DefaultTranscriptionModel;
-
         _ = TraconToolUsage.Report(new ToolCallUsage
         {
             Unit = ToolUsageUnits.Seconds,
             Quantity = (decimal)duration.TotalSeconds,
-            Cost = pricing.ForDuration(options.Provider, modelId, duration),
+            Cost = pricing.ForTranscription(transcriber, duration),
             Currency = pricing.Currency,
             IsEstimated = false,
         });
