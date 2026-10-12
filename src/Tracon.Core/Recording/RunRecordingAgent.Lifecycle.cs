@@ -142,7 +142,10 @@ public sealed partial class RunRecordingAgent
             // per-user cost report that stopped at the root would under-report every
             // agent that calls other agents.
             attribution.UserId,
-            attribution.Labels);
+            attribution.Labels,
+
+            // The record of what the caller bound; see TraconRunOptions.ParameterValues.
+            runOptions?.ParameterValues);
     }
 
     /// <summary>
@@ -226,7 +229,8 @@ public sealed partial class RunRecordingAgent
         Guid? ReplayOfRunId,
         Guid? ContinuedFromRunId,
         string? UserId,
-        IReadOnlyDictionary<string, string>? Labels);
+        IReadOnlyDictionary<string, string>? Labels,
+        IReadOnlyDictionary<string, string>? ParameterValues);
 
     /// <summary>The recording state of a single run.</summary>
     private sealed record RunScope(

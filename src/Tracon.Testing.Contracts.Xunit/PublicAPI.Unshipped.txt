@@ -344,6 +344,10 @@ Tracon.Testing.Contracts.Storage.RetentionStoreContract.Row_limit_threshold_coun
 Tracon.Testing.Contracts.Storage.RetentionStoreContract.Unknown_target_throws() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Another_tenants_input_cannot_be_read() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.A_run_with_values_and_no_messages_still_records_the_values() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Missing_parameters_and_empty_parameters_stay_distinct() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Parameter_values_round_trip_exactly() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunInputStoreContract.Second_write_never_changes_the_recorded_parameters() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Polymorphic_content_round_trips_with_KEY_ORDER_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.RunInputStoreContract() -> void
 Tracon.Testing.Contracts.Storage.RunInputStoreContract.Run_without_a_record_returns_null() -> System.Threading.Tasks.Task!

@@ -709,8 +709,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // queued run (Phase 46) starts twice with the same id, and its input
         // must not change.
         InsertRunInput = $"""
-            INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at)
-            VALUES (@run_id, @tenant_id, @messages, @created_at)
+            INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at, parameters)
+            VALUES (@run_id, @tenant_id, @messages, @created_at, @parameters)
             ON CONFLICT (run_id) DO NOTHING;
             """;
 

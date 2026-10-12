@@ -2121,6 +2121,7 @@ Tracon.ProtectedColumn.ResponsePayload = 9 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.RunEventPayload = 4 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.RunEventText = 3 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.RunInput = 2 -> Tracon.ProtectedColumn
+Tracon.ProtectedColumn.RunInputParameters = 10 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.SessionState = 0 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.ToolArguments = 5 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.ToolResult = 6 -> Tracon.ProtectedColumn
@@ -2517,6 +2518,8 @@ Tracon.RunInputRecord.CreatedAt.init -> void
 Tracon.RunInputRecord.Equals(Tracon.RunInputRecord? other) -> bool
 Tracon.RunInputRecord.Messages.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.ChatMessage!>!
 Tracon.RunInputRecord.Messages.init -> void
+Tracon.RunInputRecord.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.RunInputRecord.Parameters.init -> void
 Tracon.RunInputRecord.RunId.get -> System.Guid
 Tracon.RunInputRecord.RunId.init -> void
 Tracon.RunInputRecord.RunInputRecord() -> void

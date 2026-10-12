@@ -263,12 +263,22 @@ internal static class RetentionTargetRegistry
             // Run inputs (phase 47). They carry their own tenant_id and created_at
             // columns; because their FK to runs is CASCADE they already go when the
             // run is deleted, but their own lifetime must also be limitable.
+            //
+            // 🚨 A run AwaitingInput keeps its row (F-294, K-888): the parameter
+            // values it was started with live ONLY here, and answering the request
+            // resumes the workflow with them. Deleted by age, the row left a run
+            // whose answer is refused (the resume cannot tell "values deleted"
+            // from "never had values"). Same rule as the checkpoints: such a row
+            // is neither deleted nor counted toward MaxRows.
             RetentionTargets.RunInputs => new RetentionTargetDefinition(
                 Table("run_inputs"),
-                "created_at < @cutoff",
+                $"created_at < @cutoff AND NOT EXISTS (SELECT 1 FROM {Table("runs")} ri "
+                    + $"WHERE ri.id = {Table("run_inputs")}.run_id AND ri.status = {awaitingInput})",
                 "tenant_id = @tenant_id",
                 "created_at",
-                "created_at"),
+                $"CASE WHEN EXISTS (SELECT 1 FROM {Table("runs")} rr "
+                    + $"WHERE rr.id = {Table("run_inputs")}.run_id AND rr.status = {awaitingInput}) "
+                    + "THEN NULL ELSE created_at END"),
 
             // Knowledge base chunks (phase 51). 🚨 The table exists ONLY in the
             // PostgreSQL migration set; binding this target to a policy on SQL
