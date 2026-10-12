@@ -81,6 +81,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A store error after a job's handler has finished no longer counts as a
+  handler failure. The worker wrote the outcome inside the handler's own `try`,
+  so one failed database call either failed a job whose work was done — a
+  queued agent run (one attempt by default) became `Failed` while its run was
+  `Completed` — or, with attempts left, ran the handler a second time. The
+  worker now retries the write with a growing pause while it can still prove
+  its lease, and stops a third of the lease before that lease could run out; a
+  write that keeps failing is logged as an error and the job takes the
+  lease-expiry path. A store error while releasing a failed attempt, or while
+  failing its last one, no longer leaves the job `Running` until its lease
+  expires. In a batch, a store error while recording a finished item no longer
+  records that item as `Failed`.
 - A workflow run now carries its attribution the way an agent run does. The
   root built its run scope before it read `IRunAttributionContext`, so every
   node and tool of a workflow read `TraconRunContext.Current.UserId` and

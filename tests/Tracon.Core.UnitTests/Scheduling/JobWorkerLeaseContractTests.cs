@@ -124,6 +124,181 @@ public sealed class JobWorkerLeaseContractTests
         record!.Status.ShouldBe(JobStatus.Cancelled);
     }
 
+    /// <summary>
+    /// F-348: the store calls that write a successful handler's outcome sat in
+    /// the handler's own <c>try</c>. One store error there was taken for a
+    /// handler failure: under one attempt the job became Failed while its work
+    /// had finished; under three the handler ran a second time.
+    /// </summary>
+    [Theory]
+    [InlineData(StoreCall.Get, 1)]
+    [InlineData(StoreCall.Get, 3)]
+    [InlineData(StoreCall.ListItems, 1)]
+    [InlineData(StoreCall.ListItems, 3)]
+    [InlineData(StoreCall.Complete, 1)]
+    [InlineData(StoreCall.Complete, 3)]
+    public async Task A_store_error_after_the_handler_succeeded_neither_fails_nor_reruns_the_job(StoreCall failing, int maxAttempts)
+    {
+        var jobs = new ThrowOnceJobStore(failing);
+        var handler = new CountingHandler(jobs.Arm);
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.PeekAsync(jobId).AsTask(),
+            static job => job?.Status is JobStatus.Completed or JobStatus.Failed,
+            "the job to finish");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        jobs.Threw.ShouldBeTrue("the store error was never raised, so the case proves nothing");
+        handler.Calls.ShouldBe(1, "a handler that succeeded ran again because the store failed once");
+        record!.Status.ShouldBe(JobStatus.Completed);
+        record.Attempt.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_store_error_while_releasing_a_failed_attempt_still_releases_the_job()
+    {
+        var jobs = new ThrowOnceJobStore(StoreCall.ReleaseForRetry);
+        var handler = new FailingHandler(failures: 1, jobs.Arm);
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 3, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        // A release that escaped left the job Running under a five-minute lease.
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.PeekAsync(jobId).AsTask(),
+            static job => job?.Status is JobStatus.Completed or JobStatus.Failed,
+            "the released job to run again and finish");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        jobs.Threw.ShouldBeTrue();
+        handler.Calls.ShouldBe(2);
+        record!.Status.ShouldBe(JobStatus.Completed);
+        record.Attempt.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task A_store_error_while_failing_the_last_attempt_still_fails_the_job()
+    {
+        var jobs = new ThrowOnceJobStore(StoreCall.Complete);
+        var handler = new FailingHandler(failures: int.MaxValue, jobs.Arm);
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 1, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.PeekAsync(jobId).AsTask(),
+            static job => job?.Status is JobStatus.Completed or JobStatus.Failed,
+            "the failed job to be closed");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        jobs.Threw.ShouldBeTrue();
+        handler.Calls.ShouldBe(1);
+        record!.Status.ShouldBe(JobStatus.Failed);
+        record.Attempt.ShouldBe(1);
+        record.ErrorMessage.ShouldNotBeNull();
+        record.ErrorMessage.ShouldNotStartWith(JobErrorCodes.AttemptsExhausted);
+    }
+
+    /// <summary>
+    /// The completion retry stops where this worker can no longer prove its
+    /// lease: past that point another worker may own the job, and a store
+    /// write carries no owner check. The job then takes the lease-expiry path.
+    /// </summary>
+    [Fact]
+    public async Task A_completion_the_store_keeps_refusing_is_left_to_lease_expiry()
+    {
+        var clock = new ManualTimeProvider();
+        var jobs = new RefusingCompletionJobStore(clock);
+        var handler = new CountingHandler(jobs.Arm);
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 1, clock.GetUtcNow());
+
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5), clock);
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        await WaitUntil.TrueAsync(() => jobs.RefusedCompletions >= 2, "the worker to retry the refused completion");
+
+        // The lease runs out on the store's clock and on the worker's.
+        clock.Advance(TimeSpan.FromMinutes(6));
+
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.PeekAsync(jobId).AsTask(),
+            static job => job?.Status is JobStatus.Completed or JobStatus.Failed,
+            "the expired job to be re-leased and closed");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.Calls.ShouldBe(1);
+        record!.Status.ShouldBe(JobStatus.Failed);
+        record.Attempt.ShouldBe(2);
+        record.ErrorMessage.ShouldNotBeNull();
+        record.ErrorMessage.ShouldStartWith(JobErrorCodes.AttemptsExhausted);
+    }
+
+    [Fact]
+    public async Task Stopping_the_worker_ends_the_completion_retries()
+    {
+        var jobs = new RefusingCompletionJobStore();
+        var handler = new CountingHandler(jobs.Arm);
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts: 1, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        await WaitUntil.TrueAsync(() => jobs.RefusedCompletions >= 2, "the worker to retry the refused completion");
+
+        using var stopBound = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        stopBound.CancelAfter(WaitUntil.DefaultTimeout);
+
+        await worker.StopAsync(stopBound.Token);
+
+        (worker.ExecuteTask?.IsCompleted ?? false).ShouldBeTrue("a retry loop that ignores shutdown holds the host open");
+
+        var record = await jobs.PeekAsync(jobId);
+
+        handler.Calls.ShouldBe(1);
+        record!.Status.ShouldBe(JobStatus.Running);
+    }
+
+    /// <summary>The store operation a <see cref="ThrowOnceJobStore"/> fails.</summary>
+    public enum StoreCall
+    {
+        /// <summary><see cref="IJobStore.GetAsync"/>.</summary>
+        Get,
+
+        /// <summary><see cref="IJobStore.ListItemsAsync"/>.</summary>
+        ListItems,
+
+        /// <summary><see cref="IJobStore.CompleteAsync"/>.</summary>
+        Complete,
+
+        /// <summary><see cref="IJobStore.ReleaseForRetryAsync"/>.</summary>
+        ReleaseForRetry,
+    }
+
     private static JobWorkerBackgroundService CreateWorker(
         IJobStore jobs,
         TestJobHandlerHost host,
@@ -189,7 +364,8 @@ public sealed class JobWorkerLeaseContractTests
         }
     }
 
-    private sealed class CountingHandler : IJobHandler
+    /// <summary>Counts its calls and succeeds; <paramref name="onCall"/> runs inside each call.</summary>
+    private sealed class CountingHandler(Action? onCall = null) : IJobHandler
     {
         private readonly TaskCompletionSource _called = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _calls;
@@ -201,9 +377,28 @@ public sealed class JobWorkerLeaseContractTests
         public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _calls);
+            onCall?.Invoke();
             _called.TrySetResult();
 
             return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>Throws on its first <paramref name="failures"/> calls, then succeeds.</summary>
+    private sealed class FailingHandler(int failures, Action? onCall = null) : IJobHandler
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            var call = Interlocked.Increment(ref _calls);
+            onCall?.Invoke();
+
+            return call <= failures
+                ? throw new InvalidOperationException("The handler failed on purpose.")
+                : ValueTask.CompletedTask;
         }
     }
 
@@ -227,9 +422,13 @@ public sealed class JobWorkerLeaseContractTests
         }
     }
 
-    private abstract class DelegatingJobStore : IJobStore
+    private abstract class DelegatingJobStore(TimeProvider? clock = null) : IJobStore
     {
-        protected InMemoryJobStore Inner { get; } = new();
+        protected InMemoryJobStore Inner { get; } = new(clock);
+
+        /// <summary>Reads a job past any fault the derived store injects.</summary>
+        public ValueTask<JobRecord?> PeekAsync(Guid jobId)
+            => Inner.GetAsync(TenantId, jobId, TestContext.Current.CancellationToken);
 
         public ValueTask<JobRecord> EnqueueAsync(JobRecord job, IReadOnlyList<string> items, CancellationToken cancellationToken = default)
             => Inner.EnqueueAsync(job, items, cancellationToken);
@@ -258,7 +457,7 @@ public sealed class JobWorkerLeaseContractTests
         public ValueTask<IReadOnlyList<JobRecord>> QueryAsync(JobQuery query, CancellationToken cancellationToken = default)
             => Inner.QueryAsync(query, cancellationToken);
 
-        public ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
+        public virtual ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
             => Inner.ListItemsAsync(jobId, cancellationToken);
 
         public ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
@@ -279,6 +478,80 @@ public sealed class JobWorkerLeaseContractTests
             => Interlocked.Increment(ref _renewCalls) == 1
                 ? throw new TimeoutException("The store did not answer in time.")
                 : base.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);
+    }
+
+    /// <summary>
+    /// Fails the first call of one operation made after <see cref="Arm"/>, the
+    /// way a store that blips once does. Every other call reaches the store.
+    /// </summary>
+    private sealed class ThrowOnceJobStore(StoreCall failing) : DelegatingJobStore
+    {
+        private int _armed;
+        private int _thrown;
+
+        public bool Threw => Volatile.Read(ref _thrown) == 1;
+
+        /// <summary>Called by the handler, so only the worker's calls after it can fail.</summary>
+        public void Arm() => Volatile.Write(ref _armed, 1);
+
+        public override ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
+        {
+            ThrowOnce(StoreCall.Get);
+            return base.GetAsync(tenantId, jobId, cancellationToken);
+        }
+
+        public override ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
+        {
+            ThrowOnce(StoreCall.ListItems);
+            return base.ListItemsAsync(jobId, cancellationToken);
+        }
+
+        public override ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
+        {
+            ThrowOnce(StoreCall.Complete);
+            return base.CompleteAsync(completion, cancellationToken);
+        }
+
+        public override ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+        {
+            ThrowOnce(StoreCall.ReleaseForRetry);
+            return base.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken);
+        }
+
+        private void ThrowOnce(StoreCall call)
+        {
+            if (call == failing
+                && Volatile.Read(ref _armed) == 1
+                && Interlocked.CompareExchange(ref _thrown, 1, 0) == 0)
+            {
+                throw new TimeoutException("The store did not answer in time.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Refuses every <see cref="JobStatus.Completed"/> completion made after
+    /// <see cref="Arm"/>; a <see cref="JobStatus.Failed"/> one goes through.
+    /// </summary>
+    private sealed class RefusingCompletionJobStore(TimeProvider? clock = null) : DelegatingJobStore(clock)
+    {
+        private int _armed;
+        private int _refused;
+
+        public int RefusedCompletions => Volatile.Read(ref _refused);
+
+        public void Arm() => Volatile.Write(ref _armed, 1);
+
+        public override ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
+        {
+            if (completion.Status == JobStatus.Completed && Volatile.Read(ref _armed) == 1)
+            {
+                Interlocked.Increment(ref _refused);
+                throw new TimeoutException("The store did not answer in time.");
+            }
+
+            return base.CompleteAsync(completion, cancellationToken);
+        }
     }
 
     /// <summary>
