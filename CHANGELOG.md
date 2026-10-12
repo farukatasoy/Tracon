@@ -74,6 +74,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The console can now answer a workflow request that it did not start. The
+  run page sent the operator to "the workflow screen", but that screen showed a
+  request card only for a run it had started itself, so a run started over
+  HTTP, by a job or in another tab could not be answered from the console at
+  all. The workflow screen now opens on the run named by `?runId=`. Both links
+  on a run page carry it, and the screen writes its own run there, so a reload
+  or a copied link keeps the run. A `runId` of another workflow, or of a run
+  that is not waiting, shows a note instead of a card. The run page now also
+  says that answering an already answered run opens a separate branch.
 - A workflow node retry, the model fallback chain and an online evaluation
   judge no longer repeat a permanent client error. `RunErrorClass.ProviderError`
   covers every provider HTTP error, `4xx` included, and the node retry read only

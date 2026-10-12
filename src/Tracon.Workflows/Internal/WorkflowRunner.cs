@@ -157,9 +157,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         var record = await RequireWorkflowRunAsync(runId, cancellationToken).ConfigureAwait(false);
 
         // A run that was answered STAYS in AwaitingInput (status history is not
-        // rewritten afterwards, K-014) but it no longer has a pending request;
-        // the continuing work lives on a new run row. The card is shown only for
-        // a run that really waits.
+        // rewritten afterwards, K-014) and still lists its request; the
+        // continuing work lives on a new run row. Answering it again opens a
+        // branch, on purpose (K-130).
         if (record.Status != RunStatus.AwaitingInput)
         {
             return [];

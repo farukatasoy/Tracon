@@ -206,7 +206,11 @@ and the node ids are the same executor ids that appear in run events — which i
 nodes light up live while a workflow runs.
 
 A workflow waiting on human input shows the pending request as a card; answering it
-resumes execution from the checkpoint as a new run.
+resumes execution from the checkpoint as a new run. The card opens for any waiting
+run, wherever it started — over HTTP, from a job, or in another tab: follow the
+**workflow screen** link on its run page, or open `workflows/<name>?runId=<run id>`.
+The answered run keeps its *awaiting input* status and its request, so answering it
+a second time starts a separate branch.
 
 ## Evals and experiments
 
