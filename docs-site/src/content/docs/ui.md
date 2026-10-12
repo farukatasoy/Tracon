@@ -212,6 +212,25 @@ playground does — one field per parameter, Run disabled while a required one i
 and sends the values with the message. The editor keeps the schema across a save but does
 not change it yet; create or change it with `PUT /api/workflows/{name}`.
 
+<a class="ui-shot" href="/screenshots/workflow-editor.png"><img src="/screenshots/workflow-editor.png" alt="The workflow editor with an agent step, a function step and the function's settings field" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+The editor builds the chain. *Add an agent* and *Add a function* pick from the agents in
+the catalog and the functions registered in code; the arrows reorder the steps and ✕
+removes one. The function picker appears for `Sequential` only, and the pattern stays
+`Sequential` while the chain holds a function. A function step has a **Settings** field
+that takes the JSON for the function's settings type, with the fields it takes listed
+under it. Save is disabled while that text is not JSON; whether the object fits the
+function is the server's answer, which names the node and the member and shows above the
+form. Settings are stored with the workflow and shown to everyone who can read it, so
+the field says not to put a secret there.
+
+Before a save that changes the chain, the editor says what it is about to do. It stores a
+chain that holds a function as a node list and a chain without one as a plain agent list,
+and tells you when the save changes the form. It also warns when the pattern, the steps or
+their order change: a run that is waiting for input cannot be resumed after that, because
+its saved state belongs to the old graph. Editing a step's settings or the description
+does not.
+
 A workflow waiting on human input shows the pending request as a card; answering it
 resumes execution from the checkpoint as a new run. The card opens for any waiting
 run, wherever it started — over HTTP, from a job, or in another tab: follow the
@@ -423,9 +442,8 @@ the record as it was.
   has no control for provider-specific `ProviderSettings`, static `McpResourceUris`,
   or a Knowledge vector binding. It keeps them as they are; change them through code
   or the management HTTP API.
-- The workflow editor lists the chain of a workflow that uses function nodes, but it
-  cannot change that chain yet, and the kind stays `Sequential`. Change the chain
-  with `PUT /api/workflows/{name}`.
+- The workflow editor keeps a workflow's run parameter schema as it is and has no control
+  for it. Change the schema with `PUT /api/workflows/{name}`.
 - A quota's agent and period identify the rule, so they are locked while you edit
   it. To move a rule, delete it and add a new one.
 

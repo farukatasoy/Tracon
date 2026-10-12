@@ -23,6 +23,20 @@ public sealed record WorkflowFunctionResponse
     /// <summary>The display name of the CLR type the function returns.</summary>
     public required string OutputType { get; init; }
 
+    /// <summary>
+    /// The JSON schema of the settings a node of this function takes, or
+    /// <see langword="null"/> when the function takes none (a node of it must carry
+    /// no <c>settings</c>).
+    /// </summary>
+    /// <remarks>
+    /// For display: it lists the member names, their types and which are required,
+    /// so a form or an operator can write a valid object. The save endpoint does the
+    /// checking, by reading the object into the function's settings type. A settings
+    /// type whose schema could not be produced is the bare <c>{"type":"object"}</c>,
+    /// never <see langword="null"/>.
+    /// </remarks>
+    public JsonElement? SettingsSchema { get; init; }
+
     /// <summary>Projects a descriptor into its wire-safe view.</summary>
     /// <param name="descriptor">The descriptor to project.</param>
     public static WorkflowFunctionResponse From(WorkflowFunctionDescriptor descriptor)
@@ -32,6 +46,12 @@ public sealed record WorkflowFunctionResponse
             Description = descriptor.Description,
             InputType = descriptor.InputType.FullName ?? descriptor.InputType.Name,
             OutputType = descriptor.OutputType.FullName ?? descriptor.OutputType.Name,
+
+            // An unset element is the one kind System.Text.Json cannot write, and one
+            // descriptor carrying it would fail the whole function list.
+            SettingsSchema = descriptor.SettingsSchema is { ValueKind: not (JsonValueKind.Undefined or JsonValueKind.Null) } schema
+                ? schema
+                : null,
         };
 }
 

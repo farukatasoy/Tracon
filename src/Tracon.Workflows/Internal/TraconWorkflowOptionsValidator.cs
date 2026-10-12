@@ -33,6 +33,15 @@ internal sealed class TraconWorkflowOptionsValidator : IValidateOptions<TraconWo
                 $" when {nameof(TraconWorkflowOptions.Enabled)} is on"));
         }
 
+        // Checked whether or not the engine is on: the cap guards a definition SAVE,
+        // which does not need the engine.
+        if (options.MaxNodeSettingsLength < 1)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxNodeSettingsLength)} must be at least 1 " +
+                $"(bytes of a node's settings JSON). Actual value: {options.MaxNodeSettingsLength}.");
+        }
+
         return ValidateOptionsResult.Success;
     }
 }

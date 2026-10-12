@@ -2,21 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 811 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 818 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 899 kalem)
+## En Yeni Kalıcı Kararlar (84 / 902 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-812 | 863 | Bağımlılık parmak izi de sürümü değil, ÇAĞIRANA GÖMÜLEN içeriği ölçer |
-| K-813 | 864 | Cevap veremeyen bir store `503` döner ve HANGİ tür erişilemezlik olduğunu söyler; şema adı ve SQL metni yine sızmaz 👤 |
-| K-814 | 865 | Anahtar deposunu okuyamayan açılış kapısı KENDİ sonucuna varır: "anahtar kanıtlanamadı" |
-| K-815 | 866 | Kriptografik doğrulama hatası da anahtarı ADIYLA söyler; beşinci dal diğer dördüyle aynı hizaya getirildi |
-| K-816 | 867 | Normalleştirilen sağlayıcı hatası `StableIdentities` ile sınıflandırılır; desen yolu o trafiği hiç görmüyordu |
-| K-817 | 868 | Maskelenen sağlayıcı hatasının kalıcı mesajı ÜÇ OLGU taşır: sağlayıcı adı, istisnanın tip adı, HTTP durum kodu 👤 |
-| K-818 | 869 | HTTP durum kodu parmak izi normalleştirmesinde GÜRÜLTÜ DEĞİLDİR ve korunur |
 | K-819 | 870 | Dil kapısının iki-harfli kelime dışlaması VARSAYIM değil ÖLÇÜMDÜR; yedi bağlaç listeye girdi |
 | K-820 | 871 | Sürüm geçmişi okuması, bir agent'ın tanımının NEREDE yaşadığını söyler; `404` kalır, gerekçe değişir 👤 |
 | K-821 | 872 | Reddedilen bir enum değeri KENDİNİ ve alternatiflerini söyler; converter TİPE DEĞİL istek gövdesi options'ına takılır 👤 |
@@ -98,3 +91,6 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-897 | 948 | Workflow parametre şeması `WorkflowDefinition.Parameters` (aynı `AgentParameter`); değer `WorkflowRunRequest.Parameters` ile gelir, runner doğrular (HTTP yalnız erken 400); agent adımı YALNIZ kendi şemasındaki adları alır, derleme katalog dışı ve her çağrıda yapılır; katılımcı kapsaması run BAŞINDA denetlenir, kayıtta değil; fonksiyon düğümü `GetRunParameters()` ile okur, run dışında atar; kod tanımlı workflow şemasızdır; `Kind` doğrulanmaz (F-294) |
 | K-898 | 949 | `run_inputs.parameters` (üç sağlayıcıda nullable sütun): `NULL` "kayıt yok", `{}` "kayıtlı, değer yok"; kendi `ProtectedColumn.RunInputParameters`'ı var; retention `AwaitingInput` run'ın satırını tutar; run bağlandığı NİHAİ değerleri (varsayılanlar dahil) yazar; replay, çökme sonrası devam, onay-devamı ve workflow resume/respond kaydı kullanır, kaydı olmayan kaynak ve parametreli tanım REDDEDİLİR; replay isteği üzerine yazar; workflow satırı mesaj saklamaz; K-890'ın "replay ve devam parametreli tanımı reddeder" maddesi değişti (F-294) |
 | K-899 | 950 | Kuyruklu run yükü `parameters` ve `documents` taşır; batch öğesi `message` string üyeli JSON nesnesiyse YAPILIdır (bilinmeyen üst alan ve bozuk üye öğeyi tek başına düşürür, zamanlama kaydı ve tetik biçimi reddeder); `jobs.payload` ve `job_items.input` KORUMALI DEĞİLDİR ve değer ile belge metnini düz tutar; worker şemayı yeniden doğrular; webhook gövdesi gibi dış kaynaklı metin `{"message": …}` ile zarflanır, yapılı öğe olarak okunmaz (F-294) (kullanıcı kararı) 👤 |
+| K-900 | 951 | Fonksiyon düğümü ayarı tipli ve KATI OKUMAYLA doğrulanır: `WorkflowNodeReference.Settings` (`JsonElement?`, yalnız nesne), `AddWorkflowFunction<TInput, TOutput, TSettings>`; kayıtta ve her derlemede AYNI okuma (fonksiyon doğrulanan nesneyi alır, ikinci şema doğrulayıcısı yok); agent düğümünde, nesne olmayan değerde ve ayarsız fonksiyonda `400`; ayar `secret` DEĞİLDİR, değişiklik sonraki run'da geçerlidir, boyut sınırı yalnız kayıtta (F-295) (kullanıcı kararı) 👤 |
+| K-901 | 952 | Konsol zinciri TEK kanonik biçimde yazar (fonksiyon varsa `nodes`, yoksa `agentNames`); sunucu iki biçimi de kabul eder; yapısal değişiklik bekleyen run'ı resume edilemez kılar ve editör bunu her zaman söyler; aynı fonksiyon bir zincirde iki kez kullanılamaz (F-292) (kullanıcı kararı) 👤 |
+| K-902 | 953 | Ayarlı fonksiyon kaydı opsiyonel parametre YERİNE `Action<WorkflowFunctionOptions>` alır; `IWorkflowFunctionCatalog` `ValidateSettings` üyesini kazanır (F-295) |

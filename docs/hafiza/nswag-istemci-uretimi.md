@@ -213,3 +213,5 @@ sıfır veya negatif değer `ArgumentException` atar. `tracon eval` ve
   özelliği görmez. `ClientSchemaFieldCoverageTests` şemanın her özelliğini
   üretilen tipe karşı **reflection ile** karşılaştırır (adı
   `JsonPropertyNameAttribute`'tan okur, ∴ adlandırma kuralıyla kaymaz).
+
+- **🚨 `oneOf: [null, {description, $ref}]` olan nullable nesne özelliği C# istemciye BELGESİZ gider** (2026-10-12, Faz 195): OpenAPI üreteci nullable `$ref` özelliğini böyle yazar ve açıklama ikinci dalın İÇİNDE kalır; NSwag yalnız özelliğin kendi `description`'ını okur. 41 özellik (`AgentDefinition.Harness` dahil) XML belgesiz çıkıyordu. `nswag-prepare-document.py` açıklamayı özelliğe TAŞIR (üçüncü dönüşüm, yalnız atılan kopyada); `client-description-baseline.txt` 396 → 357. TS tarafı (`openapi-typescript`) yazılı belgeden üretilir ve bu dönüşümü ALMAZ.

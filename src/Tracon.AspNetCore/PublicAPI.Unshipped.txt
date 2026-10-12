@@ -843,6 +843,8 @@ Tracon.WorkflowFunctionResponse.Name.get -> string!
 Tracon.WorkflowFunctionResponse.Name.init -> void
 Tracon.WorkflowFunctionResponse.OutputType.get -> string!
 Tracon.WorkflowFunctionResponse.OutputType.init -> void
+Tracon.WorkflowFunctionResponse.SettingsSchema.get -> System.Text.Json.JsonElement?
+Tracon.WorkflowFunctionResponse.SettingsSchema.init -> void
 Tracon.WorkflowFunctionResponse.WorkflowFunctionResponse() -> void
 Tracon.WorkflowRespondHttpRequest
 Tracon.WorkflowRespondHttpRequest.<Clone>$() -> Tracon.WorkflowRespondHttpRequest!

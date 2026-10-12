@@ -79,6 +79,26 @@ public sealed class TraconWorkflowOptions
     public int MaxSuperSteps { get; set; } = 100;
 
     /// <summary>
+    /// Gets or sets the largest settings a single function node may carry, as bytes
+    /// of the settings' JSON text.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A workflow definition is written whole on every save and read on every run,
+    /// and the workflow list returns every node. A node's settings are a handful of
+    /// values for the function's settings type; the cap keeps the definition from
+    /// becoming a data store. The default of 16 KiB is far above any settings object
+    /// a function declares by hand and far below a body worth keeping in a
+    /// definition.
+    /// </para>
+    /// <para>
+    /// The cap is checked when a definition is saved. A definition that was saved
+    /// before the cap was lowered still runs. Must be at least 1.
+    /// </para>
+    /// </remarks>
+    public int MaxNodeSettingsLength { get; set; } = 16 * 1024;
+
+    /// <summary>
     /// Gets or sets whether the checkpoints of a completed run are kept.
     /// </summary>
     /// <remarks>

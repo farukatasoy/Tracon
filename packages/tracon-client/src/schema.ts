@@ -633,7 +633,7 @@ export interface paths {
         };
         /**
          * Lists function nodes registered in code.
-         * @description Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the UI lets users pick from this list when building a Sequential workflow's node list. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.
+         * @description Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the console picks from this list when an operator builds a Sequential workflow's node list. A function that takes settings carries settingsSchema, a JSON schema of the object a node of it may carry in 'settings'; a function that takes none has settingsSchema null and its nodes must carry no settings. The schema is for display: saving the workflow does the checking. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.
          */
         get: operations["TraconListWorkflowFunctions"];
         put?: never;
@@ -658,7 +658,7 @@ export interface paths {
         get: operations["TraconGetWorkflow"];
         /**
          * Creates or updates a workflow definition.
-         * @description The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.
+         * @description The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.
          */
         put: operations["TraconSaveWorkflow"];
         post?: never;
@@ -7965,6 +7965,7 @@ export interface components {
             inputType: string;
             /** @description The display name of the CLR type the function returns. */
             outputType: string;
+            settingsSchema?: null | components["schemas"]["JsonElement"];
         };
         /**
          * @description Represents a workflow's compiled graph: nodes, edges, and external
@@ -8028,6 +8029,7 @@ export interface components {
             name: string;
             /** @description Gets which registry `Name` is looked up in. */
             kind: components["schemas"]["WorkflowNodeKind"];
+            settings?: null | components["schemas"]["JsonElement"];
         };
         /** @description Represents human input awaited by a workflow run. */
         WorkflowPendingRequest: {

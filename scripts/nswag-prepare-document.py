@@ -26,6 +26,15 @@ never touched:
    property everywhere, which is also the more correct contract for DTOs that
    have no legitimate use for a client-side catch-all (section 83.6).
 
+3. Copy a nullable reference's description up to the property that holds it. The
+   OpenAPI generator writes a nullable object property as
+   `oneOf: [{"type": "null"}, {"description": "...", "$ref": "..."}]`, with the
+   description INSIDE the second branch, and NSwag reads a property's
+   documentation only from the property itself - so every such property reached the
+   client with no XML documentation at all (41 of them when this transform was
+   added, plus the function-settings members of phase 195). The text is not new,
+   only moved.
+
 Usage: nswag-prepare-document.py <input.json> <output.json> [prefix]
 """
 
@@ -56,6 +65,22 @@ def close_schemas(document: dict) -> int:
     return closed
 
 
+def hoist_nullable_descriptions(document: dict) -> int:
+    """Gives `oneOf: [null, {description, $ref}]` properties the description of the reference."""
+    schemas = document.get("components", {}).get("schemas", {})
+    hoisted = 0
+    for schema in schemas.values():
+        for prop in (schema.get("properties") or {}).values():
+            branches = prop.get("oneOf")
+            if "description" in prop or not isinstance(branches, list):
+                continue
+            references = [branch for branch in branches if branch.get("type") != "null"]
+            if len(references) == 1 and "description" in references[0]:
+                prop["description"] = references[0]["description"]
+                hoisted += 1
+    return hoisted
+
+
 def main() -> int:
     if len(sys.argv) not in (3, 4):
         print(f"Usage: {sys.argv[0]} <input.json> <output.json> [prefix]", file=sys.stderr)
@@ -69,13 +94,17 @@ def main() -> int:
 
     strip_prefix(document, prefix)
     closed = close_schemas(document)
+    hoisted = hoist_nullable_descriptions(document)
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(document, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
     paths = document["paths"]
-    print(f"Stripped '{prefix}' from {len(paths)} paths, closed {closed} schemas -> {output_path}")
+    print(
+        f"Stripped '{prefix}' from {len(paths)} paths, closed {closed} schemas, "
+        f"hoisted {hoisted} descriptions -> {output_path}"
+    )
     return 0
 
 

@@ -21,7 +21,7 @@ namespace Tracon.Generators.UnitTests.Examples;
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
 /// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>,
 /// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>,
-/// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>): "a
+/// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>, <c>TtsSettings</c>): "a
 /// provider/tool/service/repository/handler/source/judge/decorator/authorization you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
@@ -92,6 +92,15 @@ internal static class ExamplePrelude
             public IReadOnlyList<ModelDescriptor> Models { get; } = [];
 
             public IChatClient CreateChatClient(ModelBinding binding) => null!;
+        }
+
+        // Stands in for "your own settings type", named in one <example> only: the
+        // function's code declares the shape and an operator fills in values for it.
+        internal sealed record TtsSettings
+        {
+            public required string Voice { get; init; }
+
+            public double LoudnessLufs { get; init; } = -16;
         }
 
         // Stands in for "your own DI service", named in one <example> only.

@@ -146,7 +146,7 @@ is the list.
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
-| Workflow functions | `AddWorkflowFunction<TInput, TOutput>()` | A typed function runs as a graph node without an agent of its own |
+| Workflow functions | `AddWorkflowFunction<TInput, TOutput>()` and `AddWorkflowFunction<TInput, TOutput, TSettings>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
 | Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution |
@@ -154,7 +154,7 @@ is the list.
 | Singleton execution | `Tracon:SingletonExecution` | A distributed lease selects one active executor for singleton services |
 | Run reconciliation | `Tracon:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
 | Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound run resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat` |
-| Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` | A transient provider error retries a single node without failing the run or costing an extra super-step |
+| Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` or `options.RetryPolicy` | A transient provider error retries a single node without failing the run or costing an extra super-step |
 | Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 
 In-memory stores make these contracts usable for local work. Durable queues,

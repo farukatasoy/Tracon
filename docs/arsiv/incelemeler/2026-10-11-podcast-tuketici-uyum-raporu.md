@@ -69,7 +69,7 @@ policy'si ve audio mastering mantığı tüketicinin domain sorumluluğudur.
 | Kiracılık | Multitenant SaaS |
 | Akışın sahibi | Host yönetir; müşteriler workflow kodunu düzenlemez |
 | Tenant farkları | Her müşterinin akışı veya ayarları farklı olabilir |
-| Düzenleme sınırı | Geliştirici kodu deploy eder; operatör instruction, provider ve hazır script ayarlarını değiştirir (bkz. § 15: aynı operatör video hattında canlı kod yazar) |
+| Düzenleme sınırı | Operatör instruction, provider ve script ayarlarını değiştirir **ve audio script'ini canlı yazar**; uygulama ayaktayken günceller (karar, 2026-10-12). Script güvenilmez koddur ve tüketicinin sandbox'ında koşar (§ 7.2) |
 | Kalite kararı | Eşik geçilince otomatik TTS; başarısız transcript sınırlı revizyona döner; insan onayı şimdilik yok |
 | Audio | İki konuşmacı; episode başına 10–20 dakika |
 | Provider ve voice seçimi | Tenant bazında; ElevenLabs ve başka provider'lar, Gemini de değerlendiriliyor |
@@ -303,11 +303,15 @@ yoktur. Zorunlu medya adımları için fonksiyon düğümü ve ayrı worker öne
 
 ### 7.2 Bu tüketici için önerilen deployment
 
-**Audio işlemleri ayrı worker container'ında çalışır.** Script kodunu
-geliştirici image içine deploy eder; operatör yalnız script kimliği ve
-doğrulanan parametreleri seçer. Operatör script'i canlı yazacaksa (video
-hattındaki gibi) video raporu § 7.3'ün sandbox modeli burada da geçerlidir ve
-iki hat aynı runner'ı paylaşır (§ 15).
+**Audio script'i operatörün canlı yazdığı güvenilmez koddur ve tüketicinin
+sandbox'ında çalışır** (karar, 2026-10-12). Model video raporu § 7.3 ile
+aynıdır: iş başına geçici container (gVisor, Kata veya Firecracker), root
+olmayan kullanıcı, salt okunur kök, `tmpfs` scratch, kapalı ağ, ön imzalı nesne
+adresleri, CPU/bellek/süre sınırı. Script içeriği tüketicinin uygulamasında
+sürümlü ve içerik hash'iyle saklanır; devam eden üretim başladığı hash'le
+biter, canlı güncelleme yalnız yeni üretimleri etkiler. İki hat tek bir sandbox
+runner servisini paylaşır; Python, ffmpeg ve kilitli bağımlılıklar runner
+image'ındadır. Operatör kodu yalnız CPU kullanır.
 
 ```mermaid
 flowchart LR
@@ -343,14 +347,12 @@ Worker'a geniş DB/TTS credential'ları verilmez. Storage erişimi gerekli objec
 scope'uyla sınırlanır. Ağ erişimi yalnız gereken servislere açılır. Host
 path'i veya Docker socket'i worker'a verilmez. Kaynak: [Docker resource constraints](https://docs.docker.com/engine/containers/resource_constraints).
 
-Güvenilir kod çalıştırıldığı için her işte yeni VM veya tenant'a özel
-container zorunluluğu bu talepten çıkmaz. Ayrı worker'ın paylaştığı
-process/disk/cache alanları tenant izolasyonu açısından yine incelenir.
-
-Bu worker Tracon'in skill runner'ını dışarı taşıyan hazır bir extension
-değildir. Tüketici; deploy edilmiş script allowlist'i, typed parametre
-validation'ı, audit, timeout, process cleanup ve artifact doğrulamasını
-açıkça uygular. Bu yolda müşterinin keyfi kodu çalıştırılmaz.
+Bu runner Tracon'in skill script runner'ını dışarı taşıyan hazır bir
+extension değildir; Tracon arayüzden yazılan kodu çalıştırmaz (K2) ve skill
+runner'ı OS yalıtımı vermez (K-862). Tüketici; script sürümleme, typed
+parametre validation'ı, audit, timeout, process cleanup ve artifact
+doğrulamasını açıkça uygular. Müşteri (kiracı) kod yazamaz; yalnız host
+operatörü yazar.
 
 ### 7.3 Pre-processing ve post-processing
 
@@ -585,8 +587,9 @@ seçer (iletim modu F-324). Kaynak: [WorkflowAgentStepExecutor](../../../src/Tra
 | Düşük | Konsolda `Loop` düzenleme; `AddLoopEvaluator` fabrika | Revizyon sayısı API'den; ayrı reviewer agent'ı DI'a ulaşamaz | F-302, F-301 aday |
 
 MinIO adapter'ı, mastering preset'leri ve domain entity'leri tüketiciye ait
-kalır. Native OS sandbox, geliştiricinin deploy ettiği güvenilir script için
-gerekmez; operatör canlı kod yazarsa video raporu § 7.3 ve F-345 geçerlidir.
+kalır. Operatör canlı kod yazdığı için sandbox tüketicinin runner'ındadır
+(video raporu § 7.3); Tracon'a yeni kod çalıştırma yüzeyi açılmaz. Skill script
+yolunu o sandbox'a yönlendiren seam F-345'tir.
 
 ## 13. İhtiyacın genişleyebileceği noktalar
 
@@ -650,7 +653,6 @@ toplamını oluşturmaz. Dış TTS/audio usage ayrıca kaydedilir (F-299). Kayna
 
 | Karar | Neyi değiştirir? |
 |---|---|
-| Podcast script'ini de operatör mü canlı yazar? (video hattında yazıyor) | Evet ise § 7.2 güvenilir worker modeli yerine video raporu § 7.3 sandbox modeli; iki hat tek runner paylaşır |
 | Her provider için tek host hesabı mı, birden fazla mı? | Credential routing ve account quota paylaşımı |
 | Bir içerikten iki dilde ayrı episode mu, tek dilde mi? | Production sayısı, maliyet, transcript ve artifact ilişkisi |
 | Normalization yöntemi/hedefi, işlem sırası, final format ve intro/outro preset'i | Worker image, timeout, disk ve preset schema'sı (Faz 195 düğüm ayarı) |
@@ -660,6 +662,10 @@ toplamını oluşturmaz. Dış TTS/audio usage ayrıca kaydedilir (F-299). Kayna
 | DB seçimi ve domain transaction sınırı | Store paketi, outbox/reconciliation implementasyonu |
 | Audio/ham segment saklama süreleri | Retention, storage maliyeti ve partial regeneration |
 | Provider fallback ve audio sonrası ret policy'si | Ses tutarlılığı, ek ücret ve yeniden üretim kapsamı |
+
+2026-10-12'de cevaplananlar: audio script'ini operatör canlı yazar ve
+sandbox'ta koşar (§ 7.2); insan onayı eklenirse `Loop` ölçütü olarak gelir
+(video raporu § 15).
 
 Bu açık değerler uygulama tasarımından önce belirlenir. Uyum sonucu bunlara
 rağmen nettir: Tracon kontrol ve çalıştırma altyapısını sağlar; iki

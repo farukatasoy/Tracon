@@ -619,10 +619,14 @@ tracon.UseMcp(
 | `MaxConcurrentRuns` | `4` |
 | `RunTimeout` | 10 minutes |
 | `MaxSuperSteps` | `100` |
+| `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
 binds this section and then applies its optional code override.
+
+`MaxNodeSettingsLength` caps the JSON text of one function node's settings when a
+workflow is saved; a definition stored before the cap was lowered still runs.
 
 ### Speech tools
 

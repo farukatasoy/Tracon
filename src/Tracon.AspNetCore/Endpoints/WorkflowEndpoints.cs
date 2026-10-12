@@ -59,10 +59,13 @@ internal static class WorkflowEndpoints
             .WithDescription(
                 "Function nodes are defined only in code, with AddWorkflowFunction() - " +
                 "the same code-only boundary AddTool draws for tools. This endpoint does not offer a write " +
-                "path; the UI lets users pick from this list when building a Sequential workflow's " +
-                "node list. An empty list means no function was registered, or the workflow engine " +
-                "was never turned on with UseWorkflows() - either way, existing agent-only " +
-                "workflows are unaffected.");
+                "path; the console picks from this list when an operator builds a Sequential workflow's " +
+                "node list. A function that takes settings carries settingsSchema, a JSON schema of " +
+                "the object a node of it may carry in 'settings'; a function that takes none has " +
+                "settingsSchema null and its nodes must carry no settings. The schema is for display: " +
+                "saving the workflow does the checking. An empty list means no function was registered, " +
+                "or the workflow engine was never turned on with UseWorkflows() - either way, existing " +
+                "agent-only workflows are unaffected.");
 
         builder.MapGet("/api/workflows/{name}", GetAsync)
             .RequireRole(roles.Reader)
@@ -98,9 +101,15 @@ internal static class WorkflowEndpoints
                 "The definition is validated at save time with the same rules the compiler " +
                 "applies, so a shape that could not run is rejected with 400 instead of failing " +
                 "on the first run. Which fields are required depends on the kind — a manager " +
-                "driven workflow needs its manager agent, for example. The call replaces the " +
-                "whole definition: omitted fields are cleared, not merged. The name comes from " +
-                "the path and is not taken from the body.")
+                "driven workflow needs its manager agent, for example. A function node's " +
+                "'settings' must be a JSON object that fits the settings type its function " +
+                "declares (see settingsSchema on GET /api/workflows/functions): an unknown field, " +
+                "a missing required member and a value of the wrong type are all refused with a " +
+                "message that names the node and the member, and so is any settings on an agent " +
+                "node or on a function that declares none. Settings are stored in the definition: " +
+                "never put a secret in them, name its configuration key instead. The call " +
+                "replaces the whole definition: omitted fields are cleared, not merged. The name " +
+                "comes from the path and is not taken from the body.")
             .Accepts<WorkflowSaveRequest>("application/json");
 
         builder.MapDelete("/api/workflows/{name}", DeleteAsync)
@@ -364,6 +373,18 @@ internal static class WorkflowEndpoints
                     detail: $"Workflow '{name}' uses function '{node.Name}', but no such function is " +
                             "registered. Register it with AddWorkflowFunction() before referencing it " +
                             "from a workflow definition.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            // The settings are checked by the registry that knows the function's settings
+            // type (F-295): the same read the compiler repeats when a run starts. Same
+            // reasoning as the name above - the registry is fixed for the process lifetime,
+            // so the early check is an honest guarantee.
+            if (functions.ValidateSettings(node.Name, node.Settings) is { } settingsProblem)
+            {
+                return TypedResults.Problem(
+                    title: "Workflow definition invalid",
+                    detail: $"Workflow '{name}': {settingsProblem}",
                     statusCode: StatusCodes.Status400BadRequest);
             }
         }

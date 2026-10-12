@@ -379,10 +379,9 @@ JSON Schema + hazır kural türleri. Bileşenin props şeması yayın anında bi
 sandbox'ta çıkarılır ve veri olarak saklanır. Host doğrulayıcısı bu veriyi
 süreç içinde okur; LLM çıktısı sandbox'tan geçmez.
 
-Podcast hattı aynı tüketici projesindedir. Podcast raporu script'i
-geliştiricinin deploy ettiği güvenilir kod sayar (§ 7.2). Aynı operatör
-podcast script'ini de canlı yazacaksa bu bölümün sandbox modeli oraya da
-uygulanır (§ 17).
+Podcast hattı aynı tüketici projesindedir ve podcast script'ini de operatör
+canlı yazar (karar, 2026-10-12). Bu bölümün sandbox modeli iki hatta da
+uygulanır; iki hat tek bir sandbox runner servisini paylaşır.
 
 ---
 
@@ -699,7 +698,7 @@ Bunlar Tracon kusuru değildir; taşımadan önce tüketici düzeltir.
 
 | Genişleme | Bugünden korunacak sınır |
 |---|---|
-| **İnsan onayının agent onayına dönmesi** (planlanıyor) | Onay kararı bir `aiJudge` ölçütü ya da ayrı bir reviewer agent olur; karar yine hash'e bağlı `Approval` kaydına yazılır, kim (agent sürümü) ve ne zaman alanları dolar. Yol C'de reviewer host job'unda ikinci agent run'ıdır; yol A'da LLM adımının `Loop` ölçütü (F-329 sonrası `JsonSchema` ile uyumlu) ya da `RequestPort` yerine fonksiyon düğümü. Yargıcın maliyeti kendi modeliyle yazılır (F-349); yargıç kiracı egress'ine uyar (K-874) |
+| **İnsan onayının agent onayına dönmesi** (karar, 2026-10-12: `Loop` ölçütü) | Onay kararı LLM adımının harness `Loop` ölçütü olur (`aiJudge`; F-329 sonrası `JsonSchema` ile uyumlu); podcast hattıyla aynı şekil. Karar yine hash'e bağlı `Approval` kaydına yazılır, "kim" alanı yargıç modeli ve agent sürümüdür. Yol C'de aynı ölçüt `content-generate` run'ının içinde koşar; host ekranı onay kapısı olmaktan çıkar ve yalnız sonucu gösterir. Yargıcın maliyeti kendi modeliyle yazılır (F-349); yargıç kiracı egress'ine uyar (K-874). Revizyon sayısı `Loop.MaxIterations`'tır; tavanda run düşer ve üretim "içerik reddedildi" olur |
 | Ret notunun sahne düzeyinde olması (yalnız değişen sahneyi yeniden üretmek) | Kararlı sahne kimliği; sahne başına hash; kısmi TTS ve yeniden hizalama |
 | Önizlemeyle onay (sahne still'i, taslak ses) | Still render'ı da sandbox'ta; önizleme onay hash'ine bağlı |
 | İkinci dil | Dil şemada parametre; motor ve hizalama dil yeteneği profilde |
@@ -760,6 +759,8 @@ Bu sürümde açılan kararlar:
 
 | Karar | Neyi değiştirir? |
 |---|---|
-| Podcast script'ini de operatör mü canlı yazar, yoksa geliştirici mi deploy eder? | Podcast raporu § 7.2 güvenilir worker modelini önerir; aynı operatörse § 7.3 sandbox modeli iki hatta da uygulanır ve tek runner paylaşılır |
 | Makale metni kuyruk yüküne girsin mi? | `jobs.payload` düz durur (§ 5.3); girmezse LLM adımı host job'unda süreç içinden koşar |
-| Agent onayına geçiş ne zaman ve hangi biçimde? | Yol C'de ikinci agent run'ı; yol A'da `Loop` ölçütü. Karar `Approval` kaydının "kim" alanını ve denetim izini etkiler (§ 15) |
+
+2026-10-12'de cevaplananlar: podcast script'ini de operatör canlı yazar, iki
+hat tek sandbox runner'ını paylaşır (§ 7.3); agent onayı `Loop` ölçütü olarak
+gelir (§ 15).

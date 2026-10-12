@@ -169,6 +169,27 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
   sharedInstructionsName: 'shared-block',
 };
 
+/** The functions the code registered: one with settings, one without. */
+const workflowFunctions = [
+  {
+    name: 'word-count',
+    inputType: 'System.Collections.Generic.List`1[Microsoft.Extensions.AI.ChatMessage]',
+    outputType: 'System.Collections.Generic.List`1[Microsoft.Extensions.AI.ChatMessage]',
+    settingsSchema: {
+      type: 'object',
+      properties: { language: { type: 'string' }, limit: { type: 'integer' } },
+      required: ['language'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'pass-through',
+    inputType: 'System.String',
+    outputType: 'System.String',
+    settingsSchema: null,
+  },
+];
+
 function workflowCase(title: string, expected: Complete<WorkflowSaveRequest>): RoundTrip {
   return roundTrip<WorkflowSaveRequest>({
     source: 'screens/workflow-editor.tsx',
@@ -181,6 +202,7 @@ function workflowCase(title: string, expected: Complete<WorkflowSaveRequest>): R
         { name: 'planner', origin: 'Database' },
         { name: 'summarizer', origin: 'Code' },
       ]),
+      fixture('GET', 'api/workflows/functions', workflowFunctions),
       fixture('GET', 'api/workflows/:name', { name: 'chain', ...expected, tenantId: 'default', version: 4, updatedAt: stamp }),
     ],
     render: () => <WorkflowEditorScreen name="chain" />,
@@ -244,10 +266,28 @@ const ROUND_TRIPS: RoundTrip[] = [
     kind: 'Sequential',
     agentNames: [],
     nodes: [
-      { name: 'summarizer', kind: 'Agent' },
-      { name: 'word-count', kind: 'Function' },
+      { name: 'summarizer', kind: 'Agent', settings: null },
+      { name: 'word-count', kind: 'Function', settings: { language: 'en', limit: 3 } },
     ],
     parameters: [],
+    managerAgentName: null,
+    maxIterations: null,
+    handoffInstructions: null,
+    requirePlanApproval: false,
+  }),
+  // Settings go back to the node they belong to: one function with them, one without, and a
+  // value of every JSON kind inside (a number must stay a number, null must stay null).
+  workflowCase('workflow whose function nodes carry different settings', {
+    displayName: 'Two functions',
+    description: 'Counts words, then passes the text on.',
+    kind: 'Sequential',
+    agentNames: [],
+    nodes: [
+      { name: 'word-count', kind: 'Function', settings: { language: 'tr', limit: 10, tags: ['a', 'b'], nested: { enabled: true }, empty: null } },
+      { name: 'summarizer', kind: 'Agent', settings: null },
+      { name: 'pass-through', kind: 'Function', settings: null },
+    ],
+    parameters: [{ name: 'tone', kind: 'Text', required: false, defaultValue: null, description: null }],
     managerAgentName: null,
     maxIterations: null,
     handoffInstructions: null,

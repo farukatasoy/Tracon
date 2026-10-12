@@ -115,29 +115,234 @@ public static class TraconWorkflowFunctionExtensions
             OutputType = typeof(TOutput),
         };
 
-        builder.Services.AddSingleton(new WorkflowFunctionRegistration(
-            descriptor,
-            services =>
-            {
-                var handler = factory(services);
-
-                if (retryPolicy is not null)
+        return Register(
+            builder,
+            new WorkflowFunctionRegistration(
+                descriptor,
+                services =>
                 {
-                    handler = WorkflowNodeRetry.Wrap(
-                        handler,
-                        retryPolicy,
-                        services.GetRequiredService<IRunErrorClassifier>(),
-                        services.GetService<TimeProvider>() ?? TimeProvider.System,
-                        services.GetService<ILoggerFactory>()?.CreateLogger(typeof(WorkflowNodeRetry)));
-                }
+                    var handler = RetryWrapper<TInput, TOutput>(retryPolicy, services)(factory(services));
 
-                return executorId => new FunctionExecutor<TInput, TOutput>(executorId, handler);
-            }));
+                    // The registry refuses settings for this function before it gets here.
+                    return (executorId, _) => new FunctionExecutor<TInput, TOutput>(executorId, handler);
+                }));
+    }
+
+    /// <summary>
+    /// Registers a function that takes typed settings, so one function can serve
+    /// several workflows with a different configuration in each.
+    /// </summary>
+    /// <typeparam name="TInput">The type the function accepts.</typeparam>
+    /// <typeparam name="TOutput">The type the function returns.</typeparam>
+    /// <typeparam name="TSettings">
+    /// The type of the node's settings. The function's code declares the shape; an
+    /// operator writes values for it, in the console or over HTTP.
+    /// </typeparam>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">
+    /// The function's unique name. A <see cref="WorkflowDefinition"/> node of
+    /// kind <see cref="WorkflowNodeKind.Function"/> points to it by this name.
+    /// </param>
+    /// <param name="factory">
+    /// Resolves the function's dependencies from the service provider and
+    /// returns the handler that runs on every call. The handler receives the node's
+    /// settings as the second argument.
+    /// </param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <exception cref="ArgumentNullException">One of the required parameters is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
+    /// <exception cref="TraconException">
+    /// <typeparamref name="TSettings"/> is a type <c>System.Text.Json</c> cannot create (an interface or
+    /// an abstract class, for example). The function could never be given settings, so this fails here
+    /// instead of at the first save.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// A description for the console and a retry policy are set with the overload
+    /// that takes a <see cref="WorkflowFunctionOptions"/> callback. Everything about
+    /// the two-parameter overload applies here too: the <paramref name="factory"/>
+    /// runs once, the handler must be thread-safe and must tolerate being called again
+    /// for the same step. See <see cref="AddWorkflowFunction{TInput,TOutput}"/>.
+    /// </para>
+    /// <para>
+    /// <strong>The settings are checked by being read.</strong> When a definition is
+    /// saved, and again when a run starts, the node's settings are read into
+    /// <typeparamref name="TSettings"/>: an unknown field, a missing <c>required</c>
+    /// member, a value of the wrong type and a <c>null</c> where the member does not
+    /// allow it are all refused, and the message names the node and the member. A node
+    /// without settings is read as <c>{}</c>, so a type with a <c>required</c> member
+    /// refuses a node that carries none - the operator hears about it when saving, not
+    /// in the first run. The handler receives exactly the object that was checked.
+    /// </para>
+    /// <para>
+    /// A settings change takes effect on the <em>next</em> run: the graph is built
+    /// again for every run, and a run waiting for input reads the current settings when
+    /// it resumes. The run in progress keeps the settings it started with.
+    /// </para>
+    /// <para>
+    /// <strong>Settings are values, not expressions, and never a secret.</strong>
+    /// They are stored in the workflow definition and in the audit trail, and are
+    /// returned to every caller who can read the workflow. When the function needs a
+    /// credential, make the setting the <em>name</em> of the configuration key and read
+    /// the value from <c>IConfiguration</c> inside <paramref name="factory"/>. A setting
+    /// is not substituted from a run parameter either: read the run's values with
+    /// <c>context.GetRunParameters()</c>.
+    /// </para>
+    /// <para>
+    /// The names are camelCase and matched without regard to case. The exported JSON
+    /// schema (<see cref="WorkflowFunctionDescriptor.SettingsSchema"/>) lists them for the
+    /// console and is for display only - the read above is the check.
+    /// </para>
+    /// <para>
+    /// The settings type is plain code. Settings are values, so a secret has no place
+    /// in it - name the configuration key instead:
+    /// </para>
+    /// <code>
+    /// public sealed record TtsSettings
+    /// {
+    ///     public required string Voice { get; init; }
+    ///
+    ///     public double LoudnessLufs { get; init; } = -16;
+    ///
+    ///     public string? ApiKeyConfigurationKey { get; init; }
+    /// }
+    /// </code>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .UseWorkflows()
+    ///        .AddWorkflowFunction&lt;string, string, TtsSettings&gt;(
+    ///            "tts",
+    ///            provider => (text, settings, context, cancellationToken) =>
+    ///                ValueTask.FromResult($"{settings.Voice} at {settings.LoudnessLufs} LUFS: {text}"),
+    ///            options => options.Description = "Text to speech");
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddWorkflowFunction<TInput, TOutput, TSettings>(
+        this ITraconBuilder builder,
+        string name,
+        Func<IServiceProvider, Func<TInput, TSettings, IWorkflowContext, CancellationToken, ValueTask<TOutput>>> factory)
+        where TSettings : class
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.AddWorkflowFunction<TInput, TOutput, TSettings>(name, factory, static _ => { });
+    }
+
+    /// <summary>
+    /// Registers a function that takes typed settings, with a description and a retry
+    /// policy.
+    /// </summary>
+    /// <typeparam name="TInput">The type the function accepts.</typeparam>
+    /// <typeparam name="TOutput">The type the function returns.</typeparam>
+    /// <typeparam name="TSettings">The type of the node's settings.</typeparam>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">The function's unique name.</param>
+    /// <param name="factory">
+    /// Resolves the function's dependencies and returns the handler that runs on every
+    /// call; the handler receives the node's settings as the second argument.
+    /// </param>
+    /// <param name="configure">Sets the description and the retry policy.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <exception cref="ArgumentNullException">One of the required parameters is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The retry policy has a negative <see cref="WorkflowNodeRetryPolicy.InitialDelay"/> or one
+    /// longer than about 49.7 days, or a negative or non-finite
+    /// <see cref="WorkflowNodeRetryPolicy.BackoffMultiplier"/>.
+    /// </exception>
+    /// <exception cref="TraconException"><typeparamref name="TSettings"/> is a type no settings could be read into.</exception>
+    /// <remarks>
+    /// See <see cref="AddWorkflowFunction{TInput,TOutput,TSettings}(ITraconBuilder,string,Func{IServiceProvider,Func{TInput,TSettings,IWorkflowContext,CancellationToken,ValueTask{TOutput}}})"/>
+    /// for how the settings are checked and what they must never hold.
+    /// </remarks>
+    public static ITraconBuilder AddWorkflowFunction<TInput, TOutput, TSettings>(
+        this ITraconBuilder builder,
+        string name,
+        Func<IServiceProvider, Func<TInput, TSettings, IWorkflowContext, CancellationToken, ValueTask<TOutput>>> factory,
+        Action<WorkflowFunctionOptions> configure)
+        where TSettings : class
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var options = new WorkflowFunctionOptions();
+        configure(options);
+
+        var retryPolicy = options.RetryPolicy;
+
+        if (retryPolicy is not null)
+        {
+            WorkflowNodeRetry.Validate(retryPolicy);
+        }
+
+        WorkflowFunctionSettings.EnsureReadable(typeof(TSettings), name);
+
+        var descriptor = new WorkflowFunctionDescriptor
+        {
+            Name = name,
+            Description = options.Description,
+            InputType = typeof(TInput),
+            OutputType = typeof(TOutput),
+            SettingsType = typeof(TSettings),
+        };
+
+        return Register(
+            builder,
+            new WorkflowFunctionRegistration(
+                descriptor,
+                services =>
+                {
+                    var handler = factory(services);
+                    var withRetry = RetryWrapper<TInput, TOutput>(retryPolicy, services);
+
+                    // The settings are read here, once per compile: every attempt of a
+                    // retried node and every call in the run sees the same object, and a
+                    // changed definition takes effect on the next run.
+                    return (executorId, settings) =>
+                    {
+                        var typed = WorkflowFunctionSettings.Deserialize<TSettings>(name, settings);
+
+                        return new FunctionExecutor<TInput, TOutput>(
+                            executorId,
+                            withRetry((input, context, cancellationToken) => handler(input, typed, context, cancellationToken)));
+                    };
+                }));
+    }
+
+    private static ITraconBuilder Register(ITraconBuilder builder, WorkflowFunctionRegistration registration)
+    {
+        builder.Services.AddSingleton(registration);
 
         builder.Services.TryAddSingleton<WorkflowFunctionRegistry>();
         builder.Services.TryAddSingleton<IWorkflowFunctionCatalog>(
             static services => services.GetRequiredService<WorkflowFunctionRegistry>());
 
         return builder;
+    }
+
+    /// <summary>
+    /// Builds the function that wraps a handler in the node's retry policy, resolving
+    /// the policy's collaborators once.
+    /// </summary>
+    private static Func<
+        Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>,
+        Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>> RetryWrapper<TInput, TOutput>(
+        WorkflowNodeRetryPolicy? retryPolicy,
+        IServiceProvider services)
+    {
+        if (retryPolicy is null)
+        {
+            return static handler => handler;
+        }
+
+        var classifier = services.GetRequiredService<IRunErrorClassifier>();
+        var timeProvider = services.GetService<TimeProvider>() ?? TimeProvider.System;
+        var logger = services.GetService<ILoggerFactory>()?.CreateLogger(typeof(WorkflowNodeRetry));
+
+        return handler => WorkflowNodeRetry.Wrap(handler, retryPolicy, classifier, timeProvider, logger);
     }
 }

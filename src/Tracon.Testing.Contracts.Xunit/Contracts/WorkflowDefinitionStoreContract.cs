@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Tracon.Testing.Contracts.Storage;
 
 /// <summary>
@@ -108,6 +110,86 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
         loaded.Nodes[1].Name.ShouldBe("uppercase");
         loaded.Nodes[1].Kind.ShouldBe(WorkflowNodeKind.Function);
         loaded.AgentNames.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Function_node_settings_survive_the_round_trip()
+    {
+        // Added in phase 195 (K-580): the same hand-written DTO trap. The in-memory store hands
+        // the record back as it was given, so only a SQL run can show the settings vanishing.
+        // The node list is a nested list inside the jsonb payload, so the property has to be
+        // carried by the node record itself - the DTO does not copy node fields one by one.
+        var definition = new WorkflowDefinition
+        {
+            Name = "narrated",
+            Kind = WorkflowKind.Sequential,
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent },
+                new WorkflowNodeReference
+                {
+                    Name = "tts",
+                    Kind = WorkflowNodeKind.Function,
+                    Settings = JsonDocument.Parse(
+                        """{"voice":"alloy","loudnessLufs":-12.5,"enabled":true,"tags":["a","b"],"nested":{"retries":3},"empty":null}""")
+                        .RootElement.Clone(),
+                },
+                new WorkflowNodeReference { Name = "mix", Kind = WorkflowNodeKind.Function },
+            ],
+        };
+
+        await Store.SaveAsync("tenant-a", definition);
+
+        var loaded = (await Store.GetAsync("tenant-a", "narrated"))!;
+
+        loaded.Nodes.Count.ShouldBe(3);
+
+        // A node without settings reads back as null - not as an unset element, which cannot be
+        // written as JSON and would fail the whole workflow list.
+        loaded.Nodes[0].Settings.ShouldBeNull();
+        loaded.Nodes[2].Settings.ShouldBeNull();
+
+        var settings = loaded.Nodes[1].Settings.ShouldNotBeNull();
+
+        settings.GetProperty("voice").GetString().ShouldBe("alloy");
+        settings.GetProperty("loudnessLufs").GetDouble().ShouldBe(-12.5);
+        settings.GetProperty("enabled").GetBoolean().ShouldBeTrue();
+        settings.GetProperty("tags").EnumerateArray().Select(static tag => tag.GetString()).ShouldBe(["a", "b"]);
+        settings.GetProperty("nested").GetProperty("retries").GetInt32().ShouldBe(3);
+        settings.GetProperty("empty").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        // And the list read, which serializes every definition, must not fail on any of them.
+        (await Store.ListAsync("tenant-a")).Single().Nodes[1].Settings.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Saving_again_without_node_settings_clears_them()
+    {
+        // A save replaces the definition (K-725); the store must not carry the old node's
+        // settings over to a node that no longer has any.
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "narrated",
+            Kind = WorkflowKind.Sequential,
+            Nodes =
+            [
+                new WorkflowNodeReference
+                {
+                    Name = "tts",
+                    Kind = WorkflowNodeKind.Function,
+                    Settings = JsonDocument.Parse("""{"voice":"alloy"}""").RootElement.Clone(),
+                },
+            ],
+        });
+
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "narrated",
+            Kind = WorkflowKind.Sequential,
+            Nodes = [new WorkflowNodeReference { Name = "tts", Kind = WorkflowNodeKind.Function }],
+        });
+
+        (await Store.GetAsync("tenant-a", "narrated"))!.Nodes[0].Settings.ShouldBeNull();
     }
 
     [Fact]

@@ -223,7 +223,12 @@ function overridesFor(pattern: string): FixtureRoute[] {
     case 'triggers/:name/edit':
       return [fixture('GET', 'api/triggers/:name', emptyTriggerDetail)];
     case 'workflows/:name/edit':
-      return [fixture('GET', 'api/workflows/:name', emptyWorkflowDetail)];
+      // The literal route first: the first match answers, and ':name' would otherwise take
+      // 'functions' for a workflow called that - which the real router never does.
+      return [
+        fixture('GET', 'api/workflows/functions', []),
+        fixture('GET', 'api/workflows/:name', emptyWorkflowDetail),
+      ];
     case 'diagnostics':
       return [fixture('GET', 'api/diagnostics', emptyDiagnosticsReport)];
     case 'settings':
