@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** onaylandı (2026-10-13) — § Açık Sorular 1–6 önerilen seçenekle (hepsi A) bakımcı tarafından onaylandı; uygulama başladı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-299**
-> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmadan başlamaz: aynı sarmalama noktasını (`TraconWorkflowFunctionExtensions.cs:127`, `:309`) paylaşırlar. Faz 198'den bağımsızdır (§199.4)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-299**
+> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmadan başlamaz: aynı sarmalama noktasını (`TraconWorkflowFunctionExtensions.cs:127`, `:309`) paylaşırlar. Faz 198'den bağımsızdır (§199.4)
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.Voice`, `.Sql.Shared`, üç SQL sağlayıcısı, `.AspNetCore`, `.Testing.Contracts.Xunit`, `.UI` · üretilen istemciler
 > **Yeni paket:** Yok · **Migration:** gerekli, üç sağlayıcı — kalem tablosu, `runs` ve `tool_invocations` sütunları; numara uygulama anında alınır
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`
