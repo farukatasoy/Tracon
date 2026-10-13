@@ -65,7 +65,7 @@ message lists the supported keys.
 | `anthropic.thinking.budgetTokens` | integer | none | Extended thinking budget; on its own it means `enabled` |
 | `anthropic.promptCaching` | boolean | `false` | Turns prompt caching on |
 | `anthropic.promptCaching.ttl` | text | none (5 minutes) | `cache_control.ttl`: `5m` or `1h` |
-| `anthropic.promptCaching.placement` | text | `request` | `request` adds a top-level `cache_control`; `system` marks the end of the agent's instructions instead |
+| `anthropic.promptCaching.placement` | text | `request` | `request` adds a top-level `cache_control`; `system` marks the end of the agent's instructions instead, and a request with no instructions gets the `request` breakpoint |
 
 A wrong value is an error that names the key and the valid values. `ttl` and
 `placement` without `anthropic.promptCaching = true`, `enabled` without a budget,

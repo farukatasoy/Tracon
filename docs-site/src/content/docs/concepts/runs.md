@@ -482,6 +482,11 @@ The fix is a higher `ModelBinding.MaxOutputTokens`. When the binding leaves it e
 `POST /api/agents/validate` warns with `output_truncation_risk` if the provider's
 default is below the catalog's `MaxOutputTokens` for the model.
 
+An online-evaluation judge asks for a structured answer too. When its answer is cut
+off, the judge fails with `judge_failed` and the job does not retry it: the next
+attempt would send the same limit. Raise the `MaxOutputTokens` of the judge's own
+binding.
+
 ### The error message is safe to display, not safe to debug from
 
 `error.message` is deliberately shallow. When the failure is Tracon's own —
