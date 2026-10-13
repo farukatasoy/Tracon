@@ -609,9 +609,11 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid` alanı `false`'tur, `code: invalid_setting`.
-- Mesaj `su anahtarlar taninmiyor: anthropic.thinkingBudget.` ve `Desteklenen
-  anahtarlar: anthropic.promptCaching, anthropic.thinking.budgetTokens.`
-  metinlerini içerir (alfabetik sıralı, `Order(StringComparer.Ordinal)`).
+- Mesaj `these keys are not recognized: anthropic.thinkingBudget` ve altı
+  anahtarı (Faz 204) `Order(StringComparer.Ordinal)` sırasıyla içerir:
+  `Supported keys: anthropic.effort, anthropic.promptCaching,
+  anthropic.promptCaching.placement, anthropic.promptCaching.ttl,
+  anthropic.thinking.budgetTokens, anthropic.thinking.mode.`
 
 ---
 

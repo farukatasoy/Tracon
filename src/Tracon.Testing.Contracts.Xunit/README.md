@@ -98,6 +98,13 @@ provider. Override `SupportedSetting` with one key the provider accepts; a
 provider that supports no key leaves it `null`, and the two scenarios that need
 an accepted key are reported as skipped, not passed.
 
+When a key you support takes a closed set of values (an effort level, a
+threshold name), also override `InvalidSettingValue` with that key and a value
+of the right JSON type outside the set. The scenario then proves that a wrong
+value fails `CreateChatClient` with a message naming the key, the same way an
+unknown key does. Leave it `null` when no key has such a set — for example a
+provider whose only key is a boolean — and the scenario is reported as skipped.
+
 `ModelProviderCredentialContract` also requires
 `AssertCredentialIsApplied(IChatClient, ModelProviderCredential)`. Make that
 assertion observe the provider request boundary, such as a recording transport
