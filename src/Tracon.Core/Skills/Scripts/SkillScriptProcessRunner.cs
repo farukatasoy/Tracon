@@ -1,19 +1,30 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
 /// <summary>
-/// Runs a skill script in a separate operating-system process, <strong>outside</strong>
+/// The built-in <see cref="ISkillScriptExecutor"/>: runs a skill script in a
+/// separate operating-system process on the Tracon host, <strong>outside</strong>
 /// Tracon's own process.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Tracon never loads script code into its own process. The interpreter
-/// is chosen from an allow-list, environment variables are passed through an
-/// allow-list, duration and output are limited, and the temporary directory
-/// given for writing is deleted at the end of the run.
+/// Tracon never loads script code into its own process. The interpreter is the
+/// allow-list value the request carries, environment variables pass through
+/// <see cref="TraconSkillScriptOptions.EnvironmentAllowList"/>, duration and output
+/// are limited, and the temporary directory given for writing is deleted at the
+/// end of the run.
+/// </para>
+/// <para>
+/// <strong>This is not isolation.</strong> The process runs under the host's own
+/// operating-system identity and can read what that identity reads.
+/// </para>
+/// <para>
+/// A file script runs in place, from its own directory. A stored script is
+/// written to a temporary directory that only its owner can read, run from
+/// there, and deleted afterward.
 /// </para>
 /// <para>
 /// Arguments pass through <c>stdin</c>, <em>not</em> the command line: the
@@ -21,7 +32,7 @@ namespace Tracon;
 /// rules differ across platforms.
 /// </para>
 /// </remarks>
-internal static class SkillScriptProcessRunner
+internal sealed class SkillScriptProcessRunner : ISkillScriptExecutor
 {
     /// <summary>The environment variable that tells the script process its temporary write directory.</summary>
     internal const string TempDirectoryVariable = "TRACON_SKILL_TEMP";
@@ -29,53 +40,118 @@ internal static class SkillScriptProcessRunner
     /// <summary>The environment variable that tells the script process the skill's name.</summary>
     internal const string SkillNameVariable = "TRACON_SKILL_NAME";
 
-    public static async Task<SkillScriptExecutionResult> ExecuteAsync(
-        string interpreter,
-        string scriptPath,
-        string workingDirectory,
-        string? argumentsJson,
-        TraconSkillScriptOptions options,
-        string skillName,
-        TimeProvider timeProvider,
-        CancellationToken cancellationToken)
+    private readonly IOptions<TraconOptions> _options;
+
+    /// <summary>Creates the built-in executor.</summary>
+    /// <param name="options">The Tracon settings; the environment allow-list is read from them.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
+    internal SkillScriptProcessRunner(IOptions<TraconOptions> options)
     {
-        var tempDirectory = Directory.CreateTempSubdirectory("tracon-skill-").FullName;
-        var startedAt = timeProvider.GetTimestamp();
+        ArgumentNullException.ThrowIfNull(options);
+
+        _options = options;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<SkillScriptExecutionResult> ExecuteAsync(
+        SkillScriptExecutionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // The timeout is armed after the interpreter has started; a value the
+        // timer refuses would throw THERE and skip the kill. The runner passes a
+        // validated option, but this is the boundary that arms it.
+        if (!TimerPeriod.IsValid(request.Timeout))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request),
+                request.Timeout,
+                TimerPeriod.Failure($"{nameof(SkillScriptExecutionRequest)}.{nameof(SkillScriptExecutionRequest.Timeout)}", request.Timeout));
+        }
+
+        if (request.MaxOutputBytes < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request),
+                request.MaxOutputBytes,
+                $"{nameof(SkillScriptExecutionRequest)}.{nameof(SkillScriptExecutionRequest.MaxOutputBytes)} must be at least 1.");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // A stored script ALWAYS runs from its content, never from a path: the
+        // content is what the grant pinned.
+        var runInPlace = request.Origin == SkillScriptOrigin.File && request.SourcePath is { Length: > 0 };
+        var scratch = runInPlace ? null : Directory.CreateTempSubdirectory("tracon-script-");
 
         try
         {
-            return await RunAsync(
-                    interpreter,
-                    scriptPath,
-                    workingDirectory,
-                    argumentsJson,
-                    options,
-                    skillName,
-                    tempDirectory,
-                    startedAt,
-                    timeProvider,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            string scriptPath;
+            string workingDirectory;
+
+            if (scratch is null)
+            {
+                scriptPath = request.SourcePath!;
+                workingDirectory = Path.GetDirectoryName(scriptPath) ?? Environment.CurrentDirectory;
+            }
+            else
+            {
+                // 🚨 The file name is validated HERE, at the boundary that writes
+                // it. Path.Combine returns the second part unchanged when it is
+                // rooted, and it does not resolve "..", so a stored script named
+                // "/etc/cron.d/tracon" or "../../x" was written OUTSIDE the
+                // scratch directory, executed from there, and left behind - the
+                // scratch cleanup only removes the scratch directory. The runner
+                // checks the name before the call too, but an executor that
+                // trusts its caller is one refactor away from the same hole. The
+                // extension is part of the written name, so the whole name is
+                // checked as well.
+                var fileName = SkillScriptNaming.RequireSafeFileName(
+                    $"{SkillScriptNaming.RequireSafeFileName(request.ScriptName)}.{request.Extension}");
+
+                scriptPath = Path.Combine(scratch.FullName, fileName);
+                await File.WriteAllTextAsync(scriptPath, request.Content, cancellationToken)
+                    .ConfigureAwait(false);
+                workingDirectory = scratch.FullName;
+            }
+
+            var tempDirectory = Directory.CreateTempSubdirectory("tracon-skill-").FullName;
+
+            try
+            {
+                return await RunAsync(
+                        request,
+                        scriptPath,
+                        workingDirectory,
+                        tempDirectory,
+                        _options.Value.Skills.Scripts.EnvironmentAllowList,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                TryDeleteDirectory(tempDirectory);
+            }
         }
         finally
         {
-            TryDeleteDirectory(tempDirectory);
+            if (scratch is not null)
+            {
+                TryDeleteDirectory(scratch.FullName);
+            }
         }
     }
 
     private static async Task<SkillScriptExecutionResult> RunAsync(
-        string interpreter,
+        SkillScriptExecutionRequest request,
         string scriptPath,
         string workingDirectory,
-        string? argumentsJson,
-        TraconSkillScriptOptions options,
-        string skillName,
         string tempDirectory,
-        long startedAt,
-        TimeProvider timeProvider,
+        IList<string> environmentAllowList,
         CancellationToken cancellationToken)
     {
-        var startInfo = new ProcessStartInfo(interpreter)
+        var startInfo = new ProcessStartInfo(request.Interpreter)
         {
             WorkingDirectory = workingDirectory,
             RedirectStandardInput = true,
@@ -92,7 +168,7 @@ internal static class SkillScriptProcessRunner
         // string or API key would leak from exactly here.
         startInfo.Environment.Clear();
 
-        foreach (var name in options.EnvironmentAllowList)
+        foreach (var name in environmentAllowList)
         {
             if (Environment.GetEnvironmentVariable(name) is { } value)
             {
@@ -101,20 +177,20 @@ internal static class SkillScriptProcessRunner
         }
 
         startInfo.Environment[TempDirectoryVariable] = tempDirectory;
-        startInfo.Environment[SkillNameVariable] = skillName;
+        startInfo.Environment[SkillNameVariable] = request.SkillName;
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
 
-        using var timeoutSource = new CancellationTokenSource(options.Timeout);
+        using var timeoutSource = new CancellationTokenSource(request.Timeout);
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
             timeoutSource.Token);
 
-        var stdout = ReadCappedAsync(process.StandardOutput, options.MaxOutputBytes, linkedSource.Token);
-        var stderr = ReadCappedAsync(process.StandardError, options.MaxOutputBytes, linkedSource.Token);
+        var stdout = ReadCappedAsync(process.StandardOutput, request.MaxOutputBytes, linkedSource.Token);
+        var stderr = ReadCappedAsync(process.StandardError, request.MaxOutputBytes, linkedSource.Token);
 
-        await WriteArgumentsAsync(process, argumentsJson, linkedSource.Token).ConfigureAwait(false);
+        await WriteArgumentsAsync(process, request.ArgumentsJson, linkedSource.Token).ConfigureAwait(false);
 
         var timedOut = false;
 
@@ -146,7 +222,6 @@ internal static class SkillScriptProcessRunner
             StandardError = error.Text,
             Truncated = output.Truncated || error.Truncated,
             TimedOut = timedOut,
-            Duration = timeProvider.GetElapsedTime(startedAt),
         };
     }
 
@@ -175,8 +250,7 @@ internal static class SkillScriptProcessRunner
             // If the script exited without ever reading stdin (e.g. a bare
             // 'echo'), the pipe may ALREADY be closed at this point; Close()'s
             // own flush would then throw the same IOException, and since it
-            // was outside the try/catch, it would go uncaught
-            // (HATA-K-skill-pipe, 2026-08-15).
+            // was outside the try/catch, it would go uncaught.
             try
             {
                 process.StandardInput.Close();
@@ -188,6 +262,11 @@ internal static class SkillScriptProcessRunner
         }
     }
 
+    /// <summary>Reads a stream to its end and keeps at most <paramref name="maxBytes"/> UTF-8 bytes of it.</summary>
+    /// <remarks>
+    /// The text carries no truncation notice: the runner adds one notice to the
+    /// formatted result, the same for every executor.
+    /// </remarks>
     private static async Task<(string Text, bool Truncated)> ReadCappedAsync(
         StreamReader reader,
         int maxBytes,
@@ -232,19 +311,7 @@ internal static class SkillScriptProcessRunner
                 continue;
             }
 
-            var remaining = maxBytes - bytes;
-            var taken = 0;
-
-            while (taken < read && Encoding.UTF8.GetByteCount(span.Slice(taken, 1)) <= remaining)
-            {
-                remaining -= Encoding.UTF8.GetByteCount(span.Slice(taken, 1));
-                taken++;
-            }
-
-            builder.Append(span[..taken]);
-            builder.Append(
-                CultureInfo.InvariantCulture,
-                $"\n[Tracon: output truncated at the {maxBytes}-byte limit.]");
+            builder.Append(span[..SkillScriptOutput.FittingLength(span, maxBytes - bytes)]);
             truncated = true;
         }
 

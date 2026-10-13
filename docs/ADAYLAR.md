@@ -298,6 +298,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
 | 🟡 | **F-448** · `/v1/chat/completions` onay isteyen tool'da `200` + boş içerik döner, run `AwaitingApproval` kalır | Ölçüldü (2026-10-13, F-389 sınıf taraması): uç oturumsuz koşar ve onayı işlemez (`OpenAIChatCompletionsEndpoints`); onay isteyen tool'da yanıt `200`, `content` boş, run satırı `AwaitingApproval`, posta kutusu satırı yok — cevaplanamaz. `/v1/responses` bekleyen onayı `output`'a yazar (`OpenAIResponsesEndpoints.cs:413`) | Karar: yanıt biçimi (OpenAI hata zarfı ve durum kodu ya da `finish_reason`) ve run'ın `SessionlessApprovalRun` ile `Failed` kapanması; önce fonksiyonel kırmızı test |
+| 🟡 | **F-481** · Yalnız diskte duran skill'i agent adlandıramaz; `SkillRoots` script'leri agent'tan erişilemez | Ölçüldü (2026-10-13, Faz 202 fonksiyonel testi): `UseSkillScripts` + `SkillRoots` altında `disk-skill/SKILL.md`, agent `SkillNames = ["disk-skill"]` → run `400` *"refers to skill 'disk-skill', but the skill was not found"*. `AgentSkillCatalog.ResolveAsync` ve `AgentDefinitionValidator.CheckSkillsAsync` adı yalnız kodda ve `store`'da arar (`AgentSkillCatalog.cs:57-66`); disk kaynağı (`AgentDefinitionCompiler.Skills.cs:54`) yalnız adı geçen skill'leri süzer. Aynı adlı `store` kaydı ise dedup'ta diski gölgeler. Sonuç: disk script yolu (Faz 11, K-860 "diskteki script pinlenmez") HTTP run'dan hiç çalışmaz. Faz 202 disk yönlendirmesini MAF'ın dosya kaynağından başlayan testle kanıtladı. MAF dosya script adı göreli yoldur (`scripts/x.sh`) | Karar: katalog ve doğrulayıcı `SkillRoots`'u da tarar mı (önbellek parmak izine disk içeriği girer mi), yoksa disk skill'i kodda bildirilir mi. Önce HTTP → MAF → runner kırmızı fonksiyonel test (`SkillScriptExecutorRoutingTests` disk testinin HTTP biçimi) |
 | 🟢 | **F-419** · Ağaç maliyeti farklı para birimindeki alt run'ları tek etiketle toplar | Bağımsız inceleme (2026-10-13, F-383): bellek deposu ilk para birimini alır (`costCurrency ??=`), SQL `MAX(cost_currency)`; EUR ve USD alt run'lar uyarısız toplanır. Workflow kökü de aynı. K-893 kuralı ağaç toplamında uygulanmıyor | Ağaç toplamı karışık para biriminde `null` ve sayaç; kök ve workflow aynı kuralı okur |
 | 🟢 | **F-390** · Sürdürme yer tutucusu kuyrukta kullanıcı ve etiket taşımaz | Kod okuması (2026-10-12, F-369): `RunReconciliationService` yer tutucu satırı `UserId`/`Labels`'sız açar; işleyici run başlayınca doldurur (test kanıtlı). Boşluk yalnız kuyrukta bekleyen ve başlamadan düşen satırdadır | Yer tutucu kaynak run'ın atfını yazar (`ApprovalEndpoints` emsali) |
 | 🟢 | **F-391** · Onay satırı yazımı tekrar edilemez | Kod okuması (2026-10-12, F-367): `QueuedTurn.RecordPendingApprovalsAsync` → `IPendingApprovalStore.CreateAsync` (`QueuedTurn.cs:258`) oturum kaydından sonra hata verirse run `Failed` olur; deneme hakkı varsa model ikinci kez çağrılır. `CreateAsync` idempotent değil | Id ile önce okuma ya da idempotent ekleme; sonra F-367 penceresi |
@@ -532,7 +533,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-467**.
+numara: **F-482**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

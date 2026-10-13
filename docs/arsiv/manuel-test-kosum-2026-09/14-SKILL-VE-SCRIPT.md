@@ -655,3 +655,50 @@ varsayıyordu): modele dönen tool sonucu bir hata metni içerir
 ~~Eski beklenti (eksik — bash'in kendi otomatik değişkenlerini
 saymıyordu): stdout çıktısı YALNIZ PATH, HOME, TRACON_SKILL_TEMP,
 TRACON_SKILL_NAME satırlarını içerir.~~
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 202 birleşmesi)
+
+> Aynı desen (F-441): spesifikasyon ağacı Faz 196 + 203 + 202 birleşmesinde
+> bütçeyi 3,4 KB aştı; tarihli notlar buraya taşındı, beklenti spesifikasyonda kaldı.
+
+#### MT-SKILL-041 — `Interpreters`'a `sh` eklenince AYNI kayıt başarılı olur
+
+🚨 **ÖNERME TERSİNE ÇEVRİLDİ (2026-09-17 koşumunda ölçüldü).** Bu case
+önceden "`Interpreters` config'ten HER ZAMAN bağlanır, `dotnet
+user-secrets` ile açılabilir" diyordu. Güncel kod TAM TERSİNİ yapıyor:
+`TraconServiceCollectionExtensions.Binding.Core.cs:190-200` `AllowStoredScripts`,
+`SkillRoots` VE `Interpreters`'ı **bilinçli olarak config'ten bağlamıyor**
+— üçü de sunucuda çalıştırılabilecek yüzeyi genişletir, ve kod yorumu
+doğrudan `Tracon__Skills__Scripts__Interpreters__sh=/bin/sh` örneğini
+verip bunun "uygulamanın hiç onaylamadığı bir yorumlayıcı eklediğini"
+söylüyor — yani bu case'in ORİJİNAL senaryosu artık kasıtlı olarak
+KAPALI (güvenlik sıkılaştırması, kusur değil). Yalnız `Enabled` ve
+`PlatformIsolationAcknowledged` hâlâ config'ten bağlanır (bunlar yalnız
+DARALTABİLİR, asla genişletemez). Case MT-SEC-070/MT-WF-090 deseninde geçici
+bir kod değişikliği gerektirir.
+
+#### MT-SKILL-025 — Sunucu `MaxSkillsPerAgent`'ı değiştirir, arayüz checkbox limiti HABERSİZ kalır
+
+🚨 **Şüpheli bulgu (ölçüldü, koşulmadı).** `agent-editor.tsx:540`
+`limitReached = form.skillNames.length >= 10` sabit sayı `10` ile
+karşılaştırır; sunucunun gerçek `MaxSkillsPerAgent` değeri `/api/meta`
+gövdesinde YOKTUR (`grep -n "MaxSkillsPerAgent" src/Tracon.AspNetCore/Endpoints/MetaEndpoints.cs`
+boş döner). Sunucu sınırı `10`'dan farklı ayarlanırsa arayüz bunu asla
+öğrenmez.
+
+#### MT-SKILL-054 — Grant listesi arayüzde kırmızı uyarıyla görünür
+
+**CSS sınıfı DÜZELTİLDİ (2026-09-17 koşumunda ölçüldü).** `data-testid` yok; CSS
+sınıfı artık `border-red-500` DEĞİL — bileşen `screens/skills/script-grants.tsx`'e
+taşınmış ve tema token'larına geçirilmiş: `border-danger bg-danger-soft
+text-danger` (`.bg-danger-soft` seçicisiyle DOM'da doğrulandı). Eski
+`border-red-500 bg-red-500/10 text-red-500` ham Tailwind paleti temaya uymuyordu,
+"ürünün en yüksek sesli uyarısı hiçbir yerde kullanılmayan tek renkti" — bilinçli
+bir tasarım-sistemi düzeltmesi, kusur değil.
+
+#### MT-SKILL-060 / 061 — Zaman aşımı metni ve kesme işareti (Faz 202)
+
+Faz 202'den önce zaman aşımı metni `The script timed out and the process tree was
+terminated.` idi; metin artık her yürütücü için doğrudur. Kesme işareti `stdout`
+metninin içine yazılıyordu; artık sınırı runner yeniden uygular ve işareti yalnız
+runner ekler.

@@ -14,7 +14,7 @@ namespace Tracon.Core.UnitTests.Skills;
 /// functionality: a gate silently opening means unauthorized code runs on
 /// the server.
 /// </remarks>
-public sealed class SandboxedSkillScriptRunnerTests : IDisposable
+public sealed partial class SandboxedSkillScriptRunnerTests : IDisposable
 {
     private readonly List<string> _tempDirectories = [];
 
@@ -509,6 +509,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
             grants ?? new InMemorySkillScriptGrantStore(),
             auditLog,
             new NullAuditActorResolver(),
+            new SkillScriptProcessRunner(wrapper),
             NullLogger<SandboxedSkillScriptRunner>.Instance);
     }
 
