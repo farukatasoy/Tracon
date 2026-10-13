@@ -201,9 +201,19 @@ public sealed partial class AgentDefinitionCompiler
         _definitionStore = definitionStore;
         _agentGraph = agentGraph ?? new TraconAgentGraphOptions();
         _timeProvider = timeProvider;
-        _loopEvaluators = new LoopEvaluatorRegistry(loopEvaluators ?? [], models, judgeOptions, loggerFactory);
+        // The registry stores the factories registered in code and calls none of
+        // them here: this constructor runs inside the catalog's own construction
+        // chain, and a criterion that needs the catalog would close the cycle.
+        _loopEvaluators = new LoopEvaluatorRegistry(loopEvaluators ?? [], models, judgeOptions, loggerFactory, services);
         _tenantEgressPolicies = tenantEgressPolicies;
     }
+
+    /// <summary>
+    /// Returns the loop criterion registry: the kinds a definition can name, the
+    /// judge model, and the one rule set the validator and <see cref="Compile(AgentDefinition)"/> share.
+    /// </summary>
+    /// <returns>The registry this compiler builds loops with.</returns>
+    internal LoopEvaluatorRegistry GetLoopEvaluators() => _loopEvaluators;
 
     /// <summary>Converts a definition into an executable agent.</summary>
     /// <param name="definition">The definition to compile.</param>
