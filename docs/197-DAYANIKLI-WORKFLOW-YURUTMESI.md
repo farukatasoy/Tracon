@@ -303,6 +303,12 @@ Uygulama oturumunda yazıldı (faz-uygulama Adım 1). Kapanış oturumu gözden 
 14. **Satır kayması:** plan `Registration.Storage.cs:189-192` diyordu; fabrika 196-200'deydi
     (kayma). Fabrika artık `CreateWorkflowRecovery` ile politikayı geçirir; geçirmeyen
     fabrika yedi kurtarma testini düşürdü (mutasyonla ölçüldü).
+15. **Tahsis taban çizgisi `QueryRuns` 44832 → 45456 B (+624 B).** `kapi.py performans`
+    kırmızı verdi. Taban commit'i (`65d72b98`) ayrı bir worktree'de tek başına ölçüldü:
+    43,78 KB (= taban). Artış bu fazındır: `SelectRuns` her komutta yeni
+    `continued_from_run_id` parametresini taşır (paylaşılan SQL metni sabit olduğu için
+    parametre süzgeç boşken de eklenir). Yalnız bu satır güncellendi; `CacheHit`'in
+    24 → 0 B düşüşü bu fazın yoluna dokunmuyor ve taban çizgisinde bırakıldı (uyarı).
 
 ## Bu Fazda Verilen Kararlar
 

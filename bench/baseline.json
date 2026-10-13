@@ -10,7 +10,7 @@
       "meanNanoseconds": 78.14231524467468
     },
     "Tracon.Benchmarks.RunStoreQueryBenchmarks.QueryRuns": {
-      "allocatedBytes": 44832,
+      "allocatedBytes": 45456,
       "meanNanoseconds": 648529.0020345052
     }
   }
