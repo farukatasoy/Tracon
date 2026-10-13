@@ -251,8 +251,18 @@ Before a save that changes the chain, the editor says what it is about to do. It
 chain that holds a function as a node list and a chain without one as a plain agent list,
 and tells you when the save changes the form. It also warns when the pattern, the steps or
 their order change: a run that is waiting for input cannot be resumed after that, because
-its saved state belongs to the old graph. Editing a step's settings or the description
-does not.
+its saved state belongs to the old graph. Editing a step's settings, a timeout or the
+description does not.
+
+In a chain with a function step, each step has a **timeout** field, in seconds (`90`,
+`2.5`) or as `hh:mm:ss`. Empty uses the step's default, which the placeholder names: the
+timeout the function was registered with, or the installation's sub-agent deadline. A
+plain agent list has no node to keep a timeout on, so its steps show no field. If a step
+still carries one there — its chain lost its last function step, or it was written over
+HTTP — Save stays disabled with a note until you clear it or add a function step. The
+**Run timeout** field sets the workflow's own run timeout; empty uses the installation's,
+and a longer value is accepted only up to `Tracon:Workflows:MaxRunTimeout` (see
+[Bound a node with a timeout](/concepts/workflows/#bound-a-node-with-a-timeout)).
 
 A workflow waiting on human input shows the pending request as a card; answering it
 resumes execution from the checkpoint as a new run. The card opens for any waiting

@@ -157,6 +157,8 @@ is the list.
 | Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound agent run at the root of its tree resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat`; a workflow run is resumed from its checkpoints instead |
 | Workflow recovery | `UseWorkflows(o => o.ResumeInterruptedRuns = true)` | A queued workflow run or batch item interrupted by a crash, a deploy or a graceful stop continues from its latest checkpoint when its job is leased again, as a new run linked by `ContinuedFromRunId`, up to `MaxResumeAttempts`; the step in progress runs again |
 | Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` or `options.RetryPolicy` | A transient provider error retries a single node without failing the run or costing an extra super-step |
+| Workflow time limits | `options.Timeout`, a node's `timeout`, a definition's `runTimeout` | A step past its timeout fails the run (`workflow_function_timeout`, `child_run_timeout`); a definition shortens the run timeout, or lengthens it up to `Tracon:Workflows:MaxRunTimeout` |
+| Job time limit and cancel | `JobRequest.MaxDuration`, `Tracon:Scheduling:MaxDurationByHandlerKey`, `POST /api/jobs/{id}/cancel` | Past the limit the handler's token is cancelled and the attempt fails with `tracon.job.max-duration-exceeded`; a cancel reaches a running handler within one `PollInterval` |
 | Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 
 In-memory stores make these contracts usable for local work. Durable queues,

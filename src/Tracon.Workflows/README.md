@@ -150,6 +150,28 @@ A missing required value, an undeclared name or an over-long value is a `400` be
 the stream opens. The run records its final values, and a resume or an answer to a
 waiting request uses them again. A workflow defined in code declares no parameters.
 
+## Timeouts
+
+A function can be registered with a timeout. When it passes, the handler's token is
+cancelled and the run ends `Failed` with the error type `workflow_function_timeout`;
+the run stops waiting even for a handler that ignores its token, so pass the token on:
+
+```csharp
+builder.AddTracon()
+       .UseWorkflows()
+       .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+           "render-audio",
+           provider => (messages, context, cancellationToken) => RenderAsync(messages, cancellationToken),
+           options => options.Timeout = TimeSpan.FromMinutes(2));
+```
+
+A stored definition can give a node its own `timeout`, which wins over the
+registration's; on an agent node of a node list it replaces
+`Tracon:AgentGraph:ChildDeadline` for that step. A definition's `runTimeout` shortens
+`RunTimeout`, or lengthens it up to `MaxRunTimeout`. Passing `null` as the third
+argument of `AddWorkflowFunction` is ambiguous between the description and the options
+callback; name the argument (`description: null`).
+
 ## Checkpoints
 
 A checkpoint is written at every super-step. A run that stopped partway
@@ -180,14 +202,16 @@ When the job is leased again, a run that had finished is left alone, and an
 interrupted one continues from the latest checkpoint in its chain as a new run whose
 `ContinuedFromRunId` names it. The step that was running when the process stopped
 runs again, so a function step with side effects must be idempotent. A run bound to an
-HTTP connection is never resumed automatically.
+HTTP connection is never resumed automatically, and neither is a run its job's time
+limit stopped (error type `job_max_duration_exceeded`): the limit ends the work.
 
 ## Limits
 
 | Setting | Default | What it does |
 |------|-----------|----------|
 | `MaxConcurrentRuns` | 4 | The number of workflows running at the same time |
-| `RunTimeout` | 10 min | The maximum duration of a single run. Cooperative: checked between super-steps, so a node that ignores its cancellation token finishes and the run stops at the next boundary |
+| `RunTimeout` | 10 min | The maximum duration of a single run, the wait for a slot included. Cooperative: checked between super-steps, so a node without a timeout of its own that ignores its cancellation token finishes and the run stops at the next boundary |
+| `MaxRunTimeout` | not set | The longest run timeout a definition may set; unset, a definition may only shorten `RunTimeout` |
 | `MaxSuperSteps` | 100 | Infinite-loop protection |
 | `MaxNodeSettingsLength` | 16384 bytes | The largest JSON a function node's settings may be when a workflow is saved |
 | `EnableCheckpointing` | `true` | Checkpoint writing |
