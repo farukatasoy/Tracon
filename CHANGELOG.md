@@ -127,6 +127,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The in-memory job store now changes a job item only while it is pending, as the SQL
+  stores do. It overwrote a finished item, so a late report from a worker whose lease
+  had expired rewrote the result the job already gave.
 - `Scheduling:Lanes`, `Scheduling:MaxConcurrentJobsPerLane`,
   `Scheduling:LaneByHandlerKey` and `Scheduling:HttpSchedulableHandlerKeys` are now
   read from configuration. The four keys were documented and bound nowhere, so a
@@ -559,6 +562,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- A workflow run, resume or answer can be queued: `POST /api/workflows/{name}/run`,
+  `POST /api/workflows/runs/{runId}/resume` and `POST /api/workflows/runs/{runId}/respond`
+  accept `Prefer: respond-async` and answer `202 Accepted` with the run id
+  (`AcceptedRunResponse`, now in the OpenAPI document and both generated clients). The
+  caller is checked before the `202` as on the streamed call, the run's row is
+  `Queued` until a worker starts it, and `POST /api/runs/{id}/cancel` cancels it from
+  the queue. A queued run no longer depends on the connection, so a client that stops
+  reading does not cancel it. The job runs under the new built-in key
+  `JobHandlerKeys.WorkflowRun` (`tracon.workflow-run`), which no schedule can use.
+- `Idempotency-Key` on the three workflow run endpoints, accepted only together with
+  `Prefer: respond-async`; a key on a streamed call is refused with `400`.
+- `TraconWorkflowOptions.ResumeInterruptedRuns` (off by default) and
+  `MaxResumeAttempts` (default 1): a queued workflow run or a `tracon.workflow` batch
+  item interrupted by a crash, a deploy or a graceful stop continues from the latest
+  checkpoint in its chain when its job is leased again, as a new run whose
+  `ContinuedFromRunId` names the interrupted one. The step that was running repeats.
+  Turning it on without `EnableCheckpointing` fails at startup. A queued run's job gets
+  `1 + MaxResumeAttempts` attempts while it is on.
+- `RunQuery.ContinuedFromRunId` and `GET /api/runs?continuedFromRunId=` walk a
+  continuation chain forward.
+- A structured `tracon.workflow` batch item may name a `sessionId`: the run's execution
+  session, which its `run.completed` webhook and its continuations carry. An agent batch
+  item that names one fails alone.
+- `RunStoreContract` adds
+  `A_second_start_without_a_continuation_link_keeps_the_first_one`,
+  `A_queued_workflow_row_keeps_its_workflow_session_and_attribution_when_it_starts`,
+  `Query_filters_by_the_run_a_continuation_continues` and
+  `Query_by_continuation_does_not_return_another_tenants_run`. `JobStoreContract` adds
+  `A_pending_report_marks_the_item_and_counts_nothing` and
+  `A_report_for_a_finished_item_changes_nothing`. A third-party store needs the first
+  and the last of these: the second start of a run keeps a stored
+  `ContinuedFromRunId`, and a report for a finished item is ignored.
 - `IWorkflowRunner.ValidateResponseAsync`: checks an answer against the pending
   request before the stream opens. A default interface member, so an existing
   implementation keeps compiling.
