@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- Text-to-speech, speech-to-text and the voice list now apply the tenant's
+  provider checks before any text or audio leaves the process. The `speak`,
+  `transcribe` and `list_voices` tools, `POST /api/voice/speak`,
+  `GET /api/voice/voices` and the conversation socket called the setup-wide
+  speech provider and read neither the tenant's egress policy nor its own
+  provider key. **Behavior change:** a tenant with a saved egress policy that
+  does not name its speech provider (`elevenlabs` for the built-in client) can no
+  longer synthesize, transcribe or list voices: the endpoints answer `403`, the
+  conversation handshake answers `403` before a connection slot is taken, and a
+  tool call fails. Add the provider name to the policy to keep speech working. A
+  tenant with its own binding for the speech provider is refused unless the
+  provider declares `SupportsTenantCredentials`; the built-in ElevenLabs client
+  does not, so such a tenant is no longer billed to the host's key. A binding
+  with an endpoint override, or whose key has no value, is refused too. The
+  policy is judged against the provider name the engine reports, never the name
+  it is registered under.
 - Image generation now applies the tenant's provider checks before the prompt
   leaves the process. `generate_image` and `POST /api/images/generate` called the
   setup-wide generator and read neither the tenant's egress policy nor its own
@@ -559,6 +575,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Named speech providers: `AddSpeechSynthesizer(name, factory)` and
+  `AddSpeechTranscriber(name, factory)` register more text-to-speech and
+  speech-to-text engines next to the default one, and
+  `ISpeechProviderResolver` (registered by `AddTracon()`) returns one by name
+  after the tenant's checks — for a workflow function node, for example.
+  `SpeechProviderDescriptor` and `SpeechProviderKind` describe a registration. A
+  name is 1 to 64 characters of `a-z`, `0-9`, `.`, `_` and `-`; a repeated name
+  throws at setup.
+- `GET /api/voice/providers` lists the registered speech providers (new in the
+  OpenAPI document and both generated clients). `POST /api/voice/speak` takes an
+  optional `provider` and `GET /api/voice/voices` an optional `?provider=`; an
+  unknown name answers `400`, a request without a name when no default is
+  registered `501`.
+- Tenant credentials for speech providers: `ISpeechSynthesizer` and
+  `ISpeechTranscriber` gain `SupportsTenantCredentials` (default `false`),
+  `SpeechRequest` and `SpeechTranscriptionOptions` gain `Credential`, and
+  `ISpeechSynthesizer` gains `ListVoicesWithCredentialAsync`, whose default
+  refuses a credential. All are default interface members or new init
+  properties, so an existing implementation keeps compiling.
+- `SpeechAudio.ModelId` and `SpeechTranscript.ModelId` carry the model that did
+  the work, and `IVoicePricingReader` gains `ForSynthesis(providerName, modelId,
+  characters)` and `ForTranscription(providerName, modelId, duration)` (default
+  `null`). A speech call is priced by the model the provider reports, then the
+  one the request named; the built-in client reports its model.
 - `IWorkflowRunner.ValidateResponseAsync`: checks an answer against the pending
   request before the stream opens. A default interface member, so an existing
   implementation keeps compiling.
@@ -711,6 +751,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The console's tenant provider panel offers speech providers next to the model
+  providers, by the provider name a policy and a binding use. A name saved in a
+  policy that no provider reports any more stays listed and can be removed;
+  before, it was invisible and sent back on every save.
 - `IWorkflowFunctionCatalog` gains `ValidateSettings(string name, JsonElement? settings)`,
   which returns a message that names the function and the problem, or `null`. An
   implementation of the interface outside Tracon must add it; the registry
