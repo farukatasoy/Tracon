@@ -2,18 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 853 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 857 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (60 / 913 kalem)
+## En Yeni Kalıcı Kararlar (60 / 917 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-854 | 905 | Kimlik bilgisi taşımayan istek yalnız GERÇEKTEN yerelse ve başka bir sitenin tarayıcı sayfası değilse kabul edilir: `AllowRemoteAccess` açık + `AuthToken` ve policy yok → uzak anonim `401`; `X-Forwarded-For`/`Forwarded`/`X-Real-IP` taşıyan loopback bağlantısı UZAK sayılır; anonim yerel istekte `Host` loopback adı, varsa `Origin` loopback olmalı (`403`) (kusur-giderme, 2026-09-23) 👤 |
-| K-855 | 906 | `net8.0` ve `net9.0`, Microsoft desteğinin bittiği 2026-11-10'dan sonraki ilk Tracon sürümünde düşer; acil bir güvenlik sürümü onları hâlâ taşıyabilir (kusur-giderme turu, 2026-09-23) 👤 |
-| K-856 | 907 | MCP sunucusu ve webhook aboneliğinin ek `headers` DEĞERLERİ hiçbir HTTP yanıtında ve MCP audit'inde yer almaz: her değer `***` olur, başlık adı kalır; `***` değerli kaydetme `400` alır; değer `store`'da düz kalır ve hedefe aynen gider (kusur-giderme, 2026-09-23) 👤 |
-| K-857 | 908 | `QuotaUsageQuery.PeriodStarts` store'un uyguladığı dönem süzgecidir; verilmezse tüm geçmiş döner; `AsOf` `[Obsolete]` olur (kusur-giderme, F-275, 2026-09-24) 👤 |
 | K-858 | 909 | Her Tracon→Tracon nuspec bağımlılığı tam aralıktır (`[x]`) ve paketin kendi sürümüne eşittir; yalnız IVT kenarları değil, 22 kardeş kenarının hepsi (Faz 185, F-265) (kullanıcı kararı) 👤 |
 | K-859 | 910 | Yüklü Tracon aile derlemeleri farklı sürümdeyse host başlamaz; kontrolün opt-out'u yoktur; preview hattında silinen üyeye ikili uyum shim'i yazılmaz (Faz 185, F-265) (kullanıcı kararı) 👤 |
 | K-860 | 911 | Script grant'ı içeriği pinler: stored ve kodda tanımlı script yalnız içeriğinin hash'ini taşıyan grant'la çalışır; hash'siz eski grant onları yetkilendirmez; diskteki script pinlenmez (Faz 186, F-269) (kullanıcı kararı) 👤 |
@@ -70,3 +66,7 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-911 | 962 | Veri sahibi kapsamı `workflow_checkpoints`'i ve oturumla bulunan run'ların `run_scores`'unu içerir; silme `AwaitingInput` muafiyeti tanımaz (F-371) (ana oturum varsayılanı) |
 | K-912 | 963 | Görsel üretimi kiracının egress politikasına ve kendi anahtarına tabidir: denetim `ImageGeneratorResolver.ResolveForTenantAsync`'te, sağlayıcı çağrısından ÖNCE ve iki yolun (`generate_image`, `POST /api/images/generate`) ortak noktasında koşar; politika görsel sağlayıcısını (`TraconImageOptions.Provider`) adlandırmıyorsa ya da kiracının o sağlayıcı için bağlaması varsa üretim reddedilir — uç `403`, tool hatası; kurulum anahtarına düşülmez; kural `TenantProviderAccess`'te tek yerde (F-384, kusur-giderme 2026-10-13) (ana oturum varsayılanı, K-878 emsali) |
 | K-913 | 964 | Kök agent run'ı kotaya ve kendi `run.*` webhook'una çağrı ağacının toplamını yazar: kendi usage ve maliyetine, kök satırı kapanmadan run deposundan okunan alt run toplamı eklenir; okuma yalnız ağaç bir alt run rezerve ettiyse (`AgentRunBudget.StartedRuns > 0`) ve kota ya da webhook kayıtlıysa yapılır; farklı para biriminde toplam yoktur (K-893), depo okunamazsa kökün kendi tüketimi yazılır (F-383, kusur-giderme 2026-10-13) (ana oturum varsayılanı) |
+| K-919 | 965 | Çıktı sınırında kesilme ayrı bir sonuçtur: `RunErrorClass.OutputTruncated = 16`, `TraconOutputTruncatedException` (`output_truncated`), `RunEventCustomTypes.OutputTruncated` (`tracon.output.truncated`). Karar son bildirilen bitiş sebebinden verilir; yapılandırılmış (`Json`/`JsonSchema`) yanıt run'ı düşürür ve onarım koşmaz, düz metin `Completed` + olay; reddedilen yanıtın token'ı run'a katlanır (F-320, Faz 204; Açık Soru 1-A, 2-A) |
+| K-920 | 966 | Anthropic istek ayarları: `anthropic.effort` (`output_config.effort`), `anthropic.thinking.mode` (`enabled`/`adaptive`; tek başına bütçe `enabled`), `anthropic.promptCaching.ttl` (`5m`/`1h`), `anthropic.promptCaching.placement` (`request`/`system`; talimatsız `system` üst düzey kırılma noktasına düşer). Değer listeleri SDK enum'larından okunur; `ttl`/`placement` `promptCaching` olmadan, `adaptive` + bütçe ve bütçesiz `enabled` hatadır (F-346, Faz 204; Açık Soru 3-A) |
+| K-921 | 967 | `ModelDescriptor.SupportsSampling` (`bool?`, `null` = bilinmiyor): `false` iken `Temperature`/`TopP` derlemeyi durdurur, doğrulama `sampling_unsupported` verir; bağlamanın `Fallbacks` bağlantıları da denetlenir (Faz 204; yedek denetimi ana oturum varsayılanı, bakımcı onayı bekler) |
+| K-922 | 968 | Sağlayıcının varsayılan çıktı sınırı `ModelOutputLimit` kaydıyla (`DefaultMaxOutputTokens`, `HighReasoningEffort`) bağlamaya göre kurulan ham istemcinin `IChatClient.GetService` yanıtından okunur; doğrulama, `MaxOutputTokens` boşken varsayılan katalog sınırından küçükse ve yanıt yapılandırılmışsa ya da effort yüksekse `output_truncation_risk` (Warning) verir (Faz 204 #1, #2; Açık Soru 5-B; seam biçimi ana oturum varsayılanı, bakımcı onayı bekler) |

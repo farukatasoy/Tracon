@@ -35,6 +35,13 @@
    opsiyonel parametre tuzağı, F-388)
 5. Tüketici kanıtı: [podcast raporu](arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)
    § 2.1–2.2 ve § 6.1 (ölçülen istek ve yanıt biçimi)
+6. Faz 204 devri ([204](204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) § Sonraki Faza
+   Devir Notu): `ModelProviderSettings.TypeMismatch` artık
+   `ProviderSettingsValidationException` (registry maskesinden geçer). Kapalı
+   değer kümesi deseni `AnthropicRequestSettings`'tedir; sözleşmede
+   `InvalidSettingValue`. 🚨 Anthropic ve Google ret metni yanlış **değeri**
+   yankılar; bu fazın "yankılamaz" kuralı ya üçünü birlikte bağlar ya da
+   kapalı küme istisnası gerekçelenir.
 
 ---
 
