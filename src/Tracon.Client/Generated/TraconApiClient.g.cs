@@ -21779,6 +21779,14 @@ namespace Tracon.Client.Generated
         public bool SupportsStructuredOutput { get; set; } = default!;
 
         /// <summary>
+        /// Whether the model accepts the sampling parameters `temperature` and
+        /// <br/>`topP`; `null` when the catalog does not say.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("supportsSampling")]
+        public bool? SupportsSampling { get; set; } = default!;
+
+        /// <summary>
         /// The cost per million input tokens. For reporting only.
         /// </summary>
 
@@ -23144,6 +23152,9 @@ namespace Tracon.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"LoopUnsatisfied")]
         LoopUnsatisfied = 14,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"OutputTruncated")]
+        OutputTruncated = 15,
 
     }
 
