@@ -28,8 +28,8 @@ namespace Tracon;
 /// again, for a job queued before this rule existed or by hand.
 /// </para>
 /// <para>
-/// A workflow root is not continued here even when workflow recovery is on
-/// (F-321): the job that started the run owns it and resumes it from its
+/// A workflow root is not continued here even when workflow recovery is on:
+/// the job that started the run owns it and resumes it from its
 /// checkpoint when it is leased again (<see cref="WorkflowRecovery"/>). Two owners
 /// would resume the same run twice.
 /// </para>

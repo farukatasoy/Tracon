@@ -124,4 +124,38 @@ public sealed class BatchItemInputTests
     [Fact]
     public void Wrapping_a_null_text_is_rejected()
         => Should.Throw<ArgumentNullException>(() => BatchItemInput.Envelope(null!));
+
+    /// <summary>197.3: a structured item may name the execution session of its workflow run.</summary>
+    [Fact]
+    public void A_structured_item_may_name_its_session()
+    {
+        var input = BatchItemInput.Parse("""{"message":"episode 7","sessionId":"production-7"}""");
+
+        input.IsStructured.ShouldBeTrue();
+        input.Problem.ShouldBeNull();
+        input.SessionId.ShouldBe("production-7");
+        input.Message.ShouldBe("episode 7");
+    }
+
+    [Fact]
+    public void An_item_without_a_session_reads_back_with_none()
+    {
+        BatchItemInput.Parse("""{"message":"episode 7"}""").SessionId.ShouldBeNull();
+        BatchItemInput.Parse("""{"message":"episode 7","sessionId":null}""").SessionId.ShouldBeNull();
+        BatchItemInput.Parse("plain text").SessionId.ShouldBeNull();
+    }
+
+    /// <summary>The reason names the rule, never the value the sender chose.</summary>
+    [Theory]
+    [InlineData("""{"message":"m","sessionId":"has spaces"}""", "letters, digits")]
+    [InlineData("""{"message":"m","sessionId":7}""", "non-empty string")]
+    [InlineData("""{"message":"m","sessionId":""}""", "non-empty string")]
+    public void A_malformed_session_id_makes_the_item_malformed(string text, string reason)
+    {
+        var input = BatchItemInput.Parse(text);
+
+        input.Problem.ShouldNotBeNull().ShouldContain(reason, Case.Sensitive);
+        input.Problem.ShouldNotContain("has spaces", Case.Sensitive);
+        input.SessionId.ShouldBeNull();
+    }
 }

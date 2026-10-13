@@ -167,6 +167,29 @@ public sealed class AgentBatchJobHandlerTests
             "an item whose run completed was recorded as failed");
     }
 
+    /// <summary>
+    /// Failure mode 22: 'sessionId' names a workflow run's session; an agent batch runs every
+    /// item without one, so an agent item that names one fails alone instead of running
+    /// with the id silently ignored.
+    /// </summary>
+    [Fact]
+    public async Task An_agent_item_that_names_a_session_fails_alone_and_the_next_item_runs()
+    {
+        var agent = new ScriptedAgent();
+        var handler = new AgentBatchJobHandler(new SingleAgentCatalog(agent), NullLogger<AgentBatchJobHandler>.Instance);
+        var reported = new List<JobItemResult>();
+
+        await handler.ExecuteAsync(BuildContext(
+            [Item(0, """{"message":"first","sessionId":"production-7"}"""), Item(1, "second")],
+            reported));
+
+        agent.Inputs.ShouldBe(["second"]);
+        reported.Count.ShouldBe(2);
+        reported[0].Status.ShouldBe(JobItemStatus.Failed);
+        reported[0].Error.ShouldNotBeNull().ShouldContain("sessionId", Case.Sensitive);
+        reported[1].Status.ShouldBe(JobItemStatus.Completed);
+    }
+
     private static JobItemRecord Item(int seq, string input, JobItemStatus status = JobItemStatus.Pending)
         => new() { Id = Guid.NewGuid(), JobId = Guid.NewGuid(), Seq = seq, Input = input, Status = status };
 

@@ -552,6 +552,65 @@ public sealed class RunContinuationTests
     }
 
     /// <summary>
+    /// F-321 keeps one owner. With workflow recovery on, reconciliation still closes an
+    /// orphaned workflow root and still does not continue it as an agent turn: the job
+    /// that started the run resumes it from its checkpoint. Two owners would resume the
+    /// same run twice. The refusal now names the job's recovery as well.
+    /// </summary>
+    [Fact]
+    public async Task With_workflow_recovery_on_an_orphaned_workflow_root_is_still_not_continued_by_reconciliation()
+    {
+        await using var host = await StartHostAsync(
+            o => o.Enabled = true,
+            configureTracon: static builder => builder.UseWorkflows(static options => options.ResumeInterruptedRuns = true));
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var tenants = host.Services.GetRequiredService<ITenantContext>();
+        var rootId = TraconId.NewId();
+
+        await runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = rootId,
+            AgentName = "podcast",
+            Kind = RunKind.Workflow,
+            WorkflowName = "podcast",
+            Status = RunStatus.Running,
+            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
+            TenantId = tenants.TenantId,
+            SessionId = SessionId,
+        });
+
+        await WaitForReconciliationPassAsync(host, rootId);
+
+        (await runs.GetRunAsync(rootId)).ShouldNotBeNull().Status.ShouldBe(RunStatus.Failed);
+        (await runs.QueryRunsAsync(new RunQuery { SessionId = SessionId, OnlyRootRuns = false }))
+            .ShouldHaveSingleItem().Id.ShouldBe(rootId);
+        (await host.Services.GetRequiredService<IJobStore>()
+                .QueryAsync(new JobQuery { HandlerKey = JobHandlerKeys.RunContinuation }))
+            .ShouldBeEmpty();
+
+        (await ReadBlockedEventAsync(runs, rootId)).ShouldNotBeNull()
+            .Text.ShouldNotBeNull().ShouldContain("ResumeInterruptedRuns", Case.Sensitive);
+    }
+
+    /// <summary>F-321: a workflow step (a sub-run) is not continued on its own with recovery on either.</summary>
+    [Fact]
+    public async Task With_workflow_recovery_on_an_orphaned_workflow_step_is_still_not_continued_on_its_own()
+    {
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(
+            o => o.Enabled = true,
+            configureTracon: static builder => builder.UseWorkflows(static options => options.ResumeInterruptedRuns = true));
+
+        var stepId = await SeedCrashedSubRunAsync(host, parentKind: RunKind.Workflow);
+
+        await WaitForReconciliationPassAsync(host, stepId);
+
+        await AssertSubRunNotContinuedAsync(host, stepId);
+    }
+
+    /// <summary>
     /// F-344 class scan: a step of a workflow is an agent run (<see cref="RunKind.Agent"/>)
     /// below the workflow root, and it carries the root's session id. Continued on its
     /// own, it re-ran the step - tools and all - in the workflow's session, with nobody

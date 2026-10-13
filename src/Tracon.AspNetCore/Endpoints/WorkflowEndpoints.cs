@@ -964,13 +964,13 @@ internal static class WorkflowEndpoints
     /// <returns>The <c>202</c>, or the <c>501</c> of a host with queuing turned off.</returns>
     /// <remarks>
     /// <para>
-    /// The row comes first, as for a queued agent run (K-304, K-305): a client that
+    /// The row comes first, as for a queued agent run: a client that
     /// reads <c>GET /api/runs/{id}</c> before the worker leases the job sees
     /// <c>Queued</c>, not <c>404</c>, and the run can be cancelled from the queue.
     /// The worker's write upserts the row; the attribution written here survives it.
     /// </para>
     /// <para>
-    /// 🚨 If the job cannot be queued, the row is closed as <see cref="RunStatus.Failed"/>
+    /// If the job cannot be queued, the row is closed as <see cref="RunStatus.Failed"/>
     /// before the error is returned: a row left <see cref="RunStatus.Queued"/> with no job
     /// behind it would never move, and run reconciliation does not touch queued rows.
     /// </para>

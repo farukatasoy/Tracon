@@ -49,7 +49,9 @@ public sealed partial class JobAttributionScopeSiteTests
         ["src/Tracon.Core/Scheduling/RunContinuationJobHandler.cs"] =
             (true, "replays the user and labels of the interrupted run"),
         ["src/Tracon.Core/Scheduling/WorkflowJobHandler.cs"] =
-            (true, "replays the attribution envelope of the job payload"),
+            (true, "replays the attribution envelope of the job payload; a continuation's row is opened with it too"),
+        ["src/Tracon.Core/Scheduling/WorkflowRunJobHandler.cs"] =
+            (true, "replays the userId and labels of the queued operation's payload; proven on a function node by WorkflowAsyncAttributionTests"),
         ["src/Tracon.Core/Webhooks/WebhookDeliveryJobHandler.cs"] =
             (false, "starts no run"),
     };

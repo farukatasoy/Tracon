@@ -29,7 +29,7 @@ public sealed class WorkflowRecoveryTests
 {
     private static readonly TimeSpan DeadLease = TimeSpan.FromMilliseconds(300);
 
-    /// <summary>Hata modu 14: a step that finished before the crash is not called again.</summary>
+    /// <summary>Failure mode 14: a step that finished before the crash is not called again.</summary>
     [Fact]
     public async Task A_queued_run_interrupted_in_its_second_step_is_continued_without_running_the_first_again()
     {
@@ -74,7 +74,7 @@ public sealed class WorkflowRecoveryTests
     }
 
     /// <summary>
-    /// Hata modu 20: the continuation runs under the values the run recorded. A
+    /// Failure mode 20: the continuation runs under the values the run recorded. A
     /// continuation on the defaults would change its steps' instructions halfway.
     /// </summary>
     [Fact]
@@ -145,7 +145,7 @@ public sealed class WorkflowRecoveryTests
     }
 
     /// <summary>
-    /// Hata modu 13: a run that finished before its job recorded it is not run again
+    /// Failure mode 13: a run that finished before its job recorded it is not run again
     /// when the job is leased again.
     /// </summary>
     [Fact]
@@ -185,7 +185,7 @@ public sealed class WorkflowRecoveryTests
     }
 
     /// <summary>
-    /// Hata modu 15: past <c>MaxResumeAttempts</c> continuations the item fails, the
+    /// Failure mode 15: past <c>MaxResumeAttempts</c> continuations the item fails, the
     /// last run is closed, and no further run opens.
     /// </summary>
     [Fact]
@@ -219,7 +219,7 @@ public sealed class WorkflowRecoveryTests
     }
 
     /// <summary>
-    /// Hata modu 15: a continuation that died before it wrote a checkpoint of its own
+    /// Failure mode 15: a continuation that died before it wrote a checkpoint of its own
     /// is continued from the checkpoint of the run before it, not from the beginning.
     /// </summary>
     [Fact]
@@ -249,7 +249,7 @@ public sealed class WorkflowRecoveryTests
     }
 
     /// <summary>
-    /// Hata modu 12: with the setting off (the default) nothing changes: no marker,
+    /// Failure mode 12: with the setting off (the default) nothing changes: no marker,
     /// the item runs again from the beginning, and no run continues another.
     /// </summary>
     [Fact]
@@ -280,7 +280,7 @@ public sealed class WorkflowRecoveryTests
     }
 
     /// <summary>
-    /// Hata modu 18: a graceful shutdown closes the run it stops as Canceled and leaves
+    /// Failure mode 18: a graceful shutdown closes the run it stops as Canceled and leaves
     /// the job to its lease; the next worker continues it. Two hosts share one SQLite
     /// database, the way a deploy replaces a process.
     /// </summary>
@@ -328,7 +328,7 @@ public sealed class WorkflowRecoveryTests
     }
 
     /// <summary>
-    /// Hata modu 19: a checkpoint written by another Microsoft Agent Framework version
+    /// Failure mode 19: a checkpoint written by another Microsoft Agent Framework version
     /// cannot be read. The continuation fails once, naming why, and nothing loops: the
     /// item is reported failed and no further continuation opens.
     /// </summary>
