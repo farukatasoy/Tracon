@@ -75,7 +75,30 @@ public sealed class VoiceOptions
     /// </remarks>
     public int MaxCharactersPerRequest { get; set; } = 5000;
 
+    /// <summary>
+    /// The dialogue model of the built-in client. When empty, the request names none and
+    /// the provider uses its own default.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SynthesisModelId"/> is not used for a dialogue: the single-voice default
+    /// (<c>eleven_multilingual_v2</c>) is not a dialogue model. A result made with the
+    /// provider's default reports no model, so its price is looked up without one.
+    /// </remarks>
+    public string? DialogueModelId { get; set; }
+
+    /// <summary>
+    /// Maximum characters one dialogue request can carry, summed over its turns. Default
+    /// 2,000, the provider's guidance for reliable generation.
+    /// </summary>
+    /// <remarks>
+    /// A longer dialogue is refused, not split: the caller splits it at a point that suits
+    /// its content and joins the audio. <c>ISpeechDialogueSynthesizer.DialogueCapabilities</c>
+    /// reports this value.
+    /// </remarks>
+    public int MaxDialogueCharactersPerRequest { get; set; } = 2000;
+
     /// <summary>How many voice requests can run at once. Default 2.</summary>
+    /// <remarks>Synthesis, dialogue and transcription share this one limit.</remarks>
     public int MaxConcurrentRequests { get; set; } = 2;
 
     /// <summary>
@@ -96,5 +119,5 @@ public sealed class VoiceOptions
 internal static class VoiceProviderNames
 {
     /// <summary>ElevenLabs. STABLE name: stored in usage records.</summary>
-    public const string ElevenLabs = "elevenlabs";
+    public const string ElevenLabs = ElevenLabsProviderNames.ElevenLabs;
 }

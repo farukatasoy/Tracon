@@ -54,6 +54,11 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
             (failures ??= []).Add($"{nameof(VoiceOptions)}: character limit must be greater than zero.");
         }
 
+        if (options.MaxDialogueCharactersPerRequest <= 0)
+        {
+            (failures ??= []).Add($"{nameof(VoiceOptions)}: dialogue character limit must be greater than zero.");
+        }
+
         if (options.MaxConcurrentRequests <= 0)
         {
             (failures ??= []).Add($"{nameof(VoiceOptions)}: concurrent request limit must be greater than zero.");
