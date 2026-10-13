@@ -1,6 +1,6 @@
 # Faz 197 — Dayanıklı Workflow Yürütmesi: Bağlantısız Run ve Otomatik Sürdürme
 
-> **Durum:** 📋 Planlandı (2026-10-12)
+> **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-318**, **F-321**
 > **Önkoşul:** F-344, F-341, F-364 2026-10-12'de kapandı (K-909, K-908, K-904). [Faz 196](196-UZUN-ADIM-SURE-VE-IPTAL.md) ile sıra serbest; ikisi de job token'ına dokunur
@@ -197,7 +197,7 @@ Sınır: kira kaybında eski sahip yaşarsa iki kopya koşar (K-886).
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Üç uç `202` döner, aynı anahtar tek iş açar (test 1-8); kesilen iş checkpoint'ten sürer, bayrak kapalıyken davranış aynı (test 12-18) — `WorkflowAsync*Tests` (7 sınıf, 33 test), `WorkflowRecoveryTests` (9), `WorkflowRecoveryAttemptLimitTests` (5, son kiralama gerçek worker'dan), `TwoProcessWorkflowResumeTests` (PostgreSQL, `SIGKILL`)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 65d72b98`, `main` birleştirilmiş dalda tek koşum, çıkış 0 (§ *Kapanış kapısı*)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 65d72b98`, `main` birleştirilmiş dalda tek koşum, çıkış 0 (§ *Kapanış kapısı*); sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` `main`'de üçüncü koşumda çıkış 0 (§ *Yayın provası*)
 - [x] `samples/Tracon.Api` ile gerçek `run` (async, süreç öldürme, devam) yapıldı, çıktı belgeye yazıldı — aşağıdaki iki tablo; ikincisi denetim düzeltmesinden sonra
 - [x] `secret` taraması boş döndü — `kapi.py tarama`, kapanış zincirinin ilk adımı
 - [x] Manuel kabul case'leri eklendi; otomatikleştirilebilenler koşuldu — `MT-WF-139`…`141` ✅, `MT-RES-095`/`096` ve `MT-JOB-145` 👤 (örnek uygulamada koşuldu)
@@ -281,6 +281,25 @@ Sonra `python3 scripts/dokuman-bakim.py --site-denetle --taban 65d72b98
 --site-gerekce-yazildi` → çıkış 0 (gerekçeli iki kural aşağıda; bayraksız koşum bu
 ikisi için çıkış 1 verir). Bu bölümü yazan commit yalnız bu dokümanı değiştirir;
 üstünde `tarama`, `--denetle` ve `--site-denetle` yeniden koşuldu.
+
+### Yayın provası (`main`, 2026-10-13)
+
+`python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4`, birleştirmeden sonra
+`main`'de (Faz 197 + Faz 198). Faz sevk edilen `Tracon.Testing.Contracts.Xunit`'e altı
+case eklediği için zorunluydu (`faz-tamamlama` Adım 1). Uygulama dalı provayı
+koşmadı (orkestratör kararı); iki kusuru yalnız prova gördü:
+
+| Koşum | Commit | Sonuç | Düzeltme |
+|---|---|---|---|
+| 1 | `378a140f` | ❌ kırıcı liste notla eşleşmedi: `Tracon.Client: TraconApiClient` | `TraconListRunsAsync` `continuedFromRunId`'yi `skip`/`take`'ten önce, `TraconVoiceListAsync` (Faz 198) `provider`'ı token'dan önce aldı; konumsal çağıran derlenmez. `CHANGELOG` `[Unreleased] → Changed` iki imzayı adıyla anar (`61283c9a`) |
+| 2 | `61283c9a` | ❌ `Tracon.Samples.FileRunStore.Tests` 103/106: `A_second_start_without_a_continuation_link_keeps_the_first_one`, `Query_filters_by_the_run_a_continuation_continues`, `Query_by_continuation_does_not_return_another_tenants_run` | Örnek depo bağı `COALESCE` eder ve `RunQuery.ContinuedFromRunId` ile süzer (`dcc1a88f`) — BL-053 sınıfı: örnekler çözümde değildir, kapanış kapısı onları koşmaz |
+| 3 | `dcc1a88f` | ✅ çıkış 0 | kırıcı liste 3 tip, 3 paket (hepsi `Unreleased`'da) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106/106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
+
+Önceki prova çıktıları silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-4800b280`
+(Faz 201/204) ve `-onceki-61283c9a`. İki düzeltme yalnız `CHANGELOG.md` ve
+`samples/` dosyasına dokunur; `samples/` hiçbir çözümde değildir ve `CHANGELOG`
+derlenmez, bu yüzden kapanış kapısı (`3b93b79d`) yeniden koşulmadı; prova üstünde
+`tarama` ve `--denetle` yeşil.
 
 ### Site senkronu (`--site-denetle --taban 65d72b98`)
 
@@ -500,10 +519,10 @@ Mimari kapılar güncellendi: `JobHandlerOutcomeWriteSiteTests`, `JobAttribution
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 1 — Açık Soru 4-A denetimden sonra `2 + MaxResumeAttempts` oldu (Sapma 16, kullanıcı kararı); öbür sapmalar ölçümün sonucudur |
-| Düzeltme turu sayısı | 11 — çözümleyici (RS0016 · CA1826/CA1859 · MA0006/MA0002) · kurucu değişikliği sonrası test derlemesi · mimari kapılar (`///` içinde iç referans, Türkçe test metni, atıf ve sonuç sitesi listeleri, ambient tabanı) · `// delay:` etiketi · agent map tazeliği · manuel test bütçesi · kapanış 1: anlık görüntü testleri · kapanış 2: `QueryRuns` tahsisi · denetim düzeltmeleri (🔴1, 🟡1-4) · birleştirme sonrası kapanış: mağaza yazarı rehberi ve `llms-full` boyut iddiası (§ *Kapanış kapısı*) |
+| Düzeltme turu sayısı | 12 — çözümleyici (RS0016 · CA1826/CA1859 · MA0006/MA0002) · kurucu değişikliği sonrası test derlemesi · mimari kapılar (`///` içinde iç referans, Türkçe test metni, atıf ve sonuç sitesi listeleri, ambient tabanı) · `// delay:` etiketi · agent map tazeliği · manuel test bütçesi · kapanış 1: anlık görüntü testleri · kapanış 2: `QueryRuns` tahsisi · denetim düzeltmeleri (🔴1, 🟡1-4) · birleştirme sonrası kapanış: mağaza yazarı rehberi ve `llms-full` boyut iddiası (§ *Kapanış kapısı*) · `main`'de yayın provası: sürüm notu kırıcı istemci imzasını anmıyordu ve paketlenmiş `FileRunStore` örneği üç yeni sözleşme case'inde düştü (§ *Yayın provası*) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
-| Fazın ürettiği regresyon | 3 — 🔴1 (deneme sayısı son kiralamayı handler'dan önce düşürüyordu), 🟡1 (geçici `store` hatası işi tekrar denemesiz düşürüyordu), 🟡2 (site bayrak kapalı kuyruklu run'ı yanlış anlatıyordu). Üçünü de bağımsız denetim yakaladı, kapanıştan önce düzeltildi |
-| Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
+| Fazın ürettiği regresyon | 3 — 🔴1 (deneme sayısı son kiralamayı handler'dan önce düşürüyordu), 🟡1 (geçici `store` hatası işi tekrar denemesiz düşürüyordu), 🟡2 (site bayrak kapalı kuyruklu run'ı yanlış anlatıyordu). Üçünü de bağımsız denetim yakaladı, kapanıştan önce düzeltildi. Ayrıca sevk edilen sözleşmenin yeni üç case'i paketlenmiş `FileRunStore` örneğini kırdı; yalnız yayın provası gördü (`dcc1a88f`) |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı; sonraki `kusur-giderme` koşumu doldurur) |
 
 ## Denetim Bulguları
 
@@ -549,6 +568,7 @@ sözleşmeler* tablosundadır; 196'ya Açık Soru 13 ve hata modu 29 eklendi.
   sahip yaşarsa iki kopya koşar (K-886).
 - **7-A:** `Loop` adımı kesintiden sonra tamamladığı turları yeniden koşar; ihtiyaç
   ölçülürse aday.
-- **Yayın provası koşulmadı** (koordinatör kararı); sevk edilen sözleşmeye altı case
-  eklendi, ilk yayından önce `kapi.py yayin --kuru` gerekir.
-- Site yayınlanmadı.
+- **Yayın provası `main`'de yeşil** (`dcc1a88f`, § *Yayın provası*); iki kusuru
+  yalnız o gördü. 🚨 Sevk edilen sözleşmeye case ekleyen faz provayı kapanıştan
+  önce koşmalıdır — paketlenmiş örnek depo onu ilk uygulayan tüketicidir.
+- Site yayınlanmadı (`site-deploy.sh` bakımcı onayı bekler).
