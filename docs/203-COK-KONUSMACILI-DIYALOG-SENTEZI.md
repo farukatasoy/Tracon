@@ -1,7 +1,7 @@
 # Faz 203 — Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları
 
 > **Durum:** 📋 Planlandı (2026-10-13)
-> **Plan onayı:** onaylanmadı — bakımcı 2026-10-13'te F-296'nın planlanmasını istedi; aynı gün kapsam ve sıra yeniden tartıldı (bkz. Genellik ve Karşı görüş); engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
+> **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-B, 5-B, 6-B; Açık Soru 7 → B). Faz 196 ile paralel geliştirilir
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-296**
 > **Genellik:** Ses sözleşmesi Tracon'un kendi sözleşmesidir ve iki büyük sağlayıcının (ElevenLabs Text to Dialogue, Gemini çok konuşmacılı TTS) sunduğu yeteneği ifade edemez; MEAI 10.9.0 `ITextToSpeechClient` de tek ses taşır. İkinci kanıt bu ekosistem boşluğudur, tüketici değil. Bölme, birleştirme ve ses işleme tüketici kodunda kalır
 > **Karşı görüş:** "Ses üretimi çekirdek iş değil; tüketici SDK'yı fonksiyon düğümünde çağırabilir; Tracon'un katkısı kiracı kapısı ve maliyet kaydıdır." Plan bunu kabul eder: faz yalnız sözleşmeyi, yerleşik uygulamayı ve istek ayarlarını taşır; medya yardımcıları çıkarıldı; faz Faz 198'in kiracı kapısından sonra gelir
@@ -306,7 +306,7 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 | 4 | Diyalog modeli varsayılanı | A: API varsayılanı · B: `VoiceOptions.DialogueModelId` | **B**, varsayılan `null` = API varsayılanı |
 | 5 | HTTP ucu (`POST /api/voice/dialogue`) | A: bu fazda · B: yok | **B** — kullanım workflow düğümündedir; uç Faz 198'in çözümleyicisiyle birlikte gelir |
 | 6 | `POST /api/voice/speak` `providerSettings` taşısın mı | A: evet · B: hayır | **B** — uç operatör denemesidir; OpenAPI ve iki istemci büyümez |
-| 7 | Diyalog yeteneği kiracı kapısından nasıl geçer (Faz 198 devri) | A: sarmalayıcı yeteneği de uygular (yetenek başına sarmalayıcı sınıfı; kiracı anahtarını `SpeechDialogueRequest.Credential` ile iletir) · B: çözümleyiciye `GetDialogueSynthesizerAsync(name, ct)` · C: yetenek kiracı anahtarını hiç almaz, bağlamalı kiracıda reddedilir | Açık — public API kararıdır. A'da çağıran `is` ile okur ama sarmalayıcı yeteneği olmayan motoru da "var" gösterir (iki sınıf gerekir); B tip denetimini çözümleyiciye taşır ve ret yolunu K-930 ile aynı tutar |
+| 7 | Diyalog yeteneği kiracı kapısından nasıl geçer (Faz 198 devri) | A: sarmalayıcı yeteneği de uygular (yetenek başına sarmalayıcı sınıfı; kiracı anahtarını `SpeechDialogueRequest.Credential` ile iletir) · B: çözümleyiciye `GetDialogueSynthesizerAsync(name, ct)` · C: yetenek kiracı anahtarını hiç almaz, bağlamalı kiracıda reddedilir | **B — karar verildi** (bakımcı, 2026-10-13): K-930 her konuşma çağrısını çözümleyiciden geçirir; B tip denetimini ve ret yolunu orada tek yerde tutar ve `is` tuzağını kaldırır. A'da sarmalayıcı yeteneği olmayan motoru da "var" gösterirdi (iki sınıf gerekirdi) |
 
 ---
 

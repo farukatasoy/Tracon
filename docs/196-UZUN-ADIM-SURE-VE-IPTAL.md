@@ -1,7 +1,7 @@
 # Faz 196 — Uzun Adımların Süre Sınırı ve İptali
 
 > **Durum:** 📋 Planlandı (2026-10-12)
-> **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz. 2026-10-13: bakımcı F-405'i bu faza aldı (Açık Soru 9 → A)
+> **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-B, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A, 8-A, 9-A, 10-B, 11-B, 12-B, 13-A). Faz 203 ile paralel geliştirilir
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-303**, **F-323**, **F-405**
 > **Önkoşul:** [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) — aynı kayıt yüzeyi ve editör satırı; 2026-10-12'de kapandı (`55272673`)
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.Sql.Shared`, SQL sağlayıcıları, `.AspNetCore`, `.Testing.Contracts.Xunit`, `.UI` · üretilen istemciler
