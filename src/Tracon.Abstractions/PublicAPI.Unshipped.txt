@@ -1238,7 +1238,13 @@ Tracon.ISkillScriptGrantStore.FindActiveAsync(string! tenantId, string! skillNam
 Tracon.ISkillScriptGrantStore.GrantAsync(Tracon.SkillScriptGrant! grant, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SkillScriptGrant!>
 Tracon.ISkillScriptGrantStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.SkillScriptGrant!>!>
 Tracon.ISkillScriptGrantStore.RevokeAsync(string! tenantId, string! skillName, string? scriptName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.ISpeechDialogueSynthesizer
+Tracon.ISpeechDialogueSynthesizer.DialogueCapabilities.get -> Tracon.SpeechDialogueCapabilities!
+Tracon.ISpeechDialogueSynthesizer.ProviderName.get -> string!
+Tracon.ISpeechDialogueSynthesizer.SupportsTenantCredentials.get -> bool
+Tracon.ISpeechDialogueSynthesizer.SynthesizeDialogueAsync(Tracon.SpeechDialogueRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SpeechDialogueAudio!>
 Tracon.ISpeechProviderResolver
+Tracon.ISpeechProviderResolver.GetDialogueSynthesizerAsync(string? name = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ISpeechDialogueSynthesizer!>
 Tracon.ISpeechProviderResolver.GetSynthesizerAsync(string? name = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ISpeechSynthesizer!>
 Tracon.ISpeechProviderResolver.GetTranscriberAsync(string? name = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ISpeechTranscriber!>
 Tracon.ISpeechProviderResolver.Providers.get -> System.Collections.Generic.IReadOnlyList<Tracon.SpeechProviderDescriptor!>!
@@ -3247,9 +3253,65 @@ Tracon.SpeechAudio.MediaType.get -> string!
 Tracon.SpeechAudio.MediaType.init -> void
 Tracon.SpeechAudio.ModelId.get -> string?
 Tracon.SpeechAudio.ModelId.init -> void
+Tracon.SpeechAudio.ProviderRequestId.get -> string?
+Tracon.SpeechAudio.ProviderRequestId.init -> void
 Tracon.SpeechAudio.SpeechAudio() -> void
 Tracon.SpeechAudio.UsageSource.get -> Tracon.SpeechUsageSource
 Tracon.SpeechAudio.UsageSource.init -> void
+Tracon.SpeechDialogueAudio
+Tracon.SpeechDialogueAudio.Audio.get -> Tracon.SpeechAudio!
+Tracon.SpeechDialogueAudio.Audio.init -> void
+Tracon.SpeechDialogueAudio.Segments.get -> System.Collections.Generic.IReadOnlyList<Tracon.SpeechDialogueSegment!>?
+Tracon.SpeechDialogueAudio.Segments.init -> void
+Tracon.SpeechDialogueAudio.SpeechDialogueAudio() -> void
+Tracon.SpeechDialogueCapabilities
+Tracon.SpeechDialogueCapabilities.<Clone>$() -> Tracon.SpeechDialogueCapabilities!
+Tracon.SpeechDialogueCapabilities.Equals(Tracon.SpeechDialogueCapabilities? other) -> bool
+Tracon.SpeechDialogueCapabilities.MaxCharactersPerRequest.get -> int
+Tracon.SpeechDialogueCapabilities.MaxCharactersPerRequest.init -> void
+Tracon.SpeechDialogueCapabilities.MaxVoices.get -> int
+Tracon.SpeechDialogueCapabilities.MaxVoices.init -> void
+Tracon.SpeechDialogueCapabilities.SpeechDialogueCapabilities() -> void
+Tracon.SpeechDialogueCapabilities.SupportsSegmentTimestamps.get -> bool
+Tracon.SpeechDialogueCapabilities.SupportsSegmentTimestamps.init -> void
+Tracon.SpeechDialogueRequest
+Tracon.SpeechDialogueRequest.<Clone>$() -> Tracon.SpeechDialogueRequest!
+Tracon.SpeechDialogueRequest.Credential.get -> Tracon.ModelProviderCredential?
+Tracon.SpeechDialogueRequest.Credential.init -> void
+Tracon.SpeechDialogueRequest.Equals(Tracon.SpeechDialogueRequest? other) -> bool
+Tracon.SpeechDialogueRequest.IncludeTimestamps.get -> bool
+Tracon.SpeechDialogueRequest.IncludeTimestamps.init -> void
+Tracon.SpeechDialogueRequest.LanguageCode.get -> string?
+Tracon.SpeechDialogueRequest.LanguageCode.init -> void
+Tracon.SpeechDialogueRequest.ModelId.get -> string?
+Tracon.SpeechDialogueRequest.ModelId.init -> void
+Tracon.SpeechDialogueRequest.OutputFormat.get -> string?
+Tracon.SpeechDialogueRequest.OutputFormat.init -> void
+Tracon.SpeechDialogueRequest.ProviderSettings.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+Tracon.SpeechDialogueRequest.ProviderSettings.init -> void
+Tracon.SpeechDialogueRequest.SpeechDialogueRequest() -> void
+Tracon.SpeechDialogueRequest.Turns.get -> System.Collections.Generic.IReadOnlyList<Tracon.SpeechDialogueTurn!>!
+Tracon.SpeechDialogueRequest.Turns.init -> void
+Tracon.SpeechDialogueSegment
+Tracon.SpeechDialogueSegment.<Clone>$() -> Tracon.SpeechDialogueSegment!
+Tracon.SpeechDialogueSegment.End.get -> System.TimeSpan
+Tracon.SpeechDialogueSegment.End.init -> void
+Tracon.SpeechDialogueSegment.Equals(Tracon.SpeechDialogueSegment? other) -> bool
+Tracon.SpeechDialogueSegment.SpeechDialogueSegment() -> void
+Tracon.SpeechDialogueSegment.Start.get -> System.TimeSpan
+Tracon.SpeechDialogueSegment.Start.init -> void
+Tracon.SpeechDialogueSegment.TurnIndex.get -> int
+Tracon.SpeechDialogueSegment.TurnIndex.init -> void
+Tracon.SpeechDialogueSegment.VoiceId.get -> string!
+Tracon.SpeechDialogueSegment.VoiceId.init -> void
+Tracon.SpeechDialogueTurn
+Tracon.SpeechDialogueTurn.<Clone>$() -> Tracon.SpeechDialogueTurn!
+Tracon.SpeechDialogueTurn.Equals(Tracon.SpeechDialogueTurn? other) -> bool
+Tracon.SpeechDialogueTurn.SpeechDialogueTurn() -> void
+Tracon.SpeechDialogueTurn.Text.get -> string!
+Tracon.SpeechDialogueTurn.Text.init -> void
+Tracon.SpeechDialogueTurn.VoiceId.get -> string!
+Tracon.SpeechDialogueTurn.VoiceId.init -> void
 Tracon.SpeechProviderDescriptor
 Tracon.SpeechProviderDescriptor.<Clone>$() -> Tracon.SpeechProviderDescriptor!
 Tracon.SpeechProviderDescriptor.Equals(Tracon.SpeechProviderDescriptor? other) -> bool
@@ -3278,6 +3340,8 @@ Tracon.SpeechRequest.ModelId.get -> string?
 Tracon.SpeechRequest.ModelId.init -> void
 Tracon.SpeechRequest.OutputFormat.get -> string?
 Tracon.SpeechRequest.OutputFormat.init -> void
+Tracon.SpeechRequest.ProviderSettings.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+Tracon.SpeechRequest.ProviderSettings.init -> void
 Tracon.SpeechRequest.SpeechRequest() -> void
 Tracon.SpeechRequest.Text.get -> string!
 Tracon.SpeechRequest.Text.init -> void
@@ -5081,6 +5145,18 @@ override Tracon.SpeakResponse.ToString() -> string!
 override Tracon.SpeechAlignment.Equals(object? obj) -> bool
 override Tracon.SpeechAlignment.GetHashCode() -> int
 override Tracon.SpeechAlignment.ToString() -> string!
+override Tracon.SpeechDialogueCapabilities.Equals(object? obj) -> bool
+override Tracon.SpeechDialogueCapabilities.GetHashCode() -> int
+override Tracon.SpeechDialogueCapabilities.ToString() -> string!
+override Tracon.SpeechDialogueRequest.Equals(object? obj) -> bool
+override Tracon.SpeechDialogueRequest.GetHashCode() -> int
+override Tracon.SpeechDialogueRequest.ToString() -> string!
+override Tracon.SpeechDialogueSegment.Equals(object? obj) -> bool
+override Tracon.SpeechDialogueSegment.GetHashCode() -> int
+override Tracon.SpeechDialogueSegment.ToString() -> string!
+override Tracon.SpeechDialogueTurn.Equals(object? obj) -> bool
+override Tracon.SpeechDialogueTurn.GetHashCode() -> int
+override Tracon.SpeechDialogueTurn.ToString() -> string!
 override Tracon.SpeechProviderDescriptor.Equals(object? obj) -> bool
 override Tracon.SpeechProviderDescriptor.GetHashCode() -> int
 override Tracon.SpeechProviderDescriptor.ToString() -> string!
@@ -5479,6 +5555,7 @@ static Tracon.ModelProviderHealth.operator ==(Tracon.ModelProviderHealth? left, 
 static Tracon.ModelProviderSettings.ReadBoolean(Tracon.ModelBinding! binding, string! key) -> bool?
 static Tracon.ModelProviderSettings.ReadInt32(Tracon.ModelBinding! binding, string! key) -> int?
 static Tracon.ModelProviderSettings.ReadString(Tracon.ModelBinding! binding, string! key) -> string?
+static Tracon.ModelProviderSettings.Validate(System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>! settings, string! providerPrefix, System.Collections.Generic.IReadOnlyCollection<string!>! supportedKeys) -> void
 static Tracon.ModelProviderSettings.Validate(Tracon.ModelBinding! binding, string! providerPrefix, System.Collections.Generic.IReadOnlyCollection<string!>! supportedKeys) -> void
 static Tracon.PendingApproval.operator !=(Tracon.PendingApproval? left, Tracon.PendingApproval? right) -> bool
 static Tracon.PendingApproval.operator ==(Tracon.PendingApproval? left, Tracon.PendingApproval? right) -> bool
@@ -5608,6 +5685,14 @@ static Tracon.SpeakResponse.operator !=(Tracon.SpeakResponse? left, Tracon.Speak
 static Tracon.SpeakResponse.operator ==(Tracon.SpeakResponse? left, Tracon.SpeakResponse? right) -> bool
 static Tracon.SpeechAlignment.operator !=(Tracon.SpeechAlignment? left, Tracon.SpeechAlignment? right) -> bool
 static Tracon.SpeechAlignment.operator ==(Tracon.SpeechAlignment? left, Tracon.SpeechAlignment? right) -> bool
+static Tracon.SpeechDialogueCapabilities.operator !=(Tracon.SpeechDialogueCapabilities? left, Tracon.SpeechDialogueCapabilities? right) -> bool
+static Tracon.SpeechDialogueCapabilities.operator ==(Tracon.SpeechDialogueCapabilities? left, Tracon.SpeechDialogueCapabilities? right) -> bool
+static Tracon.SpeechDialogueRequest.operator !=(Tracon.SpeechDialogueRequest? left, Tracon.SpeechDialogueRequest? right) -> bool
+static Tracon.SpeechDialogueRequest.operator ==(Tracon.SpeechDialogueRequest? left, Tracon.SpeechDialogueRequest? right) -> bool
+static Tracon.SpeechDialogueSegment.operator !=(Tracon.SpeechDialogueSegment? left, Tracon.SpeechDialogueSegment? right) -> bool
+static Tracon.SpeechDialogueSegment.operator ==(Tracon.SpeechDialogueSegment? left, Tracon.SpeechDialogueSegment? right) -> bool
+static Tracon.SpeechDialogueTurn.operator !=(Tracon.SpeechDialogueTurn? left, Tracon.SpeechDialogueTurn? right) -> bool
+static Tracon.SpeechDialogueTurn.operator ==(Tracon.SpeechDialogueTurn? left, Tracon.SpeechDialogueTurn? right) -> bool
 static Tracon.SpeechProviderDescriptor.operator !=(Tracon.SpeechProviderDescriptor? left, Tracon.SpeechProviderDescriptor? right) -> bool
 static Tracon.SpeechProviderDescriptor.operator ==(Tracon.SpeechProviderDescriptor? left, Tracon.SpeechProviderDescriptor? right) -> bool
 static Tracon.SpeechRequest.operator !=(Tracon.SpeechRequest? left, Tracon.SpeechRequest? right) -> bool

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 
 namespace Tracon;
 
@@ -56,6 +57,25 @@ public sealed record SpeechRequest
     /// its text form never shows the key.
     /// </remarks>
     public ModelProviderCredential? Credential { get; init; }
+
+    /// <summary>
+    /// Gets the provider-specific settings, keyed under the provider's prefix (for example
+    /// <c>elevenlabs.stability</c>). Empty by default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A synthesizer refuses an unknown key, another provider's key and a value of the
+    /// wrong type before it calls the service; it never ignores one. The message names the
+    /// key, never the value. A synthesizer that supports no setting refuses every key
+    /// (<see cref="ModelProviderSettings.Validate(IReadOnlyDictionary{string, JsonElement}, string, IReadOnlyCollection{string})"/>
+    /// with an empty list).
+    /// </para>
+    /// <para>
+    /// Code sets it; the <c>speak</c> tool and <c>POST /api/voice/speak</c> send none.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, JsonElement> ProviderSettings { get; init; }
+        = ReadOnlyDictionary<string, JsonElement>.Empty;
 }
 
 /// <summary>Generated audio.</summary>
@@ -105,6 +125,17 @@ public sealed class SpeechAudio
     /// caller did not name a model.
     /// </remarks>
     public string? ModelId { get; init; }
+
+    /// <summary>
+    /// Gets the provider's identifier for this generation, as it reports it;
+    /// <see langword="null"/> when it reports none.
+    /// </summary>
+    /// <remarks>
+    /// The built-in ElevenLabs client reads the <c>request-id</c> response header. A later
+    /// request names it to keep the speech continuous across requests
+    /// (<c>elevenlabs.previousRequestIds</c>).
+    /// </remarks>
+    public string? ProviderRequestId { get; init; }
 }
 
 /// <summary>One character's position in the generated audio.</summary>
