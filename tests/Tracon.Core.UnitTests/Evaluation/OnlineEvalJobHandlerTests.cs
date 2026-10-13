@@ -360,6 +360,33 @@ public sealed class OnlineEvalJobHandlerTests
         reported.Single().Error.ShouldBe("rejected (judge_failed)");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_judge_whose_answer_was_cut_off_at_the_output_limit_fails_the_item_without_a_retry(bool wrapped)
+    {
+        // Audit finding: a truncated structured judge answer was retryable, so
+        // the job sent the same request with the same limit up to MaxAttempts
+        // times and paid for the same cut-off answer each time. An evaluator
+        // from another package can wrap the exception, so both shapes count.
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+        var truncated = new TraconOutputTruncatedException("cut off") { ProviderName = "scripted", MaxOutputTokens = 16 };
+        Exception thrown = wrapped ? new InvalidOperationException("evaluator failed", truncated) : truncated;
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            new InMemoryRunScoreStore(),
+            [new AsyncJudge("cut-off", (_, _) => throw thrown)]);
+        var reported = new List<JobItemResult>();
+
+        await handler.ExecuteAsync(ExecutionContext(runId, reported));
+
+        reported.Single().Status.ShouldBe(JobItemStatus.Failed);
+        reported.Single().Error.ShouldBe("cut-off (judge_failed)");
+    }
+
     [Fact]
     public async Task A_judge_that_gets_a_server_error_is_retried()
     {

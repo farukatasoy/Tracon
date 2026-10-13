@@ -826,6 +826,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   after spending every repair turn on the same limit (validation on); it fails
   once as `OutputTruncated`. A dashboard or alert rule that counted these runs
   under `StructuredResponseInvalid` needs the new class.
+- Online evaluation does not retry a judge whose model answer was cut off at
+  the output limit. The item fails with `judge_failed` on the first attempt, as
+  for a permanent `4xx`; before, the job sent the same request with the same
+  limit until its attempts ran out. Raise the judge binding's `MaxOutputTokens`.
 
 ## [1.0.0-preview.3] - 2026-09-24
 
