@@ -334,6 +334,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-286** · Bütünüyle kaldırılan bir paket kırıcı kapıda hiç denetlenmez | Taban kümesi bugünkü `library_ids`'ten gelir (`scripts/kapi.py` `release_rehearsal`); tabanda olup HEAD'de olmayan paket için ne restore ne rapor olur (Faz 187 denetimi 🟢3) | Taban etiketindeki `src/*/*.csproj` kümesiyle HEAD'dekini karşılaştır; düşen paket kimliği notta code span olarak geçmeli |
 | 🟢 | **F-287** · `dokuman_iddia_cakismalari` proje başına `TraconPublicApiTrackingEnabled=false` cümlesini de çelişki sayar | Faz 187 kapıyı gerçek anahtara çevirdi (`scripts/dokuman-bakim.py`); anahtar artık proje başına kapatmadır (K-424), "`Tracon.Client` `false` yazar" gibi doğru bir skill cümlesi bulgu olur. Bugün tetikleyen satır yok (denetim 🟢4) | İddia desenini varsayılana daralt ("varsayılan"/"default" ya da `src/Directory.Build.props` bağlamı) |
 | 🟢 | **F-311** · Kapalı MCP oturumuna giden çağrı "TaskCanceledException" diye raporlanır | Ölçüldü (2026-10-11, F-305 repro): kapalı oturumdan giden `tools/call` için `ToolFailed` olay metni "Tool failed with TaskCanceledException." idi. Model "Error: Function failed." gördü, run `Completed` döndü; neden iptal değil kapalı bağlantıydı ve operatör onu iptal sanır. `{server}_read_resource` aynı durumda yanıltıcı "not among the resources declared" hatası verir. K-880'den sonra ana yol, F-310'dan sonra uzun ömürlü oturumlar bu duruma girmez; kalan yol derleme ile çağrı arasındaki yarış | MCP tool sarmalı (ya da `ExplainedFailureAIFunction`), çağıranın token'ı iptal değilken dispose edilmiş oturumdan gelen `OperationCanceledException`'ı "MCP connection to server '<ad>' is closed" diye açıklar; `read_resource` gövdesi kapalı bağlantıyı ayrıca söyler |
+| 🟢 | **F-426** · Anthropic'in `model_context_window_exceeded` ve `pause_turn` bitişleri `Stop` sayılır | Ölçüldü (2026-10-13, Faz 204, Anthropic SDK 12.39.0 adaptörü decompile): `ToFinishReason` yalnız `refusal`→`ContentFilter`, `max_tokens`→`Length`, `tool_use`→`ToolCalls` eşler; geri kalanı `Stop` olur. Bağlam penceresine çarpıp kesilen yanıt `FinishReasonDetectingChatClient`'a tam görünür: yapılandırılmış yanıt "invalid JSON" ile reddedilir, düz metin olaysız `Completed` olur | Anthropic paketinde `RawRepresentation`'ın `stop_reason`'ını okuyup `Length`'e eşle (ya da ayrı sınıf kararı); önce sahte gövdeyle kırmızı test |
 
 ### Faz planlama
 
@@ -357,6 +358,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-410** · Kod Loop ölçütüne tanım başına tipli ayar | Faz 201 kapsam dışı: özel tür veri almaz (`LoopEvaluatorRegistry.cs:321-323`); Faz 195'in `Settings` deseni emsal | Faz 201'den sonra |
 | 🟢 | **F-417** · Görsel sağlayıcısı kiracının kendi anahtarını kullanabilsin | K-912 (2026-10-13): kiracının görsel sağlayıcısı için bağlaması varsa üretim reddedilir, çünkü sağlayıcı paketleri üreticiyi kurulum anahtarıyla kurar. Canlı ses `SupportsTenantCredentials` ile aynı işi çözdü (K-878) | Faz 198'in konuşma modeliyle birlikte: anahtarlı üretici fabrikası, OpenAI/Azure/Google görsel kaydı |
 | 🟢 | F-420 · Önbellek yazma token'ı ve fiyatı | Faz 204'ten ayrıldı (2026-10-13); önce ölçüm | Gövde: § *F-420* |
+| 🟢 | **F-427** · Canlı run akışı düz metin kesilmesini söylemez | Ölçüldü (2026-10-13, Faz 204, `OutputTruncationStreamingTests`): `update` çerçeveleri `finishReason` taşımaz; `tracon.output.truncated` yalnız run olaylarında (`GET /api/runs/{id}/events`) görünür. Akışlı istemci yarım yanıtı tam sanar | Karar: kota bildirimi deseniyle `done`'dan önce `custom` çerçevesi ya da son `update`'te bitiş sebebi (public SSE sözleşmesi) |
 
 ### Doğrudan
 
@@ -518,7 +520,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-421**.
+numara: **F-428**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

@@ -461,3 +461,36 @@ bir run bu turda ana uygulamada (tarayıcıdan erişilebilir) oluşturulamadı.
    bu ortamda/girdi ailesinde ampirik olarak **doğrulanamadı** (40'tan
    5000 tekrara kadar hiç yavaşlama yok) — ne kanıtlanmış bir kusur ne
    temiz bir kapanış; kapanış oturumu için açık kalem.
+
+## § 11'in spec'ten taşınan koşum notu (2026-09-02; Faz 204'te dizin bütçesi için taşındı)
+
+**Gerçek sonuç (bu ortamda koşuldu, 2026-09-02).** `MaxRepairAttempts: 2` açık
+bırakılmış `samples/Tracon.Api` (`appsettings.json`) `order-summary`
+agent'ına karşı gerçek bir `gpt-5.4-mini` çağrısı yapıldı:
+
+```bash
+curl -s -X POST "$APU/api/agents/order-summary/run" \
+  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"message":"Give me a summary for order ORD-2."}'
+```
+
+Yanıt `{"orderId":"ORD-2","summary":"Order ORD-2 has shipped and is estimated
+to be delivered in 2 days."}`; `GET /api/runs/{id}` → `status: "Completed"`,
+`error: null`, `usage: {inputTokens:393, outputTokens:55, totalTokens:448}`;
+olay dizisi `run.started, tool.invoking, tool.invoked, message.delta,
+message.completed, run.completed` — `StructuredResponseRejected` da
+`StructuredResponseRepairAttempted` da **yok**. Bu, K1'in "sıfır sürpriz"
+iddiasının pozitif kanıtıdır: `MaxRepairAttempts` sıfırdan farklı bir değere
+ayarlanmış olsa bile, geçerli-ilk-denemeli gerçek bir çalıştırma hiçbir ek
+model çağrısı yapmaz ve hiçbir yeni olay üretmez.
+
+## § 10'un spec'ten taşınan koşum notu (2026-09-01; Faz 204'te dizin bütçesi için taşındı)
+
+**Gerçek sonuç (bu ortamda koşuldu, 2026-09-01)**
+```
+{"orderId":"ORD-1","summary":"Order ORD-1 has shipped and is estimated to be delivered in 2 days."}
+```
+`GET /api/runs/{id}` → `{"status":"Completed","error":null}`.
+`GET /api/runs/{id}/events` olay türleri: `run.started, tool.invoking,
+tool.invoked, message.delta, message.completed, run.completed` —
+`StructuredResponseRejected` **yok**.
