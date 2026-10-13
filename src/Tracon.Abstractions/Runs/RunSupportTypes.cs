@@ -372,6 +372,16 @@ public sealed record RunCompletion
     public RunCost? Cost { get; init; }
 
     /// <summary>
+    /// Gets the non-token cost the run reported (<see cref="RunNonTokenCost"/>), or
+    /// <see langword="null"/> when it reported none.
+    /// </summary>
+    /// <remarks>
+    /// Written with the rest of the completion and never again: an item reported after
+    /// the run closed is kept in the run's detail only.
+    /// </remarks>
+    public RunNonTokenCost? NonTokenCost { get; init; }
+
+    /// <summary>
     /// Gets the model that actually answered, overriding <c>runs.model_id</c>
     /// when it differs from the value written at <c>RunStarted</c>.
     /// <see langword="null"/> leaves the stored value unchanged.

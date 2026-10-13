@@ -144,6 +144,33 @@ public sealed record RunRecord
     public RunTreeCost? TreeCost { get; init; }
 
     /// <summary>
+    /// Gets what this run itself reported as spent that is not tokens — the amounts its
+    /// workflow function nodes and tools reported. <see langword="null"/> when it
+    /// reported nothing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A snapshot written when the run closes. It is a total of its own and not a term
+    /// of <see cref="RunCost.Total"/>; <see cref="RunSpend"/> adds the two.
+    /// </para>
+    /// <para>
+    /// Rows written before the column existed hold <see langword="null"/>; they are not
+    /// backfilled (nobody reported a number for them).
+    /// </para>
+    /// </remarks>
+    public RunNonTokenCost? NonTokenCost { get; init; }
+
+    /// <summary>
+    /// Gets the reported non-token cost of this run and every run below it.
+    /// </summary>
+    /// <remarks>
+    /// This <strong>must not be added</strong> to <see cref="NonTokenCost"/>: the value
+    /// already includes the run's own share, for the same reason as
+    /// <see cref="TreeCost"/>.
+    /// </remarks>
+    public RunNonTokenCost? TreeNonTokenCost { get; init; }
+
+    /// <summary>
     /// Gets the source run id when this run is a replay, otherwise
     /// <see langword="null"/>.
     /// </summary>

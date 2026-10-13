@@ -21,6 +21,7 @@ internal sealed partial class InMemoryRunStore : IRunStore
     private readonly ConcurrentDictionary<Guid, RunRecord> _runs = new();
     private readonly ConcurrentDictionary<Guid, List<RunEvent>> _events = new();
     private readonly ConcurrentDictionary<Guid, List<ToolInvocationRecord>> _toolInvocations = new();
+    private readonly ConcurrentDictionary<Guid, List<NonTokenUsageRecord>> _nonTokenUsage = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _heartbeats = new();
     private readonly ConcurrentQueue<Guid> _insertionOrder = new();
     private readonly IRunScoreStore _scores;

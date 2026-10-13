@@ -268,6 +268,34 @@ internal sealed partial class InMemoryRunStore
 
         AccumulateCost(record.Cost);
 
+        // The reported (non-token) cost is a total of its own, never a term of the
+        // token cost above. A tree "saw" it when any run in it closed with a snapshot.
+        var sawNonToken = false;
+        decimal? nonTokenAmount = null;
+        string? nonTokenCurrency = null;
+        var nonTokenEstimated = false;
+        var nonTokenUnsummed = 0;
+
+        void AccumulateNonToken(RunNonTokenCost? nonToken)
+        {
+            if (nonToken is null)
+            {
+                return;
+            }
+
+            sawNonToken = true;
+            nonTokenCurrency ??= nonToken.Currency;
+            nonTokenEstimated |= nonToken.IsEstimated;
+            nonTokenUnsummed += nonToken.UnsummedItemCount;
+
+            if (nonToken.Amount is { } amount)
+            {
+                nonTokenAmount = (nonTokenAmount ?? 0) + amount;
+            }
+        }
+
+        AccumulateNonToken(record.NonTokenCost);
+
         foreach (var candidate in _runs.Values)
         {
             if (candidate.ParentRunId == record.Id)
@@ -287,6 +315,7 @@ internal sealed partial class InMemoryRunStore
             }
 
             AccumulateCost(candidate.Cost);
+            AccumulateNonToken(candidate.NonTokenCost);
         }
 
         return record with
@@ -312,6 +341,15 @@ internal sealed partial class InMemoryRunStore
                     CachedInputCost = cachedInputCost,
                     Currency = costCurrency,
                     RunsWithUnknownPricing = unknownPricing,
+                }
+                : null,
+            TreeNonTokenCost = sawNonToken
+                ? new RunNonTokenCost
+                {
+                    Amount = nonTokenAmount,
+                    Currency = nonTokenCurrency,
+                    IsEstimated = nonTokenEstimated,
+                    UnsummedItemCount = nonTokenUnsummed,
                 }
                 : null,
         };

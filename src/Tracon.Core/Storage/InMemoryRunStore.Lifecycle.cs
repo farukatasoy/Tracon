@@ -68,6 +68,7 @@ internal sealed partial class InMemoryRunStore
         {
             _events[record.Id] = [];
             _toolInvocations[record.Id] = [];
+            _nonTokenUsage[record.Id] = [];
             _insertionOrder.Enqueue(record.Id);
         }
 
@@ -98,6 +99,7 @@ internal sealed partial class InMemoryRunStore
             Usage = completion.Usage,
             Error = completion.Error,
             Cost = completion.Cost,
+            NonTokenCost = completion.NonTokenCost,
             ModelId = completion.ModelId ?? existing.ModelId,
             ModelProvider = completion.ModelProvider ?? existing.ModelProvider,
         };
@@ -247,6 +249,7 @@ internal sealed partial class InMemoryRunStore
             _runs.TryRemove(oldest, out _);
             _events.TryRemove(oldest, out _);
             _toolInvocations.TryRemove(oldest, out _);
+            _nonTokenUsage.TryRemove(oldest, out _);
             _heartbeats.TryRemove(oldest, out _);
         }
     }

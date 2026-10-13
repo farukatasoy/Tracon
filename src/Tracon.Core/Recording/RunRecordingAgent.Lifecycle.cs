@@ -86,6 +86,8 @@ public sealed partial class RunRecordingAgent
         // the root stream.
         var writer = new RunEventWriter(_runStore, _options, _logger, runId, _metrics, _sinks);
 
+        var budget = runOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null);
+
         var scope = new AgentRunScope
         {
             RunId = runId,
@@ -107,10 +109,14 @@ public sealed partial class RunRecordingAgent
             // runs.
             UserId = attribution.UserId,
             Labels = attribution.Labels,
-            Budget = runOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null),
+            Budget = budget,
             Writer = writer,
             ExtraUsage = new SideChannelUsageAccumulator(),
             ToolUsage = new ToolUsageAccumulator(),
+
+            // What the tools of this run measure beyond tokens adds up here and
+            // reaches the tree's budget the moment it does (phase 199).
+            NonTokenCost = new NonTokenCostAccumulator(_pricingCurrency, budget),
             ToolAuthorization = new ToolAuthorizationAccumulator(),
             ToolExplainedFailures = new ToolExplainedFailureAccumulator(),
             FallbackAttribution = new FallbackModelAttribution(),
@@ -179,7 +185,8 @@ public sealed partial class RunRecordingAgent
                 start.Scope.ToolUsage,
                 start.Scope.TenantId,
                 start.Scope.ToolAuthorization,
-                start.Scope.ToolExplainedFailures),
+                start.Scope.ToolExplainedFailures,
+                start.Scope.NonTokenCost),
             start.Scope.AgentName!,
             start.Scope.TenantId!,
             _timeProvider.GetTimestamp(),
@@ -193,7 +200,8 @@ public sealed partial class RunRecordingAgent
             SessionId: start.SessionId,
             Kind: start.Kind,
             FallbackAttribution: start.Scope.FallbackAttribution,
-            UserId: start.UserId);
+            UserId: start.UserId,
+            NonTokenCost: start.Scope.NonTokenCost);
 
     /// <summary>
     /// Reads the run's attribution.
@@ -250,5 +258,6 @@ public sealed partial class RunRecordingAgent
         string? SessionId,
         RunKind Kind,
         FallbackModelAttribution? FallbackAttribution,
-        string? UserId);
+        string? UserId,
+        NonTokenCostAccumulator? NonTokenCost);
 }

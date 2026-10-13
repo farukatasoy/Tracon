@@ -236,6 +236,16 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "cost_currency", completion.Cost?.Currency);
         Dialect.AddInt16(command, "pricing_source", completion.Cost is { } cost ? (short)cost.Source : null);
 
+        // phase 199: the run's reported non-token total, a snapshot like the cost above.
+        // `non_token_unsummed` is the PRESENCE marker: NULL means the run reported
+        // nothing, and every other column of the group is NULL with it. A run that
+        // reported items none of which carried an amount writes unsummed > 0 and a
+        // NULL amount -- unknown, not free.
+        AddNullableDecimal(command, "non_token_cost", completion.NonTokenCost?.Amount);
+        AddNullableText(command, "non_token_currency", completion.NonTokenCost?.Currency);
+        Dialect.AddNullableBoolean(command, "non_token_estimated", completion.NonTokenCost?.IsEstimated);
+        Dialect.AddInt32(command, "non_token_unsummed", completion.NonTokenCost?.UnsummedItemCount);
+
         // NULL leaves the column at the value StartRunAsync already wrote
         // (phase 62) — the SQL text COALESCEs it, this is not a conditional here.
         AddNullableText(command, "model_id", completion.ModelId);
@@ -737,6 +747,8 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddNullableBoolean(command, "usage_estimated", invocation.Usage?.IsEstimated);
         Dialect.AddDecimal(command, "cost", invocation.Usage?.Cost);
         AddNullableText(command, "cost_currency", invocation.Usage?.Currency);
+        AddNullableText(command, "usage_provider", invocation.Usage?.Provider);
+        AddNullableText(command, "usage_model", invocation.Usage?.Model);
 
         // Authorization decision and timeout marker (Phase 69). Both NOT
         // NULL: a call that is neither denied nor timed out writes false,
@@ -791,6 +803,8 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddNullableBoolean(command, "usage_estimated", completion.Usage?.IsEstimated);
         Dialect.AddDecimal(command, "cost", completion.Usage?.Cost);
         AddNullableText(command, "cost_currency", completion.Usage?.Currency);
+        AddNullableText(command, "usage_provider", completion.Usage?.Provider);
+        AddNullableText(command, "usage_model", completion.Usage?.Model);
         Dialect.AddTimestamp(command, "late_completed_at", completion.LateCompletedAt);
 
         // EXPECTED tenant (K-355). NULL means no check.
@@ -813,6 +827,65 @@ internal sealed class SqlRunStore : IRunStore
 
         return await DbHelpers
             .ReadListAsync(command, ReadToolInvocation, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask RecordNonTokenUsageAsync(
+        NonTokenUsageRecord record,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        var command = CreateCommand(_sql.InsertNonTokenUsage);
+        DbHelpers.Add(command, "id", record.Id);
+        DbHelpers.Add(command, "run_id", record.RunId);
+        AddNullableText(command, "node_name", record.NodeName);
+        DbHelpers.Add(command, "unit", record.Usage.Unit);
+        Dialect.AddDecimal(command, "quantity", record.Usage.Quantity);
+        Dialect.AddDecimal(command, "cost", record.Usage.Cost);
+        AddNullableText(command, "currency", record.Usage.Currency);
+        Dialect.AddBoolean(command, "estimated", record.Usage.IsEstimated);
+        AddNullableText(command, "provider", record.Usage.Provider);
+        AddNullableText(command, "model", record.Usage.Model);
+        Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+
+        // EXPECTED tenant (K-355). NULL means no check.
+        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(record.TenantId));
+
+        int affected;
+
+        try
+        {
+            affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbException ex) when (Dialect.IsForeignKeyViolation(ex))
+        {
+            throw new TraconException(
+                $"Run with id '{record.RunId}' was not found. " +
+                "StartRunAsync must be called before recording a non-token usage item.",
+                ex);
+        }
+
+        if (affected == 0)
+        {
+            throw new TraconException(
+                $"Run with id '{record.RunId}' was not found or does not belong to the expected " +
+                $"tenant ('{record.TenantId}'). The non-token usage item was not written.");
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        var command = CreateCommand(_sql.SelectNonTokenUsage);
+        DbHelpers.Add(command, "run_id", runId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
+
+        return await DbHelpers
+            .ReadListAsync(command, ReadNonTokenUsage, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -926,6 +999,7 @@ internal sealed class SqlRunStore : IRunStore
         var errorType = DbHelpers.GetNullableString(reader, RunOrdinals.ErrorType);
         var ownUsage = ReadUsage(reader);
         var ownCost = ReadCost(reader);
+        var ownNonTokenCost = ReadNonTokenCost(reader);
 
         return new RunRecord
         {
@@ -982,6 +1056,11 @@ internal sealed class SqlRunStore : IRunStore
             // the last column Phase 68 appended). NULL on every row written
             // before the column existed, and on every run that is not a continuation.
             ContinuedFromRunId = reader.IsDBNull(RunOrdinals.ContinuedFromRunId) ? null : reader.GetGuid(RunOrdinals.ContinuedFromRunId),
+
+            // Appended at the END in phase 199. NULL on every row written before the
+            // columns existed and on every run that reported nothing beyond tokens.
+            NonTokenCost = ownNonTokenCost,
+            TreeNonTokenCost = ReadTreeNonTokenCost(reader, ownNonTokenCost),
         };
     }
 
@@ -1130,6 +1209,88 @@ internal sealed class SqlRunStore : IRunStore
         };
     }
 
+    /// <summary>Reads the run's own reported non-token total.</summary>
+    /// <remarks>
+    /// <c>non_token_unsummed</c> is the presence marker: NULL means the run reported
+    /// nothing (every row written before the column existed included), so no object is constructed --
+    /// an empty <see cref="RunNonTokenCost"/> would say "reported, and it was nothing".
+    /// </remarks>
+    private static RunNonTokenCost? ReadNonTokenCost(DbDataReader reader)
+    {
+        if (reader.IsDBNull(RunOrdinals.NonTokenUnsummed))
+        {
+            return null;
+        }
+
+        return new RunNonTokenCost
+        {
+            Amount = DbHelpers.GetNullableDecimal(reader, RunOrdinals.NonTokenCost),
+            Currency = DbHelpers.GetNullableString(reader, RunOrdinals.NonTokenCurrency),
+            IsEstimated = !reader.IsDBNull(RunOrdinals.NonTokenEstimated) &&
+                          DbHelpers.ToBoolean(reader.GetValue(RunOrdinals.NonTokenEstimated)),
+            UnsummedItemCount = ToCount(reader, RunOrdinals.NonTokenUnsummed),
+        };
+    }
+
+    /// <summary>Combines the descendants' reported non-token total with the record's own.</summary>
+    /// <remarks>
+    /// Same rationale as <see cref="ReadTreeCost"/>: the aggregate covers only
+    /// <em>descendant</em> runs and the record's own share is added here. A tree in which
+    /// nobody reported anything stays <see langword="null"/>.
+    /// </remarks>
+    private static RunNonTokenCost? ReadTreeNonTokenCost(DbDataReader reader, RunNonTokenCost? ownNonTokenCost)
+    {
+        var anyDescendantReported = !reader.IsDBNull(RunOrdinals.TreeNonTokenUnsummed);
+
+        if (!anyDescendantReported && ownNonTokenCost is null)
+        {
+            return null;
+        }
+
+        var amount = DbHelpers.GetNullableDecimal(reader, RunOrdinals.TreeNonTokenCost);
+
+        if (ownNonTokenCost?.Amount is { } ownAmount)
+        {
+            amount = (amount ?? 0m) + ownAmount;
+        }
+
+        var unsummed = (anyDescendantReported ? ToCount(reader, RunOrdinals.TreeNonTokenUnsummed) : 0)
+            + (ownNonTokenCost?.UnsummedItemCount ?? 0);
+
+        return new RunNonTokenCost
+        {
+            Amount = amount,
+            Currency = DbHelpers.GetNullableString(reader, RunOrdinals.TreeNonTokenCurrency) ?? ownNonTokenCost?.Currency,
+            IsEstimated = ownNonTokenCost?.IsEstimated == true
+                          || (!reader.IsDBNull(RunOrdinals.TreeNonTokenEstimatedRows)
+                              && ToCount(reader, RunOrdinals.TreeNonTokenEstimatedRows) > 0),
+            UnsummedItemCount = unsummed,
+        };
+    }
+
+    /// <summary>Reads an integer count whatever width the provider returned it in.</summary>
+    private static int ToCount(DbDataReader reader, int ordinal)
+        => (int)Math.Min(Convert.ToInt64(reader.GetValue(ordinal), CultureInfo.InvariantCulture), int.MaxValue);
+
+    private static NonTokenUsageRecord ReadNonTokenUsage(DbDataReader reader)
+        => new()
+        {
+            Id = reader.GetGuid(0),
+            RunId = reader.GetGuid(1),
+            NodeName = DbHelpers.GetNullableString(reader, 2),
+            Usage = new ToolCallUsage
+            {
+                Unit = reader.GetString(3),
+                Quantity = reader.GetDecimal(4),
+                Cost = DbHelpers.GetNullableDecimal(reader, 5),
+                Currency = DbHelpers.GetNullableString(reader, 6),
+                IsEstimated = DbHelpers.ToBoolean(reader.GetValue(7)),
+                Provider = DbHelpers.GetNullableString(reader, 8),
+                Model = DbHelpers.GetNullableString(reader, 9),
+            },
+            CreatedAt = DbHelpers.GetTimestamp(reader, 10),
+        };
+
     private ToolInvocationRecord ReadToolInvocation(DbDataReader reader)
         => new()
         {
@@ -1158,7 +1319,7 @@ internal sealed class SqlRunStore : IRunStore
         };
 
     /// <summary>
-    /// Reads the non-token measurement columns (indexes 10-14).
+    /// Reads the non-token measurement columns (indexes 10-14, and 18-19).
     /// </summary>
     /// <remarks>
     /// If the unit is empty, the call reported no measurement at all and no
@@ -1181,6 +1342,11 @@ internal sealed class SqlRunStore : IRunStore
             IsEstimated = !reader.IsDBNull(12) && DbHelpers.ToBoolean(reader.GetValue(12)),
             Cost = DbHelpers.GetNullableDecimal(reader, 13),
             Currency = DbHelpers.GetNullableString(reader, 14),
+
+            // Indexes 18-19, appended in phase 199: who did the work. NULL on every
+            // measurement written before the columns existed.
+            Provider = DbHelpers.GetNullableString(reader, 18),
+            Model = DbHelpers.GetNullableString(reader, 19),
         };
     }
 

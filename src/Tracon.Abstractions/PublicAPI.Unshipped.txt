@@ -5989,3 +5989,58 @@ override Tracon.WebhookEvalSummary.GetHashCode() -> int
 override Tracon.WebhookEvalSummary.ToString() -> string!
 static Tracon.WebhookEvalSummary.operator !=(Tracon.WebhookEvalSummary? left, Tracon.WebhookEvalSummary? right) -> bool
 static Tracon.WebhookEvalSummary.operator ==(Tracon.WebhookEvalSummary? left, Tracon.WebhookEvalSummary? right) -> bool
+Tracon.IRunStore.ListNonTokenUsageAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.NonTokenUsageRecord!>!>
+Tracon.IRunStore.RecordNonTokenUsageAsync(Tracon.NonTokenUsageRecord! record, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.NonTokenUsageRecord
+Tracon.NonTokenUsageRecord.<Clone>$() -> Tracon.NonTokenUsageRecord!
+Tracon.NonTokenUsageRecord.CreatedAt.get -> System.DateTimeOffset
+Tracon.NonTokenUsageRecord.CreatedAt.init -> void
+Tracon.NonTokenUsageRecord.Equals(Tracon.NonTokenUsageRecord? other) -> bool
+Tracon.NonTokenUsageRecord.Id.get -> System.Guid
+Tracon.NonTokenUsageRecord.Id.init -> void
+Tracon.NonTokenUsageRecord.NodeName.get -> string?
+Tracon.NonTokenUsageRecord.NodeName.init -> void
+Tracon.NonTokenUsageRecord.NonTokenUsageRecord() -> void
+Tracon.NonTokenUsageRecord.RunId.get -> System.Guid
+Tracon.NonTokenUsageRecord.RunId.init -> void
+Tracon.NonTokenUsageRecord.TenantId.get -> string?
+Tracon.NonTokenUsageRecord.TenantId.init -> void
+Tracon.NonTokenUsageRecord.Usage.get -> Tracon.ToolCallUsage!
+Tracon.NonTokenUsageRecord.Usage.init -> void
+Tracon.RunCompletion.NonTokenCost.get -> Tracon.RunNonTokenCost?
+Tracon.RunCompletion.NonTokenCost.init -> void
+Tracon.RunNonTokenCost
+Tracon.RunNonTokenCost.<Clone>$() -> Tracon.RunNonTokenCost!
+Tracon.RunNonTokenCost.Amount.get -> decimal?
+Tracon.RunNonTokenCost.Amount.init -> void
+Tracon.RunNonTokenCost.Currency.get -> string?
+Tracon.RunNonTokenCost.Currency.init -> void
+Tracon.RunNonTokenCost.Equals(Tracon.RunNonTokenCost? other) -> bool
+Tracon.RunNonTokenCost.IsEstimated.get -> bool
+Tracon.RunNonTokenCost.IsEstimated.init -> void
+Tracon.RunNonTokenCost.RunNonTokenCost() -> void
+Tracon.RunNonTokenCost.UnsummedItemCount.get -> int
+Tracon.RunNonTokenCost.UnsummedItemCount.init -> void
+Tracon.RunRecord.NonTokenCost.get -> Tracon.RunNonTokenCost?
+Tracon.RunRecord.NonTokenCost.init -> void
+Tracon.RunRecord.TreeNonTokenCost.get -> Tracon.RunNonTokenCost?
+Tracon.RunRecord.TreeNonTokenCost.init -> void
+Tracon.RunSpend
+Tracon.ToolCallUsage.Model.get -> string?
+Tracon.ToolCallUsage.Model.init -> void
+Tracon.ToolCallUsage.Provider.get -> string?
+Tracon.ToolCallUsage.Provider.init -> void
+Tracon.WebhookRunSummary.NonTokenCost.get -> decimal?
+Tracon.WebhookRunSummary.NonTokenCost.init -> void
+override Tracon.NonTokenUsageRecord.Equals(object? obj) -> bool
+override Tracon.NonTokenUsageRecord.GetHashCode() -> int
+override Tracon.NonTokenUsageRecord.ToString() -> string!
+override Tracon.RunNonTokenCost.Equals(object? obj) -> bool
+override Tracon.RunNonTokenCost.GetHashCode() -> int
+override Tracon.RunNonTokenCost.ToString() -> string!
+static Tracon.NonTokenUsageRecord.operator !=(Tracon.NonTokenUsageRecord? left, Tracon.NonTokenUsageRecord? right) -> bool
+static Tracon.NonTokenUsageRecord.operator ==(Tracon.NonTokenUsageRecord? left, Tracon.NonTokenUsageRecord? right) -> bool
+static Tracon.RunNonTokenCost.operator !=(Tracon.RunNonTokenCost? left, Tracon.RunNonTokenCost? right) -> bool
+static Tracon.RunNonTokenCost.operator ==(Tracon.RunNonTokenCost? left, Tracon.RunNonTokenCost? right) -> bool
+static Tracon.RunSpend.Total(Tracon.RunCost? cost, Tracon.RunNonTokenCost? nonTokenCost) -> decimal?
+static Tracon.RunSpend.Total(Tracon.RunTreeCost? cost, Tracon.RunNonTokenCost? nonTokenCost) -> decimal?

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Routing;
 namespace Tracon;
 
 /// <summary>
-/// Telemetry endpoints: a run's span tree and tool calls.
+/// Telemetry endpoints: a run's span tree, tool calls and non-token usage.
 /// </summary>
 internal static class ObservabilityEndpoints
 {
@@ -112,6 +112,58 @@ internal static class ObservabilityEndpoints
                 "messages arrive at once, so the true duration between call and result cannot be read. " +
                 "A run that does not exist, belongs to another tenant, or is denied by a registered " +
                 "IRunAuthorizationHandler returns the same 404.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        builder.MapGet("/api/runs/{runId:guid}/usage", async Task<Results<Ok<IReadOnlyList<NonTokenUsageRecord>>, ProblemHttpResult>> (
+                Guid runId,
+                IRunStore runs,
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                [FromServices] IRunAttributionContext? attributionContext,
+                ITenantContext tenants,
+                HttpContext httpContext,
+                CancellationToken cancellationToken) =>
+            {
+                // 🚨 Same order as /tools above, for the same reason (K-671): the run is
+                // looked up FIRST, so an unknown run, another tenant's run and a denied
+                // run all answer the same 404. An empty 200 for a missing run beside a
+                // 404 for a denied one would be an existence oracle.
+                if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record)
+                {
+                    return RunNotFound(runId);
+                }
+
+                if (await RunAuthorizationGate
+                        .CheckRunResourceAsync(
+                            runAuthorizationHandler,
+                            tenants,
+                            runId,
+                            record.AgentName,
+                            record.SessionId,
+                            attributionContext,
+                            RunAccess.Read,
+                            RunNotFound(runId),
+                            httpContext,
+                            cancellationToken)
+                        .ConfigureAwait(false) is { } authorizationProblem)
+                {
+                    return authorizationProblem;
+                }
+
+                return TypedResults.Ok(
+                    await runs.ListNonTokenUsageAsync(runId, cancellationToken).ConfigureAwait(false));
+            })
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
+            .WithName("TraconListRunNonTokenUsage")
+            .WithTags("Tracon", "Runs")
+            .WithSummary("Lists the non-token usage items a run's workflow function nodes reported.")
+            .WithDescription(
+                "Each item is one call of IWorkflowContext.ReportUsageAsync, in the order reported: " +
+                "the node's name, the unit and quantity, and the amount when the node reported one. " +
+                "The items of the run itself only, not of the runs below it; a tool's measurement stays on " +
+                "GET /api/runs/{runId}/tools. The run's total is on the run record (nonTokenCost, " +
+                "treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a " +
+                "registered IRunAuthorizationHandler returns the same 404.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapGet("/api/tools/usage", async Task<Ok<IReadOnlyList<ToolUsage>>> (

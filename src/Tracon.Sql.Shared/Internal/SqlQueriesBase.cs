@@ -186,6 +186,14 @@ internal abstract class SqlQueriesBase
         new("input_price_per_mtok", RunColumnSource.Own),
         new("output_price_per_mtok", RunColumnSource.Own),
         new("cached_input_price_per_mtok", RunColumnSource.Own),
+        new("non_token_cost", RunColumnSource.Own),
+        new("non_token_currency", RunColumnSource.Own),
+        new("non_token_estimated", RunColumnSource.Own),
+        new("non_token_unsummed", RunColumnSource.Own),
+        new("non_token_cost", RunColumnSource.Tree),
+        new("non_token_currency", RunColumnSource.Tree),
+        new("non_token_estimated_rows", RunColumnSource.Tree),
+        new("non_token_unsummed", RunColumnSource.Tree),
     ];
 
     /// <summary>Gets the query that inserts a tool invocation record.</summary>
@@ -193,6 +201,12 @@ internal abstract class SqlQueriesBase
 
     /// <summary>Gets the query that lists the tool invocations of a run.</summary>
     public string SelectToolInvocations { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that inserts a non-token usage item a function node reported.</summary>
+    public string InsertNonTokenUsage { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that lists the non-token usage items of a run.</summary>
+    public string SelectNonTokenUsage { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that writes a late-settled outcome onto an existing tool invocation record.</summary>
     public string UpdateLateToolInvocation { get; protected set; } = string.Empty;
@@ -1337,10 +1351,10 @@ internal abstract class SqlQueriesBase
             INSERT INTO {Table("tool_invocations")}
                 (id, run_id, tool_name, tool_call_id, source, arguments, result, duration_ms, error, created_at,
                  usage_unit, usage_quantity, usage_estimated, cost, cost_currency,
-                 authorization_denied, timed_out)
+                 authorization_denied, timed_out, usage_provider, usage_model)
             SELECT @id, @run_id, @tool_name, @tool_call_id, @source, @arguments, @result, @duration_ms, @error, @created_at,
                    @usage_unit, @usage_quantity, @usage_estimated, @cost, @cost_currency,
-                   @authorization_denied, @timed_out
+                   @authorization_denied, @timed_out, @usage_provider, @usage_model
             WHERE EXISTS (
                 SELECT 1 FROM {Table("runs")} r
                 WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
@@ -1353,7 +1367,8 @@ internal abstract class SqlQueriesBase
             SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
                    t.duration_ms, t.error, t.created_at,
                    t.usage_unit, t.usage_quantity, t.usage_estimated, t.cost, t.cost_currency,
-                   t.authorization_denied, t.timed_out, t.late_completed_at
+                   t.authorization_denied, t.timed_out, t.late_completed_at,
+                   t.usage_provider, t.usage_model
             FROM {Table("tool_invocations")} t
             JOIN {Table("runs")} r ON r.id = t.run_id
             WHERE t.run_id = @run_id AND r.tenant_id = @tenant_id
@@ -1385,6 +1400,8 @@ internal abstract class SqlQueriesBase
                 usage_estimated   = COALESCE(@usage_estimated, usage_estimated),
                 cost              = COALESCE(@cost, cost),
                 cost_currency     = COALESCE(@cost_currency, cost_currency),
+                usage_provider    = COALESCE(@usage_provider, usage_provider),
+                usage_model       = COALESCE(@usage_model, usage_model),
                 late_completed_at = @late_completed_at
             WHERE run_id = @run_id
               AND tool_call_id = @tool_call_id
@@ -1392,6 +1409,29 @@ internal abstract class SqlQueriesBase
               AND EXISTS (
                 SELECT 1 FROM {Table("runs")} r
                 WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
+            """;
+
+        // phase 199: one row per non-token item a function node reported. Same tenant
+        // guard as InsertToolInvocation (K-355): the row is written only when the
+        // expected tenant owns the run, and the owning run carries the tenant.
+        InsertNonTokenUsage = $"""
+            INSERT INTO {Table("run_non_token_usage")}
+                (id, run_id, node_name, unit, quantity, cost, currency, estimated, provider, model, created_at)
+            SELECT @id, @run_id, @node_name, @unit, @quantity, @cost, @currency, @estimated, @provider, @model, @created_at
+            WHERE EXISTS (
+                SELECT 1 FROM {Table("runs")} r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
+            """;
+
+        // The items of the run itself, in the order they were reported. The tenant
+        // join is the read-side guard: another tenant's run id reads an empty list.
+        SelectNonTokenUsage = $"""
+            SELECT n.id, n.run_id, n.node_name, n.unit, n.quantity, n.cost, n.currency, n.estimated,
+                   n.provider, n.model, n.created_at
+            FROM {Table("run_non_token_usage")} n
+            JOIN {Table("runs")} r ON r.id = n.run_id
+            WHERE n.run_id = @run_id AND r.tenant_id = @tenant_id
+            ORDER BY n.created_at, n.id;
             """;
 
         DeleteExperiment = $"""

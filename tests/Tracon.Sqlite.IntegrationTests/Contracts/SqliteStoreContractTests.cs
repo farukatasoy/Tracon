@@ -99,6 +99,19 @@ public sealed class SqliteToolInvocationContractTests(SqliteSchemaFixture schema
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteNonTokenUsageContractTests(SqliteSchemaFixture schema)
+    : NonTokenUsageContract, IClassFixture<SqliteSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IRunStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Runs;
+    }
+}
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
 public sealed class SqliteAttachmentStoreContractTests(SqliteSchemaFixture schema)
     : AttachmentStoreContract, IClassFixture<SqliteSchemaFixture>
 {

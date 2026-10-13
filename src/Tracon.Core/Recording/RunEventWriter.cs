@@ -402,6 +402,55 @@ public sealed class RunEventWriter
     }
 
     /// <summary>
+    /// Records one non-token item a workflow function node reported.
+    /// </summary>
+    /// <param name="record">The item.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// Written the moment the node reports it and not cancelled with the run: the work
+    /// was done and the provider billed it, so a run that is cancelled one line later
+    /// keeps the item. Its failure is swallowed the same way as an event write.
+    /// </remarks>
+    internal async ValueTask RecordNonTokenUsageAsync(
+        NonTokenUsageRecord record,
+        CancellationToken cancellationToken = default)
+    {
+        if (IsDisabled)
+        {
+            return;
+        }
+
+        try
+        {
+            await _store.RecordNonTokenUsageAsync(record, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+        {
+            Disable(ex, RunRecordingStages.NonTokenUsage);
+        }
+    }
+
+    /// <summary>Logs an item a function node reported that cannot be recorded.</summary>
+    /// <param name="nodeName">The reporting node, or <see langword="null"/> when unknown.</param>
+    /// <param name="reason">Why the item was refused.</param>
+    internal void LogNonTokenUsageRefused(string? nodeName, string reason)
+        => _logger.LogWarning(
+            "Run {RunId} refused a non-token usage item reported by node {Node}: {Reason} The item is not recorded and not counted.",
+            RunId,
+            nodeName ?? "(none)",
+            reason);
+
+    /// <summary>Logs an item a function node reported after its run's total was already read.</summary>
+    /// <param name="nodeName">The reporting node, or <see langword="null"/> when unknown.</param>
+    internal void LogNonTokenUsageLate(string? nodeName)
+        => _logger.LogInformation(
+            "Node {Node} of run {RunId} reported a non-token usage item after the run's total was written. " +
+            "The item is kept in the run's detail; the run's total, its quota entry and its budget do not include it.",
+            nodeName ?? "(none)",
+            RunId);
+
+    /// <summary>
     /// Writes the settled outcome of a call whose timeout had already been
     /// reported onto that call's existing record.
     /// </summary>
@@ -443,6 +492,9 @@ public sealed class RunEventWriter
     /// <param name="usage">The token usage.</param>
     /// <param name="error">The error information.</param>
     /// <param name="cost">The computed cost. <see langword="null"/> if the model is unknown.</param>
+    /// <param name="nonTokenCost">
+    /// The non-token cost the run reported. <see langword="null"/> if it reported none.
+    /// </param>
     /// <param name="modelId">
     /// The model that actually answered, overriding <c>runs.model_id</c> when
     /// a <see cref="ModelBinding.Fallbacks"/> link stood in for the primary
@@ -468,6 +520,7 @@ public sealed class RunEventWriter
         RunUsage? usage = null,
         RunError? error = null,
         RunCost? cost = null,
+        RunNonTokenCost? nonTokenCost = null,
         string? modelId = null,
         string? modelProvider = null,
         string? closingEventPayload = null,
@@ -512,6 +565,7 @@ public sealed class RunEventWriter
                     Usage = usage,
                     Error = error,
                     Cost = cost,
+                    NonTokenCost = nonTokenCost,
                     ModelId = modelId,
                     ModelProvider = modelProvider,
 

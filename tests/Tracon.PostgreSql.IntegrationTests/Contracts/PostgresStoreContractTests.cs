@@ -95,6 +95,19 @@ public sealed class PostgresToolInvocationContractTests(PostgresSchemaFixture sc
 }
 
 /// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
+public sealed class PostgresNonTokenUsageContractTests(PostgresSchemaFixture schema)
+    : NonTokenUsageContract, IClassFixture<PostgresSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IRunStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Runs;
+    }
+}
+
+/// <inheritdoc cref="PostgresAgentDefinitionStoreContractTests" />
 public sealed class PostgresAttachmentStoreContractTests(PostgresSchemaFixture schema)
     : AttachmentStoreContract, IClassFixture<PostgresSchemaFixture>
 {

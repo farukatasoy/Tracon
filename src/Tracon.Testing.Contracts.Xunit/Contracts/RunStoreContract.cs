@@ -1209,6 +1209,168 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         record.TreeCost!.Total().ShouldBe(Expected);
     }
 
+    [Fact]
+    public async Task Non_token_cost_snapshot_round_trips_and_a_run_that_reported_nothing_has_none()
+    {
+        var reporterId = TraconId.NewId();
+        var silentId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(reporterId));
+        await Store.StartRunAsync(TestData.Run(silentId));
+
+        await CompleteWithNonTokenCostAsync(
+            reporterId,
+            new RunNonTokenCost { Amount = 1.2345m, Currency = "USD", IsEstimated = true, UnsummedItemCount = 2 });
+
+        await CompleteWithNonTokenCostAsync(silentId, nonTokenCost: null);
+
+        var reporter = await Store.GetRunAsync(reporterId);
+
+        reporter.ShouldNotBeNull();
+        reporter.NonTokenCost.ShouldNotBeNull();
+        reporter.NonTokenCost.Amount.ShouldBe(1.2345m);
+        reporter.NonTokenCost.Currency.ShouldBe("USD");
+        reporter.NonTokenCost.IsEstimated.ShouldBeTrue();
+        reporter.NonTokenCost.UnsummedItemCount.ShouldBe(2);
+
+        // 🚨 Nothing reported is NULL, never a zero amount: a zero would claim the run
+        // reported items and every one of them was free.
+        var silent = await Store.GetRunAsync(silentId);
+
+        silent.ShouldNotBeNull();
+        silent.NonTokenCost.ShouldBeNull();
+        silent.TreeNonTokenCost.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Items_that_carried_no_amount_keep_their_count_and_a_null_amount()
+    {
+        var runId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId));
+        await CompleteWithNonTokenCostAsync(runId, new RunNonTokenCost { UnsummedItemCount = 3, Currency = "USD" });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.NonTokenCost.ShouldNotBeNull();
+        record.NonTokenCost.Amount.ShouldBeNull();
+        record.NonTokenCost.UnsummedItemCount.ShouldBe(3);
+        record.NonTokenCost.IsEstimated.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Tree_non_token_cost_adds_every_run_in_the_tree_once()
+    {
+        var rootId = TraconId.NewId();
+        var childId = TraconId.NewId();
+        var silentChildId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(childId) with { ParentRunId = rootId, RootRunId = rootId, Depth = 1 });
+        await Store.StartRunAsync(TestData.Run(silentChildId) with { ParentRunId = rootId, RootRunId = rootId, Depth = 1 });
+
+        await CompleteWithNonTokenCostAsync(
+            rootId,
+            new RunNonTokenCost { Amount = 1m, Currency = "USD", UnsummedItemCount = 1 });
+
+        await CompleteWithNonTokenCostAsync(
+            childId,
+            new RunNonTokenCost { Amount = 0.25m, Currency = "USD", IsEstimated = true, UnsummedItemCount = 2 });
+
+        await CompleteWithNonTokenCostAsync(silentChildId, nonTokenCost: null);
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+
+        // The run's own share is its own row alone ...
+        root.NonTokenCost.ShouldNotBeNull();
+        root.NonTokenCost.Amount.ShouldBe(1m);
+        root.NonTokenCost.IsEstimated.ShouldBeFalse();
+
+        // ... and the tree is that share plus the descendants', counted once.
+        root.TreeNonTokenCost.ShouldNotBeNull();
+        root.TreeNonTokenCost.Amount.ShouldBe(1.25m);
+        root.TreeNonTokenCost.Currency.ShouldBe("USD");
+        root.TreeNonTokenCost.IsEstimated.ShouldBeTrue();
+        root.TreeNonTokenCost.UnsummedItemCount.ShouldBe(3);
+
+        var child = await Store.GetRunAsync(childId);
+
+        child.ShouldNotBeNull();
+        child.TreeNonTokenCost.ShouldNotBeNull();
+        child.TreeNonTokenCost.Amount.ShouldBe(0.25m);
+    }
+
+    [Fact]
+    public async Task A_tree_in_which_only_a_child_reported_still_has_a_tree_total()
+    {
+        var rootId = TraconId.NewId();
+        var childId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(rootId));
+        await Store.StartRunAsync(TestData.Run(childId) with { ParentRunId = rootId, RootRunId = rootId, Depth = 1 });
+
+        await CompleteWithNonTokenCostAsync(rootId, nonTokenCost: null);
+        await CompleteWithNonTokenCostAsync(childId, new RunNonTokenCost { Amount = 2m, Currency = "USD" });
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.NonTokenCost.ShouldBeNull();
+        root.TreeNonTokenCost.ShouldNotBeNull();
+        root.TreeNonTokenCost.Amount.ShouldBe(2m);
+        root.TreeNonTokenCost.UnsummedItemCount.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Non_token_cost_is_a_total_of_its_own_and_never_a_term_of_the_token_cost()
+    {
+        var runId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId) with { ModelId = "m" });
+
+        await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 10, OutputTokens = 5, TotalTokens = 15 },
+            Cost = new RunCost
+            {
+                InputCost = 1m,
+                OutputCost = 2m,
+                CachedInputCost = 0.5m,
+                Currency = "USD",
+                Source = PricingSource.Catalog,
+            },
+            NonTokenCost = new RunNonTokenCost { Amount = 4m, Currency = "USD" },
+        });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+
+        // The token total does not move ...
+        record.Cost!.Total().ShouldBe(3.5m);
+        record.TreeCost!.Total().ShouldBe(3.5m);
+        (await Store.GetStatisticsAsync(new RunStatisticsQuery())).TotalCost.ShouldBe(3.5m);
+
+        // ... and the one function that adds the two says so.
+        RunSpend.Total(record.Cost, record.NonTokenCost).ShouldBe(7.5m);
+        RunSpend.Total(record.TreeCost, record.TreeNonTokenCost).ShouldBe(7.5m);
+    }
+
+    private async Task CompleteWithNonTokenCostAsync(Guid runId, RunNonTokenCost? nonTokenCost)
+        => await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            NonTokenCost = nonTokenCost,
+        });
+
     private async Task CompleteRunWithAttributionAsync(
         string? userId,
         IReadOnlyDictionary<string, string>? labels,

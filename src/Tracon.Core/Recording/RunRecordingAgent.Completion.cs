@@ -105,6 +105,11 @@ public sealed partial class RunRecordingAgent
             _metrics?.RecordToolInvocation(unfinished.ToolName, succeeded: false, unfinished.Duration);
         }
 
+        // What the run's tools measured beyond tokens is read ONCE, here, after the
+        // unfinished calls above gave up the measurements they had reported. It is a
+        // snapshot like the cost: an item reported later stays in the detail only.
+        var nonTokenCost = scope.NonTokenCost?.Seal();
+
         // The tokens a side-channel call spends (the compaction summarizer, the
         // aiJudge loop judge, a discarded repair turn, the turns of a loop that
         // failed its run) never reach the AgentResponse; if they are not added here,
@@ -155,7 +160,7 @@ public sealed partial class RunRecordingAgent
         // F-383: a root counts its whole call tree, once, in the quota entry and
         // in its run.* webhook. Read once here, before the root's row closes.
         var treeConsumption = scope.Depth == 0
-            ? await ReadTreeConsumptionAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false)
+            ? await ReadTreeConsumptionAsync(scope, usage, cost, nonTokenCost, cancellationToken).ConfigureAwait(false)
             : default;
 
         if (scope.Depth == 0)
@@ -168,6 +173,7 @@ public sealed partial class RunRecordingAgent
             usage,
             error,
             cost,
+            nonTokenCost: nonTokenCost,
 
             // null unless a fallback link answered: leaves runs.model_id at
             // the value WriteRunStartAsync already wrote (the overwhelmingly

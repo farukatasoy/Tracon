@@ -375,7 +375,7 @@ internal sealed class TraconMetrics : IDisposable
     /// </param>
     /// <param name="stage">
     /// Which write was lost: <c>start</c>, <c>event</c>, <c>tool_invocation</c>,
-    /// <c>completion</c>, <c>sink</c>, or <c>input</c>.
+    /// <c>non_token_usage</c>, <c>completion</c>, <c>sink</c>, or <c>input</c>.
     /// </param>
     /// <remarks>
     /// The run identity is deliberately absent: it is unbounded, and it is already

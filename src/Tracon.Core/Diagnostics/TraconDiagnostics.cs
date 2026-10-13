@@ -221,7 +221,7 @@ public static class TraconDiagnostics
         /// <summary>Gets the tag name for the stage a run recording failed at.</summary>
         /// <remarks>
         /// A closed set: <c>start</c>, <c>event</c>, <c>tool_invocation</c>,
-        /// <c>completion</c>, <c>sink</c>, <c>input</c>. The run identity is NOT a tag —
+        /// <c>non_token_usage</c>, <c>completion</c>, <c>sink</c>, <c>input</c>. The run identity is NOT a tag —
         /// it is unbounded — and neither is the sink type, which is consumer code; the
         /// failing sink is named in the accompanying log entry instead.
         /// </remarks>

@@ -70,4 +70,12 @@ internal static class RunOrdinals
     public const int InputPricePerMillionTokens = 54;
     public const int OutputPricePerMillionTokens = 55;
     public const int CachedInputPricePerMillionTokens = 56;
+    public const int NonTokenCost = 57;
+    public const int NonTokenCurrency = 58;
+    public const int NonTokenEstimated = 59;
+    public const int NonTokenUnsummed = 60;
+    public const int TreeNonTokenCost = 61;
+    public const int TreeNonTokenCurrency = 62;
+    public const int TreeNonTokenEstimatedRows = 63;
+    public const int TreeNonTokenUnsummed = 64;
 }

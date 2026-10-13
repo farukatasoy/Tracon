@@ -100,6 +100,54 @@ internal sealed partial class InMemoryRunStore
     }
 
     /// <inheritdoc />
+    public ValueTask RecordNonTokenUsageAsync(
+        NonTokenUsageRecord record,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // EXPECTED tenant check (K-355).
+        EnsureExpectedTenant(record.RunId, record.TenantId, "The non-token usage item was not written.");
+
+        // If the run was dropped (MaxRuns), the item is silently discarded: it is
+        // evidence for the run and must not interrupt it.
+        if (_nonTokenUsage.TryGetValue(record.RunId, out var log))
+        {
+            lock (log)
+            {
+                log.Add(record);
+            }
+        }
+
+        return default;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!IsOwnedByCurrentTenant(runId) || !_nonTokenUsage.TryGetValue(runId, out var log))
+        {
+            return new ValueTask<IReadOnlyList<NonTokenUsageRecord>>([]);
+        }
+
+        NonTokenUsageRecord[] snapshot;
+
+        lock (log)
+        {
+            snapshot = [.. log];
+        }
+
+        // Stable: items reported within the same tick keep the order they arrived in.
+        return new ValueTask<IReadOnlyList<NonTokenUsageRecord>>(
+            [.. snapshot.OrderBy(static item => item.CreatedAt)]);
+    }
+
+    /// <inheritdoc />
     public ValueTask<bool> CompleteLateToolInvocationAsync(
         LateToolCompletion completion,
         CancellationToken cancellationToken = default)

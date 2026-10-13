@@ -52,6 +52,14 @@ public sealed class InMemoryToolInvocationContractTests : ToolInvocationContract
 }
 
 /// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryNonTokenUsageContractTests : NonTokenUsageContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IRunStore> CreateStoreAsync()
+        => ValueTask.FromResult<IRunStore>(new InMemoryRunStore(tenantContext: AmbientTenant));
+}
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
 public sealed class InMemoryTraceStoreContractTests : TraceStoreContract
 {
     /// <inheritdoc />

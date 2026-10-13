@@ -164,16 +164,19 @@ internal sealed class SpeakTool : VoiceToolBase
     {
         var characters = audio.CharactersBilled ?? text.Length;
 
+        // The model the synthesizer reports comes first: the price must follow
+        // what produced the audio, not a setting.
+        var model = audio.ModelId ?? request.ModelId;
+
         _ = TraconToolUsage.Report(new ToolCallUsage
         {
             Unit = ToolUsageUnits.Characters,
             Quantity = characters,
-
-            // The model the synthesizer reports comes first: the price must follow
-            // what produced the audio, not a setting.
-            Cost = pricing.ForSynthesis(synthesizer.ProviderName, audio.ModelId ?? request.ModelId, characters),
+            Cost = pricing.ForSynthesis(synthesizer.ProviderName, model, characters),
             Currency = pricing.Currency,
             IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
+            Provider = synthesizer.ProviderName,
+            Model = model,
         });
     }
 }

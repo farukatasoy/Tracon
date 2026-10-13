@@ -23,6 +23,9 @@ internal static class RunRecordingStages
     /// <summary>A tool-invocation measurement could not be recorded.</summary>
     public const string ToolInvocation = "tool_invocation";
 
+    /// <summary>A non-token usage item a function node reported could not be recorded.</summary>
+    public const string NonTokenUsage = "non_token_usage";
+
     /// <summary>The run record could not be closed.</summary>
     public const string Completion = "completion";
 
@@ -42,7 +45,7 @@ internal static class RunRecordingStages
 
     /// <summary>Gets every stage value, in the order a run encounters them.</summary>
     public static IReadOnlyList<string> All { get; } =
-        [Start, Event, ToolInvocation, Completion, Sink, Input];
+        [Start, Event, ToolInvocation, NonTokenUsage, Completion, Sink, Input];
 
     /// <summary>Returns the log sentence that belongs to <paramref name="stage"/>.</summary>
     /// <param name="stage">One of the constants on this type.</param>
@@ -52,6 +55,7 @@ internal static class RunRecordingStages
         Start => "the run record could not be opened",
         Event => "a run event could not be written",
         ToolInvocation => "a tool invocation could not be recorded",
+        NonTokenUsage => "a non-token usage item could not be recorded",
         Completion => "the run record could not be closed",
         Sink => "an event sink failed",
         Input => "the run input could not be saved",
