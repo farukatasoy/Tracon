@@ -153,7 +153,7 @@ src/
   Tracon.Abstractions/ Tools/ToolCallUsage · Runs/{RunNonTokenCost,NonTokenUsageRecord} (yeni) · Runs/{RunRecord,RunSupportTypes,IRunStore} · Webhooks/WebhookEventPayload
   Tracon.Core/ Recording/{NonTokenCostAccumulator (yeni),TraconRunContext,RunEventWriter,ToolInvocationTracker,RunRecordingAgent.*} · Storage/InMemoryRunStore* · Images/GenerateImageTool
   Tracon.Voice/ Tools/{SpeakTool,TranscribeTool}
-  Tracon.Workflows/ TraconWorkflow{Context,Function}Extensions · Internal/{WorkflowFunctionNodeScope (yeni),WorkflowRunner}
+  Tracon.Workflows/ TraconWorkflow{Context,Function}Extensions · Internal/{WorkflowFunctionNodeScope,WorkflowTreeSpend (yeni),WorkflowRunner}
   Tracon.Sql.Shared/ SqlQueriesBase · SqlRunStore · RunOrdinals · DataSubjectTargetRegistry
   Tracon.{PostgreSql,SqlServer,Sqlite}/ Migrations/<sonraki>_*.sql · Internal/*Queries
   Tracon.Testing.Contracts.Xunit/ Contracts/{RunStoreContract,ToolInvocationContract}
@@ -251,20 +251,100 @@ samples/Tracon.Api/Program.cs
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+| # | Plan | Gerçekleşen | Gerekçe |
+|---|---|---|---|
+| 1 | §199.3: tool ölçümü `ToolInvocationTracker.cs:150`'de (çağrı kaydı yazılırken) biriktiriciye eklenir | Ölçüm **rapor anında** girer: `TraconToolUsage.Report` → `NonTokenCostAccumulator.ReportToolMeasurement(çağrıKimliği, ölçüm)`; son rapor kazanır, bütçe artışı o anda duyar. İzleyici (`ToolInvocationTracker`) biriktiriciye dokunmaz; yalnız `DrainUnfinished` artık çağrının bildirdiği ölçümü kayda taşır | Akışsız run tool kayıtlarını **son model turundan sonra** okur; kayıtta girse bütçe sonraki turu hiç kesemezdi (`NonTokenSpendTests.A_tools_amount_stops_the_agents_next_model_call_in_a_non_streaming_run` bunu kanıtlar, mutasyonla doğrulandı). Çağrı kimliğiyle anahtarlamak tool'un "toplamı sonda bildirir" sözleşmesini (son rapor kazanır) korur |
+| 2 | §Planlanan Public API: `RunSpend.Total` yorumu `// null: pay yok, para birimi farklı` | Para birimleri ayrışırsa **token toplamı tek başına** döner (null değil) | `null` dönmek token maliyetini kotadan düşürürdü; özel `IRunPricingResolver` dışında bu duruma gelinmez |
+| 3 | §199.1: geçersiz kalem tanımı "`Unit` boş, negatif miktar veya tutar" | Sütunların tuttuğu sınırlar da kabulde denetlenir (birim 64, para birimi 16, sağlayıcı 100, model 200, miktar ≤ 9.999.999.999, tutar ≤ 1.000.000.000, toplam ≤ 9.999.999.999) ve run başına 1.000 düğüm kalemi | Taşan değer `numeric(20,10)`/`decimal(20,10)` insert'ini düşürür; düşen insert yazıcıyı kapatır (K-974). SQL Server parametresi `(20,10)` sabit olduğundan snapshot sütunu da `(20,10)` seçildi |
+| 4 | §199.4: Faz 198 kapanmadıysa örnek `ForSynthesis`'e bağlanır | Faz 198 kapalıydı (`IVoicePricingReader.ForSynthesis` mevcut). Yerleşik `speak`/`transcribe`/`generate_image` tool'ları fiyatı oradan alır; **örnek uygulama** `UseVoice` olmadığında okuyucu kayıtlı olmadığı için fiyatı `Tracon:Pricing:Voice` bölümünden kendi okur (`samples/Tracon.Api/TonePricing.cs`) | Örnek anahtarsız çalışır; fiyat hesaplayan kod düğümündür (Açık Soru 5-A) |
+| 5 | §199.2: `IRunStore` iki üye alır | Varsayılan uygulama **verilmedi**; ~14 test sahtesi güncellendi (`NoOpRunStore` dahil) | Kalemi sessizce atan depo harcamayı gizlerdi; GA öncesi kırmak ucuzdur (K-973) |
+| 6 | Planda yok | Yeni sözleşme sınıfı `NonTokenUsageContract` (dört depoda bağlı) + `RunStoreContract`/`ToolInvocationContract`'a case'ler; `TenantCoverageTests` (SQL Server) iki üye aldı | Sevk edilen sözleşme yüzeyi büyüdü (`Tracon.Testing.Contracts.Xunit`, +1 tip) |
+| 7 | Planda yok | `ToolInvocationTracker.DrainUnfinished` bildirilmiş ölçümü kapanan kayda taşır | İptal anında "bildirdi ama bitmedi" tool'un harcaması kayıtta kaybolurdu |
+| 8 | §Dosya Listesi: `Tracon.Core/Recording/TraconRunContext`, `RunEventWriter`… | `NonTokenUsageReporter` (Core, `internal`) eklendi: doğrula → topla → yaz tek yerde | `ReportUsageAsync` Workflows'ta, mantık Core'da; üç paket aynı gövdeyi paylaşır |
+| 9 | §Kanıt tablosu satır numaraları (`99fe0b13`) | Kod K-913 (F-383) ile değişmişti: agent kökü ağacı `ReadTreeConsumptionAsync` ile okuyor | Para birimi ve çocuk payı hesabı `RunSpend` üstüne yeniden kuruldu (`RunRecordingAgent.Notifications.cs`) |
+| 10 | Manuel case alanı `12-…` bütçesi | 2026-08-10 inceleme turu notu `arsiv/manuel-test-kosum-2026-09/`'a taşındı (F-441 deseni) | Dizin bütçesi 396 B boştu |
+| 11 | `bench/baseline.json` | `QueryRuns` 45.456 → 47.104 B (+1.648 B / 50 satır) güncellendi | `RunRecord`'a iki, okuyucuya sekiz sütun eklendi; sahibi bu faz |
+| 12 | Planda yok | `WorkflowTreeSpend` (Workflows, `internal`): workflow'un kota girdisi ve `run.completed` webhook'u, satırın kendi snapshot'ı mağazada **yoksa** düğümlerin bellekteki toplamını ağaç toplamına ekler | Kalem yazımı düşünce yazıcı kapanır, satırın snapshot'ı mağazaya hiç gitmez; workflow ağaç toplamını mağazadan okuduğu için kotası tam düğümlerin harcadığı kadar eksik kalıyordu (agent yolu kendi payını bellekten sayar). Ayrı test: `NodeUsageStoreFailureTests` (önce kırmızı, düzeltmeyle yeşil) + `WorkflowTreeSpendTests` (7). Sağlıklı run'da satır snapshot'ı tuttuğu için çift sayılmaz |
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Beklenen adaylar: ayrı toplamın kotaya girmesi, K-219'un
-> daraltılması (`public-api`); kalem tablosu ve snapshot (`kalıcı-veri`).
+Karar defterine giren (`docs/KARARLAR.md`):
+
+- **K-972** *(public-api)* — Token dışı tutar AYRI toplamdır (`RunNonTokenCost`), `RunCost.Total()`'a girmez; token tutarıyla toplayan tek yer `RunSpend.Total`; aynı para biriminde toplanır, fiyatsız/başka para birimli kalem sayılır; tahmini kalem toplanır ve bayrak yakar. K-219'u daraltır (Açık Soru 1-A, 2-A, 3-A, 5-A).
+- **K-973** *(public-api)* — Webhook `cost` birleşik, `nonTokenCost` pay; `IRunStore` iki üye alır; `GET /api/runs/{runId}/usage` run'ın kendi kalemleri (Açık Soru 6-A).
+- **K-974** *(kalıcı-veri)* — Kalem tablosu + dört snapshot sütunu + `tool_invocations` sağlayıcı/model; kapanıştan sonra gelen kalem yalnız detaya; kabul sınırları (Açık Soru 4-A).
+
+Faz içinde kalan yerel tercihler (`K-*` açılmadı):
+
+- Faz 196 devri ("raporlama girişi sarmalayıcının içinde mi dışında mı, ölçerek seç"): düğüm adı sarmalayıcının **en dışında** (`scope(retry(timeout(handler)))`) bir `AsyncLocal`'a yazılır; değer zaman aşımından sonra biten gövdeye de akar. Kapanıştan sonra gelen kalem yalnız detaya yazılır ve `Information` olarak loglanır (K-806'nın "aynı satıra ekle"si düğümde yoktur: düğüm kalemi zaten kendi satırıdır).
+- Faz 203 devri (diyalog): diyalog düğümü sonucu **tek ses sonucu** gibi raporlanır; `DialogueModelId` boşken fiyat modelsiz aranır ve model anahtarlı fiyat bulunamaz — kalem fiyatsız listelenir.
+- Kalem yazma hatası yazıcıyı kapatır (mevcut `tool_invocation` deseni): satırın kendi `nonTokenCost` snapshot'ı depoya yazılmaz. Workflow kökünün kota girdisi ve webhook'u düğümlerin payını bellekten ekler (`WorkflowTreeSpend`, Sapma 12), eksik kalmaz.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+```csharp
+// Tracon.Abstractions
+ToolCallUsage { string? Provider; string? Model; }                        // yeni iki alan
+sealed record RunNonTokenCost { decimal? Amount; string? Currency; bool IsEstimated; int UnsummedItemCount; }
+sealed record NonTokenUsageRecord { Guid Id; Guid RunId; string? NodeName; ToolCallUsage Usage;
+                                    DateTimeOffset CreatedAt; [JsonIgnore] string? TenantId; }
+static class RunSpend { decimal? Total(RunCost?, RunNonTokenCost?); decimal? Total(RunTreeCost?, RunNonTokenCost?); }
+RunRecord.NonTokenCost / TreeNonTokenCost · RunCompletion.NonTokenCost · WebhookRunSummary.NonTokenCost (decimal?)
+IRunStore.RecordNonTokenUsageAsync(NonTokenUsageRecord, ct) · ListNonTokenUsageAsync(Guid runId, ct)   // GA öncesi kırıcı
+
+// Tracon.Workflows — TraconWorkflowContextExtensions
+static ValueTask<bool> ReportUsageAsync(this IWorkflowContext context, ToolCallUsage usage);
+
+// Tracon.Testing.Contracts.Xunit
+abstract class NonTokenUsageContract : TenantIsolationContract<IRunStore>   // + RunStoreContract / ToolInvocationContract case'leri
+```
+
+Plandan fark: `RunNonTokenCost.IsEstimated`/`UnsummedItemCount` planla aynı; `WebhookRunSummary.NonTokenCost`
+`decimal?` (bildirilen pay). İç (`internal`): `NonTokenCostAccumulator`, `NonTokenUsageReporter`,
+`WorkflowFunctionNodeScope`, `AgentRunScope.NonTokenCost`, `RunRecordingStages.NonTokenUsage` (`non_token_usage`).
+
+HTTP: `GET /api/runs/{runId}/usage` (Reader, `runs:read`; bilinmeyen/başka kiracı/reddedilen run → aynı `404`);
+`GET /api/runs`, `GET /api/runs/{runId}` `nonTokenCost`, `treeNonTokenCost` taşır.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/
+  Tracon.Abstractions/ Tools/ToolCallUsage · Runs/{RunNonTokenCost,NonTokenUsageRecord,RunSpend} (yeni) · Runs/{RunRecord,RunSupportTypes,IRunStore} · Webhooks/WebhookEventPayload
+  Tracon.Core/ Recording/{NonTokenCostAccumulator,NonTokenUsageReporter (yeni),TraconRunContext,RunEventWriter,RunRecordingStages,RunRecordingAgent.{,Lifecycle,Completion,Notifications},RunRecordingAgentDecorator,ToolInvocationTracker} · Tools/TraconToolUsage · Storage/InMemoryRunStore.{,Events,Lifecycle,Queries} · Images/GenerateImageTool · Diagnostics/{TraconDiagnostics,TraconMetrics} (yalnız XML)
+  Tracon.Voice/ Tools/{SpeakTool,TranscribeTool}
+  Tracon.Workflows/ Internal/{WorkflowFunctionNodeScope,WorkflowTreeSpend (yeni),WorkflowRunner} · TraconWorkflow{Context,Function}Extensions
+  Tracon.Sql.Shared/ Internal/SqlQueriesBase · Stores/{SqlRunStore,RunOrdinals}
+  Tracon.{PostgreSql,SqlServer,Sqlite}/ Migrations/{0058,0046,0045}_non_token_cost.sql (yeni) · Internal/*Queries
+  Tracon.AspNetCore/ Endpoints/ObservabilityEndpoints
+  Tracon.Testing.Contracts.Xunit/ Contracts/{NonTokenUsageContract (yeni),RunStoreContract,ToolInvocationContract}
+  Tracon.UI/frontend/ components/{usage-line,non-token-usage-panel} (yeni) · screens/run-detail · lib/server-types · locales/{en,tr}/runs
+  Tracon.Client/Generated · docs/openapi/tracon.json · packages/tracon-client/src/schema.ts (üretildi)
+samples/Tracon.Api/{Program.cs,TonePricing.cs (yeni),appsettings.json}
+tests/
+  Core.UnitTests/Recording/{NonTokenCostAccumulatorTests (yeni),ToolUsageReportingTests} · Runs/RunSpendTests (yeni) · Contracts/InMemoryStoreContractTests
+  Workflows.UnitTests/{TraconWorkflowContextExtensionsTests,WorkflowTreeSpendTests (yeni)}
+  AspNetCore.FunctionalTests/{NodeUsageTests,NodeUsageConcurrencyTests,NodeUsageCancellationTests,NodeUsageStoreFailureTests,NodeUsageLimitsTests,NonTokenSpendTests,RunUsageEndpointTests} (yeni) · Infrastructure/NodeUsageHost · RunResourceAuthorizationTests
+  {Sqlite,PostgreSql,SqlServer}.IntegrationTests/Contracts/* (NonTokenUsageContract bağı) · DataSubjectStoreTests (cascade) · SqlServer/TenantCoverageTests
+  Sql.Shared.UnitTests/Baselines/* (SQL metin tabanı)
+docs-site/ (13 sayfa + üretilenler) · CHANGELOG.md · src/{Workflows,Voice,Tracon,AspNetCore}/README.md · Tracon.AgentMap.md
+docs/ manuel-test/{12,00-INDEKS} (MT-OBS-070…075) · KARARLAR (K-972…974) · MIMARI · hafiza/*
+bench/baseline.json
+```
+
+Testler (sınıf → kanıt): `NonTokenCostAccumulatorTests` (32: toplama kuralı, sınırlar, çağrı başına son rapor, eşzamanlılık — kilidi kaldırınca düşer) · `RunSpendTests` (9) · `NodeUsageTests` (6: iki düğüm, para birimi, yeniden deneme, geçersiz kalem, zaman aşımı sonrası, bildirmeyen run) · `NodeUsageConcurrencyTests` (2) · `NodeUsageCancellationTests` (1) · `NodeUsageStoreFailureTests` (2) · `WorkflowTreeSpendTests` (7) · `NodeUsageLimitsTests` (2) · `NonTokenSpendTests` (9: beş para yeri + bütçe, yer başına) · `RunUsageEndpointTests` (2) · sözleşme: `NonTokenUsageContract` (16 × 4 depo; 9'u ortak izolasyon/iptal tabanından) + `RunStoreContract` 6 yeni case + `ToolInvocationContract` 1 yeni case (2 mevcut case genişledi) · konsol `run-detail.test.tsx` (+5).
+
+## Örnek Uygulama Koşumu
+
+`samples/Tracon.Api`, **anahtarsız** (tüm sağlayıcı anahtarları boş, yalnız echo modeli), geçici SQLite dosyasıyla (`Tracon__Sqlite__ConnectionString`) ve `Tracon:Ui:AuthToken` verilerek, **derleme çıktısı dizininden** (`artifacts/bin/Tracon.Api/release`; çalışma dizini içerik kökü olur ve `appsettings.json` oradan okunur) koşuldu. Üç senaryo, 2026-10-13:
+
+1. **Düğüm kalemleri ve toplam.** `PUT /tracon/api/workflows/narrated-demo` `word-count → speak → render(seconds=1) → synthesize(tone)`; `POST …/run`:
+   `GET /api/runs/{id}/usage` → `speak` 76 `characters` `cost 0.0076` `isEstimated true` `tone/tone-1` · `render` 1 `gpu-seconds` `cost null` `local-gpu` · `synthesize` 126 `characters` `cost 0.0126`.
+   `GET /api/runs/{id}` → `status Completed`, `nonTokenCost = {amount 0.0202, currency USD, isEstimated true, unsummedItemCount 1}`, `treeNonTokenCost` aynı, `cost`/`treeCost` `null`. `GET /api/quotas/usage` → günlük sayaç `runs 1, tokens 0, cost 0.0202`.
+2. **Kota.** `PUT /tracon/api/quotas {"period":"Daily","maxCost":0.03}`; `speak + synthesize` workflow'u dört kez: ilk üçü `200` (sayaç `cost 0.0441`, `tokens 0`), dördüncüsü `429 {"detail":"The daily cost quota for the whole tenant has been exceeded (0.0441/0.03)…","quotaMetric":"Cost"}`. Eski davranışta sayaç `0` kalır ve hiçbir run reddedilmezdi.
+3. **Varsayılan dışı yapılandırma — bütçe.** `Tracon__AgentGraph__MaxTotalCost=0.005`; workflow `speak → summarizer(agent)`: run `Failed`, `error.type run_budget_exceeded`, `"Could not call agent 'summarizer': The run tree's cost budget is exhausted (0.005800/0.005000)…"`, `nonTokenCost.amount 0.0058`; `summarizer`'in modeline istek gitmedi.
+
+Başlangıçta bulunan ortam tuzağı: örnek uygulama bakımcının user-secrets'ındaki PostgreSQL bağlantısını sessizce seçer (`Tracon:PostgreSql:ConnectionString` SQL Server'dan sonra, SQLite'tan önce gelir) ve eski adlı geliştirme veritabanına bağlanıp migration'ları denemeye başlar; ilk koşum bu yüzden iptal edildi (veritabanında bu faz hiçbir şey değişmedi: `agentprism.__migrations` son kayıt 41, `non_token_*` sütunu yok). Sonraki koşumlar `Tracon__PostgreSql__ConnectionString=` ile boşaltıldı.
 
 ## Süreç Ölçümü
 
