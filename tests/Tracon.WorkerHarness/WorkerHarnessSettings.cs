@@ -35,6 +35,9 @@ internal sealed record WorkerHarnessSettings
 
     public required int MaxAttempts { get; init; }
 
+    /// <summary>Whether the two-step workflow is registered, with recovery on.</summary>
+    public required bool Workflow { get; init; }
+
     public static WorkerHarnessSettings FromEnvironment()
     {
         return new WorkerHarnessSettings
@@ -54,6 +57,10 @@ internal sealed record WorkerHarnessSettings
             PollInterval = ReadSeconds(WorkerHarnessContract.PollSecondsVariable),
             WorkDuration = ReadSeconds(WorkerHarnessContract.WorkSecondsVariable),
             MaxAttempts = int.Parse(Read(WorkerHarnessContract.MaxAttemptsVariable), CultureInfo.InvariantCulture),
+            Workflow = string.Equals(
+                Environment.GetEnvironmentVariable(WorkerHarnessContract.WorkflowVariable),
+                "1",
+                StringComparison.Ordinal),
         };
     }
 

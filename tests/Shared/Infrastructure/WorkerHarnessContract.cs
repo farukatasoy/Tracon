@@ -23,6 +23,9 @@ internal static class WorkerHarnessContract
     public const string WorkSecondsVariable = "TRACON_HARNESS_WORK_SECONDS";
     public const string MaxAttemptsVariable = "TRACON_HARNESS_MAX_ATTEMPTS";
 
+    /// <summary>Set to <c>1</c> to register the two-step workflow with recovery on.</summary>
+    public const string WorkflowVariable = "TRACON_HARNESS_WORKFLOW";
+
     public const string WorkerMode = "worker";
     public const string ApiMode = "api";
 
@@ -31,4 +34,16 @@ internal static class WorkerHarnessContract
 
     /// <summary>The line the harness prints once its host is running.</summary>
     public const string ReadyLine = "HARNESS-READY";
+
+    /// <summary>The first function step of the harness workflow; it returns at once.</summary>
+    public const string FirstStep = "harness-first";
+
+    /// <summary>The second function step; it takes the configured work duration.</summary>
+    public const string SecondStep = "harness-second";
+
+    /// <summary>The execution-log stage the first step writes, with its run id.</summary>
+    public const string FirstStepStage = "first-step";
+
+    /// <summary>The execution-log stage the second step writes when it starts, with its run id.</summary>
+    public const string SecondStepStage = "second-step";
 }
