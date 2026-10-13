@@ -214,7 +214,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [199](199-FONKSIYON-DUGUMU-MALIYETI.md) | Fonksiyon Düğümünün Token Dışı Maliyeti | 📋 Planlandı |
 | [200](200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) | Workflow Sürüm Geçmişi ve Sürüm Sabitleme | 📋 Planlandı |
 | [201](arsiv/fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) | Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası | ✅ Tamamlandı |
-| [202](202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | ✅ Tamamlandı |
+| [202](arsiv/fazlar/202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | ✅ Tamamlandı |
 | [203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) | Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları | ✅ Tamamlandı |
 | [204](arsiv/fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) | Kesilen Model Çıktısı ve Anthropic Güncel İstek Ayarları | ✅ Tamamlandı |
 

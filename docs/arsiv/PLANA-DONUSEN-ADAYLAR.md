@@ -2055,7 +2055,7 @@ bölümündedir.
 | F-299 | [Faz 199](../199-FONKSIYON-DUGUMU-MALIYETI.md) |
 | F-300 | [Faz 200](../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) |
 | F-301, F-302 | [Faz 201](fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) |
-| F-345 | [Faz 202](../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) |
+| F-345 | [Faz 202](fazlar/202-SKILL-SCRIPT-YURUTUCU-SEAM.md) |
 
 Gövdeler aday dosyasındaki son hâliyle, aynen:
 

@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A; 1–3 güvenlik kararıdır). Faz 196 ve Faz 203 ile paralel geliştirilir
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-345**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-345**
 > **Önkoşul:** Yok — işlevsel bağımlılık yok; Faz 196 ile ortak dosya `TimeoutSiteTests.cs`
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -207,7 +207,7 @@ docs/MIMARI-GUVENLIK.md · docs/MIMARI-TEHDIT-MODELI.md  (kapanışta)
 ## Hata Modları ve Testler
 
 > Seviyeyi plan seçer; sınır geçen davranış birim testiyle kanıtlanamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | # | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|---|
