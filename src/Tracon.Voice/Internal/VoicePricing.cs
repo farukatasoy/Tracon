@@ -19,9 +19,11 @@ namespace Tracon;
 /// <c>elevenlabs</c>, and the cost was looked up under the wrong provider.
 /// </para>
 /// <para>
-/// When no model is configured, only the built-in client falls back to its own
-/// default model. A consumer's provider has no model Tracon knows, so the cost
-/// stays <see langword="null"/> instead of borrowing an ElevenLabs price.
+/// The model is the one the provider reported (<see cref="SpeechAudio.ModelId"/>,
+/// <see cref="SpeechTranscript.ModelId"/>), then the one the request named. Only
+/// when neither is known does the default provider's name fall back to the
+/// configured model, and only the built-in client to its own default model. Any
+/// other provider with no known model has no price: it never borrows the default's.
 /// </para>
 /// </remarks>
 internal sealed class VoicePricing : IVoicePricingReader
@@ -29,19 +31,23 @@ internal sealed class VoicePricing : IVoicePricingReader
     private readonly IOptions<TraconOptions> _options;
     private readonly IOptions<VoiceOptions> _voiceOptions;
     private readonly ISpeechSynthesizer _synthesizer;
+    private readonly ISpeechTranscriber _transcriber;
 
     public VoicePricing(
         IOptions<TraconOptions> options,
         IOptions<VoiceOptions> voiceOptions,
-        ISpeechSynthesizer synthesizer)
+        ISpeechSynthesizer synthesizer,
+        ISpeechTranscriber transcriber)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(voiceOptions);
         ArgumentNullException.ThrowIfNull(synthesizer);
+        ArgumentNullException.ThrowIfNull(transcriber);
 
         _options = options;
         _voiceOptions = voiceOptions;
         _synthesizer = synthesizer;
+        _transcriber = transcriber;
     }
 
     /// <inheritdoc />
@@ -53,39 +59,48 @@ internal sealed class VoicePricing : IVoicePricingReader
     /// layer does not know the model name and should not.
     /// </remarks>
     public decimal? ForCharacters(decimal characters)
-        => ForSynthesis(_synthesizer, characters);
+        => ForSynthesis(_synthesizer.ProviderName, modelId: null, characters);
 
-    /// <summary>Computes the cost of a synthesis call.</summary>
-    /// <param name="synthesizer">The synthesizer that produced the audio.</param>
-    /// <param name="characters">Number of billed characters.</param>
-    /// <returns>The amount; <see langword="null"/> when the price is undefined.</returns>
-    public decimal? ForSynthesis(ISpeechSynthesizer synthesizer, decimal characters)
+    /// <inheritdoc />
+    public decimal? ForSynthesis(string providerName, string? modelId, decimal characters)
     {
-        ArgumentNullException.ThrowIfNull(synthesizer);
+        ArgumentNullException.ThrowIfNull(providerName);
 
-        var model = _voiceOptions.Value.SynthesisModelId
-                    ?? (synthesizer is ElevenLabsSpeechClient ? ElevenLabsSpeechClient.DefaultSynthesisModel : null);
+        var model = modelId ?? DefaultSynthesisModel(providerName);
 
-        return Find(synthesizer.ProviderName, model)?.PerMillionCharacters is { } rate
+        return Find(providerName, model)?.PerMillionCharacters is { } rate
             ? rate * characters / 1_000_000m
             : null;
     }
 
-    /// <summary>Computes the cost of a transcription call.</summary>
-    /// <param name="transcriber">The transcriber that resolved the audio.</param>
-    /// <param name="duration">Duration of the transcribed audio.</param>
-    /// <returns>The amount; <see langword="null"/> when the price is undefined.</returns>
-    public decimal? ForTranscription(ISpeechTranscriber transcriber, TimeSpan duration)
+    /// <inheritdoc />
+    public decimal? ForTranscription(string providerName, string? modelId, TimeSpan duration)
     {
-        ArgumentNullException.ThrowIfNull(transcriber);
+        ArgumentNullException.ThrowIfNull(providerName);
 
-        var model = _voiceOptions.Value.TranscriptionModelId
-                    ?? (transcriber is ElevenLabsSpeechClient ? ElevenLabsSpeechClient.DefaultTranscriptionModel : null);
+        var model = modelId ?? DefaultTranscriptionModel(providerName);
 
-        return Find(transcriber.ProviderName, model)?.PerMinute is { } rate
+        return Find(providerName, model)?.PerMinute is { } rate
             ? rate * (decimal)duration.TotalMinutes
             : null;
     }
+
+    /// <summary>The configured model of the default synthesizer, for its own provider only.</summary>
+    private string? DefaultSynthesisModel(string providerName)
+        => IsSameProvider(providerName, _synthesizer.ProviderName)
+            ? _voiceOptions.Value.SynthesisModelId
+              ?? (_synthesizer is ElevenLabsSpeechClient ? ElevenLabsSpeechClient.DefaultSynthesisModel : null)
+            : null;
+
+    /// <summary>The configured model of the default transcriber, for its own provider only.</summary>
+    private string? DefaultTranscriptionModel(string providerName)
+        => IsSameProvider(providerName, _transcriber.ProviderName)
+            ? _voiceOptions.Value.TranscriptionModelId
+              ?? (_transcriber is ElevenLabsSpeechClient ? ElevenLabsSpeechClient.DefaultTranscriptionModel : null)
+            : null;
+
+    private static bool IsSameProvider(string left, string right)
+        => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
     private VoicePriceOverride? Find(string provider, string? model)
     {

@@ -146,6 +146,19 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IOptionsMonitor<TraconTenantProviderOptions>>(),
             provider.GetRequiredService<IOptions<TraconOptions>>()));
 
+        // Speech providers by name (F-298). Registered here, not in UseVoice(): a
+        // host with only AddSpeechSynthesizer(...) or its own ISpeechSynthesizer
+        // still passes every speech call through the tenant's checks. Explicit
+        // factory: the registrations are read when the resolver is first built,
+        // so AddSpeechSynthesizer may come before or after this call.
+        services.TryAddSingleton<ISpeechProviderResolver>(static provider => new SpeechProviderResolver(
+            provider,
+            provider.GetServices<SpeechProviderRegistration>(),
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetService<ITenantEgressPolicyStore>(),
+            provider.GetService<ITenantProviderBindingStore>(),
+            provider.GetService<TenantProviderCredentialResolver>()));
+
         // Provider retry classifier (Phase 113, F-149). Registered BEFORE
         // IModelProviderRegistry so its constructor can resolve it. The
         // taxonomy is Tracon's opinion; thanks to TryAddSingleton, the

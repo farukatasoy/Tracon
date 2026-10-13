@@ -358,8 +358,11 @@ Who changed what, when, and from what to what — filterable by actor, action, e
 and date range. Secret-looking fields are masked before anything is stored.
 
 Quotas, retention policies, API keys, tenants, and tenant provider bindings and egress
-policy (BYOK) have their own screens in the same area. Skill script grants sit on the
-Skills screen, next to the content they allow.
+policy (BYOK) have their own screens in the same area. The provider choices there are
+the model providers and the speech providers together, each by the provider name a
+policy uses; a name saved in a policy that no provider reports any more stays listed
+until you remove it. Skill script grants sit on the Skills screen, next to the content
+they allow.
 
 ### Triggers
 

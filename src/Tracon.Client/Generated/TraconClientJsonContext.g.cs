@@ -140,6 +140,7 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<SearchKnowledgeHit>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<SessionRecord>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<SkillScriptGrant>))]
+[JsonSerializable(typeof(System.Collections.Generic.ICollection<SpeechProviderDescriptor>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<TenantDescriptor>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<TenantProviderBindingResponse>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<TimeSeriesPoint>))]

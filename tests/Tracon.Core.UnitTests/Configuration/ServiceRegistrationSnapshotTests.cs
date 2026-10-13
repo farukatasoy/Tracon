@@ -146,6 +146,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.ITenantProviderBindingStore | Singleton | Tracon.InMemoryTenantProviderBindingStore",
         "Tracon.ITenantEgressPolicyStore | Singleton | Tracon.InMemoryTenantEgressPolicyStore",
         "Tracon.TenantProviderCredentialResolver | Singleton | Factory",
+        "Tracon.ISpeechProviderResolver | Singleton | Factory",
         "Tracon.IProviderRetryClassifier | Singleton | Tracon.DefaultProviderRetryClassifier",
         "Tracon.IModelProviderRegistry | Singleton | Factory",
         "Tracon.ContextWindowEstimator | Singleton | Tracon.ContextWindowEstimator",

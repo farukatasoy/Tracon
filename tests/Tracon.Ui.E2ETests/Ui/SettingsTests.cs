@@ -151,6 +151,78 @@ public sealed class SettingsTests(BrowserFixture browsers)
         quotas[0].GetProperty("enabled").GetBoolean().ShouldBeFalse();
     }
 
+    /// <summary>
+    /// A speech provider is allowed for a restricted tenant from the console, and the
+    /// speech call that was refused goes through.
+    /// </summary>
+    /// <remarks>
+    /// The egress choices came from the model catalog only, so a speech vendor could
+    /// not be added from the console at all once speech calls obeyed the policy. The
+    /// choice is the name the synthesizer REPORTS ('studio-engine'), not the name it
+    /// is registered under ('studio').
+    /// </remarks>
+    [Fact]
+    public async Task A_speech_provider_allowed_in_the_console_unblocks_speech_for_the_tenant()
+    {
+        await using var host = await UiHost.StartAsync(
+            configureTracon: static builder => builder.AddSpeechSynthesizer("studio", static _ => new StudioSynthesizer()));
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        using (var restricted = await api.PutAsJsonAsync("api/tenants/default/egress", new { allowedProviders = new[] { "scripted" } }))
+        {
+            restricted.EnsureSuccessStatusCode();
+        }
+
+        using (var refused = await api.PostAsJsonAsync("api/voice/speak", new { text = "hello", provider = "studio" }))
+        {
+            refused.StatusCode.ShouldBe(System.Net.HttpStatusCode.Forbidden);
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+
+        var option = session.Page.GetByTestId("tenant-egress-option-studio-engine");
+
+        await option.ClickAsync();
+        await Expect(option).ToHaveAttributeAsync("aria-pressed", "true");
+        await session.Page.GetByTestId("tenant-egress-save").ClickAsync();
+
+        await Expect(session.Page.GetByTestId("tenant-egress-option-studio-engine"))
+            .ToHaveAttributeAsync("aria-pressed", "true");
+
+        await WaitUntil.ValueAsync(
+            async () => (await api.GetFromJsonAsync<JsonElement>("api/tenants/default/egress"))
+                .GetProperty("allowedProviders").EnumerateArray().Select(static name => name.GetString()).ToList(),
+            static allowed => allowed.Contains("studio-engine", StringComparer.Ordinal),
+            "the console to save the speech provider into the policy");
+
+        using var served = await api.PostAsJsonAsync("api/voice/speak", new { text = "hello", provider = "studio" });
+
+        served.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, await served.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>A local synthesizer that answers with a fixed MP3 frame.</summary>
+    private sealed class StudioSynthesizer : ISpeechSynthesizer
+    {
+        private static readonly byte[] Mp3 =
+            [0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFB, 0x90, 0x00];
+
+        public string ProviderName => "studio-engine";
+
+        public int MaxCharactersPerRequest => 1000;
+
+        public ValueTask<SpeechAudio> SynthesizeAsync(SpeechRequest request, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new SpeechAudio { Data = Mp3, MediaType = "audio/mpeg" });
+
+        public IAsyncEnumerable<ReadOnlyMemory<byte>> SynthesizeStreamingAsync(
+            SpeechRequest request,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>([]);
+    }
+
     [Fact]
     public async Task Webhook_is_added_and_test_send_completes()
     {

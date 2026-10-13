@@ -14,7 +14,8 @@ public sealed record SpeechRequest
     public string? VoiceId { get; init; }
 
     /// <summary>
-    /// The synthesis model to use. <c>VoiceOptions.SynthesisModelId</c> if empty.
+    /// The synthesis model to use. When empty, the synthesizer uses its own default
+    /// (the built-in client: <c>VoiceOptions.SynthesisModelId</c>).
     /// </summary>
     public string? ModelId { get; init; }
 
@@ -42,6 +43,19 @@ public sealed record SpeechRequest
     /// rather than silently drop the alignment.
     /// </remarks>
     public bool IncludeTimestamps { get; init; }
+
+    /// <summary>
+    /// The tenant's own credential for the provider, or <see langword="null"/> to use
+    /// the credential the synthesizer was configured with.
+    /// </summary>
+    /// <remarks>
+    /// Tracon sets it from the tenant's provider binding for
+    /// <see cref="ISpeechSynthesizer.ProviderName"/>, and only for a synthesizer whose
+    /// <see cref="ISpeechSynthesizer.SupportsTenantCredentials"/> is
+    /// <see langword="true"/>. It lives in memory for the call and is never persisted;
+    /// its text form never shows the key.
+    /// </remarks>
+    public ModelProviderCredential? Credential { get; init; }
 }
 
 /// <summary>Generated audio.</summary>
@@ -80,6 +94,17 @@ public sealed class SpeechAudio
     /// <see langword="null"/> when not requested, or when the provider does not support it.
     /// </summary>
     public IReadOnlyList<SpeechAlignment>? Alignment { get; init; }
+
+    /// <summary>
+    /// The model that produced the audio, as the synthesizer reports it;
+    /// <see langword="null"/> when the synthesizer does not report one.
+    /// </summary>
+    /// <remarks>
+    /// The price is looked up under this model first, then under the model the
+    /// request named. A synthesizer that reports it is priced correctly even when the
+    /// caller did not name a model.
+    /// </remarks>
+    public string? ModelId { get; init; }
 }
 
 /// <summary>One character's position in the generated audio.</summary>
@@ -130,16 +155,36 @@ public sealed record SpeechTranscript
     /// The duration of the transcribed audio. Cost is computed from this.
     /// </summary>
     public TimeSpan? AudioDuration { get; init; }
+
+    /// <summary>
+    /// The model that transcribed the audio, as the transcriber reports it;
+    /// <see langword="null"/> when the transcriber does not report one.
+    /// </summary>
+    public string? ModelId { get; init; }
 }
 
 /// <summary>Speech-to-text conversion settings.</summary>
 public sealed record SpeechTranscriptionOptions
 {
-    /// <summary>The model to use. <c>VoiceOptions.TranscriptionModelId</c> if empty.</summary>
+    /// <summary>
+    /// The model to use. When empty, the transcriber uses its own default (the
+    /// built-in client: <c>VoiceOptions.TranscriptionModelId</c>).
+    /// </summary>
     public string? ModelId { get; init; }
 
     /// <summary>The expected language's ISO 639-1 code. The provider detects it if empty.</summary>
     public string? LanguageCode { get; init; }
+
+    /// <summary>
+    /// The tenant's own credential for the provider, or <see langword="null"/> to use
+    /// the credential the transcriber was configured with.
+    /// </summary>
+    /// <remarks>
+    /// Tracon sets it only for a transcriber whose
+    /// <see cref="ISpeechTranscriber.SupportsTenantCredentials"/> is
+    /// <see langword="true"/>. It lives in memory for the call and is never persisted.
+    /// </remarks>
+    public ModelProviderCredential? Credential { get; init; }
 }
 
 /// <summary>The definition of an available voice.</summary>
