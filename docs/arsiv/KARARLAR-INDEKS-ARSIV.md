@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (881 kalem)
+## Arşivlenen Kararlar (889 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -890,3 +890,11 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-879 | 930 | Bir run'ın olayları TEK TEK yazılır: numara, `store` yazımı ve sink dağıtımı tek adımdır, sonraki olay bekler (`RunEventWriter` başına `SemaphoreSlim`); sink içinden aynı writer'a append beklemek yerine `InvalidOperationException` atar ve sink devre dışı kalır; bekleme çağıranın token'ını dinler; bellek içi `ReadEventsAsync` sıralı okur (F-257, kusur-giderme 2026-10-11) |
 | K-880 | 931 | Derlenmiş agent önbelleğinin anahtarı, tanımın her MCP tool'unun bağlı olduğu bağlantı ÖRNEĞİNİN kimliğini (`McpConnection.Generation`) taşır; anlık görüntüde olmayan ad `absent` yazar (silme, devre dışı, refresh hatası); aynı adlı kod tool'u bileşen eklemez; uzak tool açıklaması ve şeması anahtara girmez (F-305, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
 | K-881 | 932 | `[TraconTool]` üretecinin her derlemeye yazdığı `TraconGeneratedToolsBuilderExtensions.AddGeneratedTools()` `internal`'dır: yalnız kendi derlemesinin tool'larını kaydeder; bir kütüphane tool'larını host'a kendi public uzantısıyla verir (o uzantı `AddGeneratedTools()`'u kütüphanenin içinden çağırır); `TRC0005` mesajı bu yolu söyler (F-289, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-882 | 933 | `CompiledAgentCache` `(kiracı, ad, tanım parmak izi, kültür)` başına TEK girdi tutar; yeni bağımlılık parmak iziyle derleme o girdiyi değiştirir, tanım parmak izi ayrı yuvadır (A/B sürümleri birbirini atmaz); MCP bağlaması bağlantı kimliğine ek olarak uzak tool'un protokol `Tool` JSON'unun SHA-256'sını taşır — K-880'in "açıklama ve şema anahtara girmez" kısmı kalkar (F-308, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-883 | 934 | `tools/list` başarısız olunca MCP bağlantısı, kayıtlı ve tanımı aynı kaldıkça, son iyi tool/kaynak listesini son başarılı listelemeden itibaren `TraconMcpOptions.StaleToolRetention` (varsayılan 15 dk; `Zero` = eski davranış, negatif açılışta reddedilir) boyunca sunar; refresh sonucu yine "ulaşılamaz" sayılır; süre geçince sonraki başarısız refresh listeyi düşürür ve K-880'in `absent` reddi döner (F-309, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-884 | 935 | `LoopSettings` iki bağımsız alan taşır (`OnExhausted`, `OnCriterionError`) ve ikisi de tek enum'dur (`LoopOutcome`: `ReturnLastResponse = 0` varsayılan · `FailRun = 1`, JSON'da ad); `OnExhausted = FailRun` iken tavandaki tur DEĞERLENDİRİLİR (MAF'a N+1 verilir, karar N'de); yeni sınıf `RunErrorClass.LoopUnsatisfied = 15` yalnız tükenme içindir, ölçüt hatası orijinal istisnayla ve kendi sınıfıyla düşer (Faz 192, F-293) (kullanıcı kararı) 👤 |
+| K-885 | 936 | Her SSE ucu `SseWriter` içinde kendi keep-alive'ını yazar; aralık yeni public `TraconEndpointOptions.StreamKeepAliveInterval` (15 sn); workflow slot beklemesi run satırı açıldıktan sonradır (F-325) (kullanıcı kararı) 👤 |
+| K-886 | 937 | Terminal job değişmez (`IJobStore` sözleşmesi + iki contract case); kira dolumu denemedir, sınırı aşan job `AttemptsExhausted` ile koşmadan düşer; yenileme tick başına, kiranın üçte birinde; owner fencing ertelendi (F-326) (kullanıcı kararı) 👤 |
+| K-887 | 938 | Workflow katılımcısı cevap veremeyen adımı düşürür (`ChildRefusalMode.Fail`), delegasyon metin döner; süre aşımı yeni public `TraconChildRunTimeoutException`; workflow satırı `ErrorType` + sınıf taşır (F-328 · F-314) (kullanıcı kararı) 👤 |
+| K-888 | 939 | Retention `AwaitingInput` run'ın istek olayını ve checkpoint'lerini tutar; checkpoint temizliği oturumda bekleyen/koşan run varken atlanır; istek kimliği olay `Text`'inden okunur (F-327) (kullanıcı kararı) 👤 |
+| K-889 | 940 | Akışsız döngü son turun cevabını, tüm turların usage toplamıyla döner; `AggregatedResponseGuard` MAF OTel'in bayat `RawRepresentation` kurulumunu keser; akışlı usage çağrıların toplamıdır; doğrulama son asistan mesajını okur (F-317 · F-329) (kullanıcı kararı) 👤 |

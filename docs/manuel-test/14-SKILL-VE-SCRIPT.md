@@ -2340,3 +2340,25 @@ Negatif senaryo.
 - Uygulama açılmaz. Hata `ISkillScriptExecutor was declared as a required
   custom binding, but the registration that resolves is Tracon's own.` der.
 - `FAZ202_SCRIPTS=executor` ile aynı kurulum açılır.
+
+---
+
+### MT-SKILL-083 — Disk script'i boyut ve dosya türü kapısından geçer; FIFO ve sınır aşımı yürütücüye ulaşmaz
+
+Negatif senaryo. Disk skill'i bugün HTTP run'dan çağrılamaz (`F-481`); case
+MAF'ın dosya kaynağından koşan testlere devredilir.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 202 |
+| **İlgili karar** | K-089 |
+| **Devir** | ➜ CI: `SkillScriptExecutorRoutingTests.A_file_script_past_the_content_limit_never_reaches_the_executor` · `SandboxedSkillScriptRunnerTests.A_missing_empty_or_special_file_script_is_denied_without_opening_it` · `A_file_that_blocks_after_the_gate_is_abandoned_at_the_wait_limit_and_frees_the_quota` |
+
+**Beklenen sonuç**
+- `MaxScriptContentLength`'ten büyük, boş, yok ya da düzenli dosya olmayan
+  (FIFO, `/dev/zero` bağlantısı) disk script'i dosya açılmadan reddedilir:
+  `script.denied`, `script.run` YOK, kota slotu alınmaz.
+- Kapıdan sonra FIFO'ya dönen dosya `Timeout + 5 sn`'de bırakılır: `The script
+  file could not be read in time.`; slot serbest kalır, sonraki script koşar.

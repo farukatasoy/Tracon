@@ -266,14 +266,14 @@ docs/MIMARI-GUVENLIK.md · docs/MIMARI-TEHDIT-MODELI.md  (kapanışta)
 - [x] Kayıtlı yürütücüyle stored ve disk script'i yerel süreç başlatmadan yürütücüye gider (test 1, 4) — `SkillScriptExecutorRoutingTests` (stored: HTTP → MAF → runner, nöbetçi dosya; disk: MAF'ın dosya kaynağından, Sapma 1); örnek uygulamada `MT-SKILL-078`
 - [x] Kapı kapalıyken veya denetim yazılamazken yürütücü çağrılmaz (test 2-3) — `A_closed_gate_never_reaches_the_executor` (grant yok · bayat pin · liste dışı uzantı), `A_run_whose_audit_entry_cannot_be_written_never_reaches_the_executor`; örnek uygulamada `MT-SKILL-079`
 - [x] Varsayılanla mevcut script testleri davranış iddiası değişmeden yeşil — `SandboxedSkillScriptRunnerTests`, `SkillScriptProcessRunnerTests` (yalnız kurulum satırı), `SkillScriptContentPinTests`, `SkillScriptGrantTests`, E2E `SkillTests` (UI'lı derleme, 4/4); örnek uygulamada yerel yürütücü nöbetçi dosyayı yarattı
-- [x] Süreye uymayan yürütücü `Timeout + tolerans` içinde `TimedOut` kaydı üretir (test 6) — `An_executor_past_its_timeout_is_abandoned_at_the_wait_limit_and_frees_the_quota` (kurulan gecikme tam 35 sn); örnek uygulamada `MT-SKILL-080` (kayıt süresi 7,009 sn)
+- [x] Süreye uymayan yürütücü `Timeout + tolerans` içinde `TimedOut` kaydı üretir (test 6) — "kayıt" `ToolInvocationRecord.Error` = `Timed out; the script executor did not return in time.` metnidir (`ToolInvocationRecord.TimedOut` alanı `TraconToolTimeoutException`'a aittir, yazılmaz); `An_executor_past_its_timeout_is_abandoned_at_the_wait_limit_and_frees_the_quota` (kurulan gecikme tam 35 sn); örnek uygulamada `MT-SKILL-080` (kayıt süresi 7,009 sn; düzeltmeden sonra 7,002 sn)
 - [x] Yerel yürütücü sözleşmeyi geçer; `RequireCustomBinding` yerel varsayılanda açılışı durdurur — `SkillScriptProcessRunnerContractTests` 10/10 (net8 · net9 · net10), `SkillScriptExecutorRegistrationTests`; örnek uygulamada `MT-SKILL-082`
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — orkestratör `main`'de koşar; bu dalda `kapi.py ic-dongu` koşuldu (§ *İç döngü*)
-- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1, 4), çıktı belgeye yazıldı — § *Örnek uygulama koşumu*
+- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — orkestratör `main`'de koşar; bu dalda iki kez `kapi.py ic-dongu` (§ *İç döngü*), site kapıları ve `--denetle` koşuldu
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1, 4), çıktı belgeye yazıldı — § *Örnek uygulama koşumu*; denetim düzeltmesinden sonra `078`/`080` yeniden koşuldu
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz (17 işaretli sentetik credential atlandı)
-- [x] Manuel kabul case'leri `docs/manuel-test/14-SKILL-VE-SCRIPT.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-SKILL-078`…`082` (§ 9); beşi de örnek uygulamada koşuldu; `078`…`080`, `082` ➜ CI
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — orkestratör koşar
-- [ ] `docs-site/` güncellendi; `cd docs-site && npm run check` temiz; `CHANGELOG.md` yeni tipleri anar — Aşama 2
+- [x] Manuel kabul case'leri `docs/manuel-test/14-SKILL-VE-SCRIPT.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-SKILL-078`…`083` (§ 9); `078`…`082` örnek uygulamada koşuldu; `078`…`080`, `082`, `083` ➜ CI (`083`'ün HTTP yolu yok, F-481)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 🔴 yok; 2 🟡 + 4 🟢 düzeltildi (§ *Denetim Bulguları*)
+- [x] `docs-site/` güncellendi; `cd docs-site && npm run check` temiz; `CHANGELOG.md` yeni tipleri anar — § *Tüketici yüzeyi*
 
 ### Örnek uygulama koşumu — gerçek çıktı (2026-10-13, port 5083)
 
@@ -297,6 +297,13 @@ koşuludur; commit edilmedi, koşum sonunda geri alındı. `run_skill_script` ve
 Temizlik: üç grant iptal, agent ve skill silindi, iki onay kuralı silindi,
 nöbetçi dosya silindi; 5083 boş. `faz202` şeması `ap-pg`'de duruyor.
 
+**Denetim düzeltmesinden sonra (`bcb15ad5`, aynı kurulum):** bekleme sınırı artık
+okumadan önce kuruluyor; stored yol etkilenmemeli. `asili` + `merhaba` eşzamanlı,
+`Timeout=00:00:02`: `asili` kaydı `00:00:07.002`, aynı hata metni; `merhaba` 8 ms
+sonra (`18:49:54.337` → `.345`) `exit_code: 0` / `faz202-executor:merhaba:FDBA1ED41483`;
+yürütücü iki istek aldı, nöbetçi dosya yok. Disk boyut/tür kapısı örnek uygulamada
+koşulamaz: disk skill'i HTTP'den çağrılamıyor (F-481); `MT-SKILL-083` ➜ CI.
+
 ### İç döngü (`kapi.py ic-dongu`, 2026-10-13)
 
 Proje haritasında `Tracon.Testing.Contracts.Xunit` yoktur; seçim tam koşuma
@@ -313,6 +320,29 @@ Geri kalan projeler yeşil. Düzeltmeden sonra hedefli koşumlar: `Tracon.Core.U
 net10 tamamı 3745/3745; net8 ve net9 script/mimari sınıfları 109/109;
 `Tracon.AspNetCore.FunctionalTests` script, kayıt ve DI sınıfları 67/67;
 `Tracon.Generators.UnitTests` 311/311 (XML örneği derlenir).
+
+**İkinci koşum (denetim düzeltmesi, commit'ten önce):** seçim haritadan geldi (tam
+koşum yok). Çıkış `0`: `Tracon.AspNetCore.FunctionalTests` 1783/1783 ·
+`Tracon.Core.UnitTests` 3754/3754 (net8 · net9 · net10) · `Tracon.Generators.UnitTests`
+311/311 · `Tracon.Sql.Shared.UnitTests` 52/52 (üç TFM).
+
+### Tüketici yüzeyi (`tuketici-dokuman-senkronu`, 2026-10-13)
+
+Envanter: **site** — `guides/write-your-own-script-executor.md` (yeni, `src/sidebar.mjs`),
+`concepts/tools.md`, `reference/{threat-model,security-policy}.md`,
+`getting-started/security.md`, `capabilities.md`, `packages.md`; **sevk edilen** — XML
+(`ISkillScriptExecutor`, istek, sonuç, köken, `TraconSkillScriptOptions`,
+`UseSkillScripts`, `RequireCustomBinding`), `SECURITY.md`, `Tracon.Abstractions` ve
+`Tracon.Testing.Contracts.Xunit` README'leri, `CHANGELOG.md` (`Added` + üç `Changed`);
+**üretilen** — `Tracon.AgentMap.md`, `llms.txt`, `llms-full.txt`. Kapılar:
+
+| Kapı | Çıktı |
+|---|---|
+| `ShippedDocumentationSelfContainmentTests`, `CapabilityExampleTests`, `SourceLanguageTests` | 6/6 |
+| `Tracon.Package.Tests` `LocalReferenceTests` | 10/10 |
+| `build-agent-map.mjs --check` | `Agent map: up to date and within budget.` |
+| `npm run check` | `Content: 57 manual pages and 1070 total pages passed.` · `Links: 178293 internal reference(s) across 1070 pages and llms.txt, none broken.` · `SEO: … 0 hata` · `Weight: 1070 pages under 59000 B gzip.` |
+| `dokuman-bakim.py --site-denetle --taban 12cfee4b` | üç kural (`buildtransitive`, `cekirdek-kavram`, `paket-readme`) ✅ |
 
 ---
 
@@ -355,24 +385,36 @@ Uygulama oturumunda yazıldı (faz-uygulama Adım 1). Kapanış oturumu gözden 
    Faz 11 devri kapı 4'ü zaten "script adının düz bir dosya adı olduğu" diye anlatır;
    davranış şimdi o cümleye uyar. Yerel yürütücü yazma sınırında yine doğrular
    (uzantıyla birleşik adı da).
-3. **Modele dönen zaman aşımı metni değişti.** `The script timed out and the process
+3. **Modele dönen zaman aşımı metni değişti (bakımcı onayladı, K-968).** `The script timed out and the process
    tree was terminated.` → `The script timed out and was stopped.` Eski cümle harici
    yürütücü için doğru değildi. Bekleme sınırında runner'ın kendi ürettiği sonuç ayrı
    metin taşır: `The script timed out. The script executor did not return in time, so
    the script may still be running.`; `tool_invocations.error` = `Timed out; the script
    executor did not return in time.` `ToolInvocationRecord.TimedOut` önceki gibi
    yazılmaz (alan `TraconToolTimeoutException`'a aittir).
-4. **Kesme işaretinin metni ve yeri.** Plan "biçimli metnin sonuna" diyordu; metin de
+4. **Kesme işaretinin metni ve yeri (bakımcı onayladı, K-968).** Plan "biçimli metnin sonuna" diyordu; metin de
    değişti: `[Tracon: output truncated at the N-byte limit per stream.]`. Yerel yürütücü
    artık işaret eklemez; sözleşme testi bunu zorlar (`Output_past_the_limit_is_cut_and_flagged_without_a_notice`).
    Runner'ın kesmesi UTF-8 karakter ortasında ve vekil çiftinde bölmez (`SkillScriptOutput`).
-5. **Disk script'i için boyut sınırı yok.** Plan hata modu 12 "büyük disk script'i"
-   diyordu, beklenen davranışı söylemiyordu. `MaxScriptContentLength` veritabanındaki
-   içeriğin sınırıdır; disk script'ine uygulamak varsayılan yürütücüde bugün çalışan
-   büyük script'leri kırardı. Disk içeriği kotadan sonra okunur ve bütün taşınır
-   (test: 200 KB+, `MaxScriptContentLength = 1024`). Okunamayan dosya çağrıyı
-   `The script file could not be read.` ile düşürür; `script.run` o anda yazılmıştır.
-6. **Yürütücü istisnasının mesajı modele ve kayda gitmez.** Plan "istisna span, metrik
+5. **Disk script'i `MaxScriptContentLength` ile sınırlı ve açılmadan denetlenir —
+   bakımcı kararı (2026-10-13, Aşama 1'in "sınır yok" yorumunu değiştirdi; K-966).**
+   Plan hata modu 12 "büyük disk script'i" diyordu, davranış söylemiyordu. Aşama 1
+   sınır koymamıştı; bağımsız denetim (🟡2) iki gerilemeyi gösterdi: skill root'taki
+   FIFO `open(2)`'de çağıranın iş parçacığını kota slotu tutulurken bloklıyordu (testte
+   ölçüldü: test iş parçacığı dakikalarca asılı kaldı), `/dev/zero`'ya bağlantı sonsuz
+   okunuyordu. Tasarım: (a) **kapı** — `CheckFileScript` bağlantıyı son hedefine çözer,
+   yok / `Length == 0` / sınır aşımını dosyayı açmadan reddeder. FIFO, aygıt ve `/proc`
+   girdisi .NET'te `Attributes=Normal`, `Length=0` verir (ölçüldü; tür açmadan
+   okunamaz), boş script'in çalışacak bir şeyi yoktur; ikisi tek kuralda birleşti
+   (`The script file is empty or is not a regular file.`). (b) **okuma** — `ReadBoundedAsync`
+   havuz iş parçacığında açar, yürütücüyle aynı `Timeout + 5 sn` bekleme sınırı altında
+   bekler (bekleme sınırının CTS'si artık okumadan önce kurulur) ve sınır+1 baytta durur.
+   (c) **denetim sırası (K-967)** — kapı retleri `script.denied`, `script.run` ve kota slotu
+   yok; kapıdan sonra çıkan hata (`could not be read`, `could not be read in time`, sınır
+   aşımı) `script.run`'dan sonra tool hatasıdır: K-089 "denenen çalıştırma yazılır, kapalı
+   kapı ret yazar" ile tutarlı. Bilinen sınır: kapıdan sonra FIFO'ya dönen dosyada
+   açılış iş parçacığı yazar gelene kadar bloklu kalır; slot ve çağıran serbesttir.
+6. **Yürütücü istisnasının mesajı modele ve kayda gitmez (bakımcı onayladı, K-968).** Plan "istisna span, metrik
    ve `tool_invocations`'a hata yazar" diyordu. Yazılan metin yalnız istisna tipidir
    (`The script executor failed (HttpRequestException).`); mesaj yalnız sunucu
    log'una gider. Harici yürütücünün mesajı host iç bilgisini taşıyabilir.
@@ -401,44 +443,202 @@ Uygulama oturumunda yazıldı (faz-uygulama Adım 1). Kapanış oturumu gözden 
     kalkması, tutarlılık denetiminin kalkması (3 birim), bekleme sınırının kalkması,
     validator satırının kalkması. Denetim yazımını yutan ve ad kapısını kapatan iki
     mutasyonun koşumunu güvenlik sınıflandırıcısı reddetti; o iki davranışı mevcut
-    `The_script_does_not_run_when_the_audit_trail_cannot_be_written` ve yeni fonksiyonel
-    `A_run_whose_audit_entry_cannot_be_written_never_reaches_the_executor` /
+    birim testi `The_script_does_not_run_when_the_audit_trail_cannot_be_written`, yeni
+    fonksiyonel test `A_run_whose_audit_entry_cannot_be_written_never_reaches_the_executor`
+    (Aşama 2'de pozitif kontrol: `script.run` denemesi tam 1) ve yeni birim testi
     `A_stored_script_whose_name_is_not_a_plain_file_name_is_denied_before_the_executor`
-    yeşil kanıtlar; kırmızı hâlleri ölçülmedi.
+    yeşil kanıtlar; kırmızı hâlleri ölçülmedi. Aşama 2'nin testleri koddan ÖNCE yazıldı ve
+    eski kodda kırmızı görüldü: boyut kapısı ve geç yürütücü hatası (ikisi birim) düştü,
+    FIFO senaryosu test iş parçacığını asılı bıraktı (süreç öldürüldü).
+12. **`ReadBoundedAsync` ve `CheckFileScript` `internal static` ve doğrudan test edilir.**
+    Kapıdan sonra dosyanın değişmesi deterministik kurulamaz; test `script.run` yazımında
+    dosyayı FIFO ile değiştiren bir denetim log'u kullanır (`SwappingAuditLog`) — denetim
+    kapı ile okuma arasındaki tek adımdır.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Dört kategoriden birine giren karar ayrıca
-> `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer. Beklenen adaylar:
-> yürütücü seam'i, R8'in varsayılan yürütücüye daralması (`public-api`,
-> `güvenlik`); Açık Soru 1–3. Plan numara rezerve etmez.
+`docs/KARARLAR.md` § 2 — numaralar geçicidir (`K-962`…`K-969`), merge'de kaydırılır:
+
+| K | Karar | Kategori |
+|---|---|---|
+| K-962 | Yürütme `ISkillScriptExecutor` seam'inden geçer; kapılar, pin, denetim, kota, bekleme sınırı, çıktı sınırı runner'da; yerel süreç işaretli varsayılan; sonuç `Abstractions`'a taşındı, `Duration`'sız | public-api, güvenlik |
+| K-963 | Harici yürütücüde de `PlatformIsolationAcknowledged`; K-861 değişmez (Açık Soru 1-A, 2-A) 👤 | güvenlik |
+| K-964 | Disk script'i de yürütücüye; kardeş dosya taşınmaz; kota uygulanır; tolerans sabit 5 sn (Açık Soru 3-A, 4-A, 5-A) 👤 | güvenlik |
+| K-965 | R8 varsayılan yürütücüye daralır; B7 adı ve kapsam satırı değişmez | güvenlik, public-api |
+| K-966 | `MaxScriptContentLength` disk script'ine de; boş/özel dosya açılmadan ret; sınırlı ve bekleme sınırlı okuma 👤 | güvenlik |
+| K-967 | Ad ve disk boyut/tür kapısı denetimden önce `script.denied`; kapı sonrası okuma hatası `script.run`'dan sonra | güvenlik |
+| K-968 | Zaman aşımı metni, runner'ın tek kesme işareti, yürütücü istisnasında yalnız tip 👤 | public-api, güvenlik |
+| K-969 | İstek ortam değeri taşımaz; iki değişken; `ContentSha256` ≠ grant pini; `ToString` içeriği basmaz | public-api, güvenlik |
+
+Kategori dışı yerel tercihler: test altyapısı `TriggerableTimeProvider.DueTimes`;
+XML örneği tip bildirimi (Sapma 9); `SkillScriptOutput` tek kesme yardımcısı.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// Tracon.Abstractions (namespace Tracon)
+public interface ISkillScriptExecutor
+{
+    ValueTask<SkillScriptExecutionResult> ExecuteAsync(
+        SkillScriptExecutionRequest request, CancellationToken cancellationToken = default);
+}
+
+public enum SkillScriptOrigin { File = 0, Stored = 1 }
+
+public sealed record SkillScriptExecutionRequest   // ToString: Content ve ArgumentsJson yok
+{
+    public required string TenantId { get; init; }
+    public Guid? RunId { get; init; }
+    public required string SkillName { get; init; }
+    public required string ScriptName { get; init; }
+    public required SkillScriptOrigin Origin { get; init; }
+    public required string Extension { get; init; }
+    public required string Interpreter { get; init; }
+    public required string Content { get; init; }
+    public required string ContentSha256 { get; init; }
+    public string? SourcePath { get; init; }
+    public string? ArgumentsJson { get; init; }
+    public required TimeSpan Timeout { get; init; }
+    public required int MaxOutputBytes { get; init; }
+}
+
+public sealed record SkillScriptExecutionResult
+{
+    public int? ExitCode { get; init; }
+    public string StandardOutput { get; init; }     // = ""
+    public string StandardError { get; init; }      // = ""
+    public bool Truncated { get; init; }
+    public bool TimedOut { get; init; }
+    public bool Succeeded { get; }                  // !TimedOut && ExitCode == 0
+}
+
+// Tracon.Testing.Contracts.Xunit
+public const string ContractCoverage.ScriptContracts = "Tracon.Testing.Contracts.Scripts";
+
+namespace Tracon.Testing.Contracts.Scripts;
+public abstract class SkillScriptExecutorContract : IAsyncLifetime
+{
+    protected const string ExpectedStandardError, ContractSkillName;
+    protected const int ExpectedExitCode;
+    protected ISkillScriptExecutor Executor { get; }
+    protected abstract ValueTask<ISkillScriptExecutor> CreateExecutorAsync();
+    protected virtual string? SkipReason { get; }
+    protected virtual string Extension { get; }               // "sh"
+    protected virtual string Interpreter { get; }             // "/bin/sh"
+    protected virtual string ReadStandardInputScript, FailingScript, FloodScript, SleepScript, EmptyScript { get; }
+    protected virtual TimeSpan StopTolerance { get; }         // 30 sn
+    protected virtual string EchoScript(string text);
+    protected virtual string EnvironmentScript(string hostVariable);
+    protected virtual string TempMarkerScript(string marker);
+    protected virtual SkillScriptExecutionRequest CreateRequest(
+        string scriptName, string content, string? argumentsJson = null,
+        TimeSpan? timeout = null, int maxOutputBytes = 65536);
+    // 10 [Fact]
+}
+```
+
+`Tracon.Core`: yeni public üye yok. XML değişti: `UseSkillScripts`,
+`TraconSkillScriptOptions` (sınıf, `Interpreters`, `EnvironmentAllowList`, `Timeout`,
+`MaxOutputBytes`, `MaxScriptContentLength`), `RequireCustomBinding<T>` (`typeparam`).
+HTTP ucu yok; arayüz payı yok. Yüzey tabanı: `Tracon.Abstractions` 414 → 418,
+`Tracon.Testing.Contracts.Xunit` 49 → 50.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.Abstractions/Skills/ISkillScriptExecutor.cs · SkillScriptExecutionRequest.cs
+  SkillScriptExecutionResult.cs (Core'dan taşındı) · SkillScriptOrigin.cs
+src/Tracon.Abstractions/PublicAPI.Unshipped.txt · README.md
+src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs (kapı, okuma, bekleme sınırı, kayıt)
+src/Tracon.Core/Skills/Scripts/SkillScriptProcessRunner.cs (ISkillScriptExecutor)
+src/Tracon.Core/Skills/Scripts/SkillScriptOutput.cs (yeni) · SkillScriptExecutionResult.cs (silindi)
+src/Tracon.Core/Skills/TraconSkillScriptBuilderExtensions.cs · TraconOptions.cs
+src/Tracon.Core/TraconOptionsValidator.cs · TraconBuilderExtensions.cs
+src/Tracon.Core/buildTransitive/Tracon.AgentMap.md (üretilen)
+src/Tracon.Testing.Contracts.Xunit/Contracts/Scripts/SkillScriptExecutorContract.cs
+src/Tracon.Testing.Contracts.Xunit/ContractCoverage.cs · PublicAPI.Unshipped.txt · README.md
+tests/Tracon.Core.UnitTests/Skills/SandboxedSkillScriptRunnerTests.cs (partial, kurulum)
+tests/Tracon.Core.UnitTests/Skills/SandboxedSkillScriptRunnerTests.Executor.cs (yeni)
+tests/Tracon.Core.UnitTests/Skills/SkillScriptProcessRunnerTests.cs (kurulum)
+tests/Tracon.Core.UnitTests/Contracts/SkillScriptProcessRunnerContractTests.cs (yeni)
+tests/Tracon.Core.UnitTests/Fakes/TriggerableTimeProvider.cs (DueTimes)
+tests/Tracon.Core.UnitTests/Hosting/TimeoutOptionValidationTests.cs (+2)
+tests/Tracon.Core.UnitTests/Architecture/{TimeoutSiteTests,SeamContractDocumentationTests}.cs
+tests/Tracon.Core.UnitTests/Architecture/public-surface-baseline.txt
+tests/Tracon.AspNetCore.FunctionalTests/SkillScriptExecutorRoutingTests.cs (yeni)
+tests/Tracon.AspNetCore.FunctionalTests/SkillScriptExecutorRegistrationTests.cs (yeni)
+docs-site/src/content/docs/guides/write-your-own-script-executor.md (yeni) · src/sidebar.mjs
+docs-site/src/content/docs/{concepts/tools,capabilities,packages}.md
+docs-site/src/content/docs/reference/{threat-model,security-policy}.md · getting-started/security.md
+docs-site/public/llms.txt · llms-full.txt (üretilen) · SECURITY.md · CHANGELOG.md
+docs/MIMARI-GUVENLIK.md · docs/MIMARI-TEHDIT-MODELI.md · docs/KARARLAR.md · docs/ADAYLAR.md
+docs/hafiza/{maf-api,secenek-baglama-ve-gizlilik}.md
+docs/manuel-test/14-SKILL-VE-SCRIPT.md · 00-INDEKS.md
+```
+
+**Testler** (sayılar net10): `SandboxedSkillScriptRunnerTests` 47 (yeni 29: istek
+alanları, `RunId`, bütün disk script'i, boyut kapısı, yok/boş/`/dev/zero`/FIFO kapısı,
+okunamayan dosya, kapıdan sonra FIFO ve bekleme sınırı, sınırlı okuma, ad kapısı,
+yeniden kesme ve tek işaret, bekleme sınırı ve kota (iki biçim), çağıran iptali, geç
+yürütücü hatası, kota, tutarsız sonuç ×4, istisna ×3, `tool_invocations` reddi, kesme
+yardımcısı) · `SkillScriptProcessRunnerContractTests` 10 + kapsam 1 ·
+`SkillScriptProcessRunnerTests` 5 · `TimeoutOptionValidationTests` +2 ·
+`SkillScriptExecutorRoutingTests` 10 · `SkillScriptExecutorRegistrationTests` 6.
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 1 (disk script'i boyut sınırı, bakımcı kararı 2026-10-13; Sapma 5) |
+| Düzeltme turu sayısı | 1 (bağımsız denetim → Aşama 2) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 1 (Aşama 1'in disk okuması: FIFO kota slotunu tutarak bloklanıyordu, `/dev/zero` sonsuz okunuyordu; merge'den önce denetimde bulundu ve kapandı) |
+| Faz kapandıktan sonra bulunan kusur | 0 — faz kapanmadı (ölçülmedi) |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Bulgu yoksa "🔴 ve 🟡 yok"
-> yazılır; boş bırakılmaz.
+Bağımsız denetim (2026-10-13): 🔴 yok, 2 🟡, 4 🟢. Triyaj ve sonuç:
+
+| # | Seviye | Bulgu | Triyaj | Sonuç |
+|---|---|---|---|---|
+| 1 | 🟡 | `ISkillScriptExecutor` XML'i kotanın sırasını yanlış anlatıyordu ("after the call … quota"); kapı listesinde stored ad kapısı yoktu | gerçek | Düzeltildi: slot çağrıdan önce alınır ve çağrı dönene ya da bekleme sınırına kadar tutulur; liste ad ve disk boyut kapısını sayar. Site (`concepts/tools.md`, yeni rehber) aynı sırayı anlatır |
+| 2 | 🟡 | Disk script'i okuması boyutsuz ve süresiz, kota slotu tutulurken; FIFO slotu kilitler, `/dev/zero` sonsuz okunur (gerileme) | gerçek | Düzeltildi (K-966, K-967, Sapma 5): açmadan meta veri kapısı + bekleme sınırı altında sınırlı okuma; testler önce kırmızı görüldü |
+| 3 | 🟢 | `A_run_whose_audit_entry_cannot_be_written_never_reaches_the_executor` pozitif kontrol taşımıyordu | gerçek | Düzeltildi: `ScriptRunAttempts.ShouldBe(1)` |
+| 4 | 🟢 | Ortam sızıntısı testi istek alanlarını `ToString()` ile tarıyordu | gerçek | Düzeltildi: istek `JsonSerializer` ile bütün seri hâle getirilip taranır |
+| 5 | 🟢 | `tool_invocations` store'u hata verince run'ın sürdüğünü kanıtlayan test yoktu (faz öncesi) | gerçek | Düzeltildi: `A_tool_call_record_the_store_refuses_does_not_fail_the_run` |
+| 6 | 🟢 | Çağıran iptalinde geç kalan yürütücü görevi gözlenmiyordu | gerçek | Düzeltildi: `ObserveLateOutcome` iptal yolunda da; `A_late_executor_failure_after_a_caller_cancellation_is_observed` eski kodda kırmızıydı |
+
+Ayrıca denetim iki metin hatası buldu: Sapma 11 bir birim testini "yeni fonksiyonel"
+diye anıyordu (düzeltildi); DoD 4'teki "TimedOut kaydı"nın
+`ToolInvocationRecord.Error` metni olduğu yazıldı.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+**Devralınan sözleşmeler.** `ISkillScriptExecutor` (singleton · beklenen kiracı ·
+teslim garantisi yok; iptal işbirliğine dayanır, Tracon yalıtımı doğrulamaz) ve
+`SkillScriptExecutorContract` (10 senaryo, POSIX `sh`). Sıra runner'dadır: kapılar
+(ad ve disk boyut/tür dahil) → `script.run` → kota slotu → disk okuma → yürütücü;
+okuma ve yürütücü tek `Timeout + 5 sn` bekleme sınırı altında. Çıktı sınırını ve tek
+kesme işaretini runner uygular; süreyi runner ölçer; tutarsız/`null` sonuç ve istisna
+çağrıyı düşürür (kayda yalnız tip).
+
+**Açık uçlar.**
+
+- **F-481** (🟡, ADAYLAR kusur tablosu): yalnız diskte duran skill'i agent
+  adlandıramaz; `SkillRoots` script'leri HTTP run'dan çalışmaz. Kapsam dışında bırakıldı
+  (bakımcı). Disk testleri bugün MAF'ın dosya kaynağından başlar; düzeltme HTTP biçimini
+  ekler.
+- **F-169** (Hyperlight/CodeAct yürütücüsü) eşiği değişmedi (en yeni 0.7.0,
+  2026-10-12); seam artık böyle bir yürütücüyü paket olarak takmaya izin verir.
+- `kapi.py` proje haritasında `Tracon.Testing.Contracts.Xunit` yok: bu pakete dokunan
+  değişiklik `ic-dongu`'yu tam koşuma (ve UI'sız E2E'ye, F-356) genişletir.
+
+🚨 **Harici yürütücü yazanlar için tuzaklar:**
+
+- Dosya script'inin `ScriptName`'i göreli yoldur (`scripts/x.sh`); dosya adı değildir.
+- Çağıran iptali `OperationCanceledException`'dır, `TimedOut` değil; token'ı yok sayan
+  yürütücü Tracon bekleme sınırında bırakıldıktan sonra da koşabilir.
+- Çıktıya işaret ekleme; `Truncated` yaz. Mesajı gizli bilgi taşıyan istisna atma —
+  yalnız tipi kayda gider ama sunucu log'una gider.
+- Kullanıcının yazabildiği dizinden dosya okuyacaksan FIFO/aygıtı açmadan ele
+  (`docs/hafiza/secenek-baglama-ve-gizlilik.md`).

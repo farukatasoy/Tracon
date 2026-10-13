@@ -249,15 +249,15 @@ FK'sız oturum/run tablosu kendi hedefini ister (F-371); K-888 muafiyeti silmede
 
 ## Skill script çalıştırma
 
-K2'nin (**"tool'lar yalnız kodda tanımlanır"**) ikinci bilinçli istisnası —
-birincisi MCP (uzakta çalışır), bu **Tracon'in kendi makinesinde** çalışır.
-Varsayılan **kapalıdır**; yalnız kodda açılır ve yürütülebilir yüzeyi genişleten
+K2'nin ikinci bilinçli istisnası — MCP uzakta, script varsayılan yürütücüyle
+**Tracon'in makinesinde** çalışır; host `ISkillScriptExecutor` ile yerini seçer
+(Faz 202). Varsayılan **kapalıdır**; yalnız kodda açılır, yüzeyi genişleten
 alanlar (`Interpreters`, `SkillRoots`, `AllowStoredScripts`) yapılandırmadan
-OKUNMAZ. Her çalıştırma beş sıralı kapıdan geçer (Enabled · içeriğe pinli kiracı
-izni · yorumlayıcı beyaz listesi · argüman doğrulama · denetim izi yazımı); denetim
-izi kapısı Faz 9 kuralının tek istisnasıdır — yazılamazsa çalıştırma durur (K-089).
-`PlatformIsolationAcknowledged` dosya/ağ/kota/hak düşürme sınırlarının barındırma
-ortamında kurulduğunu KABUL ETTİRİR; Tracon bunları sağlamaz (K-086).
+OKUNMAZ. Beş sıralı kapı (Enabled · pinli kiracı izni · yorumlayıcı listesi ·
+argüman, stored ad, disk boyutu · denetim yazımı) yürütücüden önce runner'dadır;
+denetim yazılamazsa çalıştırma durur (K-089). Kota slotu ve `Timeout + 5 sn`
+bekleme sınırı disk okumasını ve yürütücüyü kapsar. `PlatformIsolationAcknowledged`
+her yürütücüde zorunludur; Tracon yalıtım sağlamaz ve doğrulayamaz (K-086).
 
 **İçerik pini (Faz 186).** Stored veya kodda tanımlı script'in grant'ı içeriğin
 hash'ini taşır (`SkillScriptGrant.ContentHash`; script grant'ı script'in hash'ini,

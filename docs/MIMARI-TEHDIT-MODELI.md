@@ -221,10 +221,12 @@ taşımaz; loopback kısıtı ve yetkilendirme politikası hâlâ geçerlidir. B
 hücre kapanmaz ama zararı sınırlıdır — adlandırılması gereken bir tasarım
 kararıdır, bir kusur değildir.
 
-### R8 — Script, Tracon'un işletim sistemi kimliğiyle çalışır
+### R8 — Script, varsayılan yürütücüyle Tracon'un işletim sistemi kimliğiyle çalışır
 
-B7 bir OS sandbox'ı değildir (K-086): süreç Tracon'la aynı OS kullanıcısıyla
-başlar (`SkillScriptProcessRunner.cs` `UserName` atamaz). `EnvironmentAllowList`
+B7 bir OS sandbox'ı değildir (K-086): varsayılan yürütücüde süreç Tracon'la aynı
+OS kullanıcısıyla başlar (`SkillScriptProcessRunner` `UserName` atamaz). Kayıtlı
+bir `ISkillScriptExecutor` script'i başka yerde koşar (Faz 202); o yalıtım
+host'undur, Tracon doğrulayamaz, grant kuralları gevşemez. `EnvironmentAllowList`
 yalnız ortam mirasını keser; süreç kullanıcının okuyabildiği her şeyi okur.
 **Ölçüldü (2026-09-24, `alpine:3.20`, root ve uid 1000):** ortamı `env -i` ile
 temizlenmiş bir çocuk süreç, ebeveynin başlangıç ortamını
