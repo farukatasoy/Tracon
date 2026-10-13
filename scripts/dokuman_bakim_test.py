@@ -270,6 +270,22 @@ class KirikBaglantilarTestleri(unittest.TestCase):
 
             self.assertEqual(kirik, [])
 
+    def test_agent_worktree_kopyalari_taranmaz(self):
+        # Paralel faz agent'lari `.claude/worktrees/<ad>/` altinda reponun tam
+        # kopyasini tasir; uretilmis `docfx/` ara ciktilari dahil. Ana agacin
+        # denetimi o kopyalari taradiginda 904 kirik baglanti raporladi
+        # (2026-10-13, Faz 196/202/203 paralel koşumu).
+        with tempfile.TemporaryDirectory() as t:
+            tmp = pathlib.Path(t)
+            self._kok_kur(tmp)
+            kopya = tmp / ".claude" / "worktrees" / "agent-x" / "docs"
+            kopya.mkdir(parents=True)
+            (kopya / "a.md").write_text("[kirik](yok-boyle.md)\n")
+
+            kirik = dokuman_bakim.kirik_baglantilar(tmp)
+
+            self.assertEqual(kirik, [])
+
 
 class DenetleKirikBaglantiTestleri(unittest.TestCase):
     """`denetle()` kırık bağlantı sayısını çıkış koduna katmalı — bağımsız
