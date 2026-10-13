@@ -668,8 +668,10 @@ workflow is saved; a definition stored before the cap was lowered still runs.
 | `DefaultVoiceId` | `null` |
 | `SynthesisModelId` | `null` |
 | `TranscriptionModelId` | `null` |
+| `DialogueModelId` | `null`; the provider's default dialogue model |
 | `OutputFormat` | `mp3_44100_128` |
 | `MaxCharactersPerRequest` | `5000` |
+| `MaxDialogueCharactersPerRequest` | `2000` |
 | `MaxConcurrentRequests` | `2` |
 | `RequireApproval` | `false` |
 | `Timeout` | `null`; implementation uses 100 seconds |
@@ -681,6 +683,13 @@ registered before `UseVoice()`, those three are not required. `Provider` is not 
 price key: `Tracon:Pricing:Voice` is keyed by the `ProviderName` of the implementation
 that did the work. `MaxCharactersPerRequest` is the built-in client's limit; your own
 synthesizer reports its limit through `ISpeechSynthesizer.MaxCharactersPerRequest`.
+
+`DialogueModelId` and `MaxDialogueCharactersPerRequest` apply to a dialogue voiced by
+the built-in client. The single-voice `SynthesisModelId` is never sent for a
+dialogue. `MaxDialogueCharactersPerRequest` must be greater than zero; a longer
+dialogue is refused, not split, and the built-in client reports the value through
+`ISpeechDialogueSynthesizer.DialogueCapabilities`. Synthesis, dialogue and
+transcription share the one `MaxConcurrentRequests` limit.
 
 ### Live voice conversation
 
