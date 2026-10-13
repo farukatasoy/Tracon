@@ -84,6 +84,7 @@ internal sealed partial class AgentDefinitionValidator
         var inconclusive = false;
 
         await CheckModelAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        await CheckOutputLimitsAsync(definition, messages, cancellationToken).ConfigureAwait(false);
 
         await CheckToolsAsync(
             definition,

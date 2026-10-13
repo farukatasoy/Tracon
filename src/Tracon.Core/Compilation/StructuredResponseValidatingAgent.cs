@@ -51,6 +51,13 @@ namespace Tracon;
 /// from the repair round.
 /// </para>
 /// <para>
+/// <strong>A response cut off at the output token limit is not repaired.</strong>
+/// The pipeline's finish-reason detector ends that call with
+/// <see cref="TraconOutputTruncatedException"/> before this class sees a
+/// response; a repair turn would hit the same limit. The rejection event
+/// carries <c>RepairSkippedTruncated</c> when a repair attempt was left.
+/// </para>
+/// <para>
 /// <strong>A run that carries a durable session gets no repair budget.</strong>
 /// The underlying agent framework persists a turn's own request and response
 /// as soon as that ONE model call completes, entirely inside its own call —
@@ -117,6 +124,10 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         _logger = logger;
     }
 
+    /// <summary>The safe rejection reason for a response cut off at the output token limit.</summary>
+    internal const string TruncatedReason =
+        "The model stopped at its output token limit before the response was complete.";
+
     private AgentResponseFormat? RequestedFormat => _descriptor.Model?.ResponseFormat;
 
     private bool ShouldValidate
@@ -162,7 +173,9 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
             && AgentSessionIdentity.GetId(session) is not null;
         var maxAttempts = repairSuppressed ? 1 : _options.MaxRepairAttempts + 1;
 
-        var response = await base.RunCoreAsync(originalMessages, session, options, cancellationToken).ConfigureAwait(false);
+        var response = await RunAttemptAsync(
+                originalMessages, session, options, format, attempt: 1, maxAttempts, repairSuppressed, cancellationToken)
+            .ConfigureAwait(false);
 
         for (var attempt = 1; ; attempt++)
         {
@@ -195,8 +208,58 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
 
             // session: null is deliberate - see the class remarks on why the
             // repair exchange must not reach the caller's own session.
-            response = await base.RunCoreAsync(repairMessages, session: null, options, cancellationToken)
+            response = await RunAttemptAsync(
+                    repairMessages, session: null, options, format, attempt + 1, maxAttempts, repairSuppressed: false, cancellationToken)
                 .ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Runs one model call of this response and records an output-limit stop as a rejection.</summary>
+    /// <remarks>
+    /// <para>
+    /// A response the model cut off at its output token limit never
+    /// reaches the validator. The pipeline's finish-reason detector throws
+    /// <see cref="TraconOutputTruncatedException"/> for a structured request, and
+    /// this method lets it end the run: a repair turn asks the same model with
+    /// the same limit for a document at least as long, so it would be cut off
+    /// again. Before, the cut-off JSON was rejected as "not valid JSON" and every
+    /// repair turn spent another full output limit on the same failure.
+    /// </para>
+    /// <para>
+    /// The rejection event still records the attempt, so the run's timeline says
+    /// why it ended. <c>RepairSkippedTruncated</c> is set only when a repair
+    /// attempt was left: a run without repair budget did not skip anything. The
+    /// truncated call's tokens are already folded into the run by the detector;
+    /// nothing is added here.
+    /// </para>
+    /// </remarks>
+    private async Task<AgentResponse> RunAttemptAsync(
+        IEnumerable<ChatMessage> messages,
+        AgentSession? session,
+        AgentRunOptions? options,
+        AgentResponseFormat format,
+        int attempt,
+        int maxAttempts,
+        bool repairSuppressed,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await base.RunCoreAsync(messages, session, options, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconOutputTruncatedException)
+        {
+            await RejectedAsync(
+                    format,
+                    TruncatedReason,
+                    attempt,
+                    maxAttempts,
+                    repairSuppressed,
+                    cancellationToken,
+                    repairSkippedTruncated: attempt < maxAttempts)
+                .ConfigureAwait(false);
+
+            throw;
         }
     }
 
@@ -219,12 +282,43 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         }
 
         var updates = new List<AgentResponseUpdate>();
+        var format = RequestedFormat!;
 
-        await foreach (var update in base.RunCoreStreamingAsync(messages, session, options, cancellationToken)
-            .ConfigureAwait(false))
+        var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationToken)
+            .GetAsyncEnumerator(cancellationToken);
+
+        try
         {
-            updates.Add(update);
-            yield return update;
+            while (true)
+            {
+                bool hasNext;
+
+                try
+                {
+                    hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                }
+                catch (TraconOutputTruncatedException)
+                {
+                    // F-320: the stream already reached the caller; the rejection
+                    // only says why the run ends. Repair never runs here anyway.
+                    await RejectedAsync(format, TruncatedReason, attempt: 1, maxAttempts: 1, repairSuppressed: false, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    throw;
+                }
+
+                if (!hasNext)
+                {
+                    break;
+                }
+
+                updates.Add(enumerator.Current);
+                yield return enumerator.Current;
+            }
+        }
+        finally
+        {
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
 
         // Validation runs AFTER the whole stream has already reached the
@@ -232,7 +326,6 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         // Repair never runs here (see the class remarks): a rejection is
         // always the FIRST and ONLY attempt on the streaming path, regardless
         // of MaxRepairAttempts.
-        var format = RequestedFormat!;
         var text = FinalAnswerText(AgentResponseExtensions.ToAgentResponse(updates).Messages);
         var reason = await ValidationReasonAsync(format, text, cancellationToken).ConfigureAwait(false);
 
@@ -352,7 +445,8 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         int attempt,
         int maxAttempts,
         bool repairSuppressed,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool repairSkippedTruncated = false)
     {
         if (TraconRunContext.Current?.Writer is not { } writer)
         {
@@ -370,6 +464,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
                 Provider = _descriptor.Model?.Provider,
                 Model = _descriptor.Model?.Model,
                 RepairSuppressedBySession = repairSuppressed ? true : null,
+                RepairSkippedTruncated = repairSkippedTruncated ? true : null,
             },
             TraconCoreJsonContext.Default.StructuredResponseRejectedEventPayload);
 
@@ -465,6 +560,13 @@ internal sealed record StructuredResponseRejectedEventPayload
     /// budget is not confused with one whose budget was withheld.
     /// </summary>
     public bool? RepairSuppressedBySession { get; init; }
+
+    /// <summary>
+    /// Gets <see langword="true"/> when a repair attempt was left but deliberately
+    /// not run because the model stopped at its output token limit;
+    /// <see langword="null"/> otherwise. A repair turn would hit the same limit.
+    /// </summary>
+    public bool? RepairSkippedTruncated { get; init; }
 }
 
 /// <summary>The <see cref="RunEventType.StructuredResponseRepairAttempted"/> event payload.</summary>

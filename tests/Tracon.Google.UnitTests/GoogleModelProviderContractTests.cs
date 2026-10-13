@@ -77,6 +77,10 @@ public sealed class GoogleModelProviderSettingsContractTests : ModelProviderSett
 
     protected override KeyValuePair<string, JsonElement>? SupportedSetting
         => new(GoogleProviderNames.ThinkingIncludeThoughtsSetting, True);
+
+    // A text value of the right type that is not a HarmBlockThreshold.
+    protected override KeyValuePair<string, JsonElement>? InvalidSettingValue
+        => new(GoogleProviderNames.SafetyHarassmentSetting, JsonDocument.Parse("\"BLOCK_EVERYTHING_TWICE\"").RootElement.Clone());
 }
 
 /// <summary>

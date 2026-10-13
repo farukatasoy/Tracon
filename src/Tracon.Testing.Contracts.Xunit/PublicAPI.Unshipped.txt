@@ -62,6 +62,7 @@ Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Two_different
 Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract
 Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.A_supported_provider_setting_is_accepted() -> void
 Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.A_supported_setting_is_matched_regardless_of_key_casing() -> void
+Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.A_supported_setting_with_an_invalid_value_is_rejected() -> void
 Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.An_unsupported_provider_setting_is_rejected() -> void
 Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.ModelProviderSettingsContract() -> void
 Tracon.Testing.Contracts.Scheduling.JobHandlerContract
@@ -913,6 +914,7 @@ virtual Tracon.Testing.Contracts.Judges.RunJudgeContract.CreateContext() -> Trac
 virtual Tracon.Testing.Contracts.Providers.ModelProviderContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual Tracon.Testing.Contracts.Providers.ModelProviderContract.UnknownModelName.get -> string!
 virtual Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.OtherCredential.get -> Tracon.ModelProviderCredential!
+virtual Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.InvalidSettingValue.get -> System.Collections.Generic.KeyValuePair<string!, System.Text.Json.JsonElement>?
 virtual Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.SupportedSetting.get -> System.Collections.Generic.KeyValuePair<string!, System.Text.Json.JsonElement>?
 virtual Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.UnsupportedSettingKey.get -> string!
 virtual Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateJob(System.Collections.Generic.IReadOnlyList<Tracon.JobItemRecord!>! items) -> Tracon.JobRecord!

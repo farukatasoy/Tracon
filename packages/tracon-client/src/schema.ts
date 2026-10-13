@@ -5301,6 +5301,11 @@ export interface components {
             /** @description Whether output conforming to a JSON schema can be produced. */
             supportsStructuredOutput?: boolean;
             /**
+             * @description Whether the model accepts the sampling parameters `temperature` and
+             *     `topP`; `null` when the catalog does not say.
+             */
+            supportsSampling?: null | boolean;
+            /**
              * Format: double
              * @description The cost per million input tokens. For reporting only.
              */
@@ -5937,7 +5942,7 @@ export interface components {
             fingerprint?: null | string;
         };
         /** @enum {unknown} */
-        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | "LoopUnsatisfied" | null;
+        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | "LoopUnsatisfied" | "OutputTruncated" | null;
         /** @description The summary of runs sharing the same fingerprint. */
         RunErrorCluster: {
             /** @description The digest of the normalized message. */

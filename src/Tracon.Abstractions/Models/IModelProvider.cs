@@ -101,6 +101,14 @@ namespace Tracon;
 /// circuit breaker count a healthy provider as failing.
 /// </para>
 /// <para>
+/// A response the model stopped at its output token limit is not an exception
+/// either. Report <see cref="Microsoft.Extensions.AI.ChatFinishReason.Length"/>
+/// on the response (or on the last streamed update): the same ring fails a
+/// structured (JSON) request with <see cref="TraconOutputTruncatedException"/>
+/// and lets a plain-text answer through with a
+/// <see cref="RunEventCustomTypes.OutputTruncated"/> run event.
+/// </para>
+/// <para>
 /// A <see cref="TraconException"/> thrown from
 /// <see cref="CreateChatClient"/> is wrapped as a compilation error naming the
 /// agent; every other exception propagates raw. Use it for a configuration or
