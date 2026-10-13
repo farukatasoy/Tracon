@@ -3066,18 +3066,22 @@ Makine yanıtı deseni: render bitince host bekleyen isteği yanıtlar, bağlant
 | **İzlek** | B |
 | **Önem** | Orta |
 | **İlgili faz** | 196 |
-| **İlgili karar** | K-725, K-918 |
-| **Devir** | ➜ CI: `workflow-editor.test.tsx` · `full-replace-editors.test.tsx` |
+| **İlgili karar** | K-725, K-901, K-918 |
+| **Devir** | ➜ CI: `workflow-editor.test.tsx` · `full-replace-editors.test.tsx` · E2E `WorkflowTests` |
 
 **Ön koşul** — Konsol; `bounded` kayıtlı (MT-WF-142).
 
 **Adımlar**
 1. Workflows > `bounded` > Edit; `slow` adımının süre alanına `5`, Run timeout alanına `300` yaz; kaydet; yeniden aç.
 2. İki alanı boşalt; kaydet; yeniden aç.
+3. Workflows > New; Sequential; yalnız `support` agent'ını ekle.
+4. `word-count`'u ekle; `support` süre alanına `30` yaz; `word-count`'u kaldır; sonra `support` süresini sil.
 
 **Beklenen sonuç**
 - Adım 1: alanlar `5` ve `300` gösterir; `GET` `timeout: "00:00:05"`, `runTimeout: "00:05:00"` döner. Boş `slow` alanının yer tutucusu `2 (registered)`'dır.
 - Adım 2: alanlar boş; `GET` iki değeri `null` döner.
+- Adım 3: agent adımında süre alanı yok: zincir agent listesi olarak kaydedilir; süre biçimi değiştirmez (K-901).
+- Adım 4: fonksiyon eklenince alan çıkar. Fonksiyon kalkınca uyarı (`workflow-timeouts-notice`) çıkar ve Save kapanır; süre silinince ikisi de kalkar.
 
 ---
 

@@ -20,9 +20,11 @@ import { StepList } from './workflow-editor/steps';
 import {
   canonicalForm,
   chainBody,
+  hasFunction,
   hasInvalidSettings,
   hasInvalidTimeouts,
-  needsNodes,
+  hasStepTimeouts,
+  hasStrandedTimeouts,
   parseTimeout,
   shapeOf,
   stepsOf,
@@ -242,9 +244,11 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   }
 
   const available = agents.data ?? [];
-  // A function node or a step's own timeout needs the node list, which only a Sequential
-  // chain has: the pattern is locked while the chain holds either.
-  const mixed = needsNodes(draft.steps);
+  // A function node, and a step's own timeout, live on a node, which only a Sequential chain
+  // has: the pattern is locked while the chain holds either.
+  const mixed = hasFunction(draft.steps) || hasStepTimeouts(draft.steps);
+  // A step timeout in a chain saved as a plain agent list: held back, never dropped.
+  const stranded = hasStrandedTimeouts(draft.kind, draft.steps);
   const tooFew = NEEDS_TWO.includes(draft.kind) && draft.steps.length < 2;
   const sequential = draft.kind === 'Sequential';
   const participantNames = draft.steps.map((step) => step.name);
@@ -255,6 +259,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
     tooFew ||
     hasInvalidSettings(draft.steps) ||
     hasInvalidTimeouts(draft.steps) ||
+    stranded ||
     !parseTimeout(draft.runTimeout).ok ||
     (draft.kind === 'Magentic' && draft.managerAgentName.trim().length === 0);
 
@@ -376,6 +381,16 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
                 steps={draft.steps}
                 loaded={loaded}
               />
+            )}
+
+            {stranded && (
+              <p
+                className="flex items-start gap-2 rounded-md border border-line bg-raised p-3 text-sm text-muted"
+                data-testid="workflow-timeouts-notice"
+              >
+                <Badge tone="warn">!</Badge>
+                <span>{t('workflowEditor.timeoutsNeedFunction')}</span>
+              </p>
             )}
 
             {draft.kind === 'Magentic' && (

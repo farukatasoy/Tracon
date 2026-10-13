@@ -3,7 +3,7 @@ import type { WorkflowFunctionResponse } from '@tracon/client';
 import { Badge, ErrorNote, Field, Select, TextArea, TextInput, cx, type FieldIds } from '../../components/ui';
 import { Tooltip } from '../../components/tooltip';
 import { useT } from '../../lib/i18n';
-import { describeSchema, parseSettings, parseTimeout, timeoutText, type Step } from '../../lib/workflow-steps';
+import { describeSchema, hasFunction, parseSettings, parseTimeout, timeoutText, type Step } from '../../lib/workflow-steps';
 
 /**
  * The functions the editor may offer, as the screen's query reports them.
@@ -50,6 +50,7 @@ export function StepList({
   const freeAgents = agents.filter((agent) => !used.has(agent));
   const freeFunctions = (functions?.items ?? []).filter((candidate) => !used.has(candidate.name));
   const catalog = functions?.items;
+  const withFunction = hasFunction(steps);
 
   const replace = (index: number, step: Step): void => {
     onChange(steps.map((existing, position) => (position === index ? step : existing)));
@@ -133,8 +134,10 @@ export function StepList({
                 />
               )}
 
-              {/* A step's own timeout lives on a node, and only a Sequential chain has nodes. */}
-              {functions !== undefined && (
+              {/* A step's own timeout lives on a node: only a Sequential chain with a function
+                  step is saved as a node list (K-901). A step that still carries one in an
+                  agent list keeps its field, so the operator can clear it. */}
+              {functions !== undefined && (withFunction || step.timeout.trim().length > 0) && (
                 <StepTimeout
                   step={step}
                   registered={isFunction ? catalog?.find((candidate) => candidate.name === step.name)?.timeout : undefined}
