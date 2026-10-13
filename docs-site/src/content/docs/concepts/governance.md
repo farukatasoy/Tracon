@@ -178,6 +178,12 @@ summarizer is billed like the agent's own model: it uses the tenant's key when t
 tenant has one for its provider. The loop judge is the host's one judge model, the
 same one the run judge calls, and keeps the shared setup-time key.
 
+Speech calls obey the same policy and the same bindings: text-to-speech,
+speech-to-text and the voice list check the provider name the engine reports, before
+any text or audio leaves the process. A tenant's own key reaches only an engine that
+accepts one; for any other engine the call is refused rather than billed to the host.
+See [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
+
 A saved policy takes effect on the next run: an agent compiled under the earlier
 policy is not reused, and a run already in progress is not stopped.
 

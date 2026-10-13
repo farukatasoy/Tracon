@@ -136,7 +136,8 @@ claim to provide an operating-system sandbox.
 | Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
 | Multimodal messages | MAF content types plus stored attachments | Providers receive supported image, audio, document, and text content without a new Tracon message abstraction |
 | Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `Tracon:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
-| Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts |
+| Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy |
+| Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host |
 | Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
@@ -262,7 +263,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-169-operation HTTP reference.
+170-operation HTTP reference.
 
 ## Embedding points
 
@@ -1508,6 +1509,12 @@ judge of an `aiJudge` loop criterion, and a
 summarizer is billed like the agent's own model: it uses the tenant's key when the
 tenant has one for its provider. The loop judge is the host's one judge model, the
 same one the run judge calls, and keeps the shared setup-time key.
+
+Speech calls obey the same policy and the same bindings: text-to-speech,
+speech-to-text and the voice list check the provider name the engine reports, before
+any text or audio leaves the process. A tenant's own key reaches only an engine that
+accepts one; for any other engine the call is refused rather than billed to the host.
+See [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
 
 A saved policy takes effect on the next run: an agent compiled under the earlier
 policy is not reused, and a run already in progress is not stopped.
@@ -4216,7 +4223,7 @@ pin the exact package version when reproducibility matters.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 169 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **HTTP API** | 170 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
 | **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
@@ -4724,7 +4731,7 @@ carries the provider's exception as its inner exception.
 ### Acting on another tenant
 
 A few endpoints take the tenant from the request instead of the caller: another
-tenant's model provider bindings and egress policy (`/api/tenants/{tenantId}/providers`,
+tenant's provider bindings and egress policy (`/api/tenants/{tenantId}/providers`,
 `/api/tenants/{tenantId}/egress`) and the tenant records (`/api/tenants`). The
 caller's own tenant needs only the role and scope the endpoint names. Another tenant
 needs platform authority, and each identity proves it differently:
@@ -4976,6 +4983,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
 | Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant | [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) |
 | Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
+| Tenant provider policy | A tenant's data reaching a model, speech, live voice or image provider its egress policy does not name, or a call billed to the shared key while the tenant has its own | [Per-tenant provider credentials and egress](/concepts/governance/#per-tenant-provider-credentials-and-egress) |
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
@@ -8611,6 +8619,14 @@ saved list is rejected **at compile time**, before any request reaches the netwo
 the same check also protects `PUT .../providers/{provider}` itself, so both surfaces
 agree. The console's Settings screen exposes both panels; no field there accepts a
 credential value, only a configuration key name and an optional endpoint override.
+
+The same policy and the same bindings cover speech providers. A text-to-speech or
+speech-to-text call is refused when the policy does not name the provider name the
+engine reports (`elevenlabs` for the built-in client), and a tenant binding for that
+name reaches only an engine that declares `SupportsTenantCredentials`; any other engine
+is refused for that tenant rather than billed to the host. The console lists speech
+providers next to the model providers, by the name a policy uses. See
+[tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
 
 ## A provider without a package
 
@@ -12390,9 +12406,12 @@ estimate.
 
 Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
 `ProviderName` of the implementation that did the work — `elevenlabs` for the built-in
-client — not the `Tracon:Voice:Provider` setting. `{model}` is `SynthesisModelId` or
-`TranscriptionModelId`; when it is empty, only the built-in client falls back to its
-own default model.
+client — not the `Tracon:Voice:Provider` setting. `{model}` is the model the
+implementation reports on its result (`SpeechAudio.ModelId`,
+`SpeechTranscript.ModelId`), then the one the request named. Only when neither is
+known does the default provider fall back to `SynthesisModelId` or
+`TranscriptionModelId`, and only the built-in client to its own default model. The
+built-in client always reports the model it used.
 
 ### Character-level timing
 
@@ -12448,6 +12467,104 @@ Three behaviors follow the bound implementation, not the settings:
 
 With no model identifier set, your provider's cost stays `null`: Tracon does not
 borrow the built-in client's default model or its price.
+
+### Several speech providers in one host
+
+A host that picks the text-to-speech engine per pipeline or per customer — a hosted
+service for one, a model on its own GPU for another — registers each engine under a
+name, next to the default one:
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .AddSpeechSynthesizer("studio", provider => new StudioSpeechSynthesizer(
+        provider.GetRequiredService<IConfiguration>()["Studio:ApiKey"]))
+    .AddSpeechSynthesizer("gpu", _ => new LocalGpuSynthesizer(new Uri("http://gpu-01:9000/")))
+    .AddSpeechTranscriber("gpu", _ => new LocalGpuTranscriber(new Uri("http://gpu-01:9000/")));
+```
+
+A name is 1 to 64 characters of `a-z`, `0-9`, `.`, `_` and `-`, compared in lower
+case; synthesizer and transcriber names are separate. Registering the same name twice
+throws at startup instead of letting the later call win. The call can come before or
+after `UseVoice()`, and it never changes which provider `UseVoice()` binds as the
+default. A factory that returns one instance for two names shares that instance — and
+its concurrency limit — between them.
+
+A caller selects an engine by name:
+
+| Caller | How it names the engine |
+|---|---|
+| `POST /api/voice/speak` | `"provider": "studio"` in the body |
+| `GET /api/voice/voices` | `?provider=studio` |
+| A workflow function node | `ISpeechProviderResolver.GetSynthesizerAsync(name)` with a name from the node's settings or a run parameter |
+| The `speak`, `transcribe` and `list_voices` tools, the conversation socket | Always the default provider |
+
+`GET /api/voice/providers` lists every registration — its name (`null` for the
+default), its kind, the provider name it reports, and whether it accepts a tenant's own
+key. An unknown name answers `400` and names the registered ones; a request without a
+name when no default is registered answers `501`.
+
+A function node takes the resolver when it is built, because the service provider a
+node sees at call time is not the host's:
+
+```csharp
+builder.AddTracon()
+    .UseWorkflows()
+    .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, NarrationSettings>(
+        "narrate",
+        provider =>
+        {
+            var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+
+            return async (messages, settings, context, cancellationToken) =>
+            {
+                var synthesizer = await speech.GetSynthesizerAsync(settings.Provider, cancellationToken);
+                var audio = await synthesizer.SynthesizeAsync(
+                    new SpeechRequest { Text = messages[^1].Text },
+                    cancellationToken);
+
+                return [new ChatMessage(ChatRole.Assistant, $"{audio.Data.Length} bytes")];
+            };
+        });
+```
+
+A named engine never receives the default's `SynthesisModelId` or `OutputFormat`: a
+model identifier of one engine sent to another is a wrong request. Set them on the
+request when the engine needs them.
+
+### Tenant policy and credentials for speech
+
+Every speech call obeys the calling tenant's provider rules, the same rules a model
+call follows ([egress and per-tenant credentials](/concepts/governance/)). The checks
+run before any text or audio leaves the process:
+
+- The tenant's egress policy must allow the provider name the engine **reports**
+  (`ProviderName`), not the name it was registered under — two names for one service
+  are one provider to the policy. A local engine is not exempt: what it does with the
+  text is outside Tracon's view. Otherwise the call is refused: `403` on the HTTP
+  endpoints and on the conversation handshake, an error result for a tool, a failed
+  node for a workflow — a refusal is not retried.
+- A tenant with its own binding for that provider name is billed on its own key. The
+  key reaches only an implementation that sets `SupportsTenantCredentials` to `true`;
+  it arrives in `SpeechRequest.Credential`, `SpeechTranscriptionOptions.Credential`
+  and `ListVoicesWithCredentialAsync`. Any other implementation is refused for that
+  tenant rather than called on its own configured key — the wrong account. The
+  built-in ElevenLabs client does not take a tenant key.
+- A binding whose configuration key has no value, or that sets an endpoint override,
+  is refused; the call never falls back to the shared key.
+
+The tenant is the current run's tenant, or the request's tenant outside a run, so a
+queued workflow is judged by the tenant that queued it. The policy and the binding are
+read on every call: a policy saved now stops the next call. Reading the provider list
+and `GET /api/voice/health` apply no tenant check; the health check is a platform
+check that sends no tenant data.
+
+:::caution[Behavior change]
+A tenant with a saved egress policy that does not name its speech provider can no
+longer synthesize, transcribe or list voices. Add the provider name (`elevenlabs` for
+the built-in client) to the policy — the tenant panel in the console lists speech
+providers next to the model providers.
+:::
 
 ## Enable live conversation
 
@@ -12798,6 +12915,14 @@ it has no key. The message names the contract it still serves. Set the key with
 `dotnet user-secrets set "Tracon:Voice:ApiKey" "..."`, or register your own
 `ISpeechSynthesizer` and `ISpeechTranscriber` **before** `UseVoice()`. A
 registration after `UseVoice()` is not seen, and the message is the same.
+
+### A speech call returns `403`
+
+The tenant's egress policy does not name the provider the engine reports, or the
+tenant has its own key for that provider and the engine cannot take one. The message
+names the tenant and the provider. Add the provider name to the policy, or remove the
+binding; `GET /api/voice/providers` shows each engine's provider name and whether it
+accepts a tenant key.
 
 ### Voice conversation reports `501`
 
@@ -14095,7 +14220,7 @@ public void All_tool_contracts_are_covered()
 
 Source: https://tracon.dev/http-api/
 
-169 operations across 131 paths. This page is the shape they all share; the groups in
+170 operations across 132 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -15538,7 +15663,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 169 management and OpenAI-compatible
+The generated HTTP reference contains 170 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -17034,6 +17159,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Tool definition | A tool written from the console — tools exist only in code |
 | Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant |
 | Outbound egress | A request to a private network target or a disallowed host |
+| Tenant provider policy | A tenant's data reaching a model, speech, live voice or image provider its egress policy does not name, or a call billed to the shared key while the tenant has its own |
 | Content guards | Input or output a configured guard rejects |
 | Secret handling | A secret value reaching storage, a log, or a response |
 | At-rest protection | Readable content in a database you do not fully trust |
@@ -17042,7 +17168,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Production profile | A host starting with a security decision never made |
 
 Most of these boundaries run inside the ASP.NET Core request pipeline. Someone with
-direct database read access never enters that pipeline, so only two of the fourteen —
+direct database read access never enters that pipeline, so only two of the fifteen —
 secret handling and at-rest protection — reach them at all.
 
 ## Accepted risks
@@ -18738,8 +18864,11 @@ Who changed what, when, and from what to what — filterable by actor, action, e
 and date range. Secret-looking fields are masked before anything is stored.
 
 Quotas, retention policies, API keys, tenants, and tenant provider bindings and egress
-policy (BYOK) have their own screens in the same area. Skill script grants sit on the
-Skills screen, next to the content they allow.
+policy (BYOK) have their own screens in the same area. The provider choices there are
+the model providers and the speech providers together, each by the provider name a
+policy uses; a name saved in a policy that no provider reports any more stays listed
+until you remove it. Skill script grants sit on the Skills screen, next to the content
+they allow.
 
 ### Triggers
 

@@ -367,6 +367,14 @@ the same check also protects `PUT .../providers/{provider}` itself, so both surf
 agree. The console's Settings screen exposes both panels; no field there accepts a
 credential value, only a configuration key name and an optional endpoint override.
 
+The same policy and the same bindings cover speech providers. A text-to-speech or
+speech-to-text call is refused when the policy does not name the provider name the
+engine reports (`elevenlabs` for the built-in client), and a tenant binding for that
+name reaches only an engine that declares `SupportsTenantCredentials`; any other engine
+is refused for that tenant rather than billed to the host. The console lists speech
+providers next to the model providers, by the name a policy uses. See
+[tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
+
 ## A provider without a package
 
 `AddModelProvider()` registers a provider Tracon does not ship a package for.

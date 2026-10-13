@@ -70,6 +70,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Tool definition | A tool written from the console — tools exist only in code |
 | Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant |
 | Outbound egress | A request to a private network target or a disallowed host |
+| Tenant provider policy | A tenant's data reaching a model, speech, live voice or image provider its egress policy does not name, or a call billed to the shared key while the tenant has its own |
 | Content guards | Input or output a configured guard rejects |
 | Secret handling | A secret value reaching storage, a log, or a response |
 | At-rest protection | Readable content in a database you do not fully trust |
@@ -78,7 +79,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Production profile | A host starting with a security decision never made |
 
 Most of these boundaries run inside the ASP.NET Core request pipeline. Someone with
-direct database read access never enters that pipeline, so only two of the fourteen —
+direct database read access never enters that pipeline, so only two of the fifteen —
 secret handling and at-rest protection — reach them at all.
 
 ## Accepted risks

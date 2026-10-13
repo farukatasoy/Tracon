@@ -21,7 +21,8 @@ namespace Tracon.Generators.UnitTests.Examples;
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
 /// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>,
 /// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>,
-/// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>, <c>TtsSettings</c>): "a
+/// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>, <c>TtsSettings</c>,
+/// <c>StudioSpeechSynthesizer</c>, <c>OnPremiseTranscriber</c>, <c>NarrationSettings</c>): "a
 /// provider/tool/service/repository/handler/source/judge/decorator/authorization you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
@@ -101,6 +102,41 @@ internal static class ExamplePrelude
             public required string Voice { get; init; }
 
             public double LoudnessLufs { get; init; } = -16;
+        }
+
+        // Stands in for "a speech engine you wrote yourself" - the named speech
+        // provider examples register it to show the extension point.
+        internal sealed class StudioSpeechSynthesizer(string? apiKey = null) : ISpeechSynthesizer
+        {
+            public string? ApiKey => apiKey;
+
+            public string ProviderName => "studio";
+
+            public int MaxCharactersPerRequest => 5000;
+
+            public ValueTask<SpeechAudio> SynthesizeAsync(SpeechRequest request, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public IAsyncEnumerable<ReadOnlyMemory<byte>> SynthesizeStreamingAsync(SpeechRequest request, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(CancellationToken cancellationToken = default)
+                => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>([]);
+        }
+
+        // Stands in for "a speech-to-text engine you run yourself".
+        internal sealed class OnPremiseTranscriber(Uri endpoint) : ISpeechTranscriber
+        {
+            public string ProviderName => endpoint.Host;
+
+            public ValueTask<SpeechTranscript> TranscribeAsync(System.IO.Stream audio, string mediaType, SpeechTranscriptionOptions? options = null, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+        }
+
+        // Stands in for "your own node settings type" that names a speech engine.
+        internal sealed record NarrationSettings
+        {
+            public string? Provider { get; init; }
         }
 
         // Stands in for "your own DI service", named in one <example> only.
