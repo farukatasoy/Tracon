@@ -790,6 +790,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The generated C# client `TraconApiClient` changes two method signatures.
+  `TraconListRunsAsync` gains a `continuedFromRunId` parameter before `skip` and
+  `take`, and `TraconVoiceListAsync` gains a `provider` parameter before the
+  cancellation token. Both new parameters are optional, so a call that names its
+  arguments compiles unchanged. A call that passes `skip`, `take` or the
+  cancellation token by position no longer compiles; name the argument. Code
+  compiled against the previous package must be rebuilt.
 - The console's tenant provider panel offers speech providers next to the model
   providers, by the provider name a policy and a binding use. A name saved in a
   policy that no provider reports any more stays listed and can be removed;
