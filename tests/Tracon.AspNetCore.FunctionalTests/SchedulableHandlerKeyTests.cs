@@ -104,7 +104,48 @@ public sealed class SchedulableHandlerKeyTests
         var keys = (await TraconTestHost.ReadJsonAsync(response))
             .EnumerateArray().Select(static key => key.GetString()).ToArray();
 
-        keys.ShouldBe([.. JobHandlerKeys.BuiltIn], ignoreOrder: true);
+        // A queued workflow run is never schedulable (F-318), so the list leaves it out.
+        keys.ShouldBe(
+            [.. JobHandlerKeys.BuiltIn.Where(static key => !string.Equals(key, JobHandlerKeys.WorkflowRun, StringComparison.Ordinal))],
+            ignoreOrder: true);
+        keys.ShouldNotContain(static key => string.Equals(key, JobHandlerKeys.WorkflowRun, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A queued workflow run's payload names the run and the operation; the caller is
+    /// checked only when the HTTP layer queues one. A schedule would replay a
+    /// hand-written payload past attribution, authorization, ownership and quota.
+    /// </summary>
+    [Fact]
+    public async Task The_queued_workflow_run_key_is_refused_by_default()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(Schedule, Request(JobHandlerKeys.WorkflowRun));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .ShouldContain(JobHandlerKeys.Workflow);
+
+        using var read = await host.Client.GetAsync(Schedule);
+        read.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task The_queued_workflow_run_key_is_refused_even_when_an_allow_list_names_it()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services => services.UseScheduling(static options =>
+                options.HttpSchedulableHandlerKeys.Add(JobHandlerKeys.WorkflowRun)));
+
+        using var response = await host.Client.PutAsJsonAsync(Schedule, Request(JobHandlerKeys.WorkflowRun));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        using var keys = await host.Client.GetAsync(HandlerKeys);
+
+        (await TraconTestHost.ReadJsonAsync(keys)).EnumerateArray().Select(static key => key.GetString())
+            .ShouldNotContain(static key => string.Equals(key, JobHandlerKeys.WorkflowRun, StringComparison.Ordinal));
     }
 
     [Fact]

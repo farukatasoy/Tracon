@@ -20,6 +20,12 @@ namespace Tracon;
 /// </remarks>
 internal sealed class TraconWorkflowOptionsValidator : IValidateOptions<TraconWorkflowOptions>
 {
+    /// <summary>
+    /// The largest continuation count accepted. A queued run's job gets one lease
+    /// per continuation, and a chain this long is a loop, not a recovery.
+    /// </summary>
+    private const int MaxResumeAttemptsLimit = 100;
+
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, TraconWorkflowOptions options)
     {
@@ -40,6 +46,24 @@ internal sealed class TraconWorkflowOptionsValidator : IValidateOptions<TraconWo
             return ValidateOptionsResult.Fail(
                 $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxNodeSettingsLength)} must be at least 1 " +
                 $"(bytes of a node's settings JSON). Actual value: {options.MaxNodeSettingsLength}.");
+        }
+
+        // F-321: recovery resumes from checkpoints, so it cannot work without
+        // them. Refused at startup rather than discovered when the first job is
+        // leased again and finds nothing to resume from.
+        if (options.ResumeInterruptedRuns && !options.EnableCheckpointing)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.ResumeInterruptedRuns)} needs " +
+                $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.EnableCheckpointing)}: an interrupted " +
+                "run is resumed from its latest checkpoint. Turn checkpointing on, or turn recovery off.");
+        }
+
+        if (options.MaxResumeAttempts is < 0 or > MaxResumeAttemptsLimit)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxResumeAttempts)} must be from 0 to " +
+                $"{MaxResumeAttemptsLimit}. Actual value: {options.MaxResumeAttempts}.");
         }
 
         return ValidateOptionsResult.Success;

@@ -4516,6 +4516,7 @@ const Tracon.JobHandlerKeys.Retention = "tracon.retention" -> string!
 const Tracon.JobHandlerKeys.RunContinuation = "tracon.run-continuation" -> string!
 const Tracon.JobHandlerKeys.WebhookDelivery = "tracon.webhook-delivery" -> string!
 const Tracon.JobHandlerKeys.Workflow = "tracon.workflow" -> string!
+const Tracon.JobHandlerKeys.WorkflowRun = "tracon.workflow-run" -> string!
 const Tracon.JobLanes.Default = "default" -> string!
 const Tracon.JobRetryException.JobRetryErrorType = "job_retry" -> string!
 const Tracon.LoopSettings.DefaultMaxIterations = 10 -> int

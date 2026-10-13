@@ -27,6 +27,12 @@ namespace Tracon;
 /// The reconciler checks this before it queues a continuation; the handler checks it
 /// again, for a job queued before this rule existed or by hand.
 /// </para>
+/// <para>
+/// A workflow root is not continued here even when workflow recovery is on
+/// (F-321): the job that started the run owns it and resumes it from its
+/// checkpoint when it is leased again (<see cref="WorkflowRecovery"/>). Two owners
+/// would resume the same run twice.
+/// </para>
 /// </remarks>
 internal static class RunContinuationEligibility
 {
@@ -46,7 +52,8 @@ internal static class RunContinuationEligibility
             return $"run '{record.Id}' is a workflow run, and continuation replays an agent turn, not a " +
                    "workflow graph. Resume it from its latest checkpoint with " +
                    $"POST /api/workflows/runs/{record.Id}/resume (GET /api/workflows/runs/{record.Id}/checkpoints " +
-                   "lists the checkpoints it wrote).";
+                   "lists the checkpoints it wrote). A workflow run a job started is resumed by that job when it " +
+                   "is leased again, if 'Tracon:Workflows:ResumeInterruptedRuns' is on.";
         }
 
         // Either field marks a sub-run: a store that dropped one of them must not

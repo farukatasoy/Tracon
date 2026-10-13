@@ -9,6 +9,10 @@ Tracon.TraconWorkflowOptions.KeepCheckpointsAfterCompletion.get -> bool
 Tracon.TraconWorkflowOptions.KeepCheckpointsAfterCompletion.set -> void
 Tracon.TraconWorkflowOptions.MaxConcurrentRuns.get -> int
 Tracon.TraconWorkflowOptions.MaxConcurrentRuns.set -> void
+Tracon.TraconWorkflowOptions.MaxResumeAttempts.get -> int
+Tracon.TraconWorkflowOptions.MaxResumeAttempts.set -> void
+Tracon.TraconWorkflowOptions.ResumeInterruptedRuns.get -> bool
+Tracon.TraconWorkflowOptions.ResumeInterruptedRuns.set -> void
 Tracon.TraconWorkflowOptions.MaxNodeSettingsLength.get -> int
 Tracon.TraconWorkflowOptions.MaxNodeSettingsLength.set -> void
 Tracon.TraconWorkflowOptions.MaxSuperSteps.get -> int
