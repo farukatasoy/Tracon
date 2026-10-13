@@ -108,6 +108,7 @@ export const sidebar = [
       { label: 'Write your own tool', slug: 'guides/write-your-own-tool' },
       { label: 'Write your own error classifier', slug: 'guides/write-your-own-error-classifier' },
       { label: 'Write your own job handler', slug: 'guides/write-your-own-job-handler' },
+      { label: 'Write your own script executor', slug: 'guides/write-your-own-script-executor' },
     ],
   },
   {

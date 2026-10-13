@@ -405,7 +405,10 @@ model](/reference/threat-model/).
 - [ ] Quotas are set, so one caller cannot spend the whole model budget
 - [ ] Retention policies exist for run events and traces
 - [ ] Encryption at rest is provided by the database or the disk, `AddContentProtection(...)`, or both
-- [ ] Skill script execution is left off unless you have read what it does
+- [ ] Skill script execution is left off unless you have read what it does; when it is on,
+      scripts run in a container under an unprivileged user, or in your own
+      [script executor](/guides/write-your-own-script-executor/) bound with
+      `RequireCustomBinding<ISkillScriptExecutor>()`
 - [ ] `Tracon:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable

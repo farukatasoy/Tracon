@@ -309,6 +309,14 @@ public sealed class TraconSkillOptions
 /// that this limit was read. <see cref="Enabled"/> cannot be enabled without it,
 /// and the application fails during startup.
 /// </para>
+/// <para>
+/// An approved script runs where the registered <see cref="ISkillScriptExecutor"/>
+/// runs it. The built-in executor starts a local process; a custom one can run the
+/// script in a container or a remote runner. The gates, the audit trail, the
+/// concurrency limits, the timeout, and the output limit in these options apply
+/// to every executor. The acknowledgment is required with a custom executor too:
+/// Tracon cannot verify the isolation an executor provides.
+/// </para>
 /// </remarks>
 public sealed class TraconSkillScriptOptions
 {
@@ -371,7 +379,10 @@ public sealed class TraconSkillScriptOptions
     /// </summary>
     /// <remarks>
     /// No script runs while the list is empty. Extensions are written without a
-    /// leading dot and in lowercase.
+    /// leading dot and in lowercase. The built-in executor starts the value as the
+    /// interpreter's path; a custom <see cref="ISkillScriptExecutor"/> receives it as
+    /// <see cref="SkillScriptExecutionRequest.Interpreter"/> and can read it as a
+    /// runtime name instead.
     /// </remarks>
     public IDictionary<string, string> Interpreters { get; }
         = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -380,6 +391,10 @@ public sealed class TraconSkillScriptOptions
     /// Gets the allow list of environment variables passed to the script process.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// The built-in executor reads this list. A custom <see cref="ISkillScriptExecutor"/>
+    /// receives no environment value from Tracon and sets the script's environment itself.
+    /// </para>
     /// <para>
     /// Variables outside the list are not inherited from Tracon's environment.
     /// This is not isolation: the script runs as the same operating-system user
@@ -395,20 +410,40 @@ public sealed class TraconSkillScriptOptions
     public IList<string> EnvironmentAllowList { get; } = ["PATH", "HOME"];
 
     /// <summary>Gets or sets the longest duration for one script to run.</summary>
-    /// <remarks>Must be from one millisecond to about 49.7 days while <see cref="Enabled"/> is on; any other value fails at startup.</remarks>
+    /// <remarks>
+    /// <para>
+    /// Must be from one millisecond to about 49.7 days minus five seconds while
+    /// <see cref="Enabled"/> is on; any other value fails at startup.
+    /// </para>
+    /// <para>
+    /// The value travels to the <see cref="ISkillScriptExecutor"/>, which stops the
+    /// script at this time. Tracon waits five seconds longer; an executor that has
+    /// not returned by then is no longer waited for, its slot in the concurrency
+    /// limit is released, and the run is recorded as timed out. The executor may
+    /// still be running the script.
+    /// </para>
+    /// </remarks>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>Gets or sets the largest byte count kept from each output stream of a script.</summary>
     /// <remarks>
     /// stdout and stderr are capped separately, each at this count, so one run can return up to
     /// twice this many bytes in total. Output past the cap is truncated and the result says so.
+    /// Tracon applies the cap to whatever the <see cref="ISkillScriptExecutor"/> returns, so an
+    /// executor cannot return more.
     /// </remarks>
     public int MaxOutputBytes { get; set; } = 256 * 1024;
 
     /// <summary>Gets or sets the largest byte count for JSON arguments supplied to a script.</summary>
     public int MaxArgumentBytes { get; set; } = 16 * 1024;
 
-    /// <summary>Gets or sets the largest byte count for script content stored in the database.</summary>
+    /// <summary>Gets or sets the largest byte count for the content of one script.</summary>
+    /// <remarks>
+    /// One limit for every script. A stored script larger than this is refused
+    /// when it is saved. A script file under <see cref="SkillRoots"/> larger than
+    /// this, or empty, or not a regular file (a FIFO or a device), is refused
+    /// before it runs, and the refusal is written to the audit trail.
+    /// </remarks>
     public int MaxScriptContentLength { get; set; } = 64 * 1024;
 
     /// <summary>Gets or sets the largest script count that a skill can carry.</summary>

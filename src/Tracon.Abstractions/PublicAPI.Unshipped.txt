@@ -1233,6 +1233,8 @@ Tracon.ISingletonLeaseStore
 Tracon.ISingletonLeaseStore.ReleaseAsync(string! name, string! ownerId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.ISingletonLeaseStore.RenewAsync(string! name, string! ownerId, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.ISingletonLeaseStore.TryAcquireAsync(string! name, string! ownerId, System.TimeSpan duration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.ISkillScriptExecutor
+Tracon.ISkillScriptExecutor.ExecuteAsync(Tracon.SkillScriptExecutionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SkillScriptExecutionResult!>
 Tracon.ISkillScriptGrantStore
 Tracon.ISkillScriptGrantStore.FindActiveAsync(string! tenantId, string! skillName, string! scriptName, System.DateTimeOffset instant, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SkillScriptGrant?>
 Tracon.ISkillScriptGrantStore.GrantAsync(Tracon.SkillScriptGrant! grant, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SkillScriptGrant!>
@@ -3177,6 +3179,51 @@ Tracon.SingletonExecutionOptions.LeaseDuration.set -> void
 Tracon.SingletonExecutionOptions.OwnerId.get -> string?
 Tracon.SingletonExecutionOptions.OwnerId.set -> void
 Tracon.SingletonExecutionOptions.SingletonExecutionOptions() -> void
+Tracon.SkillScriptExecutionRequest
+Tracon.SkillScriptExecutionRequest.<Clone>$() -> Tracon.SkillScriptExecutionRequest!
+Tracon.SkillScriptExecutionRequest.ArgumentsJson.get -> string?
+Tracon.SkillScriptExecutionRequest.ArgumentsJson.init -> void
+Tracon.SkillScriptExecutionRequest.Content.get -> string!
+Tracon.SkillScriptExecutionRequest.Content.init -> void
+Tracon.SkillScriptExecutionRequest.ContentSha256.get -> string!
+Tracon.SkillScriptExecutionRequest.ContentSha256.init -> void
+Tracon.SkillScriptExecutionRequest.Equals(Tracon.SkillScriptExecutionRequest? other) -> bool
+Tracon.SkillScriptExecutionRequest.Extension.get -> string!
+Tracon.SkillScriptExecutionRequest.Extension.init -> void
+Tracon.SkillScriptExecutionRequest.Interpreter.get -> string!
+Tracon.SkillScriptExecutionRequest.Interpreter.init -> void
+Tracon.SkillScriptExecutionRequest.MaxOutputBytes.get -> int
+Tracon.SkillScriptExecutionRequest.MaxOutputBytes.init -> void
+Tracon.SkillScriptExecutionRequest.Origin.get -> Tracon.SkillScriptOrigin
+Tracon.SkillScriptExecutionRequest.Origin.init -> void
+Tracon.SkillScriptExecutionRequest.RunId.get -> System.Guid?
+Tracon.SkillScriptExecutionRequest.RunId.init -> void
+Tracon.SkillScriptExecutionRequest.ScriptName.get -> string!
+Tracon.SkillScriptExecutionRequest.ScriptName.init -> void
+Tracon.SkillScriptExecutionRequest.SkillName.get -> string!
+Tracon.SkillScriptExecutionRequest.SkillName.init -> void
+Tracon.SkillScriptExecutionRequest.SkillScriptExecutionRequest() -> void
+Tracon.SkillScriptExecutionRequest.SourcePath.get -> string?
+Tracon.SkillScriptExecutionRequest.SourcePath.init -> void
+Tracon.SkillScriptExecutionRequest.TenantId.get -> string!
+Tracon.SkillScriptExecutionRequest.TenantId.init -> void
+Tracon.SkillScriptExecutionRequest.Timeout.get -> System.TimeSpan
+Tracon.SkillScriptExecutionRequest.Timeout.init -> void
+Tracon.SkillScriptExecutionResult
+Tracon.SkillScriptExecutionResult.<Clone>$() -> Tracon.SkillScriptExecutionResult!
+Tracon.SkillScriptExecutionResult.Equals(Tracon.SkillScriptExecutionResult? other) -> bool
+Tracon.SkillScriptExecutionResult.ExitCode.get -> int?
+Tracon.SkillScriptExecutionResult.ExitCode.init -> void
+Tracon.SkillScriptExecutionResult.SkillScriptExecutionResult() -> void
+Tracon.SkillScriptExecutionResult.StandardError.get -> string!
+Tracon.SkillScriptExecutionResult.StandardError.init -> void
+Tracon.SkillScriptExecutionResult.StandardOutput.get -> string!
+Tracon.SkillScriptExecutionResult.StandardOutput.init -> void
+Tracon.SkillScriptExecutionResult.Succeeded.get -> bool
+Tracon.SkillScriptExecutionResult.TimedOut.get -> bool
+Tracon.SkillScriptExecutionResult.TimedOut.init -> void
+Tracon.SkillScriptExecutionResult.Truncated.get -> bool
+Tracon.SkillScriptExecutionResult.Truncated.init -> void
 Tracon.SkillScriptGrant
 Tracon.SkillScriptGrant.<Clone>$() -> Tracon.SkillScriptGrant!
 Tracon.SkillScriptGrant.ContentHash.get -> string?
@@ -3200,6 +3247,9 @@ Tracon.SkillScriptGrant.SkillName.init -> void
 Tracon.SkillScriptGrant.SkillScriptGrant() -> void
 Tracon.SkillScriptGrant.TenantId.get -> string!
 Tracon.SkillScriptGrant.TenantId.init -> void
+Tracon.SkillScriptOrigin
+Tracon.SkillScriptOrigin.File = 0 -> Tracon.SkillScriptOrigin
+Tracon.SkillScriptOrigin.Stored = 1 -> Tracon.SkillScriptOrigin
 Tracon.SpeakRequest
 Tracon.SpeakRequest.<Clone>$() -> Tracon.SpeakRequest!
 Tracon.SpeakRequest.Equals(Tracon.SpeakRequest? other) -> bool
@@ -5133,6 +5183,12 @@ override Tracon.SessionQuery.ToString() -> string!
 override Tracon.SessionRecord.Equals(object? obj) -> bool
 override Tracon.SessionRecord.GetHashCode() -> int
 override Tracon.SessionRecord.ToString() -> string!
+override Tracon.SkillScriptExecutionRequest.Equals(object? obj) -> bool
+override Tracon.SkillScriptExecutionRequest.GetHashCode() -> int
+override Tracon.SkillScriptExecutionRequest.ToString() -> string!
+override Tracon.SkillScriptExecutionResult.Equals(object? obj) -> bool
+override Tracon.SkillScriptExecutionResult.GetHashCode() -> int
+override Tracon.SkillScriptExecutionResult.ToString() -> string!
 override Tracon.SkillScriptGrant.Equals(object? obj) -> bool
 override Tracon.SkillScriptGrant.GetHashCode() -> int
 override Tracon.SkillScriptGrant.ToString() -> string!
@@ -5677,6 +5733,10 @@ static Tracon.SessionQuery.operator !=(Tracon.SessionQuery? left, Tracon.Session
 static Tracon.SessionQuery.operator ==(Tracon.SessionQuery? left, Tracon.SessionQuery? right) -> bool
 static Tracon.SessionRecord.operator !=(Tracon.SessionRecord? left, Tracon.SessionRecord? right) -> bool
 static Tracon.SessionRecord.operator ==(Tracon.SessionRecord? left, Tracon.SessionRecord? right) -> bool
+static Tracon.SkillScriptExecutionRequest.operator !=(Tracon.SkillScriptExecutionRequest? left, Tracon.SkillScriptExecutionRequest? right) -> bool
+static Tracon.SkillScriptExecutionRequest.operator ==(Tracon.SkillScriptExecutionRequest? left, Tracon.SkillScriptExecutionRequest? right) -> bool
+static Tracon.SkillScriptExecutionResult.operator !=(Tracon.SkillScriptExecutionResult? left, Tracon.SkillScriptExecutionResult? right) -> bool
+static Tracon.SkillScriptExecutionResult.operator ==(Tracon.SkillScriptExecutionResult? left, Tracon.SkillScriptExecutionResult? right) -> bool
 static Tracon.SkillScriptGrant.operator !=(Tracon.SkillScriptGrant? left, Tracon.SkillScriptGrant? right) -> bool
 static Tracon.SkillScriptGrant.operator ==(Tracon.SkillScriptGrant? left, Tracon.SkillScriptGrant? right) -> bool
 static Tracon.SpeakRequest.operator !=(Tracon.SpeakRequest? left, Tracon.SpeakRequest? right) -> bool

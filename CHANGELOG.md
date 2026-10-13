@@ -677,6 +677,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Skill scripts can run outside the Tracon host. Register an `ISkillScriptExecutor`
+  (new in `Tracon.Abstractions`, with `SkillScriptExecutionRequest`,
+  `SkillScriptOrigin` and `SkillScriptExecutionResult`, which moved there from an
+  internal Core type without its `Duration`) to run an approved script in a container,
+  a micro-VM or a remote runner. The gates, the content pin, the `script.run` audit
+  entry, the concurrency quota, a wait limit of `Timeout` plus five seconds and the
+  output cap stay with Tracon; the executor decides only where the script runs.
+  `UseSkillScripts` registers the built-in executor, a local process as before, as a
+  default that a host's own registration replaces in either order;
+  `RequireCustomBinding<ISkillScriptExecutor>()` stops the host while the built-in one
+  resolves. `Tracon.Testing.Contracts.Xunit` adds `SkillScriptExecutorContract` and
+  `ContractCoverage.ScriptContracts`. See the new guide
+  [Write your own script executor](https://tracon.dev/guides/write-your-own-script-executor/).
 - Multi-speaker dialogue synthesis. `ISpeechDialogueSynthesizer` voices an ordered
   list of turns, each with its own voice, in one request (`SpeechDialogueRequest`,
   `SpeechDialogueTurn`) and returns one audio result with each turn's time range
@@ -947,6 +960,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Behavior change:** skill script results read differently. A timed-out script now
+  reports `The script timed out and was stopped.` (was `… and the process tree was
+  terminated.`); a script whose executor did not return within `Timeout` plus five
+  seconds reports that it may still be running, and its tool call error is `Timed out;
+  the script executor did not return in time.` The truncation notice is now one line at
+  the end of the result, `[Tracon: output truncated at the N-byte limit per stream.]`,
+  added only by the runner, which also caps each stream again. An executor that throws
+  fails the call with only the exception type in the tool call record and the model's
+  view; the message goes to the server log.
+- **Behavior change:** `TraconSkillScriptOptions.MaxScriptContentLength` now limits a
+  script file under `SkillRoots` too. A file larger than the limit, an empty file, or
+  anything that is not a regular file (a FIFO, a link to a device) is refused from its
+  metadata before it is opened and is written to the audit trail as `script.denied`.
+  Before, a FIFO blocked the call while it held a concurrency slot, and a link to
+  `/dev/zero` was read without end. A stored script whose name is not a plain file name
+  is now refused the same way, before the `script.run` entry.
+- **Behavior change:** `TraconSkillScriptOptions.Timeout` accepts at most about 49.7 days
+  minus five seconds; a larger value fails at startup, because the runner's wait limit
+  adds five seconds to it.
 - `Tracon.Testing.Contracts.Xunit`: `ModelProviderSettingsContract`'s invalid-value
   case now also fails when the refusal message repeats a text `InvalidSettingValue`.
   **Behavior change:** a provider that echoes the rejected value fails the case;

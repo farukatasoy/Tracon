@@ -36,6 +36,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Core/Graph/ChildAgentInvoker.cs"] = "SubAgentSettings / TraconAgentGraphOptions ChildDeadline / WorkflowNodeReference.Timeout — compiler, TraconOptionsValidator, WorkflowDefinitionValidator, constructor guard",
         ["src/Tracon.Core/Scheduling/JobWorkerBackgroundService.cs"] = "JobRecord.MaxDuration / TraconSchedulingOptions.MaxDurationByHandlerKey — JobDispatcher guard, TraconSchedulingOptionsValidator, worker check before arming (JobWorkerDeadlineTests)",
         ["src/Tracon.Core/Hosting/TraconDrainService.cs"] = "TraconDrainOptions.Timeout — TraconDrainOptionsValidator",
+        ["src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs"] = "TraconSkillScriptOptions.Timeout + constant 5 s executor grace — TraconOptionsValidator (sum in range)",
         ["src/Tracon.Core/Skills/Scripts/SkillScriptProcessRunner.cs"] = "TraconSkillScriptOptions.Timeout — TraconOptionsValidator",
         ["src/Tracon.Core/Voice/LiveVoiceSessionHost.cs"] = "VoiceLiveOptions.DelegationTimeout — VoiceLiveOptionsValidator",
         ["src/Tracon.Core/Voice/VoiceConversationDriver.cs"] = "VoiceConversationOptions.IdleTimeout / MaxConnectionDuration — VoiceConversationOptionsValidator",

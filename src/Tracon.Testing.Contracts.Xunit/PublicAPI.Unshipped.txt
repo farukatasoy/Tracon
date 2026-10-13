@@ -74,6 +74,21 @@ Tracon.Testing.Contracts.Scheduling.JobHandlerContract.InitializeAsync() -> Syst
 Tracon.Testing.Contracts.Scheduling.JobHandlerContract.JobHandlerContract() -> void
 Tracon.Testing.Contracts.Scheduling.JobHandlerContract.JobId.get -> System.Guid
 Tracon.Testing.Contracts.Scheduling.JobHandlerContract.Only_pending_items_are_processed_on_a_retry() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.A_call_without_arguments_reads_an_empty_standard_input() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.A_cancelled_call_throws_OperationCanceledException_and_is_not_a_timeout() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.A_script_past_its_timeout_is_stopped_and_reported_as_timed_out() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.A_stored_request_runs_its_content_and_never_a_path() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.An_empty_script_runs_and_exits_cleanly() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.Arguments_arrive_on_standard_input_as_json() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.Concurrent_calls_do_not_share_a_temp_directory() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.Executor.get -> Tracon.ISkillScriptExecutor!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.InitializeAsync() -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.Output_past_the_limit_is_cut_and_flagged_without_a_notice() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.SkillScriptExecutorContract() -> void
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.The_exit_code_and_standard_error_are_reported() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.The_script_sees_its_two_variables_and_not_the_host_environment() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.AgentDefinitionStoreContract() -> void
 Tracon.Testing.Contracts.Storage.AgentDefinitionStoreContract.DeleteAsync_removes_all_versions() -> System.Threading.Tasks.Task!
@@ -740,6 +755,7 @@ abstract Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Asse
 abstract Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Credential.get -> Tracon.ModelProviderCredential!
 abstract Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateHandlerAsync() -> System.Threading.Tasks.ValueTask<Tracon.IJobHandler!>
 abstract Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateItem(int sequence, Tracon.JobItemStatus status) -> Tracon.JobItemRecord!
+abstract Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.CreateExecutorAsync() -> System.Threading.Tasks.ValueTask<Tracon.ISkillScriptExecutor!>
 abstract Tracon.Testing.Contracts.Storage.AgentFileStoreContract.EnterRunScope() -> void
 abstract Tracon.Testing.Contracts.Storage.AgentFileStoreContract.ExitRunScope() -> void
 abstract Tracon.Testing.Contracts.Storage.RetentionStoreContract.SeedOldRowAsync(string! tenantId) -> System.Threading.Tasks.ValueTask
@@ -762,8 +778,12 @@ const Tracon.Testing.Contracts.ContractCoverage.AgentSourceContracts = "Tracon.T
 const Tracon.Testing.Contracts.ContractCoverage.JudgeContracts = "Tracon.Testing.Contracts.Judges" -> string!
 const Tracon.Testing.Contracts.ContractCoverage.ProviderContracts = "Tracon.Testing.Contracts.Providers" -> string!
 const Tracon.Testing.Contracts.ContractCoverage.SchedulingContracts = "Tracon.Testing.Contracts.Scheduling" -> string!
+const Tracon.Testing.Contracts.ContractCoverage.ScriptContracts = "Tracon.Testing.Contracts.Scripts" -> string!
 const Tracon.Testing.Contracts.ContractCoverage.StorageContracts = "Tracon.Testing.Contracts.Storage" -> string!
 const Tracon.Testing.Contracts.ContractCoverage.ToolContracts = "Tracon.Testing.Contracts.Tools" -> string!
+const Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.ContractSkillName = "contract-skill" -> string!
+const Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.ExpectedExitCode = 3 -> int
+const Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.ExpectedStandardError = "contract-standard-error" -> string!
 const Tracon.Testing.Contracts.Storage.RetentionStoreContract.TenantA = "tenant-a" -> string!
 const Tracon.Testing.Contracts.Storage.RetentionStoreContract.TenantB = "tenant-b" -> string!
 const Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TenantA = "tenant-a" -> string!
@@ -923,6 +943,19 @@ virtual Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.Support
 virtual Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.UnsupportedSettingKey.get -> string!
 virtual Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateJob(System.Collections.Generic.IReadOnlyList<Tracon.JobItemRecord!>! items) -> Tracon.JobRecord!
 virtual Tracon.Testing.Contracts.Scheduling.JobHandlerContract.HandlerKey.get -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.CreateRequest(string! scriptName, string! content, string? argumentsJson = null, System.TimeSpan? timeout = null, int maxOutputBytes = 65536) -> Tracon.SkillScriptExecutionRequest!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.EchoScript(string! text) -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.EmptyScript.get -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.EnvironmentScript(string! hostVariable) -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.Extension.get -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.FailingScript.get -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.FloodScript.get -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.Interpreter.get -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.ReadStandardInputScript.get -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.SkipReason.get -> string?
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.SleepScript.get -> string!
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.StopTolerance.get -> System.TimeSpan
+virtual Tracon.Testing.Contracts.Scripts.SkillScriptExecutorContract.TempMarkerScript(string! marker) -> string!
 virtual Tracon.Testing.Contracts.Storage.AuditLogContract.ExecuteRawAsync(string! sql) -> System.Threading.Tasks.ValueTask
 virtual Tracon.Testing.Contracts.Storage.AuditLogContract.FormatIdForRawSql(System.Guid id) -> string!
 virtual Tracon.Testing.Contracts.Storage.AuditLogContract.QualifiedAuditLogTable.get -> string!

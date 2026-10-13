@@ -12,6 +12,16 @@ namespace Tracon;
 /// </remarks>
 internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
 {
+    /// <summary>
+    /// The longest script timeout: the runner's wait limit is the timeout plus the
+    /// executor grace period, and that sum has to fit the timer range.
+    /// </summary>
+    /// <remarks>
+    /// Computed by subtraction, never by adding to the configured value:
+    /// <see cref="TimeSpan.MaxValue"/> plus the grace period would overflow here.
+    /// </remarks>
+    private static readonly TimeSpan MaxScriptTimeout =
+        TimeSpan.FromMilliseconds(TimerPeriod.MaxMilliseconds) - SandboxedSkillScriptRunner.ExecutorGracePeriod;
 
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, TraconOptions options)
@@ -294,6 +304,17 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 $"{nameof(TraconSkillScriptOptions)}.{nameof(TraconSkillScriptOptions.Timeout)}",
                 scripts.Timeout,
                 $" when {nameof(TraconSkillScriptOptions.Enabled)} is on"));
+        }
+        else if (scripts.Timeout > MaxScriptTimeout)
+        {
+            // The runner also arms a wait limit of Timeout plus a fixed grace period
+            // for the script executor, after the audit entry is written and the
+            // quota is taken. The sum has to fit the same timer range.
+            (failures ??= []).Add(
+                $"{nameof(TraconSkillScriptOptions)}.{nameof(TraconSkillScriptOptions.Timeout)} must be between 1 and " +
+                $"{(long)MaxScriptTimeout.TotalMilliseconds} milliseconds when {nameof(TraconSkillScriptOptions.Enabled)} is on: " +
+                $"the runner waits {SandboxedSkillScriptRunner.ExecutorGracePeriod.TotalSeconds} seconds longer for the " +
+                $"script executor. Actual value: {scripts.Timeout}.");
         }
 
         if (scripts.MaxOutputBytes < 1 || scripts.MaxArgumentBytes < 1 || scripts.MaxScriptContentLength < 1)

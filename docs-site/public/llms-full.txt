@@ -107,7 +107,8 @@ decisions can be overridden or composed with your own rules — see
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
-| Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, a content-pinned tenant grant (platform authority for a stored script in a multi-tenant host), timeout, output limit, and concurrency limits |
+| Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, a content-pinned tenant grant (platform authority for a stored script in a multi-tenant host), one content size limit for stored and file scripts, timeout, output limit, and concurrency limits |
+| Script executor | `ISkillScriptExecutor` registration | Runs an approved script in a container or a remote runner instead of a local process; gates, audit, quota, wait limit, and output cap stay with Tracon. See [Write your own script executor](/guides/write-your-own-script-executor/) |
 | Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication (credential headers by configuration key name), refresh, prompts, and OAuth coordination |
 | MCP resources | `AgentDefinition.McpResourceUris` | A bounded snapshot of selected server resources enters agent context |
 | Knowledge search | PostgreSQL, `IEmbeddingGenerator`, and memory settings | Chunking, embedding, HNSW cosine search, tenant isolation, and result limits |
@@ -3432,27 +3433,35 @@ removed or the skill is recreated. Check which agents use a skill before deletin
 ### Skill scripts — the strict exception
 
 A skill may also carry **scripts**, and this is the second deliberate exception to the
-code-only rule. Unlike MCP, the process runs **on this machine**.
+code-only rule. Unlike MCP, the process runs **on this machine** by default; a host
+that registers an `ISkillScriptExecutor` runs it where that executor runs it — see
+[Write your own script executor](/guides/write-your-own-script-executor/).
 
 It is off by default and can only be turned on in code, with a mandatory
 acknowledgement flag, an interpreter allowlist that starts empty, and skill roots
 given in code.
 
-Every execution passes five gates in order, and if any is closed the process never
-starts. After the fifth gate the call waits for a free slot under the concurrency
-quota; the quota delays a script, it never refuses one:
+Every execution passes five gates in order, and if any is closed the executor is
+never called. After the fifth gate the call waits for a free slot under the
+concurrency quota; the quota delays a script, it never refuses one. The slot is held
+until the executor returns, or until the timeout plus five seconds has passed:
 
 ```mermaid
 flowchart LR
     accTitle: Skill script security gates
-    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, argument validation and the audit write all pass in order; it then waits for a free slot under the concurrency quota.
+    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, the argument, name and size checks, and the audit write all pass in order; it then waits for a free slot under the concurrency quota and goes to the registered executor.
     G1["1. enabled"] --> G2["2. valid grant<br/>pinned to this content"]
     G2 --> G3["3. extension on the<br/>interpreter allowlist"]
-    G3 --> G4["4. argument size<br/>and schema"]
+    G3 --> G4["4. argument size and schema ·<br/>plain stored name ·<br/>file within the size limit"]
     G4 --> G5["5. written to<br/>the audit trail"]
     G5 --> Q["waits for a slot<br/>(concurrency quota)"]
-    Q --> RUN["separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
+    Q --> RUN["executor — built-in: separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
 ```
+
+A script file under a skill root passes the same `MaxScriptContentLength` as a
+stored script. An empty file, a file larger than the limit, and anything that is not
+a regular file — a FIFO, a link to a device — is refused from its metadata, before it
+is opened.
 
 :::danger[Gate five is an exception to an exception]
 Everywhere else in Tracon an audit-trail write failure is swallowed, because
@@ -3477,14 +3486,15 @@ from disk is not pinned, so keep its directory read-only.
 
 :::caution[Tracon does not sandbox]
 It provides **no** filesystem jail, network restriction, memory or CPU quota, or
-privilege dropping. The process runs under the same operating-system user as Tracon
-and can read what that user can read — on Linux, the environment Tracon started with
-too, through `/proc`. In a multi-tenant host a granted script can therefore reach every
-tenant's data; the [threat model](/reference/threat-model/) lists this as an accepted
-risk. Isolation belongs to the hosting environment — a container, cgroups, and an
-unprivileged user. The acknowledgement flag exists so the feature cannot be enabled
-without seeing this: with execution on and the flag off, the application fails at
-**startup**.
+privilege dropping. With the built-in executor the process runs under the same
+operating-system user as Tracon and can read what that user can read — on Linux, the
+environment Tracon started with too, through `/proc`. In a multi-tenant host a granted
+script can therefore reach every tenant's data; the [threat model](/reference/threat-model/)
+lists this as an accepted risk. Isolation belongs to the hosting environment — a
+container, cgroups, and an unprivileged user — or to an executor that runs scripts
+somewhere else; Tracon cannot verify either. The acknowledgement flag exists so the
+feature cannot be enabled without seeing this: with execution on and the flag off,
+the application fails at **startup**, whichever executor is registered.
 :::
 
 ## MCP servers
@@ -5264,7 +5274,10 @@ model](/reference/threat-model/).
 - [ ] Quotas are set, so one caller cannot spend the whole model budget
 - [ ] Retention policies exist for run events and traces
 - [ ] Encryption at rest is provided by the database or the disk, `AddContentProtection(...)`, or both
-- [ ] Skill script execution is left off unless you have read what it does
+- [ ] Skill script execution is left off unless you have read what it does; when it is on,
+      scripts run in a container under an unprivileged user, or in your own
+      [script executor](/guides/write-your-own-script-executor/) bound with
+      `RequireCustomBinding<ISkillScriptExecutor>()`
 - [ ] `Tracon:Egress:AllowPrivateNetworkTargets` is on only if your MCP servers or
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
@@ -14219,6 +14232,208 @@ timeouts, persistence, or HTTP responses.
 
 ---
 
+# Write your own script executor
+
+Source: https://tracon.dev/guides/write-your-own-script-executor/
+
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
+:::
+
+Where does an approved skill script run? By default, in a local process on the
+Tracon host, under the host's own operating-system identity. Register an
+`ISkillScriptExecutor` and the script runs where your executor runs it instead:
+a container, a micro-VM, or a runner service you operate. Tracon still decides
+**whether** a script runs; your executor decides **where**.
+
+## What stays with Tracon
+
+Turning scripts on is unchanged: `UseSkillScripts`, the acknowledgement flag, the
+interpreter allow-list, and a tenant grant pinned to the content. An executor
+receives a request only after every gate passed, and it cannot skip one:
+
+```mermaid
+flowchart LR
+    accTitle: What Tracon does around a script executor
+    accDescr: A script call passes Tracon's gates and the audit write, takes a concurrency slot, and only then reaches the executor. Tracon waits for the executor at most the script timeout plus five seconds, then caps the output again and records the call. A closed gate or a refused audit write never reaches the executor.
+    GATES["Gates: enabled · grant and content pin ·<br/>interpreter allow-list · arguments ·<br/>stored name · file size"] --> AUDIT["script.run written<br/>to the audit trail"]
+    AUDIT --> SLOT["Concurrency slot<br/>taken and held"]
+    SLOT --> EXEC["Your executor<br/>(waited for at most<br/>Timeout + 5 s)"]
+    EXEC --> AFTER["Output capped again ·<br/>span · metric ·<br/>tool call record"]
+    GATES -. closed .-> DENY["script.denied<br/>executor not called"]
+    AUDIT -. write fails .-> REFUSE["Run refused<br/>executor not called"]
+```
+
+The audit entry is written by Tracon before the call. A run whose entry cannot be
+written never reaches your executor, so an executor can neither run code without
+a record nor suppress one.
+
+## Implement the executor
+
+The request carries everything a remote runner needs; the executor maps it to
+your runtime and maps the outcome back. This one posts the script to a runner
+service:
+
+```csharp
+public sealed class RunnerServiceScriptExecutor(HttpClient runner) : ISkillScriptExecutor
+{
+    private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
+
+    public async ValueTask<SkillScriptExecutionResult> ExecuteAsync(
+        SkillScriptExecutionRequest request, CancellationToken cancellationToken = default)
+    {
+        using var response = await runner.PostAsync(
+            "runs",
+            JsonContent.Create(new
+            {
+                tenant = request.TenantId,
+                runtime = request.Interpreter,
+                source = request.Content,
+                sourceSha256 = request.ContentSha256,
+                standardInput = request.ArgumentsJson,
+                timeoutSeconds = request.Timeout.TotalSeconds,
+                maxOutputBytes = request.MaxOutputBytes,
+            }),
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        var outcome = JsonSerializer.Deserialize<RunnerOutcome>(
+            await response.Content.ReadAsStringAsync(cancellationToken), Web)
+            ?? throw new InvalidOperationException("The runner service returned no outcome.");
+
+        return new SkillScriptExecutionResult
+        {
+            ExitCode = outcome.TimedOut ? null : outcome.ExitCode,
+            StandardOutput = outcome.StandardOutput,
+            StandardError = outcome.StandardError,
+            Truncated = outcome.Truncated,
+            TimedOut = outcome.TimedOut,
+        };
+    }
+
+    private sealed record RunnerOutcome(
+        int? ExitCode, string StandardOutput, string StandardError, bool Truncated, bool TimedOut);
+}
+```
+
+Register it next to `UseSkillScripts`, before or after `AddTracon()` — a plain
+`AddSingleton` wins in both orders. With a remote runner, an allow-list value can
+name a runtime instead of an interpreter path:
+
+```csharp
+builder.Services.AddHttpClient<RunnerServiceScriptExecutor>(client =>
+    client.BaseAddress = new Uri("https://script-runner.internal/"));
+builder.Services.AddSingleton<ISkillScriptExecutor>(provider =>
+    provider.GetRequiredService<RunnerServiceScriptExecutor>());
+
+builder.AddTracon()
+       .UseSkillScripts(o =>
+       {
+           o.PlatformIsolationAcknowledged = true;
+           o.AllowStoredScripts = true;
+           o.Interpreters["py"] = "python-3.12";
+       })
+       .RequireCustomBinding<ISkillScriptExecutor>();
+```
+
+`RequireCustomBinding<ISkillScriptExecutor>()` stops the host at startup while
+the built-in executor is still the one that resolves — for example when a module
+registers yours with `TryAddSingleton` after `UseSkillScripts` and the
+registration is dropped. The acknowledgement flag stays required with any
+executor: Tracon cannot verify the isolation an executor provides.
+
+## What the request carries
+
+| Member | Meaning |
+|---|---|
+| `TenantId` | The tenant whose grant opened the gates. Use it to pick a per-tenant runner; never read `ITenantContext` |
+| `RunId` | The run that called the script, or `null` outside a run |
+| `SkillName`, `ScriptName` | A stored script's name is a plain file name. A file script's name is its path inside the skill directory, such as `scripts/fetch.py` — check it before you use it as a file name |
+| `Origin` | `Stored` (database or code, content-pinned) or `File` (under a skill root, not pinned). Throw for an origin you do not support |
+| `Interpreter` | The allow-list value for the extension |
+| `Content`, `ContentSha256` | The script text, and the upper-case hexadecimal SHA-256 of its UTF-8 bytes |
+| `SourcePath` | A file script's host path; a remote runner cannot read it and runs `Content` |
+| `ArgumentsJson` | The model's arguments; write them to standard input, or close it empty when `null` |
+| `Timeout`, `MaxOutputBytes` | Stop the script at the timeout; keep at most this many UTF-8 bytes of each output stream |
+
+The request carries no environment value. Give the script `TRACON_SKILL_NAME`
+(the skill name) and `TRACON_SKILL_TEMP` (a writable directory of its own) and
+nothing from your host, so a script behaves the same under every executor.
+Logging a request is safe: its text form leaves out `Content` and
+`ArgumentsJson`.
+
+## Runtime contract
+
+- **Lifetime: singleton.** One instance serves every run, concurrently. Make it
+  thread-safe.
+- **A timeout is a result, a cancellation is an exception.** Past `Timeout`, stop
+  the script and return `TimedOut = true` with no exit code. When the caller
+  cancels the token, throw `OperationCanceledException`.
+- **Tracon does not wait forever.** It waits `Timeout` plus five seconds, then
+  cancels the token, stops waiting, frees the concurrency slot, and records a
+  timeout. Cancellation is cooperative: if your executor ignores the token, the
+  script can keep running after Tracon has moved on.
+- **Cap the output, do not annotate it.** Set `Truncated` when you cut a stream.
+  Tracon caps each stream again and adds the one truncation notice the model sees.
+- **A consistent result or an exception.** An exit code without `TimedOut`, or
+  `TimedOut` without an exit code — any other shape fails the call. A thrown
+  exception fails it too; the model and the tool call record see only the
+  exception type, and the message goes to the server log.
+- **No delivery guarantee applies.** Tracon calls the executor once per approved
+  call and never retries. The model may call the script again; that call passes
+  every gate again.
+
+## Isolation is the executor's job
+
+Tracon does not isolate the script process. The built-in executor runs it under
+the host's own operating-system identity, which can read what that identity
+reads — the [threat model](/reference/threat-model/) lists this as an accepted
+risk. Your executor is how a deployment closes it: no host environment, no host
+file system, a restricted network, and per-tenant resources. Tracon cannot see
+or check any of this, so the grant rules do not relax: in a multi-tenant host a
+stored script's grant still needs platform authority.
+
+## Verify your implementation
+
+Add the contract package to your test project:
+
+```bash
+dotnet add package Tracon.Testing.Contracts.Xunit --prerelease
+```
+
+```csharp
+using Tracon.Testing.Contracts.Scripts;
+
+public sealed class RunnerServiceScriptExecutorTests : SkillScriptExecutorContract
+{
+    protected override string Interpreter => "sh";
+
+    protected override ValueTask<ISkillScriptExecutor> CreateExecutorAsync()
+        => ValueTask.FromResult<ISkillScriptExecutor>(
+            new RunnerServiceScriptExecutor(new HttpClient { BaseAddress = new Uri("http://localhost:8085/") }));
+}
+```
+
+The inherited tests send POSIX `sh` scripts and check standard input, an empty
+argument and an empty script, the exit code and standard error, the output cap
+without a notice, the timeout, a caller cancellation, the two variables without
+the host environment, separate temporary directories for concurrent calls, and
+that a stored request runs its content and never a path. An executor for another
+runtime overrides `Extension`, `Interpreter`, and the script bodies;
+`SkipReason` skips the suite where the runtime is missing. Pair it with
+`ContractCoverage.MissingDerivedTypes(..., ContractCoverage.ScriptContracts)` so
+a new contract in a later package version does not go untested.
+
+## Read next
+
+- [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) — the gates, grants, and content pin every executor sits behind
+- [Threat model](/reference/threat-model/) — the operating-system identity risk an executor is there to close
+- [Testing](/guides/testing/) — the contract packages and how to run them
+
+---
+
 # Write your own store
 
 Source: https://tracon.dev/guides/write-your-own-store/
@@ -15077,7 +15292,7 @@ Add these when you need them.
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
 | `Tracon.Testing` | You write tests against agents — fakes, not mocks |
-| `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
+| `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
 | `Tracon.Templates` | `dotnet new tracon-api` |
 
 `Tracon.OpenAI`, `Tracon.Azure`, and `Tracon.Google` also expose optional
@@ -17633,10 +17848,12 @@ a vulnerability; a report that a fail-closed operation proceeded without its rec
 
 Script execution gates are in scope; isolating the script process is not. Tracon does
 not provide operating-system isolation, and the threat model lists it as an accepted
-risk: a granted script can read what the server's operating-system user can read. A
-report of that is expected behaviour. A report that a script started without a grant
-or with an interpreter off the allowlist is a vulnerability, and so is a stored or
-code-defined script that started without a grant pinned to its current content. A
+risk: with the built-in executor, a granted script can read what the server's
+operating-system user can read. A report of that is expected behaviour, and so is the
+isolation a host's own `ISkillScriptExecutor` provides or fails to provide. A report
+that a script reached any executor without a grant or with an interpreter off the
+allowlist is a vulnerability, and so is a stored or code-defined script that reached
+one without a grant pinned to its current content, or without its audit record. A
 script read from disk is not pinned, by design.
 
 The [threat model](/reference/threat-model/) is why this list draws the line where it
@@ -17790,12 +18007,14 @@ keep it.
 :::
 
 :::caution[A granted script runs with the server's operating-system identity]
-Tracon does not isolate a script process. It runs under the same operating-system user
-as Tracon, and the environment allowlist only stops it from inheriting variables: it
-can read what that user can read. On Linux that includes the environment Tracon
-started with, through `/proc`, so a connection string or provider key kept there is
-readable. Tenant isolation and secret handling run in the application layer and do not
-reach inside the script.
+Tracon does not isolate a script process. With the built-in executor it runs under the
+same operating-system user as Tracon, and the environment allowlist only stops it from
+inheriting variables: it can read what that user can read. On Linux that includes the
+environment Tracon started with, through `/proc`, so a connection string or provider
+key kept there is readable. Tenant isolation and secret handling run in the application
+layer and do not reach inside the script. A host can register an `ISkillScriptExecutor`
+that runs scripts in a container or a remote runner instead; the script then runs where
+that executor runs it, and Tracon can neither see nor verify that isolation.
 
 Part of this is closed. A stored or code-defined script runs only under a grant pinned
 to its exact content, and in a multi-tenant host granting one needs platform
@@ -17803,7 +18022,9 @@ authority, so a tenant administrator cannot grant one alone. What stays open: th
 platform administrator who grants a script approves code that can reach every
 tenant's data, and a script read from disk is not pinned — keep its directory
 read-only. Run a host with scripts on in a container, under an unprivileged user, with
-restricted network access — see [skill scripts](/concepts/tools/#skill-scripts--the-strict-exception).
+restricted network access, or with an executor that runs scripts elsewhere — see
+[skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) and
+[Write your own script executor](/guides/write-your-own-script-executor/).
 :::
 
 :::caution[An authorized identity can still exceed what it was meant to do]
