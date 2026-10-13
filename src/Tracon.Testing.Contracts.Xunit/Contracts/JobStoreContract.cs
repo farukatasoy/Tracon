@@ -124,6 +124,74 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         current.FailedItems.ShouldBe(0);
     }
 
+    /// <summary>
+    /// A pending report marks the item with the run that is processing it and
+    /// counts nothing; the report that finishes the item is counted once.
+    /// </summary>
+    /// <remarks>
+    /// Workflow recovery writes the run id on the item BEFORE the run starts, so a
+    /// job leased again after a crash finds the run the item was processing. A
+    /// store that counted the marker, or finished the item on it, would close the
+    /// job as done while its work was still in flight.
+    /// </remarks>
+    [Fact]
+    public async Task A_pending_report_marks_the_item_and_counts_nothing()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var markedRun = Guid.NewGuid();
+        var finishingRun = Guid.NewGuid();
+
+        await Store.ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 0, Status = JobItemStatus.Pending, RunId = markedRun });
+
+        var marked = (await Store.ListItemsAsync(job.Id)).ShouldHaveSingleItem();
+        marked.Status.ShouldBe(JobItemStatus.Pending);
+        marked.RunId.ShouldBe(markedRun);
+
+        var unchanged = await Store.GetAsync(job.TenantId, job.Id);
+        unchanged!.DoneItems.ShouldBe(0);
+        unchanged.FailedItems.ShouldBe(0);
+
+        await Store.ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 0, Status = JobItemStatus.Completed, RunId = finishingRun });
+
+        var finished = (await Store.ListItemsAsync(job.Id)).ShouldHaveSingleItem();
+        finished.Status.ShouldBe(JobItemStatus.Completed);
+        finished.RunId.ShouldBe(finishingRun);
+
+        var counted = await Store.GetAsync(job.TenantId, job.Id);
+        counted!.DoneItems.ShouldBe(1);
+        counted.FailedItems.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// A report for an item that already finished changes neither the item nor
+    /// the counters.
+    /// </summary>
+    /// <remarks>
+    /// The SQL stores update an item only while it is pending. A store that
+    /// overwrote a finished item let a late report from a worker whose lease had
+    /// expired rewrite the result the job already gave, and a marker written
+    /// after the item finished would turn it back into a pending item.
+    /// </remarks>
+    [Fact]
+    public async Task A_report_for_a_finished_item_changes_nothing()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var finishingRun = Guid.NewGuid();
+
+        await Store.ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 0, Status = JobItemStatus.Completed, RunId = finishingRun });
+        await Store.ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 0, Status = JobItemStatus.Failed, RunId = Guid.NewGuid(), Error = "late" });
+        await Store.ReportItemAsync(new JobItemResult { JobId = job.Id, Seq = 0, Status = JobItemStatus.Pending, RunId = Guid.NewGuid() });
+
+        var item = (await Store.ListItemsAsync(job.Id)).ShouldHaveSingleItem();
+        item.Status.ShouldBe(JobItemStatus.Completed);
+        item.RunId.ShouldBe(finishingRun);
+        item.Error.ShouldBeNull();
+
+        var current = await Store.GetAsync(job.TenantId, job.Id);
+        current!.DoneItems.ShouldBe(1);
+        current.FailedItems.ShouldBe(0);
+    }
+
     [Fact]
     public async Task ReportItemAsync_counts_successful_and_failed_items_separately()
     {

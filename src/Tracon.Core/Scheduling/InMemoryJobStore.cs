@@ -380,7 +380,15 @@ internal sealed class InMemoryJobStore : IJobStore
                 return default;
             }
 
-            var previousStatus = log[index].Status;
+            // 🚨 Only a pending item changes, the same guard the SQL stores
+            // apply (`WHERE status = 0`). Overwriting a finished item let a late
+            // report from a worker whose lease had expired rewrite the result the
+            // job already gave, and a recovery marker (a Pending report) turned a
+            // finished item back into a pending one (F-321).
+            if (log[index].Status != JobItemStatus.Pending)
+            {
+                return default;
+            }
 
             log[index] = log[index] with
             {
@@ -389,20 +397,17 @@ internal sealed class InMemoryJobStore : IJobStore
                 Error = item.Error,
             };
 
-            // Idempotent: if the same item is processed again after its lease expires,
-            // counters increase only for the first report.
-            if (previousStatus == JobItemStatus.Pending)
+            // A Pending report is a marker: it records the run id and counts
+            // nothing. The report that finishes the item is counted once.
+            lock (_jobs)
             {
-                lock (_jobs)
+                if (_jobs.TryGetValue(item.JobId, out var job))
                 {
-                    if (_jobs.TryGetValue(item.JobId, out var job))
+                    _jobs[item.JobId] = job with
                     {
-                        _jobs[item.JobId] = job with
-                        {
-                            DoneItems = job.DoneItems + (item.Status == JobItemStatus.Completed ? 1 : 0),
-                            FailedItems = job.FailedItems + (item.Status == JobItemStatus.Failed ? 1 : 0),
-                        };
-                    }
+                        DoneItems = job.DoneItems + (item.Status == JobItemStatus.Completed ? 1 : 0),
+                        FailedItems = job.FailedItems + (item.Status == JobItemStatus.Failed ? 1 : 0),
+                    };
                 }
             }
         }

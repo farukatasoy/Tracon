@@ -166,6 +166,19 @@ public interface IJobStore
     /// <param name="item">The item result.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// <para>
+    /// Only an item that is still <see cref="JobItemStatus.Pending"/> is changed. A
+    /// report for an item that already finished changes neither the item nor the
+    /// counters, so an item re-reported after a lease takeover is counted once.
+    /// </para>
+    /// <para>
+    /// A report whose status is <see cref="JobItemStatus.Pending"/> is a marker: it
+    /// records <see cref="JobItemResult.RunId"/> on the item, leaves the item
+    /// pending, and counts nothing. A later report that finishes the item is
+    /// counted as usual.
+    /// </para>
+    /// </remarks>
     ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default);
 
     /// <summary>
