@@ -121,8 +121,10 @@ public sealed class SpeechDialogueAudio
     /// does not report them, or when the provider's report does not match the turns.
     /// </summary>
     /// <remarks>
-    /// A report that names a turn the request did not have, or a voice the turn did not
-    /// use, is dropped whole rather than mapped to the wrong turn.
+    /// One turn can have more than one segment. A report that names a turn the request
+    /// did not have or a voice the turn did not use, that leaves a turn without a
+    /// segment, or that is out of order is dropped whole rather than mapped to the wrong
+    /// turn.
     /// </remarks>
     public IReadOnlyList<SpeechDialogueSegment>? Segments { get; init; }
 }
