@@ -116,6 +116,44 @@ public sealed class WorkflowJobDeadlineRecoveryTests
     }
 
     [Fact]
+    public async Task When_the_limit_stops_the_last_pending_item_the_job_fails_at_once_with_the_code()
+    {
+        // Found in the sample app (manual case 7): with one item, the stopped item was
+        // reported failed, the attempt was released, and the next lease found nothing to
+        // run - the job ended "All of the job's items failed." without the code, one
+        // pointless lease later.
+        var probe = new RecoveryProbe();
+        await using var host = await StartAsync(probe, maxResumeAttempts: 1);
+        await using var lifetime = probe;
+        await SaveRecoverableAsync(host);
+
+        _ = probe.ArmHang(StepBehavior.HangUntilCancelled);
+
+        var queued = await host.Services.GetRequiredService<IJobDispatcher>().EnqueueAsync(
+            new JobRequest
+            {
+                TenantId = TenantOf(host),
+                HandlerKey = JobHandlerKeys.Workflow,
+                TargetName = Recoverable,
+                Items = ["episode 7"],
+                MaxAttempts = 3,
+                MaxDuration = Limit,
+            },
+            TestContext.Current.CancellationToken);
+
+        var job = await WaitForJobAsync(host, queued.Id);
+
+        job.Status.ShouldBe(JobStatus.Failed);
+        job.Attempt.ShouldBe(1);
+        job.ErrorMessage.ShouldNotBeNull().ShouldStartWith($"{JobErrorCodes.MaxDurationExceeded} (ref: ");
+
+        var item = (await host.Services.GetRequiredService<IJobStore>().ListItemsAsync(queued.Id, TestContext.Current.CancellationToken)).Single();
+
+        item.Status.ShouldBe(JobItemStatus.Failed);
+        (await WorkflowRunsAsync(host)).ShouldHaveSingleItem().Error.ShouldNotBeNull().Type.ShouldBe("job_max_duration_exceeded");
+    }
+
+    [Fact]
     public async Task On_the_jobs_last_attempt_the_limit_fails_the_job_with_the_code()
     {
         var probe = new RecoveryProbe();

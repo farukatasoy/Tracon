@@ -81,7 +81,8 @@ public static class JobErrorCodes
     /// A run the handler had started is cancelled with the token, so it ends
     /// <c>Canceled</c>. The built-in workflow handlers treat the limit as the end of
     /// the work, not as an interruption: a queued workflow run's job fails at once with
-    /// this code, a workflow batch fails the item whose run was stopped, and recovery
+    /// this code, a workflow batch fails the item whose run was stopped (and the job, with
+    /// this code, when no item is left for another attempt), and recovery
     /// (<c>Tracon:Workflows:ResumeInterruptedRuns</c>) never continues a run the limit
     /// stopped. Its row carries the error type <c>job_max_duration_exceeded</c>.
     /// </para>

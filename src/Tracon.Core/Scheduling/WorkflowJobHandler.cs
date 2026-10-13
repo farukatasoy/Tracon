@@ -63,7 +63,8 @@ namespace Tracon;
 /// <c>job_max_duration_exceeded</c> and the item fails with that reason: the limit ends
 /// the item's work, and recovery never continues the run. The attempt then fails with
 /// <see cref="JobErrorCodes.MaxDurationExceeded"/>, so the items it did not reach run in
-/// the next attempt, under a fresh limit.
+/// the next attempt, under a fresh limit. With no item left to run, the job fails at
+/// once with that code.
 /// </para>
 /// </remarks>
 internal sealed class WorkflowJobHandler(
@@ -132,6 +133,14 @@ internal sealed class WorkflowJobHandler(
             if (StoppedAtTimeLimit(context))
             {
                 await CloseItemAtTimeLimitAsync(context, item, run).ConfigureAwait(false);
+
+                // Nothing left for another attempt to run: the job fails now, with the
+                // limit as its reason, instead of being leased again only to find every
+                // item settled and fail as "all items failed".
+                if (!context.Items.Any(other => other.Seq > item.Seq && other.Status == JobItemStatus.Pending))
+                {
+                    throw StoppedAtTimeLimitException(context);
+                }
             }
 
             // 🚨 The worker is stopping, the job was cancelled, or (above) the time
@@ -159,6 +168,31 @@ internal sealed class WorkflowJobHandler(
     /// <returns><see langword="true"/> when the time limit, and not a shutdown or a cancel, stopped the attempt.</returns>
     private static bool StoppedAtTimeLimit(JobContext context)
         => context.Signals?.Reason == JobStopReason.MaxDurationExceeded;
+
+    /// <summary>
+    /// Builds the exception that fails the job at its time limit when no item is left for
+    /// another attempt, and logs its cause once.
+    /// </summary>
+    /// <param name="context">The job context.</param>
+    /// <returns>The exception; the worker persists its message, which carries the code.</returns>
+    private NonRetryableJobException StoppedAtTimeLimitException(JobContext context)
+    {
+        var correlationId = SafeErrorText.NewCorrelationId();
+
+        if (logger is not null && logger.IsEnabled(LogLevel.Error))
+        {
+            logger.LogError(
+                "Workflow job {JobId} reached its time limit of {MaxDuration} on its last pending item; the job fails and the item's run is not continued. (ref: {CorrelationId})",
+                context.Job.Id,
+                context.Signals?.MaxDuration,
+                correlationId);
+        }
+
+        return new NonRetryableJobException(
+            JobErrorCodes.MaxDurationExceeded,
+            correlationId,
+            new TraconException($"Workflow job '{context.Job.Id}' reached its time limit."));
+    }
 
     /// <summary>Prepares and runs one item's workflow, recording what is known on <paramref name="run"/>.</summary>
     /// <param name="context">The job context.</param>
