@@ -1,6 +1,6 @@
 # Faz 204 — Kesilen Model Çıktısı ve Anthropic Güncel İstek Ayarları
 
-> **Durum:** 🔄 Kapanışta (2026-10-13) — kod ve denetim düzeltmeleri bitti; `kapanis` kapısı, arşivleme ve site yayını bekliyor
+> **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-B, 5-B)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-320**, **F-346**
 > **Genellik:** Yapılandırılmış çıktı üreten her agent kesilmeye açıktır ve kesilen JSON bugün her sağlayıcıda yanlış sınıflanır (F-320, ilk ilke). Anthropic ayarları sağlayıcı eşitliğidir: güncel modeller `budget_tokens` ve örneklemeyi `400` ile reddeder (F-346, ekosistem). İkisi tek tüketiciye bağlı değildir
@@ -222,7 +222,7 @@ Testing.Contracts.Xunit ModelProviderSettingsContract
 - [x] Yapılandırılmış yanıtta `Length` → `Failed` + `OutputTruncated`; onarım koşmaz; düz metinde olay (test 1-6)
 - [x] Doğrulama raporu kesilme ve örnekleme uyarılarını taşır (test 7, 10)
 - [x] Dört Anthropic ayarı gövdeye doğru yazılır; bilinmeyen anahtar hata (test 8, 9, 11)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 643b9eee` orkestratörde koşar. Uygulama turunda `kapi.py ic-dongu` tam koşuma genişledi ve yeşildi (derleme 54,9 sn, test 510,4 sn). Denetim düzeltmelerinden sonra (derleme 59,3 sn, test 483,8 sn) çıkış 1: 91 E2E "UI assets are not embedded" ile düştü (F-356: genişleyen koşum UI'sız derler) ve 16 SQL Server testi yük altında zaman aşımına uğradı, 16'sı da izole geçti. Ayrıca: UI'lı `dotnet build Tracon.slnx -c Release` sonra E2E 91/91 yeşil; SQL Server derlemesi tek başına 912/913, kalan deadlock testi izole 5/5 geçti → **F-430** (faz SQL'e dokunmadı). `yayin --kuru --surum 1.0.0-preview.4` `4293876d` üzerinde çıkış 0: 20 paket, kırıcı liste 2 tip (hepsi `Unreleased`'da), npm dry-run, AOT ve net8.0 smoke. İlk deneme uygulama turunun prova çıktısına (`artifacts/package/yayin/1.0.0-preview.4`, aynı kimlik farklı içerik) çarptı; o dizin silinip yeniden koşuldu
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 643b9eee` birleştirmeden sonra `main`'de (`4800b280`, Faz 201 + Faz 204 birlikte) çıkış 0: build 86,7 sn · test 441,0 sn (38 koşum, 20 241 geçti, 19 atlandı; E2E UI'lı derlemeyle yeşil, SQL Server yeşil) · pack · format · site `npm run check`. Aynı ağaçta `yayin --kuru --surum 1.0.0-preview.4` çıkış 0: kırıcı liste 2 tip, 2 paket (hepsi `Unreleased`'da) · 20 paket · npm dry-run · altı paketlenmiş sample (`CustomModelProvider` 38 geçti, 1 atlandı — MT-TEST-079) · AOT ve net8.0 smoke. Eski `faa68345` provası aynı kimlikte farklı içerik taşıdığı için `artifacts/package/yayin/1.0.0-preview.4-onceki-faa68345`'e taşındı (silinmedi). Uygulama turunda `kapi.py ic-dongu` tam koşuma genişledi ve yeşildi (derleme 54,9 sn, test 510,4 sn). Denetim düzeltmelerinden sonra (derleme 59,3 sn, test 483,8 sn) çıkış 1: 91 E2E "UI assets are not embedded" ile düştü (F-356: genişleyen koşum UI'sız derler) ve 16 SQL Server testi yük altında zaman aşımına uğradı, 16'sı da izole geçti. Ayrıca: UI'lı `dotnet build Tracon.slnx -c Release` sonra E2E 91/91 yeşil; SQL Server derlemesi tek başına 912/913, kalan deadlock testi izole 5/5 geçti → **F-430** (faz SQL'e dokunmadı). `yayin --kuru --surum 1.0.0-preview.4` `4293876d` üzerinde çıkış 0: 20 paket, kırıcı liste 2 tip (hepsi `Unreleased`'da), npm dry-run, AOT ve net8.0 smoke. İlk deneme uygulama turunun prova çıktısına (`artifacts/package/yayin/1.0.0-preview.4`, aynı kimlik farklı içerik) çarptı; o dizin silinip yeniden koşuldu
 - [x] `samples/Tracon.Api` ile gerçek Anthropic `run`'ı (case 1, 2), çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü (`kapi.py tarama`)
 - [x] Manuel kabul case'leri iki alan dosyasına eklendi (`06`, `22`; sayılar `00-INDEKS`'te); beşi de örnek uygulamada koşuldu
@@ -405,7 +405,7 @@ Manuel test  01 MT-PKG-106 · 06 MT-PROV-031 (denetim 🟡1), 038, 043 · 22 MT-
 | Sevk edilen metin | `///` (yeni tipler, `AnthropicProviderNames` `<example>`, `IModelProvider` remarks) · `src/Tracon.Anthropic/README.md` (denetim: `system` yerleşiminin talimatsız düşüşü) · `src/Tracon.Testing.Contracts.Xunit/README.md` (`InvalidSettingValue`) · `CHANGELOG.md` `[Unreleased]` (Fixed · Added · Changed; denetim: online değerlendirme tekrarı) | İç referans yok; `ShippedDocumentationSelfContainmentTests`, `ExampleCompilationTests` yeşil |
 | Agent haritası | `capabilities.md` iki satır | Harita değişmedi (satırlar haritanın bölümünde değil); `llms-full.txt` güncellendi |
 
-`--site-denetle --taban 643b9eee`: üç kural, üçü karşılandı. Site **yayınlanmadı**.
+`--site-denetle --taban 643b9eee`: üç kural, üçü karşılandı. Site **yayınlanmadı** (`scripts/site-deploy.sh` dışa açık bir iştir; bakımcı koşar) — Faz 201 ve Faz 204'ün sayfaları birlikte yayınlanır.
 ## Süreç Ölçümü
 
 > Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
