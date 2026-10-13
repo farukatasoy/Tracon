@@ -2,10 +2,10 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-302**, **F-301**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-302**, **F-301**
 > **Genellik:** Kendi talimatı, kendi şeması ve kodla hesaplanan ön kontrolü olan yargıç birçok tüketici sınıfının kalite kapısıdır (içerik QA'sı, kod incelemesi, çıkarım doğrulaması). İkinci kanıt ilk ilkedir: MAF `LoopEvaluator` bağımlılık ister, Tracon'un kayıt yüzeyi DI vermez (K-218 sınıfı). Domain'e özgü ölçüt tüketici kodunda kalır
 > **Karşı görüş:** "Yerleşik `aiJudge` çoğu kapıyı karşılar." Plan bunu kabul eder: `aiJudge` varsayılan kalır; fabrika yalnız onun ifade edemediği kapı içindir ve örnekleri alan bağımsızdır
-> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) 2026-10-12'de kapandı (ikisi `full-replace-editors.test.tsx`'i paylaşır)
+> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) 2026-10-12'de kapandı (ikisi `full-replace-editors.test.tsx`'i paylaşır)
 > **Paketler:** `Tracon.Core`, `.AspNetCore`, `.UI` · üretilen: `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** Yok — `harness.loop` tanım blob'undadır; veri modeli değişmez
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`
@@ -25,9 +25,9 @@
    noktası değil), **K-874** (yargıç egress + kurulum anahtarı)
 3. Devir notları (Faz 151 loop'u kurdu; Faz 192 F-302'yi devretti):
    `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/{151-HARNESSIN-DONGU-YETENEGI,192-DONGU-TUKENME-POLITIKASI}.md`
-4. Hafıza: [`maf-harness-ve-loop.md`](hafiza/maf-harness-ve-loop.md) ·
-   [`frontend-test-altyapisi.md`](hafiza/frontend-test-altyapisi.md) ·
-   [`aspnetcore-di.md`](hafiza/aspnetcore-di.md) (XML'de 🚨 ve `K-NNN` yasak)
+4. Hafıza: [`maf-harness-ve-loop.md`](../../hafiza/maf-harness-ve-loop.md) ·
+   [`frontend-test-altyapisi.md`](../../hafiza/frontend-test-altyapisi.md) ·
+   [`aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (XML'de 🚨 ve `K-NNN` yasak)
 
 ---
 
@@ -101,7 +101,7 @@ bir kod ölçütüdür. İnsan onayı ileride Loop ölçütü olur (kullanıcı 
   (`ParentRunId`, `RootRunId`, `Depth + 1`) ile çocuk run koşar, kendi usage'ını
   taşır (K-893 yalnız `aiJudge` içindir). **Ölçülmeli:** ağaç bütçesi, derinlik.
 - **Zorlayıcı örnek, kabul ölçütü değil.** Bir tüketicinin podcast QA'sı
-  ([rapor](arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md) § 4,
+  ([rapor](../incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md) § 4,
   2026-10-13) desenin sınırını gösterir: kendi şemalı karar, reviewer'dan önce
   kodla hesaplanan girdi ve run boyunca tutulan durum
   (`LoopContext.AdditionalProperties`). `aiJudge` üçünü de taşımaz. Desen
@@ -217,7 +217,7 @@ samples/Tracon.Api/Program.cs                   (fabrikalı örnek ölçüt)
 
 ## Hata Modları ve Testler
 
-> Seviye kuralı: [`test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> Seviye kuralı: [`test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | # | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|---|

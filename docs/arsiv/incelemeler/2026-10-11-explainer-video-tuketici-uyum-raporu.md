@@ -515,7 +515,7 @@ run ağacını ve maliyeti görür, bekleyen isteği run sayfasından açar, wor
 zincirini ve fonksiyon düğümü ayarını düzenler
 ([Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md), kapandı; ayar
 alanı JSON metnidir, şemadan form F-412). Bugünkü sınırlar: `Loop`
-konsoldan ayarlanmaz ([Faz 201](../../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md),
+konsoldan ayarlanmaz ([Faz 201](../fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md),
 planlandı); workflow için sürüm geçmişi yoktur (Faz 200, planlandı; skill
 geçmişi F-408); workflow parametre **şeması** konsolda düzenlenmez, yalnız
 korunur.
@@ -687,7 +687,7 @@ planın Açık Sorular bölümündedir.
 | [198](../../198-ADLI-KONUSMA-SAGLAYICISI.md) · Adlı konuşma sağlayıcısı | F-298 | Yerel GPU ve bulut motoru aynı süreçte, kiracı başına |
 | [199](../../199-FONKSIYON-DUGUMU-MALIYETI.md) · Fonksiyon düğümü maliyeti | F-299 | TTS, GPU ve render saniyesi run maliyetine girer |
 | [200](../../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) · Workflow sürüm geçmişi | F-300 | Yol A'da üretim belirli bir workflow sürümüne sabitlenir |
-| [201](../../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · Loop düzenleme ve ölçüt fabrikası | F-301, F-302 | Agent onayının ölçütü DI ile kurulur ve konsoldan ayarlanır |
+| [201](../fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · Loop düzenleme ve ölçüt fabrikası | F-301, F-302 | Agent onayının ölçütü DI ile kurulur ve konsoldan ayarlanır |
 | [202](../../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) · Skill script yürütücü seam'i | F-345 | Yalnız LLM'in çağırdığı skill script'i; zorunlu adımlar host runner'ında kalır |
 | [203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) · Çok konuşmacılı diyalog ve sağlayıcı istek ayarları | F-296 | Tek anlatıcılı hattın süreklilik ayarları (`seed`, `previous_text`) önekli sağlayıcı ayarıyla gelir |
 | [204](../../204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · Kesilen çıktı ve Anthropic ayarları | F-320, F-346 | 44 KB JSON kesilirse `OutputTruncated`; onarım boşa koşmaz; önbellek TTL'i ve `effort` |
