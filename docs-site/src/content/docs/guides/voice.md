@@ -133,9 +133,12 @@ estimate.
 
 Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
 `ProviderName` of the implementation that did the work — `elevenlabs` for the built-in
-client — not the `Tracon:Voice:Provider` setting. `{model}` is `SynthesisModelId` or
-`TranscriptionModelId`; when it is empty, only the built-in client falls back to its
-own default model.
+client — not the `Tracon:Voice:Provider` setting. `{model}` is the model the
+implementation reports on its result (`SpeechAudio.ModelId`,
+`SpeechTranscript.ModelId`), then the one the request named. Only when neither is
+known does the default provider fall back to `SynthesisModelId` or
+`TranscriptionModelId`, and only the built-in client to its own default model. The
+built-in client always reports the model it used.
 
 ### Character-level timing
 
@@ -191,6 +194,104 @@ Three behaviors follow the bound implementation, not the settings:
 
 With no model identifier set, your provider's cost stays `null`: Tracon does not
 borrow the built-in client's default model or its price.
+
+### Several speech providers in one host
+
+A host that picks the text-to-speech engine per pipeline or per customer — a hosted
+service for one, a model on its own GPU for another — registers each engine under a
+name, next to the default one:
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .AddSpeechSynthesizer("studio", provider => new StudioSpeechSynthesizer(
+        provider.GetRequiredService<IConfiguration>()["Studio:ApiKey"]))
+    .AddSpeechSynthesizer("gpu", _ => new LocalGpuSynthesizer(new Uri("http://gpu-01:9000/")))
+    .AddSpeechTranscriber("gpu", _ => new LocalGpuTranscriber(new Uri("http://gpu-01:9000/")));
+```
+
+A name is 1 to 64 characters of `a-z`, `0-9`, `.`, `_` and `-`, compared in lower
+case; synthesizer and transcriber names are separate. Registering the same name twice
+throws at startup instead of letting the later call win. The call can come before or
+after `UseVoice()`, and it never changes which provider `UseVoice()` binds as the
+default. A factory that returns one instance for two names shares that instance — and
+its concurrency limit — between them.
+
+A caller selects an engine by name:
+
+| Caller | How it names the engine |
+|---|---|
+| `POST /api/voice/speak` | `"provider": "studio"` in the body |
+| `GET /api/voice/voices` | `?provider=studio` |
+| A workflow function node | `ISpeechProviderResolver.GetSynthesizerAsync(name)` with a name from the node's settings or a run parameter |
+| The `speak`, `transcribe` and `list_voices` tools, the conversation socket | Always the default provider |
+
+`GET /api/voice/providers` lists every registration — its name (`null` for the
+default), its kind, the provider name it reports, and whether it accepts a tenant's own
+key. An unknown name answers `400` and names the registered ones; a request without a
+name when no default is registered answers `501`.
+
+A function node takes the resolver when it is built, because the service provider a
+node sees at call time is not the host's:
+
+```csharp
+builder.AddTracon()
+    .UseWorkflows()
+    .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, NarrationSettings>(
+        "narrate",
+        provider =>
+        {
+            var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+
+            return async (messages, settings, context, cancellationToken) =>
+            {
+                var synthesizer = await speech.GetSynthesizerAsync(settings.Provider, cancellationToken);
+                var audio = await synthesizer.SynthesizeAsync(
+                    new SpeechRequest { Text = messages[^1].Text },
+                    cancellationToken);
+
+                return [new ChatMessage(ChatRole.Assistant, $"{audio.Data.Length} bytes")];
+            };
+        });
+```
+
+A named engine never receives the default's `SynthesisModelId` or `OutputFormat`: a
+model identifier of one engine sent to another is a wrong request. Set them on the
+request when the engine needs them.
+
+### Tenant policy and credentials for speech
+
+Every speech call obeys the calling tenant's provider rules, the same rules a model
+call follows ([egress and per-tenant credentials](/concepts/governance/)). The checks
+run before any text or audio leaves the process:
+
+- The tenant's egress policy must allow the provider name the engine **reports**
+  (`ProviderName`), not the name it was registered under — two names for one service
+  are one provider to the policy. A local engine is not exempt: what it does with the
+  text is outside Tracon's view. Otherwise the call is refused: `403` on the HTTP
+  endpoints and on the conversation handshake, an error result for a tool, a failed
+  node for a workflow — a refusal is not retried.
+- A tenant with its own binding for that provider name is billed on its own key. The
+  key reaches only an implementation that sets `SupportsTenantCredentials` to `true`;
+  it arrives in `SpeechRequest.Credential`, `SpeechTranscriptionOptions.Credential`
+  and `ListVoicesWithCredentialAsync`. Any other implementation is refused for that
+  tenant rather than called on its own configured key — the wrong account. The
+  built-in ElevenLabs client does not take a tenant key.
+- A binding whose configuration key has no value, or that sets an endpoint override,
+  is refused; the call never falls back to the shared key.
+
+The tenant is the current run's tenant, or the request's tenant outside a run, so a
+queued workflow is judged by the tenant that queued it. The policy and the binding are
+read on every call: a policy saved now stops the next call. Reading the provider list
+and `GET /api/voice/health` apply no tenant check; the health check is a platform
+check that sends no tenant data.
+
+:::caution[Behavior change]
+A tenant with a saved egress policy that does not name its speech provider can no
+longer synthesize, transcribe or list voices. Add the provider name (`elevenlabs` for
+the built-in client) to the policy — the tenant panel in the console lists speech
+providers next to the model providers.
+:::
 
 ## Enable live conversation
 
@@ -541,6 +642,14 @@ it has no key. The message names the contract it still serves. Set the key with
 `dotnet user-secrets set "Tracon:Voice:ApiKey" "..."`, or register your own
 `ISpeechSynthesizer` and `ISpeechTranscriber` **before** `UseVoice()`. A
 registration after `UseVoice()` is not seen, and the message is the same.
+
+### A speech call returns `403`
+
+The tenant's egress policy does not name the provider the engine reports, or the
+tenant has its own key for that provider and the engine cannot take one. The message
+names the tenant and the provider. Add the provider name to the policy, or remove the
+binding; `GET /api/voice/providers` shows each engine's provider name and whether it
+accepts a tenant key.
 
 ### Voice conversation reports `501`
 

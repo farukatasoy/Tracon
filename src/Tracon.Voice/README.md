@@ -104,6 +104,33 @@ character limit (`ISpeechSynthesizer.MaxCharactersPerRequest`), the price key
 (`Tracon:Pricing:Voice:{ProviderName}:{model}`), and the health check (your own
 `IVoiceHealthCheck`, or a voice-list call that reports your `ProviderName`).
 
+## Several engines, selected by name
+
+A host can register more synthesizers and transcribers by name, next to the
+default one `UseVoice` binds:
+
+```csharp
+builder.AddTracon()
+       .UseVoice(configuration.GetSection(VoiceOptions.SectionName))
+       .AddSpeechSynthesizer("gpu", provider => new LocalGpuSynthesizer());
+```
+
+`POST /api/voice/speak` selects one with `"provider": "gpu"`, `GET /api/voice/voices`
+with `?provider=gpu`, and a workflow function node with
+`ISpeechProviderResolver.GetSynthesizerAsync("gpu")`. The tools always use the
+default. `GET /api/voice/providers` lists the registrations.
+
+## Tenant rules
+
+Every speech call obeys the calling tenant's egress policy and its own provider key.
+The policy names the provider name the engine reports (`elevenlabs` for the built-in
+client), not the registration name. A tenant with its own key for that provider is
+served only by an engine that sets `SupportsTenantCredentials`; the key arrives in
+`SpeechRequest.Credential`. Any other engine is refused for that tenant rather than
+called on its own configured key. The built-in ElevenLabs client does not take a
+tenant key, so a tenant with an `elevenlabs` binding is refused, and a tenant whose
+saved policy does not name `elevenlabs` cannot use the tools.
+
 ## Dependencies
 
 `Tracon.Core` is the only dependency, and it brings **no third-party NuGet
