@@ -12117,11 +12117,11 @@ namespace Tracon.Client.Generated
         /// Lists the available voices.
         /// </summary>
         /// <remarks>
-        /// The list comes from the configured speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent's 'speak' tool accept. When the speech layer was never enabled with UseVoice(), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.
+        /// The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent's 'speak' tool accept. The optional 'provider' query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant's egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VoiceDescriptor>> TraconVoiceListAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<VoiceDescriptor>> TraconVoiceListAsync(string? provider = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -12136,6 +12136,12 @@ namespace Tracon.Client.Generated
                 
                     // Operation Path: "api/voice/voices"
                     urlBuilder_.Append("api/voice/voices");
+                    urlBuilder_.Append('?');
+                    if (provider != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("provider")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(provider, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
 
                     PrepareRequest(client_, request_, urlBuilder_);
 
@@ -12163,6 +12169,113 @@ namespace Tracon.Client.Generated
                         if (status_ == 200)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<System.Collections.Generic.ICollection<VoiceDescriptor>>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Lists the registered speech providers.
+        /// </summary>
+        /// <remarks>
+        /// Each entry is a synthesizer or a transcriber: its registration name (null for the default), its kind, the provider name a tenant's egress policy and provider bindings use, and whether it can call the service with a tenant's own credential. Reading the list calls no provider. An empty list means no speech provider is registered.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<SpeechProviderDescriptor>> TraconVoiceProvidersAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/voice/providers"
+                    urlBuilder_.Append("api/voice/providers");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<System.Collections.Generic.ICollection<SpeechProviderDescriptor>>(response_, headers_, cancellationToken).ConfigureAwait(false);
                             if (objectResponse_.Object == null)
                             {
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
@@ -12289,7 +12402,7 @@ namespace Tracon.Client.Generated
         /// Synthesizes speech from text and saves it as an attachment.
         /// </summary>
         /// <remarks>
-        /// This is an operator action and is NOT tied to a run; the metering is not written to tool_invocations, it is returned in the response. If persistent metering is required, use the agent's `speak` tool.
+        /// This is an operator action and is NOT tied to a run; the metering is not written to tool_invocations, it is returned in the response. If persistent metering is required, use the agent's `speak` tool. The optional 'provider' field names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, 403 when the tenant's egress policy does not allow the provider or the tenant has its own credential that the provider cannot use (the call is not made on the setup credential), and 501 when no default synthesizer is registered.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -12347,6 +12460,46 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 502)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Gateway", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -25171,6 +25324,14 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("includeTimestamps")]
         public bool IncludeTimestamps { get; set; } = default!;
 
+        /// <summary>
+        /// The registration name of the synthesizer to use; `null` for the
+        /// <br/>default one.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public string? Provider { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -25250,6 +25411,59 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("end")]
         public string End { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// A registered speech provider, as IReadOnlyList&amp;lt;SpeechProviderDescriptor&amp;gt; ISpeechProviderResolver.Providers lists it.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SpeechProviderDescriptor
+    {
+        /// <summary>
+        /// Gets the registration name, or `null` for the unnamed default.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the provider synthesizes or transcribes speech.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("kind")]
+        public SpeechProviderKind Kind { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the provider name the instance reports. A tenant's egress policy and
+        /// <br/>provider bindings name this value, not the registration name.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("providerName")]
+        public string ProviderName { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the provider can call the service with a tenant's own credential.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("supportsTenantCredentials")]
+        public bool SupportsTenantCredentials { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The kind of a registered speech provider.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SpeechProviderKind>))]
+    public enum SpeechProviderKind
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Synthesizer")]
+        Synthesizer = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Transcriber")]
+        Transcriber = 1,
 
     }
 
