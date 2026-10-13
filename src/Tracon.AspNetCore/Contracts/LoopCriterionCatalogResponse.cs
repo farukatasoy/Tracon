@@ -41,8 +41,10 @@ public sealed record LoopCriterionKindResponse
     public required bool BuiltIn { get; init; }
 
     /// <summary>
-    /// Gets what the kind checks, or <see langword="null"/> when its registration
-    /// gave no description. The text is the host's, in the host's language.
+    /// Gets what the kind checks. A built-in kind always carries Tracon's own
+    /// English sentence. A kind registered in code carries the text its
+    /// registration gave, in the host's language, or <see langword="null"/>
+    /// when it gave none.
     /// </summary>
     public string? Description { get; init; }
 }

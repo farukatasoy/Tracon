@@ -12166,7 +12166,7 @@
               "null",
               "string"
             ],
-            "description": "Gets what the kind checks, or \u0060null\u0060 when its registration\ngave no description. The text is the host\u0027s, in the host\u0027s language."
+            "description": "Gets what the kind checks. A built-in kind always carries Tracon\u0027s own\nEnglish sentence. A kind registered in code carries the text its\nregistration gave, in the host\u0027s language, or \u0060null\u0060\nwhen it gave none."
           }
         },
         "description": "One loop criterion kind in LoopCriterionCatalogResponse."
