@@ -216,6 +216,90 @@ public sealed class VoiceEndpointTests
         attachment.GetProperty("fileName").GetString().ShouldNotBeNull().ShouldEndWith(".ogg");
     }
 
+    [Fact]
+    public async Task Speak_with_an_unknown_provider_name_is_400_and_names_the_registered_ones()
+    {
+        var studio = new CountingSpeechProvider("studio-engine");
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder.AddSpeechSynthesizer("studio", _ => studio));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/voice/speak", UriKind.Relative),
+            new { text = "hello", provider = "cloud" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var body = await response.Content.ReadAsStringAsync();
+        body.ShouldContain("'cloud'");
+        body.ShouldContain("studio");
+        studio.Calls.ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("has space")]
+    [InlineData("a-name-that-is-longer-than-sixty-four-characters-and-so-is-not-valid")]
+    public async Task Speak_with_an_invalid_provider_name_is_400(string provider)
+    {
+        var studio = new CountingSpeechProvider("studio-engine");
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder.AddSpeechSynthesizer("studio", _ => studio));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/voice/speak", UriKind.Relative),
+            new { text = "hello", provider });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).ShouldNotContain(provider.Length > 0 ? provider : "\"\"");
+        studio.Calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Without_a_default_synthesizer_an_unnamed_request_is_501_and_a_named_one_is_served()
+    {
+        var studio = new CountingSpeechProvider("studio-engine");
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder.AddSpeechSynthesizer("studio", _ => studio));
+
+        using (var unnamed = await host.Client.PostAsJsonAsync(
+                   new Uri("/tracon/api/voice/speak", UriKind.Relative), new { text = "hello" }))
+        {
+            unnamed.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
+        }
+
+        using (var voices = await host.Client.GetAsync(new Uri("/tracon/api/voice/voices", UriKind.Relative)))
+        {
+            voices.StatusCode.ShouldBe(HttpStatusCode.NotImplemented);
+        }
+
+        using var named = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/voice/speak", UriKind.Relative), new { text = "hello", provider = "studio" });
+
+        named.StatusCode.ShouldBe(HttpStatusCode.OK, await named.Content.ReadAsStringAsync());
+        studio.Calls.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Voices_with_an_unknown_provider_name_is_400()
+    {
+        await using var host = await StartWithVoiceAsync();
+
+        using var response = await host.Client.GetAsync(new Uri("/tracon/api/voice/voices?provider=cloud", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task The_provider_list_is_empty_when_no_speech_provider_is_registered()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.GetAsync(new Uri("/tracon/api/voice/providers", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await TraconTestHost.ReadJsonAsync(response)).GetArrayLength().ShouldBe(0);
+    }
+
     private static Task<TraconTestHost> StartWithVoiceAsync()
         => TraconTestHost.StartAsync(
             configureServices: static services =>

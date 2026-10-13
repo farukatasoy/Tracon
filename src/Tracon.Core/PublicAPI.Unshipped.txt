@@ -754,6 +754,8 @@ static Tracon.ResolvedCallableAgents.operator ==(Tracon.ResolvedCallableAgents l
 static Tracon.RunErrorFingerprint.Compute(string? message) -> string!
 static Tracon.RunEventDraft.operator !=(Tracon.RunEventDraft left, Tracon.RunEventDraft right) -> bool
 static Tracon.RunEventDraft.operator ==(Tracon.RunEventDraft left, Tracon.RunEventDraft right) -> bool
+static Tracon.TraconBuilderExtensions.AddSpeechSynthesizer(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ISpeechSynthesizer!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddSpeechTranscriber(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ISpeechTranscriber!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconClientToolExtensions.AddClientTool(this Tracon.ITraconBuilder! builder, string! name, string! description, System.Text.Json.JsonElement jsonSchema) -> Tracon.ITraconBuilder!
 static Tracon.TraconContentGuardBuilderExtensions.AddContentGuard(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IContentGuard!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconContentGuardBuilderExtensions.AddContentGuard(this Tracon.ITraconBuilder! builder, Tracon.IContentGuard! guard) -> Tracon.ITraconBuilder!

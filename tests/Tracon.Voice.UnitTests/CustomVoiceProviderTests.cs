@@ -93,6 +93,71 @@ public sealed class CustomVoiceProviderTests
             .Message.ShouldContain("BEFORE calling UseVoice");
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_named_synthesizer_does_not_change_which_provider_UseVoice_binds(bool namedFirst)
+    {
+        // A named registration is keyed: it must neither stop UseVoice's TryAdd nor
+        // count as "the consumer bound its own provider". If it did, the built-in
+        // client would lose its startup checks in one registration order only.
+        var named = new ContosoSpeechProvider();
+        var services = new ServiceCollection();
+        var builder = services.AddTracon();
+
+        if (namedFirst)
+        {
+            builder.AddSpeechSynthesizer("contoso", _ => named);
+        }
+
+        builder.UseVoice(static options => options.DefaultVoiceId = "voice-1");
+
+        if (!namedFirst)
+        {
+            builder.AddSpeechSynthesizer("contoso", _ => named);
+        }
+
+        await using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<VoiceProviderBinding>().UsesBuiltInClient.ShouldBeTrue();
+
+        // Without a key the built-in client still fails at startup, in both orders.
+        Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IStartupValidator>().Validate())
+            .Message.ShouldContain("user-secrets");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task The_default_and_a_named_synthesizer_resolve_to_their_own_instances(bool namedFirst)
+    {
+        var named = new ContosoSpeechProvider();
+        var services = new ServiceCollection();
+        var builder = services.AddTracon();
+
+        if (namedFirst)
+        {
+            builder.AddSpeechSynthesizer("contoso", _ => named);
+        }
+
+        builder.UseVoice(static options => options.ApiKey = "k");
+
+        if (!namedFirst)
+        {
+            builder.AddSpeechSynthesizer("contoso", _ => named);
+        }
+
+        await using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<IStartupValidator>().Validate();
+
+        var resolver = provider.GetRequiredService<ISpeechProviderResolver>();
+
+        (await resolver.GetSynthesizerAsync(cancellationToken: TestContext.Current.CancellationToken))
+            .ShouldBeOfType<ElevenLabsSpeechClient>();
+        (await resolver.GetSynthesizerAsync("contoso", TestContext.Current.CancellationToken))
+            .ShouldBeSameAs(named);
+    }
+
     [Fact]
     public void Synthesis_price_is_keyed_by_the_bound_synthesizers_provider_name()
     {
@@ -170,7 +235,7 @@ public sealed class CustomVoiceProviderTests
         using var provider = services.BuildServiceProvider();
 
         provider.GetRequiredService<VoicePricing>()
-            .ForTranscription(provider.GetRequiredService<ISpeechTranscriber>(), TimeSpan.FromMinutes(2))
+            .ForTranscription(provider.GetRequiredService<ISpeechTranscriber>().ProviderName, modelId: null, TimeSpan.FromMinutes(2))
             .ShouldBe(1m);
     }
 

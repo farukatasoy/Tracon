@@ -159,4 +159,15 @@ public sealed class SecretLeakTests
         (request.Body ?? string.Empty).ShouldNotContain(ApiKey);
         request.Uri.ToString().ShouldNotContain(ApiKey);
     }
+
+    [Fact]
+    public void A_speech_request_and_transcription_options_never_show_a_tenant_key_in_their_text()
+    {
+        // Both are records: the compiler-generated ToString prints every property,
+        // and the credential's own ToString is what keeps the key out of a log line.
+        var credential = new ModelProviderCredential { ApiKey = ApiKey };
+
+        new SpeechRequest { Text = "hello", Credential = credential }.ToString().ShouldNotContain(ApiKey);
+        new SpeechTranscriptionOptions { Credential = credential }.ToString().ShouldNotContain(ApiKey);
+    }
 }

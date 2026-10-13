@@ -58,7 +58,9 @@ internal static class VoiceConversationEndpoint
                 "Server -> client: audio chunks (binary) and event frames (JSON text). " +
                 "The token is carried in the 'Sec-WebSocket-Protocol' subprotocol; it is NOT accepted in the query string. " +
                 "If a registered IRunAuthorizationHandler denies the caller, the handshake is refused with 404 — identical " +
-                "to a session belonging to another tenant, so a denial never confirms the session exists.");
+                "to a session belonging to another tenant, so a denial never confirms the session exists. " +
+                "If the tenant's egress policy does not allow the speech providers, or the tenant has its own " +
+                "credential that a provider cannot use, the handshake is refused with 403 before a connection slot is taken.");
     }
 
     private static async Task HandleAsync(
@@ -153,6 +155,27 @@ internal static class VoiceConversationEndpoint
             return;
         }
 
+        // The tenant's provider checks run AFTER the session gates (a refusal must
+        // not confirm that another tenant's session exists) and BEFORE the slot:
+        // a refused tenant holds no slot, and the handshake answers with an HTTP
+        // status instead of a socket that closes after the upgrade.
+        VoiceConversationProviders providers;
+
+        try
+        {
+            providers = await driver.ResolveProvidersAsync(context.RequestAborted).ConfigureAwait(false);
+        }
+        catch (TenantProviderRefusedException exception)
+        {
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                "Speech provider not available for this tenant",
+                exception.Message).ConfigureAwait(false);
+
+            return;
+        }
+
         // The slot is reserved BEFORE the socket is UPGRADED: if the limit is
         // full, the client sees a proper HTTP error. Closing after the upgrade
         // would explain the reason far worse.
@@ -183,6 +206,7 @@ internal static class VoiceConversationEndpoint
                 SessionId = sessionId,
                 CreatedBy = actor.Resolve(),
             },
+            providers,
             context.RequestAborted).ConfigureAwait(false);
     }
 

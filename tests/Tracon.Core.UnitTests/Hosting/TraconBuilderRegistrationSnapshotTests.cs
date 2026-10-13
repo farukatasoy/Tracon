@@ -53,7 +53,13 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         { "AddLoopEvaluator(factory, description)", "TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration ; TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration" },
         { "RequireCustomBinding<T>", "RequiredBindingRegistration|Singleton|instance:RequiredBindingRegistration ; RequiredBindingRegistration|Singleton|instance:RequiredBindingRegistration" },
         { "RequireProductionProfile", "ProductionProfileRegistration|Singleton|instance:ProductionProfileRegistration ; ProductionProfileRegistration|Singleton|instance:ProductionProfileRegistration" },
+        // A named speech provider is a keyed factory plus the name record the resolver
+        // lists; each call below uses a new name, because a repeated name throws.
+        { "AddSpeechSynthesizer", "ISpeechSynthesizer|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; ISpeechSynthesizer|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration" },
+        { "AddSpeechTranscriber", "ISpeechTranscriber|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; ISpeechTranscriber|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration" },
     };
+
+    private static int _speechNames;
 
     [Fact]
     public void Every_registration_method_has_a_case()
@@ -94,8 +100,12 @@ public sealed class TraconBuilderRegistrationSnapshotTests
 
     private static string Describe(ServiceDescriptor descriptor)
     {
+        // A keyed descriptor throws on the unkeyed accessors, so it is matched first.
         var shape = descriptor switch
         {
+            { IsKeyedService: true, KeyedImplementationInstance: { } keyedInstance } => "keyed-instance:" + keyedInstance.GetType().Name,
+            { IsKeyedService: true, KeyedImplementationType: { } keyedType } => "keyed-type:" + keyedType.Name,
+            { IsKeyedService: true } => "keyed-factory",
             { ImplementationInstance: { } instance } => "instance:" + instance.GetType().Name,
             { ImplementationType: { } type } => "type:" + type.Name,
             _ => "factory",
@@ -165,6 +175,12 @@ public sealed class TraconBuilderRegistrationSnapshotTests
 #pragma warning restore MAAI001
             "RequireCustomBinding<T>" => builder.RequireCustomBinding<ITenantContext>(),
             "RequireProductionProfile" => builder.RequireProductionProfile(),
+            "AddSpeechSynthesizer" => builder.AddSpeechSynthesizer(
+                $"snapshot-{Interlocked.Increment(ref _speechNames)}",
+                static _ => null!),
+            "AddSpeechTranscriber" => builder.AddSpeechTranscriber(
+                $"snapshot-{Interlocked.Increment(ref _speechNames)}",
+                static _ => null!),
             _ => throw new ArgumentOutOfRangeException(nameof(method), method, "No case for this method."),
         };
     }
