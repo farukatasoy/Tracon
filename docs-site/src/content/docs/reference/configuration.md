@@ -566,6 +566,36 @@ library default.
 not use `ApiKey`. The consumer chooses and references `Azure.Identity` when managed
 identity is required.
 
+Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
+`ContextWindowTokens`, `MaxOutputTokens`, `SupportsStreaming` (`true`),
+`SupportsTools` (`true`), `SupportsReasoning` (`false`), `SupportsStructuredOutput`
+(`false`), `SupportsSampling` (`null`), and the three `*CostPerMillionTokens` prices.
+`SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
+to compile. `MaxOutputTokens` lets the validation report warn when a binding leaves
+its own limit to a lower provider default, such as Anthropic's
+`DefaultMaxOutputTokens`. See
+[the model catalog](/guides/model-providers/#model-catalog-is-metadata-not-permission).
+
+```json
+{
+  "Tracon": {
+    "Providers": {
+      "Anthropic": {
+        "DefaultMaxOutputTokens": 4096,
+        "Models": [
+          {
+            "Name": "your-current-claude-model",
+            "MaxOutputTokens": 128000,
+            "SupportsStructuredOutput": true,
+            "SupportsSampling": false
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
 | `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"` |
 
 A tenant provider binding's configuration key name must start with

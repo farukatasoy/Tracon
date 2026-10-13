@@ -52,7 +52,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
 | Model binding | Provider, model, temperature, output limit, `top_p`, reasoning effort, and provider-specific settings | `AgentDefinition.Model` | Credentials stay in provider configuration, never in the definition |
-| Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only |
+| Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only; a response cut off at the output limit fails as `OutputTruncated` and is never repaired (plain text completes with a `tracon.output.truncated` event) |
 | Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns. Each call also has a two-layer wait limit (`SubAgentSettings`, or the installation-wide default): a cooperative deadline, then a hard cutoff that abandons a child that ignores cancellation |
 | Harness mode | Context and iteration limits plus todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types. Its providers are on by default — each has its own `Disable...` flag |
 | Harness loop | The agent is re-invoked until a declared stop criterion says the work is finished | `HarnessSettings.Loop`, plus `AddLoopEvaluator(kind, evaluator)` for a criterion written in code | Off unless the definition sets it. Four built-in criterion kinds take data only; an unknown kind is refused at compile time. The iteration ceiling is never open — an unset `MaxIterations` takes Tracon's own default — and every iteration writes a `LoopIterationCompleted` run event. `OnExhausted` / `OnCriterionError` set to `LoopOutcome.FailRun` fail the run instead of returning the last response (`LoopUnsatisfied`) |
@@ -76,7 +76,7 @@ stable provider name.
 |---|---|---|---|
 | `Tracon.OpenAI` | `UseOpenAI()` | `openai`, `openai-responses` | Chat Completions and Responses clients |
 | `Tracon.OpenAI` | `UseOpenAICompatible(name, ...)` | `name`, and optionally `name-responses` | OpenRouter, Groq, Ollama, LM Studio, vLLM, and other compatible endpoints |
-| `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Claude, prompt caching, and extended-thinking settings |
+| `Tracon.Anthropic` | `UseAnthropic()` | `anthropic` | Claude, with effort, adaptive or budgeted thinking, and prompt caching (TTL, breakpoint placement) settings |
 | `Tracon.Google` | `UseGoogle()` | `google` | Gemini safety thresholds and thinking settings |
 | `Tracon.Azure` | `UseAzureOpenAI()` | `azure-openai` | Azure deployments with an API key or a consumer-supplied Entra credential |
 | Any package | `AddModelProvider()` | Chosen by the implementation | A custom `IModelProvider` without a provider package |
@@ -2575,6 +2575,8 @@ agent keeps no version history, so its new run uses the current definition.
 
 A failed run carries an error class, not just a message: a provider outage, a content
 filter, a blocked guard decision, a quota, a timeout, a rejected structured response, a
+structured response cut off at the output limit (`OutputTruncated`, see
+[Truncated output](#truncated-output)), a
 harness loop that ran out of iterations unsatisfied (`LoopUnsatisfied`, see
 [failing the run](/concepts/agents/#fail-the-run-when-the-loop-is-not-satisfied)).
 Two of them are deliberately distinct — `ContentFiltered` means the *provider's*
@@ -2592,6 +2594,27 @@ and its class is the step's class.
 Both the class and the clustering fingerprint come from a classifier you can
 replace or compose with your own rules — see
 [Write your own error classifier](/guides/write-your-own-error-classifier/).
+
+### Truncated output
+
+A model that reaches its output token limit stops in the middle of its answer and
+reports a `length` finish reason. Tracon reads that reason for every provider and
+treats the two kinds of answer differently:
+
+| The agent asks for | Outcome |
+|---|---|
+| A structured response (`Json` or `JsonSchema`) | The run fails with error type `output_truncated`, class `OutputTruncated`. A cut-off JSON document cannot be parsed. No repair turn runs, because it would hit the same limit; the `StructuredResponseRejected` event carries `repairSkippedTruncated: true` when a repair attempt was left |
+| Plain text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.truncated`. Its payload names the provider and, when the binding set one, the limit — never the answer text |
+
+Only the turn that ends the run decides. A tool call the model was still writing when
+it hit the limit is an intermediate turn: the tool loop runs it and asks the model
+again. The tokens of a failed truncated call still count in the run's usage, cost and
+quota. A streaming client does not see the `length` reason in the live `update`
+frames; read the run's events or its error.
+
+The fix is a higher `ModelBinding.MaxOutputTokens`. When the binding leaves it empty,
+`POST /api/agents/validate` warns with `output_truncation_risk` if the provider's
+default is below the catalog's `MaxOutputTokens` for the model.
 
 ### The error message is safe to display, not safe to debug from
 
@@ -8325,14 +8348,20 @@ var anthropicBinding = new ModelBinding
 {
     Provider = AnthropicProviderNames.Anthropic,
     Model = "your-current-claude-model",
-    MaxOutputTokens = 4_096,
+    MaxOutputTokens = 64_000,
     ProviderSettings = new Dictionary<string, JsonElement>(
         StringComparer.OrdinalIgnoreCase)
     {
+        [AnthropicProviderNames.EffortSetting] =
+            JsonSerializer.SerializeToElement("high"),
+        [AnthropicProviderNames.ThinkingModeSetting] =
+            JsonSerializer.SerializeToElement("adaptive"),
         [AnthropicProviderNames.PromptCachingSetting] =
             JsonSerializer.SerializeToElement(true),
-        [AnthropicProviderNames.ThinkingBudgetTokensSetting] =
-            JsonSerializer.SerializeToElement(2_048),
+        [AnthropicProviderNames.PromptCachingTtlSetting] =
+            JsonSerializer.SerializeToElement("1h"),
+        [AnthropicProviderNames.PromptCachingPlacementSetting] =
+            JsonSerializer.SerializeToElement("system"),
     },
 };
 
@@ -8353,10 +8382,47 @@ var googleBinding = new ModelBinding
 };
 ```
 
-Anthropic supports `anthropic.promptCaching` and
-`anthropic.thinking.budgetTokens`. Prompt caching is off by default. When thinking is
-enabled, its budget must be smaller than the effective output limit. Temperature must
-be absent or `1`.
+Anthropic supports six keys. Each one is off or absent by default, so an existing
+agent sends the same request as before:
+
+| Key | Values | Sent as |
+|---|---|---|
+| `anthropic.effort` | `low`, `medium`, `high`, `xhigh`, `max` | `output_config.effort` |
+| `anthropic.thinking.mode` | `enabled`, `adaptive` | `thinking.type` |
+| `anthropic.thinking.budgetTokens` | integer above zero | `thinking.budget_tokens` (mode `enabled` only) |
+| `anthropic.promptCaching` | `true`, `false` | prompt caching on or off |
+| `anthropic.promptCaching.ttl` | `5m`, `1h` | `cache_control.ttl` |
+| `anthropic.promptCaching.placement` | `request`, `system` | where the cache breakpoint goes |
+
+- **Effort** controls how many tokens the model spends, thinking included, and it is
+  the main cost lever on current models. The values come from the Anthropic SDK, so a
+  level the SDK adds is accepted without a Tracon release. A model that does not
+  support a level rejects the request.
+- **Thinking.** `adaptive` lets the model decide how much to think; `effort` sets the
+  depth. `enabled` needs `budgetTokens`, and current Claude models reject a budget
+  with `400`. A budget on its own still means `enabled`, as before. Setting
+  `adaptive` together with a budget is an error. With `enabled`, the budget must be
+  smaller than the output limit, and temperature must be absent or `1`.
+- **Prompt caching.** `request` (the default) caches the whole request. `system`
+  marks the end of the agent's instructions instead, so requests that carry a
+  different document after the same instructions read the same cached prefix; with
+  `request`, each of them writes an entry the next one cannot read. A `1h` entry
+  costs more to write and pays off when the same prefix returns more than five
+  minutes apart. `ttl` and `placement` without `anthropic.promptCaching = true` are
+  an error, not a silent no-op.
+- **Thinking tokens count against the output limit.** At `high` effort or above,
+  set `MaxOutputTokens` explicitly. Without it, the request goes out with
+  `DefaultMaxOutputTokens` (4096), and the validation report warns when the
+  catalog states a higher maximum for the model. See
+  [Truncated output](/concepts/runs/#truncated-output).
+
+`ModelBinding.ReasoningEffort` maps differently on Anthropic: the Anthropic adapter
+turns it into `thinking.budget_tokens` (1024 for `Low` up to 32768 for
+`ExtraHigh`), which current models reject. Use `anthropic.effort` with
+`anthropic.thinking.mode = adaptive` for them. When `anthropic.thinking.mode` or
+`budgetTokens` is set, the provider setting wins and `ReasoningEffort` is not sent.
+Provider settings do not reach a `Fallbacks` link: a link gets the binding's
+portable fields only.
 
 Google supports five `google.safety.*` thresholds plus
 `google.thinking.budgetTokens` and `google.thinking.includeThoughts`. The thinking
@@ -8552,6 +8618,14 @@ the one the registry passes through with the key named. The registry masks the
 message of any other exception thrown while a client is built, so a hand-rolled
 check reaches the author as a generic provider failure.
 
+**Default output limit.** If your client sends an output-token limit of its own
+when `ModelBinding.MaxOutputTokens` is empty, return a `ModelOutputLimit` from
+`GetService(typeof(ModelOutputLimit))` on the client you build for that binding,
+with `HighReasoningEffort = true` when the binding's settings ask for deep
+reasoning. `POST /api/agents/validate` reads it through the whole pipeline and
+warns when the limit is below the catalog's `MaxOutputTokens` for the model. A
+client that sends no limit returns nothing.
+
 **Naming.** `Name` is matched against `ModelBinding.Provider` case-insensitively.
 Registering two providers under one name is not last-one-wins: the host fails at
 startup.
@@ -8602,7 +8676,10 @@ was actually cancelled.
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
-`TraconContentFilteredException` itself. Throwing instead leaves the decision to
+`TraconContentFilteredException` itself. The same holds for the output limit:
+report `ChatFinishReason.Length`, and Tracon raises
+`TraconOutputTruncatedException` for a structured request or records a
+`tracon.output.truncated` event for plain text. Throwing instead leaves the decision to
 your exception: one with no readable HTTP status counts against the provider's
 circuit as a connection failure does, so a healthy provider can look like it is
 failing. And a `TraconException` thrown
@@ -8616,12 +8693,13 @@ Every provider options type has a `Models` collection. It drives the console mod
 picker, capability hints, and cost calculation. It is not an allow list. A definition
 can use a model that is absent from the catalog.
 
-The four capability flags do not carry equal weight, and only one of them is a
-gate:
+The capability flags do not carry equal weight, and only two of them are gates:
 
 | Flag | What it does |
 |---|---|
 | `SupportsStructuredOutput` | **Enforced.** An agent requesting JSON output fails compilation when the model is *found* in the catalog with this explicitly `false`. A model absent from the catalog is not checked. See [Structured output](/guides/structured-output/) |
+| `SupportsSampling` | **Enforced.** `null` (the default) means unknown and checks nothing. When it is `false`, a definition that sets `Temperature` or `TopP` fails compilation, the validation report names the field as `sampling_unsupported`, and saving returns `400`. `Fallbacks` links are checked too, because they get the same parameters |
+| `MaxOutputTokens` | Read by the validation report: when a binding leaves its own limit empty and the provider's default is lower, a structured or high-effort agent gets an `output_truncation_risk` warning |
 | `SupportsTools` | Advisory metadata — nothing enforces it at run time |
 | `SupportsStreaming` | Advisory metadata — nothing enforces it at run time |
 | `SupportsReasoning` | Advisory metadata — nothing enforces it at run time |
@@ -8790,8 +8868,16 @@ streaming usage. Configure no estimate unless you can label it as an estimate.
 **A compatible provider returns `402`.** Some gateways reserve credit against the
 maximum possible output. Set a realistic `ModelBinding.MaxOutputTokens` value.
 
-**Anthropic rejects a thinking request.** Keep the thinking budget below the output
-limit. Remove temperature or set it to `1`.
+**Anthropic rejects a thinking request.** Current models reject
+`budget_tokens` and sampling parameters with `400`: switch to
+`anthropic.thinking.mode = adaptive` with `anthropic.effort`, remove `Temperature`
+and `TopP`, and mark the model `SupportsSampling = false` in the catalog so the next
+definition fails at compile time. On an older model, keep the thinking budget below
+the output limit and set temperature to `1` or leave it out.
+
+**A long Anthropic answer stops in the middle.** The response hit the output limit.
+A structured response fails the run with `output_truncated`; a text answer completes
+with a `tracon.output.truncated` run event. Raise `MaxOutputTokens`.
 
 **A working prompt gets rejected by the pre-flight check.** The token estimate is
 approximate. Raise `ReserveRatio` toward zero, or call `/estimate` to see the
@@ -11516,6 +11602,24 @@ structured agent that must keep a conversation, validate and handle the rejectio
 in your own code. This is a current limitation, not a permanent contract.
 :::
 
+## A response cut off at the output limit
+
+A long structured response can reach the output token limit before the JSON is
+complete. Tracon reads the model's finish reason, so this does not look like
+invalid JSON: the run fails with error type `output_truncated`, class
+`OutputTruncated`, whether `Tracon:StructuredResponse:Enabled` is on or off. No
+repair turn runs — the model would get the same limit and stop again — and when a
+repair attempt was left, the `StructuredResponseRejected` event carries
+`repairSkippedTruncated: true`. The tokens of the cut-off call still count in the
+run's usage and cost.
+
+Set `ModelBinding.MaxOutputTokens` for any agent whose answer can be long. When it is
+empty and the provider sends a lower default (Anthropic sends 4096 unless
+`DefaultMaxOutputTokens` says otherwise), `POST /api/agents/validate` returns an
+`output_truncation_risk` warning that names both numbers, as long as the catalog
+states the model's own `MaxOutputTokens`. See
+[Truncated output](/concepts/runs/#truncated-output).
+
 ## Design schemas for reliable extraction
 
 Keep the schema small and explicit. Mark required fields. Use
@@ -11550,6 +11654,7 @@ payload against your schema.
 | `Tracon:StructuredResponse:Enabled` | `false`; the response is never inspected after the model returns it |
 | `IStructuredResponseValidator` | No-op by default (always valid); register your own to enforce a rule |
 | `Tracon:StructuredResponse:MaxRepairAttempts` | `0`; repair is off, an invalid response fails the run immediately |
+| Response stopped at the output limit | Fails the run as `output_truncated`; never repaired |
 
 For a streamed run, assemble the complete response before parsing JSON. Individual
 SSE text events are fragments, not standalone JSON documents.
@@ -11567,6 +11672,10 @@ supports the feature.
 **Validation succeeds, but the provider rejects the run.** The model was absent from
 the catalog, or the provider supports a smaller schema subset. Verify the exact API
 surface and simplify unsupported keywords.
+
+**A long response fails with `output_truncated`.** The model stopped at its output
+limit. Raise `ModelBinding.MaxOutputTokens`; at high Anthropic effort, thinking
+tokens count against the same limit.
 
 **The response parses but violates a business rule.** Structured output controls
 shape, not truth. Run normal domain validation after deserialization.
@@ -14185,7 +14294,7 @@ Add these when you need them.
 |---|---|
 | `Tracon.SqlServer` | You run SQL Server instead of PostgreSQL |
 | `Tracon.Sqlite` | One node, or durable local development |
-| `Tracon.Anthropic` | You call Claude models |
+| `Tracon.Anthropic` | You call Claude models — with effort, adaptive thinking and prompt-cache TTL and placement settings |
 | `Tracon.Google` | You call Gemini models |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
@@ -15963,6 +16072,36 @@ library default.
 `CredentialFactory` is code-only because it is a delegate. When it is set, Azure does
 not use `ApiKey`. The consumer chooses and references `Azure.Identity` when managed
 identity is required.
+
+Each `Models` entry binds every `ModelDescriptor` field: `Name`, `DisplayName`,
+`ContextWindowTokens`, `MaxOutputTokens`, `SupportsStreaming` (`true`),
+`SupportsTools` (`true`), `SupportsReasoning` (`false`), `SupportsStructuredOutput`
+(`false`), `SupportsSampling` (`null`), and the three `*CostPerMillionTokens` prices.
+`SupportsSampling = false` makes a definition that sets `Temperature` or `TopP` fail
+to compile. `MaxOutputTokens` lets the validation report warn when a binding leaves
+its own limit to a lower provider default, such as Anthropic's
+`DefaultMaxOutputTokens`. See
+[the model catalog](/guides/model-providers/#model-catalog-is-metadata-not-permission).
+
+```json
+{
+  "Tracon": {
+    "Providers": {
+      "Anthropic": {
+        "DefaultMaxOutputTokens": 4096,
+        "Models": [
+          {
+            "Name": "your-current-claude-model",
+            "MaxOutputTokens": 128000,
+            "SupportsStructuredOutput": true,
+            "SupportsSampling": false
+          }
+        ]
+      }
+    }
+  }
+}
+```
 
 | `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"` |
 
