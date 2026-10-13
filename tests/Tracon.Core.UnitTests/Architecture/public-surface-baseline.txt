@@ -6,7 +6,7 @@
 Tracon=0
 Tracon.Abstractions=409
 Tracon.Anthropic=3
-Tracon.AspNetCore=81
+Tracon.AspNetCore=84
 Tracon.Azure=4
 Tracon.Core=80
 Tracon.Google=4

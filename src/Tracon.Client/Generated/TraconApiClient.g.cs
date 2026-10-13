@@ -8315,6 +8315,83 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Lists the loop criterion kinds a definition can name, and the loop judge model.
+        /// </summary>
+        /// <remarks>
+        /// The built-in kinds come first, then the kinds registered in code with AddLoopEvaluator. A kind registered in code reads no field of the criterion except its kind. Listing the kinds runs no registered criterion factory. judgeModel is the model an aiJudge criterion calls, or null when the host bound none: such a criterion then does not compile, and it never falls back to the agent's own model. The list is the same for every tenant; whether the caller's egress policy allows the judge is reported by POST /api/agents/validate.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<LoopCriterionCatalogResponse> TraconListLoopCriteriaAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/loop-criteria"
+                    urlBuilder_.Append("api/loop-criteria");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<LoopCriterionCatalogResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Returns run counts, token totals, and the error rate.
         /// </summary>
         /// <remarks>
@@ -20980,6 +21057,88 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("modes")]
         public System.Collections.Generic.ICollection<string> Modes { get; set; } = new System.Collections.Generic.List<string>();
+
+    }
+
+    /// <summary>
+    /// Response for `GET {prefix}/api/loop-criteria`: the loop criterion kinds a
+    /// <br/>definition's `harness.loop.criteria` can name, and the judge model an
+    /// <br/>`aiJudge` criterion calls.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LoopCriterionCatalogResponse
+    {
+        /// <summary>
+        /// Gets the kinds: the built-in kinds first, in a fixed order, then the kinds
+        /// <br/>registered in code with `AddLoopEvaluator`, ordered by name.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("kinds")]
+        public System.Collections.Generic.ICollection<LoopCriterionKindResponse> Kinds { get; set; } = new System.Collections.Generic.List<LoopCriterionKindResponse>();
+
+        /// <summary>
+        /// Gets the model an `aiJudge` criterion calls, or `null`
+        /// <br/>when the host bound none (`AddModelRunJudge`). With
+        /// <br/>`null`, a definition with an `aiJudge` criterion does
+        /// <br/>not compile; it never falls back to the agent's own model.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("judgeModel")]
+        public LoopJudgeModelResponse? JudgeModel { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// One loop criterion kind in LoopCriterionCatalogResponse.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LoopCriterionKindResponse
+    {
+        /// <summary>
+        /// Gets the name a definition writes in `LoopCriterion.Kind`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("kind")]
+        public string Kind { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the kind is built in. A kind that is not built in was
+        /// <br/>registered in code and reads no field of the criterion except its kind.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("builtIn")]
+        public bool BuiltIn { get; set; } = default!;
+
+        /// <summary>
+        /// Gets what the kind checks, or `null` when its registration
+        /// <br/>gave no description. The text is the host's, in the host's language.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The judge model in LoopCriterionCatalogResponse: the provider and
+    /// <br/>model names only. The binding's provider settings are never returned.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LoopJudgeModelResponse
+    {
+        /// <summary>
+        /// Gets the provider name.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public string Provider { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the model name.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public string Model { get; set; } = default!;
 
     }
 
