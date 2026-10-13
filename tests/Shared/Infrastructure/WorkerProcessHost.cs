@@ -54,6 +54,7 @@ internal static class WorkerProcessHost
             [WorkerHarnessContract.PollSecondsVariable] = Seconds(options.PollInterval),
             [WorkerHarnessContract.WorkSecondsVariable] = Seconds(options.WorkDuration),
             [WorkerHarnessContract.MaxAttemptsVariable] = options.MaxAttempts.ToString(CultureInfo.InvariantCulture),
+            [WorkerHarnessContract.WorkflowVariable] = options.Workflow ? "1" : "0",
         };
 
         return ProcessRunner.StartAsync(
@@ -119,4 +120,7 @@ internal sealed record WorkerProcessOptions
 
     /// <summary>The attempt ceiling the worker applies.</summary>
     public int MaxAttempts { get; init; } = 3;
+
+    /// <summary>Whether the process registers the two-step workflow with recovery on.</summary>
+    public bool Workflow { get; init; }
 }
