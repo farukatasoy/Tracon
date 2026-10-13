@@ -283,7 +283,7 @@ Kiracı motoru profilde seçer. Aynı süreçte yerel ve bulut motor yaşar. Bug
 bu, fonksiyon düğümünde veya job handler'ında keyed servislerle kurulur
 (`AddKeyedSingleton<ISpeechSynthesizer>("voxcpm", …)`). Tracon'un tek yuvalı
 yerleri `speak` tool'u, `/api/voice/*` ve fiyat okuyucusudur; adlı kayıt ve
-kiracı bağlaması [Faz 198](../../198-ADLI-KONUSMA-SAGLAYICISI.md)'dir (planlandı).
+kiracı bağlaması [Faz 198](../fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md)'dir (planlandı).
 
 ### 6.2 Tracon ses katmanının sınırları
 
@@ -684,7 +684,7 @@ planın Açık Sorular bölümündedir.
 |---|---|---|
 | [196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) · Uzun adımların süre sınırı ve iptali | F-303, F-323 | Render ve TTS job'u iptali 30 sn içinde handler token'ında görür |
 | [197](../fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md) · Dayanıklı workflow yürütmesi | F-318, F-321 | Yol A'nın ilk önkoşulu |
-| [198](../../198-ADLI-KONUSMA-SAGLAYICISI.md) · Adlı konuşma sağlayıcısı | F-298 | Yerel GPU ve bulut motoru aynı süreçte, kiracı başına |
+| [198](../fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md) · Adlı konuşma sağlayıcısı | F-298 | Yerel GPU ve bulut motoru aynı süreçte, kiracı başına |
 | [199](../../199-FONKSIYON-DUGUMU-MALIYETI.md) · Fonksiyon düğümü maliyeti | F-299 | TTS, GPU ve render saniyesi run maliyetine girer |
 | [200](../../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) · Workflow sürüm geçmişi | F-300 | Yol A'da üretim belirli bir workflow sürümüne sabitlenir |
 | [201](../fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · Loop düzenleme ve ölçüt fabrikası | F-301, F-302 | Agent onayının ölçütü DI ile kurulur ve konsoldan ayarlanır |

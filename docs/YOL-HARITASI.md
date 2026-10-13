@@ -210,7 +210,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) | Workflow Düğüm Düzenleme ve Fonksiyon Düğümü Ayarı | ✅ Tamamlandı |
 | [196](196-UZUN-ADIM-SURE-VE-IPTAL.md) | Uzun Adımların Süre Sınırı ve İptali | 📋 Planlandı |
 | [197](arsiv/fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md) | Dayanıklı Workflow Yürütmesi: Bağlantısız Run ve Otomatik Sürdürme | ✅ Tamamlandı |
-| [198](198-ADLI-KONUSMA-SAGLAYICISI.md) | Adlı Konuşma Sağlayıcısı ve Kiracı Bağlaması | ✅ Tamamlandı |
+| [198](arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md) | Adlı Konuşma Sağlayıcısı ve Kiracı Bağlaması | ✅ Tamamlandı |
 | [199](199-FONKSIYON-DUGUMU-MALIYETI.md) | Fonksiyon Düğümünün Token Dışı Maliyeti | 📋 Planlandı |
 | [200](200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) | Workflow Sürüm Geçmişi ve Sürüm Sabitleme | 📋 Planlandı |
 | [201](arsiv/fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) | Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası | ✅ Tamamlandı |
