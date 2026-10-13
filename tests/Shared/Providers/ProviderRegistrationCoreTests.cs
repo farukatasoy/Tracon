@@ -27,6 +27,7 @@ public sealed class ProviderRegistrationCoreTests
             ["0:SupportsTools"] = "false",
             ["0:SupportsReasoning"] = "true",
             ["0:SupportsStructuredOutput"] = "true",
+            ["0:SupportsSampling"] = "false",
             ["0:InputCostPerMillionTokens"] = "1.5",
             ["0:OutputCostPerMillionTokens"] = "2.5",
             ["0:CachedInputCostPerMillionTokens"] = "0.5",

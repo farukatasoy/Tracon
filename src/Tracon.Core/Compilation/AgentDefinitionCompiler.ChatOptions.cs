@@ -139,6 +139,8 @@ public sealed partial class AgentDefinitionCompiler
 
     private ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools, string? culture, string? sharedInstructions)
     {
+        CheckSamplingCapability(definition);
+
         var options = new ChatOptions
         {
             Instructions = CombineInstructions(sharedInstructions, InstructionCultureResolver.Resolve(definition, culture)),
@@ -267,6 +269,34 @@ public sealed partial class AgentDefinitionCompiler
                 AgentName = definition.Name,
             };
         }
+    }
+
+    /// <summary>
+    /// Stops compilation when the definition sets <see cref="ModelBinding.Temperature"/>
+    /// or <see cref="ModelBinding.TopP"/> and the catalog states that a model of the
+    /// binding rejects them.
+    /// </summary>
+    /// <remarks>
+    /// Without this, the first run of such an agent fails with the provider's
+    /// <c>400</c>. The rule lives in <see cref="SamplingCapabilityCheck"/>, which
+    /// the validation report reads too.
+    /// </remarks>
+    private void CheckSamplingCapability(AgentDefinition definition)
+    {
+        var rejecting = SamplingCapabilityCheck.ModelsRejectingSampling(_models, definition.Model);
+
+        if (rejecting.Count == 0)
+        {
+            return;
+        }
+
+        throw new TraconCompilationException(
+            $"Agent '{definition.Name}' sets {nameof(ModelBinding.Temperature)} or {nameof(ModelBinding.TopP)}, " +
+            $"but the model catalog states that these models reject sampling parameters: " +
+            $"{string.Join(", ", rejecting)}. Remove them from the definition.")
+        {
+            AgentName = definition.Name,
+        };
     }
 
     private ModelDescriptor? FindModelDescriptor(string provider, string model)

@@ -19,7 +19,7 @@ namespace Tracon;
 /// <c>runs</c> row is opened and no token is spent.
 /// </para>
 /// </remarks>
-internal sealed class AgentDefinitionValidator
+internal sealed partial class AgentDefinitionValidator
 {
     private readonly IModelProviderRegistry _models;
     private readonly IToolRegistry _tools;
@@ -84,6 +84,7 @@ internal sealed class AgentDefinitionValidator
         var inconclusive = false;
 
         await CheckModelAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        await CheckOutputLimitsAsync(definition, messages, cancellationToken).ConfigureAwait(false);
 
         await CheckToolsAsync(
             definition,
