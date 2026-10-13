@@ -1536,19 +1536,21 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // runs beneath it carry token cost, which shows up in the tree total. What
         // its own function nodes reported beyond tokens is the row's own snapshot,
         // read once here; an item reported later stays in the run's detail.
+        var nonTokenCost = scope.NonTokenCost?.Seal();
+
         await writer.CompleteAsync(
             status,
             usage: null,
             error,
             cost: null,
-            nonTokenCost: scope.NonTokenCost?.Seal(),
+            nonTokenCost: nonTokenCost,
             modelId: null,
             modelProvider: null,
             cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-        await RecordQuotaAsync(execution, scope, CancellationToken.None).ConfigureAwait(false);
+        await RecordQuotaAsync(execution, scope, nonTokenCost, CancellationToken.None).ConfigureAwait(false);
 
-        await PublishWebhooksAsync(execution, scope, status, error, startedAt).ConfigureAwait(false);
+        await PublishWebhooksAsync(execution, scope, status, error, startedAt, nonTokenCost).ConfigureAwait(false);
 
         // 🚨 The checkpoints of a run awaiting a human are NEVER deleted: the
         // response resumes from exactly those checkpoints. The cleanup
@@ -1627,7 +1629,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         AgentRunScope scope,
         RunStatus status,
         RunError? error,
-        long startedAt)
+        long startedAt,
+        RunNonTokenCost? nonTokenCost)
     {
         if (_webhookPublisher is null)
         {
@@ -1676,6 +1679,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             }
 
             var record = await _runStore.GetRunAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
+            var treeNonTokenCost = WorkflowTreeSpend.NonTokenCost(record, nonTokenCost);
 
             await _webhookPublisher.PublishAsync(
                 tenantId,
@@ -1697,9 +1701,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                         // The token cost and the amount the tree reported beyond tokens,
                         // added in ONE place (RunSpend); the second is also given on its own.
-                        Cost = record is null ? null : RunSpend.Total(record.TreeCost, record.TreeNonTokenCost),
-                        NonTokenCost = record?.TreeNonTokenCost?.Amount,
-                        Currency = record?.TreeCost?.Currency ?? record?.TreeNonTokenCost?.Currency,
+                        Cost = RunSpend.Total(record?.TreeCost, treeNonTokenCost),
+                        NonTokenCost = treeNonTokenCost?.Amount,
+                        Currency = record?.TreeCost?.Currency ?? treeNonTokenCost?.Currency,
                         Error = error?.Message,
                     },
                 },
@@ -1729,7 +1733,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <c>Depth == 0</c> rule).
     /// </para>
     /// </remarks>
-    private async ValueTask RecordQuotaAsync(WorkflowExecution execution, AgentRunScope scope, CancellationToken cancellationToken)
+    private async ValueTask RecordQuotaAsync(
+        WorkflowExecution execution,
+        AgentRunScope scope,
+        RunNonTokenCost? nonTokenCost,
+        CancellationToken cancellationToken)
     {
         if (_quotaEnforcer is null)
         {
@@ -1755,7 +1763,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 // (RunSpend). Without it a tenant's cost quota never saw a workflow's
                 // speech or render spend. The fallback to tokens stays: an unpriced
                 // tree has no amount at all.
-                Cost = record is null ? null : RunSpend.Total(record.TreeCost, record.TreeNonTokenCost),
+                Cost = RunSpend.Total(record?.TreeCost, WorkflowTreeSpend.NonTokenCost(record, nonTokenCost)),
                 OccurredAt = _timeProvider.GetUtcNow(),
             },
             cancellationToken).ConfigureAwait(false);
