@@ -1,6 +1,6 @@
 # 19 — Çok Modluluk: Ek, Ses Tool'ları ve Gerçek Zamanlı Konuşma (`MM`)
 
-> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88
+> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198
 > **Kaynak:** `src/Tracon.Abstractions/Attachments/` (tümü) ·
 > `src/Tracon.Core/Attachments/` (tümü) ·
 > `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
@@ -2817,3 +2817,123 @@ Otomatik karşılığı: `CustomVoiceProviderTests` · `VoiceEndpointTests` ·
   bıraktı. Anahtar verilince (2) `elevenlabs` dedi, (3) dosyayı `.mp3` adlandırdı
   ve `cost` `null` kaldı. (5) ve (6) uygulama başladı; hata ilk istekte çıktı.
 
+
+---
+
+### MT-MM-126 — Adlı sentezleyici listelenir ve adıyla konuşur
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 198 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `NamedSpeechProviderTests` · `VoiceEndpointTests` |
+
+**Ön koşul** — Örnek uygulama (anahtarsız `tone` kayıtlı), bellek içi depo.
+
+**Adımlar** 1. `GET /api/voice/providers`. 2. `POST /api/voice/speak`
+`{"text":"Merhaba","provider":"tone"}`. 3. Aynısı `"provider":"cloud"` ile.
+
+**Beklenen sonuç** (1) `tone`, `providerName` `"tone"` ile listelenir. (2) `200`;
+ek `audio/wav`. (3) `400`; mesaj kayıtlı adları (`tone`) sayar.
+
+---
+
+### MT-MM-127 — Politika `tone`'u adlandırmıyorsa konuşma reddedilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | 198 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `SpeechTenantPolicyTests` (iki proje) · `VoiceConversationTenantPolicyTests` |
+
+**Ön koşul** — MT-MM-126; `PUT /api/tenants/default/egress` `{"allowedProviders":["echo"]}`.
+
+**Adımlar** MT-MM-126 adım 2'yi ve `GET /api/voice/voices?provider=tone`'u koş;
+ek listesini say.
+
+**Beklenen sonuç** İkisi de `403`; mesaj `speech provider 'tone'` der. Yeni ek
+oluşmaz (sağlayıcı çağrılmadı).
+
+---
+
+### MT-MM-128 — Konsoldan izinliye eklenen konuşma sağlayıcısı sesi açar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 198 |
+| **İnsan gerekir** | 👤 Evet (görsel) |
+| **Devir** | ➜ CI: E2E `A_speech_provider_allowed_in_the_console_unblocks_speech_for_the_tenant` · Vitest `tenant-provider-panel.test.tsx` |
+
+**Ön koşul** — MT-MM-127'nin politikası.
+
+**Adımlar** Konsol → Settings → kiracı egress: `tone`'u seç, kaydet; MT-MM-126
+adım 2'yi koş.
+
+**Beklenen sonuç** Seçeneklerde `tone` model sağlayıcılarıyla birlikte görünür,
+kayıtta seçili kalır; istek `200`.
+
+---
+
+### MT-MM-129 — Fonksiyon düğümü ayarın adlandırdığı sentezleyiciyle konuşur
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 198 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `NamedSpeechProviderTests` · `SpeechResolverTenantTests` |
+
+**Ön koşul** — Örnek uygulama; `PUT /api/workflows/narrated-tone`
+`{"kind":"Sequential","nodes":[{"name":"support","kind":"Agent"},{"name":"synthesize","kind":"Function","settings":{"provider":"tone"}}]}`.
+
+**Adımlar** 1. Run başlat. 2. Politikayı `["echo"]` yap; yeniden koş.
+
+**Beklenen sonuç** (1) `Completed`; çıktı `spoken by tone: attachment …` der, ek
+run'a bağlıdır. (2) `Failed`; hata `speech provider 'tone'` der, ek oluşmaz.
+
+---
+
+### MT-MM-130 — Kendi anahtarı olan kiracı yerleşik sağlayıcıda reddedilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | 198 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `Tracon.Voice.UnitTests.SpeechTenantPolicyTests` · `SpeechTenantCredentialTests` |
+
+**Ön koşul** — `UseVoice` (ElevenLabs anahtarı); `PUT /api/tenants/default/providers/elevenlabs`
+değerli bir anahtar adıyla; `speak` tool'lu agent.
+
+**Adımlar** 1. Agent'a sesli yanıt iste. 2. `POST /api/voice/speak` `{"text":"hi"}`.
+
+**Beklenen sonuç** (1) Tool hatası `own credential` der. (2) `403`. Sağlayıcıya
+host anahtarıyla çağrı gitmez; yanıt ve günlük anahtar değerini taşımaz.
+
+---
+
+### MT-MM-131 — Değersiz bağlama ve kiracı anahtarı almayan motor reddedilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 198 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `SpeechTenantCredentialTests` |
+
+**Ön koşul** — Örnek uygulama; `PUT /api/tenants/default/providers/tone`
+`{"apiKeyConfigurationName":"Tracon:ProviderKeys:Tone"}` (değer verilmez).
+
+**Adımlar** MT-MM-126 adım 2'yi koş; sonra anahtarın değerini ver, tekrar koş.
+
+**Beklenen sonuç** İkisi de `403`: ilki "does NOT fall back to the global key",
+ikincisi "own credential" der (`tone` kiracı anahtarı almaz). Ek oluşmaz.

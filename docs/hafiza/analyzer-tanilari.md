@@ -136,3 +136,4 @@
 
 
 - **RS0026 genel tip ARİTESİ farkını görmez** (2026-10-12, Faz 195): `AddWorkflowFunction<TIn,TOut>` ile `<TIn,TOut,TSettings>` aynı adlı iki aşırı yükleme sayılır; ikisi de opsiyonel parametre taşırsa İKİSİNDE de RS0026 verir (gerçekte çağrı yeri belirsizliği oluşmaz). Bastırma yerine yeni aşırı yüklemeyi opsiyonelsiz kur: `Action<Options>` + `init` ayarları (K-422/K-867 çizgisi, K-902); mevcut kısa aşırı yükleme değişmez.
+- **Opsiyonel parametreli bir arayüz üyesinin yanına varsayılan üye (DIM) aşırı yüklemesi eklenemez** (2026-10-13, Faz 198): `ListVoicesAsync(CancellationToken = default)` varken `ListVoicesAsync(credential, ct = default)` RS0026, opsiyonelsiz hâli RS0027 verir. Var olan üyeyi değiştirmek kaynak kırar; çözüm ayrı ad (`ListVoicesWithCredentialAsync`, K-878'in `AttachSessionAsync` emsali).

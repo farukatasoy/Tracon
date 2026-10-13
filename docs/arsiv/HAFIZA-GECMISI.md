@@ -1281,3 +1281,35 @@ Bu, ürün kusuru değil; tam Playwright suite'inin kaynak/zamanlama çekişmesi
 duyarlı F-130 sınıfının yeni kanıtıdır. İlk tam kapanış koşumu 57/57 ve 19
 proje ile yeşildi. Kapanış raporu tekrarlanabilirliği korumak için son kırmızı
 çıkış kodunu saklamaz; izole koşum ayrıştırma adımıdır.
+
+## `docs/hafiza/ses-ve-konusma.md`'den — 2026-10-13 doküman bütçesi turu (Faz 198)
+
+Faz 198'in adlı konuşma sağlayıcısı notlarına yer açmak için taşındı; alan dosyasında tek satırlık özeti durur.
+
+- **🚨 ElevenLabs'in `/v2/voices` ucu `page_size` verilmezse VARSAYILAN 10 ses
+  doner** (2026-09-03, Faz 138, K-669'un yaninda olculdu, olcum kaynagi:
+  `api.elevenlabs.io/openapi.json` — `GET /v2/voices` parametre listesi):
+  `ElevenLabsSpeechClient.ListVoicesAsync` sorgu dizesi hic eklemeden
+  `BuildUri("v2/voices")` cagiriyordu; kod `MaxReportedVoices = 500` sinirini
+  varsayiyordu ama gercekte saglayici HER ZAMAN yalniz ilk 10'u donuyordu —
+  premade katalog bile bunu asar. Cozum `page_size=100` + `has_more`/
+  `next_page_token` takibi (`ReadVoicesPageAsync` + `MapVoices` ayrimi).
+  **`VoiceResponseModel`'in `labels` sozlugu `language` anahtari TASIMAZ** —
+  dil ayri, coklu-model `verified_languages` dizisinde durur
+  (`VerifiedVoiceLanguageResponseModel.language`, zorunlu alan). Yeni bir
+  saglayici entegre edilirken saglayicinin GERCEK OpenAPI/semasi
+  (varsa) once cekilip grep'lenmeli — dokumantasyon prosasi ("filtering,
+  based on the voice's 'language' label" gibi) semanin kendisiyle CELISEBILIR.
+
+- **ElevenLabs'ın zaman damgalı uçları KARAKTER bazlıdır, kelime bazlı DEĞİL**
+  (2026-08-19, Faz 72, K-501): `POST /v1/text-to-speech/{voiceId}/with-timestamps`
+  ve `.../stream/with-timestamps` — ikisi de doğrulandı
+  (`api.elevenlabs.io/openapi.json`, `AudioWithTimestampsResponseModel`/
+  `StreamingAudioChunkWithTimestampsResponseModel`). Yanıt `audio_base64` +
+  `alignment`/`normalized_alignment`; her ikisi de `CharacterAlignmentResponseModel`
+  — `characters`/`character_start_times_seconds`/`character_end_times_seconds`
+  PARALEL dizileri. `alignment` (orijinal metin) kullanılır, `normalized_alignment`
+  (sağlayıcının normalize ettiği metin — sayı/kısaltma açılımı) DEĞİL: ikincisi
+  çağıranın gönderdiği ham metinle hizalanmaz. Yeni bir sağlayıcı entegre
+  edilirken "word-level" varsayılmaz — her sağlayıcının kendi granülerliği
+  ölçülür.

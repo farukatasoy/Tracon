@@ -1,5 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -180,5 +182,55 @@ public sealed class SecretLeakTests
         }
 
         host.Logs.AllText.ShouldNotContain(created.PlaintextKey);
+    }
+
+    [Fact]
+    public async Task A_tenant_speech_key_appears_in_no_response_and_no_log_line()
+    {
+        // F-298: a speech refusal names the tenant, the provider and the key's NAME;
+        // the key's value stays in configuration. Both refusal kinds are exercised:
+        // a provider that cannot use the key, and one that can (the call succeeds).
+        const string KeyName = "Tracon:ProviderKeys:Studio";
+        const string KeyValue = "studio-tenant-key-a81f20";
+
+        var refusing = new CountingSpeechProvider("studio-engine", supportsTenantCredentials: false);
+        var accepting = new CountingSpeechProvider("cloud-engine", supportsTenantCredentials: true);
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddSpeechSynthesizer("studio", _ => refusing)
+                .AddSpeechSynthesizer("cloud", _ => accepting),
+            configureServices: static services => services.AddSingleton<IConfiguration>(
+                new ConfigurationBuilder().AddInMemoryCollection([new(KeyName, KeyValue)]).Build()));
+
+        var bindings = host.Services.GetRequiredService<ITenantProviderBindingStore>();
+
+        foreach (var provider in new[] { "studio-engine", "cloud-engine" })
+        {
+            await bindings.UpsertAsync(
+                new TenantProviderBinding
+                {
+                    TenantId = "default",
+                    ProviderName = provider,
+                    ApiKeyConfigurationName = KeyName,
+                    UpdatedAt = DateTimeOffset.UtcNow,
+                },
+                TestContext.Current.CancellationToken);
+        }
+
+        using var refused = await host.Client.PostAsJsonAsync(
+            "/tracon/api/voice/speak", new { text = "hello", provider = "studio" });
+        using var served = await host.Client.PostAsJsonAsync(
+            "/tracon/api/voice/speak", new { text = "hello", provider = "cloud" });
+        using var providers = await host.Client.GetAsync("/tracon/api/voice/providers");
+
+        refused.StatusCode.ShouldBe(System.Net.HttpStatusCode.Forbidden);
+        served.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        accepting.Received.ShouldHaveSingleItem().ApiKey.ShouldBe(KeyValue);
+
+        (await refused.Content.ReadAsStringAsync()).ShouldNotContain(KeyValue);
+        (await served.Content.ReadAsStringAsync()).ShouldNotContain(KeyValue);
+        (await providers.Content.ReadAsStringAsync()).ShouldNotContain(KeyValue);
+        host.Logs.AllText.ShouldNotContain(KeyValue);
     }
 }

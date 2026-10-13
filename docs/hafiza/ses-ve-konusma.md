@@ -41,18 +41,7 @@
   Faz 41): ses ucunun "baskasinin oturumu" reddi bellek ici oturum deposunun
   kiraci-agnostik davranisina dayaniyordu; depo kiraciyla sinirlaninca red
   etkisiz kaldi. Birim degil **fonksiyonel** testler yakaladi.
-- **ElevenLabs'ın zaman damgalı uçları KARAKTER bazlıdır, kelime bazlı DEĞİL**
-  (2026-08-19, Faz 72, K-501): `POST /v1/text-to-speech/{voiceId}/with-timestamps`
-  ve `.../stream/with-timestamps` — ikisi de doğrulandı
-  (`api.elevenlabs.io/openapi.json`, `AudioWithTimestampsResponseModel`/
-  `StreamingAudioChunkWithTimestampsResponseModel`). Yanıt `audio_base64` +
-  `alignment`/`normalized_alignment`; her ikisi de `CharacterAlignmentResponseModel`
-  — `characters`/`character_start_times_seconds`/`character_end_times_seconds`
-  PARALEL dizileri. `alignment` (orijinal metin) kullanılır, `normalized_alignment`
-  (sağlayıcının normalize ettiği metin — sayı/kısaltma açılımı) DEĞİL: ikincisi
-  çağıranın gönderdiği ham metinle hizalanmaz. Yeni bir sağlayıcı entegre
-  edilirken "word-level" varsayılmaz — her sağlayıcının kendi granülerliği
-  ölçülür.
+- **ElevenLabs zaman damgası KARAKTER bazlıdır** (Faz 72, K-501): `alignment` okunur, `normalized_alignment` değil; tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `ISpeechSynthesizer.SynthesizeStreamingAsync` hizalama TAŞIYAMAZ —
   `IncludeTimestamps` bu yolda istisna fırlatır, sessizce yok saymaz**
   (2026-08-19, Faz 72, K-502): dönüş tipi `IAsyncEnumerable<ReadOnlyMemory<byte>>`,
@@ -85,20 +74,7 @@
     "yalitim cakismasi" sanildi. Yuk yalnizca pencereyi genisletiyordu; gercek
     sebep koddaydi. **Tek basina gecip pakette dusen test otomatik olarak
     kirilgan degildir** — kod yolu okunmadan siniflandirilmaz.
-- **🚨 ElevenLabs'in `/v2/voices` ucu `page_size` verilmezse VARSAYILAN 10 ses
-  doner** (2026-09-03, Faz 138, K-669'un yaninda olculdu, olcum kaynagi:
-  `api.elevenlabs.io/openapi.json` — `GET /v2/voices` parametre listesi):
-  `ElevenLabsSpeechClient.ListVoicesAsync` sorgu dizesi hic eklemeden
-  `BuildUri("v2/voices")` cagiriyordu; kod `MaxReportedVoices = 500` sinirini
-  varsayiyordu ama gercekte saglayici HER ZAMAN yalniz ilk 10'u donuyordu —
-  premade katalog bile bunu asar. Cozum `page_size=100` + `has_more`/
-  `next_page_token` takibi (`ReadVoicesPageAsync` + `MapVoices` ayrimi).
-  **`VoiceResponseModel`'in `labels` sozlugu `language` anahtari TASIMAZ** —
-  dil ayri, coklu-model `verified_languages` dizisinde durur
-  (`VerifiedVoiceLanguageResponseModel.language`, zorunlu alan). Yeni bir
-  saglayici entegre edilirken saglayicinin GERCEK OpenAPI/semasi
-  (varsa) once cekilip grep'lenmeli — dokumantasyon prosasi ("filtering,
-  based on the voice's 'language' label" gibi) semanin kendisiyle CELISEBILIR.
+- **🚨 ElevenLabs `/v2/voices` `page_size` verilmezse 10 ses döner; `labels` `language` taşımaz** (Faz 138, K-669) — sağlayıcının OpenAPI şemasını önce çek; tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Ses ucuna bir yetkilendirme kapısı eklerken K-283 KORUNMALIDIR** (Faz 147,
   K-687): var olmayan bir oturum reddedilmez — handler yine de sorulur ama
   varsayılan cevap soketi AÇAR. Kapıyı "oturum yoksa reddet" olarak yazmak her
@@ -131,7 +107,7 @@
   `false`) sağlayıcı ve uç nokta override'lı bağlama `403` — ikisi de launcher'da, kayıttan önce. 🚨 Politika testi kontrol case'inde
   agent'ın KENDİ model sağlayıcısını (`echo`) da izinliye koymalı: canlı ses
   delegasyonu agent'ı derler ve politika o modeli de yargılar (yoksa `400`).
-  Aynı sınıfın açık kalan yolu TTS'tir (F-298).
+  TTS/STT yolu Faz 198'de kapandı (K-930, aşağıda).
 - **Canli katman `Core/Voice/` altinda, Secenek A'dan TAMAMEN ayri** (2026-09-11,
   Faz 161): `LiveVoiceSessionHost` (sideband pump + delegation sozlugu + kapanis
   sirasi), `LiveVoiceSessionLauncher` (limit → agent coz → yarat → attach → kayit
@@ -222,3 +198,10 @@ tazele.
   ile onay isteyen bir run `sessionId` verilmezse `Failed` olur ve kalıcı bir
   `pending_approvals` satırı hiç oluşmaz. Senkron koşumda onay akışın içinde
   taşınır ve tabloya **yazılmaz** — `/api/approvals/pending` boş görünür.
+
+## Adlı konuşma sağlayıcısı ve kiracı kapısı (Faz 198)
+
+- **🚨 Konuşma çağrısının kiracı kapısı `ISpeechProviderResolver`'dadır** (2026-10-13, K-930). Tool, HTTP ve fonksiyon düğümü her çağrıda çözer; konuşma soketi bağlantı açılırken BİR KEZ çözer ve açık soket sonradan kaydedilen politikayı görmez (F-446). Sağlık kontrolü varsayılan örneği doğrudan çağırır (platform). Egress kayıt adına değil `ProviderName`'e uygulanır.
+- **🚨 Sarmalayıcı yalnız kiracının anahtarı varsa döner.** `is ElevenLabsSpeechClient` ya da bir yetenek arayüzü (`is ISpeechDialogueSynthesizer`) denetimi bağlamalı kiracıda düşer; çağıran `ProviderName` okur. Fiyat `audio.ModelId ?? request.ModelId` ile.
+- **🚨 Kuyruklu test "run kapsamı önce" sırasını ayırt ETMEZ:** iş işçisi `AmbientTenantScope` açar, iki kaynak aynı kiracıyı verir (mutasyonla ölçüldü). Sırayı `ITenantContext`'ten farklı bir `TraconRunContext` kiracısıyla sına (`Tracon.Voice.UnitTests.SpeechTenantPolicyTests`).
+- **Belirteci gözlemlemeyen depo iptalden sonra normal döner:** çözümleyici kontrollerden SONRA da `ThrowIfCancellationRequested` der; yoksa sağlayıcıyı iptal edilmiş çağırana verir (`A_cancelled_resolution_never_hands_out_the_provider`).

@@ -629,6 +629,62 @@ türevler tek komutla çıkar.
 > 2026-10-11'de `ADAYLAR.md`'den taşındı (aday dosyası 80 KB bütçesi; Explainer-Video turu).
 > Kalemler **açıktır**; satırları `ADAYLAR.md` § *Tetik bekleyenler* tablosundadır.
 
+> 2026-10-13: F-240, F-254, F-374, F-376, F-381, F-412, F-414, F-415, F-422 taşındı (Faz 197 ile Faz 198 birleştirmesi; aday dosyası bütçesi). Metin aynen.
+
+### F-422 · `openai-responses` harness turu cevabını akışta iki kez yayabilir — ölçüm bekliyor
+
+**Engel:** [Faz 201](fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) örnek uygulama koşumu (2026-10-13, `gpt-5.4-mini`): `aiJudge` + kod ölçütlü loop'lu agent'ın üç koşumunun ikisinde ilk turun metni `MessageDelta` dizisinde token token iki kopya; arada tool çağrısı ya da başka olay yok. Loop'suz harness 0/3. Modelin turda iki mesaj yazması mı, MAF/MEAI'nin aynı içeriği iki kez yayması mı ayırt edilmedi. Tracon tarafı: ölçüt deseni cevabı son mesajdan okur (`hafiza/maf-harness-ve-loop.md`)
+
+**Koşul:** Akışta yinelenen metin bildirilirse ya da `openai-responses` istemcisi güncellenirse — o zaman aynı tanımla N koşum: ham Responses olayları (sağlayıcı istemcisi düzeyi) ile `AgentResponse.Messages` sayısı karşılaştırılır; tekrar MEAI/MAF'ta ise kusur kaydına döner, modeldeyse kapanır
+
+### F-414 · Konsol 2^53 − 1'den geniş bir tamsayı ayarını kayıpsız taşıyamıyor
+
+**Engel:** Faz 195 denetimi (🟡, gerekçelendi): konsol JSON sayısını `double` okur; `9007199254740993` açılıp kaydedilince `…992` olur, ayar tipi `NumberHandling.Strict` olduğundan `long` üyeye metin de yazılamaz. Sınır XML'de ve sitede yazılı: bu genişlikteki kimlik `string` bildirilir. Kayıpsız taşıma özel bir JSON ayrıştırıcısı ve yazıcısı ister (`JSON.parse` kaynak metni her tarayıcıda yok)
+
+**Koşul:** Bir tüketici 53 bitten geniş sayısal ayar bildirirse — o zaman ya ayarı ham metin olarak taşıyan bir editör ya da tarayıcı `JSON.parse` kaynak desteği oturunca onun kullanımı
+
+### F-415 · Tüketicinin dönüştürücüsünün (`JsonConverter`) fırlattığı `JsonException` mesajı `400`'e ve `runs.error`'a girer
+
+**Engel:** Faz 195 denetimi (🟢): setter ve kurucu istisnasının mesajı yanıta girmez (K-900), ama tüketicinin kendi `JsonConverter`'ı `JsonException` ya da `NotSupportedException` fırlatırsa mesaj serileştiricinin cümlesi gibi aktarılır ve değeri taşıyabilir. Kayıt yolunda uyarı logu da yazılmaz (`WorkflowFunctionSettings.Deserialize`, `IsRaisedByConsumerCode`)
+
+**Koşul:** Bir tüketici ayar tipinde özel dönüştürücü kullanır ve mesajının değer taşıdığı görülürse — o zaman iki istisna türü de setter istisnası gibi ele alınır
+
+### F-412 · Fonksiyon düğümünün ayar alanı şemadan üretilen bir forma dönüşmedi
+
+**Engel:** [Faz 195](fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) (K-900, kullanıcı kararı): konsol bir JSON metin alanı ve şemanın üye listesini verir. Tür başına bir form (enum seçici, sayı alanı, iç içe nesne) şema yorumlayıcısı ister; bundle payı (199,9 KB, bütçe 250) ölçülmedi. Doğrulama sunucudadır, form bir kopya taşımaz
+
+**Koşul:** Bir operatör JSON'u elle yazarken tekrarlanan hata bildirirse ya da ayar tipleri iç içe nesne ve dizi üyeleri taşımaya başlarsa — o zaman `settingsSchema`'dan üretilen form ve bundle payı birlikte ölçülür
+
+### F-374 · `jobs.payload` ve `job_items.input` korumalı sütun değil; kuyruklu run'ın parametre değeri ve belge metni orada düz durur
+
+**Engel:** [Faz 194](fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) (K-899, kullanıcı kararı): kuyruk yükünde mesaj zaten düz duruyordu; sütunu koruma kapsamına almak ayrı bir migration ve anahtar kararıdır (`jobs.payload` serbest metin, `ProtectedColumn` üyesi yok). Site bunu açıkça yazar
+
+**Koşul:** Düzenlemeye tabi bir kurulum kuyruk yükünün şifrelenmesini isterse — o zaman `ProtectedColumn` üyesi, iki sütun ve geriye dönük okuma (zarf kendini tanıtır) birlikte tasarlanır
+
+### F-240 · Kapasite kapısının kalan üç dar açığı
+
+**Engel:** [Faz 174](fazlar/174-KAPASITE-DAMGASI-KAPISI.md) denetiminin 🟢 bulguları; (3) ve (4) 2026-09-24'te kapandı. Kalan: (1) `SCHEMAS.storage` ölçülmüş tekrar sayısını başlık dizesinde sabitliyor (`'Rows per run (3 repeats)'`); (2) `P95_SAMPLE_FLOOR = 100` ile `LatencyStatistics.P95SampleFloor` elle senkron, uyumu hiçbir şey ölçmüyor; (5) 19 işaret `docs-site/public/llms-full.txt`'e düz metin olarak sızıyor (emsal `claim:` zaten 11 tane sızdırıyor)
+
+**Koşul:** Kapasite ölçümü yenilendiğinde — o koşum (1) ve (2)'yi zaten elden geçirtir
+
+### F-376 · Paylaşılan boş parametre sözlükleri `Dictionary` tabanlı ve `GetRunParameters()` onları ya da kapsamın canlı sözlüğünü döner
+
+**Engel:** [Faz 194](fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) denetimi (🟢): `ParameterValueSet.Empty` ve `TraconWorkflowContextExtensions.NoValues` salt okunur görünür; `(Dictionary<,>)` dönüşümüyle yazan kod run'lar ve kiracılar arasında değeri bozar. Barındıran kod güvenilirdir; `ReadOnlyDictionary` sarmalı ucuzdur
+
+**Koşul:** Bir tüketici sözlüğü dönüştürerek yazdığını bildirirse ya da `GetRunParameters()` yüzeyi genişlerse
+
+### F-254 · Kiracı egress politikası satırı YOKKEN hiçbir kısıt uygulanmıyor (fail-open)
+
+**Engel:** [`ModelProviderRegistry.cs:287`](../../src/Tracon.Core/Models/ModelProviderRegistry.cs#L287) `if (policy is not null)`. `policy is null ⇒ kısıt yok` ürünün belgelenmiş varsayılanıdır — politika kurmayan kurulum her sağlayıcıyı çağırabilir. Fail-closed yapmak `TraconTenantProviderOptions`'a varsayılanı kapalı bir anahtar ister (K1 sıfır-sürpriz; KG-034)
+
+**Koşul:** Kullanıcı fail-closed seçeneğine karar verirse — **kullanıcı kararı gerekir** (güvenlik varsayılanı)
+
+### F-381 · Workflow `run_inputs` yazımı düşerse bekleyen run kalıcı olarak cevaplanamaz
+
+**Engel:** Faz 194 denetimi (🟡, gerekçelendi): yazım best-effort kalır (K-898); ret mesajı artık depo hatasını adlandırır. `AwaitingInput`'a geçerken kayıt yoksa idempotent yeniden yazmak (`ON CONFLICT DO NOTHING` buna izin verir) run'ı kurtarırdı; kurtarma yolu yoktur ve satırı yaşa göre silen kural da yoktur
+
+**Koşul:** Depo hatası nedeniyle cevaplanamayan bir workflow run'ı görülürse (`tracon.run_recording.failures{stage=input}` artar)
+
 ### F-95 · Agent düzeyinde kesinti/devam kancası
 
 **Engel:** MAF yolu **kapalı** (aşağıda ölçüldü). Kalem yalnız F-141 üzerinden

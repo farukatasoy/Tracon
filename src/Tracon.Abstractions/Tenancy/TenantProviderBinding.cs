@@ -1,8 +1,7 @@
 namespace Tracon;
 
 /// <summary>
-/// Binds a tenant to a model provider's credential, by <strong>name</strong>
-/// only.
+/// Binds a tenant to a provider's credential, by <strong>name</strong> only.
 /// </summary>
 /// <remarks>
 /// This record carries no secret value, only the name of the
@@ -16,7 +15,11 @@ public sealed record TenantProviderBinding
     /// <summary>Gets the tenant this binding belongs to.</summary>
     public required string TenantId { get; init; }
 
-    /// <summary>Gets the provider name. Matches <see cref="ModelBinding.Provider"/>.</summary>
+    /// <summary>
+    /// Gets the provider name. Matches <see cref="ModelBinding.Provider"/> for a model
+    /// provider, and <see cref="ISpeechSynthesizer.ProviderName"/> or
+    /// <see cref="ISpeechTranscriber.ProviderName"/> for a speech provider.
+    /// </summary>
     /// <remarks>
     /// Compared <strong>case-insensitively</strong>, like every other place a
     /// provider name is matched (the provider registry, the tenant egress
