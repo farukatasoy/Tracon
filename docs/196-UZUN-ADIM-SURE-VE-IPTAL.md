@@ -358,22 +358,50 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Aşım run'ı `Failed` + `workflow_function_timeout` ile bitirir; gövde token'ı iptal olur (test 1-4)
-- [ ] Çağıran iptali ve `RunTimeout` düğüm aşımı yazmaz; aralık dışı süre `400` (test 5, 9)
-- [ ] İptal handler token'ını bir `PollInterval` içinde düşürür; aşım `tracon.job.max-duration-exceeded` yazar (test 14-15)
-- [ ] İki alan dört depoda round-trip; harita bağlanır; `TimeoutSiteTests` güncel (test 12, 19-20, 22)
-- [ ] Agent düğümü süresi `ChildDeadline`'ı geçersiz kılar ve resume'u bozmaz; tanım `RunTimeout`'u tavanla sınırlıdır (test 24-28)
+- [x] Aşım run'ı `Failed` + `workflow_function_timeout` ile bitirir; gövde token'ı iptal olur (test 1-4)
+- [x] Çağıran iptali ve `RunTimeout` düğüm aşımı yazmaz; aralık dışı süre `400` (test 5, 9)
+- [x] İptal handler token'ını bir `PollInterval` içinde düşürür; aşım `tracon.job.max-duration-exceeded` yazar (test 14-15)
+- [x] İki alan dört depoda round-trip; harita bağlanır; `TimeoutSiteTests` güncel (test 12, 19-20, 22)
+- [x] Agent düğümü süresi `ChildDeadline`'ı geçersiz kılar ve resume'u bozmaz; tanım `RunTimeout`'u tavanla sınırlıdır (test 24-28)
 - [ ] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` (case 1, 6, 7, 9, 11), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri iki alan dosyasına eklendi; otomatikleştirilebilenler koşuldu
+- [x] `samples/Tracon.Api` ile gerçek `run` (case 1, 6, 7, 9, 11), çıktı belgeye yazıldı
+- [x] `secret` taraması boş döndü
+- [x] Manuel kabul case'leri iki alan dosyasına eklendi; otomatikleştirilebilenler koşuldu
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
 - [ ] `en.ts`/`tr.ts` eksiksiz; bundle payı yazıldı; `CHANGELOG.md` yeni aşırı yüklemeyi anar
 
 ### Doğrulama komutları
 
-Komutlar case 1, 6, 7, 9 ve 11'den kapanışta gerçek çıktıyla yazılır.
+Örnek uygulama 2026-10-13'te koşuldu: `190beb9d` derlemesi, port 5081,
+PostgreSQL şeması `faz196`, `Development`, `Tracon__Demo__SlowModel__Seconds=20`.
+İstek yolları `/tracon/api/...` altındadır; gövdeler `MT-WF-142`…`147` ve
+`MT-JOB-146`…`148` içindedir.
+
+```bash
+dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll --urls http://127.0.0.1:5081   # + case'e göre --Tracon:... argümanları
+curl -sX PUT  $APU/api/workflows/bounded -H 'Content-Type: application/json' -d '{...}'
+curl -sX POST $APU/api/workflows/bounded/run -H 'Content-Type: application/json' -d '{"message":"hello"}'
+curl -s       $APU/api/runs/{runId}
+curl -sX POST $APU/api/schedules/episode-nightly/trigger        # gövdesiz; boş JSON gövde + JSON content-type 400 döner (eski davranış)
+curl -sX POST $APU/api/jobs/{jobId}/cancel
+```
+
+| Case | Gerçek çıktı |
+|---|---|
+| 1 | `HTTP 200 in 2.3 s` · run `Failed` · `workflow_function_timeout` / `Timeout` · "Function node 'slow' did not return within 2 s and was cancelled…" · katalog: `slow`, `deaf` → `"00:00:02"` |
+| 2 | Düğüm `00:00:05`: `5.1 s`, `Failed`, "…within 5 s…" |
+| 3 | Fonksiyon düğümünde `00:00:00` → `400` "Node 'slow' in workflow 'bad' has a 'timeout' of 00:00:00. A function node's timeout must be from 1 to 4294967294 milliseconds…" · agent düğümünde `00:00:05` → `200` |
+| 5 | `deaf`: `2.2 s`, `Failed`; ~4 sn sonra log: "Function node deaf of workflow run 01a13615-fea6-… returned 00:00:06.0025155 after it started, past its timeout of 00:00:02; its result is discarded" |
+| 6 | İptal `16:29:49.25` → `204`; iş hemen `Cancelled`; run `01a13619-408c…` `Canceled`, `completedAt 16:29:57.03` (iptalden 7,8 sn sonra; render 60 sn sürerdi); öğe `Pending` |
+| 7 | Harita `tracon.workflow=00:00:05`: iş `Failed`, `attempt 1`, "tracon.job.max-duration-exceeded (ref: 7262b7b0)"; run 5,0 sn sonra `Canceled`, `job_max_duration_exceeded`; öğe `Failed`. Düzeltmeden önce: `attempt 2`, "All of the job's items failed." (kusur, `b93ed7da`) |
+| 8 | Harita `00:00:00`: süreç dinlemeden çıktı (134); "TraconSchedulingOptions.MaxDurationByHandlerKey['tracon.workflow'] must be between 1 and 4294967294 milliseconds. Actual value: 00:00:00." |
+| 9 | `podcast` (agent düğümü `00:00:05`, model 20 sn): `5.3 s`, `Failed`, `child_run_timeout` / `Timeout`, "Agent 'slow-writer' did not respond in time (limit: 00:00:05, set by the 'timeout' of node 'slow-writer' in workflow 'podcast')…" · `podcast-plain`: `20.2 s`, `Completed` |
+| 10 | `runTimeout 00:30:00`, tavan yok → `400` "…above the installation's run timeout (00:10:00). A definition may only shorten 'Tracon:Workflows:RunTimeout' unless the host sets 'Tracon:Workflows:MaxRunTimeout'…" |
+| 11 | Ölçekli (`RunTimeout=00:00:10`, `MaxRunTimeout=00:01:00`, 15 sn'lik zincir): `00:02:00` → `400` "…above the host's ceiling 'Tracon:Workflows:MaxRunTimeout' (00:01:00)." · `00:00:30` → `200`, run `15.2 s` `Completed` · kontrol (süresiz): `10.1 s` `Canceled`, `TimeoutException`, "…Raise the 'Tracon:Workflows:RunTimeout' value…" · tanım `00:00:05`: `5.0 s` `Canceled`, "…after 00:00:05, the run timeout its definition sets…" |
+
+Case 4 👤 görseldir; koşulmadı (Vitest karşılığı: `workflow-editor.test.tsx`
+"timeouts"). **Arayüz payı:** gzip bundle 205,5 KB, taban 204,1 KB → **+1,4 KB**.
 
 ---
 
@@ -393,6 +421,30 @@ Komutlar case 1, 6, 7, 9 ve 11'den kapanışta gerçek çıktıyla yazılır.
 ## Plandan Sapmalar
 
 > Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez**.
+
+Aşama 1 (kod + örnek uygulama) sonunda yazıldı. 👤 işaretli satır bakımcı
+onayı bekler: plan onlara cevap vermedi; plana ve K-kurallarına en yakın
+seçenek uygulandı.
+
+| # | Plan | Gerçek | Gerekçe |
+|---|---|---|---|
+| 1 | §196.2 Adım 0: MAF `FunctionExecutor` run token'ını geçiriyor mu? | **Geçiriyor.** Prob testi: `RunTimeout`'ta gövdenin token'ı 2 sn içinde iptal oldu. `kusur-giderme` gerekmedi; prob silindi | Ölçüm |
+| 2 👤 | §196.5: tanım slot beklemesinden önce çözülmemişse CTS sonra kurulur, slot beklemesi kurulum değerine sayılır | Tanım çözümü ve derleme **slot beklemesinden önceye** alındı; tanımın `RunTimeout`'u slot beklemesini de kapsar. Derlenemeyen tanım slot almadan düşer | Plandaki geri dönüş yolu tanımın süresini slot beklemesinde yok sayardı; arayüz metni "slot beklemesi dahil" der |
+| 3 👤 | §196.5 + Açık Soru 10-B: `agentNames` biçimi süre taşımaz; konsolda süre alanı agent düğümünde de görünür | Konsol, adımında süre olan agent-only zinciri **`nodes` biçiminde** yazar (K-901 kuralı: "fonksiyon **veya adım süresi** varsa `nodes`"). Editör bunu yapısal değişiklik sayar ve söyler; agent adımı canlı token akışı yapmaz (`formNodes` metni) | İki plan maddesi çelişiyordu: alan görünür ama `agentNames` onu taşıyamaz. Sessiz düşürme K-918'e aykırı |
+| 4 👤 | Açık Soru 7-A: aşım denemesi başarısızdır, deneme kalırsa yeniden kiralanır | Genel handler'da öyle. Workflow handler'larında 13-A önce gelir: kuyruklu run işi **hemen** düşer; batch durdurulan öğeyi `Failed` yazar, deneme başarısız olur — ama bekleyen öğe kalmadıysa iş **hemen** kodla düşer | Örnek uygulamada (case 7) tek öğeli batch boş bir kiralama sonra "All of the job's items failed." ile, kodsuz bitiyordu — kusur, `b93ed7da` |
+| 5 | §196.3: depoda okunan geçersiz `MaxDuration` için kural yok | Worker hatayı loglar, işi **sınırsız** koşar | Dispatcher yazımda doğrular; üçüncü taraf deposunun bozuk satırı işi öldürmemeli (gözlem işlevi bozmaz) |
+| 6 | §196.3: runner job sınırını nasıl öğrenir — yazılmadı | İç `JobAttemptSignals` + ambient `AmbientJobAttempt` (AsyncLocal; worker'ın `ExecuteWithHandlerAsync` gövdesinde açılır). `AmbientWriteSiteTests` yeni işaretçi aldı. `JobContext.Signals` iç özelliktir | Run hata tipini (`job_max_duration_exceeded`) yalnız sebebi bilen yazabilir; public yüzey büyümez |
+| 7 | §196.5: kayıtta tavan `400` | `Tracon.Core` içinde iç `IWorkflowRunTimeoutPolicy`; `UseWorkflows` kaydeder. `PUT` onu `[FromServices]` ile opsiyonel alır | `Tracon.AspNetCore` `Tracon.Workflows`'a bağımlı değil. Motor kapalıyken tavan denetimi yok, yalnız `TimerPeriod` |
+| 8 👤 | §196.5: tavan yalnız kayıtta | `MaxRunTimeout` açılışta **her zaman** doğrulanır (motor kapalı da): `TimerPeriod` aralığı ve `≥ RunTimeout`. Tavan sonradan düşerse kayıtlı daha uzun `RunTimeout` tavana **kesilir** ve uyarı loglanır | Ayar tavanı emsali; kayıtlı tanım run'ı düşürmemeli |
+| 9 | Açık Soru 4: CS0121 ölçülür | `builder.AddWorkflowFunction<TIn,TOut>(name, factory, null)` artık **CS0121** verir: konumsal `null` hem eski imzanın `string? description` parametresine hem `Action<WorkflowFunctionOptions>`'a uyar. Adlı argüman (`description: null`) çalışır. RS0026/RS0027 tetiklenmedi | Ölçüm; `1.0.0` öncesi kabul edilebilir — `CHANGELOG` anar (Aşama 2) |
+| 10 | §196.1: konsolda saniye alanı | Alan saniye (`90`, `2.5`) **veya** `hh:mm:ss` kabul eder; dokunulmayan değer sunucudaki yazımıyla döner (`storedTimeout`, K-918 deseni); geçersiz metin kaydı tutar | Tam değiştirme kaydı (K-725) değeri sessiz silmemeli |
+| 11 | Test 9: "agent düğümünde süre" kötü girdi | F-405 ile geçerli girdi oldu; test ve manuel case 3 agent düğümünü `200` + kendi üst sınırı (`MaxAgentNodeTimeout` = `TimerPeriod` − 30 sn) ile sınar | Plan satırı F-405'ten önce yazılmıştı |
+| 12 | Test 24: `waitTimeout` türetmesi | Sert kesim (süre + 30 sn) invoker alanından yansımayla okunur; 30 sn beklenmez | Test süresi |
+| 13 | §196.5: aşım bugünkü davranış | `ChildAgentInvoker` opsiyonel `deadlineSetting` alır; ret metni "limit: X, set by the 'timeout' of node 'N' in workflow 'W'" der | Operatör hangi ayarı değiştireceğini bilmeli |
+| 14 | Planlanan dosya listesi | Örnek uygulamaya `SlowModelProvider` (`Tracon:Demo:SlowModel:Seconds`), `slow` ve `deaf` fonksiyonları eklendi | Case 9 gerçek model olmadan ölçülebilsin |
+| 15 | Manuel case 11: 10 dk / 1 sa / 15 dk | Ölçekli koşuldu: 10 sn / 1 dk / 15 sn | Aynı kural, kısa koşum |
+| 16 | Migration numarası uygulamada | PostgreSQL `0057`, SQL Server `0045`, SQLite `0044` (`job_max_duration`) | — |
+| 17 | Test 23 (E2E) | Aşama 1'de koşulmadı | Bkz. rapor; Vitest karşılığı yeşil |
 
 ## Bu Fazda Verilen Kararlar
 
