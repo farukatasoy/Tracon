@@ -3859,7 +3859,7 @@ tracon.AddWorkflowFunction<List<ChatMessage>, string>(
 ```
 
 A report is one **item**. The run lists its items, in the order they were reported, at
-`GET /api/runs/{runId}/usage` (Reader role, `runs:read` scope); this abridged answer is
+`GET /api/runs/{runId}/usage` (Reader role, `runs:read` scope); this abridged answer (each item also carries its `id`, `runId` and `createdAt`) is
 from a run whose `speak` node reported an estimated, priced item and whose `render` node
 reported seconds it has no price for:
 
@@ -3872,7 +3872,8 @@ reported seconds it has no price for:
   },
   {
     "nodeName": "render",
-    "usage": { "unit": "gpu-seconds", "quantity": 1, "isEstimated": false, "provider": "local-gpu" }
+    "usage": { "unit": "gpu-seconds", "quantity": 1, "cost": null, "currency": null,
+               "isEstimated": false, "provider": "local-gpu", "model": null }
   }
 ]
 ```
