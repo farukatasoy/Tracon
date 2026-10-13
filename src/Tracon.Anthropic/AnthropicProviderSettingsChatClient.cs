@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Anthropic.Core;
 using Anthropic.Models.Messages;
 using Microsoft.Extensions.AI;
 
@@ -30,59 +31,139 @@ namespace Tracon;
 /// A compiled agent shares a single <see cref="ChatOptions"/> instance across all
 /// calls; writing over it would mix up concurrent runs.
 /// </para>
+/// <para>
+/// Every Anthropic client carries this decorator, also when no setting changes
+/// the request: it answers <see cref="ModelOutputLimit"/> through
+/// <see cref="GetService"/>, so the validation report knows the
+/// <c>max_tokens</c> this client sends when the binding sets none. Without a
+/// setting that changes the body, the caller's options pass through unchanged
+/// — no copy and no raw body on the plain path.
+/// </para>
 /// </remarks>
 internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
 {
     private readonly string _model;
     private readonly int _defaultMaxOutputTokens;
-    private readonly bool _promptCaching;
-    private readonly int? _thinkingBudgetTokens;
+    private readonly AnthropicRequestSettings _settings;
+    private readonly ModelOutputLimit _outputLimit;
 
     public AnthropicProviderSettingsChatClient(
         IChatClient inner,
         string model,
         int defaultMaxOutputTokens,
-        bool promptCaching,
-        int? thinkingBudgetTokens)
+        AnthropicRequestSettings settings)
         : base(inner)
     {
         _model = model;
         _defaultMaxOutputTokens = defaultMaxOutputTokens;
-        _promptCaching = promptCaching;
-        _thinkingBudgetTokens = thinkingBudgetTokens;
+        _settings = settings;
+        _outputLimit = new ModelOutputLimit
+        {
+            DefaultMaxOutputTokens = defaultMaxOutputTokens,
+            HighReasoningEffort = settings.HighEffort,
+        };
     }
 
-    /// <summary>Gets whether there is a setting to apply to the binding.</summary>
-    internal static bool HasSettings(bool promptCaching, int? thinkingBudgetTokens)
-        => promptCaching || thinkingBudgetTokens is not null;
+    /// <inheritdoc />
+    public override object? GetService(System.Type serviceType, object? serviceKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(serviceType);
+
+        return serviceKey is null && serviceType == typeof(ModelOutputLimit)
+            ? _outputLimit
+            : base.GetService(serviceType, serviceKey);
+    }
 
     /// <inheritdoc />
     public override Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
-        => base.GetResponseAsync(messages, Apply(options), cancellationToken);
+    {
+        if (!_settings.ChangesRequest)
+        {
+            return base.GetResponseAsync(messages, options, cancellationToken);
+        }
+
+        var (requestMessages, requestOptions) = Apply(messages, options);
+
+        return base.GetResponseAsync(requestMessages, requestOptions, cancellationToken);
+    }
 
     /// <inheritdoc />
     public override IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
-        => base.GetStreamingResponseAsync(messages, Apply(options), cancellationToken);
+    {
+        if (!_settings.ChangesRequest)
+        {
+            return base.GetStreamingResponseAsync(messages, options, cancellationToken);
+        }
 
-    private ChatOptions Apply(ChatOptions? options)
+        var (requestMessages, requestOptions) = Apply(messages, options);
+
+        return base.GetStreamingResponseAsync(requestMessages, requestOptions, cancellationToken);
+    }
+
+    private (IEnumerable<ChatMessage> Messages, ChatOptions Options) Apply(IEnumerable<ChatMessage> messages, ChatOptions? options)
     {
         var copy = options?.Clone() ?? new ChatOptions();
 
         // Left untouched when the caller has already given its own raw
         // representation: this is a path the consumer deliberately took over, and
         // writing over it would silently change its behavior.
-        copy.RawRepresentationFactory ??= _ => BuildParams(copy);
+        if (copy.RawRepresentationFactory is not null)
+        {
+            return (messages, copy);
+        }
 
-        return copy;
+        var markInstructions = _settings.PromptCaching
+            && _settings.CachePlacement == AnthropicCachePlacement.System
+            && !string.IsNullOrEmpty(copy.Instructions);
+
+        if (markInstructions)
+        {
+            // 🚨 The adapter turns ChatOptions.Instructions into a system block
+            // WITHOUT cache control, and reads cache control only from a
+            // content's AdditionalProperties. The instructions therefore travel
+            // as a system message of their own, appended after the caller's
+            // messages: the adapter gathers every system message into the
+            // system array in order and adds Instructions last, so the block
+            // keeps today's position. A new message and a new content — the
+            // caller's list and contents are never mutated.
+            var block = new TextContent(copy.Instructions).WithCacheControl(CacheControl());
+
+            messages = [.. messages, new ChatMessage(ChatRole.System, [block])];
+            copy.Instructions = null;
+        }
+
+        copy.RawRepresentationFactory = _ => BuildParams(copy, topLevelCache: _settings.PromptCaching && !markInstructions);
+
+        return (messages, copy);
     }
 
-    private MessageCreateParams BuildParams(ChatOptions options)
+    // Init-only on the SDK type (CS8852), hence the two initializers.
+    private CacheControlEphemeral CacheControl()
+        => _settings.CacheTtl is { } ttl
+            ? new CacheControlEphemeral { Ttl = SdkTtlOf(ttl) }
+            : new CacheControlEphemeral();
+
+    private static Ttl SdkTtlOf(string wireValue)
+    {
+        foreach (var candidate in Enum.GetValues<Ttl>())
+        {
+            if (string.Equals(((ApiEnum<string, Ttl>)candidate).Raw(), wireValue, StringComparison.Ordinal))
+            {
+                return candidate;
+            }
+        }
+
+        // AnthropicRequestSettings accepted the value from this same list.
+        throw new InvalidOperationException($"'{wireValue}' is not a cache TTL the Anthropic SDK knows.");
+    }
+
+    private MessageCreateParams BuildParams(ChatOptions options, bool topLevelCache)
     {
         var body = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
         {
@@ -100,18 +181,40 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
                 AnthropicRawJsonContext.Default.StringArray),
         };
 
-        if (_promptCaching)
+        if (topLevelCache)
         {
             body["cache_control"] = JsonSerializer.SerializeToElement(
-                new AnthropicCacheControlPayload("ephemeral"),
+                new AnthropicCacheControlPayload("ephemeral", _settings.CacheTtl),
                 AnthropicRawJsonContext.Default.AnthropicCacheControlPayload);
         }
 
-        if (_thinkingBudgetTokens is { } budget)
+        switch (_settings.ThinkingMode)
         {
-            body["thinking"] = JsonSerializer.SerializeToElement(
-                new AnthropicThinkingPayload("enabled", budget),
-                AnthropicRawJsonContext.Default.AnthropicThinkingPayload);
+            case AnthropicThinkingMode.Enabled:
+                body["thinking"] = JsonSerializer.SerializeToElement(
+                    new AnthropicThinkingPayload("enabled", _settings.ThinkingBudgetTokens),
+                    AnthropicRawJsonContext.Default.AnthropicThinkingPayload);
+                break;
+
+            case AnthropicThinkingMode.Adaptive:
+                body["thinking"] = JsonSerializer.SerializeToElement(
+                    new AnthropicThinkingPayload("adaptive", BudgetTokens: null),
+                    AnthropicRawJsonContext.Default.AnthropicThinkingPayload);
+                break;
+
+            default:
+                break;
+        }
+
+        // 🚨 Measured (Anthropic SDK 12.39.0, decompiled adapter): the adapter
+        // adds a structured-output schema with `OutputConfig ?? new OutputConfig()`
+        // and a `with { Format = ... }` copy, so the effort written here survives
+        // next to the format; AnthropicRequestSettingsTests pins the wire body.
+        if (_settings.Effort is { } effort)
+        {
+            body["output_config"] = JsonSerializer.SerializeToElement(
+                new AnthropicOutputConfigPayload(effort),
+                AnthropicRawJsonContext.Default.AnthropicOutputConfigPayload);
         }
 
         return MessageCreateParams.FromRawUnchecked(
@@ -123,12 +226,26 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
 
 /// <summary>The <c>cache_control</c> body fragment.</summary>
 internal sealed record AnthropicCacheControlPayload(
-    [property: JsonPropertyName("type")] string Type);
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("ttl")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? Ttl);
 
 /// <summary>The <c>thinking</c> body fragment.</summary>
+/// <remarks>
+/// <c>budget_tokens</c> is left out when it is <see langword="null"/>: the
+/// adaptive mode takes none, and a written <c>null</c> is not "absent" to the
+/// API (it rejects <c>"thinking": null</c> the same way).
+/// </remarks>
 internal sealed record AnthropicThinkingPayload(
     [property: JsonPropertyName("type")] string Type,
-    [property: JsonPropertyName("budget_tokens")] int BudgetTokens);
+    [property: JsonPropertyName("budget_tokens")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    int? BudgetTokens);
+
+/// <summary>The <c>output_config</c> body fragment.</summary>
+internal sealed record AnthropicOutputConfigPayload(
+    [property: JsonPropertyName("effort")] string Effort);
 
 /// <summary>
 /// The source generator context for the small fragments written into the raw request body.
@@ -144,4 +261,5 @@ internal sealed record AnthropicThinkingPayload(
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(AnthropicCacheControlPayload))]
 [JsonSerializable(typeof(AnthropicThinkingPayload))]
+[JsonSerializable(typeof(AnthropicOutputConfigPayload))]
 internal sealed partial class AnthropicRawJsonContext : JsonSerializerContext;
