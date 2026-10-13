@@ -1223,3 +1223,61 @@ Faz 204'ün Anthropic adaptörü ölçümüne yer açmak için taşındı. İlki
 
 - **`ModelDescriptor` fiyat alanlarını faz 3'ten beri taşıyor** (`InputCostPerMillionTokens`, `OutputCostPerMillionTokens`) ve **hiçbir yerde okunmuyor**. Faz 20 maliyeti buradan çözecek.
 - **`Microsoft.Agents.AI.Foundry` 1.5.0 MAF 1.16.0 ile YUKLENIR** (olculdu; tip yukleme hatasi yok) ama **37 gecisli paket** getirir — `Azure.AI.Projects`, `Azure.Storage.Blobs`, `Azure.Identity`, `Google.Protobuf`, `Microsoft.ML.Tokenizers`… Karsilastirma: `Google.GenAI` 11. Ertelendi (K-212). Kimligi `Azure.Core.TokenCredential` degil, `System.ClientModel`'in `AuthenticationTokenProvider`'idir.
+
+## `docs/hafiza/` üç dosyadan — 2026-10-13 doküman bütçesi turu (Faz 197)
+
+Faz 197'nin kurtarma ve test notlarına yer açmak için taşındı. Kural alan dosyasında tek satır olarak kaldı; tam metin aynen buradadır.
+
+### `docs/hafiza/workflows.md`'den
+
+- **🚨 MAF executor kimligi artik SUREC OMRUNU ASIYOR** (2026-08-03, Faz 16): Faz 15'in `WorkflowAgentCache` sinirini kaldiran olcum sudur — bir grafta kimligi degisken olan TEK sey agent executor'udur (`{ad}_{AIAgent.Id}`); `OutputMessages`, `Batcher/*`, `HandoffStart`, `HandoffEnd`, `ConcurrentEnd`, `GroupChatHost`, `MagenticOrchestrator` zaten sabittir. Dolayisiyla grafi elle kurmaya gerek yoktu. `AIAgent.Id` sanal degil ve setter'i yok, ama `<Id>k__BackingField` alani `initonly=False`. Gercek surec yeniden baslatmasiyla dogrulandi: kimlik ayni kaldi, yeniden baslatmadan ONCE olusan bekleyen istek sonrasinda cevaplandi. K-127.
+
+- **`WorkflowRunner`'ın kurucusu artık `IEnumerable<IRunEventSink>? sinks = null` alır** (2026-08-19, Faz 70): `RunGuardedAsync` içindeki `RunEventWriter` bunu (materyalize edilmiş `IReadOnlyList` olarak) 5. parametre yapar. Yeni bir kurucu parametresi eklerken sondan bir önceki degil, `sinks`'ten SONRA ekle — `WorkflowTestHost.CreateRunner`'ın `params CodeWorkflowRegistration[] codeWorkflows` (son parametre) EN ÇOK kullanılan çağrı biçimi `configure: null, services: null, <positional codeWorkflows>` idi; `sinks`'i `services` ile `codeWorkflows` arasına eklemek bu çağrıları KIRARDI (pozisyonel argüman yanlış parametreye bağlanır, tip uyuşmazlığı derleme hatası verir) — çözüm ikinci bir `CreateRunner` aşırı yüklemesiydi (`sinks` zorunlu, `codeWorkflows` yine son), orijinal imza DEĞİŞMEDEN kaldı.
+
+
+### `docs/hafiza/test-altyapisi.md`'den
+
+- **🚨 `HashSet.ShouldBe(...)` SIRALI esitlik denetler.** MSBuild proje sirasini
+  garanti etmez; iki projeli bir cozumde `["First", "Second"]` bekleyen bir
+  kume karsilastirmasi `["Second", "First"]` gordu ve dustu. Cozum
+  `Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList()` +
+  liste karsilastirmasi. **Ikinci tuzak:** `ShouldContain("dize")` bir
+  `HashSet<string>` uzerinde LINQ `Contains`'e baglanir ve `MA0002` ile
+  **DERLEMEYI KIRAR** — karsilastirici ister; predicate asiri yuklemesi
+  (`ShouldContain(x => ...)`) veya siralanmis liste kullan.
+- **🚨 Bir derleme hatasi test kosumunu SESSIZCE eskitir.** `dotnet build … |
+  grep error` ile hatayi gorup yine de test binary'sini kosmak **onceki**
+  surumu olcer ve yesil gorunur. Faz 78'de bu iki kez oldu (mutasyon denetimi ve
+  `MA0002`). Kosumdan once derlemenin gercekten yesil oldugunu dogrula.
+- **🚨 Art arda kosan Docker tabanli paketlerde `Testcontainers` teardown'i
+  yarisa girer** (Faz 81): her test `Passed` VE `Test Assembly Cleanup Failure`
+  ile ikiletir (`Passed: N, Failed: N, Total: 2N`); gercek assertion asla
+  KIRMIZI degildir. Ayirt etme: izole kostur (`dotnet test tests/<Paket>`),
+  gecerse kaynak cekismesi. Vaka:
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+- **🚨 `AllowConcurrentInvocation = true` + senkron (`Func<string>`) bir tool
+  govdesi = SESSIZCE sirali calisma.** Olculdu: `FunctionInvocationProcessor.ProcessFunctionCallsAsync`
+  (MEAI) esiklemeyi `Task.WhenAll(...)` ile yapar, ama bu cagri ONCE LINQ
+  `select`'i MATERYALIZE eder — govde `await` ETMEDEN (senkron) bloklayan bir
+  cagriya (`Barrier.SignalAndWait`) girerse, `Task.WhenAll` ikinci govdeyi
+  BASLATAMAZ: birinci govde donene kadar ikinci cagri hic KURULMAZ. Uc govde x
+  5 sn zaman asimi = 15 sn — sessizce, hatasiz, ama HICBIR zaman gercekten
+  cakismadan. **Cozum**: govde `Task.Run(() => { barrier.SignalAndWait(...); return sonuc; })`
+  ile sarilir (senkron blokaji GERCEK bir arka plan thread'ine tasir) veya
+  gercekten `async`/`await Task.Yield()` iceren bir govde yazilir. Barrier
+  boyutu da DENIED/atlanan cagrilari SAYMAZ — bir cagri yetkilendirme
+  reddiyle govdesine hic girmiyorsa `Barrier` katilimci sayisi o cagriyi
+  DISLAR, aksi halde kalan govdeler suresiz bekler (zaman asimina kadar).
+
+
+### `docs/hafiza/test-kosum-olcumleri.md`'den
+
+Kapanış kapılarının ikinci tekrarında tam suite `Tracon.Ui.E2ETests`
+56/57 ile kırmızı oldu: önce `Pending_request_card_can_be_answered`, ayrı
+UI koşumunda `Runs_button_on_session_page_navigates_to_filtered_list`.
+İki case de derlenmiş test ikilisinde `--filter-method` ile izole 1/1 geçti.
+Bu, ürün kusuru değil; tam Playwright suite'inin kaynak/zamanlama çekişmesine
+duyarlı F-130 sınıfının yeni kanıtıdır. İlk tam kapanış koşumu 57/57 ve 19
+proje ile yeşildi. Kapanış raporu tekrarlanabilirliği korumak için son kırmızı
+çıkış kodunu saklamaz; izole koşum ayrıştırma adımıdır.

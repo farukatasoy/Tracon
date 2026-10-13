@@ -27,24 +27,7 @@
 
 ## Kume karsilastirmasi (Faz 78)
 
-- **🚨 `HashSet.ShouldBe(...)` SIRALI esitlik denetler.** MSBuild proje sirasini
-  garanti etmez; iki projeli bir cozumde `["First", "Second"]` bekleyen bir
-  kume karsilastirmasi `["Second", "First"]` gordu ve dustu. Cozum
-  `Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList()` +
-  liste karsilastirmasi. **Ikinci tuzak:** `ShouldContain("dize")` bir
-  `HashSet<string>` uzerinde LINQ `Contains`'e baglanir ve `MA0002` ile
-  **DERLEMEYI KIRAR** — karsilastirici ister; predicate asiri yuklemesi
-  (`ShouldContain(x => ...)`) veya siralanmis liste kullan.
-- **🚨 Bir derleme hatasi test kosumunu SESSIZCE eskitir.** `dotnet build … |
-  grep error` ile hatayi gorup yine de test binary'sini kosmak **onceki**
-  surumu olcer ve yesil gorunur. Faz 78'de bu iki kez oldu (mutasyon denetimi ve
-  `MA0002`). Kosumdan once derlemenin gercekten yesil oldugunu dogrula.
-- **🚨 Art arda kosan Docker tabanli paketlerde `Testcontainers` teardown'i
-  yarisa girer** (Faz 81): her test `Passed` VE `Test Assembly Cleanup Failure`
-  ile ikiletir (`Passed: N, Failed: N, Total: 2N`); gercek assertion asla
-  KIRMIZI degildir. Ayirt etme: izole kostur (`dotnet test tests/<Paket>`),
-  gecerse kaynak cekismesi. Vaka:
-  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **🚨 `HashSet.ShouldBe(...)` sıralı eşitlik denetler; derleme hatası koşumu sessizce eskitir; ardışık Docker paketlerinde `Testcontainers` teardown'ı yarışır** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-13 bütçe turu).
 
 ## Sevk edilen xunit.v3 test taban sınıfları: `xunit.v3` DEĞİL `xunit.v3.extensibility.core` (Faz 98)
 
@@ -65,19 +48,7 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
 
 ## `Barrier` ile eszamanlilik testi: senkron govde sessizce SIRALI calisir (Faz 81)
 
-- **🚨 `AllowConcurrentInvocation = true` + senkron (`Func<string>`) bir tool
-  govdesi = SESSIZCE sirali calisma.** Olculdu: `FunctionInvocationProcessor.ProcessFunctionCallsAsync`
-  (MEAI) esiklemeyi `Task.WhenAll(...)` ile yapar, ama bu cagri ONCE LINQ
-  `select`'i MATERYALIZE eder — govde `await` ETMEDEN (senkron) bloklayan bir
-  cagriya (`Barrier.SignalAndWait`) girerse, `Task.WhenAll` ikinci govdeyi
-  BASLATAMAZ: birinci govde donene kadar ikinci cagri hic KURULMAZ. Uc govde x
-  5 sn zaman asimi = 15 sn — sessizce, hatasiz, ama HICBIR zaman gercekten
-  cakismadan. **Cozum**: govde `Task.Run(() => { barrier.SignalAndWait(...); return sonuc; })`
-  ile sarilir (senkron blokaji GERCEK bir arka plan thread'ine tasir) veya
-  gercekten `async`/`await Task.Yield()` iceren bir govde yazilir. Barrier
-  boyutu da DENIED/atlanan cagrilari SAYMAZ — bir cagri yetkilendirme
-  reddiyle govdesine hic girmiyorsa `Barrier` katilimci sayisi o cagriyi
-  DISLAR, aksi halde kalan govdeler suresiz bekler (zaman asimina kadar).
+- **🚨 `AllowConcurrentInvocation = true` + senkron tool gövdesi = sessizce sıralı çalışma; gövdeyi `Task.Run` ile sar** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-13 bütçe turu).
 
 ## Sevk edilen sozlesme paketi (Faz 98 · 99)
 
@@ -181,6 +152,24 @@ kod yolu secer. Bu depodaki hazir yardimci:
 Ayni sinifin diger yuzu: bir istisna atan no-op'u `try/catch` ile sarmak
 yetmez, testin o yolu GERCEKTEN gormesi gerekir. Duzeltmenin kaniti iki testin
 duzeltme olmadan kirmizi oldugunun olculmesidir.
+
+## Handler'ı worker'ın deneme denetimi olmadan çağıran koşum, deneme sınırı kusurunu göremez (Faz 197)
+
+🚨 **Sınır worker'dadır; handler'ı doğrudan çağıran test onu atlar** (2026-10-13,
+Faz 197 denetimi 🔴1). `QueuedWorkflowHarness.RunAttemptAsync` her kiralamayı elle
+alıp handler'ı çağırıyordu; `JobWorkerBackgroundService` sınırı aşan kiralamayı
+handler'dan ÖNCE düşürür. Dokuz kurtarma testi yeşildi, ama tek run'lı iş son
+devamı `Running` bırakıyordu. Sınır case'i yalnız batch işiyle (üç deneme)
+koşuyordu; seçenek testi davranışı değil sayıyı yazıyordu (`JobAttempts == 1`).
+
+**Kural:** işin SON kiralamasıyla ilgili case o kiralamayı gerçek worker'dan
+geçirir: `QueuedWorkflowHarness.FinishWithWorkerAsync` (`ActivatorUtilities` ile
+`RunWorker = true` sabit seçenekli worker; host'un kendi worker'ı kapalı). Önceki
+kiralamalar elle kalır: süreç içi çökme = yenilenmeyen kira + token'ı yok sayan
+adım. Gerçek worker'da askıda kalan handler `StopAsync`'i sonsuza dek tutar;
+durdurma token ile sınırlanır. İki yan tuzak: `TestServer` sunucunun istisnasını
+istemciye fırlatır; `202` gövdesini iki kez akış olarak okumak "Cannot access a
+closed Stream" verir (bir kez metin olarak oku).
 
 ## Yalitim ve tam kosum kirilganligi
 
