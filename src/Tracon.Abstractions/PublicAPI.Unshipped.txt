@@ -2013,6 +2013,8 @@ Tracon.ModelDescriptor.SupportsStreaming.get -> bool
 Tracon.ModelDescriptor.SupportsStreaming.init -> void
 Tracon.ModelDescriptor.SupportsStructuredOutput.get -> bool
 Tracon.ModelDescriptor.SupportsStructuredOutput.init -> void
+Tracon.ModelDescriptor.SupportsSampling.get -> bool?
+Tracon.ModelDescriptor.SupportsSampling.init -> void
 Tracon.ModelDescriptor.SupportsTools.get -> bool
 Tracon.ModelDescriptor.SupportsTools.init -> void
 Tracon.ModelFallback
