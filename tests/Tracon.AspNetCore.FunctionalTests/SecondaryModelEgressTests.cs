@@ -38,7 +38,7 @@ public sealed class SecondaryModelEgressTests
             },
         });
 
-        await ShouldBeRefusedByTheEgressPolicyAsync(response);
+        await ShouldBeRefusedByTheEgressPolicyAsync(response, "compilation_error", expectedPath: null);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class SecondaryModelEgressTests
             },
         });
 
-        await ShouldBeRefusedByTheEgressPolicyAsync(response);
+        await ShouldBeRefusedByTheEgressPolicyAsync(response, "loop_judge_unavailable", "harness.loop.criteria[0].kind");
     }
 
     private static async Task<TraconTestHost> StartAsync()
@@ -76,7 +76,15 @@ public sealed class SecondaryModelEgressTests
         return host;
     }
 
-    private static async Task ShouldBeRefusedByTheEgressPolicyAsync(HttpResponseMessage response)
+    /// <remarks>
+    /// Phase 201: the judge is checked in the validator's own loop step, so its
+    /// refusal carries a code and the criterion's path; the summarizer is still
+    /// found by the compilation step.
+    /// </remarks>
+    private static async Task ShouldBeRefusedByTheEgressPolicyAsync(
+        HttpResponseMessage response,
+        string expectedCode,
+        string? expectedPath)
     {
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
@@ -86,8 +94,14 @@ public sealed class SecondaryModelEgressTests
         var messages = json.GetProperty("messages").EnumerateArray().ToArray();
 
         messages.ShouldContain(message =>
-            string.Equals(message.GetProperty("code").GetString(), "compilation_error", StringComparison.Ordinal) &&
+            string.Equals(message.GetProperty("code").GetString(), expectedCode, StringComparison.Ordinal) &&
+            string.Equals(PathOf(message), expectedPath, StringComparison.Ordinal) &&
             (message.GetProperty("message").GetString() ?? string.Empty)
                 .Contains($"not allowed to call model provider '{ForbiddenProvider}'", StringComparison.Ordinal));
     }
+
+    private static string? PathOf(System.Text.Json.JsonElement message)
+        => message.TryGetProperty("path", out var path) && path.ValueKind == System.Text.Json.JsonValueKind.String
+            ? path.GetString()
+            : null;
 }

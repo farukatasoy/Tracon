@@ -779,6 +779,9 @@ static Tracon.TraconBuilderExtensions.AddAgentSource(this Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddAgentSource<TSource>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddEvalCheck(this Tracon.ITraconBuilder! builder, string! kind, Microsoft.Agents.AI.EvalCheck! check) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddLoopEvaluator(this Tracon.ITraconBuilder! builder, string! kind, Microsoft.Agents.AI.LoopEvaluator! evaluator) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddLoopEvaluator(this Tracon.ITraconBuilder! builder, string! kind, Microsoft.Agents.AI.LoopEvaluator! evaluator, string? description) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddLoopEvaluator(this Tracon.ITraconBuilder! builder, string! kind, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.LoopEvaluator!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddLoopEvaluator(this Tracon.ITraconBuilder! builder, string! kind, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.LoopEvaluator!>! factory, string? description) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddModelProvider(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IModelProvider!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddModelProvider(this Tracon.ITraconBuilder! builder, Tracon.IModelProvider! provider) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddModelProvider<TProvider>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!

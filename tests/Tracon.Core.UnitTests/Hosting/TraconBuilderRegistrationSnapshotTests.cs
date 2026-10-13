@@ -44,7 +44,13 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         { "AddModelProvider(instance)", "IModelProvider|Singleton|instance:SnapshotProvider ; IModelProvider|Singleton|instance:SnapshotProvider" },
         { "AddModelProvider(factory)", "IModelProvider|Singleton|factory ; IModelProvider|Singleton|factory" },
         { "AddEvalCheck", "TraconEvalCheckRegistration|Singleton|instance:TraconEvalCheckRegistration ; TraconEvalCheckRegistration|Singleton|instance:TraconEvalCheckRegistration" },
-        { "AddLoopEvaluator", "TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration ; TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration" },
+        { "AddLoopEvaluator(instance)", "TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration ; TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration" },
+        { "AddLoopEvaluator(instance, description)", "TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration ; TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration" },
+        // The factory overloads register the same INSTANCE descriptor: the factory
+        // travels inside the registration and runs at the first compilation, not
+        // when the container resolves the registration list.
+        { "AddLoopEvaluator(factory)", "TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration ; TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration" },
+        { "AddLoopEvaluator(factory, description)", "TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration ; TraconLoopEvaluatorRegistration|Singleton|instance:TraconLoopEvaluatorRegistration" },
         { "RequireCustomBinding<T>", "RequiredBindingRegistration|Singleton|instance:RequiredBindingRegistration ; RequiredBindingRegistration|Singleton|instance:RequiredBindingRegistration" },
         { "RequireProductionProfile", "ProductionProfileRegistration|Singleton|instance:ProductionProfileRegistration ; ProductionProfileRegistration|Singleton|instance:ProductionProfileRegistration" },
     };
@@ -142,9 +148,20 @@ public sealed class TraconBuilderRegistrationSnapshotTests
             "AddModelProvider(factory)" => builder.AddModelProvider(static _ => new SnapshotProvider()),
             "AddEvalCheck" => builder.AddEvalCheck("snapshotCheck", FunctionEvaluator.Create("snapshotCheck", static (string _) => true)),
 #pragma warning disable MAAI001
-            "AddLoopEvaluator" => builder.AddLoopEvaluator(
+            "AddLoopEvaluator(instance)" => builder.AddLoopEvaluator(
                 "snapshotLoop",
                 new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()))),
+            "AddLoopEvaluator(instance, description)" => builder.AddLoopEvaluator(
+                "snapshotLoop",
+                new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop())),
+                "Snapshot criterion."),
+            "AddLoopEvaluator(factory)" => builder.AddLoopEvaluator(
+                "snapshotLoop",
+                static _ => new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()))),
+            "AddLoopEvaluator(factory, description)" => builder.AddLoopEvaluator(
+                "snapshotLoop",
+                static _ => new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop())),
+                "Snapshot criterion."),
 #pragma warning restore MAAI001
             "RequireCustomBinding<T>" => builder.RequireCustomBinding<ITenantContext>(),
             "RequireProductionProfile" => builder.RequireProductionProfile(),
