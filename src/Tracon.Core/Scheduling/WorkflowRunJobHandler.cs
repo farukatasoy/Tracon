@@ -26,12 +26,22 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>Recovery.</strong> While <c>TraconWorkflowOptions.ResumeInterruptedRuns</c>
-/// is on, the job is given <c>1 + MaxResumeAttempts</c> attempts. Leased again after
-/// its process stopped, it finds the queued run no longer <see cref="RunStatus.Queued"/>,
-/// and <see cref="WorkflowRecovery"/> decides whether the work finished, is continued
-/// from the latest checkpoint, or fails at the limit. With no checkpoint in the
-/// chain, the operation is applied again: the run starts again in the same session,
-/// or the resume or the response is repeated.
+/// is on, the job is given <c>2 + MaxResumeAttempts</c> attempts: one for the run,
+/// one per continuation, and a last one that finds the chain at its limit and closes
+/// it. The worker fails a lease past the limit before any handler runs, so without
+/// that last attempt the last continuation would stay <see cref="RunStatus.Running"/>.
+/// Leased again after its process stopped, the job finds the queued run no longer
+/// <see cref="RunStatus.Queued"/>, and <see cref="WorkflowRecovery"/> decides whether
+/// the work finished, is continued from the latest checkpoint, or fails at the limit
+/// (<see cref="NotContinuedCode"/>). With no checkpoint in the chain, the operation
+/// is applied again: the run starts again in the same session, or the resume or the
+/// response is repeated.
+/// </para>
+/// <para>
+/// <strong>Store errors.</strong> A store error while the job reads or extends the
+/// chain fails the attempt, not the work: the worker retries it while attempts are
+/// left, and the next attempt plans again. So does a refused run whose queued row
+/// could not be closed: the next attempt finds the row and closes it.
 /// </para>
 /// <para>
 /// When the worker stops, the run closes as <see cref="RunStatus.Canceled"/> and the
@@ -86,63 +96,44 @@ internal sealed class WorkflowRunJobHandler(
             return;
         }
 
+        // The recovery step stays OUTSIDE the catch below: a store error while
+        // the chain is read or extended fails this attempt, not the work. The
+        // writes are ordered so that the next attempt's plan reads whatever they
+        // left: the continuation's row is written before the closed run names it.
+        var plan = recovery.IsOn
+            ? await recovery.PlanAsync(request.RunId, context.Job, cancellationToken).ConfigureAwait(false)
+            : null;
         var current = request.RunId;
+
+        if (plan is { Step: WorkflowRecoveryStep.Settled })
+        {
+            return;
+        }
+
+        if (plan is { Step: WorkflowRecoveryStep.Exhausted })
+        {
+            await recovery.CloseChainAsync(plan, cancellationToken).ConfigureAwait(false);
+
+            throw await RefuseAsync(
+                runId: null,
+                NotContinuedCode,
+                new TraconException(
+                    $"Workflow run '{plan.Last!.Id}' was interrupted and is not continued: {plan.NotContinuedReason}.")).ConfigureAwait(false);
+        }
+
+        if (plan is { Step: WorkflowRecoveryStep.Continue })
+        {
+            await recovery.OpenContinuationAsync(plan, request.UserId, request.Labels, cancellationToken).ConfigureAwait(false);
+            await recovery.CloseChainAsync(plan, cancellationToken).ConfigureAwait(false);
+
+            current = plan.ContinuationRunId!.Value;
+        }
 
         try
         {
-            IAsyncEnumerable<RunEvent> events;
-
-            if (!recovery.IsOn)
-            {
-                events = Apply(context.Job.TargetName, request, request.RunId, sessionId: null, cancellationToken);
-            }
-            else
-            {
-                var plan = await recovery.PlanAsync(request.RunId, context.Job.TenantId, cancellationToken).ConfigureAwait(false);
-
-                switch (plan.Step)
-                {
-                    case WorkflowRecoveryStep.NotStarted:
-                        events = Apply(context.Job.TargetName, request, request.RunId, sessionId: null, cancellationToken);
-                        break;
-
-                    case WorkflowRecoveryStep.Settled:
-                        return;
-
-                    case WorkflowRecoveryStep.Exhausted:
-                        await recovery.CloseInterruptedAsync(plan.Last!, null, plan.Chain.Count - 1, cancellationToken).ConfigureAwait(false);
-
-                        throw await RefuseAsync(
-                            runId: null,
-                            NotContinuedCode,
-                            new TraconException(
-                                $"Workflow run '{plan.Last!.Id}' was interrupted and is not continued: its chain already has " +
-                                $"{plan.Chain.Count - 1} continuation run(s), and 'Tracon:Workflows:MaxResumeAttempts' allows no more.")).ConfigureAwait(false);
-
-                    default:
-                        var continuation = plan.ContinuationRunId!.Value;
-
-                        await recovery.CloseInterruptedAsync(plan.Last!, continuation, plan.Chain.Count - 1, cancellationToken).ConfigureAwait(false);
-                        await recovery.OpenContinuationAsync(plan, request.UserId, request.Labels, cancellationToken).ConfigureAwait(false);
-
-                        current = continuation;
-
-                        // No checkpoint in the chain: the process stopped before
-                        // the first super-step ended. The operation is applied again
-                        // under the continuation's id, in the chain's session.
-                        events = plan.Checkpoint is { } checkpoint
-                            ? runner.ResumeStreamingAsync(
-                                new WorkflowResumeRequest
-                                {
-                                    RunId = checkpoint.RunId,
-                                    CheckpointId = checkpoint.CheckpointId,
-                                    NewRunId = continuation,
-                                },
-                                cancellationToken)
-                            : Apply(context.Job.TargetName, request, continuation, plan.SessionId, cancellationToken);
-                        break;
-                }
-            }
+            var events = plan is { Step: WorkflowRecoveryStep.Continue }
+                ? Continue(context.Job.TargetName, request, plan, cancellationToken)
+                : Apply(context.Job.TargetName, request, request.RunId, sessionId: null, cancellationToken);
 
             await foreach (var runEvent in events.WithCancellation(cancellationToken).ConfigureAwait(false))
             {
@@ -192,6 +183,33 @@ internal sealed class WorkflowRunJobHandler(
                 new TraconException($"Workflow run '{current}' ended with status {status}.")).ConfigureAwait(false);
         }
     }
+
+    /// <summary>Starts the continuation a <see cref="WorkflowRecoveryStep.Continue"/> plan opened.</summary>
+    /// <param name="workflowName">The workflow a run starts (the job's target).</param>
+    /// <param name="request">The queued operation.</param>
+    /// <param name="plan">The plan.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The continuation's event stream.</returns>
+    /// <remarks>
+    /// With no checkpoint in the chain the process stopped before the first super-step
+    /// ended: the operation is applied again under the continuation's id, in the
+    /// chain's session.
+    /// </remarks>
+    private IAsyncEnumerable<RunEvent> Continue(
+        string workflowName,
+        WorkflowRunJobRequest request,
+        WorkflowRecoveryPlan plan,
+        CancellationToken cancellationToken)
+        => plan.Checkpoint is { } checkpoint
+            ? runner!.ResumeStreamingAsync(
+                new WorkflowResumeRequest
+                {
+                    RunId = checkpoint.RunId,
+                    CheckpointId = checkpoint.CheckpointId,
+                    NewRunId = plan.ContinuationRunId!.Value,
+                },
+                cancellationToken)
+            : Apply(workflowName, request, plan.ContinuationRunId!.Value, plan.SessionId, cancellationToken);
 
     /// <summary>Starts the queued operation under <paramref name="runId"/>.</summary>
     /// <param name="workflowName">The workflow a run starts (the job's target).</param>
@@ -249,8 +267,12 @@ internal sealed class WorkflowRunJobHandler(
     /// <param name="runId">A run whose row may still be queued; <see langword="null"/> to close none.</param>
     /// <param name="code">The stable code the job's error starts with.</param>
     /// <param name="exception">The cause.</param>
-    /// <returns>The exception to throw.</returns>
-    private async ValueTask<NonRetryableJobException> RefuseAsync(Guid? runId, string code, Exception exception)
+    /// <returns>
+    /// The exception to throw: a <see cref="NonRetryableJobException"/>, or, when the
+    /// queued row could not be closed, an exception the worker retries, so the next
+    /// attempt finds the row and closes it.
+    /// </returns>
+    private async ValueTask<Exception> RefuseAsync(Guid? runId, string code, Exception exception)
     {
         var correlationId = SafeErrorText.NewCorrelationId();
 
@@ -259,9 +281,11 @@ internal sealed class WorkflowRunJobHandler(
             logger.LogError(exception, "Queued workflow run {RunId} failed: {Code}. (ref: {CorrelationId})", runId, code, correlationId);
         }
 
-        if (runId is { } queued)
+        if (runId is { } queued && !await recovery.CloseIfQueuedAsync(queued, exception, correlationId).ConfigureAwait(false))
         {
-            await recovery.CloseIfQueuedAsync(queued, exception, correlationId).ConfigureAwait(false);
+            return new TraconException(
+                $"Queued workflow run '{queued}' was refused, and its row could not be closed; the job is tried again to close it. (ref: {correlationId})",
+                exception);
         }
 
         return new NonRetryableJobException(code, correlationId, exception);

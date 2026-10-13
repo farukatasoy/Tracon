@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 
 namespace Tracon.Core.UnitTests.Scheduling;
 
@@ -7,7 +8,7 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// deploy or a graceful shutdown can leave a queued workflow's chain in.
 /// </summary>
 /// <remarks>
-/// The decision is a pure function of the chain and its checkpoints, so every state
+/// The decision is a pure function of the chain, its checkpoints and the job's attempt, so every state
 /// is pinned here over the in-memory stores; the functional tests
 /// (<c>WorkflowRecoveryTests</c>) prove the same decisions through the job handlers.
 /// </remarks>
@@ -21,7 +22,7 @@ public sealed class WorkflowRecoveryPlanTests
     [Fact]
     public async Task A_head_with_no_row_has_not_started()
     {
-        var plan = await Recovery(max: 1).PlanAsync(TraconId.NewId(), Tenant, CancellationToken.None);
+        var plan = await Recovery(max: 1).PlanAsync(TraconId.NewId(), Job(), CancellationToken.None);
 
         plan.Step.ShouldBe(WorkflowRecoveryStep.NotStarted);
         plan.Chain.ShouldBeEmpty();
@@ -32,7 +33,7 @@ public sealed class WorkflowRecoveryPlanTests
     {
         var head = await StartAsync(RunStatus.Queued);
 
-        (await Recovery(max: 1).PlanAsync(head, Tenant, CancellationToken.None)).Step.ShouldBe(WorkflowRecoveryStep.NotStarted);
+        (await Recovery(max: 1).PlanAsync(head, Job(), CancellationToken.None)).Step.ShouldBe(WorkflowRecoveryStep.NotStarted);
     }
 
     [Theory]
@@ -43,7 +44,7 @@ public sealed class WorkflowRecoveryPlanTests
         var head = await StartAsync(RunStatus.Failed);
         var last = await StartAsync(status, continuedFrom: head);
 
-        var plan = await Recovery(max: 3).PlanAsync(head, Tenant, CancellationToken.None);
+        var plan = await Recovery(max: 3).PlanAsync(head, Job(), CancellationToken.None);
 
         plan.Step.ShouldBe(WorkflowRecoveryStep.Settled);
         plan.Last!.Id.ShouldBe(last);
@@ -59,12 +60,11 @@ public sealed class WorkflowRecoveryPlanTests
         await CheckpointAsync(head, "first");
         await CheckpointAsync(head, "second");
 
-        var plan = await Recovery(max: 1).PlanAsync(head, Tenant, CancellationToken.None);
+        var plan = await Recovery(max: 1).PlanAsync(head, Job(), CancellationToken.None);
 
         plan.Step.ShouldBe(WorkflowRecoveryStep.Continue);
         plan.Last!.Id.ShouldBe(head);
         plan.ContinuationRunId.ShouldNotBeNull().ShouldNotBe(head);
-        plan.ContinuationIsOpen.ShouldBeFalse();
         plan.Checkpoint.ShouldBe(new WorkflowCheckpointPointer(head, "second"));
         plan.SessionId.ShouldBe("session-1");
     }
@@ -74,7 +74,7 @@ public sealed class WorkflowRecoveryPlanTests
     {
         var head = await StartAsync(RunStatus.Running);
 
-        var plan = await Recovery(max: 1).PlanAsync(head, Tenant, CancellationToken.None);
+        var plan = await Recovery(max: 1).PlanAsync(head, Job(), CancellationToken.None);
 
         plan.Step.ShouldBe(WorkflowRecoveryStep.Continue);
         plan.Checkpoint.ShouldBeNull();
@@ -88,7 +88,7 @@ public sealed class WorkflowRecoveryPlanTests
         await CheckpointAsync(head, "head-latest");
         var continuation = await StartAsync(RunStatus.Running, continuedFrom: head);
 
-        var plan = await Recovery(max: 2).PlanAsync(head, Tenant, CancellationToken.None);
+        var plan = await Recovery(max: 2).PlanAsync(head, Job(), CancellationToken.None);
 
         plan.Step.ShouldBe(WorkflowRecoveryStep.Continue);
         plan.Last!.Id.ShouldBe(continuation);
@@ -112,27 +112,88 @@ public sealed class WorkflowRecoveryPlanTests
 
         await CheckpointAsync(head, "first");
 
-        var plan = await Recovery(max).PlanAsync(head, Tenant, CancellationToken.None);
+        var plan = await Recovery(max).PlanAsync(head, Job(), CancellationToken.None);
 
         plan.Step.ShouldBe(WorkflowRecoveryStep.Exhausted);
         plan.Last!.Id.ShouldBe(last);
         plan.Chain.Count.ShouldBe(runs);
     }
 
+    /// <summary>
+    /// An attempt opened a continuation and stopped before the engine started it. That
+    /// attempt was interrupted like any other: the opened row counts against the limit
+    /// and is continued by a new run, not started again under its own id.
+    /// </summary>
     [Fact]
-    public async Task A_continuation_opened_but_never_started_is_started_under_its_own_id_and_does_not_count_again()
+    public async Task A_continuation_opened_but_never_started_counts_as_an_interruption()
     {
-        var head = await StartAsync(RunStatus.Failed);
+        var head = await StartAsync(RunStatus.Running);
         await CheckpointAsync(head, "first");
         var opened = await StartAsync(RunStatus.Queued, continuedFrom: head);
 
-        var plan = await Recovery(max: 1).PlanAsync(head, Tenant, CancellationToken.None);
+        var plan = await Recovery(max: 2).PlanAsync(head, Job(), CancellationToken.None);
 
         plan.Step.ShouldBe(WorkflowRecoveryStep.Continue);
-        plan.ContinuationRunId.ShouldBe(opened);
-        plan.ContinuationIsOpen.ShouldBeTrue();
-        plan.Last!.Id.ShouldBe(head);
+        plan.Last!.Id.ShouldBe(opened);
+        plan.ContinuationRunId.ShouldNotBeNull().ShouldNotBe(opened);
         plan.Checkpoint.ShouldBe(new WorkflowCheckpointPointer(head, "first"));
+    }
+
+    [Fact]
+    public async Task A_continuation_opened_but_never_started_at_the_limit_exhausts_the_chain()
+    {
+        var head = await StartAsync(RunStatus.Running);
+        var opened = await StartAsync(RunStatus.Queued, continuedFrom: head);
+
+        var plan = await Recovery(max: 1).PlanAsync(head, Job(), CancellationToken.None);
+
+        plan.Step.ShouldBe(WorkflowRecoveryStep.Exhausted);
+        plan.Last!.Id.ShouldBe(opened);
+        plan.NotContinuedReason.ShouldNotBeNull().ShouldContain("MaxResumeAttempts", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// The job's last attempt never starts a continuation: the worker fails the next
+    /// lease before any handler runs, so nothing would close it if it were interrupted.
+    /// </summary>
+    [Fact]
+    public async Task On_the_jobs_last_attempt_an_interrupted_chain_is_exhausted_whatever_continuations_are_left()
+    {
+        var head = await StartAsync(RunStatus.Running);
+        await CheckpointAsync(head, "first");
+
+        var plan = await Recovery(max: 5).PlanAsync(head, Job(attempt: 3, maxAttempts: 3), CancellationToken.None);
+
+        plan.Step.ShouldBe(WorkflowRecoveryStep.Exhausted);
+        plan.Last!.Id.ShouldBe(head);
+        plan.NotContinuedReason.ShouldNotBeNull().ShouldContain("last attempt (3 of 3)", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Before_the_jobs_last_attempt_an_interrupted_chain_is_continued()
+    {
+        var head = await StartAsync(RunStatus.Running);
+
+        var plan = await Recovery(max: 5).PlanAsync(head, Job(attempt: 2, maxAttempts: 3), CancellationToken.None);
+
+        plan.Step.ShouldBe(WorkflowRecoveryStep.Continue);
+    }
+
+    /// <summary>A job that sets no limit has the queue's default, as the worker reads it.</summary>
+    [Fact]
+    public async Task A_job_without_its_own_limit_is_on_its_last_attempt_at_the_queues_default()
+    {
+        var head = await StartAsync(RunStatus.Running);
+        var recovery = new WorkflowRecovery(
+            _runs,
+            _checkpoints,
+            new FixedPolicy(5),
+            new FixedOptions(new TraconSchedulingOptions { MaxAttempts = 2 }));
+
+        var plan = await recovery.PlanAsync(head, Job(attempt: 2, maxAttempts: null), CancellationToken.None);
+
+        plan.Step.ShouldBe(WorkflowRecoveryStep.Exhausted);
+        plan.NotContinuedReason.ShouldNotBeNull().ShouldContain("last attempt (2 of 2)", Case.Sensitive);
     }
 
     [Fact]
@@ -140,7 +201,7 @@ public sealed class WorkflowRecoveryPlanTests
     {
         var head = await StartAsync(RunStatus.Running, tenant: "other-tenant");
 
-        var plan = await Recovery(max: 1).PlanAsync(head, Tenant, CancellationToken.None);
+        var plan = await Recovery(max: 1).PlanAsync(head, Job(), CancellationToken.None);
 
         plan.Step.ShouldBe(WorkflowRecoveryStep.NotStarted);
         plan.Chain.ShouldBeEmpty();
@@ -154,7 +215,9 @@ public sealed class WorkflowRecoveryPlanTests
         var record = (await _runs.GetRunAsync(head))!;
         var continuation = TraconId.NewId();
 
-        await Recovery(max: 1).CloseInterruptedAsync(record, continuation, continuations: 0, CancellationToken.None);
+        await Recovery(max: 1).CloseChainAsync(
+            new WorkflowRecoveryPlan { Step = WorkflowRecoveryStep.Continue, Chain = [record], Last = record, ContinuationRunId = continuation },
+            CancellationToken.None);
 
         var closed = (await _runs.GetRunAsync(head))!;
         closed.Status.ShouldBe(RunStatus.Failed);
@@ -173,19 +236,60 @@ public sealed class WorkflowRecoveryPlanTests
         events[^1].Sequence.ShouldBe(1);
     }
 
+    /// <summary>
+    /// An attempt that opened a continuation and stopped before it closed the run the
+    /// continuation continues leaves two open rows; both are closed, each naming what
+    /// comes after it.
+    /// </summary>
+    [Fact]
+    public async Task Closing_an_exhausted_chain_closes_every_open_run_each_naming_what_comes_after_it()
+    {
+        var head = await StartAsync(RunStatus.Running);
+        var opened = await StartAsync(RunStatus.Queued, continuedFrom: head);
+        var recovery = Recovery(max: 1);
+
+        var plan = await recovery.PlanAsync(head, Job(), CancellationToken.None);
+        await recovery.CloseChainAsync(plan, CancellationToken.None);
+
+        var closedHead = (await _runs.GetRunAsync(head))!;
+        closedHead.Status.ShouldBe(RunStatus.Failed);
+        closedHead.Error.ShouldNotBeNull().Message.ShouldContain(opened.ToString(), Case.Sensitive);
+
+        var closedOpened = (await _runs.GetRunAsync(opened))!;
+        closedOpened.Status.ShouldBe(RunStatus.Failed);
+        closedOpened.Error.ShouldNotBeNull().Type.ShouldBe(WorkflowRecovery.InterruptedErrorType);
+        closedOpened.Error.Message.ShouldContain("before the run started", Case.Sensitive);
+        closedOpened.Error.Message.ShouldContain("MaxResumeAttempts", Case.Sensitive);
+    }
+
     [Fact]
     public async Task A_run_that_is_not_running_keeps_the_error_it_was_closed_with()
     {
         var head = await StartAsync(RunStatus.Canceled);
         var record = (await _runs.GetRunAsync(head))!;
 
-        await Recovery(max: 1).CloseInterruptedAsync(record, TraconId.NewId(), continuations: 0, CancellationToken.None);
+        await Recovery(max: 1).CloseChainAsync(
+            new WorkflowRecoveryPlan { Step = WorkflowRecoveryStep.Continue, Chain = [record], Last = record, ContinuationRunId = TraconId.NewId() },
+            CancellationToken.None);
 
         (await _runs.GetRunAsync(head))!.Status.ShouldBe(RunStatus.Canceled);
     }
 
     private WorkflowRecovery Recovery(int max)
         => new(_runs, _checkpoints, new FixedPolicy(max));
+
+    private static JobRecord Job(int attempt = 1, int? maxAttempts = 10) => new()
+    {
+        Id = TraconId.NewId(),
+        TenantId = Tenant,
+        HandlerKey = JobHandlerKeys.Workflow,
+        TargetName = "podcast",
+        Status = JobStatus.Running,
+        Attempt = attempt,
+        MaxAttempts = maxAttempts,
+        ScheduledFor = DateTimeOffset.UtcNow,
+        CreatedAt = DateTimeOffset.UtcNow,
+    };
 
     private async Task<Guid> StartAsync(RunStatus status, Guid? continuedFrom = null, string tenant = Tenant)
     {
@@ -231,5 +335,14 @@ public sealed class WorkflowRecoveryPlanTests
         public bool ResumeInterruptedRuns => true;
 
         public int MaxResumeAttempts => max;
+    }
+
+    private sealed class FixedOptions(TraconSchedulingOptions value) : IOptionsMonitor<TraconSchedulingOptions>
+    {
+        public TraconSchedulingOptions CurrentValue => value;
+
+        public TraconSchedulingOptions Get(string? name) => value;
+
+        public IDisposable? OnChange(Action<TraconSchedulingOptions, string?> listener) => null;
     }
 }

@@ -197,7 +197,10 @@ public static partial class TraconServiceCollectionExtensions
         // 🚨 F-321: both workflow handlers take WorkflowRecovery, and it takes
         // IWorkflowRecoveryPolicy, which only UseWorkflows() registers. A
         // factory that drops it leaves recovery off with no error, whatever
-        // ResumeInterruptedRuns says (WorkflowRecoveryRegistrationTests).
+        // ResumeInterruptedRuns says; one that drops the scheduling options
+        // lets a batch job's last attempt start a continuation nothing closes.
+        // The functional tests build both handlers from this container:
+        // WorkflowRecoveryTests and WorkflowRecoveryAttemptLimitTests.
         services.AddBuiltInJobHandler(
             JobHandlerKeys.Workflow,
             static provider => new WorkflowJobHandler(
@@ -458,14 +461,15 @@ public static partial class TraconServiceCollectionExtensions
     /// </summary>
     /// <remarks>
     /// Every dependency is passed by hand: the built-in container does not fill in a
-    /// constructor parameter that has a default value, and a policy left out here
-    /// would turn recovery off with no error.
+    /// constructor parameter that has a default value, and a policy or a scheduling
+    /// option left out here would change recovery with no error.
     /// </remarks>
     private static WorkflowRecovery CreateWorkflowRecovery(IServiceProvider provider)
         => new(
             provider.GetRequiredService<IRunStore>(),
             provider.GetRequiredService<IWorkflowCheckpointStore>(),
             provider.GetService<IWorkflowRecoveryPolicy>(),
+            provider.GetService<IOptionsMonitor<TraconSchedulingOptions>>(),
             provider.GetService<TimeProvider>(),
             provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowRecovery>>());
 }
