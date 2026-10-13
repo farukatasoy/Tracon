@@ -45,7 +45,7 @@ type Fix<T, K extends keyof T> = Omit<T, K> & {
   [P in K]-?: [Extract<T[P], number>] extends [never] ? T[P] : Exclude<T[P], string>;
 };
 
-// 92 schemas widened; 28 carry a nested-reference override (104 total exports)
+// 93 schemas widened; 29 carry a nested-reference override (106 total exports)
 
 export type AIContentCodeInterpreterToolCallContent = Fix<Generated.AiContentCodeInterpreterToolCallContent, 'additionalProperties' | 'annotations' | 'inputs'>;
 export type AIContentFunctionCallContent = Fix<Generated.AiContentFunctionCallContent, 'informationalOnly'>;
@@ -113,6 +113,7 @@ export type ModelBinding = Fix<Generated.ModelBinding, 'allowConcurrentToolCalls
 export type ModelDescriptor = Fix<Generated.ModelDescriptor, 'cachedInputCostPerMillionTokens' | 'contextWindowTokens' | 'inputCostPerMillionTokens' | 'maxOutputTokens' | 'outputCostPerMillionTokens' | 'supportsReasoning' | 'supportsStreaming' | 'supportsStructuredOutput' | 'supportsTools'>;
 export type ModelProviderDescriptor = Fix<Generated.ModelProviderDescriptor, 'status'> & { models: ModelDescriptor[] };
 export type ModelProviderHealth = Fix<Generated.ModelProviderHealth, 'checkedAt' | 'models'>;
+export type NonTokenUsageRecord = Omit<Generated.NonTokenUsageRecord, 'usage'> & { usage: ToolCallUsage };
 export type OnlineEvaluationSummary = Fix<Generated.OnlineEvaluationSummary, 'averageScore' | 'judgeCost' | 'lowScoreThreshold' | 'minSampleSize' | 'sampleCount'>;
 export type QuotaDefinition = Fix<Generated.QuotaDefinition, 'enabled' | 'maxCost' | 'maxRuns' | 'maxTokens'>;
 export type QuotaUsageRecord = Fix<Generated.QuotaUsageRecord, 'cost' | 'runs' | 'tokens'>;
@@ -139,7 +140,8 @@ export type RunErrorStatistics = Fix<Generated.RunErrorStatistics, 'totalRuns'> 
 export type RunInputResponse = Omit<Generated.RunInputResponse, 'messages'> & { messages: ChatMessage[] };
 export type RunLabelStatistics = Fix<Generated.RunLabelStatistics, 'failedRuns' | 'totalCost' | 'totalRuns' | 'totalTokens'>;
 export type RunModelStatistics = Fix<Generated.RunModelStatistics, 'inputTokens' | 'outputTokens' | 'totalCost' | 'totalRuns' | 'totalTokens'>;
-export type RunRecord = Fix<Generated.RunRecord, 'agentVersion' | 'childRunCount' | 'depth' | 'eventCount' | 'isStreaming' | 'kind'> & { cost: RunCost | null; treeCost: RunTreeCost | null; treeUsage: RunUsage | null; usage: RunUsage | null };
+export type RunNonTokenCost = Fix<Generated.RunNonTokenCost, 'amount' | 'isEstimated' | 'unsummedItemCount'>;
+export type RunRecord = Fix<Generated.RunRecord, 'agentVersion' | 'childRunCount' | 'depth' | 'eventCount' | 'isStreaming' | 'kind'> & { cost: RunCost | null; nonTokenCost: RunNonTokenCost | null; treeCost: RunTreeCost | null; treeNonTokenCost: RunNonTokenCost | null; treeUsage: RunUsage | null; usage: RunUsage | null };
 export type RunReplayResponse = Fix<Generated.RunReplayResponse, 'agentVersion'>;
 export type RunScore = Fix<Generated.RunScore, 'createdAt' | 'id' | 'value'>;
 // `categories` is an inline numeric map (not a $ref), so Fix<> (which only

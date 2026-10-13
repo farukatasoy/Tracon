@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fixture, installApiMock } from '../test/api-fixtures';
+import { fixture, installApiMock, type FixtureRoute } from '../test/api-fixtures';
 import { renderScreen, screen } from '../test/render';
 import { RunDetailScreen } from './run-detail';
 
@@ -142,5 +142,197 @@ describe('RunDetailScreen', () => {
     for (const link of [awaitingLink, headerLink]) {
       expect(link.getAttribute('href')).toContain(`/workflows/approval-flow?runId=${runId}`);
     }
+  });
+});
+
+describe('RunDetailScreen non-token usage', () => {
+  let restoreFetch: () => void;
+
+  afterEach(() => {
+    restoreFetch();
+  });
+
+  const closedWorkflow = {
+    ...runRecord(),
+    kind: 'Workflow',
+    agentName: 'podcast',
+    workflowName: 'podcast',
+    status: 'Completed',
+    completedAt: '2026-09-01T10:00:30Z',
+  };
+
+  const settled: FixtureRoute[] = [
+    {
+      method: 'GET',
+      pattern: 'api/runs/:runId/events',
+      handler: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+    },
+    fixture('GET', 'api/runs/:runId/trace', { spans: [] }),
+    fixture('GET', 'api/runs/:runId/tree', []),
+    fixture('GET', 'api/runs/:runId/tools', []),
+  ];
+
+  const speech = {
+    id: '33333333-3333-3333-3333-333333333333',
+    runId,
+    nodeName: 'narrate',
+    createdAt: '2026-09-01T10:00:10Z',
+    usage: {
+      unit: 'characters',
+      quantity: 1234.5,
+      cost: 0.03,
+      currency: 'USD',
+      isEstimated: true,
+      provider: 'elevenlabs',
+      model: 'eleven_multilingual_v2',
+    },
+  };
+
+  const unpriced = {
+    id: '44444444-4444-4444-4444-444444444444',
+    runId,
+    nodeName: 'render',
+    createdAt: '2026-09-01T10:00:20Z',
+    usage: { unit: 'gpu-seconds', quantity: 30, cost: null, currency: null, isEstimated: false },
+  };
+
+  it('lists a function node\'s items with the amount, the estimate flag and who did the work', async () => {
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', {
+        ...closedWorkflow,
+        nonTokenCost: { amount: 0.03, currency: 'USD', isEstimated: true, unsummedItemCount: 1 },
+        treeNonTokenCost: { amount: 0.03, currency: 'USD', isEstimated: true, unsummedItemCount: 1 },
+      }),
+      ...settled,
+      fixture('GET', 'api/runs/:runId/usage', [speech, unpriced]),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    expect(await screen.findByText('Non-token usage (2)')).toBeTruthy();
+
+    const lines = screen.getAllByTestId('usage-line');
+
+    expect(lines).toHaveLength(2);
+    expect(lines[0]?.textContent).toContain('1,234.5 characters');
+    expect(lines[0]?.textContent).toContain('0.03 USD');
+    expect(lines[0]?.textContent).toContain('estimated');
+    expect(lines[0]?.textContent).toContain('elevenlabs / eleven_multilingual_v2');
+
+    // An item with no amount is NOT shown as a price: not "—", and never "0".
+    expect(lines[1]?.textContent).toContain('unpriced');
+    expect(lines[1]?.textContent).not.toContain('0.00');
+  });
+
+  it('shows the run\'s total, the estimate flag and how many items are not in it', async () => {
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', {
+        ...closedWorkflow,
+        nonTokenCost: { amount: 0.03, currency: 'USD', isEstimated: true, unsummedItemCount: 1 },
+        treeNonTokenCost: { amount: 0.03, currency: 'USD', isEstimated: true, unsummedItemCount: 1 },
+      }),
+      ...settled,
+      fixture('GET', 'api/runs/:runId/usage', [speech, unpriced]),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    const total = await screen.findByTestId('usage-total');
+
+    expect(total.textContent).toContain('Reported in this run');
+    expect(total.textContent).toContain('0.03 USD');
+    expect(total.textContent).toContain('estimated');
+    expect(total.textContent).toContain('1 not added');
+
+    // No run below this one: the tree line would repeat the line above it.
+    expect(screen.queryByTestId('usage-tree-total')).toBeNull();
+  });
+
+  it('adds the whole tree\'s total on a root that has runs below it', async () => {
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', {
+        ...closedWorkflow,
+        childRunCount: 1,
+        nonTokenCost: { amount: 1, currency: 'USD', isEstimated: false, unsummedItemCount: 0 },
+        treeNonTokenCost: { amount: 1.25, currency: 'USD', isEstimated: false, unsummedItemCount: 0 },
+      }),
+      ...settled,
+      fixture('GET', 'api/runs/:runId/usage', [speech]),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    const tree = await screen.findByTestId('usage-tree-total');
+
+    expect(tree.textContent).toContain('Reported in the whole tree');
+    expect(tree.textContent).toContain('1.25 USD');
+  });
+
+  it('draws no panel for a run that reported nothing', async () => {
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', {
+        ...closedWorkflow,
+        nonTokenCost: null,
+        treeNonTokenCost: null,
+      }),
+      ...settled,
+      fixture('GET', 'api/runs/:runId/usage', []),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    // The run has settled: its tool panel is the signal that the screen finished loading.
+    expect(await screen.findByText('No tool call')).toBeTruthy();
+    expect(screen.queryByText(/Non-token usage/)).toBeNull();
+  });
+
+  it('shows a tool call\'s own measurement on its row, with the same line as a node item', async () => {
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', { ...runRecord(), status: 'Completed', completedAt: '2026-09-01T10:00:30Z' }),
+      {
+        method: 'GET',
+        pattern: 'api/runs/:runId/events',
+        handler: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+      },
+      fixture('GET', 'api/runs/:runId/trace', { spans: [] }),
+      fixture('GET', 'api/runs/:runId/tree', []),
+      fixture('GET', 'api/runs/:runId/usage', []),
+      fixture('GET', 'api/runs/:runId/tools', [
+        {
+          id: '55555555-5555-5555-5555-555555555555',
+          runId,
+          toolName: 'speak',
+          toolCallId: 'call-speak',
+          source: null,
+          arguments: null,
+          result: 'Audio produced.',
+          duration: null,
+          error: null,
+          createdAt: '2026-09-01T10:00:10Z',
+          usage: {
+            unit: 'characters',
+            quantity: 120,
+            cost: null,
+            currency: null,
+            isEstimated: true,
+            provider: 'elevenlabs',
+            model: null,
+          },
+          authorizationDenied: false,
+          timedOut: false,
+          lateCompletedAt: null,
+          succeeded: true,
+        },
+      ]),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    const line = await screen.findByTestId('usage-line');
+
+    expect(line.textContent).toContain('120 characters');
+    expect(line.textContent).toContain('unpriced');
+    expect(line.textContent).toContain('estimated');
+    expect(line.textContent).toContain('elevenlabs');
   });
 });

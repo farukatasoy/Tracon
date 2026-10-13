@@ -27,24 +27,23 @@ public sealed record RunNonTokenCost
 {
     /// <summary>
     /// Gets the sum of the reported amounts that were added, or <see langword="null"/>
-    /// when no reported item carried an amount in <see cref="Currency"/>.
+    /// when no reported item carried an amount in <c>Currency</c>.
     /// </summary>
     /// <remarks>
     /// <see langword="null"/> says "nothing here could be priced", not "it was free":
-    /// zero would claim a measurement nobody made. The same rule as
-    /// <see cref="RunCost.Total"/>.
+    /// zero would claim a measurement nobody made. The same rule as the token cost's total.
     /// </remarks>
     public decimal? Amount { get; init; }
 
     /// <summary>
-    /// Gets the currency of <see cref="Amount"/>, taken from
+    /// Gets the currency of <c>Amount</c>, taken from
     /// <c>Tracon:Pricing:Currency</c> (an item that names no currency is in it).
     /// </summary>
     public string? Currency { get; init; }
 
     /// <summary>
     /// Gets whether any added amount rests on an estimated quantity
-    /// (<see cref="ToolCallUsage.IsEstimated"/>).
+    /// (<c>ToolCallUsage.IsEstimated</c>).
     /// </summary>
     /// <remarks>
     /// An estimated amount is added, and this flag says so: leaving it out would let
@@ -53,8 +52,8 @@ public sealed record RunNonTokenCost
     public bool IsEstimated { get; init; }
 
     /// <summary>
-    /// Gets how many reported items are not part of <see cref="Amount"/>: items with no
-    /// amount, and items in another currency than <see cref="Currency"/>.
+    /// Gets how many reported items are not part of <c>Amount</c>: items with no
+    /// amount, and items in another currency than <c>Currency</c>.
     /// </summary>
     /// <remarks>
     /// A quota or budget cannot count such an item. The count is what keeps that gap

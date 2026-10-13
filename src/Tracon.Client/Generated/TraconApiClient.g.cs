@@ -13325,6 +13325,98 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Lists the non-token usage items a run's workflow function nodes reported.
+        /// </summary>
+        /// <remarks>
+        /// Each item is one call of IWorkflowContext.ReportUsageAsync, in the order reported: the node's name, the unit and quantity, and the amount when the node reported one. The items of the run itself only, not of the runs below it; a tool's measurement stays on GET /api/runs/{runId}/tools. The run's total is on the run record (nonTokenCost, treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<NonTokenUsageRecord>> TraconListRunNonTokenUsageAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (runId == null)
+                throw new System.ArgumentNullException("runId");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/runs/{runId}/usage"
+                    urlBuilder_.Append("api/runs/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/usage");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<System.Collections.Generic.ICollection<NonTokenUsageRecord>>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Returns call count, error rate, and average duration per tool.
         /// </summary>
         /// <remarks>
@@ -22524,6 +22616,52 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
+    /// One non-token item a workflow function node reported: the persistent record behind
+    /// <br/>`GET /api/runs/{runId}/usage`.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class NonTokenUsageRecord
+    {
+        /// <summary>
+        /// Gets the record id. A time-ordered UUID (v7).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public System.Guid Id { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the run the item belongs to.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("runId")]
+        public System.Guid RunId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the name of the function node that reported the item, or `null`
+        /// <br/>when the reporting code did not run inside a function node Tracon registered
+        /// <br/>(a custom executor in a graph built in code, for example).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("nodeName")]
+        public string? NodeName { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the measurement and its amount.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("usage")]
+        public ToolCallUsage Usage { get; set; } = new ToolCallUsage();
+
+        /// <summary>
+        /// Gets the moment the item was reported (UTC).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("createdAt")]
+        public System.DateTimeOffset CreatedAt { get; set; } = default!;
+
+    }
+
+    /// <summary>
     /// Summarizes the online evaluation window (`GET /api/evaluation/online`).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -24015,6 +24153,47 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
+    /// What a run spent that is not tokens: the amounts its workflow function nodes and
+    /// <br/>its tools reported, added up in one currency.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RunNonTokenCost
+    {
+        /// <summary>
+        /// Gets the sum of the reported amounts that were added, or `null`
+        /// <br/>when no reported item carried an amount in `Currency`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("amount")]
+        public double? Amount { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the currency of `Amount`, taken from
+        /// <br/>`Tracon:Pricing:Currency` (an item that names no currency is in it).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("currency")]
+        public string? Currency { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether any added amount rests on an estimated quantity
+        /// <br/>(`ToolCallUsage.IsEstimated`).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("isEstimated")]
+        public bool IsEstimated { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how many reported items are not part of `Amount`: items with no
+        /// <br/>amount, and items in another currency than `Currency`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("unsummedItemCount")]
+        public int UnsummedItemCount { get; set; } = default!;
+
+    }
+
+    /// <summary>
     /// Summary of a run. It acts as the header of the event stream.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -24219,6 +24398,22 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("treeCost")]
         public RunTreeCost? TreeCost { get; set; } = default!;
+
+        /// <summary>
+        /// Gets what this run itself reported as spent that is not tokens — the amounts its
+        /// <br/>workflow function nodes and tools reported. `null` when it
+        /// <br/>reported nothing.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("nonTokenCost")]
+        public RunNonTokenCost? NonTokenCost { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the reported non-token cost of this run and every run below it.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("treeNonTokenCost")]
+        public RunNonTokenCost? TreeNonTokenCost { get; set; } = default!;
 
         /// <summary>
         /// Gets the source run id when this run is a replay, otherwise
@@ -26396,7 +26591,8 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
-    /// A single tool call's non-token measurement and cost.
+    /// A non-token measurement and its cost: one tool call's, or one item a
+    /// <br/>workflow function node reported.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ToolCallUsage
@@ -26424,7 +26620,8 @@ namespace Tracon.Client.Generated
         public double? Cost { get; set; } = default!;
 
         /// <summary>
-        /// The currency. Comes from `Tracon:Pricing:Currency`.
+        /// The currency of `Cost`. Comes from `Tracon:Pricing:Currency`
+        /// <br/>for Tracon's own tools.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("currency")]
@@ -26436,6 +26633,22 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("isEstimated")]
         public bool IsEstimated { get; set; } = default!;
+
+        /// <summary>
+        /// The provider that did the work (for example `elevenlabs`), or
+        /// <br/>`null` when the reporter does not name one.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        public string? Provider { get; set; } = default!;
+
+        /// <summary>
+        /// The model that did the work (for example `eleven_multilingual_v2`), or
+        /// <br/>`null` when the reporter does not name one.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("model")]
+        public string? Model { get; set; } = default!;
 
     }
 
