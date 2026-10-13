@@ -6017,6 +6017,53 @@
         }
       }
     },
+    "/tracon/api/runs/{runId}/usage": {
+      "get": {
+        "tags": [
+          "Tracon",
+          "Runs"
+        ],
+        "summary": "Lists the non-token usage items a run\u0027s workflow function nodes reported.",
+        "description": "Each item is one call of IWorkflowContext.ReportUsageAsync, in the order reported: the node\u0027s name, the unit and quantity, and the amount when the node reported one. The items of the run itself only, not of the runs below it; a tool\u0027s measurement stays on GET /api/runs/{runId}/tools. The run\u0027s total is on the run record (nonTokenCost, treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.",
+        "operationId": "TraconListRunNonTokenUsage",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NonTokenUsageRecord"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tracon/api/tools/usage": {
       "get": {
         "tags": [
@@ -13241,6 +13288,44 @@
         ],
         "description": "A provider\u0027s checked reachability status."
       },
+      "NonTokenUsageRecord": {
+        "required": [
+          "id",
+          "runId",
+          "usage",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Gets the record id. A time-ordered UUID (v7).",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "description": "Gets the run the item belongs to.",
+            "format": "uuid"
+          },
+          "nodeName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the name of the function node that reported the item, or \u0060null\u0060\nwhen the reporting code did not run inside a function node Tracon registered\n(a custom executor in a graph built in code, for example)."
+          },
+          "usage": {
+            "description": "Gets the measurement and its amount.",
+            "$ref": "#/components/schemas/ToolCallUsage"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Gets the moment the item was reported (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "One non-token item a workflow function node reported: the persistent record behind\n\u0060GET /api/runs/{runId}/usage\u0060."
+      },
       "OnlineEvaluationSummary": {
         "required": [
           "windowStart",
@@ -14674,6 +14759,42 @@
         },
         "description": "A model\u0027s run summary. The input to cost computation."
       },
+      "RunNonTokenCost": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the sum of the reported amounts that were added, or \u0060null\u0060\nwhen no reported item carried an amount in \u0060Currency\u0060.",
+            "format": "double"
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the currency of \u0060Amount\u0060, taken from\n\u0060Tracon:Pricing:Currency\u0060 (an item that names no currency is in it)."
+          },
+          "isEstimated": {
+            "type": "boolean",
+            "description": "Gets whether any added amount rests on an estimated quantity\n(\u0060ToolCallUsage.IsEstimated\u0060)."
+          },
+          "unsummedItemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets how many reported items are not part of \u0060Amount\u0060: items with no\namount, and items in another currency than \u0060Currency\u0060.",
+            "format": "int32"
+          }
+        },
+        "description": "What a run spent that is not tokens: the amounts its workflow function nodes and\nits tools reported, added up in one currency."
+      },
       "RunRecord": {
         "required": [
           "id",
@@ -14889,6 +15010,28 @@
               {
                 "description": "Gets the total cost of this run and every run below it.",
                 "$ref": "#/components/schemas/RunTreeCost"
+              }
+            ]
+          },
+          "nonTokenCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets what this run itself reported as spent that is not tokens \u2014 the amounts its\nworkflow function nodes and tools reported. \u0060null\u0060 when it\nreported nothing.",
+                "$ref": "#/components/schemas/RunNonTokenCost"
+              }
+            ]
+          },
+          "treeNonTokenCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the reported non-token cost of this run and every run below it.",
+                "$ref": "#/components/schemas/RunNonTokenCost"
               }
             ]
           },
@@ -17066,14 +17209,28 @@
               "null",
               "string"
             ],
-            "description": "The currency. Comes from \u0060Tracon:Pricing:Currency\u0060."
+            "description": "The currency of \u0060Cost\u0060. Comes from \u0060Tracon:Pricing:Currency\u0060\nfor Tracon\u0027s own tools."
           },
           "isEstimated": {
             "type": "boolean",
             "description": "Whether the quantity was measured or estimated."
+          },
+          "provider": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The provider that did the work (for example \u0060elevenlabs\u0060), or\n\u0060null\u0060 when the reporter does not name one."
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The model that did the work (for example \u0060eleven_multilingual_v2\u0060), or\n\u0060null\u0060 when the reporter does not name one."
           }
         },
-        "description": "A single tool call\u0027s non-token measurement and cost."
+        "description": "A non-token measurement and its cost: one tool call\u0027s, or one item a\nworkflow function node reported."
       },
       "ToolDescriptor": {
         "required": [

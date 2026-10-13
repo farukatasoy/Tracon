@@ -22,14 +22,16 @@ import { StatusDot, STATUS_TEXT, type StatusTone } from '../components/status-do
 import { Menu, type MenuItem } from '../components/menu';
 import { CancelRunButton } from '../components/cancel-run-button';
 import { FeedbackControl } from '../components/feedback-control';
+import { NonTokenUsagePanel, hasNonTokenUsage } from '../components/non-token-usage-panel';
 import { PromoteToEvalCase } from '../components/promote-to-eval-case';
 import { ReplayPanel } from '../components/replay-panel';
 import { RunComparison } from '../components/run-comparison';
 import { TranscriptView } from '../components/transcript';
+import { UsageLine } from '../components/usage-line';
 import { Waterfall, formatMs } from '../components/waterfall';
 import { StatusBadge } from './runs';
 import type { RunEvent, RunEventType } from '../lib/run-event';
-import type { RunRecord, RunTrace, ToolInvocationRecord } from '../lib/server-types';
+import type { NonTokenUsageRecord, RunRecord, RunTrace, ToolInvocationRecord } from '../lib/server-types';
 
 /**
  * Formats an applied unit price, or an em dash when it was never priced —
@@ -165,6 +167,18 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
       unwrap(
         client.GET('/api/runs/{runId}/tools', { params: { path: { runId: id } } }),
       ) as Promise<ToolInvocationRecord[]>,
+    enabled: finished,
+  });
+
+  // What the run's function nodes reported beyond tokens. Items are written the
+  // moment a node reports them, but a node that is still running can report more,
+  // so like the tool rows this is read once the run has settled.
+  const nonTokenUsage = useQuery({
+    queryKey: ['run-usage', id],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/runs/{runId}/usage', { params: { path: { runId: id } } }),
+      ) as Promise<NonTokenUsageRecord[]>,
     enabled: finished,
   });
 
@@ -526,6 +540,14 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
         </div>
       )}
 
+      {/* Not drawn for a run that reported nothing: an empty panel on every run would
+          say the console expected something. */}
+      {finished && nonTokenUsage.isSuccess && hasNonTokenUsage(nonTokenUsage.data, record) && (
+        <div className="mt-4">
+          <NonTokenUsagePanel items={nonTokenUsage.data} record={record} />
+        </div>
+      )}
+
       <p className="mt-3 text-xs text-subtle">
         {t('common.started')}{' '}
         <span title={absoluteTime(record.startedAt)}>{relativeTime(record.startedAt)}</span>
@@ -579,6 +601,11 @@ function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
           {call.duration != null ? formatMs(parseDuration(call.duration)) : t('runDetail.notMeasured')}
         </span>
       </div>
+
+      {/* The measurement the tool itself reported — characters spoken, seconds
+          transcribed, images made — and what it cost. The same line a function
+          node's item gets in the usage panel. */}
+      {call.usage != null && <UsageLine usage={call.usage} />}
 
       {call.arguments != null && call.arguments.length > 0 && (
         <div className="mt-1.5">

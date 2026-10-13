@@ -88,15 +88,15 @@ public sealed record WebhookRunSummary
 
     /// <summary>
     /// The total amount: the token cost and the non-token amount the run reported
-    /// (<see cref="NonTokenCost"/>) together. <see langword="null"/> if neither is
+    /// (<c>NonTokenCost</c>) together. <see langword="null"/> if neither is
     /// priced — not zero.
     /// </summary>
     public decimal? Cost { get; init; }
 
     /// <summary>
-    /// The part of <see cref="Cost"/> that is not tokens: what the run's workflow function
-    /// nodes and tools reported, in <see cref="Currency"/>. <see langword="null"/> when the
-    /// run reported no amount. The token part is <c>Cost - NonTokenCost</c>.
+    /// The part of <c>Cost</c> that is not tokens: what the run's workflow function nodes
+    /// and tools reported, in <c>Currency</c>. <see langword="null"/> when the run reported
+    /// no amount. Subtract it from <c>Cost</c> for the token part.
     /// </summary>
     public decimal? NonTokenCost { get; init; }
 

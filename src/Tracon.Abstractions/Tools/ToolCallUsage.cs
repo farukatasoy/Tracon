@@ -37,13 +37,13 @@ public sealed record ToolCallUsage
     public decimal? Cost { get; init; }
 
     /// <summary>
-    /// The currency of <see cref="Cost"/>. Comes from <c>Tracon:Pricing:Currency</c>
+    /// The currency of <c>Cost</c>. Comes from <c>Tracon:Pricing:Currency</c>
     /// for Tracon's own tools.
     /// </summary>
     /// <remarks>
     /// An empty label means <c>Tracon:Pricing:Currency</c>. An amount adds to the run's
     /// total only when its currency is that one; any other currency is listed and
-    /// counted as not added (<see cref="RunNonTokenCost.UnsummedItemCount"/>).
+    /// counted as not added (<c>RunNonTokenCost.UnsummedItemCount</c>).
     /// </remarks>
     public string? Currency { get; init; }
 

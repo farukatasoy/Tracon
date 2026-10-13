@@ -129,6 +129,7 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<McpServerDefinition>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<ModelProviderDescriptor>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<ModelProviderHealth>))]
+[JsonSerializable(typeof(System.Collections.Generic.ICollection<NonTokenUsageRecord>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<PendingApproval>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<QuotaDefinition>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<RetentionPolicy>))]

@@ -2240,6 +2240,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{runId}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the non-token usage items a run's workflow function nodes reported.
+         * @description Each item is one call of IWorkflowContext.ReportUsageAsync, in the order reported: the node's name, the unit and quantity, and the amount when the node reported one. The items of the run itself only, not of the runs below it; a tool's measurement stays on GET /api/runs/{runId}/tools. The run's total is on the run record (nonTokenCost, treeNonTokenCost). A run that does not exist, belongs to another tenant, or is denied by a registered IRunAuthorizationHandler returns the same 404.
+         */
+        get: operations["TraconListRunNonTokenUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tools/usage": {
         parameters: {
             query?: never;
@@ -5400,6 +5420,35 @@ export interface components {
          * @enum {unknown}
          */
         ModelProviderHealthStatus: "Unknown" | "Healthy" | "Degraded" | "Unhealthy";
+        /**
+         * @description One non-token item a workflow function node reported: the persistent record behind
+         *     `GET /api/runs/{runId}/usage`.
+         */
+        NonTokenUsageRecord: {
+            /**
+             * Format: uuid
+             * @description Gets the record id. A time-ordered UUID (v7).
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Gets the run the item belongs to.
+             */
+            runId: string;
+            /**
+             * @description Gets the name of the function node that reported the item, or `null`
+             *     when the reporting code did not run inside a function node Tracon registered
+             *     (a custom executor in a graph built in code, for example).
+             */
+            nodeName?: null | string;
+            /** @description Gets the measurement and its amount. */
+            usage: components["schemas"]["ToolCallUsage"];
+            /**
+             * Format: date-time
+             * @description Gets the moment the item was reported (UTC).
+             */
+            createdAt: string;
+        };
         /** @description Summarizes the online evaluation window (`GET /api/evaluation/online`). */
         OnlineEvaluationSummary: {
             /**
@@ -6114,6 +6163,34 @@ export interface components {
              */
             totalCost?: null | number | string;
         };
+        /**
+         * @description What a run spent that is not tokens: the amounts its workflow function nodes and
+         *     its tools reported, added up in one currency.
+         */
+        RunNonTokenCost: {
+            /**
+             * Format: double
+             * @description Gets the sum of the reported amounts that were added, or `null`
+             *     when no reported item carried an amount in `Currency`.
+             */
+            amount?: null | number | string;
+            /**
+             * @description Gets the currency of `Amount`, taken from
+             *     `Tracon:Pricing:Currency` (an item that names no currency is in it).
+             */
+            currency?: null | string;
+            /**
+             * @description Gets whether any added amount rests on an estimated quantity
+             *     (`ToolCallUsage.IsEstimated`).
+             */
+            isEstimated?: boolean;
+            /**
+             * Format: int32
+             * @description Gets how many reported items are not part of `Amount`: items with no
+             *     amount, and items in another currency than `Currency`.
+             */
+            unsummedItemCount?: number | string;
+        };
         /** @description Summary of a run. It acts as the header of the event stream. */
         RunRecord: {
             /**
@@ -6219,6 +6296,8 @@ export interface components {
             treeUsage?: null | components["schemas"]["RunUsage"];
             cost?: null | components["schemas"]["RunCost"];
             treeCost?: null | components["schemas"]["RunTreeCost"];
+            nonTokenCost?: null | components["schemas"]["RunNonTokenCost"];
+            treeNonTokenCost?: null | components["schemas"]["RunNonTokenCost"];
             /**
              * Format: uuid
              * @description Gets the source run id when this run is a replay, otherwise
@@ -7268,7 +7347,10 @@ export interface components {
             annotations?: null | components["schemas"]["AIAnnotation"][];
             additionalProperties?: null | Record<string, never>;
         };
-        /** @description A single tool call's non-token measurement and cost. */
+        /**
+         * @description A non-token measurement and its cost: one tool call's, or one item a
+         *     workflow function node reported.
+         */
         ToolCallUsage: {
             /** @description The measurement unit. See ToolUsageUnits for known values. */
             unit: string;
@@ -7283,10 +7365,23 @@ export interface components {
              *     configuration has no price for this tool — <strong>not</strong> zero.
              */
             cost?: null | number | string;
-            /** @description The currency. Comes from `Tracon:Pricing:Currency`. */
+            /**
+             * @description The currency of `Cost`. Comes from `Tracon:Pricing:Currency`
+             *     for Tracon's own tools.
+             */
             currency?: null | string;
             /** @description Whether the quantity was measured or estimated. */
             isEstimated?: boolean;
+            /**
+             * @description The provider that did the work (for example `elevenlabs`), or
+             *     `null` when the reporter does not name one.
+             */
+            provider?: null | string;
+            /**
+             * @description The model that did the work (for example `eleven_multilingual_v2`), or
+             *     `null` when the reporter does not name one.
+             */
+            model?: null | string;
         };
         /**
          * @description The UI-facing definition of a tool registered in code. The agent editor
@@ -8451,6 +8546,7 @@ export type ModelFallback = components['schemas']['ModelFallback'];
 export type ModelProviderDescriptor = components['schemas']['ModelProviderDescriptor'];
 export type ModelProviderHealth = components['schemas']['ModelProviderHealth'];
 export type ModelProviderHealthStatus = components['schemas']['ModelProviderHealthStatus'];
+export type NonTokenUsageRecord = components['schemas']['NonTokenUsageRecord'];
 export type OnlineEvaluationSummary = components['schemas']['OnlineEvaluationSummary'];
 export type OpenAiErrorBody = components['schemas']['OpenAIErrorBody'];
 export type OpenAiErrorEnvelope = components['schemas']['OpenAIErrorEnvelope'];
@@ -8485,6 +8581,7 @@ export type RunInputResponse = components['schemas']['RunInputResponse'];
 export type RunKind = components['schemas']['RunKind'];
 export type RunLabelStatistics = components['schemas']['RunLabelStatistics'];
 export type RunModelStatistics = components['schemas']['RunModelStatistics'];
+export type RunNonTokenCost = components['schemas']['RunNonTokenCost'];
 export type RunRecord = components['schemas']['RunRecord'];
 export type RunRecordingDiagnostic = components['schemas']['RunRecordingDiagnostic'];
 export type RunReplayRequest = components['schemas']['RunReplayRequest'];
@@ -12512,6 +12609,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ToolInvocationRecord"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TraconListRunNonTokenUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NonTokenUsageRecord"][];
                 };
             };
             /** @description Not Found */
