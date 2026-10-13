@@ -73,6 +73,7 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(LiveVoiceSessionCreateRequest))]
 [JsonSerializable(typeof(LiveVoiceSessionCreateResponse))]
 [JsonSerializable(typeof(LiveVoiceSessionStatusResponse))]
+[JsonSerializable(typeof(LoopCriterionCatalogResponse))]
 [JsonSerializable(typeof(McpOAuthStartResponse))]
 [JsonSerializable(typeof(McpPromptArgumentsRequest))]
 [JsonSerializable(typeof(McpPromptContent))]
