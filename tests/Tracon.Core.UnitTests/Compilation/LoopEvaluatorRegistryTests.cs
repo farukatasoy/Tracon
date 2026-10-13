@@ -550,7 +550,7 @@ public sealed class LoopEvaluatorRegistryTests
             ("loop_marker_missing", "harness.loop.criteria[0].marker"),
             ("loop_criterion_unknown", "harness.loop.criteria[1].kind"),
             ("loop_criterion_kind_missing", "harness.loop.criteria[2].kind"),
-            ("loop_judge_criteria_missing", "harness.loop.criteria[3].judgeCriteria"),
+            ("loop_judge_criteria_missing", "harness.loop.criteria[3].judgeCriteria[0]"),
             ("loop_judge_unconfigured", "harness.loop.criteria[3].kind"),
         ]);
 
@@ -569,6 +569,25 @@ public sealed class LoopEvaluatorRegistryTests
 
         problem.Code.ShouldBe("loop_criteria_empty");
         problem.Path.ShouldBe("harness.loop.criteria");
+    }
+
+    [Fact]
+    public void A_blank_judge_criterion_beside_a_real_one_is_refused_at_its_own_entry()
+    {
+        // Before, only an ALL-blank list was refused; ["ok?", "  "] compiled and
+        // the judge received a criterion with no text.
+        var registry = BuildRegistry(judge: new ModelRunJudgeOptions { Model = TestData.Binding() });
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "aiJudge", JudgeCriteria = ["ok?", "  "] }],
+        };
+
+        var problem = registry.FindProblems(loop).ShouldHaveSingleItem();
+
+        problem.Code.ShouldBe("loop_judge_criteria_missing");
+        problem.Path.ShouldBe("harness.loop.criteria[0].judgeCriteria[1]");
+        Should.Throw<TraconCompilationException>(() => Build(registry, WithLoop(loop)))
+            .Message.ShouldContain("Entry 2");
     }
 
     [Theory]

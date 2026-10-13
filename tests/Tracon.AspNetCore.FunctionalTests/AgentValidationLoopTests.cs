@@ -60,7 +60,9 @@ public sealed class AgentValidationLoopTests
     [InlineData("{\"criteria\":[{\"kind\":\"\"}]}", "loop_criterion_kind_missing", "harness.loop.criteria[0].kind")]
     [InlineData("{\"criteria\":[{\"kind\":\"   \"}]}", "loop_criterion_kind_missing", "harness.loop.criteria[0].kind")]
     [InlineData("{\"criteria\":[{\"kind\":\"completionMarker\",\"marker\":\"DONE\"}],\"maxIterations\":0}", "loop_max_iterations_invalid", "harness.loop.maxIterations")]
-    [InlineData("{\"criteria\":[{\"kind\":\"aiJudge\",\"judgeCriteria\":[\"\"]}]}", "loop_judge_criteria_missing", "harness.loop.criteria[0].judgeCriteria")]
+    [InlineData("{\"criteria\":[{\"kind\":\"aiJudge\",\"judgeCriteria\":[\"\"]}]}", "loop_judge_criteria_missing", "harness.loop.criteria[0].judgeCriteria[0]")]
+    [InlineData("{\"criteria\":[{\"kind\":\"aiJudge\",\"judgeCriteria\":[]}]}", "loop_judge_criteria_missing", "harness.loop.criteria[0].judgeCriteria")]
+    [InlineData("{\"criteria\":[{\"kind\":\"aiJudge\",\"judgeCriteria\":[\"ok?\",\"  \"]}]}", "loop_judge_criteria_missing", "harness.loop.criteria[0].judgeCriteria[1]")]
     public async Task Empty_and_out_of_range_loop_input_is_reported_at_its_path(string loop, string code, string path)
     {
         await using var host = await TraconTestHost.StartAsync();
