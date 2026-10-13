@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
   </ItemGroup>
 
   <ItemGroup>

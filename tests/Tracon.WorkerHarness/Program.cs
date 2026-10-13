@@ -31,7 +31,7 @@ builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.Configure<WorkerHarnessSettingsHolder>(holder => holder.Settings = settings);
 
-builder.Services.AddTracon()
+var tracon = builder.Services.AddTracon()
     .UsePostgreSql(options =>
     {
         options.ConnectionString = settings.ConnectionString;
@@ -46,6 +46,15 @@ builder.Services.AddTracon()
     });
 
 builder.Services.AddJobHandler<LongRunningJobHandler>(WorkerHarnessContract.HandlerKey);
+
+// Phase 197: the two-step workflow a test kills in its second step. The first
+// step returns at once, so its checkpoint exists before the kill; the second
+// takes the work duration. Both write to the shared execution log with the
+// run they ran in, so the test can tell a repeated step from a resumed one.
+if (settings.Workflow)
+{
+    HarnessWorkflow.Register(tracon, settings);
+}
 
 builder.Services.UseScheduling(options =>
 {
