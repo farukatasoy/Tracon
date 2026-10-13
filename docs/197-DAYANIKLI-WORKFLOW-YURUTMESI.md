@@ -1,7 +1,7 @@
 # Faz 197 — Dayanıklı Workflow Yürütmesi: Bağlantısız Run ve Otomatik Sürdürme
 
 > **Durum:** 📋 Planlandı (2026-10-12)
-> **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
+> **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-318**, **F-321**
 > **Önkoşul:** F-344, F-341, F-364 2026-10-12'de kapandı (K-909, K-908, K-904). [Faz 196](196-UZUN-ADIM-SURE-VE-IPTAL.md) ile sıra serbest; ikisi de job token'ına dokunur
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Sql.Shared`, üç SQL sağlayıcısı, `.Testing.Contracts.Xunit`
