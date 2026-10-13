@@ -120,4 +120,91 @@ public sealed class TraconWorkflowOptions
     /// </para>
     /// </remarks>
     public bool KeepCheckpointsAfterCompletion { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether a workflow run that a queued job was running when the
+    /// process stopped is resumed from its latest checkpoint when the job is
+    /// leased again.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The default is <see langword="false"/>: an interrupted job item runs its
+    /// workflow again from the beginning, as before this setting existed. Turned
+    /// on, the job is the run's owner. It writes the run's id on the job item (for
+    /// a batch, <c>tracon.workflow</c>) before the run starts; a queued single run
+    /// (<c>Prefer: respond-async</c>, <c>tracon.workflow-run</c>) already has its
+    /// id as the job's id. When the job is leased again after a crash, a deploy or
+    /// a graceful shutdown, the handler finds that run and acts on its status:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><c>Completed</c> or <c>AwaitingInput</c>: the work is done; nothing runs again.</item>
+    /// <item>
+    /// Any other status: a run left <c>Running</c> is closed as <c>Failed</c>, and
+    /// a NEW run continues it from the latest checkpoint in its chain. The new
+    /// run's <c>ContinuedFromRunId</c> names the run it continues; it uses the
+    /// same session, the parameter values the chain recorded, and the
+    /// attribution of whoever queued the job. It is not asked for quota or
+    /// authorization again: the job was, when it was queued.
+    /// </item>
+    /// <item>
+    /// No checkpoint in the chain: the run starts again from the beginning, or
+    /// the resume or the response is applied again.
+    /// </item>
+    /// </list>
+    /// <para>
+    /// 🚨 <strong>The step that was running when the process stopped runs
+    /// again.</strong> A checkpoint is written as each super-step ends, so the
+    /// steps finished before it are not repeated and the step in progress is. A
+    /// function step with a side effect must be idempotent, and an agent step
+    /// repeats its model calls and tool calls. A <c>Loop</c> agent step repeats
+    /// every turn it had finished: the loop's turns are not checkpointed.
+    /// </para>
+    /// <para>
+    /// A run that is bound to an HTTP connection (a streamed run) is never
+    /// resumed automatically: the caller who was reading it is gone, and the run
+    /// closes as <c>Canceled</c>. Resume it with the resume endpoint, or queue the
+    /// run with <c>Prefer: respond-async</c> in the first place.
+    /// </para>
+    /// <para>
+    /// Requires <see cref="EnableCheckpointing"/>: turning this on while
+    /// checkpointing is off fails at startup. Keep
+    /// <see cref="KeepCheckpointsAfterCompletion"/> on as well: a graceful
+    /// shutdown closes the run it stops as <c>Canceled</c>, and with that setting
+    /// off its checkpoints are deleted, so its continuation starts from the
+    /// beginning.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .UsePostgreSql(connectionString)
+    ///        .UseWorkflows(options =>
+    ///        {
+    ///            options.ResumeInterruptedRuns = true;
+    ///            options.MaxResumeAttempts = 2;
+    ///        });
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public bool ResumeInterruptedRuns { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many continuation runs one interrupted run may get while
+    /// <see cref="ResumeInterruptedRuns"/> is on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The default is one. The count is per chain: a continuation that is itself
+    /// interrupted counts against the same limit. Past it, the job item (or the
+    /// queued run's job) is failed instead of continued, and the last run of the
+    /// chain is left <c>Failed</c>. Zero turns continuation off but keeps the
+    /// detection: an interrupted run is closed as <c>Failed</c> and its item fails,
+    /// instead of running the workflow again from the beginning.
+    /// </para>
+    /// <para>
+    /// A queued single run's job is given <c>1 + MaxResumeAttempts</c> attempts
+    /// while recovery is on, one lease for each continuation; a batch job keeps
+    /// its own attempt limit. Must be from 0 to 100.
+    /// </para>
+    /// </remarks>
+    public int MaxResumeAttempts { get; set; } = 1;
 }

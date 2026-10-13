@@ -267,7 +267,7 @@ internal static class AgentEndpoints
                     return preflightProblem;
                 }
 
-                if (WantsAsync(httpContext))
+                if (RespondAsyncPreference.IsRequested(httpContext))
                 {
                     return await RunQueuedAsync(
                         name,
@@ -404,19 +404,6 @@ internal static class AgentEndpoints
 
         return TypedResults.Ok(estimator.Estimate(binding, request!.Message));
     }
-
-    /// <summary>
-    /// Determines whether the request carries the <c>Prefer: respond-async</c> preference (RFC 7240).
-    /// </summary>
-    /// <remarks>
-    /// For a request that does NOT carry the header, this check is a single
-    /// dictionary lookup; no extra query is made (the no-surprises rule: no silent cost).
-    /// </remarks>
-    private static bool WantsAsync(HttpContext httpContext)
-        => httpContext.Request.Headers.TryGetValue("Prefer", out var values) &&
-           values.Any(static value => value is not null &&
-               value.Split(',').Any(static token =>
-                   token.Trim().Equals("respond-async", StringComparison.OrdinalIgnoreCase)));
 
     private static async Task<Results<Ok<AgentVersionDiffResponse>, ProblemHttpResult>> GetVersionDiffAsync(
         string name,
@@ -1162,7 +1149,7 @@ internal static class AgentEndpoints
         // it. Tracon does not carry this ambiguity: if the preference was
         // applied, the response carries BOTH 202 AND 'Preference-Applied'
         // (repeats the same rule from Phase 43).
-        httpContext.Response.Headers["Preference-Applied"] = "respond-async";
+        RespondAsyncPreference.MarkApplied(httpContext);
 
         var location = $"{prefix}/api/runs/{runId}";
 

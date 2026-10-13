@@ -45,7 +45,9 @@ public sealed partial class JobHandlerOutcomeWriteSiteTests
         ["src/Tracon.Core/Scheduling/RunContinuationJobHandler.cs"] =
             "the session save after the continued run is tried again under the proven lease through QueuedTurn; past it the job fails with NonRetryableJobException and the turn is not repeated (F-367)",
         ["src/Tracon.Core/Scheduling/WorkflowJobHandler.cs"] =
-            "the item report is outside the workflow's try; a report error ends the attempt and the worker decides",
+            "the item report is outside the workflow's try; a report error ends the attempt and the worker decides; with recovery on, the item carries its run id, so the next lease finds the run finished and does not run it again (F-321)",
+        ["src/Tracon.Core/Scheduling/WorkflowRunJobHandler.cs"] =
+            "the engine closes the run; the handler's only read after it (the run's final status) is outside the run's try and a store error there completes the job instead of failing it, so the run is not repeated (F-318)",
         ["src/Tracon.Core/Webhooks/WebhookDeliveryJobHandler.cs"] =
             "the writes after an accepted delivery go through JobOutcomeWriteRetry and never throw; a delivery that is no longer Pending is not sent again (F-366)",
     };

@@ -33,6 +33,15 @@ namespace Tracon;
 /// API (e.g. <c>/api/agents/{name}/run</c>): binding consumes the body BEFORE the
 /// filter's InvokeAsync runs, but buffering keeps the stream rewindable.
 /// </para>
+/// <para>
+/// <strong>Streaming endpoints (F-318).</strong> A stored response must be
+/// replayable, and an SSE stream is not: buffering one would hold a long
+/// workflow run in memory and replay a frozen copy of it. An endpoint that only
+/// streams unless the caller queues the work gets the instance built with
+/// <c>requireRespondAsync</c>: there, a key without <c>Prefer: respond-async</c>
+/// is refused with <c>400</c> before anything is reserved or run, and the queued
+/// <c>202</c> is what is stored and replayed.
+/// </para>
 /// </remarks>
 internal sealed class IdempotencyFilter : IEndpointFilter
 {
@@ -43,15 +52,22 @@ internal sealed class IdempotencyFilter : IEndpointFilter
     public const string ReplayedHeaderName = "Idempotency-Replayed";
 
     private readonly IOptionsMonitor<TraconIdempotencyOptions> _optionsMonitor;
+    private readonly bool _requireRespondAsync;
 
     /// <summary>Creates a new idempotency filter.</summary>
     /// <param name="optionsMonitor">The idempotency settings.</param>
+    /// <param name="requireRespondAsync">
+    /// Whether a key is accepted only on a request that also carries
+    /// <c>Prefer: respond-async</c>. Set for an endpoint whose synchronous answer
+    /// is a stream, which cannot be stored and replayed.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
-    public IdempotencyFilter(IOptionsMonitor<TraconIdempotencyOptions> optionsMonitor)
+    public IdempotencyFilter(IOptionsMonitor<TraconIdempotencyOptions> optionsMonitor, bool requireRespondAsync = false)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
 
         _optionsMonitor = optionsMonitor;
+        _requireRespondAsync = requireRespondAsync;
     }
 
     /// <inheritdoc />
@@ -87,6 +103,20 @@ internal sealed class IdempotencyFilter : IEndpointFilter
             return Results.Problem(
                 title: "Idempotency-Key too long",
                 detail: $"The key may be at most {options.MaxKeyLength} characters; received length {key.Length}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // 🚨 Refused BEFORE the reservation and the run: without the preference
+        // the endpoint answers with a stream, and the capturing result below
+        // would buffer the whole run in memory to store a copy no replay can
+        // reproduce (F-318).
+        if (_requireRespondAsync && !RespondAsyncPreference.IsRequested(httpContext))
+        {
+            return Results.Problem(
+                title: "Idempotency-Key requires Prefer: respond-async",
+                detail: $"This endpoint streams its answer, and a stream cannot be stored and replayed. Send the " +
+                        $"'{HeaderName}' header together with 'Prefer: respond-async': the run is queued and the " +
+                        "'202 Accepted' answer is what a repeated request gets back.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 

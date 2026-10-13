@@ -193,11 +193,25 @@ public static partial class TraconServiceCollectionExtensions
         // IWorkflowRunner is not registered in most setups (unless
         // UseWorkflows() is called) - the same rationale applies to the
         // RunRecordingAgentDecorator registration too.
+        //
+        // 🚨 F-321: both workflow handlers take WorkflowRecovery, and it takes
+        // IWorkflowRecoveryPolicy, which only UseWorkflows() registers. A
+        // factory that drops it leaves recovery off with no error, whatever
+        // ResumeInterruptedRuns says (WorkflowRecoveryRegistrationTests).
         services.AddBuiltInJobHandler(
             JobHandlerKeys.Workflow,
             static provider => new WorkflowJobHandler(
                 provider.GetService<IWorkflowRunner>(),
+                CreateWorkflowRecovery(provider),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowJobHandler>>()));
+
+        // A single queued workflow operation (Prefer: respond-async, F-318).
+        services.AddBuiltInJobHandler(
+            JobHandlerKeys.WorkflowRun,
+            static provider => new WorkflowRunJobHandler(
+                provider.GetService<IWorkflowRunner>(),
+                CreateWorkflowRecovery(provider),
+                provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowRunJobHandler>>()));
 
         // Evaluation (eval) infrastructure (Phase 18). The suite/case/run store
         // is always registered; runs execute through the same job queue
@@ -438,4 +452,20 @@ public static partial class TraconServiceCollectionExtensions
 
         return run?.AgentName;
     }
+
+    /// <summary>
+    /// Builds the recovery both workflow job handlers share, from the execution's scope.
+    /// </summary>
+    /// <remarks>
+    /// Every dependency is passed by hand: the built-in container does not fill in a
+    /// constructor parameter that has a default value, and a policy left out here
+    /// would turn recovery off with no error (F-321).
+    /// </remarks>
+    private static WorkflowRecovery CreateWorkflowRecovery(IServiceProvider provider)
+        => new(
+            provider.GetRequiredService<IRunStore>(),
+            provider.GetRequiredService<IWorkflowCheckpointStore>(),
+            provider.GetService<IWorkflowRecoveryPolicy>(),
+            provider.GetService<TimeProvider>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<WorkflowRecovery>>());
 }

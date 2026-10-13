@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Scheduling;
 
@@ -8,7 +9,7 @@ public sealed class WorkflowJobHandlerTests
     [Fact]
     public async Task Throws_when_no_runner_is_registered()
     {
-        var handler = new WorkflowJobHandler(runner: null, NullLogger<WorkflowJobHandler>.Instance);
+        var handler = new WorkflowJobHandler(runner: null, TestWorkflowRecovery.Off(), NullLogger<WorkflowJobHandler>.Instance);
 
         var exception = await Should.ThrowAsync<TraconException>(
             () => handler.ExecuteAsync(BuildContext([Item(0, "input")])).AsTask());
@@ -20,7 +21,7 @@ public sealed class WorkflowJobHandlerTests
     public async Task A_successful_run_is_reported_as_completed()
     {
         var runner = new ScriptedWorkflowRunner(shouldFail: false);
-        var handler = new WorkflowJobHandler(runner, NullLogger<WorkflowJobHandler>.Instance);
+        var handler = new WorkflowJobHandler(runner, TestWorkflowRecovery.Off(), NullLogger<WorkflowJobHandler>.Instance);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(BuildContext([Item(0, "input")], reported));
@@ -34,7 +35,7 @@ public sealed class WorkflowJobHandlerTests
     public async Task A_RunFailed_event_is_reported_as_failed()
     {
         var runner = new ScriptedWorkflowRunner(shouldFail: true);
-        var handler = new WorkflowJobHandler(runner, NullLogger<WorkflowJobHandler>.Instance);
+        var handler = new WorkflowJobHandler(runner, TestWorkflowRecovery.Off(), NullLogger<WorkflowJobHandler>.Instance);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(BuildContext([Item(0, "input")], reported));

@@ -38,10 +38,38 @@ public static partial class JobHandlerKeys
 
     /// <summary>Runs a workflow once for each pending item of the job.</summary>
     /// <remarks>
-    /// The handler only starts runs. It does not resume a run or answer a pending
-    /// request: those go through the resume and respond endpoints.
+    /// <para>
+    /// The handler starts runs. It does not answer a pending request: that goes
+    /// through the respond endpoint.
+    /// </para>
+    /// <para>
+    /// When <c>TraconWorkflowOptions.ResumeInterruptedRuns</c> is on, the handler
+    /// writes the run identifier on the item before the run starts. A job leased
+    /// again after a crash or a shutdown finds that item still pending and resumes
+    /// its run from the latest checkpoint instead of starting it again.
+    /// </para>
     /// </remarks>
     public const string Workflow = "tracon.workflow";
+
+    /// <summary>
+    /// One queued workflow operation: a run, a resume or a response to a pending
+    /// request, started with <c>Prefer: respond-async</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The HTTP layer checks the caller (attribution, authorization, session
+    /// ownership, quota, parameters, the response's shape) BEFORE it queues the
+    /// job, and generates the run identifier in advance:
+    /// <see cref="JobRecord.Id"/> carries the same value as the run identifier, as
+    /// for <see cref="AgentRun"/>. The job has no items.
+    /// </para>
+    /// <para>
+    /// This key cannot be scheduled over HTTP. Its payload names the run and the
+    /// operation to apply, and the checks above run only when the job is queued;
+    /// a payload written by hand would skip them.
+    /// </para>
+    /// </remarks>
+    public const string WorkflowRun = "tracon.workflow-run";
 
     /// <summary>An evaluation (eval) run over a suite's cases.</summary>
     public const string Eval = "tracon.eval";
@@ -104,6 +132,7 @@ public static partial class JobHandlerKeys
     [
         AgentBatch,
         Workflow,
+        WorkflowRun,
         Eval,
         WebhookDelivery,
         Retention,

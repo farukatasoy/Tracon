@@ -86,6 +86,12 @@ public static class TraconWorkflowsBuilderExtensions
         services.TryAddSingleton<WorkflowCatalog>();
         services.TryAddSingleton<IWorkflowRunner, WorkflowRunner>();
 
+        // F-321: the job handlers and the HTTP layer live in packages that do
+        // not reference this one; they read the recovery settings through this
+        // seam. Registered here and nowhere else, so recovery is off while the
+        // engine is not registered.
+        services.TryAddSingleton<IWorkflowRecoveryPolicy, TraconWorkflowRecoveryPolicy>();
+
         return builder;
     }
 

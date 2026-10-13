@@ -169,9 +169,10 @@ internal static class SchedulingEndpoints
         [FromServices] IOptionsMonitor<TraconSchedulingOptions> schedulingOptions)
     {
         var allowed = schedulingOptions.CurrentValue.HttpSchedulableHandlerKeys;
+        IEnumerable<string> keys = allowed.Count == 0 ? JobHandlerKeys.BuiltIn : allowed;
 
         return TypedResults.Ok<IReadOnlyList<string>>(
-            allowed.Count == 0 ? [.. JobHandlerKeys.BuiltIn] : [.. allowed]);
+            [.. keys.Where(static key => !IsNeverSchedulable(key))]);
     }
 
     private static async Task<Results<Ok<JobSchedule>, ProblemHttpResult>> SaveScheduleAsync(
@@ -203,6 +204,17 @@ internal static class SchedulingEndpoints
         // consumer registered for its own background work -- into an externally
         // callable surface. Only an explicitly allowed key gets through; the
         // default list is Tracon's own built-in keys.
+        // F-318: a queued workflow run's payload names the run and the
+        // operation; the HTTP layer checks the caller only when it queues one.
+        // A schedule would replay a hand-written payload past every gate, so no
+        // allow-list can open this key.
+        if (IsNeverSchedulable(request.HandlerKey))
+        {
+            return InvalidSchedule(
+                $"'{request.HandlerKey}' cannot be scheduled: it carries one queued workflow run, which is " +
+                "checked when it is queued. Schedule 'tracon.workflow' to run a workflow on a schedule.");
+        }
+
         if (!IsSchedulableOverHttp(request.HandlerKey, schedulingOptions.CurrentValue))
         {
             return InvalidSchedule(
@@ -509,6 +521,11 @@ internal static class SchedulingEndpoints
     /// </remarks>
     private static bool IsSchedulableOverHttp(string? handlerKey, TraconSchedulingOptions options)
     {
+        if (IsNeverSchedulable(handlerKey))
+        {
+            return false;
+        }
+
         if (handlerKey is not { Length: > 0 })
         {
             return false;
@@ -520,5 +537,14 @@ internal static class SchedulingEndpoints
             ? JobHandlerKeys.BuiltIn.Contains(handlerKey, StringComparer.Ordinal)
             : allowed.Contains(handlerKey, StringComparer.Ordinal);
     }
+
+    /// <summary>
+    /// Whether <paramref name="handlerKey"/> is refused whatever
+    /// <see cref="TraconSchedulingOptions.HttpSchedulableHandlerKeys"/> says.
+    /// </summary>
+    /// <param name="handlerKey">The key from the request body.</param>
+    /// <returns><see langword="true"/> for <see cref="JobHandlerKeys.WorkflowRun"/>.</returns>
+    private static bool IsNeverSchedulable(string? handlerKey)
+        => string.Equals(handlerKey, JobHandlerKeys.WorkflowRun, StringComparison.Ordinal);
 
 }
