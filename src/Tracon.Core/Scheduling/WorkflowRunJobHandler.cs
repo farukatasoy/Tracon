@@ -115,10 +115,11 @@ internal sealed class WorkflowRunJobHandler(
             await recovery.CloseChainAsync(plan, cancellationToken).ConfigureAwait(false);
 
             throw await RefuseAsync(
-                runId: null,
+                plan.Last!.Id,
                 NotContinuedCode,
                 new TraconException(
-                    $"Workflow run '{plan.Last!.Id}' was interrupted and is not continued: {plan.NotContinuedReason}.")).ConfigureAwait(false);
+                    $"Workflow run '{plan.Last!.Id}' was interrupted and is not continued: {plan.NotContinuedReason}."),
+                closeIfQueued: false).ConfigureAwait(false);
         }
 
         if (plan is { Step: WorkflowRecoveryStep.Continue })
@@ -178,9 +179,10 @@ internal sealed class WorkflowRunJobHandler(
             // says why. Failing the job without a retry keeps a second lease
             // from mistaking it for one.
             throw await RefuseAsync(
-                runId: null,
+                current,
                 RunFailedCode,
-                new TraconException($"Workflow run '{current}' ended with status {status}.")).ConfigureAwait(false);
+                new TraconException($"Workflow run '{current}' ended with status {status}."),
+                closeIfQueued: false).ConfigureAwait(false);
         }
     }
 
@@ -264,15 +266,16 @@ internal sealed class WorkflowRunJobHandler(
     /// Logs the cause once, closes a run the engine never opened, and builds the
     /// exception that fails the job without a retry.
     /// </summary>
-    /// <param name="runId">A run whose row may still be queued; <see langword="null"/> to close none.</param>
+    /// <param name="runId">The run the log entry names; <see langword="null"/> when the payload names none.</param>
     /// <param name="code">The stable code the job's error starts with.</param>
     /// <param name="exception">The cause.</param>
+    /// <param name="closeIfQueued">Whether the run's row may still be queued and is closed; <see langword="false"/> when its outcome is already written.</param>
     /// <returns>
     /// The exception to throw: a <see cref="NonRetryableJobException"/>, or, when the
     /// queued row could not be closed, an exception the worker retries, so the next
     /// attempt finds the row and closes it.
     /// </returns>
-    private async ValueTask<Exception> RefuseAsync(Guid? runId, string code, Exception exception)
+    private async ValueTask<Exception> RefuseAsync(Guid? runId, string code, Exception exception, bool closeIfQueued = true)
     {
         var correlationId = SafeErrorText.NewCorrelationId();
 
@@ -281,7 +284,7 @@ internal sealed class WorkflowRunJobHandler(
             logger.LogError(exception, "Queued workflow run {RunId} failed: {Code}. (ref: {CorrelationId})", runId, code, correlationId);
         }
 
-        if (runId is { } queued && !await recovery.CloseIfQueuedAsync(queued, exception, correlationId).ConfigureAwait(false))
+        if (closeIfQueued && runId is { } queued && !await recovery.CloseIfQueuedAsync(queued, exception, correlationId).ConfigureAwait(false))
         {
             return new TraconException(
                 $"Queued workflow run '{queued}' was refused, and its row could not be closed; the job is tried again to close it. (ref: {correlationId})",
