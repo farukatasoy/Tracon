@@ -263,6 +263,8 @@ const ROUND_TRIPS: RoundTrip[] = [
     maxIterations: 6,
     handoffInstructions: null,
     requirePlanApproval: true,
+    // Phase 196 (F-405): written back exactly as stored, never re-formatted.
+    runTimeout: '00:42:00',
   }),
   workflowCase('workflow with handoff instructions', {
     displayName: 'Triage',
@@ -275,6 +277,7 @@ const ROUND_TRIPS: RoundTrip[] = [
     maxIterations: 4,
     handoffInstructions: 'Hand billing questions over.',
     requirePlanApproval: false,
+    runTimeout: null,
   }),
   workflowCase('workflow that mixes function nodes in', {
     displayName: 'Mixed chain',
@@ -282,14 +285,16 @@ const ROUND_TRIPS: RoundTrip[] = [
     kind: 'Sequential',
     agentNames: [],
     nodes: [
-      { name: 'summarizer', kind: 'Agent', settings: null },
-      { name: 'word-count', kind: 'Function', settings: { language: 'en', limit: 3 } },
+      // The field shows seconds; an untouched value goes back in the server's own spelling.
+      { name: 'summarizer', kind: 'Agent', settings: null, timeout: '00:06:00' },
+      { name: 'word-count', kind: 'Function', settings: { language: 'en', limit: 3 }, timeout: '00:00:02.5000000' },
     ],
     parameters: [],
     managerAgentName: null,
     maxIterations: null,
     handoffInstructions: null,
     requirePlanApproval: false,
+    runTimeout: '1.00:00:00',
   }),
   // Settings go back to the node they belong to: one function with them, one without, and a
   // value of every JSON kind inside (a number must stay a number, null must stay null).
@@ -299,15 +304,17 @@ const ROUND_TRIPS: RoundTrip[] = [
     kind: 'Sequential',
     agentNames: [],
     nodes: [
-      { name: 'word-count', kind: 'Function', settings: { language: 'tr', limit: 10, tags: ['a', 'b'], nested: { enabled: true }, empty: null } },
-      { name: 'summarizer', kind: 'Agent', settings: null },
-      { name: 'pass-through', kind: 'Function', settings: null },
+      { name: 'word-count', kind: 'Function', settings: { language: 'tr', limit: 10, tags: ['a', 'b'], nested: { enabled: true }, empty: null }, timeout: null },
+      { name: 'summarizer', kind: 'Agent', settings: null, timeout: null },
+      // Below a millisecond the seconds field cannot say it: shown and sent back as stored.
+      { name: 'pass-through', kind: 'Function', settings: null, timeout: '00:00:00.0000001' },
     ],
     parameters: [{ name: 'tone', kind: 'Text', required: false, defaultValue: null, description: null }],
     managerAgentName: null,
     maxIterations: null,
     handoffInstructions: null,
     requirePlanApproval: false,
+    runTimeout: null,
   }),
   roundTrip<InboundTriggerSaveRequest>({
     source: 'screens/triggers.tsx',

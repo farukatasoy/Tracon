@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import type { WorkflowFunctionResponse } from '@tracon/client';
-import { Badge, ErrorNote, Field, Select, TextArea, cx, type FieldIds } from '../../components/ui';
+import { Badge, ErrorNote, Field, Select, TextArea, TextInput, cx, type FieldIds } from '../../components/ui';
 import { Tooltip } from '../../components/tooltip';
 import { useT } from '../../lib/i18n';
-import { describeSchema, parseSettings, type Step } from '../../lib/workflow-steps';
+import { describeSchema, parseSettings, parseTimeout, timeoutText, type Step } from '../../lib/workflow-steps';
 
 /**
  * The functions the editor may offer, as the screen's query reports them.
@@ -132,6 +132,15 @@ export function StepList({
                   onChange={(settings) => replace(index, { ...step, settings })}
                 />
               )}
+
+              {/* A step's own timeout lives on a node, and only a Sequential chain has nodes. */}
+              {functions !== undefined && (
+                <StepTimeout
+                  step={step}
+                  registered={isFunction ? catalog?.find((candidate) => candidate.name === step.name)?.timeout : undefined}
+                  onChange={(timeout) => replace(index, { ...step, timeout })}
+                />
+              )}
             </li>
           );
         })}
@@ -144,7 +153,7 @@ export function StepList({
           value=""
           onChange={(value) => {
             if (value.length > 0) {
-              onChange([...steps, { kind: 'Agent', name: value, settings: '' }]);
+              onChange([...steps, { kind: 'Agent', name: value, settings: '', timeout: '' }]);
             }
           }}
         >
@@ -171,7 +180,7 @@ export function StepList({
               value=""
               onChange={(value) => {
                 if (value.length > 0) {
-                  onChange([...steps, { kind: 'Function', name: value, settings: '' }]);
+                  onChange([...steps, { kind: 'Function', name: value, settings: '', timeout: '' }]);
                 }
               }}
             >
@@ -265,6 +274,53 @@ function FunctionSettings({
             rows={5}
             spellCheck={false}
             value={step.settings}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        )}
+      </Field>
+    </div>
+  );
+}
+
+/**
+ * The timeout of one step, in seconds.
+ *
+ * Empty means the step's default, which the placeholder names: the timeout its function was
+ * registered with, or the installation's sub-agent deadline for an agent. Seconds and a
+ * `hh:mm:ss` value are both read; whether the value is in range is the server's answer.
+ */
+function StepTimeout({
+  step,
+  registered,
+  onChange,
+}: {
+  step: Step;
+  registered: string | null | undefined;
+  onChange: (timeout: string) => void;
+}): ReactNode {
+  const t = useT();
+  const invalid = !parseTimeout(step.timeout).ok;
+  const placeholder =
+    step.kind === 'Agent'
+      ? t('workflowEditor.timeoutAgentDefault')
+      : registered === null || registered === undefined
+        ? t('workflowEditor.timeoutNone')
+        : t('workflowEditor.timeoutRegistered', { seconds: timeoutText(registered) });
+
+  return (
+    <div className="mt-1.5 max-w-xs">
+      <Field
+        label={t('workflowEditor.timeoutOf', { name: step.name })}
+        hint={step.kind === 'Agent' ? t('workflowEditor.timeoutAgentHint') : t('workflowEditor.timeoutFunctionHint')}
+        error={invalid ? t('workflowEditor.timeoutInvalid') : undefined}
+      >
+        {(ids) => (
+          <TextInput
+            {...ids}
+            data-testid={`workflow-timeout-${step.name}`}
+            inputMode="decimal"
+            placeholder={placeholder}
+            value={step.timeout}
             onChange={(event) => onChange(event.target.value)}
           />
         )}
