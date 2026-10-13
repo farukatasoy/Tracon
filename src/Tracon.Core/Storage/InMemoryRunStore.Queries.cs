@@ -123,6 +123,11 @@ internal sealed partial class InMemoryRunStore
                 continue;
             }
 
+            if (query.ContinuedFromRunId is { } continuedFrom && record.ContinuedFromRunId != continuedFrom)
+            {
+                continue;
+            }
+
             if (query.RootRunId is { } rootRunId
                 && record.RootRunId != rootRunId
                 && record.Id != rootRunId)

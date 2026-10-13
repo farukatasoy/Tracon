@@ -333,6 +333,13 @@ public sealed record RunStartInfo
     /// Gets the id of the run this one continues after an interruption, or
     /// <see langword="null"/> for a run that is not a continuation.
     /// </summary>
+    /// <remarks>
+    /// Like <see cref="UserId"/> and <see cref="Labels"/>, the link survives a
+    /// second <c>StartRunAsync</c> with the same <see cref="RunId"/> that carries
+    /// none: the store keeps the value the first write stored. The party that
+    /// opens a continuation writes its row first, with the link; the engine that
+    /// runs it then writes the row again and does not know the link.
+    /// </remarks>
     public Guid? ContinuedFromRunId { get; init; }
 }
 
@@ -499,6 +506,25 @@ public sealed record RunQuery
     /// their cost, call <c>GET /api/runs?kind=Eval</c>.
     /// </remarks>
     public RunKind? Kind { get; init; }
+
+    /// <summary>
+    /// Gets the run whose continuations are returned: the runs whose
+    /// <see cref="RunRecord.ContinuedFromRunId"/> is this value.
+    /// <see langword="null"/> applies no filter.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A continuation points back at the run it continues, so this is how a
+    /// chain is walked forward: ask for the continuations of the first run, then
+    /// for those of the newest one returned, until none is left. Interrupted-run
+    /// continuation (agent runs) and workflow recovery both write the link.
+    /// </para>
+    /// <para>
+    /// The filter is combined with the others. A continuation is a root run, so
+    /// the default <see cref="OnlyRootRuns"/> keeps it in the list.
+    /// </para>
+    /// </remarks>
+    public Guid? ContinuedFromRunId { get; init; }
 }
 
 /// <summary>Filter for a time-series query.</summary>

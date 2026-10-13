@@ -241,7 +241,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 experiment_id = EXCLUDED.experiment_id,
                 variant       = EXCLUDED.variant,
                 replay_of_run_id = EXCLUDED.replay_of_run_id,
-                continued_from_run_id = EXCLUDED.continued_from_run_id,
+                -- F-321: COALESCE for the same reason as the attribution below. The
+                -- party that opens a continuation writes the row with the link; the
+                -- engine that runs it writes it again and does not know the link.
+                continued_from_run_id = COALESCE(EXCLUDED.continued_from_run_id, {Schema}.runs.continued_from_run_id),
                 -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
                 -- 46): a queued run's placeholder row is written during the HTTP
                 -- request, where the user IS known, and rewritten later by the
@@ -453,6 +456,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
               AND (@started_after IS NULL OR r.started_at > @started_after)
             {runListAttributionFilter}
               AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)
+              AND (@continued_from_run_id IS NULL OR r.continued_from_run_id = @continued_from_run_id)
               AND (
                     -- When a parent filter is given, the root filter is
                     -- DELIBERATELY ignored: the two are logically contradictory,
