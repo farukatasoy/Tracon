@@ -359,6 +359,32 @@ Tracon.LiveVoiceSessionStatusResponse.Turns.get -> int
 Tracon.LiveVoiceSessionStatusResponse.Turns.init -> void
 Tracon.LiveVoiceSessionStatusResponse.VoiceSessionId.get -> System.Guid
 Tracon.LiveVoiceSessionStatusResponse.VoiceSessionId.init -> void
+Tracon.LoopCriterionCatalogResponse
+Tracon.LoopCriterionCatalogResponse.<Clone>$() -> Tracon.LoopCriterionCatalogResponse!
+Tracon.LoopCriterionCatalogResponse.Equals(Tracon.LoopCriterionCatalogResponse? other) -> bool
+Tracon.LoopCriterionCatalogResponse.JudgeModel.get -> Tracon.LoopJudgeModelResponse?
+Tracon.LoopCriterionCatalogResponse.JudgeModel.init -> void
+Tracon.LoopCriterionCatalogResponse.Kinds.get -> System.Collections.Generic.IReadOnlyList<Tracon.LoopCriterionKindResponse!>!
+Tracon.LoopCriterionCatalogResponse.Kinds.init -> void
+Tracon.LoopCriterionCatalogResponse.LoopCriterionCatalogResponse() -> void
+Tracon.LoopCriterionKindResponse
+Tracon.LoopCriterionKindResponse.<Clone>$() -> Tracon.LoopCriterionKindResponse!
+Tracon.LoopCriterionKindResponse.BuiltIn.get -> bool
+Tracon.LoopCriterionKindResponse.BuiltIn.init -> void
+Tracon.LoopCriterionKindResponse.Description.get -> string?
+Tracon.LoopCriterionKindResponse.Description.init -> void
+Tracon.LoopCriterionKindResponse.Equals(Tracon.LoopCriterionKindResponse? other) -> bool
+Tracon.LoopCriterionKindResponse.Kind.get -> string!
+Tracon.LoopCriterionKindResponse.Kind.init -> void
+Tracon.LoopCriterionKindResponse.LoopCriterionKindResponse() -> void
+Tracon.LoopJudgeModelResponse
+Tracon.LoopJudgeModelResponse.<Clone>$() -> Tracon.LoopJudgeModelResponse!
+Tracon.LoopJudgeModelResponse.Equals(Tracon.LoopJudgeModelResponse? other) -> bool
+Tracon.LoopJudgeModelResponse.LoopJudgeModelResponse() -> void
+Tracon.LoopJudgeModelResponse.Model.get -> string!
+Tracon.LoopJudgeModelResponse.Model.init -> void
+Tracon.LoopJudgeModelResponse.Provider.get -> string!
+Tracon.LoopJudgeModelResponse.Provider.init -> void
 Tracon.McpOAuthStartResponse
 Tracon.McpOAuthStartResponse.<Clone>$() -> Tracon.McpOAuthStartResponse!
 Tracon.McpOAuthStartResponse.AuthorizationUri.get -> string!
@@ -991,6 +1017,15 @@ override Tracon.LiveVoiceSessionCreateResponse.ToString() -> string!
 override Tracon.LiveVoiceSessionStatusResponse.Equals(object? obj) -> bool
 override Tracon.LiveVoiceSessionStatusResponse.GetHashCode() -> int
 override Tracon.LiveVoiceSessionStatusResponse.ToString() -> string!
+override Tracon.LoopCriterionCatalogResponse.Equals(object? obj) -> bool
+override Tracon.LoopCriterionCatalogResponse.GetHashCode() -> int
+override Tracon.LoopCriterionCatalogResponse.ToString() -> string!
+override Tracon.LoopCriterionKindResponse.Equals(object? obj) -> bool
+override Tracon.LoopCriterionKindResponse.GetHashCode() -> int
+override Tracon.LoopCriterionKindResponse.ToString() -> string!
+override Tracon.LoopJudgeModelResponse.Equals(object? obj) -> bool
+override Tracon.LoopJudgeModelResponse.GetHashCode() -> int
+override Tracon.LoopJudgeModelResponse.ToString() -> string!
 override Tracon.McpOAuthStartResponse.Equals(object? obj) -> bool
 override Tracon.McpOAuthStartResponse.GetHashCode() -> int
 override Tracon.McpOAuthStartResponse.ToString() -> string!
@@ -1165,6 +1200,12 @@ static Tracon.LiveVoiceSessionCreateResponse.operator !=(Tracon.LiveVoiceSession
 static Tracon.LiveVoiceSessionCreateResponse.operator ==(Tracon.LiveVoiceSessionCreateResponse? left, Tracon.LiveVoiceSessionCreateResponse? right) -> bool
 static Tracon.LiveVoiceSessionStatusResponse.operator !=(Tracon.LiveVoiceSessionStatusResponse? left, Tracon.LiveVoiceSessionStatusResponse? right) -> bool
 static Tracon.LiveVoiceSessionStatusResponse.operator ==(Tracon.LiveVoiceSessionStatusResponse? left, Tracon.LiveVoiceSessionStatusResponse? right) -> bool
+static Tracon.LoopCriterionCatalogResponse.operator !=(Tracon.LoopCriterionCatalogResponse? left, Tracon.LoopCriterionCatalogResponse? right) -> bool
+static Tracon.LoopCriterionCatalogResponse.operator ==(Tracon.LoopCriterionCatalogResponse? left, Tracon.LoopCriterionCatalogResponse? right) -> bool
+static Tracon.LoopCriterionKindResponse.operator !=(Tracon.LoopCriterionKindResponse? left, Tracon.LoopCriterionKindResponse? right) -> bool
+static Tracon.LoopCriterionKindResponse.operator ==(Tracon.LoopCriterionKindResponse? left, Tracon.LoopCriterionKindResponse? right) -> bool
+static Tracon.LoopJudgeModelResponse.operator !=(Tracon.LoopJudgeModelResponse? left, Tracon.LoopJudgeModelResponse? right) -> bool
+static Tracon.LoopJudgeModelResponse.operator ==(Tracon.LoopJudgeModelResponse? left, Tracon.LoopJudgeModelResponse? right) -> bool
 static Tracon.McpOAuthStartResponse.operator !=(Tracon.McpOAuthStartResponse? left, Tracon.McpOAuthStartResponse? right) -> bool
 static Tracon.McpOAuthStartResponse.operator ==(Tracon.McpOAuthStartResponse? left, Tracon.McpOAuthStartResponse? right) -> bool
 static Tracon.McpPromptArgumentsRequest.operator !=(Tracon.McpPromptArgumentsRequest? left, Tracon.McpPromptArgumentsRequest? right) -> bool

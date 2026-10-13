@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace Tracon;
 
 /// <summary>
-/// Read-only catalog endpoints: tools, model providers, and run summaries.
+/// Read-only catalog endpoints: tools, model providers, loop criteria, and run summaries.
 /// </summary>
 internal static class CatalogEndpoints
 {
@@ -55,6 +55,24 @@ internal static class CatalogEndpoints
                 "a model name that is not listed here can still be used. The `status` field comes " +
                 "FROM THE CACHE, and this endpoint makes no network call to the provider; use " +
                 "/api/models/health for an up-to-date check.");
+
+        // Root level, not /api/agents/loop-criteria: agent names have no reserved
+        // words, and that path would hide an agent named "loop-criteria" from
+        // GET /api/agents/{name}.
+        builder.MapGet("/api/loop-criteria", Ok<LoopCriterionCatalogResponse> (AgentDefinitionCompiler compiler)
+                => TypedResults.Ok(DescribeLoopCriteria(compiler.GetLoopEvaluators())))
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
+            .WithName("TraconListLoopCriteria")
+            .WithTags("Tracon", "Agents")
+            .WithSummary("Lists the loop criterion kinds a definition can name, and the loop judge model.")
+            .WithDescription(
+                "The built-in kinds come first, then the kinds registered in code with AddLoopEvaluator. " +
+                "A kind registered in code reads no field of the criterion except its kind. Listing the " +
+                "kinds runs no registered criterion factory. judgeModel is the model an aiJudge criterion " +
+                "calls, or null when the host bound none: such a criterion then does not compile, and it " +
+                "never falls back to the agent's own model. The list is the same for every tenant; " +
+                "whether the caller's egress policy allows the judge is reported by POST /api/agents/validate.");
 
         builder.MapGet("/api/stats", async Task<Ok<RunStatistics>> (
                 IRunStore runs,
@@ -236,5 +254,32 @@ internal static class CatalogEndpoints
                 "resolves by model name alone; if the same model name is defined for more " +
                 "than one provider, the first alphabetical match wins. Requires Admin; " +
                 "the call is written to the audit trail.");
+    }
+
+    /// <summary>
+    /// Builds the loop criterion catalog. Only names leave the registry: the judge
+    /// binding's provider settings stay on the server.
+    /// </summary>
+    private static LoopCriterionCatalogResponse DescribeLoopCriteria(LoopEvaluatorRegistry registry)
+    {
+        var kinds = new List<LoopCriterionKindResponse>(registry.Kinds.Count);
+
+        foreach (var kind in registry.Kinds)
+        {
+            kinds.Add(new LoopCriterionKindResponse
+            {
+                Kind = kind.Kind,
+                BuiltIn = kind.BuiltIn,
+                Description = kind.Description,
+            });
+        }
+
+        return new LoopCriterionCatalogResponse
+        {
+            Kinds = kinds,
+            JudgeModel = registry.JudgeModel is { } judge
+                ? new LoopJudgeModelResponse { Provider = judge.Provider, Model = judge.Model }
+                : null,
+        };
     }
 }

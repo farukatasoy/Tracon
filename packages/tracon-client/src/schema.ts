@@ -1348,6 +1348,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/loop-criteria": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the loop criterion kinds a definition can name, and the loop judge model.
+         * @description The built-in kinds come first, then the kinds registered in code with AddLoopEvaluator. A kind registered in code reads no field of the criterion except its kind. Listing the kinds runs no registered criterion factory. judgeModel is the model an aiJudge criterion calls, or null when the host bound none: such a criterion then does not compile, and it never falls back to the agent's own model. The list is the same for every tenant; whether the caller's egress policy allows the judge is reported by POST /api/agents/validate.
+         */
+        get: operations["TraconListLoopCriteria"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stats": {
         parameters: {
             query?: never;
@@ -4867,6 +4887,44 @@ export interface components {
             modes?: string[];
         };
         /**
+         * @description Response for `GET {prefix}/api/loop-criteria`: the loop criterion kinds a
+         *     definition's `harness.loop.criteria` can name, and the judge model an
+         *     `aiJudge` criterion calls.
+         */
+        LoopCriterionCatalogResponse: {
+            /**
+             * @description Gets the kinds: the built-in kinds first, in a fixed order, then the kinds
+             *     registered in code with `AddLoopEvaluator`, ordered by name.
+             */
+            kinds: components["schemas"]["LoopCriterionKindResponse"][];
+            judgeModel?: null | components["schemas"]["LoopJudgeModelResponse"];
+        };
+        /** @description One loop criterion kind in LoopCriterionCatalogResponse. */
+        LoopCriterionKindResponse: {
+            /** @description Gets the name a definition writes in `LoopCriterion.Kind`. */
+            kind: string;
+            /**
+             * @description Gets whether the kind is built in. A kind that is not built in was
+             *     registered in code and reads no field of the criterion except its kind.
+             */
+            builtIn: boolean;
+            /**
+             * @description Gets what the kind checks, or `null` when its registration
+             *     gave no description. The text is the host's, in the host's language.
+             */
+            description?: null | string;
+        };
+        /**
+         * @description The judge model in LoopCriterionCatalogResponse: the provider and
+         *     model names only. The binding's provider settings are never returned.
+         */
+        LoopJudgeModelResponse: {
+            /** @description Gets the provider name. */
+            provider: string;
+            /** @description Gets the model name. */
+            model: string;
+        };
+        /**
          * @description What a harness loop does when it ends without every criterion satisfied: return
          *     the last response, or fail the run.
          * @enum {unknown}
@@ -8281,6 +8339,9 @@ export type LiveVoiceSessionCreateRequest = components['schemas']['LiveVoiceSess
 export type LiveVoiceSessionCreateResponse = components['schemas']['LiveVoiceSessionCreateResponse'];
 export type LiveVoiceSessionStatusResponse = components['schemas']['LiveVoiceSessionStatusResponse'];
 export type LoopCriterion = components['schemas']['LoopCriterion'];
+export type LoopCriterionCatalogResponse = components['schemas']['LoopCriterionCatalogResponse'];
+export type LoopCriterionKindResponse = components['schemas']['LoopCriterionKindResponse'];
+export type LoopJudgeModelResponse = components['schemas']['LoopJudgeModelResponse'];
 export type LoopOutcome = components['schemas']['LoopOutcome'];
 export type LoopSettings = components['schemas']['LoopSettings'];
 export type McpOAuthAuthorizationMode = components['schemas']['McpOAuthAuthorizationMode'];
@@ -10806,6 +10867,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelProviderDescriptor"][];
+                };
+            };
+        };
+    };
+    TraconListLoopCriteria: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoopCriterionCatalogResponse"];
                 };
             };
         };
