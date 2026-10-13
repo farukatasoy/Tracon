@@ -63,6 +63,14 @@ public static class VoiceBuilderExtensions
     /// Three tools are registered: <c>speak</c>, <c>transcribe</c>, <c>list_voices</c>.
     /// tools are defined IN CODE; the UI only selects them.
     /// </para>
+    /// <para>
+    /// The built-in client also voices a dialogue (several speakers in one request). No
+    /// <see cref="ISpeechDialogueSynthesizer"/> is registered: code takes the capability
+    /// from <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>, which reads
+    /// it from the bound synthesizer and applies the tenant's checks. A synthesizer of
+    /// your own that implements the interface is used instead; one that does not is
+    /// reported, not replaced by the built-in client.
+    /// </para>
     /// </remarks>
     public static ITraconBuilder UseVoice(this ITraconBuilder builder, Action<VoiceOptions> configure)
     {
