@@ -218,6 +218,41 @@ public sealed class NonTokenCostAccumulatorTests
     }
 
     [Fact]
+    public void The_limit_holds_after_the_total_was_read_too()
+    {
+        // A body that ignored its timeout and reports in a loop would otherwise write a row
+        // per report for as long as it runs.
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        for (var index = 0; index < NonTokenCostAccumulator.MaxNodeItems - 1; index++)
+        {
+            accumulator.AddNodeItem(Item(0.001m)).ShouldBe(NonTokenAddStatus.Added);
+        }
+
+        var total = accumulator.Seal();
+
+        accumulator.AddNodeItem(Item(1m)).ShouldBe(NonTokenAddStatus.Late);
+        accumulator.AddNodeItem(Item(1m)).ShouldBe(NonTokenAddStatus.Rejected);
+        accumulator.Seal().ShouldBe(total);
+    }
+
+    [Fact]
+    public void Amounts_beyond_what_the_budget_counter_holds_still_exhaust_a_cost_ceiling()
+    {
+        var budget = new AgentRunBudget { MaxTotalCost = 1m };
+        var accumulator = new NonTokenCostAccumulator("USD", budget);
+
+        // Ten amounts of the largest size one item may carry: 1e10 in all, which the
+        // nano-unit counter cannot hold.
+        for (var index = 0; index < 10; index++)
+        {
+            accumulator.AddNodeItem(Item(NonTokenCostAccumulator.MaxAmount)).ShouldBe(NonTokenAddStatus.Added);
+        }
+
+        budget.IsCostBudgetExhausted.ShouldBeTrue();
+    }
+
+    [Fact]
     public void Tool_measurements_are_not_bounded_by_the_node_item_limit()
     {
         var accumulator = new NonTokenCostAccumulator("USD");

@@ -1231,8 +1231,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   means the token cost and the amount the run reported beyond tokens, together. It already
   said "the total amount"; a run that reported nothing sends the same number as before.
   The new `WebhookRunSummary.NonTokenCost` is the reported part, absent when nothing was
-  reported, so the token part is `Cost - NonTokenCost`. A consumer that read `Cost` as
-  tokens only should subtract it.
+  reported, so the token part is `Cost - NonTokenCost` whenever both are in the same
+  currency. When a tree's token cost and its reported amount are priced in different
+  currencies, `Cost` stays the token cost alone and `NonTokenCost` is still given. A
+  consumer that read `Cost` as tokens only should subtract it.
 - **Behavior change:** the amounts a run reported beyond tokens count against the
   tree budget (`Tracon:AgentGraph:MaxTotalCost`), a tenant's cost quota and the cost in
   both webhooks. An amount that adds is recorded into the budget the moment it is

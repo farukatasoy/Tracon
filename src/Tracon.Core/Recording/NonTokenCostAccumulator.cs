@@ -82,6 +82,7 @@ internal sealed class NonTokenCostAccumulator
     // every run builds one accumulator.
     private List<Entry>? _nodeEntries;
     private Dictionary<string, Entry>? _toolEntries;
+    private int _nodeItemCount;
     private bool _sealed;
 
     /// <summary>Creates the accumulator of one run.</summary>
@@ -161,14 +162,19 @@ internal sealed class NonTokenCostAccumulator
 
         lock (_gate)
         {
+            // The limit counts every item a node reported, the ones that arrive after the
+            // total was read too: a body that outlives its timeout and reports in a loop
+            // would otherwise write a row per report.
+            if (_nodeItemCount >= MaxNodeItems)
+            {
+                return NonTokenAddStatus.Rejected;
+            }
+
+            _nodeItemCount++;
+
             if (_sealed)
             {
                 return NonTokenAddStatus.Late;
-            }
-
-            if (_nodeEntries is { Count: >= MaxNodeItems })
-            {
-                return NonTokenAddStatus.Rejected;
             }
 
             var entry = ToEntry(usage);
