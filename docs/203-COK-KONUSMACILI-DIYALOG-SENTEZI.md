@@ -312,16 +312,16 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `ISpeechDialogueSynthesizer` ElevenLabs'te `text-to-dialogue` ve `/with-timestamps` çağırır; segmentler tura eşlenir (test 1, 2, 6)
-- [ ] Sınır ve ayar ihlali ağdan önce `ArgumentException`; ret değeri yankılamaz (test 3, 4)
-- [ ] Tek ses yolu `voice_settings` ve süreklilik alanlarını gönderir; mevcut istekler değişmez (test 5)
-- [ ] Yetenek kaydı tüketicinin kaydını ezmez; yeteneksiz sentezleyici açık hata verir (test 10)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek diyalog `run`'ı (case 1), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz; `CHANGELOG.md` yeni tipleri anar
+- [x] `ISpeechDialogueSynthesizer` ElevenLabs'te `text-to-dialogue` ve `/with-timestamps` çağırır; segmentler tura eşlenir (test 1, 2, 6) — `ElevenLabsDialogueRequestTests` (9), `ElevenLabsDialogueResponseTests` (22); canlı case 1
+- [x] Sınır ve ayar ihlali ağdan önce `TraconException` (Sapma 4, K-955); ret değeri yankılamaz (test 3, 4) — `SpeechDialogueValidationTests` (11), `SpeechProviderSettingsTests` (23), `ModelProviderSettingsContract`
+- [x] Tek ses yolu `voice_settings` ve süreklilik alanlarını gönderir; mevcut istekler değişmez (test 5) — `ElevenLabsSpeechRequestTests` (5): ayarsız gövde birebir aynı
+- [x] Yetenek kaydı tüketicinin kaydını ezmez; yeteneksiz sentezleyici açık hata verir (test 10) — kayıt yok (Sapma 1); `VoiceDialogueRegistrationTests` (10), `SpeechDialogueTenantTests` (14)
+- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9088e92e` — ⏳ orkestratör merge sonrası koşar; dalda `kapi.py ic-dongu` yeşil, etkilenen sekiz test projesi yeşil (§ Doğrulama komutları)
+- [x] `samples/Tracon.Api` ile gerçek diyalog `run`'ı (case 1), çıktı belgeye yazıldı — § Doğrulama komutları; 👤 dinleme bakımcıya kalır
+- [x] `secret` taraması boş döndü — `kapi.py tarama`: "✅ temiz (17 işaretli sentetik credential atlandı)"
+- [x] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-MM-132…137` (altısı koşuldu), `MT-PROV-032…034` güncellendi ve koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 🔴 yok, 3 × 🟡 kapandı (§ Denetim Bulguları)
+- [x] `docs-site/` güncellendi; `npm run check` (build + content + links + weight) temiz; `CHANGELOG.md` yeni tipleri anar
 
 ### Doğrulama komutları
 
@@ -392,6 +392,31 @@ birleştirir. Tek ses gövdesi: `voice_settings {stability 0–1, similarity_boo
 `previous_text`/`future_text` (≤ 100 karakter), `previous_request_ids`. `style`
 ve `speed` aralığı belgede yok — **ölçülmedi**; sınır sağlayıcıya bırakıldı.
 
+**Aşama 2 ölçümü (denetim 🟡 2):** yalnız `[pause]` taşıyan tur canlıda
+`400 input_text_empty` döndü ("All inputs must include non-empty text after
+removing speaker tags"). Sağlayıcı sessiz turu kabul etmez; bu yüzden segmenti
+olmayan tur bozuk rapordur.
+
+**`MT-PROV-032…034`** (örnek uygulama, `POST /api/agents/validate`):
+
+```text
+MT-PROV-032 200 {"valid":false,...,"code":"invalid_setting","message":"'anthropic.thinking.budgetTokens' must be greater than zero.","path":"model.providerSettings"}
+MT-PROV-033 200 {"valid":false,...,"message":"'google.thinking.budgetTokens' must be in the [-1, 65535] range (-1 leaves it to the model, 0 turns thinking off).",...}
+MT-PROV-034 200 {"valid":false,...,"message":"'google.safety.harassment' has a value outside its set. Valid values: HARM_BLOCK_THRESHOLD_UNSPECIFIED, BLOCK_LOW_AND_ABOVE, BLOCK_MEDIUM_AND_ABOVE, BLOCK_ONLY_HIGH, BLOCK_NONE, OFF.",...}
+```
+
+**Kapılar (dalda; `kapanis` orkestratörde):**
+
+| Kapı | Sonuç |
+|---|---|
+| `kapi.py ic-dongu` (🟡 düzeltmeleri commit'lenmeden) | `exit 0`; build 0 uyarı; Core 3717 × 3 TFM, Generators 313, Sql.Shared, Voice 195 yeşil |
+| Etkilenen projeler, adla | Voice 195, Core 3717 (net8/9/10), OpenAI 195, Azure 137, Anthropic 154, Google 131, Contracts.Xunit 14, AspNetCore.Functional 1781 — hepsi `failed: 0` |
+| `kapi.py tarama` | `Tarama: ✅ temiz (17 işaretli sentetik credential atlandı)` |
+| Sevk edilen metin (`ShippedDocumentationSelfContainmentTests`, `CapabilityExampleTests`, `SourceLanguageTests`) | 6/6 |
+| `Tracon.Package.Tests` `*LocalReferenceTests*` | 10/10 |
+| `node docs-site/scripts/build-agent-map.mjs --check` | `Agent map: up to date and within budget.` |
+| `npm run check` (docs-site) | build ✅; `Content: 56 manual pages and 1070 total pages passed.`; `Links: 177276 internal reference(s) across 1070 pages and llms.txt, none broken.`; `SEO: 1070 HTML, ... 0 hata.`; `Weight: 1070 pages under 59000 B gzip.` |
+
 ---
 
 ## Riskler
@@ -454,9 +479,14 @@ ve `speed` aralığı belgede yok — **ölçülmedi**; sınır sağlayıcıya b
    Plan yalnız `Validate` aşırı yüklemesini sayıyordu. Tip kuralı (metin `"true"`,
    `JsonValueKind` adı, değer yankısı yok) tek yerde kalır (K-483); public yüzey
    büyümez. Gerekçe model adaptörlerininkiyle aynıdır (birinci taraf adaptör).
-8. **Segment eşlemesi uzunluğu karşılaştırmaz.** OpenAPI bir segmenti bir
-   girişin "parçası" diye tanımlar. Her segment indeks aralığı, turun ses kimliği
-   ve sıralı sonlu zamanla doğrulanır; biri tutmazsa liste `null` olur.
+8. **Segment eşlemesi segment sayısını tur sayısıyla karşılaştırmaz; turu,
+   sesi, sırayı ve kapsamı karşılaştırır.** OpenAPI bir segmenti bir girişin
+   "parçası" diye tanımlar; bir tura birden çok segment düşebilir. Her segment
+   aralıktaki bir turu ve o turun sesini adlandırmalı, sonlu ve `start ≤ end`
+   olmalıdır; tur indeksi geri gitmez, aynı turda bir parça öncekinden önce
+   başlamaz; her tur en az bir segment alır (ölçüldü: sağlayıcı konuşulacak
+   metni olmayan turu `400` ile reddeder). Biri tutmazsa `Segments = null`, ses
+   korunur. Aşama 1'de yalnız segment içi aralık denetleniyordu; denetim 🟡 2.
 9. **"Ret değeri yankılamaz" üç sağlayıcıya birlikte bağlandı (Faz 204 devri).**
    Anthropic seçim ve düşünme bütçesi, Google güvenlik eşiği ve düşünme bütçesi
    mesajları değeri artık yazmaz; `ModelProviderSettingsContract` metin
@@ -474,37 +504,190 @@ ve `speed` aralığı belgede yok — **ölçülmedi**; sınır sağlayıcıya b
 11. **Manuel case 6 eklendi** (`MT-MM-137`, kiracı egress reddi); plan 5 case
     sayıyordu. Case 2–6 yerel sahte ElevenLabs ucuyla koşuldu: "ağ çağrısı yok"
     iddiası ancak orada sayılabilir.
+12. **`ElevenLabsProviderNames` planın taslağından geniştir.** Plan
+    `SettingsPrefix` ve `SupportedSettings`'i sayıyordu. Gerçekleşen yüz:
+    `ElevenLabs` sağlayıcı adı sabiti (emsal `AnthropicProviderNames.Anthropic`,
+    `GoogleProviderNames.Google`: egress politikası bu adı yazar), dokuz `*Setting`
+    sabiti (emsal `GoogleProviderNames.SafetyHarassmentSetting` …: tüketici anahtarı
+    elle yazmaz) ve `DialogueSupportedSettings` (diyalogun kabul ettiği alt küme;
+    Adım 0 ölçümünün sonucu, Sapma 5). İç `VoiceProviderNames.ElevenLabs` artık
+    public sabite bağlıdır.
+13. **Faz `Tracon.Anthropic`, `Tracon.Google` ve `Tracon.Testing.Contracts.Xunit`
+    paketlerine de dokundu** (Sapma 9). Plan yalnız `Tracon.Abstractions` ve
+    `Tracon.Voice`'u sayıyordu.
+14. **`MT-PROV-032…034` güncellendi** (Sapma 9'un manuel izi; denetim 🟡 1):
+    beklenen metin yeni mesajdır ve her case "mesaj reddedilen değeri içermez"
+    satırını taşır; üçü örnek uygulamada koşuldu.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Beklenen: yetenek arayüzü ve ayar sözlüğü
-> (`public-api`).
+Kategoriye girenler `docs/KARARLAR.md`'dedir: **K-952** (diyalog yetenek arayüzü
+ve çözümleyici yolu, kullanıcı kararı), **K-953** (önekli ayar sözlüğü, kullanıcı
+kararı), **K-954** (ret değeri yankılamaz, üç sağlayıcı ve sözleşme paketi),
+**K-955** (ağdan önceki ret `TraconException`), **K-956**
+(`SpeechAudio.ProviderRequestId`), **K-957** (yerleşik istemci kiracı kimliğini
+reddeder).
+
+Kategori dışı yerel tercihler:
+
+- `VoiceOptions.MaxDialogueCharactersPerRequest` varsayılanı 2.000: OpenAPI
+  "güvenilir üretim için ≤ 2.000 karakter" der; tüketici 1.900 kullanıyor.
+- `MaxVoices = 10` sabittir (OpenAPI: en çok 10 ayrı ses); yapılandırılmaz.
+- Diyalog doğrulaması `ElevenLabsSpeechClient.CheckDialogue`'dadır (`internal`);
+  ikinci uygulayıcı (F-297) gelince ortak yardımcıya taşımak o fazın kararıdır.
+- Örnek uygulamanın düğümü ham `pcm_*`'i 44 baytlık WAV başlığıyla sarar; Tracon
+  ses birleştirmez (Açık Soru 3-A).
+- Seed `long` okunur ve 0–4294967295 denetlenir (`ReadInt64`, `internal`).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+```csharp
+// Tracon.Abstractions
+public interface ISpeechDialogueSynthesizer
+{
+    string ProviderName { get; }
+    bool SupportsTenantCredentials => false;
+    SpeechDialogueCapabilities DialogueCapabilities { get; }
+    ValueTask<SpeechDialogueAudio> SynthesizeDialogueAsync(SpeechDialogueRequest request, CancellationToken cancellationToken = default);
+}
+public sealed record SpeechDialogueCapabilities { required int MaxVoices; required int MaxCharactersPerRequest; bool SupportsSegmentTimestamps; }
+public sealed record SpeechDialogueTurn { required string Text; required string VoiceId; }
+public sealed record SpeechDialogueRequest
+{
+    required IReadOnlyList<SpeechDialogueTurn> Turns; string? ModelId; string? OutputFormat; string? LanguageCode;
+    bool IncludeTimestamps; IReadOnlyDictionary<string, JsonElement> ProviderSettings /* boş */; ModelProviderCredential? Credential;
+}
+public sealed class SpeechDialogueAudio { required SpeechAudio Audio; IReadOnlyList<SpeechDialogueSegment>? Segments; }
+public sealed record SpeechDialogueSegment { required int TurnIndex; required string VoiceId; required TimeSpan Start; required TimeSpan End; }
+ValueTask<ISpeechDialogueSynthesizer> ISpeechProviderResolver.GetDialogueSynthesizerAsync(string? name = null, CancellationToken cancellationToken = default); // soyut
+IReadOnlyDictionary<string, JsonElement> SpeechRequest.ProviderSettings { get; init; }   // boş varsayılan
+string? SpeechAudio.ProviderRequestId { get; init; }
+static void ModelProviderSettings.Validate(IReadOnlyDictionary<string, JsonElement> settings, string providerPrefix, IReadOnlyCollection<string> supportedKeys);
+
+// Tracon.Voice
+public static class ElevenLabsProviderNames
+{
+    const string ElevenLabs = "elevenlabs"; const string SettingsPrefix = "elevenlabs";
+    const string StabilitySetting, SimilarityBoostSetting, StyleSetting, UseSpeakerBoostSetting, SpeedSetting,
+                 SeedSetting, PreviousTextSetting, NextTextSetting, PreviousRequestIdsSetting;
+    static IReadOnlyList<string> SupportedSettings { get; }
+    static IReadOnlyList<string> DialogueSupportedSettings { get; }
+}
+VoiceOptions { string? DialogueModelId; int MaxDialogueCharactersPerRequest = 2000; }
+```
+
+Public tip tabanı: `Tracon.Abstractions` 414 → 420, `Tracon.Voice` 2 → 3
+(`public-surface-baseline.txt`). HTTP yüzeyi değişmedi (Açık Soru 5-B, 6-B).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.Abstractions/
+├── Voice/ISpeechDialogueSynthesizer.cs        (yeni)
+├── Voice/SpeechDialogueModels.cs              (yeni)
+├── Voice/SpeechModels.cs                      (ProviderSettings, ProviderRequestId)
+├── Voice/SpeechProviderContracts.cs           (GetDialogueSynthesizerAsync)
+├── Agents/ModelProviderSettings.cs            (sözlük Validate; internal sözlük okuyucuları)
+├── Tracon.Abstractions.csproj                 (InternalsVisibleTo Tracon.Voice)
+└── PublicAPI.Unshipped.txt
+src/Tracon.Core/Voice/SpeechProviderResolver.cs (diyalog yolu, kapı, sarmalayıcı, SpeechCapabilityNotSupportedException)
+src/Tracon.Core/buildTransitive/Tracon.AgentMap.md (üretildi)
+src/Tracon.Voice/
+├── ElevenLabsProviderNames.cs                 (yeni)
+├── Internal/ElevenLabsDialogueJson.cs         (yeni)
+├── Internal/ElevenLabsRequestSettings.cs      (yeni)
+├── Internal/ElevenLabsJson.cs                 (voice_settings, süreklilik alanları)
+├── Internal/ElevenLabsSpeechClient.cs         (diyalog, ayarlar, request-id, kimlik reddi)
+├── VoiceOptions.cs · VoiceOptionsValidator.cs · VoiceBuilderExtensions.cs
+├── PublicAPI.Unshipped.txt · README.md
+src/Tracon.Anthropic/AnthropicRequestSettings.cs · src/Tracon.Google/{GoogleChatClientFactory,GoogleSafetySettings}.cs (yankısız ret)
+src/Tracon.OpenAI/OpenAIProviderNames.cs · src/Tracon.Azure/AzureOpenAIProviderNames.cs (cref)
+src/Tracon.Testing.Contracts.Xunit/Contracts/Providers/ModelProviderSettingsContract.cs · README.md
+samples/Tracon.Api/Program.cs · DialogueSettings.cs (yeni)
+tests/Tracon.Voice.UnitTests/ ElevenLabsDialogueRequestTests (9) · ElevenLabsDialogueResponseTests (22) ·
+    SpeechDialogueValidationTests (11) · SpeechProviderSettingsTests (23) · ElevenLabsSpeechRequestTests (5) ·
+    ElevenLabsDialogueConcurrencyTests (5) · ElevenLabsDialogueErrorTests (7) · VoiceDialogueRegistrationTests (10) ·
+    Infrastructure/DialogueTestData.cs
+tests/Tracon.AspNetCore.FunctionalTests/ SpeechDialogueTenantTests (14) · Infrastructure/CountingDialogueSpeechProvider.cs
+tests/Tracon.Core.UnitTests/ ModelProviderSettingsTests (+5) · DependencyDirectionTests (+1) · public-surface-baseline.txt
+tests/Tracon.{Anthropic,Google}.UnitTests/ (yankı beklentisi tersine döndü)
+docs-site/src/content/docs/ guides/voice.md · guides/model-providers.md · reference/configuration.md · capabilities.md
+docs-site/public/llms.txt · llms-full.txt (üretildi)
+docs/manuel-test/19-COK-MODLULUK-VE-SES.md (MT-MM-132…137) · 06-SAGLAYICI-DIGER.md (MT-PROV-032…034) · 00-INDEKS.md
+CHANGELOG.md · docs/KARARLAR.md (K-952…K-957) · docs/ADAYLAR.md (F-465, F-297 gövdesi) · docs/199-*.md (devir)
+docs/hafiza/ses-ve-konusma.md · docs/arsiv/HAFIZA-GECMISI.md · .agents/ortak/kapilar.md
+```
+
+### Tüketici yüzeyi envanteri (`tuketici-dokuman-senkronu` Adım 1)
+
+| Kova | Yüzey | Durum |
+|---|---|---|
+| `docs-site/` (elle) | `guides/voice.md` (diyalog, ayarlar, kiracı kimliği, sorun giderme), `guides/model-providers.md` (yankısız ret), `reference/configuration.md` § Speech tools, `capabilities.md` | ✅ |
+| `docs-site/` (üretilen) | `api/` (DocFX, XML'den), `llms.txt`, `llms-full.txt` | ✅ yeniden üretildi |
+| Sevk edilen metin | yeni tiplerin `///` ve `<example>`'ı (derlenir), `src/Tracon.Voice/README.md`, `src/Tracon.Testing.Contracts.Xunit/README.md`, `CHANGELOG.md` | ✅ |
+| Yerel referans ve harita | `capabilities.md` satırı → `Tracon.AgentMap.md` | ✅ |
+
+`dokuman-bakim.py --site-denetle` üç kuralı hedef sayfa değişmeden geçer;
+gerekçe: **cekirdek-kavram** (`ModelProviderSettings.cs`) — değişiklik bir sözlük
+aşırı yüklemesi ve mesaj kuralıdır, `concepts/` sağlayıcı ayarı anlatmaz; anlatı
+`guides/model-providers.md` ve `guides/voice.md`'de güncellendi. **paket-tanimi**
+(`Tracon.Abstractions.csproj`) — yalnız `InternalsVisibleTo` eklendi, paket tanımı ve
+bağımlılığı değişmedi. **paket-readme** (`Tracon.Testing.Contracts.Xunit/README.md`)
+— README bir sözleşme senaryosunun yeni iddiasını anlatır; paket ve kapsamı aynı,
+`packages.md` satırı doğru kalır.
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 1 (onayda Açık Soru 7 → B) |
+| Düzeltme turu sayısı | 1 (denetimin 3 × 🟡'si, tek tur) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | Merge'e giden: 0. Dal içinde 1: Aşama 1'in iki `<example>` bloğu derlenmiyordu; `ic-dongu` commit'ten sonra koşulduğu için görmedi, Aşama 2'de `ExampleCompilationTests` yakaladı (`.agents/ortak/kapilar.md` notu) |
+| Faz kapandıktan sonra bulunan kusur | 0 |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Bulgu yoksa "🔴 ve 🟡 yok"
-> yazılır.
+Bağımsız `faz-denetim` (2026-10-13): **🔴 yok, 3 × 🟡, 🟢 yok.** Üçü gerçek
+bulgu olarak kabul edildi ve kapandı (`4c8047a5` ve Aşama 2 doküman commit'leri).
+
+| # | Bulgu | Triyaj | Sonuç |
+|---|---|---|---|
+| 🟡 1 | Sapma 9'un manuel case'leri bayat: `MT-PROV-032…034` değerin yankılanmasını bekliyordu | Gerçek | Beklenen metin yeni mesaja çevrildi, her case'e "mesaj reddedilen değeri içermez" eklendi; `00-INDEKS` 06 satırı ve dosya `Faz:` satırı; üçü örnek uygulamada koşuldu (§ Doğrulama komutları) |
+| 🟡 2 | Segment eşlemesi segmentsiz turu ve sırası bozuk yanıtı kabul ediyordu | Gerçek | Önce kırmızı: üç `InlineData` (segmentsiz tur, geri giden tur, tur içinde geri giden zaman). Kural: her tur ≥ 1 segment, `(TurnIndex, Start)` azalmayan; değilse `null`. Canlı ölçüm: konuşulacak metni olmayan tur `400 input_text_empty` — segmentsiz tur meşru değildir. Sapma 8 düzeltildi |
+| 🟡 3 | Plan dışı public üyeler gerekçesiz; `ElevenLabsProviderNames` örneği `null` kimlikte kırılırdı | Gerçek | Sapma 12 gerekçeyi ve emsali yazar; örnek `ProviderRequestId is { } id` koşulunu kullanır. Ayrıca iki `<example>` derlenmiyordu (`ExampleCompilationTests`, denetimin görmediği): ikisi de kendi kendine yeten fonksiyon düğümü kaydına çevrildi ve derlenir |
+| Ek | DoD satır 2 `ArgumentException` diyordu | Gerçek | Sapma 4'e (K-955) göre hizalandı |
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: sözleşmeler, tuzaklar (🚨), yarım işler, sıradaki faz.
+**Sözleşmeler.**
+- Diyalog `ISpeechProviderResolver.GetDialogueSynthesizerAsync(name, ct)` ile
+  alınır; yetenek DI'da yoktur (K-952). Yeni bir uygulayıcı aynı örnekte
+  `ISpeechSynthesizer` ve `ISpeechDialogueSynthesizer`'ı uygular ve
+  `AddSpeechSynthesizer(name, …)` ile kaydolur.
+- Ret kuralları: sınır ve ayar ihlali ağdan önce `TraconException` (K-955);
+  mesaj anahtarı adlandırır, değeri yazmaz (K-954); kiracı kimliği desteklenmiyorsa
+  `NotSupportedException` (K-957).
+- Ayarlar önekli sözlüktür; kural `ModelProviderSettings.Validate(dict, prefix,
+  keys)` (K-953).
+
+**🚨 Tuzaklar** (`docs/hafiza/ses-ve-konusma.md` § Diyalog sentezi).
+- ElevenLabs diyalog servisi bilinmeyen `settings` alanını sessizce kabul eder;
+  aynı `seed` aynı baytı vermez.
+- Run kaydı `TraconException` olmayan istisnayı maskeler.
+- `<example>` blokları derlenir (`Tracon.Generators.UnitTests`); `ic-dongu`
+  commit'lenmiş değişikliği görmez.
+
+**Devredilen işler.**
+- **Faz 199** (fonksiyon düğümü maliyeti): diyalog sonucunun
+  `SpeechDialogueAudio.Audio`'su raporlanır; `DialogueModelId` boşken
+  `ModelId = null` → fiyat modelsiz aranır. Faz 199 dokümanının "Bu Faza
+  Başlarken" listesine yazıldı.
+- **F-297** (Gemini): sözleşmenin gerçek imzaları `docs/ADAYLAR.md` § F-297
+  gövdesindedir; `MaxVoices = 2`. Doğrulama kuralı bugün `Tracon.Voice`'ta
+  `internal`'dır.
+- **F-465**: `GET /api/voice/providers` diyalog yeteneğini bildirmiyor (faz
+  planlama, 🟢).
+- 👤 `MT-MM-132` dinlemesi bakımcıya kalır.
+
+**Sıradaki faz:** bakımcı seçer ([YOL-HARITASI](YOL-HARITASI.md)).

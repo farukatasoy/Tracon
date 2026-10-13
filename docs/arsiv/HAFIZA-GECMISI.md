@@ -1313,3 +1313,31 @@ Faz 198'in adlı konuşma sağlayıcısı notlarına yer açmak için taşındı
   çağıranın gönderdiği ham metinle hizalanmaz. Yeni bir sağlayıcı entegre
   edilirken "word-level" varsayılmaz — her sağlayıcının kendi granülerliği
   ölçülür.
+
+## `docs/hafiza/ses-ve-konusma.md`'den — 2026-10-13 doküman bütçesi turu (Faz 203)
+
+Faz 203'ün diyalog notlarına yer açmak için taşındı; alan dosyasında tek satırlık özeti durur.
+
+- **🚨 Sunucu durumu degistirip SESSIZCE donerse duplex istemci asilir**
+  (2026-09-03, F-180 kapanisi, K-660): `commit` ses gelmeden ulastiginda
+  `VoiceConversationDriver.Commit` `FinishTurn(counted:false)` cagirip
+  **hicbir cerceve gondermeden** donuyordu. Istemci ise gonder'e basildigi anda
+  kendini `'thinking'`e alip kaydediciyi durduruyor — yani panel kalici olarak
+  asiliyor ve mikrofon bir daha acilmiyordu. Ders: **istemcinin kendini bekleme
+  durumuna soktugu her istekte sunucunun bir cikis cercevesi borcu vardir.**
+  Sunucunun kendi state machine'inin dogru olmasi yetmez.
+  - Sinif taramasi ayni kusurun **ikinci** vakasini buldu ve o uretimde daha
+    olasidir: transcriber bos metin dondugunde (`ProcessTurnAsync`, gurultulu
+    oda) istemci bos `transcript` cercevesini yok sayar ve `return` sondaki
+    `done`'i atlar. Ikisi de `idle` cercevesiyle kapatildi.
+  - **Mevcut test bunu goremiyordu** (`Commit_without_audio_does_NOT_produce_a_turn`):
+    yalnizca SUNUCUNUN dinlemeye dondugunu olcuyordu (sonraki tur calisiyor mu).
+    Duplex bir protokolde "sunucu durumu dogru" ile "istemci kurtulabilir" AYRI
+    iddialardir; ikincisi cerceveyi beklemeden olculemez.
+  - `idle` bilerek `done`'dan ayri bir cercevedir: `done` var olan bir turu
+    kapatir ve o turun numarasini/`cancelled` bayragini tasir — istemci ikisini
+    ayni sayarsa ONCEKI turun kaydini yeniden yazar.
+  - 🚨 Yalnizca tam paket kosumunda dusuyordu (izole 57/57 yesil), bu yuzden
+    "yalitim cakismasi" sanildi. Yuk yalnizca pencereyi genisletiyordu; gercek
+    sebep koddaydi. **Tek basina gecip pakette dusen test otomatik olarak
+    kirilgan degildir** — kod yolu okunmadan siniflandirilmaz.

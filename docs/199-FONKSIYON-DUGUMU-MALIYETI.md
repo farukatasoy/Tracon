@@ -25,6 +25,7 @@
 3. Devir notu — Faz 28 ses kotasını bilerek açık bıraktı:
    `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/28-SES-TOOLLARI.md`
 4. Alan hafızası: `hafiza/olcum-kota-ve-secenekler.md` · `hafiza/workflows.md` · `hafiza/sql-paylasilan-sorgu-uretimi.md` (`runs` okuyucusuna sütun: dört yer) · `hafiza/frontend.md`
+5. **Faz 203 devri** (`awk '/## Sonraki Faza Devir Notu/,0' docs/203-COK-KONUSMACILI-DIYALOG-SENTEZI.md`, arşivlendiyse `docs/arsiv/fazlar/` altında): diyalog düğümü `ISpeechDialogueSynthesizer.SynthesizeDialogueAsync` çağırır ve `SpeechDialogueAudio.Audio` (`CharactersBilled`, `UsageSource`, `ModelId`, `ProviderRequestId`) döner; bugün maliyeti hiçbir yere yazılmaz. 🚨 `VoiceOptions.DialogueModelId` boşken sonuç `ModelId = null` taşır: fiyat `ForSynthesis(provider, null, characters)` ile modelsiz aranır ve model anahtarlı fiyat bulunmaz. Düğüm raporu diyalog sonucunu tek ses sonucu gibi taşımalıdır.
 
 ---
 
