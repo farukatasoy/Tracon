@@ -20,11 +20,15 @@ import { StepList } from './workflow-editor/steps';
 import {
   canonicalForm,
   chainBody,
-  hasFunction,
   hasInvalidSettings,
+  hasInvalidTimeouts,
+  needsNodes,
+  parseTimeout,
   shapeOf,
   stepsOf,
   storedFormOf,
+  timeoutText,
+  timeoutValue,
   type Step,
 } from '../lib/workflow-steps';
 import type { AgentParameter, WorkflowFunctionResponse, WorkflowSaveRequest } from '@tracon/client';
@@ -64,6 +68,13 @@ interface Draft {
   maxIterations: string;
   handoffInstructions: string;
   requirePlanApproval: boolean;
+  /**
+   * The run timeout this workflow sets for itself, as typed: seconds or `hh:mm:ss`. Empty
+   * means the installation's. Sent back on every save - the save is a full replace (K-725).
+   */
+  runTimeout: string;
+  /** The run timeout the server sent, so an untouched field goes back exactly as stored. */
+  storedRunTimeout: string | null;
 }
 
 const EMPTY: Draft = {
@@ -77,6 +88,8 @@ const EMPTY: Draft = {
   maxIterations: '',
   handoffInstructions: '',
   requirePlanApproval: false,
+  runTimeout: '',
+  storedRunTimeout: null,
 };
 
 /**
@@ -158,6 +171,8 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       maxIterations: loaded.maxIterations == null ? '' : String(loaded.maxIterations),
       handoffInstructions: loaded.handoffInstructions ?? '',
       requirePlanApproval: loaded.requirePlanApproval,
+      runTimeout: timeoutText(loaded.runTimeout),
+      storedRunTimeout: loaded.runTimeout ?? null,
     });
   }, [existing.data]);
 
@@ -177,6 +192,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         maxIterations: draft.maxIterations.length === 0 ? null : Number(draft.maxIterations),
         handoffInstructions: draft.kind === 'Handoff' ? blank(draft.handoffInstructions) : null,
         requirePlanApproval: draft.kind === 'Magentic' && draft.requirePlanApproval,
+        runTimeout: timeoutValue(draft.runTimeout, draft.storedRunTimeout),
       };
 
       return unwrap(
@@ -226,7 +242,9 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   }
 
   const available = agents.data ?? [];
-  const mixed = hasFunction(draft.steps);
+  // A function node or a step's own timeout needs the node list, which only a Sequential
+  // chain has: the pattern is locked while the chain holds either.
+  const mixed = needsNodes(draft.steps);
   const tooFew = NEEDS_TWO.includes(draft.kind) && draft.steps.length < 2;
   const sequential = draft.kind === 'Sequential';
   const participantNames = draft.steps.map((step) => step.name);
@@ -236,6 +254,8 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
     draft.steps.length === 0 ||
     tooFew ||
     hasInvalidSettings(draft.steps) ||
+    hasInvalidTimeouts(draft.steps) ||
+    !parseTimeout(draft.runTimeout).ok ||
     (draft.kind === 'Magentic' && draft.managerAgentName.trim().length === 0);
 
   return (
@@ -410,6 +430,24 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
             )}
 
             {draft.kind === 'Magentic' && <PlanApproval draft={draft} onChange={setDraft} />}
+
+            <Field
+              label={t('workflowEditor.runTimeout')}
+              hint={t('workflowEditor.runTimeoutHint')}
+              error={parseTimeout(draft.runTimeout).ok ? undefined : t('workflowEditor.timeoutInvalid')}
+            >
+              {(ids) => (
+                <TextInput
+                  {...ids}
+                  className="max-w-xs"
+                  data-testid="workflow-run-timeout"
+                  inputMode="decimal"
+                  placeholder={t('workflowEditor.runTimeoutDefault')}
+                  value={draft.runTimeout}
+                  onChange={(event) => setDraft({ ...draft, runTimeout: event.target.value })}
+                />
+              )}
+            </Field>
           </div>
         </Panel>
       </div>
