@@ -20,6 +20,10 @@ const Tracon.AnthropicProviderNames.Anthropic = "anthropic" -> string!
 const Tracon.AnthropicProviderNames.PromptCachingSetting = "anthropic.promptCaching" -> string!
 const Tracon.AnthropicProviderNames.SettingsPrefix = "anthropic" -> string!
 const Tracon.AnthropicProviderNames.ThinkingBudgetTokensSetting = "anthropic.thinking.budgetTokens" -> string!
+const Tracon.AnthropicProviderNames.EffortSetting = "anthropic.effort" -> string!
+const Tracon.AnthropicProviderNames.PromptCachingPlacementSetting = "anthropic.promptCaching.placement" -> string!
+const Tracon.AnthropicProviderNames.PromptCachingTtlSetting = "anthropic.promptCaching.ttl" -> string!
+const Tracon.AnthropicProviderNames.ThinkingModeSetting = "anthropic.thinking.mode" -> string!
 const Tracon.AnthropicProviderOptions.SectionName = "Tracon:Providers:Anthropic" -> string!
 static Tracon.AnthropicProviderExtensions.UseAnthropic(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.AnthropicProviderExtensions.UseAnthropic(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.AnthropicProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!

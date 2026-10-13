@@ -111,43 +111,20 @@ internal sealed class AnthropicChatClientFactory
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field in the agent definition, or set " +
                 $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.DefaultModel)}'.");
 
-        // An unrecognized key is rejected here; the error is wrapped by
-        // AgentDefinitionCompiler into TraconCompilationException and compilation stops.
-        ModelProviderSettings.Validate(
-            binding,
-            AnthropicProviderNames.SettingsPrefix,
-            AnthropicProviderNames.SupportedSettings);
+        // An unrecognized key, a wrong value or a contradiction is rejected
+        // here; the error is wrapped by AgentDefinitionCompiler into
+        // TraconCompilationException and compilation stops.
+        var settings = AnthropicRequestSettings.Read(binding);
 
-        var promptCaching = ModelProviderSettings.ReadBoolean(
-            binding,
-            AnthropicProviderNames.PromptCachingSetting) ?? false;
-
-        var thinkingBudget = ModelProviderSettings.ReadInt32(
-            binding,
-            AnthropicProviderNames.ThinkingBudgetTokensSetting);
-
-        if (thinkingBudget is { } budget && budget <= 0)
-        {
-            throw new ProviderSettingsValidationException(
-                $"'{AnthropicProviderNames.ThinkingBudgetTokensSetting}' must be greater than zero. " +
-                $"Actual value: {budget}.");
-        }
-
-        IChatClient inner = _client.AsIChatClient(model, _defaultMaxOutputTokens);
-
-        // No decorator is added when there is no setting: the plain path must not
-        // allocate a ChatOptions copy and a raw body on every request.
-        if (AnthropicProviderSettingsChatClient.HasSettings(promptCaching, thinkingBudget))
-        {
-            inner = new AnthropicProviderSettingsChatClient(
-                inner,
-                model,
-                _defaultMaxOutputTokens,
-                promptCaching,
-                thinkingBudget);
-        }
-
-        return inner;
+        // The decorator is always added: it also tells the validation report
+        // which output limit this client sends when the binding sets none
+        // (ModelOutputLimit). With no setting that changes the body, it passes
+        // the caller's options through without a copy or a raw body.
+        return new AnthropicProviderSettingsChatClient(
+            _client.AsIChatClient(model, _defaultMaxOutputTokens),
+            model,
+            _defaultMaxOutputTokens,
+            settings);
     }
 
     /// <summary>Builds an Anthropic client from settings.</summary>

@@ -20,6 +20,7 @@ internal sealed class StubHttpServer : IAsyncDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _serve;
     private readonly TaskCompletionSource<string> _request = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<string> _body = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private StubHttpServer(int statusCode, string reason, string? body)
     {
@@ -39,6 +40,12 @@ internal sealed class StubHttpServer : IAsyncDisposable
 
     /// <summary>The raw request head (request line + headers) the server received.</summary>
     public Task<string> RequestHead => _request.Task;
+
+    /// <summary>
+    /// The request body the server received, read up to its <c>Content-Length</c>
+    /// (UTF-8). Empty when the request carried none.
+    /// </summary>
+    public Task<string> RequestBody => _body.Task;
 
     public async ValueTask DisposeAsync()
     {
@@ -62,8 +69,9 @@ internal sealed class StubHttpServer : IAsyncDisposable
         using var client = await _listener.AcceptTcpClientAsync(_stop.Token);
         await using var stream = client.GetStream();
 
-        var head = await ReadHeadAsync(stream, _stop.Token);
+        var (head, requestBody) = await ReadRequestAsync(stream, _stop.Token);
         _request.TrySetResult(head);
+        _body.TrySetResult(requestBody);
 
         if (body is null)
         {
@@ -84,12 +92,33 @@ internal sealed class StubHttpServer : IAsyncDisposable
         await stream.FlushAsync(_stop.Token);
     }
 
-    private static async Task<string> ReadHeadAsync(NetworkStream stream, CancellationToken cancellationToken)
+    private static async Task<(string Head, string Body)> ReadRequestAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
         var buffer = new byte[8192];
-        var received = new StringBuilder();
+        using var received = new MemoryStream();
+        var headEnd = -1;
 
-        while (!received.ToString().Contains("\r\n\r\n", StringComparison.Ordinal))
+        while (headEnd < 0)
+        {
+            var read = await stream.ReadAsync(buffer, cancellationToken);
+
+            if (read == 0)
+            {
+                return (Encoding.ASCII.GetString(received.ToArray()), string.Empty);
+            }
+
+            received.Write(buffer, 0, read);
+            headEnd = IndexOfHeadEnd(received.GetBuffer(), (int)received.Length);
+        }
+
+        var all = received.ToArray();
+        var head = Encoding.ASCII.GetString(all, 0, headEnd + 4);
+        var contentLength = ContentLength(head);
+
+        using var body = new MemoryStream();
+        body.Write(all, headEnd + 4, all.Length - headEnd - 4);
+
+        while (body.Length < contentLength)
         {
             var read = await stream.ReadAsync(buffer, cancellationToken);
 
@@ -98,9 +127,36 @@ internal sealed class StubHttpServer : IAsyncDisposable
                 break;
             }
 
-            received.Append(Encoding.ASCII.GetString(buffer, 0, read));
+            body.Write(buffer, 0, read);
         }
 
-        return received.ToString();
+        return (head, Encoding.UTF8.GetString(body.ToArray()));
+    }
+
+    private static int IndexOfHeadEnd(byte[] bytes, int length)
+    {
+        for (var index = 0; index + 3 < length; index++)
+        {
+            if (bytes[index] == '\r' && bytes[index + 1] == '\n' && bytes[index + 2] == '\r' && bytes[index + 3] == '\n')
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int ContentLength(string head)
+    {
+        foreach (var line in head.Split("\r\n"))
+        {
+            if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(line["Content-Length:".Length..].Trim(), System.Globalization.CultureInfo.InvariantCulture, out var length))
+            {
+                return length;
+            }
+        }
+
+        return 0;
     }
 }

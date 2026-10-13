@@ -47,6 +47,9 @@ namespace Tracon;
 // Phase 146: the quota threshold notice's Custom run-event payload.
 [JsonSerializable(typeof(QuotaThresholdNoticePayload))]
 
+// Phase 204: the output truncation notice's Custom run-event payload.
+[JsonSerializable(typeof(OutputTruncatedEventPayload))]
+
 // Phase 151: the LoopIterationCompleted run-event payload.
 [JsonSerializable(typeof(LoopIterationCompletedEventPayload))]
 internal sealed partial class TraconCoreJsonContext : JsonSerializerContext;

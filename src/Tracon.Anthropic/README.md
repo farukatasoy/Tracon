@@ -44,6 +44,14 @@ In the Anthropic Messages API, `max_tokens` is a **required** field; it cannot
 be omitted the way it can in OpenAI. When `ModelBinding.MaxOutputTokens` is left
 empty, `AnthropicProviderOptions.DefaultMaxOutputTokens` (default **4096**) is used.
 
+A response that reaches the limit stops in the middle. A structured (`Json` or
+`JsonSchema`) response then fails the run as `output_truncated`; a text answer
+completes with a `tracon.output.truncated` run event. Thinking tokens count
+against the same limit, so set `MaxOutputTokens` explicitly for long answers and at
+high effort. When the catalog states the model's `MaxOutputTokens`,
+`POST /api/agents/validate` warns about a structured or high-effort agent left on
+the default.
+
 ## Provider-specific settings
 
 Given per agent through the `ModelBinding.ProviderSettings` dictionary. **A key
@@ -52,32 +60,55 @@ message lists the supported keys.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `anthropic.promptCaching` | boolean | `false` | Adds `cache_control: {"type":"ephemeral"}` to the request |
-| `anthropic.thinking.budgetTokens` | integer | none | Extended thinking budget |
+| `anthropic.effort` | text | none (model default) | `output_config.effort`: `low`, `medium`, `high`, `xhigh` or `max`, read from the SDK's `Effort` enum |
+| `anthropic.thinking.mode` | text | none | `adaptive` sends `thinking: {"type":"adaptive"}`; `enabled` requires a budget |
+| `anthropic.thinking.budgetTokens` | integer | none | Extended thinking budget; on its own it means `enabled` |
+| `anthropic.promptCaching` | boolean | `false` | Turns prompt caching on |
+| `anthropic.promptCaching.ttl` | text | none (5 minutes) | `cache_control.ttl`: `5m` or `1h` |
+| `anthropic.promptCaching.placement` | text | `request` | `request` adds a top-level `cache_control`; `system` marks the end of the agent's instructions instead, and a request with no instructions gets the `request` breakpoint |
+
+A wrong value is an error that names the key and the valid values. `ttl` and
+`placement` without `anthropic.promptCaching = true`, `enabled` without a budget,
+and `adaptive` with a budget are errors too.
 
 ```csharp
-Model = new ModelBinding
+var binding = new ModelBinding
 {
     Provider = AnthropicProviderNames.Anthropic,
-    Model = "claude-sonnet-5",
-    MaxOutputTokens = 4096,
+    Model = "your-current-claude-model",
+    MaxOutputTokens = 64000,
     ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
     {
-        ["anthropic.thinking.budgetTokens"] = JsonSerializer.SerializeToElement(2048),
+        [AnthropicProviderNames.EffortSetting] = JsonSerializer.SerializeToElement("high"),
+        [AnthropicProviderNames.ThinkingModeSetting] = JsonSerializer.SerializeToElement("adaptive"),
+        [AnthropicProviderNames.PromptCachingSetting] = JsonSerializer.SerializeToElement(true),
+        [AnthropicProviderNames.PromptCachingTtlSetting] = JsonSerializer.SerializeToElement("1h"),
+        [AnthropicProviderNames.PromptCachingPlacementSetting] = JsonSerializer.SerializeToElement("system"),
     },
-}
+};
 ```
 
 ### Known behavior differences
 
-- **Temperature must be 1 while thinking is on.** When `anthropic.thinking.budgetTokens`
-  is given, `ModelBinding.Temperature` must be either left empty or set to `1`;
-  any other value gets the request rejected with `invalid_request_error`.
+- **Current models reject a thinking budget and sampling parameters** with `400`.
+  Use `anthropic.thinking.mode = adaptive` with `anthropic.effort`, leave
+  `Temperature` and `TopP` empty, and set `SupportsSampling = false` on the model's
+  catalog entry so such a definition fails at compile time instead of at run time.
+- **`ModelBinding.ReasoningEffort` becomes a thinking budget.** The SDK adapter maps
+  it to `budget_tokens` (1024 for `Low` up to 32768 for `ExtraHigh`); use
+  `anthropic.effort` on current models. A `thinking` provider setting wins over it.
+- **Temperature must be 1 while budgeted thinking is on.** When
+  `anthropic.thinking.budgetTokens` is given, `ModelBinding.Temperature` must be
+  either left empty or set to `1`; any other value gets the request rejected with
+  `invalid_request_error`.
 - **The thinking budget must be smaller than `MaxOutputTokens`.**
-- **Prompt caching requires a threshold.** Short prompts are not cached; the
-  top-level `cache_control` treats the entire request as a single cache unit, so a
-  changed user message re-creates the cache. The effect is visible in the
-  `CacheCreationInputTokens` / `CacheReadInputTokens` counters on the response.
+- **Prompt caching requires a threshold.** Short prompts are not cached. The
+  `request` placement treats the whole request as one cache unit, so a changed
+  document or question writes a new entry. The `system` placement caches only up
+  to the end of the instructions, which requests with different documents share.
+  The effect is visible in the cached-input token counters of the run's usage.
+- **Provider settings do not reach a fallback link.** A `Fallbacks` link gets the
+  binding's portable fields only.
 - **The system message is a separate field.** Anthropic carries the `system`
   field outside the message list; the SDK adapter does the conversion, Tracon
   has no work to do here.
@@ -110,7 +141,8 @@ absent from it can still be used.
         "DefaultMaxOutputTokens": 4096,
         "Models": [
           { "Name": "claude-sonnet-5", "DisplayName": "Claude Sonnet 5",
-            "ContextWindowTokens": 200000, "SupportsReasoning": true,
+            "ContextWindowTokens": 200000, "MaxOutputTokens": 128000,
+            "SupportsReasoning": true, "SupportsSampling": false,
             "InputCostPerMillionTokens": 3, "OutputCostPerMillionTokens": 15 }
         ]
       }

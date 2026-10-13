@@ -2,18 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 858 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 862 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (60 / 918 kalem)
+## En Yeni Kalıcı Kararlar (60 / 922 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-859 | 910 | Yüklü Tracon aile derlemeleri farklı sürümdeyse host başlamaz; kontrolün opt-out'u yoktur; preview hattında silinen üyeye ikili uyum shim'i yazılmaz (Faz 185, F-265) (kullanıcı kararı) 👤 |
-| K-860 | 911 | Script grant'ı içeriği pinler: stored ve kodda tanımlı script yalnız içeriğinin hash'ini taşıyan grant'la çalışır; hash'siz eski grant onları yetkilendirmez; diskteki script pinlenmez (Faz 186, F-269) (kullanıcı kararı) 👤 |
-| K-861 | 912 | Çok kiracılı host'ta stored script grant'ı platform yetkisi ister (`PlatformAdmin` kapsamlı anahtar, statik token veya `Tracon.PlatformAdmin` policy'si); tek kiracılı host'ta ve kodda tanımlı skill'de gerekmez (Faz 186) (kullanıcı kararı) 👤 |
-| K-862 | 913 | B7'nin adı "Script execution gates"tir ("Script sandboxing" değil); R8 kabul edilen risktir (script sunucunun OS kimliğiyle çalışır); `SECURITY.md` ve site politikasının kapsamı "Script execution gates (grant, content pin, interpreter allowlist, audit)" der (Faz 186) (kullanıcı kararı) 👤 |
 | K-863 | 914 | Kodda kayıtlı bir skill adı yönetim API'sinden yazılamaz: `PUT /api/skills/{name}` `409`; `DELETE` yalnız gölgelenen kayıtlı kopyayı siler, kopya yoksa `409`; konsol kod skill'ini salt okunur açar (Faz 186, denetim 🔴1) (kullanıcı kararı) 👤 |
 | K-864 | 915 | Yayın provası son yayınlanmış sürüme karşı kırıcı değişiklik kapısı koşar: `kapi.py yayin` (her push'ta `release-dryrun`) son `v*` etiketinin library paketlerini izole bir cache'e nuget.org'dan restore eder, ApiCompat taban doğrulamasıyla paketler, doğrulamanın bu koşumda koştuğunu semaphore ile kanıtlar; kırılan her public tip ve düşen her TFM sürüm notunda tam adıyla (code span, joker değil) geçmezse prova kırmızıdır ve `publish` koşmaz (Faz 187, F-270) (kullanıcı kararı) 👤 |
 | K-865 | 916 | Her library paketinin public yüzeyi TFM'ler arasında aynıdır: `EnableStrictModeForCompatibleTfms` ve `EnableStrictModeForCompatibleFrameworksInPackage` `src/Directory.Build.props`'ta koşulsuz açık; yalnız bir TFM'de derlenen public üye pack'i kırar (Faz 187) (kullanıcı kararı) 👤 |
@@ -70,3 +66,7 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-916 | 967 | Loop doğrulaması tek kural kümesidir (`LoopEvaluatorRegistry.FindProblems`): derleyici aynı listeyle reddeder, doğrulayıcının loop adımı her sorunu `loop_` kodu ve alan yoluyla raporlar (dokuz kod); yargıç istemcisi o adımda kiracı-farkında üyeyle kurulur ve kurulamazsa `loop_judge_unavailable` önceki yolsuz `compilation_error`'ın yerine geçer; `judgeCriteria`'daki her boş girdi kendi yolunda reddedilir (F-302) (kullanıcı kararı) 👤 |
 | K-917 | 968 | Kod Loop ölçütü fabrikasının attığı istisnanın MESAJI yönetim API'sine gitmez: derleme hatası türü ve istisna tipini adlandırır, istisna `InnerException`'da ve host logunda durur (F-301) |
 | K-918 | 969 | Konsol Loop editörü yalnız tür DEĞİŞİMİNDE yeni türün okumadığı alanı temizler; yükleme ve kayıt her alanı, listelenmeyen türü ve kanonik olmayan yazımı (`aijudge`) olduğu gibi korur; harness kapalıyken düşen loop kaydetmeden önce söylenir (F-302) (kullanıcı kararı) 👤 |
+| K-919 | 970 | Çıktı sınırında kesilme ayrı bir sonuçtur: `RunErrorClass.OutputTruncated = 16`, `TraconOutputTruncatedException` (`output_truncated`), `RunEventCustomTypes.OutputTruncated` (`tracon.output.truncated`). Karar son bildirilen bitiş sebebinden verilir; yapılandırılmış (`Json`/`JsonSchema`) yanıt run'ı düşürür ve onarım koşmaz, düz metin `Completed` + olay; reddedilen yanıtın token'ı run'a katlanır (F-320, Faz 204; Açık Soru 1-A, 2-A) |
+| K-920 | 971 | Anthropic istek ayarları: `anthropic.effort` (`output_config.effort`), `anthropic.thinking.mode` (`enabled`/`adaptive`; tek başına bütçe `enabled`), `anthropic.promptCaching.ttl` (`5m`/`1h`), `anthropic.promptCaching.placement` (`request`/`system`; talimatsız `system` üst düzey kırılma noktasına düşer). Değer listeleri SDK enum'larından okunur; `ttl`/`placement` `promptCaching` olmadan, `adaptive` + bütçe ve bütçesiz `enabled` hatadır (F-346, Faz 204; Açık Soru 3-A) |
+| K-921 | 972 | `ModelDescriptor.SupportsSampling` (`bool?`, `null` = bilinmiyor): `false` iken `Temperature`/`TopP` derlemeyi durdurur, doğrulama `sampling_unsupported` verir; bağlamanın `Fallbacks` bağlantıları da denetlenir (Faz 204; yedek denetimi ana oturum varsayılanı, bakımcı onayı bekler) |
+| K-922 | 973 | Sağlayıcının varsayılan çıktı sınırı `ModelOutputLimit` kaydıyla (`DefaultMaxOutputTokens`, `HighReasoningEffort`) bağlamaya göre kurulan ham istemcinin `IChatClient.GetService` yanıtından okunur; doğrulama, `MaxOutputTokens` boşken varsayılan katalog sınırından küçükse ve yanıt yapılandırılmışsa ya da effort yüksekse `output_truncation_risk` (Warning) verir (Faz 204 #1, #2; Açık Soru 5-B; seam biçimi ana oturum varsayılanı, bakımcı onayı bekler) |

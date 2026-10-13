@@ -174,6 +174,75 @@ public sealed class OnlineEvalRetryTests
         (await scores.ListAsync(tenantContext.TenantId, runId)).ShouldHaveSingleItem();
     }
 
+    /// <summary>
+    /// Audit finding on the output-limit phase: the model judge's structured
+    /// answer cut off at the limit was retryable. The job had attempts left, so
+    /// it sent the same request with the same limit again and paid for the
+    /// same cut-off answer each time.
+    /// </summary>
+    [Fact]
+    public async Task A_model_judge_whose_answer_is_cut_off_at_the_limit_calls_the_model_once()
+    {
+        var judgeModel = new FinishReasonModelProvider("judge-model")
+            .Text("{\"score\": 7", ChatFinishReason.Length, inputTokens: 50, outputTokens: 16)
+            .Text("{\"score\": 7", ChatFinishReason.Length, inputTokens: 50, outputTokens: 16)
+            .Text("{\"score\": 7", ChatFinishReason.Length, inputTokens: 50, outputTokens: 16);
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddModelProvider(judgeModel)
+                .AddModelRunJudge(static options => options.Model = new ModelBinding
+                {
+                    Provider = "judge-model",
+                    Model = "judge-model-1",
+                    MaxOutputTokens = 16,
+                }),
+            configureServices: static services => services.UseScheduling(static options => options.RunWorker = false));
+
+        var jobStore = host.Services.GetRequiredService<IJobStore>();
+        var jobHandler = host.Services.GetRequiredService<OnlineEvalJobHandler>();
+        var tenantContext = host.Services.GetRequiredService<ITenantContext>();
+        var runId = await SeedScorableRunAsync(host);
+        var now = DateTimeOffset.UtcNow;
+
+        var job = await jobStore.EnqueueAsync(
+            new JobRecord
+            {
+                Id = TraconId.NewId(),
+                TenantId = tenantContext.TenantId,
+                HandlerKey = JobHandlerKeys.OnlineEval,
+                TargetName = "test-agent",
+                Status = JobStatus.Pending,
+                Payload = JsonSerializer.SerializeToElement(new[] { runId.ToString() }),
+                ScheduledFor = now,
+                CreatedAt = now,
+                MaxAttempts = 3,
+            },
+            [runId.ToString()]);
+
+        await RunOneAttemptAsync(jobStore, jobHandler, job.Id);
+
+        var afterAttempt = await jobStore.GetAsync(tenantContext.TenantId, job.Id);
+        afterAttempt.ShouldNotBeNull();
+        afterAttempt!.Status.ShouldBe(JobStatus.Completed, "a cut-off answer does not put the job back in the queue");
+        afterAttempt.Attempt.ShouldBe(1);
+
+        var item = (await jobStore.ListItemsAsync(job.Id)).ShouldHaveSingleItem();
+        item.Status.ShouldBe(JobItemStatus.Failed);
+        item.Error.ShouldBe("model (judge_failed)");
+
+        judgeModel.Calls.ShouldBe(1);
+        judgeModel.Options.Single()!.MaxOutputTokens.ShouldBe(16);
+
+        // The judge records its own run: it ended cut off, not on some other error.
+        var judgeRun = (await host.Services.GetRequiredService<IRunStore>()
+                .QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 10 }))
+            .Single(run => run.Id != runId);
+        judgeRun.Error.ShouldNotBeNull();
+        judgeRun.Error.Class.ShouldBe(RunErrorClass.OutputTruncated);
+        (await host.Services.GetRequiredService<IRunScoreStore>().ListAsync(tenantContext.TenantId, runId)).ShouldBeEmpty();
+    }
+
     private static async Task RunOneAttemptAsync(IJobStore jobStore, OnlineEvalJobHandler handler, Guid jobId)
     {
         var owner = $"test-worker-{Guid.NewGuid():N}";

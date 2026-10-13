@@ -12822,6 +12822,13 @@
             "type": "boolean",
             "description": "Whether output conforming to a JSON schema can be produced."
           },
+          "supportsSampling": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Whether the model accepts the sampling parameters \u0060temperature\u0060 and\n\u0060topP\u0060; \u0060null\u0060 when the catalog does not say."
+          },
           "inputCostPerMillionTokens": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
@@ -14113,6 +14120,7 @@
           "ToolTimeout",
           "StructuredResponseInvalid",
           "LoopUnsatisfied",
+          "OutputTruncated",
           null
         ]
       },
