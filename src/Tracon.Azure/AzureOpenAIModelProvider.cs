@@ -16,7 +16,7 @@ namespace Tracon;
 /// Circuit-breaker and content-filter detection live <em>outside</em> this type,
 /// at the <c>ModelProviderRegistry</c> level; this package gets both for free.
 /// When Azure's own content filter cuts a response short,
-/// <c>ContentFilterDetectingChatClient</c> records it as <c>content_filtered</c>
+/// <c>FinishReasonDetectingChatClient</c> records it as <c>content_filtered</c>
 /// — there is no extra code in this package for it.
 /// </para>
 /// </remarks>

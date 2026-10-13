@@ -502,12 +502,14 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             chatClient = new FallbackChatClient(binding, chatClient, resolveFallback, _retryClassifier, _loggerFactory);
         }
 
-        // Content-filter detection sits OUTERMOST — outside the circuit breaker.
-        // A safety filter means the provider is healthy; if it were inside, the
-        // exception it throws would increase the consecutive-failure counter
-        // and a handful of content-filtered requests in a row would close the
-        // circuit on the provider.
-        chatClient = new ContentFilterDetectingChatClient(binding.Provider, chatClient);
+        // Finish-reason detection (content filter, output truncation) sits
+        // OUTERMOST — outside the circuit breaker and the fallback chain. A
+        // safety filter or an output limit means the provider is healthy; if it
+        // were inside, the exception it throws would increase the
+        // consecutive-failure counter and a handful of such requests in a row
+        // would close the circuit on the provider. Outside the tool-call loop,
+        // it judges only the turn that ends the loop (F-320).
+        chatClient = new FinishReasonDetectingChatClient(binding.Provider, binding.Model, chatClient);
 
         // The normalization boundary is the outermost model-call ring. Retry,
         // fallback, circuit, guard, and content-filter decisions must see the

@@ -35,6 +35,27 @@ public static partial class RunEventCustomTypes
     public const string QuotaThreshold = ReservedPrefix + "quota.threshold";
 
     /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the notice a run writes when
+    /// the model stopped a plain-text response at its output token limit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The run does not fail: a partial text answer is still useful, so the run
+    /// keeps its status and this event says the answer is incomplete. A structured
+    /// (JSON) response cut off the same way fails its run with
+    /// <see cref="RunErrorClass.OutputTruncated"/> instead, because a partial JSON
+    /// document has no use.
+    /// </para>
+    /// <para>
+    /// The payload carries the provider name and, when the binding set one, the
+    /// output token limit. It never carries the response text. Written only for the
+    /// agent's own model calls, not for a side-channel call such as a context
+    /// summarizer or a loop judge.
+    /// </para>
+    /// </remarks>
+    public const string OutputTruncated = ReservedPrefix + "output.truncated";
+
+    /// <summary>
     /// Checks whether <paramref name="customType"/> is a valid custom event
     /// type: 1-128 characters, lowercase ASCII letters, digits, <c>.</c>,
     /// <c>_</c>, or <c>-</c>, starting with a letter or digit.

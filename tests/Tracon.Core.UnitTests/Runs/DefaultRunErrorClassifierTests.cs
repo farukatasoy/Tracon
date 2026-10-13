@@ -47,6 +47,10 @@ public sealed class DefaultRunErrorClassifierTests
     // Phase 192: a loop that fails on exhaustion is a quality rejection with its own
     // class; the message names a criterion, never a provider.
     [InlineData("loop_unsatisfied", "The loop of agent 'writer' reached its ceiling of 3 iterations while criterion 'aiJudge' still asked for another iteration, and OnExhausted is FailRun.", RunErrorClass.LoopUnsatisfied)]
+    // Phase 204 (F-320): a structured response cut off at the output limit. The
+    // message names a provider; by identity it never reaches the provider-error
+    // or quota patterns ("limit" and "provider" would otherwise read as a fault).
+    [InlineData("output_truncated", "The 'anthropic' model stopped at the output token limit of 200 before the structured response was complete. A cut-off JSON document cannot be parsed, and a repair turn would hit the same limit, so none runs. Raise ModelBinding.MaxOutputTokens.", RunErrorClass.OutputTruncated)]
     public void Every_class_lands_in_the_right_bucket_with_at_least_one_example(string type, string message, RunErrorClass expected)
     {
         var result = _classifier.Classify(new RunError { Type = type, Message = message });
