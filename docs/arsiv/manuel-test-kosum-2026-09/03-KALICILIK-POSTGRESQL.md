@@ -2043,3 +2043,30 @@ koşulur: kapanış modunda `src/` zaten değişebilir durumdadır, o yüzden
 `dotnet test tests/Tracon.Sql.Shared.UnitTests` koşulur
 (`CostAddendsCrossCheckTests` **düşmelidir**), terim geri alınır ve set
 yeniden yeşil doğrulanır. Ancak ondan sonra `☑ Geçti` işaretlenir.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 197)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek sonuç`, `Ölçüldü` ve `Düzeltildi` notları buraya **taşındı** (silinmedi). Her not
+> hangi case'e ait olduğunu başlığıyla söyler; tarih notun kendisindedir.
+
+#### MT-PG-001 — Boş bağlantı dizesiyle başlatma reddedilir
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — İzlek B ile bu senaryo yapısal
+> olarak erişilemez, beklenti koda göre düzeltildi:**
+> `samples/Tracon.Api/Program.cs:639` boş bağlantı dizesinde
+> `UsePostgreSql()`'i hiç çağırmaz — validator'a hiçbir zaman ulaşılmaz.
+> Örnek uygulama sessizce InMemory'e düşer, `/health` **200 Degraded** döner
+> (kalıcılık nedeniyle değil, model sağlayıcı sağlığı nedeniyle). Bu, İzlek B
+> için **doğru** ve kasıtlı davranıştır (`Program.cs:622` yorumu).
+> `TraconPostgreSqlOptionsValidator`'ın kendisi doğru çalışır — bu yalnız
+> İzlek A/C (doğrudan `UsePostgreSql()` çağıran bir harness) üzerinden
+> gözlemlenebilir: `UsePostgreSql(string)` çağrı anında `ArgumentException`,
+> `UsePostgreSql(IConfiguration)` ilk `IOptions.Value` erişiminde
+> `TraconPostgreSqlOptions.ConnectionString bos olamaz` mesajıyla
+> `OptionsValidationException` fırlatır. Bu case'in adımları İzlek A/C'ye
+> taşınmalıdır; İzlek B için ayrı bir case ("boş bağlantı dizesiyle örnek
+> uygulama bellek içi depoya sessizce düşer, `/health` 200 Degraded döner")
+> eklenmelidir.

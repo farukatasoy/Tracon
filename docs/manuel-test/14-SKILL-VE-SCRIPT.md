@@ -1467,20 +1467,6 @@ Bu case §6'nın TAM ön koşulunu (1-5. adımlar) gerektirir.
 4. Akış tamamlanana kadar bekle.
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §6 Aile W):** Bugünkü MAF sürümünde
-> ikinci onay kartının tool adı `merhaba` DEĞİL, MAF'ın kendi generic
-> `run_skill_script(skillName, scriptName, arguments)` dispatcher'ıdır.
-> `TraconSkillsSource.CreateSkill`'in `skill.AddScript(script.Name, ...)`
-> çağrısı (`TraconSkillsSource.cs:76-81`) hâlâ AYNI şekilde script başına
-> çağrılıyor — ama `Microsoft.Agents.AI.AgentSkillsProvider` (paket içi,
-> `AgentInlineSkillScript.RunAsync`/`RunSkillScriptAsync`) modele TEK bir
-> generic tool şeması sunuyor ve `scriptName` argümanıyla kayıtlı delegeye
-> dispatch ediyor — bu, eski beklentinin dayandığı MAF davranışından
-> FARKLI. Üç ayrı bağımsız çalıştırmada (canlı OpenAI çağrısı) tutarlı
-> şekilde gözlendi. Kanıt: `load_skill` sonrası modele sunulan
-> `gen_ai.tool.definitions` izleme özniteliği (`MT-SKILL-070`) yalnız
-> `["load_skill","read_skill_resource","run_skill_script"]` listeler —
-> `merhaba` diye ayrı bir tool ADI hiçbir zaman modele sunulmuyor.
 - İkinci onay kartının tool adı `run_skill_script`'tir, argümanları
   `{"skillName":"scriptli-skill","scriptName":"merhaba","arguments":""}`
   taşır.
@@ -1530,15 +1516,6 @@ Negatif senaryo.
    istenir — izin kaydı AYRI bir kapıdır).
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §6 Aile W) — modele dönen mesaj
-> genel bir hata metnidir, spesifik değil:** MAF'ın function-invoking
-> katmanı, delegenin fırlattığı istisnayı modele DOĞRUDAN İLETMEZ — sabit
-> `"Error: Function failed."` metnini döner (muhtemelen istisna
-> içeriklerinin model bağlamına sızmasını önleyen bilinçli bir MAF
-> davranışı). Spesifik red mesajı (`'scriptli-skill/merhaba' script'i
-> calistirilmadi: ...`) Tracon'in KENDİ gözlemlenebilirlik katmanında
-> (`tool_invocations.error`) tam olarak korunur — yalnız modele dönen metin
-> genelleşir.
 - Script çalışmaz; modele dönen tool sonucu `"Error: Function failed."`dir.
 - `tool_invocations.error` sütunu tam metni taşır: `'scriptli-skill/merhaba'
   script'i calistirilmadi: Bu script icin gecerli bir calistirma izni yok.`
@@ -1664,14 +1641,6 @@ değişkenleri (`OpenAI__ApiKey` gibi) script sürecine **miras geçmez**.
    iste, her onayı ver.
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §9) — gerçek çıktı 4 değil 7
-> satır:** `bash` kendi başlatma sürecinde `PWD`, `SHLVL`, `_` değişkenlerini
-> KENDİSİ üretir (ebeveyn ortamından miras almaz — `ProcessStartInfo
-> .Environment.Clear()`'dan bağımsız, kabuğun kendi iç muhasebesidir).
-> Bunlar `secret` TAŞIMAZ (çalışma dizini yolu, kabuk iç içelik sayacı,
-> son çalıştırılan yorumlayıcının yolu) — güvenlik iddiası (hiçbir
-> Tracon-özel/`secret` değişkeni sızmaz) TAM olarak doğrulandı, yalnız
-> "yalnız 4 değişken" sayımı eksikti.
 - `stdout` çıktısı `PATH`, `HOME`, `TRACON_SKILL_TEMP=<gecici-dizin>`,
   `TRACON_SKILL_NAME=scriptli-skill` satırlarını İÇERİR (bunlar
   Tracon'in açıkça geçirdiği/izin verdiği tek değişkenlerdir —
@@ -1812,9 +1781,6 @@ WHERE skill_name = 'scriptli-skill' AND revoked_at IS NULL;
 -- adım 1'deki hash; script.grant denetim kaydının after alanı da onu taşır.
 ```
 
-> **Ölçüldü (2026-09-24, Faz 186, örnek uygulama + `gpt-5.4-mini`):** `201`;
-> listedeki hash okunanla aynı; run çıktısı `merhaba-tracon`.
-
 ---
 
 ### MT-SKILL-065 — İçerik değişince aynı grant script'i çalıştırmaz; `script.denied` "content changed since the grant" der
@@ -1851,9 +1817,6 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "
   `The script content changed since the grant. Review it and grant it again.`
   taşır.
 
-> **Ölçüldü (2026-09-24):** run tamamlandı, çıktıda `merhaba-tracon` yok;
-> `script.denied` sebebi yukarıdaki metin.
-
 ---
 
 ### MT-SKILL-066 — Eski hash'le grant `409` döner, liste değişmez, yanıt güncel hash'i taşımaz
@@ -1884,9 +1847,6 @@ curl -s "$APU/api/skill-script-grants" -H "$APB" | diff - /tmp/once.json && echo
 - `HTTP: 409`, `title: "Content changed"`; `detail` skill'i yeniden okuyup
   gözden geçirmeyi söyler, güncel hash'i **taşımaz**.
 - `liste ayni` basılır; `script.grant` denetim kaydı yazılmaz.
-
-> **Ölçüldü (2026-09-24):** `409 Content changed`; liste aynı; gövde
-> güncel hash'i taşımadı.
 
 ---
 
@@ -1919,9 +1879,6 @@ done
   `GET /api/skills/scriptli-skill`'i ve `scripts[].contentHash`/`scriptSetHash`
   alanlarını adlandırır.
 - Grant listesi değişmez; `script.grant` denetim kaydı yazılmaz.
-
-> **Ölçüldü (2026-09-24, örnek uygulama):** hash'siz istek
-> `400 Content hash required`.
 
 ---
 
@@ -2011,9 +1968,6 @@ WHERE granted_by = 'faz-oncesi';                                        -- t
   not pin the script content. Grant it again with the content hash.`
 - Adım 4: aynı satır güncellenir (`content_hash` dolar), script çalışır ve
   yanıt `merhaba-tracon` içerir.
-
-> **Ölçüldü (2026-09-24, örnek uygulama + `gpt-5.4-mini`):** adım 2 `53`/`t`;
-> adım 3'te script çalışmadı, sebep yukarıdaki metin.
 
 ---
 
@@ -2168,9 +2122,6 @@ curl -s "$APU/api/skill-script-grants" -H "$APB" | jq '.[] | {skillName, scriptN
 - Adım 4: bölüm "No stored or code skill has this name…" der; grant yalnız
   diskteki script'leri yetkilendirir.
 - `TR` dilinde aynı metinler: `Pin`, `bayat`/`güncel`, `İçeriği incele`.
-
-> **Ölçüldü (2026-09-24, örnek uygulama, tarayıcı):** dört adım ve Türkçe
-> metinler beklendiği gibi.
 
 ---
 

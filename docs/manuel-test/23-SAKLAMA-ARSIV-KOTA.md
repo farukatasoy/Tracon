@@ -1825,14 +1825,6 @@ curl -N -s "$APU/api/agents/support/run" -H "$APB" -H 'content-type: application
   -d '{"message":"merhaba"}' | grep -E '^event:'
 ```
 
-**Gerçek sonuç (2026-09-05, `gpt-5.4-mini`, `manuel-test-token-2026`)**
-```
-event: run
-event: update  (× 13)
-event: custom
-event: done
-```
-
 **Beklenen sonuç**
 - `event: custom` **`event: done`'dan önce** gelir. ✅ Doğrulandı.
 - Aynı akışın `data:` gövdesi `"type":"Custom"` ve
@@ -1860,17 +1852,6 @@ event: done
 ```bash
 RUN_ID=$(curl -s "$APU/api/runs" -H "$APB" | jq -r '.[0].id')
 curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB" | grep -A1 '^event: custom'
-```
-
-**Gerçek sonuç (2026-09-05)**
-```
-event: custom
-data: {"runId":"...","sequence":11,"type":"Custom", ...,
-       "payload":"{\"noticeId\":\"...\",\"tenantId\":\"default\",\"userId\":null,
-                    \"runId\":\"...\",\"sessionId\":null,\"metric\":\"Runs\",
-                    \"period\":\"Daily\",\"thresholdPercent\":100,\"limit\":1,
-                    \"used\":1,\"resetsAt\":\"2026-09-06T00:00:00+00:00\"}",
-       "customType":"tracon.quota.threshold"}
 ```
 
 **Beklenen sonuç**

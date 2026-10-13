@@ -116,22 +116,6 @@ cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — İzlek B ile bu senaryo yapısal
-> olarak erişilemez, beklenti koda göre düzeltildi:**
-> `samples/Tracon.Api/Program.cs:639` boş bağlantı dizesinde
-> `UsePostgreSql()`'i hiç çağırmaz — validator'a hiçbir zaman ulaşılmaz.
-> Örnek uygulama sessizce InMemory'e düşer, `/health` **200 Degraded** döner
-> (kalıcılık nedeniyle değil, model sağlayıcı sağlığı nedeniyle). Bu, İzlek B
-> için **doğru** ve kasıtlı davranıştır (`Program.cs:622` yorumu).
-> `TraconPostgreSqlOptionsValidator`'ın kendisi doğru çalışır — bu yalnız
-> İzlek A/C (doğrudan `UsePostgreSql()` çağıran bir harness) üzerinden
-> gözlemlenebilir: `UsePostgreSql(string)` çağrı anında `ArgumentException`,
-> `UsePostgreSql(IConfiguration)` ilk `IOptions.Value` erişiminde
-> `TraconPostgreSqlOptions.ConnectionString bos olamaz` mesajıyla
-> `OptionsValidationException` fırlatır. Bu case'in adımları İzlek A/C'ye
-> taşınmalıdır; İzlek B için ayrı bir case ("boş bağlantı dizesiyle örnek
-> uygulama bellek içi depoya sessizce düşer, `/health` 200 Degraded döner")
-> eklenmelidir.
 
 ~~Eski beklenti (yanlış öncül — İzlek B'de validator'a hiç ulaşılmadığını
 gözden kaçırıyordu): Uygulama başlamayı reddeder (`ValidateOnStart`);

@@ -139,3 +139,39 @@ eylem gerektiren case. Yeni ürün kusuru (`HATA-S4-*`) bulunmadı.
   ortamda kimlik bilgisi olmadığı için `⏭ Atlandı` işaretlenecek — DEVIR.md
   §'sinde zaten kararlaştırılmış), henüz açılmadı. Bu, ap-s4'ün atanmış
   son ailesi (31·16·30·22·09·27·26·28·06 listesinin tamamı).
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 197)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek sonuç`, `Ölçüldü` ve `Düzeltildi` notları buraya **taşındı** (silinmedi). Her not
+> hangi case'e ait olduğunu başlığıyla söyler; tarih notun kendisindedir.
+
+#### MT-DVR-001 — Zincir yazımı: `prev_hash`/`hash` doğru doldurulur
+
+**Gerçek sonuç (2026-08-18, PostgreSQL, macOS arm64):**
+```json
+{"id":"01a015f7-3826-7f01-ba88-e2ef9f3f5c28","target":"run_events","maxAgeDays":30,...}
+{"id":"01a015f7-3826-7f01-ba88-e2ef9f3f5c28","target":"run_events","maxAgeDays":45,...}
+```
+✅ Doğrulandı — `AuditLogContract.Second_entry_links_to_the_first` bu tam senaryoyu otomatik koşar (4 koşumda: bellek içi + 3 SQL sağlayıcı).
+
+#### MT-DVR-002 — `GET /api/audit/verify` boş zincirde ve dolu zincirde `Valid` döner
+
+**Gerçek sonuç (2026-08-18):**
+```json
+{"status":"Valid","entriesChecked":0,"firstFailingEntryId":null}
+{"status":"Valid","entriesChecked":2,"firstFailingEntryId":null}
+```
+✅ Doğrulandı — gerçek çalıştırma, örnek uygulamaya karşı `curl` ile.
+
+#### MT-DVR-006 — Çözümleyici kayıtlı değilken export ve silme `409` döner
+
+**Gerçek sonuç (2026-08-18, örnek uygulama IDataSubjectResolver kaydetmiyor):**
+```
+409
+409
+{"title":"No data subject resolver registered", ...}
+```
+✅ Doğrulandı.

@@ -494,3 +494,17 @@ model çağrısı yapmaz ve hiçbir yeni olay üretmez.
 `GET /api/runs/{id}/events` olay türleri: `run.started, tool.invoking,
 tool.invoked, message.delta, message.completed, run.completed` —
 `StructuredResponseRejected` **yok**.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 197)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek sonuç`, `Ölçüldü` ve `Düzeltildi` notları buraya **taşındı** (silinmedi). Her not
+> hangi case'e ait olduğunu başlığıyla söyler; tarih notun kendisindedir.
+
+#### MT-GUARD-094 — Akışlı `run`'da içerik akar, doğrulama akış bitince çalışır
+
+**Gerçek sonuç (2026-09-01)**
+- `event: run` → bir dizi `event: update` (JSON parçaları akar) → `event: done`.
+- `event: error` **görünmedi**; `GET /api/runs/{id}` → `status: "Completed"`.

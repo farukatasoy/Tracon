@@ -2153,10 +2153,6 @@ curl -s -N -X POST "$APU/api/agents/order-summary/run" \
   -d '{"message":"Give me a summary for order ORD-3."}'
 ```
 
-**Gerçek sonuç (2026-09-01)**
-- `event: run` → bir dizi `event: update` (JSON parçaları akar) → `event: done`.
-- `event: error` **görünmedi**; `GET /api/runs/{id}` → `status: "Completed"`.
-
 **Beklenen sonuç (geçersiz yanıt kolu)**
 - İçerik `update` çerçeveleriyle akar (kesilmez).
 - Akış `event: done` yerine `event: error` ile biter, `data` alanı

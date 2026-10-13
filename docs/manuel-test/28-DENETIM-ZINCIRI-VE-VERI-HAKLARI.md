@@ -89,13 +89,6 @@ curl -s "$APU/api/audit?entity=retention:run_events" -H "$APB" | jq
 - İki kayıt döner. En eski kaydın `previousHash: null`, `hash` 64 karakterlik hex.
 - En yeni kaydın `previousHash`, eskinin `hash` değeriyle **birebir eşit**.
 
-**Gerçek sonuç (2026-08-18, PostgreSQL, macOS arm64):**
-```json
-{"id":"01a015f7-3826-7f01-ba88-e2ef9f3f5c28","target":"run_events","maxAgeDays":30,...}
-{"id":"01a015f7-3826-7f01-ba88-e2ef9f3f5c28","target":"run_events","maxAgeDays":45,...}
-```
-✅ Doğrulandı — `AuditLogContract.Second_entry_links_to_the_first` bu tam senaryoyu otomatik koşar (4 koşumda: bellek içi + 3 SQL sağlayıcı).
-
 ---
 
 ### MT-DVR-002 — `GET /api/audit/verify` boş zincirde ve dolu zincirde `Valid` döner
@@ -119,13 +112,6 @@ curl -s "$APU/api/audit/verify" -H "$APB" | jq
 **Beklenen sonuç**
 - Boşken: `{"status":"Valid","entriesChecked":0,"firstFailingEntryId":null}`.
 - MT-DVR-001'in ardından: `{"status":"Valid","entriesChecked":2,...}`.
-
-**Gerçek sonuç (2026-08-18):**
-```json
-{"status":"Valid","entriesChecked":0,"firstFailingEntryId":null}
-{"status":"Valid","entriesChecked":2,"firstFailingEntryId":null}
-```
-✅ Doğrulandı — gerçek çalıştırma, örnek uygulamaya karşı `curl` ile.
 
 ---
 
@@ -235,14 +221,6 @@ curl -s -o /dev/null -w "%{http_code}\n" -X DELETE "$APU/api/data-subjects/user-
 
 **Beklenen sonuç**
 - İkisi de `409`; gövde `"No data subject resolver registered"` başlığı taşır.
-
-**Gerçek sonuç (2026-08-18, örnek uygulama IDataSubjectResolver kaydetmiyor):**
-```
-409
-409
-{"title":"No data subject resolver registered", ...}
-```
-✅ Doğrulandı.
 
 ---
 
