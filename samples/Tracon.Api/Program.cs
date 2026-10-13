@@ -633,6 +633,84 @@ tracon
         ToolNames = ["get_order_status", "list_recent_orders"],
     });
 
+// A loop stop criterion created from the application's services (Phase 201).
+// The factory takes the agent catalog: it runs on the first compilation of an
+// agent that names the kind, never at setup, where the catalog is still being
+// built. The console lists the kind with this description (GET
+// /api/loop-criteria), and an operator can put it into any agent's loop.
+// "reviewed-writer" below uses it; with no OpenAI key both agents run on the
+// local echo provider, whose reviewer fails round 1 and passes round 2.
+#pragma warning disable MAAI001 // The loop types are "for evaluation purposes only".
+tracon.AddLoopEvaluator(
+    DraftReviewCriterion.Kind,
+    static services => new DraftReviewCriterion(services.GetRequiredService<IAgentCatalog>()),
+    "The draft-reviewer agent approves the draft. A word count and a heading check are computed in code first.");
+#pragma warning restore MAAI001
+
+tracon
+    .AddAgent(new AgentDefinition
+    {
+        Name = DraftReviewCriterion.ReviewerAgent,
+        DisplayName = "Draft Reviewer",
+        Description = "Reviews a draft and answers with a JSON verdict.",
+        Instructions = "Review the draft after the '---' line. The lines before it carry checks computed in code. " +
+                       "Answer ONLY with a JSON object: {\"decision\": \"pass\" or \"fail\", " +
+                       "\"findings\": [{\"issue\": string, \"fix\": string}]}. Pass a draft that starts with a " +
+                       "'# ' heading and answers the request; list one finding per problem otherwise.",
+        Model = openAiEnabled
+            ? model with
+            {
+                ResponseFormat = new AgentResponseFormat
+                {
+                    Kind = AgentResponseFormatKind.JsonSchema,
+                    SchemaName = "review_verdict",
+                    Schema = JsonDocument.Parse(
+                        """
+                        {
+                          "type": "object",
+                          "properties": {
+                            "decision": { "type": "string", "enum": ["pass", "fail"] },
+                            "findings": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": { "issue": { "type": "string" }, "fix": { "type": "string" } },
+                                "required": ["issue", "fix"],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": ["decision", "findings"],
+                          "additionalProperties": false
+                        }
+                        """).RootElement.Clone(),
+                },
+            }
+            : new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoReviewerModel },
+    })
+    .AddAgent(new AgentDefinition
+    {
+        Name = "reviewed-writer",
+        DisplayName = "Reviewed Writer (loop demo)",
+        Description = "Writes a short draft and revises it until the draft-reviewer agent approves it.",
+        Instructions = "Write a short draft that answers the request. Start it with a '# ' heading. " +
+                       "When you receive reviewer findings, revise the draft to fix every one.",
+        Model = model,
+        Harness = new HarnessSettings
+        {
+            // No harness tools: the loop needs none, and the echo model calls none.
+            DisableTodoProvider = true,
+            DisableAgentSkillsProvider = true,
+            DisableAgentModeProvider = true,
+            Loop = new LoopSettings
+            {
+                Criteria = [new LoopCriterion { Kind = DraftReviewCriterion.Kind }],
+                MaxIterations = 3,
+                OnExhausted = LoopOutcome.FailRun,
+            },
+        },
+    });
+
 // A workflow defined in CODE. A free-form graph can only be built here -
 // the UI only defines ready-made patterns (design rule K2). This sample
 // uses the ready-made pattern factory; attaching custom `Executor` types
