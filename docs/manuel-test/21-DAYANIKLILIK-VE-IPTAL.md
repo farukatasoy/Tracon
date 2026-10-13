@@ -2350,7 +2350,7 @@ Kuyruktan başlayan run çökme veya deploy sonrası baştan koşuyordu; yarım 
 - Kök run `Failed`, `error.type: interrupted`; mesaj devam run'ının kimliğini adlandırır.
 - Tek bir devam run'ı `Completed`, `continuedFromRunId` = kök, aynı `sessionId`.
 - Devam run'ında yalnız `render` için `ExecutorInvoked` vardır; `word-count` yeniden çağrılmaz.
-- İş `Completed`, `attempt: 2`, `maxAttempts: 2`.
+- İş `Completed`, `attempt: 2`, `maxAttempts: 3` (`2 + MaxResumeAttempts`; son deneme zinciri kapatır).
 
 ---
 
