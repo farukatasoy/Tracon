@@ -107,6 +107,34 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
         request.SourcePath.ShouldBe(Path.Combine(root, DiskSkillName, "scripts", "route.sh"));
     }
 
+    /// <summary>
+    /// One content limit for every script: a file under a skill root larger than
+    /// <c>MaxScriptContentLength</c> is denied before the executor and before the
+    /// <c>script.run</c> entry, from MAF's own file source.
+    /// </summary>
+    [Fact]
+    public async Task A_file_script_past_the_content_limit_never_reaches_the_executor()
+    {
+        var root = WriteDiskSkill($"# {new string('x', 4_096)}\necho too-large\n");
+        var executor = new RecordingScriptExecutor();
+
+        await using var host = await StartAsync(executor, runs: [], skillRoot: root, maxScriptContentLength: 1_024);
+        await GrantAsync(host, "default", DiskSkillName, contentHash: null);
+
+        using var source = host.Services.GetRequiredService<SkillScriptSupport>().CreateFileSource().ShouldNotBeNull();
+        var skill = (await source.GetSkillsAsync(null!, CancellationToken.None))
+            .ShouldHaveSingleItem()
+            .ShouldBeOfType<Microsoft.Agents.AI.AgentFileSkill>();
+        var script = (await skill.GetScriptAsync(DiskScriptName, CancellationToken.None)).ShouldNotBeNull();
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await script.RunAsync(skill, arguments: null, host.Services, CancellationToken.None));
+
+        exception.Message.ShouldContain("exceeds the 1024-byte limit");
+        executor.Requests.ShouldBeEmpty();
+        (await DenialsAsync(host)).ShouldHaveSingleItem().ShouldContain("exceeds the 1024-byte limit");
+    }
+
     public static TheoryData<string, string> ClosedGates() => new()
     {
         { "no-grant", "no valid execution grant" },
@@ -150,17 +178,21 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     public async Task A_run_whose_audit_entry_cannot_be_written_never_reaches_the_executor()
     {
         var executor = new RecordingScriptExecutor();
+        ScriptRunRefusingAuditLog? refusing = null;
 
         await using var host = await StartAsync(
             executor,
             [("route-agent-1", SkillName, "hello")],
-            auditLog: static provider => new ScriptRunRefusingAuditLog(new InMemoryAuditLog(provider.GetRequiredService<ITenantContext>())));
+            auditLog: provider => refusing = new ScriptRunRefusingAuditLog(new InMemoryAuditLog(provider.GetRequiredService<ITenantContext>())));
 
         var saved = await SaveSkillAsync(host, tenant: "default", ("hello", "sh", "echo audited"));
         await GrantAsync(host, "default", SkillName, saved.ScriptSetHash);
 
         (await RunAsync(host, "route-agent-1")).ShouldNotContain("routed-to-executor");
 
+        // The positive control: the run DID reach the audit write and was refused
+        // there - not stopped earlier by a gate this test did not mean to close.
+        refusing.ShouldNotBeNull().ScriptRunAttempts.ShouldBe(1);
         executor.Requests.ShouldBeEmpty();
     }
 
@@ -214,10 +246,11 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
             (await RunAsync(host, "route-agent-1")).ShouldContain("routed-to-executor:hello");
 
             var request = executor.Requests.ShouldHaveSingleItem();
-            var fields = typeof(SkillScriptExecutionRequest).GetProperties()
-                .Select(property => property.GetValue(request)?.ToString() ?? string.Empty);
 
-            fields.ShouldAllBe(field => !field.Contains(secret, StringComparison.Ordinal));
+            // Every field, serialized whole: a value that only a field's ToString()
+            // would hide (a collection, a nested record) is still searched.
+            JsonSerializer.Serialize(request).ShouldNotContain(secret);
+            request.Content.ShouldContain(contentMarker);
             request.ToString().ShouldNotContain(contentMarker);
             host.Logs.AllText.ShouldNotContain(secret);
             host.Logs.AllText.ShouldNotContain(contentMarker);
@@ -288,7 +321,8 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
         IReadOnlyList<(string Agent, string Skill, string Script)> runs,
         bool multiTenant = false,
         string? skillRoot = null,
-        Func<IServiceProvider, IAuditLog>? auditLog = null)
+        Func<IServiceProvider, IAuditLog>? auditLog = null,
+        int? maxScriptContentLength = null)
     {
         var host = await TraconTestHost.StartAsync(
             configureServices: services =>
@@ -311,6 +345,11 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
                     if (skillRoot is not null)
                     {
                         options.SkillRoots.Add(skillRoot);
+                    }
+
+                    if (maxScriptContentLength is { } limit)
+                    {
+                        options.MaxScriptContentLength = limit;
                     }
                 });
 
@@ -455,13 +494,23 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
         }
     }
 
-    /// <summary>An audit log whose store refuses exactly the <c>script.run</c> entry.</summary>
+    /// <summary>An audit log whose store refuses exactly the <c>script.run</c> entry, and counts the attempts.</summary>
     private sealed class ScriptRunRefusingAuditLog(IAuditLog inner) : IAuditLog
     {
+        private int _scriptRunAttempts;
+
+        public int ScriptRunAttempts => Volatile.Read(ref _scriptRunAttempts);
+
         public ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
-            => string.Equals(entry.Action, "script.run", StringComparison.Ordinal)
-                ? throw new InvalidOperationException("audit store unavailable")
-                : inner.WriteAsync(entry, cancellationToken);
+        {
+            if (string.Equals(entry.Action, "script.run", StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref _scriptRunAttempts);
+                throw new InvalidOperationException("audit store unavailable");
+            }
+
+            return inner.WriteAsync(entry, cancellationToken);
+        }
 
         public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
             => inner.QueryAsync(query, cancellationToken);

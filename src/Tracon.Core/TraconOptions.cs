@@ -437,7 +437,13 @@ public sealed class TraconSkillScriptOptions
     /// <summary>Gets or sets the largest byte count for JSON arguments supplied to a script.</summary>
     public int MaxArgumentBytes { get; set; } = 16 * 1024;
 
-    /// <summary>Gets or sets the largest byte count for script content stored in the database.</summary>
+    /// <summary>Gets or sets the largest byte count for the content of one script.</summary>
+    /// <remarks>
+    /// One limit for every script. A stored script larger than this is refused
+    /// when it is saved. A script file under <see cref="SkillRoots"/> larger than
+    /// this, or empty, or not a regular file (a FIFO or a device), is refused
+    /// before it runs, and the refusal is written to the audit trail.
+    /// </remarks>
     public int MaxScriptContentLength { get; set; } = 64 * 1024;
 
     /// <summary>Gets or sets the largest script count that a skill can carry.</summary>
