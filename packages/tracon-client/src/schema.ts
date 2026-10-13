@@ -658,7 +658,7 @@ export interface paths {
         get: operations["TraconGetWorkflow"];
         /**
          * Creates or updates a workflow definition.
-         * @description The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.
+         * @description The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it.
          */
         put: operations["TraconSaveWorkflow"];
         post?: never;
@@ -743,7 +743,7 @@ export interface paths {
         put?: never;
         /**
          * Resumes from a checkpoint and streams events over SSE, or queues it with 'Prefer: respond-async'.
-         * @description Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run; the source run and its checkpoint are checked first, so an unknown run is 404 and a run with no checkpoint is 400. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+         * @description Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
          */
         post: operations["TraconResumeWorkflow"];
         delete?: never;
@@ -783,7 +783,7 @@ export interface paths {
         put?: never;
         /**
          * Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
-         * @description The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the answer is checked the same way (a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404) and then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+         * @description The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
          */
         post: operations["TraconRespondWorkflowRequest"];
         delete?: never;
@@ -826,7 +826,7 @@ export interface paths {
         get: operations["TraconGetSchedule"];
         /**
          * Creates or updates a schedule.
-         * @description The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it.
+         * @description The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it. The name 'handler-keys' is reserved (400): GET /api/schedules/handler-keys uses it.
          */
         put: operations["TraconSaveSchedule"];
         post?: never;
@@ -1947,7 +1947,7 @@ export interface paths {
         put?: never;
         /**
          * Uploads a document to the knowledge base.
-         * @description The body carries either 'text' (the server chunks and embeds it) or 'chunks' (pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered.
+         * @description The body carries either 'text' (the server chunks and embeds it) or 'chunks' (pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered. Text that is embedded passes the tenant's provider checks first: a tenant whose egress policy does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own credential for it, gets 403 and nothing is embedded.
          */
         post: operations["TraconUploadKnowledgeDocument"];
         delete?: never;
@@ -1987,7 +1987,7 @@ export interface paths {
         put?: never;
         /**
          * Performs a semantic search in a collection (for diagnostics and calibration).
-         * @description This runs the same retrieval an agent performs, so it is how a retrieval problem is separated from a prompt problem: if the right chunk does not come back here, the agent was never going to see it. The query is embedded, which costs one embedding call per request. Each hit carries its distance — smaller is closer — along with the chunk text and its metadata, so a relevance threshold can be calibrated from real values. Knowledge storage requires PostgreSQL; without it the response is 501.
+         * @description This runs the same retrieval an agent performs, so it is how a retrieval problem is separated from a prompt problem: if the right chunk does not come back here, the agent was never going to see it. The query is embedded, which costs one embedding call per request. Each hit carries its distance — smaller is closer — along with the chunk text and its metadata, so a relevance threshold can be calibrated from real values. The query passes the tenant's provider checks before it is embedded, as an upload does (403). Knowledge storage requires PostgreSQL; without it the response is 501.
          */
         post: operations["TraconSearchKnowledge"];
         delete?: never;
@@ -2624,7 +2624,7 @@ export interface paths {
         post?: never;
         /**
          * Deletes a data subject's content.
-         * @description '{id}' is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as 'already erased'. '?dryRun=' DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; '?dryRun=false' deletes for real. The audit trail (audit_log) is never touched — it is deliberately outside a data subject's erasable content (by design: an audit record is 'who did what', not the subject's own data) — but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow.
+         * @description '{id}' is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as 'already erased'. '?dryRun=' DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; '?dryRun=false' deletes for real. The audit trail (audit_log) is never touched — it is deliberately outside a data subject's erasable content (by design: an audit record is 'who did what', not the subject's own data) — but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow. A run of the subject that is still Running or Queued would write its session and checkpoints back after the erasure commits: '?dryRun=false' is refused with 409 that names those runs, and the preview lists them in 'activeRunIds'. '?force=true' erases anyway, for a row a crashed process left behind; cancel a run that is really running first.
          */
         delete: operations["TraconEraseDataSubject"];
         options?: never;
@@ -3895,6 +3895,13 @@ export interface components {
             rowsByTarget: {
                 [key: string]: number | string;
             };
+            /**
+             * @description Gets the subject's runs that are still `Running` or `Queued`. A run in
+             *     progress writes its session and its checkpoints back after an erasure commits,
+             *     so a real erasure is refused with `409` while this is not empty, unless it
+             *     is forced. Empty when no run of the subject is in progress.
+             */
+            activeRunIds?: string[];
         };
         DeletedResource: {
             id: string;
@@ -9719,6 +9726,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconListWorkflows: {
@@ -9929,6 +9945,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     TraconListWorkflowCheckpoints: {
@@ -10015,6 +10040,15 @@ export interface operations {
             };
             /** @description Not Implemented */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10117,6 +10151,15 @@ export interface operations {
             };
             /** @description Not Implemented */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11896,6 +11939,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Not Implemented */
             501: {
                 headers: {
@@ -11959,6 +12011,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SearchKnowledgeHit"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Not Implemented */
@@ -12912,6 +12973,7 @@ export interface operations {
         parameters: {
             query?: {
                 dryRun?: boolean;
+                force?: boolean;
             };
             header?: never;
             path: {
@@ -12928,6 +12990,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataSubjectErasureResult"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -13011,6 +13082,15 @@ export interface operations {
                     "application/json": components["schemas"]["OpenAIErrorEnvelope"];
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
+                };
+            };
         };
     };
     TraconOpenAIChatCompletions: {
@@ -13065,6 +13145,15 @@ export interface operations {
             };
             /** @description Bad Gateway */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

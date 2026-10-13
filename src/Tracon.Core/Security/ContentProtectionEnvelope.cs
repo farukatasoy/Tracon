@@ -11,7 +11,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The text envelope is valid JSON on purpose: several of the eleven protected
+/// The text envelope is valid JSON on purpose: several of the twelve protected
 /// columns enforce a JSON-validity constraint at the schema level, and changing
 /// their column type would need a data migration across three providers. Wrapping ciphertext in a small JSON
 /// object satisfies the constraint with no migration.

@@ -45,6 +45,24 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
+    public async Task Draining_refuses_a_message_and_opens_no_runs_row()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition())
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureServices: static services => services.AddSingleton<ITraconDrainState>(new FixedDrainState(isDraining: true)),
+            configureAfterMap: app => app.MapTraconA2A());
+
+        var (_, body) = await SendMessageAsync(host.Client, "kod-agent", "hello");
+
+        body.ShouldNotBeNull().TryGetProperty("result", out _).ShouldBeFalse($"a drained process answers no result: {body}");
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        (await runs.QueryRunsAsync(new RunQuery())).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task An_agent_not_on_the_allow_list_is_not_published()
     {
         await using var host = await TraconTestHost.StartAsync(

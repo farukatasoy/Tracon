@@ -184,6 +184,18 @@ internal sealed class ExternalAgentProxy : AIAgent
             $"The A2A proxy for '{_agentName}' is not attached to a service provider. " +
             "The call to MapTraconA2A() may be missing.");
 
+        // 🚨 Both run paths resolve through here, before a run starts: an A2A
+        // message is refused while the process drains (F-431), with the same
+        // call error an unknown agent gets.
+        if (services.GetRequiredService<ITraconDrainState>().IsDraining)
+        {
+            throw new TraconExternalCallException(DrainGate.Detail)
+            {
+                AgentName = _agentName,
+                Protocol = "a2a",
+            };
+        }
+
         var catalog = services.GetRequiredService<IAgentCatalog>();
         var agent = await catalog.ResolveAsync(_agentName, culture: null, cancellationToken).ConfigureAwait(false)
             ?? throw new TraconExternalCallException($"There is no agent named '{_agentName}' in the catalog.")

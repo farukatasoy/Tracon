@@ -17,6 +17,11 @@ namespace Tracon;
 /// The parameter is also marked as <c>json</c>: the default text send format can fail
 /// to write directly to the server's column type.
 /// </para>
+/// <para>
+/// With content protection on, the state is written as the protector's JSON envelope
+/// (<see cref="ProtectedColumn.WorkflowCheckpointState"/>), which fits the same
+/// column, and read back as plaintext. A row written before protection stays readable.
+/// </para>
 /// </remarks>
 internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
 {
@@ -52,7 +57,7 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         DbHelpers.Add(command, "checkpoint_id", record.CheckpointId);
         Dialect.AddText(command, "parent_id", record.ParentCheckpointId);
         Dialect.AddUuid(command, "run_id", record.RunId);
-        Dialect.AddJson(command, "state", record.State.GetRawText());
+        Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.WorkflowCheckpointState, record.State.GetRawText()));
         Dialect.AddInt32(command, "state_schema_version", record.StateSchemaVersion);
         Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
@@ -78,9 +83,11 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         DbHelpers.Add(command, "session_id", sessionId);
         DbHelpers.Add(command, "checkpoint_id", checkpointId);
 
-        var raw = await DbHelpers
-            .ReadSingleAsync(command, static reader => reader.GetString(0), cancellationToken)
-            .ConfigureAwait(false);
+        var raw = ProtectedValue.Read(
+            _context,
+            await DbHelpers
+                .ReadSingleAsync(command, static reader => reader.GetString(0), cancellationToken)
+                .ConfigureAwait(false));
 
         // The document must not outlive the caller: when a JsonDocument is
         // disposed it returns its buffer, and a JsonElement taken from it

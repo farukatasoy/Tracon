@@ -370,6 +370,7 @@ internal static class RunEndpoints
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
                 [FromServices] TraconMetrics metrics,
+                [FromServices] ITraconDrainState drainState,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) => await ReplayRunAsync(
                     runId,
@@ -385,6 +386,7 @@ internal static class RunEndpoints
                     httpContext,
                     prefix,
                     metrics,
+                    drainState,
                     cancellationToken).ConfigureAwait(false))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
@@ -415,7 +417,8 @@ internal static class RunEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
-            .ProducesProblem(StatusCodes.Status502BadGateway);
+            .ProducesProblem(StatusCodes.Status502BadGateway)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
     }
 
     private static async Task<Results<Ok<RunInputResponse>, ProblemHttpResult>> GetRunInputAsync(
@@ -632,8 +635,16 @@ internal static class RunEndpoints
         HttpContext httpContext,
         string prefix,
         [FromServices] TraconMetrics metrics,
+        ITraconDrainState drainState,
         CancellationToken cancellationToken)
     {
+        // 🚨 A replay starts a run in this process: checked BEFORE anything
+        // else, like the agent run endpoint, so no 'runs' row opens (F-431).
+        if (DrainGate.Check(drainState) is { } drainProblem)
+        {
+            return drainProblem;
+        }
+
         var (bound, bindError) = await RequestBodyBinding
             .ReadAsync<RunReplayRequest>(httpContext, cancellationToken)
             .ConfigureAwait(false);

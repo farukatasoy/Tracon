@@ -204,6 +204,8 @@ public static partial class TraconServiceCollectionExtensions
                 options => BindDrain(configurationSection.GetSection("Drain"), options));
             services.Configure<TraconImageOptions>(
                 options => BindImages(configurationSection.GetSection("Images"), options));
+            services.Configure<TraconKnowledgeOptions>(
+                options => BindKnowledge(configurationSection.GetSection("Knowledge"), options));
             services.Configure<TraconStructuredResponseOptions>(
                 options => BindStructuredResponse(configurationSection.GetSection("StructuredResponse"), options));
             services.Configure<TraconSessionOwnershipOptions>(

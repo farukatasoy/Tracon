@@ -1046,3 +1046,26 @@ Test run summary: Passed!
 **Gerçek sonuç (2026-09-24)**
 - Düzeltmeden önce ikinci koşum: `The template fixture resolved 1.0.0-preview.1 ...` (kırmızı).
 - Düzeltmeden sonra: `TemplateFixtureVersionTests` yeşil; `ls` → eşleşme yok.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-TEST-044 — 🚨 K-218 tuzağının ampirik kanıtı: `AIFunctionArguments.Services`'ten çözülen bağımlılık `null` gelir
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** MAF `AIFunctionArguments.Services`'i
+> asla gerçek `null` göndermez — daima `Microsoft.Extensions.AI
+> .EmptyServiceProvider`ın (boş ama `null` OLMAYAN) bir örneğini gönderir.
+> `args.Services is null` denetimi bu yüzden HER ZAMAN `false` — yanlış
+> koşulu sınıyordu. Doğru denetim, gerçekten kayıtlı bir servisi
+> `GetService(...)` ile çözmeye çalışmaktır.
+
+~~Eski script (yanlış öncül — `args.Services is null` denetimi MAF'ta HER
+ZAMAN `false` döner, `EmptyServiceProvider` `null` DEĞİLDİR): `args.Services
+is null ? "SERVICES NULL" : "SERVICES DOLU"`.~~

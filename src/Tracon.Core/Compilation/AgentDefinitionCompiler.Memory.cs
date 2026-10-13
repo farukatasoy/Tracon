@@ -110,8 +110,16 @@ public sealed partial class AgentDefinitionCompiler
 
         var collection = memory.VectorCollection is { Length: > 0 } named ? named : definition.Name;
 
+        // F-416: the registered check carries the policy and binding stores; a
+        // compiler built without a container still applies the policy it was given.
+        var access = _services?.GetService(typeof(EmbeddingProviderAccess)) as EmbeddingProviderAccess
+            ?? new EmbeddingProviderAccess(
+                Microsoft.Extensions.Options.Options.Create(new TraconKnowledgeOptions()),
+                _embeddingGenerator,
+                _tenantEgressPolicies);
+
         tools.Add(VectorSearchToolFactory.Create(
-            _vectorSearchStore, _embeddingGenerator, tenantId, collection, _knowledgeMaxResults));
+            _vectorSearchStore, _embeddingGenerator, tenantId, collection, _knowledgeMaxResults, access));
     }
 
     /// <remarks>

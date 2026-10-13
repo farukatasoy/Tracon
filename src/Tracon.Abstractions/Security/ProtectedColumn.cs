@@ -47,4 +47,10 @@ public enum ProtectedColumn
     /// started with. Values are user content like the messages beside them.
     /// </summary>
     RunInputParameters = 10,
+
+    /// <summary>
+    /// The <c>workflow_checkpoints.state</c> column — Microsoft Agent Framework's
+    /// serialized checkpoint of a workflow run, which carries the run's messages.
+    /// </summary>
+    WorkflowCheckpointState = 11,
 }

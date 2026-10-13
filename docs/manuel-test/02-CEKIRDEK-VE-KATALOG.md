@@ -215,13 +215,6 @@ reddedilir.
 2. Anahtar adını farklı harf büyüklüğüyle tekrarla.
 
 **Girilecek veri**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `provider:"echo"` yanlış
-> seçim — `EchoModelProvider.CreateChatClient`
-> (`samples/Tracon.Api/EchoModelProvider.cs`) ağa çıkmayan yerel örnek
-> sağlayıcı olduğu için `ModelBinding.ProviderSettings`'i hiç okumaz/
-> doğrulamaz. Doğrulama gerçek mekanizması (`ModelProviderSettings.Validate`,
-> `src/Tracon.Abstractions/Agents/ModelProviderSettings.cs`) yalnız ağa
-> çıkan sağlayıcılarda (`anthropic`/`google`/`azure`) çalışır.
 ```bash
 curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-kotu-ayar",
@@ -232,10 +225,6 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
   }
 }'
 ```
-
-~~Eski girdi (yanlış öncül — `echo` sağlayıcısı `ProviderSettings`'i hiç
-okumaz): `provider: "echo"`, `providerSettings: { "echo.boyle.bir.ayar.yok":
-true }`.~~
 
 **Beklenen sonuç**
 - `valid` `false`'tur ve `code` değeri `invalid_setting` olan bir mesaj vardır.
@@ -664,25 +653,12 @@ dotnet run -c Release
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `AddTracon()`
-> (`src/Tracon.Core/TraconServiceCollectionExtensions.cs:381`)
-> `AgentSkillCatalog`'u `TryAddSingleton` ile KOŞULSUZ kaydeder (doküman'ın
-> `IAgentSkillCatalog` adı hatalı — arayüz yok, somut sınıf kaydediliyor) —
-> bir tüketicinin `AddTracon()` çağırdığı hiçbir standart senaryoda
-> katalog "kayıtlı değil" olamaz. Doğru ve tek erişilebilir dal, tanımın
-> **var olmayan bir skill'e** işaret ettiği dalıdır. 2026-08-15'te kod
-> yeniden doğrulandı: `AgentDefinitionCompiler.cs:307`/`:1174`'teki "skill
-> katalogu kayitli degil" hata dalı bugün de erişilemez durumda (ölü kod,
-> yalnız bir tüketici `AgentSkillCatalog` kaydını elle kaldırırsa tetiklenir).
 - Çıktı `beklenen istisna:` ile başlar.
 - Mesaj `Agent 'skill-isteyen' refers to skill 'olmayan-skill', but the skill
   was not found.` ifadesini taşır. 🚨 Sevk edilen metin K-228'den beri
   **İngilizce**dir; Türkçe bir alıntı görürsen spec bayattır.
 - `AgentName` alanı `skill-isteyen`'dir.
 - `🚨 istisna ATILMADI` satırı **görünmez**.
-
-~~Eski beklenti (yanlış öncül — "minimum kurulumda katalog kayıtlı
-değildir"): Mesaj "skill katalogu kayitli degil" ifadesini taşır.~~
 
 ---
 
@@ -744,23 +720,11 @@ dotnet run -c Release
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** Script'in kendisi iki farklı
-> tool kayıt deyimini karıştırmış: `[TraconTool("var_olan_tool", ...)]`
-> özniteliğini koyuyor ama `.AddTool(delegate)` ile kaydediyor.
-> `src/Tracon.Core/ITraconBuilder.cs:47` `AddTool(Delegate method,
-> string? name = null, ...)` — "name boş bırakılırsa METOT ADI kullanılır"
-> diye açıkça belgeler, kasıtlı davranış. `[TraconTool]` özniteliği
-> yalnız `AddToolsFrom<T>()` tarafından okunur, `.AddTool(delegate)` onu hiç
-> görmez. Doğru kayıtlı ad bu yüzden metot adı `"Var"`dır, öznitelikteki
-> `"var_olan_tool"` DEĞİL.
 - İstisna mesajı `tool-eksik` agent adını taşır.
 - Mesaj eksik tool adını (`hayali_tool`) taşır.
 - Mesaj **kayıtlı tool'ları listeler** (`Var` görünür — `.AddTool(delegate)`
   metot adını kullanır, `[TraconTool]` özniteliğini değil).
 - Mesaj `builder.AddTracon().AddTool(...)` yönlendirmesini içerir.
-
-~~Eski beklenti (yanlış öncül — script iki tool-kayıt idiomunu
-karıştırmıştı): Mesaj kayıtlı tool'ları listeler (`var_olan_tool` görünür).~~
 
 ### MT-CORE-030 — Kod kaynaklı agent veritabanı tanımını yener
 

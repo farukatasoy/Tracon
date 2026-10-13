@@ -603,3 +603,26 @@ kullanıldı (kural §1.2).
 kapalı) geri döndürüldü — bkz. aşağıdaki devir notu güncellemesi.
 
 ---
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-MEM-031 — `KnowledgeEndpoints`'te `RequireApiKeyScope` — yalnız-okuma anahtarı belge yazabiliyor/silebiliyor mu?
+
+**Doküman düzeltmesi (2026-09-18) — spec'in kod kanıtı bayat çıktı.**
+Spec'in dayandığı `grep -n "RequireApiKeyScope"
+src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs` iddiası (boş döner)
+BU KOŞUMDA çürütüldü: aynı komut güncel kaynakta 4 satır döndürüyor —
+`KnowledgeAdmin` (satır 25, 52) yazma/silme uçlarında, `KnowledgeRead`
+(satır 38, 66) okuma uçlarında zorunlu. Kapsam denetimi ampirik olarak da
+çalışıyor (aşağıda). Spec başlığındaki 🚨 ve "beşinci bilinen tekrar"
+iddiası kaldırıldı — bu artık dördüncü örneklerle (`MT-WF-100`, `MT-JOB-090`,
+`MT-EVAL-100`/`101`, `MT-MCP-051`/`052`) AYNI SINIFTAN bir tekrar değil,
+kapanmış bir örnek.

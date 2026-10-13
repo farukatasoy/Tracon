@@ -92,6 +92,100 @@ public sealed class DataSubjectEndpointTests
         body.GetProperty("dryRun").GetBoolean().ShouldBeFalse();
     }
 
+    // F-400: a run of the subject that is still running writes its session and its
+    // checkpoints back after the erasure commits. The erasure is refused while one
+    // runs, the preview names them, and 'force=true' erases anyway: a row a crashed
+    // process left 'Running' must not lock a subject's erasure forever.
+
+    [Theory]
+    [InlineData(RunStatus.Running)]
+    [InlineData(RunStatus.Queued)]
+    public async Task Erase_is_refused_with_409_while_a_run_of_the_subject_is_in_progress(RunStatus status)
+    {
+        var store = new RecordingDataSubjectStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => RegisterFakes(services, store));
+
+        var runId = await SeedRunAsync(host, status);
+
+        using var response = await host.Client.DeleteAsync(
+            new Uri("/tracon/api/data-subjects/subject-1?dryRun=false", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict, await response.Content.ReadAsStringAsync());
+        (await response.Content.ReadAsStringAsync()).ShouldContain(runId.ToString());
+        store.EraseCalls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task The_preview_names_the_runs_in_progress()
+    {
+        var store = new RecordingDataSubjectStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => RegisterFakes(services, store));
+
+        var runId = await SeedRunAsync(host, RunStatus.Running);
+
+        using var response = await host.Client.DeleteAsync(EraseUri);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("activeRunIds").EnumerateArray()
+            .ShouldHaveSingleItem().GetGuid().ShouldBe(runId);
+    }
+
+    [Fact]
+    public async Task Force_erases_even_while_a_run_of_the_subject_is_in_progress()
+    {
+        var store = new RecordingDataSubjectStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => RegisterFakes(services, store));
+
+        await SeedRunAsync(host, RunStatus.Running);
+
+        using var response = await host.Client.DeleteAsync(
+            new Uri("/tracon/api/data-subjects/subject-1?dryRun=false&force=true", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        store.EraseCalls.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_finished_run_of_the_subject_does_not_block_the_erasure()
+    {
+        var store = new RecordingDataSubjectStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: services => RegisterFakes(services, store));
+
+        await SeedRunAsync(host, RunStatus.Completed);
+
+        using var response = await host.Client.DeleteAsync(
+            new Uri("/tracon/api/data-subjects/subject-1?dryRun=false", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        store.EraseCalls.ShouldBe(1);
+    }
+
+    /// <summary>A run in the session the fixed resolver names.</summary>
+    private static async Task<Guid> SeedRunAsync(TraconTestHost host, RunStatus status)
+    {
+        var runId = TraconId.NewId();
+
+        await host.Services.GetRequiredService<IRunStore>().StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "support",
+            Status = status,
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = host.Services.GetRequiredService<ITenantContext>().TenantId,
+            SessionId = "s1",
+        });
+
+        return runId;
+    }
+
     [Fact]
     public async Task Erase_writes_an_audit_entry_carrying_the_subject_id()
     {

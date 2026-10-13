@@ -2204,3 +2204,41 @@ kiracının satırı da filtresiz sorguda döndü.
 sözleşme test sınıfı `enableReadViews` parametresini varsayılan `false` ile
 kullanır (`PostgresTestContext.Create`) ve tamamı yeşil kaldı — açık istek
 olmadan `views` seti hiçbir zaman devreye girmedi.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-PG-001 — Boş bağlantı dizesiyle başlatma reddedilir
+
+~~Eski beklenti (yanlış öncül — İzlek B'de validator'a hiç ulaşılmadığını
+gözden kaçırıyordu): Uygulama başlamayı reddeder (`ValidateOnStart`);
+konsolda `OptionsValidationException` görünür ve mesaj
+`TraconPostgreSqlOptions.ConnectionString bos olamaz` metnini taşır.
+Süreç sıfırdan farklı bir çıkış koduyla sonlanır; `/health` hiçbir zaman
+yanıt vermez.~~
+
+#### MT-PG-050 — `/health` PostgreSQL erişilemezken Unhealthy döner
+
+> **Düzeltildi (2026-09-16):** 2026-08-15 düzeltmesi beklentinin **tamamını**
+> üstü çizili bırakmış ve case'i bu dosyanın kapsamı dışına atmıştı. Ölçüm
+> bunun fazla kapsadığını gösterdi — `echo` gerekçesi yalnız **kurtarma
+> yarısını** etkiler; case'in başlığı olan "erişilemezken Unhealthy" iddiası
+> `CanConnect` kısa devresi sayesinde sağlayıcıdan bağımsızdır ve doğrulandı.
+> Ayrıca 2026-09-16 şeridi `echo`-only **değildi** (üç gerçek anahtar kayıtlı)
+> ve yine `Healthy` gelmedi; gerçek neden sağlayıcıların `Unknown` durmasıdır.
+
+#### MT-PG-053 — Migration tamamsa ve bir model sağlayıcı sağlıklıysa `/health` Healthy döner
+
+> **Düzeltildi (2026-09-16):** 2026-08-15 düzeltmesi "`/health` YAPISAL OLARAK
+> asla düz `Healthy` dönemez" diyordu. Ölçüm bunu **çürüttü** — `Healthy`
+> alındı (HTTP 200). O düzeltmenin doğru olan tek kısmı `echo` öncülüdür;
+> yanlış olan, bunu tüm kurulumlara genellemesidir. Sorun yapısal değil, ön
+> koşuldadır: izlenen bir sağlayıcı **ve** ısıtılmış sağlık önbelleği gerekir.
+> Ön koşul buna göre düzeltildi.

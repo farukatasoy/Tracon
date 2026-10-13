@@ -37,15 +37,6 @@ public sealed class DataSubjectCoverageTests
     {
         ["eval_case_results"] =
             "run_id names the run an evaluation made for its own test case, not a data subject's run.",
-        ["eval_cases"] =
-            "Open (F-371 class sweep): source_run_id names the production run a case was promoted from, " +
-            "and the case keeps a copy of that run's input. Whether erasure deletes or keeps the case is not decided.",
-        ["idempotency_keys"] =
-            "Open (F-371 class sweep): body holds the stored response of a subject's run for the idempotency " +
-            "window (one day by default in retention). Not yet an export or erasure target.",
-        ["job_items"] =
-            "Open (F-371 class sweep): input holds a batch item's message and run_id names its run. " +
-            "Not yet an export or erasure target.",
     };
 
     /// <summary>A column that ties a row to a session, a run, or a conversation.</summary>
@@ -155,6 +146,83 @@ public sealed class DataSubjectCoverageTests
         {
             (dialect as IDisposable)?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Where each <see cref="ProtectedColumn"/> lives. A new member fails the test
+    /// below until it is placed here, so its export is decided rather than forgotten.
+    /// </summary>
+    private static readonly Dictionary<ProtectedColumn, (string Table, string Column)> ProtectedColumnHomes = new()
+    {
+        [ProtectedColumn.SessionState] = ("sessions", "state"),
+        [ProtectedColumn.ConversationItem] = ("conversation_items", "item"),
+        [ProtectedColumn.RunInput] = ("run_inputs", "messages"),
+        [ProtectedColumn.RunInputParameters] = ("run_inputs", "parameters"),
+        [ProtectedColumn.RunEventText] = ("run_events", "text"),
+        [ProtectedColumn.RunEventPayload] = ("run_events", "payload"),
+        [ProtectedColumn.ToolArguments] = ("tool_invocations", "arguments"),
+        [ProtectedColumn.ToolResult] = ("tool_invocations", "result"),
+        [ProtectedColumn.AgentFileContent] = ("agent_files", "content"),
+        [ProtectedColumn.AttachmentContent] = ("attachments", "content"),
+        [ProtectedColumn.ResponsePayload] = ("responses", "payload"),
+        [ProtectedColumn.WorkflowCheckpointState] = ("workflow_checkpoints", "state"),
+    };
+
+    /// <summary>
+    /// F-401: export wrote a protected column as its stored envelope, so a subject
+    /// received ciphertext exactly when content protection was on. Every protected
+    /// column of an export target is read back as plaintext.
+    /// </summary>
+    [Theory]
+    [InlineData("PostgreSql")]
+    [InlineData("SqlServer")]
+    [InlineData("Sqlite")]
+    public void Every_protected_column_of_an_export_target_is_exported_as_plaintext(string provider)
+    {
+        Enum.GetValues<ProtectedColumn>().Where(column => !ProtectedColumnHomes.ContainsKey(column)).ShouldBeEmpty(
+            "A ProtectedColumn has no table here: place it, then decide whether export reads it back.");
+
+        var assembly = ProviderAssembly(provider);
+        var exportTargets = RegistryList(assembly, "ExportTargets");
+        var protectedColumnsOf = Registry(assembly).GetMethod("ProtectedExportColumns", BindingFlags.Public | BindingFlags.Static)!;
+
+        var missing = ProtectedColumnHomes.Values
+            .Where(home => exportTargets.Contains(home.Table, StringComparer.Ordinal))
+
+            // An attachment's bytes are left out of the export on purpose (DataSubjectExport).
+            .Where(static home => home != ("attachments", "content"))
+            .Where(home => !((IReadOnlyList<string>)protectedColumnsOf.Invoke(null, [home.Table])!).Contains(home.Column, StringComparer.Ordinal))
+            .Select(static home => $"{home.Table}.{home.Column}")
+            .ToList();
+
+        missing.ShouldBeEmpty(
+            "An exported column that content protection can encrypt is not in " +
+            "DataSubjectTargetRegistry.ProtectedExportColumns: the subject would receive ciphertext.");
+    }
+
+    /// <summary>
+    /// F-447: a retention archive hands rows to the consumer's sink. Every protected
+    /// column of a retention target is read back as plaintext there too.
+    /// </summary>
+    [Theory]
+    [InlineData("PostgreSql")]
+    [InlineData("SqlServer")]
+    [InlineData("Sqlite")]
+    public void Every_protected_column_of_a_retention_target_is_archived_as_plaintext(string provider)
+    {
+        var protectedColumnsOf = ProviderAssembly(provider)
+            .GetType("Tracon.RetentionTargetRegistry", throwOnError: true)!
+            .GetMethod("ProtectedArchiveColumns", BindingFlags.Public | BindingFlags.Static)!;
+
+        var missing = ProtectedColumnHomes.Values
+            .Where(static home => RetentionTargets.All.Contains(home.Table, StringComparer.Ordinal))
+            .Where(home => !((IReadOnlyList<string>)protectedColumnsOf.Invoke(null, [home.Table])!).Contains(home.Column, StringComparer.Ordinal))
+            .Select(static home => $"{home.Table}.{home.Column}")
+            .ToList();
+
+        missing.ShouldBeEmpty(
+            "A retention target column that content protection can encrypt is not in " +
+            "RetentionTargetRegistry.ProtectedArchiveColumns: the archive sink would receive ciphertext.");
     }
 
     private static Assembly ProviderAssembly(string provider) => provider switch

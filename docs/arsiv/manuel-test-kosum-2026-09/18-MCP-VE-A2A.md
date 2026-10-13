@@ -652,3 +652,38 @@ sayısı `0`. Pozitif kontrol olmadan bu case yalnız "bayrak uygulamayı
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-MCP-008 — `DELETE` sunucu kaydını siler
+
+> **Düzeltildi (2026-09-17):** `ftp-sunucu` MT-MCP-004'te ZATEN `400` ile
+> reddedilmiş, hiç oluşmamıştı — `DELETE` bu yüzden `204` değil `404 "MCP
+> server not found"` döner (uç var-olmayan bir kaydı silmeyi idempotent
+> `204` değil, açık `404` ile işaretliyor). Asıl iddia (üç negatif case'in
+> kalıcı iz BIRAKMADIĞI) SQL sorgusuyla doğrulanır, HTTP durum kodu değil.
+
+#### MT-MCP-031 — `summarizer` fixture: `tools/list` gerçek çıktısı
+
+> **Düzeltildi (2026-09-17):** spec `tracon_ozetleyici` yazıyordu (Aşama
+> 0'da zaten kapatılan bayat Türkçe agent adı örüntüsü — örnek uygulama
+> İngilizceye çevrildi). Gerçek tool adı `tracon_summarizer`'dır, bu dosyada
+> her geçtiği yerde düzeltildi (MT-MCP-032/033 dahil).
+
+#### MT-MCP-051 — `GovernanceEndpoints` (`/api/mcp-servers/*`) API ANAHTARI KAPSAMI HİÇ ÇAĞIRMAZ
+
+> **Düzeltildi (2026-09-17) — şüphe ÇÜRÜTÜLDÜ, kod 2026-08-10 ile
+> 2026-09-16 arasında düzeltilmiş:** `GovernanceEndpoints.cs`'teki `PUT
+> /api/mcp-servers/{name}` artık `.RequireRole(roles.Admin)` VE
+> `.RequireApiKeyScope(ApiKeyScope.AgentsAdmin)` taşıyor (satır ~269-270).
+> Bu dosyanın TÜM `mcp-servers` uçları (9 `Map*` çağrısı) aynı desende
+> `RequireApiKeyScope` taşıyor. `00-INDEKS.md` §8'deki "BEŞİNCİ bağımsız
+> tekrar" notu da düzeltildi.

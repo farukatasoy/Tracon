@@ -28,7 +28,23 @@ public sealed class ConfigurationKeyGuardTests
         // that message is the whole upgrade path for an existing record.
         exception.Message.ShouldContain(Field);
         exception.Message.ShouldContain(Prefix);
-        exception.Message.ShouldContain("ConnectionStrings:Default");
+    }
+
+    /// <summary>
+    /// 🚨 F-291. An operator who types the secret VALUE into a key-name field got it
+    /// back in the <c>400</c> body, and a webhook delivery that checks the same rule
+    /// wrote it into <c>webhook_deliveries.error</c> (K-059: a value is never stored).
+    /// The refusal names the field and the expected key space, never what was given.
+    /// </summary>
+    [Theory]
+    [InlineData("not-a-real-secret-value-0123")]
+    [InlineData("Tracon:McpSecrets:acme:not-a-real-secret-value-0123")]
+    public void A_refused_name_is_never_echoed(string given)
+    {
+        var exception = Should.Throw<TraconException>(() => Require(given, tenant: "globex"));
+
+        exception.Message.ShouldNotContain("not-a-real-secret-value-0123");
+        exception.Message.ShouldContain(Field);
     }
 
     [Theory]

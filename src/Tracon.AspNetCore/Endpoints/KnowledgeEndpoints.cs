@@ -29,8 +29,12 @@ internal static class KnowledgeEndpoints
             .Accepts<UploadDocumentRequest>("application/json")
             .WithDescription(
                 "The body carries either 'text' (the server chunks and embeds it) or 'chunks' " +
-                "(pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered.")
+                "(pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered. " +
+                "Text that is embedded passes the tenant's provider checks first: a tenant whose egress policy " +
+                "does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own " +
+                "credential for it, gets 403 and nothing is embedded.")
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
         builder.MapGet("/api/knowledge/{collection}/documents", ListAsync)
@@ -73,9 +77,11 @@ internal static class KnowledgeEndpoints
                 "back here, the agent was never going to see it. The query is embedded, which " +
                 "costs one embedding call per request. Each hit carries its distance — smaller " +
                 "is closer — along with the chunk text and its metadata, so a relevance " +
-                "threshold can be calibrated from real values. Knowledge storage requires " +
+                "threshold can be calibrated from real values. The query passes the tenant's provider " +
+                "checks before it is embedded, as an upload does (403). Knowledge storage requires " +
                 "PostgreSQL; without it the response is 501.")
             .Accepts<SearchKnowledgeRequest>("application/json")
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
     }
 
@@ -122,6 +128,10 @@ internal static class KnowledgeEndpoints
         catch (ArgumentException ex)
         {
             return Invalid(CleanMessage(ex));
+        }
+        catch (TenantProviderRefusedException ex)
+        {
+            return Refused(ex);
         }
     }
 
@@ -199,7 +209,21 @@ internal static class KnowledgeEndpoints
         {
             return Invalid(CleanMessage(ex));
         }
+        catch (TenantProviderRefusedException ex)
+        {
+            return Refused(ex);
+        }
     }
+
+    /// <summary>
+    /// The tenant's own rule, not a provider failure: <c>403</c>, as for images and
+    /// speech. The message names the tenant and the provider only.
+    /// </summary>
+    private static ProblemHttpResult Refused(TenantProviderRefusedException exception)
+        => TypedResults.Problem(
+            title: "Embedding provider not available for this tenant",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status403Forbidden);
 
     private static ProblemHttpResult Invalid(string detail)
         => TypedResults.Problem(title: "Invalid request", detail: detail, statusCode: StatusCodes.Status400BadRequest);

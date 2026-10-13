@@ -127,23 +127,11 @@ cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-09-17, aynı gerekçeyle `03-KALICILIK-POSTGRESQL.md`
-> `MT-PG-001`'de 2026-08-15'te düzeltildi) — İzlek B ile bu senaryo yapısal
-> olarak erişilemez, beklenti koda göre düzeltildi:**
-> `samples/Tracon.Api/Program.cs:867-870` boş bağlantı dizesinde
-> `UseSqlite()`'ı hiç çağırmaz — validator'a hiçbir zaman ulaşılmaz
-> (`SqlServer → PostgreSql → Sqlite` sırasıyla İLK doluyu seçer, üçü de
-> boşsa hiçbiri çağrılmaz). Örnek uygulama sessizce InMemory'e düşer,
-> `/health` **200** döner (kalıcılık nedeniyle değil, model sağlayıcı
-> sağlığı nedeniyle Healthy/Degraded). `TraconSqliteOptionsValidator`'ın
-> kendisi doğru çalışır — bu yalnız İzlek A/C (doğrudan `UseSqlite()`
-> çağıran bir harness) üzerinden gözlemlenebilir.
-
-~~Eski beklenti (yanlış öncül — İzlek B'de validator'a hiç ulaşılmadığını
-gözden kaçırıyordu): Uygulama başlamayı **reddeder** (`ValidateOnStart`);
-konsolda `OptionsValidationException` görünür, mesaj
-`TraconSqliteOptions.ConnectionString bos olamaz` metnini taşır.
-`/health` hiçbir zaman yanıt vermez.~~
+- Örnek uygulama boş bağlantı dizesinde `UseSqlite()`'ı hiç çağırmaz
+  (`SqlServer → PostgreSql → Sqlite` sırasıyla ilk dolu olanı seçer) ve
+  sessizce bellek içi depoya düşer. `/health` `200` döner.
+- `TraconSqliteOptionsValidator` yalnız İzlek A/C'de (doğrudan `UseSqlite()`
+  çağıran harness) gözlenir.
 
 ---
 
@@ -283,16 +271,6 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
 | **İlgili faz** | Faz 24 |
 | **İlgili karar** | — |
 
-> **Düzeltildi (2026-09-17) — spec çıplak `:memory:`'nin desteklendiğini
-> söylüyordu, artık DEĞİL:** `TraconSqliteOptions.ConnectionString`'in
-> güncel XML dokümanı ve `TraconSqliteOptionsValidator`
-> (`src/Tracon.Sqlite/TraconSqliteOptionsValidator.cs:47`) çıplak
-> `Data Source=:memory:`'yi açıkça REDDEDİYOR — her `Microsoft.Data.Sqlite`
-> bağlantısı `:memory:`'nin KENDİ izole veritabanını açar (migration bir
-> bağlantıda uygulanır, sonraki sorgu BAŞKA bir bağlantıya gider ve boş
-> veritabanı görür). Doğru biçim `Data Source=file::memory:?cache=shared`
-> (paylaşımlı önbellek) — bu case o biçimle koşuldu.
-
 Negatif/sınır senaryosu. Bu case paylaşımlı `:memory:` biçiminin kalıcı
 OLMADIĞINI doğrular ve migration kilidinin `:memory:`'de ATLANDIĞINI
 (dosya kilidi kurulamaz çünkü dosya yoktur) doğrular.
@@ -423,14 +401,10 @@ cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-09-17, aynı gerekçeyle `MT-PG-001`/`MT-SQL-001`) —**
-> `Program.cs:861-863` boş bağlantı dizesinde `UseSqlServer()`'ı hiç
-> çağırmaz. Örnek uygulama sessizce InMemory'e (veya sıradaki dolu
-> sağlayıcıya) düşer, `/health` **200** döner. `TraconSqlServerOptionsValidator`
-> yalnız İzlek A/C üzerinden gözlemlenebilir.
-
-~~Eski beklenti: Uygulama başlamayı reddeder; hata mesajı
-`TraconSqlServerOptions.ConnectionString bos olamaz` metnini taşır.~~
+- Örnek uygulama boş bağlantı dizesinde `UseSqlServer()`'ı hiç çağırmaz ve
+  bellek içi depoya (ya da sıradaki dolu sağlayıcıya) düşer. `/health` `200`
+  döner.
+- `TraconSqlServerOptionsValidator` yalnız İzlek A/C'de gözlenir.
 
 ---
 

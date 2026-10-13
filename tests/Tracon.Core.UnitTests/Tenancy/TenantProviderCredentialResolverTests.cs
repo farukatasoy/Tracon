@@ -15,7 +15,8 @@ public sealed class TenantProviderCredentialResolverTests
         var exception = Should.Throw<TraconException>(
             () => resolver.ValidateKeyName("acme", "ConnectionStrings:Default"));
 
-        exception.Message.ShouldContain("ConnectionStrings:Default");
+        exception.Message.ShouldNotContain("ConnectionStrings:Default");
+        exception.Message.ShouldContain("apiKeyConfigurationName");
         exception.Message.ShouldContain("Tracon:ProviderKeys:");
     }
 

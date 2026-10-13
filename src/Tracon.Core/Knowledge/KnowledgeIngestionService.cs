@@ -25,6 +25,7 @@ internal sealed partial class KnowledgeIngestionService
     private readonly TraconKnowledgeOptions _options;
     private readonly IVectorSearchStore? _store;
     private readonly IEmbeddingGenerator<string, Embedding<float>>? _embeddings;
+    private readonly EmbeddingProviderAccess _access;
 
     /// <summary>Creates a new knowledge base service.</summary>
     /// <param name="tenantContext">The tenant context.</param>
@@ -37,12 +38,17 @@ internal sealed partial class KnowledgeIngestionService
     /// The embedding generator. If <see langword="null"/>, <see cref="IsSupported"/>
     /// is <see langword="false"/>; the consumer must register its own provider.
     /// </param>
+    /// <param name="access">
+    /// The tenant's provider checks every embedding call passes. When
+    /// <see langword="null"/>, a check that reads no policy store is used.
+    /// </param>
     /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
     public KnowledgeIngestionService(
         ITenantContext tenantContext,
         IOptions<TraconKnowledgeOptions> options,
         IVectorSearchStore? store = null,
-        IEmbeddingGenerator<string, Embedding<float>>? embeddings = null)
+        IEmbeddingGenerator<string, Embedding<float>>? embeddings = null,
+        EmbeddingProviderAccess? access = null)
     {
         ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(options);
@@ -51,6 +57,7 @@ internal sealed partial class KnowledgeIngestionService
         _options = options.Value;
         _store = store;
         _embeddings = embeddings;
+        _access = access ?? new EmbeddingProviderAccess(options, embeddings);
     }
 
     /// <summary>
@@ -197,7 +204,7 @@ internal sealed partial class KnowledgeIngestionService
             return [];
         }
 
-        var generated = await _embeddings!.GenerateAsync(pieces, options: null, cancellationToken).ConfigureAwait(false);
+        var generated = await EmbedAsync(pieces, cancellationToken).ConfigureAwait(false);
         var result = new List<VectorChunk>(pieces.Count);
 
         for (var index = 0; index < pieces.Count; index++)
@@ -232,9 +239,7 @@ internal sealed partial class KnowledgeIngestionService
             return chunks;
         }
 
-        var generated = await _embeddings!
-            .GenerateAsync(toEmbed.Select(i => chunks[i].Content), options: null, cancellationToken)
-            .ConfigureAwait(false);
+        var generated = await EmbedAsync(toEmbed.Select(i => chunks[i].Content), cancellationToken).ConfigureAwait(false);
 
         var result = chunks.ToArray();
 
@@ -249,8 +254,18 @@ internal sealed partial class KnowledgeIngestionService
 
     private async ValueTask<ReadOnlyMemory<float>> GenerateAsync(string text, CancellationToken cancellationToken)
     {
-        var generated = await _embeddings!.GenerateAsync([text], options: null, cancellationToken).ConfigureAwait(false);
+        var generated = await EmbedAsync([text], cancellationToken).ConfigureAwait(false);
         return generated[0].Vector;
+    }
+
+    /// <summary>The one place this service embeds text: the tenant's provider checks run first.</summary>
+    private async ValueTask<GeneratedEmbeddings<Embedding<float>>> EmbedAsync(
+        IEnumerable<string> values,
+        CancellationToken cancellationToken)
+    {
+        await _access.EnsureAllowedAsync(_tenantContext.TenantId, cancellationToken).ConfigureAwait(false);
+
+        return await _embeddings!.GenerateAsync(values, options: null, cancellationToken).ConfigureAwait(false);
     }
 
     private void RequireSupported()

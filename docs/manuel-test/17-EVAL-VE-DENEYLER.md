@@ -1746,21 +1746,9 @@ SELECT count(*), value, comment FROM tracon.run_scores WHERE run_id = '<RUN_ID>'
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — ön koşul yanlış:** Statik
-> bearer token akışında `author` alanı `NULL`'a bağlanır (sabit bir değere
-> DEĞİL). `run_scores_target_author_name_idx` tekil indeksi `(tenant_id, run_id,
-> COALESCE(message_id,''), author, name)` üzerine kuruludur (Faz 152; öncesinde
-> adı `run_scores_target_author_idx` idi ve `name` sütunu yoktu) — `author`'ın kendisi
-> `COALESCE` edilmez, PostgreSQL'de `NULL ≠ NULL` olduğu için tekillik hiç
-> devreye girmez. Bu, `MT-EVAL-085`'in kabul ettiği davranışın aynısıdır
-> (kasıtlı, kod kusuru değil).
 - İki satır kalır: `value=1, comment="Dogru cevap.", author=NULL` VE
   `value=0, comment="Fikrim degisti.", author=NULL` — ikinci puan ilk puanın
   ÜZERİNE yazmaz, ayrı bir satır olarak eklenir (upsert gerçekleşmez).
-
-~~Eski beklenti (yanlış ön koşul — "bu ortamda `author` alanı sabit bir
-değere karşılık gelir, `NULL` değildir"): Tek satır kalır, `value=0`,
-`comment='Fikrim degisti.'` — ilk puan ÜZERİNE yazılmıştır.~~
 
 ---
 

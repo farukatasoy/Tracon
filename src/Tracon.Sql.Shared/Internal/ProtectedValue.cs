@@ -2,7 +2,7 @@ namespace Tracon;
 
 /// <summary>
 /// Applies <see cref="SqlStoreContext.ContentProtector"/> at the specific,
-/// named write/read sites the eleven protected columns go through.
+/// named write/read sites the twelve protected columns go through.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -46,6 +46,38 @@ internal static class ProtectedValue
         ArgumentNullException.ThrowIfNull(context);
 
         return stored is null ? null : (context.ContentProtector?.Unprotect(stored) ?? stored);
+    }
+
+    /// <summary>
+    /// Builds the value reader a raw row copy needs: the named columns are read back
+    /// as plaintext (text with <see cref="Read"/>, binary with <see cref="ReadBytes"/>),
+    /// every other column is written as stored.
+    /// </summary>
+    /// <param name="context">The store context.</param>
+    /// <param name="columns">The protected column names of the row's table.</param>
+    /// <returns>The reader, or <see langword="null"/> when the table has no protected column.</returns>
+    /// <remarks>
+    /// A row copy that leaves the store (a data subject export, a retention archive)
+    /// reaches the consumer, and "your own code never sees ciphertext".
+    /// </remarks>
+    public static Func<string, object, object>? RowReader(SqlStoreContext context, IReadOnlyList<string> columns)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(columns);
+
+        if (columns.Count == 0)
+        {
+            return null;
+        }
+
+        return (column, stored) => !columns.Contains(column, StringComparer.OrdinalIgnoreCase)
+            ? stored
+            : stored switch
+            {
+                string text => Read(context, text)!,
+                byte[] bytes => ReadBytes(context, bytes)!,
+                _ => stored,
+            };
     }
 
     /// <summary>Protects binary data before it is written, if its column is in scope.</summary>

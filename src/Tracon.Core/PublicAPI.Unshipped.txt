@@ -345,6 +345,8 @@ Tracon.TraconKnowledgeOptions.ChunkSize.get -> int
 Tracon.TraconKnowledgeOptions.ChunkSize.set -> void
 Tracon.TraconKnowledgeOptions.Dimensions.get -> int
 Tracon.TraconKnowledgeOptions.Dimensions.set -> void
+Tracon.TraconKnowledgeOptions.EmbeddingProvider.get -> string?
+Tracon.TraconKnowledgeOptions.EmbeddingProvider.set -> void
 Tracon.TraconKnowledgeOptions.MaxResults.get -> int
 Tracon.TraconKnowledgeOptions.MaxResults.set -> void
 Tracon.TraconKnowledgeOptions.TraconKnowledgeOptions() -> void

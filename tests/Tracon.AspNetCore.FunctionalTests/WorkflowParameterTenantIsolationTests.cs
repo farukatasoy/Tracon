@@ -102,14 +102,23 @@ public sealed class WorkflowParameterTenantIsolationTests
         request.Headers.Add(TenantHeader, "tenant-b");
 
         using var response = await host.Client.SendAsync(request);
-        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
 
-        // The stream opens (the endpoint cannot tell yet) and ends with an error
-        // frame that says the run does not exist - the same text a missing run gets.
-        var error = frames.Single(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        // F-396: the source run is read before the stream opens. Another tenant's
+        // run is answered exactly like a run that does not exist: 404, so its
+        // existence is not leaked and no run row is opened.
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        JsonDocument.Parse(error.Data).RootElement.GetProperty("message").GetString()
-            .ShouldNotBeNull().ShouldContain("There is no run", Case.Sensitive);
+        using var missing = new HttpRequestMessage(HttpMethod.Post, $"/tracon/api/workflows/runs/{Guid.NewGuid()}/resume")
+        {
+            Content = JsonContent.Create(new WorkflowResumeHttpRequest()),
+        };
+
+        missing.Headers.Add(TenantHeader, "tenant-b");
+
+        using var missingResponse = await host.Client.SendAsync(missing);
+
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("title").GetString()
+            .ShouldBe((await TraconTestHost.ReadJsonAsync(missingResponse)).GetProperty("title").GetString());
     }
 
     /// <summary>The standard parameterized host, with tenancy resolved from the header.</summary>

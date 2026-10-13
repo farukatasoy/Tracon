@@ -2833,13 +2833,6 @@ handler `acme.a` anahtarıyla kayıtlı.
 
 ### MT-JOB-132 — Yarıda kalan approval handoff'u, AYNI kararı tekrarlayarak tamamlanır (B03)
 
-> **Kimlik düzeltmesi (2026-09-19).** Bu case dosyaya `MT-JOB-098` olarak
-> girmişti ve satır 2058'deki kota case'iyle **çakışıyordu**; iki ayrı case
-> tek kimliği paylaşınca sayım biri diğerini yutuyordu. 2026-09-16 turunun
-> kaydı çakışmayı gördü ama koşum sırasında spec'e dokunulmaz (kural 1),
-> bu yüzden kapanışta düzeltildi. Turun kaydında bu case `MT-JOB-132`
-> başlığı altındadır.
-
 Regresyon. Karar uygulanıp resume run/job yazılamazsa, eski davranışta tekrar
 isteği `409 AlreadyDecided` alıyor ve onaylanmış tool çağrısı HİÇ çalışmıyordu;
 `RunReconciliationService` bunu kurtarmaz (yalnız `Running` claim eder, default

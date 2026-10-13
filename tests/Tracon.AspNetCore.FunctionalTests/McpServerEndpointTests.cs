@@ -73,6 +73,30 @@ public sealed class McpServerEndpointTests
     }
 
     [Fact]
+    public async Task Draining_refuses_a_tools_call_and_opens_no_runs_row()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition())
+                .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
+            configureServices: static services => services.AddSingleton<ITraconDrainState>(new FixedDrainState(isDraining: true)),
+            configureAfterMap: app => app.MapTraconMcpServer());
+
+        var (_, body) = await McpTestClient.SendAsync(
+            host.Client,
+            "/tracon/mcp",
+            "tools/call",
+            new { name = "tracon_kod-agent", arguments = new { message = "hello" } });
+
+        var result = body!.Value.GetProperty("result");
+        result.GetProperty("isError").GetBoolean().ShouldBeTrue();
+        result.GetProperty("content")[0].GetProperty("text").GetString().ShouldNotBeNull().ShouldContain("draining", Case.Sensitive);
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        (await runs.QueryRunsAsync(new RunQuery())).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Unknown_tool_is_rejected()
     {
         await using var host = await TraconTestHost.StartAsync(

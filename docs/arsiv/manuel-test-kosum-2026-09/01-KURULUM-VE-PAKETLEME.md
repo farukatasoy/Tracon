@@ -2280,3 +2280,68 @@ Tracon.Abstractions → symbolsFile: Tracon.Abstractions.1.0.0-preview.1.snupkg
 
 **Gerçek sonuç (2026-09-24)**
 - `❌ Çıktı dizini boş değil: … - hiçbir şey silinmedi`, çıkış 1; 49 dosyanın SHA-256'sı aynı.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-PKG-011 — `dotnet format` build'in görmediğini yakalar
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `Directory.Build.props:28`
+> `EnforceCodeStyleInBuild=true` taşır (`AnalysisLevel=latest-recommended`
+> ile birlikte) — bu, `dotnet build`'in KENDİSİNİN `IDE0055` gibi biçim
+> kurallarını **derleme hatası** olarak raporladığı anlamına gelir. Yani
+> "build yeşil / format kırmızı" durumu bu repoda **yapısal olarak
+> imkânsızdır**: bozuk girintili bir satır eklendiğinde `dotnet build`
+> kendisi `IDE0055` ile **kırmızı** çıkar, `dotnet format`'a hiç sıra
+> gelmeden. `dotnet format` yalnız build'in YAKALAMADIĞI (derleyicinin
+> görmediği) analyzer tanılarını yakalar — bu, dosyanın en üstündeki uyarı
+> notuyla (`⚠️ dotnet format, dotnet build'in yakalamadığı analyzer
+> tanılarını yakalayabilir`) tutarlıdır, ama BU case'in kurgusu ("build
+> farkına varmaz, format yakalar") o notun kapsadığı senaryo değil — bugünkü
+> yapılandırmada IDE0055 sınıfı için ikisi de aynı anda kırmızıdır.
+
+~~Eski beklenti: `dotnet format` çıkış kodu sıfır değildir ve `IDE0055`
+(veya kardeşi) bildirir; `dotnet build` bunu YAKALAMAZ (yeşil kalır). Son
+adımdan sonra `git status` yalnız `docs/manuel-test/` gösterir.~~
+
+#### MT-PKG-023 — nuspec üstverisi eksiksiz
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `<requireLicenseAcceptance>`
+> elementi nuspec'e hiç yazılmaz (2026-08-15 koşumunda `Tracon.Core
+> 0.0.0-preview.0.166` nuspec'inde de doğrulandı — element yok). NuGet bu
+> yokluğu `false` olarak yorumlar, yani davranışsal etki yoktur; dokümanın
+> "vardır" iddiası koda göre düzeltildi.
+
+~~Eski beklenti: `<requireLicenseAcceptance>false</requireLicenseAcceptance>`
+vardır.~~
+
+#### MT-PKG-062 — AOT bayrağı paket bazında doğru
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** Bu case'in kendi eski
+> beklentisi ("AOT uyumlu paket olarak yalnız dördü sayılır") güncelliğini
+> yitirmişti; `AGENTS.md` zaten "Sekiz paket uyumludur" diyor ve bu koddan
+> türetilen kümeyle birebir örtüşüyor. Düzeltilecek taraf bu test dosyasıydı,
+> `AGENTS.md`/kod değil.
+
+~~Eski beklenti (güncelliğini yitirmiş): Geriye kalan (AOT uyumlu) paketler
+yalnız dört tanedir — `Abstractions`, `Core`, `PostgreSql`, `OpenAI`.~~
+
+#### MT-PKG-081 — Hiçbir `Use*` çağrılmadan kurulum ayakta kalır
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** İsim beklentisi eski —
+> `ISessionStore` denetim izi dekoratörü (`AuditingSessionStore`) ile sarılı
+> (iç deposu yine bellek içi, dış bağımlılık yok); `IToolRegistry` hiç
+> `InMemory` önekiyle adlandırılmamış (`ToolRegistry`). 2026-08-15'te kaynak
+> yeniden doğrulandı: `src/Tracon.Core/Tools/ToolRegistry.cs:9`,
+> `src/Tracon.Core/Storage/InMemoryRunStore.cs:22`,
+> `src/Tracon.Core/Audit/AuditingSessionStore.cs:13`.
+
+~~Eski beklenti (güncelliğini yitirmiş): Üç satır da `InMemory` ile başlayan
+bir tip adı yazar.~~

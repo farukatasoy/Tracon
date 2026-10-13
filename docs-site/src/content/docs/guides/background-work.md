@@ -309,7 +309,9 @@ correlate the run with your own record — a production id, say. The run, its
 correlation, not a de-duplication: two items with the same id are two runs. The id
 follows the session id rule — at most 128 letters, digits, `-` or `_` — and an item
 that breaks it fails alone. An agent batch item that names a `sessionId` fails alone
-too: an agent batch runs every item without a session.
+too: an agent batch runs every item without a session. For the same reason, an item
+whose run asks for a tool approval fails, and its run is closed as `Failed`: an
+approval is answered in the session's next turn, which the item does not have.
 
 ```json
 "payload": {
@@ -382,6 +384,9 @@ schedulable from outside is a deliberate opt-in. A non-empty setting
 operator narrow the surface, and also what makes a list naming only a consumer
 key turn every built-in key off. See
 [Write your own job handler](/guides/write-your-own-job-handler/).
+
+The schedule name `handler-keys` is reserved for that list: a schedule saved under it
+could not be read back, so `PUT /api/schedules/handler-keys` answers `400`.
 
 Tracon accepts five-field cron expressions: minute, hour, day of month, month,
 and day of week. It supports `*`, fixed values, ranges, lists, and `/step`. It does

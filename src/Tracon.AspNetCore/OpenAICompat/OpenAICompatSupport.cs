@@ -84,6 +84,17 @@ internal static class OpenAICompatSupport
             statusCode: statusCode);
 
     /// <summary>
+    /// The OpenAI-shaped <c>503</c> a run-starting endpoint answers while the
+    /// process drains; <see langword="null"/> otherwise.
+    /// </summary>
+    /// <param name="drainState">The drain state.</param>
+    /// <returns>The refusal, or <see langword="null"/> when the process is not draining.</returns>
+    public static IResult? DrainRefusal(ITraconDrainState drainState)
+        => drainState.IsDraining
+            ? Error(StatusCodes.Status503ServiceUnavailable, DrainGate.Detail, type: "service_unavailable")
+            : null;
+
+    /// <summary>
     /// Checks whether an untrusted session identifier belongs to the current tenant.
     /// </summary>
     /// <param name="store">Session store.</param>

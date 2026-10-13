@@ -3877,6 +3877,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Bad Gateway", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -4136,7 +4146,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a workflow definition.
         /// </summary>
         /// <remarks>
-        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.
+        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4507,6 +4517,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -4668,6 +4688,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -4774,7 +4804,7 @@ namespace Tracon.Client.Generated
         /// Resumes from a checkpoint and streams events over SSE, or queues it with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run; the source run and its checkpoint are checked first, so an unknown run is 404 and a run with no checkpoint is 400. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4890,6 +4920,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -4918,7 +4958,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run; the source run and its checkpoint are checked first, so an unknown run is 404 and a run with no checkpoint is 400. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5041,6 +5081,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -5157,7 +5207,7 @@ namespace Tracon.Client.Generated
         /// Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the answer is checked the same way (a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404) and then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5273,6 +5323,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -5301,7 +5361,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the answer is checked the same way (a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404) and then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5422,6 +5482,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -5606,7 +5676,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a schedule.
         /// </summary>
         /// <remarks>
-        /// The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it.
+        /// The cron expression, time zone, and lane are validated here; the next run time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. 'lane' defaults to 'default' and every job this schedule produces — cron-dispatched or manually triggered — inherits it. The name 'handler-keys' is reserved (400): GET /api/schedules/handler-keys uses it.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -11584,7 +11654,7 @@ namespace Tracon.Client.Generated
         /// Uploads a document to the knowledge base.
         /// </summary>
         /// <remarks>
-        /// The body carries either 'text' (the server chunks and embeds it) or 'chunks' (pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered.
+        /// The body carries either 'text' (the server chunks and embeds it) or 'chunks' (pre-chunked). PostgreSQL only: UsePostgreSql() and an IEmbeddingGenerator must be registered. Text that is embedded passes the tenant's provider checks first: a tenant whose egress policy does not name the embedding provider (Tracon:Knowledge:EmbeddingProvider), or that has its own credential for it, gets 403 and nothing is embedded.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -11657,6 +11727,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 501)
@@ -11875,7 +11955,7 @@ namespace Tracon.Client.Generated
         /// Performs a semantic search in a collection (for diagnostics and calibration).
         /// </summary>
         /// <remarks>
-        /// This runs the same retrieval an agent performs, so it is how a retrieval problem is separated from a prompt problem: if the right chunk does not come back here, the agent was never going to see it. The query is embedded, which costs one embedding call per request. Each hit carries its distance — smaller is closer — along with the chunk text and its metadata, so a relevance threshold can be calibrated from real values. Knowledge storage requires PostgreSQL; without it the response is 501.
+        /// This runs the same retrieval an agent performs, so it is how a retrieval problem is separated from a prompt problem: if the right chunk does not come back here, the agent was never going to see it. The query is embedded, which costs one embedding call per request. Each hit carries its distance — smaller is closer — along with the chunk text and its metadata, so a relevance threshold can be calibrated from real values. The query passes the tenant's provider checks before it is embedded, as an upload does (403). Knowledge storage requires PostgreSQL; without it the response is 501.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -11938,6 +12018,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 501)
@@ -14977,11 +15067,11 @@ namespace Tracon.Client.Generated
         /// Deletes a data subject's content.
         /// </summary>
         /// <remarks>
-        /// '{id}' is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as 'already erased'. '?dryRun=' DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; '?dryRun=false' deletes for real. The audit trail (audit_log) is never touched — it is deliberately outside a data subject's erasable content (by design: an audit record is 'who did what', not the subject's own data) — but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow.
+        /// '{id}' is resolved through IDataSubjectResolver; without one this returns 409, never a silent no-op that could be read as 'already erased'. '?dryRun=' DEFAULTS TO TRUE: a bare call previews the row counts and deletes nothing; '?dryRun=false' deletes for real. The audit trail (audit_log) is never touched — it is deliberately outside a data subject's erasable content (by design: an audit record is 'who did what', not the subject's own data) — but the erasure ITSELF is written there, with the row count per target; if that write fails, every delete is rolled back and this call fails, the same rule Approval decisions follow. A run of the subject that is still Running or Queued would write its session and checkpoints back after the erasure commits: '?dryRun=false' is refused with 409 that names those runs, and the preview lists them in 'activeRunIds'. '?force=true' erases anyway, for a row a crashed process left behind; cancel a run that is really running first.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<DataSubjectErasureResult> TraconEraseDataSubjectAsync(string id, bool? dryRun = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<DataSubjectErasureResult> TraconEraseDataSubjectAsync(string id, bool? dryRun = null, bool? force = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             if (id == null)
                 throw new System.ArgumentNullException("id");
@@ -15004,6 +15094,10 @@ namespace Tracon.Client.Generated
                     if (dryRun != null)
                     {
                         urlBuilder_.Append(System.Uri.EscapeDataString("dryRun")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(dryRun, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (force != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("force")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(force, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
                     }
                     urlBuilder_.Length--;
 
@@ -15038,6 +15132,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -15249,6 +15353,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<OpenAIErrorEnvelope>("Bad Gateway", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -15389,6 +15503,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<OpenAIErrorEnvelope>("Bad Gateway", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         {
                             var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
                             throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
@@ -15523,6 +15647,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<OpenAIErrorEnvelope>("Bad Gateway", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -15663,6 +15797,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<OpenAIErrorEnvelope>("Bad Gateway", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 503)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -19105,6 +19249,16 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("rowsByTarget")]
         public System.Collections.Generic.IDictionary<string, int> RowsByTarget { get; set; } = new System.Collections.Generic.Dictionary<string, int>();
+
+        /// <summary>
+        /// Gets the subject's runs that are still `Running` or `Queued`. A run in
+        /// <br/>progress writes its session and its checkpoints back after an erasure commits,
+        /// <br/>so a real erasure is refused with `409` while this is not empty, unless it
+        /// <br/>is forced. Empty when no run of the subject is in progress.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("activeRunIds")]
+        public System.Collections.Generic.ICollection<System.Guid> ActiveRunIds { get; set; } = new System.Collections.Generic.List<System.Guid>();
 
     }
 

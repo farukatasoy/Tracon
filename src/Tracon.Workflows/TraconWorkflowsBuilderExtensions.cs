@@ -105,7 +105,10 @@ public static class TraconWorkflowsBuilderExtensions
     /// <param name="description">A short description.</param>
     /// <returns>The chain, for continued configuration.</returns>
     /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty, or is <c>functions</c>: <c>GET /api/workflows/functions</c>
+    /// lists the registered function nodes, so a workflow under that name could not be read back.
+    /// </exception>
     /// <remarks>
     /// A workflow defined in code <strong>takes precedence over</strong> a
     /// database definition with the same name. The same rule applies to the
@@ -128,6 +131,11 @@ public static class TraconWorkflowsBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(factory);
+
+        if (WorkflowDefinitionValidator.ReservedNameProblem(name) is { } reserved)
+        {
+            throw new ArgumentException(reserved, nameof(name));
+        }
 
         builder.Services.AddSingleton(new CodeWorkflowRegistration(name, description, factory));
 

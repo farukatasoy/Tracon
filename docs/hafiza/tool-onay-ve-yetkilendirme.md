@@ -63,6 +63,16 @@
   regex'idir, çünkü replay kaynak `run`'ın id'sini taşımak zorundadır ve
   `CheckRunAsync` bunu ifade edemez.
 
+- **🚨 Drain kapısı yetki kapısının listesine binmez; süreç içinde run başlatan
+  her yüzey onu kendi gövdesinde sorar** (2026-10-13, F-431). Faz 87 kapıyı
+  yalnız ajan run ucuna koydu, workflow girişini "kuyruktan geçer" diye dışarıda
+  bıraktı. Sonra workflow uçları süreç içinde akışlı run başlattı: drain
+  sırasında `resume` `200` ile yeni run açtı (ölçüldü); OpenAI, MCP, A2A ve ses
+  soketi de kapısızdı. Kural: süreç içinde run başlatan yüzey `DrainGate.Check`'i
+  (protokol yüzeyinde kendi ret biçimiyle) gövdenin başında sorar; yalnız job
+  yazan yüzey (trigger, eval, schedule, onay) sormaz, job bekler. Kapı:
+  `RunAuthorizationCoverageTests.Every_known_in_process_run_starting_surface_refuses_while_draining`;
+  yeni yüzey listeye elle girer.
 - **🚨 Bir yüzey YARIM kapılı olabilir; bir kapıyı bulmak diğeri hakkında kanıt
   değildir** (Faz 149). `OpenAIConversationsEndpoints` üç `SessionOwnershipGate`
   çağrısı taşıyordu (Faz 148 eklemişti) ve `RunAuthorizationGate` çağrısı

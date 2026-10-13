@@ -230,23 +230,10 @@ git checkout -- src/Tracon.Abstractions/Tools/TraconToolAttribute.cs
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `Directory.Build.props:28`
-> `EnforceCodeStyleInBuild=true` taşır (`AnalysisLevel=latest-recommended`
-> ile birlikte) — bu, `dotnet build`'in KENDİSİNİN `IDE0055` gibi biçim
-> kurallarını **derleme hatası** olarak raporladığı anlamına gelir. Yani
-> "build yeşil / format kırmızı" durumu bu repoda **yapısal olarak
-> imkânsızdır**: bozuk girintili bir satır eklendiğinde `dotnet build`
-> kendisi `IDE0055` ile **kırmızı** çıkar, `dotnet format`'a hiç sıra
-> gelmeden. `dotnet format` yalnız build'in YAKALAMADIĞI (derleyicinin
-> görmediği) analyzer tanılarını yakalar — bu, dosyanın en üstündeki uyarı
-> notuyla (`⚠️ dotnet format, dotnet build'in yakalamadığı analyzer
-> tanılarını yakalayabilir`) tutarlıdır, ama BU case'in kurgusu ("build
-> farkına varmaz, format yakalar") o notun kapsadığı senaryo değil — bugünkü
-> yapılandırmada IDE0055 sınıfı için ikisi de aynı anda kırmızıdır.
-
-~~Eski beklenti: `dotnet format` çıkış kodu sıfır değildir ve `IDE0055`
-(veya kardeşi) bildirir; `dotnet build` bunu YAKALAMAZ (yeşil kalır). Son
-adımdan sonra `git status` yalnız `docs/manuel-test/` gösterir.~~
+- `dotnet build` kendisi `IDE0055` ile **kırmızı** çıkar: `Directory.Build.props`
+  `EnforceCodeStyleInBuild=true` taşır, biçim kuralı derleme hatasıdır.
+  `dotnet format`'a sıra gelmez; bu sınıfta ikisi aynı anda kırmızıdır.
+- `dotnet format` yalnız build'in görmediği analyzer tanılarını ayrıca yakalar.
 
 ---
 
@@ -622,18 +609,10 @@ cat Tracon.Core.nuspec
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `<requireLicenseAcceptance>`
-> elementi nuspec'e hiç yazılmaz (2026-08-15 koşumunda `Tracon.Core
-> 0.0.0-preview.0.166` nuspec'inde de doğrulandı — element yok). NuGet bu
-> yokluğu `false` olarak yorumlar, yani davranışsal etki yoktur; dokümanın
-> "vardır" iddiası koda göre düzeltildi.
-
-~~Eski beklenti: `<requireLicenseAcceptance>false</requireLicenseAcceptance>`
-vardır.~~
 - `<license type="file">LICENSE.md</license>` vardır (Faz 160). PolyForm OSI
   onaylı olmadığı için `expression` kullanılamaz; lisans dosya olarak gömülür.
 - `<requireLicenseAcceptance>true</requireLicenseAcceptance>` vardır — PolyForm
-  lisanslı paketlerde element **yazılır**. MIT üçlüsünde yazılmaz (üstteki not).
+  lisanslı paketlerde element **yazılır**. MIT üçlüsünde yazılmaz.
 - `<readme>README.md</readme>` vardır.
 - `<authors>Faruk Atasoy</authors>` ve `<projectUrl>` /
   `<repository type="git" url="https://github.com/farukatasoy/Tracon">` vardır.
@@ -1709,11 +1688,6 @@ grep -l "TraconAotCompatible>false" src/*/*.csproj | sed 's#src/##;s#/.*##' | so
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** Bu case'in kendi eski
-> beklentisi ("AOT uyumlu paket olarak yalnız dördü sayılır") güncelliğini
-> yitirmişti; `AGENTS.md` zaten "Sekiz paket uyumludur" diyor ve bu koddan
-> türetilen kümeyle birebir örtüşüyor. Düzeltilecek taraf bu test dosyasıydı,
-> `AGENTS.md`/kod değil.
 - Bayrağı `false` yapan **12** proje şunlardır: `Tracon` (meta),
   `Tracon.AspNetCore`, `Tracon.Cli`, `Tracon.Client`, `Tracon.Generators`,
   `Tracon.Mcp`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.Templates`,
@@ -1729,9 +1703,6 @@ grep -l "TraconAotCompatible>false" src/*/*.csproj | sed 's#src/##;s#/.*##' | so
   `Tracon.Testing.Contracts.Xunit` bayrağı `src/Directory.Build.props:33`'ten
   varsayılan `true` olarak devralır ve tek başına derlemede 0 uyarı verir —
   vaat analyzer ile destekleniyor.)*
-
-~~Eski beklenti (güncelliğini yitirmiş): Geriye kalan (AOT uyumlu) paketler
-yalnız dört tanedir — `Abstractions`, `Core`, `PostgreSql`, `OpenAI`.~~
 
 ### MT-PKG-070 — Yerel feed kurulur ve şablon yüklenir
 
@@ -2213,21 +2184,11 @@ dotnet run -c Release ; echo "cikis kodu: $?"
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** İsim beklentisi eski —
-> `ISessionStore` denetim izi dekoratörü (`AuditingSessionStore`) ile sarılı
-> (iç deposu yine bellek içi, dış bağımlılık yok); `IToolRegistry` hiç
-> `InMemory` önekiyle adlandırılmamış (`ToolRegistry`). 2026-08-15'te kaynak
-> yeniden doğrulandı: `src/Tracon.Core/Tools/ToolRegistry.cs:9`,
-> `src/Tracon.Core/Storage/InMemoryRunStore.cs:22`,
-> `src/Tracon.Core/Audit/AuditingSessionStore.cs:13`.
 - Çıkış kodu `0`'dır.
 - `IRunStore` → `InMemoryRunStore`, `ISessionStore` → `AuditingSessionStore`,
   `IToolRegistry` → `ToolRegistry` (önek yok).
 - Son satır `kurulum tamam`'dır.
 - Hiçbir bağlantı denemesi ve hiçbir uyarı log'u yoktur.
-
-~~Eski beklenti (güncelliğini yitirmiş): Üç satır da `InMemory` ile başlayan
-bir tip adı yazar.~~
 
 ---
 

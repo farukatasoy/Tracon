@@ -13,7 +13,8 @@ public sealed class InboundTriggerSecretResolverTests
         var exception = Should.Throw<TraconException>(
             () => CreateResolver().ValidateKeyName("default", "ConnectionStrings:Default"));
 
-        exception.Message.ShouldContain("ConnectionStrings:Default");
+        exception.Message.ShouldNotContain("ConnectionStrings:Default");
+        exception.Message.ShouldContain("signingSecretConfigurationName");
         exception.Message.ShouldContain("Tracon:TriggerSecrets:");
     }
 

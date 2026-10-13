@@ -132,7 +132,12 @@ public static class TraconOnlineEvaluationBuilderExtensions
             evaluator,
             provider.GetRequiredService<IModelProviderRegistry>(),
             provider.GetRequiredService<IOptionsMonitor<ModelRunJudgeOptions>>(),
-            provider.GetService<ILogger<EvaluatorRunJudge>>()));
+            provider.GetService<ILogger<EvaluatorRunJudge>>(),
+            provider.GetService<IRunStore>(),
+            provider.GetService<ITenantContext>(),
+            provider.GetService<IRunPricingResolver>(),
+            provider.GetService<TraconMetrics>(),
+            provider.GetService<TimeProvider>()));
 
         return builder;
     }

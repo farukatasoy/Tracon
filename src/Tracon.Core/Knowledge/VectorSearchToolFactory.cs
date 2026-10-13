@@ -23,15 +23,19 @@ internal static class VectorSearchToolFactory
     /// </param>
     /// <param name="collection">The collection name to search.</param>
     /// <param name="maxResults">The maximum number of results to return.</param>
+    /// <param name="access">The tenant's provider checks the query passes before it is embedded.</param>
     /// <returns>The tool the model can call.</returns>
     public static AIFunction Create(
         IVectorSearchStore store,
         IEmbeddingGenerator<string, Embedding<float>> embeddings,
         string tenantId,
         string collection,
-        int maxResults)
+        int maxResults,
+        EmbeddingProviderAccess access)
     {
-        var body = new VectorSearchToolBody(store, embeddings, tenantId, collection, maxResults);
+        ArgumentNullException.ThrowIfNull(access);
+
+        var body = new VectorSearchToolBody(store, embeddings, tenantId, collection, maxResults, access);
 
         return AIFunctionFactory.Create(
             body.SearchKnowledgeAsync,
@@ -45,13 +49,19 @@ internal static class VectorSearchToolFactory
         IEmbeddingGenerator<string, Embedding<float>> embeddings,
         string tenantId,
         string collection,
-        int maxResults)
+        int maxResults,
+        EmbeddingProviderAccess access)
     {
         [Description("Performs a semantic search over the knowledge base.")]
         public async Task<IReadOnlyList<VectorSearchToolResult>> SearchKnowledgeAsync(
             [Description("The natural-language query to search for.")] string query,
             CancellationToken cancellationToken)
         {
+            // The query is the tenant's text: its provider checks run first. The
+            // policy is read on every call, so a policy saved after the agent was
+            // compiled stops the next search (F-416).
+            await access.EnsureAllowedAsync(tenantId, cancellationToken).ConfigureAwait(false);
+
             var generated = await embeddings.GenerateAsync([query], options: null, cancellationToken)
                 .ConfigureAwait(false);
 
