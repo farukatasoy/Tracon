@@ -1,6 +1,6 @@
 # Faz 199 — Fonksiyon Düğümünün Token Dışı Maliyeti
 
-> **Durum:** 🚧 Uygulamada (2026-10-13)
+> **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** onaylandı (2026-10-13) — § Açık Sorular 1–6 önerilen seçenekle (hepsi A) bakımcı tarafından onaylandı; uygulama başladı
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-299**
 > **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmadan başlamaz: aynı sarmalama noktasını (`TraconWorkflowFunctionExtensions.cs:127`, `:309`) paylaşırlar. Faz 198'den bağımsızdır (§199.4)
@@ -220,18 +220,18 @@ samples/Tracon.Api/Program.cs
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Düğüm iki kalem raporlar; `GET /api/runs/{id}/usage` ikisini döner (test 1)
-- [ ] Kökün token dışı toplamı ve ağaç toplamı dört depoda aynıdır (test 8)
-- [ ] Kota, bütçe ve iki webhook tutarı `RunSpend.Total` ile sayar (test 6)
-- [ ] Konsol tool satırında ve düğüm panelinde aynı ölçüm satırını gösterir (test 15)
-- [ ] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` (`speak` düğümü kalem raporlar; `curl .../runs/<id>/usage`), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `12-GOZLEMLENEBILIRLIK-MALIYET.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] `CHANGELOG.md` yeni üyeleri, `IRunStore` kırılmasını ve webhook `cost` anlamını anar
+- [x] Düğüm iki kalem raporlar; `GET /api/runs/{id}/usage` ikisini döner (test 1) — `NodeUsageTests` (6), 2026-10-14 koşumu geçti
+- [x] Kökün token dışı toplamı ve ağaç toplamı dört depoda aynıdır (test 8) — `NonTokenUsageContract` dört depoda + `RunStoreContract` 6 yeni case; PostgreSQL, SQL Server, SQLite ve bellek içi koşumları 0 başarısız
+- [x] Kota, bütçe ve iki webhook tutarı `RunSpend.Total` ile sayar (test 6) — `NonTokenSpendTests` (9), `NonTokenSpendAgentTreeTests` (3), `WorkflowTreeSpendTests` (7)
+- [x] Konsol tool satırında ve düğüm panelinde aynı ölçüm satırını gösterir (test 15) — `run-detail.test.tsx` 8/8 geçti (2026-10-14)
+- [x] Dört doğrulama kapısı sıfır uyarı — `kapi.py kapanis --taban d926c508` 2026-10-14 koşumunda çıkış 0; derleme `0 Warning(s)`, `0 Error(s)`. İlk üç koşum kırmızıydı; nedenleri Denetim Bulguları ve Süreç Ölçümü'nde
+- [x] `samples/Tracon.Api` ile gerçek `run` (`speak` düğümü kalem raporlar; `curl .../runs/<id>/usage`), çıktı belgeye yazıldı — § Örnek Uygulama Koşumu
+- [x] `secret` taraması boş döndü — `kapi.py tarama` temiz (17 işaretli sentetik credential atlandı, gerçek bulgu yok)
+- [ ] Manuel kabul case'leri `12-GOZLEMLENEBILIRLIK-MALIYET.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-OBS-070…075 eklendi (index satırı 75); otomatik karşılığı olanlar kapanış koşumunda geçti. 👤 işaretli MT-OBS-071 el koşumunu bekliyor (`manuel-test-kosumu`); kutu o koşumla işaretlenir
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bağımsız denetçi 2 🔴 ve 6 🟡 üretti; hepsi kapatıldı (Denetim Bulguları). Denetçi fix'lerden sonra yeniden koşulmadı; her 🔴 kapanış kapısıyla ve kendi testiyle doğrulandı
+- [x] `docs-site/` güncellendi; `npm run check` temiz — 2026-10-14 kapanış koşumu: 0 kırık bağlantı, SEO temiz, 1084 sayfa 59.000 B gzip altında
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — 11 anahtar, iki dil; konsol JS 206,8 KB gzip (bütçe 250 KB). Önceki taban 197,7 KB (Faz 194 kaydı); bu fazın payı ayrı ölçülmedi
+- [x] `CHANGELOG.md` yeni üyeleri, `IRunStore` kırılmasını ve webhook `cost` anlamını anar
 
 ---
 
@@ -264,7 +264,8 @@ samples/Tracon.Api/Program.cs
 | 9 | §Kanıt tablosu satır numaraları (`99fe0b13`) | Kod K-913 (F-383) ile değişmişti: agent kökü ağacı `ReadTreeConsumptionAsync` ile okuyor | Para birimi ve çocuk payı hesabı `RunSpend` üstüne yeniden kuruldu (`RunRecordingAgent.Notifications.cs`) |
 | 10 | Manuel case alanı `12-…` bütçesi | 2026-08-10 inceleme turu notu `arsiv/manuel-test-kosum-2026-09/`'a taşındı (F-441 deseni) | Dizin bütçesi 396 B boştu |
 | 11 | `bench/baseline.json` | `QueryRuns` 45.456 → 47.104 B (+1.648 B / 50 satır) güncellendi | `RunRecord`'a iki, okuyucuya sekiz sütun eklendi; sahibi bu faz |
-| 12 | Planda yok | `WorkflowTreeSpend` (Workflows, `internal`): workflow'un kota girdisi ve `run.completed` webhook'u, satırın kendi snapshot'ı mağazada **yoksa** düğümlerin bellekteki toplamını ağaç toplamına ekler | Kalem yazımı düşünce yazıcı kapanır, satırın snapshot'ı mağazaya hiç gitmez; workflow ağaç toplamını mağazadan okuduğu için kotası tam düğümlerin harcadığı kadar eksik kalıyordu (agent yolu kendi payını bellekten sayar). Ayrı test: `NodeUsageStoreFailureTests` (önce kırmızı, düzeltmeyle yeşil) + `WorkflowTreeSpendTests` (7). Sağlıklı run'da satır snapshot'ı tuttuğu için çift sayılmaz |
+| 12 | Planda yok | `WorkflowTreeSpend` (Workflows, `internal`): workflow'un kota girdisi ve `run.completed` webhook'u, satırın kendi snapshot'ı mağazada **yoksa** düğümlerin bellekteki toplamını ağaç toplamına ekler | Kalem yazımı düşünce yazıcı kapanır, satırın snapshot'ı mağazaya hiç gitmez; workflow ağaç toplamını mağazadan okuduğu için kotası tam düğümlerin harcadığı kadar eksik kalıyordu (agent yolu kendi payını bellekten sayar). Ayrı test: `NodeUsageStoreFailureTests` (önce kırmızı, düzeltmeyle yeşil) + `WorkflowTreeSpendTests` (7) · `AgentRunBudgetCostTests` (+3: taşmada tavan açılmaz). Sağlıklı run'da satır snapshot'ı tuttuğu için çift sayılmaz |
+| 13 | §199.2 ve hata modu 14: veri sahibi dışa aktarımı **ve** silmesi tabloyu kapsar | Gerçekleşen yalnız silme: `run_non_token_usage`, `runs`'a `ON DELETE CASCADE` ile bağlı ve üç sağlayıcıda sınanmış. Dışa aktarım hedefleri (`DataSubjectTargetRegistry.ExportTargets`) bu tabloyu içermez | Kalemde mesaj metni yok (düğüm adı, birim, miktar, tutar, para birimi, sağlayıcı, model). `tool_invocations` da dışa aktarılmaz; aynı sınıf. Karar Faz 200 açılışında (devir notu) |
 
 ## Bu Fazda Verilen Kararlar
 
@@ -321,10 +322,11 @@ src/
   Tracon.UI/frontend/ components/{usage-line,non-token-usage-panel} (yeni) · screens/run-detail · lib/server-types · locales/{en,tr}/runs
   Tracon.Client/Generated · docs/openapi/tracon.json · packages/tracon-client/src/schema.ts (üretildi)
 samples/Tracon.Api/{Program.cs,TonePricing.cs (yeni),appsettings.json}
+samples/Tracon.Samples.FileRunStore{,.Tests}/ FileRunStore.cs (iki yeni üye; run snapshot'ı ve ağaç toplamı) · JsonFileNonTokenUsageContractTests (yeni)
 tests/
   Core.UnitTests/Recording/{NonTokenCostAccumulatorTests (yeni),ToolUsageReportingTests} · Runs/RunSpendTests (yeni) · Contracts/InMemoryStoreContractTests
   Workflows.UnitTests/{TraconWorkflowContextExtensionsTests,WorkflowTreeSpendTests (yeni)}
-  AspNetCore.FunctionalTests/{NodeUsageTests,NodeUsageConcurrencyTests,NodeUsageCancellationTests,NodeUsageStoreFailureTests,NodeUsageLimitsTests,NonTokenSpendTests,RunUsageEndpointTests} (yeni) · Infrastructure/NodeUsageHost · RunResourceAuthorizationTests
+  AspNetCore.FunctionalTests/{NodeUsageTests,NodeUsageConcurrencyTests,NodeUsageCancellationTests,NodeUsageStoreFailureTests,NodeUsageLimitsTests,NonTokenSpendTests,NonTokenSpendAgentTreeTests (yeni),RunUsageEndpointTests} (yeni) · Infrastructure/NodeUsageHost · RunResourceAuthorizationTests
   {Sqlite,PostgreSql,SqlServer}.IntegrationTests/Contracts/* (NonTokenUsageContract bağı) · DataSubjectStoreTests (cascade) · SqlServer/TenantCoverageTests
   Sql.Shared.UnitTests/Baselines/* (SQL metin tabanı)
 docs-site/ (13 sayfa + üretilenler) · CHANGELOG.md · src/{Workflows,Voice,Tracon,AspNetCore}/README.md · Tracon.AgentMap.md
@@ -332,7 +334,7 @@ docs/ manuel-test/{12,00-INDEKS} (MT-OBS-070…075) · KARARLAR (K-972…974) ·
 bench/baseline.json
 ```
 
-Testler (sınıf → kanıt): `NonTokenCostAccumulatorTests` (32: toplama kuralı, sınırlar, çağrı başına son rapor, eşzamanlılık — kilidi kaldırınca düşer) · `RunSpendTests` (9) · `NodeUsageTests` (6: iki düğüm, para birimi, yeniden deneme, geçersiz kalem, zaman aşımı sonrası, bildirmeyen run) · `NodeUsageConcurrencyTests` (2) · `NodeUsageCancellationTests` (1) · `NodeUsageStoreFailureTests` (2) · `WorkflowTreeSpendTests` (7) · `NodeUsageLimitsTests` (2) · `NonTokenSpendTests` (9: beş para yeri + bütçe, yer başına) · `RunUsageEndpointTests` (2) · sözleşme: `NonTokenUsageContract` (16 × 4 depo; 9'u ortak izolasyon/iptal tabanından) + `RunStoreContract` 6 yeni case + `ToolInvocationContract` 1 yeni case (2 mevcut case genişledi) · konsol `run-detail.test.tsx` (+5).
+Testler (sınıf → kanıt): `NonTokenCostAccumulatorTests` (34: toplama kuralı, sınırlar, çağrı başına son rapor, eşzamanlılık — kilidi kaldırınca düşer) · `RunSpendTests` (9) · `NodeUsageTests` (6: iki düğüm, para birimi, yeniden deneme, geçersiz kalem, zaman aşımı sonrası, bildirmeyen run) · `NodeUsageConcurrencyTests` (2) · `NodeUsageCancellationTests` (1) · `NodeUsageStoreFailureTests` (2) · `WorkflowTreeSpendTests` (7) · `NodeUsageLimitsTests` (2) · `NonTokenSpendTests` (9: beş para yeri + bütçe, yer başına) · `NonTokenSpendAgentTreeTests` (3: alt agent'ın tool tutarı kökün kotasında ve webhook'unda) · `RunUsageEndpointTests` (2) · sözleşme: `NonTokenUsageContract` (16 × 4 depo + örnek mağaza 16; 9'u ortak izolasyon/iptal tabanından) + `RunStoreContract` 6 yeni case + `ToolInvocationContract` 1 yeni case (2 mevcut case genişledi) · konsol `run-detail.test.tsx` (+5).
 
 ## Örnek Uygulama Koşumu
 
@@ -348,20 +350,49 @@ Başlangıçta bulunan ortam tuzağı: örnek uygulama bakımcının user-secret
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 — onay tek turda (2026-10-13, Açık Sorular 1–6 = A). Plandan sapma 13 satır, hepsi gerekçeli |
+| Düzeltme turu sayısı | 2 — uygulama sırasında kota açığı (`c48c4220`; kırmızı test önce yazıldı). Denetim sonrası tur (`2c36dbfe`, `562287f5`, `dd5a8501`) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | Denetçi: 2 gerçek (yüzey tabanı, örnek mağaza). Kapanış kapısının bir koşumunda 5 farklı test düştü, hepsi gerçek eksik güncelleme (yüzey tabanı denetçinin 🔴 1'iyle aynı, ayrı sayılmadı). Başka bir koşumda 1 gürültü (`JobWorkerLeaseContractTests`, yük altında 30 sn; izolasyonda geçti, sonraki koşumda da geçti). Araştırılacak: 1 (`HarnessDefaultsTests` cwd; tekrarlanmadı, F-483) |
+| Fazın ürettiği regresyon | Davranış: 0 — koşum 4'te 38 test koşumunun hiçbiri başarısız değil. Kapı katmanı: `QueryRuns` +1.648 B (kasıtlı, taban güncellendi). Kapanıştan önce yakalanan: 1 derleme kırığı (örnek mağaza; kapanış kapısı görmez, denetçi buldu, yayın provası sonra geçti) |
+| Faz kapandıktan sonra bulunan kusur | Henüz ölçülmedi — kapanıştan sonra izlenir |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur. Bulgu yoksa "🔴 ve 🟡 yok" yazılır.
+**🔴 (2, ikisi gerçek, ikisi kapatıldı)**
+
+1. **Genel yüzey tabanı bayattı.** `Tracon.Testing.Contracts.Xunit` 50'de kalmıştı, yeni sözleşme sınıfıyla 51 oldu. Taban 51'e yenilendi.
+2. **Örnek `JsonFileRunStore` derlenmiyordu.** Kapanış kapısı dışında (`samples/` yalnız yayın provasında derlenir). Örneğe iki üye, run snapshot'ı ve ağaç toplamı eklendi; `NonTokenUsageContract` bağlandı (16 test geçti). Yayın provası (`kapi.py yayin --kuru`) geçti.
+
+**🟡 (6)**
+
+1. Site cümlesi kota ve webhook'un kaçırdığını söylüyordu; düzeltildi (`guides/observability.md`, `llms-full.txt` yeniden üretildi).
+2. Bütçe sayacı `long` nano-unit'te sarıyordu; on büyük kalem tavanı açabilirdi. `AgentRunBudget` artık doyuyor (3 test, önce kırmızı).
+3. 1.000 kalem sınırı kapanıştan sonra gelen kalemleri saymıyordu; sayılıyor (2 test).
+4. Agent kökünün alt run tool tutarı hesabı hiç sınanmıyordu; `NonTokenSpendAgentTreeTests` (3). Hesap bilerek bozulunca 2 test kırıldı, geri alındı.
+5. Store-failure testinin son assert'i boştu; run'ın son durumu (`Running`) doğrulanıyor.
+6. Plandan sapma eksikti (veri sahibi dışa aktarımı). Sapma 13'e yazıldı. Kod değişmedi, karar devirde.
+
+**🟢 → aday listesi**
+
+- F-482 (kapanıştan sonra gelen tool harcamasının kotaya girmemesi), F-483 (`HarnessDefaultsTests` cwd), F-484 (tool ölçümünün alan sınırları `Report`'ta denetlenmiyor) `ADAYLAR.md`'ye eklendi.
+- Devirde kalan 🟢: `ImageEndpoints` operatör yanıtı yeni alanları doldurmuyor; özel `IRunPricingResolver` para birimlerini ayırırsa webhook `Cost` yalnız token olur, `NonTokenCost` dolu gelir (CHANGELOG'da nitelendi, kod değişmedi); konsol panelinin ekran görüntüsü yenilenmedi.
+
+**Denetçi yeniden koşulmadı.** Fix'ler kendi testleri ve kapanış kapısıyla doğrulandı.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+**Faz 200 açılışından önce karar gerekenler**
+
+- **Veri sahibi dışa aktarımı (Sapma 13):** `run_non_token_usage` ve `tool_invocations` dışa aktarılmaz; silinir. Karar ya da ayrı aday. `ADAYLAR.md` 80.000 B sınırında olduğu için satır eklenmedi: önce yer açılmalı.
+- **F-407 (bütçe tükenince düğüm başlamasın):** kapsam dışı bırakılmıştı; ön koşulu (maliyet kaydı) bu faz sağladı. Artık planlanabilir.
+- **F-482:** kapanıştan sonra gelen tool ölçümü kota ve webhook'ta yok (K-974 sınırı). Karar: belgele ya da farkı kotaya yaz.
+
+**Bu fazdan devralınanlar**
+
+- Workflow kökünün kota ve webhook'u, satırın kendi snapshot'ı depoda yoksa düğüm payını bellekten ekler (`WorkflowTreeSpend`). Agent yolunda bu yok: bir child agent'ın yazıcısı kapanırsa onun token ve token dışı payı kökün ağaç toplamından düşer (kodda `ReadTreeConsumptionAsync` ağacı depodan okuyor). Token için bilinen sınır; token dışı için de aynı. Bu fazda kapatılmadı.
+- `IRunStore` iki üye aldı (K-973, kaynak kırılması). Kendi mağazası olan tüketici `NonTokenUsageContract`'ı bağlamalı; örnek mağaza bağlı.
+- Konsol panelinin ekran görüntüsü eski; `ui.md` için yeniden çekilmeli.
+- Manuel case MT-OBS-071 (👤) el koşumunu bekliyor.
+- `HarnessDefaultsTests` (F-483) paralel koşumda bir kez düştü; tekrarlanırsa seri koleksiyona alınır.
