@@ -91,6 +91,27 @@ one-click rollback.
 The editor validates as you save, using the same rules the compiler applies. An
 unknown tool or skill name is refused at write time, not on the first run.
 
+<a class="ui-shot" href="/screenshots/agent-editor-loop.png"><img src="/screenshots/agent-editor-loop.png" alt="The agent editor's Loop panel with a marker criterion, a criterion registered in code, the iteration ceiling and the outcome selectors" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+With harness features on, the editor shows a **Loop** panel for the agent's
+[run-until-done loop](/concepts/agents/#run-until-the-work-is-done). It adds,
+removes and reorders criteria, and sets the iteration ceiling, the fresh context
+switch and the two outcomes. The kind list comes from the host: the four
+built-in kinds and every kind registered in code, with its description. An
+`aiJudge` criterion shows the host's judge model, or says that none is
+configured. A few things the panel does on purpose:
+
+- A kind the host does not list stays in the definition, marked **Not
+  registered**. It also stays when the list cannot load.
+- Changing a criterion's kind clears the fields the new kind does not read.
+  Opening and saving a definition keeps every field as it is.
+- Turning harness features off drops the loop from the request, and the harness
+  panel says so before you save.
+- **Validate** reports each loop problem with its code and the path of the field,
+  for example `harness.loop.criteria[1].marker`.
+- The version diff shows the loop as its own table, so a changed ceiling or
+  criterion is highlighted.
+
 The instructions panel also holds a culture-keyed section: add a culture tag
 (`tr`, `de`, ...) with its own instructions text, and a run requesting that
 culture picks it up (see [Culture-keyed instructions](/concepts/agents/#culture-keyed-instructions)).
@@ -442,10 +463,10 @@ Every editor saves with a full replace, so each one sends back every field it
 loaded, including the fields it has no control for. Saving without a change leaves
 the record as it was.
 
-- The agent editor supports structured output, harness settings, and compaction. It
-  has no control for provider-specific `ProviderSettings`, static `McpResourceUris`,
-  a Knowledge vector binding, or the harness `loop` (its criteria, iteration limit
-  and failure policies). It keeps them as they are; change them through code or the
+- The agent editor supports structured output, harness settings including the
+  loop, and compaction. It has no control for provider-specific `ProviderSettings`,
+  static `McpResourceUris`, a Knowledge vector binding, or a `todoCompletion`
+  criterion's `modes`. It keeps them as they are; change them through code or the
   management HTTP API.
 - The workflow editor keeps a workflow's run parameter schema as it is and has no control
   for it. Change the schema with `PUT /api/workflows/{name}`.

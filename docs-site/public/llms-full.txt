@@ -55,7 +55,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only |
 | Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns. Each call also has a two-layer wait limit (`SubAgentSettings`, or the installation-wide default): a cooperative deadline, then a hard cutoff that abandons a child that ignores cancellation |
 | Harness mode | Context and iteration limits plus todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types. Its providers are on by default — each has its own `Disable...` flag |
-| Harness loop | The agent is re-invoked until a declared stop criterion says the work is finished | `HarnessSettings.Loop`, plus `AddLoopEvaluator(kind, evaluator)` for a criterion written in code | Off unless the definition sets it. Four built-in criterion kinds take data only; an unknown kind is refused at compile time. The iteration ceiling is never open — an unset `MaxIterations` takes Tracon's own default — and every iteration writes a `LoopIterationCompleted` run event. `OnExhausted` / `OnCriterionError` set to `LoopOutcome.FailRun` fail the run instead of returning the last response (`LoopUnsatisfied`) |
+| Harness loop | The agent is re-invoked until a declared stop criterion says the work is finished | `HarnessSettings.Loop`, plus `AddLoopEvaluator(kind, evaluator or factory)` for a criterion written in code | Off unless the definition sets it. Four built-in criterion kinds take data only; an unknown kind is refused at compile time. A factory gets the root services on the first compilation that names its kind. `GET /api/loop-criteria` lists the kinds and the judge model; the console edits the loop, and validation reports each loop problem with a path. The iteration ceiling is never open — an unset `MaxIterations` takes Tracon's own default — and every iteration writes a `LoopIterationCompleted` run event. `OnExhausted` / `OnCriterionError` set to `LoopOutcome.FailRun` fail the run instead of returning the last response (`LoopUnsatisfied`) |
 | Context compaction | Trigger-based truncation or summarization with preserved turns and an optional utility model | `AgentDefinition.Compaction` and `Tracon:UtilityModel` | Compaction is per definition and can be disabled by harness settings |
 | Working memory | Todo state, file memory, text search, and vector search tools | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator |
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
@@ -262,7 +262,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-168-operation HTTP reference.
+169-operation HTTP reference.
 
 ## Embedding points
 
@@ -717,6 +717,10 @@ in nor registered is refused when the definition is saved, with `400`. It is
 never ignored: a stop criterion that is silently dropped leaves a loop with no
 stop criterion.
 
+The overload with a last `description` argument sets the sentence the console
+shows next to the kind. Every reader of `GET /api/loop-criteria` receives it, so
+do not put a secret in it.
+
 Four more rules are worth knowing before you turn the loop on:
 
 - **Criteria are evaluated in order, and the first one that asks for another
@@ -748,6 +752,84 @@ reaches `MaxIterations` is never evaluated — there is nothing left to decide �
 so a loop that ends at its ceiling writes one event fewer than it takes turns.
 Its last event carries `ceilingReached`, which is how the run record tells "the
 criterion was finally satisfied" apart from "we ran out of iterations".
+
+### A criterion that needs your services
+
+`LoopContext` carries no service provider. A criterion that needs one of your
+services takes it from a factory:
+
+```csharp
+#pragma warning disable MAAI001
+tracon.AddLoopEvaluator(
+    "reviewed",
+    services => new ReviewerCriterion(services.GetRequiredService<IAgentCatalog>()),
+    description: "The reviewer agent approves the draft.");
+#pragma warning restore MAAI001
+```
+
+The factory receives the application's root service provider. It runs once, on
+the first compilation of an agent that names the kind, and its result serves
+every agent, run and tenant from then on:
+
+- **It does not run at startup.** At startup the agent catalog is still being
+  built, so a factory that asks for `IAgentCatalog` could not get it. A
+  duplicate kind or a kind that shadows a built-in one is still refused before
+  any factory runs.
+- **A factory that throws is not cached.** The compilation fails with
+  `TraconCompilationException`, which names the kind and the exception type; a
+  save returns `400`. The exception's own message goes to the host log only. The
+  next compilation calls the factory again.
+- **Take singletons only.** The provider is the root one: a scoped service would
+  outlive its scope.
+- **Read the tenant when you evaluate, not in the factory.** The factory runs
+  for whichever tenant compiles the agent first. Read
+  `ITenantContext.TenantId` inside `EvaluateAsync`; it is the tenant of the run
+  being evaluated, also inside a workflow step.
+
+**A reviewer agent as the criterion.** The `AddLoopEvaluator` factory overload's
+XML example shows a criterion that does what `aiJudge` cannot: it computes a
+check in code before the reviewer reads the draft, asks a reviewer agent from
+the catalog, and reads the reviewer's own JSON verdict. It keeps state for one
+loop run, such as the previous round's findings, in
+`LoopContext.AdditionalProperties`. It reads the draft from the last assistant
+message of `LoopContext.LastResponse`: a harness turn can write a plan or an
+earlier version first, and `LastResponse.Text` joins every message of the turn.
+The reviewer runs as a child of the run being
+evaluated when the criterion passes `TraconRunOptions` built from
+`TraconRunContext.Current` (`ParentRunId`, `RootRunId`, `Depth + 1`, `Budget`).
+The child run then appears under the evaluated run, and its tokens are its own
+run's usage, not the evaluated run's. Its tokens also count against the shared
+tree budget. Two limits a sub-agent call checks for you are the criterion's to
+check: the tree's depth limit, and `Budget.TryReserveRun()` for the run count.
+The sample application's `DraftReviewCriterion` is a complete example.
+
+### List, edit, and validate a loop
+
+`GET /api/loop-criteria` lists the kinds a definition can name: the four
+built-in kinds first, then the kinds registered in code, each with its
+description. It also returns the judge model an `aiJudge` criterion calls
+(`provider` and `model` only), or `null` when the host bound none. Listing runs
+no factory. It needs the Reader role and, for an API key, the `AgentsRead` scope.
+The [console](/ui/#agents) builds its Loop panel from this list.
+
+`POST /api/agents/validate` reports every loop problem at once, each with its
+own code and the path of the field. Saving a definition with a loop problem
+returns `400` with every message:
+
+| Code | Path | Meaning |
+|---|---|---|
+| `loop_criteria_empty` | `harness.loop.criteria` | The loop has no criterion |
+| `loop_max_iterations_invalid` | `harness.loop.maxIterations` | The ceiling is zero or negative |
+| `loop_outcome_invalid` | `harness.loop.onExhausted` or `.onCriterionError` | The value is not a `LoopOutcome` member |
+| `loop_criterion_kind_missing` | `harness.loop.criteria[i].kind` | The kind is empty |
+| `loop_criterion_unknown` | `harness.loop.criteria[i].kind` | The kind is neither built in nor registered |
+| `loop_marker_missing` | `harness.loop.criteria[i].marker` | A `completionMarker` has no marker |
+| `loop_judge_criteria_missing` | `harness.loop.criteria[i].judgeCriteria` | An `aiJudge` has no non-blank criterion |
+| `loop_judge_unconfigured` | `harness.loop.criteria[i].kind` | An `aiJudge` on a host with no judge model |
+| `loop_judge_unavailable` | `harness.loop.criteria[i].kind` | The judge model cannot be built: its provider is not registered, or the caller's egress policy forbids it |
+
+A kind registered in code counts as known whether or not its factory has run.
+A factory that fails reports as `compilation_error`, naming the kind.
 
 ### Fail the run when the loop is not satisfied
 
@@ -790,8 +872,8 @@ What `FailRun` changes, besides the outcome:
 - **A failed run keeps its usage.** Its tokens and cost cover every turn the
   loop ran, so quotas and cost reports count the work.
 - **A workflow stops at that agent.** Its run fails and the next node does not
-  run. The agent's own run carries the `LoopUnsatisfied` class; the workflow's
-  run records the failure without a class.
+  run. The agent's own run and the workflow's run both carry the
+  `loop_unsatisfied` error type and the `LoopUnsatisfied` class.
 
 The run's own cancellation is never a criterion error: a cancelled run ends as
 `Canceled` in both modes.
@@ -4105,7 +4187,7 @@ pin the exact package version when reproducibility matters.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 168 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **HTTP API** | 169 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
 | **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
@@ -13896,7 +13978,7 @@ public void All_tool_contracts_are_covered()
 
 Source: https://tracon.dev/http-api/
 
-168 operations across 130 paths. This page is the shape they all share; the groups in
+169 operations across 131 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -15339,7 +15421,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 168 management and OpenAI-compatible
+The generated HTTP reference contains 169 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -18242,6 +18324,27 @@ one-click rollback.
 The editor validates as you save, using the same rules the compiler applies. An
 unknown tool or skill name is refused at write time, not on the first run.
 
+<a class="ui-shot" href="/screenshots/agent-editor-loop.png"><img src="/screenshots/agent-editor-loop.png" alt="The agent editor's Loop panel with a marker criterion, a criterion registered in code, the iteration ceiling and the outcome selectors" width="2880" height="1800" loading="lazy" decoding="async" /></a>
+
+With harness features on, the editor shows a **Loop** panel for the agent's
+[run-until-done loop](/concepts/agents/#run-until-the-work-is-done). It adds,
+removes and reorders criteria, and sets the iteration ceiling, the fresh context
+switch and the two outcomes. The kind list comes from the host: the four
+built-in kinds and every kind registered in code, with its description. An
+`aiJudge` criterion shows the host's judge model, or says that none is
+configured. A few things the panel does on purpose:
+
+- A kind the host does not list stays in the definition, marked **Not
+  registered**. It also stays when the list cannot load.
+- Changing a criterion's kind clears the fields the new kind does not read.
+  Opening and saving a definition keeps every field as it is.
+- Turning harness features off drops the loop from the request, and the harness
+  panel says so before you save.
+- **Validate** reports each loop problem with its code and the path of the field,
+  for example `harness.loop.criteria[1].marker`.
+- The version diff shows the loop as its own table, so a changed ceiling or
+  criterion is highlighted.
+
 The instructions panel also holds a culture-keyed section: add a culture tag
 (`tr`, `de`, ...) with its own instructions text, and a run requesting that
 culture picks it up (see [Culture-keyed instructions](/concepts/agents/#culture-keyed-instructions)).
@@ -18593,10 +18696,10 @@ Every editor saves with a full replace, so each one sends back every field it
 loaded, including the fields it has no control for. Saving without a change leaves
 the record as it was.
 
-- The agent editor supports structured output, harness settings, and compaction. It
-  has no control for provider-specific `ProviderSettings`, static `McpResourceUris`,
-  a Knowledge vector binding, or the harness `loop` (its criteria, iteration limit
-  and failure policies). It keeps them as they are; change them through code or the
+- The agent editor supports structured output, harness settings including the
+  loop, and compaction. It has no control for provider-specific `ProviderSettings`,
+  static `McpResourceUris`, a Knowledge vector binding, or a `todoCompletion`
+  criterion's `modes`. It keeps them as they are; change them through code or the
   management HTTP API.
 - The workflow editor keeps a workflow's run parameter schema as it is and has no control
   for it. Change the schema with `PUT /api/workflows/{name}`.
