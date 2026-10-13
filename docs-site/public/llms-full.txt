@@ -12555,9 +12555,14 @@ run before any text or audio leaves the process:
 
 The tenant is the current run's tenant, or the request's tenant outside a run, so a
 queued workflow is judged by the tenant that queued it. The policy and the binding are
-read on every call: a policy saved now stops the next call. Reading the provider list
-and `GET /api/voice/health` apply no tenant check; the health check is a platform
-check that sends no tenant data.
+read each time a provider is resolved. A tool call, an HTTP request and a function
+node resolve on every call, so a policy saved now stops their next call. The
+conversation socket resolves its transcriber and synthesizer **once, when the
+connection opens**: an open connection keeps them until it closes, and a policy saved
+meanwhile applies from the next connection — close the connection to apply it at once.
+Reading the provider list and `GET /api/voice/health` apply no tenant check; the
+health check calls the default synthesizer directly as a platform check, with the
+configured key and no tenant data.
 
 :::caution[Behavior change]
 A tenant with a saved egress policy that does not name its speech provider can no

@@ -129,7 +129,10 @@ served only by an engine that sets `SupportsTenantCredentials`; the key arrives 
 `SpeechRequest.Credential`. Any other engine is refused for that tenant rather than
 called on its own configured key. The built-in ElevenLabs client does not take a
 tenant key, so a tenant with an `elevenlabs` binding is refused, and a tenant whose
-saved policy does not name `elevenlabs` cannot use the tools.
+saved policy does not name `elevenlabs` cannot use the tools. The tools and the HTTP
+endpoints check on every call; a conversation socket checks once, when it opens, and
+keeps its providers until it closes. The health check is a platform check on the
+configured key and sends no tenant data.
 
 ## Dependencies
 

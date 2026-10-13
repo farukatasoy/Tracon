@@ -16,7 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   provider key. **Behavior change:** a tenant with a saved egress policy that
   does not name its speech provider (`elevenlabs` for the built-in client) can no
   longer synthesize, transcribe or list voices: the endpoints answer `403`, the
-  conversation handshake answers `403` before a connection slot is taken, and a
+  conversation handshake answers `403` before a connection slot is taken (an open
+  conversation keeps the providers it was opened with until it closes), and a
   tool call fails. Add the provider name to the policy to keep speech working. A
   tenant with its own binding for the speech provider is refused unless the
   provider declares `SupportsTenantCredentials`; the built-in ElevenLabs client

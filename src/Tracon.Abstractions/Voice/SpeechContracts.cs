@@ -21,13 +21,14 @@ namespace Tracon;
 /// <para>
 /// <strong>Tenant behavior — TENANT-INDEPENDENT implementation, tenant-gated calls.</strong>
 /// An instance is configured once, with its own credentials; it never reads the
-/// tenant and no member takes a tenant parameter. Tracon never calls an instance
-/// directly: it resolves it through
+/// tenant and no member takes a tenant parameter. Every Tracon call that carries a
+/// tenant's text or audio resolves the instance through
 /// <see cref="ISpeechProviderResolver"/>, which applies the tenant's egress policy to
 /// <see cref="ProviderName"/> and, when the tenant has its own credential for that
 /// provider, passes it in <see cref="SpeechRequest.Credential"/> — only to an
 /// implementation whose <see cref="SupportsTenantCredentials"/> is
-/// <see langword="true"/>.
+/// <see langword="true"/>. The platform health check calls the default instance
+/// directly, with its configured credential and no tenant data.
 /// </para>
 /// </remarks>
 public interface ISpeechSynthesizer
