@@ -205,7 +205,7 @@ public sealed class FallbackChatClientTests
     public async Task Content_filter_does_not_trigger_a_fallback_attempt()
     {
         // A provider-filtered response is a NORMAL return value at this layer
-        // (ContentFilterDetectingChatClient sits OUTSIDE the fallback chain and
+        // (FinishReasonDetectingChatClient sits OUTSIDE the fallback chain and
         // converts it to an exception only after the fallback client already
         // returned) — the fallback link must never even be called.
         var primaryClient = new FakeChatClient(_ => new ChatResponse
@@ -221,6 +221,45 @@ public sealed class FallbackChatClientTests
             () => chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken));
 
         fallbackClient.CallCount.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Output_truncation_does_not_trigger_a_fallback_attempt()
+    {
+        // F-320: a response stopped at the output limit is a normal return value
+        // at this layer, like a filtered one. Another provider would get the same
+        // request and the same limit, so the fallback link is never called.
+        var primaryClient = new FakeChatClient(_ => new ChatResponse
+        {
+            Messages = [new ChatMessage(ChatRole.Assistant, "{\"a\":")],
+            FinishReason = ChatFinishReason.Length,
+        });
+        var fallbackClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "{\"a\":1}")));
+
+        using var chatClient = RegistryWithFallback(primaryClient, fallbackClient);
+
+        await Should.ThrowAsync<TraconOutputTruncatedException>(
+            () => chatClient.GetResponseAsync(
+                Messages,
+                new ChatOptions { ResponseFormat = ChatResponseFormat.Json },
+                TestContext.Current.CancellationToken));
+
+        fallbackClient.CallCount.ShouldBe(0);
+    }
+
+    [Fact]
+    public void Output_truncation_is_not_a_retryable_failure_even_when_a_link_throws_it()
+    {
+        // A consumer's own ring could surface the exception inside the chain;
+        // the closed retry set still never moves to the next link for it.
+        var truncated = new TraconOutputTruncatedException(
+            "The 'fake' model stopped at the output token limit of 200 before the structured response was complete.")
+        {
+            ProviderName = "fake",
+            MaxOutputTokens = 200,
+        };
+
+        FallbackRetryClassifier.IsRetryable(truncated).ShouldBeFalse();
     }
 
     [Fact]

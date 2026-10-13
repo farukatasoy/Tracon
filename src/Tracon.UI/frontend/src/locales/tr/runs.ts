@@ -231,6 +231,7 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "dashboard.errorClass.Infrastructure": 'Altyapı hatası',
   "dashboard.errorClass.StructuredResponseInvalid": 'Yapısal yanıt geçersiz',
   "dashboard.errorClass.LoopUnsatisfied": 'Döngü karşılanmadı',
+  "dashboard.errorClass.OutputTruncated": 'Çıktı kesildi',
   "transcript.reasoning": 'Akıl yürütme',
   "transcript.approved": 'onaylandı',
   "transcript.rejected": 'reddedildi',

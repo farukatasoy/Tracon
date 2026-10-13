@@ -4,14 +4,16 @@ using Tracon.Core.UnitTests.Fakes;
 namespace Tracon.Core.UnitTests.Models;
 
 /// <summary>
-/// Turning an empty response cut off by a safety/content filter into an explicit error.
+/// Turning an empty response cut off by a safety/content filter, and a
+/// structured response stopped at the output token limit (F-320), into an
+/// explicit error.
 /// </summary>
 /// <remarks>
 /// The decorator is applied to every client by <c>ModelProviderRegistry.CreateChatClient</c>;
 /// that is why the tests run through the registry — this also catches a break
 /// in the wrapping order.
 /// </remarks>
-public sealed class ContentFilterDetectingChatClientTests
+public sealed class FinishReasonDetectingChatClientTests
 {
     [Fact]
     public async Task Filtered_empty_response_throws_a_content_filtered_error()
@@ -155,6 +157,150 @@ public sealed class ContentFilterDetectingChatClientTests
         {
             await Should.ThrowAsync<TraconContentFilteredException>(
                 () => chatClient.GetResponseAsync([new ChatMessage(ChatRole.User, "hi")], cancellationToken: TestContext.Current.CancellationToken));
+        }
+
+        breaker.IsOpen("fake", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Length_on_a_structured_response_throws_output_truncated()
+    {
+        using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
+        {
+            Messages = [new ChatMessage(ChatRole.Assistant, "{\"title\": \"cut")],
+            FinishReason = ChatFinishReason.Length,
+        }));
+
+        var exception = await Should.ThrowAsync<TraconOutputTruncatedException>(
+            () => chatClient.GetResponseAsync(
+                [new ChatMessage(ChatRole.User, "hi")],
+                new ChatOptions { ResponseFormat = ChatResponseFormat.Json, MaxOutputTokens = 200 },
+                TestContext.Current.CancellationToken));
+
+        exception.ErrorType.ShouldBe("output_truncated");
+        exception.ProviderName.ShouldBe("fake");
+        exception.MaxOutputTokens.ShouldBe(200);
+        exception.Message.ShouldContain("200");
+        exception.Message.ShouldNotContain("title", Case.Sensitive, "the message never carries the response text");
+    }
+
+    [Fact]
+    public async Task Length_on_a_json_schema_response_without_a_limit_names_the_provider_default()
+    {
+        using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
+        {
+            Messages = [new ChatMessage(ChatRole.Assistant, "{\"a\":")],
+            FinishReason = ChatFinishReason.Length,
+        }));
+
+        var schema = System.Text.Json.JsonDocument.Parse("{\"type\":\"object\"}").RootElement;
+
+        var exception = await Should.ThrowAsync<TraconOutputTruncatedException>(
+            () => chatClient.GetResponseAsync(
+                [new ChatMessage(ChatRole.User, "hi")],
+                new ChatOptions { ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, "answer") },
+                TestContext.Current.CancellationToken));
+
+        exception.MaxOutputTokens.ShouldBeNull();
+        exception.Message.ShouldContain("default output token limit");
+    }
+
+    [Fact]
+    public async Task Length_on_a_plain_text_response_passes_through()
+    {
+        // K1: a partial text answer is still useful; the call does not fail.
+        using var chatClient = Registry(new FakeChatClient(_ => new ChatResponse
+        {
+            Messages = [new ChatMessage(ChatRole.Assistant, "a partial ans")],
+            FinishReason = ChatFinishReason.Length,
+        }));
+
+        var response = await chatClient.GetResponseAsync(
+            [new ChatMessage(ChatRole.User, "hi")],
+            new ChatOptions { ResponseFormat = ChatResponseFormat.Text },
+            TestContext.Current.CancellationToken);
+
+        response.Text.ShouldBe("a partial ans");
+        response.FinishReason.ShouldBe(ChatFinishReason.Length);
+    }
+
+    [Fact]
+    public async Task Streaming_length_on_a_structured_response_throws_after_the_last_update()
+    {
+        using var chatClient = Registry(new FakeChatClient(streamingUpdates:
+        [
+            new ChatResponseUpdate(ChatRole.Assistant, "{\"a\":"),
+            new ChatResponseUpdate(ChatRole.Assistant, " 1") { FinishReason = ChatFinishReason.Length },
+        ]));
+
+        var received = new List<string>();
+
+        await Should.ThrowAsync<TraconOutputTruncatedException>(async () =>
+        {
+            await foreach (var update in chatClient.GetStreamingResponseAsync(
+                [new ChatMessage(ChatRole.User, "hi")],
+                new ChatOptions { ResponseFormat = ChatResponseFormat.Json },
+                TestContext.Current.CancellationToken))
+            {
+                received.Add(update.Text);
+            }
+        });
+
+        // Every update reached the caller before the decision.
+        string.Concat(received).ShouldBe("{\"a\": 1");
+    }
+
+    [Fact]
+    public async Task Streaming_decision_reads_the_last_finish_reason_not_the_first()
+    {
+        // A tool-call turn reports its own reason first; the loop then streams
+        // the next turn. Only the turn that ends the stream decides.
+        using var chatClient = Registry(new FakeChatClient(streamingUpdates:
+        [
+            new ChatResponseUpdate(ChatRole.Assistant, "{\"a\":") { FinishReason = ChatFinishReason.Length },
+            new ChatResponseUpdate(ChatRole.Assistant, "{\"a\": 1}") { FinishReason = ChatFinishReason.Stop },
+        ]));
+
+        var count = 0;
+
+        await foreach (var _ in chatClient.GetStreamingResponseAsync(
+            [new ChatMessage(ChatRole.User, "hi")],
+            new ChatOptions { ResponseFormat = ChatResponseFormat.Json },
+            TestContext.Current.CancellationToken))
+        {
+            count++;
+        }
+
+        count.ShouldBe(2, "the stream ended without an exception");
+    }
+
+    [Fact]
+    public async Task Circuit_breaker_does_not_count_a_truncation_as_a_failure()
+    {
+        // An output limit shows the provider is healthy, the same as a filter.
+        var breaker = new ModelProviderCircuitBreaker(
+            new StaticOptionsMonitor<TraconOptions>(new TraconOptions
+            {
+                CircuitBreaker = new TraconCircuitBreakerOptions { Enabled = true, FailureThreshold = 2 },
+            }));
+
+        var registry = new ModelProviderRegistry(
+            [new FakeModelProvider(new FakeChatClient(_ => new ChatResponse
+            {
+                Messages = [new ChatMessage(ChatRole.Assistant, "{")],
+                FinishReason = ChatFinishReason.Length,
+            }))],
+            breaker);
+
+        using var chatClient = registry.CreateChatClient(Binding);
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            await Should.ThrowAsync<TraconOutputTruncatedException>(
+                () => chatClient.GetResponseAsync(
+                    [new ChatMessage(ChatRole.User, "hi")],
+                    new ChatOptions { ResponseFormat = ChatResponseFormat.Json },
+                    TestContext.Current.CancellationToken));
         }
 
         breaker.IsOpen("fake", out _).ShouldBeFalse();

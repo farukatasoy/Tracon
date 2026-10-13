@@ -1037,6 +1037,9 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     # F-341: dugum tip zinciri kurali MAF'in mesaji sessizce dusurmesine ve
     # atanabilirlikle teslim etmesine dayanir; yukseltmede yeniden olculur.
     "src/Tracon.Core/Workflows/WorkflowDefinitionValidator.cs": "Microsoft.Agents.AI.Workflows",
+    # Faz 204: son bitis sebebi kurali FunctionInvokingChatClient'in ara turun
+    # guncellemelerini akisa verme sirasina dayanir; yukseltmede yeniden olculur.
+    "src/Tracon.Core/Models/FinishReasonDetectingChatClient.cs": "Microsoft.Extensions.AI",
 }
 
 # Bilerek ESKI bir surumu anan damgalar: "1.18.0'da su hâlâ basarisizdi" gibi

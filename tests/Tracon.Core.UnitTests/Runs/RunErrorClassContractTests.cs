@@ -42,6 +42,7 @@ public sealed class RunErrorClassContractTests
         ("ToolTimeout", 13),
         ("StructuredResponseInvalid", 14),
         ("LoopUnsatisfied", 15),
+        ("OutputTruncated", 16),
     ];
 
     [Fact]
