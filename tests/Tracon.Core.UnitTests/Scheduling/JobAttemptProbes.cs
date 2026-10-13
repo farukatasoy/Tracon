@@ -17,11 +17,16 @@ internal static class JobAttemptProbes
     public static readonly TimeSpan Poll = TimeSpan.FromMilliseconds(20);
 
     /// <summary>Builds a worker over <paramref name="store"/> running <paramref name="handler"/> for <see cref="JobHandlerKeys.AgentBatch"/>.</summary>
+    /// <remarks>
+    /// <paramref name="clock"/> drives the attempt's own timers (the cancel watch, the
+    /// deadline, the lease renewal); the worker's poll for new work keeps the real clock.
+    /// </remarks>
     public static (JobWorkerBackgroundService Worker, TestJobHandlerHost Host) Worker(
         IJobStore store,
         IJobHandler handler,
         Action<TraconSchedulingOptions>? configure = null,
-        Microsoft.Extensions.Logging.ILogger<JobWorkerBackgroundService>? logger = null)
+        Microsoft.Extensions.Logging.ILogger<JobWorkerBackgroundService>? logger = null,
+        TimeProvider? clock = null)
     {
         var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
         var options = new TraconSchedulingOptions
@@ -40,6 +45,7 @@ internal static class JobAttemptProbes
             new StaticOptionsMonitor<TraconSchedulingOptions>(options),
             new SchemaReadyGate([]),
             new NotDraining(),
+            timeProvider: clock,
             logger: logger ?? NullLogger<JobWorkerBackgroundService>.Instance);
 
         return (worker, host);

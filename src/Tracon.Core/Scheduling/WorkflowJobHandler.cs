@@ -64,7 +64,10 @@ namespace Tracon;
 /// the item's work, and recovery never continues the run. The attempt then fails with
 /// <see cref="JobErrorCodes.MaxDurationExceeded"/>, so the items it did not reach run in
 /// the next attempt, under a fresh limit. With no item left to run, the job fails at
-/// once with that code.
+/// once with that code; if the last item's run completed in the same instant, the job
+/// completes. A limit that arrives before the item's run started (while its run id is
+/// written or its chain is read, closed or extended) leaves the item pending for the
+/// next attempt, as a shutdown does.
 /// </para>
 /// </remarks>
 internal sealed class WorkflowJobHandler(
@@ -118,10 +121,9 @@ internal sealed class WorkflowJobHandler(
                 {
                     await RunItemAsync(context, item, input, queued, run, cancellationToken).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (StoppedAtTimeLimit(context))
+                catch (OperationCanceledException) when (run.Started && StoppedAtTimeLimit(context))
                 {
-                    // The limit arrived while the item was prepared or its run started;
-                    // the item is closed below.
+                    // The limit arrived while the item's run ran; the item is closed below.
                 }
             }
 
@@ -130,15 +132,30 @@ internal sealed class WorkflowJobHandler(
             // the checkpoint, and the limit would stop nothing. The item fails with the
             // limit as its reason; the attempt then fails with it, so the items not
             // reached yet run in the next attempt, under a fresh limit.
-            if (StoppedAtTimeLimit(context))
+            //
+            // 🚨 Only a run this attempt STARTED (K-926). A limit that arrives while the
+            // item is still prepared - its run id written, its chain read, closed or
+            // extended - finds no work of this attempt to end, and what the preparation
+            // wrote may be half done (a continuation's row written, the chain not closed
+            // yet). The item stays pending, as on a shutdown, and the next attempt plans
+            // it again from what the store holds.
+            if (run.Started && StoppedAtTimeLimit(context))
             {
                 await CloseItemAtTimeLimitAsync(context, item, run).ConfigureAwait(false);
 
-                // Nothing left for another attempt to run: the job fails now, with the
-                // limit as its reason, instead of being leased again only to find every
-                // item settled and fail as "all items failed".
                 if (!context.Items.Any(other => other.Seq > item.Seq && other.Status == JobItemStatus.Pending))
                 {
+                    // The last item's run completed in the same instant: the work is
+                    // done, and the job completes, as a queued run's job does and as any
+                    // handler that returns after its limit does (open question 8-A).
+                    if (run.Settled)
+                    {
+                        return;
+                    }
+
+                    // Nothing left for another attempt to run: the job fails now, with
+                    // the limit as its reason, instead of being leased again only to find
+                    // every item settled and fail as "all items failed".
                     throw StoppedAtTimeLimitException(context);
                 }
             }
@@ -219,6 +236,9 @@ internal sealed class WorkflowJobHandler(
         {
             return;
         }
+
+        // From here on a time limit ends the item's work: the run is this attempt's.
+        run.Started = true;
 
         try
         {
@@ -445,5 +465,11 @@ internal sealed class WorkflowJobHandler(
 
         /// <summary>Gets or sets whether the run ended completed or waiting for input.</summary>
         public bool Settled { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether this attempt started the item's run; the preparation
+        /// (run id, chain) is done.
+        /// </summary>
+        public bool Started { get; set; }
     }
 }

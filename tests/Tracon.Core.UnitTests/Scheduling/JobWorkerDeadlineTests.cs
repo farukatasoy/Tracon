@@ -16,8 +16,10 @@ namespace Tracon.Core.UnitTests.Scheduling;
 /// that exception is the handler noticing its token, not the cause (K-737).
 /// </para>
 /// <para>
-/// Real time with short limits: the deadline is armed on the worker's clock, and the
-/// fake clock in this project does not drive timers.
+/// Most cases run on real time with short limits; their bounds are failure bounds. The
+/// case that proves WHEN the limit fires advances the worker's clock
+/// (<see cref="ManualClock"/>): a tick before the limit nothing happens, at the limit the
+/// token falls.
 /// </para>
 /// </remarks>
 public sealed class JobWorkerDeadlineTests
@@ -59,6 +61,43 @@ public sealed class JobWorkerDeadlineTests
                 entry.Message.Contains(reference, StringComparison.Ordinal) &&
                 entry.Message.Contains("time limit", StringComparison.Ordinal) &&
                 entry.Exception is OperationCanceledException);
+        }
+    }
+
+    [Fact]
+    public async Task The_limit_fires_on_the_workers_clock_at_the_jobs_max_duration_and_not_before()
+    {
+        // Below the lease renewal's interval (a third of the five-minute lease), so the
+        // advance fires only the watch and the deadline.
+        var limit = TimeSpan.FromSeconds(30);
+        var clock = new ManualClock();
+        var store = new ProbeJobStore(new InMemoryJobStore());
+        var handler = new TokenProbeHandler();
+        var (worker, host) = Worker(store, handler, clock: clock);
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAsync(store, "slow", maxAttempts: 1, maxDuration: limit);
+
+            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await handler.For("slow").Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+            clock.Pending.ShouldContain(limit);
+
+            clock.Advance(limit - TimeSpan.FromTicks(1));
+            handler.For("slow").Token.IsCancellationRequested.ShouldBeFalse("a tick before the limit");
+
+            clock.Advance(TimeSpan.FromTicks(1));
+
+            await handler.For("slow").Cancelled.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+            handler.For("slow").Signals!.Reason.ShouldBe(JobStopReason.MaxDurationExceeded);
+
+            var job = await WaitForAsync(store, id, JobStatus.Failed);
+
+            await worker.StopAsync(TestContext.Current.CancellationToken);
+
+            job.ErrorMessage.ShouldNotBeNull().ShouldStartWith($"{JobErrorCodes.MaxDurationExceeded} (ref: ");
         }
     }
 
@@ -226,6 +265,42 @@ public sealed class JobWorkerDeadlineTests
             job.Status.ShouldBe(JobStatus.Completed);
             handler.For("plain").Signals!.MaxDuration.ShouldBeNull();
             logs.Entries.ShouldContain(static entry => entry.Level == LogLevel.Error && entry.Message.Contains("runs without a limit", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public async Task A_stored_limit_a_timer_cannot_arm_falls_back_to_the_map_and_is_logged()
+    {
+        // F-323 (audit): the operator's map still bounds a job whose own value is bad;
+        // the bad value used to switch every limit off.
+        var store = new ProbeJobStore(new InMemoryJobStore());
+        var handler = new TokenProbeHandler();
+        var logs = new CapturingLogs();
+        using var loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(logs));
+        var (worker, host) = Worker(
+            store,
+            handler,
+            static options => options.MaxDurationByHandlerKey[JobHandlerKeys.AgentBatch] = Limit,
+            logger: loggerFactory.CreateLogger<JobWorkerBackgroundService>());
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAsync(store, "slow", maxAttempts: 1, maxDuration: TimeSpan.FromDays(60));
+
+            await worker.StartAsync(TestContext.Current.CancellationToken);
+
+            var job = await WaitForAsync(store, id, JobStatus.Failed);
+
+            handler.For("slow").Signals!.MaxDuration.ShouldBe(Limit, "the map's limit, not none");
+
+            await worker.StopAsync(TestContext.Current.CancellationToken);
+
+            job.ErrorMessage.ShouldNotBeNull().ShouldStartWith(JobErrorCodes.MaxDurationExceeded);
+            logs.Entries.ShouldContain(static entry =>
+                entry.Level == LogLevel.Error &&
+                entry.Message.Contains("cannot arm", StringComparison.Ordinal) &&
+                entry.Message.Contains("MaxDurationByHandlerKey", StringComparison.Ordinal));
         }
     }
 

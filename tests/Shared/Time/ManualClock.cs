@@ -1,4 +1,4 @@
-namespace Tracon.Workflows.UnitTests.Fakes;
+namespace Tracon.Tests.Common;
 
 /// <summary>
 /// A time provider whose clock moves only when the test advances it, and whose timers
@@ -6,23 +6,33 @@ namespace Tracon.Workflows.UnitTests.Fakes;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="TriggerableTimeProvider"/> fires every timer at once, so it cannot tell a
+/// <c>TriggerableTimeProvider</c> fires every timer at once, so it cannot tell a
 /// two-second timeout from a ten-minute one. The timeout tests of phase 196 assert WHICH
 /// limit applied (a node's own over its registration's, a definition's run timeout over
-/// the installation's, the host's ceiling), so the due time has to matter.
+/// the installation's, the host's ceiling, a job's poll interval), so the due time has to
+/// matter.
 /// </para>
 /// <para>
 /// A timer re-armed with <see cref="ITimer.Change"/> is due from the moment of the
 /// change: this is how <see cref="CancellationTokenSource.CancelAfter(TimeSpan)"/> moves
-/// a deadline that was created with a time provider. Callbacks run outside the lock, on
-/// the advancing thread.
+/// a deadline that was created with a time provider. A periodic timer (a
+/// <see cref="PeriodicTimer"/> built on this clock) is due again one period after it
+/// fired. Callbacks run outside the lock, on the advancing thread.
+/// </para>
+/// <para>
+/// Linked into the test projects that need it (K-411), not copied.
 /// </para>
 /// </remarks>
 internal sealed class ManualClock : TimeProvider
 {
     private static readonly DateTimeOffset Start = new(2026, 10, 13, 9, 0, 0, TimeSpan.Zero);
 
+    // A linked project also builds for net8.0, which has no System.Threading.Lock.
+#if NET9_0_OR_GREATER
     private readonly Lock _gate = new();
+#else
+    private readonly object _gate = new();
+#endif
     private readonly List<ManualTimer> _timers = [];
     private long _elapsedTicks;
 
@@ -67,7 +77,10 @@ internal sealed class ManualClock : TimeProvider
         return timer;
     }
 
-    /// <summary>Moves the clock forward and fires every timer whose due time it passes.</summary>
+    /// <summary>
+    /// Moves the clock forward and fires every timer whose due time it passes, each
+    /// once; a periodic timer is then due one period after now.
+    /// </summary>
     /// <param name="amount">How far to move.</param>
     public void Advance(TimeSpan amount)
     {
@@ -82,7 +95,7 @@ internal sealed class ManualClock : TimeProvider
 
             foreach (var timer in due)
             {
-                timer.DueAt = null;
+                timer.DueAt = timer.Period is { } period ? now + period.Ticks : null;
             }
         }
 
@@ -100,11 +113,12 @@ internal sealed class ManualClock : TimeProvider
         }
     }
 
-    private void SetDue(ManualTimer timer, TimeSpan dueTime)
+    private void Set(ManualTimer timer, TimeSpan dueTime, TimeSpan period)
     {
         lock (_gate)
         {
             timer.DueAt = dueTime == Timeout.InfiniteTimeSpan ? null : _elapsedTicks + dueTime.Ticks;
+            timer.Period = period == Timeout.InfiniteTimeSpan || period <= TimeSpan.Zero ? null : period;
         }
     }
 
@@ -115,6 +129,9 @@ internal sealed class ManualClock : TimeProvider
         /// <summary>The clock tick the timer fires at; <see langword="null"/> while disarmed.</summary>
         public long? DueAt { get; set; }
 
+        /// <summary>The period of a periodic timer; <see langword="null"/> for a one-shot timer.</summary>
+        public TimeSpan? Period { get; set; }
+
         public bool Change(TimeSpan dueTime, TimeSpan period)
         {
             if (_disposed)
@@ -122,9 +139,7 @@ internal sealed class ManualClock : TimeProvider
                 return false;
             }
 
-            // One-shot timers only: every timer the code under test arms here (a CTS
-            // deadline, Task.Delay) passes an infinite period.
-            owner.SetDue(this, dueTime);
+            owner.Set(this, dueTime, period);
 
             return true;
         }

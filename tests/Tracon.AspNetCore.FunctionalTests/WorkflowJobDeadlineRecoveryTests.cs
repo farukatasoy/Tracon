@@ -19,13 +19,38 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <see cref="WorkflowRecovery"/> plans such a run as <c>Stopped</c>.
 /// </para>
 /// <para>
-/// Every lease here is the host's own worker - the deadline lives in the worker, and
-/// a handler driven by hand would skip it (the phase 197 test trap).
+/// The lease that decides each case is a real worker's - the deadline lives in the
+/// worker, and a handler driven by hand would skip it (the phase 197 test trap). The
+/// <c>Stopped</c> cases play the dying lease before it by hand and finish with
+/// <see cref="QueuedWorkflowHarness.FinishWithWorkerAsync"/>.
 /// </para>
 /// </remarks>
 public sealed class WorkflowJobDeadlineRecoveryTests
 {
     private static readonly TimeSpan Limit = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>The lease of a worker that dies: nobody renews it.</summary>
+    private static readonly TimeSpan DeadLease = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>
+    /// Closes a run the way the engine does when its job's time limit stops it: the
+    /// state a worker leaves when its process dies before it writes the job's outcome.
+    /// </summary>
+    private static async Task CloseAtTimeLimitAsync(TraconTestHost host, Guid runId)
+        => await host.Services.GetRequiredService<IRunStore>().CompleteRunAsync(
+            new RunCompletion
+            {
+                RunId = runId,
+                Status = RunStatus.Canceled,
+                CompletedAt = DateTimeOffset.UtcNow,
+                Error = new RunError
+                {
+                    Type = "job_max_duration_exceeded",
+                    Message = "The workflow run was stopped: the job running it reached its time limit (00:00:00.5000000).",
+                },
+                TenantId = TenantOf(host),
+            },
+            TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task A_queued_run_stopped_by_its_jobs_limit_fails_the_job_at_once_and_is_not_continued()
@@ -151,6 +176,85 @@ public sealed class WorkflowJobDeadlineRecoveryTests
 
         item.Status.ShouldBe(JobItemStatus.Failed);
         (await WorkflowRunsAsync(host)).ShouldHaveSingleItem().Error.ShouldNotBeNull().Type.ShouldBe("job_max_duration_exceeded");
+    }
+
+    /// <summary>
+    /// The plan's <c>Stopped</c> step, for a queued run: a lease stopped the run at its
+    /// limit (the engine closed it with the limit's reason) and its process died before
+    /// the job's outcome was written. The next lease fails the job with the code; it
+    /// neither continues the run nor runs a step.
+    /// </summary>
+    [Fact]
+    public async Task A_queued_run_its_limit_stopped_before_the_outcome_was_written_fails_its_job_at_the_next_lease()
+    {
+        var probe = new RecoveryProbe();
+        await using var host = await StartAsync(probe, runWorker: false, maxResumeAttempts: 1);
+        await using var lifetime = probe;
+        await SaveRecoverableAsync(host);
+
+        using var accepted = await PostAsync(host, $"/api/workflows/{Recoverable}/run", new WorkflowRunHttpRequest { Message = "episode 7" });
+        var headId = await AcceptedRunIdAsync(accepted);
+
+        await StartDoomedAttemptAsync(host, probe, DeadLease);
+        await CloseAtTimeLimitAsync(host, headId);
+
+        var job = await FinishWithWorkerAsync(host, headId);
+
+        job.Status.ShouldBe(JobStatus.Failed);
+        job.ErrorMessage.ShouldNotBeNull().ShouldStartWith($"{JobErrorCodes.MaxDurationExceeded} (ref: ");
+
+        var run = (await WorkflowRunsAsync(host)).ShouldHaveSingleItem("no continuation may follow a run its limit stopped");
+
+        run.Id.ShouldBe(headId);
+        run.Error.ShouldNotBeNull().Type.ShouldBe("job_max_duration_exceeded");
+        probe.SecondCalls.ShouldBe(1, "the next lease runs no step");
+    }
+
+    /// <summary>
+    /// The plan's <c>Stopped</c> step, for a batch item: the item whose run the limit
+    /// stopped was never reported. The next lease fails it with the limit's reason and
+    /// runs the items left.
+    /// </summary>
+    [Fact]
+    public async Task A_batch_item_its_limit_stopped_before_it_was_reported_fails_at_the_next_lease_and_the_rest_run()
+    {
+        var probe = new RecoveryProbe();
+        await using var host = await StartAsync(probe, runWorker: false, maxResumeAttempts: 1);
+        await using var lifetime = probe;
+        await SaveRecoverableAsync(host);
+
+        var queued = await host.Services.GetRequiredService<IJobDispatcher>().EnqueueAsync(
+            new JobRequest
+            {
+                TenantId = TenantOf(host),
+                HandlerKey = JobHandlerKeys.Workflow,
+                TargetName = Recoverable,
+                Items = ["episode 7", "episode 8"],
+                MaxAttempts = 3,
+            },
+            TestContext.Current.CancellationToken);
+
+        await StartDoomedAttemptAsync(host, probe, DeadLease);
+
+        var stoppedId = probe.RunOfLastSecondStep!.Value;
+        await CloseAtTimeLimitAsync(host, stoppedId);
+
+        var job = await FinishWithWorkerAsync(host, queued.Id);
+
+        job.Status.ShouldBe(JobStatus.Completed);
+
+        var items = await host.Services.GetRequiredService<IJobStore>().ListItemsAsync(queued.Id, TestContext.Current.CancellationToken);
+
+        items[0].Status.ShouldBe(JobItemStatus.Failed);
+        items[0].RunId.ShouldBe(stoppedId);
+        items[0].Error.ShouldNotBeNull().ShouldContain("time limit");
+        items[1].Status.ShouldBe(JobItemStatus.Completed);
+
+        (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(
+                new RunQuery { ContinuedFromRunId = stoppedId, Kind = RunKind.Workflow, OnlyRootRuns = false, Take = 10 },
+                TestContext.Current.CancellationToken))
+            .ShouldBeEmpty();
+        probe.SecondCalls.ShouldBe(2, "one call per item: the stopped one is not run again");
     }
 
     [Fact]
