@@ -2616,6 +2616,11 @@ The fix is a higher `ModelBinding.MaxOutputTokens`. When the binding leaves it e
 `POST /api/agents/validate` warns with `output_truncation_risk` if the provider's
 default is below the catalog's `MaxOutputTokens` for the model.
 
+An online-evaluation judge asks for a structured answer too. When its answer is cut
+off, the judge fails with `judge_failed` and the job does not retry it: the next
+attempt would send the same limit. Raise the `MaxOutputTokens` of the judge's own
+binding.
+
 ### The error message is safe to display, not safe to debug from
 
 `error.message` is deliberately shallow. When the failure is Tracon's own —
@@ -8392,7 +8397,7 @@ agent sends the same request as before:
 | `anthropic.thinking.budgetTokens` | integer above zero | `thinking.budget_tokens` (mode `enabled` only) |
 | `anthropic.promptCaching` | `true`, `false` | prompt caching on or off |
 | `anthropic.promptCaching.ttl` | `5m`, `1h` | `cache_control.ttl` |
-| `anthropic.promptCaching.placement` | `request`, `system` | where the cache breakpoint goes |
+| `anthropic.promptCaching.placement` | `request`, `system` | where the cache breakpoint goes; `system` with no instructions falls back to `request` |
 
 - **Effort** controls how many tokens the model spends, thinking included, and it is
   the main cost lever on current models. The values come from the Anthropic SDK, so a
@@ -8406,7 +8411,9 @@ agent sends the same request as before:
 - **Prompt caching.** `request` (the default) caches the whole request. `system`
   marks the end of the agent's instructions instead, so requests that carry a
   different document after the same instructions read the same cached prefix; with
-  `request`, each of them writes an entry the next one cannot read. A `1h` entry
+  `request`, each of them writes an entry the next one cannot read. A request with
+  no instructions has nothing to mark, so `system` then sends the `request`
+  breakpoint. A `1h` entry
   costs more to write and pays off when the same prefix returns more than five
   minutes apart. `ttl` and `placement` without `anthropic.promptCaching = true` are
   an error, not a silent no-op.
