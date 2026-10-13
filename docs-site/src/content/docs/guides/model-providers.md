@@ -191,14 +191,20 @@ var anthropicBinding = new ModelBinding
 {
     Provider = AnthropicProviderNames.Anthropic,
     Model = "your-current-claude-model",
-    MaxOutputTokens = 4_096,
+    MaxOutputTokens = 64_000,
     ProviderSettings = new Dictionary<string, JsonElement>(
         StringComparer.OrdinalIgnoreCase)
     {
+        [AnthropicProviderNames.EffortSetting] =
+            JsonSerializer.SerializeToElement("high"),
+        [AnthropicProviderNames.ThinkingModeSetting] =
+            JsonSerializer.SerializeToElement("adaptive"),
         [AnthropicProviderNames.PromptCachingSetting] =
             JsonSerializer.SerializeToElement(true),
-        [AnthropicProviderNames.ThinkingBudgetTokensSetting] =
-            JsonSerializer.SerializeToElement(2_048),
+        [AnthropicProviderNames.PromptCachingTtlSetting] =
+            JsonSerializer.SerializeToElement("1h"),
+        [AnthropicProviderNames.PromptCachingPlacementSetting] =
+            JsonSerializer.SerializeToElement("system"),
     },
 };
 
@@ -219,10 +225,47 @@ var googleBinding = new ModelBinding
 };
 ```
 
-Anthropic supports `anthropic.promptCaching` and
-`anthropic.thinking.budgetTokens`. Prompt caching is off by default. When thinking is
-enabled, its budget must be smaller than the effective output limit. Temperature must
-be absent or `1`.
+Anthropic supports six keys. Each one is off or absent by default, so an existing
+agent sends the same request as before:
+
+| Key | Values | Sent as |
+|---|---|---|
+| `anthropic.effort` | `low`, `medium`, `high`, `xhigh`, `max` | `output_config.effort` |
+| `anthropic.thinking.mode` | `enabled`, `adaptive` | `thinking.type` |
+| `anthropic.thinking.budgetTokens` | integer above zero | `thinking.budget_tokens` (mode `enabled` only) |
+| `anthropic.promptCaching` | `true`, `false` | prompt caching on or off |
+| `anthropic.promptCaching.ttl` | `5m`, `1h` | `cache_control.ttl` |
+| `anthropic.promptCaching.placement` | `request`, `system` | where the cache breakpoint goes |
+
+- **Effort** controls how many tokens the model spends, thinking included, and it is
+  the main cost lever on current models. The values come from the Anthropic SDK, so a
+  level the SDK adds is accepted without a Tracon release. A model that does not
+  support a level rejects the request.
+- **Thinking.** `adaptive` lets the model decide how much to think; `effort` sets the
+  depth. `enabled` needs `budgetTokens`, and current Claude models reject a budget
+  with `400`. A budget on its own still means `enabled`, as before. Setting
+  `adaptive` together with a budget is an error. With `enabled`, the budget must be
+  smaller than the output limit, and temperature must be absent or `1`.
+- **Prompt caching.** `request` (the default) caches the whole request. `system`
+  marks the end of the agent's instructions instead, so requests that carry a
+  different document after the same instructions read the same cached prefix; with
+  `request`, each of them writes an entry the next one cannot read. A `1h` entry
+  costs more to write and pays off when the same prefix returns more than five
+  minutes apart. `ttl` and `placement` without `anthropic.promptCaching = true` are
+  an error, not a silent no-op.
+- **Thinking tokens count against the output limit.** At `high` effort or above,
+  set `MaxOutputTokens` explicitly. Without it, the request goes out with
+  `DefaultMaxOutputTokens` (4096), and the validation report warns when the
+  catalog states a higher maximum for the model. See
+  [Truncated output](/concepts/runs/#truncated-output).
+
+`ModelBinding.ReasoningEffort` maps differently on Anthropic: the Anthropic adapter
+turns it into `thinking.budget_tokens` (1024 for `Low` up to 32768 for
+`ExtraHigh`), which current models reject. Use `anthropic.effort` with
+`anthropic.thinking.mode = adaptive` for them. When `anthropic.thinking.mode` or
+`budgetTokens` is set, the provider setting wins and `ReasoningEffort` is not sent.
+Provider settings do not reach a `Fallbacks` link: a link gets the binding's
+portable fields only.
 
 Google supports five `google.safety.*` thresholds plus
 `google.thinking.budgetTokens` and `google.thinking.includeThoughts`. The thinking
@@ -418,6 +461,14 @@ the one the registry passes through with the key named. The registry masks the
 message of any other exception thrown while a client is built, so a hand-rolled
 check reaches the author as a generic provider failure.
 
+**Default output limit.** If your client sends an output-token limit of its own
+when `ModelBinding.MaxOutputTokens` is empty, return a `ModelOutputLimit` from
+`GetService(typeof(ModelOutputLimit))` on the client you build for that binding,
+with `HighReasoningEffort = true` when the binding's settings ask for deep
+reasoning. `POST /api/agents/validate` reads it through the whole pipeline and
+warns when the limit is below the catalog's `MaxOutputTokens` for the model. A
+client that sends no limit returns nothing.
+
 **Naming.** `Name` is matched against `ModelBinding.Provider` case-insensitively.
 Registering two providers under one name is not last-one-wins: the host fails at
 startup.
@@ -468,7 +519,10 @@ was actually cancelled.
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
-`TraconContentFilteredException` itself. Throwing instead leaves the decision to
+`TraconContentFilteredException` itself. The same holds for the output limit:
+report `ChatFinishReason.Length`, and Tracon raises
+`TraconOutputTruncatedException` for a structured request or records a
+`tracon.output.truncated` event for plain text. Throwing instead leaves the decision to
 your exception: one with no readable HTTP status counts against the provider's
 circuit as a connection failure does, so a healthy provider can look like it is
 failing. And a `TraconException` thrown
@@ -482,12 +536,13 @@ Every provider options type has a `Models` collection. It drives the console mod
 picker, capability hints, and cost calculation. It is not an allow list. A definition
 can use a model that is absent from the catalog.
 
-The four capability flags do not carry equal weight, and only one of them is a
-gate:
+The capability flags do not carry equal weight, and only two of them are gates:
 
 | Flag | What it does |
 |---|---|
 | `SupportsStructuredOutput` | **Enforced.** An agent requesting JSON output fails compilation when the model is *found* in the catalog with this explicitly `false`. A model absent from the catalog is not checked. See [Structured output](/guides/structured-output/) |
+| `SupportsSampling` | **Enforced.** `null` (the default) means unknown and checks nothing. When it is `false`, a definition that sets `Temperature` or `TopP` fails compilation, the validation report names the field as `sampling_unsupported`, and saving returns `400`. `Fallbacks` links are checked too, because they get the same parameters |
+| `MaxOutputTokens` | Read by the validation report: when a binding leaves its own limit empty and the provider's default is lower, a structured or high-effort agent gets an `output_truncation_risk` warning |
 | `SupportsTools` | Advisory metadata — nothing enforces it at run time |
 | `SupportsStreaming` | Advisory metadata — nothing enforces it at run time |
 | `SupportsReasoning` | Advisory metadata — nothing enforces it at run time |
@@ -656,8 +711,16 @@ streaming usage. Configure no estimate unless you can label it as an estimate.
 **A compatible provider returns `402`.** Some gateways reserve credit against the
 maximum possible output. Set a realistic `ModelBinding.MaxOutputTokens` value.
 
-**Anthropic rejects a thinking request.** Keep the thinking budget below the output
-limit. Remove temperature or set it to `1`.
+**Anthropic rejects a thinking request.** Current models reject
+`budget_tokens` and sampling parameters with `400`: switch to
+`anthropic.thinking.mode = adaptive` with `anthropic.effort`, remove `Temperature`
+and `TopP`, and mark the model `SupportsSampling = false` in the catalog so the next
+definition fails at compile time. On an older model, keep the thinking budget below
+the output limit and set temperature to `1` or leave it out.
+
+**A long Anthropic answer stops in the middle.** The response hit the output limit.
+A structured response fails the run with `output_truncated`; a text answer completes
+with a `tracon.output.truncated` run event. Raise `MaxOutputTokens`.
 
 **A working prompt gets rejected by the pre-flight check.** The token estimate is
 approximate. Raise `ReserveRatio` toward zero, or call `/estimate` to see the

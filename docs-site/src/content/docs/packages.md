@@ -48,7 +48,7 @@ Add these when you need them.
 |---|---|
 | `Tracon.SqlServer` | You run SQL Server instead of PostgreSQL |
 | `Tracon.Sqlite` | One node, or durable local development |
-| `Tracon.Anthropic` | You call Claude models |
+| `Tracon.Anthropic` | You call Claude models — with effort, adaptive thinking and prompt-cache TTL and placement settings |
 | `Tracon.Google` | You call Gemini models |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |

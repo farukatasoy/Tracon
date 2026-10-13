@@ -283,6 +283,24 @@ structured agent that must keep a conversation, validate and handle the rejectio
 in your own code. This is a current limitation, not a permanent contract.
 :::
 
+## A response cut off at the output limit
+
+A long structured response can reach the output token limit before the JSON is
+complete. Tracon reads the model's finish reason, so this does not look like
+invalid JSON: the run fails with error type `output_truncated`, class
+`OutputTruncated`, whether `Tracon:StructuredResponse:Enabled` is on or off. No
+repair turn runs — the model would get the same limit and stop again — and when a
+repair attempt was left, the `StructuredResponseRejected` event carries
+`repairSkippedTruncated: true`. The tokens of the cut-off call still count in the
+run's usage and cost.
+
+Set `ModelBinding.MaxOutputTokens` for any agent whose answer can be long. When it is
+empty and the provider sends a lower default (Anthropic sends 4096 unless
+`DefaultMaxOutputTokens` says otherwise), `POST /api/agents/validate` returns an
+`output_truncation_risk` warning that names both numbers, as long as the catalog
+states the model's own `MaxOutputTokens`. See
+[Truncated output](/concepts/runs/#truncated-output).
+
 ## Design schemas for reliable extraction
 
 Keep the schema small and explicit. Mark required fields. Use
@@ -317,6 +335,7 @@ payload against your schema.
 | `Tracon:StructuredResponse:Enabled` | `false`; the response is never inspected after the model returns it |
 | `IStructuredResponseValidator` | No-op by default (always valid); register your own to enforce a rule |
 | `Tracon:StructuredResponse:MaxRepairAttempts` | `0`; repair is off, an invalid response fails the run immediately |
+| Response stopped at the output limit | Fails the run as `output_truncated`; never repaired |
 
 For a streamed run, assemble the complete response before parsing JSON. Individual
 SSE text events are fragments, not standalone JSON documents.
@@ -334,6 +353,10 @@ supports the feature.
 **Validation succeeds, but the provider rejects the run.** The model was absent from
 the catalog, or the provider supports a smaller schema subset. Verify the exact API
 surface and simplify unsupported keywords.
+
+**A long response fails with `output_truncated`.** The model stopped at its output
+limit. Raise `ModelBinding.MaxOutputTokens`; at high Anthropic effort, thinking
+tokens count against the same limit.
 
 **The response parses but violates a business rule.** Structured output controls
 shape, not truth. Run normal domain validation after deserialization.
