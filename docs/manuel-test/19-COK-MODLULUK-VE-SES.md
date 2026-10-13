@@ -1,13 +1,14 @@
 # 19 — Çok Modluluk: Ek, Ses Tool'ları ve Gerçek Zamanlı Konuşma (`MM`)
 
-> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198
+> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198, 203
 > **Kaynak:** `src/Tracon.Abstractions/Attachments/` (tümü) ·
 > `src/Tracon.Core/Attachments/` (tümü) ·
 > `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
 > `src/Tracon.AspNetCore/OpenAICompat/AttachmentIngestion.cs` ·
 > `src/Tracon.Voice/` (tümü — `Tracon.Voice` paketi) ·
 > `src/Tracon.Abstractions/Voice/` (tümü — `SpeechContracts.cs`,
-> `SpeechModels.cs`, `ConversationContracts.cs`) ·
+> `SpeechModels.cs`, `ConversationContracts.cs`, `ISpeechDialogueSynthesizer.cs`,
+> `SpeechDialogueModels.cs`) ·
 > `src/Tracon.Core/Voice/` (tümü — gerçek zamanlı konuşma sürücüsü) ·
 > `src/Tracon.AspNetCore/Endpoints/VoiceEndpoints.cs` ·
 > `src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs` ·
@@ -2922,3 +2923,135 @@ host anahtarıyla çağrı gitmez; yanıt ve günlük anahtar değerini taşıma
 
 **Beklenen sonuç** İkisi de `403`: ilki "does NOT fall back to the global key",
 ikincisi "own credential" der (`tone` kiracı anahtarı almaz). Ek oluşmaz.
+
+---
+
+### MT-MM-132 — Diyalog düğümü iki Türkçe repliği iki sesle seslendirir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 203 |
+| **İnsan gerekir** | 👤 Dinleme (ses kalitesi); geri kalanı hayır |
+| **Devir** | ➜ CI: `ElevenLabsDialogueRequestTests` · `ElevenLabsDialogueResponseTests` · `SpeechDialogueTenantTests` |
+
+**Ön koşul** — Örnek uygulama, `Tracon:Voice:ApiKey` (ElevenLabs).
+`PUT /api/workflows/two-voices`
+`{"kind":"Sequential","nodes":[{"name":"dialogue","kind":"Function","settings":{"voices":["onwK4e9ZLuTAKqWW03F9","TX3LPaxmHKxFdv7VOQHJ"],"modelId":"eleven_v4","languageCode":"tr","outputFormat":"pcm_24000","includeTimestamps":true}}]}`.
+
+**Adımlar** 1. `POST /api/workflows/two-voices/run`
+`{"message":"Merhaba, bugün yapay zekâyı konuşuyoruz.\nSelam, ben de hazırım."}`.
+2. Çıktıdaki eki `GET /api/attachments/{id}` ile indir ve dinle.
+
+**Beklenen sonuç** (1) `Completed`; çıktı `dialogue by elevenlabs`, ek kimliği,
+`… characters (Provider)`, `model eleven_v4`, `request <id>` ve iki satır
+(`turn 0 …`, `turn 1 …`) yazar; ikinci turun başlangıcı birincinin bitişidir.
+(2) `audio/wav`, `RIFF`/`WAVE` başlığı; iki ayrı ses sırayla konuşur.
+
+---
+
+### MT-MM-133 — `elevenlabs.stability` diyalog gövdesinde `settings.stability` olur
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 203 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `ElevenLabsDialogueRequestTests.Provider_settings_map_to_the_dialogue_fields` |
+
+**Ön koşul** — MT-MM-132'nin iş akışı, düğüm ayarına
+`"providerSettings":{"elevenlabs.stability":0.3}` eklenmiş. Gövdeyi görmek için
+uygulamayı `Tracon__Voice__Endpoint=http://127.0.0.1:<port>/` ile, istekleri
+kaydeden yerel bir sahte sunucuya yönelt.
+
+**Adımlar** `{"message":"Merhaba.\nSelam."}` ile koş.
+
+**Beklenen sonuç** `Completed`. Kaydedilen istek
+`POST /v1/text-to-dialogue/with-timestamps?output_format=pcm_24000` ve gövde
+`"settings":{"stability":0.3}` taşır; `similarity` yazılmaz. Gerçek anahtarla
+koşum da `Completed` döner.
+
+---
+
+### MT-MM-134 — Bilinmeyen sağlayıcı ayarı ağdan önce reddedilir, değer yankılanmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 203 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `SpeechProviderSettingsTests` |
+
+**Ön koşul** — MT-MM-133'ün sahte sunucu kurulumu; düğüm ayarı
+`"providerSettings":{"elevenlabs.bogus":"do-not-echo-me"}`.
+
+**Adımlar** Koş; run kaydını `GET /api/runs/{runId}` ile oku.
+
+**Beklenen sonuç** `Failed`; hata `these keys are not recognized: elevenlabs.bogus`
+der ve desteklenen anahtarları listeler. Mesaj `do-not-echo-me` içermez. Sahte
+sunucuya istek gitmez.
+
+---
+
+### MT-MM-135 — Diyalog yeteneği olmayan motor adıyla reddedilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 203 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `VoiceDialogueRegistrationTests` · `SpeechDialogueTenantTests` |
+
+**Ön koşul** — MT-MM-133'ün sahte sunucu kurulumu; düğüm ayarına `"provider":"tone"`.
+
+**Adımlar** Koş.
+
+**Beklenen sonuç** `Failed`; hata `The speech synthesizer 'tone' (provider 'tone')
+cannot voice a dialogue` der. ElevenLabs'e (sahte sunucuya) istek gitmez; düğüm
+tekrar denenmez.
+
+---
+
+### MT-MM-136 — Sınırı aşan diyalog bölünmez, ağdan önce reddedilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 203 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `SpeechDialogueValidationTests` |
+
+**Ön koşul** — MT-MM-133'ün sahte sunucu kurulumu, varsayılan
+`Tracon:Voice:MaxDialogueCharactersPerRequest` (2.000).
+
+**Adımlar** Mesajda 12 satır, toplam 2.000 karakterden fazla gönder.
+
+**Beklenen sonuç** `Failed`; hata `The dialogue has <sayı> characters; … at most
+2000 (VoiceOptions.MaxDialogueCharactersPerRequest)` der. Sahte sunucuya istek
+gitmez; ek oluşmaz.
+
+---
+
+### MT-MM-137 — Politika sağlayıcıyı adlandırmıyorsa diyalog reddedilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | 203 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `SpeechDialogueTenantTests` |
+
+**Ön koşul** — MT-MM-133'ün sahte sunucu kurulumu, MT-MM-132'nin iş akışı.
+
+**Adımlar** 1. `PUT /api/tenants/default/egress` `{"allowedProviders":["tone"]}`.
+2. Koş. 3. `DELETE /api/tenants/default/egress`.
+
+**Beklenen sonuç** (2) `Failed`; hata `Tenant 'default' is not allowed to call
+speech provider 'elevenlabs'. Allowed providers: tone.` der. Sahte sunucuya istek
+gitmez. (3) `204`.
