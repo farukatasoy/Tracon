@@ -5727,6 +5727,19 @@ Tracon.TraconOutputTruncatedException.TraconOutputTruncatedException(string! mes
 const Tracon.TraconOutputTruncatedException.OutputTruncatedErrorType = "output_truncated" -> string!
 override Tracon.TraconOutputTruncatedException.ErrorType.get -> string!
 const Tracon.RunEventCustomTypes.OutputTruncated = "tracon.output.truncated" -> string!
+Tracon.ModelOutputLimit
+Tracon.ModelOutputLimit.<Clone>$() -> Tracon.ModelOutputLimit!
+Tracon.ModelOutputLimit.DefaultMaxOutputTokens.get -> int
+Tracon.ModelOutputLimit.DefaultMaxOutputTokens.init -> void
+Tracon.ModelOutputLimit.Equals(Tracon.ModelOutputLimit? other) -> bool
+Tracon.ModelOutputLimit.HighReasoningEffort.get -> bool
+Tracon.ModelOutputLimit.HighReasoningEffort.init -> void
+Tracon.ModelOutputLimit.ModelOutputLimit() -> void
+override Tracon.ModelOutputLimit.Equals(object? obj) -> bool
+override Tracon.ModelOutputLimit.GetHashCode() -> int
+override Tracon.ModelOutputLimit.ToString() -> string!
+static Tracon.ModelOutputLimit.operator !=(Tracon.ModelOutputLimit? left, Tracon.ModelOutputLimit? right) -> bool
+static Tracon.ModelOutputLimit.operator ==(Tracon.ModelOutputLimit? left, Tracon.ModelOutputLimit? right) -> bool
 Tracon.WebhookEvalSummary
 Tracon.WebhookEvalSummary.AgentName.get -> string?
 Tracon.WebhookEvalSummary.AgentName.init -> void
