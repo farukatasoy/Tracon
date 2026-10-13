@@ -932,3 +932,5 @@ virtual Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryDele
 virtual Tracon.Testing.Contracts.Storage.TenantIsolationContract<TStore>.TryOverwriteAsync(string! tenantId, string! name) -> System.Threading.Tasks.ValueTask<bool>
 virtual Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.ExtraPropertyIsRejected.get -> bool
 virtual Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Seed.get -> int
+Tracon.Testing.Contracts.Storage.JobStoreContract.A_pending_report_marks_the_item_and_counts_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.A_report_for_a_finished_item_changes_nothing() -> System.Threading.Tasks.Task!
