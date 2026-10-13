@@ -181,17 +181,22 @@ public static class TraconWorkflowFunctionExtensions
     /// builder.AddTracon()
     ///        .UseWorkflows()
     ///        .AddWorkflowFunction&lt;List&lt;ChatMessage&gt;, List&lt;ChatMessage&gt;&gt;(
-    ///            "render",
+    ///            "tidy",
     ///            provider =>
     ///            {
-    ///                var renderer = provider.GetRequiredService&lt;IAudioRenderer&gt;();
+    ///                var client = provider.GetRequiredService&lt;IChatClient&gt;();
     ///
+    ///                // The token goes to the call: the timeout cancels it there.
     ///                return async (messages, context, cancellationToken) =>
-    ///                    await renderer.RenderAsync(messages, cancellationToken);
+    ///                {
+    ///                    var response = await client.GetResponseAsync(messages, cancellationToken: cancellationToken);
+    ///
+    ///                    return [.. messages, .. response.Messages];
+    ///                };
     ///            },
     ///            options =>
     ///            {
-    ///                options.Description = "Renders the script as audio.";
+    ///                options.Description = "Asks a model to tidy the script.";
     ///                options.Timeout = TimeSpan.FromMinutes(2);
     ///            });
     /// </code>
