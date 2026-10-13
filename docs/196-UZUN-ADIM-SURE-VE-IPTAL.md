@@ -32,6 +32,30 @@
    satırı eklendi (`:54`); `:41-51` atıfları geçerli. `RunErrorClass` 16'ya kadar
    dolu; yeni sınıf gerekirse 17'den, `RunErrorClassContractTests` ve iki UI
    sözlüğüyle (`dashboard.errorClass.*`) birlikte.
+6. **Faz 197 devri** (kuyruklu workflow ve kurtarma; aşağıdaki § *Faz 197'den
+   devralınan sözleşmeler* tek başına yeter): `grep -n "K-923\|K-924\|K-926\|K-927" docs/KARARLAR.md`
+   · `awk '/## Sonraki Faza Devir Notu/,0' docs/197-DAYANIKLI-WORKFLOW-YURUTMESI.md`
+   (kapanınca `arsiv/fazlar/197-*.md`) · hafıza `workflows.md` (son dört madde) ve
+   `test-altyapisi.md` § *Handler'ı worker'ın deneme denetimi olmadan çağıran koşum*.
+
+### Faz 197'den devralınan sözleşmeler
+
+Bu faz job token'ına ve deneme kuralına dokunur; Faz 197'nin iki workflow
+handler'ı ikisine de dayanır. Satırlar Faz 197 kapanışında koddan ölçüldü.
+
+| Sözleşme | Nerede | 196 için anlamı |
+|---|---|---|
+| Kurtarma açıkken kuyruklu workflow işi `2 + MaxResumeAttempts` deneme alır; **son deneme devam başlatmaz**, zinciri kapatır; batch işi kendi sınırıyla öğe başına en çok `MaxAttempts − 2` devam alır (K-927) | `WorkflowRecoveryPolicy.JobAttempts` · `WorkflowRecovery.PlanAsync` (`job.MaxAttempts ?? TraconSchedulingOptions.MaxAttempts`, worker'ın okuduğu değer) | Süre aşımı denemesi (Açık Soru 7-A) aynı bütçeden düşer. Son deneme kuralı `job.Attempt >= limit` okur; deneme sayımını değiştiren her yol bu iki yeri birlikte izler |
+| Batch öğesine run'dan ÖNCE `Pending` + `RunId` işareti yazılır; `ReportItemAsync` yalnız bekleyen öğeyi değiştirir, `Pending` rapor sayaç artırmaz (K-926, `JobStoreContract`) | `WorkflowJobHandler.PrepareItemAsync` | İptal veya aşım öğeyi kapatan bir yol eklerse işaretli öğe "başlamamış" değildir: run'ı vardır ve kapanmalıdır |
+| Token iptal edilince iki handler da işi **kiraya bırakır**: run `Canceled` kapanır, öğe raporlanmaz, `ThrowIfCancellationRequested` (yorum: "the worker is stopping") | `WorkflowRunJobHandler.ExecuteAsync` · `WorkflowJobHandler.ExecuteAsync` | 🚨 Bugün token yalnız kapanışta düşer; 196.4 iptal ve süre aşımını da aynı token'a bağlar. Handler'lar sebebi ayırmazsa aşılan iş kiraya bırakılır ve sonraki deneme onu sürdürür |
+| 🚨 **Kurtarma süre aşımını kesintiden ayırt etmez** (§197.2): son run `Running`, `Canceled` ya da `Failed` ise sonraki deneme onu son checkpoint'ten sürdürür | `WorkflowRecovery.PlanAsync` | Kurtarma açıkken job süresi deneme başına olur ve zincir `MaxResumeAttempts`'e kadar sürer: süre işi durdurmaz. Açık Soru 13 |
+| İptal edilen kuyruklu iş: handler başlamadan `IsCancelledAsync` okur; koşan run'ı iptal ucu `Canceled` kapatır, iş `tracon.job.workflow-run-failed` ile düşer | `WorkflowRunJobHandler` · `WorkflowAsyncRunCancelTests` | 196.4'ün yoklaması bu yolu hızlandırır; davranış değişmemeli |
+| Kurtarma adımındaki `store` hatası işi değil denemeyi düşürür (`NonRetryable` değil) | `WorkflowRunJobHandler` · `WorkflowJobHandler` | Aşım sebebini okuyan hata yolu bu istisnaları "aşım" saymamalı |
+
+🚨 **Test tuzağı:** son kiralamayla ilgili her case gerçek worker'dan geçer
+(`QueuedWorkflowHarness.FinishWithWorkerAsync`); handler'ı doğrudan çağıran koşum
+worker'ın deneme denetimini atlar ve Faz 197'nin 🔴 kusurunu dokuz yeşil testle
+gizledi. Süre aşımı da worker'dadır: aynı kural geçerlidir.
 
 ---
 
@@ -84,17 +108,19 @@ yükseltmektir. Plan geneldir.
 | `ChildAgentInvoker.cs:634-643` · `DefaultRunErrorClassifier.cs:41-51` | Agent adımı aşımı → `Failed` + `child_run_timeout`, sınıf `Timeout` (`:50`) |
 | `WorkflowNodeRetry.cs:21-27` · `:93-96` | `Timeout` sınıfı yeniden denenir |
 | `TimeoutAIFunction.cs:101-145` | K-497 deseni: bağlı CTS, `WhenAny`, iptal, geç tamamlanma gözlemi |
-| `WorkflowDefinitionCompiler.cs:65` · `:194-196` · `WorkflowEndpoints.cs:350` | Aynı doğrulayıcı kayıtta ve derlemede koşar |
+| `WorkflowDefinitionCompiler.cs:65` · `:194-196` · `WorkflowEndpoints.cs:424` | Aynı doğrulayıcı kayıtta ve derlemede koşar |
 | `TimeoutSiteTests.cs:29-48` | Yeni `CancelAfter(` sitesi kapıyı kırar (F-280) |
 | `IJobHandler.cs:40` · `:58-67` | Token yalnız kapanışta düşer; süre sınırı yok |
 | `JobWorkerBackgroundService.cs:473-477` · `:495` · `:955-1028` | İptal yalnız `IsCancelledAsync` ile görünür; handler `stoppingToken` alır; kira yenilemesi (100 sn) iptali okumaz |
-| `SchedulingEndpoints.cs:136-144` · `:437-458` | Cancel ucu yalnız depoya yazar |
+| `SchedulingEndpoints.cs:136-144` · `:469-490` | Cancel ucu yalnız depoya yazar |
 | `IJobDispatcher.cs:99-103` · `SqlQueriesBase.cs:992-996` · `SqlJobStore.cs:302-325` | Emsal `MaxAttempts` → `jobs.max_attempts`; süre sütunu yok |
 | `JobErrorCodes.cs:12-66` | Süre aşımı kodu yok |
-| `write-your-own-job-handler.md:148-155` · `background-work.md:527-529,556` | Site "süre sınırı yok" der; `:556` iptalde token'ın düştüğünü ima eder |
+| `write-your-own-job-handler.md:148-155` · `background-work.md:573-575,636-640` | Site "süre sınırı yok" der; `:556` iptalde token'ın düştüğünü ima eder |
 
 > Kanıtlar 2026-10-12'de `99fe0b13` üzerinde doğrulandı. F-405 satırları
-> 2026-10-13'te `55272673` üzerinde doğrulandı.
+> 2026-10-13'te `55272673` üzerinde doğrulandı. Faz 197'nin kaydırdığı atıflar
+> (`WorkflowEndpoints`, `SchedulingEndpoints`, `background-work.md`) Faz 197
+> kapanışında yeniden ölçüldü.
 
 ---
 
@@ -225,7 +251,7 @@ WorkflowFunctionResponse { TimeSpan? Timeout } // Tracon.AspNetCore
 | `GET` | `/api/jobs/{id}` | Reader | `maxDuration` görünür |
 | `POST` | `/api/jobs/{id}/cancel` | Operator | Token bir `PollInterval`'da düşer |
 
-Roller değişmez (`WorkflowEndpoints.cs:54,95`, `SchedulingEndpoints.cs:124,137`).
+Roller değişmez (`WorkflowEndpoints.cs:64,105`, `SchedulingEndpoints.cs:124,137`).
 
 ### Arayüz payı
 
@@ -239,7 +265,8 @@ Düğüm satırına süre alanı (agent düğümü dahil) ve tanım düzeyinde `
 Abstractions TraconException · Workflows/{WorkflowNodeReference,WorkflowFunctionDescriptor,WorkflowDefinition}
              Scheduling/{IJobDispatcher,JobRecord,JobErrorCodes,IJobHandler,TraconSchedulingOptions}
 Core         Runs/DefaultRunErrorClassifier · Workflows/WorkflowDefinitionValidator · …Binding.Operations
-             Scheduling/{JobWorkerBackgroundService,JobDispatcher,InMemoryJobStore,…OptionsValidator}
+             Scheduling/{JobWorkerBackgroundService,JobDispatcher,InMemoryJobStore,…OptionsValidator,
+                       WorkflowRunJobHandler,WorkflowJobHandler (token sebebi, Faz 197)}
 Workflows    WorkflowFunctionOptions · TraconWorkflowFunctionExtensions · TraconWorkflowOptions
              Internal/{WorkflowNodeTimeout*,WorkflowFunctionRegistration,…Registry,WorkflowDefinitionCompiler,
                        WorkflowAgentCache,WorkflowRunner}
@@ -287,6 +314,7 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 | 26 | Tanımın `RunTimeout`'u uygulanmaz; tavan yokken uzatma kabul edilir; tavan aşımı `400` değil | Fonksiyonel (`PUT` → `400`, `TriggerableTimeProvider`) | `WorkflowDefinitionRunTimeoutTests` |
 | 27 | **Başka kiracı:** aynı adlı workflow'un süresi diğer kiracıya geçer (önbellek anahtarı) | Fonksiyonel | `WorkflowAgentNodeTimeoutTests` |
 | 28 | `RunTimeout`/`MaxRunTimeout` depoda ya da üç istemcide düşer | Sözleşme (dört depo) + Paket | `WorkflowDefinitionStoreContract`, NSwag/TS kapıları |
+| 29 | Kurtarma açıkken (Faz 197) süre aşımı workflow işini durdurmaz: sonraki deneme aşılan run'ı sürdürür; son deneme kuralı (K-927) aşım denemesini saymaz | Fonksiyonel, son kiralama gerçek worker'dan (`QueuedWorkflowHarness.FinishWithWorkerAsync`) | `WorkflowJobDeadlineRecoveryTests` |
 
 ---
 
@@ -324,6 +352,7 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 | 10 | `agentNames` biçiminde adım süresi | A: tanım düzeyi `AgentStepTimeout` · B: yok, `RunTimeout` + kurulum `ChildDeadline` | **B** — K-901 alanı yalnız `nodes`'a koydu; ihtiyaç ölçülünce aday |
 | 11 | Tanım `RunTimeout`'u kurulum değerini aşabilir mi | A: hiç · B: `MaxRunTimeout` tavanına kadar (varsayılan `null` = yalnız kısaltır) · C: sınırsız | **B** — K1; slot paylaşımı host'un kararıdır |
 | 12 | Düğüm süresi tanımın `RunTimeout`'unu aşarsa | A: kayıtta `400` · B: kabul, `RunTimeout` zaten keser | **B** — iki süre ayrı soruyu cevaplar; XML ve site yazar |
+| 13 | Kurtarma açıkken süre aşımıyla duran workflow işi (Faz 197 devri) | A: aşım ayrı sebeptir — handler aşılan run'ı ayırt edilebilir tiple kapatır, kurtarma onu sürdürmez · B: aşım kesintidir — sonraki deneme sürdürür, süre deneme başınadır | **A** — B'de süre workflow işini durdurmaz; Faz 197 ayırmadı (§197.2) |
 
 ---
 
