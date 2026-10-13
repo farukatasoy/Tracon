@@ -15,7 +15,24 @@ namespace Tracon.Core.UnitTests.Fakes;
 internal sealed class TriggerableTimeProvider(DateTimeOffset? utcNow = null) : TimeProvider
 {
     private readonly List<TriggerableTimer> _timers = [];
+    private readonly List<TimeSpan> _dueTimes = [];
     private DateTimeOffset? _utcNow = utcNow;
+
+    /// <summary>Gets the due time of every timer created so far, in creation order.</summary>
+    /// <remarks>
+    /// A timeout test reads this to prove WHICH delay was armed; triggering a timer
+    /// only proves that one was.
+    /// </remarks>
+    public IReadOnlyList<TimeSpan> DueTimes
+    {
+        get
+        {
+            lock (_timers)
+            {
+                return [.. _dueTimes];
+            }
+        }
+    }
 
     /// <summary>Gets how many timers are registered and not yet disposed.</summary>
     public int ActiveTimerCount
@@ -47,6 +64,7 @@ internal sealed class TriggerableTimeProvider(DateTimeOffset? utcNow = null) : T
         lock (_timers)
         {
             _timers.Add(timer);
+            _dueTimes.Add(dueTime);
         }
 
         return timer;
