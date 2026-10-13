@@ -977,7 +977,9 @@ run does.
 
 Running a suite queues a job. Each case runs in its own fresh session against the
 agent and produces its own run row, so a failing check can be traced to the exact
-conversation that produced it.
+conversation that produced it. That session is not stored, so a case whose run asks
+for a tool approval fails with a reason that says so, and its run is closed as
+`Failed`: nobody can answer the approval.
 
 ```bash
 curl -X POST http://localhost:5081/tracon/api/evals/support/run
@@ -1143,7 +1145,10 @@ map onto score kinds by shape: a numeric metric to `Numeric`, a boolean metric t
 Two limits are worth knowing before you turn this on:
 
 - **Each evaluator costs a model call per sampled run.** Registering four of them
-  multiplies the judging cost of online evaluation by four.
+  multiplies the judging cost of online evaluation by four. Each judgment writes one
+  `judge:{name}` run of kind `Eval` that carries its calls' tokens and cost, as the
+  built-in judge does, and the cost reaches the judge cost metric. An evaluator that
+  throws closes that run as `Failed`.
 - **A bridged metric never enters the 0-100 online average.** The calibrated
   evaluators grade on their own scales, and mixing a 1-5 score into a 0-100 average
   would fire the low-score alarm on healthy runs. Only a judge's *headline* score —
@@ -1517,6 +1522,12 @@ any text or audio leaves the process. A tenant's own key reaches only an engine 
 accepts one; for any other engine the call is refused rather than billed to the host.
 See [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
 
+Knowledge base embedding calls obey the policy too: an upload, a knowledge search and
+the `search_knowledge` tool check the provider that `Tracon:Knowledge:EmbeddingProvider`
+names. A tenant with a policy is refused when that provider is not named, and a tenant
+with its own key for it is refused rather than billed to the host. See
+[the knowledge guide](/guides/knowledge/#register-the-two-required-dependencies).
+
 A saved policy takes effect on the next run: an agent compiled under the earlier
 policy is not reused, and a run already in progress is not stopped.
 
@@ -1837,7 +1848,10 @@ policy with `enabled: false` is configured but paused.
 
 When a policy has `archive: true`, cleanup first sends its batch to the registered
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
-growth for protection from silent data loss.
+growth for protection from silent data loss. A column that
+[content protection](#content-protection) encrypts reaches the sink as plaintext, as
+it does in an export: the sink decides how the archive is stored, so encrypt it there
+if it must stay encrypted at rest.
 
 An archiving run deletes exactly the rows it sent to the sink, and only after the
 sink returns. If the sink throws, nothing in that batch is deleted. A row that
@@ -1913,10 +1927,20 @@ A bare `DELETE` previews the row counts per target and deletes nothing.
 `?dryRun=false` is required to actually erase.
 :::
 
+A real erasure answers `409` while one of the subject's runs is `Queued` or
+`Running`: such a run writes its session and its workflow checkpoint as it goes, and
+would write them back after the erasure. The problem lists the runs in
+`activeRunIds`, and a preview lists them in `activeRunIds` of its result. Cancel
+those runs and repeat the request. `force=true` erases anyway; it is meant for a run
+row that a crashed process left `Running`, because a run that really runs can write
+its rows again.
+
 Erasure removes the session, run, conversation, attachment, score, voice-session, and
 [workflow checkpoint](/concepts/workflows/#checkpoints) rows that belong to the
 subject — including summarized conversation messages, which retention otherwise keeps
-forever. Checkpoints are matched by the subject's session ids and run ids, and their
+forever. Four copies of a run's text go with the run: an eval case promoted from it,
+the stored response of an idempotent request that started it, the job of a queued run
+and the batch item that started it. A batch job keeps its other items. Checkpoints are matched by the subject's session ids and run ids, and their
 state can hold the subject's own messages. Erasure has no exemption for a run that
 waits for input: retention keeps such a run's checkpoints so the request stays
 answerable, but an erasure deletes the run itself, together with its checkpoints. It never touches the audit trail: an audit record
@@ -1932,14 +1956,15 @@ bytes are gone, the rows stay and point at nothing; repeating the request finish
 the erasure. A preview (`dryRun`) never touches the bytes.
 
 Export returns every matching row, keyed by target, as one JSON document.
-Attachment file bytes are not included — only their metadata. A workflow checkpoint's
+A column that [content protection](#content-protection) encrypts is exported as
+plaintext. Attachment file bytes are not included — only their metadata. A workflow checkpoint's
 `state` is the framework's own serialized format: export returns it as the stored
 JSON text (a string), the same way it returns session state.
 
 ## Content protection
 
-`AddContentProtection(...)` encrypts session state, chat history, run inputs (the
-messages and the parameter values each in its own column) and
+`AddContentProtection(...)` encrypts session state, workflow checkpoints, chat
+history, run inputs (the messages and the parameter values each in its own column) and
 events, tool arguments/results, agent files, and attachments with AES-256-GCM
 before they reach the database, and decrypts them transparently on read. Off by
 default, like the content guards below — turning it on is a deliberate call, and
@@ -2055,6 +2080,11 @@ The run record keeps the document's **name and size**, in its own event — neve
 content, which already lives with the rest of the run's recorded input, subject to
 the same [content protection](#content-protection) and retention settings as
 everything else.
+
+When an input [content guard](#content-guards) masks part of a document, the record
+still keeps a document, built from the masked text: its name as it reads after
+masking, or `[masked document]` when the masked text no longer reads as one document.
+The original name never reaches the record, because a masked value can sit in it.
 
 ## Webhooks
 
@@ -3845,6 +3875,15 @@ inside the workflow opens its own run row** — so the whole thing is readable a
 with `GET /api/runs/{runId}/tree`, with each agent's tokens and duration attributed
 separately.
 
+The request is checked before the stream opens, so a mistake is a status code, not an
+event in a `200` stream. An unknown workflow or run answers `404`, and so does a run of
+another tenant. An invalid `sessionId`, a checkpoint the run does not have, and an
+answer to a run that does not wait for input answer `400`. None of these opens a run.
+
+The name `functions` is reserved: `GET /api/workflows/functions` lists the function
+nodes, so a workflow saved under that name could not be read back. Saving it answers
+`400`, and `AddWorkflow` throws.
+
 ### Queue a run instead of streaming it
 
 A streamed run belongs to the connection that reads it: if the client stops reading,
@@ -5044,6 +5083,7 @@ below, so plan for that before storing regulated data:
 | Column | What it holds |
 |---|---|
 | `sessions.state` | Microsoft Agent Framework's serialized session state |
+| `workflow_checkpoints.state` | A workflow run's serialized checkpoint, which carries its messages |
 | `conversation_items.item` | One stored chat message |
 | `run_inputs.messages` | The prompt a run was started with |
 | `run_inputs.parameters` | The parameter values a run was started with |
@@ -5066,7 +5106,7 @@ warning that names the header, never its value.
 
 ## At-rest content protection
 
-`AddContentProtection(...)` encrypts the eleven columns above with AES-256-GCM before
+`AddContentProtection(...)` encrypts the twelve columns above with AES-256-GCM before
 they reach the database, and decrypts them transparently on read — the rest of
 Tracon, and your own code, never sees ciphertext. It is off by default (no
 surprises); turning it on is a deliberate, explicit call.
@@ -5095,7 +5135,9 @@ Three limits are worth knowing before you rely on this:
 - **It protects data at rest, not a running process.** A process holding the key
   still sees plaintext once a value is read back — this closes a stolen backup, a
   discarded disk, or a misconfigured table permission, not a compromised
-  application server.
+  application server. What leaves the process is plaintext too: a data subject
+  export, and the rows a retention policy hands to your `IArchiveSink`. Encrypt the
+  archive in the sink if it must stay encrypted at rest.
 - **A protected column cannot be searched or filtered on the server.** Agent file
   search still returns correct results, but the server-side prefilter is skipped
   and every candidate file is decrypted and matched on the client instead.
@@ -5127,7 +5169,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
 | Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant | [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) |
 | Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
-| Tenant provider policy | A tenant's data reaching a model, speech, live voice or image provider its egress policy does not name, or a call billed to the shared key while the tenant has its own | [Per-tenant provider credentials and egress](/concepts/governance/#per-tenant-provider-credentials-and-egress) |
+| Tenant provider policy | A tenant's data reaching a model, speech, live voice, image or embedding provider its egress policy does not name, or a call billed to the shared key while the tenant has its own | [Per-tenant provider credentials and egress](/concepts/governance/#per-tenant-provider-credentials-and-egress) |
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
@@ -5667,7 +5709,9 @@ correlate the run with your own record — a production id, say. The run, its
 correlation, not a de-duplication: two items with the same id are two runs. The id
 follows the session id rule — at most 128 letters, digits, `-` or `_` — and an item
 that breaks it fails alone. An agent batch item that names a `sessionId` fails alone
-too: an agent batch runs every item without a session.
+too: an agent batch runs every item without a session. For the same reason, an item
+whose run asks for a tool approval fails, and its run is closed as `Failed`: an
+approval is answered in the session's next turn, which the item does not have.
 
 ```json
 "payload": {
@@ -5740,6 +5784,9 @@ schedulable from outside is a deliberate opt-in. A non-empty setting
 operator narrow the surface, and also what makes a list naming only a consumer
 key turn every built-in key off. See
 [Write your own job handler](/guides/write-your-own-job-handler/).
+
+The schedule name `handler-keys` is reserved for that list: a schedule saved under it
+could not be read back, so `PUT /api/schedules/handler-keys` answers `400`.
 
 Tracon accepts five-field cron expressions: minute, hour, day of month, month,
 and day of week. It supports `*`, fixed values, ranges, lists, and `/step`. It does
@@ -8211,6 +8258,7 @@ builder.Services.Configure<TraconKnowledgeOptions>(options =>
     options.ChunkSize = 1_000;
     options.ChunkOverlap = 100;
     options.MaxResults = 5;
+    options.EmbeddingProvider = "openai";
 });
 
 builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
@@ -8237,6 +8285,17 @@ should never see `pgvector` unless it asked for it). Turn it on wherever
 With it off, `IVectorSearchStore` never resolves and an agent definition that sets
 `EnableVectorSearch` fails compilation with a clear error — see
 [Persistence](/getting-started/persistence/#pick-one).
+
+Name the provider the generator calls in `EmbeddingProvider`, as a tenant egress
+policy names it (`openai`, `azure-openai`, ...). Every embedding call — an upload, a
+search, and the agent's `search_knowledge` query — checks the tenant's egress policy
+against this name before the text leaves the process, and refuses a tenant that has
+its own credential for this provider, because the generator holds the setup key.
+Without it, the name the generator reports is used, and that name does not tell
+providers apart: the OpenAI and the Azure OpenAI generators both report `openai`. When
+no name is known, a tenant with an egress policy is refused (`403`, and the tool call
+fails); a tenant without one is not affected. Every setting can also come from the
+`Tracon:Knowledge` section of configuration.
 
 The embedding model in this example produces 1,536 dimensions. If you choose another
 model, set `Dimensions` to its actual output size **before the knowledge migration
@@ -8369,6 +8428,7 @@ of embedding calls.
 | `ChunkSize` | 1000 characters |
 | `ChunkOverlap` | 100 characters |
 | `MaxResults` | 5 |
+| `EmbeddingProvider` | Not set: the generator's reported name is used |
 | Chunking bounds | `ChunkSize > 0` and `0 <= ChunkOverlap < ChunkSize` |
 | Raw text chunking | Character-based, then every chunk is embedded |
 | Collection name | Letters, digits, underscores, and hyphens only |
@@ -8406,6 +8466,11 @@ enough.
 **PostgreSQL startup fails around `vector`.** `EnableKnowledge = true` is set but the
 server has no pgvector. Install the extension first, or turn `EnableKnowledge` off
 until it is available — the core migration set never touches `vector`.
+
+**Upload or search returns `403`.** The tenant's egress policy does not name the
+embedding provider, the tenant has its own credential for it, or the provider is not
+named at all. Set `Tracon:Knowledge:EmbeddingProvider` and add that name to the
+tenant's policy. The message names the tenant and the provider.
 
 **Upload says the embedding length is wrong.** The generator output and the migrated
 column dimension differ. Do not change only the option. Migrate the schema and
@@ -11600,12 +11665,25 @@ from. `Drain` makes a graceful stop wait instead:
 }
 ```
 
-Once a stop signal arrives, new runs are refused — the run endpoint returns `503`,
-and the background job worker stops leasing new jobs — while runs already in flight
-are given up to `Timeout` to finish before the process actually exits. A run that is
-still going when the timeout elapses is cut off anyway; a stuck run must not block a
-deployment forever. The host's own shutdown timeout still applies on top of this
-value, so raise both together for the full wait to take effect.
+Once a stop signal arrives, new runs are refused, and the background job worker stops
+leasing new jobs, while runs already in flight are given up to `Timeout` to finish
+before the process actually exits. Every surface that starts a run in the process
+refuses it:
+
+- The agent and workflow run endpoints (with or without `Prefer: respond-async`),
+  workflow resume and respond, and run replay return `503`.
+- `/v1/chat/completions` and `/v1/responses` return `503` in the OpenAI error shape,
+  with `type` `service_unavailable`.
+- The voice conversation handshake returns `503` before the upgrade.
+- An MCP `tools/call` returns an error result, and an A2A message fails.
+
+A request that only writes a job (an inbound trigger, an eval run, a schedule trigger,
+an approval decision) is still accepted: its job waits in the queue until a worker
+that is not draining leases it.
+
+A run that is still going when the timeout elapses is cut off anyway; a stuck run
+must not block a deployment forever. The host's own shutdown timeout still applies on
+top of this value, so raise both together for the full wait to take effect.
 
 | Setting | Default | Effect |
 |---|---:|---|

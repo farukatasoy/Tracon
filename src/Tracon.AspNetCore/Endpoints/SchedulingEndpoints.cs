@@ -60,7 +60,8 @@ internal static class SchedulingEndpoints
                 "The cron expression, time zone, and lane are validated here; the next run " +
                 "time is computed at save time. The payload cannot exceed the MaxItemsPerJob limit. " +
                 "'lane' defaults to 'default' and every job this schedule produces — cron-dispatched " +
-                "or manually triggered — inherits it.");
+                "or manually triggered — inherits it. The name 'handler-keys' is reserved (400): " +
+                "GET /api/schedules/handler-keys uses it.");
 
         builder.MapGet("/api/schedules/handler-keys", ListHandlerKeysAsync)
             .RequireRole(roles.Admin)
@@ -193,6 +194,15 @@ internal static class SchedulingEndpoints
         }
 
         var request = bound!;
+
+        // F-382: GET /api/schedules/handler-keys matches before /api/schedules/{name},
+        // in any letter case, so a schedule under that name could never be read back.
+        if (string.Equals(name, ReservedHandlerKeyListName, StringComparison.OrdinalIgnoreCase))
+        {
+            return InvalidSchedule(
+                $"'{name}' is reserved: GET /api/schedules/{ReservedHandlerKeyListName} lists the handler keys a " +
+                "schedule can use, so a schedule under that name could not be read back. Choose another name.");
+        }
 
         if (string.IsNullOrWhiteSpace(request.TargetName))
         {
@@ -490,6 +500,9 @@ internal static class SchedulingEndpoints
                 detail: $"The job is already in status '{job.Status}'.",
                 statusCode: StatusCodes.Status409Conflict);
     }
+
+    /// <summary>The schedule name the handler key list's route already uses.</summary>
+    private const string ReservedHandlerKeyListName = "handler-keys";
 
     private static ProblemHttpResult InvalidSchedule(string detail)
         => TypedResults.Problem(title: "Schedule invalid", detail: detail, statusCode: StatusCodes.Status400BadRequest);

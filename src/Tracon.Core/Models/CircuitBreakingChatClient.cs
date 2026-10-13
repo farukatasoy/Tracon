@@ -114,9 +114,9 @@ internal sealed class CircuitBreakingChatClient(
     /// </summary>
     /// <param name="exception">The failure. The caller's own cancellation is filtered out before this is asked.</param>
     /// <returns>
-    /// <see langword="true"/> for a cancellation nobody requested (the provider
-    /// client's own deadline) and for a failure the provider client threw,
-    /// unless its HTTP status is a permanent 4xx other than 401 and 403.
+    /// <see langword="true"/> for a cancellation the provider client raised itself
+    /// (its own deadline) and for a failure the provider client threw, unless its
+    /// HTTP status is a permanent 4xx other than 401 and 403.
     /// </returns>
     /// <remarks>
     /// <para>
@@ -143,9 +143,13 @@ internal sealed class CircuitBreakingChatClient(
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        if (exception is OperationCanceledException)
+        // F-387: a cancellation nobody requested counted whatever raised it. A
+        // tool's own timeout, rethrown by the function loop inside this ring,
+        // opened the circuit every tenant shares. Only the provider client's own
+        // deadline says something about the provider.
+        if (exception is OperationCanceledException cancellation)
         {
-            return true;
+            return ProviderFailureTaggingChatClient.IsProviderCancellation(cancellation);
         }
 
         if (ForeignProviderInvocationException.Find(exception) is not { } foreign)

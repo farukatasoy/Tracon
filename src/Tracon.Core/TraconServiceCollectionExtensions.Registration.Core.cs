@@ -347,11 +347,21 @@ public static partial class TraconServiceCollectionExtensions
         // Knowledge base management surface (Phase 51): document upload,
         // search, delete, list. While IsSupported == false, every method
         // throws an overt TraconException.
+        // F-416: every embedding call passes the tenant's provider checks; the
+        // explicit factory makes the stores reach the check by construction.
+        services.TryAddSingleton(static provider => new EmbeddingProviderAccess(
+            provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>(),
+            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
+            provider.GetService<ITenantEgressPolicyStore>(),
+            provider.GetService<ITenantProviderBindingStore>(),
+            provider.GetService<TenantProviderCredentialResolver>()));
+
         services.TryAddSingleton(static provider => new KnowledgeIngestionService(
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IOptions<TraconKnowledgeOptions>>(),
             provider.GetService<IVectorSearchStore>(),
-            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>()));
+            provider.GetService<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>>(),
+            provider.GetRequiredService<EmbeddingProviderAccess>()));
 
         // Definition validation endpoint (Phase 34, F-60). Repeats the real
         // compilation path in its own order; IAgentCatalog can be taken directly

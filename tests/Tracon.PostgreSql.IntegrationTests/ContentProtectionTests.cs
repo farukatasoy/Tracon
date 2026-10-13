@@ -41,6 +41,45 @@ public sealed class ContentProtectionTests(PostgresFixture fixture)
         loaded.State.GetProperty("turn").GetString().ShouldBe("secret-value");
     }
 
+    /// <summary>
+    /// F-401: a workflow checkpoint carries the run's messages, like session state
+    /// does. It was never protected; it is now a protected column, read back as
+    /// plaintext with its <c>$type</c> discriminator still first.
+    /// </summary>
+    [Fact]
+    public async Task Workflow_checkpoint_state_is_encrypted_at_rest_and_read_back_unchanged()
+    {
+        await using var baseContext = await PostgresTestContext.CreateAsync(fixture);
+        var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.WorkflowCheckpointState });
+        var checkpoints = new SqlWorkflowCheckpointStore(protectingContext);
+        const string State = """{"$type":0,"messages":["checkpoint-words"]}""";
+
+        await checkpoints.CreateAsync(new WorkflowCheckpointRecord
+        {
+            Id = Guid.NewGuid(),
+            TenantId = baseContext.TenantContext.TenantId,
+            SessionId = "wf-1",
+            CheckpointId = "cp-1",
+            CreatedAt = DateTimeOffset.UtcNow,
+            State = TestData.State(State),
+        });
+
+        var raw = await baseContext.ScalarAsync<string>($"SELECT state FROM {baseContext.SchemaName}.workflow_checkpoints WHERE checkpoint_id = 'cp-1';");
+        raw.ShouldNotBeNull();
+        raw.ShouldContain("$apEnc");
+        raw.ShouldNotContain("checkpoint-words");
+
+        var loaded = await checkpoints.ReadAsync(baseContext.TenantContext.TenantId, "wf-1", "cp-1");
+        loaded.ShouldNotBeNull().GetRawText().ShouldBe(State);
+
+        var export = await new SqlDataSubjectStore(protectingContext).ExportAsync(
+            baseContext.TenantContext.TenantId,
+            new DataSubjectScope { SessionIds = ["wf-1"], RunIds = [], ConversationIds = [] });
+
+        export.Json.ShouldNotContain("$apEnc");
+        export.Json.ShouldContain("checkpoint-words");
+    }
+
     [Fact]
     public async Task Session_state_stays_plaintext_when_protection_is_off()
     {

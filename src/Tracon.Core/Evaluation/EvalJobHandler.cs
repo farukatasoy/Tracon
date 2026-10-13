@@ -41,7 +41,8 @@ internal sealed class EvalJobHandler(
     IEnumerable<CodeAgentRegistration>? codeRegistrations = null,
     IWebhookPublisher? webhookPublisher = null,
     IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null,
-    TimeProvider? timeProvider = null) : IJobHandler
+    TimeProvider? timeProvider = null,
+    IRunStore? runStore = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -498,6 +499,31 @@ internal sealed class EvalJobHandler(
 
             inputTokens += response.Usage?.InputTokenCount ?? 0;
             outputTokens += response.Usage?.OutputTokenCount ?? 0;
+
+            // F-389: a case runs without a session, so an approval it stops at can
+            // never be answered. The case fails without being judged, and its run
+            // is closed instead of waiting forever.
+            if (SessionlessApprovalRun.StoppedAtApproval(response.Messages))
+            {
+                allRepetitionsPassed = false;
+
+                await SessionlessApprovalRun
+                    .CloseAsFailedAsync(runStore, runId, evalRun.TenantId, _clock.GetUtcNow(), logger, cancellationToken)
+                    .ConfigureAwait(false);
+
+                await evalStore.RecordCaseResultAsync(
+                    new EvalCaseResult
+                    {
+                        EvalRunId = evalRun.Id,
+                        CaseId = evalCase.Id,
+                        RunId = runId,
+                        Passed = false,
+                        FailureReason = SessionlessApprovalRun.Message,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                continue;
+            }
 
             // The evaluator keeps getting the context as well: a groundedness
             // style check judges the answer against that reference text.

@@ -184,6 +184,12 @@ any text or audio leaves the process. A tenant's own key reaches only an engine 
 accepts one; for any other engine the call is refused rather than billed to the host.
 See [tenant policy and credentials for speech](/guides/voice/#tenant-policy-and-credentials-for-speech).
 
+Knowledge base embedding calls obey the policy too: an upload, a knowledge search and
+the `search_knowledge` tool check the provider that `Tracon:Knowledge:EmbeddingProvider`
+names. A tenant with a policy is refused when that provider is not named, and a tenant
+with its own key for it is refused rather than billed to the host. See
+[the knowledge guide](/guides/knowledge/#register-the-two-required-dependencies).
+
 A saved policy takes effect on the next run: an agent compiled under the earlier
 policy is not reused, and a run already in progress is not stopped.
 
@@ -504,7 +510,10 @@ policy with `enabled: false` is configured but paused.
 
 When a policy has `archive: true`, cleanup first sends its batch to the registered
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
-growth for protection from silent data loss.
+growth for protection from silent data loss. A column that
+[content protection](#content-protection) encrypts reaches the sink as plaintext, as
+it does in an export: the sink decides how the archive is stored, so encrypt it there
+if it must stay encrypted at rest.
 
 An archiving run deletes exactly the rows it sent to the sink, and only after the
 sink returns. If the sink throws, nothing in that batch is deleted. A row that
@@ -580,10 +589,20 @@ A bare `DELETE` previews the row counts per target and deletes nothing.
 `?dryRun=false` is required to actually erase.
 :::
 
+A real erasure answers `409` while one of the subject's runs is `Queued` or
+`Running`: such a run writes its session and its workflow checkpoint as it goes, and
+would write them back after the erasure. The problem lists the runs in
+`activeRunIds`, and a preview lists them in `activeRunIds` of its result. Cancel
+those runs and repeat the request. `force=true` erases anyway; it is meant for a run
+row that a crashed process left `Running`, because a run that really runs can write
+its rows again.
+
 Erasure removes the session, run, conversation, attachment, score, voice-session, and
 [workflow checkpoint](/concepts/workflows/#checkpoints) rows that belong to the
 subject — including summarized conversation messages, which retention otherwise keeps
-forever. Checkpoints are matched by the subject's session ids and run ids, and their
+forever. Four copies of a run's text go with the run: an eval case promoted from it,
+the stored response of an idempotent request that started it, the job of a queued run
+and the batch item that started it. A batch job keeps its other items. Checkpoints are matched by the subject's session ids and run ids, and their
 state can hold the subject's own messages. Erasure has no exemption for a run that
 waits for input: retention keeps such a run's checkpoints so the request stays
 answerable, but an erasure deletes the run itself, together with its checkpoints. It never touches the audit trail: an audit record
@@ -599,14 +618,15 @@ bytes are gone, the rows stay and point at nothing; repeating the request finish
 the erasure. A preview (`dryRun`) never touches the bytes.
 
 Export returns every matching row, keyed by target, as one JSON document.
-Attachment file bytes are not included — only their metadata. A workflow checkpoint's
+A column that [content protection](#content-protection) encrypts is exported as
+plaintext. Attachment file bytes are not included — only their metadata. A workflow checkpoint's
 `state` is the framework's own serialized format: export returns it as the stored
 JSON text (a string), the same way it returns session state.
 
 ## Content protection
 
-`AddContentProtection(...)` encrypts session state, chat history, run inputs (the
-messages and the parameter values each in its own column) and
+`AddContentProtection(...)` encrypts session state, workflow checkpoints, chat
+history, run inputs (the messages and the parameter values each in its own column) and
 events, tool arguments/results, agent files, and attachments with AES-256-GCM
 before they reach the database, and decrypts them transparently on read. Off by
 default, like the content guards below — turning it on is a deliberate call, and
@@ -722,6 +742,11 @@ The run record keeps the document's **name and size**, in its own event — neve
 content, which already lives with the rest of the run's recorded input, subject to
 the same [content protection](#content-protection) and retention settings as
 everything else.
+
+When an input [content guard](#content-guards) masks part of a document, the record
+still keeps a document, built from the masked text: its name as it reads after
+masking, or `[masked document]` when the masked text no longer reads as one document.
+The original name never reaches the record, because a masked value can sit in it.
 
 ## Webhooks
 

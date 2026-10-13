@@ -208,6 +208,10 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                 var (table, predicate, columns) = DataSubjectTargetRegistry.Resolve(_dialect, target);
                 var sql = _dialect.BuildDataSubjectSelectSql(table, columns, predicate);
 
+                // F-401: a protected column is read back as plaintext, as every store
+                // read does; the stored envelope is never handed to the subject.
+                var readValue = ProtectedValue.RowReader(_context, DataSubjectTargetRegistry.ProtectedExportColumns(target));
+
                 var command = _context.CreateCommand(sql);
                 BindScope(command, tenantId, scope);
 
@@ -221,7 +225,7 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                     {
                         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                         {
-                            SqlJsonRowWriter.WriteRow(writer, reader);
+                            SqlJsonRowWriter.WriteRow(writer, reader, readValue);
                         }
                     }
                 }

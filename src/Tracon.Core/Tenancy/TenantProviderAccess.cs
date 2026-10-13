@@ -76,7 +76,12 @@ internal static class TenantProviderAccess
 
         // The model wording is pinned by the model-path tests and by clients that
         // match it; a speech refusal names its own kind instead of claiming a model.
-        var noun = kind == TenantProviderCallKind.Speech ? "speech provider" : "model provider";
+        var noun = kind switch
+        {
+            TenantProviderCallKind.Speech => "speech provider",
+            TenantProviderCallKind.Embedding => "embedding provider",
+            _ => "model provider",
+        };
 
         return fallbackFor is null
             ? $"Tenant '{tenantId}' is not allowed to call {noun} '{provider}'. Allowed providers: {allowed}."
@@ -134,4 +139,7 @@ internal enum TenantProviderCallKind
 
     /// <summary>A speech provider: a synthesizer or a transcriber.</summary>
     Speech = 1,
+
+    /// <summary>The knowledge base's embedding provider.</summary>
+    Embedding = 2,
 }

@@ -53,6 +53,14 @@ internal static class CatalogToolCallHandler
             ? AmbientTenantScope.Begin(provisioning.TenantId)
             : null;
 
+        // 🚨 A tools/call starts a run in this process; it is refused while the
+        // process drains, before anything else (F-431). The refusal is the same
+        // legible error result every other refusal here is.
+        if (services.GetRequiredService<ITraconDrainState>().IsDraining)
+        {
+            return Error(DrainGate.Detail);
+        }
+
         var toolName = request.Params?.Name;
 
         if (string.IsNullOrEmpty(toolName) ||

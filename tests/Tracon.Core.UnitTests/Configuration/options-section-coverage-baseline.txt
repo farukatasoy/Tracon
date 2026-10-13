@@ -21,7 +21,6 @@ TraconContentProtectionOptions
 TraconDrainOptions
 TraconEgressOptions
 TraconIdempotencyOptions
-TraconKnowledgeOptions
 TraconMcpSecurityOptions
 TraconQuotaOptions
 TraconRateLimitOptions

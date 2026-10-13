@@ -84,7 +84,8 @@ internal static class OpenAIChatCompletionsEndpoints
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
-            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway);
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status503ServiceUnavailable);
     }
 
     private static async Task<IResult> HandleAsync(
@@ -93,8 +94,15 @@ internal static class OpenAIChatCompletionsEndpoints
         ITenantContext tenantContext,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] ITraconDrainState drainState,
         CancellationToken cancellationToken)
     {
+        // 🚨 Checked BEFORE anything else, like the agent run endpoint (F-431).
+        if (OpenAICompatSupport.DrainRefusal(drainState) is { } drainRefusal)
+        {
+            return drainRefusal;
+        }
+
         JsonElement body;
 
         try

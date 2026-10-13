@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -118,6 +120,7 @@ internal sealed class InboundTriggerDispatcher
     private readonly IOptionsMonitor<TraconInboundTriggerOptions> _options;
     private readonly TimeProvider _clock;
     private readonly IRunAttributionContext? _attributionContext;
+    private readonly ILogger _logger;
 
     /// <summary>Creates a new dispatcher.</summary>
     /// <param name="triggerStore">The trigger definitions.</param>
@@ -132,6 +135,7 @@ internal sealed class InboundTriggerDispatcher
     /// Resolves the accept request's user and labels, which the queued run
     /// carries; <see langword="null"/> queues it unattributed.
     /// </param>
+    /// <param name="logger">Logs a queue that refuses an agent run's job; a no-op logger when <see langword="null"/>.</param>
     public InboundTriggerDispatcher(
         IInboundTriggerStore triggerStore,
         InboundTriggerSecretResolver secretResolver,
@@ -141,7 +145,8 @@ internal sealed class InboundTriggerDispatcher
         IRunStore runStore,
         IOptionsMonitor<TraconInboundTriggerOptions> options,
         TimeProvider? timeProvider = null,
-        IRunAttributionContext? attributionContext = null)
+        IRunAttributionContext? attributionContext = null,
+        ILogger<InboundTriggerDispatcher>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(triggerStore);
         ArgumentNullException.ThrowIfNull(secretResolver);
@@ -160,6 +165,7 @@ internal sealed class InboundTriggerDispatcher
         _options = options;
         _clock = timeProvider ?? TimeProvider.System;
         _attributionContext = attributionContext;
+        _logger = logger ?? (ILogger)NullLogger.Instance;
     }
 
     /// <summary>
@@ -321,7 +327,11 @@ internal sealed class InboundTriggerDispatcher
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            var job = await _jobStore.EnqueueAsync(
+            // F-432: a retry opens a new run id, so a row the refused job left
+            // Queued would never be leased; the helper closes it.
+            var job = await QueuedRunPlaceholder.EnqueueAsync(
+                _jobStore,
+                _runStore,
                 new JobRecord
                 {
                     Id = runId,
@@ -334,6 +344,7 @@ internal sealed class InboundTriggerDispatcher
                     CreatedAt = now,
                 },
                 [],
+                _logger,
                 cancellationToken).ConfigureAwait(false);
 
             return new InboundTriggerDispatchResult { RunId = runId, JobId = job.Id };

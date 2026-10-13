@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Testing;
 
@@ -112,6 +113,63 @@ public sealed class DocumentChannelTests
 
         firstIndex.ShouldBe(lastIndex);
         documentText.ShouldEndWith("-----END TRACON DOCUMENT-----");
+    }
+
+    /// <summary>
+    /// F-386: a content guard that masks a document rewrote it as plain text. The
+    /// record then took the document for the run's request (<c>RunStarted</c>) and
+    /// wrote no <c>DocumentAttached</c>. The masked document keeps its document mark,
+    /// rebuilt from the masked text: the name and the hash are the masked ones, so the
+    /// raw value never reaches the record.
+    /// </summary>
+    [Fact]
+    public async Task A_masked_document_stays_a_document_in_the_run_record_with_the_masked_values()
+    {
+        const string Card = "4539578763621486";
+        var provider = Provider();
+        await using var host = await Infrastructure.TraconTestHost.StartAsync(configureTracon: builder => builder
+            .AddAgent(new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Reply briefly.",
+                Model = new ModelBinding { Provider = "doc-channel-provider", Model = ModelName },
+                Origin = AgentDefinitionOrigin.Code,
+            })
+            .AddModelProvider(provider)
+            .AddPatternContentGuard(static options => options.MaskedPii = PiiPatterns.CreditCard));
+
+        using (var response = await PostBufferedAsync(
+            host,
+            new AgentRunRequest
+            {
+                Message = "Summarize the attached statement.",
+                Documents = [new AgentRunDocument { Name = $"card-{Card}.txt", Content = $"Charged to card {Card}." }],
+            }))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        }
+
+        var runs = await host.Client.GetFromJsonAsync<List<RunRecord>>(
+            new Uri("/tracon/api/runs", UriKind.Relative),
+            TestContext.Current.CancellationToken);
+
+        var run = runs.ShouldHaveSingleItem();
+
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in host.Services.GetRequiredService<IRunStore>()
+                           .ReadEventsAsync(run.Id, cancellationToken: TestContext.Current.CancellationToken))
+        {
+            events.Add(runEvent);
+        }
+
+        events.Single(static e => e.Type == RunEventType.RunStarted).Text.ShouldBe("Summarize the attached statement.");
+
+        var attached = events.Where(static e => e.Type == RunEventType.DocumentAttached).ShouldHaveSingleItem();
+        attached.Text.ShouldNotBeNull().ShouldNotContain(Card);
+
+        var raw = System.Text.Json.JsonSerializer.Serialize(events);
+        raw.ShouldNotContain(Card);
     }
 
     private static FakeModelProvider Provider()

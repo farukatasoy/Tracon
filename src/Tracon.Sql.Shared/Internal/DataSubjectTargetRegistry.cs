@@ -12,7 +12,7 @@ namespace Tracon;
 /// unused parameter is harmless and keeps every command's parameter list identical.
 /// </para>
 /// <para>
-/// Export reads TEN targets; erasure deletes only EIGHT of them explicitly. Two
+/// Export reads FOURTEEN targets; erasure deletes only TWELVE of them explicitly. Two
 /// (<see cref="RunInputs"/>, <see cref="ConversationItems"/>) are read for export but
 /// never deleted directly — they are removed by <c>ON DELETE CASCADE</c> when their
 /// owning <see cref="Runs"/>/<see cref="Conversations"/> row is deleted, so an
@@ -77,26 +77,75 @@ internal static class DataSubjectTargetRegistry
     /// </remarks>
     public const string WorkflowCheckpoints = "workflow_checkpoints";
 
+    /// <summary>
+    /// Eval cases promoted from one of the subject's runs (<c>source_run_id</c>). A
+    /// promoted case keeps a copy of that run's input, so it is the subject's data.
+    /// The table has no tenant column; its suite carries the tenant.
+    /// </summary>
+    public const string EvalCases = "eval_cases";
+
+    /// <summary>The stored response of an idempotent request that started one of the subject's runs.</summary>
+    public const string IdempotencyKeys = "idempotency_keys";
+
+    /// <summary>
+    /// Batch items that started one of the subject's runs; an item keeps its
+    /// message. The table has no tenant column; its job carries the tenant. The
+    /// job's other items stay.
+    /// </summary>
+    public const string JobItems = "job_items";
+
+    /// <summary>
+    /// The job of a queued run: its id IS the run id, and its payload keeps the
+    /// message. Deletion cascades to the job's items. A batch job whose id is not
+    /// a run id is not matched; its payload stays.
+    /// </summary>
+    public const string Jobs = "jobs";
+
     /// <summary>The targets read for an export, in a stable order.</summary>
     public static IReadOnlyList<string> ExportTargets { get; } =
     [
         Sessions, Runs, RunInputs, Attachments, VoiceSessions, RunScores, WorkflowCheckpoints, Conversations,
-        ConversationItems, Responses,
+        ConversationItems, Responses, EvalCases, IdempotencyKeys, Jobs, JobItems,
     ];
 
     /// <summary>
     /// The targets deleted for an erasure, in the order they must run:
     /// conversations first (so its cascade clears conversation-linked responses
     /// before the leftover, session-linked <see cref="Responses"/> step runs),
-    /// run scores before runs (their condition finds the runs of the named
-    /// sessions in the runs table), runs next (so its cascade clears
+    /// run scores, promoted eval cases, idempotency keys, job items and jobs
+    /// before runs (their condition finds the runs of the named sessions in the
+    /// runs table), runs next (so its cascade clears
     /// events/invocations/inputs/traces), then the remaining tenant-scoped
     /// tables, sessions last.
     /// </summary>
     public static IReadOnlyList<string> EraseTargets { get; } =
     [
-        Conversations, Responses, RunScores, Runs, Attachments, VoiceSessions, WorkflowCheckpoints, Sessions,
+        Conversations, Responses, RunScores, EvalCases, IdempotencyKeys, JobItems, Jobs, Runs, Attachments,
+        VoiceSessions, WorkflowCheckpoints, Sessions,
     ];
+
+    /// <summary>
+    /// The columns of an export target that <see cref="ProtectedValue.Write"/> may
+    /// have stored as an envelope. Export reads them back as plaintext, the way every
+    /// store read does: the subject receives their own data, not ciphertext.
+    /// </summary>
+    /// <param name="target">One of the constants on this type.</param>
+    /// <returns>The column names; empty when the target holds no protected column.</returns>
+    /// <remarks>
+    /// The other protected columns are not exported: run events, tool calls and agent
+    /// files are not export targets, and an attachment's bytes are left out on purpose
+    /// (see <see cref="DataSubjectExport"/>). <c>DataSubjectCoverageTests</c> fails when
+    /// a <see cref="ProtectedColumn"/> of an export target is missing here.
+    /// </remarks>
+    public static IReadOnlyList<string> ProtectedExportColumns(string target) => target switch
+    {
+        Sessions => ["state"],
+        RunInputs => ["messages", "parameters"],
+        ConversationItems => ["item"],
+        Responses => ["payload"],
+        WorkflowCheckpoints => ["state"],
+        _ => [],
+    };
 
     /// <summary>
     /// The export column list for <see cref="Attachments"/> — every column EXCEPT the
@@ -147,6 +196,18 @@ internal static class DataSubjectTargetRegistry
         var responses = Table("responses");
         var runInputs = Table("run_inputs");
         var workflowCheckpoints = Table("workflow_checkpoints");
+        var evalSuites = Table("eval_suites");
+        var evalCases = Table("eval_cases");
+        var idempotencyKeys = Table("idempotency_keys");
+        var jobs = Table("jobs");
+        var jobItems = Table("job_items");
+
+        // A row of one of the subject's runs: a run named directly, or a run of a
+        // named session. The runs subquery is why every target using this is
+        // erased BEFORE Runs.
+        string OfSubjectRun(string qualifiedColumn)
+            => $"({InRuns(qualifiedColumn)} OR {qualifiedColumn} IN (SELECT id FROM {runs} " +
+               $"WHERE tenant_id = @tenant_id AND {InSessions($"{runs}.session_id")}))";
 
         return target switch
         {
@@ -199,6 +260,29 @@ internal static class DataSubjectTargetRegistry
             Conversations => (
                 conversations,
                 $"tenant_id = @tenant_id AND {InConversations($"{conversations}.id")}",
+                "*"),
+
+            // F-400: a promoted case is a copy of the subject's run input.
+            EvalCases => (
+                evalCases,
+                $"suite_id IN (SELECT id FROM {evalSuites} WHERE tenant_id = @tenant_id) " +
+                $"AND {OfSubjectRun($"{evalCases}.source_run_id")}",
+                "*"),
+
+            IdempotencyKeys => (
+                idempotencyKeys,
+                $"tenant_id = @tenant_id AND {OfSubjectRun($"{idempotencyKeys}.run_id")}",
+                "*"),
+
+            JobItems => (
+                jobItems,
+                $"job_id IN (SELECT id FROM {jobs} WHERE tenant_id = @tenant_id) " +
+                $"AND {OfSubjectRun($"{jobItems}.run_id")}",
+                "*"),
+
+            Jobs => (
+                jobs,
+                $"tenant_id = @tenant_id AND {OfSubjectRun($"{jobs}.id")}",
                 "*"),
 
             ConversationItems => (

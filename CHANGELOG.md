@@ -8,6 +8,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- Knowledge base embedding calls now apply the tenant's provider checks before the
+  tenant's text leaves the process. A document upload, `POST /api/knowledge/{collection}/search`
+  and the `search_knowledge` tool called the registered embedding generator and read
+  neither the tenant's egress policy nor its own provider key. Name the provider in the
+  new `TraconKnowledgeOptions.EmbeddingProvider` (`Tracon:Knowledge:EmbeddingProvider`);
+  without it, the name the generator reports is used. **Behavior change:** a tenant
+  with an egress policy that does not name the embedding provider, or with its own key
+  for it, gets `403` on upload and search (new in the OpenAPI document and both
+  generated clients) and a failed tool call. When no provider name is known, a tenant
+  with a policy is refused; a tenant without one is not affected.
+- A data subject export now returns protected columns as plaintext. With
+  `AddContentProtection(...)` on, the export wrote the stored envelope of session
+  state, run inputs and chat history, so the subject received ciphertext.
+- Workflow checkpoint state is now a protected column
+  (`ProtectedColumn.WorkflowCheckpointState`). It carries a workflow run's messages
+  and was stored in the clear even with content protection on. New checkpoints are
+  encrypted when the column is in `Columns` (the default takes every column);
+  existing rows stay readable. No migration.
+- Data subject export and erasure now reach four more copies of a subject's run:
+  an eval case promoted from the run, the stored response of an idempotent request
+  that started it, the job of a queued run (its id is the run id) and the batch item
+  that started it. **Behavior change:** erasing a subject now deletes those rows, so
+  an eval suite loses the cases promoted from the subject's runs; a batch job keeps
+  its other items. The erasure's audit entry counts each target.
+- A refused configuration key name is no longer echoed. An operator who typed a
+  value, such as an API key, into a field that takes a configuration key name got
+  that value back in the `400` body, and a webhook delivery wrote it to
+  `webhook_deliveries.error`. The message now names the field and the allowed key
+  space only. This covers every field that takes a key name: MCP server headers and
+  OAuth secret, tenant provider bindings, webhook headers and signing secret, and
+  inbound trigger secrets.
+- A retention archive now hands protected columns to the `IArchiveSink` as
+  plaintext. With `AddContentProtection(...)` on, the archive wrote the stored
+  envelope of run event text and payload, tool call arguments and results,
+  workflow checkpoint state, attachment content, session state and run inputs.
+  **Behavior change:** a sink that stored those rows now receives the readable
+  content; encrypt it in the sink if the archive must be encrypted at rest.
+- A real data subject erasure now refuses with `409` while one of the subject's
+  runs is `Queued` or `Running`. Such a run could write its
+  session and workflow checkpoint back after the erasure committed. The problem
+  carries the run ids in `activeRunIds`; a dry run lists them in the new
+  `DataSubjectErasureResult.ActiveRunIds` and erases nothing. Cancel the runs, or
+  pass `force=true` to erase anyway. `409` and `force` are new in the OpenAPI
+  document and both generated clients.
+
 - Text-to-speech, speech-to-text and the voice list now apply the tenant's
   provider checks before any text or audio leaves the process. The `speak`,
   `transcribe` and `list_voices` tools, `POST /api/voice/speak`,
@@ -144,6 +189,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The `Tracon:Knowledge` configuration section is now read. `TraconKnowledgeOptions`
+  was documented as bound from it, but every value there was ignored; only code that
+  called `Configure<TraconKnowledgeOptions>` changed a setting. A `Dimensions` value in
+  configuration now takes effect: it must match the migrated vector column.
+- A draining process (`Drain.Enabled`) now refuses every new run it would start
+  itself, not only the agent run endpoint. The workflow run, resume and respond
+  endpoints and run replay started a run during the drain; they now answer `503`
+  (new in the OpenAPI document and both generated clients). `/v1/chat/completions`
+  and `/v1/responses` answer `503` in the OpenAI error shape with `type`
+  `service_unavailable`, the voice conversation handshake answers `503` before the
+  upgrade, an MCP `tools/call` returns an error result and an A2A message fails.
+  A trigger, eval, schedule or approval still writes its job, which waits for a
+  worker that is not draining.
+- A provider error with an empty or non-OpenAI body is now read with its HTTP
+  status. System.ClientModel (OpenAI, Azure OpenAI) writes `Status: 404`, the
+  Anthropic SDK `Status Code: NotFound` and Google.GenAI `status code 404`; only
+  `HTTP 404` was read. Such a `401`, `403` or `404` moved to the next fallback link,
+  and such a `400` or `404` counted against the circuit that every tenant on the
+  setup key shares. The stored provider error now names the status for these
+  failures too, so their error fingerprint changes once. A cancellation that a
+  tool or a Tracon ring raised no longer counts against the provider's circuit;
+  the provider client's own timeout still does.
+- A queued agent run, or the agent run of an inbound trigger, no longer stays
+  `Queued` forever when the queue refuses its job. The placeholder row was written
+  first and never closed; it is now closed as `Failed`, as the queued workflow run
+  already did, and the request still fails.
+- A batch item or an eval case whose run stops at a tool approval now fails, and
+  its run is closed as `Failed`. Both run without a session, so the approval could
+  never be answered: the run stayed `AwaitingApproval` with no inbox entry, and the
+  batch reported the item `Completed`. The queued agent run already had this rule.
+- A document whose text the content guard masks stays a document in the run
+  record. The masked message was rebuilt as plain text, so `RunStarted.Text` held
+  the document's text and no `DocumentAttached` event was written. The record now
+  takes the name and the text as they read after masking, or the name
+  `[masked document]` when the masked text no longer reads as one document. The
+  original name and summary are not recorded.
+- The model calls of an evaluator added with `AddEvaluatorJudge` are now recorded.
+  Each judgment writes one `judge:{name}` run of kind `Eval` with the calls' usage
+  and cost, and the cost reaches the judge cost metric, as the built-in model judge
+  already did. Before, nothing wrote this spend down. A failing evaluator closes
+  its run as `Failed` and still throws.
 - The in-memory job store now changes a job item only while it is pending, as the SQL
   stores do. It overwrote a finished item, so a late report from a worker whose lease
   had expired rewrote the result the job already gave.
@@ -790,13 +876,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- The generated C# client `TraconApiClient` changes two method signatures.
+- The generated C# client `TraconApiClient` changes three method signatures.
   `TraconListRunsAsync` gains a `continuedFromRunId` parameter before `skip` and
-  `take`, and `TraconVoiceListAsync` gains a `provider` parameter before the
-  cancellation token. Both new parameters are optional, so a call that names its
-  arguments compiles unchanged. A call that passes `skip`, `take` or the
+  `take`, `TraconVoiceListAsync` gains a `provider` parameter and
+  `TraconEraseDataSubjectAsync` a `force` parameter before the cancellation token.
+  The new parameters are optional, so a call that names its arguments compiles
+  unchanged. A call that passes `skip`, `take` or the
   cancellation token by position no longer compiles; name the argument. Code
   compiled against the previous package must be rebuilt.
+- **Behavior change:** the streamed workflow endpoints now check their input
+  before the stream opens. `POST /api/workflows/{name}/run` with an invalid
+  `sessionId`, `resume` of an unknown run or checkpoint, and `respond` to a run
+  that does not wait for input answered `200` and reported the error inside the
+  event stream; an unknown checkpoint also opened a new `Failed` run row. They
+  now answer `400` (invalid session id, unknown checkpoint, a run that does not
+  wait) or `404` (unknown run, or a run of another tenant) as problem details, and
+  open no run.
+- **Behavior change:** the names `functions` (workflows) and `handler-keys`
+  (schedules) are reserved. `GET /api/workflows/functions` and
+  `GET /api/schedules/handler-keys` are matched before `{name}`, so a definition
+  saved under one of these names could never be read back. Saving one now answers
+  `400`, and `AddWorkflow` throws `ArgumentException`. The check ignores case.
 - The console's tenant provider panel offers speech providers next to the model
   providers, by the provider name a policy and a binding use. A name saved in a
   policy that no provider reports any more stays listed and can be removed;

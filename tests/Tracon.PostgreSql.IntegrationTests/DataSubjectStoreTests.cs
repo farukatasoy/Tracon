@@ -201,6 +201,121 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
         deleted["run_scores"].ShouldBe(1);
     }
 
+    /// <summary>
+    /// F-400: a promoted eval case, an idempotent run's stored response, a queued
+    /// run's job and a batch item each keep a copy of the subject's text, and none
+    /// had a foreign key that cascaded from runs. They are reached through a run of
+    /// the named session, never in another tenant, and a batch job keeps its other items.
+    /// </summary>
+    [Fact]
+    public async Task Erase_and_export_reach_the_promoted_case_the_stored_response_the_queued_job_and_the_batch_item()
+    {
+        var runId = await SeedRunAsync("tenant-a", sessionId: "subject-session");
+        var otherRunId = await SeedRunAsync("tenant-a", sessionId: "other-session");
+
+        var suiteA = await SeedSuiteAsync("tenant-a");
+        var suiteB = await SeedSuiteAsync("tenant-b");
+        await _context.Evals.AddCaseAsync(suiteA, new EvalCaseDraft { Query = "promoted-words", SourceRunId = runId, SourceKind = EvalCaseSource.ReferenceRun });
+        await _context.Evals.AddCaseAsync(suiteA, new EvalCaseDraft { Query = "hand-written case" });
+        await _context.Evals.AddCaseAsync(suiteB, new EvalCaseDraft { Query = "other tenant", SourceRunId = runId, SourceKind = EvalCaseSource.ReferenceRun });
+
+        await SeedIdempotentResponseAsync("tenant-a", "key-a", runId);
+        await SeedIdempotentResponseAsync("tenant-b", "key-b", runId);
+
+        await SeedJobAsync("tenant-a", runId, items: []);
+        var batchId = await SeedJobAsync("tenant-a", Guid.NewGuid(), items: ["item-words", "other item"]);
+        await LinkItemAsync(batchId, seq: 0, runId);
+        await LinkItemAsync(batchId, seq: 1, otherRunId);
+
+        var export = await _context.DataSubjects.ExportAsync("tenant-a", Scope(sessionIds: ["subject-session"]));
+
+        using (var document = System.Text.Json.JsonDocument.Parse(export.Json))
+        {
+            var root = document.RootElement;
+            root.GetProperty("eval_cases").EnumerateArray().ShouldHaveSingleItem().GetProperty("query").GetString().ShouldBe("promoted-words");
+            root.GetProperty("idempotency_keys").EnumerateArray().ShouldHaveSingleItem().GetProperty("key").GetString().ShouldBe("key-a");
+            root.GetProperty("jobs").EnumerateArray().ShouldHaveSingleItem();
+            root.GetProperty("job_items").EnumerateArray().ShouldHaveSingleItem().GetProperty("input").GetString().ShouldBe("item-words");
+        }
+
+        var deleted = await _context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(sessionIds: ["subject-session"]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        deleted["eval_cases"].ShouldBe(1);
+        deleted["idempotency_keys"].ShouldBe(1);
+        deleted["job_items"].ShouldBe(1);
+        deleted["jobs"].ShouldBe(1);
+
+        (await _context.Evals.ListCasesAsync(suiteA)).ShouldHaveSingleItem().Query.ShouldBe("hand-written case");
+        (await _context.Evals.ListCasesAsync(suiteB)).ShouldHaveSingleItem();
+        (await IdempotencyKeyCountAsync("tenant-a")).ShouldBe(0);
+        (await IdempotencyKeyCountAsync("tenant-b")).ShouldBe(1);
+        (await _context.Jobs.GetAsync("tenant-a", runId)).ShouldBeNull();
+        (await _context.Jobs.ListItemsAsync(batchId)).ShouldHaveSingleItem().Input.ShouldBe("other item");
+    }
+
+    private async Task<Guid> SeedSuiteAsync(string tenantId)
+        => (await _context.Evals.SaveSuiteAsync(new EvalSuite
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Name = "suite",
+            AgentName = "support",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        })).Id;
+
+    private async Task SeedIdempotentResponseAsync(string tenantId, string key, Guid runId)
+    {
+        await _context.IdempotencyKeys.ReserveAsync(new IdempotencyRequest
+        {
+            TenantId = tenantId,
+            Key = key,
+            Fingerprint = "fingerprint",
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        await _context.IdempotencyKeys.CompleteAsync(tenantId, key, new IdempotencyResponse
+        {
+            StatusCode = 200,
+            ContentType = "application/json",
+            Body = """{"text":"response-words"}""",
+            RunId = runId,
+        });
+    }
+
+    private async Task<long> IdempotencyKeyCountAsync(string tenantId)
+        => await _context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {_context.SchemaName}.idempotency_keys WHERE tenant_id = '{tenantId}';");
+
+    private async Task<Guid> SeedJobAsync(string tenantId, Guid id, IReadOnlyList<string> items)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        await _context.Jobs.EnqueueAsync(
+            new JobRecord
+            {
+                Id = id,
+                TenantId = tenantId,
+                HandlerKey = JobHandlerKeys.AgentRun,
+                TargetName = "support",
+                Status = JobStatus.Pending,
+                Payload = System.Text.Json.JsonSerializer.SerializeToElement(new { message = "queued-words" }),
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            items);
+
+        return id;
+    }
+
+    private async Task LinkItemAsync(Guid jobId, int seq, Guid runId)
+        => await _context.ExecuteAsync($"""
+            UPDATE {_context.SchemaName}.job_items SET run_id = '{runId}' WHERE job_id = '{jobId}' AND seq = {seq};
+            """);
+
     private static DataSubjectScope Scope(
         IReadOnlyList<string>? sessionIds = null,
         IReadOnlyList<Guid>? runIds = null,

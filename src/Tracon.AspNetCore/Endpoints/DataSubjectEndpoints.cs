@@ -59,7 +59,13 @@ internal static class DataSubjectEndpoints
                 "an audit record is 'who did what', not the subject's own " +
                 "data) — but the erasure ITSELF is written there, with the row count per " +
                 "target; if that write fails, every delete is rolled back and this call fails, " +
-                "the same rule Approval decisions follow.");
+                "the same rule Approval decisions follow. A run of the subject that is still " +
+                "Running or Queued would write its session and checkpoints back after the erasure " +
+                "commits: '?dryRun=false' is refused with 409 that names those runs, and the preview " +
+                "lists them in 'activeRunIds'. '?force=true' erases anyway, for a row a crashed " +
+                "process left behind; cancel a run that is really running first.")
+            .Produces<DataSubjectErasureResult>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static async Task<Results<ContentHttpResult, ProblemHttpResult>> ExportAsync(
@@ -85,8 +91,10 @@ internal static class DataSubjectEndpoints
     private static async Task<Results<Ok<DataSubjectErasureResult>, ProblemHttpResult>> EraseAsync(
         string id,
         bool? dryRun,
+        bool? force,
         [FromServices] IDataSubjectResolver? resolver,
         [FromServices] IDataSubjectStore store,
+        [FromServices] IRunStore runs,
         [FromServices] SessionConversationResolver conversations,
         [FromServices] ITenantContext tenants,
         [FromServices] IAuditLog auditLog,
@@ -105,11 +113,27 @@ internal static class DataSubjectEndpoints
             .ConfigureAwait(false);
         var isDryRun = dryRun ?? true;
 
+        // F-400: a run still in progress writes its session and its checkpoints
+        // back after the erasure commits.
+        var activeRunIds = await FindActiveRunsAsync(runs, tenants.TenantId, scope, cancellationToken).ConfigureAwait(false);
+
         if (isDryRun)
         {
             var preview = await store.PreviewAsync(tenants.TenantId, scope, cancellationToken).ConfigureAwait(false);
 
-            return TypedResults.Ok(new DataSubjectErasureResult { DryRun = true, RowsByTarget = preview });
+            return TypedResults.Ok(new DataSubjectErasureResult { DryRun = true, RowsByTarget = preview, ActiveRunIds = activeRunIds });
+        }
+
+        if (activeRunIds.Count > 0 && force != true)
+        {
+            return TypedResults.Problem(
+                title: "Data subject has runs in progress",
+                detail: $"{activeRunIds.Count} run(s) of the subject are still Running or Queued: " +
+                        $"{string.Join(", ", activeRunIds)}. A run in progress writes its session and " +
+                        "checkpoints back after the erasure commits. Cancel the runs or wait for them, then " +
+                        "erase; '?force=true' erases anyway (for a row a crashed process left behind).",
+                statusCode: StatusCodes.Status409Conflict,
+                extensions: new Dictionary<string, object?>(StringComparer.Ordinal) { ["activeRunIds"] = activeRunIds });
         }
 
         var actor = actorResolver.Resolve();
@@ -145,7 +169,50 @@ internal static class DataSubjectEndpoints
                 ct),
             cancellationToken).ConfigureAwait(false);
 
-        return TypedResults.Ok(new DataSubjectErasureResult { DryRun = false, RowsByTarget = deleted });
+        return TypedResults.Ok(new DataSubjectErasureResult { DryRun = false, RowsByTarget = deleted, ActiveRunIds = activeRunIds });
+    }
+
+    private static readonly RunStatus[] InProgress = [RunStatus.Running, RunStatus.Queued];
+
+    /// <summary>The subject's runs that are still <c>Running</c> or <c>Queued</c>, in this tenant.</summary>
+    /// <remarks>
+    /// The runs the resolver names and the runs of the sessions it names. A child run
+    /// that carries no session is covered by its root, which is in progress while the
+    /// child is.
+    /// </remarks>
+    private static async ValueTask<IReadOnlyList<Guid>> FindActiveRunsAsync(
+        IRunStore runs,
+        string tenantId,
+        DataSubjectScope scope,
+        CancellationToken cancellationToken)
+    {
+        var active = new HashSet<Guid>();
+
+        foreach (var runId in scope.RunIds)
+        {
+            if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is { } run
+                && string.Equals(run.TenantId, tenantId, StringComparison.Ordinal)
+                && run.Status is RunStatus.Running or RunStatus.Queued)
+            {
+                active.Add(run.Id);
+            }
+        }
+
+        foreach (var sessionId in scope.SessionIds)
+        {
+            foreach (var status in InProgress)
+            {
+                var found = await runs
+                    .QueryRunsAsync(
+                        new RunQuery { SessionId = sessionId, Status = status, TenantId = tenantId, OnlyRootRuns = false, Take = 200 },
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                active.UnionWith(found.Select(static run => run.Id));
+            }
+        }
+
+        return [.. active.Order()];
     }
 
     /// <summary>

@@ -115,8 +115,11 @@ internal sealed class SqlRetentionStore : IRetentionStore
         AddTenant(command, tenantId);
         DbHelpers.Add(command, "batchSize", Math.Max(1, batchSize));
 
+        // F-447: the sink is the consumer's code; a protected column reaches it as plaintext.
+        var readValue = ProtectedValue.RowReader(_context, RetentionTargetRegistry.ProtectedArchiveColumns(target));
+
         return await DbHelpers
-            .ReadListAsync(command, static reader => new ArchiveRow { Json = SqlJsonRowWriter.RowToJson(reader) }, cancellationToken)
+            .ReadListAsync(command, reader => new ArchiveRow { Json = SqlJsonRowWriter.RowToJson(reader, readValue) }, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -185,6 +188,9 @@ internal sealed class SqlRetentionStore : IRetentionStore
             && string.Equals(target, RetentionTargets.Attachments, StringComparison.Ordinal);
         var byTenant = tenantId is null && definition.TenantInKey;
 
+        // F-447: the sink is the consumer's code; a protected column reaches it as plaintext.
+        var readValue = ProtectedValue.RowReader(_context, RetentionTargetRegistry.ProtectedArchiveColumns(target));
+
         var select = _context.CreateCommand(
             _dialect.BuildRetentionArchiveSelectSql(definition.Table, where, definition.OrderColumn));
         _dialect.AddTimestamp(select, "cutoff", cutoff);
@@ -194,7 +200,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
         var batch = await DbHelpers
             .ReadListAsync(
                 select,
-                reader => ReadArchivedRow(reader, definition.KeyColumns, attachments, byTenant),
+                reader => ReadArchivedRow(reader, definition.KeyColumns, attachments, byTenant, readValue),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -239,12 +245,14 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// <param name="keyColumns">The target's key columns.</param>
     /// <param name="attachment">Whether the row is an attachment whose external content goes first.</param>
     /// <param name="withTenant">Whether the row's tenant is read for a delete tenant by tenant.</param>
+    /// <param name="readValue">Reads a protected column back as plaintext; <see langword="null"/> when the target has none.</param>
     /// <returns>The row.</returns>
     private static ArchivedRow ReadArchivedRow(
         DbDataReader reader,
         IReadOnlyList<string> keyColumns,
         bool attachment,
-        bool withTenant)
+        bool withTenant,
+        Func<string, object, object>? readValue)
     {
         var key = new object[keyColumns.Count];
 
@@ -262,7 +270,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
                 DbHelpers.GetNullableString(reader, reader.GetOrdinal("external_uri")))
             : null;
 
-        return new ArchivedRow(new ArchiveRow { Json = SqlJsonRowWriter.RowToJson(reader) }, key, tenant, attachmentKey);
+        return new ArchivedRow(new ArchiveRow { Json = SqlJsonRowWriter.RowToJson(reader, readValue) }, key, tenant, attachmentKey);
     }
 
     /// <summary>Reads the row's tenant in its canonical form, the form every tenant parameter is bound in.</summary>

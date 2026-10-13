@@ -211,6 +211,42 @@ public static partial class TraconServiceCollectionExtensions
         }
     }
 
+    // The section was documented as read from Tracon:Knowledge and bound nowhere:
+    // every value in configuration was ignored (F-416 found it while adding
+    // EmbeddingProvider; the F-247 class).
+    private static void BindKnowledge(IConfigurationSection section, TraconKnowledgeOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (int.TryParse(section[nameof(TraconKnowledgeOptions.Dimensions)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var dimensions))
+        {
+            options.Dimensions = dimensions;
+        }
+
+        if (int.TryParse(section[nameof(TraconKnowledgeOptions.ChunkSize)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var chunkSize))
+        {
+            options.ChunkSize = chunkSize;
+        }
+
+        if (int.TryParse(section[nameof(TraconKnowledgeOptions.ChunkOverlap)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var chunkOverlap))
+        {
+            options.ChunkOverlap = chunkOverlap;
+        }
+
+        if (int.TryParse(section[nameof(TraconKnowledgeOptions.MaxResults)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxResults))
+        {
+            options.MaxResults = maxResults;
+        }
+
+        if (section[nameof(TraconKnowledgeOptions.EmbeddingProvider)] is { Length: > 0 } embeddingProvider)
+        {
+            options.EmbeddingProvider = embeddingProvider;
+        }
+    }
+
     private static decimal? ReadDecimal(IConfiguration section, string key)
         => decimal.TryParse(section[key], NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
             ? value

@@ -132,6 +132,20 @@ internal static class VoiceConversationEndpoint
             return;
         }
 
+        // 🚨 A conversation runs the agent in this process, turn after turn: it
+        // is refused while the process drains, after the credential (an
+        // anonymous caller learns nothing) and before the upgrade (F-431).
+        if (services.GetRequiredService<ITraconDrainState>().IsDraining)
+        {
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status503ServiceUnavailable,
+                DrainGate.Title,
+                DrainGate.Detail).ConfigureAwait(false);
+
+            return;
+        }
+
         var tenantContext = services.GetRequiredService<ITenantContext>();
         var tenantId = tenantContext.TenantId;
 

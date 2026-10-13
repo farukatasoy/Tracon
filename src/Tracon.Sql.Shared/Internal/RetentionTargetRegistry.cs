@@ -81,6 +81,29 @@ internal static class RetentionTargetRegistry
     /// <summary>The key of <c>idempotency_keys</c> within one tenant.</summary>
     private static readonly string[] IdempotencyKey = ["key"];
 
+    /// <summary>
+    /// The columns of a target that content protection may have stored as an
+    /// envelope. An archive hands them to the consumer's sink as plaintext, the way
+    /// every store read does: the envelope is Tracon's own format, and nothing outside
+    /// Tracon can open it.
+    /// </summary>
+    /// <param name="target">A <see cref="RetentionTargets"/> value.</param>
+    /// <returns>The column names; empty when the target holds no protected column.</returns>
+    /// <remarks>
+    /// <c>DataSubjectCoverageTests</c> fails when a <see cref="ProtectedColumn"/> of a
+    /// retention target is missing here.
+    /// </remarks>
+    public static IReadOnlyList<string> ProtectedArchiveColumns(string target) => target switch
+    {
+        RetentionTargets.RunEvents => ["text", "payload"],
+        RetentionTargets.ToolInvocations => ["arguments", "result"],
+        RetentionTargets.WorkflowCheckpoints => ["state"],
+        RetentionTargets.Attachments => ["content"],
+        RetentionTargets.Sessions => ["state"],
+        RetentionTargets.RunInputs => ["messages", "parameters"],
+        _ => [],
+    };
+
     /// <summary>Resolves the table/condition definition of a target.</summary>
     /// <param name="dialect">
     /// The provider dialect used to qualify the table names
