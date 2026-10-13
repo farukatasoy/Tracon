@@ -237,6 +237,27 @@ the next attempt of the job runs no case again and only repeats the write. A web
 delivery the receiver accepted is not sent again because its result could not be
 written ([webhooks](/concepts/governance/#webhooks)).
 
+## Queue one workflow run
+
+A workflow run, a resume and an answer to a waiting request queue the same way: send
+`Prefer: respond-async` to `POST /api/workflows/{name}/run`,
+`POST /api/workflows/runs/{runId}/resume` or `POST /api/workflows/runs/{runId}/respond`.
+The answer is `202 Accepted` with the run id, which is also the job id, and the job
+runs under the built-in key `tracon.workflow-run`. Every check the streamed call makes
+happens before the `202`, so a refused request queues nothing. See
+[Queue a run instead of streaming it](/concepts/workflows/#queue-a-run-instead-of-streaming-it).
+
+`tracon.workflow-run` cannot be scheduled, with or without
+`HttpSchedulableHandlerKeys`: its payload names a run and the operation to apply, and
+the caller is checked only when the HTTP endpoint queues it. A schedule that runs a
+workflow uses `tracon.workflow`.
+
+While `Tracon:Workflows:ResumeInterruptedRuns` is off, a queued workflow run's job
+gets `AsyncRun.MaxAttempts`, like a queued agent run. While it is on, the job gets
+`1 + MaxResumeAttempts` attempts, and a lease taken again after a crash or a graceful
+stop continues the run from its latest checkpoint instead of starting it over
+([Resume an interrupted run automatically](/concepts/workflows/#resume-an-interrupted-run-automatically)).
+
 ## Create a recurring schedule
 
 The schedule name is part of the URL. The body selects the handler key, target,
@@ -268,7 +289,8 @@ item. A missing payload creates no items. Each job accepts at most
 
 For `tracon.agent-batch` and `tracon.workflow`, an item that is a JSON object with a
 string `message` member is a **structured item**. It may add `parameters` (an object of
-string values) and, for an agent batch, `documents` (an array of `{name, content}`):
+string values), for an agent batch `documents` (an array of `{name, content}`), and for
+a workflow batch `sessionId`:
 
 ```json
 "payload": [
@@ -278,6 +300,27 @@ string values) and, for an agent batch, `documents` (an array of `{name, content
   { "message": "Summarize", "parameters": { "tone": "casual" } }
 ]
 ```
+
+A workflow item's `sessionId` becomes the run's execution session, so you can
+correlate the run with your own record — a production id, say. The run, its
+`run.completed` webhook and a run that resumes it all carry that id. It is a
+correlation, not a de-duplication: two items with the same id are two runs. The id
+follows the session id rule — at most 128 letters, digits, `-` or `_` — and an item
+that breaks it fails alone. An agent batch item that names a `sessionId` fails alone
+too: an agent batch runs every item without a session.
+
+```json
+"payload": {
+  "items": [ { "message": "Episode 12", "sessionId": "episode-12" } ]
+}
+```
+
+With `Tracon:Workflows:ResumeInterruptedRuns` on, a workflow batch writes each item's
+run id on the item before its run starts. A job leased again after a crash finds the
+item still pending, and its run is continued from the latest checkpoint instead of
+starting over; an item whose run had already finished is reported without running
+again. Each such lease counts against the job's own attempt limit
+(`Scheduling.MaxAttempts`, or the job's `maxAttempts`).
 
 Saving the schedule, or triggering it with a payload, refuses an item whose shape is
 wrong — `parameters` that is not an object of strings, a `documents` entry without a
@@ -539,9 +582,9 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
 | `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
 | `Scheduling.LaneByHandlerKey` | empty | Maps a handler key to a lane when the caller left it unset |
-| `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default |
+| `Scheduling.HttpSchedulableHandlerKeys` | empty | Handler keys `PUT /api/schedules/{name}` accepts; empty means the built-in keys, and a non-empty list replaces that default. `tracon.workflow-run` is never accepted |
 | `AsyncRun.Enabled` | `true` | A queued run request returns `501` when disabled |
-| `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries |
+| `AsyncRun.MaxAttempts` | `1` | Controls queued agent-run retries, and queued workflow runs while workflow recovery is off |
 | Job list page | 50 records | `skip` defaults to `0`; `take` defaults to `50` |
 | `SingletonExecution.Enabled` | `false` | `true` elects one instance for the singleton services above |
 | `SingletonExecution.LeaseDuration` | 60 seconds | Renewal at one third of this duration; at least 3 seconds while enabled |

@@ -1,6 +1,6 @@
 ---
 title: Workflows
-description: Five multi-agent patterns, checkpoints, and asking a human mid-execution.
+description: Five multi-agent patterns, queued runs, checkpoints, recovery after a restart, and asking a human mid-execution.
 sidebar:
   order: 6
 ---
@@ -347,6 +347,56 @@ inside the workflow opens its own run row** — so the whole thing is readable a
 with `GET /api/runs/{runId}/tree`, with each agent's tokens and duration attributed
 separately.
 
+### Queue a run instead of streaming it
+
+A streamed run belongs to the connection that reads it: if the client stops reading,
+the run ends `Canceled`. To run a workflow in the background — a render that takes
+minutes, a pipeline a deploy must not cut short — send `Prefer: respond-async`:
+
+```bash
+curl -i -X POST http://localhost:5081/tracon/api/workflows/podcast/run \
+     -H 'Content-Type: application/json' \
+     -H 'Prefer: respond-async' \
+     -H 'Idempotency-Key: episode-12' \
+     -d '{"message":"Episode 12","sessionId":"episode-12"}'
+```
+
+The request passes the same checks a streamed one does — attribution, authorization,
+session ownership, quota and parameters — and only then is the run queued. The answer
+is `202 Accepted` with a `Location` header and a body that names the run:
+
+```json
+{
+  "runId": "01a1340e-ad31-75e4-b64b-e3d0a26ab0a1",
+  "jobId": "01a1340e-ad31-75e4-b64b-e3d0a26ab0a1",
+  "location": "/tracon/api/runs/01a1340e-ad31-75e4-b64b-e3d0a26ab0a1",
+  "eventsLocation": "/tracon/api/runs/01a1340e-ad31-75e4-b64b-e3d0a26ab0a1/events"
+}
+```
+
+The run's row exists at once with the status `Queued`, so `GET /api/runs/{runId}` and
+`POST /api/runs/{runId}/cancel` work before a worker picks it up. The job id is the
+run id. Read the events from `GET /api/runs/{runId}/events`. A run queued without a
+`sessionId` gets one before the `202`, and the row names it.
+
+`resume` and `respond` take the same header. A queued answer is checked before the
+`202`: an answer of the wrong shape, a request id that is not pending, and a run that
+is not waiting are each refused with `400`, and an unknown run with `404`. A machine
+that answers a request when its own work finishes therefore never has a background run
+fail on the answer. The queued answer is stored with the job until the job is removed:
+do not put a secret in it.
+
+`Idempotency-Key` makes a retried call safe: the same key returns the same `202` and
+queues nothing. On these three endpoints the key is accepted only together with
+`Prefer: respond-async`. A stream cannot be stored and replayed, so a key on a
+streamed call is refused with `400`. A `sessionId` is a correlation, not a
+de-duplication: two calls with the same session id and no key are two runs.
+
+Queuing needs a job worker (`Tracon:Scheduling:RunWorker`, on by default), and
+`Tracon:AsyncRun:Enabled = false` answers the header with `501`. A queued run is not
+something a schedule can start: schedule `tracon.workflow` instead (see
+[Background work](/guides/background-work/)).
+
 `GET /api/workflows/{name}/graph` returns the compiled graph. Node ids are identical
 to the executor ids in the run events, which is how the console colours nodes live as
 the workflow progresses. The response also carries MAF's generated Mermaid text.
@@ -359,8 +409,9 @@ and its message goes to the server log under the same id. Throw a
 `TraconException` when a node's message is meant for the person reading the run.
 
 A workflow run ends `Canceled` only when the run was actually cancelled — the
-caller's request going away, `POST /api/runs/{id}/cancel`, or
-`Tracon:Workflows:RunTimeout` being reached. The call-tree budget's
+caller's request going away, `POST /api/runs/{id}/cancel`, a worker that stops
+gracefully while it runs a queued run, or `Tracon:Workflows:RunTimeout` being
+reached. The call-tree budget's
 `AgentGraph.MaxDuration` is not one of these: a step it refuses ends the run
 `Failed` with `run_budget_exceeded` (see below). A node whose model or tool call
 never came back ends the run `Failed` instead, even though .NET surfaces an
@@ -415,6 +466,72 @@ not one. With continuation on, the run's event stream records a
 `RunContinuationBlocked` event that names the call to make instead,
 `POST /api/workflows/runs/{runId}/resume`. Resuming from the latest checkpoint repeats
 the step the stop cut short, so the idempotency rule for function nodes above applies.
+A run a job started can be resumed by that job instead, as the next section shows.
+
+### Resume an interrupted run automatically
+
+A run a job started — a queued run, or an item of a `tracon.workflow` batch — has an
+owner that outlives the process: the job. With `ResumeInterruptedRuns` on, the job
+continues an interrupted run when it is leased again:
+
+```csharp
+builder.Services.AddTracon()
+    .UsePostgreSql(connectionString)
+    .UseWorkflows(options =>
+    {
+        options.ResumeInterruptedRuns = true;
+        options.MaxResumeAttempts = 1;
+    });
+```
+
+```mermaid
+flowchart LR
+    accTitle: Workflow recovery after a process stops
+    accDescr: The job records its run before the run starts. After a crash or a graceful stop the job is leased again, the interrupted run is closed, and a new run continues it from the latest checkpoint in its chain; a finished run is left alone.
+    MARK["job records its run id"] --> RUN["run executes<br/>checkpoint after each super-step"]
+    RUN --> STOP["process stops<br/>crash, deploy, graceful stop"]
+    STOP --> LEASE["lease runs out<br/>a worker leases the job again"]
+    LEASE --> CHECK{"last run of the chain"}
+    CHECK -->|"Completed or AwaitingInput"| DONE["nothing runs again"]
+    CHECK -->|"interrupted, within MaxResumeAttempts"| NEXT["new run from the latest checkpoint<br/>continuedFromRunId names the old one"]
+    CHECK -->|"past MaxResumeAttempts"| FAIL["item or job fails"]
+```
+
+- Before a batch item's run starts, the handler writes the run's id on the item. A
+  queued run's id is the job's id from the start.
+- When the job is leased again after a crash, a deploy or a graceful stop, the
+  handler reads that run. If it is `Completed` or `AwaitingInput`, nothing runs again.
+  Otherwise a run left `Running` is closed as `Failed` with the error type
+  `interrupted`, and a new run continues it from the latest checkpoint in its chain.
+- The new run's `continuedFromRunId` names the run it continues.
+  `GET /api/runs?continuedFromRunId={runId}` walks the chain forward.
+- The new run uses the same session, the parameter values the chain recorded, and the
+  user and labels of whoever queued the job. It is not counted against the quota or
+  asked for authorization again: the job was, when it was queued.
+- If no run of the chain wrote a checkpoint — the process stopped before the first
+  super-step ended — the run starts again in the same session, or the resume or the
+  answer is applied again.
+- `MaxResumeAttempts` (default `1`, from `0` to `100`) bounds the continuations of one
+  chain. Past it the batch item fails, or the queued run's job fails. A queued run's
+  job gets `1 + MaxResumeAttempts` attempts, one lease for each continuation. A
+  batch job keeps its own attempt limit, and each lease counts against it.
+
+:::caution[The step in progress runs again]
+A checkpoint is written as each super-step ends. The steps finished before the stop
+are not repeated; the step that was running is. A function step with a side effect
+must be idempotent, an agent step repeats its model calls and tool calls, and a
+`Loop` agent step repeats every turn it had finished — its turns are not
+checkpointed.
+:::
+
+The job notices the stop only when its lease runs out (`Tracon:Scheduling:LeaseDuration`,
+five minutes by default) and a worker leases it again. A run bound to a connection is
+never resumed automatically: its reader is gone. Recovery needs `EnableCheckpointing`
+(turning recovery on without it fails at startup) and a SQL provider, so checkpoints
+survive the restart. Keep `KeepCheckpointsAfterCompletion` on as well: a graceful stop
+closes the run it stops as `Canceled`, and with that setting off its checkpoints are
+deleted, so its continuation starts from the beginning. Run reconciliation still never
+resumes a workflow run itself: two owners would resume the same run twice.
 
 Checkpoints survive a process restart only with a SQL provider registered
 (`UsePostgreSql()`, `UseSqlServer()`, or `UseSqlite()`). The in-memory store keeps at
@@ -466,7 +583,7 @@ flowchart LR
     ASK --> WAIT["run closes as AwaitingInput<br/>a checkpoint is written"]
     WAIT --> LIST["GET .../requests"]
     LIST --> RESP["POST .../respond"]
-    RESP --> NEW["a NEW run resumes from the checkpoint<br/>events stream over SSE"]
+    RESP --> NEW["a NEW run resumes from the checkpoint<br/>streamed over SSE, or queued with Prefer: respond-async"]
 ```
 
 Requests are read from the run's own event stream — there is no separate table — and

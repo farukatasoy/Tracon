@@ -63,6 +63,20 @@ the run id. Every agent called inside the workflow opens its own `runs` row
 and attaches under the workflow row — `GET /api/runs/{id}/tree` returns the
 whole tree.
 
+A streamed run belongs to its connection: a client that stops reading cancels it.
+To run in the background, send `Prefer: respond-async`. The caller is checked the
+same way, the answer is `202 Accepted` with the run id, and a worker runs the
+workflow; read its events from `GET /api/runs/{id}/events`. The resume and respond
+endpoints queue the same way, and `Idempotency-Key` is accepted on all three only
+together with `Prefer: respond-async`.
+
+```http
+POST /tracon/api/workflows/review/run
+Prefer: respond-async
+Idempotency-Key: q3-review
+{ "message": "Review the Q3 report" }
+```
+
 ## Function nodes and their settings
 
 A `Sequential` workflow can mix functions registered in code in with its agents. Each
@@ -149,6 +163,25 @@ POST /tracon/api/workflows/runs/{runId}/resume
 Durable resuming requires `UsePostgreSql()`; in an in-memory setup,
 checkpoints are limited to the lifetime of the process.
 
+A run that a job started — a queued run, or an item of a `tracon.workflow` batch —
+can be resumed by that job after a crash, a deploy or a graceful stop:
+
+```csharp
+builder.AddTracon()
+       .UsePostgreSql(connectionString)
+       .UseWorkflows(options =>
+       {
+           options.ResumeInterruptedRuns = true;
+           options.MaxResumeAttempts = 1;
+       });
+```
+
+When the job is leased again, a run that had finished is left alone, and an
+interrupted one continues from the latest checkpoint in its chain as a new run whose
+`ContinuedFromRunId` names it. The step that was running when the process stopped
+runs again, so a function step with side effects must be idempotent. A run bound to an
+HTTP connection is never resumed automatically.
+
 ## Limits
 
 | Setting | Default | What it does |
@@ -158,6 +191,8 @@ checkpoints are limited to the lifetime of the process.
 | `MaxSuperSteps` | 100 | Infinite-loop protection |
 | `MaxNodeSettingsLength` | 16384 bytes | The largest JSON a function node's settings may be when a workflow is saved |
 | `EnableCheckpointing` | `true` | Checkpoint writing |
+| `ResumeInterruptedRuns` | `false` | A job resumes the workflow run it was running when its process stopped |
+| `MaxResumeAttempts` | 1 | The continuations one interrupted run may get, from 0 to 100 |
 
 This package is **not AOT compatible**: the execution engine uses reflection.
 Other Tracon packages are not affected.
