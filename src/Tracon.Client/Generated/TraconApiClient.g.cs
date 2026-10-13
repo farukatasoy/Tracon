@@ -2739,11 +2739,11 @@ namespace Tracon.Client.Generated
         /// Lists runs from newest to oldest.
         /// </summary>
         /// <remarks>
-        /// By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
+        /// By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. 'continuedFromRunId' returns the runs that continue a given run after an interruption (each continuation names the run it continues in 'continuedFromRunId'); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<RunRecord>> TraconListRunsAsync(string? agentName = null, RunStatus? status = null, RunKind? kind = null, string? sessionId = null, string? errorType = null, string? userId = null, string? label = null, System.DateTimeOffset? startedAfter = null, bool? includeChildren = null, System.Guid? parentRunId = null, System.Guid? rootRunId = null, int? skip = null, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<RunRecord>> TraconListRunsAsync(string? agentName = null, RunStatus? status = null, RunKind? kind = null, string? sessionId = null, string? errorType = null, string? userId = null, string? label = null, System.DateTimeOffset? startedAfter = null, bool? includeChildren = null, System.Guid? parentRunId = null, System.Guid? rootRunId = null, System.Guid? continuedFromRunId = null, int? skip = null, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -2802,6 +2802,10 @@ namespace Tracon.Client.Generated
                     if (rootRunId != null)
                     {
                         urlBuilder_.Append(System.Uri.EscapeDataString("rootRunId")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(rootRunId, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (continuedFromRunId != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("continuedFromRunId")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(continuedFromRunId, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
                     }
                     if (skip != null)
                     {
@@ -4374,10 +4378,10 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Runs the workflow and streams its events over SSE.
+        /// Runs the workflow and streams its events over SSE, or queues it with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user's session in 'sessionId' is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it.
+        /// Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user's session in 'sessionId' is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it. A streamed run belongs to the connection: if the client stops reading, the run closes as Canceled. A request carrying 'Prefer: respond-async' is checked the same way and then queued: the answer is '202 Accepted' with a 'Location' header and the run id, the run executes in the background worker, and its events are read from GET /api/runs/{runId}/events. A queued run does not depend on any connection, and with ResumeInterruptedRuns on it is resumed from its latest checkpoint after a restart. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async' (400 otherwise); a repeated request returns the same 202 and queues nothing. With queuing disabled (Tracon:AsyncRun:Enabled = false) the preference is answered with 501.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4441,6 +4445,16 @@ namespace Tracon.Client.Generated
                                 return string.Empty;
                             }
                             return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        if (status_ == 202)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<AcceptedRunResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<AcceptedRunResponse>("Accepted", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 400)
@@ -4514,14 +4528,14 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Runs the workflow and streams its events over SSE.
+        /// Runs the workflow and streams its events over SSE, or queues it with 'Prefer: respond-async'.
         /// Streaming form: the 200 body is read as Server-Sent Events. Each element is
         /// one raw frame; comment-only keep-alive blocks are skipped. Throws
         /// <see cref="TraconApiException"/> if the server answers with a different
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user's session in 'sessionId' is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it.
+        /// Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user's session in 'sessionId' is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it. A streamed run belongs to the connection: if the client stops reading, the run closes as Canceled. A request carrying 'Prefer: respond-async' is checked the same way and then queued: the answer is '202 Accepted' with a 'Location' header and the run id, the run executes in the background worker, and its events are read from GET /api/runs/{runId}/events. A queued run does not depend on any connection, and with ResumeInterruptedRuns on it is resumed from its latest checkpoint after a restart. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async' (400 otherwise); a repeated request returns the same 202 and queues nothing. With queuing disabled (Tracon:AsyncRun:Enabled = false) the preference is answered with 501.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4592,6 +4606,16 @@ namespace Tracon.Client.Generated
                             }
 
                             yield break;
+                        }
+                        else
+                        if (status_ == 202)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<AcceptedRunResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<AcceptedRunResponse>("Accepted", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 400)
@@ -4747,10 +4771,10 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Resumes from a checkpoint and streams events over SSE.
+        /// Resumes from a checkpoint and streams events over SSE, or queues it with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened.
+        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run; the source run and its checkpoint are checked first, so an unknown run is 404 and a run with no checkpoint is 400. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4816,6 +4840,16 @@ namespace Tracon.Client.Generated
                             return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         }
                         else
+                        if (status_ == 202)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<AcceptedRunResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<AcceptedRunResponse>("Accepted", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 400)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -4834,6 +4868,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 501)
@@ -4867,14 +4911,14 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Resumes from a checkpoint and streams events over SSE.
+        /// Resumes from a checkpoint and streams events over SSE, or queues it with 'Prefer: respond-async'.
         /// Streaming form: the 200 body is read as Server-Sent Events. Each element is
         /// one raw frame; comment-only keep-alive blocks are skipped. Throws
         /// <see cref="TraconApiException"/> if the server answers with a different
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened.
+        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run; the source run and its checkpoint are checked first, so an unknown run is 404 and a run with no checkpoint is 400. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4947,6 +4991,16 @@ namespace Tracon.Client.Generated
                             yield break;
                         }
                         else
+                        if (status_ == 202)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<AcceptedRunResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<AcceptedRunResponse>("Accepted", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 400)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -4965,6 +5019,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 501)
@@ -5090,10 +5154,10 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Responds to a pending request and resumes the run.
+        /// Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the answer is checked the same way (a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404) and then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5159,6 +5223,16 @@ namespace Tracon.Client.Generated
                             return await response_.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                         }
                         else
+                        if (status_ == 202)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<AcceptedRunResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<AcceptedRunResponse>("Accepted", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 400)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -5177,6 +5251,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 501)
@@ -5210,14 +5294,14 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
-        /// Responds to a pending request and resumes the run.
+        /// Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
         /// Streaming form: the 200 body is read as Server-Sent Events. Each element is
         /// one raw frame; comment-only keep-alive blocks are skipped. Throws
         /// <see cref="TraconApiException"/> if the server answers with a different
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the answer is checked the same way (a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404) and then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5290,6 +5374,16 @@ namespace Tracon.Client.Generated
                             yield break;
                         }
                         else
+                        if (status_ == 202)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<AcceptedRunResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<AcceptedRunResponse>("Accepted", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 400)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -5308,6 +5402,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 501)
