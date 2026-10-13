@@ -1,6 +1,6 @@
 # 14 — Skill ve Script Çalıştırma (`SKILL`)
 
-> **Alan kodu:** `SKILL` · **Faz:** 10, 11, 186
+> **Alan kodu:** `SKILL` · **Faz:** 10, 11, 186, 202
 > **Kaynak:** `src/Tracon.Abstractions/Skills/` (tümü) ·
 > `src/Tracon.Core/Skills/` (tümü: `AgentSkillCatalog`, `TraconSkillsSource`,
 > `CodeSkillRegistration`, `TraconSkillScriptBuilderExtensions`,
@@ -1564,12 +1564,14 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
 2. ~2-3 saniye içinde tur `done` olana kadar bekle.
 
 **Beklenen sonuç**
-- Script sonucu `Script zaman asimina ugradi ve surec agaci sonlandirildi.`
-  metnini döner, `stdout`/`stderr` bölümü YOKTUR (`bitti` asla yazılmaz —
-  `sleep 10` 2 saniyelik sınırdan önce bitmez).
+- Script sonucu `The script timed out and was stopped.` metnini döner,
+  `stdout`/`stderr` bölümü YOKTUR (`bitti` asla yazılmaz — `sleep 10`
+  2 saniyelik sınırdan önce bitmez). Faz 202'den önce metin `The script
+  timed out and the process tree was terminated.` idi; metin artık her
+  yürütücü için doğrudur.
 - Toplam süre ~10 saniye DEĞİL, ~2-3 saniyedir — süreç gerçekten
   öldürülmüştür (`Process.Kill(entireProcessTree: true)`,
-  `SkillScriptProcessRunner.cs:128-136`).
+  `SkillScriptProcessRunner.TryKill`).
 
 ---
 
@@ -1597,9 +1599,12 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
    iste, her onayı ver.
 
 **Beklenen sonuç**
-- Tool sonucunun `stdout` bölümü tam 100 bayt civarında kesilir ve satırın
-  sonunda `\n[Tracon: cikti 100 bayt sinirinda kirpildi.]` metni
-  görünür (`SkillScriptProcessRunner.cs:231-234`).
+- Tool sonucunun `stdout` bölümü en çok 100 bayttır ve karakter ortasında
+  kesilmez. Biçimli sonucun SONUNDA tek bir `[Tracon: output truncated at
+  the 100-byte limit per stream.]` satırı görünür
+  (`SandboxedSkillScriptRunner.Format`). Faz 202'den önce işaret `stdout`
+  metninin içine yazılıyordu; artık sınırı runner yeniden uygular ve
+  işareti yalnız runner ekler.
 - Sürecin kendisi zaman aşımına UĞRAMAZ (`exit_code: 0` görünür) — kırpma ile
   zaman aşımı bağımsız kapılardır.
 
@@ -2140,3 +2145,198 @@ grep -rn -i "script sandboxing\|escaping its sandbox\|inside its sandbox\|isolat
   yasak ifadeleri her sayfada ve `threat-model.md`'nin "Accepted risks"
   bölümündeki işletim sistemi kimliği riskini denetler.
 - Adım 2: dört dosyada sayı ≥ 1; ikinci `grep` boş döner.
+
+---
+
+# 9 — Script Yürütücü Seam'i (Faz 202)
+
+Host `ISkillScriptExecutor` kaydederse onaylanan script yerel süreç yerine
+yürütücüye gider. Kapılar, pin, onay, denetim, kota, çıktı sınırı ve bekleme
+sınırı Tracon'da kalır (`SandboxedSkillScriptRunner`). Varsayılan yürütücü
+`SkillScriptProcessRunner`'dır ve davranışı değişmez.
+
+**Bölümün ortak ön koşulu** — geçici kod (commit edilmez, bölüm sonunda geri
+alınır):
+
+1. `samples/Tracon.Api/` altına geçici `Faz202ManualExecutor.cs` ekle: her
+   isteği `FAZ202-EXECUTOR received {Request}` uyarısıyla loglar ve
+   `faz202-executor:<script>:<hash ilk 12>` döner; `asili` adlı script'te
+   token'ı ve süreyi yok sayarak sonsuza dek bekler; `FAZ202_EXECUTOR=docker`
+   ortamında içeriği `docker run --rm -i --network none alpine:3.20 sh -c
+   <içerik>` ile koşar.
+2. `Program.cs`'te `var app = builder.Build();` satırının önüne:
+   ```csharp
+   if (Environment.GetEnvironmentVariable("FAZ202_SCRIPTS") is { } faz202Mode)
+   {
+       tracon.UseSkillScripts(static o =>
+       {
+           o.PlatformIsolationAcknowledged = true;
+           o.AllowStoredScripts = true;
+           o.Interpreters["sh"] = "/bin/sh";
+           o.MaxConcurrentPerTenant = 1;
+           o.MaxConcurrentTotal = 1;
+       });
+
+       if (string.Equals(faz202Mode, "executor", StringComparison.Ordinal))
+       {
+           builder.Services.AddSingleton<ISkillScriptExecutor, Faz202ManualExecutor>();
+       }
+
+       if (string.Equals(faz202Mode, "require-missing", StringComparison.Ordinal))
+       {
+           tracon.RequireCustomBinding<ISkillScriptExecutor>();
+       }
+   }
+   ```
+3. Uygulamayı `FAZ202_SCRIPTS=executor` ile başlat. `run_skill_script` ve
+   `load_skill` için kalıcı onay kuralı ekle (`POST /api/approvals/rules`,
+   `{ "toolName": "run_skill_script" }` ve `{ "toolName": "load_skill" }`).
+4. `yurutucu-skill` skill'ini kaydet: script `merhaba` (`touch
+   /tmp/tracon-faz202-yerel && echo yerel-surec`) ve `asili` (`echo
+   asla`). `yurutucu-test` agent'ını `skillNames: ["yurutucu-skill"]` ile
+   oluştur (§6 adım 5 biçimi).
+
+**Bölüm sonu temizliği:** iki geçici kod parçasını geri al; `yurutucu-test`'i,
+`yurutucu-skill`'i, grant'ları ve onay kurallarını sil;
+`/tmp/tracon-faz202-yerel` dosyasını sil.
+
+---
+
+### MT-SKILL-078 — Kayıtlı yürütücü pinli stored script'i alır; yerel süreç başlamaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 202 |
+| **İlgili karar** | K-066, K-860 |
+| **Devir** | ➜ CI: `SkillScriptExecutorRoutingTests.An_approved_stored_script_goes_to_the_registered_executor_and_no_local_process_starts` |
+
+**Ön koşul**
+- Bölümün ortak ön koşulu; `merhaba` için pinli grant (§6 adım 4'ün
+  `grant_script` fonksiyonu, skill adı `yurutucu-skill`).
+
+**Adımlar**
+1. `POST /api/agents/yurutucu-test/run`, mesaj: `yurutucu-skill'i yukle ve
+   merhaba script'ini calistir`.
+2. Run bitince `GET /api/runs/{id}` ve uygulama logunu oku.
+
+**Beklenen sonuç**
+- Run `Completed`; tool sonucu `exit_code: 0` ve
+  `faz202-executor:merhaba:<hash>` taşır.
+- Log bir `FAZ202-EXECUTOR received` satırı taşır: `TenantId = default`,
+  `Origin = Stored`, `Interpreter = /bin/sh`, `ContentSha256` dolu; satırda
+  script içeriği (`touch …`) YOKTUR.
+- `/tmp/tracon-faz202-yerel` dosyası YOKTUR: yerel süreç başlamadı.
+- Denetim izinde `script.run` satırı vardır (yürütücüden önce yazılır).
+
+---
+
+### MT-SKILL-079 — Grant yokken yürütücü çağrılmaz; `script.denied` yazılır
+
+Negatif senaryo.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 202 |
+| **İlgili karar** | K-089, K-860 |
+| **Devir** | ➜ CI: `SkillScriptExecutorRoutingTests.A_closed_gate_never_reaches_the_executor` |
+
+**Ön koşul**
+- MT-SKILL-078 geçti; grant iptal edildi
+  (`DELETE /api/skill-script-grants/yurutucu-skill?scriptName=merhaba`).
+
+**Adımlar**
+1. MT-SKILL-078'in run isteğini tekrarla.
+
+**Beklenen sonuç**
+- Modele dönen tool sonucu `Error: Function failed.`; log'da yeni bir
+  `FAZ202-EXECUTOR received` satırı YOKTUR.
+- `GET /api/audit` son `script.denied` satırı `no valid execution grant`
+  der.
+
+---
+
+### MT-SKILL-080 — Süreyi yok sayan yürütücü `Timeout + 5 sn`'de bırakılır; kota serbest kalır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 202 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `SandboxedSkillScriptRunnerTests.An_executor_past_its_timeout_is_abandoned_at_the_wait_limit_and_frees_the_quota` |
+
+**Ön koşul**
+- Ortak ön koşul; uygulama `Tracon__Skills__Scripts__Timeout=00:00:02` ile
+  başlatıldı. `asili` ve `merhaba` için pinli grant. Kota 1/1 (geçici kod).
+
+**Adımlar**
+1. Aynı anda iki run başlat: biri `asili`'yi, diğeri `merhaba`'yı çağırır.
+2. İki run'ın süresini ölç.
+
+**Beklenen sonuç**
+- `asili` run'ı ~7 sn'de (`2 sn + 5 sn`) biter. Tool sonucu `The script timed
+  out. The script executor did not return in time, so the script may still be
+  running.` der; `tool_invocations.error` `Timed out; the script executor did
+  not return in time.` taşır.
+- Log `did not return within its timeout of 00:00:02 plus 00:00:05` uyarısını
+  taşır.
+- `merhaba` run'ı asılı kalmaz: kota `asili` bırakılınca serbest kalır ve
+  run `Completed` olur.
+
+---
+
+### MT-SKILL-081 — Docker yürütücüsü: script Tracon'un ortamını görmez
+
+R8'in tersi: yürütücü script'i container'da koşar; Tracon sürecinin ortamı
+script'e ulaşmaz.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 202 |
+| **İlgili karar** | K-861, K-862 |
+
+**Ön koşul**
+- Docker ve `alpine:3.20` imajı. Uygulama `FAZ202_SCRIPTS=executor`,
+  `FAZ202_EXECUTOR=docker` ve işaretçi bir değişkenle
+  (`TRACON_FAZ202_HOST_MARKER=host-only-value`) başlatıldı.
+- `yurutucu-skill`'e `ortam` script'i eklendi ve pinli grant verildi:
+  `cat /proc/1/environ | tr '\0' '\n'; echo ---; env | sort`.
+
+**Adımlar**
+1. `ortam` script'ini çağıran bir run başlat.
+
+**Beklenen sonuç**
+- Tool sonucu container'ın ortamını gösterir (`PATH`, `HOSTNAME`,
+  `TRACON_SKILL_NAME=yurutucu-skill`, `TRACON_SKILL_TEMP=/tmp`).
+- `host-only-value` ve Tracon'un bağlantı dizesi değişkenleri çıktıda YOKTUR.
+- Varsayılan yürütücüyle aynı script Linux'ta ebeveynin başlangıç ortamını
+  okuyabilir (R8); bu case onu seam ile kapatan bir host'u gösterir — Tracon
+  yalıtımı doğrulamaz, yürütücü sağlar.
+
+---
+
+### MT-SKILL-082 — `RequireCustomBinding<ISkillScriptExecutor>()` kayıt yokken açılışı durdurur
+
+Negatif senaryo.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 202 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `SkillScriptExecutorRegistrationTests.RequireCustomBinding_stops_the_host_while_the_built_in_executor_resolves` |
+
+**Adımlar**
+1. Uygulamayı `FAZ202_SCRIPTS=require-missing` ile başlat.
+
+**Beklenen sonuç**
+- Uygulama açılmaz. Hata `ISkillScriptExecutor was declared as a required
+  custom binding, but the registration that resolves is Tracon's own.` der.
+- `FAZ202_SCRIPTS=executor` ile aynı kurulum açılır.
