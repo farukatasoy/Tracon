@@ -287,7 +287,9 @@ shows each registered timeout.
 
 - When the timeout passes, the token the handler was given is cancelled and the run
   ends `Failed` with the error type `workflow_function_timeout` (class `Timeout`),
-  which names the node and the limit. No later node runs.
+  which names the node and the limit. No later node runs. Match the type with
+  `TraconWorkflowFunctionTimeoutException.WorkflowFunctionTimeoutErrorType` when you
+  read a run's `error`.
 - The run stops waiting at the timeout even when the handler ignores its token. Such
   a handler keeps running in the background, its result is discarded, and its late end
   is logged; its side effects still happen. Pass the token on.
