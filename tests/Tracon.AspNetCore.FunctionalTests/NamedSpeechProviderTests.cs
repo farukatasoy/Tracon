@@ -277,7 +277,7 @@ public sealed class NamedSpeechProviderTests
             Interlocked.Increment(ref _reads);
             Entered.TrySetResult();
 
-            await Task.Delay(Timeout.Infinite, cancellationToken);
+            await Task.Delay(Timeout.Infinite, cancellationToken); // delay: simulated
 
             return null;
         }
