@@ -44,10 +44,12 @@ a vulnerability; a report that a fail-closed operation proceeded without its rec
 
 Script execution gates are in scope; isolating the script process is not. Tracon does
 not provide operating-system isolation, and the threat model lists it as an accepted
-risk: a granted script can read what the server's operating-system user can read. A
-report of that is expected behaviour. A report that a script started without a grant
-or with an interpreter off the allowlist is a vulnerability, and so is a stored or
-code-defined script that started without a grant pinned to its current content. A
+risk: with the built-in executor, a granted script can read what the server's
+operating-system user can read. A report of that is expected behaviour, and so is the
+isolation a host's own `ISkillScriptExecutor` provides or fails to provide. A report
+that a script reached any executor without a grant or with an interpreter off the
+allowlist is a vulnerability, and so is a stored or code-defined script that reached
+one without a grant pinned to its current content, or without its audit record. A
 script read from disk is not pinned, by design.
 
 The [threat model](/reference/threat-model/) is why this list draws the line where it

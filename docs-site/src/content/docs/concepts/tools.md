@@ -290,27 +290,35 @@ removed or the skill is recreated. Check which agents use a skill before deletin
 ### Skill scripts — the strict exception
 
 A skill may also carry **scripts**, and this is the second deliberate exception to the
-code-only rule. Unlike MCP, the process runs **on this machine**.
+code-only rule. Unlike MCP, the process runs **on this machine** by default; a host
+that registers an `ISkillScriptExecutor` runs it where that executor runs it — see
+[Write your own script executor](/guides/write-your-own-script-executor/).
 
 It is off by default and can only be turned on in code, with a mandatory
 acknowledgement flag, an interpreter allowlist that starts empty, and skill roots
 given in code.
 
-Every execution passes five gates in order, and if any is closed the process never
-starts. After the fifth gate the call waits for a free slot under the concurrency
-quota; the quota delays a script, it never refuses one:
+Every execution passes five gates in order, and if any is closed the executor is
+never called. After the fifth gate the call waits for a free slot under the
+concurrency quota; the quota delays a script, it never refuses one. The slot is held
+until the executor returns, or until the timeout plus five seconds has passed:
 
 ```mermaid
 flowchart LR
     accTitle: Skill script security gates
-    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, argument validation and the audit write all pass in order; it then waits for a free slot under the concurrency quota.
+    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, the argument, name and size checks, and the audit write all pass in order; it then waits for a free slot under the concurrency quota and goes to the registered executor.
     G1["1. enabled"] --> G2["2. valid grant<br/>pinned to this content"]
     G2 --> G3["3. extension on the<br/>interpreter allowlist"]
-    G3 --> G4["4. argument size<br/>and schema"]
+    G3 --> G4["4. argument size and schema ·<br/>plain stored name ·<br/>file within the size limit"]
     G4 --> G5["5. written to<br/>the audit trail"]
     G5 --> Q["waits for a slot<br/>(concurrency quota)"]
-    Q --> RUN["separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
+    Q --> RUN["executor — built-in: separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
 ```
+
+A script file under a skill root passes the same `MaxScriptContentLength` as a
+stored script. An empty file, a file larger than the limit, and anything that is not
+a regular file — a FIFO, a link to a device — is refused from its metadata, before it
+is opened.
 
 :::danger[Gate five is an exception to an exception]
 Everywhere else in Tracon an audit-trail write failure is swallowed, because
@@ -335,14 +343,15 @@ from disk is not pinned, so keep its directory read-only.
 
 :::caution[Tracon does not sandbox]
 It provides **no** filesystem jail, network restriction, memory or CPU quota, or
-privilege dropping. The process runs under the same operating-system user as Tracon
-and can read what that user can read — on Linux, the environment Tracon started with
-too, through `/proc`. In a multi-tenant host a granted script can therefore reach every
-tenant's data; the [threat model](/reference/threat-model/) lists this as an accepted
-risk. Isolation belongs to the hosting environment — a container, cgroups, and an
-unprivileged user. The acknowledgement flag exists so the feature cannot be enabled
-without seeing this: with execution on and the flag off, the application fails at
-**startup**.
+privilege dropping. With the built-in executor the process runs under the same
+operating-system user as Tracon and can read what that user can read — on Linux, the
+environment Tracon started with too, through `/proc`. In a multi-tenant host a granted
+script can therefore reach every tenant's data; the [threat model](/reference/threat-model/)
+lists this as an accepted risk. Isolation belongs to the hosting environment — a
+container, cgroups, and an unprivileged user — or to an executor that runs scripts
+somewhere else; Tracon cannot verify either. The acknowledgement flag exists so the
+feature cannot be enabled without seeing this: with execution on and the flag off,
+the application fails at **startup**, whichever executor is registered.
 :::
 
 ## MCP servers

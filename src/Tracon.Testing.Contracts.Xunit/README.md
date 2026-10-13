@@ -2,7 +2,7 @@
 
 Behavior contract suites for Tracon's extension points — the store
 interfaces (`IRunStore` and 29 others), `IModelProvider`, `IRunJudge`,
-`IAgentSource`, `IJobHandler`, and code-defined custom tools — packaged as
+`IAgentSource`, `IJobHandler`, `ISkillScriptExecutor`, and code-defined custom tools — packaged as
 xunit.v3 test base classes.
 
 Tracon ships four store implementations (in-memory, PostgreSQL, SQL
@@ -208,6 +208,29 @@ public sealed class NightlyReportHandlerTests : JobHandlerContract
 }
 ```
 
+### Script executors — `Tracon.Testing.Contracts.Scripts`
+
+Derive `SkillScriptExecutorContract` for an `ISkillScriptExecutor`. The
+scenarios send POSIX `sh` scripts and check what a script receives (JSON on
+standard input, `TRACON_SKILL_NAME`, a temporary directory of its own, nothing
+from the host environment) and what the executor reports (exit code, standard
+error, the output cap without a notice, a timeout without an exit code, and a
+caller's cancellation as `OperationCanceledException`). They do not check
+isolation: where a script runs is your executor's decision.
+
+```csharp
+using Tracon.Testing.Contracts.Scripts;
+
+public sealed class ContainerScriptExecutorTests : SkillScriptExecutorContract
+{
+    protected override ValueTask<ISkillScriptExecutor> CreateExecutorAsync()
+        => new(new ContainerScriptExecutor());
+}
+```
+
+Override `Extension`, `Interpreter`, and the script bodies for another
+runtime; `SkipReason` skips the suite where the runtime is missing.
+
 ### Checking you derived them all
 
 `ContractCoverage` reports contract classes your test assembly has no derived
@@ -225,7 +248,7 @@ public void Every_provider_contract_has_a_derived_test()
 
 One constant per family: `ContractCoverage.StorageContracts`,
 `ProviderContracts`, `JudgeContracts`, `AgentSourceContracts`,
-`ToolContracts`, and `SchedulingContracts`. A contract you deliberately do
+`ToolContracts`, `SchedulingContracts`, and `ScriptContracts`. A contract you deliberately do
 not implement goes in the `except` argument, where a name that matches
 nothing is itself reported — a stale exemption must not pass quietly.
 
