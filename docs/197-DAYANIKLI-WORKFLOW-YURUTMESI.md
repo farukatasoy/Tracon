@@ -197,12 +197,12 @@ Sınır: kira kaybında eski sahip yaşarsa iki kopya koşar (K-886).
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Üç uç `202` döner, aynı anahtar tek iş açar (test 1-8); kesilen iş checkpoint'ten sürer, bayrak kapalıyken davranış aynı (test 12-18) — `WorkflowAsync*Tests` (7 sınıf, 33 test), `WorkflowRecoveryTests` (9), `WorkflowRecoveryAttemptLimitTests` (5, son kiralama gerçek worker'dan), `TwoProcessWorkflowResumeTests` (PostgreSQL, `SIGKILL`)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 65d72b98` · sonuç § *Kapanış kapısı*'nda
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 65d72b98`, `main` birleştirilmiş dalda tek koşum, çıkış 0 (§ *Kapanış kapısı*)
 - [x] `samples/Tracon.Api` ile gerçek `run` (async, süreç öldürme, devam) yapıldı, çıktı belgeye yazıldı — aşağıdaki iki tablo; ikincisi denetim düzeltmesinden sonra
 - [x] `secret` taraması boş döndü — `kapi.py tarama`, kapanış zincirinin ilk adımı
 - [x] Manuel kabul case'leri eklendi; otomatikleştirilebilenler koşuldu — `MT-WF-139`…`141` ✅, `MT-RES-095`/`096` ve `MT-JOB-145` 👤 (örnek uygulamada koşuldu)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 1 gerçek 🔴, düzeltildi (§ *Denetim Bulguları*)
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz · sonuç § *Kapanış kapısı*'nda
+- [x] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz — kapanış zincirinin `npm run check` adımı (1063 sayfa, kırık bağlantı yok, ağırlık tavanı altında)
 
 ### Örnek uygulama koşumu — gerçek çıktı (2026-10-13, port 5197)
 
@@ -249,6 +249,38 @@ Aynı yapılandırma, yeni bir SQLite dosyası, `a9315535`'teki kod. `episode`
 | `MaxResumeAttempts=1` (varsayılan), `episode` kuyrukta | iş `Pending maxAttempts 3`; run `Completed`; iş `Completed attempt 1 of 3` |
 
 Uygulama `kill -TERM` ile kapatıldı; 5197 boş.
+
+### Kapanış kapısı
+
+`python3 scripts/kapi.py kapanis --taban 65d72b98`, `main` (`f9c3c2a8`, Faz 198)
+birleştirilmiş dalda, `3b93b79d` üzerinde, baştan sona **tek koşum: çıkış 0, 1219 sn**
+(2026-10-13).
+
+| Adım | Süre |
+|---|---:|
+| `kapi.py tarama` (`secret`, sync kopyası) | 6,40 sn |
+| `dokuman-bakim.py --denetle` | 1,91 sn |
+| `scripts` birim testleri | 8,41 sn |
+| `build-agent-map.mjs --check` | 0,10 sn |
+| `denetim-paketi.py --taban 65d72b98` | 0,42 sn |
+| `dotnet build Tracon.slnx -c Release` | 128,23 sn |
+| `dotnet test Tracon.slnx` (tam, `-maxcpucount:2`) | 684,04 sn |
+| `dotnet pack` | 9,76 sn |
+| `dotnet format --verify-no-changes` | 160,74 sn |
+| `kapi.py performans` — `CacheHit` 0 B · `AppendEvent` 112 B · `QueryRuns` 45456 B, uyarı yok | 178,38 sn |
+| `npm run check` (docs-site) | 39,76 sn |
+
+Bu turun önceki iki koşumu: (1) ilki 59 sn'de, derleme adımında **elle durduruldu**
+(`--site-denetle` mağaza yazarı rehberinin eksiğini gösterdi; sayfa yazıldı,
+`b5f5d58f`). (2) İkincisi on adımı yeşil geçti, `npm run check` düştü:
+`guides/coding-agents.md` `llms-full.txt`'i "about 825 KB" diyordu, iki fazın birleşik
+metni 978,4 KB'tır (%15 bandı dışında). Sayı düzeltildi (`3b93b79d`). Kırılgan test
+görülmedi (F-356, F-430 dahil).
+
+Sonra `python3 scripts/dokuman-bakim.py --site-denetle --taban 65d72b98
+--site-gerekce-yazildi` → çıkış 0 (gerekçeli iki kural aşağıda; bayraksız koşum bu
+ikisi için çıkış 1 verir). Bu bölümü yazan commit yalnız bu dokümanı değiştirir;
+üstünde `tarama`, `--denetle` ve `--site-denetle` yeniden koşuldu.
 
 ### Site senkronu (`--site-denetle --taban 65d72b98`)
 
@@ -468,7 +500,7 @@ Mimari kapılar güncellendi: `JobHandlerOutcomeWriteSiteTests`, `JobAttribution
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 1 — Açık Soru 4-A denetimden sonra `2 + MaxResumeAttempts` oldu (Sapma 16, kullanıcı kararı); öbür sapmalar ölçümün sonucudur |
-| Düzeltme turu sayısı | 11 — çözümleyici (RS0016 · CA1826/CA1859 · MA0006/MA0002) · kurucu değişikliği sonrası test derlemesi · mimari kapılar (`///` içinde iç referans, Türkçe test metni, atıf ve sonuç sitesi listeleri, ambient tabanı) · `// delay:` etiketi · agent map tazeliği · manuel test bütçesi · kapanış 1: anlık görüntü testleri · kapanış 2: `QueryRuns` tahsisi · denetim düzeltmeleri (🔴1, 🟡1-4) · birleştirme sonrası kapanış (§ *Kapanış kapısı*) |
+| Düzeltme turu sayısı | 11 — çözümleyici (RS0016 · CA1826/CA1859 · MA0006/MA0002) · kurucu değişikliği sonrası test derlemesi · mimari kapılar (`///` içinde iç referans, Türkçe test metni, atıf ve sonuç sitesi listeleri, ambient tabanı) · `// delay:` etiketi · agent map tazeliği · manuel test bütçesi · kapanış 1: anlık görüntü testleri · kapanış 2: `QueryRuns` tahsisi · denetim düzeltmeleri (🔴1, 🟡1-4) · birleştirme sonrası kapanış: mağaza yazarı rehberi ve `llms-full` boyut iddiası (§ *Kapanış kapısı*) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
 | Fazın ürettiği regresyon | 3 — 🔴1 (deneme sayısı son kiralamayı handler'dan önce düşürüyordu), 🟡1 (geçici `store` hatası işi tekrar denemesiz düşürüyordu), 🟡2 (site bayrak kapalı kuyruklu run'ı yanlış anlatıyordu). Üçünü de bağımsız denetim yakaladı, kapanıştan önce düzeltildi |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
