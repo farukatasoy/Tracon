@@ -368,6 +368,15 @@ else
     tracon.AddModelProvider(new EchoModelProvider());
 }
 
+// A model that takes its time (phase 196), for showing a step's own timeout against
+// a model that has not answered yet: `Tracon:Demo:SlowModel:Seconds=20` registers the
+// provider "slow" (model "slow-1"), which answers after that many seconds and stops
+// when its token is cancelled. Off unless the key is set, whatever provider is on.
+if (builder.Configuration.GetValue<int?>("Tracon:Demo:SlowModel:Seconds") is { } slowSeconds)
+{
+    tracon.AddModelProvider(new SlowModelProvider(TimeSpan.FromSeconds(slowSeconds)));
+}
+
 // Any OpenAI-COMPATIBLE endpoint. Same configuration shape, different
 // sub-section: Tracon:Providers:OpenAICompatible:openrouter:*. Without an
 // ApiKey the provider is never registered — the "zero surprises" rule applies
@@ -920,6 +929,48 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, RenderSettings>
         return [new ChatMessage(ChatRole.User, $"{text}\n\n[rendered in {settings.Seconds} s]")];
     },
     static options => options.Description = "Pretends to render the text: waits the node's 'seconds' setting and makes no model call.");
+
+// Two functions with a TIMEOUT of their own (phase 196). `slow` waits ten seconds and
+// passes its token on, so its two-second timeout cancels it: the run ends Failed with
+// the error type workflow_function_timeout and no later node runs. A node can set its
+// own value, which wins over the registration's:
+//
+//   PUT /tracon/api/workflows/bounded
+//   {"kind":"Sequential","nodes":[
+//     {"name":"word-count","kind":"Function"},
+//     {"name":"slow","kind":"Function","timeout":"00:00:05"}]}
+//
+// `deaf` ignores its token, as a careless handler would: the run still stops waiting at
+// the timeout, the body keeps running in the background, and its late end is logged
+// ("returned ... past its timeout"). Pass the token on.
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "slow",
+    static _ => async (messages, _, cancellationToken) =>
+    {
+        await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
+
+        return messages;
+    },
+    static options =>
+    {
+        options.Description = "Waits ten seconds, honouring its token. Registered with a two-second timeout.";
+        options.Timeout = TimeSpan.FromSeconds(2);
+    });
+
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "deaf",
+    static _ => async (messages, _, _) =>
+    {
+        // Ignores its token on purpose; see the comment above.
+        await Task.Delay(TimeSpan.FromSeconds(6), CancellationToken.None).ConfigureAwait(false);
+
+        return messages;
+    },
+    static options =>
+    {
+        options.Description = "Waits six seconds and IGNORES its token. Registered with a two-second timeout.";
+        options.Timeout = TimeSpan.FromSeconds(2);
+    });
 
 // A function node that REALLY speaks, with the engine its settings name:
 //
