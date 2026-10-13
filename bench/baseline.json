@@ -1,8 +1,8 @@
 {
-  "measuredAt": "2026-10-11T10:12:00Z",
+  "measuredAt": "2026-10-13T09:40:34Z",
   "benchmarks": {
     "Tracon.Benchmarks.CompiledAgentCacheBenchmarks.CacheHit": {
-      "allocatedBytes": 24,
+      "allocatedBytes": 0,
       "meanNanoseconds": 36.32254505405823
     },
     "Tracon.Benchmarks.RunEventWriterBenchmarks.AppendEvent": {
