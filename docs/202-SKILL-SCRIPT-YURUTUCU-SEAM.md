@@ -1,6 +1,6 @@
 # Faz 202 — Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam
 
-> **Durum:** 📋 Planlandı (2026-10-12)
+> **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A; 1–3 güvenlik kararıdır). Faz 196 ve Faz 203 ile paralel geliştirilir
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-345**
 > **Önkoşul:** Yok — işlevsel bağımlılık yok; Faz 196 ile ortak dosya `TimeoutSiteTests.cs`
@@ -268,12 +268,23 @@ docs/MIMARI-GUVENLIK.md · docs/MIMARI-TEHDIT-MODELI.md  (kapanışta)
 - [x] Varsayılanla mevcut script testleri davranış iddiası değişmeden yeşil — `SandboxedSkillScriptRunnerTests`, `SkillScriptProcessRunnerTests` (yalnız kurulum satırı), `SkillScriptContentPinTests`, `SkillScriptGrantTests`, E2E `SkillTests` (UI'lı derleme, 4/4); örnek uygulamada yerel yürütücü nöbetçi dosyayı yarattı
 - [x] Süreye uymayan yürütücü `Timeout + tolerans` içinde `TimedOut` kaydı üretir (test 6) — "kayıt" `ToolInvocationRecord.Error` = `Timed out; the script executor did not return in time.` metnidir (`ToolInvocationRecord.TimedOut` alanı `TraconToolTimeoutException`'a aittir, yazılmaz); `An_executor_past_its_timeout_is_abandoned_at_the_wait_limit_and_frees_the_quota` (kurulan gecikme tam 35 sn); örnek uygulamada `MT-SKILL-080` (kayıt süresi 7,009 sn; düzeltmeden sonra 7,002 sn)
 - [x] Yerel yürütücü sözleşmeyi geçer; `RequireCustomBinding` yerel varsayılanda açılışı durdurur — `SkillScriptProcessRunnerContractTests` 10/10 (net8 · net9 · net10), `SkillScriptExecutorRegistrationTests`; örnek uygulamada `MT-SKILL-082`
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — orkestratör `main`'de koşar; bu dalda iki kez `kapi.py ic-dongu` (§ *İç döngü*), site kapıları ve `--denetle` koşuldu
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9088e92e`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `c2592ccd` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1, 4), çıktı belgeye yazıldı — § *Örnek uygulama koşumu*; denetim düzeltmesinden sonra `078`/`080` yeniden koşuldu
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz (17 işaretli sentetik credential atlandı)
 - [x] Manuel kabul case'leri `docs/manuel-test/14-SKILL-VE-SCRIPT.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-SKILL-078`…`083` (§ 9); `078`…`082` örnek uygulamada koşuldu; `078`…`080`, `082`, `083` ➜ CI (`083`'ün HTTP yolu yok, F-481)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 🔴 yok; 2 🟡 + 4 🟢 düzeltildi (§ *Denetim Bulguları*)
 - [x] `docs-site/` güncellendi; `cd docs-site && npm run check` temiz; `CHANGELOG.md` yeni tipleri anar — § *Tüketici yüzeyi*
+
+### Kapanış kapısı ve yayın provası (`main`, 2026-10-13)
+
+Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`bc3c7d11` → 203, `fac7fbd6` → 196, `c2592ccd` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın kendi tabanı `12cfee4b`'dir; kapanış tabanı `9088e92e` onu kapsar.
+
+| Kapı | Commit | Sonuç |
+|---|---|---|
+| `python3 scripts/kapi.py kapanis --taban 9088e92e` | `c2592ccd` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
+| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `c2592ccd` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
+
+Önceki prova çıktısı (Faz 197/198, `dcc1a88f`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-dcc1a88f`.
 
 ### Örnek uygulama koşumu — gerçek çıktı (2026-10-13, port 5083)
 

@@ -208,14 +208,14 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
 | [194](arsiv/fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) | Workflow ve Kuyruk Yollarında Parametre Değerleri | ✅ Tamamlandı |
 | [195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) | Workflow Düğüm Düzenleme ve Fonksiyon Düğümü Ayarı | ✅ Tamamlandı |
-| [196](196-UZUN-ADIM-SURE-VE-IPTAL.md) | Uzun Adımların Süre Sınırı ve İptali | 📋 Planlandı |
+| [196](196-UZUN-ADIM-SURE-VE-IPTAL.md) | Uzun Adımların Süre Sınırı ve İptali | ✅ Tamamlandı |
 | [197](arsiv/fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md) | Dayanıklı Workflow Yürütmesi: Bağlantısız Run ve Otomatik Sürdürme | ✅ Tamamlandı |
 | [198](arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md) | Adlı Konuşma Sağlayıcısı ve Kiracı Bağlaması | ✅ Tamamlandı |
 | [199](199-FONKSIYON-DUGUMU-MALIYETI.md) | Fonksiyon Düğümünün Token Dışı Maliyeti | 📋 Planlandı |
 | [200](200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) | Workflow Sürüm Geçmişi ve Sürüm Sabitleme | 📋 Planlandı |
 | [201](arsiv/fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) | Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası | ✅ Tamamlandı |
-| [202](202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | 📋 Planlandı |
-| [203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) | Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları | 📋 Planlandı |
+| [202](202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | ✅ Tamamlandı |
+| [203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) | Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları | ✅ Tamamlandı |
 | [204](arsiv/fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) | Kesilen Model Çıktısı ve Anthropic Güncel İstek Ayarları | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

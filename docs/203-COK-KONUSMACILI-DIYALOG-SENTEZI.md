@@ -1,6 +1,6 @@
 # Faz 203 — Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları
 
-> **Durum:** 📋 Planlandı (2026-10-13)
+> **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-B, 5-B, 6-B; Açık Soru 7 → B). Faz 196 ile paralel geliştirilir
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-296**
 > **Genellik:** Ses sözleşmesi Tracon'un kendi sözleşmesidir ve iki büyük sağlayıcının (ElevenLabs Text to Dialogue, Gemini çok konuşmacılı TTS) sunduğu yeteneği ifade edemez; MEAI 10.9.0 `ITextToSpeechClient` de tek ses taşır. İkinci kanıt bu ekosistem boşluğudur, tüketici değil. Bölme, birleştirme ve ses işleme tüketici kodunda kalır
@@ -316,12 +316,23 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 - [x] Sınır ve ayar ihlali ağdan önce `TraconException` (Sapma 4, K-955); ret değeri yankılamaz (test 3, 4) — `SpeechDialogueValidationTests` (11), `SpeechProviderSettingsTests` (23), `ModelProviderSettingsContract`
 - [x] Tek ses yolu `voice_settings` ve süreklilik alanlarını gönderir; mevcut istekler değişmez (test 5) — `ElevenLabsSpeechRequestTests` (5): ayarsız gövde birebir aynı
 - [x] Yetenek kaydı tüketicinin kaydını ezmez; yeteneksiz sentezleyici açık hata verir (test 10) — kayıt yok (Sapma 1); `VoiceDialogueRegistrationTests` (10), `SpeechDialogueTenantTests` (14)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9088e92e` — ⏳ orkestratör merge sonrası koşar; dalda `kapi.py ic-dongu` yeşil, etkilenen sekiz test projesi yeşil (§ Doğrulama komutları)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9088e92e`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `c2592ccd` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
 - [x] `samples/Tracon.Api` ile gerçek diyalog `run`'ı (case 1), çıktı belgeye yazıldı — § Doğrulama komutları; 👤 dinleme bakımcıya kalır
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: "✅ temiz (17 işaretli sentetik credential atlandı)"
 - [x] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-MM-132…137` (altısı koşuldu), `MT-PROV-032…034` güncellendi ve koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 🔴 yok, 3 × 🟡 kapandı (§ Denetim Bulguları)
 - [x] `docs-site/` güncellendi; `npm run check` (build + content + links + weight) temiz; `CHANGELOG.md` yeni tipleri anar
+
+### Kapanış kapısı ve yayın provası (`main`, 2026-10-13)
+
+Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`bc3c7d11` → 203, `fac7fbd6` → 196, `c2592ccd` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın tabanı `9088e92e`'dir.
+
+| Kapı | Commit | Sonuç |
+|---|---|---|
+| `python3 scripts/kapi.py kapanis --taban 9088e92e` | `c2592ccd` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
+| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `c2592ccd` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
+
+Önceki prova çıktısı (Faz 197/198, `dcc1a88f`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-dcc1a88f`.
 
 ### Doğrulama komutları
 

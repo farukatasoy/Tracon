@@ -1,6 +1,6 @@
 # Faz 196 — Uzun Adımların Süre Sınırı ve İptali
 
-> **Durum:** 📋 Planlandı (2026-10-12)
+> **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-B, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A, 8-A, 9-A, 10-B, 11-B, 12-B, 13-A). Faz 203 ile paralel geliştirilir
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-303**, **F-323**, **F-405**
 > **Önkoşul:** [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) — aynı kayıt yüzeyi ve editör satırı; 2026-10-12'de kapandı (`55272673`)
@@ -363,13 +363,24 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 - [x] İptal handler token'ını bir `PollInterval` içinde düşürür; aşım `tracon.job.max-duration-exceeded` yazar (test 14-15)
 - [x] İki alan dört depoda round-trip; harita bağlanır; `TimeoutSiteTests` güncel (test 12, 19-20, 22)
 - [x] Agent düğümü süresi `ChildDeadline`'ı geçersiz kılar ve resume'u bozmaz; tanım `RunTimeout`'u tavanla sınırlıdır (test 24-28)
-- [ ] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — Aşama 2'de koşulmadı (orkestratöre bırakıldı); birleşik dalda `dotnet build` 0 uyarı ve tam `dotnet test` koşuldu
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9088e92e`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `c2592ccd` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
 - [x] `samples/Tracon.Api` ile gerçek `run` (case 1, 6, 7, 9, 11), çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri iki alan dosyasına eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [x] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
 - [x] `en.ts`/`tr.ts` eksiksiz; bundle payı yazıldı; `CHANGELOG.md` yeni aşırı yüklemeyi anar
+
+### Kapanış kapısı ve yayın provası (`main`, 2026-10-13)
+
+Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`bc3c7d11` → 203, `fac7fbd6` → 196, `c2592ccd` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın tabanı `9088e92e`'dir.
+
+| Kapı | Commit | Sonuç |
+|---|---|---|
+| `python3 scripts/kapi.py kapanis --taban 9088e92e` | `c2592ccd` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
+| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `c2592ccd` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
+
+Önceki prova çıktısı (Faz 197/198, `dcc1a88f`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-dcc1a88f`.
 
 ### Doğrulama komutları
 
@@ -611,4 +622,4 @@ sebebi `JobContext.Signals.Reason`'dan okunur (iç).
 Başlarken"e birer madde aldı. Faz 202 başka bir oturumda uygulanıyor; ortak dosya
 `TimeoutSiteTests` ve `tests/Shared/Time/ManualClock.cs` bu notta.
 
-**Yarım kalan.** `kapi.py kapanis` ve `site-deploy.sh` orkestratöre bırakıldı.
+**Yarım kalan.** `kapi.py kapanis` ve yayın provası birleşik `main`'de yeşil koştu (§ *Kapanış kapısı ve yayın provası*). `site-deploy.sh` koşulmadı: yayın bakımcı onayını bekler (üç fazın site değişikliği birlikte yayınlanır).
