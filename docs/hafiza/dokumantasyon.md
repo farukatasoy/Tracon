@@ -200,3 +200,4 @@ fabrika içinde `DelegateLoopEvaluator` gibi bir lambda kullan. (2) Prelude'un `
 `System.Linq` **yoktur**; `LastOrDefault` `CS1061` verir — dizinle oku (`messages[messages.Count - 1]`).
 `#pragma warning disable MAAI001` ifade bloğunda çalışır; tip bildirimi bloğunun ilk satırı olursa
 blok tip bildirimi sayılmaz.
+- **`security.md` § "The boundaries Tracon enforces" ile `reference/threat-model.md` § "Boundary mapping" birebir eşlenir** (2026-10-13, Faz 198): `check-content.mjs` iki tablonun sınır adlarını karşılaştırır; birine satır eklemek diğerine de satır ve sayıyı ("fourteen" → "fifteen") ister. Ekran görüntüsü damgası (`.ui-source.sha256`) yalnız UI kaynağını hash'ler: değişen bileşen görüntüde görünmüyorsa (Faz 198'de kiracı paneli `settings.png`'nin altında) görüntüleri değil yalnız damgayı tazele — tam üretim her görüntünün sürüm metnini değiştirir ve merge çakışması üretir.

@@ -145,7 +145,7 @@ sıralama kararıdır (gerekçe K-623; tüketici karşılığı governance sayfa
 veritabanında sayılır ve örnek sayısından etkilenmez.
 
 **Kiracı sağlayıcı anahtarları / BYOK ve egress (Faz 65).** Varsayılan
-**kapalıdır**. Açıldığında her model çağrısından önce iki kontrol TEK yerde sırayla çalışır:
+**kapalıdır**. Açıldığında her sağlayıcı çağrısından önce iki kontrol TEK yerde sırayla çalışır:
 **egress** (`tenant_egress_policies`; politika yoksa kısıtsız) ve **kimlik bilgisi**
 (`tenant_provider_bindings`; kayıtta yalnız anahtarın **adı** durur — K-059 — ve ad
 bağlamanın kiracısının alanındadır, K-852). Başka kiracının bağlamasına/politikasına
@@ -156,10 +156,10 @@ anında** reddedilir. Kapsam agent'ın çağırdığı **her** modeldir: kendi m
 fallback'leri, sıkıştırma özetleyicisi (kiracı anahtarı) ve `aiJudge` yargıcı
 (kurulum anahtarı) — async yol hepsini agent'tan önce kurar (K-874). Politika
 önbellek anahtarına girer; kaydedilen politika bir sonraki çözümde etki eder
-(K-875). Sağlayıcı-barındırmalı canlı ses de kapsamdadır: politika ve kiracı
-anahtarı oturumdan önce launcher'da uygulanır; sağlayıcı kiracı anahtarını yalnız
-`SupportsTenantCredentials` ile alır, almayan bağlamalı kiracıya `403` verir (K-878).
-Kural `TenantProviderAccess`'te tek yerdedir. Gerekçe: K-065 · K-059.
+(K-875). Canlı ses (K-878), görsel (K-912) ve konuşma (K-930) da kapsamdadır:
+egress sağlayıcının bildirdiği adla, soket bağlantı başına bir kez. Kiracı
+anahtarını yalnız `SupportsTenantCredentials` diyen sağlayıcı alır; ötekinde
+bağlamalı kiracı `403` alır. Kural `TenantProviderAccess`'te. Gerekçe: K-065 · K-059.
 
 **Kiracının ALTINDA ikinci bir sınır: oturum sahipliği (Faz 148).**
 Varsayılan **kapalıdır**; kapalıyken `sessions.owner_id` `NULL` kalır ve hiçbir
