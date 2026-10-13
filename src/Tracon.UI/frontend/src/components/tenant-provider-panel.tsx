@@ -16,11 +16,18 @@ import {
   TextInput,
   Unauthorized,
 } from './ui';
-import type { TenantProviderBindingResponse as TenantProviderBinding } from '@tracon/client';
+import type { SpeechProviderDescriptor, TenantProviderBindingResponse as TenantProviderBinding } from '@tracon/client';
 import type { ModelProviderDescriptor } from '../lib/server-types';
 
 /**
- * Per-tenant model provider bindings (BYOK) and egress policy (phase 65).
+ * Per-tenant provider bindings (BYOK) and egress policy (phase 65).
+ *
+ * Model and speech providers share ONE name space: a binding and a policy name a
+ * provider by the name its instance reports — for a speech provider that is
+ * `providerName`, never the registration name a request selects it by. The
+ * choices are therefore the model catalog joined with the speech provider list;
+ * with the model catalog alone, a speech vendor could not be allowed or bound
+ * from this screen at all.
  *
  * No field here ever carries a credential value: a binding stores only the
  * NAME of the configuration key the value is read from at call time, and
@@ -79,15 +86,51 @@ export function TenantProviderPanel({ canAdminister }: { canAdminister: boolean 
   );
 }
 
+/**
+ * The provider names a binding or a policy can name: the model catalog joined
+ * with the speech providers, compared without letter case (the server does the
+ * same), sorted. A failed speech list leaves the model names: an older server
+ * has no such endpoint, and that must not empty the choices.
+ */
+function useProviderNames(): string[] {
+  const models = useQuery({
+    queryKey: ['models'],
+    queryFn: () => unwrap(client.GET('/api/models')) as Promise<ModelProviderDescriptor[]>,
+  });
+  const speech = useQuery({
+    queryKey: ['voice-providers'],
+    queryFn: () => unwrap(client.GET('/api/voice/providers')) as Promise<SpeechProviderDescriptor[]>,
+  });
+
+  return mergeProviderNames(
+    (models.data ?? []).map((provider) => provider.name),
+    (speech.data ?? []).map((provider) => provider.providerName),
+  );
+}
+
+/** Joins name lists without letter-case duplicates, keeping the first spelling, sorted. */
+function mergeProviderNames(...lists: readonly string[][]): string[] {
+  const byKey = new Map<string, string>();
+
+  for (const list of lists) {
+    for (const name of list) {
+      const key = name.toLowerCase();
+
+      if (name.trim() !== '' && !byKey.has(key)) {
+        byKey.set(key, name);
+      }
+    }
+  }
+
+  return [...byKey.values()].sort((left, right) => left.localeCompare(right));
+}
+
 function BindingsSection({ tenantId }: { tenantId: string }): ReactNode {
   const t = useT();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  const providers = useQuery({
-    queryKey: ['models'],
-    queryFn: () => unwrap(client.GET('/api/models')) as Promise<ModelProviderDescriptor[]>,
-  });
+  const providerNames = useProviderNames();
   const bindings = useQuery({
     queryKey: ['tenant-provider-bindings', tenantId],
     queryFn: () =>
@@ -123,7 +166,7 @@ function BindingsSection({ tenantId }: { tenantId: string }): ReactNode {
       {open && (
         <BindingForm
           tenantId={tenantId}
-          providerNames={providers.data?.map((provider) => provider.name) ?? []}
+          providerNames={providerNames}
           onSaved={() => {
             setOpen(false);
             void queryClient.invalidateQueries({ queryKey: ['tenant-provider-bindings', tenantId] });
@@ -293,10 +336,7 @@ function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
   const t = useT();
   const queryClient = useQueryClient();
 
-  const providers = useQuery({
-    queryKey: ['models'],
-    queryFn: () => unwrap(client.GET('/api/models')) as Promise<ModelProviderDescriptor[]>,
-  });
+  const providerNames = useProviderNames();
   const policy = useQuery({
     queryKey: ['tenant-egress-policy', tenantId],
     queryFn: () => unwrap(client.GET('/api/tenants/{tenantId}/egress', { params: { path: { tenantId } } })),
@@ -330,10 +370,19 @@ function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
   const allowedProviders = draft ?? policy.data?.allowedProviders ?? null;
   const restricted = allowedProviders != null;
 
+  // A saved name that no registered provider reports any more stays visible:
+  // hidden, it would still be sent back on save and could never be removed.
+  const choices = mergeProviderNames(providerNames, allowedProviders ?? []);
+
   const toggle = (name: string) => {
     const current = allowedProviders ?? [];
+    const key = name.toLowerCase();
 
-    setDraft(current.includes(name) ? current.filter((value) => value !== name) : [...current, name]);
+    setDraft(
+      current.some((value) => value.toLowerCase() === key)
+        ? current.filter((value) => value.toLowerCase() !== key)
+        : [...current, name],
+    );
   };
 
   return (
@@ -361,21 +410,25 @@ function EgressSection({ tenantId }: { tenantId: string }): ReactNode {
           ) : (
             <>
               <div className="flex flex-wrap gap-1.5">
-                {(providers.data ?? []).map((provider) => {
-                  const selected = (allowedProviders ?? []).includes(provider.name);
+                {choices.map((name) => {
+                  const selected = (allowedProviders ?? []).some(
+                    (allowed) => allowed.toLowerCase() === name.toLowerCase(),
+                  );
 
                   return (
                     <button
-                      key={provider.name}
+                      key={name}
                       type="button"
-                      onClick={() => toggle(provider.name)}
+                      data-testid={`tenant-egress-option-${name}`}
+                      aria-pressed={selected}
+                      onClick={() => toggle(name)}
                       className={
                         selected
                           ? 'rounded border border-transparent bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent'
                           : 'rounded border border-line bg-raised px-1.5 py-0.5 text-xs font-medium text-muted'
                       }
                     >
-                      {provider.name}
+                      {name}
                     </button>
                   );
                 })}

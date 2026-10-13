@@ -2070,3 +2070,137 @@ yeniden yeşil doğrulanır. Ancak ondan sonra `☑ Geçti` işaretlenir.
 > taşınmalıdır; İzlek B için ayrı bir case ("boş bağlantı dizesiyle örnek
 > uygulama bellek içi depoya sessizce düşer, `/health` 200 Degraded döner")
 > eklenmelidir.
+
+---
+
+## Spesifikasyondan taşınan kapanış kanıtları (2026-10-13, Faz 197 ve Faz 198 birleştirmesi)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek koşum kanıtı` paragrafları buraya **taşındı** (silinmedi). Her paragraf hangi
+> case'e ait olduğunu başlığıyla söyler; tarih paragrafın kendisindedir.
+
+#### MT-PG-062 — `pgvector` kurulu olmayan PostgreSQL'de knowledge kapalıyken uygulama sorunsuz açılır
+
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: yukarıdaki adımlar `postgres:18-alpine`
+konteynerine karşı BİREBİR çalıştırıldı. Sonuç: `__migrations` 32 satır (hepsi
+`set_name='core'`), `\dx` yalnız `plpgsql`, `/api/diagnostics` `canConnect: true`
+/ `pendingMigrations: []`, `/api/tools` `search_knowledge`'ı DEĞİL yalnız
+`cancel_order`/`get_order_status`/`list_recent_orders`/`list_voices`/
+`read_shopping_cart`/`speak`/`transcribe`'ı listeledi.
+
+#### MT-PG-063 — Aynı ortamda `EnableKnowledge = true` açık ve okunur bir başlangıç hatası verir
+
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: aynı konteynere karşı çalıştırıldı.
+Gerçek hata: `ERROR: 0A000: extension "vector" is not available` /
+`HINT: The extension must first be installed on the system where PostgreSQL is
+running.`; uygulamanın fırlattığı üst seviye istisna tam olarak yukarıdaki
+metni taşıdı. `tracon_case2.__migrations` sorgulandığında `core` setinin
+**32** satırının TAMAMININ başarıyla uygulandığı, yalnız `knowledge` setinin
+hiç satır yazmadığı doğrulandı.
+
+#### MT-PG-064 — `pgvector` kurulu PostgreSQL'de `EnableKnowledge = true` gerçek bir belge yükleme + arama turu tamamlar
+
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: gerçek `ap-pg` konteynerine ve
+gerçek bir OpenAI gömü çağrısına karşı çalıştırıldı. Yükleme `{"sourceId":"doc-1","chunkCount":1}`
+döndü; arama `[{"sourceId":"doc-1","chunkIndex":0,"content":"...","distance":0.693...}]`
+ile yüklenen içeriği BİREBİR döndürdü.
+
+#### MT-PG-066 — SQL Server ve SQLite bu fazdan etkilenmez
+
+**Gerçek koşum kanıtı (2026-08-19, kapanış)**: `Tracon.SqlServer.IntegrationTests`
+540/540, `Tracon.Sqlite.IntegrationTests` 554/554 (ledger yükseltme testi
+dahil) — ikisi de gerçek konteynerlere karşı yeşil.
+
+#### MT-PG-067 — SQL tek kaynak: 117 sorgunun taşınması üretilen SQL'i değiştirmez
+
+**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `Tracon.Sql.Shared.UnitTests`
+8/8; `Tracon.PostgreSql.IntegrationTests` 638/638;
+`Tracon.SqlServer.IntegrationTests` 574/574;
+`Tracon.Sqlite.IntegrationTests` 592/592 — dördü de gerçek sunuculara/dosyaya
+karşı, refactor öncesi ve sonrası aynı sayılarla yeşil. Ayrıca `samples/Tracon.Api`
+gerçek `ap-pg` konteynerine (taze `tracon_p94` şeması, 37 migration) karşı
+çalıştırıldı: `phase94-echo` adlı bir agent tanımı oluşturuldu (maliyetsiz
+`echo` sağlayıcısı — gerçek bir para harcayan sağlayıcıya dokunulmadı), bir
+`run` yapıldı, `GET /tracon/api/runs/{id}` çağrıldı — kayıt `RunOrdinals`
+üzerinden doğru okundu (`status: Completed`, `eventCount: 11`, akış yanıtı
+tam metniyle geldi). `usage`/`cost` bu koşumda `null` döndü çünkü örnek
+uygulamanın `EchoModelProvider`'ı yalnız AKIŞLI yolda kullanım bildirmiyor —
+bu bir Faz 94 kusuru değil, örnek uygulamanın bilinen sınırıdır; DOLU
+usage/cost yolu zaten `RunStoreContract`'ın 382 test'iyle üç gerçek
+veritabanına karşı kanıtlanmıştır. `GET /tracon/api/stats?agentName=phase94-echo`
+de çağrıldı — `SelectRunStatistics` (`CostTotal`/`CountWhereAnyNotNull`
+kullanan sorgu) gerçek PostgreSQL'e karşı çalıştı ve `totalCost: null` (doğru
+— hiçbir koşumun maliyeti yok) döndürdü. Doğrulama şeması temizlendi
+(`DROP SCHEMA tracon_p94 CASCADE`).
+
+#### MT-PG-068 — Dış `NpgsqlDataSource`: tek havuz, iki tüketici
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `samples/Tracon.Embedded`
+yerel bir `postgres:18-alpine` konteynerine karşı gerçek connection string ile
+başlatıldı. `POST /tickets` (`tenantId=acme`) bir `run` üretti
+(`01a03dd5-c07f-7dac-a5c3-e76a05cb85a3`); `psql` ile doğrudan sorgulandı:
+`public."Tickets"` satırının `run_id`'si `tracon.runs.id` ile birebir
+eşleşti, `tracon.runs` satırı `status=1` (`Completed`), `tenant_id='acme'`.
+`GET /tracon/api/runs/{id}` (`X-Host-Tenant: acme` ile) aynı kaydı 200
+döndürdü. Konteyner sonda silindi.
+
+#### MT-PG-069 — `DataSource` ve `ConnectionString` birlikte verilirse başlangıç hatası
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ExternalDataSourceTests
+.DataSource_and_ConnectionString_together_is_rejected` (`Tracon.PostgreSql
+.IntegrationTests`, gerçek PostgreSQL konteynerine karşı) — yeşil. Aynı kural
+`Tracon.SqlServer.IntegrationTests` ve `Tracon.Sqlite
+.IntegrationTests`'in kendi `ExternalDataSourceTests` sınıflarında da
+doğrulandı.
+
+#### MT-PG-070 — Dış data source host kapanışında dispose edilmez
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ExternalDataSourceTests
+.External_data_source_is_not_disposed_when_the_host_stops` ve
+`.Own_data_source_is_disposed_when_the_host_stops` (`Tracon.PostgreSql
+.IntegrationTests`, gerçek PostgreSQL) — ikisi de yeşil. Sahiplik mantığının
+kendisi (`SqlStoreContext.Dispose()`/`DisposeAsync()`'in `OwnsDataSource`'a
+koşullu olması) ayrıca bir spy data source ile izole test edildi:
+`SqlStoreContextDisposalTests`, 5/5 yeşil, Docker gerektirmez.
+
+#### MT-PG-071 — Havuz paylaşımı ölçümü: aynı connection string, iki `NpgsqlDataSource`, tek havuz DEĞİL
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ConnectionPoolSharingTests
+.Two_data_sources_built_from_the_same_connection_string_do_not_share_a_pool`
+(`Tracon.PostgreSql.IntegrationTests`, gerçek PostgreSQL konteynerine
+karşı) — ölçülen backend sayısı tam **10** (`concurrentConnectionsPerSource ×
+2`), iddia edilen **5** değil. Sonuç `embedding.md`'ye ve fazın "Plandan
+Sapmalar" bölümüne yazıldı. 👤 adımı otomatik test `pg_stat_activity`'yi
+doğrudan sorgulayarak yürüttüğü için insan koşumu bu kapanışta atlandı;
+istenirse aynı sorgu elle tekrarlanabilir.
+
+#### MT-PG-072 — `runs_v1` görünümü 111.2 sütun tablosunu birebir karşılar; korunan sütun taşımaz
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewColumnSetTests`
+(`Tracon.Sql.Shared.UnitTests`, veritabanı açmadan, gömülü SQL metni
+üzerinden, üç sağlayıcıda) — sütun kümesi kapısı ve korunan sütun kapısı 6/6
+yeşil. Canlı doğrulama: `ReadViewContractTests` (`Tracon.PostgreSql
+.IntegrationTests`, gerçek PostgreSQL konteynerine karşı) 4/4.
+
+#### MT-PG-073 — `total_cost` store'un raporladığı toplamla birebir eşleşir; tanımsız fiyat `NULL` kalır
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests
+.Total_cost_in_the_view_matches_the_stores_own_statistics` ve
+`.Total_cost_is_null_not_zero_when_pricing_is_undefined`
+(`Tracon.PostgreSql.IntegrationTests`, gerçek konteyner) — ikisi de yeşil.
+Toplam terim kapısı (`ReadViewCostTermTests`, bağlantısız): `runs`'un üç
+`*_cost` sütunu da `total_cost` ifadesinde bulunuyor; K-483 sınıfının
+otomatik taraması.
+
+#### MT-PG-074 — Görünüm kiracı filtrelemez; iki kiracının satırı da görünür
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests
+.View_carries_every_tenants_rows_unfiltered` (gerçek konteyner) — iki
+kiracının satırı da filtresiz sorguda döndü.
+
+#### MT-PG-075 — `EnableReadViews` varsayılan kapalı; açık değilken görünüm hiç kurulmaz
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: repodaki ~40 paylaşılan
+sözleşme test sınıfı `enableReadViews` parametresini varsayılan `false` ile
+kullanır (`PostgresTestContext.Create`) ve tamamı yeşil kaldı — açık istek
+olmadan `views` seti hiçbir zaman devreye girmedi.

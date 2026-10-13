@@ -118,6 +118,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         {
             Data = data,
             MediaType = MediaTypeForFormat(format),
+            ModelId = SynthesisModel(request),
             CharactersBilled = billed ?? request.Text.Length,
 
             // When the provider does not report the count, the value is an
@@ -152,6 +153,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         {
             Data = payload.Data,
             MediaType = MediaTypeForFormat(format),
+            ModelId = SynthesisModel(request),
             CharactersBilled = billed ?? request.Text.Length,
             UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
             Alignment = payload.Alignment,
@@ -304,7 +306,10 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
             await EnsureSuccessAsync(response, "Speech could not be transcribed", cancellationToken).ConfigureAwait(false);
 
-            return await ReadTranscriptAsync(response, cancellationToken).ConfigureAwait(false);
+            var transcript = await ReadTranscriptAsync(response, cancellationToken).ConfigureAwait(false);
+
+            // The model the request was sent with: the price follows what did the work.
+            return transcript with { ModelId = model };
         }
         finally
         {
@@ -422,7 +427,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
             new ElevenLabsSynthesisRequest
             {
                 Text = request.Text,
-                ModelId = request.ModelId ?? _options.SynthesisModelId ?? DefaultSynthesisModel,
+                ModelId = SynthesisModel(request),
                 LanguageCode = request.LanguageCode,
             },
             ElevenLabsJsonContext.Default.ElevenLabsSynthesisRequest);
@@ -436,6 +441,10 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
         return message;
     }
+
+    /// <summary>The model a synthesis request is sent with: the request's, the setting, then the built-in default.</summary>
+    private string SynthesisModel(SpeechRequest request)
+        => request.ModelId ?? _options.SynthesisModelId ?? DefaultSynthesisModel;
 
     private void AddApiKey(HttpRequestMessage message)
     {

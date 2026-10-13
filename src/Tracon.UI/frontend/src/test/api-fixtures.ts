@@ -110,6 +110,7 @@ const DEFAULT_COLLECTION_ROUTES = [
   'api/audit',
   'api/tenants/:tenantId/providers',
   'api/voice/voices',
+  'api/voice/providers',
   'api/stats/timeseries',
   'api/runs/:runId/feedback',
   'api/schedules',

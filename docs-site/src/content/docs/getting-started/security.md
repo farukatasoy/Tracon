@@ -125,7 +125,7 @@ carries the provider's exception as its inner exception.
 ### Acting on another tenant
 
 A few endpoints take the tenant from the request instead of the caller: another
-tenant's model provider bindings and egress policy (`/api/tenants/{tenantId}/providers`,
+tenant's provider bindings and egress policy (`/api/tenants/{tenantId}/providers`,
 `/api/tenants/{tenantId}/egress`) and the tenant records (`/api/tenants`). The
 caller's own tenant needs only the role and scope the endpoint names. Another tenant
 needs platform authority, and each identity proves it differently:
@@ -377,6 +377,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
 | Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant | [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) |
 | Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
+| Tenant provider policy | A tenant's data reaching a model, speech, live voice or image provider its egress policy does not name, or a call billed to the shared key while the tenant has its own | [Per-tenant provider credentials and egress](/concepts/governance/#per-tenant-provider-credentials-and-egress) |
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |

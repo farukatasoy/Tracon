@@ -7,8 +7,8 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// Written once and shared by every path that reaches a provider: the model
-/// registry (the agent's own model, its fallbacks, the summarizer, the loop judge)
-/// and the live voice session. Each path used to carry its own copy of the policy
+/// registry (the agent's own model, its fallbacks, the summarizer, the loop judge),
+/// the live voice session, image generation and the speech provider resolver. Each path used to carry its own copy of the policy
 /// check; a copy that is not there is a provider the tenant forbade receiving the
 /// tenant's data, so the rule lives in one place.
 /// </para>
@@ -47,21 +47,40 @@ internal static class TenantProviderAccess
     public static bool IsAllowed(TenantEgressPolicy? policy, string provider)
         => policy is null || policy.AllowedProviders.Contains(provider, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Describes a refusal by the tenant's egress policy.</summary>
+    /// <summary>Describes a refusal of a model provider by the tenant's egress policy.</summary>
     /// <param name="policy">The policy that refused.</param>
     /// <param name="tenantId">The tenant.</param>
     /// <param name="provider">The refused provider.</param>
     /// <param name="fallbackFor">The primary provider when the refused one is its fallback.</param>
     /// <returns>The message.</returns>
     public static string DescribeDenial(TenantEgressPolicy policy, string tenantId, string provider, string? fallbackFor = null)
+        => DescribeDenial(policy, tenantId, provider, TenantProviderCallKind.Model, fallbackFor);
+
+    /// <summary>Describes a refusal by the tenant's egress policy.</summary>
+    /// <param name="policy">The policy that refused.</param>
+    /// <param name="tenantId">The tenant.</param>
+    /// <param name="provider">The refused provider.</param>
+    /// <param name="kind">The kind of provider the call was for; only changes the noun.</param>
+    /// <param name="fallbackFor">The primary provider when the refused one is its fallback.</param>
+    /// <returns>The message.</returns>
+    public static string DescribeDenial(
+        TenantEgressPolicy policy,
+        string tenantId,
+        string provider,
+        TenantProviderCallKind kind,
+        string? fallbackFor = null)
     {
         ArgumentNullException.ThrowIfNull(policy);
 
         var allowed = string.Join(", ", policy.AllowedProviders);
 
+        // The model wording is pinned by the model-path tests and by clients that
+        // match it; a speech refusal names its own kind instead of claiming a model.
+        var noun = kind == TenantProviderCallKind.Speech ? "speech provider" : "model provider";
+
         return fallbackFor is null
-            ? $"Tenant '{tenantId}' is not allowed to call model provider '{provider}'. Allowed providers: {allowed}."
-            : $"Tenant '{tenantId}' is not allowed to call model provider '{provider}' " +
+            ? $"Tenant '{tenantId}' is not allowed to call {noun} '{provider}'. Allowed providers: {allowed}."
+            : $"Tenant '{tenantId}' is not allowed to call {noun} '{provider}' " +
               $"(used as a fallback for '{fallbackFor}'). Allowed providers: {allowed}.";
     }
 
@@ -105,4 +124,14 @@ internal static class TenantProviderAccess
                 $"`dotnet user-secrets set \"{binding.ApiKeyConfigurationName}\" \"<key>\"` " +
                 "or through your configuration provider — the call does NOT fall back to the global key.");
     }
+}
+
+/// <summary>The kind of provider a tenant check is made for.</summary>
+internal enum TenantProviderCallKind
+{
+    /// <summary>A model provider: the agent's model, a fallback, the summarizer or the loop judge.</summary>
+    Model = 0,
+
+    /// <summary>A speech provider: a synthesizer or a transcriber.</summary>
+    Speech = 1,
 }

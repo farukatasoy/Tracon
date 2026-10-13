@@ -208,3 +208,4 @@ degisiklik o yuzeye hic dokunmuyor (`git status | grep Tracon.UI` bos) ·
 dusen test **degisiyor** (kod kusuru ayni testi dusurur) · E2E host'u yeni
 yetenegi hic kaydetmiyor (`grep -rn "UseLiveVoice" tests/...E2ETests/` bos).
 Biri tutmuyorsa kod yolu okunur.
+- **🚨 Kapının "izole geçti → kaynak çekişmesi" teşhisi, kaynağı çalışma anında OKUYAN testte yanıltır** (2026-10-13, Faz 198): `TestDelayClassificationTests` `tests/` kaynağını tarar; düzeltme tam koşum sürerken diske yazılınca izole yeniden koşum yeni kaynağı okuyup geçti ve kapı gerçek kusuru "çekişme" diye etiketledi. Koşum sürerken kaynağa dokunma ya da teşhisi bu sınıfta yok say.

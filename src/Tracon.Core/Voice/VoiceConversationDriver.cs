@@ -27,6 +27,15 @@ internal sealed record VoiceConversationRequest
     public string? CreatedBy { get; init; }
 }
 
+/// <summary>The two speech providers of one conversation connection.</summary>
+/// <remarks>
+/// Resolved once, while the connection is established, through the tenant's
+/// provider checks; every turn of the connection uses the same pair.
+/// </remarks>
+/// <param name="Transcriber">The transcriber, carrying the tenant's credential when it has one.</param>
+/// <param name="Synthesizer">The synthesizer, carrying the tenant's credential when it has one.</param>
+internal readonly record struct VoiceConversationProviders(ISpeechTranscriber Transcriber, ISpeechSynthesizer Synthesizer);
+
 /// <summary>
 /// Runs the real-time conversation pipeline: audio comes in, text is transcribed,
 /// the <strong>existing run path</strong> processes it, and audio goes out.
@@ -60,6 +69,7 @@ internal sealed class VoiceConversationDriver
     private readonly AgentSessionManager _sessions;
     private readonly ISpeechTranscriber? _transcriber;
     private readonly ISpeechSynthesizer? _synthesizer;
+    private readonly ISpeechProviderResolver _speechProviders;
     private readonly ChatHistoryProvider _chatHistory;
     private readonly IVoiceSessionStore _store;
     private readonly IAttachmentStore _attachments;
@@ -83,6 +93,9 @@ internal sealed class VoiceConversationDriver
     /// cannot open (see <see cref="IsReady"/>).
     /// </param>
     /// <param name="synthesizer">The synthesis provider.</param>
+    /// <param name="speechProviders">
+    /// Resolves the providers of each connection through the tenant's checks.
+    /// </param>
     /// <param name="timeProvider">The time source.</param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public VoiceConversationDriver(
@@ -96,6 +109,7 @@ internal sealed class VoiceConversationDriver
         ILogger<VoiceConversationDriver> logger,
         ISpeechTranscriber? transcriber,
         ISpeechSynthesizer? synthesizer,
+        ISpeechProviderResolver speechProviders,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
@@ -106,6 +120,7 @@ internal sealed class VoiceConversationDriver
         ArgumentNullException.ThrowIfNull(guard);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(speechProviders);
 
         _catalog = catalog;
         _sessions = sessions;
@@ -117,6 +132,7 @@ internal sealed class VoiceConversationDriver
         _logger = logger;
         _transcriber = transcriber;
         _synthesizer = synthesizer;
+        _speechProviders = speechProviders;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _history = new VoiceHistoryWriter(chatHistory, sessions, logger);
 
@@ -147,28 +163,50 @@ internal sealed class VoiceConversationDriver
     /// </remarks>
     public bool PersistAudio => _options.PersistAudio;
 
+    /// <summary>
+    /// Resolves the providers of one connection through the current tenant's checks.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The transcriber and the synthesizer the connection uses.</returns>
+    /// <exception cref="TenantProviderRefusedException">The tenant's checks refuse one of the providers.</exception>
+    /// <remarks>
+    /// The endpoint calls this BEFORE it reserves a slot and upgrades the socket: a
+    /// refused tenant sees an HTTP error, holds no slot, and no audio reaches a
+    /// provider. Both providers are checked; audio goes to the transcriber and the
+    /// answer's text to the synthesizer.
+    /// </remarks>
+    public async ValueTask<VoiceConversationProviders> ResolveProvidersAsync(CancellationToken cancellationToken)
+    {
+        var transcriber = await _speechProviders.GetTranscriberAsync(null, cancellationToken).ConfigureAwait(false);
+        var synthesizer = await _speechProviders.GetSynthesizerAsync(null, cancellationToken).ConfigureAwait(false);
+
+        return new VoiceConversationProviders(transcriber, synthesizer);
+    }
+
     /// <summary>Runs one conversation connection from start to end.</summary>
     /// <param name="socket">The upgraded socket.</param>
     /// <param name="request">The immutable facts of the connection.</param>
+    /// <param name="providers">The providers <see cref="ResolveProvidersAsync"/> returned for the connection.</param>
     /// <param name="cancellationToken">The server shutdown token.</param>
     /// <returns>A task that completes when the connection closes.</returns>
     /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
-    /// <exception cref="InvalidOperationException"><see cref="IsReady"/> is <see langword="false"/>.</exception>
     public async Task RunAsync(
         WebSocket socket,
         VoiceConversationRequest request,
+        VoiceConversationProviders providers,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(socket);
         ArgumentNullException.ThrowIfNull(request);
 
-        if (_transcriber is null || _synthesizer is null)
+        if (providers.Transcriber is null || providers.Synthesizer is null)
         {
-            throw new InvalidOperationException(
-                "The voice layer is not enabled: an ISpeechTranscriber and an ISpeechSynthesizer must be registered.");
+            throw new ArgumentException(
+                "Resolve the providers with ResolveProvidersAsync before running the connection.",
+                nameof(providers));
         }
 
-        using var connection = new VoiceConnection(this, socket, request, _transcriber, _synthesizer);
+        using var connection = new VoiceConnection(this, socket, request, providers.Transcriber, providers.Synthesizer);
 
         await connection.RunAsync(cancellationToken).ConfigureAwait(false);
     }

@@ -5418,8 +5418,17 @@
           "Voice"
         ],
         "summary": "Lists the available voices.",
-        "description": "The list comes from the configured speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent\u0027s \u0027speak\u0027 tool accept. When the speech layer was never enabled with UseVoice(), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.",
+        "description": "The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent\u0027s \u0027speak\u0027 tool accept. The optional \u0027provider\u0027 query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant\u0027s egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.",
         "operationId": "TraconVoiceList",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -5429,6 +5438,62 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/VoiceDescriptor"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tracon/api/voice/providers": {
+      "get": {
+        "tags": [
+          "Tracon",
+          "Voice"
+        ],
+        "summary": "Lists the registered speech providers.",
+        "description": "Each entry is a synthesizer or a transcriber: its registration name (null for the default), its kind, the provider name a tenant\u0027s egress policy and provider bindings use, and whether it can call the service with a tenant\u0027s own credential. Reading the list calls no provider. An empty list means no speech provider is registered.",
+        "operationId": "TraconVoiceProviders",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpeechProviderDescriptor"
                   }
                 }
               }
@@ -5510,7 +5575,7 @@
           "Voice"
         ],
         "summary": "Synthesizes speech from text and saves it as an attachment.",
-        "description": "This is an operator action and is NOT tied to a run; the metering is not written to tool_invocations, it is returned in the response. If persistent metering is required, use the agent\u0027s \u0060speak\u0060 tool.",
+        "description": "This is an operator action and is NOT tied to a run; the metering is not written to tool_invocations, it is returned in the response. If persistent metering is required, use the agent\u0027s \u0060speak\u0060 tool. The optional \u0027provider\u0027 field names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, 403 when the tenant\u0027s egress policy does not allow the provider or the tenant has its own credential that the provider cannot use (the call is not made on the setup credential), and 501 when no default synthesizer is registered.",
         "operationId": "TraconVoiceSpeak",
         "requestBody": {
           "content": {
@@ -5529,6 +5594,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SpeakResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -16017,6 +16122,13 @@
           "includeTimestamps": {
             "type": "boolean",
             "description": "Requests character-level timing alongside the audio. Default \u0060false\u0060."
+          },
+          "provider": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The registration name of the synthesizer to use; \u0060null\u0060 for the\ndefault one."
           }
         },
         "description": "A speech synthesis request as an operator action."
@@ -16100,6 +16212,43 @@
           }
         },
         "description": "One character\u0027s position in the generated audio."
+      },
+      "SpeechProviderDescriptor": {
+        "required": [
+          "kind",
+          "providerName",
+          "supportsTenantCredentials"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the registration name, or \u0060null\u0060 for the unnamed default."
+          },
+          "kind": {
+            "description": "Gets whether the provider synthesizes or transcribes speech.",
+            "$ref": "#/components/schemas/SpeechProviderKind"
+          },
+          "providerName": {
+            "type": "string",
+            "description": "Gets the provider name the instance reports. A tenant\u0027s egress policy and\nprovider bindings name this value, not the registration name."
+          },
+          "supportsTenantCredentials": {
+            "type": "boolean",
+            "description": "Gets whether the provider can call the service with a tenant\u0027s own credential."
+          }
+        },
+        "description": "A registered speech provider, as the speech provider list reports it."
+      },
+      "SpeechProviderKind": {
+        "enum": [
+          "Synthesizer",
+          "Transcriber"
+        ],
+        "description": "The kind of a registered speech provider."
       },
       "Stream": {
         "type": "string",

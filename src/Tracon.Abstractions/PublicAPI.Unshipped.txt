@@ -1236,14 +1236,21 @@ Tracon.ISkillScriptGrantStore.FindActiveAsync(string! tenantId, string! skillNam
 Tracon.ISkillScriptGrantStore.GrantAsync(Tracon.SkillScriptGrant! grant, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SkillScriptGrant!>
 Tracon.ISkillScriptGrantStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.SkillScriptGrant!>!>
 Tracon.ISkillScriptGrantStore.RevokeAsync(string! tenantId, string! skillName, string? scriptName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.ISpeechProviderResolver
+Tracon.ISpeechProviderResolver.GetSynthesizerAsync(string? name = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ISpeechSynthesizer!>
+Tracon.ISpeechProviderResolver.GetTranscriberAsync(string? name = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ISpeechTranscriber!>
+Tracon.ISpeechProviderResolver.Providers.get -> System.Collections.Generic.IReadOnlyList<Tracon.SpeechProviderDescriptor!>!
 Tracon.ISpeechSynthesizer
 Tracon.ISpeechSynthesizer.ListVoicesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.VoiceDescriptor!>!>
+Tracon.ISpeechSynthesizer.ListVoicesWithCredentialAsync(Tracon.ModelProviderCredential? credential, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.VoiceDescriptor!>!>
 Tracon.ISpeechSynthesizer.MaxCharactersPerRequest.get -> int
 Tracon.ISpeechSynthesizer.ProviderName.get -> string!
+Tracon.ISpeechSynthesizer.SupportsTenantCredentials.get -> bool
 Tracon.ISpeechSynthesizer.SynthesizeAsync(Tracon.SpeechRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SpeechAudio!>
 Tracon.ISpeechSynthesizer.SynthesizeStreamingAsync(Tracon.SpeechRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<System.ReadOnlyMemory<byte>>!
 Tracon.ISpeechTranscriber
 Tracon.ISpeechTranscriber.ProviderName.get -> string!
+Tracon.ISpeechTranscriber.SupportsTenantCredentials.get -> bool
 Tracon.ISpeechTranscriber.TranscribeAsync(System.IO.Stream! audio, string! mediaType, Tracon.SpeechTranscriptionOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SpeechTranscript!>
 Tracon.ISqlPersistenceDiagnostics
 Tracon.ISqlPersistenceDiagnostics.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SqlPersistenceDiagnosticsSnapshot!>
@@ -1302,6 +1309,8 @@ Tracon.IVoiceHealthCheck.CheckHealthAsync(System.Threading.CancellationToken can
 Tracon.IVoicePricingReader
 Tracon.IVoicePricingReader.Currency.get -> string?
 Tracon.IVoicePricingReader.ForCharacters(decimal characters) -> decimal?
+Tracon.IVoicePricingReader.ForSynthesis(string! providerName, string? modelId, decimal characters) -> decimal?
+Tracon.IVoicePricingReader.ForTranscription(string! providerName, string? modelId, System.TimeSpan duration) -> decimal?
 Tracon.IVoiceSessionStore
 Tracon.IVoiceSessionStore.QueryAsync(string! tenantId, Tracon.VoiceSessionQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.VoiceSessionRecord!>!>
 Tracon.IVoiceSessionStore.SaveAsync(Tracon.VoiceSessionRecord! record, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -3183,6 +3192,8 @@ Tracon.SpeakRequest.<Clone>$() -> Tracon.SpeakRequest!
 Tracon.SpeakRequest.Equals(Tracon.SpeakRequest? other) -> bool
 Tracon.SpeakRequest.IncludeTimestamps.get -> bool
 Tracon.SpeakRequest.IncludeTimestamps.init -> void
+Tracon.SpeakRequest.Provider.get -> string?
+Tracon.SpeakRequest.Provider.init -> void
 Tracon.SpeakRequest.SessionId.get -> string?
 Tracon.SpeakRequest.SessionId.init -> void
 Tracon.SpeakRequest.SpeakRequest() -> void
@@ -3227,11 +3238,30 @@ Tracon.SpeechAudio.Duration.get -> System.TimeSpan?
 Tracon.SpeechAudio.Duration.init -> void
 Tracon.SpeechAudio.MediaType.get -> string!
 Tracon.SpeechAudio.MediaType.init -> void
+Tracon.SpeechAudio.ModelId.get -> string?
+Tracon.SpeechAudio.ModelId.init -> void
 Tracon.SpeechAudio.SpeechAudio() -> void
 Tracon.SpeechAudio.UsageSource.get -> Tracon.SpeechUsageSource
 Tracon.SpeechAudio.UsageSource.init -> void
+Tracon.SpeechProviderDescriptor
+Tracon.SpeechProviderDescriptor.<Clone>$() -> Tracon.SpeechProviderDescriptor!
+Tracon.SpeechProviderDescriptor.Equals(Tracon.SpeechProviderDescriptor? other) -> bool
+Tracon.SpeechProviderDescriptor.Kind.get -> Tracon.SpeechProviderKind
+Tracon.SpeechProviderDescriptor.Kind.init -> void
+Tracon.SpeechProviderDescriptor.Name.get -> string?
+Tracon.SpeechProviderDescriptor.Name.init -> void
+Tracon.SpeechProviderDescriptor.ProviderName.get -> string!
+Tracon.SpeechProviderDescriptor.ProviderName.init -> void
+Tracon.SpeechProviderDescriptor.SpeechProviderDescriptor() -> void
+Tracon.SpeechProviderDescriptor.SupportsTenantCredentials.get -> bool
+Tracon.SpeechProviderDescriptor.SupportsTenantCredentials.init -> void
+Tracon.SpeechProviderKind
+Tracon.SpeechProviderKind.Synthesizer = 0 -> Tracon.SpeechProviderKind
+Tracon.SpeechProviderKind.Transcriber = 1 -> Tracon.SpeechProviderKind
 Tracon.SpeechRequest
 Tracon.SpeechRequest.<Clone>$() -> Tracon.SpeechRequest!
+Tracon.SpeechRequest.Credential.get -> Tracon.ModelProviderCredential?
+Tracon.SpeechRequest.Credential.init -> void
 Tracon.SpeechRequest.Equals(Tracon.SpeechRequest? other) -> bool
 Tracon.SpeechRequest.IncludeTimestamps.get -> bool
 Tracon.SpeechRequest.IncludeTimestamps.init -> void
@@ -3255,11 +3285,15 @@ Tracon.SpeechTranscript.LanguageCode.get -> string?
 Tracon.SpeechTranscript.LanguageCode.init -> void
 Tracon.SpeechTranscript.LanguageProbability.get -> double?
 Tracon.SpeechTranscript.LanguageProbability.init -> void
+Tracon.SpeechTranscript.ModelId.get -> string?
+Tracon.SpeechTranscript.ModelId.init -> void
 Tracon.SpeechTranscript.SpeechTranscript() -> void
 Tracon.SpeechTranscript.Text.get -> string!
 Tracon.SpeechTranscript.Text.init -> void
 Tracon.SpeechTranscriptionOptions
 Tracon.SpeechTranscriptionOptions.<Clone>$() -> Tracon.SpeechTranscriptionOptions!
+Tracon.SpeechTranscriptionOptions.Credential.get -> Tracon.ModelProviderCredential?
+Tracon.SpeechTranscriptionOptions.Credential.init -> void
 Tracon.SpeechTranscriptionOptions.Equals(Tracon.SpeechTranscriptionOptions? other) -> bool
 Tracon.SpeechTranscriptionOptions.LanguageCode.get -> string?
 Tracon.SpeechTranscriptionOptions.LanguageCode.init -> void
@@ -5023,6 +5057,9 @@ override Tracon.SpeakResponse.ToString() -> string!
 override Tracon.SpeechAlignment.Equals(object? obj) -> bool
 override Tracon.SpeechAlignment.GetHashCode() -> int
 override Tracon.SpeechAlignment.ToString() -> string!
+override Tracon.SpeechProviderDescriptor.Equals(object? obj) -> bool
+override Tracon.SpeechProviderDescriptor.GetHashCode() -> int
+override Tracon.SpeechProviderDescriptor.ToString() -> string!
 override Tracon.SpeechRequest.Equals(object? obj) -> bool
 override Tracon.SpeechRequest.GetHashCode() -> int
 override Tracon.SpeechRequest.ToString() -> string!
@@ -5546,6 +5583,8 @@ static Tracon.SpeakResponse.operator !=(Tracon.SpeakResponse? left, Tracon.Speak
 static Tracon.SpeakResponse.operator ==(Tracon.SpeakResponse? left, Tracon.SpeakResponse? right) -> bool
 static Tracon.SpeechAlignment.operator !=(Tracon.SpeechAlignment? left, Tracon.SpeechAlignment? right) -> bool
 static Tracon.SpeechAlignment.operator ==(Tracon.SpeechAlignment? left, Tracon.SpeechAlignment? right) -> bool
+static Tracon.SpeechProviderDescriptor.operator !=(Tracon.SpeechProviderDescriptor? left, Tracon.SpeechProviderDescriptor? right) -> bool
+static Tracon.SpeechProviderDescriptor.operator ==(Tracon.SpeechProviderDescriptor? left, Tracon.SpeechProviderDescriptor? right) -> bool
 static Tracon.SpeechRequest.operator !=(Tracon.SpeechRequest? left, Tracon.SpeechRequest? right) -> bool
 static Tracon.SpeechRequest.operator ==(Tracon.SpeechRequest? left, Tracon.SpeechRequest? right) -> bool
 static Tracon.SpeechTranscript.operator !=(Tracon.SpeechTranscript? left, Tracon.SpeechTranscript? right) -> bool

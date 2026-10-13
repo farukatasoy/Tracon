@@ -66,6 +66,14 @@ public sealed class ListVoicesToolTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<ISpeechSynthesizer>(new FakeSpeechSynthesizer(voices));
+        services.AddSingleton<ITenantContext>(new FixedTenantContext("tenant-1"));
+        services.AddSingleton<ISpeechProviderResolver>(static provider => new SpeechProviderResolver(
+            provider,
+            [],
+            provider.GetRequiredService<ITenantContext>(),
+            egressPolicies: null,
+            providerBindings: null,
+            credentialResolver: null));
 
         await using var provider = services.BuildServiceProvider();
         var tool = new ListVoicesTool(provider);

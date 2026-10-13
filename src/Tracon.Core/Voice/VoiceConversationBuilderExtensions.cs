@@ -122,6 +122,7 @@ public static class VoiceConversationBuilderExtensions
             provider.GetRequiredService<ILogger<VoiceConversationDriver>>(),
             provider.GetService<ISpeechTranscriber>(),
             provider.GetService<ISpeechSynthesizer>(),
+            provider.GetRequiredService<ISpeechProviderResolver>(),
             provider.GetService<TimeProvider>()));
 
         return builder;

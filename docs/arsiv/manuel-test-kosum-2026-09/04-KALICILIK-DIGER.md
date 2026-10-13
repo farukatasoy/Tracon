@@ -305,3 +305,55 @@ geçerli, sayı büyüdü).** `dotnet test tests/Tracon.Sqlite.IntegrationTests
 kullanan sorgular noktasız ad üretiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Spesifikasyondan taşınan kapanış kanıtları (2026-10-13, Faz 197 ve Faz 198 birleştirmesi)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek koşum kanıtı` paragrafları buraya **taşındı** (silinmedi). Her paragraf hangi
+> case'e ait olduğunu başlığıyla söyler; tarih paragrafın kendisindedir.
+
+#### MT-SQL-074 — SQLite: SQL tek kaynak sonrası tablo nitelendirmesi noktasız kalır
+
+**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `Tracon.Sqlite.IntegrationTests`
+592/592, gerçek dosya veritabanına karşı; anlık görüntü dosyası elle kontrol
+edildi, tüm tablo adları noktasız.
+
+#### MT-SQL-075 — Boşluk kapısı: bir sorgu `string.Empty`'ye ezilirse `SqlQueryCompletenessTests` düşer
+
+**Gerçek koşum kanıtı (2026-08-24, kapanış)**: `UpsertMcpServer`'ı elle
+`string.Empty` yaptım — test `["UpsertMcpServer"]` mesajıyla düştü; geri
+alınınca `Tracon.Sql.Shared.UnitTests` 8/8.
+
+#### MT-SQL-076 — SQL Server ve SQLite'ta dış `DataSource`: simetri, sahiplik ve çakışma
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `Tracon.SqlServer
+.IntegrationTests.ExternalDataSourceTests` 4/4 (gerçek SQL Server 2022
+konteynerine karşı: `DataSource_and_ConnectionString_together_is_rejected` ·
+`DataSource_alone_does_not_require_a_connection_string` ·
+`External_data_source_is_not_disposed_when_the_host_stops` — migration'lar
+gerçekten uygulandı, `__migrations` satır sayısı > 0 — ·
+`Own_data_source_is_marked_as_owned`). `Tracon.Sqlite.IntegrationTests
+.ExternalDataSourceTests` 4/4, aynı dört senaryo, gerçek dosya veritabanına
+karşı.
+
+#### MT-SQL-077 — SQL Server: `runs_v1` içindeki toplam maliyet store'un raporladığıyla eşleşir; `CREATE OR ALTER VIEW` ledger INSERT'i ile aynı toplu işte çakışmaz
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests`
+(`Tracon.SqlServer.IntegrationTests`, gerçek SQL Server konteynerine
+karşı) 4/4 — toplam maliyet eşleşmesi, `NULL` koruması, `status_name`
+eşlemesi ve kiracı filtresizliği. Ayrıca tam paket koşumu (586/586) migration
+uygulamasının hiçbir yan etki bırakmadığını doğruladı.
+
+#### MT-SQL-078 — SQLite: `{prefix}runs_v1` nokta olmadan kurulur; karışık afinite açık `CAST` ile doğru toplanır
+
+**Gerçek koşum kanıtı (2026-08-26, kapanış)**: `ReadViewContractTests`
+(`Tracon.Sqlite.IntegrationTests`, gerçek dosya veritabanına karşı) 4/4.
+Ayrı bir kusur bu case'in geliştirilmesi sırasında bulundu ve düzeltildi:
+`SqliteTestContext.DisposeAsync()` yalnız tabloları siliyordu, `runs_v1`
+görünümünü SİLMİYORDU — sarkan görünüm bir SONRAKİ, ilgisiz testin
+`ALTER TABLE ... RENAME` migration'ını "no such table" ile düşürüyordu (ölçüldü:
+art arda 4 bağlam oluşturan sıralı bir döngü ikinci bağlamda her seferinde
+patlıyordu). Düzeltme sonrası tam paket koşumu (600/600) ve üç ardışık koşu
+yeşil kaldı. Ayrıntı: `docs/hafiza/sqlite.md`.

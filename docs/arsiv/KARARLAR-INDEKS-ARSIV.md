@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (869 kalem)
+## Arşivlenen Kararlar (872 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -878,3 +878,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-867 | 918 | `ITraconBuilder` yalnız `Services` taşır; Tracon'un bütün kayıt yetenekleri statik uzantı metodudur (`TraconBuilderExtensions`, Core) ve arayüze üye eklenmez. `TraconToolRegistration` tek zorunlu kurucu parametresi (`function`) + yedi `init` ayarı kullanır; yeni tool ayarı `init` özelliğidir. Kaldırılan imzalar `[Obsolete]` geçişi olmadan kalktı, önceki preview ikilisi yeniden derlenir (Faz 189, F-271 B) (kullanıcı kararı) 👤 |
 | K-868 | 919 | Kimlik başlığı yalnız anahtar ADIYLA saklanır (`HeaderConfigurationKeys`, MCP + webhook); her ad kaydetmede ve çözmede K-852'den geçer; düz `headers`'ta kimlik benzeri ad `400`; eski satır gönderilir ve uyarı loglanır (Faz 190, K-059'u genişletir) (kullanıcı kararı) 👤 |
 | K-869 | 920 | `AuthorizationConfigurationKey` `[Obsolete]` (yalnız mesaj; `DiagnosticId` ve `UrlFormat` YOK), `1.0.0`'da kalkar; iki alandan veya OAuth ile `Authorization` `400` (Faz 190) (kullanıcı kararı) 👤 |
+| K-870 | 921 | MCP/webhook `PUT`: `headers` veya `headerConfigurationKeys` yok ya da `null` → saklı değer; `{}` temizler (Faz 190) (kullanıcı kararı) 👤 |
+| K-871 | 922 | Bir `v*` etiketinin nuget.org'a ittiği her `.nupkg`/`.snupkg`, aynı workflow koşumunda build işinin ubuntu bacağının derleyip test ettiği derlemeden `--no-build` ile üretilen dosyadır; `release-dryrun` onu paketlemeden doğrular, `publish` SHA-256 manifest'ini yeniden sınayıp yalnız onu iter; CI'da ikinci bir yayın `dotnet pack`'i yoktur (Faz 191, F-273) (kullanıcı kararı) 👤 |
+| K-872 | 923 | Bir paketin ön sürüm üçüncü taraf bağımlılığı nuspec'te tam aralıktır (`[x]`); kararlı üçüncü taraf bağımlılık NuGet'in alt sınırında kalır (A-59, UR-006 A, UR-008 B) (kullanıcı kararı) 👤 |
