@@ -192,7 +192,7 @@ HTTP connection is never resumed automatically.
 | `MaxNodeSettingsLength` | 16384 bytes | The largest JSON a function node's settings may be when a workflow is saved |
 | `EnableCheckpointing` | `true` | Checkpoint writing |
 | `ResumeInterruptedRuns` | `false` | A job resumes the workflow run it was running when its process stopped |
-| `MaxResumeAttempts` | 1 | The continuations one interrupted run may get, from 0 to 100 |
+| `MaxResumeAttempts` | 1 | The continuations one interrupted run may get, from 0 to 100. A queued run's job gets two more attempts than this; the last one closes the chain |
 
 This package is **not AOT compatible**: the execution engine uses reflection.
 Other Tracon packages are not affected.

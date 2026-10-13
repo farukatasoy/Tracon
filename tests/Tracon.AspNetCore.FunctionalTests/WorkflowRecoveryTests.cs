@@ -230,7 +230,8 @@ public sealed class WorkflowRecoveryTests
         await using var lifetime = probe;
         await SaveRecoverableAsync(host);
 
-        await EnqueueBatchAsync(host, "episode 7");
+        // Two continuations and the attempt that would close the chain.
+        await EnqueueBatchAsync(host, "episode 7", maxAttempts: 4);
 
         await StartDoomedAttemptAsync(host, probe, DeadLease);
         await StartDoomedAttemptAsync(host, probe, DeadLease, waitForCheckpoint: false);
@@ -383,13 +384,14 @@ public sealed class WorkflowRecoveryTests
         probe.FirstCalls.ShouldBe(1);
     }
 
-    private static async Task<Guid> EnqueueBatchAsync(TraconTestHost host, string item)
+    private static async Task<Guid> EnqueueBatchAsync(TraconTestHost host, string item, int? maxAttempts = null)
         => (await host.Services.GetRequiredService<IJobDispatcher>().EnqueueAsync(new JobRequest
         {
             TenantId = TenantOf(host),
             HandlerKey = JobHandlerKeys.Workflow,
             TargetName = Recoverable,
             Items = [item],
+            MaxAttempts = maxAttempts,
         })).Id;
 
     private static Task<TraconTestHost> StartOnDatabaseAsync(RecoveryProbe probe, TempSqliteDatabase database)

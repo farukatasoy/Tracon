@@ -69,19 +69,30 @@ public sealed class WorkflowRecoveryOptionsValidationTests
 
         policy.ResumeInterruptedRuns.ShouldBeTrue();
         policy.MaxResumeAttempts.ShouldBe(2);
-        WorkflowRecoveryPolicy.JobAttempts(policy, asyncRunMaxAttempts: 1).ShouldBe(3);
+        WorkflowRecoveryPolicy.JobAttempts(policy, asyncRunMaxAttempts: 1).ShouldBe(4);
         WorkflowRecoveryPolicy.JobAttempts(policy: null, asyncRunMaxAttempts: 1).ShouldBe(1);
     }
 
+    /// <summary>
+    /// Zero continuations still needs a second attempt: the worker fails a lease past
+    /// the limit before the handler runs, and only the handler on the lease after the
+    /// interruption can find the run and close it. The end-to-end proof, through the
+    /// worker's own attempt check, is
+    /// <c>WorkflowRecoveryAttemptLimitTests.With_no_continuation_allowed_the_lease_after_the_interruption_closes_the_run_Failed</c>.
+    /// </summary>
     [Fact]
-    public void Zero_continuations_is_allowed_and_keeps_the_detection()
+    public void Zero_continuations_is_allowed_and_leaves_the_job_the_attempt_that_closes_the_interrupted_run()
     {
         using var provider = Build(
             ("Tracon:Workflows:ResumeInterruptedRuns", "true"),
             ("Tracon:Workflows:MaxResumeAttempts", "0"));
 
         provider.GetRequiredService<IStartupValidator>().Validate();
-        WorkflowRecoveryPolicy.JobAttempts(provider.GetRequiredService<IWorkflowRecoveryPolicy>(), asyncRunMaxAttempts: 5).ShouldBe(1);
+
+        var policy = provider.GetRequiredService<IWorkflowRecoveryPolicy>();
+
+        policy.MaxResumeAttempts.ShouldBe(0);
+        WorkflowRecoveryPolicy.JobAttempts(policy, asyncRunMaxAttempts: 5).ShouldBe(2, "one attempt for the run, one that finds it interrupted and closes it");
     }
 
     private static ServiceProvider Build(params (string Key, string Value)[] settings)

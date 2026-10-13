@@ -40,9 +40,17 @@ namespace Tracon;
 /// starts. A job leased again after its process stopped finds that item still
 /// pending with a run id, and <see cref="WorkflowRecovery"/> decides: the run
 /// finished (the item is reported), it was interrupted (a continuation resumes it
-/// from the latest checkpoint), or the chain is at its limit (the item fails). While
-/// the setting is off, nothing is written before the run and an interrupted item
-/// runs again from the beginning, as before.
+/// from the latest checkpoint), or the chain is at its limit (the item fails). The
+/// job's own attempt limit applies too: its last attempt closes an interrupted item
+/// instead of continuing it, so a batch job needs <c>2 + MaxResumeAttempts</c>
+/// attempts to get every continuation. While the setting is off, nothing is written
+/// before the run and an interrupted item runs again from the beginning, as before.
+/// </para>
+/// <para>
+/// A store error while an item's run id is written or its chain is read or extended
+/// fails the attempt, not the item: the item stays pending and the next attempt
+/// plans it again. So does a refused continuation whose queued row could not be
+/// closed. A run's own failure fails only its item.
 /// </para>
 /// <para>
 /// When the worker stops, the run's stream ends quietly and the run closes as
@@ -97,35 +105,47 @@ internal sealed class WorkflowJobHandler(
             }
             else
             {
-                try
+                // The recovery step stays OUTSIDE the catch below: a store error
+                // while the marker is written or the chain is read or extended
+                // fails this attempt, not the item.
+                var start = await PrepareItemAsync(context, item, input, queued, run, cancellationToken).ConfigureAwait(false);
+
+                if (start is not null)
                 {
-                    await RunItemAsync(context, item, input, queued, run, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
-                {
-                    var correlationId = SafeErrorText.NewCorrelationId();
-
-                    if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                    try
                     {
-                        logger.LogWarning(
-                            exception,
-                            "Batch job item failed: job={JobId} sequence={Seq} workflow={WorkflowName} (ref: {CorrelationId})",
-                            context.Job.Id,
-                            item.Seq,
-                            context.Job.TargetName,
-                            correlationId);
+                        await ConsumeAsync(start(), run, cancellationToken).ConfigureAwait(false);
                     }
-
-                    // A run the engine refused before it started would stay
-                    // Queued: a continuation's row is written before the engine
-                    // sees it.
-                    if (run.OpenedRunId is { } opened)
+                    catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
                     {
-                        await recovery.CloseIfQueuedAsync(opened, exception, correlationId).ConfigureAwait(false);
-                    }
+                        var correlationId = SafeErrorText.NewCorrelationId();
 
-                    run.Failed = true;
-                    run.Error = SafeErrorText.ForPersistence(exception, correlationId);
+                        if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                        {
+                            logger.LogWarning(
+                                exception,
+                                "Batch job item failed: job={JobId} sequence={Seq} workflow={WorkflowName} (ref: {CorrelationId})",
+                                context.Job.Id,
+                                item.Seq,
+                                context.Job.TargetName,
+                                correlationId);
+                        }
+
+                        // A run the engine refused before it started would stay
+                        // Queued: a continuation's row is written before the engine
+                        // sees it. If it cannot be closed, the attempt fails and the
+                        // item stays pending: the next attempt finds the row.
+                        if (run.OpenedRunId is { } opened &&
+                            !await recovery.CloseIfQueuedAsync(opened, exception, correlationId).ConfigureAwait(false))
+                        {
+                            throw new TraconException(
+                                $"Workflow run '{opened}' was refused, and its row could not be closed; the job is tried again to close it. (ref: {correlationId})",
+                                exception);
+                        }
+
+                        run.Failed = true;
+                        run.Error = SafeErrorText.ForPersistence(exception, correlationId);
+                    }
                 }
             }
 
@@ -148,8 +168,16 @@ internal sealed class WorkflowJobHandler(
         }
     }
 
-    /// <summary>Runs, resumes or settles one item's workflow and records the outcome on <paramref name="run"/>.</summary>
-    private async ValueTask RunItemAsync(
+    /// <summary>
+    /// Settles, closes or prepares one item's workflow, and records what is known on
+    /// <paramref name="run"/>.
+    /// </summary>
+    /// <returns>Starts the item's run when called; <see langword="null"/> when nothing runs.</returns>
+    /// <remarks>
+    /// Every store call here lets its error propagate; the run itself starts only when
+    /// the caller invokes the result, inside the item's own failure handling.
+    /// </remarks>
+    private async ValueTask<Func<IAsyncEnumerable<RunEvent>>?> PrepareItemAsync(
         JobContext context,
         JobItemRecord item,
         BatchItemInput input,
@@ -160,12 +188,7 @@ internal sealed class WorkflowJobHandler(
         if (!recovery.IsOn)
         {
             // The behavior before recovery existed: no marker, a fresh run id.
-            await ConsumeAsync(
-                runner!.RunStreamingAsync(Request(context, input, input.SessionId, runId: null), cancellationToken),
-                run,
-                cancellationToken).ConfigureAwait(false);
-
-            return;
+            return () => runner!.RunStreamingAsync(Request(context, input, input.SessionId, runId: null), cancellationToken);
         }
 
         if (item.RunId is not { } marked)
@@ -180,52 +203,43 @@ internal sealed class WorkflowJobHandler(
 
             run.RunId = runId;
 
-            await ConsumeAsync(
-                runner!.RunStreamingAsync(Request(context, input, input.SessionId, runId), cancellationToken),
-                run,
-                cancellationToken).ConfigureAwait(false);
-
-            return;
+            return () => runner!.RunStreamingAsync(Request(context, input, input.SessionId, runId), cancellationToken);
         }
 
-        var plan = await recovery.PlanAsync(marked, context.Job.TenantId, cancellationToken).ConfigureAwait(false);
+        var plan = await recovery.PlanAsync(marked, context.Job, cancellationToken).ConfigureAwait(false);
         run.RunId = marked;
 
         switch (plan.Step)
         {
             case WorkflowRecoveryStep.NotStarted:
-                await ConsumeAsync(
-                    runner!.RunStreamingAsync(Request(context, input, input.SessionId, marked), cancellationToken),
-                    run,
-                    cancellationToken).ConfigureAwait(false);
-                return;
+                return () => runner!.RunStreamingAsync(Request(context, input, input.SessionId, marked), cancellationToken);
 
             case WorkflowRecoveryStep.Settled:
                 run.RunId = plan.Last!.Id;
-                return;
+                return null;
 
             case WorkflowRecoveryStep.Exhausted:
-                await recovery.CloseInterruptedAsync(plan.Last!, null, plan.Chain.Count - 1, cancellationToken).ConfigureAwait(false);
+                await recovery.CloseChainAsync(plan, cancellationToken).ConfigureAwait(false);
                 run.RunId = plan.Last!.Id;
                 run.Failed = true;
-                run.Error = $"The workflow run was interrupted and is not continued: run '{plan.Last!.Id}' already has " +
-                            $"{plan.Chain.Count - 1} continuation run(s), and 'Tracon:Workflows:MaxResumeAttempts' allows no more.";
-                return;
+                run.Error = $"The workflow run was interrupted and is not continued: {plan.NotContinuedReason}.";
+                return null;
 
             default:
-                var continuation = plan.ContinuationRunId!.Value;
-
-                await recovery.CloseInterruptedAsync(plan.Last!, continuation, plan.Chain.Count - 1, cancellationToken).ConfigureAwait(false);
+                // Opened BEFORE the interrupted run is closed: the closed run
+                // names the continuation, and the name must point at a row.
                 await recovery.OpenContinuationAsync(plan, queued?.UserId, queued?.Labels, cancellationToken).ConfigureAwait(false);
+                await recovery.CloseChainAsync(plan, cancellationToken).ConfigureAwait(false);
 
+                var continuation = plan.ContinuationRunId!.Value;
                 run.RunId = continuation;
                 run.OpenedRunId = continuation;
 
                 // No checkpoint in the chain: the process stopped before the first
                 // super-step ended, so there is nothing to resume from and the item
                 // runs again, in the same session.
-                var events = plan.Checkpoint is { } checkpoint
-                    ? runner!.ResumeStreamingAsync(
+                return plan.Checkpoint is { } checkpoint
+                    ? () => runner!.ResumeStreamingAsync(
                         new WorkflowResumeRequest
                         {
                             RunId = checkpoint.RunId,
@@ -233,10 +247,7 @@ internal sealed class WorkflowJobHandler(
                             NewRunId = continuation,
                         },
                         cancellationToken)
-                    : runner!.RunStreamingAsync(Request(context, input, plan.SessionId ?? input.SessionId, continuation), cancellationToken);
-
-                await ConsumeAsync(events, run, cancellationToken).ConfigureAwait(false);
-                return;
+                    : () => runner!.RunStreamingAsync(Request(context, input, plan.SessionId ?? input.SessionId, continuation), cancellationToken);
         }
     }
 

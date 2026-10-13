@@ -201,9 +201,17 @@ public sealed class TraconWorkflowOptions
     /// instead of running the workflow again from the beginning.
     /// </para>
     /// <para>
-    /// A queued single run's job is given <c>1 + MaxResumeAttempts</c> attempts
-    /// while recovery is on, one lease for each continuation; a batch job keeps
-    /// its own attempt limit. Must be from 0 to 100.
+    /// The worker fails a job's lease past its attempt limit before the job's
+    /// handler runs, so the job's last attempt never starts a continuation: a
+    /// continuation it started would have nobody left to close it if it were
+    /// interrupted too. The last attempt closes the chain instead. A queued single
+    /// run's job is therefore given <c>2 + MaxResumeAttempts</c> attempts while
+    /// recovery is on: one for the run, one per continuation, and the last one
+    /// that closes the chain. A batch job keeps its own attempt limit
+    /// (<c>Tracon:Scheduling:MaxAttempts</c>, three by default, or the job's
+    /// <c>maxAttempts</c>) and gets at most two fewer continuations per item than
+    /// that limit: give it <c>2 + MaxResumeAttempts</c> attempts to get them all.
+    /// Must be from 0 to 100.
     /// </para>
     /// </remarks>
     public int MaxResumeAttempts { get; set; } = 1;

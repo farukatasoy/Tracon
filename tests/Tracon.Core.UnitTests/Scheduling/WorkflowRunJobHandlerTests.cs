@@ -120,8 +120,8 @@ public sealed class WorkflowRunJobHandlerTests
     {
         var inner = new InMemoryRunStore();
         var runId = await QueueAsync(inner);
-        var runs = new ReadFailsAfterCompletion(inner);
-        var handler = new WorkflowRunJobHandler(new ScriptedRunner(inner, RunStatus.Completed, runs.Arm), Recovery(runs), NullLogger<WorkflowRunJobHandler>.Instance);
+        var runs = new FaultyRunStore(inner);
+        var handler = new WorkflowRunJobHandler(new ScriptedRunner(inner, RunStatus.Completed, () => runs.FailReads = true), Recovery(runs), NullLogger<WorkflowRunJobHandler>.Instance);
 
         await handler.ExecuteAsync(Context(runId, RunPayload(runId)));
 
@@ -140,6 +140,98 @@ public sealed class WorkflowRunJobHandlerTests
 
         runner.Started.ShouldBe(0);
     }
+
+    /// <summary>
+    /// A store error while the chain is read fails the attempt, not the work: the
+    /// worker retries it, and nothing was written that the next attempt would misread.
+    /// </summary>
+    [Fact]
+    public async Task With_recovery_on_a_store_error_while_reading_the_chain_fails_the_attempt_not_the_work()
+    {
+        var inner = new InMemoryRunStore();
+        var runId = await QueueAsync(inner);
+        var runs = new FaultyRunStore(inner) { FailReads = true };
+        var runner = new ScriptedRunner(inner);
+        var handler = new WorkflowRunJobHandler(runner, RecoveryOn(runs), NullLogger<WorkflowRunJobHandler>.Instance);
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(() => handler.ExecuteAsync(Context(runId, RunPayload(runId))).AsTask());
+
+        exception.ShouldNotBeAssignableTo<NonRetryableJobException>();
+        runner.Started.ShouldBe(0);
+        (await inner.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Queued, "the next attempt starts it");
+
+        runs.FailReads = false;
+        await handler.ExecuteAsync(Context(runId, RunPayload(runId)));
+
+        (await inner.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Completed);
+    }
+
+    /// <summary>
+    /// The continuation's row is written BEFORE the interrupted run is closed naming
+    /// it. A write that fails leaves the run open, not closed with the name of a run
+    /// that does not exist, and the next attempt continues it.
+    /// </summary>
+    [Fact]
+    public async Task With_recovery_on_a_continuation_that_cannot_be_opened_leaves_the_interrupted_run_for_the_next_attempt()
+    {
+        var inner = new InMemoryRunStore();
+        var runId = await QueueAsync(inner);
+        await inner.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "podcast",
+            Kind = RunKind.Workflow,
+            WorkflowName = "podcast",
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = Tenant,
+        });
+
+        var runs = new FaultyRunStore(inner) { FailContinuationStart = true };
+        var handler = new WorkflowRunJobHandler(new ScriptedRunner(inner), RecoveryOn(runs), NullLogger<WorkflowRunJobHandler>.Instance);
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => handler.ExecuteAsync(Context(runId, RunPayload(runId), attempt: 2, maxAttempts: 3)).AsTask());
+
+        exception.ShouldNotBeAssignableTo<NonRetryableJobException>();
+        (await inner.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running, "nothing names a continuation that was never written");
+
+        runs.FailContinuationStart = false;
+        await handler.ExecuteAsync(Context(runId, RunPayload(runId), attempt: 3, maxAttempts: 4));
+
+        var continuation = (await inner.QueryRunsAsync(new RunQuery { TenantId = Tenant, ContinuedFromRunId = runId })).ShouldHaveSingleItem();
+        continuation.Status.ShouldBe(RunStatus.Completed);
+
+        var head = (await inner.GetRunAsync(runId))!;
+        head.Status.ShouldBe(RunStatus.Failed);
+        head.Error.ShouldNotBeNull().Message.ShouldContain(continuation.Id.ToString(), Case.Sensitive);
+    }
+
+    /// <summary>
+    /// The engine refused the run and the store failed the write that closes its
+    /// queued row: the attempt fails instead of the work, so the row is not left
+    /// Queued with no attempt coming back for it.
+    /// </summary>
+    [Fact]
+    public async Task With_recovery_on_a_refused_run_whose_row_cannot_be_closed_is_closed_by_the_next_attempt()
+    {
+        var inner = new InMemoryRunStore();
+        var runId = await QueueAsync(inner);
+        var runs = new FaultyRunStore(inner) { FailCompletes = true };
+        var handler = new WorkflowRunJobHandler(new ScriptedRunner(inner, refuse: true), RecoveryOn(runs), NullLogger<WorkflowRunJobHandler>.Instance);
+
+        var first = await Should.ThrowAsync<TraconException>(() => handler.ExecuteAsync(Context(runId, RunPayload(runId))).AsTask());
+
+        first.ShouldNotBeAssignableTo<NonRetryableJobException>();
+        (await inner.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Queued);
+
+        runs.FailCompletes = false;
+        var second = await Should.ThrowAsync<NonRetryableJobException>(() => handler.ExecuteAsync(Context(runId, RunPayload(runId))).AsTask());
+
+        second.Code.ShouldBe(WorkflowRunJobHandler.RunFailedCode);
+        (await inner.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Failed);
+    }
+
+    private static WorkflowRecovery RecoveryOn(IRunStore runs) => new(runs, new InMemoryWorkflowCheckpointStore(), new OnPolicy());
 
     private static WorkflowRecovery Recovery(IRunStore runs) => new(runs, new InMemoryWorkflowCheckpointStore(), policy: null);
 
@@ -163,7 +255,7 @@ public sealed class WorkflowRunJobHandlerTests
 
     private static string RunPayload(Guid runId) => $$"""{"operation":"run","runId":"{{runId}}","message":"episode 7"}""";
 
-    private static JobContext Context(Guid runId, string payload, bool cancelled = false) => new()
+    private static JobContext Context(Guid runId, string payload, bool cancelled = false, int attempt = 1, int maxAttempts = 3) => new()
     {
         Job = new JobRecord
         {
@@ -172,6 +264,8 @@ public sealed class WorkflowRunJobHandlerTests
             HandlerKey = JobHandlerKeys.WorkflowRun,
             TargetName = "podcast",
             Status = JobStatus.Running,
+            Attempt = attempt,
+            MaxAttempts = maxAttempts,
             Payload = JsonDocument.Parse(payload).RootElement.Clone(),
             ScheduledFor = DateTimeOffset.UtcNow,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -182,7 +276,11 @@ public sealed class WorkflowRunJobHandlerTests
     };
 
     /// <summary>Opens and closes the run row the way the engine does, with a scripted outcome.</summary>
-    private sealed class ScriptedRunner(IRunStore? runs = null, RunStatus outcome = RunStatus.Completed, Action? afterClose = null) : IWorkflowRunner
+    private sealed class ScriptedRunner(
+        IRunStore? runs = null,
+        RunStatus outcome = RunStatus.Completed,
+        Action? afterClose = null,
+        bool refuse = false) : IWorkflowRunner
     {
         public int Started { get; private set; }
 
@@ -207,6 +305,12 @@ public sealed class WorkflowRunJobHandlerTests
         {
             Started++;
             var runId = request.RunId!.Value;
+
+            if (refuse)
+            {
+                // The engine checks the request before it writes the run's row.
+                throw new TraconException("The workflow's schema changed.");
+            }
 
             await runs!.StartRunAsync(new RunStartInfo
             {
@@ -233,18 +337,23 @@ public sealed class WorkflowRunJobHandlerTests
         }
     }
 
-    /// <summary>A run store whose reads fail once armed: the store goes down after the run closed.</summary>
-    private sealed class ReadFailsAfterCompletion(InMemoryRunStore inner) : IRunStore
+    /// <summary>A run store whose calls fail while a switch is on: the store is unavailable.</summary>
+    private sealed class FaultyRunStore(InMemoryRunStore inner) : IRunStore
     {
-        private bool _armed;
+        /// <summary>Gets or sets whether run reads (one run, or a query) fail.</summary>
+        public bool FailReads { get; set; }
+
+        /// <summary>Gets or sets whether writing a continuation's row fails.</summary>
+        public bool FailContinuationStart { get; set; }
+
+        /// <summary>Gets or sets whether closing a run fails.</summary>
+        public bool FailCompletes { get; set; }
 
         public int ReadsRefused { get; private set; }
 
-        public void Arm() => _armed = true;
-
         public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
         {
-            if (_armed)
+            if (FailReads)
             {
                 ReadsRefused++;
                 throw new InvalidOperationException("the store is unavailable");
@@ -253,15 +362,21 @@ public sealed class WorkflowRunJobHandlerTests
             return inner.GetRunAsync(runId, cancellationToken);
         }
 
-        public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default) => inner.StartRunAsync(info, cancellationToken);
+        public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
+            => FailContinuationStart && info.ContinuedFromRunId is not null
+                ? throw new InvalidOperationException("the store is unavailable")
+                : inner.StartRunAsync(info, cancellationToken);
+
 
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default) => inner.AppendEventAsync(runEvent, cancellationToken);
 
         public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default) => inner.GetLastEventSequenceAsync(runId, cancellationToken);
 
-        public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default) => inner.CompleteRunAsync(completion, cancellationToken);
+        public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
+            => FailCompletes ? throw new InvalidOperationException("the store is unavailable") : inner.CompleteRunAsync(completion, cancellationToken);
 
-        public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default) => inner.QueryRunsAsync(query, cancellationToken);
+        public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default)
+            => FailReads ? throw new InvalidOperationException("the store is unavailable") : inner.QueryRunsAsync(query, cancellationToken);
 
         public ValueTask<RunStatistics> GetStatisticsAsync(RunStatisticsQuery query, CancellationToken cancellationToken = default) => inner.GetStatisticsAsync(query, cancellationToken);
 
@@ -284,5 +399,12 @@ public sealed class WorkflowRunJobHandlerTests
         public ValueTask TouchHeartbeatAsync(IReadOnlyCollection<Guid> runIds, DateTimeOffset at, CancellationToken cancellationToken = default) => inner.TouchHeartbeatAsync(runIds, at, cancellationToken);
 
         public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(DateTimeOffset staleBefore, int max, CancellationToken cancellationToken = default) => inner.ClaimOrphanedRunsAsync(staleBefore, max, cancellationToken);
+    }
+
+    private sealed class OnPolicy : IWorkflowRecoveryPolicy
+    {
+        public bool ResumeInterruptedRuns => true;
+
+        public int MaxResumeAttempts => 1;
     }
 }
