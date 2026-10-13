@@ -9,7 +9,7 @@ namespace Tracon.Voice.UnitTests;
 /// sends exactly the body it sent before they existed.
 /// </summary>
 /// <remarks>
-/// <c>grep -c voice_settings ElevenLabsSpeechClient.cs</c> was <c>0</c> before Faz 203:
+/// <c>grep -c voice_settings ElevenLabsSpeechClient.cs</c> was <c>0</c> before phase 203:
 /// no voice setting reached the provider. The field names follow the provider's
 /// OpenAPI document (<c>Body_text_to_speech_full</c>, 2026-10-13).
 /// </remarks>
@@ -113,7 +113,7 @@ public sealed class ElevenLabsSpeechRequestTests
     [Fact]
     public async Task A_tenant_credential_is_refused_on_every_single_voice_path()
     {
-        // The built-in client cannot use a tenant's key (K-930, 4-A). Before Faz 203 it
+        // The built-in client cannot use a tenant's key (K-930, 4-A). Before phase 203 it
         // ignored one and called on the host's key: a direct caller billed the tenant's
         // speech to the host without a word.
         var handler = new StubHttpMessageHandler(_ => DialogueTestData.RawResponse());

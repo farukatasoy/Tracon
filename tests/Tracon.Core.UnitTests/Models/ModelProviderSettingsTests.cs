@@ -181,7 +181,7 @@ public sealed class ModelProviderSettingsTests
     [Fact]
     public void The_dictionary_overload_applies_the_same_rule_and_names_the_request_dictionary()
     {
-        // Faz 203: a speech request's ProviderSettings is checked by the same code as a
+        // Phase 203: a speech request's ProviderSettings is checked by the same code as a
         // model binding's (K-483); only what the message calls the dictionary differs.
         var settings = Binding(("other.setting", true), ("demo.noSuchKey", true)).ProviderSettings;
 

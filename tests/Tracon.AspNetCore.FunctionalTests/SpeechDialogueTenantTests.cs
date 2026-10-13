@@ -13,8 +13,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 203, Açık Soru 7-B: <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
-/// is the only way to the capability. The Faz 198 trap was a wrapper that implements
+/// Phase 203, open question 7-B: <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
+/// is the only way to the capability. The phase 198 trap was a wrapper that implements
 /// only <see cref="ISpeechSynthesizer"/>: a type test on it answered "no dialogue" for a
 /// tenant with its own key and "dialogue" for one without. The resolver reads the
 /// capability from the registered instance instead, so both tenants get the same answer.

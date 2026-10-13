@@ -58,7 +58,7 @@ internal static class GoogleSafetySettings
         }
 
         // The value is not repeated: it can be a credential pasted into the wrong
-        // field, and the message reaches logs and run records (Faz 203).
+        // field, and the message reaches logs and run records (phase 203).
         throw new ProviderSettingsValidationException(
             $"'{setting}' has a value outside its set. Valid values: " +
             $"{string.Join(", ", HarmBlockThreshold.AllValues.Select(static candidate => candidate.Value))}.");
