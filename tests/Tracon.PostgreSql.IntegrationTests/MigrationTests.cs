@@ -79,7 +79,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // optional "knowledge" set; PostgresTestContext enables it by default
         // (applyMigrations: false + Migrations.ApplyAsync() below applies BOTH
         // sets), so the table still gets created here and the total is unchanged.
-        tableCount.ShouldBe(49);
+        // Phase 199 added the `run_non_token_usage` table: 49 -> 50.
+        tableCount.ShouldBe(50);
     }
 
     [Fact]
