@@ -107,6 +107,10 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
                 cancellationToken)
             .ConfigureAwait(false);
 
+        // A store that does not observe the token returns normally after the caller
+        // cancelled; the provider is not handed out then, or the caller calls it.
+        cancellationToken.ThrowIfCancellationRequested();
+
         return credential is null ? synthesizer : new TenantCredentialSpeechSynthesizer(synthesizer, credential);
     }
 
@@ -125,6 +129,10 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
                 transcriber.SupportsTenantCredentials,
                 cancellationToken)
             .ConfigureAwait(false);
+
+        // A store that does not observe the token returns normally after the caller
+        // cancelled; the provider is not handed out then, or the caller calls it.
+        cancellationToken.ThrowIfCancellationRequested();
 
         return credential is null ? transcriber : new TenantCredentialSpeechTranscriber(transcriber, credential);
     }
