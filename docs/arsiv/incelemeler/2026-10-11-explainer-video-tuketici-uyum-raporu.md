@@ -22,7 +22,7 @@ sayılar tüketici reposundaki dosyalardan ya da üretici beyanından gelir.
 
 **İlişkili kayıtlar:** [keşif kaydı](../../kesif/2026-10-11-explainer-video-tuketici.md)
 (tur, kullanıcı cevapları, ham fikirler) · planlanan fazlar
-[196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) · [197](../../197-DAYANIKLI-WORKFLOW-YURUTMESI.md) ·
+[196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) · [197](../fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md) ·
 [202](../../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) · [203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) ·
 [204](../fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · [ADAYLAR](../../ADAYLAR.md)
 (F-319, F-322, F-324, F-347, F-411) · aynı tüketici
@@ -683,7 +683,7 @@ planın Açık Sorular bölümündedir.
 | Faz | Kaynak | Bu hatta |
 |---|---|---|
 | [196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) · Uzun adımların süre sınırı ve iptali | F-303, F-323 | Render ve TTS job'u iptali 30 sn içinde handler token'ında görür |
-| [197](../../197-DAYANIKLI-WORKFLOW-YURUTMESI.md) · Dayanıklı workflow yürütmesi | F-318, F-321 | Yol A'nın ilk önkoşulu |
+| [197](../fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md) · Dayanıklı workflow yürütmesi | F-318, F-321 | Yol A'nın ilk önkoşulu |
 | [198](../../198-ADLI-KONUSMA-SAGLAYICISI.md) · Adlı konuşma sağlayıcısı | F-298 | Yerel GPU ve bulut motoru aynı süreçte, kiracı başına |
 | [199](../../199-FONKSIYON-DUGUMU-MALIYETI.md) · Fonksiyon düğümü maliyeti | F-299 | TTS, GPU ve render saniyesi run maliyetine girer |
 | [200](../../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) · Workflow sürüm geçmişi | F-300 | Yol A'da üretim belirli bir workflow sürümüne sabitlenir |

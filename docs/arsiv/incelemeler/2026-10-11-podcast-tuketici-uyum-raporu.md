@@ -29,7 +29,7 @@ birbirini yavaşlatmış olabilir.
 **İlişkili kayıtlar:** [keşif kaydı](../../kesif/2026-10-11-podcast-tuketici.md) ·
 kapanan [Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) ·
 planlanan fazlar [196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) ·
-[197](../../197-DAYANIKLI-WORKFLOW-YURUTMESI.md) · [198](../../198-ADLI-KONUSMA-SAGLAYICISI.md) ·
+[197](../fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md) · [198](../../198-ADLI-KONUSMA-SAGLAYICISI.md) ·
 [199](../../199-FONKSIYON-DUGUMU-MALIYETI.md) · [200](../../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) ·
 [201](../fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · [203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) ·
 [204](../fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · [ADAYLAR](../../ADAYLAR.md) (F-297,
