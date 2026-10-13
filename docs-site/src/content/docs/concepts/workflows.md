@@ -33,8 +33,10 @@ stays optional on purpose.
 only structural guard against two agents handing off to each other forever. Each
 participant call also carries the same two-layer wait limit a callable agent's
 sub-call does (see [Agents calling agents](/concepts/agents/#agents-calling-agents)):
-a cooperative deadline, then a hard cutoff for a participant that ignores it. There
-is no per-participant override here — the installation-wide default applies.
+a cooperative deadline, then a hard cutoff for a participant that ignores it. The
+installation-wide default applies, except to an agent node of a `Sequential` node
+list, which can carry its own `timeout` (see
+[Bound a node with a timeout](#bound-a-node-with-a-timeout)).
 
 A participant that cannot answer **fails the run**, unlike a callable agent, whose
 caller's model reads the refusal and can try another way. No model reads a
@@ -258,6 +260,54 @@ node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
 attempt still counts as exactly one super-step.
 
+### Bound a node with a timeout
+
+A step that waits on a slow service can hold the whole run. Give the function a
+timeout when you register it, with the overload that takes a
+`WorkflowFunctionOptions` callback:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "render-audio",
+    services => (messages, context, cancellationToken) => RenderAsync(messages, cancellationToken),
+    options =>
+    {
+        options.Description = "Renders the episode's audio.";
+        options.Timeout = TimeSpan.FromMinutes(2);
+    });
+```
+
+A stored definition can set a node's own `timeout`, which wins over the registered one
+for that node; leave it out to use the registration's. `GET /api/workflows/functions`
+shows each registered timeout.
+
+```json
+{ "name": "render-audio", "kind": "Function", "timeout": "00:05:00" }
+```
+
+- When the timeout passes, the token the handler was given is cancelled and the run
+  ends `Failed` with the error type `workflow_function_timeout` (class `Timeout`),
+  which names the node and the limit. No later node runs.
+- The run stops waiting at the timeout even when the handler ignores its token. Such
+  a handler keeps running in the background, its result is discarded, and its late end
+  is logged; its side effects still happen. Pass the token on.
+- With a retry policy, the timeout applies to each attempt, and a timed-out attempt is
+  retried like any transient failure. The longest a node can take is about
+  `MaxAttempts × Timeout` plus the delays.
+- A caller's cancel or the run's own `RunTimeout` is not a node timeout: the run ends
+  `Canceled` with the reason it already had.
+- A timeout runs from 1 millisecond to about 49.7 days; a value outside the range is
+  refused with `400` on save, or with `ArgumentOutOfRangeException` at registration.
+  It is not checked against `RunTimeout`: whichever passes first stops the node.
+
+An **agent node** of a node list can carry a `timeout` too. It replaces the
+installation's `Tracon:AgentGraph:ChildDeadline` for that step, and the hard cutoff for
+an agent that ignores its deadline stays 30 seconds after it. A step past it fails the
+run with `child_run_timeout`, and the message names the node. A chain without a
+function step is stored as `agentNames`, which has no node to carry a timeout, so its
+steps use the installation's deadline; the console offers the field only on a chain
+with a function step.
+
 Workflows can also be built in code with MAF's own builder.
 
 :::caution[The registration key is what routing uses]
@@ -432,12 +482,19 @@ outage.
 
 `RunTimeout` (10 minutes by default) is **cooperative, and observed between
 super-steps**. It cancels the token the run is given and the runner checks it
-as each super-step ends; it does not abandon a node already running. So it
-bounds how long a run keeps taking new steps, not wall-clock time: a node that
-ignores its cancellation token runs to completion and the run stops at the
-next boundary. To bound one step, give that node its own timeout inside the
-handler. A run stopped this way ends `Canceled` with a `TimeoutException` error
-that names `Tracon:Workflows:RunTimeout`.
+as each super-step ends. A node without a timeout of its own that ignores its
+cancellation token runs to completion, and the run stops at the next boundary;
+a node with a timeout stops being waited for at once. To bound one step, give
+the node a timeout (see [Bound a node with a timeout](#bound-a-node-with-a-timeout)).
+A run stopped this way ends `Canceled` with a `TimeoutException` error that names
+`Tracon:Workflows:RunTimeout`.
+
+A definition can set its own `runTimeout`. It may always shorten
+`Tracon:Workflows:RunTimeout`; it may be longer only up to
+`Tracon:Workflows:MaxRunTimeout`, which is unset by default because a running
+workflow holds a slot every tenant shares. A save above the ceiling is refused with
+`400`. A run stopped by its definition's value names the definition's `runTimeout`
+instead.
 
 The deadline starts when the run starts, so it also counts the time a run waits
 for a slot when `MaxConcurrentRuns` workflows are already running. A waiting run
@@ -513,6 +570,10 @@ flowchart LR
   Otherwise a run left `Running` is closed as `Failed` with the error type
   `interrupted`, and a new run continues it from the latest checkpoint in its chain.
   A continuation that was opened and never started counts as interrupted too.
+- A run its job's time limit stopped is not interrupted: it closes `Canceled` with
+  the error type `job_max_duration_exceeded` and is never continued, so the limit
+  bounds the work, not one attempt of it
+  ([Background work](/guides/background-work/#queue-one-workflow-run)).
 - The new run's `continuedFromRunId` names the run it continues.
   `GET /api/runs?continuedFromRunId={runId}` walks the chain forward.
 - The new run uses the same session, the parameter values the chain recorded, and the
