@@ -159,9 +159,17 @@ public sealed record RunRecord
     /// <see langword="null"/> for a run that is not a continuation.
     /// </summary>
     /// <remarks>
-    /// A continuation is a NEW root run in the SAME session, opened by
-    /// orphaned-run reconciliation; it is not a child of the interrupted run
-    /// (<see cref="Depth"/> does not increase for it).
+    /// <para>
+    /// A continuation is a NEW root run in the SAME session; it is not a child of
+    /// the interrupted run (<see cref="Depth"/> does not increase for it).
+    /// Orphaned-run reconciliation opens one for an agent run, and a queued
+    /// workflow's job opens one when it resumes an interrupted workflow run.
+    /// </para>
+    /// <para>
+    /// The link points back. To walk a chain forward, query
+    /// <see cref="RunQuery.ContinuedFromRunId"/>
+    /// (<c>GET /api/runs?continuedFromRunId=</c>).
+    /// </para>
     /// </remarks>
     public Guid? ContinuedFromRunId { get; init; }
 }

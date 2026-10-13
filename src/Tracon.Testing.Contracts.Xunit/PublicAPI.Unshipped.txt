@@ -934,3 +934,7 @@ virtual Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.ExtraPrope
 virtual Tracon.Testing.Contracts.Tools.ToolArgumentValidationContract.Seed.get -> int
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_pending_report_marks_the_item_and_counts_nothing() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_report_for_a_finished_item_changes_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_queued_workflow_row_keeps_its_workflow_session_and_attribution_when_it_starts() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_second_start_without_a_continuation_link_keeps_the_first_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_by_continuation_does_not_return_another_tenants_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_the_run_a_continuation_continues() -> System.Threading.Tasks.Task!

@@ -54,6 +54,11 @@ internal sealed partial class InMemoryRunStore
             {
                 UserId = record.UserId ?? previous!.UserId,
                 Labels = record.Labels ?? previous!.Labels,
+
+                // F-321: the party that opens a continuation writes the row
+                // first, with the link; the engine that runs it writes it again
+                // without one. The SQL providers COALESCE for the same reason.
+                ContinuedFromRunId = record.ContinuedFromRunId ?? previous!.ContinuedFromRunId,
             };
         }
 

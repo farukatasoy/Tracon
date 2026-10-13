@@ -389,6 +389,7 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
         AddNullableUuid(command, "parent_run_id", query.ParentRunId);
         AddNullableUuid(command, "root_run_id", query.RootRunId);
+        AddNullableUuid(command, "continued_from_run_id", query.ContinuedFromRunId);
         DbHelpers.Add(command, "only_root_runs", query.OnlyRootRuns);
         DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
         DbHelpers.Add(command, "take", Math.Max(query.Take, 0));

@@ -523,6 +523,131 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         continuation.ContinuedFromRunId.ShouldBe(sourceRunId);
     }
 
+    /// <summary>
+    /// The continuation link survives the second start of the same run, like the
+    /// attribution does.
+    /// </summary>
+    /// <remarks>
+    /// Workflow recovery writes the continuation's row first, with the link, and
+    /// the workflow engine then starts the same run again without knowing the
+    /// link. A plain overwrite erased the chain, and the run that continued the
+    /// work no longer pointed at the run it continued.
+    /// </remarks>
+    [Fact]
+    public async Task A_second_start_without_a_continuation_link_keeps_the_first_one()
+    {
+        var sourceRunId = TraconId.NewId();
+        var continuationRunId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(sourceRunId));
+        await Store.StartRunAsync(TestData.Run(continuationRunId) with
+        {
+            Status = RunStatus.Queued,
+            ContinuedFromRunId = sourceRunId,
+        });
+
+        await Store.StartRunAsync(TestData.Run(continuationRunId));
+
+        var continuation = await Store.GetRunAsync(continuationRunId);
+
+        continuation.ShouldNotBeNull();
+        continuation.Status.ShouldBe(RunStatus.Running);
+        continuation.ContinuedFromRunId.ShouldBe(sourceRunId);
+    }
+
+    /// <summary>
+    /// A queued workflow row keeps what it was queued with when the engine starts
+    /// the same run.
+    /// </summary>
+    /// <remarks>
+    /// The HTTP layer writes the queued row, where the caller is known; the
+    /// workflow engine writes it again in a background worker, where the caller
+    /// is not. The row must still name the workflow, its session and the caller.
+    /// </remarks>
+    [Fact]
+    public async Task A_queued_workflow_row_keeps_its_workflow_session_and_attribution_when_it_starts()
+    {
+        var runId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId, "nightly-report") with
+        {
+            Status = RunStatus.Queued,
+            Kind = RunKind.Workflow,
+            WorkflowName = "nightly-report",
+            SessionId = "production-42",
+            UserId = "user-1",
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "payments" },
+        });
+
+        var queued = await Store.GetRunAsync(runId);
+
+        queued.ShouldNotBeNull();
+        queued.Status.ShouldBe(RunStatus.Queued);
+        queued.Kind.ShouldBe(RunKind.Workflow);
+        queued.WorkflowName.ShouldBe("nightly-report");
+        queued.SessionId.ShouldBe("production-42");
+
+        await Store.StartRunAsync(TestData.Run(runId, "nightly-report") with
+        {
+            Kind = RunKind.Workflow,
+            WorkflowName = "nightly-report",
+            SessionId = "production-42",
+        });
+
+        var started = await Store.GetRunAsync(runId);
+
+        started.ShouldNotBeNull();
+        started.Status.ShouldBe(RunStatus.Running);
+        started.Kind.ShouldBe(RunKind.Workflow);
+        started.WorkflowName.ShouldBe("nightly-report");
+        started.SessionId.ShouldBe("production-42");
+        started.UserId.ShouldBe("user-1");
+        started.Labels.ShouldNotBeNull()["team"].ShouldBe("payments");
+    }
+
+    /// <summary>A chain is walked forward by asking for the runs that continue a given run.</summary>
+    [Fact]
+    public async Task Query_filters_by_the_run_a_continuation_continues()
+    {
+        var sourceRunId = TraconId.NewId();
+        var firstContinuation = TraconId.NewId();
+        var secondContinuation = TraconId.NewId();
+        var unrelated = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(sourceRunId));
+        await Store.StartRunAsync(TestData.Run(firstContinuation) with { ContinuedFromRunId = sourceRunId });
+        await Store.StartRunAsync(TestData.Run(secondContinuation) with { ContinuedFromRunId = firstContinuation });
+        await Store.StartRunAsync(TestData.Run(unrelated));
+
+        var ofSource = await Store.QueryRunsAsync(new RunQuery { ContinuedFromRunId = sourceRunId });
+        var ofFirst = await Store.QueryRunsAsync(new RunQuery { ContinuedFromRunId = firstContinuation });
+        var ofLast = await Store.QueryRunsAsync(new RunQuery { ContinuedFromRunId = secondContinuation });
+
+        ofSource.Select(static run => run.Id).ShouldBe([firstContinuation]);
+        ofFirst.Select(static run => run.Id).ShouldBe([secondContinuation]);
+        ofLast.ShouldBeEmpty();
+    }
+
+    /// <summary>The forward walk does not cross a tenant boundary.</summary>
+    [Fact]
+    public async Task Query_by_continuation_does_not_return_another_tenants_run()
+    {
+        var sourceRunId = TraconId.NewId();
+        var continuationRunId = TraconId.NewId();
+
+        AmbientTenant.TenantId = TenantA;
+        await Store.StartRunAsync(TestData.Run(sourceRunId));
+        await Store.StartRunAsync(TestData.Run(continuationRunId) with { ContinuedFromRunId = sourceRunId });
+
+        (await Store.QueryRunsAsync(new RunQuery { ContinuedFromRunId = sourceRunId }))
+            .Select(static run => run.Id).ShouldBe([continuationRunId]);
+
+        AmbientTenant.TenantId = TenantB;
+
+        (await Store.QueryRunsAsync(new RunQuery { ContinuedFromRunId = sourceRunId })).ShouldBeEmpty();
+        (await Store.QueryRunsAsync(new RunQuery { ContinuedFromRunId = sourceRunId, TenantId = TenantB })).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task A_run_without_attribution_reads_back_as_null_not_as_an_empty_map()
     {
