@@ -577,29 +577,48 @@ internal sealed class JobWorkerBackgroundService(
     /// <remarks>
     /// The dispatcher and the options validator refuse a value a timer cannot arm. A
     /// job written by another path (another store, a direct write) may still carry one;
-    /// arming it would throw here, with the job marked running and no outcome to write,
-    /// so it is logged and the job runs without a limit, as it would have before the
-    /// field existed.
+    /// arming it would throw here, with the job marked running and no outcome to write.
+    /// The bad value is logged and skipped: the limit the key is mapped to applies, as it
+    /// does to a job with no limit of its own, and with no mapped limit the job runs
+    /// without one, as it would have before the field existed. A bad stored value must
+    /// not switch off the operator's limit.
     /// </remarks>
     private TimeSpan? ResolveMaxDuration(JobRecord job, TraconSchedulingOptions options)
     {
-        var maxDuration = job.MaxDuration
-            ?? (options.MaxDurationByHandlerKey.TryGetValue(job.HandlerKey, out var mapped) ? mapped : null);
+        TimeSpan? mapped = options.MaxDurationByHandlerKey.TryGetValue(job.HandlerKey, out var value) && TimerPeriod.IsValid(value)
+            ? value
+            : null;
 
-        if (maxDuration is not { } value || TimerPeriod.IsValid(value))
+        if (job.MaxDuration is not { } own)
         {
-            return maxDuration;
+            return mapped;
+        }
+
+        if (TimerPeriod.IsValid(own))
+        {
+            return own;
         }
 
         if (logger is not null && logger.IsEnabled(LogLevel.Error))
         {
-            logger.LogError(
-                "Job {JobId} carries a time limit of {MaxDuration}, which a timer cannot arm (1 ms to about 49.7 days); it runs without a limit.",
-                job.Id,
-                value);
+            if (mapped is { } fallback)
+            {
+                logger.LogError(
+                    "Job {JobId} carries a time limit of {MaxDuration}, which a timer cannot arm (1 ms to about 49.7 days); it runs under the limit 'Tracon:Scheduling:MaxDurationByHandlerKey' maps its key to ({Mapped}).",
+                    job.Id,
+                    own,
+                    fallback);
+            }
+            else
+            {
+                logger.LogError(
+                    "Job {JobId} carries a time limit of {MaxDuration}, which a timer cannot arm (1 ms to about 49.7 days); it runs without a limit.",
+                    job.Id,
+                    own);
+            }
         }
 
-        return null;
+        return mapped;
     }
 
     /// <summary>

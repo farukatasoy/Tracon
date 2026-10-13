@@ -95,7 +95,9 @@ public sealed record JobRecord
     /// </para>
     /// <para>
     /// Kept in the store beside <see cref="MaxAttempts"/>. A store that does not keep
-    /// it loses it: the job then runs under the map's value, or without a limit.
+    /// it loses it: the job then runs under the map's value, or without a limit. A
+    /// stored value a timer cannot arm (outside 1 ms to about 49.7 days) is logged and
+    /// skipped the same way.
     /// </para>
     /// </remarks>
     public TimeSpan? MaxDuration { get; init; }

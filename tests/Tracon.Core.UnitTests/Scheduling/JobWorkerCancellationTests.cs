@@ -51,6 +51,51 @@ public sealed class JobWorkerCancellationTests
         }
     }
 
+    /// <summary>
+    /// The DoD's "within one <c>PollInterval</c>", measured on the worker's own clock: the
+    /// watch reads the job when one poll interval has passed and not before, so a cancel
+    /// reaches the token at that tick. The test above bounds the same path only by a
+    /// failure timeout.
+    /// </summary>
+    [Fact]
+    public async Task A_cancel_reaches_the_handler_at_the_next_poll_interval_of_the_workers_clock_and_not_before()
+    {
+        var clock = new ManualClock();
+        var store = new ProbeJobStore(new InMemoryJobStore());
+        var handler = new TokenProbeHandler();
+        var (worker, host) = Worker(store, handler, clock: clock);
+
+        using (host)
+        using (worker)
+        {
+            var id = await EnqueueAsync(store, "slow");
+
+            await worker.StartAsync(TestContext.Current.CancellationToken);
+            await handler.For("slow").Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+            // The watch is armed one poll interval ahead, on the worker's clock.
+            clock.Pending.ShouldContain(Poll);
+
+            (await store.CancelAsync(Tenant, id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+            var reads = store.Reads;
+
+            clock.Advance(Poll - TimeSpan.FromTicks(1));
+
+            store.Reads.ShouldBe(reads, "nothing reads the job before a poll interval has passed");
+            handler.For("slow").Token.IsCancellationRequested.ShouldBeFalse();
+
+            clock.Advance(TimeSpan.FromTicks(1));
+
+            await handler.For("slow").Cancelled.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+            handler.For("slow").Signals!.Reason.ShouldBe(JobStopReason.Cancelled);
+            store.Reads.ShouldBeGreaterThan(reads);
+
+            (await WaitForAsync(store, id, JobStatus.Cancelled)).ErrorMessage.ShouldBeNull();
+
+            await worker.StopAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
     [Fact]
     public async Task Until_a_cancel_the_watch_reads_the_job_and_leaves_the_handler_alone()
     {
