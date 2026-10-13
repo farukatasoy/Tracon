@@ -87,6 +87,57 @@ public sealed class OutputTruncationTests
     }
 
     [Fact]
+    public async Task A_repair_turn_cut_at_the_limit_ends_the_run_on_attempt_two_and_keeps_both_turns_usage()
+    {
+        // Audit finding: the truncation catch on a REPAIR turn had no end-to-end
+        // test. The first answer is invalid JSON, so the validator folds its
+        // usage and asks again; the repair answer is cut off, so the detector
+        // folds that one. Both turns were paid for, and the run says so.
+        var provider = new FinishReasonModelProvider()
+            .Text("not json at all", ChatFinishReason.Stop, inputTokens: 40, outputTokens: 20)
+            .Text("{\"title\": \"An unfinish", ChatFinishReason.Length, inputTokens: 60, outputTokens: 200);
+
+        await using var host = await StartAsync(
+            provider,
+            Structured(maxOutputTokens: 200),
+            services => services.Configure<TraconStructuredResponseOptions>(static options =>
+            {
+                options.Enabled = true;
+                options.MaxRepairAttempts = 2;
+            }));
+
+        using var response = await PostBufferedAsync(host);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error!.Class.ShouldBe(RunErrorClass.OutputTruncated);
+        provider.Calls.ShouldBe(2, "the third call the budget allows would hit the same limit, so it does not run");
+        run.Usage.ShouldNotBeNull();
+        run.Usage.InputTokens.ShouldBe(100);
+        run.Usage.OutputTokens.ShouldBe(220);
+
+        var events = await EventsAsync(host, run.Id);
+
+        events.Where(static e => e.Type == RunEventType.StructuredResponseRepairAttempted).ShouldHaveSingleItem();
+
+        var rejections = events.Where(static e => e.Type == RunEventType.StructuredResponseRejected).ToList();
+        rejections.Count.ShouldBe(2);
+
+        using var first = JsonDocument.Parse(rejections[0].Payload!);
+        first.RootElement.GetProperty("attempt").GetInt32().ShouldBe(1);
+        first.RootElement.GetProperty("repairSkippedTruncated").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        using var last = JsonDocument.Parse(rejections[1].Payload!);
+        rejections[1].Text.ShouldBe("The model stopped at its output token limit before the response was complete.");
+        last.RootElement.GetProperty("attempt").GetInt32().ShouldBe(2);
+        last.RootElement.GetProperty("maxAttempts").GetInt32().ShouldBe(3);
+        last.RootElement.GetProperty("repairSkippedTruncated").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task A_plain_text_response_cut_at_the_limit_completes_and_records_the_notice()
     {
         var provider = new FinishReasonModelProvider()
