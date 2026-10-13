@@ -238,11 +238,13 @@ function CriterionRow({
   // A kind nobody lists is kept, never dropped: it may be registered on the host
   // that runs the agent, or the list may simply have failed to load.
   const listed = builtIn !== null || codeKind !== undefined;
-  const options = [
-    ...BUILT_IN_LOOP_KINDS,
-    ...codeKinds.map((kind) => kind.kind),
-    ...(listed ? [] : [criterion.kind]),
-  ];
+  const listedOptions: string[] = [...BUILT_IN_LOOP_KINDS, ...codeKinds.map((kind) => kind.kind)];
+
+  // The server matches kinds case-insensitively, so "aijudge" is a valid aiJudge.
+  // The spelling as written stays an option of its own: without it the select
+  // would show its first option, and choosing the kind it really has would fire
+  // no change. A save keeps the spelling until the operator picks another one.
+  const options = listedOptions.includes(criterion.kind) ? listedOptions : [...listedOptions, criterion.kind];
 
   return (
     <li
@@ -316,7 +318,9 @@ function CriterionRow({
             {codeKind.description != null && <span className="text-subtle"> {t('agentEditor.loop.codeKind')}</span>}
           </p>
         )}
-        {!listed && <p className="text-sm text-muted">{t('agentEditor.loop.unregisteredHint')}</p>}
+        {/* Only once the list has loaded: while it loads or after it failed, a
+            registered code kind is missing from it too, and the sentence would be false. */}
+        {!listed && catalogLoaded && <p className="text-sm text-muted">{t('agentEditor.loop.unregisteredHint')}</p>}
 
         {builtIn === 'completionMarker' && (
           <Field label={t('agentEditor.loop.marker')} hint={t('agentEditor.loop.markerHint')}>
