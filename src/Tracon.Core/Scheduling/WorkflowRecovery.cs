@@ -8,7 +8,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>The job is the owner (F-321).</strong> Run reconciliation still closes an
+/// <strong>The job is the owner.</strong> Run reconciliation still closes an
 /// orphaned workflow root as <see cref="RunStatus.Failed"/>, but it never resumes
 /// one: two owners would resume the same run twice. Only the job that started the
 /// run continues it, when it is leased again.

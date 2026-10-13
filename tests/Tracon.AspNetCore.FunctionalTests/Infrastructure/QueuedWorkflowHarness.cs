@@ -184,9 +184,14 @@ internal static class QueuedWorkflowHarness
     /// <returns>The run id.</returns>
     public static async Task<Guid> AcceptedRunIdAsync(HttpResponseMessage response)
     {
-        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
+        // Read as text: a buffered body can be read again as text, the test reads the rest from it.
+        var body = await response.Content.ReadAsStringAsync();
 
-        return (await TraconTestHost.ReadJsonAsync(response)).GetProperty("runId").GetGuid();
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Accepted, body);
+
+        using var document = System.Text.Json.JsonDocument.Parse(body);
+
+        return document.RootElement.GetProperty("runId").GetGuid();
     }
 
     /// <summary>Waits for a job to reach a final status.</summary>
@@ -297,13 +302,15 @@ internal static class QueuedWorkflowHarness
     /// <param name="owner">The worker's id.</param>
     /// <param name="cancellation">The attempt's token source; <see langword="null"/> for none.</param>
     /// <param name="report">Replaces the store's item report, to fail a write; <see langword="null"/> for the store's.</param>
+    /// <param name="markRunning">Whether to move the job to Running first; off when the test already did.</param>
     /// <returns>A task that completes when the handler returns.</returns>
     public static async Task RunAttemptAsync(
         TraconTestHost host,
         JobRecord job,
         string owner,
         CancellationTokenSource? cancellation = null,
-        Func<JobItemResult, CancellationToken, ValueTask>? report = null)
+        Func<JobItemResult, CancellationToken, ValueTask>? report = null,
+        bool markRunning = true)
     {
         var services = host.Services;
         var store = services.GetRequiredService<IJobStore>();
@@ -311,7 +318,10 @@ internal static class QueuedWorkflowHarness
         // Opened in this method's own body, before the scope: the worker does the same.
         using var tenant = AmbientTenantScope.Begin(job.TenantId);
 
-        (await store.MarkRunningAsync(job.Id, owner)).ShouldBeTrue($"'{owner}' must hold the lease of job {job.Id}");
+        if (markRunning)
+        {
+            (await store.MarkRunningAsync(job.Id, owner)).ShouldBeTrue($"'{owner}' must hold the lease of job {job.Id}");
+        }
 
         var registry = services.GetRequiredService<JobHandlerRegistry>();
         registry.TryGetHandlerType(job.HandlerKey, out var handlerType).ShouldBeTrue();
@@ -432,11 +442,11 @@ internal sealed class RecoveryProbe : IAsyncDisposable
         switch (next.Behavior)
         {
             case StepBehavior.Hang:
-                await Task.Delay(Timeout.Infinite, Teardown.Token).ConfigureAwait(false);
+                await Task.Delay(Timeout.Infinite, Teardown.Token).ConfigureAwait(false); // delay: simulated
                 break;
 
             case StepBehavior.HangUntilCancelled:
-                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false); // delay: simulated
                 break;
         }
     }
@@ -465,4 +475,14 @@ internal sealed class RecoveryProbe : IAsyncDisposable
 
         Teardown.Dispose();
     }
+}
+
+/// <summary>An attribution the test sets, the same on every request and in the worker.</summary>
+internal sealed class SettableAttribution : IRunAttributionContext
+{
+    /// <inheritdoc />
+    public string? UserId { get; set; }
+
+    /// <inheritdoc />
+    public IReadOnlyDictionary<string, string>? Labels { get; set; }
 }
