@@ -160,7 +160,14 @@ public sealed class QueuedRunParameterTests
         await WaitUntil.TrueAsync(() => provider.Requests.Count > 0, "the queued run to reach the model");
         provider.Requests[^1].Options!.Instructions.ShouldBe("Hello friend, how can I help?");
 
-        (await RunStatusAsync(host, runId)).ShouldBe(RunStatus.Completed);
+        // The run closes a moment AFTER the model answered: read once, the status
+        // was still Running in 7 of 8 single runs (F-423).
+        var status = await WaitUntil.ValueAsync(
+            () => RunStatusAsync(host, runId),
+            static status => status is RunStatus.Failed or RunStatus.Completed,
+            "the queued run to be closed");
+
+        status.ShouldBe(RunStatus.Completed);
     }
 
     [Fact]
