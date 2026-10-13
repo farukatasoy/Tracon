@@ -21110,8 +21110,10 @@ namespace Tracon.Client.Generated
         public bool BuiltIn { get; set; } = default!;
 
         /// <summary>
-        /// Gets what the kind checks, or `null` when its registration
-        /// <br/>gave no description. The text is the host's, in the host's language.
+        /// Gets what the kind checks. A built-in kind always carries Tracon's own
+        /// <br/>English sentence. A kind registered in code carries the text its
+        /// <br/>registration gave, in the host's language, or `null`
+        /// <br/>when it gave none.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("description")]

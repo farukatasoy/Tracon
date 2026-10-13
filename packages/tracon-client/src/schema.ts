@@ -4909,8 +4909,10 @@ export interface components {
              */
             builtIn: boolean;
             /**
-             * @description Gets what the kind checks, or `null` when its registration
-             *     gave no description. The text is the host's, in the host's language.
+             * @description Gets what the kind checks. A built-in kind always carries Tracon's own
+             *     English sentence. A kind registered in code carries the text its
+             *     registration gave, in the host's language, or `null`
+             *     when it gave none.
              */
             description?: null | string;
         };
