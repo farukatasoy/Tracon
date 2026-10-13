@@ -67,6 +67,10 @@ internal sealed class SqlJobStore : IJobStore
                 Dialect.AddTimestamp(insertJob, "scheduled_for", job.ScheduledFor);
                 Dialect.AddTimestamp(insertJob, "created_at", job.CreatedAt);
                 Dialect.AddInt16(insertJob, "max_attempts", job.MaxAttempts is { } maxAttempts ? (short)maxAttempts : null);
+
+                // Whole milliseconds, like every other duration column; bigint because
+                // the timer's range (about 49.7 days) is past an int of milliseconds.
+                Dialect.AddInt64(insertJob, "max_duration_ms", job.MaxDuration is { } maxDuration ? (long)maxDuration.TotalMilliseconds : null);
                 DbHelpers.Add(insertJob, "lane", lane);
                 await DbHelpers.ExecuteAsync(insertJob, cancellationToken).ConfigureAwait(false);
 
@@ -322,6 +326,7 @@ internal sealed class SqlJobStore : IJobStore
             CreatedAt = DbHelpers.GetTimestamp(reader, 17),
             MaxAttempts = reader.IsDBNull(18) ? null : reader.GetInt16(18),
             Lane = reader.GetString(19),
+            MaxDuration = reader.IsDBNull(20) ? null : TimeSpan.FromMilliseconds(reader.GetInt64(20)),
         };
 
     private static JobItemRecord ReadJobItem(DbDataReader reader)

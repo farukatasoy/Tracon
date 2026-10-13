@@ -700,6 +700,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `SpeechAudio.ProviderRequestId` carries the provider's id for a generation (the
   ElevenLabs `request-id` header), to pass in `elevenlabs.previousRequestIds` for the
   next part of a long script.
+- A workflow function node can be bounded by a timeout. `AddWorkflowFunction<TInput, TOutput>`
+  gains an overload that takes `Action<WorkflowFunctionOptions>`, and
+  `WorkflowFunctionOptions.Timeout` sets the registration's timeout; a node's own
+  `WorkflowNodeReference.Timeout` (`timeout` in `PUT /api/workflows/{name}`) wins over it.
+  When it passes, the handler's token is cancelled and the run ends `Failed` with the new
+  `TraconWorkflowFunctionTimeoutException` (error type `workflow_function_timeout`, class
+  `Timeout`). The run stops waiting even for a handler that ignores its token; its late
+  end is logged and its result is discarded. With a retry policy the timeout applies to
+  each attempt. `GET /api/workflows/functions` shows the registered timeout
+  (`WorkflowFunctionResponse.Timeout`).
+- An agent node of a `Sequential` node list can carry its own `timeout`, which replaces
+  `Tracon:AgentGraph:ChildDeadline` for that step; the hard cutoff stays 30 seconds later.
+  Past it the run ends `Failed` with `child_run_timeout`, and the message names the node.
+- `WorkflowDefinition.RunTimeout` (`runTimeout` in `PUT /api/workflows/{name}`): a
+  definition's own run timeout. It may shorten `Tracon:Workflows:RunTimeout`, and may be
+  longer only up to the new `TraconWorkflowOptions.MaxRunTimeout`
+  (`Tracon:Workflows:MaxRunTimeout`, unset by default); a longer one is refused with `400`
+  on save, and a stored one above a ceiling lowered later is cut to it with a warning.
+- A job's time limit: `JobRequest.MaxDuration` and `JobRecord.MaxDuration`, and
+  `TraconSchedulingOptions.MaxDurationByHandlerKey`
+  (`Tracon:Scheduling:MaxDurationByHandlerKey`) for every job of a handler key; the job's
+  own value wins. Past it the worker cancels the handler's token and the attempt fails
+  with `JobErrorCodes.MaxDurationExceeded` (`tracon.job.max-duration-exceeded`); the job is
+  leased again with the full limit while attempts are left, and a handler that returns
+  normally after the limit completes the job. The built-in workflow handlers end the work
+  instead: the run closes `Canceled` with the error type `job_max_duration_exceeded` and
+  is never continued, a queued run's job fails at once, and a batch fails the item. New
+  column `jobs.max_duration_ms` (migrations PostgreSQL `0057`, SQL Server `0045`, SQLite
+  `0044`). `JobStoreContract` adds
+  `A_jobs_own_time_limit_survives_the_round_trip_and_the_lease` and
+  `A_job_without_a_time_limit_reads_back_none`; `WorkflowDefinitionStoreContract` adds
+  `Node_timeouts_and_the_run_timeout_survive_the_round_trip` and
+  `Saving_again_without_timeouts_clears_them`. A third-party store must keep both fields.
+- The console's workflow editor has a timeout field on each step of a chain with a
+  function step, and a run timeout field.
 
 - A workflow run, resume or answer can be queued: `POST /api/workflows/{name}/run`,
   `POST /api/workflows/runs/{runId}/resume` and `POST /api/workflows/runs/{runId}/respond`
@@ -918,6 +953,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   name the key and the accepted values instead.
 - `ISpeechProviderResolver` gains `GetDialogueSynthesizerAsync`. The member has no
   default implementation: a resolver of your own must implement the dialogue gate.
+- **Behavior change:** `POST /api/jobs/{id}/cancel` now reaches a running handler. The
+  worker reads each running job's status every `Tracon:Scheduling:PollInterval` and
+  cancels the handler's token when it finds the job cancelled or gone; before, a running
+  job ran on until its handler called `JobContext.IsCancelledAsync`. This costs one store
+  read per running job per poll interval. A job cancelled this way stays `Cancelled`.
+- **Source break:** `builder.AddWorkflowFunction<TInput, TOutput>(name, factory, null)`
+  no longer compiles (`CS0121`): a `null` third argument fits both the description
+  parameter and the new `Action<WorkflowFunctionOptions>` overload. Name the argument
+  (`description: null`) or leave it out.
 
 - The generated C# client `TraconApiClient` changes three method signatures.
   `TraconListRunsAsync` gains a `continuedFromRunId` parameter before `skip` and

@@ -344,6 +344,7 @@ registers more than one image provider or a custom keyed generator.
 | `Scheduling:PollInterval` | 10 seconds |
 | `Scheduling:LeaseDuration` | 5 minutes |
 | `Scheduling:MaxAttempts` | `3` |
+| `Scheduling:MaxDurationByHandlerKey` | empty; each attempt's time limit per handler key, 1 ms to about 49.7 days. A job's own `maxDuration` wins; a key not listed has no limit. A value out of range fails at startup |
 | `Scheduling:MaxItemsPerJob` | `1000` |
 | `Scheduling:Lanes` | `null`; leases from every lane |
 | `Scheduling:MaxConcurrentJobsPerLane` | empty; a lane not listed shares `MaxConcurrentJobs`. A value that is not a number fails at startup |
@@ -648,12 +649,19 @@ tracon.UseMcp(
 | `EnableCheckpointing` | `true` |
 | `MaxConcurrentRuns` | `4` |
 | `RunTimeout` | 10 minutes |
+| `MaxRunTimeout` | `null`; a definition's `runTimeout` may then only shorten `RunTimeout` |
 | `MaxSuperSteps` | `100` |
 | `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
 binds this section and then applies its optional code override.
+
+`MaxRunTimeout` is the longest run timeout a workflow definition may set. A save above
+it, or above `RunTimeout` while it is unset, is refused with `400`. It must be at least
+`RunTimeout` and fails at startup otherwise, even while `Enabled` is `false`. A
+stored definition above a ceiling that was lowered later runs with the ceiling, and a
+warning is logged.
 
 `MaxNodeSettingsLength` caps the JSON text of one function node's settings when a
 workflow is saved; a definition stored before the cap was lowered still runs.

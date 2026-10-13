@@ -260,6 +260,28 @@ last attempt closes the chain instead of continuing it, so a `tracon.workflow` b
 job needs `2 + MaxResumeAttempts` attempts too to get every continuation
 ([Resume an interrupted run automatically](/concepts/workflows/#resume-an-interrupted-run-automatically)).
 
+A time limit ends a workflow job's work; it is not an interruption. The run it stops
+closes `Canceled` with the error type `job_max_duration_exceeded`, and recovery never
+continues it. A queued run's job fails at once with
+`tracon.job.max-duration-exceeded`. A `tracon.workflow` batch fails the item whose
+run was stopped, and the attempt fails, so the items it did not reach run in the next
+attempt under a fresh limit; with no item left, the job fails at once with the code.
+An item whose run had not started yet stays pending for the next attempt.
+
+```json
+{
+  "Tracon": {
+    "Scheduling": {
+      "MaxDurationByHandlerKey": { "tracon.workflow": "00:30:00" }
+    }
+  }
+}
+```
+
+The key holds a dot, which a POSIX shell cannot put in an exported variable name;
+set it in `appsettings.json`, on the command line
+(`--Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow=00:30:00`), or in code.
+
 ## Create a recurring schedule
 
 The schedule name is part of the URL. The body selects the handler key, target,
@@ -585,6 +607,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.PollInterval` | 10 seconds | 1 ms to about 49.7 days; checked at startup |
 | `Scheduling.LeaseDuration` | 5 minutes | Must be positive and at most about 149 days; renewal runs at a third of the lease |
 | `Scheduling.MaxAttempts` | `3` | Must be at least `1`; jobs can override it |
+| `Scheduling.MaxDurationByHandlerKey` | empty | Each attempt's time limit per handler key, 1 ms to about 49.7 days; a job's own `maxDuration` wins, and a key not listed has no limit |
 | `Scheduling.MaxItemsPerJob` | `1,000` | Must be at least `1` |
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
 | `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
@@ -637,12 +660,22 @@ whose status is no longer `Pending`; see
 - A missing handler marks the job as failed.
 - Lease-renewal, polling, and dispatch errors are logged; later ticks continue. A
   failed renewal is retried on the next tick, a third of the lease later.
-- Cancellation is cooperative, and it reaches a running handler only through
-  `JobContext.IsCancelledAsync`: the built-in handlers check it between items, and a
-  long handler must check it itself. The token `ExecuteAsync` receives is cancelled
-  only when the worker shuts down, so passing it on does not make a cancel request
-  arrive sooner. A cancelled job stays `Cancelled`, even when its handler throws on
-  the way out, and a job cancelled before its handler starts does not start.
+- Cancellation reaches a running handler through its token. The worker reads each
+  running job's status every `PollInterval` (one store read per running job per
+  interval) and cancels the token it gave the handler when it finds the job
+  cancelled or gone, so a cancel request arrives within one poll interval. The
+  built-in handlers also check `JobContext.IsCancelledAsync` between items. A
+  handler that ignores its token runs on until it asks. A cancelled job stays
+  `Cancelled`, even when its handler throws on the way out, and a job cancelled
+  before its handler starts does not start.
+- A time limit bounds each attempt: the job's `maxDuration`, or
+  `Scheduling.MaxDurationByHandlerKey` for its handler key. Past it the worker
+  cancels the handler's token; a handler that stops fails the attempt with
+  `tracon.job.max-duration-exceeded`, and the job is leased again with the full
+  limit while attempts are left. A handler that returns normally after the limit
+  completes the job, and one that ignores its token keeps its slot until it
+  returns. A queued workflow run or a `tracon.workflow` item that reaches the limit
+  is not continued; see [Queue one workflow run](#queue-one-workflow-run).
 - A batch with both successful and failed items finishes as `Completed`. A batch in
   which every item fails finishes as `Failed`. Inspect item counters, not only the job
   status. An item is recorded as failed only when its own run failed; a store error
@@ -668,7 +701,8 @@ idempotent.
 | A job is `Completed` but work is missing | Inspect `failedItems` and the individual item records; mixed-result batches still complete |
 | A schedule never fires | Validate the five-field cron, host time-zone identifier, enabled flag, and next occurrence; remember that daylight-saving gaps are skipped |
 | More jobs run than expected | Multiply `MaxConcurrentJobs` by the number of worker processes |
-| Cancellation takes time | It is a request, not a forced thread abort. The handler sees it when it calls `JobContext.IsCancelledAsync`, which the built-in handlers do between items; a long single item runs to its end |
+| Cancellation takes time | It is a request, not a forced thread abort. The handler's token falls at the worker's next status read, within one `PollInterval`; a handler that does not pass its token on runs until it calls `JobContext.IsCancelledAsync` |
+| A job fails with `tracon.job.max-duration-exceeded` | An attempt ran past the job's `maxDuration` or the limit `Scheduling.MaxDurationByHandlerKey` maps its key to; raise the limit or shorten the work |
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
 | A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |

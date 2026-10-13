@@ -128,8 +128,9 @@ internal static class SchedulingEndpoints
             .WithTags("Tracon", "Scheduling")
             .WithSummary("Gets a job and its items.")
             .WithDescription(
-                "This is the endpoint to poll after queuing work: it carries the job's status " +
-                "and attempt count together with its items, each with its own status, so partial " +
+                "This is the endpoint to poll after queuing work: it carries the job's status, " +
+                "attempt count and own time limit (maxDuration, null when the job sets none) together " +
+                "with its items, each with its own status, so partial " +
                 "progress is visible while the job is still running. A failed job keeps its " +
                 "error text here rather than only in the logs. An unknown id, or one belonging " +
                 "to another tenant, returns 404.");
@@ -142,7 +143,10 @@ internal static class SchedulingEndpoints
             .WithSummary("Cancels a job.")
             .WithDescription(
                 "Only a job in the Pending, Leased, or Running status can be canceled. " +
-                "The executing worker checks the cancellation request between items and stops cooperatively.");
+                "A running job's worker reads its status every Tracon:Scheduling:PollInterval (ten " +
+                "seconds by default) and then cancels the token its handler was given: a workflow or " +
+                "agent run the job started ends Canceled. Cancellation is cooperative: a handler that " +
+                "ignores its token keeps running until it returns, but the job stays Canceled.");
     }
 
     private static async Task<Ok<IReadOnlyList<JobSchedule>>> ListSchedulesAsync(

@@ -45,6 +45,7 @@ public sealed class AmbientWriteSiteTests
         "SetCurrent(",
         "AmbientTenantScope.Begin(",
         "AmbientRunAttributionScope.Begin(",
+        "AmbientJobAttempt.Begin(",
         "StartActivity(",
     ];
 

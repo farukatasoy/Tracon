@@ -123,6 +123,27 @@ internal sealed class TraconSchedulingOptionsValidator : IValidateOptions<Tracon
             }
         }
 
+        // F-323, F-280: the worker arms each value as an attempt's deadline, and a
+        // timer refuses a value outside its range where it is armed - while a job is
+        // already running. Checked whether or not this process runs the worker: the
+        // map describes jobs, and another process's worker reads the same section.
+        foreach (var (handlerKey, maxDuration) in options.MaxDurationByHandlerKey)
+        {
+            if (!JobHandlerKeys.IsValidKey(handlerKey))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(TraconSchedulingOptions)}.{nameof(TraconSchedulingOptions.MaxDurationByHandlerKey)} " +
+                    $"contains the key '{handlerKey}', which is not a valid job handler key.");
+            }
+
+            if (!TimerPeriod.IsValid(maxDuration))
+            {
+                (failures ??= []).Add(TimerPeriod.Failure(
+                    $"{nameof(TraconSchedulingOptions)}.{nameof(TraconSchedulingOptions.MaxDurationByHandlerKey)}['{handlerKey}']",
+                    maxDuration));
+            }
+        }
+
         foreach (var handlerKey in options.HttpSchedulableHandlerKeys)
         {
             if (!JobHandlerKeys.IsValidKey(handlerKey))

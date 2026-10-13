@@ -305,6 +305,13 @@ internal static class QueuedWorkflowHarness
             MaxAttempts = configured.MaxAttempts,
         };
 
+        // The map has no setter: copied entry by entry, or a time limit the host was
+        // configured with would be silently dropped for the worker's last lease.
+        foreach (var (key, limit) in configured.MaxDurationByHandlerKey)
+        {
+            options.MaxDurationByHandlerKey[key] = limit;
+        }
+
         using var worker = ActivatorUtilities.CreateInstance<JobWorkerBackgroundService>(host.Services, new FixedOptionsMonitor<TraconSchedulingOptions>(options));
 
         await worker.StartAsync(CancellationToken.None);

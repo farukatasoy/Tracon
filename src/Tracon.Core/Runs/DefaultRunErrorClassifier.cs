@@ -48,6 +48,11 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         ["Tracon.TraconProviderUnavailableException"] = RunErrorClass.ProviderUnavailable,
         [TraconToolTimeoutException.ToolTimeoutErrorType] = RunErrorClass.ToolTimeout,
         [TraconChildRunTimeoutException.ChildRunTimeoutErrorType] = RunErrorClass.Timeout,
+        [TraconWorkflowFunctionTimeoutException.WorkflowFunctionTimeoutErrorType] = RunErrorClass.Timeout,
+
+        // A run its job stopped at the job's time limit (F-323): a deadline, like
+        // the run's own, never a provider fault.
+        [JobAttemptSignals.MaxDurationExceededRunErrorType] = RunErrorClass.Timeout,
         [TraconRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
         [TraconStructuredResponseException.StructuredResponseInvalidErrorType] = RunErrorClass.StructuredResponseInvalid,
         [TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType] = RunErrorClass.LoopUnsatisfied,

@@ -1567,6 +1567,8 @@ Tracon.JobRecord.LeaseUntil.get -> System.DateTimeOffset?
 Tracon.JobRecord.LeaseUntil.init -> void
 Tracon.JobRecord.MaxAttempts.get -> int?
 Tracon.JobRecord.MaxAttempts.init -> void
+Tracon.JobRecord.MaxDuration.get -> System.TimeSpan?
+Tracon.JobRecord.MaxDuration.init -> void
 Tracon.JobRecord.Payload.get -> System.Text.Json.JsonElement
 Tracon.JobRecord.Payload.init -> void
 Tracon.JobRecord.ScheduleId.get -> System.Guid?
@@ -1595,6 +1597,8 @@ Tracon.JobRequest.Lane.get -> string!
 Tracon.JobRequest.Lane.init -> void
 Tracon.JobRequest.MaxAttempts.get -> int?
 Tracon.JobRequest.MaxAttempts.init -> void
+Tracon.JobRequest.MaxDuration.get -> System.TimeSpan?
+Tracon.JobRequest.MaxDuration.init -> void
 Tracon.JobRequest.Payload.get -> System.Text.Json.JsonElement
 Tracon.JobRequest.Payload.init -> void
 Tracon.JobRequest.ScheduledFor.get -> System.DateTimeOffset?
@@ -3931,6 +3935,7 @@ Tracon.TraconSchedulingOptions.MaxAttempts.set -> void
 Tracon.TraconSchedulingOptions.MaxConcurrentJobs.get -> int
 Tracon.TraconSchedulingOptions.MaxConcurrentJobs.set -> void
 Tracon.TraconSchedulingOptions.MaxConcurrentJobsPerLane.get -> System.Collections.Generic.IDictionary<string!, int>!
+Tracon.TraconSchedulingOptions.MaxDurationByHandlerKey.get -> System.Collections.Generic.IDictionary<string!, System.TimeSpan>!
 Tracon.TraconSchedulingOptions.MaxItemsPerJob.get -> int
 Tracon.TraconSchedulingOptions.MaxItemsPerJob.set -> void
 Tracon.TraconSchedulingOptions.PollInterval.get -> System.TimeSpan
@@ -4014,6 +4019,14 @@ Tracon.TraconToolTimeoutException.ToolName.init -> void
 Tracon.TraconToolTimeoutException.TraconToolTimeoutException() -> void
 Tracon.TraconToolTimeoutException.TraconToolTimeoutException(string! message) -> void
 Tracon.TraconToolTimeoutException.TraconToolTimeoutException(string! message, System.Exception! innerException) -> void
+Tracon.TraconWorkflowFunctionTimeoutException
+Tracon.TraconWorkflowFunctionTimeoutException.FunctionName.get -> string?
+Tracon.TraconWorkflowFunctionTimeoutException.FunctionName.init -> void
+Tracon.TraconWorkflowFunctionTimeoutException.Timeout.get -> System.TimeSpan?
+Tracon.TraconWorkflowFunctionTimeoutException.Timeout.init -> void
+Tracon.TraconWorkflowFunctionTimeoutException.TraconWorkflowFunctionTimeoutException() -> void
+Tracon.TraconWorkflowFunctionTimeoutException.TraconWorkflowFunctionTimeoutException(string! message) -> void
+Tracon.TraconWorkflowFunctionTimeoutException.TraconWorkflowFunctionTimeoutException(string! message, System.Exception! innerException) -> void
 Tracon.ValidationMessage
 Tracon.ValidationMessage.<Clone>$() -> Tracon.ValidationMessage!
 Tracon.ValidationMessage.Code.get -> string!
@@ -4422,6 +4435,8 @@ Tracon.WorkflowDefinition.Nodes.get -> System.Collections.Generic.IReadOnlyList<
 Tracon.WorkflowDefinition.Nodes.init -> void
 Tracon.WorkflowDefinition.RequirePlanApproval.get -> bool
 Tracon.WorkflowDefinition.RequirePlanApproval.init -> void
+Tracon.WorkflowDefinition.RunTimeout.get -> System.TimeSpan?
+Tracon.WorkflowDefinition.RunTimeout.init -> void
 Tracon.WorkflowDefinition.TenantId.get -> string?
 Tracon.WorkflowDefinition.TenantId.init -> void
 Tracon.WorkflowDefinition.UpdatedAt.get -> System.DateTimeOffset?
@@ -4472,6 +4487,8 @@ Tracon.WorkflowFunctionDescriptor.SettingsSchema.get -> System.Text.Json.JsonEle
 Tracon.WorkflowFunctionDescriptor.SettingsSchema.init -> void
 Tracon.WorkflowFunctionDescriptor.SettingsType.get -> System.Type?
 Tracon.WorkflowFunctionDescriptor.SettingsType.init -> void
+Tracon.WorkflowFunctionDescriptor.Timeout.get -> System.TimeSpan?
+Tracon.WorkflowFunctionDescriptor.Timeout.init -> void
 Tracon.WorkflowFunctionDescriptor.WorkflowFunctionDescriptor() -> void
 Tracon.WorkflowGraph
 Tracon.WorkflowGraph.<Clone>$() -> Tracon.WorkflowGraph!
@@ -4533,6 +4550,8 @@ Tracon.WorkflowNodeReference.Name.get -> string!
 Tracon.WorkflowNodeReference.Name.init -> void
 Tracon.WorkflowNodeReference.Settings.get -> System.Text.Json.JsonElement?
 Tracon.WorkflowNodeReference.Settings.init -> void
+Tracon.WorkflowNodeReference.Timeout.get -> System.TimeSpan?
+Tracon.WorkflowNodeReference.Timeout.init -> void
 Tracon.WorkflowNodeReference.WorkflowNodeReference() -> void
 Tracon.WorkflowPendingRequest
 Tracon.WorkflowPendingRequest.<Clone>$() -> Tracon.WorkflowPendingRequest!
@@ -4606,6 +4625,7 @@ const Tracon.AgentSourcePriority.Database = 100 -> int
 const Tracon.EvalRunDiffUnavailableException.EvalRunDiffUnavailableErrorType = "eval_run_diff_unavailable" -> string!
 const Tracon.JobErrorCodes.AttemptsExhausted = "tracon.job.attempts-exhausted" -> string!
 const Tracon.JobErrorCodes.HandlerActivationFailed = "tracon.job.handler-activation-failed" -> string!
+const Tracon.JobErrorCodes.MaxDurationExceeded = "tracon.job.max-duration-exceeded" -> string!
 const Tracon.JobErrorCodes.UnknownHandlerKey = "tracon.job.unknown-handler-key" -> string!
 const Tracon.JobHandlerKeys.AgentBatch = "tracon.agent-batch" -> string!
 const Tracon.JobHandlerKeys.AgentRun = "tracon.agent-run" -> string!
@@ -4673,6 +4693,7 @@ const Tracon.TraconSessionOwnerRequiredException.SessionOwnerRequiredErrorType =
 const Tracon.TraconSessionOwnershipOptions.SectionName = "Tracon:SessionOwnership" -> string!
 const Tracon.TraconStructuredResponseException.StructuredResponseInvalidErrorType = "structured_response_invalid" -> string!
 const Tracon.TraconToolTimeoutException.ToolTimeoutErrorType = "tool_timeout" -> string!
+const Tracon.TraconWorkflowFunctionTimeoutException.WorkflowFunctionTimeoutErrorType = "workflow_function_timeout" -> string!
 const Tracon.VoiceAttributeNames.Accent = "accent" -> string!
 const Tracon.VoiceAttributeNames.Age = "age" -> string!
 const Tracon.VoiceAttributeNames.Gender = "gender" -> string!
@@ -5233,6 +5254,7 @@ override Tracon.TraconSessionConflictException.ErrorType.get -> string!
 override Tracon.TraconSessionOwnerRequiredException.ErrorType.get -> string!
 override Tracon.TraconStructuredResponseException.ErrorType.get -> string!
 override Tracon.TraconToolTimeoutException.ErrorType.get -> string!
+override Tracon.TraconWorkflowFunctionTimeoutException.ErrorType.get -> string!
 override Tracon.ValidationMessage.Equals(object? obj) -> bool
 override Tracon.ValidationMessage.GetHashCode() -> int
 override Tracon.ValidationMessage.ToString() -> string!
