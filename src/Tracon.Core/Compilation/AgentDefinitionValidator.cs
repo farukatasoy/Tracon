@@ -19,7 +19,7 @@ namespace Tracon;
 /// <c>runs</c> row is opened and no token is spent.
 /// </para>
 /// </remarks>
-internal sealed class AgentDefinitionValidator
+internal sealed partial class AgentDefinitionValidator
 {
     private readonly IModelProviderRegistry _models;
     private readonly IToolRegistry _tools;
@@ -94,6 +94,7 @@ internal sealed class AgentDefinitionValidator
 
         await CheckSkillsAsync(definition, messages, cancellationToken).ConfigureAwait(false);
         await CheckCallGraphAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        await CheckLoopAsync(definition, messages, cancellationToken).ConfigureAwait(false);
 
         // Compilation is not useful while the outcome is inconclusive. A tool
         // behind an unreachable MCP server cannot resolve in real compilation

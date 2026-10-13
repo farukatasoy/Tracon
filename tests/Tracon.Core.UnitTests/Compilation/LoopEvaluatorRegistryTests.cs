@@ -342,6 +342,271 @@ public sealed class LoopEvaluatorRegistryTests
         exception.Message.ShouldContain("completionMarker");
     }
 
+    // ---- Phase 201: factory registrations (F-301) and the shared rule set ----
+
+    [Fact]
+    public async Task Concurrent_first_compilations_call_a_factory_once_and_share_its_result()
+    {
+        // Two agents naming the same kind can compile at the same moment on a
+        // cold process. Two calls would build two criteria — and run a factory
+        // that opens a connection or resolves an agent twice.
+        var calls = 0;
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var registry = BuildRegistry(new TraconLoopEvaluatorRegistration(
+            "slow",
+            _ =>
+            {
+                Interlocked.Increment(ref calls);
+                entered.Set();
+                release.Wait(TimeSpan.FromSeconds(10));
+
+                return new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()));
+            },
+            Description: null));
+        var definition = WithLoop(new LoopSettings { Criteria = [new LoopCriterion { Kind = "slow" }] });
+
+        var compilations = Enumerable.Range(0, 8)
+            .Select(_ => Task.Run(() => Build(registry, definition).Evaluator))
+            .ToArray();
+
+        entered.Wait(TimeSpan.FromSeconds(10)).ShouldBeTrue();
+        release.Set();
+        var evaluators = await Task.WhenAll(compilations).WaitAsync(TimeSpan.FromSeconds(10));
+
+        calls.ShouldBe(1);
+        evaluators
+            .Select(static evaluator => evaluator.ShouldBeOfType<RecordingLoopEvaluator>().Criteria[0].Evaluator)
+            .Distinct()
+            .ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void A_factory_that_throws_is_not_cached_and_the_kind_is_named()
+    {
+        // A dependency that is not ready on the first compilation must not
+        // poison the kind for the life of the process.
+        var calls = 0;
+        var registry = BuildRegistry(new TraconLoopEvaluatorRegistration(
+            "flaky",
+            _ => ++calls == 1
+                ? throw new InvalidOperationException("Connection string 'secret-db' is missing.")
+                : new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop())),
+            Description: null));
+        var definition = WithLoop(new LoopSettings { Criteria = [new LoopCriterion { Kind = "flaky" }] });
+
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
+
+        exception.AgentName.ShouldBe(definition.Name);
+        exception.Message.ShouldContain("'flaky'");
+        exception.Message.ShouldContain(nameof(InvalidOperationException));
+        exception.InnerException.ShouldBeOfType<InvalidOperationException>();
+
+        // The host's own message stays in the log: it can carry what the factory
+        // read from configuration, and this message reaches the management API.
+        exception.Message.ShouldNotContain("secret-db");
+
+        Build(registry, definition).Evaluator.ShouldBeOfType<RecordingLoopEvaluator>();
+        calls.ShouldBe(2);
+
+        Build(registry, definition);
+        calls.ShouldBe(2);
+    }
+
+    [Fact]
+    public void A_factory_that_returns_null_fails_the_compilation()
+    {
+        var registry = BuildRegistry(new TraconLoopEvaluatorRegistration("empty", _ => null!, Description: null));
+        var definition = WithLoop(new LoopSettings { Criteria = [new LoopCriterion { Kind = "empty" }] });
+
+        Should.Throw<TraconCompilationException>(() => Build(registry, definition))
+            .Message.ShouldContain("returned null");
+    }
+
+    [Fact]
+    public void A_factory_that_asks_for_its_own_criterion_fails_instead_of_recursing()
+    {
+        LoopEvaluatorRegistry? registry = null;
+        var definition = WithLoop(new LoopSettings { Criteria = [new LoopCriterion { Kind = "selfish" }] });
+
+        registry = BuildRegistry(new TraconLoopEvaluatorRegistration(
+            "selfish",
+            _ => Build(registry!, definition).Evaluator,
+            Description: null));
+
+        Should.Throw<TraconCompilationException>(() => Build(registry, definition))
+            .Message.ShouldContain("asked for the same criterion");
+    }
+
+    [Fact]
+    public void A_factory_receives_the_registrys_service_provider()
+    {
+        IServiceProvider? received = null;
+        var services = new ProbeServices();
+        var registry = new LoopEvaluatorRegistry(
+            [
+                new TraconLoopEvaluatorRegistration(
+                    "probe",
+                    provider =>
+                    {
+                        received = provider;
+                        return new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()));
+                    },
+                    Description: null),
+            ],
+            TestData.Providers(new FakeModelProvider()),
+            services: services);
+
+        Build(registry, WithLoop(new LoopSettings { Criteria = [new LoopCriterion { Kind = "probe" }] }));
+
+        received.ShouldBeSameAs(services);
+    }
+
+    [Fact]
+    public void Duplicate_and_shadowing_factory_registrations_are_refused_before_any_factory_runs()
+    {
+        var calls = 0;
+        Func<IServiceProvider, LoopEvaluator> factory = _ =>
+        {
+            calls++;
+            return new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()));
+        };
+
+        Should.Throw<TraconException>(() => BuildRegistry(
+                new TraconLoopEvaluatorRegistration("reviewed", factory, Description: null),
+                new TraconLoopEvaluatorRegistration("REVIEWED", factory, Description: null)))
+            .Message.ShouldContain("REVIEWED");
+
+        Should.Throw<TraconException>(() => BuildRegistry(
+                new TraconLoopEvaluatorRegistration("completionmarker", factory, Description: null)))
+            .Message.ShouldContain("built in");
+
+        calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public void The_kind_list_puts_built_ins_first_then_code_kinds_by_name_without_calling_a_factory()
+    {
+        var calls = 0;
+        Func<IServiceProvider, LoopEvaluator> factory = _ =>
+        {
+            calls++;
+            return new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()));
+        };
+        var registry = BuildRegistry(
+            new TraconLoopEvaluatorRegistration("zeta", factory, "Checks the last letter."),
+            new TraconLoopEvaluatorRegistration("alpha", factory, Description: null));
+
+        registry.Kinds.Select(static kind => (kind.Kind, kind.BuiltIn)).ShouldBe(
+        [
+            ("completionMarker", true),
+            ("todoCompletion", true),
+            ("aiJudge", true),
+            ("backgroundTaskCompletion", true),
+            ("alpha", false),
+            ("zeta", false),
+        ]);
+        registry.Kinds.Where(static kind => kind.BuiltIn).ShouldAllBe(static kind => kind.Description != null);
+        registry.Kinds.Single(static kind => string.Equals(kind.Kind, "zeta", StringComparison.Ordinal)).Description.ShouldBe("Checks the last letter.");
+        registry.Kinds.Single(static kind => string.Equals(kind.Kind, "alpha", StringComparison.Ordinal)).Description.ShouldBeNull();
+        calls.ShouldBe(0);
+    }
+
+    [Fact]
+    public void The_judge_model_is_the_host_binding_or_null()
+    {
+        BuildRegistry().JudgeModel.ShouldBeNull();
+
+        var judge = TestData.Binding();
+        BuildRegistry(judge: new ModelRunJudgeOptions { Model = judge }).JudgeModel.ShouldBeSameAs(judge);
+    }
+
+    [Fact]
+    public void Every_problem_is_found_with_its_code_and_path_and_Build_refuses_with_all_of_them()
+    {
+        // The validation report and the compiler read ONE rule set. Before, the
+        // compiler stopped at the first problem and the report printed only that
+        // one, without a path.
+        var registry = BuildRegistry();
+        var loop = new LoopSettings
+        {
+            Criteria =
+            [
+                new LoopCriterion { Kind = "completionMarker" },
+                new LoopCriterion { Kind = "x" },
+                new LoopCriterion { Kind = " " },
+                new LoopCriterion { Kind = "aiJudge", JudgeCriteria = ["  "] },
+            ],
+            MaxIterations = 0,
+            OnExhausted = (LoopOutcome)7,
+        };
+
+        var problems = registry.FindProblems(loop);
+
+        problems.Select(static problem => (problem.Code, problem.Path)).ShouldBe(
+        [
+            ("loop_max_iterations_invalid", "harness.loop.maxIterations"),
+            ("loop_outcome_invalid", "harness.loop.onExhausted"),
+            ("loop_marker_missing", "harness.loop.criteria[0].marker"),
+            ("loop_criterion_unknown", "harness.loop.criteria[1].kind"),
+            ("loop_criterion_kind_missing", "harness.loop.criteria[2].kind"),
+            ("loop_judge_criteria_missing", "harness.loop.criteria[3].judgeCriteria"),
+            ("loop_judge_unconfigured", "harness.loop.criteria[3].kind"),
+        ]);
+
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, WithLoop(loop)));
+
+        foreach (var problem in problems)
+        {
+            exception.Message.ShouldContain(problem.Message);
+        }
+    }
+
+    [Fact]
+    public void An_empty_criteria_list_is_one_problem_at_the_list_path()
+    {
+        var problem = BuildRegistry().FindProblems(new LoopSettings { Criteria = [] }).ShouldHaveSingleItem();
+
+        problem.Code.ShouldBe("loop_criteria_empty");
+        problem.Path.ShouldBe("harness.loop.criteria");
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(int.MaxValue)]
+    public void A_positive_MaxIterations_at_either_end_has_no_problem(int maxIterations)
+    {
+        var registry = BuildRegistry();
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "DONE" }],
+            MaxIterations = maxIterations,
+            OnExhausted = LoopOutcome.FailRun,
+        };
+
+        registry.FindProblems(loop).ShouldBeEmpty();
+
+        // int.MaxValue with FailRun must not overflow the framework's N + 1.
+        Build(registry, WithLoop(loop)).Options.MaxIterations.ShouldBe(maxIterations == int.MaxValue ? int.MaxValue : maxIterations + 1);
+    }
+
+    [Fact]
+    public void A_kind_registered_in_code_is_known_to_the_rule_set_before_its_factory_runs()
+    {
+        var calls = 0;
+        var registry = BuildRegistry(new TraconLoopEvaluatorRegistration(
+            "reviewed",
+            _ =>
+            {
+                calls++;
+                return new DelegateLoopEvaluator(static (_, _) => new ValueTask<LoopEvaluation>(LoopEvaluation.Stop()));
+            },
+            Description: null));
+
+        registry.FindProblems(new LoopSettings { Criteria = [new LoopCriterion { Kind = "Reviewed" }] }).ShouldBeEmpty();
+        calls.ShouldBe(0);
+    }
+
     private static LoopEvaluatorRegistry BuildRegistry(params TraconLoopEvaluatorRegistration[] registrations)
         => BuildRegistry(judge: null, registrations);
 
@@ -359,5 +624,11 @@ public sealed class LoopEvaluatorRegistryTests
 
     private static AgentDefinition WithLoop(LoopSettings loop)
         => TestData.Definition(harness: new HarnessSettings { Loop = loop });
+
+    /// <summary>A provider whose only job is to be recognized by reference.</summary>
+    private sealed class ProbeServices : IServiceProvider
+    {
+        public object? GetService(Type serviceType) => null;
+    }
 }
 #pragma warning restore MAAI001
