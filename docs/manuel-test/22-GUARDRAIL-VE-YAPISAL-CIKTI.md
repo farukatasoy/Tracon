@@ -43,7 +43,7 @@ için tek dosyada toplanır: **yapılandırılmış çıktı** (`ModelBinding.Re
 
 ```mermaid
 flowchart TD
-    A["ContentFilterDetectingChatClient"] --> B["devre kesici"]
+    A["FinishReasonDetectingChatClient"] --> B["devre kesici"]
     B --> C["AttachmentResolvingChatClient"]
     C --> D["FunctionInvokingChatClient (tool dongusu)"]
     D --> E["OpenTelemetry"]
@@ -2095,14 +2095,7 @@ curl -s -X POST "$APU/api/agents/order-summary/run" \
   -d '{"message":"Give me a summary for order ORD-1."}' | jq '.response.text'
 ```
 
-**Gerçek sonuç (bu ortamda koşuldu, 2026-09-01)**
-```
-{"orderId":"ORD-1","summary":"Order ORD-1 has shipped and is estimated to be delivered in 2 days."}
-```
-`GET /api/runs/{id}` → `{"status":"Completed","error":null}`.
-`GET /api/runs/{id}/events` olay türleri: `run.started, tool.invoking,
-tool.invoked, message.delta, message.completed, run.completed` —
-`StructuredResponseRejected` **yok**.
+2026-09-01 koşum sonucu: [koşum kaydı](../arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md).
 
 **Beklenen sonuç**
 - `run.status` `Completed`, `run.error` `null`.
@@ -2250,25 +2243,7 @@ otomatik karşılıklarıyla kanıtlanır (`tests/Tracon.AspNetCore.FunctionalTe
 bu, MT-GUARD-090..096'nın devraldığı, kapanmamış aynı sınırdır — bkz. Faz 131'in
 devir notu.
 
-**Gerçek sonuç (bu ortamda koşuldu, 2026-09-02).** `MaxRepairAttempts: 2` açık
-bırakılmış `samples/Tracon.Api` (`appsettings.json`) `order-summary`
-agent'ına karşı gerçek bir `gpt-5.4-mini` çağrısı yapıldı:
-
-```bash
-curl -s -X POST "$APU/api/agents/order-summary/run" \
-  -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"message":"Give me a summary for order ORD-2."}'
-```
-
-Yanıt `{"orderId":"ORD-2","summary":"Order ORD-2 has shipped and is estimated
-to be delivered in 2 days."}`; `GET /api/runs/{id}` → `status: "Completed"`,
-`error: null`, `usage: {inputTokens:393, outputTokens:55, totalTokens:448}`;
-olay dizisi `run.started, tool.invoking, tool.invoked, message.delta,
-message.completed, run.completed` — `StructuredResponseRejected` da
-`StructuredResponseRepairAttempted` da **yok**. Bu, K1'in "sıfır sürpriz"
-iddiasının pozitif kanıtıdır: `MaxRepairAttempts` sıfırdan farklı bir değere
-ayarlanmış olsa bile, geçerli-ilk-denemeli gerçek bir çalıştırma hiçbir ek
-model çağrısı yapmaz ve hiçbir yeni olay üretmez.
+Gerçek bir `gpt-5.4-mini` çağrısıyla 2026-09-02 koşumu (geçerli ilk yanıt, ek çağrı ve olay yok): [koşum kaydı](../arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md).
 
 ### MT-GUARD-100 — `MaxRepairAttempts` verilmemişken davranış Faz 131 ile birebir aynıdır
 
@@ -2475,3 +2450,116 @@ model çağrısı yapmaz ve hiçbir yeni olay üretmez.
   beklenen davranıştır, kusur değildir.
 - `StructuredResponseRejected` satırı hemen önce gelir (onarım her zaman bir
   reddin ardından açılır, kendi başına değil).
+
+---
+
+# 12 — Çıktı sınırında kesilen yanıt (`output_truncated`, Faz 204)
+
+Kesilme bir JSON hatası değil `max_tokens` sınırıdır; §10'un notu burada
+geçmez ve gerçek sağlayıcı düşük bir `maxOutputTokens` ile kullanılır. Ara tool
+turu kesilmesi deterministik üretilemez: `OutputTruncationToolTurnTests`.
+
+### MT-GUARD-110 — Kesilen yapılandırılmış yanıt `Failed`/`output_truncated` olur; onarım olayı yazılmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 204 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama Development'ta, Anthropic anahtarıyla; `StructuredResponse`
+  `Enabled: true`, `MaxRepairAttempts: 2` (`appsettings.json`).
+
+**Adımlar**
+1. Agent'ı kaydet, tamponlu çalıştır; `run` kaydını ve olaylarını oku.
+
+**Girilecek veri**
+```bash
+A=manuel-kesilen-json
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{"name":"manuel-kesilen-json","instructions":"Write a report of at least 800 words in the report field.","model":{"provider":"anthropic","model":"claude-haiku-4-5-20251001","maxOutputTokens":200,"responseFormat":{"kind":"JsonSchema","schema":{"type":"object","properties":{"report":{"type":"string"}},"required":["report"]}}}}'
+curl -s -w "\nHTTP %{http_code}\n" -X POST "$APU/api/agents/$A/run" -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" -d '{"message":"City libraries."}'
+RUN=$(curl -s "$APU/api/runs?agentName=$A" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN" -H "$APB" | jq '{status, error, usage}'
+curl -s "$APU/api/runs/$RUN/events" -H "$APB" | grep -o '"type":"Structured[A-Za-z]*"\|repairSkippedTruncated'
+```
+
+**Beklenen sonuç**
+- Run ucu `502` döner.
+- `status: Failed`, `error.type: output_truncated`, `error.class: OutputTruncated`;
+  `error.message` yanıt metnini taşımaz.
+- `usage.outputTokens` `200` civarındadır (kesilen çağrının token'ı run'a sayılır).
+- Olaylarda bir `StructuredResponseRejected` vardır, `StructuredResponseRepairAttempted`
+  **yoktur**; ret yükü `repairSkippedTruncated: true` taşır.
+
+> **Otomatik karşılığı:** `OutputTruncationTests` · `OutputTruncationStreamingTests`.
+
+---
+
+### MT-GUARD-111 — Kesilen düz metin `Completed` kalır ve `tracon.output.truncated` olayı yazılır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 204 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama Development'ta, Anthropic anahtarıyla çalışıyor.
+
+**Adımlar**
+1. Agent'ı kaydet, uzun bir yanıt iste; `run` kaydını ve olaylarını oku.
+
+**Girilecek veri**
+```bash
+A=manuel-kesilen-metin
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{"name":"manuel-kesilen-metin","instructions":"Answer in long paragraphs.","model":{"provider":"anthropic","model":"claude-haiku-4-5-20251001","maxOutputTokens":50}}'
+curl -s -w "\nHTTP %{http_code}\n" -X POST "$APU/api/agents/$A/run" -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" -d '{"message":"How does a library work?"}'
+RUN=$(curl -s "$APU/api/runs?agentName=$A" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN" -H "$APB" | jq '{status, error}'
+curl -s "$APU/api/runs/$RUN/events" -H "$APB" | grep -o 'tracon.output.truncated' | head -1
+```
+
+**Beklenen sonuç**
+- Run ucu `200` döner, yanıt yarım kalmış bir metindir.
+- `status: Completed`, `error: null`.
+- Olaylarda `customType: tracon.output.truncated` olan bir `Custom` olay vardır;
+  yükü `provider: anthropic` ve `maxOutputTokens: 50` taşır, yanıt metnini taşımaz.
+
+> **Otomatik karşılığı:** `OutputTruncationTests` · `OutputTruncationStreamingTests`.
+
+---
+
+### MT-GUARD-112 — Sınırsız yapılandırılmış agent'ta doğrulama uyarısı
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 204 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama çalışıyor (`DefaultMaxOutputTokens: 4096`; katalog Haiku 4.5
+  için `MaxOutputTokens: 64000`).
+
+**Adımlar**
+1. Tanımı `maxOutputTokens`'suz, sonra `64000` ile doğrula.
+
+**Girilecek veri**
+```bash
+TANIM='{"name":"manuel-uyari","instructions":"Reply briefly.","model":{"provider":"anthropic","model":"claude-haiku-4-5-20251001","responseFormat":{"kind":"JsonSchema","schema":{"type":"object"}}}}'
+curl -s -w "\nHTTP %{http_code}\n" -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d "$TANIM"
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" \
+     -d "$(echo "$TANIM" | jq '.model.maxOutputTokens = 64000')" | jq '{valid, messages}'
+```
+
+**Beklenen sonuç**
+- İlki `200`, `valid: true`; tek mesaj `severity: Warning`,
+  `code: output_truncation_risk`, `path: model.maxOutputTokens`; metin `4096`'yı
+  ve katalog sınırını (`64000`) adlandırır.
+- İkincisi `valid: true`, `messages: []`.
+
+> **Otomatik karşılığı:** `AgentValidationWarningTests` (birim + fonksiyonel).

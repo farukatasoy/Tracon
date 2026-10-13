@@ -13,7 +13,7 @@
 ## Halka sirasi (Faz 48)
 
 ```
-ContentFilterDetectingChatClient   (saglayici filtresi tespiti)
+FinishReasonDetectingChatClient    (saglayici filtresi + cikti siniri tespiti, Faz 204)
   -> devre kesici
     -> AttachmentResolvingChatClient
       -> FunctionInvokingChatClient  (MAF tool cagri dongusu)
