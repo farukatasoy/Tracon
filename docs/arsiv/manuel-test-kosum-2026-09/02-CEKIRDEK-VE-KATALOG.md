@@ -1912,3 +1912,47 @@ için doğrudan kanıt değildir.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 201 kapanışı)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek sonuç` ve `Koşuldu` notları buraya **taşındı** (silinmedi). Her not hangi
+> case'e ait olduğunu başlığıyla söyler; tarih notun kendisindedir.
+
+#### MT-CORE-103 — `AgentDefinitionCompiler` ayrıştırmasından sonra `support` agent aynı şekilde çalışır (Faz 106)
+
+- **Koşuldu (2026-08-26):** run `01a03b4f-e7c2-7177-a572-596ad682c0fd`, `usage.inputTokens: 234, outputTokens: 40`, `status: "Completed"`.
+
+#### MT-CORE-106 — `InMemoryRunStore` ayrıştırması sonrası ağaç toplamları ve kiracı yalıtımı doğru kalır (Faz 108)
+
+- Koşuldu (2026-08-26): iki kiracı, iki `run`, beklenen sonuçların tamamı
+  gözlendi.
+
+#### MT-CORE-130 — Üretilmiş tool kaydı özniteliğin her ayarını taşır (Faz 189)
+
+**Gerçek sonuç (2026-09-24)**
+- `cancel_order True Destructive orders.cancel None None` · `get_slow_report False Read None 00:00:01 None`.
+
+#### MT-CORE-132 — `onExhausted: "FailRun"` tükenen döngüde `run`'ı `LoopUnsatisfied` ile düşürür (Faz 192)
+
+**Gerçek sonuç (2026-10-11, `gpt-5.4-mini`, bellek içi store)** — ✅ `Failed`, `loop_unsatisfied`,
+`LoopUnsatisfied`; iki olay, sonuncusu `failsRun`. Akış 21 `update` çerçevesinden sonra `error`
+çerçevesiyle bitti. Denetim düzeltmesinden sonra yeniden koşuldu: `usage.totalTokens = 13142`
+(iki tur, `cachedInputTokens = 6528`), `cost` dolu. Aynı tanım `onExhausted` olmadan iki tur
+koşunca `totalTokens = 6599` kaydetti — yalnız son tur (F-317).
+
+#### MT-CORE-133 — Alanlar verilmeyince döngü bugünkü gibi son yanıtı döner (Faz 192)
+
+**Gerçek sonuç (2026-10-11)** — ✅ `Completed`, bir olay, `ceilingReached: true`, `failsRun: false`.
+
+#### MT-CORE-134 — Akışlı istemci son turun metnini, sonra hata çerçevesini alır (Faz 192)
+
+**Gerçek sonuç (2026-10-11)** — ✅ MT-CORE-132 koşumunda ölçüldü: 21 `update`, ardından `error`.
+
+#### MT-CORE-136 — Workflow, döngüsü `FailRun` ile düşen agent'ta durur (Faz 192)
+
+**Gerçek sonuç (2026-10-11)** — ✅ Workflow `Failed`, `word-count` hiç çağrılmadı; workflow
+satırı `Tracon.TraconLoopUnsatisfiedException`, sınıf `null` (F-314 öncesi; beklenen sonuç
+2026-10-12'de güncellendi, yeniden koşulmadı).
