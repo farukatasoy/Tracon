@@ -1,16 +1,21 @@
 #nullable enable
+Tracon.ElevenLabsProviderNames
 Tracon.VoiceBuilderExtensions
 Tracon.VoiceOptions
 Tracon.VoiceOptions.ApiKey.get -> string?
 Tracon.VoiceOptions.ApiKey.set -> void
 Tracon.VoiceOptions.DefaultVoiceId.get -> string?
 Tracon.VoiceOptions.DefaultVoiceId.set -> void
+Tracon.VoiceOptions.DialogueModelId.get -> string?
+Tracon.VoiceOptions.DialogueModelId.set -> void
 Tracon.VoiceOptions.Endpoint.get -> System.Uri?
 Tracon.VoiceOptions.Endpoint.set -> void
 Tracon.VoiceOptions.MaxCharactersPerRequest.get -> int
 Tracon.VoiceOptions.MaxCharactersPerRequest.set -> void
 Tracon.VoiceOptions.MaxConcurrentRequests.get -> int
 Tracon.VoiceOptions.MaxConcurrentRequests.set -> void
+Tracon.VoiceOptions.MaxDialogueCharactersPerRequest.get -> int
+Tracon.VoiceOptions.MaxDialogueCharactersPerRequest.set -> void
 Tracon.VoiceOptions.OutputFormat.get -> string!
 Tracon.VoiceOptions.OutputFormat.set -> void
 Tracon.VoiceOptions.Provider.get -> string!
@@ -24,7 +29,20 @@ Tracon.VoiceOptions.Timeout.set -> void
 Tracon.VoiceOptions.TranscriptionModelId.get -> string?
 Tracon.VoiceOptions.TranscriptionModelId.set -> void
 Tracon.VoiceOptions.VoiceOptions() -> void
+const Tracon.ElevenLabsProviderNames.ElevenLabs = "elevenlabs" -> string!
+const Tracon.ElevenLabsProviderNames.NextTextSetting = "elevenlabs.nextText" -> string!
+const Tracon.ElevenLabsProviderNames.PreviousRequestIdsSetting = "elevenlabs.previousRequestIds" -> string!
+const Tracon.ElevenLabsProviderNames.PreviousTextSetting = "elevenlabs.previousText" -> string!
+const Tracon.ElevenLabsProviderNames.SeedSetting = "elevenlabs.seed" -> string!
+const Tracon.ElevenLabsProviderNames.SettingsPrefix = "elevenlabs" -> string!
+const Tracon.ElevenLabsProviderNames.SimilarityBoostSetting = "elevenlabs.similarityBoost" -> string!
+const Tracon.ElevenLabsProviderNames.SpeedSetting = "elevenlabs.speed" -> string!
+const Tracon.ElevenLabsProviderNames.StabilitySetting = "elevenlabs.stability" -> string!
+const Tracon.ElevenLabsProviderNames.StyleSetting = "elevenlabs.style" -> string!
+const Tracon.ElevenLabsProviderNames.UseSpeakerBoostSetting = "elevenlabs.useSpeakerBoost" -> string!
 const Tracon.VoiceOptions.DefaultOutputFormat = "mp3_44100_128" -> string!
 const Tracon.VoiceOptions.SectionName = "Tracon:Voice" -> string!
+static Tracon.ElevenLabsProviderNames.DialogueSupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static Tracon.ElevenLabsProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.VoiceBuilderExtensions.UseVoice(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection, System.Action<Tracon.VoiceOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.VoiceBuilderExtensions.UseVoice(this Tracon.ITraconBuilder! builder, System.Action<Tracon.VoiceOptions!>! configure) -> Tracon.ITraconBuilder!
