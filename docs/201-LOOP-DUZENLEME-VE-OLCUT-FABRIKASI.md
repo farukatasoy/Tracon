@@ -1,6 +1,6 @@
 # Faz 201 — Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası
 
-> **Durum:** 🔧 Kapanışa hazır (2026-10-13) — kod, bağımsız denetim ve kapanış adımları 5–8 bitti; arşiv, damıtma ve `kapanis` kapısı birleştirmeden sonra
+> **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-302**, **F-301**
 > **Genellik:** Kendi talimatı, kendi şeması ve kodla hesaplanan ön kontrolü olan yargıç birçok tüketici sınıfının kalite kapısıdır (içerik QA'sı, kod incelemesi, çıkarım doğrulaması). İkinci kanıt ilk ilkedir: MAF `LoopEvaluator` bağımlılık ister, Tracon'un kayıt yüzeyi DI vermez (K-218 sınıfı). Domain'e özgü ölçüt tüketici kodunda kalır
@@ -280,7 +280,7 @@ samples/Tracon.Api/Program.cs                   (fabrikalı örnek ölçüt)
 - [x] `GET /api/loop-criteria` türleri ve yargıç modelini döner; fabrika çağrılmaz (test 8) — `LoopCriteriaEndpointTests` (5); örnek uygulama çıktısı aşağıda
 - [x] `POST /api/agents/validate` loop hatası başına yollu mesaj döner (test 9) — `AgentValidationLoopTests` (13; ilk 11 vakanın 9'u temel commit'te kırmızı)
 - [x] Konsol Loop'u kurar ve kaydeder; run koşar (test 15); değiştirmeden kayıt `loop`'u korur (test 12) — E2E `Loop_built_in_the_console_is_saved_read_back_and_runs` · `full-replace-editors.test.tsx`
-- [ ] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — birleştirmeden sonra `main`'de koşulur (koordinatör kararı, 2026-10-13); bu dalda `ic-dongu` yeşil, tam çözüm testi dahil
+- [x] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban 643b9eee` birleştirmeden sonra `main`'de (`4800b280`, Faz 201 + Faz 204 birlikte) çıkış 0: tarama 4,8 sn · `--denetle` · betik testleri · ajan haritası · denetim paketi · build 86,7 sn · test 441,0 sn (38 koşum, 20 241 geçti, 19 atlandı) · pack · format 107,8 sn · site `npm run check` 33,2 sn. İlk koşum ajan haritası tazeliğinde durdu: birleştirmeden sonra `build-agent-map.mjs` koşulmamıştı (`4800b280` yeniden üretti). Bu dalda `ic-dongu` yeşildi, tam çözüm testi dahil
 - [x] `samples/Tracon.Api` ile gerçek `run` (`openai-responses`, konsoldan `aiJudge` + fabrikalı ölçüt); çıktı belgeye yazıldı — aşağıdaki tablo
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz
 - [x] Manuel kabul case'leri iki alana eklendi; otomatikleştirilebilenler koşuldu — `MT-CORE-143`…`146`, `MT-UIAG-059`…`062`
@@ -521,7 +521,7 @@ kabul edildi; `loop_judge_unavailable` bir sözleşme değişimidir → K-916.
 - F-410 (kod ölçütüne tanım başına ayar), F-411 (onay ölçütü ve denetim izi) — ADAYLAR'da Faz 201 devriyle güncellendi.
 - F-422 — `openai-responses` akış kopyası ölçümü.
 - 👤 görsel kısımlar: `MT-UIAG-059`…`062`'nin görsel adımları insan bekler.
-- Kapanış birleştirmeden sonra: `faz-arsivle` + `faz-damit`, `kapanis --taban 643b9eee`, site yayını.
+- Birleştirmeden sonra `main`'de `kapanis --taban 643b9eee` yeşil, faz arşivlendi ve damıtıldı. **Site yayınlanmadı** (`scripts/site-deploy.sh` dışa açık bir iştir; bakımcı koşar) — Faz 201 ve Faz 204'ün sayfaları birlikte yayınlanır.
 
 **Sıradaki faz:** Faz 200 (workflow sürüm geçmişi) editör dosyalarını paylaşır; devir notu `docs/200-*.md`
 "Bu Faza Başlarken" 5. maddededir.
