@@ -104,14 +104,7 @@ için bu toplamlarla doğrudan hız yüzdesi çıkarılmaz.
 
 ### Faz 91 kapanış tekrarında F-130 ayrıştırması — 2026-08-23
 
-Kapanış kapılarının ikinci tekrarında tam suite `Tracon.Ui.E2ETests`
-56/57 ile kırmızı oldu: önce `Pending_request_card_can_be_answered`, ayrı
-UI koşumunda `Runs_button_on_session_page_navigates_to_filtered_list`.
-İki case de derlenmiş test ikilisinde `--filter-method` ile izole 1/1 geçti.
-Bu, ürün kusuru değil; tam Playwright suite'inin kaynak/zamanlama çekişmesine
-duyarlı F-130 sınıfının yeni kanıtıdır. İlk tam kapanış koşumu 57/57 ve 19
-proje ile yeşildi. Kapanış raporu tekrarlanabilirliği korumak için son kırmızı
-çıkış kodunu saklamaz; izole koşum ayrıştırma adımıdır.
+E2E 56/57 kırmızı, izole 1/1 yeşil: F-130 sınıfı — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-13 bütçe turu).
 
 ## Faz 116 — beşinci (yol tetiklemeli) kapı: `kapi.py performans` — 2026-08-27
 
@@ -147,6 +140,11 @@ Sonuç: kod suçsuzdu, taban çizgisi bayatlamıştı. `--guncelle` çalıştır
 önce **taban commit'i ayrı bir `git worktree`'de tek başına ölçmek** kodun mu
 ortamın mı sorumlu olduğunu ayırt eder — doğrudan `--guncelle` çalıştırmak bu
 ayrımı **atlar** ve gerçek bir regresyonu maskeleyebilirdi.
+
+**İkinci vaka (2026-10-13, Faz 197):** `CacheHit` uyarısı (24 → 0 B) taban
+`65d72b98`'de de 0 B ölçüldü: satır fazdan önce bayattı, 0'a çekildi. Aynı fazın
+`QueryRuns` artışı (44832 → 45456 B) gerçekti: yeni `continued_from_run_id`
+parametresi her sorguda taşınır.
 
 ## Faz 178 — 🚨 `Barrier(N)` + `Task.Run`, N çekirdek sayısını aşınca kapıya ~70 sn ekler
 
