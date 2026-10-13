@@ -45,6 +45,9 @@ public static class ContractCoverage
     /// <summary>The namespace holding job handler contracts.</summary>
     public const string SchedulingContracts = "Tracon.Testing.Contracts.Scheduling";
 
+    /// <summary>The namespace holding skill script executor contracts.</summary>
+    public const string ScriptContracts = "Tracon.Testing.Contracts.Scripts";
+
     /// <summary>
     /// The contract classes this package ships for one family: every
     /// non-generic <see langword="public abstract"/> type in
