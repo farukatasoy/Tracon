@@ -250,6 +250,21 @@ Aynı yapılandırma, yeni bir SQLite dosyası, `a9315535`'teki kod. `episode`
 
 Uygulama `kill -TERM` ile kapatıldı; 5197 boş.
 
+### Site senkronu (`--site-denetle --taban 65d72b98`)
+
+Aralık Faz 198'in birleştirilen commit'lerini de kapsar. Sekiz kuralın altısı
+sayfa değişikliğiyle karşılandı; ikisi gerekçeyle geçer (`--site-gerekce-yazildi`):
+
+- **`kalicilik` → `getting-started/persistence.md` değişmedi.** Tetikleyen SQL
+  metnidir (`*Queries.cs`): ikinci başlatma devam bağını `COALESCE` ile korur,
+  `SelectRuns` yeni süzgeci alır. Şema, migration, kurulum ve sağlayıcı seçimi
+  değişmedi; sayfanın anlattığı hiçbir şey değişmedi. Depo yazarının yeni iki kuralı
+  `guides/write-your-own-store.md`'ye yazıldı.
+- **`paket-readme` → `packages.md` değişmedi.** `src/Tracon.Workflows/README.md`
+  kurtarma bölümü ve iki sınır satırı aldı; paketin `packages.md`'deki tanımı
+  değişmedi. `Tracon.AspNetCore`/`Tracon.Voice` README'lerinin gerekçesi Faz 198
+  dokümanındadır (madde 13).
+
 ---
 
 ## Riskler
