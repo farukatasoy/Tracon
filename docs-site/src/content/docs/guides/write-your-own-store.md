@@ -52,7 +52,7 @@ cannot:
 
 | Axis | Rule |
 |---|---|
-| Idempotency | `StartRunAsync` is an UPSERT. A second call with the same `RunId` updates the row instead of opening a new one; `UserId` and `Labels` are COALESCED (a `null` value on the call leaves the previous value in place), and the **returned** record reflects that COALESCE, not the raw call arguments |
+| Idempotency | `StartRunAsync` is an UPSERT. A second call with the same `RunId` updates the row instead of opening a new one; `UserId`, `Labels` and `ContinuedFromRunId` are COALESCED (a `null` value on the call leaves the previous value in place), and the **returned** record reflects that COALESCE, not the raw call arguments. Workflow recovery depends on the link: it writes a continuation's row with `ContinuedFromRunId`, and the engine writes the same row again without it |
 | Tenant behavior | Three modes across the interface: **expected tenant** (`AppendEventAsync`, `CompleteRunAsync`, `UpdateRunCostAsync` compare the call's tenant against the record's own, ignoring the ambient tenant), **ambient tenant** (the read methods filter by `ITenantContext` unless overridden), **tenant-independent** (`TouchHeartbeatAsync`, `ClaimOrphanedRunsAsync` are maintenance work that scans every tenant) |
 | Thread safety | Registered as a singleton; must be safe under concurrent calls from unrelated runs and must not depend on a scoped service |
 | Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `TraconException` |
@@ -190,6 +190,17 @@ takes an optional list of lanes and must only return a job from one of them, `nu
 an empty list applies no filter, and a retried job keeps its lane. See
 [Background work](/guides/background-work/) for what a lane is and how a job's lane is
 chosen.
+
+Two more `IRunStore` and `IJobStore` rules carry
+[workflow recovery](/concepts/workflows/#resume-an-interrupted-run-automatically), and
+both contracts check them:
+
+- **`ReportItemAsync` changes only a pending item.** A report for an item that
+  already completed or failed changes nothing. A `Pending` report is a marker: it
+  writes the item's run id before the run starts and counts nothing, so a job leased
+  again after a crash finds the run its item was processing.
+- **`RunQuery.ContinuedFromRunId` filters by the continued run**, within the query's
+  tenant. Recovery walks a continuation chain forward with it.
 
 `ISessionStore`'s contract (`SessionStoreContract`) checks the two rules that make
 per-user [session ownership](/concepts/sessions/#session-ownership) work, and they are
