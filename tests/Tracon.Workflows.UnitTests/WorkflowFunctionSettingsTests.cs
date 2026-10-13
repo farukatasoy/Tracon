@@ -429,7 +429,7 @@ public sealed class WorkflowFunctionSettingsTests
                 OutputType = typeof(string),
                 SettingsType = typeof(List<>),
             },
-            static _ => static (executorId, _) => new FunctionExecutor<string, string>(
+            static _ => static (executorId, _, _) => new FunctionExecutor<string, string>(
                 executorId,
                 static (input, _, _) => new ValueTask<string>(input))));
 

@@ -102,7 +102,9 @@ When a key you support takes a closed set of values (an effort level, a
 threshold name), also override `InvalidSettingValue` with that key and a value
 of the right JSON type outside the set. The scenario then proves that a wrong
 value fails `CreateChatClient` with a message naming the key, the same way an
-unknown key does. Leave it `null` when no key has such a set — for example a
+unknown key does. For a text value it also proves the message does not repeat
+the value: a value can be a credential pasted into the wrong field, and the
+message reaches logs. Leave it `null` when no key has such a set — for example a
 provider whose only key is a boolean — and the scenario is reported as skipped.
 
 `ModelProviderCredentialContract` also requires

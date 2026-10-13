@@ -6,7 +6,7 @@ namespace Tracon.Core.UnitTests.Configuration;
 
 /// <summary>
 /// Every key of <c>Tracon:Scheduling</c> really reaches
-/// <see cref="TraconSchedulingOptions"/> — the scalars and the four collections.
+/// <see cref="TraconSchedulingOptions"/> — the scalars and the five collections.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -127,6 +127,42 @@ public sealed class TraconSchedulingOptionsBindingTests
     }
 
     [Fact]
+    public void The_max_duration_map_is_bound()
+    {
+        // F-323: the fifth collection. Bound by hand like the other four; a key
+        // with dots is a handler key, kept as written.
+        var options = Bind(new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow"] = "00:30:00",
+            ["Tracon:Scheduling:MaxDurationByHandlerKey:contoso.nightly-report"] = "01:00:00",
+        });
+
+        options.MaxDurationByHandlerKey[JobHandlerKeys.Workflow].ShouldBe(TimeSpan.FromMinutes(30));
+        options.MaxDurationByHandlerKey["contoso.nightly-report"].ShouldBe(TimeSpan.FromHours(1));
+    }
+
+    [Theory]
+    [InlineData("half an hour")]
+    [InlineData("00:00:00")]
+    [InlineData("-00:00:05")]
+    [InlineData("50.00:00:00")]
+    public void A_max_duration_a_timer_cannot_arm_fails_at_startup(string value)
+    {
+        // An unreadable duration is bound as zero, not skipped, so the validator
+        // names it; a skipped entry would leave the key's jobs without the limit
+        // the operator wrote.
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow"] = value,
+        };
+
+        var failure = Should.Throw<OptionsValidationException>(() => Bind(values));
+
+        failure.Message.ShouldContain(nameof(TraconSchedulingOptions.MaxDurationByHandlerKey));
+        failure.Message.ShouldContain("'tracon.workflow'");
+    }
+
+    [Fact]
     public void An_absent_section_leaves_the_shipped_defaults()
     {
         var options = Bind([]);
@@ -138,5 +174,6 @@ public sealed class TraconSchedulingOptionsBindingTests
         options.MaxConcurrentJobsPerLane.ShouldBeEmpty();
         options.LaneByHandlerKey.ShouldBeEmpty();
         options.HttpSchedulableHandlerKeys.ShouldBeEmpty();
+        options.MaxDurationByHandlerKey.ShouldBeEmpty();
     }
 }

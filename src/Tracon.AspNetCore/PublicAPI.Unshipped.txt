@@ -871,6 +871,8 @@ Tracon.WorkflowFunctionResponse.OutputType.get -> string!
 Tracon.WorkflowFunctionResponse.OutputType.init -> void
 Tracon.WorkflowFunctionResponse.SettingsSchema.get -> System.Text.Json.JsonElement?
 Tracon.WorkflowFunctionResponse.SettingsSchema.init -> void
+Tracon.WorkflowFunctionResponse.Timeout.get -> System.TimeSpan?
+Tracon.WorkflowFunctionResponse.Timeout.init -> void
 Tracon.WorkflowFunctionResponse.WorkflowFunctionResponse() -> void
 Tracon.WorkflowRespondHttpRequest
 Tracon.WorkflowRespondHttpRequest.<Clone>$() -> Tracon.WorkflowRespondHttpRequest!
@@ -925,6 +927,8 @@ Tracon.WorkflowSaveRequest.Parameters.get -> System.Collections.Generic.IReadOnl
 Tracon.WorkflowSaveRequest.Parameters.init -> void
 Tracon.WorkflowSaveRequest.RequirePlanApproval.get -> bool
 Tracon.WorkflowSaveRequest.RequirePlanApproval.init -> void
+Tracon.WorkflowSaveRequest.RunTimeout.get -> System.TimeSpan?
+Tracon.WorkflowSaveRequest.RunTimeout.init -> void
 Tracon.WorkflowSaveRequest.WorkflowSaveRequest() -> void
 const Tracon.TraconA2AExtensions.DefaultPattern = "/tracon/a2a" -> string!
 const Tracon.TraconEndpointRouteBuilderExtensions.DefaultPrefix = "/tracon" -> string!

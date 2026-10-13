@@ -175,6 +175,11 @@ The `run_input_parameters` migration only adds: a nullable `parameters` column o
 recorded". A replay, a continuation after a crash or an approval resume of such a
 run is refused when the agent declares [parameters](/concepts/agents/#parameters),
 instead of running on the defaults.
+
+The `job_max_duration` migration only adds: a nullable `max_duration_ms` column on
+`jobs`. Existing jobs keep `NULL`, which means "no time limit of its own": the limit
+`Scheduling:MaxDurationByHandlerKey` maps the job's handler key to applies, and a key
+the map does not list has none ([Background work](/guides/background-work/)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds

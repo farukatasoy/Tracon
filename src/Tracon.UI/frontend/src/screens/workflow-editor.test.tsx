@@ -124,7 +124,7 @@ describe('WorkflowEditorScreen - the chain', () => {
 
     // The pattern is locked: a function node runs in a Sequential chain only, and the screen says why.
     expect(screen.getByRole('combobox', { name: /^Kind/ })).toHaveProperty('disabled', true);
-    screen.getByText('Function nodes run only in a Sequential chain.');
+    screen.getByText('Function nodes and step timeouts run only in a Sequential chain.');
 
     await waitFor(() => expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', false));
   });
@@ -147,14 +147,15 @@ describe('WorkflowEditorScreen - the chain', () => {
       kind: 'Sequential',
       agentNames: [],
       nodes: [
-        { name: 'summarizer', kind: 'Agent', settings: null },
-        { name: 'word-count', kind: 'Function', settings: { language: 'en' } },
+        { name: 'summarizer', kind: 'Agent', settings: null, timeout: null },
+        { name: 'word-count', kind: 'Function', settings: { language: 'en' }, timeout: null },
       ],
       parameters: [],
       managerAgentName: null,
       maxIterations: null,
       handoffInstructions: null,
       requirePlanApproval: false,
+      runTimeout: null,
     });
   });
 
@@ -481,5 +482,117 @@ describe('WorkflowEditorScreen - what a save changes', () => {
 
     expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
     expect(screen.queryByTestId('workflow-form-notice')).toBeNull();
+  });
+});
+
+describe('WorkflowEditorScreen - timeouts', () => {
+  // Phase 196 (F-303, F-405): a step's timeout and the run timeout are typed in seconds and
+  // saved as hh:mm:ss; an untouched one goes back as stored (the full-replace round trip is
+  // full-replace-editors.test.tsx).
+  it('saves a step timeout and the run timeout typed in seconds', async () => {
+    const user = userEvent.setup();
+
+    open(mixed);
+
+    fireEvent.change(await screen.findByTestId('workflow-timeout-summarizer'), { target: { value: '300' } });
+    fireEvent.change(screen.getByTestId('workflow-timeout-word-count'), { target: { value: '2.5' } });
+    fireEvent.change(screen.getByTestId('workflow-run-timeout'), { target: { value: '1800' } });
+
+    // Not a structural change: a run waiting to be resumed stays resumable.
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      nodes: [
+        { name: 'summarizer', kind: 'Agent', timeout: '00:05:00' },
+        { name: 'word-count', kind: 'Function', timeout: '00:00:02.500' },
+      ],
+      runTimeout: '00:30:00',
+    });
+  });
+
+  // Phase 196 decision (K-901 unchanged): a step timeout never turns an agent list into a node
+  // list. That change of form made a waiting run unresumable and stopped the agents' live
+  // token stream; the field is offered only where a node list is saved anyway.
+  it('offers no step timeout on an agent-only chain, which stays an agent list', async () => {
+    const user = userEvent.setup();
+
+    open(agentsOnly);
+
+    await screen.findByTestId('workflow-participants');
+
+    expect(screen.queryByTestId('workflow-timeout-summarizer')).toBeNull();
+    expect(screen.queryByTestId('workflow-timeout-drafter')).toBeNull();
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ agentNames: ['summarizer', 'drafter'], nodes: [] });
+  });
+
+  it('holds Save back when the last function step leaves a step timeout behind, until it is cleared', async () => {
+    const user = userEvent.setup();
+
+    open(mixed);
+
+    fireEvent.change(await screen.findByTestId('workflow-timeout-summarizer'), { target: { value: '300' } });
+    await user.click(screen.getByRole('button', { name: 'Remove function word-count' }));
+
+    // Saved as an agent list now, which cannot keep the timeout: held back, not dropped.
+    expect(screen.getByTestId('workflow-timeouts-notice').textContent).toContain('Clear the step timeouts');
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
+
+    fireEvent.change(screen.getByTestId('workflow-timeout-summarizer'), { target: { value: '' } });
+
+    expect(screen.queryByTestId('workflow-timeouts-notice')).toBeNull();
+    expect(screen.queryByTestId('workflow-timeout-summarizer')).toBeNull();
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ agentNames: ['summarizer'], nodes: [] });
+  });
+
+  it('holds Save back on an agent-only node list written over HTTP with a step timeout', async () => {
+    open(
+      stored({
+        nodes: [
+          { name: 'summarizer', kind: 'Agent', settings: null, timeout: '00:05:00' },
+          { name: 'drafter', kind: 'Agent', settings: null, timeout: null },
+        ],
+      }),
+    );
+
+    expect(((await screen.findByTestId('workflow-timeout-summarizer')) as HTMLInputElement).value).toBe('300');
+    expect(screen.getByTestId('workflow-timeouts-notice')).toBeTruthy();
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
+  });
+
+  it('holds Save back while a timeout cannot be read', async () => {
+    open(mixed);
+
+    fireEvent.change(await screen.findByTestId('workflow-timeout-word-count'), { target: { value: 'soon' } });
+
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
+    expect(screen.getByText('Enter seconds (for example 90 or 2.5) or hh:mm:ss.')).toBeTruthy();
+  });
+
+  it('names the registered timeout as the placeholder of a function step', async () => {
+    open(mixed, [
+      fixture('GET', 'api/workflows/functions', [{ ...functions[0], timeout: '00:02:00' }, functions[1]]),
+    ]);
+
+    const field = (await screen.findByTestId('workflow-timeout-word-count')) as HTMLInputElement;
+
+    await waitFor(() => expect(field.placeholder).toBe('120 (registered)'));
+    expect((screen.getByTestId('workflow-timeout-summarizer') as HTMLInputElement).placeholder).toBe('Sub-agent deadline');
+  });
+
+  it('offers no step timeout outside a Sequential chain, where steps are not nodes', async () => {
+    open(stored({ kind: 'Concurrent', agentNames: ['summarizer', 'drafter'] }));
+
+    await screen.findByTestId('workflow-participants');
+
+    expect(screen.queryByTestId('workflow-timeout-summarizer')).toBeNull();
+    expect(screen.getByTestId('workflow-run-timeout')).toBeTruthy();
   });
 });
