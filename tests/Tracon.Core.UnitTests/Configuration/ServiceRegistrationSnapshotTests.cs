@@ -202,6 +202,8 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.JobHandlerRegistration | Singleton | Instance:Tracon.JobHandlerRegistration",
         "Tracon.WorkflowJobHandler | Scoped | Factory",
         "Tracon.JobHandlerRegistration | Singleton | Instance:Tracon.JobHandlerRegistration",
+        "Tracon.WorkflowRunJobHandler | Scoped | Factory",
+        "Tracon.JobHandlerRegistration | Singleton | Instance:Tracon.JobHandlerRegistration",
         "Tracon.IEvalStore | Singleton | Tracon.InMemoryEvalStore",
         "Tracon.EvalCheckRegistry | Singleton | Tracon.EvalCheckRegistry",
         "Tracon.IEvalEvaluatorFactory | Singleton | Tracon.LocalEvalEvaluatorFactory",
