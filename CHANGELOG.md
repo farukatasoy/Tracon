@@ -579,7 +579,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   checkpoint in its chain when its job is leased again, as a new run whose
   `ContinuedFromRunId` names the interrupted one. The step that was running repeats.
   Turning it on without `EnableCheckpointing` fails at startup. A queued run's job gets
-  `1 + MaxResumeAttempts` attempts while it is on.
+  `2 + MaxResumeAttempts` attempts while it is on: the job's last attempt never starts
+  a continuation, because the worker fails a lease past the limit before the handler
+  runs; it closes the chain instead. A batch job keeps its own attempt limit and needs
+  `2 + MaxResumeAttempts` attempts to get every continuation.
 - `RunQuery.ContinuedFromRunId` and `GET /api/runs?continuedFromRunId=` walk a
   continuation chain forward.
 - A structured `tracon.workflow` batch item may name a `sessionId`: the run's execution
