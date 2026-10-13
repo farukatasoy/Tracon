@@ -282,6 +282,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 cached_input_price_per_mtok = @cached_input_price_per_mtok,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source,
+                non_token_cost      = @non_token_cost,
+                non_token_currency  = @non_token_currency,
+                non_token_estimated = @non_token_estimated,
+                non_token_unsummed  = @non_token_unsummed,
                 model_id       = COALESCE(@model_id, model_id),
                 model_provider = COALESCE(@model_provider, model_provider)
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
@@ -373,7 +377,14 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        SUM(sub.cached_input_cost)                  AS cost_cached_input,
                        MAX(sub.cost_currency)                      AS cost_currency,
                        COUNT(*) FILTER (WHERE sub.pricing_source = 2)::bigint AS unknown_pricing_rows,
-                       COUNT(sub.pricing_source)::bigint           AS pricing_rows
+                       COUNT(sub.pricing_source)::bigint           AS pricing_rows,
+                       -- phase 199: what the descendants reported beyond tokens. Their own
+                       -- totals, NOT terms of the token cost above, and NOT coalesced:
+                       -- non_token_unsummed is NULL when no descendant reported anything.
+                       SUM(sub.non_token_cost)                     AS non_token_cost,
+                       MAX(sub.non_token_currency)                 AS non_token_currency,
+                       COUNT(*) FILTER (WHERE sub.non_token_estimated)::bigint AS non_token_estimated_rows,
+                       SUM(sub.non_token_unsummed)::bigint         AS non_token_unsummed
                 FROM {Schema}.runs AS sub
                 WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id
             ) AS tree ON TRUE
@@ -419,7 +430,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
             tree.cached_input_tokens, tree.reasoning_tokens, tree.audio_input_tokens, tree.audio_output_tokens,
             tree.cost_cached_input,
             r.continued_from_run_id,
-            r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok
+            r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok,
+            r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
+            tree.non_token_cost, tree.non_token_currency, tree.non_token_estimated_rows, tree.non_token_unsummed
             """;
 
         SelectRun = $"""

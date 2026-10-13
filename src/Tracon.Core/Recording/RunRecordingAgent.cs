@@ -49,6 +49,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     private readonly int? _agentVersion;
     private readonly bool _includeAgentVersionTag;
     private readonly IRunPricingResolver? _pricingResolver;
+    private readonly string? _pricingCurrency;
     private readonly QuotaEnforcer? _quotaEnforcer;
     private readonly IWebhookPublisher? _webhookPublisher;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
@@ -138,6 +139,10 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     /// <see langword="null"/>, no presentation is resolved — identical behavior to before
     /// <see cref="IToolApprovalPresenter"/> existed.
     /// </param>
+    /// <param name="pricingCurrency">
+    /// <c>Tracon:Pricing:Currency</c>: the currency the amounts a tool or a function node
+    /// reports add up in. <see langword="null"/> when none is configured.
+    /// </param>
     /// <exception cref="ArgumentNullException">When one of the required dependencies is <see langword="null"/>.</exception>
     internal RunRecordingAgent(
         AIAgent innerAgent,
@@ -163,7 +168,8 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         ContentGuardPipeline? contentGuardPipeline = null,
         IRunAttributionContext? attributionContext = null,
         IReadOnlyList<IRunEventSink>? sinks = null,
-        ToolApprovalPresenterRunner? approvalPresenterRunner = null)
+        ToolApprovalPresenterRunner? approvalPresenterRunner = null,
+        string? pricingCurrency = null)
         : base(innerAgent)
     {
         ArgumentNullException.ThrowIfNull(runStore);
@@ -194,6 +200,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         _attributionContext = attributionContext;
         _sinks = sinks is { Count: > 0 } ? sinks : [];
         _approvalPresenterRunner = approvalPresenterRunner;
+        _pricingCurrency = pricingCurrency;
     }
 
     /// <inheritdoc />

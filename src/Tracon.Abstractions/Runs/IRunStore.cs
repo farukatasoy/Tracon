@@ -272,6 +272,42 @@ public interface IRunStore
         Guid runId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Records one non-token item a workflow function node reported.</summary>
+    /// <param name="record">The reported item.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the item is written.</returns>
+    /// <remarks>
+    /// <para>
+    /// Written the moment the node reports it, not at the end of the run, so a run that
+    /// fails or is cancelled keeps what it had already spent. The tenant guard is the
+    /// one of <see cref="RecordToolInvocationAsync"/>: when
+    /// <see cref="NonTokenUsageRecord.TenantId"/> is set, the item is written only if the
+    /// run's own tenant matches.
+    /// </para>
+    /// <para>
+    /// The item does not change <see cref="RunRecord.NonTokenCost"/>; that snapshot comes
+    /// with <see cref="CompleteRunAsync"/>.
+    /// </para>
+    /// </remarks>
+    ValueTask RecordNonTokenUsageAsync(
+        NonTokenUsageRecord record,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Lists the non-token items a run's workflow function nodes reported, in the order reported.</summary>
+    /// <param name="runId">The run id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The items; empty when the run reported none, or when it does not exist or belongs to
+    /// another tenant.
+    /// </returns>
+    /// <remarks>
+    /// The items of the run itself only, not of the runs below it. Tool measurements stay on
+    /// <see cref="ListToolInvocationsAsync"/>.
+    /// </remarks>
+    ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Summarizes usage per tool.</summary>
     /// <param name="query">The filter.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

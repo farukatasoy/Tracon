@@ -388,6 +388,10 @@ public sealed class RunEventSinkTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(Guid runId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
             ToolUsageQuery query,
             CancellationToken cancellationToken = default)
@@ -495,6 +499,10 @@ public sealed class RunEventSinkTests
             Guid runId,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(Guid runId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
             ToolUsageQuery query,

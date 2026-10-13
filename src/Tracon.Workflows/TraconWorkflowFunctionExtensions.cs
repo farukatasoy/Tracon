@@ -471,12 +471,13 @@ public static class TraconWorkflowFunctionExtensions
 
     /// <summary>
     /// Builds the function that wraps a handler in the node's timeout and then its retry
-    /// policy, resolving their collaborators once.
+    /// policy, resolving their collaborators once, and puts the node's name in scope.
     /// </summary>
     /// <remarks>
     /// The order is <c>retry(timeout(handler))</c>: each attempt gets the whole timeout,
-    /// and a timed-out attempt is a transient failure the policy retries. Applied per
-    /// compile, because the timeout is the node's.
+    /// and a timed-out attempt is a transient failure the policy retries. The node scope
+    /// (<see cref="WorkflowFunctionNodeScope"/>) is outermost. Applied per compile,
+    /// because the timeout is the node's.
     /// </remarks>
     private static Func<
         Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>,
@@ -491,10 +492,14 @@ public static class TraconWorkflowFunctionExtensions
         var logger = services.GetService<ILoggerFactory>()?.CreateLogger(typeof(WorkflowNodeTimeout))
             ?? (ILogger)NullLogger.Instance;
 
-        return (handler, timeout) => withRetry(
-            timeout is { } limit
-                ? WorkflowNodeTimeout.Wrap(handler, name, limit, timeProvider, logger)
-                : handler);
+        // scope(retry(timeout(handler))): the node's name is set once, outside every
+        // attempt, so an item a retried attempt reports names the node (phase 199).
+        return (handler, timeout) => WorkflowFunctionNodeScope.Wrap(
+            name,
+            withRetry(
+                timeout is { } limit
+                    ? WorkflowNodeTimeout.Wrap(handler, name, limit, timeProvider, logger)
+                    : handler));
     }
 
     private static ITraconBuilder Register(ITraconBuilder builder, WorkflowFunctionRegistration registration)

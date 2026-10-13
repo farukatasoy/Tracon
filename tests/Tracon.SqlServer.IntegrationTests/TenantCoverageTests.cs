@@ -77,11 +77,14 @@ public sealed class TenantCoverageTests
         // same guard: the tenant travels on the call, and a mismatch updates
         // zero rows rather than throwing — ToolInvocationContract asserts that
         // the row is left untouched when the tenant does not match.
+        // RecordNonTokenUsageAsync (the expected-tenant guard) and
+        // ListNonTokenUsageAsync (the read-side tenant join) joined them with
+        // NonTokenUsageContract, which asserts both directions.
         ["SqlRunStore"] =
             ["StartRunAsync", "GetRunAsync", "QueryRunsAsync", "ReadEventsAsync", "ListToolInvocationsAsync",
              "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync",
              "AppendEventAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync",
-             "CompleteLateToolInvocationAsync"],
+             "CompleteLateToolInvocationAsync", "RecordNonTokenUsageAsync", "ListNonTokenUsageAsync"],
         ["SqlSessionStore"] =
             ["SaveAsync", "GetAsync", "DeleteAsync", "QueryAsync", "TryCreateAsync", "TryUpdateAsync",
              "GetOwnerTenantIdAsync"],

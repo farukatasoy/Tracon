@@ -132,13 +132,17 @@ internal sealed class TranscribeTool : VoiceToolBase
             return;
         }
 
+        var model = transcript.ModelId ?? requestedModel;
+
         _ = TraconToolUsage.Report(new ToolCallUsage
         {
             Unit = ToolUsageUnits.Seconds,
             Quantity = (decimal)duration.TotalSeconds,
-            Cost = pricing.ForTranscription(transcriber.ProviderName, transcript.ModelId ?? requestedModel, duration),
+            Cost = pricing.ForTranscription(transcriber.ProviderName, model, duration),
             Currency = pricing.Currency,
             IsEstimated = false,
+            Provider = transcriber.ProviderName,
+            Model = model,
         });
     }
 }

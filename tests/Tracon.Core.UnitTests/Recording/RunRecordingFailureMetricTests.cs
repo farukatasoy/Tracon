@@ -436,7 +436,7 @@ public sealed class RunRecordingFailureMetricTests
     [Fact]
     public void The_stage_set_is_closed_and_its_values_are_metric_safe()
     {
-        string[] expected = ["start", "event", "tool_invocation", "completion", "sink", "input"];
+        string[] expected = ["start", "event", "tool_invocation", "non_token_usage", "completion", "sink", "input"];
 
         RunRecordingStages.All.SequenceEqual(expected, StringComparer.Ordinal).ShouldBeTrue(
             $"the stage set is closed; it is [{string.Join(", ", RunRecordingStages.All)}]");
@@ -564,6 +564,10 @@ public sealed class RunRecordingFailureMetricTests
         public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(Guid runId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
@@ -647,6 +651,10 @@ public sealed class RunRecordingFailureMetricTests
 
         public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(Guid runId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

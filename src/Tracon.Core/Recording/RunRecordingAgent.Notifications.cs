@@ -16,9 +16,16 @@ public sealed partial class RunRecordingAgent
     /// plus those of every child agent run under it.
     /// </summary>
     /// <param name="Usage">The tree's tokens; <see langword="null"/> when no run reported any.</param>
-    /// <param name="Cost">The tree's priced cost; <see langword="null"/> when no run was priced.</param>
+    /// <param name="Cost">
+    /// The tree's spend: the token cost and the amount reported beyond tokens, added by
+    /// <see cref="RunSpend"/>. <see langword="null"/> when no run was priced.
+    /// </param>
     /// <param name="Currency">The currency of <paramref name="Cost"/>.</param>
-    private readonly record struct TreeConsumption(RunUsage? Usage, decimal? Cost, string? Currency);
+    /// <param name="NonTokenCost">
+    /// The part of <paramref name="Cost"/> that was reported beyond tokens;
+    /// <see langword="null"/> when no run reported an amount.
+    /// </param>
+    private readonly record struct TreeConsumption(RunUsage? Usage, decimal? Cost, string? Currency, decimal? NonTokenCost);
 
     /// <summary>
     /// Reads what a root run's child agent runs consumed and adds it to the
@@ -53,12 +60,16 @@ public sealed partial class RunRecordingAgent
         RunScope scope,
         RunUsage? usage,
         RunCost? cost,
+        RunNonTokenCost? nonTokenCost,
         CancellationToken cancellationToken)
     {
+        var pricedCost = cost is { Source: not PricingSource.Unknown } ? cost : null;
+
         var own = new TreeConsumption(
             usage,
-            cost is { Source: not PricingSource.Unknown } ? cost.Total() : null,
-            cost?.Currency);
+            RunSpend.Total(pricedCost, nonTokenCost),
+            pricedCost?.Currency ?? nonTokenCost?.Currency,
+            nonTokenCost?.Amount);
 
         // Nothing reads the tree when neither consumer is registered, and a run
         // without a child reservation has no tree to read.
@@ -91,8 +102,13 @@ public sealed partial class RunRecordingAgent
         }
 
         var treeUsage = RunUsageSum.Add(usage, DescendantUsage(record));
-        var childCost = record.TreeCost?.Total() is { } treeTotal
-            ? Math.Max(0m, treeTotal - (record.Cost?.Total() ?? 0m))
+
+        // The tree's spend is the token cost and the reported amount together
+        // (RunSpend), and so is what the row already holds: subtracting like from
+        // like leaves the descendants' share. The root's own in-memory spend, above,
+        // is added once.
+        var childCost = RunSpend.Total(record.TreeCost, record.TreeNonTokenCost) is { } treeTotal
+            ? Math.Max(0m, treeTotal - (RunSpend.Total(record.Cost, record.NonTokenCost) ?? 0m))
             : (decimal?)null;
 
         if (childCost is null)
@@ -100,12 +116,16 @@ public sealed partial class RunRecordingAgent
             return own with { Usage = treeUsage };
         }
 
+        var childNonToken = record.TreeNonTokenCost?.Amount is { } treeNonToken
+            ? Math.Max(0m, treeNonToken - (record.NonTokenCost?.Amount ?? 0m))
+            : (decimal?)null;
+
+        var childCurrency = record.TreeCost?.Currency ?? record.TreeNonTokenCost?.Currency;
+
         if (own.Cost is null)
         {
-            return new TreeConsumption(treeUsage, childCost, record.TreeCost!.Currency ?? own.Currency);
+            return new TreeConsumption(treeUsage, childCost, childCurrency ?? own.Currency, childNonToken);
         }
-
-        var childCurrency = record.TreeCost!.Currency;
 
         if (childCurrency is not null && own.Currency is not null &&
             !string.Equals(childCurrency, own.Currency, StringComparison.OrdinalIgnoreCase))
@@ -119,7 +139,11 @@ public sealed partial class RunRecordingAgent
             return own with { Usage = treeUsage };
         }
 
-        return new TreeConsumption(treeUsage, own.Cost + childCost, own.Currency ?? childCurrency);
+        return new TreeConsumption(
+            treeUsage,
+            own.Cost + childCost,
+            own.Currency ?? childCurrency,
+            own.NonTokenCost is null && childNonToken is null ? null : (own.NonTokenCost ?? 0m) + (childNonToken ?? 0m));
     }
 
     /// <summary>The tree's tokens minus whatever the root's own row already holds.</summary>
@@ -329,6 +353,7 @@ public sealed partial class RunRecordingAgent
                     InputTokens = consumption.Usage?.InputTokens,
                     OutputTokens = consumption.Usage?.OutputTokens,
                     Cost = consumption.Cost,
+                    NonTokenCost = consumption.NonTokenCost,
                     Currency = consumption.Currency,
                     Error = error?.Message,
                 },

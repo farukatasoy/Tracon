@@ -1,20 +1,25 @@
 namespace Tracon;
 
 /// <summary>
-/// A single tool call's non-token measurement and cost.
+/// A non-token measurement and its cost: one tool call's, or one item a
+/// workflow function node reported.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The cost model assumes tokens and writes to the <c>runs</c> table. A tool may spend
-/// no tokens but still incur a charge: text-to-speech is billed by <em>character</em>,
-/// speech-to-text by <em>second</em>. These measurements are <strong>not
-/// summed</strong> with token cost — two different units cannot be added. They
-/// stay on the call's <see cref="ToolInvocationRecord"/>; the console does not
-/// display them yet.
+/// The token cost model writes to the <c>runs</c> table. A tool or a function
+/// node may spend no tokens but still incur a charge: text-to-speech is billed
+/// by <em>character</em>, speech-to-text by <em>second</em>, a render by the
+/// GPU second. The <see cref="Quantity"/> is never added across units — two
+/// different units cannot be added. The <see cref="Cost"/> is: the amounts of one
+/// currency add up into the run's <see cref="RunNonTokenCost"/>, which is a total
+/// of its own beside the token cost. An item with no <see cref="Cost"/>, or one in
+/// another currency, is listed and counted but not added.
 /// </para>
 /// <para>
-/// The measurement is reported by the tool itself:
-/// <c>TraconToolUsage.Report(...)</c>.
+/// A tool reports its measurement with <c>TraconToolUsage.Report(...)</c>; it
+/// stays on the call's <see cref="ToolInvocationRecord"/>. A workflow function node
+/// reports with <c>IWorkflowContext.ReportUsageAsync(...)</c>; every report is
+/// an item of its own.
 /// </para>
 /// </remarks>
 public sealed record ToolCallUsage
@@ -31,7 +36,15 @@ public sealed record ToolCallUsage
     /// </summary>
     public decimal? Cost { get; init; }
 
-    /// <summary>The currency. Comes from <c>Tracon:Pricing:Currency</c>.</summary>
+    /// <summary>
+    /// The currency of <see cref="Cost"/>. Comes from <c>Tracon:Pricing:Currency</c>
+    /// for Tracon's own tools.
+    /// </summary>
+    /// <remarks>
+    /// An empty label means <c>Tracon:Pricing:Currency</c>. An amount adds to the run's
+    /// total only when its currency is that one; any other currency is listed and
+    /// counted as not added (<see cref="RunNonTokenCost.UnsummedItemCount"/>).
+    /// </remarks>
     public string? Currency { get; init; }
 
     /// <summary>
@@ -44,6 +57,22 @@ public sealed record ToolCallUsage
     /// keep the two cases apart.
     /// </remarks>
     public bool IsEstimated { get; init; }
+
+    /// <summary>
+    /// The provider that did the work (for example <c>elevenlabs</c>), or
+    /// <see langword="null"/> when the reporter does not name one.
+    /// </summary>
+    /// <remarks>
+    /// A name for the reader of the record only. It takes no part in a total: the
+    /// same unit at two providers is still one unit.
+    /// </remarks>
+    public string? Provider { get; init; }
+
+    /// <summary>
+    /// The model that did the work (for example <c>eleven_multilingual_v2</c>), or
+    /// <see langword="null"/> when the reporter does not name one.
+    /// </summary>
+    public string? Model { get; init; }
 }
 
 /// <summary>

@@ -50,3 +50,4 @@ Tracon.WorkflowFunctionOptions.RetryPolicy.set -> void
 Tracon.WorkflowFunctionOptions.Timeout.get -> System.TimeSpan?
 Tracon.WorkflowFunctionOptions.Timeout.set -> void
 Tracon.WorkflowFunctionOptions.WorkflowFunctionOptions() -> void
+static Tracon.TraconWorkflowContextExtensions.ReportUsageAsync(this Microsoft.Agents.AI.Workflows.IWorkflowContext! context, Tracon.ToolCallUsage! usage) -> System.Threading.Tasks.ValueTask<bool>

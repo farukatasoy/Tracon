@@ -545,6 +545,10 @@ public sealed class StructuredResponseValidatingAgentTests
             Guid runId, CancellationToken cancellationToken = default)
             => _inner.ListToolInvocationsAsync(runId, cancellationToken);
 
+        public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken cancellationToken = default) => _inner.RecordNonTokenUsageAsync(record, cancellationToken);
+
+        public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(Guid runId, CancellationToken cancellationToken = default) => _inner.ListNonTokenUsageAsync(runId, cancellationToken);
+
         public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
             ToolUsageQuery query, CancellationToken cancellationToken = default)
             => _inner.GetToolUsageAsync(query, cancellationToken);

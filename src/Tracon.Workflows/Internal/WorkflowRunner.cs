@@ -607,6 +607,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 message,
                 execution.RunId));
 
+        var budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider);
+
         var scope = new AgentRunScope
         {
             RunId = execution.RunId,
@@ -617,8 +619,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             SessionId = execution.SessionId,
             UserId = attribution.UserId,
             Labels = attribution.Labels,
-            Budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider),
+            Budget = budget,
             Writer = writer,
+
+            // What the function nodes of this workflow report beyond tokens adds up
+            // here; the agent steps below keep their own (a tool's measurement) and
+            // reach the same budget (phase 199).
+            NonTokenCost = new NonTokenCostAccumulator(_traconOptions.Value.Pricing.Currency, budget),
         };
 
         if (activity is not null)
@@ -1526,12 +1533,15 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         // A workflow row has no model of its own (phase 20): only the agent
-        // runs beneath it carry cost, which shows up in the tree total.
+        // runs beneath it carry token cost, which shows up in the tree total. What
+        // its own function nodes reported beyond tokens is the row's own snapshot,
+        // read once here; an item reported later stays in the run's detail.
         await writer.CompleteAsync(
             status,
             usage: null,
             error,
             cost: null,
+            nonTokenCost: scope.NonTokenCost?.Seal(),
             modelId: null,
             modelProvider: null,
             cancellationToken: CancellationToken.None).ConfigureAwait(false);
@@ -1684,8 +1694,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         DurationMs = (long)_timeProvider.GetElapsedTime(startedAt).TotalMilliseconds,
                         InputTokens = record?.TreeUsage?.InputTokens,
                         OutputTokens = record?.TreeUsage?.OutputTokens,
-                        Cost = record?.TreeCost?.Total(),
-                        Currency = record?.TreeCost?.Currency,
+
+                        // The token cost and the amount the tree reported beyond tokens,
+                        // added in ONE place (RunSpend); the second is also given on its own.
+                        Cost = record is null ? null : RunSpend.Total(record.TreeCost, record.TreeNonTokenCost),
+                        NonTokenCost = record?.TreeNonTokenCost?.Amount,
+                        Currency = record?.TreeCost?.Currency ?? record?.TreeNonTokenCost?.Currency,
                         Error = error?.Message,
                     },
                 },
@@ -1736,9 +1750,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 UserId = scope.UserId,
                 Runs = 1,
                 Tokens = record?.TreeUsage?.TotalTokens ?? 0,
-                Cost = record?.TreeCost is { } treeCost
-                    ? treeCost.Total()
-                    : null,
+
+                // The token cost and the amount the tree reported beyond tokens
+                // (RunSpend). Without it a tenant's cost quota never saw a workflow's
+                // speech or render spend. The fallback to tokens stays: an unpriced
+                // tree has no amount at all.
+                Cost = record is null ? null : RunSpend.Total(record.TreeCost, record.TreeNonTokenCost),
                 OccurredAt = _timeProvider.GetUtcNow(),
             },
             cancellationToken).ConfigureAwait(false);

@@ -163,6 +163,18 @@ public sealed record AgentRunScope
     internal ToolUsageAccumulator? ToolUsage { get; init; }
 
     /// <summary>
+    /// Gets the accumulator that adds up the non-token amounts the run reported: what its
+    /// workflow function nodes reported and what its tools measured.
+    /// </summary>
+    /// <remarks>
+    /// The write surfaces are <c>IWorkflowContext.ReportUsageAsync</c> (a function node)
+    /// and <c>ToolInvocationTracker</c> (a tool's measurement); the run reads the total
+    /// once, when it closes. <see langword="null"/> where no code reports: a run opened
+    /// by a path that does not record.
+    /// </remarks>
+    internal NonTokenCostAccumulator? NonTokenCost { get; init; }
+
+    /// <summary>
     /// Gets the authorization decisions made by <see cref="AuthorizingAIFunction"/>, keyed by call identity.
     /// </summary>
     /// <remarks>

@@ -33,6 +33,7 @@ internal sealed class ToolInvocationTracker
     private readonly bool _measureDuration;
     private readonly TimeProvider _timeProvider;
     private readonly ToolUsageAccumulator? _usage;
+    private readonly NonTokenCostAccumulator? _nonTokenCost;
     private readonly string? _tenantId;
     private readonly ToolAuthorizationAccumulator? _authorization;
     private readonly ToolExplainedFailureAccumulator? _explainedFailures;
@@ -59,6 +60,12 @@ internal sealed class ToolInvocationTracker
     /// If <see langword="null"/>, only an exception carried by the result
     /// itself marks a call as failed.
     /// </param>
+    /// <param name="nonTokenCost">
+    /// The run's non-token total. Every measurement a call reported is also added
+    /// here, so a tool's text-to-speech characters count toward the run's quota and
+    /// budget the way a function node's do. If <see langword="null"/>, a measurement
+    /// stays on the call's record only.
+    /// </param>
     public ToolInvocationTracker(
         Guid runId,
         bool measureDuration,
@@ -66,7 +73,8 @@ internal sealed class ToolInvocationTracker
         ToolUsageAccumulator? usage = null,
         string? tenantId = null,
         ToolAuthorizationAccumulator? authorization = null,
-        ToolExplainedFailureAccumulator? explainedFailures = null)
+        ToolExplainedFailureAccumulator? explainedFailures = null,
+        NonTokenCostAccumulator? nonTokenCost = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
 
@@ -77,6 +85,7 @@ internal sealed class ToolInvocationTracker
         _tenantId = tenantId;
         _authorization = authorization;
         _explainedFailures = explainedFailures;
+        _nonTokenCost = nonTokenCost;
     }
 
     /// <summary>Records that a tool call started.</summary>
@@ -147,7 +156,7 @@ internal sealed class ToolInvocationTracker
             // The tool may have reported its own metric under the call
             // identity. The vast majority of calls carry no metric and the
             // field stays empty.
-            Usage = _usage?.Take(result.CallId),
+            Usage = TakeUsage(result.CallId),
 
             // A denial returns a normal (non-exceptional) result, so it can
             // only be told apart from an ordinary success through this marker.
@@ -194,6 +203,11 @@ internal sealed class ToolInvocationTracker
                 Error = reason,
                 CreatedAt = now,
 
+                // A call that reported its measurement and then never settled
+                // (cancelled mid-flight, say) spent what it reported: the
+                // image was generated before the attachment was written.
+                Usage = TakeUsage(pair.Key),
+
                 // Expected tenant stamp (K-355).
                 TenantId = _tenantId,
             })
@@ -202,6 +216,23 @@ internal sealed class ToolInvocationTracker
         _pending.Clear();
 
         return records;
+    }
+
+    /// <summary>
+    /// Takes the measurement a call reported and adds it to the run's non-token total.
+    /// </summary>
+    /// <param name="callId">The call identity.</param>
+    /// <returns>The measurement, or <see langword="null"/> when the call reported none.</returns>
+    private ToolCallUsage? TakeUsage(string callId)
+    {
+        var usage = _usage?.Take(callId);
+
+        if (usage is not null)
+        {
+            _nonTokenCost?.AddToolMeasurement(usage);
+        }
+
+        return usage;
     }
 
     private readonly record struct PendingCall(

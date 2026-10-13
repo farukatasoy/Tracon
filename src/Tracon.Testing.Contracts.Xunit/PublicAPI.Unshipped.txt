@@ -975,3 +975,23 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.A_queued_workflow_row_keeps_it
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_second_start_without_a_continuation_link_keeps_the_first_one() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Query_by_continuation_does_not_return_another_tenants_run() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Query_filters_by_the_run_a_continuation_continues() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.A_run_lists_its_own_items_and_not_its_childrens() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.A_run_that_reported_nothing_or_does_not_exist_lists_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.An_item_for_a_run_that_was_never_opened_leaves_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.An_item_stamped_with_another_tenant_is_refused_and_leaves_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.An_item_with_no_amount_comes_back_with_no_amount_not_zero() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.Item_fields_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.Items_come_back_in_the_order_they_were_reported() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.NonTokenUsageContract() -> void
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_tree_in_which_only_a_child_reported_still_has_a_tree_total() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Items_that_carried_no_amount_keep_their_count_and_a_null_amount() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Non_token_cost_is_a_total_of_its_own_and_never_a_term_of_the_token_cost() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Non_token_cost_snapshot_round_trips_and_a_run_that_reported_nothing_has_none() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.Tree_non_token_cost_adds_every_run_in_the_tree_once() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.A_measurement_that_names_no_provider_or_model_comes_back_with_none() -> System.Threading.Tasks.Task!
+override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.CancellableWriteAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.CountAsync(string! tenantId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.SeedAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.CancellableReadAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask

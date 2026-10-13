@@ -155,6 +155,7 @@ internal sealed class RunRecordingAgentDecorator : IAgentDecorator
             _contentGuardPipeline,
             _attributionContext,
             _sinks,
-            _approvalPresenterRunner);
+            _approvalPresenterRunner,
+            _options.Value.Pricing.Currency);
     }
 }

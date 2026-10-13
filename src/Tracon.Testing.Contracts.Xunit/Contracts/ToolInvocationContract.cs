@@ -119,6 +119,10 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
                 Cost = 0.0001357m,
                 Currency = "USD",
                 IsEstimated = true,
+
+                // Who did the work: two more columns (a later addition), same round trip.
+                Provider = "elevenlabs",
+                Model = "eleven_multilingual_v2",
             },
         });
 
@@ -130,6 +134,31 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
         stored.Usage.Cost.ShouldBe(0.0001357m);
         string.Equals(stored.Usage.Currency, "USD", StringComparison.Ordinal).ShouldBeTrue();
         stored.Usage.IsEstimated.ShouldBeTrue();
+        string.Equals(stored.Usage.Provider, "elevenlabs", StringComparison.Ordinal).ShouldBeTrue();
+        string.Equals(stored.Usage.Model, "eleven_multilingual_v2", StringComparison.Ordinal).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_measurement_that_names_no_provider_or_model_comes_back_with_none()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = runId,
+            ToolName = "speak",
+            ToolCallId = "call-voice",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Usage = new ToolCallUsage { Unit = ToolUsageUnits.Seconds, Quantity = 3m },
+        });
+
+        var stored = (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
+
+        stored.Usage.ShouldNotBeNull();
+        stored.Usage.Provider.ShouldBeNull();
+        stored.Usage.Model.ShouldBeNull();
     }
 
     [Fact]
@@ -269,6 +298,8 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
                 Quantity = 1m,
                 Cost = 0.04m,
                 Currency = "USD",
+                Provider = "openai",
+                Model = "gpt-image-1",
             },
         });
 
@@ -287,6 +318,8 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
         stored.Usage.ShouldNotBeNull();
         stored.Usage.Cost.ShouldBe(0.04m);
         stored.Usage.Quantity.ShouldBe(1m);
+        string.Equals(stored.Usage.Provider, "openai", StringComparison.Ordinal).ShouldBeTrue();
+        string.Equals(stored.Usage.Model, "gpt-image-1", StringComparison.Ordinal).ShouldBeTrue();
         string.Equals(stored.Result, "Images produced. count=1.", StringComparison.Ordinal).ShouldBeTrue();
         stored.LateCompletedAt.ShouldNotBeNull();
     }

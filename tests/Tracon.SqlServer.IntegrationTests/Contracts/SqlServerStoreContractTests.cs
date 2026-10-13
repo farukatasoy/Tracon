@@ -95,6 +95,19 @@ public sealed class SqlServerToolInvocationContractTests(SqlServerSchemaFixture 
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerNonTokenUsageContractTests(SqlServerSchemaFixture schema)
+    : NonTokenUsageContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IRunStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.Runs;
+    }
+}
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
 public sealed class SqlServerAttachmentStoreContractTests(SqlServerSchemaFixture schema)
     : AttachmentStoreContract, IClassFixture<SqlServerSchemaFixture>
 {

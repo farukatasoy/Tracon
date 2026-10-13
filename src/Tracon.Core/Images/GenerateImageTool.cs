@@ -127,6 +127,8 @@ internal sealed class GenerateImageTool : AIFunction
             Quantity = usage.Quantity,
             Cost = usage.Cost,
             Currency = usage.Currency,
+            Provider = options.Provider,
+            Model = options.Model,
         });
 
         var attachments = await Resolve<ImageAttachmentWriter>()

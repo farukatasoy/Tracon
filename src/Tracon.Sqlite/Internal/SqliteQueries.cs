@@ -329,6 +329,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 cached_input_price_per_mtok = @cached_input_price_per_mtok,
                 cost_currency  = @cost_currency,
                 pricing_source = @pricing_source,
+                non_token_cost      = @non_token_cost,
+                non_token_currency  = @non_token_currency,
+                non_token_estimated = @non_token_estimated,
+                non_token_unsummed  = @non_token_unsummed,
                 model_id       = COALESCE(@model_id, model_id),
                 model_provider = COALESCE(@model_provider, model_provider)
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
@@ -441,7 +445,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
             (SELECT {TreeSum("audio_output_tokens", "sub", false)} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT SUM(sub.cached_input_cost)   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.continued_from_run_id,
-            r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok
+            r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok,
+            -- phase 199: what the run reported beyond tokens, then what its descendants did.
+            -- Their own totals, NOT terms of the token cost, and NOT coalesced:
+            -- non_token_unsummed is NULL when nobody reported anything.
+            r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
+            (SELECT SUM(sub.non_token_cost)     FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT MAX(sub.non_token_currency) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT COUNT(*) FILTER (WHERE sub.non_token_estimated = 1) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT SUM(sub.non_token_unsummed) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id)
             """;
 
         SelectRun = $"""
