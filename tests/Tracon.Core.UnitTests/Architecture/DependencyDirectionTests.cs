@@ -114,6 +114,30 @@ public sealed class DependencyDirectionTests
     }
 
     [Fact]
+    public void The_speech_dialogue_contract_lives_in_abstractions_not_in_the_voice_package()
+    {
+        // Faz 203: the HTTP layer and a host's workflow code name these types, and
+        // neither may reference Tracon.Voice (K-215 placed the speech contracts in
+        // Abstractions for the same reason). The resolver that hands the capability
+        // out is in Core; the ElevenLabs implementation stays in Voice.
+        Type[] contract =
+        [
+            typeof(ISpeechDialogueSynthesizer),
+            typeof(SpeechDialogueRequest),
+            typeof(SpeechDialogueTurn),
+            typeof(SpeechDialogueAudio),
+            typeof(SpeechDialogueSegment),
+            typeof(SpeechDialogueCapabilities),
+            typeof(ISpeechProviderResolver),
+        ];
+
+        contract.ShouldAllBe(type => type.Assembly.GetName().Name == "Tracon.Abstractions");
+        typeof(ISpeechProviderResolver).GetMethod(nameof(ISpeechProviderResolver.GetDialogueSynthesizerAsync))
+            .ShouldNotBeNull()
+            .ReturnType.ShouldBe(typeof(ValueTask<ISpeechDialogueSynthesizer>));
+    }
+
+    [Fact]
     public void Dependency_graph_contains_no_cycle()
     {
         var graph = AllowedReferences.Keys.ToDictionary(

@@ -34,7 +34,7 @@ internal enum AnthropicThinkingMode
 /// <remarks>
 /// <para>
 /// A wrong value or a combination that cannot work is an error here, in the
-/// <see cref="ModelProviderSettings.Validate"/> pattern: the registry
+/// <see cref="ModelProviderSettings.Validate(ModelBinding, string, IReadOnlyCollection{string})"/> pattern: the registry
 /// wraps it into a compilation error that names the agent, and the validation
 /// endpoint reports it as <c>invalid_setting</c>. Nothing is ignored silently.
 /// </para>

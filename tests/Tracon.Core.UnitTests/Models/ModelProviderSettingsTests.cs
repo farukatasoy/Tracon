@@ -178,6 +178,87 @@ public sealed class ModelProviderSettingsTests
         binding.ProviderSettings.ShouldBeEmpty();
     }
 
+    [Fact]
+    public void The_dictionary_overload_applies_the_same_rule_and_names_the_request_dictionary()
+    {
+        // Faz 203: a speech request's ProviderSettings is checked by the same code as a
+        // model binding's (K-483); only what the message calls the dictionary differs.
+        var settings = Binding(("other.setting", true), ("demo.noSuchKey", true)).ProviderSettings;
+
+        var exception = Should.Throw<TraconException>(() => ModelProviderSettings.Validate(settings, "demo", Supported));
+
+        exception.Message.ShouldStartWith("ProviderSettings is invalid:");
+        exception.Message.ShouldNotContain(nameof(ModelBinding));
+        exception.Message.ShouldContain("do not belong to the 'demo' provider: other.setting");
+        exception.Message.ShouldContain("not recognized: demo.noSuchKey");
+        exception.Message.ShouldContain("Supported keys: demo.budget, demo.enabled, demo.threshold");
+
+        Should.NotThrow(() => ModelProviderSettings.Validate(
+            Binding(("DEMO.Enabled", true)).ProviderSettings,
+            "demo",
+            Supported));
+        Should.NotThrow(() => ModelProviderSettings.Validate(new Dictionary<string, JsonElement>(StringComparer.Ordinal), "demo", []));
+    }
+
+    [Fact]
+    public void The_binding_overload_keeps_its_message()
+    {
+        var exception = Should.Throw<TraconException>(() => ModelProviderSettings.Validate(
+            Binding(("other.setting", true)),
+            "demo",
+            Supported));
+
+        exception.Message.ShouldStartWith("ModelBinding.ProviderSettings is invalid:");
+        exception.Message.ShouldContain("provider named in ModelBinding.Provider");
+    }
+
+    [Fact]
+    public void The_dictionary_overload_refuses_null_and_an_empty_prefix()
+    {
+        Should.Throw<ArgumentNullException>(() => ModelProviderSettings.Validate((IReadOnlyDictionary<string, JsonElement>)null!, "demo", Supported));
+        Should.Throw<ArgumentException>(() => ModelProviderSettings.Validate(new Dictionary<string, JsonElement>(StringComparer.Ordinal), " ", Supported));
+        Should.Throw<ArgumentNullException>(() => ModelProviderSettings.Validate(new Dictionary<string, JsonElement>(StringComparer.Ordinal), "demo", null!));
+    }
+
+    [Fact]
+    public void A_wrong_type_is_named_by_its_JSON_kind_never_by_its_value()
+    {
+        const string marker = "pasted-credential-value";
+
+        var exception = Should.Throw<TraconException>(
+            () => ModelProviderSettings.ReadInt32(Binding(("demo.budget", marker)), "demo.budget"));
+
+        exception.Message.ShouldContain("demo.budget");
+        exception.Message.ShouldContain("String");
+        exception.Message.ShouldNotContain(marker);
+    }
+
+    [Fact]
+    public void The_dictionary_readers_read_numbers_lists_and_large_integers()
+    {
+        var settings = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+        {
+            ["demo.ratio"] = JsonSerializer.SerializeToElement(0.25),
+            ["demo.ratioText"] = JsonSerializer.SerializeToElement("0.5"),
+            ["demo.seed"] = JsonSerializer.SerializeToElement(4294967295L),
+            ["demo.ids"] = JsonSerializer.SerializeToElement(new[] { "a", "b" }),
+            ["demo.blankIds"] = JsonSerializer.SerializeToElement(new[] { "a", " " }),
+            ["demo.mixedIds"] = JsonSerializer.SerializeToElement(new object[] { "a", 3 }),
+        };
+
+        ModelProviderSettings.ReadDouble(settings, "demo.ratio").ShouldBe(0.25);
+        ModelProviderSettings.ReadDouble(settings, "demo.ratioText").ShouldBe(0.5);
+        ModelProviderSettings.ReadDouble(settings, "demo.missing").ShouldBeNull();
+        ModelProviderSettings.ReadInt64(settings, "demo.seed").ShouldBe(4294967295L);
+        Should.Throw<TraconException>(() => ModelProviderSettings.ReadInt32(settings, "demo.seed"));
+        ModelProviderSettings.ReadStringList(settings, "demo.ids").ShouldBe(["a", "b"]);
+        Should.Throw<TraconException>(() => ModelProviderSettings.ReadStringList(settings, "demo.blankIds"))
+            .Message.ShouldContain("a list of non-blank text");
+        Should.Throw<TraconException>(() => ModelProviderSettings.ReadStringList(settings, "demo.mixedIds"));
+        Should.Throw<TraconException>(() => ModelProviderSettings.ReadDouble(settings, "demo.ids"))
+            .Message.ShouldContain("a number");
+    }
+
     private static ModelBinding Binding(params (string Key, object Value)[] entries)
     {
         var settings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);

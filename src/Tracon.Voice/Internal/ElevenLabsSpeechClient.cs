@@ -8,23 +8,28 @@ using System.Text.Json;
 namespace Tracon;
 
 /// <summary>
-/// <see cref="ISpeechSynthesizer"/> and <see cref="ISpeechTranscriber"/>
-/// implementation that uses ElevenLabs' three HTTP endpoints.
+/// <see cref="ISpeechSynthesizer"/>, <see cref="ISpeechDialogueSynthesizer"/> and
+/// <see cref="ISpeechTranscriber"/> implementation over ElevenLabs' HTTP endpoints.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Raw <see cref="HttpClient"/> instead of an SDK: the surface used is only
-/// three endpoints, the JSON contract is simple, and source generation keeps
+/// Raw <see cref="HttpClient"/> instead of an SDK: the surface used is a few
+/// endpoints, the JSON contract is simple, and source generation keeps
 /// it AOT compatible. This also lets the code fully control that the error
 /// detail carries no secret or address.
 /// </para>
 /// <para>
 /// Concurrency is bounded with a <see cref="SemaphoreSlim"/>: voice requests
 /// are expensive, and a single misconfigured agent definition can fire dozens
-/// of requests at once.
+/// of requests at once. Synthesis, dialogue and transcription share the one
+/// counter.
+/// </para>
+/// <para>
+/// The built-in client takes no tenant credential (K-930): a request that carries one
+/// is refused, never sent on the configured key.
 /// </para>
 /// </remarks>
-internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTranscriber, IVoiceHealthCheck, IDisposable
+internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialogueSynthesizer, ISpeechTranscriber, IVoiceHealthCheck, IDisposable
 {
     /// <summary>The provider's public base address.</summary>
     internal static readonly Uri DefaultEndpoint = new("https://api.elevenlabs.io/");
@@ -37,6 +42,12 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
     /// <summary>The provider's default transcription model.</summary>
     internal const string DefaultTranscriptionModel = "scribe_v2";
+
+    /// <summary>The most distinct voices one dialogue request takes (the provider's limit).</summary>
+    internal const int MaxDialogueVoices = 10;
+
+    /// <summary>The response header that carries the provider's id for the generation.</summary>
+    internal const string RequestIdHeader = "request-id";
 
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(100);
     private const int MaxReportedVoices = 500;
@@ -74,6 +85,14 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     /// <inheritdoc />
     public int MaxCharactersPerRequest => _options.MaxCharactersPerRequest;
 
+    /// <inheritdoc />
+    public SpeechDialogueCapabilities DialogueCapabilities => new()
+    {
+        MaxVoices = MaxDialogueVoices,
+        MaxCharactersPerRequest = _options.MaxDialogueCharactersPerRequest,
+        SupportsSegmentTimestamps = true,
+    };
+
     private Uri BaseEndpoint => _options.Endpoint ?? DefaultEndpoint;
 
     /// <inheritdoc />
@@ -83,16 +102,19 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        RefuseTenantCredential(request.Credential);
+
         var voiceId = ResolveVoiceId(request);
         var format = request.OutputFormat ?? _options.OutputFormat;
+        var settings = ElevenLabsRequestSettings.ReadSpeech(request.ProviderSettings);
 
         await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
             return request.IncludeTimestamps
-                ? await SynthesizeWithTimestampsAsync(request, voiceId, format, cancellationToken).ConfigureAwait(false)
-                : await SynthesizePlainAsync(request, voiceId, format, cancellationToken).ConfigureAwait(false);
+                ? await SynthesizeWithTimestampsAsync(request, voiceId, format, settings, cancellationToken).ConfigureAwait(false)
+                : await SynthesizePlainAsync(request, voiceId, format, settings, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -104,9 +126,10 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         SpeechRequest request,
         string voiceId,
         string format,
+        ElevenLabsRequestSettings settings,
         CancellationToken cancellationToken)
     {
-        using var message = BuildSynthesisRequest(request, voiceId, format, streaming: false, withTimestamps: false);
+        using var message = BuildSynthesisRequest(request, voiceId, format, settings, streaming: false, withTimestamps: false);
         using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
         await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
@@ -125,6 +148,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
             // ESTIMATE and is marked as such. Presenting an estimate as a
             // measurement would be inventing a price.
             UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
+            ProviderRequestId = ReadRequestId(response),
         };
     }
 
@@ -139,9 +163,10 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         SpeechRequest request,
         string voiceId,
         string format,
+        ElevenLabsRequestSettings settings,
         CancellationToken cancellationToken)
     {
-        using var message = BuildSynthesisRequest(request, voiceId, format, streaming: false, withTimestamps: true);
+        using var message = BuildSynthesisRequest(request, voiceId, format, settings, streaming: false, withTimestamps: true);
         using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
         await EnsureSuccessAsync(response, "Speech could not be generated", cancellationToken).ConfigureAwait(false);
@@ -157,6 +182,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
             CharactersBilled = billed ?? request.Text.Length,
             UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
             Alignment = payload.Alignment,
+            ProviderRequestId = ReadRequestId(response),
         };
     }
 
@@ -179,14 +205,17 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
                 $"alignment data. Use {nameof(SynthesizeAsync)} for timestamped speech.");
         }
 
+        RefuseTenantCredential(request.Credential);
+
         var voiceId = ResolveVoiceId(request);
         var format = request.OutputFormat ?? _options.OutputFormat;
+        var settings = ElevenLabsRequestSettings.ReadSpeech(request.ProviderSettings);
 
         await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
-            using var message = BuildSynthesisRequest(request, voiceId, format, streaming: true, withTimestamps: false);
+            using var message = BuildSynthesisRequest(request, voiceId, format, settings, streaming: true, withTimestamps: false);
 
             using var response = await _http
                 .SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
@@ -213,6 +242,80 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
                     yield return buffer.AsMemory(0, read).ToArray();
                 }
             }
+        }
+        finally
+        {
+            _concurrency.Release();
+        }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <c>POST v1/text-to-dialogue</c> returns raw audio;
+    /// <c>v1/text-to-dialogue/with-timestamps</c> returns JSON with the audio, the
+    /// character timing and <c>voice_segments</c> (verified against the provider's
+    /// OpenAPI document and a live request, 2026-10-13).
+    /// </remarks>
+    public async ValueTask<SpeechDialogueAudio> SynthesizeDialogueAsync(
+        SpeechDialogueRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        RefuseTenantCredential(request.Credential);
+
+        // Every refusal comes before the semaphore and the network: a dialogue over a
+        // limit is the caller's to split, never this client's to cut (K1).
+        var characters = CheckDialogue(request);
+        var settings = ElevenLabsRequestSettings.ReadDialogue(request.ProviderSettings);
+        var format = request.OutputFormat ?? _options.OutputFormat;
+
+        // The single-voice model is not a dialogue model; with neither set, the
+        // provider's default applies and the result names no model.
+        var model = request.ModelId ?? _options.DialogueModelId;
+
+        await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            using var message = BuildDialogueRequest(request, settings, model, format);
+            using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
+
+            await EnsureSuccessAsync(response, "Dialogue could not be generated", cancellationToken).ConfigureAwait(false);
+
+            var billed = ReadBilledCharacters(response);
+            var requestId = ReadRequestId(response);
+            byte[] data;
+            IReadOnlyList<SpeechAlignment>? alignment = null;
+            IReadOnlyList<SpeechDialogueSegment>? segments = null;
+
+            if (request.IncludeTimestamps)
+            {
+                var payload = await ReadDialogueWithTimestampsAsync(response, cancellationToken).ConfigureAwait(false);
+
+                data = payload?.AudioBase64 is { Length: > 0 } base64 ? Convert.FromBase64String(base64) : [];
+                alignment = ToAlignment(payload?.Alignment);
+                segments = ToSegments(payload?.VoiceSegments, request.Turns);
+            }
+            else
+            {
+                data = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            return new SpeechDialogueAudio
+            {
+                Audio = new SpeechAudio
+                {
+                    Data = data,
+                    MediaType = MediaTypeForFormat(format),
+                    ModelId = model,
+                    CharactersBilled = billed ?? characters,
+                    UsageSource = billed is null ? SpeechUsageSource.Estimated : SpeechUsageSource.Provider,
+                    Alignment = alignment,
+                    ProviderRequestId = requestId,
+                },
+                Segments = segments,
+            };
         }
         finally
         {
@@ -273,6 +376,8 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
     {
         ArgumentNullException.ThrowIfNull(audio);
         ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
+
+        RefuseTenantCredential(options?.Credential);
 
         await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -406,6 +511,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         SpeechRequest request,
         string voiceId,
         string format,
+        ElevenLabsRequestSettings settings,
         bool streaming,
         bool withTimestamps)
     {
@@ -429,6 +535,15 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
                 Text = request.Text,
                 ModelId = SynthesisModel(request),
                 LanguageCode = request.LanguageCode,
+
+                // Every field below is null when the request sets no provider
+                // setting, and a null field is not written: the body of a request
+                // without settings is the same as before they existed.
+                VoiceSettings = settings.ToVoiceSettings(),
+                Seed = settings.Seed,
+                PreviousText = settings.PreviousText,
+                NextText = settings.NextText,
+                PreviousRequestIds = settings.PreviousRequestIds?.ToList(),
             },
             ElevenLabsJsonContext.Default.ElevenLabsSynthesisRequest);
 
@@ -440,6 +555,108 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         AddApiKey(message);
 
         return message;
+    }
+
+    private HttpRequestMessage BuildDialogueRequest(
+        SpeechDialogueRequest request,
+        ElevenLabsRequestSettings settings,
+        string? model,
+        string format)
+    {
+        var path = request.IncludeTimestamps ? "v1/text-to-dialogue/with-timestamps" : "v1/text-to-dialogue";
+        var uri = BuildUri($"{path}?output_format={Uri.EscapeDataString(format)}");
+
+        var body = JsonSerializer.Serialize(
+            new ElevenLabsDialogueRequest
+            {
+                Inputs = [.. request.Turns.Select(static turn => new ElevenLabsDialogueInput { Text = turn.Text, VoiceId = turn.VoiceId })],
+                ModelId = model,
+                LanguageCode = request.LanguageCode,
+                Settings = settings.ToDialogueSettings(),
+                Seed = settings.Seed,
+                PreviousText = settings.PreviousText,
+                FutureText = settings.NextText,
+                PreviousRequestIds = settings.PreviousRequestIds?.ToList(),
+            },
+            ElevenLabsJsonContext.Default.ElevenLabsDialogueRequest);
+
+        var message = new HttpRequestMessage(HttpMethod.Post, uri)
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        };
+
+        AddApiKey(message);
+
+        return message;
+    }
+
+    /// <summary>Checks a dialogue against this client's limits.</summary>
+    /// <returns>The characters of all turns: the estimate when the provider reports no count.</returns>
+    /// <exception cref="TraconException">The request breaks a limit. The message never carries a turn's text.</exception>
+    /// <remarks><c>internal</c>: unit tests verify each refusal without a network call.</remarks>
+    internal int CheckDialogue(SpeechDialogueRequest request)
+    {
+        if (request.Turns is not { Count: > 0 } turns)
+        {
+            throw new TraconException("A dialogue request needs at least one turn.");
+        }
+
+        var characters = 0;
+        var voices = new HashSet<string>(StringComparer.Ordinal);
+
+        for (var index = 0; index < turns.Count; index++)
+        {
+            var turn = turns[index] ?? throw new TraconException($"Dialogue turn {index} is missing.");
+
+            if (string.IsNullOrWhiteSpace(turn.Text))
+            {
+                throw new TraconException($"Dialogue turn {index} has no text.");
+            }
+
+            if (string.IsNullOrWhiteSpace(turn.VoiceId))
+            {
+                throw new TraconException($"Dialogue turn {index} has no voice id. A dialogue turn has no default voice.");
+            }
+
+            characters += turn.Text.Length;
+            voices.Add(turn.VoiceId);
+        }
+
+        if (voices.Count > MaxDialogueVoices)
+        {
+            throw new TraconException(
+                $"The dialogue uses {voices.Count} voices; one '{ProviderName}' dialogue request takes at most " +
+                $"{MaxDialogueVoices}. Split it into requests of at most {MaxDialogueVoices} voices.");
+        }
+
+        var limit = _options.MaxDialogueCharactersPerRequest;
+
+        if (characters > limit)
+        {
+            throw new TraconException(
+                $"The dialogue has {characters} characters; one '{ProviderName}' dialogue request takes at most " +
+                $"{limit} ({nameof(VoiceOptions)}.{nameof(VoiceOptions.MaxDialogueCharactersPerRequest)}). " +
+                "Split it into smaller requests: Tracon does not split or cut a dialogue.");
+        }
+
+        return characters;
+    }
+
+    /// <summary>Refuses a tenant credential: the built-in client calls with its configured key only.</summary>
+    /// <exception cref="NotSupportedException"><paramref name="credential"/> is set.</exception>
+    /// <remarks>
+    /// The resolver never sends one here (<c>SupportsTenantCredentials</c> is
+    /// <see langword="false"/>); a caller that calls the client directly with one would
+    /// otherwise bill the tenant's call to the host's account without a word.
+    /// </remarks>
+    private void RefuseTenantCredential(ModelProviderCredential? credential)
+    {
+        if (credential is not null)
+        {
+            throw new NotSupportedException(
+                $"The built-in '{ProviderName}' client cannot use a tenant credential. The call is not made on the " +
+                "configured credential.");
+        }
     }
 
     /// <summary>The model a synthesis request is sent with: the request's, the setting, then the built-in default.</summary>
@@ -527,6 +744,85 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
         }
 
         return null;
+    }
+
+    /// <summary>Reads the provider's id for the generation from the response headers.</summary>
+    /// <returns><see langword="null"/> when the provider does not report it.</returns>
+    /// <remarks><c>internal</c>: unit tests verify this with a prepared response.</remarks>
+    internal static string? ReadRequestId(HttpResponseMessage response)
+        => response.Headers.TryGetValues(RequestIdHeader, out var values)
+           && values.FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value)) is { } id
+            ? id
+            : null;
+
+    /// <summary>Parses the dialogue <c>.../with-timestamps</c> response body.</summary>
+    /// <remarks><c>internal</c>: unit tests verify this with a prepared body.</remarks>
+    internal static async ValueTask<ElevenLabsDialogueWithTimestampsResponse?> ReadDialogueWithTimestampsAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (stream.ConfigureAwait(false))
+        {
+            return await JsonSerializer
+                .DeserializeAsync(
+                    stream,
+                    ElevenLabsJsonContext.Default.ElevenLabsDialogueWithTimestampsResponse,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Maps the provider's <c>voice_segments</c> to the request's turns.</summary>
+    /// <returns>The segments in order; <see langword="null"/> when the report is missing or does not match.</returns>
+    /// <remarks>
+    /// <para>
+    /// A segment must name a turn the request had and the voice that turn used, with a
+    /// finite, ordered time range. One segment that does not fit drops the whole list: a
+    /// shifted index would put one speaker's time on another's turn, and the audio itself
+    /// is still valid (the <see cref="ToAlignment"/> rule).
+    /// </para>
+    /// <para>
+    /// The count is not compared with the turns: the provider documents a segment as a
+    /// part of a turn. <c>internal</c>: unit tests verify this directly.
+    /// </para>
+    /// </remarks>
+    internal static IReadOnlyList<SpeechDialogueSegment>? ToSegments(
+        IReadOnlyList<ElevenLabsVoiceSegment>? segments,
+        IReadOnlyList<SpeechDialogueTurn> turns)
+    {
+        if (segments is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var result = new List<SpeechDialogueSegment>(segments.Count);
+
+        foreach (var segment in segments)
+        {
+            if (segment is not { DialogueInputIndex: { } index, VoiceId: { } voiceId, StartTimeSeconds: { } start, EndTimeSeconds: { } end } ||
+                index < 0 ||
+                index >= turns.Count ||
+                !string.Equals(voiceId, turns[index].VoiceId, StringComparison.Ordinal) ||
+                !double.IsFinite(start) ||
+                !double.IsFinite(end) ||
+                start < 0 ||
+                end < start)
+            {
+                return null;
+            }
+
+            result.Add(new SpeechDialogueSegment
+            {
+                TurnIndex = index,
+                VoiceId = voiceId,
+                Start = TimeSpan.FromSeconds(start),
+                End = TimeSpan.FromSeconds(end),
+            });
+        }
+
+        return result;
     }
 
     /// <summary>Parses the <c>.../with-timestamps</c> response body.</summary>
