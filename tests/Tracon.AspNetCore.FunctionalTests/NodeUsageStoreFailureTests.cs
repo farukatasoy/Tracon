@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 
@@ -51,5 +52,77 @@ public sealed class NodeUsageStoreFailureTests
         host.Logs.AllText.ShouldContain("a non-token usage item could not be recorded", Case.Sensitive);
 
         runId.ShouldNotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public async Task A_store_that_cannot_write_an_item_still_counts_it_in_the_tenants_quota_and_the_webhook()
+    {
+        // The run's recording stops at the first failed write, so its own snapshot never
+        // reaches the store. What the node spent is real money all the same: the quota entry
+        // and the webhook take the node's share from memory and the rest of the tree from the
+        // store, and are not short by the part the store lost.
+        var publisher = new CapturingPublisher();
+
+        await using var host = await StartAsync(
+            builder =>
+            {
+                builder.Services.ThrowFrom<IRunStore>(
+                    nameof(IRunStore.RecordNonTokenUsageAsync),
+                    static () => new InvalidOperationException("the table is unavailable"));
+
+                builder.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+                    "render",
+                    _ => async (messages, context, _) =>
+                    {
+                        await context.ReportUsageAsync(Speech(0.5m));
+                        await context.ReportUsageAsync(Speech(0.5m));
+
+                        return messages;
+                    });
+            },
+            services => services.AddSingleton<IWebhookPublisher>(publisher));
+
+        await SaveAsync(host, Workflow, Function("render"));
+        await RunAsync(host);
+
+        (await DailyCounterAsync(host, Workflow)).Cost.ShouldBe(1m);
+
+        var run = publisher.Completed.ShouldHaveSingleItem();
+
+        run.Cost.ShouldBe(1m);
+        run.NonTokenCost.ShouldBe(1m);
+    }
+
+    private sealed class CapturingPublisher : IWebhookPublisher
+    {
+        private readonly List<WebhookRunSummary> _completed = [];
+
+        public IReadOnlyList<WebhookRunSummary> Completed
+        {
+            get
+            {
+                lock (_completed)
+                {
+                    return [.. _completed];
+                }
+            }
+        }
+
+        public ValueTask<int> PublishAsync(
+            string tenantId,
+            string eventType,
+            WebhookEventPayload payload,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.Equals(eventType, WebhookEvents.RunCompleted, StringComparison.Ordinal) && payload.Run is { } run)
+            {
+                lock (_completed)
+                {
+                    _completed.Add(run);
+                }
+            }
+
+            return new ValueTask<int>(1);
+        }
     }
 }
