@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -52,6 +53,41 @@ public sealed class TimeoutOptionValidationTests
             ("Tracon:Skills:Scripts:Enabled", "true"),
             ("Tracon:Skills:Scripts:PlatformIsolationAcknowledged", "true"),
             ("Tracon:Skills:Scripts:Timeout", value));
+
+    /// <summary>
+    /// The script runner arms a second timer: the executor wait limit, the timeout
+    /// plus a fixed five-second grace period. A timeout the timer takes on its own
+    /// can still push that sum out of range, where it would throw after the audit
+    /// entry is written and the quota taken.
+    /// </summary>
+    [Fact]
+    public void Skill_script_timeout_leaves_room_for_the_executor_wait_limit()
+    {
+        var largest = TimeSpan.FromMilliseconds(TimerPeriod.MaxMilliseconds);
+        TimerPeriod.IsValid(largest).ShouldBeTrue();
+
+        ShouldFailAtStartup(
+            "Timeout",
+            ("Tracon:Skills:Scripts:Enabled", "true"),
+            ("Tracon:Skills:Scripts:PlatformIsolationAcknowledged", "true"),
+            ("Tracon:Skills:Scripts:Timeout", largest.ToString("c", CultureInfo.InvariantCulture)));
+
+        var fits = largest - SandboxedSkillScriptRunner.ExecutorGracePeriod;
+        Should.NotThrow(() => new CancellationTokenSource(fits + SandboxedSkillScriptRunner.ExecutorGracePeriod).Dispose());
+
+        ShouldStart(
+            ("Tracon:Skills:Scripts:Enabled", "true"),
+            ("Tracon:Skills:Scripts:PlatformIsolationAcknowledged", "true"),
+            ("Tracon:Skills:Scripts:Timeout", fits.ToString("c", CultureInfo.InvariantCulture)));
+    }
+
+    [Fact]
+    public void The_largest_skill_script_timeout_fails_cleanly_instead_of_overflowing()
+        => ShouldFailAtStartup(
+            "Timeout",
+            ("Tracon:Skills:Scripts:Enabled", "true"),
+            ("Tracon:Skills:Scripts:PlatformIsolationAcknowledged", "true"),
+            ("Tracon:Skills:Scripts:Timeout", TimeSpan.MaxValue.ToString("c", CultureInfo.InvariantCulture)));
 
     [Theory]
     [MemberData(nameof(RejectedTimeouts))]

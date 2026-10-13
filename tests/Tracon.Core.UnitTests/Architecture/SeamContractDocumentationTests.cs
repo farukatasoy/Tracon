@@ -478,6 +478,14 @@ public sealed class SeamContractDocumentationTests
             ["not strictly exclusive", "split-brain"]
         },
         {
+            // A script executor decides where a script runs; Tracon decides whether.
+            // Tracon cannot see or verify the isolation, and it stops WAITING at the
+            // wait limit without forcing the work to stop.
+            Path.Combine("Tracon.Abstractions", "Skills", "ISkillScriptExecutor.cs"),
+            "public interface ISkillScriptExecutor",
+            ["does not isolate the script process", "cancellation is cooperative", "does not force"]
+        },
+        {
             // BL-026: IsDraining relies on the HTTP host's own request draining and the
             // job worker's own WaitForRunningJobsAsync to actually stop accepting work
             // in time - it does not itself guarantee that a run in the register/accept

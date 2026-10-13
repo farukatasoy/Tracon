@@ -53,7 +53,9 @@ public static partial class TraconBuilderExtensions
     /// One of the seven embedding points: <see cref="ITenantContext"/>,
     /// <see cref="IRunAttributionContext"/>, <see cref="IToolAuthorizationHandler"/>,
     /// <see cref="IRunAuthorizationHandler"/>, <see cref="IRunEventSink"/>,
-    /// <see cref="IAttachmentStorage"/>, or <see cref="IToolApprovalPresenter"/>.
+    /// <see cref="IAttachmentStorage"/>, or <see cref="IToolApprovalPresenter"/>;
+    /// or a contract Tracon registers a built-in default for: a store interface,
+    /// or <see cref="ISkillScriptExecutor"/> once <c>UseSkillScripts</c> is called.
     /// Any other type stops the host from starting, with a message naming the seven.
     /// </typeparam>
     /// <param name="builder">The Tracon configuration chain.</param>

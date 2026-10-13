@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 
 namespace Tracon.Core.UnitTests.Skills;
 
@@ -127,25 +128,36 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
         return path;
     }
 
-    private Task<SkillScriptExecutionResult> RunAsync(
+    private static async Task<SkillScriptExecutionResult> RunAsync(
         string scriptPath,
         Action<TraconSkillScriptOptions>? configure = null,
         string? argumentsJson = null)
     {
-        var options = new TraconOptions().Skills.Scripts;
+        var traconOptions = new TraconOptions();
+        var options = traconOptions.Skills.Scripts;
         options.Enabled = true;
         options.PlatformIsolationAcknowledged = true;
         options.Interpreters["sh"] = BashPath!;
         configure?.Invoke(options);
 
-        return SkillScriptProcessRunner.ExecuteAsync(
-            BashPath!,
-            scriptPath,
-            _root,
-            argumentsJson,
-            options,
-            skillName: "test",
-            TimeProvider.System,
+        var content = await File.ReadAllTextAsync(scriptPath);
+
+        return await new SkillScriptProcessRunner(Options.Create(traconOptions)).ExecuteAsync(
+            new SkillScriptExecutionRequest
+            {
+                TenantId = "default",
+                SkillName = "test",
+                ScriptName = Path.GetFileNameWithoutExtension(scriptPath),
+                Origin = SkillScriptOrigin.File,
+                Extension = "sh",
+                Interpreter = BashPath!,
+                Content = content,
+                ContentSha256 = new string('0', 64),
+                SourcePath = scriptPath,
+                ArgumentsJson = argumentsJson,
+                Timeout = options.Timeout,
+                MaxOutputBytes = options.MaxOutputBytes,
+            },
             CancellationToken.None);
     }
 }
