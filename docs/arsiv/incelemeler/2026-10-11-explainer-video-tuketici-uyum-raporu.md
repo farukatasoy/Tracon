@@ -24,7 +24,7 @@ sayılar tüketici reposundaki dosyalardan ya da üretici beyanından gelir.
 (tur, kullanıcı cevapları, ham fikirler) · planlanan fazlar
 [196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) · [197](../../197-DAYANIKLI-WORKFLOW-YURUTMESI.md) ·
 [202](../../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) · [203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) ·
-[204](../../204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · [ADAYLAR](../../ADAYLAR.md)
+[204](../fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · [ADAYLAR](../../ADAYLAR.md)
 (F-319, F-322, F-324, F-347, F-411) · aynı tüketici
 projesinin [podcast raporu](2026-10-11-podcast-tuketici-uyum-raporu.md).
 Podcast raporunun upload/DB sıralaması (§ 9.2) ve side effect tablosu (§ 9.3)
@@ -690,7 +690,7 @@ planın Açık Sorular bölümündedir.
 | [201](../fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · Loop düzenleme ve ölçüt fabrikası | F-301, F-302 | Agent onayının ölçütü DI ile kurulur ve konsoldan ayarlanır |
 | [202](../../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) · Skill script yürütücü seam'i | F-345 | Yalnız LLM'in çağırdığı skill script'i; zorunlu adımlar host runner'ında kalır |
 | [203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) · Çok konuşmacılı diyalog ve sağlayıcı istek ayarları | F-296 | Tek anlatıcılı hattın süreklilik ayarları (`seed`, `previous_text`) önekli sağlayıcı ayarıyla gelir |
-| [204](../../204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · Kesilen çıktı ve Anthropic ayarları | F-320, F-346 | 44 KB JSON kesilirse `OutputTruncated`; onarım boşa koşmaz; önbellek TTL'i ve `effort` |
+| [204](../fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · Kesilen çıktı ve Anthropic ayarları | F-320, F-346 | 44 KB JSON kesilirse `OutputTruncated`; onarım boşa koşmaz; önbellek TTL'i ve `effort` |
 
 **Bekleyen adaylar:**
 

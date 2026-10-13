@@ -216,6 +216,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [201](arsiv/fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) | Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası | 🔧 Kapanışa hazır (2026-10-13) — kod, bağımsız denetim ve kapanış adımları 5–8 bitti; arşiv, damıtma ve `kapanis` kapısı birleştirmeden sonra |
 | [202](202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | 📋 Planlandı |
 | [203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) | Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları | 📋 Planlandı |
-| [204](204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) | Kesilen Model Çıktısı ve Anthropic Güncel İstek Ayarları | 🔄 Kapanışta (2026-10-13) — kod ve denetim düzeltmeleri bitti; `kapanis` kapısı, arşivleme ve site yayını bekliyor |
+| [204](arsiv/fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) | Kesilen Model Çıktısı ve Anthropic Güncel İstek Ayarları | 🔄 Kapanışta (2026-10-13) — kod ve denetim düzeltmeleri bitti; `kapanis` kapısı, arşivleme ve site yayını bekliyor |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

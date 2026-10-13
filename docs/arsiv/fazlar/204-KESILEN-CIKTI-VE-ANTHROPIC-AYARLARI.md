@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-B, 5-B)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-320**, **F-346**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-320**, **F-346**
 > **Genellik:** Yapılandırılmış çıktı üreten her agent kesilmeye açıktır ve kesilen JSON bugün her sağlayıcıda yanlış sınıflanır (F-320, ilk ilke). Anthropic ayarları sağlayıcı eşitliğidir: güncel modeller `budget_tokens` ve örneklemeyi `400` ile reddeder (F-346, ekosistem). İkisi tek tüketiciye bağlı değildir
 > **Karşı görüş:** F-320 için "doğrulama açıkken kesik JSON zaten reddedilir" — plan değeri sınıflama, onarımı atlama ve uyarı olarak sınırlar. F-346 için "tüketici ayarları boş bırakabilir" — plan yalnız Tracon dışından verilemeyen ayarları (önbellek yerleşimi ve TTL, `effort`, adaptive) ekler
 > **Önkoşul:** Yok. F-346, F-320'nin derleme uyarısı yüzeyini kullanır; ikisi aynı faza bu yüzden girer
@@ -29,10 +29,10 @@
    kodda tutulmaz) · **K-208** (sağlayıcı ayarı sözleşmede; bilinmeyen
    anahtar hatadır)
 3. F-340 kapanışı (ayar doğrulama deseni): `grep -n "F-340" docs/arsiv/ERTELENEN-ADAYLAR.md`
-4. Hafıza: [`hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md) ·
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) ·
-   [`hafiza/agent-derleme-ve-onbellek.md`](hafiza/agent-derleme-ve-onbellek.md)
-5. Tüketici kanıtı: [podcast raporu](arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)
+4. Hafıza: [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md) ·
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) ·
+   [`hafiza/agent-derleme-ve-onbellek.md`](../../hafiza/agent-derleme-ve-onbellek.md)
+5. Tüketici kanıtı: [podcast raporu](../incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)
    § 2.2 ve § 10 (ölçülen ↔ varsayılan tablosu)
 
 ---
@@ -487,4 +487,4 @@ Denetim sonrası kapılar (2026-10-13): § Doğrulama komutları ve DoD satırı
   kapalı küme değerini yankılar. Kural ya üçüne birden uygulanır ya da kapalı
   küme yankısı gerekçelendirilir.
 
-**Sıradaki faz:** bakımcı seçer ([YOL-HARITASI](YOL-HARITASI.md)).
+**Sıradaki faz:** bakımcı seçer ([YOL-HARITASI](../../YOL-HARITASI.md)).
