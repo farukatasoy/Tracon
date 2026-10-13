@@ -6954,7 +6954,7 @@ export interface components {
             /** @description When the character ends, relative to the start of the audio. */
             end: string;
         };
-        /** @description A registered speech provider, as IReadOnlyList&lt;SpeechProviderDescriptor&gt; ISpeechProviderResolver.Providers lists it. */
+        /** @description A registered speech provider, as the speech provider list reports it. */
         SpeechProviderDescriptor: {
             /** @description Gets the registration name, or `null` for the unnamed default. */
             name?: null | string;
