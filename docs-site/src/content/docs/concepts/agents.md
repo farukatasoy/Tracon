@@ -443,19 +443,20 @@ every agent, run and tenant from then on:
 **A reviewer agent as the criterion.** The `AddLoopEvaluator` factory overload's
 XML example shows a criterion that does what `aiJudge` cannot: it computes a
 check in code before the reviewer reads the draft, asks a reviewer agent from
-the catalog, and reads the reviewer's own JSON verdict. It keeps state for one
-loop run, such as the previous round's findings, in
-`LoopContext.AdditionalProperties`. It reads the draft from the last assistant
-message of `LoopContext.LastResponse`: a harness turn can write a plan or an
-earlier version first, and `LastResponse.Text` joins every message of the turn.
-The reviewer runs as a child of the run being
+the catalog, and reads the reviewer's own JSON verdict. It keeps the round
+number for one loop run in `LoopContext.AdditionalProperties`, and it reads the
+draft from the last message of `LoopContext.LastResponse`: a harness turn can
+write a plan or an earlier version first, and `LastResponse.Text` joins every
+message of the turn. The sample application's `DraftReviewCriterion` goes
+further: it reads the last *assistant* message and also keeps the previous
+round's findings for the next round. The reviewer runs as a child of the run being
 evaluated when the criterion passes `TraconRunOptions` built from
 `TraconRunContext.Current` (`ParentRunId`, `RootRunId`, `Depth + 1`, `Budget`).
 The child run then appears under the evaluated run, and its tokens are its own
 run's usage, not the evaluated run's. Its tokens also count against the shared
 tree budget. Two limits a sub-agent call checks for you are the criterion's to
 check: the tree's depth limit, and `Budget.TryReserveRun()` for the run count.
-The sample application's `DraftReviewCriterion` is a complete example.
+See `DraftReviewCriterion` in the sample application for the whole class.
 
 ### List, edit, and validate a loop
 
@@ -478,7 +479,7 @@ returns `400` with every message:
 | `loop_criterion_kind_missing` | `harness.loop.criteria[i].kind` | The kind is empty |
 | `loop_criterion_unknown` | `harness.loop.criteria[i].kind` | The kind is neither built in nor registered |
 | `loop_marker_missing` | `harness.loop.criteria[i].marker` | A `completionMarker` has no marker |
-| `loop_judge_criteria_missing` | `harness.loop.criteria[i].judgeCriteria` | An `aiJudge` has no non-blank criterion |
+| `loop_judge_criteria_missing` | `harness.loop.criteria[i].judgeCriteria`, or `.judgeCriteria[j]` for a blank entry | An `aiJudge` has no criterion, or one of its criteria is blank |
 | `loop_judge_unconfigured` | `harness.loop.criteria[i].kind` | An `aiJudge` on a host with no judge model |
 | `loop_judge_unavailable` | `harness.loop.criteria[i].kind` | The judge model cannot be built: its provider is not registered, or the caller's egress policy forbids it |
 
