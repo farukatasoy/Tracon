@@ -881,6 +881,34 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
     },
     static options => options.Description = "Pretends to read the text aloud: makes no sound and no model call. The voice and the loudness come from the node's settings.");
 
+// A SLOW step, for queued runs and their recovery (phase 197). It stands in for a
+// render that takes minutes, so a run can be stopped halfway through it:
+//
+//   PUT /tracon/api/workflows/episode
+//   {"kind":"Sequential","nodes":[
+//     {"name":"word-count","kind":"Function"},
+//     {"name":"render","kind":"Function","settings":{"seconds":30}}]}
+//
+//   POST /tracon/api/workflows/episode/run   (Prefer: respond-async)
+//
+// Stop the process while the render waits, start it again, and with
+// Tracon:Workflows:ResumeInterruptedRuns on the job continues the run from the
+// checkpoint after word-count: a NEW run whose continuedFromRunId names the stopped
+// one. The render runs again, the step before it does not. It honours the run's
+// token, so a graceful stop ends it at once.
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, RenderSettings>(
+    "render",
+    static _ => async (messages, settings, _, cancellationToken) =>
+    {
+        await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(settings.Seconds, 0, 3600)), cancellationToken).ConfigureAwait(false);
+
+        var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                   ?? string.Empty;
+
+        return [new ChatMessage(ChatRole.User, $"{text}\n\n[rendered in {settings.Seconds} s]")];
+    },
+    static options => options.Description = "Pretends to render the text: waits the node's 'seconds' setting and makes no model call.");
+
 if (!openAiEnabled)
 {
     var instructionsModel = new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoInstructionsModel };
