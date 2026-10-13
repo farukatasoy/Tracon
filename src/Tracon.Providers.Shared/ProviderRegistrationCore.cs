@@ -149,6 +149,10 @@ internal static class ProviderRegistrationCore
                 SupportsTools = ReadBoolean(child, nameof(ModelDescriptor.SupportsTools)) ?? true,
                 SupportsReasoning = ReadBoolean(child, nameof(ModelDescriptor.SupportsReasoning)) ?? false,
                 SupportsStructuredOutput = ReadBoolean(child, nameof(ModelDescriptor.SupportsStructuredOutput)) ?? false,
+
+                // Nullable on purpose: an absent key means "unknown" and checks
+                // nothing; only an explicit false rejects Temperature/TopP (F-346).
+                SupportsSampling = ReadBoolean(child, nameof(ModelDescriptor.SupportsSampling)),
                 InputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.InputCostPerMillionTokens)),
                 OutputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.OutputCostPerMillionTokens)),
 
