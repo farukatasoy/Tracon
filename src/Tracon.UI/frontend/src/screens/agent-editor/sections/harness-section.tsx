@@ -33,6 +33,13 @@ export function HarnessSection({
           {t('agentEditor.harnessEnable')}
         </label>
         <p className="mt-1 text-sm text-muted">{t('agentEditor.harnessNotice')}</p>
+        {/* The loop is a harness setting: with the harness off, toRequest sends no
+            harness at all, so a loop still in the form would be dropped in silence. */}
+        {!form.harnessEnabled && form.harness.loop != null && (
+          <p className="mt-2 text-sm text-warn" data-testid="loop-dropped">
+            {t('agentEditor.loop.dropped')}
+          </p>
+        )}
 
         {form.harnessEnabled && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">

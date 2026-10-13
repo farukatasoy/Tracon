@@ -5,6 +5,7 @@ import { useNavigate } from '../../lib/router';
 import type {
   AgentDefinition,
   AgentValidationReport,
+  LoopCriterionCatalogResponse,
 } from '@tracon/client';
 import type {
   AgentDescriptor,
@@ -32,6 +33,8 @@ export interface UseAgentEditorResult {
   skills: ReturnType<typeof useQuery<AgentSkillDefinition[]>>;
   agents: ReturnType<typeof useQuery<AgentDescriptor[]>>;
   providers: ReturnType<typeof useQuery<ModelProviderDescriptor[]>>;
+  /** The loop criterion kinds and the judge model (`GET /api/loop-criteria`). */
+  loopCriteria: ReturnType<typeof useQuery<LoopCriterionCatalogResponse>>;
   models: ModelProviderDescriptor['models'];
   request: ReturnType<typeof toRequest>;
   schemaJsonValid: boolean;
@@ -72,6 +75,11 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
   const providers = useQuery({
     queryKey: ['models'],
     queryFn: () => unwrap(client.GET('/api/models')) as Promise<ModelProviderDescriptor[]>,
+  });
+
+  const loopCriteria = useQuery({
+    queryKey: ['loop-criteria'],
+    queryFn: () => unwrap(client.GET('/api/loop-criteria')) as Promise<LoopCriterionCatalogResponse>,
   });
 
   const existing = useQuery({
@@ -176,6 +184,7 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
     skills,
     agents,
     providers,
+    loopCriteria,
     models,
     request,
     schemaJsonValid,

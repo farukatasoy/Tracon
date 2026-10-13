@@ -124,8 +124,14 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
     disableAgentSkillsProvider: true,
     disableAgentModeProvider: true,
     loop: {
+      // Phase 201: the console now EDITS the loop, and editing must not cost what
+      // it does not touch — a field the kind ignores (marker on aiJudge), the
+      // todoCompletion modes it offers no control for, and a kind registered in
+      // code all come back exactly as loaded.
       criteria: [
-        { kind: 'aiJudge', marker: null, judgeCriteria: ['Covers the source text'], judgeInstructions: 'Be strict.', modes: [] },
+        { kind: 'aiJudge', marker: 'IGNORED BY AIJUDGE', judgeCriteria: ['Covers the source text'], judgeInstructions: 'Be strict.', modes: [] },
+        { kind: 'todoCompletion', marker: null, judgeCriteria: [], judgeInstructions: null, modes: ['plan', 'execute'] },
+        { kind: 'hasCitations', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] },
       ],
       maxIterations: 3,
       freshContextPerIteration: true,
@@ -221,6 +227,16 @@ const ROUND_TRIPS: RoundTrip[] = [
       fixture('GET', 'api/skills', []),
       fixture('GET', 'api/agents', []),
       fixture('GET', 'api/models', providers),
+      fixture('GET', 'api/loop-criteria', {
+        kinds: [
+          { kind: 'completionMarker', builtIn: true, description: null },
+          { kind: 'todoCompletion', builtIn: true, description: null },
+          { kind: 'aiJudge', builtIn: true, description: null },
+          { kind: 'backgroundTaskCompletion', builtIn: true, description: null },
+          { kind: 'hasCitations', builtIn: false, description: 'Every claim carries a citation.' },
+        ],
+        judgeModel: { provider: 'openai', model: 'gpt-5.4-mini' },
+      }),
       fixture('GET', 'api/agents/:name', {
         descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
         definition: { ...agentRequest, origin: 'Database', version: 3, tenantId: 'default', updatedAt: stamp },

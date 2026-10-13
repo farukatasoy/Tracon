@@ -6,6 +6,7 @@ import { ContextSection } from './agent-editor/sections/context-section';
 import { HarnessSection } from './agent-editor/sections/harness-section';
 import { IdentitySection } from './agent-editor/sections/identity-section';
 import { InstructionsSection } from './agent-editor/sections/instructions-section';
+import { LoopSection } from './agent-editor/sections/loop-section';
 import { ModelSection } from './agent-editor/sections/model-section';
 import { PreviewSection } from './agent-editor/sections/preview-section';
 import { SkillsSection } from './agent-editor/sections/skills-section';
@@ -98,6 +99,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
           <SkillsSection form={form} setForm={setForm} skills={editor.skills} />
           <CallableAgentsSection form={form} setForm={setForm} agents={editor.agents} />
           <HarnessSection form={form} setForm={setForm} />
+          {form.harnessEnabled && <LoopSection form={form} setForm={setForm} catalog={editor.loopCriteria} />}
           <ContextSection form={form} setForm={setForm} />
         </div>
 
