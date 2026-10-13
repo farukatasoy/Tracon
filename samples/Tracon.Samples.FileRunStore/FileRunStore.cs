@@ -119,8 +119,11 @@ public sealed class JsonFileRunStore : IRunStore
             };
 
             // An UPSERT: a queued run calls this twice with the SAME id. The
-            // second call must not reset the event log, and UserId/Labels are
-            // COALESCED rather than overwritten -- see IRunStore.StartRunAsync.
+            // second call must not reset the event log, and UserId, Labels and
+            // ContinuedFromRunId are COALESCED rather than overwritten -- see
+            // IRunStore.StartRunAsync. A continuation's row is written first,
+            // with its link, by the party that opens it; the engine that runs it
+            // writes it again without one.
             var isNew = !_runs.TryGetValue(record.Id, out var previous);
 
             if (!isNew)
@@ -129,6 +132,7 @@ public sealed class JsonFileRunStore : IRunStore
                 {
                     UserId = record.UserId ?? previous!.UserId,
                     Labels = record.Labels ?? previous!.Labels,
+                    ContinuedFromRunId = record.ContinuedFromRunId ?? previous!.ContinuedFromRunId,
                 };
             }
 
@@ -439,6 +443,11 @@ public sealed class JsonFileRunStore : IRunStore
                 }
 
                 if (query.StartedAfter is { } after && record.StartedAt <= after)
+                {
+                    return false;
+                }
+
+                if (query.ContinuedFromRunId is { } continuedFrom && record.ContinuedFromRunId != continuedFrom)
                 {
                     return false;
                 }
