@@ -50,6 +50,7 @@ public sealed class ChildAgentInvoker : AIAgent
     private readonly TimeProvider _timeProvider;
     private readonly ChildRefusalMode _refusalMode;
     private readonly ParameterizedAgentFactory? _parameterFactory;
+    private readonly string _deadlineSetting;
 
     /// <summary>Creates a new sub-agent wrapper.</summary>
     /// <param name="resolver">Resolver that resolves the sub-agent from the catalog.</param>
@@ -81,6 +82,11 @@ public sealed class ChildAgentInvoker : AIAgent
     /// a direct run. This is a separate flag from <paramref name="refusalMode"/>
     /// on purpose - the two are different meanings that happen to coincide today.
     /// </param>
+    /// <param name="deadlineSetting">
+    /// What set <paramref name="childDeadline"/>, as the refusal names it: a workflow
+    /// node's own timeout, or the installation's <c>'Tracon:AgentGraph:ChildDeadline'</c>
+    /// (the default).
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="childDeadline"/> or <paramref name="waitTimeout"/> is outside one
@@ -97,7 +103,8 @@ public sealed class ChildAgentInvoker : AIAgent
         TimeSpan waitTimeout,
         TimeProvider? timeProvider = null,
         ChildRefusalMode refusalMode = ChildRefusalMode.ToolResult,
-        ParameterizedAgentFactory? parameterFactory = null)
+        ParameterizedAgentFactory? parameterFactory = null,
+        string? deadlineSetting = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -134,6 +141,7 @@ public sealed class ChildAgentInvoker : AIAgent
         _timeProvider = timeProvider ?? TimeProvider.System;
         _refusalMode = refusalMode;
         _parameterFactory = parameterFactory;
+        _deadlineSetting = deadlineSetting ?? "'Tracon:AgentGraph:ChildDeadline'";
     }
 
     /// <inheritdoc />
@@ -658,9 +666,8 @@ public sealed class ChildAgentInvoker : AIAgent
     private ChildRefusal TimeoutRefusal()
         => _refusalMode == ChildRefusalMode.Fail
             ? new(
-                $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}, " +
-                "'Tracon:AgentGraph:ChildDeadline'). The workflow step failed; its eventual result, " +
-                "if any, is discarded.",
+                $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}, set by " +
+                $"{_deadlineSetting}). The workflow step failed; its eventual result, if any, is discarded.",
                 ChildRefusalCause.Timeout)
             : new(
                 $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}). The tree " +

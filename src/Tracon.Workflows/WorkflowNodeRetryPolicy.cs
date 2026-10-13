@@ -1,3 +1,5 @@
+using Microsoft.Agents.AI.Workflows;
+
 namespace Tracon;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// Applies only to a node registered with
-/// <see cref="TraconWorkflowFunctionExtensions.AddWorkflowFunction{TInput, TOutput}"/>.
+/// <see cref="TraconWorkflowFunctionExtensions.AddWorkflowFunction{TInput,TOutput}(ITraconBuilder,string,Func{IServiceProvider,Func{TInput,IWorkflowContext,CancellationToken,ValueTask{TOutput}}},Action{WorkflowFunctionOptions})"/>.
 /// Whether an error is transient is read from the registered
 /// <c>IRunErrorClassifier</c> (the same taxonomy <c>runs.error_class</c>
 /// uses) — a provider error, an open circuit breaker, a rate limit, or a

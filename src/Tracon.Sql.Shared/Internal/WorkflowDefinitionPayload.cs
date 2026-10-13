@@ -55,6 +55,9 @@ internal sealed record WorkflowDefinitionPayload
     /// <summary>Gets the run parameters the workflow accepts.</summary>
     public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
 
+    /// <summary>Gets the run timeout the workflow sets for itself.</summary>
+    public TimeSpan? RunTimeout { get; init; }
+
     /// <summary>Converts the content of a definition into a payload.</summary>
     /// <param name="definition">The source definition.</param>
     /// <returns>The payload to serialize.</returns>
@@ -71,6 +74,7 @@ internal sealed record WorkflowDefinitionPayload
             HandoffInstructions = definition.HandoffInstructions,
             RequirePlanApproval = definition.RequirePlanApproval,
             Parameters = definition.Parameters,
+            RunTimeout = definition.RunTimeout,
         };
 
     /// <summary>Builds the definition by merging the payload with the information from the columns.</summary>
@@ -93,6 +97,7 @@ internal sealed record WorkflowDefinitionPayload
             HandoffInstructions = HandoffInstructions,
             RequirePlanApproval = RequirePlanApproval,
             Parameters = Parameters,
+            RunTimeout = RunTimeout,
             TenantId = tenantId,
             Version = version,
             UpdatedAt = updatedAt,

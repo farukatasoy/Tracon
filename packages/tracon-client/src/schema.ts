@@ -633,7 +633,7 @@ export interface paths {
         };
         /**
          * Lists function nodes registered in code.
-         * @description Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the console picks from this list when an operator builds a Sequential workflow's node list. A function that takes settings carries settingsSchema, a JSON schema of the object a node of it may carry in 'settings'; a function that takes none has settingsSchema null and its nodes must carry no settings. The schema is for display: saving the workflow does the checking. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.
+         * @description Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the console picks from this list when an operator builds a Sequential workflow's node list. A function that takes settings carries settingsSchema, a JSON schema of the object a node of it may carry in 'settings'; a function that takes none has settingsSchema null and its nodes must carry no settings. 'timeout' is the time limit the function was registered with, which a node's own 'timeout' replaces; null means none. The schema is for display: saving the workflow does the checking. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.
          */
         get: operations["TraconListWorkflowFunctions"];
         put?: never;
@@ -658,7 +658,7 @@ export interface paths {
         get: operations["TraconGetWorkflow"];
         /**
          * Creates or updates a workflow definition.
-         * @description The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it.
+         * @description The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node's 'timeout' (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run's timeout. 'runTimeout' bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it.
          */
         put: operations["TraconSaveWorkflow"];
         post?: never;
@@ -909,7 +909,7 @@ export interface paths {
         };
         /**
          * Gets a job and its items.
-         * @description This is the endpoint to poll after queuing work: it carries the job's status and attempt count together with its items, each with its own status, so partial progress is visible while the job is still running. A failed job keeps its error text here rather than only in the logs. An unknown id, or one belonging to another tenant, returns 404.
+         * @description This is the endpoint to poll after queuing work: it carries the job's status, attempt count and own time limit (maxDuration, null when the job sets none) together with its items, each with its own status, so partial progress is visible while the job is still running. A failed job keeps its error text here rather than only in the logs. An unknown id, or one belonging to another tenant, returns 404.
          */
         get: operations["TraconGetJob"];
         put?: never;
@@ -931,7 +931,7 @@ export interface paths {
         put?: never;
         /**
          * Cancels a job.
-         * @description Only a job in the Pending, Leased, or Running status can be canceled. The executing worker checks the cancellation request between items and stops cooperatively.
+         * @description Only a job in the Pending, Leased, or Running status can be canceled. A running job's worker reads its status every Tracon:Scheduling:PollInterval (ten seconds by default) and then cancels the token its handler was given: a workflow or agent run the job started ends Canceled. Cancellation is cooperative: a handler that ignores its token keeps running until it returns, but the job stays Canceled.
          */
         post: operations["TraconCancelJob"];
         delete?: never;
@@ -4687,6 +4687,12 @@ export interface components {
              *     `null`, `TraconSchedulingOptions.MaxAttempts` applies.
              */
             maxAttempts?: null | number | string;
+            /**
+             * @description The longest time one attempt of this job may run. If `null`,
+             *     `TraconSchedulingOptions.MaxDurationByHandlerKey` applies to the job's
+             *     handler key, and a key the map does not list has no limit.
+             */
+            maxDuration?: null | string;
             /** @description The identifier of the worker currently leasing the job. `null` if not leased. */
             leaseOwner?: null | string;
             /**
@@ -8019,6 +8025,12 @@ export interface components {
              *     takes none.
              */
             parameters?: components["schemas"]["AgentParameter"][];
+            /**
+             * @description Gets the longest time one run of this workflow may take.
+             *     `null` (the default) uses the installation's
+             *     `Tracon:Workflows:RunTimeout`.
+             */
+            runTimeout?: null | string;
             /** @description Gets the tenant the definition belongs to. `null` for workflows defined in code. */
             tenantId?: null | string;
             /**
@@ -8082,6 +8094,12 @@ export interface components {
             /** @description The display name of the CLR type the function returns. */
             outputType: string;
             settingsSchema?: null | components["schemas"]["JsonElement"];
+            /**
+             * @description The timeout the function was registered with: the longest one call may take when
+             *     its node sets no `timeout` of its own. `null` when the
+             *     function has no time limit of its own.
+             */
+            timeout?: null | string;
         };
         /**
          * @description Represents a workflow's compiled graph: nodes, edges, and external
@@ -8146,6 +8164,13 @@ export interface components {
             /** @description Gets which registry `Name` is looked up in. */
             kind: components["schemas"]["WorkflowNodeKind"];
             settings?: null | components["schemas"]["JsonElement"];
+            /**
+             * @description Gets the longest time one call of this node may take. `null`
+             *     (the default) uses the node's default: the timeout its function was registered
+             *     with, or the installation's `Tracon:AgentGraph:ChildDeadline` for an agent
+             *     node.
+             */
+            timeout?: null | string;
         };
         /** @description Represents human input awaited by a workflow run. */
         WorkflowPendingRequest: {
@@ -8261,6 +8286,11 @@ export interface components {
              *     takes none. Replaced as a whole on every save, like every other field.
              */
             parameters?: null | components["schemas"]["AgentParameter"][];
+            /**
+             * @description The longest time one run of this workflow may take, as `hh:mm:ss`. Leave it
+             *     out to use the installation's `Tracon:Workflows:RunTimeout`.
+             */
+            runTimeout?: null | string;
         };
     };
     responses: never;

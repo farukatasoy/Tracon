@@ -310,8 +310,10 @@ public sealed class TraconToolTimeoutException : TraconException
 /// <para>
 /// The limit is <c>Tracon:AgentGraph:ChildDeadline</c>, with
 /// <c>Tracon:AgentGraph:WaitTimeout</c> as the hard cutoff for an agent that
-/// ignores its cancellation token. The exception fails the step, so the
-/// workflow run ends <c>Failed</c> and no later node runs.
+/// ignores its cancellation token. A node that sets its own
+/// <see cref="WorkflowNodeReference.Timeout"/> replaces both for that step: the
+/// timeout, and the timeout plus 30 seconds as the hard cutoff. The exception
+/// fails the step, so the workflow run ends <c>Failed</c> and no later node runs.
 /// </para>
 /// <para>
 /// An agent called as a TOOL by another agent hits the same limit without this
@@ -356,6 +358,60 @@ public sealed class TraconChildRunTimeoutException : TraconException
 
     /// <inheritdoc />
     public override string ErrorType => ChildRunTimeoutErrorType;
+}
+
+/// <summary>
+/// Thrown when a function node of a workflow does not return within its timeout.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The timeout is the node's own (<see cref="WorkflowNodeReference.Timeout"/>), or the
+/// one its function was registered with. When it elapses, the token the function's
+/// handler was given is cancelled and the run stops waiting: the exception fails the
+/// node, so the workflow run ends <c>Failed</c> and no later node runs.
+/// </para>
+/// <para>
+/// A cancellation of the run itself is not this exception: a run that its caller
+/// cancels, or that reaches its own deadline (<c>Tracon:Workflows:RunTimeout</c>),
+/// ends <c>Canceled</c> while the node is still running, whatever the node's timeout
+/// is.
+/// </para>
+/// </remarks>
+public sealed class TraconWorkflowFunctionTimeoutException : TraconException
+{
+    /// <summary>
+    /// The stable value written to <see cref="TraconException.ErrorType"/>.
+    /// </summary>
+    public const string WorkflowFunctionTimeoutErrorType = "workflow_function_timeout";
+
+    /// <summary>Creates a new error.</summary>
+    public TraconWorkflowFunctionTimeoutException()
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    public TraconWorkflowFunctionTimeoutException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
+    public TraconWorkflowFunctionTimeoutException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Gets the name of the function that did not return in time.</summary>
+    public string? FunctionName { get; init; }
+
+    /// <summary>Gets the timeout that elapsed.</summary>
+    public TimeSpan? Timeout { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => WorkflowFunctionTimeoutErrorType;
 }
 
 /// <summary>

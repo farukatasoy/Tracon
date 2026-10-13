@@ -45,7 +45,16 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// When the worker stops, the run closes as <see cref="RunStatus.Canceled"/> and the
-/// job is left to its lease: it is leased again, or it fails on its attempt limit.
+/// job is left to its lease: it is leased again, or it fails on its attempt limit. When
+/// the job is cancelled, the worker cancels the token within one poll interval and the
+/// run closes <see cref="RunStatus.Canceled"/>; the job stays cancelled.
+/// </para>
+/// <para>
+/// <strong>Time limit.</strong> When the attempt reaches the job's time limit
+/// (<see cref="JobRecord.MaxDuration"/>), the run closes <see cref="RunStatus.Canceled"/>
+/// with the error type <c>job_max_duration_exceeded</c>, and the job fails at once with
+/// <see cref="JobErrorCodes.MaxDurationExceeded"/>. It is not an interruption: recovery
+/// never continues such a run, so the limit ends the work.
 /// </para>
 /// </remarks>
 internal sealed class WorkflowRunJobHandler(
@@ -110,6 +119,18 @@ internal sealed class WorkflowRunJobHandler(
             return;
         }
 
+        // An earlier attempt reached the job's time limit and stopped the run, but its
+        // outcome was never written (a store error, a crash right after). The work ran
+        // out of time: it ends now, as it would have then.
+        if (plan is { Step: WorkflowRecoveryStep.Stopped })
+        {
+            throw await RefuseAsync(
+                plan.Last!.Id,
+                JobErrorCodes.MaxDurationExceeded,
+                new TraconException($"Workflow run '{plan.Last!.Id}' was stopped by its job's time limit and is not continued."),
+                closeIfQueued: false).ConfigureAwait(false);
+        }
+
         if (plan is { Step: WorkflowRecoveryStep.Exhausted })
         {
             await recovery.CloseChainAsync(plan, cancellationToken).ConfigureAwait(false);
@@ -149,9 +170,24 @@ internal sealed class WorkflowRunJobHandler(
             // the queued row it never wrote would otherwise stay Queued.
             throw await RefuseAsync(current, RunFailedCode, exception).ConfigureAwait(false);
         }
+        catch (OperationCanceledException) when (StoppedAtTimeLimit(context))
+        {
+            // The limit arrived before the engine opened the run; its row is closed below.
+        }
 
-        // 🚨 The worker is stopping: the stream ended because the token was
-        // cancelled, not because the run did. The job is left to its lease.
+        // 🚨 F-323, open question 13-A: the job's time limit ends the WORK, not the
+        // attempt. Left to the lease like a shutdown, the next attempt would continue
+        // the run from its checkpoint, and the limit would stop nothing.
+        if (StoppedAtTimeLimit(context))
+        {
+            await StopAtTimeLimitAsync(context, current).ConfigureAwait(false);
+
+            return;
+        }
+
+        // 🚨 The worker is stopping, or the job was cancelled: the stream ended
+        // because the token was cancelled, not because the run did. A stopping
+        // worker leaves the job to its lease; a cancelled job stays cancelled.
         cancellationToken.ThrowIfCancellationRequested();
 
         RunStatus? status;
@@ -184,6 +220,74 @@ internal sealed class WorkflowRunJobHandler(
                 new TraconException($"Workflow run '{current}' ended with status {status}."),
                 closeIfQueued: false).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>Gets whether the worker cancelled the handler's token at the job's time limit.</summary>
+    /// <param name="context">The job context.</param>
+    /// <returns><see langword="true"/> when the time limit, and not a shutdown or a cancel, stopped the attempt.</returns>
+    private static bool StoppedAtTimeLimit(JobContext context)
+        => context.Signals?.Reason == JobStopReason.MaxDurationExceeded;
+
+    /// <summary>
+    /// Ends the work of an attempt the job's time limit stopped: the run is closed with
+    /// the limit as its reason, and the job fails without another attempt.
+    /// </summary>
+    /// <param name="context">The job context.</param>
+    /// <param name="runId">The run the attempt was running.</param>
+    /// <returns>A task that completes only when the run finished in the same instant; otherwise it throws.</returns>
+    /// <exception cref="NonRetryableJobException">The work ended at the limit.</exception>
+    /// <exception cref="TraconException">The run's queued row could not be closed; the job is tried again to close it.</exception>
+    /// <remarks>
+    /// <para>
+    /// The engine closes a run it was running with the limit as its reason (the error
+    /// type <c>job_max_duration_exceeded</c>), so a later plan never continues it. A run
+    /// the engine had not opened yet is still <see cref="RunStatus.Queued"/>; it is
+    /// closed here with the same reason.
+    /// </para>
+    /// <para>
+    /// A run that completed in the same instant keeps its outcome: the job completes, as
+    /// it does for any handler that returns after its limit.
+    /// </para>
+    /// </remarks>
+    private async ValueTask StopAtTimeLimitAsync(JobContext context, Guid runId)
+    {
+        var signals = context.Signals!;
+
+        try
+        {
+            if (await recovery.ReadStatusAsync(runId, signals.WorkerStopping).ConfigureAwait(false) is RunStatus.Completed or RunStatus.AwaitingInput)
+            {
+                return;
+            }
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, signals.WorkerStopping))
+        {
+            // The status only tells a finished run apart; the run is closed below either way.
+            logger?.LogWarning(exception, "Could not read queued workflow run {RunId} after its job's time limit.", runId);
+        }
+
+        var error = signals.ToRunError("Workflow run");
+        var correlationId = SafeErrorText.NewCorrelationId();
+
+        if (logger is not null && logger.IsEnabled(LogLevel.Error))
+        {
+            logger.LogError(
+                "Queued workflow run {RunId} was stopped by its job's time limit of {MaxDuration}; the job fails and the run is not continued. (ref: {CorrelationId})",
+                runId,
+                signals.MaxDuration,
+                correlationId);
+        }
+
+        if (!await recovery.CloseIfQueuedAsync(runId, RunStatus.Canceled, error).ConfigureAwait(false))
+        {
+            throw new TraconException(
+                $"Queued workflow run '{runId}' was stopped by its job's time limit, and its row could not be closed; the job is tried again to close it. (ref: {correlationId})");
+        }
+
+        throw new NonRetryableJobException(
+            JobErrorCodes.MaxDurationExceeded,
+            correlationId,
+            new TraconException(error.Message));
     }
 
     /// <summary>Starts the continuation a <see cref="WorkflowRecoveryStep.Continue"/> plan opened.</summary>

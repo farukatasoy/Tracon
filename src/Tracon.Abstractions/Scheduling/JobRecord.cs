@@ -79,6 +79,27 @@ public sealed record JobRecord
     /// </remarks>
     public int? MaxAttempts { get; init; }
 
+    /// <summary>
+    /// The longest time one attempt of this job may run. If <see langword="null"/>,
+    /// <c>TraconSchedulingOptions.MaxDurationByHandlerKey</c> applies to the job's
+    /// handler key, and a key the map does not list has no limit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When the time is up, the worker cancels the token it gave the handler. A
+    /// handler that stops then fails the attempt with
+    /// <see cref="JobErrorCodes.MaxDurationExceeded"/>; the job is leased again while
+    /// attempts are left, and the next attempt gets the full time again. A handler
+    /// that ignores its token is waited for, and keeps its worker slot until it
+    /// returns. One that returns normally after the time is up completes the job.
+    /// </para>
+    /// <para>
+    /// Kept in the store beside <see cref="MaxAttempts"/>. A store that does not keep
+    /// it loses it: the job then runs under the map's value, or without a limit.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? MaxDuration { get; init; }
+
     /// <summary>The identifier of the worker currently leasing the job. <see langword="null"/> if not leased.</summary>
     public string? LeaseOwner { get; init; }
 

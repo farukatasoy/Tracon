@@ -992,7 +992,7 @@ internal abstract class SqlQueriesBase
     protected const string JobColumns = """
             id, tenant_id, schedule_id, handler_key, target_name, status, payload, total_items, done_items,
             failed_items, attempt, lease_owner, lease_until, scheduled_for, started_at, completed_at,
-            error_message, created_at, max_attempts, lane
+            error_message, created_at, max_attempts, lane, max_duration_ms
             """;
 
     // 🚨 Derived, never retyped. SQL Server's lease query spelled this list out
@@ -1597,9 +1597,9 @@ internal abstract class SqlQueriesBase
         InsertJob = $"""
             INSERT INTO {Table("jobs")}
                 (id, tenant_id, schedule_id, handler_key, target_name, status, payload, total_items,
-                 done_items, failed_items, attempt, scheduled_for, created_at, max_attempts, lane)
+                 done_items, failed_items, attempt, scheduled_for, created_at, max_attempts, lane, max_duration_ms)
             VALUES (@id, @tenant_id, @schedule_id, @handler_key, @target_name, 0, @payload, @total_items,
-                    0, 0, 0, @scheduled_for, @created_at, @max_attempts, @lane);
+                    0, 0, 0, @scheduled_for, @created_at, @max_attempts, @lane, @max_duration_ms);
             """;
 
         RenewJobLease = $"""

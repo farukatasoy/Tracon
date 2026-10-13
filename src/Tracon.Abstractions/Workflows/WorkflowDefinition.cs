@@ -148,6 +148,43 @@ public sealed record WorkflowDefinition
     /// </remarks>
     public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
 
+    /// <summary>
+    /// Gets the longest time one run of this workflow may take.
+    /// <see langword="null"/> (the default) uses the installation's
+    /// <c>Tracon:Workflows:RunTimeout</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The value replaces the installation's run timeout for this workflow only,
+    /// and it behaves the same way: the deadline starts when the run starts (a
+    /// wait for a <c>MaxConcurrentRuns</c> slot counts too), it cancels the token
+    /// every node is given, and a run that reaches it ends
+    /// <see cref="RunStatus.Canceled"/> with an error that names this field.
+    /// </para>
+    /// <para>
+    /// <strong>It may only shorten the installation's value unless the host allows
+    /// more.</strong> A running workflow holds one of the slots that every tenant
+    /// shares, so the host decides how long one may hold it:
+    /// <c>Tracon:Workflows:MaxRunTimeout</c> is the ceiling. While it is not set, a
+    /// value above <c>Tracon:Workflows:RunTimeout</c> is refused when the definition
+    /// is saved (<c>400</c>). A stored value above a ceiling that was lowered later
+    /// still runs, cut to the ceiling.
+    /// </para>
+    /// <para>
+    /// Must be from one millisecond to about 49.7 days. A node's own timeout
+    /// (<see cref="WorkflowNodeReference.Timeout"/>) is not checked against this
+    /// value: the two answer different questions, and whichever ends first stops the
+    /// node.
+    /// </para>
+    /// <para>
+    /// A <see cref="WorkflowKind.Sequential"/> chain bounds each step with
+    /// <see cref="WorkflowNodeReference.Timeout"/>; the other patterns
+    /// (<see cref="AgentNames"/>) have no nodes, so this value and the installation's
+    /// <c>Tracon:AgentGraph:ChildDeadline</c> bound them.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? RunTimeout { get; init; }
+
     /// <summary>Gets the tenant the definition belongs to. <see langword="null"/> for workflows defined in code.</summary>
     public string? TenantId { get; init; }
 

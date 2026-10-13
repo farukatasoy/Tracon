@@ -48,6 +48,29 @@ internal sealed class TraconWorkflowOptionsValidator : IValidateOptions<TraconWo
                 $"(bytes of a node's settings JSON). Actual value: {options.MaxNodeSettingsLength}.");
         }
 
+        // F-405: checked whether or not the engine is on, like the settings cap: the
+        // ceiling guards a definition SAVE. A ceiling below the installation's own
+        // run timeout would let a definition shorten nothing it could not already,
+        // and the save would refuse a value the installation runs every day.
+        if (options.MaxRunTimeout is { } ceiling)
+        {
+            if (!TimerPeriod.IsValid(ceiling))
+            {
+                return ValidateOptionsResult.Fail(TimerPeriod.Failure(
+                    $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxRunTimeout)}",
+                    ceiling));
+            }
+
+            if (ceiling < options.RunTimeout)
+            {
+                return ValidateOptionsResult.Fail(
+                    $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxRunTimeout)} ({ceiling}) must not be " +
+                    $"below {nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.RunTimeout)} ({options.RunTimeout}): " +
+                    "it is the longest run timeout a workflow definition may set. Leave it unset to let a definition " +
+                    "only shorten the run timeout.");
+            }
+        }
+
         // F-321: recovery resumes from checkpoints, so it cannot work without
         // them. Refused at startup rather than discovered when the first job is
         // leased again and finds nothing to resume from.

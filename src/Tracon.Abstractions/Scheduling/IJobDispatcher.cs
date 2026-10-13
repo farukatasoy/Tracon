@@ -57,7 +57,8 @@ public interface IJobDispatcher
     /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
     /// <see cref="JobRequest.HandlerKey"/> is not registered, the request's
-    /// tenant, target or lane is not valid, or a workflow or agent batch
+    /// tenant, target or lane is not valid, <see cref="JobRequest.MaxDuration"/> is
+    /// outside one millisecond to about 49.7 days, or a workflow or agent batch
     /// payload is an attribution envelope that is malformed or breaks a
     /// <see cref="RunLabels"/> limit.
     /// </exception>
@@ -122,6 +123,14 @@ public sealed record JobRequest
     /// <see cref="TraconSchedulingOptions.MaxAttempts"/>.
     /// </summary>
     public int? MaxAttempts { get; init; }
+
+    /// <summary>
+    /// The longest time one attempt of this job may run. <see langword="null"/>
+    /// applies <see cref="TraconSchedulingOptions.MaxDurationByHandlerKey"/>, or no
+    /// limit for a key the map does not list. See <see cref="JobRecord.MaxDuration"/>.
+    /// </summary>
+    /// <remarks>Must be from one millisecond to about 49.7 days.</remarks>
+    public TimeSpan? MaxDuration { get; init; }
 
     /// <summary>
     /// The earliest time the job may run (UTC). <see langword="null"/> means

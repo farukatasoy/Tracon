@@ -98,7 +98,7 @@ internal sealed class WorkflowTestHost
                 InputType = typeof(TInput),
                 OutputType = typeof(TOutput),
             },
-            _ => (executorId, _) => new FunctionExecutor<TInput, TOutput>(executorId, handler)));
+            _ => (executorId, _, _) => new FunctionExecutor<TInput, TOutput>(executorId, handler)));
     }
 
     /// <summary>
@@ -115,6 +115,23 @@ internal sealed class WorkflowTestHost
         var builder = new CollectingBuilder();
 
         builder.AddWorkflowFunction<TInput, TOutput, TSettings>(name, _ => handler, configure ?? (static _ => { }));
+
+        _functionRegistrations.AddRange(builder.Registrations);
+    }
+
+    /// <summary>
+    /// Registers a function through the real <c>AddWorkflowFunction</c> overload that
+    /// takes a <see cref="WorkflowFunctionOptions"/> callback, so the timeout and retry
+    /// wrappers a consumer's registration builds are the ones the tests run.
+    /// </summary>
+    public void AddFunctionWithOptions<TInput, TOutput>(
+        string name,
+        Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>> handler,
+        Action<WorkflowFunctionOptions> configure)
+    {
+        var builder = new CollectingBuilder();
+
+        builder.AddWorkflowFunction<TInput, TOutput>(name, _ => handler, configure);
 
         _functionRegistrations.AddRange(builder.Registrations);
     }

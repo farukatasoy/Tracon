@@ -211,7 +211,7 @@ public sealed class TraconAgentGraphOptions
     /// The fixed pad <see cref="WaitTimeout"/> adds on top of
     /// <see cref="ChildDeadline"/> when it was not set explicitly.
     /// </summary>
-    private static readonly TimeSpan WaitTimeoutPad = TimeSpan.FromSeconds(30);
+    internal static readonly TimeSpan WaitTimeoutPad = TimeSpan.FromSeconds(30);
 
     private TimeSpan? _waitTimeout;
 
