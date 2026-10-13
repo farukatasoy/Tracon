@@ -547,6 +547,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with an empty string in a nullable key is no longer matched to the record
   saved with `null` there; the HTTP surfaces already store an empty value as
   `null`.
+- A provider setting value of the wrong JSON type (for example text where
+  `anthropic.thinking.budgetTokens` expects an integer) is now reported with the
+  key it belongs to. Through the model provider registry the message was replaced
+  with "The model provider request failed.", so `POST /api/agents/validate` and a
+  compilation error did not name the key.
+- A run that failed because the provider filtered its response
+  (`ContentFiltered`) now records the tokens the call spent in its usage, cost and
+  quota entry. The run recorder writes no usage for a run that ends in an
+  exception, so a filtered run said it cost nothing although its input was billed.
 
 ### Added
 
@@ -650,6 +659,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for input cannot be resumed after a change of pattern, steps or order.
   The server accepts both forms, so a definition saved over HTTP in the other
   form keeps loading.
+- A response the model stopped at its output token limit is now its own
+  outcome. A structured (`Json` or `JsonSchema`) response fails the run with error
+  type `output_truncated` and the new `RunErrorClass.OutputTruncated`
+  (`TraconOutputTruncatedException` in-process); no structured-response repair
+  turn runs, and the `StructuredResponseRejected` event carries
+  `repairSkippedTruncated` when one was left. A plain-text response completes and
+  the run writes a `tracon.output.truncated` event
+  (`RunEventCustomTypes.OutputTruncated`). Only the turn that ends the run decides;
+  a tool call cut off in an intermediate turn does not. The tokens of the cut-off
+  call count in the run's usage and cost. The new enum member is in the OpenAPI
+  document and both generated clients.
+- Anthropic provider settings `anthropic.effort` (`output_config.effort`:
+  `low`, `medium`, `high`, `xhigh`, `max`), `anthropic.thinking.mode` (`enabled`
+  or `adaptive`), `anthropic.promptCaching.ttl` (`5m` or `1h`) and
+  `anthropic.promptCaching.placement` (`request` or `system`, which marks the end
+  of the agent's instructions so requests with different documents share the
+  cached prefix). A wrong value, a cache setting without
+  `anthropic.promptCaching = true`, and a thinking budget with `adaptive` mode are
+  errors. Nothing changes for an agent that sets none of them.
+- `ModelDescriptor.SupportsSampling`, read from a provider's `Models` catalog
+  entry. When it is `false`, a definition that sets `Temperature` or `TopP` (on
+  the binding or a fallback link's model) fails to compile, and
+  `POST /api/agents/validate` reports `sampling_unsupported` at
+  `model.temperature` or `model.topP`. `GET /api/models` returns
+  `supportsSampling`; `null` means unknown and checks nothing.
+- `POST /api/agents/validate` warns with `output_truncation_risk` when a binding
+  leaves `MaxOutputTokens` empty, the provider sends a lower default limit, and the
+  agent asks for a structured response or high reasoning effort. A provider tells
+  its default through `ModelOutputLimit`, returned from the chat client's
+  `GetService`; the Anthropic provider does.
+- `ModelProviderSettingsContract.InvalidSettingValue` and the scenario
+  `A_supported_setting_with_an_invalid_value_is_rejected`: a provider that
+  declares a key with a closed set of values proves that a wrong value is
+  rejected and named. It is skipped when the property is left `null`.
 
 ### Changed
 
@@ -778,6 +821,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   workflow run that recorded parameters; it answered `404` before. The values
   are not returned there. A replay of a workflow run answers `400` and points
   to resume.
+- A structured response cut off at the output limit no longer completes with a
+  partial JSON document (validation off) or fails as `StructuredResponseInvalid`
+  after spending every repair turn on the same limit (validation on); it fails
+  once as `OutputTruncated`. A dashboard or alert rule that counted these runs
+  under `StructuredResponseInvalid` needs the new class.
 
 ## [1.0.0-preview.3] - 2026-09-24
 

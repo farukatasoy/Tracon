@@ -441,6 +441,8 @@ agent keeps no version history, so its new run uses the current definition.
 
 A failed run carries an error class, not just a message: a provider outage, a content
 filter, a blocked guard decision, a quota, a timeout, a rejected structured response, a
+structured response cut off at the output limit (`OutputTruncated`, see
+[Truncated output](#truncated-output)), a
 harness loop that ran out of iterations unsatisfied (`LoopUnsatisfied`, see
 [failing the run](/concepts/agents/#fail-the-run-when-the-loop-is-not-satisfied)).
 Two of them are deliberately distinct — `ContentFiltered` means the *provider's*
@@ -458,6 +460,27 @@ and its class is the step's class.
 Both the class and the clustering fingerprint come from a classifier you can
 replace or compose with your own rules — see
 [Write your own error classifier](/guides/write-your-own-error-classifier/).
+
+### Truncated output
+
+A model that reaches its output token limit stops in the middle of its answer and
+reports a `length` finish reason. Tracon reads that reason for every provider and
+treats the two kinds of answer differently:
+
+| The agent asks for | Outcome |
+|---|---|
+| A structured response (`Json` or `JsonSchema`) | The run fails with error type `output_truncated`, class `OutputTruncated`. A cut-off JSON document cannot be parsed. No repair turn runs, because it would hit the same limit; the `StructuredResponseRejected` event carries `repairSkippedTruncated: true` when a repair attempt was left |
+| Plain text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.truncated`. Its payload names the provider and, when the binding set one, the limit — never the answer text |
+
+Only the turn that ends the run decides. A tool call the model was still writing when
+it hit the limit is an intermediate turn: the tool loop runs it and asks the model
+again. The tokens of a failed truncated call still count in the run's usage, cost and
+quota. A streaming client does not see the `length` reason in the live `update`
+frames; read the run's events or its error.
+
+The fix is a higher `ModelBinding.MaxOutputTokens`. When the binding leaves it empty,
+`POST /api/agents/validate` warns with `output_truncation_risk` if the provider's
+default is below the catalog's `MaxOutputTokens` for the model.
 
 ### The error message is safe to display, not safe to debug from
 
