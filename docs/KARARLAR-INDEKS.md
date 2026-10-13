@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 901 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 904 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (60 / 961 kalem)
+## En Yeni Kalıcı Kararlar (60 / 964 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-902 | 953 | Ayarlı fonksiyon kaydı opsiyonel parametre YERİNE `Action<WorkflowFunctionOptions>` alır; `IWorkflowFunctionCatalog` `ValidateSettings` üyesini kazanır (F-295) |
-| K-903 | 954 | Kuyruklu turun oturum kaydı kira penceresinde tekrarlanır; pencere biterse iş `tracon.job.session-save-failed` ile `Failed` olur, model tekrar çağrılmaz (F-367) (ana oturum varsayılanı) |
-| K-904 | 955 | Kuyruktaki run kuyruğa alanın atfını taşır: agent run yükü `userId` + `labels`, workflow ve batch yükü `{items, userId, labels}` zarfı; devam kaynak run'ın atfıyla açılır (F-364, F-369) (ana oturum varsayılanı) |
 | K-905 | 956 | Eval case `Context`'i belge kanalıyla sorgudan önce gider; terfi önce `run_inputs`'u okur ve taşınamayan girdiyi `422` ile reddeder (F-343) (ana oturum varsayılanı) |
 | K-906 | 957 | Devre kesici yalnız sağlayıcının attığı ve sağlığını gösteren hatayı sayar; diğer kalıcı `4xx` ve devrenin içindeki Tracon kararları nötrdür (F-354) (ana oturum varsayılanı) |
 | K-907 | 958 | Fallback atfı (run modeli, `ModelFallbackUsed`) yalnız agent'ın kendi bağlamasında yazılır; yan kanalın fallback'i o çağrınındır (F-360) (ana oturum varsayılanı) |
@@ -70,3 +67,6 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-969 | 1010 | Stored script adı ve disk script'i boyut/tür kapısı denetimden ÖNCE kapıdır (`script.denied`, `script.run` yok, kota slotu yok); kapıdan sonraki okuma hatası (`could not be read`, `in time`, sınır aşımı) `script.run`'dan sonra tool hatası olarak kaydedilir (Faz 202) |
 | K-970 | 1011 | Modele ve `tool_invocations`'a dönen script metinleri: zaman aşımı `The script timed out and was stopped.`, bekleme sınırı ayrı metin ve `Timed out; the script executor did not return in time.`; kesme işaretini yalnız runner sonuna ekler (`[Tracon: output truncated at the N-byte limit per stream.]`) ve her akışı yeniden keser; yürütücü istisnasında yalnız tip yazılır, mesaj sunucu log'una gider (Faz 202) (kullanıcı kararı) 👤 |
 | K-971 | 1012 | `SkillScriptExecutionRequest` ortam değeri taşımaz; script'e `TRACON_SKILL_NAME` ve çağrıya özel `TRACON_SKILL_TEMP` verilir; `ContentSha256` grant pini değil içeriğin UTF-8 SHA-256'sıdır; `ToString` `Content` ve `ArgumentsJson`'ı basmaz (Faz 202) |
+| K-972 | 1013 | Token dışı tutar (düğüm kalemi, tool ölçümü) `RunNonTokenCost` adlı AYRI toplamdır ve `RunCost.Total()`'a girmez; token tutarıyla toplayan TEK yer `RunSpend.Total`'dır, para kararı veren beş yer yalnız onu kullanır; yalnız `Tracon:Pricing:Currency` cinsinden tutar toplanır, kalan kalem sayılır; K-219'u daraltır (Faz 199) (kullanıcı kararı) 👤 |
+| K-973 | 1014 | `WebhookRunSummary.Cost` token ve bildirilen token dışı tutarı birlikte taşır, `NonTokenCost` yalnız bildirilen payı verir; `IRunStore` iki üye alır (GA öncesi kırılma); `GET /api/runs/{runId}/usage` run'ın kendi kalemlerini döner (Faz 199) (kullanıcı kararı) 👤 |
+| K-974 | 1015 | Token dışı harcamanın kalıcı biçimi: `run_non_token_usage` tablosu (kalem anında yazılır), `runs` üzerinde dört snapshot sütunu (run kapanırken), `tool_invocations`'ta sağlayıcı/model; kapanıştan sonra gelen kalem yalnız detaya; kalem sayısı ve değer sınırları kabulde denetlenir (Faz 199) (kullanıcı kararı) 👤 |

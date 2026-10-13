@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (901 kalem)
+## Arşivlenen Kararlar (904 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -910,3 +910,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-899 | 950 | Kuyruklu run yükü `parameters` ve `documents` taşır; batch öğesi `message` string üyeli JSON nesnesiyse YAPILIdır (bilinmeyen üst alan ve bozuk üye öğeyi tek başına düşürür, zamanlama kaydı ve tetik biçimi reddeder); `jobs.payload` ve `job_items.input` KORUMALI DEĞİLDİR ve değer ile belge metnini düz tutar; worker şemayı yeniden doğrular; webhook gövdesi gibi dış kaynaklı metin `{"message": …}` ile zarflanır, yapılı öğe olarak okunmaz (F-294) (kullanıcı kararı) 👤 |
 | K-900 | 951 | Fonksiyon düğümü ayarı tipli ve KATI OKUMAYLA doğrulanır: `WorkflowNodeReference.Settings` (`JsonElement?`, yalnız nesne), `AddWorkflowFunction<TInput, TOutput, TSettings>`; kayıtta ve her derlemede AYNI okuma (fonksiyon doğrulanan nesneyi alır, ikinci şema doğrulayıcısı yok); agent düğümünde, nesne olmayan değerde ve ayarsız fonksiyonda `400`; ayar `secret` DEĞİLDİR, değişiklik sonraki run'da geçerlidir, boyut sınırı yalnız kayıtta (F-295) (kullanıcı kararı) 👤 |
 | K-901 | 952 | Konsol zinciri TEK kanonik biçimde yazar (fonksiyon varsa `nodes`, yoksa `agentNames`); sunucu iki biçimi de kabul eder; yapısal değişiklik bekleyen run'ı resume edilemez kılar ve editör bunu her zaman söyler; aynı fonksiyon bir zincirde iki kez kullanılamaz (F-292) (kullanıcı kararı) 👤 |
+| K-902 | 953 | Ayarlı fonksiyon kaydı opsiyonel parametre YERİNE `Action<WorkflowFunctionOptions>` alır; `IWorkflowFunctionCatalog` `ValidateSettings` üyesini kazanır (F-295) |
+| K-903 | 954 | Kuyruklu turun oturum kaydı kira penceresinde tekrarlanır; pencere biterse iş `tracon.job.session-save-failed` ile `Failed` olur, model tekrar çağrılmaz (F-367) (ana oturum varsayılanı) |
+| K-904 | 955 | Kuyruktaki run kuyruğa alanın atfını taşır: agent run yükü `userId` + `labels`, workflow ve batch yükü `{items, userId, labels}` zarfı; devam kaynak run'ın atfıyla açılır (F-364, F-369) (ana oturum varsayılanı) |

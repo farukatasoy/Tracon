@@ -121,6 +121,50 @@ the workflow: never put a secret in them** - name its configuration key instead.
 `GET /tracon/api/workflows/functions` lists each function with the JSON schema of its
 settings.
 
+## Reporting what a node spent beyond tokens
+
+A function node that speaks, renders or transcribes spends something that is not a token.
+Tracon cannot see that work, so the node reports it with `context.ReportUsageAsync`:
+
+```csharp
+builder.AddTracon()
+       .UseWorkflows()
+       .AddWorkflowFunction<List<ChatMessage>, string>(
+           "narrate",
+           provider => async (messages, context, cancellationToken) =>
+           {
+               var text = messages[^1].Text;
+
+               // ... synthesize the speech with your provider, then report what it billed.
+               await context.ReportUsageAsync(new ToolCallUsage
+               {
+                   Unit = ToolUsageUnits.Characters,
+                   Quantity = text.Length,
+                   Cost = text.Length * 0.00003m,
+                   Currency = "USD",
+                   Provider = "elevenlabs",
+                   Model = "eleven_multilingual_v2",
+               });
+
+               return text;
+           });
+```
+
+Every call is one item, written to the run at once and not cancelled with it: a run that
+fails or is cancelled keeps what its node had spent, and a retried node keeps the items of
+its failed attempts. `GET /tracon/api/runs/{runId}/usage` lists them in the order reported.
+The call returns `false` instead of throwing outside a Tracon workflow run, for an invalid
+item (an empty `Unit`, a negative quantity or amount) and after the run holds 1,000 items;
+report once per step, not per chunk.
+
+Tracon never prices the work: `Cost` is the amount the node computed. Amounts in
+`Tracon:Pricing:Currency` add up into the run's `nonTokenCost` (and `treeNonTokenCost`
+for the run and every run below it), a total beside the token cost that the call-tree
+budget (`Tracon:AgentGraph:MaxTotalCost`), the tenant's cost quota and the `run.completed`
+webhook count. A quantity is never added across units, and an item with no amount, or in
+another currency, is listed and counted as not added: unknown, not free. A run that
+reported nothing has no `nonTokenCost`, which is not zero.
+
 ## Parameters
 
 A stored workflow can declare run parameters (`WorkflowDefinition.Parameters`, the

@@ -93,7 +93,7 @@ script.
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree; enforced between model turns, mid-run |
-| `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree; falls back to the token limit when a model's price is undefined |
+| `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree. It counts the token cost and the amounts that function nodes and tools reported beyond tokens; falls back to the token limit when a model's price is undefined |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
@@ -251,7 +251,13 @@ Tracon:Pricing:Images:{provider}:{model}:SizeMultipliers:{provider-size}
 Tracon:Pricing:Images:{provider}:{model}:OutputCostPerMillionTokens
 ```
 
-Values label and calculate reports only. Tracon performs no currency conversion.
+Values label and calculate reports only. Tracon performs no currency conversion, so
+`Currency` also decides which reported amounts add up: an amount that a workflow function node or a
+tool reported beyond tokens joins the run's non-token total only when it is in this
+currency (an amount that names no currency is in it, and with no `Currency` set only such
+an amount adds); any other is listed and counted as not added. A function node's amounts
+are the amounts the node computed, not a price table Tracon applies.
+
 The shorter configuration keys `Input`, `Output` and `CachedInput` bind to the code
 properties `InputCostPerMillionTokens`, `OutputCostPerMillionTokens` and
 `CachedInputCostPerMillionTokens`.

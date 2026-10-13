@@ -69,6 +69,19 @@ tokens are not priced at the agent's rate. When no model of the run has a price,
 `cost` is unknown, and a later recalculation prices all of the run's tokens at
 the agent's model.
 
+`cost` is the **token** cost. What a run spent that is not tokens — speech characters, render
+seconds, minutes of audio that a workflow function node or a tool reported — is a total of
+its own: `nonTokenCost` on the run summary, and `treeNonTokenCost` for the run and every
+run below it, the run's own share already included, so the two are never added. Only an
+amount in `Tracon:Pricing:Currency` adds; Tracon never converts one currency into another
+and never adds a quantity across units. `nonTokenCost` is `null` when the run reported
+nothing, which is not zero, and an `amount` of `null` beside a non-zero `unsummedItemCount`
+means items were reported but none could be priced: unknown, not free. The
+[budget, the tenant's quota and the `run.completed` webhook](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+count the reported amount beside the token cost. `GET /api/stats`, the dashboard and the
+comparison of two runs show the token cost only. `GET /api/runs/{runId}/usage` lists the items
+a function node reported, and `GET /api/runs/{runId}/tools` carries a tool's measurement on its call.
+
 The conversation is the **event stream**, written with gapless sequence numbers by a
 single writer:
 

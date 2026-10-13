@@ -134,8 +134,9 @@ already uses for tools. `GET /api/workflows/functions` lists what is
 registered, for a picker to choose from.
 :::
 
-A function node opens no `runs` row of its own and contributes nothing to
-cost or token totals — it made no model call. `ExecutorInvoked` /
+A function node opens no `runs` row of its own and adds nothing to the token
+totals — it made no model call. What it spent that is not tokens, it can report
+itself ([below](#report-what-a-node-spent-beyond-tokens)). `ExecutorInvoked` /
 `ExecutorCompleted` / `ExecutorFailed` still fire for it, same as any node, so
 it is visible in the run's event stream and colored live in the graph.
 
@@ -226,6 +227,104 @@ with the fields the function takes listed under it.
 schema of its settings type, and `null` for a function that takes none. The console lists
 the fields from it. It is for display: the check is the read described above, so what the
 schema says and what a save accepts cannot drift apart.
+
+### Report what a node spent beyond tokens
+
+A node that speaks, renders or transcribes spends something that is not a token: a
+text-to-speech character, a GPU second, a minute of audio. Tracon cannot see that work, so
+the node reports it. `ReportUsageAsync` is an extension on the `IWorkflowContext` the
+node already receives:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, string>(
+    "narrate",
+    services => async (messages, context, cancellationToken) =>
+    {
+        var text = messages[^1].Text;
+
+        // ... synthesize the speech with your provider, then report what it billed.
+        await context.ReportUsageAsync(new ToolCallUsage
+        {
+            Unit = ToolUsageUnits.Characters,
+            Quantity = text.Length,
+            Cost = text.Length * 0.00003m,
+            Currency = "USD",
+            Provider = "elevenlabs",
+            Model = "eleven_multilingual_v2",
+        });
+
+        return text;
+    });
+```
+
+A report is one **item**. The run lists its items, in the order they were reported, at
+`GET /api/runs/{runId}/usage` (Reader role, `runs:read` scope); this abridged answer (each item also carries its `id`, `runId` and `createdAt`) is
+from a run whose `speak` node reported an estimated, priced item and whose `render` node
+reported seconds it has no price for:
+
+```json
+[
+  {
+    "nodeName": "speak",
+    "usage": { "unit": "characters", "quantity": 76, "cost": 0.0076, "currency": "USD",
+               "isEstimated": true, "provider": "tone", "model": "tone-1" }
+  },
+  {
+    "nodeName": "render",
+    "usage": { "unit": "gpu-seconds", "quantity": 1, "cost": null, "currency": null,
+               "isEstimated": false, "provider": "local-gpu", "model": null }
+  }
+]
+```
+
+- **Tracon never prices a node's work.** `Cost` is the amount the node computed from its
+  provider's rate. `Unit` is free text; `ToolUsageUnits` only names the units Tracon's own
+  tools use. `Provider` and `Model` are names for the reader and take no part in a total.
+- **The call does not throw.** It returns `false`, logs the cause and lets the node carry
+  on when it is called outside a Tracon workflow run, when the item is invalid, and when
+  the run already holds 1,000 items, so report once per step and not per chunk. An item is
+  invalid when its `Unit` is empty, its quantity or amount is negative, or a value is more
+  than its column holds (a unit of 64 characters, a currency of 16, a provider of 100, a
+  model of 200, a quantity above 9,999,999,999, an amount above 1,000,000,000). Only a
+  `null` argument throws.
+- **An item is written the moment it is reported and is not cancelled with the run.** The
+  provider billed that work, so a run that is cancelled or fails keeps what its node had
+  spent. A node that fails and is [retried](#retry-a-node-on-a-transient-error) keeps the
+  items of its failed attempts for the same reason.
+- **The item names its node.** A custom `Executor` in a graph built in code is not a
+  function node registered with Tracon, so its items carry no node name.
+- **Amounts of one currency add up; nothing else does.** The run's **non-token total**
+  (`nonTokenCost` on the run, and `treeNonTokenCost` for the run and every run below it)
+  adds an item only when the item has a `Cost` and that cost is in `Tracon:Pricing:Currency`;
+  an item with no currency label is in it. An item with no amount, or in another currency,
+  is listed and counted in `unsummedItemCount`, and is never added or converted. A quantity
+  is never added across units, because 76 characters and 1 GPU second make no number. An
+  item with no price is *unknown, not free*, so it never counts as zero, and a run that
+  reported nothing has `nonTokenCost: null`, not zero. An estimated item adds and marks the
+  total `isEstimated`, so a quota ceiling is not passed on a quantity nobody measured.
+- **The total stands beside the token cost, not inside it.** A caller that wants "what did
+  this run spend" adds the two with `RunSpend.Total`, which leaves the reported amount out
+  when the token cost is in another currency.
+
+Where the non-token amount counts:
+
+| Place | What happens |
+|---|---|
+| The call-tree budget (`AgentGraph.MaxTotalCost`) | An amount that adds is recorded the moment it is reported, so the next model call is refused once the ceiling is passed. The budget refuses model calls: a function node still starts when the budget is already spent |
+| The tenant's cost quota | The quota entry a root run writes, whether an agent run or a workflow run, counts the token cost plus the reported amount |
+| `run.completed` and `run.failed` webhooks | `cost` is the token cost and the reported amount together; `nonTokenCost` is the reported part, so the token part is `cost - nonTokenCost` |
+
+Still token-only: `GET /api/stats`, the dashboard, the `tracon.run.cost` metric, run
+comparison and the console's Tools screen. A quota has no limit on a unit such as
+characters.
+
+An item reported after the run closed — from a node that outlived its
+[timeout](#bound-a-node-with-a-timeout) — stays in the run's detail and does not change the
+total, the quota entry or the webhook, because those were already written; a handler that
+passes its token on never reaches this case. The items live with their run: erasing a data
+subject's runs deletes them too, and they hold no message text, so a data subject export
+does not list them. What a *tool* measured stays on `GET /api/runs/{runId}/tools`, and it
+joins the same total (see [Tools](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)).
 
 ### Retry a node on a transient error
 
@@ -513,7 +612,9 @@ A workflow's root run shares the same call-tree budget every agent run does
 runs](/guides/reliability/#bound-multi-agent-trees)): every agent node the
 workflow invokes spends against the same tree, so a workflow with a long chain
 of agent steps is bounded the same way a single agent's own tool loop is. A step
-the budget refuses fails the run (see above).
+the budget refuses fails the run (see above). What a function node
+[reported beyond tokens](#report-what-a-node-spent-beyond-tokens) counts against
+`MaxTotalCost` too.
 
 ## Checkpoints
 

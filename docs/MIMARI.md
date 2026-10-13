@@ -165,6 +165,7 @@ erDiagram
     runs ||--o{ runs : "parent_run_id (FK YOK)"
     runs ||--o{ run_events : "(run_id, seq) PK"
     runs ||--o{ tool_invocations : "run_id"
+    runs ||--o{ run_non_token_usage : "run_id (CASCADE)"
     runs ||--o| traces : "run_id"
     runs ||--o{ pending_approvals : "run_id (CASCADE)"
     traces ||--o{ spans : "trace_id"
@@ -194,9 +195,10 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar |
 | `conversation_items` | Konuşma mesajları, sıralı (**`json`**) |
 | `responses` | **Boş.** `/v1/responses` ve `/v1/conversations` durumu `sessions` tablosunda tutulur (K-036, K-043); ayrı bir yanıt kaydı yazılmadı |
-| `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet |
+| `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet; token dışı harcamanın dört snapshot sütunu (`non_token_*`, K-974) |
 | `run_events` | Append-only olay akışı, `(run_id, seq)` birincil anahtar |
-| `tool_invocations` | Tool çağrıları: ad, argüman, sonuç, süre, hata |
+| `tool_invocations` | Tool çağrıları: ad, argüman, sonuç, süre, hata; tool'un bildirdiği ölçüm ve sağlayıcı/model |
+| `run_non_token_usage` | Workflow fonksiyon düğümünün bildirdiği her token dışı kalem (birim, miktar, tutar, düğüm adı); run silinince cascade (K-974) |
 | `traces` / `spans` | OpenTelemetry span'leri |
 | `audit_log` | Kim, ne zaman, hangi tanımı değiştirdi |
 | `attachments` | Yüklenen ek ustverisi + ikili içerik (`bytea`); `session_id` FK **değil** (K-112) |

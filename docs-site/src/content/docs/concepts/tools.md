@@ -264,6 +264,41 @@ automatically repeat an image-generation call.
 See [Multimodal input and generated images](/guides/multimodal/) for registration,
 storage, and price configuration.
 
+### Report what a tool spent beyond tokens
+
+A tool billed by something other than a token — speech by the character, a transcript by
+the second, an image by the piece — reports that from its own body:
+
+```csharp
+_ = TraconToolUsage.Report(new ToolCallUsage
+{
+    Unit = ToolUsageUnits.Characters,
+    Quantity = characters,
+    Cost = price,
+    Currency = "USD",
+    Provider = "elevenlabs",
+    Model = "eleven_multilingual_v2",
+});
+```
+
+- **The measurement belongs to the call.** It is written onto the call's record
+  (`GET /api/runs/{runId}/tools`) with its unit, quantity, amount, currency, whether the
+  quantity was estimated, and the provider and model that did the work. A tool that
+  reports twice in one call replaces its first report, so report the total at the end. The
+  call returns `false` and does not throw when recording is off or the code is not inside a
+  tool call; a call that reported and then never settled keeps what it reported.
+- **It also joins the run's non-token total, the moment the tool reports it.** The same
+  rule as a [workflow function node's items](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+  applies: amounts in `Tracon:Pricing:Currency` add, a quantity is never added across units,
+  and a call with no amount is listed and counted as not added — unknown, not free. The
+  call-tree budget, the tenant's cost quota and the `run.completed` webhook therefore count a
+  `speak` call the way they count a function node that spoke. A measurement that arrives
+  after the run closed, from a call that outlived its timeout, stays on the call's record
+  only and does not change the run's total.
+- **The built-in tools report it already.** `speak`, `transcribe` and `generate_image`
+  fill `Provider` and `Model` as well as the measurement. Prices come from
+  `Tracon:Pricing`; with none configured the amount stays unknown.
+
 ## Client-side tools
 
 `AddClientTool(name, description, jsonSchema)` registers a tool the SAME way — the

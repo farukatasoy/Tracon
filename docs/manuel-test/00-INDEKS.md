@@ -371,7 +371,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 09 | [`09-ARAYUZ-GENEL.md`](09-ARAYUZ-GENEL.md) | `UI` | 5, 30, 164, 175 | `src/Tracon.UI/frontend/src` (kabuk, `access-gate`, `layout`, `navigation`, `command-palette`, `router`, `i18n`, `theme`, `auth`, `shortcuts`, `ui`, `dialog`, `menu`, `tooltip`, `toolbar`, `status-dot`, `styles.css`; `settings`/`models`/`tools` ekranları yalnız genel kısım; `confirm-dialog`) | **57** | ✅ | ✅ 56/57 · 1 ☐ (`MT-UI-042`) |
 | 10 | [`10-ARAYUZ-AGENT-PLAYGROUND.md`](10-ARAYUZ-AGENT-PLAYGROUND.md) | `UIAG` | 5, 19, 201 | `screens/agent*.tsx` · `playground.tsx` | **62** | ✅ | ✅ 56/58 · 2 ⏭ · Faz 201 (F-302): `MT-UIAG-059` ✅ (Playwright, OpenAI kipi) · `060`…`062` ➜ CI (Vitest; 👤 görsel kısmı bekler) |
 | 11 | [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) | `UIRUN` | 5, 32, 47 | `screens/run*.tsx` · `session*.tsx` · `components/cancel-run-button.tsx` · `replay-panel.tsx` · `run-comparison.tsx` · `branch-button.tsx` | **67** | ✅ | ✅ 66/66 · kusur-giderme 2026-10-12 (F-335): `MT-UIRUN-067` ☐ (➜ CI, E2E) · `MT-UIRUN-012` adım 3 eklendi |
-| 12 | [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | `OBS` | 6, 20, 35, 68, 89, 119, 132, 154, 173 | `src/Tracon.Core` · `screens/dashboard.tsx` · `screens/run-detail.tsx` | **69** | ✅ | ✅ 64/65 · 1 ☐ (`MT-OBS-055`) · 1 yeni case (`MT-OBS-066`, kusur-giderme 2026-10-10) tur kaydında yok — ➜ CI (sözleşme, üç SQL) · kusur-giderme 2026-10-12 (F-349): `MT-OBS-067` ☐ (➜ CI) · kusur-giderme 2026-10-12 (F-333): `MT-OBS-068` ☐ (➜ CI) · kusur-giderme 2026-10-12 (F-366): `MT-OBS-069` ☐ (➜ CI) |
+| 12 | [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | `OBS` | 6, 20, 35, 68, 89, 119, 132, 154, 173, 199 | `src/Tracon.Core` · `screens/dashboard.tsx` · `screens/run-detail.tsx` | **75** | ✅ | ✅ 64/65 · 1 ☐ (`MT-OBS-055`) · 1 yeni case (`MT-OBS-066`, kusur-giderme 2026-10-10) tur kaydında yok — ➜ CI (sözleşme, üç SQL) · kusur-giderme 2026-10-12 (F-349): `MT-OBS-067` ☐ (➜ CI) · kusur-giderme 2026-10-12 (F-333): `MT-OBS-068` ☐ (➜ CI) · kusur-giderme 2026-10-12 (F-366): `MT-OBS-069` ☐ (➜ CI) · Faz 199: `MT-OBS-070` · `072` · `073` koşuldu (örnek uygulama, SQLite), `071` ☐ 👤, `074` · `075` ☐ (➜ CI) |
 | 13 | [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md) | `SEC` | 6, 9, 41, 50, 53, 82, 139, 147, 148, 149, 170, 182 | `src/Tracon.AspNetCore/Security` · `Tenancy/` · `TraconEndpointOptions.cs` · `Endpoints/ApiKeyEndpoints.cs`/`AuditEndpoints.cs`/`GovernanceEndpoints.cs` (yalnız `MapTenants`) · `Tracon.Abstractions/Security`, `Audit`, `Tenancy` · `Tracon.Core/Security`, `Audit`, `Tenancy` · `Abstractions/Runs/RunAuthorizationTypes.cs`, `Core/Runs/AllowAllRunAuthorizationHandler.cs`, `AspNetCore/RateLimiting/RunAuthorizationGate.cs` (Faz 139) · `AspNetCore/Security/SessionOwnershipGate.cs`, `Abstractions/Options/TraconSessionOwnershipOptions.cs` (Faz 148 · 149) · `Core/Diagnostics/ProductionProfileValidator.cs` + `Diagnostics/Checks/`, `AspNetCore/Tenancy/TenancyResolutionProfileCheck.cs` (Faz 170) · `Core/Audit/AuditRecorder.cs` (Faz 171) · `Abstractions/Tenancy/AmbientTenantScope.cs`, `Sql.Shared/Migrations/TenantIdCaseGuard.cs` (Faz 179) · `Core/Approvals/ToolArgumentConditionFingerprint.cs` (Faz 182) | **168** | ✅ | ✅ 143/149 · 1 ☐ (`MT-SEC-193`) · 5 ☐ (`MT-SEC-194`…`MT-SEC-198`, Faz 179 — koşulmadı) · Faz 182: `MT-SEC-199` ✅ (➜ CI) · 2026-09-23 kusur giderme: 7 ☐ (`MT-SEC-200`…`MT-SEC-206`, K-852…K-854 + yetki kapısı logu + anahtar basma — koşulmadı; ➜ CI) · Faz 190: `MT-SEC-207`…`209` ✅ (örnek uygulama) · `MT-SEC-210` ☐ (➜ CI) · `MT-SEC-091` yeniden yazıldı · 2026-10-11 kusur giderme: `MT-SEC-211` ☐ (K-874 — özet modeli ve `aiJudge` yargıcı egress; koşulmadı, ➜ CI) · `MT-SEC-212` ☐ (K-875 — politika önbellekteki agent'a ulaşır; koşulmadı, ➜ CI) · 2026-10-12 kusur giderme: `MT-SEC-213` ☐ (F-337 — workflow ve diğer run başlatan uçlarda atıf; koşulmadı, ➜ CI) · kusur-giderme 2026-10-12 (F-369): `MT-SEC-214` ☐ (➜ CI) · kusur-giderme 2026-10-13 (F-388, F-384): `MT-SEC-215`…`MT-SEC-217` ☐ (➜ CI) |
 | 14 | [`14-SKILL-VE-SCRIPT.md`](14-SKILL-VE-SCRIPT.md) | `SKILL` | 10, 11, 186, 202 | `src/Tracon.Abstractions/Skills` · `src/Tracon.Core/Skills` (tümü) · `src/Tracon.Core/Storage/InMemoryAgentSkillStore.cs`/`InMemorySkillScriptGrantStore.cs` · `src/Tracon.AspNetCore/Endpoints/SkillEndpoints.cs`/`SkillScriptGrantEndpoints.cs` · `src/Tracon.UI/frontend/src/screens/skills.tsx` | **65** | ✅ | ✅ 46/47 · 1 ⏭ (`MT-SKILL-063`) · 12 yeni case (Faz 186: `MT-SKILL-064`…`069`, `072`…`077`) tur kaydında yok — altısı faz kapanışında örnek uygulamada ölçüldü, 11'i ➜ CI · Faz 202 (F-345): `MT-SKILL-078`…`082` ✅ (örnek uygulamada ölçüldü; `078`…`080`, `082` ➜ CI) · `083` ➜ CI (disk skill'i HTTP'den çağrılamaz, F-481) · `MT-SKILL-060`/`061` beklenen metni güncellendi |
 | 15 | [`15-WORKFLOWS.md`](15-WORKFLOWS.md) | `WF` | 15, 16, 71, 87, 122, 194, 195, 196, 197 | `src/Tracon.Workflows` · `screens/workflow*.tsx` | **98** | ✅ | ✅ 70/70 · 1 yeni case (`MT-WF-120`, kusur-giderme 2026-10-10) tur kaydında yok — örnek uygulamada ölçüldü, ➜ CI (E2E) · kusur-giderme 2026-10-12 (F-338): `MT-WF-124` ☐ (➜ CI) · kusur-giderme 2026-10-12 (F-334): `MT-WF-125` ☐ (➜ CI) · `MT-WF-114`/`118` güncellendi · kusur-giderme 2026-10-12 (F-332): `MT-WF-126` ☐ (➜ CI) · Faz 194 (F-294): `MT-WF-127`…`130` ✅ (örnek uygulamada ölçüldü) · `131` 👤 görsel · Faz 195 (F-292, F-295): `MT-WF-133`, `136`, `137` ✅ (örnek uygulamada ölçüldü) · `132`, `134`, `135` 👤 görsel (E2E ve Vitest karşılığı var) · `MT-WF-120` güncellendi · kusur-giderme 2026-10-12 (F-341): `MT-WF-138` ☐ (➜ CI) · Faz 197 (F-318): `MT-WF-139`…`141` ✅ (örnek uygulamada ölçüldü) · Faz 196 (F-303, F-405): `MT-WF-142`, `143`, `145`…`147` ✅ (örnek uygulamada ölçüldü) · `144` 👤 görsel (Vitest ve E2E karşılığı var; denetim sonrası karar 1 ile güncellendi) |
@@ -565,122 +565,11 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > beterdir (Faz 80'in "kapı sessizce geçer" sınıfı). Kalıcı çözüm §7'nin `Faz`
 > sütununu aile başlıklarından **üretmektir**; bir faz adayı olarak açılmalıdır.
 
-> ## 🔧 2026-08-10 — Koşum başlamadan önce inceleme turu (bu bölümün tamamı okundu)
+> ## 🔧 2026-08-10 — Koşum başlamadan önce inceleme turu
 >
-> Kullanıcı, üretim bitip koşum başlamadan önce bu bölümdeki ~40 notun tek tek
-> gözden geçirilip **şu an alınabilecek her aksiyonun** alınmasını istedi. Aşağıda
-> ne yapıldığı özetlenir; her not kendi orijinal metninde durur (tarihsel kayıt
-> bozulmadı), yalnız bu özet eklendi. Ayrıntılı gerekçe ve kanıt: konuşma kaydı;
-> kod tarafı gerekçeler ilgili commit mesajlarında.
->
-> **Kodlandı (kusur, doğrudan düzeltildi):**
-> 1. 🚨🚨 **KRİTİK — `CompiledAgentCache` kiracı boyutu taşımıyordu** (bu turda
->    NOTLARDA HİÇ yazılı değildi, kod okuması sırasında ayrıca bulundu). İki
->    farklı kiracının aynı adda+sürümde+bağımlılık parmak izinde bir tanımı
->    olması (ör. ikisi de `"support"`, ikisi de sürüm 1) onbelleğin BİRİNCİ
->    kiracının derlenmiş agent'ını (talimatlar, tool bağlamaları, `search_knowledge`'ın
->    bindirdiği kiracı kimliği dahil) İKİNCİ kiracıya döndürmesine yol açıyordu —
->    kiracı yalıtımının tam anlamıyla kırılması. `TenantId` artık onbellek
->    anahtarının bir parçası (`CompiledAgentCache.cs`, `DefinitionStoreAgentSource.cs`,
->    `CodeAgentSource.cs`).
-> 2. 🚨 **KRİTİK ŞÜPHE doğrulandı ve KISMEN düzeltildi — dosya belleği/metin
->    araması kiracılar arası sızdırıyordu.** Paylaşılan `AgentFileStore`
->    (`TryAddSingleton`) artık her kiracı için `TenantPrefixingAgentFileStore`
->    ile sarmalanıyor (`AgentDefinitionCompiler.RequireFileStore`) — kiracılar
->    arası sızıntı KAPANDI. Aynı kiracı içindeki ajan/oturum sınırı **hâlâ
->    açık** — bkz. `docs/ADAYLAR.md` F-105 (yetenek adayı, mekanizma
->    MAF'ın `TextSearchProvider` callback'inin oturum bilgisi taşımaması).
-> 3. **`HttpTenantContext.AllowedTenants` beyaz listesi gerçekten atlanıyordu**
->    (bu turda notlarda "ölçüldü, KOŞULMADI" diye kaydedilmişti — kod okumasıyla
->    doğrulandı, deterministik bir mantık hatası, koşum gerektirmiyordu).
->    `TraconEndpointFilter`'a `CheckTenancyWhitelist` eklendi: beyaz listede
->    olmayan bir aday artık 403 ile reddedilir, varsayılan kiracıya sessizce
->    düşmez.
-> 4. **`--no-build` ile paketlenen `Tracon.Core` kaynak üretecini
->    TAŞIMIYORDU** (Kritik olarak işaretlenmişti). `Tracon.Core.csproj`
->    artık `@(Analyzer)` yerine Generators projesinin `GetTargetPath` hedefini
->    kullanıyor — `dotnet pack --no-build` sonrası doğrulandı
->    (`analyzers/dotnet/cs/Tracon.Generators.dll` artık var).
-> 5. **SSE `error` çerçevesi boşluğu (K-296)** — `AgentEndpoints.ExecuteStreamingAsync`,
->    `OpenAIResponsesEndpoints.ResponsesStream`, `OpenAIChatCompletionsEndpoints.ChatCompletionsStream`
->    üçünde de dar `catch` filtresi kaldırıldı; artık `OperationCanceledException`
->    dışındaki HER istisna bir `error` çerçevesine dönüşüyor. Bu, Anthropic'in
->    gerçek istisna hiyerarşisini, `RegexMatchTimeoutException`'ı (guard notu,
->    aşağıda) ve gelecekteki benzer sürprizleri kapsıyor.
-> 6. **`/v1/conversations/{id}/items`'ta `has_more` sabit `false` idi** —
->    artık kırpma gerçekleştiğinde `true` döner.
-> 7. **`GET /api/workflows/{name}`, kod-tanımlı bir workflow için düz 404
->    döndürüyordu** — artık `runner` üzerinden var olduğu tespit edilirse
->    "düzenlenebilir tanımı yok" diye ayırt edici bir 404 mesajı döner (tam
->    birleştirme mimari olarak mümkün değil — kod-tanımlı workflow'lar hiç
->    `WorkflowDefinition` taşımıyor, bkz. `CodeWorkflowRegistration`).
-> 8. **`POST /api/voice/speak`, `MaxCharactersPerRequest`'i denetlemiyordu**
->    (yalnız `speak` tool'u denetliyordu). `ISpeechSynthesizer`'a
->    `MaxCharactersPerRequest` eklendi; HTTP ucu artık aynı sınırı uygular.
-> 9. **Şablon hâlâ `AddToolsFrom` (yansıma) öğretiyordu** — `AddGeneratedTools()`'a
->    geçirildi (`src/Tracon.Templates/content/Tracon.Starter/Program.cs`).
->    İzlek A ile UÇTAN UCA doğrulandı (`dotnet pack` → yerel feed → `dotnet new`
->    → `dotnet build`, sıfır uyarı).
-> 10. **`Tracon:Ui:AllowRemoteAccess` ölü config anahtarıydı** —
->     `samples/Tracon.Api/Program.cs`'in `MapTracon` çağrısına bağlandı.
-> 11. **AOT bayrağı `AGENTS.md` ile çelişiyordu** — dört değil sekiz paket
->     (Anthropic, Google, Azure, Voice eklendi) olacak şekilde düzeltildi.
-> 12. **`/api/meta`'nın "gerçek çıktı" örneği Faz 4'ten kalma, güncel değildi**
->     (`docs/arsiv/fazlar/04-HTTP-API.md`) — `jobStore`/`jobWorkerEnabled`/`roles` alanlarını
->     içerecek şekilde güncellendi, tarihli bir uyarı notuyla.
-> 13. **`docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`'nin K-260 notu artık yanlıştı**
->     (`MaxRows`'un kiracı filtresi taşımadığı iddiası) — kod ondan ileri
->     gitmiş; sayfaya "ARTIK ESKİMİŞ" uyarısı ve güncel davranış eklendi.
-> 14. 🐛 **Yan bulgu (notlarda hiç yoktu): `TemplateFixture.ResolveMetaPackageVersion()`
->     dosya sistemi sırasına güveniyordu** — `artifacts/package/release/`'de
->     birikmiş eski (bozuk, `--no-build`'den kalma) `.nupkg` dosyaları varsa
->     rastgele biri seçilebiliyordu; şablon testleri bu yüzden aralıklı
->     CS1061 ile düşüyordu. En son yazılan dosyayı seçecek şekilde düzeltildi;
->     eski `artifacts/package/release/*.nupkg` temizlendi (git-ignored, yeniden
->     üretilebilir).
->
-> **Doğrudan doğrulandı, kod DEĞİŞMEDİ (not zaten doğruydu veya konu kapsam
-> dışıydı):** mssql/server çelişkisi, EchoModelProvider konumu, migration
-> sayısı farkı, Faz 31 kapsam boşluğu, 08/20 tablo satırları — bunların hepsi
-> ilgili notta zaten "ÇÖZÜLDÜ" işaretliydi, bu turda yeniden dokunulmadı.
->
-> **Yetenek adayına dönüştürüldü (kusur değil — `docs/hafiza`'daki "kusur
-> kodla, yetenek planla" ayrımı):** `docs/ADAYLAR.md`'ye üç yeni
-> kalem eklendi —
-> **F-103** (API anahtarı kapsam taksonomisinin genişletilmesi — bu bölümde
-> `RequireApiKeyScope` eksikliği DOKUZ ayrı notta tekrar tekrar bulunmuştu:
-> Workflow, Scheduling, Eval/Experiment, Governance/MCP kaydı, Knowledge,
-> Approval, Retention, Quota; hepsi TEK, zaten bilinen ve K-360'ta kayıtlı bir
-> kararın — "tam taksonomi bilinçli ertelendi" — aynı sonucu),
-> **F-104** (örnek uygulama rol politikalarını hiç kaydetmiyor, `RequireRole`
-> her yerde no-op — Skill/Approval notlarında ayrı ayrı bulunmuştu, tek kök
-> neden), **F-105** (dosya belleği/metin aramasının kiracı-İÇİ ajan/oturum
-> sınırı — madde 2'nin tamamlanmamış kısmı).
->
-> **Hâlâ açık, kasıtlı olarak dokunulmadı (koşum aşamasında doğrulanacak veya
-> ayrı bir kod incelemesi ister — bu tur yalnız NOTLARI taradı, yeni bir tam
-> kod taraması yapmadı):** `NpgsqlDataSourceFactory` ölü kod şüphesi,
-> `RunStatistics` altı sayaç toplamı, `QuotaDecision.CostFellBackToTokens` /
-> `RunErrorClass.Canceled` ölü kod şüpheleri, `RunErrorClass` Anthropic/Google'da
-> `Unknown`'a düşmesi, skill sayısı sınırının save/run asimetrisi,
-> `WorkflowSaveRequest.Kind` zorunlu olmaması, `pending_approvals`/`quota_usage`
-> retention hedefi eksikliği, `PatternContentGuard`'ın boş bölümde bile
-> kaydolması, `RunEvent.Payload` JSON olmaması, `TraconDiagnosticsReport`
-> plan sapması (Faz 33 doc), `TraconTestHost`'un auth middleware eklemediği
-> — bunların hiçbiri kiracı yalıtımı veya veri kaybı sınıfında değil (Orta/Düşük
-> önem), bu yüzden bu turun bütçesi içinde ele alınmadı. Hız sınırı ve
-> webhook/olay yayını için hâlâ hiçbir senaryo dosyası yok — bu bir kod
-> boşluğu değil, **üretim** boşluğudur (bkz. §7'nin dosya listesi); sonraki
-> bir üretim oturumu kapatmalı.
->
-> **Doğrulama:** Dört kapı bu turda çalıştırıldı — `dotnet build` (0 uyarı, 0
-> hata, arayüz dahil), `dotnet test` (dokunulan HER alan %100 geçti;
-> SqlServer container'ının bu makinede hiç başlamaması — K-186/K-317 — ve
-> Faz 56'nın kanarya metotlarının kiracı-kapsama sözleşme testine hiç
-> eklenmemiş olması ÖNCEDEN VAR olan, bu turla ilgisiz iki bulguydu, dokunulmadı),
-> `dotnet pack --no-build` (üreteç DOĞRULANDI), `dotnet format --verify-no-changes`
-> (0 fark).
-
+> Bu bölümdeki ~40 notun tek tek gözden geçirildiği tur ve her aksiyonun kaydı
+> arşive taşındı: [`../arsiv/manuel-test-kosum-2026-09/00-INDEKS-INCELEME-TURU-2026-08-10.md`](../arsiv/manuel-test-kosum-2026-09/00-INDEKS-INCELEME-TURU-2026-08-10.md).
+> Aşağıdaki notlar kendi orijinal metninde durur.
 - **`mssql/server` "çelişkisi" ÇÜRÜTÜLDÜ (2026-08-09, `04-KALICILIK-DIGER.md`
   üretilirken ölçüldü).** Çelişki yoktur: `SqlServerFixture.cs:28` gerçekten
   `mcr.microsoft.com/mssql/server:2022-latest`'i HEDEFLER (kod hiç değişmedi);

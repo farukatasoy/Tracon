@@ -59,8 +59,13 @@ application **startup**.
 ## Cost
 
 Voice pricing is based on **characters** (generation) or **duration** (resolution),
-not tokens. The measurement is written to the `tool_invocations` table and is
-**not summed** with token cost — two different units cannot be added together.
+not tokens. The measurement, with the provider and model that did the work, is written
+to the `tool_invocations` table and is **not summed** with token cost — two different
+units cannot be added together. Its *amount* joins the run's non-token total
+(`nonTokenCost` on the run), a total beside the token cost that the call-tree budget, the
+tenant's cost quota and the `run.completed` webhook count. A workflow function node that
+calls a speech provider itself is not measured by these tools; it reports its own spend
+with `context.ReportUsageAsync`.
 
 Pricing comes from configuration; Tracon does not fabricate prices:
 
@@ -78,7 +83,8 @@ Pricing comes from configuration; Tracon does not fabricate prices:
 }
 ```
 
-If a price is not defined, the cost stays `NULL` — **not zero**.
+If a price is not defined, the cost stays `NULL` — **not zero**. The measurement is then
+listed as unpriced and left out of the run's total.
 
 If the provider does not report the billed character count, the length of the text
 is used instead, and the measurement is flagged as an **estimate**.

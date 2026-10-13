@@ -114,6 +114,12 @@ application registers remains the fallback for a custom provider.
 `UseOpenAICompatible()` does not imply image support. Register a supported image
 extension only after you verify that its provider API supports the selected model.
 
+A generated image is billed by the piece or by output tokens, not by the chat model's
+tokens. `generate_image` records the measurement on its tool call with the provider
+and model that made the image, and the amount joins the run's non-token total beside the
+token cost ([Report what a tool spent beyond tokens](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)).
+The speech tools of `Tracon.Voice` record theirs the same way.
+
 Google generates images through the `generateContent` surface, so the model you
 name must be one that supports it — a Gemini image model. The older Imagen
 `predict` surface is not served by the Gemini API, and a model that only

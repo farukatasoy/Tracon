@@ -83,6 +83,11 @@ This is the exact value `IRunStore.GetStatisticsAsync` reports for the same run 
 querying the view and reading the API give you the same number, because both read
 the same underlying columns with the same null-preserving rule.
 
+`total_cost` is the **token** cost. What a run reported beyond tokens (a workflow function
+node's or a tool's speech characters, render seconds) is a separate total, `nonTokenCost` on
+`GET /api/runs/{runId}`, and the view does not carry it. Read it from the API when you need
+the whole spend.
+
 ## It is not a tenant boundary
 
 `runs_v1` carries `tenant_id` as a plain column. It does **not** filter by tenant.

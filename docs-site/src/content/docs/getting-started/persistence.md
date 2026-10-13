@@ -180,6 +180,12 @@ The `job_max_duration` migration only adds: a nullable `max_duration_ms` column 
 `jobs`. Existing jobs keep `NULL`, which means "no time limit of its own": the limit
 `Scheduling:MaxDurationByHandlerKey` maps the job's handler key to applies, and a key
 the map does not list has none ([Background work](/guides/background-work/)).
+
+The `non_token_cost` migration only adds. It creates the `run_non_token_usage` table, whose
+rows belong to a run and are deleted with it, and appends four nullable snapshot columns to
+`runs` and two (`usage_provider`, `usage_model`) to `tool_invocations`. Existing rows keep
+`NULL` on purpose: for a run that closed before the upgrade, `nonTokenCost` is `null`, which
+means "nobody reported a number", not zero ([Runs](/concepts/runs/#what-a-run-carries)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds

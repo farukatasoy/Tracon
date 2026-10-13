@@ -7,7 +7,8 @@
 > 113 (§ `IRunErrorClassifier` kompozisyonu ve `RunErrorFingerprint`),
 > 119 (§ ham hata metni sızıntısının kapatılması — `SafeErrorText`),
 > 132 (§ uygulanan fiyat snapshot'ı — birim fiyatlar, `runs.model_provider`,
-> yeniden hesaplamanın `Unknown`'a daralması)
+> yeniden hesaplamanın `Unknown`'a daralması),
+> 199 (§ fonksiyon düğümünün token dışı harcaması — kalemler, toplam, kota, bütçe, webhook)
 > **Kaynak:** `src/Tracon.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -2105,3 +2106,133 @@ hatası işi yeniden denetti ve alıcı aynı olayı iki kez aldı.
 - Alıcı olayı bir kez alır; teslim `Delivered`.
 - `X-Tracon-Delivery` başlığı her denemede aynıdır; alıcı tekilleştirmeyi ona dayandırır.
 - 🚨 Eski kusur: alıcı aynı olayı iki kez aldı.
+
+---
+
+### MT-OBS-070 — Fonksiyon düğümü token dışı harcamayı bildirir; kalemler ve toplam run'da görünür (Faz 199, F-299)
+
+Otomatik karşılığı: `NodeUsageTests.Two_nodes_report_and_every_item_lands_on_its_own_node_and_run`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 199 |
+| **İlgili karar** | K-972 · K-973 |
+| **Devir** | koşuldu (2026-10-13, SQLite) |
+
+**Ön koşul** — Örnek uygulama (`Tracon:Ui:AuthToken` verilmiş, anahtarsız); `Tracon:Pricing:Currency=USD`.
+
+**Adımlar**
+1. `PUT /tracon/api/workflows/narrated-demo` ile `word-count`, `speak` (`voice=alloy`), `render` (`seconds=1`), `synthesize` (`provider=tone`) düğümlerini kaydet; `POST …/run` çağır.
+2. `GET /tracon/api/runs/{runId}/usage` ve `GET /tracon/api/runs/{runId}` oku.
+
+**Beklenen sonuç**
+- Üç kalem, bildirim sırasıyla: `speak` (76 `characters`, `0.0076`, `isEstimated=true`, `tone/tone-1`), `render` (1 `gpu-seconds`, `cost=null`), `synthesize` (126 `characters`, `0.0126`).
+- `nonTokenCost` = `{amount 0.0202, currency USD, isEstimated true, unsummedItemCount 1}`; `treeNonTokenCost` aynı; `cost`/`treeCost` `null`.
+- 🚨 Eski kusur: düğüm harcamasını bildirecek yol yoktu; hiçbiri kayda, kotaya, bütçeye girmezdi.
+
+### MT-OBS-071 — Konsol: araç çağrısı ölçümü ve "Token dışı kullanım" paneli (Faz 199, F-299) 👤
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 199 |
+| **İlgili karar** | — |
+| **Devir** | ☐ 👤 insan gerekir; ➜ CI: `run-detail.test.tsx` |
+
+**Ön koşul** — MT-OBS-070'in run'ı; konsol açık (`/tracon`).
+
+**Adımlar**
+1. Run ayrıntısını aç.
+2. Ses anahtarı varsa `speak` tool'unu çağıran bir agent run'ını da aç.
+
+**Beklenen sonuç**
+- "Token dışı kullanım (3)" paneli üç satır gösterir; `render` satırında tutar yerine **fiyatsız** rozeti, `speak` satırında **tahmini** rozeti vardır.
+- Alt satır "Bu çalıştırmada bildirilen 0,0202 USD · tahmini · 1 eklenmedi".
+- Tool çağrısı satırı aynı ölçüm satırını (miktar, birim, tutar, sağlayıcı/model) gösterir.
+- Hiçbir şey bildirmeyen run'da panel çizilmez.
+
+### MT-OBS-072 — Kota: bildirilen tutar `MaxCost`'a girer; sınır aşılınca `429` (Faz 199, F-299)
+
+Otomatik karşılığı: `NonTokenSpendTests.The_workflows_quota_entry_counts_the_amount_its_function_node_reported`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 199 |
+| **İlgili karar** | K-972 |
+| **Devir** | koşuldu (2026-10-13, SQLite) |
+
+**Ön koşul** — MT-OBS-070 örnek uygulaması; `speak` + `synthesize` düğümlü workflow.
+
+**Adımlar**
+1. `PUT /tracon/api/quotas` `{"period":"Daily","maxCost":0.03}`.
+2. Workflow'u dört kez çalıştır; `GET /tracon/api/quotas/usage` oku.
+
+**Beklenen sonuç**
+- İlk üç run `200`; sayaç `cost=0.0441`, `tokens=0` (yalnız token dışı harcama).
+- Dördüncüsü `429`: `"…cost quota … exceeded (0.0441/0.03)"`, `quotaMetric=Cost`.
+- 🚨 Eski kusur: kota token maliyetini sayardı; bu run sıfır token harcadığı için hiç dolmazdı.
+
+### MT-OBS-073 — Bütçe: bildirilen tutar ağacın sonraki model çağrısını keser (Faz 199, F-299)
+
+Otomatik karşılığı: `NonTokenSpendTests.A_function_nodes_amount_stops_the_trees_next_model_call` · `…A_tools_amount_stops_the_agents_next_model_call_in_a_non_streaming_run`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 199 |
+| **İlgili karar** | K-972 |
+| **Devir** | koşuldu (2026-10-13, SQLite) |
+
+**Ön koşul** — Örnek uygulama `Tracon__AgentGraph__MaxTotalCost=0.005` ile; workflow: `speak` → `summarizer` (agent).
+
+**Adımlar**
+1. Workflow'u çalıştır; run kaydını oku.
+
+**Beklenen sonuç**
+- Run `Failed`, `error.type=run_budget_exceeded`: `"…cost budget is exhausted (0.005800/0.005000)…"`; `summarizer` modeline hiç istek gitmez.
+- `nonTokenCost.amount=0.0058` kayıtlı kalır.
+
+### MT-OBS-074 — Webhook: `cost` birleşik, `nonTokenCost` token dışı pay (Faz 199, F-299)
+
+Otomatik karşılığı: `NonTokenSpendTests.The_workflows_run_completed_webhook_carries_the_combined_cost_and_the_non_token_part` · `…The_agents_run_completed_webhook_…`.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 199 |
+| **İlgili karar** | K-973 |
+| **Devir** | ➜ CI: `NonTokenSpendTests` |
+
+**Ön koşul** — MT-OBS-068 alıcısı; MT-OBS-070 workflow'u.
+
+**Adımlar**
+1. `run.completed` aboneliğiyle workflow'u çalıştır; alıcının gövdesini oku.
+
+**Beklenen sonuç**
+- `run.cost` token ve token dışı tutarın toplamıdır (`0.0202`); `run.nonTokenCost=0.0202`; `run.currency=USD`.
+- Hiçbir şey bildirmeyen run'da `nonTokenCost` yoktur.
+
+### MT-OBS-075 — Başka para birimindeki kalem listelenir, toplama ve kotaya girmez (Faz 199, F-299)
+
+Otomatik karşılığı: `NonTokenSpendTests.An_amount_in_another_currency_is_in_neither_the_quota_nor_the_webhook` · `NodeUsageTests.An_item_in_another_currency_is_listed_and_counted_as_not_added`.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 199 |
+| **İlgili karar** | K-972 |
+| **Devir** | ➜ CI (örnek uygulamanın düğümleri `Tracon:Pricing:Currency` ile bildirir; `EUR` bildiren düğüm yalnız testtedir) |
+
+**Ön koşul** — `Tracon:Pricing:Currency=USD`; bir düğüm `USD` 1 ve `EUR` 100 bildirir.
+
+**Beklenen sonuç**
+- `GET …/usage` iki kalemi de listeler.
+- `nonTokenCost.amount=1`, `unsummedItemCount=1`; kota ve webhook yalnız `1`'i sayar. Kur çevrimi yoktur.

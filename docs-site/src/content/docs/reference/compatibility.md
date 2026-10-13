@@ -275,7 +275,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 170 management and OpenAI-compatible
+The generated HTTP reference contains 171 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
