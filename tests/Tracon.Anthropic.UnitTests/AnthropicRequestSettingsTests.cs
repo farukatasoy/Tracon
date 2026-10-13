@@ -153,6 +153,37 @@ public sealed class AnthropicRequestSettingsTests
         body["thinking"]!["budget_tokens"]!.GetValue<int>().ShouldBe(2048);
     }
 
+    [Theory]
+    [InlineData(ReasoningEffort.Low, 1024)]
+    [InlineData(ReasoningEffort.High, 16384)]
+    [InlineData(ReasoningEffort.ExtraHigh, 32768)]
+    public async Task ReasoningEffort_alone_becomes_an_enabled_thinking_budget(ReasoningEffort effort, int budgetTokens)
+    {
+        // The SDK adapter's mapping, read from the body it sends. The guide and
+        // the README state these numbers; this keeps them honest across an SDK
+        // update.
+        var body = await SendAsync(
+            Settings(),
+            new ChatOptions { MaxOutputTokens = 64000, Reasoning = new ReasoningOptions { Effort = effort } });
+
+        body["thinking"]!["type"]!.GetValue<string>().ShouldBe("enabled");
+        body["thinking"]!["budget_tokens"]!.GetValue<int>().ShouldBe(budgetTokens);
+        body.ContainsKey("output_config").ShouldBeFalse("ReasoningEffort is not anthropic.effort");
+    }
+
+    [Fact]
+    public async Task A_thinking_setting_wins_over_ReasoningEffort()
+    {
+        var body = await SendAsync(
+            Settings((AnthropicProviderNames.ThinkingModeSetting, "adaptive")),
+            new ChatOptions { MaxOutputTokens = 64000, Reasoning = new ReasoningOptions { Effort = ReasoningEffort.High } });
+
+        var thinking = body["thinking"]!.AsObject();
+
+        thinking["type"]!.GetValue<string>().ShouldBe("adaptive");
+        thinking.ContainsKey("budget_tokens").ShouldBeFalse("the adapter skips its own mapping when thinking is already set");
+    }
+
     [Fact]
     public async Task No_setting_sends_none_of_the_fields()
     {
