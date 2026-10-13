@@ -549,3 +549,81 @@ konfigürasyonla ayakta, `Tracon.Core.UnitTests` tam takım yeşil
 (2805/2805). Sıradaki adım: ana `DEVIR.md`'yi güncelle, ardından bu
 şeridin koşum özetini tamamla — kapanış (§6-§9) ayrı, çok-şeritli bir
 faz, bu oturumun kapsamı DIŞINDA.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 197)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek sonuç`, `Ölçüldü` ve `Düzeltildi` notları buraya **taşındı** (silinmedi). Her not
+> hangi case'e ait olduğunu başlığıyla söyler; tarih notun kendisindedir.
+
+#### MT-SKILL-058 — Gerçek çalıştırma kanıtı: `echo` script'i onaydan geçer ve modele sonucu döner
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §6 Aile W):** Bugünkü MAF sürümünde
+> ikinci onay kartının tool adı `merhaba` DEĞİL, MAF'ın kendi generic
+> `run_skill_script(skillName, scriptName, arguments)` dispatcher'ıdır.
+> `TraconSkillsSource.CreateSkill`'in `skill.AddScript(script.Name, ...)`
+> çağrısı (`TraconSkillsSource.cs:76-81`) hâlâ AYNI şekilde script başına
+> çağrılıyor — ama `Microsoft.Agents.AI.AgentSkillsProvider` (paket içi,
+> `AgentInlineSkillScript.RunAsync`/`RunSkillScriptAsync`) modele TEK bir
+> generic tool şeması sunuyor ve `scriptName` argümanıyla kayıtlı delegeye
+> dispatch ediyor — bu, eski beklentinin dayandığı MAF davranışından
+> FARKLI. Üç ayrı bağımsız çalıştırmada (canlı OpenAI çağrısı) tutarlı
+> şekilde gözlendi. Kanıt: `load_skill` sonrası modele sunulan
+> `gen_ai.tool.definitions` izleme özniteliği (`MT-SKILL-070`) yalnız
+> `["load_skill","read_skill_resource","run_skill_script"]` listeler —
+> `merhaba` diye ayrı bir tool ADI hiçbir zaman modele sunulmuyor.
+
+#### MT-SKILL-059 — İzin iptal edildikten sonra AYNI script reddedilir, `script.denied` yazılır
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §6 Aile W) — modele dönen mesaj
+> genel bir hata metnidir, spesifik değil:** MAF'ın function-invoking
+> katmanı, delegenin fırlattığı istisnayı modele DOĞRUDAN İLETMEZ — sabit
+> `"Error: Function failed."` metnini döner (muhtemelen istisna
+> içeriklerinin model bağlamına sızmasını önleyen bilinçli bir MAF
+> davranışı). Spesifik red mesajı (`'scriptli-skill/merhaba' script'i
+> calistirilmadi: ...`) Tracon'in KENDİ gözlemlenebilirlik katmanında
+> (`tool_invocations.error`) tam olarak korunur — yalnız modele dönen metin
+> genelleşir.
+
+#### MT-SKILL-062 — Ortam değişkenleri miras alınmaz: script yalnız `PATH`/`HOME` (+2 enjekte edilen) görür
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §9) — gerçek çıktı 4 değil 7
+> satır:** `bash` kendi başlatma sürecinde `PWD`, `SHLVL`, `_` değişkenlerini
+> KENDİSİ üretir (ebeveyn ortamından miras almaz — `ProcessStartInfo
+> .Environment.Clear()`'dan bağımsız, kabuğun kendi iç muhasebesidir).
+> Bunlar `secret` TAŞIMAZ (çalışma dizini yolu, kabuk iç içelik sayacı,
+> son çalıştırılan yorumlayıcının yolu) — güvenlik iddiası (hiçbir
+> Tracon-özel/`secret` değişkeni sızmaz) TAM olarak doğrulandı, yalnız
+> "yalnız 4 değişken" sayımı eksikti.
+
+#### MT-SKILL-064 — Grant stored script'in içeriğini pinler: okunan hash'le `201`, gerçek run `merhaba-tracon` döner
+
+> **Ölçüldü (2026-09-24, Faz 186, örnek uygulama + `gpt-5.4-mini`):** `201`;
+> listedeki hash okunanla aynı; run çıktısı `merhaba-tracon`.
+
+#### MT-SKILL-065 — İçerik değişince aynı grant script'i çalıştırmaz; `script.denied` "content changed since the grant" der
+
+> **Ölçüldü (2026-09-24):** run tamamlandı, çıktıda `merhaba-tracon` yok;
+> `script.denied` sebebi yukarıdaki metin.
+
+#### MT-SKILL-066 — Eski hash'le grant `409` döner, liste değişmez, yanıt güncel hash'i taşımaz
+
+> **Ölçüldü (2026-09-24):** `409 Content changed`; liste aynı; gövde
+> güncel hash'i taşımadı.
+
+#### MT-SKILL-067 — Stored skill'e hash'siz ya da biçimsiz hash'le grant `400` döner
+
+> **Ölçüldü (2026-09-24, örnek uygulama):** hash'siz istek
+> `400 Content hash required`.
+
+#### MT-SKILL-069 — Faz öncesi (hash'siz) grant yükseltmeden sonra stored script'i yetkilendirmez
+
+> **Ölçüldü (2026-09-24, örnek uygulama + `gpt-5.4-mini`):** adım 2 `53`/`t`;
+> adım 3'te script çalışmadı, sebep yukarıdaki metin.
+
+#### MT-SKILL-076 — Arayüz: bayat grant `stale` rozeti taşır; form içeriği gösterir ve yalnız okunan içeriği grant eder
+
+> **Ölçüldü (2026-09-24, örnek uygulama, tarayıcı):** dört adım ve Türkçe
+> metinler beklendiği gibi.

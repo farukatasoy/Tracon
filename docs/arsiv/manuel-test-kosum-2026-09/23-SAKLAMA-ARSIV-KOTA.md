@@ -343,3 +343,34 @@ sayısı: 0` verdi, ama gerçekte HİÇ run olmamıştı). Başlık eklenip
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 197)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek sonuç`, `Ölçüldü` ve `Düzeltildi` notları buraya **taşındı** (silinmedi). Her not
+> hangi case'e ait olduğunu başlığıyla söyler; tarih notun kendisindedir.
+
+#### MT-RET-071 — Anahtar açıkken `custom` çerçevesi `done`'dan ÖNCE gelir
+
+**Gerçek sonuç (2026-09-05, `gpt-5.4-mini`, `manuel-test-token-2026`)**
+```
+event: run
+event: update  (× 13)
+event: custom
+event: done
+```
+
+#### MT-RET-072 — Doğrudan akış ile `GET /api/runs/{id}/events` AYNI bildirimi sunar
+
+**Gerçek sonuç (2026-09-05)**
+```
+event: custom
+data: {"runId":"...","sequence":11,"type":"Custom", ...,
+       "payload":"{\"noticeId\":\"...\",\"tenantId\":\"default\",\"userId\":null,
+                    \"runId\":\"...\",\"sessionId\":null,\"metric\":\"Runs\",
+                    \"period\":\"Daily\",\"thresholdPercent\":100,\"limit\":1,
+                    \"used\":1,\"resetsAt\":\"2026-09-06T00:00:00+00:00\"}",
+       "customType":"tracon.quota.threshold"}
+```
