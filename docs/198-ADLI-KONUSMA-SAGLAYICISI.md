@@ -237,6 +237,30 @@ samples/Tracon.Api/       Program.cs (anahtarsız yerel sentezleyici `tone`)
 - [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
 - [ ] `CHANGELOG.md` `[Unreleased]` davranış değişikliğini ve yeni API'yi anar
 
+### Örnek uygulama koşumu — gerçek çıktı (2026-10-13, port 5198)
+
+`ASPNETCORE_ENVIRONMENT=Production`, üç bağlantı dizesi boş (bellek içi depo; paralel
+oturumla paylaşılan veritabanına yazılmadı), `Tracon__Ui__AuthToken=` boş. ElevenLabs
+anahtarı yüklenmedi: `UseVoice()` kapalı, adsız varsayılan sentezleyici yok, yalnız
+adlı `tone` kayıtlı. Agent'lar Echo kipinde.
+
+| Kontrol | Gerçek çıktı |
+|---|---|
+| `GET /api/voice/providers` | `[{"name":"tone","kind":"Synthesizer","providerName":"tone","supportsTenantCredentials":false}]` |
+| `POST /api/voice/speak` `{"text":"Merhaba","provider":"tone"}` | `200`; ek `speech-20261013-065408-5567710.wav`, `audio/wav`, `5804` B; `characters 7`, `isEstimated false`, `cost null` (fiyat tanımsız) |
+| Aynısı `provider` olmadan | `501` "Voice provider not configured" (varsayılan yok) |
+| Aynısı `"provider":"cloud"` | `400` "No speech synthesizer is registered under the name 'cloud'. Registered synthesizers: tone." |
+| `GET /api/voice/voices?provider=tone` | `200`; `low` / `mid` / `high` |
+| `PUT /api/tenants/default/egress` `["echo"]`, sonra `/speak` `tone` | `403` "Tenant 'default' is not allowed to call speech provider 'tone'. Allowed providers: echo."; ek sayısı `1` → `1` (sağlayıcı çağrılmadı); `/voices?provider=tone` `403` |
+| `narrated-tone` workflow (`support` agent + `synthesize` düğümü `{"provider":"tone","voice":"high"}`), politika `["echo"]` | run `Failed`; hata `Tracon.TenantProviderRefusedException`, `class: Unknown` (geçici değil), mesaj yukarıdakiyle aynı; yeni ek yok |
+| Politika `["echo","tone"]`, aynı run | `Completed`; `WorkflowOutput` "Echo: Kargom nerede? … [spoken by tone: attachment 01a1340a-98c4-…, 17324 bytes]"; ek `speech.wav` `audio/wav` `17324` B run'a ve oturuma bağlı (3 kelime × 2880 örnek × 2 B + 44 B başlık) |
+| `PUT /api/tenants/default/providers/tone` değersiz anahtar adıyla, `/speak` `tone` | `403` "… pointing at configuration key 'Tracon:ProviderKeys:Tone', but that key has no value … the call does NOT fall back to the global key." |
+| Günlük | `fail: Tracon.WorkflowRunner … node synthesize failed. (ref: cb39036a)` — yalnız ret run'ı; başka hata yok |
+
+Bundle payı (worktree tabanı `65d72b98`, `npx vite build && node scripts/postbuild.mjs`):
+`index-DLWGvGp3.js.br` 170 990 B → `index-DfMBSjQB.js.br` 171 340 B (**+350 B** brotli);
+JS gzip toplamı 203,7 KB → 204,1 KB (bütçe 250 KB).
+
 ### Doğrulama komutları
 
 ```bash
@@ -264,6 +288,29 @@ curl -s http://localhost:5081/tracon/api/voice/providers
 
 > Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
 > oturumun en değerli bilgisidir.
+> Uygulama oturumunda yazıldı (2026-10-13); yapısal iddialar `65d72b98` üzerinde ölçüldü.
+
+| # | Plan | Gerçek | Neden |
+|---|---|---|---|
+| 1 | `ListVoicesAsync(credential, ct)` | `ListVoicesWithCredentialAsync(ModelProviderCredential?, CancellationToken = default)` | Var olan `ListVoicesAsync(ct = default)` opsiyonel parametre taşıyor: aynı adlı ikinci aşırı yükleme opsiyonelli `RS0026`, opsiyonelsiz `RS0027` verir. K-878 emsali (`AttachSessionAsync`) gibi ayrı ad |
+| 2 | Kanıt tablosu satırları (`99fe0b13`) | Konum ve sıra iddialarının hepsi tuttu; satır kaymaları: `TraconWorkflowContextExtensions.cs:52` → `:53`; `WorkflowRunner` yolu `src/Tracon.Workflows/Internal/`, kapsam `:612`/`:630`; `ModelProviderRegistry.cs:330-334` → `:320-336` | Faz 201/204 arada geldi; ses dosyalarına dokunmadılar |
+| 3 | Kapsam dışı: "Görsel yolunun egress'i (F-384)" | F-384 bu fazdan önce kapandı (K-912). Speech ret yolu onun `TenantProviderRefusedException`'ını (internal) yeniden kullanır; uçlar `403`'ü ondan çıkarır | Ret tipi uçta `403` ile sağlayıcı hatasının `502`'sini ayırır; ikinci bir ret tipi kopya olurdu. Görsel ret metni "model provider" der; değiştirilmedi |
+| 4 | "`DescribeDenial` tür alır" | İç enum `TenantProviderCallKind { Model, Speech }` ve yeni aşırı yükleme; eski imza model metnini aynen üretir | `SecondaryModelEgressTests`, `EgressPolicyCacheTests` ve `ImageTenantPolicyTests` değişmeden yeşil |
+| 5 | "Bilinmeyen ad → `TraconException`" | İç `SpeechProviderNotFoundException : TraconException`; uç adsız istekte `501`, adlıda `400` verir. Geçersiz biçimli ad (boş, 64+, karakter dışı) da `400`'dür ve mesaj girdiyi tekrar etmez | Public API büyümez; function node'da çağıran yine `TraconException` görür |
+| 6 | "keyed singleton + iç ad kaydı" | Anahtar çıplak ad değil, iç `SpeechProviderRegistration` kaydıdır | Tüketicinin aynı dizeyle yaptığı keyed kayıt çakışmaz ve adlı örnek `GetKeyedService` ile kapı atlanarak çözülemez. `TraconBuilderRegistrationSnapshotTests.Describe` keyed tanımlayıcıyı okuyacak biçimde genişledi (keyed tanımlayıcıda `ImplementationInstance` atar) |
+| 7 | "Her isteğe kiracı anahtarını koyan sarmalayıcı döner" | Sarmalayıcı yalnız kiracının anahtarı varsa döner; yoksa ham örnek döner. Çağıranın verdiği `Credential` sarmalayıcıda kiracınınkiyle değişir | Bağlamasız kiracıda davranış ve tip aynı kalır; çağıran başka kiracının anahtarını seçemez (`A_caller_supplied_credential_is_replaced_by_the_tenants`) |
+| 8 | §198.5 fiyat sırası | `/speak` adsız istekte `ForSynthesis` `null` dönerse `ForCharacters`'a düşer; `VoicePricing` yapılandırılmış modele yalnız varsayılan sağlayıcının `ProviderName`'i için düşer. `VoicePricing` kurucusu `ISpeechTranscriber` alır (internal) | `ForSynthesis` varsayılan üyesi `null` döner: yalnız `ForCharacters` uygulayan tüketici okuyucusu varsayılan sentezleyicide fiyatını kaybetmesin. Adlı sentezleyici varsayılanın fiyatını hiç ödünç almaz (`VoicePricingTests`, iki proje) |
+| 9 | Konuşma: "oturum kapısı ile slot arası" | Sürücü `ResolveProvidersAsync` (internal) ile **iki** sağlayıcıyı da (STT + TTS) el sıkışmadan önce çözer; `RunAsync` çözülmüş çifti alır | Ses tanıyıcıya, yanıt metni sentezleyiciye gider; ikisi ayrı sağlayıcı adı taşıyabilir |
+| 10 | HTTP: `/voices` `403`/`400` | `/speak` ve `/voices` `.Produces`/`.ProducesProblem` üstverisini açıkça taşır (`400`/`403`/`501`/`502`); OpenAPI'de 132 yol / 170 işlem | Önceden iki uç belgede yalnız `200` taşıyordu; yeni yanıt kodları üretilen istemcilere ancak böyle girer |
+| 11 | — | `provider: ""` `400`'dür, varsayılana düşmez | Boş ad belirsizdir; varsayılan `null`/alan yok ile seçilir |
+| 12 | Site: `getting-started/security.md` | "The boundaries Tracon enforces" tablosuna "Tenant provider policy" satırı; `check-content.mjs` aynı satırı `reference/threat-model.md`'de de istedi ("fourteen" → "fifteen") | Kural model, konuşma, canlı ses ve görsel sağlayıcısının hepsini kapsıyor; önce hiçbir tabloda yoktu |
+| 13 | Site sayfaları | İşlem sayısı sekiz yerde `169` → `170` (iki README, iki paket README'si, `http-api.md`, `capabilities.md`, `getting-started/index.md`, `reference/compatibility.md`, ana sayfa). `packages.md` değişmedi | `--site-denetle`'nin `paket-readme` kuralı `src/Tracon.AspNetCore/README.md` (sayı) ve `src/Tracon.Voice/README.md` değişimi için `packages.md`'yi ister; paket tanımı (`Tracon.Voice`: "speech synthesis, transcription, or live conversation") değişmedi. `--denetle` yeşil |
+| 14 | Manuel case'ler: altı satır | `MT-MM-126`…`131`: plan case 1 ve 2 tek case'te (`126`); `131` eklendi (değersiz bağlama + anahtar almayan motor, hata modu 8) | `docs/manuel-test/*.md` ağaç bütçesi 2 556 000 B; ekleme sonrası 2 555 792 B (208 B boş) |
+| 15 | `ui.md` ekran görüntüsü | Ekran görüntüleri yeniden üretilmedi; yalnız `.ui-source.sha256` damgası tazelendi | Kiracı paneli `settings.png`'nin görünür alanının altında (üretilen görüntü okundu: yalnız sürüm metni değişiyordu) |
+| 16 | Hata modu 11 (`SpeechResolverTenantTests`) | Test kuyruklu iki kiracıyı doğru ayırır, ama "run kapsamı önce" sırasını AYIRT ETMEZ: kiracı yalnız `ITenantContext`'ten okununca da yeşil kaldı (mutasyon) | İş işçisi `AmbientTenantScope` açar; kuyruk yolunda iki kaynak aynı kiracıyı verir. Sıra `Tracon.Voice.UnitTests.SpeechTenantPolicyTests` ile kilitli: run kiracısı `acme`, `ITenantContext` `default`; aynı mutasyonda altı test kırmızı |
+| 17 | Test sınıfı adları | Hata modu 14'ün birim kısmı `Core.UnitTests/Voice/SpeechProviderRegistrationTests`; 12 birim `Tracon.Voice.UnitTests/VoicePricingTests`, fonksiyonel `AspNetCore.FunctionalTests/VoicePricingTests`; üç tool'un ret testleri `Tracon.Voice.UnitTests/SpeechTenantPolicyTests` | Fonksiyonel test projesi `Tracon.Voice`'a bilerek referans vermez (soyutlamanın doğru pakette olduğunun kanıtı); tool'lar orada DI bileşimi (`AddTracon().UseVoice()`), kurulum anı sağlayıcısı ve `Services`'siz argümanla koşar |
+| 18 | `<example>` | `ExampleCompilationTests` örnekteki tüketici tiplerini ister; `ExamplePrelude`'a `StudioSpeechSynthesizer`, `OnPremiseTranscriber`, `NarrationSettings` taslakları eklendi | Repo deseni (`OnPremiseModelProvider`, `TtsSettings`) |
+| 19 | Örnek uygulama | Var olan `speak` düğümü (sahte) değişmedi; yeni `synthesize` düğümü (`SynthesizeSettings { Provider, Voice }`) sesi gerçekten üretir ve ek yazar | Eski düğüm `MT-WF-*` case'lerinin dayandığı çıktıyı üretir |
 
 ## Bu Fazda Verilen Kararlar
 
