@@ -2329,7 +2329,7 @@ bölümündedir.
 
 | Kalem | Faz |
 |---|---|
-| F-296 | [Faz 203](../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) |
+| F-296 | [Faz 203](fazlar/203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) |
 | F-320, F-346 | [Faz 204](fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) |
 | F-405 | [Faz 196](fazlar/196-UZUN-ADIM-SURE-VE-IPTAL.md) |
 

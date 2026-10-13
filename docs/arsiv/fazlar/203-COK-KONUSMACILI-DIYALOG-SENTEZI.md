@@ -2,10 +2,10 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-B, 5-B, 6-B; Açık Soru 7 → B). Faz 196 ile paralel geliştirilir
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-296**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-296**
 > **Genellik:** Ses sözleşmesi Tracon'un kendi sözleşmesidir ve iki büyük sağlayıcının (ElevenLabs Text to Dialogue, Gemini çok konuşmacılı TTS) sunduğu yeteneği ifade edemez; MEAI 10.9.0 `ITextToSpeechClient` de tek ses taşır. İkinci kanıt bu ekosistem boşluğudur, tüketici değil. Bölme, birleştirme ve ses işleme tüketici kodunda kalır
 > **Karşı görüş:** "Ses üretimi çekirdek iş değil; tüketici SDK'yı fonksiyon düğümünde çağırabilir; Tracon'un katkısı kiracı kapısı ve maliyet kaydıdır." Plan bunu kabul eder: faz yalnız sözleşmeyi, yerleşik uygulamayı ve istek ayarlarını taşır; medya yardımcıları çıkarıldı; faz Faz 198'in kiracı kapısından sonra gelir
-> **Önkoşul:** Yok. **Sıra:** [Faz 198](arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md)'den sonra (2026-10-13, yeniden tartıldı): yetenek o fazın kiracı kapısının arkasına eklenir. F-297 (Gemini) bu sözleşmeyi uygular
+> **Önkoşul:** Yok. **Sıra:** [Faz 198](198-ADLI-KONUSMA-SAGLAYICISI.md)'den sonra (2026-10-13, yeniden tartıldı): yetenek o fazın kiracı kapısının arkasına eklenir. F-297 (Gemini) bu sözleşmeyi uygular
 > **Paketler:** `Tracon.Abstractions`, `Tracon.Voice`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-13): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, toplam 17 satır, her biri yalnız `#nullable enable`
@@ -30,19 +30,19 @@
    kapı Faz 198'dedir)
 3. F-340 kapanışı (sağlayıcı ayarı doğrulama deseni):
    `grep -n "F-340" docs/arsiv/ERTELENEN-ADAYLAR.md`
-4. Hafıza: [`hafiza/ses-ve-konusma.md`](hafiza/ses-ve-konusma.md) ·
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (açık fabrika ve
+4. Hafıza: [`hafiza/ses-ve-konusma.md`](../../hafiza/ses-ve-konusma.md) ·
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (açık fabrika ve
    opsiyonel parametre tuzağı, F-388)
-5. Tüketici kanıtı: [podcast raporu](arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)
+5. Tüketici kanıtı: [podcast raporu](../incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)
    § 2.1–2.2 ve § 6.1 (ölçülen istek ve yanıt biçimi)
-6. Faz 204 devri ([204](arsiv/fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) § Sonraki Faza
+6. Faz 204 devri ([204](204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) § Sonraki Faza
    Devir Notu): `ModelProviderSettings.TypeMismatch` artık
    `ProviderSettingsValidationException` (registry maskesinden geçer). Kapalı
    değer kümesi deseni `AnthropicRequestSettings`'tedir; sözleşmede
    `InvalidSettingValue`. 🚨 Anthropic ve Google ret metni yanlış **değeri**
    yankılar; bu fazın "yankılamaz" kuralı ya üçünü birlikte bağlar ya da
    kapalı küme istisnası gerekçelenir.
-7. **Faz 198 devri** ([198](arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md) § Sonraki Faza Devir
+7. **Faz 198 devri** ([198](198-ADLI-KONUSMA-SAGLAYICISI.md) § Sonraki Faza Devir
    Notu; `grep -n "K-930\|K-931\|K-932" docs/KARARLAR.md`). Kiracı kapısı ve adlı
    kayıt artık vardır; bu faz onun **arkasına** eklenir. Birebir imzalar:
    ```csharp
@@ -125,7 +125,7 @@ bölüm işaretlerine girer. Plan geneldir; bu tüketici yalnız bir ölçüt
 | `ElevenLabsSpeechClient.cs:506` · `:563` | `character-cost` başlığı ve hizalama ayrıştırması yeniden kullanılabilir |
 | `VoiceBuilderExtensions.cs:87-106` | Tek istemci örneği üç arayüze kaydedilir; sağlık denetimi `as IVoiceHealthCheck` ile yetenek okur (emsal) |
 | `ModelProviderSettings.cs:36` | Önekli ayar doğrulayıcısı `ModelBinding` alır; sözlük aşırı yüklemesi yok |
-| [Faz 198](arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md) § 198.6 · `SpeechProviderResolver.cs` | Plan "F-296'nın yetenek arayüzünü sarmalayıcı da uygular" diyordu; gerçekleşen sarmalayıcı (`TenantCredentialSpeechSynthesizer`, internal) yalnız `ISpeechSynthesizer` uygular ve yalnız kiracının anahtarı varken döner (Açık Soru 7) |
+| [Faz 198](198-ADLI-KONUSMA-SAGLAYICISI.md) § 198.6 · `SpeechProviderResolver.cs` | Plan "F-296'nın yetenek arayüzünü sarmalayıcı da uygular" diyordu; gerçekleşen sarmalayıcı (`TenantCredentialSpeechSynthesizer`, internal) yalnız `ISpeechSynthesizer` uygular ve yalnız kiracının anahtarı varken döner (Açık Soru 7) |
 | Tüketici `render_elevenlabs.py:155-173` | Diyalog isteğinin ve `voice_segments` eşlemesinin çalışan örneği (12–13 Ekim, 7 koşum, hepsi ilk denemede) |
 
 > Kanıtlar 2026-10-13'te `55272673` üzerinde doğrulandı.
@@ -701,4 +701,4 @@ bulgu olarak kabul edildi ve kapandı (`4c8047a5` ve Aşama 2 doküman commit'le
   planlama, 🟢).
 - 👤 `MT-MM-132` dinlemesi bakımcıya kalır.
 
-**Sıradaki faz:** bakımcı seçer ([YOL-HARITASI](YOL-HARITASI.md)).
+**Sıradaki faz:** bakımcı seçer ([YOL-HARITASI](../../YOL-HARITASI.md)).

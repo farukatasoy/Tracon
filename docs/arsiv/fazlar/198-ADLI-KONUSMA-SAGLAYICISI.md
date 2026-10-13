@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-298**
-> **Önkoşul:** Yok (F-336 kapandı). Örnek, Faz 195 düğüm ayarını; o kapanmazsa run parametresini (Faz 194) kullanır · [Faz 203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) (diyalog yeteneği, F-296) bu fazdan **sonra** gelir ve § 198.6'nın bıraktığı yere `ISpeechDialogueSynthesizer`'ı ekler (2026-10-13, yeniden tartıldı)
+> **Önkoşul:** Yok (F-336 kapandı). Örnek, Faz 195 düğüm ayarını; o kapanmazsa run parametresini (Faz 194) kullanır · [Faz 203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) (diyalog yeteneği, F-296) bu fazdan **sonra** gelir ve § 198.6'nın bıraktığı yere `ISpeechDialogueSynthesizer`'ı ekler (2026-10-13, yeniden tartıldı)
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Voice`, `.AspNetCore`, `.UI` · üretilen istemciler
 > **Yeni paket:** Yok · **Migration:** Yok (Açık Soru 1-A; 1-B'de üç sağlayıcıda gerekir)
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`
@@ -150,7 +150,7 @@ Kategori dışı yerel tercihler (K-* açılmadı):
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz:** [Faz 203 — Çok Konuşmacılı Diyalog Sentezi](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) (F-296). Devir oraya da yazıldı.
+**Sıradaki faz:** [Faz 203 — Çok Konuşmacılı Diyalog Sentezi](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) (F-296). Devir oraya da yazıldı.
 
 **Devralınan sözleşmeler:**
 - Motorlar `AddSpeechSynthesizer(name, factory)` / `AddSpeechTranscriber(name, factory)` ile kaydolur. Çağıran `ISpeechProviderResolver.GetSynthesizerAsync(name, ct)` ile alır; `null` adsız varsayılandır.
