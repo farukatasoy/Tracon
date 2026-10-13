@@ -2,19 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 853 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 858 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (60 / 913 kalem)
+## En Yeni Kalıcı Kararlar (60 / 918 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-854 | 905 | Kimlik bilgisi taşımayan istek yalnız GERÇEKTEN yerelse ve başka bir sitenin tarayıcı sayfası değilse kabul edilir: `AllowRemoteAccess` açık + `AuthToken` ve policy yok → uzak anonim `401`; `X-Forwarded-For`/`Forwarded`/`X-Real-IP` taşıyan loopback bağlantısı UZAK sayılır; anonim yerel istekte `Host` loopback adı, varsa `Origin` loopback olmalı (`403`) (kusur-giderme, 2026-09-23) 👤 |
-| K-855 | 906 | `net8.0` ve `net9.0`, Microsoft desteğinin bittiği 2026-11-10'dan sonraki ilk Tracon sürümünde düşer; acil bir güvenlik sürümü onları hâlâ taşıyabilir (kusur-giderme turu, 2026-09-23) 👤 |
-| K-856 | 907 | MCP sunucusu ve webhook aboneliğinin ek `headers` DEĞERLERİ hiçbir HTTP yanıtında ve MCP audit'inde yer almaz: her değer `***` olur, başlık adı kalır; `***` değerli kaydetme `400` alır; değer `store`'da düz kalır ve hedefe aynen gider (kusur-giderme, 2026-09-23) 👤 |
-| K-857 | 908 | `QuotaUsageQuery.PeriodStarts` store'un uyguladığı dönem süzgecidir; verilmezse tüm geçmiş döner; `AsOf` `[Obsolete]` olur (kusur-giderme, F-275, 2026-09-24) 👤 |
-| K-858 | 909 | Her Tracon→Tracon nuspec bağımlılığı tam aralıktır (`[x]`) ve paketin kendi sürümüne eşittir; yalnız IVT kenarları değil, 22 kardeş kenarının hepsi (Faz 185, F-265) (kullanıcı kararı) 👤 |
 | K-859 | 910 | Yüklü Tracon aile derlemeleri farklı sürümdeyse host başlamaz; kontrolün opt-out'u yoktur; preview hattında silinen üyeye ikili uyum shim'i yazılmaz (Faz 185, F-265) (kullanıcı kararı) 👤 |
 | K-860 | 911 | Script grant'ı içeriği pinler: stored ve kodda tanımlı script yalnız içeriğinin hash'ini taşıyan grant'la çalışır; hash'siz eski grant onları yetkilendirmez; diskteki script pinlenmez (Faz 186, F-269) (kullanıcı kararı) 👤 |
 | K-861 | 912 | Çok kiracılı host'ta stored script grant'ı platform yetkisi ister (`PlatformAdmin` kapsamlı anahtar, statik token veya `Tracon.PlatformAdmin` policy'si); tek kiracılı host'ta ve kodda tanımlı skill'de gerekmez (Faz 186) (kullanıcı kararı) 👤 |
@@ -70,3 +65,8 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-911 | 962 | Veri sahibi kapsamı `workflow_checkpoints`'i ve oturumla bulunan run'ların `run_scores`'unu içerir; silme `AwaitingInput` muafiyeti tanımaz (F-371) (ana oturum varsayılanı) |
 | K-912 | 963 | Görsel üretimi kiracının egress politikasına ve kendi anahtarına tabidir: denetim `ImageGeneratorResolver.ResolveForTenantAsync`'te, sağlayıcı çağrısından ÖNCE ve iki yolun (`generate_image`, `POST /api/images/generate`) ortak noktasında koşar; politika görsel sağlayıcısını (`TraconImageOptions.Provider`) adlandırmıyorsa ya da kiracının o sağlayıcı için bağlaması varsa üretim reddedilir — uç `403`, tool hatası; kurulum anahtarına düşülmez; kural `TenantProviderAccess`'te tek yerde (F-384, kusur-giderme 2026-10-13) (ana oturum varsayılanı, K-878 emsali) |
 | K-913 | 964 | Kök agent run'ı kotaya ve kendi `run.*` webhook'una çağrı ağacının toplamını yazar: kendi usage ve maliyetine, kök satırı kapanmadan run deposundan okunan alt run toplamı eklenir; okuma yalnız ağaç bir alt run rezerve ettiyse (`AgentRunBudget.StartedRuns > 0`) ve kota ya da webhook kayıtlıysa yapılır; farklı para biriminde toplam yoktur (K-893), depo okunamazsa kökün kendi tüketimi yazılır (F-383, kusur-giderme 2026-10-13) (ana oturum varsayılanı) |
+| K-914 | 965 | Kod Loop ölçütü fabrikadan kurulabilir: `AddLoopEvaluator(kind, Func<IServiceProvider, LoopEvaluator>)` kök sağlayıcıyı alır, türü adlandıran İLK derlemede kilit altında tür başına bir kez başarıyla koşar, atan fabrika önbelleğe girmez; tek örnek bütün kiracılara hizmet eder ve kiracı değerlendirme anında okunur; dört aşırı yükleme, opsiyonel parametre yok (F-301) (kullanıcı kararı) 👤 |
+| K-915 | 966 | Loop ölçüt kataloğu kök seviyede `GET /api/loop-criteria`'dır: yerleşik türler sabit sırada + kodla kayıtlı türler ada göre, açıklamalarıyla; yargıç modeli yalnız `provider` + `model` ya da `null`; Reader + `AgentsRead`; liste fabrika çağırmaz ve kiracıdan bağımsızdır (F-302) (kullanıcı kararı) 👤 |
+| K-916 | 967 | Loop doğrulaması tek kural kümesidir (`LoopEvaluatorRegistry.FindProblems`): derleyici aynı listeyle reddeder, doğrulayıcının loop adımı her sorunu `loop_` kodu ve alan yoluyla raporlar (dokuz kod); yargıç istemcisi o adımda kiracı-farkında üyeyle kurulur ve kurulamazsa `loop_judge_unavailable` önceki yolsuz `compilation_error`'ın yerine geçer; `judgeCriteria`'daki her boş girdi kendi yolunda reddedilir (F-302) (kullanıcı kararı) 👤 |
+| K-917 | 968 | Kod Loop ölçütü fabrikasının attığı istisnanın MESAJI yönetim API'sine gitmez: derleme hatası türü ve istisna tipini adlandırır, istisna `InnerException`'da ve host logunda durur (F-301) |
+| K-918 | 969 | Konsol Loop editörü yalnız tür DEĞİŞİMİNDE yeni türün okumadığı alanı temizler; yükleme ve kayıt her alanı, listelenmeyen türü ve kanonik olmayan yazımı (`aijudge`) olduğu gibi korur; harness kapalıyken düşen loop kaydetmeden önce söylenir (F-302) (kullanıcı kararı) 👤 |

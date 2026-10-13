@@ -189,3 +189,14 @@ tip `internal`'a cekilince uc sey bayatlar ve hicbiri derlemeyi kirmaz:
 Tarama: daraltilan her ad icin `git grep -n 'cref="<Ad>' -- src` ve
 `git grep -n '<c><Ad>' -- src`; public tipte olanlar duz metne cevrilir.
 - **🚨 Bir `§N` atfı, başlığı silinince sessizce bayatlar** (2026-09-24, Faz 186). `14-SKILL-VE-SCRIPT.md`'nin bölüm başlıkları ve §6'nın ortak kurulumu Faz 58'de silindi (`946a37fb`, 459 satır); case'ler Faz 186'ya kadar `§6'nın 1-5. adımları`'na atıf yapmaya devam etti ve kurulum hiçbir yerde yoktu. Hiçbir kapı `§` atfını çözmez: bir bölüm silinirken ya da taşınırken aynı dosyada `grep -n "§N"` koşulur.
+
+## `<example>` derleme kapısının sınırları (Faz 201)
+
+`ExampleCompilationTests` her `<example>`'ın **ilk** `<code>` bloğunu `ExamplePrelude.Wrap`
+ile derler. İki sınır 2026-10-13'te bir XML örneğini düşürdü: (1) blok ya **yalnız ifadeler**
+(bir metot gövdesine konur) ya **yalnız bir tip bildirimi**dir (blok `class`/`record` ile
+başlıyorsa ad alanına konur); ifade + `sealed class` karışımı `CS1513` verir — sınıf yerine
+fabrika içinde `DelegateLoopEvaluator` gibi bir lambda kullan. (2) Prelude'un `using` listesinde
+`System.Linq` **yoktur**; `LastOrDefault` `CS1061` verir — dizinle oku (`messages[messages.Count - 1]`).
+`#pragma warning disable MAAI001` ifade bloğunda çalışır; tip bildirimi bloğunun ilk satırı olursa
+blok tip bildirimi sayılmaz.
