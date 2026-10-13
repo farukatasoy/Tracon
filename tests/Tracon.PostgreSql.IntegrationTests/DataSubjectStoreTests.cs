@@ -62,6 +62,23 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
     }
 
     [Fact]
+    public async Task Erase_cascades_from_run_to_the_non_token_usage_items_its_nodes_reported()
+    {
+        // The items are not an export target (they hold units and amounts, no content), so the
+        // run's foreign key is what removes them: DataSubjectCoverageTests names that rule.
+        var runId = await SeedRunAsync("tenant-a");
+        await SeedNonTokenUsageAsync(runId, "tenant-a");
+        (await NonTokenUsageCountAsync(runId)).ShouldBe(1);
+
+        await _context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(runIds: [runId]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await NonTokenUsageCountAsync(runId)).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Erase_removes_a_conversation_and_its_items_together()
     {
         // K-107's exception (phase 64, 64.5): summarized/compacted messages are
@@ -364,6 +381,21 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
             INSERT INTO {_context.SchemaName}.run_inputs (run_id, tenant_id, messages, created_at)
             VALUES ('{runId}', '{tenantId}', '[]', now());
             """);
+
+    private async Task SeedNonTokenUsageAsync(Guid runId, string tenantId)
+        => await _context.Runs.RecordNonTokenUsageAsync(new NonTokenUsageRecord
+        {
+            Id = Guid.NewGuid(),
+            RunId = runId,
+            NodeName = "narrate",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Usage = new ToolCallUsage { Unit = ToolUsageUnits.Characters, Quantity = 10m, Cost = 0.01m, Currency = "USD" },
+            TenantId = tenantId,
+        });
+
+    private async Task<long> NonTokenUsageCountAsync(Guid runId)
+        => await _context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {_context.SchemaName}.run_non_token_usage WHERE run_id = '{runId}';");
 
     private async Task<bool> RunInputExistsAsync(Guid runId)
         => await _context.ScalarAsync<long>(

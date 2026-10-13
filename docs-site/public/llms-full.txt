@@ -160,7 +160,8 @@ is the list.
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
-| Workflow functions | `AddWorkflowFunction<TInput, TOutput>()` and `AddWorkflowFunction<TInput, TOutput, TSettings>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved |
+| Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved |
+| Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
 | Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution; an agent run and a workflow run, resume or respond queue the same way |
@@ -233,7 +234,7 @@ caller's role and key scopes. See the complete scope table in
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
 | OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; Tracon can also persist a sample |
 | Metrics | Run counts, duration, tokens, cost, tools, errors, judges, background-job executions and attempt duration, plus optional quota and job-queue-depth gauges | Standard .NET metrics; high-cardinality tags are bounded and store-backed gauges are opt-in and cached |
-| Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free |
+| Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free. `cost` is the token cost; what nodes and tools reported beyond tokens is `nonTokenCost` on the run |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddTraconHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
@@ -267,7 +268,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-170-operation HTTP reference.
+171-operation HTTP reference.
 
 ## Embedding points
 
@@ -1810,6 +1811,15 @@ re-notify. Set the list to empty to turn the notifications off.
 The threshold event is a notification, not a decision: it stops nothing, and `429`
 remains the only thing that refuses a run.
 
+A **cost** limit counts what a run spent, not only its tokens. The amount a root run
+writes into the counter is its token cost plus what its workflow function nodes and tools
+[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens), in the
+currency set by `Tracon:Pricing:Currency`. An item that reported no amount, or one in
+another currency, counts for nothing, because Tracon cannot add what it cannot price; the run
+lists it as not added instead of reading it as free. An item whose quantity was estimated
+does count, so a ceiling is not passed on a quantity nobody measured. A quota has no limit on
+a unit such as characters or seconds: it limits runs, tokens and cost only.
+
 Turning on `Quotas:PublishThresholdToRunStream` (off by default) also writes the
 crossed threshold into the *triggering run's own* event stream — a `custom` frame
 carrying `tracon.quota.threshold` before the run's terminal event, so a client
@@ -2109,7 +2119,10 @@ Subscribe to events and Tracon posts them to your endpoint.
 A payload is a summary, never content. A root run's `run.*` event carries the call
 tree's tokens and cost: an agent root adds its child agents to its own, and a
 workflow root (which has none of its own) sums its steps. Child runs publish
-nothing. `workflow.request.pending` carries the request id, the
+nothing. `cost` is the token cost and the amount the tree
+[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+together; `nonTokenCost` is the reported part alone and is left out when nothing was
+reported, so the token part is `cost - nonTokenCost`. `workflow.request.pending` carries the request id, the
 run id and the workflow name — read the prompt and the form from
 `GET /api/workflows/runs/{runId}/requests`. `job.*` carries the job id, its handler key
 (`kind`), its target, its item counts and a display-safe error; a cancelled job publishes
@@ -2326,6 +2339,19 @@ that several rates produced. A model with no price adds nothing to `cost`; its
 tokens are not priced at the agent's rate. When no model of the run has a price,
 `cost` is unknown, and a later recalculation prices all of the run's tokens at
 the agent's model.
+
+`cost` is the **token** cost. What a run spent that is not tokens — speech characters, render
+seconds, minutes of audio that a workflow function node or a tool reported — is a total of
+its own: `nonTokenCost` on the run summary, and `treeNonTokenCost` for the run and every
+run below it, the run's own share already included, so the two are never added. Only an
+amount in `Tracon:Pricing:Currency` adds; Tracon never converts one currency into another
+and never adds a quantity across units. `nonTokenCost` is `null` when the run reported
+nothing, which is not zero, and an `amount` of `null` beside a non-zero `unsummedItemCount`
+means items were reported but none could be priced: unknown, not free. The
+[budget, the tenant's quota and the `run.completed` webhook](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+count the reported amount beside the token cost. `GET /api/stats`, the dashboard and the
+comparison of two runs show the token cost only. `GET /api/runs/{runId}/usage` lists the items
+a function node reported, and `GET /api/runs/{runId}/tools` carries a tool's measurement on its call.
 
 The conversation is the **event stream**, written with gapless sequence numbers by a
 single writer:
@@ -3407,6 +3433,41 @@ automatically repeat an image-generation call.
 See [Multimodal input and generated images](/guides/multimodal/) for registration,
 storage, and price configuration.
 
+### Report what a tool spent beyond tokens
+
+A tool billed by something other than a token — speech by the character, a transcript by
+the second, an image by the piece — reports that from its own body:
+
+```csharp
+_ = TraconToolUsage.Report(new ToolCallUsage
+{
+    Unit = ToolUsageUnits.Characters,
+    Quantity = characters,
+    Cost = price,
+    Currency = "USD",
+    Provider = "elevenlabs",
+    Model = "eleven_multilingual_v2",
+});
+```
+
+- **The measurement belongs to the call.** It is written onto the call's record
+  (`GET /api/runs/{runId}/tools`) with its unit, quantity, amount, currency, whether the
+  quantity was estimated, and the provider and model that did the work. A tool that
+  reports twice in one call replaces its first report, so report the total at the end. The
+  call returns `false` and does not throw when recording is off or the code is not inside a
+  tool call; a call that reported and then never settled keeps what it reported.
+- **It also joins the run's non-token total, the moment the tool reports it.** The same
+  rule as a [workflow function node's items](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+  applies: amounts in `Tracon:Pricing:Currency` add, a quantity is never added across units,
+  and a call with no amount is listed and counted as not added — unknown, not free. The
+  call-tree budget, the tenant's cost quota and the `run.completed` webhook therefore count a
+  `speak` call the way they count a function node that spoke. A measurement that arrives
+  after the run closed, from a call that outlived its timeout, stays on the call's record
+  only and does not change the run's total.
+- **The built-in tools report it already.** `speak`, `transcribe` and `generate_image`
+  fill `Provider` and `Model` as well as the measurement. Prices come from
+  `Tracon:Pricing`; with none configured the amount stays unknown.
+
 ## Client-side tools
 
 `AddClientTool(name, description, jsonSchema)` registers a tool the SAME way — the
@@ -3674,8 +3735,9 @@ already uses for tools. `GET /api/workflows/functions` lists what is
 registered, for a picker to choose from.
 :::
 
-A function node opens no `runs` row of its own and contributes nothing to
-cost or token totals — it made no model call. `ExecutorInvoked` /
+A function node opens no `runs` row of its own and adds nothing to the token
+totals — it made no model call. What it spent that is not tokens, it can report
+itself ([below](#report-what-a-node-spent-beyond-tokens)). `ExecutorInvoked` /
 `ExecutorCompleted` / `ExecutorFailed` still fire for it, same as any node, so
 it is visible in the run's event stream and colored live in the graph.
 
@@ -3766,6 +3828,103 @@ with the fields the function takes listed under it.
 schema of its settings type, and `null` for a function that takes none. The console lists
 the fields from it. It is for display: the check is the read described above, so what the
 schema says and what a save accepts cannot drift apart.
+
+### Report what a node spent beyond tokens
+
+A node that speaks, renders or transcribes spends something that is not a token: a
+text-to-speech character, a GPU second, a minute of audio. Tracon cannot see that work, so
+the node reports it. `ReportUsageAsync` is an extension on the `IWorkflowContext` the
+node already receives:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, string>(
+    "narrate",
+    services => async (messages, context, cancellationToken) =>
+    {
+        var text = messages[^1].Text;
+
+        // ... synthesize the speech with your provider, then report what it billed.
+        await context.ReportUsageAsync(new ToolCallUsage
+        {
+            Unit = ToolUsageUnits.Characters,
+            Quantity = text.Length,
+            Cost = text.Length * 0.00003m,
+            Currency = "USD",
+            Provider = "elevenlabs",
+            Model = "eleven_multilingual_v2",
+        });
+
+        return text;
+    });
+```
+
+A report is one **item**. The run lists its items, in the order they were reported, at
+`GET /api/runs/{runId}/usage` (Reader role, `runs:read` scope); this abridged answer is
+from a run whose `speak` node reported an estimated, priced item and whose `render` node
+reported seconds it has no price for:
+
+```json
+[
+  {
+    "nodeName": "speak",
+    "usage": { "unit": "characters", "quantity": 76, "cost": 0.0076, "currency": "USD",
+               "isEstimated": true, "provider": "tone", "model": "tone-1" }
+  },
+  {
+    "nodeName": "render",
+    "usage": { "unit": "gpu-seconds", "quantity": 1, "isEstimated": false, "provider": "local-gpu" }
+  }
+]
+```
+
+- **Tracon never prices a node's work.** `Cost` is the amount the node computed from its
+  provider's rate. `Unit` is free text; `ToolUsageUnits` only names the units Tracon's own
+  tools use. `Provider` and `Model` are names for the reader and take no part in a total.
+- **The call does not throw.** It returns `false`, logs the cause and lets the node carry
+  on when it is called outside a Tracon workflow run, when the item is invalid, and when
+  the run already holds 1,000 items, so report once per step and not per chunk. An item is
+  invalid when its `Unit` is empty, its quantity or amount is negative, or a value is more
+  than its column holds (a unit of 64 characters, a currency of 16, a provider of 100, a
+  model of 200, a quantity above 9,999,999,999, an amount above 1,000,000,000). Only a
+  `null` argument throws.
+- **An item is written the moment it is reported and is not cancelled with the run.** The
+  provider billed that work, so a run that is cancelled or fails keeps what its node had
+  spent. A node that fails and is [retried](#retry-a-node-on-a-transient-error) keeps the
+  items of its failed attempts for the same reason.
+- **The item names its node.** A custom `Executor` in a graph built in code is not a
+  function node registered with Tracon, so its items carry no node name.
+- **Amounts of one currency add up; nothing else does.** The run's **non-token total**
+  (`nonTokenCost` on the run, and `treeNonTokenCost` for the run and every run below it)
+  adds an item only when the item has a `Cost` and that cost is in `Tracon:Pricing:Currency`;
+  an item with no currency label is in it. An item with no amount, or in another currency,
+  is listed and counted in `unsummedItemCount`, and is never added or converted. A quantity
+  is never added across units, because 76 characters and 1 GPU second make no number. An
+  item with no price is *unknown, not free*, so it never counts as zero, and a run that
+  reported nothing has `nonTokenCost: null`, not zero. An estimated item adds and marks the
+  total `isEstimated`, so a quota ceiling is not passed on a quantity nobody measured.
+- **The total stands beside the token cost, not inside it.** A caller that wants "what did
+  this run spend" adds the two with `RunSpend.Total`, which leaves the reported amount out
+  when the token cost is in another currency.
+
+Where the non-token amount counts:
+
+| Place | What happens |
+|---|---|
+| The call-tree budget (`AgentGraph.MaxTotalCost`) | An amount that adds is recorded the moment it is reported, so the next model call is refused once the ceiling is passed. The budget refuses model calls: a function node still starts when the budget is already spent |
+| The tenant's cost quota | The quota entry a root run writes, whether an agent run or a workflow run, counts the token cost plus the reported amount |
+| `run.completed` and `run.failed` webhooks | `cost` is the token cost and the reported amount together; `nonTokenCost` is the reported part, so the token part is `cost - nonTokenCost` |
+
+Still token-only: `GET /api/stats`, the dashboard, the `tracon.run.cost` metric, run
+comparison and the console's Tools screen. A quota has no limit on a unit such as
+characters.
+
+An item reported after the run closed — from a node that outlived its
+[timeout](#bound-a-node-with-a-timeout) — stays in the run's detail and does not change the
+total, the quota entry or the webhook, because those were already written; a handler that
+passes its token on never reaches this case. The items live with their run: erasing a data
+subject's runs deletes them too, and they hold no message text, so a data subject export
+does not list them. What a *tool* measured stays on `GET /api/runs/{runId}/tools`, and it
+joins the same total (see [Tools](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)).
 
 ### Retry a node on a transient error
 
@@ -4053,7 +4212,9 @@ A workflow's root run shares the same call-tree budget every agent run does
 runs](/guides/reliability/#bound-multi-agent-trees)): every agent node the
 workflow invokes spends against the same tree, so a workflow with a long chain
 of agent steps is bounded the same way a single agent's own tool loop is. A step
-the budget refuses fails the run (see above).
+the budget refuses fails the run (see above). What a function node
+[reported beyond tokens](#report-what-a-node-spent-beyond-tokens) counts against
+`MaxTotalCost` too.
 
 ## Checkpoints
 
@@ -4481,7 +4642,7 @@ pin the exact package version when reproducibility matters.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 170 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **HTTP API** | 171 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
 | **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
@@ -4725,6 +4886,12 @@ The `job_max_duration` migration only adds: a nullable `max_duration_ms` column 
 `jobs`. Existing jobs keep `NULL`, which means "no time limit of its own": the limit
 `Scheduling:MaxDurationByHandlerKey` maps the job's handler key to applies, and a key
 the map does not list has none ([Background work](/guides/background-work/)).
+
+The `non_token_cost` migration only adds. It creates the `run_non_token_usage` table, whose
+rows belong to a run and are deleted with it, and appends four nullable snapshot columns to
+`runs` and two (`usage_provider`, `usage_model`) to `tool_invocations`. Existing rows keep
+`NULL` on purpose: for a run that closed before the upgrade, `nonTokenCost` is `null`, which
+means "nobody reported a number", not zero ([Runs](/concepts/runs/#what-a-run-carries)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
@@ -8738,6 +8905,12 @@ application registers remains the fallback for a custom provider.
 `UseOpenAICompatible()` does not imply image support. Register a supported image
 extension only after you verify that its provider API supports the selected model.
 
+A generated image is billed by the piece or by output tokens, not by the chat model's
+tokens. `generate_image` records the measurement on its tool call with the provider
+and model that made the image, and the amount joins the run's non-token total beside the
+token cost ([Report what a tool spent beyond tokens](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)).
+The speech tools of `Tracon.Voice` record theirs the same way.
+
 Google generates images through the `generateContent` surface, so the model you
 name must be one that supports it — a Gemini image model. The older Imagen
 `predict` surface is not served by the Gemini API, and a model that only
@@ -9721,7 +9894,7 @@ activity source and meter are both named `Tracon`. The root run span is
 | `tracon.tokens` | Reported input and output token count |
 | `tracon.tool.invocations` | Tool invocation count |
 | `tracon.tool.duration` | Tool duration in seconds |
-| `tracon.run.cost` | Calculated run cost when a price is known |
+| `tracon.run.cost` | Calculated token cost of a run when a price is known. What a run reported beyond tokens is not in it |
 | `tracon.quota.usage` | Current quota usage gauge when enabled |
 | `tracon.quota.limit` | Current quota limit gauge when enabled |
 | `tracon.judge.cost` | Cost reported for evaluation judges |
@@ -9766,7 +9939,7 @@ metric names above.
 | `tracon.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
 | `tracon.audit.action` | `tracon.audit.write_failures` | The action that could not be recorded, such as `approval.decision` |
 | `tracon.audit.outcome` | `tracon.audit.write_failures` | `swallowed` if the operation continued, `refused` if it was stopped |
-| `tracon.recording.stage` | `tracon.run.recording_failures` | Which write was lost: `start`, `event`, `tool_invocation`, `completion`, `sink`, or `input` |
+| `tracon.recording.stage` | `tracon.run.recording_failures` | Which write was lost: `start`, `event`, `tool_invocation`, `non_token_usage`, `completion`, `sink`, or `input` |
 
 Three spans and one tool name are not metrics at all, and are named here because a
 trace search needs them: `execute_skill_script` (a skill script's own span, carrying
@@ -9828,6 +10001,10 @@ how many events it would have written.
   timeline are incomplete.
 - `tool_invocation` — a tool's measurement was lost. The run and its events survive;
   tool analytics under-report.
+- `non_token_usage` — an item a workflow function node reported with `ReportUsageAsync`
+  could not be written, so it is missing from `GET /api/runs/{runId}/usage`. The run's
+  call-tree budget already counted the amount before the write. Recording of the run stops
+  there, as after any other lost write, so its total, quota entry and webhook may miss it.
 - `completion` — the run never reached a terminal status in the store, so it looks
   unfinished to anything that queries it.
 - `sink` — a registered [`IRunEventSink`](/concepts/runs/#observing-events-beyond-the-store)
@@ -11759,6 +11936,15 @@ which setting raises it. A cost limit falls back to the token limit for a
 model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
 measured, so it cannot be enforced.
 
+`MaxTotalCost` counts more than model tokens. What a workflow function node or a tool
+[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+is recorded into the budget the moment it is reported, so a tree whose speech and renders
+have already spent the ceiling is refused at its next model call, the same as one that
+spent it on tokens. Only an amount that adds counts: an item with no amount, or in a
+currency other than `Tracon:Pricing:Currency`, is unknown to the budget. The budget refuses
+model calls, not function nodes, so a function node still starts when the ceiling is
+already spent.
+
 `MaxDuration` is not a hard timeout: a tool call already running when the
 deadline passes is never interrupted, only the *next* model call after it is
 refused. It applies the same way to a queued (`Prefer: respond-async`) run,
@@ -12839,10 +13025,19 @@ validation at startup.
 ### Voice cost has a different unit
 
 Synthesis cost uses characters and transcription cost uses duration. Tracon
-writes that measurement on the tool invocation but does not add it to token cost.
-If pricing is not configured, cost stays `null`; zero would claim the call was free.
+writes that measurement on the tool invocation, with the provider and model that did
+the work, and never adds it to the token cost: a character, a second and a token are
+different units, so a quantity is never added across them. The *amount* is a different
+matter. It joins the run's non-token total (`nonTokenCost` on the run), which the call-tree
+budget, the tenant's cost quota and the `run.completed` webhook count beside the token
+cost. See [Report what a tool spent beyond tokens](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)
+for the rule, and
+[Report what a node spent beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+for a workflow function node that voices text itself.
+If pricing is not configured, cost stays `null`: the measurement is listed as unpriced
+and left out of the total, because zero would claim the call was free.
 If the provider omits billed characters, the text length is used and marked as an
-estimate.
+estimate; an estimated amount still adds, and the total says it rests on an estimate.
 
 Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
 `ProviderName` of the implementation that did the work — `elevenlabs` for the built-in
@@ -12955,6 +13150,7 @@ builder.AddTracon()
         provider =>
         {
             var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+            var pricing = provider.GetRequiredService<IVoicePricingReader>();
 
             return async (messages, settings, context, cancellationToken) =>
             {
@@ -12962,6 +13158,19 @@ builder.AddTracon()
                 var audio = await synthesizer.SynthesizeAsync(
                     new SpeechRequest { Text = messages[^1].Text },
                     cancellationToken);
+
+                // The node called the engine itself, so Tracon did not see the spend.
+                var characters = audio.CharactersBilled ?? messages[^1].Text.Length;
+                await context.ReportUsageAsync(new ToolCallUsage
+                {
+                    Unit = ToolUsageUnits.Characters,
+                    Quantity = characters,
+                    Cost = pricing.ForSynthesis(synthesizer.ProviderName, audio.ModelId, characters),
+                    Currency = pricing.Currency,
+                    IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
+                    Provider = synthesizer.ProviderName,
+                    Model = audio.ModelId,
+                });
 
                 return [new ChatMessage(ChatRole.Assistant, $"{audio.Data.Length} bytes")];
             };
@@ -12971,6 +13180,12 @@ builder.AddTracon()
 A named engine never receives the default's `SynthesisModelId` or `OutputFormat`: a
 model identifier of one engine sent to another is a wrong request. Set them on the
 request when the engine needs them.
+
+The tools measure themselves, but a function node that calls an engine directly does not:
+Tracon cannot see what the node spent, so the node reports it with `ReportUsageAsync`, as
+above. `IVoicePricingReader.ForSynthesis` prices the characters by the engine and model
+that did the work and returns `null` when no price is configured; the item is then
+listed as unpriced and left out of the run's total instead of counting as zero.
 
 ### Voice a dialogue with several speakers
 
@@ -14466,13 +14681,17 @@ public sealed class MyRunStore : IRunStore
 {
     public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken ct = default) { /* ... */ }
     public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken ct = default) { /* ... */ }
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<RunStatistics> GetStatisticsAsync(RunStatisticsQuery query, CancellationToken ct = default) { /* ... */ }
     public IAsyncEnumerable<RunEvent> ReadEventsAsync(Guid runId, long fromSequence = 0, CancellationToken ct = default) { /* ... */ }
     public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
+    public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken ct = default) { /* ... */ }
@@ -14482,7 +14701,7 @@ public sealed class MyRunStore : IRunStore
 }
 ```
 
-Fifteen methods, and seven behavior axes the contract suite checks that a compiler
+Nineteen methods, and eight behavior axes the contract suite checks that a compiler
 cannot:
 
 | Axis | Rule |
@@ -14492,6 +14711,7 @@ cannot:
 | Thread safety | Registered as a singleton; must be safe under concurrent calls from unrelated runs and must not depend on a scoped service |
 | Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `TraconException` |
 | Completion overrides | `CompleteRunAsync` may correct the model attribution a run started with: `RunCompletion.ModelId` and `RunCompletion.ModelProvider` each **overwrite** the stored value when set, and **leave it unchanged** when `null` — the common case, since only a `ModelBinding.Fallbacks` link answering makes a completion carry them. Persisting `ModelId` but forgetting `ModelProvider` costs the run its provider attribution silently, and the cost resolver then falls back to matching by model name alone |
+| Non-token cost | What a run reports beyond tokens is a total of its own, never a term of the token cost. `CompleteRunAsync` stores `RunCompletion.NonTokenCost` on the run, and `RunRecord.NonTokenCost` and `TreeNonTokenCost` read it back: `null` means the run reported nothing and is never `0`, an item that carried no amount keeps its count in `UnsummedItemCount` with an `Amount` of `null`, and the tree total counts the run itself and every run below it once. `RecordNonTokenUsageAsync` writes an item at once, and when `NonTokenUsageRecord.TenantId` is set it writes only for a run of that tenant. `ListNonTokenUsageAsync` returns the run's own items, not its children's, in the order they were reported, and an empty list for a run that does not exist or belongs to another tenant |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
 | Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `TraconException`, do not silently accept or silently drop it |
 
@@ -14517,6 +14737,11 @@ store rather than by fetching rows into memory, tree totals across parent/child 
 and error-cluster grouping. A method your store has not implemented yet makes the
 inherited test **fail** with whatever exception that method throws — it does not fail
 to compile, so an incomplete store is still a normal, greppable red build.
+
+Two parts of `IRunStore` have a contract class of their own, derived the same way: `ToolInvocationContract`
+for the tool-call records (it also checks that a measurement's provider and model survive
+the round trip) and `NonTokenUsageContract` for `RecordNonTokenUsageAsync` and
+`ListNonTokenUsageAsync`. `RunStoreContract` covers the snapshot that comes back on the run.
 
 :::caution[Testing against a prerelease build]
 If you point your project at a **prerelease** Tracon package that you built
@@ -14998,7 +15223,7 @@ public void All_tool_contracts_are_covered()
 
 Source: https://tracon.dev/http-api/
 
-170 operations across 132 paths. This page is the shape they all share; the groups in
+171 operations across 133 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -15275,7 +15500,7 @@ MCP, and the console — eight packages counting the two that come transitively.
 | `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `Tracon.AspNetCore` | The HTTP API and the access layers |
-| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings and timeouts, checkpoints, human input, run parameters, per-workflow run timeouts |
+| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, timeouts and a report of what they spent beyond tokens, checkpoints, human input, run parameters, per-workflow run timeouts |
 | `Tracon.Mcp` | Tools discovered from remote MCP servers |
 | `Tracon.UI` | The embedded console |
 
@@ -16441,7 +16666,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 170 management and OpenAI-compatible
+The generated HTTP reference contains 171 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -16593,7 +16818,7 @@ script.
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree; enforced between model turns, mid-run |
-| `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree; falls back to the token limit when a model's price is undefined |
+| `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree. It counts the token cost and the amounts that function nodes and tools reported beyond tokens; falls back to the token limit when a model's price is undefined |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
@@ -16751,7 +16976,13 @@ Tracon:Pricing:Images:{provider}:{model}:SizeMultipliers:{provider-size}
 Tracon:Pricing:Images:{provider}:{model}:OutputCostPerMillionTokens
 ```
 
-Values label and calculate reports only. Tracon performs no currency conversion.
+Values label and calculate reports only. Tracon performs no currency conversion, so
+`Currency` also decides which reported amounts add up: an amount that a workflow function node or a
+tool reported beyond tokens joins the run's non-token total only when it is in this
+currency (an amount that names no currency is in it, and with no `Currency` set only such
+an amount adds); any other is listed and counted as not added. A function node's amounts
+are the amounts the node computed, not a price table Tracon applies.
+
 The shorter configuration keys `Input`, `Output` and `CachedInput` bind to the code
 properties `InputCostPerMillionTokens`, `OutputCostPerMillionTokens` and
 `CachedInputCostPerMillionTokens`.
@@ -17732,6 +17963,11 @@ through the HTTP API and `IRunStore`.
 This is the exact value `IRunStore.GetStatisticsAsync` reports for the same run —
 querying the view and reading the API give you the same number, because both read
 the same underlying columns with the same null-preserving rule.
+
+`total_cost` is the **token** cost. What a run reported beyond tokens (a workflow function
+node's or a tool's speech characters, render seconds) is a separate total, `nonTokenCost` on
+`GET /api/runs/{runId}`, and the view does not carry it. Read it from the API when you need
+the whole spend.
 
 ## It is not a tenant boundary
 
@@ -19474,6 +19710,19 @@ wait limit shows a distinct timeline entry naming which layer cut it — see
 event — see [Writing your own event](/concepts/runs/#writing-your-own-event) —
 renders as a generic card named after that event's own type, with no console
 change required to show up.
+
+What a run spent that is not tokens appears in two places. A tool call's row shows the
+measurement the tool reported: the quantity and its unit, the amount (or **unpriced**
+when none was reported, which means unknown, not free), an **estimated** badge when the
+quantity rests on an estimate, and the provider and model that did the work. A finished run
+that reported anything also gets a **Non-token usage** panel: one row per item a workflow
+function node reported, with the node's name and the same measurement line, ending in
+**Reported in this run** and, on a root with runs below it, **Reported in the whole tree**.
+A badge such as **1 not added** counts the items left out of the total because they carry no
+amount or are in another currency than the configured one. A run that reported nothing
+shows no panel. See
+[Report what a node spent beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+for what adds up and what does not.
 
 Two runs can be compared side by side, and any run can be scored. The thumbs on the
 run screen write one named score — `overall` — as the person looking at it. Every

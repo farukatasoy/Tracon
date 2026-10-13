@@ -9,7 +9,14 @@ namespace Tracon;
 /// <para>
 /// Speech synthesis is billed by character and speech recognition by second. Neither
 /// is a token and cannot be written to the cost columns of the <c>runs</c> table.
-/// The measurement attaches to the current call's <see cref="ToolInvocationRecord"/>.
+/// The measurement attaches to the current call's <see cref="ToolInvocationRecord"/>,
+/// and its <see cref="ToolCallUsage.Cost"/> joins the run's non-token total
+/// (<see cref="RunRecord.NonTokenCost"/>), which the run's budget, the tenant's quota and
+/// the <c>run.completed</c> webhook count beside the token cost.
+/// </para>
+/// <para>
+/// A tool that reports more than once for the same call reports the total at the end:
+/// the last report of a call replaces the earlier ones, in the record and in the total.
 /// </para>
 /// <para>
 /// It reads the call identifier from <see cref="FunctionInvokingChatClient.CurrentContext"/>.

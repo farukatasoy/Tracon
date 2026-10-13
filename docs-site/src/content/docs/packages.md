@@ -36,7 +36,7 @@ MCP, and the console — eight packages counting the two that come transitively.
 | `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `Tracon.AspNetCore` | The HTTP API and the access layers |
-| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings and timeouts, checkpoints, human input, run parameters, per-workflow run timeouts |
+| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, timeouts and a report of what they spent beyond tokens, checkpoints, human input, run parameters, per-workflow run timeouts |
 | `Tracon.Mcp` | Tools discovered from remote MCP servers |
 | `Tracon.UI` | The embedded console |
 

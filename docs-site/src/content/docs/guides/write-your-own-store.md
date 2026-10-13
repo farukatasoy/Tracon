@@ -31,13 +31,17 @@ public sealed class MyRunStore : IRunStore
 {
     public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken ct = default) { /* ... */ }
     public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken ct = default) { /* ... */ }
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<RunStatistics> GetStatisticsAsync(RunStatisticsQuery query, CancellationToken ct = default) { /* ... */ }
     public IAsyncEnumerable<RunEvent> ReadEventsAsync(Guid runId, long fromSequence = 0, CancellationToken ct = default) { /* ... */ }
     public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
+    public ValueTask RecordNonTokenUsageAsync(NonTokenUsageRecord record, CancellationToken ct = default) { /* ... */ }
+    public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(Guid runId, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(ToolUsageQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(ExperimentResultsQuery query, CancellationToken ct = default) { /* ... */ }
     public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(RunTimeSeriesQuery query, CancellationToken ct = default) { /* ... */ }
@@ -47,7 +51,7 @@ public sealed class MyRunStore : IRunStore
 }
 ```
 
-Fifteen methods, and seven behavior axes the contract suite checks that a compiler
+Nineteen methods, and eight behavior axes the contract suite checks that a compiler
 cannot:
 
 | Axis | Rule |
@@ -57,6 +61,7 @@ cannot:
 | Thread safety | Registered as a singleton; must be safe under concurrent calls from unrelated runs and must not depend on a scoped service |
 | Null / not-found semantics | `GetRunAsync` returns `null`; `ReadEventsAsync` returns an empty sequence; `AppendEventAsync` and `CompleteRunAsync` throw `TraconException` |
 | Completion overrides | `CompleteRunAsync` may correct the model attribution a run started with: `RunCompletion.ModelId` and `RunCompletion.ModelProvider` each **overwrite** the stored value when set, and **leave it unchanged** when `null` — the common case, since only a `ModelBinding.Fallbacks` link answering makes a completion carry them. Persisting `ModelId` but forgetting `ModelProvider` costs the run its provider attribution silently, and the cost resolver then falls back to matching by model name alone |
+| Non-token cost | What a run reports beyond tokens is a total of its own, never a term of the token cost. `CompleteRunAsync` stores `RunCompletion.NonTokenCost` on the run, and `RunRecord.NonTokenCost` and `TreeNonTokenCost` read it back: `null` means the run reported nothing and is never `0`, an item that carried no amount keeps its count in `UnsummedItemCount` with an `Amount` of `null`, and the tree total counts the run itself and every run below it once. `RecordNonTokenUsageAsync` writes an item at once, and when `NonTokenUsageRecord.TenantId` is set it writes only for a run of that tenant. `ListNonTokenUsageAsync` returns the run's own items, not its children's, in the order they were reported, and an empty list for a run that does not exist or belongs to another tenant |
 | Event order | `RunEvent.Sequence` is assigned by the caller, not the store; events are append-only; `ReadEventsAsync`'s `fromSequence` is inclusive |
 | Duplicate `Sequence` | A second `AppendEventAsync` call reusing a sequence number already written for that run is a caller error — reject it with `TraconException`, do not silently accept or silently drop it |
 
@@ -82,6 +87,11 @@ store rather than by fetching rows into memory, tree totals across parent/child 
 and error-cluster grouping. A method your store has not implemented yet makes the
 inherited test **fail** with whatever exception that method throws — it does not fail
 to compile, so an incomplete store is still a normal, greppable red build.
+
+Two parts of `IRunStore` have a contract class of their own, derived the same way: `ToolInvocationContract`
+for the tool-call records (it also checks that a measurement's provider and model survive
+the round trip) and `NonTokenUsageContract` for `RecordNonTokenUsageAsync` and
+`ListNonTokenUsageAsync`. `RunStoreContract` covers the snapshot that comes back on the run.
 
 :::caution[Testing against a prerelease build]
 If you point your project at a **prerelease** Tracon package that you built

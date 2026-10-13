@@ -65,7 +65,7 @@ activity source and meter are both named `Tracon`. The root run span is
 | `tracon.tokens` | Reported input and output token count |
 | `tracon.tool.invocations` | Tool invocation count |
 | `tracon.tool.duration` | Tool duration in seconds |
-| `tracon.run.cost` | Calculated run cost when a price is known |
+| `tracon.run.cost` | Calculated token cost of a run when a price is known. What a run reported beyond tokens is not in it |
 | `tracon.quota.usage` | Current quota usage gauge when enabled |
 | `tracon.quota.limit` | Current quota limit gauge when enabled |
 | `tracon.judge.cost` | Cost reported for evaluation judges |
@@ -110,7 +110,7 @@ metric names above.
 | `tracon.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
 | `tracon.audit.action` | `tracon.audit.write_failures` | The action that could not be recorded, such as `approval.decision` |
 | `tracon.audit.outcome` | `tracon.audit.write_failures` | `swallowed` if the operation continued, `refused` if it was stopped |
-| `tracon.recording.stage` | `tracon.run.recording_failures` | Which write was lost: `start`, `event`, `tool_invocation`, `completion`, `sink`, or `input` |
+| `tracon.recording.stage` | `tracon.run.recording_failures` | Which write was lost: `start`, `event`, `tool_invocation`, `non_token_usage`, `completion`, `sink`, or `input` |
 
 Three spans and one tool name are not metrics at all, and are named here because a
 trace search needs them: `execute_skill_script` (a skill script's own span, carrying
@@ -172,6 +172,10 @@ how many events it would have written.
   timeline are incomplete.
 - `tool_invocation` — a tool's measurement was lost. The run and its events survive;
   tool analytics under-report.
+- `non_token_usage` — an item a workflow function node reported with `ReportUsageAsync`
+  could not be written, so it is missing from `GET /api/runs/{runId}/usage`. The run's
+  call-tree budget already counted the amount before the write. Recording of the run stops
+  there, as after any other lost write, so its total, quota entry and webhook may miss it.
 - `completion` — the run never reached a terminal status in the store, so it looks
   unfinished to anything that queries it.
 - `sink` — a registered [`IRunEventSink`](/concepts/runs/#observing-events-beyond-the-store)

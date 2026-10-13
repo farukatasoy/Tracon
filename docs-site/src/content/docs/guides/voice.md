@@ -126,10 +126,19 @@ validation at startup.
 ### Voice cost has a different unit
 
 Synthesis cost uses characters and transcription cost uses duration. Tracon
-writes that measurement on the tool invocation but does not add it to token cost.
-If pricing is not configured, cost stays `null`; zero would claim the call was free.
+writes that measurement on the tool invocation, with the provider and model that did
+the work, and never adds it to the token cost: a character, a second and a token are
+different units, so a quantity is never added across them. The *amount* is a different
+matter. It joins the run's non-token total (`nonTokenCost` on the run), which the call-tree
+budget, the tenant's cost quota and the `run.completed` webhook count beside the token
+cost. See [Report what a tool spent beyond tokens](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)
+for the rule, and
+[Report what a node spent beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+for a workflow function node that voices text itself.
+If pricing is not configured, cost stays `null`: the measurement is listed as unpriced
+and left out of the total, because zero would claim the call was free.
 If the provider omits billed characters, the text length is used and marked as an
-estimate.
+estimate; an estimated amount still adds, and the total says it rests on an estimate.
 
 Prices live under `Tracon:Pricing:Voice:{provider}:{model}`. `{provider}` is the
 `ProviderName` of the implementation that did the work — `elevenlabs` for the built-in
@@ -242,6 +251,7 @@ builder.AddTracon()
         provider =>
         {
             var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+            var pricing = provider.GetRequiredService<IVoicePricingReader>();
 
             return async (messages, settings, context, cancellationToken) =>
             {
@@ -249,6 +259,19 @@ builder.AddTracon()
                 var audio = await synthesizer.SynthesizeAsync(
                     new SpeechRequest { Text = messages[^1].Text },
                     cancellationToken);
+
+                // The node called the engine itself, so Tracon did not see the spend.
+                var characters = audio.CharactersBilled ?? messages[^1].Text.Length;
+                await context.ReportUsageAsync(new ToolCallUsage
+                {
+                    Unit = ToolUsageUnits.Characters,
+                    Quantity = characters,
+                    Cost = pricing.ForSynthesis(synthesizer.ProviderName, audio.ModelId, characters),
+                    Currency = pricing.Currency,
+                    IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
+                    Provider = synthesizer.ProviderName,
+                    Model = audio.ModelId,
+                });
 
                 return [new ChatMessage(ChatRole.Assistant, $"{audio.Data.Length} bytes")];
             };
@@ -258,6 +281,12 @@ builder.AddTracon()
 A named engine never receives the default's `SynthesisModelId` or `OutputFormat`: a
 model identifier of one engine sent to another is a wrong request. Set them on the
 request when the engine needs them.
+
+The tools measure themselves, but a function node that calls an engine directly does not:
+Tracon cannot see what the node spent, so the node reports it with `ReportUsageAsync`, as
+above. `IVoicePricingReader.ForSynthesis` prices the characters by the engine and model
+that did the work and returns `null` when no price is configured; the item is then
+listed as unpriced and left out of the run's total instead of counting as zero.
 
 ### Voice a dialogue with several speakers
 

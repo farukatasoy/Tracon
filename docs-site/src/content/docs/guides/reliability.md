@@ -426,6 +426,15 @@ which setting raises it. A cost limit falls back to the token limit for a
 model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
 measured, so it cannot be enforced.
 
+`MaxTotalCost` counts more than model tokens. What a workflow function node or a tool
+[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+is recorded into the budget the moment it is reported, so a tree whose speech and renders
+have already spent the ceiling is refused at its next model call, the same as one that
+spent it on tokens. Only an amount that adds counts: an item with no amount, or in a
+currency other than `Tracon:Pricing:Currency`, is unknown to the budget. The budget refuses
+model calls, not function nodes, so a function node still starts when the ceiling is
+already spent.
+
 `MaxDuration` is not a hard timeout: a tool call already running when the
 deadline passes is never interrupted, only the *next* model call after it is
 refused. It applies the same way to a queued (`Prefer: respond-async`) run,

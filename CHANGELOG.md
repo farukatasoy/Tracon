@@ -957,6 +957,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `A_supported_setting_with_an_invalid_value_is_rejected`: a provider that
   declares a key with a closed set of values proves that a wrong value is
   rejected and named. It is skipped when the property is left `null`.
+- A workflow function node can report what it spent beyond tokens. The new extension
+  `IWorkflowContext.ReportUsageAsync(ToolCallUsage)` (in `Tracon.Workflows`) records one
+  item: a text-to-speech character, a render second, a minute of audio. It returns
+  `ValueTask<bool>` and does not throw except for a `null` argument; it returns `false`
+  outside a Tracon workflow run, for an invalid item (an empty `Unit`, a negative quantity
+  or amount, or a value beyond what its column holds: a unit of 64 characters, a currency
+  of 16, a provider of 100, a model of 200, a quantity above 9,999,999,999, an amount
+  above 1,000,000,000) and once the run holds 1,000 items. An item is written at once and
+  is not cancelled with the run, so a cancelled or failed run keeps what its node had
+  spent, and a retried node keeps the items of its failed attempts. The item names the
+  node that reported it; a custom executor in a graph built in code reports with no
+  node name. An item reported after the run closed (a node that outlived its timeout)
+  stays in the run's detail and does not change the total, the quota entry or the webhook.
+- A run has a non-token cost, a total of its own beside the token cost.
+  `RunNonTokenCost` (`Amount`, `Currency`, `IsEstimated`, `UnsummedItemCount`) is on
+  `RunRecord.NonTokenCost` (the run itself) and `RunRecord.TreeNonTokenCost` (the run and
+  every run below it, the run counted once), and `RunCompletion.NonTokenCost` carries it
+  to the store when a run closes. `null` means the run reported nothing, which is not
+  zero; an `Amount` of `null` with a positive `UnsummedItemCount` means items were
+  reported and none could be priced. One rule decides what adds: an item adds only when
+  it has an amount in `Tracon:Pricing:Currency` (an item with no currency label is in it).
+  Items with no amount, or in another currency, are listed and counted in
+  `UnsummedItemCount`, never added or converted, and a quantity is never added across
+  units. An estimated item adds and raises `IsEstimated`. Tracon never prices a node's
+  work: the node reports the amount it computed. `RunSpend.Total(RunCost?, RunNonTokenCost?)`
+  and `RunSpend.Total(RunTreeCost?, RunNonTokenCost?)` are the one place the token cost and
+  the reported amount are added; amounts in two currencies are never added.
+- `ToolCallUsage.Provider` and `ToolCallUsage.Model`, names for the reader of the record
+  that take no part in a total. The built-in `speak`, `transcribe` and `generate_image`
+  tools fill them. A tool still reports with `TraconToolUsage.Report`, and its measurement
+  now also joins the run's non-token total the moment the tool reports it.
+- `GET /api/runs/{runId}/usage` (Reader role, `runs:read` scope) lists the items a run's
+  function nodes reported, in the order reported. It lists the run's own items, not its
+  children's; a tool's measurement stays on `GET /api/runs/{runId}/tools`. An unknown run,
+  another tenant's run and a denied run all answer the same `404`. `GET /api/runs` and
+  `GET /api/runs/{runId}` carry `nonTokenCost` and `treeNonTokenCost`. All of it is new in
+  the OpenAPI document and both generated clients (`TraconListRunNonTokenUsageAsync`,
+  `RunNonTokenCost`, `NonTokenUsageRecord`).
+- `NonTokenUsageRecord` and the `IRunStore` members `RecordNonTokenUsageAsync` and
+  `ListNonTokenUsageAsync`. Three migrations add a `run_non_token_usage` table (its rows are
+  deleted with their run), four snapshot columns on `runs` (`non_token_cost`,
+  `non_token_currency`, `non_token_estimated`, `non_token_unsummed`) and `usage_provider` and
+  `usage_model` on `tool_invocations`: PostgreSQL `0058`, SQL Server `0046` and SQLite
+  `0045`. Existing rows keep `NULL`: nobody reported a number for them.
+- The console shows a tool call's measurement (quantity and unit, the amount or
+  "unpriced", "estimated", provider and model) and, for a run that reported anything, a
+  "Non-token usage" panel ending in "Reported in this run", "Reported in the whole tree"
+  and "N not added".
+- The `tracon.recording.stage` tag has a new value, `non_token_usage`: an item a function
+  node reported could not be recorded. Alert rules that list the stages need it.
+- `Tracon.Testing.Contracts.Xunit`: `NonTokenUsageContract`, and new scenarios in
+  `RunStoreContract` and `ToolInvocationContract` for the snapshot, the tree total and a
+  measurement's provider and model.
 
 ### Changed
 
@@ -1167,6 +1220,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the output limit. The item fails with `judge_failed` on the first attempt, as
   for a permanent `4xx`; before, the job sent the same request with the same
   limit until its attempts ran out. Raise the judge binding's `MaxOutputTokens`.
+- **Source break:** `IRunStore` gains two members, `RecordNonTokenUsageAsync(NonTokenUsageRecord,
+  CancellationToken)` and `ListNonTokenUsageAsync(Guid, CancellationToken)`. They have no
+  default implementation, so a custom `IRunStore` does not compile until it adds both.
+  A store must also keep `RunCompletion.NonTokenCost` on the run and return it, with the
+  tree total, as `RunRecord.NonTokenCost` and `TreeNonTokenCost`. Derive the new
+  `NonTokenUsageContract` beside `RunStoreContract` to prove it. The shipped stores
+  implement both members; only a store of your own needs the change.
+- **Behavior change:** `WebhookRunSummary.Cost` on `run.completed` and `run.failed` now
+  means the token cost and the amount the run reported beyond tokens, together. It already
+  said "the total amount"; a run that reported nothing sends the same number as before.
+  The new `WebhookRunSummary.NonTokenCost` is the reported part, absent when nothing was
+  reported, so the token part is `Cost - NonTokenCost`. A consumer that read `Cost` as
+  tokens only should subtract it.
+- **Behavior change:** the amounts a run reported beyond tokens count against the
+  tree budget (`Tracon:AgentGraph:MaxTotalCost`), a tenant's cost quota and the cost in
+  both webhooks. An amount that adds is recorded into the budget the moment it is
+  reported, so the tree's next model call is refused once the ceiling is passed, and the
+  quota entry of an agent root and of a workflow root includes it. A tool's measurement
+  joins the same total. A run that reports nothing is unaffected. Still token-only on
+  purpose: `GET /api/stats`, the dashboard, the `tracon.run.cost` metric, the comparison
+  of two runs and the console's Tools screen. A quota has no limit on a unit such as
+  characters, and a function node still starts when the budget is already spent.
 
 ## [1.0.0-preview.3] - 2026-09-24
 

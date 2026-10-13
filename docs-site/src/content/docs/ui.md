@@ -168,6 +168,19 @@ event — see [Writing your own event](/concepts/runs/#writing-your-own-event) �
 renders as a generic card named after that event's own type, with no console
 change required to show up.
 
+What a run spent that is not tokens appears in two places. A tool call's row shows the
+measurement the tool reported: the quantity and its unit, the amount (or **unpriced**
+when none was reported, which means unknown, not free), an **estimated** badge when the
+quantity rests on an estimate, and the provider and model that did the work. A finished run
+that reported anything also gets a **Non-token usage** panel: one row per item a workflow
+function node reported, with the node's name and the same measurement line, ending in
+**Reported in this run** and, on a root with runs below it, **Reported in the whole tree**.
+A badge such as **1 not added** counts the items left out of the total because they carry no
+amount or are in another currency than the configured one. A run that reported nothing
+shows no panel. See
+[Report what a node spent beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+for what adds up and what does not.
+
 Two runs can be compared side by side, and any run can be scored. The thumbs on the
 run screen write one named score — `overall` — as the person looking at it. Every
 other score on that run, whether a second name someone wrote through the API or one

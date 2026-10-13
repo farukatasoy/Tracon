@@ -78,10 +78,10 @@ internal sealed class NonTokenCostAccumulator
     private readonly string? _currency;
     private readonly AgentRunBudget? _budget;
 
-    // The counted amount of an entry: null when the entry has no amount in the run's
-    // currency. Estimated is true only for an entry that is counted.
-    private readonly List<Entry> _nodeEntries = [];
-    private readonly Dictionary<string, Entry> _toolEntries = new(StringComparer.Ordinal);
+    // Both collections are created on the first report: most runs report nothing, and
+    // every run builds one accumulator.
+    private List<Entry>? _nodeEntries;
+    private Dictionary<string, Entry>? _toolEntries;
     private bool _sealed;
 
     /// <summary>Creates the accumulator of one run.</summary>
@@ -166,13 +166,13 @@ internal sealed class NonTokenCostAccumulator
                 return NonTokenAddStatus.Late;
             }
 
-            if (_nodeEntries.Count >= MaxNodeItems)
+            if (_nodeEntries is { Count: >= MaxNodeItems })
             {
                 return NonTokenAddStatus.Rejected;
             }
 
             var entry = ToEntry(usage);
-            _nodeEntries.Add(entry);
+            (_nodeEntries ??= []).Add(entry);
             RecordIntoBudget(entry.Amount ?? 0m);
 
             return NonTokenAddStatus.Added;
@@ -201,6 +201,7 @@ internal sealed class NonTokenCostAccumulator
 
             var entry = ToEntry(usage);
 
+            _toolEntries ??= new Dictionary<string, Entry>(StringComparer.Ordinal);
             _toolEntries.TryGetValue(callId, out var previous);
             _toolEntries[callId] = entry;
 
@@ -224,7 +225,7 @@ internal sealed class NonTokenCostAccumulator
         {
             _sealed = true;
 
-            if (_nodeEntries.Count + _toolEntries.Count == 0)
+            if ((_nodeEntries?.Count ?? 0) + (_toolEntries?.Count ?? 0) == 0)
             {
                 return null;
             }
@@ -234,7 +235,7 @@ internal sealed class NonTokenCostAccumulator
             var estimated = false;
             var unsummed = 0;
 
-            foreach (var entry in _nodeEntries.Concat(_toolEntries.Values))
+            foreach (var entry in (_nodeEntries ?? []).Concat(_toolEntries?.Values ?? (IEnumerable<Entry>)[]))
             {
                 // 1,000 node items of MaxAmount already pass MaxTotal, and tools are not
                 // bounded in number either. An amount the column cannot hold is counted,

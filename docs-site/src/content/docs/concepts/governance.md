@@ -469,6 +469,15 @@ re-notify. Set the list to empty to turn the notifications off.
 The threshold event is a notification, not a decision: it stops nothing, and `429`
 remains the only thing that refuses a run.
 
+A **cost** limit counts what a run spent, not only its tokens. The amount a root run
+writes into the counter is its token cost plus what its workflow function nodes and tools
+[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens), in the
+currency set by `Tracon:Pricing:Currency`. An item that reported no amount, or one in
+another currency, counts for nothing, because Tracon cannot add what it cannot price; the run
+lists it as not added instead of reading it as free. An item whose quantity was estimated
+does count, so a ceiling is not passed on a quantity nobody measured. A quota has no limit on
+a unit such as characters or seconds: it limits runs, tokens and cost only.
+
 Turning on `Quotas:PublishThresholdToRunStream` (off by default) also writes the
 crossed threshold into the *triggering run's own* event stream — a `custom` frame
 carrying `tracon.quota.threshold` before the run's terminal event, so a client
@@ -768,7 +777,10 @@ Subscribe to events and Tracon posts them to your endpoint.
 A payload is a summary, never content. A root run's `run.*` event carries the call
 tree's tokens and cost: an agent root adds its child agents to its own, and a
 workflow root (which has none of its own) sums its steps. Child runs publish
-nothing. `workflow.request.pending` carries the request id, the
+nothing. `cost` is the token cost and the amount the tree
+[reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
+together; `nonTokenCost` is the reported part alone and is left out when nothing was
+reported, so the token part is `cost - nonTokenCost`. `workflow.request.pending` carries the request id, the
 run id and the workflow name — read the prompt and the form from
 `GET /api/workflows/runs/{runId}/requests`. `job.*` carries the job id, its handler key
 (`kind`), its target, its item counts and a display-safe error; a cancelled job publishes
