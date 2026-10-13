@@ -134,7 +134,7 @@ public sealed class RunAuthorizationCoverageTests
     private static readonly (string Path, Regex Marker, int Calls)[] ExpectedResourceFiles =
     [
         ("src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs", ResourceMarker, 12),
-        ("src/Tracon.AspNetCore/Endpoints/ObservabilityEndpoints.cs", ResourceMarker, 2),
+        ("src/Tracon.AspNetCore/Endpoints/ObservabilityEndpoints.cs", ResourceMarker, 3),
         ("src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs", ResourceMarker, 4),
         ("src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs", ResourceMarker, 3),
         ("src/Tracon.AspNetCore/Endpoints/SessionEndpoints.cs", ResourceMarker, 4),

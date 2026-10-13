@@ -215,7 +215,7 @@ public sealed class NodeUsageTests
 
                     // 🚨 Ignores its token on purpose: the run stopped waiting for this body at the
                     // timeout, and the body outlives the run's closed row (K-806's case).
-                    await Task.Delay(TimeSpan.FromSeconds(2), CancellationToken.None);
+                    await Task.Delay(TimeSpan.FromSeconds(2), CancellationToken.None); // delay: simulated
 
                     (await context.ReportUsageAsync(Speech(5m))).ShouldBeTrue();
                     lateReported.SetResult();

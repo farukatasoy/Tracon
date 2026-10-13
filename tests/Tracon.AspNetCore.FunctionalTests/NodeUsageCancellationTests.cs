@@ -29,7 +29,7 @@ public sealed class NodeUsageCancellationTests
                     reported.SetResult();
 
                     // Waits for the run to be cancelled.
-                    await Task.Delay(Timeout.Infinite, cancellationToken);
+                    await Task.Delay(Timeout.Infinite, cancellationToken); // delay: simulated
 
                     return messages;
                 }));
