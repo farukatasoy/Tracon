@@ -111,7 +111,8 @@ public interface ISpeechProviderResolver
     ValueTask<ISpeechTranscriber> GetTranscriberAsync(string? name = null, CancellationToken cancellationToken = default);
 }
 
-/// <summary>A registered speech provider, as <see cref="ISpeechProviderResolver.Providers"/> lists it.</summary>
+/// <summary>A registered speech provider, as the speech provider list reports it.</summary>
+/// <remarks>Returned by <see cref="ISpeechProviderResolver.Providers"/> and <c>GET /api/voice/providers</c>.</remarks>
 public sealed record SpeechProviderDescriptor
 {
     /// <summary>
