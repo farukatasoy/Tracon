@@ -1,6 +1,6 @@
 # Faz 198 — Adlı Konuşma Sağlayıcısı ve Kiracı Bağlaması
 
-> **Durum:** 📋 Planlandı (2026-10-12)
+> **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-298**
 > **Önkoşul:** Yok (F-336 kapandı). Örnek, Faz 195 düğüm ayarını; o kapanmazsa run parametresini (Faz 194) kullanır · [Faz 203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) (diyalog yeteneği, F-296) bu fazdan **sonra** gelir ve § 198.6'nın bıraktığı yere `ISpeechDialogueSynthesizer`'ı ekler (2026-10-13, yeniden tartıldı)
@@ -228,7 +228,7 @@ samples/Tracon.Api/       Program.cs (anahtarsız yerel sentezleyici `tone`)
 - [x] Yedi yolda ret sağlayıcıyı çağırmaz; konuşma el sıkışmadan önce `403` döner (test 5, 10) — üç tool `Tracon.Voice.UnitTests.SpeechTenantPolicyTests` (×3 teori), `/speak`, `/voices`, düğüm `SpeechTenantPolicyTests`, soket `VoiceConversationTenantPolicyTests`; kapı kapatılınca 20 fonksiyonel + 6 tool testi kırmızı (mutasyon)
 - [x] Desteklemeyen sağlayıcıda bağlamalı kiracı reddedilir; destekleyende anahtar ulaşır, sızmaz (test 6-7) — `SpeechTenantCredentialTests` (6; 24 paralel istek), `SecretLeakTests` (iki proje)
 - [x] Test 11, 12, 17 yeşil (ambient kiracı, model fiyatı, konsol listesi) — `SpeechResolverTenantTests` (sınırı: Plandan Sapmalar #16), `VoicePricingTests` (iki proje), Vitest `tenant-provider-panel.test.tsx` + E2E `A_speech_provider_allowed_in_the_console_unblocks_speech_for_the_tenant`
-- [x] Dört doğrulama kapısı sıfır uyarı verir — uygulama dalında `python3 scripts/kapi.py kapanis --taban 65d72b98` çıkış 0 (`db9fc9fe`): tarama 5,9 sn · `--denetle` 1,8 sn · betik testleri 7,6 sn · ajan haritası 0,1 sn · denetim paketi 0,3 sn · build 101,4 sn · test 1053,4 sn (38 koşum, 20 386 test, 20 367 geçti, 19 atlandı) · pack 47,7 sn · format 334,2 sn · site 87,2 sn. İlk koşum test adımında kırmızıydı (etiketsiz `Task.Delay`, § Süreç Ölçümü). Denetim düzeltmeleri hedefli testlerle doğrulandı; birleştirmeden sonra `main`'de orkestratör tam kapıyı yeniden koşar
+- [x] Dört doğrulama kapısı sıfır uyarı verir — uygulama dalında `python3 scripts/kapi.py kapanis --taban 65d72b98` çıkış 0 (`db9fc9fe`): tarama 5,9 sn · `--denetle` 1,8 sn · betik testleri 7,6 sn · ajan haritası 0,1 sn · denetim paketi 0,3 sn · build 101,4 sn · test 1053,4 sn (38 koşum, 20 386 test, 20 367 geçti, 19 atlandı) · pack 47,7 sn · format 334,2 sn · site 87,2 sn. İlk koşum test adımında kırmızıydı (etiketsiz `Task.Delay`, § Süreç Ölçümü). Denetim düzeltmeleri hedefli testlerle doğrulandı. Birleştirmeden sonra tam kapı Faz 197'nin birleştirilmiş dalında (`3b93b79d`, Faz 198'in tamamını taşır) baştan sona tek koşumda çıkış 0 verdi (1219 sn; ayrıntı Faz 197 § *Kapanış kapısı*). `main`'de `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda `Tracon.Client: TraconApiClient`'ı kırıcı buldu: `TraconVoiceListAsync` `provider`'ı iptal token'ından önce aldı, konumsal çağıran derlenmez; `CHANGELOG` `[Unreleased] → Changed` imzayı adıyla anar (`61283c9a`). Üçüncü koşum çıkış 0 (`dcc1a88f`): kırıcı liste 3 tip, 20 paket, altı paketlenmiş örnek, AOT ve net8.0 smoke
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (adlı sentezleyicili fonksiyon düğümü), çıktı belgeye yazıldı — aşağıdaki tablo
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz (17 işaretli sentetik değer atlandı)
 - [x] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-MM-126`…`131`; `126`, `127`, `129` ve `131` adım 1 örnek uygulamada; `128` 👤 görsel, `130` ➜ CI
@@ -435,10 +435,10 @@ Yeni ya da genişleyen ~84 vaka:
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 1 (2026-10-13: Önkoşul satırı Faz 203 sırasıyla yeniden tartıldı); uygulama plan metnini değiştirmedi, sapmalar tabloda (22 satır) |
-| Düzeltme turu sayısı | 2 — (1) ilk kapanış kapısı kırmızı: etiketsiz `Task.Delay` (`db9fc9fe`); (2) denetim: 🟡 #1 metin düzeltmesi + ikincil notun açığa çıkardığı iptal kusuru (`35721434`, `8585802c`, `0ebc2a73`) |
+| Düzeltme turu sayısı | 3 — (1) ilk kapanış kapısı kırmızı: etiketsiz `Task.Delay` (`db9fc9fe`); (2) denetim: 🟡 #1 metin düzeltmesi + ikincil notun açığa çıkardığı iptal kusuru (`35721434`, `8585802c`, `0ebc2a73`); (3) `main`'de yayın provası: sürüm notu `TraconVoiceListAsync`'in kırıcı imzasını anmıyordu (`61283c9a`) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
 | Fazın ürettiği regresyon | 1 — `TestDelayClassificationTests` kapısını kıran etiketsiz `Task.Delay` (yeni test; kapanış kapısında yakalandı). Ayrıca yeni kodun kendi kusuru: iptalden sonra sağlayıcıyı vermek (birleştirmeden önce düzeltildi) |
-| Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz `main`'de henüz kapanmadı) |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı; sonraki `kusur-giderme` koşumu doldurur) |
 
 ## Denetim Bulguları
 
