@@ -135,16 +135,22 @@ public sealed class NamedSpeechProviderTests
     }
 
     [Fact]
-    public async Task A_cancelled_resolution_never_reaches_the_provider()
+    public async Task A_cancelled_resolution_never_hands_out_the_provider()
     {
-        // The policy read is the slow step: cancelling while it waits must end the
-        // call there, not after the provider received the text.
+        // The stores here IGNORE the token, as a store that never checks it would:
+        // the policy read returns normally after the caller cancelled. The resolver
+        // itself must then refuse to hand the provider out - a caller that receives
+        // it calls it, and the cancellation was for nothing.
         var engines = new Engines();
-        var policies = new BlockingEgressPolicyStore();
+        var policies = new GatedEgressPolicyStore();
 
         await using var host = await StartAsync(
             engines,
-            services => services.AddSingleton<ITenantEgressPolicyStore>(policies));
+            services =>
+            {
+                services.AddSingleton<ITenantEgressPolicyStore>(policies);
+                services.AddSingleton<ITenantProviderBindingStore>(new TokenIgnoringBindingStore());
+            });
 
         var resolver = host.Services.GetRequiredService<ISpeechProviderResolver>();
 
@@ -154,9 +160,9 @@ public sealed class NamedSpeechProviderTests
 
         await policies.Entered.Task.WaitAsync(Patience, TestContext.Current.CancellationToken);
         await cancellation.CancelAsync();
+        policies.Release();
 
         await Should.ThrowAsync<OperationCanceledException>(resolution);
-        engines.Studio.Calls.ShouldBe(0);
 
         // A token cancelled before the call does not even read the policy.
         await Should.ThrowAsync<OperationCanceledException>(
@@ -263,21 +269,24 @@ public sealed class NamedSpeechProviderTests
         public string? Provider { get; init; }
     }
 
-    /// <summary>An egress policy store whose read waits until it is cancelled.</summary>
-    private sealed class BlockingEgressPolicyStore : ITenantEgressPolicyStore
+    /// <summary>An egress policy store whose read waits for the test, whatever the token says.</summary>
+    private sealed class GatedEgressPolicyStore : ITenantEgressPolicyStore
     {
+        private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _reads;
 
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public int Reads => Volatile.Read(ref _reads);
 
+        public void Release() => _gate.TrySetResult();
+
         public async ValueTask<TenantEgressPolicy?> GetAsync(string tenantId, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _reads);
             Entered.TrySetResult();
 
-            await Task.Delay(Timeout.Infinite, cancellationToken); // delay: simulated
+            await _gate.Task;
 
             return null;
         }
@@ -289,6 +298,22 @@ public sealed class NamedSpeechProviderTests
             => throw new NotSupportedException();
 
         public ValueTask<bool> DeleteAsync(string tenantId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>A binding store with no bindings that never looks at the token.</summary>
+    private sealed class TokenIgnoringBindingStore : ITenantProviderBindingStore
+    {
+        public ValueTask<TenantProviderBinding?> GetAsync(string tenantId, string providerName, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<TenantProviderBinding?>(null);
+
+        public ValueTask<IReadOnlyList<TenantProviderBinding>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<TenantProviderBinding>>([]);
+
+        public ValueTask UpsertAsync(TenantProviderBinding binding, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<bool> DeleteAsync(string tenantId, string providerName, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
 }
