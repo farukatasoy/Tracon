@@ -650,6 +650,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   for input cannot be resumed after a change of pattern, steps or order.
   The server accepts both forms, so a definition saved over HTTP in the other
   form keeps loading.
+- `AddLoopEvaluator(kind, Func<IServiceProvider, LoopEvaluator> factory)`: a loop
+  stop criterion created from the application's root services. The factory runs
+  once, on the first compilation of an agent that names the kind, so it can take
+  `IAgentCatalog`; a factory that throws is not cached and fails that compilation
+  with the kind named. Each `AddLoopEvaluator` overload has a variant with a
+  `description`, which the console shows next to the kind.
+- `GET /api/loop-criteria` (`LoopCriterionCatalogResponse`,
+  `LoopCriterionKindResponse`, `LoopJudgeModelResponse`, in the OpenAPI document
+  and both generated clients): the built-in and code-registered loop criterion
+  kinds with their descriptions, and the `aiJudge` judge model's provider and
+  model, or `null`. Reader role, `AgentsRead` scope. Listing runs no factory.
+- The console's agent editor edits the harness loop: criteria (add, remove,
+  reorder, per-kind fields), the iteration ceiling, the fresh-context switch and
+  both outcomes. A kind the host does not list is kept and marked. The version
+  diff shows the loop.
 
 ### Changed
 
@@ -778,6 +793,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   workflow run that recorded parameters; it answered `404` before. The values
   are not returned there. A replay of a workflow run answers `400` and points
   to resume.
+- `POST /api/agents/validate` reports every loop problem with its own code
+  (`loop_criteria_empty`, `loop_max_iterations_invalid`, `loop_outcome_invalid`,
+  `loop_criterion_kind_missing`, `loop_criterion_unknown`, `loop_marker_missing`,
+  `loop_judge_criteria_missing`, `loop_judge_unconfigured`,
+  `loop_judge_unavailable`) and the field's path, for example
+  `harness.loop.criteria[1].marker`. Before, it reported the first loop problem
+  only, as a path-less `compilation_error`. Saving such a definition returns `400`
+  with every loop message, and a compile error lists them all.
+- An `aiJudge` loop criterion whose `judgeCriteria` holds only blank entries is
+  now refused like one with none; it compiled before and gave the judge nothing
+  to check.
 
 ## [1.0.0-preview.3] - 2026-09-24
 
