@@ -42,6 +42,38 @@
    `InvalidSettingValue`. 🚨 Anthropic ve Google ret metni yanlış **değeri**
    yankılar; bu fazın "yankılamaz" kuralı ya üçünü birlikte bağlar ya da
    kapalı küme istisnası gerekçelenir.
+7. **Faz 198 devri** ([198](198-ADLI-KONUSMA-SAGLAYICISI.md) § Sonraki Faza Devir
+   Notu; `grep -n "K-930\|K-931\|K-932" docs/KARARLAR.md`). Kiracı kapısı ve adlı
+   kayıt artık vardır; bu faz onun **arkasına** eklenir. Birebir imzalar:
+   ```csharp
+   // Tracon.Abstractions
+   public interface ISpeechProviderResolver
+   {
+       IReadOnlyList<SpeechProviderDescriptor> Providers { get; }
+       ValueTask<ISpeechSynthesizer> GetSynthesizerAsync(string? name = null, CancellationToken cancellationToken = default);
+       ValueTask<ISpeechTranscriber> GetTranscriberAsync(string? name = null, CancellationToken cancellationToken = default);
+   }
+   bool ISpeechSynthesizer.SupportsTenantCredentials => false;              // varsayılan üye
+   ModelProviderCredential? SpeechRequest.Credential { get; init; }        // kiracı anahtarı
+   string? SpeechAudio.ModelId { get; init; }                               // fiyatın modeli
+   decimal? IVoicePricingReader.ForSynthesis(string providerName, string? modelId, decimal characters) => null;
+   // Tracon.Core
+   public static ITraconBuilder AddSpeechSynthesizer(this ITraconBuilder builder, string name, Func<IServiceProvider, ISpeechSynthesizer> factory);
+   ```
+   - 🚨 **Sarmalayıcı ve `is` tuzağı:** `GetSynthesizerAsync` kiracının anahtarı
+     **yoksa ham örneği**, **varsa** iç `TenantCredentialSpeechSynthesizer`'ı
+     döner (`src/Tracon.Core/Voice/SpeechProviderResolver.cs`). Sarmalayıcı bugün
+     yalnız `ISpeechSynthesizer` uygular; `is ISpeechDialogueSynthesizer`
+     bağlamalı kiracıda **düşer**, bağlamasız kiracıda geçer — aynı motor kiracıya
+     göre farklı yetenek bildirir. Açık Soru 7.
+   - 🚨 Diyalog isteği de `Credential` taşımalıdır; yetenek varsayılan olarak
+     kiracı anahtarı almaz (`SupportsTenantCredentials` deseni) ve kimlik
+     gelince `NotSupportedException` atar (`ListVoicesWithCredentialAsync` emsali).
+   - Fiyat: `ForSynthesis(audio ProviderName, audio.ModelId ?? request.ModelId, characters)`.
+     Diyalog sonucunun `SpeechAudio.ModelId`'si doldurulmazsa adlı motor fiyatlanmaz.
+   - Adlı motora varsayılanın `SynthesisModelId`/`OutputFormat`'ı verilmez; bu
+     fazın § 203.3 kuralı ("`SynthesisModelId` diyaloğa taşınmaz") aynı çizgidedir.
+   - Ret testleri için sayaçlı sahte: `tests/Tracon.AspNetCore.FunctionalTests/Infrastructure/CountingSpeechProvider.cs`.
 
 ---
 
@@ -71,7 +103,7 @@ bölüm işaretlerine girer. Plan geneldir; bu tüketici yalnız bir ölçüt
 
 | Kalem | Neden |
 |---|---|
-| Kiracı başına sağlayıcı seçimi ve kiracı anahtarı | Faz 198 (F-298); bu faz süreç geneli kalır |
+| Kiracı başına sağlayıcı seçimi ve kiracı anahtarı | Faz 198 (F-298, K-930/K-931) yaptı; bu faz yeteneği o kapının arkasına ekler, kapıyı değiştirmez (Açık Soru 7) |
 | Gemini diyalog adaptörü | F-297; bu sözleşmeyi uygular |
 | Fonksiyon düğümünün TTS maliyeti | Faz 199 (F-299); bu faz yalnız `CharactersBilled` döner |
 | `speak` tool'unun diyalog sürümü | Tool tek replik içindir; diyalog workflow düğümünde çağrılır (Açık Soru 5) |
@@ -93,7 +125,7 @@ bölüm işaretlerine girer. Plan geneldir; bu tüketici yalnız bir ölçüt
 | `ElevenLabsSpeechClient.cs:506` · `:563` | `character-cost` başlığı ve hizalama ayrıştırması yeniden kullanılabilir |
 | `VoiceBuilderExtensions.cs:87-106` | Tek istemci örneği üç arayüze kaydedilir; sağlık denetimi `as IVoiceHealthCheck` ile yetenek okur (emsal) |
 | `ModelProviderSettings.cs:36` | Önekli ayar doğrulayıcısı `ModelBinding` alır; sözlük aşırı yüklemesi yok |
-| [Faz 198](198-ADLI-KONUSMA-SAGLAYICISI.md) § 198.6 | "F-296'nın yetenek arayüzünü sarmalayıcı da uygular" — yer bırakılmış |
+| [Faz 198](198-ADLI-KONUSMA-SAGLAYICISI.md) § 198.6 · `SpeechProviderResolver.cs` | Plan "F-296'nın yetenek arayüzünü sarmalayıcı da uygular" diyordu; gerçekleşen sarmalayıcı (`TenantCredentialSpeechSynthesizer`, internal) yalnız `ISpeechSynthesizer` uygular ve yalnız kiracının anahtarı varken döner (Açık Soru 7) |
 | Tüketici `render_elevenlabs.py:155-173` | Diyalog isteğinin ve `voice_segments` eşlemesinin çalışan örneği (12–13 Ekim, 7 koşum, hepsi ilk denemede) |
 
 > Kanıtlar 2026-10-13'te `55272673` üzerinde doğrulandı.
@@ -274,6 +306,7 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 | 4 | Diyalog modeli varsayılanı | A: API varsayılanı · B: `VoiceOptions.DialogueModelId` | **B**, varsayılan `null` = API varsayılanı |
 | 5 | HTTP ucu (`POST /api/voice/dialogue`) | A: bu fazda · B: yok | **B** — kullanım workflow düğümündedir; uç Faz 198'in çözümleyicisiyle birlikte gelir |
 | 6 | `POST /api/voice/speak` `providerSettings` taşısın mı | A: evet · B: hayır | **B** — uç operatör denemesidir; OpenAPI ve iki istemci büyümez |
+| 7 | Diyalog yeteneği kiracı kapısından nasıl geçer (Faz 198 devri) | A: sarmalayıcı yeteneği de uygular (yetenek başına sarmalayıcı sınıfı; kiracı anahtarını `SpeechDialogueRequest.Credential` ile iletir) · B: çözümleyiciye `GetDialogueSynthesizerAsync(name, ct)` · C: yetenek kiracı anahtarını hiç almaz, bağlamalı kiracıda reddedilir | Açık — public API kararıdır. A'da çağıran `is` ile okur ama sarmalayıcı yeteneği olmayan motoru da "var" gösterir (iki sınıf gerekir); B tip denetimini çözümleyiciye taşır ve ret yolunu K-930 ile aynı tutar |
 
 ---
 
