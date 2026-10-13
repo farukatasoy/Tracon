@@ -37,6 +37,7 @@ public sealed class JsonFileRunStore : IRunStore
     private Dictionary<Guid, RunRecord> _runs = new();
     private Dictionary<Guid, List<RunEvent>> _events = new();
     private Dictionary<Guid, List<ToolInvocationRecord>> _toolInvocations = new();
+    private Dictionary<Guid, List<NonTokenUsageRecord>> _nonTokenUsage = new();
     private readonly Dictionary<Guid, DateTimeOffset> _heartbeats = new();
 
     /// <summary>Creates a store backed by <paramref name="filePath"/>.</summary>
@@ -142,6 +143,7 @@ public sealed class JsonFileRunStore : IRunStore
             {
                 _events[record.Id] = [];
                 _toolInvocations[record.Id] = [];
+                _nonTokenUsage[record.Id] = [];
             }
 
             Save();
@@ -233,6 +235,9 @@ public sealed class JsonFileRunStore : IRunStore
                 Usage = completion.Usage,
                 Error = completion.Error,
                 Cost = completion.Cost,
+
+                // Null is "the run reported nothing", not zero.
+                NonTokenCost = completion.NonTokenCost,
                 ModelId = completion.ModelId ?? existing.ModelId,
 
                 // Null leaves the stored value alone, exactly like ModelId: a
@@ -537,6 +542,50 @@ public sealed class JsonFileRunStore : IRunStore
         }
 
         return default;
+    }
+
+    /// <inheritdoc />
+    public ValueTask RecordNonTokenUsageAsync(
+        NonTokenUsageRecord record,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureExpectedTenant(record.RunId, record.TenantId, "The non-token usage item was not written.");
+
+            // An item for a run this store does not hold is dropped, like a tool
+            // invocation: it is evidence for the run and must not interrupt it.
+            if (_nonTokenUsage.TryGetValue(record.RunId, out var log))
+            {
+                log.Add(record);
+                Save();
+            }
+        }
+
+        return default;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<NonTokenUsageRecord>> ListNonTokenUsageAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            if (TryGetOwnedRun(runId) is null || !_nonTokenUsage.TryGetValue(runId, out var log))
+            {
+                return new ValueTask<IReadOnlyList<NonTokenUsageRecord>>([]);
+            }
+
+            // OrderBy is stable: items reported within one tick keep the order they arrived in.
+            IReadOnlyList<NonTokenUsageRecord> ordered = [.. log.OrderBy(static item => item.CreatedAt)];
+            return new ValueTask<IReadOnlyList<NonTokenUsageRecord>>(ordered);
+        }
     }
 
     /// <inheritdoc />
@@ -1113,6 +1162,14 @@ public sealed class JsonFileRunStore : IRunStore
         string? costCurrency = null;
         long unknownPricing = 0;
 
+        // What a run reported beyond tokens is a total of its own. A tree "saw" it when
+        // any run in it closed with a snapshot; null still means nothing was reported.
+        var sawNonToken = false;
+        decimal? nonTokenAmount = null;
+        string? nonTokenCurrency = null;
+        var nonTokenEstimated = false;
+        var nonTokenUnsummed = 0;
+
         static long? Accumulate(long? running, long? value)
             => value is null ? running : (running ?? 0) + value.Value;
 
@@ -1159,12 +1216,31 @@ public sealed class JsonFileRunStore : IRunStore
             }
         }
 
+        void AccumulateNonToken(RunNonTokenCost? nonToken)
+        {
+            if (nonToken is null)
+            {
+                return;
+            }
+
+            sawNonToken = true;
+            nonTokenCurrency ??= nonToken.Currency;
+            nonTokenEstimated |= nonToken.IsEstimated;
+            nonTokenUnsummed += nonToken.UnsummedItemCount;
+
+            if (nonToken.Amount is { } amount)
+            {
+                nonTokenAmount = (nonTokenAmount ?? 0) + amount;
+            }
+        }
+
         if (record.Usage is { } ownUsage)
         {
             AccumulateUsage(ownUsage);
         }
 
         AccumulateCost(record.Cost);
+        AccumulateNonToken(record.NonTokenCost);
 
         foreach (var candidate in _runs.Values)
         {
@@ -1185,6 +1261,7 @@ public sealed class JsonFileRunStore : IRunStore
             }
 
             AccumulateCost(candidate.Cost);
+            AccumulateNonToken(candidate.NonTokenCost);
         }
 
         return record with
@@ -1212,6 +1289,15 @@ public sealed class JsonFileRunStore : IRunStore
                     RunsWithUnknownPricing = unknownPricing,
                 }
                 : null,
+            TreeNonTokenCost = sawNonToken
+                ? new RunNonTokenCost
+                {
+                    Amount = nonTokenAmount,
+                    Currency = nonTokenCurrency,
+                    IsEstimated = nonTokenEstimated,
+                    UnsummedItemCount = nonTokenUnsummed,
+                }
+                : null,
         };
     }
 
@@ -1236,6 +1322,10 @@ public sealed class JsonFileRunStore : IRunStore
             _runs = snapshot.Runs.ToDictionary(static run => run.Id);
             _events = snapshot.Events.ToDictionary(static pair => pair.Key, static pair => pair.Value.ToList());
             _toolInvocations = snapshot.ToolInvocations.ToDictionary(static pair => pair.Key, static pair => pair.Value.ToList());
+
+            // A snapshot written before non-token usage existed has no such section.
+            _nonTokenUsage = snapshot.NonTokenUsage?.ToDictionary(static pair => pair.Key, static pair => pair.Value.ToList())
+                ?? _runs.Keys.ToDictionary(static id => id, static _ => new List<NonTokenUsageRecord>());
         }
         catch (Exception)
         {
@@ -1256,7 +1346,8 @@ public sealed class JsonFileRunStore : IRunStore
         var snapshot = new Snapshot(
             [.. _runs.Values],
             _events.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyList<RunEvent>)pair.Value),
-            _toolInvocations.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyList<ToolInvocationRecord>)pair.Value));
+            _toolInvocations.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyList<ToolInvocationRecord>)pair.Value),
+            _nonTokenUsage.ToDictionary(static pair => pair.Key, static pair => (IReadOnlyList<NonTokenUsageRecord>)pair.Value));
 
         var json = JsonSerializer.Serialize(snapshot);
 
@@ -1271,7 +1362,8 @@ public sealed class JsonFileRunStore : IRunStore
     private sealed record Snapshot(
         IReadOnlyList<RunRecord> Runs,
         IReadOnlyDictionary<Guid, IReadOnlyList<RunEvent>> Events,
-        IReadOnlyDictionary<Guid, IReadOnlyList<ToolInvocationRecord>> ToolInvocations);
+        IReadOnlyDictionary<Guid, IReadOnlyList<ToolInvocationRecord>> ToolInvocations,
+        IReadOnlyDictionary<Guid, IReadOnlyList<NonTokenUsageRecord>>? NonTokenUsage = null);
 
     [StructLayout(LayoutKind.Auto)]
     private readonly record struct AgentTally(long TotalRuns, long FailedRuns, long TotalTokens);
