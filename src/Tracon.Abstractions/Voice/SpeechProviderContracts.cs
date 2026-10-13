@@ -124,7 +124,7 @@ public sealed record SpeechProviderDescriptor
 
     /// <summary>
     /// Gets the provider name the instance reports. A tenant's egress policy and
-    /// provider bindings name this value, not <see cref="Name"/>.
+    /// provider bindings name this value, not the registration name.
     /// </summary>
     public required string ProviderName { get; init; }
 

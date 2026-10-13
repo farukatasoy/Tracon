@@ -2065,9 +2065,29 @@ export interface paths {
         };
         /**
          * Lists the available voices.
-         * @description The list comes from the configured speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent's 'speak' tool accept. When the speech layer was never enabled with UseVoice(), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.
+         * @description The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent's 'speak' tool accept. The optional 'provider' query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant's egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.
          */
         get: operations["TraconVoiceList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/voice/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the registered speech providers.
+         * @description Each entry is a synthesizer or a transcriber: its registration name (null for the default), its kind, the provider name a tenant's egress policy and provider bindings use, and whether it can call the service with a tenant's own credential. Reading the list calls no provider. An empty list means no speech provider is registered.
+         */
+        get: operations["TraconVoiceProviders"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2107,7 +2127,7 @@ export interface paths {
         put?: never;
         /**
          * Synthesizes speech from text and saves it as an attachment.
-         * @description This is an operator action and is NOT tied to a run; the metering is not written to tool_invocations, it is returned in the response. If persistent metering is required, use the agent's `speak` tool.
+         * @description This is an operator action and is NOT tied to a run; the metering is not written to tool_invocations, it is returned in the response. If persistent metering is required, use the agent's `speak` tool. The optional 'provider' field names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, 403 when the tenant's egress policy does not allow the provider or the tenant has its own credential that the provider cannot use (the call is not made on the setup credential), and 501 when no default synthesizer is registered.
          */
         post: operations["TraconVoiceSpeak"];
         delete?: never;
@@ -6895,6 +6915,11 @@ export interface components {
             voiceId?: null | string;
             /** @description Requests character-level timing alongside the audio. Default `false`. */
             includeTimestamps?: boolean;
+            /**
+             * @description The registration name of the synthesizer to use; `null` for the
+             *     default one.
+             */
+            provider?: null | string;
         };
         /** @description The result of speech synthesis. */
         SpeakResponse: {
@@ -6929,6 +6954,25 @@ export interface components {
             /** @description When the character ends, relative to the start of the audio. */
             end: string;
         };
+        /** @description A registered speech provider, as IReadOnlyList&lt;SpeechProviderDescriptor&gt; ISpeechProviderResolver.Providers lists it. */
+        SpeechProviderDescriptor: {
+            /** @description Gets the registration name, or `null` for the unnamed default. */
+            name?: null | string;
+            /** @description Gets whether the provider synthesizes or transcribes speech. */
+            kind: components["schemas"]["SpeechProviderKind"];
+            /**
+             * @description Gets the provider name the instance reports. A tenant's egress policy and
+             *     provider bindings name this value, not the registration name.
+             */
+            providerName: string;
+            /** @description Gets whether the provider can call the service with a tenant's own credential. */
+            supportsTenantCredentials: boolean;
+        };
+        /**
+         * @description The kind of a registered speech provider.
+         * @enum {unknown}
+         */
+        SpeechProviderKind: "Synthesizer" | "Transcriber";
         /** Format: binary */
         Stream: string;
         /** @description Determines how long an agent waits for the agents it calls. */
@@ -8433,6 +8477,8 @@ export type SkillScriptGrantRequest = components['schemas']['SkillScriptGrantReq
 export type SpeakRequest = components['schemas']['SpeakRequest'];
 export type SpeakResponse = components['schemas']['SpeakResponse'];
 export type SpeechAlignment = components['schemas']['SpeechAlignment'];
+export type SpeechProviderDescriptor = components['schemas']['SpeechProviderDescriptor'];
+export type SpeechProviderKind = components['schemas']['SpeechProviderKind'];
 export type Stream = components['schemas']['Stream'];
 export type SubAgentSettings = components['schemas']['SubAgentSettings'];
 export type TenantDescriptor = components['schemas']['TenantDescriptor'];
@@ -11948,7 +11994,9 @@ export interface operations {
     };
     TraconVoiceList: {
         parameters: {
-            query?: never;
+            query?: {
+                provider?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11962,6 +12010,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VoiceDescriptor"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TraconVoiceProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeechProviderDescriptor"][];
                 };
             };
         };
@@ -12011,6 +12106,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpeakResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
