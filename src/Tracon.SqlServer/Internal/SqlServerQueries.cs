@@ -345,7 +345,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    experiment_id = @experiment_id,
                    variant       = @variant,
                    replay_of_run_id = @replay_of_run_id,
-                   continued_from_run_id = @continued_from_run_id,
+                   -- F-321: COALESCE for the same reason as the attribution below. The
+                   -- party that opens a continuation writes the row with the link; the
+                   -- engine that runs it writes it again and does not know the link.
+                   continued_from_run_id = COALESCE(@continued_from_run_id, continued_from_run_id),
                    -- 🚨 COALESCE, not a plain overwrite. This is an UPSERT (phase
                    -- 46): a queued run's placeholder row is written during the HTTP
                    -- request, where the user IS known, and rewritten later by the
@@ -561,6 +564,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               AND (@started_after IS NULL OR r.started_at > @started_after)
             {runListAttributionFilter}
               AND (@root_run_id IS NULL OR r.root_run_id = @root_run_id OR r.id = @root_run_id)
+              AND (@continued_from_run_id IS NULL OR r.continued_from_run_id = @continued_from_run_id)
               AND (
                     -- When a parent filter is given, the root filter is
                     -- DELIBERATELY ignored.

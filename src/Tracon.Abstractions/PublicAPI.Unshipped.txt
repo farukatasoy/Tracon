@@ -2602,6 +2602,8 @@ Tracon.RunQuery.ErrorType.get -> string?
 Tracon.RunQuery.ErrorType.init -> void
 Tracon.RunQuery.Kind.get -> Tracon.RunKind?
 Tracon.RunQuery.Kind.init -> void
+Tracon.RunQuery.ContinuedFromRunId.get -> System.Guid?
+Tracon.RunQuery.ContinuedFromRunId.init -> void
 Tracon.RunQuery.LabelKey.get -> string?
 Tracon.RunQuery.LabelKey.init -> void
 Tracon.RunQuery.LabelValue.get -> string?
