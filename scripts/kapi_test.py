@@ -234,6 +234,30 @@ class KapiTestleri(unittest.TestCase):
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
+    def test_sozlesme_paketi_ve_sql_ortak_kaynagi_tam_kosuma_dusmez(self):
+        # 2026-10-13 (Faz 196 ve 202): Tracon.Testing.Contracts.Xunit ve
+        # Tracon.Sql.Shared haritada yoktu; iki faz da ic donguyu her
+        # degisiklikte tam kosuma genisletti ve kosum UI'siz derlendigi icin
+        # E2E'nin tamami dustu (F-356). Etki alani, paketi derleyen ya da
+        # sozlesmeyi tureten test projeleridir.
+        sql_tests = ("Tracon.PostgreSql.IntegrationTests",
+                     "Tracon.SqlServer.IntegrationTests",
+                     "Tracon.Sqlite.IntegrationTests")
+        expectations = {
+            "src/Tracon.Testing.Contracts.Xunit/Contracts/JobStoreContract.cs": (
+                "Tracon.Testing.Contracts.Xunit.UnitTests", "Tracon.Core.UnitTests",
+                *kapi.PROVIDER_TEST_PROJECTS, *sql_tests),
+            "src/Tracon.Sql.Shared/Stores/SqlJobStore.cs": (
+                "Tracon.Sql.Shared.UnitTests", *sql_tests),
+        }
+        for path, expected in expectations.items():
+            projects, full = kapi.affected_test_projects([path])
+
+            self.assertFalse(full, path)
+            for project in expected:
+                self.assertIn(project, projects, path)
+                self.assertTrue((ROOT / "tests" / project / f"{project}.csproj").exists(), project)
+
     def test_sql_saglayicisi_ortak_parite_kapilarini_secer(self):
         # Kayit paritesi (SqlProviderRegistrationParityTests), migration
         # paritesi ve SQL metni snapshot'i Tracon.Sql.Shared.UnitTests'te

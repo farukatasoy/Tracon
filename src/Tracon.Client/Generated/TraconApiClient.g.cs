@@ -3988,7 +3988,7 @@ namespace Tracon.Client.Generated
         /// Lists function nodes registered in code.
         /// </summary>
         /// <remarks>
-        /// Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the console picks from this list when an operator builds a Sequential workflow's node list. A function that takes settings carries settingsSchema, a JSON schema of the object a node of it may carry in 'settings'; a function that takes none has settingsSchema null and its nodes must carry no settings. The schema is for display: saving the workflow does the checking. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.
+        /// Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the console picks from this list when an operator builds a Sequential workflow's node list. A function that takes settings carries settingsSchema, a JSON schema of the object a node of it may carry in 'settings'; a function that takes none has settingsSchema null and its nodes must carry no settings. 'timeout' is the time limit the function was registered with, which a node's own 'timeout' replaces; null means none. The schema is for display: saving the workflow does the checking. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4146,7 +4146,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a workflow definition.
         /// </summary>
         /// <remarks>
-        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it.
+        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node's 'timeout' (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run's timeout. 'runTimeout' bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -6105,7 +6105,7 @@ namespace Tracon.Client.Generated
         /// Gets a job and its items.
         /// </summary>
         /// <remarks>
-        /// This is the endpoint to poll after queuing work: it carries the job's status and attempt count together with its items, each with its own status, so partial progress is visible while the job is still running. A failed job keeps its error text here rather than only in the logs. An unknown id, or one belonging to another tenant, returns 404.
+        /// This is the endpoint to poll after queuing work: it carries the job's status, attempt count and own time limit (maxDuration, null when the job sets none) together with its items, each with its own status, so partial progress is visible while the job is still running. A failed job keeps its error text here rather than only in the logs. An unknown id, or one belonging to another tenant, returns 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -6186,7 +6186,7 @@ namespace Tracon.Client.Generated
         /// Cancels a job.
         /// </summary>
         /// <remarks>
-        /// Only a job in the Pending, Leased, or Running status can be canceled. The executing worker checks the cancellation request between items and stops cooperatively.
+        /// Only a job in the Pending, Leased, or Running status can be canceled. A running job's worker reads its status every Tracon:Scheduling:PollInterval (ten seconds by default) and then cancels the token its handler was given: a workflow or agent run the job started ends Canceled. Cancellation is cooperative: a handler that ignores its token keeps running until it returns, but the job stays Canceled.
         /// </remarks>
         /// <returns>No Content</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -20975,6 +20975,15 @@ namespace Tracon.Client.Generated
         public int? MaxAttempts { get; set; } = default!;
 
         /// <summary>
+        /// The longest time one attempt of this job may run. If `null`,
+        /// <br/>`TraconSchedulingOptions.MaxDurationByHandlerKey` applies to the job's
+        /// <br/>handler key, and a key the map does not list has no limit.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("maxDuration")]
+        public string? MaxDuration { get; set; } = default!;
+
+        /// <summary>
         /// The identifier of the worker currently leasing the job. `null` if not leased.
         /// </summary>
 
@@ -28012,6 +28021,15 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = new System.Collections.Generic.List<AgentParameter>();
 
         /// <summary>
+        /// Gets the longest time one run of this workflow may take.
+        /// <br/>`null` (the default) uses the installation's
+        /// <br/>`Tracon:Workflows:RunTimeout`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("runTimeout")]
+        public string? RunTimeout { get; set; } = default!;
+
+        /// <summary>
         /// Gets the tenant the definition belongs to. `null` for workflows defined in code.
         /// </summary>
 
@@ -28177,6 +28195,15 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("settingsSchema")]
         public System.Text.Json.JsonElement? SettingsSchema { get; set; } = default!;
+
+        /// <summary>
+        /// The timeout the function was registered with: the longest one call may take when
+        /// <br/>its node sets no `timeout` of its own. `null` when the
+        /// <br/>function has no time limit of its own.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("timeout")]
+        public string? Timeout { get; set; } = default!;
 
     }
 
@@ -28380,6 +28407,16 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("settings")]
         public System.Text.Json.JsonElement? Settings { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the longest time one call of this node may take. `null`
+        /// <br/>(the default) uses the node's default: the timeout its function was registered
+        /// <br/>with, or the installation's `Tracon:AgentGraph:ChildDeadline` for an agent
+        /// <br/>node.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("timeout")]
+        public string? Timeout { get; set; } = default!;
 
     }
 
@@ -28644,6 +28681,14 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("parameters")]
         public System.Collections.Generic.ICollection<AgentParameter>? Parameters { get; set; } = default!;
+
+        /// <summary>
+        /// The longest time one run of this workflow may take, as `hh:mm:ss`. Leave it
+        /// <br/>out to use the installation's `Tracon:Workflows:RunTimeout`.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("runTimeout")]
+        public string? RunTimeout { get; set; } = default!;
 
     }
 

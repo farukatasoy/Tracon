@@ -99,9 +99,13 @@ public sealed class GoogleChatClientFactoryTests
             TestData.Binding(providerSettings: TestData.Settings(
                 (GoogleProviderNames.SafetyHarassmentSetting, "BLOCK_EVERYTHING")))));
 
-        exception.Message.ShouldContain("BLOCK_EVERYTHING");
+        exception.Message.ShouldContain(GoogleProviderNames.SafetyHarassmentSetting);
         exception.Message.ShouldContain("BLOCK_ONLY_HIGH");
         exception.Message.ShouldContain("BLOCK_NONE");
+
+        // Phase 203: the rejected value is never repeated (it can be a credential pasted
+        // into the wrong field); the key and the valid values locate the mistake.
+        exception.Message.ShouldNotContain("BLOCK_EVERYTHING");
     }
 
     [Theory]

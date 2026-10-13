@@ -1313,3 +1313,45 @@ Faz 198'in adlı konuşma sağlayıcısı notlarına yer açmak için taşındı
   çağıranın gönderdiği ham metinle hizalanmaz. Yeni bir sağlayıcı entegre
   edilirken "word-level" varsayılmaz — her sağlayıcının kendi granülerliği
   ölçülür.
+
+## `docs/hafiza/ses-ve-konusma.md`'den — 2026-10-13 doküman bütçesi turu (Faz 203)
+
+Faz 203'ün diyalog notlarına yer açmak için taşındı; alan dosyasında tek satırlık özeti durur.
+
+- **🚨 Sunucu durumu degistirip SESSIZCE donerse duplex istemci asilir**
+  (2026-09-03, F-180 kapanisi, K-660): `commit` ses gelmeden ulastiginda
+  `VoiceConversationDriver.Commit` `FinishTurn(counted:false)` cagirip
+  **hicbir cerceve gondermeden** donuyordu. Istemci ise gonder'e basildigi anda
+  kendini `'thinking'`e alip kaydediciyi durduruyor — yani panel kalici olarak
+  asiliyor ve mikrofon bir daha acilmiyordu. Ders: **istemcinin kendini bekleme
+  durumuna soktugu her istekte sunucunun bir cikis cercevesi borcu vardir.**
+  Sunucunun kendi state machine'inin dogru olmasi yetmez.
+  - Sinif taramasi ayni kusurun **ikinci** vakasini buldu ve o uretimde daha
+    olasidir: transcriber bos metin dondugunde (`ProcessTurnAsync`, gurultulu
+    oda) istemci bos `transcript` cercevesini yok sayar ve `return` sondaki
+    `done`'i atlar. Ikisi de `idle` cercevesiyle kapatildi.
+  - **Mevcut test bunu goremiyordu** (`Commit_without_audio_does_NOT_produce_a_turn`):
+    yalnizca SUNUCUNUN dinlemeye dondugunu olcuyordu (sonraki tur calisiyor mu).
+    Duplex bir protokolde "sunucu durumu dogru" ile "istemci kurtulabilir" AYRI
+    iddialardir; ikincisi cerceveyi beklemeden olculemez.
+  - `idle` bilerek `done`'dan ayri bir cercevedir: `done` var olan bir turu
+    kapatir ve o turun numarasini/`cancelled` bayragini tasir — istemci ikisini
+    ayni sayarsa ONCEKI turun kaydini yeniden yazar.
+  - 🚨 Yalnizca tam paket kosumunda dusuyordu (izole 57/57 yesil), bu yuzden
+    "yalitim cakismasi" sanildi. Yuk yalnizca pencereyi genisletiyordu; gercek
+    sebep koddaydi. **Tek basina gecip pakette dusen test otomatik olarak
+    kirilgan degildir** — kod yolu okunmadan siniflandirilmaz.
+
+## `docs/hafiza/workflows.md`'den — 2026-10-13 doküman bütçesi turu (Faz 196)
+
+Faz 196'nın süre ve iptal notlarına yer açmak için taşındı. Kural alan dosyasında tek satır olarak kaldı; tam metin aynen buradadır.
+
+- **🚨 MAF workflow'u `TurnToken` gonderilmeden calismaz** (2026-08-03, Faz 15): `InProcessExecution.RunStreamingAsync` sonrasi `run.TrySendMessageAsync(new TurnToken(emitEvents: true))` cagrilmazsa graf gelen mesaji yalnizca YUTAR: ilk super-step'ten sonra `Idle` olur, hicbir agent konusur, hicbir hata verilmez. Olculdu: token'siz 6 olay, token'li 40+ olay. MAF dokumaninda yazili degil.
+
+- **🚨 `AgentResponseEvent` ve `AgentResponseUpdateEvent`, `WorkflowOutputEvent`'ten TUREER** (2026-08-03, Faz 15): bir `switch` icinde genel dal once yazilirsa agent yanitlari "workflow cikti uretti" diye siniflanir ve gercek cikti kaybolur. `WorkflowEventMapper` sirayi korur.
+
+- **🚨 `InProcessExecution.RunStreamingAsync` yurutmeyi HEMEN baslatir** (2026-08-03, Faz 15): executor'lar `WatchStreamAsync` pompasinda degil, o cagrida baslatilan arka plan gorevinde calisir ve gorev `ExecutionContext`'i TAM O ANDA yakalar. `TraconRunContext` `scope`'u yalnizca `MoveNextAsync` oncesinde yazilirsa alt agent cagrilari reddedilir ve workflow SESSIZCE BOS calisir — sifir agent satiri, sifir kontrol noktasi. `Scope` `StartAsync`'ten ONCE de yazilmalidir. Faz 6/11/12 `AsyncLocal` tuzaginin dorduncu hali; birim testleri yakaladi.
+
+- **🚨 MAF executor kimlikleri agent ORNEGINDEN turer** (2026-08-03, Faz 15): kimlik `{Name}_{AIAgent.Id}`'dir; `AIAgent.Id` her ornek icin rastgele uretilir ve **sanal degildir**. Graf yeniden kurulurken yeni agent ornekleri uretilirse kontrol noktasi `InvalidDataException: The specified checkpoint is not compatible with the workflow` ile reddedilir. Olculdu: ayni ornekler → uyumlu, yeni ornekler → uyumsuz. `WorkflowAgentCache` sarmalayicilari `(workflowName, agentName)` ile onbellekler. Onbellek surec belleğindedir; yeniden baslatma eski noktalari gecersiz kilar (K-122).
+
+- **🚨 Katalogdan DOGRUDAN alinan agent workflow agacini bozar** (2026-08-03, Faz 15): `IAgentCatalog.ResolveAsync` kayit sarmalayicisini tasiyan agent dondurur ama MAF onu `options = null` ile cagirir; sarmalayici agac bilgisini okuyamaz ve KENDI kok `runs` satirini acar. Belirti: cikti dogru, `GET /api/runs/{id}/tree` tek satir. Kodda tanimli workflow'larda `services.GetWorkflowAgent(...)` kullanilmalidir. 209 test yesildi; yalnizca ornek uygulamayi gercekten calistirmak ortaya cikardi.

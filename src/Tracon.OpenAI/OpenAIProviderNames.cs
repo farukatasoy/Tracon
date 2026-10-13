@@ -36,7 +36,7 @@ public static class OpenAIProviderNames
     /// vendor-only setting is offered yet.
     /// </para>
     /// <para>
-    /// Because the list is empty, <see cref="ModelProviderSettings.Validate"/>
+    /// Because the list is empty, <see cref="ModelProviderSettings.Validate(ModelBinding, string, IReadOnlyCollection{string})"/>
     /// rejects any key and says "supports no extra settings" in its message.
     /// A key is never ignored silently: a setting that does nothing would leave
     /// the author without the behavior they configured.

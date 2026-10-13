@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 197
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -3007,3 +3007,146 @@ Makine yanıtı deseni: render bitince host bekleyen isteği yanıtlar, bağlant
 - Adım 4: `400`; detay portu ve `approved` alanını adlandırır.
 - Adım 3 ve 4 iş açmaz.
 - Adım 5: `202`; yeni run `Completed`, çıktı `Summary published.`; yanıtlanan run `AwaitingInput` kalır.
+
+---
+
+### MT-WF-142 — Kayıtlı zaman aşımını aşan fonksiyon run'ı `Failed` + `workflow_function_timeout` ile düşürür (Faz 196, F-303)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 196 |
+| **İlgili karar** | K-497, K-805 |
+| **Devir** | ➜ CI: `WorkflowFunctionTimeoutTests` |
+
+**Ön koşul** — Örnek uygulama; `slow` kodda 2 sn zaman aşımıyla kayıtlı (gövde 10 sn, token'ı dinler).
+`PUT $APU/api/workflows/bounded` gövdesi `{"kind":"Sequential","nodes":[{"name":"word-count","kind":"Function"},{"name":"slow","kind":"Function"}]}`.
+
+**Adımlar**
+1. `POST $APU/api/workflows/bounded/run`, gövde `{"message":"hello"}`; süreyi ölç.
+2. `GET $APU/api/runs/{runId}`.
+3. `GET $APU/api/workflows/functions`.
+
+**Beklenen sonuç**
+- Adım 1: akış ~2 sn'de kapanır, 10 sn değil.
+- Adım 2: `status: Failed`; `error.type: workflow_function_timeout`; `error.class: Timeout`; mesaj `'slow'` ve `2 s` adlandırır.
+- Adım 3: `slow` ve `deaf` için `timeout: "00:00:02"`; diğerleri `null`.
+
+---
+
+### MT-WF-143 — Düğümün kendi `timeout` değeri kaydı ezer; aralık dışı değer `400` alır (Faz 196, F-303, F-405)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 196 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `WorkflowFunctionTimeoutTests` · `WorkflowTimeoutSaveTests` |
+
+**Ön koşul** — MT-WF-142.
+
+**Adımlar**
+1. `bounded`'ı `slow` düğümünde `"timeout":"00:00:05"` ile yeniden `PUT` et ve koş.
+2. `PUT $APU/api/workflows/bad` gövdesi `{"kind":"Sequential","nodes":[{"name":"slow","kind":"Function","timeout":"00:00:00"}]}`.
+3. `PUT $APU/api/workflows/agentnode` gövdesi `{"kind":"Sequential","nodes":[{"name":"support","kind":"Agent","timeout":"00:00:05"},{"name":"word-count","kind":"Function"}]}`.
+
+**Beklenen sonuç**
+- Adım 1: run ~5 sn'de `Failed`; mesajda `5 s`.
+- Adım 2: `400`; detay `'slow'`, `'timeout'` ve aralığı adlandırır.
+- Adım 3: `200` (agent düğümü de süre taşır, F-405).
+
+---
+
+### MT-WF-144 — Konsolda adım süresi ve run süresi kaydedilir, geri açılır ve boşaltılınca silinir (Faz 196) · 👤
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 196 |
+| **İlgili karar** | K-725, K-901, K-918 |
+| **Devir** | ➜ CI: `workflow-editor.test.tsx` · `full-replace-editors.test.tsx` · E2E `WorkflowTests` |
+
+**Ön koşul** — Konsol; `bounded` kayıtlı (MT-WF-142).
+
+**Adımlar**
+1. Workflows > `bounded` > Edit; `slow` adımının süre alanına `5`, Run timeout alanına `300` yaz; kaydet; yeniden aç.
+2. İki alanı boşalt; kaydet; yeniden aç.
+3. Workflows > New; Sequential; yalnız `support` agent'ını ekle.
+4. `word-count`'u ekle; `support` süre alanına `30` yaz; `word-count`'u kaldır; sonra `support` süresini sil.
+
+**Beklenen sonuç**
+- Adım 1: alanlar `5` ve `300` gösterir; `GET` `timeout: "00:00:05"`, `runTimeout: "00:05:00"` döner. Boş `slow` alanının yer tutucusu `2 (registered)`'dır.
+- Adım 2: alanlar boş; `GET` iki değeri `null` döner.
+- Adım 3: agent adımında süre alanı yok: zincir agent listesi olarak kaydedilir; süre biçimi değiştirmez (K-901).
+- Adım 4: fonksiyon eklenince alan çıkar. Fonksiyon kalkınca uyarı (`workflow-timeouts-notice`) çıkar ve Save kapanır; süre silinince ikisi de kalkar.
+
+---
+
+### MT-WF-145 — Token'ı dinlemeyen fonksiyon run'ı tutmaz; geç bitişi log'a düşer (Faz 196, F-303)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | 196 |
+| **İlgili karar** | K-805 |
+| **Devir** | ➜ CI: `WorkflowFunctionTimeoutLateCompletionTests` |
+
+**Ön koşul** — `deaf` kodda 2 sn zaman aşımıyla kayıtlı (gövde 6 sn, token'ı dinlemez). `PUT $APU/api/workflows/deafchain` gövdesi `{"kind":"Sequential","nodes":[{"name":"deaf","kind":"Function"}]}`.
+
+**Adımlar**
+1. `POST $APU/api/workflows/deafchain/run`; süreyi ölç.
+2. 6 sn bekle; uygulama günlüğünü oku.
+
+**Beklenen sonuç**
+- Adım 1: ~2 sn'de `Failed`, `workflow_function_timeout`.
+- Adım 2: `Warning`: `Function node deaf of workflow run {runId} returned 00:00:06… past its timeout of 00:00:02; its result is discarded`. Run satırı değişmez.
+
+---
+
+### MT-WF-146 — Agent düğümünün `timeout` değeri `ChildDeadline`'ı o adım için ezer (Faz 196, F-405)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 196 |
+| **İlgili karar** | K-887 |
+| **Devir** | ➜ CI: `WorkflowAgentNodeTimeoutTests` · `WorkflowAgentNodeTimeoutResumeTests` |
+
+**Ön koşul** — Örnek uygulama `Tracon__Demo__SlowModel__Seconds=20` ile (sağlayıcı `slow`, 20 sn'de cevap verir). `PUT $APU/api/agents/slow-writer` gövdesi `{"instructions":"Write the episode.","model":{"provider":"slow","model":"slow-1"}}`. `podcast`: `slow-writer` agent düğümü `"timeout":"00:00:05"` + `word-count`; `podcast-plain`: aynısı, süresiz.
+
+**Adımlar**
+1. `POST $APU/api/workflows/podcast/run`; süreyi ölç.
+2. `POST $APU/api/workflows/podcast-plain/run`.
+
+**Beklenen sonuç**
+- Adım 1: ~5 sn'de `Failed`; `error.type: child_run_timeout`, `class: Timeout`; mesaj `limit: 00:00:05, set by the 'timeout' of node 'slow-writer'` der.
+- Adım 2: ~20 sn'de `Completed` (kurulum `ChildDeadline` 2 dk).
+
+---
+
+### MT-WF-147 — Tanımın `runTimeout` değeri kurulum değerini yalnız kısaltır; tavan açılınca uzatır (Faz 196, F-405)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 196 |
+| **İlgili karar** | K-844 |
+| **Devir** | ➜ CI: `WorkflowTimeoutSaveTests` · `WorkflowDefinitionRunTimeoutTests` |
+
+**Ön koşul** — Örnek uygulama varsayılan ayarlarla (`RunTimeout` 10 dk, `MaxRunTimeout` yok).
+
+**Adımlar**
+1. `PUT $APU/api/workflows/longrun` gövdesi `{"kind":"Sequential","nodes":[{"name":"word-count","kind":"Function"}],"runTimeout":"00:30:00"}`.
+2. Uygulamayı `--Tracon:Workflows:RunTimeout=00:00:10 --Tracon:Workflows:MaxRunTimeout=00:01:00` ile başlat. `longchain` (`word-count` + `render` `{"seconds":15}`) için `runTimeout` `00:02:00`, sonra `00:00:30` ile `PUT` et ve koş.
+3. Aynı zinciri `runTimeout`'suz (`shortchain`) ve `"runTimeout":"00:00:05"` ile (`shortened`) koş.
+
+**Beklenen sonuç**
+- Adım 1: `400`; detay `Tracon:Workflows:MaxRunTimeout`'u adlandırır.
+- Adım 2: `00:02:00` → `400` (`above the host's ceiling … (00:01:00)`); `00:00:30` → `200`, run ~15 sn'de `Completed`.
+- Adım 3: `shortchain` ~10 sn'de `Canceled`, `TimeoutException`, mesaj `Tracon:Workflows:RunTimeout`; `shortened` ~5 sn'de `Canceled`, mesaj `the run timeout its definition sets`.

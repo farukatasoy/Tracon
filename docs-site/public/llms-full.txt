@@ -137,8 +137,9 @@ claim to provide an operating-system sandbox.
 | Document channel | A run's `documents` field | Reference text kept apart from instructions in the message list and the run record; a convention and an audit trail, not a security guarantee |
 | Multimodal messages | MAF content types plus stored attachments | Providers receive supported image, audio, document, and text content without a new Tracon message abstraction |
 | Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `Tracon:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
-| Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy |
+| Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy; per-request provider settings (`elevenlabs.*`) are refused, never ignored, when unknown |
 | Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host |
+| Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and `ISpeechDialogueSynthesizer` | Several voices in one request and one audio result, with each turn's time range, from a workflow function node; the built-in ElevenLabs client implements it, and a request over the provider's voice or character limit is refused rather than split |
 | Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
@@ -169,6 +170,7 @@ is the list.
 | Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound agent run at the root of its tree resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat`; a workflow run is resumed from its checkpoints instead |
 | Workflow recovery | `UseWorkflows(o => o.ResumeInterruptedRuns = true)` | A queued workflow run or batch item interrupted by a crash, a deploy or a graceful stop continues from its latest checkpoint when its job is leased again, as a new run linked by `ContinuedFromRunId`, up to `MaxResumeAttempts`; the step in progress runs again |
 | Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` or `options.RetryPolicy` | A transient provider error retries a single node without failing the run or costing an extra super-step |
+| Time limits | `options.Timeout`, `JobRequest.MaxDuration`, a node's `timeout`, a definition's `runTimeout`, `Tracon:Scheduling:MaxDurationByHandlerKey` | A workflow step past its timeout fails the run (`workflow_function_timeout`, `child_run_timeout`); a definition shortens its run timeout, or lengthens it up to `Tracon:Workflows:MaxRunTimeout`; a job past its limit has its handler's token cancelled and fails with `tracon.job.max-duration-exceeded`. A job cancel reaches a running handler within one `PollInterval` |
 | Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 
 In-memory stores make these contracts usable for local work. Durable queues,
@@ -3571,8 +3573,10 @@ stays optional on purpose.
 only structural guard against two agents handing off to each other forever. Each
 participant call also carries the same two-layer wait limit a callable agent's
 sub-call does (see [Agents calling agents](/concepts/agents/#agents-calling-agents)):
-a cooperative deadline, then a hard cutoff for a participant that ignores it. There
-is no per-participant override here — the installation-wide default applies.
+a cooperative deadline, then a hard cutoff for a participant that ignores it. The
+installation-wide default applies, except to an agent node of a `Sequential` node
+list, which can carry its own `timeout` (see
+[Bound a node with a timeout](#bound-a-node-with-a-timeout)).
 
 A participant that cannot answer **fails the run**, unlike a callable agent, whose
 caller's model reads the refusal and can try another way. No model reads a
@@ -3796,6 +3800,56 @@ node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
 attempt still counts as exactly one super-step.
 
+### Bound a node with a timeout
+
+A step that waits on a slow service can hold the whole run. Give the function a
+timeout when you register it, with the overload that takes a
+`WorkflowFunctionOptions` callback:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "render-audio",
+    services => (messages, context, cancellationToken) => RenderAsync(messages, cancellationToken),
+    options =>
+    {
+        options.Description = "Renders the episode's audio.";
+        options.Timeout = TimeSpan.FromMinutes(2);
+    });
+```
+
+A stored definition can set a node's own `timeout`, which wins over the registered one
+for that node; leave it out to use the registration's. `GET /api/workflows/functions`
+shows each registered timeout.
+
+```json
+{ "name": "render-audio", "kind": "Function", "timeout": "00:05:00" }
+```
+
+- When the timeout passes, the token the handler was given is cancelled and the run
+  ends `Failed` with the error type `workflow_function_timeout` (class `Timeout`),
+  which names the node and the limit. No later node runs. Match the type with
+  `TraconWorkflowFunctionTimeoutException.WorkflowFunctionTimeoutErrorType` when you
+  read a run's `error`.
+- The run stops waiting at the timeout even when the handler ignores its token. Such
+  a handler keeps running in the background, its result is discarded, and its late end
+  is logged; its side effects still happen. Pass the token on.
+- With a retry policy, the timeout applies to each attempt, and a timed-out attempt is
+  retried like any transient failure. The longest a node can take is about
+  `MaxAttempts × Timeout` plus the delays.
+- A caller's cancel or the run's own `RunTimeout` is not a node timeout: the run ends
+  `Canceled` with the reason it already had.
+- A timeout runs from 1 millisecond to about 49.7 days; a value outside the range is
+  refused with `400` on save, or with `ArgumentOutOfRangeException` at registration.
+  It is not checked against `RunTimeout`: whichever passes first stops the node.
+
+An **agent node** of a node list can carry a `timeout` too. It replaces the
+installation's `Tracon:AgentGraph:ChildDeadline` for that step, and the hard cutoff for
+an agent that ignores its deadline stays 30 seconds after it. A step past it fails the
+run with `child_run_timeout`, and the message names the node. A chain without a
+function step is stored as `agentNames`, which has no node to carry a timeout, so its
+steps use the installation's deadline; the console offers the field only on a chain
+with a function step.
+
 Workflows can also be built in code with MAF's own builder.
 
 :::caution[The registration key is what routing uses]
@@ -3970,12 +4024,19 @@ outage.
 
 `RunTimeout` (10 minutes by default) is **cooperative, and observed between
 super-steps**. It cancels the token the run is given and the runner checks it
-as each super-step ends; it does not abandon a node already running. So it
-bounds how long a run keeps taking new steps, not wall-clock time: a node that
-ignores its cancellation token runs to completion and the run stops at the
-next boundary. To bound one step, give that node its own timeout inside the
-handler. A run stopped this way ends `Canceled` with a `TimeoutException` error
-that names `Tracon:Workflows:RunTimeout`.
+as each super-step ends. A node without a timeout of its own that ignores its
+cancellation token runs to completion, and the run stops at the next boundary;
+a node with a timeout stops being waited for at once. To bound one step, give
+the node a timeout (see [Bound a node with a timeout](#bound-a-node-with-a-timeout)).
+A run stopped this way ends `Canceled` with a `TimeoutException` error that names
+`Tracon:Workflows:RunTimeout`.
+
+A definition can set its own `runTimeout`. It may always shorten
+`Tracon:Workflows:RunTimeout`; it may be longer only up to
+`Tracon:Workflows:MaxRunTimeout`, which is unset by default because a running
+workflow holds a slot every tenant shares. A save above the ceiling is refused with
+`400`. A run stopped by its definition's value names the definition's `runTimeout`
+instead.
 
 The deadline starts when the run starts, so it also counts the time a run waits
 for a slot when `MaxConcurrentRuns` workflows are already running. A waiting run
@@ -4051,6 +4112,10 @@ flowchart LR
   Otherwise a run left `Running` is closed as `Failed` with the error type
   `interrupted`, and a new run continues it from the latest checkpoint in its chain.
   A continuation that was opened and never started counts as interrupted too.
+- A run its job's time limit stopped is not interrupted: it closes `Canceled` with
+  the error type `job_max_duration_exceeded` and is never continued, so the limit
+  bounds the work, not one attempt of it
+  ([Background work](/guides/background-work/#queue-one-workflow-run)).
 - The new run's `continuedFromRunId` names the run it continues.
   `GET /api/runs?continuedFromRunId={runId}` walks the chain forward.
 - The new run uses the same session, the parameter values the chain recorded, and the
@@ -4655,6 +4720,11 @@ The `run_input_parameters` migration only adds: a nullable `parameters` column o
 recorded". A replay, a continuation after a crash or an approval resume of such a
 run is refused when the agent declares [parameters](/concepts/agents/#parameters),
 instead of running on the defaults.
+
+The `job_max_duration` migration only adds: a nullable `max_duration_ms` column on
+`jobs`. Existing jobs keep `NULL`, which means "no time limit of its own": the limit
+`Scheduling:MaxDurationByHandlerKey` maps the job's handler key to applies, and a key
+the map does not list has none ([Background work](/guides/background-work/)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
@@ -5673,6 +5743,28 @@ last attempt closes the chain instead of continuing it, so a `tracon.workflow` b
 job needs `2 + MaxResumeAttempts` attempts too to get every continuation
 ([Resume an interrupted run automatically](/concepts/workflows/#resume-an-interrupted-run-automatically)).
 
+A time limit ends a workflow job's work; it is not an interruption. The run it stops
+closes `Canceled` with the error type `job_max_duration_exceeded`, and recovery never
+continues it. A queued run's job fails at once with
+`tracon.job.max-duration-exceeded`. A `tracon.workflow` batch fails the item whose
+run was stopped, and the attempt fails, so the items it did not reach run in the next
+attempt under a fresh limit; with no item left, the job fails at once with the code.
+An item whose run had not started yet stays pending for the next attempt.
+
+```json
+{
+  "Tracon": {
+    "Scheduling": {
+      "MaxDurationByHandlerKey": { "tracon.workflow": "00:30:00" }
+    }
+  }
+}
+```
+
+The key holds a dot, which a POSIX shell cannot put in an exported variable name;
+set it in `appsettings.json`, on the command line
+(`--Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow=00:30:00`), or in code.
+
 ## Create a recurring schedule
 
 The schedule name is part of the URL. The body selects the handler key, target,
@@ -5998,6 +6090,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.PollInterval` | 10 seconds | 1 ms to about 49.7 days; checked at startup |
 | `Scheduling.LeaseDuration` | 5 minutes | Must be positive and at most about 149 days; renewal runs at a third of the lease |
 | `Scheduling.MaxAttempts` | `3` | Must be at least `1`; jobs can override it |
+| `Scheduling.MaxDurationByHandlerKey` | empty | Each attempt's time limit per handler key, 1 ms to about 49.7 days; a job's own `maxDuration` wins, and a key not listed has no limit |
 | `Scheduling.MaxItemsPerJob` | `1,000` | Must be at least `1` |
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
 | `Scheduling.MaxConcurrentJobsPerLane` | empty | Per-lane concurrency; a lane not listed shares `MaxConcurrentJobs` |
@@ -6050,12 +6143,22 @@ whose status is no longer `Pending`; see
 - A missing handler marks the job as failed.
 - Lease-renewal, polling, and dispatch errors are logged; later ticks continue. A
   failed renewal is retried on the next tick, a third of the lease later.
-- Cancellation is cooperative, and it reaches a running handler only through
-  `JobContext.IsCancelledAsync`: the built-in handlers check it between items, and a
-  long handler must check it itself. The token `ExecuteAsync` receives is cancelled
-  only when the worker shuts down, so passing it on does not make a cancel request
-  arrive sooner. A cancelled job stays `Cancelled`, even when its handler throws on
-  the way out, and a job cancelled before its handler starts does not start.
+- Cancellation reaches a running handler through its token. The worker reads each
+  running job's status every `PollInterval` (one store read per running job per
+  interval) and cancels the token it gave the handler when it finds the job
+  cancelled or gone, so a cancel request arrives within one poll interval. The
+  built-in handlers also check `JobContext.IsCancelledAsync` between items. A
+  handler that ignores its token runs on until it asks. A cancelled job stays
+  `Cancelled`, even when its handler throws on the way out, and a job cancelled
+  before its handler starts does not start.
+- A time limit bounds each attempt: the job's `maxDuration`, or
+  `Scheduling.MaxDurationByHandlerKey` for its handler key. Past it the worker
+  cancels the handler's token; a handler that stops fails the attempt with
+  `tracon.job.max-duration-exceeded`, and the job is leased again with the full
+  limit while attempts are left. A handler that returns normally after the limit
+  completes the job, and one that ignores its token keeps its slot until it
+  returns. A queued workflow run or a `tracon.workflow` item that reaches the limit
+  is not continued; see [Queue one workflow run](#queue-one-workflow-run).
 - A batch with both successful and failed items finishes as `Completed`. A batch in
   which every item fails finishes as `Failed`. Inspect item counters, not only the job
   status. An item is recorded as failed only when its own run failed; a store error
@@ -6081,7 +6184,8 @@ idempotent.
 | A job is `Completed` but work is missing | Inspect `failedItems` and the individual item records; mixed-result batches still complete |
 | A schedule never fires | Validate the five-field cron, host time-zone identifier, enabled flag, and next occurrence; remember that daylight-saving gaps are skipped |
 | More jobs run than expected | Multiply `MaxConcurrentJobs` by the number of worker processes |
-| Cancellation takes time | It is a request, not a forced thread abort. The handler sees it when it calls `JobContext.IsCancelledAsync`, which the built-in handlers do between items; a long single item runs to its end |
+| Cancellation takes time | It is a request, not a forced thread abort. The handler's token falls at the worker's next status read, within one `PollInterval`; a handler that does not pass its token on runs until it calls `JobContext.IsCancelledAsync` |
+| A job fails with `tracon.job.max-duration-exceeded` | An attempt ran past the job's `maxDuration` or the limit `Scheduling.MaxDurationByHandlerKey` maps its key to; raise the limit or shorten the work |
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
 | A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |
@@ -8805,6 +8909,10 @@ rejected too. `POST /api/agents/validate` reports it as `invalid_setting` at
 code fails compilation. The console does not edit `providerSettings`; remove a stray
 key through the HTTP API or in code.
 
+A refusal names the key and, for a setting with a fixed set of values, the accepted
+values. It never repeats the value you wrote: a value can be a credential pasted into
+the wrong field, and the message reaches logs and run records.
+
 ## Azure OpenAI uses deployments
 
 For `azure-openai`, `ModelBinding.Model` is the **deployment name**, not the base model
@@ -8989,7 +9097,9 @@ support. A provider that supports no key rejects them all. Call
 `CreateChatClient`, and pass an empty list when you support none. Its exception is
 the one the registry passes through with the key named. The registry masks the
 message of any other exception thrown while a client is built, so a hand-rolled
-check reaches the author as a generic provider failure.
+check reaches the author as a generic provider failure. When you refuse a value of a
+supported key yourself, name the key and the accepted values, not the value:
+`ModelProviderSettingsContract` fails a provider whose message repeats it.
 
 **Default output limit.** If your client sends an output-token limit of its own
 when `ModelBinding.MaxOutputTokens` is empty, return a `ModelOutputLimit` from
@@ -12615,7 +12725,7 @@ Tracon has three voice layers:
 
 | Layer | Use it for | Registration |
 |---|---|---|
-| Voice tools and REST | Generate speech, transcribe an attachment, list voices | `UseVoice()` from `Tracon.Voice` |
+| Voice tools and REST | Generate speech, transcribe an attachment, list voices, and voice a multi-speaker dialogue from a workflow node | `UseVoice()` from `Tracon.Voice` |
 | Live conversation | Keep a bidirectional audio/text session over WebSocket, with Tracon transcribing and synthesizing | `UseVoiceConversation()` from Core |
 | Provider-hosted live voice | Let a realtime model run the conversation and hand the heavy work back to your agents | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` |
 
@@ -12862,6 +12972,100 @@ A named engine never receives the default's `SynthesisModelId` or `OutputFormat`
 model identifier of one engine sent to another is a wrong request. Set them on the
 request when the engine needs them.
 
+### Voice a dialogue with several speakers
+
+A two-host podcast voiced one line at a time and joined together sounds read aloud.
+A provider that voices the whole exchange in one request keeps the turn-taking
+natural. `ISpeechDialogueSynthesizer` is that capability: an ordered list of turns,
+each with its own voice, in one request and one audio result. The built-in
+ElevenLabs client implements it; a synthesizer of your own implements it next to
+`ISpeechSynthesizer`.
+
+Code takes the capability from the resolver, by the same name a synthesizer is
+registered under. Nothing registers it in the container: a direct registration would
+reach the provider without the tenant's checks.
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .UseWorkflows()
+    .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, NarrationSettings>(
+        "two-voices",
+        provider =>
+        {
+            var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+
+            return async (messages, settings, context, cancellationToken) =>
+            {
+                var dialogue = await speech.GetDialogueSynthesizerAsync(settings.Provider, cancellationToken);
+                var result = await dialogue.SynthesizeDialogueAsync(
+                    new SpeechDialogueRequest
+                    {
+                        Turns =
+                        [
+                            new SpeechDialogueTurn { Text = "Welcome back.", VoiceId = "host-voice" },
+                            new SpeechDialogueTurn { Text = "Glad to be here.", VoiceId = "guest-voice" },
+                        ],
+                        OutputFormat = "pcm_24000",
+                        IncludeTimestamps = true,
+                    },
+                    cancellationToken);
+
+                return [new ChatMessage(ChatRole.Assistant, $"{result.Segments?.Count ?? 0} segments")];
+            };
+        });
+```
+
+| Rule | What happens |
+|---|---|
+| Limits | `DialogueCapabilities` states the most distinct voices (`MaxVoices`) and characters (`MaxCharactersPerRequest`) one request takes. The built-in client takes 10 voices and `Tracon:Voice:MaxDialogueCharactersPerRequest` characters (default 2,000, the provider's guidance). A request over a limit, an empty turn or a turn without a voice is refused before the call — Tracon does not split or cut a dialogue |
+| Splitting and joining | Yours. Split a long script where its content allows, voice each part, and join the audio. Raw `pcm_*` output has no file header: join the samples, then add the header |
+| Model | The request's `ModelId`, then `Tracon:Voice:DialogueModelId`, then the provider's default. The single-voice `SynthesisModelId` is never used. With the provider's default, the result names no model, so a price keyed by model is not found |
+| Timing | `IncludeTimestamps` returns `Segments` — the turn index, voice and start and end of each part — and character `Alignment` over the turns' texts joined in order. A report that names a turn or voice the request did not have, leaves a turn without a segment, or is out of order gives `Segments = null` and keeps the audio |
+| Usage | `Audio.CharactersBilled` comes from the provider when it reports a count (`UsageSource.Provider`), otherwise from the turns' text (`Estimated`). `Audio.ProviderRequestId` is the provider's id for the request |
+| Tenant rules | The same as every other speech call (next section), applied to the dialogue capability's `ProviderName`. A synthesizer without the capability fails the call with a message that names it; the built-in client is not used in its place |
+
+There is no dialogue tool and no dialogue HTTP endpoint: a dialogue is a workflow
+step, written in code.
+
+### Provider request settings
+
+`SpeechRequest.ProviderSettings` and `SpeechDialogueRequest.ProviderSettings` carry a
+provider's own tuning, keyed under its prefix, in the same form a model binding's
+provider settings take. The built-in client reads these keys
+(`ElevenLabsProviderNames` holds them as constants):
+
+| Key | Value | Single voice | Dialogue |
+|---|---|---|---|
+| `elevenlabs.stability` | number from 0 to 1 | `voice_settings.stability` | `settings.stability` |
+| `elevenlabs.similarityBoost` | number from 0 to 1 | `voice_settings.similarity_boost` | `settings.similarity` |
+| `elevenlabs.style` | number | `voice_settings.style` | refused |
+| `elevenlabs.useSpeakerBoost` | boolean | `voice_settings.use_speaker_boost` | refused |
+| `elevenlabs.speed` | number, 1 is normal | `voice_settings.speed` | refused |
+| `elevenlabs.seed` | integer from 0 to 4294967295 | `seed` | `seed` |
+| `elevenlabs.previousText` | text | `previous_text` | `previous_text`, at most 100 characters |
+| `elevenlabs.nextText` | text | `next_text` | `future_text`, at most 100 characters |
+| `elevenlabs.previousRequestIds` | list of at most 3 texts | `previous_request_ids` | `previous_request_ids` |
+
+An unknown key, another provider's key, a value of the wrong type or outside its range,
+and on a dialogue a key the dialogue service does not take, are refused before the
+call. The message names the key and the accepted values, never the value itself: a
+value can be your user's text. The provider's dialogue service accepts an unknown field
+without an error, so a silently dropped setting would never show — that is why the
+client refuses instead. The seed is a best effort: two requests with the same seed can
+return different audio.
+
+To keep the speech continuous across parts of a long script, pass each earlier result's
+`Audio.ProviderRequestId` in `elevenlabs.previousRequestIds` (the closest one last).
+Add an id only when it is not `null`; a list with a missing id is refused.
+
+The `speak` tool and `POST /api/voice/speak` send no provider settings. A synthesizer of
+your own checks its keys with the same rule:
+
+```csharp
+ModelProviderSettings.Validate(request.ProviderSettings, "contoso", ["contoso.pitch"]);
+```
+
 ### Tenant policy and credentials for speech
 
 Every speech call obeys the calling tenant's provider rules, the same rules a model
@@ -12876,10 +13080,12 @@ run before any text or audio leaves the process:
   node for a workflow — a refusal is not retried.
 - A tenant with its own binding for that provider name is billed on its own key. The
   key reaches only an implementation that sets `SupportsTenantCredentials` to `true`;
-  it arrives in `SpeechRequest.Credential`, `SpeechTranscriptionOptions.Credential`
-  and `ListVoicesWithCredentialAsync`. Any other implementation is refused for that
-  tenant rather than called on its own configured key — the wrong account. The
-  built-in ElevenLabs client does not take a tenant key.
+  it arrives in `SpeechRequest.Credential`, `SpeechTranscriptionOptions.Credential`,
+  `SpeechDialogueRequest.Credential` and `ListVoicesWithCredentialAsync`. Any other
+  implementation is refused for that tenant rather than called on its own configured
+  key — the wrong account. The built-in ElevenLabs client does not take a tenant key,
+  and a request that carries one directly fails with `NotSupportedException` instead
+  of using the configured key.
 - A binding whose configuration key has no value, or that sets an endpoint override,
   is refused; the call never falls back to the shared key.
 
@@ -13258,6 +13464,16 @@ tenant has its own key for that provider and the engine cannot take one. The mes
 names the tenant and the provider. Add the provider name to the policy, or remove the
 binding; `GET /api/voice/providers` shows each engine's provider name and whether it
 accepts a tenant key.
+
+### A dialogue node fails before any audio is made
+
+The run's error names the cause. `cannot voice a dialogue` means the synthesizer
+under that name does not implement `ISpeechDialogueSynthesizer`; name one that does.
+`The dialogue has N characters` or `uses N voices` means the request is over the
+limits in `DialogueCapabilities`; split it. `ProviderSettings is invalid` names the
+key that is unknown, belongs to another provider or has no effect on a dialogue. A
+provider `400` for a turn that holds only an inline tag such as `[pause]` means the
+turn has no speakable text: the provider refuses it.
 
 ### Voice conversation reports `501`
 
@@ -13735,6 +13951,7 @@ public sealed class ReportScheduler(IJobDispatcher jobs)
             HandlerKey = "contoso.nightly-report",
             TargetName = "nightly-report",
             Items = customers,
+            MaxDuration = TimeSpan.FromMinutes(30), // optional: each attempt's time limit
         });
 }
 ```
@@ -13784,14 +14001,27 @@ returned is not a handler failure: the worker tries the write of the outcome
 again while it still holds the lease, and does not call the handler again for
 it.
 
-**A running handler is never interrupted by its own lease, and nothing caps
-how long it may run.** The worker renews the lease on a timer for as long as
-`ExecuteAsync` has not returned, without a limit — there is no `JobTimeout`
-setting. So a handler that blocks forever holds its worker slot forever, that
-slot counts against `MaxConcurrentJobs` (default 2), and no replica can pick
-the work up instead: the job is leased, not abandoned. Give any handler that
-calls out to the network its own timeout. The `CancellationToken` you receive
-is cancelled when the worker shuts down, not when the job has taken too long.
+**A running handler is never interrupted by its own lease.** The worker renews
+the lease on a timer for as long as `ExecuteAsync` has not returned. A job is
+bounded only by a time limit you give it: `JobRequest.MaxDuration` for one job,
+or `Tracon:Scheduling:MaxDurationByHandlerKey` for every job of a handler key
+(the job's own value wins; no value means no limit). The limit applies to each
+attempt.
+
+**The `CancellationToken` you receive is cancelled for three reasons**, and the
+worker decides the outcome from the reason, not from the exception your
+handler throws:
+
+| Reason | When | Outcome |
+|---|---|---|
+| The worker stops | Host shutdown | Nothing is written; the job is leased again when its lease runs out |
+| The job is cancelled | `POST /api/jobs/{id}/cancel`, read every `PollInterval` (10 seconds by default) | The job stays `Cancelled`, with no error |
+| The time limit passes | The attempt ran longer than its limit | The attempt fails with `tracon.job.max-duration-exceeded`; the job is leased again while attempts are left |
+
+A handler that returns normally after its token was cancelled completes the
+job: the work it did stands. A handler that ignores its token is waited for,
+and keeps its worker slot (which counts against `MaxConcurrentJobs`, default 2)
+until it returns. Pass the token to every call the handler makes.
 
 `JobContext.Items` reflects that: it carries **every** item, not only the
 `Pending` ones. On a retry, items already `Completed` or `Failed` from an
@@ -13800,9 +14030,9 @@ payment, a call to an external system) must therefore either be idempotent on
 its own, or — the pattern every built-in handler uses, shown above — check
 `JobItemRecord.Status` and skip anything that is not `Pending`.
 
-`IsCancelledAsync` reflects a `POST /api/jobs/{id}/cancel` request; check it
-between items so a canceled job stops promptly instead of finishing every
-remaining item first. `ReportItemAsync` must be called for every item the
+`IsCancelledAsync` reflects a `POST /api/jobs/{id}/cancel` request at the moment
+you ask; check it between items so a canceled job stops before its next item
+even when the token has not fallen yet. `ReportItemAsync` must be called for every item the
 handler actually processes — it updates the item's persisted status and the
 job's `doneItems`/`failedItems` counters, which the job list and detail
 endpoints read.
@@ -15045,7 +15275,7 @@ MCP, and the console — eight packages counting the two that come transitively.
 | `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `Tracon.AspNetCore` | The HTTP API and the access layers |
-| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, checkpoints, human input, run parameters |
+| `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings and timeouts, checkpoints, human input, run parameters, per-workflow run timeouts |
 | `Tracon.Mcp` | Tools discovered from remote MCP servers |
 | `Tracon.UI` | The embedded console |
 
@@ -15062,7 +15292,7 @@ Add these when you need them.
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
 | `Tracon.Testing` | You write tests against agents — fakes, not mocks |
-| `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
+| `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
 | `Tracon.Templates` | `dotnet new tracon-api` |
 
 `Tracon.OpenAI`, `Tracon.Azure`, and `Tracon.Google` also expose optional
@@ -16614,6 +16844,7 @@ registers more than one image provider or a custom keyed generator.
 | `Scheduling:PollInterval` | 10 seconds |
 | `Scheduling:LeaseDuration` | 5 minutes |
 | `Scheduling:MaxAttempts` | `3` |
+| `Scheduling:MaxDurationByHandlerKey` | empty; each attempt's time limit per handler key, 1 ms to about 49.7 days. A job's own `maxDuration` wins; a key not listed has no limit. A value out of range fails at startup |
 | `Scheduling:MaxItemsPerJob` | `1000` |
 | `Scheduling:Lanes` | `null`; leases from every lane |
 | `Scheduling:MaxConcurrentJobsPerLane` | empty; a lane not listed shares `MaxConcurrentJobs`. A value that is not a number fails at startup |
@@ -16918,12 +17149,19 @@ tracon.UseMcp(
 | `EnableCheckpointing` | `true` |
 | `MaxConcurrentRuns` | `4` |
 | `RunTimeout` | 10 minutes |
+| `MaxRunTimeout` | `null`; a definition's `runTimeout` may then only shorten `RunTimeout` |
 | `MaxSuperSteps` | `100` |
 | `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
 binds this section and then applies its optional code override.
+
+`MaxRunTimeout` is the longest run timeout a workflow definition may set. A save above
+it, or above `RunTimeout` while it is unset, is refused with `400`. It must be at least
+`RunTimeout` and fails at startup otherwise, even while `Enabled` is `false`. A
+stored definition above a ceiling that was lowered later runs with the ceiling, and a
+warning is logged.
 
 `MaxNodeSettingsLength` caps the JSON text of one function node's settings when a
 workflow is saved; a definition stored before the cap was lowered still runs.
@@ -16938,8 +17176,10 @@ workflow is saved; a definition stored before the cap was lowered still runs.
 | `DefaultVoiceId` | `null` |
 | `SynthesisModelId` | `null` |
 | `TranscriptionModelId` | `null` |
+| `DialogueModelId` | `null`; the provider's default dialogue model |
 | `OutputFormat` | `mp3_44100_128` |
 | `MaxCharactersPerRequest` | `5000` |
+| `MaxDialogueCharactersPerRequest` | `2000` |
 | `MaxConcurrentRequests` | `2` |
 | `RequireApproval` | `false` |
 | `Timeout` | `null`; implementation uses 100 seconds |
@@ -16951,6 +17191,13 @@ registered before `UseVoice()`, those three are not required. `Provider` is not 
 price key: `Tracon:Pricing:Voice` is keyed by the `ProviderName` of the implementation
 that did the work. `MaxCharactersPerRequest` is the built-in client's limit; your own
 synthesizer reports its limit through `ISpeechSynthesizer.MaxCharactersPerRequest`.
+
+`DialogueModelId` and `MaxDialogueCharactersPerRequest` apply to a dialogue voiced by
+the built-in client. The single-voice `SynthesisModelId` is never sent for a
+dialogue. `MaxDialogueCharactersPerRequest` must be greater than zero; a longer
+dialogue is refused, not split, and the built-in client reports the value through
+`ISpeechDialogueSynthesizer.DialogueCapabilities`. Synthesis, dialogue and
+transcription share the one `MaxConcurrentRequests` limit.
 
 ### Live voice conversation
 
@@ -19311,8 +19558,18 @@ Before a save that changes the chain, the editor says what it is about to do. It
 chain that holds a function as a node list and a chain without one as a plain agent list,
 and tells you when the save changes the form. It also warns when the pattern, the steps or
 their order change: a run that is waiting for input cannot be resumed after that, because
-its saved state belongs to the old graph. Editing a step's settings or the description
-does not.
+its saved state belongs to the old graph. Editing a step's settings, a timeout or the
+description does not.
+
+In a chain with a function step, each step has a **timeout** field, in seconds (`90`,
+`2.5`) or as `hh:mm:ss`. Empty uses the step's default, which the placeholder names: the
+timeout the function was registered with, or the installation's sub-agent deadline. A
+plain agent list has no node to keep a timeout on, so its steps show no field. If a step
+still carries one there — its chain lost its last function step, or it was written over
+HTTP — Save stays disabled with a note until you clear it or add a function step. The
+**Run timeout** field sets the workflow's own run timeout; empty uses the installation's,
+and a longer value is accepted only up to `Tracon:Workflows:MaxRunTimeout` (see
+[Bound a node with a timeout](/concepts/workflows/#bound-a-node-with-a-timeout)).
 
 A workflow waiting on human input shows the pending request as a card; answering it
 resumes execution from the checkpoint as a new run. The card opens for any waiting

@@ -102,7 +102,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
         var synthesizer = Find<ISpeechSynthesizer>(SpeechProviderKind.Synthesizer, name);
 
         var credential = await AuthorizeAsync(
-                SpeechProviderKind.Synthesizer,
+                SpeechProviderRegistration.Noun(SpeechProviderKind.Synthesizer),
                 synthesizer.ProviderName,
                 synthesizer.SupportsTenantCredentials,
                 cancellationToken)
@@ -125,7 +125,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
         var transcriber = Find<ISpeechTranscriber>(SpeechProviderKind.Transcriber, name);
 
         var credential = await AuthorizeAsync(
-                SpeechProviderKind.Transcriber,
+                SpeechProviderRegistration.Noun(SpeechProviderKind.Transcriber),
                 transcriber.ProviderName,
                 transcriber.SupportsTenantCredentials,
                 cancellationToken)
@@ -137,6 +137,47 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
 
         return credential is null ? transcriber : new TenantCredentialSpeechTranscriber(transcriber, credential);
     }
+
+    /// <inheritdoc />
+    public async ValueTask<ISpeechDialogueSynthesizer> GetDialogueSynthesizerAsync(
+        string? name = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var synthesizer = Find<ISpeechSynthesizer>(SpeechProviderKind.Synthesizer, name);
+
+        // The capability is read from the registered instance, before any tenant
+        // wrapper exists: a wrapper implements only what it wraps, so a type test on
+        // it would answer differently for a tenant with its own key (the phase 198 handover).
+        if (synthesizer is not ISpeechDialogueSynthesizer dialogue)
+        {
+            throw new SpeechCapabilityNotSupportedException(
+                $"The speech synthesizer {Describe(name)} (provider '{synthesizer.ProviderName}') cannot voice a " +
+                $"dialogue: it does not implement {nameof(ISpeechDialogueSynthesizer)}. Name a synthesizer that does, " +
+                "or voice the turns one by one with SynthesizeAsync.");
+        }
+
+        var credential = await AuthorizeAsync(
+                DialogueNoun,
+                dialogue.ProviderName,
+                dialogue.SupportsTenantCredentials,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        // A store that does not observe the token returns normally after the caller
+        // cancelled; the provider is not handed out then, or the caller calls it.
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return credential is null ? dialogue : new TenantCredentialSpeechDialogueSynthesizer(dialogue, credential);
+    }
+
+    /// <summary>The noun the tenant checks' messages use for a dialogue synthesizer.</summary>
+    private const string DialogueNoun = "dialogue synthesizer";
+
+    /// <summary>Names a registration in a message: its name, or "default" for the unnamed one.</summary>
+    private static string Describe(string? name)
+        => name is not null && SpeechProviderNames.TryNormalize(name, out var normalized) ? $"'{normalized}'" : "default";
 
     private static SpeechProviderDescriptor Describe(
         string? name,
@@ -194,7 +235,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
     /// <returns>The tenant's credential, or <see langword="null"/> for the provider's configured one.</returns>
     /// <exception cref="TenantProviderRefusedException">The tenant's checks refuse the provider.</exception>
     private async ValueTask<ModelProviderCredential?> AuthorizeAsync(
-        SpeechProviderKind kind,
+        string noun,
         string providerName,
         bool supportsTenantCredentials,
         CancellationToken cancellationToken)
@@ -232,8 +273,6 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
             return null;
         }
 
-        var noun = SpeechProviderRegistration.Noun(kind);
-
         if (!supportsTenantCredentials)
         {
             throw new TenantProviderRefusedException(
@@ -269,6 +308,65 @@ internal sealed class SpeechProviderNotFoundException : TraconException
     public SpeechProviderNotFoundException(string message)
         : base(message)
     {
+    }
+}
+
+/// <summary>
+/// The speech provider registered under the requested name has no such capability: a
+/// synthesizer that cannot voice a dialogue.
+/// </summary>
+/// <remarks>
+/// A configuration fact, not a tenant refusal and not a provider failure: no store is
+/// read and the provider is not called. Separate from
+/// <see cref="SpeechProviderNotFoundException"/> so an HTTP endpoint can tell "no such
+/// name" from "this provider cannot do it".
+/// </remarks>
+internal sealed class SpeechCapabilityNotSupportedException : TraconException
+{
+    /// <summary>Creates the exception.</summary>
+    /// <param name="message">Which provider lacks which capability.</param>
+    public SpeechCapabilityNotSupportedException(string message)
+        : base(message)
+    {
+    }
+}
+
+/// <summary>A dialogue synthesizer that puts one tenant's credential on every request.</summary>
+/// <remarks>
+/// Returned only when the tenant has its own credential. A credential sent by the caller
+/// is replaced, never kept: the resolver chose the tenant.
+/// </remarks>
+internal sealed class TenantCredentialSpeechDialogueSynthesizer : ISpeechDialogueSynthesizer
+{
+    private readonly ISpeechDialogueSynthesizer _inner;
+    private readonly ModelProviderCredential _credential;
+
+    public TenantCredentialSpeechDialogueSynthesizer(ISpeechDialogueSynthesizer inner, ModelProviderCredential credential)
+    {
+        ArgumentNullException.ThrowIfNull(inner);
+        ArgumentNullException.ThrowIfNull(credential);
+
+        _inner = inner;
+        _credential = credential;
+    }
+
+    /// <inheritdoc />
+    public string ProviderName => _inner.ProviderName;
+
+    /// <inheritdoc />
+    public bool SupportsTenantCredentials => true;
+
+    /// <inheritdoc />
+    public SpeechDialogueCapabilities DialogueCapabilities => _inner.DialogueCapabilities;
+
+    /// <inheritdoc />
+    public ValueTask<SpeechDialogueAudio> SynthesizeDialogueAsync(
+        SpeechDialogueRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return _inner.SynthesizeDialogueAsync(request with { Credential = _credential }, cancellationToken);
     }
 }
 

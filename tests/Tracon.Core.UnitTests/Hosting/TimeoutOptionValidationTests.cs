@@ -113,6 +113,13 @@ public sealed class TimeoutOptionValidationTests
 
     [Theory]
     [MemberData(nameof(RejectedTimeouts))]
+    public void Job_max_duration_is_checked_at_startup(string value)
+        => ShouldFailAtStartup(
+            "MaxDurationByHandlerKey",
+            ("Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow", value));
+
+    [Theory]
+    [MemberData(nameof(RejectedTimeouts))]
     public void Image_timeout_is_checked_at_startup(string value)
         => ShouldFailAtStartup("Timeout", ("Tracon:Images:Timeout", value));
 
@@ -150,7 +157,8 @@ public sealed class TimeoutOptionValidationTests
             ("Tracon:Validation:McpTimeout", value),
             ("Tracon:Drain:Timeout", value),
             ("Tracon:Webhooks:Timeout", value),
-            ("Tracon:Images:Timeout", value));
+            ("Tracon:Images:Timeout", value),
+            ("Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow", value));
 
     [Fact]
     public void The_upper_bound_is_the_one_the_timer_itself_refuses()

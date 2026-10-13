@@ -92,6 +92,10 @@ public static class TraconWorkflowsBuilderExtensions
         // engine is not registered.
         services.TryAddSingleton<IWorkflowRecoveryPolicy, TraconWorkflowRecoveryPolicy>();
 
+        // F-405: the save checks a definition's run timeout against the host's
+        // ceiling through this seam, for the same reason.
+        services.TryAddSingleton<IWorkflowRunTimeoutPolicy, TraconWorkflowRunTimeoutPolicy>();
+
         return builder;
     }
 

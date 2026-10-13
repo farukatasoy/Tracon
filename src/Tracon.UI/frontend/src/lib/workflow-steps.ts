@@ -19,6 +19,18 @@ export interface Step {
    * Agent steps never carry any (the server refuses them).
    */
   settings: string;
+  /**
+   * The node's own timeout as the operator typed it: seconds (`90`, `2.5`) or a
+   * `hh:mm:ss` value. Empty means none - the function's registered timeout, or the
+   * installation's `ChildDeadline` for an agent step.
+   */
+  timeout: string;
+  /**
+   * The timeout the server sent, kept so an untouched field goes back exactly as stored
+   * (K-918): the field shows seconds, and `00:00:02.5000000` would otherwise come back as
+   * `00:00:02.500`.
+   */
+  storedTimeout?: string | null;
 }
 
 /** Reads a definition's steps from whichever form it was stored in. */
@@ -28,15 +40,36 @@ export function stepsOf(definition: Pick<WorkflowDefinition, 'agentNames' | 'nod
       kind: node.kind === 'Function' ? 'Function' : 'Agent',
       name: node.name,
       settings: settingsText(node.settings),
+      timeout: timeoutText(node.timeout),
+      storedTimeout: node.timeout ?? undefined,
     }));
   }
 
-  return definition.agentNames.map((name) => ({ kind: 'Agent', name, settings: '' }));
+  return definition.agentNames.map((name) => ({ kind: 'Agent', name, settings: '', timeout: '' }));
 }
 
-/** Whether the chain has a function node - the one thing that decides the stored form. */
+/** Whether the chain has a function node. */
 export function hasFunction(steps: readonly Step[]): boolean {
   return steps.some((step) => step.kind === 'Function');
+}
+
+/** Whether a step of the chain carries a timeout of its own. */
+export function hasStepTimeouts(steps: readonly Step[]): boolean {
+  return steps.some((step) => step.timeout.trim().length > 0);
+}
+
+/**
+ * Whether a step carries a timeout that the form the chain is saved in cannot keep: a plain
+ * agent list has nowhere to put one.
+ *
+ * 🚨 A step timeout does NOT turn an agent list into a node list (phase 196 decision, K-901
+ * unchanged): the change of form would make a run waiting to be resumed unresumable and stop
+ * the agents' live token stream. Such a chain loaded from a node list written over HTTP, or
+ * one whose last function step was removed, is held back instead of losing its timeouts on a
+ * full-replace save (K-725).
+ */
+export function hasStrandedTimeouts(kind: WorkflowKind, steps: readonly Step[]): boolean {
+  return canonicalForm(kind, steps) === 'agentNames' && hasStepTimeouts(steps);
 }
 
 /** The two ways a definition keeps its steps. */
@@ -48,9 +81,10 @@ export function storedFormOf(definition: Pick<WorkflowDefinition, 'nodes'>): Sto
 }
 
 /**
- * The form the console writes: `nodes` when the chain has a function, `agentNames`
- * otherwise. One canonical form per chain (decision of phase 195); the server accepts both,
- * so a definition written over HTTP in the other form keeps loading.
+ * The form the console writes: `nodes` when the chain has a function, `agentNames` otherwise.
+ * One canonical form per chain (K-901); the server accepts both, so a definition written over
+ * HTTP in the other form keeps loading. A step timeout does not change the form; see
+ * `hasStrandedTimeouts`.
  */
 export function canonicalForm(kind: WorkflowKind, steps: readonly Step[]): StoredForm {
   return kind === 'Sequential' && hasFunction(steps) ? 'nodes' : 'agentNames';
@@ -68,6 +102,12 @@ export function chainBody(
   steps: readonly Step[],
 ): { agentNames: string[]; nodes: WorkflowNodeReference[] } {
   if (canonicalForm(kind, steps) === 'agentNames') {
+    // 🚨 The last line behind the screen's hold: an agent list would drop the timeouts, and
+    // the full-replace save would erase what the server stores.
+    if (hasStepTimeouts(steps)) {
+      throw new Error('A step holds a timeout that a plain agent list cannot keep, so no request was built.');
+    }
+
     return { agentNames: steps.map((step) => step.name), nodes: [] };
   }
 
@@ -78,6 +118,7 @@ export function chainBody(
         name: step.name,
         kind: step.kind,
         settings: step.kind === 'Function' ? settingsValue(step.settings) : null,
+        timeout: timeoutValue(step.timeout, step.storedTimeout),
       }),
     ),
   };
@@ -130,9 +171,113 @@ export function hasInvalidSettings(steps: readonly Step[]): boolean {
   return steps.some((step) => step.kind === 'Function' && !parseSettings(step.settings).ok);
 }
 
+export type TimeoutParse = { ok: true; value: string | null } | { ok: false };
+
+const TIMESPAN = /^(?:(\d+)\.)?(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,7}))?$/;
+const SECONDS = /^\d+(?:\.\d{1,3})?$/;
+
+/**
+ * Reads a timeout field: seconds (`90`, `2.5`, at most milliseconds) or a `hh:mm:ss`
+ * value as the server writes it. Empty is "none". Whether the value is in range (one
+ * millisecond to about 49.7 days, less for an agent step) is the server's answer: its
+ * validator names the node and the field, and a copy here would drift.
+ */
+export function parseTimeout(text: string): TimeoutParse {
+  const trimmed = text.trim();
+
+  if (trimmed.length === 0) {
+    return { ok: true, value: null };
+  }
+
+  if (SECONDS.test(trimmed)) {
+    return { ok: true, value: formatTimeSpan(Math.round(Number(trimmed) * 1000)) };
+  }
+
+  return TIMESPAN.test(trimmed) ? { ok: true, value: trimmed } : { ok: false };
+}
+
+/**
+ * A stored timeout as the field shows it: whole or decimal seconds when the value is a whole
+ * number of milliseconds, the stored text itself otherwise (so nothing is rounded away).
+ */
+export function timeoutText(value: string | null | undefined): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const milliseconds = timeSpanMilliseconds(value);
+
+  return milliseconds === null ? value : String(milliseconds / 1000);
+}
+
+/**
+ * The timeout a request carries. A field the operator did not touch goes back exactly as the
+ * server stored it (K-918); a changed one is written as `hh:mm:ss`.
+ *
+ * 🚨 Text that is neither seconds nor `hh:mm:ss` throws, like settings text that is not JSON:
+ * a full-replace save would otherwise take it for "none" and erase the stored value. The
+ * screen holds Save back while `hasInvalidTimeouts` is true.
+ */
+export function timeoutValue(text: string, stored?: string | null): string | null {
+  if (stored !== null && stored !== undefined && text === timeoutText(stored)) {
+    return stored;
+  }
+
+  const parsed = parseTimeout(text);
+
+  if (!parsed.ok) {
+    throw new Error('A timeout field holds text that is neither seconds nor hh:mm:ss, so no request was built.');
+  }
+
+  return parsed.value;
+}
+
+/** Whether any step holds a timeout that cannot be read. */
+export function hasInvalidTimeouts(steps: readonly Step[]): boolean {
+  return steps.some((step) => !parseTimeout(step.timeout).ok);
+}
+
+function timeSpanMilliseconds(value: string): number | null {
+  const match = TIMESPAN.exec(value.trim());
+
+  if (match === null) {
+    return null;
+  }
+
+  const [, days, hours, minutes, seconds, fraction] = match;
+  const ticks = (fraction ?? '').padEnd(7, '0');
+
+  // Below a millisecond the seconds field cannot say it; the caller shows the text instead.
+  if (ticks.slice(3) !== '0000') {
+    return null;
+  }
+
+  return (
+    ((Number(days ?? '0') * 24 + Number(hours)) * 60 + Number(minutes)) * 60_000 +
+    Number(seconds) * 1000 +
+    Number(ticks.slice(0, 3))
+  );
+}
+
+function formatTimeSpan(totalMilliseconds: number): string {
+  const days = Math.floor(totalMilliseconds / 86_400_000);
+  const hours = Math.floor(totalMilliseconds / 3_600_000) % 24;
+  const minutes = Math.floor(totalMilliseconds / 60_000) % 60;
+  const seconds = Math.floor(totalMilliseconds / 1000) % 60;
+  const milliseconds = totalMilliseconds % 1000;
+  const pad = (value: number): string => String(value).padStart(2, '0');
+
+  return (
+    (days > 0 ? `${days}.` : '') +
+    `${pad(hours)}:${pad(minutes)}:${pad(seconds)}` +
+    (milliseconds > 0 ? `.${String(milliseconds).padStart(3, '0')}` : '')
+  );
+}
+
 /**
  * What decides whether a run that is waiting to be resumed still can be: the pattern and the
- * steps, in order. A description or a settings value is not part of it (measured, phase 195).
+ * steps, in order. A description, a settings value or a timeout is not part of it (measured,
+ * phases 195 and 196).
  */
 export function shapeOf(kind: WorkflowKind, steps: readonly Step[]): string {
   return JSON.stringify([kind, steps.map((step) => [step.kind, step.name])]);

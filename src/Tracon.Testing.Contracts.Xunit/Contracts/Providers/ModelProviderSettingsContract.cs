@@ -60,10 +60,11 @@ public abstract class ModelProviderSettingsContract : ModelProviderContract
     /// <remarks>
     /// A known key with a wrong value is the same mistake as an unknown key — a
     /// typo the host author cannot see — so it fails the same way, naming the
-    /// key. Choose a value of the right JSON type that is outside the accepted
-    /// set (for example an effort level the provider does not define), so the
-    /// case proves value validation and not only type checking. The default is
-    /// <see langword="null"/>, which reports the scenario as skipped.
+    /// key and never repeating the value. Choose a value of the right JSON type
+    /// that is outside the accepted set (for example an effort level the provider
+    /// does not define), so the case proves value validation and not only type
+    /// checking; a text value also proves the message does not echo it. The
+    /// default is <see langword="null"/>, which reports the scenario as skipped.
     /// </remarks>
     protected virtual KeyValuePair<string, JsonElement>? InvalidSettingValue => null;
 
@@ -124,6 +125,17 @@ public abstract class ModelProviderSettingsContract : ModelProviderContract
             key,
             Case.Insensitive,
             "the message must name the key whose value is wrong, or the host author cannot find it");
+
+        // The value itself is never repeated: it can be a credential pasted into the
+        // wrong field, and the message reaches logs and run records. Naming the key and
+        // the accepted values is enough to find the mistake.
+        if (value.ValueKind == JsonValueKind.String && value.GetString() is { Length: > 0 } text)
+        {
+            exception.Message.ShouldNotContain(
+                text,
+                Case.Insensitive,
+                "the message must not repeat the rejected value");
+        }
     }
 
     /// <remarks>

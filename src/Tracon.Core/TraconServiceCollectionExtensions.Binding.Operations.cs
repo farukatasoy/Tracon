@@ -69,7 +69,7 @@ public static partial class TraconServiceCollectionExtensions
         BindSchedulingCollections(section, options);
     }
 
-    /// <summary>Binds the four collection keys of the <c>Tracon:Scheduling</c> section.</summary>
+    /// <summary>Binds the five collection keys of the <c>Tracon:Scheduling</c> section.</summary>
     /// <remarks>
     /// <para>
     /// These were listed as configuration keys and once bound nowhere, so a
@@ -124,6 +124,19 @@ public static partial class TraconServiceCollectionExtensions
         BindList(
             section.GetSection(nameof(TraconSchedulingOptions.HttpSchedulableHandlerKeys)),
             options.HttpSchedulableHandlerKeys);
+
+        // F-323: the F-385 rule. A duration that does not parse is bound as zero,
+        // not skipped, so the validator names it at startup; a skipped entry would
+        // leave that key's jobs without the limit the operator wrote.
+        foreach (var child in section.GetSection(nameof(TraconSchedulingOptions.MaxDurationByHandlerKey)).GetChildren())
+        {
+            options.MaxDurationByHandlerKey[child.Key] = TimeSpan.TryParse(
+                child.Value,
+                CultureInfo.InvariantCulture,
+                out var maxDuration)
+                ? maxDuration
+                : TimeSpan.Zero;
+        }
     }
 
     /// <summary>Binds single-executor selection settings from configuration.</summary>

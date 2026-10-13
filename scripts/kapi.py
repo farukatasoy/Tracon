@@ -665,6 +665,19 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     "Tracon.AspNetCore": ("Tracon.AspNetCore.FunctionalTests",),
     "Tracon.UI": ("Tracon.Ui.E2ETests",),
     "Tracon.Testing": ("Tracon.Testing.UnitTests",),
+    # Sevk edilen sozlesme paketi: kendi birim testleri ve sozlesmeyi tureten
+    # her proje (bellek ici store'lar Core'da, saglayici ayar sozlesmesi dort
+    # saglayicida, store sozlesmeleri uc SQL saglayicisinda). Haritada yokken
+    # her degisiklik tam kosuma genisliyordu (2026-10-13, Faz 196 ve 202).
+    "Tracon.Testing.Contracts.Xunit": (
+        "Tracon.Testing.Contracts.Xunit.UnitTests", "Tracon.Core.UnitTests",
+        *PROVIDER_TEST_PROJECTS,
+        "Tracon.PostgreSql.IntegrationTests", "Tracon.SqlServer.IntegrationTests",
+        "Tracon.Sqlite.IntegrationTests"),
+    # Paket DEGIL: uc SQL paketine derlenen paylasimli kaynak (Faz 23, 94).
+    "Tracon.Sql.Shared": (
+        "Tracon.Sql.Shared.UnitTests", "Tracon.PostgreSql.IntegrationTests",
+        "Tracon.SqlServer.IntegrationTests", "Tracon.Sqlite.IntegrationTests"),
     "Tracon.Client": ("Tracon.Client.UnitTests",),
     "Tracon.Cli": ("Tracon.Cli.FunctionalTests",),
 }

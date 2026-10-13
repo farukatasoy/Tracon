@@ -469,6 +469,19 @@ internal sealed class JobWorkerBackgroundService(
         // while the handler runs: a store error is retried under a live lease.
         using var leaseRenewal = StartLeaseRenewal(job.Id, options.LeaseDuration, leaseRequestedAt, stoppingToken);
 
+        // 🚨 F-323: the handler's token has THREE sources, kept apart so the
+        // outcome below can say which one fired (K-737): the worker stopping, the
+        // job cancelled (read every PollInterval by the watch below), and the
+        // attempt's time limit. Before, only the first existed: a cancel reached
+        // the handler only if it asked between items, and nothing bounded a job.
+        var maxDuration = ResolveMaxDuration(job, options);
+        using var cancelled = new CancellationTokenSource();
+        using var deadline = maxDuration is { } limit
+            ? new CancellationTokenSource(limit, _clock)
+            : new CancellationTokenSource();
+        using var handlerToken = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, cancelled.Token, deadline.Token);
+        var signals = new JobAttemptSignals(maxDuration, stoppingToken, cancelled.Token, deadline.Token);
+
         var context = new JobContext
         {
             Job = job,
@@ -483,31 +496,59 @@ internal sealed class JobWorkerBackgroundService(
             // F-367: a built-in handler tries a write that belongs to finished
             // work again (a queued run's session) only while this lease holds.
             ProvableLeaseRemaining = () => leaseRenewal.ProvableRemaining,
+            Signals = signals,
         };
 
         Exception? failure = null;
 
-        // 🚨 F-348: ONLY the handler sits in this try. The store calls that
-        // write its outcome used to sit in it too, so a store error after a
-        // handler that had succeeded counted as the handler's failure: with
-        // attempts left the job was released and the handler ran again (a
-        // second model call, repeated tool side effects); on its last attempt
-        // the job became Failed while its work had finished. The handler's
-        // outcome is decided here; the store calls below only write it.
-        try
+        // Awaited below, never left behind: it cancels a source this method
+        // disposes (F-150).
+        using var watchStop = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        var watch = WatchForCancellationAsync(job, options.PollInterval, cancelled, watchStop.Token);
+
+        // 🚨 Opened in THIS method's body, around the handler call: an AsyncLocal
+        // written in a helper does not flow back to its caller. A workflow run the
+        // handler starts reads it when it closes, to name the time limit.
+        using (AmbientJobAttempt.Begin(signals))
         {
-            await handler.ExecuteAsync(context, stoppingToken).ConfigureAwait(false);
-        }
-        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
-        {
-            failure = exception;
+            // 🚨 F-348: ONLY the handler sits in this try. The store calls that
+            // write its outcome used to sit in it too, so a store error after a
+            // handler that had succeeded counted as the handler's failure: with
+            // attempts left the job was released and the handler ran again (a
+            // second model call, repeated tool side effects); on its last attempt
+            // the job became Failed while its work had finished. The handler's
+            // outcome is decided here; the store calls below only write it.
+            try
+            {
+                await handler.ExecuteAsync(context, handlerToken.Token).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+            {
+                failure = exception;
+            }
+            finally
+            {
+                await watchStop.CancelAsync().ConfigureAwait(false);
+                await watch.ConfigureAwait(false);
+            }
         }
 
+        // Read once, now that the handler has returned: which source fired decides
+        // the outcome, not the exception the handler happened to throw.
+        var reason = signals.Reason;
         var window = new FinalizationWindow(_clock, leaseRenewal.ProvableRemaining);
 
         if (failure is null)
         {
+            // A handler that returns normally completes its job, even past its time
+            // limit: it finished the work (F-323, open question 8-A).
             await FinalizeSucceededAsync(job, window, startedAt, stoppingToken).ConfigureAwait(false);
+        }
+        else if (reason == JobStopReason.Cancelled)
+        {
+            // The watch found the job cancelled or gone: the store keeps a cancelled
+            // job as it is, and a job that is gone has nothing to write.
+            RecordJobMetric(job, JobStatus.Cancelled, startedAt);
         }
         else
         {
@@ -515,7 +556,129 @@ internal sealed class JobWorkerBackgroundService(
             // different ladder than the global setting); if not, the global setting.
             var maxAttempts = job.MaxAttempts ?? options.MaxAttempts;
 
-            await FinalizeFailedAsync(job, failure, maxAttempts, window, startedAt, stoppingToken).ConfigureAwait(false);
+            await FinalizeFailedAsync(
+                job,
+                failure,
+                maxAttempts,
+                window,
+                startedAt,
+                reason == JobStopReason.MaxDurationExceeded ? maxDuration : null,
+                stoppingToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Resolves an attempt's time limit: the job's own, else the one its key is mapped
+    /// to, else none.
+    /// </summary>
+    /// <param name="job">The leased job.</param>
+    /// <param name="options">The worker's settings.</param>
+    /// <returns>The limit; <see langword="null"/> when the job has none.</returns>
+    /// <remarks>
+    /// The dispatcher and the options validator refuse a value a timer cannot arm. A
+    /// job written by another path (another store, a direct write) may still carry one;
+    /// arming it would throw here, with the job marked running and no outcome to write.
+    /// The bad value is logged and skipped: the limit the key is mapped to applies, as it
+    /// does to a job with no limit of its own, and with no mapped limit the job runs
+    /// without one, as it would have before the field existed. A bad stored value must
+    /// not switch off the operator's limit.
+    /// </remarks>
+    private TimeSpan? ResolveMaxDuration(JobRecord job, TraconSchedulingOptions options)
+    {
+        TimeSpan? mapped = options.MaxDurationByHandlerKey.TryGetValue(job.HandlerKey, out var value) && TimerPeriod.IsValid(value)
+            ? value
+            : null;
+
+        if (job.MaxDuration is not { } own)
+        {
+            return mapped;
+        }
+
+        if (TimerPeriod.IsValid(own))
+        {
+            return own;
+        }
+
+        if (logger is not null && logger.IsEnabled(LogLevel.Error))
+        {
+            if (mapped is { } fallback)
+            {
+                logger.LogError(
+                    "Job {JobId} carries a time limit of {MaxDuration}, which a timer cannot arm (1 ms to about 49.7 days); it runs under the limit 'Tracon:Scheduling:MaxDurationByHandlerKey' maps its key to ({Mapped}).",
+                    job.Id,
+                    own,
+                    fallback);
+            }
+            else
+            {
+                logger.LogError(
+                    "Job {JobId} carries a time limit of {MaxDuration}, which a timer cannot arm (1 ms to about 49.7 days); it runs without a limit.",
+                    job.Id,
+                    own);
+            }
+        }
+
+        return mapped;
+    }
+
+    /// <summary>
+    /// Reads a running job's status every <paramref name="interval"/> and cancels
+    /// <paramref name="cancelled"/> when it finds the job cancelled or gone.
+    /// </summary>
+    /// <param name="job">The running job.</param>
+    /// <param name="interval">The worker's poll interval.</param>
+    /// <param name="cancelled">The source behind the handler's token that a cancel cancels.</param>
+    /// <param name="token">Cancelled when the handler has returned, or the worker stops.</param>
+    /// <returns>A task that completes when the watch ends; it never throws.</returns>
+    /// <remarks>
+    /// <para>
+    /// The cancel endpoint only writes the store, and the lease renewal does not read
+    /// the status, so without this a cancel reached a running handler only if the
+    /// handler asked (<see cref="JobContext.IsCancelledAsync"/>), between items. One
+    /// read per running job per <c>PollInterval</c>: the same interval the worker
+    /// already polls for work, ten seconds by default.
+    /// </para>
+    /// <para>
+    /// A store error is caught PER TICK, as the renewal does: one failed read
+    /// must not end the watch, and must not touch the handler either.
+    /// </para>
+    /// </remarks>
+    private async Task WatchForCancellationAsync(
+        JobRecord job,
+        TimeSpan interval,
+        CancellationTokenSource cancelled,
+        CancellationToken token)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(interval, _clock);
+
+            while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+            {
+                try
+                {
+                    var current = await jobStore.GetAsync(job.TenantId, job.Id, token).ConfigureAwait(false);
+
+                    if (current is null || current.Status == JobStatus.Cancelled)
+                    {
+                        await cancelled.CancelAsync().ConfigureAwait(false);
+
+                        return;
+                    }
+                }
+                catch (Exception exception) when (OperationCancellation.IsFailure(exception, token))
+                {
+                    if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                    {
+                        logger.LogWarning(exception, "Could not read job {JobId} to see whether it was cancelled. The next tick tries again.", job.Id);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // The handler returned, or the worker is stopping. Only then: a store's
+            // own timeout is a failed read and is logged above (K-840).
         }
     }
 
@@ -592,33 +755,66 @@ internal sealed class JobWorkerBackgroundService(
     /// <param name="maxAttempts">The job's attempt limit.</param>
     /// <param name="window">How long a store error may be retried.</param>
     /// <param name="startedAt">The monotonic timestamp taken when the attempt started.</param>
+    /// <param name="maxDurationExceeded">
+    /// The time limit the attempt reached, when that is why the handler's token was
+    /// cancelled; <see langword="null"/> otherwise.
+    /// </param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
     /// <remarks>
+    /// <para>
     /// A <see cref="NonRetryableJobException"/> fails the job on this attempt,
     /// whatever attempts are left: the handler's work is done, and running it
     /// again would repeat it. Its message already carries a stable code
     /// and the reference of the one log entry its thrower wrote, so it is
     /// persisted as is and not logged a second time.
+    /// </para>
+    /// <para>
+    /// An attempt that reached its time limit fails with
+    /// <see cref="JobErrorCodes.MaxDurationExceeded"/>, whatever the handler threw on
+    /// its way out: the exception is the handler noticing its token, not the cause. It
+    /// counts like any failed attempt.
+    /// </para>
     /// </remarks>
+    // F-323, open question 7-A: a timed-out attempt is a failed attempt, leased again while attempts are left.
     private async Task FinalizeFailedAsync(
         JobRecord job,
         Exception exception,
         int maxAttempts,
         FinalizationWindow window,
         long startedAt,
+        TimeSpan? maxDurationExceeded,
         CancellationToken stoppingToken)
     {
         var nonRetryable = exception is NonRetryableJobException;
         var correlationId = SafeErrorText.NewCorrelationId();
+        string safeMessage;
 
-        if (!nonRetryable && logger is not null && logger.IsEnabled(LogLevel.Error))
+        if (!nonRetryable && maxDurationExceeded is { } limit)
         {
-            logger.LogError(exception, "Job {JobId} failed. (ref: {CorrelationId})", job.Id, correlationId);
-        }
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(
+                    exception,
+                    "Job {JobId} reached its time limit of {MaxDuration} on attempt {Attempt}; its handler was cancelled. (ref: {CorrelationId})",
+                    job.Id,
+                    limit,
+                    job.Attempt,
+                    correlationId);
+            }
 
-        // A NonRetryableJobException is a TraconException, so its message (the
-        // code and its own reference) is what this produces.
-        var safeMessage = SafeErrorText.ForPersistence(exception, correlationId);
+            safeMessage = JobErrorCodes.Format(JobErrorCodes.MaxDurationExceeded, correlationId);
+        }
+        else
+        {
+            if (!nonRetryable && logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(exception, "Job {JobId} failed. (ref: {CorrelationId})", job.Id, correlationId);
+            }
+
+            // A NonRetryableJobException is a TraconException, so its message (the
+            // code and its own reference) is what this produces.
+            safeMessage = SafeErrorText.ForPersistence(exception, correlationId);
+        }
 
         // 🚨 Cancelled is terminal (F-326). A handler that saw the cancel and
         // threw on its way out used to be treated as a plain failure: with

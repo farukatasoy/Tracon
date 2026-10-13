@@ -2259,6 +2259,12 @@ def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
         # etmedigi goreli dosyalara baglanti verebilir.
         dns[:] = [d for d in dns if d not in
                   {".git", ".nuget", "node_modules", "artifacts", "bin", "obj", "dist", ".vs"}]
+        # Agent worktree'leri (`.claude/worktrees/<ad>/`) reponun baska bir
+        # dalinin tam kopyasidir; uretilmis `docfx/` ciktilari dahil. Ana agacin
+        # denetimi onlari taramaz (2026-10-13: paralel uc faz 904 sahte kirik
+        # baglanti uretti).
+        if pathlib.Path(dp) == kok / ".claude":
+            dns[:] = [d for d in dns if d != "worktrees"]
         for fn_ in fns:
             if not (fn_.endswith(".md") or fn_.endswith(".mdx")):
                 continue

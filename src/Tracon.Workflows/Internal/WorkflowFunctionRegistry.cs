@@ -18,7 +18,7 @@ namespace Tracon;
 /// </remarks>
 internal sealed class WorkflowFunctionRegistry : IWorkflowFunctionCatalog
 {
-    private readonly Dictionary<string, Func<string, JsonElement?, Executor>> _executorFactories;
+    private readonly Dictionary<string, Func<string, JsonElement?, TimeSpan?, Executor>> _executorFactories;
     private readonly Dictionary<string, WorkflowFunctionDescriptor> _descriptorsByName;
     private readonly List<WorkflowFunctionDescriptor> _descriptors;
     private readonly IServiceProvider _services;
@@ -37,7 +37,7 @@ internal sealed class WorkflowFunctionRegistry : IWorkflowFunctionCatalog
         ArgumentNullException.ThrowIfNull(services);
 
         _services = services;
-        _executorFactories = new Dictionary<string, Func<string, JsonElement?, Executor>>(StringComparer.Ordinal);
+        _executorFactories = new Dictionary<string, Func<string, JsonElement?, TimeSpan?, Executor>>(StringComparer.Ordinal);
         _descriptorsByName = new Dictionary<string, WorkflowFunctionDescriptor>(StringComparer.Ordinal);
         _descriptors = [];
 
@@ -144,12 +144,16 @@ internal sealed class WorkflowFunctionRegistry : IWorkflowFunctionCatalog
     /// compile - so the function sees exactly the object that was checked.
     /// <see langword="null"/> for a node without settings.
     /// </param>
+    /// <param name="timeout">
+    /// The node's own timeout (<see cref="WorkflowNodeReference.Timeout"/>);
+    /// <see langword="null"/> uses the timeout the function was registered with, if any.
+    /// </param>
     /// <returns>A new executor instance.</returns>
     /// <exception cref="TraconException">No function is registered with the given name.</exception>
     /// <exception cref="WorkflowFunctionSettingsException">
     /// The settings do not fit the function's settings type, or the function declares none.
     /// </exception>
-    public Executor CreateExecutor(string name, string executorId, JsonElement? settings = null)
+    public Executor CreateExecutor(string name, string executorId, JsonElement? settings = null, TimeSpan? timeout = null)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(executorId);
@@ -167,7 +171,9 @@ internal sealed class WorkflowFunctionRegistry : IWorkflowFunctionCatalog
             throw new WorkflowFunctionSettingsException(WorkflowFunctionSettings.NoSettings(name));
         }
 
-        return factory(executorId, settings);
+        // F-303: the node's value wins over the registration's (K1); neither means the
+        // function has no limit of its own and only the run's deadline stops it.
+        return factory(executorId, settings, timeout ?? _descriptorsByName[name].Timeout);
     }
 
     private static string NotRegistered(string name)

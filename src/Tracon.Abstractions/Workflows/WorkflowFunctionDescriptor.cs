@@ -43,4 +43,12 @@ public sealed record WorkflowFunctionDescriptor
     /// </para>
     /// </remarks>
     public JsonElement? SettingsSchema { get; init; }
+
+    /// <summary>
+    /// Gets the longest time one call of the function may take when its node sets no
+    /// timeout of its own (<see cref="WorkflowNodeReference.Timeout"/>).
+    /// <see langword="null"/> means the function has no time limit of its own; only
+    /// the run's deadline stops it.
+    /// </summary>
+    public TimeSpan? Timeout { get; init; }
 }

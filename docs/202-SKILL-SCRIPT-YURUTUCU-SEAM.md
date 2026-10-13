@@ -344,6 +344,19 @@ Envanter: **site** — `guides/write-your-own-script-executor.md` (yeni, `src/si
 | `npm run check` | `Content: 57 manual pages and 1070 total pages passed.` · `Links: 178293 internal reference(s) across 1070 pages and llms.txt, none broken.` · `SEO: … 0 hata` · `Weight: 1070 pages under 59000 B gzip.` |
 | `dokuman-bakim.py --site-denetle --taban 12cfee4b` | üç kural (`buildtransitive`, `cekirdek-kavram`, `paket-readme`) ✅ |
 
+### `main` ile birleşme (Faz 196 + 203, 2026-10-13)
+
+Kararlar `K-962`…`K-969`'dan `K-964`…`K-971`'e kaydırıldı (main'in sonu K-963). Yüzey
+tabanı `Tracon.Abstractions` 421 + 4 = 425 (gerçek sayımla `PublicSurfaceBaselineTests`
+yeşil). `docs/manuel-test/*.md` birleşik ağaçta 3,4 KB aştı; F-441 deseniyle
+`14-SKILL-VE-SCRIPT.md`'nin tarihli notları (`041`, `025`, `054`, `060`/`061`) ve § 9'un
+geçici kod bloğu `arsiv/manuel-test-kosum-2026-09/`'a taşındı ya da kısaltıldı; ağaç
+2 555 604 / 2 556 000 B. Birleşik dalda: build 0 uyarı · `Tracon.Core.UnitTests`
+3798/3798 (net8 · net9 · net10) · `Tracon.AspNetCore.FunctionalTests` 1822/1822 ·
+`Tracon.Generators.UnitTests` 317/317 · `Tracon.Testing.Contracts.Xunit.UnitTests` 14/14 ·
+`Tracon.Sql.Shared.UnitTests` 52/52 · `npm run check` (1078 sayfa, kırık bağlantı yok) ·
+`--denetle` çıkış 0 · `--site-denetle` ✅ · `kapi.py tarama` temiz.
+
 ---
 
 ## Riskler
@@ -385,19 +398,19 @@ Uygulama oturumunda yazıldı (faz-uygulama Adım 1). Kapanış oturumu gözden 
    Faz 11 devri kapı 4'ü zaten "script adının düz bir dosya adı olduğu" diye anlatır;
    davranış şimdi o cümleye uyar. Yerel yürütücü yazma sınırında yine doğrular
    (uzantıyla birleşik adı da).
-3. **Modele dönen zaman aşımı metni değişti (bakımcı onayladı, K-968).** `The script timed out and the process
+3. **Modele dönen zaman aşımı metni değişti (bakımcı onayladı, K-970).** `The script timed out and the process
    tree was terminated.` → `The script timed out and was stopped.` Eski cümle harici
    yürütücü için doğru değildi. Bekleme sınırında runner'ın kendi ürettiği sonuç ayrı
    metin taşır: `The script timed out. The script executor did not return in time, so
    the script may still be running.`; `tool_invocations.error` = `Timed out; the script
    executor did not return in time.` `ToolInvocationRecord.TimedOut` önceki gibi
    yazılmaz (alan `TraconToolTimeoutException`'a aittir).
-4. **Kesme işaretinin metni ve yeri (bakımcı onayladı, K-968).** Plan "biçimli metnin sonuna" diyordu; metin de
+4. **Kesme işaretinin metni ve yeri (bakımcı onayladı, K-970).** Plan "biçimli metnin sonuna" diyordu; metin de
    değişti: `[Tracon: output truncated at the N-byte limit per stream.]`. Yerel yürütücü
    artık işaret eklemez; sözleşme testi bunu zorlar (`Output_past_the_limit_is_cut_and_flagged_without_a_notice`).
    Runner'ın kesmesi UTF-8 karakter ortasında ve vekil çiftinde bölmez (`SkillScriptOutput`).
 5. **Disk script'i `MaxScriptContentLength` ile sınırlı ve açılmadan denetlenir —
-   bakımcı kararı (2026-10-13, Aşama 1'in "sınır yok" yorumunu değiştirdi; K-966).**
+   bakımcı kararı (2026-10-13, Aşama 1'in "sınır yok" yorumunu değiştirdi; K-968).**
    Plan hata modu 12 "büyük disk script'i" diyordu, davranış söylemiyordu. Aşama 1
    sınır koymamıştı; bağımsız denetim (🟡2) iki gerilemeyi gösterdi: skill root'taki
    FIFO `open(2)`'de çağıranın iş parçacığını kota slotu tutulurken bloklıyordu (testte
@@ -409,12 +422,12 @@ Uygulama oturumunda yazıldı (faz-uygulama Adım 1). Kapanış oturumu gözden 
    (`The script file is empty or is not a regular file.`). (b) **okuma** — `ReadBoundedAsync`
    havuz iş parçacığında açar, yürütücüyle aynı `Timeout + 5 sn` bekleme sınırı altında
    bekler (bekleme sınırının CTS'si artık okumadan önce kurulur) ve sınır+1 baytta durur.
-   (c) **denetim sırası (K-967)** — kapı retleri `script.denied`, `script.run` ve kota slotu
+   (c) **denetim sırası (K-969)** — kapı retleri `script.denied`, `script.run` ve kota slotu
    yok; kapıdan sonra çıkan hata (`could not be read`, `could not be read in time`, sınır
    aşımı) `script.run`'dan sonra tool hatasıdır: K-089 "denenen çalıştırma yazılır, kapalı
    kapı ret yazar" ile tutarlı. Bilinen sınır: kapıdan sonra FIFO'ya dönen dosyada
    açılış iş parçacığı yazar gelene kadar bloklu kalır; slot ve çağıran serbesttir.
-6. **Yürütücü istisnasının mesajı modele ve kayda gitmez (bakımcı onayladı, K-968).** Plan "istisna span, metrik
+6. **Yürütücü istisnasının mesajı modele ve kayda gitmez (bakımcı onayladı, K-970).** Plan "istisna span, metrik
    ve `tool_invocations`'a hata yazar" diyordu. Yazılan metin yalnız istisna tipidir
    (`The script executor failed (HttpRequestException).`); mesaj yalnız sunucu
    log'una gider. Harici yürütücünün mesajı host iç bilgisini taşıyabilir.
@@ -457,18 +470,18 @@ Uygulama oturumunda yazıldı (faz-uygulama Adım 1). Kapanış oturumu gözden 
 
 ## Bu Fazda Verilen Kararlar
 
-`docs/KARARLAR.md` § 2 — numaralar geçicidir (`K-962`…`K-969`), merge'de kaydırılır:
+`docs/KARARLAR.md` § 2 — `K-964`…`K-971` (main ile birleşmede `K-962`…`K-969`dan kaydırıldı):
 
 | K | Karar | Kategori |
 |---|---|---|
-| K-962 | Yürütme `ISkillScriptExecutor` seam'inden geçer; kapılar, pin, denetim, kota, bekleme sınırı, çıktı sınırı runner'da; yerel süreç işaretli varsayılan; sonuç `Abstractions`'a taşındı, `Duration`'sız | public-api, güvenlik |
-| K-963 | Harici yürütücüde de `PlatformIsolationAcknowledged`; K-861 değişmez (Açık Soru 1-A, 2-A) 👤 | güvenlik |
-| K-964 | Disk script'i de yürütücüye; kardeş dosya taşınmaz; kota uygulanır; tolerans sabit 5 sn (Açık Soru 3-A, 4-A, 5-A) 👤 | güvenlik |
-| K-965 | R8 varsayılan yürütücüye daralır; B7 adı ve kapsam satırı değişmez | güvenlik, public-api |
-| K-966 | `MaxScriptContentLength` disk script'ine de; boş/özel dosya açılmadan ret; sınırlı ve bekleme sınırlı okuma 👤 | güvenlik |
-| K-967 | Ad ve disk boyut/tür kapısı denetimden önce `script.denied`; kapı sonrası okuma hatası `script.run`'dan sonra | güvenlik |
-| K-968 | Zaman aşımı metni, runner'ın tek kesme işareti, yürütücü istisnasında yalnız tip 👤 | public-api, güvenlik |
-| K-969 | İstek ortam değeri taşımaz; iki değişken; `ContentSha256` ≠ grant pini; `ToString` içeriği basmaz | public-api, güvenlik |
+| K-964 | Yürütme `ISkillScriptExecutor` seam'inden geçer; kapılar, pin, denetim, kota, bekleme sınırı, çıktı sınırı runner'da; yerel süreç işaretli varsayılan; sonuç `Abstractions`'a taşındı, `Duration`'sız | public-api, güvenlik |
+| K-965 | Harici yürütücüde de `PlatformIsolationAcknowledged`; K-861 değişmez (Açık Soru 1-A, 2-A) 👤 | güvenlik |
+| K-966 | Disk script'i de yürütücüye; kardeş dosya taşınmaz; kota uygulanır; tolerans sabit 5 sn (Açık Soru 3-A, 4-A, 5-A) 👤 | güvenlik |
+| K-967 | R8 varsayılan yürütücüye daralır; B7 adı ve kapsam satırı değişmez | güvenlik, public-api |
+| K-968 | `MaxScriptContentLength` disk script'ine de; boş/özel dosya açılmadan ret; sınırlı ve bekleme sınırlı okuma 👤 | güvenlik |
+| K-969 | Ad ve disk boyut/tür kapısı denetimden önce `script.denied`; kapı sonrası okuma hatası `script.run`'dan sonra | güvenlik |
+| K-970 | Zaman aşımı metni, runner'ın tek kesme işareti, yürütücü istisnasında yalnız tip 👤 | public-api, güvenlik |
+| K-971 | İstek ortam değeri taşımaz; iki değişken; `ContentSha256` ≠ grant pini; `ToString` içeriği basmaz | public-api, güvenlik |
 
 Kategori dışı yerel tercihler: test altyapısı `TriggerableTimeProvider.DueTimes`;
 XML örneği tip bildirimi (Sapma 9); `SkillScriptOutput` tek kesme yardımcısı.
@@ -602,7 +615,7 @@ Bağımsız denetim (2026-10-13): 🔴 yok, 2 🟡, 4 🟢. Triyaj ve sonuç:
 | # | Seviye | Bulgu | Triyaj | Sonuç |
 |---|---|---|---|---|
 | 1 | 🟡 | `ISkillScriptExecutor` XML'i kotanın sırasını yanlış anlatıyordu ("after the call … quota"); kapı listesinde stored ad kapısı yoktu | gerçek | Düzeltildi: slot çağrıdan önce alınır ve çağrı dönene ya da bekleme sınırına kadar tutulur; liste ad ve disk boyut kapısını sayar. Site (`concepts/tools.md`, yeni rehber) aynı sırayı anlatır |
-| 2 | 🟡 | Disk script'i okuması boyutsuz ve süresiz, kota slotu tutulurken; FIFO slotu kilitler, `/dev/zero` sonsuz okunur (gerileme) | gerçek | Düzeltildi (K-966, K-967, Sapma 5): açmadan meta veri kapısı + bekleme sınırı altında sınırlı okuma; testler önce kırmızı görüldü |
+| 2 | 🟡 | Disk script'i okuması boyutsuz ve süresiz, kota slotu tutulurken; FIFO slotu kilitler, `/dev/zero` sonsuz okunur (gerileme) | gerçek | Düzeltildi (K-968, K-969, Sapma 5): açmadan meta veri kapısı + bekleme sınırı altında sınırlı okuma; testler önce kırmızı görüldü |
 | 3 | 🟢 | `A_run_whose_audit_entry_cannot_be_written_never_reaches_the_executor` pozitif kontrol taşımıyordu | gerçek | Düzeltildi: `ScriptRunAttempts.ShouldBe(1)` |
 | 4 | 🟢 | Ortam sızıntısı testi istek alanlarını `ToString()` ile tarıyordu | gerçek | Düzeltildi: istek `JsonSerializer` ile bütün seri hâle getirilip taranır |
 | 5 | 🟢 | `tool_invocations` store'u hata verince run'ın sürdüğünü kanıtlayan test yoktu (faz öncesi) | gerçek | Düzeltildi: `A_tool_call_record_the_store_refuses_does_not_fail_the_run` |

@@ -99,10 +99,22 @@ internal sealed class WorkflowAgentCache
     /// participant list sent to the model in the <c>GroupChat</c> and
     /// <c>Magentic</c> patterns - it does not affect the agent's behavior.
     /// </param>
+    /// <param name="timeout">
+    /// The node's own timeout (<see cref="WorkflowNodeReference.Timeout"/>), which
+    /// replaces <see cref="TraconAgentGraphOptions.ChildDeadline"/> for this step; the
+    /// hard cutoff is the timeout plus 30 seconds. <see langword="null"/> uses the
+    /// installation's limits.
+    /// </param>
     /// <returns>An agent with a stable identity, ready to be placed in the graph.</returns>
-    public ChildAgentInvoker Get(string workflowName, string agentName, string? description)
+    /// <remarks>
+    /// The timeout is part of the cache key, because <see cref="ChildAgentInvoker"/> takes
+    /// its limits in its constructor; it is NOT part of the identity. Every wrapper of the
+    /// same <c>(workflow, agent)</c> pair gets the same executor id, so a changed timeout
+    /// does not make a waiting run's checkpoint incompatible.
+    /// </remarks>
+    public ChildAgentInvoker Get(string workflowName, string agentName, string? description, TimeSpan? timeout = null)
         => _agents.GetOrAdd(
-            new AgentKey(_tenantContext.TenantId, workflowName, agentName),
+            new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout),
             static (key, state) => Create(key, state),
             (
                 Resolver: _resolver,
@@ -123,14 +135,21 @@ internal sealed class WorkflowAgentCache
          TimeProvider? TimeProvider,
          ParameterizedAgentFactory? ParameterFactory) state)
     {
+        // F-405: a node's timeout replaces the installation's ChildDeadline, and its
+        // hard cutoff follows the same rule as the installation's default (deadline +
+        // 30 s), not a WaitTimeout pinned for every agent. The save checked the sum fits.
+        var (childDeadline, waitTimeout, limitName) = key.Timeout is { } nodeTimeout
+            ? (nodeTimeout, nodeTimeout + TraconAgentGraphOptions.WaitTimeoutPad, $"the 'timeout' of node '{key.AgentName}' in workflow '{key.WorkflowName}'")
+            : (state.AgentGraph.ChildDeadline, state.AgentGraph.WaitTimeout, "'Tracon:AgentGraph:ChildDeadline'");
+
         var invoker = new ChildAgentInvoker(
             state.Resolver,
             state.TenantContext,
             state.LoggerFactory.CreateLogger<ChildAgentInvoker>(),
             key.WorkflowName,
             new CallableAgentInfo(key.AgentName, state.Description, Version: 0),
-            state.AgentGraph.ChildDeadline,
-            state.AgentGraph.WaitTimeout,
+            childDeadline,
+            waitTimeout,
             state.TimeProvider,
 
             // 🚨 A workflow step FAILS when it cannot deliver an answer (F-328).
@@ -140,7 +159,8 @@ internal sealed class WorkflowAgentCache
 
             // Only a workflow step binds the workflow's parameter values (F-294);
             // an agent called as a tool never does.
-            state.ParameterFactory);
+            state.ParameterFactory,
+            limitName);
 
         // The identity is written on the instance BEFORE it enters the graph:
         // MAF reads the executor id at binding time, and changing it afterward
@@ -164,5 +184,8 @@ internal sealed class WorkflowAgentCache
     // The tenant deliberately does NOT reach WorkflowAgentIdentity: the executor
     // id stays derived from the (workflow, agent) pair, so checkpoints written
     // by phase 16 onward stay readable.
-    private readonly record struct AgentKey(string TenantId, string WorkflowName, string AgentName);
+    //
+    // The timeout is part of the key (F-405) for the same reason the tenant is: the
+    // wrapper takes it in its constructor. Like the tenant, it never reaches the id.
+    private readonly record struct AgentKey(string TenantId, string WorkflowName, string AgentName, TimeSpan? Timeout);
 }

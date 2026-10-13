@@ -141,6 +141,11 @@ internal static class WorkflowDefinitionValidator
                                "Settings must be a JSON object, for example {\"voice\": \"alloy\"}.";
                     }
                 }
+
+                if (NodeTimeoutProblem(definition.Name, node) is { } timeoutProblem)
+                {
+                    return timeoutProblem;
+                }
             }
         }
         else
@@ -230,6 +235,17 @@ internal static class WorkflowDefinitionValidator
             return $"Workflow '{definition.Name}''s 'maxIterations' value must be positive.";
         }
 
+        // F-405: the run's deadline is armed with this value, and a timer refuses a
+        // value outside its range where it is armed - in a run, long after the save.
+        // The ceiling (MaxRunTimeout) is the host's setting, so it is checked where the
+        // setting is known: ValidateRunTimeoutCeiling.
+        if (definition.RunTimeout is { } runTimeout && !TimerPeriod.IsValid(runTimeout))
+        {
+            return $"Workflow '{definition.Name}' has a 'runTimeout' of {runTimeout}. It must be from 1 to " +
+                   $"{TimerPeriod.MaxMilliseconds} milliseconds (about 49.7 days); leave it out to use the " +
+                   "installation's 'Tracon:Workflows:RunTimeout'.";
+        }
+
         // Structure only (F-294): valid identifiers, no repeats. Whether the
         // participants' required parameters are covered is checked when a run
         // STARTS - the participants live in the agent catalog, which can change
@@ -244,6 +260,97 @@ internal static class WorkflowDefinitionValidator
 
         return null;
     }
+
+    /// <summary>
+    /// The longest timeout an agent node may carry: its hard cutoff is the timeout plus
+    /// <see cref="TraconAgentGraphOptions.WaitTimeoutPad"/>, and that sum must still fit
+    /// a timer.
+    /// </summary>
+    public static TimeSpan MaxAgentNodeTimeout { get; } =
+        TimeSpan.FromMilliseconds(TimerPeriod.MaxMilliseconds) - TraconAgentGraphOptions.WaitTimeoutPad;
+
+    /// <summary>Checks one node's timeout against the range its kind allows.</summary>
+    /// <param name="workflowName">The workflow the node belongs to, for the message.</param>
+    /// <param name="node">The node.</param>
+    /// <returns>User-facing error text; <see langword="null"/> when the node has no timeout or a valid one.</returns>
+    /// <remarks>
+    /// Not checked against the run's timeout: whichever ends first stops the node. A
+    /// function node's timeout arms a delay of exactly this value; an agent node's arms
+    /// the child deadline and, 30 seconds later, the hard cutoff.
+    /// </remarks>
+    // F-303 / F-405, open question 12-B: the two timeouts answer different questions.
+    public static string? NodeTimeoutProblem(string workflowName, WorkflowNodeReference node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (node.Timeout is not { } timeout)
+        {
+            return null;
+        }
+
+        if (node.Kind == WorkflowNodeKind.Agent)
+        {
+            return TimerPeriod.IsValid(timeout) && timeout <= MaxAgentNodeTimeout
+                ? null
+                : $"Node '{node.Name}' in workflow '{workflowName}' has a 'timeout' of {timeout}. An agent node's " +
+                  $"timeout must be from 1 to {(long)MaxAgentNodeTimeout.TotalMilliseconds} milliseconds: its hard " +
+                  "cutoff is the timeout plus 30 seconds, and both must fit a timer. Leave it out to use " +
+                  "'Tracon:AgentGraph:ChildDeadline'.";
+        }
+
+        return TimerPeriod.IsValid(timeout)
+            ? null
+            : $"Node '{node.Name}' in workflow '{workflowName}' has a 'timeout' of {timeout}. A function node's " +
+              $"timeout must be from 1 to {TimerPeriod.MaxMilliseconds} milliseconds (about 49.7 days). Leave it " +
+              "out to use the timeout the function was registered with.";
+    }
+
+    /// <summary>
+    /// Checks a definition's run timeout against the host's ceiling, at save time.
+    /// </summary>
+    /// <param name="definition">The definition.</param>
+    /// <param name="installationRunTimeout"><c>Tracon:Workflows:RunTimeout</c>.</param>
+    /// <param name="maxRunTimeout"><c>Tracon:Workflows:MaxRunTimeout</c>; <see langword="null"/> when not set.</param>
+    /// <returns>User-facing error text; <see langword="null"/> when the value fits.</returns>
+    /// <remarks>
+    /// The range is checked by <see cref="Validate"/>; this is the ceiling only, which
+    /// needs the host's settings. With no ceiling, a definition may only shorten the
+    /// installation's run timeout.
+    /// </remarks>
+    // F-405, open question 11-B: a running workflow holds a slot every tenant shares.
+    public static string? RunTimeoutCeilingProblem(
+        WorkflowDefinition definition,
+        TimeSpan installationRunTimeout,
+        TimeSpan? maxRunTimeout)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (definition.RunTimeout is not { } runTimeout)
+        {
+            return null;
+        }
+
+        var ceiling = RunTimeoutCeiling(installationRunTimeout, maxRunTimeout);
+
+        if (runTimeout <= ceiling)
+        {
+            return null;
+        }
+
+        return maxRunTimeout is null
+            ? $"Workflow '{definition.Name}' has a 'runTimeout' of {runTimeout}, above the installation's run timeout " +
+              $"({installationRunTimeout}). A definition may only shorten 'Tracon:Workflows:RunTimeout' unless the host " +
+              "sets 'Tracon:Workflows:MaxRunTimeout': a running workflow holds a slot every tenant shares."
+            : $"Workflow '{definition.Name}' has a 'runTimeout' of {runTimeout}, above the host's ceiling " +
+              $"'Tracon:Workflows:MaxRunTimeout' ({ceiling}).";
+    }
+
+    /// <summary>Gets the longest run timeout a definition may set.</summary>
+    /// <param name="installationRunTimeout"><c>Tracon:Workflows:RunTimeout</c>.</param>
+    /// <param name="maxRunTimeout"><c>Tracon:Workflows:MaxRunTimeout</c>; <see langword="null"/> when not set.</param>
+    /// <returns>The ceiling: the host's, or the installation's run timeout when the host set none.</returns>
+    public static TimeSpan RunTimeoutCeiling(TimeSpan installationRunTimeout, TimeSpan? maxRunTimeout)
+        => maxRunTimeout is { } ceiling && ceiling > installationRunTimeout ? ceiling : installationRunTimeout;
 
     /// <summary>Validates the definition and throws if it is invalid.</summary>
     /// <param name="definition">The definition to validate.</param>

@@ -368,6 +368,15 @@ else
     tracon.AddModelProvider(new EchoModelProvider());
 }
 
+// A model that takes its time (phase 196), for showing a step's own timeout against
+// a model that has not answered yet: `Tracon:Demo:SlowModel:Seconds=20` registers the
+// provider "slow" (model "slow-1"), which answers after that many seconds and stops
+// when its token is cancelled. Off unless the key is set, whatever provider is on.
+if (builder.Configuration.GetValue<int?>("Tracon:Demo:SlowModel:Seconds") is { } slowSeconds)
+{
+    tracon.AddModelProvider(new SlowModelProvider(TimeSpan.FromSeconds(slowSeconds)));
+}
+
 // Any OpenAI-COMPATIBLE endpoint. Same configuration shape, different
 // sub-section: Tracon:Providers:OpenAICompatible:openrouter:*. Without an
 // ApiKey the provider is never registered — the "zero surprises" rule applies
@@ -921,6 +930,48 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, RenderSettings>
     },
     static options => options.Description = "Pretends to render the text: waits the node's 'seconds' setting and makes no model call.");
 
+// Two functions with a TIMEOUT of their own (phase 196). `slow` waits ten seconds and
+// passes its token on, so its two-second timeout cancels it: the run ends Failed with
+// the error type workflow_function_timeout and no later node runs. A node can set its
+// own value, which wins over the registration's:
+//
+//   PUT /tracon/api/workflows/bounded
+//   {"kind":"Sequential","nodes":[
+//     {"name":"word-count","kind":"Function"},
+//     {"name":"slow","kind":"Function","timeout":"00:00:05"}]}
+//
+// `deaf` ignores its token, as a careless handler would: the run still stops waiting at
+// the timeout, the body keeps running in the background, and its late end is logged
+// ("returned ... past its timeout"). Pass the token on.
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "slow",
+    static _ => async (messages, _, cancellationToken) =>
+    {
+        await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
+
+        return messages;
+    },
+    static options =>
+    {
+        options.Description = "Waits ten seconds, honouring its token. Registered with a two-second timeout.";
+        options.Timeout = TimeSpan.FromSeconds(2);
+    });
+
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "deaf",
+    static _ => async (messages, _, _) =>
+    {
+        // Ignores its token on purpose; see the comment above.
+        await Task.Delay(TimeSpan.FromSeconds(6), CancellationToken.None).ConfigureAwait(false);
+
+        return messages;
+    },
+    static options =>
+    {
+        options.Description = "Waits six seconds and IGNORES its token. Registered with a two-second timeout.";
+        options.Timeout = TimeSpan.FromSeconds(2);
+    });
+
 // A function node that REALLY speaks, with the engine its settings name:
 //
 //   PUT /tracon/api/workflows/narrated-tone
@@ -974,6 +1025,96 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SynthesizeSetti
         };
     },
     static options => options.Description = "Speaks the text with the speech synthesizer the node's settings name and saves the audio as an attachment.");
+
+// A function node that voices a DIALOGUE (phase 203): each non-empty line of the last
+// message is one turn, and the voices in the settings take turns in order. With the
+// ElevenLabs key configured, the default synthesizer voices it:
+//
+//   PUT /tracon/api/workflows/two-voices
+//   {"kind":"Sequential","nodes":[
+//     {"name":"dialogue","kind":"Function","settings":{
+//        "voices":["onwK4e9ZLuTAKqWW03F9","TX3LPaxmHKxFdv7VOQHJ"],
+//        "modelId":"eleven_v4","languageCode":"tr","outputFormat":"pcm_24000",
+//        "includeTimestamps":true,
+//        "providerSettings":{"elevenlabs.stability":0.3}}}]}
+//
+//   POST /tracon/api/workflows/two-voices/run   {"message":"Merhaba.\nSelam."}
+//
+// The capability comes from the resolver, after the run tenant's checks: there is no
+// container registration to call it past them. A request over the engine's limits, an
+// unknown provider setting or an engine that cannot voice a dialogue ("provider":"tone")
+// fails the node before any audio is made, and the message names the limit, the key or
+// the engine. Splitting a long script and joining the audio stay in this code: raw PCM
+// is wrapped in a WAV header here so the attachment store can keep it.
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, DialogueSettings>(
+    "dialogue",
+    static provider =>
+    {
+        var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+        var attachments = provider.GetRequiredService<IAttachmentStore>();
+
+        return async (messages, settings, _, cancellationToken) =>
+        {
+            var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                       ?? string.Empty;
+            var scope = TraconRunContext.Current
+                ?? throw new InvalidOperationException("The dialogue node runs only inside a Tracon run.");
+
+            if (settings.Voices.Count == 0)
+            {
+                throw new TraconException("The dialogue node needs at least one voice in its settings.");
+            }
+
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var turns = lines
+                .Select((line, index) => new SpeechDialogueTurn { Text = line, VoiceId = settings.Voices[index % settings.Voices.Count] })
+                .ToList();
+
+            var dialogue = await speech.GetDialogueSynthesizerAsync(settings.Provider, cancellationToken);
+            var result = await dialogue.SynthesizeDialogueAsync(
+                new SpeechDialogueRequest
+                {
+                    Turns = turns,
+                    ModelId = settings.ModelId,
+                    LanguageCode = settings.LanguageCode,
+                    OutputFormat = settings.OutputFormat,
+                    IncludeTimestamps = settings.IncludeTimestamps,
+                    ProviderSettings = settings.ProviderSettings ?? (IReadOnlyDictionary<string, System.Text.Json.JsonElement>)System.Collections.ObjectModel.ReadOnlyDictionary<string, System.Text.Json.JsonElement>.Empty,
+                },
+                cancellationToken);
+
+            var wav = PcmWave.Wrap(settings.OutputFormat, result.Audio.Data.Span);
+            var saved = await attachments.SaveAsync(
+                new AttachmentContent
+                {
+                    TenantId = scope.TenantId ?? "default",
+                    SessionId = scope.SessionId,
+                    RunId = scope.RunId,
+                    FileName = wav is null ? "dialogue.mp3" : "dialogue.wav",
+                    MediaType = wav is null ? result.Audio.MediaType : "audio/wav",
+                    Data = wav ?? result.Audio.Data,
+                    CreatedBy = scope.AgentName,
+                },
+                cancellationToken);
+
+            var report = new System.Text.StringBuilder();
+            report.Append(System.Globalization.CultureInfo.InvariantCulture,
+                $"[dialogue by {dialogue.ProviderName}: attachment {saved.Id}, {saved.ByteSize} bytes, ");
+            report.Append(System.Globalization.CultureInfo.InvariantCulture,
+                $"{result.Audio.CharactersBilled} characters ({result.Audio.UsageSource}), model {result.Audio.ModelId ?? "provider default"}, ");
+            report.Append(System.Globalization.CultureInfo.InvariantCulture,
+                $"request {result.Audio.ProviderRequestId ?? "none"}]");
+
+            foreach (var segment in result.Segments ?? [])
+            {
+                report.Append(System.Globalization.CultureInfo.InvariantCulture,
+                    $"\nturn {segment.TurnIndex} ({segment.VoiceId}): {segment.Start.TotalSeconds:0.00}-{segment.End.TotalSeconds:0.00} s");
+            }
+
+            return [new ChatMessage(ChatRole.User, report.ToString())];
+        };
+    },
+    static options => options.Description = "Voices each line of the text as one turn of a dialogue, the voices taking turns, and saves the audio as an attachment.");
 
 if (!openAiEnabled)
 {
