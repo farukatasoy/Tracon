@@ -161,8 +161,20 @@ public sealed class SpeakToolTests
         services.AddSingleton(Options.Create(new TraconOptions()));
         services.AddSingleton<AttachmentTypeGuard>();
         services.AddSingleton<VoicePricing>();
-        services.AddSingleton<ISpeechSynthesizer>(
-            new ElevenLabsSpeechClient(voiceOptions, new HttpClient(handler)));
+
+        var client = new ElevenLabsSpeechClient(voiceOptions, new HttpClient(handler));
+        services.AddSingleton<ISpeechSynthesizer>(client);
+        services.AddSingleton<ISpeechTranscriber>(client);
+
+        // The tool resolves its synthesizer through the tenant gate; no policy
+        // and no binding are registered, so the default passes unchanged.
+        services.AddSingleton<ISpeechProviderResolver>(static provider => new SpeechProviderResolver(
+            provider,
+            [],
+            provider.GetRequiredService<ITenantContext>(),
+            egressPolicies: null,
+            providerBindings: null,
+            credentialResolver: null));
 
         return services.BuildServiceProvider();
     }

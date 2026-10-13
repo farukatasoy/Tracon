@@ -36,6 +36,12 @@ namespace Tracon;
 /// endpoints return an explicit <c>501</c> instead of <c>404</c> — so a missing
 /// configuration is not confused with a wrong address.
 /// </para>
+/// <para>
+/// Speaking and listing voices go through <see cref="ISpeechProviderResolver"/>:
+/// the request may name a registered synthesizer, and the tenant's egress policy and
+/// own credential are checked before the provider is called. A refusal is <c>403</c>,
+/// an unknown name <c>400</c>, a provider failure <c>502</c>.
+/// </para>
 /// </remarks>
 internal static class VoiceEndpoints
 {
@@ -58,12 +64,31 @@ internal static class VoiceEndpoints
             .WithName("TraconVoiceList")
             .WithTags("Tracon", "Voice")
             .WithSummary("Lists the available voices.")
+            .Produces<IReadOnlyList<VoiceDescriptor>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
             .WithDescription(
-                "The list comes from the configured speech provider, not from Tracon; the " +
-                "identifiers it returns are the values the speak endpoint and the agent's " +
-                "'speak' tool accept. When the speech layer was never enabled with UseVoice(), " +
-                "the response is 501 rather than 404, so a missing configuration is not mistaken " +
-                "for a wrong address.");
+                "The list comes from the speech provider, not from Tracon; the identifiers it " +
+                "returns are the values the speak endpoint and the agent's 'speak' tool accept. " +
+                "The optional 'provider' query parameter names a synthesizer registered with " +
+                "AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for " +
+                "an unknown name, and 403 when the tenant's egress policy does not allow the " +
+                "provider or the tenant has its own credential that the provider cannot use. When " +
+                "no default synthesizer is registered (UseVoice() was never called), the response " +
+                "is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.");
+
+        builder.MapGet("/api/voice/providers", ListProviders)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
+            .WithName("TraconVoiceProviders")
+            .WithTags("Tracon", "Voice")
+            .WithSummary("Lists the registered speech providers.")
+            .WithDescription(
+                "Each entry is a synthesizer or a transcriber: its registration name (null for the " +
+                "default), its kind, the provider name a tenant's egress policy and provider bindings " +
+                "use, and whether it can call the service with a tenant's own credential. Reading the " +
+                "list calls no provider. An empty list means no speech provider is registered.");
 
         builder.MapGet("/api/voice/sessions", ListSessionsAsync)
             .RequireRole(roles.Reader)
@@ -82,15 +107,25 @@ internal static class VoiceEndpoints
             .WithTags("Tracon", "Voice")
             .WithSummary("Synthesizes speech from text and saves it as an attachment.")
             .Accepts<SpeakRequest>("application/json")
+            .Produces<SpeakResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
             .WithDescription(
                 "This is an operator action and is NOT tied to a run; the metering is not " +
                 "written to tool_invocations, it is returned in the response. If persistent " +
-                "metering is required, use the agent's `speak` tool.");
+                "metering is required, use the agent's `speak` tool. The optional 'provider' " +
+                "field names a synthesizer registered with AddSpeechSynthesizer; without it the " +
+                "default synthesizer is used. Returns 400 for an unknown name, 403 when the " +
+                "tenant's egress policy does not allow the provider or the tenant has its own " +
+                "credential that the provider cannot use (the call is not made on the setup " +
+                "credential), and 501 when no default synthesizer is registered.");
     }
 
     private static async Task<Results<Ok<SpeakResponse>, ProblemHttpResult>> SpeakAsync(
         HttpContext httpContext,
-        [FromServices] ISpeechSynthesizer? synthesizer,
+        [FromServices] ISpeechProviderResolver speechProviders,
         [FromServices] IVoicePricingReader? pricing,
         AttachmentTypeGuard guard,
         IAttachmentStore store,
@@ -98,11 +133,6 @@ internal static class VoiceEndpoints
         IAuditActorResolver actorResolver,
         CancellationToken cancellationToken)
     {
-        if (synthesizer is null)
-        {
-            return NotConfigured();
-        }
-
         var (bound, bindError) = await RequestBodyBinding
             .ReadAsync<SpeakRequest>(httpContext, cancellationToken)
             .ConfigureAwait(false);
@@ -121,6 +151,18 @@ internal static class VoiceEndpoints
                 detail: "'text' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
+
+        // F-298: the tenant's checks run before the provider is reached, and before
+        // the limit is read: the limit belongs to the synthesizer the name selects.
+        var (resolved, refusal) = await ResolveSynthesizerAsync(speechProviders, request.Provider, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (refusal is not null)
+        {
+            return refusal;
+        }
+
+        var synthesizer = resolved!;
 
         // 🚨 SpeakTool (the agent's tool call) already enforced this limit; this HTTP
         // operator endpoint (called directly, independent of the agent) was separate
@@ -196,11 +238,77 @@ internal static class VoiceEndpoints
             Attachment = descriptor,
             Characters = characters,
             IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
-            Cost = pricing?.ForCharacters(characters),
+            Cost = Price(pricing, synthesizer.ProviderName, audio.ModelId, request.Provider is null, characters),
             Currency = pricing?.Currency,
             Alignment = audio.Alignment,
         });
     }
+
+    /// <summary>Prices a synthesis by the provider and model that produced it.</summary>
+    /// <remarks>
+    /// The default synthesizer keeps the older lookup as its fallback: a pricing
+    /// reader written before the provider-aware member answers only
+    /// <see cref="IVoicePricingReader.ForCharacters"/>, and the default synthesizer is
+    /// the one that member describes. A named synthesizer never borrows the default's
+    /// price.
+    /// </remarks>
+    private static decimal? Price(
+        IVoicePricingReader? pricing,
+        string providerName,
+        string? modelId,
+        bool isDefault,
+        int characters)
+    {
+        if (pricing is null)
+        {
+            return null;
+        }
+
+        var cost = pricing.ForSynthesis(providerName, modelId, characters);
+
+        return cost is null && isDefault ? pricing.ForCharacters(characters) : cost;
+    }
+
+    /// <summary>
+    /// Resolves the synthesizer a request names through the tenant's checks, or the
+    /// problem that answers the request instead.
+    /// </summary>
+    private static async ValueTask<(ISpeechSynthesizer? Synthesizer, ProblemHttpResult? Problem)> ResolveSynthesizerAsync(
+        ISpeechProviderResolver speechProviders,
+        string? provider,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var synthesizer = await speechProviders.GetSynthesizerAsync(provider, cancellationToken).ConfigureAwait(false);
+
+            return (synthesizer, null);
+        }
+        catch (SpeechProviderNotFoundException) when (provider is null)
+        {
+            return (null, NotConfigured());
+        }
+        catch (SpeechProviderNotFoundException exception)
+        {
+            return (null, TypedResults.Problem(
+                title: "Unknown speech provider",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status400BadRequest));
+        }
+        catch (TenantProviderRefusedException exception)
+        {
+            // The tenant's own rule, not a provider failure: 403, as for live voice
+            // and image generation. The message names the tenant and the provider only.
+            return (null, TypedResults.Problem(
+                title: "Speech provider not available for this tenant",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status403Forbidden));
+        }
+    }
+
+    private static Ok<IReadOnlyList<SpeechProviderDescriptor>> ListProviders(
+        [FromServices] ISpeechProviderResolver speechProviders)
+        => TypedResults.Ok(speechProviders.Providers);
 
     /// <summary>Lists the speech session records.</summary>
     /// <remarks>
@@ -253,15 +361,19 @@ internal static class VoiceEndpoints
     }
 
     private static async Task<Results<Ok<IReadOnlyList<VoiceDescriptor>>, ProblemHttpResult>> ListVoicesAsync(
-        [FromServices] ISpeechSynthesizer? synthesizer,
+        [FromServices] ISpeechProviderResolver speechProviders,
+        [FromQuery] string? provider,
         CancellationToken cancellationToken)
     {
-        if (synthesizer is null)
+        var (synthesizer, refusal) = await ResolveSynthesizerAsync(speechProviders, provider, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (refusal is not null)
         {
-            return NotConfigured();
+            return refusal;
         }
 
-        var voices = await synthesizer.ListVoicesAsync(cancellationToken).ConfigureAwait(false);
+        var voices = await synthesizer!.ListVoicesAsync(cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(voices);
     }

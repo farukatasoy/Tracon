@@ -1,6 +1,6 @@
 namespace Tracon;
 
-/// <summary>The store for per-tenant model provider egress policies.</summary>
+/// <summary>The store for per-tenant provider egress policies.</summary>
 public interface ITenantEgressPolicyStore
 {
     /// <summary>Reads a tenant's policy.</summary>

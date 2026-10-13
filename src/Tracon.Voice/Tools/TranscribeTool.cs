@@ -7,9 +7,17 @@ namespace Tracon;
 /// Transcribes a recorded audio attachment to text.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The tool <strong>does not take</strong> raw audio, it takes an attachment
 /// id. Putting base64 audio in the context window is both expensive and
 /// something the model cannot decode.
+/// </para>
+/// <para>
+/// The transcriber is the default one, resolved through
+/// <see cref="ISpeechProviderResolver"/> before the attachment is read: the
+/// tenant's egress policy and own credential are checked first, and a refusal is
+/// the tool's error.
+/// </para>
 /// </remarks>
 internal sealed class TranscribeTool : VoiceToolBase
 {
@@ -61,8 +69,12 @@ internal sealed class TranscribeTool : VoiceToolBase
 
         var store = Resolve<IAttachmentStore>();
         var tenantContext = Resolve<ITenantContext>();
-        var transcriber = Resolve<ISpeechTranscriber>();
         var pricing = Resolve<VoicePricing>();
+
+        // F-298: resolved per call, through the tenant's checks.
+        var transcriber = await Resolve<ISpeechProviderResolver>()
+            .GetTranscriberAsync(name: null, cancellationToken)
+            .ConfigureAwait(false);
         var options = Resolve<IOptions<VoiceOptions>>().Value;
 
         var tenantId = TraconRunContext.Current?.TenantId ?? tenantContext.TenantId;
@@ -81,22 +93,22 @@ internal sealed class TranscribeTool : VoiceToolBase
 
         SpeechTranscript transcript;
 
+        // The configured model is the DEFAULT transcriber's setting; this tool only
+        // transcribes with the default one.
+        var transcription = new SpeechTranscriptionOptions
+        {
+            ModelId = options.TranscriptionModelId,
+            LanguageCode = OptionalText(arguments, "languageCode"),
+        };
+
         await using (content.ConfigureAwait(false))
         {
             transcript = await transcriber
-                .TranscribeAsync(
-                    content,
-                    descriptor.MediaType,
-                    new SpeechTranscriptionOptions
-                    {
-                        ModelId = options.TranscriptionModelId,
-                        LanguageCode = OptionalText(arguments, "languageCode"),
-                    },
-                    cancellationToken)
+                .TranscribeAsync(content, descriptor.MediaType, transcription, cancellationToken)
                 .ConfigureAwait(false);
         }
 
-        ReportUsage(transcript, pricing, transcriber);
+        ReportUsage(transcript, pricing, transcriber, transcription.ModelId);
 
         return transcript.LanguageCode is { Length: > 0 } language
             ? $"[lang={language}] {transcript.Text}"
@@ -107,9 +119,13 @@ internal sealed class TranscribeTool : VoiceToolBase
     /// <remarks>
     /// If the provider did not report the duration, the measurement is NOT
     /// reported at all — writing zero seconds would mean "free". The price is
-    /// keyed by the bound transcriber's provider name.
+    /// keyed by the bound transcriber's provider name and the model it reports.
     /// </remarks>
-    private static void ReportUsage(SpeechTranscript transcript, VoicePricing pricing, ISpeechTranscriber transcriber)
+    private static void ReportUsage(
+        SpeechTranscript transcript,
+        VoicePricing pricing,
+        ISpeechTranscriber transcriber,
+        string? requestedModel)
     {
         if (transcript.AudioDuration is not { } duration)
         {
@@ -120,7 +136,7 @@ internal sealed class TranscribeTool : VoiceToolBase
         {
             Unit = ToolUsageUnits.Seconds,
             Quantity = (decimal)duration.TotalSeconds,
-            Cost = pricing.ForTranscription(transcriber, duration),
+            Cost = pricing.ForTranscription(transcriber.ProviderName, transcript.ModelId ?? requestedModel, duration),
             Currency = pricing.Currency,
             IsEstimated = false,
         });

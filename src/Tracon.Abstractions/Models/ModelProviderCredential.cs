@@ -1,8 +1,8 @@
 namespace Tracon;
 
 /// <summary>
-/// A resolved, in-memory credential used to call a model provider on behalf
-/// of a specific tenant.
+/// A resolved, in-memory credential used to call a provider (a model, live voice or
+/// speech provider) on behalf of a specific tenant.
 /// </summary>
 /// <remarks>
 /// This type carries the actual secret <em>value</em>. It is produced only
