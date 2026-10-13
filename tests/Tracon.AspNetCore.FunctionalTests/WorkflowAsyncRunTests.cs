@@ -239,11 +239,13 @@ public sealed class WorkflowAsyncRunTests
     }
 
     /// <summary>
-    /// 4-A: a queued run's job gets one lease for the run and one per continuation
-    /// while recovery is on; otherwise the limit a queued agent run gets.
+    /// 4-A: a queued run's job gets one lease for the run, one per continuation and a
+    /// last one that closes the chain while recovery is on; otherwise the limit a
+    /// queued agent run gets.
     /// </summary>
     [Theory]
-    [InlineData(true, 2, 3)]
+    [InlineData(true, 2, 4)]
+    [InlineData(true, 0, 2)]
     [InlineData(false, 2, 1)]
     public async Task The_jobs_attempt_limit_follows_the_recovery_setting(bool recovery, int maxResumeAttempts, int expected)
     {

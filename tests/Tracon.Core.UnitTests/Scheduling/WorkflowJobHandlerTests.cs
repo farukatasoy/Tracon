@@ -131,10 +131,44 @@ public sealed class WorkflowJobHandlerTests
         reported.ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// With recovery on, a store error while the item's run id is written fails the
+    /// attempt, not the item: the item stays pending, nothing runs, and the next
+    /// attempt writes the run id again.
+    /// </summary>
+    [Fact]
+    public async Task With_recovery_on_a_store_error_while_writing_the_items_run_id_fails_the_attempt_not_the_item()
+    {
+        var runner = new ScriptedWorkflowRunner(shouldFail: false);
+        var recovery = new WorkflowRecovery(new InMemoryRunStore(), new InMemoryWorkflowCheckpointStore(), new OnPolicy());
+        var handler = new WorkflowJobHandler(runner, recovery, NullLogger<WorkflowJobHandler>.Instance);
+        var reported = new List<JobItemResult>();
+        var context = BuildContext(
+            [Item(0, "episode 7")],
+            reported,
+            report: (result, _) => result.Status == JobItemStatus.Pending
+                ? throw new InvalidOperationException("the store is unavailable")
+                : AddAsync(reported, result));
+
+        await Should.ThrowAsync<InvalidOperationException>(() => handler.ExecuteAsync(context).AsTask());
+
+        reported.ShouldBeEmpty();
+        runner.Requests.ShouldBeEmpty();
+    }
+
+    private static ValueTask AddAsync(List<JobItemResult> reported, JobItemResult result)
+    {
+        reported.Add(result);
+        return default;
+    }
+
     private static JobItemRecord Item(int seq, string input, JobItemStatus status = JobItemStatus.Pending)
         => new() { Id = Guid.NewGuid(), JobId = Guid.NewGuid(), Seq = seq, Input = input, Status = status };
 
-    private static JobContext BuildContext(IReadOnlyList<JobItemRecord> items, List<JobItemResult>? reported = null)
+    private static JobContext BuildContext(
+        IReadOnlyList<JobItemRecord> items,
+        List<JobItemResult>? reported = null,
+        Func<JobItemResult, CancellationToken, ValueTask>? report = null)
     {
         reported ??= [];
 
@@ -151,11 +185,7 @@ public sealed class WorkflowJobHandlerTests
                 CreatedAt = DateTimeOffset.UtcNow,
             },
             Items = items,
-            ReportItemAsync = (result, _) =>
-            {
-                reported.Add(result);
-                return default;
-            },
+            ReportItemAsync = report ?? ((result, _) => AddAsync(reported, result)),
             IsCancelledAsync = _ => new ValueTask<bool>(false),
         };
     }
@@ -222,5 +252,12 @@ public sealed class WorkflowJobHandlerTests
             WorkflowResumeRequest request,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+    }
+
+    private sealed class OnPolicy : IWorkflowRecoveryPolicy
+    {
+        public bool ResumeInterruptedRuns => true;
+
+        public int MaxResumeAttempts => 1;
     }
 }

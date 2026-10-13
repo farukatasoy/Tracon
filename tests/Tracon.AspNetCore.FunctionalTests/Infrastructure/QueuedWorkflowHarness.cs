@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
@@ -277,6 +278,50 @@ internal static class QueuedWorkflowHarness
         return attempt;
     }
 
+    /// <summary>
+    /// Lets the real worker lease and run what is left of a job, and waits for the
+    /// job to settle.
+    /// </summary>
+    /// <param name="host">The host, with its own worker off.</param>
+    /// <param name="jobId">The job.</param>
+    /// <returns>The job as it settled.</returns>
+    /// <remarks>
+    /// <see cref="RunAttemptAsync"/> calls the handler straight, so it never meets the
+    /// worker's attempt check: a lease past the job's limit is failed by the worker
+    /// before any handler runs. A case about the job's LAST lease has to go through
+    /// the worker, or it proves a handler path production never reaches. The host's
+    /// own worker stays off, so the leases before this one are still the test's.
+    /// </remarks>
+    public static async Task<JobRecord> FinishWithWorkerAsync(TraconTestHost host, Guid jobId)
+    {
+        var configured = host.Services.GetRequiredService<IOptionsMonitor<TraconSchedulingOptions>>().CurrentValue;
+        var options = new TraconSchedulingOptions
+        {
+            Enabled = true,
+            RunWorker = true,
+            MaxConcurrentJobs = configured.MaxConcurrentJobs,
+            PollInterval = TimeSpan.FromMilliseconds(50),
+            LeaseDuration = configured.LeaseDuration,
+            MaxAttempts = configured.MaxAttempts,
+        };
+
+        using var worker = ActivatorUtilities.CreateInstance<JobWorkerBackgroundService>(host.Services, new FixedOptionsMonitor<TraconSchedulingOptions>(options));
+
+        await worker.StartAsync(CancellationToken.None);
+
+        try
+        {
+            return await WaitForJobAsync(host, jobId);
+        }
+        finally
+        {
+            // Bounded: a handler hung in a step that ignores its token (a failing
+            // case) would otherwise hold the stop forever. The probe releases it.
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await worker.StopAsync(stop.Token);
+        }
+    }
+
     /// <summary>Leases the only ready job, the way a worker does.</summary>
     /// <param name="host">The host.</param>
     /// <param name="owner">The worker's id.</param>
@@ -475,6 +520,20 @@ internal sealed class RecoveryProbe : IAsyncDisposable
 
         Teardown.Dispose();
     }
+}
+
+/// <summary>Options that never change, for a worker the test builds itself.</summary>
+/// <typeparam name="T">The options type.</typeparam>
+internal sealed class FixedOptionsMonitor<T>(T value) : IOptionsMonitor<T>
+{
+    /// <inheritdoc />
+    public T CurrentValue => value;
+
+    /// <inheritdoc />
+    public T Get(string? name) => value;
+
+    /// <inheritdoc />
+    public IDisposable? OnChange(Action<T, string?> listener) => null;
 }
 
 /// <summary>An attribution the test sets, the same on every request and in the worker.</summary>
