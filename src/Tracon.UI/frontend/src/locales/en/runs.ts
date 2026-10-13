@@ -226,6 +226,7 @@ export const enRuns = {
   "dashboard.errorClass.Infrastructure": 'Infrastructure error',
   "dashboard.errorClass.StructuredResponseInvalid": 'Structured response invalid',
   "dashboard.errorClass.LoopUnsatisfied": 'Loop unsatisfied',
+  "dashboard.errorClass.OutputTruncated": 'Output truncated',
   "transcript.reasoning": 'Reasoning',
   "transcript.approved": 'approved',
   "transcript.rejected": 'rejected',

@@ -564,6 +564,69 @@ public sealed class TraconLoopUnsatisfiedException : TraconException
 }
 
 /// <summary>
+/// Thrown when the model stops at its output token limit before a structured
+/// (JSON) response is complete.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The run fails with error type <c>output_truncated</c>, classified as
+/// <see cref="RunErrorClass.OutputTruncated"/>. A cut-off JSON document cannot be
+/// parsed, and asking the model again with the same limit cuts it off again, so
+/// no structured-response repair turn runs. Raise
+/// <see cref="ModelBinding.MaxOutputTokens"/> instead.
+/// </para>
+/// <para>
+/// Detection lives in the same shared <c>IChatClient</c> decorator that detects a
+/// provider's content filter, so every provider that reports
+/// <c>ChatFinishReason.Length</c> gets the same behaviour. A plain-text response
+/// cut off the same way does not throw this exception; its run records a
+/// <see cref="RunEventCustomTypes.OutputTruncated"/> event instead.
+/// </para>
+/// <para>
+/// The message names the provider and the limit. It never carries the response text.
+/// </para>
+/// </remarks>
+public sealed class TraconOutputTruncatedException : TraconException
+{
+    /// <summary>
+    /// The stable value written to <see cref="TraconException.ErrorType"/>.
+    /// </summary>
+    public const string OutputTruncatedErrorType = "output_truncated";
+
+    /// <summary>Creates a new error.</summary>
+    public TraconOutputTruncatedException()
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message. Must not carry the response text.</param>
+    public TraconOutputTruncatedException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message. Must not carry the response text.</param>
+    /// <param name="innerException">The underlying error.</param>
+    public TraconOutputTruncatedException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Gets the provider whose model stopped at the limit, or <see langword="null"/> when unknown.</summary>
+    public string? ProviderName { get; init; }
+
+    /// <summary>
+    /// Gets the output token limit the request set, or <see langword="null"/> when the
+    /// binding set none and the provider applied its own default.
+    /// </summary>
+    public int? MaxOutputTokens { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => OutputTruncatedErrorType;
+}
+
+/// <summary>
 /// Thrown when session ownership is on, a session write needs an owner, and no
 /// authenticated identity could be resolved to be that owner.
 /// </summary>

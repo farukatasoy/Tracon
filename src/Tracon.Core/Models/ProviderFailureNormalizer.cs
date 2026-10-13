@@ -146,6 +146,7 @@ internal static partial class ProviderFailureNormalizer
 
     private static bool IsKnownSafe(Exception exception)
         => exception is TraconContentFilteredException
+            or TraconOutputTruncatedException
             or TraconContentBlockedException
             or TraconCompilationException
             or TraconProviderUnavailableException
