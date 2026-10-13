@@ -65,6 +65,29 @@ public static class JobErrorCodes
     /// </remarks>
     public const string AttemptsExhausted = "tracon.job.attempts-exhausted";
 
+    /// <summary>
+    /// The attempt ran longer than the job's time limit
+    /// (<see cref="JobRecord.MaxDuration"/>, or
+    /// <c>TraconSchedulingOptions.MaxDurationByHandlerKey</c> for its key), the worker
+    /// cancelled the handler's token, and the handler stopped with an error.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The attempt counts like any failed one: the job is leased again while attempts
+    /// are left, and fails with this code on its last. The limit is per attempt, so
+    /// the next attempt gets the full time again.
+    /// </para>
+    /// <para>
+    /// A run the handler had started is cancelled with the token, so it ends
+    /// <c>Canceled</c>. The built-in workflow handlers treat the limit as the end of
+    /// the work, not as an interruption: a queued workflow run's job fails at once with
+    /// this code, a workflow batch fails the item whose run was stopped, and recovery
+    /// (<c>Tracon:Workflows:ResumeInterruptedRuns</c>) never continues a run the limit
+    /// stopped. Its row carries the error type <c>job_max_duration_exceeded</c>.
+    /// </para>
+    /// </remarks>
+    public const string MaxDurationExceeded = "tracon.job.max-duration-exceeded";
+
     /// <summary>Formats the persisted message for <paramref name="code"/>.</summary>
     /// <param name="code">One of this class's constants.</param>
     /// <param name="correlationId">

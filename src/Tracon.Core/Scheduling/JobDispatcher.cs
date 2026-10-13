@@ -57,6 +57,16 @@ internal sealed class JobDispatcher(
                 nameof(request));
         }
 
+        // F-323, F-280: the worker arms this value as the attempt's deadline, and a
+        // timer refuses a value outside its range where it is armed - in the worker,
+        // long after this call returned.
+        if (request.MaxDuration is { } maxDuration && !TimerPeriod.IsValid(maxDuration))
+        {
+            throw new ArgumentException(
+                TimerPeriod.Failure($"{nameof(JobRequest)}.{nameof(JobRequest.MaxDuration)}", maxDuration),
+                nameof(request));
+        }
+
         var content = JobPayload.Read(request.HandlerKey, request.Payload);
 
         if (content.Problem is { } problem)
@@ -108,6 +118,7 @@ internal sealed class JobDispatcher(
                 Status = JobStatus.Pending,
                 Payload = payload,
                 MaxAttempts = request.MaxAttempts,
+                MaxDuration = request.MaxDuration,
                 ScheduledFor = request.ScheduledFor ?? now,
                 CreatedAt = now,
             },

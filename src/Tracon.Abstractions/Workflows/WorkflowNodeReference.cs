@@ -70,4 +70,43 @@ public sealed record WorkflowNodeReference
         get;
         init => field = value is { ValueKind: JsonValueKind.Undefined or JsonValueKind.Null } ? null : value;
     }
+
+    /// <summary>
+    /// Gets the longest time one call of this node may take. <see langword="null"/>
+    /// (the default) uses the node's default: the timeout its function was registered
+    /// with, or the installation's <c>Tracon:AgentGraph:ChildDeadline</c> for an agent
+    /// node.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>A function node</strong> that does not return in time is cancelled:
+    /// the token its handler was given is cancelled, the run stops waiting for it, and
+    /// the run ends <see cref="RunStatus.Failed"/> with the error type
+    /// <c>workflow_function_timeout</c> (<see cref="TraconWorkflowFunctionTimeoutException"/>).
+    /// No later node runs. A handler that ignores its token keeps running in the
+    /// background until it returns; what it returns then is discarded and logged. With
+    /// a retry policy, the timeout applies to each attempt, and a timed-out attempt is
+    /// retried like any other transient failure.
+    /// </para>
+    /// <para>
+    /// <strong>An agent node</strong> replaces <c>Tracon:AgentGraph:ChildDeadline</c>
+    /// for this step only, and the hard cutoff for an agent that ignores its token is
+    /// this value plus 30 seconds. A step that does not answer in time fails the run
+    /// with <c>child_run_timeout</c> (<see cref="TraconChildRunTimeoutException"/>).
+    /// </para>
+    /// <para>
+    /// Must be from one millisecond to about 49.7 days; an agent node allows 30
+    /// seconds less, for its hard cutoff. A value outside that range is refused when
+    /// the definition is saved (<c>400</c>). It is not checked against the run's own
+    /// timeout (<see cref="WorkflowDefinition.RunTimeout"/>): whichever ends first
+    /// stops the node, and a run that reaches its own deadline ends
+    /// <see cref="RunStatus.Canceled"/>, not with this node's timeout.
+    /// </para>
+    /// <para>
+    /// The timeout is not part of the node's identity: changing it does not stop a
+    /// run that waits for input from being resumed, and the resumed run uses the
+    /// current value.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? Timeout { get; init; }
 }

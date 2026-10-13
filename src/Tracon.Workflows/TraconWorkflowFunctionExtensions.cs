@@ -2,6 +2,7 @@ using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Tracon;
 
@@ -45,6 +46,12 @@ public static class TraconWorkflowFunctionExtensions
     /// boundary <c>AddTool</c> draws for tools, and the same boundary
     /// <see cref="TraconWorkflowsBuilderExtensions.AddWorkflow"/> draws
     /// for a free-form graph.
+    /// </para>
+    /// <para>
+    /// A timeout is set with the overload that takes a
+    /// <see cref="WorkflowFunctionOptions"/> callback
+    /// (<see cref="WorkflowFunctionOptions.Timeout"/>). A node of a function registered
+    /// here can still carry its own <see cref="WorkflowNodeReference.Timeout"/>.
     /// </para>
     /// <para>
     /// <strong><paramref name="factory"/> runs exactly once</strong>, when the
@@ -112,20 +119,104 @@ public static class TraconWorkflowFunctionExtensions
         WorkflowNodeRetryPolicy? retryPolicy = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.AddWorkflowFunction<TInput, TOutput>(
+            name,
+            factory,
+            options =>
+            {
+                options.Description = description;
+                options.RetryPolicy = retryPolicy;
+            });
+    }
+
+    /// <summary>
+    /// Registers a function that a <see cref="WorkflowKind.Sequential"/> workflow can use
+    /// as a node, with a description, a retry policy and a timeout.
+    /// </summary>
+    /// <typeparam name="TInput">The type the function accepts.</typeparam>
+    /// <typeparam name="TOutput">The type the function returns.</typeparam>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">
+    /// The function's unique name. A <see cref="WorkflowDefinition"/> node of
+    /// kind <see cref="WorkflowNodeKind.Function"/> points to it by this name.
+    /// </param>
+    /// <param name="factory">
+    /// Resolves the function's dependencies from the service provider and
+    /// returns the handler that runs on every call.
+    /// </param>
+    /// <param name="configure">Sets the description, the retry policy and the timeout.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <exception cref="ArgumentNullException">One of the required parameters is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The retry policy has a negative <see cref="WorkflowNodeRetryPolicy.InitialDelay"/> or one
+    /// longer than about 49.7 days, or a negative or non-finite
+    /// <see cref="WorkflowNodeRetryPolicy.BackoffMultiplier"/>; or
+    /// <see cref="WorkflowFunctionOptions.Timeout"/> is outside one millisecond to about 49.7 days.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Everything the overload with optional parameters says applies here: the
+    /// <paramref name="factory"/> runs once, the handler must be thread-safe, it must
+    /// take what the node before it passes on, and it must tolerate being called again
+    /// for the same step.
+    /// </para>
+    /// <para>
+    /// <strong>A timeout cancels the handler's token.</strong> When
+    /// <see cref="WorkflowFunctionOptions.Timeout"/> (or the node's own
+    /// <see cref="WorkflowNodeReference.Timeout"/>) elapses, the token the handler was
+    /// given is cancelled and the run fails with
+    /// <see cref="TraconWorkflowFunctionTimeoutException"/>. Pass the token to every call
+    /// the handler makes: a handler that ignores it keeps running in the background, and
+    /// its side effects still happen.
+    /// </para>
+    /// <para>
+    /// Passing <see langword="null"/> as the third argument is ambiguous with the
+    /// overload whose third parameter is the description; name the argument
+    /// (<c>description: null</c>) or leave it out.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .UseWorkflows()
+    ///        .AddWorkflowFunction&lt;List&lt;ChatMessage&gt;, List&lt;ChatMessage&gt;&gt;(
+    ///            "render",
+    ///            provider =>
+    ///            {
+    ///                var renderer = provider.GetRequiredService&lt;IAudioRenderer&gt;();
+    ///
+    ///                return async (messages, context, cancellationToken) =>
+    ///                    await renderer.RenderAsync(messages, cancellationToken);
+    ///            },
+    ///            options =>
+    ///            {
+    ///                options.Description = "Renders the script as audio.";
+    ///                options.Timeout = TimeSpan.FromMinutes(2);
+    ///            });
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddWorkflowFunction<TInput, TOutput>(
+        this ITraconBuilder builder,
+        string name,
+        Func<IServiceProvider, Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>> factory,
+        Action<WorkflowFunctionOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(configure);
 
-        if (retryPolicy is not null)
-        {
-            WorkflowNodeRetry.Validate(retryPolicy);
-        }
+        var options = Configure(configure);
 
         var descriptor = new WorkflowFunctionDescriptor
         {
             Name = name,
-            Description = description,
+            Description = options.Description,
             InputType = typeof(TInput),
             OutputType = typeof(TOutput),
+            Timeout = options.Timeout,
         };
 
         return Register(
@@ -134,10 +225,12 @@ public static class TraconWorkflowFunctionExtensions
                 descriptor,
                 services =>
                 {
-                    var handler = RetryWrapper<TInput, TOutput>(retryPolicy, services)(factory(services));
+                    var handler = factory(services);
+                    var wrap = NodeWrapper<TInput, TOutput>(name, options.RetryPolicy, services);
 
                     // The registry refuses settings for this function before it gets here.
-                    return (executorId, _) => new FunctionExecutor<TInput, TOutput>(executorId, handler);
+                    // The timeout is the node's or the registration's, applied per compile.
+                    return (executorId, _, timeout) => new FunctionExecutor<TInput, TOutput>(executorId, wrap(handler, timeout));
                 }));
     }
 
@@ -175,7 +268,7 @@ public static class TraconWorkflowFunctionExtensions
     /// that takes a <see cref="WorkflowFunctionOptions"/> callback. Everything about
     /// the two-parameter overload applies here too: the <paramref name="factory"/>
     /// runs once, the handler must be thread-safe and must tolerate being called again
-    /// for the same step. See <see cref="AddWorkflowFunction{TInput,TOutput}"/>.
+    /// for the same step. See <see cref="AddWorkflowFunction{TInput,TOutput}(ITraconBuilder,string,Func{IServiceProvider,Func{TInput,IWorkflowContext,CancellationToken,ValueTask{TOutput}}},string,WorkflowNodeRetryPolicy)"/>.
     /// </para>
     /// <para>
     /// <strong>The settings are checked by being read.</strong> When a definition is
@@ -251,8 +344,8 @@ public static class TraconWorkflowFunctionExtensions
     }
 
     /// <summary>
-    /// Registers a function that takes typed settings, with a description and a retry
-    /// policy.
+    /// Registers a function that takes typed settings, with a description, a retry
+    /// policy and a timeout.
     /// </summary>
     /// <typeparam name="TInput">The type the function accepts.</typeparam>
     /// <typeparam name="TOutput">The type the function returns.</typeparam>
@@ -263,14 +356,15 @@ public static class TraconWorkflowFunctionExtensions
     /// Resolves the function's dependencies and returns the handler that runs on every
     /// call; the handler receives the node's settings as the second argument.
     /// </param>
-    /// <param name="configure">Sets the description and the retry policy.</param>
+    /// <param name="configure">Sets the description, the retry policy and the timeout.</param>
     /// <returns>The chain, for continued configuration.</returns>
     /// <exception cref="ArgumentNullException">One of the required parameters is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// The retry policy has a negative <see cref="WorkflowNodeRetryPolicy.InitialDelay"/> or one
     /// longer than about 49.7 days, or a negative or non-finite
-    /// <see cref="WorkflowNodeRetryPolicy.BackoffMultiplier"/>.
+    /// <see cref="WorkflowNodeRetryPolicy.BackoffMultiplier"/>; or
+    /// <see cref="WorkflowFunctionOptions.Timeout"/> is outside one millisecond to about 49.7 days.
     /// </exception>
     /// <exception cref="TraconException"><typeparamref name="TSettings"/> is a type no settings could be read into.</exception>
     /// <remarks>
@@ -310,15 +404,7 @@ public static class TraconWorkflowFunctionExtensions
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var options = new WorkflowFunctionOptions();
-        configure(options);
-
-        var retryPolicy = options.RetryPolicy;
-
-        if (retryPolicy is not null)
-        {
-            WorkflowNodeRetry.Validate(retryPolicy);
-        }
+        var options = Configure(configure);
 
         WorkflowFunctionSettings.EnsureReadable(typeof(TSettings), name);
 
@@ -329,6 +415,7 @@ public static class TraconWorkflowFunctionExtensions
             InputType = typeof(TInput),
             OutputType = typeof(TOutput),
             SettingsType = typeof(TSettings),
+            Timeout = options.Timeout,
         };
 
         return Register(
@@ -338,20 +425,71 @@ public static class TraconWorkflowFunctionExtensions
                 services =>
                 {
                     var handler = factory(services);
-                    var withRetry = RetryWrapper<TInput, TOutput>(retryPolicy, services);
+                    var wrap = NodeWrapper<TInput, TOutput>(name, options.RetryPolicy, services);
 
                     // The settings are read here, once per compile: every attempt of a
                     // retried node and every call in the run sees the same object, and a
-                    // changed definition takes effect on the next run.
-                    return (executorId, settings) =>
+                    // changed definition takes effect on the next run. The timeout wraps
+                    // the bound handler, inside the retry: retry(timeout(handler)).
+                    return (executorId, settings, timeout) =>
                     {
                         var typed = WorkflowFunctionSettings.Deserialize<TSettings>(name, settings);
 
                         return new FunctionExecutor<TInput, TOutput>(
                             executorId,
-                            withRetry((input, context, cancellationToken) => handler(input, typed, context, cancellationToken)));
+                            wrap((input, context, cancellationToken) => handler(input, typed, context, cancellationToken), timeout));
                     };
                 }));
+    }
+
+    /// <summary>Runs the caller's callback and checks what it set.</summary>
+    /// <param name="configure">The caller's callback.</param>
+    /// <returns>The options it set.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The retry policy or the timeout is out of range.</exception>
+    private static WorkflowFunctionOptions Configure(Action<WorkflowFunctionOptions> configure)
+    {
+        var options = new WorkflowFunctionOptions();
+        configure(options);
+
+        if (options.RetryPolicy is { } retryPolicy)
+        {
+            WorkflowNodeRetry.Validate(retryPolicy);
+        }
+
+        if (options.Timeout is { } timeout)
+        {
+            WorkflowNodeTimeout.Validate(timeout);
+        }
+
+        return options;
+    }
+
+    /// <summary>
+    /// Builds the function that wraps a handler in the node's timeout and then its retry
+    /// policy, resolving their collaborators once.
+    /// </summary>
+    /// <remarks>
+    /// The order is <c>retry(timeout(handler))</c>: each attempt gets the whole timeout,
+    /// and a timed-out attempt is a transient failure the policy retries. Applied per
+    /// compile, because the timeout is the node's.
+    /// </remarks>
+    private static Func<
+        Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>,
+        TimeSpan?,
+        Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>> NodeWrapper<TInput, TOutput>(
+        string name,
+        WorkflowNodeRetryPolicy? retryPolicy,
+        IServiceProvider services)
+    {
+        var withRetry = RetryWrapper<TInput, TOutput>(retryPolicy, services);
+        var timeProvider = services.GetService<TimeProvider>() ?? TimeProvider.System;
+        var logger = services.GetService<ILoggerFactory>()?.CreateLogger(typeof(WorkflowNodeTimeout))
+            ?? (ILogger)NullLogger.Instance;
+
+        return (handler, timeout) => withRetry(
+            timeout is { } limit
+                ? WorkflowNodeTimeout.Wrap(handler, name, limit, timeProvider, logger)
+                : handler);
     }
 
     private static ITraconBuilder Register(ITraconBuilder builder, WorkflowFunctionRegistration registration)
