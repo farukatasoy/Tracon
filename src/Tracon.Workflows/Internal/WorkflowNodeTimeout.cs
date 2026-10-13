@@ -106,11 +106,15 @@ internal static class WorkflowNodeTimeout
                 return await invocation.ConfigureAwait(false);
             }
 
+            // Read before the body is asked to stop: which stop it was decides how a late
+            // end is reported, as it decides what is thrown below.
+            var callerStopped = cancellationToken.IsCancellationRequested;
+
             // Ask the body to stop. A body that reads its token ends here; one that
             // does not keeps running, and the observer below reports its end.
             await budget.CancelAsync().ConfigureAwait(false);
 
-            ObserveLate(invocation, budget, functionName, timeout, runId, startedAt, timeProvider, logger);
+            ObserveLate(invocation, budget, functionName, callerStopped ? null : timeout, runId, startedAt, timeProvider, logger);
 
             // 🚨 The caller's own stop wins, even when the delay fired in the same
             // instant: the run's cancellation or deadline is not this node's timeout.
@@ -141,11 +145,16 @@ internal static class WorkflowNodeTimeout
     /// Reports the end of a call the run stopped waiting for, observes its exception and
     /// releases its token source.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="timeout"/> is <see langword="null"/> when the run stopped waiting
+    /// because its caller cancelled it or it reached its own deadline: the call did not
+    /// run past its timeout then, and the log must not say it did.
+    /// </remarks>
     private static void ObserveLate<TOutput>(
         Task<TOutput> invocation,
         CancellationTokenSource budget,
         string functionName,
-        TimeSpan timeout,
+        TimeSpan? timeout,
         Guid? runId,
         long startedAt,
         TimeProvider timeProvider,
@@ -159,17 +168,7 @@ internal static class WorkflowNodeTimeout
 
                 // Observed in every branch: a fault nobody reads would surface as an
                 // unobserved task exception, long after the run closed.
-                if (task.IsFaulted)
-                {
-                    logger.LogWarning(
-                        task.Exception,
-                        "Function node {Function} of workflow run {RunId} faulted {Elapsed} after it started, past its timeout of {Timeout}; the run had already stopped waiting for it.",
-                        functionName,
-                        runId,
-                        elapsed,
-                        timeout);
-                }
-                else if (task.IsCanceled)
+                if (task.IsCanceled)
                 {
                     logger.LogInformation(
                         "Function node {Function} of workflow run {RunId} stopped on its cancelled token {Elapsed} after it started.",
@@ -177,14 +176,44 @@ internal static class WorkflowNodeTimeout
                         runId,
                         elapsed);
                 }
+                else if (timeout is { } limit)
+                {
+                    if (task.IsFaulted)
+                    {
+                        logger.LogWarning(
+                            task.Exception,
+                            "Function node {Function} of workflow run {RunId} faulted {Elapsed} after it started, past its timeout of {Timeout}; the run had already stopped waiting for it.",
+                            functionName,
+                            runId,
+                            elapsed,
+                            limit);
+                    }
+                    else
+                    {
+                        logger.LogWarning(
+                            "Function node {Function} of workflow run {RunId} returned {Elapsed} after it started, past its timeout of {Timeout}; its result is discarded. A handler that ignores its token keeps its side effects.",
+                            functionName,
+                            runId,
+                            elapsed,
+                            limit);
+                    }
+                }
+                else if (task.IsFaulted)
+                {
+                    logger.LogWarning(
+                        task.Exception,
+                        "Function node {Function} of workflow run {RunId} faulted {Elapsed} after it started; the run had already stopped waiting for it, because the run was cancelled or reached its deadline.",
+                        functionName,
+                        runId,
+                        elapsed);
+                }
                 else
                 {
                     logger.LogWarning(
-                        "Function node {Function} of workflow run {RunId} returned {Elapsed} after it started, past its timeout of {Timeout}; its result is discarded. A handler that ignores its token keeps its side effects.",
+                        "Function node {Function} of workflow run {RunId} returned {Elapsed} after it started, after the run was cancelled or reached its deadline; its result is discarded. A handler that ignores its token keeps its side effects.",
                         functionName,
                         runId,
-                        elapsed,
-                        timeout);
+                        elapsed);
                 }
             },
             CancellationToken.None,

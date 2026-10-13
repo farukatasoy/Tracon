@@ -80,6 +80,67 @@ public sealed class WorkflowFunctionTimeoutLateCompletionTests
             .Count.ShouldBe((int)closed.EventCount);
     }
 
+    /// <summary>
+    /// The run stopped waiting because its caller cancelled it, not because the node ran
+    /// out of time: the late end must not be logged as "past its timeout" (audit). The
+    /// same holds for the run's own deadline, which reaches the node the same way.
+    /// </summary>
+    [Fact]
+    public async Task A_deaf_bodys_late_end_after_its_caller_stopped_is_not_logged_as_past_its_timeout()
+    {
+        var clock = new ManualClock();
+        var logs = new CapturingLoggerProvider();
+        var host = Host(clock, logs);
+        var started = Signal();
+        var release = Signal();
+        var returned = Signal();
+
+        host.AddFunctionWithOptions<List<ChatMessage>, List<ChatMessage>>(
+            "deaf",
+            async (messages, _, _) =>
+            {
+                started.TrySetResult();
+
+                // Ignores its token: only the test ends this wait.
+                await release.Task.ConfigureAwait(false);
+                returned.TrySetResult();
+
+                return messages;
+            },
+            static options => options.Timeout = TimeSpan.FromMinutes(5));
+
+        await SaveAsync(host, "chain", Function("deaf"));
+
+        using var caller = new CancellationTokenSource();
+        var runner = host.CreateRunnerWithTimeProvider(clock, static options => options.RunTimeout = TimeSpan.FromMinutes(10));
+        var collecting = Collect(runner, "chain", cancellationToken: caller.Token);
+
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await ArmedAsync(clock, TimeSpan.FromMinutes(5));
+        await caller.CancelAsync();
+
+        try
+        {
+            await collecting.WaitAsync(TestContext.Current.CancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Where the stop lands decides whether the stream surfaces it; the log decides here.
+        }
+
+        release.TrySetResult();
+        await returned.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        await WaitUntil.TrueAsync(
+            () => logs.Entries.Any(static entry => entry.Message.Contains("its result is discarded", StringComparison.Ordinal)),
+            "the late return to be logged");
+
+        var late = logs.Entries.Single(static entry => entry.Message.Contains("its result is discarded", StringComparison.Ordinal));
+
+        late.Message.ShouldNotContain("past its timeout");
+        late.Message.ShouldContain("cancelled or reached its deadline");
+    }
+
     [Fact]
     public async Task A_deaf_body_that_faults_late_is_observed_and_logged_not_left_unobserved()
     {

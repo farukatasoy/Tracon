@@ -114,7 +114,7 @@ public sealed class TraconSchedulingOptions
     /// valid handler key; any other entry fails at startup.
     /// </para>
     /// <example>
-    /// <code>
+    /// <code language="json">
     /// "Tracon": {
     ///   "Scheduling": {
     ///     "MaxDurationByHandlerKey": { "tracon.workflow": "00:30:00" }
