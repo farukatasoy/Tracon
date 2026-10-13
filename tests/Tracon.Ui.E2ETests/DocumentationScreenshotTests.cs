@@ -58,6 +58,18 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
     /// <summary>The stored workflow the editor screenshot opens: an agent, then a function with settings.</summary>
     private const string SeededWorkflowName = "narrated";
 
+    /// <summary>The stored agent the loop screenshot opens: a marker criterion, then a criterion registered in code.</summary>
+    private const string SeededLoopAgentName = "drafter";
+
+    /// <summary>The description of the code-registered criterion; it renders only once the kind list loaded.</summary>
+    private const string SeededLoopCriterionDescription = "The reviewer agent approves the draft.";
+
+    /// <summary>
+    /// Screens whose subject sits below the first viewport: the capture scrolls the
+    /// landmark into view first. Every other screen is captured from its top, as before.
+    /// </summary>
+    private static readonly HashSet<string> ScrolledToLandmark = new(StringComparer.Ordinal) { "agent-editor-loop" };
+
     /// <summary>
     /// The failure text the run-detail capture is recognised by.
     /// </summary>
@@ -81,6 +93,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         ("dashboard", "/dashboard", "Dashboard"),
         ("agents", "/agents", "support"),
         ("agent-detail", "/agents/support", "Support assistant"),
+        ("agent-editor-loop", $"/agents/{SeededLoopAgentName}/edit", SeededLoopCriterionDescription),
         ("playground", "/playground", "Playground"),
         ("runs", "/runs", "Runs"),
         ("sessions", "/sessions", SeededSessionId),
@@ -113,7 +126,14 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
             .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
                 "word-count",
                 static _ => static (messages, _, _) => ValueTask.FromResult(messages),
-                "Counts the words."));
+                "Counts the words.")
+#pragma warning disable MAAI001 // The loop types are "for evaluation purposes only".
+            .AddLoopEvaluator(
+                "reviewed",
+                static _ => new Microsoft.Agents.AI.DelegateLoopEvaluator(static (_, _) =>
+                    ValueTask.FromResult(Microsoft.Agents.AI.LoopEvaluation.Stop())),
+                SeededLoopCriterionDescription));
+#pragma warning restore MAAI001
 
         // A screenshot of an empty console teaches nothing. Two real runs — one plain,
         // one that calls a tool — give the dashboard, the run list, and the agent
@@ -121,6 +141,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         await SeedRunsAsync(host);
         await SeedCatalogAsync(host);
         await SeedNarratedWorkflowAsync(host);
+        await SeedLoopAgentAsync(host);
         await SeedPendingApprovalAsync(host);
 
         var directory = ResolveOutputDirectory();
@@ -200,6 +221,11 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
                 await Expect(page.GetByText(landmark).First).ToBeVisibleAsync();
 
+                if (ScrolledToLandmark.Contains(name))
+                {
+                    await page.GetByText(landmark).First.ScrollIntoViewIfNeededAsync();
+                }
+
                 var bytes = await page.ScreenshotAsync(new PageScreenshotOptions
                 {
                     Path = write ? Path.Combine(directory, $"{name}{suffix}.png") : null,
@@ -232,6 +258,39 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
                 {
                     new { name = "support", kind = "Agent" },
                     new { name = "speak", kind = "Function", settings = new { voice = "alloy", loudnessLufs = -14 } },
+                },
+            }));
+    }
+
+    /// <summary>
+    /// Stores the agent the loop screenshot opens: a marker criterion, then the kind the
+    /// host registered in code, with a ceiling and the run failing on exhaustion.
+    /// </summary>
+    private static async Task SeedLoopAgentAsync(UiHost host)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+
+        await EnsureSuccessAsync(client.PostAsJsonAsync(
+            $"{host.Prefix}/api/agents",
+            new
+            {
+                name = SeededLoopAgentName,
+                description = "Drafts an answer and revises it until the reviewer approves.",
+                instructions = "Write the draft. End it with ALL DONE once it is complete.",
+                model = new { provider = ScriptedModels.ProviderName, model = ScriptedModels.Default },
+                harness = new
+                {
+                    disableTodoProvider = true,
+                    loop = new
+                    {
+                        criteria = new object[]
+                        {
+                            new { kind = "completionMarker", marker = "ALL DONE" },
+                            new { kind = "reviewed" },
+                        },
+                        maxIterations = 3,
+                        onExhausted = "FailRun",
+                    },
                 },
             }));
     }

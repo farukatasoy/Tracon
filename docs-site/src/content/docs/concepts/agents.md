@@ -371,6 +371,10 @@ in nor registered is refused when the definition is saved, with `400`. It is
 never ignored: a stop criterion that is silently dropped leaves a loop with no
 stop criterion.
 
+The overload with a last `description` argument sets the sentence the console
+shows next to the kind. Every reader of `GET /api/loop-criteria` receives it, so
+do not put a secret in it.
+
 Four more rules are worth knowing before you turn the loop on:
 
 - **Criteria are evaluated in order, and the first one that asks for another
@@ -402,6 +406,84 @@ reaches `MaxIterations` is never evaluated â€” there is nothing left to decide â
 so a loop that ends at its ceiling writes one event fewer than it takes turns.
 Its last event carries `ceilingReached`, which is how the run record tells "the
 criterion was finally satisfied" apart from "we ran out of iterations".
+
+### A criterion that needs your services
+
+`LoopContext` carries no service provider. A criterion that needs one of your
+services takes it from a factory:
+
+```csharp
+#pragma warning disable MAAI001
+tracon.AddLoopEvaluator(
+    "reviewed",
+    services => new ReviewerCriterion(services.GetRequiredService<IAgentCatalog>()),
+    description: "The reviewer agent approves the draft.");
+#pragma warning restore MAAI001
+```
+
+The factory receives the application's root service provider. It runs once, on
+the first compilation of an agent that names the kind, and its result serves
+every agent, run and tenant from then on:
+
+- **It does not run at startup.** At startup the agent catalog is still being
+  built, so a factory that asks for `IAgentCatalog` could not get it. A
+  duplicate kind or a kind that shadows a built-in one is still refused before
+  any factory runs.
+- **A factory that throws is not cached.** The compilation fails with
+  `TraconCompilationException`, which names the kind and the exception type; a
+  save returns `400`. The exception's own message goes to the host log only. The
+  next compilation calls the factory again.
+- **Take singletons only.** The provider is the root one: a scoped service would
+  outlive its scope.
+- **Read the tenant when you evaluate, not in the factory.** The factory runs
+  for whichever tenant compiles the agent first. Read
+  `ITenantContext.TenantId` inside `EvaluateAsync`; it is the tenant of the run
+  being evaluated, also inside a workflow step.
+
+**A reviewer agent as the criterion.** The `AddLoopEvaluator` factory overload's
+XML example shows a criterion that does what `aiJudge` cannot: it computes a
+check in code before the reviewer reads the draft, asks a reviewer agent from
+the catalog, and reads the reviewer's own JSON verdict. It keeps state for one
+loop run, such as the previous round's findings, in
+`LoopContext.AdditionalProperties`. It reads the draft from the last assistant
+message of `LoopContext.LastResponse`: a harness turn can write a plan or an
+earlier version first, and `LastResponse.Text` joins every message of the turn.
+The reviewer runs as a child of the run being
+evaluated when the criterion passes `TraconRunOptions` built from
+`TraconRunContext.Current` (`ParentRunId`, `RootRunId`, `Depth + 1`, `Budget`).
+The child run then appears under the evaluated run, and its tokens are its own
+run's usage, not the evaluated run's. Its tokens also count against the shared
+tree budget. Two limits a sub-agent call checks for you are the criterion's to
+check: the tree's depth limit, and `Budget.TryReserveRun()` for the run count.
+The sample application's `DraftReviewCriterion` is a complete example.
+
+### List, edit, and validate a loop
+
+`GET /api/loop-criteria` lists the kinds a definition can name: the four
+built-in kinds first, then the kinds registered in code, each with its
+description. It also returns the judge model an `aiJudge` criterion calls
+(`provider` and `model` only), or `null` when the host bound none. Listing runs
+no factory. It needs the Reader role and, for an API key, the `AgentsRead` scope.
+The [console](/ui/#agents) builds its Loop panel from this list.
+
+`POST /api/agents/validate` reports every loop problem at once, each with its
+own code and the path of the field. Saving a definition with a loop problem
+returns `400` with every message:
+
+| Code | Path | Meaning |
+|---|---|---|
+| `loop_criteria_empty` | `harness.loop.criteria` | The loop has no criterion |
+| `loop_max_iterations_invalid` | `harness.loop.maxIterations` | The ceiling is zero or negative |
+| `loop_outcome_invalid` | `harness.loop.onExhausted` or `.onCriterionError` | The value is not a `LoopOutcome` member |
+| `loop_criterion_kind_missing` | `harness.loop.criteria[i].kind` | The kind is empty |
+| `loop_criterion_unknown` | `harness.loop.criteria[i].kind` | The kind is neither built in nor registered |
+| `loop_marker_missing` | `harness.loop.criteria[i].marker` | A `completionMarker` has no marker |
+| `loop_judge_criteria_missing` | `harness.loop.criteria[i].judgeCriteria` | An `aiJudge` has no non-blank criterion |
+| `loop_judge_unconfigured` | `harness.loop.criteria[i].kind` | An `aiJudge` on a host with no judge model |
+| `loop_judge_unavailable` | `harness.loop.criteria[i].kind` | The judge model cannot be built: its provider is not registered, or the caller's egress policy forbids it |
+
+A kind registered in code counts as known whether or not its factory has run.
+A factory that fails reports as `compilation_error`, naming the kind.
 
 ### Fail the run when the loop is not satisfied
 
@@ -444,8 +526,8 @@ What `FailRun` changes, besides the outcome:
 - **A failed run keeps its usage.** Its tokens and cost cover every turn the
   loop ran, so quotas and cost reports count the work.
 - **A workflow stops at that agent.** Its run fails and the next node does not
-  run. The agent's own run carries the `LoopUnsatisfied` class; the workflow's
-  run records the failure without a class.
+  run. The agent's own run and the workflow's run both carry the
+  `loop_unsatisfied` error type and the `LoopUnsatisfied` class.
 
 The run's own cancellation is never a criterion error: a cancelled run ends as
 `Canceled` in both modes.
