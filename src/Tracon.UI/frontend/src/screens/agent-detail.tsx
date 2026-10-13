@@ -24,7 +24,7 @@ import { ConfirmDialog } from '../components/confirm-dialog';
 import { HistoryIcon, TrashIcon } from '../components/icons';
 import { DiffView, FieldDiffTable, SetDiff } from '../components/diff-view';
 import { OriginBadge } from './agents';
-import type { TraconMetaResponse as Meta } from '@tracon/client';
+import type { LoopCriterion, TraconMetaResponse as Meta } from '@tracon/client';
 import type { AgentDefinition, AgentDetailResponse, AgentVersionDiffResponse } from '../lib/server-types';
 
 export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
@@ -476,6 +476,24 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
               </Section>
             )}
 
+            {(diff.data.left.harness?.loop ?? diff.data.right.harness?.loop) != null && (
+              <Section title={t('agentEditor.loop.title')}>
+                <div data-testid="loop-diff">
+                  <FieldDiffTable
+                    left={diff.data.left.harness?.loop}
+                    right={diff.data.right.harness?.loop}
+                    fields={{
+                      criteria: { label: t('fields.loopCriteria'), format: formatLoopCriteria },
+                      maxIterations: { label: t('agentEditor.loop.maxIterations') },
+                      freshContextPerIteration: { label: t('agentEditor.loop.freshContext') },
+                      onExhausted: { label: t('agentEditor.loop.onExhausted') },
+                      onCriterionError: { label: t('agentEditor.loop.onCriterionError') },
+                    }}
+                  />
+                </div>
+              </Section>
+            )}
+
             {(diff.data.left.compaction ?? diff.data.right.compaction) !== undefined && (
               <Section title={t('agentDetail.compaction')}>
                 <FieldDiffTable
@@ -512,6 +530,26 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
       </div>
     </Panel>
   );
+}
+
+/**
+ * One entry per loop criterion: its kind and every field it carries. The diff
+ * table compares the formatted text, so a field left out here would hide a
+ * change to it.
+ */
+function formatLoopCriteria(value: unknown): string {
+  return (value as LoopCriterion[])
+    .map((criterion, index) => {
+      const fields = [
+        criterion.marker != null ? `marker=${criterion.marker}` : null,
+        (criterion.judgeCriteria ?? []).length > 0 ? `judgeCriteria=[${(criterion.judgeCriteria ?? []).join('; ')}]` : null,
+        criterion.judgeInstructions != null ? `judgeInstructions=${criterion.judgeInstructions}` : null,
+        (criterion.modes ?? []).length > 0 ? `modes=[${(criterion.modes ?? []).join(', ')}]` : null,
+      ].filter((field) => field !== null);
+
+      return `${index + 1}. ${criterion.kind}${fields.length > 0 ? ` (${fields.join(', ')})` : ''}`;
+    })
+    .join(' · ');
 }
 
 /** Sorted union of culture keys present on either side of a diff — a culture removed entirely on one side must still get its own section. */
