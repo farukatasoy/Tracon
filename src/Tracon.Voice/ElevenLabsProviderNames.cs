@@ -16,21 +16,41 @@ namespace Tracon;
 /// The refusal names the key, never the value.
 /// </para>
 /// <example>
-/// Two continuous chunks of a long dialogue, the second conditioned on the first:
+/// A function node that voices two chunks of a long dialogue, the second conditioned
+/// on the first:
 /// <code>
-/// var first = await dialogue.SynthesizeDialogueAsync(chunkOne, cancellationToken);
-///
-/// var second = await dialogue.SynthesizeDialogueAsync(
-///     chunkTwo with
+/// tracon.AddWorkflowFunction&lt;List&lt;ChatMessage&gt;, List&lt;ChatMessage&gt;&gt;(
+///     "two-chunks",
+///     provider =>
 ///     {
-///         ProviderSettings = new Dictionary&lt;string, JsonElement&gt;
+///         var speech = provider.GetRequiredService&lt;ISpeechProviderResolver&gt;();
+///
+///         return async (messages, context, cancellationToken) =>
 ///         {
-///             [ElevenLabsProviderNames.StabilitySetting] = JsonSerializer.SerializeToElement(0.5),
-///             [ElevenLabsProviderNames.PreviousRequestIdsSetting] =
-///                 JsonSerializer.SerializeToElement(new[] { first.Audio.ProviderRequestId }),
-///         },
-///     },
-///     cancellationToken);
+///             var dialogue = await speech.GetDialogueSynthesizerAsync(cancellationToken: cancellationToken);
+///             var chunk = new SpeechDialogueRequest
+///             {
+///                 Turns = [new SpeechDialogueTurn { Text = messages[^1].Text, VoiceId = "host-voice" }],
+///             };
+///
+///             var first = await dialogue.SynthesizeDialogueAsync(chunk, cancellationToken);
+///
+///             var settings = new Dictionary&lt;string, JsonElement&gt;
+///             {
+///                 [ElevenLabsProviderNames.StabilitySetting] = JsonSerializer.SerializeToElement(0.5),
+///             };
+///
+///             // The id is null when the provider reports none; a list with a null id is refused.
+///             if (first.Audio.ProviderRequestId is { } id)
+///             {
+///                 settings[ElevenLabsProviderNames.PreviousRequestIdsSetting] = JsonSerializer.SerializeToElement(new[] { id });
+///             }
+///
+///             var second = await dialogue.SynthesizeDialogueAsync(chunk with { ProviderSettings = settings }, cancellationToken);
+///
+///             return [new ChatMessage(ChatRole.Assistant, $"{first.Audio.Data.Length + second.Audio.Data.Length} bytes")];
+///         };
+///     });
 /// </code>
 /// </example>
 /// </remarks>

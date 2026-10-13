@@ -779,13 +779,18 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
     /// <remarks>
     /// <para>
     /// A segment must name a turn the request had and the voice that turn used, with a
-    /// finite, ordered time range. One segment that does not fit drops the whole list: a
-    /// shifted index would put one speaker's time on another's turn, and the audio itself
-    /// is still valid (the <see cref="ToAlignment"/> rule).
+    /// finite range whose end is not before its start. The list must be in order: turn
+    /// indexes never go back, and within one turn a part never starts before the part
+    /// before it. Every turn must have at least one segment: the provider refuses a turn
+    /// with no speakable text, so a turn without a segment means a report that lost it.
+    /// One segment or one turn that does not fit drops the whole list: a shifted index
+    /// would put one speaker's time on another's turn, and the audio itself is still
+    /// valid (the <see cref="ToAlignment"/> rule).
     /// </para>
     /// <para>
     /// The count is not compared with the turns: the provider documents a segment as a
-    /// part of a turn. <c>internal</c>: unit tests verify this directly.
+    /// part of a turn, so one turn may have several. <c>internal</c>: unit tests verify
+    /// this directly.
     /// </para>
     /// </remarks>
     internal static IReadOnlyList<SpeechDialogueSegment>? ToSegments(
@@ -798,6 +803,9 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
         }
 
         var result = new List<SpeechDialogueSegment>(segments.Count);
+        var covered = new bool[turns.Count];
+        var previousIndex = -1;
+        var previousStart = 0.0;
 
         foreach (var segment in segments)
         {
@@ -808,10 +816,16 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
                 !double.IsFinite(start) ||
                 !double.IsFinite(end) ||
                 start < 0 ||
-                end < start)
+                end < start ||
+                index < previousIndex ||
+                (index == previousIndex && start < previousStart))
             {
                 return null;
             }
+
+            covered[index] = true;
+            previousIndex = index;
+            previousStart = start;
 
             result.Add(new SpeechDialogueSegment
             {
@@ -822,7 +836,7 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechDialog
             });
         }
 
-        return result;
+        return Array.TrueForAll(covered, static turnHasSegment => turnHasSegment) ? result : null;
     }
 
     /// <summary>Parses the <c>.../with-timestamps</c> response body.</summary>

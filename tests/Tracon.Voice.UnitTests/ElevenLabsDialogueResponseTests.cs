@@ -75,6 +75,16 @@ public sealed class ElevenLabsDialogueResponseTests
     [InlineData("""[{"voice_id": "voice-a", "start_time_seconds": 0.0, "end_time_seconds": 0.9}]""")]
     [InlineData("[]")]
     [InlineData("null")]
+
+    // A turn with no segment: the provider refuses a turn with no speakable text
+    // (measured 2026-10-13, "input_text_empty"), so a missing turn is a bad report.
+    [InlineData("""[{"voice_id": "voice-a", "start_time_seconds": 0.0, "end_time_seconds": 0.9, "dialogue_input_index": 0}]""")]
+
+    // Out of order: the second turn's time comes before the first turn's.
+    [InlineData("""[{"voice_id": "voice-b", "start_time_seconds": 0.0, "end_time_seconds": 0.7, "dialogue_input_index": 1}, {"voice_id": "voice-a", "start_time_seconds": 0.7, "end_time_seconds": 1.5, "dialogue_input_index": 0}]""")]
+
+    // In turn order, but a part of a turn starts before the part before it.
+    [InlineData("""[{"voice_id": "voice-a", "start_time_seconds": 0.5, "end_time_seconds": 0.9, "dialogue_input_index": 0}, {"voice_id": "voice-a", "start_time_seconds": 0.1, "end_time_seconds": 0.4, "dialogue_input_index": 0}, {"voice_id": "voice-b", "start_time_seconds": 0.9, "end_time_seconds": 1.5, "dialogue_input_index": 1}]""")]
     public async Task A_report_that_does_not_match_the_turns_gives_no_segments_and_keeps_the_audio(string voiceSegments)
     {
         var handler = new StubHttpMessageHandler(_ => DialogueTestData.TimestampedResponse(voiceSegments));

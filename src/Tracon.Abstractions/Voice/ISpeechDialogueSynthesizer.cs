@@ -40,25 +40,37 @@ namespace Tracon;
 /// <example>
 /// A workflow function node that voices two turns with the default synthesizer:
 /// <code>
-/// var speech = provider.GetRequiredService&lt;ISpeechProviderResolver&gt;();
-///
-/// var dialogue = await speech.GetDialogueSynthesizerAsync(cancellationToken: cancellationToken);
-/// var result = await dialogue.SynthesizeDialogueAsync(
-///     new SpeechDialogueRequest
+/// tracon.AddWorkflowFunction&lt;List&lt;ChatMessage&gt;, List&lt;ChatMessage&gt;&gt;(
+///     "two-voices",
+///     provider =>
 ///     {
-///         Turns =
-///         [
-///             new SpeechDialogueTurn { Text = "Welcome back.", VoiceId = "host-voice" },
-///             new SpeechDialogueTurn { Text = "Glad to be here.", VoiceId = "guest-voice" },
-///         ],
-///         IncludeTimestamps = true,
-///     },
-///     cancellationToken);
+///         var speech = provider.GetRequiredService&lt;ISpeechProviderResolver&gt;();
 ///
-/// foreach (var segment in result.Segments ?? [])
-/// {
-///     Console.WriteLine($"turn {segment.TurnIndex}: {segment.Start} - {segment.End}");
-/// }
+///         return async (messages, context, cancellationToken) =>
+///         {
+///             var dialogue = await speech.GetDialogueSynthesizerAsync(cancellationToken: cancellationToken);
+///             var result = await dialogue.SynthesizeDialogueAsync(
+///                 new SpeechDialogueRequest
+///                 {
+///                     Turns =
+///                     [
+///                         new SpeechDialogueTurn { Text = "Welcome back.", VoiceId = "host-voice" },
+///                         new SpeechDialogueTurn { Text = "Glad to be here.", VoiceId = "guest-voice" },
+///                     ],
+///                     IncludeTimestamps = true,
+///                 },
+///                 cancellationToken);
+///
+///             var timing = new List&lt;string&gt;();
+///
+///             foreach (var segment in result.Segments ?? [])
+///             {
+///                 timing.Add($"turn {segment.TurnIndex}: {segment.Start} - {segment.End}");
+///             }
+///
+///             return [new ChatMessage(ChatRole.Assistant, string.Join(", ", timing))];
+///         };
+///     });
 /// </code>
 /// </example>
 /// </remarks>
