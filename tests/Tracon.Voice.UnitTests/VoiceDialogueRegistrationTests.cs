@@ -11,10 +11,10 @@ namespace Tracon.Voice.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Faz 203 (Açık Soru 7-B): <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
+/// Phase 203 (open question 7-B): <see cref="ISpeechProviderResolver.GetDialogueSynthesizerAsync"/>
 /// reads the capability from the registered synthesizer instance and applies the
 /// tenant's checks. A container registration of the capability would be a second way to
-/// reach the provider that skips both (the plan's § 203.1 "Kayıt" proposed one).
+/// reach the provider that skips both (the plan's section 203.1 proposed one).
 /// </para>
 /// <para>
 /// The tests compose the real <c>AddTracon().UseVoice(...)</c> registration and read

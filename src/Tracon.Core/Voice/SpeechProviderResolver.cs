@@ -149,7 +149,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
 
         // The capability is read from the registered instance, before any tenant
         // wrapper exists: a wrapper implements only what it wraps, so a type test on
-        // it would answer differently for a tenant with its own key (Faz 198 devri).
+        // it would answer differently for a tenant with its own key (the phase 198 handover).
         if (synthesizer is not ISpeechDialogueSynthesizer dialogue)
         {
             throw new SpeechCapabilityNotSupportedException(

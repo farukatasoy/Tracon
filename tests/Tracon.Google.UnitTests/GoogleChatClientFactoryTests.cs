@@ -103,7 +103,7 @@ public sealed class GoogleChatClientFactoryTests
         exception.Message.ShouldContain("BLOCK_ONLY_HIGH");
         exception.Message.ShouldContain("BLOCK_NONE");
 
-        // Faz 203: the rejected value is never repeated (it can be a credential pasted
+        // Phase 203: the rejected value is never repeated (it can be a credential pasted
         // into the wrong field); the key and the valid values locate the mistake.
         exception.Message.ShouldNotContain("BLOCK_EVERYTHING");
     }

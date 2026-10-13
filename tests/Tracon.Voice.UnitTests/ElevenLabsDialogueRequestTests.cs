@@ -176,11 +176,11 @@ public sealed class ElevenLabsDialogueRequestTests
         _ = await client.SynthesizeDialogueAsync(
             new SpeechDialogueRequest
             {
-                Turns = [new SpeechDialogueTurn { Text = "[laughs] Gerçekten mi?", VoiceId = "voice-a" }],
+                Turns = [new SpeechDialogueTurn { Text = "[laughs] Really?", VoiceId = "voice-a" }],
             },
             TestContext.Current.CancellationToken);
 
         using var body = JsonDocument.Parse(handler.Requests.ShouldHaveSingleItem().Body!);
-        body.RootElement.GetProperty("inputs")[0].GetProperty("text").GetString().ShouldBe("[laughs] Gerçekten mi?");
+        body.RootElement.GetProperty("inputs")[0].GetProperty("text").GetString().ShouldBe("[laughs] Really?");
     }
 }

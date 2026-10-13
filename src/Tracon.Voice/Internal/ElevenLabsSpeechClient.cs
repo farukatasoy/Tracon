@@ -25,7 +25,7 @@ namespace Tracon;
 /// counter.
 /// </para>
 /// <para>
-/// The built-in client takes no tenant credential (K-930): a request that carries one
+/// The built-in client takes no tenant credential: a request that carries one
 /// is refused, never sent on the configured key.
 /// </para>
 /// </remarks>
