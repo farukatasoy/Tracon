@@ -97,7 +97,7 @@ public sealed class WorkflowFunctionTimeoutReasonTests
         var collecting = Collect(runner, "chain");
 
         await started.Task.WaitAsync(TestContext.Current.CancellationToken);
-        await Tracon.Tests.Common.WaitUntil.TrueAsync(() => clock.Pending.Count(static due => due == TimeSpan.FromMinutes(10)) == 2, "both ten-minute timers");
+        await WaitUntil.TrueAsync(() => clock.Pending.Count(static due => due == TimeSpan.FromMinutes(10)) == 2, "both ten-minute timers");
         clock.Advance(TimeSpan.FromMinutes(10));
 
         var run = await RunOf(host, await collecting.WaitAsync(TestContext.Current.CancellationToken));
