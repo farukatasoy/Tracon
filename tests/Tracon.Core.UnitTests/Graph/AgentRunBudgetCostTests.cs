@@ -47,6 +47,46 @@ public sealed class AgentRunBudgetCostTests
     }
 
     [Fact]
+    public void Spend_beyond_what_the_counter_holds_stays_exhausted_instead_of_wrapping()
+    {
+        // The counter is a long of nano-units: ten amounts of 1,000,000,000 pass its
+        // 9.2 billion ceiling. A wrap would turn the total negative and re-open a
+        // ceiling that was passed long before.
+        var budget = new AgentRunBudget { MaxTotalCost = 1m };
+
+        for (var index = 0; index < 10; index++)
+        {
+            budget.RecordUsage(0, 1_000_000_000m);
+        }
+
+        budget.ConsumedCost.ShouldBeGreaterThan(1m);
+        budget.IsCostBudgetExhausted.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void A_single_amount_larger_than_the_counter_holds_saturates_it()
+    {
+        var budget = new AgentRunBudget { MaxTotalCost = 1m };
+
+        budget.RecordUsage(0, decimal.MaxValue);
+
+        budget.IsCostBudgetExhausted.ShouldBeTrue();
+        budget.ConsumedCost.ShouldBeGreaterThan(1m);
+    }
+
+    [Fact]
+    public void Tokens_beyond_what_the_counter_holds_stay_exhausted_instead_of_wrapping()
+    {
+        var budget = new AgentRunBudget { MaxTotalTokens = 10 };
+
+        budget.RecordUsage(long.MaxValue);
+        budget.RecordUsage(long.MaxValue);
+
+        budget.ConsumedTokens.ShouldBe(long.MaxValue);
+        budget.IsTokenBudgetExhausted.ShouldBeTrue();
+    }
+
+    [Fact]
     public void Negative_or_zero_cost_is_ignored()
     {
         var budget = new AgentRunBudget { MaxTotalCost = 1m };

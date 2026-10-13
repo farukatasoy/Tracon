@@ -175,7 +175,8 @@ how many events it would have written.
 - `non_token_usage` — an item a workflow function node reported with `ReportUsageAsync`
   could not be written, so it is missing from `GET /api/runs/{runId}/usage`. The run's
   call-tree budget already counted the amount before the write. Recording of the run stops
-  there, as after any other lost write, so its total, quota entry and webhook may miss it.
+  there, as after any other lost write, so the run's own `nonTokenCost` total is not
+  stored. Its quota entry and webhook still count what its nodes reported.
 - `completion` — the run never reached a terminal status in the store, so it looks
   unfinished to anything that queries it.
 - `sink` — a registered [`IRunEventSink`](/concepts/runs/#observing-events-beyond-the-store)

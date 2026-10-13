@@ -47,6 +47,9 @@ public sealed class AgentRunBudget
     // currency units before overflow.
     private const decimal CostScale = 1_000_000_000m;
 
+    // The largest cost, in currency units, the nano-unit counter holds.
+    private const decimal MaxRecordableCost = long.MaxValue / CostScale;
+
     private readonly TimeProvider _timeProvider;
 
     private long _consumedTokens;
@@ -219,12 +222,38 @@ public sealed class AgentRunBudget
     {
         if (tokens > 0)
         {
-            Interlocked.Add(ref _consumedTokens, tokens);
+            AddSaturating(ref _consumedTokens, tokens);
         }
 
         if (cost is { } value && value > 0)
         {
-            Interlocked.Add(ref _consumedCostNanoUnits, (long)Math.Round(value * CostScale, MidpointRounding.AwayFromZero));
+            // An amount the counter cannot hold is the counter's maximum, not a wrap.
+            var nanoUnits = value >= MaxRecordableCost
+                ? long.MaxValue
+                : (long)Math.Round(value * CostScale, MidpointRounding.AwayFromZero);
+
+            AddSaturating(ref _consumedCostNanoUnits, nanoUnits);
+        }
+    }
+
+    // A counter that wraps turns a spent budget into a fresh one: a limit passed long ago
+    // would stop being passed. The total stays at the maximum instead, so an exhausted
+    // budget stays exhausted.
+    private static void AddSaturating(ref long location, long amount)
+    {
+        var current = Interlocked.Read(ref location);
+
+        while (true)
+        {
+            var next = long.MaxValue - current < amount ? long.MaxValue : current + amount;
+            var observed = Interlocked.CompareExchange(ref location, next, current);
+
+            if (observed == current)
+            {
+                return;
+            }
+
+            current = observed;
         }
     }
 

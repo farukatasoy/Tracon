@@ -51,7 +51,9 @@ public sealed class NodeUsageStoreFailureTests
 
         host.Logs.AllText.ShouldContain("a non-token usage item could not be recorded", Case.Sensitive);
 
-        runId.ShouldNotBe(Guid.Empty);
+        // The run's recording stopped at the failed write, as it does after any lost write:
+        // the row is not closed. The workflow's own result is the stream's end, read above.
+        (await RecordAsync(host, runId)).Status.ShouldBe(RunStatus.Running);
     }
 
     [Fact]
