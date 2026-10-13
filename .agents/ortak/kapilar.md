@@ -62,6 +62,12 @@ adımlarını atlar (`kapi.py ic-dongu` bunu değişen dosyalara bakarak otomati
 seçer). Dördünün tamamı **faz kapanışında** ve arayüz/paket değişiminde
 çalışır.
 
+🚨 `ic-dongu` yalnız **commit edilmemiş** yolları görür: işi commit ettikten
+sonra koşarsan yalnız build koşar ve "yeşil" der. Faz 203'te iki derlenmeyen
+`<example>` (`Tracon.Generators.UnitTests`, `ExampleCompilationTests`) bu yüzden
+bir commit boyunca görünmedi. Commit'ten önce koş ya da projeleri
+`kapi.py test --proje` ile adla koş.
+
 `ic-dongu`'nun kapsamadığı tek yer: `samples/Tracon.Samples.*` **hiçbir
 çözüm dosyasında değildir**, onları yalnız `kapi.py yayin` paketlenmiş sürüme
 karşı koşar. `ic-dongu` böyle bir yola dokunduğunda bunu **yazar**; sessizce

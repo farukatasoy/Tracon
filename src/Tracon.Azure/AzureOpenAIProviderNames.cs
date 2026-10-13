@@ -37,7 +37,7 @@ public static class AzureOpenAIProviderNames
     /// it at all.
     /// </para>
     /// <para>
-    /// Because the list is empty, <see cref="ModelProviderSettings.Validate"/>
+    /// Because the list is empty, <see cref="ModelProviderSettings.Validate(ModelBinding, string, IReadOnlyCollection{string})"/>
     /// rejects any key and says "supports no extra settings" in its message.
     /// </para>
     /// </remarks>

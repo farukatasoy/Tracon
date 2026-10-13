@@ -120,16 +120,57 @@ with `?provider=gpu`, and a workflow function node with
 `ISpeechProviderResolver.GetSynthesizerAsync("gpu")`. The tools always use the
 default. `GET /api/voice/providers` lists the registrations.
 
+## Dialogue with several speakers
+
+The built-in client also voices a dialogue: an ordered list of turns, each with its
+own voice, in one request and one audio result. A workflow function node takes the
+capability from the resolver, by the synthesizer's registration name:
+
+```csharp
+var dialogue = await speech.GetDialogueSynthesizerAsync(settings.Provider, cancellationToken);
+var result = await dialogue.SynthesizeDialogueAsync(
+    new SpeechDialogueRequest
+    {
+        Turns =
+        [
+            new SpeechDialogueTurn { Text = "Welcome back.", VoiceId = "host-voice" },
+            new SpeechDialogueTurn { Text = "Glad to be here.", VoiceId = "guest-voice" },
+        ],
+        IncludeTimestamps = true,
+    },
+    cancellationToken);
+```
+
+Nothing registers `ISpeechDialogueSynthesizer` in the container, so the call always
+passes the tenant rules below. One request takes at most 10 voices and
+`Tracon:Voice:MaxDialogueCharactersPerRequest` characters (default 2,000); a longer
+dialogue is refused, not split. `Tracon:Voice:DialogueModelId` selects the dialogue
+model; `SynthesisModelId` is never used for a dialogue. With timestamps, `Segments`
+gives each turn's time range. A synthesizer of your own that does not implement the
+interface is reported by name, not replaced by the built-in client.
+
+## Provider request settings
+
+`SpeechRequest.ProviderSettings` and `SpeechDialogueRequest.ProviderSettings` carry
+`elevenlabs.*` keys: `stability`, `similarityBoost`, `style`, `useSpeakerBoost`,
+`speed`, `seed`, `previousText`, `nextText` and `previousRequestIds` (constants in
+`ElevenLabsProviderNames`). A dialogue takes only `stability`, `similarityBoost`,
+`seed`, `previousText`, `nextText` and `previousRequestIds`. An unknown key, a value
+of the wrong type or outside its range is refused before the call; the message names
+the key, never the value. `SpeechAudio.ProviderRequestId` is the id to pass in
+`elevenlabs.previousRequestIds` for the next part of a long script.
+
 ## Tenant rules
 
 Every speech call obeys the calling tenant's egress policy and its own provider key.
 The policy names the provider name the engine reports (`elevenlabs` for the built-in
 client), not the registration name. A tenant with its own key for that provider is
 served only by an engine that sets `SupportsTenantCredentials`; the key arrives in
-`SpeechRequest.Credential`. Any other engine is refused for that tenant rather than
-called on its own configured key. The built-in ElevenLabs client does not take a
-tenant key, so a tenant with an `elevenlabs` binding is refused, and a tenant whose
-saved policy does not name `elevenlabs` cannot use the tools. The tools and the HTTP
+`SpeechRequest.Credential` or `SpeechDialogueRequest.Credential`. Any other engine is
+refused for that tenant rather than called on its own configured key. The built-in
+ElevenLabs client does not take a tenant key, so a tenant with an `elevenlabs`
+binding is refused, and a tenant whose saved policy does not name `elevenlabs`
+cannot use the tools. The tools and the HTTP
 endpoints check on every call; a conversation socket checks once, when it opens, and
 keeps its providers until it closes. The health check is a platform check on the
 configured key and sends no tenant data.
@@ -137,7 +178,7 @@ configured key and sends no tenant data.
 ## Dependencies
 
 `Tracon.Core` is the only dependency, and it brings **no third-party NuGet
-package** with it for this surface. The provider integration amounts to three
+package** with it for this surface. The provider integration amounts to a few
 HTTP endpoints and is written with a raw `HttpClient` plus the
 `System.Text.Json` source generator; the package is AOT-compatible.
 

@@ -1,7 +1,7 @@
 # Faz 202 — Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam
 
 > **Durum:** 📋 Planlandı (2026-10-12)
-> **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
+> **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A; 1–3 güvenlik kararıdır). Faz 196 ve Faz 203 ile paralel geliştirilir
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-345**
 > **Önkoşul:** Yok — işlevsel bağımlılık yok; Faz 196 ile ortak dosya `TimeoutSiteTests.cs`
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Testing.Contracts.Xunit`

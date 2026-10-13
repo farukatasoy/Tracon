@@ -285,6 +285,10 @@ rejected too. `POST /api/agents/validate` reports it as `invalid_setting` at
 code fails compilation. The console does not edit `providerSettings`; remove a stray
 key through the HTTP API or in code.
 
+A refusal names the key and, for a setting with a fixed set of values, the accepted
+values. It never repeats the value you wrote: a value can be a credential pasted into
+the wrong field, and the message reaches logs and run records.
+
 ## Azure OpenAI uses deployments
 
 For `azure-openai`, `ModelBinding.Model` is the **deployment name**, not the base model
@@ -469,7 +473,9 @@ support. A provider that supports no key rejects them all. Call
 `CreateChatClient`, and pass an empty list when you support none. Its exception is
 the one the registry passes through with the key named. The registry masks the
 message of any other exception thrown while a client is built, so a hand-rolled
-check reaches the author as a generic provider failure.
+check reaches the author as a generic provider failure. When you refuse a value of a
+supported key yourself, name the key and the accepted values, not the value:
+`ModelProviderSettingsContract` fails a provider whose message repeats it.
 
 **Default output limit.** If your client sends an output-token limit of its own
 when `ModelBinding.MaxOutputTokens` is empty, return a `ModelOutputLimit` from

@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- A refused provider setting no longer repeats its value. The Anthropic choice
+  settings (`anthropic.effort`, `anthropic.thinking.mode`, the prompt-caching
+  placement and TTL) and thinking budget, and the Google safety thresholds and
+  thinking budget, wrote the rejected value into the message, which reaches logs and
+  run records; a value can be a credential pasted into the wrong field. The message
+  now names the key and the accepted values only.
+- The built-in ElevenLabs client refuses a tenant credential with
+  `NotSupportedException` on synthesis, streaming synthesis, dialogue and
+  transcription. It does not take a tenant key; a caller that passed one directly was
+  served on the configured key, so the host's account paid for the tenant's speech.
+  The resolver never sends one, so calls made through Tracon are not affected.
+
 - Knowledge base embedding calls now apply the tenant's provider checks before the
   tenant's text leaves the process. A document upload, `POST /api/knowledge/{collection}/search`
   and the `search_knowledge` tool called the registered embedding generator and read
@@ -665,6 +677,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Multi-speaker dialogue synthesis. `ISpeechDialogueSynthesizer` voices an ordered
+  list of turns, each with its own voice, in one request (`SpeechDialogueRequest`,
+  `SpeechDialogueTurn`) and returns one audio result with each turn's time range
+  (`SpeechDialogueAudio`, `SpeechDialogueSegment`) and the provider's limits
+  (`SpeechDialogueCapabilities`). Code takes it from the new
+  `ISpeechProviderResolver.GetDialogueSynthesizerAsync(name)`, which reads the
+  capability from the registered synthesizer and applies the tenant's egress policy
+  and own-key rules; nothing registers the capability in the container. The built-in
+  ElevenLabs client implements it with `text-to-dialogue` and its timestamped
+  variant, refuses a request over 10 voices or `VoiceOptions.MaxDialogueCharactersPerRequest`
+  (new, default 2,000) before the call, and uses `VoiceOptions.DialogueModelId` (new)
+  or the provider's default model, never `SynthesisModelId`.
+- Provider request settings for speech. `SpeechRequest.ProviderSettings` and
+  `SpeechDialogueRequest.ProviderSettings` carry keys under the provider's prefix; the
+  built-in client reads `elevenlabs.stability`, `similarityBoost`, `style`,
+  `useSpeakerBoost`, `speed`, `seed`, `previousText`, `nextText` and
+  `previousRequestIds` (`ElevenLabsProviderNames`) and refuses an unknown key, a
+  wrong type, a value out of range, and on a dialogue a key the dialogue service does
+  not take. `ModelProviderSettings.Validate` gains an overload that takes the settings
+  dictionary, for a speech provider of your own.
+- `SpeechAudio.ProviderRequestId` carries the provider's id for a generation (the
+  ElevenLabs `request-id` header), to pass in `elevenlabs.previousRequestIds` for the
+  next part of a long script.
 - A workflow function node can be bounded by a timeout. `AddWorkflowFunction<TInput, TOutput>`
   gains an overload that takes `Action<WorkflowFunctionOptions>`, and
   `WorkflowFunctionOptions.Timeout` sets the registration's timeout; a node's own
@@ -700,6 +735,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Saving_again_without_timeouts_clears_them`. A third-party store must keep both fields.
 - The console's workflow editor has a timeout field on each step of a chain with a
   function step, and a run timeout field.
+
 - A workflow run, resume or answer can be queued: `POST /api/workflows/{name}/run`,
   `POST /api/workflows/runs/{runId}/resume` and `POST /api/workflows/runs/{runId}/respond`
   accept `Prefer: respond-async` and answer `202 Accepted` with the run id
@@ -911,6 +947,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `Tracon.Testing.Contracts.Xunit`: `ModelProviderSettingsContract`'s invalid-value
+  case now also fails when the refusal message repeats a text `InvalidSettingValue`.
+  **Behavior change:** a provider that echoes the rejected value fails the case;
+  name the key and the accepted values instead.
+- `ISpeechProviderResolver` gains `GetDialogueSynthesizerAsync`. The member has no
+  default implementation: a resolver of your own must implement the dialogue gate.
 - **Behavior change:** `POST /api/jobs/{id}/cancel` now reaches a running handler. The
   worker reads each running job's status every `Tracon:Scheduling:PollInterval` and
   cancels the handler's token when it finds the job cancelled or gone; before, a running
@@ -920,6 +962,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   no longer compiles (`CS0121`): a `null` third argument fits both the description
   parameter and the new `Action<WorkflowFunctionOptions>` overload. Name the argument
   (`description: null`) or leave it out.
+
 - The generated C# client `TraconApiClient` changes three method signatures.
   `TraconListRunsAsync` gains a `continuedFromRunId` parameter before `skip` and
   `take`, `TraconVoiceListAsync` gains a `provider` parameter and

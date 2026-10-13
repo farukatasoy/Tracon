@@ -14,6 +14,44 @@ internal sealed class ElevenLabsSynthesisRequest
 
     [JsonPropertyName("language_code")]
     public string? LanguageCode { get; set; }
+
+    /// <summary>Per-request voice settings; omitted when the request sets none.</summary>
+    [JsonPropertyName("voice_settings")]
+    public ElevenLabsVoiceSettings? VoiceSettings { get; set; }
+
+    [JsonPropertyName("seed")]
+    public long? Seed { get; set; }
+
+    [JsonPropertyName("previous_text")]
+    public string? PreviousText { get; set; }
+
+    [JsonPropertyName("next_text")]
+    public string? NextText { get; set; }
+
+    [JsonPropertyName("previous_request_ids")]
+    public List<string>? PreviousRequestIds { get; set; }
+}
+
+/// <summary>
+/// ElevenLabs <c>VoiceSettingsResponseModel</c>, sent as <c>voice_settings</c>. A field
+/// left <see langword="null"/> is omitted, so the voice's stored value applies.
+/// </summary>
+internal sealed class ElevenLabsVoiceSettings
+{
+    [JsonPropertyName("stability")]
+    public double? Stability { get; set; }
+
+    [JsonPropertyName("similarity_boost")]
+    public double? SimilarityBoost { get; set; }
+
+    [JsonPropertyName("style")]
+    public double? Style { get; set; }
+
+    [JsonPropertyName("use_speaker_boost")]
+    public bool? UseSpeakerBoost { get; set; }
+
+    [JsonPropertyName("speed")]
+    public double? Speed { get; set; }
 }
 
 /// <summary>ElevenLabs <c>.../with-timestamps</c> response.</summary>
@@ -132,6 +170,9 @@ internal sealed class ElevenLabsVerifiedLanguage
 /// </remarks>
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(ElevenLabsSynthesisRequest))]
+[JsonSerializable(typeof(ElevenLabsVoiceSettings))]
+[JsonSerializable(typeof(ElevenLabsDialogueRequest))]
+[JsonSerializable(typeof(ElevenLabsDialogueWithTimestampsResponse))]
 [JsonSerializable(typeof(ElevenLabsAudioWithTimestampsResponse))]
 [JsonSerializable(typeof(ElevenLabsCharacterAlignment))]
 [JsonSerializable(typeof(ElevenLabsTranscriptionResponse))]

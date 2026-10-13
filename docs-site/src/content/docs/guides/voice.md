@@ -12,7 +12,7 @@ Tracon has three voice layers:
 
 | Layer | Use it for | Registration |
 |---|---|---|
-| Voice tools and REST | Generate speech, transcribe an attachment, list voices | `UseVoice()` from `Tracon.Voice` |
+| Voice tools and REST | Generate speech, transcribe an attachment, list voices, and voice a multi-speaker dialogue from a workflow node | `UseVoice()` from `Tracon.Voice` |
 | Live conversation | Keep a bidirectional audio/text session over WebSocket, with Tracon transcribing and synthesizing | `UseVoiceConversation()` from Core |
 | Provider-hosted live voice | Let a realtime model run the conversation and hand the heavy work back to your agents | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` |
 
@@ -259,6 +259,100 @@ A named engine never receives the default's `SynthesisModelId` or `OutputFormat`
 model identifier of one engine sent to another is a wrong request. Set them on the
 request when the engine needs them.
 
+### Voice a dialogue with several speakers
+
+A two-host podcast voiced one line at a time and joined together sounds read aloud.
+A provider that voices the whole exchange in one request keeps the turn-taking
+natural. `ISpeechDialogueSynthesizer` is that capability: an ordered list of turns,
+each with its own voice, in one request and one audio result. The built-in
+ElevenLabs client implements it; a synthesizer of your own implements it next to
+`ISpeechSynthesizer`.
+
+Code takes the capability from the resolver, by the same name a synthesizer is
+registered under. Nothing registers it in the container: a direct registration would
+reach the provider without the tenant's checks.
+
+```csharp
+builder.AddTracon()
+    .UseVoice(builder.Configuration.GetSection(VoiceOptions.SectionName))
+    .UseWorkflows()
+    .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, NarrationSettings>(
+        "two-voices",
+        provider =>
+        {
+            var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+
+            return async (messages, settings, context, cancellationToken) =>
+            {
+                var dialogue = await speech.GetDialogueSynthesizerAsync(settings.Provider, cancellationToken);
+                var result = await dialogue.SynthesizeDialogueAsync(
+                    new SpeechDialogueRequest
+                    {
+                        Turns =
+                        [
+                            new SpeechDialogueTurn { Text = "Welcome back.", VoiceId = "host-voice" },
+                            new SpeechDialogueTurn { Text = "Glad to be here.", VoiceId = "guest-voice" },
+                        ],
+                        OutputFormat = "pcm_24000",
+                        IncludeTimestamps = true,
+                    },
+                    cancellationToken);
+
+                return [new ChatMessage(ChatRole.Assistant, $"{result.Segments?.Count ?? 0} segments")];
+            };
+        });
+```
+
+| Rule | What happens |
+|---|---|
+| Limits | `DialogueCapabilities` states the most distinct voices (`MaxVoices`) and characters (`MaxCharactersPerRequest`) one request takes. The built-in client takes 10 voices and `Tracon:Voice:MaxDialogueCharactersPerRequest` characters (default 2,000, the provider's guidance). A request over a limit, an empty turn or a turn without a voice is refused before the call — Tracon does not split or cut a dialogue |
+| Splitting and joining | Yours. Split a long script where its content allows, voice each part, and join the audio. Raw `pcm_*` output has no file header: join the samples, then add the header |
+| Model | The request's `ModelId`, then `Tracon:Voice:DialogueModelId`, then the provider's default. The single-voice `SynthesisModelId` is never used. With the provider's default, the result names no model, so a price keyed by model is not found |
+| Timing | `IncludeTimestamps` returns `Segments` — the turn index, voice and start and end of each part — and character `Alignment` over the turns' texts joined in order. A report that names a turn or voice the request did not have, leaves a turn without a segment, or is out of order gives `Segments = null` and keeps the audio |
+| Usage | `Audio.CharactersBilled` comes from the provider when it reports a count (`UsageSource.Provider`), otherwise from the turns' text (`Estimated`). `Audio.ProviderRequestId` is the provider's id for the request |
+| Tenant rules | The same as every other speech call (next section), applied to the dialogue capability's `ProviderName`. A synthesizer without the capability fails the call with a message that names it; the built-in client is not used in its place |
+
+There is no dialogue tool and no dialogue HTTP endpoint: a dialogue is a workflow
+step, written in code.
+
+### Provider request settings
+
+`SpeechRequest.ProviderSettings` and `SpeechDialogueRequest.ProviderSettings` carry a
+provider's own tuning, keyed under its prefix, in the same form a model binding's
+provider settings take. The built-in client reads these keys
+(`ElevenLabsProviderNames` holds them as constants):
+
+| Key | Value | Single voice | Dialogue |
+|---|---|---|---|
+| `elevenlabs.stability` | number from 0 to 1 | `voice_settings.stability` | `settings.stability` |
+| `elevenlabs.similarityBoost` | number from 0 to 1 | `voice_settings.similarity_boost` | `settings.similarity` |
+| `elevenlabs.style` | number | `voice_settings.style` | refused |
+| `elevenlabs.useSpeakerBoost` | boolean | `voice_settings.use_speaker_boost` | refused |
+| `elevenlabs.speed` | number, 1 is normal | `voice_settings.speed` | refused |
+| `elevenlabs.seed` | integer from 0 to 4294967295 | `seed` | `seed` |
+| `elevenlabs.previousText` | text | `previous_text` | `previous_text`, at most 100 characters |
+| `elevenlabs.nextText` | text | `next_text` | `future_text`, at most 100 characters |
+| `elevenlabs.previousRequestIds` | list of at most 3 texts | `previous_request_ids` | `previous_request_ids` |
+
+An unknown key, another provider's key, a value of the wrong type or outside its range,
+and on a dialogue a key the dialogue service does not take, are refused before the
+call. The message names the key and the accepted values, never the value itself: a
+value can be your user's text. The provider's dialogue service accepts an unknown field
+without an error, so a silently dropped setting would never show — that is why the
+client refuses instead. The seed is a best effort: two requests with the same seed can
+return different audio.
+
+To keep the speech continuous across parts of a long script, pass each earlier result's
+`Audio.ProviderRequestId` in `elevenlabs.previousRequestIds` (the closest one last).
+Add an id only when it is not `null`; a list with a missing id is refused.
+
+The `speak` tool and `POST /api/voice/speak` send no provider settings. A synthesizer of
+your own checks its keys with the same rule:
+
+```csharp
+ModelProviderSettings.Validate(request.ProviderSettings, "contoso", ["contoso.pitch"]);
+```
+
 ### Tenant policy and credentials for speech
 
 Every speech call obeys the calling tenant's provider rules, the same rules a model
@@ -273,10 +367,12 @@ run before any text or audio leaves the process:
   node for a workflow — a refusal is not retried.
 - A tenant with its own binding for that provider name is billed on its own key. The
   key reaches only an implementation that sets `SupportsTenantCredentials` to `true`;
-  it arrives in `SpeechRequest.Credential`, `SpeechTranscriptionOptions.Credential`
-  and `ListVoicesWithCredentialAsync`. Any other implementation is refused for that
-  tenant rather than called on its own configured key — the wrong account. The
-  built-in ElevenLabs client does not take a tenant key.
+  it arrives in `SpeechRequest.Credential`, `SpeechTranscriptionOptions.Credential`,
+  `SpeechDialogueRequest.Credential` and `ListVoicesWithCredentialAsync`. Any other
+  implementation is refused for that tenant rather than called on its own configured
+  key — the wrong account. The built-in ElevenLabs client does not take a tenant key,
+  and a request that carries one directly fails with `NotSupportedException` instead
+  of using the configured key.
 - A binding whose configuration key has no value, or that sets an endpoint override,
   is refused; the call never falls back to the shared key.
 
@@ -655,6 +751,16 @@ tenant has its own key for that provider and the engine cannot take one. The mes
 names the tenant and the provider. Add the provider name to the policy, or remove the
 binding; `GET /api/voice/providers` shows each engine's provider name and whether it
 accepts a tenant key.
+
+### A dialogue node fails before any audio is made
+
+The run's error names the cause. `cannot voice a dialogue` means the synthesizer
+under that name does not implement `ISpeechDialogueSynthesizer`; name one that does.
+`The dialogue has N characters` or `uses N voices` means the request is over the
+limits in `DialogueCapabilities`; split it. `ProviderSettings is invalid` names the
+key that is unknown, belongs to another provider or has no effect on a dialogue. A
+provider `400` for a turn that holds only an inline tag such as `[pause]` means the
+turn has no speakable text: the provider refuses it.
 
 ### Voice conversation reports `501`
 

@@ -1026,6 +1026,96 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SynthesizeSetti
     },
     static options => options.Description = "Speaks the text with the speech synthesizer the node's settings name and saves the audio as an attachment.");
 
+// A function node that voices a DIALOGUE (phase 203): each non-empty line of the last
+// message is one turn, and the voices in the settings take turns in order. With the
+// ElevenLabs key configured, the default synthesizer voices it:
+//
+//   PUT /tracon/api/workflows/two-voices
+//   {"kind":"Sequential","nodes":[
+//     {"name":"dialogue","kind":"Function","settings":{
+//        "voices":["onwK4e9ZLuTAKqWW03F9","TX3LPaxmHKxFdv7VOQHJ"],
+//        "modelId":"eleven_v4","languageCode":"tr","outputFormat":"pcm_24000",
+//        "includeTimestamps":true,
+//        "providerSettings":{"elevenlabs.stability":0.3}}}]}
+//
+//   POST /tracon/api/workflows/two-voices/run   {"message":"Merhaba.\nSelam."}
+//
+// The capability comes from the resolver, after the run tenant's checks: there is no
+// container registration to call it past them. A request over the engine's limits, an
+// unknown provider setting or an engine that cannot voice a dialogue ("provider":"tone")
+// fails the node before any audio is made, and the message names the limit, the key or
+// the engine. Splitting a long script and joining the audio stay in this code: raw PCM
+// is wrapped in a WAV header here so the attachment store can keep it.
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, DialogueSettings>(
+    "dialogue",
+    static provider =>
+    {
+        var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+        var attachments = provider.GetRequiredService<IAttachmentStore>();
+
+        return async (messages, settings, _, cancellationToken) =>
+        {
+            var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                       ?? string.Empty;
+            var scope = TraconRunContext.Current
+                ?? throw new InvalidOperationException("The dialogue node runs only inside a Tracon run.");
+
+            if (settings.Voices.Count == 0)
+            {
+                throw new TraconException("The dialogue node needs at least one voice in its settings.");
+            }
+
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var turns = lines
+                .Select((line, index) => new SpeechDialogueTurn { Text = line, VoiceId = settings.Voices[index % settings.Voices.Count] })
+                .ToList();
+
+            var dialogue = await speech.GetDialogueSynthesizerAsync(settings.Provider, cancellationToken);
+            var result = await dialogue.SynthesizeDialogueAsync(
+                new SpeechDialogueRequest
+                {
+                    Turns = turns,
+                    ModelId = settings.ModelId,
+                    LanguageCode = settings.LanguageCode,
+                    OutputFormat = settings.OutputFormat,
+                    IncludeTimestamps = settings.IncludeTimestamps,
+                    ProviderSettings = settings.ProviderSettings ?? (IReadOnlyDictionary<string, System.Text.Json.JsonElement>)System.Collections.ObjectModel.ReadOnlyDictionary<string, System.Text.Json.JsonElement>.Empty,
+                },
+                cancellationToken);
+
+            var wav = PcmWave.Wrap(settings.OutputFormat, result.Audio.Data.Span);
+            var saved = await attachments.SaveAsync(
+                new AttachmentContent
+                {
+                    TenantId = scope.TenantId ?? "default",
+                    SessionId = scope.SessionId,
+                    RunId = scope.RunId,
+                    FileName = wav is null ? "dialogue.mp3" : "dialogue.wav",
+                    MediaType = wav is null ? result.Audio.MediaType : "audio/wav",
+                    Data = wav ?? result.Audio.Data,
+                    CreatedBy = scope.AgentName,
+                },
+                cancellationToken);
+
+            var report = new System.Text.StringBuilder();
+            report.Append(System.Globalization.CultureInfo.InvariantCulture,
+                $"[dialogue by {dialogue.ProviderName}: attachment {saved.Id}, {saved.ByteSize} bytes, ");
+            report.Append(System.Globalization.CultureInfo.InvariantCulture,
+                $"{result.Audio.CharactersBilled} characters ({result.Audio.UsageSource}), model {result.Audio.ModelId ?? "provider default"}, ");
+            report.Append(System.Globalization.CultureInfo.InvariantCulture,
+                $"request {result.Audio.ProviderRequestId ?? "none"}]");
+
+            foreach (var segment in result.Segments ?? [])
+            {
+                report.Append(System.Globalization.CultureInfo.InvariantCulture,
+                    $"\nturn {segment.TurnIndex} ({segment.VoiceId}): {segment.Start.TotalSeconds:0.00}-{segment.End.TotalSeconds:0.00} s");
+            }
+
+            return [new ChatMessage(ChatRole.User, report.ToString())];
+        };
+    },
+    static options => options.Description = "Voices each line of the text as one turn of a dialogue, the voices taking turns, and saves the audio as an attachment.");
+
 if (!openAiEnabled)
 {
     var instructionsModel = new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoInstructionsModel };

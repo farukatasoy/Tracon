@@ -10,8 +10,8 @@ namespace Tracon;
 /// Every Tracon path that sends a tenant's text or audio to a speech provider
 /// resolves the provider here: the <c>speak</c>, <c>transcribe</c> and
 /// <c>list_voices</c> tools, <c>POST /api/voice/speak</c>, <c>GET /api/voice/voices</c>
-/// and the conversation socket. A workflow function node that speaks resolves it here
-/// too. The one direct call is the platform health check
+/// and the conversation socket. A workflow function node that speaks or voices a
+/// dialogue resolves it here too. The one direct call is the platform health check
 /// (<c>GET /api/voice/health</c>): it lists the default synthesizer's voices with the
 /// configured credential and sends no tenant data.
 /// </para>
@@ -116,6 +116,38 @@ public interface ISpeechProviderResolver
     /// </exception>
     /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
     ValueTask<ISpeechTranscriber> GetTranscriberAsync(string? name = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the dialogue capability of a speech synthesizer for the current tenant.</summary>
+    /// <param name="name">
+    /// The registration name of the synthesizer, or <see langword="null"/> for the unnamed
+    /// default. Dialogue has no registration of its own: the synthesizer registered under
+    /// this name must implement <see cref="ISpeechDialogueSynthesizer"/>.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The dialogue synthesizer, carrying the tenant's credential when it has one.
+    /// </returns>
+    /// <exception cref="TraconException">
+    /// No synthesizer is registered under <paramref name="name"/>, or no default is
+    /// registered; the synthesizer cannot voice a dialogue; or the tenant's checks refuse
+    /// the provider. The message names the provider, never a key value.
+    /// </exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled.</exception>
+    /// <remarks>
+    /// <para>
+    /// The capability is read from the synthesizer instance itself, never from a wrapper,
+    /// so a tenant with its own credential and a tenant without one see the same answer.
+    /// The tenant's checks then apply to <see cref="ISpeechDialogueSynthesizer.ProviderName"/>
+    /// in the order <see cref="GetSynthesizerAsync"/> uses.
+    /// </para>
+    /// <para>
+    /// A host's own synthesizer that voices no dialogue is reported, not replaced: the call
+    /// fails naming that provider, and the built-in client is not called in its place.
+    /// </para>
+    /// </remarks>
+    ValueTask<ISpeechDialogueSynthesizer> GetDialogueSynthesizerAsync(
+        string? name = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>A registered speech provider, as the speech provider list reports it.</summary>
