@@ -409,7 +409,7 @@ export interface paths {
         };
         /**
          * Lists runs from newest to oldest.
-         * @description By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
+         * @description By default, ONLY root runs are returned. To also see child runs, use 'includeChildren=true'; pass 'rootRunId' for an entire tree, or 'parentRunId' for the direct children of a run. 'userId' narrows the list to one user's runs, and 'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. 'continuedFromRunId' returns the runs that continue a given run after an interruption (each continuation names the run it continues in 'continuedFromRunId'); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 — the list is REJECTED, never silently filtered.
          */
         get: operations["TraconListRuns"];
         put?: never;
@@ -702,8 +702,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Runs the workflow and streams its events over SSE.
-         * @description Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user's session in 'sessionId' is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it.
+         * Runs the workflow and streams its events over SSE, or queues it with 'Prefer: respond-async'.
+         * @description Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user's session in 'sessionId' is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it. A streamed run belongs to the connection: if the client stops reading, the run closes as Canceled. A request carrying 'Prefer: respond-async' is checked the same way and then queued: the answer is '202 Accepted' with a 'Location' header and the run id, the run executes in the background worker, and its events are read from GET /api/runs/{runId}/events. A queued run does not depend on any connection, and with ResumeInterruptedRuns on it is resumed from its latest checkpoint after a restart. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async' (400 otherwise); a repeated request returns the same 202 and queues nothing. With queuing disabled (Tracon:AsyncRun:Enabled = false) the preference is answered with 501.
          */
         post: operations["TraconRunWorkflow"];
         delete?: never;
@@ -742,8 +742,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Resumes from a checkpoint and streams events over SSE.
-         * @description Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened.
+         * Resumes from a checkpoint and streams events over SSE, or queues it with 'Prefer: respond-async'.
+         * @description Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run; the source run and its checkpoint are checked first, so an unknown run is 404 and a run with no checkpoint is 400. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
          */
         post: operations["TraconResumeWorkflow"];
         delete?: never;
@@ -782,8 +782,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Responds to a pending request and resumes the run.
-         * @description The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened.
+         * Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
+         * @description The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the answer is checked the same way (a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404) and then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
          */
         post: operations["TraconRespondWorkflowRequest"];
         delete?: never;
@@ -9354,6 +9354,7 @@ export interface operations {
                 includeChildren?: boolean;
                 parentRunId?: string;
                 rootRunId?: string;
+                continuedFromRunId?: string;
                 skip?: number | string;
                 take?: number | string;
             };
@@ -9828,6 +9829,15 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedRunResponse"];
+                };
+            };
             /** @description Bad Request */
             400: {
                 headers: {
@@ -9921,6 +9931,15 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedRunResponse"];
+                };
+            };
             /** @description Bad Request */
             400: {
                 headers: {
@@ -9932,6 +9951,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10005,6 +10033,15 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedRunResponse"];
+                };
+            };
             /** @description Bad Request */
             400: {
                 headers: {
@@ -10016,6 +10053,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
