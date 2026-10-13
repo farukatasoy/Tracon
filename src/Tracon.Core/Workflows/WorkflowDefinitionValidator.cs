@@ -29,6 +29,27 @@ namespace Tracon;
 /// </remarks>
 internal static class WorkflowDefinitionValidator
 {
+    /// <summary>
+    /// The workflow name a fixed management route already uses:
+    /// <c>GET /api/workflows/functions</c> matches before <c>/api/workflows/{name}</c>,
+    /// in any letter case, so a workflow saved under it could never be read back.
+    /// </summary>
+    public const string ReservedFunctionListName = "functions";
+
+    /// <summary>Refuses a name a fixed management route already uses.</summary>
+    /// <param name="name">The workflow name.</param>
+    /// <returns>User-facing error text; <see langword="null"/> when the name is free.</returns>
+    /// <remarks>
+    /// Asked where a workflow is SAVED (the HTTP endpoint and <c>AddWorkflow</c>), not by
+    /// the compiler: a workflow stored under the name before the rule existed can still
+    /// be run by name; it only cannot be read back.
+    /// </remarks>
+    public static string? ReservedNameProblem(string name)
+        => string.Equals(name, ReservedFunctionListName, StringComparison.OrdinalIgnoreCase)
+            ? $"'{name}' is reserved: GET /api/workflows/{ReservedFunctionListName} lists the registered " +
+              "function nodes, so a workflow under that name could not be read back. Choose another name."
+            : null;
+
     /// <summary>Validates the definition.</summary>
     /// <param name="definition">The definition to validate.</param>
     /// <returns>

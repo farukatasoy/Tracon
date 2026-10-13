@@ -1292,12 +1292,6 @@ hattını kurduğu için bu hata izole bir problamda değil, burada da aynen gö
 2. Aynı bağımlılığı kurucuda alan (doğru desen) bir tool ile karşılaştır.
 
 **Girilecek veri**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** MAF `AIFunctionArguments.Services`'i
-> asla gerçek `null` göndermez — daima `Microsoft.Extensions.AI
-> .EmptyServiceProvider`ın (boş ama `null` OLMAYAN) bir örneğini gönderir.
-> `args.Services is null` denetimi bu yüzden HER ZAMAN `false` — yanlış
-> koşulu sınıyordu. Doğru denetim, gerçekten kayıtlı bir servisi
-> `GetService(...)` ile çözmeye çalışmaktır.
 ```csharp
 using Tracon;
 using Tracon.Testing;
@@ -1333,10 +1327,6 @@ Console.WriteLine("Tool sonucu: " + toolResult?.Payload);
 
 internal sealed class MyRegisteredService;
 ```
-
-~~Eski script (yanlış öncül — `args.Services is null` denetimi MAF'ta HER
-ZAMAN `false` döner, `EmptyServiceProvider` `null` DEĞİLDİR): `args.Services
-is null ? "SERVICES NULL" : "SERVICES DOLU"`.~~
 
 **Beklenen sonuç**
 - `Tool sonucu: SERVICE COZULEMEDI` — `args.Services`, MAF boru hattında

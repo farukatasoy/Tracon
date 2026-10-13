@@ -715,11 +715,6 @@ dotnet run
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:OutputFormat"`,
   yeniden başlat.
 
-> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
-> yazılmıştı; `VoiceOptionsValidator.cs`'in gerçek metni İngilizce'dir
-> (K-228 — paket koduna giren her şey İngilizce, yalnız `docs/`/`.agents/`
-> Türkçe kalır). Yukarıda düzeltildi.
-
 ---
 
 ### MT-MM-033 — Tanınmayan sağlayıcı adı AÇILIŞTA reddedilir
@@ -746,9 +741,6 @@ dotnet run
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:Provider"`,
   yeniden başlat.
 
-> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
-> yazılmıştı; gerçek metin İngilizce'dir (K-228). Yukarıda düzeltildi.
-
 ---
 
 ### MT-MM-034 — `MaxCharactersPerRequest`/`MaxConcurrentRequests` sıfır veya negatif AÇILIŞTA reddedilir
@@ -774,9 +766,6 @@ dotnet run
   içerir.
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:MaxConcurrentRequests"`,
   yeniden başlat.
-
-> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
-> yazılmıştı; gerçek metin İngilizce'dir (K-228). Yukarıda düzeltildi.
 
 ---
 
@@ -809,10 +798,6 @@ curl -s "$APU/api/voice/health" -H "$APB" | python3 -m json.tool
   metni yanıtın HİÇBİR YERİNDE görünmez. Uygulama loglarını da tara: anahtar
   orada da görünmemelidir.
 - **Geri al:** gerçek anahtarı tekrar ayarla, yeniden başlat.
-
-> **Doküman düzeltmesi (2026-09-16 koşumu):** İpucu metni Türkçe yazılmıştı;
-> `ElevenLabsSpeechClient.cs`'in gerçek metni İngilizce'dir (K-228).
-> Yukarıda düzeltildi.
 
 ### MT-MM-038 — `GET /api/voice/voices` gerçek ses listesini döner
 

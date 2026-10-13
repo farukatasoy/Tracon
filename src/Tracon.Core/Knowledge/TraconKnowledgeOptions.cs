@@ -26,4 +26,25 @@ public sealed class TraconKnowledgeOptions
 
     /// <summary>The maximum number of results returned by the <c>search_knowledge</c> tool.</summary>
     public int MaxResults { get; set; } = 5;
+
+    /// <summary>
+    /// The name of the provider the registered embedding generator calls, as a
+    /// tenant egress policy names it (for example <c>azure-openai</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every embedding call — a <c>search_knowledge</c> query, a knowledge search and
+    /// a document upload — checks the tenant's egress policy against this name
+    /// before the text leaves the process, and refuses a tenant that has its own
+    /// credential for this provider: the generator was built with the setup key and
+    /// cannot use the tenant's.
+    /// </para>
+    /// <para>
+    /// When it is not set, the provider name the generator reports is used. That
+    /// name does not always match a policy name: the OpenAI and the Azure OpenAI
+    /// generators both report <c>openai</c>. When neither name is known, a tenant
+    /// with an egress policy is refused, and a tenant without one is not.
+    /// </para>
+    /// </remarks>
+    public string? EmbeddingProvider { get; set; }
 }

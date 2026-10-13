@@ -62,6 +62,7 @@ internal static class OpenAIResponsesEndpoints
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
                 [FromServices] IOptionsMonitor<TraconSessionOwnershipOptions>? sessionOwnershipOptions,
+                [FromServices] ITraconDrainState drainState,
                 CancellationToken cancellationToken)
                 => HandleAsync(
                     httpContext,
@@ -75,6 +76,7 @@ internal static class OpenAIResponsesEndpoints
                     runAuthorizationHandler,
                     attributionContext,
                     sessionOwnershipOptions,
+                    drainState,
                     prefix,
                     cancellationToken))
             .RequireRole(roles.Operator)
@@ -114,7 +116,8 @@ internal static class OpenAIResponsesEndpoints
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
-            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway);
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status503ServiceUnavailable);
     }
 
     private static async Task<IResult> HandleAsync(
@@ -129,9 +132,16 @@ internal static class OpenAIResponsesEndpoints
         IRunAuthorizationHandler? runAuthorizationHandler,
         IRunAttributionContext? attributionContext,
         IOptionsMonitor<TraconSessionOwnershipOptions>? sessionOwnershipOptions,
+        ITraconDrainState drainState,
         string prefix,
         CancellationToken cancellationToken)
     {
+        // 🚨 Checked BEFORE anything else, like the agent run endpoint (F-431).
+        if (OpenAICompatSupport.DrainRefusal(drainState) is { } drainRefusal)
+        {
+            return drainRefusal;
+        }
+
         JsonElement body;
 
         try

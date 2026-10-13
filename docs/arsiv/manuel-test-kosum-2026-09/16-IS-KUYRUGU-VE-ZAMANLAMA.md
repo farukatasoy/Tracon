@@ -905,3 +905,22 @@ Bölüm 1-7 (`MT-JOB-001..085`) + `MT-JOB-090` + Bölüm 8 (`MT-JOB-091..121`)
 + Bölüm 9-10 (`MT-JOB-122..131`) + regresyon `MT-JOB-098`(B03) — **aile 16
 TAMAMLANDI**: 98/98 case işlendi, 97 Geçti, 1 Kaldı (`MT-JOB-129`,
 `HATA-S4-002`), sıfır `Beklemede`. Sıfır `Atlandı`.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-JOB-132 — Yarıda kalan approval handoff'u, AYNI kararı tekrarlayarak tamamlanır (B03)
+
+> **Kimlik düzeltmesi (2026-09-19).** Bu case dosyaya `MT-JOB-098` olarak
+> girmişti ve satır 2058'deki kota case'iyle **çakışıyordu**; iki ayrı case
+> tek kimliği paylaşınca sayım biri diğerini yutuyordu. 2026-09-16 turunun
+> kaydı çakışmayı gördü ama koşum sırasında spec'e dokunulmaz (kural 1),
+> bu yüzden kapanışta düzeltildi. Turun kaydında bu case `MT-JOB-132`
+> başlığı altındadır.

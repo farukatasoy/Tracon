@@ -6,7 +6,8 @@ public sealed record DataSubjectExport
     /// <summary>
     /// Gets the exported content, as a single JSON document (UTF-8 text). Object
     /// keys are the target table names (<c>sessions</c>, <c>runs</c>, and so on),
-    /// each holding the array of that target's matching rows exactly as stored.
+    /// each holding the array of that target's matching rows as stored, except
+    /// that a column content protection encrypted is read back as plaintext.
     /// </summary>
     /// <remarks>
     /// Attachment file bytes are NOT included — only their metadata (name, media

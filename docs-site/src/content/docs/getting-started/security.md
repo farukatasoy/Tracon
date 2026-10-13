@@ -294,6 +294,7 @@ below, so plan for that before storing regulated data:
 | Column | What it holds |
 |---|---|
 | `sessions.state` | Microsoft Agent Framework's serialized session state |
+| `workflow_checkpoints.state` | A workflow run's serialized checkpoint, which carries its messages |
 | `conversation_items.item` | One stored chat message |
 | `run_inputs.messages` | The prompt a run was started with |
 | `run_inputs.parameters` | The parameter values a run was started with |
@@ -316,7 +317,7 @@ warning that names the header, never its value.
 
 ## At-rest content protection
 
-`AddContentProtection(...)` encrypts the eleven columns above with AES-256-GCM before
+`AddContentProtection(...)` encrypts the twelve columns above with AES-256-GCM before
 they reach the database, and decrypts them transparently on read — the rest of
 Tracon, and your own code, never sees ciphertext. It is off by default (no
 surprises); turning it on is a deliberate, explicit call.
@@ -345,7 +346,9 @@ Three limits are worth knowing before you rely on this:
 - **It protects data at rest, not a running process.** A process holding the key
   still sees plaintext once a value is read back — this closes a stolen backup, a
   discarded disk, or a misconfigured table permission, not a compromised
-  application server.
+  application server. What leaves the process is plaintext too: a data subject
+  export, and the rows a retention policy hands to your `IArchiveSink`. Encrypt the
+  archive in the sink if it must stay encrypted at rest.
 - **A protected column cannot be searched or filtered on the server.** Agent file
   search still returns correct results, but the server-side prefilter is skipped
   and every candidate file is decrypted and matched on the client instead.
@@ -377,7 +380,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
 | Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant | [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) |
 | Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
-| Tenant provider policy | A tenant's data reaching a model, speech, live voice or image provider its egress policy does not name, or a call billed to the shared key while the tenant has its own | [Per-tenant provider credentials and egress](/concepts/governance/#per-tenant-provider-credentials-and-egress) |
+| Tenant provider policy | A tenant's data reaching a model, speech, live voice, image or embedding provider its egress policy does not name, or a call billed to the shared key while the tenant has its own | [Per-tenant provider credentials and egress](/concepts/governance/#per-tenant-provider-credentials-and-egress) |
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |

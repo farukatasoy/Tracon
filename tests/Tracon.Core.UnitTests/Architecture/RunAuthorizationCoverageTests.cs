@@ -224,6 +224,45 @@ public sealed class RunAuthorizationCoverageTests
             "'RunAttributionGate.Check(' or '.Validate(' — a run can start there with an attribution " +
             "that breaks a limit, unattributed, where the agent run endpoint answers 400 (F-337)");
 
+    /// <summary>
+    /// F-431: the drain refusal, in each surface's own protocol shape. A file
+    /// counts one match per run it can start in this process.
+    /// </summary>
+    private static readonly Regex DrainMarker = new(
+        @"DrainGate\s*\.\s*Check\s*\(|OpenAICompatSupport\s*\.\s*DrainRefusal\s*\(|GetRequiredService<ITraconDrainState>\(\)\s*\.\s*IsDraining",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    /// <summary>
+    /// F-431: every surface that starts a run IN THIS PROCESS refuses it while the
+    /// process drains. Only the agent run endpoint did (phase 87); the workflow
+    /// run, resume and respond endpoints, replay, both OpenAI-compatible
+    /// endpoints, the MCP server's <c>tools/call</c>, A2A and the voice
+    /// conversation socket started runs during a drain.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 <c>TriggerEndpoints</c> is NOT here on purpose: an inbound trigger only
+    /// writes a job, and the job worker stops leasing while the process drains, so
+    /// the job waits instead of being refused. The same holds for an eval run, a
+    /// schedule trigger and an approval decision. A surface that starts a run
+    /// itself belongs on this list; the phase that adds one must say so.
+    /// </remarks>
+    [Fact]
+    public void Every_known_in_process_run_starting_surface_refuses_while_draining()
+        => AssertEveryFileMatches(
+            [
+                ("src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs", DrainMarker, 1),
+                ("src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs", DrainMarker, 3),
+                ("src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs", DrainMarker, 1),
+                ("src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs", DrainMarker, 1),
+                ("src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs", DrainMarker, 1),
+                ("src/Tracon.AspNetCore/McpServer/CatalogToolCallHandler.cs", DrainMarker, 1),
+                ("src/Tracon.AspNetCore/A2A/ExternalAgentProxy.cs", DrainMarker, 1),
+                ("src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs", DrainMarker, 1),
+            ],
+            "the drain refusal — a run can start there while the process drains, and is cut off " +
+            "when it stops (F-431)");
+
     /// <summary>Regression coverage for the scan itself, isolated from the real repository tree.</summary>
     /// <remarks>
     /// 🚨 The point is K-642: a plain <c>Contains</c> would find NEITHER real

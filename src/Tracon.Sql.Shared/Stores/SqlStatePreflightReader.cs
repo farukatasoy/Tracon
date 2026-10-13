@@ -102,9 +102,9 @@ internal sealed class SqlStatePreflightReader : IStatePreflightReader
                 Id = isSessions ? reader.GetString(0) : DbHelpers.ToGuid(reader.GetValue(0)).ToString("d", CultureInfo.InvariantCulture),
                 SchemaGeneration = DbHelpers.GetNullableInt32(reader, 1),
                 MafVersion = DbHelpers.GetNullableString(reader, 2),
-                // Only `sessions.state` goes through the at-rest protector;
-                // `workflow_checkpoints.state` is not a protected column.
-                State = ParseState(isSessions ? Unprotect(reader.GetString(3)) : reader.GetString(3)),
+                // Both `sessions.state` and, since F-401,
+                // `workflow_checkpoints.state` go through the at-rest protector.
+                State = ParseState(Unprotect(reader.GetString(3))),
             },
             cancellationToken).ConfigureAwait(false);
     }

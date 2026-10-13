@@ -50,6 +50,27 @@ public sealed class SchedulingEndpointTests
         getAfterDelete.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
+    /// <summary>
+    /// F-382: <c>GET /api/schedules/handler-keys</c> matches before
+    /// <c>/api/schedules/{name}</c>, so a schedule under that name could be saved
+    /// and never read back. The name is reserved, in any letter case, because the
+    /// route matches case-insensitively.
+    /// </summary>
+    [Theory]
+    [InlineData("handler-keys")]
+    [InlineData("Handler-Keys")]
+    public async Task The_name_the_handler_key_list_uses_is_refused(string name)
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(
+            new Uri($"/tracon/api/schedules/{name}", UriKind.Relative),
+            Request());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+        (await response.Content.ReadAsStringAsync()).ShouldContain("reserved");
+    }
+
     [Fact]
     public async Task Invalid_cron_is_rejected()
     {

@@ -1956,3 +1956,58 @@ koşunca `totalTokens = 6599` kaydetti — yalnız son tur (F-317).
 **Gerçek sonuç (2026-10-11)** — ✅ Workflow `Failed`, `word-count` hiç çağrılmadı; workflow
 satırı `Tracon.TraconLoopUnsatisfiedException`, sınıf `null` (F-314 öncesi; beklenen sonuç
 2026-10-12'de güncellendi, yeniden koşulmadı).
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-CORE-004 — `invalid_setting`: tanınmayan sağlayıcı ayarı
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `provider:"echo"` yanlış
+> seçim — `EchoModelProvider.CreateChatClient`
+> (`samples/Tracon.Api/EchoModelProvider.cs`) ağa çıkmayan yerel örnek
+> sağlayıcı olduğu için `ModelBinding.ProviderSettings`'i hiç okumaz/
+> doğrulamaz. Doğrulama gerçek mekanizması (`ModelProviderSettings.Validate`,
+> `src/Tracon.Abstractions/Agents/ModelProviderSettings.cs`) yalnız ağa
+> çıkan sağlayıcılarda (`anthropic`/`google`/`azure`) çalışır.
+
+~~Eski girdi (yanlış öncül — `echo` sağlayıcısı `ProviderSettings`'i hiç
+okumaz): `provider: "echo"`, `providerSettings: { "echo.boyle.bir.ayar.yok":
+true }`.~~
+
+#### MT-CORE-023 — Skill kataloğu kayıtlı değilken skill isteyen tanım
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `AddTracon()`
+> (`src/Tracon.Core/TraconServiceCollectionExtensions.cs:381`)
+> `AgentSkillCatalog`'u `TryAddSingleton` ile KOŞULSUZ kaydeder (doküman'ın
+> `IAgentSkillCatalog` adı hatalı — arayüz yok, somut sınıf kaydediliyor) —
+> bir tüketicinin `AddTracon()` çağırdığı hiçbir standart senaryoda
+> katalog "kayıtlı değil" olamaz. Doğru ve tek erişilebilir dal, tanımın
+> **var olmayan bir skill'e** işaret ettiği dalıdır. 2026-08-15'te kod
+> yeniden doğrulandı: `AgentDefinitionCompiler.cs:307`/`:1174`'teki "skill
+> katalogu kayitli degil" hata dalı bugün de erişilemez durumda (ölü kod,
+> yalnız bir tüketici `AgentSkillCatalog` kaydını elle kaldırırsa tetiklenir).
+
+~~Eski beklenti (yanlış öncül — "minimum kurulumda katalog kayıtlı
+değildir"): Mesaj "skill katalogu kayitli degil" ifadesini taşır.~~
+
+#### MT-CORE-024 — Derleme hatası hangi agent'ta olduğunu söyler
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** Script'in kendisi iki farklı
+> tool kayıt deyimini karıştırmış: `[TraconTool("var_olan_tool", ...)]`
+> özniteliğini koyuyor ama `.AddTool(delegate)` ile kaydediyor.
+> `src/Tracon.Core/ITraconBuilder.cs:47` `AddTool(Delegate method,
+> string? name = null, ...)` — "name boş bırakılırsa METOT ADI kullanılır"
+> diye açıkça belgeler, kasıtlı davranış. `[TraconTool]` özniteliği
+> yalnız `AddToolsFrom<T>()` tarafından okunur, `.AddTool(delegate)` onu hiç
+> görmez. Doğru kayıtlı ad bu yüzden metot adı `"Var"`dır, öznitelikteki
+> `"var_olan_tool"` DEĞİL.
+
+~~Eski beklenti (yanlış öncül — script iki tool-kayıt idiomunu
+karıştırmıştı): Mesaj kayıtlı tool'ları listeler (`var_olan_tool` görünür).~~

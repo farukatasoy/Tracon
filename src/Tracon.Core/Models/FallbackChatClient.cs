@@ -759,7 +759,7 @@ internal static partial class FallbackRetryClassifier
             // still wins. The F-338 veto above reads only the FIRST status in
             // the graph; this loop is what still finds a 401/403 behind an
             // outer frame that carries a 5xx.
-            if (AuthenticationStatusPattern().IsMatch(candidate.Message))
+            if (ProviderHttpStatus.ReadFrame(candidate) is 401 or 403)
             {
                 return FallbackSkipReason.None;
             }
@@ -772,9 +772,14 @@ internal static partial class FallbackRetryClassifier
                 return FallbackSkipReason.RateLimited;
             }
 
-            if (RetryableHttpStatusPattern().IsMatch(candidate.Message))
+            // F-387: the status is read with the one reader every retry decision
+            // uses; a text pattern of its own here knew only "HTTP nnn".
+            switch (ProviderHttpStatus.ReadFrame(candidate))
             {
-                return FallbackSkipReason.HttpError;
+                case 429:
+                    return FallbackSkipReason.RateLimited;
+                case >= 500 and <= 599:
+                    return FallbackSkipReason.HttpError;
             }
         }
 
@@ -787,8 +792,8 @@ internal static partial class FallbackRetryClassifier
         // say an unrecognized 4xx "was already handled above"; only 401/403
         // were, and every other 4xx on a wrapper type switched provider here
         // (F-338). A status that can still reach this point is a transient
-        // one: 408, or a 5xx/429 that only HttpRequestException.StatusCode
-        // carries.
+        // one: 408. Since F-387 a 5xx/429 that only HttpRequestException.StatusCode
+        // carries is read above, like every other status.
         foreach (var candidate in Flatten(exception))
         {
             if (TransportExceptionTypePattern().IsMatch(candidate.GetType().FullName ?? string.Empty))
@@ -889,9 +894,6 @@ internal static partial class FallbackRetryClassifier
         }
     }
 
-    [GeneratedRegex(@"\bHTTP\s+40[13]\b", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
-    private static partial Regex AuthenticationStatusPattern();
-
     // 🚨 Kept character-for-character identical to DefaultRunErrorClassifier's
     // TimeoutPattern. The two answer the same question at two layers - "should
     // the next link be tried" and "which error class is recorded" - and a
@@ -908,9 +910,6 @@ internal static partial class FallbackRetryClassifier
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex RateLimitPattern();
-
-    [GeneratedRegex(@"\bHTTP\s+(?:5\d{2}|429)\b", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
-    private static partial Regex RetryableHttpStatusPattern();
 
     // 🚨 Measured (phase 62 audit): includes the SDK WRAPPER types too
     // (clientresultexception/requestfailedexception/apiexception), not just

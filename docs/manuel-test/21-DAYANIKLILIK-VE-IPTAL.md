@@ -381,10 +381,6 @@ curl -s "$APU/api/runs/$WFRUN" -H "$APB" | python3 -c "import json,sys;print(jso
 - 🚨 `error` alanı yine `null` olabilir (bkz. MT-RES-006); iptal bir hata
   değildir.
 
-~~Eski beklenti (2026-08-15 koşumu): `Completed` — MAF'ın grafik-içi iptal
-sınırı nedeniyle. Bu sınır hâlâ vardır ama artık Tracon onu kaydına
-yansıtmıyor.~~
-
 ---
 
 ### MT-RES-006 — 🚨 İptal edilen bir çalıştırmanın `error` alanı hep `null` kalır; `RunErrorClass.Canceled` PRATİKTE hiç üretilmez (şüpheli ölü kod)

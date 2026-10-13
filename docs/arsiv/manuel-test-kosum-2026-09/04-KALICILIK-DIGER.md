@@ -357,3 +357,56 @@ görünümünü SİLMİYORDU — sarkan görünüm bir SONRAKİ, ilgisiz testin
 art arda 4 bağlam oluşturan sıralı bir döngü ikinci bağlamda her seferinde
 patlıyordu). Düzeltme sonrası tam paket koşumu (600/600) ve üç ardışık koşu
 yeşil kaldı. Ayrıntı: `docs/hafiza/sqlite.md`.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-SQL-001 — Boş bağlantı dizesiyle başlatma reddedilir
+
+> **Düzeltildi (2026-09-17, aynı gerekçeyle `03-KALICILIK-POSTGRESQL.md`
+> `MT-PG-001`'de 2026-08-15'te düzeltildi) — İzlek B ile bu senaryo yapısal
+> olarak erişilemez, beklenti koda göre düzeltildi:**
+> `samples/Tracon.Api/Program.cs:867-870` boş bağlantı dizesinde
+> `UseSqlite()`'ı hiç çağırmaz — validator'a hiçbir zaman ulaşılmaz
+> (`SqlServer → PostgreSql → Sqlite` sırasıyla İLK doluyu seçer, üçü de
+> boşsa hiçbiri çağrılmaz). Örnek uygulama sessizce InMemory'e düşer,
+> `/health` **200** döner (kalıcılık nedeniyle değil, model sağlayıcı
+> sağlığı nedeniyle Healthy/Degraded). `TraconSqliteOptionsValidator`'ın
+> kendisi doğru çalışır — bu yalnız İzlek A/C (doğrudan `UseSqlite()`
+> çağıran bir harness) üzerinden gözlemlenebilir.
+
+~~Eski beklenti (yanlış öncül — İzlek B'de validator'a hiç ulaşılmadığını
+gözden kaçırıyordu): Uygulama başlamayı **reddeder** (`ValidateOnStart`);
+konsolda `OptionsValidationException` görünür, mesaj
+`TraconSqliteOptions.ConnectionString bos olamaz` metnini taşır.
+`/health` hiçbir zaman yanıt vermez.~~
+
+#### MT-SQL-005 — Paylaşımlı `:memory:` desteklenir ama KALICI DEĞİLDİR; ÇIPLAK `:memory:` reddedilir
+
+> **Düzeltildi (2026-09-17) — spec çıplak `:memory:`'nin desteklendiğini
+> söylüyordu, artık DEĞİL:** `TraconSqliteOptions.ConnectionString`'in
+> güncel XML dokümanı ve `TraconSqliteOptionsValidator`
+> (`src/Tracon.Sqlite/TraconSqliteOptionsValidator.cs:47`) çıplak
+> `Data Source=:memory:`'yi açıkça REDDEDİYOR — her `Microsoft.Data.Sqlite`
+> bağlantısı `:memory:`'nin KENDİ izole veritabanını açar (migration bir
+> bağlantıda uygulanır, sonraki sorgu BAŞKA bir bağlantıya gider ve boş
+> veritabanı görür). Doğru biçim `Data Source=file::memory:?cache=shared`
+> (paylaşımlı önbellek) — bu case o biçimle koşuldu.
+
+#### MT-SQL-010 — Boş bağlantı dizesiyle başlatma reddedilir
+
+> **Düzeltildi (2026-09-17, aynı gerekçeyle `MT-PG-001`/`MT-SQL-001`) —**
+> `Program.cs:861-863` boş bağlantı dizesinde `UseSqlServer()`'ı hiç
+> çağırmaz. Örnek uygulama sessizce InMemory'e (veya sıradaki dolu
+> sağlayıcıya) düşer, `/health` **200** döner. `TraconSqlServerOptionsValidator`
+> yalnız İzlek A/C üzerinden gözlemlenebilir.
+
+~~Eski beklenti: Uygulama başlamayı reddeder; hata mesajı
+`TraconSqlServerOptions.ConnectionString bos olamaz` metnini taşır.~~

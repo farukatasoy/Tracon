@@ -1340,3 +1340,28 @@ temizlendi (deneyler `Stopped`, anahtarlar iptal edildi). Sıradaki aile:
 `20-BELLEK-RAG-BAGLAM.md`.
 
 ---
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-EVAL-084 — Aynı yazar aynı hedefi iki kez puanlar → UPSERT (tek satır)
+
+> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — ön koşul yanlış:** Statik
+> bearer token akışında `author` alanı `NULL`'a bağlanır (sabit bir değere
+> DEĞİL). `run_scores_target_author_name_idx` tekil indeksi `(tenant_id, run_id,
+> COALESCE(message_id,''), author, name)` üzerine kuruludur (Faz 152; öncesinde
+> adı `run_scores_target_author_idx` idi ve `name` sütunu yoktu) — `author`'ın kendisi
+> `COALESCE` edilmez, PostgreSQL'de `NULL ≠ NULL` olduğu için tekillik hiç
+> devreye girmez. Bu, `MT-EVAL-085`'in kabul ettiği davranışın aynısıdır
+> (kasıtlı, kod kusuru değil).
+
+~~Eski beklenti (yanlış ön koşul — "bu ortamda `author` alanı sabit bir
+değere karşılık gelir, `NULL` değildir"): Tek satır kalır, `value=0`,
+`comment='Fikrim degisti.'` — ilk puan ÜZERİNE yazılmıştır.~~

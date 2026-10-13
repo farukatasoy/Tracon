@@ -1306,11 +1306,6 @@ başına aşar; ikinci tur **gerçek sağlayıcıya hiç ulaşmadan** kesilir.
 | **İlgili faz** | Faz 114 |
 | **İlgili karar** | K-627 |
 
-**Ölçüldü (2026-08-26, gerçek OpenAI çağrısı, `samples/Tracon.Api`):**
-başarısız bir `POST /api/agents/{name}/run`'ın gövdesi bir `run` kaydı
-DEĞİL, bir `ProblemDetails`'tir (`runId` alanı taşımaz) — bu yüzden
-`RUN_ID` POST yanıtından değil, `GET /api/runs`'tan okunur.
-
 **Adımlar**
 1. `support` agent'ına bir sipariş sorusu sor (tool çağrısını tetikler).
 2. `POST` `502` döner; `run` kaydını `GET /api/runs`'tan oku.
@@ -1350,18 +1345,6 @@ curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.clas
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 114 |
 | **İlgili karar** | — |
-
-**Ölçüldü (2026-08-26, gerçek OpenAI çağrısı).** Beklenen ilk varsayım
-"son olay tam bir `ToolInvoked`/`MessageCompleted` taşır" idi — ölçüm bunu
-DÜZELTTİ: Microsoft Agent Framework'ün `FunctionInvokingChatClient`'ı bir
-`exception` fırlattığında (bkz. MT-RET-050, ikinci model turu bütçe
-tarafından reddedilir) o ana kadarki KISMİ ilerlemeyi (turnu 1'in
-`FunctionCallContent`'i, tool'un GERÇEKTEN çalıştırılmış sonucu) hiç geri
-döndürmez — `RunRecordingAgent`'ın `catch` bloğu bu yüzden tool
-olaylarını hiç GÖRMEZ. Gerçek ölçülen olay akışı yalnız `RunStarted` →
-`RunFailed`'tir; ARADA hiçbir `ToolInvoking`/`ToolInvoked`/`MessageDelta`
-olayı YOKTUR. Bu, "yarım bir mesaj sızdırmama" iddiasını DAHA GÜÇLÜ
-şekilde sağlar: yarım bir mesaj değil, **hiçbir** ara ilerleme sızmaz.
 
 > 🚨 Sipariş `get_order_status` tool'u bu senaryoda GERÇEKTEN çağrılmıştır
 > (yerel fonksiyon çalıştırması bütçe halkasının DIŞINDadır — yalnız
@@ -1568,9 +1551,6 @@ budur: bugüne kadar kuyruğa alınmış bir `run`'ı zamanla sınırlayan **hi�
 | **İlgili faz** | Faz 128 |
 | **İlgili karar** | K-630 |
 
-**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı, `samples/Tracon.Api`,
-`export Tracon__AgentGraph__MaxDuration="00:00:00.001"`).**
-
 **Adımlar**
 1. `support` agent'ına bir sipariş sorusu sor (tool çağrısını tetikler).
 2. `POST` `502` döner; `run` kaydını `GET /api/runs`'tan oku.
@@ -1614,11 +1594,6 @@ curl -s "$APU/api/runs/$RUN_ID" -H "$APB" | jq '{status, errorClass: .error.clas
 | **İlgili faz** | Faz 128 |
 | **İlgili karar** | — |
 
-**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı).** MT-RET-051'in aynı ölçümü
-— aynı sebeple (bkz. MT-RET-051'in notu, Microsoft Agent Framework kısmi
-ilerlemeyi geri döndürmez): olay akışı yalnız `RunStarted` → `RunFailed`
-taşır.
-
 **Ön koşul**
 - MT-RET-060 çalıştırılmış, aynı `RUN_ID` elde tutuluyor.
 
@@ -1647,8 +1622,6 @@ curl -s --max-time 5 "$APU/api/runs/$RUN_ID/events" -H "$APB"
 | **Önem** | Kritik |
 | **İlgili faz** | Faz 128 |
 | **İlgili karar** | — |
-
-**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı).**
 
 **Ön koşul**
 - Örnek uygulama, tavan **olmadan** yeniden başlatılır:
@@ -1689,9 +1662,6 @@ Bu case, T-7'nin **asıl** gerekçesidir: `JobWorkerBackgroundService` kuyruklu
 işi koşarken kirayı sürekli yeniler, HTTP isteğinin doğal bir zaman aşımı
 orada yoktur — `AgentGraph.MaxDuration`'dan önce kuyruklu bir `run`'ı zamanla
 sınırlayan **hiçbir şey** yoktu.
-
-**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı, düşük tavanla — MT-RET-060'ın
-ortamı).**
 
 **Ön koşul**
 - MT-RET-060'taki gibi düşük süre tavanıyla (`00:00:00.001`) başlatılmış

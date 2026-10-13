@@ -439,10 +439,6 @@ curl -s -i http://localhost:5080/health | tail -1
   devresi açık olsa bile diğer sağlayıcılar (varsa) sağlıklıysa uygulama
   `Unhealthy` **olmaz** (`TraconHealthCheck.cs:63-68`).
 
-> **Not (2026-10-12):** 2026-08-13 koşumu devreyi geçersiz model adıyla
-> açmıştı. `404` artık devreye sayılmaz (K-906); case bu yüzden MT-OAI-080'in
-> kapalı port düzenini kullanır.
-
 ---
 
 ### MT-DIAG-007 — `/health` hiçbir model çağrısı üretmez

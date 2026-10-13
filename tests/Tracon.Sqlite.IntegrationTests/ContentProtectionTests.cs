@@ -41,6 +41,142 @@ public sealed class ContentProtectionTests(SqliteFixture fixture)
         loaded.State.GetProperty("turn").GetString().ShouldBe("secret-value");
     }
 
+    /// <summary>
+    /// F-401: a data subject export reads protected columns back as plaintext,
+    /// the way every store read does. It wrote the stored envelope, so the
+    /// subject received ciphertext exactly when protection was on.
+    /// </summary>
+    [Fact]
+    public async Task Data_subject_export_returns_protected_columns_as_plaintext()
+    {
+        await using var baseContext = await SqliteTestContext.CreateAsync(fixture);
+        var protectingContext = BuildProtectingContext(
+            baseContext,
+            "k1",
+            new HashSet<ProtectedColumn> { ProtectedColumn.SessionState, ProtectedColumn.RunInput, ProtectedColumn.RunInputParameters });
+        var sessions = new SqlSessionStore(protectingContext, baseContext.TenantContext);
+        var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);
+        var runInputs = new SqlRunInputStore(protectingContext);
+        var runId = Guid.NewGuid();
+
+        await sessions.SaveAsync(TestData.Session("s1", TestData.State("""{"turn":"session-words"}""")));
+        await runs.StartRunAsync(TestData.Run(runId));
+        await runInputs.SaveAsync(new RunInputRecord
+        {
+            RunId = runId,
+            TenantId = baseContext.TenantContext.TenantId,
+            Messages = [new ChatMessage(ChatRole.User, "input-words")],
+            Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "parameter-words" },
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var export = await new SqlDataSubjectStore(protectingContext).ExportAsync(
+            baseContext.TenantContext.TenantId,
+            new DataSubjectScope { SessionIds = ["s1"], RunIds = [runId], ConversationIds = [] });
+
+        export.Json.ShouldNotContain("$apEnc");
+        export.Json.ShouldContain("session-words");
+        export.Json.ShouldContain("input-words");
+        export.Json.ShouldContain("parameter-words");
+    }
+
+    /// <summary>
+    /// F-401: a workflow checkpoint carries the run's messages, like session state
+    /// does. It was never protected; it is now a protected column, read back as
+    /// plaintext with its <c>$type</c> discriminator still first.
+    /// </summary>
+    [Fact]
+    public async Task Workflow_checkpoint_state_is_encrypted_at_rest_and_read_back_unchanged()
+    {
+        await using var baseContext = await SqliteTestContext.CreateAsync(fixture);
+        var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.WorkflowCheckpointState });
+        var checkpoints = new SqlWorkflowCheckpointStore(protectingContext);
+        const string State = """{"$type":0,"messages":["checkpoint-words"]}""";
+
+        await checkpoints.CreateAsync(new WorkflowCheckpointRecord
+        {
+            Id = Guid.NewGuid(),
+            TenantId = baseContext.TenantContext.TenantId,
+            SessionId = "wf-1",
+            CheckpointId = "cp-1",
+            CreatedAt = DateTimeOffset.UtcNow,
+            State = TestData.State(State),
+        });
+
+        var raw = await baseContext.ScalarAsync<string>($"SELECT state FROM {baseContext.TablePrefix}workflow_checkpoints WHERE checkpoint_id = 'cp-1';");
+        raw.ShouldNotBeNull();
+        raw.ShouldContain("$apEnc");
+        raw.ShouldNotContain("checkpoint-words");
+
+        var loaded = await checkpoints.ReadAsync(baseContext.TenantContext.TenantId, "wf-1", "cp-1");
+        loaded.ShouldNotBeNull().GetRawText().ShouldBe(State);
+
+        var export = await new SqlDataSubjectStore(protectingContext).ExportAsync(
+            baseContext.TenantContext.TenantId,
+            new DataSubjectScope { SessionIds = ["wf-1"], RunIds = [], ConversationIds = [] });
+
+        export.Json.ShouldNotContain("$apEnc");
+        export.Json.ShouldContain("checkpoint-words");
+    }
+
+    /// <summary>
+    /// F-447: a retention archive hands rows to the consumer's <c>IArchiveSink</c>, and
+    /// "your own code never sees ciphertext". The archive wrote the stored envelope,
+    /// which only Tracon's internal protector can open; it now reads a protected column
+    /// back as plaintext, as the data subject export does.
+    /// </summary>
+    [Fact]
+    public async Task A_retention_archive_hands_protected_columns_to_the_sink_as_plaintext()
+    {
+        await using var baseContext = await SqliteTestContext.CreateAsync(fixture);
+        var protectingContext = BuildProtectingContext(
+            baseContext,
+            "k1",
+            new HashSet<ProtectedColumn> { ProtectedColumn.SessionState, ProtectedColumn.RunInput, ProtectedColumn.RunInputParameters });
+        var sessions = new SqlSessionStore(protectingContext, baseContext.TenantContext);
+        var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);
+        var runInputs = new SqlRunInputStore(protectingContext);
+        var retention = new SqlRetentionStore(protectingContext);
+        var runId = Guid.NewGuid();
+        var tenant = baseContext.TenantContext.TenantId;
+        var cutoff = DateTimeOffset.UtcNow.AddYears(1);
+
+        await sessions.SaveAsync(TestData.Session("s1", TestData.State("""{"turn":"archived-session-words"}""")));
+        await runs.StartRunAsync(TestData.Run(runId));
+        await runInputs.SaveAsync(new RunInputRecord
+        {
+            RunId = runId,
+            TenantId = tenant,
+            Messages = [new ChatMessage(ChatRole.User, "archived-input-words")],
+            Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "archived-parameter-words" },
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var archived = new List<string>();
+
+        foreach (var target in new[] { RetentionTargets.Sessions, RetentionTargets.RunInputs })
+        {
+            await retention.ArchiveBatchAsync(
+                target,
+                tenant,
+                cutoff,
+                batchSize: 10,
+                (rows, _) =>
+                {
+                    archived.AddRange(rows.Select(static row => row.Json));
+
+                    return ValueTask.CompletedTask;
+                });
+        }
+
+        var all = string.Join("\n", archived);
+
+        all.ShouldNotContain("$apEnc");
+        all.ShouldContain("archived-session-words");
+        all.ShouldContain("archived-input-words");
+        all.ShouldContain("archived-parameter-words");
+    }
+
     [Fact]
     public async Task Session_state_stays_plaintext_when_protection_is_off()
     {

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -571,8 +572,33 @@ public sealed class WorkflowEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    /// <summary>
+    /// F-382: <c>GET /api/workflows/functions</c> matches before
+    /// <c>/api/workflows/{name}</c>, so a workflow under that name could be saved
+    /// and never read back — a client got the function list instead. The name is
+    /// reserved, in any letter case, because the route matches case-insensitively.
+    /// </summary>
+    [Theory]
+    [InlineData("functions")]
+    [InlineData("Functions")]
+    public async Task The_name_the_function_list_uses_is_refused(string name)
+    {
+        await using var host = await StartWithEngineAsync();
+
+        using var response = await SaveAsync(host, name, Sequential());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+        (await response.Content.ReadAsStringAsync()).ShouldContain("reserved");
+    }
+
+    // F-396: the streamed resume and respond check their source BEFORE the
+    // stream opens, the way the queued path does (F-318). An answer that came
+    // as 200 plus an SSE error frame left the client to parse the stream for a
+    // problem the status code could carry, and a resume from a checkpoint that
+    // does not exist opened a Failed run row.
+
     [Fact]
-    public async Task A_response_to_a_non_waiting_run_reports_an_error_in_the_stream()
+    public async Task A_response_to_a_non_waiting_run_is_refused_with_400_before_the_stream()
     {
         await using var host = await StartWithEngineAsync();
 
@@ -587,15 +613,63 @@ public sealed class WorkflowEndpointTests
             $"/tracon/api/workflows/runs/{runId}/respond",
             new WorkflowRespondHttpRequest { RequestId = "any" });
 
-        // Once the stream has started, the status code cannot change; the
-        // error is sent as an SSE frame. The same pattern is used on the
-        // run endpoint.
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-
-        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
-
-        frames.ShouldContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+        (await WorkflowRunCountAsync(host)).ShouldBe(1, "only the source run exists");
     }
+
+    [Fact]
+    public async Task A_resume_of_an_unknown_run_is_refused_with_404_before_the_stream()
+    {
+        await using var host = await StartWithEngineAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            $"/tracon/api/workflows/runs/{TraconId.NewId()}/resume",
+            new WorkflowResumeHttpRequest());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound, await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task A_resume_from_an_unknown_checkpoint_is_refused_with_400_and_opens_no_run_row()
+    {
+        await using var host = await StartWithEngineAsync();
+
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        var runId = await RunAsync(host, "chain");
+
+        using var response = await host.Client.PostAsJsonAsync(
+            $"/tracon/api/workflows/runs/{runId}/resume",
+            new WorkflowResumeHttpRequest { CheckpointId = "no-such-checkpoint" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+        (await WorkflowRunCountAsync(host)).ShouldBe(1, "only the source run exists");
+    }
+
+    [Fact]
+    public async Task A_run_with_an_invalid_session_id_is_refused_with_400_before_the_stream()
+    {
+        await using var host = await StartWithEngineAsync();
+
+        using (var saved = await SaveAsync(host, "chain", Sequential()))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var response = await host.Client.PostAsJsonAsync(
+            "/tracon/api/workflows/chain/run",
+            new WorkflowRunHttpRequest { Message = "hello", SessionId = "not a valid id!" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+        (await WorkflowRunCountAsync(host)).ShouldBe(0);
+    }
+
+    private static async Task<int> WorkflowRunCountAsync(TraconTestHost host)
+        => (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { Take = 50 }))
+            .Count(static run => run.Kind == RunKind.Workflow);
 
     [Fact]
     public async Task Respond_returns_501_when_engine_not_registered()

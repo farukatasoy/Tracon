@@ -166,7 +166,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IRunStore>(),
             provider.GetRequiredService<IOptionsMonitor<TraconInboundTriggerOptions>>(),
             provider.GetService<TimeProvider>(),
-            provider.GetService<IRunAttributionContext>()));
+            provider.GetService<IRunAttributionContext>(),
+            provider.GetService<ILogger<InboundTriggerDispatcher>>()));
 
         // 🚨 Every handler -- built-in and consumer alike -- is registered
         // SCOPED and keyed. The worker resolves it from a fresh scope per

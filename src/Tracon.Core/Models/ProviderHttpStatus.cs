@@ -44,6 +44,18 @@ internal static class ProviderHttpStatus
         return ReadStatusCode(exception) ?? ProviderFailureNormalizer.ReadStatus(exception);
     }
 
+    /// <summary>Reads the HTTP status one frame carries, without looking at its inner exceptions.</summary>
+    /// <param name="frame">One exception of a graph.</param>
+    /// <returns>The status, or <see langword="null"/> when the frame carries none.</returns>
+    /// <remarks>
+    /// The fallback chain walks the graph itself, frame by frame (an auth status
+    /// behind an outer 5xx frame still wins), so it asks one frame at a time.
+    /// </remarks>
+    internal static int? ReadFrame(Exception frame)
+        => frame is HttpRequestException { StatusCode: { } statusCode }
+            ? (int)statusCode
+            : ProviderFailureNormalizer.ReadFrameStatus(frame);
+
     /// <summary>
     /// Determines whether a request that received <paramref name="status"/>
     /// gets the same answer when it is sent again.

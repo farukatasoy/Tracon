@@ -56,6 +56,7 @@ builder.Services.Configure<TraconKnowledgeOptions>(options =>
     options.ChunkSize = 1_000;
     options.ChunkOverlap = 100;
     options.MaxResults = 5;
+    options.EmbeddingProvider = "openai";
 });
 
 builder.Services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(
@@ -82,6 +83,17 @@ should never see `pgvector` unless it asked for it). Turn it on wherever
 With it off, `IVectorSearchStore` never resolves and an agent definition that sets
 `EnableVectorSearch` fails compilation with a clear error — see
 [Persistence](/getting-started/persistence/#pick-one).
+
+Name the provider the generator calls in `EmbeddingProvider`, as a tenant egress
+policy names it (`openai`, `azure-openai`, ...). Every embedding call — an upload, a
+search, and the agent's `search_knowledge` query — checks the tenant's egress policy
+against this name before the text leaves the process, and refuses a tenant that has
+its own credential for this provider, because the generator holds the setup key.
+Without it, the name the generator reports is used, and that name does not tell
+providers apart: the OpenAI and the Azure OpenAI generators both report `openai`. When
+no name is known, a tenant with an egress policy is refused (`403`, and the tool call
+fails); a tenant without one is not affected. Every setting can also come from the
+`Tracon:Knowledge` section of configuration.
 
 The embedding model in this example produces 1,536 dimensions. If you choose another
 model, set `Dimensions` to its actual output size **before the knowledge migration
@@ -214,6 +226,7 @@ of embedding calls.
 | `ChunkSize` | 1000 characters |
 | `ChunkOverlap` | 100 characters |
 | `MaxResults` | 5 |
+| `EmbeddingProvider` | Not set: the generator's reported name is used |
 | Chunking bounds | `ChunkSize > 0` and `0 <= ChunkOverlap < ChunkSize` |
 | Raw text chunking | Character-based, then every chunk is embedded |
 | Collection name | Letters, digits, underscores, and hyphens only |
@@ -251,6 +264,11 @@ enough.
 **PostgreSQL startup fails around `vector`.** `EnableKnowledge = true` is set but the
 server has no pgvector. Install the extension first, or turn `EnableKnowledge` off
 until it is available — the core migration set never touches `vector`.
+
+**Upload or search returns `403`.** The tenant's egress policy does not name the
+embedding provider, the tenant has its own credential for it, or the provider is not
+named at all. Set `Tracon:Knowledge:EmbeddingProvider` and add that name to the
+tenant's policy. The message names the tenant and the provider.
 
 **Upload says the embedding length is wrong.** The generator output and the migrated
 column dimension differ. Do not change only the option. Migrate the schema and

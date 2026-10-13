@@ -1475,10 +1475,6 @@ Bu case §6'nın TAM ön koşulunu (1-5. adımlar) gerektirir.
   `SandboxedSkillScriptRunner.cs:355-379`).
 - Model nihai yanıtında `merhaba-tracon` dizgisini içerir.
 
-~~Eski beklenti (eski bir MAF sürümüne dayanıyordu): İkinci onay kartının
-tool adı `merhaba`'dır (skill kaydındaki script adı aynen tool adı olur,
-MAF'ın generic `run_skill_script`'i DEĞİL).~~
-
 **Doğrulama sorgusu** *(PostgreSQL izleğinde)*
 ```sql
 SELECT action, entity, tenant_id FROM tracon.audit_entries
@@ -1524,10 +1520,6 @@ Negatif senaryo.
   düşer — **yalnız `SandboxedSkillScriptRunner.DenyAsync`'in `after`
   alanını JSON'a çeviren düzeltmeden (bu koşumda yapıldı) SONRA**; öncesinde
   bu satır sessizce kayboluyordu (HATA-K-skill-audit-json, aşağıya bakınız).
-
-~~Eski beklenti (modele dönen mesajın spesifik metni taşıdığını
-varsayıyordu): modele dönen tool sonucu bir hata metni içerir
-(`'scriptli-skill/merhaba' script'i calistirilmadi: ...`).~~
 
 **Doğrulama sorgusu**
 ```sql
@@ -1650,10 +1642,6 @@ değişkenleri (`OpenAI__ApiKey` gibi) script sürecine **miras geçmez**.
 - `OpenAI__ApiKey`, `Tracon__PostgreSql__ConnectionString` gibi hiçbir
   Tracon-özel ortam değişkeni ÇIKTIDA GÖRÜNMEZ — `ProcessStartInfo.Environment.Clear()`
   çağıran süreci komple boşaltır.
-
-~~Eski beklenti (eksik — bash'in kendi otomatik değişkenlerini
-saymıyordu): stdout çıktısı YALNIZ PATH, HOME, TRACON_SKILL_TEMP,
-TRACON_SKILL_NAME satırlarını içerir.~~
 
 ---
 

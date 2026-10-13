@@ -346,6 +346,10 @@ internal static class ContentGuardMessageMasker
     public static AIContent WriteText(AIContent content, string text) => content switch
     {
         FunctionResultContent result => new FunctionResultContent(result.CallId, text) { Exception = result.Exception },
+
+        // F-386: a masked document stays a document, with a mark built from the
+        // masked text so neither the raw name nor the raw hash survives the guard.
+        TextContent when DocumentChannelMessageBuilder.TryGetSummary(content, out _) => DocumentChannelMessageBuilder.BuildMasked(text),
         _ => new TextContent(text),
     };
 }

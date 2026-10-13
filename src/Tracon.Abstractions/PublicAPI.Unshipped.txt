@@ -568,6 +568,8 @@ Tracon.ConversationBranch.Deconstruct(out System.Guid ConversationId, out long B
 Tracon.ConversationBranch.Equals(Tracon.ConversationBranch other) -> bool
 Tracon.DataSubjectErasureResult
 Tracon.DataSubjectErasureResult.<Clone>$() -> Tracon.DataSubjectErasureResult!
+Tracon.DataSubjectErasureResult.ActiveRunIds.get -> System.Collections.Generic.IReadOnlyList<System.Guid>!
+Tracon.DataSubjectErasureResult.ActiveRunIds.init -> void
 Tracon.DataSubjectErasureResult.DataSubjectErasureResult() -> void
 Tracon.DataSubjectErasureResult.DryRun.get -> bool
 Tracon.DataSubjectErasureResult.DryRun.init -> void
@@ -2141,6 +2143,7 @@ Tracon.ProtectedColumn.RunInputParameters = 10 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.SessionState = 0 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.ToolArguments = 5 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.ToolResult = 6 -> Tracon.ProtectedColumn
+Tracon.ProtectedColumn.WorkflowCheckpointState = 11 -> Tracon.ProtectedColumn
 Tracon.ProviderDiagnostic
 Tracon.ProviderDiagnostic.<Clone>$() -> Tracon.ProviderDiagnostic!
 Tracon.ProviderDiagnostic.CircuitOpen.get -> bool

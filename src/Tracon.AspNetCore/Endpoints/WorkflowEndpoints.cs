@@ -119,7 +119,8 @@ internal static class WorkflowEndpoints
                 "node or on a function that declares none. Settings are stored in the definition: " +
                 "never put a secret in them, name its configuration key instead. The call " +
                 "replaces the whole definition: omitted fields are cleared, not merged. The name " +
-                "comes from the path and is not taken from the body.")
+                "comes from the path and is not taken from the body. The name 'functions' is " +
+                "reserved (400): GET /api/workflows/functions uses it.")
             .Accepts<WorkflowSaveRequest>("application/json");
 
         builder.MapDelete("/api/workflows/{name}", DeleteAsync)
@@ -144,11 +145,12 @@ internal static class WorkflowEndpoints
                     [FromServices] IOptionsMonitor<TraconSessionOwnershipOptions>? sessionOwnershipOptions,
                     [FromServices] IOptionsMonitor<TraconOptions> traconOptions,
                     [FromServices] ITenantContext tenantContext,
+                    [FromServices] ITraconDrainState drainState,
                     HttpContext httpContext,
                     CancellationToken cancellationToken)
                 => RunAsync(
                     name, runner, quotaEnforcer, runAuthorizationHandler, attributionContext, sessionStore,
-                    sessionOwnershipOptions, traconOptions, tenantContext, prefix, httpContext, cancellationToken))
+                    sessionOwnershipOptions, traconOptions, tenantContext, drainState, prefix, httpContext, cancellationToken))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
@@ -181,7 +183,8 @@ internal static class WorkflowEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
-            .ProducesProblem(StatusCodes.Status501NotImplemented);
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         builder.MapGet("/api/workflows/runs/{runId:guid}/checkpoints", ListCheckpointsAsync)
             .RequireRole(roles.Reader)
@@ -206,10 +209,11 @@ internal static class WorkflowEndpoints
                     [FromServices] ITenantContext tenants,
                     [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                     [FromServices] IRunAttributionContext? attributionContext,
+                    [FromServices] ITraconDrainState drainState,
                     CancellationToken cancellationToken)
                 => ResumeAsync(
-                    runId, httpContext, runner, runs, tenants, runAuthorizationHandler, attributionContext, prefix,
-                    cancellationToken))
+                    runId, httpContext, runner, runs, tenants, runAuthorizationHandler, attributionContext, drainState,
+                    prefix, cancellationToken))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
@@ -220,14 +224,14 @@ internal static class WorkflowEndpoints
                 "Resuming opens a NEW run rather than continuing the old one: the original run " +
                 "row is never rewritten, and the first streamed frame reports the new run id. " +
                 "The body is optional — without a checkpoint id the run resumes from its latest " +
-                "checkpoint. The engine must be registered; otherwise the response is 501. " +
-                "Because the status code is sent before the stream begins, a failure after that " +
-                "point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS " +
+                "checkpoint. The engine must be registered; otherwise the response is 501. The " +
+                "source run and its checkpoint are checked before the stream opens: an unknown run " +
+                "is 404, and a run that is not a workflow run or has no such checkpoint is 400. A " +
+                "failure after the stream opens arrives as an SSE error frame. Resuming STARTS " +
                 "a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's " +
                 "id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the " +
-                "resume is queued and answered with '202 Accepted', like a queued run; the source run " +
-                "and its checkpoint are checked first, so an unknown run is 404 and a run with no " +
-                "checkpoint is 400. A queued resume is not counted against the quota, the same as a " +
+                "resume is queued and answered with '202 Accepted', like a queued run, after the same " +
+                "checks. A queued resume is not counted against the quota, the same as a " +
                 "streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.")
             .Accepts<WorkflowResumeHttpRequest>(true, "application/json")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
@@ -235,7 +239,8 @@ internal static class WorkflowEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status501NotImplemented);
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         builder.MapGet("/api/workflows/runs/{runId:guid}/requests", ListRequestsAsync)
             .RequireRole(roles.Reader)
@@ -258,10 +263,11 @@ internal static class WorkflowEndpoints
                     [FromServices] ITenantContext tenants,
                     [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                     [FromServices] IRunAttributionContext? attributionContext,
+                    [FromServices] ITraconDrainState drainState,
                     CancellationToken cancellationToken)
                 => RespondAsync(
-                    runId, httpContext, runner, runs, tenants, runAuthorizationHandler, attributionContext, prefix,
-                    cancellationToken))
+                    runId, httpContext, runner, runs, tenants, runAuthorizationHandler, attributionContext, drainState,
+                    prefix, cancellationToken))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
@@ -274,9 +280,9 @@ internal static class WorkflowEndpoints
                 "execution resumed from the checkpoint. Resuming opens a NEW runs row; events " +
                 "stream over SSE — so this STARTS a run, and a registered " +
                 "IRunAuthorizationHandler is asked with the source run's id; a denial returns " +
-                "403 before any run row is opened. With 'Prefer: respond-async' the answer is " +
-                "checked the same way (a response of the wrong shape, a run that is not waiting and " +
-                "an unknown request id are all 400; an unknown run is 404) and then queued: the reply " +
+                "403 before any run row is opened. The answer is checked before the stream opens: a " +
+                "response of the wrong shape, a run that is not waiting and an unknown request id are " +
+                "all 400; an unknown run is 404. With 'Prefer: respond-async' it is then queued: the reply " +
                 "is '202 Accepted' and the run continues in the background worker, so a machine " +
                 "that answers a request does not have to keep a connection open. The queued answer " +
                 "is stored with the job until the job is removed; do not put a secret in it. " +
@@ -286,7 +292,8 @@ internal static class WorkflowEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status501NotImplemented);
+            .ProducesProblem(StatusCodes.Status501NotImplemented)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
     }
 
     private static async Task<Results<Ok<IReadOnlyList<WorkflowDescriptor>>, ProblemHttpResult>> ListAsync(
@@ -421,7 +428,8 @@ internal static class WorkflowEndpoints
         // and blowing up at run time would force the user to start a run
         // just to find the error. The workflow compiler uses the same
         // check; the rule lives in a single place (Tracon.Core).
-        if (WorkflowDefinitionValidator.Validate(definition) is { } message)
+        // F-382: a name a fixed route uses is refused before anything else is judged.
+        if ((WorkflowDefinitionValidator.ReservedNameProblem(name) ?? WorkflowDefinitionValidator.Validate(definition)) is { } message)
         {
             return TypedResults.Problem(
                 title: "Workflow definition invalid",
@@ -500,10 +508,18 @@ internal static class WorkflowEndpoints
         [FromServices] IOptionsMonitor<TraconSessionOwnershipOptions>? sessionOwnershipOptions,
         [FromServices] IOptionsMonitor<TraconOptions> traconOptions,
         [FromServices] ITenantContext tenantContext,
+        ITraconDrainState drainState,
         string prefix,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        // 🚨 Checked BEFORE anything else, like the agent run endpoint: a
+        // request refused here opens no 'runs' row and queues no job (F-431).
+        if (DrainGate.Check(drainState) is { } drainProblem)
+        {
+            return drainProblem;
+        }
+
         if (runner is null)
         {
             return NotRegistered();
@@ -578,21 +594,20 @@ internal static class WorkflowEndpoints
             return AgentParameterGate.Problem(parameterCheck);
         }
 
+        // F-318, F-396: a bad session id is refused before the 202 and before the
+        // stream opens; the streamed path used to answer 200 and an SSE error frame.
+        if (request?.SessionId is { Length: > 0 } requested && WorkflowSessionId.Problem(requested) is { } sessionProblem)
+        {
+            return TypedResults.Problem(
+                title: "Session id invalid",
+                detail: sessionProblem,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var runId = TraconId.NewId();
 
         if (RespondAsyncPreference.IsRequested(httpContext))
         {
-            // F-318: the streamed path reports a bad session id as an SSE error
-            // frame; a queued run must be refused before its 202, not fail in
-            // the worker afterwards.
-            if (request?.SessionId is { Length: > 0 } requested && WorkflowSessionId.Problem(requested) is { } sessionProblem)
-            {
-                return TypedResults.Problem(
-                    title: "Session id invalid",
-                    detail: sessionProblem,
-                    statusCode: StatusCodes.Status400BadRequest);
-            }
-
             // The session is fixed now, not by the worker: the queued row names
             // it from the start, and a run that resumes this one after a restart
             // must find its checkpoints under the same id.
@@ -676,9 +691,17 @@ internal static class WorkflowEndpoints
         ITenantContext tenants,
         IRunAuthorizationHandler? runAuthorizationHandler,
         IRunAttributionContext? attributionContext,
+        ITraconDrainState drainState,
         string prefix,
         CancellationToken cancellationToken)
     {
+        // 🚨 Checked BEFORE anything else, like the agent run endpoint: a
+        // request refused here opens no 'runs' row and queues no job (F-431).
+        if (DrainGate.Check(drainState) is { } drainProblem)
+        {
+            return drainProblem;
+        }
+
         if (runner is null)
         {
             return NotRegistered();
@@ -714,26 +737,28 @@ internal static class WorkflowEndpoints
 
         var newRunId = TraconId.NewId();
 
+        // F-318, F-396: the source run and its checkpoint are checked before the
+        // 202 and before the stream opens. The streamed path used to answer 200
+        // with an SSE error frame, and a checkpoint id that does not exist opened
+        // a Failed run row. No quota gate: a resume is not a new run for quota
+        // (K-394, K-162).
+        var checkedSource = await CheckSourceAsync(runId, runs, tenants, "resumed", cancellationToken).ConfigureAwait(false);
+
+        if (checkedSource.Problem is { } sourceProblem)
+        {
+            return sourceProblem;
+        }
+
+        var source = checkedSource.Source!;
+
+        if (await CheckCheckpointAsync(source, request?.CheckpointId, tenants, httpContext, cancellationToken)
+                .ConfigureAwait(false) is { } checkpointProblem)
+        {
+            return checkpointProblem;
+        }
+
         if (RespondAsyncPreference.IsRequested(httpContext))
         {
-            // F-318: the engine refuses these inside the stream; a queued resume
-            // answers them before its 202, so nothing is queued that cannot run.
-            // No quota gate: a resume is not a new run for quota (K-394, K-162).
-            var checkedSource = await CheckQueuedSourceAsync(runId, runs, tenants, "resumed", cancellationToken).ConfigureAwait(false);
-
-            if (checkedSource.Problem is { } sourceProblem)
-            {
-                return sourceProblem;
-            }
-
-            var source = checkedSource.Source!;
-
-            if (await CheckCheckpointAsync(source, request?.CheckpointId, tenants, httpContext, cancellationToken)
-                    .ConfigureAwait(false) is { } checkpointProblem)
-            {
-                return checkpointProblem;
-            }
-
             return await QueueAsync(
                 new WorkflowRunJobRequest
                 {
@@ -814,9 +839,17 @@ internal static class WorkflowEndpoints
         ITenantContext tenants,
         IRunAuthorizationHandler? runAuthorizationHandler,
         IRunAttributionContext? attributionContext,
+        ITraconDrainState drainState,
         string prefix,
         CancellationToken cancellationToken)
     {
+        // 🚨 Checked BEFORE anything else, like the agent run endpoint: a
+        // request refused here opens no 'runs' row and queues no job (F-431).
+        if (DrainGate.Check(drainState) is { } drainProblem)
+        {
+            return drainProblem;
+        }
+
         if (runner is null)
         {
             return NotRegistered();
@@ -887,41 +920,41 @@ internal static class WorkflowEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        // F-318, F-396: ValidateResponseAsync judges the answer's shape but says
+        // nothing about a run that is not waiting or a request id that is not
+        // pending. Both are checked here, before the 202 and before the stream
+        // opens; the streamed path used to answer 200 with an SSE error frame.
+        var checkedSource = await CheckSourceAsync(runId, runs, tenants, "answered", cancellationToken).ConfigureAwait(false);
+
+        if (checkedSource.Problem is { } sourceProblem)
+        {
+            return sourceProblem;
+        }
+
+        var source = checkedSource.Source!;
+
+        if (source.Status != RunStatus.AwaitingInput)
+        {
+            return TypedResults.Problem(
+                title: "Response invalid",
+                detail: $"Run '{runId}' is not awaiting human input (status: {source.Status}). Only a run in " +
+                        "'AwaitingInput' status can be responded to.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var pending = await runner.ListPendingRequestsAsync(runId, cancellationToken).ConfigureAwait(false);
+
+        if (!pending.Any(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal)))
+        {
+            return TypedResults.Problem(
+                title: "Response invalid",
+                detail: $"There is no pending request with id '{request.RequestId}' on run '{runId}'. Refresh " +
+                        "the request list with GET /api/workflows/runs/{runId}/requests.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         if (RespondAsyncPreference.IsRequested(httpContext))
         {
-            // F-318: what the engine reports inside the stream is answered here,
-            // before the 202. ValidateResponseAsync judges the answer's shape but
-            // says nothing about a run that is not waiting or a request id that
-            // is not pending; both are checked here so a queued answer can run.
-            var checkedSource = await CheckQueuedSourceAsync(runId, runs, tenants, "answered", cancellationToken).ConfigureAwait(false);
-
-            if (checkedSource.Problem is { } sourceProblem)
-            {
-                return sourceProblem;
-            }
-
-            var source = checkedSource.Source!;
-
-            if (source.Status != RunStatus.AwaitingInput)
-            {
-                return TypedResults.Problem(
-                    title: "Response invalid",
-                    detail: $"Run '{runId}' is not awaiting human input (status: {source.Status}). Only a run in " +
-                            "'AwaitingInput' status can be responded to.",
-                    statusCode: StatusCodes.Status400BadRequest);
-            }
-
-            var pending = await runner.ListPendingRequestsAsync(runId, cancellationToken).ConfigureAwait(false);
-
-            if (!pending.Any(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal)))
-            {
-                return TypedResults.Problem(
-                    title: "Response invalid",
-                    detail: $"There is no pending request with id '{request.RequestId}' on run '{runId}'. Refresh " +
-                            "the request list with GET /api/workflows/runs/{runId}/requests.",
-                    statusCode: StatusCodes.Status400BadRequest);
-            }
-
             return await QueueAsync(
                 new WorkflowRunJobRequest
                 {
@@ -1030,55 +1063,29 @@ internal static class WorkflowEndpoints
             },
             cancellationToken).ConfigureAwait(false);
 
-        JobRecord job;
+        // F-432: a queue that refuses the job closes the queued row above.
+        var job = await QueuedRunPlaceholder.EnqueueAsync(
+            jobStore,
+            runStore,
+            new JobRecord
+            {
+                Id = runId,
+                TenantId = tenants.TenantId,
+                HandlerKey = JobHandlerKeys.WorkflowRun,
+                Lane = JobLanes.Default,
+                TargetName = workflowName,
+                Status = JobStatus.Pending,
+                Payload = WorkflowRunJobPayload.Write(operation with { UserId = userId, Labels = labels }),
 
-        try
-        {
-            job = await jobStore.EnqueueAsync(
-                new JobRecord
-                {
-                    Id = runId,
-                    TenantId = tenants.TenantId,
-                    HandlerKey = JobHandlerKeys.WorkflowRun,
-                    Lane = JobLanes.Default,
-                    TargetName = workflowName,
-                    Status = JobStatus.Pending,
-                    Payload = WorkflowRunJobPayload.Write(operation with { UserId = userId, Labels = labels }),
-
-                    // 4-A: one lease for the run and one for each continuation while
-                    // recovery is on; otherwise the limit a queued agent run gets.
-                    MaxAttempts = WorkflowRecoveryPolicy.JobAttempts(recoveryPolicy, asyncOptions.MaxAttempts),
-                    ScheduledFor = now,
-                    CreatedAt = now,
-                },
-                [],
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception exception)
-        {
-            var correlationId = SafeErrorText.NewCorrelationId();
-
-            services.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("Tracon.WorkflowEndpoints")
-                .LogError(exception, "Queued workflow run {RunId} could not be queued. (ref: {CorrelationId})", runId, correlationId);
-
-            await runStore.CompleteRunAsync(
-                new RunCompletion
-                {
-                    RunId = runId,
-                    Status = RunStatus.Failed,
-                    CompletedAt = DateTimeOffset.UtcNow,
-                    Error = new RunError
-                    {
-                        Type = exception.GetType().Name,
-                        Message = SafeErrorText.ForPersistence(exception, correlationId),
-                    },
-                    TenantId = tenants.TenantId,
-                },
-                CancellationToken.None).ConfigureAwait(false);
-
-            throw;
-        }
+                // 4-A: one lease for the run and one for each continuation while
+                // recovery is on; otherwise the limit a queued agent run gets.
+                MaxAttempts = WorkflowRecoveryPolicy.JobAttempts(recoveryPolicy, asyncOptions.MaxAttempts),
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            [],
+            services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.WorkflowEndpoints"),
+            cancellationToken).ConfigureAwait(false);
 
         // RFC 7240 treats the preference as advisory: a 202 says it was applied.
         RespondAsyncPreference.MarkApplied(httpContext);
@@ -1095,8 +1102,8 @@ internal static class WorkflowEndpoints
     }
 
     /// <summary>
-    /// Reads the run a queued resume or response continues, with the checks the
-    /// engine would make inside the stream.
+    /// Reads the run a resume or a response continues, queued or streamed, with the
+    /// checks the engine would otherwise make inside the stream.
     /// </summary>
     /// <param name="runId">The source run.</param>
     /// <param name="runs">The run store.</param>
@@ -1104,7 +1111,7 @@ internal static class WorkflowEndpoints
     /// <param name="verb">"resumed" or "answered", for the refusal text.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The source run, or the problem: 404 for a run this tenant does not have, 400 for one that is not a workflow run.</returns>
-    private static async ValueTask<(RunRecord? Source, ProblemHttpResult? Problem)> CheckQueuedSourceAsync(
+    private static async ValueTask<(RunRecord? Source, ProblemHttpResult? Problem)> CheckSourceAsync(
         Guid runId,
         IRunStore runs,
         ITenantContext tenants,
@@ -1130,7 +1137,7 @@ internal static class WorkflowEndpoints
         return (source, null);
     }
 
-    /// <summary>Checks that a queued resume has a checkpoint to resume from.</summary>
+    /// <summary>Checks that a resume, queued or streamed, has a checkpoint to resume from.</summary>
     /// <param name="source">The source run.</param>
     /// <param name="checkpointId">The checkpoint the request names; the latest when <see langword="null"/>.</param>
     /// <param name="tenants">The tenant context.</param>

@@ -1339,4 +1339,18 @@ uygulamaları GERÇEKTEN yakaladığı, kod dokunulmadan kanıtlandı.
 
 ---
 
+---
 
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-RES-005 — 🚨 Workflow çalıştırması gerçekten iptal edilebiliyor mu (Faz 32 kapanışında KANITLANAMAMIŞ boşluğun denemesi)
+
+~~Eski beklenti (2026-08-15 koşumu): `Completed` — MAF'ın grafik-içi iptal
+sınırı nedeniyle. Bu sınır hâlâ vardır ama artık Tracon onu kaydına
+yansıtmıyor.~~

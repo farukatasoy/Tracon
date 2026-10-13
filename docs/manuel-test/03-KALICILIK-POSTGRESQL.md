@@ -116,13 +116,11 @@ cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-
-~~Eski beklenti (yanlış öncül — İzlek B'de validator'a hiç ulaşılmadığını
-gözden kaçırıyordu): Uygulama başlamayı reddeder (`ValidateOnStart`);
-konsolda `OptionsValidationException` görünür ve mesaj
-`TraconPostgreSqlOptions.ConnectionString bos olamaz` metnini taşır.
-Süreç sıfırdan farklı bir çıkış koduyla sonlanır; `/health` hiçbir zaman
-yanıt vermez.~~
+- Örnek uygulama boş bağlantı dizesinde `UsePostgreSql()`'i hiç çağırmaz ve
+  sessizce bellek içi depoya düşer. `/health` `200` döner; durum (`Healthy` ya
+  da `Degraded`) kalıcılığa değil, model sağlayıcı sağlığına bağlıdır.
+- Validator yalnız İzlek A/C'de (doğrudan `UsePostgreSql()` çağıran harness)
+  gözlenir: `UsePostgreSql(string)` çağrı anında `ArgumentException` atar.
 
 ---
 
@@ -1647,14 +1645,6 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 > uygulamanın gözünde tam olarak `docker stop` kadar erişilemez olur. Dört
 > şerit paralel koşarken de güvenlidir.
 
-> **Düzeltildi (2026-09-16):** 2026-08-15 düzeltmesi beklentinin **tamamını**
-> üstü çizili bırakmış ve case'i bu dosyanın kapsamı dışına atmıştı. Ölçüm
-> bunun fazla kapsadığını gösterdi — `echo` gerekçesi yalnız **kurtarma
-> yarısını** etkiler; case'in başlığı olan "erişilemezken Unhealthy" iddiası
-> `CanConnect` kısa devresi sayesinde sağlayıcıdan bağımsızdır ve doğrulandı.
-> Ayrıca 2026-09-16 şeridi `echo`-only **değildi** (üç gerçek anahtar kayıtlı)
-> ve yine `Healthy` gelmedi; gerçek neden sağlayıcıların `Unknown` durmasıdır.
-
 ---
 
 ### MT-PG-051 — `/tracon/api/diagnostics` bekleyen migration'ları listeler, hiçbir `secret` taşımaz
@@ -1769,13 +1759,6 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
   ("No model provider has been confirmed healthy yet") ve sağlayıcılar
   `status:"Unknown"` görünür. Bu bir kusur değil, ön koşulun sağlanmamış
   hâlidir — ama kalıcı yüzü `HATA-S1-016`'dır.
-
-> **Düzeltildi (2026-09-16):** 2026-08-15 düzeltmesi "`/health` YAPISAL OLARAK
-> asla düz `Healthy` dönemez" diyordu. Ölçüm bunu **çürüttü** — `Healthy`
-> alındı (HTTP 200). O düzeltmenin doğru olan tek kısmı `echo` öncülüdür;
-> yanlış olan, bunu tüm kurulumlara genellemesidir. Sorun yapısal değil, ön
-> koşuldadır: izlenen bir sağlayıcı **ve** ısıtılmış sağlık önbelleği gerekir.
-> Ön koşul buna göre düzeltildi.
 
 ### MT-PG-060 — 20 eşzamanlı yazma isteği veri bozulmadan tamamlanır
 

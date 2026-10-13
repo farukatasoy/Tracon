@@ -26,9 +26,12 @@ namespace Tracon;
 /// evaluator's own scale never reaches the 0-100 online-evaluation average.
 /// </para>
 /// <para>
-/// <strong>An evaluator calls a model.</strong> Its cost is added to every
-/// sampled run, multiplied by the number of registered evaluators. The call
-/// runs on the judge model configured through
+/// <strong>An evaluator calls a model.</strong> Every judgment it makes is
+/// recorded like the built-in judge's: one run named <c>judge:{name}</c>, of
+/// kind <see cref="RunKind.Eval"/>, carries the usage and the cost of all the
+/// model calls the evaluator made for it. The cost therefore grows with every
+/// sampled run and every registered evaluator, and it stays out of the evaluated
+/// agent's own figures. The call runs on the judge model configured through
 /// <see cref="ModelRunJudgeOptions.Model"/>, resolved per call so the calling
 /// tenant's egress policy is applied to it, and it honours the cancellation
 /// token Tracon supplies as the call budget. Like the built-in judge, it
@@ -57,8 +60,15 @@ internal sealed class EvaluatorRunJudge(
     IEvaluator evaluator,
     IModelProviderRegistry modelProviders,
     IOptionsMonitor<ModelRunJudgeOptions> optionsMonitor,
-    ILogger<EvaluatorRunJudge>? logger = null) : IRunJudge
+    ILogger<EvaluatorRunJudge>? logger = null,
+    IRunStore? runStore = null,
+    ITenantContext? tenantContext = null,
+    IRunPricingResolver? pricingResolver = null,
+    TraconMetrics? metrics = null,
+    TimeProvider? timeProvider = null) : IRunJudge
 {
+    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+
     /// <summary>The evaluator package's version, resolved once at construction.</summary>
     private readonly string? _evaluatorVersion = ResolveVersion(evaluator, name, logger);
 
@@ -84,14 +94,35 @@ internal sealed class EvaluatorRunJudge(
 
         var modelResponse = new ChatResponse(new ChatMessage(ChatRole.Assistant, context.Output));
 
-        var result = await evaluator
-            .EvaluateAsync(
-                context.Input,
-                modelResponse,
-                new ChatConfiguration(chatClient),
-                additionalContext: [],
-                cancellationToken)
-            .ConfigureAwait(false);
+        // F-361 (K-328 pattern): the evaluator's model calls are counted and written
+        // as the judge's own Eval run; the evaluated agent's figures do not grow.
+        var counting = new UsageCountingChatClient(chatClient);
+        var runId = TraconId.NewId();
+        var tenantId = tenantContext?.TenantId ?? context.TenantId;
+
+        await StartRunAsync(runId, tenantId, binding).ConfigureAwait(false);
+
+        EvaluationResult result;
+
+        try
+        {
+            result = await evaluator
+                .EvaluateAsync(
+                    context.Input,
+                    modelResponse,
+                    new ChatConfiguration(counting),
+                    additionalContext: [],
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            await CompleteRunAsync(runId, tenantId, binding, counting.Total(), exception).ConfigureAwait(false);
+
+            throw;
+        }
+
+        await CompleteRunAsync(runId, tenantId, binding, counting.Total(), failure: null).ConfigureAwait(false);
 
         var scores = new List<JudgeScore>(result.Metrics.Count);
 
@@ -112,6 +143,164 @@ internal sealed class EvaluatorRunJudge(
         }
 
         return new RunJudgment { Scores = scores, EvaluatorVersion = _evaluatorVersion };
+    }
+
+    /// <summary>Opens the judge's own run row.</summary>
+    /// <remarks>A store error is logged: the judgment is the product, the row is observability.</remarks>
+    private async ValueTask StartRunAsync(Guid runId, string tenantId, ModelBinding binding)
+    {
+        if (runStore is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await runStore.StartRunAsync(
+                new RunStartInfo
+                {
+                    RunId = runId,
+                    AgentName = $"judge:{name}",
+                    Kind = RunKind.Eval,
+                    StartedAt = _clock.GetUtcNow(),
+                    TenantId = tenantId,
+                    ModelId = binding.Model,
+                    ModelProvider = binding.Provider,
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            logger?.LogWarning(exception, "Judge '{Judge}' could not open its run row; its cost is not recorded.", name);
+        }
+    }
+
+    /// <summary>Closes the judge's own run row with the usage and the cost of its model calls.</summary>
+    private async ValueTask CompleteRunAsync(Guid runId, string tenantId, ModelBinding binding, UsageDetails? total, Exception? failure)
+    {
+        var usage = total is null
+            ? null
+            : new RunUsage
+            {
+                InputTokens = total.InputTokenCount,
+                OutputTokens = total.OutputTokenCount,
+                TotalTokens = total.TotalTokenCount,
+                CachedInputTokens = UsageBreakdown.CachedInputTokens(total),
+                ReasoningTokens = UsageBreakdown.ReasoningTokens(total),
+                AudioInputTokens = UsageBreakdown.AudioInputTokens(total),
+                AudioOutputTokens = UsageBreakdown.AudioOutputTokens(total),
+            };
+
+        var cost = usage is null ? null : pricingResolver?.Resolve(binding.Provider, binding.Model, usage);
+
+        if (cost is { Source: not PricingSource.Unknown } known)
+        {
+            metrics?.RecordJudgeCost(name, binding.Model, tenantId, known.Total() ?? 0m, known.Currency ?? "unknown");
+        }
+
+        if (runStore is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await runStore.CompleteRunAsync(
+                new RunCompletion
+                {
+                    RunId = runId,
+                    Status = failure is null ? RunStatus.Completed : RunStatus.Failed,
+                    CompletedAt = _clock.GetUtcNow(),
+                    Usage = usage,
+                    Cost = cost,
+                    Error = failure is null
+                        ? null
+                        : new RunError
+                        {
+                            Type = failure.GetType().Name,
+                            Message = SafeErrorText.ForPersistence(failure, SafeErrorText.NewCorrelationId()),
+                        },
+                    TenantId = tenantId,
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            logger?.LogWarning(exception, "Judge '{Judge}' could not close its run row; its cost is not recorded.", name);
+        }
+    }
+
+    /// <summary>Sums the usage of every model call an evaluator makes through it.</summary>
+    /// <remarks>An evaluator may call the model more than once, and in parallel.</remarks>
+    private sealed class UsageCountingChatClient(IChatClient inner) : DelegatingChatClient(inner)
+    {
+        // The lock is taken on the list this type alone holds: a separate object
+        // field would trigger MA0158 on net9.0+ (the InMemoryJobStore pattern).
+        private readonly List<UsageDetails> _calls = [];
+
+        public UsageDetails? Total()
+        {
+            lock (_calls)
+            {
+                if (_calls.Count == 0)
+                {
+                    return null;
+                }
+
+                var total = new UsageDetails();
+
+                foreach (var call in _calls)
+                {
+                    total.Add(call);
+                }
+
+                return total;
+            }
+        }
+
+        public override async Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var response = await base.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
+
+            Add(response.Usage);
+
+            return response;
+        }
+
+        public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancellationToken).ConfigureAwait(false))
+            {
+                foreach (var content in update.Contents)
+                {
+                    if (content is UsageContent { Details: var details })
+                    {
+                        Add(details);
+                    }
+                }
+
+                yield return update;
+            }
+        }
+
+        private void Add(UsageDetails? usage)
+        {
+            if (usage is null)
+            {
+                return;
+            }
+
+            lock (_calls)
+            {
+                _calls.Add(usage);
+            }
+        }
     }
 
     /// <summary>Reads the evaluator assembly's informational version, or <see langword="null"/>.</summary>

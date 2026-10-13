@@ -90,7 +90,9 @@ run does.
 
 Running a suite queues a job. Each case runs in its own fresh session against the
 agent and produces its own run row, so a failing check can be traced to the exact
-conversation that produced it.
+conversation that produced it. That session is not stored, so a case whose run asks
+for a tool approval fails with a reason that says so, and its run is closed as
+`Failed`: nobody can answer the approval.
 
 ```bash
 curl -X POST http://localhost:5081/tracon/api/evals/support/run
@@ -256,7 +258,10 @@ map onto score kinds by shape: a numeric metric to `Numeric`, a boolean metric t
 Two limits are worth knowing before you turn this on:
 
 - **Each evaluator costs a model call per sampled run.** Registering four of them
-  multiplies the judging cost of online evaluation by four.
+  multiplies the judging cost of online evaluation by four. Each judgment writes one
+  `judge:{name}` run of kind `Eval` that carries its calls' tokens and cost, as the
+  built-in judge does, and the cost reaches the judge cost metric. An evaluator that
+  throws closes that run as `Failed`.
 - **A bridged metric never enters the 0-100 online average.** The calibrated
   evaluators grade on their own scales, and mixing a 1-5 score into a 0-100 average
   would fire the low-score alarm on healthy runs. Only a judge's *headline* score —

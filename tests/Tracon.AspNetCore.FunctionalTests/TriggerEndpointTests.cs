@@ -173,6 +173,42 @@ public sealed class TriggerEndpointTests
         runResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// F-432 class: an agent target opens the run's placeholder row before the job.
+    /// A queue that refuses the job closes the row; a retry opens a new run id, so
+    /// a row left <c>Queued</c> would never be picked up.
+    /// </summary>
+    [Fact]
+    public async Task A_queue_that_refuses_the_job_does_not_leave_the_row_queued()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services =>
+            {
+                services.AddSingleton<IConfiguration>(
+                    new ConfigurationBuilder().AddInMemoryCollection([new(SecretConfigurationKey, Secret)]).Build());
+                services.AddSingleton<IJobStore>(static _ => new RefusingJobStore(new InMemoryJobStore(), JobHandlerKeys.AgentRun));
+            });
+        await SaveTriggerAsync(host);
+
+        try
+        {
+            using var refused = await SendSignedAsync(host, "default", "slack", Body);
+
+            refused.StatusCode.ShouldNotBe(HttpStatusCode.Accepted);
+        }
+        catch (InvalidOperationException exception) when (exception.Message.Contains("the queue is unavailable", StringComparison.Ordinal))
+        {
+            // TestServer hands the server's unhandled exception to the client; a real
+            // server answers 500. Either way the caller gets no 202.
+        }
+
+        var run = (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { Take = 10 }))
+            .ShouldHaveSingleItem();
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error.ShouldNotBeNull();
+    }
+
     [Fact]
     public async Task An_unsigned_request_is_rejected()
     {

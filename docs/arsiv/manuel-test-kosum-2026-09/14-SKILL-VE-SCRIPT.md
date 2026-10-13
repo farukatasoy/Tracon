@@ -627,3 +627,31 @@ faz, bu oturumun kapsamı DIŞINDA.
 
 > **Ölçüldü (2026-09-24, örnek uygulama, tarayıcı):** dört adım ve Türkçe
 > metinler beklendiği gibi.
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-SKILL-058 — Gerçek çalıştırma kanıtı: `echo` script'i onaydan geçer ve modele sonucu döner
+
+~~Eski beklenti (eski bir MAF sürümüne dayanıyordu): İkinci onay kartının
+tool adı `merhaba`'dır (skill kaydındaki script adı aynen tool adı olur,
+MAF'ın generic `run_skill_script`'i DEĞİL).~~
+
+#### MT-SKILL-059 — İzin iptal edildikten sonra AYNI script reddedilir, `script.denied` yazılır
+
+~~Eski beklenti (modele dönen mesajın spesifik metni taşıdığını
+varsayıyordu): modele dönen tool sonucu bir hata metni içerir
+(`'scriptli-skill/merhaba' script'i calistirilmadi: ...`).~~
+
+#### MT-SKILL-062 — Ortam değişkenleri miras alınmaz: script yalnız `PATH`/`HOME` (+2 enjekte edilen) görür
+
+~~Eski beklenti (eksik — bash'in kendi otomatik değişkenlerini
+saymıyordu): stdout çıktısı YALNIZ PATH, HOME, TRACON_SKILL_TEMP,
+TRACON_SKILL_NAME satırlarını içerir.~~

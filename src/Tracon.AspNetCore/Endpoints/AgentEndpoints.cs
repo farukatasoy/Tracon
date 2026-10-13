@@ -1119,7 +1119,10 @@ internal static class AgentEndpoints
         // otherwise a second way (scanning the job store) would be needed for
         // GET /api/runs/{id} to return something other than 404 before the
         // worker picks up the job.
-        var job = await jobStore.EnqueueAsync(
+        // F-432: a queue that refuses the job closes the placeholder row above.
+        var job = await QueuedRunPlaceholder.EnqueueAsync(
+            jobStore,
+            runStore,
             new JobRecord
             {
                 Id = runId,
@@ -1143,6 +1146,7 @@ internal static class AgentEndpoints
                 CreatedAt = now,
             },
             [],
+            httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints"),
             cancellationToken).ConfigureAwait(false);
 
         // 🚨 RFC 7240 treats the preference as *advisory*; the server may ignore

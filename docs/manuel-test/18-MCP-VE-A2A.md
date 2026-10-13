@@ -329,11 +329,6 @@ SELECT count(*) FROM tracon.mcp_servers WHERE name IN ('ftp-sunucu', 'stdio-dene
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-09-17):** `ftp-sunucu` MT-MCP-004'te ZATEN `400` ile
-> reddedilmiş, hiç oluşmamıştı — `DELETE` bu yüzden `204` değil `404 "MCP
-> server not found"` döner (uç var-olmayan bir kaydı silmeyi idempotent
-> `204` değil, açık `404` ile işaretliyor). Asıl iddia (üç negatif case'in
-> kalıcı iz BIRAKMADIĞI) SQL sorgusuyla doğrulanır, HTTP durum kodu değil.
 - `HTTP: 404`. SQL sorgusu `0` döner (bu üç sunucu hiç başarıyla
   oluşturulmamıştı — negatif case'lerin kalıcı iz bırakmadığının kanıtı).
 
@@ -796,10 +791,6 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-09-17):** spec `tracon_ozetleyici` yazıyordu (Aşama
-> 0'da zaten kapatılan bayat Türkçe agent adı örüntüsü — örnek uygulama
-> İngilizceye çevrildi). Gerçek tool adı `tracon_summarizer`'dır, bu dosyada
-> her geçtiği yerde düzeltildi (MT-MCP-032/033 dahil).
 - Yanıt TAM OLARAK tek bir tool içerir: `tracon_summarizer`,
   `inputSchema` yalnız `message` (string, required) alanı taşır. Başka
   hiçbir agent (ör. `support`) listede YOKTUR — beyaz listeye
@@ -1276,13 +1267,6 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/kapsam-testi" -
 ```
 
 **Beklenen sonuç (şüphe)**
-> **Düzeltildi (2026-09-17) — şüphe ÇÜRÜTÜLDÜ, kod 2026-08-10 ile
-> 2026-09-16 arasında düzeltilmiş:** `GovernanceEndpoints.cs`'teki `PUT
-> /api/mcp-servers/{name}` artık `.RequireRole(roles.Admin)` VE
-> `.RequireApiKeyScope(ApiKeyScope.AgentsAdmin)` taşıyor (satır ~269-270).
-> Bu dosyanın TÜM `mcp-servers` uçları (9 `Map*` çağrısı) aynı desende
-> `RequireApiKeyScope` taşıyor. `00-INDEKS.md` §8'deki "BEŞİNCİ bağımsız
-> tekrar" notu da düzeltildi.
 - ~~`HTTP: 200` — yalnız `RunsRead` taşıyan, `ExternalInvoke`'u OLMAYAN bir
   anahtar YENİ bir dış MCP sunucusu kaydedebilir.~~ **Gerçek:** `HTTP:
   403 "This endpoint requires the 'AgentsAdmin' scope; the key does not

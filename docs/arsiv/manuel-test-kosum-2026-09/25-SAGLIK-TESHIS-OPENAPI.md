@@ -743,3 +743,19 @@ Kod tamamen donuk bırakıldı (tüm geçici örnekler durduruldu, atılabilir
 şemalar düşürüldü). Sıradaki aile: `17-EVAL-VE-DENEYLER.md`.
 
 ---
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-DIAG-006 — Bir model sağlayıcısının devresi açıkken `/health` `Degraded` döner
+
+> **Not (2026-10-12):** 2026-08-13 koşumu devreyi geçersiz model adıyla
+> açmıştı. `404` artık devreye sayılmaz (K-906); case bu yüzden MT-OAI-080'in
+> kapalı port düzenini kullanır.

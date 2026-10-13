@@ -83,15 +83,48 @@ internal static partial class ProviderFailureNormalizer
                 }
             }
 
-            var match = HttpStatusPattern().Match(candidate.Message);
-
-            if (match.Success && int.TryParse(match.Groups["status"].ValueSpan, CultureInfo.InvariantCulture, out var status))
+            if (ReadFrameStatus(candidate) is { } status)
             {
                 return status;
             }
         }
 
         return null;
+    }
+
+    /// <summary>Reads the HTTP status one frame's message reports, without looking at its inner exceptions.</summary>
+    /// <param name="frame">One exception of a graph.</param>
+    /// <returns>The status, or <see langword="null"/> when the message carries none.</returns>
+    /// <remarks>
+    /// Four shapes, each measured against the shipped SDK with an empty
+    /// error body (<c>ProviderErrorStatusTests</c>): OpenAI's own body gives
+    /// "HTTP 404 (...)"; System.ClientModel without one gives "Status: 404 (Not
+    /// Found)" (OpenAI and Azure OpenAI); the Anthropic SDK gives "Status Code:
+    /// NotFound", an <see cref="System.Net.HttpStatusCode"/> NAME; Google.GenAI gives
+    /// "Request failed with status code 404: Not Found". Only "HTTP nnn" was read,
+    /// so the other three looked like a failure with no response at all.
+    /// </remarks>
+    internal static int? ReadFrameStatus(Exception frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+
+        var match = HttpStatusPattern().Match(frame.Message);
+
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        if (match.Groups["status"] is { Success: true } digits
+            && int.TryParse(digits.ValueSpan, CultureInfo.InvariantCulture, out var status))
+        {
+            return status;
+        }
+
+        return Enum.TryParse<System.Net.HttpStatusCode>(match.Groups["name"].Value, ignoreCase: false, out var named)
+               && (int)named is >= 100 and <= 599
+            ? (int)named
+            : null;
     }
 
     /// <summary>Names the foreign exception that actually reached the boundary.</summary>
@@ -117,13 +150,12 @@ internal static partial class ProviderFailureNormalizer
         return candidate.GetType().Name;
     }
 
-    // 🚨 Kept in step with FallbackRetryClassifier's RetryableHttpStatusPattern:
-    // that one asks "is this worth retrying" and matches only 5xx/429, this one
-    // asks "which fault was this" and needs every status. A status this reads
-    // but that one does not is fine; the reverse would mean a retryable failure
-    // with no discriminator.
+    // The single status pattern: FallbackRetryClassifier, the circuit breaker
+    // and the workflow node retry read a status through ProviderHttpStatus,
+    // which comes here, so no second pattern can drift from this one (F-387).
+    // The shapes are listed on ReadFrameStatus.
     [GeneratedRegex(
-        @"\bHTTP\s+(?<status>[1-5]\d{2})\b",
+        @"\bHTTP\s+(?<status>[1-5]\d{2})\b|\bStatus:\s*(?<status>[1-5]\d{2})\b|\bstatus code\s+(?<status>[1-5]\d{2})\b|\bStatus Code:\s*(?:(?<status>[1-5]\d{2})\b|(?<name>[A-Za-z]+)\b)",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex HttpStatusPattern();
@@ -203,8 +235,28 @@ internal sealed class ForeignProviderInvocationException(Exception original) : E
 }
 
 /// <summary>Tags only failures thrown by the provider client itself.</summary>
+/// <remarks>
+/// A cancellation keeps its type, so a caller's own cancellation still reads as
+/// one; the client's own deadline is marked in <see cref="Exception.Data"/>
+/// instead (<see cref="IsProviderCancellation"/>).
+/// </remarks>
 internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : DelegatingChatClient(inner)
 {
+    private const string ProviderCancellationKey = "Tracon.ProviderCancellation";
+
+    /// <summary>
+    /// Determines whether the provider client raised <paramref name="exception"/>
+    /// itself without the caller asking: its own deadline, not a Tracon ring or a
+    /// tool above it.
+    /// </summary>
+    /// <param name="exception">The cancellation.</param>
+    /// <returns><see langword="true"/> when this client marked it on the way out.</returns>
+    internal static bool IsProviderCancellation(OperationCanceledException exception)
+        => exception.Data.Contains(ProviderCancellationKey);
+
+    private static void MarkProviderCancellation(OperationCanceledException exception)
+        => exception.Data[ProviderCancellationKey] = true;
+
     public override async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -213,6 +265,12 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : Dele
         try
         {
             return await base.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            MarkProviderCancellation(exception);
+
+            throw;
         }
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
         {
@@ -232,6 +290,12 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : Dele
             enumerator = base.GetStreamingResponseAsync(messages, options, cancellationToken)
                 .GetAsyncEnumerator(cancellationToken);
         }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            MarkProviderCancellation(exception);
+
+            throw;
+        }
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
         {
             throw new ForeignProviderInvocationException(exception);
@@ -246,6 +310,12 @@ internal sealed class ProviderFailureTaggingChatClient(IChatClient inner) : Dele
                 try
                 {
                     hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                    MarkProviderCancellation(exception);
+
+                    throw;
                 }
                 catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
                 {

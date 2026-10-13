@@ -34,7 +34,8 @@ namespace Tracon;
 internal sealed class AgentBatchJobHandler(
     IAgentCatalog catalog,
     ILogger<AgentBatchJobHandler>? logger = null,
-    ParameterizedAgentFactory? parameterFactory = null) : IJobHandler
+    ParameterizedAgentFactory? parameterFactory = null,
+    IRunStore? runStore = null) : IJobHandler
 {
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
@@ -155,13 +156,24 @@ internal sealed class AgentBatchJobHandler(
                     new(ChatRole.User, input.Message),
                 ];
 
-                await agent
+                var response = await agent
                     .RunAsync(
                         messages,
                         session: null,
                         options: new TraconRunOptions { RunId = runId, ParameterValues = recordedValues },
                         cancellationToken)
                     .ConfigureAwait(false);
+
+                // F-389: an item runs without a session, so an approval it stops at
+                // can never be answered. The item fails and its run is closed.
+                if (SessionlessApprovalRun.StoppedAtApproval(response.Messages))
+                {
+                    await SessionlessApprovalRun
+                        .CloseAsFailedAsync(runStore, runId, context.Job.TenantId, DateTimeOffset.UtcNow, logger, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    error = SessionlessApprovalRun.Message;
+                }
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {

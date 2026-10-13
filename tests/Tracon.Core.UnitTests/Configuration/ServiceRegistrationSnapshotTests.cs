@@ -163,6 +163,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.CompiledAgentCache | Singleton | Tracon.CompiledAgentCache",
         "Tracon.CallableAgentResolver | Singleton | Tracon.CallableAgentResolver",
         "Tracon.AgentDefinitionCompiler | Singleton | Factory",
+        "Tracon.EmbeddingProviderAccess | Singleton | Factory",
         "Tracon.KnowledgeIngestionService | Singleton | Factory",
         "Tracon.AgentDefinitionValidator | Singleton | Factory",
         "Tracon.IAuditLog | Singleton | Tracon.InMemoryAuditLog",

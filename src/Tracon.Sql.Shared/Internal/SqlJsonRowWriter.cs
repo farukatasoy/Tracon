@@ -21,6 +21,16 @@ internal static class SqlJsonRowWriter
     /// <param name="writer">The writer.</param>
     /// <param name="reader">The reader, positioned on a row.</param>
     public static void WriteRow(Utf8JsonWriter writer, DbDataReader reader)
+        => WriteRow(writer, reader, readValue: null);
+
+    /// <summary>Writes every column of the current row as a JSON object, passing each value through a reader.</summary>
+    /// <param name="writer">The writer.</param>
+    /// <param name="reader">The reader, positioned on a row.</param>
+    /// <param name="readValue">
+    /// Called with the column name and the stored value of every non-null column; its
+    /// result is written instead. <see langword="null"/> writes the stored value.
+    /// </param>
+    public static void WriteRow(Utf8JsonWriter writer, DbDataReader reader, Func<string, object, object>? readValue)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(reader);
@@ -38,7 +48,9 @@ internal static class SqlJsonRowWriter
                 continue;
             }
 
-            WriteValue(writer, name, reader.GetValue(ordinal));
+            var value = reader.GetValue(ordinal);
+
+            WriteValue(writer, name, readValue is null ? value : readValue(name, value));
         }
 
         writer.WriteEndObject();
@@ -48,12 +60,19 @@ internal static class SqlJsonRowWriter
     /// <param name="reader">The reader, positioned on a row.</param>
     /// <returns>The JSON text.</returns>
     public static string RowToJson(DbDataReader reader)
+        => RowToJson(reader, readValue: null);
+
+    /// <summary>Converts the current row to a single-line JSON object, passing each value through a reader.</summary>
+    /// <param name="reader">The reader, positioned on a row.</param>
+    /// <param name="readValue">See <see cref="WriteRow(Utf8JsonWriter, DbDataReader, Func{string, object, object}?)"/>.</param>
+    /// <returns>The JSON text.</returns>
+    public static string RowToJson(DbDataReader reader, Func<string, object, object>? readValue)
     {
         using var buffer = new MemoryStream();
 
         using (var writer = new Utf8JsonWriter(buffer))
         {
-            WriteRow(writer, reader);
+            WriteRow(writer, reader, readValue);
         }
 
         return Encoding.UTF8.GetString(buffer.ToArray());

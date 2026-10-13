@@ -347,6 +347,15 @@ inside the workflow opens its own run row** — so the whole thing is readable a
 with `GET /api/runs/{runId}/tree`, with each agent's tokens and duration attributed
 separately.
 
+The request is checked before the stream opens, so a mistake is a status code, not an
+event in a `200` stream. An unknown workflow or run answers `404`, and so does a run of
+another tenant. An invalid `sessionId`, a checkpoint the run does not have, and an
+answer to a run that does not wait for input answer `400`. None of these opens a run.
+
+The name `functions` is reserved: `GET /api/workflows/functions` lists the function
+nodes, so a workflow saved under that name could not be read back. Saving it answers
+`400`, and `AddWorkflow` throws.
+
 ### Queue a run instead of streaming it
 
 A streamed run belongs to the connection that reads it: if the client stops reading,

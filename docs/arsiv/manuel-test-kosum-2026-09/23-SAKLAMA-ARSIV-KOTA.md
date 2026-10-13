@@ -374,3 +374,55 @@ data: {"runId":"...","sequence":11,"type":"Custom", ...,
                     \"used\":1,\"resetsAt\":\"2026-09-06T00:00:00+00:00\"}",
        "customType":"tracon.quota.threshold"}
 ```
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-RET-050 — Düşük token tavanı, uzun tool döngülü bir `run`'ı KESER
+
+**Ölçüldü (2026-08-26, gerçek OpenAI çağrısı, `samples/Tracon.Api`):**
+başarısız bir `POST /api/agents/{name}/run`'ın gövdesi bir `run` kaydı
+DEĞİL, bir `ProblemDetails`'tir (`runId` alanı taşımaz) — bu yüzden
+`RUN_ID` POST yanıtından değil, `GET /api/runs`'tan okunur.
+
+#### MT-RET-051 — Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ
+
+**Ölçüldü (2026-08-26, gerçek OpenAI çağrısı).** Beklenen ilk varsayım
+"son olay tam bir `ToolInvoked`/`MessageCompleted` taşır" idi — ölçüm bunu
+DÜZELTTİ: Microsoft Agent Framework'ün `FunctionInvokingChatClient`'ı bir
+`exception` fırlattığında (bkz. MT-RET-050, ikinci model turu bütçe
+tarafından reddedilir) o ana kadarki KISMİ ilerlemeyi (turnu 1'in
+`FunctionCallContent`'i, tool'un GERÇEKTEN çalıştırılmış sonucu) hiç geri
+döndürmez — `RunRecordingAgent`'ın `catch` bloğu bu yüzden tool
+olaylarını hiç GÖRMEZ. Gerçek ölçülen olay akışı yalnız `RunStarted` →
+`RunFailed`'tir; ARADA hiçbir `ToolInvoking`/`ToolInvoked`/`MessageDelta`
+olayı YOKTUR. Bu, "yarım bir mesaj sızdırmama" iddiasını DAHA GÜÇLÜ
+şekilde sağlar: yarım bir mesaj değil, **hiçbir** ara ilerleme sızmaz.
+
+#### MT-RET-060 — Düşük süre tavanı, bir tool döngülü `run`'ı KESER
+
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı, `samples/Tracon.Api`,
+`export Tracon__AgentGraph__MaxDuration="00:00:00.001"`).**
+
+#### MT-RET-061 — Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ
+
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı).** MT-RET-051'in aynı ölçümü
+— aynı sebeple (bkz. MT-RET-051'in notu, Microsoft Agent Framework kısmi
+ilerlemeyi geri döndürmez): olay akışı yalnız `RunStarted` → `RunFailed`
+taşır.
+
+#### MT-RET-062 — Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok)
+
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı).**
+
+#### MT-RET-063 — `202 Accepted` ile arka planda koşan (kuyruklu/dayanıklı) `run` da aynı şekilde kesilir
+
+**Ölçüldü (2026-09-01, gerçek OpenAI çağrısı, düşük tavanla — MT-RET-060'ın
+ortamı).**

@@ -143,6 +143,39 @@ internal static class DocumentChannelMessageBuilder
         return TrySplitBlocks(text, out var blocks) && blocks is [var block] && block.Text.Length == text.Length;
     }
 
+    /// <summary>The name a masked document carries when its block can no longer be read.</summary>
+    public const string MaskedDocumentName = "[masked document]";
+
+    /// <summary>
+    /// Builds the content a content guard writes in place of a document it masked:
+    /// the masked text, still marked as a document.
+    /// </summary>
+    /// <param name="maskedText">The document's text after the guard rewrote it.</param>
+    /// <returns>A marked <see cref="TextContent"/>.</returns>
+    /// <remarks>
+    /// <para>
+    /// The mark is rebuilt from the masked text, never copied from the original: the
+    /// original carries the raw name and the hash of the raw content, and both would
+    /// reach the run record (<c>DocumentAttached</c>) past the guard. When the masked
+    /// text is still one whole block, its own name line and content give the mark;
+    /// otherwise the document is named <see cref="MaskedDocumentName"/>.
+    /// </para>
+    /// <para>
+    /// Without a mark the record took the document for the run's request and wrote no
+    /// <c>DocumentAttached</c>.
+    /// </para>
+    /// </remarks>
+    public static TextContent BuildMasked(string maskedText)
+    {
+        ArgumentNullException.ThrowIfNull(maskedText);
+
+        var (name, content) = TrySplitBlocks(maskedText, out var blocks) && blocks is [var block] && block.Text.Length == maskedText.Length
+            ? (block.Name, block.Content)
+            : (MaskedDocumentName, maskedText);
+
+        return (TextContent)CreateMessage(maskedText, name, content).Contents[0];
+    }
+
     // 🚨 F-343, measured on SQLite 2026-10-12: a SQL IRunInputStore keeps
     // messages as JSON, and AdditionalProperties read back holds JsonElement,
     // not string/int. Accepting only the CLR types made every stored input that

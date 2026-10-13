@@ -50,7 +50,8 @@ internal static class ConfigurationKeyGuard
     /// <paramref name="configurationKeyName"/> is empty, does not start with
     /// <paramref name="allowedPrefix"/>, or names a key outside the tenant's
     /// key space. The message names the field and the namespace to use, so
-    /// the operator can see which field to correct and how.
+    /// the operator can see which field to correct and how. It never repeats
+    /// the given name: an operator may have typed the secret value there.
     /// </exception>
     public static void RequireTenantKey(
         string? configurationKeyName,
@@ -92,9 +93,12 @@ internal static class ConfigurationKeyGuard
             ? $"under '{allowedPrefix}{tenantId}:' or a flat name directly under '{allowedPrefix}'"
             : $"under '{allowedPrefix}{tenantId}:'";
 
+        // 🚨 F-291: the given name is never repeated. An operator who typed the
+        // secret VALUE into this field would get it back in the response, and a
+        // delivery that checks this rule would store it (K-059).
         throw new TraconException(
-            $"'{configurationKeyName}' is outside the key space of tenant '{tenantId}'. " +
-            $"'{fieldName}' may only reference a configuration key {allowed}.");
+            $"'{fieldName}' names a configuration key outside the key space of tenant '{tenantId}'. " +
+            $"It may only reference a configuration key {allowed}.");
     }
 
     private static void RequirePrefix(
@@ -112,7 +116,7 @@ internal static class ConfigurationKeyGuard
         if (!configurationKeyName.StartsWith(allowedPrefix, StringComparison.Ordinal))
         {
             throw new TraconException(
-                $"'{configurationKeyName}' is outside the allowed prefix. '{fieldName}' may only " +
+                $"'{fieldName}' names a configuration key outside the allowed prefix. It may only " +
                 $"reference a configuration key under '{allowedPrefix}'.");
         }
     }

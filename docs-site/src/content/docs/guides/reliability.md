@@ -455,12 +455,25 @@ from. `Drain` makes a graceful stop wait instead:
 }
 ```
 
-Once a stop signal arrives, new runs are refused — the run endpoint returns `503`,
-and the background job worker stops leasing new jobs — while runs already in flight
-are given up to `Timeout` to finish before the process actually exits. A run that is
-still going when the timeout elapses is cut off anyway; a stuck run must not block a
-deployment forever. The host's own shutdown timeout still applies on top of this
-value, so raise both together for the full wait to take effect.
+Once a stop signal arrives, new runs are refused, and the background job worker stops
+leasing new jobs, while runs already in flight are given up to `Timeout` to finish
+before the process actually exits. Every surface that starts a run in the process
+refuses it:
+
+- The agent and workflow run endpoints (with or without `Prefer: respond-async`),
+  workflow resume and respond, and run replay return `503`.
+- `/v1/chat/completions` and `/v1/responses` return `503` in the OpenAI error shape,
+  with `type` `service_unavailable`.
+- The voice conversation handshake returns `503` before the upgrade.
+- An MCP `tools/call` returns an error result, and an A2A message fails.
+
+A request that only writes a job (an inbound trigger, an eval run, a schedule trigger,
+an approval decision) is still accepted: its job waits in the queue until a worker
+that is not draining leases it.
+
+A run that is still going when the timeout elapses is cut off anyway; a stuck run
+must not block a deployment forever. The host's own shutdown timeout still applies on
+top of this value, so raise both together for the full wait to take effect.
 
 | Setting | Default | Effect |
 |---|---:|---|

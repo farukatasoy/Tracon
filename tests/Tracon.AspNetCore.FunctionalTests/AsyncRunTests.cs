@@ -40,6 +40,40 @@ public sealed class AsyncRunTests
         response.Headers.Location!.OriginalString.ShouldEndWith($"/api/runs/{runId}");
     }
 
+    /// <summary>
+    /// F-432: the placeholder row is written before the job. A queue that refuses
+    /// the job must not leave the row <c>Queued</c> forever, with no job behind it.
+    /// </summary>
+    [Fact]
+    public async Task A_queue_that_refuses_the_job_does_not_leave_the_row_queued()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: static services =>
+            {
+                services.UseScheduling(static o => o.RunWorker = false);
+                services.AddSingleton<IJobStore>(static _ => new RefusingJobStore(new InMemoryJobStore(), JobHandlerKeys.AgentRun));
+            });
+
+        try
+        {
+            using var refused = await PostAsyncAsync(host, new AgentRunRequest { Message = "hello" });
+
+            refused.StatusCode.ShouldNotBe(HttpStatusCode.Accepted);
+        }
+        catch (InvalidOperationException exception) when (exception.Message.Contains("the queue is unavailable", StringComparison.Ordinal))
+        {
+            // TestServer hands the server's unhandled exception to the client; a real
+            // server answers 500. Either way the caller gets no 202.
+        }
+
+        var run = (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { Take = 10 }))
+            .ShouldHaveSingleItem();
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.Error.ShouldNotBeNull().Message.ShouldNotContain("the queue is unavailable", Case.Sensitive, "the stored error is the safe text, not the exception message");
+    }
+
     [Fact]
     public async Task GET_immediately_after_queuing_returns_Queued_not_404()
     {

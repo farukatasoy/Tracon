@@ -1285,3 +1285,36 @@ satır doğrulanacaktır.
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
 
 ---
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, F-441)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Düzeltildi`, `Ölçüldü`, `Doküman düzeltmesi` notları ve üstü çizili eski beklentiler
+> buraya **taşındı** (silinmedi). Her not hangi case'e ait olduğunu başlığıyla söyler;
+> tarih notun kendisindedir. Not beklentiyi taşıyorsa spesifikasyonda yerine kısa bir
+> beklenti maddesi kaldı.
+
+#### MT-MM-032 — `pcm_*`/`ulaw_*`/`alaw_*` çıktı biçimleri AÇILIŞTA reddedilir
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; `VoiceOptionsValidator.cs`'in gerçek metni İngilizce'dir
+> (K-228 — paket koduna giren her şey İngilizce, yalnız `docs/`/`.agents/`
+> Türkçe kalır). Yukarıda düzeltildi.
+
+#### MT-MM-033 — Tanınmayan sağlayıcı adı AÇILIŞTA reddedilir
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; gerçek metin İngilizce'dir (K-228). Yukarıda düzeltildi.
+
+#### MT-MM-034 — `MaxCharactersPerRequest`/`MaxConcurrentRequests` sıfır veya negatif AÇILIŞTA reddedilir
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; gerçek metin İngilizce'dir (K-228). Yukarıda düzeltildi.
+
+#### MT-MM-035 — Hatalı bir API anahtarıyla hata mesajı anahtarı SIZDIRMAZ
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** İpucu metni Türkçe yazılmıştı;
+> `ElevenLabsSpeechClient.cs`'in gerçek metni İngilizce'dir (K-228).
+> Yukarıda düzeltildi.

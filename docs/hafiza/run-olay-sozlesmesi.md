@@ -127,3 +127,20 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   "kirilgan" diye damgalanmaya acikti. Terk yolu (`break`) ayni deligi
   **deterministik** olarak gosterir (218 ms) — bir yarisi kovalamak yerine ayni
   kusura zamanlamasiz bir yoldan ulasmak, siniflandirmayi tartisma disi birakir.
+- **🚨 Önce `Queued` yer tutucu satır, sonra job yazan yol enqueue düşerse satırı
+  kapatmalıdır** (2026-10-13, F-432). Ajan kuyruk ucu ve trigger'ın ajan hedefi
+  satırı açıp `EnqueueAsync` hatasında bırakıyordu: satır sonsuza kadar `Queued`
+  kaldı, trigger tekrarı yeni run kimliği açtığı için hiçbir işçi onu almadı.
+  Workflow kuyruk ucu aynı sınıfı elle kapatmıştı; üç yol artık
+  `QueuedRunPlaceholder.EnqueueAsync`'ten geçer (`Failed`, güvenli hata metni,
+  kapatma da düşerse log). İstisna bilinçlidir: onay devamının run kimliği
+  onaydan türetilir, kararı tekrarlamak eksik job'u yazar. Emsal test:
+  `RefusingJobStore` (`Infrastructure/`).
+- **🚨 Oturumsuz run onay isterse `Failed` kapanır — kural her oturumsuz yolda
+  ayrı ayrı uygulanmalıdır** (2026-10-13, F-389). Onay sonraki turun girdisidir ve
+  oturum geçmişinden cevaplanır; oturumsuz run `AwaitingApproval` kalır, posta
+  kutusu satırı yazılmaz, sonsuza kadar bekler. Kural `AgentRunJobHandler`'daydı;
+  batch öğesi ve eval vakası yoktu, batch öğeyi `Completed` raporladı. İkisi artık
+  `SessionlessApprovalRun`'dan geçer (öğe/vaka hatası + run `Failed`). Açık sınıf
+  üyesi: `/v1/chat/completions` oturumsuz onayda `200` + boş içerik döner (F-448).
+  Kanıt fonksiyonel testtir: iş durumu ile run satırı iki ayrı yerde yazılır.

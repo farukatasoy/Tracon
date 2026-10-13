@@ -107,6 +107,37 @@ public sealed class FallbackRetryRegressionTests
             true,
             "a 503 that only HttpRequestException.StatusCode carries still retries",
         ];
+        // 🚨 F-387. The three shapes an SDK writes without OpenAI's own error body,
+        // measured with each shipped SDK (ProviderErrorStatusTests). Only "HTTP nnn"
+        // was read: each of these switched provider as a connection failure.
+        yield return [
+            new FakeClientResultException("Service request failed.\nStatus: 401 (Unauthorized)\n"),
+            false,
+            "a System.ClientModel 401 with an empty body never switches provider",
+        ];
+        yield return [
+            new FakeClientResultException("Service request failed.\nStatus: 404 (Not Found)\n"),
+            false,
+            "a System.ClientModel 404 with an empty body never switches provider",
+        ];
+        yield return [
+            new FakeClientResultException("Service request failed.\nStatus: 503 (Service Unavailable)\n"),
+            true,
+            "a System.ClientModel 503 with an empty body still retries",
+        ];
+        yield return [new InvalidOperationException("Status Code: Unauthorized"), false, "the Anthropic SDK's status name 401 never switches provider"];
+        yield return [new InvalidOperationException("Status Code: BadRequest"), false, "the Anthropic SDK's status name 400 never switches provider"];
+        yield return [new InvalidOperationException("Status Code: InternalServerError"), true, "the Anthropic SDK's status name 500 retries"];
+        yield return [
+            new InvalidOperationException("Request failed with status code 403: Forbidden"),
+            false,
+            "a Google.GenAI 403 never switches provider",
+        ];
+        yield return [
+            new InvalidOperationException("Request failed with status code 502: Bad Gateway"),
+            true,
+            "a Google.GenAI 502 retries",
+        ];
         yield return [new FakeClientResultException("HTTP 408 (request_timeout)"), true, "408 is not a permanent 4xx and still retries"];
         yield return [new InvalidOperationException("something nobody anticipated"), false, "an unrecognized failure never retries by default"];
     }
