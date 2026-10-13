@@ -150,6 +150,25 @@ public sealed class AnthropicChatClientFactoryTests
         exception.Message.ShouldContain(AnthropicProviderNames.ThinkingBudgetTokensSetting);
     }
 
+    /// <summary>
+    /// The same masking as HATA-S4-005, one helper deeper: a value of the wrong
+    /// JSON type is reported by <c>ModelProviderSettings</c> itself, and the
+    /// operator must read the key there too, not "The model provider request failed."
+    /// </summary>
+    [Fact]
+    public void Wrongly_typed_setting_value_survives_the_registrys_failure_masking()
+    {
+        var registry = new ModelProviderRegistry(
+            [new AnthropicModelProvider("anthropic", Factory(), [])]);
+
+        var exception = Should.Throw<TraconException>(() => registry.CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings(
+                (AnthropicProviderNames.ThinkingBudgetTokensSetting, "too much")))));
+
+        exception.Message.ShouldContain(AnthropicProviderNames.ThinkingBudgetTokensSetting);
+        exception.Message.ShouldNotContain("The model provider request failed.");
+    }
+
     [Fact]
     public void Zero_default_output_limit_is_rejected()
     {

@@ -62,8 +62,8 @@ public sealed class AnthropicModelProviderCredentialContractTests : ModelProvide
 }
 
 /// <summary>
-/// The Anthropic adapter reads provider settings (prompt caching, extended
-/// thinking budget), so it also owes the settings contract.
+/// The Anthropic adapter reads provider settings (prompt caching and its TTL
+/// and placement, thinking, effort), so it also owes the settings contract.
 /// </summary>
 public sealed class AnthropicModelProviderSettingsContractTests : ModelProviderSettingsContract
 {
@@ -77,6 +77,10 @@ public sealed class AnthropicModelProviderSettingsContractTests : ModelProviderS
 
     protected override KeyValuePair<string, JsonElement>? SupportedSetting
         => new(AnthropicProviderNames.PromptCachingSetting, True);
+
+    // A text value of the right type outside the SDK's effort levels (F-346).
+    protected override KeyValuePair<string, JsonElement>? InvalidSettingValue
+        => new(AnthropicProviderNames.EffortSetting, JsonDocument.Parse("\"extreme\"").RootElement.Clone());
 }
 
 /// <summary>

@@ -27,6 +27,29 @@ public sealed record ModelDescriptor
     /// <summary>Whether output conforming to a JSON schema can be produced.</summary>
     public bool SupportsStructuredOutput { get; init; }
 
+    /// <summary>
+    /// Whether the model accepts the sampling parameters <c>temperature</c> and
+    /// <c>topP</c>; <see langword="null"/> when the catalog does not say.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The parameters are <see cref="ModelBinding.Temperature"/> and
+    /// <see cref="ModelBinding.TopP"/>. <see langword="null"/> (the default)
+    /// means unknown and checks nothing. When
+    /// the catalog states <see langword="false"/>, an agent definition that sets
+    /// either parameter does not compile, and the validation report names the
+    /// field: the provider would reject the request with <c>400</c> on the first
+    /// run. The check covers the binding's <see cref="ModelBinding.Fallbacks"/>
+    /// links too, because they receive the same parameters.
+    /// </para>
+    /// <para>
+    /// The value comes from the catalog, never from a model-name list in code:
+    /// many current models reject sampling, and which ones changes with every
+    /// release.
+    /// </para>
+    /// </remarks>
+    public bool? SupportsSampling { get; init; }
+
     /// <summary>The cost per million input tokens. For reporting only.</summary>
     public decimal? InputCostPerMillionTokens { get; init; }
 

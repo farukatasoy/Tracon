@@ -2013,6 +2013,8 @@ Tracon.ModelDescriptor.SupportsStreaming.get -> bool
 Tracon.ModelDescriptor.SupportsStreaming.init -> void
 Tracon.ModelDescriptor.SupportsStructuredOutput.get -> bool
 Tracon.ModelDescriptor.SupportsStructuredOutput.init -> void
+Tracon.ModelDescriptor.SupportsSampling.get -> bool?
+Tracon.ModelDescriptor.SupportsSampling.init -> void
 Tracon.ModelDescriptor.SupportsTools.get -> bool
 Tracon.ModelDescriptor.SupportsTools.init -> void
 Tracon.ModelFallback
@@ -5715,6 +5717,31 @@ Tracon.TraconLoopUnsatisfiedException.UnsatisfiedCriterion.get -> string?
 Tracon.TraconLoopUnsatisfiedException.UnsatisfiedCriterion.init -> void
 const Tracon.TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType = "loop_unsatisfied" -> string!
 override Tracon.TraconLoopUnsatisfiedException.ErrorType.get -> string!
+Tracon.RunErrorClass.OutputTruncated = 16 -> Tracon.RunErrorClass
+Tracon.TraconOutputTruncatedException
+Tracon.TraconOutputTruncatedException.MaxOutputTokens.get -> int?
+Tracon.TraconOutputTruncatedException.MaxOutputTokens.init -> void
+Tracon.TraconOutputTruncatedException.ProviderName.get -> string?
+Tracon.TraconOutputTruncatedException.ProviderName.init -> void
+Tracon.TraconOutputTruncatedException.TraconOutputTruncatedException() -> void
+Tracon.TraconOutputTruncatedException.TraconOutputTruncatedException(string! message) -> void
+Tracon.TraconOutputTruncatedException.TraconOutputTruncatedException(string! message, System.Exception! innerException) -> void
+const Tracon.TraconOutputTruncatedException.OutputTruncatedErrorType = "output_truncated" -> string!
+override Tracon.TraconOutputTruncatedException.ErrorType.get -> string!
+const Tracon.RunEventCustomTypes.OutputTruncated = "tracon.output.truncated" -> string!
+Tracon.ModelOutputLimit
+Tracon.ModelOutputLimit.<Clone>$() -> Tracon.ModelOutputLimit!
+Tracon.ModelOutputLimit.DefaultMaxOutputTokens.get -> int
+Tracon.ModelOutputLimit.DefaultMaxOutputTokens.init -> void
+Tracon.ModelOutputLimit.Equals(Tracon.ModelOutputLimit? other) -> bool
+Tracon.ModelOutputLimit.HighReasoningEffort.get -> bool
+Tracon.ModelOutputLimit.HighReasoningEffort.init -> void
+Tracon.ModelOutputLimit.ModelOutputLimit() -> void
+override Tracon.ModelOutputLimit.Equals(object? obj) -> bool
+override Tracon.ModelOutputLimit.GetHashCode() -> int
+override Tracon.ModelOutputLimit.ToString() -> string!
+static Tracon.ModelOutputLimit.operator !=(Tracon.ModelOutputLimit? left, Tracon.ModelOutputLimit? right) -> bool
+static Tracon.ModelOutputLimit.operator ==(Tracon.ModelOutputLimit? left, Tracon.ModelOutputLimit? right) -> bool
 Tracon.WebhookEvalSummary
 Tracon.WebhookEvalSummary.AgentName.get -> string?
 Tracon.WebhookEvalSummary.AgentName.init -> void

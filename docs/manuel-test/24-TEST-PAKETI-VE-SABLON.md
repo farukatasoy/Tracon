@@ -2394,7 +2394,7 @@ dotnet build samples/Tracon.Samples.CustomModelProvider -c Release
 
 ---
 
-### MT-TEST-079 — `ModelProviderContract` örnek sağlayıcıya karşı yeşil geçer, hiçbir senaryo atlanmaz
+### MT-TEST-079 — `ModelProviderContract` örnek sağlayıcıya karşı yeşil geçer; yalnız bir senaryo gerekçeli atlanır
 
 | | |
 |---|---|
@@ -2415,11 +2415,13 @@ dotnet test samples/Tracon.Samples.CustomModelProvider.Tests -c Release
 ```
 
 **Beklenen sonuç**
-- Tüm testler geçer ve `skipped: 0`'dır. İsteğe bağlı BYOK davranışı
-  atlanan bir senaryo değil, **türetilmeyen bir sınıftır** — bu yüzden sessizce
-  geçen senaryo yoktur. `ModelProviderSettingsContract` her sağlayıcıya
-  türetilir; örnek sağlayıcı bir anahtar (`contoso.shout`) desteklediği için
-  onun da hiçbir senaryosu atlanmaz.
+- Tüm testler geçer ve `skipped: 1`'dir. İsteğe bağlı BYOK davranışı
+  atlanan bir senaryo değil, **türetilmeyen bir sınıftır**.
+  `ModelProviderSettingsContract` her sağlayıcıya türetilir; örnek sağlayıcı
+  bir anahtar (`contoso.shout`) desteklediği için kabul senaryoları koşar.
+  Tek `Skip` `A_supported_setting_with_an_invalid_value_is_rejected`'tır (Faz
+  204): `contoso.shout` boolean'dır, doğru tipte yanlış bir değeri yoktur ve
+  örnek `InvalidSettingValue`'yu `null` bırakır. Başka bir `Skip` kusurdur.
 - Türetilen sınıflar: `ModelProviderContract`,
   `ModelProviderCredentialContract`, `ModelProviderSettingsContract`.
 - `ProviderContractCoverageTests` yeşildir: paketin sağlayıcı ailesindeki her

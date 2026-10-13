@@ -43,7 +43,7 @@ flowchart TD
     F --> G["UseFunctionInvocation + UseOpenTelemetry"]
     G --> H["AttachmentResolving (varsa)"]
     H --> I["ModelProviderCircuitBreaker.Wrap"]
-    I --> J["ContentFilterDetecting"]
+    I --> J["FinishReasonDetecting"]
     J --> K["Gercek OpenAI HTTP cagrisi"]
     D -.-> L["OpenAIProviderHealthCheck: GET {endpoint}/models"]
     L --> M["ModelProviderHealthCache (TTL 60sn)"]

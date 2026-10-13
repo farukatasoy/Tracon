@@ -15,7 +15,7 @@ namespace Tracon;
 /// <strong>Sits outside the circuit breaker, inside the content-filter
 /// detector</strong> (measured — placement decides what the rule can see):
 /// <c>ModelProviderRegistry.CreateChatClient</c> wraps this client with
-/// <c>ContentFilterDetectingChatClient</c>, and this client wraps the
+/// <c>FinishReasonDetectingChatClient</c>, and this client wraps the
 /// already-fully-assembled primary pipeline (content guard, tool loop,
 /// telemetry, attachment resolution, circuit breaker). Falling back requires
 /// first seeing that the primary's circuit is open; sitting inside the

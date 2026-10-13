@@ -2905,10 +2905,12 @@ done
 
 **Beklenen sonuç**
 - Dördü de `Test run summary: Passed!`.
-- Anthropic ve Google'da `Skip` **yok**. Azure ve OpenAI'da tam olarak iki
-  `Skip` vardır: `A_supported_provider_setting_is_accepted` ve
-  `A_supported_setting_is_matched_regardless_of_key_casing`. Başka bir
-  `Skip` kusurdur.
+- Anthropic ve Google'da `Skip` **yok**. Azure ve OpenAI'da tam olarak üç
+  `Skip` vardır: `A_supported_provider_setting_is_accepted`,
+  `A_supported_setting_is_matched_regardless_of_key_casing` ve (Faz 204)
+  `A_supported_setting_with_an_invalid_value_is_rejected` — anahtar
+  desteklemeyen sağlayıcının yanlış değeri olacak anahtarı da yoktur. Başka
+  bir `Skip` kusurdur.
 - `An_unsupported_provider_setting_is_rejected` dördünde de geçer.
 - `Concurrent_resolution_of_one_credential_stays_stable` dahil her sözleşme case'i geçer.
 

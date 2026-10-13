@@ -28,6 +28,10 @@
 3. Devir notları (`awk '/## Sonraki Faza Devir Notu/,0'`): `arsiv/fazlar/{195,71}-*.md`
 4. Hafıza: `workflows.md` · `cekirdek-calistirma.md` ·
    `secenek-baglama-ve-gizlilik.md` · `altyapi-haritasi.md` · `sql-migration.md`
+5. Faz 204 devri: `DefaultRunErrorClassifier.StableIdentities`'e `output_truncated`
+   satırı eklendi (`:54`); `:41-51` atıfları geçerli. `RunErrorClass` 16'ya kadar
+   dolu; yeni sınıf gerekirse 17'den, `RunErrorClassContractTests` ve iki UI
+   sözlüğüyle (`dashboard.errorClass.*`) birlikte.
 
 ---
 

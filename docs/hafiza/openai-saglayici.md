@@ -12,12 +12,11 @@
 - **`OpenAIClient.Endpoint` bile `OPENAI001`** (2026-08-02): testte doğrulamak için bastırma gerekir. Bunun yerine `IChatClient.GetService(typeof(ChatClientMetadata)).ProviderUri` kullan.
 - **OpenRouter model kimlikleri satıcı önekiyle gelir** (2026-08-02, Faz 8): `gpt-5.4-mini` değil `openai/gpt-5.4-mini`. Ölçüldü: `curl https://openrouter.ai/api/v1/models` ile doğrulanmadan model adı tahmin edilirse (K-032'nin aynı dersi) `model_not_found` benzeri bir hata alınır.
 - **🚨 OpenRouter'ın kredi kontrolü `max_tokens`'i "en kötü durum" maliyeti sayar** (2026-08-02, Faz 8): Varsayılan `max_tokens` (65536, MAF/OpenAI istemcisinin kendi varsayılanı) düşük bakiyeli bir anahtarla gerçek bir `HTTP 402 (insufficient credits)` üretti — Tracon'in hatası değil, hesap kısıtı. `ModelBinding.MaxOutputTokens` ile makul bir üst sınır vermek çözer.
-- **`ModelDescriptor` fiyat alanlarını faz 3'ten beri taşıyor** (`InputCostPerMillionTokens`, `OutputCostPerMillionTokens`) ve **hiçbir yerde okunmuyor**. Faz 20 maliyeti buradan çözecek.
 
 ## Anthropic ve Google (Faz 26, 2026-08-05)
 
 - **🚨 Bir SDK'nin ham gosterimini kullanirken alanin uzerine yazilip yazilmadigini OLC.** `ChatOptions.RawRepresentationFactory` ile verilen nesneyi Anthropic adaptoru **oldugu gibi** kullanir; `model`/`max_tokens` uzerine YAZMAZ (yer tutucu model adiyla olculdu). Bu yuzden `AnthropicProviderSettingsChatClient` model adini ve token sinirini kendisi yazar. Olcum: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **`MessageCreateParams.Thinking` ve `.CacheControl` INIT-ONLY'dir.** Reflection `{ get; set; }` gosterir ama derleyici `CS8852` verir. Kosullu alan yazmak icin `MessageCreateParams.FromRawUnchecked(header, query, body)` kullanilir. `body` sozlugunde `messages` anahtari **bulunmali** (bos dizi yeter); yoksa SDK istemci tarafinda `'messages' cannot be absent` der. Adaptor gercek mesajlari onun uzerine yazar.
+- **`MessageCreateParams.Thinking` ve `.CacheControl` INIT-ONLY'dir** (Faz 204: `CacheControlEphemeral.Ttl` de; nesne `new() { Ttl = … }` ile kurulur). Reflection `{ get; set; }` gosterir ama derleyici `CS8852` verir. Kosullu alan yazmak icin `MessageCreateParams.FromRawUnchecked(header, query, body)` kullanilir. `body` sozlugunde `messages` anahtari **bulunmali** (bos dizi yeter); yoksa SDK istemci tarafinda `'messages' cannot be absent` der. Adaptor gercek mesajlari onun uzerine yazar.
 - **`null!` atamak "alani gonderme" demek DEGILDIR.** `Thinking = null!` yazmak govdeye `"thinking": null` koyar ve API `Input should be an object` ile reddeder. Ayarlanmayacak alan hic yazilmamalidir.
 - **🚨 Anthropic'te `max_tokens` ZORUNLUDUR.** OpenAI'da atlanabilir; Anthropic'te atlanamaz. `AnthropicProviderOptions.DefaultMaxOutputTokens` (varsayilan 4096) bu yuzden var ve `null` olamaz.
 - **Anthropic'te dusunme acikken `temperature` yalnizca 1 olabilir.** Baska bir deger `invalid_request_error` verir. Dusunme butcesi ayrica `max_tokens`'tan kucuk olmalidir.
@@ -27,6 +26,7 @@
 - **Google.GenAI istemcisi `IDisposable`'dir** (`HttpClient` tasir). Fabrikanin da `IDisposable` olmasi gerekti; `OpenAIClient`'ta bu gerekmiyordu. Taban adres `HttpOptions.BaseUrl` ile verilir — `Client.setDefaultBaseUrl` **statiktir** ve surec genelinde durum degistirir, kullanilmaz.
 - **Guvenlik filtresi bos yanit + `ChatFinishReason.ContentFilter` uretir.** Ikisi de (Anthropic refusal, Gemini SAFETY) ayni MEAI degerine eslenir; bu yuzden tespit tek bir Core dekoratorunde toplandi (K-206). Dekorator devre kesicinin **disindadir** — filtrelenmis yanit saglayici arizasi degildir.
 - **Iki resmi SDK da `ChatOptions.RawRepresentationFactory` okur.** Metadata uye referanslarindan dogrulanabilir: `System.Reflection.Metadata` ile `MemberReferences` icinde `get_RawRepresentationFactory` aranir. Bu, gercek cagri yapmadan "kacis kapisi var mi?" sorusunu cevaplar.
+- **🚨 Anthropic adaptörü (SDK 12.39.0), ölçüldü** (Faz 204, decompile + ham gövde): var olan `OutputConfig`'i `with { Format }` ile kopyalar (`effort` + şema birlikte gider). `Instructions` cache kontrolsüz `system` bloğu olur; `cache_control` yalnız içeriğin `WithCacheControl`'ünden okunur. `ReasoningEffort` → `budget_tokens` (Low 1024, High 16384, ExtraHigh 32768); ham `Thinking` onu ezer. `InputTokenCount` = girdi + okuma + yazma; okuma `CachedInputTokenCount`, yazma `AdditionalCounts["CacheCreationInputTokens"]`. `stop_reason`'dan yalnız `refusal`, `max_tokens`, `tool_use` eşlenir (F-426). Değerler: `ApiEnum<string, T>.Raw()`.
 
 ## Azure OpenAI (Faz 27, 2026-08-05)
 
@@ -36,7 +36,6 @@
 - **Yonetilen kimlik `Azure.Identity` GEREKTIRMEZ** (K-210): `AzureOpenAIClient(Uri, TokenCredential, ...)` kurucusu vardir ve `TokenCredential` `Azure.Core`'dadir; Tracon yalniz `Azure.Core`'a baglanir, `Func<TokenCredential>` tuketiciden gelir. Token `scope`'u `AzureOpenAIAudience.AzurePublicCloud` = `https://cognitiveservices.azure.com/.default` — TAM metindir, `/.default` EKLENMEZ. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **`AzureOpenAIClientOptions.ServiceVersion` yalniz iki deger tasir** (`V2024_06_01`, `V2024_10_21`) ve parametresiz kurucu sonuncusunu secer. Yeni bir API surumu icin SDK yukseltilir; Tracon bu enum'u public yuzeyine almadi.
 - **`AzureOpenAIClient.GetResponsesClient()` Azure'a ozgu DEGILDIR.** `OpenAI.OpenAIClient+TopLevelResponsesClient` doner (karsilastirma: `GetChatClient()` → `Azure.AI.OpenAI.Chat.AzureChatClient`). Responses yuzeyi bu yuzden desteklenmiyor (K-213).
-- **`Microsoft.Agents.AI.Foundry` 1.5.0 MAF 1.16.0 ile YUKLENIR** (olculdu; tip yukleme hatasi yok) ama **37 gecisli paket** getirir — `Azure.AI.Projects`, `Azure.Storage.Blobs`, `Azure.Identity`, `Google.Protobuf`, `Microsoft.ML.Tokenizers`… Karsilastirma: `Google.GenAI` 11. Ertelendi (K-212). Kimligi `Azure.Core.TokenCredential` degil, `System.ClientModel`'in `AuthenticationTokenProvider`'idir.
 
 ## Sağlayıcı paketlerinin dosya haritası
 

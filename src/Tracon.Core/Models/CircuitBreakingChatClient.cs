@@ -22,7 +22,7 @@ namespace Tracon;
 /// exhausted run budget, a missing attachment and a tool failure come from rings
 /// inside this one; the request never reached the provider, or the provider
 /// answered it. A permanent 4xx other than 401/403 rejects the request, not the
-/// provider. The same rationale keeps <c>ContentFilterDetectingChatClient</c>
+/// provider. The same rationale keeps <c>FinishReasonDetectingChatClient</c>
 /// outside the circuit breaker.
 /// </para>
 /// </remarks>

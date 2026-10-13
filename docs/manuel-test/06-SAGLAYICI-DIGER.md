@@ -10,16 +10,16 @@
 > paylaşılan bir dekoratör katmanıdır: `src/Tracon.Core/Models/`
 > (`ModelProviderCircuitBreaker.cs`, `CircuitBreakingChatClient.cs`,
 > `ModelProviderHealthCache.cs`, `ModelProviderRegistry.cs`,
-> `ContentFilterDetectingChatClient.cs`). Bu makine [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md)'de
+> `FinishReasonDetectingChatClient.cs`). Bu makine [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md)'de
 > gerçek bir OpenAI hesabıyla zaten kanıtlandı — burada **tekrarlanmaz**. Bu
 > dosya yalnız üç paketin **kendine özgü** yüzeyini kanıtlar: ayar doğrulama,
 > model kataloğu, `ProviderSettings` (Anthropic prompt caching/genişletilmiş
 > düşünme, Google güvenlik eşikleri/düşünme, Azure'un **hiçbir** ayarı
 > desteklememesi), deployment≠model ayrımı (Azure) ve — dosyanın en değerli
 > kanıtı — Gemini'nin güvenlik filtresinin ürettiği **boş yanıtın**
-> `ContentFilterDetectingChatClient` tarafından gerçekten yakalandığı, çünkü bu
+> `FinishReasonDetectingChatClient` tarafından gerçekten yakalandığı, çünkü bu
 > davranış `05`'te OpenAI ile hiç tetiklenememişti (bkz. o dosyanın akış
-> diyagramındaki `ContentFilterDetecting` düğümü — orada yalnız listelenir,
+> diyagramındaki `FinishReasonDetecting` düğümü — orada yalnız listelenir,
 > koşulmaz).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
@@ -42,7 +42,7 @@ flowchart TD
     D --> E["ModelProviderSettings.Validate(anthropic./google. onek, Azure: bos liste)"]
     E --> F["XxxProviderSettingsChatClient (yalniz ayar VARSA eklenir)"]
     F --> G["ModelProviderRegistry.CreateChatClient sarmalamasi (05'te kanitlandi)"]
-    G --> H["UseFunctionInvocation + OpenTelemetry + CircuitBreaker + ContentFilterDetecting"]
+    G --> H["UseFunctionInvocation + OpenTelemetry + CircuitBreaker + FinishReasonDetecting"]
     H --> I["Gercek saglayici HTTP cagrisi"]
     D -.->|saglik| J["XxxProviderHealthCheck: GET {endpoint}/models"]
     J --> K["ModelProviderHealthCache (TTL 60sn, 05'te kanitlandi)"]
@@ -609,9 +609,11 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid` alanı `false`'tur, `code: invalid_setting`.
-- Mesaj `su anahtarlar taninmiyor: anthropic.thinkingBudget.` ve `Desteklenen
-  anahtarlar: anthropic.promptCaching, anthropic.thinking.budgetTokens.`
-  metinlerini içerir (alfabetik sıralı, `Order(StringComparer.Ordinal)`).
+- Mesaj `these keys are not recognized: anthropic.thinkingBudget` ve altı
+  anahtarı (Faz 204) `Order(StringComparer.Ordinal)` sırasıyla içerir:
+  `Supported keys: anthropic.effort, anthropic.promptCaching,
+  anthropic.promptCaching.placement, anthropic.promptCaching.ttl,
+  anthropic.thinking.budgetTokens, anthropic.thinking.mode.`
 
 ---
 
@@ -900,6 +902,82 @@ curl -s -X POST "$APU/api/agents/manuel-prompt-caching/run" -H "$APB" \
   görünmez — bu bir Tracon kusuru **değildir**, Anthropic'in kendi eşik
   kısıtıdır ve sonuç öyle not edilir.
 
+### MT-PROV-038 — `anthropic.effort` ve 1 saatlik `system` önbelleği gerçek API'de çalışır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 204 |
+| **İlgili karar** | — |
+
+Gerçek para harcar (iki küçük çağrı). Haiku 4.5 `effort`'u reddeder;
+`claude-haiku-5-5`'in önbellek eşiği 512 token'dır, talimat bu yüzden uzundur.
+İki run farklı mesaj taşır: önbelleği yalnız `system` yerleşimi okutur.
+
+**Ön koşul**
+- Örnek uygulama Development'ta, Anthropic anahtarıyla çalışıyor
+  (`Tracon:Providers:Anthropic:ApiKey` user-secrets'ta).
+
+**Adımlar**
+1. Aşağıdaki agent'ı kaydet; farklı iki mesajla tamponlu çalıştır; `usage`'ı oku.
+
+**Girilecek veri**
+```bash
+A=manuel-effort-cache
+jq -n --arg t "$(python3 -c "print('Reply with JSON only. ' * 150)")" '{name:"manuel-effort-cache",instructions:$t,model:{provider:"anthropic",model:"claude-haiku-5-5",maxOutputTokens:2000,responseFormat:{kind:"JsonSchema",schema:{type:"object",properties:{title:{type:"string"}},required:["title"]}},providerSettings:{"anthropic.effort":"high","anthropic.thinking.mode":"adaptive","anthropic.promptCaching":true,"anthropic.promptCaching.ttl":"1h","anthropic.promptCaching.placement":"system"}}}' \
+  | curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d @-
+for M in "A new library opened." "A team won the cup."; do
+  curl -s -X POST "$APU/api/agents/$A/run" -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" -d "{\"message\":\"$M\"}"; echo
+done
+curl -s "$APU/api/runs?agentName=$A" -H "$APB" | jq '.[] | {status, usage}'
+```
+
+**Beklenen sonuç**
+- İki run da `Completed`; yanıt şemaya uyan bir JSON nesnesidir (gerçek API
+  `effort`'u ve `adaptive`'i `400` ile reddetmedi).
+- İkinci run'ın `usage.cachedInputTokens` değeri `> 0`'dır: mesaj farklı
+  olduğu hâlde talimat öneki önbellekten okundu.
+
+> **Otomatik karşılığı:** `AnthropicRequestSettingsEndpointTests` (tel gövdesi) ·
+> `AnthropicRequestSettingsTests` (BYOK dahil).
+
+---
+
+### MT-PROV-043 — Katalogda `supportsSampling: false` olan modele `temperature` kaydedilemez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 204 |
+| **İlgili karar** | K-032 |
+
+**Ön koşul**
+- Örnek uygulama çalışıyor (katalogda `claude-haiku-5-5` `SupportsSampling: false`).
+
+**Adımlar**
+1. Bayrağı oku; `temperature: 0.2` taşıyan tanımı doğrula ve kaydet.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/models" -H "$APB" | jq '.[] | select(.name=="anthropic") | .models[] | {name, supportsSampling}'
+TANIM='{"name":"manuel-sampling","instructions":"Reply briefly.","model":{"provider":"anthropic","model":"claude-haiku-5-5","maxOutputTokens":500,"temperature":0.2}}'
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d "$TANIM" | jq
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d "$TANIM"
+```
+
+**Beklenen sonuç**
+- `claude-haiku-5-5` için `supportsSampling: false`; `claude-haiku-4-5-20251001`
+  için `null` (bilinmiyor).
+- Doğrulama `valid: false`, tek mesaj `code: sampling_unsupported`,
+  `path: model.temperature`; mesaj `anthropic/claude-haiku-5-5`'i adlandırır.
+- Kayıt `400` döner.
+
+> **Otomatik karşılığı:** `AgentValidationWarningTests` · `SamplingCapabilityTests`.
+
+---
+
 ### MT-PROV-040 — `claude-support`: tool çağrısıyla uçtan uca çalıştırma
 
 | | |
@@ -1108,8 +1186,8 @@ curl -N -s -X POST "$APU/api/agents/gemini-support/run" -H "$APB" \
 Gerçek para harcar (en az bir istek gönderilir, filtrelense bile ücretlendirilir).
 **Bu dosyanın en değerli case'idir.** `gemini-strict-filter` (Program.cs, satır
 ~536-553) dört güvenlik kategorisini de `BLOCK_LOW_AND_ABOVE`'a çeker — en
-katı eşik. `ContentFilterDetectingChatClient`
-(`src/Tracon.Core/Models/ContentFilterDetectingChatClient.cs`) bitiş
+katı eşik. `FinishReasonDetectingChatClient`
+(`src/Tracon.Core/Models/FinishReasonDetectingChatClient.cs`) bitiş
 sebebi `ContentFilter` VE yanıt tamamen boşsa `TraconContentFilteredException`
 fırlatır; bu istisna `TraconException`'dan türediği için (`ErrorType =
 "content_filtered"`) SSE `error` çerçevesi **düzgün üretilir** — bu, dar
@@ -1143,7 +1221,7 @@ curl -s "$APU/api/runs?agentName=gemini-strict-filter" -H "$APB" | python3 -m js
   error` çerçevesi görünür. `GET /api/runs/{runId}` çıktısında `status:
   Failed`, `error.type` = `content_filtered`, `error.class` = `ContentFiltered`,
   `error.message` içinde `guvenlik esiklerini gevsetilebilir` ve
-  `google.safety.harassment` ibareleri geçer (`ContentFilterDetectingChatClient.Filtered`
+  `google.safety.harassment` ibareleri geçer (`FinishReasonDetectingChatClient.Filtered`
   metodunun ürettiği mesaj).
 - **Eğer** Gemini bu isteği filtrelemezse (beklenmez ama olası — model
   davranışı sürüm bağımlıdır): çalıştırma `Completed` olur; bu durum

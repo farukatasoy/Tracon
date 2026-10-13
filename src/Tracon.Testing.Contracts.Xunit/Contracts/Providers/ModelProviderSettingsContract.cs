@@ -39,6 +39,9 @@ public abstract class ModelProviderSettingsContract : ModelProviderContract
     private const string NoSupportedSetting =
         "This provider supports no provider setting key, so there is no accepted key to test.";
 
+    private const string NoInvalidSettingValue =
+        "This provider declares no setting with a closed set of values, so there is no wrong value to test.";
+
     /// <summary>
     /// A provider setting key this provider supports, with a value it accepts,
     /// or <see langword="null"/> when the provider supports no key.
@@ -49,6 +52,20 @@ public abstract class ModelProviderSettingsContract : ModelProviderContract
     /// <see langword="null"/>.
     /// </remarks>
     protected virtual KeyValuePair<string, JsonElement>? SupportedSetting => null;
+
+    /// <summary>
+    /// A setting key this provider supports, with a value it must reject, or
+    /// <see langword="null"/> when no supported key has a closed set of values.
+    /// </summary>
+    /// <remarks>
+    /// A known key with a wrong value is the same mistake as an unknown key — a
+    /// typo the host author cannot see — so it fails the same way, naming the
+    /// key. Choose a value of the right JSON type that is outside the accepted
+    /// set (for example an effort level the provider does not define), so the
+    /// case proves value validation and not only type checking. The default is
+    /// <see langword="null"/>, which reports the scenario as skipped.
+    /// </remarks>
+    protected virtual KeyValuePair<string, JsonElement>? InvalidSettingValue => null;
 
     /// <summary>
     /// A setting key this provider does not support. Defaults to a key under
@@ -92,6 +109,21 @@ public abstract class ModelProviderSettingsContract : ModelProviderContract
             UnsupportedSettingKey,
             Case.Insensitive,
             "the message must name the offending key, or the host author cannot find it");
+    }
+
+    [Fact]
+    public void A_supported_setting_with_an_invalid_value_is_rejected()
+    {
+        var invalid = InvalidSettingValue;
+        Assert.SkipWhen(invalid is null, NoInvalidSettingValue);
+        var (key, value) = invalid.Value;
+
+        var exception = Should.Throw<TraconException>(() => Provider.CreateChatClient(BindingWith(key, value)));
+
+        exception.Message.ShouldContain(
+            key,
+            Case.Insensitive,
+            "the message must name the key whose value is wrong, or the host author cannot find it");
     }
 
     /// <remarks>

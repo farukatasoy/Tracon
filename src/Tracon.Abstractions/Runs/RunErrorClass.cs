@@ -142,4 +142,18 @@ public enum RunErrorClass
     /// <see cref="Timeout"/>), so a provider outage is never counted here.
     /// </remarks>
     LoopUnsatisfied = 15,
+
+    /// <summary>
+    /// The model stopped at its output token limit before a structured (JSON) response
+    /// was complete (<see cref="TraconOutputTruncatedException"/>).
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="StructuredResponseInvalid"/>: the model did not write
+    /// the wrong JSON, it ran out of room. The action is to raise
+    /// <see cref="ModelBinding.MaxOutputTokens"/>, not to change the prompt or the
+    /// schema, and a repair turn would hit the same limit again, so none runs. A
+    /// plain-text response cut off at the limit does not fail its run; the run
+    /// records a <see cref="RunEventCustomTypes.OutputTruncated"/> event instead.
+    /// </remarks>
+    OutputTruncated = 16,
 }
