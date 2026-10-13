@@ -421,14 +421,30 @@ internal sealed class LoopEvaluatorRegistry
                 return;
 
             case AiJudgeKind:
-                if (!criterion.JudgeCriteria.Any(static entry => !string.IsNullOrWhiteSpace(entry)))
+                if (criterion.JudgeCriteria.Count == 0)
                 {
                     problems.Add(new LoopSettingsProblem(
                         JudgeCriteriaMissingCode,
                         path + ".judgeCriteria",
-                        $"The '{AiJudgeKind}' loop criterion requires at least one non-blank " +
+                        $"The '{AiJudgeKind}' loop criterion requires at least one " +
                         $"'{nameof(LoopCriterion.JudgeCriteria)}' entry. A judge with nothing to judge against " +
                         "cannot decide that the work is finished."));
+                }
+
+                // A blank entry reaches the judge as a criterion with no text: it
+                // checks nothing, and an all-blank list is a judge with nothing to
+                // judge against. Each one is named, so the report points at it.
+                for (var entry = 0; entry < criterion.JudgeCriteria.Count; entry++)
+                {
+                    if (string.IsNullOrWhiteSpace(criterion.JudgeCriteria[entry]))
+                    {
+                        problems.Add(new LoopSettingsProblem(
+                            JudgeCriteriaMissingCode,
+                            $"{path}.judgeCriteria[{entry}]",
+                            $"Entry {entry + 1} of the '{AiJudgeKind}' loop criterion's " +
+                            $"'{nameof(LoopCriterion.JudgeCriteria)}' is blank. A blank criterion gives the judge " +
+                            "nothing to check; remove it."));
+                    }
                 }
 
                 // The judge runs on the SEPARATELY configured judge binding, never on

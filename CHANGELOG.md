@@ -801,9 +801,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `harness.loop.criteria[1].marker`. Before, it reported the first loop problem
   only, as a path-less `compilation_error`. Saving such a definition returns `400`
   with every loop message, and a compile error lists them all.
-- An `aiJudge` loop criterion whose `judgeCriteria` holds only blank entries is
-  now refused like one with none; it compiled before and gave the judge nothing
-  to check.
+- An `aiJudge` loop criterion with a blank entry in `judgeCriteria` is now
+  refused, with `loop_judge_criteria_missing` at the entry's path
+  (`harness.loop.criteria[i].judgeCriteria[j]`). Before, such a definition
+  compiled, and the judge received a criterion with no text to check. Remove the
+  blank entries; the console drops them when you leave the field.
 
 ## [1.0.0-preview.3] - 2026-09-24
 
