@@ -108,7 +108,7 @@ internal sealed class GoogleChatClientFactory : IDisposable
         {
             throw new ProviderSettingsValidationException(
                 $"'{GoogleProviderNames.ThinkingBudgetTokensSetting}' must be in the [-1, 65535] range " +
-                $"(-1 leaves it to the model, 0 turns thinking off). Actual value: {budget}.");
+                "(-1 leaves it to the model, 0 turns thinking off).");
         }
 
         IChatClient inner = _client.AsIChatClient(model);
