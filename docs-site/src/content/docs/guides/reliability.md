@@ -369,7 +369,9 @@ The interrupted run is closed as `Failed` with the error type `interrupted` (if
 reconciliation has not closed it already), and a new run in the same session
 continues it; its `continuedFromRunId` names the interrupted run. A run that had
 finished, or that waits for a human answer, is not run again. Past
-`MaxResumeAttempts` continuations the item, or the queued run's job, fails.
+`MaxResumeAttempts` continuations the item, or the queued run's job, fails. The job's
+last attempt never starts a continuation, because nothing would close it if it were
+interrupted too: it closes the chain instead.
 
 The step that was running when the process stopped runs again: steps finished before
 the stop are covered by their checkpoint, the step in progress is not. Make a
@@ -380,8 +382,8 @@ automatically. The details, and how a run without any checkpoint is handled, are
 
 | Setting | Default | Effect |
 |---|---:|---|
-| `Workflows.ResumeInterruptedRuns` | `false` | An interrupted job item or queued run starts again from the beginning, as before |
-| `Workflows.MaxResumeAttempts` | `1` | The most continuations one chain may have, from `0` to `100`; a queued run's job gets one more attempt than this |
+| `Workflows.ResumeInterruptedRuns` | `false` | An interrupted batch item starts again from the beginning. A queued run's job gets `AsyncRun.MaxAttempts` attempts (default `1`): after an interruption the worker fails it with `tracon.job.attempts-exhausted`, and the run stays `Running` until run reconciliation closes it |
+| `Workflows.MaxResumeAttempts` | `1` | The most continuations one chain may have, from `0` to `100`. A queued run's job gets two more attempts than this; a batch job needs as many to get every continuation |
 
 `ResumeInterruptedRuns` needs `Workflows.EnableCheckpointing`; turning it on without
 checkpoints fails at startup.

@@ -254,8 +254,10 @@ workflow uses `tracon.workflow`.
 
 While `Tracon:Workflows:ResumeInterruptedRuns` is off, a queued workflow run's job
 gets `AsyncRun.MaxAttempts`, like a queued agent run. While it is on, the job gets
-`1 + MaxResumeAttempts` attempts, and a lease taken again after a crash or a graceful
-stop continues the run from its latest checkpoint instead of starting it over
+`2 + MaxResumeAttempts` attempts, and a lease taken again after a crash or a graceful
+stop continues the run from its latest checkpoint instead of starting it over. The
+last attempt closes the chain instead of continuing it, so a `tracon.workflow` batch
+job needs `2 + MaxResumeAttempts` attempts too to get every continuation
 ([Resume an interrupted run automatically](/concepts/workflows/#resume-an-interrupted-run-automatically)).
 
 ## Create a recurring schedule

@@ -494,7 +494,7 @@ flowchart LR
     LEASE --> CHECK{"last run of the chain"}
     CHECK -->|"Completed or AwaitingInput"| DONE["nothing runs again"]
     CHECK -->|"interrupted, within MaxResumeAttempts"| NEXT["new run from the latest checkpoint<br/>continuedFromRunId names the old one"]
-    CHECK -->|"past MaxResumeAttempts"| FAIL["item or job fails"]
+    CHECK -->|"past MaxResumeAttempts<br/>or the job's last attempt"| FAIL["chain closed<br/>item or job fails"]
 ```
 
 - Before a batch item's run starts, the handler writes the run's id on the item. A
@@ -503,6 +503,7 @@ flowchart LR
   handler reads that run. If it is `Completed` or `AwaitingInput`, nothing runs again.
   Otherwise a run left `Running` is closed as `Failed` with the error type
   `interrupted`, and a new run continues it from the latest checkpoint in its chain.
+  A continuation that was opened and never started counts as interrupted too.
 - The new run's `continuedFromRunId` names the run it continues.
   `GET /api/runs?continuedFromRunId={runId}` walks the chain forward.
 - The new run uses the same session, the parameter values the chain recorded, and the
@@ -512,9 +513,16 @@ flowchart LR
   super-step ended — the run starts again in the same session, or the resume or the
   answer is applied again.
 - `MaxResumeAttempts` (default `1`, from `0` to `100`) bounds the continuations of one
-  chain. Past it the batch item fails, or the queued run's job fails. A queued run's
-  job gets `1 + MaxResumeAttempts` attempts, one lease for each continuation. A
-  batch job keeps its own attempt limit, and each lease counts against it.
+  chain. Past it the batch item fails with the chain's last run closed, or the queued
+  run's job fails with `tracon.job.workflow-run-not-continued`. With `0`, nothing
+  continues, but the interrupted run is still found and closed.
+- The worker fails a lease past the job's attempt limit before the handler runs, so
+  the job's last attempt never starts a continuation: nothing would close it if it
+  were interrupted too. The last attempt closes the chain instead. A queued run's job
+  gets `2 + MaxResumeAttempts` attempts: one for the run, one per continuation, and
+  the one that closes the chain. A batch job keeps its own attempt limit
+  (`Tracon:Scheduling:MaxAttempts`, `3` by default, or the job's `maxAttempts`), so
+  give it `2 + MaxResumeAttempts` attempts to get every continuation.
 
 :::caution[The step in progress runs again]
 A checkpoint is written as each super-step ends. The steps finished before the stop
