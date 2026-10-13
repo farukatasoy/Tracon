@@ -53,12 +53,23 @@ export function hasFunction(steps: readonly Step[]): boolean {
   return steps.some((step) => step.kind === 'Function');
 }
 
+/** Whether a step of the chain carries a timeout of its own. */
+export function hasStepTimeouts(steps: readonly Step[]): boolean {
+  return steps.some((step) => step.timeout.trim().length > 0);
+}
+
 /**
- * Whether the chain needs the node list to be stored: a function node, or a step with a
- * timeout of its own. A plain agent list has nowhere to keep a step's timeout.
+ * Whether a step carries a timeout that the form the chain is saved in cannot keep: a plain
+ * agent list has nowhere to put one.
+ *
+ * 🚨 A step timeout does NOT turn an agent list into a node list (phase 196 decision, K-901
+ * unchanged): the change of form would make a run waiting to be resumed unresumable and stop
+ * the agents' live token stream. Such a chain loaded from a node list written over HTTP, or
+ * one whose last function step was removed, is held back instead of losing its timeouts on a
+ * full-replace save (K-725).
  */
-export function needsNodes(steps: readonly Step[]): boolean {
-  return hasFunction(steps) || steps.some((step) => step.timeout.trim().length > 0);
+export function hasStrandedTimeouts(kind: WorkflowKind, steps: readonly Step[]): boolean {
+  return canonicalForm(kind, steps) === 'agentNames' && hasStepTimeouts(steps);
 }
 
 /** The two ways a definition keeps its steps. */
@@ -70,12 +81,13 @@ export function storedFormOf(definition: Pick<WorkflowDefinition, 'nodes'>): Sto
 }
 
 /**
- * The form the console writes: `nodes` when the chain has a function or a step with its own
- * timeout, `agentNames` otherwise. One canonical form per chain (decision of phase 195); the
- * server accepts both, so a definition written over HTTP in the other form keeps loading.
+ * The form the console writes: `nodes` when the chain has a function, `agentNames` otherwise.
+ * One canonical form per chain (K-901); the server accepts both, so a definition written over
+ * HTTP in the other form keeps loading. A step timeout does not change the form; see
+ * `hasStrandedTimeouts`.
  */
 export function canonicalForm(kind: WorkflowKind, steps: readonly Step[]): StoredForm {
-  return kind === 'Sequential' && needsNodes(steps) ? 'nodes' : 'agentNames';
+  return kind === 'Sequential' && hasFunction(steps) ? 'nodes' : 'agentNames';
 }
 
 /**
@@ -90,6 +102,12 @@ export function chainBody(
   steps: readonly Step[],
 ): { agentNames: string[]; nodes: WorkflowNodeReference[] } {
   if (canonicalForm(kind, steps) === 'agentNames') {
+    // 🚨 The last line behind the screen's hold: an agent list would drop the timeouts, and
+    // the full-replace save would erase what the server stores.
+    if (hasStepTimeouts(steps)) {
+      throw new Error('A step holds a timeout that a plain agent list cannot keep, so no request was built.');
+    }
+
     return { agentNames: steps.map((step) => step.name), nodes: [] };
   }
 

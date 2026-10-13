@@ -6,7 +6,8 @@ import {
   hasFunction,
   hasInvalidSettings,
   hasInvalidTimeouts,
-  needsNodes,
+  hasStepTimeouts,
+  hasStrandedTimeouts,
   parseSettings,
   parseTimeout,
   settingsText,
@@ -241,19 +242,18 @@ describe('step timeouts', () => {
     expect(timeoutValue('00:00:00.0000001', '00:00:00.0000001')).toBe('00:00:00.0000001');
   });
 
-  it('stores an agent-only chain as a node list once a step carries a timeout', () => {
-    // A plain agent list has nowhere to keep a step's timeout: dropping it there would be
-    // a silent loss on a full-replace save.
-    expect(needsNodes([agent('a'), agent('b')])).toBe(false);
-    expect(needsNodes([agent('a', '300'), agent('b')])).toBe(true);
-    expect(canonicalForm('Sequential', [agent('a', '300'), agent('b')])).toBe('nodes');
-    expect(chainBody('Sequential', [agent('a', '300'), agent('b')])).toStrictEqual({
-      agentNames: [],
-      nodes: [
-        { name: 'a', kind: 'Agent', settings: null, timeout: '00:05:00' },
-        { name: 'b', kind: 'Agent', settings: null, timeout: null },
-      ],
-    });
+  it('keeps an agent-only chain an agent list, and builds no request that would drop its step timeouts', () => {
+    // Phase 196 decision (K-901 unchanged): a step timeout does not turn an agent list into a
+    // node list - that change would make a waiting run unresumable. A timeout the agent list
+    // cannot keep holds the save back instead of being dropped by the full replace.
+    expect(hasStepTimeouts([agent('a'), agent('b')])).toBe(false);
+    expect(hasStepTimeouts([agent('a', '300'), agent('b')])).toBe(true);
+    expect(canonicalForm('Sequential', [agent('a', '300'), agent('b')])).toBe('agentNames');
+    expect(hasStrandedTimeouts('Sequential', [agent('a', '300'), agent('b')])).toBe(true);
+    expect(hasStrandedTimeouts('Sequential', [agent('a', '300'), fn('tts')])).toBe(false);
+    expect(hasStrandedTimeouts('Concurrent', [agent('a', '300'), agent('b')])).toBe(true);
+    expect(() => chainBody('Sequential', [agent('a', '300'), agent('b')])).toThrow('cannot keep');
+    expect(chainBody('Sequential', [agent('a'), agent('b')])).toStrictEqual({ agentNames: ['a', 'b'], nodes: [] });
   });
 
   it('does not count a timeout as a change of shape: a waiting run stays resumable', () => {

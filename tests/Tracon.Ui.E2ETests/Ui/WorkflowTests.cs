@@ -209,6 +209,60 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         await Expect(session.Page).ToHaveURLAsync($"{host.UiAddress}/workflows/narrated");
     }
 
+    /// <summary>
+    /// A step timeout typed in the console is saved on its node and stops the run there.
+    /// </summary>
+    /// <remarks>
+    /// Phase 196 (F-303, F-405). The field is offered only where the chain is saved as a node
+    /// list - a chain with a function step - since a step timeout never changes the form
+    /// (K-901). The value crosses the editor's seconds-to-<c>hh:mm:ss</c> conversion, the save,
+    /// the stored node, and the wrapper that cancels the function when the run compiles.
+    /// </remarks>
+    [Fact]
+    public async Task A_step_timeout_typed_in_the_console_is_saved_on_its_node_and_stops_the_run()
+    {
+        await using var host = await UiHost.StartAsync(configureTracon: static tracon => tracon
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+                "slow",
+                static _ => static async (messages, _, cancellationToken) =>
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
+
+                    return messages;
+                }));
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/new");
+
+        await session.Page.GetByTestId("workflow-name").FillAsync("bounded");
+        await session.Page.GetByTestId("workflow-add-agent").SelectOptionAsync("support");
+
+        // An agent-only chain is saved as an agent list, which has no node to keep a timeout on.
+        await Expect(session.Page.GetByTestId("workflow-timeout-support")).ToHaveCountAsync(0);
+
+        await session.Page.GetByTestId("workflow-add-function").SelectOptionAsync("slow");
+        await session.Page.GetByTestId("workflow-timeout-slow").FillAsync("1");
+        await session.Page.GetByTestId("workflow-save").ClickAsync();
+
+        await Expect(session.Page).ToHaveURLAsync($"{host.UiAddress}/workflows/bounded");
+
+        var saved = await api.GetFromJsonAsync<JsonElement>("api/workflows/bounded");
+
+        saved.GetProperty("nodes")[1].GetProperty("timeout").GetString().ShouldBe("00:00:01");
+
+        await session.Page.GetByTestId("workflow-message").FillAsync("hello");
+        await session.Page.GetByTestId("workflow-run").ClickAsync();
+
+        var runs = await WaitUntil.ValueAsync(
+            async () => (await api.GetFromJsonAsync<JsonElement>("api/runs?agentName=bounded")).EnumerateArray().ToList(),
+            static found => found.Count == 1 && !string.Equals(found[0].GetProperty("status").GetString(), "Running", StringComparison.Ordinal),
+            timeout: TimeSpan.FromSeconds(30));
+
+        runs[0].GetProperty("status").GetString().ShouldBe("Failed");
+        runs[0].GetProperty("error").GetProperty("type").GetString().ShouldBe("workflow_function_timeout");
+    }
+
     internal sealed record SpeakSettings
     {
         public required string Voice { get; init; }

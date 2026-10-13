@@ -512,25 +512,59 @@ describe('WorkflowEditorScreen - timeouts', () => {
     });
   });
 
-  it('saves an agent-only chain as a node list once a step has a timeout, and says so first', async () => {
+  // Phase 196 decision (K-901 unchanged): a step timeout never turns an agent list into a node
+  // list. That change of form made a waiting run unresumable and stopped the agents' live
+  // token stream; the field is offered only where a node list is saved anyway.
+  it('offers no step timeout on an agent-only chain, which stays an agent list', async () => {
     const user = userEvent.setup();
 
     open(agentsOnly);
 
-    fireEvent.change(await screen.findByTestId('workflow-timeout-drafter'), { target: { value: '90' } });
+    await screen.findByTestId('workflow-participants');
 
-    expect(screen.getByTestId('workflow-form-notice').textContent).toContain('step timeout');
-    expect(screen.getByTestId('workflow-structure-notice').textContent).toContain('cannot be resumed');
+    expect(screen.queryByTestId('workflow-timeout-summarizer')).toBeNull();
+    expect(screen.queryByTestId('workflow-timeout-drafter')).toBeNull();
 
     await save(user);
 
-    expect(sent[0]).toMatchObject({
-      agentNames: [],
-      nodes: [
-        { name: 'summarizer', kind: 'Agent', timeout: null },
-        { name: 'drafter', kind: 'Agent', timeout: '00:01:30' },
-      ],
-    });
+    expect(sent[0]).toMatchObject({ agentNames: ['summarizer', 'drafter'], nodes: [] });
+  });
+
+  it('holds Save back when the last function step leaves a step timeout behind, until it is cleared', async () => {
+    const user = userEvent.setup();
+
+    open(mixed);
+
+    fireEvent.change(await screen.findByTestId('workflow-timeout-summarizer'), { target: { value: '300' } });
+    await user.click(screen.getByRole('button', { name: 'Remove function word-count' }));
+
+    // Saved as an agent list now, which cannot keep the timeout: held back, not dropped.
+    expect(screen.getByTestId('workflow-timeouts-notice').textContent).toContain('Clear the step timeouts');
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
+
+    fireEvent.change(screen.getByTestId('workflow-timeout-summarizer'), { target: { value: '' } });
+
+    expect(screen.queryByTestId('workflow-timeouts-notice')).toBeNull();
+    expect(screen.queryByTestId('workflow-timeout-summarizer')).toBeNull();
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ agentNames: ['summarizer'], nodes: [] });
+  });
+
+  it('holds Save back on an agent-only node list written over HTTP with a step timeout', async () => {
+    open(
+      stored({
+        nodes: [
+          { name: 'summarizer', kind: 'Agent', settings: null, timeout: '00:05:00' },
+          { name: 'drafter', kind: 'Agent', settings: null, timeout: null },
+        ],
+      }),
+    );
+
+    expect(((await screen.findByTestId('workflow-timeout-summarizer')) as HTMLInputElement).value).toBe('300');
+    expect(screen.getByTestId('workflow-timeouts-notice')).toBeTruthy();
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
   });
 
   it('holds Save back while a timeout cannot be read', async () => {
