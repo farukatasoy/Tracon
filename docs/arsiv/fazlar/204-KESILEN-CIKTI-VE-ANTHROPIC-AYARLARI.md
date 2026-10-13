@@ -14,208 +14,24 @@
 
 ---
 
-## Bu Faza Başlarken
-
-> `faz-baslangic` skill'ini uygula; yalnız işaret edilen bölümleri oku.
-
-1. Bu doküman
-2. Kararlar:
-   ```bash
-   grep -n "K-889" docs/KARARLAR.md
-   grep -n "K-032\|K-208" docs/arsiv/KARARLAR-INDEKS-ARSIV.md
-   ```
-   **K-889** (doğrulayıcı
-   son asistan mesajını doğrular) · **K-032** (yetenek katalogdan gelir,
-   kodda tutulmaz) · **K-208** (sağlayıcı ayarı sözleşmede; bilinmeyen
-   anahtar hatadır)
-3. F-340 kapanışı (ayar doğrulama deseni): `grep -n "F-340" docs/arsiv/ERTELENEN-ADAYLAR.md`
-4. Hafıza: [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md) ·
-   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) ·
-   [`hafiza/agent-derleme-ve-onbellek.md`](../../hafiza/agent-derleme-ve-onbellek.md)
-5. Tüketici kanıtı: [podcast raporu](../incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)
-   § 2.2 ve § 10 (ölçülen ↔ varsayılan tablosu)
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 4eda00e9:docs/arsiv/fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md
+> ```
+>
+> Damıtıldı 2026-10-13 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-Uzun yapılandırılmış çıktı üreten bir agent bugün iki yerde sessiz kalır:
-model çıktı sınırına çarpınca kesik yanıt ya "başarılı" döner ya da "geçersiz
-JSON" diye reddedilir ve onarım aynı sınıra yeniden çarpar; Anthropic'in
-güncel ayarları (`effort`, 1 saatlik önbellek, adaptive thinking) Tracon'dan
-verilemez.
-
-- **F-320** — `Length` bitişi ayrı bir sonuç ve hata sınıfıdır; onarım
-  koşmaz; doğrulama raporu düşük çıktı sınırını uyarır.
-- **F-346** — `anthropic.effort`, önbellek `ttl` ve yerleşimi, adaptive
-  thinking ve örnekleme yetenek bayrağı.
-
-**Tüketici bağlamı (ölçüldü, 2026-10-13).** Podcast pilotunun writer
-çağrısı Claude Opus 5.5'e `effort: high`, `max_tokens: 128000`, sistem
-talimatında `cache_control {ttl: 1h}` ile gider; tek çağrı 48.172 çıktı
-token'ına çıktı. Tracon'un Anthropic varsayılanı 4.096'dır. Maliyetin %83'ü
-çıktı token'ıdır ve onu `effort` belirler. Plan geneldir; tüketici yalnız bir
-ölçüt örneğidir.
-
-### Kapsam dışı
-
-| Kalem | Neden |
-|---|---|
-| OpenAI strict şema ve etkin şemanın görünürlüğü | F-347 (aday) |
-| Anthropic sunucu tarafı yedek (`server-side-fallback`) | Tracon yedeği `FallbackChatClient`'tadır; ikinci mekanizma ayrı karar |
-| Kesilen çıktıyı otomatik devam ettirme | Sağlayıcıya özgü; onarım koşmaz kuralıyla çelişir |
-| Önbellek yazma token'ı ve fiyatı | F-420 (aday): migration ister; aciliyeti tek ölçümden geliyor (pilotta toplamın ~%1'i) |
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| `ContentFilterDetectingChatClient.cs:45-81` | Yalnız `ChatFinishReason.ContentFilter` okunur |
-| `grep -rn "ChatFinishReason.Length" src/` → boş | Kesilme hiçbir yerde sınıflanmaz |
-| `RunErrorClass.cs:27-144` | `OutputTruncated` üyesi yok; son üye `LoopUnsatisfied = 15` |
-| `StructuredResponseValidatingAgent.cs:39-65` | Onarım turu bitiş sebebine bakmaz; kesik JSON'u yeniden ister |
-| `AnthropicProviderOptions.cs:55` · `AnthropicModelProvider.cs:117` | Varsayılan `DefaultMaxOutputTokens = 4096` |
-| `ModelDescriptor.cs:16` · `:25` | `MaxOutputTokens`, `SupportsReasoning`; örnekleme bayrağı yok |
-| `AnthropicProviderSettingsChatClient.cs:103-114` | Üst düzey `cache_control: ephemeral` (TTL yok) ve `thinking {type: enabled, budget_tokens}` |
-| `AnthropicProviderNames.cs:38` · `:56` | Yalnız `anthropic.promptCaching` ve `anthropic.thinking.budgetTokens` |
-| `AgentDefinitionCompiler.ChatOptions.cs:146-147` | `Temperature`/`TopP` doğrudan gider; derleme modele bakmaz |
-| Anthropic .NET SDK 12.39.0 XML | `OutputConfig.Effort`, `Ttl.Ttl1h`, `CacheControlEphemeral { Ttl }`, MEAI içerik bloğunda `WithCacheControl(...)` (`Anthropic.xml:19-56`) |
-
-> Kanıtlar 2026-10-13'te `55272673` üzerinde doğrulandı.
-
----
-
-## 204.1 — Kesilen çıktı (F-320)
-
-- **Algılama:** `ContentFilterDetectingChatClient` bitiş sebebini okuyan tek
-  dekoratöre genişler (Açık Soru 1). Akışsız yanıtın ya da akışın son
-  güncellemesinin `FinishReason == Length` olması kesilmedir.
-- **Sonuç:** yanıt biçimi `Json`/`JsonSchema` ise
-  `TraconOutputTruncatedException` → run `Failed`, sınıf
-  `RunErrorClass.OutputTruncated`, tip `output_truncated`. Düz metinde run
-  düşmez; `tracon.output.truncated` özel olayı yazılır (Açık Soru 2, K1).
-- **Onarım koşmaz:** `StructuredResponseValidatingAgent` bu sınıfta onarım
-  turu açmaz; olay `RepairSkippedTruncated` gerekçesini taşır.
-- 🚨 **Tool turu:** model tool çağrısını yazarken sınıra çarparsa ara yanıt
-  da `Length`'tir. **Ölçülmeli (Adım 0):** MEAI `FunctionInvokingChatClient`
-  bu ara yanıtı dekoratöre hangi sırayla verir; ara tur ile son yanıt ayrı
-  sınanır.
-- **Doğrulama raporu:** `ResponseFormat` yapılandırılmışken `MaxOutputTokens`
-  boşsa ve sağlayıcının varsayılanı katalogdaki
-  `ModelDescriptor.MaxOutputTokens`'tan küçükse `AgentValidationReport`
-  `Warning` taşır (`POST /api/agents/validate`). Derleme düşmez.
-
-## 204.2 — Anthropic istek ayarları (F-346)
-
-- `anthropic.effort` (`low`/`medium`/`high` ve SDK'nın taşıdığı üst düzey) →
-  `output_config.effort`. Değer listesi SDK enum'undan okunur; 🚨
-  **ölçülmeli:** `maf-api-kesfi` ile `Anthropic.Models.Messages` effort tipi
-  ve `MessageCreateParams.OutputConfig`'in yapılandırılmış çıktı
-  `Format`'ıyla birlikte yazımı (iki yazıcı aynı nesneyi ezer mi).
-- `anthropic.promptCaching.ttl` (`5m`/`1h`) → `cache_control.ttl`.
-- `anthropic.promptCaching.placement` (`request` varsayılan / `system`):
-  `system` iken talimat bloğunun son içeriği `WithCacheControl` ile
-  işaretlenir; belgesi değişen istekler talimat önekini paylaşır.
-- `anthropic.thinking.mode` (`enabled` + `budgetTokens` / `adaptive`)
-  (Açık Soru 3). Güncel modellerde `budget_tokens` `400` alır; katalog
-  bayrağı derleme anında söyler.
-- Bilinmeyen anahtar ve yanlış değer F-340 deseniyle hatadır
-  (`ModelProviderSettings.Validate`).
-
-## 204.3 — Örnekleme yetenek bayrağı
-
-- `ModelDescriptor.SupportsSampling` (`bool?`, `null` = bilinmiyor, K1). Katalog
-  `false` diyorsa `Temperature`/`TopP` taşıyan tanım doğrulama raporunda
-  `Error`, derlemede `TraconCompilationException` alır. Değer katalogdan
-  gelir (K-032); kodda model adı listesi tutulmaz.
-
----
-
-## Planlanan Public API
-
-> Taslak. **Bugün eklemek bedava / `1.0.0` GA sonrası `sealed record` alanı,
-> enum üyesi ve sabit kırıcı.**
-
-```csharp
-// Tracon.Abstractions
-RunErrorClass.OutputTruncated = 16
-sealed class TraconOutputTruncatedException : TraconException          // ad taslak
-ModelDescriptor { bool? SupportsSampling; }
-RunEventCustomTypes.OutputTruncated = "tracon.output.truncated"
-// Tracon.Anthropic
-AnthropicProviderNames { EffortSetting; PromptCachingTtlSetting; PromptCachingPlacementSetting; ThinkingModeSetting; }
-```
-
-### HTTP `endpoint`'leri
-
-| Metot | Yol | Rol | Değişiklik |
-|---|---|---|---|
-| `POST` | `/api/agents/validate` | Admin | Kesilme ve örnekleme uyarıları |
-| `GET` | `/api/models` | Reader | `supportsSampling` |
-
-### Arayüz payı
-
-Yok. Doğrulama uyarısı konsolun mevcut rapor bileşeninde görünür; ölçülmeli.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-Abstractions Runs/RunErrorClass · Models/ModelDescriptor · TraconException*
-Core         Models/ContentFilterDetectingChatClient→FinishReasonDetectingChatClient
-             Compilation/{StructuredResponseValidatingAgent,
-             AgentDefinitionCompiler.ChatOptions,AgentDefinitionValidator} · Runs/DefaultRunErrorClassifier
-Anthropic    AnthropicProviderNames · AnthropicProviderSettingsChatClient · AnthropicChatClientFactory · README.md
-AspNetCore   model DTO'su (`supportsSampling`)
-Testing.Contracts.Xunit ModelProviderSettingsContract
-```
-
----
-
-## Hata Modları ve Testler
-
-| # | Ne bozulabilir | Seviye | Test sınıfı |
-|---|---|---|---|
-| 1 | `Length` yapılandırılmış yanıtta `Completed` ya da "invalid JSON" olur | Fonksiyonel (sahte sağlayıcı `Length`) | `OutputTruncationTests` |
-| 2 | Onarım kesik yanıtı yeniden ister | Fonksiyonel | `OutputTruncationTests` |
-| 3 | Düz metin run'ı düşer (K1 ihlali) ya da olay yazılmaz | Fonksiyonel | `OutputTruncationTests` |
-| 4 | Akışlı yolda son güncellemenin sebebi kaçar | Fonksiyonel (akış) | `OutputTruncationStreamingTests` |
-| 5 | Tool turundaki ara `Length` yanlış sınıflanır | Fonksiyonel | `OutputTruncationToolTurnTests` |
-| 6 | Yeni sınıf `Unknown` olur; yedek zinciri kesilmeyi sağlayıcı hatası sayıp yedeğe geçer | Birim | `DefaultRunErrorClassifierTests`, `FallbackChatClientTests` |
-| 7 | Doğrulama uyarısı yanlış koşulda çıkar ya da derlemeyi düşürür | Birim + Fonksiyonel (`/validate`) | `AgentValidationWarningTests` |
-| 8 | `effort`, `ttl`, yerleşim, adaptive gövdeye yanlış yazılır; yapılandırılmış çıktıyla `output_config` ezilir | Birim (ham gövde yakalama) | `AnthropicRequestSettingsTests` |
-| 9 | Bilinmeyen anahtar ve değer sessiz kalır | Sözleşme | `ModelProviderSettingsContract` |
-| 10 | Örnekleme bayrağı derlemede uygulanmaz; `null` bayrak reddeder | Birim | `SamplingCapabilityTests` |
-| 11 | **Başka kiracı:** kiracı anahtarlı (BYOK) Anthropic istemcisi ayarları almaz | Fonksiyonel | `AnthropicRequestSettingsTests` |
-| 12 | Üretilen istemciler alanı taşımaz | Paket | NSwag/TS kapıları |
-| 13 | Gerçek Anthropic'te `effort: high` + `ttl: 1h` + `JsonSchema` | Manuel (anahtar gerekir) | case 1 |
-
----
-
-## Manuel Kabul Case'leri
-
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | Anthropic anahtarı, `JsonSchema`'lı agent, `anthropic.effort=high`, `promptCaching.ttl=1h`, `placement=system` | İki kez koş | İkinci run'da önbellek okuma > 0; istek gövdesinde `output_config.effort` ve `cache_control.ttl` (log) |
-| 2 | Aynı agent, `MaxOutputTokens=200` | Koş | `Failed`, `output_truncated`; onarım olayı yok |
-| 3 | Düz metin agent, `MaxOutputTokens=50` | Koş | `Completed`; `tracon.output.truncated` olayı |
-| 4 | `MaxOutputTokens` boş, `JsonSchema` | `POST /api/agents/validate` | `200`, `Warning` metni varsayılan sınırı adlandırır |
-| 5 | Katalogda `supportsSampling=false` | `temperature: 0.2` ile kaydet | `400` doğrulama hatası |
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | Algılama nerede | A: içerik filtresi dekoratörü genişler · B: ayrı dekoratör | **A** — bitiş sebebi tek yerde okunur; sıra bugünkü konumdur |
-| 2 | Düz metin kesilmesi | A: olay, run sürer · B: run düşer | **A** — K1; metin kısmen yararlıdır |
-| 3 | Thinking ayarı | A: `anthropic.thinking.mode` (`enabled`/`adaptive`) · B: `budgetTokens` yokken adaptive varsay | **A** — örtük davranış değişikliği yok |
-| 4 | Önbellek yazma fiyatı bu fazda mı | A: bu faz (migration) · B: ayrı aday | **B — karar verildi** (bakımcı, 2026-10-13): F-420; aciliyet tek ölçümdendir |
-| 5 | `effort` ile `MaxOutputTokens` ilişkisi | A: bağımsız · B: yüksek effort'ta düşük sınır uyarısı | **B** — ölçülen çıktının %80'i düşünmedir; uyarı 204.1 yüzeyine girer |
-
----
+Uzun yapılandırılmış çıktı üreten bir agent bugün iki yerde sessiz kalır: model çıktı sınırına çarpınca kesik yanıt ya "başarılı" döner ya da "geçersiz JSON" diye reddedilir ve onarım aynı sınıra yeniden çarpar; Anthropic'in güncel ayarları (`effort`, 1 saatlik önbellek, adaptive thinking) Tracon'dan verilemez.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -249,18 +65,6 @@ bellek içi depo (`--Tracon:PostgreSql:ConnectionString=` ve
 | Yanlış ayar değerleri (`/validate`) | `anthropic.effort: extreme` → `invalid_setting` "'anthropic.effort' has an unrecognized value: 'extreme'. Valid values: low, medium, high, xhigh, max." · `promptCaching.ttl` tek başına → "… has no effect unless 'anthropic.promptCaching' is true …" · `adaptive` + `budgetTokens` → "'anthropic.thinking.mode' is 'adaptive', which takes no budget …" |
 
 ---
-
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| Model aileleri ve ayar adları hızlı değişir | Değerler katalogdan ve SDK enum'undan (K-032); kodda model listesi yok |
-| `output_config` iki yazıcı (effort, yapılandırılmış çıktı) tarafından ezilir | Adım 0 ölçümü; test 8 ham gövdeyi yakalar |
-
----
-
-<!-- AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME. -->
 
 ## Plandan Sapmalar
 
@@ -330,72 +134,6 @@ dosyasında, `ValidateAsync`'te tek çağrıyla (Faz 201 ile çakışmayı daral
 uyarı için istemci ikinci kez kurulur (istek yok) · payload kaydı
 `OutputTruncatedEventPayload` yalnız sağlayıcı ve sınırı taşır.
 
-## Gerçekleşen Public API
-
-```csharp
-// Tracon.Abstractions
-RunErrorClass.OutputTruncated = 16
-public sealed class TraconOutputTruncatedException : TraconException
-{
-    public const string OutputTruncatedErrorType = "output_truncated";
-    public TraconOutputTruncatedException();
-    public TraconOutputTruncatedException(string message);
-    public TraconOutputTruncatedException(string message, Exception innerException);
-    public string? ProviderName { get; init; }
-    public int? MaxOutputTokens { get; init; }
-    public override string ErrorType { get; }
-}
-public const string RunEventCustomTypes.OutputTruncated = "tracon.output.truncated";
-public bool? ModelDescriptor.SupportsSampling { get; init; }
-public sealed record ModelOutputLimit
-{
-    public required int DefaultMaxOutputTokens { get; init; }
-    public bool HighReasoningEffort { get; init; }
-}
-// Tracon.Anthropic
-public const string AnthropicProviderNames.EffortSetting = "anthropic.effort";
-public const string AnthropicProviderNames.ThinkingModeSetting = "anthropic.thinking.mode";
-public const string AnthropicProviderNames.PromptCachingTtlSetting = "anthropic.promptCaching.ttl";
-public const string AnthropicProviderNames.PromptCachingPlacementSetting = "anthropic.promptCaching.placement";
-// Tracon.Testing.Contracts.Xunit
-protected virtual KeyValuePair<string, JsonElement>? ModelProviderSettingsContract.InvalidSettingValue { get; }
-public void ModelProviderSettingsContract.A_supported_setting_with_an_invalid_value_is_rejected();
-```
-
-HTTP: `GET /api/models` → `supportsSampling` (`boolean | null`);
-`RunErrorClass` şemasına `OutputTruncated`; `POST /api/agents/validate` yeni
-kodlar `output_truncation_risk` (Warning, `model.maxOutputTokens`) ve
-`sampling_unsupported` (Error, `model.temperature` / `model.topP`) —
-`ValidationMessage` tipi değişmedi. Public tip sayısı `Tracon.Abstractions`
-409 → 411 (`public-surface-baseline.txt`).
-
-## Dosya Listesi (gerçekleşen)
-
-```
-Abstractions  Runs/{RunErrorClass,RunEventCustomTypes} · TraconException · Models/{ModelDescriptor,ModelOutputLimit,IModelProvider}
-              Agents/ModelProviderSettings (#5)
-Core          Models/FinishReasonDetectingChatClient (ContentFilterDetectingChatClient'in yerine) · Models/{ModelProviderRegistry,ProviderFailureNormalizer}
-              Compilation/{StructuredResponseValidatingAgent,AgentDefinitionCompiler.ChatOptions,SamplingCapabilityCheck,
-              AgentDefinitionValidator,AgentDefinitionValidator.OutputLimits} · Runs/DefaultRunErrorClassifier · TraconCoreJsonContext
-              Evaluation/OnlineEvalJobHandler (#17)
-Anthropic     AnthropicProviderNames · AnthropicRequestSettings (yeni) · AnthropicProviderSettingsChatClient · AnthropicChatClientFactory · README.md
-Providers.Shared  ProviderRegistrationCore (SupportsSampling bağlama)
-Testing.Contracts.Xunit  ModelProviderSettingsContract · README.md (InvalidSettingValue, denetim 🟡1)
-UI            locales/{en,tr}/runs.ts
-Üretilen      docs/openapi/tracon.json · Tracon.Client/Generated/TraconApiClient.g.cs · packages/tracon-client/src/schema.ts · llms-full.txt
-Testler       Core: FinishReasonDetectingChatClientTests (adı değişti, +6), SamplingCapabilityTests (8), AgentValidationWarningTests (7),
-              DefaultRunErrorClassifierTests (+1), FallbackChatClientTests (+2), RunErrorClassContractTests, OnlineEvalJobHandlerTests (+2: kesilen yargıç yanıtı, düz ve sarılı)
-              Fonksiyonel: OutputTruncationTests (6), OutputTruncationStreamingTests (3), OutputTruncationToolTurnTests (4),
-              AgentValidationWarningTests (6), AnthropicRequestSettingsEndpointTests (1), OnlineEvalRetryTests (+1: gerçek ModelRunJudge,
-              MaxOutputTokens 16, MaxAttempts 3 → tek model çağrısı); altyapı FinishReasonModelProvider, FakeAnthropicServer
-              Anthropic: AnthropicRequestSettingsTests (26), AnthropicChatClientFactoryTests (+1), sözleşme türetmesi; Google sözleşme türetmesi
-              Paylaşılan: StubHttpServer gövde okur, ProviderRegistrationCoreTests
-              Denetim ekleri: akışta doğrulama açıkken kesilme → tek ret, attempt 1/1, repairSkippedTruncated JSON null;
-              onarım turu kesilir → attempt 2/3, repairSkippedTruncated true, usage iki turun toplamı (100/220);
-              ReasoningEffort → budget_tokens (Low/High/ExtraHigh) ve thinking ayarının önceliği (ham gövde)
-Manuel test  01 MT-PKG-106 · 06 MT-PROV-031 (denetim 🟡1), 038, 043 · 22 MT-GUARD-110..112 · 24 MT-TEST-079 (🟡1)
-```
-
 ## Tüketici Yüzeyi Envanteri
 
 | Kova | Yüzey | Durum |
@@ -406,6 +144,7 @@ Manuel test  01 MT-PKG-106 · 06 MT-PROV-031 (denetim 🟡1), 038, 043 · 22 MT-
 | Agent haritası | `capabilities.md` iki satır | Harita değişmedi (satırlar haritanın bölümünde değil); `llms-full.txt` güncellendi |
 
 `--site-denetle --taban 643b9eee`: üç kural, üçü karşılandı. Site **yayınlanmadı** (`scripts/site-deploy.sh` dışa açık bir iştir; bakımcı koşar) — Faz 201 ve Faz 204'ün sayfaları birlikte yayınlanır.
+
 ## Süreç Ölçümü
 
 > Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
