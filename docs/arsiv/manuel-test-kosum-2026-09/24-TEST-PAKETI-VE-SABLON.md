@@ -898,3 +898,151 @@ birebir aynı).
 |---|---|---|
 | MT-TEST-077 | Yayınlanan siteyi tarayıcıda gözle inceleme (👤) | `https://tracon.dev/guides/write-your-own-store/` sayfasını aç; `Tracon.Testing.Contracts.Xunit` kurulumunu, `RunStoreContract` türetme örneğini ve altı davranış eksenini (idempotency, üç kiracı modu, thread safety, null/bulunamadı, olay sırası, yinelenen `Sequence`) anlattığını, kod örneğinin derlenebilir gerçek imzalar kullandığını doğrula. |
 | MT-TEST-083 | Yayınlanan siteyi tarayıcıda gözle inceleme (👤) | `https://tracon.dev/api/tracon.imodelprovider/` ve `https://tracon.dev/guides/model-providers/` sayfalarını aç; sağlayıcı sözleşmesinin sekiz maddesinin (singleton ömrü, eşzamanlılık/thread safety, ham istemci, registry'ye ait ortak halkalar, dispose sahipliği, credential fabrikası yan etkisiz, `OrdinalIgnoreCase` ad karşılaştırması, kataloğun izin listesi olmaması) ve yetenek bayrağı notunun (yalnız `SupportsStructuredOutput` zorlanır) açıkça yazılı olduğunu doğrula. |
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 201 kapanışı)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek sonuç` ve `Koşuldu` notları buraya **taşındı** (silinmedi). Her not hangi
+> case'e ait olduğunu başlığıyla söyler; tarih notun kendisindedir.
+
+#### MT-TEST-073 — `Tracon.Testing.Contracts.Xunit` yalnız `Tracon.Abstractions`'ı geçişli olarak indirir
+
+**Gerçek sonuç (2026-08-24)**
+```
+   > Tracon.Testing.Contracts.Xunit      *-*         0.0.0-preview.0.360
+   > Tracon.Abstractions                                    0.0.0-preview.0.360
+```
+
+#### MT-TEST-074 — 15 metodu `NotSupportedException` fırlatan bir `IRunStore`, `RunStoreContract`'ı türetir; derlenir, suite koşar ve KIRMIZI olur
+
+**Gerçek sonuç (2026-08-24)**
+```
+Build succeeded. 0 Error(s)
+...
+Test run summary: Failed! 
+  total: 88
+  failed: 88
+  succeeded: 0
+```
+
+#### MT-TEST-074 — 15 metodu `NotSupportedException` fırlatan bir `IRunStore`, `RunStoreContract`'ı türetir; derlenir, suite koşar ve KIRMIZI olur
+
+**Gerçek sonuç (2026-09-17, ap-s2)**
+```
+Build succeeded. 0 Error(s)
+Test run summary: Failed!
+  total: 99
+  failed: 97
+  succeeded: 0
+  skipped: 2
+```
+🚨 `RunStoreContract` 2026-08-24'ten bu yana büyümüş (88 → 99). 2 atlanan
+case opsiyonel `IRunScoreStore`'a bağlı (`CreateScoreStoreAsync()` override
+edilmezse skorla ilgili iki case atlanır) — `IRunStore`'un 15 zorunlu
+metoduna dahil değil, kusur değil.
+
+#### MT-TEST-075 — Örnek store (`Tracon.Samples.FileRunStore`) yalnız NuGet paketleriyle restore edilir ve sözleşme suite'i yeşildir
+
+**Gerçek sonuç (2026-08-24)**
+```
+Build succeeded. 0 Warning(s), 0 Error(s)
+Test run summary: Passed!
+  total: 88
+  failed: 0
+  succeeded: 88
+```
+
+#### MT-TEST-075 — Örnek store (`Tracon.Samples.FileRunStore`) yalnız NuGet paketleriyle restore edilir ve sözleşme suite'i yeşildir
+
+**Gerçek sonuç (2026-09-17, ap-s2)**
+```
+Build succeeded. 0 Warning(s), 0 Error(s)
+Test run summary: Passed!
+  total: 99
+  failed: 0
+  succeeded: 99
+```
+🚨 Sayı 88 → 99 büyümüş (aynı `RunStoreContract` tabanı, bkz. MT-TEST-074) —
+kusur değil, kabul kriteri (tamamı yeşil) hâlâ geçerli.
+
+#### MT-TEST-076 — Yayın provası **20** paket görür; `Tracon.Testing.Contracts.Xunit` kimlik kümesindedir
+
+**Gerçek sonuç (2026-08-24)**
+```
+✅ 20 paket, sürüm '0.0.0-preview.0.360':
+...
+  Tracon.Testing.Contracts.Xunit  0.0.0-preview.0.360
+...
+```
+
+#### MT-TEST-090 — `ToolArgumentValidationContract` doğru bir validator'da yeşil geçer (Faz 143)
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 7
+  failed: 0
+  succeeded: 7
+```
+
+#### MT-TEST-091 — 🚨 Aynı suite, her şeyi kabul eden bir validator'da KIRMIZI olur — test tiyatrosu yok (Faz 143)
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 11
+  failed: 0
+  succeeded: 11
+```
+
+#### MT-TEST-092 — Aynı tohum aynı argümanları üretir; tohumlu üreteç kırılgan değildir (Faz 143)
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 13
+  failed: 0
+  succeeded: 13
+```
+(iki koşumda da birebir aynı — `Same_seed_produces_the_same_baseline` ve
+`Same_seed_produces_the_same_missing_required_mutation` bunu doğrudan sınar.)
+
+#### MT-TEST-093 — Nested object parametreli bir tool, sözleşmeyi açıkça atlar — sessizce değil (Faz 143)
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 1
+  failed: 0
+  succeeded: 1
+```
+
+#### MT-TEST-094 — `Tracon.Testing.Contracts.Xunit` üretime sızmaz; iki yeni sözleşme yalnız `Tracon.Abstractions`'a bağımlıdır (Faz 143)
+
+**Gerçek sonuç (2026-09-04)**
+```
+Test run summary: Passed!
+  total: 5
+  failed: 0
+  succeeded: 5
+```
+
+#### MT-TEST-095 — Şablon projesi `NU1608`'i hata sayar: karışık graf restore'da durur (Faz 185)
+
+**Gerçek sonuç (2026-09-24)**
+- `MixedVersionGraphTests.The_template_project_turns_NU1608_into_a_restore_error` yeşil:
+  çıkış ≠ 0, `error NU1608`.
+
+#### MT-TEST-096 — Değiştirilmemiş şablon projesi derlenir ve başlar (Faz 185, regresyon)
+
+**Gerçek sonuç (2026-09-24)**
+- `TemplateRunTests.Default_combination_starts_up_without_setup_and_returns_the_catalog` yeşil
+  (Package.Tests tam koşumu 67/67).
+
+#### MT-TEST-097 — Package testleri arka arkaya iki kez koşunca yerel preview.1 global önbelleğe açılmaz (Faz 185)
+
+**Gerçek sonuç (2026-09-24)**
+- Düzeltmeden önce ikinci koşum: `The template fixture resolved 1.0.0-preview.1 ...` (kırmızı).
+- Düzeltmeden sonra: `TemplateFixtureVersionTests` yeşil; `ls` → eşleşme yok.

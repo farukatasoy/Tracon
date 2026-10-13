@@ -2095,3 +2095,188 @@ Tracon.Abstractions → symbolsFile: Tracon.Abstractions.1.0.0-preview.1.snupkg
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+---
+
+## Spesifikasyondan taşınan koşum notları (2026-10-13, Faz 201 kapanışı)
+
+> Spesifikasyon dosyası yalnız `Ön koşul` · `Adımlar` · `Beklenen sonuç` taşır; tarihli
+> `Gerçek sonuç` ve `Koşuldu` notları buraya **taşındı** (silinmedi). Her not hangi
+> case'e ait olduğunu başlığıyla söyler; tarih notun kendisindedir.
+
+#### MT-PKG-100 — Prova kapısı gerçekten yayının önündedir
+
+**Gerçek sonuç (2026-09-24, Faz 191)**
+- `publish: needs: [release-dryrun, npm-publish]` · `npm-publish: needs: [build, release-dryrun]` ·
+  `release-dryrun: needs: build`; `pack:` satırı yok.
+
+#### MT-PKG-130 — Her kardeş bağımlılığı her TFM grubunda tam aralık ve paketin kendi sürümü
+
+**Gerçek sonuç (2026-09-24, `<V>` = `1.0.0-preview.2.43`)**
+- 66 satır; 66'sı `version="[1.0.0-preview.2.43]" exclude="Build,Analyzers"`; Tracon dışı `[`: 0.
+
+#### MT-PKG-131 — Farklı sürümdeki iki yaprak restore'da `NU1107` ile düşer
+
+**Gerçek sonuç (2026-09-24)**
+- `error NU1107: Version conflict detected for Tracon.Core.` · `Tracon.Voice <V> -> Tracon.Core (= <V>)` ·
+  `Tracon.AspNetCore 1.0.0-preview.1 -> Tracon.Core (= 1.0.0-preview.1)`; çıkış ≠ 0.
+
+#### MT-PKG-132 — Doğrudan başvuru aralığı ezer: `NU1608` uyarısı, host başlamaz
+
+**Gerçek sonuç (2026-09-24)**
+- Build: `warning NU1608: Detected package version outside of dependency constraint:
+  Tracon.AspNetCore 1.0.0-preview.1 requires Tracon.Core (= 1.0.0-preview.1) but version
+  Tracon.Core 1.0.0-preview.2.43 was resolved.`
+- Run: `Hosting failed to start` · `Tracon.TraconException: Tracon packages from more than
+  one release are loaded into this process.` ve ayrı satırlarda
+  `Tracon.Abstractions 1.0.0-preview.2.43` · `Tracon.AspNetCore 1.0.0-preview.1` ·
+  `Tracon.Core 1.0.0-preview.2.43`; çıkış ≠ 0.
+
+#### MT-PKG-133 — Yayınlanmış açık aralıklı preview.2 kardeşi host'u durdurur (DLL değişimi)
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 134; `Unhandled exception. Tracon.TraconException: Tracon packages from more than
+  one release ...`; 14 satır, `Tracon.AspNetCore 1.0.0-preview.2` dışındakilerin hepsi
+  `1.0.0-preview.2.43`. `curl` `000` (dinleyen yok).
+
+#### MT-PKG-135 — Yayın provası son yayına karşı kırıcı listeyi çıkarır ve yeşil verir
+
+**Gerçek sonuç (2026-09-24, `f8f85052`)**
+- Çıkış 0, 112,5 sn. `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten:
+  17 paket, kaynak api.nuget.org` · `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi
+  'Unreleased' notunda` · `artifacts/package/breaking-changes.json`. AOT ve net8.0 smoke geçti.
+- Üç komut boş; rapor dizini koşum sonunda silinir.
+
+#### MT-PKG-136 — Notta adı geçmeyen kırılmış tip provayı durdurur
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 1: `❌ Kırıcı değişiklik sürüm notunda adıyla geçmiyor (taban v1.0.0-preview.2, not
+  'Unreleased'):` + `Tracon.Abstractions: SchemaReadyGate`. Prova dizini oluşmadı (o gün yol `artifacts/package/release` idi).
+
+#### MT-PKG-137 — Joker satırı (`*ModelCatalog`) tip adı sayılmaz
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 1; dört satır: `Tracon.Anthropic: AnthropicChatClientFactory, AnthropicModelCatalog` ·
+  `Tracon.Azure: …` · `Tracon.Google: …` · `Tracon.OpenAI: OpenAIChatClientFactory, OpenAIModelCatalog`.
+  Aynı worktree'de ikinci koşumdu; doğrulama yine koştu (semaphore kanıtı kırmızı vermedi).
+
+#### MT-PKG-138 — Taban geliştirici cache'inden okunmaz
+
+**Gerçek sonuç (2026-09-24)**
+- Çıktı satırı `kaynak api.nuget.org` (kapı her `.nupkg.metadata`'yı okur; başka kaynak kırmızıdır).
+  Geliştirici cache'inde son değişiklik 09:40, koşum 10:2x; `tracon-baseline-*` koşumdan sonra yok.
+
+#### MT-PKG-139 — Bayat ilk yayın bayrağı pack'ten önce durdurur
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 1, saniyeler içinde: `❌ İlk yayın bayrağı bayat - paket v1.0.0-preview.2 etiketinde zaten
+  vardı; TraconPackageFirstRelease'i kaldırın: Tracon.Voice`. `artifacts/package` oluşmadı.
+
+#### MT-PKG-140 — Strict mode yalnız bir TFM'de olan public üyeyi reddeder
+
+**Gerçek sonuç (2026-09-24)**
+- (1) Çıkış 1: `error CP0002: Member 'int Tracon.StrictProbe.OnlyOnNet10()' exists on
+  lib/net10.0/Tracon.Voice.dll but not on lib/net9.0/Tracon.Voice.dll`. (2) Çıkış 0.
+
+#### MT-PKG-141 — Düşen TFM (`PKV006`) paket + TFM ile anılmalı
+
+**Gerçek sonuç (2026-09-24)**
+- (1) Çıkış 1: `Tracon.Voice: düşen TFM net8.0, net9.0` (depodaki `### Deprecated` maddesi TFM'leri
+  anar ama paketi anmaz). (2) Çıkış 0: `1 tip, 2 TFM düşüşü, 1 paket`.
+
+#### MT-PKG-143 — Etiket anında sürüm bölümü okunur (`--surum`)
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 0: `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi '1.0.0-preview.3' notunda`;
+  20 paket `1.0.0-preview.3`, örnekler ve smoke geçti.
+
+#### MT-PKG-144 — Kesim commit'i etiketsiz: kırmızı; etiketle: yeşil (Açık Soru 1 = C)
+
+**Gerçek sonuç (2026-09-24)**
+- (a) Çıkış 1: `Kırıcı değişiklik var ama '1.0.0-preview.2.54' için sürüm notu yok` +
+  `'## [1.0.0-preview.3]' bölümü var ama etiketi yok: … (git push --atomic origin main v1.0.0-preview.3)`.
+- (b) Çıkış 0: `Taban: v1.0.0-preview.2` (bir önceki etiket), not `1.0.0-preview.3`.
+
+#### MT-PKG-145 — Kurucu daraltması sonrası paketlenmiş sample'lar ve kırıcı değişiklik kapısı yeşil
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 0 · `Taban: v1.0.0-preview.2` · `✅ Kırıcı liste: 119 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` ·
+  `✅ 6 exact-version packed sample, Native AOT smoke ve net8.0 tüketici smoke`.
+
+#### MT-PKG-146 — Paketlenmiş `Tracon.Core` DI servis kurucusunu tüketiciye açmaz
+
+**Gerçek sonuç (2026-09-24)**
+- `error CS1729: 'ModelProviderRegistry' does not contain a constructor that takes 1 arguments`.
+
+#### MT-PKG-147 — Envanterde kanıtsız tip kalmaz (üye düzeyi dalga)
+
+**Gerçek sonuç (2026-09-24)**
+- `| **Toplam** | **654** | **527** | **112** | **15** | **0** |` · `çıkış=0` (Core 79, Abstractions 404 tip).
+
+#### MT-PKG-148 — DI'ın kurduğu servisler örnek uygulamada gerçek run'da çalışır
+
+**Gerçek sonuç (2026-09-24)**
+- (1) `200`, `persistenceProvider: PostgreSQL`, `modelProviders` listesi (`TraconDiagnosticsCollector`).
+- (2) `200`, `anthropic`/`google` `Healthy` (`ModelProviderHealthCache`).
+- (3) SSE: `run` · 140 `update` · `done`.
+- (4) Kök run `Completed` (`router`, `openai/gpt-5.4-mini`); alt run `support` `Completed`, `parentRunId` kök run (`ChildAgentInvoker`).
+
+#### MT-PKG-149 — Paketlenmiş tüketici: kayıt metotları uzantıdır, eski kurucu argümanı `CS1739` verir (Faz 189)
+
+**Gerçek sonuç (2026-09-24, `1.0.0-preview.2.70`)**
+- (1) `Build succeeded.` (2) `error CS1739: The best overload for 'TraconToolRegistration' does not have a parameter named 'requiresApproval'`.
+
+#### MT-PKG-150 — Önceki preview'a karşı derlenmiş üretilmiş tool'lar yeniden derlenene kadar `MissingMethodException` verir (Faz 189)
+
+**Gerçek sonuç (2026-09-24, host `1.0.0-preview.2.70`)**
+- (2) `MissingMethodException: Method not found: 'Void Tracon.TraconToolRegistration..ctor(Microsoft.Extensions.AI.AIFunctionDeclaration, Boolean, System.String, Tracon.ToolEffect, System.String, System.Nullable`1<System.TimeSpan>, Boolean, System.Nullable`1<Int32>)'`.
+- (3) `registered`.
+
+#### MT-PKG-151 — Yayın provası sample'ları ve kırıcı değişiklik notunu geçer (Faz 189)
+
+**Gerçek sonuç (2026-09-24, temiz ağaç `b0ee95f2`)**
+- `✅ Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` · `✅ 20 paket, sürüm '1.0.0-preview.2.70'` ·
+  `provider/source/generated-tool AOT host smoke passed` · `net8.0 consumer smoke passed on .NET 8.0.31` ·
+  `✅ 6 exact-version packed sample` · `çıkış=0`. İlk deneme kapı kusuru yüzünden kırmızıydı (çitli kod bloğu span eşleşmesini kaydırıyordu; düzeltildi, `docs/hafiza/yayin-ve-surumleme.md`).
+
+#### MT-PKG-152 — Karışık graf: önceki preview sağlayıcısı yeni Core ile kayıtta kırılır (Faz 189)
+
+**Gerçek sonuç (2026-09-24, `Tracon.OpenAI@1.0.0-preview.2` + `Tracon.Core@1.0.0-preview.2.70`)**
+- (2) `MissingMethodException: Method not found: 'Tracon.ITraconBuilder Tracon.ITraconBuilder.AddModelProvider(System.Func`2<System.IServiceProvider,Tracon.IModelProvider>)'` — `BuildServiceProvider` veya host gerekmeden, kayıt anında.
+
+#### MT-PKG-153 — Tek derleme zinciri: `paketle` → `yayin --paket-dizini` yeşil, girdi değişmez (Faz 191)
+
+**Gerçek sonuç (2026-09-24, taze klon, `1.0.0-preview.2.80`)**
+- (2) 15 sn: `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten: 17 paket` ·
+  `--no-build` pack · `20 paket, 17 api-compat kaydı (10 rapor)`. Dizin 49 dosya.
+- (4) 70 sn, çıkış 0; log'da `dotnet pack` YOK. `Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket` ·
+  `Manifest girdiyle aynı` · `artifacts/package/release: 38 dosya` · npm dry-run · 6 sample, AOT ve net8.0 smoke.
+- (5) `diff` boş; `git status` ve `find` boş.
+
+#### MT-PKG-154 — `paket-dogrula` ve prova bozulmayı dosya adıyla yakalar (Faz 191)
+
+**Gerçek sonuç (2026-09-24)**
+- (a) `SHA-256 farklı: Tracon.Core.1.0.0-preview.2.80.nupkg`, çıkış 1.
+- (b) `eksik: Tracon.Voice…snupkg` · `manifest dışı dosya: Tracon.Fazla…nupkg`, çıkış 1.
+- (c) `paket-dogrula` yeşil (47 dosya), sonra `rapor eksik: Tracon.Abstractions`, çıkış 1.
+
+#### MT-PKG-155 — `paketle` kirli ağaçta pack'e girmez, bypass seçeneği yoktur (Faz 191)
+
+**Gerçek sonuç (2026-09-24)**
+- (1) `?? notlar-191.txt` ile çıkış 1; `/tmp/x` oluşmadı. (2) Yalnız `--cikti`.
+
+#### MT-PKG-156 — Başka commit'in paketleri reddedilir (Faz 191)
+
+**Gerçek sonuç (2026-09-24, klonda bir commit ilerletildi)**
+- `❌ Paketler başka bir commit'ten: manifest '3dc4f119…', HEAD '6cbf13b4…'`, çıkış 1; `artifacts/package/release` oluşmadı.
+
+#### MT-PKG-157 — Paketlenen DLL = test edilen DLL; fikstür src'yi yeniden damgalar (Faz 191)
+
+**Gerçek sonuç (2026-09-24)**
+- (1) net8.0 `b90ae60d…` · net9.0 `4a2d1c04…` · net10.0 `b9ad7a20…` — üçünde nupkg = test = src.
+- (2) `dbda611e…` → `8abbc1b0…` (7 test yeşil): fikstür src çıktısını yeniden damgalar.
+
+#### MT-PKG-158 — `paketle` dolu dizini reddeder, silmez (Faz 191)
+
+**Gerçek sonuç (2026-09-24)**
+- `❌ Çıktı dizini boş değil: … - hiçbir şey silinmedi`, çıkış 1; 49 dosyanın SHA-256'sı aynı.

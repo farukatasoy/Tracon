@@ -2688,10 +2688,6 @@ edilemez, iş grafiği elle okunur.
 awk '/^  [a-z-]+:$/{j=$1} j && /^    needs:/{print j, $0; j=""}' .github/workflows/ci.yml
 ```
 
-**Gerçek sonuç (2026-09-24, Faz 191)**
-- `publish: needs: [release-dryrun, npm-publish]` · `npm-publish: needs: [build, release-dryrun]` ·
-  `release-dryrun: needs: build`; `pack:` satırı yok.
-
 **Beklenen sonuç**
 - `publish:` `release-dryrun` ve `npm-publish` içerir, `pack` içermez; `npm-publish:`
   `release-dryrun` içerir; `pack:` işi yoktur (Faz 191 — `publish` yalnız `release-dryrun`'ın
@@ -3721,9 +3717,6 @@ for f in artifacts/package/release/*.<V>.nupkg; do unzip -p "$f" '*.nuspec' | gr
 for f in artifacts/package/release/*.<V>.nupkg; do unzip -p "$f" '*.nuspec' | grep -o '<dependency id="[^"]*" version="\[[^/]*/>' | grep -v 'id="Tracon'; done | wc -l
 ```
 
-**Gerçek sonuç (2026-09-24, `<V>` = `1.0.0-preview.2.43`)**
-- 66 satır; 66'sı `version="[1.0.0-preview.2.43]" exclude="Build,Analyzers"`; Tracon dışı `[`: 0.
-
 **Beklenen sonuç**
 - 66 satır (22 kenar × 3 TFM), hepsi `[<V>]` ve `exclude="Build,Analyzers"`.
 - İkinci komut `0` (Tracon dışı tam aralık yok).
@@ -3758,10 +3751,6 @@ ortak düğüm iki tam aralığı birden karşılayamaz.
 <PackageReference Include="Tracon.Voice" Version="<V>" />
 ```
 
-**Gerçek sonuç (2026-09-24)**
-- `error NU1107: Version conflict detected for Tracon.Core.` · `Tracon.Voice <V> -> Tracon.Core (= <V>)` ·
-  `Tracon.AspNetCore 1.0.0-preview.1 -> Tracon.Core (= 1.0.0-preview.1)`; çıkış ≠ 0.
-
 **Beklenen sonuç**
 - Çıkış ≠ 0; `NU1107` ve `Tracon.Core` adı.
 
@@ -3786,15 +3775,6 @@ başlarken durur.
 1. Geçici web projesi: `Tracon.AspNetCore 1.0.0-preview.1` + `Tracon.Core <V>`;
    `Program.cs` = `builder.AddTracon()` + `app.MapTracon()` + `StartAsync`.
 2. `dotnet build -c Release`, sonra `dotnet run -c Release --no-build`.
-
-**Gerçek sonuç (2026-09-24)**
-- Build: `warning NU1608: Detected package version outside of dependency constraint:
-  Tracon.AspNetCore 1.0.0-preview.1 requires Tracon.Core (= 1.0.0-preview.1) but version
-  Tracon.Core 1.0.0-preview.2.43 was resolved.`
-- Run: `Hosting failed to start` · `Tracon.TraconException: Tracon packages from more than
-  one release are loaded into this process.` ve ayrı satırlarda
-  `Tracon.Abstractions 1.0.0-preview.2.43` · `Tracon.AspNetCore 1.0.0-preview.1` ·
-  `Tracon.Core 1.0.0-preview.2.43`; çıkış ≠ 0.
 
 **Beklenen sonuç**
 - Build geçer, `NU1608` uyarısı görünür.
@@ -3828,11 +3808,6 @@ yalnız başlangıç kontrolü durdurur.
 cp ~/.nuget/packages/tracon.aspnetcore/1.0.0-preview.2/lib/net10.0/Tracon.AspNetCore.dll artifacts/bin/Tracon.Api/release/
 dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll --contentRoot "$PWD/artifacts/bin/Tracon.Api/release" --urls http://127.0.0.1:5199
 ```
-
-**Gerçek sonuç (2026-09-24)**
-- Çıkış 134; `Unhandled exception. Tracon.TraconException: Tracon packages from more than
-  one release ...`; 14 satır, `Tracon.AspNetCore 1.0.0-preview.2` dışındakilerin hepsi
-  `1.0.0-preview.2.43`. `curl` `000` (dinleyen yok).
 
 **Beklenen sonuç**
 - Host başlamaz; mesajda `Tracon.AspNetCore 1.0.0-preview.2` ve `Tracon.Core <V>` satırları.
@@ -3885,12 +3860,6 @@ dotnet list package --deprecated
 1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
 2. `git status --porcelain` · `find src -name CompatibilitySuppressions.xml` · `ls artifacts/package/api-compat`
 
-**Gerçek sonuç (2026-09-24, `f8f85052`)**
-- Çıkış 0, 112,5 sn. `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten:
-  17 paket, kaynak api.nuget.org` · `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi
-  'Unreleased' notunda` · `artifacts/package/breaking-changes.json`. AOT ve net8.0 smoke geçti.
-- Üç komut boş; rapor dizini koşum sonunda silinir.
-
 **Beklenen sonuç**
 - Çıkış 0; çıktı tabanı, "17 paket"i ve `breaking-changes.json` yolunu yazar; ağaç ve `src/` temiz kalır.
 
@@ -3912,10 +3881,6 @@ dotnet list package --deprecated
 **Adımlar**
 1. Worktree'de `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
 
-**Gerçek sonuç (2026-09-24)**
-- Çıkış 1: `❌ Kırıcı değişiklik sürüm notunda adıyla geçmiyor (taban v1.0.0-preview.2, not
-  'Unreleased'):` + `Tracon.Abstractions: SchemaReadyGate`. Prova dizini oluşmadı (o gün yol `artifacts/package/release` idi).
-
 **Beklenen sonuç**
 - Çıkış 1; eksik ad paketiyle yazılır; release dizinine paket yazılmaz.
 
@@ -3935,11 +3900,6 @@ dotnet list package --deprecated
 
 **Adımlar**
 1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
-
-**Gerçek sonuç (2026-09-24)**
-- Çıkış 1; dört satır: `Tracon.Anthropic: AnthropicChatClientFactory, AnthropicModelCatalog` ·
-  `Tracon.Azure: …` · `Tracon.Google: …` · `Tracon.OpenAI: OpenAIChatClientFactory, OpenAIModelCatalog`.
-  Aynı worktree'de ikinci koşumdu; doğrulama yine koştu (semaphore kanıtı kırmızı vermedi).
 
 **Beklenen sonuç**
 - Çıkış 1; dört pakette sekiz ad.
@@ -3962,10 +3922,6 @@ dotnet list package --deprecated
 1. Koşum sırasında izole cache'i gör: `ls "$TMPDIR" | grep tracon-baseline`; `.nupkg.metadata` kaynağını oku.
 2. Koşumdan sonra aynı `ls -laT` ve `ls "$TMPDIR" | grep tracon-baseline`.
 
-**Gerçek sonuç (2026-09-24)**
-- Çıktı satırı `kaynak api.nuget.org` (kapı her `.nupkg.metadata`'yı okur; başka kaynak kırmızıdır).
-  Geliştirici cache'inde son değişiklik 09:40, koşum 10:2x; `tracon-baseline-*` koşumdan sonra yok.
-
 **Beklenen sonuç**
 - Taban kaynağı `https://api.nuget.org/v3/index.json`; geliştirici cache'i değişmez; geçici dizin silinir.
 
@@ -3986,10 +3942,6 @@ dotnet list package --deprecated
 
 **Adımlar**
 1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
-
-**Gerçek sonuç (2026-09-24)**
-- Çıkış 1, saniyeler içinde: `❌ İlk yayın bayrağı bayat - paket v1.0.0-preview.2 etiketinde zaten
-  vardı; TraconPackageFirstRelease'i kaldırın: Tracon.Voice`. `artifacts/package` oluşmadı.
 
 **Beklenen sonuç**
 - Çıkış 1, pack yok; mesaj paketi adlandırır.
@@ -4013,10 +3965,6 @@ dotnet list package --deprecated
 1. `dotnet pack src/Tracon.Voice -c Release -o <depo dışı> -p:TraconPublicApiTrackingEnabled=false`
 2. Kontrol: aynı komut `-p:EnableStrictModeForCompatibleTfms=false -p:EnableStrictModeForCompatibleFrameworksInPackage=false` ile.
 
-**Gerçek sonuç (2026-09-24)**
-- (1) Çıkış 1: `error CP0002: Member 'int Tracon.StrictProbe.OnlyOnNet10()' exists on
-  lib/net10.0/Tracon.Voice.dll but not on lib/net9.0/Tracon.Voice.dll`. (2) Çıkış 0.
-
 **Beklenen sonuç**
 - Strict açıkken çıkış ≠ 0 ve üye adıyla; strict kapalıyken geçer (sebep strict mode'dur).
 
@@ -4039,10 +3987,6 @@ dotnet list package --deprecated
 1. `python3 scripts/breaking_changes.py --rapor-dizini <dizin> --taban 1.0.0-preview.2`
 2. Scratch `CHANGELOG.md`: `- `Tracon.Voice`: `VoiceProviderNames`.` ve
    `- `Tracon.Voice`: the `net8.0` and `net9.0` targets.`; aynı komut `--changelog <scratch>` ile.
-
-**Gerçek sonuç (2026-09-24)**
-- (1) Çıkış 1: `Tracon.Voice: düşen TFM net8.0, net9.0` (depodaki `### Deprecated` maddesi TFM'leri
-  anar ama paketi anmaz). (2) Çıkış 0: `1 tip, 2 TFM düşüşü, 1 paket`.
 
 **Beklenen sonuç**
 - Paket ve TFM aynı maddede code span olarak geçmeden yeşil yoktur.
@@ -4085,10 +4029,6 @@ dotnet list package --deprecated
 **Adımlar**
 1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.3`
 
-**Gerçek sonuç (2026-09-24)**
-- Çıkış 0: `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi '1.0.0-preview.3' notunda`;
-  20 paket `1.0.0-preview.3`, örnekler ve smoke geçti.
-
 **Beklenen sonuç**
 - Çıkış 0; not başlığı `1.0.0-preview.3`.
 
@@ -4110,11 +4050,6 @@ dotnet list package --deprecated
 1. (a) `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
 2. (b) `git tag v1.0.0-preview.3`, sonra aynı komut.
 
-**Gerçek sonuç (2026-09-24)**
-- (a) Çıkış 1: `Kırıcı değişiklik var ama '1.0.0-preview.2.54' için sürüm notu yok` +
-  `'## [1.0.0-preview.3]' bölümü var ama etiketi yok: … (git push --atomic origin main v1.0.0-preview.3)`.
-- (b) Çıkış 0: `Taban: v1.0.0-preview.2` (bir önceki etiket), not `1.0.0-preview.3`.
-
 **Beklenen sonuç**
 - (a) Kırmızı ve mesaj tek komutla itmeyi söyler; (b) yeşil, taban bir önceki etiket.
 
@@ -4134,10 +4069,6 @@ dotnet list package --deprecated
 
 **Adımlar**
 1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
-
-**Gerçek sonuç (2026-09-24)**
-- Çıkış 0 · `Taban: v1.0.0-preview.2` · `✅ Kırıcı liste: 119 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` ·
-  `✅ 6 exact-version packed sample, Native AOT smoke ve net8.0 tüketici smoke`.
 
 **Beklenen sonuç**
 - Çıkış 0; kurucusu kalkan ve `internal` olan her tip `CHANGELOG.md` notunda tam adıyla geçer.
@@ -4161,9 +4092,6 @@ dotnet list package --deprecated
 1. Bir dosyaya `new Tracon.ModelProviderRegistry([])` yaz.
 2. `dotnet build`
 
-**Gerçek sonuç (2026-09-24)**
-- `error CS1729: 'ModelProviderRegistry' does not contain a constructor that takes 1 arguments`.
-
 **Beklenen sonuç**
 - Derleme `CS1729` ile düşer (plan `CS0122` bekliyordu; referans derlemesi `internal` kurucuyu taşımaz, kurucu aday bile olmaz).
 
@@ -4183,9 +4111,6 @@ dotnet list package --deprecated
 
 **Adımlar**
 1. `python3 scripts/public-yuzey-envanteri.py --denetle; echo "çıkış=$?"`
-
-**Gerçek sonuç (2026-09-24)**
-- `| **Toplam** | **654** | **527** | **112** | **15** | **0** |` · `çıkış=0` (Core 79, Abstractions 404 tip).
 
 **Beklenen sonuç**
 - Kanıtsız sütunu 0; toplam tip sayısı `PublicSurfaceBaselineTests` tabanıyla tutarlı.
@@ -4211,12 +4136,6 @@ dotnet list package --deprecated
 3. `curl -N -X POST http://127.0.0.1:5199/tracon/api/agents/router/run -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{"message":"Where is order 4182?"}'`
 4. `GET /tracon/api/runs/<runId>` ve `GET /tracon/api/runs?parentRunId=<runId>`
 
-**Gerçek sonuç (2026-09-24)**
-- (1) `200`, `persistenceProvider: PostgreSQL`, `modelProviders` listesi (`TraconDiagnosticsCollector`).
-- (2) `200`, `anthropic`/`google` `Healthy` (`ModelProviderHealthCache`).
-- (3) SSE: `run` · 140 `update` · `done`.
-- (4) Kök run `Completed` (`router`, `openai/gpt-5.4-mini`); alt run `support` `Completed`, `parentRunId` kök run (`ChildAgentInvoker`).
-
 **Beklenen sonuç**
 - Dört çağrı da başarılı; `router` `support`'u çağırır ve iki run da `Completed` biter.
 
@@ -4238,9 +4157,6 @@ dotnet list package --deprecated
 1. Boş bir konsol projesi: yerel feed'den `Tracon` paketi; `Program.cs`:
    `using Tracon;` + `new ServiceCollection().AddTracon().AddTool(fn, o => o.RequiresApproval = true).RequireProductionProfile();`
 2. Aynı dosyaya `new TraconToolRegistration(fn, requiresApproval: true);` ekle ve derle.
-
-**Gerçek sonuç (2026-09-24, `1.0.0-preview.2.70`)**
-- (1) `Build succeeded.` (2) `error CS1739: The best overload for 'TraconToolRegistration' does not have a parameter named 'requiresApproval'`.
 
 **Beklenen sonuç**
 - (1) Derleme temiz: `AddTool` ve `RequireProductionProfile` `TraconBuilderExtensions` üzerinden çözülür.
@@ -4270,10 +4186,6 @@ dotnet list package --deprecated
 > `TRC0005`). F-289 (2026-10-11) uzantıyı `internal` yaptı; regresyon case'i
 > `MT-PKG-164`.
 
-**Gerçek sonuç (2026-09-24, host `1.0.0-preview.2.70`)**
-- (2) `MissingMethodException: Method not found: 'Void Tracon.TraconToolRegistration..ctor(Microsoft.Extensions.AI.AIFunctionDeclaration, Boolean, System.String, Tracon.ToolEffect, System.String, System.Nullable`1<System.TimeSpan>, Boolean, System.Nullable`1<Int32>)'`.
-- (3) `registered`.
-
 **Beklenen sonuç**
 - (2) Üretilmiş kaydı çalıştıran çağrıda `MissingMethodException` (`TraconToolRegistration..ctor` yedi opsiyonel parametreli imza).
 - (3) Geçer. Metin `CHANGELOG.md` `[Unreleased]` notuyla aynıdır.
@@ -4294,11 +4206,6 @@ dotnet list package --deprecated
 
 **Adımlar**
 1. `python3 scripts/kapi.py yayin --kuru; echo "çıkış=$?"`
-
-**Gerçek sonuç (2026-09-24, temiz ağaç `b0ee95f2`)**
-- `✅ Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` · `✅ 20 paket, sürüm '1.0.0-preview.2.70'` ·
-  `provider/source/generated-tool AOT host smoke passed` · `net8.0 consumer smoke passed on .NET 8.0.31` ·
-  `✅ 6 exact-version packed sample` · `çıkış=0`. İlk deneme kapı kusuru yüzünden kırmızıydı (çitli kod bloğu span eşleşmesini kaydırıyordu; düzeltildi, `docs/hafiza/yayin-ve-surumleme.md`).
 
 **Beklenen sonuç**
 - `Tracon.Samples.CustomTool` + testleri ve `Tracon.Samples.ExtensionAotSmoke` (`AddOrderPreviewTools()`, native AOT) paketlenmiş sürüme karşı geçer.
@@ -4322,9 +4229,6 @@ dotnet list package --deprecated
 1. Konsol host: nuget.org `Tracon.OpenAI@1.0.0-preview.2` + yerel `Tracon.Core` (restore'u geçirmek için `NU1608` uyarı kalır).
 2. `AddTracon().UseOpenAI(...)` çağır.
 3. Paketleri hizala (hepsi yerel sürüm), tekrarla.
-
-**Gerçek sonuç (2026-09-24, `Tracon.OpenAI@1.0.0-preview.2` + `Tracon.Core@1.0.0-preview.2.70`)**
-- (2) `MissingMethodException: Method not found: 'Tracon.ITraconBuilder Tracon.ITraconBuilder.AddModelProvider(System.Func`2<System.IServiceProvider,Tracon.IModelProvider>)'` — `BuildServiceProvider` veya host gerekmeden, kayıt anında.
 
 **Beklenen sonuç**
 - (2) `UseOpenAI()` içinde `MissingMethodException` (`ITraconBuilder.AddModelProvider`); başlangıç sürüm kontrolü koşmaz (kayıt anı host'tan önce).
@@ -4352,13 +4256,6 @@ dotnet list package --deprecated
 4. `python3 scripts/kapi.py yayin --kuru --paket-dizini /tmp/ci-paket-191`
 5. Adım 3'ü `/tmp/sonra.txt`'ye tekrarla, `diff`; `git status --porcelain`; `find src -name CompatibilitySuppressions.xml`
 
-**Gerçek sonuç (2026-09-24, taze klon, `1.0.0-preview.2.80`)**
-- (2) 15 sn: `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten: 17 paket` ·
-  `--no-build` pack · `20 paket, 17 api-compat kaydı (10 rapor)`. Dizin 49 dosya.
-- (4) 70 sn, çıkış 0; log'da `dotnet pack` YOK. `Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket` ·
-  `Manifest girdiyle aynı` · `artifacts/package/release: 38 dosya` · npm dry-run · 6 sample, AOT ve net8.0 smoke.
-- (5) `diff` boş; `git status` ve `find` boş.
-
 **Beklenen sonuç**
 - İki komut çıkış 0; prova `dotnet pack` basmaz ve `artifacts/package/breaking-changes.json` yazar.
 - İki manifest paket, SHA-256, sürüm, commit ve taban olarak aynı; girdi dizini değişmez.
@@ -4382,11 +4279,6 @@ dotnet list package --deprecated
 2. (b) `/tmp/c2b`'ye fazla bir `.nupkg` kopyala, bir `.snupkg` sil; `paket-dogrula /tmp/c2b`
 3. (c) `/tmp/c2c`'de rapor taşıyan bir `apiCompat` kaydını ve dosyasını sil (manifest'ten de); `yayin --kuru --paket-dizini /tmp/c2c`
 
-**Gerçek sonuç (2026-09-24)**
-- (a) `SHA-256 farklı: Tracon.Core.1.0.0-preview.2.80.nupkg`, çıkış 1.
-- (b) `eksik: Tracon.Voice…snupkg` · `manifest dışı dosya: Tracon.Fazla…nupkg`, çıkış 1.
-- (c) `paket-dogrula` yeşil (47 dosya), sonra `rapor eksik: Tracon.Abstractions`, çıkış 1.
-
 **Beklenen sonuç**
 - Her bozulma çıkış 1, dosya veya paket adıyla. Boş `api-compat/` "kırıcı değişiklik yok" sayılmaz.
 
@@ -4408,9 +4300,6 @@ dotnet list package --deprecated
 1. `python3 scripts/kapi.py paketle --cikti /tmp/x`
 2. `rm notlar-191.txt; python3 scripts/kapi.py paketle --help`
 
-**Gerçek sonuç (2026-09-24)**
-- (1) `?? notlar-191.txt` ile çıkış 1; `/tmp/x` oluşmadı. (2) Yalnız `--cikti`.
-
 **Beklenen sonuç**
 - Pack denenmeden çıkış 1, kirli girdi adıyla; yardımda `TraconSkipCleanWorkingTreeCheck`/`TraconAllowDirtyPack` karşılığı yok.
 
@@ -4430,9 +4319,6 @@ dotnet list package --deprecated
 
 **Adımlar**
 1. `python3 scripts/kapi.py yayin --kuru --paket-dizini /tmp/ci-paket-191`
-
-**Gerçek sonuç (2026-09-24, klonda bir commit ilerletildi)**
-- `❌ Paketler başka bir commit'ten: manifest '3dc4f119…', HEAD '6cbf13b4…'`, çıkış 1; `artifacts/package/release` oluşmadı.
 
 **Beklenen sonuç**
 - Çıkış 1; release dizinine dosya kopyalanmaz. Manifest commit'i doğru olsa bile `.nuspec`
@@ -4458,10 +4344,6 @@ dotnet list package --deprecated
 2. `shasum -a 256 artifacts/bin/Tracon.Core/release_net10.0/Tracon.Core.dll`;
    `python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif "*ReleaseArtifact*"`; `shasum` tekrar
 
-**Gerçek sonuç (2026-09-24)**
-- (1) net8.0 `b90ae60d…` · net9.0 `4a2d1c04…` · net10.0 `b9ad7a20…` — üçünde nupkg = test = src.
-- (2) `dbda611e…` → `8abbc1b0…` (7 test yeşil): fikstür src çıktısını yeniden damgalar.
-
 **Beklenen sonuç**
 - (1) Üç TFM'de eşit. (2) SHA-256 değişir — bu yüzden `paketle` `Derle`'nin hemen ardındadır.
 
@@ -4481,9 +4363,6 @@ dotnet list package --deprecated
 
 **Adımlar**
 1. `python3 scripts/kapi.py paketle --cikti /tmp/ci-paket-191`; SHA-256 listesini MT-PKG-153 adım 3 ile karşılaştır.
-
-**Gerçek sonuç (2026-09-24)**
-- `❌ Çıktı dizini boş değil: … - hiçbir şey silinmedi`, çıkış 1; 49 dosyanın SHA-256'sı aynı.
 
 **Beklenen sonuç**
 - Çıkış 1; dosyalar silinmedi ve değişmedi. Yarıda kesilmiş (manifest'siz) bir dizin de aynı yolla reddedilir.

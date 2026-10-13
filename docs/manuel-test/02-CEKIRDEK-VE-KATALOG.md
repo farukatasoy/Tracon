@@ -2920,7 +2920,6 @@ dotnet test samples/Tracon.Samples.CustomTool.Tests -c Release --no-build
 **Beklenen sonuç**
 - SSE akışı `event: update` (metin + usage) ve `event: done` ile biter.
 - `/api/runs` listesinde `status: "Completed"`, gerçek `usage` (input/output token) ile yeni bir kayıt görünür.
-- **Koşuldu (2026-08-26):** run `01a03b4f-e7c2-7177-a572-596ad682c0fd`, `usage.inputTokens: 234, outputTokens: 40`, `status: "Completed"`.
 
 ### MT-CORE-104 — Culture taşıyan tanım en yakın culture talimatını çözer (Faz 106)
 
@@ -2999,8 +2998,6 @@ curl -s -H 'X-Host-Tenant: acme' http://localhost:5082/tracon/api/stats
   içermez (`QueryRunsAsync`'in kiracı süzgeci).
 - `GET /tracon/api/stats` `totalRuns: 1`, `byAgent`/`byModel`/`byUser`
   kırılımlarını doğru sayar (`GetStatisticsAsync`, `InMemoryRunStore.Statistics.cs`).
-- Koşuldu (2026-08-26): iki kiracı, iki `run`, beklenen sonuçların tamamı
-  gözlendi.
 
 > **Otomatik karşılığı:** `InMemoryRunStoreContractTests`/`InMemoryToolInvocationContractTests`
 > (`tests/Tracon.Core.UnitTests/Contracts/InMemoryStoreContractTests.cs`) —
@@ -3675,9 +3672,6 @@ ile yapılır. Değişiklik case sonunda GERİ ALINIR.
 **Adımlar**
 1. `curl -s http://127.0.0.1:5199/tracon/api/tools -H "$APB" | python3 -c "import sys,json; [print(t['name'], t['requiresApproval'], t['effect'], t.get('requiredPermission'), t.get('timeout'), t.get('source')) for t in json.load(sys.stdin) if t['name'] in ('cancel_order','get_slow_report')]"`
 
-**Gerçek sonuç (2026-09-24)**
-- `cancel_order True Destructive orders.cancel None None` · `get_slow_report False Read None 00:00:01 None`.
-
 **Beklenen sonuç**
 - `cancel_order`: `requiresApproval: true`, `effect: "Destructive"`, `requiredPermission: "orders.cancel"`, `source: null`.
 - `get_slow_report`: `timeout: "00:00:01"`.
@@ -3747,12 +3741,6 @@ sağlayıcısında da koşar (F-315 2026-10-12'de kapandı, MT-OAI-094); case
 - `run.usage` ve `run.cost` doludur ve iki turun toplamını taşır (denetim düzeltmesi:
   istisnayla biten run'ın tek `usage` kaynağı yan kanaldır).
 
-**Gerçek sonuç (2026-10-11, `gpt-5.4-mini`, bellek içi store)** — ✅ `Failed`, `loop_unsatisfied`,
-`LoopUnsatisfied`; iki olay, sonuncusu `failsRun`. Akış 21 `update` çerçevesinden sonra `error`
-çerçevesiyle bitti. Denetim düzeltmesinden sonra yeniden koşuldu: `usage.totalTokens = 13142`
-(iki tur, `cachedInputTokens = 6528`), `cost` dolu. Aynı tanım `onExhausted` olmadan iki tur
-koşunca `totalTokens = 6599` kaydetti — yalnız son tur (F-317).
-
 > **Otomatik karşılığı:** `HarnessLoopTests.FailRun_on_exhaustion_fails_the_run_after_exactly_MaxIterations_turns`.
 
 ---
@@ -3773,8 +3761,6 @@ koşunca `totalTokens = 6599` kaydetti — yalnız son tur (F-317).
 
 **Beklenen sonuç**
 - `run` `Completed`; tek `LoopIterationCompleted` olayı, `ceilingReached: true`, `failsRun: false`.
-
-**Gerçek sonuç (2026-10-11)** — ✅ `Completed`, bir olay, `ceilingReached: true`, `failsRun: false`.
 
 > **Otomatik karşılığı:** `HarnessLoopTests` mevcut on vakası değişmeden yeşil.
 
@@ -3797,8 +3783,6 @@ koşunca `totalTokens = 6599` kaydetti — yalnız son tur (F-317).
 **Beklenen sonuç**
 - Önce `update` (metin) çerçeveleri, en sonda `event: error` (`TraconLoopUnsatisfiedException`);
   `run` `Failed`.
-
-**Gerçek sonuç (2026-10-11)** — ✅ MT-CORE-132 koşumunda ölçüldü: 21 `update`, ardından `error`.
 
 > **Otomatik karşılığı:** `HarnessLoopTests.FailRun_on_exhaustion_streams_the_last_turn_and_then_fails_the_run`.
 
@@ -3845,10 +3829,6 @@ bir uca işaret eder; `onCriterionError: "FailRun"`.
 - Workflow `run` `Failed`; akışta `word-count` için `ExecutorInvoked` YOKTUR.
 - Katılımcı agent run'ı `LoopUnsatisfied` taşır. Workflow satırı da aynı kimliği ve sınıfı
   taşır: `error.type` `loop_unsatisfied`, `error.class` `LoopUnsatisfied` (F-314, 2026-10-12).
-
-**Gerçek sonuç (2026-10-11)** — ✅ Workflow `Failed`, `word-count` hiç çağrılmadı; workflow
-satırı `Tracon.TraconLoopUnsatisfiedException`, sınıf `null` (F-314 öncesi; beklenen sonuç
-2026-10-12'de güncellendi, yeniden koşulmadı).
 
 > **Otomatik karşılığı:** `HarnessLoopTests.A_workflow_stops_at_an_agent_whose_loop_fails_on_exhaustion`.
 

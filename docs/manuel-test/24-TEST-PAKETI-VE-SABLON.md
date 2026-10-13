@@ -2213,12 +2213,6 @@ dotnet add package Tracon.Testing.Contracts.Xunit --version "$SURUM"
 dotnet list package --include-transitive | grep -i Tracon
 ```
 
-**Gerçek sonuç (2026-08-24)**
-```
-   > Tracon.Testing.Contracts.Xunit      *-*         0.0.0-preview.0.360
-   > Tracon.Abstractions                                    0.0.0-preview.0.360
-```
-
 **Beklenen sonuç**
 - Yalnız iki `Tracon.*` satırı görünür: `Tracon.Testing.Contracts.Xunit`
   ve `Tracon.Abstractions`. `Tracon.Core` **hiç** listede yer almaz.
@@ -2264,30 +2258,6 @@ dotnet build -c Release   # derleme hatası BEKLENMEZ
 ./bin/Release/net10.0/Probe
 ```
 
-**Gerçek sonuç (2026-08-24)**
-```
-Build succeeded. 0 Error(s)
-...
-Test run summary: Failed! 
-  total: 88
-  failed: 88
-  succeeded: 0
-```
-
-**Gerçek sonuç (2026-09-17, ap-s2)**
-```
-Build succeeded. 0 Error(s)
-Test run summary: Failed!
-  total: 99
-  failed: 97
-  succeeded: 0
-  skipped: 2
-```
-🚨 `RunStoreContract` 2026-08-24'ten bu yana büyümüş (88 → 99). 2 atlanan
-case opsiyonel `IRunScoreStore`'a bağlı (`CreateScoreStoreAsync()` override
-edilmezse skorla ilgili iki case atlanır) — `IRunStore`'un 15 zorunlu
-metoduna dahil değil, kusur değil.
-
 **Beklenen sonuç**
 - `dotnet build` **sıfır hata** ile biter — sözleşme normal bir NuGet
   tüketicisinden derlenebilir.
@@ -2329,26 +2299,6 @@ dotnet build samples/Tracon.Samples.FileRunStore.Tests -c Release
 ./artifacts/bin/Tracon.Samples.FileRunStore.Tests/release/Tracon.Samples.FileRunStore.Tests
 ```
 
-**Gerçek sonuç (2026-08-24)**
-```
-Build succeeded. 0 Warning(s), 0 Error(s)
-Test run summary: Passed!
-  total: 88
-  failed: 0
-  succeeded: 88
-```
-
-**Gerçek sonuç (2026-09-17, ap-s2)**
-```
-Build succeeded. 0 Warning(s), 0 Error(s)
-Test run summary: Passed!
-  total: 99
-  failed: 0
-  succeeded: 99
-```
-🚨 Sayı 88 → 99 büyümüş (aynı `RunStoreContract` tabanı, bkz. MT-TEST-074) —
-kusur değil, kabul kriteri (tamamı yeşil) hâlâ geçerli.
-
 **Beklenen sonuç**
 - Derleme sıfır uyarı/hata ile biter.
 - Suite'in tamamı (88/88) yeşildir — `RunStoreContract`'ın idempotency,
@@ -2376,14 +2326,6 @@ kusur değil, kabul kriteri (tamamı yeşil) hâlâ geçerli.
 **Girilecek veri**
 ```bash
 python3 scripts/kapi.py yayin --kuru
-```
-
-**Gerçek sonuç (2026-08-24)**
-```
-✅ 20 paket, sürüm '0.0.0-preview.0.360':
-...
-  Tracon.Testing.Contracts.Xunit  0.0.0-preview.0.360
-...
 ```
 
 **Beklenen sonuç**
@@ -2851,14 +2793,6 @@ cd ~/Desktop/projects/Tracon
   --filter-method "*ToolArgumentValidationContractTests*"
 ```
 
-**Gerçek sonuç (2026-09-04)**
-```
-Test run summary: Passed!
-  total: 7
-  failed: 0
-  succeeded: 7
-```
-
 **Beklenen sonuç**
 - Yedi `[Fact]`'in tamamı (altı plandaki + `A_pre_cancelled_token_is_honored`)
   yeşildir — doğru bir validator suite'i geçer.
@@ -2897,14 +2831,6 @@ xunit tarafından ayrı bir test sınıfı olarak keşfedilmez).
   --filter-method "*ToolContractSelfProofTests*"
 ```
 
-**Gerçek sonuç (2026-09-04)**
-```
-Test run summary: Passed!
-  total: 11
-  failed: 0
-  succeeded: 11
-```
-
 **Beklenen sonuç**
 - On bir `[Fact]`'in tamamı yeşildir — her biri kendi kırık fixture'ının
   (kabul-hepsi validator, izin-ver-hepsi handler, tek-tenant'a kilitli handler,
@@ -2939,16 +2865,6 @@ Test run summary: Passed!
 ./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release_net10.0/Tracon.Testing.Contracts.Xunit.UnitTests
 ```
 
-**Gerçek sonuç (2026-09-04)**
-```
-Test run summary: Passed!
-  total: 13
-  failed: 0
-  succeeded: 13
-```
-(iki koşumda da birebir aynı — `Same_seed_produces_the_same_baseline` ve
-`Same_seed_produces_the_same_missing_required_mutation` bunu doğrudan sınar.)
-
 **Beklenen sonuç**
 - İki koşum da 13/13 yeşildir; aynı tohumla üretilen argüman kümeleri
   (`Canonical(...)` karşılaştırması) birebir aynıdır.
@@ -2974,14 +2890,6 @@ Test run summary: Passed!
 ```bash
 ./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release_net10.0/Tracon.Testing.Contracts.Xunit.UnitTests \
   --filter-method "*Required_nested_object*"
-```
-
-**Gerçek sonuç (2026-09-04)**
-```
-Test run summary: Passed!
-  total: 1
-  failed: 0
-  succeeded: 1
 ```
 
 **Beklenen sonuç**
@@ -3016,14 +2924,6 @@ MT-TEST-073'ün aynı iddiasının Faz 143 sonrası tekrarı — `ToolArgumentVa
   --filter-method "*DependencyDirectionTests*"
 ```
 
-**Gerçek sonuç (2026-09-04)**
-```
-Test run summary: Passed!
-  total: 5
-  failed: 0
-  succeeded: 5
-```
-
 **Beklenen sonuç**
 - `Tracon.Testing.Contracts.Xunit`'in izin listesi hâlâ yalnız
   `["Tracon.Abstractions"]`dir — `xunit.v3.assert` (Adım 1'de eklenen
@@ -3052,10 +2952,6 @@ Test run summary: Passed!
 2. Projeye `<PackageReference Include="Tracon.Core" Version="<V>" />` ekle.
 3. `dotnet restore`.
 
-**Gerçek sonuç (2026-09-24)**
-- `MixedVersionGraphTests.The_template_project_turns_NU1608_into_a_restore_error` yeşil:
-  çıkış ≠ 0, `error NU1608`.
-
 **Beklenen sonuç**
 - Çıkış ≠ 0; `error NU1608` (uyarı değil).
 
@@ -3078,10 +2974,6 @@ Tek sürümlü grafta ne `NU1608` hatası ne başlangıç reddi olur.
 **Adımlar**
 1. `dotnet new tracon-api -n Aligned --persistence memory --ui false`
 2. `dotnet build -c Release`; `dotnet bin/Release/net10.0/Aligned.dll`; `GET /tracon/api/agents`.
-
-**Gerçek sonuç (2026-09-24)**
-- `TemplateRunTests.Default_combination_starts_up_without_setup_and_returns_the_catalog` yeşil
-  (Package.Tests tam koşumu 67/67).
 
 **Beklenen sonuç**
 - Build uyarısız geçer; uygulama başlar; katalog `200` döner.
@@ -3114,10 +3006,6 @@ testlerini yerel preview.1 ile global önbelleğe restore ettiriyordu. Sürüm a
 ./artifacts/bin/Tracon.Package.Tests/release/Tracon.Package.Tests --filter-class '*TemplateFixtureVersionTests*'
 ls -d ~/.nuget/packages/tracon*/1.0.0-preview.1
 ```
-
-**Gerçek sonuç (2026-09-24)**
-- Düzeltmeden önce ikinci koşum: `The template fixture resolved 1.0.0-preview.1 ...` (kırmızı).
-- Düzeltmeden sonra: `TemplateFixtureVersionTests` yeşil; `ls` → eşleşme yok.
 
 **Beklenen sonuç**
 - `TemplateFixtureVersionTests` yeşil; `ls` boş.
