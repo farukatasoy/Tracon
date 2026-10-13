@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
 using static Microsoft.Playwright.Assertions;
@@ -140,6 +142,69 @@ public sealed class AgentTests(BrowserFixture browsers)
         preview.ShouldContain("\"strategy\": \"SlidingWindow\"");
         preview.ShouldContain("\"triggerMessages\": 40");
         preview.ShouldContain("\"enableTodo\": true");
+    }
+
+    [Fact]
+    public async Task Loop_built_in_the_console_is_saved_read_back_and_runs()
+    {
+        // Phase 201 (F-302): the console builds the loop, not only carries it. The
+        // proof that it runs is the run's own LoopIterationCompleted event.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
+
+        await session.Page.GetByTestId("agent-name").FillAsync("loop-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+        await session.Page.GetByLabel("Enable harness features", new() { Exact = true }).CheckAsync();
+
+        await session.Page.GetByTestId("loop-enabled").CheckAsync();
+        // Every answer of the scripted echo model starts with "Echo:", so the
+        // loop stops after one evaluated iteration. What it echoes is the last
+        // user message, which the harness's own context may replace.
+        await session.Page.GetByTestId("loop-criterion-marker-0").FillAsync("Echo:");
+        await session.Page.GetByTestId("loop-max-iterations").FillAsync("3");
+        await session.Page.GetByTestId("loop-on-exhausted").SelectOptionAsync("FailRun");
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "loop-agent", Exact = true })).ToBeVisibleAsync();
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit", Exact = true }).ClickAsync();
+        await Expect(session.Page.GetByTestId("agent-name")).ToHaveValueAsync("loop-agent");
+        await Expect(session.Page.GetByTestId("loop-criterion-kind-0")).ToHaveValueAsync("completionMarker");
+        await Expect(session.Page.GetByTestId("loop-criterion-marker-0")).ToHaveValueAsync("Echo:");
+        await Expect(session.Page.GetByTestId("loop-max-iterations")).ToHaveValueAsync("3");
+        await Expect(session.Page.GetByTestId("loop-on-exhausted")).ToHaveValueAsync("FailRun");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/loop-agent");
+        await session.Page.GetByTestId("playground-input").FillAsync("hello");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        var run = await WaitUntil.ValueAsync(
+            async () => (await api.GetFromJsonAsync<JsonElement>("api/runs?agentName=loop-agent")).EnumerateArray().ToList(),
+            static runs => runs.Count == 1 && !string.Equals(runs[0].GetProperty("status").GetString(), "Running", StringComparison.Ordinal),
+            timeout: TimeSpan.FromSeconds(30));
+
+        run[0].GetProperty("status").GetString().ShouldBe("Completed");
+
+        // The events endpoint is a server-sent event stream; for a finished run it
+        // replays every recorded event and closes.
+        var stream = await api.GetStringAsync($"api/runs/{run[0].GetProperty("id").GetString()}/events");
+        stream.Split('\n')
+            .Where(static line => line.StartsWith("data: ", StringComparison.Ordinal))
+            .Select(static line => EventType(line["data: ".Length..]))
+            .Count(static type => string.Equals(type, "LoopIterationCompleted", StringComparison.Ordinal))
+            .ShouldBe(1);
+    }
+
+    private static string? EventType(string data)
+    {
+        using var document = JsonDocument.Parse(data);
+
+        return document.RootElement.GetProperty("type").GetString();
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { fixture, installApiMock } from '../../test/api-fixtures';
+import { fixture, installApiMock, type FixtureRoute } from '../../test/api-fixtures';
 import { fireEvent, renderScreen, screen, waitFor } from '../../test/render';
 import { AgentEditorScreen } from '../agent-editor';
 
@@ -165,6 +165,209 @@ describe('AgentEditorScreen', () => {
     await user.click(screen.getByTestId('agent-validate'));
 
     expect(await screen.findByText('Valid')).toBeTruthy();
+  });
+
+  describe('loop section (Phase 201)', () => {
+    const catalog = {
+      kinds: [
+        { kind: 'completionMarker', builtIn: true, description: 'x' },
+        { kind: 'todoCompletion', builtIn: true, description: 'x' },
+        { kind: 'aiJudge', builtIn: true, description: 'x' },
+        { kind: 'backgroundTaskCompletion', builtIn: true, description: 'x' },
+        { kind: 'reviewed', builtIn: false, description: 'The reviewer agent approves the draft.' },
+      ],
+      judgeModel: null,
+    };
+
+    function withLoop(loop: unknown) {
+      return fixture('GET', 'api/agents/:name', {
+        descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+        definition: { ...fullDefinition, harness: { loop } },
+      });
+    }
+
+    function captureValidate(): { route: FixtureRoute; sent: () => unknown } {
+      let body: unknown;
+
+      return {
+        route: {
+          method: 'POST',
+          pattern: 'api/agents/validate',
+          handler: (_params, _url, sent) => {
+            body = sent;
+
+            return { valid: true, inconclusive: false, messages: [] };
+          },
+        },
+        sent: () => body,
+      };
+    }
+
+    it('keeps a kind nobody lists, also when the kind list fails to load', async () => {
+      const validate = captureValidate();
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', { title: 'Boom', status: 500 }, 500),
+        withLoop({ criteria: [{ kind: 'hasCitations', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] }] }),
+        validate.route,
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const kind = (await screen.findByTestId('loop-criterion-kind-0')) as HTMLSelectElement;
+
+      expect(kind.value).toBe('hasCitations');
+      expect(await screen.findByText(/could not be loaded/)).toBeTruthy();
+
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(validate.sent()).toMatchObject({ harness: { loop: { criteria: [{ kind: 'hasCitations' }] } } });
+      });
+    });
+
+    it('marks a kind the host does not list as not registered and describes a code kind', async () => {
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', catalog),
+        withLoop({
+          criteria: [
+            { kind: 'reviewed', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] },
+            { kind: 'gone', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] },
+          ],
+        }),
+      ]);
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      expect((await screen.findByTestId('loop-criterion-description-0')).textContent).toContain(
+        'The reviewer agent approves the draft.',
+      );
+      expect(await screen.findByText('Not registered')).toBeTruthy();
+      expect((screen.getByTestId('loop-criterion-kind-1') as HTMLSelectElement).value).toBe('gone');
+    });
+
+    it('a kind change clears what the new kind does not read; a move carries the fields with the criterion', async () => {
+      const validate = captureValidate();
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', catalog),
+        withLoop({
+          criteria: [
+            { kind: 'completionMarker', marker: 'DONE', judgeCriteria: [], judgeInstructions: null, modes: [] },
+            { kind: 'aiJudge', marker: null, judgeCriteria: ['Complete?'], judgeInstructions: 'Be strict.', modes: [] },
+          ],
+          maxIterations: 4,
+          onExhausted: 'FailRun',
+        }),
+        validate.route,
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await user.click(await screen.findByTestId('loop-criterion-down-0'));
+      await user.selectOptions(screen.getByTestId('loop-criterion-kind-0'), 'reviewed');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(validate.sent()).toMatchObject({
+          harness: {
+            loop: {
+              criteria: [
+                { kind: 'reviewed', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] },
+                { kind: 'completionMarker', marker: 'DONE' },
+              ],
+              maxIterations: 4,
+              onExhausted: 'FailRun',
+            },
+          },
+        });
+      });
+    });
+
+    it('says the judge model is not configured on an aiJudge criterion', async () => {
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', catalog),
+        withLoop({ criteria: [{ kind: 'aiJudge', marker: null, judgeCriteria: ['Complete?'], judgeInstructions: null, modes: [] }] }),
+      ]);
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loop-criterion-judge-0').textContent).toContain('No judge model is configured');
+      });
+    });
+
+    it('turning the harness off says the loop is not saved, and the request carries none', async () => {
+      const validate = captureValidate();
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', catalog),
+        withLoop({ criteria: [{ kind: 'completionMarker', marker: 'DONE', judgeCriteria: [], judgeInstructions: null, modes: [] }] }),
+        validate.route,
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByTestId('loop-section');
+      await user.click(screen.getByLabelText('Enable harness features'));
+
+      expect(screen.getByTestId('loop-dropped')).toBeTruthy();
+      expect(screen.queryByTestId('loop-section')).toBeNull();
+
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(validate.sent()).toMatchObject({ harness: null });
+      });
+    });
+
+    it('a loop turned on from the console sends one criterion and the default outcomes', async () => {
+      const validate = captureValidate();
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', catalog),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: { ...fullDefinition, harness: {} },
+        }),
+        validate.route,
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await user.click(await screen.findByTestId('loop-enabled'));
+      await user.type(screen.getByTestId('loop-criterion-marker-0'), 'ALL DONE');
+      await user.type(screen.getByTestId('loop-max-iterations'), '3');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(validate.sent()).toMatchObject({
+          harness: {
+            loop: {
+              criteria: [{ kind: 'completionMarker', marker: 'ALL DONE' }],
+              maxIterations: 3,
+              freshContextPerIteration: false,
+              onExhausted: 'ReturnLastResponse',
+              onCriterionError: 'ReturnLastResponse',
+            },
+          },
+        });
+      });
+    });
   });
 
   it('shows an error note when Save fails', async () => {
