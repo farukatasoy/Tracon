@@ -294,7 +294,10 @@ flowchart TD
 `ResolveAsync`'ten **önce** `ExperimentAssignmentResolver`'a uğrar; `Running` bir
 deney varsa sürüm deneyden gelir. `/v1/*` ve alt-agent çağrıları bu adımı görmez
 (K-131). **Asenkron çalıştırma:** `Prefer: respond-async` → `Queued` satır + iş
-kuyruğu + `202`; işçi alınca diyagram normal işler (K-304). Kök çalıştırma onay
+kuyruğu + `202`; işçi alınca diyagram normal işler (K-304). Workflow'un `run`,
+`resume` ve `respond` uçları aynı yolu `tracon.workflow-run` işiyle izler (K-924);
+kesilen workflow run'ını yalnız onu başlatan iş, yeniden kiralandığında son
+checkpoint'ten sürdürür (K-923, K-927). Kök çalıştırma onay
 isteyerek biterse `AwaitingApproval` ile kapanır ve bir daha DEĞİŞMEZ (K-014);
 karar YENİ bir çalıştırma açar (K-368) — bkz. §7.
 
