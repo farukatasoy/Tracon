@@ -325,7 +325,72 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 
 ### Doğrulama komutları
 
-Case 1 ve 3'ten kapanışta gerçek çıktıyla yazılır.
+Örnek uygulama: port 5082, şema `faz203`, `Tracon__Ui__AuthToken=` (boş),
+derlenmiş DLL `--contentRoot` ile. Sürücü betiği `PUT /api/workflows/<ad>` ve
+`POST /api/workflows/<ad>/run` çağırır, sonra `GET /api/runs/{runId}` okur.
+Gerçek çıktı (2026-10-13):
+
+**Case 1 — canlı ElevenLabs** (`MT-MM-132`; iki Türkçe replik, `eleven_v4`,
+`tr`, `pcm_24000`, zaman damgası; sesler `onwK4e9ZLuTAKqWW03F9`,
+`TX3LPaxmHKxFdv7VOQHJ`):
+
+```text
+run status: Completed
+output: [dialogue by elevenlabs: attachment 01a135f0-33b7-7590-a74a-29e414c2bfb5, 226604 bytes, 14 characters (Provider), model eleven_v4, request 68CbG0CXFbZVMwAKCKYy]
+turn 0 (onwK4e9ZLuTAKqWW03F9): 0.00-3.12 s
+turn 1 (TX3LPaxmHKxFdv7VOQHJ): 3.12-4.80 s
+attachment GET: 200 audio/wav 226604 bytes, header b'RIFF' b'WAVE'
+```
+
+İki segment sıralı ve boşluksuzdur (ikinci tur birincinin bitişinde başlar);
+`characterCost` sağlayıcıdan gelir (62 karakterlik metin için `14`). 👤 Dinleme
+yapılmadı (agent oturumu).
+
+**Case 2** (`MT-MM-133`; `elevenlabs.stability: 0.3`, istekleri kaydeden yerel
+sahte ElevenLabs ucu, `Tracon__Voice__Endpoint=http://127.0.0.1:5099/`):
+
+```text
+{"method": "POST", "path": "/v1/text-to-dialogue/with-timestamps?output_format=pcm_24000", "has_key_header": true, "body": {"inputs": [{"text": "Merhaba.", "voice_id": "onwK4e9ZLuTAKqWW03F9"}, {"text": "Selam.", "voice_id": "TX3LPaxmHKxFdv7VOQHJ"}], "model_id": "eleven_v4", "language_code": "tr", "settings": {"stability": 0.3}}}
+```
+
+Aynı ayarla canlı koşum da `Completed` döndü (`3 characters (Provider)`).
+
+**Case 3** (`MT-MM-134`; `elevenlabs.bogus: "do-not-echo-me"`; canlıda ve sahte
+uçta aynı):
+
+```text
+run status: Failed
+run error: {"type": "Tracon.ProviderSettingsValidationException", "message": "ProviderSettings is invalid: these keys are not recognized: elevenlabs.bogus. Supported keys: elevenlabs.nextText, elevenlabs.previousRequestIds, elevenlabs.previousText, elevenlabs.seed, elevenlabs.similarityBoost, elevenlabs.stability.", ...}
+names the key: True | echoes the value: False
+```
+
+Sahte uçtaki istek sayısı değişmedi (1 → 1).
+
+**Case 4** (`MT-MM-135`; `"provider":"tone"`): `Failed`, `The speech synthesizer
+'tone' (provider 'tone') cannot voice a dialogue: it does not implement
+ISpeechDialogueSynthesizer.` İstek sayısı 1 → 1.
+
+**Case 5** (`MT-MM-136`; 12 replik, 2.726 karakter): `Failed`, `The dialogue has
+2726 characters; one 'elevenlabs' dialogue request takes at most 2000
+(VoiceOptions.MaxDialogueCharactersPerRequest).` İstek sayısı 1 → 1.
+
+**Case 6** (`MT-MM-137`, plana eklendi; politika `["tone"]`): `Failed`, `Tenant
+'default' is not allowed to call speech provider 'elevenlabs'. Allowed
+providers: tone.` İstek sayısı 1 → 1; `DELETE` → `204`.
+
+**Adım 0 ölçümü** (ElevenLabs OpenAPI, 2026-10-13; üç kısa canlı istek, 14
+karakter): diyalog `settings` yalnız `stability` ve `similarity` taşır
+(`ToDialogueSettingsResponseModel`, ikisi de 0–1). Servis bilinmeyen bir
+`settings` alanını hatasız kabul eder (`settings.style: 0.9` → `200`). Aynı
+`seed` (42) ile iki özdeş istek farklı ses baytı döndü; bu yüzden `similarity`
+alanının **etkisi ölçülemedi** (karşılaştırma için belirlenimci çıktı yok).
+Yanıt `character-cost` ve `request-id` başlıklarını taşır; `voice_segments`
+giriş başına bir segment döndü ve `alignment` girişlerin metnini ayırıcısız
+birleştirir. Tek ses gövdesi: `voice_settings {stability 0–1, similarity_boost
+0–1, style, use_speaker_boost, speed}`, `seed` (0–4294967295), `previous_text`,
+`next_text`, `previous_request_ids` (≤ 3). Diyalog gövdesi: `settings`, `seed`,
+`previous_text`/`future_text` (≤ 100 karakter), `previous_request_ids`. `style`
+ve `speed` aralığı belgede yok — **ölçülmedi**; sınır sağlayıcıya bırakıldı.
 
 ---
 
@@ -346,7 +411,69 @@ Case 1 ve 3'ten kapanışta gerçek çıktıyla yazılır.
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez**.
+> Aşama 1 sonunda yazıldı (2026-10-13); denetimden sonra hizalanır.
+
+1. **§ 203.1 "Kayıt" düştü — yetenek DI'a kaydedilmez (Açık Soru 7-B'nin
+   sonucu).** Ölçüldü: `GetService<ISpeechDialogueSynthesizer>()` ham örneği
+   verirdi; çağıran egress'i ve kiracı anahtarı kuralını (K-930) atlardı. Yer
+   tutucu (`MaxVoices = 0`) da gereksiz kaldı: yeteneği taşımayan motoru
+   çözümleyici adıyla reddeder (`SpeechCapabilityNotSupportedException`,
+   `TraconException`; mesaj kayıt adını ve `ProviderName`'i söyler). Test:
+   `VoiceDialogueRegistrationTests`.
+2. **`GetDialogueSynthesizerAsync` soyut üyedir, varsayılan gövdeli değil.**
+   Ölçüldü: `ISpeechProviderResolver` `CHANGELOG` `[Unreleased]`'dadır;
+   `git show v1.0.0-preview.3:src/Tracon.Abstractions/Voice/SpeechProviderContracts.cs`
+   → dosya yok; `src/` içinde tek uygulayıcı `internal SpeechProviderResolver`'dır,
+   testlerde sahte uygulayıcı yok. Ad tektir, aşırı yükleme yoktur: RS0026/RS0027
+   tetiklenmez. Varsayılan gövde yalnız istisna atabilirdi (kapı Core'da
+   `internal`); soyut üye, kendi çözümleyicisini yazan host'a kapıyı derleme
+   anında yazdırır. Varsayılan üye emsalleri (`SupportsTenantCredentials`,
+   `ListVoicesWithCredentialAsync`, `ForSynthesis`) **yayınlanmış** arayüzlere
+   eklenmişti.
+3. **Arayüze `SupportsTenantCredentials` (varsayılan `false`) ve isteğe
+   `Credential` eklendi.** Planın taslağında yoktu; 7-B'nin kiracı anahtarı kuralı
+   bunları ister (Faz 198 deseni). Kiracının anahtarı varsa ve motor destekliyorsa
+   çözümleyici `TenantCredentialSpeechDialogueSynthesizer` döner; çağıranın
+   kimliği değiştirilir.
+4. **Ret tipi `ArgumentException` değil `TraconException`.** Ölçüldü:
+   `SafeErrorText.ForPersistence` `TraconException` olmayan istisnayı run
+   kaydında `ArgumentException failed. (ref: …)` diye maskeler; diyaloğun tek
+   çağıranı iş akışı düğümüdür ve case 3 ile 5 mesajı run kaydında ister. Var olan
+   konuşma doğrulaması (ses kimliği yok, akış + zaman damgası) ve model ayar
+   doğrulaması da `TraconException`'dır. `null` istek `ArgumentNullException` kalır.
+5. **Ayar anahtarları Adım 0'a göre daraldı.** `elevenlabs.style`,
+   `useSpeakerBoost`, `speed` diyalogda kendi gerekçesiyle reddedilir ("no effect
+   on a dialogue"); `similarityBoost` diyalogda `settings.similarity`'ye,
+   `nextText` `future_text`'e eşlenir. Diyalog süreklilik metni ≤ 100 karakter;
+   `stability`/`similarityBoost` 0–1, `seed` 0–4294967295 ağdan önce denetlenir.
+6. **`SpeechAudio.ProviderRequestId` eklendi (planda yok).** Gerekçe: planın
+   `elevenlabs.previousRequestIds` anahtarı, sağlayıcının istek kimliğini
+   öğrenmenin yolu olmadan kullanılamazdı. ElevenLabs `request-id` başlığını
+   döndürür (canlı ölçüldü); tek ses ve diyalog yolu doldurur.
+7. **Sözlük okuyucuları `internal`; `Tracon.Voice`'a `InternalsVisibleTo`.**
+   Plan yalnız `Validate` aşırı yüklemesini sayıyordu. Tip kuralı (metin `"true"`,
+   `JsonValueKind` adı, değer yankısı yok) tek yerde kalır (K-483); public yüzey
+   büyümez. Gerekçe model adaptörlerininkiyle aynıdır (birinci taraf adaptör).
+8. **Segment eşlemesi uzunluğu karşılaştırmaz.** OpenAPI bir segmenti bir
+   girişin "parçası" diye tanımlar. Her segment indeks aralığı, turun ses kimliği
+   ve sıralı sonlu zamanla doğrulanır; biri tutmazsa liste `null` olur.
+9. **"Ret değeri yankılamaz" üç sağlayıcıya birlikte bağlandı (Faz 204 devri).**
+   Anthropic seçim ve düşünme bütçesi, Google güvenlik eşiği ve düşünme bütçesi
+   mesajları değeri artık yazmaz; `ModelProviderSettingsContract` metin
+   `InvalidSettingValue` için bunu doğrular (değişiklikten önce iki sözleşme
+   sınıfı kırmızıydı). Sözleşme paketi sıkılaştı: değeri yankılayan üçüncü taraf
+   sağlayıcı bu senaryoda düşer.
+10. **Kusur (kusur-giderme, faz alanı):** yerleşik istemci tek ses, akış ve
+    tanımada gelen kiracı kimliğini yok sayıp kurulum anahtarıyla çağırıyordu
+    (çözümleyici göndermez; doğrudan çağıran yanlış hesaba fatura keserdi). Artık
+    `NotSupportedException`. Önce kırmızı: mutasyonla iki test.
+    Sınıf taraması: `src/` içinde `ISpeechSynthesizer`/`ISpeechTranscriber`
+    uygulayıcıları yerleşik istemci ve testlerdir; `OpenAILiveProvider` kimliği
+    kullanır; örnek `ToneSpeechSynthesizer` kimliği yok sayar (örnek, anahtarsız
+    yerel motor; çözümleyici ona kimlik göndermez) — başka vaka yok.
+11. **Manuel case 6 eklendi** (`MT-MM-137`, kiracı egress reddi); plan 5 case
+    sayıyordu. Case 2–6 yerel sahte ElevenLabs ucuyla koşuldu: "ağ çağrısı yok"
+    iddiası ancak orada sayılabilir.
 
 ## Bu Fazda Verilen Kararlar
 
