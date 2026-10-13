@@ -163,6 +163,67 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     }
 
     [Fact]
+    public async Task Node_timeouts_and_the_run_timeout_survive_the_round_trip()
+    {
+        // Added in phase 196 (F-303, F-405): the hand-written DTO trap again. The run
+        // timeout is a definition field the DTO copies by hand; the node timeout rides
+        // on the node record. The in-memory store hands the record back as it was given,
+        // so only a SQL run can show either one vanishing.
+        var definition = new WorkflowDefinition
+        {
+            Name = "podcast",
+            Kind = WorkflowKind.Sequential,
+            RunTimeout = TimeSpan.FromMinutes(42),
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent, Timeout = TimeSpan.FromMinutes(6) },
+                new WorkflowNodeReference { Name = "render", Kind = WorkflowNodeKind.Function, Timeout = TimeSpan.FromMilliseconds(1500) },
+                new WorkflowNodeReference { Name = "mix", Kind = WorkflowNodeKind.Function },
+            ],
+        };
+
+        await Store.SaveAsync("tenant-a", definition);
+
+        var loaded = (await Store.GetAsync("tenant-a", "podcast"))!;
+
+        loaded.RunTimeout.ShouldBe(TimeSpan.FromMinutes(42));
+        loaded.Nodes[0].Timeout.ShouldBe(TimeSpan.FromMinutes(6));
+        loaded.Nodes[1].Timeout.ShouldBe(TimeSpan.FromMilliseconds(1500));
+        loaded.Nodes[2].Timeout.ShouldBeNull();
+
+        var listed = (await Store.ListAsync("tenant-a")).Single();
+
+        listed.RunTimeout.ShouldBe(TimeSpan.FromMinutes(42));
+        listed.Nodes[1].Timeout.ShouldBe(TimeSpan.FromMilliseconds(1500));
+    }
+
+    [Fact]
+    public async Task Saving_again_without_timeouts_clears_them()
+    {
+        // A save replaces the definition (K-725): a field the request leaves out is
+        // cleared, never carried over.
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "podcast",
+            Kind = WorkflowKind.Sequential,
+            RunTimeout = TimeSpan.FromMinutes(42),
+            Nodes = [new WorkflowNodeReference { Name = "render", Kind = WorkflowNodeKind.Function, Timeout = TimeSpan.FromSeconds(5) }],
+        });
+
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "podcast",
+            Kind = WorkflowKind.Sequential,
+            Nodes = [new WorkflowNodeReference { Name = "render", Kind = WorkflowNodeKind.Function }],
+        });
+
+        var loaded = (await Store.GetAsync("tenant-a", "podcast"))!;
+
+        loaded.RunTimeout.ShouldBeNull();
+        loaded.Nodes[0].Timeout.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Saving_again_without_node_settings_clears_them()
     {
         // A save replaces the definition (K-725); the store must not carry the old node's

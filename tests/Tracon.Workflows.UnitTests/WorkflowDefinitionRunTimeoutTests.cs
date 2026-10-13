@@ -157,7 +157,7 @@ public sealed class WorkflowDefinitionRunTimeoutTests
 
         // The second run's deadline is moved to its own thirty minutes before it
         // waits for the slot.
-        await Tracon.Tests.Common.WaitUntil.TrueAsync(
+        await WaitUntil.TrueAsync(
             () => clock.Pending.Contains(TimeSpan.FromMinutes(30)),
             "the waiting run's deadline to move to its definition's value");
 
