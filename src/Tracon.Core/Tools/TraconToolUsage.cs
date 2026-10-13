@@ -48,7 +48,7 @@ public static class TraconToolUsage
     {
         ArgumentNullException.ThrowIfNull(usage);
 
-        if (TraconRunContext.Current?.ToolUsage is not { } accumulator)
+        if (TraconRunContext.Current is not { ToolUsage: { } accumulator } scope)
         {
             return false;
         }
@@ -59,6 +59,12 @@ public static class TraconToolUsage
         }
 
         accumulator.Report(callId, usage);
+
+        // The run's non-token total hears about it NOW, not when the call settles: a
+        // non-streaming run reads its tool records after the last model turn, and the
+        // tree's budget must be able to refuse the next turn. The last report of a call
+        // replaces the earlier one in both places.
+        scope.NonTokenCost?.ReportToolMeasurement(callId, usage);
 
         return true;
     }

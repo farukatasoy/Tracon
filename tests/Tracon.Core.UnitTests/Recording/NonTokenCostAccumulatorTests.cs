@@ -27,7 +27,7 @@ public sealed class NonTokenCostAccumulatorTests
 
         accumulator.AddNodeItem(Item(0.25m)).ShouldBe(NonTokenAddStatus.Added);
         accumulator.AddNodeItem(Item(0.5m)).ShouldBe(NonTokenAddStatus.Added);
-        accumulator.AddToolMeasurement(Item(1m));
+        accumulator.ReportToolMeasurement("call-1", Item(1m));
 
         var total = accumulator.Seal().ShouldNotBeNull();
 
@@ -71,7 +71,7 @@ public sealed class NonTokenCostAccumulatorTests
         var accumulator = new NonTokenCostAccumulator("USD");
 
         accumulator.AddNodeItem(Item(null));
-        accumulator.AddToolMeasurement(Item(null, unit: ToolUsageUnits.Seconds));
+        accumulator.ReportToolMeasurement("call-2", Item(null, unit: ToolUsageUnits.Seconds));
 
         var total = accumulator.Seal()!;
 
@@ -129,12 +129,58 @@ public sealed class NonTokenCostAccumulatorTests
         var accumulator = new NonTokenCostAccumulator("USD", budget);
 
         accumulator.AddNodeItem(Item(2m));
-        accumulator.AddToolMeasurement(Item(0.5m));
+        accumulator.ReportToolMeasurement("call-3", Item(0.5m));
         accumulator.AddNodeItem(Item(100m, "EUR"));
         accumulator.AddNodeItem(Item(null));
 
         budget.ConsumedCost.ShouldBe(2.5m);
         budget.ConsumedTokens.ShouldBe(0);
+    }
+
+    [Fact]
+    public void A_second_report_of_the_same_tool_call_replaces_the_first_and_is_never_added_to_it()
+    {
+        // 🚨 A tool that calls its provider more than once reports the TOTAL at the end:
+        // the last report of a call stands (TraconToolUsage.Report). Counting both
+        // would bill the same speech twice.
+        var budget = new AgentRunBudget();
+        var accumulator = new NonTokenCostAccumulator("USD", budget);
+
+        accumulator.ReportToolMeasurement("call-1", Item(1m));
+        accumulator.ReportToolMeasurement("call-1", Item(1.5m));
+        accumulator.ReportToolMeasurement("call-2", Item(2m));
+
+        accumulator.Seal()!.Amount.ShouldBe(3.5m);
+
+        // The budget heard 1, then only the increase (0.5), then 2: a budget never takes an amount back.
+        budget.ConsumedCost.ShouldBe(3.5m);
+    }
+
+    [Fact]
+    public void A_revised_report_that_lowers_the_amount_lowers_the_total_but_not_the_budget()
+    {
+        var budget = new AgentRunBudget();
+        var accumulator = new NonTokenCostAccumulator("USD", budget);
+
+        accumulator.ReportToolMeasurement("call-1", Item(2m));
+        accumulator.ReportToolMeasurement("call-1", Item(0.5m));
+
+        accumulator.Seal()!.Amount.ShouldBe(0.5m);
+        budget.ConsumedCost.ShouldBe(2m);
+    }
+
+    [Fact]
+    public void A_replacement_that_loses_its_amount_is_counted_as_one_the_total_does_not_cover()
+    {
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.ReportToolMeasurement("call-1", Item(2m));
+        accumulator.ReportToolMeasurement("call-1", Item(null));
+
+        var total = accumulator.Seal()!;
+
+        total.Amount.ShouldBeNull();
+        total.UnsummedItemCount.ShouldBe(1);
     }
 
     [Fact]
@@ -147,7 +193,7 @@ public sealed class NonTokenCostAccumulatorTests
         var first = accumulator.Seal();
 
         accumulator.AddNodeItem(Item(50m)).ShouldBe(NonTokenAddStatus.Late);
-        accumulator.AddToolMeasurement(Item(50m));
+        accumulator.ReportToolMeasurement("call-4", Item(50m));
 
         accumulator.Seal().ShouldBe(first);
         budget.ConsumedCost.ShouldBe(1m);
@@ -178,7 +224,7 @@ public sealed class NonTokenCostAccumulatorTests
 
         for (var index = 0; index < NonTokenCostAccumulator.MaxNodeItems + 5; index++)
         {
-            accumulator.AddToolMeasurement(Item(0.001m));
+            accumulator.ReportToolMeasurement($"call-{index}", Item(0.001m));
         }
 
         accumulator.AddNodeItem(Item(1m)).ShouldBe(NonTokenAddStatus.Added);
@@ -191,7 +237,7 @@ public sealed class NonTokenCostAccumulatorTests
 
         for (var index = 0; index < 10; index++)
         {
-            accumulator.AddToolMeasurement(Item(NonTokenCostAccumulator.MaxAmount));
+            accumulator.ReportToolMeasurement($"call-{index}", Item(NonTokenCostAccumulator.MaxAmount));
         }
 
         var total = accumulator.Seal()!;
@@ -212,11 +258,11 @@ public sealed class NonTokenCostAccumulatorTests
             0,
             64,
             new ParallelOptions { MaxDegreeOfParallelism = 16 },
-            _ =>
+            worker =>
             {
                 for (var index = 0; index < 100; index++)
                 {
-                    accumulator.AddToolMeasurement(Item(0.01m));
+                    accumulator.ReportToolMeasurement($"call-{worker}-{index}", Item(0.01m));
                 }
             });
 
@@ -243,8 +289,8 @@ public sealed class NonTokenCostAccumulatorTests
     {
         var accumulator = new NonTokenCostAccumulator("USD");
 
-        accumulator.AddToolMeasurement(Item(-5m));
-        accumulator.AddToolMeasurement(Item(1m));
+        accumulator.ReportToolMeasurement("call-8", Item(-5m));
+        accumulator.ReportToolMeasurement("call-9", Item(1m));
 
         var total = accumulator.Seal()!;
 

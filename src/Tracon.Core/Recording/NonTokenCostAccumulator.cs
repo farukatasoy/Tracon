@@ -13,18 +13,27 @@ namespace Tracon;
 /// happens under one lock.
 /// </para>
 /// <para>
-/// <strong>The one rule of what adds.</strong> An item adds to the total when it has
-/// an amount and that amount is in the run's currency (the item's empty label is
-/// <c>Tracon:Pricing:Currency</c>). Every other item is counted
+/// <strong>A function node's report is an item; a tool's is a measurement of one call.</strong>
+/// Every <c>ReportUsageAsync</c> is a new item. A tool reports under its call identity and
+/// the LAST report of a call stands (<see cref="TraconToolUsage.Report"/>: a tool that
+/// calls its provider more than once reports the total at the end), so a second report
+/// replaces the first and the amount is never counted twice.
+/// </para>
+/// <para>
+/// <strong>The one rule of what adds.</strong> An entry adds to the total when it has
+/// an amount and that amount is in the run's currency (the entry's empty label is
+/// <c>Tracon:Pricing:Currency</c>). Every other entry is counted
 /// (<see cref="RunNonTokenCost.UnsummedItemCount"/>) and listed, never guessed at: a
 /// sum across currencies is not an amount, and a missing price is unknown, not zero.
 /// The rule is here and nowhere else.
 /// </para>
 /// <para>
-/// <strong>The budget hears about an amount the moment it adds</strong>
+/// <strong>The budget hears about an amount the moment it is reported</strong>
 /// (<see cref="AgentRunBudget.RecordUsage(long, decimal?)"/>), so a tree whose renders
 /// and speech already spent its cost ceiling stops at its next model call, the same
-/// as one that spent it on tokens.
+/// as one that spent it on tokens. This is why a tool's measurement enters here when
+/// the tool reports it, not when the call settles: a non-streaming run reads its tool
+/// records only after the last model turn.
 /// </para>
 /// </remarks>
 internal sealed class NonTokenCostAccumulator
@@ -69,12 +78,10 @@ internal sealed class NonTokenCostAccumulator
     private readonly string? _currency;
     private readonly AgentRunBudget? _budget;
 
-    private decimal _amount;
-    private bool _hasAmount;
-    private bool _estimated;
-    private int _unsummed;
-    private int _items;
-    private int _nodeItems;
+    // The counted amount of an entry: null when the entry has no amount in the run's
+    // currency. Estimated is true only for an entry that is counted.
+    private readonly List<Entry> _nodeEntries = [];
+    private readonly Dictionary<string, Entry> _toolEntries = new(StringComparer.Ordinal);
     private bool _sealed;
 
     /// <summary>Creates the accumulator of one run.</summary>
@@ -159,27 +166,30 @@ internal sealed class NonTokenCostAccumulator
                 return NonTokenAddStatus.Late;
             }
 
-            if (_nodeItems >= MaxNodeItems)
+            if (_nodeEntries.Count >= MaxNodeItems)
             {
                 return NonTokenAddStatus.Rejected;
             }
 
-            _nodeItems++;
-            Count(usage);
+            var entry = ToEntry(usage);
+            _nodeEntries.Add(entry);
+            RecordIntoBudget(entry.Amount ?? 0m);
 
             return NonTokenAddStatus.Added;
         }
     }
 
-    /// <summary>Records a measurement a tool reported for one of its calls.</summary>
+    /// <summary>Records the measurement a tool reported for one of its calls.</summary>
+    /// <param name="callId">The call identity. A second report of the same call replaces the first.</param>
     /// <param name="usage">The measurement.</param>
     /// <remarks>
-    /// An item that fails <see cref="Validate"/> cannot be added, and it is not dropped:
+    /// An entry that fails <see cref="Validate"/> cannot be added, and it is not dropped:
     /// it is counted as one the total does not cover. After <see cref="Seal"/> the
     /// measurement stays on the call's record only.
     /// </remarks>
-    public void AddToolMeasurement(ToolCallUsage usage)
+    public void ReportToolMeasurement(string callId, ToolCallUsage usage)
     {
+        ArgumentException.ThrowIfNullOrEmpty(callId);
         ArgumentNullException.ThrowIfNull(usage);
 
         lock (_gate)
@@ -189,7 +199,14 @@ internal sealed class NonTokenCostAccumulator
                 return;
             }
 
-            Count(usage);
+            var entry = ToEntry(usage);
+
+            _toolEntries.TryGetValue(callId, out var previous);
+            _toolEntries[callId] = entry;
+
+            // Only the increase reaches the budget: the earlier report of the same call
+            // was already recorded, and a budget never takes an amount back.
+            RecordIntoBudget((entry.Amount ?? 0m) - (previous.Amount ?? 0m));
         }
     }
 
@@ -207,48 +224,64 @@ internal sealed class NonTokenCostAccumulator
         {
             _sealed = true;
 
-            return _items == 0
-                ? null
-                : new RunNonTokenCost
+            if (_nodeEntries.Count + _toolEntries.Count == 0)
+            {
+                return null;
+            }
+
+            var total = 0m;
+            var hasAmount = false;
+            var estimated = false;
+            var unsummed = 0;
+
+            foreach (var entry in _nodeEntries.Concat(_toolEntries.Values))
+            {
+                // 1,000 node items of MaxAmount already pass MaxTotal, and tools are not
+                // bounded in number either. An amount the column cannot hold is counted,
+                // never truncated.
+                if (entry.Amount is not { } amount || amount > MaxTotal - total)
                 {
-                    Amount = _hasAmount ? _amount : null,
-                    Currency = _currency,
-                    IsEstimated = _estimated,
-                    UnsummedItemCount = _unsummed,
-                };
+                    unsummed++;
+
+                    continue;
+                }
+
+                total += amount;
+                hasAmount = true;
+                estimated |= entry.Estimated;
+            }
+
+            return new RunNonTokenCost
+            {
+                Amount = hasAmount ? total : null,
+                Currency = _currency,
+                IsEstimated = estimated,
+                UnsummedItemCount = unsummed,
+            };
         }
     }
 
-    private void Count(ToolCallUsage usage)
+    private Entry ToEntry(ToolCallUsage usage)
+        => usage.Cost is { } cost && Validate(usage) is null && InRunCurrency(usage.Currency)
+            ? new Entry(cost, usage.IsEstimated)
+            : default;
+
+    private void RecordIntoBudget(decimal increase)
     {
-        _items++;
-
-        if (usage.Cost is not { } cost || Validate(usage) is not null || !InRunCurrency(usage.Currency))
+        if (increase > 0m)
         {
-            _unsummed++;
-
-            return;
+            _budget?.RecordUsage(0, increase);
         }
-
-        // 1,000 node items of MaxAmount already pass MaxTotal; tools are not bounded in
-        // number either. An amount the column cannot hold is counted, never truncated.
-        if (cost > MaxTotal - _amount)
-        {
-            _unsummed++;
-
-            return;
-        }
-
-        _amount += cost;
-        _hasAmount = true;
-        _estimated |= usage.IsEstimated;
-        _budget?.RecordUsage(0, cost);
     }
 
     private bool InRunCurrency(string? label)
         => string.IsNullOrWhiteSpace(label) || string.Equals(label, _currency, StringComparison.OrdinalIgnoreCase);
 
     private sealed class Gate;
+
+    // Amount is the entry's counted amount, null when it adds nothing; Estimated is true
+    // only for an entry that adds.
+    private readonly record struct Entry(decimal? Amount, bool Estimated);
 }
 
 /// <summary>What happened to an item handed to <see cref="NonTokenCostAccumulator"/>.</summary>

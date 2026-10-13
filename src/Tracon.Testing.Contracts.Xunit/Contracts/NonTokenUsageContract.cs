@@ -128,6 +128,39 @@ public abstract class NonTokenUsageContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task The_largest_quantity_and_amount_a_run_accepts_fit_the_columns()
+    {
+        // The run refuses an item beyond these, so a store must hold them: a value its column
+        // cannot hold fails the insert, and a failed insert switches the run's recording off.
+        var runId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordNonTokenUsageAsync(new NonTokenUsageRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = runId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            Usage = new ToolCallUsage
+            {
+                Unit = new string('u', 64),
+                Quantity = 9_999_999_999m,
+                Cost = 1_000_000_000m,
+                Currency = new string('c', 16),
+                Provider = new string('p', 100),
+                Model = new string('m', 200),
+            },
+        });
+
+        var stored = (await Store.ListNonTokenUsageAsync(runId)).ShouldHaveSingleItem();
+
+        stored.Usage.Quantity.ShouldBe(9_999_999_999m);
+        stored.Usage.Cost.ShouldBe(1_000_000_000m);
+        stored.Usage.Unit.Length.ShouldBe(64);
+        stored.Usage.Model!.Length.ShouldBe(200);
+    }
+
+    [Fact]
     public async Task An_item_with_no_amount_comes_back_with_no_amount_not_zero()
     {
         var runId = TraconId.NewId();
