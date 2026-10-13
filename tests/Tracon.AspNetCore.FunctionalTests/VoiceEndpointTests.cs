@@ -250,7 +250,16 @@ public sealed class VoiceEndpointTests
             new { text = "hello", provider });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await response.Content.ReadAsStringAsync()).ShouldNotContain(provider.Length > 0 ? provider : "\"\"");
+
+        // The answer states the rule and does not repeat the rejected input.
+        var body = await response.Content.ReadAsStringAsync();
+        body.ShouldContain("1 to 64 characters");
+
+        if (provider.Length > 0)
+        {
+            body.ShouldNotContain(provider);
+        }
+
         studio.Calls.ShouldBe(0);
     }
 
