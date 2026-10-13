@@ -450,6 +450,18 @@ if (voiceEnabled)
         builder.Configuration.GetSection(VoiceConversationOptions.SectionName));
 }
 
+// A NAMED speech synthesizer, next to the default one UseVoice() binds. "tone" needs
+// no key: it beeps once per word and returns a WAV file, the way a host's own GPU
+// text-to-speech server would answer. A caller selects it by name:
+//
+//   GET  /tracon/api/voice/providers
+//   POST /tracon/api/voice/speak  {"text":"Merhaba","provider":"tone"}
+//
+// Every speech call passes the tenant's provider checks first. A tenant whose egress
+// policy does not name "tone" gets 403 and the synthesizer is not called; a local
+// engine is not exempt (PUT /tracon/api/tenants/default/egress).
+tracon.AddSpeechSynthesizer(ToneSpeechSynthesizer.Name, static _ => new ToneSpeechSynthesizer());
+
 // A local model server example (Ollama/LM Studio). Setup is the SAME call as
 // any OpenAI-compatible endpoint; the only difference is omitting ApiKey (the
 // local server does not require one) and pointing at the local address. This
@@ -880,6 +892,60 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
         ]);
     },
     static options => options.Description = "Pretends to read the text aloud: makes no sound and no model call. The voice and the loudness come from the node's settings.");
+
+// A function node that REALLY speaks, with the engine its settings name:
+//
+//   PUT /tracon/api/workflows/narrated-tone
+//   {"kind":"Sequential","nodes":[
+//     {"name":"support","kind":"Agent"},
+//     {"name":"synthesize","kind":"Function","settings":{"provider":"tone","voice":"high"}}]}
+//
+// The resolver is taken when the node is built - the service provider a node sees at
+// call time is not the host's. It checks the RUN's tenant, so a queued run is judged
+// by the tenant that queued it. A refusal fails the node and is not retried.
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SynthesizeSettings>(
+    "synthesize",
+    static provider =>
+    {
+        var speech = provider.GetRequiredService<ISpeechProviderResolver>();
+        var attachments = provider.GetRequiredService<IAttachmentStore>();
+
+        return async (messages, settings, _, cancellationToken) =>
+        {
+            var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                       ?? string.Empty;
+            var scope = TraconRunContext.Current
+                ?? throw new InvalidOperationException("The synthesize node runs only inside a Tracon run.");
+
+            var synthesizer = await speech.GetSynthesizerAsync(settings.Provider, cancellationToken);
+            var audio = await synthesizer.SynthesizeAsync(
+                new SpeechRequest { Text = text, VoiceId = settings.Voice },
+                cancellationToken);
+
+            var saved = await attachments.SaveAsync(
+                new AttachmentContent
+                {
+                    TenantId = scope.TenantId ?? "default",
+                    SessionId = scope.SessionId,
+                    RunId = scope.RunId,
+                    FileName = "speech.wav",
+                    MediaType = audio.MediaType,
+                    Data = audio.Data,
+                    CreatedBy = scope.AgentName,
+                },
+                cancellationToken);
+
+            return
+            [
+                new ChatMessage(
+                    ChatRole.User,
+                    string.Create(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        $"{text}\n\n[spoken by {synthesizer.ProviderName}: attachment {saved.Id}, {audio.Data.Length} bytes]")),
+            ];
+        };
+    },
+    static options => options.Description = "Speaks the text with the speech synthesizer the node's settings name and saves the audio as an attachment.");
 
 if (!openAiEnabled)
 {
