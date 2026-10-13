@@ -152,7 +152,7 @@ public sealed class TraconWorkflowOptions
     /// </item>
     /// </list>
     /// <para>
-    /// 🚨 <strong>The step that was running when the process stopped runs
+    /// <strong>The step that was running when the process stopped runs
     /// again.</strong> A checkpoint is written as each super-step ends, so the
     /// steps finished before it are not repeated and the step in progress is. A
     /// function step with a side effect must be idempotent, and an agent step

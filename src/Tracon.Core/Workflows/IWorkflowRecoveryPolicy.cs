@@ -14,7 +14,7 @@ namespace Tracon;
 /// cannot run a workflow cannot resume one either.
 /// </para>
 /// <para>
-/// 🚨 A handler built by an explicit factory receives this through that
+/// A handler built by an explicit factory receives this through that
 /// factory. A factory that does not pass it leaves recovery off with no error,
 /// whatever the configuration says.
 /// </para>

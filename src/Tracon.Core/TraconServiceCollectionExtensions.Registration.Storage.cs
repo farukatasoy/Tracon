@@ -459,7 +459,7 @@ public static partial class TraconServiceCollectionExtensions
     /// <remarks>
     /// Every dependency is passed by hand: the built-in container does not fill in a
     /// constructor parameter that has a default value, and a policy left out here
-    /// would turn recovery off with no error (F-321).
+    /// would turn recovery off with no error.
     /// </remarks>
     private static WorkflowRecovery CreateWorkflowRecovery(IServiceProvider provider)
         => new(

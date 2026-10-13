@@ -12,10 +12,10 @@ namespace Tracon;
 /// The HTTP layer writes it and <see cref="WorkflowRunJobHandler"/> reads it, so
 /// the field names live in one place. The worker does not see the request that
 /// queued the job: everything the run needs travels here, including the
-/// attribution of whoever queued it (<c>userId</c>, <c>labels</c>, F-364).
+/// attribution of whoever queued it (<c>userId</c>, <c>labels</c>).
 /// </para>
 /// <para>
-/// 🚨 <c>jobs.payload</c> is not a protected column (K-899): a run's message and
+/// <c>jobs.payload</c> is not a protected column: a run's message and
 /// parameter values, and a response's text and data, are stored here as plain
 /// text until the job's retention removes them.
 /// </para>

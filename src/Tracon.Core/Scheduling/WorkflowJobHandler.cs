@@ -35,7 +35,7 @@ namespace Tracon;
 /// its root run and every node and tool see them, as on a synchronous run.
 /// </para>
 /// <para>
-/// <strong>Recovery (F-321).</strong> While <c>TraconWorkflowOptions.ResumeInterruptedRuns</c>
+/// <strong>Recovery.</strong> While <c>TraconWorkflowOptions.ResumeInterruptedRuns</c>
 /// is on, the item's run id is written on the item (a pending report) BEFORE the run
 /// starts. A job leased again after its process stopped finds that item still
 /// pending with a run id, and <see cref="WorkflowRecovery"/> decides: the run
@@ -45,7 +45,7 @@ namespace Tracon;
 /// runs again from the beginning, as before.
 /// </para>
 /// <para>
-/// 🚨 When the worker stops, the run's stream ends quietly and the run closes as
+/// When the worker stops, the run's stream ends quietly and the run closes as
 /// <see cref="RunStatus.Canceled"/>. The item is then NOT reported: the job is
 /// leased again later and finds the item pending, which is what recovery needs.
 /// </para>

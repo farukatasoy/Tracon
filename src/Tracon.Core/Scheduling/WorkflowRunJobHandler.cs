@@ -9,7 +9,7 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// The run is not bound to an HTTP connection, so nobody reading the stream can
-/// stop it by going away (K-845 applies to the streamed run only). The HTTP layer
+/// stop it by going away (only a streamed run ends with its reader). The HTTP layer
 /// already checked the caller and wrote the run's <see cref="RunStatus.Queued"/>
 /// row under the id it returned with the <c>202</c>; this handler opens the run
 /// under that same id (<see cref="JobRecord.Id"/> carries it too), and the engine's
@@ -25,7 +25,7 @@ namespace Tracon;
 /// failed run leased again would look like one.
 /// </para>
 /// <para>
-/// <strong>Recovery (F-321).</strong> While <c>TraconWorkflowOptions.ResumeInterruptedRuns</c>
+/// <strong>Recovery.</strong> While <c>TraconWorkflowOptions.ResumeInterruptedRuns</c>
 /// is on, the job is given <c>1 + MaxResumeAttempts</c> attempts. Leased again after
 /// its process stopped, it finds the queued run no longer <see cref="RunStatus.Queued"/>,
 /// and <see cref="WorkflowRecovery"/> decides whether the work finished, is continued

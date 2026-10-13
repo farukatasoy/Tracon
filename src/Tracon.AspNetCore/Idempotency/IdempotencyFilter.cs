@@ -34,7 +34,7 @@ namespace Tracon;
 /// filter's InvokeAsync runs, but buffering keeps the stream rewindable.
 /// </para>
 /// <para>
-/// <strong>Streaming endpoints (F-318).</strong> A stored response must be
+/// <strong>Streaming endpoints.</strong> A stored response must be
 /// replayable, and an SSE stream is not: buffering one would hold a long
 /// workflow run in memory and replay a frozen copy of it. An endpoint that only
 /// streams unless the caller queues the work gets the instance built with
