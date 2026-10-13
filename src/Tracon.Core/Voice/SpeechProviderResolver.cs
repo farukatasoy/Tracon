@@ -16,8 +16,9 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// Nothing is cached. The policy and the binding are read on every resolution, so
-/// a policy saved now stops the next call; a store that fails fails the call
-/// before the provider is reached.
+/// a policy saved now stops the next resolution; a store that fails fails the call
+/// before the provider is reached. A caller that keeps the returned instance keeps
+/// the decision: the conversation socket resolves once per connection.
 /// </para>
 /// </remarks>
 // One gate for every speech path (F-298, the K-878 rule for text-to-speech and
