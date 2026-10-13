@@ -2095,3 +2095,73 @@ Tracon.Abstractions → symbolsFile: Tracon.Abstractions.1.0.0-preview.1.snupkg
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## Spec'ten taşınan 2026-09-24 koşum notları (Faz 204'te dizin bütçesi için taşındı)
+
+### MT-PKG-132
+
+**Gerçek sonuç (2026-09-24)**
+- Build: `warning NU1608: Detected package version outside of dependency constraint:
+  Tracon.AspNetCore 1.0.0-preview.1 requires Tracon.Core (= 1.0.0-preview.1) but version
+  Tracon.Core 1.0.0-preview.2.43 was resolved.`
+- Run: `Hosting failed to start` · `Tracon.TraconException: Tracon packages from more than
+  one release are loaded into this process.` ve ayrı satırlarda
+  `Tracon.Abstractions 1.0.0-preview.2.43` · `Tracon.AspNetCore 1.0.0-preview.1` ·
+  `Tracon.Core 1.0.0-preview.2.43`; çıkış ≠ 0.
+
+### MT-PKG-135
+
+**Gerçek sonuç (2026-09-24, `f8f85052`)**
+- Çıkış 0, 112,5 sn. `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten:
+  17 paket, kaynak api.nuget.org` · `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi
+  'Unreleased' notunda` · `artifacts/package/breaking-changes.json`. AOT ve net8.0 smoke geçti.
+- Üç komut boş; rapor dizini koşum sonunda silinir.
+
+### MT-PKG-137
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 1; dört satır: `Tracon.Anthropic: AnthropicChatClientFactory, AnthropicModelCatalog` ·
+  `Tracon.Azure: …` · `Tracon.Google: …` · `Tracon.OpenAI: OpenAIChatClientFactory, OpenAIModelCatalog`.
+  Aynı worktree'de ikinci koşumdu; doğrulama yine koştu (semaphore kanıtı kırmızı vermedi).
+
+### MT-PKG-144
+
+**Gerçek sonuç (2026-09-24)**
+- (a) Çıkış 1: `Kırıcı değişiklik var ama '1.0.0-preview.2.54' için sürüm notu yok` +
+  `'## [1.0.0-preview.3]' bölümü var ama etiketi yok: … (git push --atomic origin main v1.0.0-preview.3)`.
+- (b) Çıkış 0: `Taban: v1.0.0-preview.2` (bir önceki etiket), not `1.0.0-preview.3`.
+
+### MT-PKG-148
+
+**Gerçek sonuç (2026-09-24)**
+- (1) `200`, `persistenceProvider: PostgreSQL`, `modelProviders` listesi (`TraconDiagnosticsCollector`).
+- (2) `200`, `anthropic`/`google` `Healthy` (`ModelProviderHealthCache`).
+- (3) SSE: `run` · 140 `update` · `done`.
+- (4) Kök run `Completed` (`router`, `openai/gpt-5.4-mini`); alt run `support` `Completed`, `parentRunId` kök run (`ChildAgentInvoker`).
+
+### MT-PKG-150
+
+**Gerçek sonuç (2026-09-24, host `1.0.0-preview.2.70`)**
+- (2) `MissingMethodException: Method not found: 'Void Tracon.TraconToolRegistration..ctor(Microsoft.Extensions.AI.AIFunctionDeclaration, Boolean, System.String, Tracon.ToolEffect, System.String, System.Nullable`1<System.TimeSpan>, Boolean, System.Nullable`1<Int32>)'`.
+- (3) `registered`.
+
+### MT-PKG-151
+
+**Gerçek sonuç (2026-09-24, temiz ağaç `b0ee95f2`)**
+- `✅ Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` · `✅ 20 paket, sürüm '1.0.0-preview.2.70'` ·
+  `provider/source/generated-tool AOT host smoke passed` · `net8.0 consumer smoke passed on .NET 8.0.31` ·
+  `✅ 6 exact-version packed sample` · `çıkış=0`. İlk deneme kapı kusuru yüzünden kırmızıydı (çitli kod bloğu span eşleşmesini kaydırıyordu; düzeltildi, `docs/hafiza/yayin-ve-surumleme.md`).
+
+### MT-PKG-152
+
+**Gerçek sonuç (2026-09-24, `Tracon.OpenAI@1.0.0-preview.2` + `Tracon.Core@1.0.0-preview.2.70`)**
+- (2) `MissingMethodException: Method not found: 'Tracon.ITraconBuilder Tracon.ITraconBuilder.AddModelProvider(System.Func`2<System.IServiceProvider,Tracon.IModelProvider>)'` — `BuildServiceProvider` veya host gerekmeden, kayıt anında.
+
+### MT-PKG-153
+
+**Gerçek sonuç (2026-09-24, taze klon, `1.0.0-preview.2.80`)**
+- (2) 15 sn: `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten: 17 paket` ·
+  `--no-build` pack · `20 paket, 17 api-compat kaydı (10 rapor)`. Dizin 49 dosya.
+- (4) 70 sn, çıkış 0; log'da `dotnet pack` YOK. `Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket` ·
+  `Manifest girdiyle aynı` · `artifacts/package/release: 38 dosya` · npm dry-run · 6 sample, AOT ve net8.0 smoke.
+- (5) `diff` boş; `git status` ve `find` boş.
