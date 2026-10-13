@@ -291,6 +291,93 @@ describe('AgentEditorScreen', () => {
       });
     });
 
+    it('shows a kind spelled differently from the list as written, and keeps it on save', async () => {
+      // The server matches kinds case-insensitively. Built from the listed names
+      // alone, the select showed its FIRST option for "aijudge" — with the judge
+      // fields under it — and choosing completionMarker fired no change at all.
+      const validate = captureValidate();
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', catalog),
+        withLoop({
+          criteria: [
+            { kind: 'aijudge', marker: null, judgeCriteria: ['ok?'], judgeInstructions: null, modes: [] },
+            { kind: 'Reviewed', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] },
+          ],
+        }),
+        validate.route,
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const first = (await screen.findByTestId('loop-criterion-kind-0')) as HTMLSelectElement;
+
+      expect(first.value).toBe('aijudge');
+      expect((screen.getByTestId('loop-criterion-kind-1') as HTMLSelectElement).value).toBe('Reviewed');
+      expect(screen.getByTestId('loop-criterion-judge-criteria-0')).toBeTruthy();
+      expect(screen.getByTestId('loop-criterion-description-1').textContent).toContain('The reviewer agent approves the draft.');
+      expect(screen.queryByText('Not registered')).toBeNull();
+
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(validate.sent()).toMatchObject({
+          harness: { loop: { criteria: [{ kind: 'aijudge', judgeCriteria: ['ok?'] }, { kind: 'Reviewed' }] } },
+        });
+      });
+
+      await user.selectOptions(first, 'completionMarker');
+
+      expect(first.value).toBe('completionMarker');
+      expect(screen.getByTestId('loop-criterion-marker-0')).toBeTruthy();
+    });
+
+    it('says nothing about registration while the kind list is unavailable', async () => {
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', { title: 'Boom', status: 500 }, 500),
+        withLoop({ criteria: [{ kind: 'reviewed', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] }] }),
+      ]);
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByText(/could not be loaded/);
+
+      expect(screen.queryByText(/This host does not list this kind/)).toBeNull();
+      expect(screen.queryByText('Not registered')).toBeNull();
+    });
+
+    it('drops blank judge criteria lines once the field is left', async () => {
+      const validate = captureValidate();
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/loop-criteria', catalog),
+        withLoop({ criteria: [{ kind: 'aiJudge', marker: null, judgeCriteria: [], judgeInstructions: null, modes: [] }] }),
+        validate.route,
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const field = await screen.findByTestId('loop-criterion-judge-criteria-0');
+
+      await user.click(field);
+      fireEvent.change(field, { target: { value: 'Complete?\n\n  \nCites a source.\n' } });
+      // Validate takes the focus, and the field's blur runs first.
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(validate.sent()).toMatchObject({
+          harness: { loop: { criteria: [{ kind: 'aiJudge', judgeCriteria: ['Complete?', 'Cites a source.'] }] } },
+        });
+      });
+    });
+
     it('says the judge model is not configured on an aiJudge criterion', async () => {
       restoreFetch = installApiMock([
         ...baseOverrides(),
