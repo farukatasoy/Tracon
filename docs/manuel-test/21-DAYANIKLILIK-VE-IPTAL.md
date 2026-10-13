@@ -1,6 +1,6 @@
 # 21 — Dayanıklılık: Çalıştırma İptali, Öksüz Uzlaştırma ve Asenkron Onay Kutusu (`RES`)
 
-> **Alan kodu:** `RES` · **Faz:** 32, 54, 55 tam kapsam · 87 (devam mekanizması ve
+> **Alan kodu:** `RES` · **Faz:** 32, 54, 55 tam kapsam · 197 (workflow kurtarması) · 87 (devam mekanizması ve
 > zarif kapanış) tam kapsam · 44 yalnız `Canceled`/`Infrastructure`
 > sınıfları · 46/47 yalnız bu dosyaya özgü kesişim noktaları (bkz. Sınır tablosu) ·
 > 142 yalnız `PendingApproval.Presentation` alanı ve `IToolApprovalPresenter`.
@@ -2323,3 +2323,58 @@ tutar ve dört case'in hangisinin kırmızıya döndüğünü doğrular.
 **Otomatik karşılığı:** `TimeoutOptionValidationTests` (Core seçenekleri, `IStartupValidator` üzerinden) ·
 `WorkflowRunTimeoutValidationTests` · `McpRefreshIntervalValidationTests` · `ProviderTimeoutValidationTests` (dört sağlayıcı) ·
 yeni timeout sitesi için `TimeoutSiteTests`.
+
+---
+
+### MT-RES-095 — Kuyruklu workflow run'ı `SIGKILL` sonrası son checkpoint'ten sürer (Faz 197, F-321) · 👤
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | 197 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `TwoProcessWorkflowResumeTests` (PostgreSQL, iki süreç, `SIGKILL`) · `WorkflowRecoveryTests.A_queued_run_interrupted_in_its_second_step_is_continued_without_running_the_first_again` |
+
+Kuyruktan başlayan run çökme veya deploy sonrası baştan koşuyordu; yarım run `Running` kalıyordu.
+
+**Ön koşul** — Örnek uygulama SQLite ile (`Tracon__Sqlite__ConnectionString="Data Source=<yerel dosya>"`), `Tracon__ContentProtection__Enabled=false`, `Tracon__Workflows__ResumeInterruptedRuns=true`, `Tracon__Scheduling__LeaseDuration=00:00:15`; `episode` kayıtlı: `{"kind":"Sequential","nodes":[{"name":"word-count","kind":"Function"},{"name":"render","kind":"Function","settings":{"seconds":40}}]}`.
+
+**Adımlar**
+1. `POST $APU/api/workflows/episode/run`, `Prefer: respond-async`, gövde `{"message":"Episode nine"}`.
+2. `GET $APU/api/workflows/runs/{runId}/checkpoints` en az bir kayıt dönene kadar bekle (render sürüyor).
+3. Süreci `kill -9` ile öldür; aynı yapılandırmayla yeniden başlat.
+4. Kira dolup iş yeniden kiralanınca (~15 sn + 40 sn render) `GET $APU/api/runs/{runId}` ve `GET $APU/api/runs?continuedFromRunId={runId}` oku; devam run'ının olaylarını `GET $APU/api/runs/{devamId}/events` ile oku.
+
+**Beklenen sonuç**
+- Kök run `Failed`, `error.type: interrupted`; mesaj devam run'ının kimliğini adlandırır.
+- Tek bir devam run'ı `Completed`, `continuedFromRunId` = kök, aynı `sessionId`.
+- Devam run'ında yalnız `render` için `ExecutorInvoked` vardır; `word-count` yeniden çağrılmaz.
+- İş `Completed`, `attempt: 2`, `maxAttempts: 2`.
+
+---
+
+### MT-RES-096 — Zarif durdurma sonrası kuyruklu workflow run'ı sürer (Faz 197, F-321) · 👤
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 197 |
+| **İlgili karar** | K-845 |
+| **Devir** | ➜ CI: `WorkflowRecoveryTests.A_run_stopped_by_a_graceful_shutdown_is_continued_by_the_next_worker` |
+
+Zarif kapanış run'ı `Canceled` kapatır; kurtarma çökmeyi, deploy'u ve zarif kapanışı ayırt etmez.
+
+**Ön koşul** — MT-RES-095'in ön koşulu.
+
+**Adımlar**
+1. `POST $APU/api/workflows/episode/run`, `Prefer: respond-async`, gövde `{"message":"Episode ten","sessionId":"episode-10"}`.
+2. İlk checkpoint yazılınca süreci `kill -TERM` ile durdur; çıkmasını bekle.
+3. Aynı yapılandırmayla yeniden başlat; iş bitene kadar `GET $APU/api/jobs/{runId}` izle.
+
+**Beklenen sonuç**
+- Adım 2 sonrası kök run `Canceled`.
+- Devam run'ı `Completed`, `continuedFromRunId` = kök, `sessionId: episode-10`.
+- İş `Completed`, `attempt: 2`.
+- Karşı kontrol: `Tracon__Workflows__ResumeInterruptedRuns=false` ile aynı adımlar devam run'ı açmaz; iş kira dolunca `tracon.job.attempts-exhausted` ile düşer.

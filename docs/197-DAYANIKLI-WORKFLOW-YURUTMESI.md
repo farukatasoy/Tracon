@@ -204,6 +204,37 @@ Sınır: kira kaybında eski sahip yaşarsa iki kopya koşar (K-886).
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
 
+### Örnek uygulama koşumu — gerçek çıktı (2026-10-13, port 5197)
+
+Derlenmiş DLL doğrudan koşuldu (`--contentRoot`), `ASPNETCORE_ENVIRONMENT=Production`
+(`user-secrets` yüklenmedi, Echo sağlayıcı). Depo worktree içinde bir SQLite dosyası:
+`Tracon__Sqlite__ConnectionString="Data Source=<worktree>/artifacts/f197-sample/tracon.db"`;
+paylaşılan veritabanına yazılmadı. `Tracon__ContentProtection__Enabled=false` (SQLite
+ile `RawKeys` gerekmesin diye), `Tracon__Workflows__ResumeInterruptedRuns=true`,
+`Tracon__Scheduling__LeaseDuration=00:00:15`, `…__PollInterval=00:00:01`. Yavaş adım için
+örnek uygulamaya `render` fonksiyonu eklendi (ayar `seconds`). İki tanım kaydedildi:
+`episode-quick` (`word-count` → `render` 2 sn) ve `episode` (`word-count` → `render` 40 sn).
+
+| Kontrol | Gerçek çıktı |
+|---|---|
+| `POST /api/workflows/episode-quick/run` + `Prefer: respond-async` + `Idempotency-Key: episode-7` | `202 Accepted`, `Location: /tracon/api/runs/01a1342e-cca9-7f99-82e8-917561e9f1dd`, `Preference-Applied: respond-async`; gövde `runId` = `jobId`, `eventsLocation` `…/events` |
+| Aynı istek, aynı anahtar | `202`, aynı `runId`, `Idempotency-Replayed: true`; iş listesinde tek iş |
+| `GET /api/runs/{id}` hemen / 5 sn sonra | `Queued Workflow episode-quick session=01a1342ecca97ca4bf71ea5c2afdc562` / `Completed` aynı oturum; iş `Completed`, `attempt 1 of 2` |
+| `Idempotency-Key: episode-8`, `Prefer` yok | `400`, `title: "Idempotency-Key requires Prefer: respond-async"` |
+| `episode` kuyrukta, ilk checkpoint yazıldıktan sonra `kill -9` (pid 64093), yeniden başlatma | kök `01a1342f-064d-…` `Failed`, `error.type: interrupted`, mesaj "…Run '01a1342f-43b9-…' continues it from its latest checkpoint." |
+| `GET /api/runs?continuedFromRunId={kök}` | tek satır: `01a1342f-43b9-75f4-a868-987c3cfb9981 Completed continuedFromRunId=01a1342f-064d-… session=01a1342f064d7fd0a10fd591061bb0b6` (kökle aynı oturum); iş `Completed attempt 2 of 2` |
+| İki run'ın olayları | kök: `ExecutorInvoked word-count` · `ExecutorCompleted word-count` · `ExecutorInvoked render` · `RunFailed`; devam: yalnız `ExecutorInvoked render` · `ExecutorCompleted render` · `RunCompleted` — `word-count` yeniden çağrılmadı |
+| `episode` + `sessionId: episode-10`, checkpoint sonrası `kill -TERM` (zarif), yeniden başlatma | kök `Canceled`; iş `Completed attempt 2 of 2`; devam `01a13431-ecae-… Completed continuedFromRunId=01a13431-adbf-… session=episode-10` |
+| `summarize-and-approve` kuyrukta → `AwaitingInput`; `respond` + `Prefer`, `requestId: no-such-request` | `400`, `title: "Response invalid"` |
+| Aynı uç, `{"text":"yes"}` (port `bool` bekler) | `400` |
+| Aynı uç, `{"approved":true}` | `202`; yeni run `Completed`; yanıtlanan run `AwaitingInput` kalır |
+| Zamanlama `tracon.workflow`, öğe `{"message":"Episode eleven","sessionId":"production-11"}`, tetik | iş `Completed`; öğe `Completed`, `runId` = run; `GET /api/runs?sessionId=production-11` → run `Completed`, `workflowName: episode-quick` |
+| `PUT /api/schedules/f197-run` `handlerKey: tracon.workflow-run` | `400` |
+| `PUT /api/schedules/f197-agent` `tracon.agent-batch`, öğede `sessionId` | `200` — kayıt şekli kabul eder; öğe çalışırken düşer (`AgentBatchJobHandlerTests`). Bkz. Plandan Sapmalar 9 |
+| Üç süreç günlüğü | `fail:`/istisna satırı yok |
+
+Uygulama koşum sonunda `kill -TERM` ile kapatıldı; 5197 boş.
+
 ---
 
 ## Riskler
@@ -219,7 +250,59 @@ Sınır: kira kaybında eski sahip yaşarsa iki kopya koşar (K-886).
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+Uygulama oturumunda yazıldı (faz-uygulama Adım 1). Kapanış oturumu gözden geçirir.
+
+1. **Kanıt satırı kısmen bayattı: `WorkflowJobHandler` kullanıcıyı geçiriyordu.** Plan
+   "iş yalnız yeni run açar; oturum, kullanıcı geçmez" diyordu. Ölçüldü: F-364'ten beri
+   handler `AmbientRunAttributionScope` açıyor, kullanıcı ve etiket geçiyor. Oturum
+   geçmiyordu (doğru); 197.3 onu ekledi.
+2. **`tracon.workflow-run` işinde öğe işareti yok; işaret run satırının kendisidir.**
+   197.2 "run'dan önce öğeye `Pending` + `RunId` yazılır" diyor. Tek run'lı işin öğesi
+   yoktur (ajan eşi gibi) ve iş kimliği = run kimliği (K-305). HTTP katmanının yazdığı
+   `Queued` satır işarettir: tekrar kiralamada satır `Queued` ise iş hiç başlamamıştır,
+   değilse kurtarma zinciri okunur. Öğe işareti yalnız `tracon.workflow` batch'inde.
+3. **Zarif kapanış run'ı `Running` değil `Canceled` bırakır (K-845).** Plan "son run
+   `Running` → `Failed` kapat" diyordu. `Canceled`/`Failed` son run da kesinti sayılır
+   (çökme, deploy, zarif kapanış ayırt edilmez); kapatma yalnız `Running` satırda
+   yazılır, ötekiler aldıkları hatayı korur. Kullanıcının iptal ettiği run handler'ın
+   kendi sonucudur: iş `NonRetryable` düşer, kurtarmaya girmez
+   (`WorkflowAsyncRunCancelTests`).
+4. **`WorkflowSessionId` `Tracon.Workflows/Internal`'dan `Tracon.Abstractions`'a
+   taşındı (internal).** Kural üç pakette gerekiyordu: motor, HTTP katmanı (kuyruklu
+   run'ı `202`'den önce `400` ile reddetmek için) ve `BatchItemInput` (öğe tek başına
+   düşsün). Kopyalamak yerine taşındı; davranış değişmedi, `Problem()`/`NewId()` eklendi.
+5. **Kuyruklu `run` oturumu `202`'den önce üretir.** İstek `sessionId` taşımıyorsa
+   kimlik HTTP katmanında üretilir; `Queued` satır ve devam run'ı aynı oturumu taşır.
+6. **Kuyruklu `resume`/`respond` motorun akış içi retlerini `202`'den önce verir.**
+   Plan respond için yalnız F-341 doğrulamasını sayıyordu. Ölçüldü: `ValidateResponseAsync`
+   akış dışında çağrılabilir (zaten senkron uçta akıştan önce çağrılıyor), ama bekleyen
+   olmayan `requestId`'yi ve `AwaitingInput` olmayan run'ı `null` ile geçirir. Kuyruklu
+   yolda ikisi de `400`, bilinmeyen run `404`, checkpoint'siz kaynak `400` olur (`202`
+   koşamayacak bir iş vaat etmesin diye). OpenAPI'ye iki uçta `404` eklendi.
+7. **Bayrak kapalıyken `tracon.workflow-run` işi `AsyncRun.MaxAttempts` alır**
+   (ajan eşi; varsayılan 1). Açıkken `1 + MaxResumeAttempts` (4-A). `IWorkflowRecoveryPolicy`
+   iç seam'i (Core) iki değeri taşır; yalnız `UseWorkflows()` kaydeder.
+8. **İş sonucu run sonucunu izler.** Run kendi başına `Failed`/`Canceled` biterse iş
+   `NonRetryableJobException` (`tracon.job.workflow-run-failed`) ile hemen düşer; aksi
+   hâlde kalan deneme ikinci kiralamada kesinti sanılırdı. Kodlar `internal const`
+   (`QueuedTurn` deseni); public API büyümedi.
+9. **Ajan batch öğesindeki `sessionId` kayıtta değil çalışmada düşer.** `BatchItemInput`
+   iki handler için ortaktır ve `sessionId` artık bilinen üyedir; zamanlama kaydı şekli
+   kabul eder, `AgentBatchJobHandler` öğeyi tek başına düşürür (plan: "öğeyi düşürür").
+10. **Bellek içi iş deposu biten öğeyi eziyordu — ayrı `fix` commit'i.** SQL depoları
+    yalnız `status = 0` öğeyi değiştirir; bellek içi depo her raporu yazıyordu. İşaret
+    sözleşmesi (`A_report_for_a_finished_item_changes_nothing`) düşürdü, düzeltildi.
+11. **Sözleşme case'leri sevk edilen pakette.** Plan "`tests/Shared/Contracts/`" diyen
+    devri izliyordu; sözleşmeler `src/Tracon.Testing.Contracts.Xunit/`'tedir. Altı case
+    eklendi (yayın provası gerekir).
+12. **Örnek uygulamaya `render` fonksiyonu eklendi** (ayar `seconds`). Süreç öldürme
+    koşumu için yavaş bir adım gerekiyordu; manuel case'ler de onu kullanır.
+13. **Reconciliation ret metni güncellendi.** `RunContinuationEligibility`'nin workflow
+    ret olayı artık job kurtarmasını da adlandırır (`ResumeInterruptedRuns`). Davranış
+    aynı (1-A: reconciliation sürdürmez).
+14. **Satır kayması:** plan `Registration.Storage.cs:189-192` diyordu; fabrika 196-200'deydi
+    (kayma). Fabrika artık `CreateWorkflowRecovery` ile politikayı geçirir; geçirmeyen
+    fabrika yedi kurtarma testini düşürdü (mutasyonla ölçüldü).
 
 ## Bu Fazda Verilen Kararlar
 
