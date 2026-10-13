@@ -20,6 +20,12 @@
 2. `grep -n "K-126\|K-811\|K-820\|K-891\|K-895\|K-900\|K-901" docs/KARARLAR.md` — §200.1 ve §200.4 bunlara dayanır
 3. `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/195-*.md`
 4. `hafiza/workflows.md`, `hafiza/agent-derleme-ve-onbellek.md`, `hafiza/sql-migration.md`
+5. Faz 201 devri (editör dosyaları ortak): `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/201-*.md`
+   (arşivlenmediyse `docs/201-*.md`). 🚨 `agent-detail.tsx` `VersionCompare` artık bir Loop
+   tablosu çizer (`formatLoopCriteria`, `data-testid="loop-diff"`) — `VersionHistory` ortak
+   bileşene çıkarken karşılaştırma bölümü yerinde kalır. `full-replace-editors.test.tsx`'in
+   agent fixture'ı üç ölçütlü bir loop ve `api/loop-criteria` fixture'ı taşır; `agent-detail.test.tsx`
+   sürüm karşılaştırmasını checkbox'larla açan bir test içerir — workflow sürüm testleri bu deseni kullanabilir.
 
 ---
 
@@ -117,7 +123,8 @@ ValueTask<WorkflowDefinition> RollbackAsync(string tenantId, string name, int ve
 
 ### Arayüz payı
 
-Ölçüldü (2026-10-12): 199,8 KB gzip, bütçe 250 KB; pay kapanışta ölçülür.
+Ölçüldü (2026-10-12): 199,8 KB gzip, bütçe 250 KB; pay kapanışta ölçülür. Faz 201'den sonra
+203,7 KB (208 567 B, 2026-10-13, Faz 204 hariç) — taban birleştirilmiş `main`'de yeniden ölçülür.
 
 ---
 
