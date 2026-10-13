@@ -21,6 +21,9 @@
     "src/Tracon.Sqlite/Migrations/0043_run_input_parameters.sql": "496882caac7f9a04eaec31dcf494e891ad215d81",
     "src/Tracon.PostgreSql/Migrations/0057_job_max_duration.sql": "6e7bd451a715e2201679c7de8a7cc6d875a6322c",
     "src/Tracon.SqlServer/Migrations/0045_job_max_duration.sql": "6e7bd451a715e2201679c7de8a7cc6d875a6322c",
-    "src/Tracon.Sqlite/Migrations/0044_job_max_duration.sql": "6e7bd451a715e2201679c7de8a7cc6d875a6322c"
+    "src/Tracon.Sqlite/Migrations/0044_job_max_duration.sql": "6e7bd451a715e2201679c7de8a7cc6d875a6322c",
+    "src/Tracon.PostgreSql/Migrations/0058_non_token_cost.sql": "91a2f955fab49867b138fb8a8c8cf97209b6e618",
+    "src/Tracon.SqlServer/Migrations/0046_non_token_cost.sql": "91a2f955fab49867b138fb8a8c8cf97209b6e618",
+    "src/Tracon.Sqlite/Migrations/0045_non_token_cost.sql": "91a2f955fab49867b138fb8a8c8cf97209b6e618"
   }
 }
