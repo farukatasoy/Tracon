@@ -147,7 +147,7 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Risk:** Model adları önizleme; API anahtarı modu sınırları (F-281 deseni).
 
-**Bağımlılık:** [Faz 203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) (F-296, planlandı); Faz 198 (F-298, planlandı) olmadan iki sağlayıcı aynı süreçte seçilemez.
+**Bağımlılık:** [Faz 203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) (F-296, planlandı). Faz 198 (F-298) adlı kaydı getirdi: adaptör `AddSpeechSynthesizer("gemini", …)` ile kaydolur, kiracı kapısından `ISpeechProviderResolver` ile geçer ve kiracı anahtarını `SupportsTenantCredentials` + `SpeechRequest.Credential` ile alır.
 
 **Ekosistem (2026-10-11):** Modeller `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview`, `gemini-2.5-pro-preview-tts`; .NET örneği yok.
 
@@ -291,7 +291,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
 ### Kusur giderme
 
-2026-10-12'de üç tur kapandı: önce 🟠 kalemler (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile), sonra 🟡 kalemler (F-315, F-332…F-340, F-348, F-349, F-351, F-352; K-892…K-896), sonra tüketici turunun kusurları (F-341…F-344, F-354, F-360, F-364…F-367, F-369…F-372; K-903…K-911). F-382 bu turun kendi ölçümüdür; F-386…F-404 kapanan kusurların sınıf taramalarından gelir. 2026-10-13'te F-383, F-384, F-385 ve F-388 kapandı (K-912, K-913); sınıf taramaları ve bağımsız inceleme F-416…F-419'u açtı. Faz 201 kapanışında F-423 (kapıyı kıran test yarışı) açıldı ve kapandı. Kapanan kalemlerin kaydı [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § Kapanan kalemler'dedir.
+2026-10-12'de üç tur kapandı: önce 🟠 kalemler (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile), sonra 🟡 kalemler (F-315, F-332…F-340, F-348, F-349, F-351, F-352; K-892…K-896), sonra tüketici turunun kusurları (F-341…F-344, F-354, F-360, F-364…F-367, F-369…F-372; K-903…K-911). F-382 bu turun kendi ölçümüdür; F-386…F-404 kapanan kusurların sınıf taramalarından gelir. 2026-10-13'te F-383, F-384, F-385 ve F-388 kapandı (K-912, K-913); sınıf taramaları ve bağımsız inceleme F-416…F-419'u açtı. Faz 201 kapanışında F-423 (kapıyı kıran test yarışı) açıldı ve kapandı. Faz 198 kapanışı (konuşma kapısının sınıf taraması ve denetimi) F-441…F-446'yı açtı. Kapanan kalemlerin kaydı [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § Kapanan kalemler'dedir.
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
@@ -340,6 +340,9 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-428** · Model yargıcının bağlaması örnekleme denetiminden geçmez | Faz 204 denetimi 🟢3 (2026-10-13, kod okuması): `SamplingCapabilityCheck` yalnız agent tanımının bağlamasını ve yedeklerini okur. `ModelRunJudge` `Temperature`/`TopP`'yi `ModelRunJudgeOptions.Model`'den gönderir; `SupportsSampling = false` modele bağlı yargıç her örneklenen run'da `400` alır ve bunu ancak skor yazılmayınca gösterir. `CompactionSettings.SummarizationModel` örnekleme alanlarını göndermez, açık yalnız yargıçtadır | Yargıç seçeneklerinde başlangıç doğrulaması (`ValidateOnStart`) aynı yardımcıyı okur; fonksiyonel test |
 | 🟢 | **F-429** · İş işçisi tekrarı aynı cevabı alacak model hatasını da yeniden dener | Faz 204 denetimi 🟡2 sınıf taraması (2026-10-13, kod okuması): işçi `NonRetryableJobException` dışındaki her hatayı `MaxAttempts`'e kadar tekrarlar. Değerlendirme işinde (`EvalJobHandler`, varsayılan 3 deneme) yargıç modelinin kesilen yanıtı veya kalıcı `4xx`'i işi tekrar koşturur; her deneme bitmemiş case'in agent run'ını ve yargıcını yeniden öder. Kuyruklu run, devam ve onay devamı aynı yoldadır ama varsayılanları 1 denemedir. F-338 düğüm retry'ını ve yedek zincirini kapattı, işçiyi değil | Tek karar: işçi ya da işleyici "tekrar aynı cevabı alır" hatasını (kalıcı `4xx`, `TraconOutputTruncatedException`) son deneme sayar; `NonRetryableJobException`'ın anlamı genişler veya yeni iç sinyal. Önce kırmızı fonksiyonel test |
 | 🟢 | **F-430** · SQL Server upsert'i eşzamanlı yazımda deadlock kurbanı olabilir ve hatayı ham verir | Ölçüldü (2026-10-13, Faz 204 kapı koşumu): `RunScoreStoreContract.Concurrent_writes_with_null_and_empty_MessageId_leave_exactly_one_row` SQL Server'da tam derleme koşumunda bir kez `SqlException` 1205 (deadlock victim) ile düştü; izole beş koşumda geçti, önceki tam koşumda geçmişti. `SqlStoreContext.ExecuteUpsertAsync` işlemi (F-313) range kilidini tutar ama `SqlDialect.IsDeadlock`'u yeniden denemez; aynı yol ~20 store'dadır. Faz 204 SQL'e dokunmadı | Upsert idempotenttir: `ExecuteUpsertAsync` deadlock'u sınırlı sayıda yeniden dener (K-540'ın kuralı); kırmızı test için eşzamanlılığı artıran tekrar döngüsü |
+| 🟢 | **F-442** · Kiracı sağlayıcı reddi kararlı hata türü taşımaz; düğüm yeniden denemesi mesaja bakar | Kod okuması (2026-10-13, Faz 198): `TenantProviderRefusedException.ErrorType` CLR adıdır; `DefaultRunErrorClassifier` onu `StableIdentities`'te bulamaz ve mesaj desenine bakar. Ret mesajı kiracı kimliğini ve izinli sağlayıcı listesini taşır: `timeout`, `429`, `rate limit` ya da `HTTP 5xx` geçen bir ad reddi geçici sayar ve fonksiyon düğümü yeniden dener. Her deneme yine reddedilir, sağlayıcı çağrılmaz; yalnız boşa deneme olur. Örnek uygulamada sınıf `Unknown` ölçüldü | Kararlı `ErrorType` (ör. `tenant_provider_refused`) ve `StableIdentities`'te geçici olmayan sınıf; görsel ve canlı ses aynı tipi kullanır. Önce kiracı adında `timeout` geçen kırmızı test |
+| 🟢 | **F-443** · `GET /api/voice/voices` sağlayıcı hatasını `502`'ye çevirmez | Kod okuması (2026-10-13, Faz 198): `VoiceEndpoints.ListVoicesAsync` sağlayıcının `TraconException`'ını yakalamaz, yanıt `500` olur; `/speak` aynı hatayı `502` ile verir. Faz öncesinden beri | `/speak`'in `catch` deseni ve `.ProducesProblem(502)`; OpenAPI ve iki istemci birlikte |
+| 🟢 | **F-444** · Görsel reddi görsel sağlayıcısını "model provider" diye adlandırır | Kod okuması (2026-10-13, Faz 198): `ImageGeneratorResolver` `TenantProviderAccess.DescribeDenial`'ın model aşırı yüklemesini çağırır. Faz 198 konuşma için türe göre ad ekledi (`TenantProviderCallKind`) | `TenantProviderCallKind.Image`; `ImageTenantPolicyTests` yeni metni ölçer |
 
 ### Faz planlama
 
@@ -364,14 +367,17 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-417** · Görsel sağlayıcısı kiracının kendi anahtarını kullanabilsin | K-912 (2026-10-13): kiracının görsel sağlayıcısı için bağlaması varsa üretim reddedilir, çünkü sağlayıcı paketleri üreticiyi kurulum anahtarıyla kurar. Canlı ses `SupportsTenantCredentials` ile aynı işi çözdü (K-878) | Faz 198'in konuşma modeliyle birlikte: anahtarlı üretici fabrikası, OpenAI/Azure/Google görsel kaydı |
 | 🟢 | F-420 · Önbellek yazma token'ı ve fiyatı | Faz 204'ten ayrıldı (2026-10-13); önce ölçüm | Gövde: § *F-420* |
 | 🟢 | **F-427** · Canlı run akışı düz metin kesilmesini söylemez | Ölçüldü (2026-10-13, Faz 204, `OutputTruncationStreamingTests`): `update` çerçeveleri `finishReason` taşımaz; `tracon.output.truncated` yalnız run olaylarında (`GET /api/runs/{id}/events`) görünür. Akışlı istemci yarım yanıtı tam sanar | Karar: kota bildirimi deseniyle `done`'dan önce `custom` çerçevesi ya da son `update`'te bitiş sebebi (public SSE sözleşmesi). Faz 204 devri: olay `FinishReasonDetectingChatClient.RecordTruncatedTextAsync`'te yazılır; kırmızı test `OutputTruncationStreamingTests`'e girer |
+| 🟢 | **F-445** · Konuşma soketi ses sağlayıcısını tur başına yeniden denetlesin | Faz 198 denetimi 🟢1 (2026-10-13, kod okuması): soket STT ve TTS'i bağlantı açılırken bir kez çözer (`VoiceConversationDriver.ResolveProvidersAsync`); açık bağlantı sonradan kaydedilen egress politikasını kapanana kadar görmez. Model tarafı her turda yeniden okur (F-310 emsali). Site ve XML bugün bu sınırı yazar | Karar: tur ortasında ret davranışı (hata çerçevesi, bağlantıyı kapatma) — protokol sözleşmesi; sonra tur başına çözümleme ve fonksiyonel test |
 
 ### Doğrudan
 
 | Aciliyet | Kalem | İş |
 |---|---|---|
 | 🟡 | **F-282** · `troubleshooting` sayfası ağırlık tavanında; yeni semptom girdisi eklenemiyor | Ölçüldü (2026-09-24, Faz 185): sayfa 58 994 B gzip, tavan 59 000 B (`docs-site/scripts/check-weight.mjs`) — 6 B boşluk. Faz 185'in iki kısa girdisi (NU1107/NU1608 ve "Tracon packages from more than one release") 59 850 B, tek başlığa indirilmiş hâli 59 335 B ölçüldü; ikisi de geri alındı, içerik `reference/versioning.md`'de. Kapının kendi yorumu "bir sonraki yükseltme yerine sayfayı böl" der. İş: sayfayı böl (ör. `## Build diagnostics and the agent map` bölümü ayrı sayfaya; semptom dizini, `sidebar.mjs`, TRC tanı kapısı birlikte), sonra Faz 185'in girdisini ekle. Tavanı yükseltmek ölçümle bile kapının kendi kuralına aykırıdır |
+| 🟡 | **F-441** · Manuel kabul spesifikasyon ağacının bütçesi doldu | Ölçüldü (2026-10-13, Faz 198): `docs/manuel-test/*.md` 2 555 792 / 2 556 000 B (208 B boş); sonraki faz tek case ekleyemez. İş: Faz 201'in yaptığı gibi spesifikasyon dosyalarındaki tarihli koşum notlarını (`Gerçek sonuç`, `Koşuldu`) `docs/arsiv/manuel-test-kosum-2026-09/`'daki eşlerine taşı; içerik silinmez |
 | 🟢 | **F-267** · CI tam koşumu hâlâ tek test projesiyle koşuyor | Yerel kapı `-maxcpucount:2`'dedir ([Faz 184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md); aynı makinede 1 işçi 863/879 sn, 2 işçi 607/658/524 sn). `ci.yml` bilerek 1'de: runner donanımı ve Windows ayağı ölçülmedi. İş: bir CI dalında `-maxcpucount:2` ile en az üç koşum. Yeşil ve süre kazancı ölçülürse `ci.yml` güncellenir; kırmızı çıkarsa gerekçe hafızaya yazılır. Dala push gerektirir — kullanıcı onayı |
 | 🟢 | **F-288** · `ReleaseArtifactFixture` yerel `1.0.0-preview.1`'i paketler; geliştirici cache'ine girerse nuget.org'daki aynı kimliği gölgeler | Faz 187 planı ölçtü (2026-09-23): `~/.nuget/packages/tracon.core/1.0.0-preview.1/.nupkg.metadata` kaynağı yerel `artifacts/package/release`'ti. 2026-09-24'te o dizin yoktu (cache temizlenmiş). Yayın provası artık izole cache kullanır, etkilenmez (K-864); risk geliştiricinin kendi tüketici denemeleridir | Fixture'ın sabit sürümünü yayınlanmış hiçbir sürümle çakışmayan bir `0.0.0-...` damgasına çevir ya da restore'u izole cache'e al; `MixedVersionGraphTests` ile birlikte ölç |
+| 🟢 | **F-446** · `README.md`'deki public tip sayısı bayat ve kapısız | Ölçüldü (2026-10-13, Faz 198): `README.md:347` "654 public types" der; `public-surface-baseline.txt` toplamı tabanda 668, bugün 671. İşlem sayısının aksine bu sayıyı hiçbir kapı denetlemez. İş: sayıyı DocFX'in ürettiği toplamdan al ve `check-content.mjs`'in işlem sayısı kapısı gibi denetle |
 
 ### Tetik bekleyenler
 
@@ -526,7 +532,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-431**.
+numara: **F-447**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
