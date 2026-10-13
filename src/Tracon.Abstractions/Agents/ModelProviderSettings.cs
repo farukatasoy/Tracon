@@ -217,6 +217,10 @@ public static class ModelProviderSettings
     private static bool IsPresent(JsonElement value)
         => value.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null);
 
-    private static TraconException TypeMismatch(string key, string expected, JsonElement value)
+    // ProviderSettingsValidationException, not the public base: the registry
+    // masks any other exception a provider throws while it builds a client, and
+    // the operator lost the key ("The model provider request failed.") for a
+    // value of the wrong JSON type (measured through ModelProviderRegistry).
+    private static ProviderSettingsValidationException TypeMismatch(string key, string expected, JsonElement value)
         => new($"The '{key}' provider setting expects {expected}; the value given is {value.ValueKind}.");
 }
