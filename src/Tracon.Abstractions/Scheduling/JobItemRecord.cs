@@ -19,6 +19,14 @@ public sealed record JobItemRecord
     /// The identifier of the run record created while processing this item.
     /// <see langword="null"/> if the item has not been processed yet.
     /// </summary>
+    /// <remarks>
+    /// A <see cref="JobItemStatus.Pending"/> item can carry a value too. A handler
+    /// that can resume interrupted work writes the run identifier on the item
+    /// BEFORE the run starts (a report with <see cref="JobItemStatus.Pending"/>),
+    /// so a job leased again finds the run the item was processing. The built-in
+    /// workflow handler does this when <c>TraconWorkflowOptions.ResumeInterruptedRuns</c>
+    /// is on. When the item finishes, the value names the run that finished it.
+    /// </remarks>
     public Guid? RunId { get; init; }
 
     /// <summary>The item's processing status.</summary>

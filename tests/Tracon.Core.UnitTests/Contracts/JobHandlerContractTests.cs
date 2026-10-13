@@ -27,7 +27,7 @@ public sealed class WorkflowJobHandlerContractTests : JobHandlerContract
 {
     protected override ValueTask<IJobHandler> CreateHandlerAsync()
         => ValueTask.FromResult<IJobHandler>(
-            new WorkflowJobHandler(new AlwaysSucceedsWorkflowRunner(), NullLogger<WorkflowJobHandler>.Instance));
+            new WorkflowJobHandler(new AlwaysSucceedsWorkflowRunner(), TestWorkflowRecovery.Off(), NullLogger<WorkflowJobHandler>.Instance));
 
     protected override JobItemRecord CreateItem(int sequence, JobItemStatus status)
         => new() { Id = Guid.NewGuid(), JobId = JobId, Seq = sequence, Input = $"input-{sequence}", Status = status };

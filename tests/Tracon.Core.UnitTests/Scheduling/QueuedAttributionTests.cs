@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Scheduling;
 
@@ -84,7 +85,7 @@ public sealed class QueuedAttributionTests
     public async Task A_workflow_runs_under_the_payloads_attribution_on_every_step_of_its_stream()
     {
         var runner = new AmbientCapturingRunner();
-        var handler = new WorkflowJobHandler(runner, NullLogger<WorkflowJobHandler>.Instance);
+        var handler = new WorkflowJobHandler(runner, TestWorkflowRecovery.Off(), NullLogger<WorkflowJobHandler>.Instance);
         var reported = new List<JobItemResult>();
 
         await handler.ExecuteAsync(Context(
@@ -100,7 +101,7 @@ public sealed class QueuedAttributionTests
     public async Task An_unusable_attribution_is_dropped_and_the_item_still_runs()
     {
         var runner = new AmbientCapturingRunner();
-        var handler = new WorkflowJobHandler(runner, NullLogger<WorkflowJobHandler>.Instance);
+        var handler = new WorkflowJobHandler(runner, TestWorkflowRecovery.Off(), NullLogger<WorkflowJobHandler>.Instance);
         var reported = new List<JobItemResult>();
 
         // Written straight to a store: the boundaries refuse this, the worker must not fail on it.
@@ -114,7 +115,7 @@ public sealed class QueuedAttributionTests
     public async Task A_payload_without_an_attribution_opens_no_scope()
     {
         var runner = new AmbientCapturingRunner();
-        var handler = new WorkflowJobHandler(runner, NullLogger<WorkflowJobHandler>.Instance);
+        var handler = new WorkflowJobHandler(runner, TestWorkflowRecovery.Off(), NullLogger<WorkflowJobHandler>.Instance);
 
         await handler.ExecuteAsync(Context(Json("""["input"]"""), []));
 

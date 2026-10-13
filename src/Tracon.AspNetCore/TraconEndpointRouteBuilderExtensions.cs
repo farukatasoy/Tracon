@@ -129,6 +129,12 @@ public static class TraconEndpointRouteBuilderExtensions
         var idempotencyFilter = new IdempotencyFilter(
             services.GetRequiredService<IOptionsMonitor<TraconIdempotencyOptions>>());
 
+        // F-318: the workflow run endpoints stream unless the caller queues the
+        // run, so their key is accepted only with 'Prefer: respond-async'.
+        var queuedOnlyIdempotencyFilter = new IdempotencyFilter(
+            services.GetRequiredService<IOptionsMonitor<TraconIdempotencyOptions>>(),
+            requireRespondAsync: true);
+
         // Protected group: loopback + bearer token filter, optional policy.
         var group = endpoints.MapGroup(normalizedPrefix).WithTags("Tracon");
 
@@ -159,7 +165,7 @@ public static class TraconEndpointRouteBuilderExtensions
         SkillScriptGrantEndpoints.Map(group, roles);
         SessionEndpoints.Map(group, roles);
         RunEndpoints.Map(group, options, roles, normalizedPrefix);
-        WorkflowEndpoints.Map(group, roles);
+        WorkflowEndpoints.Map(group, roles, normalizedPrefix, queuedOnlyIdempotencyFilter);
         SchedulingEndpoints.Map(group, roles);
         EvalEndpoints.Map(group, roles);
         ExperimentEndpoints.Map(group, roles);

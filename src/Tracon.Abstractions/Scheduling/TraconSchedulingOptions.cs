@@ -93,7 +93,8 @@ public sealed class TraconSchedulingOptions
 
     /// <summary>
     /// The handler keys <c>PUT /api/schedules/{name}</c> accepts. Empty — the
-    /// default — means the built-in keys only (<see cref="JobHandlerKeys.BuiltIn"/>).
+    /// default — means the built-in keys only (<see cref="JobHandlerKeys.BuiltIn"/>),
+    /// except <see cref="JobHandlerKeys.WorkflowRun"/>, which no list can allow.
     /// </summary>
     /// <remarks>
     /// <para>

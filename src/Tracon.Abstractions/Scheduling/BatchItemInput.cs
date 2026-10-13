@@ -11,8 +11,18 @@ namespace Tracon;
 /// <para>
 /// <strong>The shape.</strong> An item whose text is a JSON object with a
 /// <em>string</em> member named <c>message</c> is structured:
-/// <c>{"message": "...", "parameters": {"tone": "formal"}, "documents": [{"name": "...", "content": "..."}]}</c>.
+/// <c>{"message": "...", "parameters": {"tone": "formal"}, "documents": [{"name": "...", "content": "..."}], "sessionId": "..."}</c>.
 /// Every other item is plain text, exactly as before.
+/// </para>
+/// <para>
+/// <strong><c>sessionId</c> is for a workflow item only.</strong> It names the
+/// execution session the item's workflow run uses, so the host can correlate the
+/// run with its own record (a production id): the run, its
+/// <c>run.completed</c> webhook and a run that resumes it carry the same id. It
+/// is a correlation, not a de-duplication: two items with the same id are two
+/// runs. The id follows the session id rule (at most 128 letters, digits,
+/// <c>-</c> or <c>_</c>); an item that breaks it fails on its own. An agent batch
+/// item that names one fails too, because an agent batch runs without a session.
 /// </para>
 /// <para>
 /// <strong>The ambiguity is real and documented.</strong> A job item is stored
@@ -39,7 +49,7 @@ namespace Tracon;
 /// </remarks>
 internal sealed record BatchItemInput
 {
-    private static readonly string[] KnownMembers = ["message", "parameters", "documents"];
+    private static readonly string[] KnownMembers = ["message", "parameters", "documents", "sessionId"];
 
     /// <summary>Gets the text to send as the user message.</summary>
     public required string Message { get; init; }
@@ -49,6 +59,12 @@ internal sealed record BatchItemInput
 
     /// <summary>Gets the reference documents, in order. Empty when the item named none.</summary>
     public IReadOnlyList<AgentRunDocument> Documents { get; init; } = [];
+
+    /// <summary>
+    /// Gets the execution session the item names. <see langword="null"/> when the
+    /// item named none.
+    /// </summary>
+    public string? SessionId { get; init; }
 
     /// <summary>Gets whether the item had the structured shape.</summary>
     public bool IsStructured { get; init; }
@@ -127,7 +143,7 @@ internal sealed record BatchItemInput
             {
                 if (!KnownMembers.Contains(member.Name, StringComparer.Ordinal))
                 {
-                    return Malformed($"it has an unknown member '{member.Name}' (expected message, parameters, documents)");
+                    return Malformed($"it has an unknown member '{member.Name}' (expected message, parameters, documents, sessionId)");
                 }
             }
 
@@ -180,11 +196,32 @@ internal sealed record BatchItemInput
                 }
             }
 
+            string? sessionId = null;
+
+            if (root.TryGetProperty("sessionId", out var sessionElement) && sessionElement.ValueKind != JsonValueKind.Null)
+            {
+                if (sessionElement.ValueKind != JsonValueKind.String || sessionElement.GetString() is not { Length: > 0 } text)
+                {
+                    return Malformed("'sessionId' must be a non-empty string");
+                }
+
+                // The reason names the rule, never the value: the item text is
+                // written to the job's error, and an over-long id is still text
+                // the sender chose.
+                if (WorkflowSessionId.Problem(text) is { } sessionProblem)
+                {
+                    return Malformed($"'sessionId' is not valid. {sessionProblem}");
+                }
+
+                sessionId = text;
+            }
+
             return new BatchItemInput
             {
                 Message = message.GetString()!,
                 Parameters = parameters,
                 Documents = documents,
+                SessionId = sessionId,
                 IsStructured = true,
             };
         }

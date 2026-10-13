@@ -22,6 +22,8 @@ namespace Tracon;
 /// one invalid item fails ALONE and the rest of the batch runs. A batch in which no item
 /// carries a value keeps the earlier rule: an agent whose required parameter has no
 /// default fails the job once, up front, instead of once per item with the same error.
+/// An item that names a <c>sessionId</c> fails alone: that member is for a workflow
+/// batch item, and an agent batch runs without a session.
 /// </para>
 /// <para>
 /// The job's payload may carry the attribution of whoever queued it, in the
@@ -104,6 +106,16 @@ internal sealed class AgentBatchJobHandler(
                     // A malformed structured item fails alone, with its reason;
                     // it is never run as plain text with its JSON as the message.
                     throw new TraconException(problem);
+                }
+
+                // F-318: 'sessionId' names a workflow run's execution session. An
+                // agent batch runs every item without a session, so an item that
+                // names one fails rather than running with the id ignored.
+                if (input.SessionId is not null)
+                {
+                    throw new TraconException(
+                        "The batch item is malformed: 'sessionId' is for a workflow batch item; an agent batch runs " +
+                        "every item without a session.");
                 }
 
                 // F-310: resolved again for every item. A batch can run for hours, and an

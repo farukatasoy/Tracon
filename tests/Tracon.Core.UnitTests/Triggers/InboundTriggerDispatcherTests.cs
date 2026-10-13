@@ -336,7 +336,7 @@ public sealed class InboundTriggerDispatcherTests
         var runner = new RecordingWorkflowRunner();
         var reported = new List<JobItemResult>();
 
-        await new WorkflowJobHandler(runner).ExecuteAsync(
+        await new WorkflowJobHandler(runner, TestWorkflowRecovery.Off()).ExecuteAsync(
             new JobContext
             {
                 Job = job,

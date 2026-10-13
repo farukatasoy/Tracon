@@ -56,6 +56,7 @@ internal static class RunEndpoints
                 [FromQuery] bool? includeChildren,
                 [FromQuery] Guid? parentRunId,
                 [FromQuery] Guid? rootRunId,
+                [FromQuery] Guid? continuedFromRunId,
                 [FromQuery] int? skip,
                 [FromQuery] int? take,
                 HttpContext httpContext,
@@ -102,6 +103,7 @@ internal static class RunEndpoints
                         OnlyRootRuns = includeChildren is not true,
                         ParentRunId = parentRunId,
                         RootRunId = rootRunId,
+                        ContinuedFromRunId = continuedFromRunId,
                         Skip = Math.Max(skip ?? 0, 0),
                         Take = Math.Clamp(take ?? 50, 1, 200),
                     },
@@ -120,7 +122,10 @@ internal static class RunEndpoints
                 "the direct children of a run. 'userId' narrows the list to one user's runs, and " +
                 "'label' takes a 'key:value' pair ('label=team:payments'); a bare 'label=team' " +
                 "matches any value of that key. Both dimensions are recorded from the server-side " +
-                "IRunAttributionContext, never from the run request body. If a registered " +
+                "IRunAttributionContext, never from the run request body. 'continuedFromRunId' returns " +
+                "the runs that continue a given run after an interruption (each continuation names the " +
+                "run it continues in 'continuedFromRunId'); ask again with the newest one to walk the " +
+                "chain forward. If a registered " +
                 "IRunAuthorizationHandler denies the caller, the response is 403 — the list is " +
                 "REJECTED, never silently filtered.")
             .ProducesProblem(StatusCodes.Status403Forbidden);
