@@ -1243,6 +1243,25 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task The_largest_total_a_run_writes_fits_the_snapshot_column()
+    {
+        // The run never writes a total beyond 9,999,999,999: the snapshot column holds exactly that.
+        var runId = TraconId.NewId();
+
+        await Store.StartRunAsync(TestData.Run(runId));
+        await CompleteWithNonTokenCostAsync(
+            runId,
+            new RunNonTokenCost { Amount = 9_999_999_999.5m, Currency = new string('c', 16), UnsummedItemCount = int.MaxValue });
+
+        var record = await Store.GetRunAsync(runId);
+
+        record.ShouldNotBeNull();
+        record.NonTokenCost.ShouldNotBeNull();
+        record.NonTokenCost.Amount.ShouldBe(9_999_999_999.5m);
+        record.NonTokenCost.UnsummedItemCount.ShouldBe(int.MaxValue);
+    }
+
+    [Fact]
     public async Task Items_that_carried_no_amount_keep_their_count_and_a_null_amount()
     {
         var runId = TraconId.NewId();

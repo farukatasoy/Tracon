@@ -995,3 +995,5 @@ override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.CountAsync(strin
 override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
 override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.SeedAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<object!>
 override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.CancellableReadAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.NonTokenUsageContract.The_largest_quantity_and_amount_a_run_accepts_fit_the_columns() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.The_largest_total_a_run_writes_fits_the_snapshot_column() -> System.Threading.Tasks.Task!

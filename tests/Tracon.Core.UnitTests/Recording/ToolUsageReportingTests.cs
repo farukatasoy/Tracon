@@ -84,6 +84,28 @@ public sealed class ToolUsageReportingTests
     }
 
     [Fact]
+    public void A_call_that_reported_and_never_settled_keeps_its_measurement_on_the_closed_record()
+    {
+        // The run ended (cancelled, say) after the tool reported and before its result
+        // arrived. The speech was synthesized and billed: the unfinished record shows it.
+        var accumulator = new ToolUsageAccumulator();
+        var tracker = new ToolInvocationTracker(
+            TraconId.NewId(),
+            measureDuration: false,
+            TimeProvider.System,
+            accumulator);
+
+        tracker.OnCall(new FunctionCallContent("call-voice", "speak", arguments: null), source: null, arguments: null);
+        accumulator.Report("call-voice", new ToolCallUsage { Unit = ToolUsageUnits.Characters, Quantity = 42m, Cost = 0.01m });
+
+        var unfinished = tracker.DrainUnfinished("The run ended before the tool result arrived.").ShouldHaveSingleItem();
+
+        unfinished.Usage.ShouldNotBeNull();
+        unfinished.Usage.Quantity.ShouldBe(42m);
+        unfinished.Usage.Cost.ShouldBe(0.01m);
+    }
+
+    [Fact]
     public void Reporting_outside_a_run_fails_silently()
     {
         // Observability functionality does NOT break the tool: if reporting is

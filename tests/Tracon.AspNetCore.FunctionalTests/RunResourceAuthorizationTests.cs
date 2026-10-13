@@ -63,6 +63,7 @@ public sealed class RunResourceAuthorizationTests
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/input", HttpStatusCode.OK);
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/trace", HttpStatusCode.OK);
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/tools", HttpStatusCode.OK);
+        await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/usage", HttpStatusCode.OK);
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/feedback", HttpStatusCode.OK);
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/compare/{runId}", HttpStatusCode.OK);
         await AssertStatusAsync(host, HttpMethod.Get, "/tracon/api/attachments", HttpStatusCode.OK);
@@ -194,6 +195,17 @@ public sealed class RunResourceAuthorizationTests
         handler.OnRun = Deny(RunAccess.Read);
 
         await AssertLooksMissingAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/tools", runId);
+    }
+
+    [Fact]
+    public async Task Denied_run_non_token_usage_returns_404()
+    {
+        var (host, handler, runId) = await StartWithRunAsync();
+        await using var _ = host;
+
+        handler.OnRun = Deny(RunAccess.Read);
+
+        await AssertLooksMissingAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/usage", runId);
     }
 
     [Fact]
@@ -703,6 +715,7 @@ public sealed class RunResourceAuthorizationTests
 
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}", HttpStatusCode.NotFound);
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/tools", HttpStatusCode.NotFound);
+        await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}/usage", HttpStatusCode.NotFound);
         await AssertStatusAsync(host, HttpMethod.Get, "/tracon/api/runs", HttpStatusCode.Forbidden);
         await AssertStatusAsync(host, HttpMethod.Get, $"/tracon/api/attachments/{attachmentId}", HttpStatusCode.NotFound);
         await AssertStatusAsync(host, HttpMethod.Get, "/tracon/api/approvals/pending", HttpStatusCode.Forbidden);
