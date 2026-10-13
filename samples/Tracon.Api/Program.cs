@@ -884,23 +884,41 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 // and again when a run starts. A change takes effect on the NEXT run. 🚨 Settings
 // are stored in the definition and shown to every reader of the workflow: never put a
 // secret in them. Name its configuration key instead (see SpeakSettings).
+//
+// 💰 A node reports what it spent beyond tokens (phase 199): characters spoken, GPU
+// seconds, minutes of audio. Tracon does not price it: the node knows its provider's
+// rate and reports the AMOUNT. It joins the run's non-token total, which the budget,
+// the tenant's quota and the run.completed webhook count beside the token cost:
+//
+//   GET /tracon/api/runs/{runId}/usage      the items each node reported
+//   GET /tracon/api/runs/{runId}            "nonTokenCost" / "treeNonTokenCost"
+//
+// `speak` makes no sound, so it bills what the local "tone" engine would charge for the
+// same text (Tracon:Pricing:Voice:tone:tone-1) and says the quantity is an estimate.
 tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
     "speak",
-    static _ => (messages, settings, _, _) =>
+    static provider =>
     {
-        var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
-                   ?? string.Empty;
+        var rates = TonePricing.From(provider);
 
-        return new ValueTask<List<ChatMessage>>(
-        [
-            new ChatMessage(
-                ChatRole.User,
-                string.Create(
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    $"{text}\n\n[spoken by {settings.Voice} at {settings.LoudnessLufs} LUFS]")),
-        ]);
+        return async (messages, settings, context, cancellationToken) =>
+        {
+            var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                       ?? string.Empty;
+
+            await context.ReportUsageAsync(rates.Characters(text.Length, isEstimated: true));
+
+            return
+            [
+                new ChatMessage(
+                    ChatRole.User,
+                    string.Create(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        $"{text}\n\n[spoken by {settings.Voice} at {settings.LoudnessLufs} LUFS]")),
+            ];
+        };
     },
-    static options => options.Description = "Pretends to read the text aloud: makes no sound and no model call. The voice and the loudness come from the node's settings.");
+    static options => options.Description = "Pretends to read the text aloud: makes no sound and no model call, and reports the characters as an estimated, priced item. The voice and the loudness come from the node's settings.");
 
 // A SLOW step, for queued runs and their recovery (phase 197). It stands in for a
 // render that takes minutes, so a run can be stopped halfway through it:
@@ -919,16 +937,25 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
 // token, so a graceful stop ends it at once.
 tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, RenderSettings>(
     "render",
-    static _ => async (messages, settings, _, cancellationToken) =>
+    static _ => async (messages, settings, context, cancellationToken) =>
     {
         await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(settings.Seconds, 0, 3600)), cancellationToken).ConfigureAwait(false);
+
+        // The seconds the render held a GPU. No amount: this host has no rate for it, so
+        // the item is listed as "unpriced" and left out of every total - unknown, not free.
+        await context.ReportUsageAsync(new ToolCallUsage
+        {
+            Unit = "gpu-seconds",
+            Quantity = Math.Clamp(settings.Seconds, 0, 3600),
+            Provider = "local-gpu",
+        });
 
         var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
                    ?? string.Empty;
 
         return [new ChatMessage(ChatRole.User, $"{text}\n\n[rendered in {settings.Seconds} s]")];
     },
-    static options => options.Description = "Pretends to render the text: waits the node's 'seconds' setting and makes no model call.");
+    static options => options.Description = "Pretends to render the text: waits the node's 'seconds' setting, makes no model call and reports the seconds as an unpriced GPU item.");
 
 // Two functions with a TIMEOUT of their own (phase 196). `slow` waits ten seconds and
 // passes its token on, so its two-second timeout cancels it: the run ends Failed with
@@ -988,8 +1015,9 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SynthesizeSetti
     {
         var speech = provider.GetRequiredService<ISpeechProviderResolver>();
         var attachments = provider.GetRequiredService<IAttachmentStore>();
+        var rates = TonePricing.From(provider);
 
-        return async (messages, settings, _, cancellationToken) =>
+        return async (messages, settings, context, cancellationToken) =>
         {
             var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
                        ?? string.Empty;
@@ -1000,6 +1028,14 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SynthesizeSetti
             var audio = await synthesizer.SynthesizeAsync(
                 new SpeechRequest { Text = text, VoiceId = settings.Voice },
                 cancellationToken);
+
+            // The synthesis is billed whether or not the attachment below is saved, so it
+            // is reported first. The engine's own count wins over the text's length.
+            await context.ReportUsageAsync(rates.Characters(
+                audio.CharactersBilled ?? text.Length,
+                isEstimated: audio.UsageSource != SpeechUsageSource.Provider,
+                provider: synthesizer.ProviderName,
+                model: audio.ModelId));
 
             var saved = await attachments.SaveAsync(
                 new AttachmentContent
@@ -1052,8 +1088,9 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, DialogueSetting
     {
         var speech = provider.GetRequiredService<ISpeechProviderResolver>();
         var attachments = provider.GetRequiredService<IAttachmentStore>();
+        var rates = TonePricing.From(provider);
 
-        return async (messages, settings, _, cancellationToken) =>
+        return async (messages, settings, context, cancellationToken) =>
         {
             var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
                        ?? string.Empty;
@@ -1082,6 +1119,16 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, DialogueSetting
                     ProviderSettings = settings.ProviderSettings ?? (IReadOnlyDictionary<string, System.Text.Json.JsonElement>)System.Collections.ObjectModel.ReadOnlyDictionary<string, System.Text.Json.JsonElement>.Empty,
                 },
                 cancellationToken);
+
+            // The dialogue is ONE synthesis: its result reports like a single voice's. When
+            // the settings name no model and the engine reports none, the price is looked up
+            // without a model - a price keyed by a model is then not found and the item is
+            // listed as unpriced, not priced at some other model's rate.
+            await context.ReportUsageAsync(rates.Characters(
+                result.Audio.CharactersBilled ?? text.Length,
+                isEstimated: result.Audio.UsageSource != SpeechUsageSource.Provider,
+                provider: dialogue.ProviderName,
+                model: result.Audio.ModelId ?? settings.ModelId));
 
             var wav = PcmWave.Wrap(settings.OutputFormat, result.Audio.Data.Span);
             var saved = await attachments.SaveAsync(
