@@ -25415,7 +25415,7 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
-    /// A registered speech provider, as IReadOnlyList&amp;lt;SpeechProviderDescriptor&amp;gt; ISpeechProviderResolver.Providers lists it.
+    /// A registered speech provider, as the speech provider list reports it.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class SpeechProviderDescriptor

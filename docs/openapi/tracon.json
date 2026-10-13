@@ -16183,7 +16183,7 @@
             "description": "Gets whether the provider can call the service with a tenant\u0027s own credential."
           }
         },
-        "description": "A registered speech provider, as IReadOnlyList\u0026lt;SpeechProviderDescriptor\u0026gt; ISpeechProviderResolver.Providers lists it."
+        "description": "A registered speech provider, as the speech provider list reports it."
       },
       "SpeechProviderKind": {
         "enum": [
