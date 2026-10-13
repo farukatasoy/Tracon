@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 197
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -2924,3 +2924,86 @@ yeni run `Failed` kapanıyordu. Uyumsuz zincir de kayıttan geçiyor, run çıkt
 - Adım 3: `400 application/problem+json`, `title: "Response invalid"`; detay portu ve beklenen alanı adlandırır. Run sayısı değişmez.
 - Adım 4: `200` SSE; `RunCompleted`, çıktı "Summary published.".
 - 🚨 Eski kusur: adım 3 `200` döndü ve yeni bir `Failed` run açıldı.
+
+---
+
+### MT-WF-139 — `Prefer: respond-async` ile workflow run'ı kuyruğa girer, `202` döner ve worker'da tamamlanır (Faz 197, F-318)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 197 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `WorkflowAsyncRunTests.A_queued_run_answers_202_and_completes_in_the_worker` · `WorkflowAsyncRunTests.The_queued_row_names_the_workflow_session_and_caller_and_keeps_them_when_the_run_starts` |
+
+Workflow run'ı okuyan HTTP akışıyla yaşıyordu: okuyucu düşünce run `Canceled` oluyordu.
+Kuyruklu run bağlantıya bağlı değildir.
+
+**Ön koşul** — Örnek uygulama, kuyruk açık (varsayılan); `episode-quick` kayıtlı:
+`PUT $APU/api/workflows/episode-quick` gövdesi
+`{"kind":"Sequential","nodes":[{"name":"word-count","kind":"Function"},{"name":"render","kind":"Function","settings":{"seconds":2}}]}`.
+
+**Adımlar**
+1. `POST $APU/api/workflows/episode-quick/run`, başlık `Prefer: respond-async`, gövde `{"message":"Episode seven"}`.
+2. Hemen `GET $APU/api/runs/{runId}`.
+3. 5 sn sonra aynı isteği tekrarla; `GET $APU/api/jobs?handlerKey=tracon.workflow-run` oku.
+
+**Beklenen sonuç**
+- Adım 1: `202 Accepted`; `Location: /tracon/api/runs/{runId}`, `Preference-Applied: respond-async`; gövdede `runId` = `jobId`, `eventsLocation` = `.../events`.
+- Adım 2: `status: Queued` (ya da worker hızlıysa `Running`), `kind: Workflow`, `workflowName: episode-quick`, boş olmayan `sessionId`.
+- Adım 3: run `Completed`; iş `Completed`, `attempt: 1`.
+
+---
+
+### MT-WF-140 — Aynı `Idempotency-Key` aynı run'ı döndürür; `Prefer`'siz anahtar `400` alır (Faz 197, F-318)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 197 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `WorkflowAsyncIdempotencyTests.The_same_key_sent_twice_returns_the_same_run_and_queues_one_job` · `…Concurrent_requests_with_one_key_open_exactly_one_job` · `…A_key_without_respond_async_is_refused_with_400_on_all_three_endpoints_and_nothing_runs` |
+
+Akış saklanıp yeniden oynatılamaz; anahtar yalnız kuyruklu `202` ile anlamlıdır.
+
+**Ön koşul** — MT-WF-139'un ön koşulu.
+
+**Adımlar**
+1. `POST $APU/api/workflows/episode-quick/run`, başlıklar `Prefer: respond-async` ve `Idempotency-Key: episode-7`, gövde `{"message":"Episode seven"}`.
+2. Aynı isteği aynı anahtar ve gövdeyle tekrarla.
+3. `POST $APU/api/workflows/episode-quick/run`, yalnız `Idempotency-Key: episode-8` (Prefer yok).
+
+**Beklenen sonuç**
+- Adım 1 ve 2: ikisi de `202`; aynı `runId`; ikinci yanıtta `Idempotency-Replayed: true`. Yalnız bir iş açılır.
+- Adım 3: `400`, `title: "Idempotency-Key requires Prefer: respond-async"`; run ve iş açılmaz.
+
+---
+
+### MT-WF-141 — Kuyruklu yanıt `202` alır; yanlış `requestId` ve porta uymayan yanıt `400` alır (Faz 197, F-318)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 197 |
+| **İlgili karar** | K-908 |
+| **Devir** | ➜ CI: `WorkflowAsyncRespondTests` (beş case) |
+
+Makine yanıtı deseni: render bitince host bekleyen isteği yanıtlar, bağlantı tutmaz.
+
+**Ön koşul** — Örnek uygulama; `summarize-and-approve` kodda kayıtlı (port `bool` bekler).
+
+**Adımlar**
+1. `POST $APU/api/workflows/summarize-and-approve/run`, `Prefer: respond-async`, gövde `{"message":"Tracon is a control plane."}`; run `AwaitingInput` olana kadar `GET $APU/api/runs/{runId}`.
+2. `GET $APU/api/workflows/runs/{runId}/requests` ile `requestId`'yi al.
+3. `POST $APU/api/workflows/runs/{runId}/respond`, `Prefer: respond-async`, gövde `{"requestId":"no-such-request","approved":true}`.
+4. Aynı uca gövde `{"requestId":"<id>","text":"yes"}`.
+5. Aynı uca gövde `{"requestId":"<id>","approved":true}`.
+
+**Beklenen sonuç**
+- Adım 3: `400`, `title: "Response invalid"`, detay `no-such-request`'i adlandırır.
+- Adım 4: `400`; detay portu ve `approved` alanını adlandırır.
+- Adım 3 ve 4 iş açmaz.
+- Adım 5: `202`; yeni run `Completed`, çıktı `Summary published.`; yanıtlanan run `AwaitingInput` kalır.

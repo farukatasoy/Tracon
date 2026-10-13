@@ -1,6 +1,6 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
-> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137, 194
+> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137, 194, 197
 > **Kaynak:** `src/Tracon.Abstractions/Scheduling/` (tümü) ·
 > `src/Tracon.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
@@ -3278,3 +3278,32 @@ worker her lane'i kiralıyordu.
 - İki iş `media` lane'inde durur; aynı anda en çok biri `Running` olur.
 - Adım 3'te uygulama açılmaz; hata `MaxConcurrentJobsPerLane['media'] must be at least 1` der.
 - 🚨 Eski kusur: işler `default` lane'inde kaldı ve bütçe yok sayıldı.
+
+---
+
+### MT-JOB-145 — Workflow batch öğesinin `sessionId`'si run'a ve `run.completed` webhook'una geçer (Faz 197, F-318) · 👤
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 197 |
+| **İlgili karar** | K-899 |
+| **Devir** | ➜ CI: `WorkflowJobHandlerTests.An_items_session_id_is_handed_to_the_run` · `…An_item_with_a_bad_session_id_fails_alone_and_the_next_item_runs` · `AgentBatchJobHandlerTests.An_agent_item_that_names_a_session_fails_alone_and_the_next_item_runs` |
+
+Host üretim kimliğini oturum yapar; run ve webhook aynı kimliği taşır. Korelasyondur, tekilleştirme değil.
+
+**Ön koşul** — Örnek uygulama; `episode-quick` kayıtlı (MT-WF-139); `run.completed` olayına abone bir webhook alıcısı (yerel `nc -l` ya da bir istek kutusu).
+
+**Adımlar**
+1. `PUT $APU/api/schedules/mt-job-145`: `{"handlerKey":"tracon.workflow","targetName":"episode-quick","timeZone":"UTC","payload":[{"message":"Episode eleven","sessionId":"production-11"}],"enabled":true}`.
+2. `POST $APU/api/schedules/mt-job-145/trigger`; iş bitince `GET $APU/api/runs?sessionId=production-11`.
+3. Webhook alıcısındaki `run.completed` gövdesini oku.
+4. 1. adımı `"sessionId":"has spaces"` ile tekrarla ve tetikle.
+5. `PUT $APU/api/schedules/mt-job-145b` gövdesi `{"handlerKey":"tracon.workflow-run","targetName":"episode-quick","timeZone":"UTC","payload":{},"enabled":true}`.
+
+**Beklenen sonuç**
+- Adım 2: öğe `Completed`; run `sessionId: production-11`.
+- Adım 3: `run.completed` gövdesinde `sessionId: "production-11"`.
+- Adım 4: öğe `Failed`; hata `sessionId` kuralını adlandırır, değeri tekrar etmez.
+- Adım 5: `400`; mesaj `tracon.workflow`'u önerir.
