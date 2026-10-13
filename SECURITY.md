@@ -57,9 +57,12 @@ Out of scope:
 - Denial of service produced by quotas you configured
 - Operating-system isolation of a skill script's process. Tracon does not
   provide that isolation, so a granted script reading what the server's
-  operating-system user can read is expected behaviour. A stored or
-  code-defined script that starts without a grant pinned to its current content
-  is a vulnerability; a script read from disk is not pinned, by design.
+  operating-system user can read under the built-in executor is expected
+  behaviour, and so is the isolation a host's own `ISkillScriptExecutor`
+  provides or lacks. A script that reaches any executor without a grant, or a
+  stored or code-defined script that reaches one without a grant pinned to its
+  current content, is a vulnerability; a script read from disk is not pinned,
+  by design.
 
 See the [threat model](https://tracon.dev/reference/threat-model/) for who
 this scope assumes as an attacker, which boundary each one hits, and which

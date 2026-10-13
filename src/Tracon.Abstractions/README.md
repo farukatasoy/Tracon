@@ -54,6 +54,7 @@ packages the same behavior tests the shipped implementations run — see
 | `IRunJudge` | A finished run is scored automatically |
 | `IAgentDecorator` | An `AIAgent` is wrapped before it runs |
 | `IJobHandler` | A job of your own kind is leased from the queue |
+| `ISkillScriptExecutor` | An approved skill script runs — in a container or a remote runner of yours instead of a local process |
 
 ### Ambient context
 

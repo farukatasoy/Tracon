@@ -121,12 +121,14 @@ keep it.
 :::
 
 :::caution[A granted script runs with the server's operating-system identity]
-Tracon does not isolate a script process. It runs under the same operating-system user
-as Tracon, and the environment allowlist only stops it from inheriting variables: it
-can read what that user can read. On Linux that includes the environment Tracon
-started with, through `/proc`, so a connection string or provider key kept there is
-readable. Tenant isolation and secret handling run in the application layer and do not
-reach inside the script.
+Tracon does not isolate a script process. With the built-in executor it runs under the
+same operating-system user as Tracon, and the environment allowlist only stops it from
+inheriting variables: it can read what that user can read. On Linux that includes the
+environment Tracon started with, through `/proc`, so a connection string or provider
+key kept there is readable. Tenant isolation and secret handling run in the application
+layer and do not reach inside the script. A host can register an `ISkillScriptExecutor`
+that runs scripts in a container or a remote runner instead; the script then runs where
+that executor runs it, and Tracon can neither see nor verify that isolation.
 
 Part of this is closed. A stored or code-defined script runs only under a grant pinned
 to its exact content, and in a multi-tenant host granting one needs platform
@@ -134,7 +136,9 @@ authority, so a tenant administrator cannot grant one alone. What stays open: th
 platform administrator who grants a script approves code that can reach every
 tenant's data, and a script read from disk is not pinned — keep its directory
 read-only. Run a host with scripts on in a container, under an unprivileged user, with
-restricted network access — see [skill scripts](/concepts/tools/#skill-scripts--the-strict-exception).
+restricted network access, or with an executor that runs scripts elsewhere — see
+[skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) and
+[Write your own script executor](/guides/write-your-own-script-executor/).
 :::
 
 :::caution[An authorized identity can still exceed what it was meant to do]
