@@ -160,7 +160,16 @@ public sealed class QueuedRunParameterTests
         await WaitUntil.TrueAsync(() => provider.Requests.Count > 0, "the queued run to reach the model");
         provider.Requests[^1].Options!.Instructions.ShouldBe("Hello friend, how can I help?");
 
-        (await RunStatusAsync(host, runId)).ShouldBe(RunStatus.Completed);
+        // The worker closes the run a moment AFTER the model answered: one read
+        // here raced the completion and saw Running (measured: red in isolation
+        // on the base commit, green with a delay). Wait for the closing status,
+        // the same way the malformed-payload cases below do.
+        var status = await WaitUntil.ValueAsync(
+            () => RunStatusAsync(host, runId),
+            static status => status is RunStatus.Completed or RunStatus.Failed,
+            "the queued run to be closed");
+
+        status.ShouldBe(RunStatus.Completed);
     }
 
     [Fact]
