@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (862 kalem)
+## Arşivlenen Kararlar (865 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -871,3 +871,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-860 | 911 | Script grant'ı içeriği pinler: stored ve kodda tanımlı script yalnız içeriğinin hash'ini taşıyan grant'la çalışır; hash'siz eski grant onları yetkilendirmez; diskteki script pinlenmez (Faz 186, F-269) (kullanıcı kararı) 👤 |
 | K-861 | 912 | Çok kiracılı host'ta stored script grant'ı platform yetkisi ister (`PlatformAdmin` kapsamlı anahtar, statik token veya `Tracon.PlatformAdmin` policy'si); tek kiracılı host'ta ve kodda tanımlı skill'de gerekmez (Faz 186) (kullanıcı kararı) 👤 |
 | K-862 | 913 | B7'nin adı "Script execution gates"tir ("Script sandboxing" değil); R8 kabul edilen risktir (script sunucunun OS kimliğiyle çalışır); `SECURITY.md` ve site politikasının kapsamı "Script execution gates (grant, content pin, interpreter allowlist, audit)" der (Faz 186) (kullanıcı kararı) 👤 |
+| K-863 | 914 | Kodda kayıtlı bir skill adı yönetim API'sinden yazılamaz: `PUT /api/skills/{name}` `409`; `DELETE` yalnız gölgelenen kayıtlı kopyayı siler, kopya yoksa `409`; konsol kod skill'ini salt okunur açar (Faz 186, denetim 🔴1) (kullanıcı kararı) 👤 |
+| K-864 | 915 | Yayın provası son yayınlanmış sürüme karşı kırıcı değişiklik kapısı koşar: `kapi.py yayin` (her push'ta `release-dryrun`) son `v*` etiketinin library paketlerini izole bir cache'e nuget.org'dan restore eder, ApiCompat taban doğrulamasıyla paketler, doğrulamanın bu koşumda koştuğunu semaphore ile kanıtlar; kırılan her public tip ve düşen her TFM sürüm notunda tam adıyla (code span, joker değil) geçmezse prova kırmızıdır ve `publish` koşmaz (Faz 187, F-270) (kullanıcı kararı) 👤 |
+| K-865 | 916 | Her library paketinin public yüzeyi TFM'ler arasında aynıdır: `EnableStrictModeForCompatibleTfms` ve `EnableStrictModeForCompatibleFrameworksInPackage` `src/Directory.Build.props`'ta koşulsuz açık; yalnız bir TFM'de derlenen public üye pack'i kırar (Faz 187) (kullanıcı kararı) 👤 |
