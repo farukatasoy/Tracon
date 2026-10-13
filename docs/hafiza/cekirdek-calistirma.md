@@ -39,7 +39,8 @@
   Faz 134'ün onarım döngüsü `scope.ExtraUsage?.Add(...)` ile bunu kullandı ve
   bir Faz 131 eksiğini kapattı: reddedilen bir denemenin token'ı artık
   `run.Usage`'da görünür (önceden sessiz `null`). `AgentResponse.Usage`'a
-  güvenme — yalnız SON dönen yanıt için işler.
+  güvenme — yalnız SON dönen yanıt için işler. Akışta da böyledir: geçen
+  usage güncellemeleri istisnayla düşer (Faz 204, ölçüldü).
 - **🚨 Kararı uygulayıp sonra handoff yazan uç, hatada kararı ASILI bırakır** (2026-09-07, B03/K-726): çare transaction değil **TEKRAR SÜRÜLEBİLİRLİK** — id'yi approval'dan türet, yazımları "satır yoksa yaz" yap. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `OperationCanceledException` bir IPTAL DEGIL, bir SORUDUR: "gercekten iptal edildi mi?"** (2026-09-08, Faz 157, K-737): **iptal karari istisnanin TIPINDEN degil, o kapsamin KENDI token'indan okunur** — `RunRecordingAgent` `cancellationSource`, HTTP uclari `HttpContext.RequestAborted`, `WorkflowRunner` `linked`. Token'in olmadigi siniflandirma yolunda ayrim zaman asimi sinyaliyle kurulur ve o kontrol `CanceledTypePattern`'den ONCE gelmelidir. Regresyon: `RunCancellationStatusTests.An_uncancelled_OperationCanceledException_writes_Failed_not_Canceled`. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 K-737'nin IKINCI yarisi: "iptal degil" demek yetmez, HANGI limitin doldugu ayri bir iddiadir** (2026-09-12, F-219, K-759): **kendi `CancellationTokenSource`'unu tutan her `catch` filtresine O kaynagi da koyar** (`deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested`); ayiramadigi dalda sebebi soylemez, **ariza** der. Sinif taramasi 13 negatif filtreyi tarayip uc yeri duzeltti. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
