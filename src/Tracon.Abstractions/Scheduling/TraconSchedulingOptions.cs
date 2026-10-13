@@ -92,6 +92,41 @@ public sealed class TraconSchedulingOptions
         = new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>
+    /// Maps a handler key to the longest time one attempt of its jobs may run, when
+    /// the job sets no <see cref="JobRecord.MaxDuration"/> of its own. Empty — the
+    /// default — means no job has a time limit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The worker reads the map when it leases a job, so it covers every job of the
+    /// key: one queued from code, from a schedule, from a trigger, or by another
+    /// store. The job's own value wins over the map.
+    /// </para>
+    /// <para>
+    /// When the time is up the handler's token is cancelled and the attempt fails
+    /// with <see cref="JobErrorCodes.MaxDurationExceeded"/>; see
+    /// <see cref="JobRecord.MaxDuration"/>. The limit is per attempt. A handler that
+    /// ignores its token is not stopped: give a handler that calls out to the network
+    /// its own timeout as well.
+    /// </para>
+    /// <para>
+    /// Each value must be from one millisecond to about 49.7 days, and each key a
+    /// valid handler key; any other entry fails at startup.
+    /// </para>
+    /// <example>
+    /// <code language="json">
+    /// "Tracon": {
+    ///   "Scheduling": {
+    ///     "MaxDurationByHandlerKey": { "tracon.workflow": "00:30:00" }
+    ///   }
+    /// }
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public IDictionary<string, TimeSpan> MaxDurationByHandlerKey { get; }
+        = new Dictionary<string, TimeSpan>(StringComparer.Ordinal);
+
+    /// <summary>
     /// The handler keys <c>PUT /api/schedules/{name}</c> accepts. Empty — the
     /// default — means the built-in keys only (<see cref="JobHandlerKeys.BuiltIn"/>),
     /// except <see cref="JobHandlerKeys.WorkflowRun"/>, which no list can allow.

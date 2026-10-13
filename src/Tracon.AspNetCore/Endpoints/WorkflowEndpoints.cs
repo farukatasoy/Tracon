@@ -72,7 +72,9 @@ internal static class WorkflowEndpoints
                 "path; the console picks from this list when an operator builds a Sequential workflow's " +
                 "node list. A function that takes settings carries settingsSchema, a JSON schema of " +
                 "the object a node of it may carry in 'settings'; a function that takes none has " +
-                "settingsSchema null and its nodes must carry no settings. The schema is for display: " +
+                "settingsSchema null and its nodes must carry no settings. 'timeout' is the time limit " +
+                "the function was registered with, which a node's own 'timeout' replaces; null means " +
+                "none. The schema is for display: " +
                 "saving the workflow does the checking. An empty list means no function was registered, " +
                 "or the workflow engine was never turned on with UseWorkflows() - either way, existing " +
                 "agent-only workflows are unaffected.");
@@ -117,7 +119,12 @@ internal static class WorkflowEndpoints
                 "a missing required member and a value of the wrong type are all refused with a " +
                 "message that names the node and the member, and so is any settings on an agent " +
                 "node or on a function that declares none. Settings are stored in the definition: " +
-                "never put a secret in them, name its configuration key instead. The call " +
+                "never put a secret in them, name its configuration key instead. A node's " +
+                "'timeout' (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, " +
+                "30 seconds less on an agent node; it is not checked against the run's timeout. " +
+                "'runTimeout' bounds one run of this workflow: it may only shorten " +
+                "Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, " +
+                "and a value above that ceiling is refused with 400. The call " +
                 "replaces the whole definition: omitted fields are cleared, not merged. The name " +
                 "comes from the path and is not taken from the body. The name 'functions' is " +
                 "reserved (400): GET /api/workflows/functions uses it.")
@@ -396,6 +403,7 @@ internal static class WorkflowEndpoints
         [FromServices] IWorkflowDefinitionStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IWorkflowFunctionCatalog? functions,
+        [FromServices] IWorkflowRunTimeoutPolicy? runTimeoutPolicy,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -422,6 +430,7 @@ internal static class WorkflowEndpoints
             HandoffInstructions = request.HandoffInstructions,
             RequirePlanApproval = request.RequirePlanApproval,
             Parameters = request.Parameters ?? [],
+            RunTimeout = request.RunTimeout,
         };
 
         // Validation happens AT SAVE TIME. Accepting an invalid definition
@@ -434,6 +443,18 @@ internal static class WorkflowEndpoints
             return TypedResults.Problem(
                 title: "Workflow definition invalid",
                 detail: message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // F-405: the ceiling is the host's setting, read through the engine's seam.
+        // Without the engine there is no ceiling to read and nothing to run the value;
+        // the range was checked above.
+        if (runTimeoutPolicy is not null &&
+            WorkflowDefinitionValidator.RunTimeoutCeilingProblem(definition, runTimeoutPolicy.RunTimeout, runTimeoutPolicy.MaxRunTimeout) is { } ceilingProblem)
+        {
+            return TypedResults.Problem(
+                title: "Workflow definition invalid",
+                detail: ceilingProblem,
                 statusCode: StatusCodes.Status400BadRequest);
         }
 

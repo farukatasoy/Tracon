@@ -73,6 +73,33 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
+    public async Task A_jobs_own_time_limit_survives_the_round_trip_and_the_lease()
+    {
+        // Added in phase 196 (F-323). The worker reads the limit from the LEASED record,
+        // so the lease query has to return it as well as the read: a store that drops it
+        // there runs every job without its limit, silently.
+        var job = await Store.EnqueueAsync(TestData.Job() with { MaxDuration = TimeSpan.FromMinutes(90) }, ["a"]);
+
+        job.MaxDuration.ShouldBe(TimeSpan.FromMinutes(90));
+        (await Store.GetAsync("default", job.Id))!.MaxDuration.ShouldBe(TimeSpan.FromMinutes(90));
+        (await Store.QueryAsync(new JobQuery { TenantId = "default" })).Single().MaxDuration.ShouldBe(TimeSpan.FromMinutes(90));
+
+        var leased = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        leased.ShouldNotBeNull();
+        leased.MaxDuration.ShouldBe(TimeSpan.FromMinutes(90));
+    }
+
+    [Fact]
+    public async Task A_job_without_a_time_limit_reads_back_none()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+
+        (await Store.GetAsync("default", job.Id))!.MaxDuration.ShouldBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5)))!.MaxDuration.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Leased_job_is_not_given_to_another_worker_before_expiry()
     {
         await Store.EnqueueAsync(TestData.Job(), ["a"]);

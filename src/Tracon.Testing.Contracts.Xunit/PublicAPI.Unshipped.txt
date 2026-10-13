@@ -242,6 +242,8 @@ Tracon.Testing.Contracts.Storage.JobScheduleStoreContract.TryClaimNextRunAsync_f
 Tracon.Testing.Contracts.Storage.JobStoreContract
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_cancelled_job_is_changed_by_neither_completion_nor_release() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.A_finished_job_is_not_finalized_a_second_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.A_job_without_a_time_limit_reads_back_none() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.A_jobs_own_time_limit_survives_the_round_trip_and_the_lease() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.CancelAsync_does_not_affect_another_tenants_job() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.CancelAsync_works_only_in_eligible_states(Tracon.JobStatus status, bool expected) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.CompleteAsync_releases_the_lease() -> System.Threading.Tasks.Task!
@@ -689,10 +691,12 @@ Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Incoming_versio
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Listing_is_sorted_by_name() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Magentic_manager_name_is_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Node_list_survives_the_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Node_timeouts_and_the_run_timeout_survive_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Parameter_schema_survives_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Same_name_is_independent_across_tenants() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saved_definition_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saving_again_without_node_settings_clears_them() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saving_again_without_timeouts_clears_them() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.WorkflowDefinitionStoreContract() -> void
 Tracon.Testing.Contracts.Tools.CustomToolContract
 Tracon.Testing.Contracts.Tools.CustomToolContract.Concurrent_server_calls_complete() -> System.Threading.Tasks.Task!

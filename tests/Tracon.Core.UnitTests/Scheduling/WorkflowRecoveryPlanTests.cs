@@ -262,6 +262,43 @@ public sealed class WorkflowRecoveryPlanTests
         closedOpened.Error.Message.ShouldContain("MaxResumeAttempts", Case.Sensitive);
     }
 
+    /// <summary>
+    /// F-323, open question 13-A: a run its job stopped at the job's time limit ran out of
+    /// time, it was not interrupted. Continuing it would make the limit per attempt and
+    /// the work unbounded, so the plan ends the work instead - whatever continuations
+    /// are left and whatever attempts the job has.
+    /// </summary>
+    [Fact]
+    public async Task A_run_its_job_stopped_at_the_time_limit_is_never_continued()
+    {
+        var head = TraconId.NewId();
+
+        await _runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = head,
+            AgentName = "podcast",
+            Kind = RunKind.Workflow,
+            WorkflowName = "podcast",
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = Tenant,
+            SessionId = "session-1",
+        });
+        await _runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = head,
+            Status = RunStatus.Canceled,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Error = new RunError { Type = JobAttemptSignals.MaxDurationExceededRunErrorType, Message = "stopped" },
+        });
+        await CheckpointAsync(head, "first");
+
+        var plan = await Recovery(max: 3).PlanAsync(head, Job(), CancellationToken.None);
+
+        plan.Step.ShouldBe(WorkflowRecoveryStep.Stopped);
+        plan.Last!.Id.ShouldBe(head);
+        plan.ContinuationRunId.ShouldBeNull();
+    }
+
     [Fact]
     public async Task A_run_that_is_not_running_keeps_the_error_it_was_closed_with()
     {

@@ -33,7 +33,8 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Core/Approvals/ToolApprovalPresenterRunner.cs"] = "TraconToolOptions.ApprovalPresentationTimeout — TraconOptionsValidator",
         ["src/Tracon.Core/Compilation/AgentDefinitionValidator.cs"] = "TraconValidationOptions.McpTimeout — TraconOptionsValidator",
         ["src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs"] = "OnlineEvaluationOptions.JudgeTimeout — OnlineEvaluationOptionsValidator (at most 5 min)",
-        ["src/Tracon.Core/Graph/ChildAgentInvoker.cs"] = "SubAgentSettings / TraconAgentGraphOptions ChildDeadline — compiler, TraconOptionsValidator, constructor guard",
+        ["src/Tracon.Core/Graph/ChildAgentInvoker.cs"] = "SubAgentSettings / TraconAgentGraphOptions ChildDeadline / WorkflowNodeReference.Timeout — compiler, TraconOptionsValidator, WorkflowDefinitionValidator, constructor guard",
+        ["src/Tracon.Core/Scheduling/JobWorkerBackgroundService.cs"] = "JobRecord.MaxDuration / TraconSchedulingOptions.MaxDurationByHandlerKey — JobDispatcher guard, TraconSchedulingOptionsValidator, worker check before arming (JobWorkerDeadlineTests)",
         ["src/Tracon.Core/Hosting/TraconDrainService.cs"] = "TraconDrainOptions.Timeout — TraconDrainOptionsValidator",
         ["src/Tracon.Core/Skills/Scripts/SkillScriptProcessRunner.cs"] = "TraconSkillScriptOptions.Timeout — TraconOptionsValidator",
         ["src/Tracon.Core/Voice/LiveVoiceSessionHost.cs"] = "VoiceLiveOptions.DelegationTimeout — VoiceLiveOptionsValidator",
@@ -44,7 +45,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Mcp/McpOAuthAuthorizationCoordinator.cs"] = "TraconMcpOptions.ConnectionTimeout — TraconMcpOptionsValidator",
         ["src/Tracon.OpenAI/Live/OpenAILiveSideband.cs"] = "constant 10 s",
         ["src/Tracon.Providers.Shared/ProviderHealthCheckCore.cs"] = "provider Timeout — the four provider validators (HTTP range, ProviderTimeoutValidationTests)",
-        ["src/Tracon.Workflows/Internal/WorkflowRunner.cs"] = "TraconWorkflowOptions.RunTimeout — TraconWorkflowOptionsValidator",
+        ["src/Tracon.Workflows/Internal/WorkflowRunner.cs"] = "TraconWorkflowOptions.RunTimeout / WorkflowDefinition.RunTimeout — TraconWorkflowOptionsValidator, WorkflowDefinitionValidator (save and compile), ceiling cut",
     };
 
     [Fact]

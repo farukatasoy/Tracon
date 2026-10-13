@@ -551,7 +551,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         // Timeout and cancellation merge into a single token: even when the client
         // drops the connection, the server-side execution must not run forever.
+        // Armed with the installation's value now, when the run starts; a definition
+        // that sets its own (F-405) re-arms the same source from this moment once it
+        // is read, so the deadline still counts from the start of the run.
         using var timeout = new CancellationTokenSource(settings.RunTimeout, _timeProvider);
+        var deadline = new RunDeadline(timeout, _timeProvider.GetTimestamp(), settings.RunTimeout, cancellationToken);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
 
         // The workflow row is the root of its own tree (RunId == RootRunId): an
@@ -569,7 +573,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // ended with an OperationCanceledException before its first event, the
         // stream closed without a closing frame, and the run id the endpoint had
         // already announced pointed at nothing (F-325).
-        await foreach (var runEvent in RunGuardedAsync(execution, settings, timeout, linked).ConfigureAwait(false))
+        await foreach (var runEvent in RunGuardedAsync(execution, settings, deadline, linked).ConfigureAwait(false))
         {
             yield return runEvent;
         }
@@ -578,7 +582,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private async IAsyncEnumerable<RunEvent> RunGuardedAsync(
         WorkflowExecution execution,
         TraconWorkflowOptions settings,
-        CancellationTokenSource timeout,
+        RunDeadline deadline,
         CancellationTokenSource linked)
     {
         var recording = _traconOptions.Value.RunRecording;
@@ -687,51 +691,63 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             yield return FirstEvent(execution);
 
-            // The wait for a concurrency slot belongs to the run: the deadline
-            // already counts it, so a run that times out here closes like any
-            // other timed-out run — Canceled, naming the setting.
-            try
-            {
-                await _concurrency.WaitAsync(linked.Token).ConfigureAwait(false);
-                holdsSlot = true;
-            }
-            catch (OperationCanceledException) when (linked.IsCancellationRequested)
-            {
-                status = RunStatus.Canceled;
-                error = timeout.IsCancellationRequested ? TimedOut() : null;
-            }
-
             // Graph setup is tried separately: an error here (agent not found,
             // invalid definition) is one the user can fix, and it must not leave
             // the run open.
+            //
+            // 🚨 F-405: set up BEFORE the slot wait, not after it. The definition
+            // carries its own run timeout, and the deadline counts the slot wait;
+            // read after the wait, a workflow allowed an hour timed out in the
+            // queue on the installation's ten minutes. Setup spends no model call,
+            // so it needs no slot.
             Workflow? workflow = null;
 
-            if (holdsSlot)
+            try
+            {
+                var resolved = await _catalog.ResolveWithDefinitionAsync(execution.WorkflowName, linked.Token)
+                    .ConfigureAwait(false)
+                    ?? throw new TraconException(
+                        $"There is no workflow named '{execution.WorkflowName}'.");
+
+                await ApplyRunTimeoutAsync(execution, resolved.Definition, settings, deadline).ConfigureAwait(false);
+
+                // F-294: values are checked against the schema of the SAME
+                // definition the graph was built from, before any model
+                // call. A failure here closes the run like a graph-setup
+                // failure: the caller can fix it and nothing was spent.
+                scope = await BindParametersAsync(execution, resolved.Definition, scope, linked.Token)
+                    .ConfigureAwait(false);
+
+                workflow = resolved.Graph;
+            }
+            catch (OperationCanceledException) when (linked.IsCancellationRequested)
+            {
+                // Stopped during setup: closed below like any other stop, with its reason.
+                status = RunStatus.Canceled;
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, linked.Token))
+            {
+                status = RunStatus.Failed;
+                error = ToRunError(exception, execution.RunId);
+            }
+
+            // The wait for a concurrency slot belongs to the run: the deadline
+            // already counts it, so a run that times out here closes like any
+            // other timed-out run — Canceled, naming the setting.
+            if (workflow is not null)
             {
                 try
                 {
-                    var resolved = await _catalog.ResolveWithDefinitionAsync(execution.WorkflowName, linked.Token)
-                        .ConfigureAwait(false)
-                        ?? throw new TraconException(
-                            $"There is no workflow named '{execution.WorkflowName}'.");
-
-                    // F-294: values are checked against the schema of the SAME
-                    // definition the graph was built from, before any model
-                    // call. A failure here closes the run like a graph-setup
-                    // failure: the caller can fix it and nothing was spent.
-                    scope = await BindParametersAsync(execution, resolved.Definition, scope, linked.Token)
-                        .ConfigureAwait(false);
-
-                    workflow = resolved.Graph;
+                    await _concurrency.WaitAsync(linked.Token).ConfigureAwait(false);
+                    holdsSlot = true;
                 }
-                catch (Exception exception) when (OperationCancellation.IsFailure(exception, linked.Token))
+                catch (OperationCanceledException) when (linked.IsCancellationRequested)
                 {
-                    status = RunStatus.Failed;
-                    error = ToRunError(exception, execution.RunId);
+                    status = RunStatus.Canceled;
                 }
             }
 
-            if (workflow is not null)
+            if (workflow is not null && holdsSlot)
             {
                 await foreach (var produced in PumpAsync(
                                        workflow,
@@ -781,19 +797,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 {
                     status = RunStatus.Canceled;
                 }
+            }
 
-                // 🚨 The deadline is the one stop nobody asked for, so it is the one
-                // that has to name itself. A caller who cancels already knows why
-                // and gets no reason; a run that ran past 'Tracon:Workflows:RunTimeout'
-                // gets the setting's name, on every path that ends it. Only the
-                // timeout source is consulted, never the linked one: the linked
-                // source is also tripped by the caller and by
-                // POST /api/runs/{id}/cancel, and blaming the deadline for those
-                // would put a wrong reason on a correct stop.
-                if (status == RunStatus.Canceled && error is null && timeout.IsCancellationRequested)
-                {
-                    error = TimedOut();
-                }
+            // 🚨 The deadline is the one stop nobody asked for, so it is the one
+            // that has to name itself. A caller who cancels already knows why
+            // and gets no reason; a run that ran past its run timeout gets the
+            // setting's name, on every path that ends it - setup, the slot wait,
+            // the graph. Only the timeout source is consulted, never the linked
+            // one: the linked source is also tripped by the caller and by
+            // POST /api/runs/{id}/cancel, and blaming the deadline for those
+            // would put a wrong reason on a correct stop.
+            if (status == RunStatus.Canceled && error is null)
+            {
+                error = StopReason(deadline);
             }
 
             await CompleteAsync(execution, scope, writer, status, error, activity, startedAt).ConfigureAwait(false);
@@ -820,7 +836,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // still lands on an already-cancelled token.
             if (!closed)
             {
-                await CompleteAsync(execution, scope, writer, RunStatus.Canceled, error, activity, startedAt)
+                await CompleteAsync(execution, scope, writer, RunStatus.Canceled, error ?? StopReason(deadline), activity, startedAt)
                     .ConfigureAwait(false);
             }
         }
@@ -1853,21 +1869,84 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Text = error?.Message,
         };
 
-    /// <summary>The reason carried by a run that ran past its deadline.</summary>
+    /// <summary>
+    /// The reason a cancelled run carries when nobody asked for the stop: its own
+    /// deadline, or the time limit of the job running it. <see langword="null"/> for a
+    /// stop its caller asked for.
+    /// </summary>
+    /// <param name="deadline">The run's own deadline, and the token the run was started with.</param>
+    /// <returns>The reason, or <see langword="null"/>.</returns>
     /// <remarks>
-    /// Written once and read from the single place that closes a cancelled run.
-    /// The status stays <see cref="RunStatus.Canceled"/> - a deadline stops a
-    /// run, it does not fault one - so this text is the only thing that tells
-    /// an operator a timeout apart from a cancellation somebody asked for.
+    /// <para>
+    /// Written once and read from the places that close a cancelled run. The status
+    /// stays <see cref="RunStatus.Canceled"/> - a deadline stops a run, it does not
+    /// fault one - so this text is the only thing that tells an operator a timeout
+    /// apart from a cancellation somebody asked for.
+    /// </para>
+    /// <para>
+    /// The job's time limit is read only when the run's own token was cancelled, and
+    /// only from the job attempt the worker opened around its handler: a run that a
+    /// job cancelled for another reason (its cancel, the worker stopping) gets no
+    /// reason, as before. Its error type is what keeps recovery from continuing it.
+    /// </para>
     /// </remarks>
-    private static RunError TimedOut()
-        => new()
+    private static RunError? StopReason(RunDeadline deadline)
+    {
+        if (deadline.Fired)
         {
-            Type = nameof(TimeoutException),
-            Message = "Workflow timed out and was stopped. " +
-                      "Raise the 'Tracon:Workflows:RunTimeout' value, or " +
-                      "shorten the graph.",
-        };
+            return deadline.ToRunError();
+        }
+
+        // F-323, open question 13-A: the job's time limit is a reason of its own, not an
+        // interruption; WorkflowRecovery never continues a run closed with it.
+        return deadline.CallerStopped &&
+               AmbientJobAttempt.Current is { Reason: JobStopReason.MaxDurationExceeded } attempt
+            ? attempt.ToRunError("Workflow run")
+            : null;
+    }
+
+    /// <summary>
+    /// Re-arms the run's deadline from the definition's own run timeout, cut to the
+    /// host's ceiling.
+    /// </summary>
+    /// <param name="execution">The run.</param>
+    /// <param name="definition">The definition the graph came from; <see langword="null"/> for code.</param>
+    /// <param name="settings">The engine's settings.</param>
+    /// <param name="deadline">The run's deadline.</param>
+    /// <returns>A task that completes when the deadline is re-armed.</returns>
+    /// <remarks>
+    /// The save refuses a value above the ceiling; a stored one that is above a ceiling
+    /// lowered later still runs, cut to it, and the cut is logged. A code workflow has
+    /// no definition and keeps the installation's value.
+    /// </remarks>
+    private async ValueTask ApplyRunTimeoutAsync(
+        WorkflowExecution execution,
+        WorkflowDefinition? definition,
+        TraconWorkflowOptions settings,
+        RunDeadline deadline)
+    {
+        if (definition?.RunTimeout is not { } requested)
+        {
+            return;
+        }
+
+        var ceiling = WorkflowDefinitionValidator.RunTimeoutCeiling(settings.RunTimeout, settings.MaxRunTimeout);
+        var limit = requested;
+
+        if (requested > ceiling)
+        {
+            _logger.LogWarning(
+                "Workflow {Workflow} sets a run timeout of {Requested}, above the host's ceiling of {Ceiling}; run {RunId} is cut to the ceiling. Save the workflow again with a value that fits.",
+                execution.WorkflowName,
+                requested,
+                ceiling,
+                execution.RunId);
+
+            limit = ceiling;
+        }
+
+        await deadline.RearmAsync(limit, _timeProvider).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Converts an exception into a run error; strips reflection/handler-invocation
@@ -2031,6 +2110,71 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         /// <see langword="null"/> means none.
         /// </summary>
         public IReadOnlyDictionary<string, string>? Parameters { get; init; }
+    }
+
+    /// <summary>
+    /// The run's deadline: the source the runner cancels at the run timeout, when it
+    /// was armed, and which setting set the value it carries.
+    /// </summary>
+    /// <param name="source">The source; owned by the caller.</param>
+    /// <param name="armedAt">The monotonic timestamp taken when the run started.</param>
+    /// <param name="installation">The installation's run timeout, the value the source was armed with.</param>
+    /// <param name="callerToken">The token the run was started with.</param>
+    private sealed class RunDeadline(CancellationTokenSource source, long armedAt, TimeSpan installation, CancellationToken callerToken)
+    {
+        private TimeSpan _limit = installation;
+        private bool _setByDefinition;
+
+        /// <summary>Gets whether the deadline has passed.</summary>
+        public bool Fired => source.IsCancellationRequested;
+
+        /// <summary>Gets whether the run's caller cancelled the token the run was started with.</summary>
+        public bool CallerStopped => callerToken.IsCancellationRequested;
+
+        /// <summary>
+        /// Moves the deadline to <paramref name="limit"/> after the start of the run; a
+        /// limit that has already passed cancels at once.
+        /// </summary>
+        /// <param name="limit">The run timeout the definition sets.</param>
+        /// <param name="clock">The runner's time source.</param>
+        /// <returns>A task that completes when the source is re-armed.</returns>
+        public async ValueTask RearmAsync(TimeSpan limit, TimeProvider clock)
+        {
+            _limit = limit;
+            _setByDefinition = true;
+
+            if (source.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var remaining = limit - clock.GetElapsedTime(armedAt);
+
+            // The source was created with the runner's TimeProvider, so CancelAfter
+            // moves that provider's timer: a test clock still decides when it fires.
+            if (remaining > TimeSpan.Zero)
+            {
+                source.CancelAfter(remaining);
+            }
+            else
+            {
+                await source.CancelAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>The reason a run that reached this deadline carries.</summary>
+        /// <returns>The run error, naming the setting that set the value.</returns>
+        public RunError ToRunError()
+            => new()
+            {
+                Type = nameof(TimeoutException),
+                Message = _setByDefinition
+                    ? $"Workflow timed out and was stopped after {_limit}, the run timeout its definition sets. " +
+                      "Raise the workflow's 'runTimeout' (up to 'Tracon:Workflows:MaxRunTimeout'), or shorten the graph."
+                    : "Workflow timed out and was stopped. " +
+                      "Raise the 'Tracon:Workflows:RunTimeout' value, or " +
+                      "shorten the graph.",
+            };
     }
 
     /// <summary>The result of one attempt to send a response.</summary>

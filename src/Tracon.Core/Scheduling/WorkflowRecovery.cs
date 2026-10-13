@@ -25,6 +25,10 @@ namespace Tracon;
 /// <item>No row, or the first run still <see cref="RunStatus.Queued"/>: the work never started.</item>
 /// <item><see cref="RunStatus.Completed"/> or <see cref="RunStatus.AwaitingInput"/>: the work is done.</item>
 /// <item>
+/// Closed by its job's time limit (error type <c>job_max_duration_exceeded</c>): the work
+/// ran out of time and ends; it is never continued.
+/// </item>
+/// <item>
 /// Any other status: the run was interrupted. A continuation still
 /// <see cref="RunStatus.Queued"/> counts too: its attempt opened it and stopped
 /// before the engine started it. Within <see cref="IWorkflowRecoveryPolicy.MaxResumeAttempts"/>
@@ -118,6 +122,15 @@ internal sealed class WorkflowRecovery(
         if (last.Status is RunStatus.Completed or RunStatus.AwaitingInput)
         {
             return new WorkflowRecoveryPlan { Step = WorkflowRecoveryStep.Settled, Chain = chain, Last = last };
+        }
+
+        // 🚨 F-323, open question 13-A: a run its job stopped at the job's time limit was
+        // not interrupted, it ran out of time. Continuing it would make the limit
+        // per attempt and the work unbounded; the work ends here instead. Read from
+        // the error type the run closed with, the one fact the run row keeps.
+        if (string.Equals(last.Error?.Type, JobAttemptSignals.MaxDurationExceededRunErrorType, StringComparison.Ordinal))
+        {
+            return new WorkflowRecoveryPlan { Step = WorkflowRecoveryStep.Stopped, Chain = chain, Last = last };
         }
 
         // Interrupted: Running (its process died), Canceled (a graceful stop),
@@ -269,9 +282,39 @@ internal sealed class WorkflowRecovery(
     /// <see langword="false"/> the caller fails the attempt instead of the work, so
     /// that the next attempt finds the row again and closes it.
     /// </remarks>
-    public async ValueTask<bool> CloseIfQueuedAsync(Guid runId, Exception exception, string correlationId)
+    public ValueTask<bool> CloseIfQueuedAsync(Guid runId, Exception exception, string correlationId)
     {
         ArgumentNullException.ThrowIfNull(exception);
+
+        return CloseIfQueuedAsync(
+            runId,
+            RunStatus.Failed,
+            new RunError
+            {
+                Type = exception.GetType().Name,
+                Message = SafeErrorText.ForPersistence(exception, correlationId),
+            });
+    }
+
+    /// <summary>
+    /// Closes a run that is still <see cref="RunStatus.Queued"/> with the given status
+    /// and error.
+    /// </summary>
+    /// <param name="runId">The run.</param>
+    /// <param name="status">The status it closes with.</param>
+    /// <param name="error">The error it carries.</param>
+    /// <returns>
+    /// <see langword="true"/> when the row is closed or was not queued;
+    /// <see langword="false"/> when the store failed and the row may still be queued.
+    /// </returns>
+    /// <remarks>
+    /// A job that reaches its time limit before the engine opened its run closes the
+    /// row this way, with the error a run the engine stopped carries, so the next plan
+    /// reads the same fact either way.
+    /// </remarks>
+    public async ValueTask<bool> CloseIfQueuedAsync(Guid runId, RunStatus status, RunError error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
 
         try
         {
@@ -284,13 +327,9 @@ internal sealed class WorkflowRecovery(
                 new RunCompletion
                 {
                     RunId = runId,
-                    Status = RunStatus.Failed,
+                    Status = status,
                     CompletedAt = _clock.GetUtcNow(),
-                    Error = new RunError
-                    {
-                        Type = exception.GetType().Name,
-                        Message = SafeErrorText.ForPersistence(exception, correlationId),
-                    },
+                    Error = error,
                     TenantId = queued.TenantId,
                 },
                 CancellationToken.None).ConfigureAwait(false);
@@ -434,6 +473,12 @@ internal enum WorkflowRecoveryStep
 
     /// <summary>The last run completed or waits for input: nothing runs again.</summary>
     Settled,
+
+    /// <summary>
+    /// The last run was stopped by its job's time limit: the work ends, and nothing
+    /// continues it.
+    /// </summary>
+    Stopped,
 
     /// <summary>The last run was interrupted: a continuation run continues it.</summary>
     Continue,

@@ -37,6 +37,13 @@ public sealed record WorkflowFunctionResponse
     /// </remarks>
     public JsonElement? SettingsSchema { get; init; }
 
+    /// <summary>
+    /// The timeout the function was registered with: the longest one call may take when
+    /// its node sets no <c>timeout</c> of its own. <see langword="null"/> when the
+    /// function has no time limit of its own.
+    /// </summary>
+    public TimeSpan? Timeout { get; init; }
+
     /// <summary>Projects a descriptor into its wire-safe view.</summary>
     /// <param name="descriptor">The descriptor to project.</param>
     public static WorkflowFunctionResponse From(WorkflowFunctionDescriptor descriptor)
@@ -52,6 +59,7 @@ public sealed record WorkflowFunctionResponse
             SettingsSchema = descriptor.SettingsSchema is { ValueKind: not (JsonValueKind.Undefined or JsonValueKind.Null) } schema
                 ? schema
                 : null,
+            Timeout = descriptor.Timeout,
         };
 }
 
@@ -101,6 +109,17 @@ public sealed record WorkflowSaveRequest
     /// takes none. Replaced as a whole on every save, like every other field.
     /// </summary>
     public IReadOnlyList<AgentParameter>? Parameters { get; init; }
+
+    /// <summary>
+    /// The longest time one run of this workflow may take, as <c>hh:mm:ss</c>. Leave it
+    /// out to use the installation's <c>Tracon:Workflows:RunTimeout</c>.
+    /// </summary>
+    /// <remarks>
+    /// A value above the installation's run timeout is refused unless the host sets a
+    /// higher ceiling (<c>Tracon:Workflows:MaxRunTimeout</c>); see
+    /// <see cref="WorkflowDefinition.RunTimeout"/>.
+    /// </remarks>
+    public TimeSpan? RunTimeout { get; init; }
 }
 
 /// <summary>Request to run a workflow.</summary>

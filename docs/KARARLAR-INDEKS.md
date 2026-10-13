@@ -2,20 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 887 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 893 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (60 / 947 kalem)
+## En Yeni Kalıcı Kararlar (60 / 953 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-888 | 939 | Retention `AwaitingInput` run'ın istek olayını ve checkpoint'lerini tutar; checkpoint temizliği oturumda bekleyen/koşan run varken atlanır; istek kimliği olay `Text`'inden okunur (F-327) (kullanıcı kararı) 👤 |
-| K-889 | 940 | Akışsız döngü son turun cevabını, tüm turların usage toplamıyla döner; `AggregatedResponseGuard` MAF OTel'in bayat `RawRepresentation` kurulumunu keser; akışlı usage çağrıların toplamıdır; doğrulama son asistan mesajını okur (F-317 · F-329) (kullanıcı kararı) 👤 |
-| K-890 | 941 | Parametreli agent her yolda bağlanır ya da düşer: `BuildAgent` varsayılanları bağlar, eksik zorunlu parametrede `UnboundParameterGuard`; giriş uçları erken reddeder; `/run` kapısı ve eval kod tanımını okur; replay ve devam parametreli tanımı reddeder (F-330; bu madde K-898 ile değişti: kayıtlı değer varsa kullanılır) (kullanıcı kararı) 👤 |
-| K-891 | 942 | Descriptor, derlenen tanım sürümünü tanımlar: iç `IDescribingAgentSource` seam'i, tek `AgentDescriptorProjection`; üçüncü taraf kaynakta yalnız `Version` değişir (F-331) (kullanıcı kararı) 👤 |
-| K-892 | 943 | Harness skill, dosya belleği ve web aramasını yalnız tanım isteyince açar (`SkillNames`, `Memory.EnableFileMemory`, yeni public `HarnessSettings.EnableWebSearch`); tool döngüsü Tracon'undur: MAF'a giden akış güncellemesi kopyadır, `MaximumIterationsPerRequest` iç döngüye ve fallback halkasına taşınır (F-339 · F-315) (kullanıcı kararı) 👤 |
-| K-893 | 944 | Birden çok modelin harcadığı run her payı kendi modelinin fiyatıyla fiyatlar ve toplar; o run'da `RunCost` birim fiyat alanları `null`; `aiJudge` yargıcının token'ı run `usage`'ına, maliyetine ve kotasına girer; karma satır yeniden fiyatlanmaz (F-349) (kullanıcı kararı) 👤 |
 | K-894 | 945 | Kuyruklu run'ın deney kolu ve kültürü enqueue anında payload'a yazılır; worker kolu `IExperimentStore` ile doğrular (kiracı, agent, başlamış deney, varyant↔sürüm; Draft ve yarım kol reddedilir), uymazsa iş model çağrısı olmadan KAPALI düşer; kültür run kaydına yazılmaz (F-351) (kullanıcı kararı) 👤 |
 | K-895 | 946 | Onay devamı onayı isteyen run'ın agent sürümünde ve deney kolunda koşar (sürüm geçmişi olan kaynakta; kod agent'ı güncel tanımla); payload'daki agent adı kaynak run'ınkiyle aynı değilse ya da kaynak run yoksa iş KAPALI düşer; sürümsüz replay'in güncel sürümle ve alt agent'ın güncel sürümle koşması belgelenmiş tasarımdır (F-352) (kullanıcı kararı) 👤 |
 | K-896 | 947 | Retention, erasure ve ek deposu harici baytı satırdan ÖNCE siler; bayt silinemezse retention satırı tutar, erasure geri alınır; `IAttachmentStorage.DeleteAsync` idempotenttir; workflow run'ı oturumunun eklerine sahiptir (F-332) (kullanıcı kararı) 👤 |
@@ -70,3 +64,9 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-955 | 996 | Konuşma ve diyalog isteğinin ağdan önceki reddi (sınır, boş tur, sessiz tur kimliği, ayar ihlali) `TraconException`'dır, `ArgumentException` değildir; `null` istek `ArgumentNullException` kalır (F-296, Faz 203 planından sapma) (ana oturum varsayılanı, bakımcıya bildirildi) |
 | K-956 | 997 | `SpeechAudio.ProviderRequestId` sağlayıcının üretim kimliğini taşır (yerleşik istemcide `request-id` başlığı, tek ses ve diyalog yolu); `elevenlabs.previousRequestIds` (≤ 3) bu kimliklerle parçalar arası süreklilik kurar (F-296, Faz 203 planından sapma) (ana oturum varsayılanı, bakımcıya bildirildi) |
 | K-957 | 998 | Yerleşik ElevenLabs istemcisi kendisine doğrudan verilen kiracı kimliğini sentez, akışlı sentez, diyalog ve tanımada `NotSupportedException` ile reddeder; kurulum anahtarıyla çağırmaz (F-296, Faz 203, kusur-giderme; K-930 Açık Soru 4-A'nın uygulama düzeyi) |
+| K-958 | 999 | Fonksiyon düğümü süresi: kayıtta `WorkflowFunctionOptions.Timeout` (yeni `Action<>` aşırı yüklemesi), düğümde `WorkflowNodeReference.Timeout`; aşım run'ı `Failed` + `workflow_function_timeout` bitirir; süre deneme başınadır (F-303) (kullanıcı kararı) 👤 |
+| K-959 | 1000 | Agent düğümü `timeout`'u yalnız `nodes` zincirinde o adımın `ChildDeadline`'ını ezer; konsol süre için biçimi `nodes`'a çevirmez, K-901 değişmez (F-405) (kullanıcı kararı) 👤 |
+| K-960 | 1001 | Tanım `RunTimeout`'u kurulum değerini kısaltır, `MaxRunTimeout` tavanına kadar uzatır; tavan aşımı kayıtta `400`; süre slot beklemesini sayar (F-405) (kullanıcı kararı) 👤 |
+| K-961 | 1002 | Job süresi: `MaxDuration` alanı + `jobs.max_duration_ms` sütunu + `MaxDurationByHandlerKey` haritası; aşan deneme `tracon.job.max-duration-exceeded` ile başarısızdır ve yeniden kiralanır (F-323) (kullanıcı kararı) 👤 |
+| K-962 | 1003 | Job iptali handler token'ına bir `PollInterval` içinde ulaşır: üç kaynaklı token, sonuç kaynaktan okunur, işçi çalışan job'u yoklar (F-323) (kullanıcı kararı) 👤 |
+| K-963 | 1004 | Workflow işinde süre aşımı işin sonudur: run `job_max_duration_exceeded` ile kapanır ve kurtarma onu sürdürmez; 13-A, 7-A'dan önce gelir (F-323) (kullanıcı kararı) 👤 |

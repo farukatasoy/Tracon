@@ -1,6 +1,6 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
-> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137, 194, 197
+> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137, 194, 196, 197
 > **Kaynak:** `src/Tracon.Abstractions/Scheduling/` (tümü) ·
 > `src/Tracon.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
@@ -3300,3 +3300,71 @@ Host üretim kimliğini oturum yapar; run ve webhook aynı kimliği taşır. Kor
 - Adım 3: `run.completed` gövdesinde `sessionId: "production-11"`.
 - Adım 4: öğe `Failed`; hata `sessionId` kuralını adlandırır, değeri tekrar etmez.
 - Adım 5: `400`; mesaj `tracon.workflow`'u önerir.
+
+---
+
+### MT-JOB-146 — İş iptali çalışan workflow run'ına bir `PollInterval` içinde ulaşır (Faz 196, F-323)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 196 |
+| **İlgili karar** | K-886 |
+| **Devir** | ➜ CI: `JobWorkerCancellationTests` · `JobCancelEndpointTests` · `WorkflowJobCancellationTests` |
+
+İptal ucu eskiden yalnız depoya yazıyordu; çalışan handler'ın token'ı düşmüyordu.
+
+**Ön koşul** — Örnek uygulama (`PollInterval` 10 sn). `episode`: `word-count` + `render` `{"seconds":60}`. `PUT $APU/api/schedules/episode-nightly` gövdesi `{"handlerKey":"tracon.workflow","targetName":"episode","cron":"0 3 * * *","payload":["episode 1"],"enabled":false}`.
+
+**Adımlar**
+1. `POST $APU/api/schedules/episode-nightly/trigger` (gövdesiz); iş `Running` olunca 2 sn bekle.
+2. `POST $APU/api/jobs/{jobId}/cancel`; saati not et.
+3. `GET $APU/api/jobs/{jobId}` ve item'ın run'ı: `GET $APU/api/runs/{runId}`.
+
+**Beklenen sonuç**
+- Adım 2: `204`.
+- Adım 3: iş `Cancelled`, `errorMessage: null`; run `Canceled`, `error: null`; run'ın `completedAt` değeri iptalden en çok 10 sn sonra (render 60 sn sürerdi). Item `Pending` kalır.
+
+---
+
+### MT-JOB-147 — Haritadaki süre sınırı workflow işini `tracon.job.max-duration-exceeded` ile bitirir, run sürdürülmez (Faz 196, F-323)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 196 |
+| **İlgili karar** | K-927 |
+| **Devir** | ➜ CI: `JobWorkerDeadlineTests` · `WorkflowJobDeadlineRecoveryTests` |
+
+**Ön koşul** — Uygulama `--Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow=00:00:05` ile (anahtar nokta taşır: komut satırı). MT-JOB-146'nın `episode` ve zamanlaması.
+
+**Adımlar**
+1. `POST $APU/api/schedules/episode-nightly/trigger`.
+2. İş bitince `GET $APU/api/jobs/{jobId}` ve item'ın run'ı.
+
+**Beklenen sonuç**
+- İş `Failed`, `attempt: 1`, `errorMessage: tracon.job.max-duration-exceeded (ref: …)`.
+- Item `Failed`, hata `time limit (00:00:05)` der.
+- Run `Canceled`, `error.type: job_max_duration_exceeded`; ~5 sn sürdü; ona devam eden run yok.
+
+---
+
+### MT-JOB-148 — Haritada sıfır süre açılışı düşürür ve seçeneği adlandırır (Faz 196, F-323)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | 196 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `TimeoutOptionValidationTests` · `TraconSchedulingOptionsBindingTests` |
+
+**Ön koşul** — —
+
+**Adımlar**
+1. Uygulamayı `--Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow=00:00:00` ile başlat.
+
+**Beklenen sonuç**
+- Süreç `Now listening` yazmadan çıkar; `OptionsValidationException: TraconSchedulingOptions.MaxDurationByHandlerKey['tracon.workflow'] must be between 1 and 4294967294 milliseconds`.

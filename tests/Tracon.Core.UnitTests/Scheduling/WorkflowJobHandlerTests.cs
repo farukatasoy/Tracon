@@ -162,13 +162,125 @@ public sealed class WorkflowJobHandlerTests
         return default;
     }
 
-    private static JobItemRecord Item(int seq, string input, JobItemStatus status = JobItemStatus.Pending)
-        => new() { Id = Guid.NewGuid(), JobId = Guid.NewGuid(), Seq = seq, Input = input, Status = status };
+    /// <summary>
+    /// 🚨 F-323 (audit): a time limit that arrives while the item is still being prepared
+    /// - here, while its run id is written - found no run of this attempt to end. The
+    /// item stays pending with no report, as on a shutdown, and the next attempt runs it.
+    /// It used to fail with the limit and no run id, and the job failed with it.
+    /// </summary>
+    [Fact]
+    public async Task A_time_limit_while_the_items_run_id_is_written_leaves_the_item_pending()
+    {
+        using var deadline = new CancellationTokenSource();
+        var runner = new ScriptedWorkflowRunner(shouldFail: false);
+        var recovery = new WorkflowRecovery(new InMemoryRunStore(), new InMemoryWorkflowCheckpointStore(), new OnPolicy());
+        var handler = new WorkflowJobHandler(runner, recovery, NullLogger<WorkflowJobHandler>.Instance);
+        var reported = new List<JobItemResult>();
+        var context = BuildContext(
+            [Item(0, "episode 7")],
+            reported,
+            report: (result, cancellationToken) =>
+            {
+                if (result.Status == JobItemStatus.Pending)
+                {
+                    // The limit fires while the store writes the marker; the store
+                    // observes the handler's token.
+                    deadline.Cancel();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+
+                return AddAsync(reported, result);
+            },
+            signals: LimitOf(deadline));
+
+        var exception = await Should.ThrowAsync<OperationCanceledException>(
+            () => handler.ExecuteAsync(context, deadline.Token).AsTask());
+
+        exception.ShouldNotBeAssignableTo<NonRetryableJobException>();
+        reported.ShouldBeEmpty("an item whose run never started is not failed by the limit");
+        runner.Requests.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// 🚨 F-323 (audit, K-926): the limit arrives while the chain is closed, after the
+    /// continuation's row was written. The item stays pending; the continuation row stays
+    /// <see cref="RunStatus.Queued"/> only until the next attempt, which reads it as
+    /// interrupted and closes the chain. It used to fail the item and leave the row
+    /// queued for good.
+    /// </summary>
+    [Fact]
+    public async Task A_time_limit_while_the_chain_is_closed_leaves_the_item_pending_and_the_next_attempt_closes_the_continuation()
+    {
+        using var deadline = new CancellationTokenSource();
+        var inner = new InMemoryRunStore(tenantContext: new FixedTenantContext("tenant"));
+        var marked = TraconId.NewId();
+
+        await inner.StartRunAsync(new RunStartInfo
+        {
+            RunId = marked,
+            AgentName = "daily-report",
+            Kind = RunKind.Workflow,
+            WorkflowName = "daily-report",
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = "tenant",
+        });
+
+        var runs = new FaultyRunStore(inner) { BeforeComplete = deadline.Cancel };
+        var runner = new ScriptedWorkflowRunner(shouldFail: false);
+        var handler = new WorkflowJobHandler(
+            runner,
+            new WorkflowRecovery(runs, new InMemoryWorkflowCheckpointStore(), new OnPolicy()),
+            NullLogger<WorkflowJobHandler>.Instance);
+        var reported = new List<JobItemResult>();
+
+        var exception = await Should.ThrowAsync<OperationCanceledException>(
+            () => handler.ExecuteAsync(BuildContext([Item(0, "episode 7", runId: marked)], reported, signals: LimitOf(deadline)), deadline.Token).AsTask());
+
+        exception.ShouldNotBeAssignableTo<NonRetryableJobException>();
+        reported.ShouldBeEmpty("the continuation never started: the item stays pending");
+        runner.Requests.ShouldBeEmpty();
+
+        var opened = (await inner.QueryRunsAsync(new RunQuery { TenantId = "tenant", ContinuedFromRunId = marked })).ShouldHaveSingleItem();
+        opened.Status.ShouldBe(RunStatus.Queued);
+
+        // The next attempt, under a fresh limit, closes what the stopped one left open.
+        runs.BeforeComplete = null;
+        await handler.ExecuteAsync(BuildContext([Item(0, "episode 7", runId: marked)], reported));
+
+        (await inner.GetRunAsync(opened.Id))!.Status.ShouldNotBe(RunStatus.Queued);
+        reported.ShouldHaveSingleItem().Status.ShouldBe(JobItemStatus.Failed);
+    }
+
+    /// <summary>
+    /// F-323 (audit, open question 8-A): the last item's run completes in the same instant
+    /// as the limit. The work is done, so the job completes, as it does for a queued run
+    /// and for any handler that returns after its limit. It used to fail with the code.
+    /// </summary>
+    [Fact]
+    public async Task When_the_last_items_run_completes_in_the_same_instant_as_the_limit_the_job_completes()
+    {
+        using var deadline = new CancellationTokenSource();
+        var runner = new ScriptedWorkflowRunner(shouldFail: false, beforeLastEvent: deadline.Cancel);
+        var handler = new WorkflowJobHandler(runner, TestWorkflowRecovery.Off(), NullLogger<WorkflowJobHandler>.Instance);
+        var reported = new List<JobItemResult>();
+
+        await handler.ExecuteAsync(BuildContext([Item(0, "episode 7")], reported, signals: LimitOf(deadline)), deadline.Token);
+
+        reported.ShouldHaveSingleItem().Status.ShouldBe(JobItemStatus.Completed);
+    }
+
+    /// <summary>A limit of five minutes whose deadline the test fires by hand.</summary>
+    private static JobAttemptSignals LimitOf(CancellationTokenSource deadline)
+        => new(TimeSpan.FromMinutes(5), CancellationToken.None, CancellationToken.None, deadline.Token);
+
+    private static JobItemRecord Item(int seq, string input, JobItemStatus status = JobItemStatus.Pending, Guid? runId = null)
+        => new() { Id = Guid.NewGuid(), JobId = Guid.NewGuid(), Seq = seq, Input = input, Status = status, RunId = runId };
 
     private static JobContext BuildContext(
         IReadOnlyList<JobItemRecord> items,
         List<JobItemResult>? reported = null,
-        Func<JobItemResult, CancellationToken, ValueTask>? report = null)
+        Func<JobItemResult, CancellationToken, ValueTask>? report = null,
+        JobAttemptSignals? signals = null)
     {
         reported ??= [];
 
@@ -187,6 +299,7 @@ public sealed class WorkflowJobHandlerTests
             Items = items,
             ReportItemAsync = report ?? ((result, _) => AddAsync(reported, result)),
             IsCancelledAsync = _ => new ValueTask<bool>(false),
+            Signals = signals,
         };
     }
 

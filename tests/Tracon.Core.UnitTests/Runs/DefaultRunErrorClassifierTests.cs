@@ -51,6 +51,10 @@ public sealed class DefaultRunErrorClassifierTests
     // message names a provider; by identity it never reaches the provider-error
     // or quota patterns ("limit" and "provider" would otherwise read as a fault).
     [InlineData("output_truncated", "The 'anthropic' model stopped at the output token limit of 200 before the structured response was complete. A cut-off JSON document cannot be parsed, and a repair turn would hit the same limit, so none runs. Raise ModelBinding.MaxOutputTokens.", RunErrorClass.OutputTruncated)]
+    // Phase 196 (F-303, F-323): by STABLE IDENTITY. Neither message carries "timed out"
+    // or "timeout", so the rows prove the identity decides, not the message pattern.
+    [InlineData("workflow_function_timeout", "Function node 'render' did not return within 00:00:02 and was cancelled.", RunErrorClass.Timeout)]
+    [InlineData("job_max_duration_exceeded", "Workflow run was stopped: the job running it reached its limit (00:00:05).", RunErrorClass.Timeout)]
     public void Every_class_lands_in_the_right_bucket_with_at_least_one_example(string type, string message, RunErrorClass expected)
     {
         var result = _classifier.Classify(new RunError { Type = type, Message = message });

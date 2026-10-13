@@ -1341,3 +1341,17 @@ Faz 203'ün diyalog notlarına yer açmak için taşındı; alan dosyasında tek
     "yalitim cakismasi" sanildi. Yuk yalnizca pencereyi genisletiyordu; gercek
     sebep koddaydi. **Tek basina gecip pakette dusen test otomatik olarak
     kirilgan degildir** — kod yolu okunmadan siniflandirilmaz.
+
+## `docs/hafiza/workflows.md`'den — 2026-10-13 doküman bütçesi turu (Faz 196)
+
+Faz 196'nın süre ve iptal notlarına yer açmak için taşındı. Kural alan dosyasında tek satır olarak kaldı; tam metin aynen buradadır.
+
+- **🚨 MAF workflow'u `TurnToken` gonderilmeden calismaz** (2026-08-03, Faz 15): `InProcessExecution.RunStreamingAsync` sonrasi `run.TrySendMessageAsync(new TurnToken(emitEvents: true))` cagrilmazsa graf gelen mesaji yalnizca YUTAR: ilk super-step'ten sonra `Idle` olur, hicbir agent konusur, hicbir hata verilmez. Olculdu: token'siz 6 olay, token'li 40+ olay. MAF dokumaninda yazili degil.
+
+- **🚨 `AgentResponseEvent` ve `AgentResponseUpdateEvent`, `WorkflowOutputEvent`'ten TUREER** (2026-08-03, Faz 15): bir `switch` icinde genel dal once yazilirsa agent yanitlari "workflow cikti uretti" diye siniflanir ve gercek cikti kaybolur. `WorkflowEventMapper` sirayi korur.
+
+- **🚨 `InProcessExecution.RunStreamingAsync` yurutmeyi HEMEN baslatir** (2026-08-03, Faz 15): executor'lar `WatchStreamAsync` pompasinda degil, o cagrida baslatilan arka plan gorevinde calisir ve gorev `ExecutionContext`'i TAM O ANDA yakalar. `TraconRunContext` `scope`'u yalnizca `MoveNextAsync` oncesinde yazilirsa alt agent cagrilari reddedilir ve workflow SESSIZCE BOS calisir — sifir agent satiri, sifir kontrol noktasi. `Scope` `StartAsync`'ten ONCE de yazilmalidir. Faz 6/11/12 `AsyncLocal` tuzaginin dorduncu hali; birim testleri yakaladi.
+
+- **🚨 MAF executor kimlikleri agent ORNEGINDEN turer** (2026-08-03, Faz 15): kimlik `{Name}_{AIAgent.Id}`'dir; `AIAgent.Id` her ornek icin rastgele uretilir ve **sanal degildir**. Graf yeniden kurulurken yeni agent ornekleri uretilirse kontrol noktasi `InvalidDataException: The specified checkpoint is not compatible with the workflow` ile reddedilir. Olculdu: ayni ornekler → uyumlu, yeni ornekler → uyumsuz. `WorkflowAgentCache` sarmalayicilari `(workflowName, agentName)` ile onbellekler. Onbellek surec belleğindedir; yeniden baslatma eski noktalari gecersiz kilar (K-122).
+
+- **🚨 Katalogdan DOGRUDAN alinan agent workflow agacini bozar** (2026-08-03, Faz 15): `IAgentCatalog.ResolveAsync` kayit sarmalayicisini tasiyan agent dondurur ama MAF onu `options = null` ile cagirir; sarmalayici agac bilgisini okuyamaz ve KENDI kok `runs` satirini acar. Belirti: cikti dogru, `GET /api/runs/{id}/tree` tek satir. Kodda tanimli workflow'larda `services.GetWorkflowAgent(...)` kullanilmalidir. 209 test yesildi; yalnizca ornek uygulamayi gercekten calistirmak ortaya cikardi.

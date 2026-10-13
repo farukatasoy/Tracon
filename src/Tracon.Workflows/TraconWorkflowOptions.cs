@@ -54,11 +54,19 @@ public sealed class TraconWorkflowOptions
     /// hard wall-clock limit.
     /// </para>
     /// <para>
-    /// A run stopped this way reports a <c>TimeoutException</c> error naming
-    /// this setting. The deadline starts when the run starts, so the time a
-    /// run waits for a <see cref="MaxConcurrentRuns"/> slot counts too. To
-    /// bound an individual step instead, give the node its own timeout inside
-    /// the handler.
+    /// A run stopped this way ends <c>Canceled</c> and reports a
+    /// <c>TimeoutException</c> error naming this setting. The deadline starts when
+    /// the run starts, so the time a run waits for a <see cref="MaxConcurrentRuns"/>
+    /// slot counts too.
+    /// </para>
+    /// <para>
+    /// A workflow definition can set its own value
+    /// (<see cref="WorkflowDefinition.RunTimeout"/>). It may only shorten this one
+    /// unless <see cref="MaxRunTimeout"/> allows more. To bound one step instead,
+    /// give the node a timeout (<see cref="WorkflowNodeReference.Timeout"/>, or
+    /// <see cref="WorkflowFunctionOptions.Timeout"/> when the function is
+    /// registered): a step that runs past it fails the run, and a function's token
+    /// is cancelled.
     /// </para>
     /// <para>
     /// Must be from one millisecond to about 49.7 days while <see cref="Enabled"/>
@@ -66,6 +74,43 @@ public sealed class TraconWorkflowOptions
     /// </para>
     /// </remarks>
     public TimeSpan RunTimeout { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Gets or sets the longest run timeout a workflow definition may set for itself
+    /// (<see cref="WorkflowDefinition.RunTimeout"/>). <see langword="null"/> (the
+    /// default) means a definition may only shorten <see cref="RunTimeout"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A running workflow holds one of the <see cref="MaxConcurrentRuns"/> slots that
+    /// every tenant shares, so how long one run may hold it is the host's decision,
+    /// not the decision of whoever edits a definition. Set this to let some workflows
+    /// run longer than <see cref="RunTimeout"/> - a podcast chain whose writer step
+    /// takes several minutes, say - while every other workflow keeps the shorter
+    /// default.
+    /// </para>
+    /// <para>
+    /// A definition whose value is above the ceiling is refused when it is saved
+    /// (<c>400</c>). A stored definition whose value is above a ceiling that was
+    /// lowered later still runs, cut to the ceiling, and a warning is logged.
+    /// </para>
+    /// <para>
+    /// Must be from one millisecond to about 49.7 days, and not below
+    /// <see cref="RunTimeout"/>; any other value fails at startup, whether or not
+    /// <see cref="Enabled"/> is on, because the ceiling guards a definition save.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .UseWorkflows(options =>
+    ///        {
+    ///            options.RunTimeout = TimeSpan.FromMinutes(10);
+    ///            options.MaxRunTimeout = TimeSpan.FromHours(1);
+    ///        });
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public TimeSpan? MaxRunTimeout { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum number of super-steps a single run may process.

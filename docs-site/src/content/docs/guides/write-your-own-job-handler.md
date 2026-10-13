@@ -96,6 +96,7 @@ public sealed class ReportScheduler(IJobDispatcher jobs)
             HandlerKey = "contoso.nightly-report",
             TargetName = "nightly-report",
             Items = customers,
+            MaxDuration = TimeSpan.FromMinutes(30), // optional: each attempt's time limit
         });
 }
 ```
@@ -145,14 +146,27 @@ returned is not a handler failure: the worker tries the write of the outcome
 again while it still holds the lease, and does not call the handler again for
 it.
 
-**A running handler is never interrupted by its own lease, and nothing caps
-how long it may run.** The worker renews the lease on a timer for as long as
-`ExecuteAsync` has not returned, without a limit — there is no `JobTimeout`
-setting. So a handler that blocks forever holds its worker slot forever, that
-slot counts against `MaxConcurrentJobs` (default 2), and no replica can pick
-the work up instead: the job is leased, not abandoned. Give any handler that
-calls out to the network its own timeout. The `CancellationToken` you receive
-is cancelled when the worker shuts down, not when the job has taken too long.
+**A running handler is never interrupted by its own lease.** The worker renews
+the lease on a timer for as long as `ExecuteAsync` has not returned. A job is
+bounded only by a time limit you give it: `JobRequest.MaxDuration` for one job,
+or `Tracon:Scheduling:MaxDurationByHandlerKey` for every job of a handler key
+(the job's own value wins; no value means no limit). The limit applies to each
+attempt.
+
+**The `CancellationToken` you receive is cancelled for three reasons**, and the
+worker decides the outcome from the reason, not from the exception your
+handler throws:
+
+| Reason | When | Outcome |
+|---|---|---|
+| The worker stops | Host shutdown | Nothing is written; the job is leased again when its lease runs out |
+| The job is cancelled | `POST /api/jobs/{id}/cancel`, read every `PollInterval` (10 seconds by default) | The job stays `Cancelled`, with no error |
+| The time limit passes | The attempt ran longer than its limit | The attempt fails with `tracon.job.max-duration-exceeded`; the job is leased again while attempts are left |
+
+A handler that returns normally after its token was cancelled completes the
+job: the work it did stands. A handler that ignores its token is waited for,
+and keeps its worker slot (which counts against `MaxConcurrentJobs`, default 2)
+until it returns. Pass the token to every call the handler makes.
 
 `JobContext.Items` reflects that: it carries **every** item, not only the
 `Pending` ones. On a retry, items already `Completed` or `Failed` from an
@@ -161,9 +175,9 @@ payment, a call to an external system) must therefore either be idempotent on
 its own, or — the pattern every built-in handler uses, shown above — check
 `JobItemRecord.Status` and skip anything that is not `Pending`.
 
-`IsCancelledAsync` reflects a `POST /api/jobs/{id}/cancel` request; check it
-between items so a canceled job stops promptly instead of finishing every
-remaining item first. `ReportItemAsync` must be called for every item the
+`IsCancelledAsync` reflects a `POST /api/jobs/{id}/cancel` request at the moment
+you ask; check it between items so a canceled job stops before its next item
+even when the token has not fallen yet. `ReportItemAsync` must be called for every item the
 handler actually processes — it updates the item's persisted status and the
 job's `doneItems`/`failedItems` counters, which the job list and detail
 endpoints read.
