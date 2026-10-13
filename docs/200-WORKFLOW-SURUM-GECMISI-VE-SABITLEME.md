@@ -26,6 +26,7 @@
    bileşene çıkarken karşılaştırma bölümü yerinde kalır. `full-replace-editors.test.tsx`'in
    agent fixture'ı üç ölçütlü bir loop ve `api/loop-criteria` fixture'ı taşır; `agent-detail.test.tsx`
    sürüm karşılaştırmasını checkbox'larla açan bir test içerir — workflow sürüm testleri bu deseni kullanabilir.
+6. **Faz 196 devri** (`awk '/## Sonraki Faza Devir Notu/,0' docs/196-UZUN-ADIM-SURE-VE-IPTAL.md`, arşivlendiyse `docs/arsiv/fazlar/` altında): `WorkflowDefinition.RunTimeout` ve `WorkflowNodeReference.Timeout` tanımın parçasıdır; sürüm geçmişi ve geri alma iki alanı da taşımalı (`WorkflowDefinitionPayload`, `WorkflowDefinitionStoreContract.Node_timeouts_and_the_run_timeout_survive_the_round_trip`). 🚨 Süre değişikliği şekil (`shapeOf`) değişikliği DEĞİLDİR ve bekleyen run'ı resume edilemez yapmaz (K-959); sürüm damgası bunu "yapısal değişiklik" saymamalı. Editörde `Step.timeout`/`storedTimeout` ve `runTimeout`/`storedRunTimeout` K-918 deseniyle dokunulmadan döner; `hasStrandedTimeouts` kaydı tutar.
 
 ---
 

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (887 kalem)
+## Arşivlenen Kararlar (893 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -896,3 +896,9 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-885 | 936 | Her SSE ucu `SseWriter` içinde kendi keep-alive'ını yazar; aralık yeni public `TraconEndpointOptions.StreamKeepAliveInterval` (15 sn); workflow slot beklemesi run satırı açıldıktan sonradır (F-325) (kullanıcı kararı) 👤 |
 | K-886 | 937 | Terminal job değişmez (`IJobStore` sözleşmesi + iki contract case); kira dolumu denemedir, sınırı aşan job `AttemptsExhausted` ile koşmadan düşer; yenileme tick başına, kiranın üçte birinde; owner fencing ertelendi (F-326) (kullanıcı kararı) 👤 |
 | K-887 | 938 | Workflow katılımcısı cevap veremeyen adımı düşürür (`ChildRefusalMode.Fail`), delegasyon metin döner; süre aşımı yeni public `TraconChildRunTimeoutException`; workflow satırı `ErrorType` + sınıf taşır (F-328 · F-314) (kullanıcı kararı) 👤 |
+| K-888 | 939 | Retention `AwaitingInput` run'ın istek olayını ve checkpoint'lerini tutar; checkpoint temizliği oturumda bekleyen/koşan run varken atlanır; istek kimliği olay `Text`'inden okunur (F-327) (kullanıcı kararı) 👤 |
+| K-889 | 940 | Akışsız döngü son turun cevabını, tüm turların usage toplamıyla döner; `AggregatedResponseGuard` MAF OTel'in bayat `RawRepresentation` kurulumunu keser; akışlı usage çağrıların toplamıdır; doğrulama son asistan mesajını okur (F-317 · F-329) (kullanıcı kararı) 👤 |
+| K-890 | 941 | Parametreli agent her yolda bağlanır ya da düşer: `BuildAgent` varsayılanları bağlar, eksik zorunlu parametrede `UnboundParameterGuard`; giriş uçları erken reddeder; `/run` kapısı ve eval kod tanımını okur; replay ve devam parametreli tanımı reddeder (F-330; bu madde K-898 ile değişti: kayıtlı değer varsa kullanılır) (kullanıcı kararı) 👤 |
+| K-891 | 942 | Descriptor, derlenen tanım sürümünü tanımlar: iç `IDescribingAgentSource` seam'i, tek `AgentDescriptorProjection`; üçüncü taraf kaynakta yalnız `Version` değişir (F-331) (kullanıcı kararı) 👤 |
+| K-892 | 943 | Harness skill, dosya belleği ve web aramasını yalnız tanım isteyince açar (`SkillNames`, `Memory.EnableFileMemory`, yeni public `HarnessSettings.EnableWebSearch`); tool döngüsü Tracon'undur: MAF'a giden akış güncellemesi kopyadır, `MaximumIterationsPerRequest` iç döngüye ve fallback halkasına taşınır (F-339 · F-315) (kullanıcı kararı) 👤 |
+| K-893 | 944 | Birden çok modelin harcadığı run her payı kendi modelinin fiyatıyla fiyatlar ve toplar; o run'da `RunCost` birim fiyat alanları `null`; `aiJudge` yargıcının token'ı run `usage`'ına, maliyetine ve kotasına girer; karma satır yeniden fiyatlanmaz (F-349) (kullanıcı kararı) 👤 |
