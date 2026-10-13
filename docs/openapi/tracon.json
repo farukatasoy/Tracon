@@ -1227,7 +1227,7 @@
           "Runs"
         ],
         "summary": "Lists runs from newest to oldest.",
-        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run. \u0027userId\u0027 narrows the list to one user\u0027s runs, and \u0027label\u0027 takes a \u0027key:value\u0027 pair (\u0027label=team:payments\u0027); a bare \u0027label=team\u0027 matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. If a registered IRunAuthorizationHandler denies the caller, the response is 403 \u2014 the list is REJECTED, never silently filtered.",
+        "description": "By default, ONLY root runs are returned. To also see child runs, use \u0027includeChildren=true\u0027; pass \u0027rootRunId\u0027 for an entire tree, or \u0027parentRunId\u0027 for the direct children of a run. \u0027userId\u0027 narrows the list to one user\u0027s runs, and \u0027label\u0027 takes a \u0027key:value\u0027 pair (\u0027label=team:payments\u0027); a bare \u0027label=team\u0027 matches any value of that key. Both dimensions are recorded from the server-side IRunAttributionContext, never from the run request body. \u0027continuedFromRunId\u0027 returns the runs that continue a given run after an interruption (each continuation names the run it continues in \u0027continuedFromRunId\u0027); ask again with the newest one to walk the chain forward. If a registered IRunAuthorizationHandler denies the caller, the response is 403 \u2014 the list is REJECTED, never silently filtered.",
         "operationId": "TraconListRuns",
         "parameters": [
           {
@@ -1304,6 +1304,14 @@
           },
           {
             "name": "rootRunId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "continuedFromRunId",
             "in": "query",
             "schema": {
               "type": "string",
@@ -1996,8 +2004,8 @@
           "Tracon",
           "Workflows"
         ],
-        "summary": "Runs the workflow and streams its events over SSE.",
-        "description": "Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user\u0027s session in \u0027sessionId\u0027 is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it.",
+        "summary": "Runs the workflow and streams its events over SSE, or queues it with \u0027Prefer: respond-async\u0027.",
+        "description": "Each frame carries a RunEvent. The first frame reports the run ID; every agent invoked within the workflow opens its own runs row, viewable as a tree via GET /api/runs/{runId}/tree. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned, before the quota check. When session ownership is turned on, naming another user\u0027s session in \u0027sessionId\u0027 is refused the same way, and so is opening a NEW session when no authenticated identity can be resolved to own it. A streamed run belongs to the connection: if the client stops reading, the run closes as Canceled. A request carrying \u0027Prefer: respond-async\u0027 is checked the same way and then queued: the answer is \u0027202 Accepted\u0027 with a \u0027Location\u0027 header and the run id, the run executes in the background worker, and its events are read from GET /api/runs/{runId}/events. A queued run does not depend on any connection, and with ResumeInterruptedRuns on it is resumed from its latest checkpoint after a restart. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027 (400 otherwise); a repeated request returns the same 202 and queues nothing. With queuing disabled (Tracon:AsyncRun:Enabled = false) the preference is answered with 501.",
         "operationId": "TraconRunWorkflow",
         "parameters": [
           {
@@ -2025,6 +2033,16 @@
               "text/event-stream": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedRunResponse"
                 }
               }
             }
@@ -2125,8 +2143,8 @@
           "Tracon",
           "Workflows"
         ],
-        "summary": "Resumes from a checkpoint and streams events over SSE.",
-        "description": "Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional \u2014 without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run\u0027s id; a denial returns 403 before any run row is opened.",
+        "summary": "Resumes from a checkpoint and streams events over SSE, or queues it with \u0027Prefer: respond-async\u0027.",
+        "description": "Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional \u2014 without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. Because the status code is sent before the stream begins, a failure after that point arrives as an SSE error frame rather than an HTTP error. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run\u0027s id; a denial returns 403 before any run row is opened. With \u0027Prefer: respond-async\u0027 the resume is queued and answered with \u0027202 Accepted\u0027, like a queued run; the source run and its checkpoint are checked first, so an unknown run is 404 and a run with no checkpoint is 400. A queued resume is not counted against the quota, the same as a streamed one. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027.",
         "operationId": "TraconResumeWorkflow",
         "parameters": [
           {
@@ -2159,6 +2177,16 @@
               }
             }
           },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedRunResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "content": {
@@ -2171,6 +2199,16 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
@@ -2245,8 +2283,8 @@
           "Tracon",
           "Workflows"
         ],
-        "summary": "Responds to a pending request and resumes the run.",
-        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE \u2014 so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run\u0027s id; a denial returns 403 before any run row is opened.",
+        "summary": "Responds to a pending request and resumes the run, streamed or queued with \u0027Prefer: respond-async\u0027.",
+        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE \u2014 so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run\u0027s id; a denial returns 403 before any run row is opened. With \u0027Prefer: respond-async\u0027 the answer is checked the same way (a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404) and then queued: the reply is \u0027202 Accepted\u0027 and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027.",
         "operationId": "TraconRespondWorkflowRequest",
         "parameters": [
           {
@@ -2279,6 +2317,16 @@
               }
             }
           },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedRunResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "content": {
@@ -2291,6 +2339,16 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
