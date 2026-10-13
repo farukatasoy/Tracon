@@ -43,8 +43,10 @@ namespace Tracon;
 ///   </description></item>
 ///   <item><description>Is the extension on the interpreter allow-list</description></item>
 ///   <item><description>
-///   Did the arguments pass size and schema validation, and is a stored script's
-///   name a plain file name
+///   Did the arguments pass size and schema validation, is a stored script's
+///   name a plain file name, and is a file script a regular, non-empty file within
+///   <see cref="TraconSkillScriptOptions.MaxScriptContentLength"/> (decided from
+///   its metadata, without opening it)
 ///   </description></item>
 ///   <item><description>Was the audit trail entry written</description></item>
 /// </list>
@@ -56,11 +58,12 @@ namespace Tracon;
 /// in an executor: an executor that skipped it would run code with no record.
 /// </para>
 /// <para>
-/// After the gates comes the concurrency quota, then the executor. The runner
-/// waits for the executor at most the script timeout plus
-/// <see cref="ExecutorGracePeriod"/>; past that it cancels the executor's token,
-/// stops waiting, releases the quota, and records a timeout. The runner measures
-/// the duration and applies the output limit again, whatever the executor returned.
+/// After the gates comes the concurrency quota, then the file read for a file
+/// script, then the executor. The runner holds the slot for both and waits for
+/// both together at most the script timeout plus <see cref="ExecutorGracePeriod"/>;
+/// past that it cancels the token, stops waiting, releases the quota, and fails the
+/// read or records a timeout. The runner measures the duration and applies the
+/// output limit again, whatever the executor returned.
 /// </para>
 /// <para>
 /// MAF's approval flow stays active: <c>DisableRunSkillScriptApproval</c> is
@@ -451,6 +454,19 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
                 .ConfigureAwait(false);
         }
 
+        // 🚨 A file script passes the same content limit as a stored one, and only
+        // a regular, non-empty file is read at all. The decision comes from the
+        // file's metadata WITHOUT opening it: open(2) on a FIFO blocks until a
+        // writer appears, and a link to /dev/zero never ends - both report a size
+        // of zero. Decided here, it is a denial like every other gate: no
+        // script.run entry, no quota slot.
+        if (request.Origin == SkillScriptOrigin.File &&
+            CheckFileScript(request.SourcePath!, options.MaxScriptContentLength) is { } fileDenial)
+        {
+            await DenyAsync(request.SkillName, request.ScriptName, fileDenial, cancellationToken, activity)
+                .ConfigureAwait(false);
+        }
+
         // 🚨 The audit trail entry is written BEFORE execution, and is mandatory.
         // If it cannot be written, the run is denied; a code execution with
         // no record is unacceptable. It stays in the runner: an executor could
@@ -475,50 +491,93 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
         using var lease = await _limiter.AcquireAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
         var startedAt = _timeProvider.GetTimestamp();
-        SkillScriptExecutionResult? result;
-        bool abandoned;
-        var reading = request.Content is null;
 
-        try
+        // 🚨 The wait limit is a timer of its own: Timeout + grace. It covers the
+        // file read AND the executor call, so nothing the runner waits for while it
+        // holds a quota slot can hold it longer. The option validator bounds Timeout
+        // so that the sum stays inside the range a timer accepts; a wider value
+        // would throw HERE, after the audit entry was written and the quota taken.
+        using var waitLimit = new CancellationTokenSource(options.Timeout + ExecutorGracePeriod, _timeProvider);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, waitLimit.Token);
+
+        // A file script's content is read only now, after the quota: the runner
+        // holds a slot while it reads, the same as while it runs. The file passed
+        // the gate, but it can change before this read, so the read stops one byte
+        // past the limit and gives up at the wait limit.
+        var content = request.Content;
+        string? readFailure = null;
+        Exception? readException = null;
+
+        if (content is null)
         {
-            // A file script's content is read only now, after the quota: the
-            // runner holds a slot while it reads, the same as while it runs.
-            var content = request.Content
-                ?? await File.ReadAllTextAsync(request.SourcePath!, cancellationToken).ConfigureAwait(false);
-
-            reading = false;
-
-            var executionRequest = new SkillScriptExecutionRequest
+            try
             {
-                TenantId = tenantId,
-                RunId = TraconRunContext.CurrentRunId,
-                SkillName = request.SkillName,
-                ScriptName = request.ScriptName,
-                Origin = request.Origin,
-                Extension = request.Extension,
-                Interpreter = interpreter,
-                Content = content,
-                ContentSha256 = Sha256(content),
-                SourcePath = request.SourcePath,
-                ArgumentsJson = argumentsJson,
-                Timeout = options.Timeout,
-                MaxOutputBytes = options.MaxOutputBytes,
-            };
+                content = await ReadBoundedAsync(request.SourcePath!, options.MaxScriptContentLength, linked.Token)
+                    .ConfigureAwait(false);
 
-            (result, abandoned) = await InvokeExecutorAsync(executionRequest, cancellationToken).ConfigureAwait(false);
+                if (content is null)
+                {
+                    readFailure = $"The script file exceeds the {options.MaxScriptContentLength}-byte limit.";
+                }
+            }
+            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested && waitLimit.IsCancellationRequested)
+            {
+                readFailure = "The script file could not be read in time.";
+                readException = ex;
+            }
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+            {
+                readFailure = "The script file could not be read.";
+                readException = ex;
+            }
         }
-        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
-        {
-            var reason = reading
-                ? "The script file could not be read."
-                : $"The script executor failed ({ex.GetType().Name}).";
 
+        if (readFailure is not null || content is null)
+        {
             throw await RecordFailureAsync(
                     request,
                     argumentsJson,
                     activity,
                     _timeProvider.GetElapsedTime(startedAt),
-                    reason,
+                    readFailure ?? "The script file could not be read.",
+                    readException,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var executionRequest = new SkillScriptExecutionRequest
+        {
+            TenantId = tenantId,
+            RunId = TraconRunContext.CurrentRunId,
+            SkillName = request.SkillName,
+            ScriptName = request.ScriptName,
+            Origin = request.Origin,
+            Extension = request.Extension,
+            Interpreter = interpreter,
+            Content = content,
+            ContentSha256 = Sha256(content),
+            SourcePath = request.SourcePath,
+            ArgumentsJson = argumentsJson,
+            Timeout = options.Timeout,
+            MaxOutputBytes = options.MaxOutputBytes,
+        };
+
+        SkillScriptExecutionResult? result;
+        bool abandoned;
+
+        try
+        {
+            (result, abandoned) = await InvokeExecutorAsync(executionRequest, waitLimit, linked.Token, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+        {
+            throw await RecordFailureAsync(
+                    request,
+                    argumentsJson,
+                    activity,
+                    _timeProvider.GetElapsedTime(startedAt),
+                    $"The script executor failed ({ex.GetType().Name}).",
                     ex,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -588,27 +647,34 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
     /// the wait limit passed first. The result is <see langword="null"/> when the
     /// executor broke its contract and returned none.
     /// </returns>
+    /// <param name="request">The request.</param>
+    /// <param name="waitLimit">The wait limit armed before the file read; it also covers this call.</param>
+    /// <param name="linkedToken">The caller's token linked with the wait limit.</param>
+    /// <param name="cancellationToken">The caller's token.</param>
     /// <exception cref="OperationCanceledException">The caller cancelled.</exception>
     private async Task<(SkillScriptExecutionResult? Result, bool Abandoned)> InvokeExecutorAsync(
         SkillScriptExecutionRequest request,
+        CancellationTokenSource waitLimit,
+        CancellationToken linkedToken,
         CancellationToken cancellationToken)
     {
-        // 🚨 The wait limit is a timer of its own: Timeout + grace. The option
-        // validator bounds Timeout so that the sum stays inside the range a timer
-        // accepts; a wider value would throw HERE, after the audit entry was
-        // written and the quota taken.
-        using var waitLimit = new CancellationTokenSource(request.Timeout + ExecutorGracePeriod, _timeProvider);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, waitLimit.Token);
-
         // A synchronous throw from ExecuteAsync is an executor failure like any
         // other; the caller records it.
-        var execution = _executor.ExecuteAsync(request, linked.Token).AsTask();
+        var execution = _executor.ExecuteAsync(request, linkedToken).AsTask();
 
         try
         {
-            return (await execution.WaitAsync(linked.Token).ConfigureAwait(false), false);
+            return (await execution.WaitAsync(linkedToken).ConfigureAwait(false), false);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && waitLimit.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller stopped. The executor may finish later; its outcome is
+            // observed and dropped, so a late failure does not surface as an
+            // unobserved task exception in the host.
+            ObserveLateOutcome(execution);
+            throw;
+        }
+        catch (OperationCanceledException) when (waitLimit.IsCancellationRequested)
         {
             // The executor ignored its timeout. Waiting stops here, the quota is
             // released when the caller returns, and the run is recorded as timed
@@ -631,7 +697,7 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
         }
     }
 
-    private static void ObserveLateOutcome(Task<SkillScriptExecutionResult> execution)
+    private static void ObserveLateOutcome(Task execution)
         => _ = execution.ContinueWith(
             static task => _ = task.Exception,
             CancellationToken.None,
@@ -736,6 +802,120 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// Decides from a file script's metadata, without opening it, whether the runner
+    /// may read it.
+    /// </summary>
+    /// <param name="path">The script's full path.</param>
+    /// <param name="maxBytes">The content limit.</param>
+    /// <returns>A fixed denial sentence, or <see langword="null"/> when the file may be read.</returns>
+    /// <remarks>
+    /// A link is followed to its final target. A FIFO, a device, and a
+    /// <c>/proc</c> entry report a size of zero, and an empty file has nothing to
+    /// run, so a size of zero is refused; opening a FIFO would block until a
+    /// writer appears. The sentences carry no path: they reach the audit trail,
+    /// the span, and the model.
+    /// </remarks>
+    internal static string? CheckFileScript(string path, int maxBytes)
+    {
+        FileInfo file;
+
+        try
+        {
+            var start = new FileInfo(path);
+            file = start.ResolveLinkTarget(returnFinalTarget: true) as FileInfo ?? start;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return "The script file does not exist.";
+        }
+
+        if (!file.Exists)
+        {
+            return "The script file does not exist.";
+        }
+
+        if (file.Length == 0)
+        {
+            return "The script file is empty or is not a regular file.";
+        }
+
+        return file.Length > maxBytes
+            ? $"The script file exceeds the {maxBytes}-byte limit."
+            : null;
+    }
+
+    /// <summary>
+    /// Reads a file script, at most <paramref name="maxBytes"/> bytes, decoded as
+    /// UTF-8 (a byte order mark selects another Unicode encoding).
+    /// </summary>
+    /// <param name="path">The script's full path.</param>
+    /// <param name="maxBytes">The content limit.</param>
+    /// <param name="cancellationToken">Ends the wait; the runner links the wait limit to it.</param>
+    /// <returns>The text, or <see langword="null"/> when the file holds more than <paramref name="maxBytes"/> bytes.</returns>
+    /// <exception cref="OperationCanceledException">The token was cancelled before the read finished.</exception>
+    /// <remarks>
+    /// The open and the read run on a pool thread: opening a FIFO blocks inside
+    /// <c>open(2)</c>, before any token is looked at, and the caller must still be
+    /// able to stop waiting. A read abandoned that way keeps its thread until the
+    /// open returns; the metadata gate makes that case a file replaced between
+    /// the gate and the read.
+    /// </remarks>
+    internal static async Task<string?> ReadBoundedAsync(string path, int maxBytes, CancellationToken cancellationToken)
+    {
+        var read = Task.Run(() => ReadFileAsync(path, maxBytes, cancellationToken), CancellationToken.None);
+
+        try
+        {
+            return await read.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            ObserveLateOutcome(read);
+            throw;
+        }
+    }
+
+    private static async Task<string?> ReadFileAsync(string path, int maxBytes, CancellationToken cancellationToken)
+    {
+        var stream = new FileStream(path, new FileStreamOptions
+        {
+            Mode = FileMode.Open,
+            Access = FileAccess.Read,
+            Share = FileShare.Read,
+            Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+        });
+
+        await using (stream.ConfigureAwait(false))
+        {
+            using var buffer = new MemoryStream();
+            var chunk = new byte[16 * 1024];
+
+            while (true)
+            {
+                // Never asks for more than one byte past the limit.
+                var wanted = (int)Math.Min(chunk.Length, (long)maxBytes + 1 - buffer.Length);
+                var count = await stream.ReadAsync(chunk.AsMemory(0, wanted), cancellationToken).ConfigureAwait(false);
+
+                if (count == 0)
+                {
+                    break;
+                }
+
+                buffer.Write(chunk, 0, count);
+
+                if (buffer.Length > maxBytes)
+                {
+                    return null;
+                }
+            }
+
+            buffer.Position = 0;
+            using var reader = new StreamReader(buffer, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static string Sha256(string content)

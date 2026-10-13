@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -89,34 +90,25 @@ public sealed partial class SandboxedSkillScriptRunnerTests
 
     /// <summary>
     /// A file script is read by the runner, after the quota, and travels whole: a
-    /// remote executor cannot read the host's path. Its size is not capped by the
-    /// stored-script content limit, which applies to what the database stores.
+    /// remote executor cannot read the host's path.
     /// </summary>
     [Fact]
-    public async Task A_file_script_reaches_the_executor_whole_with_its_text_and_path()
+    public async Task A_file_script_within_the_content_limit_reaches_the_executor_whole_with_its_text_and_path()
     {
-        var directory = Directory.CreateTempSubdirectory("tracon-file-script-").FullName;
-        _tempDirectories.Add(directory);
-        var path = Path.Combine(directory, "large.sh");
-        var content = "# naïve café line\n" + string.Concat(Enumerable.Repeat("echo 0123456789abcdef\n", 10_000));
-        await File.WriteAllTextAsync(path, content);
-
+        var path = WriteFileScript("whole.sh", "# naïve café line\n" + string.Concat(Enumerable.Repeat("echo 0123456789abcdef\n", 2_900)));
+        var content = await File.ReadAllTextAsync(path);
         var executor = new DelegateExecutor((_, _) => Task.FromResult(Exited(0)));
 
         using var runner = CreateExecutorRunner(
             new InMemoryAuditLog(),
             await GrantFileSkillAsync("disk-skill"),
             executor,
-            options =>
-            {
-                options.Interpreters["sh"] = "/bin/sh";
-                options.MaxScriptContentLength = 1024;
-            });
+            options => options.Interpreters["sh"] = "/bin/sh");
 
-        await runner.RunFileScriptAsync("disk-skill", "large", path, null, null, CancellationToken.None);
+        await runner.RunFileScriptAsync("disk-skill", "whole", path, null, null, CancellationToken.None);
 
         var request = executor.Requests.ShouldHaveSingleItem();
-        Encoding.UTF8.GetByteCount(request.Content).ShouldBeGreaterThan(200_000);
+        Encoding.UTF8.GetByteCount(request.Content).ShouldBeGreaterThan(60_000);
         request.Content.ShouldBe(content);
         request.ContentSha256.ShouldBe(Sha256(content));
         request.Origin.ShouldBe(SkillScriptOrigin.File);
@@ -125,14 +117,115 @@ public sealed partial class SandboxedSkillScriptRunnerTests
     }
 
     /// <summary>
-    /// The file is read after the audit entry and the quota: a file that vanished
-    /// since MAF listed it fails the call, and the executor never sees a request.
+    /// One content limit for every script: a file script larger than
+    /// <c>MaxScriptContentLength</c> is a closed gate, written as a denial before the
+    /// <c>script.run</c> entry and never read into memory.
     /// </summary>
     [Fact]
-    public async Task A_file_script_that_cannot_be_read_fails_the_call_without_reaching_the_executor()
+    public async Task A_file_script_past_the_content_limit_is_denied_before_the_audit_entry_and_the_executor()
+    {
+        var path = WriteFileScript("large.sh", new string('#', 2_048));
+        var executor = new DelegateExecutor((_, _) => Task.FromResult(Exited(0)));
+        var log = new InMemoryAuditLog();
+
+        using var runner = CreateExecutorRunner(
+            log,
+            await GrantFileSkillAsync("disk-skill"),
+            executor,
+            options =>
+            {
+                options.Interpreters["sh"] = "/bin/sh";
+                options.MaxScriptContentLength = 1_024;
+            });
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await runner.RunFileScriptAsync("disk-skill", "large", path, null, null, CancellationToken.None));
+
+        exception.Message.ShouldContain("exceeds the 1024-byte limit");
+        executor.Requests.ShouldBeEmpty();
+        (await DenialReasonsAsync(log)).ShouldContain(static reason => reason.Contains("exceeds the 1024-byte limit", StringComparison.Ordinal));
+        (await log.QueryAsync(new AuditQuery { TenantId = "default" }))
+            .ShouldNotContain(static entry => string.Equals(entry.Action, "script.run", StringComparison.Ordinal));
+    }
+
+    public static TheoryData<string> SpecialFiles() => ["missing", "empty", "dev-zero-link", "fifo"];
+
+    /// <summary>
+    /// A file the runner cannot read safely is a closed gate: it is decided from the
+    /// file's metadata, without opening it. A FIFO blocks inside <c>open</c> until a
+    /// writer appears and <c>/dev/zero</c> never ends; both report a size of zero.
+    /// The quota slot is never taken, so the next script of the tenant still runs.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(SpecialFiles))]
+    public async Task A_missing_empty_or_special_file_script_is_denied_without_opening_it(string kind)
     {
         var directory = Directory.CreateTempSubdirectory("tracon-file-script-").FullName;
         _tempDirectories.Add(directory);
+        var path = Path.Combine(directory, $"{kind}.sh");
+
+        switch (kind)
+        {
+            case "empty":
+                await File.WriteAllTextAsync(path, string.Empty);
+                break;
+            case "dev-zero-link":
+                Assert.SkipWhen(!File.Exists("/dev/zero"), "/dev/zero not found.");
+                File.CreateSymbolicLink(path, "/dev/zero");
+                break;
+            case "fifo":
+                Assert.SkipWhen(!TryMakeFifo(path), "mkfifo is not available.");
+                break;
+        }
+
+        var executor = new DelegateExecutor((_, _) => Task.FromResult(Exited(0, "after-the-denial")));
+        var log = new InMemoryAuditLog();
+
+        using var runner = CreateExecutorRunner(
+            log,
+            await GrantFileSkillAsync("disk-skill"),
+            executor,
+            options =>
+            {
+                options.Interpreters["sh"] = "/bin/sh";
+                options.MaxConcurrentPerTenant = 1;
+                options.MaxConcurrentTotal = 1;
+            });
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await runner
+                .RunFileScriptAsync("disk-skill", kind, path, null, null, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(30)));
+
+        exception.Message.ShouldContain(string.Equals(kind, "missing", StringComparison.Ordinal)
+            ? "does not exist"
+            : "is empty or is not a regular file");
+        executor.Requests.ShouldBeEmpty();
+        (await log.QueryAsync(new AuditQuery { TenantId = "default" }))
+            .ShouldNotContain(static entry => string.Equals(entry.Action, "script.run", StringComparison.Ordinal));
+
+        var next = WriteFileScript("next.sh", "echo next");
+        (await runner.RunFileScriptAsync("disk-skill", "next", next, null, null, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30)))
+            .ShouldBeOfType<string>().ShouldContain("after-the-denial");
+    }
+
+    /// <summary>
+    /// The file passed the gate and became unreadable before the read: the call fails
+    /// after its <c>script.run</c> entry, and the executor never sees a request.
+    /// </summary>
+    [Fact]
+    public async Task A_file_script_that_cannot_be_read_fails_the_call_after_the_audit_entry()
+    {
+        var path = WriteFileScript("locked.sh", "echo locked");
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix file modes only.");
+
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, UnixFileMode.None);
+        }
+
+        Assert.SkipWhen(CanOpen(path), "The test user can read a file with no permissions (root).");
+
         var executor = new DelegateExecutor((_, _) => Task.FromResult(Exited(0)));
         var log = new InMemoryAuditLog();
 
@@ -143,13 +236,119 @@ public sealed partial class SandboxedSkillScriptRunnerTests
             options => options.Interpreters["sh"] = "/bin/sh");
 
         var exception = await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunFileScriptAsync(
-                "disk-skill", "gone", Path.Combine(directory, "gone.sh"), null, null, CancellationToken.None));
+            async () => await runner.RunFileScriptAsync("disk-skill", "locked", path, null, null, CancellationToken.None));
 
         exception.Message.ShouldContain("could not be read");
         executor.Requests.ShouldBeEmpty();
         (await log.QueryAsync(new AuditQuery { TenantId = "default" }))
             .ShouldContain(static entry => string.Equals(entry.Action, "script.run", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The gate decides from metadata, so a file can still change between the gate
+    /// and the read. The read is held to the same wait limit as the executor: a FIFO
+    /// that appears after the gate blocks inside <c>open</c>, and the runner gives
+    /// up at <c>Timeout + 5 s</c>, fails the call and frees the quota slot.
+    /// </summary>
+    [Fact]
+    public async Task A_file_that_blocks_after_the_gate_is_abandoned_at_the_wait_limit_and_frees_the_quota()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-file-script-").FullName;
+        _tempDirectories.Add(directory);
+        var path = Path.Combine(directory, "swapped.sh");
+        await File.WriteAllTextAsync(path, "echo regular");
+        Assert.SkipWhen(!TryMakeFifo(Path.Combine(directory, "probe.fifo")), "mkfifo is not available.");
+
+        // The script.run entry is written between the gate and the read; this log
+        // swaps the regular file for a FIFO exactly there.
+        var swapped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var log = new SwappingAuditLog(() =>
+        {
+            if (!swapped.Task.IsCompleted)
+            {
+                File.Delete(path);
+                TryMakeFifo(path).ShouldBeTrue();
+                swapped.TrySetResult();
+            }
+        });
+
+        var clock = new TriggerableTimeProvider();
+        var executor = new DelegateExecutor((_, _) => Task.FromResult(Exited(0, "second-file")));
+
+        using var runner = CreateExecutorRunner(
+            log,
+            await GrantFileSkillAsync("disk-skill"),
+            executor,
+            options =>
+            {
+                options.Interpreters["sh"] = "/bin/sh";
+                options.Timeout = TimeSpan.FromSeconds(30);
+                options.MaxConcurrentPerTenant = 1;
+                options.MaxConcurrentTotal = 1;
+            },
+            timeProvider: clock);
+
+        try
+        {
+            var first = runner.RunFileScriptAsync("disk-skill", "swapped", path, null, null, CancellationToken.None);
+            await swapped.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            await WaitForTimerAsync(clock);
+
+            clock.DueTimes.ShouldBe([TimeSpan.FromSeconds(35)]);
+            first.IsCompleted.ShouldBeFalse();
+
+            clock.TriggerAll();
+
+            var exception = await Should.ThrowAsync<TraconException>(async () => await first.WaitAsync(TimeSpan.FromSeconds(30)));
+            exception.Message.ShouldContain("could not be read in time");
+            executor.Requests.ShouldBeEmpty();
+
+            var next = WriteFileScript("next.sh", "echo next");
+            (await runner.RunFileScriptAsync("disk-skill", "next", next, null, null, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30)))
+                .ShouldBeOfType<string>().ShouldContain("second-file");
+        }
+        finally
+        {
+            ReleaseFifoReader(path);
+        }
+    }
+
+    [Fact]
+    public async Task The_bounded_read_stops_one_byte_past_the_limit_on_an_endless_file()
+    {
+        Assert.SkipWhen(!File.Exists("/dev/zero"), "/dev/zero not found.");
+
+        (await SandboxedSkillScriptRunner.ReadBoundedAsync("/dev/zero", 4_096, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30)))
+            .ShouldBeNull();
+    }
+
+    /// <summary>
+    /// The tool call record is observability: a store that refuses it does not fail
+    /// the script, and the run still gets its result.
+    /// </summary>
+    [Fact]
+    public async Task A_tool_call_record_the_store_refuses_does_not_fail_the_run()
+    {
+        var skill = Demo(EchoScript());
+        var executor = new DelegateExecutor((_, _) => Task.FromResult(Exited(0, "recorded-or-not")));
+        var store = DispatchProxy.Create<IRunStore, ToolRecordRefusingRunStore>();
+        var runId = TraconId.NewId();
+
+        TraconRunContext.SetCurrent(new AgentRunScope { RunId = runId, RootRunId = runId, TenantId = "default" });
+
+        try
+        {
+            using var runner = CreateExecutorRunner(new InMemoryAuditLog(), await GrantAllAsync(skill), executor, runStore: store);
+
+            (await runner.RunStoredScriptAsync(skill, "echo", null, CancellationToken.None))
+                .ShouldBeOfType<string>().ShouldContain("recorded-or-not");
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        ((ToolRecordRefusingRunStore)(object)store).Attempts.ShouldBe(1);
     }
 
     [Fact]
@@ -361,6 +560,87 @@ public sealed partial class SandboxedSkillScriptRunnerTests
         }
     }
 
+    /// <summary>
+    /// After the caller stops, an executor that fails later still has its failure
+    /// observed: the runner dropped the task, and an unobserved fault would surface
+    /// as <see cref="TaskScheduler.UnobservedTaskException"/> in the host.
+    /// </summary>
+    [Fact]
+    public async Task A_late_executor_failure_after_a_caller_cancellation_is_observed()
+    {
+        var marker = $"late-failure-{Guid.NewGuid():N}";
+        var unobserved = new ConcurrentQueue<string>();
+
+        void OnUnobserved(object? sender, UnobservedTaskExceptionEventArgs args)
+        {
+            if (args.Exception.InnerExceptions.Any(inner => inner.Message.Contains(marker, StringComparison.Ordinal)))
+            {
+                unobserved.Enqueue(marker);
+            }
+        }
+
+        TaskScheduler.UnobservedTaskException += OnUnobserved;
+
+        try
+        {
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var skill = Demo(EchoScript());
+
+            await RunAndCancelAsync(skill, release, failed, called, marker);
+
+            release.SetResult();
+            await failed.Task.WaitAsync(TimeSpan.FromSeconds(30));
+
+            await WaitUntil.TrueAsync(
+                () =>
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    return true;
+                },
+                "the dropped executor task was collected");
+
+            unobserved.ShouldBeEmpty("The runner dropped a faulted executor task without observing it.");
+        }
+        finally
+        {
+            TaskScheduler.UnobservedTaskException -= OnUnobserved;
+        }
+    }
+
+    /// <summary>
+    /// Starts a run whose executor fails only after <paramref name="release"/>, and
+    /// cancels it as the caller. A separate method so no local in the test keeps
+    /// the executor's task alive.
+    /// </summary>
+    private static async Task RunAndCancelAsync(
+        AgentSkillDefinition skill,
+        TaskCompletionSource release,
+        TaskCompletionSource failed,
+        TaskCompletionSource called,
+        string marker)
+    {
+        var executor = new DelegateExecutor(async (_, _) =>
+        {
+            called.TrySetResult();
+            await release.Task;
+            failed.TrySetResult();
+            throw new InvalidOperationException(marker);
+        });
+
+        using var runner = CreateExecutorRunner(new InMemoryAuditLog(), await GrantAllAsync(skill), executor);
+        using var cancellation = new CancellationTokenSource();
+
+        var run = runner.RunStoredScriptAsync(skill, "echo", null, cancellation.Token);
+        await called.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await cancellation.CancelAsync();
+
+        (await Should.ThrowAsync<Exception>(async () => await run.WaitAsync(TimeSpan.FromSeconds(30))))
+            .ShouldBeAssignableTo<OperationCanceledException>();
+    }
+
     [Fact]
     public async Task The_concurrency_quota_applies_to_a_custom_executor()
     {
@@ -538,6 +818,105 @@ public sealed partial class SandboxedSkillScriptRunnerTests
 
     private static SkillScriptExecutionResult Exited(int exitCode, string standardOutput = "")
         => new() { ExitCode = exitCode, StandardOutput = standardOutput };
+
+    private string WriteFileScript(string name, string content)
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-file-script-").FullName;
+        _tempDirectories.Add(directory);
+        var path = Path.Combine(directory, name);
+        File.WriteAllText(path, content);
+        return path;
+    }
+
+    private static bool TryMakeFifo(string path)
+    {
+        try
+        {
+            using var mkfifo = Process.Start(new ProcessStartInfo("mkfifo") { ArgumentList = { path }, UseShellExecute = false });
+
+            if (mkfifo is null)
+            {
+                return false;
+            }
+
+            mkfifo.WaitForExit();
+            return mkfifo.ExitCode == 0;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    private static bool CanOpen(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Opens a FIFO for writing once, so a reader blocked in <c>open</c> returns.</summary>
+    private static void ReleaseFifoReader(string path)
+    {
+        try
+        {
+            using var writer = new FileStream(path, FileMode.Open, FileAccess.Write);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Nothing is blocked on it.
+        }
+    }
+
+    private static Task WaitForTimerAsync(TriggerableTimeProvider clock)
+        => WaitUntil.TrueAsync(() => clock.ActiveTimerCount > 0, "the runner armed its wait limit");
+
+    /// <summary>An audit log that runs <paramref name="onScriptRun"/> while it writes the <c>script.run</c> entry.</summary>
+    private sealed class SwappingAuditLog(Action onScriptRun) : IAuditLog
+    {
+        private readonly InMemoryAuditLog _inner = new();
+
+        public ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
+        {
+            if (string.Equals(entry.Action, "script.run", StringComparison.Ordinal))
+            {
+                onScriptRun();
+            }
+
+            return _inner.WriteAsync(entry, cancellationToken);
+        }
+
+        public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
+            => _inner.QueryAsync(query, cancellationToken);
+
+        public ValueTask<AuditChainVerification> VerifyChainAsync(AuditChainQuery query, CancellationToken cancellationToken = default)
+            => _inner.VerifyChainAsync(query, cancellationToken);
+    }
+
+    /// <summary>A run store whose only reachable member, the tool call record, always fails.</summary>
+    public class ToolRecordRefusingRunStore : DispatchProxy
+    {
+        private int _attempts;
+
+        public int Attempts => Volatile.Read(ref _attempts);
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (string.Equals(targetMethod?.Name, nameof(IRunStore.RecordToolInvocationAsync), StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref _attempts);
+                return new ValueTask(Task.FromException(new InvalidOperationException("tool_invocations is unavailable")));
+            }
+
+            throw new NotSupportedException($"{targetMethod?.Name} is not used by the script runner.");
+        }
+    }
 
     private static string Sha256(string content)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content)));

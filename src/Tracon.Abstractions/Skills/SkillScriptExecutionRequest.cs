@@ -68,8 +68,9 @@ public sealed record SkillScriptExecutionRequest
     /// <remarks>
     /// For a <see cref="SkillScriptOrigin.Stored"/> script, the exact content the
     /// grant pins. For a <see cref="SkillScriptOrigin.File"/> script, the file's
-    /// text as Tracon read it, decoded as UTF-8, after the quota was taken. Other
-    /// files next to it are not carried.
+    /// text as Tracon read it, decoded as UTF-8, after the quota was taken. A file
+    /// script is a regular, non-empty file within the same content size limit as a
+    /// stored script. Other files next to it are not carried.
     /// </remarks>
     public required string Content { get; init; }
 

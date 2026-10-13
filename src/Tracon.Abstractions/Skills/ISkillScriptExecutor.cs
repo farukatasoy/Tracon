@@ -7,14 +7,16 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>What stays with Tracon.</strong> The caller decides whether a script
-/// may run before it calls this interface: the feature switch, the tenant's
-/// <see cref="SkillScriptGrant"/> and its content pin, the interpreter allow-list,
-/// the argument size and schema, and the audit trail entry. A request that fails
-/// one of them never reaches an executor. After the call, Tracon applies the
-/// concurrency quota, measures the duration, enforces the output limit again, and
-/// writes the span, the metric, and the tool call record. An executor cannot skip
-/// a gate, and it cannot write or suppress the audit entry.
+/// <strong>What stays with Tracon.</strong> Before the call, Tracon decides whether
+/// a script may run: the feature switch, the tenant's <see cref="SkillScriptGrant"/>
+/// and its content pin, the interpreter allow-list, the argument size and schema,
+/// a plain file name for a stored script, the content size limit for a file
+/// script, and the audit trail entry. A request that fails one of them never
+/// reaches an executor. Tracon then takes a concurrency slot and holds it until
+/// the call returns or the wait limit passes. After the call, it measures the
+/// duration, enforces the output limit again, and writes the span, the metric, and
+/// the tool call record. An executor cannot skip a gate, and it cannot write or
+/// suppress the audit entry.
 /// </para>
 /// <para>
 /// <strong>What the executor owns.</strong> Where and how the script runs:
