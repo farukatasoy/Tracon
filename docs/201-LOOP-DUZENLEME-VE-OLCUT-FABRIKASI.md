@@ -1,7 +1,7 @@
 # Faz 201 — Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası
 
 > **Durum:** 📋 Planlandı (2026-10-12)
-> **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
+> **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-302**, **F-301**
 > **Genellik:** Kendi talimatı, kendi şeması ve kodla hesaplanan ön kontrolü olan yargıç birçok tüketici sınıfının kalite kapısıdır (içerik QA'sı, kod incelemesi, çıkarım doğrulaması). İkinci kanıt ilk ilkedir: MAF `LoopEvaluator` bağımlılık ister, Tracon'un kayıt yüzeyi DI vermez (K-218 sınıfı). Domain'e özgü ölçüt tüketici kodunda kalır
 > **Karşı görüş:** "Yerleşik `aiJudge` çoğu kapıyı karşılar." Plan bunu kabul eder: `aiJudge` varsayılan kalır; fabrika yalnız onun ifade edemediği kapı içindir ve örnekleri alan bağımsızdır
@@ -275,19 +275,43 @@ samples/Tracon.Api/Program.cs                   (fabrikalı örnek ölçüt)
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Fabrikalı ölçüt DI servisine ve katalogdaki agent'a ulaşır; döngü yok (test 1-2)
-- [ ] İki kiracıda ölçüt kendi run'ının kiracısını okur (test 3)
-- [ ] `GET /api/loop-criteria` türleri ve yargıç modelini döner; fabrika çağrılmaz (test 8)
-- [ ] `POST /api/agents/validate` loop hatası başına yollu mesaj döner (test 9)
-- [ ] Konsol Loop'u kurar ve kaydeder; run koşar (test 15); değiştirmeden kayıt `loop`'u korur (test 12)
-- [ ] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` (`openai-responses`, konsoldan `aiJudge` + fabrikalı ölçüt); çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri iki alana eklendi; otomatikleştirilebilenler koşuldu
+- [x] Fabrikalı ölçüt DI servisine ve katalogdaki agent'a ulaşır; döngü yok (test 1-2) — `LoopEvaluatorFactoryTests` (4) · `ReviewerLoopEvaluatorTests` (1)
+- [x] İki kiracıda ölçüt kendi run'ının kiracısını okur (test 3) — `LoopEvaluatorTenantTests`: fabrika `["tenant-a"]`, değerlendirme `["tenant-a","tenant-b","tenant-b"]` (workflow adımı dahil)
+- [x] `GET /api/loop-criteria` türleri ve yargıç modelini döner; fabrika çağrılmaz (test 8) — `LoopCriteriaEndpointTests` (5); örnek uygulama çıktısı aşağıda
+- [x] `POST /api/agents/validate` loop hatası başına yollu mesaj döner (test 9) — `AgentValidationLoopTests` (11; temel commit'te 9'u kırmızı)
+- [x] Konsol Loop'u kurar ve kaydeder; run koşar (test 15); değiştirmeden kayıt `loop`'u korur (test 12) — E2E `Loop_built_in_the_console_is_saved_read_back_and_runs` · `full-replace-editors.test.tsx`
+- [ ] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` (kapanışta; uygulamada `ic-dongu` yeşil)
+- [x] `samples/Tracon.Api` ile gerçek `run` (`openai-responses`, konsoldan `aiJudge` + fabrikalı ölçüt); çıktı belgeye yazıldı — aşağıdaki tablo
+- [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz
+- [x] Manuel kabul case'leri iki alana eklendi; otomatikleştirilebilenler koşuldu — `MT-CORE-143`…`146`, `MT-UIAG-059`…`062`
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] `CHANGELOG.md` `[Unreleased]` yeni yüzeyi adıyla anar
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — JS gzip -9: 204 697 B → 208 567 B (**+3 870 B**, 203,7 KB / 250 KB)
+- [x] `CHANGELOG.md` `[Unreleased]` yeni yüzeyi adıyla anar
+
+### Örnek uygulama koşumu — gerçek çıktı (2026-10-13, lane B, port 5181)
+
+Bellek içi depolar (`Tracon__PostgreSql__ConnectionString=` vb. boş verildi; paralel
+oturumla paylaşılan veritabanına yazılmadı). Önce Echo kipi
+(`Tracon__Providers__OpenAI__ApiKey=`), sonra OpenAI kipi.
+
+| Kontrol | Gerçek çıktı |
+|---|---|
+| `GET /api/loop-criteria` (Echo) | dört yerleşik tür sabit sırada + `{"kind":"draft-reviewed","builtIn":false,"description":"The draft-reviewer agent approves the draft. A word count and a heading check are computed in code first."}`; `"judgeModel": null` |
+| `GET /api/loop-criteria` (OpenAI) | `"judgeModel": {"provider": "openai", "model": "gpt-5.4-mini"}`; `providerSettings` yok |
+| `POST /api/agents/validate` — planın komutu | `valid: false`; üç mesaj: `loop_max_iterations_invalid` @ `harness.loop.maxIterations` · `loop_marker_missing` @ `harness.loop.criteria[0].marker` · `loop_criterion_unknown` @ `harness.loop.criteria[1].kind` |
+| Aynı gövde `POST /api/agents` | `400 "Definition invalid"`; `detail` üç mesajın üçünü de taşır |
+| `aiJudge`, Echo kipi (yargıç yok) | tek mesaj `loop_judge_unconfigured` @ `harness.loop.criteria[0].kind` |
+| `reviewed-writer` run (Echo, `echo-reviewer-1`) | run `Completed`; `LoopIterationCompleted` #1 `{"continued":true,"continuedBy":"draft-reviewed","hasFeedback":true}`, #2 `{"continued":false}`; `GET /runs/{id}/tree`: iki `draft-reviewer` run'ı, ikisi de `parent = root = writer run`, `depth 1`, `16` / `57` token; reviewer girdileri `Round 1. … Previous findings: none.` ve `Round 2. … Previous findings: The draft has no heading. -> …` |
+| Konsoldan kurulan loop (Playwright, `openai-responses` / `gpt-5.4-mini`): `aiJudge` (iki ölçüt) + `draft-reviewed`, tavan 3, `FailRun` | Doğrula: `Valid`; kaydet → `GET` `harness.loop` = `[{"kind":"aiJudge","judgeCriteria":[…2…]},{"kind":"draft-reviewed"}]`, `maxIterations: 3`, `onExhausted: "FailRun"` |
+| Bu agent'la gerçek run | `Completed`, `3947` token (`1024` cache), maliyet `0.00067175 + 0.000472 + 0.0000256` USD; iki iterasyon: `aiJudge` geçti, `draft-reviewed` #1'de devam istedi (bulgu: taslak iki kez yazılmış), #2'de durdu; iki reviewer çocuk run'ı `277` / `355` token |
+
+**Gerçek koşumda bulunan desen hatası (düzeltildi).** İlk turun metni akışta iki kez
+göründü ve reviewer bunu yakaladı. Ölçüldü: harness turu bir plan ya da ilk sürüm
+yazıp sonra son metni yazabilir; `LastResponse.Text` turun **bütün** mesajlarını
+birleştirir (F-329 notu). Reviewer deseni (XML `<example>`, örnek uygulama, test)
+taslağı artık son asistan mesajından okur. Davranış Tracon kusuru değil, desenin
+okuma yeriydi; site bunu yazar.
 
 ### Doğrulama komutları
 
@@ -319,15 +343,64 @@ curl -s -X POST http://localhost:5081/tracon/api/agents/validate -H 'Content-Typ
 ## Plandan Sapmalar
 
 > Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez**.
+> Uygulama oturumunda (2026-10-13) yazıldı; denetim sonrası kapanışta tamamlanır.
+
+| # | Plan | Gerçek | Neden |
+|---|---|---|---|
+| 1 | Açık Soru 4-A: iki aşırı yüklemeye `string? description = null` | **Dört** aşırı yükleme: `(kind, evaluator)`, `(kind, evaluator, description)`, `(kind, factory)`, `(kind, factory, description)`; hiçbirinde opsiyonel parametre yok | `RS0026` (PublicApiAnalyzers) birden çok aşırı yüklemede opsiyonel parametreyi reddeder; repo deseni `AddTool(AIFunction)` / `AddTool(AIFunction, configure)`'dur. Çağıran kodu aynı kalır (`AddLoopEvaluator("k", f, "açıklama")` derlenir) |
+| 2 | § 201.3 sekiz taslak kod | + `loop_judge_unavailable` (dokuzuncu) | Doğrulayıcının loop adımı yapısal sorun yoksa yargıç istemcisini derleyicinin kiracı-farkında üyesiyle (`CreateJudgeChatClientAsync`) kurar; egress'in yasakladığı ya da kayıtsız yargıç sağlayıcısı yollu raporlanır. Önceden yolsuz `compilation_error`'du (K-874: "doğrulama raporunda görünür"); `SecondaryModelEgressTests` yeni kodu bekler |
+| 3 | — | Yalnız boş satırlardan oluşan `judgeCriteria` `loop_judge_criteria_missing` alır | Kural tek kaynakta (`FindProblems`); önceden `[""]` derleniyor ve yargıca boş ölçüt gidiyordu. Konsol textarea'sı boş satırları odak çıkınca atar |
+| 4 | "`TraconCompilationException` türü adlandırır" | Mesaj türü ve istisna **tipini** adlandırır; istisnanın kendi mesajı yalnız host loguna gider | Mesaj yönetim API'sine (`400` `detail`, doğrulama raporu) ulaşır; fabrikanın mesajı yapılandırmadan okuduğunu taşıyabilir (K-059 ruhu). İç istisna `InnerException`'da durur |
+| 5 | Registry'ye erişim tasarlanmamıştı | `AgentDefinitionCompiler.GetLoopEvaluators()` (internal metot); doğrulayıcı ve uç onu kullanır | Yeni DI kaydı ve doğrulayıcı kurucusuna parametre eklenmedi (Faz 204 aynı kurucuya dokunuyor). Özellik `IDE0032` (auto property) verip `_loopEvaluators`'ı kullanan `AgentDefinitionCompiler.ChatOptions.cs`'i değiştirmeyi gerektirirdi |
+| 6 | — | Fabrika kendi türünü derlemeye kalkarsa (`lock` yeniden girişi) `TraconCompilationException` | `lock` aynı iş parçacığında yeniden girilebilir; koruma olmadan sonsuz özyineleme olurdu. `LoopEvaluatorRegistryTests` kanıtlar |
+| 7 | `GET /api/loop-criteria` `description`'ı kod türü için | Yerleşik türler de İngilizce bir açıklama taşır | API tüketicisi (konsol dışı) türün ne yaptığını aynı uçtan okur; konsol yerleşik türler için kendi `en`/`tr` metnini gösterir (K-232) |
+| 8 | Ekran görüntüsü: `ui.md` § Agents | Yeni `agent-editor-loop.png` (+ `-light`); üretici bu ekranı landmark'a kaydırır (`ScrolledToLandmark`) | Loop paneli ilk görünüm alanının altında kalıyor; diğer ekranlar eskisi gibi tepeden çekilir |
+| 9 | Site § loop yalnız yeni yüzey | `concepts/agents.md`'de workflow satırının sınıf taşımadığını söyleyen bayat cümle düzeltildi | F-314 workflow satırına `loop_unsatisfied` + `LoopUnsatisfied` yazıyor (`HarnessLoopTests.A_workflow_stops_at_an_agent_whose_loop_fails_on_exhaustion`) |
+| 10 | Manuel case'ler: sekiz satır | Dört `CORE` (`143`…`146`) + dört `UIAG` (`059`…`062`); plan case 3 ve 4 tek case'te (`MT-CORE-144`), 5 ve 8 tek case'te (`MT-CORE-145`); fabrika hatası (`MT-CORE-146`) eklendi | `docs/manuel-test/*.md` ağaç bütçesi (2 556 000 B) ilk yazımla 1 456 B aştı; case'ler sıkıştırıldı, içerik silinmedi. Kalan pay ~700 B — paralel faz (204) eklerse ağaç taşınmalıdır |
+| 11 | Reviewer deseni `LastResponse.Text` okur | Taslak turun **son mesajından** okunur (örnek, örnek uygulama, test) | Gerçek `openai-responses` koşumunda bir harness turu metni iki kez yazdı; `Text` turun bütün mesajlarını birleştirdiği için reviewer çift taslak gördü (yukarıdaki tablo). Örnek derleme kapısı (`ExampleCompilationTests`) LINQ ve tip bildirimini almadığı için XML örneği `DelegateLoopEvaluator` ile tek blok oldu |
+| 12 | Uç sayısı belgeleri | Yedi yerde `168` → `169` işlem (`README.md`, iki paket README'si, `http-api.md`, `capabilities.md`, `getting-started`, `reference/compatibility.md`, ana sayfa) | `check-content.mjs` sayıyı OpenAPI belgesinden doğrular |
 
 ## Bu Fazda Verilen Kararlar
 
 > Kapanışta doldurulur. Beklenen adaylar (`public-api`): fabrikanın çağrılma
 > anı ve kiracı kuralı, ölçüt kataloğu ucu, loop doğrulama kodları.
+> Uygulama oturumunun taslağıdır; `KARARLAR.md` satırları (K-914…K-918 aralığı)
+> kapanışta, bakımcı incelemesinden sonra yazılır.
+
+- **Fabrika çağrılma anı ve kiracı kuralı** *(public-api, plan 1-A)* — ilk derlemede, tür başına bir kez
+  başarılı; atan fabrika önbelleğe girmez; kiracı değerlendirme anında okunur.
+- **Ölçüt kataloğu ucu** *(public-api, plan 2-A/3-A)* — `GET /api/loop-criteria`, kök seviye, Reader +
+  `AgentsRead`; yalnız ad döner, `ModelBinding` dönmez.
+- **Loop doğrulama kodları** *(public-api, plan 5-A)* — dokuz `loop_` kodu ve yol biçimi
+  (`harness.loop.criteria[i].<alan>`); `loop_judge_unavailable` uygulamada eklendi (sapma #2).
+- **Dört aşırı yükleme** *(public-api, sapma #1)* — `RS0026`.
+- **Fabrika istisnasının mesajı API'ye gitmez** *(güvenlik, sapma #4)*.
 
 ## Gerçekleşen Public API
 
 > Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+
+```csharp
+// Tracon.Core — TraconBuilderExtensions (MAAI001 bastırması üyelere dar)
+public static ITraconBuilder AddLoopEvaluator(this ITraconBuilder builder, string kind, Microsoft.Agents.AI.LoopEvaluator evaluator);
+public static ITraconBuilder AddLoopEvaluator(this ITraconBuilder builder, string kind, Microsoft.Agents.AI.LoopEvaluator evaluator, string? description);
+public static ITraconBuilder AddLoopEvaluator(this ITraconBuilder builder, string kind, Func<IServiceProvider, Microsoft.Agents.AI.LoopEvaluator> factory);
+public static ITraconBuilder AddLoopEvaluator(this ITraconBuilder builder, string kind, Func<IServiceProvider, Microsoft.Agents.AI.LoopEvaluator> factory, string? description);
+
+// Tracon.AspNetCore — Contracts/LoopCriterionCatalogResponse.cs
+public sealed record LoopCriterionCatalogResponse
+{ public required IReadOnlyList<LoopCriterionKindResponse> Kinds { get; init; }
+  public LoopJudgeModelResponse? JudgeModel { get; init; } }
+public sealed record LoopCriterionKindResponse
+{ public required string Kind { get; init; } public required bool BuiltIn { get; init; }
+  public string? Description { get; init; } }
+public sealed record LoopJudgeModelResponse
+{ public required string Provider { get; init; } public required string Model { get; init; } }
+```
+
+HTTP: `GET /api/loop-criteria` (`TraconListLoopCriteria`, Reader, `AgentsRead`) — yeni.
+`POST /api/agents/validate` ve kayıt yolu: sözleşme şekli değişmedi (`ValidationMessage.Code` + `Path`),
+yeni kodlar.
 
 ## Dosya Listesi (gerçekleşen)
 

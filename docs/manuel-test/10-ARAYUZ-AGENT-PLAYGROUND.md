@@ -1911,3 +1911,87 @@ gerçek tanımı siler.
   görünür.
 - "Kaydet" düğmesi bu hâlde erişilebilir değildir (form hiç render edilmez).
 - Tekrar deneme isteği yeniler ve form gerçek değerlerle dolar. 👤
+
+---
+
+### MT-UIAG-059 — Loop konsoldan kurulur, kaydedilir, koşar (Faz 201)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 201 |
+| **İlgili karar** | K-884 |
+
+**Ön koşul** — Örnek uygulama OpenAI kipinde. Rol: administrator.
+
+**Adımlar**
+1. `agents/new`: `openai-responses` / `gpt-5.4-mini`; harness'ı ve Loop panelini aç.
+2. Ölçüt 1 → `aiJudge`, iki yargıç ölçütü (satır başına bir); "Add criterion" → `draft-reviewed`.
+3. "Iteration ceiling" `3`, "When the ceiling is reached" → "Fail the run". Doğrula, kaydet, bir run koş.
+
+**Beklenen sonuç**
+- `aiJudge` satırı yargıç modelini (`openai / …`) gösterir; `draft-reviewed` host'un açıklamasını gösterir. 👤
+- Doğrulama `Valid`; `GET $BASE/api/agents/{ad}` `harness.loop`'u aynı değerlerle döner.
+- Run `Completed`; `LoopIterationCompleted` olayları yazılır (E2E: `Loop_built_in_the_console_is_saved_read_back_and_runs`).
+
+---
+
+### MT-UIAG-060 — Değiştirmeden kayıt loop'u korur; liste yüklenmese de tür düşmez (Faz 201)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 201 |
+| **İlgili karar** | K-725 |
+
+**Ön koşul** — OpenAI kipi; API ile kaydedilmiş tanım: `criteria` =
+`[{"kind":"aiJudge","marker":"IGNORED","judgeCriteria":["ok?"]},{"kind":"todoCompletion","modes":["plan"]},{"kind":"draft-reviewed"}]`.
+
+**Adımlar**
+1. Tanımı konsolda aç, yalnız açıklamayı değiştir, kaydet; `GET` ile oku.
+2. Geliştirici araçlarında `GET /api/loop-criteria`'yı engelle, düzenleme ekranını yeniden aç, kaydet.
+
+**Beklenen sonuç**
+- `marker: "IGNORED"`, `modes: ["plan"]`, `draft-reviewed` ve sıra korunur (`full-replace-editors.test.tsx`).
+- Adım 2: panel listenin yüklenemediğini söyler; `draft-reviewed` seçicide kalır, kayıt onu silmez.
+
+---
+
+### MT-UIAG-061 — Tür değişimi okunmayan alanı temizler; harness kapanınca loop'un düşeceği söylenir (Faz 201)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 201 |
+| **İlgili karar** | — |
+
+**Ön koşul** — Loop'lu bir agent'ın düzenleme ekranı.
+
+**Adımlar**
+1. Yargıç ölçütleri dolu bir `aiJudge` ölçütünün türünü `completionMarker` yap; "Validate".
+2. "Enable harness features"ı kapat.
+
+**Beklenen sonuç**
+- Adım 1: istek önizlemesinde ölçüt `judgeCriteria: []`, `judgeInstructions: null` taşır; rapor `loop_marker_missing`
+  (`harness.loop.criteria[i].marker`) gösterir.
+- Adım 2: harness paneli loop'un kaydedilmeyeceğini söyler; önizlemede `harness: null` (`agent-editor.test.tsx`). 👤
+
+---
+
+### MT-UIAG-062 — Sürüm farkı loop'u çizer; değişen tavan vurgulanır (Faz 201)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 201 |
+| **İlgili karar** | — |
+
+**Ön koşul** — MT-UIAG-059'un agent'ı.
+
+**Adımlar** — Tavanı `3` → `4` yapıp kaydet; detayda son iki sürümü seç.
+
+**Beklenen sonuç** — "Loop" tablosunda "Iteration ceiling" `3` → `4` vurgulu, "Criteria" vurgusuz (`agent-detail.test.tsx`). 👤

@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201
 > **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
@@ -4037,3 +4037,91 @@ Sınır senaryosu. Otomatik karşılığı: `RunContinuationTests` ·
   değerini kaydeder.
 - Adım 3: yeni run `Failed`; hata `did not record the values` ve `RecordRunInput` adını içerir; model çağrısı yoktur.
 - Çökme sonrası devam (otomatik) aynı kuralı izler: kaydı olan run kayıtlı değerle devam eder, kaydı olmayan reddedilir.
+
+---
+
+### MT-CORE-143 — `GET /api/loop-criteria` türleri ve yargıç modelini döner; fabrika çağrılmaz (Faz 201)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 201 |
+| **İlgili karar** | K-706 |
+
+**Ön koşul** — Örnek uygulama; bir kez Echo kipinde, bir kez OpenAI kipinde.
+
+**Adımlar** — `curl -s $BASE/api/loop-criteria`
+
+**Beklenen sonuç**
+- Dört yerleşik tür sabit sırada (`builtIn: true`), sonra `draft-reviewed` (`builtIn: false`) ve açıklaması.
+- Echo: `judgeModel: null`; OpenAI: `{"provider":"openai","model":"…"}`; `providerSettings` alanı yoktur.
+- Fabrika liste çağrısıyla koşmaz (`LoopCriteriaEndpointTests`).
+
+---
+
+### MT-CORE-144 — Loop sorunları yollu ve tek tek raporlanır; kayıt `400` hepsini taşır (Faz 201)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 201 |
+| **İlgili karar** | K-706 |
+
+**Ön koşul** — Örnek uygulama Echo kipinde (yargıç modeli bağlı değil).
+
+**Adımlar**
+1. `POST $BASE/api/agents/validate`:
+   `{"name":"w","model":{"provider":"echo","model":"echo-1"},"harness":{"loop":{"criteria":[{"kind":"completionMarker"},{"kind":"x"}],"maxIterations":0}}}`
+2. Aynı gövdeyle `POST $BASE/api/agents`.
+3. Adım 1'i `"criteria":[{"kind":"aiJudge","judgeCriteria":["Complete?"]}]` ile tekrarla.
+
+**Beklenen sonuç**
+- Adım 1: sırayla `loop_max_iterations_invalid` (`harness.loop.maxIterations`), `loop_marker_missing`
+  (`…criteria[0].marker`), `loop_criterion_unknown` (`…criteria[1].kind`); `compilation_error` yok.
+- Adım 2: `400`; `detail` üç mesajı da taşır.
+- Adım 3: tek mesaj `loop_judge_unconfigured` (`…criteria[0].kind`) (`AgentValidationLoopTests`).
+
+---
+
+### MT-CORE-145 — Fabrikalı reviewer ölçütü çocuk run koşar, kendi şemalı karar ve run başına durum taşır (Faz 201)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 201 |
+| **İlgili karar** | K-218 |
+
+**Ön koşul** — Örnek uygulama Echo kipinde; `echo-reviewer-1` 1. turda `fail`, sonra `pass` döner.
+
+**Adımlar**
+1. `POST $BASE/api/agents/reviewed-writer/run` `{"message":"Write a two-line note about tea."}` → `$RID`.
+2. `GET $BASE/api/runs/$RID/events` ve `GET $BASE/api/runs/$RID/tree`.
+3. İki `draft-reviewer` run'ının girdisini oku (`GET $BASE/api/runs/{id}/input`).
+
+**Beklenen sonuç**
+- Run `Completed`; iki `LoopIterationCompleted`: #1 `continuedBy: "draft-reviewed"`, `hasFeedback: true`; #2 `continued: false`.
+- Ağaçta iki `draft-reviewer` run'ı: `parentRunId = rootRunId = $RID`, `depth: 1`.
+- Girdiler `Round 1. … Previous findings: none.` ve `Round 2. … Previous findings: The draft has no heading. -> …`;
+  yeni bir run yine `Round 1.` ile başlar (`ReviewerLoopEvaluatorTests`, `LoopEvaluatorFactoryTests`).
+
+---
+
+### MT-CORE-146 — Fabrika hatası türü adlandırır ve önbelleğe girmez (Faz 201)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | 201 |
+| **İlgili karar** | K-059 |
+
+**Ön koşul** — İlk çağrıda atan bir fabrika (`AddLoopEvaluator("flaky", sp => …)`) kaydeden bir host.
+
+**Adımlar** — `flaky` türünü adlandıran bir tanımı iki kez `POST $BASE/api/agents` ile kaydet.
+
+**Beklenen sonuç**
+- İlk kayıt `400`; `detail` `'flaky'` ve istisna tipini adlandırır, istisnanın kendi mesajını taşımaz (log taşır).
+- İkinci kayıt `201`; agent koşar (`LoopEvaluatorFactoryTests`).
