@@ -149,11 +149,12 @@ is the list.
 | Workflow functions | `AddWorkflowFunction<TInput, TOutput>()` and `AddWorkflowFunction<TInput, TOutput, TSettings>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
-| Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution |
-| Idempotency | `Idempotency-Key` | Same tenant, operation, and key return the stored response instead of running twice |
+| Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution; an agent run and a workflow run, resume or respond queue the same way |
+| Idempotency | `Idempotency-Key` | Same tenant, operation, and key return the stored response instead of running twice; on the workflow run endpoints only with `Prefer: respond-async` |
 | Singleton execution | `Tracon:SingletonExecution` | A distributed lease selects one active executor for singleton services |
 | Run reconciliation | `Tracon:RunReconciliation` | Heartbeats let a scanner fail orphaned runs after process loss |
 | Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound agent run at the root of its tree resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat`; a workflow run is resumed from its checkpoints instead |
+| Workflow recovery | `UseWorkflows(o => o.ResumeInterruptedRuns = true)` | A queued workflow run or batch item interrupted by a crash, a deploy or a graceful stop continues from its latest checkpoint when its job is leased again, as a new run linked by `ContinuedFromRunId`, up to `MaxResumeAttempts`; the step in progress runs again |
 | Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` or `options.RetryPolicy` | A transient provider error retries a single node without failing the run or costing an extra super-step |
 | Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 

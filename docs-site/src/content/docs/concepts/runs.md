@@ -427,6 +427,12 @@ A triggered run is a queued run under the hood — same placeholder row, same wo
 started by a signed HTTP request instead of a management API caller. See
 [Inbound triggers](/guides/inbound-triggers/).
 
+A workflow is queued the same way: `POST /api/workflows/{name}/run`, and its resume
+and respond endpoints, take `Prefer: respond-async` and answer `202 Accepted`. On
+those three endpoints `Idempotency-Key` is accepted only together with the
+preference, because their synchronous answer is a stream. See
+[Queue a run instead of streaming it](/concepts/workflows/#queue-a-run-instead-of-streaming-it).
+
 :::caution[A closed run is never rewritten]
 A run that ended `AwaitingApproval` stays that way forever. Deciding the approval
 opens a **new** run with the same session and a new run id. History is append-only,
@@ -551,6 +557,18 @@ so an operator sees "this run continued that one" rather than two unrelated rows
 Continuation is off by default and does not run every tool call again — see
 [Continue an interrupted run automatically](/guides/reliability/#continue-an-interrupted-run-automatically)
 for what gets replayed, what runs live, and which tools it refuses to continue.
+
+A workflow run is continued by a different owner: the job that started it resumes
+it from its latest checkpoint when it is leased again, if `ResumeInterruptedRuns` is
+on (see [Resume an interrupted run automatically](/concepts/workflows/#resume-an-interrupted-run-automatically)).
+The new run carries the same `continuedFromRunId` link.
+
+The link points back. To walk a chain forward, ask for the runs that continue a run,
+then for those of the newest one returned:
+
+```bash
+curl "http://localhost:5081/tracon/api/runs?continuedFromRunId=01a1340e-ad31-75e4-b64b-e3d0a26ab0a1"
+```
 
 ## Read next
 

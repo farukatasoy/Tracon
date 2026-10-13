@@ -213,6 +213,11 @@ Idempotency is attached only to these routes:
 - `POST /api/agents/{name}/run`
 - `POST /v1/responses`
 - `POST /v1/chat/completions`
+- `POST /api/workflows/{name}/run`, `POST /api/workflows/runs/{runId}/resume` and
+  `POST /api/workflows/runs/{runId}/respond` — only together with
+  `Prefer: respond-async`, because their synchronous answer is a stream; a key
+  without the preference is refused with `400`, and the queued `202` is what a repeat
+  gets back
 
 It does not apply globally to management writes. A request without the header avoids
 body buffering and the idempotency-store query.
@@ -227,6 +232,7 @@ body buffering and the idempotency-store query.
 | Same key, different path or raw body | `422 Unprocessable Entity` |
 | Key longer than 255 characters by default | `400 Bad Request` |
 | Key on a request whose body sets `stream:true` | `400 Bad Request` |
+| Key on a workflow run, resume or respond request without `Prefer: respond-async` | `400 Bad Request`; nothing is reserved or run |
 | Idempotency is disabled but the header is present | `501 Not Implemented`; the endpoint does not execute |
 | Endpoint returns non-2xx or throws | Reservation is released; a retry can execute |
 
@@ -321,7 +327,9 @@ already reached `MaxAttempts`, is never continued.
 Only an agent turn at the root of its run tree is continued. A workflow run is resumed
 from its checkpoints instead: it stays `Failed`, and its event stream records a
 `RunContinuationBlocked` event that names `POST /api/workflows/runs/{runId}/resume`
-(see [Checkpoints](/concepts/workflows/#checkpoints)). A sub-run — a workflow step or a
+(see [Checkpoints](/concepts/workflows/#checkpoints)). A workflow run that a job
+started is resumed by that job when `Tracon:Workflows:ResumeInterruptedRuns` is on —
+see the next section — and never by reconciliation, so one run has one owner. A sub-run — a workflow step or a
 callable agent's run — is not continued on its own either. It carries its root's
 session and nothing waits for its answer, so it stays `Failed` with the same kind of
 event, and the run at the root of its tree is the one that is continued or resumed.
@@ -338,6 +346,45 @@ defaults, and the event stream says why.
 |---|---:|---|
 | `RunContinuation.Enabled` | `false` | No continuation is attempted until `RunReconciliation` is also enabled |
 | `MaxAttempts` | `1` | The most continuations one interruption chain may have before it stays `Failed` |
+
+## Resume an interrupted workflow run
+
+A queued workflow run and a workflow batch item have an owner that survives the
+process: their job. Turn on `ResumeInterruptedRuns` and the job continues a run that a
+crash, a deploy or a graceful stop interrupted, from the latest checkpoint in its
+chain, when the job is leased again:
+
+```json
+{
+  "Tracon": {
+    "Workflows": {
+      "ResumeInterruptedRuns": true,
+      "MaxResumeAttempts": 1
+    }
+  }
+}
+```
+
+The interrupted run is closed as `Failed` with the error type `interrupted` (if
+reconciliation has not closed it already), and a new run in the same session
+continues it; its `continuedFromRunId` names the interrupted run. A run that had
+finished, or that waits for a human answer, is not run again. Past
+`MaxResumeAttempts` continuations the item, or the queued run's job, fails.
+
+The step that was running when the process stopped runs again: steps finished before
+the stop are covered by their checkpoint, the step in progress is not. Make a
+function step with side effects idempotent, and expect an agent step to repeat its
+model and tool calls. A run bound to an HTTP connection is never resumed
+automatically. The details, and how a run without any checkpoint is handled, are in
+[Resume an interrupted run automatically](/concepts/workflows/#resume-an-interrupted-run-automatically).
+
+| Setting | Default | Effect |
+|---|---:|---|
+| `Workflows.ResumeInterruptedRuns` | `false` | An interrupted job item or queued run starts again from the beginning, as before |
+| `Workflows.MaxResumeAttempts` | `1` | The most continuations one chain may have, from `0` to `100`; a queued run's job gets one more attempt than this |
+
+`ResumeInterruptedRuns` needs `Workflows.EnableCheckpointing`; turning it on without
+checkpoints fails at startup.
 
 ## Elect one owner for periodic services
 
@@ -428,6 +475,7 @@ value, so raise both together for the full wait to take effect.
 | Duplicate supported HTTP request | Replay the completed 2xx response or reject conflict | Keep key and serialized request stable |
 | Process dies during a direct run | Reconcile a stale `Running` record when enabled, and continue it in the same session when safe | Make external tool effects idempotent, or declare a tool safe to repeat |
 | Process dies during a queued job | Release or expire the lease for another worker | Make item processing replay-safe |
+| Process dies during a queued workflow run or batch item | With `ResumeInterruptedRuns`, continue the run from its latest checkpoint on the next lease | Make the step in progress safe to run again |
 | Process receives a stop signal mid-run | Wait up to `Drain.Timeout` for in-flight runs, refuse new ones | Set a timeout that covers your slowest normal run |
 | Live cancel reaches wrong node | Return `409` | Use sticky routing or a distributed cancellation registry |
 | Child-agent fan-out grows | Refuse new children at tree limits | Set budgets that match cost and latency objectives |
@@ -435,7 +483,7 @@ value, so raise both together for the full wait to take effect.
 :::caution[Production caveat]
 Do not combine automatic retries with side-effecting tools until you can prove an
 operation-level idempotency contract. HTTP response idempotency prevents duplicate
-execution only on its three supported ingress routes. It cannot undo or deduplicate a
+execution only on its supported ingress routes. It cannot undo or deduplicate a
 tool call after a process fails. Use SQL for cluster coordination, and monitor lease
 age, orphaned runs, open circuits, and `409` cancellation responses.
 :::
