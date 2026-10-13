@@ -14,6 +14,12 @@ namespace Tracon;
 /// window would fill up with base64.
 /// </para>
 /// <para>
+/// The synthesizer is the default one, resolved through
+/// <see cref="ISpeechProviderResolver"/> on every call: the tenant's egress policy
+/// and own credential are checked before any text leaves the process, and a refusal
+/// is the tool's error.
+/// </para>
+/// <para>
 /// The produced audio passes through <c>AttachmentTypeGuard</c> before being
 /// written to the attachment store. The store performs no validation
 /// (validation lives in the HTTP layer); if the provider returns an unexpected
@@ -65,10 +71,15 @@ internal sealed class SpeakTool : VoiceToolBase
         var text = RequireText(arguments, "text");
         var options = Resolve<IOptions<VoiceOptions>>().Value;
 
+        // F-298: resolved per call, through the tenant's checks. The resolver was
+        // taken from the setup-time provider; the one MAF passes the tool is empty.
+        var synthesizer = await Resolve<ISpeechProviderResolver>()
+            .GetSynthesizerAsync(name: null, cancellationToken)
+            .ConfigureAwait(false);
+
         // The limit is the BOUND synthesizer's, the value the HTTP endpoint
         // reads too (ISpeechSynthesizer.MaxCharactersPerRequest). The setting
         // is only the built-in client's answer to that question (F-336).
-        var synthesizer = Resolve<ISpeechSynthesizer>();
         var maxCharacters = synthesizer.MaxCharactersPerRequest;
 
         if (text.Length > maxCharacters)
@@ -86,6 +97,9 @@ internal sealed class SpeakTool : VoiceToolBase
         var tenantContext = Resolve<ITenantContext>();
         var pricing = Resolve<VoicePricing>();
 
+        // The configured model and format are the DEFAULT synthesizer's settings,
+        // and this tool only speaks with the default one. A named synthesizer never
+        // receives them: another engine's model id sent to it is a wrong request.
         var request = new SpeechRequest
         {
             Text = text,
@@ -126,7 +140,7 @@ internal sealed class SpeakTool : VoiceToolBase
             },
             cancellationToken).ConfigureAwait(false);
 
-        ReportUsage(audio, pricing, synthesizer, text);
+        ReportUsage(audio, pricing, synthesizer, request, text);
 
         var duration = audio.Duration is { } value
             ? $", duration={value.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s"
@@ -145,6 +159,7 @@ internal sealed class SpeakTool : VoiceToolBase
         SpeechAudio audio,
         VoicePricing pricing,
         ISpeechSynthesizer synthesizer,
+        SpeechRequest request,
         string text)
     {
         var characters = audio.CharactersBilled ?? text.Length;
@@ -153,7 +168,10 @@ internal sealed class SpeakTool : VoiceToolBase
         {
             Unit = ToolUsageUnits.Characters,
             Quantity = characters,
-            Cost = pricing.ForSynthesis(synthesizer, characters),
+
+            // The model the synthesizer reports comes first: the price must follow
+            // what produced the audio, not a setting.
+            Cost = pricing.ForSynthesis(synthesizer.ProviderName, audio.ModelId ?? request.ModelId, characters),
             Currency = pricing.Currency,
             IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
         });

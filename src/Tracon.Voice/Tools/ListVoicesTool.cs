@@ -5,8 +5,15 @@ namespace Tracon;
 
 /// <summary>Lists the available voices.</summary>
 /// <remarks>
+/// <para>
 /// The call <strong>incurs no cost</strong>. The list is given to the model as
 /// name and id, so the model can call the <c>speak</c> tool with the right voice id.
+/// </para>
+/// <para>
+/// The list still comes from the provider, so the default synthesizer is resolved
+/// through <see cref="ISpeechProviderResolver"/>: the tenant's checks apply to it as
+/// to <c>speak</c>.
+/// </para>
 /// </remarks>
 internal sealed class ListVoicesTool : VoiceToolBase
 {
@@ -48,7 +55,9 @@ internal sealed class ListVoicesTool : VoiceToolBase
     {
         ArgumentNullException.ThrowIfNull(arguments);
 
-        var synthesizer = Resolve<ISpeechSynthesizer>();
+        var synthesizer = await Resolve<ISpeechProviderResolver>()
+            .GetSynthesizerAsync(name: null, cancellationToken)
+            .ConfigureAwait(false);
         var voices = await synthesizer.ListVoicesAsync(cancellationToken).ConfigureAwait(false);
 
         if (voices.Count == 0)
