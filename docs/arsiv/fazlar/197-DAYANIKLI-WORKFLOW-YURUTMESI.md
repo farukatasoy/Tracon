@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-A, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-318**, **F-321**
-> **Önkoşul:** F-344, F-341, F-364 2026-10-12'de kapandı (K-909, K-908, K-904). [Faz 196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) ile sıra serbest; ikisi de job token'ına dokunur
+> **Önkoşul:** F-344, F-341, F-364 2026-10-12'de kapandı (K-909, K-908, K-904). [Faz 196](196-UZUN-ADIM-SURE-VE-IPTAL.md) ile sıra serbest; ikisi de job token'ına dokunur
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Sql.Shared`, üç SQL sağlayıcısı, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** Yok (`0037_run_continuation.sql:18` indeksi, `job_items.run_id` var); Açık Soru 1-B gerektirir
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, yalnız `#nullable enable`
@@ -303,7 +303,7 @@ Triyaj Adım 5.1: 🔴'nın sonucunu kullanıcı seçti (2026-10-13). Düzeltmel
 
 ## Sonraki Faza Devir Notu
 
-**Doğal sıradaki faz: [Faz 196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md)** — job token'ına ve
+**Doğal sıradaki faz: [Faz 196](196-UZUN-ADIM-SURE-VE-IPTAL.md)** — job token'ına ve
 deneme kuralına dokunur. Devralınan sözleşmeler orada, § *Faz 197'den devralınan
 sözleşmeler* tablosundadır; 196'ya Açık Soru 13 ve hata modu 29 eklendi.
 

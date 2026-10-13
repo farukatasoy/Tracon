@@ -2049,7 +2049,7 @@ bölümündedir.
 
 | Kalem | Faz |
 |---|---|
-| F-303, F-323 | [Faz 196](../196-UZUN-ADIM-SURE-VE-IPTAL.md) |
+| F-303, F-323 | [Faz 196](fazlar/196-UZUN-ADIM-SURE-VE-IPTAL.md) |
 | F-318, F-321 | [Faz 197](fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md) |
 | F-298 | [Faz 198](fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md) |
 | F-299 | [Faz 199](../199-FONKSIYON-DUGUMU-MALIYETI.md) |
@@ -2331,7 +2331,7 @@ bölümündedir.
 |---|---|
 | F-296 | [Faz 203](../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) |
 | F-320, F-346 | [Faz 204](fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) |
-| F-405 | [Faz 196](../196-UZUN-ADIM-SURE-VE-IPTAL.md) |
+| F-405 | [Faz 196](fazlar/196-UZUN-ADIM-SURE-VE-IPTAL.md) |
 
 Gövdeler aday dosyasındaki son hâliyle, aynen:
 

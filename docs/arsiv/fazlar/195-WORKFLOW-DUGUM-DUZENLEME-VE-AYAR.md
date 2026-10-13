@@ -176,7 +176,7 @@ Denetçi "bilinen sapmaları" yargıladı (K-902 biçimi, Açık Sorular, `{"typ
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz: [Faz 196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md).** Önkoşulu karşılandı. Faz 197–201 de bu fazın kayıt yüzeyine ve editörüne dayanır (kendi `Önkoşul` satırlarında).
+**Sıradaki faz: [Faz 196](196-UZUN-ADIM-SURE-VE-IPTAL.md).** Önkoşulu karşılandı. Faz 197–201 de bu fazın kayıt yüzeyine ve editörüne dayanır (kendi `Önkoşul` satırlarında).
 
 ### Devralınan sözleşmeler
 
