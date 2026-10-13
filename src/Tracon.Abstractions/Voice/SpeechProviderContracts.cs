@@ -7,10 +7,13 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Every Tracon path that sends text or audio to a speech provider resolves the
-/// provider here: the <c>speak</c>, <c>transcribe</c> and <c>list_voices</c> tools,
-/// <c>POST /api/voice/speak</c>, <c>GET /api/voice/voices</c> and the conversation
-/// socket. A workflow function node that speaks resolves it here too.
+/// Every Tracon path that sends a tenant's text or audio to a speech provider
+/// resolves the provider here: the <c>speak</c>, <c>transcribe</c> and
+/// <c>list_voices</c> tools, <c>POST /api/voice/speak</c>, <c>GET /api/voice/voices</c>
+/// and the conversation socket. A workflow function node that speaks resolves it here
+/// too. The one direct call is the platform health check
+/// (<c>GET /api/voice/health</c>): it lists the default synthesizer's voices with the
+/// configured credential and sends no tenant data.
 /// </para>
 /// <para>
 /// A name selects a provider registered with <c>AddSpeechSynthesizer</c> or
@@ -28,9 +31,13 @@ namespace Tracon;
 /// The returned provider puts the tenant's credential on every request it makes.
 /// </para>
 /// <para>
-/// The policy and the binding are read on every call, not cached: a policy saved
-/// now stops the next call. When a store fails, the call fails and the provider is
-/// not called.
+/// The policy and the binding are read each time a provider is resolved, not
+/// cached. A tool call, an HTTP request and a function node resolve for every call,
+/// so a policy saved now stops their next call. The conversation socket resolves
+/// once, when the connection opens: an open connection keeps the providers it was
+/// given until it closes, and a policy saved meanwhile applies from the next
+/// connection. A returned instance keeps the decision it was resolved under; do not
+/// keep it. When a store fails, the call fails and the provider is not called.
 /// </para>
 /// <para>
 /// <strong>Delivery:</strong> no delivery guarantee applies. Resolving sends nothing to
