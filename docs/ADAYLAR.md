@@ -338,6 +338,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-442** · Kiracı sağlayıcı reddi kararlı hata türü taşımaz; düğüm yeniden denemesi mesaja bakar | Kod okuması (2026-10-13, Faz 198): `TenantProviderRefusedException.ErrorType` CLR adıdır; `DefaultRunErrorClassifier` onu `StableIdentities`'te bulamaz ve mesaj desenine bakar. Ret mesajı kiracı kimliğini ve izinli sağlayıcı listesini taşır: `timeout`, `429`, `rate limit` ya da `HTTP 5xx` geçen bir ad reddi geçici sayar ve fonksiyon düğümü yeniden dener. Her deneme yine reddedilir, sağlayıcı çağrılmaz; yalnız boşa deneme olur. Örnek uygulamada sınıf `Unknown` ölçüldü | Kararlı `ErrorType` (ör. `tenant_provider_refused`) ve `StableIdentities`'te geçici olmayan sınıf; görsel ve canlı ses aynı tipi kullanır. Önce kiracı adında `timeout` geçen kırmızı test |
 | 🟢 | **F-443** · `GET /api/voice/voices` sağlayıcı hatasını `502`'ye çevirmez | Kod okuması (2026-10-13, Faz 198): `VoiceEndpoints.ListVoicesAsync` sağlayıcının `TraconException`'ını yakalamaz, yanıt `500` olur; `/speak` aynı hatayı `502` ile verir. Faz öncesinden beri | `/speak`'in `catch` deseni ve `.ProducesProblem(502)`; OpenAPI ve iki istemci birlikte |
 | 🟢 | **F-444** · Görsel reddi görsel sağlayıcısını "model provider" diye adlandırır | Kod okuması (2026-10-13, Faz 198): `ImageGeneratorResolver` `TenantProviderAccess.DescribeDenial`'ın model aşırı yüklemesini çağırır. Faz 198 konuşma için türe göre ad ekledi (`TenantProviderCallKind`) | `TenantProviderCallKind.Image`; `ImageTenantPolicyTests` yeni metni ölçer |
+| 🟢 | **F-466** · İki public istisnanın tüketici kanıtı yok; yüzey envanteri kırmızı | Ölçüldü (2026-10-13, Faz 203 orkestrasyonu): `python3 scripts/public-yuzey-envanteri.py --denetle` main'de `exit 1` verir; `TraconChildRunTimeoutException` ve `TraconLoopUnsatisfiedException` (`src/Tracon.Abstractions/TraconException.cs`) `kanıtsız` sınıftadır. İkisi de yalnız Core içinde atılır; site sayfası, `<example>` veya kalan bir tipin `<exception cref>`'i onları anmaz. Betik `kapanis`'te koşmaz; GA freeze turu (UR-003) onu iş listesi olarak okur | Karar: `internal`'a çek (run hatası `errorType` ile zaten okunur) ya da tüketicinin onları yakaladığı yolu belgele ve `scripts/public-yuzey-gerekceleri.tsv`'ye gerekçe yaz |
 
 ### Faz planlama
 
@@ -528,7 +529,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-466**.
+numara: **F-467**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
