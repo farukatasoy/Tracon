@@ -125,9 +125,7 @@ internal sealed record AnthropicRequestSettings
 
         if (budget is { } invalidBudget && invalidBudget <= 0)
         {
-            throw Invalid(
-                $"'{AnthropicProviderNames.ThinkingBudgetTokensSetting}' must be greater than zero. " +
-                $"Actual value: {invalidBudget}.");
+            throw Invalid($"'{AnthropicProviderNames.ThinkingBudgetTokensSetting}' must be greater than zero.");
         }
 
         var mode = ReadChoice(binding, AnthropicProviderNames.ThinkingModeSetting, [EnabledMode, AdaptiveMode]) switch
@@ -184,7 +182,9 @@ internal sealed record AnthropicRequestSettings
             }
         }
 
-        throw Invalid($"'{key}' has an unrecognized value: '{value}'. Valid values: {string.Join(", ", allowed)}.");
+        // The value is not repeated: it can be a credential pasted into the wrong
+        // field, and the message reaches logs and run records (Faz 203).
+        throw Invalid($"'{key}' has a value outside its set. Valid values: {string.Join(", ", allowed)}.");
     }
 
     private static ProviderSettingsValidationException Invalid(string message) => new(message);

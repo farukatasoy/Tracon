@@ -206,8 +206,11 @@ public sealed class AnthropicRequestSettingsTests
         var exception = Should.Throw<TraconException>(() => Factory().CreateChatClient(TestData.Binding(providerSettings: settings)));
 
         exception.Message.ShouldContain(key);
-        exception.Message.ShouldContain(value);
         exception.Message.ShouldContain("Valid values");
+
+        // Faz 203: the rejected value is never repeated (it can be a credential pasted
+        // into the wrong field); the key and the valid values locate the mistake.
+        exception.Message.ShouldNotContain(value);
     }
 
     [Fact]
