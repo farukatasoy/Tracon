@@ -343,7 +343,6 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 |---|---|---|---|
 | 🟠 | F-319 · Workflow HITL karar sözleşmesi | n revizyonlu onay; ikinci yanıt dal açar | Gövde: § *F-319* |
 | 🟡 | **F-290** · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi | Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`) | GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir |
-| 🟡 | F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı | Risk yok, iş mekanik ve paralel yürür. Sınıf gerçek bir kusur üretti (`TraconImageOptions.Timeout`) | Gövde: § *F-247* |
 | 🟡 | F-297 · Gemini konuşma adaptörü | Yeni bağımlılık istemez; Faz 203'ün sözleşmesini uygular | Gövde: § *F-297* |
 | 🟡 | F-322 · Kiracı başına workflow eşzamanlılığı | Semafor süreç başına, kiracılara ortak | Gövde: § *F-322* |
 | 🟡 | F-347 · OpenAI strict şema modu | Kiracı başka model seçer; strict istenemez | Gövde: § *F-347* |
@@ -421,40 +420,6 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | **F-414** · Konsol 2^53 − 1'den geniş bir tamsayı ayarını kayıpsız taşıyamıyor | Faz 195 denetimi (🟡, gerekçelendi): konsol JSON sayısını `double` okur; sınır XML'de ve sitede yazılı | Bir tüketici 53 bitten geniş sayısal ayar bildirirse. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-415** · Tüketicinin dönüştürücüsünün (`JsonConverter`) fırlattığı `JsonException` mesajı `400`'e ve `runs.error`'a girer | Faz 195 denetimi (🟢): tüketicinin `JsonConverter`'ının istisna mesajı değer taşıyabilir | Mesajın değer taşıdığı görülürse. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-422** · `openai-responses` harness turu cevabını akışta iki kez yayabilir — ölçüm bekliyor | Faz 201 örnek uygulama koşumu (2026-10-13): loop'lu agent'ın üç koşumunun ikisinde ilk turun metni akışta iki kopya; kaynağı ayırt edilmedi | Akışta yinelenen metin bildirilirse ya da `openai-responses` istemcisi güncellenirse. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
-
-### F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a
-yazılmadı" kusurunu yapısal olarak kilitler — ama yalnız `TraconOptions`
-**ağacı** için. Ölçüldü (2026-09-19): `TraconOptions` bu bölümlerin ebeveyni
-**değildir**. `Tracon:Scheduling`, `Tracon:Quotas`, `Tracon:Retention` ve 21
-tanesi daha kök seviyede **kardeş** bölümlerdir ve tek tek bağlanırlar;
-tarayıcı hiçbirine ulaşmaz. Bu şeklin ürettiği kusur ölçüldü:
-`TraconImageOptions.Timeout` eklendi, yapılandırılabilir olarak belgelendi ve
-hiçbir yere bağlanmadı — canlı koşum yakaladı, hiçbir test yakalamadı
-(`HATA-S1-010`).
-
-**Kapsam:** Yirmi dört bölümün her biri için `<TypeName>BindingTests`: her
-skaler alan tek bir yapılandırma kümesiyle doldurulur ve geri okunur. Kapsam
-zaten kilitli — `OptionsSectionCoverageTests` bir **ratchet**'tır ve
-`options-section-coverage-baseline.txt` bugün eksik olan yirmi dördü adıyla
-sayar; yeni bir bölüm eklenemez, var olan biri listeden ancak testini
-kazanınca çıkar. Bu aday o listeyi **boşaltmaktır**.
-
-**Değer:** Sessizce bağlanmayan bir ayar, dokümanın vaat ettiği ama ürünün
-yapmadığı şeydir; tüketici bunu yalnız canlı koşumda görür.
-
-**Hazırlık — ölçüldü (2026-09-19):** Ratchet ve taban çizgisi yerinde;
-`TraconImageOptionsBindingTests` ile `TraconPricingBindingTests` izlenecek
-deseni gösteriyor. İş mekaniktir ve paralelleştirilebilir.
-
-**Maliyet:** Ölçülmedi. Yeni ürün kodu gerekmez; yirmi dört test sınıfı.
-
-**Risk:** Yok — yalnız test eklenir.
-
----
 
 ### F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı
 

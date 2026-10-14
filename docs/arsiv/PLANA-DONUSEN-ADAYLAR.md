@@ -2408,3 +2408,47 @@ Gövdeler aday dosyasındaki son hâliyle, aynen:
 **Ekosistem:** Anthropic API başvurusu (2026-10-11 okundu): `cache_control` `ttl: "1h"` alır; paylaşılan önek değişen sonekle bitiyorsa açık işaret önerilir; `budget_tokens` Opus 5.5/5/4.8/4.7, Sonnet 5.5/5, Fable 5/5.1 ve Haiku 5.5'te 400; örnekleme bu modellerin çoğunda 400; Opus 5.5 `effort` varsayılanı `medium`.
 
 **Karşı görüş:** Tüketici `Temperature`, `TopP` ve `budgetTokens`'ı boş bırakabilir; ama önbellek yerleşimini Tracon dışından değiştiremez.
+
+---
+
+## 2026-10-14 — F-247 Faz 206'ya dönüştü
+
+Bakımcı kapsamı 2026-10-14'te sohbette seçti: 22 tipin tamamı, `IdempotencyKeys`
+bağlaması ve okunamayan değerin açılışta hatası; Faz 205 ile paralel başlar.
+Kanıt `245afe91` zemininde yeniden doğrulandı. Belirgin düzeltmeler: "yirmi dört"
+bölüm bugün 22'dir (Scheduling ve Knowledge testini kazandı); `TraconPricingBindingTests`
+emsal değildir (DI sınırını yansımayla atlar); "yeni ürün kodu gerekmez" ve "risk yok"
+iddiaları düştü — `Retention:IdempotencyKeys` bağlanmıyordu ve dört bağlayıcı okunamayan
+değeri sessizce atıyordu. Plan: Faz 206 (`docs/206-YAPILANDIRMA-BAGLAMA-KANITI.md`).
+
+### F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a
+yazılmadı" kusurunu yapısal olarak kilitler — ama yalnız `TraconOptions`
+**ağacı** için. Ölçüldü (2026-09-19): `TraconOptions` bu bölümlerin ebeveyni
+**değildir**. `Tracon:Scheduling`, `Tracon:Quotas`, `Tracon:Retention` ve 21
+tanesi daha kök seviyede **kardeş** bölümlerdir ve tek tek bağlanırlar;
+tarayıcı hiçbirine ulaşmaz. Bu şeklin ürettiği kusur ölçüldü:
+`TraconImageOptions.Timeout` eklendi, yapılandırılabilir olarak belgelendi ve
+hiçbir yere bağlanmadı — canlı koşum yakaladı, hiçbir test yakalamadı
+(`HATA-S1-010`).
+
+**Kapsam:** Yirmi dört bölümün her biri için `<TypeName>BindingTests`: her
+skaler alan tek bir yapılandırma kümesiyle doldurulur ve geri okunur. Kapsam
+zaten kilitli — `OptionsSectionCoverageTests` bir **ratchet**'tır ve
+`options-section-coverage-baseline.txt` bugün eksik olan yirmi dördü adıyla
+sayar; yeni bir bölüm eklenemez, var olan biri listeden ancak testini
+kazanınca çıkar. Bu aday o listeyi **boşaltmaktır**.
+
+**Değer:** Sessizce bağlanmayan bir ayar, dokümanın vaat ettiği ama ürünün
+yapmadığı şeydir; tüketici bunu yalnız canlı koşumda görür.
+
+**Hazırlık — ölçüldü (2026-09-19):** Ratchet ve taban çizgisi yerinde;
+`TraconImageOptionsBindingTests` ile `TraconPricingBindingTests` izlenecek
+deseni gösteriyor. İş mekaniktir ve paralelleştirilebilir.
+
+**Maliyet:** Ölçülmedi. Yeni ürün kodu gerekmez; yirmi dört test sınıfı.
+
+**Risk:** Yok — yalnız test eklenir.

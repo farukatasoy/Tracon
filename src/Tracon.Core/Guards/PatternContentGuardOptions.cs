@@ -40,10 +40,35 @@ public sealed class PatternContentGuardOptions
     /// The built-in PII patterns to turn on. A match produces
     /// <see cref="ContentGuardAction.Mask"/>. Default <see cref="PiiPatterns.None"/>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// In configuration, a comma-separated list of names (<c>"Email,CreditCard"</c>).
+    /// An empty value leaves the setting unset. A value that is not such a list stops
+    /// the application at startup with an <see cref="Microsoft.Extensions.Options.OptionsValidationException"/>
+    /// that names the value as written; one misspelled name used to turn masking off
+    /// for the whole list without a word.
+    /// </para>
+    /// <para>
+    /// A value with a bit that no <see cref="PiiPatterns"/> member defines (for
+    /// example <c>(PiiPatterns)64</c>) stops the application too, whether it comes
+    /// from configuration or from code. A value set in code after binding replaces
+    /// the configured one, so it also clears a configuration error.
+    /// </para>
+    /// </remarks>
     public PiiPatterns MaskedPii { get; set; } = PiiPatterns.None;
 
     /// <summary>
     /// The text written in place of a masked match. Default <c>[redacted]</c>.
     /// </summary>
     public string MaskReplacement { get; set; } = "[redacted]";
+
+    /// <summary>
+    /// The <see cref="MaskedPii"/> text the binder could not read, and the undefined
+    /// value it bound in its place.
+    /// </summary>
+    /// <remarks>
+    /// For the startup message only: the failure itself comes from
+    /// <see cref="MaskedPii"/>, so code that sets the member after binding clears it.
+    /// </remarks>
+    internal (string Text, PiiPatterns Bound)? UnreadableMaskedPii { get; set; }
 }
