@@ -2,10 +2,10 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 — engelleyici kararlar sohbette alındı (iki faz, `workflow_responses` tablosu, her `respond` fail-closed denetim, K-130 varsayılanı korunur); Açık Sorular 1-10 plandaki önerileriyle onaylandı. Faz 205 `main`'e girdi (`42e5479f`); ilk adımın ölçümü bir öneriyi düşürürse uygulama durur ve sorar
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-319** (karar yarısı; gelen kutusu ve süre [Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md))
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-319** (karar yarısı; gelen kutusu ve süre [Faz 209](../../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md))
 > **Genellik:** Tracon HITL'ini (`RequestPort` ya da Magentic plan onayı) kullanan her host etkilenir. Kalem tek tüketici turundan geldi (video tüketicisi, 2026-10-11), bu yüzden tüketici geri bildirimi kuralı uygulanır. İkinci kanıt ilk ilkedir: (1) bugün `respond`'un HTTP yeniden denemesi ikinci bir dal açar ve yan etkili adımları iki kez koşturur; Faz 205'ten sonra her devamın bütçesi `TreeAccount` taşıdığı için kotayı da iki kez harcar; tüketici bunu engelleyemez, çünkü atomik iddia yalnız Tracon'un deposunda kurulabilir; (2) yönetişim eşitliği: tool onayı fail-closed denetlenir (`approval.decision`, K-370), aynı türden bir workflow onayı hiç denetlenmez. Ekosistem sinyali: MCP Tasks `input_required` aynı "girdi bekleyen görev" kavramını protokolde tanımlar
 > **Karşı görüş:** "Onay tüketicinin ekranında ve domain'inde tutulabilir; değer yalnız Tracon HITL'ini kullanan host içindir." Cevap: ekran tüketicide kalır, ama çift `respond` sunucuda iki run açar. Tüketici kodu iki isteğin yarışını kapatamaz, denetimi de kararı uygulayan katmanda yazamaz. Mod opt-in'dir: HITL kullanmayan host `respond` çağırmaz ve hiçbir bedel ödemez. K-130 dallanmasını bilerek kullanan tüketicinin varsayılanı değişmez; o tüketici için tek yeni davranış, her `respond`'un denetime yazılmasıdır
-> **Önkoşul:** [Faz 205](arsiv/fazlar/205-GEC-BITEN-HARCAMA-KOTASI.md) commit'lenmeli — `WorkflowRunner.cs` ortak dosyadır. Metin çakışması beklenmez, yalnız satır kayar (205 `RunGuardedAsync`'te bütçeye `TreeAccount` ekler ve `RecordQuotaAsync`'i değiştirir; bu faz aynı metodun `RunStartInfo` bölümüne ve `PumpAsync`'e dokunur). 205'ten sonra çift tıklama kotayı iki kez harcar; bu faz onu kapatır
+> **Önkoşul:** [Faz 205](205-GEC-BITEN-HARCAMA-KOTASI.md) commit'lenmeli — `WorkflowRunner.cs` ortak dosyadır. Metin çakışması beklenmez, yalnız satır kayar (205 `RunGuardedAsync`'te bütçeye `TreeAccount` ekler ve `RecordQuotaAsync`'i değiştirir; bu faz aynı metodun `RunStartInfo` bölümüne ve `PumpAsync`'e dokunur). 205'ten sonra çift tıklama kotayı iki kez harcar; bu faz onu kapatır
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`, `.UI`, `Tracon.Client` (üretilen)
 > **Yeni paket:** Yok · **Migration:** gerekli, üç sağlayıcı (`workflow_responses`); numara uygulama anında alınır
 > **Public API:** büyüyor, `1.0.0` GA'dan (K-603) önce ucuz — ölçüldü (2026-10-14): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, toplam 17 satır, her biri yalnız `#nullable enable`
@@ -36,11 +36,11 @@
    ```
    205: `TreeAccount` sözleşmesi (devamın bütçesi). 197: kuyruklu `respond` ve kurtarma zinciri
 4. Alan hafızası (bu faz dört alana dokunuyor):
-   [`hafiza/workflows.md`](hafiza/workflows.md) (respond, K-888, K-908, K-925, K-988 tuzakları) ·
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) (SSE ucunda hata akış açılmadan döner, K-938) ·
-   [`hafiza/genisleme-noktalari-ve-denetim.md`](hafiza/genisleme-noktalari-ve-denetim.md) (fail-closed kopyaları, `AuditContentPolicyTests.AllowedCallSites`) ·
-   [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (üç sağlayıcı, kısmi indeks)
-5. Gerektiğinde: [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — denetim izi bölümü (`grep -n "denetim\|audit" docs/MIMARI-GUVENLIK.md`)
+   [`hafiza/workflows.md`](../../hafiza/workflows.md) (respond, K-888, K-908, K-925, K-988 tuzakları) ·
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) (SSE ucunda hata akış açılmadan döner, K-938) ·
+   [`hafiza/genisleme-noktalari-ve-denetim.md`](../../hafiza/genisleme-noktalari-ve-denetim.md) (fail-closed kopyaları, `AuditContentPolicyTests.AllowedCallSites`) ·
+   [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (üç sağlayıcı, kısmi indeks)
+5. Gerektiğinde: [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — denetim izi bölümü (`grep -n "denetim\|audit" docs/MIMARI-GUVENLIK.md`)
 
 ---
 
@@ -54,7 +54,7 @@ Bir workflow insan cevabı beklediğinde, bugün aynı isteğe gelen her cevap y
 
 | Kalem | Neden |
 |---|---|
-| Kiracı geneli bekleyen istek listesi, "yanıtlandı" işareti, istek süresi | [Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) — bu fazın yanıt kaydını okur (aday değil, planlı faz) |
+| Kiracı geneli bekleyen istek listesi, "yanıtlandı" işareti, istek süresi | [Faz 209](../../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) — bu fazın yanıt kaydını okur (aday değil, planlı faz) |
 | Cevabın kendisini (ham metin/JSON) devam run'ının olayına yazmak | İçerik koruma (K-325, K-899) ve retention kararı ister; bu faz yalnız istek kimliğini ve kaynak run'ı yazar |
 | Doğrudan `IWorkflowRunner.RespondStreamingAsync` çağıranın denetimi ve tek yanıtı | Denetim ve iddia uç katmanındadır (K-079, K-370 emsali); runner seviyesinde kanca ayrı tasarımdır |
 | Tek yanıtı istek portu başına seçmek | Mod workflow başınadır; port başına seçim tüketici kanıtı ister |
@@ -68,23 +68,23 @@ Bir workflow insan cevabı beklediğinde, bugün aynı isteğe gelen her cevap y
 
 | Kanıt | Gözlem |
 |---|---|
-| [`WorkflowEndpoints.cs:328-369`](../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs), `:1116-1281` | `respond` sırası: drain → gövde → atıf → yetki (`RunAccess.Start`) → `ValidateResponseAsync` → kaynak → `AwaitingInput` → sürüm → bekleyen istek → kuyruk ya da akış. Önceki cevabı soran adım yok |
+| [`WorkflowEndpoints.cs:328-369`](../../../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs), `:1116-1281` | `respond` sırası: drain → gövde → atıf → yetki (`RunAccess.Start`) → `ValidateResponseAsync` → kaynak → `AwaitingInput` → sürüm → bekleyen istek → kuyruk ya da akış. Önceki cevabı soran adım yok |
 | `WorkflowRunner.ListPendingRequestsAsync` | Yanıtlanan run `AwaitingInput` kalır ve isteğini listelemeye devam eder (K-130); ikinci cevap yeni dal açar |
 | `WorkflowRunner.PrepareResponseAsync` | Her çağrı yeni bir run kimliği alır (`NewRunId ?? TraconId.NewId()`); önceki devam sorulmaz |
 | `WorkflowRunner.RunGuardedAsync` (`writer.StartAsync` → `RunStartInfo`) | Devam satırı `RootRunId = kendisi` yazar; `ParentRunId`, `ReplayOfRunId`, `ContinuedFromRunId` boştur. Kaynakla tek ortak alan `SessionId`'dir |
-| `WorkflowRunner.PumpAsync` (`RequestInfoEvent` → `TryRespondAsync`) | Teslim edilen istek `continue` ile atlanır; cevabı ya da kaynağı yazan olay yok. [`RunEventType.cs:38-383`](../src/Tracon.Abstractions/Runs/RunEventType.cs) bir yanıt üyesi taşımaz |
-| [`KARARLAR.md:980`](KARARLAR.md) (K-929) | Gerekçe "senkron uçta yanıt run olayına zaten yazılır" der — yukarıdaki satırla çelişir |
-| [`IdempotencyFilter.cs:113-122`](../src/Tracon.AspNetCore/Idempotency/IdempotencyFilter.cs) · [`TraconEndpointRouteBuilderExtensions.cs:131-136`](../src/Tracon.AspNetCore/TraconEndpointRouteBuilderExtensions.cs) | `Idempotency-Key` yalnız `Prefer: respond-async` ile (K-925); SSE yolunda tekrar koruması yok |
-| [`IdempotencyFilter.cs:154-165`](../src/Tracon.AspNetCore/Idempotency/IdempotencyFilter.cs), `:256` · [`TraconRetentionOptions.cs:82`](../src/Tracon.Core/Retention/TraconRetentionOptions.cs) | Parmak izi `SHA-256(method\npath\nbody)`; aynı anahtar farklı gövde `422`. `idempotency_keys` ömrü 1 gün ve `Enabled` ile kapanır: tek yanıtın kalıcı otoritesi olamaz |
-| [`WorkflowEndpoints.cs:1350`](../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs), `:1369` · `WorkflowRunner.RunGuardedAsync` (`RunAttributionReader.Read`) | Devam run'ının `user_id`'si cevaplayanındır; "kim" kısmen okunur, "hangi istek, hangi kaynak" okunmaz |
-| [`ApprovalEndpoints.cs:187-257`](../src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs), `:306`, `:379` | Onay kutusu deseni: yetki durumdan önce → aynı karar devri yeniden sürer, zıt karar `409` → denetim kararı uygulamadan önce (`WriteOrThrowAsync`, `:232`) → `WHERE status = Pending` koruması; türetilmiş run kimliği |
-| [`AuditWritePolicyTests.cs:46-91`](../tests/Tracon.Core.UnitTests/Architecture/AuditWritePolicyTests.cs), `:169-176` · [`IAuditLog.cs:11-30`](../src/Tracon.Abstractions/Audit/IAuditLog.cs) | Fail-closed kümesi altı işlem / dokuz çağrı yeridir ve yayımlanmış sözleşmedir (K-776) |
-| [`AuditingWorkflowDefinitionStore.cs:134-165`](../src/Tracon.Core/Audit/AuditingWorkflowDefinitionStore.cs) | `workflow.rollback` best-effort'tur (`AuditRecorder.WriteAsync`); yalnız yük şekli emsalidir |
-| [`WorkflowRecovery.cs:18-24`](../src/Tracon.Core/Scheduling/WorkflowRecovery.cs), `:113-149`, `:405-444` | `ContinuedFromRunId` kurtarma zinciridir: zincir ileri yürünür, son run kararı verir, zincir uzunluğu `MaxResumeAttempts`'a sayılır |
-| [`RunEndpoints.cs:1256-1310`](../src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs) | `RunEventStream` depodan run `Running`/`Queued` bitene kadar izler; çerçeve adları `WorkflowEventStream`'den (`WorkflowEndpoints.cs:1624`) farklıdır |
-| [`TraconWorkflowsBuilderExtensions.cs:140-157`](../src/Tracon.Workflows/TraconWorkflowsBuilderExtensions.cs) | `AddWorkflow` seçenek almaz; kodda `RequestPort` kuran workflow (örnek: `samples/Tracon.Api/Program.cs:759-763`) mod seçemez |
-| [`WorkflowDefinition.cs:122`](../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs) · [`WorkflowDefinitionCompiler.cs:307`](../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs) | Kayıtlı tanımda tek istek kaynağı Magentic plan onayıdır |
-| [`RunEventWriter.cs:295-299`](../src/Tracon.Core/Recording/RunEventWriter.cs) | `RecordToolPayloads` kapalıyken yük düşer; yalnız `WorkflowRequest` ve ayrılmış `Custom` muaftır |
+| `WorkflowRunner.PumpAsync` (`RequestInfoEvent` → `TryRespondAsync`) | Teslim edilen istek `continue` ile atlanır; cevabı ya da kaynağı yazan olay yok. [`RunEventType.cs:38-383`](../../../src/Tracon.Abstractions/Runs/RunEventType.cs) bir yanıt üyesi taşımaz |
+| [`KARARLAR.md:980`](../../KARARLAR.md) (K-929) | Gerekçe "senkron uçta yanıt run olayına zaten yazılır" der — yukarıdaki satırla çelişir |
+| [`IdempotencyFilter.cs:113-122`](../../../src/Tracon.AspNetCore/Idempotency/IdempotencyFilter.cs) · [`TraconEndpointRouteBuilderExtensions.cs:131-136`](../../../src/Tracon.AspNetCore/TraconEndpointRouteBuilderExtensions.cs) | `Idempotency-Key` yalnız `Prefer: respond-async` ile (K-925); SSE yolunda tekrar koruması yok |
+| [`IdempotencyFilter.cs:154-165`](../../../src/Tracon.AspNetCore/Idempotency/IdempotencyFilter.cs), `:256` · [`TraconRetentionOptions.cs:82`](../../../src/Tracon.Core/Retention/TraconRetentionOptions.cs) | Parmak izi `SHA-256(method\npath\nbody)`; aynı anahtar farklı gövde `422`. `idempotency_keys` ömrü 1 gün ve `Enabled` ile kapanır: tek yanıtın kalıcı otoritesi olamaz |
+| [`WorkflowEndpoints.cs:1350`](../../../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs), `:1369` · `WorkflowRunner.RunGuardedAsync` (`RunAttributionReader.Read`) | Devam run'ının `user_id`'si cevaplayanındır; "kim" kısmen okunur, "hangi istek, hangi kaynak" okunmaz |
+| [`ApprovalEndpoints.cs:187-257`](../../../src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs), `:306`, `:379` | Onay kutusu deseni: yetki durumdan önce → aynı karar devri yeniden sürer, zıt karar `409` → denetim kararı uygulamadan önce (`WriteOrThrowAsync`, `:232`) → `WHERE status = Pending` koruması; türetilmiş run kimliği |
+| [`AuditWritePolicyTests.cs:46-91`](../../../tests/Tracon.Core.UnitTests/Architecture/AuditWritePolicyTests.cs), `:169-176` · [`IAuditLog.cs:11-30`](../../../src/Tracon.Abstractions/Audit/IAuditLog.cs) | Fail-closed kümesi altı işlem / dokuz çağrı yeridir ve yayımlanmış sözleşmedir (K-776) |
+| [`AuditingWorkflowDefinitionStore.cs:134-165`](../../../src/Tracon.Core/Audit/AuditingWorkflowDefinitionStore.cs) | `workflow.rollback` best-effort'tur (`AuditRecorder.WriteAsync`); yalnız yük şekli emsalidir |
+| [`WorkflowRecovery.cs:18-24`](../../../src/Tracon.Core/Scheduling/WorkflowRecovery.cs), `:113-149`, `:405-444` | `ContinuedFromRunId` kurtarma zinciridir: zincir ileri yürünür, son run kararı verir, zincir uzunluğu `MaxResumeAttempts`'a sayılır |
+| [`RunEndpoints.cs:1256-1310`](../../../src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs) | `RunEventStream` depodan run `Running`/`Queued` bitene kadar izler; çerçeve adları `WorkflowEventStream`'den (`WorkflowEndpoints.cs:1624`) farklıdır |
+| [`TraconWorkflowsBuilderExtensions.cs:140-157`](../../../src/Tracon.Workflows/TraconWorkflowsBuilderExtensions.cs) | `AddWorkflow` seçenek almaz; kodda `RequestPort` kuran workflow (örnek: `samples/Tracon.Api/Program.cs:759-763`) mod seçemez |
+| [`WorkflowDefinition.cs:122`](../../../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs) · [`WorkflowDefinitionCompiler.cs:307`](../../../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs) | Kayıtlı tanımda tek istek kaynağı Magentic plan onayıdır |
+| [`RunEventWriter.cs:295-299`](../../../src/Tracon.Core/Recording/RunEventWriter.cs) | `RecordToolPayloads` kapalıyken yük düşer; yalnız `WorkflowRequest` ve ayrılmış `Custom` muaftır |
 
 > Kanıtlar 2026-10-14 tarihinde `245afe91` zemininde (worktree `faz-208`) doğrulandı.
 
@@ -381,7 +381,7 @@ tests/...                                   (Hata Modları tablosundaki sınıfl
 
 ## Hata Modları ve Testler
 
-> Seviye kuralı: [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md). Sınır geçen davranış (HTTP · kiracı · akış · depo) birim testiyle kanıtlanmaz.
+> Seviye kuralı: [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md). Sınır geçen davranış (HTTP · kiracı · akış · depo) birim testiyle kanıtlanmaz.
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -739,7 +739,7 @@ Planın *Kapsam dışı* tablosundan açılan adaylar: **F-520** (cevabın kendi
 ## Sonraki Faza Devir Notu
 
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz ([Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) yanıt kaydını okur).
+> kalan işler, sıradaki faz ([Faz 209](../../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) yanıt kaydını okur).
 
 **Sıradaki faz: Faz 210 (F-407 — bütçe tükenince fonksiyon düğümü başlamasın).** Planı onaylı (🔒1 A, 🔒2 B, 🔒3 A) ve `worktree-faz-210-butce-dugum-kapisi` dalındadır; bu faz kapandıktan sonra `main`'e birleştirilir. Bu fazla ortak dosyası `WorkflowRunner.cs`'tir; satır kayar, sözleşme çakışmaz. **Faz 209** (gelen kutusu ve süre) altı engelleyici soruyla onay bekler ve bu fazın kaydını okur.
 
@@ -758,6 +758,6 @@ Planın *Kapsam dışı* tablosundan açılan adaylar: **F-520** (cevabın kendi
 - 🚨 `concepts/workflows.md` ağırlık tavanında (58 470 / 59 000 B gzip). Yeni workflow anlatısı `concepts/workflow-answers.md`'ye ya da yeni bir sayfaya gider; tavan yükseltilmez.
 - 🚨 Migration yorumu checksum'a girer. Bu dalın eski `0060`'ını uygulamış bir veritabanı açılışta checksum hatası verir ve sıfırlanır (yayımlanmadı).
 - 🚨 `docs/ADAYLAR.md` bütçesi dar; bu kapanış on iki satırı `arsiv/ERTELENEN-ADAYLAR.md`'ye damıttı.
-- 🚨 Workflow cevap testlerinde depo sahtesi `configureTracon` içinde kurulur ([`hafiza/workflow-cevaplari.md`](hafiza/workflow-cevaplari.md)).
+- 🚨 Workflow cevap testlerinde depo sahtesi `configureTracon` içinde kurulur ([`hafiza/workflow-cevaplari.md`](../../hafiza/workflow-cevaplari.md)).
 
 **Açık kalanlar:** F-514…F-523 (aday; *Denetim Bulguları*). Sevk edilen sözleşme genişlediği için yayın provası koşuldu; sonucu *Kapanış kapısı*nda.
