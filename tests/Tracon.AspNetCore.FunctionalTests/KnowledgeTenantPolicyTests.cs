@@ -133,6 +133,37 @@ public sealed class KnowledgeTenantPolicyTests
         embeddings.Calls.ShouldBe(0);
     }
 
+    /// <summary>
+    /// A binding that names a key the tenant may not read is refused with <c>403</c>
+    /// before anything is embedded.
+    /// </summary>
+    [Fact]
+    public async Task Search_refuses_a_binding_whose_key_the_tenant_may_not_read()
+    {
+        const string ForeignKey = "Other:Keys:TestEmbeddings";
+        var embeddings = new CountingEmbeddingGenerator();
+        await using var host = await StartAsync(
+            embeddings,
+            EmbeddingProvider,
+            services => services.AddSingleton<IConfiguration>(
+                new ConfigurationBuilder().AddInMemoryCollection([new(ForeignKey, "foreign-embedding-key")]).Build()));
+
+        await host.Services.GetRequiredService<ITenantProviderBindingStore>().UpsertAsync(
+            new TenantProviderBinding
+            {
+                TenantId = "default",
+                ProviderName = EmbeddingProvider,
+                ApiKeyConfigurationName = ForeignKey,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            TestContext.Current.CancellationToken);
+
+        using var response = await host.Client.PostAsJsonAsync(SearchUri, new { query = "refund policy" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await response.Content.ReadAsStringAsync());
+        embeddings.Calls.ShouldBe(0);
+    }
+
     [Fact]
     public async Task The_agent_tool_refuses_an_embedding_provider_the_tenant_policy_forbids()
     {

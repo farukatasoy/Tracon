@@ -3390,3 +3390,51 @@ Regresyon. Kuyruklu turun onay satırı yazımı oturum kaydından sonra düşer
 - Tek yazım hatası: iş `Completed`, model bir kez çağrılır, posta kutusunda tek onay.
 - İşlenip hata dönen yazım: posta kutusunda yine tek onay.
 - Hep düşen depo: iş `Failed`, kod `tracon.job.approval-save-failed`, deneme 1, run `Failed`.
+
+---
+
+### MT-JOB-150 — Tekrar aynı cevabı alacak hata işi o denemede düşürür (kusur-giderme, 2026-10-14, F-429)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-982 |
+| **Devir** | ➜ CI: `FinalFailureJobRetryTests` · `EvalJobHandlerFinalWriteTests` |
+
+Regresyon. İşçi her hatayı deneme sınırına kadar tekrarlıyordu: yargıcı çıktı
+sınırında kesilen eval her denemede bitmemiş case'in agent run'ını yeniden
+ödüyor, kalıcı `4xx` alan kuyruklu run tekrar koşuyordu.
+
+**Ön koşul** — `AsyncRun.MaxAttempts=3`; agent'ın modeli `400` döner (geçersiz model adı).
+
+**Adımlar**
+1. `Prefer: respond-async` ile run kuyruğa al.
+2. `GET /api/jobs/{runId}` ile işin bitmesini bekle.
+
+**Beklenen sonuç**
+- İş `Failed`, `attempt` `1`; run `Failed`, sınıf `ProviderError`; model bir kez çağrıldı.
+- Aynı senaryo `429` ile: iş 3 deneme koşar (geçici hata).
+- Tüketicinin kendi `IJobHandler`'ı `HttpRequestException` (`404`) atınca iş deneme hakkını kullanır.
+
+---
+
+### MT-JOB-151 — Başarısız webhook gönderiminin kayıt hatası beklemeyi atlamaz (kusur-giderme, 2026-10-14, F-393)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `WebhookDeliveryFinalWriteTests` (başarısız yol: ilk ve son deneme) |
+
+Regresyon. Alıcı `5xx` dönünce sonucu yazan `store` çağrısı düşerse iş beklemeden
+yeniden deneniyordu; son denemede teslim `Pending` kalıyordu.
+
+**Ön koşul** — Hata enjeksiyonu yalnız testte mümkündür; elle koşum CI'a devredilir.
+
+**Beklenen sonuç**
+- İlk deneme: `JobRetryException`, `RetryAfter` merdivenin ilk gecikmesi.
+- Son deneme: teslim `Failed`, iş öğesi `Failed`, hata metni `after N attempts`.

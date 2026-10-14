@@ -201,6 +201,55 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A job no longer repeats a failure the next attempt would get again. The worker
+  retried every handler failure up to the attempt limit: an eval whose judge was cut
+  off at its output limit ran its unfinished case and paid for it on every attempt,
+  and a queued run whose model answered a permanent `4xx` ran again too.
+  **Behavior change:** a failure whose stable type is `output_truncated` or
+  `tenant_provider_refused`, or a model provider failure
+  (`upstream_error`) with a `4xx` other than `408` and `429`, fails the job on that
+  attempt. The decision reads the type, never the message; an exception a consumer
+  handler throws itself keeps its retries, and so does `JobRetryException`. A workflow
+  node retry and the online evaluation read the same decision.
+- A tenant's refusal of a provider is no longer classified by its text. Its error
+  type was the .NET type name, and a tenant or provider name with "timeout" or "429"
+  in it made the refusal a transient fault that a workflow node retried.
+  **Behavior change:** every refusal (model, fallback, summarizer, loop judge, image,
+  speech, embeddings, live voice) is the new `TraconTenantProviderRefusedException`,
+  error type `tenant_provider_refused`, with the new class
+  `RunErrorClass.TenantProviderRefused` (in the OpenAPI document and both generated
+  clients). A compilation no longer wraps it as `TraconCompilationException`
+  (`compilation_failed`); the message still names the agent. A binding that names a
+  configuration key the tenant may not read is a refusal too: the image, speech and
+  knowledge endpoints answer `403` for it, not `500`. The model path's refusal of a tenant credential its
+  provider cannot use was `provider_credential_unsupported` and is now
+  `tenant_provider_refused` too. The image and live voice refusals name their kind of
+  provider instead of "model provider".
+- A provider failure masked as `upstream_error` that answered `429` is now
+  `RateLimited`, not `ProviderError`, and a status .NET carries only on
+  `HttpRequestException.StatusCode` now reaches the record (`(HTTP 401)`).
+- An Anthropic answer cut off by the context window (`model_context_window_exceeded`)
+  and a turn the API paused (`pause_turn`) no longer complete the run as finished.
+  The SDK's adapter reported both as a plain stop. A cut-off structured answer now
+  fails with `output_truncated` and a plain one writes `tracon.output.truncated`,
+  both naming the context window; the event payload gains a `cause` field
+  (`output_limit` or `context_window`). A paused turn is continued, its blocks sent
+  back as the API returned them, up to five times; a turn still paused fails the call.
+  New: `TraconFinishReasons.ContextWindowExceeded`, a finish reason any provider can
+  report.
+- A SQL store write that the server picks as a deadlock victim is run again. The SQL
+  Server upsert gave error 1205 to its caller under concurrent writes. Every store
+  transaction now opens at one boundary that runs the whole transaction again, up to
+  five times, on a new connection.
+- A failed webhook send whose result could not be recorded kept its retry delay. The
+  store error used to replace the send's failure: the job was released at once, and on
+  the last attempt the delivery stayed `Pending`. It now ends `Failed`.
+- `TraconToolUsage.Report` refuses a measurement the record cannot hold, as a function
+  node's item is refused. An oversize unit, provider or model reached the insert, and
+  on PostgreSQL and SQL Server the failed insert lost the call's whole record.
+- `GET /api/voice/voices` answers `502` when the provider fails, as
+  `POST /api/voice/speak` does; it answered `500` (new in the OpenAPI document and
+  both generated clients).
 - The first function node of a workflow node list runs once per run. A run sends the
   first node the user's message and then Microsoft Agent Framework's turn token, on every
   start and resume, and a first node that takes `object` received both and ran twice — a
@@ -718,6 +767,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `TraconFinishReasons.ContextWindowExceeded`: the finish reason a model provider
+  reports when the conversation and the answer filled the model's context window.
+  Tracon treats it as a cut-off answer and names the window.
+- `RunErrorClass.TenantProviderRefused` (`17`): the tenant's provider rules refused
+  the call before any provider was called.
+- `TraconTenantProviderRefusedException`: the one exception every path throws when the
+  tenant's provider rules refuse a call (its egress policy, a credential binding that
+  cannot be resolved, a provider that cannot take the tenant's own key). Catch it to
+  tell the tenant's rule from a provider failure.
 - `CurrencyCount` on `RunTreeCost`, `RunNonTokenCost`, `RunStatistics`,
   `TimeSeriesPoint` and `ExperimentVariantResult`, and `JudgeCostCurrencyCount` on
   `OnlineEvaluationSummary`: how many currencies the runs behind a money total are

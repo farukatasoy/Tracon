@@ -141,7 +141,7 @@ internal sealed class OnlineEvalSummaryService(
             judgeCost = (judgeCost ?? 0m) + (cost.Total() ?? 0m);
             judgeCostCurrency ??= cost.Currency;
 
-            if (cost.Currency is { } currency && cost.Total() is not null)
+            if (cost.Currency is { Length: > 0 } currency && cost.Total() is not null)
             {
                 judgeCurrencies.Add(currency);
             }

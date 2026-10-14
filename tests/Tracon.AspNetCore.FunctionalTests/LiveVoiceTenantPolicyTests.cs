@@ -42,7 +42,10 @@ public sealed class LiveVoiceTenantPolicyTests
         using var response = await CreateAsync(host);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldContain("'openai'");
+
+        // F-444 class scan: the live session named its provider a "model provider" too.
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .ShouldContain("not allowed to call live voice provider 'openai'");
         provider.CreateCallCount.ShouldBe(0, "the tenant's audio must not reach a provider its policy forbids");
     }
 

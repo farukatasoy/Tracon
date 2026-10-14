@@ -143,14 +143,22 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The value <paramref name="execute"/> returned.</returns>
     /// <remarks>
+    /// <para>
     /// When <see cref="SqlDialect.UpsertRequiresTransaction"/> is <see langword="false"/>
     /// this is exactly <see cref="CreateCommand(string)"/> followed by
-    /// <paramref name="execute"/>. Otherwise the command runs on its own connection
-    /// inside an ADO.NET <see cref="DbTransaction"/> (not a <c>BEGIN TRAN</c> in the
-    /// text: the dialects classify the errors that flow through the transaction
-    /// object), which holds the upsert's range lock until the commit.
+    /// <paramref name="execute"/>. Otherwise the command runs through
+    /// <see cref="ExecuteInTransactionAsync{T}"/>: on its own connection, inside an
+    /// ADO.NET <see cref="DbTransaction"/> (not a <c>BEGIN TRAN</c> in the text: the
+    /// dialects classify the errors that flow through the transaction object), which
+    /// holds the upsert's range lock until the commit.
+    /// </para>
+    /// <para>
+    /// Either way an attempt the server picks as a deadlock victim is sent again,
+    /// whole (see <see cref="ExecuteInTransactionAsync{T}"/>). <paramref name="bind"/>
+    /// and <paramref name="execute"/> run once per attempt, on a new command.
+    /// </para>
     /// </remarks>
-    public async ValueTask<T> ExecuteUpsertAsync<T>(
+    public ValueTask<T> ExecuteUpsertAsync<T>(
         string sql,
         Action<DbCommand> bind,
         Func<DbCommand, CancellationToken, ValueTask<T>> execute,
@@ -162,19 +170,21 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
 
         if (!Dialect.UpsertRequiresTransaction)
         {
-            var command = CreateCommand(sql);
-            bind(command);
+            // One statement in autocommit: a victim's statement was rolled back
+            // whole, so sending it again is the same safe boundary as a transaction.
+            return RetryDeadlockVictimAsync(
+                async () =>
+                {
+                    var command = CreateCommand(sql);
+                    bind(command);
 
-            return await execute(command, cancellationToken).ConfigureAwait(false);
+                    return await execute(command, cancellationToken).ConfigureAwait(false);
+                },
+                cancellationToken);
         }
 
-        var connection = await DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        return ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
                 var command = CreateCommand(sql, connection, transaction);
                 bind(command);
@@ -184,6 +194,104 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                 return result;
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs a unit of work in a transaction of its own, and runs it again, whole, when
+    /// the server picks it as a deadlock victim.
+    /// </summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="work">
+    /// Runs its commands on the connection and the transaction it is given and commits
+    /// the transaction; returning without a commit rolls the work back. It runs once per
+    /// attempt, so it must do nothing outside this database: no other store, no file,
+    /// no call to another service.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The value <paramref name="work"/> returned on the attempt that finished.</returns>
+    /// <remarks>
+    /// <para>
+    /// Every store write that needs more than one statement to be atomic goes through
+    /// here (<c>SqlTransactionSiteTests</c> keeps it that way). An attempt the server
+    /// picks as a deadlock victim (<see cref="SqlDialect.IsDeadlock"/>) is run again,
+    /// on a new connection and a new transaction, up to <see cref="DeadlockAttempts"/>
+    /// attempts in all; any other error, and the last victim's, propagates unchanged.
+    /// </para>
+    /// </remarks>
+    public ValueTask<T> ExecuteInTransactionAsync<T>(
+        Func<DbConnection, DbTransaction, ValueTask<T>> work,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+
+        return RetryDeadlockVictimAsync(
+            async () =>
+            {
+                var connection = await DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+
+                await using (connection.ConfigureAwait(false))
+                {
+                    var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+                    await using (transaction.ConfigureAwait(false))
+                    {
+                        return await work(connection, transaction).ConfigureAwait(false);
+                    }
+                }
+            },
+            cancellationToken);
+    }
+
+    /// <summary>The result-less overload of <see cref="ExecuteInTransactionAsync{T}"/>.</summary>
+    /// <param name="work">The unit of work; see <see cref="ExecuteInTransactionAsync{T}"/>.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The completion task.</returns>
+    public async ValueTask ExecuteInTransactionAsync(
+        Func<DbConnection, DbTransaction, ValueTask> work,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+
+        _ = await ExecuteInTransactionAsync<bool>(
+            async (connection, transaction) =>
+            {
+                await work(connection, transaction).ConfigureAwait(false);
+
+                return true;
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Gets how many times a unit of work the server keeps picking as a deadlock
+    /// victim is run, in all.
+    /// </summary>
+    internal const int DeadlockAttempts = 5;
+
+    private async ValueTask<T> RetryDeadlockVictimAsync<T>(Func<ValueTask<T>> attempt, CancellationToken cancellationToken)
+    {
+        for (var number = 1; ; number++)
+        {
+            try
+            {
+                return await attempt().ConfigureAwait(false);
+            }
+
+            // 🚨 F-430: an upsert transaction holds a range lock until its commit
+            // (F-313), so two of them can wait on each other and the server kills one.
+            // Measured: RunScoreStoreContract's concurrent-write case failed once in a
+            // full run with SqlException 1205 and passed alone. The retry wraps the
+            // WHOLE attempt because that is the boundary that is safe to repeat: the
+            // victim's transaction was rolled back, so nothing of it landed, and the
+            // next attempt opens a new connection and a new transaction. A retry of one
+            // statement inside it, or of a store call above it, would be neither. The
+            // random pause keeps two victims from meeting again at once (K-540).
+            catch (Exception exception) when (number < DeadlockAttempts && Dialect.IsDeadlock(exception))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(Random.Shared.Next(10, 40) * number), cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
     }

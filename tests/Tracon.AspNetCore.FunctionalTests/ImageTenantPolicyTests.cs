@@ -45,7 +45,9 @@ public sealed class ImageTenantPolicyTests
         using var response = await host.Client.PostAsJsonAsync(GenerateUri, new { prompt = "a lighthouse" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        (await response.Content.ReadAsStringAsync()).ShouldContain($"'{ImageProvider}'");
+
+        // F-444: the refusal names the kind of provider it refused; it said "model provider".
+        (await response.Content.ReadAsStringAsync()).ShouldContain($"not allowed to call image provider '{ImageProvider}'");
         generator.Calls.ShouldBe(0, "the tenant's prompt must not reach a provider its policy forbids");
     }
 
@@ -184,6 +186,41 @@ public sealed class ImageTenantPolicyTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         (await response.Content.ReadAsStringAsync()).ShouldContain(KeyName);
+        generator.Calls.ShouldBe(0);
+    }
+
+    /// <summary>
+    /// A binding that names a key the tenant may not read is the tenant's rule
+    /// refusing too: <c>403</c>, not a server error.
+    /// </summary>
+    /// <remarks>
+    /// The binding endpoint checks the key name, but a row written before that rule,
+    /// or through a store the endpoint did not validate, reaches the resolver's own
+    /// check. That check threw a plain error the endpoint did not map.
+    /// </remarks>
+    [Fact]
+    public async Task The_endpoint_refuses_a_binding_whose_key_the_tenant_may_not_read()
+    {
+        const string ForeignKey = "Other:Keys:TestImages";
+        var generator = new CountingImageGenerator();
+        await using var host = await StartAsync(
+            generator,
+            services => services.AddSingleton<IConfiguration>(
+                new ConfigurationBuilder().AddInMemoryCollection([new(ForeignKey, "foreign-image-key")]).Build()));
+
+        await host.Services.GetRequiredService<ITenantProviderBindingStore>().UpsertAsync(
+            new TenantProviderBinding
+            {
+                TenantId = "default",
+                ProviderName = ImageProvider,
+                ApiKeyConfigurationName = ForeignKey,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            },
+            TestContext.Current.CancellationToken);
+
+        using var response = await host.Client.PostAsJsonAsync(GenerateUri, new { prompt = "a lighthouse" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await response.Content.ReadAsStringAsync());
         generator.Calls.ShouldBe(0);
     }
 

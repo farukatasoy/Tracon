@@ -53,13 +53,8 @@ internal sealed class SqlTraceStore : ITraceStore
             return;
         }
 
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
                 var traceId = await UpsertTraceAsync(connection, transaction, batch, cancellationToken)
                     .ConfigureAwait(false);
@@ -71,8 +66,8 @@ internal sealed class SqlTraceStore : ITraceStore
                 }
 
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

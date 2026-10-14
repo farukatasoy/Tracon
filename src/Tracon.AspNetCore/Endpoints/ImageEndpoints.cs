@@ -153,7 +153,7 @@ internal static class ImageEndpoints
                 },
             });
         }
-        catch (TenantProviderRefusedException exception)
+        catch (TraconTenantProviderRefusedException exception)
         {
             // The tenant's own rule, not a provider failure: 403, as for live
             // voice (K-878). The message names the tenant and the provider only.

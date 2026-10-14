@@ -168,7 +168,7 @@ internal sealed partial class InMemoryRunStore
 
                 currency ??= cost.Currency;
 
-                if (cost.Currency is { } priced && cost.Total() is not null)
+                if (cost.Currency is { Length: > 0 } priced && cost.Total() is not null)
                 {
                     currencies.Add(priced);
                     pricedCurrency ??= priced;

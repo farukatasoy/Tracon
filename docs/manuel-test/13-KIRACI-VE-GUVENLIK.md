@@ -4963,3 +4963,29 @@ olmadan kuruyordu. Kayıt yolu yalnız IP literal'ini denetler; özel adrese
 - Kayıt `200` döner (ad, IP literal'i değildir).
 - Run `Failed`; hata `AllowPrivateNetworkTargets` ayarını adlandırır; `10.0.0.5`'e bağlantı açılmaz.
 - 🚨 Eski kusur: istek ve kiracının anahtarı `10.0.0.5`'e gitti.
+
+---
+
+### MT-SEC-218 — Kiracı sağlayıcı reddi kendi sınıfıyla kaydedilir ve tekrarlanmaz (kusur-giderme, 2026-10-14, F-442, F-444)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-983 |
+| **Devir** | ➜ CI: `SpeechDialogueTenantTests` · `ImageTenantPolicyTests` · `LiveVoiceTenantPolicyTests` · `DefaultRunErrorClassifierTests` · `SpeechTenantCredentialTests` · `KnowledgeTenantPolicyTests` |
+
+Regresyon. Ret CLR adıyla yazılıyor ve metniyle sınıflanıyordu: izinli listede
+`timeout` geçen bir sağlayıcı reddi geçici yaptı, fonksiyon düğümü üç kez koştu.
+
+**Adımlar**
+1. Kiracı politikasını görsel sağlayıcısını dışarıda bırakacak şekilde kaydet, izinli listeye `timeout-relay` ekle.
+2. `POST /api/images/generate`.
+3. Aynı politikayla görsel üreten yeniden denemeli bir workflow düğümü koş.
+4. Politikayı sil. Görsel sağlayıcısı için `Tracon:ProviderKeys:` dışında bir anahtar adı taşıyan bağlamayı doğrudan `store`'a yaz (uç bunu reddeder) ve 2'yi tekrarla.
+
+**Beklenen sonuç**
+- 2: `403`, metin `not allowed to call image provider '…'`.
+- 3: run `Failed`, `error.type` `tenant_provider_refused`, sınıf `TenantProviderRefused`; düğüm bir kez koştu.
+- 4: `403`; sağlayıcı çağrılmadı. 🚨 Eski kusur: çözücünün anahtar muhafızı düz hata attı, uç `500` döndü.

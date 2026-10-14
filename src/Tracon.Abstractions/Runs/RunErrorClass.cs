@@ -156,4 +156,19 @@ public enum RunErrorClass
     /// records a <see cref="RunEventCustomTypes.OutputTruncated"/> event instead.
     /// </remarks>
     OutputTruncated = 16,
+
+    /// <summary>
+    /// The tenant's provider rules refused the call before it left the process: the
+    /// tenant's egress policy does not allow the provider, or the tenant has its own
+    /// credential for a provider path that cannot use it, or a binding whose key has
+    /// no value. The error type is <c>tenant_provider_refused</c>.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="CompilationFailed"/> and <see cref="ProviderError"/>:
+    /// no provider was called, and the agent definition is not at fault. The action is
+    /// to change the tenant's egress policy or provider binding. The model, a fallback,
+    /// the summarizer, image generation, speech, embeddings and live voice all report
+    /// it the same way, and a retry never repeats it.
+    /// </remarks>
+    TenantProviderRefused = 17,
 }

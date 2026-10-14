@@ -43,7 +43,11 @@ public static class TraconToolUsage
     /// <param name="usage">The usage measurement.</param>
     /// <returns>
     /// <see langword="true"/> when the measurement is attached to a call. Returns
-    /// <see langword="false"/> when run recording is disabled or the call is not in a tool context.
+    /// <see langword="false"/> when run recording is disabled, the call is not in a tool context,
+    /// or the measurement is outside what a record holds: an empty unit, a unit longer than 64
+    /// characters, a currency longer than 16, a provider longer than 100, a model longer than
+    /// 200, a quantity outside 0 to 9,999,999,999 or an amount outside 0 to 1,000,000,000. A
+    /// refused measurement is attached to nothing and counts in no total.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="usage"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -54,6 +58,14 @@ public static class TraconToolUsage
     public static bool Report(ToolCallUsage usage)
     {
         ArgumentNullException.ThrowIfNull(usage);
+
+        // F-484: checked where it is reported, as a function node's item is (K-974). A
+        // value its column cannot hold failed the insert later, and the failed insert
+        // took the call's whole record with it.
+        if (NonTokenCostAccumulator.Validate(usage) is not null)
+        {
+            return false;
+        }
 
         if (TraconRunContext.Current is not { ToolUsage: { } accumulator } scope)
         {

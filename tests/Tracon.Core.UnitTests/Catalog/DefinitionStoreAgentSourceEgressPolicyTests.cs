@@ -27,7 +27,7 @@ public sealed class DefinitionStoreAgentSourceEgressPolicyTests
 
         await egress.UpsertAsync(Tenant, ["anthropic"]);
 
-        var exception = await Should.ThrowAsync<TraconCompilationException>(
+        var exception = await Should.ThrowAsync<TraconTenantProviderRefusedException>(
             async () => await source.ResolveAsync(AgentName));
 
         exception.Message.ShouldContain("openai");
@@ -72,7 +72,7 @@ public sealed class DefinitionStoreAgentSourceEgressPolicyTests
         var (source, _, egress) = await CreateSourceAsync();
         await egress.UpsertAsync(Tenant, ["anthropic"]);
 
-        await Should.ThrowAsync<TraconCompilationException>(async () => await source.ResolveAsync(AgentName));
+        await Should.ThrowAsync<TraconTenantProviderRefusedException>(async () => await source.ResolveAsync(AgentName));
 
         await egress.DeleteAsync(Tenant);
 

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (919 kalem)
+## Arşivlenen Kararlar (924 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -928,3 +928,8 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-917 | 968 | Kod Loop ölçütü fabrikasının attığı istisnanın MESAJI yönetim API'sine gitmez: derleme hatası türü ve istisna tipini adlandırır, istisna `InnerException`'da ve host logunda durur (F-301) |
 | K-918 | 969 | Konsol Loop editörü yalnız tür DEĞİŞİMİNDE yeni türün okumadığı alanı temizler; yükleme ve kayıt her alanı, listelenmeyen türü ve kanonik olmayan yazımı (`aijudge`) olduğu gibi korur; harness kapalıyken düşen loop kaydetmeden önce söylenir (F-302) (kullanıcı kararı) 👤 |
 | K-919 | 970 | Çıktı sınırında kesilme ayrı bir sonuçtur: `RunErrorClass.OutputTruncated = 16`, `TraconOutputTruncatedException` (`output_truncated`), `RunEventCustomTypes.OutputTruncated` (`tracon.output.truncated`). Karar son bildirilen bitiş sebebinden verilir; yapılandırılmış (`Json`/`JsonSchema`) yanıt run'ı düşürür ve onarım koşmaz, düz metin `Completed` + olay; reddedilen yanıtın token'ı run'a katlanır (F-320, Faz 204; Açık Soru 1-A, 2-A) |
+| K-920 | 971 | Anthropic istek ayarları: `anthropic.effort` (`output_config.effort`), `anthropic.thinking.mode` (`enabled`/`adaptive`; tek başına bütçe `enabled`), `anthropic.promptCaching.ttl` (`5m`/`1h`), `anthropic.promptCaching.placement` (`request`/`system`; talimatsız `system` üst düzey kırılma noktasına düşer). Değer listeleri SDK enum'larından okunur; `ttl`/`placement` `promptCaching` olmadan, `adaptive` + bütçe ve bütçesiz `enabled` hatadır (F-346, Faz 204; Açık Soru 3-A) |
+| K-921 | 972 | `ModelDescriptor.SupportsSampling` (`bool?`, `null` = bilinmiyor): `false` iken `Temperature`/`TopP` derlemeyi durdurur, doğrulama `sampling_unsupported` verir; bağlamanın `Fallbacks` bağlantıları da denetlenir (Faz 204; yedek denetimi ana oturum varsayılanı, bakımcı onayı bekler) |
+| K-922 | 973 | Sağlayıcının varsayılan çıktı sınırı `ModelOutputLimit` kaydıyla (`DefaultMaxOutputTokens`, `HighReasoningEffort`) bağlamaya göre kurulan ham istemcinin `IChatClient.GetService` yanıtından okunur; doğrulama, `MaxOutputTokens` boşken varsayılan katalog sınırından küçükse ve yanıt yapılandırılmışsa ya da effort yüksekse `output_truncation_risk` (Warning) verir (Faz 204 #1, #2; Açık Soru 5-B; seam biçimi ana oturum varsayılanı, bakımcı onayı bekler) |
+| K-923 | 974 | Kesilen kuyruklu workflow run'ını yalnız onu başlatan job sürdürür; uzlaştırma workflow kökünü `Failed` kapatır ama sürdürmez; zincir `ContinuedFromRunId` ile ileri yürünür; çökme, deploy ve zarif kapanış ayırt edilmez; varsayılan kapalı (`ResumeInterruptedRuns`) ve checkpoint ister (Faz 197, Açık Soru 1-A) (kullanıcı kararı) 👤 |
+| K-924 | 975 | Kuyruklu workflow işlemi tek anahtardır: `tracon.workflow-run` + yükte `operation` (`run`/`resume`/`respond`); iş kimliği run kimliğidir; anahtar HTTP ile zamanlanamaz (`HttpSchedulableHandlerKeys` de açamaz); kapılar `202`'den önce, senkron uçla aynı sırada koşar; kuyruklu resume/respond kotaya girmez; respond-async F-319'u beklemez (Faz 197, Açık Soru 2-A, 3-A, 6-A) (kullanıcı kararı) 👤 |

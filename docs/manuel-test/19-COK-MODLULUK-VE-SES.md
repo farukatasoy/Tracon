@@ -3055,3 +3055,24 @@ gitmez; ek oluşmaz.
 **Beklenen sonuç** (2) `Failed`; hata `Tenant 'default' is not allowed to call
 speech provider 'elevenlabs'. Allowed providers: tone.` der. Sahte sunucuya istek
 gitmez. (3) `204`.
+
+---
+
+### MT-MM-138 — Ses listesinde sağlayıcı hatası `502` döner (kusur-giderme, 2026-10-14, F-443)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Düşük |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `VoiceEndpointTests.When_the_provider_fails_to_list_its_voices_the_answer_is_502` |
+
+Regresyon. `/speak` sağlayıcı hatasını `502` veriyordu, `/voices` `500`.
+
+**Adımlar**
+1. Ses sağlayıcısının anahtarını geçersiz bir değerle başlat.
+2. `GET /api/voice/voices`.
+
+**Beklenen sonuç**
+- `502`, başlık `Voices could not be listed`; gövde sağlayıcının yanıt gövdesini taşımaz.

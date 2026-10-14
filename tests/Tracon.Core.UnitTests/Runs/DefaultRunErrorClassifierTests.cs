@@ -128,6 +128,46 @@ public sealed class DefaultRunErrorClassifierTests
         result.Class.ShouldBe(RunErrorClass.ProviderError);
     }
 
+    /// <summary>
+    /// F-353: a provider that answered 429 is rate limited, the one fault the class
+    /// exists for, whether or not the normalizer stood between it and the record.
+    /// </summary>
+    /// <remarks>
+    /// The status is read from the suffix Tracon's own sentence carries, never from
+    /// the provider's text, which the normalized message does not hold.
+    /// </remarks>
+    [Fact]
+    public void A_normalized_provider_429_is_rate_limited()
+    {
+        var result = _classifier.Classify(new RunError
+        {
+            Type = "upstream_error",
+            Message = ProviderFailureNormalizer.DescribeUpstreamFailure("openai", "ClientResultException", 429),
+        });
+
+        result.Class.ShouldBe(RunErrorClass.RateLimited);
+    }
+
+    /// <summary>
+    /// F-442: a tenant's refusal is classified by its stable type. Its text names the
+    /// tenant and the allowed providers, the operator's own words, and a name with
+    /// "timeout" or "rate limit" in it made it a transient class.
+    /// </summary>
+    [Theory]
+    [InlineData("tenant_provider_refused")]
+    [InlineData("Tracon.TenantProviderRefusedException")]
+    public void A_tenant_refusal_is_classified_by_its_type_whatever_its_text_names(string type)
+    {
+        var result = _classifier.Classify(new RunError
+        {
+            Type = type,
+            Message = "Tenant 'timeout-tenant' is not allowed to call image provider 'openai'. " +
+                      "Allowed providers: rate-limit-proxy, HTTP 503 relay.",
+        });
+
+        result.Class.ShouldBe(RunErrorClass.TenantProviderRefused);
+    }
+
     [Fact]
     public void The_same_error_always_produces_the_same_fingerprint()
     {

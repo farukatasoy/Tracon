@@ -94,6 +94,62 @@ public sealed class NonTokenSpendTests
         await Should.ThrowAsync<TraconRunBudgetExceededException>(() => narrator.RunAsync("go"));
     }
 
+    /// <summary>
+    /// F-484: a tool's measurement that its columns cannot hold is refused when it is
+    /// reported, as a function node's item is (K-974), instead of reaching the insert.
+    /// </summary>
+    /// <remarks>
+    /// The unit, provider and model columns hold 64, 100 and 200 characters. A
+    /// node's item was checked, a tool's was not: PostgreSQL and SQL Server refuse
+    /// the oversize value, and the insert that fails takes the call's whole record
+    /// with it, arguments and result included.
+    /// </remarks>
+    [Fact]
+    public async Task A_tool_measurement_its_columns_cannot_hold_is_refused_when_it_is_reported()
+    {
+        bool? reported = null;
+        var provider = new FakeModelProvider(Provider).WithModel(new ModelDescriptor { Name = Model });
+        provider.ForModel(Model, cfg => cfg.CallsTool(SpeakTool).EchoesLastToolResult("Done: "));
+
+        await using var host = await StartAsync(
+            builder => builder
+                .AddModelProvider(provider)
+                .AddTool(
+                    (Func<string>)(() =>
+                    {
+                        reported = TraconToolUsage.Report(new ToolCallUsage
+                        {
+                            Unit = new string('u', 65),
+                            Quantity = 100m,
+                            Cost = 0.5m,
+                            Currency = "USD",
+                        });
+
+                        return "spoken";
+                    }),
+                    name: SpeakTool)
+                .AddAgent(new AgentDefinition
+                {
+                    Name = "narrator",
+                    Description = "Narrates.",
+                    Instructions = "Narrate.",
+                    Model = new ModelBinding { Provider = Provider, Model = Model },
+                    ToolNames = [SpeakTool],
+                    Origin = AgentDefinitionOrigin.Code,
+                }));
+
+        await RunAgentAsync(host);
+
+        reported.ShouldBe(false, "a unit longer than its column was accepted");
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var run = (await runs.QueryRunsAsync(new RunQuery()))
+            .Single(static candidate => string.Equals(candidate.AgentName, "narrator", StringComparison.Ordinal));
+        var call = (await runs.ListToolInvocationsAsync(run.Id)).ShouldHaveSingleItem();
+        call.Usage.ShouldBeNull();
+        run.NonTokenCost.ShouldBeNull();
+    }
+
     // --- The workflow path: a function node's item ---
 
     [Fact]

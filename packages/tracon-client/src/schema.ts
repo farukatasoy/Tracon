@@ -2065,7 +2065,7 @@ export interface paths {
         };
         /**
          * Lists the available voices.
-         * @description The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent's 'speak' tool accept. The optional 'provider' query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant's egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.
+         * @description The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent's 'speak' tool accept. The optional 'provider' query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant's egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address. A provider that fails while listing its voices is 502, as for the speak endpoint.
          */
         get: operations["TraconVoiceList"];
         put?: never;
@@ -6034,7 +6034,7 @@ export interface components {
             fingerprint?: null | string;
         };
         /** @enum {unknown} */
-        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | "LoopUnsatisfied" | "OutputTruncated" | null;
+        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | "LoopUnsatisfied" | "OutputTruncated" | "TenantProviderRefused" | null;
         /** @description The summary of runs sharing the same fingerprint. */
         RunErrorCluster: {
             /** @description The digest of the normalized message. */
@@ -12306,6 +12306,15 @@ export interface operations {
             };
             /** @description Not Implemented */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

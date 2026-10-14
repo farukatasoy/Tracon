@@ -83,22 +83,43 @@ internal sealed class EvalJobHandler(
                     suiteName);
             }
 
-            await evalStore.CompleteRunAsync(
-                new EvalRunCompletion
+            // F-429: the write that records the failed attempt is tried again, and a
+            // store error it still meets is logged, never thrown: thrown, it replaced
+            // the attempt's own failure, and the worker judged the store error instead
+            // (a final failure was run again).
+            try
+            {
+                await new JobOutcomeWriteRetry(context.Job.Id, schedulingOptions?.CurrentValue, _clock, logger)
+                    .RunAsync(
+                        () => evalStore.CompleteRunAsync(
+                            new EvalRunCompletion
+                            {
+                                EvalRunId = evalRun.Id,
+                                Status = EvalRunStatus.Failed,
+                                CompletedAt = DateTimeOffset.UtcNow,
+                                Total = evalRun.Total,
+                                Passed = 0,
+                                Failed = evalRun.Total,
+                            },
+                            CancellationToken.None),
+                        $"record eval run {evalRun.Id} as failed",
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception storeException) when (OperationCancellation.IsFailure(storeException, cancellationToken))
+            {
+                if (logger is not null && logger.IsEnabled(LogLevel.Error))
                 {
-                    EvalRunId = evalRun.Id,
-                    Status = EvalRunStatus.Failed,
-                    CompletedAt = DateTimeOffset.UtcNow,
-                    Total = evalRun.Total,
-                    Passed = 0,
-                    Failed = evalRun.Total,
-                },
-                CancellationToken.None).ConfigureAwait(false);
+                    logger.LogError(storeException, "Eval run {EvalRunId} could not be recorded as failed.", evalRun.Id);
+                }
+            }
 
             // The job is retried after this throw while attempts remain, and a
             // retry that completes overwrites the row: only the last attempt's
-            // failure is the eval's outcome.
-            if (context.Job.Attempt >= (context.Job.MaxAttempts ?? schedulingOptions?.CurrentValue.MaxAttempts ?? 1))
+            // failure is the eval's outcome. A final failure (F-429) is the last
+            // attempt whatever attempts are left: the worker does not run it again.
+            if (FinalFailure.IsFinal(exception)
+                || context.Job.Attempt >= (context.Job.MaxAttempts ?? schedulingOptions?.CurrentValue.MaxAttempts ?? 1))
             {
                 await PublishCompletedAsync(
                     context.Job.TenantId,

@@ -181,6 +181,24 @@ public sealed class VoiceEndpointTests
         text.Contains("FAKE-KEY", StringComparison.Ordinal).ShouldBeFalse();
     }
 
+    /// <summary>
+    /// F-443: a provider that fails while listing its voices is a bad gateway, as it
+    /// is for speak. The failure escaped the endpoint and the caller got a 500.
+    /// </summary>
+    [Fact]
+    public async Task When_the_provider_fails_to_list_its_voices_the_answer_is_502()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services =>
+                services.AddSingleton<ISpeechSynthesizer>(new FailingSynthesizer()));
+
+        using var response = await host.Client.GetAsync(new Uri("/tracon/api/voice/voices", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+            .ShouldContain("Failed to list voices: HTTP 401.");
+    }
+
     [Fact]
     public async Task Headerless_audio_is_NOT_written_as_an_attachment()
     {
@@ -386,7 +404,7 @@ public sealed class VoiceEndpointTests
 
         public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
             CancellationToken cancellationToken = default)
-            => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>([]);
+            => throw new TraconException("Failed to list voices: HTTP 401.");
     }
 
     /// <summary>Returns raw PCM: it doesn't match any magic bytes.</summary>

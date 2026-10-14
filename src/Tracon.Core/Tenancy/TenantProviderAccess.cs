@@ -25,19 +25,25 @@ internal static class TenantProviderAccess
     /// <param name="policy">The tenant's policy; <see langword="null"/> when it has none (no restriction).</param>
     /// <param name="tenantId">The tenant.</param>
     /// <param name="provider">The provider about to be called.</param>
+    /// <param name="kind">The kind of provider the call is for; only changes the noun in the message.</param>
     /// <param name="fallbackFor">
     /// The primary provider when <paramref name="provider"/> is one of its fallbacks;
     /// <see langword="null"/> otherwise. Only changes the message.
     /// </param>
-    /// <exception cref="TraconException">The policy does not allow <paramref name="provider"/>.</exception>
-    public static void EnsureAllowed(TenantEgressPolicy? policy, string tenantId, string provider, string? fallbackFor = null)
+    /// <exception cref="TraconTenantProviderRefusedException">The policy does not allow <paramref name="provider"/>.</exception>
+    public static void EnsureAllowed(
+        TenantEgressPolicy? policy,
+        string tenantId,
+        string provider,
+        TenantProviderCallKind kind = TenantProviderCallKind.Model,
+        string? fallbackFor = null)
     {
         if (IsAllowed(policy, provider))
         {
             return;
         }
 
-        throw new TraconException(DescribeDenial(policy!, tenantId, provider, fallbackFor));
+        throw new TraconTenantProviderRefusedException(DescribeDenial(policy!, tenantId, provider, kind, fallbackFor));
     }
 
     /// <summary>Says whether the tenant's egress policy allows a provider.</summary>
@@ -80,6 +86,8 @@ internal static class TenantProviderAccess
         {
             TenantProviderCallKind.Speech => "speech provider",
             TenantProviderCallKind.Embedding => "embedding provider",
+            TenantProviderCallKind.Image => "image provider",
+            TenantProviderCallKind.LiveVoice => "live voice provider",
             _ => "model provider",
         };
 
@@ -99,9 +107,10 @@ internal static class TenantProviderAccess
     /// The tenant's credential, or <see langword="null"/> when the tenant has no
     /// binding for the provider (the setup-time credential is used).
     /// </returns>
-    /// <exception cref="TraconException">
-    /// The tenant has a binding whose configuration key has no value. The call does
-    /// not fall back to the global key: that would bill the wrong account.
+    /// <exception cref="TraconTenantProviderRefusedException">
+    /// The tenant has a binding whose configuration key has no value, or a key the
+    /// tenant may not read (outside the allowed prefix or the tenant's own segment).
+    /// The call does not fall back to the global key: that would bill the wrong account.
     /// </exception>
     public static async ValueTask<ModelProviderCredential?> ResolveCredentialAsync(
         ITenantProviderBindingStore? bindings,
@@ -122,8 +131,22 @@ internal static class TenantProviderAccess
             return null;
         }
 
-        return resolver.Resolve(binding)
-            ?? throw new TraconException(
+        ModelProviderCredential? credential;
+
+        try
+        {
+            credential = resolver.Resolve(binding);
+        }
+        catch (TraconException exception) when (exception is not TraconTenantProviderRefusedException)
+        {
+            // A key outside the allowed prefix or the tenant's segment is the tenant's
+            // own rule refusing too. The three callers used to wrap every error of
+            // this call themselves; one wrap here keeps the refusal one type (F-442).
+            throw new TraconTenantProviderRefusedException(exception.Message, exception);
+        }
+
+        return credential
+            ?? throw new TraconTenantProviderRefusedException(
                 $"Tenant '{tenantId}' has a provider binding for '{provider}' pointing at configuration key " +
                 $"'{binding.ApiKeyConfigurationName}', but that key has no value. Set it with " +
                 $"`dotnet user-secrets set \"{binding.ApiKeyConfigurationName}\" \"<key>\"` " +
@@ -142,4 +165,10 @@ internal enum TenantProviderCallKind
 
     /// <summary>The knowledge base's embedding provider.</summary>
     Embedding = 2,
+
+    /// <summary>The image generator's provider.</summary>
+    Image = 3,
+
+    /// <summary>The provider of a live (speech-to-speech) voice session.</summary>
+    LiveVoice = 4,
 }

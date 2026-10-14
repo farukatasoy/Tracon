@@ -2449,6 +2449,7 @@ Tracon.RunErrorClass.ProviderUnavailable = 2 -> Tracon.RunErrorClass
 Tracon.RunErrorClass.QuotaExceeded = 4 -> Tracon.RunErrorClass
 Tracon.RunErrorClass.RateLimited = 3 -> Tracon.RunErrorClass
 Tracon.RunErrorClass.StructuredResponseInvalid = 14 -> Tracon.RunErrorClass
+Tracon.RunErrorClass.TenantProviderRefused = 17 -> Tracon.RunErrorClass
 Tracon.RunErrorClass.Timeout = 7 -> Tracon.RunErrorClass
 Tracon.RunErrorClass.ToolError = 6 -> Tracon.RunErrorClass
 Tracon.RunErrorClass.ToolTimeout = 13 -> Tracon.RunErrorClass
@@ -6054,3 +6055,11 @@ static Tracon.RunNonTokenCost.operator !=(Tracon.RunNonTokenCost? left, Tracon.R
 static Tracon.RunNonTokenCost.operator ==(Tracon.RunNonTokenCost? left, Tracon.RunNonTokenCost? right) -> bool
 static Tracon.RunSpend.Total(Tracon.RunCost? cost, Tracon.RunNonTokenCost? nonTokenCost) -> decimal?
 static Tracon.RunSpend.Total(Tracon.RunTreeCost? cost, Tracon.RunNonTokenCost? nonTokenCost) -> decimal?
+Tracon.TraconFinishReasons
+static Tracon.TraconFinishReasons.ContextWindowExceeded.get -> Microsoft.Extensions.AI.ChatFinishReason
+const Tracon.TraconTenantProviderRefusedException.TenantProviderRefusedErrorType = "tenant_provider_refused" -> string!
+override Tracon.TraconTenantProviderRefusedException.ErrorType.get -> string!
+Tracon.TraconTenantProviderRefusedException
+Tracon.TraconTenantProviderRefusedException.TraconTenantProviderRefusedException() -> void
+Tracon.TraconTenantProviderRefusedException.TraconTenantProviderRefusedException(string! message) -> void
+Tracon.TraconTenantProviderRefusedException.TraconTenantProviderRefusedException(string! message, System.Exception! innerException) -> void

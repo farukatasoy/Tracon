@@ -1812,3 +1812,28 @@ done
 - Her uç için sayım `0`'dır. `/api/diagnostics`'teki `key` alanı yalnız
   `Tracon:Providers:AzureOpenAI:ApiKey` ayar **adını** taşır, ne anahtarı
   ne kaynak adresini.
+
+---
+
+### MT-PROV-089 — Anthropic bağlam penceresi kesilmesi ve `pause_turn` run'ı bitmiş göstermez (kusur-giderme, 2026-10-14, F-426)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-985 |
+| **Devir** | ➜ CI: `AnthropicStopReasonTests` (yerel Messages API, gerçek SDK) |
+
+Regresyon. SDK adaptörü `model_context_window_exceeded` ve `pause_turn`'ü düz
+`Stop` sayıyordu: yarım cevap `Completed` kapanıyordu.
+
+**Ön koşul** — Gerçek Anthropic anahtarı; harness `EnableWebSearch: true` bir agent.
+
+**Adımlar**
+1. Uzun web aramasını gerektiren bir soru sor (ör. on kaynak karşılaştırması).
+2. `GET /api/runs/{runId}` ve olaylarını oku.
+
+**Beklenen sonuç**
+- Run `Completed` ise cevap bitmiştir; `pause_turn` olduysa sağlayıcı çağrı sayısı birden fazladır ve kullanım ikisini de sayar.
+- Bağlamı dolduran bir konuşmada yapılandırılmış yanıt `output_truncated` ile düşer ve mesaj "context window" der; düz metin `tracon.output.truncated` olayını `cause: context_window` ile yazar.

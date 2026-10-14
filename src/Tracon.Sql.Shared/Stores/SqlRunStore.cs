@@ -469,7 +469,7 @@ internal sealed class SqlRunStore : IRunStore
 
                 // 18 (F-419): amounts in two currencies are never added, and a breakdown
                 // carries no currency of its own, so a mixed window leaves every cost out.
-                var currencies = ToCount(reader, 18);
+                var currencies = ToCurrencyCount(reader, 18);
                 var mixed = CurrencyTotals.IsMixed(currencies);
 
                 // Second result set: the breakdown by agent.
@@ -1207,8 +1207,8 @@ internal sealed class SqlRunStore : IRunStore
 
         // F-419: the query counts the descendants' currencies the own row does not carry,
         // so the own one, when it carries an amount, adds exactly one.
-        var currencies = ToCount(reader, RunOrdinals.TreeCostCurrencies)
-            + (ownCost is { Currency: not null } && ownCost.Total() is not null ? 1 : 0);
+        var currencies = ToCurrencyCount(reader, RunOrdinals.TreeCostCurrencies)
+            + (ownCost is { Currency.Length: > 0 } && ownCost.Total() is not null ? 1 : 0);
 
         return CurrencyTotals.Tree(
             inputCost,
@@ -1274,12 +1274,20 @@ internal sealed class SqlRunStore : IRunStore
         return CurrencyTotals.NonToken(
             amount,
             DbHelpers.GetNullableString(reader, RunOrdinals.TreeNonTokenCurrency) ?? ownNonTokenCost?.Currency,
-            ToCount(reader, RunOrdinals.TreeNonTokenCurrencies) + (ownNonTokenCost?.CurrencyCount ?? 0),
+            ToCurrencyCount(reader, RunOrdinals.TreeNonTokenCurrencies) + (ownNonTokenCost?.CurrencyCount ?? 0),
             ownNonTokenCost?.IsEstimated == true
                 || (!reader.IsDBNull(RunOrdinals.TreeNonTokenEstimatedRows)
                     && ToCount(reader, RunOrdinals.TreeNonTokenEstimatedRows) > 0),
             unsummed);
     }
+
+    /// <summary>Reads a currency count, which every dialect returns as a 64-bit integer.</summary>
+    /// <remarks>
+    /// <c>GetInt64</c>, not <see cref="ToCount"/>: the run list reads it for every row, and
+    /// <c>GetValue</c> boxes (measured: +1.5 KB on the 50-row <c>QueryRuns</c> benchmark).
+    /// </remarks>
+    private static int ToCurrencyCount(DbDataReader reader, int ordinal)
+        => (int)Math.Min(reader.GetInt64(ordinal), int.MaxValue);
 
     /// <summary>Reads an integer count whatever width the provider returned it in.</summary>
     private static int ToCount(DbDataReader reader, int ordinal)
@@ -1376,7 +1384,7 @@ internal sealed class SqlRunStore : IRunStore
     private static TimeSeriesPoint ReadTimeSeriesPoint(DbDataReader reader)
     {
         // F-419: the series' currency count is the same on every row (CurrencyTotals).
-        var currencies = ToCount(reader, 7);
+        var currencies = ToCurrencyCount(reader, 7);
 
         return new TimeSeriesPoint
         {
@@ -1394,7 +1402,7 @@ internal sealed class SqlRunStore : IRunStore
     private static ExperimentVariantResult ReadExperimentVariantResult(DbDataReader reader)
     {
         // F-419: amounts in two currencies are never added (CurrencyTotals).
-        var currencies = ToCount(reader, 13);
+        var currencies = ToCurrencyCount(reader, 13);
         var mixed = CurrencyTotals.IsMixed(currencies);
 
         return new ExperimentVariantResult

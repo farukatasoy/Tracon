@@ -106,7 +106,10 @@ namespace Tracon;
 /// on the response (or on the last streamed update): the same ring fails a
 /// structured (JSON) request with <see cref="TraconOutputTruncatedException"/>
 /// and lets a plain-text answer through with a
-/// <see cref="RunEventCustomTypes.OutputTruncated"/> run event.
+/// <see cref="RunEventCustomTypes.OutputTruncated"/> run event. An answer the
+/// model stopped because the conversation filled its context window is the same
+/// kind of cut: report <see cref="TraconFinishReasons.ContextWindowExceeded"/>, so the
+/// error and the event name the window instead of the output limit.
 /// </para>
 /// <para>
 /// A <see cref="TraconException"/> thrown from

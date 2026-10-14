@@ -77,6 +77,7 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 53 | `MT-GDK-053` | Aynı | Aynı satıra `// delay: poll` ekle ve koş | Düşer: `only WaitUntil polls - use it instead of a private loop`. `poll` yalnız `tests/Shared/Waiting/WaitUntil.cs`'te geçerlidir |
 | 54 | `MT-GDK-054` | Faz 184 kodu derlenmiş | `DOTNET_ROOT=~/.dotnet dotnet test Tracon.slnx -c Release --no-build -maxcpucount:2 -- --report-trx` (yerel kapının komutu) iki kez arka arkaya; çıktıyı dosyaya yaz, `tail` borusu kullanma | İki koşum da çıkış `0`, aynı test sayısı, `failed: 0`. Süre koşumdan koşuma ±1 dk oynar; iddia süre değil, iki kez yeşildir. CI aynı komutu `-maxcpucount:1` ile koşar |
 | 55 | `MT-GDK-055` | Aynı | `python3 scripts/kapi.py test --proje Tracon.Ui.E2ETests --sinif "*Ui.DashboardTests*"` | 1/1 yeşil; ekran sınıfı tek başına, paylaşılan tarayıcı fixture'ıyla koşar. Tüm E2E projesi (`dotnet test tests/Tracon.Ui.E2ETests`) sınıfları dörder dörder paralel koşar ve ~35–50 sn sürer |
+| 56 | `MT-GDK-056` | İş commit edilmiş, çalışma ağacı temiz | `python3 scripts/kapi.py --komutlari-bas ic-dongu` sonra `python3 scripts/kapi.py --komutlari-bas ic-dongu --taban HEAD~1`; haritası olmayan bir yola dokunan değişiklikle tekrar | İlki `--taban` öneren uyarıyı basar ve yalnız build listeler; ikincisi commit'in projelerini seçer. Tam koşuma genişleyen ya da `Tracon.Ui.E2ETests`'i seçen listede build `-p:TraconFrontendEnabled=false` taşımaz (F-356; UI'sız derlemede E2E'nin tamamı düşüyordu). ➜ CI: `kapi_test` |
 
 ## Otomatik doğrulama
 

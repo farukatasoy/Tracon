@@ -48,13 +48,8 @@ internal sealed class SqlJobStore : IJobStore
 
         var lane = JobLanes.Resolve(job.Lane, job.HandlerKey, _schedulingOptions?.CurrentValue.LaneByHandlerKey);
 
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
                 var insertJob = _context.CreateCommand(_sql.InsertJob, connection, transaction);
                 DbHelpers.Add(insertJob, "id", job.Id);
@@ -91,8 +86,8 @@ internal sealed class SqlJobStore : IJobStore
                 }
 
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
 
         return job with
         {
