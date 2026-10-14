@@ -201,6 +201,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Tracon:Retention:IdempotencyKeys` is now bound from configuration. Its `MaxAgeDays`
+  and `Archive` keys were ignored and the target kept its one-day default; only code
+  (`Configure<TraconRetentionOptions>`) could change it. A configuration that sets
+  them now takes effect, and `MaxAgeDays` below 1 fails startup like every other
+  target.
 - `/v1/chat/completions` now reports why the answer ended. `finish_reason` was always
   `"stop"`, so an OpenAI SDK caller could not tell a cut-off answer from a complete
   one. **Behavior change:** an answer the model stopped at its output token limit or
@@ -1202,6 +1207,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Behavior change:** a configuration entry Tracon cannot read now stops the
+  application at startup instead of being dropped without a word. Four settings
+  change:
+  - `Tracon:Quotas:ThresholdPercents` and `Tracon:Webhooks:RetryDelays`: an entry that
+    is not a number (a `TimeSpan` for the delays), or that is zero or below, was
+    skipped, so the list came out shorter than written. It now fails startup and the
+    message names the key and quotes the entry (`ThresholdPercents[1] is '9O'`).
+  - `Tracon:ContentProtection:Columns`: an entry that is not one `ProtectedColumn`
+    name — a misspelling, an empty entry, an undefined number, or two names joined by
+    a comma, which was read as a third column — was skipped, and the column you meant
+    stayed in plain text. It now fails startup and the message quotes the entry.
+  - `Tracon:ContentProtection:Keys`: an entry with an empty configuration key name was
+    skipped. It now fails startup and the message names the key id.
+  - `Tracon:ContentGuard:Pattern:MaskedPii`: one misspelled name (`"Emial,CreditCard"`)
+    turned PII masking off for the whole list, and a number with an undefined bit was
+    accepted. It now fails startup and the message quotes the value. An empty value
+    still means no pattern.
+
+  The `Columns` and `Keys` checks run while content protection is off too: an old
+  encrypted row is still read through `Keys`. A value that code sets for the same
+  member after binding replaces the configured one and clears the error. An undefined
+  `ProtectedColumn` or `PiiPatterns` value set in code (for example
+  `options.MaskedPii = (PiiPatterns)64` in `AddPatternContentGuard`) now fails startup
+  as well.
 - **Behavior change:** a workflow run that waits to be resumed keeps the definition version
   it recorded. Before, `resume` and `respond` compiled the current definition: an edit made
   while the run waited changed its settings, timeouts and parameter schema without notice, and a

@@ -6,11 +6,40 @@ public sealed class TraconContentProtectionOptionsValidatorTests
     private readonly TraconContentProtectionOptionsValidator _validator = new();
 
     [Fact]
-    public void Disabled_options_always_pass_regardless_of_shape()
+    public void Disabled_options_skip_the_active_key_check()
     {
         var options = new TraconContentProtectionOptions { Enabled = false };
 
         _validator.Validate(null, options).Succeeded.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Disabled_options_with_an_empty_configuration_key_name_fail()
+    {
+        // F-247: Keys is read while protection is off too - an old row is still
+        // decrypted through it - so the check no longer waits for Enabled.
+        var options = new TraconContentProtectionOptions { Enabled = false };
+        options.Keys["old"] = "";
+
+        var result = _validator.Validate(null, options);
+
+        result.Succeeded.ShouldBeFalse();
+        result.Failures!.ShouldContain(failure => failure.Contains("Keys['old']"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void An_undefined_column_fails_whatever_enabled_says(bool enabled)
+    {
+        var options = new TraconContentProtectionOptions { Enabled = enabled, ActiveKeyId = "k1" };
+        options.Keys["k1"] = "Keys:k1";
+        options.Columns.Add((ProtectedColumn)99);
+
+        var result = _validator.Validate(null, options);
+
+        result.Succeeded.ShouldBeFalse();
+        result.Failures!.ShouldContain(failure => failure.Contains("Columns contains 99"));
     }
 
     [Fact]

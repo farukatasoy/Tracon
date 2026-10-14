@@ -35,10 +35,30 @@ public sealed class TraconQuotaOptions
     /// quota counter reaches them.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Each threshold is published <strong>once</strong> per period. Otherwise,
     /// every run above the threshold would produce a new event as the counter increments.
+    /// </para>
+    /// <para>
+    /// In configuration, a list (<c>ThresholdPercents:0 = "50"</c>) that replaces the
+    /// default. Each value must be between 1 and 100: an entry outside that range or
+    /// one that is not a number stops the application at startup with an
+    /// <see cref="Microsoft.Extensions.Options.OptionsValidationException"/> that names
+    /// <c>ThresholdPercents</c> and quotes the entry as written. Such an entry used to
+    /// be dropped without a word.
+    /// </para>
     /// </remarks>
     public IList<int> ThresholdPercents { get; } = [80, 100];
+
+    /// <summary>
+    /// The text of each <see cref="ThresholdPercents"/> entry the binder could not read,
+    /// keyed by its index. Zero stands in for it in the list.
+    /// </summary>
+    /// <remarks>
+    /// For the startup message only: the failure itself comes from the zero, so code
+    /// that rewrites the list after binding clears it.
+    /// </remarks>
+    internal Dictionary<int, string> UnreadableThresholdPercents { get; } = [];
 
     /// <summary>
     /// Gets or sets whether to allow a run when quota enforcement fails.
