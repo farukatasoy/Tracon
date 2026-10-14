@@ -46,21 +46,20 @@ internal static class WorkflowNodeBudgetGate
         string functionName)
         => (input, context, cancellationToken) =>
         {
+            // No scope, or a scope with no budget: a handler called directly by a test, or by
+            // an executor no run opened. There is nothing to read, so nothing to refuse. A
+            // budget with room changes nothing either: the handler is called exactly as it
+            // was before the gate existed, cancelled token included.
+            if (TraconRunContext.Current?.Budget is not { IsNodeStartExhausted: true } budget)
+            {
+                return handler(input, context, cancellationToken);
+            }
+
             // The caller's stop wins over the refusal: a run that was cancelled is Canceled,
             // not "out of budget".
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return ValueTask.FromCanceled<TOutput>(cancellationToken);
-            }
-
-            // No scope, or a scope with no budget: a handler called directly by a test, or by
-            // an executor no run opened. There is nothing to read, so nothing to refuse.
-            if (TraconRunContext.Current?.Budget is { IsNodeStartExhausted: true } budget)
-            {
-                return ValueTask.FromException<TOutput>(new TraconRunBudgetExceededException(
+            return cancellationToken.IsCancellationRequested
+                ? ValueTask.FromCanceled<TOutput>(cancellationToken)
+                : ValueTask.FromException<TOutput>(new TraconRunBudgetExceededException(
                     $"Could not start function node '{functionName}': {budget.DescribeNodeStartExhaustion()}"));
-            }
-
-            return handler(input, context, cancellationToken);
         };
 }

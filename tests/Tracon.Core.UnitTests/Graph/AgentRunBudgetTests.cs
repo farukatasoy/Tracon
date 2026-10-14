@@ -204,6 +204,26 @@ public sealed class AgentRunBudgetTests
     }
 
     [Fact]
+    public void The_time_messages_of_the_model_call_and_the_child_run_are_unchanged_by_the_node_start_text()
+    {
+        // The time sentence is split in two so the node text can leave the model-turn sentence
+        // out; the model call and the child run must still read the whole text.
+        var clock = new ManualTimeProvider();
+        var budget = new AgentRunBudget(TimeSpan.FromSeconds(5), clock);
+
+        clock.Advance(TimeSpan.FromSeconds(7));
+
+        const string Whole =
+            "The run tree's time budget is exhausted (00:00:07/00:00:05). " +
+            "Raise Tracon:AgentGraph:MaxDuration to allow more. " +
+            "This is a cutoff between model turns, not a hard timeout: " +
+            "a tool call already in progress is not interrupted.";
+
+        budget.DescribeModelCallExhaustion().ShouldBe($"{Whole} No further model calls can be made in this run tree.");
+        budget.DescribeExhaustion().ShouldBe($"{Whole} A new child run cannot be started.");
+    }
+
+    [Fact]
     public void The_model_call_messages_are_unchanged_by_the_node_start_text()
     {
         // The node text shares the cost and time sentences with the model-call text, one

@@ -434,10 +434,8 @@ is recorded into the budget the moment it is reported, so a tree whose speech an
 have already spent the ceiling is refused at its next model call, the same as one that
 spent it on tokens. Only an amount that adds counts: an item with no amount, or in a
 currency other than `Tracon:Pricing:Currency`, is unknown to the budget. The same ceiling
-keeps the next function node from starting: the run ends `Failed` with `run_budget_exceeded`
-and no later node runs (see [A spent budget stops a function node from
-starting](/concepts/workflows/#a-spent-budget-stops-a-function-node-from-starting)). A node that is
-already running is not stopped, so a tree passes its ceiling by as much as its last node spends.
+keeps the next function node from starting; see [Function nodes and the
+budget](#function-nodes-and-the-budget).
 
 `MaxDuration` is not a hard timeout: a tool call already running when the
 deadline passes is never interrupted, only the *next* model call after it is
@@ -450,6 +448,47 @@ is not perfectly precise: two concurrent turns can each pass the check before
 either records its spend, so a tree can still overshoot its limit by a bounded
 amount before the next check on each branch catches it. Use stricter per-run
 budgets for externally exposed MCP and A2A agents.
+
+### Function nodes and the budget
+
+A [workflow function node](/concepts/workflows/#a-spent-budget-stops-a-function-node-from-starting)
+is checked when it would start, and again before each retry attempt:
+
+| Limit | Stops a node from starting | Why |
+|---|---|---|
+| `AgentGraph.MaxTotalCost` | Yes | The unit a paid node spends. What nodes and tools reported beyond tokens counts |
+| `AgentGraph.MaxDuration` | Yes | The clock has run out, so no new work begins |
+| `AgentGraph.MaxTotalTokens` | No | It is on by default (`200000`) and a function node spends no tokens |
+| `AgentGraph.MaxTotalRuns`, `MaxDepth` | No | A function node opens no child run |
+
+A refused node does not run. The run ends `Failed` with error type `run_budget_exceeded` (class
+`QuotaExceeded`), the message names the node and the setting to raise, and no later node runs. The
+run's events show the node as invoked, then failed. A host that sets neither `MaxTotalCost` nor
+`MaxDuration` sees no change.
+
+**The ceiling is not absolute.** The check happens when a node starts. A node that is already running
+is never stopped, and Tracon cannot know what a node will spend before it runs, so a tree passes its
+ceiling by as much as its last node spends. A background agent run that is still going can spend after
+the check, too.
+
+A node that spends nothing and has to run afterwards, such as a step that stores the output the budget
+has just paid for, is exempt in its registration. Its own spend still counts. The exemption is code, not
+configuration, so an operator cannot loosen a ceiling from a definition:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "store-audio",
+    services => (messages, context, cancellationToken) => StoreAsync(messages, cancellationToken),
+    options => options.StartsWhenBudgetIsSpent = true);
+```
+
+A refusal is never retried, whatever the registered `IRunErrorClassifier` says about it: cost and time
+only grow within a run, so waiting cannot change the answer. When the first attempt spent past
+`MaxTotalCost`, the second does not start and the run ends with the refusal.
+
+A graph built in code with `AddWorkflow` and its own executors is not wrapped, so nothing gates its
+executors. Such an executor reads the budget itself: `TraconRunContext.Current?.Budget` has
+`IsCostBudgetExhausted` and `IsDurationBudgetExhausted`.
 
 ## Wait for in-flight runs before the process stops
 

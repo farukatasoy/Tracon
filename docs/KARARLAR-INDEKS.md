@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 936 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 937 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 988 kalem)
+## En Yeni Kalıcı Kararlar (52 / 989 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-937 | 988 | `functions` (workflow) ve `handler-keys` (schedule) ayrılmış addır: kayıt `400` döner, büyük/küçük harf ayrımsız (ASP.NET Core rota literali de ayrımsızdır); `AddWorkflow` aynı adda `ArgumentException` atar; derleyici adı denetlemez, kural öncesi saklanan workflow adla koşmaya devam eder, yalnız geri okunamaz; sabit uçlar yerinde kalır (F-382) (kullanıcı kararı) 👤 |
 | K-938 | 989 | Akışlı workflow uçları (`run`, `resume`, `respond`) girdiyi ve kaynak run'ı akış açılmadan denetler; kodlar kuyruklu yolun (F-318) kodlarıdır: olmayan ya da başka kiracının run'ı `404` (aynı başlık, varlık sızmaz), geçersiz `sessionId`, run'da olmayan checkpoint ve girdi beklemeyen run'a yanıt `400`; hiçbiri run satırı açmaz (F-396) |
 | K-939 | 990 | Gerçek veri sahibi silmesi öznenin `Running` ya da `Queued` run'ı varken `409` döner; problem `activeRunIds` uzantısını taşır, ön izleme aynı listeyi `DataSubjectErasureResult.ActiveRunIds`'de verir (eklemeli public üye, `init`); `?force=true` yine siler (çökmüş sürecin bıraktığı satır için); run'lar adlı run'lar ve adlı oturumların run'larıdır, kiracıyla süzülür (F-400) (kullanıcı kararı) 👤 |
 | K-940 | 991 | `AddEvaluatorJudge` ile köprülenen MEAI evaluator'ının model çağrıları yerleşik yargıç gibi (K-328) kaydedilir: her yargı bir `judge:{name}` run'ı (`RunKind.Eval`, model kimliği ve sağlayıcısıyla) açar, çağrıların kullanımını sayan sarmalayıcı istemciden toplam kullanım, maliyet ve yargıç maliyeti metriği yazılır; atan evaluator run'ı `Failed` kapatır ve yine atar; mağaza `null` ise run yazılmaz (F-361) (kullanıcı kararı) 👤 |
@@ -62,3 +61,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-996 | 1037 | Fail-closed denetim kümesi 6 → 7: cevap modu ne olursa olsun run başlatan her `POST /api/workflows/runs/{runId}/respond` `workflow.respond` olarak run satırından ve kayıttan ÖNCE `AuditRecorder.WriteOrThrowAsync` ile yazılır, yazılamazsa cevap `500` ile reddedilir; kayıt cevabın hash'ini taşır, cevabı değil; run başlatmayan cevap (izleme, `409`) yazılmaz; K-776'nın yayımlanmış kümesini değiştirir (F-319, Faz 208) (kullanıcı kararı) 👤 |
 | K-997 | 1038 | Önce satır, sonra kayıt: cevabın run satırı (akışlıda `Running`, kuyrukluda `Queued`) her modda ve her yolda kayıttan/iddiadan önce açılır, bir kayıt hiçbir zaman var olmayan bir run'ı adlandırmaz; iddiayı kaybeden kendi run'ını olaysız `Canceled` + `request_already_answered` kapatır (run listesinde ve istatistikte görünür), kayıt yazılamazsa run `Failed` + `answer_not_recorded` kapanır ve cevap `500` alır; atıf karardan önce bir kez okunur, satırdan sonraki her yazım `CancellationToken.None` kullanır; kuyruk işi bitmemişse kapı izler; işi hiç yazılmamış kuyruklu run'ın işini aynı cevabın tekrarı yazar (F-319, Faz 208) (kullanıcı kararı, 2026-10-14) 👤 |
 | K-998 | 1039 | `IJobStore.EnqueueAsync` kayıtlı bir iş kimliğini reddeder: çağrı hata verir, kayıtlı iş ve öğeleri değişmez; bellek içi depo işi değiştiriyordu, artık reddeder; `QueuedRunPlaceholder` reddedilen yazımdan sonra işi geri okur ve oradaysa onu döndürür, satırı kapatmaz; `JobStoreContract` yeni case'le dört depoda zorlar (Faz 208) |
+| K-999 | 1040 | Fonksiyon düğümü, ağaç bütçesinin MALİYET veya SÜRE boyutu geçilmişse başlamaz; token ve run sayısı durdurmaz; ret, reddedilen agent adımıyla aynı kimliği taşır (`Failed`, `run_budget_exceeded`, `QuotaExceeded`); kapı her denemeden önce koşar ve reddi tekrar denenmez; muafiyet yalnız kodda: `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` (varsayılan `false`) (F-407, Faz 210) (kullanıcı kararı) 👤 |

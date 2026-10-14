@@ -269,7 +269,11 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
+| 🟡 | **F-525** · Kapanış kapısı yeni yayımlanan güvenlik uyarısını görmez | Ölçüldü (2026-10-14, F-524): yamasız `Tracon.SqlServer`'da `dotnet build` sıfır uyarı verdi (restore no-op), `dotnet restore --force` aynı projede `NU1902`/`NU1903`'ü hata yaptı. `kapi.py kapanis` önbellekli restore'a güvenir; yeni advisory'yi yalnız şablon testi (boş dizin) ve CI'nın soğuk checkout'u görür | `kapanis`'e `dotnet list Tracon.slnx package --vulnerable --include-transitive` taraması ekle (çıkış kodu vermez: çıktıyı ayrıştır) ya da restore'u `--force-evaluate` ile koştur; süreyi ölç |
 | 🟡 | **F-492** · Kuyruktaki `run`'ın checkpoint'siz kurtarma yeniden başlatması güncel tanımı derler | Faz 200 denetimi (🟡, gerekçelendi): `WorkflowRunJobHandler.Continue` ve `WorkflowJobHandler` (batch öğesi) checkpoint yoksa işlemi yeni kimlikle yeniden uygular; `run` işlemi o anki güncel tanımı derler, kesilen denemenin damgası (`runs.agent_version`) kullanılmaz. `resume`/`respond` yükü `definitionVersion` taşıdığı için etkilenmez | Zincirin kök satırı damgalıysa yeniden başlatmayı o sürüme sabitle; `Apply` yeni `run` için de sürüm kabul etsin |
+| 🟢 | **F-526** · `kapi.py` sevk edilen sözleşme değişimini çözüm dışı örnek depoya bağlamıyor | Ölçüldü (2026-10-14, F-502): `RunStoreContract`'a case ekleyen değişiklik `samples/Tracon.Samples.FileRunStore`'u kırdı; çözümde olmadığı için yalnız `kapi.py yayin --kuru` gördü. `faz-tamamlama` bunu yazar, kapı hatırlatmaz | `src/Tracon.Testing.Contracts.Xunit/` dokunulduğunda `ic-dongu` ve `kapanis`, `samples/Tracon.Samples.*` uyarısının kardeşi olarak "yayın provası gerekir" bassın |
+| 🟢 | **F-527** · Yeniden denemeden sonra reddedilen düğümde ilk denemenin hatası kayıttan düşer | Faz 210 denetimi (🟢): ikinci deneme bütçe kapısında reddedilirse run satırı yalnız `Could not start function node …` der; ilk denemenin geçici hatası kayıtta yok. `WorkflowNodeRetry` başarısız denemeyi bütçeden bağımsız olarak da loglamaz | Retry döngüsü her başarısız denemeyi `Warning` olarak logla; ret mesajı gerekirse ilk denemenin hata tipini anar |
+| 🟢 | **F-528** · `reference/configuration.md`'de `AgentGraph:ChildDeadline` ve `AgentGraph:WaitTimeout` satırı yok | Faz 210 yalnız `MaxDuration` satırını ekledi; iki bekleme sınırı tabloda hâlâ yok | İki satırı `TraconAgentGraphOptions` XML'inden ekle |
 | 🟢 | **F-496** · Kuyruklu workflow `respond`'unun `definitionVersion` zinciri uçtan uca sınanmıyor | Faz 200 denetimi (🟡2, kısmen): `resume` için tezgâh var (`WorkflowAsyncRunTests`); stored workflow'un insan girdisi bekleyen bir tezgâhı yok, `WorkflowEndpoints` respond satırı silinirse yalnız yük ve handler birim testleri parçalarını sınar | İnsan girdisi bekleyen stored workflow tezgâhı kur; adı konan sürüm ve olmayan sürüm (`400`, iş kuyruğa girmez) |
 | 🟢 | **F-495** · Üretilen API sayfaları xunit `[Fact]` özniteliğinin mutlak kaynak yolunu taşır | Ölçüldü (2026-10-14, Faz 200): `docs-site/src/content/docs/api/Tracon.Testing.Contracts.*.md` içinde 48 sayfa `[Fact("/Users/…/src/…", 13)]` yazar (`[CallerFilePath]`); site yayınında yerel kullanıcı yolu sızar. Aynı sayfalar, adında `faz` geçen bir çalışma ağacında `SourceLanguageTests`'i kırar | `build-api-reference.mjs` öznitelik argümanlarını yazmasın |
 | 🟢 | **F-485** · A2A istemcisi onay reddinin metnini görmez | Ölçüldü (2026-10-14, F-448 sınıf taraması): `ExternalAgentProxy` `TraconExternalCallException` atar, A2A host'u yanıtı `-32006` *"Agent handler did not produce any response..."* ile değiştirir; drain ve bilinmeyen agent reddi de aynı yoldan geçer. Run artık `Failed` kapanır (K-977) | Karar: hata A2A görev durumu (`failed` + mesaj) olarak mı, JSON-RPC hata metni olarak mı taşınır; önce A2A SDK'nın istisna eşlemesini ölç |
@@ -321,6 +325,9 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
+| 🟡 | **F-529** · Kiracı kotasıyla fonksiyon düğümü durdurma | Faz 210 ölçtü ve kapsam dışı bıraktı: kota sayacı koşan workflow'un kendi düğüm tutarını görmez (workflow kökü payını kapanırken yazar, K-990) ve `QuotaEnforcer.CheckAsync` her çağrıda iki depo okuması yapar | Tutarlı sürüm koşan ağacın bellekteki payını sayaçla birleştirir; ayrı tasarım. K-999'un kota eşi |
+| 🟡 | **F-530** · Ücretli tool çağrısının başlamadan reddi | Aynı model turunda istenen ikinci tool, ilki tavanı geçirse de koşar; sonraki model çağrısı reddedilir. Tool döngüsü MAF'tadır | Ayrı tasarım. K-999'un tool eşi |
+| 🟡 | **F-531** · Checkpoint'ten devam eden run'ın bütçesi sıfırdan başlar | Faz 210 planının kod okuması: `WorkflowRunner.RunGuardedAsync` her yürütmede yeni bütçe kurar; bütçe reddiyle düşen run checkpoint'ten devam ettirilirse reddedilen düğüm başlar. Model çağrısı kapısı için de bugün aynıdır | Harcanan bütçe checkpoint'e ya da run kaydına yazılmalı; yeniden ölç, sonra planla |
 | 🟡 | **F-290** · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi | Faz 190 alanı `[Obsolete]` yaptı (K-869); üç iş kaldı: veri taşıma, MCP formu, sütun ve üye kaldırma | GA öncesi son preview fazı; form geçişi erken yapılabilir. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Açık kalem gövdeleri* |
 | 🟡 | F-297 · Gemini konuşma adaptörü | Yeni bağımlılık istemez; Faz 203'ün sözleşmesini uygular | Gövde: § *F-297* |
 | 🟡 | F-322 · Kiracı başına workflow eşzamanlılığı | Semafor süreç başına, kiracılara ortak | Gövde: § *F-322* |
@@ -489,7 +496,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-525**.
+numara: **F-532**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

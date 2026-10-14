@@ -1438,3 +1438,11 @@ Yeni bir yargic eklerken: mansset skorunu **0-100 `Numeric`** ver, adini yargici
 adiyla ayni yap. Baska bir olcek kullanacaksan ona **baska bir ad** ver -- saklanir,
 `GET /api/evaluation/scores/summary` onu `(name, kind)` kiriliminda raporlar,
 yalnizca canli ortalamaya girmez.
+
+## `docs/hafiza/workflows.md`'den — Faz 210 (kapı notuna yer açmak için)
+
+Kural alan dosyasında tek satır olarak kaldı; tam metin aynen buradadır.
+
+- **Agent düğümü sabiti sarmalayıcının anahtarındadır, kimliğinde değil** (2026-10-14, Faz 200, K-989): `WorkflowAgentCache` anahtarı sabiti taşır, `WorkflowAgentIdentity` hâlâ `(workflow, agent)`. Varlık `AgentVersionPin` ile betimleyici + tek sürüm satırından ölçülür, agent DERLENMEZ. Parametreli yol da `FindAsync(ad, sürüm)` kullanır; yoksa değer verildiği an sabit düşer.
+
+- **Workflow geçmişinde numara KİMLİKTİR** (2026-10-14, Faz 200, K-987): `workflow_definition_versions`'ın `workflows`'a yabancı anahtarı yoktur, `UpsertWorkflow`'un INSERT dalı `MAX(version)+1`'i geçmişten okur, kayıt iki satırı TEK `DbTransaction`'da yazar (işlemi ayırınca `A_save_whose_history_write_fails_…` kırılır). Agent geçmişi silmede gider (K-811).

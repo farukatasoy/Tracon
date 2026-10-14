@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (936 kalem)
+## Arşivlenen Kararlar (937 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -945,3 +945,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-934 | 985 | Veri sahibi dışa aktarımı korumalı sütunu düz metin okur (`DataSubjectTargetRegistry.ProtectedExportColumns`); `workflow_checkpoints.state` korumalı sütun olur: `ProtectedColumn.WorkflowCheckpointState = 11` (eklemeli public üye, `Columns` varsayılanı bütün üyeleri alır), migration yok, eski satır okunur (F-401) (kullanıcı kararı) 👤 |
 | K-935 | 986 | Veri sahibi dışa aktarımı ve silmesi dört tabloya daha ulaşır, öznenin run'ıyla (adlı run ya da adlı oturumun run'ı) eşlenir: terfi edilmiş `eval_cases` (`source_run_id`, kiracı suite'ten), `idempotency_keys` (`run_id`), `job_items` (`run_id`, kiracı job'dan; batch işinin öteki öğeleri kalır), `jobs` (kimliği run kimliği olan kuyruk işi; öğeleri basamaklı gider); dördü `Runs`'tan önce silinir (F-400) (kullanıcı kararı) 👤 |
 | K-936 | 987 | Bilgi tabanının her embedding çağrısı (yükleme, arama ucu, `search_knowledge`) metin süreçten çıkmadan kiracının egress politikasından ve kendi anahtarından geçer (`EmbeddingProviderAccess`): sağlayıcı adı `TraconKnowledgeOptions.EmbeddingProvider` (`Tracon:Knowledge:EmbeddingProvider`, eklemeli public üye), yoksa üretecin bildirdiği ad; ad yoksa politikalı kiracı reddedilir (fail-closed), politikasız kiracı geçer; kiracının o sağlayıcı için bağlaması varsa ret (üretici kurulum anahtarıyla kurulu, K-912 emsali); uçta `403`, tool çağrısı düşer; politika her çağrıda okunur (F-416) (kullanıcı kararı) 👤 |
+| K-937 | 988 | `functions` (workflow) ve `handler-keys` (schedule) ayrılmış addır: kayıt `400` döner, büyük/küçük harf ayrımsız (ASP.NET Core rota literali de ayrımsızdır); `AddWorkflow` aynı adda `ArgumentException` atar; derleyici adı denetlemez, kural öncesi saklanan workflow adla koşmaya devam eder, yalnız geri okunamaz; sabit uçlar yerinde kalır (F-382) (kullanıcı kararı) 👤 |

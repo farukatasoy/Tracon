@@ -119,6 +119,9 @@ public sealed class FunctionNodeBudgetGateTests
 
         run.Status.ShouldBe(RunStatus.Completed);
         spoken.Count.ShouldBe(1);
+
+        // The limit really was passed: the step spent 4 + 6 tokens against a budget of 1.
+        run.TreeUsage.ShouldNotBeNull().TotalTokens.GetValueOrDefault().ShouldBeGreaterThan(1);
     }
 
     [Fact]
@@ -341,6 +344,102 @@ public sealed class FunctionNodeBudgetGateTests
 
         run.Status.ShouldBe(RunStatus.Completed);
         stored.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_function_with_settings_can_start_when_the_budget_is_spent()
+    {
+        var stored = new Calls();
+
+        // The settings family is a second registration path (`TSettings`): the exemption has to
+        // reach the wrapper there too, or a consumer's exempt node is refused without a sound.
+        await using var host = await StartAsync(
+            builder => builder
+                .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>("speak", Speaks(5m))
+                .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, GateSettings>(
+                    "store",
+                    _ => (messages, _, _, _) =>
+                    {
+                        stored.Hit();
+
+                        return new ValueTask<List<ChatMessage>>(messages);
+                    },
+                    options => options.StartsWhenBudgetIsSpent = true),
+            configureOptions: options => options.AgentGraph.MaxTotalCost = 1m);
+
+        await SaveAsync(host, Workflow, Function("speak"), Function("store"));
+
+        var run = await RecordAsync(host, await RunAsync(host));
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        stored.Count.ShouldBe(1);
+    }
+
+    // --- Cancellation ---
+
+    [Fact]
+    public async Task A_run_cancelled_after_its_budget_was_spent_ends_Canceled_not_refused()
+    {
+        // The deadline is behind the run once `render` returns, and `render` ignores its token on
+        // purpose: the cancel arrives while it is still going, and the NEXT node's start would
+        // see a cancelled run and a spent budget together. The caller's stop has to win.
+        //
+        // Measured: this pins the OUTCOME, not the gate's own order. With the gate's cancellation
+        // check removed this test stays green: either the engine never starts the next node of a
+        // cancelled run, or the runner files a cancelled run as Canceled whatever it threw (the
+        // two are not told apart here). The order inside the gate is pinned by the unit case
+        // `A_cancelled_call_throws_the_cancellation_before_the_budget_refusal`.
+        var clock = new ManualTimeProvider();
+        var rendering = new TaskCompletionSource();
+        var release = new TaskCompletionSource();
+        var synthesized = new Calls();
+
+        await using var host = await StartAsync(
+            builder => builder
+                .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+                    "render",
+                    _ => async (messages, _, _) =>
+                    {
+                        clock.Advance(TimeSpan.FromSeconds(10));
+                        rendering.TrySetResult();
+                        await release.Task;
+
+                        return messages;
+                    })
+                .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>("synthesize", Counts(synthesized)),
+            services => services.AddSingleton<TimeProvider>(clock),
+            options => options.AgentGraph.MaxDuration = TimeSpan.FromSeconds(5));
+
+        await SaveAsync(host, Workflow, Function("render"), Function("synthesize"));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/tracon/api/workflows/{Workflow}/run")
+        {
+            Content = JsonContent.Create(new WorkflowRunHttpRequest { Message = "go" }),
+        };
+
+        using var response = await host.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        await using var frames = SseReader.ReadAsync(stream).GetAsyncEnumerator();
+
+        (await frames.MoveNextAsync()).ShouldBeTrue();
+
+        var runId = System.Text.Json.JsonDocument.Parse(frames.Current.Data).RootElement.GetProperty("runId").GetGuid();
+
+        await rendering.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        using var cancelled = await host.Client.PostAsync($"/tracon/api/runs/{runId}/cancel", content: null);
+
+        cancelled.StatusCode.ShouldBe(System.Net.HttpStatusCode.Accepted);
+
+        release.TrySetResult();
+
+        var run = await host.WaitForTerminalRunAsync(runId);
+
+        run.Status.ShouldBe(RunStatus.Canceled);
+        string.Equals(run.Error?.Type, TraconRunBudgetExceededException.RunBudgetExceededErrorType, StringComparison.Ordinal)
+            .ShouldBeFalse("a cancelled run was refused for its budget");
+        synthesized.Count.ShouldBe(0);
     }
 
     // --- What does not change ---

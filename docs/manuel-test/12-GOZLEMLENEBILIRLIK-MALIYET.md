@@ -2399,7 +2399,7 @@ Otomatik karşılığı: `FunctionNodeBudgetGateTests.A_node_registered_to_start
 
 **Beklenen sonuç**
 - (1) Run `Completed`: ödenmiş çıktıyı saklayan ücretsiz son düğüm tavan geçilmişken de koştu.
-- (2) Run `Failed`: `word-count` koştu, ondan sonraki `synthesize` reddedildi (`could not start function node 'synthesize'`). Muafiyet yalnız o düğümündür.
+- (2) Run `Failed`: `word-count` koştu, ondan sonraki `synthesize` reddedildi (`Could not start function node 'synthesize'`). Muafiyet yalnız o düğümündür.
 - Muafiyeti bir workflow tanımından (`settings`, düğüm alanı) açmanın yolu yoktur.
 
 ---

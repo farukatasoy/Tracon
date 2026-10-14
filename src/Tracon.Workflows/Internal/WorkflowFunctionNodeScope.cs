@@ -20,7 +20,7 @@ namespace Tracon;
 /// in a helper that returns to it: an <see cref="AsyncLocal{T}"/> set in a callee does
 /// not flow back to the caller (the same trap as <c>Activity.Current</c> and
 /// <see cref="TraconRunContext"/>). The wrapper is the OUTERMOST of
-/// <c>scope(retry(timeout(handler)))</c>, so every attempt of a retried node sees it.
+/// <c>scope(retry(gate(timeout(handler))))</c>, so every attempt of a retried node sees it.
 /// </para>
 /// </remarks>
 internal static class WorkflowFunctionNodeScope

@@ -187,8 +187,8 @@ public sealed class TraconAgentGraphOptions
     /// next workflow function node: it does not start, and the run ends <c>Failed</c> with
     /// <c>run_budget_exceeded</c>. A node that is already running is not stopped, so the
     /// tree can pass the ceiling by as much as its last node spends. What a node reported
-    /// beyond tokens counts (<c>WorkflowFunctionOptions.StartsWhenBudgetIsSpent</c>
-    /// lets a node that must still run start anyway).
+    /// beyond tokens counts. A node that must still run after the ceiling is passed sets
+    /// <c>WorkflowFunctionOptions.StartsWhenBudgetIsSpent</c>.
     /// </para>
     /// </remarks>
     public decimal MaxTotalCost { get; set; }

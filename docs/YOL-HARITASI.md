@@ -222,6 +222,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [207](arsiv/fazlar/207-AKISTA-KESILEN-CIKTI-BILDIRIMI.md) | Akışta Kesilen Çıktı Bildirimi | ✅ Tamamlandı |
 | [208](arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md) | Workflow Karar Sözleşmesi: Tek Yanıt, Karar Denetimi ve Kaynak Bağı | ✅ Tamamlandı |
 | [209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) | Workflow Gelen Kutusu ve İstek Süresi | 📋 Planlandı |
-| [210](210-BUTCE-DUGUM-KAPISI.md) | Bütçe Tükenince Fonksiyon Düğümü Başlamaz | 📋 Planlandı |
+| [210](210-BUTCE-DUGUM-KAPISI.md) | Bütçe Tükenince Fonksiyon Düğümü Başlamaz | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
