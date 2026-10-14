@@ -429,6 +429,7 @@ Sözleşme testi `src/Tracon.Testing.Contracts.Xunit/Contracts/` altındadır; b
 | 4 | `Branch` modlu `summarize-and-approve` | Aynı isteğe iki cevap | İki ayrı devam (K-130 korunur); iki satır, iki denetim kaydı |
 | 9 | `summarize-and-approve-once` cevaplandı; aynı oturumda kaynak düz `/resume` edildi | Yeni run'ın aynı `requestId`'sine önce aynı, sonra zıt cevap | Aynı cevap ilk devamı izler (yeni run yok); zıt cevap `409` |
 | 10 | Konsol, Admin; kayıtlı bir workflow | Editörde "One answer per request" işaretle, kaydet; sürüm karşılaştırmasını aç; başka bir alanı değiştirip yeniden kaydet | `GET /api/workflows/{name}` `responseMode: SingleAnswer`; karşılaştırmada "Answers per request" satırı; ikinci kayıt modu sıfırlamaz · 👤 |
+| 11 | Örnek uygulama `Tracon:Demo:Attribution:Mode = throw` ile; `summarize-and-approve-once` run'ı `AwaitingInput` | Cevap ver, aynı cevabı tekrarla, sonra zıt cevap; ayrıca `Prefer: respond-async` ile başka bir run'a cevap | İlk cevap çalışır ve kullanıcısız kaydedilir; tekrar aynı devamı izler; zıt cevap `409`; kuyruklu cevap tamamlanır; günlükte uyarı, istek kilitlenmez |
 | 5 | Denetim deposunu düşür (`SwitchableAuditLog` ya da DB izni) | `respond` | `500`; run, satır ve iş yok · 👤 |
 | 6 | Herhangi bir cevap | `GET /api/audit?action=workflow.respond` | Kayıt aktörü, kaynak run'ı, `requestId`'yi ve 64 karakter hash'i taşır; ham cevap yok |
 | 7 | İki kiracı (`FIX-TENANT-01`, `-02`) | Beta, alfa'nın run'ına cevap verir ve `…/responses` okur | `404`; satır yazılmaz (MT-SEC) |
@@ -546,6 +547,8 @@ Hiçbir ölçüm onaylı bir öneriyi düşürmedi.
 | Geri bağ (8) | Devamın `GET /api/runs/{id}/events` çerçeveleri: `run.started`, `workflow.response-applied`, `workflow.started`… |
 
 Uygulama günlüğünde hata yoktu.
+
+**İkinci koşum (önce-satır tasarımından sonra, 2026-10-14):** aynı senaryo, aynı sonuçlar; ek olarak her denetim kaydı var olan bir run'ı adlandırdı. Eşzamanlı çiftlerin (akışlı ve kuyruklu) kaybedenleri `Canceled` + `request_already_answered`, sıfır olay; kazananlar `Completed`, 13 olay. Örneğe manuel test anahtarı eklendi: `Tracon:Demo:Attribution:Mode = throw` (`DemoRunAttributionContext`, mevcut `Tracon:Demo:RunAuthorization:Mode` deseni). Bu anahtarla atıf getter'ı her HTTP isteğinde fırlattı: ilk cevap `200`, devam `Completed` ve kullanıcısız kaydedildi; tekrar aynı devamı izledi (`done`); zıt cevap `409`; kuyruklu cevap `202`, run `Completed`. Uyarı günlüğe yazıldı, istek kilitlenmedi.
 
 ### Bakımcı kararları — 2026-10-14 (bağımsız denetimden sonra)
 
