@@ -324,13 +324,17 @@ internal static class AgentEndpoints
                 "response the status code has already been sent, so the block arrives as an SSE " +
                 "'error' event instead. If a registered IRunAuthorizationHandler denies the caller, " +
                 "the run does not start and a 403 is returned; this check runs before the quota " +
-                "check, so a denied run never consumes the tenant's quota." +
+                "check, so a denied run never consumes the tenant's quota. " +
                 "When session ownership is turned on, naming another user's session in 'sessionId' " +
                 "is also refused with 403, and opening a NEW session is refused the same way when no " +
                 "authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). " +
                 "A run without a 'sessionId' that stops at a tool approval can never be answered: it closes " +
                 "as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the " +
-                "stream ends with an 'error' event of that type instead of 'done'.")
+                "stream ends with an 'error' event of that type instead of 'done'. Right before 'done', the " +
+                "stream sends a 'custom' event for each notice the run recorded from a fixed list, with the same " +
+                "data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the " +
+                "model cut off at its output token limit or its context window) always, and " +
+                "'tracon.quota.threshold' when the quota options publish it to the run stream.")
             // The success response is SSE by default (see AgentRunStream); but a
             // request carrying the 'Idempotency-Key' header gets a JSON body, and
             // one carrying 'Prefer: respond-async' gets a 202 body.
