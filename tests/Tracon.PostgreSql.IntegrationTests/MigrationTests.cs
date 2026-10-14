@@ -82,7 +82,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // Phase 199 added the `run_non_token_usage` table: 49 -> 50.
         // Phase 200 added the `workflow_definition_versions` table: 50 -> 51.
         // Phase 208 added the `workflow_responses` table: 51 -> 52.
-        tableCount.ShouldBe(52);
+        // Phase 209 added the `workflow_requests` table: 52 -> 53.
+        tableCount.ShouldBe(53);
     }
 
     [Fact]

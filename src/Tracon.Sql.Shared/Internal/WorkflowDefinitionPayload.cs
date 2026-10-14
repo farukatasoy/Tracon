@@ -62,6 +62,10 @@ internal sealed record WorkflowDefinitionPayload
     /// <remarks>A row written before the field existed reads as <see cref="WorkflowResponseMode.Branch"/>.</remarks>
     public WorkflowResponseMode ResponseMode { get; init; }
 
+    /// <summary>Gets how long a human request of the workflow may wait for an answer.</summary>
+    /// <remarks>A row written before the field existed reads as <see langword="null"/>: no limit.</remarks>
+    public TimeSpan? RequestTimeout { get; init; }
+
     /// <summary>Converts the content of a definition into a payload.</summary>
     /// <param name="definition">The source definition.</param>
     /// <returns>The payload to serialize.</returns>
@@ -80,6 +84,7 @@ internal sealed record WorkflowDefinitionPayload
             Parameters = definition.Parameters,
             RunTimeout = definition.RunTimeout,
             ResponseMode = definition.ResponseMode,
+            RequestTimeout = definition.RequestTimeout,
         };
 
     /// <summary>Builds the definition by merging the payload with the information from the columns.</summary>
@@ -104,6 +109,7 @@ internal sealed record WorkflowDefinitionPayload
             Parameters = Parameters,
             RunTimeout = RunTimeout,
             ResponseMode = ResponseMode,
+            RequestTimeout = RequestTimeout,
             TenantId = tenantId,
             Version = version,
             UpdatedAt = updatedAt,

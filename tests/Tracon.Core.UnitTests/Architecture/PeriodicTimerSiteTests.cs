@@ -35,6 +35,7 @@ public sealed class PeriodicTimerSiteTests
         ["src/Tracon.Core/Recording/RunHeartbeatWriter.cs"] = "RunReconciliationOptions.HeartbeatInterval — RunReconciliationOptionsValidator",
         ["src/Tracon.Core/Recording/RunReconciliationService.cs"] = "RunReconciliationOptions.ScanInterval — RunReconciliationOptionsValidator",
         ["src/Tracon.Core/Scheduling/JobWorkerBackgroundService.cs"] = "TraconSchedulingOptions.PollInterval (work poll and the running job's cancel watch) and LeaseDuration / 3 — TraconSchedulingOptionsValidator",
+        ["src/Tracon.Workflows/Internal/WorkflowRequestExpirationService.cs"] = "TraconWorkflowOptions.RequestExpirationScanInterval — TraconWorkflowOptionsValidator",
     };
 
     [Fact]

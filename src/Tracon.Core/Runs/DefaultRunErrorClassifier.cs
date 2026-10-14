@@ -53,6 +53,10 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         // A run its job stopped at the job's time limit (F-323): a deadline, like
         // the run's own, never a provider fault.
         [JobAttemptSignals.MaxDurationExceededRunErrorType] = RunErrorClass.Timeout,
+
+        // A workflow run closed because the human request it waited on expired (Phase 209):
+        // the deadline an operator set for an answer, not a fault of the workflow.
+        [WorkflowRequestExpiry.ErrorType] = RunErrorClass.Timeout,
         [TraconRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
         [TraconStructuredResponseException.StructuredResponseInvalidErrorType] = RunErrorClass.StructuredResponseInvalid,
         [TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType] = RunErrorClass.LoopUnsatisfied,

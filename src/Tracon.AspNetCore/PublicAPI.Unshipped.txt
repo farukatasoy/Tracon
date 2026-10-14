@@ -1324,3 +1324,5 @@ static Tracon.WorkflowVersionDiffResponse.operator !=(Tracon.WorkflowVersionDiff
 static Tracon.WorkflowVersionDiffResponse.operator ==(Tracon.WorkflowVersionDiffResponse? left, Tracon.WorkflowVersionDiffResponse? right) -> bool
 Tracon.WorkflowSaveRequest.ResponseMode.get -> Tracon.WorkflowResponseMode
 Tracon.WorkflowSaveRequest.ResponseMode.init -> void
+Tracon.WorkflowSaveRequest.RequestTimeout.get -> System.TimeSpan?
+Tracon.WorkflowSaveRequest.RequestTimeout.init -> void

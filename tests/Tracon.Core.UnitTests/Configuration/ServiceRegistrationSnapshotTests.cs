@@ -178,6 +178,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.IRunInputStore | Singleton | Tracon.InMemoryRunInputStore",
         "Tracon.IPendingApprovalStore | Singleton | Factory",
         "Tracon.IWorkflowResponseStore | Singleton | Factory",
+        "Tracon.IWorkflowRequestStore | Singleton | Factory",
         "Tracon.ISkillScriptGrantStore | Singleton | Factory",
         "Tracon.ISessionStore | Singleton | Factory",
         "Tracon.ITraceStore | Singleton | Factory",

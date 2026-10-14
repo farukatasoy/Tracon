@@ -36,6 +36,12 @@ internal static class WorkflowDefinitionValidator
     /// </summary>
     public const string ReservedFunctionListName = "functions";
 
+    /// <summary>
+    /// The second fixed management route: <c>GET /api/workflows/requests</c> lists the
+    /// tenant's human requests and matches before <c>/api/workflows/{name}</c> the same way.
+    /// </summary>
+    public const string ReservedRequestListName = "requests";
+
     /// <summary>Refuses a name a fixed management route already uses.</summary>
     /// <param name="name">The workflow name.</param>
     /// <returns>User-facing error text; <see langword="null"/> when the name is free.</returns>
@@ -45,10 +51,30 @@ internal static class WorkflowDefinitionValidator
     /// be run by name; it only cannot be read back.
     /// </remarks>
     public static string? ReservedNameProblem(string name)
-        => string.Equals(name, ReservedFunctionListName, StringComparison.OrdinalIgnoreCase)
-            ? $"'{name}' is reserved: GET /api/workflows/{ReservedFunctionListName} lists the registered " +
-              "function nodes, so a workflow under that name could not be read back. Choose another name."
+    {
+        if (string.Equals(name, ReservedFunctionListName, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"'{name}' is reserved: GET /api/workflows/{ReservedFunctionListName} lists the registered " +
+                   "function nodes, so a workflow under that name could not be read back. Choose another name.";
+        }
+
+        return string.Equals(name, ReservedRequestListName, StringComparison.OrdinalIgnoreCase)
+            ? $"'{name}' is reserved: GET /api/workflows/{ReservedRequestListName} lists the human requests the " +
+              "tenant's workflows wait on, so a workflow under that name could not be read back. Choose another name."
             : null;
+    }
+
+    /// <summary>The shortest time a human request may be given to wait: one minute.</summary>
+    public static readonly TimeSpan MinRequestTimeout = TimeSpan.FromMinutes(1);
+
+    /// <summary>The longest time a human request may be given to wait: 365 days.</summary>
+    public static readonly TimeSpan MaxRequestTimeout = TimeSpan.FromDays(365);
+
+    /// <summary>Reports whether a request timeout is within the range a workflow may set.</summary>
+    /// <param name="value">The timeout.</param>
+    /// <returns><see langword="true"/> from <see cref="MinRequestTimeout"/> to <see cref="MaxRequestTimeout"/>.</returns>
+    public static bool IsValidRequestTimeout(TimeSpan value)
+        => value >= MinRequestTimeout && value <= MaxRequestTimeout;
 
     /// <summary>Validates the definition.</summary>
     /// <param name="definition">The definition to validate.</param>
@@ -258,6 +284,15 @@ internal static class WorkflowDefinitionValidator
             return $"Workflow '{definition.Name}' has a 'runTimeout' of {runTimeout}. It must be from 1 to " +
                    $"{TimerPeriod.MaxMilliseconds} milliseconds (about 49.7 days); leave it out to use the " +
                    "installation's 'Tracon:Workflows:RunTimeout'.";
+        }
+
+        // Phase 209: the limit a human request may wait. It arms no timer (the expiry service
+        // compares times), so the bound is a product rule, not a timer range: an unbounded value
+        // would reopen the growth of a waiting run's rows that the limit exists to close (K-888).
+        if (definition.RequestTimeout is { } requestTimeout && !IsValidRequestTimeout(requestTimeout))
+        {
+            return $"Workflow '{definition.Name}' has a 'requestTimeout' of {requestTimeout}. It must be from " +
+                   $"{MinRequestTimeout} to {MaxRequestTimeout.TotalDays:0} days; leave it out and a request waits without limit.";
         }
 
         // Structure only (F-294): valid identifiers, no repeats. Whether the

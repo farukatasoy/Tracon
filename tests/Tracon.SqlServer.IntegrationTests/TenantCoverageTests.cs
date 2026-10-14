@@ -114,6 +114,10 @@ public sealed class TenantCoverageTests
         // them back per tenant (FindClaimAsync, GetAsync, ListBySourceRunAsync) and proves another
         // tenant can neither abandon (ReplaceAsync) nor deliver (MarkDeliveredAsync) a record.
         ["SqlWorkflowResponseStore"] = ["AddAsync", "FindClaimAsync", "ReplaceAsync", "MarkDeliveredAsync", "ListBySourceRunAsync", "GetAsync"],
+        // Phase 209: WorkflowRequestStoreContract writes both tenants' rows (AddAsync), lists them per
+        // tenant (ListAsync, ListByRunAsync) and proves another tenant's answer marks nothing
+        // (MarkAnsweredAsync). ExpireAsync is [TenantAgnostic] maintenance work.
+        ["SqlWorkflowRequestStore"] = ["AddAsync", "ListAsync", "ListByRunAsync", "MarkAnsweredAsync"],
         // Every method is [TenantAgnostic] by design (Phase 156): an upgrade
         // replaces the process for every tenant at once, so a tenant-filtered
         // preflight would under-report the risk.

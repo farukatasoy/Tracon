@@ -72,6 +72,30 @@ public interface IWorkflowRunner
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists the human requests the caller's tenant is waiting on, across runs.
+    /// </summary>
+    /// <param name="query">Which requests, and which page.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The requests, oldest first, one per logical request: the same request id in the same session
+    /// is listed once, under the newest run that still waits on it.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// Each item carries what <see cref="ListPendingRequestsAsync"/> returns and the workflow name,
+    /// the session, the expiry and whether the request was answered.
+    /// </para>
+    /// <para>
+    /// The default implementation returns an empty list. An implementation written before this
+    /// member existed keeps compiling; it lists nothing here.
+    /// </para>
+    /// </remarks>
+    ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListRequestsAsync(
+        WorkflowRequestQuery query,
+        CancellationToken cancellationToken = default)
+        => ValueTask.FromResult<IReadOnlyList<WorkflowPendingRequest>>([]);
+
+    /// <summary>
     /// Responds to a pending request and resumes the run from its checkpoint.
     /// </summary>
     /// <param name="request">The response.</param>

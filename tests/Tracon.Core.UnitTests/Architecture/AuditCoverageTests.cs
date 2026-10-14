@@ -83,6 +83,7 @@ public sealed class AuditCoverageTests
         [typeof(IWorkflowCheckpointStore)] = "machine-written: workflow execution state",
         [typeof(IPendingApprovalStore)] = "machine-written: the approval inbox; the DECISION is audited at the endpoint",
         [typeof(IWorkflowResponseStore)] = "machine-written: the record of an answer to a workflow request; the ANSWER is audited at the respond endpoint (workflow.respond, fail-closed)",
+        [typeof(IWorkflowRequestStore)] = "machine-written: the projection of the requests a workflow run waits on; the ANSWER is audited at the respond endpoint (workflow.respond, fail-closed) and the expiry closes the run it names",
         [typeof(IVectorSearchStore)] = "machine-written: embedding index",
         [typeof(IAttachmentStore)] = "machine-written: uploaded blob content",
         [typeof(IEvalStore)] = "endpoint-audited: EvalEndpoints calls AuditRecorder",

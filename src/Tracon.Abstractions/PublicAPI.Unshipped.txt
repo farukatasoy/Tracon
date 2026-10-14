@@ -6133,3 +6133,85 @@ static Tracon.WorkflowResponseClaim.operator !=(Tracon.WorkflowResponseClaim? le
 static Tracon.WorkflowResponseClaim.operator ==(Tracon.WorkflowResponseClaim? left, Tracon.WorkflowResponseClaim? right) -> bool
 static Tracon.WorkflowResponseRecord.operator !=(Tracon.WorkflowResponseRecord? left, Tracon.WorkflowResponseRecord? right) -> bool
 static Tracon.WorkflowResponseRecord.operator ==(Tracon.WorkflowResponseRecord? left, Tracon.WorkflowResponseRecord? right) -> bool
+Tracon.IWorkflowRequestStore
+Tracon.IWorkflowRequestStore.AddAsync(System.Collections.Generic.IReadOnlyList<Tracon.WorkflowRequestRecord!>! records, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IWorkflowRequestStore.ExpireAsync(System.DateTimeOffset now, int max, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowRequestRecord!>!>
+Tracon.IWorkflowRequestStore.ListAsync(Tracon.WorkflowRequestQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowRequestRecord!>!>
+Tracon.IWorkflowRequestStore.ListByRunAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowRequestRecord!>!>
+Tracon.IWorkflowRequestStore.MarkAnsweredAsync(string! sessionId, string! requestId, System.Guid responseRunId, System.DateTimeOffset answeredAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+Tracon.IWorkflowRunner.ListRequestsAsync(Tracon.WorkflowRequestQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowPendingRequest!>!>
+Tracon.WorkflowDefinition.RequestTimeout.get -> System.TimeSpan?
+Tracon.WorkflowDefinition.RequestTimeout.init -> void
+Tracon.WorkflowDescriptor.RequestTimeout.get -> System.TimeSpan?
+Tracon.WorkflowDescriptor.RequestTimeout.init -> void
+Tracon.WorkflowPendingRequest.Answered.get -> bool
+Tracon.WorkflowPendingRequest.Answered.init -> void
+Tracon.WorkflowPendingRequest.ExpiresAt.get -> System.DateTimeOffset?
+Tracon.WorkflowPendingRequest.ExpiresAt.init -> void
+Tracon.WorkflowPendingRequest.LastResponseRunId.get -> System.Guid?
+Tracon.WorkflowPendingRequest.LastResponseRunId.init -> void
+Tracon.WorkflowPendingRequest.SessionId.get -> string?
+Tracon.WorkflowPendingRequest.SessionId.init -> void
+Tracon.WorkflowPendingRequest.WorkflowName.get -> string?
+Tracon.WorkflowPendingRequest.WorkflowName.init -> void
+Tracon.WorkflowRequestQuery
+Tracon.WorkflowRequestQuery.<Clone>$() -> Tracon.WorkflowRequestQuery!
+Tracon.WorkflowRequestQuery.Equals(Tracon.WorkflowRequestQuery? other) -> bool
+Tracon.WorkflowRequestQuery.Skip.get -> int
+Tracon.WorkflowRequestQuery.Skip.init -> void
+Tracon.WorkflowRequestQuery.State.get -> Tracon.WorkflowRequestState
+Tracon.WorkflowRequestQuery.State.init -> void
+Tracon.WorkflowRequestQuery.Take.get -> int
+Tracon.WorkflowRequestQuery.Take.init -> void
+Tracon.WorkflowRequestQuery.WorkflowName.get -> string?
+Tracon.WorkflowRequestQuery.WorkflowName.init -> void
+Tracon.WorkflowRequestQuery.WorkflowRequestQuery() -> void
+Tracon.WorkflowRequestRecord
+Tracon.WorkflowRequestRecord.<Clone>$() -> Tracon.WorkflowRequestRecord!
+Tracon.WorkflowRequestRecord.AnsweredAt.get -> System.DateTimeOffset?
+Tracon.WorkflowRequestRecord.AnsweredAt.init -> void
+Tracon.WorkflowRequestRecord.ClosedAt.get -> System.DateTimeOffset?
+Tracon.WorkflowRequestRecord.ClosedAt.init -> void
+Tracon.WorkflowRequestRecord.Equals(Tracon.WorkflowRequestRecord? other) -> bool
+Tracon.WorkflowRequestRecord.EventSequence.get -> long
+Tracon.WorkflowRequestRecord.EventSequence.init -> void
+Tracon.WorkflowRequestRecord.ExpiresAt.get -> System.DateTimeOffset?
+Tracon.WorkflowRequestRecord.ExpiresAt.init -> void
+Tracon.WorkflowRequestRecord.LastResponseRunId.get -> System.Guid?
+Tracon.WorkflowRequestRecord.LastResponseRunId.init -> void
+Tracon.WorkflowRequestRecord.PortId.get -> string!
+Tracon.WorkflowRequestRecord.PortId.init -> void
+Tracon.WorkflowRequestRecord.RequestId.get -> string!
+Tracon.WorkflowRequestRecord.RequestId.init -> void
+Tracon.WorkflowRequestRecord.RequestedAt.get -> System.DateTimeOffset
+Tracon.WorkflowRequestRecord.RequestedAt.init -> void
+Tracon.WorkflowRequestRecord.RunId.get -> System.Guid
+Tracon.WorkflowRequestRecord.RunId.init -> void
+Tracon.WorkflowRequestRecord.SessionId.get -> string!
+Tracon.WorkflowRequestRecord.SessionId.init -> void
+Tracon.WorkflowRequestRecord.Status.get -> Tracon.WorkflowRequestStatus
+Tracon.WorkflowRequestRecord.Status.init -> void
+Tracon.WorkflowRequestRecord.TenantId.get -> string?
+Tracon.WorkflowRequestRecord.TenantId.init -> void
+Tracon.WorkflowRequestRecord.WorkflowName.get -> string!
+Tracon.WorkflowRequestRecord.WorkflowName.init -> void
+Tracon.WorkflowRequestRecord.WorkflowRequestRecord() -> void
+Tracon.WorkflowRequestState
+Tracon.WorkflowRequestState.All = 2 -> Tracon.WorkflowRequestState
+Tracon.WorkflowRequestState.Answered = 1 -> Tracon.WorkflowRequestState
+Tracon.WorkflowRequestState.Pending = 0 -> Tracon.WorkflowRequestState
+Tracon.WorkflowRequestStatus
+Tracon.WorkflowRequestStatus.Closed = 1 -> Tracon.WorkflowRequestStatus
+Tracon.WorkflowRequestStatus.Open = 0 -> Tracon.WorkflowRequestStatus
+const Tracon.RetentionTargets.WorkflowRequests = "workflow_requests" -> string!
+const Tracon.WorkflowRequestQuery.MaxTake = 200 -> int
+override Tracon.WorkflowRequestQuery.Equals(object? obj) -> bool
+override Tracon.WorkflowRequestQuery.GetHashCode() -> int
+override Tracon.WorkflowRequestQuery.ToString() -> string!
+override Tracon.WorkflowRequestRecord.Equals(object? obj) -> bool
+override Tracon.WorkflowRequestRecord.GetHashCode() -> int
+override Tracon.WorkflowRequestRecord.ToString() -> string!
+static Tracon.WorkflowRequestQuery.operator !=(Tracon.WorkflowRequestQuery? left, Tracon.WorkflowRequestQuery? right) -> bool
+static Tracon.WorkflowRequestQuery.operator ==(Tracon.WorkflowRequestQuery? left, Tracon.WorkflowRequestQuery? right) -> bool
+static Tracon.WorkflowRequestRecord.operator !=(Tracon.WorkflowRequestRecord? left, Tracon.WorkflowRequestRecord? right) -> bool
+static Tracon.WorkflowRequestRecord.operator ==(Tracon.WorkflowRequestRecord? left, Tracon.WorkflowRequestRecord? right) -> bool

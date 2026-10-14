@@ -61,3 +61,9 @@ Tracon.WorkflowRegistrationOptions.ResponseMode.get -> Tracon.WorkflowResponseMo
 Tracon.WorkflowRegistrationOptions.ResponseMode.set -> void
 Tracon.WorkflowRegistrationOptions.WorkflowRegistrationOptions() -> void
 static Tracon.TraconWorkflowsBuilderExtensions.AddWorkflow(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, System.Action<Tracon.WorkflowRegistrationOptions!>! configure) -> Tracon.ITraconBuilder!
+Tracon.TraconWorkflowOptions.MaxRequestExpirationsPerScan.get -> int
+Tracon.TraconWorkflowOptions.MaxRequestExpirationsPerScan.set -> void
+Tracon.TraconWorkflowOptions.RequestExpirationScanInterval.get -> System.TimeSpan
+Tracon.TraconWorkflowOptions.RequestExpirationScanInterval.set -> void
+Tracon.WorkflowRegistrationOptions.RequestTimeout.get -> System.TimeSpan?
+Tracon.WorkflowRegistrationOptions.RequestTimeout.set -> void

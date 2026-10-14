@@ -243,6 +243,7 @@ public static class TraconSqliteBuilderExtensions
         // Async approval inbox (Phase 55).
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IPendingApprovalStore, SqlPendingApprovalStore>());
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWorkflowResponseStore, SqlWorkflowResponseStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWorkflowRequestStore, SqlWorkflowRequestStore>());
 
         // Conversation branching (Phase 47). There is NO in-memory equivalent:
         // MAF's InMemoryChatHistoryProvider keeps history in an opaque blob of

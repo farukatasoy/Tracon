@@ -5,10 +5,11 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Pending requests are <strong>not stored in a separate table</strong>; they
-/// are read from the run's <see cref="RunEventType.WorkflowRequest"/> events.
-/// The event stream is already append-only and tenant-filtered, so a
-/// second record path would duplicate data and risk divergence.
+/// The request itself (its prompt and its form) lives in the run's
+/// <see cref="RunEventType.WorkflowRequest"/> event, which is append-only and tenant-filtered; it
+/// is not copied anywhere. What a listing across runs needs to filter on, and what the expiry
+/// needs, is kept apart in <see cref="IWorkflowRequestStore"/>, one row per request; the row names
+/// the event it points to, so the two cannot drift apart on the prompt.
 /// </para>
 /// <para>
 /// <strong>A response starts a new run.</strong> Responding to a pending
@@ -48,6 +49,41 @@ public sealed record WorkflowPendingRequest
 
     /// <summary>Gets the UTC time when the request was published.</summary>
     public DateTimeOffset RequestedAt { get; init; }
+
+    /// <summary>Gets the name of the workflow whose run waits on the request.</summary>
+    public string? WorkflowName { get; init; }
+
+    /// <summary>
+    /// Gets the execution session of the run. The runs that continue one another share it, and
+    /// the same request id in the same session is one request.
+    /// </summary>
+    public string? SessionId { get; init; }
+
+    /// <summary>
+    /// Gets when the request expires (UTC). <see langword="null"/> when the workflow sets no
+    /// <see cref="WorkflowDefinition.RequestTimeout"/>, or when the request was published before
+    /// requests had an expiry.
+    /// </summary>
+    /// <remarks>
+    /// Fixed when the run starts waiting: editing the workflow later does not move it. When the
+    /// time passes, the run is closed and an answer is refused like an answer to any run that is
+    /// no longer waiting.
+    /// </remarks>
+    public DateTimeOffset? ExpiresAt { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether somebody answered the request. An answered run stays
+    /// <see cref="RunStatus.AwaitingInput"/> and keeps listing its request; the answer continues
+    /// on a new run (<see cref="LastResponseRunId"/>).
+    /// </summary>
+    public bool Answered { get; init; }
+
+    /// <summary>
+    /// Gets the run that carried out the latest answer; <see langword="null"/> while the request
+    /// is unanswered. An answer that stopped before it finished is replaced by the answer that
+    /// started again, so this names the run to watch.
+    /// </summary>
+    public Guid? LastResponseRunId { get; init; }
 }
 
 /// <summary>

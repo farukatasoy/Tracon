@@ -824,3 +824,4 @@ static Tracon.WebhookSigner.Verify(string! body, System.DateTimeOffset timestamp
 ~override Tracon.ResolvedCallableAgents.ToString() -> string
 ~override Tracon.RunEventDraft.Equals(object obj) -> bool
 ~override Tracon.RunEventDraft.ToString() -> string
+Tracon.TraconRetentionOptions.WorkflowRequests.get -> Tracon.RetentionTargetOptions!

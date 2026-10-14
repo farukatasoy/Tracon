@@ -1090,6 +1090,32 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reads one answer record by its run id, restricted to the tenant.</summary>
     public string SelectWorkflowResponse { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that inserts one row of the workflow request inbox.</summary>
+    /// <remarks>
+    /// A row whose <c>(run_id, request_id)</c> is stored fails with a violation that
+    /// <see cref="SqlDialect.IsUniqueViolation"/> recognizes; the store treats it as written.
+    /// </remarks>
+    public string InsertWorkflowRequest { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that lists a tenant's open inbox rows, one per logical request, oldest first.</summary>
+    public string SelectWorkflowRequests { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that lists every inbox row of one run, restricted to the tenant.</summary>
+    public string SelectWorkflowRequestsByRun { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the query that marks every open row of a logical request answered. The <c>WHERE</c>
+    /// targets only open rows, so an expired (closed) row is not touched.
+    /// </summary>
+    public string MarkWorkflowRequestsAnswered { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the query that closes the open rows whose time limit has passed and returns the closed
+    /// rows (the same pattern as <see cref="ExpirePendingApprovals"/>). It carries NO tenant
+    /// filter - it is a maintenance operation.
+    /// </summary>
+    public string ExpireWorkflowRequests { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that creates or replaces a tenant's provider binding (BYOK).</summary>
     public string UpsertTenantProviderBinding { get; protected set; } = string.Empty;
 
@@ -1139,6 +1165,50 @@ internal abstract class SqlQueriesBase
     protected const string WorkflowResponseColumns = """
             response_run_id, tenant_id, source_run_id, session_id, request_id, claim_scope,
             answer_hash, status, responded_by, responded_at
+            """;
+
+    // Phase 209: SqlWorkflowRequestStore reads these by fixed ordinal; a new column is
+    // appended at the end (docs/hafiza/postgresql.md).
+    protected const string WorkflowRequestColumns = """
+            run_id, request_id, tenant_id, session_id, workflow_name, port_id, event_seq, requested_at,
+            expires_at, status, answered_at, last_response_run_id, closed_at
+            """;
+
+    /// <summary>Qualifies each column of <see cref="WorkflowRequestColumns"/> with a table alias.</summary>
+    /// <param name="alias">The alias.</param>
+    /// <returns>The column list, in the same order.</returns>
+    protected static string WorkflowRequestColumnsOf(string alias)
+        => string.Join(
+            ", ",
+            WorkflowRequestColumns.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Select(column => $"{alias}.{column}"));
+
+    /// <summary>
+    /// Builds <see cref="SelectWorkflowRequests"/> around the provider's paging clause. The row is
+    /// kept only when no NEWER open row holds the same request of the same session, so the filter
+    /// and the page run over logical requests (a filter applied after the page would
+    /// break <c>skip</c>/<c>take</c>).
+    /// </summary>
+    /// <param name="paging">The provider's skip/take clause, ending the statement.</param>
+    /// <returns>The query text.</returns>
+    protected string BuildSelectWorkflowRequests(string paging)
+        => $"""
+            SELECT {WorkflowRequestColumnsOf("r")}
+              FROM {Table("workflow_requests")} AS r
+             WHERE r.tenant_id = @tenant_id
+               AND r.status = @status_open
+               AND (@workflow_name IS NULL OR r.workflow_name = @workflow_name)
+               AND (@state = 2 OR (@state = 0 AND r.answered_at IS NULL) OR (@state = 1 AND r.answered_at IS NOT NULL))
+               AND NOT EXISTS (
+                       SELECT 1 FROM {Table("workflow_requests")} AS n
+                        WHERE n.tenant_id = r.tenant_id
+                          AND n.session_id = r.session_id
+                          AND n.request_id = r.request_id
+                          AND n.status = @status_open
+                          AND (n.requested_at > r.requested_at
+                               OR (n.requested_at = r.requested_at AND n.run_id > r.run_id)))
+             ORDER BY r.requested_at ASC, r.run_id ASC, r.request_id ASC
+             {paging}
             """;
 
     protected const string InboundTriggerColumns = """
@@ -2177,6 +2247,31 @@ internal abstract class SqlQueriesBase
             SELECT {WorkflowResponseColumns}
               FROM {Table("workflow_responses")}
              WHERE response_run_id = @response_run_id AND tenant_id = @tenant_id;
+            """;
+
+        // Phase 209. Standard SQL on all three providers; the list and the expiry are written
+        // per provider (paging, RETURNING / OUTPUT).
+        InsertWorkflowRequest = $"""
+            INSERT INTO {Table("workflow_requests")}
+                ({WorkflowRequestColumns})
+            VALUES
+                (@run_id, @request_id, @tenant_id, @session_id, @workflow_name, @port_id, @event_seq, @requested_at,
+                 @expires_at, @status, @answered_at, @last_response_run_id, @closed_at);
+            """;
+
+        SelectWorkflowRequestsByRun = $"""
+            SELECT {WorkflowRequestColumns}
+              FROM {Table("workflow_requests")}
+             WHERE tenant_id = @tenant_id AND run_id = @run_id
+             ORDER BY event_seq ASC, request_id ASC;
+            """;
+
+        MarkWorkflowRequestsAnswered = $"""
+            UPDATE {Table("workflow_requests")}
+               SET answered_at = COALESCE(answered_at, @answered_at),
+                   last_response_run_id = @last_response_run_id
+             WHERE tenant_id = @tenant_id AND session_id = @session_id AND request_id = @request_id
+               AND status = @status_open;
             """;
 
         // WHERE status = @status_pending: a second decision affects 0 rows,

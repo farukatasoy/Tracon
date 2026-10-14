@@ -77,6 +77,12 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddTraconDefault<IWorkflowResponseStore>(static provider => new InMemoryWorkflowResponseStore(
             provider.GetRequiredService<ITenantContext>()));
 
+        // The inbox of workflow requests (Phase 209). Always registered, like the answers above:
+        // a run that waits writes its rows here, and the expiry reads them. Persistent
+        // providers replace it.
+        services.TryAddTraconDefault<IWorkflowRequestStore>(static provider => new InMemoryWorkflowRequestStore(
+            provider.GetRequiredService<ITenantContext>()));
+
         // Script run permissions. The store is always registered; the run
         // feature itself is DISABLED until UseSkillScripts is called. The mere
         // existence of a permission record runs nothing by itself.

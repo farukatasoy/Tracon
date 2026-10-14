@@ -219,6 +219,7 @@ internal sealed class WorkflowCatalog
             Nodes = definition.Nodes,
             Parameters = definition.Parameters,
             ResponseMode = definition.ResponseMode,
+            RequestTimeout = definition.RequestTimeout,
             Version = definition.Version,
             UpdatedAt = definition.UpdatedAt,
         };
@@ -232,5 +233,6 @@ internal sealed class WorkflowCatalog
             Description = registration.Description,
             Origin = AgentDefinitionOrigin.Code,
             ResponseMode = registration.ResponseMode,
+            RequestTimeout = registration.RequestTimeout,
         };
 }

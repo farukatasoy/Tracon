@@ -1721,6 +1721,25 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        decided_by, decided_at, expires_at, created_at, presentation;
             """;
 
+        // Phase 209 -- the workflow request inbox. The same close-and-read pattern as
+        // ExpirePendingApprovals: the outer WHERE repeats status = open, so of two statements
+        // that pick the same row the second waits on the row lock, re-reads it closed and
+        // returns nothing. There is NO tenant filter -- this is a maintenance operation.
+        SelectWorkflowRequests = BuildSelectWorkflowRequests("OFFSET @skip LIMIT @take;");
+
+        ExpireWorkflowRequests = $"""
+            UPDATE {Schema}.workflow_requests AS w
+               SET status = @status_closed, closed_at = @now
+             WHERE (w.run_id, w.request_id) IN (
+                       SELECT run_id, request_id FROM {Schema}.workflow_requests
+                        WHERE status = @status_open AND expires_at IS NOT NULL AND expires_at <= @now
+                        ORDER BY expires_at ASC
+                        LIMIT @max
+                   )
+               AND w.status = @status_open
+            RETURNING {WorkflowRequestColumns};
+            """;
+
         // -------------------------------------------------------------------
         // Phase 65 -- tenant provider bindings (BYOK) and egress policy
         // -------------------------------------------------------------------
