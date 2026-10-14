@@ -508,11 +508,11 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
 
         // A stored agent with two versions: only a stored agent keeps versions.
-        foreach (var (verb, instructions) in new[] { ("POST", "first text"), ("PUT", "second text") })
+        foreach (var (create, instructions) in new[] { (true, "first text"), (false, "second text") })
         {
             using var request = new HttpRequestMessage(
-                verb == "POST" ? HttpMethod.Post : HttpMethod.Put,
-                verb == "POST" ? "api/agents" : "api/agents/scribe")
+                create ? HttpMethod.Post : HttpMethod.Put,
+                create ? "api/agents" : "api/agents/scribe")
             {
                 Content = JsonContent.Create(new
                 {
