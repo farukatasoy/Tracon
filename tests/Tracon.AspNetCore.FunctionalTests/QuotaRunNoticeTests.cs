@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
@@ -125,9 +127,73 @@ public sealed class QuotaRunNoticeTests
         secondFrames.ShouldNotContain(static frame => string.Equals(frame.Event, "custom", StringComparison.Ordinal));
     }
 
-    private static Task<TraconTestHost> StartAsync(bool publishToRunStream, IReadOnlyList<int>? thresholdPercents = null)
+    [Fact]
+    public async Task Truncation_and_quota_notices_arrive_in_record_order_before_done()
+    {
+        // Phase 207: the truncation notice is written while the run streams, the
+        // quota notice when it closes, so the record order is truncation first.
+        // The root crosses its OWN threshold here (phase 205: a child's notice
+        // goes to the child's stream, never to this one).
+        var provider = new FinishReasonModelProvider()
+            .Text("The first half of a long ans", ChatFinishReason.Length, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await StartAsync(
+            publishToRunStream: true,
+            configureTracon: builder => builder
+                .AddModelProvider(provider)
+                .AddAgent(OutputTruncationTests.PlainText(maxOutputTokens: 50)));
+        await CreateQuotaAsync(host, maxRuns: 1, OutputTruncationTests.AgentName);
+
+        using var response = await PostRunAsync(host, OutputTruncationTests.AgentName);
+        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
+
+        var notices = new List<string?>();
+
+        foreach (var frame in frames.Where(static frame => string.Equals(frame.Event, "custom", StringComparison.Ordinal)))
+        {
+            using var data = JsonDocument.Parse(frame.Data);
+            notices.Add(data.RootElement.GetProperty("customType").GetString());
+        }
+
+        notices.ShouldBe([RunEventCustomTypes.OutputTruncated, RunEventCustomTypes.QuotaThreshold]);
+        frames[^1].Event.ShouldBe("done");
+    }
+
+    [Fact]
+    public async Task A_store_failure_while_reading_the_notices_still_ends_the_stream_with_done()
+    {
+        // Observability does not break functionality: the run already completed,
+        // and a store that cannot serve its notices must not turn the stream into
+        // an 'error'. Before phase 207 it did.
+        await using var host = await StartAsync(
+            publishToRunStream: true,
+            configureTracon: static builder =>
+            {
+                builder.AddAgent(TestData.Definition());
+                builder.Services.ThrowFrom<IRunStore>(
+                    nameof(IRunStore.ReadEventsAsync),
+                    static () => new InvalidOperationException("the events table is unavailable"));
+            });
+        await CreateQuotaAsync(host, maxRuns: 1);
+
+        using var response = await PostRunAsync(host);
+        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
+
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "custom", StringComparison.Ordinal));
+        frames[^1].Event.ShouldBe("done");
+
+        host.Logs.Entries.ShouldContain(static entry =>
+            entry.StartsWith("Warning", StringComparison.Ordinal)
+            && entry.Contains("the events table is unavailable", StringComparison.Ordinal));
+    }
+
+    private static Task<TraconTestHost> StartAsync(
+        bool publishToRunStream,
+        IReadOnlyList<int>? thresholdPercents = null,
+        Action<ITraconBuilder>? configureTracon = null)
         => TraconTestHost.StartAsync(
-            configureTracon: static builder => builder.AddAgent(TestData.Definition()),
+            configureTracon: configureTracon ?? (static builder => builder.AddAgent(TestData.Definition())),
             configureServices: services => services.Configure<TraconQuotaOptions>(options =>
             {
                 options.PublishThresholdToRunStream = publishToRunStream;
@@ -143,18 +209,18 @@ public sealed class QuotaRunNoticeTests
                 }
             }));
 
-    private static Task<HttpResponseMessage> PostRunAsync(TraconTestHost host)
+    private static Task<HttpResponseMessage> PostRunAsync(TraconTestHost host, string agentName = "kod-agent")
         => host.Client.PostAsJsonAsync(
-            new Uri("/tracon/api/agents/kod-agent/run", UriKind.Relative),
+            new Uri($"/tracon/api/agents/{agentName}/run", UriKind.Relative),
             new AgentRunRequest { Message = "merhaba" });
 
-    private static async Task CreateQuotaAsync(TraconTestHost host, long maxRuns)
+    private static async Task CreateQuotaAsync(TraconTestHost host, long maxRuns, string agentName = "kod-agent")
     {
         using var response = await host.Client.PutAsJsonAsync(
             Quotas,
             new QuotaSaveRequest
             {
-                AgentName = "kod-agent",
+                AgentName = agentName,
                 Period = QuotaPeriod.Daily,
                 MaxRuns = maxRuns,
                 Enabled = true,

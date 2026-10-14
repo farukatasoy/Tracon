@@ -247,6 +247,12 @@ public static partial class TraconServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<CanaryOptions>, CanaryOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconContentProtectionOptions>, TraconContentProtectionOptionsValidator>());
+
+        // F-247: outside the configuration branch on purpose. An undefined
+        // MaskedPii bit is refused whatever its source - configuration or an
+        // AddPatternContentGuard(...) callback.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<PatternContentGuardOptions>, PatternContentGuardOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconRunContinuationOptions>, TraconRunContinuationOptionsValidator>());
         services.TryAddEnumerable(

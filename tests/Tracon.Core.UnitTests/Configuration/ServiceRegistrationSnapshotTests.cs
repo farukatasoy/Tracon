@@ -113,6 +113,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.TraconApprovalOptions] | Singleton | Tracon.TraconApprovalOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.CanaryOptions] | Singleton | Tracon.CanaryOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.TraconContentProtectionOptions] | Singleton | Tracon.TraconContentProtectionOptionsValidator",
+        "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.PatternContentGuardOptions] | Singleton | Tracon.PatternContentGuardOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.TraconRunContinuationOptions] | Singleton | Tracon.TraconRunContinuationOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.TraconDrainOptions] | Singleton | Tracon.TraconDrainOptionsValidator",
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.TraconImageOptions] | Singleton | Tracon.TraconImageOptionsValidator",

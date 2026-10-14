@@ -860,6 +860,10 @@ diyor.
 > bir numara yeniden tahsis edilemez. Gövdeli bir kalem kapanırsa gövdesi
 > tablonun altına eklenir.
 
+**Kusur giderme turlarının geçmişi** ([`../ADAYLAR.md`](../ADAYLAR.md) § *Kusur giderme*'den taşındı, 2026-10-14, Faz 206 kapanışı — bütçe):
+
+2026-10-12'de üç tur kapandı: önce 🟠 kalemler (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile), sonra 🟡 kalemler (F-315, F-332…F-340, F-348, F-349, F-351, F-352; K-892…K-896), sonra tüketici turunun kusurları (F-341…F-344, F-354, F-360, F-364…F-367, F-369…F-372; K-903…K-911). F-382 bu turun kendi ölçümüdür; F-386…F-404 kapanan kusurların sınıf taramalarından gelir. 2026-10-13'te F-383, F-384, F-385 ve F-388 kapandı (K-912, K-913); sınıf taramaları ve bağımsız inceleme F-416…F-419'u açtı. Faz 201 kapanışında F-423 (kapıyı kıran test yarışı) açıldı ve kapandı. Faz 198 kapanışı (konuşma kapısının sınıf taraması ve denetimi) F-441…F-446'yı açtı. Aynı gün ölçümlü aciliyet turu F-431, F-432, F-401, F-387 ve F-416'yı kapattı (K-933…K-936), F-400'ü daralttı, F-418'i faz planlamaya taşıdı, F-291'i kusur kanalına aldı ve sınıf taramasından F-447'yi açtı. İkinci tur F-382, F-386, F-389, F-396, F-400, F-361, F-291 ve F-447'yi kapattı (K-937…K-941); F-389'un sınıf taraması F-448'i açtı. 2026-10-14'te F-398, F-419, F-448, F-433, F-391, F-350 ve F-481 kapandı (K-975…K-981); sınıf taramaları F-485…F-487'yi açtı. Aynı gün ikinci tur F-429, F-353, F-442, F-444, F-426, F-430, F-356, F-393, F-484 ve F-443'ü kapattı (K-982…K-986); sınıf taramaları F-488…F-490'ı, bağımsız inceleme F-491'i açtı. F-418 ve F-482 Faz 205'e dönüştü (planlandı). Kapanan kalemlerin kaydı bu bölümdedir.
+
 | Kalem | Kapanış | Kanıt |
 |---|---|---|
 | **F-268** · `ExperimentTests` yük altında kırılgandı: sürüm alanı `<select>` olmadan seçiliyordu | 2026-09-24, Faz 189 kapanışı | Tam kapanış koşumunda yeniden düştü ("Element is not a <select> element"). Test artık `ToHaveJSPropertyAsync("tagName", "SELECT")` bekler (`tests/Tracon.Ui.E2ETests/Ui/ExperimentTests.cs`); ikinci tam koşum (17.846 test) yeşil. Tuzak: `hafiza/frontend-test-altyapisi.md` |

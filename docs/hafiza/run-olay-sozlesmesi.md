@@ -144,3 +144,5 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   `SessionlessApprovalRun`'dan geçer (öğe/vaka hatası + run `Failed`). Açık sınıf
   üyesi: `/v1/chat/completions` oturumsuz onayda `200` + boş içerik döner (F-448).
   Kanıt fonksiyonel testtir: iş durumu ile run satırı iki ayrı yerde yazılır.
+- **🚨 Yeni ayrılmış `CustomType` canlı ajan akışına kendiliğinden girmez** (2026-10-14, Faz 207, K-991): `RunNoticeMirror.IsMirrored` kapalı bir listedir ve depo yalnız kota seçeneği açıksa ya da bir `update` kesilme sebebi taşıdıysa okunur. Yeni bildirim listeye ve kapıya birlikte girer; yalnız listeye eklenen tip kapı açılmayan run'da hiç okunmaz. Liste değişikliği tel sözleşmesidir (uç açıklaması + dört üretilmiş yapıt).
+- **"Bildirim yok" iddiası yalnız bildirimi üretebilen yapılandırmada bir şey kanıtlar** (Faz 207 denetimi 🟡1): yapılandırılmış agent kesilmede istisna atar, olay yazmaz; "ara tool turu çerçeve üretmez" iddiası orada hiç kırmızı olamazdı. Düz metin ikizi mutasyonla (dedektör "ilk kesilme sebebi kalır") kırmızıya döndü.

@@ -56,6 +56,57 @@ public sealed class OutputTruncationToolTurnTests
         var frames = await PostStreamingAsync(host);
 
         frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        frames[^1].Event.ShouldBe("done");
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        provider.Calls.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Streamed_plain_text_run_whose_intermediate_tool_turn_hit_the_limit_sends_no_notice()
+    {
+        // Phase 207: the plain-text twin of the case above. A structured agent can
+        // never get a notice frame (a cut structured answer throws instead), so only
+        // a plain-text agent proves the rule: the tool turn's 'length' opens the
+        // endpoint's notice scan, but the detector judges only the final turn and
+        // writes no event, so the scan finds nothing.
+        var provider = new FinishReasonModelProvider()
+            .ToolCall(ToolName, ChatFinishReason.Length, inputTokens: 20, outputTokens: 100)
+            .Text("The answer is 42.", ChatFinishReason.Stop, inputTokens: 30, outputTokens: 10);
+
+        await using var host = await StartAsync(
+            provider, PlainText(maxOutputTokens: 100, toolNames: [ToolName]), configureTracon: AddTool);
+
+        var frames = await PostStreamingAsync(host);
+
+        frames.ShouldNotContain(static frame => string.Equals(frame.Event, "error", StringComparison.Ordinal));
+        OutputTruncationStreamingTests.CustomFrames(frames).ShouldBeEmpty();
+        frames[^1].Event.ShouldBe("done");
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.Completed);
+        provider.Calls.ShouldBe(2);
+        (await EventsAsync(host, run.Id)).ShouldNotContain(static e => string.Equals(e.CustomType, RunEventCustomTypes.OutputTruncated, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_streamed_plain_text_final_turn_at_the_limit_after_a_tool_turn_sends_one_notice()
+    {
+        var provider = new FinishReasonModelProvider()
+            .ToolCall(ToolName, ChatFinishReason.ToolCalls, inputTokens: 20, outputTokens: 10)
+            .Text("The answer is 42, beca", ChatFinishReason.Length, inputTokens: 30, outputTokens: 100);
+
+        await using var host = await StartAsync(
+            provider, PlainText(maxOutputTokens: 100, toolNames: [ToolName]), configureTracon: AddTool);
+
+        var frames = await PostStreamingAsync(host);
+
+        var notice = OutputTruncationStreamingTests.CustomFrames(frames).ShouldHaveSingleItem();
+        notice.Data.ShouldContain(RunEventCustomTypes.OutputTruncated, Case.Sensitive);
+        frames[^1].Event.ShouldBe("done");
 
         var run = await SingleRunAsync(host);
 

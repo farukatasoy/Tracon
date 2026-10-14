@@ -211,6 +211,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Tracon:Retention:IdempotencyKeys` is now bound from configuration. Its `MaxAgeDays`
+  and `Archive` keys were ignored and the target kept its one-day default; only code
+  (`Configure<TraconRetentionOptions>`) could change it. A configuration that sets
+  them now takes effect, and `MaxAgeDays` below 1 fails startup like every other
+  target.
+- `/v1/chat/completions` now reports why the answer ended. `finish_reason` was always
+  `"stop"`, so an OpenAI SDK caller could not tell a cut-off answer from a complete
+  one. **Behavior change:** an answer the model stopped at its output token limit or
+  at its context window is `"length"`, and an answer a content filter cut off after
+  it produced text is `"content_filter"`, on the JSON response and on the last chunk
+  of the stream (`data: [DONE]` still ends it). The value comes from the answer's
+  final model call; a tool turn's reason is never reported, and run recording does
+  not need to be on. A filtered answer with no content still fails with `502`
+  (`error` on the stream), and a cut-off structured answer still fails as before.
+- A failed read of the quota threshold notice no longer fails the agent run's stream.
+  With `TraconQuotaOptions.PublishThresholdToRunStream` on, a run store error while
+  the stream read the notice back ended the stream of a completed run with an
+  `error` frame. **Behavior change:** the stream now logs a warning and ends with
+  `done`, without the notice; the notice stays on `GET /api/runs/{id}/events`.
 - A tenant's quota now counts what a call tree spends after its root run ended. The root
   read its tree from the run store once, while its own row closed, so a child agent still
   running in the background at that moment (a root that starts a task and answers without
@@ -821,6 +840,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   answer started, says when a one-answer workflow refused a different answer, and has a
   "One answer per request" switch in the workflow editor and the version comparison.
 
+- The live stream of an agent run (`POST /api/agents/{name}/run` without
+  `Idempotency-Key`) now says when the answer was cut off. A plain-text answer the
+  model stopped at its output token limit or at its context window completes, and
+  its `tracon.output.truncated` event (`RunEventCustomTypes.OutputTruncated`) was
+  only on `GET /api/runs/{id}/events`; a client that read the live stream took the
+  partial answer for a complete one. The stream now sends that event as a `custom`
+  frame right before `done`, always, with the same data `/events` serves. Each
+  recorded event is one frame: a harness loop whose iterations were cut sends more
+  than one, and a tool turn cut off in the middle of the run sends none. With the
+  quota notice on, both notices arrive in record order. A client that reads frames
+  by name and ignores unknown `customType` values needs no change. No event, and so
+  no frame, is written while run recording is off.
 - `TraconFinishReasons.ContextWindowExceeded`: the finish reason a model provider
   reports when the conversation and the answer filled the model's context window.
   Tracon treats it as a cut-off answer and names the window.
@@ -1218,6 +1249,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   as before except one that passes a literal `null` as the third argument, which is now
   ambiguous; leave the argument out instead.
 
+- **Behavior change:** a configuration entry Tracon cannot read now stops the
+  application at startup instead of being dropped without a word. Four settings
+  change:
+  - `Tracon:Quotas:ThresholdPercents` and `Tracon:Webhooks:RetryDelays`: an entry that
+    is not a number (a `TimeSpan` for the delays), or that is zero or below, was
+    skipped, so the list came out shorter than written. It now fails startup and the
+    message names the key and quotes the entry (`ThresholdPercents[1] is '9O'`).
+  - `Tracon:ContentProtection:Columns`: an entry that is not one `ProtectedColumn`
+    name — a misspelling, an empty entry, an undefined number, or two names joined by
+    a comma, which was read as a third column — was skipped, and the column you meant
+    stayed in plain text. It now fails startup and the message quotes the entry.
+  - `Tracon:ContentProtection:Keys`: an entry with an empty configuration key name was
+    skipped. It now fails startup and the message names the key id.
+  - `Tracon:ContentGuard:Pattern:MaskedPii`: one misspelled name (`"Emial,CreditCard"`)
+    turned PII masking off for the whole list, and a number with an undefined bit was
+    accepted. It now fails startup and the message quotes the value. An empty value
+    still means no pattern.
+
+  The `Columns` and `Keys` checks run while content protection is off too: an old
+  encrypted row is still read through `Keys`. A value that code sets for the same
+  member after binding replaces the configured one and clears the error. An undefined
+  `ProtectedColumn` or `PiiPatterns` value set in code (for example
+  `options.MaskedPii = (PiiPatterns)64` in `AddPatternContentGuard`) now fails startup
+  as well.
 - **Behavior change:** a workflow run that waits to be resumed keeps the definition version
   it recorded. Before, `resume` and `respond` compiled the current definition: an edit made
   while the run waited changed its settings, timeouts and parameter schema without notice, and a

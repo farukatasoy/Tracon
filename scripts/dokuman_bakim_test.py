@@ -2124,6 +2124,9 @@ class SurecOlcumuTestleri(unittest.TestCase):
         """Faz 191: plan anındaki kapsam sınırı; iki yazımı da düşer."""
         for ad in ("Kapsam Dışı", "Kapsam dışı"):
             self.assertTrue(dokuman_bakim._duser_mu(ad, ad), ad)
+        # Faz 206: plan şablonunun tire ekli başlığı da aynı plan bölümüdür.
+        ad = "Kapsam dışı — kapanışta aday açılır"
+        self.assertTrue(dokuman_bakim._duser_mu(ad, ad), ad)
         self.assertFalse(dokuman_bakim._duser_mu("Kapsam dışı kalan işler", "Kapsam dışı kalan işler"))
 
 

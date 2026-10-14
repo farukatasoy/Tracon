@@ -37,6 +37,7 @@ public sealed class OptionsSectionCoverageTests
         sections.Count.ShouldBeGreaterThan(20);
 
         var testClassNames = typeof(OptionsSectionCoverageTests).Assembly.GetTypes()
+            .Where(CountsAsBindingTest)
             .Select(static type => type.Name)
             .ToHashSet(StringComparer.Ordinal);
 
@@ -68,6 +69,34 @@ public sealed class OptionsSectionCoverageTests
             customMessage: $"The options-section coverage baseline is stale.{Environment.NewLine}" +
                            string.Join(Environment.NewLine, failures));
     }
+
+    [Fact]
+    public void An_empty_binding_test_class_does_not_count()
+    {
+        CountsAsBindingTest(typeof(EmptyBindingTests)).ShouldBeFalse();
+
+        // A class with a test method counts. A private nested class cannot carry
+        // [Fact] (xUnit1000 is an error), so the class under test stands in.
+        CountsAsBindingTest(typeof(OptionsSectionCoverageTests)).ShouldBeTrue();
+
+        // Measured in xunit.v3 3.2.2: TheoryAttribute derives from FactAttribute,
+        // so one check counts a [Theory]-only class too. If that ever changes,
+        // this line fails before a [Theory]-only binding test class goes uncounted.
+        typeof(TheoryAttribute).IsSubclassOf(typeof(FactAttribute)).ShouldBeTrue();
+    }
+
+    /// <summary>Whether a type in this assembly counts as the binding test its name promises.</summary>
+    /// <remarks>
+    /// The name alone used to be enough: an empty <c>{Type}BindingTests</c> class
+    /// took a section off the baseline while proving nothing. A class counts only
+    /// when it carries at least one test method.
+    /// </remarks>
+    internal static bool CountsAsBindingTest(Type type)
+        => type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+            .Any(static method => method.IsDefined(typeof(FactAttribute), inherit: true));
+
+    /// <summary>A binding test class in name only: it proves nothing.</summary>
+    private sealed class EmptyBindingTests;
 
     private static string RepositoryRoot { get; } = FindRepositoryRoot();
 

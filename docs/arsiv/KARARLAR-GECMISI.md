@@ -6541,3 +6541,14 @@ Sürdürme adaptörün hemen üstündedir (`AnthropicStopReasonChatClient`); her
 
 Upsert ve sekiz depo buradan geçer. İstisnalar `SqlTransactionSiteTests`'te gerekçelidir: migration kendi tekrarını yapar (K-540), veri sahibi silmesi dış içerik siler (tekrarı güvenli değil), `PgVectorSearchStore` kendi veri kaynağını kullanır (F-488). Ölçüldü: deterministik döngüde upsert 1205 ile düşüyordu; şimdi ikinci denemede bir kez yazar.
 
+### K-991
+
+Kayıt ikinci kez okunur (Faz 146 tasarım b genelleşti, `RunNoticeMirror`); çerçeve kayıtla bayt bayt aynıdır. Kapının öncülü ölçüldü (2026-10-14, MAF 1.20.0): MAF `ChatResponseUpdate.FinishReason`'ı `AgentResponseUpdate`'e kopyalar ve son `update` çerçevesi `"finishReason":"length"` taşır (`OutputTruncationStreamingTests.The_last_update_frame_carries_the_model_finish_reason`; Faz 204'ün "taşımaz" kaydı yanlıştı). Bayrak "herhangi bir güncelleme"dir: ara tool turu kesilmesi bir okuma maliyetidir, yanlış negatif olmaz. Okuma yazmadan önce biter; yarıda düşen okuma hiçbir bildirim göndermez. Run kaydı kapalıyken olay da çerçeve de yoktur (Açık Soru 1-A). Uç açıklaması sözleşmeyi yazar (Açık Soru 2-A, dört üretilmiş yapıt). Gerçek Anthropic koşumunda çerçeve `/events` ile `cmp` aynı.
+
+### K-992
+
+Eşleme tek yüklemi kullanır (`FinishReasonDetectingChatClient.IsTruncated`, `OpenAICompatSupport.ToChatFinishReason`). Akış son null-olmayan `update.FinishReason`'ı tutar; yalnız son parça alanı taşır, `[DONE]` son satırdır. Akışsız kol `AgentResponse.FinishReason`'ı okur; düz metin ve harness `Loop` agent'ında korunduğu ölçüldü (denetim 🟡2). `ToolCalls` `"stop"`'tur çünkü tool'lar sunucuda koşar. Boş filtrelenmiş yanıt `502` kalır. Responses (`/v1/responses`) kesik yanıtı hâlâ `completed` döner (ölçüldü) — F-503.
+
+### K-993
+
+F-385'in koleksiyon kuralı (okunamayan değer `0` bağlanır ki doğrulayıcı adlandırsın) dört bağlayıcıya genişledi. Bakımcı kapsamı 2026-10-14'te verdi; Açık Soru 2-A ("kod kazanır") Scheduling emsaliyle tutarlıdır ve örnek uygulama `MaskedPii`'yi kodda yazdığı için zorunludur. `Enabled`'dan bağımsızlık ölçüme dayanır: anahtar çözümü (`AesGcmContentProtector.LoadKey`) `Enabled`'a bakmaz, koruma kapalıyken eski şifreli satır `Keys` ile okunur. Virgüllü `Columns` girdisi de okunamaz sayılır: `Enum.TryParse` bayrak olmayan enumda da OR'lar, `"RunInput,ToolArguments"` `AgentFileContent` bağlanıyordu (mutasyonla kanıtlandı). Ham metin taşıyıcıları `internal`'dır (`UnreadableColumns`, `UnreadableMaskedPii`, `UnreadableThresholdPercents`, `UnreadableRetryDelays`); public API büyümedi, AOT temiz (`Enum.TryParse<T>`, `Enum.IsDefined<T>`, `Enum.GetValues<T>`). Preview'da serbest davranış değişikliğidir; `CHANGELOG` `Changed` dört anahtarı adıyla yazar. GA'dan (K-603) sonra aynı değişiklik bir sürüm kararı olurdu. Kapsam dışı: skaler/enum yazım hatası ve liste anahtarına tek değer (F-508), `MaxAgeDays` `null`'ı (F-513).
