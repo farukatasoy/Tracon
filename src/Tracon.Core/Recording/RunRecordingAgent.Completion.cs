@@ -154,19 +154,22 @@ public sealed partial class RunRecordingAgent
         // row closes — and a threshold notice appended AFTER the terminal
         // event would never land inside this run's own append-only stream:
         // by the time a reader sees the terminal event, it has stopped
-        // reading. Only a root run accounts (the same Depth == 0 gate as
-        // the block below); RecordQuotaAsync itself never throws
+        // reading. RecordQuotaAsync itself never throws
         // (QuotaEnforcer.RecordAsync's contract) so this cannot fail the run.
-        // F-383: a root counts its whole call tree, once, in the quota entry and
-        // in its run.* webhook. Read once here, before the root's row closes.
-        var treeConsumption = scope.Depth == 0
-            ? await ReadTreeConsumptionAsync(scope, usage, cost, nonTokenCost, cancellationToken).ConfigureAwait(false)
-            : default;
+        // F-418: EVERY run in the tree writes its own consumption, when it ends,
+        // under the root's tenant and name. The root used to write the whole tree
+        // once, from the run store, while its own row closed; a background child
+        // that had not ended by then had no usage on its row and was never counted.
+        var own = OwnConsumption(usage, cost, nonTokenCost);
 
-        if (scope.Depth == 0)
-        {
-            await RecordQuotaAsync(scope, treeConsumption, cancellationToken).ConfigureAwait(false);
-        }
+        await RecordQuotaAsync(scope, own, cost, nonTokenCost, cancellationToken).ConfigureAwait(false);
+
+        // The run.* webhook is the other reader of the call tree (F-383): a root
+        // publishes the tree as it stands when the root closes. Read once here,
+        // before the root's row closes.
+        var treeConsumption = scope.Depth == 0
+            ? await ReadTreeConsumptionAsync(scope, own, cancellationToken).ConfigureAwait(false)
+            : default;
 
         await scope.Writer.CompleteAsync(
             status,
@@ -193,10 +196,8 @@ public sealed partial class RunRecordingAgent
         // every tree's spend.
         var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
 
-        // 🚨 Event publication runs ONLY on a root run (quota accounting above shares the
-        // same gate). A child run is part of the same user request; if it were counted
-        // separately, an agent tree would consume the quota as fast as its depth, and a
-        // separate run.completed event would be emitted for every node.
+        // 🚨 Event publication runs ONLY on a root run. A child run is part of the same
+        // user request; a separate run.completed event would be emitted for every node.
         if (scope.Depth == 0)
         {
             await PublishRunEventAsync(scope, status, treeConsumption, error, elapsed, modelId, cancellationToken).ConfigureAwait(false);

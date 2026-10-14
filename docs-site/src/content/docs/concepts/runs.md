@@ -88,7 +88,9 @@ how many there are: `treeCost` and `treeNonTokenCost` on a run, the totals of
 own), every point of `GET /api/stats/timeseries`, an experiment arm, and the judge cost of
 the online evaluation window. Each run keeps its own `cost`. Letter case is not a second
 currency. The tenant's quota and the root's `run.completed` webhook then count what a single
-currency can say: an agent root its own cost, a workflow root nothing beyond tokens. The
+currency can say: the quota counts the root's own cost and the cost of every child run
+priced in `Tracon:Pricing:Currency` (a child in another currency adds its tokens only),
+and the webhook counts the root's own cost. The
 built-in pricing prices every run in `Tracon:Pricing:Currency`, so more than one currency
 comes from a custom `IRunPricingResolver` or from a currency setting changed over time. The
 console shows *mixed currencies* where the number would be. `GET /api/runs/{runId}/usage` lists the items
