@@ -1925,7 +1925,7 @@
           "Workflows"
         ],
         "summary": "Creates or updates a workflow definition.",
-        "description": "The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind \u2014 a manager driven workflow needs its manager agent, for example. A function node\u0027s \u0027settings\u0027 must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node\u0027s \u0027timeout\u0027 (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run\u0027s timeout. \u0027runTimeout\u0027 bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name \u0027functions\u0027 is reserved (400): GET /api/workflows/functions uses it.",
+        "description": "The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind \u2014 a manager driven workflow needs its manager agent, for example. A function node\u0027s \u0027settings\u0027 must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node\u0027s \u0027timeout\u0027 (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run\u0027s timeout. An agent node\u0027s \u0027agentVersion\u0027 pins the step to that version of the agent; it must be 1 or more, only an agent node may carry one, and the agent must have that version (an agent defined in code keeps no versions): anything else is refused with 400. \u0027runTimeout\u0027 bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name \u0027functions\u0027 is reserved (400): GET /api/workflows/functions uses it. Every save appends a version rather than overwriting; the previous content stays readable through GET /api/workflows/{name}/versions.",
         "operationId": "TraconSaveWorkflow",
         "parameters": [
           {
@@ -2011,6 +2011,188 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WorkflowGraph"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tracon/api/workflows/{name}/versions": {
+      "get": {
+        "tags": [
+          "Tracon",
+          "Workflows"
+        ],
+        "summary": "Lists a workflow definition\u0027s version history, newest first.",
+        "description": "Every entry is a full definition snapshot, not a delta, so a single entry is enough to inspect or restore a past state. The workflow must have a current stored definition; a deleted name returns 404 even though its versions are kept (a version number is never reused). A workflow defined in code also returns 404, with a reason that says so: it is not stored by Tracon and has no version history. The \u0027version\u0027 of a run\u0027s row is the version it was compiled from.",
+        "operationId": "TraconListWorkflowVersions",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowDefinition"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tracon/api/workflows/{name}/rollback": {
+      "post": {
+        "tags": [
+          "Tracon",
+          "Workflows"
+        ],
+        "summary": "Writes a workflow definition as a new version with the content of a previous version.",
+        "description": "A rollback moves forward, not backward: the old content is appended as a NEW version and the history is never rewritten, so the rollback itself stays auditable (\u0027workflow.rollback\u0027) and can be rolled back in turn. The content is checked the way a save is: a version that names a function that is no longer registered, or an agent version that no longer exists, is refused with 400 and nothing is written. An unknown version number returns 404; a workflow defined in code returns 409. A run that is waiting keeps the version it recorded, so a rollback does not change what it resumes with.",
+        "operationId": "TraconRollbackWorkflow",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowRollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowDefinition"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tracon/api/workflows/{name}/versions/{a}/diff/{b}": {
+      "get": {
+        "tags": [
+          "Tracon",
+          "Workflows"
+        ],
+        "summary": "Returns two definition versions as raw JSON; the diff is computed in the UI.",
+        "description": "The server does no diffing and takes no position on how a change should be displayed; it returns both snapshots verbatim as \u0027left\u0027 and \u0027right\u0027 so the client chooses the presentation. The two version numbers may be given in any order. When either version is missing the response is 404 and names the one that was not found; a workflow defined in code returns 404 saying it has no version history.",
+        "operationId": "TraconGetWorkflowVersionDiff",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "a",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "b",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowVersionDiffResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2174,7 +2356,7 @@
           "Workflows"
         ],
         "summary": "Resumes from a checkpoint and streams events over SSE, or queues it with \u0027Prefer: respond-async\u0027.",
-        "description": "Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional \u2014 without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run\u0027s id; a denial returns 403 before any run row is opened. With \u0027Prefer: respond-async\u0027 the resume is queued and answered with \u0027202 Accepted\u0027, like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027.",
+        "description": "Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional \u2014 without a checkpoint id the run resumes from its latest checkpoint. The run resumes with the version of the workflow\u0027s definition that it recorded (\u0027version\u0027 of its row), so an edit made while it waited changes nothing; \u0027definitionVersion\u0027 names another stored version, and a version the workflow does not have is 400, never a silent fall-back to the current one. A version whose graph differs from the checkpoint\u0027s fails the run with \u0027the graph\u0027s structure differs\u0027. A run that recorded no version resumes with the current definition. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run\u0027s id; a denial returns 403 before any run row is opened. With \u0027Prefer: respond-async\u0027 the resume is queued and answered with \u0027202 Accepted\u0027, like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027.",
         "operationId": "TraconResumeWorkflow",
         "parameters": [
           {
@@ -2324,7 +2506,7 @@
           "Workflows"
         ],
         "summary": "Responds to a pending request and resumes the run, streamed or queued with \u0027Prefer: respond-async\u0027.",
-        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE \u2014 so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run\u0027s id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. With \u0027Prefer: respond-async\u0027 it is then queued: the reply is \u0027202 Accepted\u0027 and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027.",
+        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE \u2014 so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run\u0027s id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow\u0027s definition it recorded, or with the stored version \u0027definitionVersion\u0027 names (a version the workflow does not have is 400). With \u0027Prefer: respond-async\u0027 it is then queued: the reply is \u0027202 Accepted\u0027 and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027.",
         "operationId": "TraconRespondWorkflowRequest",
         "parameters": [
           {
@@ -18768,7 +18950,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the definition version. Increments by one on every save.",
+            "description": "Gets the definition version. Increments by one on every save and is never\nreused: the store keeps every version (see IWorkflowDefinitionStore).",
             "format": "int32"
           },
           "updatedAt": {
@@ -19071,6 +19253,16 @@
               "string"
             ],
             "description": "Gets the longest time one call of this node may take. \u0060null\u0060\n(the default) uses the node\u0027s default: the timeout its function was registered\nwith, or the installation\u0027s \u0060Tracon:AgentGraph:ChildDeadline\u0060 for an agent\nnode."
+          },
+          "agentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the version of the agent this step runs. \u0060null\u0060 (the default)\nruns the agent\u0027s current version, resolved each time the step runs.",
+            "format": "int32"
           }
         },
         "description": "Points to a single node entering a workflow\u0027s graph: an agent from the\ncatalog, or a function registered in code."
@@ -19180,6 +19372,16 @@
               "string"
             ],
             "description": "Identifier of the checkpoint to resume. If left empty, the run\u0027s most\nrecent checkpoint is used."
+          },
+          "definitionVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The version of the workflow\u0027s stored definition to continue with. Leave it out to\ncontinue with the version the waiting run recorded. See\nint? WorkflowResumeHttpRequest.DefinitionVersion.",
+            "format": "int32"
           }
         },
         "description": "Response to a pending human input request."
@@ -19193,9 +19395,37 @@
               "string"
             ],
             "description": "Identifier of the checkpoint to resume from. If left empty, the run\u0027s\nmost recent checkpoint is used."
+          },
+          "definitionVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The version of the workflow\u0027s stored definition to resume with. Leave it out to\nresume with the version the run recorded, so an edit made while the run waited does\nnot change what resumes.",
+            "format": "int32"
           }
         },
         "description": "Request to resume a workflow from a checkpoint."
+      },
+      "WorkflowRollbackRequest": {
+        "required": [
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Version number to roll back to.",
+            "format": "int32"
+          }
+        },
+        "description": "Request to roll a workflow definition back to a previous version."
       },
       "WorkflowRunHttpRequest": {
         "type": "object",
@@ -19316,6 +19546,24 @@
           }
         },
         "description": "Request to save a workflow definition."
+      },
+      "WorkflowVersionDiffResponse": {
+        "required": [
+          "left",
+          "right"
+        ],
+        "type": "object",
+        "properties": {
+          "left": {
+            "description": "Left (usually older) side of the comparison.",
+            "$ref": "#/components/schemas/WorkflowDefinition"
+          },
+          "right": {
+            "description": "Right (usually newer) side of the comparison.",
+            "$ref": "#/components/schemas/WorkflowDefinition"
+          }
+        },
+        "description": "Raw JSON response for comparing two workflow definition versions. The diff is not\ncomputed on the server; the client compares the two definitions field by field."
       }
     },
     "securitySchemes": {
