@@ -36,9 +36,12 @@ public interface IModelProviderRegistry
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The chat client.</returns>
     /// <exception cref="TraconException">
-    /// No provider is registered with the name in <see cref="ModelBinding.Provider"/>,
-    /// the tenant's egress policy does not allow the provider, or the
-    /// tenant's provider binding cannot be resolved to a credential value.
+    /// No provider is registered with the name in <see cref="ModelBinding.Provider"/>.
+    /// </exception>
+    /// <exception cref="TraconTenantProviderRefusedException">
+    /// The tenant's egress policy does not allow the provider, the tenant's provider
+    /// binding cannot be resolved to a credential value, or the provider cannot take
+    /// a tenant's own credential.
     /// </exception>
     /// <remarks>
     /// When no tenant context is registered, or the tenant has no binding for
@@ -53,6 +56,12 @@ public interface IModelProviderRegistry
     /// <param name="binding">The model binding.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The chat client.</returns>
+    /// <exception cref="TraconException">
+    /// No provider is registered with the name in <see cref="ModelBinding.Provider"/>.
+    /// </exception>
+    /// <exception cref="TraconTenantProviderRefusedException">
+    /// The tenant's egress policy does not allow the provider.
+    /// </exception>
     ValueTask<IChatClient> CreateSetupChatClientAsync(
         ModelBinding binding,
         CancellationToken cancellationToken = default);

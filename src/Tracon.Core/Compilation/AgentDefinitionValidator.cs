@@ -331,7 +331,7 @@ internal sealed partial class AgentDefinitionValidator
 
             _ = await _compiler.CompileAsync(definition, callable, culture: null, cancellationToken).ConfigureAwait(false);
         }
-        catch (TraconCompilationException ex)
+        catch (TraconException ex) when (ex is TraconCompilationException or TraconTenantProviderRefusedException)
         {
             messages.Add(new ValidationMessage
             {

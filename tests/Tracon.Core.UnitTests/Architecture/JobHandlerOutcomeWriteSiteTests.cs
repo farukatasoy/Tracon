@@ -33,7 +33,7 @@ public sealed partial class JobHandlerOutcomeWriteSiteTests
         ["src/Tracon.Core/Approvals/ApprovalResumeJobHandler.cs"] =
             "the session save after the resumed run is tried again under the proven lease through QueuedTurn; past it the job fails with NonRetryableJobException and the run is not repeated (F-367)",
         ["src/Tracon.Core/Evaluation/EvalJobHandler.cs"] =
-            "the write that closes the run is outside the cases' try and goes through JobOutcomeWriteRetry (F-365); a per-case report error ends the attempt, as F-348 decided for batches",
+            "the write that closes the run is outside the cases' try and goes through JobOutcomeWriteRetry (F-365); so does the write that records a failed attempt, which must not replace the failure the worker judges (F-429); a per-case report error ends the attempt, as F-348 decided for batches",
         ["src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs"] =
             "a failed score write is compensated and the judge runs again on the retry - deliberate, a half-written set would freeze the checkpoint",
         ["src/Tracon.Core/Retention/RetentionJobHandler.cs"] =
@@ -49,7 +49,7 @@ public sealed partial class JobHandlerOutcomeWriteSiteTests
         ["src/Tracon.Core/Scheduling/WorkflowRunJobHandler.cs"] =
             "the engine closes the run; the handler's only read after it (the run's final status) is outside the run's try and a store error there completes the job instead of failing it, so the run is not repeated (F-318)",
         ["src/Tracon.Core/Webhooks/WebhookDeliveryJobHandler.cs"] =
-            "the writes after an accepted delivery go through JobOutcomeWriteRetry and never throw; a delivery that is no longer Pending is not sent again (F-366)",
+            "the writes after a send, accepted (F-366) or failed (F-393), go through JobOutcomeWriteRetry and never throw, so a failed send keeps its ladder delay; a delivery that is no longer Pending is not sent again",
     };
 
     [Fact]

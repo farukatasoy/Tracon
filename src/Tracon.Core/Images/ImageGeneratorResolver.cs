@@ -67,7 +67,7 @@ internal sealed class ImageGeneratorResolver
     /// <param name="tenantId">The tenant the images are generated for.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The generator.</returns>
-    /// <exception cref="TenantProviderRefusedException">
+    /// <exception cref="TraconTenantProviderRefusedException">
     /// The tenant's egress policy does not allow the image provider, or the tenant
     /// has its own credential for it. The generator was built with the setup
     /// credential and cannot use the tenant's; generating anyway would bill the
@@ -93,29 +93,20 @@ internal sealed class ImageGeneratorResolver
 
                 if (!TenantProviderAccess.IsAllowed(policy, providerName))
                 {
-                    throw new TenantProviderRefusedException(
-                        TenantProviderAccess.DescribeDenial(policy!, tenantId, providerName));
+                    throw new TraconTenantProviderRefusedException(
+                        TenantProviderAccess.DescribeDenial(policy!, tenantId, providerName, TenantProviderCallKind.Image));
                 }
             }
 
-            ModelProviderCredential? credential;
-
-            try
-            {
-                credential = await TenantProviderAccess
-                    .ResolveCredentialAsync(_providerBindings, _credentialResolver, tenantId, providerName, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (TraconException exception)
-            {
-                // A binding whose key has no value: the call does not fall back
-                // to the setup key either.
-                throw new TenantProviderRefusedException(exception.Message);
-            }
+            // A binding whose key has no value is refused there: the call does not
+            // fall back to the setup key either.
+            var credential = await TenantProviderAccess
+                .ResolveCredentialAsync(_providerBindings, _credentialResolver, tenantId, providerName, cancellationToken)
+                .ConfigureAwait(false);
 
             if (credential is not null)
             {
-                throw new TenantProviderRefusedException(
+                throw new TraconTenantProviderRefusedException(
                     $"Tenant '{tenantId}' has its own credential for '{providerName}', and the image generator " +
                     "cannot use it. The image is not generated on the setup credential.");
             }

@@ -1538,6 +1538,18 @@ names. A tenant with a policy is refused when that provider is not named, and a 
 with its own key for it is refused rather than billed to the host. See
 [the knowledge guide](/guides/knowledge/#register-the-two-required-dependencies).
 
+Every refusal, on every one of these paths, is the same exception,
+`TraconTenantProviderRefusedException`: error type `tenant_provider_refused`, class
+`TenantProviderRefused`, and a message that names the tenant and the kind of provider
+(`model provider`, `image provider`, `speech provider`, `embedding provider`,
+`live voice provider`). The image, speech and knowledge endpoints answer `403`. An
+agent run that the refusal stops before it starts answers `400`, and the message also
+names the agent. A workflow node retry and the job queue never repeat it: the next
+attempt would be refused the same way.
+
+A queued run that is refused before it starts is the exception: its record still
+carries the .NET type name as its error type, so its class is `Unknown`.
+
 A saved policy takes effect on the next run: an agent compiled under the earlier
 policy is not reused, and a run already in progress is not stopped.
 
@@ -2764,7 +2776,11 @@ filter, a blocked guard decision, a quota, a timeout, a rejected structured resp
 structured response cut off at the output limit (`OutputTruncated`, see
 [Truncated output](#truncated-output)), a
 harness loop that ran out of iterations unsatisfied (`LoopUnsatisfied`, see
-[failing the run](/concepts/agents/#fail-the-run-when-the-loop-is-not-satisfied)).
+[failing the run](/concepts/agents/#fail-the-run-when-the-loop-is-not-satisfied)), a
+provider the tenant's rules refused before any call (`TenantProviderRefused`, error type
+`tenant_provider_refused`: its egress policy does not allow the provider, or it has its
+own credential for a provider that cannot use one). A provider that answered `429` is
+`RateLimited`, also when the provider SDK's failure was masked as `upstream_error`.
 Two of them are deliberately distinct — `ContentFiltered` means the *provider's*
 filter cut the response, while `ContentBlocked` means *your* guard refused it. The
 operator response differs: one is a provider setting, the other is your policy.
@@ -2790,7 +2806,7 @@ treats the two kinds of answer differently:
 | The agent asks for | Outcome |
 |---|---|
 | A structured response (`Json` or `JsonSchema`) | The run fails with error type `output_truncated`, class `OutputTruncated`. A cut-off JSON document cannot be parsed. No repair turn runs, because it would hit the same limit; the `StructuredResponseRejected` event carries `repairSkippedTruncated: true` when a repair attempt was left |
-| Plain text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.truncated`. Its payload names the provider and, when the binding set one, the limit — never the answer text |
+| Plain text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.truncated`. Its payload names the provider, the limit when the binding set one, and the `cause` — never the answer text |
 
 Only the turn that ends the run decides. A tool call the model was still writing when
 it hit the limit is an intermediate turn: the tool loop runs it and asks the model
@@ -2801,6 +2817,17 @@ frames; read the run's events or its error.
 The fix is a higher `ModelBinding.MaxOutputTokens`. When the binding leaves it empty,
 `POST /api/agents/validate` warns with `output_truncation_risk` if the provider's
 default is below the catalog's `MaxOutputTokens` for the model.
+
+A model can also stop because the conversation and its answer filled the model's
+**context window**. A provider reports that with
+`TraconFinishReasons.ContextWindowExceeded` (Anthropic's
+`model_context_window_exceeded`), and the outcome is the same as above, with one
+difference: the error message and the event's `cause` (`context_window` instead of
+`output_limit`) name the window. A higher output limit does not help there; a shorter
+conversation (context compaction) or a model with a larger window does.
+
+A job does not run a cut-off structured answer again: the next attempt sends the same
+limit (see [Delivery and failure behavior](/guides/background-work/#delivery-and-failure-behavior)).
 
 An online-evaluation judge asks for a structured answer too. When its answer is cut
 off, the judge fails with `judge_failed` and the job does not retry it: the next
@@ -3487,7 +3514,11 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   quantity was estimated, and the provider and model that did the work. A tool that
   reports twice in one call replaces its first report, so report the total at the end. The
   call returns `false` and does not throw when recording is off or the code is not inside a
-  tool call; a call that reported and then never settled keeps what it reported.
+  tool call; a call that reported and then never settled keeps what it reported. It also
+  returns `false`, and attaches nothing, for a measurement the record cannot hold: an empty
+  unit or one longer than 64 characters, a currency longer than 16, a provider longer than
+  100, a model longer than 200, a quantity outside 0 to 9,999,999,999 or an amount outside
+  0 to 1,000,000,000. These are the limits a function node's items have.
 - **It also joins the run's non-token total, the moment the tool reports it.** The same
   rule as a [workflow function node's items](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
   applies: amounts in `Tracon:Pricing:Currency` add, a quantity is never added across units,
@@ -4009,7 +4040,13 @@ from `EnsureSuccessStatusCode()` or a `404` from a model provider — is also th
 the first attempt: the same request gets the same answer, and a repeated `409` on a
 non-idempotent call can repeat its side effect. Tracon reads the status from
 `HttpRequestException.StatusCode` or from `HTTP nnn` text in the exception chain,
-and a registered `IRunErrorClassifier` cannot make such a failure retry. The retry loop
+and a registered `IRunErrorClassifier` cannot make such a failure retry. Neither can
+a failure whose stable error type says the next attempt gets the same answer: a
+provider the tenant's rules refuse (`tenant_provider_refused`), or a structured
+answer cut off at the output limit. The type decides, not the message, which names
+the tenant and its providers. A definition that does not compile keeps its retries:
+it can fail because a loop criterion or a provider client could not be created for
+the moment. The retry loop
 runs entirely inside the node's own call: Microsoft Agent Framework invokes the
 node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
@@ -6469,6 +6506,20 @@ whose status is no longer `Pending`; see
 - A handler exception is retried until the job's attempt limit is reached. A lease that
   runs out (its worker died) counts as an attempt too: past the limit the job fails
   with `tracon.job.attempts-exhausted` without running again.
+- A failure that the next attempt would get again fails the job on that attempt,
+  whatever attempts are left: a structured answer cut off at the output limit
+  (`output_truncated`), a provider the tenant's rules refuse
+  (`tenant_provider_refused`), and a model provider
+  that answered with a permanent `4xx` (any `4xx` except `408` and `429`). An eval whose
+  judge was cut off no longer runs its unfinished case and pays for it again on every
+  attempt. Tracon reads the error's stable type, never its message, and it judges only
+  the errors Tracon itself raises: an exception your own handler throws, such as an
+  `HttpRequestException` with `404` while a resource is not there yet, keeps its
+  retries. A `JobRetryException` keeps its retries too, and an attempt that reached its
+  time limit counts like any failed attempt.
+- A store error while a handler records a failed attempt (a webhook delivery's
+  failed send, an eval run closed as `Failed`) is tried again the same way and never
+  replaces the attempt's own failure: a failed webhook send keeps its retry delay.
 - A store error while the worker writes a job's outcome is not a handler failure.
   The worker tries the write again with a growing pause, under the same lease, and
   the handler does not run again for it. The worker stops a third of the lease
@@ -9304,8 +9355,9 @@ opts in by implementing `ITenantCredentialModelProvider` in addition to
 OpenAI) all do. A provider that does not implement it simply never sees a tenant
 credential, and Tracon never falls back to the setup-time key on its behalf: a
 tenant binding saved against a provider that does not support BYOK fails **every**
-run with a stable `provider_credential_unsupported` error instead of silently
-billing the tenant's traffic to the host's own account.
+run with a stable `tenant_provider_refused` error (class `TenantProviderRefused`)
+instead of silently billing the tenant's traffic to the host's own account. A run
+recorded before that error type existed carries `provider_credential_unsupported`.
 
 A tenant's binding stores only the **name** of a configuration key, never the value:
 
@@ -9476,7 +9528,7 @@ section](#model-catalog-is-metadata-not-permission).
 credential **and** your provider implements that interface; without it, Tracon
 never calls your provider with a tenant credential at all, and it does not fall back
 to calling the plain `CreateChatClient(ModelBinding)` overload with the tenant's
-request either — the run fails closed with `provider_credential_unsupported`
+request either — the run fails closed with `tenant_provider_refused`
 instead. If you do implement the interface, the key must never fall back to your
 setup-time key: a tenant that supplied a credential is billed on it, or the call
 fails. An endpoint may fall back, so a globally configured base address still
@@ -9715,7 +9767,16 @@ the output limit and set temperature to `1` or leave it out.
 
 **A long Anthropic answer stops in the middle.** The response hit the output limit.
 A structured response fails the run with `output_truncated`; a text answer completes
-with a `tracon.output.truncated` run event. Raise `MaxOutputTokens`.
+with a `tracon.output.truncated` run event. Raise `MaxOutputTokens`. When the message
+and the event's `cause` name the **context window** instead (Anthropic's
+`model_context_window_exceeded`), the conversation filled the window: shorten it with
+context compaction or use a model with a larger window.
+
+**An Anthropic turn with web search takes several calls.** The API pauses a long turn
+of its own server tools (`pause_turn`). Tracon sends the paused answer back as the API
+returned it and the model continues; each call is billed and counted. A turn still
+paused after five continuations fails the run with `upstream_error`, fault
+`AnthropicTurnPausedException`.
 
 **A working prompt gets rejected by the pre-flight check.** The token estimate is
 approximate. Raise `ReserveRatio` toward zero, or call `/estimate` to see the
@@ -13334,7 +13395,9 @@ A caller selects an engine by name:
 `GET /api/voice/providers` lists every registration — its name (`null` for the
 default), its kind, the provider name it reports, and whether it accepts a tenant's own
 key. An unknown name answers `400` and names the registered ones; a request without a
-name when no default is registered answers `501`.
+name when no default is registered answers `501`. A provider failure the speech
+adapter reports as a `TraconException` (the built-in adapters do) answers `502`, while
+it speaks or lists its voices; any other exception is a server error.
 
 A function node takes the resolver when it is built, because the service provider a
 node sees at call time is not the host's:

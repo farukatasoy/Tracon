@@ -745,3 +745,58 @@ public sealed class TraconSessionOwnerRequiredException : TraconException
     /// <inheritdoc />
     public override string ErrorType => SessionOwnerRequiredErrorType;
 }
+
+/// <summary>
+/// Thrown when a tenant's provider rules refuse a call before it leaves the process.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Three rules refuse: the tenant's egress policy does not allow the provider; the
+/// tenant has its own credential for a provider path that cannot use one; or the
+/// tenant's binding names a configuration key that has no value or that the tenant
+/// may not read. No provider is called, and the setup-time credential is never used
+/// in the tenant's place.
+/// </para>
+/// <para>
+/// Every path that checks a tenant throws this one type: the agent's model, its
+/// fallbacks, the summarizer and the loop judge (while the agent is compiled), image
+/// generation, speech, the knowledge base's embeddings and a live voice session. The
+/// error type is <c>tenant_provider_refused</c> and the class is
+/// <see cref="RunErrorClass.TenantProviderRefused"/>, so a workflow node retry and the
+/// job queue never repeat it. An image, speech or knowledge endpoint answers
+/// <c>403</c>; an agent run that the refusal stops before it starts answers <c>400</c>.
+/// </para>
+/// <para>
+/// The message names the tenant and the provider, never a key value.
+/// </para>
+/// </remarks>
+public sealed class TraconTenantProviderRefusedException : TraconException
+{
+    /// <summary>
+    /// The stable value written to <see cref="TraconException.ErrorType"/>.
+    /// </summary>
+    public const string TenantProviderRefusedErrorType = "tenant_provider_refused";
+
+    /// <summary>Creates a new error.</summary>
+    public TraconTenantProviderRefusedException()
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">Why the call was refused. Must not carry a key value.</param>
+    public TraconTenantProviderRefusedException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">Why the call was refused, with the context the caller adds.</param>
+    /// <param name="innerException">The refusal or the configuration error the caller met.</param>
+    public TraconTenantProviderRefusedException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <inheritdoc />
+    public override string ErrorType => TenantProviderRefusedErrorType;
+}

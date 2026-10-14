@@ -351,7 +351,8 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 null => provider.CreateChatClient(binding),
                 _ when provider is ITenantCredentialModelProvider tenantCredentialProvider
                     => tenantCredentialProvider.CreateChatClient(binding, credential),
-                _ => throw ProviderInvocationException.CredentialUnsupported(binding.Provider),
+                _ => throw new TraconTenantProviderRefusedException(
+                    $"{ProviderFailureNormalizer.CredentialUnsupportedMessage} Provider: '{binding.Provider}'."),
             };
         }
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))

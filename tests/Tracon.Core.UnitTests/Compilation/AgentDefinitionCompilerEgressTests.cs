@@ -30,11 +30,11 @@ public sealed class AgentDefinitionCompilerEgressTests
 
         var definition = TestData.Definition() with { Model = TestData.Binding(provider: "openai") };
 
-        var exception = await Should.ThrowAsync<TraconCompilationException>(
+        var exception = await Should.ThrowAsync<TraconTenantProviderRefusedException>(
             async () => await compiler.CompileAsync(definition, CancellationToken.None));
 
         exception.Message.ShouldContain("openai");
-        exception.AgentName.ShouldBe(definition.Name);
+        exception.Message.ShouldContain($"Agent '{definition.Name}'");
     }
 
     [Fact]

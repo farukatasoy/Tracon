@@ -692,6 +692,10 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
 # Costs 2.4 s measured (2026-09-04 per-project profile).
 EXAMPLE_COMPILING_TEST_PROJECT = "Tracon.Generators.UnitTests"
 
+# The only test project that needs the UI built into the solution: it serves
+# the embedded assets and waits for pages a UI-less build never ships (F-356).
+UI_TEST_PROJECT = "Tracon.Ui.E2ETests"
+
 # A sample directory the solution really tests, and the project that tests it
 # (via ProjectReference). Measured escape: a377106e - phase 139 added a sixth
 # embedding point, samples/Tracon.Embedded fell behind, and `ic-dongu`
@@ -1118,9 +1122,13 @@ def isolate_failed_tests(
 
 
 def inner_loop_commands(paths: list[str]) -> list[Command]:
-    frontend_flag = () if frontend_changed(paths) else ("-p:TraconFrontendEnabled=false",)
-    commands = [Command(("dotnet", "build", "Tracon.slnx", "-c", "Release", *frontend_flag))]
     projects, needs_full = affected_test_projects(paths)
+    # F-356: the E2E suite serves the UI assets embedded by this build. A run
+    # that reaches it (a full run, or the E2E project itself) built without
+    # them failed every E2E test and buried the real regression in that noise.
+    needs_frontend = frontend_changed(paths) or needs_full or UI_TEST_PROJECT in projects
+    frontend_flag = () if needs_frontend else ("-p:TraconFrontendEnabled=false",)
+    commands = [Command(("dotnet", "build", "Tracon.slnx", "-c", "Release", *frontend_flag))]
     if needs_full:
         print("⚠️ Etkilenen proje haritası eksik; test seçimi tam koşuma genişletildi.")
         return commands + [full_solution_test_command()]
@@ -2316,7 +2324,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="stage")
 
     subparsers.add_parser("tarama", help="sync kopyası ve secret taraması")
-    subparsers.add_parser("ic-dongu", help="build ve etkilenen test projeleri")
+    ic_dongu = subparsers.add_parser("ic-dongu", help="build ve etkilenen test projeleri")
+    ic_dongu.add_argument(
+        "--taban", default="HEAD",
+        help="değişiklik aralığının tabanı; commit edilen işi de görmek için faz öncesi commit (F-356)")
     closing = subparsers.add_parser("kapanis", help="tam doğrulama kapıları")
     closing.add_argument("--taban", required=True, help="faz öncesi commit SHA")
     closing.add_argument("--site-atla", action="store_true", help="docs-site kapısını atla")
@@ -2369,10 +2380,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.stage == "kapasite":
         return capacity_measurement(args.profil, args.surum, pathlib.Path(args.cikti))
     if args.stage == "ic-dongu":
-        paths = changed_paths()
+        paths = changed_paths(args.taban)
         if paths is None:
             print("❌ git çağrısı başarısız; etkilenen proje seçilemedi.")
             return 1
+        if not paths:
+            # F-356: after a commit, HEAD..working tree is empty and only the
+            # build runs - a "green" that tested nothing.
+            print(f"⚠️ {args.taban}'e karşı değişiklik yok; yalnız build koşar. "
+                  "Commit edilen işi sınamak için `--taban <faz öncesi commit>` ver.")
         commands = inner_loop_commands(paths)
         if not args.komutlari_bas and runs_multi_target_tests(commands) \
                 and not require_test_runtimes(test_target_frameworks()):

@@ -80,11 +80,8 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         ArgumentNullException.ThrowIfNull(skill);
 
         var now = DateTimeOffset.UtcNow;
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-            await using (transaction.ConfigureAwait(false))
+        return await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
                 var upsert = _context.CreateCommand(_sql.UpsertAgentSkill, connection, transaction);
                 ConfigureSkill(upsert, skill, now);
@@ -132,8 +129,8 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
 
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                 return saved with { Resources = skill.Resources, Scripts = skill.Scripts };
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

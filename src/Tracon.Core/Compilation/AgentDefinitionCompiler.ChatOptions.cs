@@ -62,6 +62,14 @@ public sealed partial class AgentDefinitionCompiler
         {
             return await _models.CreateChatClientAsync(binding, cancellationToken).ConfigureAwait(false);
         }
+
+        // F-442: a tenant's refusal keeps its type, so every path that refuses a
+        // provider records the same class; it gains the agent's name, which the
+        // compilation failure it used to become carried.
+        catch (TraconTenantProviderRefusedException ex)
+        {
+            throw new TraconTenantProviderRefusedException($"Agent '{definition.Name}' could not be compiled: {ex.Message}", ex);
+        }
         catch (TraconException ex)
         {
             throw new TraconCompilationException(

@@ -67,6 +67,37 @@ public sealed class SpeechDialogueTenantTests
         engine.Calls.ShouldBe(0, "the tenant's turns must not reach a speech provider its policy forbids");
     }
 
+    /// <summary>
+    /// F-442: the refusal carries a stable error type, so the node retry and the
+    /// recorded class read the type, never the text.
+    /// </summary>
+    /// <remarks>
+    /// The refusal names the tenant and the allowed providers, both of them the
+    /// operator's own words. Classified by its text, an allowed provider named
+    /// "timeout-relay" made the refusal a timeout, a transient class, and the node ran
+    /// three times against a provider its tenant forbids.
+    /// </remarks>
+    [Fact]
+    public async Task A_refusal_whose_text_reads_like_a_transient_fault_is_classified_by_its_type_and_not_retried()
+    {
+        var engine = new CountingDialogueSpeechProvider(Provider);
+        var node = new DialogueNode();
+
+        await using var host = await StartWorkflowAsync(engine, node);
+
+        await SavePolicyAsync(host, "echo", "timeout-relay", "rate-limit-proxy");
+        await SaveOkAsync(host, "conversation", Chain("""{"provider":"studio"}""", DialogueNode.Name));
+
+        var run = await RunAsync(host, "conversation");
+
+        run.Record.Status.ShouldBe(RunStatus.Failed);
+        var error = run.Record.Error.ShouldNotBeNull();
+        error.Type.ShouldBe("tenant_provider_refused");
+        error.Class.ShouldBe(RunErrorClass.TenantProviderRefused);
+        node.Attempts.ShouldBe(1, "a refusal whose text names 'timeout' was retried as a timeout");
+        engine.Calls.ShouldBe(0);
+    }
+
     [Fact]
     public async Task The_policy_judges_the_dialogue_provider_name_not_the_registration_name()
     {

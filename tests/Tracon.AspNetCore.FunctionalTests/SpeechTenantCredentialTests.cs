@@ -161,6 +161,24 @@ public sealed class SpeechTenantCredentialTests
         engine.Calls.ShouldBe(0, "a binding with an empty key fell back to the host's key");
     }
 
+    /// <summary>
+    /// A binding that names a key the tenant may not read is refused with <c>403</c>,
+    /// as every other tenant rule is, and the key is never read.
+    /// </summary>
+    [Fact]
+    public async Task A_binding_whose_key_the_tenant_may_not_read_is_refused()
+    {
+        const string ForeignKey = "Other:Keys:Studio";
+        var engine = new CountingSpeechProvider(Provider, supportsTenantCredentials: true);
+        await using var host = await StartAsync(engine, (ForeignKey, "foreign-studio-value"));
+        await BindAsync(host, "default", ForeignKey);
+
+        using var response = await host.Client.PostAsJsonAsync(SpeakUri, new { text = "hello", provider = "studio" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden, await response.Content.ReadAsStringAsync());
+        engine.Calls.ShouldBe(0);
+    }
+
     private static Task BindAsync(TraconTestHost host, string tenantId, string keyName, string? endpoint = null)
         => host.Services.GetRequiredService<ITenantProviderBindingStore>().UpsertAsync(
             new TenantProviderBinding

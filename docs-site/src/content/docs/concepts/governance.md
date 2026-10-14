@@ -190,6 +190,18 @@ names. A tenant with a policy is refused when that provider is not named, and a 
 with its own key for it is refused rather than billed to the host. See
 [the knowledge guide](/guides/knowledge/#register-the-two-required-dependencies).
 
+Every refusal, on every one of these paths, is the same exception,
+`TraconTenantProviderRefusedException`: error type `tenant_provider_refused`, class
+`TenantProviderRefused`, and a message that names the tenant and the kind of provider
+(`model provider`, `image provider`, `speech provider`, `embedding provider`,
+`live voice provider`). The image, speech and knowledge endpoints answer `403`. An
+agent run that the refusal stops before it starts answers `400`, and the message also
+names the agent. A workflow node retry and the job queue never repeat it: the next
+attempt would be refused the same way.
+
+A queued run that is refused before it starts is the exception: its record still
+carries the .NET type name as its error type, so its class is `Unknown`.
+
 A saved policy takes effect on the next run: an agent compiled under the earlier
 policy is not reused, and a run already in progress is not stopped.
 

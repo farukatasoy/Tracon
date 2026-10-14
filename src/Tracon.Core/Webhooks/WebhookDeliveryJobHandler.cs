@@ -167,23 +167,43 @@ internal sealed class WebhookDeliveryJobHandler(
         var maxAttempts = Math.Max(1, options.RetryDelays.Count);
         var isFinalAttempt = attempt >= maxAttempts;
 
-        await store.RecordDeliveryResultAsync(
-            new WebhookDeliveryResult
-            {
-                DeliveryId = delivery.Id,
-                Status = isFinalAttempt ? WebhookDeliveryStatus.Failed : WebhookDeliveryStatus.Pending,
-                Attempt = attempt,
-                ResponseCode = outcome.StatusCode,
-                Error = outcome.Error,
-                RecordedAt = now,
-            },
+        // 🚨 F-393: the failed send's writes go through the same retry window as an
+        // accepted one's (F-366). A store error here used to escape as the attempt's
+        // own failure: the worker released the job with no pause, so the recipient
+        // was called again at once, past the ladder's delay; on the last attempt the
+        // delivery stayed Pending for good. A write that still fails is logged; the
+        // outcome below is the send's, not the store's.
+        var recording = new JobOutcomeWriteRetry(context.Job.Id, schedulingOptions?.CurrentValue, _clock, logger);
+
+        await TryRecordAsync(
+            recording,
+            () => store.RecordDeliveryResultAsync(
+                new WebhookDeliveryResult
+                {
+                    DeliveryId = delivery.Id,
+                    Status = isFinalAttempt ? WebhookDeliveryStatus.Failed : WebhookDeliveryStatus.Pending,
+                    Attempt = attempt,
+                    ResponseCode = outcome.StatusCode,
+                    Error = outcome.Error,
+                    RecordedAt = now,
+                },
+                CancellationToken.None),
+            $"record webhook delivery {delivery.Id}'s failed attempt {attempt}",
+            delivery.Id,
             cancellationToken).ConfigureAwait(false);
 
         if (isFinalAttempt)
         {
-            var disabled = await store
-                .RecordSubscriptionOutcomeAsync(subscription.Id, succeeded: false, options.DisableAfterConsecutiveFailures, now, cancellationToken)
-                .ConfigureAwait(false);
+            var disabled = false;
+
+            await TryRecordAsync(
+                recording,
+                async () => disabled = await store
+                    .RecordSubscriptionOutcomeAsync(subscription.Id, succeeded: false, options.DisableAfterConsecutiveFailures, now, CancellationToken.None)
+                    .ConfigureAwait(false),
+                $"record the failure on webhook subscription '{subscription.Name}'",
+                delivery.Id,
+                cancellationToken).ConfigureAwait(false);
 
             if (disabled && logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
@@ -193,14 +213,19 @@ internal sealed class WebhookDeliveryJobHandler(
                     options.DisableAfterConsecutiveFailures);
             }
 
-            await context.ReportItemAsync(
-                new JobItemResult
-                {
-                    JobId = context.Job.Id,
-                    Seq = context.Items[0].Seq,
-                    Status = JobItemStatus.Failed,
-                    Error = outcome.Error,
-                },
+            await TryRecordAsync(
+                recording,
+                () => context.ReportItemAsync(
+                    new JobItemResult
+                    {
+                        JobId = context.Job.Id,
+                        Seq = context.Items[0].Seq,
+                        Status = JobItemStatus.Failed,
+                        Error = outcome.Error,
+                    },
+                    CancellationToken.None),
+                $"report webhook delivery {delivery.Id}'s job item",
+                delivery.Id,
                 cancellationToken).ConfigureAwait(false);
 
             throw new TraconException($"Webhook delivery failed after {attempt} attempts: {outcome.Error}");
@@ -481,7 +506,7 @@ internal sealed class WebhookDeliveryJobHandler(
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Runs one write that follows an accepted delivery; a write that still fails is logged.</summary>
+    /// <summary>Runs one write that follows a send, accepted or not; a write that still fails is logged.</summary>
     /// <param name="recording">The window the writes of this delivery share.</param>
     /// <param name="write">The store write.</param>
     /// <param name="step">What the write records, for the log.</param>
@@ -506,7 +531,7 @@ internal sealed class WebhookDeliveryJobHandler(
             {
                 logger.LogError(
                     exception,
-                    "Webhook delivery {DeliveryId} reached its recipient, but Tracon could not {Step}. It is not sent again. (ref: {CorrelationId})",
+                    "Webhook delivery {DeliveryId} was sent, but Tracon could not {Step}. The store error does not send it again. (ref: {CorrelationId})",
                     deliveryId,
                     step,
                     correlationId);

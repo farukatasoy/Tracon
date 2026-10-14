@@ -189,6 +189,7 @@ internal static partial class ProviderFailureNormalizer
             or TraconAgentSourceException
             or JobRetryException
             or ProviderInvocationException
+            or TraconTenantProviderRefusedException
             // Internal and unforgeable (Tracon.Abstractions grants Tracon.Core
             // sole InternalsVisibleTo access): thrown only by Tracon's own
             // ModelProviderSettings.Validate, never by a foreign provider.
@@ -344,19 +345,26 @@ internal sealed class ProviderInvocationException : TraconException
 
     public override string ErrorType { get; }
 
-    internal static ProviderInvocationException UpstreamFailure(Exception exception, string provider)
-        => new(
-            ProviderFailureNormalizer.UpstreamErrorType,
-            ProviderFailureNormalizer.DescribeUpstreamFailure(
-                provider,
-                ProviderFailureNormalizer.ReadFaultType(exception),
-                ProviderFailureNormalizer.ReadStatus(exception)),
-            exception);
+    /// <summary>Gets the HTTP status the provider answered with, or <see langword="null"/> when it carried none.</summary>
+    internal int? StatusCode { get; private init; }
 
-    internal static ProviderInvocationException CredentialUnsupported(string providerName)
-        => new(
-            ProviderFailureNormalizer.CredentialUnsupportedErrorType,
-            $"{ProviderFailureNormalizer.CredentialUnsupportedMessage} Provider: '{providerName}'.");
+    internal static ProviderInvocationException UpstreamFailure(Exception exception, string provider)
+    {
+        // 🚨 F-353: read with the reader every retry decision uses, which takes
+        // HttpRequestException.StatusCode first. The text reader alone missed it:
+        // .NET writes "Response status code does not indicate success: 401
+        // (Unauthorized).", so the record lost the status and a 401 looked like a
+        // connection that never got an answer.
+        var status = ProviderHttpStatus.Read(exception);
+
+        return new(
+            ProviderFailureNormalizer.UpstreamErrorType,
+            ProviderFailureNormalizer.DescribeUpstreamFailure(provider, ProviderFailureNormalizer.ReadFaultType(exception), status),
+            exception)
+        {
+            StatusCode = status,
+        };
+    }
 }
 
 /// <summary>Preserves internal retry semantics, then masks the final provider failure.</summary>

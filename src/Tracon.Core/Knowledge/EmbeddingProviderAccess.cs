@@ -69,7 +69,7 @@ internal sealed class EmbeddingProviderAccess
     /// <param name="tenantId">The tenant whose text is about to be embedded.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that completes when the call is allowed.</returns>
-    /// <exception cref="TenantProviderRefusedException">
+    /// <exception cref="TraconTenantProviderRefusedException">
     /// The tenant's egress policy does not allow the embedding provider, the provider
     /// is not named while the tenant has a policy, or the tenant has its own credential
     /// for the provider, which the generator cannot use.
@@ -87,7 +87,7 @@ internal sealed class EmbeddingProviderAccess
         {
             if (policy is not null)
             {
-                throw new TenantProviderRefusedException(
+                throw new TraconTenantProviderRefusedException(
                     $"Tenant '{tenantId}' has an egress policy, and the embedding provider is not named, so the " +
                     $"policy cannot be applied. Set {TraconKnowledgeOptions.SectionName}:" +
                     $"{nameof(TraconKnowledgeOptions.EmbeddingProvider)} to the provider the embedding generator calls.");
@@ -98,28 +98,19 @@ internal sealed class EmbeddingProviderAccess
 
         if (!TenantProviderAccess.IsAllowed(policy, providerName))
         {
-            throw new TenantProviderRefusedException(
+            throw new TraconTenantProviderRefusedException(
                 TenantProviderAccess.DescribeDenial(policy!, tenantId, providerName, TenantProviderCallKind.Embedding));
         }
 
-        ModelProviderCredential? credential;
-
-        try
-        {
-            credential = await TenantProviderAccess
-                .ResolveCredentialAsync(_providerBindings, _credentialResolver, tenantId, providerName, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (TraconException exception)
-        {
-            // A binding whose key has no value: the call does not fall back to the
-            // setup key either.
-            throw new TenantProviderRefusedException(exception.Message);
-        }
+        // A binding whose key has no value is refused there: the call does not fall
+        // back to the setup key either.
+        var credential = await TenantProviderAccess
+            .ResolveCredentialAsync(_providerBindings, _credentialResolver, tenantId, providerName, cancellationToken)
+            .ConfigureAwait(false);
 
         if (credential is not null)
         {
-            throw new TenantProviderRefusedException(
+            throw new TraconTenantProviderRefusedException(
                 $"Tenant '{tenantId}' has its own credential for '{providerName}', and the embedding generator " +
                 "cannot use it. The text is not embedded on the setup credential.");
         }
