@@ -1,6 +1,6 @@
 # 23 — Saklama, Arşiv, Kota ve Çalıştırma-İçi Bütçe (`RET`)
 
-> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128, 146
+> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128, 146, 205
 > **Kaynak:** `src/Tracon.Abstractions/Retention/` (tümü) ·
 > `src/Tracon.Core/Retention/` (tümü) ·
 > `src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs` ·
@@ -891,20 +891,19 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 
 ---
 
-### MT-RET-033 — Kota sayacı yalnız KÖK çalıştırmada işler (`Depth == 0`)
+### MT-RET-033 — Çok adımlı workflow kotada TEK `run` sayılır (kök `Runs = 1`, adımlar `Runs = 0`)
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 21 |
-| **İlgili karar** | — |
+| **İlgili faz** | Faz 21, Faz 205 |
+| **İlgili karar** | K-394, K-990 |
 
-Sınır senaryosu — belgelenen, kasıtlı davranış (`RunRecordingAgent.cs:773-782`'nin
-kendi yorumu: *"Kota ve olay yayını yalnızca kök çalıştırmada işler. Alt
-çalıştırma aynı kullanıcı isteğinin parçasıdır."*). Bu case bunu bir
-**çok adımlı workflow** ile ampirik olarak ölçer — kaç `quota_usage` satırı
-üretildiği koşumdan önce **bilinmiyor**, koşumda kaydedilir.
+Sınır senaryosu. Faz 205'ten beri kota HER run'da yazılır (adımların token ve tutarı
+kendi kapanışlarında, workflow adı altında), ama yalnız kök `run` sayısını artırır: adım
+girdisi `Runs = 0` taşır. Bu case bunu bir **çok adımlı workflow** ile ölçer; `FARK`
+koşumda kaydedilir ve `1` olmalıdır.
 
 **Ön koşul**
 - `summarize-and-translate` (`FIX` — sıralı, iki agent adımlı) workflow fixture'ı hazır.
@@ -930,10 +929,9 @@ echo "ONCE=$ONCE SONRA=$SONRA FARK=$((SONRA - ONCE))"
 ```
 
 **Beklenen sonuç (koşumda ölçülecek, önceden iddia edilmez)**
-- `FARK` değeri **kaydedilir**. Kod yorumuna göre beklenen `1`dir (workflow'un
-  kendisi tek bir kök `Depth=0` kapsamı sayılıyorsa) — ama workflow'un HER
-  adımının kendi `runId`'si olduğu bilindiğinden (K-014), her adımın da
-  KENDİ kök çalıştırması sayılıp sayılmadığı (`FARK=2`) doğrulanmalıdır.
+- `FARK` değeri **kaydedilir** ve beklenen `1`dir: workflow'un HER adımının kendi
+  `runId`'si olsa da (K-014) adımlar `Runs = 0` yazar; `FARK=2` adımın kendi kök
+  çalıştırması gibi sayıldığı anlamına gelir ve kusurdur.
 - Hangi sonuç çıkarsa çıksın, davranış tutarlı olmalıdır: art arda aynı
   workflow'u çalıştırmak her seferinde **aynı** artışı üretmelidir.
 
@@ -1923,19 +1921,19 @@ SQL Server) yapılandırıldığında elle koşulabilir; bellek içi kurulumda
 
 ---
 
-### MT-RET-076 — Alt-agent ağacı eşiği geçirirse bildirim yalnız KÖK `run`'da bir kez görünür
+### MT-RET-076 — Alt-agent ağacı çalıştırma-sayısı eşiğini geçirirse bildirim yalnız KÖK `run`'da bir kez görünür
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Orta |
-| **İlgili faz** | Faz 146 |
-| **İlgili karar** | — |
+| **İlgili faz** | Faz 146, Faz 205 |
+| **İlgili karar** | K-990 |
 
-Otomatik karşılığı: kota muhasebesi yalnız `Depth == 0`'da çalışır
-(`RunRecordingAgent.Completion.cs`'nin mevcut kapısı, Faz 146 yalnız
-`RecordQuotaAsync`'in ÇAĞRILDIĞI konumu taşıdı, kapıyı değiştirmedi) —
-`AgentDelegationTests.cs`'in ailesi bu kapıyı zaten dolaylı kanıtlıyor.
+Otomatik karşılığı: ağaç tek `run` sayılır (kök `Runs = 1`, alt run `Runs = 0`),
+bu yüzden `maxRuns` eşiğini her zaman kökün girdisi geçirir. Token ya da maliyet
+eşiğini alt run da geçirebilir ve bildirim o zaman alt run'ın kendi akışındadır
+(`MT-RET-083`). `AgentDelegationTests.cs`'in ailesi ağacı dolaylı kanıtlıyor.
 Elle koşum `router` → `support` (alt-agent) zincirini kullanır.
 
 **Ön koşul**
@@ -1956,7 +1954,7 @@ curl -N -s "$APU/api/agents/router/run" -H "$APB" -H 'content-type: application/
 
 **Beklenen sonuç**
 - **`1`** — bildirim yalnız kök `run`'da, tam bir kez görünür; alt-agent'ın
-  kendi çalıştırması hiç bildirim yazmaz.
+  `Runs = 0` girdisi `maxRuns` eşiğini geçirmez, kendi akışına bildirim yazmaz.
 
 ---
 
@@ -2095,3 +2093,106 @@ yüküne girmiyordu.
 - Sayaç kökün ve alt run'ın token'larının toplamını gösterir; `runs` 1 artar.
 - Webhook'un `inputTokens`, `outputTokens` ve `cost` alanları ağacın toplamıdır; alt run webhook yayınlamaz.
 - 🚨 Eski kusur: sayaç ve webhook yalnız kökün kendi tüketimini gösterdi.
+
+---
+
+### MT-RET-081 — Kök beklemeden dönerse, bitmemiş arka plan alt run'ı bittiği anda kökün sayacına girer (F-418)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 205 |
+| **İlgili karar** | K-990 |
+| **Devir** | ➜ CI: `BackgroundChildQuotaTests` (akışlı ve akışsız; iki kiracılı; workflow adımı; depo hatası) |
+
+**Gerçekten koşuldu ve doğrulandı (2026-10-14, örnek uygulama, bellek içi depo, `gpt-5.4-mini`):**
+kök dönünce sayaç `runs 1 · tokens 1352 · cost 0.00043075`, çocuk bitince
+`runs 1 · tokens 1874 · cost 0.001417`; kök satırının `treeUsage.totalTokens`'ı 1874.
+
+**Ön koşul** — Örnek uygulama (`Tracon__PostgreSql__ConnectionString=` boş: bellek içi depo); `bg-writer` (araç yok, uzun cevap) ve `bg-router2` (`CallableAgentNames = ["bg-writer"]`; talimat: "`background_agents_start_task` ile başlat, BEKLEME, `Started` de") `POST $APU/api/agents` ile yaratılmış; `bg-router2` için günlük token kotası.
+
+**Adımlar**
+1. `bg-router2`'yi çalıştır; HTTP yanıtı (`done` çerçevesi) gelince `GET $APU/api/quotas/usage` oku.
+2. Çocuk bitene kadar (birkaç saniye) aynı ucu tekrar oku.
+
+**Beklenen sonuç**
+- İlk okuma yalnız kökün token'ını gösterir; `runs` 1.
+- İkinci okuma kök + çocuğu gösterir; `runs` hâlâ 1; çocuk için ayrı sayaç satırı yoktur (`bg-writer` adıyla satır açılmaz).
+- Kök satırındaki `treeUsage` sayaçla aynıdır.
+
+---
+
+### MT-RET-082 — `run.completed` webhook'u kök kapanış anının görüntüsüdür; sonradan biten çocuk onu değiştirmez ve ikinci olay üretmez (F-418)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 205 |
+| **İlgili karar** | K-990 |
+| **Devir** | ➜ CI: `BackgroundChildQuotaTests.The_roots_run_completed_webhook_stays_the_tree_as_it_stood_when_the_root_closed` |
+
+Webhook alıcısı gerektirir (insan). `MT-RET-081`'in aynı koşumu.
+
+**Ön koşul** — `MT-RET-081` + `run.completed` abonesi.
+
+**Adımlar**
+1. `MT-RET-081`'i koş.
+2. Alıcının aldığı `run.completed` yüklerini say ve ilkinin `inputTokens`/`outputTokens`/`cost` alanlarını oku.
+
+**Beklenen sonuç**
+- Tek `run.completed` gelir; yükte yalnız kökün tüketimi vardır (çocuk dahil değil).
+- Kesin toplam `GET /api/runs/{id}` (`treeUsage`) ve kota sayacıdır; site bu farkı yazar.
+
+---
+
+### MT-RET-083 — Alt run'ın geçirdiği eşik bildirimi alt run'ın KENDİ akışında görünür, kökün akışında değil (F-418)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 205 |
+| **İlgili karar** | K-990 |
+| **Devir** | ➜ CI: `BackgroundChildQuotaTests.The_threshold_a_late_child_crosses_is_written_to_the_childs_own_stream` |
+
+**Gerçekten koşuldu ve doğrulandı (2026-10-14, örnek uygulama):** `maxTokens=1500`,
+eşik `[100]`, kök 1352 token (eşik altı); çocuk bitince sayaç 1871. Çocuğun akışında
+`tracon.quota.threshold` çerçevesi (sıra 3, terminal olaydan önce), kökün akışında yok.
+
+**Ön koşul** — `MT-RET-081` + `Tracon__Quotas__PublishThresholdToRunStream=true`, `Tracon__Quotas__ThresholdPercents__0=100`; `bg-router2` için `maxTokens=1500` kotası.
+
+**Adımlar**
+1. `bg-router2`'yi çalıştır; çocuk bitene kadar bekle.
+2. `GET $APU/api/runs/{kökId}/events` ve çocuğun `GET $APU/api/runs/{çocukId}/events` akışında `tracon.quota.threshold` ara.
+
+**Beklenen sonuç**
+- Çocuğun akışında tam bir bildirim; kökün akışında hiç yok.
+- `quota.threshold` webhook'u (varsa) çocuğun `runId`'sini adlandırır.
+
+---
+
+### MT-RET-084 — Süresi dolduktan sonra biten ve tutar bildiren tool'un tutarı kotaya girer; run'ın `nonTokenCost`'u değişmez (F-482)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 205 |
+| **İlgili karar** | K-990, K-974 |
+| **Devir** | ➜ CI: `LateToolCompletionTests` (kapanıştan sonra dönen tool, süresinde raporlayıp geç dönen tool, başka para birimi, depo hatası) |
+
+Örnek uygulamada zaman aşımına uğrayıp sonra tutar bildiren bir tool yoktur; koşum
+CI'dadır. Elle koşulacaksa tool'u tüketici kodunda yaz.
+
+**Ön koşul** — Kısa zaman aşımı olan, iptali okumayan ve `TraconToolUsage.Report` ile tutar bildiren yavaş bir tool; `Tracon:Pricing:Currency` ayarlı.
+
+**Adımlar**
+1. Agent'ı koş; run `Completed` olunca sayacı oku.
+2. Tool bitince (zaman aşımından sonra) sayacı ve `GET /api/runs/{id}`'yi tekrar oku.
+
+**Beklenen sonuç**
+- Sayaç tool'un tutarı kadar artar; `runs` ve `tokens` değişmez.
+- Run satırının `nonTokenCost`'u run kapanırken olduğu gibi kalır; tutar çağrının kendi kaydında (`GET /api/runs/{id}/tools`) durur.
+- Tool süresi içinde raporlayıp geç dönerse tutar bir kez sayılır (çift sayım yok).

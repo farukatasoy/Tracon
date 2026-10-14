@@ -254,19 +254,35 @@ public sealed partial class RunRecordingAgent
     /// </remarks>
     private decimal? QuotaAmount(RunScope scope, decimal? ownSpend, RunCost? cost, RunNonTokenCost? nonTokenCost)
     {
-        if (scope.Depth == 0 || cost is not { Source: not PricingSource.Unknown } priced ||
-            string.IsNullOrWhiteSpace(priced.Currency) ||
-            string.Equals(priced.Currency, _pricingCurrency, StringComparison.OrdinalIgnoreCase))
+        // K-972, K-976: one rule for money across currencies; the counter holds no currency.
+        var amount = QuotaAmount(scope.Depth == 0, ownSpend, cost, nonTokenCost, _pricingCurrency, out var tokenCostLeftOut);
+
+        if (tokenCostLeftOut)
         {
-            return ownSpend;
+            _logger.LogWarning(
+                "Child run {RunId} is priced in {Currency}, not in the pricing currency; its quota entry counts its tokens and the amounts it reported beyond tokens, not its token cost.",
+                scope.RunId,
+                cost!.Currency);
         }
 
-        _logger.LogWarning(
-            "Child run {RunId} is priced in {Currency}, not in the pricing currency; its quota entry counts its tokens and the amounts it reported beyond tokens, not its token cost.",
-            scope.RunId,
-            priced.Currency);
+        return amount;
+    }
 
-        return nonTokenCost?.Amount;
+    /// <summary>The pure rule behind <see cref="QuotaAmount(RunScope, decimal?, RunCost?, RunNonTokenCost?)"/>.</summary>
+    internal static decimal? QuotaAmount(
+        bool isRoot,
+        decimal? ownSpend,
+        RunCost? cost,
+        RunNonTokenCost? nonTokenCost,
+        string? pricingCurrency,
+        out bool tokenCostLeftOut)
+    {
+        tokenCostLeftOut = !isRoot &&
+                           cost is { Source: not PricingSource.Unknown, Currency: { } currency } &&
+                           !string.IsNullOrWhiteSpace(currency) &&
+                           !string.Equals(currency, pricingCurrency, StringComparison.OrdinalIgnoreCase);
+
+        return tokenCostLeftOut ? nonTokenCost?.Amount : ownSpend;
     }
 
     /// <summary>

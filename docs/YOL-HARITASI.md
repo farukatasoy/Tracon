@@ -217,6 +217,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [202](arsiv/fazlar/202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | ✅ Tamamlandı |
 | [203](arsiv/fazlar/203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) | Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları | ✅ Tamamlandı |
 | [204](arsiv/fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) | Kesilen Model Çıktısı ve Anthropic Güncel İstek Ayarları | ✅ Tamamlandı |
-| [205](205-GEC-BITEN-HARCAMA-KOTASI.md) | Kök Kapandıktan Sonra Biten Harcamanın Kotası | 📋 Planlandı |
+| [205](205-GEC-BITEN-HARCAMA-KOTASI.md) | Kök Kapandıktan Sonra Biten Harcamanın Kotası | 🚧 Uygulandı, kapanış bekliyor (2026-10-14) |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

@@ -397,6 +397,57 @@ public sealed class LateToolCompletionTests
     }
 
     [Fact]
+    public async Task A_tool_that_reports_a_larger_total_after_its_run_closed_adds_only_the_difference()
+    {
+        // The last report of a call replaces the earlier ones: 0.02 in time is in the run's
+        // total, 0.05 as the final total after the run closed adds the 0.03 the total lacks.
+        // Adding the whole 0.05 would put 0.07 in a counter for a call that cost 0.05.
+        var reportedInTime = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = NewRelease();
+        var quota = new EntryRecordingQuotaStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            Builder(SlowTool(async _ =>
+            {
+                TraconToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Images, Quantity = 1m, Cost = 0.02m, Currency = "USD" });
+                reportedInTime.TrySetResult(true);
+
+                await release.Task;
+
+                TraconToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Images, Quantity = 2m, Cost = 0.05m, Currency = "USD" });
+                finished.TrySetResult(true);
+
+                return "report R-1 produced";
+            })),
+            configureServices: services => ConfigureQuotaHost(services, quota));
+
+        var runId = await StartAsync(host, "s-late-difference");
+
+        await host.WaitForRunStatusAsync(runId, "Completed");
+        await reportedInTime.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+        quota.Entries.ShouldHaveSingleItem().Cost.ShouldBe(0.02m);
+
+        release.SetResult();
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+        var counter = await WaitUntil.ValueAsync(
+            () => DailyCounterAsync(host, "late-agent"),
+            static record => record.Cost == 0.05m,
+            "the difference to reach the agent's counter",
+            TimeSpan.FromSeconds(10));
+
+        counter.Runs.ShouldBe(1);
+
+        var entries = quota.Entries;
+
+        entries.Count.ShouldBe(2);
+        entries[1].Runs.ShouldBe(0);
+        entries[1].Cost.ShouldBe(0.03m);
+    }
+
+    [Fact]
     public async Task A_late_amount_in_another_currency_than_the_run_is_in_no_counter()
     {
         // The rule of what adds is the live report's (K-972): an amount in a currency the quota

@@ -1,7 +1,7 @@
 # Faz 205 — Kök Kapandıktan Sonra Biten Harcamanın Kotası
 
-> **Durum:** 📋 Planlandı (2026-10-14)
-> **Plan onayı:** onaylanmadı — engelleyici dört tasarım sorusu 2026-10-14'te kullanıcıyla cevaplandı (§205.1 A, F-482 dahil, webhook belgelenir, eşik bildirimi çocuğun akışı); plan metni onay bekler, uygulama onaydan önce başlamaz
+> **Durum:** ✅ Tamamlandı (2026-10-14)
+> **Plan onayı:** 2026-10-14 — kullanıcı "Faz 205'i geliştir" dedi; engelleyici dört tasarım sorusu aynı gün cevaplanmıştı (§205.1 A, F-482 dahil, webhook belgelenir, eşik bildirimi çocuğun akışı). Açık Soru 1-4 önerilen seçenekle (hepsi A) uygulandı
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-418**, **F-482**
 > **Genellik:** Alt agent çağıran ya da tool'u zaman aşımına düşebilen her tüketici, kiracı kotası açıksa etkilenir. İş tüketici kodunda kalamaz: kota sayacını yalnız Tracon yazar. Kalem bir sözleşme ihlalidir (kiracı kotası bir yönetişim sınırıdır, site "consumption is counted" der), bu yüzden § *Tüketici geri bildirimi kuralı*'ndan muaftır. İkinci kanıt ilk ilkedir: K-913 kendi bilinen sınırını yazar ve bir model talimatı ("görevi başlat, bekleme") harcamayı kotadan gizler
 > **Karşı görüş:** "Arka plan alt run'ı `ChildDeadline` (2 dk) ile sınırlıdır; kaçak küçük ve nadirdir." Cevap: sınır run başınadır, toplam değildir. Bir kök en çok `MaxTotalRuns` (25) çocuk başlatır ve her biri 2 dakikaya kadar harcar; aynı istek tekrarlanınca kaçak sınırsız büyür. Geç biten tool'un harcaması (F-482) gerçek paradır ve bugün hiçbir sayaca girmez. Mekanizma ikisini de aynı kuralla kapatır
@@ -264,18 +264,18 @@ karar Açık Soru 2) · **başka kiracı** (iki kiracılı case) · **alt sistem
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Bekleme yapmayan kökün çocuğu bitince kökün sayacı kök + çocuğu taşır; `runs` 1 (`BackgroundChildQuotaTests`, önce kırmızı)
-- [ ] Workflow adımının arka plan görevi workflow bitince sayaca girer (önce kırmızı)
-- [ ] Geç biten tool'un tutarı sayaca girer, run snapshot'ı değişmez (önce kırmızı)
-- [ ] `AgentTreeQuotaTests`, `NonTokenSpendAgentTreeTests`, `NonTokenSpendTests` değiştirilmeden yeşil
-- [ ] `QuotaStoreContract` `Runs = 0` case'i dört depoda yeşil
-- [ ] K-913 ve K-974'ün kota yarısını değiştiren karar `KARARLAR.md`'ye yazıldı (kategori: güvenlik, public-api)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`concepts/governance.md` iki cümle, `capabilities.md`); `npm run check` temiz
+- [x] Bekleme yapmayan kökün çocuğu bitince kökün sayacı kök + çocuğu taşır; `runs` 1 (`BackgroundChildQuotaTests`, akışlı ve akışsız; taban sürümde kırmızı: sayaç 10, beklenen 20)
+- [x] Workflow adımının arka plan görevi workflow bitince sayaca girer (`A_workflow_steps_background_task_is_counted_under_the_workflow`; taban sürümde kırmızı)
+- [x] Geç biten tool'un tutarı sayaca girer, run snapshot'ı değişmez (`LateToolCompletionTests`; taban sürümde kırmızı)
+- [x] `AgentTreeQuotaTests`, `NonTokenSpendAgentTreeTests`, `NonTokenSpendTests` değiştirilmeden yeşil
+- [x] `QuotaStoreContract` `Runs = 0` case'i dört depoda yeşil (bellek içi · Sqlite · PostgreSQL · SQL Server; iki case)
+- [x] K-913 ve K-974'ün kota yarısını değiştiren karar `KARARLAR.md`'ye yazıldı (K-990, kategori: güvenlik, public-api)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis --taban 245afe91` çıkış 0: build · test 691 sn · pack · format; sözleşme paketine dokunulduğu için `kapi.py yayin --kuru` ayrıca koşar)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1 ve 3), çıktı aşağıda
+- [x] `secret` taraması boş döndü (`kapi.py tarama`)
+- [x] Manuel kabul case'leri `docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md` içine eklendi (`MT-RET-081…084`); otomatikleştirilebilenler koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (1 gerçek, düzeltildi)
+- [x] `docs-site/` güncellendi (`concepts/governance.md`, `runs.md`, `tools.md`, `workflows.md`, `capabilities.md`); `npm run check` temiz
 
 ### Doğrulama komutları
 
@@ -309,41 +309,132 @@ curl -s http://localhost:5081/tracon/api/quotas/usage -H "Authorization: Bearer 
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+1. **Taşıyıcı `TreeAccount` plandaki taslaktan farklıdır.** `RootRunId` düştü (hiçbir okuyucusu yok); `Quota` (`IQuotaRecorder?`) eklendi. Gerekçe: geç tool yolu yalnız yakaladığı `AgentRunScope`'u tutar ve `TimeoutAIFunction` public bir tiptir — `QuotaEnforcer`'ı ona vermek yerine tohum bütçedeki hesaba bindi. Taslaktaki `IQuotaEnforcer` parametresi `IQuotaRecorder` oldu (`QuotaEnforcer` onu uygular; `Tracon.Abstractions` içinde, `internal`). Kök hesabı **bir kez değil her seferinde yeniden** atar: bir bütçeyi ikinci kök için yeniden kullanan tüketicinin çocukları birincinin kiracısına yazmasın (`TreeQuotaTests.A_budget_a_second_root_reuses_names_the_second_root`).
+2. **Para birimi kuralı plandaki gibi uygulanamadı.** Plan "`Tracon:Pricing:Currency` dışındaki tutar sayılmaz" diyordu; ama `AgentTreeQuotaTests.A_tree_priced_in_two_currencies…` yapılandırılmış birim `null` iken koşar ve çocuk kapanırken kökün birimi bilinmez (çocuk kökten önce kapanır). Uygulanan: **kök kendi maliyetini olduğu gibi yazar**; alt run'ın token maliyeti etiketsizse ya da yapılandırılmış birimdeyse girer, etiketli ve farklıysa token ve token dışı tutar girer (`RunRecordingAgent.QuotaAmount`, `TreeQuotaTests` teorileri). Bedel: özel çözümleyici bütün ağacı yapılandırılmışın dışında bir birimle fiyatlıyorsa alt run'ların token maliyeti artık eklenmez (**F-499**). Mevcut test değişmedi.
+3. **Geç tool tutarı çağrının kaydından değil birikimciden okunur.** Plan "`ToolCallUsage.Cost` varsa girdi yazılır" diyordu; kayıttan okumak, tool'un süresi içinde raporlayıp run kapandıktan sonra dönmesi hâlinde tutarı iki kez sayardı (kayıt da toplam da tutarı tutar). `NonTokenCostAccumulator.TakeLateToolAmount` yalnız mühürden **sonra** raporlananı verir ve mühürdeki aynı çağrının tutarını düşer (son rapor öncekinin yerine geçer; denetimin 🔴 bulgusu). Plandaki yapısal iddia (geç ölçüm yalnız çağrı satırına yazılır) doğruydu; eksik olan "kapanıştan önce mi sonra mı" ayrımıydı.
+4. **Public yüzey `Tracon.Testing.Contracts.Xunit`'te iki test yöntemi büyüdü.** Plan "Public API büyümüyor" diyordu ve `Tracon.Abstractions`/`Core`/`Workflows` için doğrudur; ama sözleşme paketinin kendisi izlenir (`PublicAPI.Unshipped.txt` +2 satır): `QuotaStoreContract.Usage_that_adds_no_run_adds_its_tokens_and_cost_to_a_counter_that_does_not_exist_yet` ve `…_leaves_the_run_count_where_the_root_put_it`. Sevk edilen sözleşmeye case eklediği için `kapi.py yayin --kuru` kapanışta koşar. Ayrıca dört sevk edilen `///` metni eski kuralı anlatıyordu ve düzeltildi (`QuotaConsumption.Runs`/`RunId`, `WebhookQuotaSummary.RunId`, `RunEventCustomTypes.QuotaThreshold`, `PublishThresholdToRunStream`).
+5. **Webhook okuması yalnız webhook kayıtlıyken yapılır** (plan: "yalnız webhook için kalır"; koşul `_quotaEnforcer is null && _webhookPublisher is null` idi, artık `_webhookPublisher is null`). Açık Soru 4: `StartedRuns` kapısı korundu.
+6. **Eski bir test yeniden adlandırıldı:** `QuotaNoticeOrderingTests.A_child_run_never_records_quota_consumption` → `…_with_no_tree_account_records_no_quota_consumption`. Kural değişti ("çocuk hiç yazmaz" artık yanlış); test aynı kalır (hesapsız çocuk yazmaz), iddia tam hâliyle `TreeQuotaTests`'tedir.
+7. **Açık Soru 1-4 önerilen seçenekle (A) kapatıldı:** `AgentRunBudget` internal üyesi · usage'sız çocuk girdi yazmaz · geç girdi `RunId`'si çağıran run · `ReadTreeConsumptionAsync` yalnız webhook için kalır.
+8. **Eşik bildirimi payload'ı** kiracı ve kullanıcıyı çocuğun kapsamından değil hesaptan alır (`WriteQuotaThresholdNoticeAsync`); çocuğun ortam kiracısı arka planda varsayılandır (taban sürümde `A_late_childs_entry_goes_to_the_roots_tenant` kırmızı).
+9. **Plan tablosunda vaat edilen üç test yazılmadı, gerekçeyle:** (a) *kuyruklu run'ın ikinci denemesi önceki denemenin çocuğunu yeniden sayar* — yapısal olarak olamaz: her run yalnız kendini yazar, kökün girdisi deneme başına kendi harcamasıdır; eski çift sayım (ağaç okuması) kota yolundan çıktı. (b) *her kök yolu hesap taşır* — §205.2 ölçümü: `AgentRunScope` yalnız iki yerde kurulur (`RunRecordingAgent.Lifecycle.cs`, `WorkflowRunner.cs`), ikisi de `Account` atar; MCP, A2A, eval, replay, devam ve onay devamı derinlik 0 olarak aynı `PrepareRun` yolundan geçer. İki yer `QuotaWriteSiteTests.Every_place_that_opens_a_root_scope_names_the_account…` ile sabitlendi. (c) *iptal edilen çocuk "o ana kadar kaydedilen usage"yı yazar* — çocuğun girdisi `CompleteAsync`'in elindeki usage'dır (satırın kendi rakamı); iptalden sonra dönen bir model yanıtı satırda da yoktur, yani sayaçta da yoktur (değişmedi). Usage'sız iptal yazmaz (`A_child_the_deadline_cancels_before_it_spent_anything_writes_no_entry`).
+10. **Bir kusur bulundu, çözülmedi → aday:** SQLite kota sayacı tutarı kayan noktayla toplar (**F-497**; sözleşme testinin ilk sürümü `0,1 + 0,2`'de düştü, binary-kesin tutarlara çevrildi). Dört aday daha: **F-498** (eşik denetimi girdi başına okur), **F-499** (sapma 2), **F-500** ve **F-501** (denetimden: geç tool'un hata dalı ve webhook'suz eşik).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Fazın kararları burada yazılır. Dört kategoriden birine
-> giren karar (AGENTS.md) ayrıca `docs/KARARLAR.md`'ye K-NNN ve kategori
-> etiketiyle girer ve numarası burada anılır; girmeyen karar yalnız burada
-> kalır (`faz-tamamlama` Adım 8). Plan numara rezerve etmez.
+- **K-990** (kategori: güvenlik, public-api; kullanıcı kararı): kota girdisi harcayan run başına yazılır; kimlik ağacın bütçesindeki `TreeAccount`'tan okunur; tek yazım yolu `TreeQuota.RecordAsync`; `run.*` webhook'u kök kapanış anının görüntüsü; eşik bildirimi eşiği geçiren run'ın akışına. K-913'ün kota yarısını ve K-974'ün "yalnız detaya" kuralının kota yarısını değiştirir.
+- Kategori dışı (yalnız burada): Açık Soru 1-4'ün seçimi (Sapma 7) · para birimi kuralının biçimi (Sapma 2) · geç tool tutarının kaynağı (Sapma 3) · üç testin yazılmaması (Sapma 9).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+`Tracon.Abstractions`, `Tracon.Core` ve `Tracon.Workflows` public yüzeyi **büyümedi** (`PublicSurfaceBaselineTests` yeşil, `PublicAPI.*.txt` değişmedi). Yalnız sözleşme paketi:
+
+```csharp
+// Tracon.Testing.Contracts.Xunit — PublicAPI.Unshipped.txt (+2)
+public abstract class QuotaStoreContract
+{
+    [Fact] public Task Usage_that_adds_no_run_adds_its_tokens_and_cost_to_a_counter_that_does_not_exist_yet();
+    [Fact] public Task Usage_that_adds_no_run_leaves_the_run_count_where_the_root_put_it();
+}
+```
+
+Gerçekleşen `internal` yüzey:
+
+```csharp
+// Tracon.Abstractions
+internal interface IQuotaRecorder { ValueTask<IReadOnlyList<QuotaThresholdCrossing>> RecordAsync(QuotaConsumption consumption, CancellationToken cancellationToken = default); }
+internal sealed record TreeAccount(string TenantId, string RootName, string? UserId, IQuotaRecorder? Quota);
+public sealed class AgentRunBudget { internal TreeAccount? Account { get; set; } }
+
+// Tracon.Core
+internal static class TreeQuota { internal static ValueTask<IReadOnlyList<QuotaThresholdCrossing>> RecordAsync(TreeAccount account, Guid runId, int runs, long tokens, decimal? amount, DateTimeOffset occurredAt, CancellationToken cancellationToken); }
+internal sealed class NonTokenCostAccumulator { public decimal? TakeLateToolAmount(string callId); }
+internal sealed class QuotaEnforcer : IQuotaRecorder { … }
+public sealed partial class RunRecordingAgent { internal static decimal? QuotaAmount(bool isRoot, decimal? ownSpend, RunCost? cost, RunNonTokenCost? nonTokenCost, string? pricingCurrency, out bool tokenCostLeftOut); }
+```
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.Abstractions/Quotas/IQuotaRecorder.cs                    (yeni)
+src/Tracon.Abstractions/Runs/TreeAccount.cs                         (yeni)
+src/Tracon.Abstractions/Runs/AgentRunBudget.cs                      (Account)
+src/Tracon.Core/Quotas/TreeQuota.cs                                 (yeni — tek yazım yolu)
+src/Tracon.Core/Quotas/QuotaEnforcer.cs                             (IQuotaRecorder)
+src/Tracon.Core/Recording/RunRecordingAgent.Lifecycle.cs            (kök hesabı atar)
+src/Tracon.Core/Recording/RunRecordingAgent.Completion.cs           (her derinlik kendini yazar)
+src/Tracon.Core/Recording/RunRecordingAgent.Notifications.cs        (OwnConsumption · RecordQuotaAsync · QuotaAmount; ağaç okuması yalnız webhook)
+src/Tracon.Core/Recording/NonTokenCostAccumulator.cs                (TakeLateToolAmount)
+src/Tracon.Core/Recording/LateToolCompletionRecorder.cs             (geç tutarın girdisi)
+src/Tracon.Workflows/Internal/WorkflowRunner.cs                     (hesap + yalnız kendi payı)
+src/Tracon.Testing.Contracts.Xunit/Contracts/QuotaStoreContract.cs  (+2 case) · PublicAPI.Unshipped.txt (+2)
+sevk edilen /// : QuotaTypes.cs · WebhookEventPayload.cs · RunEventCustomTypes.cs · TraconQuotaOptions.cs
+tests/Tracon.AspNetCore.FunctionalTests/BackgroundChildQuotaTests.cs (yeni, 8 test) · LateToolCompletionTests.cs (+5)
+tests/Tracon.AspNetCore.FunctionalTests/Infrastructure/{GatedModelProvider,EntryRecordingQuotaStore}.cs (yeni)
+tests/Tracon.Core.UnitTests/Quotas/TreeQuotaTests.cs (yeni, 18) · Architecture/QuotaWriteSiteTests.cs (yeni, 7) · Recording/NonTokenCostAccumulatorTests.cs (+10)
+docs-site/src/content/docs/concepts/{governance,runs,tools,workflows}.md · capabilities.md (+ public/llms-full.txt) · CHANGELOG.md
+docs/KARARLAR.md (K-990, K-913/K-974 işareti) · arsiv/KARARLAR-GECMISI.md · hafiza/{olcum-kota-ve-secenekler,cekirdek-calistirma}.md · arsiv/HAFIZA-GECMISI.md
+docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md (MT-RET-081…084; 033 ve 076 düzeltildi) · 00-INDEKS.md · 12-GOZLEMLENEBILIRLIK-MALIYET.md
+docs/ADAYLAR.md (F-497…F-501)
+```
+
+### Örnek uygulama koşumu (2026-10-14, `samples/Tracon.Api`, bellek içi depo, `gpt-5.4-mini`)
+
+`bg-router2` ("`background_agents_start_task` ile `bg-writer`'ı başlat, BEKLEME, `Started` de") günlük token kotasıyla koşuldu:
+
+| An | `GET /api/quotas/usage` (`bg-router2`, günlük) |
+|---|---|
+| Kökün HTTP yanıtı döndü (`done`) | `runs 1 · tokens 1352 · cost 0.00043075` |
+| Çocuk bitti (~7 sn sonra) | `runs 1 · tokens 1874 · cost 0.001417` (`bg-writer` adıyla satır yok) |
+| Kök satırı | `usage 1352 · treeUsage 1874` (sayaçla aynı) |
+
+Eşik (manuel case 3): `maxTokens 1500`, `ThresholdPercents [100]`, `PublishThresholdToRunStream` açık — kök 1352 (altında); çocuk bitince sayaç 1871. `tracon.quota.threshold` çerçevesi **çocuğun** akışında (sıra 3, terminal olaydan önce), kökün akışında yok.
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 (plan aynı gün yazıldı ve değişmedi; sapmalar yukarıda) |
+| Düzeltme turu sayısı | 9 (derleme/analyzer 4: IDE0032, RS0016, CA1826, CS1503 · test kırmızısı 4: sevk edilen belge dili ×2, eşik testinin yarışı, SQLite kayan nokta · denetim 🔴 1) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (mevcut hiçbir test değiştirilmeden kırmızı olmadı; bir test yeniden adlandırıldı, Sapma 6) |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz henüz kapanmadı) |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı.
+`faz-denetcisi` (taze bağlam, 2026-10-14). Taban sürümde sekiz yeni test kırmızıydı (sayaç 10, beklenen 20).
+
+| Seviye | Bulgu | Triyaj | Sonuç |
+|---|---|---|---|
+| 🔴 | Geç tutar, tool süresi içinde de raporlamışsa çift sayılır: `KeepLateToolAmount` mühürdeki rapora bakmaz (0,02 süresinde + 0,05 sonradan → sayaç 0,07, gerçek 0,05) | **gerçek** — birim testi yazıldı ve düştü (`0,05` döndü, `0,03` olmalıydı) | Düzeltildi: `TakeLateToolAmount` mühürdeki tutarı düşer, yalnız artışı verir; küçük ya da eşit rapor bir şey eklemez. 3 birim testi + `A_tool_that_reports_a_larger_total_after_its_run_closed_adds_only_the_difference` |
+| 🟡 | Sevk edilen XML metinleri eski kuralı anlatıyordu (`QuotaConsumption.Runs`/`RunId`, `WebhookQuotaSummary.RunId`, `RunEventCustomTypes.QuotaThreshold`) | — | Düzeltildi (dört metin + `PublishThresholdToRunStream` açıklaması) |
+| 🟡 | CHANGELOG eşiği yalnız "sonra biten çocuk"a bağlıyordu | — | Düzeltildi ("çocuk run"); eşzamanlı çocuk için ayrı case yazılmadı: her `CompleteAsync` kendi `scope.Writer`'ına yazar, geç çocuk testi aynı yolu koşar |
+| 🟡 | Para birimi dalı testsizdi (çocuk token dışı tutarı) | — | Kural `QuotaAmount` statik yöntemine çıkarıldı; 3 test (token dışı tutar korunur, tutarsız çocuk para eklemez, kök ve fiyatsız dokunulmaz) |
+| 🟡 | Planın üç hata modu yazılmadı | — | Gerekçelendi (Sapma 9); kök yolu `QuotaWriteSiteTests` ile sabitlendi |
+| 🟡 | Eski kural: `MT-RET-033`, `runs.md:90` | — | Düzeltildi |
+| 🟢 | Geç tool hata verirse raporladığı tutar girmez · geç tutarın eşiği webhook yoksa duyulmaz · F-499'un tersi · ADAYLAR tablo biçimi | — | **F-500**, **F-501**, F-499 genişletildi, biçim düzeltildi |
+
+Triyaj notu: `faz-denetim` Adım 5.1 🔴 bulguların kullanıcıya sorulmasını ister. Bu bulgu bir testle **mekanik olarak yeniden üretildi** (`KR-05`: repro varsa gerçektir) ve kullanıcı "karşılaşılan defect'leri çöz" demişti; bu yüzden sorulmadan kapatıldı. Kapanış mesajı bunu bildirir.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+Sıradaki faz yok: `YOL-HARITASI.md`'nin son satırı 205'tir; seçilmemiş işler `ADAYLAR.md`'dedir.
+
+**Devralınan sözleşmeler**
+
+- Kota her run'da yazılır. Kök `AgentRunBudget.Account`'u atar (`TreeAccount`: kiracı, kök adı, kullanıcı, `IQuotaRecorder?`); çocuk (`Runs = 0`), workflow adımı, workflow kökü (yalnız kendi payı) ve geç tool aynı hesaba tek yoldan, `TreeQuota.RecordAsync`'ten yazar. `grep -rn "new QuotaConsumption" src/` yalnız `TreeQuota.cs`'i göstermelidir (`QuotaWriteSiteTests` zorlar).
+- `run.*` webhook'u kök kapanış anının görüntüsüdür; `ReadTreeConsumptionAsync` yalnız onun içindir.
+
+**Bilinen tuzaklar**
+
+- 🚨 Kota girdisinin kimliği (kiracı, ad, kullanıcı) ortamdan okunmaz: arka plan çocuğu kök bittikten sonra biter ve ortam kiracısı varsayılandır. Yeni bir yazan eklersen hesabı bütçeden al, `ITenantContext`'ten değil.
+- 🚨 Geç tool tutarı çağrının kaydından okunursa iki kez sayılır; kaynak `NonTokenCostAccumulator.TakeLateToolAmount`'tır (yalnız mühürden sonra raporlananı, mühürdeki aynı çağrının tutarını düşerek verir).
+- 🚨 Para birimi: kök kendi maliyetini olduğu gibi yazar, alt run'ın token maliyeti yalnız yapılandırılmış birimdeyse girer (F-499). `Tracon:Pricing:Currency` `null` iken etiketli bir maliyet alt run'da girmez.
+- Ağaç başına en çok `MaxTotalRuns + 1` kota yazımı ve girdi başına eşik okuması vardır (F-498); ölçülmüş bir yük sorunu bildirilmedi.
+- SQLite kota sayacı tutarı kayan noktayla toplar (F-497); sözleşme testlerinde ikili-kesin tutarlar kullan.
+- Bu dosyayı bir betikle düzenlerken `## Sonraki Faza Devir Notu` dizisini başlık olarak **satır başıyla** ara: "Bu Faza Başlarken" listesindeki `awk` komutu aynı dizeyi taşır ve düz `index` onu bulup dosyayı keser (bu fazın kapanışında bir kez yaşandı, git'ten geri alındı).
+
+**Yarım kalan işler**
+
+- **Site yayını (`faz-tamamlama` Adım 10) koşulmadı**: `./scripts/site-deploy.sh` dış dünyaya yayın yapar; kullanıcı onayı bekler. Kapılar yeşil (`npm run check`).
+- `MT-RET-082` (webhook alıcısı gerekir) ve `MT-RET-084` (zaman aşımına uğrayıp tutar bildiren örnek tool yok) elle koşulmadı; ikisinin otomatik karşılığı CI'dadır.

@@ -151,6 +151,48 @@ public sealed class BackgroundChildQuotaTests
     }
 
     [Fact]
+    public async Task The_roots_run_completed_webhook_stays_the_tree_as_it_stood_when_the_root_closed()
+    {
+        // F-418 decided the webhook is NOT the quota's twin: it is a picture of the moment the
+        // root closes. A child that ends later is in the counter and in GET /api/runs/{id},
+        // and publishes nothing of its own - no second event, no changed payload.
+        var gated = new GatedModelProvider(GatedProvider, ResearcherModel);
+        var publisher = new CompletedWebhookPublisher();
+
+        await using var host = await StartAsync(gated, webhooks: publisher);
+
+        await RunRouterAsync(host, streaming: false);
+        await gated.Started.WaitAsync(Bound);
+
+        gated.Open();
+
+        await WaitUntil.ValueAsync(
+            () => DailyCounterAsync(host, "yonlendirici"),
+            static record => record.Tokens == 20,
+            "the child's tokens to reach the root's counter",
+            Bound);
+
+        var run = publisher.Completed.ShouldHaveSingleItem();
+
+        run.AgentName.ShouldBe("yonlendirici");
+        run.InputTokens.ShouldBe(4);
+        run.OutputTokens.ShouldBe(6);
+        run.Cost.ShouldBe(0.016m);
+
+        // The exact total is on the run: the root's row, read after the child ended.
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var child = await WaitUntil.ValueAsync(
+            async () => (await runs.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Single(static row => row.Depth == 1),
+            static row => row.Status == RunStatus.Completed,
+            "the child's row to close",
+            Bound);
+
+        var root = (await runs.GetRunAsync(child.RootRunId ?? child.ParentRunId!.Value)).ShouldNotBeNull();
+
+        root.TreeUsage.ShouldNotBeNull().TotalTokens.ShouldBe(20);
+    }
+
+    [Fact]
     public async Task A_workflow_steps_background_task_is_counted_under_the_workflow()
     {
         var gated = new GatedModelProvider(GatedProvider, ResearcherModel);
@@ -331,7 +373,8 @@ public sealed class BackgroundChildQuotaTests
         bool tenancy = false,
         bool workflows = false,
         EntryRecordingQuotaStore? quota = null,
-        SubAgentSettings? subAgents = null)
+        SubAgentSettings? subAgents = null,
+        IWebhookPublisher? webhooks = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -390,6 +433,11 @@ public sealed class BackgroundChildQuotaTests
                     services.AddSingleton<IQuotaStore>(quota);
                 }
 
+                if (webhooks is not null)
+                {
+                    services.AddSingleton(webhooks);
+                }
+
                 services.Configure<TraconQuotaOptions>(options =>
                 {
                     options.PublishThresholdToRunStream = publishToRunStream;
@@ -401,4 +449,37 @@ public sealed class BackgroundChildQuotaTests
                     }
                 });
             });
+
+    private sealed class CompletedWebhookPublisher : IWebhookPublisher
+    {
+        private readonly List<WebhookRunSummary> _completed = [];
+
+        public IReadOnlyList<WebhookRunSummary> Completed
+        {
+            get
+            {
+                lock (_completed)
+                {
+                    return [.. _completed];
+                }
+            }
+        }
+
+        public ValueTask<int> PublishAsync(
+            string tenantId,
+            string eventType,
+            WebhookEventPayload payload,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.Equals(eventType, WebhookEvents.RunCompleted, StringComparison.Ordinal) && payload.Run is { } run)
+            {
+                lock (_completed)
+                {
+                    _completed.Add(run);
+                }
+            }
+
+            return new ValueTask<int>(1);
+        }
+    }
 }

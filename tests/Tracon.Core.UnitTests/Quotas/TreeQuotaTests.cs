@@ -148,6 +148,53 @@ public sealed class TreeQuotaTests
         counter.Cost.ShouldBe(0.03m);
     }
 
+    [Theory]
+    [InlineData("EUR", "USD", true)]
+    [InlineData("EUR", null, true)]
+    [InlineData("USD", "USD", false)]
+    [InlineData("usd", "USD", false)]
+    public void A_child_in_another_currency_keeps_the_amounts_it_reported_beyond_tokens(string? priceCurrency, string? pricingCurrency, bool tokenCostLeftOut)
+    {
+        // The reported amounts are in the pricing currency by construction (the accumulator
+        // adds nothing else), so they count whatever currency the model's tokens were priced in.
+        var cost = new RunCost { InputCost = 0.01m, OutputCost = 0.02m, Currency = priceCurrency, Source = PricingSource.Catalog };
+        var reported = new RunNonTokenCost { Amount = 0.25m, Currency = pricingCurrency };
+        var ownSpend = RunSpend.Total(cost, reported);
+
+        var amount = RunRecordingAgent.QuotaAmount(isRoot: false, ownSpend, cost, reported, pricingCurrency, out var leftOut);
+
+        leftOut.ShouldBe(tokenCostLeftOut);
+        amount.ShouldBe(tokenCostLeftOut ? 0.25m : ownSpend);
+
+        if (!tokenCostLeftOut)
+        {
+            amount.ShouldBe(0.28m);
+        }
+    }
+
+    [Fact]
+    public void A_child_in_another_currency_with_nothing_reported_beyond_tokens_adds_no_money()
+    {
+        var cost = new RunCost { InputCost = 0.01m, OutputCost = 0.02m, Currency = "EUR", Source = PricingSource.Catalog };
+
+        RunRecordingAgent.QuotaAmount(isRoot: false, cost.Total(), cost, nonTokenCost: null, "USD", out var leftOut).ShouldBeNull();
+
+        leftOut.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void A_root_and_an_unpriced_run_keep_their_own_spend_whatever_the_currency()
+    {
+        var cost = new RunCost { InputCost = 0.01m, OutputCost = 0.02m, Currency = "EUR", Source = PricingSource.Catalog };
+        var unpriced = new RunCost { Currency = "EUR", Source = PricingSource.Unknown };
+
+        RunRecordingAgent.QuotaAmount(isRoot: true, 0.03m, cost, null, "USD", out var rootLeftOut).ShouldBe(0.03m);
+        RunRecordingAgent.QuotaAmount(isRoot: false, null, unpriced, null, "USD", out var unpricedLeftOut).ShouldBeNull();
+
+        rootLeftOut.ShouldBeFalse();
+        unpricedLeftOut.ShouldBeFalse();
+    }
+
     private static AgentRunBudget ChildBudget(Harness harness)
         => new() { Account = new TreeAccount(RootTenant, RootName, "user-1", harness.Enforcer) };
 

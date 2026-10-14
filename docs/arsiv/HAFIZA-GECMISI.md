@@ -1386,3 +1386,55 @@ Faz 200'ün üç yeni notuna yer açmak için taşındı. Kural alan dosyasında
 - **🚨 "İstek yanıtlandı" orkestrasyonun devam ettiği anlamına GELMEZ** (2026-08-18, F-106/K-433): Magentic round-limit'e ulaşınca kendi çıktısını üretip sonlanır; pompa akışı yeniden açarsa MAF "zaten tamamlandı" istisnası atar ve sonuç üretmiş bir çalıştırma `RunFailed` olur. Akışı yeniden açmadan önce `run.GetStatusAsync()` sorulur. Round-limit **metnini** eşleştirme — MAF cümleyi değiştirdiğinde kırılır. 🚨 Bu davranış sahte (`EchoAgent`) katılımcılarla süreç içinde **yeniden üretilemedi** (iki repro denendi); kapısı manuel kabul case'idir.
 - **🚨 Workflow deadline testi küçük bir duvar saatiyle hedef node'u seçemez** (2026-09-19, Windows CI): 200 ms, yüklü worker'da ilk hızlı node bitmeden tükenebilir; test ikinci yavaş node'u değil ilk node'u iptal olmuş görür. Test önce yavaş node'un başladığını `TaskCompletionSource` ile kanıtlar, sonra runner'ın kendi `TimeProvider`'ındaki timer'ı tetikler. `WorkflowRunner` timeout CTS'ini de aynı provider ile kurmalıdır; aksi hâlde test clock'u deadline'ı hiç etkilemez.
 - **🚨 Olay eşleyicisi `catch` dışında bir kalıcı yazım yoludur** (2026-10-12, F-334, K-640): `WorkflowEventMapper` `ExecutorFailedEvent.Data.Message`'ı `ExecutorFailed` yüküne yazıyordu; run satırı güvenli metni yazarken aynı hata olay tablosuna, SSE'ye ve sink'lere ham gitti. K-640 cırcırı yalnız `catch (Exception` bloklarını taradığı için göremedi; artık `RunEventDraft` başlatıcılarını da tarar. Runner hatayı TEK kez, tek `ref` ile loglar (`LogFailure`); olay ve satır aynı `ref`'i taşır.
+
+## Faz 205 — `olcum-kota-ve-secenekler.md`'den taşınan ayrıntı
+
+### Yarim yazilmis skor kumesi (Faz 155)
+
+**🚨 Bir yargic N satir yaziyorsa, k'inci satirdaki store hatasi KALICI bir
+eksiklik uretir.** Retry checkpoint'i (K-638) "bu yargicin `author`'uyla bir satir
+var mi" diye sorar, kac satir oldugunu sormaz. Hayatta kalan tek satir yargici
+retry'da **atlatir**: kalan metrikler bir daha hic yazilmaz, is `Completed`
+raporlanir ve hicbir `JudgeFailure` gorunmez -- sessiz veri kaybi.
+
+Cozum telafidir, transaction degil: yazma dongusu `try/catch` icindedir ve hata
+halinde `CompensateAsync` o denemede yazilan satirlari **geri alir**, boylece
+retry temiz sayfadan baslar (`UpsertAsync` idempotent oldugu icin yeniden yazim
+guvenlidir). Iki ayrinti:
+
+- Temizlik **iptal edilemez** (`CancellationToken.None`). Iptal edilen bir
+  temizlik, tam da onlemek icin var oldugu yarim kumeyi birakirdi.
+- Temizlik de basarisiz olursa **loglanir, firlatilmaz**. Store zaten yazmayi
+  reddediyor; orada firlatmak raporlanan bir yargic hatasini bir is cokusune
+  cevirirdi.
+
+**Sinif taramasi:** "N kayit yaz, sonra bir checkpoint'e guven" deseni her yerde
+ayni tuzagi tasir. Checkpoint kismi bir kumeyi tam bir kumeden ayirt edemiyorsa,
+ya telafi yaz ya da checkpoint'e tamlik bilgisi ekle.
+
+### Yargic skorunun olcegi (Faz 155)
+
+**🚨 Bir yargic artik N adli skor dondurur ve hepsi ayni olcekte DEGILDIR.**
+`OnlineEvalSummaryService.RecordScoreAsync` ve `TraconMetrics.RecordJudgeScore`
+**0-100** tanimlidir; `OnlineEvaluationOptions.LowScoreThreshold` varsayilan **60**
+o olcekte karsilastirilir. Microsoft'un kalibre evaluator'lari ise **1-5** verir.
+
+Kural (K-730): pencereye ve histograma yalnizca **mansset** skor girer --
+adi yargicin adina **esit** VE `Kind == RunScoreKind.Numeric` olan skor.
+`OnlineEvalJobHandler.JudgeOneAsync`'te tek yerdedir.
+
+Iki tuzak, ikisi de bagimsiz denetimde bulundu:
+
+- **Ad yetmez, `Kind` de gerekir.** Ilk yazim yalnizca ada bakiyordu. Bir yargic
+  genel kararini `Stars` olarak verebilir (sevk edilen rehber bunu aciktan davet
+  ediyor); 1-5 olceginde bir **5**, 60 esiginin altina duser ve `run.score.low`
+  webhook'u **her saglikli kosumda** calar. Yani "kotu skor alarmi" saglam bir
+  ajanda surekli oter ve insanlar onu susturmayi ogrenir.
+- **Olcek tahmini yapma.** Kural bir AD KARSILASTIRMASIDIR, bir deger sezgisi
+  degil. "1 ile 5 arasindaysa yildizdir" gibi bir tahmin yanlis siniflandirir;
+  0-100 olceginde mesru bir 3 puan vardir.
+
+Yeni bir yargic eklerken: mansset skorunu **0-100 `Numeric`** ver, adini yargicin
+adiyla ayni yap. Baska bir olcek kullanacaksan ona **baska bir ad** ver -- saklanir,
+`GET /api/evaluation/scores/summary` onu `(name, kind)` kiriliminda raporlar,
+yalnizca canli ortalamaya girmez.
