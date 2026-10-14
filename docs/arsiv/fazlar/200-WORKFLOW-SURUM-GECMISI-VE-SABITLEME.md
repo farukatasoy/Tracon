@@ -12,186 +12,24 @@
 
 ---
 
-## Bu Faza Başlarken
-
-> `faz-baslangic` uygula.
-
-1. Bu doküman
-2. `grep -n "K-126\|K-811\|K-820\|K-891\|K-895\|K-900\|K-901" docs/KARARLAR.md` — §200.1 ve §200.4 bunlara dayanır
-3. `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/195-*.md`
-4. `hafiza/workflows.md`, `hafiza/agent-derleme-ve-onbellek.md`, `hafiza/sql-migration.md`
-5. Faz 201 devri (editör dosyaları ortak): `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/201-*.md`
-   (arşivlenmediyse `docs/201-*.md`). 🚨 `agent-detail.tsx` `VersionCompare` artık bir Loop
-   tablosu çizer (`formatLoopCriteria`, `data-testid="loop-diff"`) — `VersionHistory` ortak
-   bileşene çıkarken karşılaştırma bölümü yerinde kalır. `full-replace-editors.test.tsx`'in
-   agent fixture'ı üç ölçütlü bir loop ve `api/loop-criteria` fixture'ı taşır; `agent-detail.test.tsx`
-   sürüm karşılaştırmasını checkbox'larla açan bir test içerir — workflow sürüm testleri bu deseni kullanabilir.
-6. **Faz 196 devri** (`awk '/## Sonraki Faza Devir Notu/,0' docs/196-UZUN-ADIM-SURE-VE-IPTAL.md`, arşivlendiyse `docs/arsiv/fazlar/` altında): `WorkflowDefinition.RunTimeout` ve `WorkflowNodeReference.Timeout` tanımın parçasıdır; sürüm geçmişi ve geri alma iki alanı da taşımalı (`WorkflowDefinitionPayload`, `WorkflowDefinitionStoreContract.Node_timeouts_and_the_run_timeout_survive_the_round_trip`). 🚨 Süre değişikliği şekil (`shapeOf`) değişikliği DEĞİLDİR ve bekleyen run'ı resume edilemez yapmaz (K-959); sürüm damgası bunu "yapısal değişiklik" saymamalı. Editörde `Step.timeout`/`storedTimeout` ve `runTimeout`/`storedRunTimeout` K-918 deseniyle dokunulmadan döner; `hasStrandedTimeouts` kaydı tutar.
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 8e4786fc:docs/arsiv/fazlar/200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md
+> ```
+>
+> Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-Operatör zinciri, ayarı ve talimatı canlı değiştirir; workflow tanımının geçmişi yoktur. Bekleyen veya kesilen run resume'da güncel tanımı derler: yapısal değişiklik onu kırar, ayar değişikliği onu sessizce değiştirir.
-
-- **F-300** — workflow geçmişi ve geri alma, kök run'a sürüm damgası, agent düğümüne sabit sürüm.
-
-Tüketici: kiracı başına stored `Sequential` workflow (podcast hattı). Kabul: "dünkü düzenleme bozdu" anında geri dönüş; üretim başladığı sürümle biter.
-
-### Kapsam dışı
-
-| Kalem | Neden |
-|---|---|
-| Skill geçmişi; alt agent sürüm sabiti | Açık Soru 6 |
-| Agent → skill sabiti; sabitsiz adımı dondurma | Ayrı aday (F-409); K-895 (c) |
-| Sürümle yeni run; `Sequential` dışı sabit | İhtiyaç ölçülmedi; `Nodes` yalnız `Sequential` |
-| Geçmiş tavanı, sürümde yazar | Agent geçmişinde de yok |
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| `IAgentDefinitionStore.cs:42,69,79` · `AgentEndpoints.cs:138,151,164` | Agent geçmişi, geri alma, fark — desen |
-| `IWorkflowDefinitionStore.cs:6-12,20-54` · `0007_workflows.sql:22-25` | Yalnız `Get/List/Save/Delete`; "geçmiş yok, denetim izi yeter" (K-126) |
-| `AuditingWorkflowDefinitionStore.cs:72-85` · `AuditRecorder.cs:12-13` | `before`/`after` best-effort, hata yutulur; okuma yolu yok |
-| `WorkflowRunner.cs:586-611`, `:666` | Kök run sürümsüz; satır tanım çözülmeden açılır |
-| `WorkflowRunner.cs:285-301`, `:310-350`, `:387` | Resume/respond yalnız ad taşır; şema güncel tanımdan |
-| `WorkflowCatalog.cs:159-167` | Derleme hep güncel tanımı okur |
-| `WorkflowDefinitionCompiler.cs:185-187` · `concepts/workflows.md:187-190` | "Resume güncel ayarı okur" |
-| `locales/en/workflows.ts:94` | Yapısal değişiklik bekleyen run'ı kırar (K-901) |
-| `WorkflowNodeReference.cs:27-72` | Düğüm sürüm taşımaz |
-| `WorkflowAgentCache.cs:131,167` · `CallableAgentResolver.cs:45` · `ChildAgentInvoker.cs:569` | Sarmalayıcı `Version: 0`, anahtar sürümsüz; çözüm güncel sürüm |
-| `IAgentCatalog.cs:54-58` · `concepts/agents.md:304-307` | Sürümlü çözüm var; site "adım güncel sürümü çözer" der |
-| `WorkflowRunner.cs:828` | Parametre varsayılanı adım talimatına girer |
-| `hafiza/agent-derleme-ve-onbellek.md` (K-811) | Silme + oluşturma sürümü `1`'e sıfırlar |
-| `WorkflowDefinitionStoreContract.cs` | Sürüm senaryosu yok; paket üçüncü taraf içindir |
-
-> Kanıtlar 2026-10-12'de `99fe0b13` zemininde doğrulandı.
-
----
-
-## 200.1 — Geçmiş ve migration
-
-- Kayıt aynı işlemde sürüm satırı (`WorkflowDefinitionPayload`, `Settings` dahil) yazar (`SqlAgentDefinitionStore.cs:184-223` deseni); geri alma eski içeriği yeni sürüm yazar; dekoratör `workflow.rollback` yazar.
-- 🚨 Numara kimliktir (Açık Soru 4): silme geçmişi silmez. Resume yine güncel tanımı ister (`WorkflowEndpoints.cs:124-125`).
-- `workflow_definition_versions`: PK `(tenant_id, name, version)`. Migration mevcut satırları kopyalar; `UpsertWorkflow` INSERT dalı geçmişin en büyüğü + 1 yazar. `IWorkflowDefinitionStore.cs:6-12`, `MIMARI.md:204` yeniden yazılır.
-
-## 200.2 — HTTP ve geri alma
-
-- Liste tam anlık görüntü, fark iki ham anlık görüntü döner (`AgentEndpoints.cs:138-174` eşi).
-- Geri alma `PUT` gibi doğrulanır (validator, fonksiyon, `ValidateSettings`); uymayan sürüm `400`. Kod tanımlı ad: okuma `404` + gerekçe (K-820), geri alma `409`.
-
-## 200.3 — Düğümde `AgentVersion`
-
-- `WorkflowNodeReference.AgentVersion` (`int?`): yalnız agent düğümü; `null` güncel sürüm (K1); fonksiyon düğümünde veya `< 1` → `400`. Konsol fonksiyon **veya** sabit varsa `nodes` yazar (K-901).
-- Varlık derlemede denetlenir (`WorkflowDefinition.cs:66-72`); kod agent'ı veya olmayan sürüm adımı adıyla düşürür.
-- `WorkflowAgentCache` anahtarı sabiti alır; `ChildAgentInvoker` onu `ResolveAsync`/`FindAsync`'e geçirir (K-891); çocuk satır onu yazar.
-- Executor kimliği `(workflow, agent)`'tan türer; sabit değişimi yapısal değildir — ölçülmeli (test 15).
-
-## 200.4 — Damga ve resume/respond
-
-- Kök satır derlediği sürümü taşır (Açık Soru 5); kod workflow'u `null`.
-- 🚨 Tanım `StartAsync`'ten önce bir kez okunur; damga ve graf aynı okumadan gelir (`WorkflowCatalog.cs:142-147`). Tanım yoksa satır açılır, `Failed` kapanır.
-- Resume/respond (Açık Soru 3) kaynak damgasını derler ve damgalar; `definitionVersion` başka sürüm seçer (uymayan yapı: "structure differs"). Şema aynı sürümden. Damgasız run güncel tanımla sürer; sürüm yoksa kapalı düşer.
-- K-900/K-901'in resume cümlesi, editör uyarısı ve site değişir. Sabitsiz adım güncel agent'ı çözer (K-895 c).
-- Sınıf taraması: `grep -rn "new WorkflowExecution" src/Tracon.Workflows` → `WorkflowRunner.cs:244,291,338`; hepsi sürüm taşır, Faz 197 yolları da.
-
-## 200.5 — Konsol
-
-- `agent-detail.tsx:236-396` `VersionHistory` ortak bileşene çıkar; workflow ayrıntısı onu kullanır.
-- Editörde agent düğümüne sürüm seçici; kod agent'ında gizli. Metin `locales/{en,tr}`.
-
----
-
-## Planlanan Public API
-
-> Taslak. `WorkflowNodeReference.AgentVersion`, `Workflow{Resume,Respond}Request.DefinitionVersion` (`int?`), HTTP DTO'ları: **bugün eklemek bedava / GA sonrası kırıcı**. Arayüz üyesi uygulayıcıyı bugün de kırar (Açık Soru 2).
-
-```csharp
-// IWorkflowDefinitionStore; her üye CancellationToken alır
-ValueTask<WorkflowDefinition?> GetVersionAsync(string tenantId, string name, int version, …);
-ValueTask<IReadOnlyList<WorkflowDefinition>> ListVersionsAsync(string tenantId, string name, …);
-ValueTask<WorkflowDefinition> RollbackAsync(string tenantId, string name, int version, …);
-```
-
-### HTTP `endpoint`'leri
-
-| Metot | Yol | Rol | Ne yapar |
-|---|---|---|---|
-| `GET` | `/api/workflows/{name}/versions` · `…/versions/{a}/diff/{b}` | Reader | Liste · fark |
-| `POST` | `/api/workflows/{name}/rollback` | Admin | Eski içerik yeni sürüm |
-| `POST` | `/api/workflows/runs/{runId}/resume` · `…/respond` | Operator | İsteğe bağlı `definitionVersion` |
-
-### Arayüz payı
-
-Ölçüldü (2026-10-12): 199,8 KB gzip, bütçe 250 KB; pay kapanışta ölçülür. Faz 201'den sonra
-203,7 KB (208 567 B, 2026-10-13, Faz 204 hariç) — taban birleştirilmiş `main`'de yeniden ölçülür.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-src/Tracon.Abstractions/Workflows/  IWorkflowDefinitionStore, WorkflowNodeReference, istek tipleri
-src/Tracon.{Core,Workflows}/        store'lar, validator, ChildAgentInvoker, WorkflowAgentCache, Catalog, Runner
-src/Tracon.{Sql.Shared,PostgreSql,SqlServer,Sqlite}/  SqlWorkflowDefinitionStore, *Queries, migration
-src/Tracon.{AspNetCore,Testing.Contracts.Xunit,UI}/   uçlar, sözleşmeler, version-history, editör
-```
-
----
-
-## Hata Modları ve Testler
-
-| # | Ne bozulabilir | Seviye | Test sınıfı |
-|---|---|---|---|
-| 1 | Kayıt geçmişsiz commit eder; geri alma eski satırı değiştirir | Sözleşme (dört depo) | `WorkflowDefinitionStoreContract` |
-| 2 | **Eşzamanlılık:** iki kayıt aynı numara | Sözleşme | aynı |
-| 3 | Silme + oluşturma numarayı yeniden kullanır | Sözleşme | aynı |
-| 4 | Payload `AgentVersion`'ı düşürür (K-580) | Sözleşme | aynı |
-| 5 | Geri doldurma eksik; damga satır bulamaz | Migration (üç sağlayıcı) | mevcut migration testleri |
-| 6 | **Başka kiracı:** geçmiş okunur/geri alınır | Sözleşme (`TenantIsolationContract`) + Fonksiyonel | `WorkflowVersionEndpointTests` |
-| 7 | **İptal:** yeni üye iptali yok sayar | Sözleşme (`StoreCancellationContract`) | mevcut |
-| 8 | **Alt sistem hatası:** geçmiş yazımı düşer, ana satır kalır | Sözleşme | `WorkflowDefinitionStoreContract` |
-| 9 | Resume/respond güncel tanımı derler | Fonksiyonel (ayar değişir → resume → eski ayar) | `WorkflowResumePinTests` |
-| 10 | Yapısal değişiklikten sonra bekleyen run sürmez | Fonksiyonel (aynı süreç) | `WorkflowStructuralChangeResumeTests` |
-| 11 | Sürüm yokken güncele düşer; uyumsuz `definitionVersion` sessiz sürer | Fonksiyonel | `WorkflowResumePinTests` |
-| 12 | Şema güncel sürümden okunur | Fonksiyonel | `WorkflowResumePinTests` |
-| 13 | Damga ve graf iki okumadan gelir; tanım yoksa satır açılmaz | Fonksiyonel | `WorkflowRunStampTests` |
-| 14 | Sabit yok sayılır (parametreli yol, önbellek anahtarı) | Birim + Fonksiyonel | `WorkflowNodeAgentVersionTests` |
-| 15 | Sabit değişimi executor kimliğini değiştirir | Fonksiyonel (aynı süreç) | `WorkflowStructuralChangeResumeTests` |
-| 16 | **Boş/aşırı girdi:** fonksiyon düğümünde, `0`/negatif, olmayan sürüm | Fonksiyonel (`400`, adlı hata) | `WorkflowNodeAgentVersionValidationTests` |
-| 17 | Geri alma geçersiz sürümü yazar; denetime girmez; kod adında `409` yok | Fonksiyonel | `WorkflowRollbackTests` |
-| 18 | Fark yanlış alan; editör sabiti düşürür; sabitli zincir `agentNames` | Vitest | `version-history`, `full-replace-editors`, `workflow-editor` testleri |
-| 19 | Konsoldan geri alınan workflow eski içerikle koşmaz | E2E | mevcut workflow E2E |
-| 20 | Üretilen istemciler alanı taşımaz | Paket | NSwag/TS kapıları |
-
----
-
-## Manuel Kabul Case'leri
-
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | Ayarlı workflow | Ayarı iki kez değiştir → Sürümler | Fark ayarı gösterir — 👤 |
-| 2 | Aynı | v1'e geri al | Yeni sürüm, içerik v1 |
-| 3 | Yavaş fonksiyonlu workflow | İptal et → düğüm ekle → resume | Eski zincirle sürer |
-| 4 | Aynı run | `definitionVersion` = güncel | "structure differs" reddi |
-| 5 | İki sürümlü agent | Düğüme `agentVersion: 1` → run | Çocuk satır `agentVersion: 1` |
-| 6 | Workflow v3 | Sil → aynı adla oluştur | İlk sürüm 4 |
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | K-126 açılsın mı? (**engelleyici**) | A: aç · B: açma; damga + uyuşmazlıkta red | **A** — dayanak okunamayan best-effort kayıttır; tanım artık talimata giren değer ve ayar taşır |
-| 2 | Üçüncü taraf store | A: soyut üye (preview'da kırıcı) · B: varsayılan üye, yalnız güncel sürüm (`ISessionStore.cs:55`) · C: ayrı arayüz | **A** — geçmiş store'un işidir; B sabitlemeyi her düzenlemede düşürür |
-| 3 | Resume varsayılanı | A: kaynak damgası + `definitionVersion` · B: güncel, uyuşmazlıkta red · C: yalnız damga | **A** — kabul budur; CHANGELOG yazar |
-| 4 | Silme + oluşturmada kimlik | N: numara yeniden kullanılmaz · K: agent gibi, risk yazılır · H: run'a içerik özeti | **N** — vekil numara başka içeriği derletir (K-811); H sütun ister |
-| 5 | Damganın yeri | A: `runs.agent_version` · B: yeni sütun | **A** — kök satırda `AgentName` zaten workflow adı; sürüm istatistiği workflow'u da sayar |
-| 6 | Skill geçmişi ve alt agent sabiti bu fazda mı? | A: evet · B: iki ayrı aday (F-408, F-409) | **B** — skill K-082'yi (kullanıcı kararı) açar, üç tablo ve özet liste ister (20 × 256 KiB kaynak), K-860 grant'ına dokunmamalı. Alt sabit ayrı yüzeydir |
-
----
+Operatör zinciri, ayarı ve talimatı canlı değiştirir; workflow tanımının geçmişi yoktur. Bekleyen veya kesilen run resume'da güncel tanımı derler: yapısal değişiklik onu kırar, ayar değişikliği onu sessizce değiştirir. - **F-300** — workflow geçmişi ve geri alma, kök run'a sürüm damgası, agent düğümüne sabit sürüm.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -246,18 +84,6 @@ curl -s http://localhost:5081/tracon/api/workflows/narrated/versions
 
 ---
 
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| Operatör düzeltmeyi bekleyen run'a uygulayamaz | `definitionVersion`; site yazar |
-| Agent numarası silmede yeniden kullanılır; sabit bunu miras alır | Ayrı aday (F-409) |
-| Faz 195/197/201 dosya çakışması | Önkoşul |
-
----
-
-<!-- AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama`. Başlıkları SİLME. -->
-
 ## Plandan Sapmalar
 
 Plan 2026-10-12'de yazıldı, bakımcı 2026-10-14'te altı Açık Sorunun önerilerini (1-A, 2-A, 3-A, 4-N, 5-A, 6-B) olduğu gibi onayladı; plan revize edilmedi. Uygulamada alınan kararlar:
@@ -287,49 +113,6 @@ Dört kategoriye giren üç karar `docs/KARARLAR.md`'ye yazıldı (tam gerekçe 
 - **K-984** *(public-api)* — `WorkflowNodeReference.AgentVersion`: yalnız `nodes`, yalnız veritabanı agent'ı, kayıtta ve derlemede doğrulanır, önbellek anahtarında ama kimlikte değil; K-901 konsolun `nodes` yazma kuralını "fonksiyon veya sabit" yapar.
 
 Kategori dışı yerel kararlar (burada kalır, `K-*` açılmadı): silinmiş bir ad için mağaza `RollbackAsync`'i yeniden yaratır (sapma 1) · geri alma `PUT` ile aynı tek doğrulayıcıyı kullanır (sapma 10) · SQL kancaları yalnız sözleşme testinde (sapma 6) · checkpoint'siz yeniden başlatma güncel tanımı derler (sapma 11).
-
-## Gerçekleşen Public API
-
-```csharp
-// Tracon.Abstractions — IWorkflowDefinitionStore (soyut üyeler; üçüncü taraf uygulayıcıyı kırar)
-ValueTask<WorkflowDefinition?> GetVersionAsync(string tenantId, string name, int version, CancellationToken cancellationToken = default);
-ValueTask<IReadOnlyList<WorkflowDefinition>> ListVersionsAsync(string tenantId, string name, CancellationToken cancellationToken = default); // yeniden eskiye
-ValueTask<WorkflowDefinition> RollbackAsync(string tenantId, string name, int version, CancellationToken cancellationToken = default);     // yok → TraconException
-
-// Tracon.Abstractions
-WorkflowNodeReference.AgentVersion { get; init; }            // int?
-WorkflowResumeRequest.DefinitionVersion { get; init; }       // int?
-WorkflowRespondRequest.DefinitionVersion { get; init; }      // int?
-
-// Tracon.AspNetCore (HTTP DTO'ları; PublicAPI.Unshipped)
-WorkflowResumeHttpRequest.DefinitionVersion · WorkflowRespondHttpRequest.DefinitionVersion   // int?
-sealed record WorkflowRollbackRequest { required int Version }
-sealed record WorkflowVersionDiffResponse { required WorkflowDefinition Left; required WorkflowDefinition Right }
-
-// Tracon.Testing.Contracts.Xunit — WorkflowDefinitionStoreContract
-13 yeni [Fact] + virtual SupportsRawHistory · ExecuteRawAsync · QualifiedWorkflowHistoryTable · RawNowExpression
-```
-
-HTTP: `GET /api/workflows/{name}/versions` (Reader, `workflows:read`) · `GET …/versions/{a:int}/diff/{b:int}` (Reader) · `POST …/rollback` (Admin, `workflows:admin`); `resume`/`respond` gövdesine isteğe bağlı `definitionVersion`. İç (public değil): `AgentVersionPin`, `WorkflowCatalog.FindAsync`/`CompileAsync`/`FoundWorkflow`, `CallableAgentResolver.ResolveAsync(ad, sürüm)`/`FindPinProblemAsync`, `ChildAgentInvoker`'ın `pinnedVersion` parametresi, `WorkflowAgentCache.Get(..., agentVersion)`.
-
-Public tür sayısı: `Tracon.AspNetCore` 84 → 86 (`public-surface-baseline.txt` yenilendi). `Tracon.Abstractions` yeni tür eklemedi.
-
-## Dosya Listesi (gerçekleşen)
-
-```
-src/Tracon.Abstractions/Workflows/     IWorkflowDefinitionStore · WorkflowNodeReference · IWorkflowRunner (WorkflowResumeRequest) · WorkflowPendingRequest (WorkflowRespondRequest) · WorkflowDefinition (yalnız belge)
-src/Tracon.Core/                       Storage/InMemoryWorkflowStores.cs (WorkflowHistory) · Audit/AuditingWorkflowDefinitionStore.cs ·
-                                       Workflows/AgentVersionPin.cs (YENİ) · Workflows/WorkflowDefinitionValidator.cs · Graph/CallableAgentResolver.cs · Graph/ChildAgentInvoker.cs ·
-                                       Scheduling/WorkflowRunJobPayload.cs · Scheduling/WorkflowRunJobHandler.cs
-src/Tracon.Workflows/Internal/         WorkflowCatalog · WorkflowRunner · WorkflowAgentCache · WorkflowDefinitionCompiler (+ README, XML dokümanı)
-src/Tracon.Sql.Shared/                 Stores/SqlWorkflowDefinitionStore.cs · Internal/SqlQueriesBase.cs
-src/Tracon.{PostgreSql,SqlServer,Sqlite}/  Internal/*Queries.cs · Migrations/0059_ · 0047_ · 0046_workflow_definition_versions.sql (YENİ ×3)
-src/Tracon.AspNetCore/                 Endpoints/WorkflowEndpoints.cs · Contracts/WorkflowContracts.cs
-src/Tracon.Testing.Contracts.Xunit/    Contracts/WorkflowDefinitionStoreContract.cs
-src/Tracon.UI/frontend/                bkz. "Konsol" altında
-scripts/applied-migrations.json · docs/openapi/tracon.json · src/Tracon.Client/Generated/* · packages/tracon-client/src/schema.ts (üretilen)
-tests/                                 Workflows.UnitTests (7 dosya) · AspNetCore.FunctionalTests (5 dosya) · Core.UnitTests (3 dosya) · {Sqlite,PostgreSql,SqlServer}.IntegrationTests/Contracts · Sql.Shared.UnitTests/Baselines
-```
 
 ## Süreç Ölçümü
 
