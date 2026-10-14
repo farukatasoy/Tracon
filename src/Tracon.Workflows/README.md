@@ -116,7 +116,8 @@ HTTP. A save reads the settings into `TtsSettings`: an unknown field, a missing
 `required` member or a value of the wrong type is a `400` that names the node and the
 member. The same read repeats when a run starts, so settings saved against an older
 shape fail the run by name instead of running with a default. A change applies to the
-next run. **Settings are stored in the definition and shown to everyone who can read
+next run; a run that waits to be resumed keeps the version it started with (see
+[Versions](#versions-rollback-and-pinning-an-agent-step)). **Settings are stored in the definition and shown to everyone who can read
 the workflow: never put a secret in them** - name its configuration key instead.
 `GET /tracon/api/workflows/functions` lists each function with the JSON schema of its
 settings.
@@ -194,6 +195,40 @@ A missing required value, an undeclared name or an over-long value is a `400` be
 the stream opens. The run records its final values, and a resume or an answer to a
 waiting request uses them again. A workflow defined in code declares no parameters.
 
+## Versions, rollback and pinning an agent step
+
+Every save of a stored workflow appends a version, and the old ones stay readable:
+
+```http
+GET  /tracon/api/workflows/podcast/versions
+GET  /tracon/api/workflows/podcast/versions/2/diff/3
+POST /tracon/api/workflows/podcast/rollback
+{"version":2}
+```
+
+A rollback writes version 2's content as a new version; it never rewrites the history. It is
+judged like a save, so content that names a function that is no longer registered, or an
+agent version that no longer exists, is a `400` and nothing is written. A version number is
+never reused: deleting a workflow keeps its history, and saving the name again continues
+the numbering.
+
+A run's row records the definition version it was compiled from (`version` on a workflow
+run). `resume` and `respond` compile that version.
+
+A step in a `nodes` chain can pin the version of its agent:
+
+```json
+{"kind":"Sequential","nodes":[
+  {"name":"writer","kind":"Agent","agentVersion":4},
+  {"name":"tts","kind":"Function"}]}
+```
+
+The step runs version 4 of `writer` while the agent is edited, and its run row records
+version 4. Only an agent stored through the management API has versions: an agent defined
+in code cannot be pinned, nor can a version below 1 or one the agent does not have. A step
+with no `agentVersion` runs the agent's current version each time. A pin does not reach into
+the agent's own sub-agents or skills.
+
 ## Timeouts
 
 A function can be registered with a timeout. When it passes, the handler's token is
@@ -228,6 +263,18 @@ POST /tracon/api/workflows/runs/{runId}/resume
 
 Durable resuming requires `UsePostgreSql()`; in an in-memory setup,
 checkpoints are limited to the lifetime of the process.
+
+A resume compiles the workflow definition **version the run recorded**, not the current
+one, so an edit made while the run waited changes nothing for it. To carry the run over a
+fix, name the edited version:
+
+```http
+POST /tracon/api/workflows/runs/{runId}/resume
+{"definitionVersion":3}
+```
+
+A version whose graph differs from the checkpoint's fails the run with "the graph's
+structure differs"; a version the workflow does not have is a `400`.
 
 A run that a job started — a queued run, or an item of a `tracon.workflow` batch —
 can be resumed by that job after a crash, a deploy or a graceful stop:

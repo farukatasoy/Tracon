@@ -15,6 +15,10 @@
 - **`MigrationRunner` artik `ISqlPersistenceDiagnostics` uygular** (2026-08-06, Faz 33, K-248): `GetSnapshotAsync` migration UYGULAMAZ, yalniz baglanti + bekleyen liste okur. `__migrations` defteri henuz yoksa (DbException) baglanti calisiyor sayilir, tum migration'lar bekliyor kabul edilir — `CanConnect=false` yalniz baglanti KURULAMADIGINDA doner.
 - **🚨 `__migrations`'in KENDI semasini degistiren islem K-388'in tek-toplu-komut birlestirmesiyle CELISIR** (Faz 67, K-475): SQL Server toplu isi BASTAN derler; `ADD set_name` sonrasi ayni iste `set_name` referansi "Invalid column name" verir, `EXEC` ile SARILAMAZ. Cozum: dongu ONCESI `SqlDialect.UpgradeMigrationsTableAsync` (SQLite'ta K-278 rebuild). Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
+## Geri doldurmalı (backfill) migration
+
+- **Tabloyu açan migration aynı dosyada mevcut satırları kopyalayabilir; kopya YENİDEN KOŞULABİLİR olmalıdır** (2026-10-14, Faz 200, `workflow_definition_versions`): PostgreSQL `INSERT … ON CONFLICT (…) DO NOTHING` · SQL Server `INSERT … SELECT … WHERE NOT EXISTS (…)` · SQLite `INSERT OR IGNORE`. SQL Server tek toplu komut olarak koşar ve ledger'a yazılmadan düşerse dosya baştan koşar; aynı toplu iş içinde az önce `CREATE TABLE` edilen tabloya `INSERT` edebilir (tablo adları ertelenmiş çözümlenir — K-475'in yasağı yalnız VAR OLAN tabloya eklenen SÜTUN içindir). Yeni migration'ı `scripts/applied-migrations.json`'a, onu ekleyen commit'le ANKRAJLA: migration'ı ayrı bir commit'te bitirip sha'yı sonraki commit'te yaz.
+
 ## 🚨 Geçici çakışma: iki şekli var, yeniden deneme YOLUN TAMAMINI kapsar (K-540, K-545)
 
 Migration kilidi **şemaya** kapsamlıdır (K-389); farklı şemaların ilk göçü

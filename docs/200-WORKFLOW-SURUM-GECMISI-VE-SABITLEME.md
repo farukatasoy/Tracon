@@ -1,7 +1,7 @@
 # Faz 200 — Workflow Sürüm Geçmişi ve Sürüm Sabitleme
 
-> **Durum:** 📋 Planlandı (2026-10-12)
-> **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
+> **Durum:** 🚧 Uygulandı, kapanış sürüyor (2026-10-14)
+> **Plan onayı:** Bakımcı, 2026-10-14 (Açık Soruların önerileri olduğu gibi kabul edildi: 1-A, 2-A, 3-A, 4-N, 5-A, 6-B)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-300**
 > **Önkoşul:** [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmalı (ortak düğüm modeli ve editör); Faz 197 ve 201 ile dosya ortak
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, SQL katmanı, `.Testing.Contracts.Xunit`, `.UI`
@@ -195,16 +195,48 @@ src/Tracon.{AspNetCore,Testing.Contracts.Xunit,UI}/   uçlar, sözleşmeler, ver
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] İki `PUT` → `…/versions` iki anlık görüntü; `rollback {version:1}` → sürüm 3 = v1 (test 1, 17)
-- [ ] Bekleyen run kaynak sürümle sürer, sürüm yoksa kapalı düşer (test 9-11)
-- [ ] Sabitli adımın çocuk satırı sabiti yazar; sabit değişimi checkpoint'i kırmaz (test 14-15)
-- [ ] §200.4 sınıf taraması belgeye yazıldı
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (sabit + resume), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` içine eklendi; otomatikleştirilebilenler koşuldu
+- [x] İki `PUT` → `…/versions` iki anlık görüntü; `rollback {version:1}` → sürüm 3 = v1 (test 1, 17) — `WorkflowVersionEndpointTests.Two_saves_list_two_snapshots_…` · `A_rollback_writes_the_old_content_as_a_new_version_…` · `WorkflowRollbackTests` (altı case: geçersiz içerik `400`, olmayan sürüm `404`, hiçbiri yazılmaz ve denetlenmez) · örnek uygulamada ölçüldü (aşağıda)
+- [x] Bekleyen run kaynak sürümle sürer, sürüm yoksa kapalı düşer (test 9-11) — `WorkflowResumePinTests` (6) · `WorkflowStructuralChangeResumeTests` (iki yarı) · `WorkflowResumeVersionHttpTests` (akış açılmadan `400`) · `WorkflowFunctionSettingsResumeTests`
+- [x] Sabitli adımın çocuk satırı sabiti yazar; sabit değişimi checkpoint'i kırmaz (test 14-15) — `WorkflowAgentVersionPinTests.A_pinned_step_runs_the_pinned_text_while_the_agent_is_edited` (modele ulaşan talimat metniyle) · `…binds_the_workflows_parameters_still_runs_its_pinned_version` (parametreli yol) · `WorkflowStructuralChangeResumeTests.Re_pinning_an_agent_step_leaves_the_old_checkpoint_usable_for_either_version`
+- [x] §200.4 sınıf taraması belgeye yazıldı — aşağıda
+- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban c8b9ea01` (kapanışta koşulur)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (sabit + resume), çıktı belgeye yazıldı — aşağıda
+- [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`: ✅ temiz
+- [x] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` içine eklendi (`MT-WF-150`…`155`); otomatikleştirilebilenler koşuldu
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi, `npm run build` + `check-links.mjs` temiz; `en.ts`/`tr.ts` eksiksiz; bundle payı yazıldı; `CHANGELOG.md` davranışı anar
+
+## Kapanış kanıtı
+
+### §200.4 sınıf taraması
+
+`grep -rn "new WorkflowExecution" src/Tracon.Workflows` → `WorkflowRunner.cs`'te üç yer: `RunStreamingAsync` (yeni run: sürüm kayıt anında **okunan** tanımdan damgalanır), `PrepareResumeAsync` ve `PrepareResponseAsync` (`DefinitionVersion = istek ?? kaynak.AgentVersion`). Faz 197'nin kurtarma yolu (`WorkflowRecovery`, `WorkflowRunJobHandler.Continue`) resume'u çağırır: kaynak olarak zincirin son satırını verir, bu satır kendi damgasını taşır (`The_stamp_follows_a_chain_of_resumes`). Kuyruk yükü (`WorkflowRunJobPayload`) `definitionVersion` taşır ve geçersizse işi KAPALI düşürür. `new WorkflowExecution` tarandıktan sonra sürüm taşımayan üçüncü bir yer yoktur; `ReadRecordedParametersAsync` ve `RequireParticipantCoverageAsync` de aynı sürümü kullanır.
+
+### Örnek uygulama koşumu (`samples/Tracon.Api`, SQLite, Echo sağlayıcı)
+
+`ASPNETCORE_ENVIRONMENT=Development`, `Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=` `Tracon__Ui__AuthToken=` boş (bkz. hafıza: elle koşum ortamı); `scribe` stored agent (`echo-instructions-1` modeli: yanıt aldığı talimatı yazar) iki sürümlü, `proof` stored agent.
+
+```text
+2. refused pins
+   400 Node 'scribe' in workflow 'pinned-demo' pins agent 'scribe' to version 9, but the agent has no version 9. List its versions with GET /api/agents/scribe/versions.
+   400 Node 'scribe' in workflow 'pinned-demo' has an 'agentVersion' of 0. Versions are numbered from 1. ...
+   400 Node 'word-count' in workflow 'pinned-demo' is a function node but carries an 'agentVersion'. ...
+   400 Node 'podcast-writer' in workflow 'pinned-demo' pins agent 'podcast-writer' to version 1, but 'podcast-writer' is defined in code and keeps no version history. ...
+3. PUT scribe(agentVersion 1) + word-count            -> {'version': 1, 'pin': 1}
+4. run (scribe artık sürüm 2)
+   output: Echo [instructions: SCRIBE-ALPHA: write one line.]: hello  (word count: 7)
+   run row: Completed, workflow version 1 · tree: Workflow pinned-demo v1 > Agent scribe v1
+5. PUT (proof adımı eklendi)                          -> {'version': 2, nodes: scribe, word-count, proof}
+6. resume (sürümsüz)  [HTTP 200] completed · yeni satır workflow version 1   (düzenleme run'ı etkilemedi)
+7. resume definitionVersion=2 [HTTP 200] FAILED: ... the graph's structure differs from when the checkpoint was written ...
+8. resume definitionVersion=9 [HTTP 400] "Definition version not found" - Workflow 'pinned-demo' has no version 9 ...
+9. versions [[2,3],[1,2]] · diff left [scribe, word-count] right [scribe, word-count, proof]
+   rollback 1 -> version 3 [scribe, word-count] · versions [3,2,1] · rollback 42 -> 404 "Workflow 'pinned-demo' has no version 42."
+10. DELETE [204] sonra PUT -> version 4                (numara yeniden verilmedi)
+11. audit: workflow.rollback workflow:pinned-demo {"rolledBackToVersion":1,"newVersion":3}
+```
+
+Süreç notu: ilk başlatma `user-secrets`'taki PostgreSQL dizesini okudu ve `0059`'u paylaşılan yerel veritabanına (`agentprism` şeması) uyguladı; bkz. `docs/hafiza/elle-kosum-ortami.md` ve Devir Notu.
 
 ### Doğrulama komutları
 
@@ -228,19 +260,73 @@ curl -s http://localhost:5081/tracon/api/workflows/narrated/versions
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+Plan 2026-10-12'de yazıldı, bakımcı 2026-10-14'te altı Açık Sorunun önerilerini (1-A, 2-A, 3-A, 4-N, 5-A, 6-B) olduğu gibi onayladı; plan revize edilmedi. Uygulamada alınan kararlar:
+
+| # | Plan | Gerçekleşen | Gerekçe |
+|---|---|---|---|
+| 1 | §200.1 "geri alma eski içeriği yeni sürüm yazar" yalnız çalışan tanım için tarif edilmişti | `IWorkflowDefinitionStore.RollbackAsync` **silinmiş bir adı yeniden yaratır** ve numara sürer; uçlar (`versions`, `diff`, `rollback`) güncel tanım yoksa `404` döner | Geçmiş silmede kalır (Açık Soru 4-N); mağaza düzeyinde "içerik zaten var, numarası sürer" tek tutarlı kuraldır. Uç, silinmiş workflow'a geçmiş sunmaz: geçmiş numara kimliği içindir, çalıştırmak için değil. `A_rollback_of_a_deleted_definition_creates_it_again_…` sabitler |
+| 2 | §200.4 "Resume yine güncel tanımı ister (`WorkflowEndpoints.cs:124-125`)" | `WorkflowCatalog.FindAsync` önce **güncel** tanımı okur (yoksa `null`); sürüm adı konmuşsa ve güncelden farklıysa ayrıca `GetVersionAsync` | Silinmiş workflow'un resume'unun reddi korundu (`A_resume_of_a_deleted_workflow_is_still_refused_…`); ek bir okuma yalnız eski sürüm istenince yapılır |
+| 3 | §200.4 "Tanım yoksa satır açılır, `Failed` kapanır" | Tanım okuma hatası da (`GetAsync` fırlatırsa) tutulur: satır açılır, hata kurulum bloğunda atılır, run `Failed` kapanır, damga yazılmaz | `ProbeWorkflowDefinitionStore.GetFailure` ile sınandı; yoksa uçun duyurduğu run kimliği hiçbir satıra işaret etmezdi |
+| 4 | §200.3 "Varlık derlemede denetlenir" | Denetim kayıtta DA yapılır (`AgentVersionPin`, aynı sınıf iki çağıran); agent betimleyicisi + tek sürüm satırı okunur, agent **derlenmez**; özel kaynak agent'ı (`Custom`) atlanır | Test 16 "olmayan sürüm → `400`" kayıtta ister. Derleme MCP bağlantısı açar ve denetim graf görünümünde de koşar |
+| 5 | Plan test sınıfı adları ve seviyeleri | `WorkflowRunStampTests`, `WorkflowResumePinTests`, `WorkflowNodeAgentVersionTests`, `WorkflowNodeAgentVersionValidationTests` **birim** (Workflows.UnitTests); `WorkflowStructuralChangeResumeTests` (birim) iki yarıya bölündü; fonksiyonel: `WorkflowVersionEndpointTests`, `WorkflowRollbackTests`, `WorkflowAgentVersionPinTests`, `WorkflowResumeVersionHttpTests`; Core: `AgentVersionPinTests`, `AuditingWorkflowDefinitionStoreTests` | Runner davranışı süreç içi `WorkflowTestHost` ile hızlı ve deterministik ölçülür; HTTP sınırı (400/404/409, kiracı, rol, denetim) fonksiyonel testte |
+| 6 | Test 8 "alt sistem hatası: geçmiş yazımı düşer, ana satır kalır" `StoreCancellationContract`'a bağlıydı | `WorkflowDefinitionStoreContract`'a isteğe bağlı SQL kancaları (`SupportsRawHistory`, `ExecuteRawAsync`, `QualifiedWorkflowHistoryTable`, `RawNowExpression`) eklendi; üç sağlayıcı geçmiş tablosuna çakışan satır yazar | İptal sözleşmesi çalışan işi değil yalnız önceden iptal edilmiş token'ı sınar; başarısız geçmiş yazımını ancak ham SQL ile üretebiliriz. Kanca kapalıysa test erken döner (`AuditLogContract` emsali). İşlem iki parçaya bölününce testin KIRILDIĞI ölçüldü |
+| 7 | "Mevcut resume testleri" | 12 mevcut test eski kuralı (resume güncel olanı derler) kodluyordu ve bilerek değişti: `WorkflowStructuralChangeResumeTests` (8), `WorkflowFunctionSettingsTests`, `WorkflowFunctionTimeoutResumeTests`, `WorkflowParameterRespondTests` (2), fonksiyonel `WorkflowFunctionSettingsResumeTests` | Davranış değişimi bu fazın amacıdır (K-983); her biri iki yarıya bölündü: kaydedilen sürüm sürer, düzenlenen sürüm adı konunca eski davranış |
+| 8 | `IWorkflowRunner` | Üye eklenmedi; `WorkflowResumeRequest.DefinitionVersion` ve `WorkflowRespondRequest.DefinitionVersion` yetti | Arayüz üyesi uygulayıcıyı kırardı (Açık Soru 2'nin ruhu); HTTP erken denetimi `IWorkflowDefinitionStore` ile uçta yapılır |
+| 9 | Kuyruk yükü planda yoktu | `WorkflowRunJobPayload` `definitionVersion` taşır (`1`'den küçük ya da tam sayı olmayan → iş KAPALI düşer) | `resume`/`respond` kuyruğa alınabildiği için sürümü sessizce düşürmek K-983'ü kuyrukta çiğnerdi |
+| 10 | — | `WorkflowEndpoints.ValidateDefinitionAsync` **tek** doğrulama yeri: `PUT` ve geri alma ikisi de onu çağırır | Geri alma içeriği "kaydedildiğinde geçerliydi"; sonradan kaldırılan fonksiyon veya silinip yeniden yaratılan agent'ın sürümü "güncel" tanımı derlenemez yapardı |
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Beklenen: K-126'nın açılması (`kalıcı-veri`), resume'un kaynak sürümle sürmesi (`public-api`).
+Dört kategoriye giren üç karar `docs/KARARLAR.md`'ye yazıldı (tam gerekçe `arsiv/KARARLAR-GECMISI.md`):
+
+- **K-982** *(kalıcı-veri, public-api, geri-dönüşü-pahalı)* — **K-126 açıldı:** workflow tanımının sürüm geçmişi tutulur. `workflow_definition_versions`, yabancı anahtarsız, numara kimlik; kayıt iki satırı tek işlemde yazar; `IWorkflowDefinitionStore` soyut üye alır; migration PostgreSQL `0059` · SQL Server `0047` · SQLite `0046`.
+- **K-983** *(public-api, geri-dönüşü-pahalı)* — Kök satır derlediği sürümü `runs.agent_version`'a yazar; resume/respond kaynak damgasını derler; `definitionVersion` başka sürümü seçer; olmayan sürüm kapalı düşer. K-900'ün "resume güncel ayarı okur" ve K-901'in "bekleyen run kırılır" cümleleri **değişti** (K-901 satırı yerinde düzeltildi).
+- **K-984** *(public-api)* — `WorkflowNodeReference.AgentVersion`: yalnız `nodes`, yalnız veritabanı agent'ı, kayıtta ve derlemede doğrulanır, önbellek anahtarında ama kimlikte değil; K-901 konsolun `nodes` yazma kuralını "fonksiyon veya sabit" yapar.
+
+Kategori dışı yerel kararlar (burada kalır, `K-*` açılmadı): silinmiş bir ad için mağaza `RollbackAsync`'i yeniden yaratır (sapma 1) · geri alma `PUT` ile aynı tek doğrulayıcıyı kullanır (sapma 10) · SQL kancaları yalnız sözleşme testinde (sapma 6).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+```csharp
+// Tracon.Abstractions — IWorkflowDefinitionStore (soyut üyeler; üçüncü taraf uygulayıcıyı kırar)
+ValueTask<WorkflowDefinition?> GetVersionAsync(string tenantId, string name, int version, CancellationToken cancellationToken = default);
+ValueTask<IReadOnlyList<WorkflowDefinition>> ListVersionsAsync(string tenantId, string name, CancellationToken cancellationToken = default); // yeniden eskiye
+ValueTask<WorkflowDefinition> RollbackAsync(string tenantId, string name, int version, CancellationToken cancellationToken = default);     // yok → TraconException
+
+// Tracon.Abstractions
+WorkflowNodeReference.AgentVersion { get; init; }            // int?
+WorkflowResumeRequest.DefinitionVersion { get; init; }       // int?
+WorkflowRespondRequest.DefinitionVersion { get; init; }      // int?
+
+// Tracon.AspNetCore (HTTP DTO'ları; PublicAPI.Unshipped)
+WorkflowResumeHttpRequest.DefinitionVersion · WorkflowRespondHttpRequest.DefinitionVersion   // int?
+sealed record WorkflowRollbackRequest { required int Version }
+sealed record WorkflowVersionDiffResponse { required WorkflowDefinition Left; required WorkflowDefinition Right }
+
+// Tracon.Testing.Contracts.Xunit — WorkflowDefinitionStoreContract
+13 yeni [Fact] + virtual SupportsRawHistory · ExecuteRawAsync · QualifiedWorkflowHistoryTable · RawNowExpression
+```
+
+HTTP: `GET /api/workflows/{name}/versions` (Reader, `workflows:read`) · `GET …/versions/{a:int}/diff/{b:int}` (Reader) · `POST …/rollback` (Admin, `workflows:admin`); `resume`/`respond` gövdesine isteğe bağlı `definitionVersion`. İç (public değil): `AgentVersionPin`, `WorkflowCatalog.FindAsync`/`CompileAsync`/`FoundWorkflow`, `CallableAgentResolver.ResolveAsync(ad, sürüm)`/`FindPinProblemAsync`, `ChildAgentInvoker`'ın `pinnedVersion` parametresi, `WorkflowAgentCache.Get(..., agentVersion)`.
+
+Public tür sayısı: `Tracon.AspNetCore` 84 → 86 (`public-surface-baseline.txt` yenilendi). `Tracon.Abstractions` yeni tür eklemedi.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.Abstractions/Workflows/     IWorkflowDefinitionStore · WorkflowNodeReference · IWorkflowRunner (WorkflowResumeRequest) · WorkflowPendingRequest (WorkflowRespondRequest) · WorkflowDefinition (yalnız belge)
+src/Tracon.Core/                       Storage/InMemoryWorkflowStores.cs (WorkflowHistory) · Audit/AuditingWorkflowDefinitionStore.cs ·
+                                       Workflows/AgentVersionPin.cs (YENİ) · Workflows/WorkflowDefinitionValidator.cs · Graph/CallableAgentResolver.cs · Graph/ChildAgentInvoker.cs ·
+                                       Scheduling/WorkflowRunJobPayload.cs · Scheduling/WorkflowRunJobHandler.cs
+src/Tracon.Workflows/Internal/         WorkflowCatalog · WorkflowRunner · WorkflowAgentCache · WorkflowDefinitionCompiler (+ README, XML dokümanı)
+src/Tracon.Sql.Shared/                 Stores/SqlWorkflowDefinitionStore.cs · Internal/SqlQueriesBase.cs
+src/Tracon.{PostgreSql,SqlServer,Sqlite}/  Internal/*Queries.cs · Migrations/0059_ · 0047_ · 0046_workflow_definition_versions.sql (YENİ ×3)
+src/Tracon.AspNetCore/                 Endpoints/WorkflowEndpoints.cs · Contracts/WorkflowContracts.cs
+src/Tracon.Testing.Contracts.Xunit/    Contracts/WorkflowDefinitionStoreContract.cs
+src/Tracon.UI/frontend/                bkz. "Konsol" altında
+scripts/applied-migrations.json · docs/openapi/tracon.json · src/Tracon.Client/Generated/* · packages/tracon-client/src/schema.ts (üretilen)
+tests/                                 Workflows.UnitTests (7 dosya) · AspNetCore.FunctionalTests (5 dosya) · Core.UnitTests (3 dosya) · {Sqlite,PostgreSql,SqlServer}.IntegrationTests/Contracts · Sql.Shared.UnitTests/Baselines
+```
 
 ## Süreç Ölçümü
 

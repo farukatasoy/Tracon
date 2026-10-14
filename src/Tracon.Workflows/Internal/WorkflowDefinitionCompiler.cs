@@ -207,8 +207,9 @@ internal sealed class WorkflowDefinitionCompiler
     /// </summary>
     /// <remarks>
     /// The graph is rebuilt for every run, so the settings are read again for every run:
-    /// a change takes effect on the next run, and a run waiting for input reads the current
-    /// settings when it resumes. The same read ran when the definition was saved, but the
+    /// a change takes effect on the next run, and a run waiting for input reads the settings
+    /// of the version it recorded when it resumes (the catalog hands the compiler that
+    /// version's definition). The same read ran when the definition was saved, but the
     /// settings type can change between deployments, so a definition saved against an
     /// earlier shape fails HERE - before the first node runs, naming the node - instead of
     /// silently running the function with a default.

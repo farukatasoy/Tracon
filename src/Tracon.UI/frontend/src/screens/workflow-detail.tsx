@@ -25,6 +25,7 @@ import { hasMissingRequiredParameter, ParameterInputs } from '../components/para
 import { SpinnerIcon } from '../components/icons';
 import { WorkflowGraphLegend, WorkflowGraphView } from '../components/workflow-graph';
 import { KIND_HINT } from './workflows';
+import { WorkflowVersions } from './workflow-detail/versions';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
 import type { RunEvent } from '../lib/run-event';
 import type { RunRecord, WorkflowDescriptor, WorkflowGraph, WorkflowPendingRequest } from '../lib/server-types';
@@ -470,6 +471,16 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
           </Panel>
         )}
       </div>
+
+      {/* Only a stored workflow keeps versions. One defined in code has no history, and the
+          endpoint answers 404 for it - so the section is not offered at all. */}
+      {descriptor.origin === 'Database' && (
+        <WorkflowVersions
+          name={name}
+          currentVersion={descriptor.version}
+          canRollback={meta.roles.canAdminister}
+        />
+      )}
     </>
   );
 }

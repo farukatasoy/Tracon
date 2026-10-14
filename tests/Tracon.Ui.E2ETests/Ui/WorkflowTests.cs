@@ -438,6 +438,141 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     }
 
     /// <summary>Approves the run's request over HTTP and returns the run that continues it.</summary>
+    /// <summary>
+    /// A workflow rolled back in the console runs the old content (phase 200).
+    /// </summary>
+    /// <remarks>
+    /// The whole path crosses every layer the unit tests stand apart from: the history list, the
+    /// rollback call, the stored current definition, and the next run's compile and stamp.
+    /// </remarks>
+    [Fact]
+    public async Task A_workflow_rolled_back_in_the_console_runs_the_old_content()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        foreach (var (description, agents) in new[]
+        {
+            ("one agent", new[] { "support" }),
+            ("two agents", new[] { "support", "router" }),
+        })
+        {
+            using var saved = await api.PutAsJsonAsync(
+                "api/workflows/rollbackable",
+                new { kind = "Sequential", description, agentNames = agents });
+
+            saved.EnsureSuccessStatusCode();
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/rollbackable");
+
+        await Expect(session.Page.GetByTestId("version-checkbox-1")).ToBeVisibleAsync();
+        await Expect(session.Page.GetByTestId("version-checkbox-2")).ToBeVisibleAsync();
+
+        // The current version offers no rollback; the old one does.
+        await Expect(session.Page.GetByTestId("version-rollback-2")).ToHaveCountAsync(0);
+        await session.Page.GetByTestId("version-rollback-1").ClickAsync();
+
+        // The rollback is a NEW version, and the screen shows it.
+        await Expect(session.Page.GetByTestId("version-checkbox-3")).ToBeVisibleAsync();
+
+        var current = await api.GetFromJsonAsync<JsonElement>("api/workflows/rollbackable");
+
+        current.GetProperty("version").GetInt32().ShouldBe(3);
+        current.GetProperty("description").GetString().ShouldBe("one agent");
+        current.GetProperty("agentNames").GetArrayLength().ShouldBe(1);
+
+        // The next run is the old chain, stamped with the rollback's version.
+        using var run = await api.PostAsJsonAsync("api/workflows/rollbackable/run", new { message = "hello" });
+
+        run.EnsureSuccessStatusCode();
+
+        var runId = ReadRunId(await run.Content.ReadAsStringAsync());
+        var tree = await api.GetFromJsonAsync<JsonElement>($"api/runs/{runId}/tree");
+        var rows = tree.EnumerateArray().ToList();
+
+        rows.Count(static row => string.Equals(row.GetProperty("kind").GetString(), "Agent", StringComparison.Ordinal)).ShouldBe(1);
+        rows.Single(static row => string.Equals(row.GetProperty("kind").GetString(), "Workflow", StringComparison.Ordinal))
+            .GetProperty("agentVersion").GetInt32().ShouldBe(3);
+    }
+
+    /// <summary>
+    /// A step pinned in the editor is saved in the node form and runs the pinned version of its agent (phase 200).
+    /// </summary>
+    [Fact]
+    public async Task A_step_pinned_in_the_console_is_saved_as_a_node_and_runs_the_pinned_version()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        // A stored agent with two versions: only a stored agent keeps versions.
+        foreach (var (verb, instructions) in new[] { ("POST", "first text"), ("PUT", "second text") })
+        {
+            using var request = new HttpRequestMessage(
+                verb == "POST" ? HttpMethod.Post : HttpMethod.Put,
+                verb == "POST" ? "api/agents" : "api/agents/scribe")
+            {
+                Content = JsonContent.Create(new
+                {
+                    name = "scribe",
+                    instructions,
+                    model = new { provider = ScriptedModels.ProviderName, model = ScriptedModels.Default },
+                }),
+            };
+
+            using var response = await api.SendAsync(request);
+
+            response.EnsureSuccessStatusCode();
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/new");
+
+        await session.Page.GetByTestId("workflow-name").FillAsync("pinned");
+        await session.Page.GetByTestId("workflow-add-agent").SelectOptionAsync("scribe");
+
+        // A code agent has no versions to choose from; a stored one does.
+        await Expect(session.Page.GetByTestId("workflow-version-scribe")).ToBeVisibleAsync();
+        await session.Page.GetByTestId("workflow-version-scribe").SelectOptionAsync("1");
+        await session.Page.GetByTestId("workflow-save").ClickAsync();
+
+        await Expect(session.Page).ToHaveURLAsync($"{host.UiAddress}/workflows/pinned");
+
+        // One pinned agent step is written as a node list: the agent list has nowhere to keep the pin.
+        var saved = await api.GetFromJsonAsync<JsonElement>("api/workflows/pinned");
+
+        saved.GetProperty("agentNames").GetArrayLength().ShouldBe(0);
+        saved.GetProperty("nodes")[0].GetProperty("name").GetString().ShouldBe("scribe");
+        saved.GetProperty("nodes")[0].GetProperty("agentVersion").GetInt32().ShouldBe(1);
+
+        using var run = await api.PostAsJsonAsync("api/workflows/pinned/run", new { message = "hello" });
+
+        run.EnsureSuccessStatusCode();
+
+        var tree = await api.GetFromJsonAsync<JsonElement>($"api/runs/{ReadRunId(await run.Content.ReadAsStringAsync())}/tree");
+
+        tree.EnumerateArray()
+            .Single(static row => string.Equals(row.GetProperty("kind").GetString(), "Agent", StringComparison.Ordinal))
+            .GetProperty("agentVersion").GetInt32().ShouldBe(1, "the agent is at version 2; the step runs the version it pins");
+    }
+
+    /// <summary>A code agent offers no version choice: it keeps no history to pin.</summary>
+    [Fact]
+    public async Task An_agent_defined_in_code_offers_no_version_choice_in_the_editor()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/new");
+
+        await session.Page.GetByTestId("workflow-name").FillAsync("plain");
+        await session.Page.GetByTestId("workflow-add-agent").SelectOptionAsync("support");
+
+        await Expect(session.Page.GetByTestId("workflow-step")).ToHaveCountAsync(1);
+        await Expect(session.Page.GetByTestId("workflow-version-support")).ToHaveCountAsync(0);
+    }
+
     private static async Task<string> ApproveAsync(HttpClient api, string runId)
     {
         var requests = await api.GetFromJsonAsync<JsonElement>($"api/workflows/runs/{runId}/requests");

@@ -286,8 +286,8 @@ const ROUND_TRIPS: RoundTrip[] = [
     agentNames: [],
     nodes: [
       // The field shows seconds; an untouched value goes back in the server's own spelling.
-      { name: 'summarizer', kind: 'Agent', settings: null, timeout: '00:06:00' },
-      { name: 'word-count', kind: 'Function', settings: { language: 'en', limit: 3 }, timeout: '00:00:02.5000000' },
+      { name: 'summarizer', kind: 'Agent', settings: null, timeout: '00:06:00', agentVersion: null },
+      { name: 'word-count', kind: 'Function', settings: { language: 'en', limit: 3 }, timeout: '00:00:02.5000000', agentVersion: null },
     ],
     parameters: [],
     managerAgentName: null,
@@ -304,12 +304,31 @@ const ROUND_TRIPS: RoundTrip[] = [
     kind: 'Sequential',
     agentNames: [],
     nodes: [
-      { name: 'word-count', kind: 'Function', settings: { language: 'tr', limit: 10, tags: ['a', 'b'], nested: { enabled: true }, empty: null }, timeout: null },
-      { name: 'summarizer', kind: 'Agent', settings: null, timeout: null },
+      { name: 'word-count', kind: 'Function', settings: { language: 'tr', limit: 10, tags: ['a', 'b'], nested: { enabled: true }, empty: null }, timeout: null, agentVersion: null },
+      { name: 'summarizer', kind: 'Agent', settings: null, timeout: null, agentVersion: null },
       // Below a millisecond the seconds field cannot say it: shown and sent back as stored.
-      { name: 'pass-through', kind: 'Function', settings: null, timeout: '00:00:00.0000001' },
+      { name: 'pass-through', kind: 'Function', settings: null, timeout: '00:00:00.0000001', agentVersion: null },
     ],
     parameters: [{ name: 'tone', kind: 'Text', required: false, defaultValue: null, description: null }],
+    managerAgentName: null,
+    maxIterations: null,
+    handoffInstructions: null,
+    requirePlanApproval: false,
+    runTimeout: null,
+  }),
+  // Phase 200: a pinned agent version goes back to the node it belongs to. Version 3 is not in the
+  // agent's list here (the fixture has none), which must not cost the stored pin; the step beside
+  // it stays on the current version, and a timeout rides along on a node list made by the pin.
+  workflowCase('workflow that pins a stored agent to a version', {
+    displayName: 'Pinned chain',
+    description: 'Drafts on a fixed version, then reviews on the current one.',
+    kind: 'Sequential',
+    agentNames: [],
+    nodes: [
+      { name: 'drafter', kind: 'Agent', settings: null, timeout: null, agentVersion: 3 },
+      { name: 'reviewer', kind: 'Agent', settings: null, timeout: '00:01:00', agentVersion: null },
+    ],
+    parameters: [],
     managerAgentName: null,
     maxIterations: null,
     handoffInstructions: null,

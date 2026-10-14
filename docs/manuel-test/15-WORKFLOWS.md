@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -3203,3 +3203,150 @@ kapattığı run checkpoint'ini siliyordu; devam ilk adımı yeniden koşturuyor
 - Durdurulan run `Canceled`; devam run'ı `ContinuedFromRunId` ile ona bağlı ve `Completed`.
 - Birinci adım bir kez koştu; devam bittikten sonra oturumun checkpoint'leri silinmiş.
 - 🚨 Eski kusur: birinci adım iki kez koştu.
+
+
+### MT-WF-150 — Sürüm geçmişi her kaydı tutar; iki sürümün farkı okunur (Faz 200, F-300) · 👤
+
+Konsol karşılığı 👤 görseldir (Sürümler bölümü, iki sürümü işaretleyince fark tablosu); HTTP
+karşılığı `curl` ile koşulur. Otomatik karşılığı: `WorkflowVersionEndpointTests` ·
+`WorkflowDefinitionStoreContract` · `workflow-detail.test.tsx`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 200 |
+| **İlgili karar** | K-982 |
+
+**Ön koşul** — Örnek uygulama SQLite ile ayakta; `word-count` fonksiyonu kayıtlı; `scribe` adlı ve `proof` adlı iki stored agent (Echo sağlayıcı, `echo-instructions-1` modeli).
+
+**Adımlar**
+1. `PUT $APU/api/workflows/pinned-demo` ile `scribe` + `word-count` zincirini kaydet; sonra `proof` adımını ekleyip yeniden kaydet.
+2. `GET $APU/api/workflows/pinned-demo/versions` ve `GET .../versions/1/diff/2`.
+3. Konsolda workflow'u aç → **Sürümler**; 1 ve 2'yi işaretle.
+
+**Beklenen sonuç**
+- Liste `[2, 1]` sırasında iki tam anlık görüntü verir (sürüm 2 üç düğüm, sürüm 1 iki düğüm).
+- Fark `left` = sürüm 1 (iki düğüm), `right` = sürüm 2 (üç düğüm); sunucu fark hesaplamaz.
+- Konsol eklenen `proof` adımını gösterir.
+
+### MT-WF-151 — Geri alma eski içeriği YENİ sürüm yazar; geçersiz içerik yazılmaz (Faz 200, F-300)
+
+Otomatik karşılığı: `WorkflowVersionEndpointTests` · `WorkflowRollbackTests` ·
+`AuditingWorkflowDefinitionStoreTests`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 200 |
+| **İlgili karar** | K-982 |
+
+**Ön koşul** — MT-WF-150'deki `pinned-demo` (sürüm 1 ve 2).
+
+**Adımlar**
+1. `POST $APU/api/workflows/pinned-demo/rollback {"version":1}`.
+2. `GET .../versions`.
+3. `POST .../rollback {"version":42}`.
+4. `GET $APU/api/audit?action=workflow.rollback`.
+
+**Beklenen sonuç**
+- 1. adım `200`, `version: 3`, düğümler sürüm 1'inkiyle aynı (`scribe`, `word-count`).
+- 2. adım `[3, 2, 1]` verir; sürüm 2 hâlâ okunur.
+- 3. adım `404`: `Workflow 'pinned-demo' has no version 42.`; hiçbir şey yazılmaz.
+- 4. adım tek kayıt verir: `workflow:pinned-demo`, `{"rolledBackToVersion":1,"newVersion":3}`.
+
+### MT-WF-152 — Bekleyen run yapısal düzenlemeden sonra kaydettiği sürümle sürer; düzenlenen sürüm adı konunca checkpoint uymaz (Faz 200, F-300)
+
+Otomatik karşılığı: `WorkflowStructuralChangeResumeTests` · `WorkflowResumePinTests` ·
+`WorkflowFunctionSettingsResumeTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 200 |
+| **İlgili karar** | K-983 |
+
+**Ön koşul** — `pinned-demo` sürüm 1 (iki düğüm: `scribe` sabitli, `word-count`) ile koşturulmuş ve tamamlanmış bir run (`$RID`, ilk checkpoint'i `$CP`); sonra `proof` adımı eklenerek sürüm 2 kaydedilmiş (MT-WF-150 sırası, run'ı 1. ve 2. kayıt arasında koş).
+
+**Adımlar**
+1. `POST $APU/api/workflows/runs/$RID/resume {"checkpointId":"$CP"}`.
+2. Yeni run'ı oku: `GET $APU/api/runs/<yeni>`.
+3. `POST .../resume {"checkpointId":"$CP","definitionVersion":2}`.
+
+**Beklenen sonuç**
+- 1. adım `200`, run `Completed`; satırın `agentVersion` değeri `$RID`'ninkiyle (1) aynı: düzenleme bekleyen run'ı etkilemedi.
+- 3. adım `200` ve akış `RunFailed` ile biter: `the graph's structure differs from when the checkpoint was written`.
+
+### MT-WF-153 — Olmayan sürümle resume akış açılmadan `400` olur; güncel tanıma düşmez (Faz 200, F-300)
+
+Sınır senaryosu. Otomatik karşılığı: `WorkflowResumeVersionHttpTests` ·
+`WorkflowResumePinTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 200 |
+| **İlgili karar** | K-983 |
+
+**Ön koşul** — MT-WF-152'deki `$RID` ve `$CP`.
+
+**Adımlar**
+1. `POST .../resume {"checkpointId":"$CP","definitionVersion":9}`.
+2. `POST .../resume {"checkpointId":"$CP","definitionVersion":0}`.
+3. `GET $APU/api/runs?kind=Workflow` ile satır sayısını önce ve sonra karşılaştır.
+
+**Beklenen sonuç**
+- 1. adım `400`, başlık `Definition version not found`, ayrıntı `Workflow 'pinned-demo' has no version 9`.
+- 2. adım `400`, başlık `Definition version invalid`.
+- Hiçbir istek yeni run satırı açmaz.
+
+### MT-WF-154 — Sabitli adım ajan düzenlense de sabit sürümü koşar; sabit kayıtta doğrulanır (Faz 200, F-300)
+
+Otomatik karşılığı: `WorkflowAgentVersionPinTests` · `WorkflowNodeAgentVersionTests` ·
+`AgentVersionPinTests`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 200 |
+| **İlgili karar** | K-984 |
+
+**Ön koşul** — `scribe` iki sürümlü (1: `SCRIBE-ALPHA: write one line.`, 2: `SCRIBE-BETA: write two lines.`); `proof` stored agent; `podcast-writer` kodda tanımlı.
+
+**Adımlar**
+1. `PUT .../workflows/pinned-demo` ile `scribe` düğümüne `"agentVersion":9`, sonra `0`, sonra `word-count` fonksiyon düğümüne `"agentVersion":1`, sonra kodda tanımlı `podcast-writer`'a `"agentVersion":1` yaz.
+2. `scribe` düğümüne `"agentVersion":1` yazıp kaydet ve workflow'u koş.
+3. `GET $APU/api/runs/<run>/tree` ile satırları oku.
+
+**Beklenen sonuç**
+- 1. adım dört `400`: sürüm yok · `of 0` · function node · `defined in code and keeps no version history`; hiçbiri yazılmaz.
+- 2. adım: çıktı `Echo [instructions: SCRIBE-ALPHA: write one line.]: hello` ile başlar (BETA yok).
+- 3. adım: kök satır `Workflow pinned-demo v1`, çocuk satır `Agent scribe v1`.
+
+### MT-WF-155 — Silinip yeniden oluşturulan workflow'un ilk sürümü eskinin devamıdır (Faz 200, F-300)
+
+Otomatik karşılığı: `WorkflowDefinitionStoreContract.Deleting_keeps_the_history_and_the_numbering_continues_after_it` ·
+`WorkflowVersionEndpointTests.A_deleted_workflow_serves_no_history_but_the_numbering_continues_when_it_is_saved_again`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 200 |
+| **İlgili karar** | K-982 |
+
+**Ön koşul** — MT-WF-151 sonrası `pinned-demo`, sürüm 3.
+
+**Adımlar**
+1. `DELETE $APU/api/workflows/pinned-demo`.
+2. `GET .../versions`.
+3. `PUT .../workflows/pinned-demo` ile tek adımlı bir zincir kaydet.
+
+**Beklenen sonuç**
+- 1. adım `204`; 2. adım `404` (silinmiş workflow geçmişi sunmaz).
+- 3. adım `version: 4`; `GET .../versions` artık `[4, 3, 2, 1]` verir.
+- Eski bir run'ın damgası olan sürüm 3'ün içeriği değişmemiştir.

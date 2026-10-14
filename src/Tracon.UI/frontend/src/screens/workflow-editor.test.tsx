@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fixture, installApiMock, type FixtureRoute } from '../test/api-fixtures';
 import { fireEvent, renderScreen, screen, waitFor, within } from '../test/render';
 import { WorkflowEditorScreen } from './workflow-editor';
@@ -124,7 +124,7 @@ describe('WorkflowEditorScreen - the chain', () => {
 
     // The pattern is locked: a function node runs in a Sequential chain only, and the screen says why.
     expect(screen.getByRole('combobox', { name: /^Kind/ })).toHaveProperty('disabled', true);
-    screen.getByText('Function nodes and step timeouts run only in a Sequential chain.');
+    screen.getByText('Function nodes, step timeouts and pinned agent versions run only in a Sequential chain.');
 
     await waitFor(() => expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', false));
   });
@@ -147,8 +147,8 @@ describe('WorkflowEditorScreen - the chain', () => {
       kind: 'Sequential',
       agentNames: [],
       nodes: [
-        { name: 'summarizer', kind: 'Agent', settings: null, timeout: null },
-        { name: 'word-count', kind: 'Function', settings: { language: 'en' }, timeout: null },
+        { name: 'summarizer', kind: 'Agent', settings: null, timeout: null, agentVersion: null },
+        { name: 'word-count', kind: 'Function', settings: { language: 'en' }, timeout: null, agentVersion: null },
       ],
       parameters: [],
       managerAgentName: null,
@@ -470,7 +470,13 @@ describe('WorkflowEditorScreen - what a save changes', () => {
 
     await user.selectOptions(await screen.findByTestId('workflow-add-agent'), 'reviewer');
 
-    expect(screen.getByTestId('workflow-structure-notice').textContent).toContain('cannot be resumed');
+    // Phase 200: a waiting run keeps resuming the version it recorded; only resuming it with the
+    // new version fails. The notice says that, not that the run is lost.
+    const notice = screen.getByTestId('workflow-structure-notice').textContent ?? '';
+
+    expect(notice).toContain('keeps resuming the version it recorded');
+    expect(notice).toContain('Resuming it with the new version fails');
+    expect(notice).not.toContain('cannot be resumed');
   });
 
   it('does not warn on a new workflow, which has no run to strand', async () => {
@@ -594,5 +600,204 @@ describe('WorkflowEditorScreen - timeouts', () => {
 
     expect(screen.queryByTestId('workflow-timeout-summarizer')).toBeNull();
     expect(screen.getByTestId('workflow-run-timeout')).toBeTruthy();
+  });
+});
+
+describe('WorkflowEditorScreen - agent versions', () => {
+  // Phase 200 (200.3): an agent step of a Sequential chain can run one version of a stored agent.
+  // The versions are the agent's own, newest first; an agent defined in code keeps none.
+  const askedFor: string[] = [];
+  const versions: FixtureRoute = {
+    method: 'GET',
+    pattern: 'api/agents/:name/versions',
+    handler: (params) => {
+      askedFor.push(params['name'] ?? '');
+
+      return [
+        { name: params['name'], version: 3 },
+        { name: params['name'], version: 2 },
+        { name: params['name'], version: 1 },
+      ];
+    },
+  };
+
+  beforeEach(() => {
+    askedFor.length = 0;
+  });
+
+  /** A chain of two stored agents, the first one pinned to version 2. */
+  const pinnedChain = stored({
+    nodes: [
+      { name: 'drafter', kind: 'Agent', settings: null, timeout: null, agentVersion: 2 },
+      { name: 'reviewer', kind: 'Agent', settings: null, timeout: null, agentVersion: null },
+    ],
+  });
+
+  it('offers the selector for a stored agent only, listing its versions and "Current version"', async () => {
+    open(agentsOnly, [versions]);
+
+    const selector = await screen.findByTestId('workflow-version-drafter');
+
+    // summarizer is defined in code: no versions to pin to, so no selector - and no request for them.
+    expect(screen.queryByTestId('workflow-version-summarizer')).toBeNull();
+
+    await waitFor(() =>
+      expect(within(selector).getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'Current version',
+        'v3',
+        'v2',
+        'v1',
+      ]),
+    );
+    expect(selector).toHaveProperty('value', '');
+    expect(askedFor).not.toContain('summarizer');
+  });
+
+  it('offers no selector for a function step', async () => {
+    open(
+      stored({
+        nodes: [
+          { name: 'drafter', kind: 'Agent', settings: null },
+          { name: 'word-count', kind: 'Function', settings: { language: 'en' } },
+        ],
+      }),
+      [versions],
+    );
+
+    await screen.findByTestId('workflow-version-drafter');
+
+    expect(screen.queryByTestId('workflow-version-word-count')).toBeNull();
+    expect(askedFor).not.toContain('word-count');
+  });
+
+  it('offers no selector outside the Sequential pattern: only a node can carry a pin', async () => {
+    const user = userEvent.setup();
+
+    open(agentsOnly, [versions]);
+
+    await screen.findByTestId('workflow-version-drafter');
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Kind/ }), 'Concurrent');
+
+    expect(screen.queryByTestId('workflow-version-drafter')).toBeNull();
+  });
+
+  it('saves a pin as a node list, and says before the save that the stored form and the graph change', async () => {
+    const user = userEvent.setup();
+
+    open(agentsOnly, [versions]);
+
+    await screen.findByTestId('workflow-participants');
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+
+    const selector = await screen.findByTestId('workflow-version-drafter');
+
+    await waitFor(() => expect(within(selector).getByRole('option', { name: 'v2' })).toBeTruthy());
+    await user.selectOptions(selector, 'v2');
+
+    // The first pin turns the agent list into a node list: different executors, so a different
+    // graph - the same warning a first function step gets.
+    expect(screen.getByTestId('workflow-form-notice').textContent).toContain('node list');
+    expect(screen.getByTestId('workflow-structure-notice')).toBeTruthy();
+
+    // The pattern cannot leave Sequential now, and a step timeout has a node to live on.
+    expect(screen.getByRole('combobox', { name: /^Kind/ })).toHaveProperty('disabled', true);
+    expect(screen.getByTestId('workflow-timeout-drafter')).toBeTruthy();
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      kind: 'Sequential',
+      agentNames: [],
+      nodes: [
+        { name: 'summarizer', kind: 'Agent', settings: null, timeout: null, agentVersion: null },
+        { name: 'drafter', kind: 'Agent', settings: null, timeout: null, agentVersion: 2 },
+      ],
+    });
+  });
+
+  it('says nothing about the graph when only the pinned version changes, and saves the new one', async () => {
+    const user = userEvent.setup();
+
+    open(pinnedChain, [versions]);
+
+    const selector = await screen.findByTestId('workflow-version-drafter');
+
+    // The stored pin shows even before the agent's list is in.
+    expect(selector).toHaveProperty('value', '2');
+
+    await waitFor(() => expect(within(selector).getByRole('option', { name: 'v1' })).toBeTruthy());
+    await user.selectOptions(selector, 'v1');
+
+    // Same steps, same order, same stored form: a run that is waiting keeps its graph.
+    expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
+    expect(screen.queryByTestId('workflow-form-notice')).toBeNull();
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      agentNames: [],
+      nodes: [
+        { name: 'drafter', agentVersion: 1 },
+        { name: 'reviewer', agentVersion: null },
+      ],
+    });
+  });
+
+  it('sends an untouched pin back exactly as stored', async () => {
+    const user = userEvent.setup();
+
+    open(pinnedChain, [versions]);
+
+    await screen.findByTestId('workflow-version-drafter');
+    await save(user);
+
+    expect(sent[0]).toMatchObject({
+      nodes: [
+        { name: 'drafter', agentVersion: 2 },
+        { name: 'reviewer', agentVersion: null },
+      ],
+    });
+  });
+
+  it('returns a chain to the agent list when its last pin is cleared, and says so', async () => {
+    const user = userEvent.setup();
+
+    open(pinnedChain, [versions]);
+
+    await user.selectOptions(await screen.findByTestId('workflow-version-drafter'), 'Current version');
+
+    expect(screen.getByTestId('workflow-form-notice').textContent).toContain('plain agent list');
+    expect(screen.getByRole('combobox', { name: /^Kind/ })).toHaveProperty('disabled', false);
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ agentNames: ['drafter', 'reviewer'], nodes: [] });
+  });
+
+  // A pin the server sent must survive even when the agent's list no longer names it: dropping it
+  // on a full-replace save would move the step to the current version without a word.
+  it('keeps a stored pin that the agent no longer lists', async () => {
+    const user = userEvent.setup();
+
+    open(stored({ nodes: [{ name: 'drafter', kind: 'Agent', settings: null, agentVersion: 9 }] }), [versions]);
+
+    const selector = await screen.findByTestId('workflow-version-drafter');
+
+    await waitFor(() => expect(within(selector).getByRole('option', { name: 'Version 9 (not found)' })).toBeTruthy());
+    expect(selector).toHaveProperty('value', '9');
+
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ nodes: [{ name: 'drafter', agentVersion: 9 }] });
+  });
+
+  it('keeps the chain and its pin when the versions cannot be loaded, and offers a retry', async () => {
+    open(pinnedChain, [fixture('GET', 'api/agents/:name/versions', { title: 'boom' }, 500)]);
+
+    const selector = await screen.findByTestId('workflow-version-drafter');
+
+    expect((await screen.findAllByText('The list of versions could not be loaded.')).length).toBeGreaterThan(0);
+    expect(selector).toHaveProperty('value', '2');
+    expect(steps()).toEqual(['Agent:drafter', 'Agent:reviewer']);
   });
 });

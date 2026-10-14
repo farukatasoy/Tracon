@@ -25,6 +25,8 @@
     --urls http://127.0.0.1:5199
   ```
 
+- **🚨 Development'ta `user-secrets` içindeki bağlantı dizesi örnek uygulamayı PAYLAŞILAN yerel veritabanına bağlar ve `AutoApplyMigrations` orada migration UYGULAR** (2026-10-14, Faz 200): `--Tracon:Sqlite:ConnectionString` vermek yetmedi; PostgreSQL dizesi de okundu ve yeni bir migration (`0059`) paylaşılan `agentprism` şemasına yazıldı. Ayrı bir şerit için `Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=` `Tracon__Ui__AuthToken=` ve `Tracon__Providers__OpenAI__ApiKey=` (hepsi BOŞ) ile başlat; kapı kapanıştan ÖNCE `Npgsql` log satırı sayısının 0 olduğunu doğrula. Uygulanmış bir ledger satırı, o dosyayı tanımayan dal için zararsızdır (runner yalnız bildiği migration'ları sayar), ama dosya sonradan DEĞİŞİRSE sağlama toplamı uyuşmaz.
+
 - **🚨 `user-secrets` yalnız Development'ta yüklenir.**
   `ASPNETCORE_ENVIRONMENT=Development` verilmezse sağlayıcı anahtarları
   görünmez ve agent **sessizce** `echo` sağlayıcısına düşer — yanıt modelden

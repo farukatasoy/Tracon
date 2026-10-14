@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (919 kalem)
+## Arşivlenen Kararlar (922 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -134,7 +134,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-123 | 174 | Kodda tanımlı workflow'lar agent'ları `GetWorkflowAgent` ile bağlar |
 | K-124 | 175 | `Magentic` plan onayı Faz 15'te kapalı (`RequirePlanSignoff(false)`) |
 | K-125 | 176 | `GroupChat` yönetici agent kabul etmez; `managerAgentName` yalnız `Magentic` içindir |
-| K-126 | 177 | Workflow tanımlarında sürüm GEÇMİŞİ tutulmaz |
+| K-126 | 177 | Workflow tanımlarında sürüm GEÇMİŞİ tutulmaz 🔁 |
 | K-127 | 178 | 🚨 Executor kimliği `(workflow, agent)` çiftinden türetilir; MAF'ın özel alanına yazılır |
 | K-128 | 179 | Bekleyen insan istekleri için tablo açılmadı; olay yükünde yaşarlar |
 | K-129 | 180 | `Microsoft.Agents.AI.Workflows.Declarative` alınmadı 👤 |
@@ -909,7 +909,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-898 | 949 | `run_inputs.parameters` (üç sağlayıcıda nullable sütun): `NULL` "kayıt yok", `{}` "kayıtlı, değer yok"; kendi `ProtectedColumn.RunInputParameters`'ı var; retention `AwaitingInput` run'ın satırını tutar; run bağlandığı NİHAİ değerleri (varsayılanlar dahil) yazar; replay, çökme sonrası devam, onay-devamı ve workflow resume/respond kaydı kullanır, kaydı olmayan kaynak ve parametreli tanım REDDEDİLİR; replay isteği üzerine yazar; workflow satırı mesaj saklamaz; K-890'ın "replay ve devam parametreli tanımı reddeder" maddesi değişti (F-294) |
 | K-899 | 950 | Kuyruklu run yükü `parameters` ve `documents` taşır; batch öğesi `message` string üyeli JSON nesnesiyse YAPILIdır (bilinmeyen üst alan ve bozuk üye öğeyi tek başına düşürür, zamanlama kaydı ve tetik biçimi reddeder); `jobs.payload` ve `job_items.input` KORUMALI DEĞİLDİR ve değer ile belge metnini düz tutar; worker şemayı yeniden doğrular; webhook gövdesi gibi dış kaynaklı metin `{"message": …}` ile zarflanır, yapılı öğe olarak okunmaz (F-294) (kullanıcı kararı) 👤 |
 | K-900 | 951 | Fonksiyon düğümü ayarı tipli ve KATI OKUMAYLA doğrulanır: `WorkflowNodeReference.Settings` (`JsonElement?`, yalnız nesne), `AddWorkflowFunction<TInput, TOutput, TSettings>`; kayıtta ve her derlemede AYNI okuma (fonksiyon doğrulanan nesneyi alır, ikinci şema doğrulayıcısı yok); agent düğümünde, nesne olmayan değerde ve ayarsız fonksiyonda `400`; ayar `secret` DEĞİLDİR, değişiklik sonraki run'da geçerlidir, boyut sınırı yalnız kayıtta (F-295) (kullanıcı kararı) 👤 |
-| K-901 | 952 | Konsol zinciri TEK kanonik biçimde yazar (fonksiyon varsa `nodes`, yoksa `agentNames`); sunucu iki biçimi de kabul eder; yapısal değişiklik bekleyen run'ı resume edilemez kılar ve editör bunu her zaman söyler; aynı fonksiyon bir zincirde iki kez kullanılamaz (F-292) (kullanıcı kararı) 👤 |
+| K-901 | 952 | Konsol zinciri TEK kanonik biçimde yazar (fonksiyon VEYA agent sürüm sabiti varsa `nodes`, yoksa `agentNames`); sunucu iki biçimi de kabul eder; yapısal değişiklik, adı konan sürümle resume edilen run'ı resume edilemez kılar (bekleyen run kaydettiği sürümle sürer, K-983) ve editör bunu her zaman söyler; aynı fonksiyon bir zincirde iki kez kullanılamaz (F-292) (kullanıcı kararı) 👤 |
 | K-902 | 953 | Ayarlı fonksiyon kaydı opsiyonel parametre YERİNE `Action<WorkflowFunctionOptions>` alır; `IWorkflowFunctionCatalog` `ValidateSettings` üyesini kazanır (F-295) |
 | K-903 | 954 | Kuyruklu turun oturum kaydı kira penceresinde tekrarlanır; pencere biterse iş `tracon.job.session-save-failed` ile `Failed` olur, model tekrar çağrılmaz (F-367) (ana oturum varsayılanı) |
 | K-904 | 955 | Kuyruktaki run kuyruğa alanın atfını taşır: agent run yükü `userId` + `labels`, workflow ve batch yükü `{items, userId, labels}` zarfı; devam kaynak run'ın atfıyla açılır (F-364, F-369) (ana oturum varsayılanı) |
@@ -928,3 +928,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-917 | 968 | Kod Loop ölçütü fabrikasının attığı istisnanın MESAJI yönetim API'sine gitmez: derleme hatası türü ve istisna tipini adlandırır, istisna `InnerException`'da ve host logunda durur (F-301) |
 | K-918 | 969 | Konsol Loop editörü yalnız tür DEĞİŞİMİNDE yeni türün okumadığı alanı temizler; yükleme ve kayıt her alanı, listelenmeyen türü ve kanonik olmayan yazımı (`aijudge`) olduğu gibi korur; harness kapalıyken düşen loop kaydetmeden önce söylenir (F-302) (kullanıcı kararı) 👤 |
 | K-919 | 970 | Çıktı sınırında kesilme ayrı bir sonuçtur: `RunErrorClass.OutputTruncated = 16`, `TraconOutputTruncatedException` (`output_truncated`), `RunEventCustomTypes.OutputTruncated` (`tracon.output.truncated`). Karar son bildirilen bitiş sebebinden verilir; yapılandırılmış (`Json`/`JsonSchema`) yanıt run'ı düşürür ve onarım koşmaz, düz metin `Completed` + olay; reddedilen yanıtın token'ı run'a katlanır (F-320, Faz 204; Açık Soru 1-A, 2-A) |
+| K-920 | 971 | Anthropic istek ayarları: `anthropic.effort` (`output_config.effort`), `anthropic.thinking.mode` (`enabled`/`adaptive`; tek başına bütçe `enabled`), `anthropic.promptCaching.ttl` (`5m`/`1h`), `anthropic.promptCaching.placement` (`request`/`system`; talimatsız `system` üst düzey kırılma noktasına düşer). Değer listeleri SDK enum'larından okunur; `ttl`/`placement` `promptCaching` olmadan, `adaptive` + bütçe ve bütçesiz `enabled` hatadır (F-346, Faz 204; Açık Soru 3-A) |
+| K-921 | 972 | `ModelDescriptor.SupportsSampling` (`bool?`, `null` = bilinmiyor): `false` iken `Temperature`/`TopP` derlemeyi durdurur, doğrulama `sampling_unsupported` verir; bağlamanın `Fallbacks` bağlantıları da denetlenir (Faz 204; yedek denetimi ana oturum varsayılanı, bakımcı onayı bekler) |
+| K-922 | 973 | Sağlayıcının varsayılan çıktı sınırı `ModelOutputLimit` kaydıyla (`DefaultMaxOutputTokens`, `HighReasoningEffort`) bağlamaya göre kurulan ham istemcinin `IChatClient.GetService` yanıtından okunur; doğrulama, `MaxOutputTokens` boşken varsayılan katalog sınırından küçükse ve yanıt yapılandırılmışsa ya da effort yüksekse `output_truncation_risk` (Warning) verir (Faz 204 #1, #2; Açık Soru 5-B; seam biçimi ana oturum varsayılanı, bakımcı onayı bekler) |

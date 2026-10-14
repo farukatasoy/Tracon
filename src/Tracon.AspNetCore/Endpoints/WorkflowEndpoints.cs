@@ -194,7 +194,9 @@ internal static class WorkflowEndpoints
                 "Only a stored definition can be deleted; a code-defined workflow is removed by " +
                 "changing the application, and asking for one here returns 404. Runs and " +
                 "checkpoints already recorded are kept, so past executions stay readable, but a " +
-                "checkpoint cannot be resumed once the definition it needs is gone.");
+                "checkpoint cannot be resumed once the definition it needs is gone. The version " +
+                "history is kept too, so a version number is never given to a second content: " +
+                "saving the name again continues the numbering.");
 
         builder.MapPost("/api/workflows/{name}/run", (
                     string name,

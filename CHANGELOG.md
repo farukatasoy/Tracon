@@ -1055,8 +1055,69 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Tracon.Testing.Contracts.Xunit`: `NonTokenUsageContract`, and new scenarios in
   `RunStoreContract` and `ToolInvocationContract` for the snapshot, the tree total and a
   measurement's provider and model.
+- A stored workflow keeps its version history. Every save appends a version and a rollback
+  appends the old content as a new one; nothing is rewritten. `GET /api/workflows/{name}/versions`
+  (Reader) lists the full snapshots, newest first, `GET /api/workflows/{name}/versions/{a}/diff/{b}`
+  returns two of them as `left` and `right`, and `POST /api/workflows/{name}/rollback`
+  (Admin, body `WorkflowRollbackRequest`) rolls back. A rollback is judged like a save: a version
+  that names a function that is no longer registered, settings that no longer fit, or an agent
+  version that no longer exists answers `400` and writes nothing. An unknown version is `404`, a
+  workflow defined in code is `409` (its versions read `404`). The audit trail records
+  `workflow.rollback` with the version it came from and the one it wrote. A version number is
+  never reused: deleting a workflow keeps its history and a workflow saved again under the same
+  name continues the numbering. New in the OpenAPI document and both generated clients
+  (`TraconListWorkflowVersionsAsync`, `TraconGetWorkflowVersionDiffAsync`,
+  `TraconRollbackWorkflowAsync`, `WorkflowVersionDiffResponse`, `WorkflowRollbackRequest`).
+- `IWorkflowDefinitionStore.GetVersionAsync`, `ListVersionsAsync` and `RollbackAsync`. Three
+  migrations add the `workflow_definition_versions` table (no foreign key to `workflows`):
+  PostgreSQL `0059`, SQL Server `0047` and SQLite `0046`. Each stored workflow starts its history
+  at the version it has today; the versions it had before were never kept. A save writes the
+  current row and its history entry in one transaction.
+- A workflow run's row records the version of the definition it was compiled from
+  (`RunRecord.AgentVersion` of the workflow's root row; `null` for a workflow defined in
+  code and for a row written before this release). A resume or a response is stamped with the
+  version it ran.
+- `definitionVersion` on `POST /api/workflows/runs/{runId}/resume` and `.../respond`
+  (`WorkflowResumeHttpRequest.DefinitionVersion`, `WorkflowRespondHttpRequest.DefinitionVersion`,
+  `WorkflowResumeRequest.DefinitionVersion`, `WorkflowRespondRequest.DefinitionVersion`) names the
+  stored version to continue with. A version the workflow does not have is `400` before a stream
+  opens or a job is queued, and fails the run when the engine is called directly; a run is never
+  continued with the current definition in its place. A queued resume and a queued response carry it.
+- `WorkflowNodeReference.AgentVersion` pins an agent step to one version of that agent. The step
+  runs that version's instructions, model and tools while the agent is edited, and its child run
+  row records the version. Only an agent node in the `nodes` form can pin; a function node, a
+  value below 1, an agent defined in code and a version the agent does not have are refused with
+  `400` when the workflow is saved and when it is compiled. The pin is not part of the step's
+  identity, so changing it does not make a waiting run's checkpoint unusable. The agent's own
+  sub-agents and skills still resolve their current version.
+- The console lists a workflow's versions, compares two of them and rolls back, and an agent
+  step in the chain editor can pin a version of a stored agent.
+- `Tracon.Testing.Contracts.Xunit`: new scenarios in `WorkflowDefinitionStoreContract` for the
+  history, the numbering after a delete, rollback, concurrent saves, tenant isolation, a pin's
+  round trip and cancellation, and the optional `SupportsRawHistory`, `ExecuteRawAsync`,
+  `QualifiedWorkflowHistoryTable` and `RawNowExpression` hooks a SQL provider overrides to prove
+  that a failed history write leaves the current definition as it was.
 
 ### Changed
+
+- **Behavior change:** a workflow run that waits to be resumed keeps the definition version
+  it recorded. Before, `resume` and `respond` compiled the current definition: an edit made
+  while the run waited changed its settings, timeouts and parameter schema without notice, and a
+  structural edit (a step added, removed or reordered, the pattern or the stored form changed)
+  made the run impossible to resume. Now such an edit changes nothing for that run. To carry a run
+  over a fix, name the edited version in `definitionVersion`; a version whose graph differs from
+  the checkpoint's fails the run with "the graph's structure differs", as before. A run whose row
+  recorded no version (written before this release) resumes with the current definition, and a
+  resume of a workflow that was deleted is still refused.
+- **Breaking for implementers (preview):** `IWorkflowDefinitionStore` has three more members
+  (`GetVersionAsync`, `ListVersionsAsync`, `RollbackAsync`). A store of your own has to keep the
+  history; a default implementation would have dropped every pinned step the first time the
+  workflow was edited. The in-memory store and the three SQL stores implement them, and
+  `WorkflowDefinitionStoreContract` runs against yours.
+- The console writes the `nodes` form of a chain when it has a function node **or** a pinned
+  agent step (it was: a function node). A chain of agents alone with no pin is still saved as
+  `agentNames`. Pinning the first step of such a chain changes the stored form, which is a graph
+  change: the editor warns, and a run that waits keeps resuming the version it recorded.
 
 - **Behavior change:** skill script results read differently. A timed-out script now
   reports `The script timed out and was stopped.` (was `… and the process tree was

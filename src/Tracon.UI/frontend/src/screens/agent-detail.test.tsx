@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { fixture, installApiMock, testMeta } from '../test/api-fixtures';
-import { renderScreen, screen } from '../test/render';
+import { renderScreen, screen, waitFor } from '../test/render';
 import { AgentDetailScreen } from './agent-detail';
 
 function detail(origin: string, sourceName: string): unknown {
@@ -102,6 +102,66 @@ describe('AgentDetailScreen read-only notice', () => {
 
     expect(criteria?.textContent).toContain('1. completionMarker (marker=DONE)');
     expect(criteria?.className ?? '').not.toContain('bg-warn-soft');
+  });
+
+  it('rolls an agent back through the shared version history, and shows the refusal in the screen slot', async () => {
+    // Phase 200 moved the history into a component the workflow screen shares; the agent's own
+    // columns, its rollback and its error slot must have come with it.
+    const version = (number: number): unknown => ({
+      name: 'writer',
+      model: { provider: 'echo', model: `echo-${number}` },
+      toolNames: ['search'],
+      version: number,
+      updatedAt: `2026-10-1${number}T09:00:00Z`,
+    });
+    const sent: unknown[] = [];
+    let refuse = true;
+
+    restoreFetch = installApiMock([
+      {
+        method: 'POST',
+        pattern: 'api/agents/:name/rollback',
+        handler: (_params, _url, body) => {
+          sent.push(body);
+
+          return refuse
+            ? new Response(JSON.stringify({ title: 'Rollback refused', detail: 'The model echo-1 is gone.' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/problem+json' },
+              })
+            : version(3);
+        },
+      },
+      fixture('GET', 'api/agents/:name/versions', [version(2), version(1)]),
+      fixture('GET', 'api/agents/:name', {
+        descriptor: { name: 'writer', origin: 'Database', sourceName: 'database', version: 2, toolNames: [] },
+        definition: null,
+        factoryInstructions: null,
+        isEditable: true,
+      }),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<AgentDetailScreen name="writer" meta={testMeta} />);
+
+    const rows = (await screen.findAllByRole('row')).slice(1);
+
+    // Model and tool count are the agent's columns of the shared table.
+    expect(rows[0]?.textContent).toContain('echo-2');
+    expect(rows[0]?.textContent).toContain('current');
+
+    await user.click(screen.getByTestId('version-rollback-1'));
+
+    expect(await screen.findByText(/The model echo-1 is gone\./)).toBeTruthy();
+    expect(sent).toEqual([{ version: 1 }]);
+
+    // A second attempt clears the slot before it asks again.
+    refuse = false;
+    await user.click(screen.getByTestId('version-rollback-1'));
+
+    await waitFor(() => expect(screen.queryByText(/The model echo-1 is gone\./)).toBeNull());
+    expect(sent).toEqual([{ version: 1 }, { version: 1 }]);
   });
 
   it('still tells a code agent that it is declared in code', async () => {

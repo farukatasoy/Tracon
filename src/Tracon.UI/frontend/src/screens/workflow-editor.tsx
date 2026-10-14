@@ -23,6 +23,7 @@ import {
   hasFunction,
   hasInvalidSettings,
   hasInvalidTimeouts,
+  hasPins,
   hasStepTimeouts,
   hasStrandedTimeouts,
   parseTimeout,
@@ -50,8 +51,8 @@ interface Draft {
    * The chain: agents, and for a `Sequential` workflow function nodes with their settings.
    *
    * 🚨 `PUT /api/workflows/{name}` is a full replace (K-725). The steps are written back in
-   * the form the chain needs (`chainBody`) - `nodes` when it holds a function, `agentNames`
-   * otherwise - and the other field is always sent empty. Before phase 195 the editor did not
+   * the form the chain needs (`chainBody`) - `nodes` when it holds a function or an agent pinned
+   * to a version, `agentNames` otherwise - and the other field is always sent empty. Before phase 195 the editor did not
    * edit `nodes` at all, and adding an agent to a function-node chain replaced the chain with
    * that one agent: the function nodes were gone, with no warning.
    */
@@ -103,9 +104,10 @@ const EMPTY: Draft = {
  * are values for a shape the function's code declares, not code and not an expression.
  *
  * The chain is one list of steps (`StepList`). A `Sequential` workflow may mix function nodes
- * in; every other pattern takes agents only. The form writes the canonical shape for what the
- * chain holds - `nodes` with a function in it, `agentNames` without - and says so before the
- * save when that is a change (`StoredFormNotice`).
+ * in, and may pin a stored agent to one of its versions; every other pattern takes agents only.
+ * The form writes the canonical shape for what the chain holds - `nodes` with a function or a
+ * pin in it, `agentNames` without - and says so before the save when that is a change
+ * (`ChainNotices`).
  *
  * Validation is deliberately *not* duplicated from the server. The rules live
  * in `WorkflowDefinitionValidator` and the function registry, and both the save endpoint and
@@ -207,6 +209,8 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: ['workflows'] });
       await queryClient.invalidateQueries({ queryKey: ['workflow', saved.name] });
+      // A save appends a version, and the workflow screen lists them.
+      await queryClient.invalidateQueries({ queryKey: ['workflow-versions', saved.name] });
       navigate(`workflows/${encodeURIComponent(saved.name)}`);
     },
   });
@@ -244,14 +248,16 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   }
 
   const available = agents.data ?? [];
-  // A function node, and a step's own timeout, live on a node, which only a Sequential chain
-  // has: the pattern is locked while the chain holds either.
-  const mixed = hasFunction(draft.steps) || hasStepTimeouts(draft.steps);
+  // A function node, a step's own timeout and an agent pinned to a version live on a node, which
+  // only a Sequential chain has: the pattern is locked while the chain holds any of them.
+  const mixed = hasFunction(draft.steps) || hasStepTimeouts(draft.steps) || hasPins(draft.steps);
   // A step timeout in a chain saved as a plain agent list: held back, never dropped.
   const stranded = hasStrandedTimeouts(draft.kind, draft.steps);
   const tooFew = NEEDS_TWO.includes(draft.kind) && draft.steps.length < 2;
   const sequential = draft.kind === 'Sequential';
   const participantNames = draft.steps.map((step) => step.name);
+  // Only a stored agent keeps versions to pin to; the selector is offered in a Sequential chain only.
+  const storedAgents = new Set(available.filter((agent) => agent.origin === 'Database').map((agent) => agent.name));
 
   const blocked =
     draft.name.trim().length === 0 ||
@@ -360,6 +366,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
                 <StepList
                   ids={ids}
                   agents={available.map((agent) => agent.name)}
+                  storedAgents={sequential ? storedAgents : undefined}
                   steps={draft.steps}
                   onChange={(steps) => setDraft({ ...draft, steps })}
                   functions={
@@ -515,13 +522,16 @@ function PlanApproval({
  *
  * Two separate things, both only for a workflow that already exists:
  *
- * - **The stored form changes.** The console writes `nodes` when the chain holds a function and
- *   `agentNames` when it does not (one canonical form), whatever form it loaded. The agent step
- *   of a node list runs on the hand-built graph, which does not stream its tokens live; an
- *   agent-only list runs on the built-in sequential pattern.
- * - **The graph changes.** A new pattern, step or order is a different graph, and a run that is
- *   waiting to be resumed belongs to the old one: its saved state is refused afterwards
- *   (measured, phase 195). A settings or description change is not such a change.
+ * - **The stored form changes.** The console writes `nodes` when the chain holds a function or an
+ *   agent pinned to a version, and `agentNames` when it does not (one canonical form), whatever
+ *   form it loaded. The agent step of a node list runs on the hand-built graph, which does not
+ *   stream its tokens live; an agent-only list runs on the built-in sequential pattern. The first
+ *   pin on an agent-only chain is such a change (different executors, so a different graph); a
+ *   change of the pinned version alone is not.
+ * - **The graph changes.** A new pattern, step or order is a different graph. A run that is
+ *   waiting keeps resuming the definition version it recorded; resuming it WITH THE NEW version
+ *   is refused, because its saved state belongs to the old graph (measured, phase 195; phase 200
+ *   for the recorded version). A settings, description or pin change is not such a change.
  */
 function ChainNotices({
   kind,

@@ -31,6 +31,15 @@ export interface Step {
    * `00:00:02.500`.
    */
   storedTimeout?: string | null;
+  /**
+   * The version of the agent this step runs. Empty (`null` or absent) runs the agent's current
+   * version, resolved each time the step runs. Only a stored agent keeps versions, and only a
+   * node can carry the pin: a chain with one is saved as a node list (`canonicalForm`).
+   *
+   * 🚨 A pin the server sent goes back as it is, whatever the step looks like (K-918): the save is
+   * a full replace, and dropping one silently would move the step to the current version.
+   */
+  agentVersion?: number | null;
 }
 
 /** Reads a definition's steps from whichever form it was stored in. */
@@ -42,6 +51,7 @@ export function stepsOf(definition: Pick<WorkflowDefinition, 'agentNames' | 'nod
       settings: settingsText(node.settings),
       timeout: timeoutText(node.timeout),
       storedTimeout: node.timeout ?? undefined,
+      agentVersion: node.agentVersion ?? undefined,
     }));
   }
 
@@ -51,6 +61,11 @@ export function stepsOf(definition: Pick<WorkflowDefinition, 'agentNames' | 'nod
 /** Whether the chain has a function node. */
 export function hasFunction(steps: readonly Step[]): boolean {
   return steps.some((step) => step.kind === 'Function');
+}
+
+/** Whether a step of the chain pins its agent to a version. */
+export function hasPins(steps: readonly Step[]): boolean {
+  return steps.some((step) => step.agentVersion !== null && step.agentVersion !== undefined);
 }
 
 /** Whether a step of the chain carries a timeout of its own. */
@@ -66,7 +81,8 @@ export function hasStepTimeouts(steps: readonly Step[]): boolean {
  * unchanged): the change of form would make a run waiting to be resumed unresumable and stop
  * the agents' live token stream. Such a chain loaded from a node list written over HTTP, or
  * one whose last function step was removed, is held back instead of losing its timeouts on a
- * full-replace save (K-725).
+ * full-replace save (K-725). A pinned agent version is the other thing that makes a node list
+ * (phase 200): the operator asked for a node there, so a timeout beside it is kept.
  */
 export function hasStrandedTimeouts(kind: WorkflowKind, steps: readonly Step[]): boolean {
   return canonicalForm(kind, steps) === 'agentNames' && hasStepTimeouts(steps);
@@ -81,13 +97,14 @@ export function storedFormOf(definition: Pick<WorkflowDefinition, 'nodes'>): Sto
 }
 
 /**
- * The form the console writes: `nodes` when the chain has a function, `agentNames` otherwise.
- * One canonical form per chain (K-901); the server accepts both, so a definition written over
- * HTTP in the other form keeps loading. A step timeout does not change the form; see
- * `hasStrandedTimeouts`.
+ * The form the console writes: `nodes` when a Sequential chain has a function or an agent step
+ * pinned to a version, `agentNames` otherwise. One canonical form per chain (K-901); the server
+ * accepts both, so a definition written over HTTP in the other form keeps loading. A step
+ * timeout does not change the form; see `hasStrandedTimeouts`. A pin does: only a node can
+ * carry one, and a plain agent list has nowhere to put it.
  */
 export function canonicalForm(kind: WorkflowKind, steps: readonly Step[]): StoredForm {
-  return kind === 'Sequential' && hasFunction(steps) ? 'nodes' : 'agentNames';
+  return kind === 'Sequential' && (hasFunction(steps) || hasPins(steps)) ? 'nodes' : 'agentNames';
 }
 
 /**
@@ -95,7 +112,7 @@ export function canonicalForm(kind: WorkflowKind, steps: readonly Step[]): Store
  *
  * 🚨 Both fields are always written - the other one empty. `PUT /api/workflows/{name}`
  * replaces the whole definition (K-725), and the server refuses a request that sets both.
- * A node that carries no settings writes an explicit `null`.
+ * A node that carries no settings, timeout or pin writes an explicit `null`.
  */
 export function chainBody(
   kind: WorkflowKind,
@@ -106,6 +123,10 @@ export function chainBody(
     // the full-replace save would erase what the server stores.
     if (hasStepTimeouts(steps)) {
       throw new Error('A step holds a timeout that a plain agent list cannot keep, so no request was built.');
+    }
+
+    if (hasPins(steps)) {
+      throw new Error('A step pins its agent to a version, which a plain agent list cannot keep, so no request was built.');
     }
 
     return { agentNames: steps.map((step) => step.name), nodes: [] };
@@ -119,6 +140,7 @@ export function chainBody(
         kind: step.kind,
         settings: step.kind === 'Function' ? settingsValue(step.settings) : null,
         timeout: timeoutValue(step.timeout, step.storedTimeout),
+        agentVersion: step.agentVersion ?? null,
       }),
     ),
   };
@@ -275,9 +297,10 @@ function formatTimeSpan(totalMilliseconds: number): string {
 }
 
 /**
- * What decides whether a run that is waiting to be resumed still can be: the pattern and the
- * steps, in order. A description, a settings value or a timeout is not part of it (measured,
- * phases 195 and 196).
+ * What decides whether a run that is waiting to be resumed WITH THE NEW GRAPH still can be: the
+ * pattern and the steps, in order. A description, a settings value, a timeout or an agent pin is
+ * not part of it (measured, phases 195, 196 and 200). A run that is waiting keeps resuming the
+ * definition version it recorded, so a save does not take the old graph away from it.
  */
 export function shapeOf(kind: WorkflowKind, steps: readonly Step[]): string {
   return JSON.stringify([kind, steps.map((step) => [step.kind, step.name])]);

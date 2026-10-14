@@ -6,6 +6,7 @@ import {
   hasFunction,
   hasInvalidSettings,
   hasInvalidTimeouts,
+  hasPins,
   hasStepTimeouts,
   hasStrandedTimeouts,
   parseSettings,
@@ -68,9 +69,9 @@ describe('chainBody', () => {
     expect(chainBody('Sequential', [agent('a'), fn('tts', '{"voice":"alloy"}'), fn('mix')])).toStrictEqual({
       agentNames: [],
       nodes: [
-        { name: 'a', kind: 'Agent', settings: null, timeout: null },
-        { name: 'tts', kind: 'Function', settings: { voice: 'alloy' }, timeout: null },
-        { name: 'mix', kind: 'Function', settings: null, timeout: null },
+        { name: 'a', kind: 'Agent', settings: null, timeout: null, agentVersion: null },
+        { name: 'tts', kind: 'Function', settings: { voice: 'alloy' }, timeout: null, agentVersion: null },
+        { name: 'mix', kind: 'Function', settings: null, timeout: null, agentVersion: null },
       ],
     });
   });
@@ -78,7 +79,7 @@ describe('chainBody', () => {
   it('never sends settings for an agent step, whatever its text holds', () => {
     const body = chainBody('Sequential', [{ kind: 'Agent', name: 'a', settings: '{"x":1}', timeout: '' }, fn('tts')]);
 
-    expect(body.nodes[0]).toStrictEqual({ name: 'a', kind: 'Agent', settings: null, timeout: null });
+    expect(body.nodes[0]).toStrictEqual({ name: 'a', kind: 'Agent', settings: null, timeout: null, agentVersion: null });
   });
 
   it('sends the other patterns their agents as names', () => {
@@ -278,5 +279,96 @@ describe('step timeouts', () => {
     expect(hasInvalidTimeouts([agent('a', 'soon')])).toBe(true);
     expect(hasInvalidTimeouts([agent('a', '30'), fn('tts', '', '')])).toBe(false);
     expect(() => chainBody('Sequential', [agent('a', 'soon'), fn('tts')])).toThrow('neither seconds nor hh:mm:ss');
+  });
+});
+
+// Phase 200: a step can pin its stored agent to one version of it.
+describe('agent version pins', () => {
+  const pinned = (name: string, agentVersion: number | null, timeout = ''): Step => ({ ...agent(name, timeout), agentVersion });
+
+  it('reads a stored pin, and leaves an unpinned or missing one empty', () => {
+    const [a, b, c] = stepsOf({
+      agentNames: [],
+      nodes: [
+        { name: 'a', kind: 'Agent', settings: null, agentVersion: 2 },
+        { name: 'b', kind: 'Agent', settings: null, agentVersion: null },
+        { name: 'c', kind: 'Agent', settings: null },
+      ],
+    });
+
+    expect(a?.agentVersion).toBe(2);
+    expect(b?.agentVersion).toBeUndefined();
+    expect(c?.agentVersion).toBeUndefined();
+
+    // An agent list has nowhere to hold one.
+    expect(stepsOf({ agentNames: ['x'], nodes: [] })).toEqual([agent('x')]);
+  });
+
+  it('counts a pin, and nothing else, as one', () => {
+    expect(hasPins([agent('a'), pinned('b', 1)])).toBe(true);
+    expect(hasPins([agent('a'), pinned('b', null)])).toBe(false);
+    expect(hasPins([agent('a', '30'), fn('tts', '{"a":1}')])).toBe(false);
+    expect(hasPins([])).toBe(false);
+  });
+
+  it('writes a Sequential chain with a pin as nodes, and an unpinned agent-only chain as agentNames', () => {
+    expect(canonicalForm('Sequential', [pinned('a', 2), agent('b')])).toBe('nodes');
+    expect(canonicalForm('Sequential', [pinned('a', null), agent('b')])).toBe('agentNames');
+
+    // Another pattern never gets nodes: the server refuses them.
+    expect(canonicalForm('Concurrent', [pinned('a', 2), agent('b')])).toBe('agentNames');
+
+    expect(chainBody('Sequential', [pinned('a', 2), agent('b')])).toStrictEqual({
+      agentNames: [],
+      nodes: [
+        { name: 'a', kind: 'Agent', settings: null, timeout: null, agentVersion: 2 },
+        { name: 'b', kind: 'Agent', settings: null, timeout: null, agentVersion: null },
+      ],
+    });
+    expect(chainBody('Sequential', [agent('a'), agent('b')])).toStrictEqual({ agentNames: ['a', 'b'], nodes: [] });
+  });
+
+  it('writes an untouched pin back as stored, a changed one as typed and a cleared one as null', () => {
+    const steps = stepsOf({
+      agentNames: [],
+      nodes: [
+        { name: 'a', kind: 'Agent', settings: null, agentVersion: 2 },
+        { name: 'b', kind: 'Agent', settings: null, agentVersion: null },
+      ],
+    });
+    const versionsOf = (chain: readonly Step[]): (number | string | null | undefined)[] =>
+      chainBody('Sequential', chain).nodes.map((node) => node.agentVersion);
+
+    expect(versionsOf(steps)).toEqual([2, null]);
+    expect(versionsOf(steps.map((step) => ({ ...step, agentVersion: step.name === 'b' ? 5 : step.agentVersion })))).toEqual([2, 5]);
+
+    // Clearing the only pin leaves an agent-only chain, which goes back to the agent list.
+    expect(chainBody('Sequential', steps.map((step) => ({ ...step, agentVersion: null })))).toStrictEqual({
+      agentNames: ['a', 'b'],
+      nodes: [],
+    });
+  });
+
+  it('sends the pin a node carries whatever its kind, so a value the server sent is never dropped', () => {
+    const [step] = stepsOf({ agentNames: [], nodes: [{ name: 'tts', kind: 'Function', settings: null, agentVersion: 4 }] });
+
+    expect(chainBody('Sequential', [step!]).nodes[0]?.agentVersion).toBe(4);
+  });
+
+  it('builds no request that would drop a pin: an agent list cannot hold one', () => {
+    expect(() => chainBody('Concurrent', [pinned('a', 2), agent('b')])).toThrow('pins its agent to a version');
+  });
+
+  it('keeps a step timeout beside a pin: the pin makes the node list, so nothing is stranded', () => {
+    expect(hasStrandedTimeouts('Sequential', [pinned('a', 2, '300'), agent('b')])).toBe(false);
+    expect(chainBody('Sequential', [pinned('a', 2, '300'), agent('b')]).nodes[0]?.timeout).toBe('00:05:00');
+
+    // Take the pin away and the timeout has no node to live on again.
+    expect(hasStrandedTimeouts('Sequential', [pinned('a', null, '300'), agent('b')])).toBe(true);
+  });
+
+  it('does not count a pin as a change of shape: a waiting run keeps its graph', () => {
+    expect(shapeOf('Sequential', [pinned('a', 2), agent('b')])).toBe(shapeOf('Sequential', [agent('a'), agent('b')]));
+    expect(shapeOf('Sequential', [pinned('a', 2), agent('b')])).toBe(shapeOf('Sequential', [pinned('a', 7), agent('b')]));
   });
 });

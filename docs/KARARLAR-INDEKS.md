@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 919 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 922 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 971 kalem)
+## En Yeni Kalıcı Kararlar (52 / 974 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-920 | 971 | Anthropic istek ayarları: `anthropic.effort` (`output_config.effort`), `anthropic.thinking.mode` (`enabled`/`adaptive`; tek başına bütçe `enabled`), `anthropic.promptCaching.ttl` (`5m`/`1h`), `anthropic.promptCaching.placement` (`request`/`system`; talimatsız `system` üst düzey kırılma noktasına düşer). Değer listeleri SDK enum'larından okunur; `ttl`/`placement` `promptCaching` olmadan, `adaptive` + bütçe ve bütçesiz `enabled` hatadır (F-346, Faz 204; Açık Soru 3-A) |
-| K-921 | 972 | `ModelDescriptor.SupportsSampling` (`bool?`, `null` = bilinmiyor): `false` iken `Temperature`/`TopP` derlemeyi durdurur, doğrulama `sampling_unsupported` verir; bağlamanın `Fallbacks` bağlantıları da denetlenir (Faz 204; yedek denetimi ana oturum varsayılanı, bakımcı onayı bekler) |
-| K-922 | 973 | Sağlayıcının varsayılan çıktı sınırı `ModelOutputLimit` kaydıyla (`DefaultMaxOutputTokens`, `HighReasoningEffort`) bağlamaya göre kurulan ham istemcinin `IChatClient.GetService` yanıtından okunur; doğrulama, `MaxOutputTokens` boşken varsayılan katalog sınırından küçükse ve yanıt yapılandırılmışsa ya da effort yüksekse `output_truncation_risk` (Warning) verir (Faz 204 #1, #2; Açık Soru 5-B; seam biçimi ana oturum varsayılanı, bakımcı onayı bekler) |
 | K-923 | 974 | Kesilen kuyruklu workflow run'ını yalnız onu başlatan job sürdürür; uzlaştırma workflow kökünü `Failed` kapatır ama sürdürmez; zincir `ContinuedFromRunId` ile ileri yürünür; çökme, deploy ve zarif kapanış ayırt edilmez; varsayılan kapalı (`ResumeInterruptedRuns`) ve checkpoint ister (Faz 197, Açık Soru 1-A) (kullanıcı kararı) 👤 |
 | K-924 | 975 | Kuyruklu workflow işlemi tek anahtardır: `tracon.workflow-run` + yükte `operation` (`run`/`resume`/`respond`); iş kimliği run kimliğidir; anahtar HTTP ile zamanlanamaz (`HttpSchedulableHandlerKeys` de açamaz); kapılar `202`'den önce, senkron uçla aynı sırada koşar; kuyruklu resume/respond kotaya girmez; respond-async F-319'u beklemez (Faz 197, Açık Soru 2-A, 3-A, 6-A) (kullanıcı kararı) 👤 |
 | K-925 | 976 | Üç workflow ucu `Idempotency-Key`'i yalnız `Prefer: respond-async` ile kabul eder; `Prefer`'siz anahtar `400` alır (Faz 197, Açık Soru 5-A) (kullanıcı kararı) 👤 |
@@ -62,3 +59,6 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-979 | 1020 | Kuyruklu turun onay yazımı kira penceresinde tekrarlanır, kimlikle önce okur; pencere biterse `tracon.job.approval-save-failed`, model tekrar çağrılmaz (F-391, kusur-giderme 2026-10-14) (ana oturum varsayılanı, K-903 emsali) |
 | K-980 | 1021 | Çağıranı bekleyen yanıt (onay isteği, sonuçsuz istemci tool çağrısı) yapılandırılmış doğrulamadan geçmez; doğrulayıcı çağrılmaz (F-350, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
 | K-981 | 1022 | Katalog ve doğrulayıcı skill'i kod ve `store`'dan sonra `SkillRoots`'ta da arar; disk skill'i kurulum genelidir, içeriği önbellek parmak izine girer; grant pini diske bakmaz (F-481, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
+| K-982 | 1023 | Workflow tanımının sürüm GEÇMİŞİ tutulur (K-126 açıldı): `workflow_definition_versions`, anahtar `(tenant_id, name, version)`, `workflows`'a yabancı anahtarı YOK; sürüm numarası kimliktir, silme geçmişi silmez ve numara yeniden verilmez; kayıt güncel satırı ve geçmiş satırını TEK işlemde yazar; `IWorkflowDefinitionStore` soyut üye alır (`GetVersionAsync`, `ListVersionsAsync`, `RollbackAsync`); geri alma yeni sürüm yazar ve `PUT` gibi doğrulanır (F-300) |
+| K-983 | 1024 | Workflow kök run satırı derlediği tanım sürümünü `runs.agent_version`'a yazar; `resume` ve `respond` kaynak satırın damgasını derler, `definitionVersion` başka sürümü seçer; olmayan sürüm run'ı KAPALI düşürür (güncele düşmez), damgasız satır güncel tanımla sürer, kod workflow'u damgasızdır; tanım run başında TEK okumadan gelir (damga, graf, şema ve süre aynı okuma); silinmiş workflow resume edilmez; ayar, süre ve şema da kaydedilen sürümden okunur (F-300) |
+| K-984 | 1025 | Agent düğümü sürüm sabiti `WorkflowNodeReference.AgentVersion` (`int?`): yalnız agent düğümü ve `nodes` biçimi, `< 1` ve fonksiyon düğümünde `400`, kayıtta VE derlemede doğrulanır (agent yok sayılırsa derleyici adıyla söyler); yalnız veritabanı agent'ı sabitlenir, kod agent'ı `400`; varlık betimleyici + tek sürüm satırıyla ölçülür, agent DERLENMEZ; sabit sarmalayıcının önbellek anahtarındadır, executor kimliğinde DEĞİL; alt agent ve skill sabiti kapsam dışıdır (F-300; K-895 (c) sürer) |
