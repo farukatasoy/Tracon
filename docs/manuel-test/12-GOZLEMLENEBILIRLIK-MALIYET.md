@@ -2262,7 +2262,7 @@ birimindeki tutarları toplayıp tek etiket yazıyordu (1 USD + 1 EUR = "2 USD")
 **Beklenen sonuç**
 - `treeCost.inputCost/outputCost/currency` `null`, `currencyCount` `2`; kökün kendi `cost`'u duruyor.
 - İstatistik `totalCost` ve `currency` `null`, `currencyCount` `2`, model dökümü maliyeti `null`.
-- Pano *mixed currencies* rozeti gösterir; kota satırı yalnız kökün kendi maliyetini sayar.
+- Pano *mixed currencies* rozeti gösterir; kota satırı kökün kendi maliyetini ve `Tracon:Pricing:Currency` cinsinden alt run maliyetlerini sayar (farklı birimli alt run yalnız token'ıyla girer, Faz 205).
 - 🚨 Eski kusur: toplam iki tutarın toplamını tek para birimiyle gösterdi.
 
 ---

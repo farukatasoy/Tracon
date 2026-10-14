@@ -217,7 +217,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [202](arsiv/fazlar/202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | ✅ Tamamlandı |
 | [203](arsiv/fazlar/203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) | Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları | ✅ Tamamlandı |
 | [204](arsiv/fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) | Kesilen Model Çıktısı ve Anthropic Güncel İstek Ayarları | ✅ Tamamlandı |
-| [205](205-GEC-BITEN-HARCAMA-KOTASI.md) | Kök Kapandıktan Sonra Biten Harcamanın Kotası | 📋 Planlandı |
+| [205](arsiv/fazlar/205-GEC-BITEN-HARCAMA-KOTASI.md) | Kök Kapandıktan Sonra Biten Harcamanın Kotası | ✅ Tamamlandı |
 | [208](208-WORKFLOW-KARAR-SOZLESMESI.md) | Workflow Karar Sözleşmesi: Tek Yanıt, Karar Denetimi ve Kaynak Bağı | 📋 Planlandı |
 | [209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) | Workflow Gelen Kutusu ve İstek Süresi | 📋 Planlandı |
 

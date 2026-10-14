@@ -192,6 +192,44 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     [Fact]
+    public async Task Usage_that_adds_no_run_adds_its_tokens_and_cost_to_a_counter_that_does_not_exist_yet()
+    {
+        // A child agent that ends after its root writes tokens and cost and no run
+        // (F-418): the run was counted once, by the root. The first write to a counter
+        // can be such an entry, and a store that treated Runs = 0 as "nothing to add"
+        // (or as a reason to create no row) would lose a tenant's spend.
+        await Store.AddUsageAsync(Consumption(runs: 0, tokens: 40, cost: 0.25m), Periods);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
+
+        usage.Count.ShouldBe(4);
+
+        var agentDaily = Find(usage, "support", QuotaPeriod.Daily);
+        agentDaily.Runs.ShouldBe(0);
+        agentDaily.Tokens.ShouldBe(40);
+        agentDaily.Cost.ShouldBe(0.25m);
+
+        Find(usage, string.Empty, QuotaPeriod.Daily).Tokens.ShouldBe(40);
+    }
+
+    [Fact]
+    public async Task Usage_that_adds_no_run_leaves_the_run_count_where_the_root_put_it()
+    {
+        // Amounts a binary float holds exactly: a store that keeps the counter as a float
+        // (SQLite) must not fail the sum on the representation of 0.1 + 0.2.
+        await Store.AddUsageAsync(Consumption(runs: 1, tokens: 10, cost: 0.125m), Periods);
+        await Store.AddUsageAsync(Consumption(runs: 0, tokens: 30, cost: 0.25m), Periods);
+        await Store.AddUsageAsync(Consumption(runs: 0, tokens: 5, cost: null), Periods);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant });
+        var daily = Find(usage, "support", QuotaPeriod.Daily);
+
+        daily.Runs.ShouldBe(1);
+        daily.Tokens.ShouldBe(45);
+        daily.Cost.ShouldBe(0.375m);
+    }
+
+    [Fact]
     public async Task Usage_with_undefined_price_does_not_break_the_cost_total()
     {
         await Store.AddUsageAsync(Consumption(runs: 1, tokens: 100, cost: 2.0m), Periods);

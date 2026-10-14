@@ -128,6 +128,15 @@ internal static class LateToolCompletionRecorder
         var usage = scope.ToolUsage?.Take(callId);
         var result = ToolResultText.TryGetText(task.Result, out var text) ? text : null;
 
+        // F-482: what the run's total does not hold. The run's snapshot never changes
+        // (K-974), so the counter is where this money lands.
+        var lateAmount = scope.NonTokenCost?.TakeLateToolAmount(callId);
+
+        if (lateAmount is { } amount)
+        {
+            _ = RecordQuotaAsync(scope, amount, toolName, timeProvider, logger);
+        }
+
         if (usage is null && result is null)
         {
             // Nothing new to say. Writing the timestamp alone would claim a
@@ -149,6 +158,56 @@ internal static class LateToolCompletionRecorder
             },
             toolName,
             logger);
+    }
+
+    /// <summary>
+    /// Adds a late amount to the quota counter of the tree its run belongs to.
+    /// Fire-and-forget by design: nothing is waiting on this call any more.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The entry names the run whose tool spent (a threshold webhook names it) and adds
+    /// no run and no token. A threshold it crosses is announced by the webhook only: the
+    /// run's own stream closed with the run, and a closed stream is not written to.
+    /// </para>
+    /// <para>
+    /// A run with no account (no quota registered, a budget no root of ours opened) has no
+    /// counter to name, and the amount stays on the call's record alone.
+    /// </para>
+    /// </remarks>
+    private static async Task RecordQuotaAsync(
+        AgentRunScope scope,
+        decimal amount,
+        string toolName,
+        TimeProvider timeProvider,
+        ILogger logger)
+    {
+        if (scope.Budget?.Account is not { Quota: not null } account)
+        {
+            return;
+        }
+
+        // Observability never breaks functionality: the recorder already swallows a store
+        // failure; this guards the await itself.
+        try
+        {
+            _ = await TreeQuota.RecordAsync(
+                account,
+                scope.RunId,
+                runs: 0,
+                tokens: 0,
+                amount,
+                timeProvider.GetUtcNow(),
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Tool '{ToolName}' finished late and its amount could not be added to the quota of run {RunId}'s tree.",
+                toolName,
+                scope.RunId);
+        }
     }
 
     /// <summary>

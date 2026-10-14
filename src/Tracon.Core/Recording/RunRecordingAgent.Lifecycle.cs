@@ -88,6 +88,15 @@ public sealed partial class RunRecordingAgent
 
         var budget = runOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null);
 
+        // F-418: the root names the counter its whole tree adds to, once, on the budget every
+        // run in the tree shares. A child that ends after the root, in a task that carries
+        // neither the root's tenant nor its user, reads the identity from here when it closes.
+        // Assigned afresh by every root, so a reused budget never keeps an earlier root's tenant.
+        if (depth == 0 && budget is not null)
+        {
+            budget.Account = new TreeAccount(tenantId, agentName, attribution.UserId, _quotaEnforcer);
+        }
+
         var scope = new AgentRunScope
         {
             RunId = runId,

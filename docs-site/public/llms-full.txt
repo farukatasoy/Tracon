@@ -161,7 +161,7 @@ is the list.
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
 | Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved |
-| Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
+| Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
 | Async HTTP runs | `Prefer: respond-async` | The API returns `202` and a location while a worker owns execution; an agent run and a workflow run, resume or respond queue the same way |
@@ -209,7 +209,7 @@ experiment, and automatic rollback is off until you configure it.
 | API keys | HTTP API and stores | Hashed, revocable, expiring, tenant-bound, and narrowed by a closed scope enum |
 | Multi-tenancy | `UseTenancy()` | Single tenant by default; a verified key outranks a claim or header |
 | Session ownership | `Tracon:SessionOwnership` | A second boundary drawn under the tenant; off by default (`false`)<!-- claim:option TraconSessionOwnershipOptions.Enabled=false -->, and while off nothing changes. The owner comes from `IRunAttributionContext` and is never read from a request body. `RefuseUnownedSessions` extends it to the rows that predate it, while a session that does not exist yet is still opened by its first turn |
-| Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; a crossed threshold can also be written into the triggering run's own event stream, off by default |
+| Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; every run of a call tree adds its own tokens and cost when it ends, a background child after its root included; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [six fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
@@ -1833,7 +1833,7 @@ re-notify. Set the list to empty to turn the notifications off.
 The threshold event is a notification, not a decision: it stops nothing, and `429`
 remains the only thing that refuses a run.
 
-A **cost** limit counts what a run spent, not only its tokens. The amount a root run
+A **cost** limit counts what a run spent, not only its tokens. The amount a run
 writes into the counter is its token cost plus what its workflow function nodes and tools
 [reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens), in the
 currency set by `Tracon:Pricing:Currency`. An item that reported no amount, or one in
@@ -1850,12 +1850,19 @@ webhook subscription. The frame's payload carries a `noticeId` (stable across a
 reconnect, for dedup), the run and user the threshold belongs to, and the same
 metric/period/limit/consumption fields the webhook carries. A threshold is claimed
 for notification **once per period** durably — a restart or a second worker
-process never re-announces one that already fired. Only the root run of a call
-tree ever carries the notice — consumption is counted once at the tree's root,
-the same scope [runs](/concepts/runs/) are already counted and billed at. An
-agent root counts the tokens and cost of every child agent it called, and a
-workflow root counts its steps. A child run that is still running in the
-background when its root ends is not counted.
+process never re-announces one that already fired.
+
+A call tree is one run and one counter. Every run in the tree adds its own tokens and
+cost to the counter **when it ends**, under the root's tenant and name: a child agent
+never opens a counter of its own, and adds no run. A child that is still running in the
+background when its root ends is therefore counted when it ends, and so is the amount a
+tool reports after its call timed out and its run closed (it reaches the counter only; the
+run's recorded total stays as it was when the run closed). The notice is written to the
+run whose entry crossed the threshold: usually the root, and a child when its entry is
+the one that crosses it. A late tool amount that crosses a threshold is announced by the
+`quota.threshold` webhook only, because the run's stream is closed. A child priced
+in another currency than `Tracon:Pricing:Currency` adds its tokens and the amounts it
+reported beyond tokens, not its token cost.
 
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
@@ -2139,9 +2146,10 @@ Subscribe to events and Tracon posts them to your endpoint.
 | `test.ping` | You sent a test delivery to verify the subscription |
 
 A payload is a summary, never content. A root run's `run.*` event carries the call
-tree's tokens and cost: an agent root adds its child agents to its own, and a
-workflow root (which has none of its own) sums its steps. Child runs publish
-nothing. `cost` is the token cost and the amount the tree
+tree's tokens and cost as the tree stands when the root closes: an agent root adds its
+child agents to its own, and a workflow root (which has none of its own) sums its steps.
+A child that ends after its root is not in it; the quota counter and `GET /api/runs/{runId}`
+carry the exact total. Child runs publish nothing. `cost` is the token cost and the amount the tree
 [reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
 together; `nonTokenCost` is the reported part alone and is left out when nothing was
 reported, so the token part is `cost - nonTokenCost`. `workflow.request.pending` carries the request id, the
@@ -2381,7 +2389,9 @@ how many there are: `treeCost` and `treeNonTokenCost` on a run, the totals of
 own), every point of `GET /api/stats/timeseries`, an experiment arm, and the judge cost of
 the online evaluation window. Each run keeps its own `cost`. Letter case is not a second
 currency. The tenant's quota and the root's `run.completed` webhook then count what a single
-currency can say: an agent root its own cost, a workflow root nothing beyond tokens. The
+currency can say: the quota counts the root's own cost and the cost of every child run
+priced in `Tracon:Pricing:Currency` (a child in another currency adds its tokens only),
+and the webhook counts the root's own cost. The
 built-in pricing prices every run in `Tracon:Pricing:Currency`, so more than one currency
 comes from a custom `IRunPricingResolver` or from a currency setting changed over time. The
 console shows *mixed currencies* where the number would be. `GET /api/runs/{runId}/usage` lists the items
@@ -3374,8 +3384,10 @@ are written onto **that same call's record** — `lateCompletedAt` on the
 `ToolInvocationRecord` says when, `timedOut` and `error` stay as they were because they
 record what the *model* was told. This matters for a tool that spends money: image
 generation that needs 35 seconds against a 30 second limit has produced and been billed
-for a real image, and without this the charge would appear in no cost report at all. No
-second record is written, so per-tool totals still count one call.
+for a real image, and without this the charge would appear in no cost report at all. The
+amount also reaches the tenant's quota counter, once, in `Tracon:Pricing:Currency` (the
+run's own recorded total is not changed). No second record is written, so per-tool totals
+still count one call.
 
 The timeout applies to execution only, never to a pending approval, which can wait
 indefinitely.
@@ -3526,7 +3538,8 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   call-tree budget, the tenant's cost quota and the `run.completed` webhook therefore count a
   `speak` call the way they count a function node that spoke. A measurement that arrives
   after the run closed, from a call that outlived its timeout, stays on the call's record
-  only and does not change the run's total.
+  and does not change the run's total, but it is added to the tenant's quota counter once,
+  because that money was spent.
 - **The built-in tools report it already.** `speak`, `transcribe` and `generate_image`
   fill `Provider` and `Model` as well as the measurement. Prices come from
   `Tracon:Pricing`; with none configured the amount stays unknown.
@@ -3998,7 +4011,7 @@ Where the non-token amount counts:
 | Place | What happens |
 |---|---|
 | The call-tree budget (`AgentGraph.MaxTotalCost`) | An amount that adds is recorded the moment it is reported, so the next model call is refused once the ceiling is passed. The budget refuses model calls: a function node still starts when the budget is already spent |
-| The tenant's cost quota | The quota entry a root run writes, whether an agent run or a workflow run, counts the token cost plus the reported amount |
+| The tenant's cost quota | Every run of a call tree writes its own entry when it ends, under the root's name: the root (an agent run or a workflow run) and each child run count the token cost plus the reported amount |
 | `run.completed` and `run.failed` webhooks | `cost` is the token cost and the reported amount together; `nonTokenCost` is the reported part, so the token part is `cost - nonTokenCost` |
 
 Still token-only: `GET /api/stats`, the dashboard, the `tracon.run.cost` metric, run
@@ -4008,7 +4021,8 @@ characters.
 An item reported after the run closed — from a node that outlived its
 [timeout](#bound-a-node-with-a-timeout) — stays in the run's detail and does not change the
 total, the quota entry or the webhook, because those were already written; a handler that
-passes its token on never reaches this case. The items live with their run: erasing a data
+passes its token on never reaches this case. (A *tool* that outlived its timeout is different:
+its amount does reach the quota counter, once.) The items live with their run: erasing a data
 subject's runs deletes them too, and they hold no message text, so a data subject export
 does not list them. What a *tool* measured stays on `GET /api/runs/{runId}/tools`, and it
 joins the same total (see [Tools](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)).

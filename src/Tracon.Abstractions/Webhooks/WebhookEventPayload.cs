@@ -179,7 +179,8 @@ public sealed record WebhookQuotaSummary
     public DateTimeOffset? ResetsAt { get; init; }
 
     /// <summary>
-    /// The root run whose completion crossed this threshold. <see langword="null"/>
+    /// The run whose consumption crossed this threshold: the root run, a child run of its
+    /// call tree, or the run whose tool reported the amount. <see langword="null"/>
     /// when consumption was recorded outside a run.
     /// </summary>
     public string? RunId { get; init; }
