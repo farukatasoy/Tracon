@@ -158,6 +158,7 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowDescriptor>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowFunctionResponse>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowPendingRequest>))]
+[JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowResponseRecord>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<string>))]
 [JsonSerializable(typeof(System.Collections.Generic.IEnumerable<EvalCaseInput>))]
 [JsonSerializable(typeof(System.Text.Json.JsonElement))]

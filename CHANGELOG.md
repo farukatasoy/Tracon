@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- Answering a workflow's pending human request is now the seventh fail-closed audit
+  operation. Every `POST /api/workflows/runs/{runId}/respond` that starts a run writes
+  `workflow.respond` (the source run, the request id, the run the answer starts, the
+  response mode and a SHA-256 of the answer — never the answer itself) before the run
+  starts, queued or streamed, in every response mode. **Behavior change:** when the audit
+  store cannot write the entry, the answer is refused with `500` and no run, record or job
+  is created; before, an answer was never audited. `IAuditLog`'s documented set grows from
+  six operations to seven. The hash tells two answers apart; it does not hide an answer
+  with few possible values, such as a yes or no.
+
 - A refused provider setting no longer repeats its value. The Anthropic choice
   settings (`anthropic.effort`, `anthropic.thinking.mode`, the prompt-caching
   placement and TTL) and thinking budget, and the Google safety thresholds and
@@ -785,6 +795,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- One answer per workflow request. `WorkflowResponseMode` (`Branch`, the default, and
+  `SingleAnswer`) is set on a stored definition (`WorkflowDefinition.ResponseMode`,
+  `responseMode` on `PUT /api/workflows/{name}`) or on a workflow defined in code with the
+  new `AddWorkflow(name, factory, Action<WorkflowRegistrationOptions>)` overload, and is
+  reported on `WorkflowDescriptor`. In `SingleAnswer`, two identical answers to one
+  request — a double click, a retried call — start one run: the second follows it (the
+  same SSE frames read from the stored run, or the same `202` with
+  `Prefer: respond-async`), and a different answer gets `409`, which names neither the run
+  nor the other answer. An answer whose run failed or was cancelled before the workflow
+  received it can be given again and starts a new run. A waiting run is answered under
+  the mode of the definition version it recorded. `Branch` keeps opening a new run for
+  every answer.
+- `GET /api/workflows/runs/{runId}/responses` lists the answers given to a run's requests:
+  who answered, when, the run each answer started and its state. The records live in the
+  new `IWorkflowResponseStore` (in memory by default; the new `workflow_responses` table
+  on PostgreSQL, SQL Server and SQLite, removed with its source run by retention and data
+  subject erasure). A store implementation is checked with the new
+  `WorkflowResponseStoreContract` in `Tracon.Testing.Contracts.Xunit`.
+- `RunEventType.WorkflowResponseApplied` (`workflow.response-applied` on
+  `GET /api/runs/{runId}/events`): the run an answer starts names the run it answered and
+  the request id right after it starts, even with `RecordToolPayloads` off. The console's
+  run timeline links it back to the source run.
+- The console shows which pending requests already have an answer, links the run that
+  answer started, says when a one-answer workflow refused a different answer, and has a
+  "One answer per request" switch in the workflow editor and the version comparison.
+
 - `TraconFinishReasons.ContextWindowExceeded`: the finish reason a model provider
   reports when the conversation and the answer filled the model's context window.
   Tracon treats it as a cut-off answer and names the window.
@@ -1175,6 +1211,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that a failed history write leaves the current definition as it was.
 
 ### Changed
+
+- `AddWorkflow(builder, name, factory, string? description = null)` is now two overloads,
+  `AddWorkflow(builder, name, factory)` and `AddWorkflow(builder, name, factory, string? description)`,
+  beside the new one that takes `Action<WorkflowRegistrationOptions>`. Every call compiles
+  as before except one that passes a literal `null` as the third argument, which is now
+  ambiguous; leave the argument out instead.
 
 - **Behavior change:** a workflow run that waits to be resumed keeps the definition version
   it recorded. Before, `resume` and `respond` compiled the current definition: an edit made

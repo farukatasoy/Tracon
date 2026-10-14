@@ -120,6 +120,18 @@ public sealed record WorkflowSaveRequest
     /// <see cref="WorkflowDefinition.RunTimeout"/>.
     /// </remarks>
     public TimeSpan? RunTimeout { get; init; }
+
+    /// <summary>
+    /// How the workflow treats more than one answer to the same pending human request.
+    /// Leave it out for <see cref="WorkflowResponseMode.Branch"/>, where every answer opens a
+    /// new run; <see cref="WorkflowResponseMode.SingleAnswer"/> allows one answer per request.
+    /// </summary>
+    /// <remarks>
+    /// Replaced on every save like every other field, so a client that does not send it resets
+    /// the workflow to <see cref="WorkflowResponseMode.Branch"/>. A run that is waiting keeps the
+    /// mode of the version it recorded.
+    /// </remarks>
+    public WorkflowResponseMode ResponseMode { get; init; }
 }
 
 /// <summary>Request to run a workflow.</summary>

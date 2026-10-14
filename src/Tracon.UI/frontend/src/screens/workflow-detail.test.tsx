@@ -401,3 +401,86 @@ describe('WorkflowDetailScreen version history', () => {
     expect(asked).toEqual([]);
   });
 });
+
+describe('WorkflowDetailScreen answers (phase 208)', () => {
+  let restoreFetch: (() => void) | undefined;
+
+  afterEach(() => restoreFetch?.());
+
+  const runId = '01a12790-0000-7000-8000-0000000000a1';
+  const continuation = '01a12790-0000-7000-8000-0000000000b2';
+  const request = {
+    runId,
+    requestId: 'req-1',
+    portId: 'approval-port',
+    form: 'Boolean',
+    prompt: 'Publish?',
+    requestedAt: '2026-10-14T12:00:00Z',
+  };
+
+  function routes(respondStatus: number) {
+    return [
+      fixture('GET', 'api/workflows', [plain]),
+      fixture('GET', 'api/workflows/:name/graph', graph),
+      {
+        method: 'POST' as const,
+        pattern: 'api/workflows/:name/run',
+        handler: () =>
+          new Response(sseFrame('run', { runId }) + sseFrame('done', { runId }), {
+            status: 200,
+            headers: { 'Content-Type': 'text/event-stream' },
+          }),
+      },
+      fixture('GET', 'api/workflows/runs/:runId/requests', [request]),
+      fixture('GET', 'api/workflows/runs/:runId/responses', [
+        {
+          responseRunId: continuation,
+          sourceRunId: runId,
+          sessionId: 'session-1',
+          requestId: 'req-1',
+          answerHash: 'a'.repeat(64),
+          claimScope: 'session-1',
+          status: 'Delivered',
+          respondedBy: 'editor@example',
+          respondedAt: '2026-10-14T12:01:00Z',
+        },
+      ]),
+      fixture(
+        'POST',
+        'api/workflows/runs/:runId/respond',
+        { title: 'Request already answered', detail: 'Request req-1 was already answered.', status: respondStatus },
+        respondStatus,
+      ),
+    ];
+  }
+
+  it('marks an answered request and links the run its answer started', async () => {
+    restoreFetch = installApiMock(routes(409));
+
+    const user = userEvent.setup();
+
+    renderScreen(<WorkflowDetailScreen name="plain" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('workflow-run'));
+
+    const answered = await screen.findByTestId('workflow-request-answered');
+
+    expect(within(answered).getByText('answered')).toBeTruthy();
+    expect(within(answered).getByRole('link').getAttribute('href')).toContain(encodeURIComponent(continuation));
+  });
+
+  it('says a different answer was refused, in the reader’s words, when the server answers 409', async () => {
+    restoreFetch = installApiMock(routes(409));
+
+    const user = userEvent.setup();
+
+    renderScreen(<WorkflowDetailScreen name="plain" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('workflow-run'));
+    await user.click(await screen.findByTestId('workflow-approve'));
+
+    expect(
+      await screen.findByText(/already answered with a different answer\. This workflow takes one answer per request\./),
+    ).toBeTruthy();
+  });
+});

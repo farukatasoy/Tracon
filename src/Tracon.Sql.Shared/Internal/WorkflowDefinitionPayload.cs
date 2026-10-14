@@ -58,6 +58,10 @@ internal sealed record WorkflowDefinitionPayload
     /// <summary>Gets the run timeout the workflow sets for itself.</summary>
     public TimeSpan? RunTimeout { get; init; }
 
+    /// <summary>Gets how the workflow treats more than one answer to the same request.</summary>
+    /// <remarks>A row written before the field existed reads as <see cref="WorkflowResponseMode.Branch"/>.</remarks>
+    public WorkflowResponseMode ResponseMode { get; init; }
+
     /// <summary>Converts the content of a definition into a payload.</summary>
     /// <param name="definition">The source definition.</param>
     /// <returns>The payload to serialize.</returns>
@@ -75,6 +79,7 @@ internal sealed record WorkflowDefinitionPayload
             RequirePlanApproval = definition.RequirePlanApproval,
             Parameters = definition.Parameters,
             RunTimeout = definition.RunTimeout,
+            ResponseMode = definition.ResponseMode,
         };
 
     /// <summary>Builds the definition by merging the payload with the information from the columns.</summary>
@@ -98,6 +103,7 @@ internal sealed record WorkflowDefinitionPayload
             RequirePlanApproval = RequirePlanApproval,
             Parameters = Parameters,
             RunTimeout = RunTimeout,
+            ResponseMode = ResponseMode,
             TenantId = tenantId,
             Version = version,
             UpdatedAt = updatedAt,

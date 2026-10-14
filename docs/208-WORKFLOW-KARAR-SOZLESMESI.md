@@ -423,10 +423,12 @@ Sözleşme testi `src/Tracon.Testing.Contracts.Xunit/Contracts/` altındadır; b
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
-| 1 | Örnek uygulama; `Single` modlu HITL workflow'u (Açık Soru 7); run `AwaitingInput` | Konsolda kartta "onayla"ya hızlı iki kez bas | Tek devam run'ı; ikinci tık aynı devamı izler; `GET …/responses` tek satır · 👤 |
+| 1 | Örnek uygulama; `summarize-and-approve-once` (`SingleAnswer`, Açık Soru 7); run `AwaitingInput` | Konsolda kartta "onayla"ya hızlı iki kez bas | Tek devam run'ı; ikinci tık aynı devamı izler; `GET …/responses` tek satır · 👤 |
 | 2 | Aynı | `curl` ile `approved: true`, sonra `approved: false` | İkincisi `409`; gövdede devam kimliği yok |
 | 3 | Aynı; `Prefer: respond-async` | Aynı cevabı farklı `Idempotency-Key` ile iki kez gönder | İki yanıt aynı `202`, aynı `Location`; `jobs`'ta tek iş |
 | 4 | `Branch` modlu `summarize-and-approve` | Aynı isteğe iki cevap | İki ayrı devam (K-130 korunur); iki satır, iki denetim kaydı |
+| 9 | `summarize-and-approve-once` cevaplandı; aynı oturumda kaynak düz `/resume` edildi | Yeni run'ın aynı `requestId`'sine önce aynı, sonra zıt cevap | Aynı cevap ilk devamı izler (yeni run yok); zıt cevap `409` |
+| 10 | Konsol, Admin; kayıtlı bir workflow | Editörde "One answer per request" işaretle, kaydet; sürüm karşılaştırmasını aç; başka bir alanı değiştirip yeniden kaydet | `GET /api/workflows/{name}` `responseMode: SingleAnswer`; karşılaştırmada "Answers per request" satırı; ikinci kayıt modu sıfırlamaz · 👤 |
 | 5 | Denetim deposunu düşür (`SwitchableAuditLog` ya da DB izni) | `respond` | `500`; run, satır ve iş yok · 👤 |
 | 6 | Herhangi bir cevap | `GET /api/audit?action=workflow.respond` | Kayıt aktörü, kaynak run'ı, `requestId`'yi ve 64 karakter hash'i taşır; ham cevap yok |
 | 7 | İki kiracı (`FIX-TENANT-01`, `-02`) | Beta, alfa'nın run'ına cevap verir ve `…/responses` okur | `404`; satır yazılmaz (MT-SEC) |
@@ -516,6 +518,51 @@ curl -s -X POST http://localhost:5081/tracon/api/workflows/runs/$RUN/respond \
 
 > Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
 > oturumun en değerli bilgisidir. §208.7'nin beş ölçümü buraya yazılır.
+
+### §208.7 ölçümleri (2026-10-14, worktree `faz-208`, taban `c5c820a7`)
+
+Hiçbir ölçüm onaylı bir öneriyi düşürmedi.
+
+| # | Sonuç | Karar |
+|---|---|---|
+| 1 | MAF 1.20.0 kaynağı (ilspy): `RequestInfoExecutor.HandleAsync(object)` ve Magentic `_planReviewPort.PostRequestAsync(request)` kimlik vermez; `ExternalRequest.Create` `Guid.NewGuid().ToString("N")` üretir. Çalışma anı probu `WorkflowRequestIdentityTests` (kalıcı test): aynı oturumda ikinci soru yeni kimlik alır, aynı oturumdaki dal üçüncü kimliği alır, düz `/resume` bekleyen isteği **aynı** kimlikle yeniden yayınlar | Öneri A geçerli: `claim_scope = session_id`. Kenar: ajan host'unun tool onayı isteği (`AIContentExternalHandler`) kimliği `{uzunluk}:{portId}:{contentId}` biçiminde modelin çağrı kimliğinden türetir; sağlayıcı aynı oturumda aynı çağrı kimliğini tekrar verirse iki istek çakışır. Tracon workflow'unda bu yol bugün yayınlanmıyor; risk olarak kaydedildi |
+| 2 | Aynı run için canlı akış ile depo karşılaştırıldı (geçici prob, silindi). İki fark: (a) canlı `RunStarted` `Text = workflow adı`, `Payload = oturum`; depoda ikisi de `null`. (b) Canlı kapanış olayının `Sequence`'i `EventCount`'tur, depodakinden bir fazladır. Ayrıca motorun grafın dışında yazdığı olaylar (fonksiyon düğümünün tool kaydı, kota bildirimi) yalnız depodadır | `RunEventTail` iki akışın tek okuyucusu oldu. İzleme akışı (a)'yı run kaydından kapatır; (b) ve depo fazlası belgelendi (`WorkflowFollowStream` remarks). `WorkflowResponseApplied` canlı akışta da `yield` edilir |
+| 3 | Kısmi benzersiz indeks `WHERE claim_scope IS NOT NULL AND status <> 2`: PostgreSQL 18 (23505), SQL Server 2022 (2601; `QUOTED_IDENTIFIER ON` gerekir — `sqlcmd` varsayılanı OFF, SqlClient ON; `0001_initial`'daki filtreli indeksler aynı koşulda), SQLite 3.54 (UNIQUE constraint). Üçünde de çift aktif satır reddedildi, `status = 2` olunca yer boşaldı, `NULL` scope sınırsız yazıldı | Geri dönüş (`superseded_by`) gerekmedi |
+| 4 | Konsol bundle'ı (`npm run build`, `postbuild.mjs`): faz öncesi **209.0 KB gzip**, faz sonrası **209.8 KB gzip** (bütçe 250 KB; pay +0.8 KB) | Arayüz payı ölçüldü |
+| 5 | `DataSubjectCoverageTests` `REFERENCES {schema}.runs(id) ON DELETE CASCADE`'i kapsama sayar (`pending_approvals` ile aynı). Sözleşme case'i `Erasing_the_source_run_removes_its_answers` kaynak run'ı gerçek `SqlDataSubjectStore.EraseAsync` ile siler; üç sağlayıcıda satır gider | Yeni hedef eklenmedi. Dışa aktarımda tablo yoktur (`pending_approvals`, `run_events` emsali): satır kimlik, hash ve aktör taşır |
+
+### Örnek uygulama koşumu (2026-10-14)
+
+`samples/Tracon.Api`, geçici SQLite deposu (`Tracon__Sqlite__ConnectionString` scratchpad'e; ortak PostgreSQL bağlantısı ortam değişkeniyle boşaltıldı), port 5281, gerçek model çağrısı (`summarizer`). Açılışta 47 SQLite migration uygulandı (`0047_workflow_responses` dahil). Sonuç:
+
+| Senaryo (manuel case) | Gözlem |
+|---|---|
+| Katalog | `summarize-and-approve` → `Branch`, `summarize-and-approve-once` → `SingleAnswer` |
+| Çift tıklama, akışlı (1) | İki `200`; ikisi de aynı devamı adlandırır; izleyen akış `run` → `event`… → `done`; devam `Completed`; `…/responses` tek satır (`Delivered`, `claimScope` dolu, 64 karakter hash) |
+| Zıt cevap (2) | `409` `Request already answered`; gövde devam kimliğini taşımaz |
+| Kuyruklu tekrar, iki farklı `Idempotency-Key` (3) | İki `202`; aynı `runId`, aynı `jobId`, aynı `Location` |
+| `Branch` (4) | İki `200`, iki ayrı devam, iki satır |
+| Denetim (6) | Her cevap kümesinde aktör dolu; `after` ham cevap taşımaz. Eşzamanlı çiftte iki kayıt: biri var olan devamı (`200`), öbürü hiç açılmamış run'ı (`404`) adlandırır — "denenen cevap" |
+| Geri bağ (8) | Devamın `GET /api/runs/{id}/events` çerçeveleri: `run.started`, `workflow.response-applied`, `workflow.started`… |
+
+Uygulama günlüğünde hata yoktu.
+
+### Uygulama sapmaları
+
+- **Enum üyesi `Single` → `SingleAnswer`.** CA1720 (`Single` bir tip adı) derlemeyi kırdı; depoda CA1720 bastırma emsali yok ve public isimde bastırma bir karar satırı ister. Telde değer `"SingleAnswer"`.
+- **`ReplaceAsync(…, next)` → `replacement`.** CA1716 (`Next` VB anahtar sözcüğü).
+- **`AddWorkflow(…, string? description = null)` ikiye bölündü** (`(name, factory)` ve `(name, factory, string? description)`). RS0027: isteğe bağlı parametreli overload en çok parametreye sahip olmalı. Kaynak uyumlu; yalnız üçüncü argümana düz `null` geçen çağrı belirsizleşir (`CHANGELOG` Changed).
+- **🚨 Yeniden sürme koşulu 2 değişti: "satırı olmayan devam" durmuş DEĞİL, yoldadır.** Plan "son run yoktur → yeniden sür" diyordu. Çift tıklamada ikinci istek iddiayı, ilk isteğin run satırını açmasından önceki anda okuyabilir; plan kuralıyla ikinci bir devam açılırdı. Kapatma iki parçadır: (a) satırı olmayan iddia izlenir; (b) akışlı `SingleAnswer` devamının satırını uç, iddiadan hemen sonra `Running` olarak **önceden açar** (kuyruklu yolda `QueueAsync`'in `Queued` satırı zaten bu işi yapar). Motor satırı devralmazsa (ilk olaydan önce hata ya da istemci kopması) `WorkflowEventStream` satırı `Failed`/`Canceled` kapatır; böylece o yol yeniden sürülebilir kalır. Kalan risk: iddia yazımı ile satır yazımı arasındaki süreç çökmesi ya da o satır yazımının hata vermesi isteği kilitler; izleyen akış satırı 30 sn bekler, sonra olaysız biter. Aday adayı (yönetici çıkışı, Açık Soru 6'nın kapsam dışı satırıyla aynı sınıf).
+- **CAS koşulu `status = 0` değil `status <> 2`.** Açık Soru 6-A, teslim edilmiş ama kendi checkpoint'i olmayan devamı da yeniden sürer; o satır `Delivered`'dır.
+- **İzleme hedefi ikiye ayrıldı.** Akışlı izleyici kurtarma zincirinin SON run'ını izler (kesilip devam eden kuyruklu cevapta asıl iş odur); kuyruklu izleyici ilk cevabın `202`'sinin aynısını alır (baş run). İlk cevap akışlı verildiyse kuyruklu izleyicinin `jobId`'si run kimliğidir ve bir işi adlandırmaz (K-924 kuralı: iş kimliği run kimliğidir). Bakımcıya not.
+- **Kuyruk kapalıyken `501` kararın ÖNÜNE alındı.** Aksi hâlde denetim + iddia yazılır, sonra `501` dönerdi ve iddia run'sız kalırdı.
+- **Fail-closed çağrı yeri `WorkflowEndpoints.cs` değil `Internal/WorkflowResponseGate.cs`.** Plan kapıyı bu dosyaya koyuyordu; `AuditWritePolicyTests` satırı ve `AuditContentPolicyTests.AllowedCallSites` gerçek dosyayı adlandırır. Tek çağrı yeri (taze cevap, yarış kaybı ve yeniden sürme aynı yardımcıdan geçer): 7 işlem / 10 çağrı yeri.
+- **Eşzamanlı iki cevap iki denetim satırı bırakabilir.** İkisi de iddiayı boş bulursa ikisi de önce yazar; kaybedenin satırı "denenen cevap" olarak kalır (plan §208.3 son madde, onay kutusu emsali). Testler "1–2 kayıt, tam biri var olan run'ı adlandırır" diye sabitler.
+- **`WorkflowContinuationChain` çıkarıldı.** Zincir yürüyüşü `WorkflowRecovery`'den ortak yardımcıya taşındı (davranış aynı); geri sürme kontrolü onu kullanır — elle ikinci kopya yok.
+- **`RunAuthorizationCoverageTests`**: `WorkflowEndpoints.cs` kaynak kapısı 2 → 3 (`GET …/responses`).
+- **🚨 `kapi.py tarama` göç bütünlüğü kapısı commit ister.** Üç yeni migration (`0060`/`0048`/`0047`) git tabanında yoktur; kapı onları `scripts/applied-migrations.json` `sourceCommits` ile, onları ekleyen commit'e ankrajlanana kadar kırmızı sayar (`hafiza/sql-migration.md`). Bu oturum commit atmadı; ankraj kapanışta yapılır.
+- **Migration numaraları**: PostgreSQL `0060`, SQL Server `0048`, SQLite `0047` (uygulama anındaki ilk boş numara, K-178). Kardeş worktree'ler aynı numarayı alırsa birleştirmede yeniden numaralanır.
+- **Konsol**: editör anahtarı her `Kind` için gösterilir (sunucu her türü kabul eder; gizli alan görünmez durum olurdu). Run detayındaki geri bağ satırı `runDetail.answersRequestOf` anahtarını `locales/*/runs.ts`'e ekledi (plan yalnız `workflows.ts`'i adlandırıyordu).
 
 ## Bu Fazda Verilen Kararlar
 

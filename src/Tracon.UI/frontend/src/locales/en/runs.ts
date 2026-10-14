@@ -71,6 +71,7 @@ export const enRuns = {
   "runDetail.calledBy": 'called by',
   "runDetail.related": 'Related',
   "runDetail.continuationOf": 'continued from',
+  "runDetail.answersRequestOf": 'answers a request of run {id}',
   "runDetail.inputTokens": 'Input tokens',
   "runDetail.outputTokens": 'Output tokens',
   "runDetail.unitPrice.input": 'Input price',

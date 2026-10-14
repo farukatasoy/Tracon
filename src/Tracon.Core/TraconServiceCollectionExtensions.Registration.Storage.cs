@@ -71,6 +71,12 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddTraconDefault<IPendingApprovalStore>(static provider => new InMemoryPendingApprovalStore(
             provider.GetRequiredService<ITenantContext>()));
 
+        // Answers to workflow requests (Phase 208). Always registered, like the approval
+        // inbox: the respond endpoint records every answer, and a Single-answer workflow
+        // claims its request here. Persistent providers replace it.
+        services.TryAddTraconDefault<IWorkflowResponseStore>(static provider => new InMemoryWorkflowResponseStore(
+            provider.GetRequiredService<ITenantContext>()));
+
         // Script run permissions. The store is always registered; the run
         // feature itself is DISABLED until UseSkillScripts is called. The mere
         // existence of a permission record runs nothing by itself.

@@ -70,6 +70,15 @@ internal static class WorkflowDefinitionValidator
             return $"Workflow '{definition.Name}' uses an unknown pattern: '{definition.Kind}'.";
         }
 
+        // Phase 208: every kind may choose a response mode (a workflow's requests can come from
+        // a plan approval or, in code, from any port), so only a value outside the enum is
+        // refused - a number sent on the wire would otherwise be stored as a mode no rule reads.
+        if (!Enum.IsDefined(definition.ResponseMode))
+        {
+            return $"Workflow '{definition.Name}' uses an unknown response mode: '{definition.ResponseMode}'. " +
+                   "Use 'Branch' or 'SingleAnswer'.";
+        }
+
         HashSet<string> seen;
 
         // A definition either lists plain agent names (AgentNames, every
