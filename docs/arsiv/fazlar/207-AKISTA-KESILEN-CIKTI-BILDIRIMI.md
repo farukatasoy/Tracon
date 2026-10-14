@@ -147,7 +147,11 @@ dizeleri ortam değişkeniyle boşaltıldı), Anthropic `claude-haiku-4-5-202510
   `"finish_reason":"length"` taşır, ardından `data: [DONE]`.
 - **Case 4 (`MT-COMPAT-053`):** iki kolda `"stop"`.
 - Ölçüm notu: `update` verisi girintili JSON'dur ve birden çok `data:` satırına yayılır; `custom` tek satırdır.
-- **Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban 42e5479f` — sonucu aşağıdaki satır yazar.
+- **Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban 42e5479f` → **çıkış 0** (ikinci koşum):
+  tarama · `--denetle` · betik testleri · agent haritası · denetim paketi · build 129 sn · test 631 sn (38 test
+  koşumu, 22 180 test, 0 düşen; E2E dahil) · pack · format · `npm run check`. İlk koşum yalnız
+  `SourceLanguageTests`'te düştü: önceki `npm run check`'in ürettiği site `api/` sayfaları worktree yolunu
+  (`faz-207`) taşıyordu (ortam kaynaklı; F-507, `hafiza/site-icerik-yazimi.md`).
 
 ## Tüketici Yüzeyi Envanteri
 
