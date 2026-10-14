@@ -33,9 +33,10 @@ namespace Tracon;
 /// and only logged when it fails.
 /// </para>
 /// <para>
-/// A record is deleted with its source run: a SQL store ties it to the run with a
-/// cascading foreign key, so retention and data subject erasure of the source run
-/// remove it too.
+/// A record is deleted only with its source run: a SQL store ties it to the run with a
+/// cascading foreign key, and a data subject erasure that removes the source run removes its
+/// records too. No retention target deletes runs, so the records of an installation grow
+/// until such an erasure; plan for that the way you plan for the run history itself.
 /// </para>
 /// </remarks>
 public interface IWorkflowResponseStore

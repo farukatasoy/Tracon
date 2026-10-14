@@ -823,14 +823,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   same SSE frames read from the stored run, or the same `202` with
   `Prefer: respond-async`), and a different answer gets `409`, which names neither the run
   nor the other answer. An answer whose run failed or was cancelled before the workflow
-  received it can be given again and starts a new run. A waiting run is answered under
-  the mode of the definition version it recorded. `Branch` keeps opening a new run for
-  every answer.
+  received it can be given again and starts a new run; a queued answer whose job is still
+  waiting or running is followed instead, because the job's recovery owns that work. Two
+  answers that arrive together may both open a run before one of them claims the request:
+  the other closes its own run as `Canceled` with the error type `request_already_answered`
+  and no events (no webhook, metric or event sink fires for it), and its audit entry names
+  that run. A waiting run is answered under the mode of the definition version it recorded.
+  `Branch` keeps opening a new run for every answer. **Known limit:** when a process stops
+  in the middle of a streamed `SingleAnswer` run, the run stays `Running` and a repeat of the
+  answer follows it forever; only run reconciliation (`Tracon:RunReconciliation:Enabled`,
+  off by default) closes it. Turn reconciliation on where such a request must stay
+  answerable after a crash.
 - `GET /api/workflows/runs/{runId}/responses` lists the answers given to a run's requests:
   who answered, when, the run each answer started and its state. The records live in the
   new `IWorkflowResponseStore` (in memory by default; the new `workflow_responses` table
-  on PostgreSQL, SQL Server and SQLite, removed with its source run by retention and data
-  subject erasure). A store implementation is checked with the new
+  on PostgreSQL, SQL Server and SQLite). A record is removed only with its source run, by a
+  data subject erasure; no retention target deletes runs, so the table grows with the run
+  history. A store implementation is checked with the new
   `WorkflowResponseStoreContract` in `Tracon.Testing.Contracts.Xunit`.
 - `RunEventType.WorkflowResponseApplied` (`workflow.response-applied` on
   `GET /api/runs/{runId}/events`): the run an answer starts names the run it answered and
@@ -1243,6 +1252,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `POST /api/workflows/runs/{runId}/respond` changes in the default `Branch` mode too.
+  The run an answer starts now has its row opened (`Running` for a streamed answer,
+  `Queued` for a queued one) before the answer is recorded and before the stream starts,
+  and the answer's record is written before the run is handed over. **Behavior change:**
+  when the record cannot be written (`workflow_responses` unavailable), the answer is
+  refused with `500` and the opened run is closed `Failed` with the error type
+  `answer_not_recorded` and no events; before, the answer was not recorded at all. Every
+  run an answer starts now carries `WorkflowResponseApplied` at sequence 1, so its later
+  events are numbered one higher than before.
 - `AddWorkflow(builder, name, factory, string? description = null)` is now two overloads,
   `AddWorkflow(builder, name, factory)` and `AddWorkflow(builder, name, factory, string? description)`,
   beside the new one that takes `Action<WorkflowRegistrationOptions>`. Every call compiles

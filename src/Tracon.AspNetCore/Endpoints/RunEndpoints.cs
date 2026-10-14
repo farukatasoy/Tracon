@@ -1269,8 +1269,8 @@ internal static class RunEndpoints
             {
                 // 🚨 Phase 46: 'Queued' is also an EXPECTED intermediate status — the
                 // worker may not have picked up the job yet; the tail keeps reading it.
-                // A run whose row is gone ends the stream at once (no grace): it was
-                // asked for by id, and the existence check above already passed.
+                // A run whose row is gone ends the stream: the existence check above
+                // already passed.
                 await foreach (var (runEvent, _) in RunEventTail
                                    .ReadAsync(
                                        runs,
@@ -1278,7 +1278,6 @@ internal static class RunEndpoints
                                        next,
                                        pollInterval,
                                        token => new ValueTask(writer.WriteKeepAliveAsync("waiting", token)),
-                                       missingRowGrace: TimeSpan.Zero,
                                        cancellationToken)
                                    .ConfigureAwait(false))
                 {

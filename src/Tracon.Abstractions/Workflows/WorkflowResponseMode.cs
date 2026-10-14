@@ -35,11 +35,22 @@ public enum WorkflowResponseMode
     /// <c>409 Conflict</c>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Two answers are the same when their <c>approved</c>, <c>text</c> and <c>data</c>
     /// are the same; the checkpoint and definition version they name do not count. An
     /// answer whose run stopped before the workflow received it (the connection dropped,
-    /// the process stopped, the run failed or was cancelled) can be given again, and it
-    /// starts a new run.
+    /// the run failed or was cancelled) can be given again, and it starts a new run. A
+    /// queued answer whose job is still waiting or running is followed instead: the job's
+    /// recovery owns that work.
+    /// </para>
+    /// <para>
+    /// <strong>A run its process left running locks the request.</strong> When a process
+    /// stops in the middle of a streamed answer's run, the run row stays
+    /// <see cref="RunStatus.Running"/>, and a repeat of the answer follows a run that never
+    /// moves. Only run reconciliation (<see cref="RunReconciliationOptions.Enabled"/>,
+    /// <c>Tracon:RunReconciliation:Enabled</c>, off by default) closes such a run; turn it on where a single-answer workflow must be answerable again
+    /// after a crash. A queued answer is not affected: its job continues or closes the run.
+    /// </para>
     /// </remarks>
     SingleAnswer = 1,
 }

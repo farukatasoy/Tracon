@@ -10,8 +10,9 @@
 -- the row that replaced it; a Branch workflow writes claim_scope NULL and claims
 -- nothing. Measured on PostgreSQL 18 (phase 208, measurement 3).
 --
--- source_run_id cascades from runs, as pending_approvals.run_id does (K-369):
--- retention and data subject erasure of the source run remove its answers.
+-- source_run_id cascades from runs, as pending_approvals.run_id does (K-369): a data
+-- subject erasure of the source run removes its answers. No retention target deletes
+-- runs, so this table grows with the run history.
 
 CREATE TABLE IF NOT EXISTS {schema}.workflow_responses (
     response_run_id uuid        NOT NULL PRIMARY KEY,
