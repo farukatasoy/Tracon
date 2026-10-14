@@ -236,8 +236,12 @@ public sealed class JsonFileRunStore : IRunStore
                 Error = completion.Error,
                 Cost = completion.Cost,
 
-                // Null is "the run reported nothing", not zero.
-                NonTokenCost = completion.NonTokenCost,
+                // Null is "the run reported nothing", not zero. The currency count is the
+                // store's to say, as a SQL store reads it from the row: a snapshot that left
+                // it out still reads back as one currency.
+                NonTokenCost = completion.NonTokenCost is { } nonToken
+                    ? nonToken with { CurrencyCount = nonToken.Amount is null || string.IsNullOrEmpty(nonToken.Currency) ? 0 : 1 }
+                    : null,
                 ModelId = completion.ModelId ?? existing.ModelId,
 
                 // Null leaves the stored value alone, exactly like ModelId: a
@@ -731,6 +735,7 @@ public sealed class JsonFileRunStore : IRunStore
         decimal? costSum = null;
         string? currency = null;
         long runsWithUnknownPricing = 0;
+        var currencies = new CurrencySet();
 
         var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
 
@@ -837,6 +842,7 @@ public sealed class JsonFileRunStore : IRunStore
                 }
 
                 currency ??= cost.Currency;
+                currencies.Add(cost.Currency, carriesAmount: cost.Total() is not null);
             }
 
             var runCost = record.Cost?.Total();
@@ -924,6 +930,10 @@ public sealed class JsonFileRunStore : IRunStore
             .ThenBy(static stat => stat.Class)
             .ToList();
 
+        // A breakdown carries no currency of its own: in a mixed window its sum could not
+        // say which one it is in, so it is left out with the total.
+        var mixed = currencies.IsMixed;
+
         return new RunStatistics
         {
             TotalRuns = total,
@@ -939,21 +949,22 @@ public sealed class JsonFileRunStore : IRunStore
             ReasoningTokens = reasoningTokens,
             AudioInputTokens = audioInputTokens,
             AudioOutputTokens = audioOutputTokens,
-            TotalCost = costSum,
-            Currency = currency,
+            TotalCost = mixed ? null : costSum,
+            Currency = mixed ? null : currencies.First ?? currency,
+            CurrencyCount = currencies.Count,
             RunsWithUnknownPricing = runsWithUnknownPricing,
             ScoredRuns = scoredRuns,
             PositiveRate = binaryScores == 0 ? null : (double)positiveBinaryScores / binaryScores,
             ByAgent = byAgent,
             ByModel = [.. perModel
-                .Select(static pair => new RunModelStatistics
+                .Select(pair => new RunModelStatistics
                 {
                     ModelId = pair.Key,
                     TotalRuns = pair.Value.TotalRuns,
                     InputTokens = pair.Value.InputTokens,
                     OutputTokens = pair.Value.OutputTokens,
                     TotalTokens = pair.Value.TotalTokens,
-                    TotalCost = pair.Value.CostSum,
+                    TotalCost = mixed ? null : pair.Value.CostSum,
                 })
                 .OrderByDescending(static model => model.TotalRuns)
                 .ThenBy(static model => model.ModelId, StringComparer.Ordinal)],
@@ -969,26 +980,26 @@ public sealed class JsonFileRunStore : IRunStore
                 .OrderBy(static version => version.AgentName, StringComparer.Ordinal)
                 .ThenByDescending(static version => version.Version)],
             ByUser = [.. perUser
-                .Select(static pair => new RunUserStatistics
+                .Select(pair => new RunUserStatistics
                 {
                     UserId = pair.Key,
                     TotalRuns = pair.Value.TotalRuns,
                     FailedRuns = pair.Value.FailedRuns,
                     TotalTokens = pair.Value.TotalTokens,
-                    TotalCost = pair.Value.CostSum,
+                    TotalCost = mixed ? null : pair.Value.CostSum,
                 })
                 .OrderByDescending(static user => user.TotalRuns)
                 .ThenBy(static user => user.UserId, StringComparer.Ordinal)
                 .Take(maxRows)],
             ByLabel = [.. perLabel
-                .Select(static pair => new RunLabelStatistics
+                .Select(pair => new RunLabelStatistics
                 {
                     Key = pair.Key.Key,
                     Value = pair.Key.Value,
                     TotalRuns = pair.Value.TotalRuns,
                     FailedRuns = pair.Value.FailedRuns,
                     TotalTokens = pair.Value.TotalTokens,
-                    TotalCost = pair.Value.CostSum,
+                    TotalCost = mixed ? null : pair.Value.CostSum,
                 })
                 .OrderByDescending(static label => label.TotalRuns)
                 .ThenBy(static label => label.Key, StringComparer.Ordinal)
@@ -1018,6 +1029,7 @@ public sealed class JsonFileRunStore : IRunStore
         }
 
         var perVariant = new Dictionary<string, VariantTally>(StringComparer.Ordinal);
+        var perVariantCurrencies = new Dictionary<string, CurrencySet>(StringComparer.Ordinal);
 
         foreach (var record in runs)
         {
@@ -1048,9 +1060,17 @@ public sealed class JsonFileRunStore : IRunStore
 
             perVariant.TryGetValue(variant, out var tally);
             perVariant[variant] = tally.Add(record, averageScore);
+
+            if (!perVariantCurrencies.TryGetValue(variant, out var currencies))
+            {
+                currencies = new CurrencySet();
+                perVariantCurrencies[variant] = currencies;
+            }
+
+            currencies.Add(record.Cost?.Currency, carriesAmount: record.Cost?.Total() is not null);
         }
 
-        return [.. perVariant.Select(pair => pair.Value.ToResult(pair.Key))];
+        return [.. perVariant.Select(pair => pair.Value.ToResult(pair.Key, perVariantCurrencies[pair.Key]))];
     }
 
     /// <inheritdoc />
@@ -1076,6 +1096,9 @@ public sealed class JsonFileRunStore : IRunStore
             }
 
             var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
+
+            // A point carries no currency, so the WHOLE series is judged as one.
+            var currencies = new CurrencySet();
 
             foreach (var record in _runs.Values)
             {
@@ -1107,9 +1130,10 @@ public sealed class JsonFileRunStore : IRunStore
                 var bucket = RunTimeSeriesBucketing.Truncate(record.StartedAt, query.Bucket);
                 buckets.TryGetValue(bucket, out var tally);
                 buckets[bucket] = tally.Add(record);
+                currencies.Add(record.Cost?.Currency, carriesAmount: record.Cost?.Total() is not null);
             }
 
-            IReadOnlyList<TimeSeriesPoint> points = [.. buckets.Select(static pair => pair.Value.ToPoint(pair.Key))];
+            IReadOnlyList<TimeSeriesPoint> points = [.. buckets.Select(pair => pair.Value.ToPoint(pair.Key, currencies))];
 
             return new ValueTask<IReadOnlyList<TimeSeriesPoint>>(points);
         }
@@ -1161,6 +1185,7 @@ public sealed class JsonFileRunStore : IRunStore
         decimal? inputCost = null, outputCost = null, cachedInputCost = null;
         string? costCurrency = null;
         long unknownPricing = 0;
+        var costCurrencies = new CurrencySet();
 
         // What a run reported beyond tokens is a total of its own. A tree "saw" it when
         // any run in it closed with a snapshot; null still means nothing was reported.
@@ -1169,6 +1194,7 @@ public sealed class JsonFileRunStore : IRunStore
         string? nonTokenCurrency = null;
         var nonTokenEstimated = false;
         var nonTokenUnsummed = 0;
+        var nonTokenCurrencies = new CurrencySet();
 
         static long? Accumulate(long? running, long? value)
             => value is null ? running : (running ?? 0) + value.Value;
@@ -1194,6 +1220,7 @@ public sealed class JsonFileRunStore : IRunStore
 
             sawCost = true;
             costCurrency ??= cost.Currency;
+            costCurrencies.Add(cost.Currency, carriesAmount: cost.Total() is not null);
 
             if (cost.Source == PricingSource.Unknown)
             {
@@ -1225,6 +1252,7 @@ public sealed class JsonFileRunStore : IRunStore
 
             sawNonToken = true;
             nonTokenCurrency ??= nonToken.Currency;
+            nonTokenCurrencies.Add(nonToken.Currency, carriesAmount: nonToken.Amount is not null);
             nonTokenEstimated |= nonToken.IsEstimated;
             nonTokenUnsummed += nonToken.UnsummedItemCount;
 
@@ -1279,21 +1307,25 @@ public sealed class JsonFileRunStore : IRunStore
                     AudioOutputTokens = audioOutput,
                 }
                 : null,
-            TreeCost = sawCost
-                ? new RunTreeCost
-                {
-                    InputCost = inputCost,
-                    OutputCost = outputCost,
-                    CachedInputCost = cachedInputCost,
-                    Currency = costCurrency,
-                    RunsWithUnknownPricing = unknownPricing,
-                }
-                : null,
+            TreeCost = !sawCost
+                ? null
+                : costCurrencies.IsMixed
+                    ? new RunTreeCost { CurrencyCount = costCurrencies.Count, RunsWithUnknownPricing = unknownPricing }
+                    : new RunTreeCost
+                    {
+                        InputCost = inputCost,
+                        OutputCost = outputCost,
+                        CachedInputCost = cachedInputCost,
+                        Currency = costCurrencies.First ?? costCurrency,
+                        CurrencyCount = costCurrencies.Count,
+                        RunsWithUnknownPricing = unknownPricing,
+                    },
             TreeNonTokenCost = sawNonToken
                 ? new RunNonTokenCost
                 {
-                    Amount = nonTokenAmount,
-                    Currency = nonTokenCurrency,
+                    Amount = nonTokenCurrencies.IsMixed ? null : nonTokenAmount,
+                    Currency = nonTokenCurrencies.IsMixed ? null : nonTokenCurrencies.First ?? nonTokenCurrency,
+                    CurrencyCount = nonTokenCurrencies.Count,
                     IsEstimated = nonTokenEstimated,
                     UnsummedItemCount = nonTokenUnsummed,
                 }
@@ -1463,7 +1495,7 @@ public sealed class JsonFileRunStore : IRunStore
                 ScoredRunCount + (averageScore.HasValue ? 1 : 0));
         }
 
-        public ExperimentVariantResult ToResult(string variant)
+        public ExperimentVariantResult ToResult(string variant, CurrencySet currencies)
             => new()
             {
                 Variant = variant,
@@ -1476,8 +1508,9 @@ public sealed class JsonFileRunStore : IRunStore
                 OutputTokens = OutputTokens,
                 TotalTokens = TotalTokens,
                 AverageDurationMs = SettledCount == 0 ? null : TotalDurationMs / SettledCount,
-                TotalCost = CostSum,
-                Currency = Currency,
+                TotalCost = currencies.IsMixed ? null : CostSum,
+                Currency = currencies.IsMixed ? null : currencies.First ?? Currency,
+                CurrencyCount = currencies.Count,
                 AverageScore = ScoredRunCount == 0 ? null : ScoreSum / ScoredRunCount,
             };
     }
@@ -1505,7 +1538,7 @@ public sealed class JsonFileRunStore : IRunStore
                 SettledCount + (settled ? 1 : 0));
         }
 
-        public TimeSeriesPoint ToPoint(DateTimeOffset bucket)
+        public TimeSeriesPoint ToPoint(DateTimeOffset bucket, CurrencySet currencies)
             => new()
             {
                 Bucket = bucket,
@@ -1513,8 +1546,44 @@ public sealed class JsonFileRunStore : IRunStore
                 FailedRuns = FailedRuns,
                 InputTokens = InputTokens,
                 OutputTokens = OutputTokens,
-                Cost = CostSum,
+                Cost = currencies.IsMixed ? null : CostSum,
+                CurrencyCount = currencies.Count,
                 AverageDurationMs = SettledCount == 0 ? null : TotalDurationMs / SettledCount,
             };
+    }
+
+    /// <summary>
+    /// The distinct currencies behind one money total. Amounts in two currencies are never
+    /// added (F-419): a total over more than one currency keeps no amount and no currency,
+    /// and its count says why. Only a run that carries an amount counts, and letter case is
+    /// not a second currency. Tracon's own stores do this in an <c>internal</c> helper; a
+    /// store built on the published packages counts for itself, as here.
+    /// </summary>
+    private sealed class CurrencySet
+    {
+        private readonly HashSet<string> _currencies = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Gets how many distinct currencies the total's runs carry.</summary>
+        public int Count => _currencies.Count;
+
+        /// <summary>Gets whether the runs carry more than one currency.</summary>
+        public bool IsMixed => _currencies.Count > 1;
+
+        /// <summary>Gets the first currency an amount carried, or <see langword="null"/> when none did.</summary>
+        public string? First { get; private set; }
+
+        /// <summary>Counts a run's currency when the run carries an amount.</summary>
+        /// <param name="currency">The run's currency label.</param>
+        /// <param name="carriesAmount">Whether the run has an amount to add.</param>
+        public void Add(string? currency, bool carriesAmount)
+        {
+            if (!carriesAmount || string.IsNullOrEmpty(currency))
+            {
+                return;
+            }
+
+            _currencies.Add(currency);
+            First ??= currency;
+        }
     }
 }
