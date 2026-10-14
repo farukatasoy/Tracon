@@ -73,6 +73,25 @@ trail as `workflow.respond` before the run starts, and refused when that write f
 `GET /api/workflows/runs/{runId}/responses` lists who answered and which run each answer
 started; the answer itself is kept only as a SHA-256.
 
+## Listing waiting requests and limiting how long they wait
+
+`GET /api/workflows/requests` lists the human requests that the workflow runs of a tenant wait
+on, one item per request: `state=pending` (the default) hides the answered ones, and each item
+names the workflow, the expiry and the run to answer. A workflow can give its requests a time
+limit, as `requestTimeout` on a stored definition or in code:
+
+```csharp
+builder.AddWorkflow("publish-approval", services => BuildApprovalGraph(services), options =>
+{
+    options.RequestTimeout = TimeSpan.FromDays(7);
+});
+```
+
+When the time passes, the run that waits is closed (`Failed` with the error type
+`WorkflowRequestExpired`, or `Completed` when every request was answered), and the request
+event, checkpoints and run input row it kept can be deleted by retention. A request without a
+limit waits without limit.
+
 ## Running
 
 ```http

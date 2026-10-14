@@ -530,11 +530,15 @@ only after retention is enabled. A database policy for a target takes precedence
 | `VoiceSessions` | 30 days | `false` |
 | `RunScores` | 180 days | `false` |
 | `DocumentEmbeddings` | Disabled, `null` | `false` |
+| `WorkflowRequests` | 30 days after the request expired; closed rows only | `false` |
 
 A workflow run waiting for a human answer (`AwaitingInput`) keeps its pending
 request event, its checkpoints and its run input row for as long as it waits,
 whatever their age: the request lives only in that event, the answer resumes from those
-checkpoints, and the parameter values it resumes with live only in that row.
+checkpoints, and the parameter values it resumes with live only in that row. A
+[request timeout](/concepts/workflow-requests/#giving-a-request-a-time-limit) is what ends
+the wait: when it passes, the run is closed and the next retention round deletes those
+rows by age like any other.
 
 `MaxAgeDays` takes a whole number of days, and a value below `1` fails at startup.
 Configuration cannot switch off a target that has a default age: an empty value or a
@@ -669,6 +673,8 @@ tracon.UseMcp(
 | `MaxSuperSteps` | `100` |
 | `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
+| `RequestExpirationScanInterval` | 1 minute |
+| `MaxRequestExpirationsPerScan` | `100` |
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
 binds this section and then applies its optional code override.
@@ -681,6 +687,11 @@ warning is logged.
 
 `MaxNodeSettingsLength` caps the JSON text of one function node's settings when a
 workflow is saved; a definition stored before the cap was lowered still runs.
+
+`RequestExpirationScanInterval` is how often the scan that closes the runs of expired
+[workflow requests](/concepts/workflow-requests/#when-the-time-passes) looks; it must be
+from one millisecond to about 49.7 days and fails at startup otherwise, while `Enabled` is
+`true`. `MaxRequestExpirationsPerScan` must be at least `1`.
 
 ### Speech tools
 

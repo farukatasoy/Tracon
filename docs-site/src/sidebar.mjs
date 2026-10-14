@@ -56,6 +56,7 @@ export const sidebar = [
       { label: 'Sessions and conversations', slug: 'concepts/sessions' },
       { label: 'Workflows', slug: 'concepts/workflows' },
       { label: 'Answering a workflow', slug: 'concepts/workflow-answers' },
+      { label: 'Workflow requests and time limits', slug: 'concepts/workflow-requests' },
       { label: 'Jobs, schedules, and queues', slug: 'guides/background-work' },
     ],
   },

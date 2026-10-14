@@ -859,7 +859,8 @@ Checkpoints survive a process restart only with a SQL provider registered
 most 50 checkpoints per session and drops the oldest — enough for local development,
 not for a workflow you expect to resume after a restart. They are also a retention
 target, so an old run may have none left even on durable storage — except a run
-waiting for a human answer, whose checkpoints retention keeps.
+waiting for a human answer, whose checkpoints retention keeps until the run is closed
+(see [time limits](/concepts/workflow-requests/#giving-a-request-a-time-limit)).
 
 With `KeepCheckpointsAfterCompletion = false`, a finished run deletes its session's
 checkpoints only when no other run of the session still needs them — none is
@@ -909,8 +910,10 @@ flowchart LR
     RESP --> NEW["a NEW run resumes from the checkpoint<br/>streamed over SSE, or queued with Prefer: respond-async"]
 ```
 
-Requests are read from the run's own event stream — there is no separate table — and
-only a run in `AwaitingInput` has any. The answer is matched to the request that is
+A request's prompt and form are read from the run's own event stream — nothing copies
+them — and only a run in `AwaitingInput` has any. [Workflow requests and time
+limits](/concepts/workflow-requests/) covers the tenant-wide list of them and the time
+limit a workflow can give them. The answer is matched to the request that is
 re-published with the same id when execution resumes. A very long prompt is cut at
 the event payload limit (`RunRecording:MaxPayloadLength`) and marked
 `…[truncated]`; the request is still listed and can still be answered.
