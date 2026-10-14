@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (208 kalem)
+## Fazlar (209 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -220,5 +220,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [205](arsiv/fazlar/205-GEC-BITEN-HARCAMA-KOTASI.md) | Kök Kapandıktan Sonra Biten Harcamanın Kotası | ✅ Tamamlandı |
 | [208](208-WORKFLOW-KARAR-SOZLESMESI.md) | Workflow Karar Sözleşmesi: Tek Yanıt, Karar Denetimi ve Kaynak Bağı | 📋 Planlandı |
 | [209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) | Workflow Gelen Kutusu ve İstek Süresi | 📋 Planlandı |
+| [210](210-BUTCE-DUGUM-KAPISI.md) | Bütçe Tükenince Fonksiyon Düğümü Başlamaz | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
