@@ -297,6 +297,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
+| 🟠 | **F-502** · `Tracon.Samples.FileRunStore` karışık para birimi sözleşme case'inde düşer; yayın provası kırmızı | Ölçüldü (2026-10-14, Faz 205 kapanışı, `kapi.py yayin --kuru`): `RunStoreContract.No_cost_total_adds_amounts_in_two_currencies` (F-419/K-976) örnek dosya deposunda `Shouldly: 3m should be null` ile düşer (128/129); depo ağaç, istatistik penceresi, zaman kovası ve deney kolunda para birimi sayısı tutmaz. Faz 205'ten bağımsızdır (sözleşme `c8b9ea01`, örnek `562287f5`'ten sonra geldi). Prova ilk düşen örnekte durur: kalan örnekler ve AOT smoke ölçülmedi | Örneğin dört toplamına para birimi sayımı (`CurrencyTotals` kuralı; tipi `internal`, örnek kendi sayımını yazar); sonra provayı yeniden koş |
 | 🟡 | **F-492** · Kuyruktaki `run`'ın checkpoint'siz kurtarma yeniden başlatması güncel tanımı derler | Faz 200 denetimi (🟡, gerekçelendi): `WorkflowRunJobHandler.Continue` ve `WorkflowJobHandler` (batch öğesi) checkpoint yoksa işlemi yeni kimlikle yeniden uygular; `run` işlemi o anki güncel tanımı derler, kesilen denemenin damgası (`runs.agent_version`) kullanılmaz. `resume`/`respond` yükü `definitionVersion` taşıdığı için etkilenmez | Zincirin kök satırı damgalıysa yeniden başlatmayı o sürüme sabitle; `Apply` yeni `run` için de sürüm kabul etsin |
 | 🟢 | **F-496** · Kuyruklu workflow `respond`'unun `definitionVersion` zinciri uçtan uca sınanmıyor | Faz 200 denetimi (🟡2, kısmen): `resume` için tezgâh var (`WorkflowAsyncRunTests`); stored workflow'un insan girdisi bekleyen bir tezgâhı yok, `WorkflowEndpoints` respond satırı silinirse yalnız yük ve handler birim testleri parçalarını sınar | İnsan girdisi bekleyen stored workflow tezgâhı kur; adı konan sürüm ve olmayan sürüm (`400`, iş kuyruğa girmez) |
 | 🟢 | **F-495** · Üretilen API sayfaları xunit `[Fact]` özniteliğinin mutlak kaynak yolunu taşır | Ölçüldü (2026-10-14, Faz 200): `docs-site/src/content/docs/api/Tracon.Testing.Contracts.*.md` içinde 48 sayfa `[Fact("/Users/…/src/…", 13)]` yazar (`[CallerFilePath]`); site yayınında yerel kullanıcı yolu sızar. Aynı sayfalar, adında `faz` geçen bir çalışma ağacında `SourceLanguageTests`'i kırar | `build-api-reference.mjs` öznitelik argümanlarını yazmasın |
@@ -534,7 +535,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-502**.
+numara: **F-503**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
