@@ -44,7 +44,9 @@ workflow step's answer, so the refusal would reach the next node as its input. T
 run ends `Failed` and no later node runs: past the wait limit with error type
 `child_run_timeout` (class `Timeout`), refused by the call-tree budget with
 `run_budget_exceeded` (class `QuotaExceeded`), when a tool asks for approval, or
-with the provider's own error when the provider never answered.
+with the provider's own error when the provider never answered. A function node the
+call-tree budget refuses to start ends the run the same way, with `run_budget_exceeded`
+(see [A spent budget stops a function node from starting](#a-spent-budget-stops-a-function-node-from-starting)).
 
 ```csharp
 new WorkflowDefinition
@@ -324,7 +326,7 @@ Where the non-token amount counts:
 
 | Place | What happens |
 |---|---|
-| The call-tree budget (`AgentGraph.MaxTotalCost`) | An amount that adds is recorded the moment it is reported, so the next model call is refused once the ceiling is passed. The budget refuses model calls: a function node still starts when the budget is already spent |
+| The call-tree budget (`AgentGraph.MaxTotalCost`) | An amount that adds is recorded the moment it is reported, so the next model call is refused once the ceiling is passed, and so is the next function node: it does not start (see [below](#a-spent-budget-stops-a-function-node-from-starting)) |
 | The tenant's cost quota | Every run of a call tree writes its own entry when it ends, under the root's name: the root (an agent run or a workflow run) and each child run count the token cost plus the reported amount |
 | `run.completed` and `run.failed` webhooks | `cost` is the token cost and the reported amount together; `nonTokenCost` is the reported part, so the token part is `cost - nonTokenCost` |
 
@@ -340,6 +342,47 @@ its amount does reach the quota counter, once.) The items live with their run: e
 subject's runs deletes them too, and they hold no message text, so a data subject export
 does not list them. What a *tool* measured stays on `GET /api/runs/{runId}/tools`, and it
 joins the same total (see [Tools](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)).
+
+### A spent budget stops a function node from starting
+
+The call-tree budget (see [Reliable runs](/guides/reliability/#bound-multi-agent-trees)) refuses a
+model call and a new agent step once it is spent. It refuses a function node's **start** the same
+way, on two of its limits:
+
+| Limit | Stops a node from starting | Why |
+|---|---|---|
+| `AgentGraph.MaxTotalCost` | Yes | The unit a paid node spends. What nodes and tools reported beyond tokens counts |
+| `AgentGraph.MaxDuration` | Yes | The clock has run out, so no new work begins |
+| `AgentGraph.MaxTotalTokens` | No | It is on by default (`200000`) and a function node spends no tokens |
+| `AgentGraph.MaxTotalRuns`, `MaxDepth` | No | A function node opens no child run |
+
+A refused node does not run: the run ends `Failed` with error type `run_budget_exceeded` (class
+`QuotaExceeded`), the message names the node and the setting to raise, and no later node runs. The
+run's events show the node as invoked, then failed. A host that sets neither `MaxTotalCost` nor
+`MaxDuration` sees no change.
+
+**The ceiling is not absolute.** The check happens when a node *starts*. A node that is already
+running is never stopped, and Tracon cannot know what a node will spend before it runs, so the tree
+passes a ceiling by as much as its last node spends. A background agent run that is still going can
+spend after the check, too.
+
+A node that spends nothing and has to run after a costly one, such as a step that stores the output the
+budget has just paid for, is exempt in its registration. The node's own reported spend still counts; only
+its start is exempt:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "store-audio",
+    services => (messages, context, cancellationToken) => StoreAsync(messages, cancellationToken),
+    options => options.StartsWhenBudgetIsSpent = true);
+```
+
+The exemption is code, not configuration: an operator cannot set it on a node in a definition, so the
+ceiling cannot be loosened from the console.
+
+A graph built in code with `AddWorkflow` and its own executors is not wrapped, so nothing gates
+its executors. Such an executor reads the budget itself:
+`TraconRunContext.Current?.Budget` has `IsCostBudgetExhausted` and `IsDurationBudgetExhausted`.
 
 ### Retry a node on a transient error
 
@@ -379,6 +422,12 @@ runs entirely inside the node's own call: Microsoft Agent Framework invokes the
 node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
 attempt still counts as exactly one super-step.
+
+Every attempt is checked against the call-tree budget before it starts, because a second attempt is
+new paid work. When the first attempt spent past `MaxTotalCost`, or the wait between attempts used the
+rest of `MaxDuration`, the next attempt does not start and the node fails with `run_budget_exceeded`.
+That refusal is never retried, whatever the registered `IRunErrorClassifier` says about it: cost and
+time only grow within a run, so waiting cannot change the answer.
 
 ### Bound a node with a timeout
 

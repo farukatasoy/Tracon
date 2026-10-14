@@ -96,8 +96,9 @@ script.
 | `Validation:McpTimeout` | 5 seconds | Fresh MCP lookup limit during definition validation |
 | `AgentGraph:MaxDepth` | `3` | Largest child-agent call depth; root depth is zero |
 | `AgentGraph:MaxTotalTokens` | `200000` | Token budget shared by the whole call tree; enforced between model turns, mid-run |
-| `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree. It counts the token cost and the amounts that function nodes and tools reported beyond tokens; falls back to the token limit when a model's price is undefined |
+| `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree. It counts the token cost and the amounts that function nodes and tools reported beyond tokens; falls back to the token limit when a model's price is undefined. Once spent, the next model call is refused and a workflow function node does not start |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
+| `AgentGraph:MaxDuration` | none | Wall-clock budget for the whole call tree, counted from the root run's start. Once passed, the next model call is refused and a workflow function node does not start; a call or node already running is not stopped |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |

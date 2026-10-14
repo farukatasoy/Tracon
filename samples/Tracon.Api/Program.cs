@@ -800,7 +800,16 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 
         return new ValueTask<List<ChatMessage>>([new ChatMessage(ChatRole.User, $"{text}\n\n(word count: {count})")]);
     },
-    "Appends a word count to the incoming text. Runs no model call.");
+    static options =>
+    {
+        options.Description = "Appends a word count to the incoming text. Runs no model call.";
+
+        // A host that sets Tracon:AgentGraph:MaxTotalCost or MaxDuration stops a function node
+        // from STARTING once the tree has spent it (F-407). This node spends nothing, so it may
+        // still run after a costly one - say, a step that stores what the budget has just paid
+        // for. The exemption is the node's code's to give; an operator cannot set it.
+        options.StartsWhenBudgetIsSpent = true;
+    });
 
 // Parameter values reach a workflow's steps. A stored workflow declares a
 // `parameters` schema (PUT /tracon/api/workflows/podcast); a run supplies

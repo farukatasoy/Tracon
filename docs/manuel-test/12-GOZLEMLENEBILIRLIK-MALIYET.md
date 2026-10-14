@@ -8,7 +8,8 @@
 > 119 (§ ham hata metni sızıntısının kapatılması — `SafeErrorText`),
 > 132 (§ uygulanan fiyat snapshot'ı — birim fiyatlar, `runs.model_provider`,
 > yeniden hesaplamanın `Unknown`'a daralması),
-> 199 (§ fonksiyon düğümünün token dışı harcaması — kalemler, toplam, kota, bütçe, webhook)
+> 199 (§ fonksiyon düğümünün token dışı harcaması — kalemler, toplam, kota, bütçe, webhook),
+> 210 (§ bütçe tükenince fonksiyon düğümü başlamaz — maliyet ve süre kapısı, muafiyet)
 > **Kaynak:** `src/Tracon.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -2282,3 +2283,143 @@ ve SQL Server'da sığmayan değer insert'i düşürüyor, çağrının tüm kay
 
 **Beklenen sonuç**
 - 65 karakterlik birimle `TraconToolUsage.Report` `false` döner; çağrının kaydında ölçüm yok, run'ın token dışı toplamı boş.
+
+---
+
+### MT-OBS-078 — Bütçe: maliyet tavanı geçilmişse sonraki fonksiyon düğümü başlamaz (Faz 210, F-407)
+
+Otomatik karşılığı: `FunctionNodeBudgetGateTests.A_function_node_does_not_start_once_the_cost_budget_is_spent` · `…A_function_with_settings_is_gated_too` · `…The_refused_run_failed_webhook_carries_what_was_spent_before` · `…The_refused_runs_quota_entry_counts_the_first_nodes_amount`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 210 |
+| **İlgili karar** | K-999 |
+| **Devir** | koşuldu (2026-10-14, SQLite) |
+
+**Ön koşul** — Örnek uygulama `Tracon__AgentGraph__MaxTotalCost=0.005` ile; workflow `budget-gate`: `speak` (`{"voice":"alloy"}`) → `synthesize` (`{"provider":"tone","voice":"high"}`).
+
+**Adımlar**
+1. `PUT $APU/api/workflows/budget-gate`, `POST $APU/api/workflows/budget-gate/run` (96 karakterlik bir mesajla).
+2. `GET $APU/api/runs/{id}`; `GET $APU/api/runs/{id}/usage`.
+
+**Beklenen sonuç**
+- Run `Failed`, `error.type=run_budget_exceeded`, `error.class=QuotaExceeded`; mesaj `Could not start function node 'synthesize': The run tree's cost budget is exhausted (0.009600/0.005000). Raise Tracon:AgentGraph:MaxTotalCost to allow more. A node that is already running is not stopped.`
+- `usage` yalnız `speak` kalemini listeler (`characters`, `cost 0.0096`); `synthesize` hiç çalışmadı. `nonTokenCost.amount=0.0096`.
+- 🚨 Eski kusur: `synthesize` yine başlar, ücretli işini yapar ve run `Completed` biterdi.
+
+---
+
+### MT-OBS-079 — Bütçe: tavan düğüm başlarken geçilmemişse düğüm koşar ve kesilmez (Faz 210, F-407)
+
+Otomatik karşılığı: `FunctionNodeBudgetGateTests.A_function_node_does_not_start_once_the_cost_budget_is_spent` (tavanı geçiren ilk düğüm tamamlanır, kalemi kayıtlıdır).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 210 |
+| **İlgili karar** | K-999 |
+| **Devir** | koşuldu (2026-10-14, SQLite) |
+
+**Ön koşul** — MT-OBS-078'in ayarı; workflow `word-count` → `speak`.
+
+**Adımlar**
+1. Workflow'u çalıştır; run kaydını oku.
+
+**Beklenen sonuç**
+- Run `Completed`: `speak` başlarken tavan geçilmemişti, koşarken geçti ve kesilmedi.
+- `nonTokenCost.amount` tavanın (`0.005`) üstündedir (114 karakterle `0.0114`).
+
+---
+
+### MT-OBS-080 — Süre: süre bütçesi geçilmişse sonraki fonksiyon düğümü başlamaz (Faz 210, F-407)
+
+Otomatik karşılığı: `FunctionNodeBudgetGateTests.A_function_node_does_not_start_once_the_time_budget_has_passed`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 210 |
+| **İlgili karar** | K-999 |
+| **Devir** | koşuldu (2026-10-14, SQLite) |
+
+**Ön koşul** — Örnek uygulama `Tracon__AgentGraph__MaxDuration=00:00:02` ile; workflow: `render` (`{"seconds":3}`) → `synthesize` (`{"provider":"tone","voice":"high"}`).
+
+**Adımlar**
+1. Workflow'u çalıştır; run kaydını ve `usage`'ı oku.
+
+**Beklenen sonuç**
+- `render` tamamlanır (üç saniye sürer, kesilmez) ve `gpu-seconds` kalemini yazar; `synthesize` başlamaz.
+- Run `Failed`, `run_budget_exceeded`; mesaj `The run tree's time budget is exhausted (00:00:03.1…/00:00:02)` ile `Raise Tracon:AgentGraph:MaxDuration` der ve model turu cümlesini içermez.
+
+---
+
+### MT-OBS-081 — Varsayılan kurulum değişmez: tavan yoksa hiçbir düğüm reddedilmez (Faz 210, F-407)
+
+Otomatik karşılığı: `FunctionNodeBudgetGateTests.A_host_without_a_cost_or_time_ceiling_never_refuses_a_node` · `WorkflowNodeBudgetGateTests.A_default_budget_never_refuses` (tokenı tükenmiş bütçe dahil).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 210 |
+| **İlgili karar** | K-999 |
+| **Devir** | koşuldu (2026-10-14, SQLite) |
+
+**Ön koşul** — Örnek uygulama varsayılan ayarlarla (`MaxTotalCost` ve `MaxDuration` yok); MT-OBS-078'in workflow'u.
+
+**Adımlar**
+1. Workflow'u çalıştır; run kaydını ve `usage`'ı oku.
+
+**Beklenen sonuç**
+- Run `Completed`; `usage` iki kalem listeler (`speak`, `synthesize`).
+
+---
+
+### MT-OBS-082 — Muafiyet: `StartsWhenBudgetIsSpent` düğüm başına, yalnız kodda (Faz 210, F-407)
+
+Otomatik karşılığı: `FunctionNodeBudgetGateTests.A_node_registered_to_start_when_the_budget_is_spent_still_runs` · `…A_run_whose_last_node_is_exempt_completes_after_the_ceiling_was_passed`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 210 |
+| **İlgili karar** | K-999 |
+| **Devir** | koşuldu (2026-10-14, SQLite) |
+
+**Ön koşul** — MT-OBS-078'in ayarı. Örnek uygulamada `word-count` kayıt anında muaf işaretlidir.
+
+**Adımlar**
+1. Workflow `speak` → `word-count`'u çalıştır.
+2. Workflow `speak` → `word-count` → `synthesize`'ı çalıştır.
+
+**Beklenen sonuç**
+- (1) Run `Completed`: ödenmiş çıktıyı saklayan ücretsiz son düğüm tavan geçilmişken de koştu.
+- (2) Run `Failed`: `word-count` koştu, ondan sonraki `synthesize` reddedildi (`could not start function node 'synthesize'`). Muafiyet yalnız o düğümündür.
+- Muafiyeti bir workflow tanımından (`settings`, düğüm alanı) açmanın yolu yoktur.
+
+---
+
+### MT-OBS-083 — Token bütçesi bir fonksiyon düğümünü durdurmaz (Faz 210, F-407)
+
+Otomatik karşılığı: `FunctionNodeBudgetGateTests.A_spent_token_budget_does_not_stop_a_function_node` · `AgentRunBudgetTests.A_spent_token_budget_does_not_refuse_a_node_start`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 210 |
+| **İlgili karar** | K-999 |
+| **Devir** | ➜ CI: yukarıdaki iki test (yerel echo modeli token kullanımı bildirmez, bütçe tükenmez) |
+
+**Ön koşul** — Örnek uygulama `Tracon__AgentGraph__MaxTotalTokens=1` ile; workflow `support` (agent) → `speak`.
+
+**Adımlar**
+1. Workflow'u çalıştır; run kaydını oku.
+
+**Beklenen sonuç**
+- Run `Completed`; `speak` başladı ve kalemini yazdı. (2026-10-14 koşumu: `Completed`, `speak` kalemi var. Echo modeli kullanım bildirmediği için token bütçesi gerçekte tükenmedi; tükenmiş token bütçesinin düğümü durdurmadığını fiyatlı sahte sağlayıcılı iki otomatik test kanıtlar.)

@@ -48,6 +48,8 @@ Tracon.WorkflowFunctionOptions.Description.get -> string?
 Tracon.WorkflowFunctionOptions.Description.set -> void
 Tracon.WorkflowFunctionOptions.RetryPolicy.get -> Tracon.WorkflowNodeRetryPolicy?
 Tracon.WorkflowFunctionOptions.RetryPolicy.set -> void
+Tracon.WorkflowFunctionOptions.StartsWhenBudgetIsSpent.get -> bool
+Tracon.WorkflowFunctionOptions.StartsWhenBudgetIsSpent.set -> void
 Tracon.WorkflowFunctionOptions.Timeout.get -> System.TimeSpan?
 Tracon.WorkflowFunctionOptions.Timeout.set -> void
 Tracon.WorkflowFunctionOptions.WorkflowFunctionOptions() -> void

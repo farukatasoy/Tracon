@@ -339,8 +339,8 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Retention defaults | Off | Define legal, privacy, and capacity policy before data grows |
 | Skill script execution | Off | Leave off unless the host is isolated and the threat model permits OS processes |
 | Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
-| Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it |
-| Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going |
+| Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it; the cap also keeps a paid workflow function node from starting once it is spent |
+| Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going; it also keeps a workflow function node from starting once it has passed |
 
 Six of these rows — multi-tenancy, session ownership, at-rest content encryption,
 content inspection, request rate limiting and retention defaults — can be enforced

@@ -177,9 +177,19 @@ public sealed class TraconAgentGraphOptions
     /// value removes the limit.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Unlike <see cref="MaxTotalTokens"/>, this has no default: pricing is not
     /// always known (<see cref="PricingSource.Unknown"/>), so a cost cap must
     /// be an explicit opt-in, not a value every installation is silently held to.
+    /// </para>
+    /// <para>
+    /// Once the tree has spent this amount, the next model call is refused and so is the
+    /// next workflow function node: it does not start, and the run ends <c>Failed</c> with
+    /// <c>run_budget_exceeded</c>. A node that is already running is not stopped, so the
+    /// tree can pass the ceiling by as much as its last node spends. What a node reported
+    /// beyond tokens counts (<c>WorkflowFunctionOptions.StartsWhenBudgetIsSpent</c>
+    /// lets a node that must still run start anyway).
+    /// </para>
     /// </remarks>
     public decimal MaxTotalCost { get; set; }
 
@@ -202,7 +212,9 @@ public sealed class TraconAgentGraphOptions
     /// <para>
     /// The cutoff always lands between two model turns; a tool call already in
     /// progress when the deadline passes is <strong>not</strong> interrupted
-    /// and runs to completion. See <see cref="AgentRunBudget"/>.
+    /// and runs to completion. The same holds for a workflow function node: once the
+    /// deadline has passed, the next node does not start, and one that is already
+    /// running is not stopped. See <see cref="AgentRunBudget"/>.
     /// </para>
     /// </remarks>
     public TimeSpan MaxDuration { get; set; }

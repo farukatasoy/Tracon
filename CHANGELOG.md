@@ -1265,6 +1265,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- A workflow function node no longer starts once the call tree's cost or time budget is spent.
+  Until now the budget refused a model call and a new agent step but let a function node run
+  and do its paid work (speech, a render, a GPU minute), and a chain of function nodes only
+  never stopped at all. **Behavior change:** with `Tracon:AgentGraph:MaxTotalCost` or
+  `Tracon:AgentGraph:MaxDuration` set, the next function node does not start once the tree has
+  passed either; the run ends `Failed` with `run_budget_exceeded` (class `QuotaExceeded`), the
+  message names the node and the setting to raise, and no later node runs. Each attempt of a
+  retried node is checked, and the refusal is never retried, whatever the registered
+  `IRunErrorClassifier` says. `MaxTotalTokens` does not stop a node (it is on by default and a
+  function node spends no tokens), and a host that sets neither ceiling is not affected. A node
+  that is already running is never stopped, so a tree can pass its ceiling by as much as its last
+  node spends. A node that spends nothing and has to run afterwards, such as a step that stores
+  what the budget has just paid for, sets the new `WorkflowFunctionOptions.StartsWhenBudgetIsSpent`
+  to `true` in its registration; an operator cannot set it in a definition. A run built in code
+  with `AddWorkflow` and its own executors is not gated: read
+  `TraconRunContext.Current?.Budget` there.
 - `POST /api/workflows/runs/{runId}/respond` changes in the default `Branch` mode too.
   The run an answer starts now has its row opened (`Running` for a streamed answer,
   `Queued` for a queued one) before the answer is recorded and before the stream starts,
@@ -1562,7 +1578,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   joins the same total. A run that reports nothing is unaffected. Still token-only on
   purpose: `GET /api/stats`, the dashboard, the `tracon.run.cost` metric, the comparison
   of two runs and the console's Tools screen. A quota has no limit on a unit such as
-  characters, and a function node still starts when the budget is already spent.
+  characters. The same ceiling also stops a function node from starting (the first entry of this section).
 
 ## [1.0.0-preview.3] - 2026-09-24
 

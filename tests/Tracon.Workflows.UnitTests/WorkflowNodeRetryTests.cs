@@ -150,6 +150,22 @@ public sealed class WorkflowNodeRetryTests
     }
 
     /// <summary>
+    /// F-407: a budget refusal never changes inside a run (cost and time only grow), so a
+    /// retry cannot fix it. A consumer's classifier that files <c>run_budget_exceeded</c>
+    /// under a transient class would otherwise make the node wait and ask <c>MaxAttempts</c>
+    /// times for the same answer; the retry does not ask the classifier.
+    /// </summary>
+    [Fact]
+    public async Task A_budget_refusal_is_never_retried_even_when_the_classifier_calls_it_transient()
+    {
+        var attempts = await CountAttemptsAsync(
+            new TraconRunBudgetExceededException("The run tree's cost budget is exhausted."),
+            new FixedClassifier(RunErrorClass.RateLimited));
+
+        attempts.ShouldBe(1);
+    }
+
+    /// <summary>
     /// F-338: <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx (K-817
     /// widened it on purpose), so the class alone cannot say whether a retry helps. A node
     /// that calls <c>EnsureSuccessStatusCode()</c> and gets a 401 used to run
