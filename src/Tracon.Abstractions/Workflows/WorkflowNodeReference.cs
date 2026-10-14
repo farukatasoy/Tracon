@@ -104,8 +104,9 @@ public sealed record WorkflowNodeReference
     /// </para>
     /// <para>
     /// The timeout is not part of the node's identity: changing it does not stop a
-    /// run that waits for input from being resumed, and the resumed run uses the
-    /// current value.
+    /// run that waits for input from being resumed. The resumed run uses the value of
+    /// the definition version it recorded; a resume that names a newer version
+    /// (<see cref="WorkflowResumeRequest.DefinitionVersion"/>) uses that version's.
     /// </para>
     /// </remarks>
     public TimeSpan? Timeout { get; init; }

@@ -94,6 +94,8 @@ const DEFAULT_COLLECTION_ROUTES = [
   'api/sessions',
   'api/workflows',
   'api/workflows/functions',
+  'api/workflows/:name/versions',
+  'api/agents/:name/versions',
   'api/evals',
   'api/evals/:name/cases',
   'api/evals/:name/runs',

@@ -1,9 +1,20 @@
 import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { WorkflowFunctionResponse } from '@tracon/client';
 import { Badge, ErrorNote, Field, Select, TextArea, TextInput, cx, type FieldIds } from '../../components/ui';
 import { Tooltip } from '../../components/tooltip';
+import { client, unwrap } from '../../lib/api';
 import { useT } from '../../lib/i18n';
-import { describeSchema, hasFunction, parseSettings, parseTimeout, timeoutText, type Step } from '../../lib/workflow-steps';
+import type { AgentDefinition } from '../../lib/server-types';
+import {
+  describeSchema,
+  hasFunction,
+  hasPins,
+  parseSettings,
+  parseTimeout,
+  timeoutText,
+  type Step,
+} from '../../lib/workflow-steps';
 
 /**
  * The functions the editor may offer, as the screen's query reports them.
@@ -21,17 +32,18 @@ export interface FunctionCatalog {
 /**
  * The ordered steps of a workflow: add, move, remove - and, for a function step, its settings.
  *
- * One list for agents and functions. An agent step is a name; a function step also holds the
- * JSON text of its node's settings. Neither kind of step is validated here: the rules live in
- * `WorkflowDefinitionValidator` and the function registry, and a copy in the console would
- * drift. The one exception is a settings text that is not JSON at all, which the screen
- * refuses to send.
+ * One list for agents and functions. An agent step is a name - and, for a stored agent, the version
+ * it is pinned to; a function step also holds the JSON text of its node's settings. Neither kind of
+ * step is validated here: the rules live in `WorkflowDefinitionValidator` and the function
+ * registry, and a copy in the console would drift. The one exception is a settings text that is not
+ * JSON at all, which the screen refuses to send.
  */
 export function StepList({
   ids,
   steps,
   onChange,
   agents,
+  storedAgents,
   functions,
 }: {
   /**
@@ -43,6 +55,13 @@ export function StepList({
   steps: readonly Step[];
   onChange: (steps: Step[]) => void;
   agents: readonly string[];
+  /**
+   * The agents that keep versions (stored in the database; one defined in code keeps none). Passed
+   * only for a `Sequential` chain, the one pattern whose steps are nodes and so can carry a pin. A
+   * step that already carries a pin keeps its selector whatever this says, so the operator can
+   * clear it.
+   */
+  storedAgents?: ReadonlySet<string>;
   functions?: FunctionCatalog;
 }): ReactNode {
   const t = useT();
@@ -51,6 +70,7 @@ export function StepList({
   const freeFunctions = (functions?.items ?? []).filter((candidate) => !used.has(candidate.name));
   const catalog = functions?.items;
   const withFunction = hasFunction(steps);
+  const withPin = hasPins(steps);
 
   const replace = (index: number, step: Step): void => {
     onChange(steps.map((existing, position) => (position === index ? step : existing)));
@@ -134,10 +154,19 @@ export function StepList({
                 />
               )}
 
+              {step.kind === 'Agent' &&
+                storedAgents !== undefined &&
+                (storedAgents.has(step.name) || (step.agentVersion ?? null) !== null) && (
+                  <AgentVersion
+                    step={step}
+                    onChange={(agentVersion) => replace(index, { ...step, agentVersion })}
+                  />
+                )}
+
               {/* A step's own timeout lives on a node: only a Sequential chain with a function
-                  step is saved as a node list (K-901). A step that still carries one in an
-                  agent list keeps its field, so the operator can clear it. */}
-              {functions !== undefined && (withFunction || step.timeout.trim().length > 0) && (
+                  step or a pinned agent is saved as a node list (K-901, phase 200). A step that
+                  still carries one in an agent list keeps its field, so the operator can clear it. */}
+              {functions !== undefined && (withFunction || withPin || step.timeout.trim().length > 0) && (
                 <StepTimeout
                   step={step}
                   registered={isFunction ? catalog?.find((candidate) => candidate.name === step.name)?.timeout : undefined}
@@ -281,6 +310,72 @@ function FunctionSettings({
           />
         )}
       </Field>
+    </div>
+  );
+}
+
+/**
+ * The version of the stored agent one step runs: its current version, or one of the versions the
+ * agent has.
+ *
+ * The list is the agent's own (`GET /api/agents/{name}/versions`), fetched when the step shows and
+ * cached under the key the agent screen uses. Whether the chosen version still exists is the save
+ * endpoint's answer. A pin the agent no longer lists stays selectable, so it is neither dropped from
+ * the field nor from the save.
+ */
+function AgentVersion({
+  step,
+  onChange,
+}: {
+  step: Step;
+  onChange: (agentVersion: number | null) => void;
+}): ReactNode {
+  const t = useT();
+  const versions = useQuery({
+    queryKey: ['agent-versions', step.name],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/agents/{name}/versions', { params: { path: { name: step.name } } }),
+      ) as Promise<AgentDefinition[]>,
+  });
+  const pinned = step.agentVersion ?? null;
+  const listed = (versions.data ?? []).map((definition) => definition.version);
+
+  return (
+    <div className="mt-1.5 max-w-xs">
+      <Field
+        label={t('workflowEditor.agentVersionOf', { name: step.name })}
+        hint={t('workflowEditor.agentVersionHint')}
+      >
+        {(ids) => (
+          <Select
+            {...ids}
+            testId={`workflow-version-${step.name}`}
+            value={pinned === null ? '' : String(pinned)}
+            onChange={(value) => onChange(value.length === 0 ? null : Number(value))}
+          >
+            <option value="">{t('workflowEditor.agentVersionCurrent')}</option>
+            {pinned !== null && !listed.includes(pinned) && (
+              // Until the list is in, the pin is shown as it is stored; "not found" is a claim
+              // about the list and waits for it.
+              <option value={String(pinned)}>
+                {versions.isSuccess ? t('workflowEditor.agentVersionMissing', { version: pinned }) : `v${pinned}`}
+              </option>
+            )}
+            {listed.map((version) => (
+              <option key={version} value={String(version)}>
+                v{version}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      {versions.isError && (
+        <div className="mt-1 flex flex-col gap-1">
+          <p className="text-xs text-muted">{t('workflowEditor.agentVersionsFailed')}</p>
+          <ErrorNote error={versions.error} onRetry={() => void versions.refetch()} />
+        </div>
+      )}
     </div>
   );
 }

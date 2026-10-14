@@ -290,8 +290,11 @@ public static class TraconWorkflowFunctionExtensions
     /// </para>
     /// <para>
     /// A settings change takes effect on the <em>next</em> run: the graph is built
-    /// again for every run, and a run waiting for input reads the current settings when
-    /// it resumes. The run in progress keeps the settings it started with.
+    /// again for every run. A run waiting for input resumes with the settings of the
+    /// definition version it recorded, so an edit made while it waited does not change
+    /// what it does; a resume that names a newer version
+    /// (<see cref="WorkflowResumeRequest.DefinitionVersion"/>) reads that version's
+    /// settings. The run in progress keeps the settings it started with.
     /// </para>
     /// <para>
     /// <strong>Settings are values, not expressions, and never a secret.</strong>

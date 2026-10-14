@@ -189,7 +189,11 @@ export type WebhookSubscription = Fix<Generated.WebhookSubscription, 'consecutiv
 // (KIND_HINT lookups, the editor's fixed kind list) that only ever see one of
 // the five real values, the same shared-nullable-enum pattern as RunErrorClass.
 export type WorkflowKind = Exclude<Generated.WorkflowKind, null>;
-export type WorkflowDefinition = Fix<Generated.WorkflowDefinition, 'agentNames' | 'maxIterations' | 'nodes' | 'requirePlanApproval' | 'version'> & { kind: WorkflowKind };
-export type WorkflowDescriptor = Fix<Generated.WorkflowDescriptor, 'agentNames' | 'nodes' | 'version'>;
+// `agentVersion` is an int32 like every other number here: the generator widens it to `number | string`,
+// the wire always carries a native number. A node that does not pin its agent carries `null`.
+export type WorkflowNodeReference = Omit<Generated.WorkflowNodeReference, 'agentVersion'> & { agentVersion?: number | null };
+export type WorkflowDefinition = Omit<Fix<Generated.WorkflowDefinition, 'agentNames' | 'maxIterations' | 'requirePlanApproval' | 'version'>, 'kind' | 'nodes'> & { kind: WorkflowKind; nodes: WorkflowNodeReference[] };
+export type WorkflowDescriptor = Omit<Fix<Generated.WorkflowDescriptor, 'agentNames' | 'version'>, 'nodes'> & { nodes: WorkflowNodeReference[] };
 export type WorkflowGraph = Fix<Generated.WorkflowGraph, 'edges' | 'nodes'>;
 export type WorkflowPendingRequest = Fix<Generated.WorkflowPendingRequest, 'requestedAt'>;
+export type WorkflowVersionDiffResponse = Omit<Generated.WorkflowVersionDiffResponse, 'left' | 'right'> & { left: WorkflowDefinition; right: WorkflowDefinition };

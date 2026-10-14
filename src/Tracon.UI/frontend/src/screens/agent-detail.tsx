@@ -7,7 +7,6 @@ import { absoluteTime, relativeTime } from '../lib/format';
 import {
   Badge,
   Button,
-  Empty,
   ErrorNote,
   JsonView,
   LinkButton,
@@ -15,14 +14,12 @@ import {
   Mono,
   PageHeader,
   Panel,
-  Table,
-  Td,
-  Th,
 } from '../components/ui';
 import { Tooltip } from '../components/tooltip';
 import { ConfirmDialog } from '../components/confirm-dialog';
-import { HistoryIcon, TrashIcon } from '../components/icons';
+import { TrashIcon } from '../components/icons';
 import { DiffView, FieldDiffTable, SetDiff } from '../components/diff-view';
+import { CompareSection, ComparePanel, VersionHistory } from '../components/version-history';
 import { OriginBadge } from './agents';
 import type { LoopCriterion, TraconMetaResponse as Meta } from '@tracon/client';
 import type { AgentDefinition, AgentDetailResponse, AgentVersionDiffResponse } from '../lib/server-types';
@@ -218,7 +215,7 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
       )}
 
       {isEditable && (
-        <VersionHistory name={name} currentVersion={descriptor.version} meta={meta} onError={setError} />
+        <AgentVersions name={name} currentVersion={descriptor.version} meta={meta} onError={setError} />
       )}
     </>
   );
@@ -233,7 +230,7 @@ function Row({ label, children }: { label: string; children: ReactNode }): React
   );
 }
 
-function VersionHistory({
+function AgentVersions({
   name,
   currentVersion,
   meta,
@@ -245,153 +242,33 @@ function VersionHistory({
   onError: (error: unknown) => void;
 }): ReactNode {
   const t = useT();
-  const queryClient = useQueryClient();
-
-  const versions = useQuery({
-    queryKey: ['agent-versions', name],
-    queryFn: () =>
-      unwrap(
-        client.GET('/api/agents/{name}/versions', { params: { path: { name } } }),
-      ) as Promise<AgentDefinition[]>,
-  });
-
-  const rollback = useMutation({
-    mutationFn: (version: number) =>
-      unwrap(
-        client.POST('/api/agents/{name}/rollback', { params: { path: { name } }, body: { version } }),
-      ) as Promise<AgentDefinition>,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['agent', name] });
-      await queryClient.invalidateQueries({ queryKey: ['agent-versions', name] });
-      await queryClient.invalidateQueries({ queryKey: ['agents'] });
-    },
-    onError,
-  });
-
-  const [selected, setSelected] = useState<number[]>([]);
-
-  const toggleSelected = (version: number): void => {
-    setSelected((current) => {
-      if (current.includes(version)) {
-        return current.filter((candidate) => candidate !== version);
-      }
-
-      // Selecting a third version replaces the older of the two picks, so
-      // the comparison always tracks the two most recently chosen versions.
-      return current.length >= 2 ? [current[1] ?? version, version] : [...current, version];
-    });
-  };
-
-  const [compareA, compareB] =
-    selected.length === 2 ? [Math.min(selected[0]!, selected[1]!), Math.max(selected[0]!, selected[1]!)] : [null, null];
 
   return (
-    <div className="mt-4 space-y-4">
-      <Panel
-        title={
-          <span className="flex items-center gap-1.5">
-            <HistoryIcon className="size-3.5" />
-            {t('agentDetail.versions')}
-          </span>
-        }
-      >
-        {versions.isPending && <Loading rows={4} />}
-        {versions.isError && (
-          <div className="p-4">
-            <ErrorNote error={versions.error} onRetry={() => void versions.refetch()} />
-          </div>
-        )}
-
-        {versions.isSuccess && versions.data.length === 0 && (
-          /* No action: a version appears when the stored definition is saved,
-             and a code-defined agent has none at all. */
-          <Empty title={t('agentDetail.noVersions')}>{t('agentDetail.noVersionsBody')}</Empty>
-        )}
-
-        {versions.isSuccess && versions.data.length > 0 && (
-          <>
-            <Table label={t('agentDetail.versions')}>
-              <thead>
-                <tr>
-                  <Th />
-                  <Th>{t('agentDetail.version')}</Th>
-                  <Th>{t('common.model')}</Th>
-                  <Th className="text-right">{t('common.tools')}</Th>
-                  <Th>{t('agentDetail.saved')}</Th>
-                  <Th />
-                </tr>
-              </thead>
-              <tbody>
-                {versions.data.map((version) => (
-                  <tr key={version.version} className="focus-within:bg-raised hover:bg-raised">
-                    <Td>
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(version.version)}
-                        onChange={() => toggleSelected(version.version)}
-                        aria-label={t('agentDetail.selectVersion', { version: version.version })}
-                        data-testid={`version-checkbox-${version.version}`}
-                      />
-                    </Td>
-                    <Td>
-                      <Mono>v{version.version}</Mono>
-                      {version.version === currentVersion && (
-                        <Badge tone="success" description={t('agentDetail.currentTitle')}>
-                          {t('agentDetail.current')}
-                        </Badge>
-                      )}
-                    </Td>
-                    <Td>
-                      <Mono>{version.model.model}</Mono>
-                    </Td>
-                    <Td className="text-right font-mono text-id text-muted">
-                      {version.toolNames.length}
-                    </Td>
-                    <Td className="text-muted" title={absoluteTime(version.updatedAt)}>
-                      {relativeTime(version.updatedAt)}
-                    </Td>
-                    <Td className="text-right">
-                      {version.version !== currentVersion && meta.roles.canAdminister && (
-                        /*
-                          🚨 A decision surface: the CONSEQUENCE is readable at
-                          the moment of deciding. "Rollback" alone does not say
-                          which version becomes live, that the current one stays
-                          in history, or that every run started afterwards uses
-                          the restored definition — the tooltip does.
-                        */
-                        <Tooltip
-                          text={t('agentDetail.rollbackEffect', {
-                            version: version.version,
-                            current: currentVersion,
-                          })}
-                        >
-                          <Button
-                            tone="ghost"
-                            busy={rollback.isPending && rollback.variables === version.version}
-                            onClick={() => rollback.mutate(version.version)}
-                          >
-                            {t('agentDetail.rollback')}
-                          </Button>
-                        </Tooltip>
-                      )}
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-            <p className="border-t border-line px-4 py-2 text-xs text-subtle">
-              {selected.length === 1
-                ? t('agentDetail.selectOneMore')
-                : selected.length === 2
-                  ? t('agentDetail.comparing', { a: compareA ?? 0, b: compareB ?? 0 })
-                  : t('agentDetail.compareHint')}
-            </p>
-          </>
-        )}
-      </Panel>
-
-      {compareA !== null && compareB !== null && <VersionCompare name={name} a={compareA} b={compareB} />}
-    </div>
+    <VersionHistory<AgentDefinition>
+      queryKey={['agent-versions', name]}
+      load={() =>
+        unwrap(client.GET('/api/agents/{name}/versions', { params: { path: { name } } })) as Promise<
+          AgentDefinition[]
+        >
+      }
+      rollback={(version) =>
+        unwrap(client.POST('/api/agents/{name}/rollback', { params: { path: { name } }, body: { version } }))
+      }
+      invalidate={[['agent', name], ['agent-versions', name], ['agents']]}
+      currentVersion={currentVersion}
+      canRollback={meta.roles.canAdminister}
+      columns={[
+        { header: t('common.model'), cell: (version) => <Mono>{version.model.model}</Mono> },
+        { header: t('common.tools'), numeric: true, cell: (version) => version.toolNames.length },
+      ]}
+      labels={{
+        empty: 'agentDetail.noVersions',
+        emptyBody: 'agentDetail.noVersionsBody',
+        rollbackEffect: 'agentDetail.rollbackEffect',
+      }}
+      compare={(a, b) => <VersionCompare name={name} a={a} b={b} />}
+      onError={onError}
+    />
   );
 }
 
@@ -406,129 +283,124 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
   });
 
   return (
-    <Panel title={t('agentDetail.compareTitle', { a, b })}>
-      <div className="p-4">
-        {diff.isPending && <Loading rows={6} />}
-        {diff.isError && <ErrorNote error={diff.error} onRetry={() => void diff.refetch()} />}
+    <ComparePanel a={a} b={b} query={diff}>
+      {(data) => (
+        <div className="space-y-5">
+          <CompareSection title={t('agentDetail.instructions')}>
+            <DiffView left={data.left.instructions ?? ''} right={data.right.instructions ?? ''} />
+          </CompareSection>
 
-        {diff.isSuccess && (
-          <div className="space-y-5">
-            <Section title={t('agentDetail.instructions')}>
-              <DiffView left={diff.data.left.instructions ?? ''} right={diff.data.right.instructions ?? ''} />
-            </Section>
+          {cultureUnion(data.left.instructionsByCulture, data.right.instructionsByCulture).map(
+            (culture) => (
+              <CompareSection key={culture} title={t('agentDetail.instructionsForCulture', { culture })}>
+                <DiffView
+                  left={data.left.instructionsByCulture?.[culture] ?? ''}
+                  right={data.right.instructionsByCulture?.[culture] ?? ''}
+                />
+              </CompareSection>
+            ),
+          )}
 
-            {cultureUnion(diff.data.left.instructionsByCulture, diff.data.right.instructionsByCulture).map(
-              (culture) => (
-                <Section key={culture} title={t('agentDetail.instructionsForCulture', { culture })}>
-                  <DiffView
-                    left={diff.data.left.instructionsByCulture?.[culture] ?? ''}
-                    right={diff.data.right.instructionsByCulture?.[culture] ?? ''}
-                  />
-                </Section>
-              ),
-            )}
+          <CompareSection title={t('common.model')}>
+            <FieldDiffTable
+              left={data.left.model}
+              right={data.right.model}
+              fields={{
+                provider: { label: t('common.provider') },
+                model: { label: t('common.model') },
+                temperature: { label: t('fields.temperature') },
+                maxOutputTokens: { label: t('fields.maxOutputTokens') },
+                topP: { label: t('fields.topP') },
+                reasoningEffort: { label: t('fields.reasoningEffort') },
+                responseFormat: {
+                  label: t('fields.responseFormatKind'),
+                  format: (value) => (value as { kind: string }).kind,
+                },
+              }}
+            />
+          </CompareSection>
 
-            <Section title={t('common.model')}>
+          <SetDiff label={t('common.tools')} left={data.left.toolNames} right={data.right.toolNames} />
+          <SetDiff label={t('nav.skills')} left={data.left.skillNames} right={data.right.skillNames} />
+          <SetDiff
+            label={t('agentDetail.callableAgents')}
+            left={data.left.callableAgentNames}
+            right={data.right.callableAgentNames}
+          />
+
+          {(data.left.harness ?? data.right.harness) !== undefined && (
+            <CompareSection title={t('agentDetail.harness')}>
               <FieldDiffTable
-                left={diff.data.left.model}
-                right={diff.data.right.model}
+                left={data.left.harness}
+                right={data.right.harness}
                 fields={{
-                  provider: { label: t('common.provider') },
-                  model: { label: t('common.model') },
-                  temperature: { label: t('fields.temperature') },
+                  maxContextWindowTokens: { label: t('fields.maxContextWindowTokens') },
                   maxOutputTokens: { label: t('fields.maxOutputTokens') },
-                  topP: { label: t('fields.topP') },
-                  reasoningEffort: { label: t('fields.reasoningEffort') },
-                  responseFormat: {
-                    label: t('fields.responseFormatKind'),
-                    format: (value) => (value as { kind: string }).kind,
-                  },
+                  maximumIterationsPerRequest: { label: t('fields.maxIterations') },
+                  harnessInstructions: { label: t('fields.harnessInstructions') },
+                  disableCompaction: { label: t('fields.disableCompaction') },
+                  disableTodoProvider: { label: t('fields.disableTodoProvider') },
+                  disableFileMemory: { label: t('fields.disableFileMemory') },
+                  disableWebSearch: { label: t('fields.disableWebSearch') },
+                  enableWebSearch: { label: t('fields.enableWebSearch') },
+                  disableToolAutoApproval: { label: t('fields.disableToolAutoApproval') },
                 }}
               />
-            </Section>
+            </CompareSection>
+          )}
 
-            <SetDiff label={t('common.tools')} left={diff.data.left.toolNames} right={diff.data.right.toolNames} />
-            <SetDiff label={t('nav.skills')} left={diff.data.left.skillNames} right={diff.data.right.skillNames} />
-            <SetDiff
-              label={t('agentDetail.callableAgents')}
-              left={diff.data.left.callableAgentNames}
-              right={diff.data.right.callableAgentNames}
-            />
-
-            {(diff.data.left.harness ?? diff.data.right.harness) !== undefined && (
-              <Section title={t('agentDetail.harness')}>
+          {(data.left.harness?.loop ?? data.right.harness?.loop) != null && (
+            <CompareSection title={t('agentEditor.loop.title')}>
+              <div data-testid="loop-diff">
                 <FieldDiffTable
-                  left={diff.data.left.harness}
-                  right={diff.data.right.harness}
+                  left={data.left.harness?.loop}
+                  right={data.right.harness?.loop}
                   fields={{
-                    maxContextWindowTokens: { label: t('fields.maxContextWindowTokens') },
-                    maxOutputTokens: { label: t('fields.maxOutputTokens') },
-                    maximumIterationsPerRequest: { label: t('fields.maxIterations') },
-                    harnessInstructions: { label: t('fields.harnessInstructions') },
-                    disableCompaction: { label: t('fields.disableCompaction') },
-                    disableTodoProvider: { label: t('fields.disableTodoProvider') },
-                    disableFileMemory: { label: t('fields.disableFileMemory') },
-                    disableWebSearch: { label: t('fields.disableWebSearch') },
-                    enableWebSearch: { label: t('fields.enableWebSearch') },
-                    disableToolAutoApproval: { label: t('fields.disableToolAutoApproval') },
+                    criteria: { label: t('fields.loopCriteria'), format: formatLoopCriteria },
+                    maxIterations: { label: t('agentEditor.loop.maxIterations') },
+                    freshContextPerIteration: { label: t('agentEditor.loop.freshContext') },
+                    onExhausted: { label: t('agentEditor.loop.onExhausted') },
+                    onCriterionError: { label: t('agentEditor.loop.onCriterionError') },
                   }}
                 />
-              </Section>
-            )}
+              </div>
+            </CompareSection>
+          )}
 
-            {(diff.data.left.harness?.loop ?? diff.data.right.harness?.loop) != null && (
-              <Section title={t('agentEditor.loop.title')}>
-                <div data-testid="loop-diff">
-                  <FieldDiffTable
-                    left={diff.data.left.harness?.loop}
-                    right={diff.data.right.harness?.loop}
-                    fields={{
-                      criteria: { label: t('fields.loopCriteria'), format: formatLoopCriteria },
-                      maxIterations: { label: t('agentEditor.loop.maxIterations') },
-                      freshContextPerIteration: { label: t('agentEditor.loop.freshContext') },
-                      onExhausted: { label: t('agentEditor.loop.onExhausted') },
-                      onCriterionError: { label: t('agentEditor.loop.onCriterionError') },
-                    }}
-                  />
-                </div>
-              </Section>
-            )}
+          {(data.left.compaction ?? data.right.compaction) !== undefined && (
+            <CompareSection title={t('agentDetail.compaction')}>
+              <FieldDiffTable
+                left={data.left.compaction}
+                right={data.right.compaction}
+                fields={{
+                  strategy: { label: t('fields.strategy') },
+                  triggerTokens: { label: t('fields.triggerTokens') },
+                  triggerMessages: { label: t('fields.triggerMessages') },
+                  triggerTurns: { label: t('fields.triggerTurns') },
+                  minimumPreservedTurns: { label: t('fields.minPreservedTurns') },
+                  minimumPreservedGroups: { label: t('fields.minPreservedGroups') },
+                  summarizationPrompt: { label: t('fields.summarizationPrompt') },
+                }}
+              />
+            </CompareSection>
+          )}
 
-            {(diff.data.left.compaction ?? diff.data.right.compaction) !== undefined && (
-              <Section title={t('agentDetail.compaction')}>
-                <FieldDiffTable
-                  left={diff.data.left.compaction}
-                  right={diff.data.right.compaction}
-                  fields={{
-                    strategy: { label: t('fields.strategy') },
-                    triggerTokens: { label: t('fields.triggerTokens') },
-                    triggerMessages: { label: t('fields.triggerMessages') },
-                    triggerTurns: { label: t('fields.triggerTurns') },
-                    minimumPreservedTurns: { label: t('fields.minPreservedTurns') },
-                    minimumPreservedGroups: { label: t('fields.minPreservedGroups') },
-                    summarizationPrompt: { label: t('fields.summarizationPrompt') },
-                  }}
-                />
-              </Section>
-            )}
-
-            {(diff.data.left.memory ?? diff.data.right.memory) !== undefined && (
-              <Section title={t('agentDetail.memory')}>
-                <FieldDiffTable
-                  left={diff.data.left.memory}
-                  right={diff.data.right.memory}
-                  fields={{
-                    enableFileMemory: { label: t('fields.enableFileMemory') },
-                    enableTodo: { label: t('fields.enableTodo') },
-                    enableTextSearch: { label: t('fields.enableTextSearch') },
-                  }}
-                />
-              </Section>
-            )}
-          </div>
-        )}
-      </div>
-    </Panel>
+          {(data.left.memory ?? data.right.memory) !== undefined && (
+            <CompareSection title={t('agentDetail.memory')}>
+              <FieldDiffTable
+                left={data.left.memory}
+                right={data.right.memory}
+                fields={{
+                  enableFileMemory: { label: t('fields.enableFileMemory') },
+                  enableTodo: { label: t('fields.enableTodo') },
+                  enableTextSearch: { label: t('fields.enableTextSearch') },
+                }}
+              />
+            </CompareSection>
+          )}
+        </div>
+      )}
+    </ComparePanel>
   );
 }
 
@@ -558,13 +430,4 @@ function cultureUnion(
   right: Record<string, string> | null | undefined,
 ): string[] {
   return [...new Set([...Object.keys(left ?? {}), ...Object.keys(right ?? {})])].sort();
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }): ReactNode {
-  return (
-    <section>
-      <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-subtle uppercase">{title}</h3>
-      {children}
-    </section>
-  );
 }

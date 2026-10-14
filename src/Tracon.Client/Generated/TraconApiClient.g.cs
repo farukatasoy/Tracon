@@ -4254,7 +4254,7 @@ namespace Tracon.Client.Generated
         /// Deletes a workflow definition.
         /// </summary>
         /// <remarks>
-        /// Only a stored definition can be deleted; a code-defined workflow is removed by changing the application, and asking for one here returns 404. Runs and checkpoints already recorded are kept, so past executions stay readable, but a checkpoint cannot be resumed once the definition it needs is gone.
+        /// Only a stored definition can be deleted; a code-defined workflow is removed by changing the application, and asking for one here returns 404. Runs and checkpoints already recorded are kept, so past executions stay readable, but a checkpoint cannot be resumed once the definition it needs is gone. The version history is kept too, so a version number is never given to a second content: saving the name again continues the numbering.
         /// </remarks>
         /// <returns>No Content</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
