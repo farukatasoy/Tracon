@@ -158,7 +158,7 @@ Uygulama oturumu (2026-10-14) yazdı; kapanış gözden geçirir.
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 (plan metni değişmedi; sapmalar yukarıda) |
-| Düzeltme turu sayısı | 2 (XML'deki geliştirme kaydı kimlikleri `ShippedDocumentationSelfContainmentTests`'te bir kez kırmızı · denetimin iki 🟡'ı tek turda) |
+| Düzeltme turu sayısı | 3 (XML'deki geliştirme kaydı kimlikleri `ShippedDocumentationSelfContainmentTests`'te bir kez kırmızı · denetimin iki 🟡'ı tek turda · kapanış kapısının ilk koşumu `build-agent-map.mjs --check`'te: site düzenlemesinden sonra `llms-full.txt` yeniden üretilmemişti) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
 | Fazın ürettiği regresyon | 0 (`ServiceRegistrationSnapshotTests` yeni doğrulayıcı tanımlayıcısıyla, bir doğrulayıcı testinin adı yeni davranışla bilinçli güncellendi) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz bugün kapandı) |
@@ -250,6 +250,12 @@ Hiçbir `secret` değeri yazılmadı ya da basılmadı.
    `TraconQuotaOptions.ThresholdPercents[1] is 'yuz', which is not a whole number. Values must be between 1 and 100.` ·
    `TraconWebhookOptions.RetryDelays[1] is 'soon', which is not a TimeSpan (for example 00:05:00). Values must be greater than zero.`
    Retention ve `MaskedPii` hataları aynı kaldı.
+7. **Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban 1292e24a` → **çıkış 0** (ikinci koşum):
+   tarama 5 sn · `--denetle` · betik testleri · agent haritası · denetim paketi · build 177 sn (0 uyarı) ·
+   test 700 sn (38 test koşumu, 22 444 test, 0 düşen; E2E dahil) · pack · format 154 sn · `npm run check`
+   47 sn (1090 sayfa, ağırlık tavanında). İlk koşum yalnız `build-agent-map.mjs --check`'te düştü:
+   `public/llms-full.txt` site düzenlemesinden sonra yeniden üretilmemişti; üretildi ve commit edildi. İki
+   koşumdan önce üretilen site `api/` dizini silindi (F-507); `SourceLanguageTests` yeşil.
 
 ## Denetim Bulguları
 
