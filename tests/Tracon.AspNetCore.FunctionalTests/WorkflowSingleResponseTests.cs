@@ -34,9 +34,9 @@ public sealed class WorkflowSingleResponseTests
         var first = await FramesAsync(responses[0]);
         var second = await FramesAsync(responses[1]);
 
-        // One run, announced by both streams; the follower reads it to its end.
+        // One run does the work, announced by both streams; the follower reads it to its end.
         RunIdOf(first).ShouldBe(RunIdOf(second));
-        (await WorkflowRunsAsync(host)).Count.ShouldBe(before + 1);
+        await OnlyOneRunWorkedAsync(host, before, RunIdOf(first));
         second[^1].Event.ShouldBe("done");
         second.ShouldContain(static frame => frame.Event == "event" && frame.Data.Contains("\"WorkflowOutput\"", StringComparison.Ordinal));
 
@@ -110,7 +110,7 @@ public sealed class WorkflowSingleResponseTests
         problemText.ShouldNotContain("true", Case.Insensitive);
         problemText.ShouldNotContain("false", Case.Insensitive);
 
-        (await WorkflowRunsAsync(host)).Count.ShouldBe(before + 1);
+        await OnlyOneRunWorkedAsync(host, before, runId);
         await AuditNamesOnlyTheStartedRunAsync(host, runId);
 
         foreach (var response in responses)
@@ -198,6 +198,9 @@ public sealed class WorkflowSingleResponseTests
 
         await harness.Parked.Task.WaitAsync(TimeSpan.FromSeconds(30));
 
+        var runsBeforeFollower = (await WorkflowRunsAsync(host)).Count;
+        Guid followed;
+
         // The follower reads the first frame and goes away.
         using (var followerAbort = new CancellationTokenSource())
         {
@@ -210,15 +213,20 @@ public sealed class WorkflowSingleResponseTests
 
             (await frames.MoveNextAsync()).ShouldBeTrue();
             frames.Current.Event.ShouldBe("run");
+            followed = JsonDocument.Parse(frames.Current.Data).RootElement.GetProperty("runId").GetGuid();
 
             await followerAbort.CancelAsync();
         }
+
+        // The follower opened nothing of its own.
+        (await WorkflowRunsAsync(host)).Count.ShouldBe(runsBeforeFollower);
 
         harness.Gate.SetResult();
 
         using var first = await firstTask;
         var runId = RunIdOf(await FramesAsync(first));
 
+        followed.ShouldBe(runId);
         (await host.WaitForTerminalRunAsync(runId)).Status.ShouldBe(RunStatus.Completed);
     }
 
@@ -377,13 +385,15 @@ public sealed class WorkflowSingleResponseTests
     }
 
     /// <summary>
-    /// Every answer that started a run is audited, and only that one names a run that exists.
+    /// Every answer that reached the claim is audited, and every entry names a run that exists:
+    /// the one that did the work, or the loser's own run, closed as already answered.
     /// </summary>
     /// <remarks>
-    /// Two answers that both find the request unclaimed both write their fail-closed entry
-    /// before they claim, and the loser's entry stays as an answer that was tried - the way a
-    /// lost race of two approval decisions leaves its entry. A follower that found the claim
-    /// writes nothing. So: one or two entries, exactly one of them naming a run that exists.
+    /// Two answers that both find the request unclaimed both write their fail-closed entry and open
+    /// their run before they claim (the run row comes first, so a claim never names a missing run).
+    /// The loser closes its own run as <see cref="RunStatus.Canceled"/> with the error type
+    /// <c>request_already_answered</c>; its entry stays as the answer that was tried. A follower
+    /// that found the claim writes nothing. So: one or two entries, all naming existing runs.
     /// </remarks>
     private static async Task AuditNamesOnlyTheStartedRunAsync(TraconTestHost host, Guid startedRun)
     {
@@ -400,8 +410,27 @@ public sealed class WorkflowSingleResponseTests
 
         foreach (var other in named.Where(run => run != startedRun))
         {
-            (await runs.GetRunAsync(other)).ShouldBeNull("an attempted answer's entry names a run that never started");
+            var lost = (await runs.GetRunAsync(other)).ShouldNotBeNull("an entry names a run that does not exist");
+
+            lost.Status.ShouldBe(RunStatus.Canceled);
+            lost.Error.ShouldNotBeNull().Type.ShouldBe("request_already_answered");
         }
+    }
+
+    /// <summary>
+    /// Exactly one new run did the work; any other new run is a race loser that closed itself
+    /// before the engine started it.
+    /// </summary>
+    private static async Task OnlyOneRunWorkedAsync(TraconTestHost host, int before, Guid worker)
+    {
+        var opened = await WorkflowRunsAsync(host);
+
+        opened.Count.ShouldBeInRange(before + 1, before + 2);
+        opened.ShouldContain(run => run.Id == worker);
+        opened
+            .Where(static run => string.Equals(run.Error?.Type, "request_already_answered", StringComparison.Ordinal))
+            .ShouldAllBe(static run => run.Status == RunStatus.Canceled);
+        (opened.Count - opened.Count(static run => string.Equals(run.Error?.Type, "request_already_answered", StringComparison.Ordinal))).ShouldBe(before + 1);
     }
 
     /// <summary>An answer store whose delivery write always fails, like a lost database write.</summary>

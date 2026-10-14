@@ -52,18 +52,29 @@ internal sealed class WorkflowResponseHarness
     /// <summary>Starts a host with the three graphs.</summary>
     /// <param name="runWorker">Whether the host's own worker leases queued jobs.</param>
     /// <param name="tenancy">Whether the tenant is read from <see cref="TenantHeader"/>.</param>
+    /// <param name="resumeInterruptedRuns">
+    /// Whether a queued job continues a run its process stopped (one continuation allowed).
+    /// </param>
     /// <param name="configureTracon">More Tracon configuration.</param>
     /// <param name="configureServices">More service registrations, made after Tracon's own.</param>
     /// <returns>The host.</returns>
     public Task<TraconTestHost> StartAsync(
         bool runWorker = true,
         bool tenancy = false,
+        bool resumeInterruptedRuns = false,
         Action<ITraconBuilder>? configureTracon = null,
         Action<IServiceCollection>? configureServices = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
-                builder.UseWorkflows();
+                builder.UseWorkflows(options =>
+                {
+                    if (resumeInterruptedRuns)
+                    {
+                        options.ResumeInterruptedRuns = true;
+                        options.MaxResumeAttempts = 1;
+                    }
+                });
 
                 builder.AddWorkflow(
                     SingleFlow,

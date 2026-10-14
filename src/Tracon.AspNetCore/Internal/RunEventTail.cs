@@ -30,17 +30,13 @@ internal static class RunEventTail
     /// Called after a read of a run in progress that found no new event, before the wait; a
     /// stream writes its keep-alive here.
     /// </param>
-    /// <param name="missingRowGrace">
-    /// How long a run whose row does not exist yet is waited for. <see cref="TimeSpan.Zero"/>
-    /// ends the read at once, which is right for a run that was asked for by id: no row means
-    /// the run is gone.
-    /// </param>
     /// <param name="cancellationToken">The cancellation token; it ends the read.</param>
     /// <returns>The events, in sequence order, together with the run as it was read last.</returns>
     /// <remarks>
     /// The read ends when the row is gone, or its status is no longer
     /// <see cref="RunStatus.Running"/> or <see cref="RunStatus.Queued"/>: <c>Queued</c> is an expected
-    /// intermediate status, since a worker may not have picked the job up yet.
+    /// intermediate status, since a worker may not have picked the job up yet. A missing row is
+    /// not waited for: every caller reads a run whose row exists or existed.
     /// </remarks>
     public static async IAsyncEnumerable<(RunEvent Event, RunRecord? Run)> ReadAsync(
         IRunStore runs,
@@ -48,13 +44,10 @@ internal static class RunEventTail
         long next,
         TimeSpan pollInterval,
         Func<CancellationToken, ValueTask> idleAsync,
-        TimeSpan missingRowGrace,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(runs);
         ArgumentNullException.ThrowIfNull(idleAsync);
-
-        var missingSince = (long?)null;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -71,16 +64,7 @@ internal static class RunEventTail
                 readAny = true;
             }
 
-            if (snapshot is null)
-            {
-                missingSince ??= Environment.TickCount64;
-
-                if (Environment.TickCount64 - missingSince.Value >= (long)missingRowGrace.TotalMilliseconds)
-                {
-                    break;
-                }
-            }
-            else if (snapshot.Status is not (RunStatus.Running or RunStatus.Queued))
+            if (snapshot is null || snapshot.Status is not (RunStatus.Running or RunStatus.Queued))
             {
                 break;
             }

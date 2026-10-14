@@ -15,23 +15,43 @@ namespace Tracon;
 /// <para>
 /// <strong>The audit entry comes first.</strong> Every answer that starts a run, in either mode,
 /// is written as <c>workflow.respond</c> with <see cref="AuditRecorder.WriteOrThrowAsync"/>
-/// BEFORE its record and its run: an entry that cannot be written refuses the answer. An answer
-/// that starts nothing (it follows, or it conflicts) changes nothing and writes nothing - the
-/// approval inbox does not write a repeated decision again either. The entry carries a hash of
-/// the answer, never the answer: the audit trail is not protected at rest.
+/// BEFORE its run row and its record: an entry that cannot be written refuses the answer. An
+/// answer that starts nothing (it follows, or it conflicts) changes nothing and writes nothing -
+/// the approval inbox does not write a repeated decision again either. The entry carries a hash
+/// of the answer, never the answer: the audit trail is not protected at rest.
+/// </para>
+/// <para>
+/// <strong>The run row comes before the record.</strong> The run an answer starts is opened -
+/// <see cref="RunStatus.Running"/> for a streamed answer, <see cref="RunStatus.Queued"/> for a
+/// queued one - before its record is written, so a record never names a run that does not
+/// exist. A repeat answer reads the record and follows that run; a record without a run would
+/// lock the request for good. Every write from the run row on uses
+/// <see cref="CancellationToken.None"/>: a caller who goes away between the row and the record
+/// must not leave one without the other.
 /// </para>
 /// <para>
 /// <strong>The record is the authority.</strong> In
 /// <see cref="WorkflowResponseMode.SingleAnswer"/> the claim in
-/// <see cref="IWorkflowResponseStore"/> decides which of two concurrent answers starts the run;
-/// in <see cref="WorkflowResponseMode.Branch"/> the record is the link from the source run to
-/// its answers. A record that cannot be written refuses the answer in both modes.
+/// <see cref="IWorkflowResponseStore"/> decides which of two concurrent answers starts the run.
+/// An answer that loses the claim closes the run it opened as <see cref="RunStatus.Canceled"/>
+/// with the error type <see cref="AlreadyAnsweredErrorType"/>; its audit entry names that run.
+/// The close is a plain row update: no webhook, metric or run event sink fires for it, because
+/// those fire from the engine's run writer, which never started. In
+/// <see cref="WorkflowResponseMode.Branch"/> the record is the link from the source run to its
+/// answers. A record that cannot be written refuses the answer in both modes, and the run opened
+/// for it is closed as <see cref="RunStatus.Failed"/>.
 /// </para>
 /// </remarks>
 internal static class WorkflowResponseGate
 {
     /// <summary>The audit action of an answer that starts a run.</summary>
     public const string AuditAction = "workflow.respond";
+
+    /// <summary>The error type of a run that lost the claim to another answer before it started.</summary>
+    public const string AlreadyAnsweredErrorType = "request_already_answered";
+
+    /// <summary>The error type of a run whose answer could not be recorded, so it never started.</summary>
+    public const string NotRecordedErrorType = "answer_not_recorded";
 
     /// <summary>
     /// How many times a claim that keeps changing hands under this answer is read again before
@@ -43,7 +63,7 @@ internal static class WorkflowResponseGate
     /// <summary>What an answer does.</summary>
     public enum Outcome
     {
-        /// <summary>Start a run under <see cref="Decision.RunId"/>.</summary>
+        /// <summary>Start the run <see cref="Decision.RunId"/>; its row is already open.</summary>
         Start,
 
         /// <summary>Follow the run an identical answer started.</summary>
@@ -51,6 +71,12 @@ internal static class WorkflowResponseGate
 
         /// <summary>A different answer holds the request.</summary>
         Conflict,
+
+        /// <summary>
+        /// An identical answer holds the request, but the run it started no longer exists (a data
+        /// subject erasure removed it); there is nothing to follow.
+        /// </summary>
+        Gone,
     }
 
     /// <summary>Reads the mode the source run is answered under.</summary>
@@ -99,12 +125,12 @@ internal static class WorkflowResponseGate
             ?? WorkflowResponseMode.Branch;
     }
 
-    /// <summary>Decides, records and audits one answer.</summary>
+    /// <summary>Decides, audits, opens the run and records one answer.</summary>
     /// <param name="answer">The answer and the run it answers.</param>
     /// <param name="services">The request's services.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="cancellationToken">The request's token; used only until the run row is opened.</param>
     /// <returns>What the answer does.</returns>
-    /// <exception cref="TraconException">The audit entry could not be written; nothing was recorded.</exception>
+    /// <exception cref="TraconException">The audit entry could not be written; nothing was opened or recorded.</exception>
     public static async ValueTask<Decision> DecideAsync(
         Answer answer,
         IServiceProvider services,
@@ -120,7 +146,13 @@ internal static class WorkflowResponseGate
         {
             // K-130 kept: every answer opens its own run. The record claims nothing.
             await AuditAsync(answer, answer.NewRunId, redrive: false, actor, services, cancellationToken).ConfigureAwait(false);
-            await store.AddAsync(Record(answer, answer.NewRunId, claimScope: null, actor), cancellationToken).ConfigureAwait(false);
+            await OpenRunAsync(answer, answer.NewRunId, services).ConfigureAwait(false);
+            await RecordOrCloseAsync(
+                    answer,
+                    answer.NewRunId,
+                    services,
+                    () => store.AddAsync(Record(answer, answer.NewRunId, claimScope: null, actor), CancellationToken.None).AsTask())
+                .ConfigureAwait(false);
 
             return Start(answer.NewRunId, redrive: false);
         }
@@ -134,9 +166,13 @@ internal static class WorkflowResponseGate
             if (existing is null)
             {
                 await AuditAsync(answer, answer.NewRunId, redrive: false, actor, services, cancellationToken).ConfigureAwait(false);
+                await OpenRunAsync(answer, answer.NewRunId, services).ConfigureAwait(false);
 
-                var claim = await store
-                    .AddAsync(Record(answer, answer.NewRunId, scope, actor), cancellationToken)
+                var claim = await RecordOrCloseAsync(
+                        answer,
+                        answer.NewRunId,
+                        services,
+                        () => store.AddAsync(Record(answer, answer.NewRunId, scope, actor), CancellationToken.None).AsTask())
                     .ConfigureAwait(false);
 
                 if (claim.Claimed)
@@ -144,12 +180,17 @@ internal static class WorkflowResponseGate
                     return Start(answer.NewRunId, redrive: false);
                 }
 
-                // Lost the race. The entry written above stays as the answer that was tried,
-                // the way a lost race of two approval decisions leaves its entry.
+                // Lost the race. The run opened for this answer never starts; its audit entry
+                // stays and names it, as the answer that was tried.
+                await CloseLostRunAsync(answer, answer.NewRunId, services).ConfigureAwait(false);
+
                 existing = claim.Existing;
 
                 if (existing is null)
                 {
+                    // The claim changed hands between the write and the read; the next turn reads
+                    // it again, with a fresh run id.
+                    answer = answer with { NewRunId = TraconId.NewId() };
                     continue;
                 }
             }
@@ -159,28 +200,40 @@ internal static class WorkflowResponseGate
                 return new Decision(Outcome.Conflict, Guid.Empty, Guid.Empty, Redrive: false);
             }
 
-            var (stopped, inFlight) = await StoppedBeforeFinishingAsync(existing, answer.TenantId, services, cancellationToken)
-                .ConfigureAwait(false);
+            var state = await ReadStateAsync(existing, answer.TenantId, services, cancellationToken).ConfigureAwait(false);
 
-            if (!stopped)
+            if (state.Gone)
             {
-                return new Decision(Outcome.Follow, existing.ResponseRunId, inFlight, Redrive: false);
+                return new Decision(Outcome.Gone, existing.ResponseRunId, Guid.Empty, Redrive: false);
+            }
+
+            if (!state.Stopped)
+            {
+                return new Decision(Outcome.Follow, existing.ResponseRunId, state.InFlight, Redrive: false);
             }
 
             // The run this answer started stopped before it finished with it: the same answer
             // starts the work again (the approval inbox's "the same decision re-drives the
             // hand-off"). The replacement is a compare-and-swap; of two re-drives one wins and
-            // the other follows it on the next turn.
+            // the other closes its own run and follows the winner on the next turn.
             var redriveRunId = TraconId.NewId();
 
             await AuditAsync(answer, redriveRunId, redrive: true, actor, services, cancellationToken).ConfigureAwait(false);
+            await OpenRunAsync(answer, redriveRunId, services).ConfigureAwait(false);
 
-            if (await store
-                    .ReplaceAsync(existing.ResponseRunId, Record(answer, redriveRunId, scope, actor), cancellationToken)
-                    .ConfigureAwait(false))
+            var replaced = await RecordOrCloseAsync(
+                    answer,
+                    redriveRunId,
+                    services,
+                    () => store.ReplaceAsync(existing.ResponseRunId, Record(answer, redriveRunId, scope, actor), CancellationToken.None).AsTask())
+                .ConfigureAwait(false);
+
+            if (replaced)
             {
                 return Start(redriveRunId, redrive: true);
             }
+
+            await CloseLostRunAsync(answer, redriveRunId, services).ConfigureAwait(false);
         }
 
         throw new TraconException(
@@ -189,34 +242,38 @@ internal static class WorkflowResponseGate
     }
 
     /// <summary>
-    /// Whether the run an answer started stopped before it finished with the answer, so the same
-    /// answer may start the work again.
+    /// Reads whether the run an answer started stopped before it finished with the answer, so the
+    /// same answer may start the work again, and which run a follower watches.
     /// </summary>
     /// <remarks>
     /// <para>
     /// The run's recovery chain (<see cref="WorkflowContinuationChain"/>) is read forward from the
     /// run the answer started; its LAST run decides, because a queued answer that was interrupted
-    /// continues under a new run. Only a chain that ended
-    /// <see cref="RunStatus.Failed"/> or <see cref="RunStatus.Canceled"/> stopped; a running,
-    /// queued, waiting or completed one did not.
+    /// continues under a new run. Only a chain that ended <see cref="RunStatus.Failed"/> or
+    /// <see cref="RunStatus.Canceled"/> stopped; a running, queued, waiting or completed one did not.
     /// </para>
     /// <para>
-    /// A run with no row yet is in flight, not stopped. The row is opened right after the
-    /// claim, by the same request; a second identical answer that reads the claim between the two
-    /// writes must follow it. Treating "no row" as stopped started a second run for a double click.
+    /// <strong>The queue job is the owner while it lives.</strong> A queued answer's job carries
+    /// the run's id. While that job is not finished, its recovery continues the chain after a
+    /// restart or a reconciled orphan; the same answer starting a run beside it would apply the
+    /// answer twice. The answer then follows instead.
     /// </para>
     /// <para>
-    /// A record still <see cref="WorkflowResponseStatus.Accepted"/> was never handed to the
-    /// workflow, so starting again is safe. A <see cref="WorkflowResponseStatus.Delivered"/> one
-    /// starts again only when no run of its chain wrote a checkpoint: there is nothing to resume
-    /// from, and leaving it would lock the request for good.
+    /// <strong>Delivery.</strong> A record still <see cref="WorkflowResponseStatus.Accepted"/> with a
+    /// chain of one run was never handed to the workflow, so starting again is safe. Any other
+    /// stopped chain - a <see cref="WorkflowResponseStatus.Delivered"/> record, or an accepted one
+    /// that a recovery continuation carried (the continuation applies the answer under its own id,
+    /// and only the first run's delivery is recorded) - starts again only when no run of the chain
+    /// wrote a checkpoint: there is nothing to resume from, and leaving it would lock the request
+    /// for good.
+    /// </para>
+    /// <para>
+    /// A record whose run no longer exists is <see cref="Outcome.Gone"/>: the row was opened before
+    /// the record (see the type's remarks), so a missing row was removed later, by a data subject
+    /// erasure.
     /// </para>
     /// </remarks>
-    /// <returns>
-    /// Whether the work stopped, and the run a follower watches: the chain's last run, or the
-    /// answer's own run while it has no row yet.
-    /// </returns>
-    private static async ValueTask<(bool Stopped, Guid InFlight)> StoppedBeforeFinishingAsync(
+    private static async ValueTask<RecordState> ReadStateAsync(
         WorkflowResponseRecord existing,
         string tenantId,
         IServiceProvider services,
@@ -229,19 +286,26 @@ internal static class WorkflowResponseGate
 
         if (chain.Count == 0)
         {
-            return (false, existing.ResponseRunId);
+            return new RecordState(Gone: true, Stopped: false, Guid.Empty);
         }
 
         var last = chain[^1];
 
         if (last.Status is not (RunStatus.Failed or RunStatus.Canceled))
         {
-            return (false, last.Id);
+            return new RecordState(Gone: false, Stopped: false, last.Id);
         }
 
-        if (existing.Status == WorkflowResponseStatus.Accepted)
+        if (await services.GetRequiredService<IJobStore>()
+                .GetAsync(tenantId, existing.ResponseRunId, cancellationToken)
+                .ConfigureAwait(false) is { Status: JobStatus.Pending or JobStatus.Leased or JobStatus.Running })
         {
-            return (true, last.Id);
+            return new RecordState(Gone: false, Stopped: false, last.Id);
+        }
+
+        if (existing.Status == WorkflowResponseStatus.Accepted && chain.Count == 1)
+        {
+            return new RecordState(Gone: false, Stopped: true, last.Id);
         }
 
         var checkpoints = services.GetRequiredService<IWorkflowCheckpointStore>();
@@ -250,11 +314,117 @@ internal static class WorkflowResponseGate
         {
             if ((await checkpoints.ListByRunAsync(tenantId, run.Id, cancellationToken).ConfigureAwait(false)).Count > 0)
             {
-                return (false, last.Id);
+                return new RecordState(Gone: false, Stopped: false, last.Id);
             }
         }
 
-        return (true, last.Id);
+        return new RecordState(Gone: false, Stopped: true, last.Id);
+    }
+
+    /// <summary>
+    /// Opens the row of the run an answer starts, before the record that names it is written.
+    /// </summary>
+    private static async ValueTask OpenRunAsync(Answer answer, Guid runId, IServiceProvider services)
+        => await services.GetRequiredService<IRunStore>().StartRunAsync(
+            new RunStartInfo
+            {
+                RunId = runId,
+                AgentName = answer.Source.WorkflowName!,
+                Kind = RunKind.Workflow,
+                WorkflowName = answer.Source.WorkflowName,
+
+                // A queued run stays Queued until the worker starts it (a run cancelled from the
+                // queue closes like any queued run); a streamed one starts on this request.
+                Status = answer.Queued ? RunStatus.Queued : RunStatus.Running,
+                StartedAt = DateTimeOffset.UtcNow,
+                TenantId = answer.TenantId,
+                UserId = answer.UserId,
+                Labels = answer.Labels,
+                SessionId = answer.Source.SessionId,
+                IsStreaming = true,
+            },
+            CancellationToken.None).ConfigureAwait(false);
+
+    /// <summary>
+    /// Writes the record of an answer whose run is already open; when the write fails, closes that
+    /// run as <see cref="RunStatus.Failed"/> and lets the failure through.
+    /// </summary>
+    private static async ValueTask<T> RecordOrCloseAsync<T>(
+        Answer answer,
+        Guid runId,
+        IServiceProvider services,
+        Func<Task<T>> write)
+    {
+        try
+        {
+            return await write().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            await CloseAsync(
+                answer,
+                runId,
+                RunStatus.Failed,
+                new RunError
+                {
+                    Type = NotRecordedErrorType,
+                    Message = $"The answer to request '{answer.RequestId}' could not be recorded, so this run never started.",
+                },
+                services).ConfigureAwait(false);
+
+            throw new TraconException(
+                $"The answer to request '{answer.RequestId}' of run '{answer.Source.Id}' was not applied because it could not be recorded.",
+                exception);
+        }
+    }
+
+    /// <summary>Closes the run of an answer that lost the request to another answer.</summary>
+    private static ValueTask CloseLostRunAsync(Answer answer, Guid runId, IServiceProvider services)
+        => CloseAsync(
+            answer,
+            runId,
+            RunStatus.Canceled,
+            new RunError
+            {
+                Type = AlreadyAnsweredErrorType,
+                Message = $"Request '{answer.RequestId}' was already answered by another call, so this run never started.",
+            },
+            services);
+
+    /// <summary>
+    /// Closes a run the engine never started. Best-effort: the decision is already made, and a row
+    /// that cannot be closed is left to run reconciliation.
+    /// </summary>
+    private static async ValueTask CloseAsync(
+        Answer answer,
+        Guid runId,
+        RunStatus status,
+        RunError error,
+        IServiceProvider services)
+    {
+        try
+        {
+            await services.GetRequiredService<IRunStore>().CompleteRunAsync(
+                new RunCompletion
+                {
+                    RunId = runId,
+                    Status = status,
+                    CompletedAt = DateTimeOffset.UtcNow,
+                    Error = error,
+                    TenantId = answer.TenantId,
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Tracon.WorkflowEndpoints")
+                .LogWarning(
+                    exception,
+                    "Run {RunId}, opened for an answer to request {RequestId} that never started, could not be closed.",
+                    runId,
+                    answer.RequestId);
+        }
     }
 
     private static Decision Start(Guid runId, bool redrive) => new(Outcome.Start, runId, runId, redrive);
@@ -310,24 +480,37 @@ internal static class WorkflowResponseGate
     /// <param name="Mode">The mode the source is answered under.</param>
     /// <param name="NewRunId">The run id a fresh answer starts.</param>
     /// <param name="TenantId">The caller's tenant.</param>
+    /// <param name="Queued">Whether the answer is queued (<c>Prefer: respond-async</c>) or streamed.</param>
+    /// <param name="UserId">The caller's user, read once through <c>RunAttributionReader</c>.</param>
+    /// <param name="Labels">The caller's labels, read in the same read.</param>
     public sealed record Answer(
         RunRecord Source,
         string RequestId,
         string AnswerHash,
         WorkflowResponseMode Mode,
         Guid NewRunId,
-        string TenantId);
+        string TenantId,
+        bool Queued,
+        string? UserId,
+        IReadOnlyDictionary<string, string>? Labels);
 
     /// <summary>What the gate decided.</summary>
     /// <param name="Outcome">What the answer does.</param>
     /// <param name="RunId">
-    /// The run to start, or the run the identical answer started (what its <c>202</c> named);
-    /// empty for a conflict.
+    /// The run to start (its row is open), or the run the identical answer started (what its
+    /// <c>202</c> named); empty for a conflict.
     /// </param>
     /// <param name="FollowRunId">
-    /// The run a streamed follower watches: the last run of <paramref name="RunId"/>'s recovery
-    /// chain, which is the work in flight when a queued answer was interrupted and continued.
+    /// The run a streamed follower watches first: the last run of <paramref name="RunId"/>'s
+    /// recovery chain, which is the work in flight when a queued answer was interrupted and
+    /// continued.
     /// </param>
     /// <param name="Redrive">Whether the run starts the work of a stopped answer again.</param>
     public readonly record struct Decision(Outcome Outcome, Guid RunId, Guid FollowRunId, bool Redrive);
+
+    /// <summary>What a stored answer's run chain says about it.</summary>
+    /// <param name="Gone">The record's run no longer exists.</param>
+    /// <param name="Stopped">The work stopped before it finished with the answer.</param>
+    /// <param name="InFlight">The run a follower watches first.</param>
+    private readonly record struct RecordState(bool Gone, bool Stopped, Guid InFlight);
 }

@@ -547,17 +547,40 @@ Hiçbir ölçüm onaylı bir öneriyi düşürmedi.
 
 Uygulama günlüğünde hata yoktu.
 
+### Bakımcı kararları — 2026-10-14 (bağımsız denetimden sonra)
+
+- **🔴1 → önce satır, sonra iddia.** Cevabın run satırı (akışlıda `Running`, kuyrukluda `Queued`) kayıttan/iddiadan ÖNCE açılır; her `SingleAnswer` yolunda (ilk cevap ve yeniden sürme) ve `Branch`'te de. Değişmez: **bir kayıt hiçbir zaman var olmayan bir run'ı adlandırmaz** (`WorkflowResponseGate` remarks, `WorkflowResponseOwnershipTests`). Yarışı kaybeden kendi run'ını `Canceled` kapatır; sebep mevcut durdurma-sebebi mekanizmasıyla (`RunError.Type`) yazılır: `request_already_answered`. Yeni public enum üyesi gerekmedi. Kapatma düz bir satır güncellemesidir (`IRunStore.CompleteRunAsync`): webhook, metrik ve olay alıcısı motorun yazıcısından tetiklenir ve motor hiç başlamadığı için hiçbiri tetiklenmez; run listesi ve istatistik onu olaysız bir `Canceled` workflow run'ı olarak sayar. Kayıt yazılamazsa açılan run `Failed` + `answer_not_recorded` ile kapanır ve cevap `500` alır (`RecordOrCloseAsync`). Atıf (kullanıcı, etiketler) kararın ÖNÜNDE bir kez `RunAttributionReader` ile okunur ve aşağı geçirilir (fırlatan getter run'ı atıfsız kaydeder, kilitlemez); aynı okuma run/resume kuyruk yoluna da uygulandı. Satırdan sonraki her yazım `CancellationToken.None` kullanır (kayıt, kaybedenin kapatılması, kuyruk işi). İzleme akışı satırı olmayan ya da hiç başlamamış işi `error` ile bitirir; eski 30 sn bekleme (`missingRowGrace`) kaldırıldı.
+- **🔴2 → kuyruk işi yaşarken izle.** Zincirin başı, işi bitmemiş (`Pending`/`Leased`/`Running`) kuyruklu bir run ise (iş kimliği = run kimliği, K-924) kapı yeniden sürmez, izler; işin kurtarması işi sürdürür. İzleme akışı ardılı bekler.
+- **🟡1 → belgele.** Uzlaştırma kapalıyken (varsayılan) çöken akışlı devam `Running` kalır ve istek kilitlenir. `WorkflowResponseMode.SingleAnswer` XML'i ve `CHANGELOG` bunu söyler; yeni mekanizma yok. Site kapanışta.
+- **🟡2 → zincir kuralı (seçenek b).** Kaynak run'ı `Accepted` ama zinciri birden uzun olan kayıt (kurtarma devamı cevabı kendi kimliğiyle yeniden uyguladı, teslim yalnız baş için yazılır) checkpoint kuralından geçer: zincirde checkpoint varsa izlenir, yoksa yeniden sürülür. Gerekçe: karar var olan satırlardan (zincir, checkpoint) türetilir, en-iyi-çaba bir teslim yazımından değil; seçenek (a) (teslimi işin baş kimliğine yazmak) runner'a ortam kanalıyla bir iş kimliği taşımayı gerektirirdi (`JobAttemptSignals` kimlik taşımıyor) ve kayıp bir teslim yazımı yine tek bariyer olurdu. Tek run'lık zincirde kaybolan teslim yazımı planlanan en-az-bir-kez riskidir (Riskler).
+- **🟡4 → `Branch` de önce satır.** Kuyruk yolunda `QueueAsync` kayıttan sonra düşerse kalan sarkık kayıt sorunu, satır kayıttan önce açıldığı için kapandı: iş kuyruğa giremezse `QueuedRunPlaceholder` satırı `Failed` kapatır, kayıt kapanmış bir run'ı adlandırır.
+- **🟡5 → metin düzeltildi.** Kaydı yalnız veri sahibi silmesi kaynak run'la birlikte siler; hiçbir saklama hedefi `runs` silmez. `IWorkflowResponseStore` XML, `CHANGELOG` ve PostgreSQL `0060` yorumu düzeltildi (yorum değişikliği migration checksum'ını değiştirir; dosya yayımlanmadı, `applied-migrations.json` yeni commit'e ankrajlandı — bu dalın eski `0060`'ını uygulamış bir veritabanı açılışta checksum hatası verir ve sıfırlanmalıdır). Sınırsız büyüme kapanışta aday; Faz 209 kendi izdüşümünün saklamasını taşır.
+
+### Önce kırmızı kaydı (dürüst)
+
+| Test | Nasıl kırmızı görüldü |
+|---|---|
+| `WorkflowDefinitionStoreContract` yeni round-trip case'leri | Gerçek kırmızı (SQLite, payload alanı eklenmeden) |
+| `full-replace-editors.test.tsx` iş akışı case'leri | Gerçek kırmızı (`tsc` + 5 vitest) |
+| `WorkflowResponseOwnershipTests` ilk altı case (fırlatan atıf ×2, kaybedenin satırı ×2, satır ile iddia arası kopma, kuyruk işi yaşarken ikinci sahip) | Gerçek kırmızı (iddia-önce kodda; 2026-10-14). Kopma case'i iddia-önce kodda satır hiç açılmadığı için kırmızıydı |
+| Mimari kapılar, tablo sayıları, SQL metin anlık görüntüsü, kapsama listeleri | Yeni yüzey önce kırmızı yaptı, sonra güncellendi |
+| `WorkflowSingleResponseTests` (7/11) | Mutasyon (tek-cevap yolu kapatıldı); kod testten önce yazılmıştı |
+| `WorkflowResponseStoreContract` (4 case) | Mutasyon (iddia denetimi silindi) |
+| `WorkflowResponseModeVersionTests` | Mutasyon (kayıtlı sürüm yok sayıldı) |
+| Ownership: 6-A ×2, 🟡2 zincir kuralı, motor-önce-düşerse satır kapanır, eşzamanlı iki yeniden sürme | Mutasyon (her biri ayrı: kural silindi / CAS sonucu yok sayıldı / `finally` kapatması kapatıldı) |
+| Önce kırmızı görülmedi | `WorkflowResponseRecordTests`, `FailClosedAuditTests` yeni iki case, `WorkflowResponseLinkTests`, `WorkflowAnswerDigestTests`, konsol rozet/409/geri bağ testleri, izleyicinin run kimliği ve sayım iddiası |
+
 ### Uygulama sapmaları
 
 - **Enum üyesi `Single` → `SingleAnswer`.** CA1720 (`Single` bir tip adı) derlemeyi kırdı; depoda CA1720 bastırma emsali yok ve public isimde bastırma bir karar satırı ister. Telde değer `"SingleAnswer"`.
 - **`ReplaceAsync(…, next)` → `replacement`.** CA1716 (`Next` VB anahtar sözcüğü).
 - **`AddWorkflow(…, string? description = null)` ikiye bölündü** (`(name, factory)` ve `(name, factory, string? description)`). RS0027: isteğe bağlı parametreli overload en çok parametreye sahip olmalı. Kaynak uyumlu; yalnız üçüncü argümana düz `null` geçen çağrı belirsizleşir (`CHANGELOG` Changed).
-- **🚨 Yeniden sürme koşulu 2 değişti: "satırı olmayan devam" durmuş DEĞİL, yoldadır.** Plan "son run yoktur → yeniden sür" diyordu. Çift tıklamada ikinci istek iddiayı, ilk isteğin run satırını açmasından önceki anda okuyabilir; plan kuralıyla ikinci bir devam açılırdı. Kapatma iki parçadır: (a) satırı olmayan iddia izlenir; (b) akışlı `SingleAnswer` devamının satırını uç, iddiadan hemen sonra `Running` olarak **önceden açar** (kuyruklu yolda `QueueAsync`'in `Queued` satırı zaten bu işi yapar). Motor satırı devralmazsa (ilk olaydan önce hata ya da istemci kopması) `WorkflowEventStream` satırı `Failed`/`Canceled` kapatır; böylece o yol yeniden sürülebilir kalır. Kalan risk: iddia yazımı ile satır yazımı arasındaki süreç çökmesi ya da o satır yazımının hata vermesi isteği kilitler; izleyen akış satırı 30 sn bekler, sonra olaysız biter. Aday adayı (yönetici çıkışı, Açık Soru 6'nın kapsam dışı satırıyla aynı sınıf).
+- **🚨 Yeniden sürme koşulu 2 değişti; tasarım bağımsız denetimden sonra "önce satır, sonra iddia" oldu** (aşağıda, *Bakımcı kararları — 2026-10-14*). İlk uygulama "satırı olmayan iddia yoldadır" kuralıyla çift tıklama yarışını kapatıyordu ama iddiadan sonraki satır yazımı düşerse isteği kalıcı kilitliyordu (denetim 🔴1). Geçerli kural: satır iddiadan ÖNCE açılır, bu yüzden satırı olmayan bir iddia yalnız satır sonradan silindiyse olur (`Gone`, `409`).
 - **CAS koşulu `status = 0` değil `status <> 2`.** Açık Soru 6-A, teslim edilmiş ama kendi checkpoint'i olmayan devamı da yeniden sürer; o satır `Delivered`'dır.
-- **İzleme hedefi ikiye ayrıldı.** Akışlı izleyici kurtarma zincirinin SON run'ını izler (kesilip devam eden kuyruklu cevapta asıl iş odur); kuyruklu izleyici ilk cevabın `202`'sinin aynısını alır (baş run). İlk cevap akışlı verildiyse kuyruklu izleyicinin `jobId`'si run kimliğidir ve bir işi adlandırmaz (K-924 kuralı: iş kimliği run kimliğidir). Bakımcıya not.
+- **İzleme hedefi ikiye ayrıldı.** Akışlı izleyici kurtarma zincirinin SON run'ından başlar ve İŞİ izler: izlediği run bitince ardılını (`ContinuedFromRunId`) izler, kuyruk işi bitmemişse ardılı bekler; satırı olmayan ya da hiç olay yazmamış işi `done` değil `error` ile bitirir (denetim 🔴1). Kuyruklu izleyici ilk cevabın `202`'sinin aynısını alır (baş run). İlk cevap akışlı verildiyse kuyruklu izleyicinin `jobId`'si run kimliğidir ve bir işi adlandırmaz (K-924 kuralı: iş kimliği run kimliğidir). Bakımcıya not.
 - **Kuyruk kapalıyken `501` kararın ÖNÜNE alındı.** Aksi hâlde denetim + iddia yazılır, sonra `501` dönerdi ve iddia run'sız kalırdı.
 - **Fail-closed çağrı yeri `WorkflowEndpoints.cs` değil `Internal/WorkflowResponseGate.cs`.** Plan kapıyı bu dosyaya koyuyordu; `AuditWritePolicyTests` satırı ve `AuditContentPolicyTests.AllowedCallSites` gerçek dosyayı adlandırır. Tek çağrı yeri (taze cevap, yarış kaybı ve yeniden sürme aynı yardımcıdan geçer): 7 işlem / 10 çağrı yeri.
-- **Eşzamanlı iki cevap iki denetim satırı bırakabilir.** İkisi de iddiayı boş bulursa ikisi de önce yazar; kaybedenin satırı "denenen cevap" olarak kalır (plan §208.3 son madde, onay kutusu emsali). Testler "1–2 kayıt, tam biri var olan run'ı adlandırır" diye sabitler.
+- **Eşzamanlı iki cevap iki denetim satırı ve iki run satırı bırakabilir.** İkisi de iddiayı boş bulursa ikisi de denetimi yazar ve run'ını açar; kaybeden kendi run'ını `Canceled` + `request_already_answered` ile kapatır ve denetim satırı o (var olan) run'ı adlandırır (plan §208.3 son madde, onay kutusu emsali). Testler "1–2 kayıt, hepsi var olan run'ı adlandırır; diğeri kapanmış kaybedendir" diye sabitler.
 - **`WorkflowContinuationChain` çıkarıldı.** Zincir yürüyüşü `WorkflowRecovery`'den ortak yardımcıya taşındı (davranış aynı); geri sürme kontrolü onu kullanır — elle ikinci kopya yok.
 - **`RunAuthorizationCoverageTests`**: `WorkflowEndpoints.cs` kaynak kapısı 2 → 3 (`GET …/responses`).
 - **🚨 `kapi.py tarama` göç bütünlüğü kapısı commit ister.** Üç yeni migration (`0060`/`0048`/`0047`) git tabanında yoktur; kapı onları `scripts/applied-migrations.json` `sourceCommits` ile, onları ekleyen commit'e ankrajlanana kadar kırmızı sayar (`hafiza/sql-migration.md`). Bu oturum commit atmadı; ankraj kapanışta yapılır.
@@ -594,6 +617,21 @@ Uygulama günlüğünde hata yoktu.
 ## Denetim Bulguları
 
 > Kapanışta doldurulur — `faz-denetim` çıktısı.
+
+Bağımsız `faz-denetim`, 2026-10-14: 2 🔴, 5 🟡, 3 🟢.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Satırı olmayan iddia sonsuza dek "yolda" sayılır; iddiadan sonraki satır yazımı (fırlatan atıf getter'ı, istemci kopması, geçici hata, çökme) düşerse `SingleAnswer` isteği kalıcı kilitlenir; izleyen 30 sn sonra olaysız `done`, kuyruklu tekrar var olmayan run için `202` alır | 🔴 | Düzeltildi: önce satır, sonra iddia; kaybeden kendi satırını kapatır; atıf kararın önünde okuyucu ile bir kez okunur; satırdan sonra `CancellationToken.None`; izleme `error` ile biter. `WorkflowResponseOwnershipTests` |
+| Yeniden sürme, kuyruk işinin kurtarmasının yanında ikinci sahip olur (yeniden sürülen run `ContinuedFromRunId` taşımaz, zincir onu görmez) | 🔴 | Düzeltildi: baş run'ın işi bitmemişse kapı izler. `A_repeat_while_the_queued_answers_job_is_unfinished_…` önce kırmızı |
+| Uzlaştırma kapalıyken çöken devam `Running` kalır, istek kilitlenir | 🟡 | Belgelendi (XML, `CHANGELOG`); site kapanışta |
+| Checkpoint'siz kurtarma cevabı devam kimliğiyle yeniden uygular; teslim yazılmaz, kayıt `Accepted` kalır, kapı checkpoint'e bakmadan yeniden sürer | 🟡 | Düzeltildi: zinciri birden uzun `Accepted` kayıt checkpoint kuralından geçer. Test + mutasyon |
+| İzleyici testi run kimliğini ve sayımı doğrulamıyor; `finally` kapatması, 6-A, eşzamanlı yeniden sürme case'leri yok; önce-kırmızı kaydı yok | 🟡 | Eklendi (bkz. *Önce kırmızı kaydı*) |
+| `CHANGELOG` `Branch` modu değişikliklerini (kayıt yazımı düşerse `500`; `WorkflowResponseApplied` sıra 1, sonraki olaylar kayar) ve kuyruk yolundaki sarkık kaydı anmıyor | 🟡 | `CHANGELOG` Changed; sarkık kayıt önce-satır sırasıyla kapandı |
+| Metin "saklama kaydı kaynak run'la siler" diyor; hiçbir saklama hedefi `runs` silmez | 🟡 | Düzeltildi (XML, `CHANGELOG`, `0060` yorumu); sınırsız büyüme kapanışta aday, Faz 209'a not |
+| Teslim edilmemiş devam düştükten sonra zıt cevap hep `409` alır; motorun teslimde reddettiği bir cevap isteği kilitler; yönetici çıkışı yok | 🟢 | Kapanışta aday |
+| Yalnız devam run'ının silinmesi kaydı bırakır (FK yalnız `source_run_id`'de); zincir boş görünür | 🟢 | Kapanışta aday (şimdilik `Gone` → `409`) |
+| Açık bir `Branch` `definitionVersion`'ıyla `/resume` tek-cevap iddiasını atlar (yalnız Operator/Admin) | 🟢 | Kapanışta aday |
 
 ## Sonraki Faza Devir Notu
 

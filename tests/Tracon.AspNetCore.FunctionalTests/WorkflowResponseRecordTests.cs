@@ -146,22 +146,31 @@ public sealed class WorkflowResponseRecordTests
     }
 
     [Fact]
-    public async Task An_answer_store_that_cannot_write_refuses_the_answer_and_opens_no_run()
+    public async Task An_answer_store_that_cannot_write_refuses_the_answer_and_closes_the_run_it_opened()
     {
+        // The run row is opened before the record (a record never names a missing run), so a
+        // record that cannot be written leaves that row: it is closed Failed, never started.
         var harness = new WorkflowResponseHarness();
         await using var host = await harness.StartAsync(configureServices: static services =>
             services.AddSingleton<IWorkflowResponseStore, BrokenResponseStore>());
         var (sourceId, requestId) = await RunToAwaitAsync(host, BranchFlow);
-        var before = (await WorkflowRunsAsync(host)).Count;
+        var before = (await WorkflowRunsAsync(host)).Select(static run => run.Id).ToHashSet();
 
         // No exception handler in the test host: the refusal surfaces as the exception a real
         // host answers with 500 (the FailClosedAuditTests convention).
-        await Should.ThrowAsync<InvalidOperationException>(async () =>
+        await Should.ThrowAsync<TraconException>(async () =>
         {
             using var _ = await RespondAsync(host, sourceId, new { requestId, approved = true });
         });
 
-        (await WorkflowRunsAsync(host)).Count.ShouldBe(before);
+        var opened = (await WorkflowRunsAsync(host)).Where(run => !before.Contains(run.Id)).ToList().ShouldHaveSingleItem();
+
+        opened.Status.ShouldBe(RunStatus.Failed);
+        opened.Error.ShouldNotBeNull().Type.ShouldBe("answer_not_recorded");
+
+        var events = await host.Services.GetRequiredService<IRunStore>().ReadEventsAsync(opened.Id, 0).ToListAsync();
+
+        events.ShouldBeEmpty();
     }
 
     [Fact]
