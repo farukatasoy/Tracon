@@ -293,7 +293,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
 ### Kusur giderme
 
-2026-10-12'de üç tur kapandı: önce 🟠 kalemler (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile), sonra 🟡 kalemler (F-315, F-332…F-340, F-348, F-349, F-351, F-352; K-892…K-896), sonra tüketici turunun kusurları (F-341…F-344, F-354, F-360, F-364…F-367, F-369…F-372; K-903…K-911). F-382 bu turun kendi ölçümüdür; F-386…F-404 kapanan kusurların sınıf taramalarından gelir. 2026-10-13'te F-383, F-384, F-385 ve F-388 kapandı (K-912, K-913); sınıf taramaları ve bağımsız inceleme F-416…F-419'u açtı. Faz 201 kapanışında F-423 (kapıyı kıran test yarışı) açıldı ve kapandı. Faz 198 kapanışı (konuşma kapısının sınıf taraması ve denetimi) F-441…F-446'yı açtı. Aynı gün ölçümlü aciliyet turu F-431, F-432, F-401, F-387 ve F-416'yı kapattı (K-933…K-936), F-400'ü daralttı, F-418'i faz planlamaya taşıdı, F-291'i kusur kanalına aldı ve sınıf taramasından F-447'yi açtı. İkinci tur F-382, F-386, F-389, F-396, F-400, F-361, F-291 ve F-447'yi kapattı (K-937…K-941); F-389'un sınıf taraması F-448'i açtı. 2026-10-14'te F-398, F-419, F-448, F-433, F-391, F-350 ve F-481 kapandı (K-975…K-981); sınıf taramaları F-485…F-487'yi açtı. Aynı gün ikinci tur F-429, F-353, F-442, F-444, F-426, F-430, F-356, F-393, F-484 ve F-443'ü kapattı (K-982…K-986); sınıf taramaları F-488…F-490'ı, bağımsız inceleme F-491'i açtı. F-418 ve F-482 Faz 205'e dönüştü (planlandı). Kapanan kalemlerin kaydı [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § Kapanan kalemler'dedir.
+Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığı ve hangi sınıf taramalarının yeni kalem açtığı) [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § Kapanan kalemler'dedir.
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
@@ -371,6 +371,8 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-504** · Workflow SSE'si agent adımının kesildiğini söylemez | Faz 207 §207.6, kod okuması: olay alt run'da kalır; workflow `MessageDelta`'sı bitiş sebebi taşımaz | Önce ölçüm; sonra çerçeve kararı (K-991 emsali) |
 | 🟢 | **F-505** · İçerikli `content_filter` yarım yanıtı kayıtta iz bırakmaz | Faz 207 §207.6: dedektör yalnız boş yanıtı hata yapar; yalnız chat/completions `content_filter` der | Karar: yeni ayrılmış `CustomType` ve ayna listesi (K-991) |
 | 🟢 | **F-506** · Konsol playground'u `custom` çerçevelerini göstersin | Faz 207 §207.6: `use-playground-run.ts` `custom`'u yok sayar; kesilme ve kota bildirimi görünmez | Rozet tasarımı (`en.ts` + `tr.ts`), E2E |
+| 🟢 | **F-508** · Bağlayıcıların kalan sessiz düşmeleri | Faz 206 kapsam dışı + denetim 🟢1: skaler/enum yazım hatası (`RateLimit.Partition`, `VoiceLive.DelegationMode`, bool/int/TimeSpan `TryParse`-atla) varsayılana düşer; liste anahtarına tek değer (`__0`'sız) ve boş dizi `GetChildren()`'da çocuksuzdur, yok sayılır | Karar: K-993'ü skalere genişletmek (açılışta hata) — public sözleşme |
+| 🟢 | **F-513** · Retention hedefi yapılandırmadan kapatılamaz | Faz 206 Açık Soru 1-A: `MaxAgeDays` yalnız sayı alır; JSON `null` (8.0.1 `""`, 10.0.0 `null`) varsayılanı sessizce bırakır | Karar (1-B): boş değer `null` bağlar mı; saklama süresini uzatma yönü |
 
 ### Doğrudan
 
@@ -384,6 +386,9 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-449** · `TimeoutSiteTests` `Task.Delay(TimeSpan, TimeProvider, …)` sitelerini görmez | Faz 196 denetimi 🟢1 (2026-10-13): kapının deseni yalnız `CancelAfter(` ve argümanlı `CancellationTokenSource` kurucusunu tarar; `Task.Delay(süre, saat, token)` siteleri (`WorkflowNodeTimeout.cs:97`, `TimeoutAIFunction.cs:111`, `WorkflowNodeRetry.cs:98`) kapsam dışıdır. Bugün üçünün değeri de kurucuda veya kayıtta `TimerPeriod` aralığıyla doğrulanır; yeni bir site doğrulamasız girerse kapı görmez | Deseni `Task.Delay` + `TimeProvider` aşırı yüklemesine genişlet; site listesine üç satır |
 | 🟢 | **F-451** · `JobStoreContract` `int` milisaniye sınırını aşan süreyi sınamıyor | Faz 196 denetimi 🟢3 (2026-10-13): `A_jobs_own_time_limit_survives_the_round_trip_and_the_lease` yalnız 90 dk yazar (`src/Tracon.Testing.Contracts.Xunit/Contracts/JobStoreContract.cs:81`); süreyi `int` ms sütunda tutan üçüncü taraf depo (≈ 24,8 gün sınırı) geçer. Yerleşik sütun `bigint` | Contract'a ≈ 30 günlük bir case; `PublicAPI.Unshipped` satırı ve `CHANGELOG` |
 | 🟢 | **F-507** · `SourceLanguageTests` üretilen site `api/` sayfalarını tarar | Faz 207 kapanışı (ölçüldü): sayfa `[Fact]` mutlak yolunu taşır; `faz-NNN` worktree'sinde yanlış kırmızı | Gitignore'lu üretilen ağacı atla |
+| 🟢 | **F-509** · Seçenek ratchet'ı iki bölümü ve 13 tipi görmez | Faz 206 kapsam dışı: `SectionName`'siz `TraconTenantProviderOptions`, `TraconInboundTriggerOptions` (testsiz); ratchet yalnız Core ve Abstractions'ı tarar (`TraconWorkflowOptions`, `VoiceOptions`, sağlayıcı ve SQL tipleri) | Kapsamı genişlet; her biri için `<Tip>BindingTests` |
+| 🟢 | **F-510** · Bağlama kanıtı kapısının boşlukları | Faz 206 denetimi 🟢2-4: `[Fact(Skip/Explicit)]` ya da ilgisiz tek `[Fact]` sınıfı sayar; `OptionsKeyCoverage` çağrısı zorlanmaz; yüklem testi `.Where`'i kanıtlamaz; (b) mesajı okunmayan anahtarda da "the test value" der; ayarlanabilir Tracon sınıfı skaler sayılır; Retention anahtarları property adından türer | Yüklemi atlanan/açık testi dışlayacak biçimde sıkılaştır; literal hedef listesi + yansımalı eşitlik |
+| 🟢 | **F-512** · Doğrulayıcısı olmayan yedi seçenek tipi | Faz 206 kapsam dışı: `AsyncRun`, `ContentGuard`, `Egress`, `Idempotency`, `McpSecurity`, `RateLimit`, `SessionOwnership`; geçersiz aralığın çalışma anı etkisi ölçülmedi | Önce ölçüm; sonra `IValidateOptions` + `ValidateOnStart` |
 
 ### Tetik bekleyenler
 
@@ -430,6 +435,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | **F-414** · Konsol 2^53 − 1'den geniş bir tamsayı ayarını kayıpsız taşıyamıyor | Faz 195 denetimi (🟡, gerekçelendi): konsol JSON sayısını `double` okur; sınır XML'de ve sitede yazılı | Bir tüketici 53 bitten geniş sayısal ayar bildirirse. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-415** · Tüketicinin dönüştürücüsünün (`JsonConverter`) fırlattığı `JsonException` mesajı `400`'e ve `runs.error`'a girer | Faz 195 denetimi (🟢): tüketicinin `JsonConverter`'ının istisna mesajı değer taşıyabilir | Mesajın değer taşıdığı görülürse. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-422** · `openai-responses` harness turu cevabını akışta iki kez yayabilir — ölçüm bekliyor | Faz 201 örnek uygulama koşumu (2026-10-13): loop'lu agent'ın üç koşumunun ikisinde ilk turun metni akışta iki kopya; kaynağı ayırt edilmedi | Akışta yinelenen metin bildirilirse ya da `openai-responses` istemcisi güncellenirse. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
+| **F-511** · Yapılandırma değişikliği çalışma anında uygulanmaz | `IOptionsChangeTokenSource` kaydı yok; `Configure<T>(lambda)` yeniden yüklemeyi taşımaz, `IOptionsMonitor` tüketicileri (ör. `TraconRateLimitFilter`) değişen dosyayı görmez. Site yeniden yükleme vaat etmez (Faz 206 kapsam dışı) | Bir tüketici yeniden başlatmadan ayar değişikliği ister |
 
 ### F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı
 
@@ -504,7 +510,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-508**.
+numara: **F-514**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

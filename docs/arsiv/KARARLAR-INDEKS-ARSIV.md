@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (930 kalem)
+## Arşivlenen Kararlar (931 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -939,3 +939,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-928 | 979 | Yapılı `tracon.workflow` batch öğesi `sessionId` taşıyabilir: run'ın yürütme oturumudur ve `run.completed` webhook'u ile devamlar onu taşır; kural `WorkflowSessionId`'dir (en çok 128 karakter; harf, rakam, `-`, `_`), bozuk değer öğeyi tek başına düşürür; ajan batch öğesindeki `sessionId` öğeyi düşürür (Faz 197 §197.3) |
 | K-929 | 980 | Kuyruklu `respond`'un yanıtı (`approved`, `text`, `json`) `jobs.payload`'da düz durur; K-899'un kuyruklu workflow işlemine genişlemesidir (Faz 197) |
 | K-930 | 981 | Her konuşma çağrısı (TTS, STT, ses listesi) sağlayıcıya gitmeden önce `ISpeechProviderResolver`'da kiracının egress politikasından ve kendi anahtarından geçer: egress kayıt adına değil örneğin `ProviderName`'ine uygulanır; kiracının bağlaması varsa anahtar yalnız `SupportsTenantCredentials` diyen sağlayıcıya `SpeechRequest.Credential`/`SpeechTranscriptionOptions.Credential` ile gider, desteklemeyen sağlayıcı, uç adresi override'ı ve değersiz anahtar reddedilir (`TenantProviderRefusedException`, uçta `403`), kurulum anahtarına düşülmez; kiracı önce run kapsamından okunur; tool, HTTP ve düğüm her çağrıda, konuşma soketi bağlantı başına bir kez (oturum kapısından sonra, slot'tan önce) denetler; yerel motor muaf değildir ve politikalı kiracı listede olmayan ses satıcısına hemen çıkamaz (F-298, Faz 198; Açık Soru 2-A, 3-A, 4-A) (kullanıcı kararı) 👤 |
+| K-931 | 982 | Konuşma sağlayıcıları adla kaydolur ve adla seçilir: `AddSpeechSynthesizer(name, factory)` / `AddSpeechTranscriber(name, factory)` (Core, `ITraconBuilder` uzantısı) keyed singleton yazar, anahtar çıplak ad değil iç kayıt nesnesidir; ad `[a-z0-9._-]{1,64}`, küçük harfe katlanır, sentezleyici ve tanıyıcı ayrı ad alanıdır, çift ad kurulumda `InvalidOperationException`; `ISpeechProviderResolver` (Abstractions, `AddTracon()` `TryAdd`) adı örneğe çevirir, `null` adsız varsayılandır; motoru Tracon değil çağıran seçer (düğüm ayarı, run parametresi, `POST /api/voice/speak` `provider`, `GET /api/voice/voices?provider=`), kiracı varsayılan motor satırı ve migration yoktur; tool'lar ve konuşma soketi varsayılanı kullanır; `GET /api/voice/providers` kayıtları listeler (F-298, Faz 198; Açık Soru 1-A, 5-A) (kullanıcı kararı) 👤 |

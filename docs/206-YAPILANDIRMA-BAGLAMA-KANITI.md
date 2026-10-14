@@ -1,6 +1,6 @@
 # Faz 206 — Yapılandırma Bölümlerinin Bağlama Kanıtı
 
-> **Durum:** 📋 Planlandı (2026-10-14)
+> **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 — kapsam kararı sohbette alındı (22 tipin tamamı + IdempotencyKeys + okunamayan değerin açılışta hatası) ve Faz 205 ile paralel başlatma onaylandı; plan metni sohbette okunmadı
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-247**
 > **Genellik:** İlk ilke: belgelenen ama bağlanmayan bir anahtar bir sözleşme ihlalidir. Yapılandırma dosyası ya da ortam değişkeni kullanan her tüketici etkilenir. İş tüketici kodunda kalamaz, çünkü bağlayıcıyı yalnız Tracon yazar. Ölçülen iki vaka var: `TraconImageOptions.Timeout` (`HATA-S1-010`) ve bu planın ölçtüğü `TraconRetentionOptions.IdempotencyKeys` (§206.3). Kalem bir sözleşme ihlali sınıfıdır, bu yüzden § *Tüketici geri bildirimi kuralı*'ndan muaftır
@@ -401,19 +401,19 @@ Beş soru:
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `options-section-coverage-baseline.txt` yalnız başlık satırlarını taşır; `OptionsSectionCoverageTests` yeşil
-- [ ] 22 `<Tip>BindingTests` sınıfı vardır; her biri en az "her skaler", varsa koleksiyon(lar) ve "yok bölüm varsayılanları" testini taşır
-- [ ] Boş bir `<Tip>BindingTests` ratchet'ı geçmez; test önce kırmızı görüldü
-- [ ] `Every_retention_target_is_bound` önce kırmızı (`IdempotencyKeys`), düzeltmeden sonra yeşil; kırmızı çıktı faz dokümanına yazıldı
-- [ ] Dört bağlayıcının "açılışta hata" testleri önce kırmızı görüldü ve `IStartupValidator` üzerinden yeşil
-- [ ] `CHANGELOG.md` `[Unreleased]`: `Changed` (davranış değişikliği) ve `Fixed` (`IdempotencyKeys`) girdileri var
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (manuel case 7) ve case 1-6'nın açılış hataları yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (§206.6); `npm run build` + `check-links.mjs` temiz
-- [ ] `docs/hafiza/secenek-baglama-ve-gizlilik.md`'ye `IdempotencyKeys` notu (sınıfın altıncı vakası) eklendi
+- [x] `options-section-coverage-baseline.txt` yalnız başlık satırlarını taşır; `OptionsSectionCoverageTests` yeşil
+- [x] 22 `<Tip>BindingTests` sınıfı vardır; her biri en az "her skaler", varsa koleksiyon(lar) ve "yok bölüm varsayılanları" testini taşır
+- [x] Boş bir `<Tip>BindingTests` ratchet'ı geçmez; test önce kırmızı görüldü
+- [x] `Every_retention_target_is_bound` önce kırmızı (`IdempotencyKeys`), düzeltmeden sonra yeşil; kırmızı çıktı faz dokümanına yazıldı
+- [x] Dört bağlayıcının "açılışta hata" testleri önce kırmızı görüldü ve `IStartupValidator` üzerinden yeşil
+- [x] `CHANGELOG.md` `[Unreleased]`: `Changed` (davranış değişikliği) ve `Fixed` (`IdempotencyKeys`) girdileri var
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 1292e24a` (§ *Örnek Uygulama Koşumu*, son madde)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (manuel case 7) ve case 1-6'nın açılış hataları yazıldı
+- [x] `secret` taraması boş döndü (`kapi.py tarama`: temiz)
+- [x] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içine eklendi (`MT-CORE-147`…`153`); hepsi örnek uygulamada koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (iki 🟡 düzeltildi)
+- [x] `docs-site/` güncellendi (§206.6); `npm run check` (içerik · derleme · bağlantı · ağırlık) kapanış kapısında temiz
+- [x] `docs/hafiza/secenek-baglama-ve-gizlilik.md`'ye `IdempotencyKeys` notu (elle denetimin altıncı vakası, HATA-S1-005'in beşinci hedefi) eklendi
 
 ### Doğrulama komutları
 
@@ -427,8 +427,8 @@ grep -v '^#' tests/Tracon.Core.UnitTests/Configuration/options-section-coverage-
 # Retention bağlayıcısı 16 hedefin hepsini okur
 grep -c 'BindRetentionTarget(section.GetSection' src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs   # → 16
 
-# Kapanış
-python3 scripts/kapi.py kapanis --taban 245afe91
+# Kapanış (taban: ana dalın faz birleşmesinden önceki son commit'i)
+python3 scripts/kapi.py kapanis --taban 1292e24a
 ```
 
 ---
@@ -459,6 +459,10 @@ gerekçeyle reddeder.
 - **`IOptionsChangeTokenSource` yok** (`grep -rn IOptionsChangeTokenSource src/` → boş). `Configure<T>(lambda)` yeniden yüklemeyi taşımaz. `IOptionsMonitor` tüketicileri (ör. `TraconRateLimitFilter.cs:33`) değişen dosyayı görmez. Site yeniden yükleme vaat etmez.
 - **Doğrulayıcısı olmayan yedi tip** (`AsyncRun`, `ContentGuard`, `Egress`, `Idempotency`, `McpSecurity`, `RateLimit`, `SessionOwnership`). Geçersiz aralığın çalışma anında ne yaptığı ölçülmedi.
 - **Retention `MaxAgeDays` `null`'ı.** Açık Soru 1-A seçilirse kapanışta aday açılır.
+
+**Kapanışta (2026-10-14):** ilk iki madde → **F-509** · enum/skaler yazım hatası (+ denetim 🟢1) → **F-508** ·
+`IOptionsChangeTokenSource` → **F-511** (tetik bekliyor) · doğrulayıcısız yedi tip → **F-512** · `MaxAgeDays`
+`null`'ı → **F-513**. Denetimin 🟢2-4'ü → **F-510**. Hiçbiri reddedilmedi.
 
 ---
 
@@ -534,13 +538,66 @@ Uygulama oturumu (2026-10-14) yazdı; kapanış gözden geçirir.
 > etiketiyle girer ve numarası burada anılır; girmeyen karar yalnız burada
 > kalır (`faz-tamamlama` Adım 8). Plan numara rezerve etmez.
 
+- **K-993** (kategori: public-api, güvenlik; kullanıcı kararı): okunamayan yapılandırma girdisi atlanmaz,
+  açılışta hata verir (dört bağlayıcı); ham metin `internal` taşıyıcıda, mesaj onu alıntılar; hata bağlanmış
+  değerden çıkar (Açık Soru 2-A: kod kazanır); `Keys`/`Columns` denetimi `Enabled`'dan bağımsız; tanımsız enum
+  değeri kod yolundan da reddedilir; boş `MaskedPii` "yok"tur; virgüllü `Columns` girdisi okunamaz sayılır.
+- Kategori dışı (yalnız burada): ratchet yalnız test metodu taşıyan sınıfı sayar (`CountsAsBindingTest`;
+  xunit.v3 3.2.2'de `TheoryAttribute : FactAttribute` ölçüldü ve testte kilitli) · Açık Soru 3-A
+  (`OptionsKeyCoverage`) · ortak test yardımcısı `SectionBinding` · Açık Soru 1-A (`MaxAgeDays` bağlaması
+  değişmedi; aday F-513).
+
 ## Gerçekleşen Public API
 
 > Kapanışta doldurulur. Koddaki **gerçek** imzalar.
 
+Public yüzey **değişmedi**: `git diff 1292e24a -- 'src/*/PublicAPI*'` boş. Davranışı değişen public üyeler
+(XML `<remarks>`'ı yazar): `TraconQuotaOptions.ThresholdPercents`, `TraconWebhookOptions.RetryDelays`,
+`TraconContentProtectionOptions.Keys` / `.Columns`, `PatternContentGuardOptions.MaskedPii`.
+
+Eklenen `internal` üyeler:
+
+```csharp
+// Tracon.Core — Guards/PatternContentGuardOptionsValidator.cs
+internal sealed class PatternContentGuardOptionsValidator : IValidateOptions<PatternContentGuardOptions>
+{
+    internal const PiiPatterns UnreadableMaskedPii = (PiiPatterns)int.MinValue;
+    public ValidateOptionsResult Validate(string? name, PatternContentGuardOptions options);
+    internal static PiiPatterns UndefinedBits(PiiPatterns value);
+}
+
+// ham metin taşıyıcıları (yalnız mesaj için; hata bağlanmış değerden çıkar)
+PatternContentGuardOptions:      internal (string Text, PiiPatterns Bound)? UnreadableMaskedPii { get; set; }
+TraconContentProtectionOptions:  internal Dictionary<ProtectedColumn, string> UnreadableColumns { get; }
+TraconQuotaOptions:              internal Dictionary<int, string> UnreadableThresholdPercents { get; }
+TraconWebhookOptions:            internal Dictionary<int, string> UnreadableRetryDelays { get; }
+```
+
 ## Dosya Listesi (gerçekleşen)
 
 > Kapanışta doldurulur.
+
+```
+src/Tracon.Core/
+├── TraconServiceCollectionExtensions.Binding.Operations.cs      BindQuotas
+├── TraconServiceCollectionExtensions.Binding.Security.cs        BindRetention (+IdempotencyKeys) · BindWebhooks · BindContentProtection (+BindProtectedColumn, UnreadableColumnPlaceholder) · BindPatternContentGuard
+├── TraconServiceCollectionExtensions.Registration.Operations.cs PatternContentGuardOptionsValidator kaydı
+├── Guards/PatternContentGuardOptions.cs · Guards/PatternContentGuardOptionsValidator.cs (yeni)
+├── Security/TraconContentProtectionOptions.cs · Security/TraconContentProtectionOptionsValidator.cs
+├── Quotas/TraconQuotaOptions.cs · Quotas/TraconQuotaOptionsValidator.cs
+└── Webhooks/TraconWebhookOptions.cs · Webhooks/TraconWebhookOptionsValidator.cs
+tests/Tracon.Core.UnitTests/
+├── Configuration/<Tip>BindingTests.cs × 22 (yeni)
+├── Configuration/OptionsKeyCoverage.cs · OptionsKeyCoverageTests.cs · SectionBinding.cs (yeni)
+├── Configuration/OptionsSectionCoverageTests.cs · options-section-coverage-baseline.txt · ServiceRegistrationSnapshotTests.cs
+└── Security/TraconContentProtectionOptionsValidatorTests.cs
+docs-site/src/content/docs/reference/configuration.md · concepts/governance.md
+CHANGELOG.md · docs/KARARLAR.md · docs/arsiv/KARARLAR-GECMISI.md · docs/ADAYLAR.md · docs/arsiv/ERTELENEN-ADAYLAR.md
+docs/hafiza/secenek-baglama-ve-gizlilik.md · docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md · docs/manuel-test/00-INDEKS.md
+```
+
+**Testler:** `Tracon.Core.UnitTests` bu fazda 88 vaka kazandı (3916 → 4004, birleşmeden önce; teori satırları
+dahil): 22 bağlama sınıfı, `OptionsKeyCoverageTests` (5), ratchet yüklemi (1), içerik koruma doğrulayıcısı (+3).
 
 ## Süreç Ölçümü
 
@@ -556,11 +613,11 @@ Uygulama oturumu (2026-10-14) yazdı; kapanış gözden geçirir.
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 (plan metni değişmedi; sapmalar yukarıda) |
+| Düzeltme turu sayısı | 2 (XML'deki geliştirme kaydı kimlikleri `ShippedDocumentationSelfContainmentTests`'te bir kez kırmızı · denetimin iki 🟡'ı tek turda) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (`ServiceRegistrationSnapshotTests` yeni doğrulayıcı tanımlayıcısıyla, bir doğrulayıcı testinin adı yeni davranışla bilinçli güncellendi) |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz bugün kapandı) |
 
 ### Kırmızı → yeşil kanıtı
 
@@ -658,16 +715,55 @@ Hiçbir `secret` değeri yazılmadı ya da basılmadı.
 
 Bağımsız denetim (2026-10-14): 🔴 yok, iki 🟡, dört 🟢.
 
-| # | Bulgu | Seviye | Sonuç |
+| # | Bulgu | Seviye | Triyaj · Sonuç |
 |---|---|---|---|
-| 1 | `ThresholdPercents` ve `RetryDelays` hata mesajı operatörün yazdığı metni değil yerine bağlanan `0` / `00:00:00`'ı gösteriyordu; plan "hata anahtarı ve ham metni adlandırır" diyordu | 🟡 | Düzeltildi: `internal` ham metin taşıyıcıları + doğrulayıcı alıntısı; iki test önce kırmızı (§ *Kırmızı → yeşil kanıtı*) |
-| 2 | `Columns` bağlayıcısının iki davranışı testsizdi: virgüllü girdinin reddi ve iki yazım hatasının iki ayrı yer tutucu alması | 🟡 | Düzeltildi: `"RunInput,ToolArguments"` satırı + `Every_unknown_column_is_named`; ikisi de mutasyonla kırmızı görüldü |
-| 3 | Liste anahtarına tek değer yazılırsa (`__0`'sız ortam değişkeni) `GetChildren()` boş döner ve değer yine sessizce yok sayılır (`…Binding.Operations.cs:205` `ThresholdPercents`, `…Binding.Security.cs:240` `Columns`, `:375` `RetryDelays`; ölçüm 🟡1 düzeltmesinden sonraki satırlar) | 🟢 | Kapanışta aday |
-| 4 | Ratchet yanlış negatifleri: `[Fact(Skip)]`, `[Fact(Explicit)]` ya da ilgisiz tek bir `[Fact]` sınıfı saydırır; 23. bölüm sınıfını `OptionsKeyCoverage` çağırmaya zorlayan bir şey yok; `An_empty_binding_test_class_does_not_count` yalnız yüklemi sınar (`:40`'taki `Where` silinse de yeşil kalır) | 🟢 | Kapanışta aday |
-| 5 | `OptionsKeyCoverage` (b) mesajı bağlayıcı anahtarı hiç okumadığında da "the test value" der (`OptionsKeyCoverage.cs:114`); ayarlanabilir bir Tracon sınıfı property'si skaler sayılır (`:138`) | 🟢 | Kapanışta aday |
-| 6 | Retention anahtarları property adından türetilir (`TraconRetentionOptionsBindingTests.cs:114`); bir yeniden adlandırma belgelenen anahtarı sessizce taşır. Yansımalı sayıma eşit literal bir liste iki güvenceyi birden verirdi | 🟢 | Kapanışta aday |
+| 1 | `ThresholdPercents` ve `RetryDelays` hata mesajı operatörün yazdığı metni değil yerine bağlanan `0` / `00:00:00`'ı gösteriyordu; plan "hata anahtarı ve ham metni adlandırır" diyordu | 🟡 | gerçek · Düzeltildi: `internal` ham metin taşıyıcıları + doğrulayıcı alıntısı; iki test önce kırmızı (§ *Kırmızı → yeşil kanıtı*) |
+| 2 | `Columns` bağlayıcısının iki davranışı testsizdi: virgüllü girdinin reddi ve iki yazım hatasının iki ayrı yer tutucu alması | 🟡 | gerçek (test eksiği; kod doğruydu) · Düzeltildi: `"RunInput,ToolArguments"` satırı + `Every_unknown_column_is_named`; ikisi de mutasyonla kırmızı görüldü |
+| 3 | Liste anahtarına tek değer yazılırsa (`__0`'sız ortam değişkeni) `GetChildren()` boş döner ve değer yine sessizce yok sayılır (`…Binding.Operations.cs:205` `ThresholdPercents`, `…Binding.Security.cs:240` `Columns`, `:375` `RetryDelays`; ölçüm 🟡1 düzeltmesinden sonraki satırlar) | 🟢 | gerçek · **F-508** olarak devredildi (skaler/enum yazım hatasıyla birlikte; boş dizi de aynı sınıf) |
+| 4 | Ratchet yanlış negatifleri: `[Fact(Skip)]`, `[Fact(Explicit)]` ya da ilgisiz tek bir `[Fact]` sınıfı saydırır; 23. bölüm sınıfını `OptionsKeyCoverage` çağırmaya zorlayan bir şey yok; `An_empty_binding_test_class_does_not_count` yalnız yüklemi sınar (`:40`'taki `Where` silinse de yeşil kalır) | 🟢 | gerçek · **F-510** olarak devredildi |
+| 5 | `OptionsKeyCoverage` (b) mesajı bağlayıcı anahtarı hiç okumadığında da "the test value" der (`OptionsKeyCoverage.cs:114`); ayarlanabilir bir Tracon sınıfı property'si skaler sayılır (`:138`) | 🟢 | gerçek · **F-510** olarak devredildi |
+| 6 | Retention anahtarları property adından türetilir (`TraconRetentionOptionsBindingTests.cs:114`); bir yeniden adlandırma belgelenen anahtarı sessizce taşır. Yansımalı sayıma eşit literal bir liste iki güvenceyi birden verirdi | 🟢 | gerçek · **F-510** olarak devredildi |
+
+## Tüketici Yüzeyi Envanteri
+
+`tuketici-dokuman-senkronu` Adım 1 (taban `1292e24a`):
+
+1. **`docs-site/` (elle):** `reference/configuration.md` — bölüm indeksine üç satır (`Tracon:InboundTriggers`,
+   `Tracon:SessionOwnership`, `Tracon:Voice:Live`, anahtarların yaşadığı sayfaya bağlantıyla); `Quotas:ThresholdPercents`,
+   `ContentGuard:Pattern:MaskedPii`, Webhooks `RetryDelays`, ContentProtection `Keys`/`Columns` satırlarına "açılışta
+   hata" cümlesi; "eleven" → "twelve"; `Keys`/`Columns` denetiminin `Enabled`'dan bağımsızlığı ve boş `Columns`
+   listesi paragrafı; Retention'daki bayat `IdempotencyKeys` paragrafı yerine `MaxAgeDays` paragrafı (Açık Soru
+   1-A: yapılandırma bir hedefi kapatamaz; kapalı politika ya da kod); `### Live voice conversation` →
+   `### Voice conversation` (bağlantı yok, ölçüldü). `concepts/governance.md` — "listeyi boşalt" cümlesi
+   yapılandırma için yanlıştı (`[]` çocuksuzdur, ölçüldü): kodda `Clear()`, açılış hatası cümlesi.
+   **Üretilen:** `api/` (beş public üyenin `<remarks>`'ı), `reference/changelog.md` (`CHANGELOG.md`'den).
+2. **Sevk edilen metin:** beş public üyenin XML `<remarks>`'ı · `CHANGELOG.md` (`Changed` + `Fixed`). Paket
+   `README.md`'si ve `tracon.json` değişmedi.
+3. **Yerel referans / agent haritası:** yeni giriş noktası yok; `capabilities.md` değişmedi
+   (`build-agent-map.mjs --check`: güncel).
 
 ## Sonraki Faza Devir Notu
 
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
 > kalan işler, sıradaki faz.
+
+Sıradaki faz yok: seçilmemiş işler `ADAYLAR.md`'dedir (bu faz F-508…F-513'ü açtı). Faz 208 paralel daldadır.
+
+**Devralınan sözleşmeler**
+
+- Okunamayan yapılandırma girdisi açılışta hata verir (K-993). Kural F-385 + bu faz: girdi atlanmaz, tanımsız ya
+  da sıfır değer olarak bağlanır, ham metin `internal` taşıyıcıda durur, hata bağlanmış değerden çıkar.
+- Her elle bağlanan `SectionName` bölümünün bir `<Tip>BindingTests` sınıfı vardır (taban dosyası boş); sınıf en az
+  bir test metodu taşımalı ve `Every_scalar_of_the_section_is_bound` `OptionsKeyCoverage.ShouldCoverEveryMember`'ı
+  çağırmalı. Kompozisyon `SectionBinding` (gerçek `AddTracon(section)` + `IStartupValidator`).
+- Retention hedefleri yansımayla sayılır ve `RetentionTargets.All` ile eşitlenir.
+
+**Bilinen tuzaklar**
+
+- 🚨 Yeni seçenek alanı: bağlayıcıya **ve** `<Tip>BindingTests`'in anahtar sözlüğüne yazılır; yazılmazsa
+  `OptionsKeyCoverage` (a) kızarır. Yeni koleksiyon alanı ya testte adlandırılır ya da `exempt` edilip kendi testini alır.
+- 🚨 Örnek uygulamada `ContentProtection` doğrulama hatası `IStartupValidator` toplamından önce, tek başına atılır
+  (SQL deposu fabrikası seçeneği erken okur). Açılış hatası case'lerini tek tek koş.
+- 🚨 JSON `null` ve `[]` yapılandırma paketi sürümüne göre farklı okunur; liste anahtarına `[]` yazmak varsayılanı
+  değiştirmez (`hafiza/secenek-baglama-ve-gizlilik.md`).
+- ➜ ratchet hâlâ `Skip`/`Explicit` testi sayar ve `OptionsKeyCoverage` çağrısını zorlamaz (F-510).
