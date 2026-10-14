@@ -218,6 +218,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- An approval that ran out of time no longer erases what the run that asked had recorded. The
+  expiry closed the run `Failed` with a completion built from nothing, and `IRunStore.CompleteRunAsync`
+  replaces the event count, usage and cost of the row with what the completion carries, so a run that
+  had spent tokens before it paused lost its usage, its cost and its event count. The expiry now reads
+  the run first, closes it only while it is still `AwaitingApproval` (a run something else closed keeps
+  its outcome), and writes those values back.
 - `Tracon:Retention:IdempotencyKeys` is now bound from configuration. Its `MaxAgeDays`
   and `Archive` keys were ignored and the target kept its one-day default; only code
   (`Configure<TraconRetentionOptions>`) could change it. A configuration that sets
@@ -821,6 +827,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- A list of the human requests a tenant's workflow runs wait on, and a time limit for them.
+  `GET /api/workflows/requests` (`state` is `pending`, `answered` or `all`; `workflowName`,
+  `skip`, `take`) lists one item per request, oldest first, across every workflow; it needs the
+  `Reader` role and read access to runs, and a registered `IRunAuthorizationHandler` that refuses
+  reading runs rejects it with `403` instead of filtering it. `WorkflowPendingRequest` gains
+  `workflowName`, `sessionId`, `expiresAt`, `answered` and `lastResponseRunId`, on this list and on
+  `GET /api/workflows/runs/{runId}/requests`; `IWorkflowRunner` gains `ListRequestsAsync`, with a
+  default that lists nothing. The same request id in the same session is one request: an answered
+  run stays `AwaitingInput` and its continuation publishes the open requests again, so the item
+  names the newest run that waits on it. The list is built from a new `workflow_requests` table
+  (one migration for each SQL provider) that the engine writes when a run starts waiting and the
+  respond endpoint marks answered; it holds no copy of the prompt, which is read from the run's
+  event. A run that started waiting before the migration has no row and is not in the list. The
+  console lists the same requests in a *Workflow requests* panel on the Approvals screen.
+- A workflow can give its human requests a time limit. `WorkflowDefinition.RequestTimeout`
+  (`requestTimeout` on `PUT /api/workflows/{name}`, the *Answer time limit* field in the console's
+  editor, `WorkflowRegistrationOptions.RequestTimeout` for a workflow defined in code) is from one
+  minute to 365 days and counts from the moment the run published the request. A background scan
+  (`Tracon:Workflows:RequestExpirationScanInterval`, one minute, and
+  `MaxRequestExpirationsPerScan`, 100; one instance of a cluster scans) closes the run when its last
+  request passes: `Failed` with the error type `WorkflowRequestExpired` (error class `Timeout`) when
+  something went unanswered, `Completed` without an error when every request had been answered. An
+  answer to a closed run is refused with `400`, as for any run that is not `AwaitingInput`. The
+  run keeps its usage, cost and event count. A run that waits keeps the limit of the version it
+  started with. This is what lets retention release what a waiting run keeps: its request event,
+  checkpoints and run input row were never deleted while it waited, and an answered run waits too.
+  The new `workflow_requests` retention target
+  (`Tracon:Retention:WorkflowRequests`, 30 days after the request expired) deletes the closed rows of
+  the list. **Behavior change:** `requests` joins `functions` as a workflow name that cannot be
+  saved, because `GET /api/workflows/requests` matches before `GET /api/workflows/{name}`.
+- `Tracon.Testing.Contracts.Xunit`: `WorkflowRequestStoreContract` for `IWorkflowRequestStore`, the
+  seam behind the list; a custom store passes it the way it passes the other store contracts.
 - One answer per workflow request. `WorkflowResponseMode` (`Branch`, the default, and
   `SingleAnswer`) is set on a stored definition (`WorkflowDefinition.ResponseMode`,
   `responseMode` on `PUT /api/workflows/{name}`) or on a workflow defined in code with the

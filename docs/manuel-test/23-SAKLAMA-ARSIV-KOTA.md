@@ -1,6 +1,6 @@
 # 23 — Saklama, Arşiv, Kota ve Çalıştırma-İçi Bütçe (`RET`)
 
-> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128, 146, 205
+> **Alan kodu:** `RET` · **Faz:** 21 (yalnız kota dilimi), 25, 36, 114, 128, 146, 205, 209
 > **Kaynak:** `src/Tracon.Abstractions/Retention/` (tümü) ·
 > `src/Tracon.Core/Retention/` (tümü) ·
 > `src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs` ·
@@ -2196,3 +2196,48 @@ CI'dadır. Elle koşulacaksa tool'u tüketici kodunda yaz.
 - Sayaç tool'un tutarı kadar artar; `runs` ve `tokens` değişmez.
 - Run satırının `nonTokenCost`'u run kapanırken olduğu gibi kalır; tutar çağrının kendi kaydında (`GET /api/runs/{id}/tools`) durur.
 - Tool süresi içinde raporlayıp geç dönerse tutar bir kez sayılır (çift sayım yok).
+
+
+### MT-RET-085 — Süresi dolan run'ın istek olayı, checkpoint'leri ve girdi satırı bir sonraki tur silinir; bekleyen run'ınki silinmez (Faz 209, F-319) · ☐
+
+Otomatik karşılığı: `WorkflowRequestExpirationHttpTests.What_a_waiting_run_keeps_is_kept_until_its_request_expires_and_released_after` (SQLite).
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1004, K-888 |
+| **Devir** | ➜ CI: `MaxAgeDays` en az 1 gündür; günlerce beklemek yerine test saati ilerletir |
+
+**Ön koşul** — Örnek uygulama SQLite ile; `RequestTimeout`'u olan bir workflow'un run'ı `AwaitingInput`; `run_events` ve `workflow_checkpoints` için etkin politika.
+
+**Adımlar**
+1. Retention turu koş (`POST /api/retention/run`); run'ın istek olayını ve checkpoint'lerini oku.
+2. Süre dolsun (run `Failed`); retention turunu yeniden koş; aynısını oku.
+
+**Beklenen sonuç**
+- 1: istek olayı ve checkpoint'ler durur (run `AwaitingInput`).
+- 2: istek olayı ve checkpoint'ler silinmiştir; run satırı ve `workflow_requests` satırı (kapalı) yaşına göre kalır.
+
+### MT-RET-086 — `workflow_requests` hedefi yalnız kapalı satırı yaşına göre siler; açık satır satır sınırına sayılmaz (Faz 209, F-319)
+
+Otomatik karşılığı: `WorkflowRequestRetentionTests` (SQLite, PostgreSQL, SQL Server) ·
+`RetentionArchiveKeyTests.Every_targets_archive_delete_runs_against_the_schema(target: "workflow_requests")`.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1004 |
+| **Devir** | ➜ CI: üç sağlayıcı |
+
+**Ön koşul** — Bir kapalı (süresi dolmuş) ve bir açık istek satırı; `Tracon:Retention:WorkflowRequests` varsayılanı (30 gün).
+
+**Adımlar**
+1. `GET /api/retention/preview?target=workflow_requests`.
+2. Kapanış 30 günden eski olunca turu koş.
+
+**Beklenen sonuç**
+- Hedef `workflow_requests` tanınır (bilinmeyen hedef `400` değildir); yalnız kapalı satır silinir; açık satır kalır ve `MaxRows` hesabına girmez.

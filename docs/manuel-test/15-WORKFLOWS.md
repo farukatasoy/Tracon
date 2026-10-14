@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -3538,3 +3538,205 @@ Otomatik karşılığı: `WorkflowResponseOwnershipTests.A_queued_answer_whose_j
 - 3: kuyruklu tekrar `202`, aynı `runId`, `jobId` run kimliği; akışlı tekrar `200`, ilk çerçeve aynı run, son çerçeve `done`.
 - İki run da `Completed`, 13 olay; her run için tek iş (`Completed`); `…/responses` tek satır (`Delivered`).
 - Günlükte `had a recorded answer but no job; a repeat of the answer writes the job` uyarısı.
+
+
+### MT-WF-165 — Bekleyen istekler kiracı geneli tek listede görünür; cevaplanan işaretlenir (Faz 209, F-319)
+
+Otomatik karşılığı: `WorkflowRequestInboxHttpTests.The_list_names_what_the_waiting_runs_wait_on_and_when_each_request_expires` ·
+`An_answer_marks_the_request_answered_and_the_state_filter_follows`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1001, K-1003 |
+
+**Ön koşul** — Örnek uygulama SQLite ile; üç `summarize-and-approve` run'ı `AwaitingInput`; birine cevap verilmiş (default mod, run `AwaitingInput` kalır).
+
+**Adımlar**
+1. `GET /api/workflows/requests?state=all`.
+2. `GET /api/workflows/requests` (varsayılan) ve `?state=answered`.
+3. `?state=all&take=1&skip=1`.
+
+**Beklenen sonuç**
+- 1: üç öğe; her biri `workflowName`, `sessionId`, `prompt`, `form`, `expiresAt` (`null`: sınırsız), `answered`, `lastResponseRunId` taşır; cevaplanan `answered: true` ve `lastResponseRunId` cevabın başlattığı run'dır.
+- 2: varsayılan iki öğe (`answered: false`); `state=answered` tek öğe.
+- 3: tek öğe (süzgeç sayfadan önce uygulanır).
+
+### MT-WF-166 — Konsolda Approvals ekranı "Workflow requests" bölümünü gösterir; satır run'ın kartını açar (Faz 209, F-319) · 👤
+
+Otomatik karşılığı: `workflow-requests.test.tsx` (Vitest: satırlar, süzgeçler, kısaltma, sayfalama, boş durum).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1001 |
+
+**Ön koşul** — MT-WF-165'in verisi; konsol açık (`/tracon`).
+
+**Adımlar**
+1. Approvals ekranını aç; araç onaylarının altındaki "Workflow requests" bölümüne bak.
+2. Durum süzgecini "Answered, run still waiting" yap; sonra "All".
+3. Bir satırın workflow adına tıkla.
+
+**Beklenen sonuç**
+- 1: bekleyen iki istek; "Waiting" rozeti; süre sütununda sınırsız için "No limit".
+- 2: cevaplanan istek "Answered" rozetiyle ve cevabın run'ına işaretle; süzgeci sıfırla düğmesi görünür.
+- 3: `workflows/<ad>?runId=<run>` açılır ve isteğin kartı cevaplanabilir durumdadır. Dil `tr`'ye alınınca bölüm Türkçedir.
+
+### MT-WF-167 — Süresi dolan cevapsız istek run'ı `Failed` + `WorkflowRequestExpired` kapatır (Faz 209, F-319)
+
+Otomatik karşılığı: `WorkflowRequestExpirationHttpTests.A_run_whose_request_ran_out_of_time_is_closed_and_an_answer_to_it_is_refused` ·
+`WorkflowRequestExpirationServiceTests.A_run_whose_request_ran_out_of_time_is_closed_failed_with_the_expiry_error`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1002, K-1004 |
+
+**Ön koşul** — Örnek uygulama SQLite ile, `Tracon__Workflows__RequestExpirationScanInterval=00:00:05`; `summarize-and-approve-timed` (2 dakikalık sınır) run'ı `AwaitingInput`, cevapsız.
+
+**Adımlar**
+1. `GET /api/workflows/runs/{runId}/requests` ile `expiresAt`'ı oku (`requestedAt` + 2 dk).
+2. `expiresAt` + 10 sn bekle; `GET /api/runs/{runId}`.
+3. `GET /api/workflows/requests?state=all`.
+
+**Beklenen sonuç**
+- 2: `status: Failed`, `error.type: WorkflowRequestExpired`, `error.class: Timeout`, mesaj istek kimliğini ve `expired at` zamanını söyler; `eventCount` kapanıştan önceki değerdir (silinmez).
+- 3: run'ın isteği listede yoktur.
+
+### MT-WF-168 — Süresi dolmuş run'a cevap `400` verir ve run açmaz (Faz 209, F-319)
+
+Otomatik karşılığı: `WorkflowRequestExpirationHttpTests.A_run_whose_request_ran_out_of_time_is_closed_and_an_answer_to_it_is_refused`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1002, K-938 |
+
+**Ön koşul** — MT-WF-167 sonrası `Failed` run.
+
+**Adımlar**
+1. Run'a `POST /api/workflows/runs/{runId}/respond` ile `{ "requestId": "<id>", "approved": true }` gönder.
+2. `GET /api/runs?kind=Workflow` ile run sayısını önceki sayıyla karşılaştır.
+
+**Beklenen sonuç**
+- 1: `400`, ayrıntı run'ın `AwaitingInput` olmadığını söyler (süresiz bekleyen bir run'a verilen cevapla aynı ret).
+- 2: yeni run açılmamıştır.
+
+### MT-WF-169 — Cevaplanmış isteğin süresi dolunca run `Completed` kapanır, hata taşımaz (Faz 209, F-319)
+
+Otomatik karşılığı: `WorkflowRequestExpirationHttpTests.An_answered_request_closes_its_run_as_completed_and_not_as_a_failure` ·
+`WorkflowRequestExpirationServiceTests.A_run_whose_requests_were_all_answered_is_closed_completed_without_an_error`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1003 |
+
+**Ön koşul** — `summarize-and-approve-timed` run'ı `AwaitingInput`; süre dolmadan cevap verildi (cevabın run'ı `Completed`).
+
+**Adımlar**
+1. `expiresAt` geçene kadar bekle; kaynak run'ı oku.
+2. `GET /api/workflows/requests?state=all`.
+
+**Beklenen sonuç**
+- 1: `status: Completed`, `error: null`, `eventCount` korunur.
+- 2: istek listeden çıkmıştır.
+
+### MT-WF-170 — `requestTimeout` kayıtta aralık denetler, geri okunur ve kaydedilen sürüme bağlıdır (Faz 209, F-319)
+
+Otomatik karşılığı: `WorkflowRequestInboxHttpTests.A_save_carries_the_request_timeout_and_refuses_one_outside_the_range` ·
+`WorkflowRequestExpirationHttpTests.A_stored_workflow_expires_at_the_limit_of_the_version_the_run_recorded` ·
+`WorkflowRequestTimeoutValidationTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1002 |
+
+**Ön koşul** — Örnek uygulama; `summarizer` agent'ı.
+
+**Adımlar**
+1. `PUT /api/workflows/timed-chain` (`kind: Sequential`, `agentNames: ["summarizer"]`) `requestTimeout: "00:00:30"` ile; sonra `"400.00:00:00"` ile; sonra `"06:00:00"` ile.
+2. `GET /api/workflows/timed-chain`.
+3. Aynı kaydı `requestTimeout` olmadan tekrar gönder.
+
+**Beklenen sonuç**
+- 1: ilk ikisi `400` (`requestTimeout` adı geçer); üçüncüsü `200`.
+- 2: `requestTimeout: "06:00:00"`; sürüm karşılaştırması alanı "Answer time limit" olarak listeler.
+- 3: sınır kalkar (`null`): kayıt tam değiştirmedir.
+
+### MT-WF-171 — `requests` adı workflow adı olarak kaydedilemez (Faz 209, F-319)
+
+Otomatik karşılığı: `WorkflowRequestInboxHttpTests.A_stored_workflow_cannot_take_the_name_of_the_list_route` ·
+`WorkflowRequestTimeoutValidationTests.The_names_of_the_two_fixed_list_routes_cannot_be_a_workflow_name`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1005 |
+
+**Ön koşul** — Örnek uygulama.
+
+**Adımlar**
+1. `PUT /api/workflows/requests` ve `/api/workflows/Requests`, geçerli bir gövdeyle.
+
+**Beklenen sonuç**
+- İkisi de `400`, ayrıntı adın ayrılmış olduğunu ve `GET /api/workflows/requests` listesini söyler. `functions` adı için kural aynıdır.
+
+### MT-WF-172 — Aynı istek iki run'da yayınlanırsa listede tek satırdır (Faz 209, F-319) · ☐
+
+Otomatik karşılığı: `WorkflowRequestInboxTests.One_request_published_by_two_runs_is_listed_once_under_the_newest` ·
+`WorkflowRequestStoreContract.The_same_request_of_a_session_is_listed_once_under_its_newest_open_run`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1001 |
+| **Devir** | ➜ CI: örnek uygulamada iki portlu graf yoktur; koşum CI'dadır |
+
+**Ön koşul** — Aynı anda iki istek yayınlayan bir kod graf'ı (tüketici kodunda yazılır).
+
+**Adımlar**
+1. Graf'ı koş (`AwaitingInput`, iki istek). Birine cevap ver.
+2. `GET /api/workflows/requests?state=all`.
+
+**Beklenen sonuç**
+- 2: iki satır; cevaplanan satır ilk run'ı, hâlâ açık olan satır devam run'ını adlandırır (ikinci run aynı isteği aynı kimlikle yeniden yayınlamıştır).
+
+### MT-WF-173 — Satırı yazılamayan istek listede yoktur ama cevaplanabilir; hiç dolmaz (Faz 209, F-319) · ☐
+
+Otomatik karşılığı: `WorkflowRequestInboxTests.A_row_that_cannot_be_written_is_logged_and_the_run_still_waits_and_can_be_answered` ·
+`An_unreadable_inbox_does_not_stop_the_requests_of_a_run_from_being_listed`.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1001 |
+| **Devir** | ➜ CI: depoyu düşürmek tüketici kodu ister |
+
+**Ön koşul** — `IWorkflowRequestStore.AddAsync` fırlatan bir kayıt (tüketici kodunda).
+
+**Adımlar**
+1. Bir workflow'u `AwaitingInput`'a getir; `GET …/runs/{runId}/requests` ve `GET /api/workflows/requests` oku; run'a cevap ver.
+
+**Beklenen sonuç**
+- Run `AwaitingInput` kapanır; günlükte `inbox rows … could not be written` uyarısı vardır; run'ın kendi listesi isteği gösterir, kiracı listesi göstermez; cevap `200` verir ve run tamamlanır.

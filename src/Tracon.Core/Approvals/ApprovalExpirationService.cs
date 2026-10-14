@@ -18,8 +18,9 @@ namespace Tracon;
 /// For every closed request, this service also changes its <c>runs</c> row to
 /// <see cref="RunStatus.Failed"/>. Otherwise, a client could see
 /// <see cref="RunStatus.AwaitingApproval"/> forever through <c>GET /api/runs/{id}</c>.
-/// The non-UPsert behavior of <c>IRunStore.CompleteRunAsync</c>, which does not check the
-/// previous status, permits this: the store validates the expected tenant, not the previous status.
+/// <c>IRunStore.CompleteRunAsync</c> does not check the previous status and replaces the
+/// usage, cost and event count the row holds, so the service reads the run first, closes it only
+/// while it is still <see cref="RunStatus.AwaitingApproval"/>, and writes those values back.
 /// </para>
 /// </remarks>
 internal sealed class ApprovalExpirationService(
@@ -77,7 +78,7 @@ internal sealed class ApprovalExpirationService(
         }
     }
 
-    private async Task TickAsync(CancellationToken stoppingToken)
+    internal async Task TickAsync(CancellationToken stoppingToken)
     {
         var options = optionsMonitor.CurrentValue;
         var now = _clock.GetUtcNow();
@@ -110,12 +111,31 @@ internal sealed class ApprovalExpirationService(
     {
         try
         {
+            // The run is the approval's tenant's, and this service runs in no request.
+            using var tenantScope = AmbientTenantScope.Begin(approval.TenantId);
+
+            var run = await runStore.GetRunAsync(approval.RunId, cancellationToken).ConfigureAwait(false);
+
+            // Only a run that still waits is closed. A run something else already closed keeps the
+            // outcome it has: writing over it would replace what that recorded.
+            if (run is null || run.Status != RunStatus.AwaitingApproval)
+            {
+                return;
+            }
+
+            // 🚨 CompleteRunAsync REPLACES the event count, the usage and the cost with what the
+            // completion carries. Built from nothing, the completion erased what the run spent
+            // before it paused for this approval; the values go back as the row holds them.
             await runStore.CompleteRunAsync(
                 new RunCompletion
                 {
                     RunId = approval.RunId,
                     Status = RunStatus.Failed,
                     CompletedAt = now,
+                    EventCount = run.EventCount,
+                    Usage = run.Usage,
+                    Cost = run.Cost,
+                    NonTokenCost = run.NonTokenCost,
                     Error = new RunError
                     {
                         Type = "ApprovalExpired",

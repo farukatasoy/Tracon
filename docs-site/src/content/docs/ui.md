@@ -317,7 +317,10 @@ reason.
 
 The editor's **One answer per request** switch sets that mode for a stored workflow, and
 the version comparison lists it as *Answers per request*. A run started by an answer shows
-an *answers a request of run* link in its timeline, back to the run it answered.
+an *answers a request of run* link in its timeline, back to the run it answered. The
+**Answer time limit** field sets how long a request may wait before its run is closed (see
+[Workflow requests and time limits](/concepts/workflow-requests/)); the comparison lists it
+too, and an empty field means no limit.
 
 ## Evals and experiments
 
@@ -349,6 +352,15 @@ that answer sets in motion. It is here for a reason particular to approvals: the
 that asked the question never continues under its own id. It stays `AwaitingApproval`
 for good and the decision opens a new run, so there is no second request to answer if
 the first was answered by accident.
+
+Below the tool calls, a **Workflow requests** panel lists the human requests that the
+tenant's workflow runs wait on, across every workflow: the start of the request, when it
+was asked, when it expires, and whether it is waiting or already answered. The filters show
+the requests that wait for an answer (the default), the answered ones whose run still waits,
+or both, for all workflows or one. A row opens the run's card, where the whole request is
+read and answered. The panel is a separate record from the tool approvals above it, with its
+own filters and its own pages. See [Workflow requests and time
+limits](/concepts/workflow-requests/).
 
 Standing "don't ask again" rules live under Governance, where they can be reviewed,
 revoked, or written by hand with an argument condition (for example `amount <= 100`)

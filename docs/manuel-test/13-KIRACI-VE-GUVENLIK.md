@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182, 190, 208
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182, 190, 208, 209
 > **Kaynak:** `src/Tracon.AspNetCore/Security/` (tümü: `TraconEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `TraconPolicies`,
@@ -5043,3 +5043,50 @@ Denetim deposunu düşürmek (DB izni) 👤 insan gerektirir.
 
 **Beklenen sonuç**
 - İkisi de `404`; satır, denetim kaydı ve run yazılmaz.
+
+
+### MT-SEC-222 — Kiracı yalnız kendi bekleyen isteklerini listeler (Faz 209, F-319) · ☐
+
+Otomatik karşılığı: `WorkflowRequestInboxHttpTests.A_tenant_sees_only_its_own_requests` ·
+`WorkflowRequestStoreContract.Two_tenants_hold_the_same_session_and_request_without_seeing_each_other` ·
+`Another_tenant_cannot_mark_a_row_answered`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1001, K-1003 |
+| **Devir** | ➜ CI: iki kiracılı kurulum gerekir |
+
+**Ön koşul** — İki kiracı (`FIX-TENANT-01`, `-02`); her birinin bekleyen bir workflow run'ı.
+
+**Adımlar**
+1. Her kiracı `GET /api/workflows/requests?state=all` okur; birinin isteğine cevap verilir; ikisi de `state=answered` okur.
+2. Süresi dolan isteklerin run'ları kapanır (MT-WF-167).
+
+**Beklenen sonuç**
+- 1: her kiracı yalnız kendi satırını görür; cevap yalnız cevaplanan kiracının satırını `answered` yapar.
+- 2: her run kendi kiracısının kaydında kapanır (biri `Failed`, cevaplanan `Completed`).
+
+### MT-SEC-223 — Run okumayı reddeden `IRunAuthorizationHandler` kiracı listesini `403` ile reddeder, süzmez (Faz 209, F-319) · ☐
+
+Otomatik karşılığı: `WorkflowRequestInboxHttpTests.A_handler_that_refuses_reading_runs_rejects_the_list_with_403_and_never_filters_it`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1005, K-671 |
+| **Devir** | ➜ CI: reddeden işleyici tüketici kodunda yazılır |
+
+**Ön koşul** — `RunAccess.Read` için `Deny` dönen bir `IRunAuthorizationHandler`; birkaç bekleyen istek.
+
+**Adımlar**
+1. `GET /api/workflows/requests`.
+2. İşleyici izin verince aynı çağrı.
+
+**Beklenen sonuç**
+- 1: `403`; gövde istek içeriği taşımaz; işleyiciye `RunId` olmadan bir `Read` sorusu gelir.
+- 2: tam sayfa döner (kısa sayfa asla dönmez).
