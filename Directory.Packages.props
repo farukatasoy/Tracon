@@ -173,6 +173,22 @@
     -->
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
     <!--
+      CVE zorlamasi (F-524). SqlClient'in her yayini (7.0.2'den 7.1.1'e, olculdu
+      2026-10-14) acik uyarili System.Security.Cryptography.Pkcs ceker: net8.0
+      8.0.1, net9.0/net10.0 9.0.13 ve 9.0.18 (GHSA-846f-f764-76mx yuksek,
+      GHSA-2fmv-rv2c-59x7 orta). SqlClient'i yukseltmek bunu kapatmaz; yama
+      surumleri 8.0.2, 9.0.21 ve 10.0.13'tur. CentralPackageTransitivePinningEnabled
+      kapali (K-007) oldugu icin surum Tracon.SqlServer'da dogrudan
+      PackageReference ile zorlanir; bu, tuketicinin grafiginde de SqlClient'in
+      surumunun onune gecer. Surum her hedef cati icin ayridir: net8.0 ve net9.0
+      icin 10.0.13 Microsoft.Bcl.Cryptography ile System.Formats.Asn1'i de
+      getirirdi, eslesen surum hicbir paket getirmez (net gecisli agirlik: 0).
+      SqlClient yamali surumu kendisi cektiginde bu uc satir kaldirilir.
+    -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="8.0.2" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" Condition="'$(TargetFramework)' == 'net9.0'" />
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <!--
       SQLite surucusu (Faz 24). SQLitePCLRaw yerel kutuphane tasir; AOT/publish
       etkisi olculur (K-018 deseni, docs/24-SQLITE.md).
       Microsoft.Data.Sqlite 10.0.10'un cektigi SQLitePCLRaw.lib.e_sqlite3

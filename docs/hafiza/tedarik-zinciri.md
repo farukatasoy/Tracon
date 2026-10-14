@@ -22,6 +22,28 @@
 - **`dokuman-bakim.py` sürüm damgası pini okurken `[x]`'i `x`'e indirir.**
   İndirmeden önce `[x]` pini, `x` diyen üç kod yorumunu "sapmış" gösterdi.
 
+## Geçişli açık, bağımlılığı yükseltmekle kapanmaz (F-524, 2026-10-14)
+
+- **🚨 `Microsoft.Data.SqlClient`'ı yükseltmek açık uyarılı `System.Security.Cryptography.Pkcs`'ı
+  kapatmadı.** Ölçüldü: 7.0.2'den 7.1.1'e her yayın net8.0'da Pkcs 8.0.1, net9.0/net10.0'da
+  9.0.13 (7.1.x'te 9.0.18) çeker; üçü de GHSA-846f-f764-76mx / GHSA-2fmv-rv2c-59x7 kapsamındadır.
+  Yama: 8.0.2 · 9.0.21 · 10.0.13. Önce NuGet'in `*-flatcontainer`ında hangi sürümün yamalı
+  olduğuna bak (`api.github.com/advisories/<GHSA>` `first_patched_version`), sonra yükseltmenin
+  işe yarayıp yaramadığını ilgili sürümün `.nuspec`'inden ölç.
+- **Yama `Tracon.SqlServer`'da hedef çatıya göre eşleşen sürümdür** (`Directory.Packages.props`,
+  koşullu `PackageVersion`). Tek `10.0.13` net8.0/net9.0 tüketicisine `Microsoft.Bcl.Cryptography`
+  ve `System.Formats.Asn1` getirirdi; eşleşen sürüm paket getirmez. Doğrudan bağımlılık
+  tüketicinin grafiğinde SqlClient'in sürümünün önüne geçer (`dotnet nuget why`).
+- **Önbellekli restore açığı göstermez; soğuk restore `NU1902`/`NU1903`'ü HATA yapar.**
+  Ölçüldü: yamasız `Tracon.SqlServer`'da `dotnet build` sıfır uyarı verdi (restore no-op,
+  denetim yeniden koşmadı); `dotnet restore --force` aynı projede `Warning As Error` ile düştü
+  (`TreatWarningsAsErrors`). Yani yeni bir advisory yayımlanınca temiz bir CI checkout'u
+  yerel makineden önce kırılır. Şablon testi
+  (`TemplateInstantiationTests.Most_full_combination_compiles_with_zero_warnings`) da boş bir
+  dizinde restore ettiği için aynı yeri görür. Yerel tarama:
+  `dotnet restore Tracon.slnx --force` ve
+  `dotnet list Tracon.slnx package --vulnerable --include-transitive`.
+
 ## Paketin içindeki üçüncü taraf kodu bildirim taşır (BL-058, 2026-09-24)
 
 - **🚨 Vite lisans yorumlarını atar; `Tracon.UI` kodu bildirimsiz dağıtıyordu.**
