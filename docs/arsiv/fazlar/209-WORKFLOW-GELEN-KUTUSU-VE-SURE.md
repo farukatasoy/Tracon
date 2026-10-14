@@ -2,10 +2,10 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** onaylandı (2026-10-14) — 🔒1 **B** (`workflow_requests` projeksiyonu, K-128 yeni gerekçeyle açılır) · 🔒2 **B** (`(oturum, requestId)` başına mantıksal istek) · 🔒3 **A** (`Failed` + `WorkflowRequestExpired`) · 🔒4 **A** (cevaplanmış bekleyen istek `Completed` ile kapanır) · 🔒5 **A** (workflow başına `RequestTimeout`, `RequestedAt`'ten) · 🔒6 **A** (`Reader` + `RunAccess.Read`). Açık Soru 7-11 önerileriyle uygulanır (7 B, 8 A, 9 A, 10 A, 11 A). Faz 208 kapandı (`arsiv/fazlar/208-*`)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-319** (gelen kutusu ve süre yarısı; karar yarısı [Faz 208](arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md))
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-319** (gelen kutusu ve süre yarısı; karar yarısı [Faz 208](208-WORKFLOW-KARAR-SOZLESMESI.md))
 > **Genellik:** Tracon HITL'ini kullanan her host etkilenir. Kalem tek tüketici turundan geldi (video tüketicisi, 2026-10-11); tüketici geri bildirimi kuralı uygulanır. İkinci kanıt ilk ilkedir: (1) retention bekleyen run'ın istek olayını, checkpoint'lerini ve girdi satırını süresiz tutar (K-888) ve K-130 gereği cevaplanan istek de bekler — bu satırlar **hiç** silinmez (`RetentionTargetRegistry.cs:122-144`); tüketici bunu süre olmadan sınırlayamaz; (2) yönetişim eşitliği: tool onayının kiracı geneli kutusu ve süresi var (`GET /api/approvals/pending`, `ApprovalExpirationService`), workflow isteğinin yok. Ekosistem sinyali: MCP Tasks `input_required` görevi bir yaşam süresiyle (TTL) tanımlar
 > **Karşı görüş:** "Onay tüketicinin ekranında tutulabilir." Liste için kısmen doğru: tüketici `GET /api/runs?status=AwaitingInput&kind=Workflow` + run başına `/requests` ile bir liste kurabilir (N+1 çağrı). Ama "yalnız bekleyen" süzgeci sayfalamadan sonra uygulanırsa `skip/take` bozulur (`RunEndpoints.cs:64-67` kuralı); cevap bilgisi yalnız Faz 208'in tablosundadır. Süre ise yalnız Tracon'da kurulabilir: bekleyen run'ı kapatıp retention'ın satırları bırakmasını yalnız Tracon sağlar
-> **Önkoşul:** [Faz 208](arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md) — "yanıtlandı" işareti 208'in `workflow_responses` kaydını okur; iki faz `WorkflowEndpoints.cs`, `WorkflowRunner.cs`, `WorkflowDefinition` ve `WorkflowRegistrationOptions`'ı paylaşır
+> **Önkoşul:** [Faz 208](208-WORKFLOW-KARAR-SOZLESMESI.md) — "yanıtlandı" işareti 208'in `workflow_responses` kaydını okur; iki faz `WorkflowEndpoints.cs`, `WorkflowRunner.cs`, `WorkflowDefinition` ve `WorkflowRegistrationOptions`'ı paylaşır
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.UI`, `.Testing.Contracts.Xunit`, `Tracon.Client` (üretilen); projeksiyon seçilirse `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`
 > **Yeni paket:** Yok · **Migration:** ölçüme bağlı (Açık Soru 1) — projeksiyon seçilirse üç sağlayıcı; numara uygulama anında alınır
 > **Public API:** büyüyor, `1.0.0` GA'dan (K-603) önce ucuz — ölçüldü (2026-10-14): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, toplam 17 satır
@@ -34,9 +34,9 @@
    ```
    208: `workflow_responses` kaydı, iddia anahtarının ölçülen kapsamı (**oturum**, `claim_scope = session_id`), `WorkflowRegistrationOptions`, cevap sırası denetim → satır → kayıt (K-997)
 4. Alan hafızası:
-   [`hafiza/workflows.md`](hafiza/workflows.md) (K-888'in üç kayıp yolu, K-988) ·
-   [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (projeksiyon seçilirse) ·
-   [`hafiza/kapasite-olcumu.md`](hafiza/kapasite-olcumu.md) (§209.1 ölçümü)
+   [`hafiza/workflows.md`](../../hafiza/workflows.md) (K-888'in üç kayıp yolu, K-988) ·
+   [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (projeksiyon seçilirse) ·
+   [`hafiza/kapasite-olcumu.md`](../../hafiza/kapasite-olcumu.md) (§209.1 ölçümü)
 5. Gerektiğinde: `src/Tracon.Core/Approvals/ApprovalExpirationService.cs` — servisin emsali (tamamı 140 satır)
 
 ---
@@ -63,18 +63,18 @@ Bugün bekleyen insan istekleri yalnız run başına okunur. Bir host, n revizyo
 
 | Kanıt | Gözlem |
 |---|---|
-| [`WorkflowEndpoints.cs:315-326`](../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs), `:1074-1114` | İstek listesi yalnız run başınadır (`/api/workflows/runs/{runId}/requests`) |
+| [`WorkflowEndpoints.cs:315-326`](../../../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs), `:1074-1114` | İstek listesi yalnız run başınadır (`/api/workflows/runs/{runId}/requests`) |
 | `WorkflowRunner.ListPendingRequestsAsync` | Run'ın bütün olayları baştan okunur (`ReadEventsAsync(runId, 0)`); tür süzgeci yok. Cevaplanan run `AwaitingInput` kalır ve isteğini listeler (K-130) |
-| [`IRunStore.cs:197`](../src/Tracon.Abstractions/Runs/IRunStore.cs), `:220` | `QueryRunsAsync(RunQuery)` kiracı + durum + tür + sayfa taşır; `ReadEventsAsync` tür almaz |
-| [`RunEndpoints.cs:43-110`](../src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs) | `GET /api/runs?status=AwaitingInput&kind=Workflow` bugün çalışır (`take` en çok 200, `:108`); istek yükü ve cevap bilgisi yok. `:64-67`: liste süzülmez — sayfalama sözleşmesi bozulur |
+| [`IRunStore.cs:197`](../../../src/Tracon.Abstractions/Runs/IRunStore.cs), `:220` | `QueryRunsAsync(RunQuery)` kiracı + durum + tür + sayfa taşır; `ReadEventsAsync` tür almaz |
+| [`RunEndpoints.cs:43-110`](../../../src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs) | `GET /api/runs?status=AwaitingInput&kind=Workflow` bugün çalışır (`take` en çok 200, `:108`); istek yükü ve cevap bilgisi yok. `:64-67`: liste süzülmez — sayfalama sözleşmesi bozulur |
 | `0001_initial.sql` (PG `:156`, SQL Server `:212-213`, Sqlite `:171`) · `runs_workflow_idx` (PG `0007_workflows.sql:14`, SQL Server `0001:232`, Sqlite `0001:177`) | `(tenant_id, status, started_at)` indeksi üç sağlayıcıda var; `run_events`'te yalnız `(run_id, seq)` PK var, tür indeksi yok |
-| [`TraconOptions.cs:713`](../src/Tracon.Core/TraconOptions.cs), `:726` | `RecordMessageDeltas = true` varsayılandır: run başına tarama delta olaylarını da okur; yük sınırı 8 KB |
-| [`WorkflowDefinition.cs:186`](../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs) · [`WorkflowPendingRequest.cs:19-51`](../src/Tracon.Abstractions/Workflows/WorkflowPendingRequest.cs) | Tanım yalnız `RunTimeout` taşır; istek `ExpiresAt`, workflow adı ve oturum taşımaz |
-| [`RunStatus.cs:19-90`](../src/Tracon.Abstractions/Runs/RunStatus.cs) | `Expired` üyesi yok |
-| [`RetentionTargetRegistry.cs:122-144`](../src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs), `:221-233`, `:336-349` | `AwaitingInput` run'ın istek olayı, checkpoint'leri ve girdi satırı süzgeçle tutulur; `:129` "an expiry for them is F-319's scope". `runs` satırı hiçbir retention hedefinde yok (`RetentionTargets.cs:18-93`) |
-| [`ApprovalExpirationService.cs:25-139`](../src/Tracon.Core/Approvals/ApprovalExpirationService.cs) · [`TraconApprovalOptions.cs:21-37`](../src/Tracon.Core/Approvals/TraconApprovalOptions.cs) | Emsal: `SingletonGuard`, `PeriodicTimer`, `MaxPerScan`; süresi dolan onayın run'ı `CompleteRunAsync` ile `Failed` + `ApprovalExpired` olur (`:113-121`) |
-| [`0027_pending_approvals.sql:1-30`](../src/Tracon.PostgreSql/Migrations/0027_pending_approvals.sql) | Emsal: kendini "projeksiyon" diye tanımlayan tablo; `(status, expires_at)` süre indeksi (`:29`) |
-| [`approvals.tsx`](../src/Tracon.UI/frontend/src/screens/approvals.tsx) (263 satır) | Konsolun onay ekranı; workflow isteği orada görünmez |
+| [`TraconOptions.cs:713`](../../../src/Tracon.Core/TraconOptions.cs), `:726` | `RecordMessageDeltas = true` varsayılandır: run başına tarama delta olaylarını da okur; yük sınırı 8 KB |
+| [`WorkflowDefinition.cs:186`](../../../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs) · [`WorkflowPendingRequest.cs:19-51`](../../../src/Tracon.Abstractions/Workflows/WorkflowPendingRequest.cs) | Tanım yalnız `RunTimeout` taşır; istek `ExpiresAt`, workflow adı ve oturum taşımaz |
+| [`RunStatus.cs:19-90`](../../../src/Tracon.Abstractions/Runs/RunStatus.cs) | `Expired` üyesi yok |
+| [`RetentionTargetRegistry.cs:122-144`](../../../src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs), `:221-233`, `:336-349` | `AwaitingInput` run'ın istek olayı, checkpoint'leri ve girdi satırı süzgeçle tutulur; `:129` "an expiry for them is F-319's scope". `runs` satırı hiçbir retention hedefinde yok (`RetentionTargets.cs:18-93`) |
+| [`ApprovalExpirationService.cs:25-139`](../../../src/Tracon.Core/Approvals/ApprovalExpirationService.cs) · [`TraconApprovalOptions.cs:21-37`](../../../src/Tracon.Core/Approvals/TraconApprovalOptions.cs) | Emsal: `SingletonGuard`, `PeriodicTimer`, `MaxPerScan`; süresi dolan onayın run'ı `CompleteRunAsync` ile `Failed` + `ApprovalExpired` olur (`:113-121`) |
+| [`0027_pending_approvals.sql:1-30`](../../../src/Tracon.PostgreSql/Migrations/0027_pending_approvals.sql) | Emsal: kendini "projeksiyon" diye tanımlayan tablo; `(status, expires_at)` süre indeksi (`:29`) |
+| [`approvals.tsx`](../../../src/Tracon.UI/frontend/src/screens/approvals.tsx) (263 satır) | Konsolun onay ekranı; workflow isteği orada görünmez |
 
 > Kanıtlar 2026-10-14 tarihinde `245afe91` zemininde (worktree `faz-208`) doğrulandı.
 
@@ -243,7 +243,7 @@ src/Tracon.UI/frontend/src/screens/{approvals,workflow-editor}.tsx, locales/{en,
 
 ## Hata Modları ve Testler
 
-> Seviye kuralı: [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> Seviye kuralı: [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -623,10 +623,10 @@ Bağımsız `faz-denetim` (`faz-denetcisi`, salt-okunur), 2026-10-14: **0 🔴**
 
 ## Sonraki Faza Devir Notu
 
-Sıradaki faz seçilmedi; aday sırası [`ADAYLAR.md`](../ADAYLAR.md)'dedir (Faz 209 için F-319 satırı çıkarıldı). Bu faz şunları bıraktı:
+Sıradaki faz seçilmedi; aday sırası [`ADAYLAR.md`](../../../ADAYLAR.md)'dedir (Faz 209 için F-319 satırı çıkarıldı). Bu faz şunları bıraktı:
 
 - **Devralınan sözleşmeler:** yukarıdaki *Gerçekleşen Public API*. `IWorkflowRequestStore` altı üyeli; yeni bir depo uygulayan `WorkflowRequestStoreContract`'ı geçmelidir (`SetRunStatusAsync` kancasını run tablosu varsa uygulamalıdır). Satır tek yerde yazılır: `WorkflowRunner.CompleteAsync` → `RecordRequestsAsync`.
-- 🚨 **Bilinen tuzaklar** (ayrıntı [`hafiza/workflow-cevaplari.md`](../hafiza/workflow-cevaplari.md)): `CompleteRunAsync` sayaçları **değiştirir** (kapatırken önce oku, geri yaz); arka plan servisi kiracısız koşar (`AmbientTenantScope.Begin`, test host'unda sına); "satırı kapat sonra bir şey yap" adımının çökme boşluğu `ListStrandedAsync`'le kapatıldı; `UPDATE … RETURNING` sırası tanımsızdır; minimal API enum bağlayıcısı harf duyarlıdır.
+- 🚨 **Bilinen tuzaklar** (ayrıntı [`hafiza/workflow-cevaplari.md`](../../../hafiza/workflow-cevaplari.md)): `CompleteRunAsync` sayaçları **değiştirir** (kapatırken önce oku, geri yaz); arka plan servisi kiracısız koşar (`AmbientTenantScope.Begin`, test host'unda sına); "satırı kapat sonra bir şey yap" adımının çökme boşluğu `ListStrandedAsync`'le kapatıldı; `UPDATE … RETURNING` sırası tanımsızdır; minimal API enum bağlayıcısı harf duyarlıdır.
 - 🚨 **Uygulanmış migration'lar değişmez:** PostgreSQL `0061`, SQL Server `0049`, SQLite `0048` (`applied-migrations.json` ankrajlı). Yeni sütun/indeks yeni migration ister.
 - **Açık uçlar (ADAYLAR):** F-532 (süre kapanışı normal kapanış temizliğini atlar), F-533 (kapanmış isteğe cevap), F-534 (sayfa başına olay okuması), F-535 (satırı olmayan bekleyen run için uzlaştırma), F-518 (`workflow_responses` büyümesi; `workflow_requests` için kalıp hazır, K-1004).
 - **Sınırlar (kullanıcıya söylenmiştir):** Faz 209 öncesi bekleyen run'lar listede yok ve dolmaz (geriye dönük doldurma yok); satırı yazılamayan istek listede yok ve dolmaz; süre ile cevap arasında iki yazımlık (ms) pencere vardır ve davranışı sabit; webhook yayınlanmaz.

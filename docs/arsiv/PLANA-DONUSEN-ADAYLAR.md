@@ -2414,7 +2414,7 @@ Gövdeler aday dosyasındaki son hâliyle, aynen:
 Bakımcı 2026-10-14'te kalemi ikiye böldü: karar sözleşmesi
 ([Faz 208](fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md): opt-in tek yanıt, aynı cevap aynı
 devam, zıt cevap `409`, her `respond` fail-closed denetim, kaynak bağı) ve gelen
-kutusu ([Faz 209](../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md): kiracı geneli liste,
+kutusu ([Faz 209](fazlar/209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md): kiracı geneli liste,
 istek süresi). Kararlar: `workflow_responses` tablosu (K-128 bozulmaz), K-130
 varsayılanı korunur, fail-closed kümesi 6 → 7. Kanıt `245afe91` zemininde yeniden
 doğrulandı. Belirgin düzeltmeler: satır kayması (`WorkflowEndpoints.cs:175-186` →

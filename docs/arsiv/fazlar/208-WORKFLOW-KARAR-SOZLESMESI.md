@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 — iki faz, `workflow_responses` tablosu, her `respond` fail-closed denetim, K-130 varsayılanı korunur; Açık Sorular 1-10 öneriyle
-> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-319** (karar yarısı; gelen kutusu ve süre [Faz 209](../../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md))
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-319** (karar yarısı; gelen kutusu ve süre [Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md))
 > **Genellik:** Tracon HITL'ini kullanan her host; tüketici geri bildirimi kuralı uygulandı (video tüketicisi, 2026-10-11). İlk ilke: çift `respond` iki dal açar ve tüketici yarışı kapatamaz; workflow onayı tool onayı gibi denetlenmiyordu
 > **Karşı görüş:** "Onay tüketicinin ekranında tutulabilir." Ekran tüketicide kalır; iki isteğin yarışı ve denetim yalnız uygulayan katmanda kurulur. Mod opt-in
 > **Önkoşul:** [Faz 205](205-GEC-BITEN-HARCAMA-KOTASI.md) — `WorkflowRunner.cs` ortak dosya
@@ -221,7 +221,7 @@ Planın *Kapsam dışı* tablosundan açılan adaylar: **F-520** (cevabın kendi
 ## Sonraki Faza Devir Notu
 
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz ([Faz 209](../../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) yanıt kaydını okur).
+> kalan işler, sıradaki faz ([Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) yanıt kaydını okur).
 
 **Sıradaki faz: Faz 210 (F-407 — bütçe tükenince fonksiyon düğümü başlamasın).** Planı onaylı (🔒1 A, 🔒2 B, 🔒3 A) ve `worktree-faz-210-butce-dugum-kapisi` dalındadır; bu faz kapandıktan sonra `main`'e birleştirilir. Bu fazla ortak dosyası `WorkflowRunner.cs`'tir; satır kayar, sözleşme çakışmaz. **Faz 209** (gelen kutusu ve süre) altı engelleyici soruyla onay bekler ve bu fazın kaydını okur.
 
