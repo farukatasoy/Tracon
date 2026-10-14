@@ -480,7 +480,10 @@ percentage in `Quotas:ThresholdPercents` (`80` and `100` by default) Tracon post
 a [`quota.threshold`](#webhooks) webhook carrying the metric, the period, the limit,
 the consumption, the threshold crossed, and when the counter resets. Each threshold
 fires **once per period**, so a counter that keeps climbing past `80` does not
-re-notify. Set the list to empty to turn the notifications off.
+re-notify. To turn the notifications off, clear the list in code
+(`Configure<TraconQuotaOptions>(o => o.ThresholdPercents.Clear())`); an empty list in
+configuration keeps the default. An entry that is not a whole number from 1 to 100
+stops the application at startup, and the error quotes it.
 
 The threshold event is a notification, not a decision: it stops nothing, and `429`
 remains the only thing that refuses a run.
@@ -498,7 +501,10 @@ Turning on `Quotas:PublishThresholdToRunStream` (off by default) also writes the
 crossed threshold into the *triggering run's own* event stream — a `custom` frame
 carrying `tracon.quota.threshold` before the run's terminal event, so a client
 already watching that one run's SSE stream sees the warning without a separate
-webhook subscription. The frame's payload carries a `noticeId` (stable across a
+webhook subscription. When the same run's answer was also cut off, its
+`tracon.output.truncated` frame comes first, in record order; if the run store cannot
+be read back at that point, the stream still ends with `done` and the notice stays on
+the run's recorded events. The frame's payload carries a `noticeId` (stable across a
 reconnect, for dedup), the run and user the threshold belongs to, and the same
 metric/period/limit/consumption fields the webhook carries. A threshold is claimed
 for notification **once per period** durably — a restart or a second worker
