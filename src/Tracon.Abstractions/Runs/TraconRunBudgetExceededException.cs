@@ -1,8 +1,8 @@
 namespace Tracon;
 
 /// <summary>
-/// Thrown when a run tree's token or cost budget runs out mid-run, between
-/// two model turns.
+/// Thrown when a run tree's budget runs out: its token or cost budget between two
+/// model turns, or a workflow step or function node that the budget refuses to start.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -22,6 +22,12 @@ namespace Tracon;
 /// A workflow step has no calling model to recover, so there the refused
 /// reservation throws this exception too, and the workflow run ends
 /// <c>Failed</c> with the same class as any other budget exhaustion.
+/// </para>
+/// <para>
+/// A workflow function node is refused the same way, at its start, when the tree's
+/// cost or time budget is already spent (the token budget does not stop a node). The
+/// message says "Could not start function node" and names the setting to raise. A node
+/// that is already running is never stopped by it, and the refusal is not retried.
 /// </para>
 /// </remarks>
 public sealed class TraconRunBudgetExceededException : TraconException

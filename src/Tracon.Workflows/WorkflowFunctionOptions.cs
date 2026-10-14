@@ -2,7 +2,8 @@ namespace Tracon;
 
 /// <summary>
 /// The optional settings of a workflow function registered with
-/// <c>AddWorkflowFunction</c>: its description, retry policy and timeout.
+/// <c>AddWorkflowFunction</c>: its description, retry policy, timeout and whether it
+/// starts when the call tree's budget is spent.
 /// </summary>
 /// <remarks>
 /// A callback with properties rather than optional parameters: a public method
@@ -52,4 +53,26 @@ public sealed class WorkflowFunctionOptions
     /// </para>
     /// </remarks>
     public TimeSpan? Timeout { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the node starts even when the call tree's cost or time budget is
+    /// already spent. <see langword="false"/> (the default) refuses it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A function node is refused at its start once <c>Tracon:AgentGraph:MaxTotalCost</c> or
+    /// <c>Tracon:AgentGraph:MaxDuration</c> is passed: the run ends <c>Failed</c> with
+    /// <see cref="TraconRunBudgetExceededException"/> (<c>run_budget_exceeded</c>) and no later
+    /// node runs. A node that is already running is not stopped, and the token budget never
+    /// stops a node. A host that sets neither ceiling is not affected.
+    /// </para>
+    /// <para>
+    /// Set this to <see langword="true"/> for a node that spends nothing and should still run
+    /// after a costly one: a step that stores the output the budget has just paid for. The
+    /// node's own reported spend still counts against the budget; only its start is exempt.
+    /// The exemption is a property of the node's code, so it is set here and cannot be set by
+    /// an operator in a workflow definition.
+    /// </para>
+    /// </remarks>
+    public bool StartsWhenBudgetIsSpent { get; set; }
 }

@@ -420,7 +420,9 @@ already in progress finishes even if the tree is over either limit.
 `MaxTotalTokens`, `MaxTotalCost`, and `MaxDuration` are enforced differently:
 the check runs between two model turns, inside the tool-call loop, so a tree
 that has already spent past its limit is cut off before its *next* model
-call — mid-run, not only at the next child call. The run ends `Failed` with
+call — mid-run, not only at the next child call. A workflow function node is checked
+when it would start (each attempt of a retried node too): `MaxTotalCost` and `MaxDuration`
+keep it from starting, and `MaxTotalTokens` does not. The run ends `Failed` with
 `error_class: QuotaExceeded` and a message naming which limit was hit and
 which setting raises it. A cost limit falls back to the token limit for a
 model whose price is undefined (`PricingSource.Unknown`) — the cost cannot be
@@ -431,9 +433,11 @@ measured, so it cannot be enforced.
 is recorded into the budget the moment it is reported, so a tree whose speech and renders
 have already spent the ceiling is refused at its next model call, the same as one that
 spent it on tokens. Only an amount that adds counts: an item with no amount, or in a
-currency other than `Tracon:Pricing:Currency`, is unknown to the budget. The budget refuses
-model calls, not function nodes, so a function node still starts when the ceiling is
-already spent.
+currency other than `Tracon:Pricing:Currency`, is unknown to the budget. The same ceiling
+keeps the next function node from starting: the run ends `Failed` with `run_budget_exceeded`
+and no later node runs (see [A spent budget stops a function node from
+starting](/concepts/workflows/#a-spent-budget-stops-a-function-node-from-starting)). A node that is
+already running is not stopped, so a tree passes its ceiling by as much as its last node spends.
 
 `MaxDuration` is not a hard timeout: a tool call already running when the
 deadline passes is never interrupted, only the *next* model call after it is

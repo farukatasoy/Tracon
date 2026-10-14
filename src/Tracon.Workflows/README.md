@@ -188,6 +188,14 @@ webhook count. A quantity is never added across units, and an item with no amoun
 another currency, is listed and counted as not added: unknown, not free. A run that
 reported nothing has no `nonTokenCost`, which is not zero.
 
+The same budget stops a function node from **starting**. Once `Tracon:AgentGraph:MaxTotalCost`
+or `Tracon:AgentGraph:MaxDuration` is spent, the next function node does not run and the run
+ends `Failed` with `run_budget_exceeded`. A node that is already running is never stopped, so
+a tree can pass its ceiling by as much as its last node spends. The token budget does not stop
+a node. A node that spends nothing and must still run after a costly one, such as a step that
+stores what the budget just paid for, opts out in code with
+`options.StartsWhenBudgetIsSpent = true`; an operator cannot set it in a definition.
+
 ## Parameters
 
 A stored workflow can declare run parameters (`WorkflowDefinition.Parameters`, the

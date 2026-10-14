@@ -1,3 +1,5 @@
+using Tracon.Core.UnitTests.Fakes;
+
 namespace Tracon.Core.UnitTests.Graph;
 
 /// <summary>
@@ -107,5 +109,114 @@ public sealed class AgentRunBudgetTests
         budget.MaxTotalRuns.ShouldBeNull();
         budget.MaxDuration.ShouldBeNull();
         budget.Deadline.ShouldBeNull();
+    }
+
+    // --- F-407: where a function node may start ---
+
+    [Fact]
+    public void A_spent_token_budget_does_not_refuse_a_node_start()
+    {
+        // Token is on by default (200,000) and a function node spends none: stopping it on
+        // this boundary would change every installation's behavior.
+        var budget = new AgentRunBudget { MaxTotalTokens = 1_000 };
+
+        budget.RecordUsage(1_000);
+
+        budget.IsTokenBudgetExhausted.ShouldBeTrue();
+        budget.IsNodeStartExhausted.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_spent_run_count_does_not_refuse_a_node_start()
+    {
+        // A function node opens no child run.
+        var budget = new AgentRunBudget { MaxTotalRuns = 1 };
+
+        budget.TryReserveRun().ShouldBeTrue();
+        budget.TryReserveRun().ShouldBeFalse();
+
+        budget.IsNodeStartExhausted.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_spent_cost_or_time_budget_refuses_a_node_start()
+    {
+        var cost = new AgentRunBudget { MaxTotalCost = 1m };
+
+        cost.RecordUsage(0, 1m);
+
+        cost.IsNodeStartExhausted.ShouldBeTrue();
+
+        var clock = new ManualTimeProvider();
+        var time = new AgentRunBudget(TimeSpan.FromSeconds(5), clock);
+
+        time.IsNodeStartExhausted.ShouldBeFalse();
+
+        clock.Advance(TimeSpan.FromSeconds(5));
+
+        time.IsNodeStartExhausted.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void The_node_start_message_names_cost_even_when_tokens_are_spent_too()
+    {
+        // DescribeExhaustion names the token budget first. A node is not stopped by token,
+        // so a message that named it would send the operator to the wrong setting.
+        var budget = new AgentRunBudget { MaxTotalTokens = 10, MaxTotalCost = 0.005m };
+
+        budget.RecordUsage(10, 0.0076m);
+
+        var text = budget.DescribeNodeStartExhaustion();
+
+        text.ShouldBe(
+            "The run tree's cost budget is exhausted (0.007600/0.005000). " +
+            "Raise Tracon:AgentGraph:MaxTotalCost to allow more. A node that is already running is not stopped.");
+        text.ShouldNotContain("token", Case.Insensitive);
+    }
+
+    [Fact]
+    public void The_node_start_message_names_the_time_budget_without_the_model_turn_sentence()
+    {
+        var clock = new ManualTimeProvider();
+        var budget = new AgentRunBudget(TimeSpan.FromSeconds(5), clock);
+
+        clock.Advance(TimeSpan.FromSeconds(7));
+
+        var text = budget.DescribeNodeStartExhaustion();
+
+        text.ShouldContain("time budget is exhausted (00:00:07/00:00:05)", Case.Sensitive);
+        text.ShouldContain("Raise Tracon:AgentGraph:MaxDuration to allow more.", Case.Sensitive);
+        text.ShouldEndWith("A node that is already running is not stopped.", Case.Sensitive);
+        text.ShouldNotContain("between model turns", Case.Sensitive);
+    }
+
+    [Fact]
+    public void The_node_start_message_names_cost_first_when_time_is_spent_too()
+    {
+        var clock = new ManualTimeProvider();
+        var budget = new AgentRunBudget(TimeSpan.FromSeconds(5), clock) { MaxTotalCost = 1m };
+
+        budget.RecordUsage(0, 2m);
+        clock.Advance(TimeSpan.FromSeconds(7));
+
+        budget.DescribeNodeStartExhaustion().ShouldContain("cost budget is exhausted", Case.Sensitive);
+        budget.DescribeNodeStartExhaustion().ShouldNotContain("time budget", Case.Sensitive);
+    }
+
+    [Fact]
+    public void The_model_call_messages_are_unchanged_by_the_node_start_text()
+    {
+        // The node text shares the cost and time sentences with the model-call text, one
+        // copy each: pin the model call's wording so a shared edit cannot move it.
+        var budget = new AgentRunBudget { MaxTotalCost = 0.005m };
+
+        budget.RecordUsage(0, 0.0076m);
+
+        budget.DescribeModelCallExhaustion().ShouldBe(
+            "The run tree's cost budget is exhausted (0.007600/0.005000). " +
+            "Raise Tracon:AgentGraph:MaxTotalCost to allow more. No further model calls can be made in this run tree.");
+        budget.DescribeExhaustion().ShouldBe(
+            "The run tree's cost budget is exhausted (0.007600/0.005000). " +
+            "Raise Tracon:AgentGraph:MaxTotalCost to allow more. A new child run cannot be started.");
     }
 }

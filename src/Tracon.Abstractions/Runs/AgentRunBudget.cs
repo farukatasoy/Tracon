@@ -35,6 +35,15 @@ namespace Tracon;
 /// the cutoff waits for that tool call to finish and only then refuses the
 /// model call that would follow it.
 /// </para>
+/// <para>
+/// A workflow function node is gated at its <strong>start</strong>, on two of the
+/// three: once <see cref="IsCostBudgetExhausted"/> or <see cref="IsDurationBudgetExhausted"/>
+/// is <see langword="true"/> the node does not begin and the run ends
+/// <c>Failed</c> with <see cref="TraconRunBudgetExceededException"/>. The token
+/// dimension does not stop a node: it is on by default and a function node spends
+/// no tokens. A node that is already running is never stopped, so the tree can
+/// pass a ceiling by as much as its last node spends; the ceiling is not absolute.
+/// </para>
 /// </remarks>
 public sealed class AgentRunBudget
 {
@@ -49,6 +58,9 @@ public sealed class AgentRunBudget
 
     // The largest cost, in currency units, the nano-unit counter holds.
     private const decimal MaxRecordableCost = long.MaxValue / CostScale;
+
+    // What a refused function node's text adds: the limit stops a start, never a running node.
+    private const string NodeKeepsRunning = "A node that is already running is not stopped.";
 
     private readonly TimeProvider _timeProvider;
 
@@ -293,6 +305,25 @@ public sealed class AgentRunBudget
     public string DescribeModelCallExhaustion()
         => $"{DescribeExceededLimit()} No further model calls can be made in this run tree.";
 
+    /// <summary>
+    /// Whether a workflow function node may not start: the cost or the time limit is
+    /// spent. The token and run-count limits are not read, because a function node
+    /// spends no tokens and opens no child run.
+    /// </summary>
+    internal bool IsNodeStartExhausted => IsCostBudgetExhausted || IsDurationBudgetExhausted;
+
+    /// <summary>
+    /// Produces the text for a function node that was not started, naming the one
+    /// limit that stopped it: cost first, then time, the order <see cref="DescribeExhaustion"/>
+    /// uses. The token limit is never named, since it did not stop the node.
+    /// </summary>
+    /// <returns>Text stating which limit was exceeded and that running nodes are not stopped.</returns>
+    /// <remarks>Only called once <see cref="IsNodeStartExhausted"/> is <see langword="true"/>.</remarks>
+    internal string DescribeNodeStartExhaustion()
+        => IsCostBudgetExhausted ? $"{DescribeCostLimit()} {NodeKeepsRunning}"
+            : IsDurationBudgetExhausted ? $"{DescribeTimeLimit()} {NodeKeepsRunning}"
+            : DescribeExceededLimit();
+
     private string DescribeExceededLimit()
     {
         if (IsTokenBudgetExhausted)
@@ -303,22 +334,32 @@ public sealed class AgentRunBudget
 
         if (IsCostBudgetExhausted)
         {
-            return string.Create(
-                       CultureInfo.InvariantCulture,
-                       $"The run tree's cost budget is exhausted ({ConsumedCost:0.000000}/{MaxTotalCost:0.000000}). ") +
-                   "Raise Tracon:AgentGraph:MaxTotalCost to allow more.";
+            return DescribeCostLimit();
         }
 
         if (IsDurationBudgetExhausted)
         {
-            var elapsed = _timeProvider.GetUtcNow() - (Deadline!.Value - MaxDuration!.Value);
-
-            return $"The run tree's time budget is exhausted ({elapsed}/{MaxDuration}). " +
-                   "Raise Tracon:AgentGraph:MaxDuration to allow more. This is a cutoff between " +
-                   "model turns, not a hard timeout: a tool call already in progress is not interrupted.";
+            return $"{DescribeTimeLimit()} This is a cutoff between model turns, not a hard timeout: " +
+                   "a tool call already in progress is not interrupted.";
         }
 
         return $"The run tree's child-run limit is reached ({StartedRuns}/{MaxTotalRuns}). " +
                "Raise Tracon:AgentGraph:MaxTotalRuns to allow more.";
+    }
+
+    // The cost and time sentences are written once: the model call, the child run and the
+    // function node say the same thing about the same limit.
+    private string DescribeCostLimit()
+        => string.Create(
+               CultureInfo.InvariantCulture,
+               $"The run tree's cost budget is exhausted ({ConsumedCost:0.000000}/{MaxTotalCost:0.000000}). ") +
+           "Raise Tracon:AgentGraph:MaxTotalCost to allow more.";
+
+    private string DescribeTimeLimit()
+    {
+        var elapsed = _timeProvider.GetUtcNow() - (Deadline!.Value - MaxDuration!.Value);
+
+        return $"The run tree's time budget is exhausted ({elapsed}/{MaxDuration}). " +
+               "Raise Tracon:AgentGraph:MaxDuration to allow more.";
     }
 }

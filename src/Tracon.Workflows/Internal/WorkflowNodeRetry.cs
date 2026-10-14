@@ -154,6 +154,17 @@ internal static class WorkflowNodeRetry
             return false;
         }
 
+        // F-407: a spent budget stays spent for the run (cost and time only grow), so a retry
+        // cannot fix it. The classifier is not asked: a consumer's classifier that files
+        // `run_budget_exceeded` under a transient class would make the node wait and ask
+        // MaxAttempts times for the same answer. Local to the retry on purpose; FinalFailure
+        // is also read by online evaluation, whose new run opens a new budget where the
+        // refusal can change.
+        if (exception is TraconRunBudgetExceededException)
+        {
+            return false;
+        }
+
         var error = ToRunError(exception);
         RunErrorClassification classification;
 
