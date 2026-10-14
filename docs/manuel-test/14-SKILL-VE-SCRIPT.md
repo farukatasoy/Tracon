@@ -2285,7 +2285,7 @@ Negatif senaryo.
 
 ### MT-SKILL-083 — Disk script'inin boyut ve tür kapısı (FIFO, sınır aşımı)
 
-Negatif. Disk skill'i HTTP'den çağrılamaz (`F-481`); case CI'a devredilir.
+Negatif. Agent disk skill'ini adlandırabilir (K-981); dosya kapısı yine de CI'da daha hızlı sınanır.
 
 | | |
 |---|---|
@@ -2299,3 +2299,31 @@ Negatif. Disk skill'i HTTP'den çağrılamaz (`F-481`); case CI'a devredilir.
 - Sınırı aşan, boş, yok ya da özel (FIFO, `/dev/zero`) dosya açılmadan
   reddedilir: `script.denied`, `script.run` ve kota slotu yok.
 - Kapıdan sonra FIFO'ya dönen dosya `Timeout + 5 sn`'de bırakılır; slot boşalır.
+
+---
+
+### MT-SKILL-084 — Yalnız diskte duran skill'i agent adlandırır ve HTTP run'ı script'ine ulaşır (kusur-giderme, 2026-10-14, F-481)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-981 |
+| **Devir** | ➜ CI: `SkillScriptExecutorRoutingTests` (HTTP run, HTTP kaydı, disk düzenlemesi) |
+
+Regresyon. Katalog ve doğrulayıcı adı yalnız kodda ve `store`'da arıyordu; agent
+`400` "the skill was not found" alıyordu.
+
+**Ön koşul** — Örnek uygulama `UseSkillScripts` (`SkillRoots` = bir dizin, `Interpreters["sh"]`); dizinde `disk-skill/SKILL.md` ve `disk-skill/scripts/hello.sh`; skill geneli grant (pinsiz).
+
+**Adımlar**
+1. `POST $APU/api/agents` gövdesinde `"skillNames":["disk-skill"]`.
+2. Agent'ı koş ve modelden `run_skill_script` ile script'i iste.
+3. `SKILL.md`'nin `description`'ını değiştir ve tekrar koş.
+
+**Beklenen sonuç**
+- Adım 1: `201`.
+- Adım 2: script koşar (`script.run` denetim kaydı, `Origin: File`).
+- Adım 3: ikinci run'ın istemi yeni açıklamayı taşır (agent yeniden derlendi).
+- 🚨 Eski kusur: adım 1 `400`, adım 2 derlemede `400`.

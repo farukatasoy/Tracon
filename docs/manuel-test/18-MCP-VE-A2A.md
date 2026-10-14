@@ -2126,3 +2126,24 @@ bir MCP sunucusu (örnek: `LookupMcpServer.FailListing`). Tool'u çağıran TEK 
 - (1) modele giden istekte tool açıklaması "eski"dir; (2) "yeni"dir. İki run da
   `Completed`; tool iki kez çağrılır.
 
+---
+
+### MT-MCP-083 — Yayından sonra onay kazanan tool'da MCP çağrısının run'ı `Failed` kapanır (kusur-giderme, 2026-10-14, F-448 sınıf taraması)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-977 |
+| **Devir** | ➜ CI: `SessionlessApprovalTests.An_MCP_tool_call_that_stops_at_an_approval_closes_its_run_as_failed` · `…An_A2A_message…` · `McpTaskCrossInstanceTests` |
+
+Regresyon. İstemci K-103 reddini alıyor, run `AwaitingApproval` kalıyordu.
+
+**Adımlar**
+1. Tool'suz bir DB agent'ını MCP'den yayınla; sonra onay isteyen bir tool ekle.
+2. `tools/call` gönder; `GET $APU/api/runs?agentName=<agent>`.
+
+**Beklenen sonuç**
+- Sonuç `isError: true`, metin "cannot respond to an approval request".
+- Run `Failed`, hata tipi `approval_unanswerable`; görev kipinde başka örnekten okuyan poller yine tamamlanmış red görür.

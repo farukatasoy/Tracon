@@ -103,6 +103,17 @@ public sealed partial class RunRecordingAgent
 
         var treeUsage = RunUsageSum.Add(usage, DescendantUsage(record));
 
+        // F-419: a tree whose runs are priced in more than one currency has no total;
+        // subtracting the row's own share from a partial one would count a wrong amount.
+        if (record.TreeCost is { CurrencyCount: > 1 } || record.TreeNonTokenCost is { CurrencyCount: > 1 })
+        {
+            _logger.LogWarning(
+                "The run tree of run {RunId} is priced in more than one currency; its quota entry and webhook count the root's own cost only.",
+                scope.RunId);
+
+            return own with { Usage = treeUsage };
+        }
+
         // The tree's spend is the token cost and the reported amount together
         // (RunSpend), and so is what the row already holds: subtracting like from
         // like leaves the descendants' share. The root's own in-memory spend, above,

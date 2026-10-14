@@ -921,7 +921,7 @@ namespace Tracon.Client.Generated
         /// Runs an agent for trial purposes and streams the response via SSE.
         /// </summary>
         /// <remarks>
-        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required').
+        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -1030,6 +1030,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 422)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -1098,7 +1108,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required').
+        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -1212,6 +1222,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 422)
@@ -15629,7 +15649,7 @@ namespace Tracon.Client.Generated
         /// Run endpoint compatible with the OpenAI Chat Completions API.
         /// </summary>
         /// <remarks>
-        /// Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path.
+        /// Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path. A tool that needs approval ends the request: this endpoint carries no session, so the approval can never be answered. The run closes as Failed and the answer is 409 with the error type 'approval_required', or, on a stream, an error frame of that type and no [DONE].
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -15731,6 +15751,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<OpenAIErrorEnvelope>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 502)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -15779,7 +15809,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path.
+        /// Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path. A tool that needs approval ends the request: this endpoint carries no session, so the approval can never be answered. The run closes as Failed and the answer is 409 with the error type 'approval_required', or, on a stream, an error frame of that type and no [DONE].
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -15879,6 +15909,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<OpenAIErrorEnvelope>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<OpenAIErrorEnvelope>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<OpenAIErrorEnvelope>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 502)
@@ -20366,6 +20406,13 @@ namespace Tracon.Client.Generated
         public string? Currency { get; set; } = default!;
 
         /// <summary>
+        /// Gets the number of currencies this variant's runs are priced in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("currencyCount")]
+        public int CurrencyCount { get; set; } = default!;
+
+        /// <summary>
         /// Gets the average duration of settled runs in milliseconds. Returns
         /// <br/>`null` when no run is settled.
         /// </summary>
@@ -22731,6 +22778,13 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("judgeCostCurrency")]
         public string? JudgeCostCurrency { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the number of currencies the window's judge runs are priced in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("judgeCostCurrencyCount")]
+        public int JudgeCostCurrencyCount { get; set; } = default!;
+
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -24191,6 +24245,14 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("unsummedItemCount")]
         public int UnsummedItemCount { get; set; } = default!;
 
+        /// <summary>
+        /// Gets how many currencies the added amounts are in: 0 or 1 for one run, which
+        /// <br/>adds in one currency.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("currencyCount")]
+        public int CurrencyCount { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -25058,6 +25120,13 @@ namespace Tracon.Client.Generated
         public long RunsWithUnknownPricing { get; set; } = default!;
 
         /// <summary>
+        /// The number of currencies the matched runs are priced in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("currencyCount")]
+        public int CurrencyCount { get; set; } = default!;
+
+        /// <summary>
         /// The error rate among settled runs (0–1). `null` if no
         /// <br/>run has settled.
         /// </summary>
@@ -25213,6 +25282,13 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("runsWithUnknownPricing")]
         public long RunsWithUnknownPricing { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how many currencies the tree's runs are priced in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("currencyCount")]
+        public int CurrencyCount { get; set; } = default!;
 
     }
 
@@ -26175,6 +26251,13 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("cost")]
         public double? Cost { get; set; } = default!;
+
+        /// <summary>
+        /// The number of currencies the priced runs of the WHOLE series are in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("currencyCount")]
+        public int CurrencyCount { get; set; } = default!;
 
         /// <summary>
         /// The average duration of settled runs (milliseconds).

@@ -428,7 +428,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             r.input_cost, r.output_cost, r.cost_currency, r.pricing_source,
             (SELECT SUM(sub.input_cost)  FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT SUM(sub.output_cost) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT MAX(sub.cost_currency) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {CostCurrencyLabel("sub")} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(*) FILTER (WHERE sub.pricing_source = 2) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(sub.pricing_source) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             r.error_class, r.error_fingerprint,
@@ -451,9 +451,13 @@ internal sealed class SqliteQueries : SqlQueriesBase
             -- non_token_unsummed is NULL when nobody reported anything.
             r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
             (SELECT SUM(sub.non_token_cost)     FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT MAX(sub.non_token_currency) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {ReportedCurrencyLabel("sub")} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
             (SELECT COUNT(*) FILTER (WHERE sub.non_token_estimated = 1) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
-            (SELECT SUM(sub.non_token_unsummed) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id)
+            (SELECT SUM(sub.non_token_unsummed) FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            -- F-419: the descendants' currencies the run's own row does not carry; the
+            -- reader adds the own one and leaves a mixed total out.
+            (SELECT {DescendantCurrencyCount(PricedCurrency, "sub", PricedCurrency("r"))}   FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id),
+            (SELECT {DescendantCurrencyCount(ReportedCurrency, "sub", ReportedCurrency("r"))} FROM {Schema}runs sub WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id)
             """;
 
         SelectRun = $"""
@@ -524,7 +528,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    {TreeSum("total_tokens", null, true)},
                    CASE WHEN {CountWhereAnyNotNull(CostAddends, null)} = 0
                         THEN NULL ELSE {CostTotal(null)} END,
-                   MAX(cost_currency),
+                   {CostCurrencyLabel(null)},
                    COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown),
                    (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter}),
                    -- 🚨 A null value is excluded from the DENOMINATOR too; see
@@ -540,7 +544,9 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    {TreeSum("cached_input_tokens", null, true)},
                    {TreeSum("reasoning_tokens", null, true)},
                    {TreeSum("audio_input_tokens", null, true)},
-                   {TreeSum("audio_output_tokens", null, true)}
+                   {TreeSum("audio_output_tokens", null, true)},
+                   -- Ordinal 18 (F-419): the currencies the costs above are in.
+                   {CostCurrencyCount(null)}
             FROM {Schema}runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -849,8 +855,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                             THEN (julianday(r.completed_at) - julianday(r.started_at)) * 86400000.0 END),
                    CASE WHEN {CountWhereAnyNotNull(CostAddends, "r")} = 0
                         THEN NULL ELSE {CostTotal("r")} END,
-                   MAX(r.cost_currency),
-                   AVG(s.avg_score)
+                   {CostCurrencyLabel("r")},
+                   AVG(s.avg_score),
+                   -- F-419: the currencies the arm's cost is in.
+                   {CostCurrencyCount("r")}
             FROM {Schema}runs r
             LEFT JOIN run_avg_scores s ON s.run_id = r.id
             WHERE r.tenant_id = @tenant_id AND r.experiment_id = @experiment_id AND r.variant IS NOT NULL
@@ -862,6 +870,16 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // strftime/datetime work directly (SqliteDialect.AddTimestamp). Empty
         // buckets are also returned: otherwise a gap in the chart would look
         // like "zero" instead of "no data".
+        // One filter for the buckets and for the series' currency count (F-419): a copy
+        // that drifted would count the currencies of other runs than the ones it adds.
+        var timeSeriesFilter = """
+                WHERE tenant_id = @tenant_id
+                  AND started_at >= @from_ts AND started_at < @to_ts
+                  AND (@agent_name IS NULL OR agent_name = @agent_name)
+                  AND (@model_id   IS NULL OR model_id   = @model_id)
+                  AND (@kind       IS NULL OR kind       = @kind)
+            """;
+
         SelectRunTimeSeries = $"""
             WITH RECURSIVE buckets(bucket) AS (
                 SELECT CASE WHEN @bucket_unit = 'hour'
@@ -891,12 +909,14 @@ internal sealed class SqliteQueries : SqlQueriesBase
                        AVG(CASE WHEN completed_at IS NOT NULL
                                 THEN (julianday(completed_at) - julianday(started_at)) * 86400000.0 END) AS avg_duration_ms
                 FROM {Schema}runs
-                WHERE tenant_id = @tenant_id
-                  AND started_at >= @from_ts AND started_at < @to_ts
-                  AND (@agent_name IS NULL OR agent_name = @agent_name)
-                  AND (@model_id   IS NULL OR model_id   = @model_id)
-                  AND (@kind       IS NULL OR kind       = @kind)
+            {timeSeriesFilter}
                 GROUP BY bucket
+            ),
+            -- F-419: a point carries no currency, so the WHOLE series is judged as one.
+            series AS (
+                SELECT {CostCurrencyCount(null)} AS currencies
+                FROM {Schema}runs
+            {timeSeriesFilter}
             )
             SELECT buckets.bucket,
                    COALESCE(matched.runs, 0),
@@ -904,8 +924,10 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    COALESCE(matched.input_tokens, 0),
                    COALESCE(matched.output_tokens, 0),
                    matched.cost,
-                   matched.avg_duration_ms
+                   matched.avg_duration_ms,
+                   series.currencies
             FROM buckets
+            CROSS JOIN series
             LEFT JOIN matched ON matched.bucket = buckets.bucket
             WHERE buckets.bucket < @to_ts
               AND @bucket_step >= 0

@@ -218,10 +218,29 @@ public sealed record RunTreeCost
     public decimal? CachedInputCost { get; init; }
 
     /// <summary>Gets the currency.</summary>
+    /// <remarks><see langword="null"/> when the tree's runs are priced in more than one (<see cref="CurrencyCount"/>).</remarks>
     public string? Currency { get; init; }
 
     /// <summary>Gets how many runs in the tree have an unknown price.</summary>
     public long RunsWithUnknownPricing { get; init; }
+
+    /// <summary>Gets how many currencies the tree's runs are priced in.</summary>
+    /// <remarks>
+    /// <para>
+    /// Amounts in two currencies are never added: a sum across currencies is not an
+    /// amount. Above one, <see cref="InputCost"/>, <see cref="OutputCost"/>,
+    /// <see cref="CachedInputCost"/> and <see cref="Currency"/> are <see langword="null"/>,
+    /// and so is <see cref="Total"/>; the runs keep their own costs
+    /// (<see cref="RunRecord.Cost"/>). Zero when no run in the tree carries a currency.
+    /// </para>
+    /// <para>
+    /// Currencies are compared without regard to letter case. The built-in pricing
+    /// prices every run in <c>Tracon:Pricing:Currency</c>, so more than one comes from
+    /// a custom <see cref="IRunPricingResolver"/> or from a currency setting changed
+    /// while the tree was running.
+    /// </para>
+    /// </remarks>
+    public int CurrencyCount { get; init; }
 
     /// <summary>Gets the tree's total cost — input, output and cache read together.</summary>
     /// <returns><see langword="null"/> when no run in the tree was ever priced.</returns>

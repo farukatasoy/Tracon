@@ -3150,3 +3150,56 @@ Makine yanıtı deseni: render bitince host bekleyen isteği yanıtlar, bağlant
 - Adım 1: `400`; detay `Tracon:Workflows:MaxRunTimeout`'u adlandırır.
 - Adım 2: `00:02:00` → `400` (`above the host's ceiling … (00:01:00)`); `00:00:30` → `200`, run ~15 sn'de `Completed`.
 - Adım 3: `shortchain` ~10 sn'de `Canceled`, `TimeoutException`, mesaj `Tracon:Workflows:RunTimeout`; `shortened` ~5 sn'de `Canceled`, mesaj `the run timeout its definition sets`.
+
+---
+
+### MT-WF-148 — `object` alan ilk düğüm reddedilir; izin verilen ilk düğüm resume'da yeniden koşmaz (kusur-giderme, 2026-10-14, F-398)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-975 |
+| **Devir** | ➜ CI: `WorkflowEntryFunctionRunsOnceTests` · `WorkflowNodeTypeRuleTests.Only_object_takes_the_turn_token_so_the_first_node_rule_names_object_alone` |
+
+Regresyon. Runner ilk düğüme mesajdan sonra `TurnToken` da gönderir; `object`
+alan ilk düğüm ikisini de aldı ve iki kez koştu.
+
+**Ön koşul** — Örnek uygulamaya `AddWorkflowFunction<object, List<ChatMessage>>("loose", …)` ekle; işleyici her çağrıda bir log satırı yazsın.
+
+**Adımlar**
+1. `PUT $APU/api/workflows/loose-start` gövdesi `{"kind":"Sequential","nodes":[{"name":"loose","kind":"Function"},{"name":"<agent>","kind":"Agent"}]}`.
+2. Aynı zinciri ilk düğümü `IEnumerable<ChatMessage>` alan bir fonksiyonla kaydet ve koş; `GET $APU/api/workflows/runs/{runId}/checkpoints` ile ilk checkpoint'i al ve `POST …/resume` gövdesi `{"checkpointId":"<ilk>"}` ile sürdür.
+
+**Beklenen sonuç**
+- Adım 1: `400`; detay `'loose'`, `turn token` ve `run twice` der.
+- Adım 2: ilk düğümün log satırı başlangıçta bir kez yazılır, resume'dan sonra artmaz; resume run'ı `Completed`.
+- 🚨 Eski kusur: adım 1 `200` döndü ve her run ilk düğümü iki kez koştu.
+
+---
+
+### MT-WF-149 — Zarif kapanış, checkpoint temizliği kapalıyken de devamı baştan koşturmaz (kusur-giderme, 2026-10-14, F-433)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-978 |
+| **Devir** | ➜ CI: `WorkflowRecoveryTests.A_run_stopped_by_a_graceful_shutdown_is_continued_by_the_next_worker(false)` |
+
+Regresyon. `KeepCheckpointsAfterCompletion=false` iken zarif kapanışın `Canceled`
+kapattığı run checkpoint'ini siliyordu; devam ilk adımı yeniden koşturuyordu.
+
+**Ön koşul** — Örnek uygulama SQLite ile; `Tracon__Workflows__ResumeInterruptedRuns=true`, `Tracon__Workflows__KeepCheckpointsAfterCompletion=false`; iki adımlı, ikinci adımı ~30 sn süren bir workflow.
+
+**Adımlar**
+1. Workflow'u `Prefer: respond-async` ile kuyruğa koy; ikinci adım başlayınca uygulamayı Ctrl+C ile durdur.
+2. Uygulamayı yeniden başlat; işin yeniden kiralanmasını bekle (`LeaseDuration`).
+3. `GET $APU/api/runs?kind=Workflow` ile zinciri oku; birinci adımın log satırlarını say.
+
+**Beklenen sonuç**
+- Durdurulan run `Canceled`; devam run'ı `ContinuedFromRunId` ile ona bağlı ve `Completed`.
+- Birinci adım bir kez koştu; devam bittikten sonra oturumun checkpoint'leri silinmiş.
+- 🚨 Eski kusur: birinci adım iki kez koştu.

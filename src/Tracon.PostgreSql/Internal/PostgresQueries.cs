@@ -375,16 +375,20 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        SUM(sub.input_cost)                         AS cost_input,
                        SUM(sub.output_cost)                        AS cost_output,
                        SUM(sub.cached_input_cost)                  AS cost_cached_input,
-                       MAX(sub.cost_currency)                      AS cost_currency,
+                       {CostCurrencyLabel("sub")}                  AS cost_currency,
                        COUNT(*) FILTER (WHERE sub.pricing_source = 2)::bigint AS unknown_pricing_rows,
                        COUNT(sub.pricing_source)::bigint           AS pricing_rows,
                        -- phase 199: what the descendants reported beyond tokens. Their own
                        -- totals, NOT terms of the token cost above, and NOT coalesced:
                        -- non_token_unsummed is NULL when no descendant reported anything.
                        SUM(sub.non_token_cost)                     AS non_token_cost,
-                       MAX(sub.non_token_currency)                 AS non_token_currency,
+                       {ReportedCurrencyLabel("sub")}              AS non_token_currency,
                        COUNT(*) FILTER (WHERE sub.non_token_estimated)::bigint AS non_token_estimated_rows,
-                       SUM(sub.non_token_unsummed)::bigint         AS non_token_unsummed
+                       SUM(sub.non_token_unsummed)::bigint         AS non_token_unsummed,
+                       -- F-419: the descendants' currencies the run's own row does not
+                       -- carry; the reader adds the own one and leaves a mixed total out.
+                       {DescendantCurrencyCount(PricedCurrency, "sub", PricedCurrency("r"))}::bigint   AS cost_currencies,
+                       {DescendantCurrencyCount(ReportedCurrency, "sub", ReportedCurrency("r"))}::bigint AS non_token_currencies
                 FROM {Schema}.runs AS sub
                 WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id
             ) AS tree ON TRUE
@@ -432,7 +436,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
             r.continued_from_run_id,
             r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok,
             r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
-            tree.non_token_cost, tree.non_token_currency, tree.non_token_estimated_rows, tree.non_token_unsummed
+            tree.non_token_cost, tree.non_token_currency, tree.non_token_estimated_rows, tree.non_token_unsummed,
+            tree.cost_currencies, tree.non_token_currencies
             """;
 
         SelectRun = $"""
@@ -521,7 +526,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    -- run that hit the prompt cache.
                    CASE WHEN {CountWhereAnyNotNull(CostAddends, null)} = 0
                         THEN NULL ELSE {CostTotal(null)} END,
-                   MAX(cost_currency),
+                   {CostCurrencyLabel(null)},
                    COUNT(*) FILTER (WHERE pricing_source = @pricing_source_unknown)::bigint,
                    (SELECT COUNT(DISTINCT rs.run_id) FROM {matchedRunScoresFilter})::bigint,
                    -- 🚨 `rs.value IS NOT NULL` is in the DENOMINATOR too, not
@@ -540,7 +545,9 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    {TreeSum("cached_input_tokens", null, true)}::bigint,
                    {TreeSum("reasoning_tokens", null, true)}::bigint,
                    {TreeSum("audio_input_tokens", null, true)}::bigint,
-                   {TreeSum("audio_output_tokens", null, true)}::bigint
+                   {TreeSum("audio_output_tokens", null, true)}::bigint,
+                   -- Ordinal 18 (F-419): the currencies the costs above are in.
+                   {CostCurrencyCount(null)}::bigint
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -864,8 +871,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    AVG(EXTRACT(EPOCH FROM (r.completed_at - r.started_at)) * 1000) FILTER (WHERE r.completed_at IS NOT NULL),
                    CASE WHEN {CountWhereAnyNotNull(CostAddends, "r")} = 0
                         THEN NULL ELSE {CostTotal("r")} END,
-                   MAX(r.cost_currency),
-                   AVG(s.avg_score)
+                   {CostCurrencyLabel("r")},
+                   AVG(s.avg_score),
+                   -- F-419: the currencies the arm's cost is in.
+                   {CostCurrencyCount("r")}::bigint
             FROM {Schema}.runs r
             LEFT JOIN run_avg_scores s ON s.run_id = r.id
             WHERE r.tenant_id = @tenant_id AND r.experiment_id = @experiment_id AND r.variant IS NOT NULL
@@ -890,6 +899,16 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // data". Eval/Workflow runs are DELIBERATELY NOT excluded — unlike
         // SelectRunStatistics (see docs/KARARLAR.md K-152); they are filtered
         // if @kind is given.
+        // One filter for the buckets and for the series' currency count (F-419): a copy
+        // that drifted would count the currencies of other runs than the ones it adds.
+        var timeSeriesFilter = """
+                WHERE tenant_id = @tenant_id
+                  AND started_at >= @from_ts AND started_at < @to_ts
+                  AND (@agent_name IS NULL OR agent_name = @agent_name)
+                  AND (@model_id   IS NULL OR model_id   = @model_id)
+                  AND (@kind       IS NULL OR kind       = @kind)
+            """;
+
         SelectRunTimeSeries = $"""
             WITH buckets AS (
                 -- The upper bound is inclusive (Truncate(to_ts) included), then
@@ -915,12 +934,14 @@ internal sealed class PostgresQueries : SqlQueriesBase
                        AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)
                            FILTER (WHERE completed_at IS NOT NULL) AS avg_duration_ms
                 FROM {Schema}.runs
-                WHERE tenant_id = @tenant_id
-                  AND started_at >= @from_ts AND started_at < @to_ts
-                  AND (@agent_name IS NULL OR agent_name = @agent_name)
-                  AND (@model_id   IS NULL OR model_id   = @model_id)
-                  AND (@kind       IS NULL OR kind       = @kind)
+            {timeSeriesFilter}
                 GROUP BY {TruncateUtc("@bucket_unit", "started_at")}
+            ),
+            -- F-419: a point carries no currency, so the WHOLE series is judged as one.
+            series AS (
+                SELECT {CostCurrencyCount(null)}::bigint AS currencies
+                FROM {Schema}.runs
+            {timeSeriesFilter}
             )
             SELECT buckets.bucket,
                    COALESCE(matched.runs, 0),
@@ -928,8 +949,10 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    COALESCE(matched.input_tokens, 0),
                    COALESCE(matched.output_tokens, 0),
                    matched.cost,
-                   matched.avg_duration_ms
+                   matched.avg_duration_ms,
+                   series.currencies
             FROM buckets
+            CROSS JOIN series
             LEFT JOIN matched ON matched.bucket = buckets.bucket
             ORDER BY buckets.bucket;
             """;

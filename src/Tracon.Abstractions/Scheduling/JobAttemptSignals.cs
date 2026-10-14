@@ -101,8 +101,9 @@ internal sealed class JobAttemptSignals
 /// helper does not flow back to its caller.
 /// </para>
 /// <para>
-/// Read where a run closes, and only to name a cancellation the run already knows came
-/// from its caller. It never changes a run's status.
+/// Read where a run closes, and only for a cancellation the run already knows came from
+/// its caller: to name it, and to keep the checkpoints of a workflow run a stopping
+/// worker leaves to its job. It never changes a run's status.
 /// </para>
 /// </remarks>
 internal static class AmbientJobAttempt

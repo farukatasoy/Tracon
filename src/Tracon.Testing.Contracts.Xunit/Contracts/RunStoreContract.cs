@@ -1210,6 +1210,123 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
+    public async Task No_cost_total_adds_amounts_in_two_currencies()
+    {
+        // 🚨 Each store added a tree, a statistics window, a time bucket and an experiment
+        // arm across currencies and labelled the sum with one of them (the in-memory store
+        // took the first, the SQL stores the alphabetically largest): 1 USD and 1 EUR read
+        // as "2 USD". The amount is left out instead, and the count says why. One test,
+        // every total, all four stores.
+        var experimentId = TraconId.NewId();
+        var rootId = TraconId.NewId();
+        var sameCurrencyChildId = TraconId.NewId();
+        var childId = TraconId.NewId();
+        var startedAt = DateTimeOffset.UtcNow;
+
+        await Store.StartRunAsync(TestData.Run(rootId) with
+        {
+            ModelId = "m",
+            StartedAt = startedAt,
+            ExperimentId = experimentId,
+            Variant = "a",
+        });
+
+        foreach (var id in (Guid[])[sameCurrencyChildId, childId])
+        {
+            await Store.StartRunAsync(TestData.Run(id) with
+            {
+                ModelId = "m",
+                StartedAt = startedAt,
+                ExperimentId = experimentId,
+                Variant = "a",
+                ParentRunId = rootId,
+                RootRunId = rootId,
+                Depth = 1,
+            });
+        }
+
+        // Letter case is not a second currency: "usd" and "USD" are one.
+        await CompleteInCurrencyAsync(rootId, "USD");
+        await CompleteInCurrencyAsync(sameCurrencyChildId, "usd");
+        await CompleteInCurrencyAsync(childId, "EUR");
+
+        var root = await Store.GetRunAsync(rootId);
+
+        root.ShouldNotBeNull();
+        root.TreeCost.ShouldNotBeNull();
+        root.TreeCost.InputCost.ShouldBeNull();
+        root.TreeCost.OutputCost.ShouldBeNull();
+        root.TreeCost.CachedInputCost.ShouldBeNull();
+        root.TreeCost.Currency.ShouldBeNull();
+        root.TreeCost.Total().ShouldBeNull();
+        root.TreeCost.CurrencyCount.ShouldBe(2);
+
+        root.TreeNonTokenCost.ShouldNotBeNull();
+        root.TreeNonTokenCost.Amount.ShouldBeNull();
+        root.TreeNonTokenCost.Currency.ShouldBeNull();
+        root.TreeNonTokenCost.CurrencyCount.ShouldBe(2);
+
+        // The runs keep their own costs; only the sum across them is left out.
+        root.Cost.ShouldNotBeNull().Total().ShouldBe(1.75m);
+        root.NonTokenCost.ShouldNotBeNull().CurrencyCount.ShouldBe(1);
+        RunSpend.Total(root.TreeCost, root.TreeNonTokenCost).ShouldBeNull();
+
+        // A single-currency tree keeps its total.
+        var child = await Store.GetRunAsync(childId);
+
+        child.ShouldNotBeNull();
+        child.TreeCost.ShouldNotBeNull();
+        child.TreeCost.Total().ShouldBe(1.75m);
+        string.Equals(child.TreeCost.Currency, "EUR", StringComparison.Ordinal).ShouldBeTrue();
+        child.TreeCost.CurrencyCount.ShouldBe(1);
+        child.TreeNonTokenCost.ShouldNotBeNull().Amount.ShouldBe(0.5m);
+        child.TreeNonTokenCost.CurrencyCount.ShouldBe(1);
+
+        var statistics = await Store.GetStatisticsAsync(new RunStatisticsQuery());
+
+        statistics.TotalCost.ShouldBeNull();
+        statistics.Currency.ShouldBeNull();
+        statistics.CurrencyCount.ShouldBe(2);
+
+        // A breakdown carries no currency of its own: it cannot say which one its sum is in.
+        statistics.ByModel.ShouldHaveSingleItem().TotalCost.ShouldBeNull();
+
+        var points = await Store.GetTimeSeriesAsync(new RunTimeSeriesQuery
+        {
+            From = startedAt.AddHours(-1),
+            To = startedAt.AddHours(1),
+            Bucket = TimeSeriesBucket.Hour,
+        });
+
+        points.ShouldAllBe(static point => point.Cost == null && point.CurrencyCount == 2);
+
+        var arm = (await Store.GetExperimentResultsAsync(new ExperimentResultsQuery { ExperimentId = experimentId }))
+            .ShouldHaveSingleItem();
+
+        arm.TotalCost.ShouldBeNull();
+        arm.Currency.ShouldBeNull();
+        arm.CurrencyCount.ShouldBe(2);
+    }
+
+    private async Task CompleteInCurrencyAsync(Guid runId, string currency)
+        => await Store.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = RunStatus.Completed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            Usage = new RunUsage { InputTokens = 1, OutputTokens = 1, TotalTokens = 2 },
+            Cost = new RunCost
+            {
+                InputCost = 1m,
+                OutputCost = 0.5m,
+                CachedInputCost = 0.25m,
+                Currency = currency,
+                Source = PricingSource.Catalog,
+            },
+            NonTokenCost = new RunNonTokenCost { Amount = 0.5m, Currency = currency, UnsummedItemCount = 0 },
+        });
+
+    [Fact]
     public async Task Non_token_cost_snapshot_round_trips_and_a_run_that_reported_nothing_has_none()
     {
         var reporterId = TraconId.NewId();

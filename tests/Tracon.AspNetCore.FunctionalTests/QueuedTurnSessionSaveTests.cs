@@ -158,6 +158,97 @@ public sealed class QueuedTurnSessionSaveTests
         provider.Requests.Count.ShouldBe(2);
     }
 
+    /// <summary>
+    /// F-391: the approval row is written after the session, inside the same hook. A
+    /// store error there failed the run, and a job with attempts left called the model
+    /// and ran the tool loop a second time.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public async Task An_approval_write_that_fails_once_is_tried_again_and_the_model_is_not_called_again(int maxAttempts)
+    {
+        var provider = ApprovalProvider();
+
+        await using var host = await StartAsync(
+            provider,
+            failingMember: null,
+            failures: 0,
+            maxAttempts,
+            approvalTool: true,
+            inject: static services => services.ThrowFrom<IPendingApprovalStore>(
+                nameof(IPendingApprovalStore.CreateAsync),
+                static () => new TimeoutException("Injected: the approval store did not answer in time."),
+                times: 1));
+
+        var runId = await QueueAsync(host);
+        var job = await WaitForTerminalJobAsync(host, runId);
+
+        job.Status.ShouldBe(JobStatus.Completed, job.ErrorMessage);
+        job.Attempt.ShouldBe(1);
+        provider.Requests.Count.ShouldBe(1, "the approval write was retried by running the turn again");
+        (await RunAsync(host, runId)).Status.ShouldBe(RunStatus.AwaitingApproval);
+
+        using var pending = await host.Client.GetAsync(PendingApprovals);
+        (await TraconTestHost.ReadJsonAsync(pending))
+            .EnumerateArray().ShouldHaveSingleItem()
+            .GetProperty("runId").GetGuid().ShouldBe(runId);
+    }
+
+    [Fact]
+    public async Task An_approval_write_that_was_stored_but_reported_as_failed_is_not_written_twice()
+    {
+        var provider = ApprovalProvider();
+
+        await using var host = await StartAsync(
+            provider,
+            failingMember: null,
+            failures: 0,
+            maxAttempts: 3,
+            approvalTool: true,
+            inject: static services => services.ThrowAfter<IPendingApprovalStore>(
+                nameof(IPendingApprovalStore.CreateAsync),
+                static () => new TimeoutException("Injected: the approval store timed out after the commit."),
+                times: 1));
+
+        var runId = await QueueAsync(host);
+        var job = await WaitForTerminalJobAsync(host, runId);
+
+        job.Status.ShouldBe(JobStatus.Completed, job.ErrorMessage);
+        provider.Requests.Count.ShouldBe(1);
+
+        using var pending = await host.Client.GetAsync(PendingApprovals);
+        (await TraconTestHost.ReadJsonAsync(pending)).EnumerateArray().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task An_approval_store_that_keeps_failing_fails_the_job_with_a_code_and_never_calls_the_model_again()
+    {
+        var provider = ApprovalProvider();
+
+        await using var host = await StartAsync(
+            provider,
+            failingMember: null,
+            failures: 0,
+            maxAttempts: 3,
+            leaseDuration: TimeSpan.FromMilliseconds(900),
+            approvalTool: true,
+            inject: static services => services.ThrowFrom<IPendingApprovalStore>(
+                nameof(IPendingApprovalStore.CreateAsync),
+                static () => new TimeoutException("Injected: the approval store did not answer in time.")));
+
+        var runId = await QueueAsync(host);
+        var job = await WaitForTerminalJobAsync(host, runId);
+
+        job.Status.ShouldBe(JobStatus.Failed);
+        job.Attempt.ShouldBe(1);
+        provider.Requests.Count.ShouldBe(1, "a turn whose approval could not be written was run again");
+        job.ErrorMessage.ShouldNotBeNull().ShouldStartWith("tracon.job.approval-save-failed");
+
+        // Nobody can answer an approval that was never listed: the run does not wait for one.
+        (await RunAsync(host, runId)).Status.ShouldBe(RunStatus.Failed);
+    }
+
     private static FakeModelProvider ApprovalProvider()
         => new FakeModelProvider("save-model")
             .CallsTool("cancel_order", new { orderId = "ORD-7" })
@@ -165,11 +256,12 @@ public sealed class QueuedTurnSessionSaveTests
 
     private static Task<TraconTestHost> StartAsync(
         FakeModelProvider provider,
-        string failingMember,
+        string? failingMember,
         int failures,
         int maxAttempts,
         TimeSpan? leaseDuration = null,
-        bool approvalTool = false)
+        bool approvalTool = false,
+        Action<IServiceCollection>? inject = null)
         => TraconTestHost.StartAsync(
             builder =>
             {
@@ -192,12 +284,17 @@ public sealed class QueuedTurnSessionSaveTests
                         configure: static options => options.RequiresApproval = true);
                 }
 
-                // Called through configureTracon, so Tracon's own session store
-                // is already registered and the proxy wraps the real one.
-                builder.Services.ThrowFrom<ISessionStore>(
-                    failingMember,
-                    static () => new TimeoutException("Injected: the session store did not answer in time."),
-                    failures);
+                // Called through configureTracon, so Tracon's own stores are
+                // already registered and the proxy wraps the real one.
+                if (failingMember is not null)
+                {
+                    builder.Services.ThrowFrom<ISessionStore>(
+                        failingMember,
+                        static () => new TimeoutException("Injected: the session store did not answer in time."),
+                        failures);
+                }
+
+                inject?.Invoke(builder.Services);
             },
             configureServices: services =>
             {

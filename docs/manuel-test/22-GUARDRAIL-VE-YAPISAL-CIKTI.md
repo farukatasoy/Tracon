@@ -2559,3 +2559,29 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - İkincisi `valid: true`, `messages: []`.
 
 > **Otomatik karşılığı:** `AgentValidationWarningTests` (birim + fonksiyonel).
+
+---
+
+### MT-GUARD-113 — Onayda ya da istemci tool'unda duran tur yapılandırılmış doğrulamada düşmez (kusur-giderme, 2026-10-14, F-350)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-980 |
+| **Devir** | ➜ CI: `StructuredResponseEndpointTests.A_response_that_stops_at_an_approval_waits_for_it_instead_of_failing_validation` · `…_at_a_client_tool_call_…` |
+
+Regresyon. Tur metin taşımadığı için doğrulayıcı onu "The response is empty."
+ile reddediyor, run onayı bekleyemeden `Failed` oluyordu.
+
+**Ön koşul** — Örnek uygulama `Tracon__StructuredResponse__Enabled=true`; `JsonSchema` biçimli ve onay isteyen tool'u olan bir agent.
+
+**Adımlar**
+1. `POST $APU/api/agents/<agent>/run` gövdesi `{"message":"…","sessionId":"s1"}` (akışlı ve `Idempotency-Key` ile akışsız).
+2. Onayı ver ve turu tamamla.
+
+**Beklenen sonuç**
+- Adım 1: run `AwaitingApproval`; `StructuredResponseRejected` olayı yok.
+- Adım 2: devam turunun JSON yanıtı doğrulanır (geçersizse reddedilir).
+- 🚨 Eski kusur: adım 1'de run `Failed`, `structured_response_invalid`.

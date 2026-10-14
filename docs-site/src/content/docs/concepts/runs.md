@@ -79,7 +79,19 @@ nothing, which is not zero, and an `amount` of `null` beside a non-zero `unsumme
 means items were reported but none could be priced: unknown, not free. The
 [budget, the tenant's quota and the `run.completed` webhook](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
 count the reported amount beside the token cost. `GET /api/stats`, the dashboard and the
-comparison of two runs show the token cost only. `GET /api/runs/{runId}/usage` lists the items
+comparison of two runs show the token cost only.
+
+A total over many runs never adds amounts in two currencies. When the runs behind it are
+priced in more than one, the total keeps no amount and no currency, and `currencyCount` says
+how many there are: `treeCost` and `treeNonTokenCost` on a run, the totals of
+`GET /api/stats` (with every breakdown's cost, since a breakdown carries no currency of its
+own), every point of `GET /api/stats/timeseries`, an experiment arm, and the judge cost of
+the online evaluation window. Each run keeps its own `cost`. Letter case is not a second
+currency. The tenant's quota and the root's `run.completed` webhook then count what a single
+currency can say: an agent root its own cost, a workflow root nothing beyond tokens. The
+built-in pricing prices every run in `Tracon:Pricing:Currency`, so more than one currency
+comes from a custom `IRunPricingResolver` or from a currency setting changed over time. The
+console shows *mixed currencies* where the number would be. `GET /api/runs/{runId}/usage` lists the items
 a function node reported, and `GET /api/runs/{runId}/tools` carries a tool's measurement on its call.
 
 The conversation is the **event stream**, written with gapless sequence numbers by a
@@ -534,7 +546,9 @@ text is: the key may have come from an untrusted source, and that field is read
 back over HTTP. A job whose worker died and whose attempt limit is used up fails
 with `tracon.job.attempts-exhausted`. A queued run whose turn finished but whose
 session could not be saved fails with `tracon.job.session-save-failed`; the model
-is not called again. Match on the code, never on the sentence around it.
+is not called again. One whose turn asked for approval but whose approval could not be
+written fails with `tracon.job.approval-save-failed`, and its run closes `Failed`. Match
+on the code, never on the sentence around it.
 
 ## Replay and comparison
 

@@ -134,6 +134,18 @@ internal static class CatalogToolCallHandler
         // the same K-103 boundary.
         if (ChildRunApproval.Describe(response.Messages) is { } pending)
         {
+            // F-448: the run closed AwaitingApproval, and nobody can answer it; it is
+            // closed as Failed so it does not wait forever. A task poller on another
+            // instance still sees the refusal below (McpTaskStatusMapping).
+            await SessionlessApprovalRun.CloseAsFailedAsync(
+                services.GetService<IRunStore>(),
+                runOptions.RunId!.Value,
+                services.GetRequiredService<ITenantContext>().TenantId,
+                DateTimeOffset.UtcNow,
+                services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.McpServer"),
+                CancellationToken.None,
+                SessionlessApprovalRun.ExternalMessage).ConfigureAwait(false);
+
             return Error(
                 $"Agent '{agentName}' could not complete: tool '{pending}' requires user approval. " +
                 "An externally-invoked agent cannot respond to an approval request.");

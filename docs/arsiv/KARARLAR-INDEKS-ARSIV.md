@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (904 kalem)
+## Arşivlenen Kararlar (919 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -913,3 +913,18 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-902 | 953 | Ayarlı fonksiyon kaydı opsiyonel parametre YERİNE `Action<WorkflowFunctionOptions>` alır; `IWorkflowFunctionCatalog` `ValidateSettings` üyesini kazanır (F-295) |
 | K-903 | 954 | Kuyruklu turun oturum kaydı kira penceresinde tekrarlanır; pencere biterse iş `tracon.job.session-save-failed` ile `Failed` olur, model tekrar çağrılmaz (F-367) (ana oturum varsayılanı) |
 | K-904 | 955 | Kuyruktaki run kuyruğa alanın atfını taşır: agent run yükü `userId` + `labels`, workflow ve batch yükü `{items, userId, labels}` zarfı; devam kaynak run'ın atfıyla açılır (F-364, F-369) (ana oturum varsayılanı) |
+| K-905 | 956 | Eval case `Context`'i belge kanalıyla sorgudan önce gider; terfi önce `run_inputs`'u okur ve taşınamayan girdiyi `422` ile reddeder (F-343) (ana oturum varsayılanı) |
+| K-906 | 957 | Devre kesici yalnız sağlayıcının attığı ve sağlığını gösteren hatayı sayar; diğer kalıcı `4xx` ve devrenin içindeki Tracon kararları nötrdür (F-354) (ana oturum varsayılanı) |
+| K-907 | 958 | Fallback atfı (run modeli, `ModelFallbackUsed`) yalnız agent'ın kendi bağlamasında yazılır; yan kanalın fallback'i o çağrınındır (F-360) (ana oturum varsayılanı) |
+| K-908 | 959 | Workflow yanıtı akıştan önce denetlenir (`IWorkflowRunner.ValidateResponseAsync`); kayıt ve derleyici karışık zincirin tip uyumunu atanabilirlikle denetler (F-341) (ana oturum varsayılanı) |
+| K-909 | 960 | Otomatik devam yalnız kök agent run'ıdır; workflow run'ı ve alt run `Failed` kalır ve ret workflow için resume'u adlandırır (F-344) (ana oturum varsayılanı) |
+| K-910 | 961 | Retention arşiv modu yalnız arşive yazdığı satırları anahtarla siler: `IRetentionStore.ArchiveBatchAsync` (varsayılan gövdeli) (F-372) (ana oturum varsayılanı) |
+| K-911 | 962 | Veri sahibi kapsamı `workflow_checkpoints`'i ve oturumla bulunan run'ların `run_scores`'unu içerir; silme `AwaitingInput` muafiyeti tanımaz (F-371) (ana oturum varsayılanı) |
+| K-912 | 963 | Görsel üretimi kiracının egress politikasına ve kendi anahtarına tabidir: denetim `ImageGeneratorResolver.ResolveForTenantAsync`'te, sağlayıcı çağrısından ÖNCE ve iki yolun (`generate_image`, `POST /api/images/generate`) ortak noktasında koşar; politika görsel sağlayıcısını (`TraconImageOptions.Provider`) adlandırmıyorsa ya da kiracının o sağlayıcı için bağlaması varsa üretim reddedilir — uç `403`, tool hatası; kurulum anahtarına düşülmez; kural `TenantProviderAccess`'te tek yerde (F-384, kusur-giderme 2026-10-13) (ana oturum varsayılanı, K-878 emsali) |
+| K-913 | 964 | Kök agent run'ı kotaya ve kendi `run.*` webhook'una çağrı ağacının toplamını yazar: kendi usage ve maliyetine, kök satırı kapanmadan run deposundan okunan alt run toplamı eklenir; okuma yalnız ağaç bir alt run rezerve ettiyse (`AgentRunBudget.StartedRuns > 0`) ve kota ya da webhook kayıtlıysa yapılır; farklı para biriminde toplam yoktur (K-893), depo okunamazsa kökün kendi tüketimi yazılır (F-383, kusur-giderme 2026-10-13) (ana oturum varsayılanı) |
+| K-914 | 965 | Kod Loop ölçütü fabrikadan kurulabilir: `AddLoopEvaluator(kind, Func<IServiceProvider, LoopEvaluator>)` kök sağlayıcıyı alır, türü adlandıran İLK derlemede kilit altında tür başına bir kez başarıyla koşar, atan fabrika önbelleğe girmez; tek örnek bütün kiracılara hizmet eder ve kiracı değerlendirme anında okunur; dört aşırı yükleme, opsiyonel parametre yok (F-301) (kullanıcı kararı) 👤 |
+| K-915 | 966 | Loop ölçüt kataloğu kök seviyede `GET /api/loop-criteria`'dır: yerleşik türler sabit sırada + kodla kayıtlı türler ada göre, açıklamalarıyla; yargıç modeli yalnız `provider` + `model` ya da `null`; Reader + `AgentsRead`; liste fabrika çağırmaz ve kiracıdan bağımsızdır (F-302) (kullanıcı kararı) 👤 |
+| K-916 | 967 | Loop doğrulaması tek kural kümesidir (`LoopEvaluatorRegistry.FindProblems`): derleyici aynı listeyle reddeder, doğrulayıcının loop adımı her sorunu `loop_` kodu ve alan yoluyla raporlar (dokuz kod); yargıç istemcisi o adımda kiracı-farkında üyeyle kurulur ve kurulamazsa `loop_judge_unavailable` önceki yolsuz `compilation_error`'ın yerine geçer; `judgeCriteria`'daki her boş girdi kendi yolunda reddedilir (F-302) (kullanıcı kararı) 👤 |
+| K-917 | 968 | Kod Loop ölçütü fabrikasının attığı istisnanın MESAJI yönetim API'sine gitmez: derleme hatası türü ve istisna tipini adlandırır, istisna `InnerException`'da ve host logunda durur (F-301) |
+| K-918 | 969 | Konsol Loop editörü yalnız tür DEĞİŞİMİNDE yeni türün okumadığı alanı temizler; yükleme ve kayıt her alanı, listelenmeyen türü ve kanonik olmayan yazımı (`aijudge`) olduğu gibi korur; harness kapalıyken düşen loop kaydetmeden önce söylenir (F-302) (kullanıcı kararı) 👤 |
+| K-919 | 970 | Çıktı sınırında kesilme ayrı bir sonuçtur: `RunErrorClass.OutputTruncated = 16`, `TraconOutputTruncatedException` (`output_truncated`), `RunEventCustomTypes.OutputTruncated` (`tracon.output.truncated`). Karar son bildirilen bitiş sebebinden verilir; yapılandırılmış (`Json`/`JsonSchema`) yanıt run'ı düşürür ve onarım koşmaz, düz metin `Completed` + olay; reddedilen yanıtın token'ı run'a katlanır (F-320, Faz 204; Açık Soru 1-A, 2-A) |

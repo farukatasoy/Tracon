@@ -482,17 +482,27 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                        SUM(sub.input_cost)                                 AS cost_input,
                        SUM(sub.output_cost)                                AS cost_output,
                        SUM(sub.cached_input_cost)                          AS cost_cached_input,
-                       MAX(sub.cost_currency)                              AS cost_currency,
+                       {CostCurrencyLabel("sub")}                          AS cost_currency,
                        CAST(COALESCE(SUM(CASE WHEN sub.pricing_source = 2 THEN 1 ELSE 0 END), 0) AS bigint) AS unknown_pricing_rows,
                        CAST(COUNT(sub.pricing_source) AS bigint)           AS pricing_rows,
                        -- phase 199: what the descendants reported beyond tokens. Their own
                        -- totals, NOT terms of the token cost above, and NOT coalesced:
                        -- non_token_unsummed is NULL when no descendant reported anything.
                        SUM(sub.non_token_cost)                             AS non_token_cost,
-                       MAX(sub.non_token_currency)                         AS non_token_currency,
+                       {ReportedCurrencyLabel("sub")}                      AS non_token_currency,
                        CAST(COALESCE(SUM(CASE WHEN sub.non_token_estimated = 1 THEN 1 ELSE 0 END), 0) AS bigint) AS non_token_estimated_rows,
-                       CAST(SUM(sub.non_token_unsummed) AS bigint)         AS non_token_unsummed
+                       CAST(SUM(sub.non_token_unsummed) AS bigint)         AS non_token_unsummed,
+                       -- F-419: the descendants' currencies the run's own row does not
+                       -- carry; the reader adds the own one and leaves a mixed total out.
+                       CAST({DescendantCurrencyCount(PricedCurrency, "sub", "own.cost_currency")} AS bigint)       AS cost_currencies,
+                       CAST({DescendantCurrencyCount(ReportedCurrency, "sub", "own.non_token_currency")} AS bigint) AS non_token_currencies
                 FROM {Schema}.runs AS sub
+                -- 🚨 The own row's currencies come in through this inner APPLY: SQL Server
+                -- refuses an aggregate whose expression mixes an outer reference (r.*)
+                -- with an inner column (measured: "Multiple columns are specified in an
+                -- aggregated expression containing an outer reference").
+                CROSS APPLY (SELECT {PricedCurrency("r")} AS cost_currency,
+                                    {ReportedCurrency("r")} AS non_token_currency) AS own
                 WHERE sub.tenant_id = r.tenant_id AND sub.root_run_id = r.id
             ) AS tree
             """;
@@ -540,7 +550,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             r.continued_from_run_id,
             r.model_provider, r.input_price_per_mtok, r.output_price_per_mtok, r.cached_input_price_per_mtok,
             r.non_token_cost, r.non_token_currency, r.non_token_estimated, r.non_token_unsummed,
-            tree.non_token_cost, tree.non_token_currency, tree.non_token_estimated_rows, tree.non_token_unsummed
+            tree.non_token_cost, tree.non_token_currency, tree.non_token_estimated_rows, tree.non_token_unsummed,
+            tree.cost_currencies, tree.non_token_currencies
             """;
 
         SelectRun = $"""
@@ -617,7 +628,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    CAST({TreeSum("total_tokens", null, true)} AS bigint),
                    CASE WHEN {CountWhereAnyNotNull(CostAddends, null)} = 0
                         THEN NULL ELSE {CostTotal(null)} END,
-                   MAX(cost_currency),
+                   {CostCurrencyLabel(null)},
                    CAST(COALESCE(SUM(CASE WHEN pricing_source = @pricing_source_unknown THEN 1 ELSE 0 END), 0) AS bigint),
                    (SELECT CAST(COUNT(DISTINCT rs.run_id) AS bigint) FROM {matchedRunScoresFilter}),
                    -- 🚨 A null value is excluded from the DENOMINATOR too; see
@@ -633,7 +644,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    CAST({TreeSum("cached_input_tokens", null, true)} AS bigint),
                    CAST({TreeSum("reasoning_tokens", null, true)} AS bigint),
                    CAST({TreeSum("audio_input_tokens", null, true)} AS bigint),
-                   CAST({TreeSum("audio_output_tokens", null, true)} AS bigint)
+                   CAST({TreeSum("audio_output_tokens", null, true)} AS bigint),
+                   -- Ordinal 18 (F-419): the currencies the costs above are in.
+                   CAST({CostCurrencyCount(null)} AS bigint)
             FROM {Schema}.runs
             WHERE tenant_id = @tenant_id
               AND kind <> @kind_eval
@@ -962,8 +975,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                             THEN CAST(DATEDIFF_BIG(millisecond, r.started_at, r.completed_at) AS float) END),
                    CASE WHEN {CountWhereAnyNotNull(CostAddends, "r")} = 0
                         THEN NULL ELSE {CostTotal("r")} END,
-                   MAX(r.cost_currency),
-                   AVG(s.avg_score)
+                   {CostCurrencyLabel("r")},
+                   AVG(s.avg_score),
+                   -- F-419: the currencies the arm's cost is in.
+                   CAST({CostCurrencyCount("r")} AS bigint)
             FROM {Schema}.runs r
             LEFT JOIN run_avg_scores s ON s.run_id = r.id
             WHERE r.tenant_id = @tenant_id AND r.experiment_id = @experiment_id AND r.variant IS NOT NULL
@@ -978,6 +993,16 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         //
         // Empty buckets are also returned: otherwise a gap in the chart would
         // look like "zero" instead of "no data".
+        // One filter for the buckets and for the series' currency count (F-419): a copy
+        // that drifted would count the currencies of other runs than the ones it adds.
+        var timeSeriesFilter = """
+                WHERE tenant_id = @tenant_id
+                  AND started_at >= @from_ts AND started_at < @to_ts
+                  AND (@agent_name IS NULL OR agent_name = @agent_name)
+                  AND (@model_id   IS NULL OR model_id   = @model_id)
+                  AND (@kind       IS NULL OR kind       = @kind)
+            """;
+
         SelectRunTimeSeries = $"""
             WITH buckets AS (
                 SELECT CASE WHEN @bucket_unit = N'hour'
@@ -1007,15 +1032,17 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                        AVG(CASE WHEN completed_at IS NOT NULL
                                 THEN CAST(DATEDIFF_BIG(millisecond, started_at, completed_at) AS float) END) AS avg_duration_ms
                 FROM {Schema}.runs
-                WHERE tenant_id = @tenant_id
-                  AND started_at >= @from_ts AND started_at < @to_ts
-                  AND (@agent_name IS NULL OR agent_name = @agent_name)
-                  AND (@model_id   IS NULL OR model_id   = @model_id)
-                  AND (@kind       IS NULL OR kind       = @kind)
+            {timeSeriesFilter}
                 GROUP BY CASE WHEN @bucket_unit = N'hour'
                               THEN DATEADD(hour, DATEDIFF(hour, 0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
                               ELSE DATEADD(day,  DATEDIFF(day,  0, CONVERT(datetime2(7), started_at)), CONVERT(datetime2(7), '1900-01-01'))
                          END
+            ),
+            -- F-419: a point carries no currency, so the WHOLE series is judged as one.
+            series AS (
+                SELECT CAST({CostCurrencyCount(null)} AS bigint) AS currencies
+                FROM {Schema}.runs
+            {timeSeriesFilter}
             )
             SELECT TODATETIMEOFFSET(buckets.bucket, 0),
                    COALESCE(matched.runs, 0),
@@ -1023,8 +1050,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    COALESCE(matched.input_tokens, 0),
                    COALESCE(matched.output_tokens, 0),
                    matched.cost,
-                   matched.avg_duration_ms
+                   matched.avg_duration_ms,
+                   series.currencies
             FROM buckets
+            CROSS JOIN series
             LEFT JOIN matched ON matched.bucket = buckets.bucket
             WHERE buckets.bucket < CONVERT(datetime2(7), @to_ts)
               AND @bucket_step >= 0

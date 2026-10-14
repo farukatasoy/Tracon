@@ -1,6 +1,9 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -62,7 +65,62 @@ internal sealed class SkillScriptSupport
 
     /// <summary>Produces the MAF source that scans skill roots on disk.</summary>
     /// <returns><see langword="null"/> if no root is defined.</returns>
-    internal AgentFileSkillsSource? CreateFileSource()
+    internal AgentFileSkillsSource? CreateFileSource() => CreateFileSource(_loggerFactory);
+
+    /// <summary>
+    /// Reads the skills under the skill roots: each skill's name and a hash of what the
+    /// model is shown for it.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>Name to hash; empty when no root is defined.</returns>
+    /// <remarks>
+    /// <para>
+    /// The skill catalog asks this when a name is neither in code nor in the
+    /// store, so an agent can name a skill that exists only on disk. The read is
+    /// Microsoft Agent Framework's own file source, the one a run is served from: a
+    /// skill MAF would not load (a bad frontmatter, a link) is not found here either.
+    /// </para>
+    /// <para>
+    /// The hash covers the <c>SKILL.md</c> text and the names of the skill's scripts and
+    /// resources (<c>AgentFileSkill.GetContentAsync</c>), so an edit compiles the agent
+    /// again. A script's own text is read when it runs and is not part of the hash. The
+    /// first root wins on a name that two roots carry, as it does in a run. The read logs
+    /// nothing: it happens on every resolution, and the run's own source logs the scan.
+    /// </para>
+    /// </remarks>
+    internal async ValueTask<IReadOnlyDictionary<string, string>> ReadDiskSkillsAsync(CancellationToken cancellationToken)
+    {
+        using var source = CreateFileSource(NullLoggerFactory.Instance);
+
+        if (source is null)
+        {
+            return EmptyDiskSkills;
+        }
+
+        // The file source does not read its context (Microsoft Agent Framework 1.20.0);
+        // the catalog asks outside any run, where there is no agent or session to give.
+        var skills = await source.GetSkillsAsync(null!, cancellationToken).ConfigureAwait(false);
+        var hashes = new Dictionary<string, string>(skills.Count, StringComparer.Ordinal);
+
+        foreach (var skill in skills)
+        {
+            if (hashes.ContainsKey(skill.Frontmatter.Name))
+            {
+                continue;
+            }
+
+            var content = await skill.GetContentAsync(cancellationToken).ConfigureAwait(false);
+
+            hashes.Add(skill.Frontmatter.Name, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))));
+        }
+
+        return hashes;
+    }
+
+    private static readonly IReadOnlyDictionary<string, string> EmptyDiskSkills =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    private AgentFileSkillsSource? CreateFileSource(ILoggerFactory? loggerFactory)
     {
         var options = Options;
 
@@ -88,7 +146,7 @@ internal sealed class SkillScriptSupport
             options.SkillRoots.ToArray(),
             RunFileScriptAsync,
             fileOptions,
-            _loggerFactory);
+            loggerFactory);
     }
 
     /// <summary>Produces the delegate that runs a stored or code-defined script.</summary>

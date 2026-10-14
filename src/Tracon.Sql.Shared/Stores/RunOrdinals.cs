@@ -78,4 +78,6 @@ internal static class RunOrdinals
     public const int TreeNonTokenCurrency = 62;
     public const int TreeNonTokenEstimatedRows = 63;
     public const int TreeNonTokenUnsummed = 64;
+    public const int TreeCostCurrencies = 65;
+    public const int TreeNonTokenCurrencies = 66;
 }

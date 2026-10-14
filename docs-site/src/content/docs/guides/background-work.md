@@ -654,7 +654,10 @@ whose status is no longer `Pending`; see
   message names the log entry that carries the cause. A turn that asked for
   approval saves its session before the approval is listed; when that save fails,
   its run closes `Failed` with the same code, because an approval without its
-  session cannot be answered.
+  session cannot be answered. The approval it then writes is tried again the same
+  way; a write the store committed but reported as failed is not written twice. If
+  it still fails, the job fails with `tracon.job.approval-save-failed`, the run
+  closes `Failed`, and the model and the tools are not run again.
 - `JobRetryException.RetryAfter` asks the queue to delay the next attempt. Other
   failures can be retried immediately.
 - A missing handler marks the job as failed.

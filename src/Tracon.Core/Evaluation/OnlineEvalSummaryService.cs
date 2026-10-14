@@ -127,6 +127,9 @@ internal sealed class OnlineEvalSummaryService(
         decimal? judgeCost = null;
         string? judgeCostCurrency = null;
 
+        // F-419: amounts in two currencies are never added (CurrencyTotals).
+        var judgeCurrencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var run in evalRuns)
         {
             if (!run.AgentName.StartsWith("judge:", StringComparison.Ordinal) ||
@@ -137,7 +140,14 @@ internal sealed class OnlineEvalSummaryService(
 
             judgeCost = (judgeCost ?? 0m) + (cost.Total() ?? 0m);
             judgeCostCurrency ??= cost.Currency;
+
+            if (cost.Currency is { } currency && cost.Total() is not null)
+            {
+                judgeCurrencies.Add(currency);
+            }
         }
+
+        var mixed = CurrencyTotals.IsMixed(judgeCurrencies.Count);
 
         return new OnlineEvaluationSummary
         {
@@ -149,8 +159,9 @@ internal sealed class OnlineEvalSummaryService(
             MinSampleSize = options.MinSampleSize,
             BelowThreshold = snapshot.SampleCount >= options.MinSampleSize &&
                 snapshot.AverageScore is { } avg && avg < options.LowScoreThreshold,
-            JudgeCost = judgeCost,
-            JudgeCostCurrency = judgeCostCurrency,
+            JudgeCost = mixed ? null : judgeCost,
+            JudgeCostCurrency = mixed ? null : judgeCostCurrency,
+            JudgeCostCurrencyCount = judgeCurrencies.Count,
         };
     }
 
@@ -220,4 +231,11 @@ public sealed record OnlineEvaluationSummary
 
     /// <summary>Gets the judge-cost currency.</summary>
     public string? JudgeCostCurrency { get; init; }
+
+    /// <summary>Gets the number of currencies the window's judge runs are priced in.</summary>
+    /// <remarks>
+    /// Amounts in two currencies are never added: above one, <c>JudgeCost</c> and
+    /// <c>JudgeCostCurrency</c> are <see langword="null"/>.
+    /// </remarks>
+    public int JudgeCostCurrencyCount { get; init; }
 }

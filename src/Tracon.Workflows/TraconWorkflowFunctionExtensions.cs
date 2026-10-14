@@ -84,7 +84,10 @@ public static class TraconWorkflowFunctionExtensions
     /// <c>IEnumerable&lt;ChatMessage&gt;</c>). Saving a chain that breaks this is a
     /// <c>400</c> that names both nodes, and a run of such a chain fails before its
     /// first node: Microsoft Agent Framework drops a message no handler takes,
-    /// without an error, so the chain would otherwise end with no output.
+    /// without an error, so the chain would otherwise end with no output. A first
+    /// node must not take <see cref="object"/>: every start and resume also sends it
+    /// the framework's turn token, and a node that takes <see cref="object"/> would
+    /// run once for each.
     /// </para>
     /// <para>
     /// <strong>The handler must be idempotent when the workflow enables

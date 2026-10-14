@@ -114,10 +114,21 @@ public static class TraconWorkflowsBuilderExtensions
     /// lists the registered function nodes, so a workflow under that name could not be read back.
     /// </exception>
     /// <remarks>
+    /// <para>
     /// A workflow defined in code <strong>takes precedence over</strong> a
     /// database definition with the same name. The same rule applies to the
     /// agent catalog: someone with write access to the database cannot
     /// take over a behavior registered in code.
+    /// </para>
+    /// <para>
+    /// <strong>The start executor receives two messages.</strong> A run sends it the
+    /// user's message as a <c>List&lt;ChatMessage&gt;</c> and then a
+    /// <see cref="TurnToken"/>, on every start and every resume that does not answer a
+    /// request: an agent host needs the token to speak, and a resume without it waits
+    /// for its deadline when nothing is left to run. A start executor whose handler
+    /// takes <see cref="object"/> receives both and runs twice; give it a
+    /// <c>List&lt;ChatMessage&gt;</c> handler instead.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddTracon()

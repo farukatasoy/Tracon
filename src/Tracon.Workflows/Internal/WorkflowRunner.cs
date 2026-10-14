@@ -1557,6 +1557,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // setting is only for runs that have genuinely finished.
         if (!_options.Value.KeepCheckpointsAfterCompletion &&
             status != RunStatus.AwaitingInput &&
+            !IsLeftToItsJob(status) &&
             !await SessionHasOpenRunAsync(execution).ConfigureAwait(false))
         {
             await DiscardCheckpointsAsync(execution).ConfigureAwait(false);
@@ -1745,6 +1746,16 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         var record = await _runStore.GetRunAsync(execution.RunId, cancellationToken).ConfigureAwait(false);
+        var treeNonTokenCost = WorkflowTreeSpend.NonTokenCost(record, nonTokenCost);
+
+        // F-419: RunSpend adds nothing across currencies; the operator is told why the
+        // entry carries less than the runs spent.
+        if (record?.TreeCost is { CurrencyCount: > 1 } || treeNonTokenCost is { CurrencyCount: > 1 })
+        {
+            _logger.LogWarning(
+                "The run tree of workflow run {RunId} is priced in more than one currency; its quota entry does not add amounts across currencies.",
+                execution.RunId);
+        }
 
         await _quotaEnforcer.RecordAsync(
             new QuotaConsumption
@@ -1763,7 +1774,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 // (RunSpend). Without it a tenant's cost quota never saw a workflow's
                 // speech or render spend. The fallback to tokens stays: an unpriced
                 // tree has no amount at all.
-                Cost = RunSpend.Total(record?.TreeCost, WorkflowTreeSpend.NonTokenCost(record, nonTokenCost)),
+                Cost = RunSpend.Total(record?.TreeCost, treeNonTokenCost),
                 OccurredAt = _timeProvider.GetUtcNow(),
             },
             cancellationToken).ConfigureAwait(false);
@@ -1787,6 +1798,25 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// </para>
     /// </remarks>
     private static readonly RunStatus[] SessionOpenStatuses = [RunStatus.AwaitingInput, RunStatus.Running];
+
+    /// <summary>
+    /// Whether a run that closes now is not finished: a worker that is stopping
+    /// cancelled it, and its job continues it from the latest checkpoint when the job
+    /// is leased again.
+    /// </summary>
+    /// <param name="status">The status the run closes with.</param>
+    /// <returns><see langword="true"/> when the run's checkpoints must outlive its close.</returns>
+    /// <remarks>
+    /// With <see cref="TraconWorkflowOptions.KeepCheckpointsAfterCompletion"/> off,
+    /// a graceful shutdown deleted the checkpoints of the run it stopped, and the
+    /// continuation ran every finished step again. The continuation shares the session,
+    /// so the cleanup runs when it finishes. A run its job cancelled or timed out is
+    /// never continued and is cleaned up at once.
+    /// </remarks>
+    private bool IsLeftToItsJob(RunStatus status)
+        => status == RunStatus.Canceled &&
+           _options.Value.ResumeInterruptedRuns &&
+           AmbientJobAttempt.Current is { Reason: JobStopReason.WorkerStopping };
 
     private async ValueTask<bool> SessionHasOpenRunAsync(WorkflowExecution execution)
     {

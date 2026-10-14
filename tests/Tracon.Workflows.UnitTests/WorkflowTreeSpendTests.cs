@@ -69,14 +69,30 @@ public sealed class WorkflowTreeSpendTests
     }
 
     [Fact]
-    public void An_amount_in_another_currency_is_counted_and_not_added()
+    public void An_amount_in_another_currency_leaves_the_tree_without_an_amount()
     {
+        // F-419: the store leaves a tree in two currencies without an amount; the lost
+        // snapshot added here follows the same rule instead of keeping the store's amount
+        // and calling the rest "unsummed", which read as a smaller bill.
         var result = WorkflowTreeSpend.NonTokenCost(
             Row(own: null, tree: Cost(2m, "USD")),
             Cost(1m, "EUR")).ShouldNotBeNull();
 
-        result.Amount.ShouldBe(2m);
-        result.UnsummedItemCount.ShouldBe(1);
+        result.Amount.ShouldBeNull();
+        result.Currency.ShouldBeNull();
+        result.CurrencyCount.ShouldBe(2);
+        RunSpend.Total((RunTreeCost?)null, result).ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_tree_the_store_already_left_without_an_amount_stays_without_one()
+    {
+        var result = WorkflowTreeSpend.NonTokenCost(
+            Row(own: null, tree: new RunNonTokenCost { CurrencyCount = 2 }),
+            Cost(1m, "USD")).ShouldNotBeNull();
+
+        result.Amount.ShouldBeNull();
+        result.CurrencyCount.ShouldBe(2);
     }
 
     [Fact]

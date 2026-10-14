@@ -41,19 +41,21 @@ internal static class WorkflowTreeSpend
             return own;
         }
 
-        // A sum across currencies is not an amount: the lost part is counted, not added.
-        if (stored.Amount is not null && own.Amount is not null &&
-            !string.Equals(stored.Currency, own.Currency, StringComparison.OrdinalIgnoreCase))
-        {
-            return stored with { UnsummedItemCount = stored.UnsummedItemCount + own.UnsummedItemCount + 1 };
-        }
+        // A sum across currencies is not an amount (F-419, CurrencyTotals): the tree keeps
+        // no amount and counts its currencies, the same as when the store adds them.
+        var differs = stored.Amount is not null && own.Amount is not null &&
+                      !string.Equals(stored.Currency, own.Currency, StringComparison.OrdinalIgnoreCase);
+        var currencies = differs ? Currencies(stored) + 1 : Math.Max(Currencies(stored), Currencies(own));
 
-        return new RunNonTokenCost
-        {
-            Amount = stored.Amount is null && own.Amount is null ? null : (stored.Amount ?? 0m) + (own.Amount ?? 0m),
-            Currency = stored.Currency ?? own.Currency,
-            IsEstimated = stored.IsEstimated || own.IsEstimated,
-            UnsummedItemCount = stored.UnsummedItemCount + own.UnsummedItemCount,
-        };
+        return CurrencyTotals.NonToken(
+            stored.Amount is null && own.Amount is null ? null : (stored.Amount ?? 0m) + (own.Amount ?? 0m),
+            stored.Currency ?? own.Currency,
+            currencies,
+            stored.IsEstimated || own.IsEstimated,
+            stored.UnsummedItemCount + own.UnsummedItemCount);
     }
+
+    /// <summary>How many currencies a total is in, also for a snapshot built without the count.</summary>
+    private static int Currencies(RunNonTokenCost cost)
+        => Math.Max(cost.CurrencyCount, cost.Amount is null ? 0 : CurrencyTotals.Of(cost.Currency));
 }

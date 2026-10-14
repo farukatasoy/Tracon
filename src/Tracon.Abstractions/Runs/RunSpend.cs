@@ -39,14 +39,25 @@ public static class RunSpend
     /// <param name="cost">The tree's token cost, or <see langword="null"/>.</param>
     /// <param name="nonTokenCost">The tree's reported (non-token) cost, or <see langword="null"/>.</param>
     /// <returns>
-    /// The sum, or <see langword="null"/> when neither side has an amount.
+    /// The sum, or <see langword="null"/> when neither side has an amount, or when the
+    /// tree's token cost is in more than one currency.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// Both arguments already include the root run's own share
     /// (<see cref="RunRecord.TreeCost"/>, <see cref="RunRecord.TreeNonTokenCost"/>).
+    /// </para>
+    /// <para>
+    /// A tree whose runs are priced in more than one currency
+    /// (<see cref="RunTreeCost.CurrencyCount"/>) has no total, and a partial one would
+    /// read as the whole bill. A reported amount in more than one currency is left out,
+    /// the same as a reported amount in another currency than the tokens.
+    /// </para>
     /// </remarks>
     public static decimal? Total(RunTreeCost? cost, RunNonTokenCost? nonTokenCost)
-        => Combine(cost?.Total(), cost?.Currency, nonTokenCost);
+        => cost is { CurrencyCount: > 1 }
+            ? null
+            : Combine(cost?.Total(), cost?.Currency, nonTokenCost is { CurrencyCount: > 1 } ? null : nonTokenCost);
 
     private static decimal? Combine(decimal? tokenTotal, string? tokenCurrency, RunNonTokenCost? nonTokenCost)
     {

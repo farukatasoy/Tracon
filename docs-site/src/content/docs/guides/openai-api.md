@@ -239,10 +239,18 @@ for await (const frame of readSse(response)) {
 | Server conversation | `conversation` or `previous_response_id` | no | Maps to Tracon sessions |
 | Client-carried history | input items | `messages` | Resolved attachments reach the provider |
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
-| Pending approval visibility | yes | provider-shaped output | The call cannot supply an interactive approval turn |
+| Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
+
+A Chat Completions request whose agent asks to call a tool that needs approval ends
+there. The answer to an approval is the next turn of a session, and this endpoint has
+none, so nobody could ever answer it. The run closes as `Failed`, and the caller gets
+`409` with the error type `approval_required` — or, on a stream that already answered
+`200`, an `error` frame of that type and no `[DONE]`. Run such an agent through
+`/v1/responses` with a conversation, or through `POST /api/agents/{name}/run` with a
+`sessionId`.
 
 Fields understood by the OpenAI parser can be accepted without becoming a
 Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service

@@ -40,7 +40,9 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetServices<CodeSkillRegistration>(),
             provider.GetRequiredService<IAgentSkillStore>(),
             provider.GetRequiredService<ITenantContext>(),
-            provider.GetRequiredService<IOptions<TraconOptions>>()));
+            provider.GetRequiredService<IOptions<TraconOptions>>(),
+            // F-481: present only after UseSkillScripts; the catalog then finds disk skills too.
+            provider.GetService<SkillScriptSupport>()));
         // Run/message scores (Phase 31). Registered BEFORE IRunStore:
         // InMemoryRunStore.GetStatisticsAsync's summary calculation obtains
         // this shared single instance via DI (see the InMemoryRunStore constructor).

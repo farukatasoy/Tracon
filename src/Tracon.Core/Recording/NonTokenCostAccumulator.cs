@@ -262,6 +262,7 @@ internal sealed class NonTokenCostAccumulator
             {
                 Amount = hasAmount ? total : null,
                 Currency = _currency,
+                CurrencyCount = hasAmount ? CurrencyTotals.Of(_currency) : 0,
                 IsEstimated = estimated,
                 UnsummedItemCount = unsummed,
             };

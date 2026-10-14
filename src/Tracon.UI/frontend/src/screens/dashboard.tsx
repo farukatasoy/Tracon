@@ -11,6 +11,7 @@ import {
   TokenBreakdownChart,
 } from '../components/charts';
 import { Badge, ErrorNote, Loading, PageHeader, Panel, cx } from '../components/ui';
+import { MixedCurrencies } from '../components/mixed-currencies';
 import { StatusDot } from '../components/status-dot';
 import { Link } from '../lib/router';
 import type { TraconMetaResponse as Meta, TimeSeriesBucket } from '@tracon/client';
@@ -143,6 +144,11 @@ export function DashboardScreen({ meta }: { meta: Meta }): ReactNode {
               <ErrorNote error={stats.error} onRetry={() => void stats.refetch()} />
             </div>
           )}
+          {stats.isSuccess && stats.data.currencyCount > 1 && (
+            <div className="px-4 pt-3">
+              <MixedCurrencies count={stats.data.currencyCount} />
+            </div>
+          )}
           {stats.isSuccess && (
             <ModelBreakdownChart models={stats.data.byModel} currency={stats.data.currency} />
           )}
@@ -260,6 +266,12 @@ function OnlineEvaluationSummaryPanel(): ReactNode {
         <div>
           <div className="text-xs text-subtle">{t('onlineEval.judgeCost')}</div>
           <div className="text-metric font-semibold">{money(data.judgeCost, data.judgeCostCurrency)}</div>
+        </div>
+      )}
+      {data.judgeCostCurrencyCount > 1 && (
+        <div>
+          <div className="text-xs text-subtle">{t('onlineEval.judgeCost')}</div>
+          <MixedCurrencies count={data.judgeCostCurrencyCount} />
         </div>
       )}
     </div>
@@ -426,7 +438,13 @@ function TopStrip({
       />
       <StripTile
         label={t('dashboard.costToday')}
-        value={today?.cost === null || today?.cost === undefined ? '—' : money(today.cost, null)}
+        value={
+          (today?.currencyCount ?? 0) > 1
+            ? t('cost.mixedCurrencies')
+            : today?.cost === null || today?.cost === undefined
+              ? '—'
+              : money(today.cost, null)
+        }
         delta={delta(today?.cost, yesterday?.cost)}
       />
     </div>

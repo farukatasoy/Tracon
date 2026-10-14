@@ -41,6 +41,15 @@ namespace Tracon;
 /// write, and it is not tried again: the same write gets the same answer.
 /// </para>
 /// <para>
+/// <strong>A store error on an approval write</strong> gets the same
+/// window: the session is already saved, and the model and the tools already ran.
+/// Each approval keeps the id it was given for the whole window, and a write that
+/// is tried again reads that id first: a write the store committed but reported as
+/// failed is not written twice. Past the window the job fails with
+/// <see cref="ApprovalSaveFailedCode"/>, and the run, whose approval nobody can
+/// list, closes <see cref="RunStatus.Failed"/>.
+/// </para>
+/// <para>
 /// One instance per turn: it remembers whether the session was already saved.
 /// </para>
 /// </remarks>
@@ -51,6 +60,12 @@ internal sealed class QueuedTurn
     /// saved. The run keeps the status the turn gave it.
     /// </summary>
     internal const string SessionSaveFailedCode = "tracon.job.session-save-failed";
+
+    /// <summary>
+    /// The code a job fails with when its turn ended at an approval but the approval
+    /// could not be written. Nobody can list it, so the run closes as failed.
+    /// </summary>
+    internal const string ApprovalSaveFailedCode = "tracon.job.approval-save-failed";
 
     /// <summary>The pause before a failed session save is tried again.</summary>
     private static readonly TimeSpan RetryFirstDelay = TimeSpan.FromMilliseconds(200);
@@ -149,7 +164,37 @@ internal sealed class QueuedTurn
     public ValueTask SaveSessionAsync(CancellationToken cancellationToken)
         => _session is null || _sessionSaved ? default : SaveAsync(_session, cancellationToken);
 
-    private async ValueTask SaveAsync(AgentSession session, CancellationToken cancellationToken)
+    private ValueTask SaveAsync(AgentSession session, CancellationToken cancellationToken)
+        => WithinLeaseAsync(
+            async (_, token) =>
+            {
+                await _sessions.SaveSessionAsync(_agent, session, token).ConfigureAwait(false);
+                _sessionSaved = true;
+            },
+            (exception, delay) => _logger.LogWarning(
+                exception,
+                "Queued run {RunId}: could not save session {SessionId}; trying again in {Delay}.",
+                _runId,
+                AgentSessionIdentity.GetId(session),
+                delay),
+            exception => GiveUp(session, exception),
+            cancellationToken);
+
+    /// <summary>
+    /// Runs one write of the turn, trying a store error again with a pause that
+    /// doubles until the lease the worker can prove runs out.
+    /// </summary>
+    /// <param name="write">The write; its first argument says whether this is a second try or later.</param>
+    /// <param name="logRetry">Logs a failed try and the pause before the next one.</param>
+    /// <param name="giveUp">Builds what is thrown when the window is spent.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the write succeeded.</returns>
+    /// <exception cref="NonRetryableJobException">The window is spent, or Tracon refused the write.</exception>
+    private async ValueTask WithinLeaseAsync(
+        Func<bool, CancellationToken, ValueTask> write,
+        Action<Exception, TimeSpan> logRetry,
+        Func<Exception, NonRetryableJobException> giveUp,
+        CancellationToken cancellationToken)
     {
         var delay = RetryFirstDelay;
         long? firstFailureAt = null;
@@ -159,8 +204,7 @@ internal sealed class QueuedTurn
         {
             try
             {
-                await _sessions.SaveSessionAsync(_agent, session, cancellationToken).ConfigureAwait(false);
-                _sessionSaved = true;
+                await write(firstFailureAt is not null, cancellationToken).ConfigureAwait(false);
 
                 return;
             }
@@ -169,9 +213,9 @@ internal sealed class QueuedTurn
                 if (firstFailureAt is null)
                 {
                     // Fixed here and not moved by later renewals: a store that keeps
-                    // the lease alive while it refuses the save would otherwise hold
+                    // the lease alive while it refuses the write would otherwise hold
                     // the job, and the worker's slot, without end. Without a worker
-                    // there is no lease to prove, and the save is tried once.
+                    // there is no lease to prove, and the write is tried once.
                     firstFailureAt = _clock.GetTimestamp();
                     window = _job.ProvableLeaseRemaining?.Invoke() ?? TimeSpan.Zero;
                 }
@@ -180,7 +224,7 @@ internal sealed class QueuedTurn
 
                 if (exception is TraconException || left <= TimeSpan.Zero)
                 {
-                    throw GiveUp(session, exception);
+                    throw giveUp(exception);
                 }
 
                 if (delay > left)
@@ -190,12 +234,7 @@ internal sealed class QueuedTurn
 
                 if (_logger.IsEnabled(LogLevel.Warning))
                 {
-                    _logger.LogWarning(
-                        exception,
-                        "Queued run {RunId}: could not save session {SessionId}; trying again in {Delay}.",
-                        _runId,
-                        AgentSessionIdentity.GetId(session),
-                        delay);
+                    logRetry(exception, delay);
                 }
             }
 
@@ -222,6 +261,25 @@ internal sealed class QueuedTurn
         }
 
         return new NonRetryableJobException(SessionSaveFailedCode, correlationId, exception);
+    }
+
+    private NonRetryableJobException GiveUp(PendingApproval approval, Exception exception)
+    {
+        var correlationId = SafeErrorText.NewCorrelationId();
+
+        if (_logger.IsEnabled(LogLevel.Error))
+        {
+            _logger.LogError(
+                exception,
+                "Queued run {RunId}: the turn ended at an approval, but approval {RequestId} could not be written. Job {JobId} fails with {ErrorCode} and the model is not called again. (ref: {CorrelationId})",
+                _runId,
+                approval.RequestId,
+                _job.Job.Id,
+                ApprovalSaveFailedCode,
+                correlationId);
+        }
+
+        return new NonRetryableJobException(ApprovalSaveFailedCode, correlationId, exception);
     }
 
     /// <summary>Writes one <see cref="PendingApproval"/> per request and announces each.</summary>
@@ -255,7 +313,26 @@ internal sealed class QueuedTurn
                 CreatedAt = now,
             };
 
-            await _approvalStore.CreateAsync(approval, cancellationToken).ConfigureAwait(false);
+            await WithinLeaseAsync(
+                async (retry, token) =>
+                {
+                    // F-391: a failed write may have committed before it failed. The id is
+                    // fixed for this approval, so a second try reads it back first.
+                    if (retry && await _approvalStore.GetAsync(approval.Id, token).ConfigureAwait(false) is not null)
+                    {
+                        return;
+                    }
+
+                    await _approvalStore.CreateAsync(approval, token).ConfigureAwait(false);
+                },
+                (exception, delay) => _logger.LogWarning(
+                    exception,
+                    "Queued run {RunId}: could not write approval {RequestId}; trying again in {Delay}.",
+                    _runId,
+                    approval.RequestId,
+                    delay),
+                exception => GiveUp(approval, exception),
+                cancellationToken).ConfigureAwait(false);
 
             if (_webhookPublisher is not null)
             {

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useT } from '../lib/i18n';
 import { absoluteTime, money, relativeTime } from '../lib/format';
 import type { NonTokenUsageRecord, RunNonTokenCost, RunRecord } from '../lib/server-types';
+import { MixedCurrencies } from './mixed-currencies';
 import { Badge, Mono, Panel } from './ui';
 import { UsageLine } from './usage-line';
 
@@ -74,7 +75,9 @@ function TotalLine({ label, total, testId }: { label: string; total: RunNonToken
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid={testId}>
       <span className="text-muted">{label}</span>
 
-      {total.amount == null ? (
+      {total.currencyCount > 1 ? (
+        <MixedCurrencies count={total.currencyCount} />
+      ) : total.amount == null ? (
         <Badge tone="warn" description={t('usage.unpriced.hint')}>
           {t('usage.unpriced')}
         </Badge>

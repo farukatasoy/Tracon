@@ -1,3 +1,4 @@
+using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Tracon.Workflows.UnitTests.Fakes;
 
@@ -42,6 +43,37 @@ public sealed class WorkflowNodeTypeRuleTests
         events.ShouldContain(static runEvent =>
             runEvent.Type == RunEventType.WorkflowOutput &&
             string.Equals(runEvent.Text, "got: hello", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Only_object_takes_the_turn_token_so_the_first_node_rule_names_object_alone()
+    {
+        // F-398: the validator lives in Tracon.Core, which cannot see TurnToken, and refuses
+        // a first node that takes object because the token reaches the first node too. That
+        // holds only while object is the one input type the token can be assigned to. A
+        // Microsoft Agent Framework upgrade that gives the token a base class or an
+        // interface breaks this test, and the rule must name that type as well.
+        typeof(TurnToken).BaseType.ShouldBe(typeof(object));
+        typeof(TurnToken).GetInterfaces().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_first_function_that_takes_object_is_refused_naming_the_turn_token()
+    {
+        var host = new WorkflowTestHost("writer");
+
+        host.AddFunction<object, List<ChatMessage>>(
+            "loose",
+            static (input, _, _) => new ValueTask<List<ChatMessage>>((List<ChatMessage>)input));
+
+        var problem = WorkflowDefinitionValidator.ValidateNodeTypes(Chain("loose-first", Function("loose"), Agent("writer")), host.Functions);
+
+        problem.ShouldNotBeNull().ShouldContain("'loose'", Case.Sensitive);
+        problem.ShouldContain("turn token", Case.Sensitive);
+
+        // The same function is accepted anywhere but first: only the first node gets the token.
+        WorkflowDefinitionValidator.ValidateNodeTypes(Chain("loose-second", Agent("writer"), Function("loose")), host.Functions)
+            .ShouldBeNull();
     }
 
     [Fact]

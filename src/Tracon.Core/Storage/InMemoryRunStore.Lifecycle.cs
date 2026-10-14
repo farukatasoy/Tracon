@@ -99,7 +99,11 @@ internal sealed partial class InMemoryRunStore
             Usage = completion.Usage,
             Error = completion.Error,
             Cost = completion.Cost,
-            NonTokenCost = completion.NonTokenCost,
+            // The count is the store's to say, as a SQL store reads it from the row: a
+            // caller's snapshot that left it out still reads back as one currency.
+            NonTokenCost = completion.NonTokenCost is { } nonToken
+                ? nonToken with { CurrencyCount = nonToken.Amount is null ? 0 : CurrencyTotals.Of(nonToken.Currency) }
+                : null,
             ModelId = completion.ModelId ?? existing.ModelId,
             ModelProvider = completion.ModelProvider ?? existing.ModelProvider,
         };

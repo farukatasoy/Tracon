@@ -256,14 +256,14 @@ alanlar (`Interpreters`, `SkillRoots`, `AllowStoredScripts`) yapılandırmadan
 OKUNMAZ. Beş sıralı kapı (Enabled · pinli kiracı izni · yorumlayıcı listesi ·
 argüman, stored ad, disk boyutu · denetim yazımı) yürütücüden önce runner'dadır;
 denetim yazılamazsa çalıştırma durur (K-089). Kota slotu ve `Timeout + 5 sn`
-bekleme sınırı disk okumasını ve yürütücüyü kapsar. `PlatformIsolationAcknowledged`
+sınırı disk okumasını ve yürütücüyü kapsar. `PlatformIsolationAcknowledged`
 her yürütücüde zorunludur; Tracon yalıtım sağlamaz ve doğrulayamaz (K-086).
 
 **İçerik pini (Faz 186).** Stored veya kodda tanımlı script'in grant'ı içeriğin
 hash'ini taşır (`SkillScriptGrant.ContentHash`; script grant'ı script'in hash'ini,
 geniş grant bütün kümenin izini). Runner her çalıştırmada güncel hash'i hesaplar ve
 karşılaştırır; hash'siz veya bayat grant stored script'i reddeder, diskteki script
-pinlenmez (`SkillRoots` salt okunur olmalı). Grant ucu beklenen hash'i ister
+pinlenmez; disk skill'i kurulum genelidir (K-981; kökler salt okunur). Grant ucu beklenen hash'i ister
 (`400`/`404`/`409`) ve çok kiracılı host'ta stored script için platform yetkisi
 arar (`403`), çünkü script Tracon'un OS kimliğiyle çalışır — kabul edilen risk:
 [`MIMARI-TEHDIT-MODELI.md`](MIMARI-TEHDIT-MODELI.md) § R8.

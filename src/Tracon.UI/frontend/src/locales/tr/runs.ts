@@ -123,6 +123,8 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "usage.panel.treeTotal": 'Tüm ağaçta bildirilen',
   "usage.panel.notAdded": '{count} eklenmedi',
   "usage.panel.notAdded.hint": 'Tutarı olmayan veya {currency} dışında bir para biriminde olan kalemler listelenir ama toplama girmez.',
+  "cost.mixedCurrencies": 'karışık para birimi',
+  "cost.mixedCurrencies.hint": 'Bu çalıştırmalar {count} para biriminde fiyatlandı. Farklı para birimindeki tutarlar toplanmaz; her çalıştırma kendi maliyetini korur.',
   "runDetail.streamed": 'akışlı',
   "runDetail.nonStreaming": 'akışsız',
   "runDetail.cancel.button": 'Çalıştırmayı iptal et',

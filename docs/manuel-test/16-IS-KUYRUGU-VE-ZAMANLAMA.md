@@ -3368,3 +3368,25 @@ Host üretim kimliğini oturum yapar; run ve webhook aynı kimliği taşır. Kor
 
 **Beklenen sonuç**
 - Süreç `Now listening` yazmadan çıkar; `OptionsValidationException: TraconSchedulingOptions.MaxDurationByHandlerKey['tracon.workflow'] must be between 1 and 4294967294 milliseconds`.
+
+---
+
+### MT-JOB-149 — Onay satırı yazımı hatasında model yeniden çağrılmaz (kusur-giderme, 2026-10-14, F-391)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-979 |
+| **Devir** | ➜ CI: `QueuedTurnSessionSaveTests` (onay yazımı: bir kez düşen, işlenip hata dönen, hep düşen) |
+
+Regresyon. Kuyruklu turun onay satırı yazımı oturum kaydından sonra düşerse run
+`Failed` oluyor, deneme hakkı olan iş modeli ve tool döngüsünü yeniden koşuyordu.
+
+**Ön koşul** — Hata enjeksiyonu yalnız testte mümkündür; elle koşum CI'a devredilir.
+
+**Beklenen sonuç**
+- Tek yazım hatası: iş `Completed`, model bir kez çağrılır, posta kutusunda tek onay.
+- İşlenip hata dönen yazım: posta kutusunda yine tek onay.
+- Hep düşen depo: iş `Failed`, kod `tracon.job.approval-save-failed`, deneme 1, run `Failed`.

@@ -108,6 +108,104 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     }
 
     /// <summary>
+    /// F-481: an agent names a skill that exists only under a skill root, and an HTTP
+    /// run reaches its file script: compilation, Microsoft Agent Framework's file
+    /// source, the runner and the registered executor.
+    /// </summary>
+    /// <remarks>
+    /// Before, the catalog and the validator looked for the name only in code and in
+    /// the store; compilation refused it with "the skill was not found", and no HTTP
+    /// run could ever reach a script on disk.
+    /// </remarks>
+    [Fact]
+    public async Task An_agent_that_names_a_disk_skill_runs_its_file_script_from_an_HTTP_run()
+    {
+        var sentinel = Path.Combine(_scratch.FullName, "disk-run-locally");
+        var content = $"touch '{sentinel}'\necho file-local\n";
+        var root = WriteDiskSkill(content);
+        var executor = new RecordingScriptExecutor();
+
+        await using var host = await StartAsync(executor, [("disk-agent", DiskSkillName, DiskScriptName)], skillRoot: root);
+        await GrantAsync(host, "default", DiskSkillName, contentHash: null);
+
+        (await RunAsync(host, "disk-agent")).ShouldContain($"routed-to-executor:{DiskScriptName}");
+
+        File.Exists(sentinel).ShouldBeFalse("A local process ran the file script although an executor is registered.");
+
+        var request = executor.Requests.ShouldHaveSingleItem();
+        request.Origin.ShouldBe(SkillScriptOrigin.File);
+        request.SkillName.ShouldBe(DiskSkillName);
+        request.ScriptName.ShouldBe(DiskScriptName);
+        request.Content.ShouldBe(content);
+        request.SourcePath.ShouldBe(Path.Combine(root, DiskSkillName, "scripts", "route.sh"));
+    }
+
+    [Fact]
+    public async Task An_agent_saved_over_HTTP_may_name_a_disk_skill_and_not_a_missing_one()
+    {
+        var root = WriteDiskSkill("echo saved\n");
+
+        await using var host = await StartAsync(new RecordingScriptExecutor(), runs: [], skillRoot: root);
+
+        using (var saved = await host.Client.PostAsJsonAsync(
+                   new Uri("/tracon/api/agents", UriKind.Relative),
+                   TestData.Request("disk-named") with { SkillNames = [DiskSkillName] }))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.Created, await saved.Content.ReadAsStringAsync());
+        }
+
+        using var refused = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents", UriKind.Relative),
+            TestData.Request("missing-named") with { SkillNames = ["nowhere-skill"] });
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await refused.Content.ReadAsStringAsync()).ShouldContain("nowhere-skill", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task An_edit_to_a_disk_skill_reaches_the_next_run_of_an_agent_already_compiled()
+    {
+        // The compiled agent is cached; the disk skill's content is part of the key, so
+        // an edit on disk compiles the agent again instead of serving the old skill list.
+        var root = WriteDiskSkill("echo edit\n");
+        var provider = new Tracon.Testing.FakeModelProvider("edit-model").RespondsWith("first", "second");
+
+        await using var host = await TraconTestHost.StartAsync(configureTracon: builder => builder
+            .UseSkillScripts(options =>
+            {
+                options.PlatformIsolationAcknowledged = true;
+                options.Interpreters["sh"] = "/bin/sh";
+                options.SkillRoots.Add(root);
+            })
+            .AddModelProvider(provider)
+            .AddAgent(new AgentDefinition
+            {
+                Name = "edit-agent",
+                Instructions = "Answer.",
+                Model = new ModelBinding { Provider = "edit-model", Model = "edit" },
+                SkillNames = [DiskSkillName],
+            }));
+
+        await RunAsync(host, "edit-agent");
+
+        File.WriteAllText(
+            Path.Combine(root, DiskSkillName, "SKILL.md"),
+            $"---\nname: {DiskSkillName}\ndescription: Edited on disk after the first run.\n---\nRun the script when asked.\n");
+
+        await RunAsync(host, "edit-agent");
+
+        var requests = provider.Requests;
+        requests.Count.ShouldBe(2);
+        Prompt(requests[0]).ShouldNotContain("Edited on disk after the first run.", Case.Sensitive);
+        Prompt(requests[1]).ShouldContain("Edited on disk after the first run.", Case.Sensitive);
+
+        static string Prompt(Tracon.Testing.FakeModelRequest request)
+            => string.Join(
+                Environment.NewLine,
+                [request.Options?.Instructions ?? string.Empty, .. request.Messages.Select(static message => message.Text)]);
+    }
+
+    /// <summary>
     /// One content limit for every script: a file under a skill root larger than
     /// <c>MaxScriptContentLength</c> is denied before the executor and before the
     /// <c>script.run</c> entry, from MAF's own file source.

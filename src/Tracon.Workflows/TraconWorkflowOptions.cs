@@ -163,6 +163,12 @@ public sealed class TraconWorkflowOptions
     /// longer removes that session's checkpoints; retention does, for the runs
     /// that are not waiting.
     /// </para>
+    /// <para>
+    /// A run that a stopping worker cancels while <see cref="ResumeInterruptedRuns"/>
+    /// is on is not finished: its job continues it from the latest checkpoint. It
+    /// keeps its checkpoints, and the continuation, which shares the session,
+    /// removes them when it finishes.
+    /// </para>
     /// </remarks>
     public bool KeepCheckpointsAfterCompletion { get; set; } = true;
 
@@ -212,11 +218,10 @@ public sealed class TraconWorkflowOptions
     /// </para>
     /// <para>
     /// Requires <see cref="EnableCheckpointing"/>: turning this on while
-    /// checkpointing is off fails at startup. Keep
-    /// <see cref="KeepCheckpointsAfterCompletion"/> on as well: a graceful
-    /// shutdown closes the run it stops as <c>Canceled</c>, and with that setting
-    /// off its checkpoints are deleted, so its continuation starts from the
-    /// beginning.
+    /// checkpointing is off fails at startup. A graceful shutdown closes the run
+    /// it stops as <c>Canceled</c> and keeps its checkpoints, also with
+    /// <see cref="KeepCheckpointsAfterCompletion"/> off; the continuation removes
+    /// them when it finishes.
     /// </para>
     /// <example>
     /// <code>

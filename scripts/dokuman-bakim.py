@@ -96,7 +96,10 @@ def _faz_no(p: pathlib.Path) -> int:
 # Faz 58.0 kurali uygulandi -- butcenin en az %15'i bos: 60 karar 21_129 B.
 # 84 %2 bos birakmisti ve sonraki ilk karar seti tasirdi; esik bu kez kuralin
 # istedigi tamponla secildi.
-ARSIV_ESIK = 60
+# Kusur turu (2026-10-14): esik 60 -> 52. K-975..K-981 eklenince dosya 26_065 B'ye
+# cikti (butceyi ASTI); yedi baslik kisaltildi (24_448 B, %2 bos). Faz 58.0 kurali:
+# 52 karar 21_029 B (%16 bos).
+ARSIV_ESIK = 52
 
 BASLANGIC_BUTCESI = {
     "AGENTS.md": 12_000,
@@ -230,7 +233,10 @@ DIZIN_BUTCESI = {
     # 2_556_000; olculen 2_172_361. Kabul case spec'i CANLI icerkitir ve faz basina
     # buyur; `kosum-damit` yalnizca `kosumlar/` agacini damitir, spec'in damitma yolu
     # YOKTUR. Bu turda tasinacak icerik bulunamadi -- olculen/0.85.
-    ("docs/manuel-test", False, True): 2_556_000,   # ONCEKI KALIBRASYON 2026-09-07; olculen 2_108_738.
+    # YENIDEN KALIBRE 2026-10-14 (kusur turu F-398...F-481, sekiz regresyon case'i):
+    # 2_556_000 -> 3_018_000; olculen 2_564_893. F-441 (2026-10-13) tasinacak tarihli
+    # icerigin bittigini olctu ve "sonraki dolusta yol kalibrasyondur" dedi -- olculen/0.85.
+    ("docs/manuel-test", False, True): 3_018_000,   # ONCEKI KALIBRASYONLAR 2026-09-07 (2_108_738), 2026-09-15 (2_172_361).
                                                     # olculen/0.85 = 2_481_457 -> yukari yuvarlandi.
                                                     # Faz 133.0: K-214 sinirsiz buyumeyi engeller,
                                                     # SABIT bir sayiyi korumaz. Kalibrasyon yalniz
@@ -1037,6 +1043,9 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     # F-341: dugum tip zinciri kurali MAF'in mesaji sessizce dusurmesine ve
     # atanabilirlikle teslim etmesine dayanir; yukseltmede yeniden olculur.
     "src/Tracon.Core/Workflows/WorkflowDefinitionValidator.cs": "Microsoft.Agents.AI.Workflows",
+    # F-350: bekleme turu kurali, FunctionInvokingChatClient'in son turda fonksiyon
+    # tool'larini modelden almasina dayanir (decompile okumasi); yukseltmede yeniden okunur.
+    "src/Tracon.Core/Compilation/StructuredResponseValidatingAgent.cs": "Microsoft.Extensions.AI",
     # Faz 204: son bitis sebebi kurali FunctionInvokingChatClient'in ara turun
     # guncellemelerini akisa verme sirasina dayanir; yukseltmede yeniden olculur.
     "src/Tracon.Core/Models/FinishReasonDetectingChatClient.cs": "Microsoft.Extensions.AI",

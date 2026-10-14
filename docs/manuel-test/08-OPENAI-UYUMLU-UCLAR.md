@@ -1939,3 +1939,31 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/chat/completions" \
 - `HTTP: 401`.
 - Yanıt gövdesi boş ya da genel bir 401 sayfasıdır — `TraconEndpointFilter`
   compat uçlarına da uygulanır, ayrı bir kimlik doğrulama yolu yoktur.
+
+---
+
+### MT-COMPAT-051 — Onay isteyen tool'da Chat Completions `409` döner, run beklemez (kusur-giderme, 2026-10-14, F-448)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-977 |
+| **Devir** | ➜ CI: `SessionlessApprovalTests` (Chat Completions akışlı/akışsız) |
+
+Regresyon. Uç `200` + boş içerik dönüyor, run `AwaitingApproval` kalıyor ve hiç
+cevaplanamıyordu.
+
+**Ön koşul** — Örnek uygulama; onay isteyen tool'u çağıran bir agent.
+
+**Adımlar**
+1. `python3 -c` ile `openai` SDK'sından `client.chat.completions.create(model="<agent>", messages=[…])`.
+2. Aynı isteği `stream=True` ile tekrarla.
+3. `GET $APU/api/runs?agentName=<agent>` ile iki run'ın durumunu oku.
+
+**Beklenen sonuç**
+- Adım 1: SDK `ConflictError` (`409`), `error.type` `approval_required`, mesaj tool'u ve `/v1/responses`'u adlandırır.
+- Adım 2: akış bir `error` çerçevesiyle (`approval_required`) biter; `[DONE]` yok.
+- Adım 3: iki run da `Failed`, hata tipi `approval_unanswerable`.
+- 🚨 Eski kusur: `200`, boş içerik, run `AwaitingApproval`.

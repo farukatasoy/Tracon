@@ -183,6 +183,12 @@ response can hold more than that — the text a model wrote before it called a t
 or the earlier drafts of a harness loop — and none of it is part of the structured
 answer.
 
+A turn that stops to wait for the caller has no answer yet and is not checked: one that
+asks for a tool approval, and one that ends at a client-side tool call the caller must
+run. The run waits as it would without validation, and the turn that carries the
+decision or the tool result is the one checked. Your validator is not called for the
+pause either.
+
 With it on, Tracon first checks well-formedness itself: the response must be
 non-empty and parse as JSON. That check alone catches the two failure modes every
 consumer would otherwise check by hand — an empty response and a response cut off

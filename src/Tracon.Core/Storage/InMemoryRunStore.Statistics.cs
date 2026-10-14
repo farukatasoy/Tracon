@@ -29,7 +29,11 @@ internal sealed partial class InMemoryRunStore
         var perErrorCluster = new Dictionary<(RunErrorClass Class, string Fingerprint), ErrorClusterTally>();
         decimal? costSum = null;
         string? currency = null;
+        string? pricedCurrency = null;
         long runsWithUnknownPricing = 0;
+
+        // F-419: amounts in two currencies are never added (CurrencyTotals).
+        var currencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var record in _runs.Values)
         {
@@ -163,6 +167,12 @@ internal sealed partial class InMemoryRunStore
                 }
 
                 currency ??= cost.Currency;
+
+                if (cost.Currency is { } priced && cost.Total() is not null)
+                {
+                    currencies.Add(priced);
+                    pricedCurrency ??= priced;
+                }
             }
 
             var runCost = RunCostTotal(record.Cost);
@@ -259,6 +269,10 @@ internal sealed partial class InMemoryRunStore
             .ThenBy(static stat => stat.Class)
             .ToList();
 
+        // A breakdown carries no currency of its own: in a mixed window its sum could
+        // not say which one it is in, so it is left out with the total.
+        var mixed = CurrencyTotals.IsMixed(currencies.Count);
+
         return new RunStatistics
         {
             TotalRuns = total,
@@ -274,21 +288,22 @@ internal sealed partial class InMemoryRunStore
             ReasoningTokens = reasoningTokens,
             AudioInputTokens = audioInputTokens,
             AudioOutputTokens = audioOutputTokens,
-            TotalCost = costSum,
-            Currency = currency,
+            TotalCost = mixed ? null : costSum,
+            Currency = mixed ? null : pricedCurrency ?? currency,
+            CurrencyCount = currencies.Count,
             RunsWithUnknownPricing = runsWithUnknownPricing,
             ScoredRuns = scoredRuns,
             PositiveRate = binaryScores == 0 ? null : (double)positiveBinaryScores / binaryScores,
             ByAgent = byAgent,
             ByModel = [.. perModel
-                .Select(static pair => new RunModelStatistics
+                .Select(pair => new RunModelStatistics
                 {
                     ModelId = pair.Key,
                     TotalRuns = pair.Value.TotalRuns,
                     InputTokens = pair.Value.InputTokens,
                     OutputTokens = pair.Value.OutputTokens,
                     TotalTokens = pair.Value.TotalTokens,
-                    TotalCost = pair.Value.CostSum,
+                    TotalCost = mixed ? null : pair.Value.CostSum,
                 })
                 .OrderByDescending(static model => model.TotalRuns)
                 .ThenBy(static model => model.ModelId, StringComparer.Ordinal)],
@@ -304,26 +319,26 @@ internal sealed partial class InMemoryRunStore
                 .OrderBy(static version => version.AgentName, StringComparer.Ordinal)
                 .ThenByDescending(static version => version.Version)],
             ByUser = [.. perUser
-                .Select(static pair => new RunUserStatistics
+                .Select(pair => new RunUserStatistics
                 {
                     UserId = pair.Key,
                     TotalRuns = pair.Value.TotalRuns,
                     FailedRuns = pair.Value.FailedRuns,
                     TotalTokens = pair.Value.TotalTokens,
-                    TotalCost = pair.Value.CostSum,
+                    TotalCost = mixed ? null : pair.Value.CostSum,
                 })
                 .OrderByDescending(static user => user.TotalRuns)
                 .ThenBy(static user => user.UserId, StringComparer.Ordinal)
                 .Take(Math.Max(query.MaxAgents, 0))],
             ByLabel = [.. perLabel
-                .Select(static pair => new RunLabelStatistics
+                .Select(pair => new RunLabelStatistics
                 {
                     Key = pair.Key.Key,
                     Value = pair.Key.Value,
                     TotalRuns = pair.Value.TotalRuns,
                     FailedRuns = pair.Value.FailedRuns,
                     TotalTokens = pair.Value.TotalTokens,
-                    TotalCost = pair.Value.CostSum,
+                    TotalCost = mixed ? null : pair.Value.CostSum,
                 })
                 .OrderByDescending(static label => label.TotalRuns)
                 .ThenBy(static label => label.Key, StringComparer.Ordinal)

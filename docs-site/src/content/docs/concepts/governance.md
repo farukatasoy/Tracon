@@ -311,7 +311,11 @@ audit trail is not applied, and the tool it approved does not run. See [what is
 guaranteed to be written](#what-is-guaranteed-to-be-written).
 
 **In-band.** A streaming run that hits a tool needing approval carries the request in
-its stream and the decision in the next turn.
+its stream and the decision in the next turn. The next turn needs the run's session: a
+run started without a `sessionId` can never be answered, so it closes `Failed` with the
+error type `approval_unanswerable` — `409` on a non-streaming run, an `error` event on a
+stream. The same holds for every surface that cannot carry an answer back: Chat
+Completions, an agent exposed over MCP or A2A, a batch item and an eval case.
 
 **The mailbox.** A queued run stops at `AwaitingApproval` and the request waits in
 `GET /api/approvals/pending`, with the tool's recorded arguments for the approver to

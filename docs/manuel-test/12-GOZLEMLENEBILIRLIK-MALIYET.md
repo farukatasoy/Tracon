@@ -2236,3 +2236,31 @@ Otomatik karşılığı: `NonTokenSpendTests.An_amount_in_another_currency_is_in
 **Beklenen sonuç**
 - `GET …/usage` iki kalemi de listeler.
 - `nonTokenCost.amount=1`, `unsummedItemCount=1`; kota ve webhook yalnız `1`'i sayar. Kur çevrimi yoktur.
+
+---
+
+### MT-OBS-076 — İki para biriminde fiyatlanan run'lar toplanmaz; toplam *mixed currencies* der (kusur-giderme, 2026-10-14, F-419)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-976 |
+| **Devir** | ➜ CI: `RunStoreContract.No_cost_total_adds_amounts_in_two_currencies` (bellek, SQLite, PostgreSQL, SQL Server) · `AgentTreeQuotaTests.A_tree_priced_in_two_currencies_counts_only_the_roots_own_cost` · `run-detail.test.tsx` |
+
+Regresyon. Ağaç, istatistik, zaman serisi ve deney kolu farklı para
+birimindeki tutarları toplayıp tek etiket yazıyordu (1 USD + 1 EUR = "2 USD").
+
+**Ön koşul** — Örnek uygulama; kök agent'ı USD, alt agent'ı EUR fiyatlayan bir `IRunPricingResolver` kayıtlı.
+
+**Adımlar**
+1. Kök agent'ı bir kez koş (alt agent'ı çağırsın).
+2. `GET $APU/api/runs/{rootId}` → `treeCost`; `GET $APU/api/stats` → `totalCost`, `currencyCount`, `byModel[].totalCost`.
+3. Konsolda panoyu ve run ayrıntısını aç.
+
+**Beklenen sonuç**
+- `treeCost.inputCost/outputCost/currency` `null`, `currencyCount` `2`; kökün kendi `cost`'u duruyor.
+- İstatistik `totalCost` ve `currency` `null`, `currencyCount` `2`, model dökümü maliyeti `null`.
+- Pano *mixed currencies* rozeti gösterir; kota satırı yalnız kökün kendi maliyetini sayar.
+- 🚨 Eski kusur: toplam iki tutarın toplamını tek para birimiyle gösterdi.

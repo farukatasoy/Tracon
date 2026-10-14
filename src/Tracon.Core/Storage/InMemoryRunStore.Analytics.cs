@@ -18,6 +18,9 @@ internal sealed partial class InMemoryRunStore
         var tenantId = query.TenantId ?? _tenantContext.TenantId;
         var perVariant = new Dictionary<string, VariantTally>(StringComparer.Ordinal);
 
+        // F-419: amounts in two currencies are never added (CurrencyTotals).
+        var perVariantCurrencies = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
         foreach (var record in _runs.Values)
         {
             if (record.ExperimentId != query.ExperimentId || record.Variant is not { Length: > 0 } variant)
@@ -34,9 +37,20 @@ internal sealed partial class InMemoryRunStore
 
             perVariant.TryGetValue(variant, out var tally);
             perVariant[variant] = tally.Add(record, runAverageScore);
+
+            if (!perVariantCurrencies.TryGetValue(variant, out var currencies))
+            {
+                currencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                perVariantCurrencies[variant] = currencies;
+            }
+
+            if (record.Cost is { Currency: { } currency } cost && cost.Total() is not null)
+            {
+                currencies.Add(currency);
+            }
         }
 
-        return [.. perVariant.Select(pair => pair.Value.ToResult(pair.Key))];
+        return [.. perVariant.Select(pair => pair.Value.ToResult(pair.Key, perVariantCurrencies[pair.Key].Count))];
     }
 
     /// <summary>
@@ -77,6 +91,9 @@ internal sealed partial class InMemoryRunStore
 
         var step = RunTimeSeriesBucketing.StepFor(query.Bucket);
         var buckets = new SortedDictionary<DateTimeOffset, BucketTally>();
+
+        // F-419: a point carries no currency, so the WHOLE series is judged as one.
+        var currencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Empty buckets must be returned too (K-152 — a gap in the time
         // series chart should look like "zero", not "no data"). PostgreSql's
@@ -120,10 +137,15 @@ internal sealed partial class InMemoryRunStore
             var bucket = RunTimeSeriesBucketing.Truncate(record.StartedAt, query.Bucket);
             buckets.TryGetValue(bucket, out var tally);
             buckets[bucket] = tally.Add(record);
+
+            if (record.Cost is { Currency: { } currency } cost && cost.Total() is not null)
+            {
+                currencies.Add(currency);
+            }
         }
 
         var points = buckets
-            .Select(static pair => pair.Value.ToPoint(pair.Key))
+            .Select(pair => pair.Value.ToPoint(pair.Key, currencies.Count))
             .ToList();
 
         return new ValueTask<IReadOnlyList<TimeSeriesPoint>>(points);
@@ -229,7 +251,7 @@ internal sealed partial class InMemoryRunStore
                 ScoredRunCount + (runAverageScore.HasValue ? 1 : 0));
         }
 
-        public ExperimentVariantResult ToResult(string variant)
+        public ExperimentVariantResult ToResult(string variant, int currencyCount)
             => new()
             {
                 Variant = variant,
@@ -242,8 +264,9 @@ internal sealed partial class InMemoryRunStore
                 OutputTokens = OutputTokens,
                 TotalTokens = TotalTokens,
                 AverageDurationMs = SettledCount == 0 ? null : TotalDurationMs / SettledCount,
-                TotalCost = CostSum,
-                Currency = Currency,
+                TotalCost = CurrencyTotals.IsMixed(currencyCount) ? null : CostSum,
+                Currency = CurrencyTotals.IsMixed(currencyCount) ? null : Currency,
+                CurrencyCount = currencyCount,
                 AverageScore = ScoredRunCount == 0 ? null : ScoreSum / ScoredRunCount,
             };
     }
@@ -283,7 +306,7 @@ internal sealed partial class InMemoryRunStore
                 SettledCount + (settled ? 1 : 0));
         }
 
-        public TimeSeriesPoint ToPoint(DateTimeOffset bucket)
+        public TimeSeriesPoint ToPoint(DateTimeOffset bucket, int currencyCount)
             => new()
             {
                 Bucket = bucket,
@@ -291,7 +314,8 @@ internal sealed partial class InMemoryRunStore
                 FailedRuns = FailedRuns,
                 InputTokens = InputTokens,
                 OutputTokens = OutputTokens,
-                Cost = CostSum,
+                Cost = CurrencyTotals.IsMixed(currencyCount) ? null : CostSum,
+                CurrencyCount = currencyCount,
                 AverageDurationMs = SettledCount == 0 ? null : TotalDurationMs / SettledCount,
             };
     }

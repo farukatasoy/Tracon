@@ -327,7 +327,10 @@ internal static class AgentEndpoints
                 "check, so a denied run never consumes the tenant's quota." +
                 "When session ownership is turned on, naming another user's session in 'sessionId' " +
                 "is also refused with 403, and opening a NEW session is refused the same way when no " +
-                "authenticated identity can be resolved to own it ('errorType': 'session_owner_required').")
+                "authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). " +
+                "A run without a 'sessionId' that stops at a tool approval can never be answered: it closes " +
+                "as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the " +
+                "stream ends with an 'error' event of that type instead of 'done'.")
             // The success response is SSE by default (see AgentRunStream); but a
             // request carrying the 'Idempotency-Key' header gets a JSON body, and
             // one carrying 'Prefer: respond-async' gets a 202 body.
@@ -336,6 +339,7 @@ internal static class AgentEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status501NotImplemented)
@@ -1327,7 +1331,9 @@ internal static class AgentEndpoints
                         {
                             var requests = ChildRunApproval.CollectRequests(producedMessages);
 
-                            if (requests.Count == 0)
+                            // F-448: without a session nobody can answer the approval; the
+                            // stream ends with an error frame below instead of an approval card.
+                            if (requests.Count == 0 || session is null)
                             {
                                 return;
                             }
@@ -1356,10 +1362,34 @@ internal static class AgentEndpoints
                     },
                     cancellationToken);
 
+                List<string>? pending = null;
+
                 await foreach (var update in updates.ConfigureAwait(false))
                 {
+                    if (session is null && ChildRunApproval.Describe(update.Contents) is { } names)
+                    {
+                        (pending ??= []).Add(names);
+                    }
+
                     var payload = JsonSerializer.Serialize(update, AIJsonUtilities.DefaultOptions);
                     await writer.WriteEventAsync(sequence++, "update", payload, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (pending is not null)
+                {
+                    await CloseUnanswerableRunAsync(httpContext).ConfigureAwait(false);
+
+                    await writer.WriteEventAsync(
+                        sequence,
+                        "error",
+                        JsonSerializer.Serialize(
+                            new AgentRunFailed(
+                                SessionlessApprovalRun.ErrorType,
+                                ApprovalNeedsSession(string.Join(", ", pending.Distinct(StringComparer.Ordinal)))),
+                            JsonOptions),
+                        cancellationToken).ConfigureAwait(false);
+
+                    return;
                 }
 
                 if (session is not null)
@@ -1536,6 +1566,27 @@ internal static class AgentEndpoints
             return sequence;
         }
 
+        /// <summary>The text a caller gets when a run without a session stopped at a tool approval.</summary>
+        /// <param name="pending">The names of the tools that wait for approval.</param>
+        /// <returns>The error message.</returns>
+        private string ApprovalNeedsSession(string pending)
+            => $"Agent '{agentName}' asked for approval to call '{pending}'. An approval is answered in the next turn " +
+               "of a session, and this run has no 'sessionId', so it can never be answered; the run was closed as " +
+               "failed. Run the agent with a 'sessionId' to answer approvals.";
+
+        /// <summary>Closes the run, which stopped at an approval nobody can answer, as failed.</summary>
+        /// <param name="httpContext">The request, for the run store, the tenant and the logger.</param>
+        /// <returns>A task that completes when the row is written or the failure is logged.</returns>
+        /// <remarks>Not the request's token: a caller that went away must not leave the run waiting forever.</remarks>
+        private ValueTask CloseUnanswerableRunAsync(HttpContext httpContext)
+            => SessionlessApprovalRun.CloseAsFailedAsync(
+                httpContext.RequestServices.GetService<IRunStore>(),
+                runId,
+                httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId,
+                DateTimeOffset.UtcNow,
+                httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints"),
+                CancellationToken.None);
+
         private async Task ExecuteBufferedAsync(HttpContext httpContext)
         {
             var cancellationToken = httpContext.RequestAborted;
@@ -1566,6 +1617,25 @@ internal static class AgentEndpoints
                         ParameterValues = parameterValues,
                     },
                     cancellationToken).ConfigureAwait(false);
+
+                // F-448: without a session nobody can ever answer the approval this run
+                // stopped at; a 200 left it waiting forever.
+                if (session is null && ChildRunApproval.Describe(response.Messages) is { } pending)
+                {
+                    await CloseUnanswerableRunAsync(httpContext).ConfigureAwait(false);
+
+                    await Results.Problem(
+                            title: "Approval requires a session",
+                            detail: ApprovalNeedsSession(pending),
+                            statusCode: StatusCodes.Status409Conflict,
+                            extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                            {
+                                ["errorType"] = SessionlessApprovalRun.ErrorType,
+                            })
+                        .ExecuteAsync(httpContext).ConfigureAwait(false);
+
+                    return;
+                }
 
                 if (session is not null)
                 {

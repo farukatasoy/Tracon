@@ -90,6 +90,40 @@ public sealed class AgentTreeQuotaTests
         run.Cost.ShouldBe(0.058m);
     }
 
+    /// <summary>
+    /// F-419: a child priced in another currency. The tree has no total, so the root
+    /// counts its own cost and the whole tree's tokens; before, 0.016 USD and 0.042 EUR
+    /// went to the quota as 0.058.
+    /// </summary>
+    [Fact]
+    public async Task A_tree_priced_in_two_currencies_counts_only_the_roots_own_cost()
+    {
+        var publisher = new RecordingPublisher();
+
+        await using var host = await StartAsync(publisher, new TwoCurrencyPricing());
+
+        await RunRouterAsync(host, streaming: false);
+
+        var counter = await DailyCounterAsync(host, "yonlendirici");
+
+        counter.Tokens.ShouldBe(20);
+        counter.Cost.ShouldBe(0.016m);
+
+        var run = publisher.Events
+            .Where(static entry => string.Equals(entry.EventType, WebhookEvents.RunCompleted, StringComparison.Ordinal))
+            .Select(static entry => entry.Payload.Run.ShouldNotBeNull())
+            .ShouldHaveSingleItem();
+
+        run.Cost.ShouldBe(0.016m);
+        string.Equals(run.Currency, "USD", StringComparison.Ordinal).ShouldBeTrue();
+
+        var root = (await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { AgentName = "yonlendirici" }))
+            .ShouldHaveSingleItem();
+
+        root.TreeCost.ShouldNotBeNull().CurrencyCount.ShouldBe(2);
+        root.TreeCost.Total().ShouldBeNull();
+    }
+
     [Fact]
     public async Task A_root_without_children_counts_only_itself()
     {
@@ -139,7 +173,7 @@ public sealed class AgentTreeQuotaTests
             AgentName = agentName,
         });
 
-    private static Task<TraconTestHost> StartAsync(RecordingPublisher publisher)
+    private static Task<TraconTestHost> StartAsync(RecordingPublisher publisher, IRunPricingResolver? pricing = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
@@ -187,9 +221,41 @@ public sealed class AgentTreeQuotaTests
                     Origin = AgentDefinitionOrigin.Code,
                 });
             },
-            configureServices: services => services.AddSingleton<IWebhookPublisher>(publisher));
+            configureServices: services =>
+            {
+                services.AddSingleton<IWebhookPublisher>(publisher);
+
+                if (pricing is not null)
+                {
+                    services.AddSingleton(pricing);
+                }
+            });
 
     private static ModelBinding Binding(string model) => new() { Provider = Provider, Model = model };
+
+    /// <summary>Prices the router in USD and the researcher in EUR, at the catalog rates above.</summary>
+    private sealed class TwoCurrencyPricing : IRunPricingResolver
+    {
+        public RunCost? Resolve(string? provider, string? model, RunUsage? usage)
+        {
+            if (usage is null || model is null)
+            {
+                return null;
+            }
+
+            var (input, output, currency) = string.Equals(model, RouterModel, StringComparison.Ordinal)
+                ? (1_000m, 2_000m, "USD")
+                : (3_000m, 5_000m, "EUR");
+
+            return new RunCost
+            {
+                InputCost = (usage.InputTokens ?? 0) * input / 1_000_000m,
+                OutputCost = (usage.OutputTokens ?? 0) * output / 1_000_000m,
+                Currency = currency,
+                Source = PricingSource.Catalog,
+            };
+        }
+    }
 
     private sealed class RecordingPublisher : IWebhookPublisher
     {

@@ -201,6 +201,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The first function node of a workflow node list runs once per run. A run sends the
+  first node the user's message and then Microsoft Agent Framework's turn token, on every
+  start and resume, and a first node that takes `object` received both and ran twice — a
+  node with an outside side effect did it twice. **Behavior change:** saving a node list
+  whose first node takes `object` answers `400`, and a stored one fails before its first
+  node runs; declare `List<ChatMessage>` or `IEnumerable<ChatMessage>`.
+- No money total adds amounts in two currencies. A run tree, the totals and breakdowns
+  of `GET /api/stats`, the points of `GET /api/stats/timeseries`, an experiment arm and
+  the online evaluation's judge cost added the runs' amounts and labelled the sum with one
+  of their currencies (the in-memory store the first, the SQL stores the alphabetically
+  largest). When the runs are in more than one currency, the total now keeps no amount
+  and no currency, and the new `CurrencyCount` says how many there are; letter case is
+  not a second currency. `RunSpend.Total` for a tree returns `null` for such a tree, so
+  the quota and the `run.completed` webhook no longer count a mixed sum: an agent root
+  counts its own cost. The console shows *mixed currencies*.
+- A run whose caller can never answer its tool approval no longer waits forever.
+  `/v1/chat/completions` answered `200` with empty content; it now answers `409` with
+  the error type `approval_required` (or, on a stream, an error frame of that type and
+  no `[DONE]`). `POST /api/agents/{name}/run` without a `sessionId` answered `200`; it
+  now answers `409` with `errorType` `approval_unanswerable` (or an `error` event
+  instead of `done`). In both, and for an agent exposed over MCP or A2A, the run closes
+  `Failed` with the error type `approval_unanswerable`; an MCP task poller still sees
+  the refusal. The `409` responses are new in the OpenAPI document and both generated
+  clients.
+- A queued turn that ends at a tool approval no longer calls the model again when the
+  approval cannot be written. The write is tried again within the lease, and a write
+  the store committed but reported as failed is not written twice; past the lease the
+  job fails with `tracon.job.approval-save-failed` and the run closes `Failed`.
+- A structured-output agent (`Json` or `JsonSchema` with validation on) whose turn
+  stops at a tool approval or at a client-side tool call no longer fails with "The
+  response is empty." Such a pause is not validated; the turn that carries the decision
+  or the tool result is.
+- A workflow run stopped by a graceful shutdown keeps its checkpoints while
+  `ResumeInterruptedRuns` is on, also with `KeepCheckpointsAfterCompletion` off. They
+  were deleted when the stopped run closed, and its continuation ran every finished step
+  again; the continuation now removes them when it finishes.
+- An agent can name a skill that exists only under a skill root (`SkillRoots`). The
+  catalog and the definition check looked in code and in the store only, so such an
+  agent failed with "the skill was not found" and no HTTP run reached a script on disk.
+  A disk skill is installation-wide like a code skill; a stored skill under the same
+  name shadows it for its tenant. An edit to its `SKILL.md` reaches the next run.
 - The `Tracon:Knowledge` configuration section is now read. `TraconKnowledgeOptions`
   was documented as bound from it, but every value there was ignored; only code that
   called `Configure<TraconKnowledgeOptions>` changed a setting. A `Dimensions` value in
@@ -677,6 +718,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `CurrencyCount` on `RunTreeCost`, `RunNonTokenCost`, `RunStatistics`,
+  `TimeSeriesPoint` and `ExperimentVariantResult`, and `JudgeCostCurrencyCount` on
+  `OnlineEvaluationSummary`: how many currencies the runs behind a money total are
+  priced in. Above one, the total carries no amount (see *Fixed*).
 - Skill scripts can run outside the Tracon host. Register an `ISkillScriptExecutor`
   (new in `Tracon.Abstractions`, with `SkillScriptExecutionRequest`,
   `SkillScriptOrigin` and `SkillScriptExecutionResult`, which moved there from an

@@ -2374,3 +2374,32 @@ Zarif kapanış run'ı `Canceled` kapatır; kurtarma çökmeyi, deploy'u ve zari
 - Devam run'ı `Completed`, `continuedFromRunId` = kök, `sessionId: episode-10`.
 - İş `Completed`, `attempt: 2`.
 - Karşı kontrol: `Tracon__Workflows__ResumeInterruptedRuns=false` ile aynı adımlar devam run'ı açmaz; iş kira dolunca `tracon.job.attempts-exhausted` ile düşer.
+
+---
+
+### MT-RES-097 — `sessionId`'siz run onayda `409` alır; MCP ve A2A run'ı da beklemez (kusur-giderme, 2026-10-14, F-448 sınıf taraması)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-977 |
+| **Devir** | ➜ CI: `SessionlessApprovalTests` (yerel uç, MCP, A2A) · `McpTaskCrossInstanceTests` |
+
+Regresyon. Oturumsuz yerel run `200` dönüyor ve `AwaitingApproval` kalıyordu;
+onay `sessionId` istediği için cevaplanamıyordu. MCP ve A2A çağrısında istemci reddi
+alıyor, run yine bekliyordu.
+
+**Ön koşul** — Örnek uygulama; onay isteyen tool'u çağıran bir agent.
+
+**Adımlar**
+1. `POST $APU/api/agents/<agent>/run` gövdesi `{"message":"…"}`, başlık `Idempotency-Key`.
+2. Aynı isteği başlıksız (SSE) gönder.
+3. `GET $APU/api/approvals/pending` ve `GET $APU/api/runs?agentName=<agent>`.
+
+**Beklenen sonuç**
+- Adım 1: `409 application/problem+json`, `errorType` `approval_unanswerable`, detay `sessionId`'yi adlandırır.
+- Adım 2: akış `approvals` ve `done` olmadan bir `error` olayıyla (`approval_unanswerable`) biter.
+- Adım 3: bekleyen onay yok; run'lar `Failed`.
+- 🚨 Eski kusur: `200`, run `AwaitingApproval`, posta kutusu boş.
