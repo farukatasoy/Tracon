@@ -915,6 +915,16 @@ This is the same append-only shape as tool approvals: the waiting run stays as i
 and the response opens a new one. The new run compiles the definition version the waiting
 run recorded, so editing the workflow while a person decides does not change what continues
 (see [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
+In the default response mode, a second answer to the same request opens a second new run.
+
+### One answer per request
+
+A workflow can take one answer per request instead (`WorkflowResponseMode.SingleAnswer`):
+the same answer given again follows the run the first one started, and a different answer
+gets `409 Conflict`. In either mode, every answer that starts a run is written to the audit
+trail first and recorded for `GET /api/workflows/runs/{runId}/responses`. [Answering a
+workflow](/concepts/workflow-answers/) has the rules, what each answer leaves behind, and
+the crash case that needs run reconciliation.
 
 ## Read next
 
