@@ -67,7 +67,10 @@ public sealed class TraconQuotaOptions
     /// <para>
     /// A consumer that wants a threshold notice correlated to the exact run
     /// and delivered on the same connection the run streamed from turns this
-    /// on. See <see cref="RunEventCustomTypes.QuotaThreshold"/> for the
+    /// on. A call tree's runs each write their own consumption, so the notice is in the
+    /// stream of the run whose consumption crossed the threshold: usually the root, and a
+    /// child run when it is the one that crosses. A child's stream is read from
+    /// <c>GET /api/runs/{id}/events</c>. See <see cref="RunEventCustomTypes.QuotaThreshold"/> for the
     /// event's shape and the guarantee that only Tracon can write it.
     /// </para>
     /// </remarks>

@@ -24,7 +24,8 @@ public static partial class RunEventCustomTypes
 
     /// <summary>
     /// The <see cref="RunEventType.Custom"/> type of the quota threshold
-    /// notice a root run's completion writes into its own event stream.
+    /// notice a run's completion writes into its own event stream when its consumption
+    /// crossed the threshold: the root run, or a child run of its call tree.
     /// </summary>
     /// <remarks>
     /// Falls under <see cref="ReservedPrefix"/>: a consumer cannot write an
