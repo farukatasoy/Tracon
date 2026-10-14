@@ -1348,7 +1348,10 @@ Tracon.IWorkflowCheckpointStore.ReadAsync(string! tenantId, string! sessionId, s
 Tracon.IWorkflowDefinitionStore
 Tracon.IWorkflowDefinitionStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IWorkflowDefinitionStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDefinition?>
+Tracon.IWorkflowDefinitionStore.GetVersionAsync(string! tenantId, string! name, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDefinition?>
 Tracon.IWorkflowDefinitionStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowDefinition!>!>
+Tracon.IWorkflowDefinitionStore.ListVersionsAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowDefinition!>!>
+Tracon.IWorkflowDefinitionStore.RollbackAsync(string! tenantId, string! name, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDefinition!>
 Tracon.IWorkflowDefinitionStore.SaveAsync(string! tenantId, Tracon.WorkflowDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDefinition!>
 Tracon.IWorkflowFunctionCatalog
 Tracon.IWorkflowFunctionCatalog.Contains(string! name) -> bool
@@ -4601,6 +4604,8 @@ Tracon.WorkflowNodeKind.RequestPort = 3 -> Tracon.WorkflowNodeKind
 Tracon.WorkflowNodeKind.Unknown = 0 -> Tracon.WorkflowNodeKind
 Tracon.WorkflowNodeReference
 Tracon.WorkflowNodeReference.<Clone>$() -> Tracon.WorkflowNodeReference!
+Tracon.WorkflowNodeReference.AgentVersion.get -> int?
+Tracon.WorkflowNodeReference.AgentVersion.init -> void
 Tracon.WorkflowNodeReference.Equals(Tracon.WorkflowNodeReference? other) -> bool
 Tracon.WorkflowNodeReference.Kind.get -> Tracon.WorkflowNodeKind
 Tracon.WorkflowNodeReference.Kind.init -> void
@@ -4642,6 +4647,8 @@ Tracon.WorkflowRespondRequest.Approved.get -> bool?
 Tracon.WorkflowRespondRequest.Approved.init -> void
 Tracon.WorkflowRespondRequest.CheckpointId.get -> string?
 Tracon.WorkflowRespondRequest.CheckpointId.init -> void
+Tracon.WorkflowRespondRequest.DefinitionVersion.get -> int?
+Tracon.WorkflowRespondRequest.DefinitionVersion.init -> void
 Tracon.WorkflowRespondRequest.Equals(Tracon.WorkflowRespondRequest? other) -> bool
 Tracon.WorkflowRespondRequest.Json.get -> string?
 Tracon.WorkflowRespondRequest.Json.init -> void
@@ -4658,6 +4665,8 @@ Tracon.WorkflowResumeRequest
 Tracon.WorkflowResumeRequest.<Clone>$() -> Tracon.WorkflowResumeRequest!
 Tracon.WorkflowResumeRequest.CheckpointId.get -> string?
 Tracon.WorkflowResumeRequest.CheckpointId.init -> void
+Tracon.WorkflowResumeRequest.DefinitionVersion.get -> int?
+Tracon.WorkflowResumeRequest.DefinitionVersion.init -> void
 Tracon.WorkflowResumeRequest.Equals(Tracon.WorkflowResumeRequest? other) -> bool
 Tracon.WorkflowResumeRequest.NewRunId.get -> System.Guid?
 Tracon.WorkflowResumeRequest.NewRunId.init -> void

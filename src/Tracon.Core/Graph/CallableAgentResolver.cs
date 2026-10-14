@@ -44,6 +44,40 @@ internal sealed class CallableAgentResolver
     public ValueTask<AIAgent?> ResolveAsync(string agentName, CancellationToken cancellationToken = default)
         => ResolveCatalog().ResolveAsync(agentName, culture: null, cancellationToken);
 
+    /// <summary>Resolves the agent with the given name, pinned to a stored version.</summary>
+    /// <param name="agentName">Agent name.</param>
+    /// <param name="version">
+    /// The version to run. <see langword="null"/> resolves the current version, exactly like
+    /// <see cref="ResolveAsync(string, CancellationToken)"/>.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The agent wrapped with the run-recording wrapper; <see langword="null"/> when absent.</returns>
+    /// <exception cref="TraconException">
+    /// <paramref name="version"/> is given and the agent keeps no version history (it is defined in code),
+    /// or that version does not exist.
+    /// </exception>
+    public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, CancellationToken cancellationToken = default)
+        => version is null
+            ? ResolveAsync(agentName, cancellationToken)
+            : ResolveCatalog().ResolveAsync(agentName, version, culture: null, cancellationToken);
+
+    /// <summary>Finds the first agent version pin of a workflow definition that cannot be honoured.</summary>
+    /// <param name="definition">The definition to check.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>User-facing error text; <see langword="null"/> when there is no pin or every pin holds.</returns>
+    /// <remarks>
+    /// Reads only descriptors and one version row, never compiles an agent, so it is safe to
+    /// run for every compile of a workflow. A definition with no pin pays nothing.
+    /// </remarks>
+    public async ValueTask<string?> FindPinProblemAsync(WorkflowDefinition definition, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        return await AgentVersionPin
+            .FindProblemAsync(definition, ResolveCatalog(), _services.GetService<IAgentDefinitionStore>(), cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>Lists the agent summaries in the catalog.</summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Agent summaries.</returns>

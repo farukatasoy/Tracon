@@ -109,4 +109,36 @@ public sealed record WorkflowNodeReference
     /// </para>
     /// </remarks>
     public TimeSpan? Timeout { get; init; }
+
+    /// <summary>
+    /// Gets the version of the agent this step runs. <see langword="null"/> (the default)
+    /// runs the agent's current version, resolved each time the step runs.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only for <see cref="WorkflowNodeKind.Agent"/>. A function node that carries a
+    /// version, and a version below 1, are refused when the definition is saved
+    /// (<c>400</c>). So is a version the agent does not have, and an agent defined in
+    /// code, which keeps no version history. The check is repeated when the workflow is
+    /// compiled: the agent can be deleted after the workflow was saved.
+    /// </para>
+    /// <para>
+    /// A pinned step runs that version's instructions, model and tools, and its child run
+    /// row records that version. The step still resolves late, so the pin holds across
+    /// edits of the agent; it is the way to keep a production chain on text that was
+    /// tested while the agent is being edited.
+    /// </para>
+    /// <para>
+    /// The pin is not part of the node's identity: changing it does not stop a run that
+    /// waits for input from being resumed. Only a definition that lists <see cref="WorkflowDefinition.Nodes"/>
+    /// can pin a version; an agent-only chain written as
+    /// <see cref="WorkflowDefinition.AgentNames"/> cannot, and the console writes the
+    /// <c>nodes</c> form as soon as one step is pinned.
+    /// </para>
+    /// <para>
+    /// A pin does not reach into the agent's own sub-agents or skills: they resolve the
+    /// current version, as they do for a direct run.
+    /// </para>
+    /// </remarks>
+    public int? AgentVersion { get; init; }
 }

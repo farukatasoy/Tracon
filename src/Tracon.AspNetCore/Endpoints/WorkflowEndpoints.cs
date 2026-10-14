@@ -122,13 +122,67 @@ internal static class WorkflowEndpoints
                 "never put a secret in them, name its configuration key instead. A node's " +
                 "'timeout' (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, " +
                 "30 seconds less on an agent node; it is not checked against the run's timeout. " +
+                "An agent node's 'agentVersion' pins the step to that version of the agent; it must be " +
+                "1 or more, only an agent node may carry one, and the agent must have that version (an " +
+                "agent defined in code keeps no versions): anything else is refused with 400. " +
                 "'runTimeout' bounds one run of this workflow: it may only shorten " +
                 "Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, " +
                 "and a value above that ceiling is refused with 400. The call " +
                 "replaces the whole definition: omitted fields are cleared, not merged. The name " +
                 "comes from the path and is not taken from the body. The name 'functions' is " +
-                "reserved (400): GET /api/workflows/functions uses it.")
+                "reserved (400): GET /api/workflows/functions uses it. Every save appends a " +
+                "version rather than overwriting; the previous content stays readable through " +
+                "GET /api/workflows/{name}/versions.")
             .Accepts<WorkflowSaveRequest>("application/json");
+
+        builder.MapGet("/api/workflows/{name}/versions", ListVersionsAsync)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
+            .WithName("TraconListWorkflowVersions")
+            .WithTags("Tracon", "Workflows")
+            .WithSummary("Lists a workflow definition's version history, newest first.")
+            .WithDescription(
+                "Every entry is a full definition snapshot, not a delta, so a single entry is " +
+                "enough to inspect or restore a past state. The workflow must have a current " +
+                "stored definition; a deleted name returns 404 even though its versions are kept " +
+                "(a version number is never reused). A workflow defined in code also returns 404, " +
+                "with a reason that says so: it is not stored by Tracon and has no version history. " +
+                "The 'version' of a run's row is the version it was compiled from.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        builder.MapPost("/api/workflows/{name}/rollback", RollbackAsync)
+            .RequireRole(roles.Admin)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsAdmin)
+            .WithName("TraconRollbackWorkflow")
+            .WithTags("Tracon", "Workflows")
+            .WithSummary("Writes a workflow definition as a new version with the content of a previous version.")
+            .WithDescription(
+                "A rollback moves forward, not backward: the old content is appended as a NEW " +
+                "version and the history is never rewritten, so the rollback itself stays " +
+                "auditable ('workflow.rollback') and can be rolled back in turn. The content is " +
+                "checked the way a save is: a version that names a function that is no longer " +
+                "registered, or an agent version that no longer exists, is refused with 400 and " +
+                "nothing is written. An unknown version number returns 404; a workflow defined " +
+                "in code returns 409. A run that is waiting keeps the version it recorded, so a " +
+                "rollback does not change what it resumes with.")
+            .Accepts<WorkflowRollbackRequest>("application/json")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        builder.MapGet("/api/workflows/{name}/versions/{a:int}/diff/{b:int}", GetVersionDiffAsync)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.WorkflowsRead)
+            .WithName("TraconGetWorkflowVersionDiff")
+            .WithTags("Tracon", "Workflows")
+            .WithSummary("Returns two definition versions as raw JSON; the diff is computed in the UI.")
+            .WithDescription(
+                "The server does no diffing and takes no position on how a change should be " +
+                "displayed; it returns both snapshots verbatim as 'left' and 'right' so the client " +
+                "chooses the presentation. The two version numbers may be given in any order. When " +
+                "either version is missing the response is 404 and names the one that was not found; " +
+                "a workflow defined in code returns 404 saying it has no version history.")
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapDelete("/api/workflows/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
@@ -213,14 +267,15 @@ internal static class WorkflowEndpoints
                     HttpContext httpContext,
                     [FromServices] IWorkflowRunner? runner,
                     [FromServices] IRunStore runs,
+                    [FromServices] IWorkflowDefinitionStore definitions,
                     [FromServices] ITenantContext tenants,
                     [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                     [FromServices] IRunAttributionContext? attributionContext,
                     [FromServices] ITraconDrainState drainState,
                     CancellationToken cancellationToken)
                 => ResumeAsync(
-                    runId, httpContext, runner, runs, tenants, runAuthorizationHandler, attributionContext, drainState,
-                    prefix, cancellationToken))
+                    runId, httpContext, runner, runs, definitions, tenants, runAuthorizationHandler, attributionContext,
+                    drainState, prefix, cancellationToken))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
@@ -231,7 +286,13 @@ internal static class WorkflowEndpoints
                 "Resuming opens a NEW run rather than continuing the old one: the original run " +
                 "row is never rewritten, and the first streamed frame reports the new run id. " +
                 "The body is optional — without a checkpoint id the run resumes from its latest " +
-                "checkpoint. The engine must be registered; otherwise the response is 501. The " +
+                "checkpoint. The run resumes with the version of the workflow's definition that " +
+                "it recorded ('version' of its row), so an edit made while it waited changes " +
+                "nothing; 'definitionVersion' names another stored version, and a version the " +
+                "workflow does not have is 400, never a silent fall-back to the current one. A " +
+                "version whose graph differs from the checkpoint's fails the run with 'the graph's " +
+                "structure differs'. A run that recorded no version resumes with the current " +
+                "definition. The engine must be registered; otherwise the response is 501. The " +
                 "source run and its checkpoint are checked before the stream opens: an unknown run " +
                 "is 404, and a run that is not a workflow run or has no such checkpoint is 400. A " +
                 "failure after the stream opens arrives as an SSE error frame. Resuming STARTS " +
@@ -267,14 +328,15 @@ internal static class WorkflowEndpoints
                     HttpContext httpContext,
                     [FromServices] IWorkflowRunner? runner,
                     [FromServices] IRunStore runs,
+                    [FromServices] IWorkflowDefinitionStore definitions,
                     [FromServices] ITenantContext tenants,
                     [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                     [FromServices] IRunAttributionContext? attributionContext,
                     [FromServices] ITraconDrainState drainState,
                     CancellationToken cancellationToken)
                 => RespondAsync(
-                    runId, httpContext, runner, runs, tenants, runAuthorizationHandler, attributionContext, drainState,
-                    prefix, cancellationToken))
+                    runId, httpContext, runner, runs, definitions, tenants, runAuthorizationHandler, attributionContext,
+                    drainState, prefix, cancellationToken))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
@@ -289,7 +351,9 @@ internal static class WorkflowEndpoints
                 "IRunAuthorizationHandler is asked with the source run's id; a denial returns " +
                 "403 before any run row is opened. The answer is checked before the stream opens: a " +
                 "response of the wrong shape, a run that is not waiting and an unknown request id are " +
-                "all 400; an unknown run is 404. With 'Prefer: respond-async' it is then queued: the reply " +
+                "all 400; an unknown run is 404. The run continues with the version of the workflow's " +
+                "definition it recorded, or with the stored version 'definitionVersion' names (a " +
+                "version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply " +
                 "is '202 Accepted' and the run continues in the background worker, so a machine " +
                 "that answers a request does not have to keep a connection open. The queued answer " +
                 "is stored with the job until the job is removed; do not put a secret in it. " +
@@ -404,6 +468,8 @@ internal static class WorkflowEndpoints
         [FromServices] ITenantContext tenants,
         [FromServices] IWorkflowFunctionCatalog? functions,
         [FromServices] IWorkflowRunTimeoutPolicy? runTimeoutPolicy,
+        [FromServices] IAgentCatalog agents,
+        [FromServices] IAgentDefinitionStore agentDefinitions,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -433,6 +499,49 @@ internal static class WorkflowEndpoints
             RunTimeout = request.RunTimeout,
         };
 
+        if (await ValidateDefinitionAsync(
+                definition, functions, runTimeoutPolicy, agents, agentDefinitions, because: null, cancellationToken)
+            .ConfigureAwait(false) is { } problem)
+        {
+            return problem;
+        }
+
+        var saved = await store.SaveAsync(tenants.TenantId, definition, cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(saved);
+    }
+
+    /// <summary>
+    /// Judges a definition the way a save does: the rules the compiler applies, the
+    /// registered functions and their settings, the type chain and the agent version pins.
+    /// </summary>
+    /// <param name="definition">The definition about to be written.</param>
+    /// <param name="functions">The function registry; <see langword="null"/> when the engine is not registered.</param>
+    /// <param name="runTimeoutPolicy">The host's run timeout settings; <see langword="null"/> without the engine.</param>
+    /// <param name="agents">The agent catalog.</param>
+    /// <param name="agentDefinitions">The store that keeps stored agents' versions.</param>
+    /// <param name="because">
+    /// A sentence that opens the refusal, for a write that is not a plain save (a rollback
+    /// writes content nobody typed just now); <see langword="null"/> for a save.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The <c>400</c> to answer with; <see langword="null"/> when the definition may be written.</returns>
+    /// <remarks>
+    /// One method for both writers on purpose: a rollback is a save of stored content, and a
+    /// version saved a month ago can name a function that was unregistered since. Judged by
+    /// a second, shorter copy of these checks it would write a definition no run can use.
+    /// </remarks>
+    private static async ValueTask<ProblemHttpResult?> ValidateDefinitionAsync(
+        WorkflowDefinition definition,
+        IWorkflowFunctionCatalog? functions,
+        IWorkflowRunTimeoutPolicy? runTimeoutPolicy,
+        IAgentCatalog agents,
+        IAgentDefinitionStore agentDefinitions,
+        string? because,
+        CancellationToken cancellationToken)
+    {
+        var name = definition.Name;
+
         // Validation happens AT SAVE TIME. Accepting an invalid definition
         // and blowing up at run time would force the user to start a run
         // just to find the error. The workflow compiler uses the same
@@ -440,10 +549,7 @@ internal static class WorkflowEndpoints
         // F-382: a name a fixed route uses is refused before anything else is judged.
         if ((WorkflowDefinitionValidator.ReservedNameProblem(name) ?? WorkflowDefinitionValidator.Validate(definition)) is { } message)
         {
-            return TypedResults.Problem(
-                title: "Workflow definition invalid",
-                detail: message,
-                statusCode: StatusCodes.Status400BadRequest);
+            return Invalid(because, message);
         }
 
         // F-405: the ceiling is the host's setting, read through the engine's seam.
@@ -452,10 +558,7 @@ internal static class WorkflowEndpoints
         if (runTimeoutPolicy is not null &&
             WorkflowDefinitionValidator.RunTimeoutCeilingProblem(definition, runTimeoutPolicy.RunTimeout, runTimeoutPolicy.MaxRunTimeout) is { } ceilingProblem)
         {
-            return TypedResults.Problem(
-                title: "Workflow definition invalid",
-                detail: ceilingProblem,
-                statusCode: StatusCodes.Status400BadRequest);
+            return Invalid(because, ceilingProblem);
         }
 
         // A function node's name IS checked at save time, unlike an agent
@@ -471,12 +574,11 @@ internal static class WorkflowEndpoints
 
             if (functions is null || !functions.Contains(node.Name))
             {
-                return TypedResults.Problem(
-                    title: "Workflow definition invalid",
-                    detail: $"Workflow '{name}' uses function '{node.Name}', but no such function is " +
-                            "registered. Register it with AddWorkflowFunction() before referencing it " +
-                            "from a workflow definition.",
-                    statusCode: StatusCodes.Status400BadRequest);
+                return Invalid(
+                    because,
+                    $"Workflow '{name}' uses function '{node.Name}', but no such function is " +
+                    "registered. Register it with AddWorkflowFunction() before referencing it " +
+                    "from a workflow definition.");
             }
 
             // The settings are checked by the registry that knows the function's settings
@@ -485,10 +587,7 @@ internal static class WorkflowEndpoints
             // so the early check is an honest guarantee.
             if (functions.ValidateSettings(node.Name, node.Settings) is { } settingsProblem)
             {
-                return TypedResults.Problem(
-                    title: "Workflow definition invalid",
-                    detail: $"Workflow '{name}': {settingsProblem}",
-                    statusCode: StatusCodes.Status400BadRequest);
+                return Invalid(because, $"Workflow '{name}': {settingsProblem}");
             }
         }
 
@@ -499,16 +598,173 @@ internal static class WorkflowEndpoints
         // reported by name first; the compiler repeats the check.
         if (WorkflowDefinitionValidator.ValidateNodeTypes(definition, functions) is { } typeProblem)
         {
-            return TypedResults.Problem(
-                title: "Workflow definition invalid",
-                detail: typeProblem,
-                statusCode: StatusCodes.Status400BadRequest);
+            return Invalid(because, typeProblem);
         }
 
-        var saved = await store.SaveAsync(tenants.TenantId, definition, cancellationToken).ConfigureAwait(false);
+        // Phase 200: a pinned step must name a version its agent has. Unlike an agent's NAME
+        // (which a definition may name before the agent exists), a version cannot appear later,
+        // so refusing it here is an honest guarantee; the compiler repeats the check because the
+        // agent can be deleted after the save.
+        if (await AgentVersionPin.FindProblemAsync(definition, agents, agentDefinitions, cancellationToken)
+                .ConfigureAwait(false) is { } pinProblem)
+        {
+            return Invalid(because, pinProblem);
+        }
 
-        return TypedResults.Ok(saved);
+        return null;
+
+        static ProblemHttpResult Invalid(string? because, string detail)
+            => TypedResults.Problem(
+                title: "Workflow definition invalid",
+                detail: because is null ? detail : $"{because} {detail}",
+                statusCode: StatusCodes.Status400BadRequest);
     }
+
+    private static async Task<Results<Ok<IReadOnlyList<WorkflowDefinition>>, ProblemHttpResult>> ListVersionsAsync(
+        string name,
+        [FromServices] IWorkflowDefinitionStore store,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IWorkflowRunner? runner,
+        CancellationToken cancellationToken)
+    {
+        if (await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false) is null)
+        {
+            return await NoVersionHistoryAsync(name, runner, cancellationToken).ConfigureAwait(false);
+        }
+
+        return TypedResults.Ok(
+            await store.ListVersionsAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false));
+    }
+
+    private static async Task<Results<Ok<WorkflowVersionDiffResponse>, ProblemHttpResult>> GetVersionDiffAsync(
+        string name,
+        int a,
+        int b,
+        [FromServices] IWorkflowDefinitionStore store,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IWorkflowRunner? runner,
+        CancellationToken cancellationToken)
+    {
+        // Checked BEFORE the two version reads: without it, a workflow defined in code
+        // answers "has no version 1", which states that the workflow is versioned here
+        // and only that number is missing. Both halves of that are wrong.
+        if (await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false) is null)
+        {
+            return await NoVersionHistoryAsync(name, runner, cancellationToken).ConfigureAwait(false);
+        }
+
+        var left = await store.GetVersionAsync(tenants.TenantId, name, a, cancellationToken).ConfigureAwait(false);
+        var right = await store.GetVersionAsync(tenants.TenantId, name, b, cancellationToken).ConfigureAwait(false);
+
+        if (left is null || right is null)
+        {
+            return TypedResults.Problem(
+                title: "Version not found",
+                detail: $"Workflow '{name}' has no version {(left is null ? a : b)}.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        return TypedResults.Ok(new WorkflowVersionDiffResponse { Left = left, Right = right });
+    }
+
+    private static async Task<Results<Ok<WorkflowDefinition>, ProblemHttpResult>> RollbackAsync(
+        string name,
+        HttpContext httpContext,
+        [FromServices] IWorkflowDefinitionStore store,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IWorkflowFunctionCatalog? functions,
+        [FromServices] IWorkflowRunTimeoutPolicy? runTimeoutPolicy,
+        [FromServices] IAgentCatalog agents,
+        [FromServices] IAgentDefinitionStore agentDefinitions,
+        [FromServices] IWorkflowRunner? runner,
+        CancellationToken cancellationToken)
+    {
+        var (bound, bindError) = await RequestBodyBinding
+            .ReadAsync<WorkflowRollbackRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (bindError is not null)
+        {
+            return bindError;
+        }
+
+        var request = bound!;
+
+        if (await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false) is null)
+        {
+            // A workflow defined in code is changed by changing the application: 409, the
+            // answer a PUT or DELETE of it would get. Anything else has no stored definition.
+            return runner is not null && await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is not null
+                ? TypedResults.Problem(
+                    title: "Code-defined workflow cannot be modified",
+                    detail: $"'{name}' is a workflow defined in code (AddWorkflow). It is not stored by Tracon, so it " +
+                            "has no versions to roll back to; update the application code to change it.",
+                    statusCode: StatusCodes.Status409Conflict)
+                : NotFound(name);
+        }
+
+        var target = await store.GetVersionAsync(tenants.TenantId, name, request.Version, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (target is null)
+        {
+            return TypedResults.Problem(
+                title: "Version not found",
+                detail: $"Workflow '{name}' has no version {request.Version}.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        // The stored content is judged the way a save is judged. It was valid when it was
+        // saved, but a function it names may have been unregistered since, and a rollback that
+        // wrote it back would produce a "current" definition no run can compile.
+        if (await ValidateDefinitionAsync(
+                target,
+                functions,
+                runTimeoutPolicy,
+                agents,
+                agentDefinitions,
+                because: $"Version {request.Version} of workflow '{name}' cannot be restored as it is.",
+                cancellationToken).ConfigureAwait(false) is { } problem)
+        {
+            return problem;
+        }
+
+        try
+        {
+            return TypedResults.Ok(
+                await store.RollbackAsync(tenants.TenantId, name, request.Version, cancellationToken).ConfigureAwait(false));
+        }
+        catch (TraconException exception)
+        {
+            return TypedResults.Problem(
+                title: "Rollback failed",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status404NotFound);
+        }
+    }
+
+    /// <summary>
+    /// The answer for a version-history read when the store holds no current definition under
+    /// <paramref name="name"/>.
+    /// </summary>
+    /// <remarks>
+    /// "The store has no definition" and "there is no such workflow" are not the same
+    /// statement. A workflow defined in code is never written to the store, so the plain
+    /// "no such workflow" answer would contradict <c>GET /api/workflows</c>, which lists it. The
+    /// status stays <c>404</c> - the version-history resource really does not exist - but the
+    /// reason is what the caller acts on.
+    /// </remarks>
+    private static async ValueTask<ProblemHttpResult> NoVersionHistoryAsync(
+        string name,
+        IWorkflowRunner? runner,
+        CancellationToken cancellationToken)
+        => runner is not null && await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is not null
+            ? TypedResults.Problem(
+                title: "Workflow has no version history",
+                detail: $"'{name}' is a workflow defined in code (AddWorkflow). A code definition is not stored by " +
+                        "Tracon, so it has no version history; its history is the application's source history.",
+                statusCode: StatusCodes.Status404NotFound)
+            : NotFound(name);
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAsync(
         string name,
@@ -709,6 +965,7 @@ internal static class WorkflowEndpoints
         HttpContext httpContext,
         IWorkflowRunner? runner,
         IRunStore runs,
+        IWorkflowDefinitionStore definitions,
         ITenantContext tenants,
         IRunAuthorizationHandler? runAuthorizationHandler,
         IRunAttributionContext? attributionContext,
@@ -778,6 +1035,12 @@ internal static class WorkflowEndpoints
             return checkpointProblem;
         }
 
+        if (await CheckDefinitionVersionAsync(source, request?.DefinitionVersion, runner, definitions, tenants, cancellationToken)
+                .ConfigureAwait(false) is { } versionProblem)
+        {
+            return versionProblem;
+        }
+
         if (RespondAsyncPreference.IsRequested(httpContext))
         {
             return await QueueAsync(
@@ -788,6 +1051,7 @@ internal static class WorkflowEndpoints
                     SessionId = source.SessionId,
                     SourceRunId = runId,
                     CheckpointId = request?.CheckpointId,
+                    DefinitionVersion = request?.DefinitionVersion,
                 },
                 source.WorkflowName!,
                 source.SessionId,
@@ -805,6 +1069,7 @@ internal static class WorkflowEndpoints
                     RunId = runId,
                     CheckpointId = request?.CheckpointId,
                     NewRunId = newRunId,
+                    DefinitionVersion = request?.DefinitionVersion,
                 },
                 cancellationToken),
             newRunId);
@@ -857,6 +1122,7 @@ internal static class WorkflowEndpoints
         HttpContext httpContext,
         IWorkflowRunner? runner,
         IRunStore runs,
+        IWorkflowDefinitionStore definitions,
         ITenantContext tenants,
         IRunAuthorizationHandler? runAuthorizationHandler,
         IRunAttributionContext? attributionContext,
@@ -925,6 +1191,7 @@ internal static class WorkflowEndpoints
             Json = request.Data?.GetRawText(),
             CheckpointId = request.CheckpointId,
             NewRunId = newRunId,
+            DefinitionVersion = request.DefinitionVersion,
         };
 
         // F-341: the response is checked against the pending request BEFORE the
@@ -963,6 +1230,12 @@ internal static class WorkflowEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        if (await CheckDefinitionVersionAsync(source, request.DefinitionVersion, runner, definitions, tenants, cancellationToken)
+                .ConfigureAwait(false) is { } versionProblem)
+        {
+            return versionProblem;
+        }
+
         var pending = await runner.ListPendingRequestsAsync(runId, cancellationToken).ConfigureAwait(false);
 
         if (!pending.Any(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal)))
@@ -984,6 +1257,7 @@ internal static class WorkflowEndpoints
                     SessionId = source.SessionId,
                     SourceRunId = runId,
                     CheckpointId = request.CheckpointId,
+                    DefinitionVersion = request.DefinitionVersion,
                     RequestId = request.RequestId,
                     Approved = request.Approved,
                     Text = request.Text,
@@ -1189,6 +1463,77 @@ internal static class WorkflowEndpoints
             detail: checkpointId is { Length: > 0 }
                 ? $"Run '{source.Id}' has no checkpoint with id '{checkpointId}'. GET /api/workflows/runs/{source.Id}/checkpoints lists the ones it wrote."
                 : $"Run '{source.Id}' has no checkpoint. A run started while checkpoint writing was disabled cannot be resumed.",
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    /// <summary>
+    /// Checks, before the 202 and before the stream opens, that the definition version a
+    /// resume or a response will run with exists.
+    /// </summary>
+    /// <param name="source">The run being continued.</param>
+    /// <param name="requested">The version the request names; <see langword="null"/> for the one the run recorded.</param>
+    /// <param name="runner">The workflow engine, which knows a workflow defined in code.</param>
+    /// <param name="definitions">The definition store.</param>
+    /// <param name="tenants">The tenant context.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><c>400</c> when the version is not one the workflow has; otherwise <see langword="null"/>.</returns>
+    /// <remarks>
+    /// The engine makes the same judgement when the run starts and fails the run with it, but by
+    /// then the answer is a <c>200</c> and an error frame. A workflow that is gone
+    /// is not judged here: the engine answers that as it always did.
+    /// </remarks>
+    private static async ValueTask<ProblemHttpResult?> CheckDefinitionVersionAsync(
+        RunRecord source,
+        int? requested,
+        IWorkflowRunner? runner,
+        IWorkflowDefinitionStore definitions,
+        ITenantContext tenants,
+        CancellationToken cancellationToken)
+    {
+        if (requested is < 1)
+        {
+            return TypedResults.Problem(
+                title: "Definition version invalid",
+                detail: $"'definitionVersion' is {requested}. Versions are numbered from 1; leave it out to continue " +
+                        "with the version the run recorded.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if ((requested ?? source.AgentVersion) is not { } version)
+        {
+            return null;
+        }
+
+        var name = source.WorkflowName!;
+
+        if (await definitions.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false) is not { } current)
+        {
+            // Code-defined, or gone. A version was NAMED for a workflow that keeps none: say so,
+            // instead of letting the run ignore it.
+            return requested is not null &&
+                   runner is not null &&
+                   await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is not null
+                ? TypedResults.Problem(
+                    title: "Definition version invalid",
+                    detail: $"'{name}' is a workflow defined in code. It has no stored versions, so 'definitionVersion' " +
+                            "cannot name one.",
+                    statusCode: StatusCodes.Status400BadRequest)
+                : null;
+        }
+
+        if (version == current.Version ||
+            await definitions.GetVersionAsync(tenants.TenantId, name, version, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            return null;
+        }
+
+        return TypedResults.Problem(
+            title: "Definition version not found",
+            detail: requested is not null
+                ? $"Workflow '{name}' has no version {version}. GET /api/workflows/{name}/versions lists the ones it has."
+                : $"Run '{source.Id}' recorded version {version} of workflow '{name}', which the workflow no longer " +
+                  "has, and a run is never resumed with a different definition than the one it recorded. Name a " +
+                  "version with 'definitionVersion' to resume it with that one.",
             statusCode: StatusCodes.Status400BadRequest);
     }
 

@@ -10,6 +10,13 @@ namespace Tracon;
 /// and is protected by shared contract tests.
 /// </para>
 /// <para>
+/// <strong>Every save writes two rows in one transaction:</strong> the current definition
+/// (<c>workflows</c>) and its history entry (<c>workflow_definition_versions</c>). A save whose
+/// history write fails leaves the current row as it was; neither a version without content nor
+/// content without a version can be left behind. The history has no foreign key to the current
+/// row, so deleting a workflow keeps its versions and a later save continues the numbering.
+/// </para>
+/// <para>
 /// The tenant id is taken <em>as a parameter</em>, not read from <c>ITenantContext</c>.
 /// The checkpoint store and the workflow store are also called from
 /// MAF's execution pipeline; there is no HTTP context there, and the ambient
@@ -100,32 +107,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
             WorkflowDefinitionPayload.FromDefinition(definition),
             TraconJsonContext.Default.WorkflowDefinitionPayload);
 
-        var now = DateTimeOffset.UtcNow;
-
-        var written = await _context.ExecuteUpsertAsync(
-            _sql.UpsertWorkflow,
-            command =>
-            {
-                DbHelpers.Add(command, "id", TraconId.NewId());
-                DbHelpers.AddTenant(command, tenantId);
-                DbHelpers.Add(command, "name", definition.Name);
-                Dialect.AddJsonb(command, "definition", payload);
-                Dialect.AddTimestamp(command, "now", now);
-            },
-            (command, token) => DbHelpers.ReadSingleAsync(
-                command,
-                static reader => new WrittenVersion(reader.GetInt32(0), DbHelpers.GetTimestamp(reader, 1)),
-                token),
-            cancellationToken).ConfigureAwait(false)
-            ?? throw new TraconException(
-                $"Failed to save workflow definition '{definition.Name}': the database did not return version information.");
-
-        return definition with
-        {
-            TenantId = tenantId,
-            Version = written.Version,
-            UpdatedAt = written.UpdatedAt,
-        };
+        return await WriteVersionAsync(tenantId, definition.Name, payload, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -142,6 +124,137 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<WorkflowDefinition?> GetVersionAsync(
+        string tenantId,
+        string name,
+        int version,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var command = CreateCommand(_sql.SelectWorkflowVersion);
+        DbHelpers.AddTenant(command, tenantId);
+        DbHelpers.Add(command, "name", name);
+        DbHelpers.Add(command, "version", version);
+
+        return await DbHelpers.ReadSingleAsync(
+            command,
+            reader => ReadDefinition(
+                reader.GetString(0),
+                name,
+                version,
+                tenantId,
+                DbHelpers.GetTimestamp(reader, 1)),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<WorkflowDefinition>> ListVersionsAsync(
+        string tenantId,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var command = CreateCommand(_sql.SelectWorkflowVersions);
+        DbHelpers.AddTenant(command, tenantId);
+        DbHelpers.Add(command, "name", name);
+
+        return await DbHelpers.ReadListAsync(
+            command,
+            reader => ReadDefinition(
+                reader.GetString(0),
+                name,
+                reader.GetInt32(1),
+                tenantId,
+                DbHelpers.GetTimestamp(reader, 2)),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<WorkflowDefinition> RollbackAsync(
+        string tenantId,
+        string name,
+        int version,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var command = CreateCommand(_sql.SelectWorkflowVersion);
+        DbHelpers.AddTenant(command, tenantId);
+        DbHelpers.Add(command, "name", name);
+        DbHelpers.Add(command, "version", version);
+
+        var payload = await DbHelpers.ReadSingleAsync(
+            command,
+            static reader => reader.GetString(0),
+            cancellationToken).ConfigureAwait(false)
+            ?? throw new TraconException($"Version {version} of the '{name}' workflow definition was not found.");
+
+        // A rollback does NOT delete or move anything; it saves the old content as a new version.
+        return await WriteVersionAsync(tenantId, name, payload, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Writes the current row and the history entry together, in one transaction.
+    /// </summary>
+    /// <remarks>
+    /// The upsert decides the number (one more than the row, or one more than the highest
+    /// version in the history when the row is gone) and the history insert uses what the
+    /// upsert returned. Two concurrent saves of one name serialize on the row, so they get
+    /// two numbers; a collision in the history rolls the whole save back.
+    /// </remarks>
+    private async ValueTask<WorkflowDefinition> WriteVersionAsync(
+        string tenantId,
+        string name,
+        string payload,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (connection.ConfigureAwait(false))
+        {
+            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+            await using (transaction.ConfigureAwait(false))
+            {
+                var upsert = _context.CreateCommand(_sql.UpsertWorkflow, connection, transaction);
+
+                DbHelpers.Add(upsert, "id", TraconId.NewId());
+                DbHelpers.AddTenant(upsert, tenantId);
+                DbHelpers.Add(upsert, "name", name);
+                Dialect.AddJsonb(upsert, "definition", payload);
+                Dialect.AddTimestamp(upsert, "now", now);
+
+                var written = await DbHelpers.ReadSingleAsync(
+                    upsert,
+                    static reader => new WrittenVersion(reader.GetInt32(0), DbHelpers.GetTimestamp(reader, 1)),
+                    cancellationToken).ConfigureAwait(false)
+                    ?? throw new TraconException(
+                        $"Failed to save workflow definition '{name}': the database did not return version information.");
+
+                var history = _context.CreateCommand(_sql.InsertWorkflowVersion, connection, transaction);
+
+                DbHelpers.AddTenant(history, tenantId);
+                DbHelpers.Add(history, "name", name);
+                DbHelpers.Add(history, "version", written.Version);
+                Dialect.AddJsonb(history, "definition", payload);
+                Dialect.AddTimestamp(history, "created_at", written.UpdatedAt);
+
+                await DbHelpers.ExecuteAsync(history, cancellationToken).ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                return ReadDefinition(payload, name, written.Version, tenantId, written.UpdatedAt);
+            }
+        }
     }
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);

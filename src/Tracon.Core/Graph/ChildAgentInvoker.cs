@@ -51,6 +51,7 @@ public sealed class ChildAgentInvoker : AIAgent
     private readonly ChildRefusalMode _refusalMode;
     private readonly ParameterizedAgentFactory? _parameterFactory;
     private readonly string _deadlineSetting;
+    private readonly int? _pinnedVersion;
 
     /// <summary>Creates a new sub-agent wrapper.</summary>
     /// <param name="resolver">Resolver that resolves the sub-agent from the catalog.</param>
@@ -87,6 +88,12 @@ public sealed class ChildAgentInvoker : AIAgent
     /// node's own timeout, or the installation's <c>'Tracon:AgentGraph:ChildDeadline'</c>
     /// (the default).
     /// </param>
+    /// <param name="pinnedVersion">
+    /// The version of the sub-agent every call runs (a workflow step's
+    /// <see cref="WorkflowNodeReference.AgentVersion"/>). <see langword="null"/> (the default)
+    /// resolves the current version on every call. The wrapper still resolves late, so a pinned
+    /// step keeps its version across edits of the agent; the child run row records that version.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="childDeadline"/> or <paramref name="waitTimeout"/> is outside one
@@ -104,7 +111,8 @@ public sealed class ChildAgentInvoker : AIAgent
         TimeProvider? timeProvider = null,
         ChildRefusalMode refusalMode = ChildRefusalMode.ToolResult,
         ParameterizedAgentFactory? parameterFactory = null,
-        string? deadlineSetting = null)
+        string? deadlineSetting = null,
+        int? pinnedVersion = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -141,6 +149,7 @@ public sealed class ChildAgentInvoker : AIAgent
         _timeProvider = timeProvider ?? TimeProvider.System;
         _refusalMode = refusalMode;
         _parameterFactory = parameterFactory;
+        _pinnedVersion = pinnedVersion;
         _deadlineSetting = deadlineSetting ?? "'Tracon:AgentGraph:ChildDeadline'";
     }
 
@@ -574,7 +583,7 @@ public sealed class ChildAgentInvoker : AIAgent
             return (await ResolveAsync(cancellationToken).ConfigureAwait(false), null);
         }
 
-        var (definition, origin) = await factory.FindAsync(_childName, version: null, cancellationToken)
+        var (definition, origin) = await factory.FindAsync(_childName, _pinnedVersion, cancellationToken)
             .ConfigureAwait(false);
 
         if (definition is not { Parameters.Count: > 0 })
@@ -610,7 +619,10 @@ public sealed class ChildAgentInvoker : AIAgent
 
     private async ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken)
     {
-        var agent = await _resolver.ResolveAsync(_childName, cancellationToken).ConfigureAwait(false);
+        // A pinned step asks the catalog for ITS version: a version the agent does not
+        // have, or an agent that keeps no history, throws here and fails the step by name
+        // (the compiler checked both, but the agent can change after that).
+        var agent = await _resolver.ResolveAsync(_childName, _pinnedVersion, cancellationToken).ConfigureAwait(false);
 
         return agent ?? throw new TraconException(
             $"Agent '{_callerName}' wants to call agent '{_childName}', but no such agent " +

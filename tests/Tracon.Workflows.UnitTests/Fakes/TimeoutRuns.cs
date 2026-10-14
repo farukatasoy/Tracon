@@ -33,7 +33,8 @@ internal static class TimeoutRuns
     }
 
     /// <summary>Saves a Sequential chain of <paramref name="nodes"/> under <paramref name="name"/>.</summary>
-    public static async Task SaveAsync(WorkflowTestHost host, string name, params WorkflowNodeReference[] nodes)
+    /// <returns>The saved definition, with the version the store gave it.</returns>
+    public static async Task<WorkflowDefinition> SaveAsync(WorkflowTestHost host, string name, params WorkflowNodeReference[] nodes)
         => await host.SaveAsync(new WorkflowDefinition
         {
             Name = name,
@@ -46,8 +47,8 @@ internal static class TimeoutRuns
         => new() { Name = name, Kind = WorkflowNodeKind.Function, Timeout = timeout };
 
     /// <summary>An agent node.</summary>
-    public static WorkflowNodeReference Agent(string name, TimeSpan? timeout = null)
-        => new() { Name = name, Kind = WorkflowNodeKind.Agent, Timeout = timeout };
+    public static WorkflowNodeReference Agent(string name, TimeSpan? timeout = null, int? agentVersion = null)
+        => new() { Name = name, Kind = WorkflowNodeKind.Agent, Timeout = timeout, AgentVersion = agentVersion };
 
     /// <summary>Runs a workflow to its end and returns every event it streamed.</summary>
     public static async Task<List<RunEvent>> Collect(

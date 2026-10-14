@@ -1082,9 +1082,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
 
         // --- Workflows ---
 
+        // A name with no current row (new, or deleted and saved again) continues from the
+        // highest version in the history, so a number is never given to a second content.
         UpsertWorkflow = $"""
             INSERT INTO {Schema}workflows (id, tenant_id, name, version, definition, created_at, updated_at)
-            VALUES (@id, @tenant_id, @name, 1, @definition, @now, @now)
+            VALUES (@id, @tenant_id, @name,
+                    (SELECT COALESCE(MAX(version), 0) + 1
+                       FROM {Schema}workflow_definition_versions
+                      WHERE tenant_id = @tenant_id AND name = @name),
+                    @definition, @now, @now)
             ON CONFLICT (tenant_id, name) DO UPDATE
                 SET version    = {Schema}workflows.version + 1,
                     definition = excluded.definition,

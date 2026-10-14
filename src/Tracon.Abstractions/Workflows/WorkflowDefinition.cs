@@ -188,7 +188,10 @@ public sealed record WorkflowDefinition
     /// <summary>Gets the tenant the definition belongs to. <see langword="null"/> for workflows defined in code.</summary>
     public string? TenantId { get; init; }
 
-    /// <summary>Gets the definition version. Increments by one on every save.</summary>
+    /// <summary>
+    /// Gets the definition version. Increments by one on every save and is never
+    /// reused: the store keeps every version (see <see cref="IWorkflowDefinitionStore"/>).
+    /// </summary>
     public int Version { get; init; } = 1;
 
     /// <summary>Gets the last modification time (UTC).</summary>

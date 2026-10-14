@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
@@ -335,6 +336,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         var record = await RequireWorkflowRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
 
+        // The run resumes with the definition it recorded, not the one the workflow has now;
+        // an operator names another version to carry it over a fix.
+        var definitionVersion = request.DefinitionVersion ?? record.AgentVersion;
+
         return new WorkflowExecution
         {
             WorkflowName = record.WorkflowName!,
@@ -343,7 +348,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Message = null,
             ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
                 .ConfigureAwait(false),
-            Parameters = await ReadRecordedParametersAsync(record, "resumed", cancellationToken).ConfigureAwait(false),
+            Parameters = await ReadRecordedParametersAsync(record, "resumed", definitionVersion, cancellationToken)
+                .ConfigureAwait(false),
+            DefinitionVersion = definitionVersion,
         };
     }
 
@@ -382,6 +389,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 "Refresh the request list with GET /api/workflows/runs/{runId}/requests.");
         }
 
+        var definitionVersion = request.DefinitionVersion ?? record.AgentVersion;
+
         return new WorkflowExecution
         {
             WorkflowName = record.WorkflowName!,
@@ -391,7 +400,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
                 .ConfigureAwait(false),
             Answers = [new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json)],
-            Parameters = await ReadRecordedParametersAsync(record, "answered", cancellationToken).ConfigureAwait(false),
+            Parameters = await ReadRecordedParametersAsync(record, "answered", definitionVersion, cancellationToken)
+                .ConfigureAwait(false),
+            DefinitionVersion = definitionVersion,
         };
     }
 
@@ -401,14 +412,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// </summary>
     /// <param name="source">The run being continued.</param>
     /// <param name="verb">"resumed" or "answered", for the refusal text.</param>
+    /// <param name="definitionVersion">
+    /// The definition version the continuing run will be compiled from; its schema is the one
+    /// the values are read against. <see langword="null"/> reads the current one.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// The recorded values that the workflow's CURRENT schema still declares;
-    /// <see langword="null"/> when the current definition takes no parameters.
+    /// The recorded values that the schema of that definition still declares;
+    /// <see langword="null"/> when it takes no parameters.
     /// </returns>
     /// <exception cref="TraconException">
     /// The workflow declares parameters now but the source run recorded none, or
-    /// the schema gained a required parameter the recorded values lack.
+    /// the schema gained a required parameter the recorded values lack, or the workflow has
+    /// no such version.
     /// </exception>
     /// <remarks>
     /// <para>
@@ -429,9 +445,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private async ValueTask<IReadOnlyDictionary<string, string>?> ReadRecordedParametersAsync(
         RunRecord source,
         string verb,
+        int? definitionVersion,
         CancellationToken cancellationToken)
     {
-        var descriptor = await _catalog.GetAsync(source.WorkflowName!, cancellationToken).ConfigureAwait(false);
+        // The schema comes from the version the run continues with, never from a newer one: a
+        // parameter added since the run started is not a parameter the run was given.
+        var descriptor = await _catalog.GetAsync(source.WorkflowName!, definitionVersion, cancellationToken)
+            .ConfigureAwait(false);
         var schema = descriptor?.Parameters ?? [];
 
         if (schema.Count == 0)
@@ -607,6 +627,25 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 message,
                 execution.RunId));
 
+        // Phase 200: the definition is read ONCE, here, BEFORE the row opens. The row stamps the
+        // version it was compiled from (runs.agent_version), and the graph, the parameter schema
+        // and the run timeout below all come from this same read - a stamp and a graph taken from
+        // two reads could name two versions of a workflow being edited. A failure of the read is
+        // held, not thrown: the row must open first so the run id the endpoint announced points at
+        // a run, and the failure is raised inside the setup block below, which closes it.
+        WorkflowCatalog.FoundWorkflow? found = null;
+        ExceptionDispatchInfo? lookupFailure = null;
+
+        try
+        {
+            found = await _catalog.FindAsync(execution.WorkflowName, execution.DefinitionVersion, linked.Token)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            lookupFailure = ExceptionDispatchInfo.Capture(exception);
+        }
+
         var budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider);
 
         var scope = new AgentRunScope
@@ -665,6 +704,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 Labels = attribution.Labels,
                 SessionId = execution.SessionId,
                 IsStreaming = true,
+
+                // The version the run is compiled from. A workflow defined in code has no
+                // versions, and a run whose definition could not be read stamps none.
+                AgentVersion = found?.Definition?.Version,
             },
 
             // Workflow runs start with a structured input, not a single user
@@ -711,10 +754,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
             try
             {
-                var resolved = await _catalog.ResolveWithDefinitionAsync(execution.WorkflowName, linked.Token)
-                    .ConfigureAwait(false)
+                lookupFailure?.Throw();
+
+                var resolved = found
                     ?? throw new TraconException(
                         $"There is no workflow named '{execution.WorkflowName}'.");
+
+                var graph = await _catalog.CompileAsync(resolved, linked.Token).ConfigureAwait(false);
 
                 await ApplyRunTimeoutAsync(execution, resolved.Definition, settings, deadline).ConfigureAwait(false);
 
@@ -725,7 +771,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 scope = await BindParametersAsync(execution, resolved.Definition, scope, linked.Token)
                     .ConfigureAwait(false);
 
-                workflow = resolved.Graph;
+                workflow = graph;
             }
             catch (OperationCanceledException) when (linked.IsCancellationRequested)
             {
@@ -928,9 +974,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             return;
         }
 
-        foreach (var participant in ParticipantNames(definition))
+        foreach (var (participant, pinnedVersion) in ParticipantNames(definition))
         {
-            var (agentDefinition, _) = await factory.FindAsync(participant, version: null, cancellationToken)
+            // A pinned step is covered against ITS version's schema: that is the definition it runs.
+            var (agentDefinition, _) = await factory.FindAsync(participant, pinnedVersion, cancellationToken)
                 .ConfigureAwait(false);
 
             if (agentDefinition is not { Parameters.Count: > 0 })
@@ -960,8 +1007,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
     }
 
-    /// <summary>Lists every agent the definition's graph can call.</summary>
-    private static IEnumerable<string> ParticipantNames(WorkflowDefinition definition)
+    /// <summary>Lists every agent the definition's graph can call, with the version a step pins.</summary>
+    private static IEnumerable<(string Name, int? PinnedVersion)> ParticipantNames(WorkflowDefinition definition)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -969,7 +1016,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             if (seen.Add(name))
             {
-                yield return name;
+                yield return (name, null);
             }
         }
 
@@ -977,13 +1024,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             if (node.Kind == WorkflowNodeKind.Agent && seen.Add(node.Name))
             {
-                yield return node.Name;
+                yield return (node.Name, node.AgentVersion);
             }
         }
 
         if (definition.ManagerAgentName is { Length: > 0 } manager && seen.Add(manager))
         {
-            yield return manager;
+            yield return (manager, null);
         }
     }
 
@@ -2165,6 +2212,12 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         /// <see langword="null"/> means none.
         /// </summary>
         public IReadOnlyDictionary<string, string>? Parameters { get; init; }
+
+        /// <summary>
+        /// The stored definition version the run is compiled from. <see langword="null"/>
+        /// runs the current definition (a new run, or a source that recorded no version).
+        /// </summary>
+        public int? DefinitionVersion { get; init; }
     }
 
     /// <summary>

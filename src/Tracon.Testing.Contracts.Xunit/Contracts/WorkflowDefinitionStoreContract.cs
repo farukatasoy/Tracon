@@ -6,9 +6,9 @@ namespace Tracon.Testing.Contracts.Storage;
 /// Behavior tests for the <see cref="IWorkflowDefinitionStore"/> contract.
 /// </summary>
 /// <remarks>
-/// The in-memory store and the PostgreSQL store must pass the same
-/// scenarios. In particular, version increment and tenant isolation must
-/// behave identically in both implementations.
+/// The in-memory store and the SQL stores must pass the same
+/// scenarios. In particular, version increment, version history and tenant isolation must
+/// behave identically in all of them.
 /// </remarks>
 public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<IWorkflowDefinitionStore>
 {
@@ -385,6 +385,340 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
 
         (await Store.DeleteAsync("tenant-a", "review")).ShouldBeTrue();
         (await Store.GetAsync("tenant-a", "review")).ShouldBeNull();
+    }
+
+    // --- Version history (phase 200) ---------------------------------------
+
+    [Fact]
+    public async Task Every_save_keeps_its_version_and_the_history_lists_them_newest_first()
+    {
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "First." });
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "Second." });
+        var third = await Store.SaveAsync("tenant-a", Definition() with { Description = "Third." });
+
+        third.Version.ShouldBe(3);
+
+        var history = await Store.ListVersionsAsync("tenant-a", "review");
+
+        history.Select(static definition => definition.Version).ShouldBe([3, 2, 1]);
+        history.Select(static definition => definition.Description).ShouldBe(["Third.", "Second.", "First."]);
+
+        // A snapshot is a whole definition: the tenant and the time are set, the name is the
+        // history's key and not part of the payload.
+        history.ShouldAllBe(static definition => definition.Name == "review" && definition.TenantId == "tenant-a");
+        history.ShouldAllBe(static definition => definition.UpdatedAt != null);
+
+        var first = await Store.GetVersionAsync("tenant-a", "review", 1);
+
+        first.ShouldNotBeNull();
+        first.Version.ShouldBe(1);
+        first.Description.ShouldBe("First.");
+        first.AgentNames.ShouldBe(["researcher", "writer", "editor"]);
+
+        // The current definition is the newest version.
+        (await Store.GetAsync("tenant-a", "review"))!.Version.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_version_or_a_history_that_does_not_exist_is_empty_not_an_error()
+    {
+        (await Store.GetVersionAsync("tenant-a", "never-saved", 1)).ShouldBeNull();
+        (await Store.ListVersionsAsync("tenant-a", "never-saved")).ShouldBeEmpty();
+
+        await Store.SaveAsync("tenant-a", Definition());
+
+        (await Store.GetVersionAsync("tenant-a", "review", 2)).ShouldBeNull();
+        (await Store.GetVersionAsync("tenant-a", "review", 0)).ShouldBeNull();
+        (await Store.GetVersionAsync("tenant-a", "review", -1)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_rollback_writes_the_old_content_as_a_new_version_and_moves_nothing()
+    {
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "First." });
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "Second.", AgentNames = ["writer"] });
+
+        var rolledBack = await Store.RollbackAsync("tenant-a", "review", 1);
+
+        rolledBack.Version.ShouldBe(3);
+        rolledBack.Description.ShouldBe("First.");
+        rolledBack.AgentNames.ShouldBe(["researcher", "writer", "editor"]);
+        rolledBack.TenantId.ShouldBe("tenant-a");
+
+        var current = (await Store.GetAsync("tenant-a", "review"))!;
+
+        current.Version.ShouldBe(3);
+        current.Description.ShouldBe("First.");
+
+        // History is never rewritten: version 2 is still what it was, and the rollback is itself a
+        // version (so it can be rolled back in turn).
+        (await Store.GetVersionAsync("tenant-a", "review", 2))!.Description.ShouldBe("Second.");
+        (await Store.GetVersionAsync("tenant-a", "review", 3))!.Description.ShouldBe("First.");
+        (await Store.ListVersionsAsync("tenant-a", "review")).Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_rollback_to_a_version_that_does_not_exist_throws_and_writes_nothing()
+    {
+        await Store.SaveAsync("tenant-a", Definition());
+
+        await Should.ThrowAsync<TraconException>(async () => await Store.RollbackAsync("tenant-a", "review", 7));
+        await Should.ThrowAsync<TraconException>(async () => await Store.RollbackAsync("tenant-a", "never-saved", 1));
+
+        (await Store.GetAsync("tenant-a", "review"))!.Version.ShouldBe(1);
+        (await Store.ListVersionsAsync("tenant-a", "review")).Count.ShouldBe(1);
+        (await Store.GetAsync("tenant-a", "never-saved")).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Deleting_keeps_the_history_and_the_numbering_continues_after_it()
+    {
+        // A version number is an identity: a run that recorded version 3 must never be handed another
+        // content under that number. An agent's history dies with it and restarts at 1 (the
+        // hazard this store avoids); a workflow's does not.
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "One." });
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "Two." });
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "Three." });
+
+        (await Store.DeleteAsync("tenant-a", "review")).ShouldBeTrue();
+
+        (await Store.GetAsync("tenant-a", "review")).ShouldBeNull();
+        (await Store.ListAsync("tenant-a")).ShouldBeEmpty();
+
+        // The history outlives the definition.
+        (await Store.GetVersionAsync("tenant-a", "review", 3))!.Description.ShouldBe("Three.");
+        (await Store.ListVersionsAsync("tenant-a", "review")).Count.ShouldBe(3);
+
+        var again = await Store.SaveAsync("tenant-a", Definition() with { Description = "Four." });
+
+        again.Version.ShouldBe(4);
+        (await Store.GetVersionAsync("tenant-a", "review", 3))!.Description.ShouldBe("Three.");
+        (await Store.GetVersionAsync("tenant-a", "review", 4))!.Description.ShouldBe("Four.");
+        (await Store.ListVersionsAsync("tenant-a", "review")).Select(static definition => definition.Version)
+            .ShouldBe([4, 3, 2, 1]);
+    }
+
+    [Fact]
+    public async Task A_rollback_of_a_deleted_definition_creates_it_again_and_continues_the_numbering()
+    {
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "One." });
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "Two." });
+        await Store.DeleteAsync("tenant-a", "review");
+
+        var restored = await Store.RollbackAsync("tenant-a", "review", 1);
+
+        restored.Version.ShouldBe(3);
+        restored.Description.ShouldBe("One.");
+        (await Store.GetAsync("tenant-a", "review"))!.Version.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task Deleting_a_definition_that_does_not_exist_leaves_the_history_alone()
+    {
+        await Store.SaveAsync("tenant-a", Definition());
+        await Store.DeleteAsync("tenant-a", "review");
+
+        (await Store.DeleteAsync("tenant-a", "review")).ShouldBeFalse();
+        (await Store.ListVersionsAsync("tenant-a", "review")).Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Concurrent_saves_of_one_name_get_distinct_versions_and_each_keeps_its_own_content()
+    {
+        // The first save of a name goes through the INSERT branch of the upsert, every other through the
+        // UPDATE branch: both are in the run.
+        const int Writers = 8;
+
+        var saved = await Task.WhenAll(Enumerable.Range(1, Writers).Select(
+            index => Task.Run(async () => await Store.SaveAsync("tenant-a", Definition() with { Description = $"Writer {index}." }))));
+
+        saved.Select(static definition => definition.Version).Order().ShouldBe(Enumerable.Range(1, Writers));
+
+        var history = await Store.ListVersionsAsync("tenant-a", "review");
+
+        history.Select(static definition => definition.Version).ShouldBe(Enumerable.Range(1, Writers).Reverse());
+
+        // A number names one content: what each caller was told it wrote is what that version holds.
+        foreach (var definition in saved)
+        {
+            (await Store.GetVersionAsync("tenant-a", "review", definition.Version))!.Description.ShouldBe(definition.Description);
+        }
+
+        (await Store.GetAsync("tenant-a", "review"))!.Version.ShouldBe(Writers);
+    }
+
+    [Fact]
+    public async Task Another_tenant_neither_reads_nor_rolls_back_nor_numbers_with_this_tenants_history()
+    {
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "A one." });
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "A two." });
+
+        (await Store.GetVersionAsync("tenant-b", "review", 1)).ShouldBeNull();
+        (await Store.ListVersionsAsync("tenant-b", "review")).ShouldBeEmpty();
+        await Should.ThrowAsync<TraconException>(async () => await Store.RollbackAsync("tenant-b", "review", 1));
+
+        // Nothing leaked the other way either: tenant B has no definition, and its first save is version 1.
+        (await Store.GetAsync("tenant-b", "review")).ShouldBeNull();
+
+        var first = await Store.SaveAsync("tenant-b", Definition() with { Description = "B one." });
+
+        first.Version.ShouldBe(1);
+        (await Store.GetVersionAsync("tenant-a", "review", 1))!.Description.ShouldBe("A one.");
+        (await Store.GetVersionAsync("tenant-b", "review", 1))!.Description.ShouldBe("B one.");
+        (await Store.ListVersionsAsync("tenant-a", "review")).Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Every_field_of_a_definition_is_kept_by_the_version_it_was_saved_as()
+    {
+        // The history is a second copy of the same hand-written payload (K-580 again): a field
+        // the current row keeps but the history drops would roll back to a definition with a
+        // hole, and only a SQL run can show it.
+        var rich = new WorkflowDefinition
+        {
+            Name = "podcast",
+            DisplayName = "Podcast",
+            Description = "The narrated hour.",
+            Kind = WorkflowKind.Sequential,
+            RunTimeout = TimeSpan.FromMinutes(42),
+            Parameters = [new AgentParameter { Name = "tone", Kind = AgentParameterKind.Text, Required = true, DefaultValue = "warm" }],
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent, AgentVersion = 2, Timeout = TimeSpan.FromMinutes(6) },
+                new WorkflowNodeReference
+                {
+                    Name = "tts",
+                    Kind = WorkflowNodeKind.Function,
+                    Timeout = TimeSpan.FromSeconds(90),
+                    Settings = JsonDocument.Parse("""{"voice":"alloy","loudnessLufs":-12.5}""").RootElement.Clone(),
+                },
+                new WorkflowNodeReference { Name = "editor", Kind = WorkflowNodeKind.Agent },
+            ],
+        };
+
+        await Store.SaveAsync("tenant-a", rich);
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition { Name = "podcast", Kind = WorkflowKind.Sequential, AgentNames = ["writer"] });
+
+        foreach (var restored in new[]
+        {
+            (await Store.GetVersionAsync("tenant-a", "podcast", 1))!,
+            (await Store.ListVersionsAsync("tenant-a", "podcast")).Single(static definition => definition.Version == 1),
+            await Store.RollbackAsync("tenant-a", "podcast", 1),
+        })
+        {
+            restored.DisplayName.ShouldBe("Podcast");
+            restored.Description.ShouldBe("The narrated hour.");
+            restored.RunTimeout.ShouldBe(TimeSpan.FromMinutes(42));
+            restored.Parameters.Single().DefaultValue.ShouldBe("warm");
+            restored.Nodes.Count.ShouldBe(3);
+            restored.Nodes[0].AgentVersion.ShouldBe(2);
+            restored.Nodes[0].Timeout.ShouldBe(TimeSpan.FromMinutes(6));
+            restored.Nodes[1].AgentVersion.ShouldBeNull();
+            restored.Nodes[1].Timeout.ShouldBe(TimeSpan.FromSeconds(90));
+            restored.Nodes[1].Settings.ShouldNotBeNull().GetProperty("voice").GetString().ShouldBe("alloy");
+            restored.Nodes[2].AgentVersion.ShouldBeNull();
+            restored.AgentNames.ShouldBeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task Agent_version_pins_survive_the_round_trip()
+    {
+        // Added in phase 200 (K-580): the node record carries the pin, and the in-memory store hands
+        // the record back as it was given, so only a SQL run can show the pin vanishing.
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "pinned",
+            Kind = WorkflowKind.Sequential,
+            Nodes =
+            [
+                new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent, AgentVersion = 3 },
+                new WorkflowNodeReference { Name = "editor", Kind = WorkflowNodeKind.Agent },
+            ],
+        });
+
+        var loaded = (await Store.GetAsync("tenant-a", "pinned"))!;
+
+        loaded.Nodes[0].AgentVersion.ShouldBe(3);
+        loaded.Nodes[1].AgentVersion.ShouldBeNull();
+
+        var listed = (await Store.ListAsync("tenant-a")).Single();
+
+        listed.Nodes[0].AgentVersion.ShouldBe(3);
+        listed.Nodes[1].AgentVersion.ShouldBeNull();
+
+        // A save replaces the definition (K-725): a pin the request leaves out is cleared.
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "pinned",
+            Kind = WorkflowKind.Sequential,
+            Nodes = [new WorkflowNodeReference { Name = "writer", Kind = WorkflowNodeKind.Agent }],
+        });
+
+        (await Store.GetAsync("tenant-a", "pinned"))!.Nodes[0].AgentVersion.ShouldBeNull();
+        (await Store.GetVersionAsync("tenant-a", "pinned", 1))!.Nodes[0].AgentVersion.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task The_new_members_refuse_a_cancelled_token_and_a_cancelled_rollback_leaves_no_trace()
+    {
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "One." });
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "Two." });
+
+        using var source = new CancellationTokenSource();
+        await source.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await Store.GetVersionAsync("tenant-a", "review", 1, source.Token));
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await Store.ListVersionsAsync("tenant-a", "review", source.Token));
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await Store.RollbackAsync("tenant-a", "review", 1, source.Token));
+
+        // The half that proves the work never ran (see StoreCancellationContract).
+        (await Store.GetAsync("tenant-a", "review"))!.Version.ShouldBe(2);
+        (await Store.ListVersionsAsync("tenant-a", "review")).Count.ShouldBe(2);
+    }
+
+    // The hooks below exist for the SQL providers: a version written in one transaction with the
+    // current row can only be shown by making the history write fail. An implementation with no raw
+    // access (the in-memory store) leaves them off and the test returns, as AuditLogContract does.
+
+    /// <summary>Whether the backing state of this store can be reached with raw SQL (SQL providers only).</summary>
+    protected virtual bool SupportsRawHistory => false;
+
+    /// <summary>Runs raw SQL against the backing store. Only called when <see cref="SupportsRawHistory"/> is <see langword="true"/>.</summary>
+    protected virtual ValueTask ExecuteRawAsync(string sql) => throw new NotSupportedException();
+
+    /// <summary>The fully qualified <c>workflow_definition_versions</c> table reference this provider's raw SQL should use.</summary>
+    protected virtual string QualifiedWorkflowHistoryTable => throw new NotSupportedException();
+
+    /// <summary>The expression this provider's raw SQL uses for "now" in a timestamp column.</summary>
+    protected virtual string RawNowExpression => throw new NotSupportedException();
+
+    [Fact]
+    public async Task A_save_whose_history_write_fails_leaves_the_current_definition_as_it_was()
+    {
+        if (!SupportsRawHistory)
+        {
+            return;
+        }
+
+        await Store.SaveAsync("tenant-a", Definition() with { Description = "Stays." });
+
+        // Occupy the number the next save will take, so the history insert collides.
+        await ExecuteRawAsync(
+            $"INSERT INTO {QualifiedWorkflowHistoryTable} (tenant_id, name, version, definition, created_at) " +
+            $"VALUES ('tenant-a', 'review', 2, '{{}}', {RawNowExpression})");
+
+        await Should.ThrowAsync<Exception>(
+            async () => await Store.SaveAsync("tenant-a", Definition() with { Description = "Never lands." }));
+
+        // One transaction: the current row did not move on without a history entry to name it.
+        var current = (await Store.GetAsync("tenant-a", "review"))!;
+
+        current.Version.ShouldBe(1);
+        current.Description.ShouldBe("Stays.");
     }
 
     private static WorkflowDefinition Definition()

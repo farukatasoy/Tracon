@@ -1259,7 +1259,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.workflows (id, tenant_id, name, version, definition, created_at, updated_at)
             OUTPUT inserted.version, inserted.updated_at
-            VALUES (@id, @tenant_id, @name, 1, @definition, @now, @now);
+            VALUES (@id, @tenant_id, @name,
+                    (SELECT COALESCE(MAX(version), 0) + 1
+                       FROM {Schema}.workflow_definition_versions
+                      WHERE tenant_id = @tenant_id AND name = @name),
+                    @definition, @now, @now);
             """;
 
         // --- Audit trail ---

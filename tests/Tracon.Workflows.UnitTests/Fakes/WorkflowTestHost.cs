@@ -20,6 +20,7 @@ namespace Tracon.Workflows.UnitTests.Fakes;
 internal sealed class WorkflowTestHost
 {
     private readonly Dictionary<string, AIAgent> _agents = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Name, int Version), AIAgent> _versionedAgents = [];
     private readonly List<WorkflowFunctionRegistration> _functionRegistrations = [];
 
     public WorkflowTestHost(params string[] agentNames)
@@ -41,12 +42,18 @@ internal sealed class WorkflowTestHost
                 NullLogger<RunRecordingAgent>.Instance);
         }
 
-        Resolver = new CallableAgentResolver(new CatalogServices(_agents));
+        Resolver = new CallableAgentResolver(new CatalogServices(_agents, _versionedAgents, ResolveCalls));
         AgentCache = new WorkflowAgentCache(
             Resolver, TenantContext, NullLoggerFactory.Instance, Options.Create(new TraconOptions()));
     }
 
     public FixedTenantContext TenantContext { get; }
+
+    /// <summary>
+    /// Every agent resolution the catalog served, in order: the name and the version the caller
+    /// asked for (<see langword="null"/> for the current one).
+    /// </summary>
+    public System.Collections.Concurrent.ConcurrentQueue<(string Name, int? Version)> ResolveCalls { get; } = new();
 
     /// <summary>Where a parameterized workflow run records its final values.</summary>
     public InMemoryRunInputStore RunInputs { get; } = new();
@@ -188,6 +195,27 @@ internal sealed class WorkflowTestHost
         return CreateRunnerCore(configure, services, sinks: null, timeProvider, codeWorkflows);
     }
 
+    /// <summary>Builds a runner that reads its definitions from <paramref name="store"/> instead of <see cref="DefinitionStore"/>.</summary>
+    /// <param name="store">The definition store the catalog reads.</param>
+    /// <param name="codeWorkflows">Code workflow registrations.</param>
+    /// <returns>The runner.</returns>
+    public WorkflowRunner CreateRunnerOver(IWorkflowDefinitionStore store, params CodeWorkflowRegistration[] codeWorkflows)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+
+        var catalog = new WorkflowCatalog(codeWorkflows, store, Compiler, TenantContext, EmptyServices.Instance);
+
+        return new WorkflowRunner(
+            catalog,
+            RunStore,
+            CheckpointStore,
+            TenantContext,
+            Options.Create(new TraconWorkflowOptions()),
+            Options.Create(new TraconOptions()),
+            NullLogger<WorkflowRunner>.Instance,
+            runInputStore: RecordsRunInput ? RunInputs : null);
+    }
+
     /// <summary>Builds a runner over a caller-supplied run input store.</summary>
     /// <param name="runInputStore">The store the runner records parameter values into.</param>
     /// <returns>The runner.</returns>
@@ -324,7 +352,30 @@ internal sealed class WorkflowTestHost
         public object? GetService(Type serviceType) => null;
     }
 
-    private sealed class CatalogServices(Dictionary<string, AIAgent> agents) : IServiceProvider, IAgentCatalog
+    /// <summary>
+    /// Adds the agent a pinned resolution of <paramref name="name"/> at <paramref name="version"/>
+    /// returns, wrapped like every other agent and recording that version on its run row.
+    /// </summary>
+    /// <param name="name">The catalog key.</param>
+    /// <param name="version">The version the agent answers to.</param>
+    /// <param name="agent">The agent.</param>
+    public void AddAgentVersion(string name, int version, AIAgent agent)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+
+        _versionedAgents[(name, version)] = new RunRecordingAgent(
+            agent,
+            RunStore,
+            TenantContext,
+            new TraconRunRecordingOptions(),
+            NullLogger<RunRecordingAgent>.Instance,
+            agentVersion: version);
+    }
+
+    private sealed class CatalogServices(
+        Dictionary<string, AIAgent> agents,
+        Dictionary<(string Name, int Version), AIAgent> versionedAgents,
+        System.Collections.Concurrent.ConcurrentQueue<(string Name, int? Version)> calls) : IServiceProvider, IAgentCatalog
     {
         public object? GetService(Type serviceType)
             => serviceType == typeof(IAgentCatalog) ? this : null;
@@ -342,10 +393,23 @@ internal sealed class WorkflowTestHost
             ]);
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
-            => new(agents.GetValueOrDefault(agentName));
+        {
+            calls.Enqueue((agentName, null));
+
+            return new(agents.GetValueOrDefault(agentName));
+        }
 
         public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
-            => new(agents.GetValueOrDefault(agentName));
+        {
+            calls.Enqueue((agentName, version));
+
+            // A pinned resolution answers with the agent registered for that version when the test
+            // registered one, and with the plain agent otherwise (the way every test before the
+            // pins behaved).
+            return new(version is { } pinned && versionedAgents.TryGetValue((agentName, pinned), out var agent)
+                ? agent
+                : agents.GetValueOrDefault(agentName));
+        }
     }
 }
 

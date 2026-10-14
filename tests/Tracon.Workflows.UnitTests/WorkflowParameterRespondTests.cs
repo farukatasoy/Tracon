@@ -117,7 +117,7 @@ public sealed class WorkflowParameterRespondTests
     }
 
     [Fact]
-    public async Task A_schema_that_gained_a_required_name_refuses_the_answer_and_names_it()
+    public async Task A_schema_that_gained_a_required_name_refuses_an_answer_that_names_that_version_and_names_it()
     {
         var host = new WorkflowTestHost("manager", "worker");
 
@@ -127,8 +127,10 @@ public sealed class WorkflowParameterRespondTests
         var waiting = await StartWaitingRunAsync(host, _ => runner, ("tone", "formal"));
         var pending = (await runner.ListPendingRequestsAsync(waiting.Id)).Single();
 
-        await SaveAsync(host, Tone(required: true), new AgentParameter { Name = "audience", Kind = AgentParameterKind.Text, Required = true });
+        var edited = await SaveAsync(host, Tone(required: true), new AgentParameter { Name = "audience", Kind = AgentParameterKind.Text, Required = true });
 
+        // The operator names the new version on purpose: the values the run started with
+        // do not satisfy its schema, and the refusal says which name.
         var refusal = await Should.ThrowAsync<TraconException>(async () =>
         {
             await foreach (var _ in runner.RespondStreamingAsync(new WorkflowRespondRequest
@@ -136,6 +138,7 @@ public sealed class WorkflowParameterRespondTests
                 RunId = waiting.Id,
                 RequestId = pending.RequestId,
                 Approved = true,
+                DefinitionVersion = edited.Version,
             }))
             {
                 // Nothing is expected.
@@ -147,7 +150,28 @@ public sealed class WorkflowParameterRespondTests
     }
 
     [Fact]
-    public async Task A_name_the_schema_no_longer_declares_is_dropped_not_refused()
+    public async Task A_schema_that_gained_a_required_name_does_not_strand_a_run_that_started_before_it()
+    {
+        // Phase 200: the answer reads the schema of the version the run recorded, so the edit
+        // the run never knew about cannot refuse it.
+        var host = new WorkflowTestHost("manager", "worker");
+
+        await SaveAsync(host, Tone(required: true));
+
+        var runner = host.CreateRunner();
+        var waiting = await StartWaitingRunAsync(host, _ => runner, ("tone", "formal"));
+
+        await SaveAsync(host, Tone(required: true), new AgentParameter { Name = "audience", Kind = AgentParameterKind.Text, Required = true });
+
+        var second = await AnswerAsync(host, runner, waiting);
+
+        Render((await host.RunInputs.GetAsync(host.TenantContext.TenantId, second.Id))!.Parameters!)
+            .ShouldBe(["tone=formal"]);
+        second.AgentVersion.ShouldBe(1, "the answer is stamped with the version it continued");
+    }
+
+    [Fact]
+    public async Task A_name_the_schema_no_longer_declares_is_dropped_when_the_answer_names_that_version()
     {
         var host = new WorkflowTestHost("manager", "worker");
 
@@ -158,12 +182,30 @@ public sealed class WorkflowParameterRespondTests
 
         // The operator removes 'voice'. A value no instruction can reach is
         // harmless; refusing the answer for it would strand a waiting run.
+        var edited = await SaveAsync(host, Tone(required: true));
+
+        var second = await AnswerAsync(host, runner, waiting, edited.Version);
+
+        Render((await host.RunInputs.GetAsync(host.TenantContext.TenantId, second.Id))!.Parameters!)
+            .ShouldBe(["tone=formal"]);
+    }
+
+    [Fact]
+    public async Task A_name_the_schema_no_longer_declares_still_reaches_a_run_answered_with_the_version_it_started_with()
+    {
+        var host = new WorkflowTestHost("manager", "worker");
+
+        await SaveAsync(host, Tone(required: true), Voice());
+
+        var runner = host.CreateRunner();
+        var waiting = await StartWaitingRunAsync(host, _ => runner, ("tone", "formal"));
+
         await SaveAsync(host, Tone(required: true));
 
         var second = await AnswerAsync(host, runner, waiting);
 
         Render((await host.RunInputs.GetAsync(host.TenantContext.TenantId, second.Id))!.Parameters!)
-            .ShouldBe(["tone=formal"]);
+            .ShouldBe(["tone=formal", "voice=alloy"]);
     }
 
     [Fact]
@@ -285,7 +327,7 @@ public sealed class WorkflowParameterRespondTests
         refusal.Message.ShouldContain("run input store failed", Case.Sensitive);
     }
 
-    private static async Task SaveAsync(WorkflowTestHost host, params AgentParameter[] parameters)
+    private static async Task<WorkflowDefinition> SaveAsync(WorkflowTestHost host, params AgentParameter[] parameters)
         => await host.SaveAsync(new WorkflowDefinition
         {
             Name = Name,
@@ -341,7 +383,11 @@ public sealed class WorkflowParameterRespondTests
         return run;
     }
 
-    private static async Task<RunRecord> AnswerAsync(WorkflowTestHost host, WorkflowRunner runner, RunRecord source)
+    private static async Task<RunRecord> AnswerAsync(
+        WorkflowTestHost host,
+        WorkflowRunner runner,
+        RunRecord source,
+        int? definitionVersion = null)
     {
         var pending = (await runner.ListPendingRequestsAsync(source.Id)).Single();
 
@@ -350,6 +396,7 @@ public sealed class WorkflowParameterRespondTests
             RunId = source.Id,
             RequestId = pending.RequestId,
             Approved = true,
+            DefinitionVersion = definitionVersion,
         }))
         {
             // Drain.

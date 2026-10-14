@@ -315,10 +315,10 @@ public sealed class WorkflowFunctionSettingsTests
     }
 
     [Fact]
-    public async Task A_resume_reads_the_current_settings_and_the_old_checkpoint_stays_compatible()
+    public async Task A_resume_runs_with_the_settings_of_the_version_the_run_recorded()
     {
-        // The executor id is the node's name; the settings are not part of it. So a settings change
-        // never makes a checkpoint incompatible, and the resumed node sees the new values.
+        // Phase 200: an edit made while a run waited must not change what resumes. The run recorded
+        // version 1; the operator then saved voice=nova as version 2; the resume still speaks alloy.
         var host = new WorkflowTestHost("writer");
         var voices = new ConcurrentQueue<string>();
 
@@ -341,6 +341,7 @@ public sealed class WorkflowFunctionSettingsTests
         var checkpoints = await host.CheckpointStore.ListByRunAsync(host.TenantContext.TenantId, first.Id);
 
         checkpoints.Count.ShouldBeGreaterThanOrEqualTo(2);
+        first.AgentVersion.ShouldBe(1, "the run row names the version it was compiled from");
 
         await host.SaveAsync(Chain("narrated", Node("tts", """{"voice":"nova"}""")));
 
@@ -351,6 +352,56 @@ public sealed class WorkflowFunctionSettingsTests
         {
             RunId = first.Id,
             CheckpointId = checkpoints[0].CheckpointId,
+        }))
+        {
+            resumed.Add(runEvent);
+        }
+
+        voices.ToArray().ShouldBe(["alloy", "alloy"]);
+        resumed.ShouldNotContain(static runEvent => runEvent.Type == RunEventType.RunFailed);
+
+        var resumeRow = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
+            .Single(run => run.Kind == RunKind.Workflow && run.Id != first.Id);
+
+        resumeRow.AgentVersion.ShouldBe(1, "the resume is stamped with the version it ran, not the current one");
+    }
+
+    [Fact]
+    public async Task A_resume_that_names_a_newer_version_reads_its_settings_and_the_old_checkpoint_stays_compatible()
+    {
+        // The executor id is the node's name; the settings are not part of it. So a settings change
+        // never makes a checkpoint incompatible, and an operator who names the newer version on
+        // purpose carries the waiting run over the fix.
+        var host = new WorkflowTestHost("writer");
+        var voices = new ConcurrentQueue<string>();
+
+        host.AddFunction<List<ChatMessage>, List<ChatMessage>, TtsSettings>(
+            "tts",
+            (messages, settings, _, _) =>
+            {
+                voices.Enqueue(settings.Voice);
+
+                return new ValueTask<List<ChatMessage>>(messages);
+            });
+
+        await host.SaveAsync(Chain("narrated", Node("tts", """{"voice":"alloy"}""")));
+
+        var runner = host.CreateRunner();
+        await Collect(runner, "narrated", "hello");
+
+        var first = (await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 }))
+            .Single(run => run.Kind == RunKind.Workflow);
+        var checkpoints = await host.CheckpointStore.ListByRunAsync(host.TenantContext.TenantId, first.Id);
+
+        var edited = await host.SaveAsync(Chain("narrated", Node("tts", """{"voice":"nova"}""")));
+
+        var resumed = new List<RunEvent>();
+
+        await foreach (var runEvent in runner.ResumeStreamingAsync(new WorkflowResumeRequest
+        {
+            RunId = first.Id,
+            CheckpointId = checkpoints[0].CheckpointId,
+            DefinitionVersion = edited.Version,
         }))
         {
             resumed.Add(runEvent);
