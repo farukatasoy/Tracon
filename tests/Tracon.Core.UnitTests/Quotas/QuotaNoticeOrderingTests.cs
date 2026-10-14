@@ -61,13 +61,15 @@ public sealed class QuotaNoticeOrderingTests
     }
 
     [Fact]
-    public async Task A_child_run_never_records_quota_consumption()
+    public async Task A_child_run_with_no_tree_account_records_no_quota_consumption()
     {
-        // Depth is read directly from TraconRunOptions.Depth
-        // (RunRecordingAgent.Lifecycle.PrepareRun) -- the same field
-        // ChildAgentInvoker sets for a real sub-agent call. Driving it
-        // directly isolates the Depth == 0 gate without standing up the
-        // full nested-call machinery AgentDelegationTests.cs already covers.
+        // F-418 changed the rule this test used to state ("a child never records"): a child
+        // run writes its own tokens and cost under its ROOT's counter, named by the account
+        // the root put on the tree's budget (TreeQuotaTests). With no root of ours behind the
+        // run - hand-built options carry no budget - there is no counter to name, and this
+        // child writes nothing. Depth is read directly from TraconRunOptions.Depth
+        // (RunRecordingAgent.Lifecycle.PrepareRun) -- the same field ChildAgentInvoker sets for
+        // a real sub-agent call.
         using var harness = new QuotaHarness();
         var agent = harness.CreateAgent(new FakeChatClient());
 

@@ -35,6 +35,11 @@ namespace Tracon;
 /// the tool reports it, not when the call settles: a non-streaming run reads its tool
 /// records only after the last model turn.
 /// </para>
+/// <para>
+/// <strong>After <see cref="Seal"/> a tool's amount is not in the total</strong>, and it is
+/// not lost either: the call's record keeps it and <see cref="TakeLateToolAmount"/>
+/// hands it, once, to the quota entry of the call that outlived its run.
+/// </para>
 /// </remarks>
 internal sealed class NonTokenCostAccumulator
 {
@@ -84,6 +89,10 @@ internal sealed class NonTokenCostAccumulator
     private Dictionary<string, Entry>? _toolEntries;
     private int _nodeItemCount;
     private bool _sealed;
+
+    // A tool's amount reported after Seal(): not in the total, and held for the one reader
+    // that must still count it, the quota entry of a call that outlived its run.
+    private Dictionary<string, decimal>? _lateToolAmounts;
 
     /// <summary>Creates the accumulator of one run.</summary>
     /// <param name="currency">
@@ -191,7 +200,8 @@ internal sealed class NonTokenCostAccumulator
     /// <remarks>
     /// An entry that fails <see cref="Validate"/> cannot be added, and it is not dropped:
     /// it is counted as one the total does not cover. After <see cref="Seal"/> the
-    /// measurement stays on the call's record only.
+    /// measurement stays on the call's record, and an amount that adds is held for
+    /// <see cref="TakeLateToolAmount"/>.
     /// </remarks>
     public void ReportToolMeasurement(string callId, ToolCallUsage usage)
     {
@@ -202,6 +212,8 @@ internal sealed class NonTokenCostAccumulator
         {
             if (_sealed)
             {
+                KeepLateToolAmount(callId, ToEntry(usage));
+
                 return;
             }
 
@@ -214,6 +226,51 @@ internal sealed class NonTokenCostAccumulator
             // Only the increase reaches the budget: the earlier report of the same call
             // was already recorded, and a budget never takes an amount back.
             RecordIntoBudget((entry.Amount ?? 0m) - (previous.Amount ?? 0m));
+        }
+    }
+
+    /// <summary>
+    /// Takes the amount a tool reported for a call AFTER the total was read: the one
+    /// amount the run's total does not hold.
+    /// </summary>
+    /// <param name="callId">The call identity.</param>
+    /// <returns>
+    /// The amount that adds (in the run's currency, last report of the call), or
+    /// <see langword="null"/> when the call reported none after the total was read —
+    /// including when its report came before, and so is already in the total.
+    /// </returns>
+    /// <remarks>
+    /// The late tool's quota entry reads this and nothing else. Asking the call's own
+    /// record instead would count an amount twice whenever a tool reports in time, the
+    /// run closes, and only then does the body return: the record holds the amount, and
+    /// so does the total.
+    /// </remarks>
+    public decimal? TakeLateToolAmount(string callId)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(callId);
+
+        lock (_gate)
+        {
+            return _lateToolAmounts is not null && _lateToolAmounts.Remove(callId, out var amount) ? amount : null;
+        }
+    }
+
+    // Called under _gate. Bounded as the node items are: a body that outlives its run and
+    // reports for a call id of its own making would otherwise grow the run's memory.
+    private void KeepLateToolAmount(string callId, Entry entry)
+    {
+        if (entry.Amount is not { } amount)
+        {
+            _lateToolAmounts?.Remove(callId);
+
+            return;
+        }
+
+        _lateToolAmounts ??= new Dictionary<string, decimal>(StringComparer.Ordinal);
+
+        if (_lateToolAmounts.ContainsKey(callId) || _lateToolAmounts.Count < MaxNodeItems)
+        {
+            _lateToolAmounts[callId] = amount;
         }
     }
 

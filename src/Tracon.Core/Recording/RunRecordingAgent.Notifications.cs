@@ -4,20 +4,20 @@ using Microsoft.Extensions.Logging;
 namespace Tracon;
 
 /// <summary>
-/// Root-run-only side effects of a completed run: quota accounting, the
-/// <c>run.*</c> webhook, and the online evaluation sampling decision. None of
-/// these can affect the run itself — the same "observability does not break
-/// functionality" contract as the store and the sinks.
+/// Side effects of a completed run: quota accounting (every run in a tree), the
+/// <c>run.*</c> webhook and the online evaluation sampling decision (root runs
+/// only). None of these can affect the run itself — the same "observability does
+/// not break functionality" contract as the store and the sinks.
 /// </summary>
 public sealed partial class RunRecordingAgent
 {
     /// <summary>
-    /// The consumption of a root run's whole call tree: its own usage and cost
-    /// plus those of every child agent run under it.
+    /// What a run consumed: its own usage and cost, or — in the webhook of a root
+    /// run — those of the root's whole call tree as it stands when the root closes.
     /// </summary>
-    /// <param name="Usage">The tree's tokens; <see langword="null"/> when no run reported any.</param>
+    /// <param name="Usage">The tokens; <see langword="null"/> when no run reported any.</param>
     /// <param name="Cost">
-    /// The tree's spend: the token cost and the amount reported beyond tokens, added by
+    /// The spend: the token cost and the amount reported beyond tokens, added by
     /// <see cref="RunSpend"/>. <see langword="null"/> when no run was priced.
     /// </param>
     /// <param name="Currency">The currency of <paramref name="Cost"/>.</param>
@@ -27,17 +27,29 @@ public sealed partial class RunRecordingAgent
     /// </param>
     private readonly record struct TreeConsumption(RunUsage? Usage, decimal? Cost, string? Currency, decimal? NonTokenCost);
 
+    /// <summary>What this run alone consumed, from the figures it holds in memory as it closes.</summary>
+    private static TreeConsumption OwnConsumption(RunUsage? usage, RunCost? cost, RunNonTokenCost? nonTokenCost)
+    {
+        var pricedCost = cost is { Source: not PricingSource.Unknown } ? cost : null;
+
+        return new TreeConsumption(
+            usage,
+            RunSpend.Total(pricedCost, nonTokenCost),
+            pricedCost?.Currency ?? nonTokenCost?.Currency,
+            nonTokenCost?.Amount);
+    }
+
     /// <summary>
     /// Reads what a root run's child agent runs consumed and adds it to the
-    /// root's own usage and cost.
+    /// root's own usage and cost: the figures its <c>run.*</c> webhook carries.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A child run never accounts on its own (only a root does, so a
-    /// tree is not counted once per depth), and the root used to write only its
-    /// own usage. The children's tokens and cost reached no quota counter and no
-    /// <c>run.*</c> webhook, so a tenant's quota was exceeded through sub-agents.
-    /// A workflow root already counts its tree (<c>WorkflowRunner.RecordQuotaAsync</c>).
+    /// The webhook is a picture of the moment the root closes. A child that ends later
+    /// is not in it, nor is a tool's spend reported after the run closed; the exact total
+    /// is <c>GET /api/runs/{id}</c> and the quota counter, which every run writes to when
+    /// it ends. The webhook used to be the quota's twin; it is now the only reader of
+    /// this tree read.
     /// </para>
     /// <para>
     /// The children's totals come from the run store, the same source the
@@ -58,22 +70,14 @@ public sealed partial class RunRecordingAgent
     /// </remarks>
     private async ValueTask<TreeConsumption> ReadTreeConsumptionAsync(
         RunScope scope,
-        RunUsage? usage,
-        RunCost? cost,
-        RunNonTokenCost? nonTokenCost,
+        TreeConsumption own,
         CancellationToken cancellationToken)
     {
-        var pricedCost = cost is { Source: not PricingSource.Unknown } ? cost : null;
+        var usage = own.Usage;
 
-        var own = new TreeConsumption(
-            usage,
-            RunSpend.Total(pricedCost, nonTokenCost),
-            pricedCost?.Currency ?? nonTokenCost?.Currency,
-            nonTokenCost?.Amount);
-
-        // Nothing reads the tree when neither consumer is registered, and a run
-        // without a child reservation has no tree to read.
-        if ((_quotaEnforcer is null && _webhookPublisher is null) || scope.Budget is not { StartedRuns: > 0 })
+        // Nothing reads the tree when no webhook is registered, and a run without a
+        // child reservation has no tree to read.
+        if (_webhookPublisher is null || scope.Budget is not { StartedRuns: > 0 })
         {
             return own;
         }
@@ -83,14 +87,14 @@ public sealed partial class RunRecordingAgent
         try
         {
             // Not the caller's token: a cancellation landing here would end the
-            // completion before the quota entry and the terminal write.
+            // completion before the terminal write.
             record = await _runStore.GetRunAsync(scope.RunId, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
         {
             _logger.LogWarning(
                 exception,
-                "The child runs of run {RunId} could not be read; its quota entry and webhook count the root only.",
+                "The child runs of run {RunId} could not be read; its webhook counts the root only.",
                 scope.RunId);
 
             return own;
@@ -108,7 +112,7 @@ public sealed partial class RunRecordingAgent
         if (record.TreeCost is { CurrencyCount: > 1 } || record.TreeNonTokenCost is { CurrencyCount: > 1 })
         {
             _logger.LogWarning(
-                "The run tree of run {RunId} is priced in more than one currency; its quota entry and webhook count the root's own cost only.",
+                "The run tree of run {RunId} is priced in more than one currency; its webhook counts the root's own cost only.",
                 scope.RunId);
 
             return own with { Usage = treeUsage };
@@ -181,11 +185,18 @@ public sealed partial class RunRecordingAgent
     }
 
     /// <summary>
-    /// Writes the consumption of a completed root run into the quota
-    /// counters and, for every threshold newly crossed, appends its notice
-    /// into this SAME run's own event stream.
+    /// Writes the consumption of a completed run into the quota counters — the
+    /// root's tenant and name, whatever the run's depth — and, for every threshold
+    /// newly crossed, appends its notice into this SAME run's own event stream.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// A root writes <c>Runs = 1</c>; a child writes <c>Runs = 0</c>, so a tree is one
+    /// run however deep it is and a child that ends after its root still adds its
+    /// tokens and cost. The identity comes from the tree's budget
+    /// (<see cref="AgentRunBudget.Account"/>), never from the ambient run scope: a
+    /// background child ends in a task that does not carry the root's tenant or user.
+    /// </para>
     /// <para>
     /// When the price is undefined, <see cref="QuotaConsumption.Cost"/> stays
     /// <see langword="null"/> — <strong>not</strong> zero. Such a run
@@ -196,31 +207,31 @@ public sealed partial class RunRecordingAgent
     /// Called BEFORE <c>scope.Writer.CompleteAsync</c>: a notice appended
     /// after the terminal event would never reach this run's own append-only
     /// stream — the reader that watches for the terminal event has already
-    /// stopped by then.
+    /// stopped by then. A threshold a child crosses is therefore written to the
+    /// child's stream, which is still open, and not to a root that has long closed.
     /// </para>
     /// </remarks>
     private async ValueTask RecordQuotaAsync(
         RunScope scope,
-        TreeConsumption consumption,
+        TreeConsumption own,
+        RunCost? cost,
+        RunNonTokenCost? nonTokenCost,
         CancellationToken cancellationToken)
     {
-        if (_quotaEnforcer is null)
+        // A budget no root of ours opened names no counter, and neither does a host
+        // with no quota registered (the account carries no recorder then).
+        if (scope.Budget?.Account is not { Quota: not null } account)
         {
             return;
         }
 
-        var crossings = await _quotaEnforcer.RecordAsync(
-            new QuotaConsumption
-            {
-                TenantId = scope.TenantId,
-                AgentName = scope.AgentName,
-                Runs = 1,
-                Tokens = consumption.Usage?.TotalTokens ?? 0,
-                Cost = consumption.Cost,
-                OccurredAt = _timeProvider.GetUtcNow(),
-                RunId = scope.RunId.ToString(),
-                UserId = scope.UserId,
-            },
+        var crossings = await TreeQuota.RecordAsync(
+            account,
+            scope.RunId,
+            runs: scope.Depth == 0 ? 1 : 0,
+            tokens: own.Usage?.TotalTokens ?? 0,
+            amount: QuotaAmount(scope, own.Cost, cost, nonTokenCost),
+            _timeProvider.GetUtcNow(),
             cancellationToken).ConfigureAwait(false);
 
         // Empty unless TraconQuotaOptions.PublishThresholdToRunStream is
@@ -228,8 +239,34 @@ public sealed partial class RunRecordingAgent
         // not re-check the option.
         foreach (var crossing in crossings)
         {
-            await WriteQuotaThresholdNoticeAsync(scope, crossing, cancellationToken).ConfigureAwait(false);
+            await WriteQuotaThresholdNoticeAsync(scope, account, crossing, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>The amount a run adds to the quota counter.</summary>
+    /// <remarks>
+    /// A root adds its own spend as it priced it, as it always did. A descendant adds money
+    /// only in the currency Tracon prices in (<c>Tracon:Pricing:Currency</c>, an unlabeled
+    /// cost being in it): the counter holds a number with no currency, and the root's
+    /// currency is not known while a child ends before it. A child priced in another
+    /// currency counts its tokens and the amounts it reported beyond tokens, both of which
+    /// are in the pricing currency by construction.
+    /// </remarks>
+    private decimal? QuotaAmount(RunScope scope, decimal? ownSpend, RunCost? cost, RunNonTokenCost? nonTokenCost)
+    {
+        if (scope.Depth == 0 || cost is not { Source: not PricingSource.Unknown } priced ||
+            string.IsNullOrWhiteSpace(priced.Currency) ||
+            string.Equals(priced.Currency, _pricingCurrency, StringComparison.OrdinalIgnoreCase))
+        {
+            return ownSpend;
+        }
+
+        _logger.LogWarning(
+            "Child run {RunId} is priced in {Currency}, not in the pricing currency; its quota entry counts its tokens and the amounts it reported beyond tokens, not its token cost.",
+            scope.RunId,
+            priced.Currency);
+
+        return nonTokenCost?.Amount;
     }
 
     /// <summary>
@@ -246,6 +283,7 @@ public sealed partial class RunRecordingAgent
     /// </remarks>
     private static async ValueTask WriteQuotaThresholdNoticeAsync(
         RunScope scope,
+        TreeAccount account,
         QuotaThresholdCrossing crossing,
         CancellationToken cancellationToken)
     {
@@ -253,8 +291,11 @@ public sealed partial class RunRecordingAgent
             new QuotaThresholdNoticePayload
             {
                 NoticeId = crossing.NoticeId,
-                TenantId = scope.TenantId,
-                UserId = scope.UserId,
+
+                // The tree's tenant and user, as the quota entry and the webhook name them: a
+                // background child's own ambient values are not the root's.
+                TenantId = account.TenantId,
+                UserId = account.UserId,
                 RunId = scope.RunId,
                 SessionId = scope.SessionId,
                 Metric = crossing.Metric,

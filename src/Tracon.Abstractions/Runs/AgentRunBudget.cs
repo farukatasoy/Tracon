@@ -131,6 +131,19 @@ public sealed class AgentRunBudget
     /// </summary>
     public DateTimeOffset? Deadline { get; }
 
+    /// <summary>
+    /// Whose quota counter the tree's consumption is written to. Set by whatever opens
+    /// the tree's root, read by every run that ends in the tree.
+    /// </summary>
+    /// <remarks>
+    /// Lives here because the budget is the one object a child run, a consumer-built
+    /// child (<c>TraconRunOptions.Budget</c>) and a tool call that outlives its run all
+    /// already hold; the ambient run scope is not reachable from a task that ends after
+    /// its root. A root assigns it afresh, so a budget a consumer reuses for a second root
+    /// names that root and never the earlier one's tenant.
+    /// </remarks>
+    internal TreeAccount? Account { get; set; }
+
     /// <summary>The tokens spent across the tree so far.</summary>
     public long ConsumedTokens => Interlocked.Read(ref _consumedTokens);
 
