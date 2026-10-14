@@ -27,6 +27,9 @@
     "src/Tracon.Sqlite/Migrations/0045_non_token_cost.sql": "91a2f955fab49867b138fb8a8c8cf97209b6e618",
     "src/Tracon.PostgreSql/Migrations/0059_workflow_definition_versions.sql": "a7aae9eca83522bbb4c70b6ce7cbe3c90822b8cf",
     "src/Tracon.SqlServer/Migrations/0047_workflow_definition_versions.sql": "a7aae9eca83522bbb4c70b6ce7cbe3c90822b8cf",
-    "src/Tracon.Sqlite/Migrations/0046_workflow_definition_versions.sql": "a7aae9eca83522bbb4c70b6ce7cbe3c90822b8cf"
+    "src/Tracon.Sqlite/Migrations/0046_workflow_definition_versions.sql": "a7aae9eca83522bbb4c70b6ce7cbe3c90822b8cf",
+    "src/Tracon.PostgreSql/Migrations/0060_workflow_responses.sql": "9ff7e3ba8fa0173bbdbb5b1b6af6dc85296bf991",
+    "src/Tracon.SqlServer/Migrations/0048_workflow_responses.sql": "9ff7e3ba8fa0173bbdbb5b1b6af6dc85296bf991",
+    "src/Tracon.Sqlite/Migrations/0047_workflow_responses.sql": "9ff7e3ba8fa0173bbdbb5b1b6af6dc85296bf991"
   }
 }
