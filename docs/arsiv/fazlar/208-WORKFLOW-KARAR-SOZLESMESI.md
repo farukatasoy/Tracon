@@ -45,7 +45,7 @@ Bir workflow insan cevabı beklediğinde, bugün aynı isteğe gelen her cevap y
 - [x] `WorkflowResponseStoreContract` bellek + üç SQL sağlayıcısında yeşil; `TenantIsolationContract` yeni depoyu kapsar — 15 case
 - [x] `WorkflowResponseApplied` olayı `RecordToolPayloads = false` iken de kaynak run'ı taşır — `WorkflowResponseLinkTests`
 - [x] K-929 satırı kodla uyumlu yazıldı (gerekçe düzeltmesi, 2026-10-14)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 6b484f0c` (bkz. *Kapanış kapısı*)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — fazın yüzeyi yeşil; `kapanis`'in iki kırmızısı fazdan bağımsız (F-524, SQL Server zaman aşımı), bkz. *Kapanış kapısı*
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1-4), çıktı belgeye yazıldı — üç koşum (*Örnek uygulama koşumu*)
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ (17 işaretli sentetik credential atlandı)
 - [x] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` (`MT-WF-156…164`) ve `13-KIRACI-VE-GUVENLIK.md` (`MT-SEC-219…221`) içine eklendi; otomatikleştirilebilenler koşuldu
@@ -135,6 +135,12 @@ Alt agent başlatılmadı (araç kuralı); kulvar C bu oturumda seri koştu.
 3. **Yerel referans ve agent haritası:** `capabilities.md` "Human input" satırı; `Tracon.AgentMap.md`, `llms.txt`, `llms-full.txt` yeniden üretildi (`--check` ✅, bütçe içinde).
 
 Kapılar: `ShippedDocumentationSelfContainmentTests`, `CapabilityExampleTests`, `SourceLanguageTests` ✅ · `LocalReferenceTests` ✅ 10/10 · `build-agent-map.mjs --check` ✅ · `npm run check` ✅ (1101 sayfa, kırık bağlantı 0, en ağır `concepts/workflows` 58 470 B) · `dokuman-bakim.py --site-denetle` sonucu *Kapanış kapısı*nda. Muafiyet listesi ve taban çizgisi büyümedi. `--site-denetle` gerekçesi: `kalicilik` (`getting-started/persistence.md`) — yeni migration yalnız tablo ekler, sayfa tablo listesi ya da tek yönlü örnek taşımaz, saklama kuralı `concepts/workflow-answers.md`'dedir; `paket-readme` (`packages.md`) — `Tracon.AspNetCore` README'sinde yalnız işlem sayısı değişti, `packages.md` sayı taşımaz. Site yayını (Adım 10) koordinatörde, birleştirmeden sonra.
+
+### Kapanış kapısı (2026-10-14)
+
+- `kapi.py ic-dongu --taban 6b484f0c` ✅ (`aafb1d87`, 16 test projesi).
+- `kapi.py kapanis --taban 6b484f0c` (`5cb0e27b`): tarama, `--denetle`, betik testleri, agent haritası, denetim paketi, build (87,7 sn) ✅; tam test ❌ iki case, ikisi de fazdan bağımsız: (1) `TemplateInstantiationTests.Most_full_combination_compiles_with_zero_warnings` izole de düşer — `NU1902`/`NU1903`, `Microsoft.Data.SqlClient` 7.0.2 → `System.Security.Cryptography.Pkcs` 9.0.13 (yeni GitHub uyarısı) → **F-524**; (2) SQL Server `RetentionArchiveKeyTests(tool_invocations)` tam koşumda `Execution Timeout Expired`, sınıf tek başına ✅ 17/17 (`hafiza/test-paralellik-ve-zamanlama.md`). Kapı ilk kırmızıda durduğu için kalan adımlar elle koşuldu: `dotnet pack` ✅, `dotnet format --verify-no-changes` ✅, `kapi.py performans` ✅, `npm run check` ✅.
+- Yayın provası `kapi.py yayin --kuru --surum 1.0.0-preview.4`: 20 paket ✅, kırıcı liste ✅ (5 tip, hepsi `Unreleased`'de), `npm publish --dry-run` ✅; `Tracon.Samples.FileRunStore` 128/129 ❌ = **F-502** (Faz 205'ten beri açık). Prova orada durur; kalan örnekler ve AOT smoke ölçülmedi. Hiçbir örnek `IJobStore` ya da `IWorkflowResponseStore` uygulamaz, bu yüzden fazın iki sözleşme genişlemesi örneklere dokunmaz.
 
 ### Uygulama sapmaları
 
