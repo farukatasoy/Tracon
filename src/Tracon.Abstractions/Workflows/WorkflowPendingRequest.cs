@@ -61,8 +61,7 @@ public sealed record WorkflowPendingRequest
 
     /// <summary>
     /// Gets when the request expires (UTC). <see langword="null"/> when the workflow sets no
-    /// <see cref="WorkflowDefinition.RequestTimeout"/>, or when the request was published before
-    /// requests had an expiry.
+    /// request timeout, or when the request was published before requests had an expiry.
     /// </summary>
     /// <remarks>
     /// Fixed when the run starts waiting: editing the workflow later does not move it. When the
@@ -73,8 +72,8 @@ public sealed record WorkflowPendingRequest
 
     /// <summary>
     /// Gets a value indicating whether somebody answered the request. An answered run stays
-    /// <see cref="RunStatus.AwaitingInput"/> and keeps listing its request; the answer continues
-    /// on a new run (<see cref="LastResponseRunId"/>).
+    /// <c>AwaitingInput</c> and keeps listing its request; the answer continues on a new run, which
+    /// <c>lastResponseRunId</c> names.
     /// </summary>
     public bool Answered { get; init; }
 

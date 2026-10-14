@@ -79,6 +79,15 @@ interface Draft {
   /** The run timeout the server sent, so an untouched field goes back exactly as stored. */
   storedRunTimeout: string | null;
   /**
+   * How long a human request of this workflow may wait for an answer (phase 209), as typed:
+   * seconds or `d.hh:mm:ss`. Empty means no limit. Sent back on every save - the save is a full
+   * replace (K-725), and a dropped value would remove the limit of a workflow whose requests
+   * must not wait for ever.
+   */
+  requestTimeout: string;
+  /** The request timeout the server sent, so an untouched field goes back exactly as stored. */
+  storedRequestTimeout: string | null;
+  /**
    * How a repeated answer to one request is treated (phase 208). Sent back on every save: the
    * save is a full replace (K-725), and a dropped value would turn a one-answer workflow back
    * into Branch.
@@ -99,6 +108,8 @@ const EMPTY: Draft = {
   requirePlanApproval: false,
   runTimeout: '',
   storedRunTimeout: null,
+  requestTimeout: '',
+  storedRequestTimeout: null,
   responseMode: 'Branch',
 };
 
@@ -184,6 +195,8 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       requirePlanApproval: loaded.requirePlanApproval,
       runTimeout: timeoutText(loaded.runTimeout),
       storedRunTimeout: loaded.runTimeout ?? null,
+      requestTimeout: timeoutText(loaded.requestTimeout),
+      storedRequestTimeout: loaded.requestTimeout ?? null,
       responseMode: loaded.responseMode ?? 'Branch',
     });
   }, [existing.data]);
@@ -205,6 +218,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         handoffInstructions: draft.kind === 'Handoff' ? blank(draft.handoffInstructions) : null,
         requirePlanApproval: draft.kind === 'Magentic' && draft.requirePlanApproval,
         runTimeout: timeoutValue(draft.runTimeout, draft.storedRunTimeout),
+        requestTimeout: timeoutValue(draft.requestTimeout, draft.storedRequestTimeout),
         responseMode: draft.responseMode,
       };
 
@@ -276,6 +290,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
     hasInvalidTimeouts(draft.steps) ||
     stranded ||
     !parseTimeout(draft.runTimeout).ok ||
+    !parseTimeout(draft.requestTimeout).ok ||
     (draft.kind === 'Magentic' && draft.managerAgentName.trim().length === 0);
 
   return (
@@ -478,6 +493,24 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
                   placeholder={t('workflowEditor.runTimeoutDefault')}
                   value={draft.runTimeout}
                   onChange={(event) => setDraft({ ...draft, runTimeout: event.target.value })}
+                />
+              )}
+            </Field>
+
+            <Field
+              label={t('workflowEditor.requestTimeout')}
+              hint={t('workflowEditor.requestTimeoutHint')}
+              error={parseTimeout(draft.requestTimeout).ok ? undefined : t('workflowEditor.requestTimeoutInvalid')}
+            >
+              {(ids) => (
+                <TextInput
+                  {...ids}
+                  className="max-w-xs"
+                  data-testid="workflow-request-timeout"
+                  inputMode="decimal"
+                  placeholder={t('workflowEditor.requestTimeoutDefault')}
+                  value={draft.requestTimeout}
+                  onChange={(event) => setDraft({ ...draft, requestTimeout: event.target.value })}
                 />
               )}
             </Field>

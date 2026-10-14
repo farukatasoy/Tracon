@@ -338,6 +338,7 @@ internal static class WorkflowEndpoints
                 "engine answers 501. Runs that started waiting before this list existed are not in " +
                 "it; read them with GET /api/workflows/runs/{runId}/requests.")
             .Produces<IReadOnlyList<WorkflowPendingRequest>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
@@ -1138,7 +1139,7 @@ internal static class WorkflowEndpoints
             [FromServices] IRunAttributionContext? attributionContext,
             HttpContext httpContext,
             CancellationToken cancellationToken,
-            [FromQuery] WorkflowRequestState? state = null,
+            [FromQuery] string? state = null,
             [FromQuery] string? workflowName = null,
             [FromQuery] int? skip = null,
             [FromQuery] int? take = null)
@@ -1168,10 +1169,23 @@ internal static class WorkflowEndpoints
             return authorizationProblem;
         }
 
+        // Read as text so 'pending', 'answered' and 'all' are accepted in any letter case: the model
+        // binder of an enum is case-sensitive, and the other list filters of this API are names too.
+        var requestedState = WorkflowRequestState.Pending;
+
+        if (!string.IsNullOrWhiteSpace(state) &&
+            (!Enum.TryParse(state, ignoreCase: true, out requestedState) || !Enum.IsDefined(requestedState)))
+        {
+            return TypedResults.Problem(
+                title: "Unknown state",
+                detail: $"'{state}' is not a state of a workflow request. Use 'pending', 'answered' or 'all'.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var requests = await runner.ListRequestsAsync(
             new WorkflowRequestQuery
             {
-                State = state ?? WorkflowRequestState.Pending,
+                State = requestedState,
                 WorkflowName = string.IsNullOrWhiteSpace(workflowName) ? null : workflowName,
                 Skip = Math.Max(skip ?? 0, 0),
                 Take = Math.Clamp(take ?? 50, 1, WorkflowRequestQuery.MaxTake),

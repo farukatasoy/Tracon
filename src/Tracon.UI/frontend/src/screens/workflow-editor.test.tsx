@@ -156,6 +156,8 @@ describe('WorkflowEditorScreen - the chain', () => {
       handoffInstructions: null,
       requirePlanApproval: false,
       runTimeout: null,
+      // A new workflow has no answer time limit: a request waits without limit.
+      requestTimeout: null,
       // A new workflow keeps the default: every answer opens a new run.
       responseMode: 'Branch',
     });
@@ -518,6 +520,32 @@ describe('WorkflowEditorScreen - timeouts', () => {
       ],
       runTimeout: '00:30:00',
     });
+  });
+
+  // Phase 209: how long a human request may wait is typed in seconds or d.hh:mm:ss and saved the
+  // way the server writes it; empty is "no limit".
+  it.each([
+    ['7200', '02:00:00'],
+    ['2.00:00:00', '2.00:00:00'],
+    ['', null],
+  ])('saves the answer time limit "%s" as %s', async (typed, expected) => {
+    const user = userEvent.setup();
+
+    open(mixed);
+
+    fireEvent.change(await screen.findByTestId('workflow-request-timeout'), { target: { value: typed } });
+    await save(user);
+
+    expect(sent[0]).toMatchObject({ requestTimeout: expected });
+  });
+
+  it('holds Save back on an answer time limit that is neither seconds nor d.hh:mm:ss', async () => {
+    open(mixed);
+
+    fireEvent.change(await screen.findByTestId('workflow-request-timeout'), { target: { value: 'a week' } });
+
+    expect(screen.getByTestId('workflow-save')).toHaveProperty('disabled', true);
+    expect(screen.getByText('Enter seconds (for example 3600) or d.hh:mm:ss (for example 2.00:00:00).')).toBeTruthy();
   });
 
   // Phase 196 decision (K-901 unchanged): a step timeout never turns an agent list into a node

@@ -108,6 +108,7 @@ function WorkflowVersionCompare({ name, a, b }: { name: string; a: number; b: nu
                     handoffInstructions: { label: t('workflowEditor.handoffInstructions') },
                     requirePlanApproval: { label: t('workflowDetail.compare.planApproval') },
                     runTimeout: { label: t('workflowDetail.compare.runTimeout') },
+                    requestTimeout: { label: t('workflowDetail.compare.requestTimeout') },
                     responseMode: { label: t('workflowDetail.compare.responseMode') },
                   }}
                 />

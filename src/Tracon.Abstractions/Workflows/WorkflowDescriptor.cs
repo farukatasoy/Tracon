@@ -56,7 +56,7 @@ public sealed record WorkflowDescriptor
     /// <summary>
     /// Gets how long a human request of the workflow may wait for an answer; <see langword="null"/>
     /// when it waits without limit. For a stored workflow this is the current version's value; a run
-    /// that waits keeps the limit of the version it recorded (<see cref="WorkflowDefinition.RequestTimeout"/>).
+    /// that waits keeps the limit of the version it recorded.
     /// </summary>
     public TimeSpan? RequestTimeout { get; init; }
 

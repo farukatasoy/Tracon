@@ -2452,6 +2452,102 @@
         }
       }
     },
+    "/tracon/api/workflows/requests": {
+      "get": {
+        "tags": [
+          "Tracon",
+          "Workflows"
+        ],
+        "summary": "Lists the human input requests the tenant\u0027s workflow runs are waiting on.",
+        "description": "One item per request, oldest first. The same request id in the same session is ONE request even when several runs hold it (an answered run stays \u0027AwaitingInput\u0027 and the continuation republishes the requests that are still open); the item names the newest run that waits on it, which is the run to answer. \u0027state\u0027 is \u0027pending\u0027 (the default: nobody has answered), \u0027answered\u0027 (answered, but the run still waits) or \u0027all\u0027; \u0027workflowName\u0027 narrows the list to one workflow. The filter runs before the page, so \u0027skip\u0027 and \u0027take\u0027 (1-200, default 50) page over the filtered list. Each item carries \u0027expiresAt\u0027 (when the workflow sets a request timeout), \u0027answered\u0027 and \u0027lastResponseRunId\u0027. A run whose request expired is closed and leaves the list. The list is the tenant\u0027s: a registered IRunAuthorizationHandler that denies reading runs rejects it with 403 and never filters it, so a page is never shorter than the caller is allowed to see. An installation that has not registered the workflow engine answers 501. Runs that started waiting before this list existed are not in it; read them with GET /api/workflows/runs/{runId}/requests.",
+        "operationId": "TraconListWorkflowInbox",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workflowName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowPendingRequest"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tracon/api/workflows/runs/{runId}/requests": {
       "get": {
         "tags": [
@@ -2459,7 +2555,7 @@
           "Workflows"
         ],
         "summary": "Lists a run\u0027s pending human input requests.",
-        "description": "Only a run in the \u0027AwaitingInput\u0027 state returns requests. Requests are read from the run\u0027s event stream; there is no separate table. A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.",
+        "description": "Only a run in the \u0027AwaitingInput\u0027 state returns requests. The prompt and the form are read from the run\u0027s event stream; \u0027expiresAt\u0027, \u0027answered\u0027 and \u0027lastResponseRunId\u0027 come from the inbox row the run wrote when it started waiting (see GET /api/workflows/requests). A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.",
         "operationId": "TraconListWorkflowRequests",
         "parameters": [
           {
@@ -19009,6 +19105,14 @@
             "description": "Gets how the workflow treats more than one answer to the same pending human request.\nWorkflowResponseMode.Branch (the default) opens a new run for every answer;\nWorkflowResponseMode.SingleAnswer allows one answer per request.",
             "$ref": "#/components/schemas/WorkflowResponseMode"
           },
+          "requestTimeout": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets how long a human request of this workflow may wait for an answer before the run that\nwaits on it is closed. \u0060null\u0060 (the default) means it waits without limit."
+          },
           "tenantId": {
             "type": [
               "null",
@@ -19100,6 +19204,14 @@
           "responseMode": {
             "description": "Gets how the workflow treats more than one answer to the same pending human request.\nFor a stored workflow this is the current version\u0027s mode; a run that waits keeps the\nmode of the version it recorded.",
             "$ref": "#/components/schemas/WorkflowResponseMode"
+          },
+          "requestTimeout": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets how long a human request of the workflow may wait for an answer; \u0060null\u0060\nwhen it waits without limit. For a stored workflow this is the current version\u0027s value; a run\nthat waits keeps the limit of the version it recorded."
           },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -19394,6 +19506,40 @@
             "type": "string",
             "description": "Gets the UTC time when the request was published.",
             "format": "date-time"
+          },
+          "workflowName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the name of the workflow whose run waits on the request."
+          },
+          "sessionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the execution session of the run. The runs that continue one another share it, and\nthe same request id in the same session is one request."
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets when the request expires (UTC). \u0060null\u0060 when the workflow sets no\nrequest timeout, or when the request was published before requests had an expiry.",
+            "format": "date-time"
+          },
+          "answered": {
+            "type": "boolean",
+            "description": "Gets a value indicating whether somebody answered the request. An answered run stays\n\u0060AwaitingInput\u0060 and keeps listing its request; the answer continues on a new run, which\n\u0060lastResponseRunId\u0060 names."
+          },
+          "lastResponseRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the run that carried out the latest answer; \u0060null\u0060 while the request\nis unanswered. An answer that stopped before it finished is replaced by the answer that\nstarted again, so this names the run to watch.",
+            "format": "uuid"
           }
         },
         "description": "Represents human input awaited by a workflow run."
@@ -19697,6 +19843,14 @@
           "responseMode": {
             "description": "How the workflow treats more than one answer to the same pending human request.\nLeave it out for WorkflowResponseMode.Branch, where every answer opens a\nnew run; WorkflowResponseMode.SingleAnswer allows one answer per request.",
             "$ref": "#/components/schemas/WorkflowResponseMode"
+          },
+          "requestTimeout": {
+            "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "How long a human request of this workflow may wait for an answer, as \u0060d.hh:mm:ss\u0060,\nfrom one minute to 365 days. Leave it out and a request waits without limit."
           }
         },
         "description": "Request to save a workflow definition."
