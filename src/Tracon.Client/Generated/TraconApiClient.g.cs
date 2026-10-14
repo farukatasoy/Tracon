@@ -4166,7 +4166,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a workflow definition.
         /// </summary>
         /// <remarks>
-        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node's 'timeout' (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run's timeout. 'runTimeout' bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it.
+        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. A node's 'timeout' (function or agent node, hh:mm:ss) must be from 1 ms to about 49.7 days, 30 seconds less on an agent node; it is not checked against the run's timeout. An agent node's 'agentVersion' pins the step to that version of the agent; it must be 1 or more, only an agent node may carry one, and the agent must have that version (an agent defined in code keeps no versions): anything else is refused with 400. 'runTimeout' bounds one run of this workflow: it may only shorten Tracon:Workflows:RunTimeout unless the host sets Tracon:Workflows:MaxRunTimeout, and a value above that ceiling is refused with 400. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body. The name 'functions' is reserved (400): GET /api/workflows/functions uses it. Every save appends a version rather than overwriting; the previous content stays readable through GET /api/workflows/{name}/versions.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4385,6 +4385,318 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Lists a workflow definition's version history, newest first.
+        /// </summary>
+        /// <remarks>
+        /// Every entry is a full definition snapshot, not a delta, so a single entry is enough to inspect or restore a past state. The workflow must have a current stored definition; a deleted name returns 404 even though its versions are kept (a version number is never reused). A workflow defined in code also returns 404, with a reason that says so: it is not stored by Tracon and has no version history. The 'version' of a run's row is the version it was compiled from.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<WorkflowDefinition>> TraconListWorkflowVersionsAsync(string name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (name == null)
+                throw new System.ArgumentNullException("name");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/workflows/{name}/versions"
+                    urlBuilder_.Append("api/workflows/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/versions");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<System.Collections.Generic.ICollection<WorkflowDefinition>>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Writes a workflow definition as a new version with the content of a previous version.
+        /// </summary>
+        /// <remarks>
+        /// A rollback moves forward, not backward: the old content is appended as a NEW version and the history is never rewritten, so the rollback itself stays auditable ('workflow.rollback') and can be rolled back in turn. The content is checked the way a save is: a version that names a function that is no longer registered, or an agent version that no longer exists, is refused with 400 and nothing is written. An unknown version number returns 404; a workflow defined in code returns 409. A run that is waiting keeps the version it recorded, so a rollback does not change what it resumes with.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<WorkflowDefinition> TraconRollbackWorkflowAsync(string name, WorkflowRollbackRequest body, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (name == null)
+                throw new System.ArgumentNullException("name");
+
+            if (body == null)
+                throw new System.ArgumentNullException("body");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    var json_ = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(body, JsonSerializerSettings);
+                    var content_ = new System.Net.Http.ByteArrayContent(json_);
+                    content_.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
+                    request_.Content = content_;
+                    request_.Method = new System.Net.Http.HttpMethod("POST");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/workflows/{name}/rollback"
+                    urlBuilder_.Append("api/workflows/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/rollback");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<WorkflowDefinition>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Returns two definition versions as raw JSON; the diff is computed in the UI.
+        /// </summary>
+        /// <remarks>
+        /// The server does no diffing and takes no position on how a change should be displayed; it returns both snapshots verbatim as 'left' and 'right' so the client chooses the presentation. The two version numbers may be given in any order. When either version is missing the response is 404 and names the one that was not found; a workflow defined in code returns 404 saying it has no version history.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<WorkflowVersionDiffResponse> TraconGetWorkflowVersionDiffAsync(string name, int a, int b, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (name == null)
+                throw new System.ArgumentNullException("name");
+
+            if (a == null)
+                throw new System.ArgumentNullException("a");
+
+            if (b == null)
+                throw new System.ArgumentNullException("b");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/workflows/{name}/versions/{a}/diff/{b}"
+                    urlBuilder_.Append("api/workflows/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(name, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/versions/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(a, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/diff/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(b, System.Globalization.CultureInfo.InvariantCulture)));
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<WorkflowVersionDiffResponse>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -4824,7 +5136,7 @@ namespace Tracon.Client.Generated
         /// Resumes from a checkpoint and streams events over SSE, or queues it with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The run resumes with the version of the workflow's definition that it recorded ('version' of its row), so an edit made while it waited changes nothing; 'definitionVersion' names another stored version, and a version the workflow does not have is 400, never a silent fall-back to the current one. A version whose graph differs from the checkpoint's fails the run with 'the graph's structure differs'. A run that recorded no version resumes with the current definition. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4978,7 +5290,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// Resuming opens a NEW run rather than continuing the old one: the original run row is never rewritten, and the first streamed frame reports the new run id. The body is optional — without a checkpoint id the run resumes from its latest checkpoint. The run resumes with the version of the workflow's definition that it recorded ('version' of its row), so an edit made while it waited changes nothing; 'definitionVersion' names another stored version, and a version the workflow does not have is 400, never a silent fall-back to the current one. A version whose graph differs from the checkpoint's fails the run with 'the graph's structure differs'. A run that recorded no version resumes with the current definition. The engine must be registered; otherwise the response is 501. The source run and its checkpoint are checked before the stream opens: an unknown run is 404, and a run that is not a workflow run or has no such checkpoint is 400. A failure after the stream opens arrives as an SSE error frame. Resuming STARTS a run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a denial returns 403 before any run row is opened. With 'Prefer: respond-async' the resume is queued and answered with '202 Accepted', like a queued run, after the same checks. A queued resume is not counted against the quota, the same as a streamed one. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5227,7 +5539,7 @@ namespace Tracon.Client.Generated
         /// Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5381,7 +5693,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -28333,7 +28645,8 @@ namespace Tracon.Client.Generated
         public string? TenantId { get; set; } = default!;
 
         /// <summary>
-        /// Gets the definition version. Increments by one on every save.
+        /// Gets the definition version. Increments by one on every save and is never
+        /// <br/>reused: the store keeps every version (see IWorkflowDefinitionStore).
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("version")]
@@ -28714,6 +29027,14 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("timeout")]
         public string? Timeout { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the version of the agent this step runs. `null` (the default)
+        /// <br/>runs the agent's current version, resolved each time the step runs.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("agentVersion")]
+        public int? AgentVersion { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -28847,6 +29168,15 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("checkpointId")]
         public string? CheckpointId { get; set; } = default!;
 
+        /// <summary>
+        /// The version of the workflow's stored definition to continue with. Leave it out to
+        /// <br/>continue with the version the waiting run recorded. See
+        /// <br/>int? WorkflowResumeHttpRequest.DefinitionVersion.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("definitionVersion")]
+        public int? DefinitionVersion { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -28862,6 +29192,30 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("checkpointId")]
         public string? CheckpointId { get; set; } = default!;
+
+        /// <summary>
+        /// The version of the workflow's stored definition to resume with. Leave it out to
+        /// <br/>resume with the version the run recorded, so an edit made while the run waited does
+        /// <br/>not change what resumes.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("definitionVersion")]
+        public int? DefinitionVersion { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// Request to roll a workflow definition back to a previous version.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class WorkflowRollbackRequest
+    {
+        /// <summary>
+        /// Version number to roll back to.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public int Version { get; set; } = default!;
 
     }
 
@@ -28985,6 +29339,29 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("runTimeout")]
         public string? RunTimeout { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// Raw JSON response for comparing two workflow definition versions. The diff is not
+    /// <br/>computed on the server; the client compares the two definitions field by field.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class WorkflowVersionDiffResponse
+    {
+        /// <summary>
+        /// Left (usually older) side of the comparison.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("left")]
+        public WorkflowDefinition Left { get; set; } = new WorkflowDefinition();
+
+        /// <summary>
+        /// Right (usually newer) side of the comparison.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("right")]
+        public WorkflowDefinition Right { get; set; } = new WorkflowDefinition();
 
     }
 

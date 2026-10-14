@@ -154,6 +154,7 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WebhookDelivery>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WebhookSubscription>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowCheckpointRecord>))]
+[JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowDefinition>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowDescriptor>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowFunctionResponse>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<WorkflowPendingRequest>))]
@@ -180,8 +181,10 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(WorkflowGraph))]
 [JsonSerializable(typeof(WorkflowRespondHttpRequest))]
 [JsonSerializable(typeof(WorkflowResumeHttpRequest))]
+[JsonSerializable(typeof(WorkflowRollbackRequest))]
 [JsonSerializable(typeof(WorkflowRunHttpRequest))]
 [JsonSerializable(typeof(WorkflowSaveRequest))]
+[JsonSerializable(typeof(WorkflowVersionDiffResponse))]
 internal sealed partial class TraconClientJsonContext : JsonSerializerContext
 {
 }
