@@ -208,6 +208,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the provider cannot use the tenant's key; a tenant with its own binding
   gets its own key on both the session creation and the sideband attach. A
   binding with an endpoint override is refused for a live session (`403`).
+- `Tracon.SqlServer` no longer restores a `System.Security.Cryptography.Pkcs` with known
+  vulnerabilities (GHSA-846f-f764-76mx, high; GHSA-2fmv-rv2c-59x7, moderate).
+  `Microsoft.Data.SqlClient` pulls 8.0.1 on `net8.0` and 9.0.13 on `net9.0` and `net10.0`,
+  and every SqlClient release up to 7.1.1 does the same, so a new project that used
+  `--persistence sqlserver` restored with `NU1902` and `NU1903`. The package now depends on the
+  patched version for each target framework (8.0.2, 9.0.21, 10.0.13), which wins over
+  SqlClient's own. It adds no further packages to the graph.
 
 ### Fixed
 

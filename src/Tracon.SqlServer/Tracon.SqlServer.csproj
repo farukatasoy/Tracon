@@ -33,6 +33,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />
+    <!-- CVE zorlamasi (Directory.Packages.props, SqlClient satirinin altindaki not; F-524). -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
   <ItemGroup Label="Embedded SQL migrations (Phase 23)">
