@@ -61,7 +61,8 @@ internal static class FaultInjection
         return services;
     }
 
-    private static TService Resolve<TService>(IServiceProvider provider, ServiceDescriptor descriptor)
+    /// <summary>Builds the service a replaced registration described.</summary>
+    internal static TService Resolve<TService>(IServiceProvider provider, ServiceDescriptor descriptor)
         where TService : class
         => (TService)(descriptor.ImplementationInstance
             ?? descriptor.ImplementationFactory?.Invoke(provider)

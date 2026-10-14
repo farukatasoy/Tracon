@@ -159,8 +159,17 @@ text/event-stream`, so the `event:` name is the only way to tell them apart:
 
 | Stream | Frame names |
 |---|---|
-| `POST /api/agents/{name}/run` (and the workflow and OpenAI-compatible equivalents) | `run` · `update` · `approvals` · `done` · `error` — one per step of that single live call |
+| `POST /api/agents/{name}/run` | `run` · `update` · `approvals` · `custom` · `done` · `error` — one per step of that single live call |
 | `GET /api/runs/{runId}/events` | `run.started` · `message.delta` · `tool.invoking` · `tool.invoked` · `tool.failed` · `run.completed` · `run.failed` and one more per event type in the diagram above — the recorded, append-only log |
+
+The workflow run stream has a third set (`run` · `event` · `done` · `error`), and the
+OpenAI-compatible endpoints use the OpenAI wire format.
+
+The live stream's `custom` frames are the one place the two contracts meet. Right
+before `done`, the stream sends the run's own recorded notices from a fixed list —
+`tracon.output.truncated` always, `tracon.quota.threshold` when it is published to the
+run stream — and each frame's data is the same recorded event `/events` serves, byte
+for byte. The [HTTP API](/http-api/#streaming) page lists the rules.
 
 A client written against one contract will not decode the other; pick the endpoint
 that matches what you are building — a live turn, or a run's full recorded history.
@@ -520,8 +529,20 @@ treats the two kinds of answer differently:
 Only the turn that ends the run decides. A tool call the model was still writing when
 it hit the limit is an intermediate turn: the tool loop runs it and asks the model
 again. The tokens of a failed truncated call still count in the run's usage, cost and
-quota. A streaming client does not see the `length` reason in the live `update`
-frames; read the run's events or its error.
+quota.
+
+A client streaming the run learns about a cut-off plain-text answer before the stream
+ends: the `tracon.output.truncated` event arrives as a `custom` frame right before
+`done`, with the same data the run's events carry. Each recorded event is one frame, so
+a harness loop whose iterations were cut sends more than one, and a tool turn cut in
+the middle of the run sends none. A cut-off structured answer ends the stream with an
+`error` frame instead. No event, and no frame, is written while run recording is off
+(`Tracon:RunRecording:Enabled`).
+
+The `update` frames also carry a `finishReason` field. It is the model's raw reason
+for each model call — `tool_calls` on a tool turn, possibly reported more than once in
+a loop — passed through from Microsoft Agent Framework, not a Tracon guarantee. Read
+the `custom` frame to decide whether the answer is complete.
 
 The fix is a higher `ModelBinding.MaxOutputTokens`. When the binding leaves it empty,
 `POST /api/agents/validate` warns with `output_truncation_risk` if the provider's
