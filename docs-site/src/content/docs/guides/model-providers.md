@@ -331,8 +331,9 @@ opts in by implementing `ITenantCredentialModelProvider` in addition to
 OpenAI) all do. A provider that does not implement it simply never sees a tenant
 credential, and Tracon never falls back to the setup-time key on its behalf: a
 tenant binding saved against a provider that does not support BYOK fails **every**
-run with a stable `provider_credential_unsupported` error instead of silently
-billing the tenant's traffic to the host's own account.
+run with a stable `tenant_provider_refused` error (class `TenantProviderRefused`)
+instead of silently billing the tenant's traffic to the host's own account. A run
+recorded before that error type existed carries `provider_credential_unsupported`.
 
 A tenant's binding stores only the **name** of a configuration key, never the value:
 
@@ -503,7 +504,7 @@ section](#model-catalog-is-metadata-not-permission).
 credential **and** your provider implements that interface; without it, Tracon
 never calls your provider with a tenant credential at all, and it does not fall back
 to calling the plain `CreateChatClient(ModelBinding)` overload with the tenant's
-request either — the run fails closed with `provider_credential_unsupported`
+request either — the run fails closed with `tenant_provider_refused`
 instead. If you do implement the interface, the key must never fall back to your
 setup-time key: a tenant that supplied a credential is billed on it, or the call
 fails. An endpoint may fall back, so a globally configured base address still
@@ -742,7 +743,16 @@ the output limit and set temperature to `1` or leave it out.
 
 **A long Anthropic answer stops in the middle.** The response hit the output limit.
 A structured response fails the run with `output_truncated`; a text answer completes
-with a `tracon.output.truncated` run event. Raise `MaxOutputTokens`.
+with a `tracon.output.truncated` run event. Raise `MaxOutputTokens`. When the message
+and the event's `cause` name the **context window** instead (Anthropic's
+`model_context_window_exceeded`), the conversation filled the window: shorten it with
+context compaction or use a model with a larger window.
+
+**An Anthropic turn with web search takes several calls.** The API pauses a long turn
+of its own server tools (`pause_turn`). Tracon sends the paused answer back as the API
+returned it and the model continues; each call is billed and counted. A turn still
+paused after five continuations fails the run with `upstream_error`, fault
+`AnthropicTurnPausedException`.
 
 **A working prompt gets rejected by the pre-flight check.** The token estimate is
 approximate. Raise `ReserveRatio` toward zero, or call `/estimate` to see the

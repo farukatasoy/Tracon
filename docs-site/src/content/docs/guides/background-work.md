@@ -642,6 +642,20 @@ whose status is no longer `Pending`; see
 - A handler exception is retried until the job's attempt limit is reached. A lease that
   runs out (its worker died) counts as an attempt too: past the limit the job fails
   with `tracon.job.attempts-exhausted` without running again.
+- A failure that the next attempt would get again fails the job on that attempt,
+  whatever attempts are left: a structured answer cut off at the output limit
+  (`output_truncated`), a provider the tenant's rules refuse
+  (`tenant_provider_refused`), and a model provider
+  that answered with a permanent `4xx` (any `4xx` except `408` and `429`). An eval whose
+  judge was cut off no longer runs its unfinished case and pays for it again on every
+  attempt. Tracon reads the error's stable type, never its message, and it judges only
+  the errors Tracon itself raises: an exception your own handler throws, such as an
+  `HttpRequestException` with `404` while a resource is not there yet, keeps its
+  retries. A `JobRetryException` keeps its retries too, and an attempt that reached its
+  time limit counts like any failed attempt.
+- A store error while a handler records a failed attempt (a webhook delivery's
+  failed send, an eval run closed as `Failed`) is tried again the same way and never
+  replaces the attempt's own failure: a failed webhook send keeps its retry delay.
 - A store error while the worker writes a job's outcome is not a handler failure.
   The worker tries the write again with a growing pause, under the same lease, and
   the handler does not run again for it. The worker stops a third of the lease

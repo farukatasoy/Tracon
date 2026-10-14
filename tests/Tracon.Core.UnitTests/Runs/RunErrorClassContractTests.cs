@@ -43,6 +43,7 @@ public sealed class RunErrorClassContractTests
         ("StructuredResponseInvalid", 14),
         ("LoopUnsatisfied", 15),
         ("OutputTruncated", 16),
+        ("TenantProviderRefused", 17),
     ];
 
     [Fact]

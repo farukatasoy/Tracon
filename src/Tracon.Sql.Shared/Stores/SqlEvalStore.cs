@@ -114,13 +114,8 @@ internal sealed class SqlEvalStore : IEvalStore
     {
         ArgumentNullException.ThrowIfNull(cases);
 
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        return await _context.ExecuteInTransactionAsync<IReadOnlyList<EvalCase>>(
+            async (connection, transaction) =>
             {
                 var delete = _context.CreateCommand(_sql.DeleteEvalCases, connection, transaction);
                 DbHelpers.Add(delete, "suite_id", suiteId);
@@ -166,8 +161,8 @@ internal sealed class SqlEvalStore : IEvalStore
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                 return assigned;
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

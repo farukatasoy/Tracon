@@ -67,11 +67,18 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         // one bucket the taxonomy exists to avoid.
         [ProviderFailureNormalizer.UpstreamErrorType] = RunErrorClass.ProviderError,
 
-        // Not a provider fault: the run's tenant has a credential for a
-        // provider whose adapter cannot take one, so the chat client is never
-        // built. That is a configuration mismatch caught while assembling the
-        // agent, which is what CompilationFailed records.
-        [ProviderFailureNormalizer.CredentialUnsupportedErrorType] = RunErrorClass.CompilationFailed,
+        // Not a provider fault: the tenant's provider rules refused the call
+        // before it left the process (F-442). Its text names the tenant and the
+        // allowed providers, the operator's own words, so only the identity may
+        // classify it: a name with "timeout" in it made the refusal a timeout and
+        // a workflow node retried it. The CLR name is what rows written before
+        // the identity carry. The model path refused a tenant credential its
+        // provider cannot take with provider_credential_unsupported, filed under
+        // CompilationFailed; it throws the same refusal now, and the old identity
+        // keeps a row an older build wrote in the same class.
+        [TraconTenantProviderRefusedException.TenantProviderRefusedErrorType] = RunErrorClass.TenantProviderRefused,
+        ["Tracon.TenantProviderRefusedException"] = RunErrorClass.TenantProviderRefused,
+        [ProviderFailureNormalizer.CredentialUnsupportedErrorType] = RunErrorClass.TenantProviderRefused,
     };
 
     /// <inheritdoc />
@@ -90,13 +97,15 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
     {
         if (StableIdentities.TryGetValue(runError.Type, out var stable))
         {
-            // 🚨 One narrowing, and only one. ProviderError is what a normalized
-            // provider failure means in general, but a provider that never
-            // ANSWERED is the distinction phase 157 (K-737) exists to keep: it
-            // drives retry and alerting differently from a provider that
-            // answered with an error. The normalizer names the foreign fault
-            // type in the message it builds (K-817), so that one fact is
-            // readable here without the provider's own text.
+            // 🚨 Two narrowings, and only these two. ProviderError is what a
+            // normalized provider failure means in general, but a provider that
+            // never ANSWERED is the distinction phase 157 (K-737) exists to keep:
+            // it drives retry and alerting differently from a provider that
+            // answered with an error. The normalizer names the foreign fault type
+            // in the message it builds (K-817), so that one fact is readable here
+            // without the provider's own text. The second (F-353): a provider that
+            // answered 429 is RateLimited, the class that exists for exactly that
+            // status; the status is the suffix the same sentence ends with.
             //
             // 🚨 Measured live, not reasoned: MT-RES-089 (2026-09-19) against an
             // unroutable endpoint recorded ProviderError. The real SDK WRAPS its
@@ -105,9 +114,20 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
             // below is matched before the message patterns ever run. Every
             // provider timeout in production took this path; only the in-process
             // fake, which throws TaskCanceledException directly, took the other.
-            return stable == RunErrorClass.ProviderError && NormalizedTimeoutFaultPattern().IsMatch(runError.Message)
-                ? RunErrorClass.Timeout
-                : stable;
+            if (stable == RunErrorClass.ProviderError)
+            {
+                if (NormalizedTimeoutFaultPattern().IsMatch(runError.Message))
+                {
+                    return RunErrorClass.Timeout;
+                }
+
+                if (NormalizedRateLimitStatusPattern().IsMatch(runError.Message))
+                {
+                    return RunErrorClass.RateLimited;
+                }
+            }
+
+            return stable;
         }
 
         // 🚨 The patterns below run on the exception's TYPE NAME and MESSAGE as
@@ -194,6 +214,20 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex NormalizedTimeoutFaultPattern();
+
+    /// <summary>
+    /// Matches the 429 status a normalized provider failure ends with
+    /// (<c>ProviderFailureNormalizer.DescribeUpstreamFailure</c>: "... (HTTP 429).").
+    /// </summary>
+    /// <remarks>
+    /// Anchored to the end of Tracon's own sentence, so a provider name with "429"
+    /// in it does not match.
+    /// </remarks>
+    [GeneratedRegex(
+        @"\(HTTP 429\)\.$",
+        RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex NormalizedRateLimitStatusPattern();
 
     [GeneratedRegex(
         @"\b429\b|toomanyrequests|\brate[\s_-]?limit(?:ed|ing)?\b",

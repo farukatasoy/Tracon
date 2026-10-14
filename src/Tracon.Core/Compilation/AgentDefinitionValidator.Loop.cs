@@ -60,7 +60,7 @@ internal sealed partial class AgentDefinitionValidator
         {
             _ = await registry.CreateJudgeChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
         }
-        catch (TraconCompilationException ex)
+        catch (TraconException ex) when (ex is TraconCompilationException or TraconTenantProviderRefusedException)
         {
             messages.Add(new ValidationMessage
             {

@@ -179,7 +179,7 @@ internal static class VoiceConversationEndpoint
         {
             providers = await driver.ResolveProvidersAsync(context.RequestAborted).ConfigureAwait(false);
         }
-        catch (TenantProviderRefusedException exception)
+        catch (TraconTenantProviderRefusedException exception)
         {
             await WriteProblemAsync(
                 context,

@@ -248,7 +248,7 @@ internal sealed partial class InMemoryRunStore
             sawCost = true;
             costCurrency ??= cost.Currency;
 
-            if (cost.Currency is { } currency && cost.Total() is not null)
+            if (cost.Currency is { Length: > 0 } currency && cost.Total() is not null)
             {
                 costCurrencies.Add(currency);
                 pricedCurrency ??= currency;
@@ -300,7 +300,7 @@ internal sealed partial class InMemoryRunStore
             sawNonToken = true;
             nonTokenCurrency ??= nonToken.Currency;
 
-            if (nonToken.Currency is { } currency && nonToken.Amount is not null)
+            if (nonToken.Currency is { Length: > 0 } currency && nonToken.Amount is not null)
             {
                 nonTokenCurrencies.Add(currency);
                 reportedCurrency ??= currency;

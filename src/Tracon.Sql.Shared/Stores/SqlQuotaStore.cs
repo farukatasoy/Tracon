@@ -184,13 +184,10 @@ internal sealed class SqlQuotaStore : IQuotaStore
         ArgumentNullException.ThrowIfNull(consumption);
         ArgumentNullException.ThrowIfNull(periodStarts);
 
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        // A deadlock victim is run again whole (F-430): its increments were rolled
+        // back with it, so the retry adds them once.
+        await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
                 foreach (var (period, periodStart) in periodStarts)
                 {
@@ -204,8 +201,8 @@ internal sealed class SqlQuotaStore : IQuotaStore
                 }
 
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask IncrementAsync(

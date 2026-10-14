@@ -81,6 +81,25 @@ public sealed class EvalJobHandlerFinalWriteTests
         closed.Passed.ShouldBe(2);
     }
 
+    /// <summary>
+    /// F-429: the write that records a failed attempt must not replace the
+    /// attempt's own failure. Thrown on, the store's error was what the worker
+    /// judged, so a judge cut off at its output limit was run again.
+    /// </summary>
+    [Fact]
+    public async Task A_store_error_while_recording_a_failed_attempt_does_not_hide_the_failure()
+    {
+        var store = new FlakyCompletionEvalStore(new InMemoryEvalStore()) { FailedWriteFailuresLeft = 1 };
+        var chat = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "a long enough answer")));
+        var handler = CreateHandler(store, chat, publisher: null, TimeSpan.FromMinutes(5), new TruncatedJudgeFactory());
+        var (context, run, _) = await ArrangeAsync(store);
+
+        var thrown = await Should.ThrowAsync<TraconOutputTruncatedException>(() => handler.ExecuteAsync(context).AsTask());
+
+        FinalFailure.IsFinal(thrown).ShouldBeTrue();
+        (await store.GetRunAsync(TenantId, run.Id))!.Status.ShouldBe(EvalRunStatus.Failed);
+    }
+
     private static async Task<(JobContext Context, EvalRun Run, List<JobItemResult> Reported)> ArrangeAsync(IEvalStore store)
     {
         var suite = await store.SaveSuiteAsync(new EvalSuite
@@ -155,14 +174,15 @@ public sealed class EvalJobHandlerFinalWriteTests
         IEvalStore store,
         IChatClient chat,
         IWebhookPublisher? publisher,
-        TimeSpan leaseDuration)
+        TimeSpan leaseDuration,
+        IEvalEvaluatorFactory? evaluators = null)
         => new(
             store,
             new SingleAgentCatalog(new ChatClientAgent(chat, new ChatClientAgentOptions { Name = AgentName })),
             new InMemoryAgentDefinitionStore(),
             new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry()),
             new EvalCheckRegistry([]),
-            new LocalEvalEvaluatorFactory(),
+            evaluators ?? new LocalEvalEvaluatorFactory(),
             Options.Create(new TraconOptions()),
             [],
             NullLogger<EvalJobHandler>.Instance,
@@ -179,6 +199,8 @@ public sealed class EvalJobHandlerFinalWriteTests
     {
         public int CompletedWriteFailuresLeft { get; set; }
 
+        public int FailedWriteFailuresLeft { get; set; }
+
         /// <summary>The status of every completion that reached the inner store.</summary>
         public List<EvalRunStatus> WrittenStatuses { get; } = [];
 
@@ -187,6 +209,13 @@ public sealed class EvalJobHandlerFinalWriteTests
             if (completion.Status == EvalRunStatus.Completed && CompletedWriteFailuresLeft > 0)
             {
                 CompletedWriteFailuresLeft--;
+
+                throw new InvalidOperationException("The eval store is unavailable.");
+            }
+
+            if (completion.Status == EvalRunStatus.Failed && FailedWriteFailuresLeft > 0)
+            {
+                FailedWriteFailuresLeft--;
 
                 throw new InvalidOperationException("The eval store is unavailable.");
             }
@@ -253,6 +282,20 @@ public sealed class EvalJobHandlerFinalWriteTests
 
         public ValueTask<EvalRunDiff?> DiffRunsAsync(EvalRunDiffQuery query, CancellationToken cancellationToken = default)
             => inner.DiffRunsAsync(query, cancellationToken);
+    }
+
+    /// <summary>Grades with a judge whose structured answer is always cut off at its output limit.</summary>
+    private sealed class TruncatedJudgeFactory : IEvalEvaluatorFactory, IAgentEvaluator
+    {
+        public string Name => "truncated-judge";
+
+        public IAgentEvaluator Create(IReadOnlyList<EvalCheck> checks) => this;
+
+        public Task<AgentEvaluationResults> EvaluateAsync(
+            IReadOnlyList<EvalItem> items,
+            string evalName = "Agent Framework Eval",
+            CancellationToken cancellationToken = default)
+            => throw new TraconOutputTruncatedException("The judge stopped at its output token limit.");
     }
 
     private sealed class SingleAgentCatalog(AIAgent agent) : IAgentCatalog

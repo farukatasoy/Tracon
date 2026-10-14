@@ -141,8 +141,15 @@ internal static class WorkflowNodeRetry
         // 🚨 F-338: the class alone decided this, and ProviderError holds every
         // provider HTTP error (K-817). A node that got a 401 ran MaxAttempts
         // times, and a retried 409 on a non-idempotent call repeated its side
-        // effect.
-        if (ProviderHttpStatus.IsPermanentFailure(exception))
+        // effect. The raw status is read too: a node can call an HTTP API that
+        // never passes the model-call normalizer.
+        //
+        // 🚨 F-429/F-442: a failure whose stable identity says the next attempt
+        // gets the same answer (a tenant's refusal, a truncated structured answer,
+        // a compilation failure) is never retried either. The class of a refusal
+        // came from its TEXT, and a tenant or provider name with "timeout" in it
+        // made the node retry a call its tenant forbids.
+        if (ProviderHttpStatus.IsPermanentFailure(exception) || FinalFailure.IsFinal(exception))
         {
             return false;
         }

@@ -124,13 +124,8 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
         var agentName = context.Agent.Name ?? context.Agent.Id;
         var now = DateTimeOffset.UtcNow;
 
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
                 // The upsert locks the conversation row; a second transaction
                 // writing to the same conversation concurrently waits for this
@@ -176,8 +171,8 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
                 }
 
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);

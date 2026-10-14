@@ -93,10 +93,10 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
             if (IsStructured(options))
             {
                 FoldRejectedUsage(response.Usage);
-                throw Truncated(options);
+                throw Truncated(options, response.FinishReason);
             }
 
-            await RecordTruncatedTextAsync(options, cancellationToken).ConfigureAwait(false);
+            await RecordTruncatedTextAsync(options, response.FinishReason, cancellationToken).ConfigureAwait(false);
         }
 
         return response;
@@ -151,18 +151,23 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
             if (IsStructured(options))
             {
                 FoldRejectedStreamUsage(usage);
-                throw Truncated(options);
+                throw Truncated(options, finishReason);
             }
 
-            await RecordTruncatedTextAsync(options, cancellationToken).ConfigureAwait(false);
+            await RecordTruncatedTextAsync(options, finishReason, cancellationToken).ConfigureAwait(false);
         }
     }
 
     private static bool IsContentFilter(ChatFinishReason? finishReason)
         => finishReason == ChatFinishReason.ContentFilter;
 
+    // F-426: an answer the context window cut off is cut off too; only the remedy
+    // differs, so the message and the event name the cause.
     private static bool IsTruncated(ChatFinishReason? finishReason)
-        => finishReason == ChatFinishReason.Length;
+        => finishReason == ChatFinishReason.Length || IsContextWindow(finishReason);
+
+    private static bool IsContextWindow(ChatFinishReason? finishReason)
+        => finishReason == TraconFinishReasons.ContextWindowExceeded;
 
     // ChatResponseFormat.Json and ForJsonSchema(...) both produce this type;
     // ChatResponseFormat.Text does not.
@@ -259,7 +264,10 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     /// operator at the wrong model. The writer already keeps a store
     /// failure from reaching the run.
     /// </remarks>
-    private async ValueTask RecordTruncatedTextAsync(ChatOptions? options, CancellationToken cancellationToken)
+    private async ValueTask RecordTruncatedTextAsync(
+        ChatOptions? options,
+        ChatFinishReason? finishReason,
+        CancellationToken cancellationToken)
     {
         if (TraconRunContext.Current is not { Writer: { } writer } scope || scope.SideChannelFallback is not null)
         {
@@ -271,6 +279,9 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
             {
                 Provider = providerName,
                 MaxOutputTokens = options?.MaxOutputTokens,
+                Cause = IsContextWindow(finishReason)
+                    ? OutputTruncatedEventPayload.ContextWindowCause
+                    : OutputTruncatedEventPayload.OutputLimitCause,
             },
             TraconCoreJsonContext.Default.OutputTruncatedEventPayload);
 
@@ -278,7 +289,9 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
             new RunEventDraft(RunEventType.Custom)
             {
                 CustomType = RunEventCustomTypes.OutputTruncated,
-                Text = "The model stopped at its output token limit; the answer is incomplete.",
+                Text = IsContextWindow(finishReason)
+                    ? "The model stopped when the conversation filled its context window; the answer is incomplete."
+                    : "The model stopped at its output token limit; the answer is incomplete.",
                 Payload = payload,
             },
             cancellationToken).ConfigureAwait(false);
@@ -294,8 +307,21 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
             FinishReason = finishReason?.Value,
         };
 
-    private TraconOutputTruncatedException Truncated(ChatOptions? options)
+    private TraconOutputTruncatedException Truncated(ChatOptions? options, ChatFinishReason? finishReason)
     {
+        if (IsContextWindow(finishReason))
+        {
+            return new TraconOutputTruncatedException(
+                $"The '{providerName}' model stopped when the conversation filled its context window, before the " +
+                "structured response was complete. A cut-off JSON document cannot be parsed, and a repair turn would " +
+                "fill the same window, so none runs. Shorten the conversation (context compaction) or use a model " +
+                "with a larger context window; a larger output limit does not help.")
+            {
+                ProviderName = providerName,
+                MaxOutputTokens = options?.MaxOutputTokens,
+            };
+        }
+
         var limit = options?.MaxOutputTokens is { } explicitLimit
             ? $"the output token limit of {explicitLimit}"
             : "the provider's default output token limit (ModelBinding.MaxOutputTokens is not set)";
@@ -322,4 +348,16 @@ internal sealed record OutputTruncatedEventPayload
     /// provider applied its own default.
     /// </summary>
     public int? MaxOutputTokens { get; init; }
+
+    /// <summary>
+    /// Gets what cut the answer off: <see cref="OutputLimitCause"/> or
+    /// <see cref="ContextWindowCause"/>.
+    /// </summary>
+    public required string Cause { get; init; }
+
+    /// <summary>The model reached its output token limit.</summary>
+    public const string OutputLimitCause = "output_limit";
+
+    /// <summary>The conversation and the answer filled the model's context window.</summary>
+    public const string ContextWindowCause = "context_window";
 }

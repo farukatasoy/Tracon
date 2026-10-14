@@ -68,6 +68,7 @@ internal static class VoiceEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status501NotImplemented)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
             .WithDescription(
                 "The list comes from the speech provider, not from Tracon; the identifiers it " +
                 "returns are the values the speak endpoint and the agent's 'speak' tool accept. " +
@@ -76,7 +77,8 @@ internal static class VoiceEndpoints
                 "an unknown name, and 403 when the tenant's egress policy does not allow the " +
                 "provider or the tenant has its own credential that the provider cannot use. When " +
                 "no default synthesizer is registered (UseVoice() was never called), the response " +
-                "is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.");
+                "is 501 rather than 404, so a missing configuration is not mistaken for a wrong address. " +
+                "A provider that fails while listing its voices is 502, as for the speak endpoint.");
 
         builder.MapGet("/api/voice/providers", ListProviders)
             .RequireRole(roles.Reader)
@@ -295,7 +297,7 @@ internal static class VoiceEndpoints
                 detail: exception.Message,
                 statusCode: StatusCodes.Status400BadRequest));
         }
-        catch (TenantProviderRefusedException exception)
+        catch (TraconTenantProviderRefusedException exception)
         {
             // The tenant's own rule, not a provider failure: 403, as for live voice
             // and image generation. The message names the tenant and the provider only.
@@ -373,7 +375,22 @@ internal static class VoiceEndpoints
             return refusal;
         }
 
-        var voices = await synthesizer!.ListVoicesAsync(cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<VoiceDescriptor> voices;
+
+        // F-443: the provider's failure is a bad gateway, as on /speak; it escaped as a 500.
+        try
+        {
+            voices = await synthesizer!.ListVoicesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconException exception)
+        {
+            // The same rule as /speak: the provider adapter's message carries the
+            // status and reason, never the provider's body.
+            return TypedResults.Problem(
+                title: "Voices could not be listed",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status502BadGateway);
+        }
 
         return TypedResults.Ok(voices);
     }

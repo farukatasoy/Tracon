@@ -44,7 +44,7 @@ internal sealed partial class InMemoryRunStore
                 perVariantCurrencies[variant] = currencies;
             }
 
-            if (record.Cost is { Currency: { } currency } cost && cost.Total() is not null)
+            if (record.Cost is { Currency: { Length: > 0 } currency } cost && cost.Total() is not null)
             {
                 currencies.Add(currency);
             }
@@ -138,7 +138,7 @@ internal sealed partial class InMemoryRunStore
             buckets.TryGetValue(bucket, out var tally);
             buckets[bucket] = tally.Add(record);
 
-            if (record.Cost is { Currency: { } currency } cost && cost.Total() is not null)
+            if (record.Cost is { Currency: { Length: > 0 } currency } cost && cost.Total() is not null)
             {
                 currencies.Add(currency);
             }

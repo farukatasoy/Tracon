@@ -302,11 +302,13 @@ internal sealed class OnlineEvalJobHandler(
             // on every attempt; retrying it only repeats the rejected request.
             // A structured answer cut off at the output limit is the same
             // case: the next attempt sends the same limit, pays for the same
-            // tokens and is cut off again. Raising the limit is the fix.
+            // tokens and is cut off again. Raising the limit is the fix. F-429:
+            // the question has one answer, FinalFailure, which the job worker and
+            // the workflow node retry read too.
             failures.Add(Failure(
                 judge.Name,
                 JudgeFailureTypes.Failed,
-                retryable: !ProviderHttpStatus.IsPermanentFailure(exception) && !IsOutputTruncation(exception)));
+                retryable: !ProviderHttpStatus.IsPermanentFailure(exception) && !FinalFailure.IsFinal(exception)));
             LogFailure(judge, judgeContext, exception);
             return;
         }
@@ -537,32 +539,6 @@ internal sealed class OnlineEvalJobHandler(
 
     private static JudgeFailure Failure(string judgeName, string errorType, bool retryable)
         => new() { JudgeName = judgeName, ErrorType = errorType, IsRetryable = retryable };
-
-    /// <summary>
-    /// Determines whether a judge failed because its model's structured answer
-    /// stopped at the output limit, anywhere in <paramref name="exception"/>'s graph.
-    /// </summary>
-    /// <remarks>
-    /// The whole graph is read because an evaluator from another package can
-    /// wrap the exception its chat client threw before the judge sees it.
-    /// </remarks>
-    private static bool IsOutputTruncation(Exception exception)
-    {
-        for (var candidate = exception; candidate is not null; candidate = candidate.InnerException)
-        {
-            if (candidate is TraconOutputTruncatedException)
-            {
-                return true;
-            }
-
-            if (candidate is AggregateException aggregate && aggregate.InnerExceptions.Any(IsOutputTruncation))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static string FormatFailures(IEnumerable<JudgeFailure> failures)
         => string.Join("; ", failures.Select(static failure => $"{failure.JudgeName} ({failure.ErrorType})"));

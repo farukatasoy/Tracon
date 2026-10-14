@@ -197,7 +197,7 @@ public sealed class AgentDefinitionCompilerPathTests
 
         var definition = TestData.Definition() with { Model = TestData.Binding(provider: "openai") };
 
-        var exception = await Should.ThrowAsync<TraconCompilationException>(
+        var exception = await Should.ThrowAsync<TraconTenantProviderRefusedException>(
             async () => await compiler.CompileParameterizedAsync(definition, culture: null, values: null, CancellationToken.None));
 
         exception.Message.ShouldContain("openai");

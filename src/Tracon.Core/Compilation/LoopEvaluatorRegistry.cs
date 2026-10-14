@@ -261,9 +261,8 @@ internal sealed class LoopEvaluatorRegistry
     /// reports the second case together with the definition's other loop errors.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
-    /// <exception cref="TraconCompilationException">
-    /// The judge's provider is not registered, or the tenant's egress policy forbids it.
-    /// </exception>
+    /// <exception cref="TraconCompilationException">The judge's provider is not registered.</exception>
+    /// <exception cref="TraconTenantProviderRefusedException">The tenant's egress policy forbids the judge's provider.</exception>
     /// <remarks>
     /// The judge keeps the setup-time credential: it is the host's one judge
     /// model, the same one the run judge calls.
@@ -289,6 +288,14 @@ internal sealed class LoopEvaluatorRegistry
         try
         {
             return await _models.CreateSetupChatClientAsync(judgeModel, cancellationToken).ConfigureAwait(false);
+        }
+
+        // F-442: a tenant's refusal keeps its type (see AgentDefinitionCompiler).
+        catch (TraconTenantProviderRefusedException ex)
+        {
+            throw new TraconTenantProviderRefusedException(
+                $"Agent '{definition.Name}' could not build its '{AiJudgeKind}' loop criterion: {ex.Message}",
+                ex);
         }
         catch (TraconException ex)
         {

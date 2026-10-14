@@ -286,7 +286,11 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   quantity was estimated, and the provider and model that did the work. A tool that
   reports twice in one call replaces its first report, so report the total at the end. The
   call returns `false` and does not throw when recording is off or the code is not inside a
-  tool call; a call that reported and then never settled keeps what it reported.
+  tool call; a call that reported and then never settled keeps what it reported. It also
+  returns `false`, and attaches nothing, for a measurement the record cannot hold: an empty
+  unit or one longer than 64 characters, a currency longer than 16, a provider longer than
+  100, a model longer than 200, a quantity outside 0 to 9,999,999,999 or an amount outside
+  0 to 1,000,000,000. These are the limits a function node's items have.
 - **It also joins the run's non-token total, the moment the tool reports it.** The same
   rule as a [workflow function node's items](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
   applies: amounts in `Tracon:Pricing:Currency` add, a quantity is never added across units,
