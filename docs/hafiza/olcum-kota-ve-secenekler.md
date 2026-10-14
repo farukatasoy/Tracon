@@ -17,7 +17,7 @@
 - **Metrik etiketini kosullu eklerken `TagList` kullan, `KeyValuePair<string,object?>[]` degil** (Faz 19): `Counter<T>.Add`/`Histogram<T>.Record`'un sabit-uzunluklu `params` asiri yuklemesi yerine `System.Diagnostics.TagList` (struct) kullanilir. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Tool'un token DISI olcumu cagri kimligiyle kayda baglanir** (2026-08-05, Faz 28): kimlik `FunctionInvokingChatClient.CurrentContext.CallContent.CallId`'den okunur — tool govdesinde DOLUDUR; `AIFunctionArguments.Context` `null` gelir ve kimligi TASIMAZ. Baglanamazsa `false` doner, tool'un isi bozulmaz. Zincir: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `ObservableGauge` geri çağırması I/O BEKLEMEZ** (2026-09-23, K-256'nın yerini aldı): geri çağırma MeterProvider'ın tüm enstrümanlarını toplayan thread'de koşar. Desen `CachedGaugeSource<T>` (`BackgroundService` + `PeriodicTimer(aralık, TimeProvider)`, başta bir kez tazeler); ilk tazelemeden önce ölçüm yoktur. Test ilk tazelemeyi `CompletedRefreshes` ile bekler. Tam metin: `docs/arsiv/HAFIZA-GECMISI.md` § Faz 199.
-- **`TraconMetrics`'e yeni bir sayac eklerken `CompleteAsync` icindeki cagriyi `scope.Depth`'e KOSULLU yapma — `RecordRun` gibi HER calistirmada (kok + alt) cagir** (Faz 35): `RecordCost` `if (scope.Depth == 0)` blogunun DISINDA durur ve K-151'in "sayac yalniz KENDI maliyetini yayar" kuralini dogal olarak saglar. Kota/olay yayini (`RecordQuotaAsync`/`PublishRunEventAsync`) ise KASITLI olarak yalniz kokte calisir — iki kural KARISTIRILMAMALI.
+- **`TraconMetrics`'e yeni bir sayac eklerken `CompleteAsync` icindeki cagriyi `scope.Depth`'e KOSULLU yapma — `RecordRun` gibi HER calistirmada (kok + alt) cagir** (Faz 35): `RecordCost` `if (scope.Depth == 0)` blogunun DISINDA durur ve K-151'in "sayac yalniz KENDI maliyetini yayar" kuralini dogal olarak saglar. Kota da HER run'da yazilir (Faz 205); yalniz olay yayini (`PublishRunEventAsync`) ve ornekleme kokte kalir — iki kural KARISTIRILMAMALI.
 - **🚨 Elle yazilmis `InputCost + OutputCost` toplami ucuncu bir terim eklenince SESSIZCE eksik raporlar — denetim YEDI yerde buldu** (Faz 68, K-483): cache ucreti `input_cost`'un alt kumesi DEGIL ucuncu terimdir; maliyet tavani olan bir kiraci tavani asabilirdi. `RunCost.Total()` tek cevaptir — alan eklerken `Total()`'i guncelle, `grep -rn "InputCost ?? 0" src/` ile sinifi tara. Kapi: `Every_cost_total_includes_the_cache_charge`. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Bir sayacin `null` gelmesi ile `0` gelmesi AYRI bilgidir** (Faz 68, K-482): `0` "olculdu, yoktu" IDDIASIDIR ve susan saglayici icin kendinden emin %0 cache isabeti uretir. Uc nokta: `MergeUsage` (`AddOrNull`), `CompactionUsageAccumulator` (sayac basina bildirim bayragi), `TreeUsage` (`COALESCE` KASITLI yok). Fiyatta da: bildirilmediyse ucret `null`. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Sıkıştırma özetleyicisi ANA agent turlarıyla AYNI `BuildPipeline`'dan geçer** (2026-08-26, Faz 114): boru hattına konan HER halka (bütçe, cache, guard) özetleme çağrısını da görür; `scope.ExtraUsage` toplamını bütçeye ayrıca eklemek ÇİFTE SAYIM olurdu (K-632). Tam metin: `docs/arsiv/HAFIZA-GECMISI.md` § Faz 199.
@@ -31,60 +31,20 @@
 ## Kota
 
 - **🚨 Süreç içi "bir kez" kümesi zaman anahtarlıysa budanır; kalıcı claim atarsa anahtar geri alınır** (2026-09-23): `QuotaEnforcer._firedThresholds` dönem başı taşıyan anahtarı hiç silmiyordu ve singleton süreç ömrü boyunca büyüdü. Anahtar claim'den ÖNCE ekleniyordu; claim atınca (iptal dahil) eşik dönem sonuna kadar o süreçte sustu. Kalıcı claim (K-682) tek doğru kaynak olduğu için budama çift yayın üretmez. Desen: `(dönem, dönem başı)` kovası, kapanan kovanın fırsatçı silinmesi, claim hatasında `TryRemove`.
-- **Kota ve olay yayini YALNIZ kok calistirmada isler** (2026-08-03, Faz 21): `RunRecordingAgent.CompleteAsync` icinde `scope.Depth == 0` kosuluyla korunur. Gerekce: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **Kota HER run'da yazilir; kimlik agacin butcesindedir** (2026-10-14, Faz 205, K-990): kok `AgentRunBudget.Account`'u (`TreeAccount`: kiraci, kok adi, kullanici, `IQuotaRecorder`) `PrepareRun`'da her seferinde YENIDEN atar; cocuk (`Runs = 0`), workflow adimi ve gec tool girdisini oradan yazar. Arka plan cocugu kok bittikten sonra biter ve ortam kiraci/kullanicisi kokunki degildir (ortamdan okuyan surumde `A_late_childs_entry_goes_to_the_roots_tenant` kirmizi). Tek yazim yolu `TreeQuota.RecordAsync` (kapi `QuotaWriteSiteTests`). `run.*` webhook'u ve ornekleme yalniz kokte; webhook kapanis aninin goruntusudur (`ReadTreeConsumptionAsync` yalniz onun icin).
+- **🚨 Gec tool tutari kayittan degil birikimciden okunur** (F-482): tool suresi icinde raporlayip run kapandiktan sonra donerse kayit da toplam da tutari tutar; kayittan okumak iki kez sayardi. `NonTokenCostAccumulator.TakeLateToolAmount` yalniz muhurden SONRA raporlananı verir (kapi `A_tool_that_reported_in_time_and_returns_late_is_counted_once`).
+- **Alt run'in tutari yalniz fiyat para biriminde girer** (K-976 uzantisi): kokun para birimi cocuk kapanirken bilinmez. Token maliyeti `Tracon:Pricing:Currency` disindaysa (etiketsiz = o) cocuk token ve token disi tutari ile girer, token maliyeti ile girmez; kok kendi maliyetini oldugu gibi yazar.
 - **`QuotaGate` `RunRecordingAgent`'a ulasmadan `429` doner — kota (`IQuotaStore`/`QuotaEnforcer`) asimi bir `RunError` URETMEZ** (2026-08-07, Faz 44, K-297): K-162'nin sonucu, hala gecerli. 🚨 **AMA `RunErrorClass.QuotaExceeded` artik BASKA bir yoldan da dolar** (2026-08-26, Faz 114, K-630): calistirma-ici bir agac butcesi (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`) tukendiginde `RunBudgetChatClient`'in attigi `TraconRunBudgetExceededException` de AYNI sinifa (`4`) eslenir — bu, `QuotaGate`'ten TAMAMEN bagimsiz, farkli bir mekanizmadir (kiraci/agent kotasi degil, tek bir run agacinin bütçesi). "QuotaExceeded asla dolmaz" iddiasi artik YANLIS; "kota (`IQuotaStore`) asla bir `RunError` uretmez" iddiasi hala DOGRU — ikisini karistirma.
 - **🚨 Bir olayi ILGILI `run`'in KENDI SSE akisina yazmak, olayi otomatik olarak o akisa YANSITMAZ — akis tipine gore degisir** (2026-09-05, Faz 146): `scope.Writer.AppendAsync`/`AppendReservedAsync` ile yazilan HER olay `GET /api/runs/{id}/events` ucunda GORUNUR (o uc `IRunStore.ReadEventsAsync`'i canli okur), ama DOGRUDAN `POST /api/agents/{name}/run` akisinda GORUNMEZ — o akis yalniz MAF'in kendi `AgentResponseUpdate`'lerini `update` cercevesi olarak iletir, `RunEventWriter` yazimlarindan tamamen bagimsizdir. Yeni bir "olayi iki yolda da gorunur yap" ihtiyaci dogarsa `WriteQuotaThresholdNoticesAsync` desenini tekrarla (kalici kaydi IKINCI KEZ oku, kopya insa etme), yeni bir hook ACMA. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `RunEventWriter.AppendAsync`'in rezerve-onek reddi (K-673/K-674) kutuphanenin KENDI notice'ini yazmasini da engeller — bypass INTERNAL bir ikinci giris noktasindan gecer** (2026-09-05, Faz 146): `AppendCoreAsync(draft, allowReserved, ct)` tek govde, `AppendAsync` (`allowReserved: false`, public) ve `AppendReservedAsync` (`allowReserved: true`, `internal`) iki ince sarmalayicidir. Tuketici asla `AppendReservedAsync`'e erisemez (ayni derleme disinda gorunmez) — K-673/K-674'un "tuketici taklit edemez" garantisi boylece korunur. Yeni bir rezerve `CustomType` (kutuphanenin kendi yazacagi baska bir notice) gerekirse AYNI `AppendReservedAsync`'i kullan, yeni bir bypass ICAT ETME.
 
 ## Yargic skorunun olcegi (Faz 155)
 
-**🚨 Bir yargic artik N adli skor dondurur ve hepsi ayni olcekte DEGILDIR.**
-`OnlineEvalSummaryService.RecordScoreAsync` ve `TraconMetrics.RecordJudgeScore`
-**0-100** tanimlidir; `OnlineEvaluationOptions.LowScoreThreshold` varsayilan **60**
-o olcekte karsilastirilir. Microsoft'un kalibre evaluator'lari ise **1-5** verir.
-
-Kural (K-730): pencereye ve histograma yalnizca **mansset** skor girer --
-adi yargicin adina **esit** VE `Kind == RunScoreKind.Numeric` olan skor.
-`OnlineEvalJobHandler.JudgeOneAsync`'te tek yerdedir.
-
-Iki tuzak, ikisi de bagimsiz denetimde bulundu:
-
-- **Ad yetmez, `Kind` de gerekir.** Ilk yazim yalnizca ada bakiyordu. Bir yargic
-  genel kararini `Stars` olarak verebilir (sevk edilen rehber bunu aciktan davet
-  ediyor); 1-5 olceginde bir **5**, 60 esiginin altina duser ve `run.score.low`
-  webhook'u **her saglikli kosumda** calar. Yani "kotu skor alarmi" saglam bir
-  ajanda surekli oter ve insanlar onu susturmayi ogrenir.
-- **Olcek tahmini yapma.** Kural bir AD KARSILASTIRMASIDIR, bir deger sezgisi
-  degil. "1 ile 5 arasindaysa yildizdir" gibi bir tahmin yanlis siniflandirir;
-  0-100 olceginde mesru bir 3 puan vardir.
-
-Yeni bir yargic eklerken: mansset skorunu **0-100 `Numeric`** ver, adini yargicin
-adiyla ayni yap. Baska bir olcek kullanacaksan ona **baska bir ad** ver -- saklanir,
-`GET /api/evaluation/scores/summary` onu `(name, kind)` kiriliminda raporlar,
-yalnizca canli ortalamaya girmez.
+**🚨 Bir yargic N adli skor dondurur, hepsi ayni olcekte DEGILDIR.** Pencereye ve histograma yalniz **mansset** skor girer: adi yargicin adina esit VE `Kind == RunScoreKind.Numeric` (K-730, `OnlineEvalJobHandler.JudgeOneAsync`). Ad yetmez (`Stars` 1-5 olceginde bir 5, 60 esiginin altina duser ve `run.score.low` her saglikli kosumda calar) ve olcek tahmini yapilmaz. Yeni yargic: mansseti 0-100 `Numeric` ver, baska olcege baska ad. Tam metin: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) § Faz 205.
 
 ## Yarim yazilmis skor kumesi (Faz 155)
 
-**🚨 Bir yargic N satir yaziyorsa, k'inci satirdaki store hatasi KALICI bir
-eksiklik uretir.** Retry checkpoint'i (K-638) "bu yargicin `author`'uyla bir satir
-var mi" diye sorar, kac satir oldugunu sormaz. Hayatta kalan tek satir yargici
-retry'da **atlatir**: kalan metrikler bir daha hic yazilmaz, is `Completed`
-raporlanir ve hicbir `JudgeFailure` gorunmez -- sessiz veri kaybi.
-
-Cozum telafidir, transaction degil: yazma dongusu `try/catch` icindedir ve hata
-halinde `CompensateAsync` o denemede yazilan satirlari **geri alir**, boylece
-retry temiz sayfadan baslar (`UpsertAsync` idempotent oldugu icin yeniden yazim
-guvenlidir). Iki ayrinti:
-
-- Temizlik **iptal edilemez** (`CancellationToken.None`). Iptal edilen bir
-  temizlik, tam da onlemek icin var oldugu yarim kumeyi birakirdi.
-- Temizlik de basarisiz olursa **loglanir, firlatilmaz**. Store zaten yazmayi
-  reddediyor; orada firlatmak raporlanan bir yargic hatasini bir is cokusune
-  cevirirdi.
-
-**Sinif taramasi:** "N kayit yaz, sonra bir checkpoint'e guven" deseni her yerde
-ayni tuzagi tasir. Checkpoint kismi bir kumeyi tam bir kumeden ayirt edemiyorsa,
-ya telafi yaz ya da checkpoint'e tamlik bilgisi ekle.
+**🚨 N satir yazan yargicta k'inci satirdaki store hatasi KALICI eksiklik uretir**: retry checkpoint'i (K-638) "bu yargicin satiri var mi" diye sorar, kac satir oldugunu sormaz. Cozum telafidir (`CompensateAsync`, iptal edilemez, hatasi loglanir); desen: "N kayit yaz sonra checkpoint'e guven" tamlik bilgisi ya da telafi ister. Tam metin: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) § Faz 205 — `olcum-kota-ve-secenekler.md`'den.
 
 ## 🚨 Süreç API'si makineyi anlatmaz — bir rapor alanı ne okuduğunu söyler (F-220)
 

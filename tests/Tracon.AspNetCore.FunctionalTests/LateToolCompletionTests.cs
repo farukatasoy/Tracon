@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 // Same rationale as ApprovalEndpointTests.cs (K-269): the package's
 // Tracon.Testing.TraconTestHost and this project's own TraconTestHost share a
@@ -276,4 +277,270 @@ public sealed class LateToolCompletionTests
         record.LateCompletedAt.ShouldBeNull();
         record.Usage.ShouldBeNull();
     }
+
+    [Fact]
+    public async Task A_tool_that_succeeds_after_its_run_closed_has_its_amount_added_to_the_quota()
+    {
+        // F-482: the amount reaches the call's record (K-974) and never the run's snapshot,
+        // and the counter is where a tenant's ceiling is checked - so it is where this money
+        // has to land. Before, the charge was in no counter at all.
+        var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = NewRelease();
+        var quota = new EntryRecordingQuotaStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            Builder(SlowTool(async _ =>
+            {
+                await release.Task;
+
+                TraconToolUsage.Report(new ToolCallUsage
+                {
+                    Unit = ToolUsageUnits.Images,
+                    Quantity = 1m,
+                    Cost = 0.04m,
+                    Currency = "USD",
+                });
+
+                finished.TrySetResult(true);
+
+                return "report R-1 produced";
+            })),
+            configureServices: services => ConfigureQuotaHost(services, quota));
+
+        var runId = await StartAsync(host, "s-late-quota");
+
+        await host.WaitForRunStatusAsync(runId, "Completed");
+
+        // The run closed with nothing reported: its entry adds the run and no money.
+        var closed = quota.Entries.ShouldHaveSingleItem();
+
+        closed.Runs.ShouldBe(1);
+        closed.Cost.ShouldBeNull();
+
+        release.SetResult();
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+        var counter = await WaitUntil.ValueAsync(
+            () => DailyCounterAsync(host, "late-agent"),
+            static record => record.Cost == 0.04m,
+            "the late amount to reach the agent's counter",
+            TimeSpan.FromSeconds(10));
+
+        // Money and nothing else: the run was counted once, by its own entry.
+        counter.Runs.ShouldBe(1);
+        counter.Tokens.ShouldBe(0);
+
+        var entries = quota.Entries;
+        var late = entries[^1];
+
+        late.Runs.ShouldBe(0);
+        late.Tokens.ShouldBe(0);
+        late.Cost.ShouldBe(0.04m);
+
+        // The entry names the run whose tool spent it, which is what a threshold webhook shows.
+        late.RunId.ShouldBe(runId.ToString());
+
+        // The run's snapshot is the one K-974 froze at its close.
+        var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull();
+        run.NonTokenCost.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_tool_that_reported_in_time_and_returns_late_is_counted_once()
+    {
+        // The double-count guard. The amount is in the run's total (the tool reported before
+        // the run closed) and in the call's record; the late write must find it already
+        // counted. Reading the call's record instead of the accumulator would add it twice.
+        var reported = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = NewRelease();
+        var quota = new EntryRecordingQuotaStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            Builder(SlowTool(async _ =>
+            {
+                TraconToolUsage.Report(new ToolCallUsage
+                {
+                    Unit = ToolUsageUnits.Images,
+                    Quantity = 1m,
+                    Cost = 0.04m,
+                    Currency = "USD",
+                });
+
+                reported.TrySetResult(true);
+
+                // Ignores the cancellation the timeout requests, as a body that never reads its token does.
+                await release.Task;
+
+                return "report R-1 produced";
+            })),
+            configureServices: services => ConfigureQuotaHost(services, quota));
+
+        var runId = await StartAsync(host, "s-late-once");
+
+        await host.WaitForRunStatusAsync(runId, "Completed");
+        await reported.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+        release.SetResult();
+        await WaitForLateSettlementAsync(host, runId);
+
+        // The observer that decides whether a late write is due has run (the record is
+        // written after it); a wrong write would be one more entry. A short window follows
+        // the proof, since the entry is written without anything waiting for it.
+        await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: negative
+
+        var only = quota.Entries.ShouldHaveSingleItem();
+
+        only.Runs.ShouldBe(1);
+        only.Cost.ShouldBe(0.04m);
+
+        (await DailyCounterAsync(host, "late-agent")).Cost.ShouldBe(0.04m);
+    }
+
+    [Fact]
+    public async Task A_tool_that_reports_a_larger_total_after_its_run_closed_adds_only_the_difference()
+    {
+        // The last report of a call replaces the earlier ones: 0.02 in time is in the run's
+        // total, 0.05 as the final total after the run closed adds the 0.03 the total lacks.
+        // Adding the whole 0.05 would put 0.07 in a counter for a call that cost 0.05.
+        var reportedInTime = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = NewRelease();
+        var quota = new EntryRecordingQuotaStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            Builder(SlowTool(async _ =>
+            {
+                TraconToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Images, Quantity = 1m, Cost = 0.02m, Currency = "USD" });
+                reportedInTime.TrySetResult(true);
+
+                await release.Task;
+
+                TraconToolUsage.Report(new ToolCallUsage { Unit = ToolUsageUnits.Images, Quantity = 2m, Cost = 0.05m, Currency = "USD" });
+                finished.TrySetResult(true);
+
+                return "report R-1 produced";
+            })),
+            configureServices: services => ConfigureQuotaHost(services, quota));
+
+        var runId = await StartAsync(host, "s-late-difference");
+
+        await host.WaitForRunStatusAsync(runId, "Completed");
+        await reportedInTime.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+        quota.Entries.ShouldHaveSingleItem().Cost.ShouldBe(0.02m);
+
+        release.SetResult();
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+        var counter = await WaitUntil.ValueAsync(
+            () => DailyCounterAsync(host, "late-agent"),
+            static record => record.Cost == 0.05m,
+            "the difference to reach the agent's counter",
+            TimeSpan.FromSeconds(10));
+
+        counter.Runs.ShouldBe(1);
+
+        var entries = quota.Entries;
+
+        entries.Count.ShouldBe(2);
+        entries[1].Runs.ShouldBe(0);
+        entries[1].Cost.ShouldBe(0.03m);
+    }
+
+    [Fact]
+    public async Task A_late_amount_in_another_currency_than_the_run_is_in_no_counter()
+    {
+        // The rule of what adds is the live report's (K-972): an amount in a currency the quota
+        // does not count is listed on the call and never summed.
+        var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = NewRelease();
+        var quota = new EntryRecordingQuotaStore();
+
+        await using var host = await TraconTestHost.StartAsync(
+            Builder(SlowTool(async _ =>
+            {
+                await release.Task;
+
+                TraconToolUsage.Report(new ToolCallUsage
+                {
+                    Unit = ToolUsageUnits.Images,
+                    Quantity = 1m,
+                    Cost = 9m,
+                    Currency = "EUR",
+                });
+
+                finished.TrySetResult(true);
+
+                return "report R-1 produced";
+            })),
+            configureServices: services => ConfigureQuotaHost(services, quota));
+
+        var runId = await StartAsync(host, "s-late-eur");
+
+        await host.WaitForRunStatusAsync(runId, "Completed");
+        release.SetResult();
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        await WaitForLateSettlementAsync(host, runId);
+        await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: negative
+
+        quota.Entries.ShouldHaveSingleItem().Cost.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_quota_store_that_cannot_write_the_late_amount_leaves_the_call_record_written()
+    {
+        var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = NewRelease();
+        var quota = new EntryRecordingQuotaStore { FailWhen = static entry => entry.Runs == 0 };
+
+        await using var host = await TraconTestHost.StartAsync(
+            Builder(SlowTool(async _ =>
+            {
+                await release.Task;
+
+                TraconToolUsage.Report(new ToolCallUsage
+                {
+                    Unit = ToolUsageUnits.Images,
+                    Quantity = 1m,
+                    Cost = 0.04m,
+                    Currency = "USD",
+                });
+
+                finished.TrySetResult(true);
+
+                return "report R-1 produced";
+            })),
+            configureServices: services => ConfigureQuotaHost(services, quota));
+
+        var runId = await StartAsync(host, "s-late-store-fault");
+
+        await host.WaitForRunStatusAsync(runId, "Completed");
+        release.SetResult();
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+        // Observability does not break functionality: the call's record still gets its late result.
+        var settled = await WaitForLateSettlementAsync(host, runId);
+
+        settled.Usage.ShouldNotBeNull().Cost.ShouldBe(0.04m);
+
+        await WaitUntil.TrueAsync(
+            () => host.Logs.AllText.Contains("Could not write quota consumption", StringComparison.Ordinal),
+            "the failed quota write to be logged");
+
+        (await DailyCounterAsync(host, "late-agent")).Cost.ShouldBe(0m);
+    }
+
+    private static void ConfigureQuotaHost(IServiceCollection services, EntryRecordingQuotaStore quota)
+    {
+        services.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20));
+        services.Configure<TraconOptions>(static options => options.Pricing.Currency = "USD");
+        services.AddSingleton<IQuotaStore>(quota);
+    }
+
+    private static async Task<QuotaUsageRecord> DailyCounterAsync(TraconTestHost host, string agentName)
+        => (await host.Services.GetRequiredService<IQuotaStore>().GetUsageAsync(new QuotaUsageQuery
+        {
+            TenantId = host.Services.GetRequiredService<IOptions<TraconOptions>>().Value.DefaultTenantId,
+            AgentName = agentName,
+        })).Single(static record => record.Period == QuotaPeriod.Daily);
 }
