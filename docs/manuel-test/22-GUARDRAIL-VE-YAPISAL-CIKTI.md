@@ -1,6 +1,6 @@
 # 22 — Guardrail ve Yapılandırılmış Çıktı (`GUARD`)
 
-> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134, 140
+> **Alan kodu:** `GUARD` · **Faz:** 38, 48, 131, 134, 140, 207
 > **Kaynak:** `src/Tracon.Abstractions/Agents/ResponseFormat.cs` ·
 > `Agents/ModelBinding.cs` (`ResponseFormat` alanı) ·
 > `Models/ModelDescriptor.cs` (`SupportsStructuredOutput` alanı) ·
@@ -2585,3 +2585,79 @@ ile reddediyor, run onayı bekleyemeden `Failed` oluyordu.
 - Adım 1: run `AwaitingApproval`; `StructuredResponseRejected` olayı yok.
 - Adım 2: devam turunun JSON yanıtı doğrulanır (geçersizse reddedilir).
 - 🚨 Eski kusur: adım 1'de run `Failed`, `structured_response_invalid`.
+
+---
+
+### MT-GUARD-114 — Kesilen düz metin canlı akışta `done`'dan önce `custom` çerçevesiyle bildirilir
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 207 |
+| **İlgili karar** | K-991 |
+| **Devir** | ➜ CI: `OutputTruncationStreamingTests.A_streamed_plain_text_response_cut_at_the_limit_sends_the_notice_before_done` |
+
+**Ön koşul**
+- MT-GUARD-111'in ön koşulu: örnek uygulama Development'ta, Anthropic anahtarıyla
+  çalışıyor; `manuel-kesilen-metin` agent'ı (`maxOutputTokens: 50`) kayıtlı.
+
+**Adımlar**
+1. Agent'ı `Idempotency-Key` **olmadan** (akışlı) çalıştır, akışı dosyaya yaz.
+2. Run'ın kayıtlı olaylarını oku ve iki `custom` çerçevesinin `data`'sını kıyasla.
+
+**Girilecek veri**
+```bash
+A=manuel-kesilen-metin
+curl -s -N -X POST "$APU/api/agents/$A/run" -H "$APB" -H "content-type: application/json" \
+     -d '{"message":"How does a library work?"}' > akis.txt
+grep -E '^event:' akis.txt | uniq -c | tail -3
+RUN=$(curl -s "$APU/api/runs?agentName=$A" -H "$APB" | jq -r '.[0].id')
+curl -s "$APU/api/runs/$RUN/events" -H "$APB" > olaylar.txt
+grep -A1 '^event: custom' akis.txt | grep '^data:' > a.txt
+grep -A1 '^event: custom' olaylar.txt | grep '^data:' > b.txt
+cmp a.txt b.txt && echo ayni
+```
+
+**Beklenen sonuç**
+- Akışın son üç çerçevesi `update` · `custom` · `done`'dur; `error` yoktur.
+- `custom` verisi `"customType":"tracon.output.truncated"` taşır; yükü `provider: anthropic`,
+  `maxOutputTokens: 50`, `cause: output_limit` taşır ve yanıt metnini taşımaz.
+- `cmp` farkı yoktur (`ayni`): canlı çerçeve kayıtlı olayla bayt bayt aynıdır.
+- Run `Completed`, `error: null`.
+- Not: `update` verisi girintili JSON'dur ve birden çok `data:` satırına yayılır;
+  `custom` tek satırdır.
+
+> **Koşum (2026-10-14, Faz 207 kapanışı):** ✅ — 29 `update`, sonra `custom` ve `done`;
+> `cmp` aynı; run `Completed`.
+
+---
+
+### MT-GUARD-115 — Tam yanıtın canlı akışında `custom` çerçevesi yoktur
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 207 |
+| **İlgili karar** | K-991 |
+| **Devir** | ➜ CI: `OutputTruncationStreamingTests.A_complete_streamed_response_sends_no_notice` |
+
+**Ön koşul**
+- Örnek uygulama Anthropic anahtarıyla çalışıyor.
+
+**Adımlar**
+1. Çıktı sınırı olmayan bir agent kaydet ve kısa bir soruyla akışlı çalıştır.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
+     -d '{"name":"manuel-kisa-yanit","instructions":"Answer in one short sentence.","model":{"provider":"anthropic","model":"claude-haiku-4-5-20251001"}}'
+curl -s -N -X POST "$APU/api/agents/manuel-kisa-yanit/run" -H "$APB" -H "content-type: application/json" \
+     -d '{"message":"What is 2+2?"}' | grep -E '^event:' | sort | uniq -c
+```
+
+**Beklenen sonuç**
+- Çerçeveler yalnız `run`, `update` ve `done`'dur; `custom` yoktur.
+
+> **Koşum (2026-10-14, Faz 207 kapanışı):** ✅ — `run` · 8 `update` · `done`.

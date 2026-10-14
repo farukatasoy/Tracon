@@ -241,6 +241,7 @@ for await (const frame of readSse(response)) {
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
+| Cut-off answer | no: `status` stays `completed` | `finish_reason: "length"` | See below |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 
@@ -251,6 +252,16 @@ none, so nobody could ever answer it. The run closes as `Failed`, and the caller
 `200`, an `error` frame of that type and no `[DONE]`. Run such an agent through
 `/v1/responses` with a conversation, or through `POST /api/agents/{name}/run` with a
 `sessionId`.
+
+Chat Completions sets `finish_reason` from the answer's final model call, on the JSON
+response and on the last chunk of a stream (`data: [DONE]` still follows). An answer
+the model cut off at its output token limit or its context window is `"length"`; an
+answer a content filter cut off after it produced text is `"content_filter"`; anything
+else is `"stop"`. Tools run on the server, so a tool turn's `tool_calls` reason is never
+reported. The value does not depend on run recording. The Responses endpoint does not
+mark a cut-off answer `incomplete` yet: its `status` reads `completed`, and the run's
+`tracon.output.truncated` event is the only signal there
+(see [Truncated output](/concepts/runs/#truncated-output)).
 
 Fields understood by the OpenAI parser can be accepted without becoming a
 Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service
