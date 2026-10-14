@@ -1081,7 +1081,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`WorkflowResumeHttpRequest.DefinitionVersion`, `WorkflowRespondHttpRequest.DefinitionVersion`,
   `WorkflowResumeRequest.DefinitionVersion`, `WorkflowRespondRequest.DefinitionVersion`) names the
   stored version to continue with. A version the workflow does not have is `400` before a stream
-  opens or a job is queued, and fails the run when the engine is called directly; a run is never
+  opens or a job is queued, and throws before any run row is opened when the engine is called directly; a run is never
   continued with the current definition in its place. A queued resume and a queued response carry it.
 - `WorkflowNodeReference.AgentVersion` pins an agent step to one version of that agent. The step
   runs that version's instructions, model and tools while the agent is edited, and its child run
