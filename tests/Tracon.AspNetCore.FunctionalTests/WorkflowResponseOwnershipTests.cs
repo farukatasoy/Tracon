@@ -1,4 +1,6 @@
 using System.Net;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -421,6 +423,228 @@ public sealed class WorkflowResponseOwnershipTests
         queuedAgain.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_queued_answer_whose_job_was_never_written_is_finished_by_the_same_answer(bool queuedRepeat)
+    {
+        // Second-round audit: the queued answer's row and record were written, its job was not.
+        // A process that stops between the record and the enqueue leaves exactly this; here the
+        // queue refuses the job and the run store cannot close the row either. Run reconciliation
+        // reads only Running rows and a Queued run with no job cannot be cancelled, so the repeat
+        // of the same answer is the one thing that can still move the request: it writes the
+        // missing job (maintainer decision 2026-10-14).
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(runWorker: false, configureTracon: static builder => StopBeforeTheJob(builder.Services));
+        var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+        var head = await QueuedAnswerWithNoJobAsync(host, sourceId, requestId);
+
+        if (queuedRepeat)
+        {
+            using var repeat = await QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true });
+
+            (await QueuedWorkflowHarness.AcceptedRunIdAsync(repeat)).ShouldBe(head);
+            (await QueuedWorkflowHarness.JobsAsync(host)).ShouldHaveSingleItem().Id.ShouldBe(head);
+            (await QueuedWorkflowHarness.FinishWithWorkerAsync(host, head)).Status.ShouldBe(JobStatus.Completed);
+        }
+        else
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var repeat = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
+
+            (await QueuedWorkflowHarness.JobsAsync(host)).ShouldHaveSingleItem().Id.ShouldBe(head);
+
+            var reading = FramesAsync(repeat);
+
+            (await QueuedWorkflowHarness.FinishWithWorkerAsync(host, head)).Status.ShouldBe(JobStatus.Completed);
+
+            var frames = await reading;
+
+            RunIdOf(frames).ShouldBe(head);
+            frames[^1].Event.ShouldBe("done");
+            frames.ShouldContain(static frame => frame.Data.Contains("\"WorkflowOutput\"", StringComparison.Ordinal));
+        }
+
+        (await host.WaitForTerminalRunAsync(head)).Status.ShouldBe(RunStatus.Completed);
+        (await AppliedRunsAsync(host)).ShouldBe([head]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Two_repeats_that_both_find_the_job_missing_write_it_once(bool sqlite)
+    {
+        // The rewrite relies on the queue refusing a second job with the same id (the job id is
+        // the run id); JobStoreContract measures that refusal on every store. Both repeats read
+        // the job as missing before either writes it, so both write: one write wins, the other is
+        // refused, reads the job back and answers with it, and leaves the row alone.
+        using var database = sqlite ? new TempSqliteDatabase("faz208-missing-job") : null;
+        var reads = new JobReadBarrier();
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(
+            runWorker: false,
+            configureTracon: builder =>
+            {
+                if (database is not null)
+                {
+                    builder.UseSqlite(database.ConnectionString);
+                }
+
+                StopBeforeTheJob(builder.Services);
+                reads.Wrap(builder.Services);
+            });
+        var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+        var head = await QueuedAnswerWithNoJobAsync(host, sourceId, requestId);
+
+        reads.Arm(head, arrivals: 2);
+
+        var responses = await Task.WhenAll(
+            QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true }, idempotencyKey: "repeat-1"),
+            QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true }, idempotencyKey: "repeat-2"));
+
+        reads.Released.ShouldBeTrue("the two repeats did not both read the job as missing");
+
+        foreach (var response in responses)
+        {
+            (await QueuedWorkflowHarness.AcceptedRunIdAsync(response)).ShouldBe(head);
+            response.Dispose();
+        }
+
+        (await QueuedWorkflowHarness.JobsAsync(host)).ShouldHaveSingleItem().Id.ShouldBe(head);
+        (await QueuedWorkflowHarness.FinishWithWorkerAsync(host, head)).Status.ShouldBe(JobStatus.Completed);
+        (await host.WaitForTerminalRunAsync(head)).Status.ShouldBe(RunStatus.Completed);
+        (await AppliedRunsAsync(host)).ShouldBe([head]);
+    }
+
+    [Fact]
+    public async Task A_follower_of_a_run_that_never_started_ends_with_an_error_not_done()
+    {
+        // The first answer's run row and claim are written; its caller goes away before the
+        // engine starts, so its stream closes the row Canceled with no events. A repeat that began
+        // following while the row was still Running must not report that as success.
+        var gate = new ClaimGateStore(holdAfterWrite: true);
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(configureServices: services =>
+            services.AddSingleton<IWorkflowResponseStore>(provider => gate.Wrap(provider)));
+        var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+        var before = (await WorkflowRunsAsync(host)).Select(static run => run.Id).ToHashSet();
+
+        using var abort = new CancellationTokenSource();
+        var first = RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: abort.Token);
+
+        await gate.Reached.Task.WaitAsync(TimeSpan.FromSeconds(30));
+
+        var head = (await WorkflowRunsAsync(host)).Single(run => !before.Contains(run.Id)).Id;
+
+        // The follower's headers arrive once it is past its decision: it follows the Running row.
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var follower = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
+        var reading = FramesAsync(follower);
+
+        await abort.CancelAsync();
+        gate.Release.SetResult();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => (await first).Dispose());
+
+        var frames = await reading;
+        var run = await host.WaitForTerminalRunAsync(head);
+
+        run.Status.ShouldBe(RunStatus.Canceled);
+        (await StoredEventsAsync(host, head)).ShouldBeEmpty();
+        RunIdOf(frames).ShouldBe(head);
+        frames.ShouldNotContain(static frame => frame.Event == "done");
+        frames[^1].Event.ShouldBe("error");
+        frames[^1].Data.ShouldContain("never started", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_follower_whose_run_was_erased_while_it_followed_ends_with_an_error_not_done()
+    {
+        // The queued answer's job waits (the worker is off), so a streamed repeat follows its
+        // Queued row. A data subject erasure removes the row; the follower must say so.
+        using var database = new TempSqliteDatabase("faz208-follow-erased");
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(
+            runWorker: false,
+            configureTracon: builder => builder.UseSqlite(database.ConnectionString));
+        var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+
+        using var queued = await QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true });
+        var head = await QueuedWorkflowHarness.AcceptedRunIdAsync(queued);
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var follower = await RespondAsync(host, sourceId, new { requestId, approved = true }, cancellationToken: timeout.Token);
+        var reading = FramesAsync(follower);
+
+        await host.Services.GetRequiredService<IDataSubjectStore>().EraseAsync(
+            QueuedWorkflowHarness.TenantOf(host),
+            new DataSubjectScope { SessionIds = [], RunIds = [head], ConversationIds = [] },
+            static (_, _) => default);
+
+        var frames = await reading;
+
+        RunIdOf(frames).ShouldBe(head);
+        frames.ShouldNotContain(static frame => frame.Event == "done");
+        frames[^1].Event.ShouldBe("error");
+        frames[^1].Data.ShouldContain("no longer exists", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// Makes the first queued answer leave what a process that stopped between its record and its
+    /// enqueue leaves: the queue refuses the job, and the run store cannot close the Queued row.
+    /// </summary>
+    private static void StopBeforeTheJob(IServiceCollection services)
+    {
+        services.ThrowFrom<IJobStore>(
+            nameof(IJobStore.EnqueueAsync),
+            static () => new ProcessStoppedException(),
+            times: 1,
+            when: static args => args[0] is JobRecord { HandlerKey: JobHandlerKeys.WorkflowRun });
+        services.ThrowFrom<IRunStore>(
+            nameof(IRunStore.CompleteRunAsync),
+            static () => new ProcessStoppedException(),
+            times: 1,
+            when: static args => args[0] is RunCompletion { Error.Type: nameof(ProcessStoppedException) });
+    }
+
+    /// <summary>
+    /// Queues an answer on a host made with <see cref="StopBeforeTheJob"/> and checks the state it
+    /// leaves: one Queued row, a record that names it, and no job.
+    /// </summary>
+    private static async Task<Guid> QueuedAnswerWithNoJobAsync(TraconTestHost host, Guid sourceId, string requestId)
+    {
+        try
+        {
+            using var first = await QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true });
+
+            first.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
+        }
+        catch (Exception exception) when (exception is not ShouldAssertException)
+        {
+            // The test host has no exception handler: the 500 arrives as the exception.
+        }
+
+        var head = (await WorkflowRunsAsync(host)).Where(static run => run.Status == RunStatus.Queued).ShouldHaveSingleItem().Id;
+
+        (await RecordsAsync(host, sourceId)).ShouldHaveSingleItem().ResponseRunId.ShouldBe(head);
+        (await QueuedWorkflowHarness.JobsAsync(host)).ShouldBeEmpty();
+
+        return head;
+    }
+
+    /// <summary>The events stored for a run.</summary>
+    private static async Task<List<RunEvent>> StoredEventsAsync(TraconTestHost host, Guid runId)
+    {
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in host.Services.GetRequiredService<IRunStore>().ReadEventsAsync(runId, 0))
+        {
+            events.Add(runEvent);
+        }
+
+        return events;
+    }
+
     /// <summary>
     /// Queues an answer (the host's worker is off), then stops its run the way a crash or an
     /// operator does and finishes its job, so nothing owns the work any more.
@@ -594,14 +818,19 @@ public sealed class WorkflowResponseOwnershipTests
         }
     }
 
-    /// <summary>Holds the first claim write until the test releases it.</summary>
-    private sealed class ClaimGateStore
+    /// <summary>
+    /// Holds the first claim write until the test releases it: before the write, or, with
+    /// <c>holdAfterWrite</c>, after it (the claim is stored, its caller has not moved on).
+    /// </summary>
+    private sealed class ClaimGateStore(bool holdAfterWrite = false)
     {
         private int _held;
 
         public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private bool HoldAfterWrite => holdAfterWrite;
 
         public IWorkflowResponseStore Wrap(IServiceProvider provider)
             => new Store(this, new InMemoryWorkflowResponseStore(provider.GetRequiredService<ITenantContext>()));
@@ -610,13 +839,27 @@ public sealed class WorkflowResponseOwnershipTests
         {
             public async ValueTask<WorkflowResponseClaim> AddAsync(WorkflowResponseRecord record, CancellationToken cancellationToken = default)
             {
-                if (Interlocked.Exchange(ref gate._held, 1) == 0)
+                var hold = Interlocked.Exchange(ref gate._held, 1) == 0;
+
+                if (hold && !gate.HoldAfterWrite)
                 {
-                    gate.Reached.TrySetResult();
-                    await gate.Release.Task.WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
+                    await HoldAsync();
                 }
 
-                return await inner.AddAsync(record, cancellationToken);
+                var claim = await inner.AddAsync(record, cancellationToken);
+
+                if (hold && gate.HoldAfterWrite)
+                {
+                    await HoldAsync();
+                }
+
+                return claim;
+            }
+
+            private async Task HoldAsync()
+            {
+                gate.Reached.TrySetResult();
+                await gate.Release.Task.WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
             }
 
             public ValueTask<WorkflowResponseRecord?> FindClaimAsync(string claimScope, string requestId, CancellationToken cancellationToken = default)
@@ -633,6 +876,107 @@ public sealed class WorkflowResponseOwnershipTests
 
             public ValueTask<WorkflowResponseRecord?> GetAsync(Guid responseRunId, CancellationToken cancellationToken = default)
                 => inner.GetAsync(responseRunId, cancellationToken);
+        }
+    }
+
+    /// <summary>A fault that stands for a process that stopped in the middle of a request.</summary>
+    private sealed class ProcessStoppedException() : Exception("The process stopped.");
+
+    /// <summary>
+    /// Holds the job reads of one run until a set number of callers arrived, so every one of them
+    /// reads the job as missing before any of them writes it.
+    /// </summary>
+    internal sealed class JobReadBarrier
+    {
+        private readonly TaskCompletionSource _all = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private Guid _jobId;
+        private int _arrivals;
+        private int _arrived;
+        private volatile bool _armed;
+
+        /// <summary>Gets whether the set number of callers arrived and were let through together.</summary>
+        public bool Released => _all.Task.IsCompletedSuccessfully;
+
+        public void Arm(Guid jobId, int arrivals)
+        {
+            _jobId = jobId;
+            _arrivals = arrivals;
+            _armed = true;
+        }
+
+        /// <summary>Replaces the last <see cref="IJobStore"/> registration with one whose reads wait here.</summary>
+        public void Wrap(IServiceCollection services)
+        {
+            var descriptor = services.Last(static candidate => candidate.ServiceType == typeof(IJobStore));
+
+            services.Add(ServiceDescriptor.Describe(
+                typeof(IJobStore),
+                provider => JobReadBarrierProxy.Create(FaultInjection.Resolve<IJobStore>(provider, descriptor), this),
+                descriptor.Lifetime));
+        }
+
+        internal bool Holds(Guid jobId) => _armed && jobId == _jobId;
+
+        internal async Task WaitAsync()
+        {
+            if (Interlocked.Increment(ref _arrived) >= _arrivals)
+            {
+                _armed = false;
+                _all.TrySetResult();
+            }
+
+            await _all.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+    }
+
+    /// <summary>The forwarding proxy behind <see cref="JobReadBarrier"/>.</summary>
+#pragma warning disable CA1852 // DispatchProxy derives a runtime type from this class; it cannot be sealed.
+    internal class JobReadBarrierProxy : DispatchProxy
+#pragma warning restore CA1852
+    {
+        private IJobStore _inner = null!;
+        private JobReadBarrier _barrier = null!;
+
+        internal static IJobStore Create(IJobStore inner, JobReadBarrier barrier)
+        {
+            var proxy = Create<IJobStore, JobReadBarrierProxy>();
+            var self = (JobReadBarrierProxy)(object)proxy;
+
+            self._inner = inner;
+            self._barrier = barrier;
+
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            ArgumentNullException.ThrowIfNull(targetMethod);
+
+            if (string.Equals(targetMethod.Name, nameof(IJobStore.GetAsync), StringComparison.Ordinal)
+                && args is [string tenantId, Guid jobId, CancellationToken token]
+                && _barrier.Holds(jobId))
+            {
+                return new ValueTask<JobRecord?>(GetAfterBarrierAsync(tenantId, jobId, token));
+            }
+
+            try
+            {
+                return targetMethod.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException exception) when (exception.InnerException is { } inner)
+            {
+                ExceptionDispatchInfo.Capture(inner).Throw();
+                throw;
+            }
+        }
+
+        private async Task<JobRecord?> GetAfterBarrierAsync(string tenantId, Guid jobId, CancellationToken token)
+        {
+            var job = await _inner.GetAsync(tenantId, jobId, token);
+
+            await _barrier.WaitAsync();
+
+            return job;
         }
     }
 }

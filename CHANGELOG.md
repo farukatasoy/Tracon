@@ -828,12 +828,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   answers that arrive together may both open a run before one of them claims the request:
   the other closes its own run as `Canceled` with the error type `request_already_answered`
   and no events (no webhook, metric or event sink fires for it), and its audit entry names
-  that run. A waiting run is answered under the mode of the definition version it recorded.
-  `Branch` keeps opening a new run for every answer. **Known limit:** when a process stops
-  in the middle of a streamed `SingleAnswer` run, the run stays `Running` and a repeat of the
-  answer follows it forever; only run reconciliation (`Tracon:RunReconciliation:Enabled`,
-  off by default) closes it. Turn reconciliation on where such a request must stay
-  answerable after a crash.
+  that run. That run is still a run: it is listed by `GET /api/runs` and counted in
+  `RunStatistics.CanceledRuns`, so it is part of the `ErrorRate` denominator. A waiting run is
+  answered under the mode of the definition version it recorded. `Branch` keeps opening a new
+  run for every answer. A queued `SingleAnswer` answer whose job was never written (the
+  process stopped after the answer was recorded and before the job was queued, or the queue
+  refused the job and its `Queued` run could not be closed) is finished by a repeat of the
+  same answer: the repeat writes the job and follows the run, and two repeats at the same
+  time write it once. **Known limit:** when a process stops in the middle of a streamed
+  `SingleAnswer` run, the run stays `Running` and a repeat of the answer follows it forever.
+  Only run reconciliation (`Tracon:RunReconciliation:Enabled`, off by default) closes it:
+  reconciliation closes `Running` runs whose heartbeat stopped and reads no `Queued` run.
+  Turn reconciliation on where such a request must stay answerable after a crash.
 - `GET /api/workflows/runs/{runId}/responses` lists the answers given to a run's requests:
   who answered, when, the run each answer started and its state. The records live in the
   new `IWorkflowResponseStore` (in memory by default; the new `workflow_responses` table
@@ -1258,9 +1264,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and the answer's record is written before the run is handed over. **Behavior change:**
   when the record cannot be written (`workflow_responses` unavailable), the answer is
   refused with `500` and the opened run is closed `Failed` with the error type
-  `answer_not_recorded` and no events; before, the answer was not recorded at all. Every
+  `answer_not_recorded` and no events; before, the answer was not recorded at all. A run
+  store that cannot open the row refuses the streamed answer with `500` too; before, the
+  engine's run writer logged that failure and the run went on unrecorded. Every
   run an answer starts now carries `WorkflowResponseApplied` at sequence 1, so its later
   events are numbered one higher than before.
+- **Behavior change:** the in-memory job store (the default `IJobStore`) refuses a job whose
+  id is already queued, as the PostgreSQL, SQL Server and SQLite stores' primary key does;
+  before, it replaced the queued job, which could set a leased job back to `Pending`. The
+  `IJobStore.EnqueueAsync` documentation now states the refusal, and `JobStoreContract`
+  checks it with a new case. A queued run whose enqueue is refused because its job is
+  already there (another call wrote it) is no longer closed as `Failed`; the call answers
+  with the job that is there.
 - `AddWorkflow(builder, name, factory, string? description = null)` is now two overloads,
   `AddWorkflow(builder, name, factory)` and `AddWorkflow(builder, name, factory, string? description)`,
   beside the new one that takes `Action<WorkflowRegistrationOptions>`. Every call compiles

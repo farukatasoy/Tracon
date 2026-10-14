@@ -1314,6 +1314,35 @@ internal static class WorkflowEndpoints
                 cancellationToken)
             .ConfigureAwait(false);
 
+        if (decision is { Outcome: WorkflowResponseGate.Outcome.Follow, MissingJob: true })
+        {
+            // The first answer's row and record were written and its job never was: the process
+            // stopped between them, or the queue refused the job and the row could not be closed.
+            // Nothing else moves that run, so this repeat writes the job (the approval inbox's
+            // "repeating the decision writes the missing job"). The queue refuses a second job with
+            // the run's id, so two repeats doing this at once queue it once.
+            await WriteMissingJobAsync(
+                    decision.RunId,
+                    new WorkflowRunJobRequest
+                    {
+                        Operation = WorkflowRunJobPayload.RespondOperation,
+                        RunId = decision.RunId,
+                        SessionId = source.SessionId,
+                        SourceRunId = runId,
+                        CheckpointId = request.CheckpointId,
+                        DefinitionVersion = request.DefinitionVersion,
+                        RequestId = request.RequestId,
+                        Approved = request.Approved,
+                        Text = request.Text,
+                        Json = respondRequest.Json,
+                    },
+                    source.WorkflowName!,
+                    runs,
+                    tenants,
+                    httpContext)
+                .ConfigureAwait(false);
+        }
+
         switch (decision.Outcome)
         {
             case WorkflowResponseGate.Outcome.Conflict:
@@ -1569,18 +1598,36 @@ internal static class WorkflowEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
+        var job = await WriteJobAsync(operation, workflowName, tenants, attribution, httpContext, cancellationToken)
+            .ConfigureAwait(false);
+
+        return Accepted(operation.RunId, job.Id, prefix, httpContext);
+    }
+
+    /// <summary>
+    /// Writes the job of a run whose <see cref="RunStatus.Queued"/> row is already open. A queue
+    /// that refuses the job closes the row as <see cref="RunStatus.Failed"/>; a job another call
+    /// already wrote is returned as written (<c>QueuedRunPlaceholder</c>).
+    /// </summary>
+    private static async Task<JobRecord> WriteJobAsync(
+        WorkflowRunJobRequest operation,
+        string workflowName,
+        ITenantContext tenants,
+        (string? UserId, IReadOnlyDictionary<string, string>? Labels) attribution,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
         var services = httpContext.RequestServices;
         var asyncOptions = services.GetRequiredService<IOptionsMonitor<TraconAsyncRunOptions>>().CurrentValue;
         var recoveryPolicy = services.GetService<IWorkflowRecoveryPolicy>();
-        var runId = operation.RunId;
         var now = DateTimeOffset.UtcNow;
 
-        var job = await QueuedRunPlaceholder.EnqueueAsync(
+        return await QueuedRunPlaceholder.EnqueueAsync(
             services.GetRequiredService<IJobStore>(),
             services.GetRequiredService<IRunStore>(),
             new JobRecord
             {
-                Id = runId,
+                Id = operation.RunId,
                 TenantId = tenants.TenantId,
                 HandlerKey = JobHandlerKeys.WorkflowRun,
                 Lane = JobLanes.Default,
@@ -1597,8 +1644,57 @@ internal static class WorkflowEndpoints
             [],
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.WorkflowEndpoints"),
             cancellationToken).ConfigureAwait(false);
+    }
 
-        return Accepted(runId, job.Id, prefix, httpContext);
+    /// <summary>
+    /// Writes the job of a single-answer run whose <see cref="RunStatus.Queued"/> row and record
+    /// exist but whose job was never written, so the repeat of the answer moves the request again.
+    /// </summary>
+    /// <param name="runId">The queued run; its job carries the same id.</param>
+    /// <param name="operation">The answer, as the repeat gave it.</param>
+    /// <param name="workflowName">The workflow.</param>
+    /// <param name="runs">The run store.</param>
+    /// <param name="tenants">The tenant context.</param>
+    /// <param name="httpContext">The request's context.</param>
+    /// <returns>A task that completes when the job is written.</returns>
+    /// <remarks>
+    /// <para>
+    /// The attribution comes from the run's row, not from the repeat: the row is the first
+    /// answer's, and its user is the one the run is counted for (the approval inbox's resume
+    /// inherits it the same way). The checkpoint and the definition version are the repeat's:
+    /// the first answer's were never stored, and they are not part of what makes two answers the
+    /// same (<c>WorkflowAnswerDigest</c>).
+    /// </para>
+    /// <para>
+    /// No audit entry is written: the first answer's <c>workflow.respond</c> entry already names
+    /// this run, and the job only hands that run over. Every write uses
+    /// <see cref="CancellationToken.None"/>; a caller who goes away must not leave it half done.
+    /// </para>
+    /// </remarks>
+    private static async Task WriteMissingJobAsync(
+        Guid runId,
+        WorkflowRunJobRequest operation,
+        string workflowName,
+        IRunStore runs,
+        ITenantContext tenants,
+        HttpContext httpContext)
+    {
+        var row = await runs.GetRunAsync(runId, CancellationToken.None).ConfigureAwait(false);
+
+        httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Tracon.WorkflowEndpoints")
+            .LogWarning(
+                "Queued run {RunId} had a recorded answer but no job; a repeat of the answer writes the job.",
+                runId);
+
+        await WriteJobAsync(
+                operation,
+                workflowName,
+                tenants,
+                (row?.UserId, row?.Labels),
+                httpContext,
+                CancellationToken.None)
+            .ConfigureAwait(false);
     }
 
     /// <summary>

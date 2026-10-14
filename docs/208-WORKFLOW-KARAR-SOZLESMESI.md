@@ -559,6 +559,8 @@ Uygulama günlüğünde hata yoktu.
 - **🟡4 → `Branch` de önce satır.** Kuyruk yolunda `QueueAsync` kayıttan sonra düşerse kalan sarkık kayıt sorunu, satır kayıttan önce açıldığı için kapandı: iş kuyruğa giremezse `QueuedRunPlaceholder` satırı `Failed` kapatır, kayıt kapanmış bir run'ı adlandırır.
 - **🟡5 → metin düzeltildi.** Kaydı yalnız veri sahibi silmesi kaynak run'la birlikte siler; hiçbir saklama hedefi `runs` silmez. `IWorkflowResponseStore` XML, `CHANGELOG` ve PostgreSQL `0060` yorumu düzeltildi (yorum değişikliği migration checksum'ını değiştirir; dosya yayımlanmadı, `applied-migrations.json` yeni commit'e ankrajlandı — bu dalın eski `0060`'ını uygulamış bir veritabanı açılışta checksum hatası verir ve sıfırlanmalıdır). Sınırsız büyüme kapanışta aday; Faz 209 kendi izdüşümünün saklamasını taşır.
 
+- **İkinci tur 🟡1 → eksik işi yaz (bakımcı kararı, 2026-10-14).** Kuyruklu `SingleAnswer` cevabının satırı (`Queued`) ve kaydı yazılmış, işi yazılmamışsa (süreç kayıt ile kuyruğa yazım arasında durdu; ya da kuyruk işi reddetti ve satır da kapatılamadı) istek kalıcı kilitleniyordu: uzlaştırma yalnız `Running` satır okur (`PostgresQueries` yetim sorgusu), işi olmayan `Queued` run iptal edilemez (`409`). Kural: izleme kararı tek run'lık, `Queued`, işi OLMAYAN (iş kimliği = run kimliği) bir zincir başı görürse eksik işi yazar (`Decision.MissingJob` → `WorkflowEndpoints.WriteMissingJobAsync`); emsal onay kutusunun "kararı tekrarlamak eksik işi yazar" yoludur. Atıf satırdan miras alınır (ilk cevabın kullanıcısı), checkpoint ve tanım sürümü tekrarın kendisinindir (ilkininki saklanmadı; hash'e de girmez). Denetim satırı yazılmaz: ilk cevabın `workflow.respond` satırı bu run'ı zaten adlandırır. **Yarış güvenliği ölçüldü, varsayılmadı:** yeni `JobStoreContract.An_id_that_is_already_queued_is_refused_and_the_queued_job_is_kept` — PostgreSQL, SQL Server, SQLite birincil anahtarla reddeder ve işi korur (yeşil); bellek içi depo işi DEĞİŞTİRİYORDU (kırmızı; kiralanmış işi `Pending`'e döndürebilirdi) → `TryAdd` ile reddeder. `QueuedRunPlaceholder.EnqueueAsync` reddedilen yazımdan sonra işi geri okur: iş oradaysa (başka çağrı yazdı) onu döndürür ve satırı kapatmaz — iki tekrar, ya da yavaş ilk cevap ile tekrarı, tek iş yazar. `IJobStore.EnqueueAsync` XML'i reddi sözleşme olarak yazar.
+
 ### Önce kırmızı kaydı (dürüst)
 
 | Test | Nasıl kırmızı görüldü |
@@ -571,6 +573,9 @@ Uygulama günlüğünde hata yoktu.
 | `WorkflowResponseStoreContract` (4 case) | Mutasyon (iddia denetimi silindi) |
 | `WorkflowResponseModeVersionTests` | Mutasyon (kayıtlı sürüm yok sayıldı) |
 | Ownership: 6-A ×2, 🟡2 zincir kuralı, motor-önce-düşerse satır kapanır, eşzamanlı iki yeniden sürme | Mutasyon (her biri ayrı: kural silindi / CAS sonucu yok sayıldı / `finally` kapatması kapatıldı) |
+| İkinci tur: `A_queued_answer_whose_job_was_never_written_is_finished_by_the_same_answer` ×2 (kuyruklu ve akışlı tekrar), `Two_repeats_that_both_find_the_job_missing_write_it_once` ×2 (bellek içi, SQLite) | Gerçek kırmızı (eksik-iş yazımı yokken: iş listesi boş; eşzamanlı tekrarlar işi hiç okumadı). Mutasyon: bayrak hiç kurulmazsa dördü kırmızı; geri okuma kapatılırsa eşzamanlı ikisi kırmızı |
+| İkinci tur: `JobStoreContract.An_id_that_is_already_queued_is_refused_and_the_queued_job_is_kept` | Gerçek kırmızı bellek içi depoda (işi değiştiriyordu); PostgreSQL, SQL Server, SQLite ilk koşumda yeşil — ölçüm |
+| İkinci tur: izleyicinin `error` ile bitmesi ×2 (hiç başlamadı, satırı silindi) | Önce yeşil (kod vardı). Mutasyon: `readAny` denetimi kapatılınca "hiç başlamadı", satır denetimi kapatılınca "silindi" case'i kırmızı |
 | Önce kırmızı görülmedi | `WorkflowResponseRecordTests`, `FailClosedAuditTests` yeni iki case, `WorkflowResponseLinkTests`, `WorkflowAnswerDigestTests`, konsol rozet/409/geri bağ testleri, izleyicinin run kimliği ve sayım iddiası |
 
 ### Uygulama sapmaları
@@ -635,6 +640,17 @@ Bağımsız `faz-denetim`, 2026-10-14: 2 🔴, 5 🟡, 3 🟢.
 | Teslim edilmemiş devam düştükten sonra zıt cevap hep `409` alır; motorun teslimde reddettiği bir cevap isteği kilitler; yönetici çıkışı yok | 🟢 | Kapanışta aday |
 | Yalnız devam run'ının silinmesi kaydı bırakır (FK yalnız `source_run_id`'de); zincir boş görünür | 🟢 | Kapanışta aday (şimdilik `Gone` → `409`) |
 | Açık bir `Branch` `definitionVersion`'ıyla `/resume` tek-cevap iddiasını atlar (yalnız Operator/Admin) | 🟢 | Kapanışta aday |
+
+İkinci tur `faz-denetim`, 2026-10-14: 🔴 yok; birinci turun 🔴2, 🟡2, 🟡3, 🟡4, 🟡5'i kapandı; 🔴1 ve 🟡1 kısmen kapandı, kalan bacakları aşağıdaki iki 🟡.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Kuyruklu `SingleAnswer` cevabı, süreç satır + kayıttan sonra ve kuyruğa yazımdan önce durursa (ya da kuyruğa yazım ile satır kapatma birlikte düşerse) kalıcı kilitlenir; uzlaştırma yalnız `Running` satır kapatır, işi olmayan `Queued` run iptal edilemez. `WorkflowResponseMode` XML'i, `CHANGELOG` ve `CloseAsync` özeti yanlış cümle taşıyordu | 🟡 | Düzeltildi (bakımcı kararı: eksik işi yaz). Önce kırmızı: `A_queued_answer_whose_job_was_never_written_…` ×2, `Two_repeats_that_both_find_the_job_missing_write_it_once` ×2; ölçüm: `JobStoreContract` yeni case'i (bellek içi depo kırmızıydı, düzeltildi). Üç cümle düzeltildi; uzlaştırmanın neyi kapsadığı yazıldı |
+| İzleyicinin `error` ile bittiğini (satır yok; hiç başlamadı) kanıtlayan test yok | 🟡 | Eklendi: `A_follower_of_a_run_that_never_started_ends_with_an_error_not_done`, `A_follower_whose_run_was_erased_while_it_followed_ends_with_an_error_not_done`. Mutasyonla kanıtlandı |
+| Kaybedenin `Canceled` run'ı `GET /api/runs`'ta, `RunStatistics.CanceledRuns`'ta ve `ErrorRate` paydasında görünür; `CHANGELOG` yalnız webhook/metrik/alıcıyı anıyordu | 🟢 | `CHANGELOG` cümlesi eklendi; site kapanışta. Kapanışta aday değil (yazıldı) |
+| `OpenRunAsync` hatası varsayılan `Branch` akışlı modda da `500` döner (önce motorun yazıcısı yutardı); `CHANGELOG` Changed yalnız kayıt deposunu anıyordu | 🟢 | `CHANGELOG` Changed'e eklendi. Kapanışta aday değil (yazıldı) |
+| `WorkflowEventStream`'in `finally` kapatması try/catch'siz: depo hatası başlıklardan sonra kaçar, satır `Running` kalır (uzlaştırma kapatır) | 🟢 | Kapanışta aday |
+| İzleyicinin `NextRunAsync`'i yalnız `ContinuedFromRunId` ardılı arar; kurtarma kapalı ve `MaxAttempts > 1` iken iş aynı run kimliğiyle yeniden koşar, izleyici "hiç başlamadı" der (varsayılan olmayan yapılandırma) | 🟢 | Kapanışta aday |
 
 ## Sonraki Faza Devir Notu
 
