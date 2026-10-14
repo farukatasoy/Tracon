@@ -143,6 +143,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         await SeedNarratedWorkflowAsync(host);
         await SeedLoopAgentAsync(host);
         await SeedPendingApprovalAsync(host);
+        await SeedWaitingWorkflowRequestAsync(host);
 
         var directory = ResolveOutputDirectory();
         var write = string.Equals(
@@ -424,6 +425,23 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
             static status => string.Equals(status, "AwaitingApproval", StringComparison.Ordinal),
             "the seeded approval to reach AwaitingApproval",
             TimeSpan.FromMinutes(2));
+    }
+
+    /// <summary>
+    /// Starts <c>approval-flow</c> and lets it stop at its request, so the Approvals screen shows a
+    /// human request of a workflow run beside the tool call it waits on (phase 209).
+    /// </summary>
+    private static async Task SeedWaitingWorkflowRequestAsync(UiHost host)
+    {
+        using var client = new HttpClient { BaseAddress = new Uri(host.BaseAddress) };
+        using var response = await client.PostAsJsonAsync(
+            $"{host.Prefix}/api/workflows/approval-flow/run",
+            new { message = "the weekly digest" });
+
+        response.EnsureSuccessStatusCode();
+
+        // The stream ends when the run stops at the request port: reading it to the end is the wait.
+        _ = await response.Content.ReadAsStringAsync();
     }
 
     private static async Task EnsureSuccessAsync(Task<HttpResponseMessage> call)

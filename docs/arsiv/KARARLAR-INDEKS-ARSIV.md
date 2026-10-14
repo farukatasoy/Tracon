@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (937 kalem)
+## Arşivlenen Kararlar (943 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -136,7 +136,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-125 | 176 | `GroupChat` yönetici agent kabul etmez; `managerAgentName` yalnız `Magentic` içindir |
 | K-126 | 177 | Workflow tanımlarında sürüm GEÇMİŞİ tutulmaz 🔁 |
 | K-127 | 178 | 🚨 Executor kimliği `(workflow, agent)` çiftinden türetilir; MAF'ın özel alanına yazılır |
-| K-128 | 179 | Bekleyen insan istekleri için tablo açılmadı; olay yükünde yaşarlar |
+| K-128 | 179 | Bekleyen insan istekleri için tablo açılmadı; olay yükünde yaşarlar 🔁 |
 | K-129 | 180 | `Microsoft.Agents.AI.Workflows.Declarative` alınmadı 👤 |
 | K-130 | 181 | Yanıtlanmış çalıştırma `AwaitingInput` olarak kalır; yanıt YENİ bir satır açar |
 | K-131 | 182 | Graf tanımdan değil, DERLENMİŞ workflow'dan çıkarılır |
@@ -946,3 +946,9 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-935 | 986 | Veri sahibi dışa aktarımı ve silmesi dört tabloya daha ulaşır, öznenin run'ıyla (adlı run ya da adlı oturumun run'ı) eşlenir: terfi edilmiş `eval_cases` (`source_run_id`, kiracı suite'ten), `idempotency_keys` (`run_id`), `job_items` (`run_id`, kiracı job'dan; batch işinin öteki öğeleri kalır), `jobs` (kimliği run kimliği olan kuyruk işi; öğeleri basamaklı gider); dördü `Runs`'tan önce silinir (F-400) (kullanıcı kararı) 👤 |
 | K-936 | 987 | Bilgi tabanının her embedding çağrısı (yükleme, arama ucu, `search_knowledge`) metin süreçten çıkmadan kiracının egress politikasından ve kendi anahtarından geçer (`EmbeddingProviderAccess`): sağlayıcı adı `TraconKnowledgeOptions.EmbeddingProvider` (`Tracon:Knowledge:EmbeddingProvider`, eklemeli public üye), yoksa üretecin bildirdiği ad; ad yoksa politikalı kiracı reddedilir (fail-closed), politikasız kiracı geçer; kiracının o sağlayıcı için bağlaması varsa ret (üretici kurulum anahtarıyla kurulu, K-912 emsali); uçta `403`, tool çağrısı düşer; politika her çağrıda okunur (F-416) (kullanıcı kararı) 👤 |
 | K-937 | 988 | `functions` (workflow) ve `handler-keys` (schedule) ayrılmış addır: kayıt `400` döner, büyük/küçük harf ayrımsız (ASP.NET Core rota literali de ayrımsızdır); `AddWorkflow` aynı adda `ArgumentException` atar; derleyici adı denetlemez, kural öncesi saklanan workflow adla koşmaya devam eder, yalnız geri okunamaz; sabit uçlar yerinde kalır (F-382) (kullanıcı kararı) 👤 |
+| K-938 | 989 | Akışlı workflow uçları (`run`, `resume`, `respond`) girdiyi ve kaynak run'ı akış açılmadan denetler; kodlar kuyruklu yolun (F-318) kodlarıdır: olmayan ya da başka kiracının run'ı `404` (aynı başlık, varlık sızmaz), geçersiz `sessionId`, run'da olmayan checkpoint ve girdi beklemeyen run'a yanıt `400`; hiçbiri run satırı açmaz (F-396) |
+| K-939 | 990 | Gerçek veri sahibi silmesi öznenin `Running` ya da `Queued` run'ı varken `409` döner; problem `activeRunIds` uzantısını taşır, ön izleme aynı listeyi `DataSubjectErasureResult.ActiveRunIds`'de verir (eklemeli public üye, `init`); `?force=true` yine siler (çökmüş sürecin bıraktığı satır için); run'lar adlı run'lar ve adlı oturumların run'larıdır, kiracıyla süzülür (F-400) (kullanıcı kararı) 👤 |
+| K-940 | 991 | `AddEvaluatorJudge` ile köprülenen MEAI evaluator'ının model çağrıları yerleşik yargıç gibi (K-328) kaydedilir: her yargı bir `judge:{name}` run'ı (`RunKind.Eval`, model kimliği ve sağlayıcısıyla) açar, çağrıların kullanımını sayan sarmalayıcı istemciden toplam kullanım, maliyet ve yargıç maliyeti metriği yazılır; atan evaluator run'ı `Failed` kapatır ve yine atar; mağaza `null` ise run yazılmaz (F-361) (kullanıcı kararı) 👤 |
+| K-941 | 992 | Retention arşivi korumalı sütunu `IArchiveSink`'e düz metin verir (`RetentionTargetRegistry.ProtectedArchiveColumns`, dışa aktarımın K-934 deseni); arşivin at-rest şifrelenmesi sink'in işidir; silinen satır ile arşivlenen satırın eşleşme kuralı değişmez (F-447) (kullanıcı kararı) 👤 |
+| K-952 | 993 | Çok konuşmacılı diyalog ayrı bir yetenek arayüzüdür (`ISpeechDialogueSynthesizer`) ve yalnız `ISpeechProviderResolver.GetDialogueSynthesizerAsync(name, ct)` ile alınır: çözümleyici yeteneği kayıtlı sentezleyici örneğinde okur (sarmalayıcıda değil); yeteneği taşımayan motoru kayıt adı ve `ProviderName` ile reddeder ve yerleşik istemciye düşmez; K-930 kapısını diyaloğun `ProviderName`'ine uygular; kiracı anahtarını yalnız `SupportsTenantCredentials` (varsayılan `false`) diyen motora `SpeechDialogueRequest.Credential` ile iletir. Yetenek DI'a kaydedilmez. Çözümleyici üyesi soyuttur. Sınırı aşan istek ağdan önce reddedilir; Tracon bölmez ve birleştirmez. Diyalog modeli `VoiceOptions.DialogueModelId`'dir, `SynthesisModelId` kullanılmaz. HTTP ucu ve tool yoktur (F-296, Faz 203; Açık Soru 1-A, 3-A, 4-B, 5-B, 7-B) (kullanıcı kararı) 👤 |
+| K-953 | 994 | Konuşma isteği sağlayıcıya özgü ayarları önekli sözlükle taşır (`SpeechRequest.ProviderSettings`, `SpeechDialogueRequest.ProviderSettings`, boş varsayılan). Kural `ModelProviderSettings.Validate`'in yeni sözlük aşırı yüklemesidir; `ModelBinding` sürümü aynı kodu koşar. Tip okuyucuları `internal` kalır ve `Tracon.Voice` `InternalsVisibleTo` alır. Bilinmeyen, başka önekli, yanlış tipli, aralık dışı ve diyalogda etkisiz anahtar ağdan önce reddedilir. `speak` tool'u ve `POST /api/voice/speak` ayar taşımaz (F-296, Faz 203; Açık Soru 2-A, 6-B) (kullanıcı kararı) 👤 |

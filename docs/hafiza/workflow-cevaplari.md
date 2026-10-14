@@ -1,7 +1,8 @@
-# Workflow Cevaplari — Tek Cevap, Cevap Kaydi, Eksik Is
+# Workflow Cevaplari — Tek Cevap, Cevap Kaydi, Eksik Is, Istek Kutusu
 
 > Bekleyen bir workflow isteginin cevabi: `WorkflowResponseMode`, cevap kaydi
-> (`workflow_responses`), izleme akisi ve fail-closed `workflow.respond`.
+> (`workflow_responses`), izleme akisi ve fail-closed `workflow.respond`; ayrica
+> istek kutusu (`workflow_requests`) ve istek suresi (Faz 209).
 > Yurutme ve HITL'in geri kalani: [`workflows.md`](workflows.md).
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana dokunurken
@@ -19,7 +20,46 @@
   (`Core/Workflows/InMemoryWorkflowResponseStore.cs`) + uc SQL deposu;
   sozlesme `WorkflowResponseStoreContract`. Hash `WorkflowAnswerDigest`'tir.
 
+- **Istek kutusu** (2026-10-14, Faz 209): `Abstractions/Workflows/IWorkflowRequestStore.cs`
+  (kayit + `WorkflowRequestQuery`) · `Core/Workflows/InMemoryWorkflowRequestStore.cs` ·
+  `Sql.Shared/Stores/SqlWorkflowRequestStore.cs` (sorgular `SqlQueriesBase`,
+  liste/sure sorgusu sağlayici basina) · satir yazimi TEK yerde:
+  `Workflows/Internal/WorkflowRunner.CompleteAsync` (`RecordRequestsAsync`) · liste
+  `WorkflowRunner.ListRequestsAsync`, ucu `WorkflowEndpoints.ListInboxAsync` · cevap
+  isareti `WorkflowResponseGate.MarkAnsweredAsync` · kapanis
+  `Workflows/Internal/WorkflowRequestExpirationService.cs`. Konsol:
+  `screens/approvals/workflow-requests.tsx`. Sozlesme `WorkflowRequestStoreContract`.
+
 ## Tuzaklar
+
+- **🚨 `IRunStore.CompleteRunAsync` olay sayisini, kullanimi ve maliyeti tamamlamanin
+  tasidigiyla DEGISTIRIR** (2026-10-14, K-1003): zaten kapanmis bir run'i kapatan kod
+  satiri once okur ve degerleri geri yazar. `ApprovalExpirationService` bos tamamlama
+  kuruyor ve onay suresi dolunca run'in olay sayisi 0'a, kullanimi `NULL`'a dusuyordu
+  (duzeltildi). Sinif taramasi: baska cagiran kayitli degeri olan bir run'i kapatmaz.
+- **🚨 Satir kapaninca run kapatilamazsa o satir bir daha bulunmaz** (K-1003):
+  `ExpireAsync` satiri once kapatir. Servis kapatilamayan run'i bellekte tutar ve her
+  turda en cok 10 kez dener; surec arada durursa run `AwaitingInput` kalir.
+- **🚨 Arka plan servisi kiracisiz calisir:** satir ve run okumasi
+  `AmbientTenantScope.Begin(satirin kiracisi)` ister (`SingleTenantContext` ve
+  `HttpTenantContext` onu okur; test `FixedTenantContext`'i OKUMAZ — kiracili sureyi
+  HTTP host'unda sina).
+- **`UPDATE … RETURNING`/`OUTPUT` sirasi tanimsizdir:** `ExpireAsync` testleri kumeyi
+  karsilastirir, sirayi degil. Hangi satirlarin kapandigini vade sirasi belirler.
+- **Minimal API enum sorgu baglayicisi buyuk/kucuk harfe duyarlidir** (`state=all`
+  `400` verdi): `state` metin okunur, `Enum.TryParse(ignoreCase)` ile cozulur.
+- **Sema tiplerinde `<see cref>` OpenAPI'de CLR imzasi olur** (`TimeSpan? X.Y`):
+  `WorkflowPendingRequest`/`WorkflowDescriptor` dokumaninda duz metin kullanilir.
+- **Retention arsiv anahtari testi sutun tipini kendi tahmin eder** (`UnmatchedKey`):
+  metin sutunu (`request_id`) `Guid` varsayilirsa PostgreSQL `text = uuid` verir.
+- **Sure testi:** `ManualTimeProvider` (zamanlayicilar gercek, `GetUtcNow` sahte)
+  `AddTracon`'dan ONCE kaydedilir; servis 50 ms'de bir bakar, test saati ilerletir ve
+  `WaitForRunStatusAsync` ile bekler. Gercek sure beklemek yerine `RequestTimeout`'u
+  uzun tutup saati ilerlet.
+- **Ornek uygulamayi calistirirken kullanici sirlari PostgreSQL'e baglanir** ve
+  migration'lari o veritabanina uygular (Faz 209'da yerel `agentprism` semasi iki
+  migration aldi). SQLite icin `Tracon__PostgreSql__ConnectionString=""` ve
+  `Tracon__Sqlite__ConnectionString` ver; belirteç `Tracon__Ui__AuthToken` ile gelir.
 
 - **🚨 Once satir, sonra kayit** (2026-10-14, K-997): satiri olmayan bir kayit
   istegi kalici kilitler (tekrar onu izler, izleyecek bir sey yok). Iddiadan
