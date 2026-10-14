@@ -146,8 +146,10 @@ are written onto **that same call's record** — `lateCompletedAt` on the
 `ToolInvocationRecord` says when, `timedOut` and `error` stay as they were because they
 record what the *model* was told. This matters for a tool that spends money: image
 generation that needs 35 seconds against a 30 second limit has produced and been billed
-for a real image, and without this the charge would appear in no cost report at all. No
-second record is written, so per-tool totals still count one call.
+for a real image, and without this the charge would appear in no cost report at all. The
+amount also reaches the tenant's quota counter, once, in `Tracon:Pricing:Currency` (the
+run's own recorded total is not changed). No second record is written, so per-tool totals
+still count one call.
 
 The timeout applies to execution only, never to a pending approval, which can wait
 indefinitely.
@@ -298,7 +300,8 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   call-tree budget, the tenant's cost quota and the `run.completed` webhook therefore count a
   `speak` call the way they count a function node that spoke. A measurement that arrives
   after the run closed, from a call that outlived its timeout, stays on the call's record
-  only and does not change the run's total.
+  and does not change the run's total, but it is added to the tenant's quota counter once,
+  because that money was spent.
 - **The built-in tools report it already.** `speak`, `transcribe` and `generate_image`
   fill `Provider` and `Model` as well as the measurement. Prices come from
   `Tracon:Pricing`; with none configured the amount stays unknown.

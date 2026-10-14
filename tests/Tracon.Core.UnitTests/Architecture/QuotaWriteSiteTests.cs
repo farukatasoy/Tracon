@@ -41,6 +41,44 @@ public sealed class QuotaWriteSiteTests
             "Add a writer there instead of building a QuotaConsumption of your own.");
     }
 
+    /// <summary>
+    /// Every place that opens a run scope with a budget of its own names the counter the
+    /// tree's spend goes to. A root that did not would leave its children (and a tool that
+    /// outlives its run) with no account, and their spend in no counter.
+    /// </summary>
+    private static readonly string[] RootScopeSites =
+    [
+        "src/Tracon.Core/Recording/RunRecordingAgent.Lifecycle.cs",
+        "src/Tracon.Workflows/Internal/WorkflowRunner.cs",
+    ];
+
+    [Fact]
+    public void Every_place_that_opens_a_root_scope_names_the_account_its_tree_adds_to()
+    {
+        var root = FindRepositoryRoot();
+
+        var sites = Directory
+            .EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(path => File.ReadLines(path).Any(static line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal) &&
+                                                                  line.Contains("new AgentRunScope", StringComparison.Ordinal)))
+            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        sites.ShouldBe(
+            [.. RootScopeSites],
+            "A new place opens a run scope. Give its budget a TreeAccount (budget.Account = new TreeAccount(...)) " +
+            "before the first child can start, and add the file here.");
+
+        foreach (var site in RootScopeSites)
+        {
+            File.ReadAllText(Path.Combine(root, site))
+                .Contains("Account = new TreeAccount(", StringComparison.Ordinal)
+                .ShouldBeTrue($"{site} opens a root scope and must assign the tree's account");
+        }
+    }
+
     [Theory]
     [InlineData("        new QuotaConsumption", true)]
     [InlineData("var entry = new QuotaConsumption { TenantId = tenant };", true)]

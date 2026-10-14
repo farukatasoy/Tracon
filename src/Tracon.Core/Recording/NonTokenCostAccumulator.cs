@@ -230,20 +230,24 @@ internal sealed class NonTokenCostAccumulator
     }
 
     /// <summary>
-    /// Takes the amount a tool reported for a call AFTER the total was read: the one
-    /// amount the run's total does not hold.
+    /// Takes the amount a tool reported for a call AFTER the total was read, beyond what the
+    /// total already holds for that call: the one amount the run's total does not hold.
     /// </summary>
     /// <param name="callId">The call identity.</param>
     /// <returns>
-    /// The amount that adds (in the run's currency, last report of the call), or
-    /// <see langword="null"/> when the call reported none after the total was read —
-    /// including when its report came before, and so is already in the total.
+    /// The amount that adds (in the run's currency, last report of the call) minus what the
+    /// total holds for the call, or <see langword="null"/> when the call reported nothing more
+    /// after the total was read — including when its report came before, and so is already in
+    /// the total.
     /// </returns>
     /// <remarks>
     /// The late tool's quota entry reads this and nothing else. Asking the call's own
     /// record instead would count an amount twice whenever a tool reports in time, the
     /// run closes, and only then does the body return: the record holds the amount, and
-    /// so does the total.
+    /// so does the total. The last report of a call replaces the earlier ones, so a call that
+    /// reported 0.02 in time and 0.05 as its final total after the run closed adds the
+    /// difference. A counter never takes an amount back: a later report that is not larger adds
+    /// nothing.
     /// </remarks>
     public decimal? TakeLateToolAmount(string callId)
     {
@@ -251,7 +255,16 @@ internal sealed class NonTokenCostAccumulator
 
         lock (_gate)
         {
-            return _lateToolAmounts is not null && _lateToolAmounts.Remove(callId, out var amount) ? amount : null;
+            if (_lateToolAmounts is null || !_lateToolAmounts.Remove(callId, out var late))
+            {
+                return null;
+            }
+
+            var counted = _toolEntries is not null && _toolEntries.TryGetValue(callId, out var inTotal)
+                ? inTotal.Amount ?? 0m
+                : 0m;
+
+            return late > counted ? late - counted : null;
         }
     }
 

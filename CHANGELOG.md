@@ -201,6 +201,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A tenant's quota now counts what a call tree spends after its root run ended. The root
+  read its tree from the run store once, while its own row closed, so a child agent still
+  running in the background at that moment (a root that starts a task and answers without
+  waiting) never reached a counter, and neither did the amount a tool reported after its
+  call timed out and its run closed. **Behavior change:** every run of a tree now adds its
+  own tokens and cost to the counter when it ends, under the root's tenant and name
+  (a child adds no run: the tree is still one run), and a tool amount that arrives after
+  its run closed is added to the counter once, in `Tracon:Pricing:Currency`. The counter
+  and `GET /api/runs/{runId}` give the exact total; the `run.completed` webhook is
+  unchanged and shows the tree as it stands when the root closes. A threshold crossed by a
+  child run is written to that child's own event stream (with
+  `Quotas:PublishThresholdToRunStream`; read it from `GET /api/runs/{runId}/events`) and
+  its `quota.threshold` webhook names that run; a tool amount that crosses one is announced
+  by the webhook only.
+  A child priced in another currency than `Tracon:Pricing:Currency` adds its tokens and
+  the amounts it reported beyond tokens, not its token cost. A store of your own needs
+  no change; `QuotaStoreContract` has two cases for an entry that adds tokens and cost and no
+  run.
 - A job no longer repeats a failure the next attempt would get again. The worker
   retried every handler failure up to the attempt limit: an eval whose judge was cut
   off at its output limit ran its unfinished case and paid for it on every attempt,

@@ -325,7 +325,7 @@ Where the non-token amount counts:
 | Place | What happens |
 |---|---|
 | The call-tree budget (`AgentGraph.MaxTotalCost`) | An amount that adds is recorded the moment it is reported, so the next model call is refused once the ceiling is passed. The budget refuses model calls: a function node still starts when the budget is already spent |
-| The tenant's cost quota | The quota entry a root run writes, whether an agent run or a workflow run, counts the token cost plus the reported amount |
+| The tenant's cost quota | Every run of a call tree writes its own entry when it ends, under the root's name: the root (an agent run or a workflow run) and each child run count the token cost plus the reported amount |
 | `run.completed` and `run.failed` webhooks | `cost` is the token cost and the reported amount together; `nonTokenCost` is the reported part, so the token part is `cost - nonTokenCost` |
 
 Still token-only: `GET /api/stats`, the dashboard, the `tracon.run.cost` metric, run
@@ -335,7 +335,8 @@ characters.
 An item reported after the run closed — from a node that outlived its
 [timeout](#bound-a-node-with-a-timeout) — stays in the run's detail and does not change the
 total, the quota entry or the webhook, because those were already written; a handler that
-passes its token on never reaches this case. The items live with their run: erasing a data
+passes its token on never reaches this case. (A *tool* that outlived its timeout is different:
+its amount does reach the quota counter, once.) The items live with their run: erasing a data
 subject's runs deletes them too, and they hold no message text, so a data subject export
 does not list them. What a *tool* measured stays on `GET /api/runs/{runId}/tools`, and it
 joins the same total (see [Tools](/concepts/tools/#report-what-a-tool-spent-beyond-tokens)).
