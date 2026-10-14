@@ -365,9 +365,12 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-410** · Kod Loop ölçütüne tanım başına tipli ayar | Faz 201 kapsam dışı: özel tür veri almaz — tek örnek bütün tanımlara hizmet eder (`LoopEvaluatorRegistry.BuildCriterion`, `default` dalı); konsol kod türü için alan göstermez ve tür değişiminde `marker`/`judgeCriteria`/`modes`'u temizler (`loop-section.tsx` `withKind`). Faz 195'in `Settings` deseni emsal; ayar `FindProblems`'a ve `GET /api/loop-criteria`'ya (şema) birlikte girer | Faz 201'den sonra |
 | 🟢 | **F-417** · Görsel sağlayıcısı kiracının kendi anahtarını kullanabilsin | K-912 (2026-10-13): kiracının görsel sağlayıcısı için bağlaması varsa üretim reddedilir, çünkü sağlayıcı paketleri üreticiyi kurulum anahtarıyla kurar. Canlı ses `SupportsTenantCredentials` ile aynı işi çözdü (K-878) | Faz 198'in konuşma modeliyle birlikte: anahtarlı üretici fabrikası, OpenAI/Azure/Google görsel kaydı |
 | 🟢 | F-420 · Önbellek yazma token'ı ve fiyatı | Faz 204'ten ayrıldı (2026-10-13); önce ölçüm | Gövde: § *F-420* |
-| 🟢 | **F-427** · Canlı run akışı düz metin kesilmesini söylemez | Ölçüldü (2026-10-13, Faz 204, `OutputTruncationStreamingTests`): `update` çerçeveleri `finishReason` taşımaz; `tracon.output.truncated` yalnız run olaylarında (`GET /api/runs/{id}/events`) görünür. Akışlı istemci yarım yanıtı tam sanar | Karar: kota bildirimi deseniyle `done`'dan önce `custom` çerçevesi ya da son `update`'te bitiş sebebi (public SSE sözleşmesi). Faz 204 devri: olay `FinishReasonDetectingChatClient.RecordTruncatedTextAsync`'te yazılır; kırmızı test `OutputTruncationStreamingTests`'e girer |
 | 🟢 | **F-465** · `GET /api/voice/providers` diyalog yeteneğini bildirmiyor | Faz 203 (2026-10-13): `SpeechProviderDescriptor` ad, tür, `ProviderName` ve `SupportsTenantCredentials` taşır; bir motorun diyalog sesleyip seslendiremediği listede görünmez, çağıran ancak `GetDialogueSynthesizerAsync` çağrısının hatasından öğrenir. Public sözleşme (descriptor alanı, OpenAPI, iki üretilmiş istemci) | Konsol motor seçimi ya da ikinci diyalog sağlayıcısı (F-297) gelince; `SupportsDialogue` ve `DialogueCapabilities` alanı |
 | 🟢 | **F-445** · Konuşma soketi ses sağlayıcısını tur başına yeniden denetlesin | Faz 198 denetimi 🟢1 (2026-10-13, kod okuması): soket STT ve TTS'i bağlantı açılırken bir kez çözer (`VoiceConversationDriver.ResolveProvidersAsync`); açık bağlantı sonradan kaydedilen egress politikasını kapanana kadar görmez. Model tarafı her turda yeniden okur (F-310 emsali). Site ve XML bugün bu sınırı yazar | Karar: tur ortasında ret davranışı (hata çerçevesi, bağlantıyı kapatma) — protokol sözleşmesi; sonra tur başına çözümleme ve fonksiyonel test |
+| 🟢 | **F-503** · OpenAI Responses kesik yanıtı `incomplete` işaretlemez | Ölçüldü (2026-10-14, Faz 207, geçici prob): `Length` ile kesik düz metin iki kolda `completed` döner | Karar: MAF JSON'una yama ile `incomplete` + `response.incomplete` (tel sözleşmesi) |
+| 🟢 | **F-504** · Workflow SSE'si agent adımının kesildiğini söylemez | Faz 207 §207.6, kod okuması: olay alt run'da kalır; workflow `MessageDelta`'sı bitiş sebebi taşımaz | Önce ölçüm; sonra çerçeve kararı (K-991 emsali) |
+| 🟢 | **F-505** · İçerikli `content_filter` yarım yanıtı kayıtta iz bırakmaz | Faz 207 §207.6: dedektör yalnız boş yanıtı hata yapar; yalnız chat/completions `content_filter` der | Karar: yeni ayrılmış `CustomType` ve ayna listesi (K-991) |
+| 🟢 | **F-506** · Konsol playground'u `custom` çerçevelerini göstersin | Faz 207 §207.6: `use-playground-run.ts` `custom`'u yok sayar; kesilme ve kota bildirimi görünmez | Rozet tasarımı (`en.ts` + `tr.ts`), E2E |
 
 ### Doğrudan
 
@@ -380,6 +383,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-446** · `README.md`'deki public tip sayısı bayat ve kapısız | Ölçüldü (2026-10-13, Faz 198): `README.md:347` "654 public types" der; `public-surface-baseline.txt` toplamı tabanda 668, bugün 671. İşlem sayısının aksine bu sayıyı hiçbir kapı denetlemez. İş: sayıyı DocFX'in ürettiği toplamdan al ve `check-content.mjs`'in işlem sayısı kapısı gibi denetle |
 | 🟢 | **F-449** · `TimeoutSiteTests` `Task.Delay(TimeSpan, TimeProvider, …)` sitelerini görmez | Faz 196 denetimi 🟢1 (2026-10-13): kapının deseni yalnız `CancelAfter(` ve argümanlı `CancellationTokenSource` kurucusunu tarar; `Task.Delay(süre, saat, token)` siteleri (`WorkflowNodeTimeout.cs:97`, `TimeoutAIFunction.cs:111`, `WorkflowNodeRetry.cs:98`) kapsam dışıdır. Bugün üçünün değeri de kurucuda veya kayıtta `TimerPeriod` aralığıyla doğrulanır; yeni bir site doğrulamasız girerse kapı görmez | Deseni `Task.Delay` + `TimeProvider` aşırı yüklemesine genişlet; site listesine üç satır |
 | 🟢 | **F-451** · `JobStoreContract` `int` milisaniye sınırını aşan süreyi sınamıyor | Faz 196 denetimi 🟢3 (2026-10-13): `A_jobs_own_time_limit_survives_the_round_trip_and_the_lease` yalnız 90 dk yazar (`src/Tracon.Testing.Contracts.Xunit/Contracts/JobStoreContract.cs:81`); süreyi `int` ms sütunda tutan üçüncü taraf depo (≈ 24,8 gün sınırı) geçer. Yerleşik sütun `bigint` | Contract'a ≈ 30 günlük bir case; `PublicAPI.Unshipped` satırı ve `CHANGELOG` |
+| 🟢 | **F-507** · `SourceLanguageTests` üretilen site `api/` sayfalarını tarar | Faz 207 kapanışı (ölçüldü): sayfa `[Fact]` mutlak yolunu taşır; `faz-NNN` worktree'sinde yanlış kırmızı | Gitignore'lu üretilen ağacı atla |
 
 ### Tetik bekleyenler
 
@@ -500,7 +504,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-503**.
+numara: **F-508**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

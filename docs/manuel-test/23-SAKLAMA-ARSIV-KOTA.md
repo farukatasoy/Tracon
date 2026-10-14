@@ -18,8 +18,8 @@
 > `src/Tracon.Core/Recording/RunRecordingAgent.Notifications.cs`
 > (`WriteQuotaThresholdNoticeAsync`) ·
 > `src/Tracon.Abstractions/Runs/RunEventCustomTypes.cs`
-> (`QuotaThreshold`) · `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs`
-> (`WriteQuotaThresholdNoticesAsync`, Faz 146).
+> (`QuotaThreshold`) · `src/Tracon.AspNetCore/Streaming/RunNoticeMirror.cs`
+> (Faz 146'nın `WriteQuotaThresholdNoticesAsync`'i; Faz 207'de kapalı listeye genelleşti).
 >
 > 🚨 **Faz 21'in yalnız KOTA dilimi bu dosyanındır.** Hız sınırı
 > (`TraconRateLimitFilter`) ve webhook/olay yayını (`WebhookEndpoints`,

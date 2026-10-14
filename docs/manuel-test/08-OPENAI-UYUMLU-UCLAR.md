@@ -1,6 +1,6 @@
 # 08 — OpenAI Uyumlu Uçlar (`COMPAT`)
 
-> **Alan kodu:** `COMPAT` · **Faz:** 50
+> **Alan kodu:** `COMPAT` · **Faz:** 50, 207
 > **Kaynak:** `src/Tracon.AspNetCore/OpenAICompat/` — `OpenAIChatCompletionsEndpoints.cs`
 > (`/v1/chat/completions`), `OpenAIResponsesEndpoints.cs` (`/v1/responses`),
 > `OpenAIConversationsEndpoints.cs` (`/v1/conversations*`), `OpenAICompatSupport.cs`
@@ -1967,3 +1967,63 @@ cevaplanamıyordu.
 - Adım 2: akış bir `error` çerçevesiyle (`approval_required`) biter; `[DONE]` yok.
 - Adım 3: iki run da `Failed`, hata tipi `approval_unanswerable`.
 - 🚨 Eski kusur: `200`, boş içerik, run `AwaitingApproval`.
+
+---
+
+### MT-COMPAT-052 — Kesik yanıtta Chat Completions `finish_reason: "length"` döner (Faz 207)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 207 |
+| **İlgili karar** | K-992 |
+| **Devir** | ➜ CI: `OpenAICompatTests.ChatCompletions_reports_the_final_finish_reason` |
+
+**Ön koşul**
+- MT-GUARD-114'ün ön koşulu: `manuel-kesilen-metin` agent'ı (`maxOutputTokens: 50`) kayıtlı.
+
+**Adımlar**
+1. Agent'ı `/v1/chat/completions` ile akışsız çağır.
+2. Aynı isteği `"stream": true` ile tekrarla.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/v1/chat/completions" -H "$APB" -H 'Content-Type: application/json' \
+     -d '{"model":"manuel-kesilen-metin","messages":[{"role":"user","content":"How does a library work?"}]}' \
+     | jq '.choices[0].finish_reason'
+curl -s -N "$APU/v1/chat/completions" -H "$APB" -H 'Content-Type: application/json' \
+     -d '{"model":"manuel-kesilen-metin","stream":true,"messages":[{"role":"user","content":"How does a library work?"}]}' > akis.txt
+grep -o '"finish_reason":"[a-z_]*"' akis.txt; tail -2 akis.txt
+```
+
+**Beklenen sonuç**
+- Adım 1: `"length"`.
+- Adım 2: yalnız son parça `"finish_reason":"length"` taşır; son satır `data: [DONE]`'dur.
+- 🚨 Eski davranış: iki kolda da `"stop"`.
+
+> **Koşum (2026-10-14, Faz 207 kapanışı):** ✅ — akışsız `length` (usage 20/50/70); akışta tek
+> `"length"`, ardından `[DONE]`.
+
+---
+
+### MT-COMPAT-053 — Tam yanıtta Chat Completions `finish_reason: "stop"` kalır (Faz 207)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 207 |
+| **İlgili karar** | K-992 |
+| **Devir** | ➜ CI: `OpenAICompatTests.ChatCompletions_reports_the_final_finish_reason` (`stop` satırları) |
+
+**Ön koşul**
+- MT-GUARD-115'in `manuel-kisa-yanit` agent'ı kayıtlı.
+
+**Adımlar**
+1. MT-COMPAT-052'nin iki isteğini `"model":"manuel-kisa-yanit"` ve `"What is 2+2?"` ile koş.
+
+**Beklenen sonuç**
+- İki kolda da `"stop"`; akışta son satır `data: [DONE]`'dur.
+
+> **Koşum (2026-10-14, Faz 207 kapanışı):** ✅ — iki kolda `stop`.

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (928 kalem)
+## Arşivlenen Kararlar (930 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -937,3 +937,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-926 | 977 | `RunStartInfo.ContinuedFromRunId` ikinci başlatmada korunur (dört depoda `COALESCE`); `RunQuery.ContinuedFromRunId` ve `GET /api/runs?continuedFromRunId=` devam zincirini ileri yürür; `IJobStore.ReportItemAsync` yalnız bekleyen öğeyi değiştirir ve `Pending` rapor sayaç artırmayan bir işarettir — dördü sevk edilen sözleşmededir (Faz 197) |
 | K-927 | 978 | Kurtarma açıkken kuyruklu workflow run'ının işi `2 + MaxResumeAttempts` deneme alır; işin son denemesi devam BAŞLATMAZ, zinciri kapatır (`tracon.job.workflow-run-not-continued`); batch işi kendi sınırını korur ve öğe başına en çok `MaxAttempts − 2` devam alır; kapalıyken `AsyncRun.MaxAttempts`; run kendi başına `Failed`/`Canceled` biterse iş tekrar denemeden düşer; kurtarma adımındaki `store` hatası işi değil denemeyi düşürür (Faz 197, Açık Soru 4-A ve denetim 🔴1 düzeltmesi) (kullanıcı kararı) 👤 |
 | K-928 | 979 | Yapılı `tracon.workflow` batch öğesi `sessionId` taşıyabilir: run'ın yürütme oturumudur ve `run.completed` webhook'u ile devamlar onu taşır; kural `WorkflowSessionId`'dir (en çok 128 karakter; harf, rakam, `-`, `_`), bozuk değer öğeyi tek başına düşürür; ajan batch öğesindeki `sessionId` öğeyi düşürür (Faz 197 §197.3) |
+| K-929 | 980 | Kuyruklu `respond`'un yanıtı (`approved`, `text`, `json`) `jobs.payload`'da düz durur; K-899'un kuyruklu workflow işlemine genişlemesidir (Faz 197) |
+| K-930 | 981 | Her konuşma çağrısı (TTS, STT, ses listesi) sağlayıcıya gitmeden önce `ISpeechProviderResolver`'da kiracının egress politikasından ve kendi anahtarından geçer: egress kayıt adına değil örneğin `ProviderName`'ine uygulanır; kiracının bağlaması varsa anahtar yalnız `SupportsTenantCredentials` diyen sağlayıcıya `SpeechRequest.Credential`/`SpeechTranscriptionOptions.Credential` ile gider, desteklemeyen sağlayıcı, uç adresi override'ı ve değersiz anahtar reddedilir (`TenantProviderRefusedException`, uçta `403`), kurulum anahtarına düşülmez; kiracı önce run kapsamından okunur; tool, HTTP ve düğüm her çağrıda, konuşma soketi bağlantı başına bir kez (oturum kapısından sonra, slot'tan önce) denetler; yerel motor muaf değildir ve politikalı kiracı listede olmayan ses satıcısına hemen çıkamaz (F-298, Faz 198; Açık Soru 2-A, 3-A, 4-A) (kullanıcı kararı) 👤 |
