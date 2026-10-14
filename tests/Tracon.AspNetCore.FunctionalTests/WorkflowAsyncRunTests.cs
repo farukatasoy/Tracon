@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -205,6 +206,79 @@ public sealed class WorkflowAsyncRunTests
         row.SessionId.ShouldBe(source.SessionId);
         row.WorkflowName.ShouldBe(Recoverable);
         (await WaitForJobAsync(host, resumedId)).Status.ShouldBe(JobStatus.Completed);
+    }
+
+    /// <summary>
+    /// A queued resume keeps the definition version the run recorded, and one that names a version carries it
+    /// through the job payload to the worker (phase 200).
+    /// </summary>
+    /// <remarks>
+    /// The stamp on the resumed row is the observable: it is the version the worker compiled. If the
+    /// endpoint did not write <c>definitionVersion</c> into the payload, or the handler did not hand
+    /// it to the engine, the row would name version 1 whatever the request said.
+    /// </remarks>
+    [Fact]
+    public async Task A_queued_resume_compiles_the_recorded_version_and_one_that_names_a_version_carries_it_to_the_worker()
+    {
+        var probe = new RecoveryProbe();
+        await using var host = await StartAsync(probe);
+        await using var lifetime = probe;
+        await SaveRecoverableAsync(host);
+
+        using var first = await PostAsync(host, $"/api/workflows/{Recoverable}/run", new WorkflowRunHttpRequest { Message = "episode 7" });
+        var sourceId = await AcceptedRunIdAsync(first);
+        await host.WaitForRunStatusAsync(sourceId, nameof(RunStatus.Completed));
+
+        // The operator edits the workflow while the run could still be resumed (a description is enough: the
+        // stamp, not the behavior, is what names the version).
+        using (var edited = await host.Client.PutAsJsonAsync(
+                   $"/tracon/api/workflows/{Recoverable}",
+                   RecoverableDefinition() with { Description = "Edited after the run." }))
+        {
+            edited.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+
+        (await runs.GetRunAsync(sourceId)).ShouldNotBeNull().AgentVersion.ShouldBe(1);
+
+        using var recorded = await PostAsync(host, $"/api/workflows/runs/{sourceId}/resume", new WorkflowResumeHttpRequest());
+        var recordedId = await AcceptedRunIdAsync(recorded);
+        await host.WaitForRunStatusAsync(recordedId, nameof(RunStatus.Completed));
+
+        (await runs.GetRunAsync(recordedId)).ShouldNotBeNull().AgentVersion.ShouldBe(1, "no version was named: the worker resumed the recorded one");
+
+        using var named = await PostAsync(
+            host,
+            $"/api/workflows/runs/{sourceId}/resume",
+            new WorkflowResumeHttpRequest { DefinitionVersion = 2 });
+        var namedId = await AcceptedRunIdAsync(named);
+        await host.WaitForRunStatusAsync(namedId, nameof(RunStatus.Completed));
+
+        (await runs.GetRunAsync(namedId)).ShouldNotBeNull().AgentVersion.ShouldBe(2, "the version the request named reached the worker through the job");
+    }
+
+    [Fact]
+    public async Task A_queued_resume_naming_a_version_the_workflow_does_not_have_is_400_and_queues_no_job()
+    {
+        var probe = new RecoveryProbe();
+        await using var host = await StartAsync(probe);
+        await using var lifetime = probe;
+        await SaveRecoverableAsync(host);
+
+        using var first = await PostAsync(host, $"/api/workflows/{Recoverable}/run", new WorkflowRunHttpRequest { Message = "episode 7" });
+        var sourceId = await AcceptedRunIdAsync(first);
+        await host.WaitForRunStatusAsync(sourceId, nameof(RunStatus.Completed));
+
+        var jobsBefore = (await JobsAsync(host)).Count;
+
+        using var refused = await PostAsync(
+            host,
+            $"/api/workflows/runs/{sourceId}/resume",
+            new WorkflowResumeHttpRequest { DefinitionVersion = 9 });
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await refused.Content.ReadAsStringAsync());
+        (await JobsAsync(host)).Count.ShouldBe(jobsBefore, "the refusal came before a job was queued");
     }
 
     [Fact]

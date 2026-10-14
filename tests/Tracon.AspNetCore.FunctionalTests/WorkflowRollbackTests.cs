@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 using static Tracon.AspNetCore.FunctionalTests.WorkflowSettingsFixtures;
+using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
