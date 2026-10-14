@@ -55,7 +55,9 @@ namespace Tracon;
 /// document cannot be parsed, so the call throws
 /// <see cref="TraconOutputTruncatedException"/>. A plain-text answer is still
 /// partly useful: it passes through and the run records a
-/// <see cref="RunEventCustomTypes.OutputTruncated"/> event.
+/// <see cref="RunEventCustomTypes.OutputTruncated"/> event. The agent run endpoint
+/// reads that event back and sends it on its live SSE stream as a <c>custom</c>
+/// frame before <c>done</c>; this type is still the only place that decides.
 /// </para>
 /// <para>
 /// <strong>The tokens of a response this type rejects are folded into the
@@ -161,9 +163,23 @@ internal sealed class FinishReasonDetectingChatClient(string providerName, strin
     private static bool IsContentFilter(ChatFinishReason? finishReason)
         => finishReason == ChatFinishReason.ContentFilter;
 
-    // F-426: an answer the context window cut off is cut off too; only the remedy
-    // differs, so the message and the event name the cause.
-    private static bool IsTruncated(ChatFinishReason? finishReason)
+    // F-426 added the context window; phase 207 opened the predicate to the endpoints.
+
+    /// <summary>Tells whether a finish reason means the answer was cut off.</summary>
+    /// <param name="finishReason">The finish reason a model call reported.</param>
+    /// <returns>
+    /// <see langword="true"/> for <see cref="ChatFinishReason.Length"/> and
+    /// <see cref="TraconFinishReasons.ContextWindowExceeded"/>.
+    /// </returns>
+    /// <remarks>
+    /// The ONE predicate for a cut-off answer. The agent run endpoint uses it to decide
+    /// whether to read the run's notices back before <c>done</c>, and the Chat
+    /// Completions endpoint uses it to report <c>"length"</c>; a second list of
+    /// reasons would drift from this one. An answer the context window cut off is
+    /// cut off too; only the remedy differs, so the message and the event name the
+    /// cause.
+    /// </remarks>
+    internal static bool IsTruncated(ChatFinishReason? finishReason)
         => finishReason == ChatFinishReason.Length || IsContextWindow(finishReason);
 
     private static bool IsContextWindow(ChatFinishReason? finishReason)

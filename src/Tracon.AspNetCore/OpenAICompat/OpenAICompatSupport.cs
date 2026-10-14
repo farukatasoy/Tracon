@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.AI;
 
 namespace Tracon;
 
@@ -129,6 +130,40 @@ internal static class OpenAICompatSupport
 
         return ownerTenantId is null ||
                string.Equals(ownerTenantId, tenantContext.TenantId, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Maps the finish reason of the answer's final model call to the Chat Completions
+    /// <c>finish_reason</c>.
+    /// </summary>
+    /// <param name="finishReason">
+    /// The last finish reason the run reported: <c>AgentResponse.FinishReason</c> on the
+    /// non-streaming path, the last non-null <c>AgentResponseUpdate.FinishReason</c> on
+    /// the stream.
+    /// </param>
+    /// <returns><c>"length"</c>, <c>"content_filter"</c> or <c>"stop"</c>.</returns>
+    /// <remarks>
+    /// <para>
+    /// A cut-off answer is recognized with the same predicate the run uses
+    /// (<see cref="FinishReasonDetectingChatClient.IsTruncated"/>), so
+    /// <see cref="TraconFinishReasons.ContextWindowExceeded"/> is <c>"length"</c> too:
+    /// an OpenAI SDK knows no other value for an incomplete answer.
+    /// </para>
+    /// <para>
+    /// <see cref="ChatFinishReason.ToolCalls"/> is <c>"stop"</c>. The tools run on the
+    /// server and the endpoint never hands a tool call to the caller, so a tool turn's
+    /// reason is never the answer's. An empty filtered answer never reaches this
+    /// method: the run fails and the endpoint answers with an error.
+    /// </para>
+    /// </remarks>
+    public static string ToChatFinishReason(ChatFinishReason? finishReason)
+    {
+        if (FinishReasonDetectingChatClient.IsTruncated(finishReason))
+        {
+            return "length";
+        }
+
+        return finishReason == ChatFinishReason.ContentFilter ? "content_filter" : "stop";
     }
 
     /// <summary>Current time in Unix seconds.</summary>

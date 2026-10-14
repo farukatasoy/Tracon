@@ -385,6 +385,157 @@ public sealed class OpenAICompatTests
             .GetProperty("error").GetProperty("type").GetString().ShouldBe("invalid_request_error");
     }
 
+    [Theory]
+    [InlineData("length", false, "length")]
+    [InlineData("length", true, "length")]
+    [InlineData("context_window_exceeded", false, "length")]
+    [InlineData("context_window_exceeded", true, "length")]
+    [InlineData("content_filter", false, "content_filter")]
+    [InlineData("content_filter", true, "content_filter")]
+    [InlineData("stop", false, "stop")]
+    [InlineData("stop", true, "stop")]
+    public async Task ChatCompletions_reports_the_final_finish_reason(string modelReason, bool stream, string expected)
+    {
+        // Phase 207.4: the field said "stop" for every answer, so an OpenAI SDK
+        // caller could not tell a cut-off answer from a complete one.
+        var provider = new FinishReasonModelProvider()
+            .Text("Part of an answer", new ChatFinishReason(modelReason), inputTokens: 30, outputTokens: 50);
+
+        await using var host = await OutputTruncationTests.StartAsync(provider, OutputTruncationTests.PlainText(maxOutputTokens: 50));
+
+        (await ChatCompletionFinishReasonAsync(host, stream)).ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChatCompletions_reports_length_for_a_cut_harness_loop_answer(bool stream)
+    {
+        // Phase 207.4: a harness loop agent answers through MAF's harness and loop
+        // decorators, which rebuild the response. The cut final iteration must still
+        // reach the caller as "length".
+        var provider = new FinishReasonModelProvider()
+            .Text("ALL DONE, and the reason is that the explanation is cu", ChatFinishReason.Length, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await OutputTruncationTests.StartAsync(provider, HarnessLoopAgent());
+
+        (await ChatCompletionFinishReasonAsync(host, stream)).ShouldBe("length");
+        provider.Calls.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChatCompletions_reports_the_last_harness_iteration_not_an_earlier_cut_one(bool stream)
+    {
+        // The first iteration was cut and the loop ran again; the answer the caller
+        // gets is the last iteration's, which completed.
+        var provider = new FinishReasonModelProvider()
+            .Text("still working", ChatFinishReason.Length, inputTokens: 10, outputTokens: 50)
+            .Text("ALL DONE.", ChatFinishReason.Stop, inputTokens: 10, outputTokens: 5);
+
+        await using var host = await OutputTruncationTests.StartAsync(provider, HarnessLoopAgent());
+
+        (await ChatCompletionFinishReasonAsync(host, stream)).ShouldBe("stop");
+        provider.Calls.ShouldBe(2);
+    }
+
+    private static AgentDefinition HarnessLoopAgent()
+        => OutputTruncationTests.PlainText(maxOutputTokens: 50) with
+        {
+            Harness = new HarnessSettings
+            {
+                Loop = new LoopSettings
+                {
+                    Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "ALL DONE" }],
+                    MaxIterations = 4,
+                },
+            },
+        };
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChatCompletions_reports_stop_for_a_complete_answer_after_a_tool_turn(bool stream)
+    {
+        // The tools run on the server; the caller never sees the tool turn, so its
+        // reason is not the answer's. The tool turn stopped at the limit here: a
+        // mapping that looked at ANY reason instead of the last one says "length".
+        var provider = new FinishReasonModelProvider()
+            .ToolCall("lookup_fact", ChatFinishReason.Length, inputTokens: 20, outputTokens: 10)
+            .Text("The answer is 42.", ChatFinishReason.Stop, inputTokens: 30, outputTokens: 10);
+
+        await using var host = await OutputTruncationTests.StartAsync(
+            provider,
+            OutputTruncationTests.PlainText(maxOutputTokens: 50, toolNames: ["lookup_fact"]),
+            configureTracon: static builder => builder.AddTool(
+                (Func<string>)(static () => "42"), name: "lookup_fact", description: "Returns a fact."));
+
+        (await ChatCompletionFinishReasonAsync(host, stream)).ShouldBe("stop");
+        provider.Calls.ShouldBe(2);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChatCompletions_reports_length_with_run_recording_off(bool stream)
+    {
+        // The mapping reads MAF's own finish reason, not the run record (207.5).
+        var provider = new FinishReasonModelProvider()
+            .Text("Part of an answer", ChatFinishReason.Length, inputTokens: 30, outputTokens: 50);
+
+        await using var host = await OutputTruncationTests.StartAsync(
+            provider,
+            OutputTruncationTests.PlainText(maxOutputTokens: 50),
+            configureServices: static services => services.Configure<TraconOptions>(
+                static options => options.RunRecording.Enabled = false));
+
+        (await ChatCompletionFinishReasonAsync(host, stream)).ShouldBe("length");
+    }
+
+    /// <summary>
+    /// Calls <c>/v1/chat/completions</c> for the truncation test agent and returns the
+    /// answer's <c>finish_reason</c>. On the stream it also checks the shape: only the
+    /// last chunk carries the field, and <c>[DONE]</c> is the last line.
+    /// </summary>
+    private static async Task<string?> ChatCompletionFinishReasonAsync(TraconTestHost host, bool stream)
+    {
+        using var response = await host.Client.PostAsJsonAsync(
+            ChatCompletions,
+            new
+            {
+                model = OutputTruncationTests.AgentName,
+                stream,
+                messages = new[] { new { role = "user", content = "hello" } },
+            });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        if (!stream)
+        {
+            return (await TraconTestHost.ReadJsonAsync(response))
+                .GetProperty("choices")[0].GetProperty("finish_reason").GetString();
+        }
+
+        var frames = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
+
+        frames[^1].Data.ShouldBe("[DONE]");
+
+        var reasons = new List<string?>();
+
+        foreach (var frame in frames.Take(frames.Count - 1))
+        {
+            using var chunk = JsonDocument.Parse(frame.Data);
+            var choice = chunk.RootElement.GetProperty("choices")[0];
+
+            reasons.Add(choice.TryGetProperty("finish_reason", out var reason) ? reason.GetString() : null);
+        }
+
+        reasons.Take(reasons.Count - 1).ShouldAllBe(static reason => reason == null);
+
+        return reasons[^1];
+    }
+
     [Fact]
     public async Task ChatCompletions_returns_usage_information_in_snake_case()
     {
