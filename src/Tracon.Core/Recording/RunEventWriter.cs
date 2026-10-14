@@ -292,8 +292,13 @@ public sealed class RunEventWriter
             // other, so its reader must not need the whole JSON: the request
             // id is read from Text, and the prompt - written last - is the only
             // field a cut can reach (F-327, WorkflowRequestDescriptor.Parse).
+            //
+            // Phase 208: an answer's run names the run it answered only here
+            // (WorkflowResponseApplied), so that link is the function too. It
+            // carries two ids, never the answer itself.
             Payload = _options.RecordToolPayloads ||
                       draft.Type == RunEventType.WorkflowRequest ||
+                      draft.Type == RunEventType.WorkflowResponseApplied ||
                       (allowReserved && draft.Type == RunEventType.Custom)
                 ? Truncate(draft.Payload)
                 : null,

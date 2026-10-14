@@ -25,10 +25,11 @@ namespace Tracon;
 /// promise that it is always there. Two exceptions always carry theirs,
 /// because there the payload is the function rather than an observability
 /// detail: <see cref="WorkflowRequest"/>, which is the only place a pending
-/// human request can be read from, and <see cref="Custom"/> under
-/// <c>RunEventCustomTypes.ReservedPrefix</c>, whose payload carries the
-/// dedup key a client needs to act on the frame. A consumer's OWN
-/// <see cref="Custom"/> event is not exempt.
+/// human request can be read from, <see cref="WorkflowResponseApplied"/>, which
+/// is the only link from an answer's run back to the run it answered, and
+/// <see cref="Custom"/> under <c>RunEventCustomTypes.ReservedPrefix</c>, whose
+/// payload carries the dedup key a client needs to act on the frame. A
+/// consumer's OWN <see cref="Custom"/> event is not exempt.
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunEventType>))]
@@ -381,4 +382,29 @@ public enum RunEventType
     /// </para>
     /// </remarks>
     SessionWriteConflicted = 32,
+
+    /// <summary>
+    /// This run continues a workflow run by answering one of its pending human
+    /// requests. <c>Text</c> carries the request id; <c>Payload</c> is
+    /// <c>{"sourceRunId": "...", "requestId": "..."}</c>, the run that waited and the
+    /// request this run answers.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Written right after <see cref="RunStarted"/> by every run that answers a
+    /// request, whoever started it. The answer itself is not written here: it can
+    /// hold anything the answering person typed, and the run event stream is readable
+    /// by the client. Read the decision record from
+    /// <c>GET /api/workflows/runs/{runId}/responses</c> of the source run.
+    /// </para>
+    /// <para>
+    /// The payload is written even when <c>RecordToolPayloads</c> is off: it is the
+    /// only place this run names its source.
+    /// </para>
+    /// <para>
+    /// 33, not a lower free number: <c>run_events.type</c> is a <c>smallint</c>
+    /// column, so an existing member's numeric value can never be shifted.
+    /// </para>
+    /// </remarks>
+    WorkflowResponseApplied = 33,
 }

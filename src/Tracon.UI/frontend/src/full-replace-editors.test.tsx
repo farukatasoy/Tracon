@@ -265,6 +265,8 @@ const ROUND_TRIPS: RoundTrip[] = [
     requirePlanApproval: true,
     // Phase 196 (F-405): written back exactly as stored, never re-formatted.
     runTimeout: '00:42:00',
+    // Phase 208: a save that dropped it would turn a one-answer workflow back into Branch.
+    responseMode: 'SingleAnswer',
   }),
   workflowCase('workflow with handoff instructions', {
     displayName: 'Triage',
@@ -278,6 +280,7 @@ const ROUND_TRIPS: RoundTrip[] = [
     handoffInstructions: 'Hand billing questions over.',
     requirePlanApproval: false,
     runTimeout: null,
+    responseMode: 'Branch',
   }),
   workflowCase('workflow that mixes function nodes in', {
     displayName: 'Mixed chain',
@@ -295,6 +298,7 @@ const ROUND_TRIPS: RoundTrip[] = [
     handoffInstructions: null,
     requirePlanApproval: false,
     runTimeout: '1.00:00:00',
+    responseMode: 'SingleAnswer',
   }),
   // Settings go back to the node they belong to: one function with them, one without, and a
   // value of every JSON kind inside (a number must stay a number, null must stay null).
@@ -315,6 +319,7 @@ const ROUND_TRIPS: RoundTrip[] = [
     handoffInstructions: null,
     requirePlanApproval: false,
     runTimeout: null,
+    responseMode: 'Branch',
   }),
   // Phase 200: a pinned agent version goes back to the node it belongs to. Version 3 is not in the
   // agent's list here (the fixture has none), which must not cost the stored pin; the step beside
@@ -334,6 +339,7 @@ const ROUND_TRIPS: RoundTrip[] = [
     handoffInstructions: null,
     requirePlanApproval: false,
     runTimeout: null,
+    responseMode: 'Branch',
   }),
   roundTrip<InboundTriggerSaveRequest>({
     source: 'screens/triggers.tsx',

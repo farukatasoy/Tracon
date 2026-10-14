@@ -8,22 +8,23 @@ namespace Tracon;
 /// code path. The decorator is the single gate.
 /// </para>
 /// <para>
-/// <strong>A write failure does not stop the operation — with six named exceptions.</strong>
-/// For every audit write but those six, a failed <see cref="WriteAsync"/> is logged and
+/// <strong>A write failure does not stop the operation — with seven named exceptions.</strong>
+/// For every audit write but those seven, a failed <see cref="WriteAsync"/> is logged and
 /// the operation continues: observability does not break behaviour. The record can
 /// therefore be missing, which is what an audit trail proves and does not prove.
 /// </para>
 /// <para>
-/// The six FAIL-CLOSED operations write their entry BEFORE the change and do not apply
+/// The seven FAIL-CLOSED operations write their entry BEFORE the change and do not apply
 /// the change if the write fails: an approval decision; granting or revoking a skill
 /// script; running a skill script; saving or deleting an inbound trigger; an automatic
-/// canary rollback; and a data subject erasure. Each of these is irreversible or
+/// canary rollback; a data subject erasure; and answering a workflow's pending human
+/// request (<c>workflow.respond</c>), which is written before the answer starts a run. Each of these is irreversible or
 /// security-bearing enough that a missing record is worse than a refused operation, so
 /// a failed write surfaces to the caller as an error instead of a warning in a log.
 /// </para>
 /// <para>
 /// That split is a <strong>published guarantee</strong>, not an implementation detail:
-/// an implementation of this interface that swallows its own write errors turns six
+/// an implementation of this interface that swallows its own write errors turns seven
 /// fail-closed operations into best-effort ones without anything else changing. Throw
 /// on a write that did not happen. Both paths count a failure on the
 /// <c>tracon.audit.write_failures</c> counter, tagged <c>swallowed</c> or

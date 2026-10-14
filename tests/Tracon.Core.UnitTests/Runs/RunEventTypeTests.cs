@@ -47,6 +47,7 @@ public sealed class RunEventTypeTests
         ("ChildRunTimedOut", 30),
         ("LoopIterationCompleted", 31),
         ("SessionWriteConflicted", 32),
+        ("WorkflowResponseApplied", 33),
     ];
 
     [Fact]

@@ -55,6 +55,7 @@ export const sidebar = [
     items: [
       { label: 'Sessions and conversations', slug: 'concepts/sessions' },
       { label: 'Workflows', slug: 'concepts/workflows' },
+      { label: 'Answering a workflow', slug: 'concepts/workflow-answers' },
       { label: 'Jobs, schedules, and queues', slug: 'guides/background-work' },
     ],
   },

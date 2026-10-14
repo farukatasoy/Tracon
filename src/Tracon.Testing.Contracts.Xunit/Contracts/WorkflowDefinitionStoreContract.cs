@@ -198,6 +198,27 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     }
 
     [Fact]
+    public async Task The_response_mode_survives_the_round_trip()
+    {
+        // Added in phase 208: the hand-written DTO trap a third time. A mode the payload
+        // dropped would read back as Branch, and a Single-answer workflow would open a
+        // branch for every repeated answer with nothing failing.
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "approval",
+            Kind = WorkflowKind.Magentic,
+            ManagerAgentName = "manager",
+            AgentNames = ["writer"],
+            RequirePlanApproval = true,
+            ResponseMode = WorkflowResponseMode.SingleAnswer,
+        });
+
+        (await Store.GetAsync("tenant-a", "approval"))!.ResponseMode.ShouldBe(WorkflowResponseMode.SingleAnswer);
+        (await Store.ListAsync("tenant-a")).Single().ResponseMode.ShouldBe(WorkflowResponseMode.SingleAnswer);
+        (await Store.GetVersionAsync("tenant-a", "approval", 1))!.ResponseMode.ShouldBe(WorkflowResponseMode.SingleAnswer);
+    }
+
+    [Fact]
     public async Task Saving_again_without_timeouts_clears_them()
     {
         // A save replaces the definition (K-725): a field the request leaves out is
@@ -581,6 +602,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
             Description = "The narrated hour.",
             Kind = WorkflowKind.Sequential,
             RunTimeout = TimeSpan.FromMinutes(42),
+            ResponseMode = WorkflowResponseMode.SingleAnswer,
             Parameters = [new AgentParameter { Name = "tone", Kind = AgentParameterKind.Text, Required = true, DefaultValue = "warm" }],
             Nodes =
             [
@@ -609,6 +631,7 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
             restored.DisplayName.ShouldBe("Podcast");
             restored.Description.ShouldBe("The narrated hour.");
             restored.RunTimeout.ShouldBe(TimeSpan.FromMinutes(42));
+            restored.ResponseMode.ShouldBe(WorkflowResponseMode.SingleAnswer);
             restored.Parameters.Single().DefaultValue.ShouldBe("warm");
             restored.Nodes.Count.ShouldBe(3);
             restored.Nodes[0].AgentVersion.ShouldBe(2);

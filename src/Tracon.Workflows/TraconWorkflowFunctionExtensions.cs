@@ -44,7 +44,7 @@ public static class TraconWorkflowFunctionExtensions
     /// point to a function registered here, by name. The function's
     /// <em>code</em> is never written from the UI or the database - the same
     /// boundary <c>AddTool</c> draws for tools, and the same boundary
-    /// <see cref="TraconWorkflowsBuilderExtensions.AddWorkflow"/> draws
+    /// <see cref="TraconWorkflowsBuilderExtensions.AddWorkflow(ITraconBuilder, string, Func{IServiceProvider, Microsoft.Agents.AI.Workflows.Workflow})"/> draws
     /// for a free-form graph.
     /// </para>
     /// <para>

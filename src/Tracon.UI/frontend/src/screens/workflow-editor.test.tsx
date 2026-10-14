@@ -156,6 +156,8 @@ describe('WorkflowEditorScreen - the chain', () => {
       handoffInstructions: null,
       requirePlanApproval: false,
       runTimeout: null,
+      // A new workflow keeps the default: every answer opens a new run.
+      responseMode: 'Branch',
     });
   });
 

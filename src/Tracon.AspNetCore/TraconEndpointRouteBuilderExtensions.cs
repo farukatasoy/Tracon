@@ -165,7 +165,7 @@ public static class TraconEndpointRouteBuilderExtensions
         SkillScriptGrantEndpoints.Map(group, roles);
         SessionEndpoints.Map(group, roles);
         RunEndpoints.Map(group, options, roles, normalizedPrefix);
-        WorkflowEndpoints.Map(group, roles, normalizedPrefix, queuedOnlyIdempotencyFilter);
+        WorkflowEndpoints.Map(group, roles, normalizedPrefix, queuedOnlyIdempotencyFilter, options.RunEventPollInterval);
         SchedulingEndpoints.Map(group, roles);
         EvalEndpoints.Map(group, roles);
         ExperimentEndpoints.Map(group, roles);

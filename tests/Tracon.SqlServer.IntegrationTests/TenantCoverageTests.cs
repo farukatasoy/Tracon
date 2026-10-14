@@ -110,6 +110,10 @@ public sealed class TenantCoverageTests
         // used to be listed here instead, which meant the gate passed on an
         // assertion no contract actually made.
         ["SqlPendingApprovalStore"] = ["CreateAsync", "ListPendingAsync", "GetAsync", "DecideAsync"],
+        // Phase 208: WorkflowResponseStoreContract writes both tenants' claims (AddAsync), reads
+        // them back per tenant (FindClaimAsync, GetAsync, ListBySourceRunAsync) and proves another
+        // tenant can neither abandon (ReplaceAsync) nor deliver (MarkDeliveredAsync) a record.
+        ["SqlWorkflowResponseStore"] = ["AddAsync", "FindClaimAsync", "ReplaceAsync", "MarkDeliveredAsync", "ListBySourceRunAsync", "GetAsync"],
         // Every method is [TenantAgnostic] by design (Phase 156): an upgrade
         // replaces the process for every tenant at once, so a tenant-filtered
         // preflight would under-report the risk.

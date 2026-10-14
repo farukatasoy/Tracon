@@ -843,9 +843,29 @@ export interface paths {
         put?: never;
         /**
          * Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
-         * @description The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+         * @description The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'. Every answer that starts a run is written to the audit trail as 'workflow.respond' before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is 'SingleAnswer' takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With 'Branch', the default, every answer opens a new run.
          */
         post: operations["TraconRespondWorkflowRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflows/runs/{runId}/responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the answers given to a run's human input requests.
+         * @description One entry per answer that started a run, oldest first: the request it answered, the run it started (responseRunId), who answered and when, and a SHA-256 of the answer (answerHash) - never the answer itself. The hash tells two answers apart; it does not hide an answer with few possible values, such as a yes or no. 'claimScope' is set when the workflow takes one answer per request; 'status' is Accepted until the workflow received the answer (Delivered), and Abandoned for an answer whose run stopped and was started again. A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.
+         */
+        get: operations["TraconListWorkflowResponses"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8217,6 +8237,12 @@ export interface components {
              *     `Tracon:Workflows:RunTimeout`.
              */
             runTimeout?: null | string;
+            /**
+             * @description Gets how the workflow treats more than one answer to the same pending human request.
+             *     WorkflowResponseMode.Branch (the default) opens a new run for every answer;
+             *     WorkflowResponseMode.SingleAnswer allows one answer per request.
+             */
+            responseMode?: components["schemas"]["WorkflowResponseMode"];
             /** @description Gets the tenant the definition belongs to. `null` for workflows defined in code. */
             tenantId?: null | string;
             /**
@@ -8254,6 +8280,12 @@ export interface components {
              *     takes none, and always empty for a workflow defined in code.
              */
             parameters?: components["schemas"]["AgentParameter"][];
+            /**
+             * @description Gets how the workflow treats more than one answer to the same pending human request.
+             *     For a stored workflow this is the current version's mode; a run that waits keeps the
+             *     mode of the version it recorded.
+             */
+            responseMode?: components["schemas"]["WorkflowResponseMode"];
             /**
              * Format: int32
              * @description Gets the definition version. Always 1 for code-defined workflows.
@@ -8424,6 +8456,49 @@ export interface components {
              */
             definitionVersion?: null | number | string;
         };
+        /**
+         * @description How a workflow treats more than one answer to the same pending human request.
+         * @enum {unknown}
+         */
+        WorkflowResponseMode: "Branch" | "SingleAnswer";
+        /** @description One answer to a workflow's pending human request. */
+        WorkflowResponseRecord: {
+            /**
+             * Format: uuid
+             * @description Gets the run the answer started. It identifies the record.
+             */
+            responseRunId: string;
+            /**
+             * Format: uuid
+             * @description Gets the run that waited for the answer.
+             */
+            sourceRunId: string;
+            /** @description Gets the execution session the two runs share. */
+            sessionId: string;
+            /** @description Gets the id of the request that was answered. */
+            requestId: string;
+            /** @description Gets the SHA-256 of the answer, as 64 lowercase hexadecimal characters. */
+            answerHash: string;
+            /**
+             * @description Gets the scope of the single-answer claim this record holds, or `null`
+             *     for an answer to a WorkflowResponseMode.Branch workflow, which claims nothing.
+             */
+            claimScope?: null | string;
+            /** @description Gets the state of the answer. */
+            status?: components["schemas"]["WorkflowResponseStatus"];
+            /** @description Gets who answered, as the audit trail names the actor; `null` when unknown. */
+            respondedBy?: null | string;
+            /**
+             * Format: date-time
+             * @description Gets when the answer was accepted (UTC).
+             */
+            respondedAt: string;
+        };
+        /**
+         * @description The state of a recorded answer.
+         * @enum {unknown}
+         */
+        WorkflowResponseStatus: "Accepted" | "Delivered" | "Abandoned";
         /** @description Request to resume a workflow from a checkpoint. */
         WorkflowResumeHttpRequest: {
             /**
@@ -8506,6 +8581,12 @@ export interface components {
              *     out to use the installation's `Tracon:Workflows:RunTimeout`.
              */
             runTimeout?: null | string;
+            /**
+             * @description How the workflow treats more than one answer to the same pending human request.
+             *     Leave it out for WorkflowResponseMode.Branch, where every answer opens a
+             *     new run; WorkflowResponseMode.SingleAnswer allows one answer per request.
+             */
+            responseMode?: components["schemas"]["WorkflowResponseMode"];
         };
         /**
          * @description Raw JSON response for comparing two workflow definition versions. The diff is not
@@ -8809,6 +8890,9 @@ export type WorkflowNodeReference = components['schemas']['WorkflowNodeReference
 export type WorkflowPendingRequest = components['schemas']['WorkflowPendingRequest'];
 export type WorkflowRequestForm = components['schemas']['WorkflowRequestForm'];
 export type WorkflowRespondHttpRequest = components['schemas']['WorkflowRespondHttpRequest'];
+export type WorkflowResponseMode = components['schemas']['WorkflowResponseMode'];
+export type WorkflowResponseRecord = components['schemas']['WorkflowResponseRecord'];
+export type WorkflowResponseStatus = components['schemas']['WorkflowResponseStatus'];
 export type WorkflowResumeHttpRequest = components['schemas']['WorkflowResumeHttpRequest'];
 export type WorkflowRollbackRequest = components['schemas']['WorkflowRollbackRequest'];
 export type WorkflowRunHttpRequest = components['schemas']['WorkflowRunHttpRequest'];
@@ -10534,6 +10618,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Not Implemented */
             501: {
                 headers: {
@@ -10545,6 +10638,37 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TraconListWorkflowResponses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowResponseRecord"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

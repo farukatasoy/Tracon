@@ -292,7 +292,7 @@ and a longer value is accepted only up to `Tracon:Workflows:MaxRunTimeout` (see
 A workflow defined in the database also has a **Versions** section on its screen: every
 save is a version, with the time it was saved and which one is current. Tick two versions
 to compare them (the display name, the description, the pattern, the steps with their pins,
-timeouts and settings, the parameters and the run timeout), or press **Rollback** on an
+timeouts and settings, the parameters, the run timeout and the answers per request), or press **Rollback** on an
 older one. A rollback deletes nothing: it writes that version's content as a new version,
 and every run started after it uses the restored definition. A run that is waiting keeps the
 version it recorded. A rollback an administrator presses on content that no longer passes the
@@ -304,10 +304,20 @@ A workflow waiting on human input shows the pending request as a card; answering
 resumes execution from the checkpoint as a new run. The card opens for any waiting
 run, wherever it started — over HTTP, from a job, or in another tab: follow the
 **workflow screen** link on its run page, or open `workflows/<name>?runId=<run id>`.
-The answered run keeps its *awaiting input* status and its request, so answering it
-a second time starts a separate branch. An answer that does not fit the request — a
-`Json` request's text that does not read into the port's type, for example — is refused
-before anything runs, and the screen shows the server's reason.
+The answered run keeps its *awaiting input* status and its request. In the default
+mode, answering it a second time starts a separate branch. A request that already has an
+answer shows an *answered* badge and a *continued in run* link to the run the answer
+started. In a workflow that takes one answer per request, the same answer given again
+follows that run, and a different answer is refused: the card says the request was
+already answered with a different answer (see
+[One answer per request](/concepts/workflow-answers/#one-answer-per-request)). An answer that
+does not fit the request — a `Json` request's text that does not read into the port's
+type, for example — is refused before anything runs, and the screen shows the server's
+reason.
+
+The editor's **One answer per request** switch sets that mode for a stored workflow, and
+the version comparison lists it as *Answers per request*. A run started by an answer shows
+an *answers a request of run* link in its timeline, back to the run it answered.
 
 ## Evals and experiments
 

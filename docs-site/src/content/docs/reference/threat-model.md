@@ -74,7 +74,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Content guards | Input or output a configured guard rejects |
 | Secret handling | A secret value reaching storage, a log, or a response |
 | At-rest protection | Readable content in a database you do not fully trust |
-| Audit trail | Six operations proceeding without their record |
+| Audit trail | Seven operations proceeding without their record |
 | Quotas and rate limits | Spend and request volume above the configured ceiling |
 | Production profile | A host starting with a security decision never made |
 
@@ -105,9 +105,9 @@ state.
 :::
 
 :::caution[The audit trail's best-effort half can go silently thin under a storage outage]
-Six operations — an approval decision, granting or running a skill script, saving or
-deleting an inbound trigger, an automatic canary rollback, and a data subject erasure
-— refuse to proceed if their audit record fails to write. Every other audit write is
+Seven operations — an approval decision, granting or running a skill script, saving or
+deleting an inbound trigger, an automatic canary rollback, a data subject erasure, and
+an answer to a workflow's pending request — refuse to proceed if their audit record fails to write. Every other audit write is
 best-effort: the operation continues and the record can be missing. See [what is
 guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) for
 the full split and how a failed write is surfaced in metrics.

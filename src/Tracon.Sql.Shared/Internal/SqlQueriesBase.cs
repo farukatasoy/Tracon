@@ -1064,6 +1064,32 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string ExpirePendingApprovals { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that inserts the record of one answer to a workflow request.</summary>
+    /// <remarks>
+    /// A record that claims a request fails with a violation that
+    /// <see cref="SqlDialect.IsUniqueViolation"/> recognizes when an active record already
+    /// holds the claim (the partial unique index of <c>workflow_responses</c>).
+    /// </remarks>
+    public string InsertWorkflowResponse { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads the active record holding a claim, restricted to the tenant.</summary>
+    public string SelectWorkflowResponseClaim { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the query that abandons an active record. The <c>WHERE</c> targets only a record that
+    /// is not abandoned yet, so of two concurrent abandons one affects 0 rows.
+    /// </summary>
+    public string AbandonWorkflowResponse { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that marks an accepted record delivered.</summary>
+    public string MarkWorkflowResponseDelivered { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that lists a source run's answer records, oldest first.</summary>
+    public string SelectWorkflowResponsesBySource { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads one answer record by its run id, restricted to the tenant.</summary>
+    public string SelectWorkflowResponse { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that creates or replaces a tenant's provider binding (BYOK).</summary>
     public string UpsertTenantProviderBinding { get; protected set; } = string.Empty;
 
@@ -1106,6 +1132,13 @@ internal abstract class SqlQueriesBase
     protected const string ScheduleColumns = """
             id, tenant_id, name, handler_key, target_name, cron, time_zone, payload, enabled,
             next_run_at, last_run_at, created_by, created_at, updated_at, lane
+            """;
+
+    // Phase 208: SqlWorkflowResponseStore reads these by fixed ordinal; a new column is
+    // appended at the end (docs/hafiza/postgresql.md).
+    protected const string WorkflowResponseColumns = """
+            response_run_id, tenant_id, source_run_id, session_id, request_id, claim_scope,
+            answer_hash, status, responded_by, responded_at
             """;
 
     protected const string InboundTriggerColumns = """
@@ -2102,6 +2135,48 @@ internal abstract class SqlQueriesBase
                    decided_by, decided_at, expires_at, created_at, presentation
               FROM {Table("pending_approvals")}
              WHERE id = @id AND tenant_id = @tenant_id;
+            """;
+
+        // Phase 208. Standard SQL on all three providers: the claim is the partial unique
+        // index's job, so the insert is a plain INSERT and the race is decided by the index.
+        InsertWorkflowResponse = $"""
+            INSERT INTO {Table("workflow_responses")}
+                ({WorkflowResponseColumns})
+            VALUES
+                (@response_run_id, @tenant_id, @source_run_id, @session_id, @request_id, @claim_scope,
+                 @answer_hash, @status, @responded_by, @responded_at);
+            """;
+
+        SelectWorkflowResponseClaim = $"""
+            SELECT {WorkflowResponseColumns}
+              FROM {Table("workflow_responses")}
+             WHERE tenant_id = @tenant_id AND claim_scope = @claim_scope AND request_id = @request_id
+               AND status <> @status_abandoned;
+            """;
+
+        AbandonWorkflowResponse = $"""
+            UPDATE {Table("workflow_responses")}
+               SET status = @status_abandoned
+             WHERE response_run_id = @response_run_id AND tenant_id = @tenant_id AND status <> @status_abandoned;
+            """;
+
+        MarkWorkflowResponseDelivered = $"""
+            UPDATE {Table("workflow_responses")}
+               SET status = @status_delivered
+             WHERE response_run_id = @response_run_id AND tenant_id = @tenant_id AND status = @status_accepted;
+            """;
+
+        SelectWorkflowResponsesBySource = $"""
+            SELECT {WorkflowResponseColumns}
+              FROM {Table("workflow_responses")}
+             WHERE tenant_id = @tenant_id AND source_run_id = @source_run_id
+             ORDER BY responded_at ASC, response_run_id ASC;
+            """;
+
+        SelectWorkflowResponse = $"""
+            SELECT {WorkflowResponseColumns}
+              FROM {Table("workflow_responses")}
+             WHERE response_run_id = @response_run_id AND tenant_id = @tenant_id;
             """;
 
         // WHERE status = @status_pending: a second decision affects 0 rows,

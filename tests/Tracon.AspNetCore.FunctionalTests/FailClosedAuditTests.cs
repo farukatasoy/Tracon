@@ -245,6 +245,60 @@ public sealed class FailClosedAuditTests
         measurement.Tags[TraconDiagnostics.Tags.AuditAction].ShouldBe("agent.create");
     }
 
+    [Fact]
+    public async Task A_streamed_workflow_answer_is_not_applied_when_its_audit_entry_cannot_be_written()
+    {
+        // Phase 208: every answer that starts a run is the seventh fail-closed operation. A
+        // refused entry leaves no record, no run and no claim - the same answer goes through
+        // once the audit store is back.
+        var audit = new SwitchableAuditLog();
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(configureServices: services => services.AddSingleton<IAuditLog>(audit));
+        var (sourceId, requestId) = await WorkflowResponseHarness.RunToAwaitAsync(host, WorkflowResponseHarness.SingleFlow);
+        var before = (await WorkflowResponseHarness.WorkflowRunsAsync(host)).Count;
+
+        audit.Fail = true;
+
+        await Should.ThrowAsync<TraconException>(async () =>
+        {
+            using var _ = await WorkflowResponseHarness.RespondAsync(host, sourceId, new { requestId, approved = true });
+        });
+
+        (await WorkflowResponseHarness.WorkflowRunsAsync(host)).Count.ShouldBe(before);
+        (await WorkflowResponseHarness.RecordsAsync(host, sourceId)).ShouldBeEmpty();
+
+        audit.Fail = false;
+
+        using var answered = await WorkflowResponseHarness.RespondAsync(host, sourceId, new { requestId, approved = true });
+
+        await WorkflowResponseHarness.FramesAsync(answered);
+        audit.Written.ShouldContain(static entry => string.Equals(entry.Action, "workflow.respond", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_queued_workflow_answer_is_not_queued_when_its_audit_entry_cannot_be_written()
+    {
+        var audit = new SwitchableAuditLog();
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(
+            runWorker: false,
+            configureServices: services => services.AddSingleton<IAuditLog>(audit));
+        var (sourceId, requestId) = await WorkflowResponseHarness.RunToAwaitAsync(host, WorkflowResponseHarness.BranchFlow);
+        var before = (await WorkflowResponseHarness.WorkflowRunsAsync(host)).Count;
+
+        audit.Fail = true;
+
+        await Should.ThrowAsync<TraconException>(async () =>
+        {
+            using var _ = await QueuedWorkflowHarness.PostAsync(
+                host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true });
+        });
+
+        (await WorkflowResponseHarness.WorkflowRunsAsync(host)).Count.ShouldBe(before);
+        (await WorkflowResponseHarness.RecordsAsync(host, sourceId)).ShouldBeEmpty();
+        (await QueuedWorkflowHarness.JobsAsync(host)).ShouldBeEmpty();
+    }
+
     private static void ConfigureApprovalAgent(ITraconBuilder builder)
     {
         builder
