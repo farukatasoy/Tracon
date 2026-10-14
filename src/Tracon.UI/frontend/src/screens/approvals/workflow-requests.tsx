@@ -74,97 +74,99 @@ export function WorkflowRequestsPanel(): ReactNode {
   const filtered = state !== 'pending' || workflowName.length > 0;
 
   return (
-    <Panel title={t('approvals.workflowRequests.title')}>
-      <p className="px-4 pt-3 text-sm text-muted">{t('approvals.workflowRequests.description')}</p>
+    <div data-testid="workflow-requests">
+      <Panel title={t('approvals.workflowRequests.title')}>
+        <p className="px-4 pt-3 text-sm text-muted">{t('approvals.workflowRequests.description')}</p>
 
-      <div className="px-4 pt-3" data-testid="workflow-requests">
-        <Toolbar
-          onReset={
-            filtered
-              ? () => {
-                  setState('pending');
-                  setWorkflowName('');
-                  setPage(0);
-                }
-              : undefined
-          }
-        >
-          <ToolbarField label={t('approvals.workflowRequests.show')}>
-            {(id) => (
-              <Select
-                id={id}
-                testId="workflow-requests-state"
-                value={state}
-                onChange={(value) => {
-                  setState(value as RequestState);
-                  setPage(0);
-                }}
-              >
-                <option value="pending">{t('approvals.workflowRequests.showPending')}</option>
-                <option value="answered">{t('approvals.workflowRequests.showAnswered')}</option>
-                <option value="all">{t('approvals.workflowRequests.showAll')}</option>
-              </Select>
-            )}
-          </ToolbarField>
+        <div className="px-4 pt-3">
+          <Toolbar
+            onReset={
+              filtered
+                ? () => {
+                    setState('pending');
+                    setWorkflowName('');
+                    setPage(0);
+                  }
+                : undefined
+            }
+          >
+            <ToolbarField label={t('approvals.workflowRequests.show')}>
+              {(id) => (
+                <Select
+                  id={id}
+                  testId="workflow-requests-state"
+                  value={state}
+                  onChange={(value) => {
+                    setState(value as RequestState);
+                    setPage(0);
+                  }}
+                >
+                  <option value="pending">{t('approvals.workflowRequests.showPending')}</option>
+                  <option value="answered">{t('approvals.workflowRequests.showAnswered')}</option>
+                  <option value="all">{t('approvals.workflowRequests.showAll')}</option>
+                </Select>
+              )}
+            </ToolbarField>
 
-          <ToolbarField label={t('workflows.column.workflow')}>
-            {(id) => (
-              <Select
-                id={id}
-                testId="workflow-requests-workflow"
-                value={workflowName}
-                onChange={(value) => {
-                  setWorkflowName(value);
-                  setPage(0);
-                }}
-              >
-                <option value="">{t('approvals.workflowRequests.allWorkflows')}</option>
-                {(workflows.data ?? []).map((workflow) => (
-                  <option key={workflow.name} value={workflow.name}>
-                    {workflow.displayName ?? workflow.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </ToolbarField>
-        </Toolbar>
-      </div>
-
-      {requests.isPending && <Loading rows={3} />}
-      {requests.isError && (
-        <div className="p-3">
-          <ErrorNote error={requests.error} onRetry={() => void requests.refetch()} />
+            <ToolbarField label={t('workflows.column.workflow')}>
+              {(id) => (
+                <Select
+                  id={id}
+                  testId="workflow-requests-workflow"
+                  value={workflowName}
+                  onChange={(value) => {
+                    setWorkflowName(value);
+                    setPage(0);
+                  }}
+                >
+                  <option value="">{t('approvals.workflowRequests.allWorkflows')}</option>
+                  {(workflows.data ?? []).map((workflow) => (
+                    <option key={workflow.name} value={workflow.name}>
+                      {workflow.displayName ?? workflow.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </ToolbarField>
+          </Toolbar>
         </div>
-      )}
 
-      {requests.isSuccess &&
-        ((requests.data ?? []).length === 0 ? (
-          <Empty title={t('approvals.workflowRequests.empty.title')}>
-            {t(filtered ? 'approvals.workflowRequests.empty.filtered' : 'approvals.workflowRequests.empty.body')}
-          </Empty>
-        ) : (
-          <Table label={t('approvals.workflowRequests.title')}>
-            <thead>
-              <tr>
-                <Th>{t('workflows.column.workflow')}</Th>
-                <Th>{t('approvals.workflowRequests.request')}</Th>
-                <Th>{t('approvals.workflowRequests.requested')}</Th>
-                <Th>{t('approvals.workflowRequests.expires')}</Th>
-                <Th>{t('approvals.workflowRequests.state')}</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {(requests.data ?? []).map((request) => (
-                <RequestRow key={`${request.runId}:${request.requestId}`} request={request} />
-              ))}
-            </tbody>
-          </Table>
-        ))}
+        {requests.isPending && <Loading rows={3} />}
+        {requests.isError && (
+          <div className="p-3">
+            <ErrorNote error={requests.error} onRetry={() => void requests.refetch()} />
+          </div>
+        )}
 
-      {requests.isSuccess && (
-        <Pager page={page} size={(requests.data ?? []).length} pageSize={PAGE_SIZE} onChange={setPage} />
-      )}
-    </Panel>
+        {requests.isSuccess &&
+          ((requests.data ?? []).length === 0 ? (
+            <Empty title={t('approvals.workflowRequests.empty.title')}>
+              {t(filtered ? 'approvals.workflowRequests.empty.filtered' : 'approvals.workflowRequests.empty.body')}
+            </Empty>
+          ) : (
+            <Table label={t('approvals.workflowRequests.title')}>
+              <thead>
+                <tr>
+                  <Th>{t('workflows.column.workflow')}</Th>
+                  <Th>{t('approvals.workflowRequests.request')}</Th>
+                  <Th>{t('approvals.workflowRequests.requested')}</Th>
+                  <Th>{t('approvals.workflowRequests.expires')}</Th>
+                  <Th>{t('approvals.workflowRequests.state')}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {(requests.data ?? []).map((request) => (
+                  <RequestRow key={`${request.runId}:${request.requestId}`} request={request} />
+                ))}
+              </tbody>
+            </Table>
+          ))}
+
+        {requests.isSuccess && (
+          <Pager page={page} size={(requests.data ?? []).length} pageSize={PAGE_SIZE} onChange={setPage} />
+        )}
+      </Panel>
+    </div>
   );
 }
 

@@ -251,7 +251,17 @@ internal sealed class UiHost : IAsyncDisposable
                         services.GetWorkflowAgent("summarize-and-translate", "router"),
                     ]),
                 "Two-step chain.")
-            .AddWorkflow("approval-flow", static _ => ApprovalWorkflow.Build(), "Flow that waits for human approval.");
+            .AddWorkflow(
+                "approval-flow",
+                static _ => ApprovalWorkflow.Build(),
+                static options =>
+                {
+                    options.Description = "Flow that waits for human approval.";
+
+                    // Two days: far enough that no case sees the request expire, and a limit the
+                    // Approvals screen and its screenshot show in the Expires column.
+                    options.RequestTimeout = TimeSpan.FromDays(2);
+                });
 
         configureTracon?.Invoke(tracon);
 

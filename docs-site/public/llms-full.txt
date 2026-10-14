@@ -156,7 +156,7 @@ is the list.
 |---|---|---|
 | Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, and a step can pin a version of a stored agent |
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
-| Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`) |
+| Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`); `GET /api/workflows/requests` lists the tenant's waiting requests, and a `RequestTimeout` closes a run nobody answered so retention can release what it kept |
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
@@ -171,7 +171,7 @@ is the list.
 | Run continuation | `Tracon:RunContinuation` | An orphaned, session-bound agent run at the root of its tree resumes as a new run; completed tool calls replay, a destructive or external one blocks continuation unless the tool declares `SafeToRepeat`; a workflow run is resumed from its checkpoints instead |
 | Workflow recovery | `UseWorkflows(o => o.ResumeInterruptedRuns = true)` | A queued workflow run or batch item interrupted by a crash, a deploy or a graceful stop continues from its latest checkpoint when its job is leased again, as a new run linked by `ContinuedFromRunId`, up to `MaxResumeAttempts`; the step in progress runs again |
 | Workflow node retry | `AddWorkflowFunction(..., retryPolicy: ...)` or `options.RetryPolicy` | A transient provider error retries a single node without failing the run or costing an extra super-step |
-| Time limits | `options.Timeout`, `JobRequest.MaxDuration`, a node's `timeout`, a definition's `runTimeout`, `Tracon:Scheduling:MaxDurationByHandlerKey` | A workflow step past its timeout fails the run (`workflow_function_timeout`, `child_run_timeout`); a definition shortens its run timeout, or lengthens it up to `Tracon:Workflows:MaxRunTimeout`; a job past its limit has its handler's token cancelled and fails with `tracon.job.max-duration-exceeded`. A job cancel reaches a running handler within one `PollInterval` |
+| Time limits | `options.Timeout`, `JobRequest.MaxDuration`, a node's `timeout`, a definition's `runTimeout`, `Tracon:Scheduling:MaxDurationByHandlerKey` | A workflow step past its timeout fails the run (`workflow_function_timeout`, `child_run_timeout`); a definition shortens its run timeout, or lengthens it up to `Tracon:Workflows:MaxRunTimeout`, and its `requestTimeout` closes a run nobody answered; a job past its limit has its handler's token cancelled and fails with `tracon.job.max-duration-exceeded`. A job cancel reaches a running handler within one `PollInterval` |
 | Graceful drain | `Tracon:Drain` | A stop signal waits for in-flight runs and refuses new ones instead of cutting execution off |
 
 In-memory stores make these contracts usable for local work. Durable queues,
@@ -268,7 +268,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-175-operation HTTP reference.
+176-operation HTTP reference.
 
 ## Embedding points
 
@@ -3812,6 +3812,146 @@ answer with `500`, and the run does not start.
 
 ---
 
+# Workflow requests and time limits
+
+Source: https://tracon.dev/concepts/workflow-requests/
+
+How many people are your workflows waiting on right now, and what happens to a request
+nobody answers? This page covers the tenant-wide list of waiting requests and the time
+limit a workflow can give them. How a workflow asks, and how an answer resumes it, is in
+[Asking a human](/concepts/workflows/#asking-a-human); what an answer leaves behind is in
+[Answering a workflow](/concepts/workflow-answers/).
+
+## The list of waiting requests
+
+`GET /api/workflows/requests` lists the human requests that the workflow runs of your
+tenant wait on, across every workflow, oldest first. The console shows the same list in
+the *Workflow requests* panel of the Approvals screen. Each item is a
+[pending request](/http-api/schemas/workflowpendingrequest/) with five more fields:
+
+| Field | Meaning |
+|---|---|
+| `workflowName`, `sessionId` | The workflow, and the execution session its runs share |
+| `expiresAt` | When the request runs out; `null` when the workflow sets no time limit |
+| `answered` | Whether somebody answered the request |
+| `lastResponseRunId` | The run that carried out the latest answer; `null` while nobody answered |
+
+| Query | Meaning |
+|---|---|
+| `state` | `pending` (default): nobody answered. `answered`: answered, but the run still waits. `all`: both |
+| `workflowName` | List one workflow |
+| `skip`, `take` | A page; `take` is from 1 to 200 and defaults to 50 |
+
+The filter runs before the page, so a page is full unless the list ends. A `state` that is
+none of the three is `400`.
+
+**One request is listed once.** An answered run stays `AwaitingInput`, and the run that
+continues it publishes the requests that are still open again, with the same request id.
+The same request id in the same session is therefore one request, and the item names the
+newest run that waits on it: the run to answer. `GET /api/workflows/runs/{runId}/requests`
+is unchanged in what it returns — the requests that run published — and carries the same
+five fields.
+
+**An answered request stays in the list** until its run is closed, marked `answered`, with
+the run that carried the answer out. The default `state=pending` hides it. This is the
+same rule that keeps an answered run `AwaitingInput`: a second answer opens a new branch.
+
+The list needs the `Reader` role and read access to runs. A registered
+`IRunAuthorizationHandler` that refuses reading runs rejects the whole list with `403`; it
+never filters the list, because a filtered page would be shorter than the caller is allowed
+to see. A host without the workflow engine answers `501`.
+
+:::note[Runs that started waiting before the list existed are not in it]
+The list is built from a row the engine writes when a run starts waiting. A run that
+started waiting on an older version has no row: read its requests with
+`GET /api/workflows/runs/{runId}/requests` and answer them as before. The row also carries no
+copy of the prompt — the list reads it from the run's own event stream, the same text the
+run's card shows, with the same content protection.
+:::
+
+## Giving a request a time limit
+
+A run that waits for a person keeps its request event, its checkpoints and its input row
+for as long as it waits, because answering needs them. An answered run waits too, so these
+rows are never deleted. A **request timeout** is how a workflow lets go of them: when the
+time passes, the run is closed and retention can delete what it kept.
+
+Set it per workflow:
+
+- `requestTimeout` on `PUT /api/workflows/{name}`, as `d.hh:mm:ss`.
+- The *Answer time limit* field in the console's workflow editor, in seconds or `d.hh:mm:ss`.
+- For a workflow defined in code, `WorkflowRegistrationOptions.RequestTimeout`:
+
+```csharp
+builder.AddWorkflow(
+    "publish-approval",
+    services => BuildPublishApproval(services),
+    options => options.RequestTimeout = TimeSpan.FromDays(7));
+```
+
+The value is from one minute to 365 days; a save outside the range is refused with `400`.
+Without a value a request waits without limit. The save is a full replace like every other
+field, so a client that leaves `requestTimeout` out removes the limit.
+
+The time counts from the moment the run published the request, and it is fixed then. A run
+that waits keeps the limit of the version it started with: saving the workflow again
+changes it for runs that start afterwards. A continuation that publishes a request again
+starts that run's count from its own moment.
+
+```mermaid
+flowchart LR
+    accTitle: The life of a workflow request with a time limit
+    accDescr: A run publishes a request and closes as awaiting input with an expiry time. A person answers it, or the time passes. When the time passes the run is closed, failed if a request went unanswered and completed if every request was answered, and retention can then delete what the run kept.
+    RUN["run publishes a request"] --> WAIT["run is AwaitingInput<br/>expiresAt is fixed"]
+    WAIT -->|"answered"| MARK["request is marked answered<br/>the run still waits"]
+    WAIT -->|"time passes"| CLOSE["run is closed"]
+    MARK -->|"time passes"| CLOSE
+    CLOSE --> FREE["retention can delete the request,<br/>checkpoints and input row"]
+```
+
+## When the time passes
+
+A background scan closes the requests whose time has passed, and then the runs that wait on
+no other request:
+
+| What the run waited on | The run is closed |
+|---|---|
+| A request nobody answered | `Failed`, with the error type `WorkflowRequestExpired` (error class `Timeout`) |
+| Requests that were all answered | `Completed`, with no error: the answer was given and its work continued on another run |
+| Several requests, the last one now due | When the last one passes. A request a slower branch published later keeps the run waiting |
+
+An answer to a closed run is refused with `400`, as an answer to any run that is not
+`AwaitingInput` is, and opens no run. The closed run keeps its usage, cost and event count.
+The next retention round deletes its request event, checkpoints and input row by age, like
+those of any finished run; the `workflow_requests` retention target deletes the closed rows
+of the list after `Tracon:Retention:WorkflowRequests:MaxAgeDays` (30 days by default).
+
+Two settings under `Tracon:Workflows` control the scan:
+
+| Key | Default |
+|---|---|
+| `RequestExpirationScanInterval` | 1 minute |
+| `MaxRequestExpirationsPerScan` | `100` |
+
+A request is closed at most one interval after its time. Only one instance of a cluster
+scans at a time. The scan reads an index of the requests that have a limit, so it costs
+nothing while no workflow sets one.
+
+:::caution[A request whose row could not be written never expires]
+When the row of a request cannot be written, the run still waits and the request can still be
+answered from the run, but it is missing from the list and it never expires. That is logged
+as a warning. A scan that closes a request but fails to close its run tries the run again on
+each scan of the same process; a process that stops in between leaves the run waiting.
+:::
+
+## Read next
+
+- [Asking a human](/concepts/workflows/#asking-a-human) — how a workflow asks and how an answer resumes it.
+- [Answering a workflow](/concepts/workflow-answers/) — the audit entry and the record every answer leaves.
+- [Retention defaults](/reference/configuration/#retention-defaults) — what retention keeps for a run that waits, and what it deletes after.
+
+---
+
 # Workflows
 
 Source: https://tracon.dev/concepts/workflows/
@@ -4670,7 +4810,8 @@ Checkpoints survive a process restart only with a SQL provider registered
 most 50 checkpoints per session and drops the oldest — enough for local development,
 not for a workflow you expect to resume after a restart. They are also a retention
 target, so an old run may have none left even on durable storage — except a run
-waiting for a human answer, whose checkpoints retention keeps.
+waiting for a human answer, whose checkpoints retention keeps until the run is closed
+(see [time limits](/concepts/workflow-requests/#giving-a-request-a-time-limit)).
 
 With `KeepCheckpointsAfterCompletion = false`, a finished run deletes its session's
 checkpoints only when no other run of the session still needs them — none is
@@ -4720,8 +4861,10 @@ flowchart LR
     RESP --> NEW["a NEW run resumes from the checkpoint<br/>streamed over SSE, or queued with Prefer: respond-async"]
 ```
 
-Requests are read from the run's own event stream — there is no separate table — and
-only a run in `AwaitingInput` has any. The answer is matched to the request that is
+A request's prompt and form are read from the run's own event stream — nothing copies
+them — and only a run in `AwaitingInput` has any. [Workflow requests and time
+limits](/concepts/workflow-requests/) covers the tenant-wide list of them and the time
+limit a workflow can give them. The answer is matched to the request that is
 re-published with the same id when execution resumes. A very long prompt is cut at
 the event payload limit (`RunRecording:MaxPayloadLength`) and marked
 `…[truncated]`; the request is still listed and can still be answered.
@@ -5007,7 +5150,7 @@ pin the exact package version when reproducibility matters.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 175 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **HTTP API** | 176 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
 | **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
@@ -15717,7 +15860,7 @@ public void All_tool_contracts_are_covered()
 
 Source: https://tracon.dev/http-api/
 
-175 operations across 137 paths. This page is the shape they all share; the groups in
+176 operations across 138 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -17170,7 +17313,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 175 management and OpenAI-compatible
+The generated HTTP reference contains 176 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -17759,11 +17902,15 @@ only after retention is enabled. A database policy for a target takes precedence
 | `VoiceSessions` | 30 days | `false` |
 | `RunScores` | 180 days | `false` |
 | `DocumentEmbeddings` | Disabled, `null` | `false` |
+| `WorkflowRequests` | 30 days after the request expired; closed rows only | `false` |
 
 A workflow run waiting for a human answer (`AwaitingInput`) keeps its pending
 request event, its checkpoints and its run input row for as long as it waits,
 whatever their age: the request lives only in that event, the answer resumes from those
-checkpoints, and the parameter values it resumes with live only in that row.
+checkpoints, and the parameter values it resumes with live only in that row. A
+[request timeout](/concepts/workflow-requests/#giving-a-request-a-time-limit) is what ends
+the wait: when it passes, the run is closed and the next retention round deletes those
+rows by age like any other.
 
 `MaxAgeDays` takes a whole number of days, and a value below `1` fails at startup.
 Configuration cannot switch off a target that has a default age: an empty value or a
@@ -17898,6 +18045,8 @@ tracon.UseMcp(
 | `MaxSuperSteps` | `100` |
 | `MaxNodeSettingsLength` | `16384` bytes |
 | `KeepCheckpointsAfterCompletion` | `true` |
+| `RequestExpirationScanInterval` | 1 minute |
+| `MaxRequestExpirationsPerScan` | `100` |
 
 The section does not register the execution engine. Call `UseWorkflows()`; that call
 binds this section and then applies its optional code override.
@@ -17910,6 +18059,11 @@ warning is logged.
 
 `MaxNodeSettingsLength` caps the JSON text of one function node's settings when a
 workflow is saved; a definition stored before the cap was lowered still runs.
+
+`RequestExpirationScanInterval` is how often the scan that closes the runs of expired
+[workflow requests](/concepts/workflow-requests/#when-the-time-passes) looks; it must be
+from one millisecond to about 49.7 days and fails at startup otherwise, while `Enabled` is
+`true`. `MaxRequestExpirationsPerScan` must be at least `1`.
 
 ### Speech tools
 
@@ -20374,7 +20528,10 @@ reason.
 
 The editor's **One answer per request** switch sets that mode for a stored workflow, and
 the version comparison lists it as *Answers per request*. A run started by an answer shows
-an *answers a request of run* link in its timeline, back to the run it answered.
+an *answers a request of run* link in its timeline, back to the run it answered. The
+**Answer time limit** field sets how long a request may wait before its run is closed (see
+[Workflow requests and time limits](/concepts/workflow-requests/)); the comparison lists it
+too, and an empty field means no limit.
 
 ## Evals and experiments
 
@@ -20406,6 +20563,15 @@ that answer sets in motion. It is here for a reason particular to approvals: the
 that asked the question never continues under its own id. It stays `AwaitingApproval`
 for good and the decision opens a new run, so there is no second request to answer if
 the first was answered by accident.
+
+Below the tool calls, a **Workflow requests** panel lists the human requests that the
+tenant's workflow runs wait on, across every workflow: the start of the request, when it
+was asked, when it expires, and whether it is waiting or already answered. The filters show
+the requests that wait for an answer (the default), the answered ones whose run still waits,
+or both, for all workflows or one. A row opens the run's card, where the whole request is
+read and answered. The panel is a separate record from the tool approvals above it, with its
+own filters and its own pages. See [Workflow requests and time
+limits](/concepts/workflow-requests/).
 
 Standing "don't ask again" rules live under Governance, where they can be reviewed,
 revoked, or written by hand with an argument condition (for example `amount <= 100`)

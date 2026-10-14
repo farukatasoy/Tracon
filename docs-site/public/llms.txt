@@ -277,6 +277,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Sessions and conversations](https://tracon.dev/concepts/sessions/) — Learn how sessions carry conversation state, how branching copies history, and how attachments are owned and removed.
 - [Tools, skills, and MCP](https://tracon.dev/concepts/tools/) — The ways an agent gains a capability, and the guards on the ones that cross the code-only boundary.
 - [Answering a workflow](https://tracon.dev/concepts/workflow-answers/) — How an answer to a waiting workflow is audited and recorded, and how a one-answer workflow follows a repeated answer and refuses a different one.
+- [Workflow requests and time limits](https://tracon.dev/concepts/workflow-requests/) — List the human requests your workflows wait on, see which are answered, and give a request a time limit so a run nobody answers is closed.
 - [Workflows](https://tracon.dev/concepts/workflows/) — Five multi-agent patterns, queued runs, version history and rollback, checkpoints, recovery after a restart, and asking a human mid-execution.
 - [Tracon and DevUI](https://tracon.dev/getting-started/devui/) — What MAF's DevUI does, what its own documentation says it is not for, and which of the two belongs in a production host.
 - [Your first agent](https://tracon.dev/getting-started/first-agent/) — Install the Tracon template, configure a model, run an agent, and inspect its recorded execution in the embedded console.

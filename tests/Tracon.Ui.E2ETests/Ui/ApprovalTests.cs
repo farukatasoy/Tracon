@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
 using static Microsoft.Playwright.Assertions;
@@ -34,6 +35,41 @@ public sealed class ApprovalTests(BrowserFixture browsers)
 
         await Expect(session.Page.GetByText("refund_order").First).ToBeVisibleAsync();
         await Expect(session.Page.GetByText("amount ≤ 100")).ToBeVisibleAsync();
+    }
+
+    [Fact]
+    public async Task Approvals_screen_lists_a_waiting_workflow_request_and_its_row_opens_the_run_card()
+    {
+        // Phase 209: the human requests of workflow runs are a second list on the same screen,
+        // across every workflow; a row is a pointer to the run's card, where the answer is given.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        // The stream closes when the run stops at the request port, so reading it to the end is
+        // the wait: the run is AwaitingInput afterwards.
+        using var started = await api.PostAsJsonAsync("api/workflows/approval-flow/run", new { message = "publish the report" });
+
+        started.EnsureSuccessStatusCode();
+        _ = await started.Content.ReadAsStringAsync();
+
+        await session.Page.GotoAsync($"{host.UiAddress}/approvals");
+
+        var panel = session.Page.GetByTestId("workflow-requests");
+
+        await Expect(panel.GetByText("Requests approval: publish the report")).ToBeVisibleAsync();
+        await Expect(panel.GetByText("Waiting", new() { Exact = true })).ToBeVisibleAsync();
+
+        // The workflow sets a limit, so the row shows when the request runs out, not "No limit".
+        await Expect(panel.GetByText("No limit")).ToHaveCountAsync(0);
+
+        await panel.GetByRole(AriaRole.Link, new() { Name = "approval-flow" }).ClickAsync();
+
+        await Expect(session.Page).ToHaveURLAsync(new Regex(
+            @"/workflows/approval-flow\?runId=[0-9a-f-]{36}$",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(1)));
+        await Expect(session.Page.GetByTestId("workflow-pending-request")).ToBeVisibleAsync();
     }
 
     [Fact]
