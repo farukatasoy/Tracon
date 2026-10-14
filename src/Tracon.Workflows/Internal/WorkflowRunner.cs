@@ -648,6 +648,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         var budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider);
 
+        // F-418: the workflow names the counter its steps add to. An agent step is a child
+        // run of this root and writes its own tokens and cost when it ends, even one that a
+        // step left running in the background past the workflow's last event.
+        budget.Account = new TreeAccount(_tenantContext.TenantId, execution.WorkflowName, attribution.UserId, _quotaEnforcer);
+
         var scope = new AgentRunScope
         {
             RunId = execution.RunId,
@@ -1763,22 +1768,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
     }
 
-    /// <summary>Writes the ENTIRE workflow (root level, a single "run") to the quota counters.</summary>
+    /// <summary>Writes the workflow root's own consumption to the quota counters: one run, and what its function nodes reported beyond tokens.</summary>
     /// <remarks>
     /// <para>
-    /// workflow runs used to skip quota accounting
-    /// ENTIRELY — only <c>RunRecordingAgent</c> (the agent run path) reached
-    /// <c>QuotaEnforcer</c>; <see cref="IWorkflowRunner"/> never touched it.
+    /// The workflow counts as a SINGLE "run" — not per step (the same "root vs. step"
+    /// design decision as <see cref="RunRecordingAgent"/>'s root <c>Runs = 1</c>).
     /// </para>
     /// <para>
-    /// A workflow row has no <c>usage</c>/<c>cost</c> of its own (
-    /// see the note on <see cref="CompleteAsync"/>); consumption is read from
-    /// the total of the run tree that just completed
-    /// (<see cref="RunRecord.TreeUsage"/>/<see cref="RunRecord.TreeCost"/>).
-    /// The ENTIRE workflow counts as a SINGLE "run" — not per step (the same
-    /// "root vs. step" design decision already explained on the agent side,
-    /// identical in rationale to <see cref="RunRecordingAgent"/>'s
-    /// <c>Depth == 0</c> rule).
+    /// It writes ONLY its own share. A workflow row has no <c>usage</c>/<c>cost</c>
+    /// of its own (see the note on <see cref="CompleteAsync"/>); the agent runs beneath it
+    /// are child runs and each writes its own tokens and cost under this workflow's name
+    /// when it ends. This used to read the whole tree from the store after the row closed,
+    /// and a step's background task that ended later was never in it.
     /// </para>
     /// </remarks>
     private async ValueTask RecordQuotaAsync(
@@ -1787,43 +1788,22 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         RunNonTokenCost? nonTokenCost,
         CancellationToken cancellationToken)
     {
-        if (_quotaEnforcer is null)
+        if (scope.Budget?.Account is not { Quota: not null } account)
         {
             return;
         }
 
-        var record = await _runStore.GetRunAsync(execution.RunId, cancellationToken).ConfigureAwait(false);
-        var treeNonTokenCost = WorkflowTreeSpend.NonTokenCost(record, nonTokenCost);
-
-        // F-419: RunSpend adds nothing across currencies; the operator is told why the
-        // entry carries less than the runs spent.
-        if (record?.TreeCost is { CurrencyCount: > 1 } || treeNonTokenCost is { CurrencyCount: > 1 })
-        {
-            _logger.LogWarning(
-                "The run tree of workflow run {RunId} is priced in more than one currency; its quota entry does not add amounts across currencies.",
-                execution.RunId);
-        }
-
-        await _quotaEnforcer.RecordAsync(
-            new QuotaConsumption
-            {
-                TenantId = scope.TenantId ?? _tenantContext.TenantId,
-                AgentName = execution.WorkflowName,
-
-                // F-337: the quota.threshold webhook names the run that crossed
-                // the threshold and its user, as it does for an agent run.
-                RunId = execution.RunId.ToString(),
-                UserId = scope.UserId,
-                Runs = 1,
-                Tokens = record?.TreeUsage?.TotalTokens ?? 0,
-
-                // The token cost and the amount the tree reported beyond tokens
-                // (RunSpend). Without it a tenant's cost quota never saw a workflow's
-                // speech or render spend. The fallback to tokens stays: an unpriced
-                // tree has no amount at all.
-                Cost = RunSpend.Total(record?.TreeCost, treeNonTokenCost),
-                OccurredAt = _timeProvider.GetUtcNow(),
-            },
+        // F-418: only this root's own share is written here; its steps wrote theirs (K-394 keeps
+        // the workflow one run). F-337: the quota.threshold webhook names the run that crossed
+        // the threshold and its user, as it does for an agent run. The token cost is the steps';
+        // RunSpend adds nothing across currencies, so the root's amount is the one it reported.
+        _ = await TreeQuota.RecordAsync(
+            account,
+            execution.RunId,
+            runs: 1,
+            tokens: 0,
+            amount: RunSpend.Total((RunCost?)null, nonTokenCost),
+            _timeProvider.GetUtcNow(),
             cancellationToken).ConfigureAwait(false);
     }
 

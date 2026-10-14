@@ -24,7 +24,7 @@ namespace Tracon;
 /// worse than a consistent result. Only a new run gets <c>429</c>.
 /// </para>
 /// </remarks>
-internal sealed class QuotaEnforcer
+internal sealed class QuotaEnforcer : IQuotaRecorder
 {
     private readonly IQuotaStore _store;
     private readonly IOptionsMonitor<TraconQuotaOptions> _optionsMonitor;

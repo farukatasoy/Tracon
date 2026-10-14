@@ -485,7 +485,7 @@ re-notify. Set the list to empty to turn the notifications off.
 The threshold event is a notification, not a decision: it stops nothing, and `429`
 remains the only thing that refuses a run.
 
-A **cost** limit counts what a run spent, not only its tokens. The amount a root run
+A **cost** limit counts what a run spent, not only its tokens. The amount a run
 writes into the counter is its token cost plus what its workflow function nodes and tools
 [reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens), in the
 currency set by `Tracon:Pricing:Currency`. An item that reported no amount, or one in
@@ -502,12 +502,19 @@ webhook subscription. The frame's payload carries a `noticeId` (stable across a
 reconnect, for dedup), the run and user the threshold belongs to, and the same
 metric/period/limit/consumption fields the webhook carries. A threshold is claimed
 for notification **once per period** durably — a restart or a second worker
-process never re-announces one that already fired. Only the root run of a call
-tree ever carries the notice — consumption is counted once at the tree's root,
-the same scope [runs](/concepts/runs/) are already counted and billed at. An
-agent root counts the tokens and cost of every child agent it called, and a
-workflow root counts its steps. A child run that is still running in the
-background when its root ends is not counted.
+process never re-announces one that already fired.
+
+A call tree is one run and one counter. Every run in the tree adds its own tokens and
+cost to the counter **when it ends**, under the root's tenant and name: a child agent
+never opens a counter of its own, and adds no run. A child that is still running in the
+background when its root ends is therefore counted when it ends, and so is the amount a
+tool reports after its call timed out and its run closed (it reaches the counter only; the
+run's recorded total stays as it was when the run closed). The notice is written to the
+run whose entry crossed the threshold: usually the root, and a child when its entry is
+the one that crosses it. A late tool amount that crosses a threshold is announced by the
+`quota.threshold` webhook only, because the run's stream is closed. A child priced
+in another currency than `Tracon:Pricing:Currency` adds its tokens and the amounts it
+reported beyond tokens, not its token cost.
 
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
@@ -791,9 +798,10 @@ Subscribe to events and Tracon posts them to your endpoint.
 | `test.ping` | You sent a test delivery to verify the subscription |
 
 A payload is a summary, never content. A root run's `run.*` event carries the call
-tree's tokens and cost: an agent root adds its child agents to its own, and a
-workflow root (which has none of its own) sums its steps. Child runs publish
-nothing. `cost` is the token cost and the amount the tree
+tree's tokens and cost as the tree stands when the root closes: an agent root adds its
+child agents to its own, and a workflow root (which has none of its own) sums its steps.
+A child that ends after its root is not in it; the quota counter and `GET /api/runs/{runId}`
+carry the exact total. Child runs publish nothing. `cost` is the token cost and the amount the tree
 [reported beyond tokens](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
 together; `nonTokenCost` is the reported part alone and is left out when nothing was
 reported, so the token part is `cost - nonTokenCost`. `workflow.request.pending` carries the request id, the

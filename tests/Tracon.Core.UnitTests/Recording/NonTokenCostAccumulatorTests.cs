@@ -346,4 +346,120 @@ public sealed class NonTokenCostAccumulatorTests
         new ToolCallUsage { Unit = "u", Quantity = 1m, Provider = new string('p', NonTokenCostAccumulator.MaxProviderLength + 1) },
         new ToolCallUsage { Unit = "u", Quantity = 1m, Model = new string('m', NonTokenCostAccumulator.MaxModelLength + 1) },
     };
+
+    [Fact]
+    public void A_tool_amount_reported_after_the_total_was_read_is_held_for_the_quota_and_not_added()
+    {
+        // F-482: the run's snapshot never changes after Seal (K-974); the amount is not lost,
+        // it is handed once to the one reader that must still count it.
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.ReportToolMeasurement("call-1", Item(0.5m));
+
+        var total = accumulator.Seal()!;
+
+        accumulator.ReportToolMeasurement("call-2", Item(0.04m));
+
+        accumulator.Seal()!.Amount.ShouldBe(total.Amount);
+        accumulator.TakeLateToolAmount("call-2").ShouldBe(0.04m);
+        accumulator.TakeLateToolAmount("call-2").ShouldBeNull("an amount is handed over once");
+    }
+
+    [Fact]
+    public void A_tool_amount_that_reached_the_total_is_never_handed_over_again()
+    {
+        // The double-count guard: reported in time, so it is in the total; the late reader
+        // must find nothing for the same call.
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.ReportToolMeasurement("call-1", Item(0.5m));
+        accumulator.Seal().ShouldNotBeNull().Amount.ShouldBe(0.5m);
+
+        accumulator.TakeLateToolAmount("call-1").ShouldBeNull();
+    }
+
+    [Fact]
+    public void The_last_late_report_of_a_call_stands()
+    {
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.Seal();
+        accumulator.ReportToolMeasurement("call-1", Item(0.04m));
+        accumulator.ReportToolMeasurement("call-1", Item(0.07m));
+
+        accumulator.TakeLateToolAmount("call-1").ShouldBe(0.07m);
+    }
+
+    [Fact]
+    public void A_late_report_that_adds_nothing_takes_back_the_amount_an_earlier_one_held()
+    {
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.Seal();
+        accumulator.ReportToolMeasurement("call-1", Item(0.04m));
+        accumulator.ReportToolMeasurement("call-1", Item(null));
+
+        accumulator.TakeLateToolAmount("call-1").ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("EUR")]
+    [InlineData("usd-ish")]
+    public void A_late_amount_in_another_currency_is_not_held(string currency)
+    {
+        // The one rule of what adds applies after the seal as before it.
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.Seal();
+        accumulator.ReportToolMeasurement("call-1", Item(9m, currency));
+
+        accumulator.TakeLateToolAmount("call-1").ShouldBeNull();
+    }
+
+    [Fact]
+    public void The_late_amounts_a_run_holds_are_bounded()
+    {
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.Seal();
+
+        for (var call = 0; call < NonTokenCostAccumulator.MaxNodeItems + 5; call++)
+        {
+            accumulator.ReportToolMeasurement($"call-{call}", Item(0.01m));
+        }
+
+        accumulator.TakeLateToolAmount("call-0").ShouldBe(0.01m);
+        accumulator.TakeLateToolAmount($"call-{NonTokenCostAccumulator.MaxNodeItems + 4}").ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_late_report_that_replaces_an_earlier_one_in_the_total_hands_over_only_the_difference()
+    {
+        // The audit's case: the tool reported 0.02 in time, the run closed with that in its total,
+        // and the body then reported its final total of 0.05 and returned. The last report of a
+        // call replaces the earlier ones, so the money not yet counted is 0.03, not 0.05.
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.ReportToolMeasurement("call-1", Item(0.02m));
+        accumulator.Seal().ShouldNotBeNull().Amount.ShouldBe(0.02m);
+
+        accumulator.ReportToolMeasurement("call-1", Item(0.05m));
+
+        accumulator.TakeLateToolAmount("call-1").ShouldBe(0.03m);
+    }
+
+    [Theory]
+    [InlineData(0.05, 0.05)]
+    [InlineData(0.05, 0.02)]
+    public void A_late_report_that_is_not_more_than_the_total_already_holds_hands_over_nothing(double inTime, double late)
+    {
+        // A counter never takes an amount back: a smaller or equal final report adds nothing.
+        var accumulator = new NonTokenCostAccumulator("USD");
+
+        accumulator.ReportToolMeasurement("call-1", Item((decimal)inTime));
+        accumulator.Seal();
+        accumulator.ReportToolMeasurement("call-1", Item((decimal)late));
+
+        accumulator.TakeLateToolAmount("call-1").ShouldBeNull();
+    }
 }

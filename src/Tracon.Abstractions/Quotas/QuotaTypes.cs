@@ -159,7 +159,14 @@ public sealed record QuotaConsumption
     /// <summary>The name of the agent that ran.</summary>
     public required string AgentName { get; init; }
 
-    /// <summary>The number of runs to add. Normally 1.</summary>
+    /// <summary>
+    /// The number of runs to add. 1 for a root run; 0 for an entry that adds only the tokens
+    /// and cost of a run that belongs to a call tree already counted as one run (a child
+    /// agent run, a tool amount that arrived after its run closed).
+    /// </summary>
+    /// <remarks>
+    /// A store adds it as it is: an entry with 0 still creates a counter that does not exist yet.
+    /// </remarks>
     public long Runs { get; init; } = 1;
 
     /// <summary>The total tokens to add.</summary>
@@ -175,8 +182,9 @@ public sealed record QuotaConsumption
     public required DateTimeOffset OccurredAt { get; init; }
 
     /// <summary>
-    /// The identifier of the root run whose completion produced this
-    /// consumption. <see langword="null"/> when consumption is recorded
+    /// The identifier of the run that spent this consumption: the root run, a child
+    /// run of its call tree, or the run whose tool reported the amount.
+    /// <see langword="null"/> when consumption is recorded
     /// outside a run (there is no such caller today, but the field stays
     /// optional rather than assume one always exists).
     /// </summary>
