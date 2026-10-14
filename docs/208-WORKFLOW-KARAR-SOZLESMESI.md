@@ -1,6 +1,6 @@
 # Faz 208 — Workflow Karar Sözleşmesi: Tek Yanıt, Karar Denetimi ve Kaynak Bağı
 
-> **Durum:** 📋 Planlandı (2026-10-14)
+> **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 — engelleyici kararlar sohbette alındı (iki faz, `workflow_responses` tablosu, her `respond` fail-closed denetim, K-130 varsayılanı korunur); Açık Sorular 1-10 plandaki önerileriyle onaylandı. Faz 205 `main`'e girdi (`42e5479f`); ilk adımın ölçümü bir öneriyi düşürürse uygulama durur ve sorar
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-319** (karar yarısı; gelen kutusu ve süre [Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md))
 > **Genellik:** Tracon HITL'ini (`RequestPort` ya da Magentic plan onayı) kullanan her host etkilenir. Kalem tek tüketici turundan geldi (video tüketicisi, 2026-10-11), bu yüzden tüketici geri bildirimi kuralı uygulanır. İkinci kanıt ilk ilkedir: (1) bugün `respond`'un HTTP yeniden denemesi ikinci bir dal açar ve yan etkili adımları iki kez koşturur; Faz 205'ten sonra her devamın bütçesi `TreeAccount` taşıdığı için kotayı da iki kez harcar; tüketici bunu engelleyemez, çünkü atomik iddia yalnız Tracon'un deposunda kurulabilir; (2) yönetişim eşitliği: tool onayı fail-closed denetlenir (`approval.decision`, K-370), aynı türden bir workflow onayı hiç denetlenmez. Ekosistem sinyali: MCP Tasks `input_required` aynı "girdi bekleyen görev" kavramını protokolde tanımlar
@@ -458,23 +458,23 @@ Sözleşme testi `src/Tracon.Testing.Contracts.Xunit/Contracts/` altındadır; b
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `Single` modda iki eşzamanlı aynı cevap tek devam run'ı açar; ikinci yanıt aynı devamı izler (akışlı `200` SSE, kuyruklu aynı `202`) — `WorkflowSingleResponseTests`, önce kırmızı
-- [ ] `Single` modda zıt cevap `409` alır; gövde devam kimliği ve öbür cevabı taşımaz; yetkisiz çağıran `403`'te kalır
-- [ ] `Branch` modda (varsayılan) ikinci cevap hâlâ yeni dal açar; mevcut workflow testleri değiştirilmeden yeşil
-- [ ] Teslimden önce düşen devamda aynı cevap yeni devam açar; tamamlanan ya da koşan devam yeniden sürülmez
-- [ ] Denetim deposu düşükken `respond` `500` döner; satır, run ve iş yoktur (akışlı ve kuyruklu) — `FailClosedAuditTests`
-- [ ] Denetim kaydı aktör, `sourceRunId`, `requestId`, `responseRunId`, 64 karakter hash taşır; ham cevap yok
-- [ ] `AuditWritePolicyTests` 7 işlem / 10 çağrı yeri; `IAuditLog` XML ve beş site yeri "seven" der; K-776'yı değiştiren satır `KARARLAR.md`'de
-- [ ] `WorkflowResponseStoreContract` bellek + üç SQL sağlayıcısında yeşil; `TenantIsolationContract` yeni depoyu kapsar
-- [ ] `WorkflowResponseApplied` olayı `RecordToolPayloads = false` iken de kaynak run'ı taşır
-- [ ] K-929 satırı kodla uyumlu yazıldı
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1-4), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` ve `13-KIRACI-VE-GUVENLIK.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (Tüketici yüzeyi satırı); `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı gzip KB olarak ölçüldü ve yazıldı
+- [x] `Single` modda iki eşzamanlı aynı cevap tek devam run'ı açar; ikinci yanıt aynı devamı izler (akışlı `200` SSE, kuyruklu aynı `202`) — `WorkflowSingleResponseTests` (mutasyonla; bkz. *Önce kırmızı kaydı*), örnek uygulamada ölçüldü
+- [x] `Single` modda zıt cevap `409` alır; gövde devam kimliği ve öbür cevabı taşımaz; yetkisiz çağıran `403`'te kalır — `WorkflowSingleResponseTests`, örnek uygulama
+- [x] `Branch` modda (varsayılan) ikinci cevap hâlâ yeni dal açar; mevcut workflow testleri değiştirilmeden yeşil — `Branch_mode_still_opens_a_branch_for_every_answer`; `Branch` davranış değişiklikleri `CHANGELOG` Changed'de
+- [x] Teslimden önce düşen devamda aynı cevap yeni devam açar; tamamlanan ya da koşan devam yeniden sürülmez — `WorkflowSingleResponseTests`, `WorkflowResponseOwnershipTests` (6-A, kuyruk işi sahibi, eksik iş)
+- [x] Denetim deposu düşükken `respond` `500` döner; satır, run ve iş yoktur (akışlı ve kuyruklu) — `FailClosedAuditTests` iki case
+- [x] Denetim kaydı aktör, `sourceRunId`, `requestId`, `responseRunId`, 64 karakter hash taşır; ham cevap yok — `WorkflowResponseRecordTests`, örnek uygulama
+- [x] `AuditWritePolicyTests` 7 işlem / 10 çağrı yeri; `IAuditLog` XML ve site yerleri "seven" der (sekiz yer, `threat-model` ve `security-policy` dahil); K-776'yı değiştiren satır `KARARLAR.md`'de (K-996)
+- [x] `WorkflowResponseStoreContract` bellek + üç SQL sağlayıcısında yeşil; `TenantIsolationContract` yeni depoyu kapsar — 15 case
+- [x] `WorkflowResponseApplied` olayı `RecordToolPayloads = false` iken de kaynak run'ı taşır — `WorkflowResponseLinkTests`
+- [x] K-929 satırı kodla uyumlu yazıldı (gerekçe düzeltmesi, 2026-10-14)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 6b484f0c` (bkz. *Kapanış kapısı*)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1-4), çıktı belgeye yazıldı — üç koşum (*Örnek uygulama koşumu*)
+- [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ (17 işaretli sentetik credential atlandı)
+- [x] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` (`MT-WF-156…164`) ve `13-KIRACI-VE-GUVENLIK.md` (`MT-SEC-219…221`) içine eklendi; otomatikleştirilebilenler koşuldu
+- [x] `faz-denetim` iki tur koşuldu; 🔴 bulgu kalmadı (*Denetim Bulguları*)
+- [x] `docs-site/` güncellendi (Tüketici yüzeyi satırı + yeni `concepts/workflow-answers.md`); `npm run check` temiz
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı gzip KB olarak ölçüldü ve yazıldı — 209.0 → 209.8 KB (§208.7 #4)
 
 ### Doğrulama komutları
 
@@ -550,6 +550,8 @@ Uygulama günlüğünde hata yoktu.
 
 **İkinci koşum (önce-satır tasarımından sonra, 2026-10-14):** aynı senaryo, aynı sonuçlar; ek olarak her denetim kaydı var olan bir run'ı adlandırdı. Eşzamanlı çiftlerin (akışlı ve kuyruklu) kaybedenleri `Canceled` + `request_already_answered`, sıfır olay; kazananlar `Completed`, 13 olay. Örneğe manuel test anahtarı eklendi: `Tracon:Demo:Attribution:Mode = throw` (`DemoRunAttributionContext`, mevcut `Tracon:Demo:RunAuthorization:Mode` deseni). Bu anahtarla atıf getter'ı her HTTP isteğinde fırlattı: ilk cevap `200`, devam `Completed` ve kullanıcısız kaydedildi; tekrar aynı devamı izledi (`done`); zıt cevap `409`; kuyruklu cevap `202`, run `Completed`. Uyarı günlüğe yazıldı, istek kilitlenmedi.
 
+**Üçüncü koşum (ikinci tur denetimden sonra, 2026-10-14, `aafb1d87`):** normal mod ve `throw` modu aynı sonuçları verdi (çift tık `200`/`200` aynı devam, zıt `409`, kuyruklu çift `202` aynı `runId`/`jobId`/`Location`, `Branch` iki run; kaybedenler `Canceled` + `request_already_answered`, sıfır olay). **Çökme penceresi gerçek uygulamada üretildi (`MT-WF-164`):** işçi kapalıyken (`Tracon__Scheduling__RunWorker=false`) iki kuyruklu cevap (`Queued`); uygulama durduruldu, SQLite'ta iki run'ın `tracon_jobs`/`tracon_job_items` satırı silindi (run `Queued`, kayıt `Accepted`, iş yok — kayıttan sonra kuyruğa yazımdan önce duran sürecin durumu); işçiyle yeniden açıldı. Kuyruklu tekrar `202`, aynı run, `jobId` = run; akışlı tekrar `200`, aynı run, `run`…`done` (15 çerçeve). İki run da `Completed`, 13 olay; her run için tek iş (`Completed`), tek kayıt (`Delivered`). Günlükte iki kez `had a recorded answer but no job; a repeat of the answer writes the job`.
+
 ### Bakımcı kararları — 2026-10-14 (bağımsız denetimden sonra)
 
 - **🔴1 → önce satır, sonra iddia.** Cevabın run satırı (akışlıda `Running`, kuyrukluda `Queued`) kayıttan/iddiadan ÖNCE açılır; her `SingleAnswer` yolunda (ilk cevap ve yeniden sürme) ve `Branch`'te de. Değişmez: **bir kayıt hiçbir zaman var olmayan bir run'ı adlandırmaz** (`WorkflowResponseGate` remarks, `WorkflowResponseOwnershipTests`). Yarışı kaybeden kendi run'ını `Canceled` kapatır; sebep mevcut durdurma-sebebi mekanizmasıyla (`RunError.Type`) yazılır: `request_already_answered`. Yeni public enum üyesi gerekmedi. Kapatma düz bir satır güncellemesidir (`IRunStore.CompleteRunAsync`): webhook, metrik ve olay alıcısı motorun yazıcısından tetiklenir ve motor hiç başlamadığı için hiçbiri tetiklenmez; run listesi ve istatistik onu olaysız bir `Canceled` workflow run'ı olarak sayar. Kayıt yazılamazsa açılan run `Failed` + `answer_not_recorded` ile kapanır ve cevap `500` alır (`RecordOrCloseAsync`). Atıf (kullanıcı, etiketler) kararın ÖNÜNDE bir kez `RunAttributionReader` ile okunur ve aşağı geçirilir (fırlatan getter run'ı atıfsız kaydeder, kilitlemez); aynı okuma run/resume kuyruk yoluna da uygulandı. Satırdan sonraki her yazım `CancellationToken.None` kullanır (kayıt, kaybedenin kapatılması, kuyruk işi). İzleme akışı satırı olmayan ya da hiç başlamamış işi `error` ile bitirir; eski 30 sn bekleme (`missingRowGrace`) kaldırıldı.
@@ -578,6 +580,16 @@ Uygulama günlüğünde hata yoktu.
 | İkinci tur: izleyicinin `error` ile bitmesi ×2 (hiç başlamadı, satırı silindi) | Önce yeşil (kod vardı). Mutasyon: `readAny` denetimi kapatılınca "hiç başlamadı", satır denetimi kapatılınca "silindi" case'i kırmızı |
 | Önce kırmızı görülmedi | `WorkflowResponseRecordTests`, `FailClosedAuditTests` yeni iki case, `WorkflowResponseLinkTests`, `WorkflowAnswerDigestTests`, konsol rozet/409/geri bağ testleri, izleyicinin run kimliği ve sayım iddiası |
 
+### Tüketici yüzeyi envanteri (kapanış, `tuketici-dokuman-senkronu`)
+
+Alt agent başlatılmadı (araç kuralı); kulvar C bu oturumda seri koştu.
+
+1. **`docs-site/` (elle):** yeni `concepts/workflow-answers.md` (kenar çubuğu "Answering a workflow"); `concepts/workflows.md` (kısa paragraf + bağlantı), `concepts/governance.md` (fail-closed tablosu, "seven"), `capabilities.md` (iki "seven", "Human input" satırı, 175 işlem), `getting-started/security.md`, `guides/observability.md`, `reference/security-policy.md`, `reference/threat-model.md` (iki yer), `ui.md` (rozet, `409` notu, editör anahtarı, sürüm satırı, geri bağ), işlem sayısı sayfaları (`index.mdx`, `getting-started/index.md`, `http-api.md`, `reference/compatibility.md`); ekran görüntüleri E2E'den üretildi, `landing-captures.mjs` pin'i yenilendi. Üretilen (`api/`, `http-api/`) koddan gelir.
+2. **Sevk edilen metin:** XML `WorkflowResponseMode` (uzlaştırmanın neyi kapsadığı, eksik iş), `IWorkflowResponseStore` (saklama), `IJobStore.EnqueueAsync` (kimlik reddi), `IAuditLog` (yedi); `src/Tracon.Workflows/README.md`, `src/Tracon/README.md`, `src/Tracon.AspNetCore/README.md`, kök `README.md`; `CHANGELOG.md` (Security, Added, Changed); paketlenen `tracon.json` yeni ucu taşır.
+3. **Yerel referans ve agent haritası:** `capabilities.md` "Human input" satırı; `Tracon.AgentMap.md`, `llms.txt`, `llms-full.txt` yeniden üretildi (`--check` ✅, bütçe içinde).
+
+Kapılar: `ShippedDocumentationSelfContainmentTests`, `CapabilityExampleTests`, `SourceLanguageTests` ✅ · `LocalReferenceTests` ✅ 10/10 · `build-agent-map.mjs --check` ✅ · `npm run check` ✅ (1101 sayfa, kırık bağlantı 0, en ağır `concepts/workflows` 58 470 B) · `dokuman-bakim.py --site-denetle` sonucu *Kapanış kapısı*nda. Muafiyet listesi ve taban çizgisi büyümedi. Site yayını (Adım 10) koordinatörde, birleştirmeden sonra.
+
 ### Uygulama sapmaları
 
 - **Enum üyesi `Single` → `SingleAnswer`.** CA1720 (`Single` bir tip adı) derlemeyi kırdı; depoda CA1720 bastırma emsali yok ve public isimde bastırma bir karar satırı ister. Telde değer `"SingleAnswer"`.
@@ -591,8 +603,11 @@ Uygulama günlüğünde hata yoktu.
 - **Eşzamanlı iki cevap iki denetim satırı ve iki run satırı bırakabilir.** İkisi de iddiayı boş bulursa ikisi de denetimi yazar ve run'ını açar; kaybeden kendi run'ını `Canceled` + `request_already_answered` ile kapatır ve denetim satırı o (var olan) run'ı adlandırır (plan §208.3 son madde, onay kutusu emsali). Testler "1–2 kayıt, hepsi var olan run'ı adlandırır; diğeri kapanmış kaybedendir" diye sabitler.
 - **`WorkflowContinuationChain` çıkarıldı.** Zincir yürüyüşü `WorkflowRecovery`'den ortak yardımcıya taşındı (davranış aynı); geri sürme kontrolü onu kullanır — elle ikinci kopya yok.
 - **`RunAuthorizationCoverageTests`**: `WorkflowEndpoints.cs` kaynak kapısı 2 → 3 (`GET …/responses`).
-- **🚨 `kapi.py tarama` göç bütünlüğü kapısı commit ister.** Üç yeni migration (`0060`/`0048`/`0047`) git tabanında yoktur; kapı onları `scripts/applied-migrations.json` `sourceCommits` ile, onları ekleyen commit'e ankrajlanana kadar kırmızı sayar (`hafiza/sql-migration.md`). Bu oturum commit atmadı; ankraj kapanışta yapılır.
+- **🚨 `kapi.py tarama` göç bütünlüğü kapısı commit ister.** Üç yeni migration (`0060`/`0048`/`0047`) git tabanında yoktur; kapı onları `scripts/applied-migrations.json` `sourceCommits` ile, onları ekleyen commit'e ankrajlanana kadar kırmızı sayar (`hafiza/sql-migration.md`). Ankrajlandı (`36e75e7b`; `0060` yorumu düzeltilince `73c11d4e`).
 - **Migration numaraları**: PostgreSQL `0060`, SQL Server `0048`, SQLite `0047` (uygulama anındaki ilk boş numara, K-178). Kardeş worktree'ler aynı numarayı alırsa birleştirmede yeniden numaralanır.
+- **Site: yeni sayfa `concepts/workflow-answers.md`.** Plan cevap kurallarını `concepts/workflows.md` "Asking a human"a koyuyordu; sayfa ağırlık tavanını aştı (60 221 B gzip, tavan 59 000 B — `check-weight.mjs`). Tavan yükseltilmedi (kapının kendi kuralı); kurallar yeni sayfaya taşındı, `workflows.md` kısa bir paragraf ve bağlantı taşır (58 470 B). Kenar çubuğuna "Answering a workflow" eklendi.
+- **İşlem sayısı 174 → 175** (`GET …/responses`): `README.md` (üç yer), `src/Tracon/README.md`, `src/Tracon.AspNetCore/README.md` (yol 136 → 137), site (`index.mdx`, `capabilities.md`, `getting-started/index.md`, `http-api.md`, `reference/compatibility.md`). Ekran görüntüleri E2E'den yeniden üretildi; anasayfa kırpımları değişmedi (pin güncellendi, kırpım baytları aynı).
+- **İkinci tur: bellek içi iş deposu ve `QueuedRunPlaceholder`** planda yoktu (K-998): eksik iş yazımının yarış güvenliği kuyruğun aynı kimlikli işi reddetmesine dayanır; ölçüm bellek içi deponun işi değiştirdiğini gösterdi. `JobStoreContract`'a case eklendi — sevk edilen sözleşme genişledi (`kapi.py yayin --kuru` gerekir; sonuç *Kapanış kapısı*nda).
 - **Konsol**: editör anahtarı her `Kind` için gösterilir (sunucu her türü kabul eder; gizli alan görünmez durum olurdu). Run detayındaki geri bağ satırı `runDetail.answersRequestOf` anahtarını `locales/*/runs.ts`'e ekledi (plan yalnız `workflows.ts`'i adlandırıyordu).
 
 ## Bu Fazda Verilen Kararlar
@@ -602,13 +617,80 @@ Uygulama günlüğünde hata yoktu.
 > etiketiyle girer ve numarası burada anılır; girmeyen karar yalnız burada
 > kalır (`faz-tamamlama` Adım 8). Plan numara rezerve etmez.
 
+| Karar | Kayıt |
+|---|---|
+| Workflow başına cevap modu, tek cevap sözleşmesi (kapsam oturum, eşitlik `approved`/`text`/`data`, izle / `409` / yeniden sür) (kullanıcı kararı) | **K-994** *(public-api, geri-dönüşü-pahalı)* |
+| Cevap kaydı ve kaynak bağı: `workflow_responses`, `IWorkflowResponseStore`, `…/responses`, `WorkflowResponseApplied` (33) (kullanıcı kararı) | **K-995** *(kalıcı-veri, public-api)* |
+| Fail-closed küme 6 → 7: `workflow.respond`, her modda (kullanıcı kararı) | **K-996** *(güvenlik, public-api)*; K-776 satırına işaret |
+| Önce satır, sonra kayıt; kaybedenin kapatılması; kuyruk işi sahipliği; eksik işin yazımı (kullanıcı kararı, 2026-10-14, iki denetim turu) | **K-997** *(geri-dönüşü-pahalı, public-api)* |
+| `IJobStore.EnqueueAsync` kayıtlı iş kimliğini reddeder; geri okuma | **K-998** *(public-api)* |
+| K-929 gerekçesi kodla uyumlu yazıldı | K-929 satırı yerinde düzeltildi (tarih işaretli), `KARARLAR-GECMISI.md` K-929 |
+| Kategori dışı: örnek uygulamada `Tracon:Demo:Attribution:Mode = throw` anahtarı; izleyicinin 30 sn beklemesinin kaldırılması; enum adı `SingleAnswer` (CA1720) | Yalnız burada (yerel tercih) |
+
 ## Gerçekleşen Public API
 
 > Kapanışta doldurulur. Koddaki **gerçek** imzalar.
 
+Kaynak: `git diff 6b484f0c -- 'src/*/PublicAPI.Unshipped.txt'`.
+
+```csharp
+// Tracon.Abstractions
+public enum WorkflowResponseMode { Branch = 0, SingleAnswer = 1 }          // JSON: ad
+public enum WorkflowResponseStatus { Accepted = 0, Delivered = 1, Abandoned = 2 }
+public sealed record WorkflowResponseRecord {
+    Guid ResponseRunId; Guid SourceRunId; string SessionId; string RequestId; string AnswerHash;
+    string? ClaimScope; WorkflowResponseStatus Status; string? RespondedBy; DateTimeOffset RespondedAt; string? TenantId; }
+public sealed record WorkflowResponseClaim { bool Claimed; WorkflowResponseRecord? Existing; }
+public interface IWorkflowResponseStore {
+    ValueTask<WorkflowResponseClaim> AddAsync(WorkflowResponseRecord record, CancellationToken ct = default);
+    ValueTask<WorkflowResponseRecord?> FindClaimAsync(string claimScope, string requestId, CancellationToken ct = default);
+    ValueTask<bool> ReplaceAsync(Guid abandonedResponseRunId, WorkflowResponseRecord replacement, CancellationToken ct = default);
+    ValueTask MarkDeliveredAsync(Guid responseRunId, CancellationToken ct = default);
+    ValueTask<IReadOnlyList<WorkflowResponseRecord>> ListBySourceRunAsync(Guid sourceRunId, CancellationToken ct = default);
+    ValueTask<WorkflowResponseRecord?> GetAsync(Guid responseRunId, CancellationToken ct = default); }
+RunEventType.WorkflowResponseApplied = 33                                  // workflow.response-applied
+WorkflowDefinition.ResponseMode { get; init; }   WorkflowDescriptor.ResponseMode { get; init; }
+// IJobStore.EnqueueAsync: imza aynı; XML kayıtlı kimliğin reddini sözleşme yapar (K-998)
+
+// Tracon.AspNetCore
+WorkflowSaveRequest.ResponseMode { get; init; }
+// GET /api/workflows/runs/{runId}/responses → WorkflowResponseRecord[] (tenant alanı yazılmaz)
+
+// Tracon.Workflows
+public sealed class WorkflowRegistrationOptions { string? Description { get; set; } WorkflowResponseMode ResponseMode { get; set; } }
+AddWorkflow(this ITraconBuilder builder, string name, Func<IServiceProvider, Workflow> factory)
+AddWorkflow(this ITraconBuilder builder, string name, Func<IServiceProvider, Workflow> factory, string? description)
+AddWorkflow(this ITraconBuilder builder, string name, Func<IServiceProvider, Workflow> factory, Action<WorkflowRegistrationOptions> configure)
+
+// Tracon.Testing.Contracts.Xunit
+public abstract class WorkflowResponseStoreContract   // 15 case; virtual PrepareRunAsync, EraseRunAsync
+JobStoreContract.An_id_that_is_already_queued_is_refused_and_the_queued_job_is_kept()
+WorkflowDefinitionStoreContract.The_response_mode_survives_the_round_trip()
+```
+
 ## Dosya Listesi (gerçekleşen)
 
 > Kapanışta doldurulur.
+
+Yeni (kaynak): `Abstractions/Workflows/IWorkflowResponseStore.cs`, `WorkflowResponseMode.cs` · `AspNetCore/Internal/RunEventTail.cs`, `WorkflowResponseGate.cs` · `Core/Scheduling/WorkflowContinuationChain.cs` · `Core/Workflows/InMemoryWorkflowResponseStore.cs`, `WorkflowAnswerDigest.cs` · `Sql.Shared/Stores/SqlWorkflowResponseStore.cs` · migration PostgreSQL `0060`, SQL Server `0048`, SQLite `0047` (`workflow_responses`) · `Testing.Contracts.Xunit/Contracts/WorkflowResponseStoreContract.cs` · `Workflows/Internal/WorkflowResponseLink.cs`, `Workflows/WorkflowRegistrationOptions.cs`.
+
+Değişen (kaynak, başlıca): `WorkflowEndpoints.cs` (karar, izleme akışı, eksik iş), `RunEndpoints.cs`, `RunEventWriter.cs` (muafiyet), `QueuedRunPlaceholder.cs` (geri okuma), `InMemoryJobStore.cs` (kimlik reddi), `IJobStore.cs`, `IAuditLog.cs`, `RunEventType.cs`, `WorkflowDefinition.cs`, `WorkflowDescriptor.cs`, `WorkflowRecovery.cs`, `WorkflowRunner.cs`, `WorkflowCatalog.cs`, `CodeWorkflowRegistration.cs`, `TraconWorkflowsBuilderExtensions.cs`, üç sağlayıcının `Use*` kaydı, `SqlQueriesBase.cs`, `WorkflowDefinitionPayload.cs`, konsol (`workflow-detail.tsx`, `workflow-editor.tsx`, `versions.tsx`, `run-detail.tsx`, `run-event.ts`, dört yerel dosya), `Tracon.Client` ve `@tracon/client` üretilen kodu, `samples/Tracon.Api/DemoRunAttributionContext.cs`, `scripts/applied-migrations.json`.
+
+### Testler (gerçekleşen)
+
+| Sınıf | Case | Ne doğrular |
+|---|---|---|
+| `WorkflowSingleResponseTests` | 11 | Çift tık (akışlı, kuyruklu), zıt `409`, `Branch` dalı, yeniden sürme, izleyici kopması, `/resume` sonrası, `403` |
+| `WorkflowResponseOwnershipTests` | 16 metot, 18 koşum | Önce satır: fırlatan atıf ×2, kaybeden ×2, satır–iddia arası kopma, kuyruk işi sahibi, motor-önce-düşme, 6-A ×2, zincir kuralı, eşzamanlı yeniden sürme, `Gone`; ikinci tur: eksik iş (kuyruklu/akışlı), eşzamanlı iki tekrar (bellek/SQLite), izleyici `error` ×2 |
+| `WorkflowResponseRecordTests` | 7 | Denetim içeriği, `…/responses`, kiracı `404`, kayıt yazılamazsa `500` + `answer_not_recorded` |
+| `WorkflowResponseModeVersionTests` | 2 | Bekleyen run kaydettiği sürümün moduyla cevaplanır |
+| `FailClosedAuditTests` (+2) | 2 | Akışlı ve kuyruklu cevap denetimsiz uygulanmaz |
+| `WorkflowResponseStoreContract` | 15 × 4 depo | İddia, CAS, teslim, kiracı, veri sahibi silmesi |
+| `JobStoreContract` (+1) | 1 × 4 depo | Kayıtlı iş kimliği reddedilir, iş korunur |
+| `WorkflowAnswerDigestTests` | 10 | Kanonik hash |
+| `WorkflowRequestIdentityTests` | 2 | MAF istek kimliği oturumda tekil (§208.7 #1) |
+| `WorkflowResponseLinkTests` | 5 | `WorkflowResponseApplied`, `RecordToolPayloads` kapalı |
+| Konsol (Vitest) | `full-replace-editors`, `workflow-detail`, `workflow-editor`, `run-detail` | Rozet, `409` notu, anahtar, sürüm satırı, geri bağ |
 
 ## Süreç Ölçümü
 
@@ -616,11 +698,11 @@ Uygulama günlüğünde hata yoktu.
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 2 (bakımcı kararları 2026-10-14: önce satır; eksik işi yaz) |
+| Düzeltme turu sayısı | 2 (iki bağımsız denetim turunun düzeltmesi) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 (birinci tur; ikinci tur 🔴 yok) |
+| Fazın ürettiği regresyon | 0 (iki 🔴 fazın kendi yeni kodundaydı; mevcut davranışı bozan bulunmadı) |
+| Faz kapandıktan sonra bulunan kusur | 0 (kapanış anı; sonraki `kusur-giderme` koşumu günceller) |
 
 ## Denetim Bulguları
 
@@ -628,31 +710,54 @@ Uygulama günlüğünde hata yoktu.
 
 Bağımsız `faz-denetim`, 2026-10-14: 2 🔴, 5 🟡, 3 🟢.
 
-| Bulgu | Seviye | Sonuç |
-|---|---|---|
-| Satırı olmayan iddia sonsuza dek "yolda" sayılır; iddiadan sonraki satır yazımı (fırlatan atıf getter'ı, istemci kopması, geçici hata, çökme) düşerse `SingleAnswer` isteği kalıcı kilitlenir; izleyen 30 sn sonra olaysız `done`, kuyruklu tekrar var olmayan run için `202` alır | 🔴 | Düzeltildi: önce satır, sonra iddia; kaybeden kendi satırını kapatır; atıf kararın önünde okuyucu ile bir kez okunur; satırdan sonra `CancellationToken.None`; izleme `error` ile biter. `WorkflowResponseOwnershipTests` |
-| Yeniden sürme, kuyruk işinin kurtarmasının yanında ikinci sahip olur (yeniden sürülen run `ContinuedFromRunId` taşımaz, zincir onu görmez) | 🔴 | Düzeltildi: baş run'ın işi bitmemişse kapı izler. `A_repeat_while_the_queued_answers_job_is_unfinished_…` önce kırmızı |
-| Uzlaştırma kapalıyken çöken devam `Running` kalır, istek kilitlenir | 🟡 | Belgelendi (XML, `CHANGELOG`); site kapanışta |
-| Checkpoint'siz kurtarma cevabı devam kimliğiyle yeniden uygular; teslim yazılmaz, kayıt `Accepted` kalır, kapı checkpoint'e bakmadan yeniden sürer | 🟡 | Düzeltildi: zinciri birden uzun `Accepted` kayıt checkpoint kuralından geçer. Test + mutasyon |
-| İzleyici testi run kimliğini ve sayımı doğrulamıyor; `finally` kapatması, 6-A, eşzamanlı yeniden sürme case'leri yok; önce-kırmızı kaydı yok | 🟡 | Eklendi (bkz. *Önce kırmızı kaydı*) |
-| `CHANGELOG` `Branch` modu değişikliklerini (kayıt yazımı düşerse `500`; `WorkflowResponseApplied` sıra 1, sonraki olaylar kayar) ve kuyruk yolundaki sarkık kaydı anmıyor | 🟡 | `CHANGELOG` Changed; sarkık kayıt önce-satır sırasıyla kapandı |
-| Metin "saklama kaydı kaynak run'la siler" diyor; hiçbir saklama hedefi `runs` silmez | 🟡 | Düzeltildi (XML, `CHANGELOG`, `0060` yorumu); sınırsız büyüme kapanışta aday, Faz 209'a not |
-| Teslim edilmemiş devam düştükten sonra zıt cevap hep `409` alır; motorun teslimde reddettiği bir cevap isteği kilitler; yönetici çıkışı yok | 🟢 | Kapanışta aday |
-| Yalnız devam run'ının silinmesi kaydı bırakır (FK yalnız `source_run_id`'de); zincir boş görünür | 🟢 | Kapanışta aday (şimdilik `Gone` → `409`) |
-| Açık bir `Branch` `definitionVersion`'ıyla `/resume` tek-cevap iddiasını atlar (yalnız Operator/Admin) | 🟢 | Kapanışta aday |
+| Bulgu | Seviye | Triyaj | Sonuç |
+|---|---|---|---|
+| Satırı olmayan iddia sonsuza dek "yolda" sayılır; iddiadan sonraki satır yazımı (fırlatan atıf getter'ı, istemci kopması, geçici hata, çökme) düşerse `SingleAnswer` isteği kalıcı kilitlenir; izleyen 30 sn sonra olaysız `done`, kuyruklu tekrar var olmayan run için `202` alır | 🔴 | gerçek | Düzeltildi: önce satır, sonra iddia; kaybeden kendi satırını kapatır; atıf kararın önünde okuyucu ile bir kez okunur; satırdan sonra `CancellationToken.None`; izleme `error` ile biter. `WorkflowResponseOwnershipTests` |
+| Yeniden sürme, kuyruk işinin kurtarmasının yanında ikinci sahip olur (yeniden sürülen run `ContinuedFromRunId` taşımaz, zincir onu görmez) | 🔴 | gerçek | Düzeltildi: baş run'ın işi bitmemişse kapı izler. `A_repeat_while_the_queued_answers_job_is_unfinished_…` önce kırmızı |
+| Uzlaştırma kapalıyken çöken devam `Running` kalır, istek kilitlenir | 🟡 | gerçek | Belgelendi (XML, `CHANGELOG`); site kapanışta |
+| Checkpoint'siz kurtarma cevabı devam kimliğiyle yeniden uygular; teslim yazılmaz, kayıt `Accepted` kalır, kapı checkpoint'e bakmadan yeniden sürer | 🟡 | gerçek | Düzeltildi: zinciri birden uzun `Accepted` kayıt checkpoint kuralından geçer. Test + mutasyon |
+| İzleyici testi run kimliğini ve sayımı doğrulamıyor; `finally` kapatması, 6-A, eşzamanlı yeniden sürme case'leri yok; önce-kırmızı kaydı yok | 🟡 | gerçek | Eklendi (bkz. *Önce kırmızı kaydı*) |
+| `CHANGELOG` `Branch` modu değişikliklerini (kayıt yazımı düşerse `500`; `WorkflowResponseApplied` sıra 1, sonraki olaylar kayar) ve kuyruk yolundaki sarkık kaydı anmıyor | 🟡 | gerçek | `CHANGELOG` Changed; sarkık kayıt önce-satır sırasıyla kapandı |
+| Metin "saklama kaydı kaynak run'la siler" diyor; hiçbir saklama hedefi `runs` silmez | 🟡 | gerçek | Düzeltildi (XML, `CHANGELOG`, `0060` yorumu); sınırsız büyüme kapanışta aday: **F-518**, Faz 209'a not |
+| Teslim edilmemiş devam düştükten sonra zıt cevap hep `409` alır; motorun teslimde reddettiği bir cevap isteği kilitler; yönetici çıkışı yok | 🟢 | gerçek | Kapanışta aday: **F-517** |
+| Yalnız devam run'ının silinmesi kaydı bırakır (FK yalnız `source_run_id`'de); zincir boş görünür | 🟢 | gerçek | Kapanışta aday: **F-519** (şimdilik `Gone` → `409`) |
+| Açık bir `Branch` `definitionVersion`'ıyla `/resume` tek-cevap iddiasını atlar (yalnız Operator/Admin) | 🟢 | gerçek | Kapanışta aday: **F-516** |
 
 İkinci tur `faz-denetim`, 2026-10-14: 🔴 yok; birinci turun 🔴2, 🟡2, 🟡3, 🟡4, 🟡5'i kapandı; 🔴1 ve 🟡1 kısmen kapandı, kalan bacakları aşağıdaki iki 🟡.
 
-| Bulgu | Seviye | Sonuç |
-|---|---|---|
-| Kuyruklu `SingleAnswer` cevabı, süreç satır + kayıttan sonra ve kuyruğa yazımdan önce durursa (ya da kuyruğa yazım ile satır kapatma birlikte düşerse) kalıcı kilitlenir; uzlaştırma yalnız `Running` satır kapatır, işi olmayan `Queued` run iptal edilemez. `WorkflowResponseMode` XML'i, `CHANGELOG` ve `CloseAsync` özeti yanlış cümle taşıyordu | 🟡 | Düzeltildi (bakımcı kararı: eksik işi yaz). Önce kırmızı: `A_queued_answer_whose_job_was_never_written_…` ×2, `Two_repeats_that_both_find_the_job_missing_write_it_once` ×2; ölçüm: `JobStoreContract` yeni case'i (bellek içi depo kırmızıydı, düzeltildi). Üç cümle düzeltildi; uzlaştırmanın neyi kapsadığı yazıldı |
-| İzleyicinin `error` ile bittiğini (satır yok; hiç başlamadı) kanıtlayan test yok | 🟡 | Eklendi: `A_follower_of_a_run_that_never_started_ends_with_an_error_not_done`, `A_follower_whose_run_was_erased_while_it_followed_ends_with_an_error_not_done`. Mutasyonla kanıtlandı |
-| Kaybedenin `Canceled` run'ı `GET /api/runs`'ta, `RunStatistics.CanceledRuns`'ta ve `ErrorRate` paydasında görünür; `CHANGELOG` yalnız webhook/metrik/alıcıyı anıyordu | 🟢 | `CHANGELOG` cümlesi eklendi; site kapanışta. Kapanışta aday değil (yazıldı) |
-| `OpenRunAsync` hatası varsayılan `Branch` akışlı modda da `500` döner (önce motorun yazıcısı yutardı); `CHANGELOG` Changed yalnız kayıt deposunu anıyordu | 🟢 | `CHANGELOG` Changed'e eklendi. Kapanışta aday değil (yazıldı) |
-| `WorkflowEventStream`'in `finally` kapatması try/catch'siz: depo hatası başlıklardan sonra kaçar, satır `Running` kalır (uzlaştırma kapatır) | 🟢 | Kapanışta aday |
-| İzleyicinin `NextRunAsync`'i yalnız `ContinuedFromRunId` ardılı arar; kurtarma kapalı ve `MaxAttempts > 1` iken iş aynı run kimliğiyle yeniden koşar, izleyici "hiç başlamadı" der (varsayılan olmayan yapılandırma) | 🟢 | Kapanışta aday |
+| Bulgu | Seviye | Triyaj | Sonuç |
+|---|---|---|---|
+| Kuyruklu `SingleAnswer` cevabı, süreç satır + kayıttan sonra ve kuyruğa yazımdan önce durursa (ya da kuyruğa yazım ile satır kapatma birlikte düşerse) kalıcı kilitlenir; uzlaştırma yalnız `Running` satır kapatır, işi olmayan `Queued` run iptal edilemez. `WorkflowResponseMode` XML'i, `CHANGELOG` ve `CloseAsync` özeti yanlış cümle taşıyordu | 🟡 | gerçek | Düzeltildi (bakımcı kararı: eksik işi yaz). Önce kırmızı: `A_queued_answer_whose_job_was_never_written_…` ×2, `Two_repeats_that_both_find_the_job_missing_write_it_once` ×2; ölçüm: `JobStoreContract` yeni case'i (bellek içi depo kırmızıydı, düzeltildi). Üç cümle düzeltildi; uzlaştırmanın neyi kapsadığı yazıldı |
+| İzleyicinin `error` ile bittiğini (satır yok; hiç başlamadı) kanıtlayan test yok | 🟡 | gerçek | Eklendi: `A_follower_of_a_run_that_never_started_ends_with_an_error_not_done`, `A_follower_whose_run_was_erased_while_it_followed_ends_with_an_error_not_done`. Mutasyonla kanıtlandı |
+| Kaybedenin `Canceled` run'ı `GET /api/runs`'ta, `RunStatistics.CanceledRuns`'ta ve `ErrorRate` paydasında görünür; `CHANGELOG` yalnız webhook/metrik/alıcıyı anıyordu | 🟢 | gerçek | `CHANGELOG` cümlesi eklendi; site kapanışta. Kapanışta aday değil (yazıldı) |
+| `OpenRunAsync` hatası varsayılan `Branch` akışlı modda da `500` döner (önce motorun yazıcısı yutardı); `CHANGELOG` Changed yalnız kayıt deposunu anıyordu | 🟢 | gerçek | `CHANGELOG` Changed'e eklendi. Kapanışta aday değil (yazıldı) |
+| `WorkflowEventStream`'in `finally` kapatması try/catch'siz: depo hatası başlıklardan sonra kaçar, satır `Running` kalır (uzlaştırma kapatır) | 🟢 | gerçek | Kapanışta aday: **F-514** (kuyruklu iptalde kapatılamayan `Queued` satırla birlikte) |
+| İzleyicinin `NextRunAsync`'i yalnız `ContinuedFromRunId` ardılı arar; kurtarma kapalı ve `MaxAttempts > 1` iken iş aynı run kimliğiyle yeniden koşar, izleyici "hiç başlamadı" der (varsayılan olmayan yapılandırma) | 🟢 | gerçek | Kapanışta aday: **F-515** |
+
+Planın *Kapsam dışı* tablosundan açılan adaylar: **F-520** (cevabın kendisini olaya yazmak), **F-521** (doğrudan runner çağıranın denetimi ve tek yanıtı), **F-522** (port başına mod), **F-523** (`workflow.request.answered` webhook'u); yönetici çıkışı **F-517**'dir. MCP Tasks `input_required` plan gereği aday açılmadı.
 
 ## Sonraki Faza Devir Notu
 
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
 > kalan işler, sıradaki faz ([Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) yanıt kaydını okur).
+
+**Sıradaki faz: Faz 210 (F-407 — bütçe tükenince fonksiyon düğümü başlamasın).** Planı onaylı (🔒1 A, 🔒2 B, 🔒3 A) ve `worktree-faz-210-butce-dugum-kapisi` dalındadır; bu faz kapandıktan sonra `main`'e birleştirilir. Bu fazla ortak dosyası `WorkflowRunner.cs`'tir; satır kayar, sözleşme çakışmaz. **Faz 209** (gelen kutusu ve süre) altı engelleyici soruyla onay bekler ve bu fazın kaydını okur.
+
+**Devralınan sözleşmeler**
+
+- `IWorkflowResponseStore` + `WorkflowResponseRecord` (*Gerçekleşen Public API*). İddia kapsamı **oturumdur** (`claim_scope = session_id`, §208.7 #1 ölçüldü); Faz 209'un "yanıtlandı" işareti `(tenant, claim_scope, request_id)` ile, `Abandoned` saymadan okur (K-995).
+- Cevap sırası **denetim → run satırı → kayıt** (K-997). Yeni bir cevap yolu (Faz 209'un süresi dolan isteği dahil) bu sırayı korur; bir kayıt var olmayan bir run'ı adlandıramaz.
+- Fail-closed küme **yedi** işlemdir (K-996). Ekleme ya da çıkarma K-776 koşuluyla sekiz yeri birlikte günceller (*Tüketici yüzeyi envanteri*).
+- `WorkflowRegistrationOptions` Faz 209'un `RequestTimeout`'unu taşıyacak tiptir. `AddWorkflow`'un üç aşırı yüklemesi vardır; üçüncü argümana düz `null` belirsizdir.
+- `RunEventType.WorkflowResponseApplied = 33` (`workflow.response-applied`), devamın ikinci olayıdır.
+- `IJobStore.EnqueueAsync` kayıtlı kimliği reddeder (K-998); `QueuedRunPlaceholder` reddedilen yazımdan sonra işi geri okur.
+
+**Bilinen tuzaklar**
+
+- 🚨 Akışlı devam çöküşte `Running` kalır ve tek cevaplı isteği kilitler; yalnız run uzlaştırması (varsayılan kapalı) kapatır. Uzlaştırma `Queued` satır okumaz.
+- 🚨 `concepts/workflows.md` ağırlık tavanında (58 470 / 59 000 B gzip). Yeni workflow anlatısı `concepts/workflow-answers.md`'ye ya da yeni bir sayfaya gider; tavan yükseltilmez.
+- 🚨 Migration yorumu checksum'a girer. Bu dalın eski `0060`'ını uygulamış bir veritabanı açılışta checksum hatası verir ve sıfırlanır (yayımlanmadı).
+- 🚨 `docs/ADAYLAR.md` bütçesi dar; bu kapanış on iki satırı `arsiv/ERTELENEN-ADAYLAR.md`'ye damıttı.
+- 🚨 Workflow cevap testlerinde depo sahtesi `configureTracon` içinde kurulur ([`hafiza/workflow-cevaplari.md`](hafiza/workflow-cevaplari.md)).
+
+**Açık kalanlar:** F-514…F-523 (aday; *Denetim Bulguları*). Sevk edilen sözleşme genişlediği için yayın provası koşuldu; sonucu *Kapanış kapısı*nda.

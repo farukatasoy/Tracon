@@ -32,7 +32,7 @@
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/208-*.md
    ```
-   208: `workflow_responses` kaydı, iddia anahtarının ölçülen kapsamı (oturum mu kaynak run mı), `WorkflowRegistrationOptions`
+   208: `workflow_responses` kaydı, iddia anahtarının ölçülen kapsamı (**oturum**, `claim_scope = session_id`), `WorkflowRegistrationOptions`, cevap sırası denetim → satır → kayıt (K-997)
 4. Alan hafızası:
    [`hafiza/workflows.md`](hafiza/workflows.md) (K-888'in üç kayıp yolu, K-988) ·
    [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (projeksiyon seçilirse) ·
@@ -115,7 +115,7 @@ Arayüz: `IWorkflowRunner.ListRequestsAsync(WorkflowRequestQuery, CancellationTo
 
 MAF bekleyen isteği checkpoint'ten **aynı kimlikle** yeniden yayınlar (K-128). Çok istekli bir run'da bir isteğe cevap verilince, cevaplanmayan istekler hem kaynakta hem devam run'ında listelenir. Düz `/resume` da aynısını yapar. Run başına liste aynı insan kararını iki satırda gösterir.
 
-Öneri (Açık Soru 2): liste **`(oturum, requestId)` başına bir satır** gösterir — o isteği taşıyan en yeni `AwaitingInput` run'ı. "Yanıtlandı" işareti aynı anahtarla okunur; bu, Faz 208'in iddia anahtarıyla aynıdır (208 ölçümü kaynak run dediyse işaret de run başınadır). Run başına `/requests` değişmez: o run'ın kendi isteklerini döner.
+Öneri (Açık Soru 2): liste **`(oturum, requestId)` başına bir satır** gösterir — o isteği taşıyan en yeni `AwaitingInput` run'ı. "Yanıtlandı" işareti aynı anahtarla okunur; bu, Faz 208'in iddia anahtarıyla aynıdır (208 ölçümü: oturum — `claim_scope = session_id`; işaret de mantıksal istek başınadır). Run başına `/requests` değişmez: o run'ın kendi isteklerini döner.
 
 ## 209.4 — Süre
 
