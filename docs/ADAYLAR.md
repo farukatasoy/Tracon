@@ -368,6 +368,10 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | F-420 · Önbellek yazma token'ı ve fiyatı | Faz 204'ten ayrıldı (2026-10-13); önce ölçüm | Gövde: § *F-420* |
 | 🟢 | **F-465** · `GET /api/voice/providers` diyalog yeteneğini bildirmiyor | Faz 203 (2026-10-13): `SpeechProviderDescriptor` ad, tür, `ProviderName` ve `SupportsTenantCredentials` taşır; bir motorun diyalog sesleyip seslendiremediği listede görünmez, çağıran ancak `GetDialogueSynthesizerAsync` çağrısının hatasından öğrenir. Public sözleşme (descriptor alanı, OpenAPI, iki üretilmiş istemci) | Konsol motor seçimi ya da ikinci diyalog sağlayıcısı (F-297) gelince; `SupportsDialogue` ve `DialogueCapabilities` alanı |
 | 🟢 | **F-445** · Konuşma soketi ses sağlayıcısını tur başına yeniden denetlesin | Faz 198 denetimi 🟢1 (2026-10-13, kod okuması): soket STT ve TTS'i bağlantı açılırken bir kez çözer (`VoiceConversationDriver.ResolveProvidersAsync`); açık bağlantı sonradan kaydedilen egress politikasını kapanana kadar görmez. Model tarafı her turda yeniden okur (F-310 emsali). Site ve XML bugün bu sınırı yazar | Karar: tur ortasında ret davranışı (hata çerçevesi, bağlantıyı kapatma) — protokol sözleşmesi; sonra tur başına çözümleme ve fonksiyonel test |
+| 🟢 | **F-503** · OpenAI Responses kesik yanıtı `incomplete` işaretlemez | Ölçüldü (2026-10-14, Faz 207, geçici prob): `Length` ile kesik düz metin iki kolda `completed` döner | Karar: MAF JSON'una yama ile `incomplete` + `response.incomplete` (tel sözleşmesi) |
+| 🟢 | **F-504** · Workflow SSE'si agent adımının kesildiğini söylemez | Faz 207 §207.6, kod okuması: olay alt run'da kalır; workflow `MessageDelta`'sı bitiş sebebi taşımaz | Önce ölçüm; sonra çerçeve kararı (K-991 emsali) |
+| 🟢 | **F-505** · İçerikli `content_filter` yarım yanıtı kayıtta iz bırakmaz | Faz 207 §207.6: dedektör yalnız boş yanıtı hata yapar; yalnız chat/completions `content_filter` der | Karar: yeni ayrılmış `CustomType` ve ayna listesi (K-991) |
+| 🟢 | **F-506** · Konsol playground'u `custom` çerçevelerini göstersin | Faz 207 §207.6: `use-playground-run.ts` `custom`'u yok sayar; kesilme ve kota bildirimi görünmez | Rozet tasarımı (`en.ts` + `tr.ts`), E2E |
 
 ### Doğrudan
 
@@ -534,7 +538,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-503**.
+numara: **F-507**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

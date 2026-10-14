@@ -1,6 +1,6 @@
 # Faz 207 — Akışta Kesilen Çıktı Bildirimi
 
-> **Durum:** 📋 Planlandı (2026-10-14)
+> **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 — sözleşme kararı sohbette alındı (A: `done`'dan önce `tracon.output.truncated` custom çerçevesi, her zaman açık; chat/completions `finish_reason` düzeltmesi kapsamda) ve Faz 205 ile paralel başlatma onaylandı; plan metni sohbette okunmadı
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-427**
 > **Genellik:** İlk ilke. Faz 204 kesilmeyi ayrı bir sonuç yaptı (K-919): kesik düz metin `Completed` biter ve `tracon.output.truncated` olayı yazar. Canlı akış bu olayı taşımaz. Akış okuyan her tüketici (C# ve TS istemcisi, konsol, kendi SSE okuyucusu) yarım yanıtı tam sanabilir. İş tüketici kodunda kalamaz: istemci kesilmeyi ancak `done`'dan sonra ikinci bir istekle (`GET /api/runs/{id}/events`) öğrenir. `/v1/chat/completions` ise ekosistem standardı bir alanı (`finish_reason`) her zaman `"stop"` ile doldurur; OpenAI SDK'sı kullanan tüketicinin başka kanalı yoktur. Kalem bir sözleşme kusurudur, bu yüzden § *Tüketici geri bildirimi kuralı*'ndan muaftır
@@ -372,18 +372,9 @@ Beş soru:
 | 3 | Aynı agent | `POST $APU/v1/chat/completions` (`model` = agent adı), önce `"stream": false`, sonra `"stream": true` | Akışsızda `choices[0].finish_reason == "length"`. Akışta son parça `"finish_reason":"length"` taşır, ardından `data: [DONE]` gelir |
 | 4 | Kısa yanıt veren agent | Aynı iki istek | `finish_reason == "stop"` |
 
-> **Koşum notu.** `update` çerçevesinin `data`'sı girintili JSON'dur ve birden çok `data:` satırına yayılır;
-> `custom` çerçevesi tek satırdır. Karşılaştırma: `grep -A1 '^event: custom'` iki çıktıda da alınır ve
-> `cmp` ile kıyaslanır.
->
-> **Gerçek koşum (2026-10-14, `samples/Tracon.Api`, bellek içi depo, Anthropic
-> `claude-haiku-4-5-20251001`, `maxOutputTokens: 50`).** Case 1: akış `run` · 29 `update` · `custom` ·
-> `done`; son üç `update` `"finishReason": "length"` taşır (Anthropic adaptörü sebebi usage
-> güncellemesine de yazar); `custom` verisi `customType: tracon.output.truncated`, yük
-> `{"provider":"anthropic","maxOutputTokens":50,"cause":"output_limit"}`; `/events`'teki `custom` verisiyle
-> `cmp` aynı; run `Completed`, `error: null`. Case 2 (sınırsız, kısa soru): `run` · 8 `update` · `done`,
-> `custom` yok. Case 3: akışsız `finish_reason = length` (usage 20/50/70); akışta yalnız son parça
-> `"finish_reason":"length"` taşır, ardından `data: [DONE]`. Case 4: iki kolda `"stop"`.
+> **Kapanışta sete girdi:** case 1 → `MT-GUARD-114`, case 2 → `MT-GUARD-115`
+> (`22-GUARDRAIL-VE-YAPISAL-CIKTI.md`), case 3 → `MT-COMPAT-052`, case 4 → `MT-COMPAT-053`
+> (`08-OPENAI-UYUMLU-UCLAR.md`). Dördü de örnek uygulamada koşuldu (§ *Örnek Uygulama Koşumu*).
 
 ---
 
@@ -400,22 +391,22 @@ Beş soru:
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] §207.1 ölçüm testi yazıldı; sonuç ve seçilen yol bu dokümana yazıldı
-- [ ] Kesik düz metinde `custom` (`tracon.output.truncated`) çerçevesi `done`'dan önce gelir ve `/events` ile bayt bayt aynıdır (`OutputTruncationStreamingTests`, önce kırmızı)
-- [ ] Ara tool turu kesilmesi çerçeve üretmez; tool turundan sonra kesik düz metin tam bir çerçeve üretir
-- [ ] Kota açık + kesilme: iki çerçeve kayıt sırasıyla `done`'dan önce gelir; `QuotaRunNoticeTests`'in mevcut case'leri değişmeden yeşil
-- [ ] Normal run akış sırasında `ReadEventsAsync` çağırmaz (kapı testi) — ya da öncül düştüyse koşulsuz taramanın maliyeti ölçüldü ve yazıldı
-- [ ] Ayna depo okuma hatasında `done` gelir ve uyarı loglanır
-- [ ] `/v1/chat/completions` iki kolda `"length"` / `"content_filter"` / `"stop"` döner (`OpenAICompatTests`, önce kırmızı); `[DONE]` son satırdır
-- [ ] `OutputTruncationStreamingTests.cs` yorumu ve `concepts/runs.md` ölçüm sonucuna göre düzeltildi
-- [ ] `CHANGELOG.md`'ye iki not girdi (yeni çerçeve; chat/completions `finish_reason` davranış değişikliği)
-- [ ] §207.6 kalemleri kapanışta `ADAYLAR.md`'ye aday olarak girdi
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1 ve 3), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md` ve `docs/manuel-test/08-OPENAI-UYUMLU-UCLAR.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`governance.md` ve `capabilities.md` 205'ten sonra); `npm run check` temiz
+- [x] §207.1 ölçüm testi yazıldı; sonuç ve seçilen yol bu dokümana yazıldı (alan var → kapı ve akış kolu ona dayanır)
+- [x] Kesik düz metinde `custom` (`tracon.output.truncated`) çerçevesi `done`'dan önce gelir ve `/events` ile bayt bayt aynıdır (`OutputTruncationStreamingTests`, önce kırmızı)
+- [x] Ara tool turu kesilmesi çerçeve üretmez (düz metin ikizi, mutasyonla kanıtlı); tool turundan sonra kesik düz metin tam bir çerçeve üretir
+- [x] Kota açık + kesilme: iki çerçeve kayıt sırasıyla `done`'dan önce gelir; `QuotaRunNoticeTests`'in mevcut case'leri değişmeden yeşil
+- [x] Normal run akış sırasında `ReadEventsAsync` çağırmaz (`The_stream_reads_the_run_events_only_after_an_update_reported_a_cut`: `stop` → 0, `length` → 1)
+- [x] Ayna depo okuma hatasında `done` gelir ve uyarı loglanır (`QuotaRunNoticeTests`, önce kırmızı)
+- [x] `/v1/chat/completions` iki kolda `"length"` / `"content_filter"` / `"stop"` döner (`OpenAICompatTests`, önce kırmızı); `[DONE]` son satırdır
+- [x] `OutputTruncationStreamingTests.cs` yorumu ve `concepts/runs.md` ölçüm sonucuna göre düzeltildi
+- [x] `CHANGELOG.md`'ye notlar girdi (`### Added` yeni çerçeve; `### Fixed` chat/completions `finish_reason` ve kota aynası depo hatası, ikisi **Behavior change**)
+- [x] §207.6 kalemleri `ADAYLAR.md`'ye aday olarak girdi (**F-503**…**F-506**; `runs.md:160` kayması bu fazda düzeltildi, A2A/MCP aday değil — Sapma 7)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — § *Örnek Uygulama Koşumu* altındaki kapanış kapısı satırı
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1-4), çıktı § *Örnek Uygulama Koşumu*'nda
+- [x] `secret` taraması boş döndü (`kapi.py tarama`)
+- [x] Manuel kabul case'leri eklendi (`MT-GUARD-114`–`115`, `MT-COMPAT-052`–`053`), `00-INDEKS.md` sayımı güncellendi; dördü koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu yok, iki 🟡 düzeltildi
+- [x] `docs-site/` güncellendi (altı sayfa, § *Tüketici Yüzeyi Envanteri*); `npm run check` temiz
 
 ### Doğrulama komutları
 
@@ -458,11 +449,6 @@ curl -s http://localhost:5081/tracon/v1/chat/completions -H "Authorization: Bear
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
-
-Uygulama oturumunun notları (2026-10-14; kapanış bu bölümü tamamlar):
-
 1. **Çok iterasyonlu kesilme testi `HarnessLoopTests`'te değil, `OutputTruncationStreamingTests`'te.**
    `HarnessLoopTests`'in kurulumu `FakeModelProvider` alır; o sağlayıcı bitiş sebebi yazamaz.
    Test `FinishReasonModelProvider` + `Harness.Loop` ile yazıldı
@@ -470,62 +456,168 @@ Uygulama oturumunun notları (2026-10-14; kapanış bu bölümü tamamlar):
    iterasyon iki olay yazar ve akışa iki `custom` çerçevesi gelir; ara iterasyonun metni de istemciye akar.
 2. **§207.4 akışsız kol ölçüldü.** Tracon dekoratörleri `AgentResponse.FinishReason`'ı korur: düz metin
    agent'ında (`ChatCompletions_reports_the_final_finish_reason`, akışsız satırlar) ve harness `Loop`
-   agent'ında (denetim 🟡2 sonrası, 2026-10-14). Harness ölçümü iki kolda yeşildir: kesik tek iterasyon
-   `"length"` (`ChatCompletions_reports_length_for_a_cut_harness_loop_answer`); ilk iterasyonu kesik, son
-   iterasyonu tam döngü `"stop"` (`ChatCompletions_reports_the_last_harness_iteration_not_an_earlier_cut_one`,
-   iki model çağrısı). CHANGELOG cümlesi daraltılmadı; testler kilit olarak kalır.
-3. **Açık Soru 2 (uç açıklaması) uygulanmadı.** Cümle dört üretilmiş yapıtı yeniler
-   (`docs/openapi/tracon.json`, `TraconApiClient.g.cs`, `schema.ts`, site kopyası). Faz 205 ve Faz 208
-   paralel ilerliyor; üretilmiş dosyalar birleşmede çakışır. Karar ve yenileme kapanışa, iki faz `main`'e
-   girdikten sonraya bırakıldı. Açık Soru 1-A (sınır kabul) ve 4-A (`### Fixed`) uygulandı; Açık Soru 3
-   tetiklenmedi (öncül tuttu).
+   agent'ında (denetim 🟡2). Harness ölçümü iki kolda yeşildir: kesik tek iterasyon `"length"`
+   (`ChatCompletions_reports_length_for_a_cut_harness_loop_answer`); ilk iterasyonu kesik, son iterasyonu
+   tam döngü `"stop"` (`ChatCompletions_reports_the_last_harness_iteration_not_an_earlier_cut_one`, iki model
+   çağrısı). CHANGELOG cümlesi daraltılmadı; testler kilit olarak kalır.
+3. **Açık Soru 2 uygulama oturumunda bekletildi, kapanışta A ile uygulandı.** Dört üretilmiş yapıt Faz 205
+   ve 208 ile çakışacaktı; bakımcı kapanışta 2-A'yı seçti. Uç açıklaması (`AgentEndpoints.cs`) bir cümle
+   kazandı; `docs/openapi/tracon.json`, `TraconApiClient.g.cs` ve `schema.ts` yenilendi (her biri tek
+   satır), site kopyası derlemede üretilir. Aynı açıklamadaki `quota.When` boşluk hatası da düzeltildi.
+   Açık Soru 1-A (sınır kabul, sitede yazılı) ve 4-A (`### Fixed`) uygulandı; Açık Soru 3 tetiklenmedi.
 4. **Depo hatasında kısmi okuma gönderilmez.** Ayna önce olayları okur, sonra yazar. Okuma yarıda düşerse
    hiçbir bildirim gönderilmez, uyarı loglanır, `done` gelir. Böylece istemci kopması (yazma hatası) depo
    hatası sanılmaz.
 5. **`RunEventCustomTypes.OutputTruncated` remarks'ı yükün `cause` alanını da anar.** Alan K-985'ten beri
    yüktedir; XML onu anmıyordu.
+6. **Responses `incomplete` ölçüldü (§207.6 kod okumasıydı).** Kapanışta geçici bir fonksiyonel probla:
+   `Length` ile kesik düz metin `/v1/responses`'ta akışsız `"status":"completed"`, akışta
+   `response.completed` döner. Prob silindi; sınır sitede yazılı, iş **F-503**.
+7. **§207.6'nın iki kalemi aday olmadı.** `concepts/runs.md:160` kayması yalnız ifadeydi ve bu fazda
+   düzeltildi (workflow ve OpenAI akışlarının kendi çerçeve kümeleri ayrı cümleyle yazıldı). A2A
+   (`ExternalAgentProxy`) ve MCP (`CatalogToolCallHandler`) akışsızdır; çağıran yalnız metni alır ve run'ın
+   kendi olayları bildirimi taşır. Ölçülmüş bir tüketici ihtiyacı yok; aday açılmadı.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Fazın kararları burada yazılır. Dört kategoriden birine
-> giren karar (AGENTS.md) ayrıca `docs/KARARLAR.md`'ye K-NNN ve kategori
-> etiketiyle girer ve numarası burada anılır; girmeyen karar yalnız burada
-> kalır (`faz-tamamlama` Adım 8). Plan numara rezerve etmez.
+- **K-991** (kategori: public-api; kullanıcı kararı): ajan run akışı kayıtlı ayrılmış bildirimleri `done`'dan
+  önce `custom` çerçevesi olarak verir; kapalı liste, `/events` ile bayt bayt aynı veri, kapılı depo okuması,
+  okuma hatası uyarı + `done`; listeye tip eklemek sözleşme kararıdır. Açık Soru 1-A ve 2-A bu kararın parçasıdır.
+- **K-992** (kategori: public-api; kullanıcı kararı): `/v1/chat/completions` `finish_reason` son model
+  çağrısının sebebinden eşlenir (`length` · `content_filter` · `stop`), iki kolda, run kaydından bağımsız.
+- Kategori dışı (yalnız burada): kesilme yüklemi `FinishReasonDetectingChatClient.IsTruncated` tektir ve
+  `internal` olur (ikinci sebep sözlüğü yazılmaz) · bayrak "herhangi bir güncelleme"dir · kısmi okuma
+  gönderilmez (Sapma 4) · Açık Soru 4-A (CHANGELOG başlığı).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+C# public yüzeyi değişmedi (`PublicAPI.*.txt` dokunulmadı). İç imzalar:
+
+```csharp
+// Tracon.Core — private → internal
+internal static bool IsTruncated(ChatFinishReason? finishReason);           // FinishReasonDetectingChatClient
+
+// Tracon.AspNetCore — yeni
+internal static class RunNoticeMirror
+{
+    internal const string FrameName = "custom";
+    internal static ValueTask<long> WriteAsync(HttpContext httpContext, Guid runId, SseWriter writer,
+        long sequence, bool sawTruncation, CancellationToken cancellationToken);
+    internal static bool IsMirrored(RunEvent runEvent, bool quotaNotices);
+}
+public static string ToChatFinishReason(ChatFinishReason? finishReason);    // internal static class OpenAICompatSupport
+```
+
+Tel sözleşmesi plandaki tablo gibi gerçekleşti (§ *HTTP tel sözleşmesi*); `TraconRunAgent` uç açıklaması
+`custom` çerçevesini anar.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.AspNetCore/Streaming/RunNoticeMirror.cs                       YENİ
+src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs                        bayrak, ayna çağrısı, uç açıklaması; eski metot kalktı
+src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs     iki kol
+src/Tracon.AspNetCore/OpenAICompat/OpenAICompatSupport.cs                ToChatFinishReason
+src/Tracon.Core/Models/FinishReasonDetectingChatClient.cs                IsTruncated internal + remarks
+src/Tracon.Abstractions/Runs/RunEventCustomTypes.cs                      OutputTruncated remarks
+src/Tracon.Client/Generated/TraconApiClient.g.cs · packages/tracon-client/src/schema.ts · docs/openapi/tracon.json   üretildi
+tests/Tracon.AspNetCore.FunctionalTests/Infrastructure/CallCounting.cs   YENİ (sayan DispatchProxy)
+tests/Tracon.AspNetCore.FunctionalTests/{OutputTruncationStreamingTests,OutputTruncationToolTurnTests,QuotaRunNoticeTests,OpenAICompatTests}.cs
+tests/Tracon.AspNetCore.FunctionalTests/Infrastructure/FaultInjection.cs Resolve internal
+docs-site/src/content/docs/{http-api,capabilities}.md · concepts/{runs,governance}.md · guides/{openai-api,model-providers}.md · public/llms-full.txt
+CHANGELOG.md · docs/manuel-test/{00-INDEKS,08-OPENAI-UYUMLU-UCLAR,22-GUARDRAIL-VE-YAPISAL-CIKTI,23-SAKLAMA-ARSIV-KOTA}.md
+docs/KARARLAR.md · docs/arsiv/KARARLAR-GECMISI.md · docs/ADAYLAR.md · docs/MIMARI.md
+docs/hafiza/{http-uc-tuzaklari,run-olay-sozlesmesi,olcum-kota-ve-secenekler,kod-haritasi}.md
+```
+
+Yeni ve değişen testler (Tracon.AspNetCore.FunctionalTests): `OutputTruncationStreamingTests` +7 (ölçüm kilidi,
+çerçeve + bayt eşitliği, tam yanıt, bağlam penceresi, kapı teorisi ×2, kayıt kapalı, harness) ve iki yapılandırılmış
+case'e iddia · `OutputTruncationToolTurnTests` +2 (düz metin son tur, düz metin ara tur ikizi) · `QuotaRunNoticeTests` +2
+(sıra, depo hatası) · `OpenAICompatTests` +16 (sebep teorisi ×8, tool turu ×2, kayıt kapalı ×2, harness ×4).
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 (plan değişmedi; sapmalar yukarıda) |
+| Düzeltme turu sayısı | 2 (uygulamada `ShippedDocumentationSelfContainmentTests` XML'deki faz/karar atıfları için bir kez kırmızı · denetimin iki 🟡'ı tek turda) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (mevcut hiçbir test değiştirilmeden kırmızı olmadı; yapılandırılmış ara tur testindeki etkisiz iddia kaldırıldı) |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz bugün kapandı) |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+Bağımsız denetim (`faz-denetcisi`, taze bağlam, 2026-10-14): 🔴 yok, iki 🟡, 🟢 yok.
 
-Bağımsız denetim (2026-10-14): 🔴 yok, iki 🟡.
+| Bulgu | Seviye | Triyaj | Sonuç |
+|---|---|---|---|
+| "Ara tool turu kesilmesi çerçeve üretmez" yalnız **yapılandırılmış** agent'la kanıtlanıyordu (`Streamed_intermediate_tool_turn_at_the_limit_does_not_fail_the_run`). Yapılandırılmış kesilme istisna atar, olay yazmaz; iddia hiç kırmızı olamazdı | 🟡 | gerçek (mutasyonla kanıtlandı) | Düzeltildi. Düz metin ikizi: `OutputTruncationToolTurnTests.Streamed_plain_text_run_whose_intermediate_tool_turn_hit_the_limit_sends_no_notice` (tool turu `Length`, son tur `Stop`; `custom` yok, `/events`'te olay yok, son çerçeve `done`). Mutasyon kanıtı: dedektör "son sebep" yerine "ilk kesilme sebebi kalır" yapıldı (`!IsTruncated(finishReason)` koşulu) → test kırmızı (bir `custom` çerçevesi geldi); mutasyon geri alındı. Yapılandırılmış testteki etkisiz iddia kaldırıldı |
+| §207.4 harness agent'ının akışsız yolu ölçülmemişti; CHANGELOG `"length"`'i koşulsuz vaat ediyordu | 🟡 | gerçek (ölçüm eksiği; kod doğru çıktı) | Düzeltildi. Ölçüldü, iki kolda yeşil: `OpenAICompatTests.ChatCompletions_reports_length_for_a_cut_harness_loop_answer` ve `ChatCompletions_reports_the_last_harness_iteration_not_an_earlier_cut_one`. Kod ve CHANGELOG değişmedi (Plandan Sapmalar #2) |
 
-| Bulgu | Seviye | Sonuç |
-|---|---|---|
-| "Ara tool turu kesilmesi çerçeve üretmez" yalnız **yapılandırılmış** agent'la kanıtlanıyordu (`Streamed_intermediate_tool_turn_at_the_limit_does_not_fail_the_run`). Yapılandırılmış kesilme istisna atar, olay yazmaz; iddia hiç kırmızı olamazdı | 🟡 | Düzeltildi. Düz metin ikizi: `OutputTruncationToolTurnTests.Streamed_plain_text_run_whose_intermediate_tool_turn_hit_the_limit_sends_no_notice` (tool turu `Length`, son tur `Stop`; `custom` yok, `/events`'te olay yok, son çerçeve `done`). Mutasyon kanıtı: dedektör "son sebep" yerine "ilk kesilme sebebi kalır" yapıldı (`!IsTruncated(finishReason)` koşulu) → test kırmızı (bir `custom` çerçevesi geldi); mutasyon geri alındı. Yapılandırılmış testteki etkisiz iddia kaldırıldı |
-| §207.4 harness agent'ının akışsız yolu ölçülmemişti; CHANGELOG `"length"`'i koşulsuz vaat ediyordu | 🟡 | Düzeltildi. Ölçüldü, iki kolda yeşil: `OpenAICompatTests.ChatCompletions_reports_length_for_a_cut_harness_loop_answer` ve `ChatCompletions_reports_the_last_harness_iteration_not_an_earlier_cut_one`. Kod ve CHANGELOG değişmedi (Plandan Sapmalar #2) |
+## Örnek Uygulama Koşumu
+
+2026-10-14, `samples/Tracon.Api` (bellek içi depo — paylaşılan veritabanına dokunmamak için bağlantı
+dizeleri ortam değişkeniyle boşaltıldı), Anthropic `claude-haiku-4-5-20251001`, `maxOutputTokens: 50`:
+
+- **Case 1 (`MT-GUARD-114`):** akış `run` · 29 `update` · `custom` · `done`; son üç `update`
+  `"finishReason": "length"` taşır (Anthropic adaptörü sebebi usage güncellemesine de yazar); `custom` verisi
+  `customType: tracon.output.truncated`, yük `{"provider":"anthropic","maxOutputTokens":50,"cause":"output_limit"}`;
+  `/events`'teki `custom` verisiyle `cmp` aynı; run `Completed`, `error: null`.
+- **Case 2 (`MT-GUARD-115`):** sınırsız agent, kısa soru: `run` · 8 `update` · `done`, `custom` yok.
+- **Case 3 (`MT-COMPAT-052`):** akışsız `finish_reason = length` (usage 20/50/70); akışta yalnız son parça
+  `"finish_reason":"length"` taşır, ardından `data: [DONE]`.
+- **Case 4 (`MT-COMPAT-053`):** iki kolda `"stop"`.
+- Ölçüm notu: `update` verisi girintili JSON'dur ve birden çok `data:` satırına yayılır; `custom` tek satırdır.
+- **Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban 42e5479f` — sonucu aşağıdaki satır yazar.
+
+## Tüketici Yüzeyi Envanteri
+
+`tuketici-dokuman-senkronu` Adım 1 (taban `42e5479f`):
+
+1. **`docs-site/` (elle):** `http-api.md` § Streaming (kapalı liste tablosu, depo hatası) · `concepts/runs.md`
+   (iki sözleşme tablosu `custom` aldı; workflow ve OpenAI akışlarının kendi kümeleri ayrı cümle — §207.6
+   kayması; § Truncated output: canlı `custom` çerçevesi, `update.finishReason`'ın garanti olmadığı) ·
+   `guides/openai-api.md` (uyumluluk matrisi satırı + `finish_reason` paragrafı, Responses sınırı) ·
+   `guides/model-providers.md` (sorun giderme satırı) · `concepts/governance.md` (kota bildirimi ile kesilme
+   sırası, depo hatası; 205'in güncel metnine göre) · `capabilities.md` (Streaming runs satırı).
+   **Üretilen:** `http-api/` ve `public/openapi/tracon.json` (uç açıklaması), `api/` (`RunEventCustomTypes`
+   remarks), `public/llms-full.txt` (commit edilir).
+2. **Sevk edilen metin:** `RunEventCustomTypes.OutputTruncated` XML (canlı akış, `cause`) ·
+   `FinishReasonDetectingChatClient` remarks (internal) · `CHANGELOG.md` · paketlenen OpenAPI belgesi ve iki
+   üretilmiş istemcinin uç açıklaması. Paket `README.md`'si değişmedi.
+3. **Yerel referans / agent haritası:** yeni giriş noktası yok; `capabilities.md` satırı haritaya girmeyen
+   tabloda (`build-agent-map.mjs --check`: "up to date and within budget").
+
+Kapılar: (1) sevk edilen metin testleri kapanış kapısının tam test koşumunda · (2) `build-agent-map.mjs --check`
+yeşil · (3) `npm run check` yeşil · (4) `dokuman-bakim.py --site-denetle --taban 42e5479f`: 2 kural tetiklendi,
+ikisinin hedefi değişti (✅).
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+Sıradaki faz yok: seçilmemiş işler `ADAYLAR.md`'dedir. Faz 206 ve 208 paralel dallardadır.
+
+**Devralınan sözleşmeler**
+
+- Ajan run akışı: `run` · `update`… · (`approvals`) · `custom`… · `done`. `custom` yalnız `RunNoticeMirror`'ın
+  kapalı listesindeki kayıtlı olaylardır (K-991); veri `/events` ile aynı serileştirmedir (Web varsayılanları).
+- `/v1/chat/completions` `finish_reason` = `OpenAICompatSupport.ToChatFinishReason(son sebep)` (K-992).
+- Kesilme yüklemi tektir: `FinishReasonDetectingChatClient.IsTruncated`. Yeni bir kesilme sebebi yalnız oraya girer.
+
+**Bilinen tuzaklar**
+
+- 🚨 Yeni ayrılmış bildirim canlı akışa kendiliğinden girmez: listeye **ve** depo okuma kapısına birlikte
+  eklenir (kapı bugün yalnız kota seçeneğine ve kesilme sebebine bakar); uç açıklaması ve dört üretilmiş
+  yapıt yenilenir.
+- 🚨 Kapının öncülü MAF'ın `AgentResponseUpdate.FinishReason` kopyasıdır (MAF 1.20.0). Bir MAF yükseltmesi alanı
+  düşürürse `The_last_update_frame_carries_the_model_finish_reason` kırmızı olur; o zaman kapı koşulsuz taramaya
+  döner (plan §207.2.4, Açık Soru 3).
+- 🚨 `done` yolunda atılan her istisna K-384'ün geniş `catch`'ine düşer ve tamamlanmış run'ı `error` ile bitirir;
+  bu yola eklenen gözlemlenebilirlik işi kendi hatasını yakalar.
+- "Bildirim yok" iddiası yalnız düz metin agent'ında anlamlıdır; yapılandırılmış kesilme istisna atar.
+
+**Yarım kalan işler**
+
+- **Site yayını (`faz-tamamlama` Adım 10) koşulmadı:** dal `main`'e birleşmedi; yayın birleşmeden sonra
+  `./scripts/site-deploy.sh` ile yapılır.
+- Adaylar: **F-503** (Responses `incomplete`), **F-504** (workflow SSE kesilmesi), **F-505** (içerikli
+  `content_filter` izi), **F-506** (konsol `custom` rozeti).
