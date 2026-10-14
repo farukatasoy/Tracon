@@ -135,7 +135,7 @@ claim to provide an operating-system sandbox.
 A run is the unit of evidence. What is recorded is recorded against a run id, and a
 store failure never gets permission to stop the run itself — which is also the limit
 of the guarantee: recording is best-effort, so a store failure costs the record, not
-the run. Six operations invert that and refuse to proceed without their audit entry;
+the run. Seven operations invert that and refuse to proceed without their audit entry;
 [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written)
 is the list.
 
@@ -145,7 +145,7 @@ is the list.
 |---|---|---|
 | Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, and a step can pin a version of a stored agent |
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
-| Human input | Workflow request and response endpoints | A waiting workflow resumes from its checkpoint as a new execution step |
+| Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`) |
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
@@ -201,7 +201,7 @@ experiment, and automatic rollback is off until you configure it.
 | Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; every run of a call tree adds its own tokens and cost when it ends, a background child after its root included; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
-| Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [six fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
+| Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [seven fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, credential headers by configuration key name, retry jobs, and failure disablement |
 | Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix; a credential-looking plain header is refused |
@@ -257,7 +257,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-174-operation HTTP reference.
+175-operation HTTP reference.
 
 ## Embedding points
 

@@ -17,7 +17,7 @@ var app = builder.Build();
 app.MapTracon("/tracon");
 ```
 
-174 operations over 136 paths, all under the prefix you choose. The prefix appears in
+175 operations over 137 paths, all under the prefix you choose. The prefix appears in
 exactly one place; nothing else in your application has to know it.
 
 ## Two endpoint groups
