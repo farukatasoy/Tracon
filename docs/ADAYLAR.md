@@ -12,10 +12,10 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-13):** sıralanabilir kuyrukta **6** aday var (F-297, F-420
-podcast turu; F-319, F-322, F-324, F-347 video tüketicisi turu). Aynı turların on kalemi
+**Durum (2026-10-14):** sıralanabilir kuyrukta **5** aday var (F-297, F-420
+podcast turu; F-322, F-324, F-347 video tüketicisi turu). Aynı turların on kalemi
 2026-10-12'de yedi faza dönüştü (Faz 196…202); 2026-10-13'te F-296 Faz 203'e,
-F-320 ve F-346 Faz 204'e, F-405 Faz 196'ya girdi (planlandı); 2026-10-14'te F-418 ve F-482 Faz 205'e dönüştü. Bugün
+F-320 ve F-346 Faz 204'e, F-405 Faz 196'ya girdi (planlandı); 2026-10-14'te F-418 ve F-482 Faz 205'e dönüştü, F-319 Faz 208 ve 209'a dönüştü. Bugün
 yapılabilecek iş § *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar
 burada değil, üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 
@@ -154,34 +154,6 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 **Ekosistem (2026-10-11):** Modeller `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview`, `gemini-2.5-pro-preview-tts`; .NET örneği yok.
 
 **Karşı görüş:** Faz 198 olmadan adaptör ElevenLabs'in yerine geçer, yanına gelmez; tek başına değeri düşük.
-
-### F-319 · Workflow HITL karar sözleşmesi: kiracı geneli liste, opt-in tek yanıt, karar denetimi, süre
-
-**Kanal:** faz planlama · 🟠
-
-**Sorun:** İstekler yalnız run başına listelenir (`WorkflowEndpoints.cs:175-186`). K-130 gereği yanıtlanan run `AwaitingInput` kalır; gerçekten bekleyen ayrılamaz. İkinci yanıt yeni dal açar; `respond` `Idempotency-Key` almaz. Yanıt denetim izine yazılmaz, tool onayı yazar (`ApprovalEndpoints.cs:238`). İstek için süre yoktur.
-
-**Kapsam:** Kiracı geneli bekleyen istek listesi (sayfalı, "yanıtlandı" işaretli). Workflow başına opt-in tek yanıt: aynı cevap aynı devamı sürer, zıt cevap 409 (tool onayı kuralı). `workflow.respond` denetim kaydı (aktör, requestId, karar özeti hash'i) ve yeni run'a kaynak run bağı. İsteğe bağlı süre ve süre dolunca kapanış.
-
-**Değer:** Host ekranı n revizyonlu onayı tek listeden yönetir; çift tıklama ikinci render üretmez; "kim neyi onayladı" cevaplanır.
-
-**Mercek:** 2, 3, 5.
-
-**Hazırlık:** Tool onay posta kutusu (Faz 55) ve fail-closed denetim deseni var.
-
-**Maliyet:** Yeni uç ve public yanıt tipi, `RunEventType` üyesi; olası projeksiyon tablosu (migration; K-128'i açar).
-
-**Risk:** K-128: kiracı geneli olay taraması pahalı olabilir — önce ölçülür. K-130 varsayılanı korunur.
-
-**F-327 kapanışı eki (2026-10-12):** retention artık `AwaitingInput` run'ın istek olayını ve checkpoint'lerini süresiz tutar (K-888); yanıtlanan istek de K-130 gereği `AwaitingInput` kalır, yani bu satırlar hiç silinmez. Bu adayın "süre" maddesi o büyümenin de sınırıdır: süre dolan istek kapanınca retention onu silebilir. F-332 (2026-10-12) sonrası aynı run'ın oturumundaki ekler de run yaşadıkça tutulur; süre maddesi onları da kapsar.
-
-**Bağımlılık:** Yok (F-327 ve F-335 kapandı). Faz 197'den sonra planlanırsa tek yanıt kuralı arka plan `respond`'una da uygulanır.
-
-**F-341 kapanışı eki (2026-10-12):** uymayan yanıt artık akıştan önce `400` alır ve run açmaz (K-908); bu adayın "zıt cevap `409`" kuralı o denetimin üstüne kurulur. Faz 197 (planlandı) `respond`'a `Idempotency-Key`'i yalnız arka plan kipinde getirir; aynı cevabın aynı devamı sürmesi ve kiracı geneli liste bu adayda kalır.
-
-**Ekosistem:** MCP Tasks `input_required` aynı ihtiyacı protokolde karşılar; Tracon görev deposu onu boş bırakır (`RunBackedMcpTaskStore.cs`, 2026-10-11).
-
-**Karşı görüş:** Onay tüketicinin ekranında ve domain'inde tutulabilir; değer yalnız Tracon HITL'ini kullanan host içindir.
 
 ### F-322 · Kiracı başına workflow eşzamanlılığı, görünür kuyruk ve adil kiralama
 
@@ -341,7 +313,6 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
-| 🟠 | F-319 · Workflow HITL karar sözleşmesi | n revizyonlu onay; ikinci yanıt dal açar | Gövde: § *F-319* |
 | 🟡 | **F-290** · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi | Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`) | GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir |
 | 🟡 | F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı | Risk yok, iş mekanik ve paralel yürür. Sınıf gerçek bir kusur üretti (`TraconImageOptions.Timeout`) | Gövde: § *F-247* |
 | 🟡 | F-297 · Gemini konuşma adaptörü | Yeni bağımlılık istemez; Faz 203'ün sözleşmesini uygular | Gövde: § *F-297* |
@@ -352,7 +323,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı | Elle koşulan case iki turda da kusur buldu | Gövde: § *F-249* |
 | 🟢 | F-324 · Karışık zincirde agent adımının iletim modu | Loop bütün taslakları iletir; tip zinciri F-341 ile kapandı | Gövde: § *F-324* |
 | 🟢 | **F-406** · Agent yolları konuşma sağlayıcısını adla seçsin | Faz 198 Açık Soru 5-C: Faz 198 adı yalnız fonksiyon düğümünde ve uçta seçtirir | Faz 198'den sonra; agent tanımına ses bağlaması |
-| 🟢 | **F-407** · Bütçe tükenince fonksiyon düğümü başlamasın | Faz 199 kapsam dışı: davranış değişikliği (K1) | Faz 199'un maliyet kaydından sonra; ağaç bütçesi denetimi düğüm başlangıcına |
+| 🟢 | **F-407** · Bütçe tükenince fonksiyon düğümü başlamasın | Faz 199 kapsam dışı: davranış değişikliği (K1). Ölçüldü (2026-10-14): ağaç bütçesini yalnız model çağrısı denetler (`RunBudgetChatClient.cs:99`); `WorkflowRunner` düğüm başlangıcında `IsExhausted`'ı okumaz. `MaxTotalTokens = 200_000` varsayılan olarak açıktır (`TraconOptions.cs:173`) ve `IsExhausted` token boyutunu da sayar | Bakımcı kararı (2026-10-14): düğümü yalnız **maliyet ve süre** boyutu durdurur; token boyutu durdurmaz, varsayılan davranış korunur. Faz 205'ten ve Faz 208'den sonra (`WorkflowRunner.cs` ortak dosya). Kiracı kotasıyla düğüm durdurma ayrı karardır ve Faz 205'in kotasına dayanır. Mutlak harcama tavanı vaat edilmez: koşan düğüm ve maliyeti önceden bilinmeyen iş kesilmez |
 | 🟢 | **F-408** · Skill sürüm geçmişi ve geri alma | Faz 200 Açık Soru 6-B: skill geçmişi K-082'yi (kullanıcı kararı) açar, üç tablo ve özet liste ister (20 × 256 KiB kaynak), K-860 grant'ına dokunmamalı | K-082'nin yeniden açılma kararı; Faz 200'ün workflow deseni |
 | 🟢 | **F-409** · Alt agent ve skill sürüm sabiti | Faz 200 kapsam dışı: agent → skill ve alt agent adımı güncel sürümle koşar (K-895 (c)); agent numarası silmede yeniden kullanılır, sabit bunu miras alır | Faz 200'den sonra; numara yeniden kullanımı önce kapanır |
 | 🟢 | **F-493** · Workflow sürüm geçmişi budanamaz | Faz 200 kapsam dışı: `workflow_definition_versions` hiç silinmez (numara kimliktir, K-987); silinen workflow'un geçmişi ve düğüm ayarındaki her değer kalır | Tüketici ihtiyacı gelince: `retention` kapsamı ya da yalnız hiçbir run'ın damgalamadığı sürümleri silen uç |
