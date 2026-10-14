@@ -631,6 +631,50 @@ türevler tek komutla çıkar.
 
 > 2026-10-13: F-240, F-254, F-374, F-376, F-381, F-412, F-414, F-415, F-422 taşındı (Faz 197 ile Faz 198 birleştirmesi; aday dosyası bütçesi). Metin aynen.
 
+> 2026-10-14: F-242, F-230, F-413, F-375, F-205, F-277, F-377 taşındı (Faz 208 kapanışı; aday dosyası bütçesi). Metin aynen; `ADAYLAR.md` satırı kısaldı.
+
+### F-242 · `ResolveVersion`'ın `catch` dalı kanıtlanmadı
+
+**Engel:** Sürüm çözümünde attribute okuması **hata verirse** alan `null` kalır ve skor yine yazılır (K-790). Yalnız "attribute yok" yolu testle kanıtlı; `catch` dalını koşturmak `GetCustomAttribute`'u attıran düşmanca bir tip ister ve kazanç maliyeti karşılamıyor
+
+**Koşul:** Assembly attribute okumasının gerçekten attığı bir kurulum (kısıtlı host, bozuk assembly) raporlanırsa ([Faz 176](fazlar/176-EVALUATOR-SURUM-DAMGASI.md) denetim bulgusu 🟢 2)
+
+### F-230 · `kurtarma.md` ↔ `.claude/settings.json` senkron kapısı
+
+**Engel:** `KR-11` rampası `deny` listesinin bugünkü içeriğini **sayarak** tekrarlıyor (`git rebase`, `git clean -fd`, `rm -rf` listede yok). Yasağın sınırını yazmayan bir rampa yanlış güven üretir (K-761). Ama `settings.json` genişlerse cümle sessizce yalan olur ve bunu sayan kapı yok
+
+**Koşul:** `.claude/settings.json` `deny` bloğu ilk kez değiştiğinde ([Faz 168](fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) denetim bulgusu 🟢 6)
+
+### F-413 · Konsol yapısal değişiklik uyarısını bekleyen run olmadan da gösteriyor
+
+**Engel:** Faz 195 (K-901, Açık Soru 3-A): uyarı desen, adım veya sıra her değiştiğinde çıkar; hepsi ölçüldü ve eski checkpoint'i bozar (`WorkflowStructuralChangeResumeTests`). Yalnız bekleyen `AwaitingInput` run varken göstermek bir sayım çağrısı ister (ek uç ya da run listesinde workflow süzgeci)
+
+**Koşul:** Operatörler uyarıyı gürültü sayarsa ya da run listesi workflow adına göre süzülür hâle gelirse
+
+### F-375 · Batch öğesinde düz metin ile `{"message":…}` biçimli nesne ayırt edilemiyor
+
+**Engel:** Faz 194 (K-899): `JobPayload.ExtractItems` string ve nesne öğeyi aynı metne indirir; metin tür taşımadığı için `message` string üyeli bir JSON metni yapılı öğe sayılır (site belgeler). Tür sütunu migration ister ve gerçek çakışma ölçülmedi
+
+**Koşul:** Bir tüketici düz metin öğesinin yanlışlıkla yapılı sayıldığını bildirirse — o zaman `job_items`'a tür işareti eklenir
+
+### F-205 · `/v1/conversations/{id}` varlık asimetrisi
+
+**Engel:** Kullanılmamış kimlik `200`, reddedilen kimlik `404`. Katı modda çağıran hangi id'lerin sahipsiz SATIR olduğunu sayabilir — erişim kapalı, yalnız varlık görünür. Davranış ucun rezervasyon semantiğinden gelir; kapatmak OpenAI uyumluluğunu bozar. `/api/sessions/{id}` bu sızıntıyı taşımaz
+
+**Koşul:** Tüketici varlık gizliliği talep ederse ([Faz 149](fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) denetim bulgusu)
+
+### F-277 · Dış katkıcı için İngilizce mimari karar özeti yok
+
+**Engel:** `ARCHITECTURE.md:59`, `:137-146` ve `CONTRIBUTING.md:114-116` dört Türkçe dokümana işaret eder; iki dosya da makine çevirisinin yeterli olduğunu söyler. K-408 (`docs/` Türkçe kalır, kullanıcı kararı) korunur
+
+**Koşul:** İlk dış PR veya issue mimari kararı Türkçe dokümandan okumak zorunda kalırsa ya da GA freeze turu (UR-003)
+
+### F-377 · `ReplayTools` kipiyle parametreli tanımın replay'i için test yok
+
+**Engel:** Faz 194 denetimi (🟢): yeni iç `CompileParameterizedAsync(…, toolTransform, …)` aşırı yüklemesi yalnız `NoTools` ve playback'li devam testinde dolaylı sınanıyor; gövde parametresiz yolla aynıdır
+
+**Koşul:** `AgentDefinitionCompiler` araç dönüşümü ya da replay tool kipleri değişirse
+
 ### F-422 · `openai-responses` harness turu cevabını akışta iki kez yayabilir — ölçüm bekliyor
 
 **Engel:** [Faz 201](fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) örnek uygulama koşumu (2026-10-13, `gpt-5.4-mini`): `aiJudge` + kod ölçütlü loop'lu agent'ın üç koşumunun ikisinde ilk turun metni `MessageDelta` dizisinde token token iki kopya; arada tool çağrısı ya da başka olay yok. Loop'suz harness 0/3. Modelin turda iki mesaj yazması mı, MAF/MEAI'nin aynı içeriği iki kez yayması mı ayırt edilmedi. Tracon tarafı: ölçüt deseni cevabı son mesajdan okur (`hafiza/maf-harness-ve-loop.md`)
@@ -860,6 +904,10 @@ diyor.
 > bir numara yeniden tahsis edilemez. Gövdeli bir kalem kapanırsa gövdesi
 > tablonun altına eklenir.
 
+**Kusur giderme turlarının geçmişi** ([`../ADAYLAR.md`](../ADAYLAR.md) § *Kusur giderme*'den taşındı, 2026-10-14, Faz 206 kapanışı — bütçe):
+
+2026-10-12'de üç tur kapandı: önce 🟠 kalemler (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile), sonra 🟡 kalemler (F-315, F-332…F-340, F-348, F-349, F-351, F-352; K-892…K-896), sonra tüketici turunun kusurları (F-341…F-344, F-354, F-360, F-364…F-367, F-369…F-372; K-903…K-911). F-382 bu turun kendi ölçümüdür; F-386…F-404 kapanan kusurların sınıf taramalarından gelir. 2026-10-13'te F-383, F-384, F-385 ve F-388 kapandı (K-912, K-913); sınıf taramaları ve bağımsız inceleme F-416…F-419'u açtı. Faz 201 kapanışında F-423 (kapıyı kıran test yarışı) açıldı ve kapandı. Faz 198 kapanışı (konuşma kapısının sınıf taraması ve denetimi) F-441…F-446'yı açtı. Aynı gün ölçümlü aciliyet turu F-431, F-432, F-401, F-387 ve F-416'yı kapattı (K-933…K-936), F-400'ü daralttı, F-418'i faz planlamaya taşıdı, F-291'i kusur kanalına aldı ve sınıf taramasından F-447'yi açtı. İkinci tur F-382, F-386, F-389, F-396, F-400, F-361, F-291 ve F-447'yi kapattı (K-937…K-941); F-389'un sınıf taraması F-448'i açtı. 2026-10-14'te F-398, F-419, F-448, F-433, F-391, F-350 ve F-481 kapandı (K-975…K-981); sınıf taramaları F-485…F-487'yi açtı. Aynı gün ikinci tur F-429, F-353, F-442, F-444, F-426, F-430, F-356, F-393, F-484 ve F-443'ü kapattı (K-982…K-986); sınıf taramaları F-488…F-490'ı, bağımsız inceleme F-491'i açtı. F-418 ve F-482 Faz 205'e dönüştü (planlandı). Kapanan kalemlerin kaydı bu bölümdedir.
+
 | Kalem | Kapanış | Kanıt |
 |---|---|---|
 | **F-268** · `ExperimentTests` yük altında kırılgandı: sürüm alanı `<select>` olmadan seçiliyordu | 2026-09-24, Faz 189 kapanışı | Tam kapanış koşumunda yeniden düştü ("Element is not a <select> element"). Test artık `ToHaveJSPropertyAsync("tagName", "SELECT")` bekler (`tests/Tracon.Ui.E2ETests/Ui/ExperimentTests.cs`); ikinci tam koşum (17.846 test) yeşil. Tuzak: `hafiza/frontend-test-altyapisi.md` |
@@ -969,3 +1017,47 @@ taşıyordu. Her ID'nin gövdesi bu dosyada veya
 |---|---|---|
 | **Kapatılan kusur kayıtları** | F-106 · F-130 · F-137 · F-138 · F-139 · F-170 · F-180 · F-181 · F-190 · F-197 · F-203 · F-204 · F-206 · F-211 · F-212 · F-214 · F-215 · F-219 · F-220 · F-222 | Yeniden görülürse **yeni** kusur kaydı açılır. **F-180**'in vakası kapandı, sınıfı açık — aday dosyasında tetik bekleyen olarak durur |
 | **Arşivlendi / birleştirildi / rutin bakım** | F-48 · F-88 · F-89 · F-98 · F-144 · F-145 · F-146 · F-147 · F-148 · F-155 · F-158 · F-163 · F-221 | Plan değeri yok; rutin bakım olarak kaldı veya aktif adayla aynı tasarım işiydi. F-221'in kalan izi 2026-09-24'te sıfır ölçüldü (yukarıdaki tablo) |
+
+---
+
+## Açık kalem gövdeleri
+
+> 2026-10-14: F-281, F-285, F-311, F-290, F-282 `ADAYLAR.md`'den taşındı (Faz 208 kapanışı; aday dosyası bütçesi). Kalemler **açıktır**; satırları kanal tablolarındadır. Metin aynen.
+
+### F-281 · `Tracon.Google` görsel yolunda `MediaType` verilirse SDK `NotSupportedException` atar
+
+**Aciliyet:** 🟢
+
+**Sorun:** Canlı ölçüldü (2026-09-24, Google.GenAI 1.16.0, API anahtarı): `ImageConfig.OutputMimeType` her değer için *"outputMimeType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode"* ile reddedilir. `GoogleImageGenerator` (`src/Tracon.Google/Internal/GoogleImageGenerator.cs:77`) `ImageGenerationOptions.MediaType` verilince onu gönderir; Tracon'un iki sevk edilen yolu (`/api/images/generate`, `generate_image`) `MediaType` vermediği için bugün yalnız `IImageGenerator`'ı doğrudan çağıran tüketiciyi etkiler
+
+**Ne yapılır:** Paket yalnız API anahtarı modunu desteklediği sürece `MediaType` istemde reddedilir ya da yok sayılır — hangisi olacağı küçük bir davranış kararıdır; karar sonrası düşen test + site cümlesi
+
+### F-285 · Kırıcı kapının iki yanlış-mesaj yolu (Faz 187 denetimi)
+
+**Aciliyet:** 🟢
+
+**Sorun:** (a) `PKV007` gibi taban kaydı gerçekte `IsBaselineSuppression` taşımıyorsa (ölçülen `PKV006` taşımıyor) `read_breaking_changes` onu "strict uyumsuzluk" diye etiketler, "tanınmayan kayıt" değil (`scripts/breaking_changes.py`, kural sırası); test `test_pkv007_kirmizi` ölçülmemiş biçimi kullanır. (b) Düşen TFM iç içe listeyle yazılırsa (üst madde TFM, alt maddeler paket) `_list_items` girintili `-` satırını yeni madde sayar ve eşleşme kaçar. İkisi de güvenli yön (kırmızı), yalnız mesaj yanlış
+
+**Ne yapılır:** Gerçek bir `PKV007` raporu ölç ve kuralı ona göre sırala; iç içe maddeyi üst maddenin span'leriyle birleştir. F-266'nın `### Removed` maddesi tek madde biçimindeyse acil değil
+
+### F-311 · Kapalı MCP oturumuna giden çağrı "TaskCanceledException" diye raporlanır
+
+**Aciliyet:** 🟢
+
+**Sorun:** Ölçüldü (2026-10-11, F-305 repro): kapalı oturumdan giden `tools/call` için `ToolFailed` olay metni "Tool failed with TaskCanceledException." idi. Model "Error: Function failed." gördü, run `Completed` döndü; neden iptal değil kapalı bağlantıydı ve operatör onu iptal sanır. `{server}_read_resource` aynı durumda yanıltıcı "not among the resources declared" hatası verir. K-880'den sonra ana yol, F-310'dan sonra uzun ömürlü oturumlar bu duruma girmez; kalan yol derleme ile çağrı arasındaki yarış
+
+**Ne yapılır:** MCP tool sarmalı (ya da `ExplainedFailureAIFunction`), çağıranın token'ı iptal değilken dispose edilmiş oturumdan gelen `OperationCanceledException`'ı "MCP connection to server '<ad>' is closed" diye açıklar; `read_resource` gövdesi kapalı bağlantıyı ayrıca söyler
+
+### F-290 · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi
+
+**Aciliyet:** 🟡
+
+**Sorun:** Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`)
+
+**Ne yapılır:** GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir
+
+### F-282 · `troubleshooting` sayfası ağırlık tavanında; yeni semptom girdisi eklenemiyor
+
+**Aciliyet:** 🟡
+
+**İş:** Ölçüldü (2026-09-24, Faz 185): sayfa 58 994 B gzip, tavan 59 000 B (`docs-site/scripts/check-weight.mjs`) — 6 B boşluk. Faz 185'in iki kısa girdisi (NU1107/NU1608 ve "Tracon packages from more than one release") 59 850 B, tek başlığa indirilmiş hâli 59 335 B ölçüldü; ikisi de geri alındı, içerik `reference/versioning.md`'de. Kapının kendi yorumu "bir sonraki yükseltme yerine sayfayı böl" der. İş: sayfayı böl (ör. `## Build diagnostics and the agent map` bölümü ayrı sayfaya; semptom dizini, `sidebar.mjs`, TRC tanı kapısı birlikte), sonra Faz 185'in girdisini ekle. Tavanı yükseltmek ölçümle bile kapının kendi kuralına aykırıdır

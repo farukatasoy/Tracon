@@ -122,7 +122,7 @@ claim to provide an operating-system sandbox.
 
 | Capability | Surface | Important behavior |
 |---|---|---|
-| Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events |
+| Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events; a plain-text answer cut off at the output limit or the context window ends with a `custom` frame (`tracon.output.truncated`) before `done` |
 | Non-streaming runs | .NET or an idempotent HTTP request | A completed response can be stored and replayed safely |
 | Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; it can be disabled and store failure never breaks the run |
 | Custom run events | `RunEventType.Custom` and `AgentRunScope.Writer` | A tool writes its own named event into the stream a consumer already carries; the console draws it with a generic card, no code change required |
@@ -146,7 +146,7 @@ claim to provide an operating-system sandbox.
 A run is the unit of evidence. What is recorded is recorded against a run id, and a
 store failure never gets permission to stop the run itself — which is also the limit
 of the guarantee: recording is best-effort, so a store failure costs the record, not
-the run. Six operations invert that and refuse to proceed without their audit entry;
+the run. Seven operations invert that and refuse to proceed without their audit entry;
 [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written)
 is the list.
 
@@ -156,7 +156,7 @@ is the list.
 |---|---|---|
 | Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, and a step can pin a version of a stored agent |
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
-| Human input | Workflow request and response endpoints | A waiting workflow resumes from its checkpoint as a new execution step |
+| Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`) |
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
@@ -212,7 +212,7 @@ experiment, and automatic rollback is off until you configure it.
 | Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; every run of a call tree adds its own tokens and cost when it ends, a background child after its root included; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
-| Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [six fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
+| Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [seven fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, credential headers by configuration key name, retry jobs, and failure disablement |
 | Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix; a credential-looking plain header is refused |
@@ -268,7 +268,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-174-operation HTTP reference.
+175-operation HTTP reference.
 
 ## Embedding points
 
@@ -1612,6 +1612,7 @@ written *before* the change is applied, and a write failure aborts the change:
 | Saving or deleting an inbound trigger | The trigger is not changed |
 | An automatic canary rollback | The rollback is not applied |
 | A data subject erasure | The erasure does not commit |
+| An answer to a workflow's pending request that starts a run, [in either response mode](/concepts/workflow-answers/) | The answer is refused with `500`; no run starts and nothing is recorded |
 
 **Best-effort — the operation continues and the record can be missing.** Every other
 audit write takes this path: the failure is logged as a warning, and the call carries
@@ -1735,7 +1736,7 @@ approval card.
 
 :::note[The audit entry is written before the decision is applied]
 An approval decision that cannot be recorded is not applied at all. This is one of the
-six fail-closed operations listed in
+seven fail-closed operations listed in
 [What is guaranteed to be written](#what-is-guaranteed-to-be-written); every other
 audit write is best-effort and is swallowed on failure.
 :::
@@ -1828,7 +1829,10 @@ percentage in `Quotas:ThresholdPercents` (`80` and `100` by default) Tracon post
 a [`quota.threshold`](#webhooks) webhook carrying the metric, the period, the limit,
 the consumption, the threshold crossed, and when the counter resets. Each threshold
 fires **once per period**, so a counter that keeps climbing past `80` does not
-re-notify. Set the list to empty to turn the notifications off.
+re-notify. To turn the notifications off, clear the list in code
+(`Configure<TraconQuotaOptions>(o => o.ThresholdPercents.Clear())`); an empty list in
+configuration keeps the default. An entry that is not a whole number from 1 to 100
+stops the application at startup, and the error quotes it.
 
 The threshold event is a notification, not a decision: it stops nothing, and `429`
 remains the only thing that refuses a run.
@@ -1846,7 +1850,10 @@ Turning on `Quotas:PublishThresholdToRunStream` (off by default) also writes the
 crossed threshold into the *triggering run's own* event stream — a `custom` frame
 carrying `tracon.quota.threshold` before the run's terminal event, so a client
 already watching that one run's SSE stream sees the warning without a separate
-webhook subscription. The frame's payload carries a `noticeId` (stable across a
+webhook subscription. When the same run's answer was also cut off, its
+`tracon.output.truncated` frame comes first, in record order; if the run store cannot
+be read back at that point, the stream still ends with `done` and the notice stays on
+the run's recorded events. The frame's payload carries a `noticeId` (stable across a
 reconnect, for dedup), the run and user the threshold belongs to, and the same
 metric/period/limit/consumption fields the webhook carries. A threshold is claimed
 for notification **once per period** durably — a restart or a second worker
@@ -2460,8 +2467,17 @@ text/event-stream`, so the `event:` name is the only way to tell them apart:
 
 | Stream | Frame names |
 |---|---|
-| `POST /api/agents/{name}/run` (and the workflow and OpenAI-compatible equivalents) | `run` · `update` · `approvals` · `done` · `error` — one per step of that single live call |
+| `POST /api/agents/{name}/run` | `run` · `update` · `approvals` · `custom` · `done` · `error` — one per step of that single live call |
 | `GET /api/runs/{runId}/events` | `run.started` · `message.delta` · `tool.invoking` · `tool.invoked` · `tool.failed` · `run.completed` · `run.failed` and one more per event type in the diagram above — the recorded, append-only log |
+
+The workflow run stream has a third set (`run` · `event` · `done` · `error`), and the
+OpenAI-compatible endpoints use the OpenAI wire format.
+
+The live stream's `custom` frames are the one place the two contracts meet. Right
+before `done`, the stream sends the run's own recorded notices from a fixed list —
+`tracon.output.truncated` always, `tracon.quota.threshold` when it is published to the
+run stream — and each frame's data is the same recorded event `/events` serves, byte
+for byte. The [HTTP API](/http-api/#streaming) page lists the rules.
 
 A client written against one contract will not decode the other; pick the endpoint
 that matches what you are building — a live turn, or a run's full recorded history.
@@ -2821,8 +2837,20 @@ treats the two kinds of answer differently:
 Only the turn that ends the run decides. A tool call the model was still writing when
 it hit the limit is an intermediate turn: the tool loop runs it and asks the model
 again. The tokens of a failed truncated call still count in the run's usage, cost and
-quota. A streaming client does not see the `length` reason in the live `update`
-frames; read the run's events or its error.
+quota.
+
+A client streaming the run learns about a cut-off plain-text answer before the stream
+ends: the `tracon.output.truncated` event arrives as a `custom` frame right before
+`done`, with the same data the run's events carry. Each recorded event is one frame, so
+a harness loop whose iterations were cut sends more than one, and a tool turn cut in
+the middle of the run sends none. A cut-off structured answer ends the stream with an
+`error` frame instead. No event, and no frame, is written while run recording is off
+(`Tracon:RunRecording:Enabled`).
+
+The `update` frames also carry a `finishReason` field. It is the model's raw reason
+for each model call — `tool_calls` on a tool turn, possibly reported more than once in
+a loop — passed through from Microsoft Agent Framework, not a Tracon guarantee. Read
+the `custom` frame to decide whether the answer is complete.
 
 The fix is a higher `ModelBinding.MaxOutputTokens`. When the binding leaves it empty,
 `POST /api/agents/validate` warns with `output_truncation_risk` if the provider's
@@ -3684,6 +3712,103 @@ right chunk does not come back there, the agent was never going to see it.
 
 - [Governance](/concepts/governance/) — approvals, audit, and limits
 - [Workflows](/concepts/workflows/) — coordinate multiple agents with checkpoints and human input.
+
+---
+
+# Answering a workflow
+
+Source: https://tracon.dev/concepts/workflow-answers/
+
+What happens when a person answers a workflow that waits for input, and what happens when
+the same request gets a second answer? This page covers the two response modes, the audit
+entry and the record every answer leaves, and the cases where an answer can be given again.
+How a workflow asks, and how an answer resumes it, is in
+[Asking a human](/concepts/workflows/#asking-a-human).
+
+## One answer per request
+
+By default every answer opens a new run, so a second answer to the same request opens a
+second branch — a double click or a retried call runs the steps after the request twice.
+A workflow that must take one decision per request sets its **response mode** to
+`SingleAnswer`: `responseMode` on `PUT /api/workflows/{name}`, the *One answer per
+request* switch in the console's editor, or, for a workflow defined in code, the
+`AddWorkflow` overload that takes `WorkflowRegistrationOptions`:
+
+```csharp
+builder.AddWorkflow(
+    "publish-approval",
+    services => BuildPublishApproval(services),
+    options => options.ResponseMode = WorkflowResponseMode.SingleAnswer);
+```
+
+`WorkflowRegistrationOptions.Description` carries the catalog description and
+`ResponseMode` the mode. A call that passes a literal `null` as the
+third argument does not compile, because it fits both the description overload and this
+one; leave the argument out instead.
+
+A waiting run is answered under the mode of the definition version it recorded, so
+changing the mode while a person decides does not change how that run is answered.
+
+| The answer | `SingleAnswer` does |
+|---|---|
+| The first one | Starts the run, as in the default mode |
+| The same answer again | Follows the run the first one started: the same SSE frames, read from the stored run, or the same `202` with `Prefer: respond-async`. No second run starts |
+| A different answer | `409 Conflict`; the body names neither the run nor the other answer |
+| The same answer after its run stopped before it took the answer | Starts the work again in a new run |
+
+Two answers are the same when their `approved`, `text` and `data` are the same; the
+checkpoint and the definition version they name do not count. "Stopped before it took the
+answer" means the run failed or was cancelled before the workflow received the answer, or
+after it with no checkpoint written, so nothing could resume from it. A queued answer whose
+job is still waiting or running is followed, because the job's recovery owns that work. A
+queued answer whose job was never written — the process stopped after the answer was
+recorded and before the job was queued — is finished by a repeat of the same answer: the
+repeat writes the job and follows the run, and two repeats at the same time write it once.
+
+The run an answer starts has its row opened before the answer is recorded, so a recorded
+answer always names a run that exists. Two answers that arrive in the same moment can
+therefore both open a run before one of them claims the request. The other one closes its
+own run as `Canceled` with the error type `request_already_answered` and no events. No
+webhook, metric or run event sink fires for it, but it is still a run: `GET /api/runs`
+lists it and `RunStatistics.CanceledRuns` counts it, so it is part of the error rate's
+denominator.
+
+:::caution[A crash in the middle of a streamed answer locks the request]
+When a process stops while a streamed `SingleAnswer` run is going, that run stays
+`Running`, and a repeat of the answer follows it forever. Only run reconciliation
+(`Tracon:RunReconciliation:Enabled`, off by default) closes it: reconciliation closes a
+`Running` run whose heartbeat stopped, and it reads no `Queued` run. Turn it on where a
+one-answer request must stay answerable after a crash.
+:::
+
+## What every answer leaves behind, in either mode
+
+An answer that starts a run is written in three steps, in this order: the audit entry,
+the row of the run it starts, and the record. A store that fails at any step refuses the
+answer with `500`, and the run does not start.
+
+- **An audit entry, written first.** Every answer that starts a run is written as
+  `workflow.respond` before its run row opens. When the entry cannot be written, the answer is
+  refused with `500` and nothing runs — see [What is guaranteed to be
+  written](/concepts/governance/#what-is-guaranteed-to-be-written). The entry carries the
+  source run, the request id, the run the answer started and a SHA-256 of the answer, never
+  the answer. The hash tells two answers apart; it does not hide one. An answer with few
+  possible values, such as `approved: true`, can be found by hashing each candidate.
+- **A record.** `GET /api/workflows/runs/{runId}/responses` lists the answers given to a
+  run's requests: who answered, when, the run each answer started and its state. A record
+  that cannot be written refuses the answer with `500`, and the run opened for it is closed
+  `Failed` with the error type `answer_not_recorded`. Records live in the
+  `workflow_responses` table and are removed only with their source run, by a data subject
+  erasure. No retention target deletes runs, so the table grows with the run history.
+- **A back-link.** The run an answer starts records `workflow.response-applied` as its
+  second event, right after `run.started`, naming the run it answered and the request id,
+  even with `RecordToolPayloads` off.
+
+## Read next
+
+- [Workflows](/concepts/workflows/#asking-a-human) — how a workflow asks and how an answer resumes it.
+- [Governance](/concepts/governance/#what-is-guaranteed-to-be-written) — the other operations that refuse to proceed without their audit entry.
+- [Runs and recording](/concepts/runs/) — reading the run an answer started and its events.
 
 ---
 
@@ -4601,6 +4726,16 @@ This is the same append-only shape as tool approvals: the waiting run stays as i
 and the response opens a new one. The new run compiles the definition version the waiting
 run recorded, so editing the workflow while a person decides does not change what continues
 (see [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
+In the default response mode, a second answer to the same request opens a second new run.
+
+### One answer per request
+
+A workflow can take one answer per request instead (`WorkflowResponseMode.SingleAnswer`):
+the same answer given again follows the run the first one started, and a different answer
+gets `409 Conflict`. In either mode, every answer that starts a run is written to the audit
+trail first and recorded for `GET /api/workflows/runs/{runId}/responses`. [Answering a
+workflow](/concepts/workflow-answers/) has the rules, what each answer leaves behind, and
+the crash case that needs run reconciliation.
 
 ## Read next
 
@@ -4859,7 +4994,7 @@ pin the exact package version when reproducibility matters.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 174 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **HTTP API** | 175 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
 | **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
@@ -5646,7 +5781,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
 | At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
-| Audit trail | Six operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
+| Audit trail | Seven operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Quotas and rate limits | Spend and request volume above the configured ceiling | [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits) |
 | Production profile | A host starting with a security decision never made | [Requiring a production decision](/concepts/governance/#requiring-a-production-decision) |
 
@@ -9781,7 +9916,9 @@ the output limit and set temperature to `1` or leave it out.
 
 **A long Anthropic answer stops in the middle.** The response hit the output limit.
 A structured response fails the run with `output_truncated`; a text answer completes
-with a `tracon.output.truncated` run event. Raise `MaxOutputTokens`. When the message
+with a `tracon.output.truncated` run event, which a streaming client also receives as a
+`custom` frame before `done`, and `/v1/chat/completions` reports
+`finish_reason: "length"`. Raise `MaxOutputTokens`. When the message
 and the event's `cause` name the **context window** instead (Anthropic's
 `model_context_window_exceeded`), the conversation filled the window: shorten it with
 context compaction or use a model with a larger window.
@@ -10225,7 +10362,7 @@ very different:
 
 - `swallowed` — the operation went ahead without its record. You have a gap in the
   audit trail and a working system.
-- `refused` — the operation did not happen. This is one of the six fail-closed
+- `refused` — the operation did not happen. This is one of the seven fail-closed
   operations in [What is guaranteed to be
   written](/concepts/governance/#what-is-guaranteed-to-be-written), and your callers
   are seeing errors.
@@ -10818,6 +10955,7 @@ for await (const frame of readSse(response)) {
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
+| Cut-off answer | no: `status` stays `completed` | `finish_reason: "length"` | See below |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 
@@ -10828,6 +10966,16 @@ none, so nobody could ever answer it. The run closes as `Failed`, and the caller
 `200`, an `error` frame of that type and no `[DONE]`. Run such an agent through
 `/v1/responses` with a conversation, or through `POST /api/agents/{name}/run` with a
 `sessionId`.
+
+Chat Completions sets `finish_reason` from the answer's final model call, on the JSON
+response and on the last chunk of a stream (`data: [DONE]` still follows). An answer
+the model cut off at its output token limit or its context window is `"length"`; an
+answer a content filter cut off after it produced text is `"content_filter"`; anything
+else is `"stop"`. Tools run on the server, so a tool turn's `tool_calls` reason is never
+reported. The value does not depend on run recording. The Responses endpoint does not
+mark a cut-off answer `incomplete` yet: its `status` reads `completed`, and the run's
+`tracon.output.truncated` event is the only signal there
+(see [Truncated output](/concepts/runs/#truncated-output)).
 
 Fields understood by the OpenAI parser can be accepted without becoming a
 Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service
@@ -15513,7 +15661,7 @@ public void All_tool_contracts_are_covered()
 
 Source: https://tracon.dev/http-api/
 
-174 operations across 136 paths. This page is the shape they all share; the groups in
+175 operations across 137 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -15580,10 +15728,20 @@ before the stream ends — the pending request's id and tool name, plus whatever
 [Approvals](/concepts/governance/#approvals) for the queued-run mailbox shape, which
 answers the same request differently.
 
-With `Quotas:PublishThresholdToRunStream` turned on (off by default), a run whose
-completion crosses a [quota threshold](/concepts/governance/#quotas-and-rate-limits)
-also gets a `custom` frame before `done` — the same notice, byte for byte, that
-`GET /api/runs/{runId}/events` carries for that run.
+Right before `done`, the stream sends a `custom` frame for each notice the run
+recorded from a fixed list. The frame's data is the recorded event, byte for byte
+the same as `GET /api/runs/{runId}/events` serves it, in the order it was recorded:
+
+| `customType` | Sent |
+|---|---|
+| `tracon.output.truncated` | Always. The model cut a plain-text answer off at its output token limit or its context window; the streamed text is incomplete (see [Truncated output](/concepts/runs/#truncated-output)) |
+| `tracon.quota.threshold` | Only with `Quotas:PublishThresholdToRunStream` turned on (off by default): the run crossed a [quota threshold](/concepts/governance/#quotas-and-rate-limits) |
+
+No other custom event reaches this stream; a tool's own `Custom` event stays on
+`/events`. A client that reads frames by name and ignores an unknown `customType`
+needs no change. If the run store cannot be read at that point, the stream still
+ends with `done`, without the notices, and the server logs a warning; the run's
+events keep them.
 
 `GET /api/runs/{runId}/events` is a **separate** SSE contract with its own, larger
 set of frame names (`run.started`, `tool.invoking`, ...) — see
@@ -16956,7 +17114,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 174 management and OpenAI-compatible
+The generated HTTP reference contains 175 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -17064,6 +17222,7 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "<value>"
 | `Tracon:ContentProtection` | `TraconContentProtectionOptions` | `AddTracon()` binds it; `AddContentProtection()` makes it apply |
 | `Tracon:Drain` | `TraconDrainOptions` | `AddTracon()` |
 | `Tracon:Idempotency` | `TraconIdempotencyOptions` | `AddTracon()` and the HTTP layer |
+| `Tracon:InboundTriggers` | `TraconInboundTriggerOptions` | `AddTracon()`; keys in [Inbound triggers](/guides/inbound-triggers/) |
 | `Tracon:Knowledge` | `TraconKnowledgeOptions` | `AddTracon()`; PostgreSQL and embeddings make it functional |
 | `Tracon:OnlineEvaluation` | `OnlineEvaluationOptions` | `AddTracon()` plus at least one judge |
 | `Tracon:Quotas` | `TraconQuotaOptions` | `AddTracon()` |
@@ -17072,6 +17231,7 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "<value>"
 | `Tracon:RunContinuation` | `TraconRunContinuationOptions` | `AddTracon()` |
 | `Tracon:RunReconciliation` | `RunReconciliationOptions` | `AddTracon()` |
 | `Tracon:Scheduling` | `TraconSchedulingOptions` | `AddTracon()`; `UseScheduling()` can override from code |
+| `Tracon:SessionOwnership` | `TraconSessionOwnershipOptions` | `AddTracon()`; keys in [Sessions](/concepts/sessions/) |
 | `Tracon:SingletonExecution` | `SingletonExecutionOptions` | `AddTracon()` |
 | `Tracon:StructuredResponse` | `TraconStructuredResponseOptions` | `AddTracon()` |
 | `Tracon:TenantProviders` | `TraconTenantProviderOptions` | `AddTracon()` |
@@ -17089,6 +17249,7 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "<value>"
 | `Tracon:Workflows` | `TraconWorkflowOptions` | `UseWorkflows()` |
 | `Tracon:Voice` | `VoiceOptions` | `UseVoice()` |
 | `Tracon:Voice:Conversation` | `VoiceConversationOptions` | The configuration overload of `UseVoiceConversation()` |
+| `Tracon:Voice:Live` | `VoiceLiveOptions` | The configuration overload of `UseLiveVoice()`; keys in [Voice](/guides/voice/) |
 
 `AddTracon()` binds `Skills:Scripts` values but does not register a script runner.
 Call `UseSkillScripts()` to cross that execution boundary; the call sets `Enabled`
@@ -17429,7 +17590,7 @@ not enable sampling.
 |---|---:|
 | `Quotas:Enabled` | `true`; the rule set starts empty |
 | `Quotas:TimeZone` | `UTC` |
-| `Quotas:ThresholdPercents` | `80`, `100` |
+| `Quotas:ThresholdPercents` | `80`, `100`. A value outside 1–100 or not a number fails at startup |
 | `Quotas:AllowOnStoreFailure` | `true` |
 | `Quotas:PublishThresholdToRunStream` | `false` |
 | `RateLimit:Enabled` | `false` |
@@ -17443,7 +17604,7 @@ not enable sampling.
 | `ContentGuard:InspectOutput` | `true` |
 | `ContentGuard:BufferStreamingOutput` | `true` |
 | `ContentGuard:Pattern:DeniedTerms` | Empty |
-| `ContentGuard:Pattern:MaskedPii` | `None` |
+| `ContentGuard:Pattern:MaskedPii` | `None`; comma-separated names, empty means none. A name it does not know fails at startup |
 | `ContentGuard:Pattern:MaskReplacement` | `[redacted]` |
 | `Knowledge:Dimensions` | `1536` |
 | `Knowledge:ChunkSize` | `1000` characters |
@@ -17479,7 +17640,7 @@ as an IP literal, and on every connection for one written as a host name. See
 | `Timeout` | 10 seconds |
 | `MaxResponseBytes` | `8192` |
 | `DisableAfterConsecutiveFailures` | `20` |
-| `RetryDelays` | 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours |
+| `RetryDelays` | 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours. A delay that is not above zero or not a time span fails at startup |
 | `SignatureTolerance` | 5 minutes |
 
 No request is sent while no subscription exists. Private targets, insecure HTTP, and
@@ -17500,8 +17661,8 @@ enough.
 |---|---:|
 | `Enabled` | `false` |
 | `ActiveKeyId` | (none) |
-| `Keys` | Empty |
-| `Columns` | All eleven protected columns |
+| `Keys` | Empty. An entry with an empty name fails at startup |
+| `Columns` | All twelve protected columns. A name that is not a protected column fails at startup |
 
 Encryption is off until both `AddContentProtection(...)` is called and `Enabled` is
 `true`. `Keys` maps a key id to the **name** of another configuration key — never to
@@ -17510,6 +17671,10 @@ the key's raw value — the same indirection
 use elsewhere. See
 [at-rest content protection](/getting-started/security/#at-rest-content-protection)
 for the full key setup and its limits.
+
+The `Keys` and `Columns` checks run while `Enabled` is `false` too: rows encrypted
+earlier are still read through `Keys` after protection is turned off. A `Columns`
+list replaces the default; an empty one keeps every column.
 
 ## Retention defaults
 
@@ -17543,9 +17708,11 @@ request event, its checkpoints and its run input row for as long as it waits,
 whatever their age: the request lives only in that event, the answer resumes from those
 checkpoints, and the parameter values it resumes with live only in that row.
 
-`IdempotencyKeys` is not a bindable child section. Its one-day option default still
-applies when configuration defaults are enabled. Change that target through
-`Configure(TraconOptions)` or a stored retention policy.
+`MaxAgeDays` takes a whole number of days, and a value below `1` fails at startup.
+Configuration cannot switch off a target that has a default age: an empty value or a
+JSON `null` leaves the default in place. To switch one off, save a disabled retention
+policy for it, or set its `MaxAgeDays` to `null` in
+`Configure<TraconRetentionOptions>(...)`.
 
 ## Persistence sections
 
@@ -17720,7 +17887,7 @@ dialogue is refused, not split, and the built-in client reports the value throug
 `ISpeechDialogueSynthesizer.DialogueCapabilities`. Synthesis, dialogue and
 transcription share the one `MaxConcurrentRequests` limit.
 
-### Live voice conversation
+### Voice conversation
 
 | Key relative to `Tracon:Voice:Conversation` | Default |
 |---|---:|
@@ -18366,7 +18533,7 @@ data, or unreviewed prompt and tool content.
 | Any path that writes a secret to storage, a log, or a response | |
 
 The audit trail is in scope as a security boundary, and that boundary has a documented
-shape: six operations refuse to proceed without their audit entry, and every other
+shape: seven operations refuse to proceed without their audit entry, and every other
 audit write is best-effort. [What is guaranteed to be
 written](/concepts/governance/#what-is-guaranteed-to-be-written) is the division. A
 report that a best-effort record was lost on a store failure is expected behaviour, not
@@ -18486,7 +18653,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Content guards | Input or output a configured guard rejects |
 | Secret handling | A secret value reaching storage, a log, or a response |
 | At-rest protection | Readable content in a database you do not fully trust |
-| Audit trail | Six operations proceeding without their record |
+| Audit trail | Seven operations proceeding without their record |
 | Quotas and rate limits | Spend and request volume above the configured ceiling |
 | Production profile | A host starting with a security decision never made |
 
@@ -18517,9 +18684,9 @@ state.
 :::
 
 :::caution[The audit trail's best-effort half can go silently thin under a storage outage]
-Six operations — an approval decision, granting or running a skill script, saving or
-deleting an inbound trigger, an automatic canary rollback, and a data subject erasure
-— refuse to proceed if their audit record fails to write. Every other audit write is
+Seven operations — an approval decision, granting or running a skill script, saving or
+deleting an inbound trigger, an automatic canary rollback, a data subject erasure, and
+an answer to a workflow's pending request — refuse to proceed if their audit record fails to write. Every other audit write is
 best-effort: the operation continues and the record can be missing. See [what is
 guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) for
 the full split and how a failed write is surfaced in metrics.
@@ -20125,7 +20292,7 @@ and a longer value is accepted only up to `Tracon:Workflows:MaxRunTimeout` (see
 A workflow defined in the database also has a **Versions** section on its screen: every
 save is a version, with the time it was saved and which one is current. Tick two versions
 to compare them (the display name, the description, the pattern, the steps with their pins,
-timeouts and settings, the parameters and the run timeout), or press **Rollback** on an
+timeouts and settings, the parameters, the run timeout and the answers per request), or press **Rollback** on an
 older one. A rollback deletes nothing: it writes that version's content as a new version,
 and every run started after it uses the restored definition. A run that is waiting keeps the
 version it recorded. A rollback an administrator presses on content that no longer passes the
@@ -20137,10 +20304,20 @@ A workflow waiting on human input shows the pending request as a card; answering
 resumes execution from the checkpoint as a new run. The card opens for any waiting
 run, wherever it started — over HTTP, from a job, or in another tab: follow the
 **workflow screen** link on its run page, or open `workflows/<name>?runId=<run id>`.
-The answered run keeps its *awaiting input* status and its request, so answering it
-a second time starts a separate branch. An answer that does not fit the request — a
-`Json` request's text that does not read into the port's type, for example — is refused
-before anything runs, and the screen shows the server's reason.
+The answered run keeps its *awaiting input* status and its request. In the default
+mode, answering it a second time starts a separate branch. A request that already has an
+answer shows an *answered* badge and a *continued in run* link to the run the answer
+started. In a workflow that takes one answer per request, the same answer given again
+follows that run, and a different answer is refused: the card says the request was
+already answered with a different answer (see
+[One answer per request](/concepts/workflow-answers/#one-answer-per-request)). An answer that
+does not fit the request — a `Json` request's text that does not read into the port's
+type, for example — is refused before anything runs, and the screen shows the server's
+reason.
+
+The editor's **One answer per request** switch sets that mode for a stored workflow, and
+the version comparison lists it as *Answers per request*. A run started by an answer shows
+an *answers a request of run* link in its timeline, back to the run it answered.
 
 ## Evals and experiments
 

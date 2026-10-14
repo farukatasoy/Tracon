@@ -189,9 +189,9 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 | `Tracon.Templates` | MIT | The `dotnet new tracon-api` template — not in the meta package |
 | `Tracon.Testing` | PolyForm | `FakeModelProvider`, `TraconTestHost`, `RunAssertions`; framework neutral, not in the meta package |
 | `Tracon.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource` or `IJobHandler`. Not in the meta package |
-| `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 174 operations, zero Tracon dependency, no NuGet dependency beyond DI abstractions. Not in the meta package |
+| `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 175 operations, zero Tracon dependency, no NuGet dependency beyond DI abstractions. Not in the meta package |
 | `Tracon.Cli` | PolyForm | The `tracon` global tool — `migrate`, `migrate status`, `health`, `eval`, `state-check`, `agent-skill`. Not a library; not in the meta package |
-| `@tracon/client` | PolyForm | **npm, not NuGet** — the same 174 operations as `Tracon.Client`, from the same OpenAPI document via `openapi-typescript` + `openapi-fetch` |
+| `@tracon/client` | PolyForm | **npm, not NuGet** — the same 175 operations as `Tracon.Client`, from the same OpenAPI document via `openapi-typescript` + `openapi-fetch` |
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0` — including `Tracon.Testing`, so an
 app on .NET 8 LTS is tested on .NET 8. Three differ: `Tracon.Templates` generates a
@@ -344,7 +344,7 @@ cd src/Tracon.UI/frontend && npm run dev
 
 **The user-facing product documentation is a separate site:**
 <https://tracon.dev> — installation, your first agent, concepts, a console tour,
-the HTTP API (174 operations), and an API reference for 654 public types. Its source
+the HTTP API (175 operations), and an API reference for 654 public types. Its source
 is [`docs-site/`](docs-site/); [`scripts/site-deploy.sh`](scripts/site-deploy.sh)
 builds it, runs the four site gates, and publishes it behind the nginx stack in
 [`docs-site/deploy/`](docs-site/deploy/).

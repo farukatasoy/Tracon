@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -50,14 +51,22 @@ internal sealed class TraconWebhookOptionsValidator : IValidateOptions<TraconWeb
                 "must contain at least one delay.");
         }
 
-        foreach (var delay in options.RetryDelays)
+        for (var index = 0; index < options.RetryDelays.Count; index++)
         {
-            if (delay <= TimeSpan.Zero)
+            var delay = options.RetryDelays[index];
+
+            if (delay > TimeSpan.Zero)
             {
-                (failures ??= []).Add(
-                    $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.RetryDelays)} " +
-                $"values must be greater than zero. Actual value: {delay}.");
+                continue;
             }
+
+            // An entry the binder could not read stands here as zero; quote the
+            // text the operator wrote instead of the zero (F-247).
+            (failures ??= []).Add(delay == TimeSpan.Zero && options.UnreadableRetryDelays.TryGetValue(index, out var text)
+                ? $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.RetryDelays)}[{index.ToString(CultureInfo.InvariantCulture)}] " +
+                  $"is '{text}', which is not a TimeSpan (for example 00:05:00). Values must be greater than zero."
+                : $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.RetryDelays)} " +
+                  $"values must be greater than zero. Actual value: {delay}.");
         }
 
         return failures is null

@@ -8,6 +8,7 @@ namespace Tracon;
 /// <param name="Name">The workflow name.</param>
 /// <param name="Description">A short description.</param>
 /// <param name="Factory">The factory that builds the graph.</param>
+/// <param name="ResponseMode">How the workflow treats more than one answer to the same request.</param>
 /// <remarks>
 /// A code-defined workflow has a <strong>free graph</strong>. It can use custom
 /// <c>Executor</c> types, conditional edges, and child workflows. This does not break
@@ -17,4 +18,5 @@ namespace Tracon;
 internal sealed record CodeWorkflowRegistration(
     string Name,
     string? Description,
-    Func<IServiceProvider, Workflow> Factory);
+    Func<IServiceProvider, Workflow> Factory,
+    WorkflowResponseMode ResponseMode = WorkflowResponseMode.Branch);

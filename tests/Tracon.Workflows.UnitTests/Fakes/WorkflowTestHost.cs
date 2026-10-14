@@ -216,6 +216,32 @@ internal sealed class WorkflowTestHost
             runInputStore: RecordsRunInput ? RunInputs : null);
     }
 
+    /// <summary>Builds a runner that records answer deliveries in <paramref name="responseStore"/>.</summary>
+    /// <param name="responseStore">The answer store the runner marks delivered answers in.</param>
+    /// <param name="logger">The runner's logger; a null logger when omitted.</param>
+    /// <param name="codeWorkflows">Code workflow registrations.</param>
+    /// <returns>The runner.</returns>
+    public WorkflowRunner CreateRunnerWithResponseStore(
+        IWorkflowResponseStore responseStore,
+        Microsoft.Extensions.Logging.ILogger<WorkflowRunner>? logger,
+        params CodeWorkflowRegistration[] codeWorkflows)
+    {
+        ArgumentNullException.ThrowIfNull(responseStore);
+
+        var catalog = new WorkflowCatalog(codeWorkflows, DefinitionStore, Compiler, TenantContext, EmptyServices.Instance);
+
+        return new WorkflowRunner(
+            catalog,
+            RunStore,
+            CheckpointStore,
+            TenantContext,
+            Options.Create(new TraconWorkflowOptions()),
+            Options.Create(new TraconOptions()),
+            logger ?? NullLogger<WorkflowRunner>.Instance,
+            runInputStore: RecordsRunInput ? RunInputs : null,
+            responseStore: responseStore);
+    }
+
     /// <summary>Builds a runner over a caller-supplied run input store.</summary>
     /// <param name="runInputStore">The store the runner records parameter values into.</param>
     /// <returns>The runner.</returns>

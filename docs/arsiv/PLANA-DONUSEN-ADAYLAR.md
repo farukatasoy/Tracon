@@ -2412,7 +2412,7 @@ Gövdeler aday dosyasındaki son hâliyle, aynen:
 ## 2026-10-14 — F-319 Faz 208 ve 209'a dönüştü
 
 Bakımcı 2026-10-14'te kalemi ikiye böldü: karar sözleşmesi
-([Faz 208](../208-WORKFLOW-KARAR-SOZLESMESI.md): opt-in tek yanıt, aynı cevap aynı
+([Faz 208](fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md): opt-in tek yanıt, aynı cevap aynı
 devam, zıt cevap `409`, her `respond` fail-closed denetim, kaynak bağı) ve gelen
 kutusu ([Faz 209](../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md): kiracı geneli liste,
 istek süresi). Kararlar: `workflow_responses` tablosu (K-128 bozulmaz), K-130
@@ -2450,3 +2450,46 @@ düzeltilir).
 **Ekosistem:** MCP Tasks `input_required` aynı ihtiyacı protokolde karşılar; Tracon görev deposu onu boş bırakır (`RunBackedMcpTaskStore.cs`, 2026-10-11).
 
 **Karşı görüş:** Onay tüketicinin ekranında ve domain'inde tutulabilir; değer yalnız Tracon HITL'ini kullanan host içindir.
+---
+
+## 2026-10-14 — F-247 Faz 206'ya dönüştü
+
+Bakımcı kapsamı 2026-10-14'te sohbette seçti: 22 tipin tamamı, `IdempotencyKeys`
+bağlaması ve okunamayan değerin açılışta hatası; Faz 205 ile paralel başlar.
+Kanıt `245afe91` zemininde yeniden doğrulandı. Belirgin düzeltmeler: "yirmi dört"
+bölüm bugün 22'dir (Scheduling ve Knowledge testini kazandı); `TraconPricingBindingTests`
+emsal değildir (DI sınırını yansımayla atlar); "yeni ürün kodu gerekmez" ve "risk yok"
+iddiaları düştü — `Retention:IdempotencyKeys` bağlanmıyordu ve dört bağlayıcı okunamayan
+değeri sessizce atıyordu. Plan: Faz 206 (`docs/206-YAPILANDIRMA-BAGLAMA-KANITI.md`).
+
+### F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a
+yazılmadı" kusurunu yapısal olarak kilitler — ama yalnız `TraconOptions`
+**ağacı** için. Ölçüldü (2026-09-19): `TraconOptions` bu bölümlerin ebeveyni
+**değildir**. `Tracon:Scheduling`, `Tracon:Quotas`, `Tracon:Retention` ve 21
+tanesi daha kök seviyede **kardeş** bölümlerdir ve tek tek bağlanırlar;
+tarayıcı hiçbirine ulaşmaz. Bu şeklin ürettiği kusur ölçüldü:
+`TraconImageOptions.Timeout` eklendi, yapılandırılabilir olarak belgelendi ve
+hiçbir yere bağlanmadı — canlı koşum yakaladı, hiçbir test yakalamadı
+(`HATA-S1-010`).
+
+**Kapsam:** Yirmi dört bölümün her biri için `<TypeName>BindingTests`: her
+skaler alan tek bir yapılandırma kümesiyle doldurulur ve geri okunur. Kapsam
+zaten kilitli — `OptionsSectionCoverageTests` bir **ratchet**'tır ve
+`options-section-coverage-baseline.txt` bugün eksik olan yirmi dördü adıyla
+sayar; yeni bir bölüm eklenemez, var olan biri listeden ancak testini
+kazanınca çıkar. Bu aday o listeyi **boşaltmaktır**.
+
+**Değer:** Sessizce bağlanmayan bir ayar, dokümanın vaat ettiği ama ürünün
+yapmadığı şeydir; tüketici bunu yalnız canlı koşumda görür.
+
+**Hazırlık — ölçüldü (2026-09-19):** Ratchet ve taban çizgisi yerinde;
+`TraconImageOptionsBindingTests` ile `TraconPricingBindingTests` izlenecek
+deseni gösteriyor. İş mekaniktir ve paralelleştirilebilir.
+
+**Maliyet:** Ölçülmedi. Yeni ürün kodu gerekmez; yirmi dört test sınıfı.
+
+**Risk:** Yok — yalnız test eklenir.

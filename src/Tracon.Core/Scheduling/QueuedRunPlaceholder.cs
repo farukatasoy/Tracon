@@ -21,11 +21,22 @@ namespace Tracon;
 /// queued agent and workflow endpoints and the agent target of an inbound
 /// trigger. The approval resume is the exception on purpose: its run id is
 /// derived from the approval, so repeating the decision finds the row and
-/// writes the missing job.
+/// writes the missing job. A single-answer workflow request does the same with
+/// this method: a repeat of the answer whose job is missing writes it again.
+/// </para>
+/// <para>
+/// <strong>A job that is already there is not a failure.</strong> The job id is
+/// the run id, and a store refuses a second job with a stored id
+/// (<see cref="IJobStore.EnqueueAsync"/>). When the enqueue throws, the job is
+/// read back first: if another caller wrote it (two repeats of the same answer,
+/// or a slow first answer and its repeat), that job is returned and the row is
+/// left to it. Closing the row there would fail a run its job is running.
 /// </para>
 /// <para>
 /// A run store that also fails here does not hide the queue's exception: the
-/// close is logged and the original exception is rethrown.
+/// close is logged and the original exception is rethrown. The row then stays
+/// <see cref="RunStatus.Queued"/> with no job; run reconciliation reads only
+/// running rows and does not close it.
 /// </para>
 /// </remarks>
 internal static class QueuedRunPlaceholder
@@ -52,6 +63,11 @@ internal static class QueuedRunPlaceholder
         }
         catch (Exception exception)
         {
+            if (await FindWrittenAsync(jobStore, job, logger).ConfigureAwait(false) is { } written)
+            {
+                return written;
+            }
+
             var correlationId = SafeErrorText.NewCorrelationId();
 
             logger.LogError(
@@ -87,6 +103,34 @@ internal static class QueuedRunPlaceholder
             }
 
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Reads back the job an enqueue that threw was writing: a job with its id that is there now
+    /// was written by another caller, or by this one before a failure that came after the write.
+    /// </summary>
+    /// <returns>The stored job; <see langword="null"/> when there is none or it cannot be read.</returns>
+    private static async ValueTask<JobRecord?> FindWrittenAsync(IJobStore jobStore, JobRecord job, ILogger logger)
+    {
+        try
+        {
+            var written = await jobStore.GetAsync(job.TenantId, job.Id, CancellationToken.None).ConfigureAwait(false);
+
+            if (written is not null)
+            {
+                logger.LogInformation(
+                    "Queued run {RunId} already has its job; another call wrote it, so this enqueue is not repeated.",
+                    job.Id);
+            }
+
+            return written;
+        }
+        catch (Exception readException)
+        {
+            logger.LogWarning(readException, "Queued run {RunId}: the job could not be read back after the enqueue failed.", job.Id);
+
+            return null;
         }
     }
 }

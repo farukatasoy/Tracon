@@ -2,10 +2,10 @@
 
 > **Durum:** 📋 Planlandı (2026-10-14)
 > **Plan onayı:** onaylanmadı — cevaplanmamış engelleyici sorular (Açık Sorular 1-6, 🔒): (1) liste kaynağı olay taraması mı, `workflow_requests` projeksiyonu mu (K-128 açılır) — ilk adımın ölçümü sayıyla karar önerir; (2) liste kimliği run başına satır mı, `(oturum, requestId)` başına mantıksal istek mi; (3) süre dolunca kaynak run'ın durumu (öneri `Failed` + `WorkflowRequestExpired`); (4) cevaplanmış ama K-130 gereği bekleyen istek de süreyle kapanır mı, hangi durumla; (5) sürenin kaynağı ve başlangıcı (öneri: workflow başına `RequestTimeout`, `RequestedAt`'ten); (6) liste yetkisi `Reader`/`RunAccess.Read` mi, `Operator`/`RunAccess.Approval` mı. Uygulama Faz 208 kapanmadan başlamaz
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-319** (gelen kutusu ve süre yarısı; karar yarısı [Faz 208](208-WORKFLOW-KARAR-SOZLESMESI.md))
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-319** (gelen kutusu ve süre yarısı; karar yarısı [Faz 208](arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md))
 > **Genellik:** Tracon HITL'ini kullanan her host etkilenir. Kalem tek tüketici turundan geldi (video tüketicisi, 2026-10-11); tüketici geri bildirimi kuralı uygulanır. İkinci kanıt ilk ilkedir: (1) retention bekleyen run'ın istek olayını, checkpoint'lerini ve girdi satırını süresiz tutar (K-888) ve K-130 gereği cevaplanan istek de bekler — bu satırlar **hiç** silinmez (`RetentionTargetRegistry.cs:122-144`); tüketici bunu süre olmadan sınırlayamaz; (2) yönetişim eşitliği: tool onayının kiracı geneli kutusu ve süresi var (`GET /api/approvals/pending`, `ApprovalExpirationService`), workflow isteğinin yok. Ekosistem sinyali: MCP Tasks `input_required` görevi bir yaşam süresiyle (TTL) tanımlar
 > **Karşı görüş:** "Onay tüketicinin ekranında tutulabilir." Liste için kısmen doğru: tüketici `GET /api/runs?status=AwaitingInput&kind=Workflow` + run başına `/requests` ile bir liste kurabilir (N+1 çağrı). Ama "yalnız bekleyen" süzgeci sayfalamadan sonra uygulanırsa `skip/take` bozulur (`RunEndpoints.cs:64-67` kuralı); cevap bilgisi yalnız Faz 208'in tablosundadır. Süre ise yalnız Tracon'da kurulabilir: bekleyen run'ı kapatıp retention'ın satırları bırakmasını yalnız Tracon sağlar
-> **Önkoşul:** [Faz 208](208-WORKFLOW-KARAR-SOZLESMESI.md) — "yanıtlandı" işareti 208'in `workflow_responses` kaydını okur; iki faz `WorkflowEndpoints.cs`, `WorkflowRunner.cs`, `WorkflowDefinition` ve `WorkflowRegistrationOptions`'ı paylaşır
+> **Önkoşul:** [Faz 208](arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md) — "yanıtlandı" işareti 208'in `workflow_responses` kaydını okur; iki faz `WorkflowEndpoints.cs`, `WorkflowRunner.cs`, `WorkflowDefinition` ve `WorkflowRegistrationOptions`'ı paylaşır
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.UI`, `.Testing.Contracts.Xunit`, `Tracon.Client` (üretilen); projeksiyon seçilirse `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`
 > **Yeni paket:** Yok · **Migration:** ölçüme bağlı (Açık Soru 1) — projeksiyon seçilirse üç sağlayıcı; numara uygulama anında alınır
 > **Public API:** büyüyor, `1.0.0` GA'dan (K-603) önce ucuz — ölçüldü (2026-10-14): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, toplam 17 satır
@@ -32,7 +32,7 @@
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/208-*.md
    ```
-   208: `workflow_responses` kaydı, iddia anahtarının ölçülen kapsamı (oturum mu kaynak run mı), `WorkflowRegistrationOptions`
+   208: `workflow_responses` kaydı, iddia anahtarının ölçülen kapsamı (**oturum**, `claim_scope = session_id`), `WorkflowRegistrationOptions`, cevap sırası denetim → satır → kayıt (K-997)
 4. Alan hafızası:
    [`hafiza/workflows.md`](hafiza/workflows.md) (K-888'in üç kayıp yolu, K-988) ·
    [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (projeksiyon seçilirse) ·
@@ -115,7 +115,7 @@ Arayüz: `IWorkflowRunner.ListRequestsAsync(WorkflowRequestQuery, CancellationTo
 
 MAF bekleyen isteği checkpoint'ten **aynı kimlikle** yeniden yayınlar (K-128). Çok istekli bir run'da bir isteğe cevap verilince, cevaplanmayan istekler hem kaynakta hem devam run'ında listelenir. Düz `/resume` da aynısını yapar. Run başına liste aynı insan kararını iki satırda gösterir.
 
-Öneri (Açık Soru 2): liste **`(oturum, requestId)` başına bir satır** gösterir — o isteği taşıyan en yeni `AwaitingInput` run'ı. "Yanıtlandı" işareti aynı anahtarla okunur; bu, Faz 208'in iddia anahtarıyla aynıdır (208 ölçümü kaynak run dediyse işaret de run başınadır). Run başına `/requests` değişmez: o run'ın kendi isteklerini döner.
+Öneri (Açık Soru 2): liste **`(oturum, requestId)` başına bir satır** gösterir — o isteği taşıyan en yeni `AwaitingInput` run'ı. "Yanıtlandı" işareti aynı anahtarla okunur; bu, Faz 208'in iddia anahtarıyla aynıdır (208 ölçümü: oturum — `claim_scope = session_id`; işaret de mantıksal istek başınadır). Run başına `/requests` değişmez: o run'ın kendi isteklerini döner.
 
 ## 209.4 — Süre
 

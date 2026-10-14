@@ -77,12 +77,7 @@ internal sealed class WorkflowCatalog
         // Code registrations are written LAST and overwrite the database entry.
         foreach (var registration in _codeWorkflows.Values)
         {
-            descriptors[registration.Name] = new WorkflowDescriptor
-            {
-                Name = registration.Name,
-                Description = registration.Description,
-                Origin = AgentDefinitionOrigin.Code,
-            };
+            descriptors[registration.Name] = Describe(registration);
         }
 
         return [.. descriptors.Values.OrderBy(static descriptor => descriptor.Name, StringComparer.Ordinal)];
@@ -110,12 +105,7 @@ internal sealed class WorkflowCatalog
 
         if (_codeWorkflows.TryGetValue(name, out var registration))
         {
-            return new WorkflowDescriptor
-            {
-                Name = registration.Name,
-                Description = registration.Description,
-                Origin = AgentDefinitionOrigin.Code,
-            };
+            return Describe(registration);
         }
 
         var found = await FindAsync(name, version, cancellationToken).ConfigureAwait(false);
@@ -228,7 +218,19 @@ internal sealed class WorkflowCatalog
             AgentNames = definition.AgentNames,
             Nodes = definition.Nodes,
             Parameters = definition.Parameters,
+            ResponseMode = definition.ResponseMode,
             Version = definition.Version,
             UpdatedAt = definition.UpdatedAt,
+        };
+
+    // One builder for the two places a code workflow is described (the list and a single
+    // read), so a new descriptor field cannot reach one and miss the other.
+    private static WorkflowDescriptor Describe(CodeWorkflowRegistration registration)
+        => new()
+        {
+            Name = registration.Name,
+            Description = registration.Description,
+            Origin = AgentDefinitionOrigin.Code,
+            ResponseMode = registration.ResponseMode,
         };
 }

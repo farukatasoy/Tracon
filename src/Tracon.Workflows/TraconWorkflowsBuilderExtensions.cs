@@ -23,7 +23,7 @@ public static class TraconWorkflowsBuilderExtensions
     /// not produce new behavior: it only sequences catalog agents with
     /// ready-made patterns whose order is fixed. A free-form graph - custom
     /// <c>Executor</c> types, conditional edges, sub-workflows - is only
-    /// defined in code, with <see cref="AddWorkflow"/>. The code-only tools rule is
+    /// defined in code, with <see cref="AddWorkflow(ITraconBuilder, string, Func{IServiceProvider, Workflow})"/>. The code-only tools rule is
     /// preserved this way.
     /// </para>
     /// <para>
@@ -106,7 +106,30 @@ public static class TraconWorkflowsBuilderExtensions
     /// <param name="builder">The Tracon configuration chain.</param>
     /// <param name="name">The workflow name.</param>
     /// <param name="factory">The factory that builds the graph.</param>
-    /// <param name="description">A short description.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty, or is <c>functions</c>: <c>GET /api/workflows/functions</c>
+    /// lists the registered function nodes, so a workflow under that name could not be read back.
+    /// </exception>
+    /// <remarks>
+    /// The same registration as <see cref="AddWorkflow(ITraconBuilder, string, Func{IServiceProvider, Workflow}, string)"/>
+    /// with no description; its remarks apply.
+    /// </remarks>
+    public static ITraconBuilder AddWorkflow(
+        this ITraconBuilder builder,
+        string name,
+        Func<IServiceProvider, Workflow> factory)
+        => AddWorkflow(builder, name, factory, description: null);
+
+    /// <summary>
+    /// Defines a factory-based workflow in code, with a description. How the graph is built is
+    /// entirely up to the caller.
+    /// </summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="factory">The factory that builds the graph.</param>
+    /// <param name="description">A short description; <see langword="null"/> for none.</param>
     /// <returns>The chain, for continued configuration.</returns>
     /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
@@ -141,7 +164,7 @@ public static class TraconWorkflowsBuilderExtensions
         this ITraconBuilder builder,
         string name,
         Func<IServiceProvider, Workflow> factory,
-        string? description = null)
+        string? description)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -153,6 +176,76 @@ public static class TraconWorkflowsBuilderExtensions
         }
 
         builder.Services.AddSingleton(new CodeWorkflowRegistration(name, description, factory));
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Defines a factory-based workflow in code, with the settings a stored definition would
+    /// carry: its description and how it treats more than one answer to the same request.
+    /// </summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="factory">The factory that builds the graph.</param>
+    /// <param name="configure">Sets the workflow's settings; called once, here.</param>
+    /// <returns>The chain, for continued configuration.</returns>
+    /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty or reserved (see the other overload), or
+    /// <paramref name="configure"/> set a <see cref="WorkflowRegistrationOptions.ResponseMode"/>
+    /// that is not a member of <see cref="WorkflowResponseMode"/>.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Everything the other overload says applies here too: a workflow defined in code takes
+    /// precedence over a stored one with the same name, and its start executor receives the
+    /// message and a <see cref="TurnToken"/>.
+    /// </para>
+    /// <para>
+    /// <see cref="WorkflowResponseMode.SingleAnswer"/> makes each pending request of this graph
+    /// take one answer: the same answer given twice (a double click, a retried HTTP call) follows
+    /// the run the first one started, and a different answer is refused with <c>409</c>. Every
+    /// answer that starts a run is written to the audit trail before the run starts.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .UseWorkflows()
+    ///        .AddWorkflow("triage", provider => BuildTriageGraph(provider), options =>
+    ///        {
+    ///            options.Description = "Routes a ticket after one approval.";
+    ///            options.ResponseMode = WorkflowResponseMode.SingleAnswer;
+    ///        });
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddWorkflow(
+        this ITraconBuilder builder,
+        string name,
+        Func<IServiceProvider, Workflow> factory,
+        Action<WorkflowRegistrationOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        if (WorkflowDefinitionValidator.ReservedNameProblem(name) is { } reserved)
+        {
+            throw new ArgumentException(reserved, nameof(name));
+        }
+
+        var options = new WorkflowRegistrationOptions();
+        configure(options);
+
+        if (!Enum.IsDefined(options.ResponseMode))
+        {
+            throw new ArgumentException(
+                $"Workflow '{name}' uses an unknown response mode: '{options.ResponseMode}'. Use 'Branch' or 'SingleAnswer'.",
+                nameof(configure));
+        }
+
+        builder.Services.AddSingleton(new CodeWorkflowRegistration(name, options.Description, factory, options.ResponseMode));
 
         return builder;
     }

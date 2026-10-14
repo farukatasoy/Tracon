@@ -196,22 +196,28 @@ public static partial class TraconServiceCollectionExtensions
             options.PublishThresholdToRunStream = publishToRunStream;
         }
 
-        var thresholds = section.GetSection(nameof(TraconQuotaOptions.ThresholdPercents));
+        // F-247, the F-385 rule: a list that is present REPLACES the default, and
+        // an entry that is not a number is bound as zero rather than skipped, so
+        // TraconQuotaOptionsValidator names it at startup. Skipping it (and a zero
+        // or negative entry with it) started the application with a shorter list
+        // than the operator wrote. The text is kept by index so the message quotes
+        // what was written, not the zero that stands in for it.
+        var thresholds = section.GetSection(nameof(TraconQuotaOptions.ThresholdPercents)).GetChildren().ToList();
 
-        if (thresholds.Exists())
+        if (thresholds.Count > 0)
         {
-            var parsed = thresholds.GetChildren()
-                .Select(child => int.TryParse(child.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var percent) ? percent : -1)
-                .Where(percent => percent > 0)
-                .ToList();
+            options.ThresholdPercents.Clear();
 
-            if (parsed.Count > 0)
+            foreach (var child in thresholds)
             {
-                options.ThresholdPercents.Clear();
-
-                foreach (var percent in parsed)
+                if (int.TryParse(child.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var percent))
                 {
                     options.ThresholdPercents.Add(percent);
+                }
+                else
+                {
+                    options.UnreadableThresholdPercents[options.ThresholdPercents.Count] = child.Value ?? string.Empty;
+                    options.ThresholdPercents.Add(0);
                 }
             }
         }

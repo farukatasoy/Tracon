@@ -12,7 +12,7 @@
 | MAF tipi, harness, `AIContextProvider` | [maf-api](maf-api.md) |
 | MAF Harness/`LoopAgent` bekleme tuzağı | [maf-harness-ve-loop](maf-harness-ve-loop.md) |
 | MAF oturumu, `ChatHistoryProvider`, Responses | [maf-oturum](maf-oturum.md) |
-| Workflow yürütme, executor kimliği, HITL | [workflows](workflows.md) |
+| Workflow yürütme, executor kimliği, HITL | [workflows](workflows.md) · [cevap](workflow-cevaplari.md) |
 | `RunRecording` zinciri, `scope`/span, iptal | [cekirdek-calistirma](cekirdek-calistirma.md) |
 | Agent derleme, derleme kimliği, derlenmiş agent önbelleği | [agent-derleme-ve-onbellek](agent-derleme-ve-onbellek.md) |
 | `RunEventType`/`RunStatus` terminal durum sözleşmesi | [run-olay-sozlesmesi](run-olay-sozlesmesi.md) |

@@ -921,7 +921,7 @@ namespace Tracon.Client.Generated
         /// Runs an agent for trial purposes and streams the response via SSE.
         /// </summary>
         /// <remarks>
-        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'.
+        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota. When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'. Right before 'done', the stream sends a 'custom' event for each notice the run recorded from a fixed list, with the same data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the model cut off at its output token limit or its context window) always, and 'tracon.quota.threshold' when the quota options publish it to the run stream.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -1108,7 +1108,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'.
+        /// If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota. When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'. Right before 'done', the stream sends a 'custom' event for each notice the run recorded from a fixed list, with the same data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the model cut off at its output token limit or its context window) always, and 'tracon.quota.threshold' when the quota options publish it to the run stream.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5539,7 +5539,7 @@ namespace Tracon.Client.Generated
         /// Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'. Every answer that starts a run is written to the audit trail as 'workflow.respond' before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is 'SingleAnswer' takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With 'Branch', the default, every answer opens a new run.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5645,6 +5645,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 501)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -5693,7 +5703,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'. Every answer that starts a run is written to the audit trail as 'workflow.respond' before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is 'SingleAnswer' takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With 'Branch', the default, every answer opens a new run.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5806,6 +5816,16 @@ namespace Tracon.Client.Generated
                             throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
+                        if (status_ == 409)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Conflict", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
                         if (status_ == 501)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
@@ -5824,6 +5844,98 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Service Unavailable", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
+        /// Lists the answers given to a run's human input requests.
+        /// </summary>
+        /// <remarks>
+        /// One entry per answer that started a run, oldest first: the request it answered, the run it started (responseRunId), who answered and when, and a SHA-256 of the answer (answerHash) - never the answer itself. The hash tells two answers apart; it does not hide an answer with few possible values, such as a yes or no. 'claimScope' is set when the workflow takes one answer per request; 'status' is Accepted until the workflow received the answer (Delivered), and Abandoned for an answer whose run stopped and was started again. A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<WorkflowResponseRecord>> TraconListWorkflowResponsesAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (runId == null)
+                throw new System.ArgumentNullException("runId");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/workflows/runs/{runId}/responses"
+                    urlBuilder_.Append("api/workflows/runs/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(runId, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/responses");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<System.Collections.Generic.ICollection<WorkflowResponseRecord>>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 404)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Found", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -28651,6 +28763,15 @@ namespace Tracon.Client.Generated
         public string? RunTimeout { get; set; } = default!;
 
         /// <summary>
+        /// Gets how the workflow treats more than one answer to the same pending human request.
+        /// <br/>WorkflowResponseMode.Branch (the default) opens a new run for every answer;
+        /// <br/>WorkflowResponseMode.SingleAnswer allows one answer per request.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("responseMode")]
+        public WorkflowResponseMode ResponseMode { get; set; } = default!;
+
+        /// <summary>
         /// Gets the tenant the definition belongs to. `null` for workflows defined in code.
         /// </summary>
 
@@ -28739,6 +28860,15 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("parameters")]
         public System.Collections.Generic.ICollection<AgentParameter> Parameters { get; set; } = new System.Collections.Generic.List<AgentParameter>();
+
+        /// <summary>
+        /// Gets how the workflow treats more than one answer to the same pending human request.
+        /// <br/>For a stored workflow this is the current version's mode; a run that waits keeps the
+        /// <br/>mode of the version it recorded.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("responseMode")]
+        public WorkflowResponseMode ResponseMode { get; set; } = default!;
 
         /// <summary>
         /// Gets the definition version. Always 1 for code-defined workflows.
@@ -29193,6 +29323,113 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
+    /// How a workflow treats more than one answer to the same pending human request.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowResponseMode>))]
+    public enum WorkflowResponseMode
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Branch")]
+        Branch = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"SingleAnswer")]
+        SingleAnswer = 1,
+
+    }
+
+    /// <summary>
+    /// One answer to a workflow's pending human request.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class WorkflowResponseRecord
+    {
+        /// <summary>
+        /// Gets the run the answer started. It identifies the record.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("responseRunId")]
+        public System.Guid ResponseRunId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the run that waited for the answer.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("sourceRunId")]
+        public System.Guid SourceRunId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the execution session the two runs share.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("sessionId")]
+        public string SessionId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the id of the request that was answered.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("requestId")]
+        public string RequestId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the SHA-256 of the answer, as 64 lowercase hexadecimal characters.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("answerHash")]
+        public string AnswerHash { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the scope of the single-answer claim this record holds, or `null`
+        /// <br/>for an answer to a WorkflowResponseMode.Branch workflow, which claims nothing.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("claimScope")]
+        public string? ClaimScope { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the state of the answer.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public WorkflowResponseStatus Status { get; set; } = default!;
+
+        /// <summary>
+        /// Gets who answered, as the audit trail names the actor; `null` when unknown.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("respondedBy")]
+        public string? RespondedBy { get; set; } = default!;
+
+        /// <summary>
+        /// Gets when the answer was accepted (UTC).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("respondedAt")]
+        public System.DateTimeOffset RespondedAt { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The state of a recorded answer.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WorkflowResponseStatus>))]
+    public enum WorkflowResponseStatus
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Accepted")]
+        Accepted = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Delivered")]
+        Delivered = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Abandoned")]
+        Abandoned = 2,
+
+    }
+
+    /// <summary>
     /// Request to resume a workflow from a checkpoint.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -29352,6 +29589,15 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("runTimeout")]
         public string? RunTimeout { get; set; } = default!;
+
+        /// <summary>
+        /// How the workflow treats more than one answer to the same pending human request.
+        /// <br/>Leave it out for WorkflowResponseMode.Branch, where every answer opens a
+        /// <br/>new run; WorkflowResponseMode.SingleAnswer allows one answer per request.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("responseMode")]
+        public WorkflowResponseMode ResponseMode { get; set; } = default!;
 
     }
 

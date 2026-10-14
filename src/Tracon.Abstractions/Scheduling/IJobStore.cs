@@ -29,10 +29,20 @@ public interface IJobStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The created job record.</returns>
     /// <remarks>
+    /// <para>
     /// Resolve the stored lane with <see cref="JobLanes.Resolve"/>, passing the
     /// configured <c>TraconSchedulingOptions.LaneByHandlerKey</c> map. That map is
     /// applied here and nowhere else, so a store that skips the call silently
     /// ignores it.
+    /// </para>
+    /// <para>
+    /// <strong>A job id that is already stored is refused:</strong> the call throws,
+    /// and the stored job and its items do not change. A queued run's job carries the
+    /// run's id, and two callers can write the same job at the same time (a repeated
+    /// answer that writes the job a crash left missing); the refusal is what keeps the
+    /// work from running twice. A store that replaced the job would reset a leased
+    /// job to <see cref="JobStatus.Pending"/>.
+    /// </para>
     /// </remarks>
     ValueTask<JobRecord> EnqueueAsync(
         JobRecord job,

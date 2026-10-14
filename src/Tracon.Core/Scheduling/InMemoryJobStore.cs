@@ -77,7 +77,14 @@ internal sealed class InMemoryJobStore : IJobStore
             });
         }
 
-        _jobs[record.Id] = record;
+        // A second job with a stored id is refused, as the SQL stores' primary key refuses it.
+        // Replacing it would reset a leased job to Pending and let a second worker lease it; the
+        // caller that writes a job a crash left missing relies on the refusal (QueuedRunPlaceholder).
+        if (!_jobs.TryAdd(record.Id, record))
+        {
+            throw new InvalidOperationException($"A job with id '{record.Id}' is already queued.");
+        }
+
         _items[record.Id] = itemRecords;
 
         return new ValueTask<JobRecord>(record);

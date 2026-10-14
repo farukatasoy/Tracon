@@ -151,9 +151,18 @@ public static partial class TraconServiceCollectionExtensions
 
     /// <summary>Binds the <c>Tracon:ContentGuard:Pattern</c> section.</summary>
     /// <remarks>
+    /// <para>
     /// <see cref="PiiPatterns"/> is a <c>[Flags]</c> enum, written in
     /// configuration as a comma-separated name list (example:
     /// <c>"Email,CreditCard"</c>). <c>Enum.TryParse</c> is AOT-clean.
+    /// </para>
+    /// <para>
+    /// An empty value means "not set", as before. A value that does not parse is
+    /// NOT skipped: one typo failed the whole parse, the value stayed
+    /// <see cref="PiiPatterns.None"/> and PII masking was silently off. It is
+    /// bound as a value with an undefined bit, and the text is kept beside it, so
+    /// <see cref="PatternContentGuardOptionsValidator"/> names it at startup.
+    /// </para>
     /// </remarks>
     private static void BindPatternContentGuard(IConfigurationSection section, PatternContentGuardOptions options)
     {
@@ -164,9 +173,18 @@ public static partial class TraconServiceCollectionExtensions
 
         BindList(section.GetSection(nameof(PatternContentGuardOptions.DeniedTerms)), options.DeniedTerms);
 
-        if (Enum.TryParse<PiiPatterns>(section[nameof(PatternContentGuardOptions.MaskedPii)], ignoreCase: true, out var pii))
+        if (section[nameof(PatternContentGuardOptions.MaskedPii)] is { } piiText && !string.IsNullOrWhiteSpace(piiText))
         {
+            var pii = Enum.TryParse<PiiPatterns>(piiText, ignoreCase: true, out var parsed)
+                ? parsed
+                : PatternContentGuardOptionsValidator.UnreadableMaskedPii;
+
             options.MaskedPii = pii;
+
+            if (PatternContentGuardOptionsValidator.UndefinedBits(pii) != PiiPatterns.None)
+            {
+                options.UnreadableMaskedPii = (piiText, pii);
+            }
         }
 
         if (section[nameof(PatternContentGuardOptions.MaskReplacement)] is { Length: > 0 } replacement)
@@ -177,10 +195,22 @@ public static partial class TraconServiceCollectionExtensions
 
     /// <summary>Binds the <c>Tracon:ContentProtection</c> section.</summary>
     /// <remarks>
+    /// <para>
     /// <see cref="ProtectedColumn"/> values are written in configuration as a
     /// list of names (example: <c>Columns:0 = "RunInput"</c>). <c>Enum.TryParse</c>
-    /// is AOT-clean; an unrecognized name is skipped rather than failing the
-    /// whole bind, matching <see cref="BindList"/>'s tolerance elsewhere.
+    /// and <c>Enum.IsDefined</c> are AOT-clean. A list that is present REPLACES
+    /// the default (every column).
+    /// </para>
+    /// <para>
+    /// Nothing is skipped, the rule the scheduling collections follow. An unknown
+    /// name, an empty entry or an undefined number used to be dropped:
+    /// <c>["RunInput", "RunInputt"]</c> protected only <c>RunInput</c> and left the
+    /// column the operator meant in plain text. Such an entry is now bound as an undefined
+    /// <see cref="ProtectedColumn"/> value with its text kept beside it, and a key
+    /// entry with an empty name is bound as written; in both cases
+    /// <see cref="TraconContentProtectionOptionsValidator"/> names the entry at
+    /// startup, whether protection is on or off.
+    /// </para>
     /// </remarks>
     private static void BindContentProtection(IConfigurationSection section, TraconContentProtectionOptions options)
     {
@@ -199,43 +229,70 @@ public static partial class TraconServiceCollectionExtensions
             options.ActiveKeyId = activeKeyId;
         }
 
-        var keysSection = section.GetSection(nameof(TraconContentProtectionOptions.Keys));
-
-        if (keysSection.Exists())
+        foreach (var child in section.GetSection(nameof(TraconContentProtectionOptions.Keys)).GetChildren())
         {
-            foreach (var child in keysSection.GetChildren())
-            {
-                if (child.Value is { Length: > 0 } configurationKeyName)
-                {
-                    options.Keys[child.Key] = configurationKeyName;
-                }
-            }
+            // Bound as written, even empty: the validator names an empty entry
+            // instead of the key id silently vanishing (an old row encrypted
+            // under it would then fail to decrypt at run time).
+            options.Keys[child.Key] = child.Value ?? string.Empty;
         }
 
-        var columnsSection = section.GetSection(nameof(TraconContentProtectionOptions.Columns));
+        var columns = section.GetSection(nameof(TraconContentProtectionOptions.Columns)).GetChildren().ToList();
 
-        if (columnsSection.Exists())
+        if (columns.Count > 0)
         {
-            var parsed = new HashSet<ProtectedColumn>();
+            options.Columns.Clear();
 
-            foreach (var child in columnsSection.GetChildren())
+            foreach (var child in columns)
             {
-                if (child.Value is { Length: > 0 } value && Enum.TryParse<ProtectedColumn>(value, ignoreCase: true, out var column))
-                {
-                    parsed.Add(column);
-                }
-            }
-
-            if (parsed.Count > 0)
-            {
-                options.Columns.Clear();
-
-                foreach (var column in parsed)
-                {
-                    options.Columns.Add(column);
-                }
+                BindProtectedColumn(child.Value ?? string.Empty, options);
             }
         }
+    }
+
+    /// <summary>Adds one <c>Columns</c> entry, or the undefined value that stands in for it.</summary>
+    private static void BindProtectedColumn(string text, TraconContentProtectionOptions options)
+    {
+        // A comma would make Enum.TryParse OR two names into a third column
+        // ("RunInput,ToolArguments" is AgentFileContent): one entry is one name.
+        if (!text.Contains(',', StringComparison.Ordinal)
+            && Enum.TryParse<ProtectedColumn>(text, ignoreCase: true, out var column)
+            && Enum.IsDefined(column))
+        {
+            options.Columns.Add(column);
+
+            return;
+        }
+
+        var placeholder = UnreadableColumnPlaceholder(text, options);
+        options.Columns.Add(placeholder);
+        options.UnreadableColumns[placeholder] = text;
+    }
+
+    /// <summary>
+    /// Picks the undefined <see cref="ProtectedColumn"/> value that stands in for an
+    /// entry the binder could not read. Each entry gets its own value, so two typos
+    /// are two members of the set and the validator names both.
+    /// </summary>
+    private static ProtectedColumn UnreadableColumnPlaceholder(string text, TraconContentProtectionOptions options)
+    {
+        // An undefined number ("99") stands for itself when it is still free.
+        if (!text.Contains(',', StringComparison.Ordinal)
+            && Enum.TryParse<ProtectedColumn>(text, ignoreCase: true, out var number)
+            && !Enum.IsDefined(number)
+            && !options.Columns.Contains(number))
+        {
+            return number;
+        }
+
+        var candidate = -1;
+
+        while (Enum.IsDefined((ProtectedColumn)candidate) || options.Columns.Contains((ProtectedColumn)candidate))
+        {
+            candidate--;
+        }
+
+        return (ProtectedColumn)candidate;
     }
 
     /// <summary>Binds the <c>Tracon:Webhooks</c> section.</summary>
@@ -309,22 +366,28 @@ public static partial class TraconServiceCollectionExtensions
             options.DisableAfterConsecutiveFailures = disableAfter;
         }
 
-        var delays = section.GetSection(nameof(TraconWebhookOptions.RetryDelays));
+        // F-247, the F-385 rule: a list that is present REPLACES the default, and
+        // a delay that does not parse is bound as zero rather than skipped, so
+        // TraconWebhookOptionsValidator names it at startup. Skipping it (and a
+        // zero or negative delay with it) cut a rung off the retry ladder without
+        // a word. The text is kept by index so the message quotes what was
+        // written, not the zero that stands in for it.
+        var delays = section.GetSection(nameof(TraconWebhookOptions.RetryDelays)).GetChildren().ToList();
 
-        if (delays.Exists())
+        if (delays.Count > 0)
         {
-            var parsed = delays.GetChildren()
-                .Select(child => TimeSpan.TryParse(child.Value, CultureInfo.InvariantCulture, out var delay) ? delay : TimeSpan.Zero)
-                .Where(delay => delay > TimeSpan.Zero)
-                .ToList();
+            options.RetryDelays.Clear();
 
-            if (parsed.Count > 0)
+            foreach (var child in delays)
             {
-                options.RetryDelays.Clear();
-
-                foreach (var delay in parsed)
+                if (TimeSpan.TryParse(child.Value, CultureInfo.InvariantCulture, out var delay))
                 {
                     options.RetryDelays.Add(delay);
+                }
+                else
+                {
+                    options.UnreadableRetryDelays[options.RetryDelays.Count] = child.Value ?? string.Empty;
+                    options.RetryDelays.Add(TimeSpan.Zero);
                 }
             }
         }
@@ -371,6 +434,11 @@ public static partial class TraconServiceCollectionExtensions
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Attachments)), options.Attachments);
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Sessions)), options.Sessions);
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.Conversations)), options.Conversations);
+
+        // F-247: defined and resolved by ForTarget, but never read here - the
+        // HATA-S1-005 shape once more. TraconRetentionOptionsBindingTests now
+        // counts the targets by reflection, so a target missing here fails it.
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.IdempotencyKeys)), options.IdempotencyKeys);
 
         // HATA-S1-005: these four targets were added to ForTarget but were NOT
         // added HERE - a signature change is not considered complete until

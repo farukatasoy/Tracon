@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206
 > **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
@@ -4069,3 +4069,138 @@ Sınır senaryosu. Otomatik karşılığı: `RunContinuationTests` ·
 **Beklenen sonuç**
 - İlk kayıt `400`; `detail` `'flaky'` ve istisna tipini adlandırır, istisnanın kendi mesajını taşımaz (log taşır).
 - İkinci kayıt `201`; agent koşar (`LoopEvaluatorFactoryTests`).
+
+---
+
+### MT-CORE-147 — `Retention:IdempotencyKeys` yapılandırmadan bağlanır (Faz 206, F-247)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 206 |
+| **İlgili karar** | K-021 |
+
+**Ön koşul** — Örnek uygulama; `Tracon__Retention__Enabled=true`, `Tracon__Retention__IdempotencyKeys__MaxAgeDays=0`.
+
+**Adımlar** — Uygulamayı başlat; sonra değeri `3` yapıp yeniden başlat.
+
+**Beklenen sonuç**
+- İlk açılış durur; mesaj `TraconRetentionOptions.idempotency_keys.MaxAgeDays must be at least 1 when specified. Actual value: 0.` içerir. Eski kusur: değer yok sayılıyor, uygulama açılıyordu.
+- `3` ile açılır (`TraconRetentionOptionsBindingTests.Every_retention_target_is_bound`).
+
+---
+
+### MT-CORE-148 — Okunamayan kota eşiği açılışı durdurur ve girdiyi alıntılar (Faz 206, F-247)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 206 |
+| **İlgili karar** | K-993 |
+
+**Ön koşul** — `Tracon__Quotas__ThresholdPercents__0=80`, `Tracon__Quotas__ThresholdPercents__1=yuz`.
+
+**Adımlar** — Uygulamayı başlat.
+
+**Beklenen sonuç**
+- Açılmaz; mesaj `TraconQuotaOptions.ThresholdPercents[1] is 'yuz', which is not a whole number` içerir (yerine bağlanan `0`'ı değil, yazılan metni). Eski kusur: `[80]` ile açılıyordu.
+- ➜ CI: `TraconQuotaOptionsBindingTests.An_unreadable_threshold_is_named_as_written`.
+
+---
+
+### MT-CORE-149 — Okunamayan webhook gecikmesi açılışı durdurur ve girdiyi alıntılar (Faz 206, F-247)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 206 |
+| **İlgili karar** | K-993 |
+
+**Ön koşul** — `Tracon__Webhooks__RetryDelays__0=00:01:00`, `Tracon__Webhooks__RetryDelays__1=soon`.
+
+**Adımlar** — Uygulamayı başlat.
+
+**Beklenen sonuç**
+- Açılmaz; mesaj `TraconWebhookOptions.RetryDelays[1] is 'soon', which is not a TimeSpan` içerir. Eski kusur: merdiven bir basamak kısa açılıyordu.
+- ➜ CI: `TraconWebhookOptionsBindingTests.An_unreadable_retry_delay_is_named_as_written`.
+
+---
+
+### MT-CORE-150 — Bilinmeyen korunan sütun adı, koruma kapalıyken de açılışı durdurur (Faz 206, F-247)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | 206 |
+| **İlgili karar** | K-993 |
+
+**Ön koşul** — Örnek uygulamanın `appsettings.json`'ı (`ContentProtection:Enabled=true`); `Tracon__ContentProtection__Columns__0=RunInputt`.
+
+**Adımlar**
+1. Uygulamayı başlat.
+2. `Tracon__ContentProtection__Enabled=false` ekleyip yeniden başlat.
+
+**Beklenen sonuç**
+- İki kezde de açılmaz; mesaj `TraconContentProtectionOptions.Columns contains 'RunInputt', which is not a ProtectedColumn name` içerir. Eski kusur: girdi atlanıyor, kastedilen sütun düz metin kalıyordu.
+- Bir SQL sağlayıcısı kayıtlıysa bu hata `IStartupValidator` toplamından **önce** atılır; aynı koşumdaki öteki seçenek hataları görünmez. Case'i tek başına koş.
+
+---
+
+### MT-CORE-151 — Boş anahtar adı koruma kapalıyken de açılışı durdurur (Faz 206, F-247)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 206 |
+| **İlgili karar** | K-993 |
+
+**Ön koşul** — `Tracon__ContentProtection__Keys__old=` (boş ortam değişkeni), `Tracon__ContentProtection__Enabled=false`.
+
+**Adımlar** — Uygulamayı başlat.
+
+**Beklenen sonuç**
+- Açılmaz; mesaj `TraconContentProtectionOptions.Keys['old'] cannot be empty` içerir. Ölçüldü (2026-10-14, macOS): boş ortam değişkeni sağlayıcıda `""` durur; JSON'daki `"old": ""` aynı sonucu verir.
+
+---
+
+### MT-CORE-152 — `MaskedPii` yazım hatası açılışı durdurur; kodun değeri kazanır (Faz 206, F-247)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | 206 |
+| **İlgili karar** | K-993 |
+
+**Ön koşul** — `Tracon__ContentGuard__Pattern__MaskedPii=Emial,CreditCard`.
+
+**Adımlar**
+1. `Tracon__Demo__SuppressRegistrations=ContentGuard` ile başlat.
+2. `SuppressRegistrations`'ı kaldırıp yeniden başlat.
+
+**Beklenen sonuç**
+- 1: açılmaz; mesaj `PatternContentGuardOptions.MaskedPii is 'Emial,CreditCard', which is not a comma-separated list of PiiPatterns names` içerir. Eski kusur: değer `None` kalıyor, PII maskeleme kapanıyordu.
+- 2: açılır. Örnek kod `MaskedPii`'yi `AddPatternContentGuard(...)` içinde yazar; bağlamadan sonra yazan kod kazanır.
+
+---
+
+### MT-CORE-153 — Temiz yapılandırma davranış değişikliğinden etkilenmez (Faz 206, F-247)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 206 |
+| **İlgili karar** | K-993 |
+
+**Ön koşul** — Örnek uygulama; bu dosyadaki ortam değişkenlerinin hiçbiri yok.
+
+**Adımlar** — Uygulamayı başlat; `POST $BASE/api/agents/support/run` `{"message":"ping","sessionId":"mt-core-153"}`.
+
+**Beklenen sonuç**
+- Açılır; akış `run` · `update` · `done`; `GET $BASE/api/runs/{runId}` → `status: Completed`.

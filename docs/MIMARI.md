@@ -415,7 +415,7 @@ Damga oturumun `StateBag` alanında yaşar ve `SerializeSessionAsync` çıktıs�
 MAF middleware zinciri agent'a özgüdür ve `HarnessAgent` kendi iç dekoratörlerini ekler. Dış sarmalayıcı, harness dahil **her** agent tipinde aynı şekilde çalışır.
 
 **Neden sıra numarasını yazıcı üretir?**
-Tek bir yazıcıdan gelen numaralar deterministik sıra garantiler. Canlı akış (SSE) ve geçmişe dönük yeniden oynatma aynı sonucu verir; istemci `Last-Event-ID` ile kaldığı yerden devam edebilir.
+Tek bir yazıcıdan gelen numaralar deterministik sıra garantiler. Canlı akış (SSE) ve geçmişe dönük yeniden oynatma aynı sonucu verir; istemci `Last-Event-ID` ile kaldığı yerden devam edebilir. Ajan run akışı (`POST /api/agents/{name}/run`) bu olayları değil MAF güncellemelerini taşır; kayıttan yalnız kapalı listedeki ayrılmış bildirimleri `done`'dan önce yeniden okuyup verir (`RunNoticeMirror`, K-991).
 
 ---
 

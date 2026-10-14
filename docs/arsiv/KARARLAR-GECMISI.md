@@ -6353,6 +6353,8 @@ Bellek içi iş deposu biten öğeyi eziyordu (sözleşme case'i yakaladı). Ü�
 
 Ayrı koruma migration ve anahtar kararı ister.
 
+**Gerekçe düzeltmesi (2026-10-14, Faz 208 §208.6).** Kayıtlı gerekçe "senkron uçta yanıt run olayına zaten yazılır" diyordu; ölçüm bunu çürüttü: senkron `respond` cevabın kendisini hiçbir olaya yazmaz. Karar (kuyruklu yanıt `jobs.payload`'da düz durur) değişmedi; gerekçe artık "kuyruk yükü cevabın tek düz kopyasıdır" der. Faz 208 devam run'ına yalnız istek kimliğini ve kaynak run'ı yazar (K-995), denetim ve kayıt yalnız hash taşır (K-996, K-779).
+
 ### K-930
 
 Kapı kapatılınca 20 fonksiyonel ve 6 tool testi kırmızı (mutasyon). Kayıt adıyla egress, takma adla politikayı atlatırdı (`The_policy_judges_the_provider_name_not_the_registration_name`). Yerleşik ElevenLabs istemcisi kiracı anahtarı almaz (4-A): bağlamalı kiracı reddedilir. Davranış değişikliği `CHANGELOG`'da. Sağlık kontrolü platform düzeyidir ve kiracı verisi göndermez
@@ -6541,3 +6543,34 @@ Sürdürme adaptörün hemen üstündedir (`AnthropicStopReasonChatClient`); her
 
 Upsert ve sekiz depo buradan geçer. İstisnalar `SqlTransactionSiteTests`'te gerekçelidir: migration kendi tekrarını yapar (K-540), veri sahibi silmesi dış içerik siler (tekrarı güvenli değil), `PgVectorSearchStore` kendi veri kaynağını kullanır (F-488). Ölçüldü: deterministik döngüde upsert 1205 ile düşüyordu; şimdi ikinci denemede bir kez yazar.
 
+### K-991
+
+Kayıt ikinci kez okunur (Faz 146 tasarım b genelleşti, `RunNoticeMirror`); çerçeve kayıtla bayt bayt aynıdır. Kapının öncülü ölçüldü (2026-10-14, MAF 1.20.0): MAF `ChatResponseUpdate.FinishReason`'ı `AgentResponseUpdate`'e kopyalar ve son `update` çerçevesi `"finishReason":"length"` taşır (`OutputTruncationStreamingTests.The_last_update_frame_carries_the_model_finish_reason`; Faz 204'ün "taşımaz" kaydı yanlıştı). Bayrak "herhangi bir güncelleme"dir: ara tool turu kesilmesi bir okuma maliyetidir, yanlış negatif olmaz. Okuma yazmadan önce biter; yarıda düşen okuma hiçbir bildirim göndermez. Run kaydı kapalıyken olay da çerçeve de yoktur (Açık Soru 1-A). Uç açıklaması sözleşmeyi yazar (Açık Soru 2-A, dört üretilmiş yapıt). Gerçek Anthropic koşumunda çerçeve `/events` ile `cmp` aynı.
+
+### K-992
+
+Eşleme tek yüklemi kullanır (`FinishReasonDetectingChatClient.IsTruncated`, `OpenAICompatSupport.ToChatFinishReason`). Akış son null-olmayan `update.FinishReason`'ı tutar; yalnız son parça alanı taşır, `[DONE]` son satırdır. Akışsız kol `AgentResponse.FinishReason`'ı okur; düz metin ve harness `Loop` agent'ında korunduğu ölçüldü (denetim 🟡2). `ToolCalls` `"stop"`'tur çünkü tool'lar sunucuda koşar. Boş filtrelenmiş yanıt `502` kalır. Responses (`/v1/responses`) kesik yanıtı hâlâ `completed` döner (ölçüldü) — F-503.
+
+### K-993
+
+F-385'in koleksiyon kuralı (okunamayan değer `0` bağlanır ki doğrulayıcı adlandırsın) dört bağlayıcıya genişledi. Bakımcı kapsamı 2026-10-14'te verdi; Açık Soru 2-A ("kod kazanır") Scheduling emsaliyle tutarlıdır ve örnek uygulama `MaskedPii`'yi kodda yazdığı için zorunludur. `Enabled`'dan bağımsızlık ölçüme dayanır: anahtar çözümü (`AesGcmContentProtector.LoadKey`) `Enabled`'a bakmaz, koruma kapalıyken eski şifreli satır `Keys` ile okunur. Virgüllü `Columns` girdisi de okunamaz sayılır: `Enum.TryParse` bayrak olmayan enumda da OR'lar, `"RunInput,ToolArguments"` `AgentFileContent` bağlanıyordu (mutasyonla kanıtlandı). Ham metin taşıyıcıları `internal`'dır (`UnreadableColumns`, `UnreadableMaskedPii`, `UnreadableThresholdPercents`, `UnreadableRetryDelays`); public API büyümedi, AOT temiz (`Enum.TryParse<T>`, `Enum.IsDefined<T>`, `Enum.GetValues<T>`). Preview'da serbest davranış değişikliğidir; `CHANGELOG` `Changed` dört anahtarı adıyla yazar. GA'dan (K-603) sonra aynı değişiklik bir sürüm kararı olurdu. Kapsam dışı: skaler/enum yazım hatası ve liste anahtarına tek değer (F-508), `MaxAgeDays` `null`'ı (F-513).
+
+### K-994
+
+Plan onayı bakımcıdan (2026-10-14): iki faz (karar yarısı burada, gelen kutusu ve süre Faz 209), K-130 varsayılanı korunur, Açık Sorular 1-10 öneriyle. Kapsam `session_id`'dir çünkü düz `/resume` bekleyen isteği AYNI kimlikle yeniden yayınlar (§208.7 #1); kaynak run kapsamı aynı isteğe ikinci cevabı kaçırırdı. Eşitliğe checkpoint ve sürüm girmez (Açık Soru 3-A): karar cevaptır, operatöre gizli bir dal kapısı açılmaz. Yeniden sürme onay kutusunun "aynı karar devri tamamlar" emsalidir (Açık Soru 4-A, 6-A); teslimden sonra checkpoint'siz düşen devam en-az-bir-kez garantisiyle yeniden koşar. Zinciri birden uzun `Accepted` kayıt checkpoint kuralından geçer (denetim 🟡2, seçenek b): karar var olan satırlardan türetilir, en-iyi-çaba teslim yazımından değil. Enum üyesi `Single` değil `SingleAnswer` (CA1720). Bilinen sınır: akışlı devam çöküşte `Running` kalırsa yalnız run uzlaştırması (varsayılan kapalı) kilidi açar.
+
+### K-995
+
+Tablo PostgreSQL `0060`, SQL Server `0048`, SQLite `0047`. `status` 0 `Accepted`, 1 `Delivered`, 2 `Abandoned`; CAS koşulu `status <> 2` çünkü 6-A teslim edilmiş satırı da yeniden sürer. Kayıt cevabın kendisini değil SHA-256'sını taşır (kanonik JSON: `approved`, `data`, `requestId`, `text`; K-779). Dışa aktarımda tablo yoktur (`pending_approvals`, `run_events` emsali). Saklama: hiçbir hedef `runs` silmez, tablo run geçmişiyle büyür (ilk metin "saklama kaynak run'la siler" diyordu; denetim 🟡5 ile düzeltildi, `0060` yorumu değişti ve `applied-migrations.json` yeni commit'e ankrajlandı). Olay `WorkflowResponseApplied` K-128'i değiştirmez: istek hâlâ olay yükündedir, olay yalnız bağdır; `RunEventWriter`'ın `RecordToolPayloads` muafiyet listesine girdi.
+
+### K-996
+
+Yerler: `AuditWritePolicyTests.FailClosedOperations` (7 işlem, 10 çağrı yeri), `IAuditLog` XML, site (`governance.md` tablosu ve not, `capabilities.md` iki yer, `getting-started/security.md`, `guides/observability.md`, `reference/security-policy.md`, `reference/threat-model.md` iki yer). Çağrı yeri `Internal/WorkflowResponseGate.cs`'tir (plan `WorkflowEndpoints.cs` diyordu). Denetim önce yazıldığından eşzamanlı iki cevap iki satır bırakabilir; ikisi de var olan bir run'ı adlandırır (kaybedenin kapanmış run'ı). Varsayılan `Branch` tüketicisi için davranış değişikliğidir: denetim deposu düşükken `respond` reddedilir (`CHANGELOG` Security).
+
+### K-997
+
+İlk uygulama "satırı olmayan iddia yoldadır" kuralıyla yarışı kapatıyordu; fırlatan atıf getter'ı, istemci kopması, geçici hata ya da çöküş iddiadan sonra satırı düşürürse istek kalıcı kilitleniyordu (denetim 🔴1). Kural tersine çevrildi: satır önce. Kaybedenin kapatılması düz satır güncellemesidir; motor hiç başlamadığı için webhook, metrik ve olay alıcısı tetiklenmez. 🔴2: iş kimliği run kimliğidir (K-924); iş `Pending`/`Leased`/`Running` iken kapı yeniden sürmez. İkinci tur 🟡1 (bakımcı kararı, 2026-10-14, "eksik işi yaz"): `PostgresQueries` yetim sorgusu yalnız `Running` satır seçer, işi olmayan `Queued` run'ın iptali `409` verir; izleme kararı tek run'lık, `Queued`, işi olmayan başı görünce işi yazar (onay kutusunun "kararı tekrarlamak eksik işi yazar" emsali). Atıf satırdan miras alınır; checkpoint ve sürüm tekrarınkidir. `Branch` modu da önce satır açar: kayıt yazılamazsa `500` ve `Failed` run; satır açılamazsa akışlı cevap da `500` (önce motorun yazıcısı yutardı).
+
+### K-998
+
+Ölçüm `JobStoreContract.An_id_that_is_already_queued_is_refused_and_the_queued_job_is_kept` ile dört depoda yapıldı: üç SQL sağlayıcısı ilk koşumda yeşildi (birincil anahtar), bellek içi depo `_jobs[id] = record` ile kiralanmış işi değiştiriyordu. Onay kutusunun eksik iş yolu da aynı redde dayanıyordu ("biri duplicate-key hatası alır"); bellek içi depoda bu doğru değildi. Geri okuma `QueuedRunPlaceholder`'dadır, bütün kuyruklu run yolları ondan geçer: yazımdan sonra düşen bir hata (zaman aşımı) da artık koşan run'ı `Failed` kapatmaz.

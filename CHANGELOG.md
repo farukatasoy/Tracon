@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- Answering a workflow's pending human request is now the seventh fail-closed audit
+  operation. Every `POST /api/workflows/runs/{runId}/respond` that starts a run writes
+  `workflow.respond` (the source run, the request id, the run the answer starts, the
+  response mode and a SHA-256 of the answer — never the answer itself) before the run
+  starts, queued or streamed, in every response mode. **Behavior change:** when the audit
+  store cannot write the entry, the answer is refused with `500` and no run, record or job
+  is created; before, an answer was never audited. `IAuditLog`'s documented set grows from
+  six operations to seven. The hash tells two answers apart; it does not hide an answer
+  with few possible values, such as a yes or no.
+
 - A refused provider setting no longer repeats its value. The Anthropic choice
   settings (`anthropic.effort`, `anthropic.thinking.mode`, the prompt-caching
   placement and TTL) and thinking budget, and the Google safety thresholds and
@@ -201,6 +211,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Tracon:Retention:IdempotencyKeys` is now bound from configuration. Its `MaxAgeDays`
+  and `Archive` keys were ignored and the target kept its one-day default; only code
+  (`Configure<TraconRetentionOptions>`) could change it. A configuration that sets
+  them now takes effect, and `MaxAgeDays` below 1 fails startup like every other
+  target.
+- `/v1/chat/completions` now reports why the answer ended. `finish_reason` was always
+  `"stop"`, so an OpenAI SDK caller could not tell a cut-off answer from a complete
+  one. **Behavior change:** an answer the model stopped at its output token limit or
+  at its context window is `"length"`, and an answer a content filter cut off after
+  it produced text is `"content_filter"`, on the JSON response and on the last chunk
+  of the stream (`data: [DONE]` still ends it). The value comes from the answer's
+  final model call; a tool turn's reason is never reported, and run recording does
+  not need to be on. A filtered answer with no content still fails with `502`
+  (`error` on the stream), and a cut-off structured answer still fails as before.
+- A failed read of the quota threshold notice no longer fails the agent run's stream.
+  With `TraconQuotaOptions.PublishThresholdToRunStream` on, a run store error while
+  the stream read the notice back ended the stream of a completed run with an
+  `error` frame. **Behavior change:** the stream now logs a warning and ends with
+  `done`, without the notice; the notice stays on `GET /api/runs/{id}/events`.
 - A tenant's quota now counts what a call tree spends after its root run ended. The root
   read its tree from the run store once, while its own row closed, so a child agent still
   running in the background at that moment (a root that starts a task and answers without
@@ -785,6 +814,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- One answer per workflow request. `WorkflowResponseMode` (`Branch`, the default, and
+  `SingleAnswer`) is set on a stored definition (`WorkflowDefinition.ResponseMode`,
+  `responseMode` on `PUT /api/workflows/{name}`) or on a workflow defined in code with the
+  new `AddWorkflow(name, factory, Action<WorkflowRegistrationOptions>)` overload, and is
+  reported on `WorkflowDescriptor`. In `SingleAnswer`, two identical answers to one
+  request — a double click, a retried call — start one run: the second follows it (the
+  same SSE frames read from the stored run, or the same `202` with
+  `Prefer: respond-async`), and a different answer gets `409`, which names neither the run
+  nor the other answer. An answer whose run failed or was cancelled before the workflow
+  received it can be given again and starts a new run; a queued answer whose job is still
+  waiting or running is followed instead, because the job's recovery owns that work. Two
+  answers that arrive together may both open a run before one of them claims the request:
+  the other closes its own run as `Canceled` with the error type `request_already_answered`
+  and no events (no webhook, metric or event sink fires for it), and its audit entry names
+  that run. That run is still a run: it is listed by `GET /api/runs` and counted in
+  `RunStatistics.CanceledRuns`, so it is part of the `ErrorRate` denominator. A waiting run is
+  answered under the mode of the definition version it recorded. `Branch` keeps opening a new
+  run for every answer. A queued `SingleAnswer` answer whose job was never written (the
+  process stopped after the answer was recorded and before the job was queued, or the queue
+  refused the job and its `Queued` run could not be closed) is finished by a repeat of the
+  same answer: the repeat writes the job and follows the run, and two repeats at the same
+  time write it once. **Known limit:** when a process stops in the middle of a streamed
+  `SingleAnswer` run, the run stays `Running` and a repeat of the answer follows it forever.
+  Only run reconciliation (`Tracon:RunReconciliation:Enabled`, off by default) closes it:
+  reconciliation closes `Running` runs whose heartbeat stopped and reads no `Queued` run.
+  Turn reconciliation on where such a request must stay answerable after a crash.
+- `GET /api/workflows/runs/{runId}/responses` lists the answers given to a run's requests:
+  who answered, when, the run each answer started and its state. The records live in the
+  new `IWorkflowResponseStore` (in memory by default; the new `workflow_responses` table
+  on PostgreSQL, SQL Server and SQLite). A record is removed only with its source run, by a
+  data subject erasure; no retention target deletes runs, so the table grows with the run
+  history. A store implementation is checked with the new
+  `WorkflowResponseStoreContract` in `Tracon.Testing.Contracts.Xunit`.
+- `RunEventType.WorkflowResponseApplied` (`workflow.response-applied` on
+  `GET /api/runs/{runId}/events`): the run an answer starts names the run it answered and
+  the request id right after it starts, even with `RecordToolPayloads` off. The console's
+  run timeline links it back to the source run.
+- The console shows which pending requests already have an answer, links the run that
+  answer started, says when a one-answer workflow refused a different answer, and has a
+  "One answer per request" switch in the workflow editor and the version comparison.
+
+- The live stream of an agent run (`POST /api/agents/{name}/run` without
+  `Idempotency-Key`) now says when the answer was cut off. A plain-text answer the
+  model stopped at its output token limit or at its context window completes, and
+  its `tracon.output.truncated` event (`RunEventCustomTypes.OutputTruncated`) was
+  only on `GET /api/runs/{id}/events`; a client that read the live stream took the
+  partial answer for a complete one. The stream now sends that event as a `custom`
+  frame right before `done`, always, with the same data `/events` serves. Each
+  recorded event is one frame: a harness loop whose iterations were cut sends more
+  than one, and a tool turn cut off in the middle of the run sends none. With the
+  quota notice on, both notices arrive in record order. A client that reads frames
+  by name and ignores unknown `customType` values needs no change. No event, and so
+  no frame, is written while run recording is off.
 - `TraconFinishReasons.ContextWindowExceeded`: the finish reason a model provider
   reports when the conversation and the answer filled the model's context window.
   Tracon treats it as a cut-off answer and names the window.
@@ -1176,6 +1258,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `POST /api/workflows/runs/{runId}/respond` changes in the default `Branch` mode too.
+  The run an answer starts now has its row opened (`Running` for a streamed answer,
+  `Queued` for a queued one) before the answer is recorded and before the stream starts,
+  and the answer's record is written before the run is handed over. **Behavior change:**
+  when the record cannot be written (`workflow_responses` unavailable), the answer is
+  refused with `500` and the opened run is closed `Failed` with the error type
+  `answer_not_recorded` and no events; before, the answer was not recorded at all. A run
+  store that cannot open the row refuses the streamed answer with `500` too; before, the
+  engine's run writer logged that failure and the run went on unrecorded. Every
+  run an answer starts now carries `WorkflowResponseApplied` at sequence 1, so its later
+  events are numbered one higher than before.
+- **Behavior change:** the in-memory job store (the default `IJobStore`) refuses a job whose
+  id is already queued, as the PostgreSQL, SQL Server and SQLite stores' primary key does;
+  before, it replaced the queued job, which could set a leased job back to `Pending`. The
+  `IJobStore.EnqueueAsync` documentation now states the refusal, and `JobStoreContract`
+  checks it with a new case. A queued run whose enqueue is refused because its job is
+  already there (another call wrote it) is no longer closed as `Failed`; the call answers
+  with the job that is there.
+- `AddWorkflow(builder, name, factory, string? description = null)` is now two overloads,
+  `AddWorkflow(builder, name, factory)` and `AddWorkflow(builder, name, factory, string? description)`,
+  beside the new one that takes `Action<WorkflowRegistrationOptions>`. Every call compiles
+  as before except one that passes a literal `null` as the third argument, which is now
+  ambiguous; leave the argument out instead.
+
+- **Behavior change:** a configuration entry Tracon cannot read now stops the
+  application at startup instead of being dropped without a word. Four settings
+  change:
+  - `Tracon:Quotas:ThresholdPercents` and `Tracon:Webhooks:RetryDelays`: an entry that
+    is not a number (a `TimeSpan` for the delays), or that is zero or below, was
+    skipped, so the list came out shorter than written. It now fails startup and the
+    message names the key and quotes the entry (`ThresholdPercents[1] is '9O'`).
+  - `Tracon:ContentProtection:Columns`: an entry that is not one `ProtectedColumn`
+    name — a misspelling, an empty entry, an undefined number, or two names joined by
+    a comma, which was read as a third column — was skipped, and the column you meant
+    stayed in plain text. It now fails startup and the message quotes the entry.
+  - `Tracon:ContentProtection:Keys`: an entry with an empty configuration key name was
+    skipped. It now fails startup and the message names the key id.
+  - `Tracon:ContentGuard:Pattern:MaskedPii`: one misspelled name (`"Emial,CreditCard"`)
+    turned PII masking off for the whole list, and a number with an undefined bit was
+    accepted. It now fails startup and the message quotes the value. An empty value
+    still means no pattern.
+
+  The `Columns` and `Keys` checks run while content protection is off too: an old
+  encrypted row is still read through `Keys`. A value that code sets for the same
+  member after binding replaces the configured one and clears the error. An undefined
+  `ProtectedColumn` or `PiiPatterns` value set in code (for example
+  `options.MaskedPii = (PiiPatterns)64` in `AddPatternContentGuard`) now fails startup
+  as well.
 - **Behavior change:** a workflow run that waits to be resumed keeps the definition version
   it recorded. Before, `resume` and `respond` compiled the current definition: an edit made
   while the run waited changed its settings, timeouts and parameter schema without notice, and a

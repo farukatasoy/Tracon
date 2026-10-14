@@ -45,7 +45,8 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         // Phase 66 added the `inbound_triggers` table: 47 -> 48.
         // Phase 199 added the `run_non_token_usage` table: 48 -> 49.
         // Phase 200 added the `workflow_definition_versions` table: 49 -> 50.
-        tableCount.ShouldBe(50);
+        // Phase 208 added the `workflow_responses` table: 50 -> 51.
+        tableCount.ShouldBe(51);
     }
 
     [Fact]

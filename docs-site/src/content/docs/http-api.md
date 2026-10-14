@@ -6,7 +6,7 @@ sidebar:
   order: 1
 ---
 
-174 operations across 136 paths. This page is the shape they all share; the groups in
+175 operations across 137 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -73,10 +73,20 @@ before the stream ends — the pending request's id and tool name, plus whatever
 [Approvals](/concepts/governance/#approvals) for the queued-run mailbox shape, which
 answers the same request differently.
 
-With `Quotas:PublishThresholdToRunStream` turned on (off by default), a run whose
-completion crosses a [quota threshold](/concepts/governance/#quotas-and-rate-limits)
-also gets a `custom` frame before `done` — the same notice, byte for byte, that
-`GET /api/runs/{runId}/events` carries for that run.
+Right before `done`, the stream sends a `custom` frame for each notice the run
+recorded from a fixed list. The frame's data is the recorded event, byte for byte
+the same as `GET /api/runs/{runId}/events` serves it, in the order it was recorded:
+
+| `customType` | Sent |
+|---|---|
+| `tracon.output.truncated` | Always. The model cut a plain-text answer off at its output token limit or its context window; the streamed text is incomplete (see [Truncated output](/concepts/runs/#truncated-output)) |
+| `tracon.quota.threshold` | Only with `Quotas:PublishThresholdToRunStream` turned on (off by default): the run crossed a [quota threshold](/concepts/governance/#quotas-and-rate-limits) |
+
+No other custom event reaches this stream; a tool's own `Custom` event stays on
+`/events`. A client that reads frames by name and ignores an unknown `customType`
+needs no change. If the run store cannot be read at that point, the stream still
+ends with `done`, without the notices, and the server logs a warning; the run's
+events keep them.
 
 `GET /api/runs/{runId}/events` is a **separate** SSE contract with its own, larger
 set of frame names (`run.started`, `tool.invoking`, ...) — see

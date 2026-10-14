@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182, 190
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182, 190, 208
 > **Kaynak:** `src/Tracon.AspNetCore/Security/` (tümü: `TraconEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `TraconPolicies`,
@@ -4989,3 +4989,57 @@ Regresyon. Ret CLR adıyla yazılıyor ve metniyle sınıflanıyordu: izinli lis
 - 2: `403`, metin `not allowed to call image provider '…'`.
 - 3: run `Failed`, `error.type` `tenant_provider_refused`, sınıf `TenantProviderRefused`; düğüm bir kez koştu.
 - 4: `403`; sağlayıcı çağrılmadı. 🚨 Eski kusur: çözücünün anahtar muhafızı düz hata attı, uç `500` döndü.
+
+### MT-SEC-219 — Denetim kaydı yazılamayan workflow cevabı uygulanmaz (Faz 208, F-319) · 👤
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-996 |
+| **Devir** | ➜ CI: `FailClosedAuditTests.A_streamed_workflow_answer_is_not_applied_when_its_audit_entry_cannot_be_written` · `A_queued_workflow_answer_is_not_queued_when_its_audit_entry_cannot_be_written` |
+
+Denetim deposunu düşürmek (DB izni) 👤 insan gerektirir.
+
+**Adımlar**
+1. Denetim deposunun yazımını kapat (ör. `audit_log` için yazma iznini kaldır).
+2. Bekleyen bir workflow isteğine akışlı, sonra kuyruklu cevap ver.
+
+**Beklenen sonuç**
+- İki cevap da `500`; yeni run satırı, cevap kaydı ve iş yok; `tracon.audit.write_failures` `refused` etiketiyle artar.
+
+### MT-SEC-220 — `workflow.respond` kaydı hash taşır, cevabı taşımaz (Faz 208, F-319)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-996, K-779 |
+| **Devir** | ➜ CI: `WorkflowResponseRecordTests.The_audit_entry_names_the_actor_the_runs_and_a_hash_and_never_the_answer` |
+
+**Adımlar**
+1. Herhangi bir workflow isteğine cevap ver.
+2. `GET $APU/api/audit?action=workflow.respond`.
+
+**Beklenen sonuç**
+- Kayıt aktörü, `sourceRunId`, `requestId`, `responseRunId`, `mode`, `redrive` ve 64 karakter `answerHash` taşır; `after` ham cevabı taşımaz. Eşzamanlı iki cevapta iki kayıt olabilir; ikisi de var olan bir run'ı adlandırır.
+
+### MT-SEC-221 — Başka kiracının run'ına cevap ve cevap listesi `404` (Faz 208, F-319)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-995 |
+| **Devir** | ➜ CI: `WorkflowResponseRecordTests.Another_tenant_can_neither_answer_a_run_nor_read_its_answers` |
+
+**Ön koşul** — İki kiracı (`FIX-TENANT-01`, `-02`); alfa'nın bekleyen bir workflow run'ı.
+
+**Adımlar**
+1. Beta, alfa'nın run'ına `respond` gönderir ve `…/responses` okur.
+
+**Beklenen sonuç**
+- İkisi de `404`; satır, denetim kaydı ve run yazılmaz.

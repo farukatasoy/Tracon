@@ -230,7 +230,10 @@ internal static class OpenAIChatCompletionsEndpoints
                     ObjectCompletion,
                     OpenAICompatSupport.UnixNow(),
                     agentName,
-                    [new ChatChoice(0, new ChatMessagePayload("assistant", response.Text), "stop")],
+                    [new ChatChoice(
+                        0,
+                        new ChatMessagePayload("assistant", response.Text),
+                        OpenAICompatSupport.ToChatFinishReason(response.FinishReason))],
                     ToUsage(response.Usage)),
                 OpenAICompatSupport.JsonOptions,
                 statusCode: StatusCodes.Status200OK);
@@ -427,11 +430,21 @@ internal static class OpenAIChatCompletionsEndpoints
                     cancellationToken);
                 List<string>? pending = null;
 
+                // The LAST reported reason is the answer's: the tool loop streams a tool
+                // turn's update with that turn's own reason before the next turn
+                // (phase 207.4; the same rule the run's detector applies).
+                ChatFinishReason? finishReason = null;
+
                 await foreach (var update in updates.ConfigureAwait(false))
                 {
                     if (ChildRunApproval.Describe(update.Contents) is { } names)
                     {
                         (pending ??= []).Add(names);
+                    }
+
+                    if (update.FinishReason is { } reported)
+                    {
+                        finishReason = reported;
                     }
 
                     if (update.Text is { Length: > 0 } text)
@@ -456,8 +469,12 @@ internal static class OpenAIChatCompletionsEndpoints
                     return;
                 }
 
-                await WriteChunkAsync(writer, new ChatDelta(null, null), "stop", created, cancellationToken)
-                    .ConfigureAwait(false);
+                await WriteChunkAsync(
+                    writer,
+                    new ChatDelta(null, null),
+                    OpenAICompatSupport.ToChatFinishReason(finishReason),
+                    created,
+                    cancellationToken).ConfigureAwait(false);
 
                 // The OpenAI stream ends with this fixed marker; SDKs expect it.
                 await writer.WriteRawAsync("data: [DONE]\n\n", cancellationToken).ConfigureAwait(false);

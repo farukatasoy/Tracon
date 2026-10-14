@@ -118,7 +118,28 @@ const EVENT_STYLE: Record<RunEventType, { label: string; tone: StatusTone }> = {
   // another turn.
   LoopIterationCompleted: { label: 'loop.iteration-completed', tone: 'neutral' },
   SessionWriteConflicted: { label: 'session.write-conflicted', tone: 'warn' },
+  // Phase 208. This run continues a workflow by answering one of its requests;
+  // the row links back to the run that waited (sourceRunId in the payload).
+  WorkflowResponseApplied: { label: 'workflow.response-applied', tone: 'info' },
 };
+
+/**
+ * The run a `WorkflowResponseApplied` event answers, read from its payload.
+ * Null for any other event, and for a payload that does not carry the id.
+ */
+function answeredSourceRunId(event: RunEvent): string | null {
+  if (event.type !== 'WorkflowResponseApplied' || event.payload == null) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(event.payload) as { sourceRunId?: unknown };
+
+    return typeof parsed.sourceRunId === 'string' ? parsed.sourceRunId : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * A single run: summary, folded transcript and the raw event timeline.
@@ -635,8 +656,10 @@ export function parseDuration(value: string): number {
 }
 
 function EventRow({ event }: { event: RunEvent }): ReactNode {
+  const t = useT();
   const style: { label: string; tone: StatusTone } =
     EVENT_STYLE[event.type] ?? { label: event.type, tone: 'neutral' };
+  const sourceRunId = answeredSourceRunId(event);
   // 141.2: a Custom event's own name IS its CustomType, not the generic
   // fallback label -- a consumer's contoso.preview-ready must read as
   // that, not as an unstyled "Custom" row.
@@ -659,6 +682,14 @@ function EventRow({ event }: { event: RunEvent }): ReactNode {
             {formatDateTime(new Date(event.timestamp), { timeStyle: 'medium' })}
           </span>
         </div>
+
+        {sourceRunId !== null && (
+          <div className="mt-1 text-sm">
+            <Link to={`runs/${encodeURIComponent(sourceRunId)}`} className="text-accent underline">
+              {t('runDetail.answersRequestOf', { id: shortId(sourceRunId, 12, 5) })}
+            </Link>
+          </div>
+        )}
 
         {body !== null && body.length > 0 && (
           <div className={cx('mt-1', event.type === 'MessageDelta' && 'text-sm')}>
