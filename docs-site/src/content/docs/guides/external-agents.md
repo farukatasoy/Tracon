@@ -140,7 +140,9 @@ startup. Create the key before enabling remote access.
 An exposed agent cannot contain an approval-required tool. The application waits
 until the catalog is queryable, checks the selected agents, and prevents MCP requests
 from running if an approval boundary would be crossed. An external protocol caller
-cannot act as the missing human.
+cannot act as the missing human. A tool that gains approval after the agent was exposed
+is refused at the call, and the run closes `Failed` with the error type
+`approval_unanswerable`: nobody can ever answer it, so it does not wait.
 
 ### Long-running calls as MCP tasks
 

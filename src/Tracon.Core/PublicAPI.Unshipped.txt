@@ -161,6 +161,8 @@ Tracon.OnlineEvaluationSummary.JudgeCost.get -> decimal?
 Tracon.OnlineEvaluationSummary.JudgeCost.init -> void
 Tracon.OnlineEvaluationSummary.JudgeCostCurrency.get -> string?
 Tracon.OnlineEvaluationSummary.JudgeCostCurrency.init -> void
+Tracon.OnlineEvaluationSummary.JudgeCostCurrencyCount.get -> int
+Tracon.OnlineEvaluationSummary.JudgeCostCurrencyCount.init -> void
 Tracon.OnlineEvaluationSummary.LowScoreThreshold.get -> int
 Tracon.OnlineEvaluationSummary.LowScoreThreshold.init -> void
 Tracon.OnlineEvaluationSummary.MinSampleSize.get -> int

@@ -458,6 +458,7 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_include_cos
 Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_leave_a_message_level_score_out_of_the_average() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Experiment_results_return_empty_for_an_experiment_with_no_traffic() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.List_returns_only_root_runs_by_default() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.No_cost_total_adds_amounts_in_two_currencies() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Nonexistent_run_cannot_be_completed() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Nonexistent_run_returns_empty_events() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Nonexistent_run_returns_null() -> System.Threading.Tasks.Task!

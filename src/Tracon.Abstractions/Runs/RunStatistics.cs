@@ -175,6 +175,16 @@ public sealed record RunStatistics
     /// <summary>The number of runs whose model is known but whose pricing is undefined.</summary>
     public long RunsWithUnknownPricing { get; init; }
 
+    /// <summary>The number of currencies the matched runs are priced in.</summary>
+    /// <remarks>
+    /// Amounts in two currencies are never added. Above one, <c>TotalCost</c> and
+    /// <c>Currency</c> are <see langword="null"/>, and so is the cost of every breakdown
+    /// (<see cref="ByModel"/>, <see cref="ByUser"/>, <see cref="ByLabel"/>): a breakdown
+    /// carries no currency of its own, so its sum could not say which one it is in.
+    /// Currencies are compared without regard to letter case.
+    /// </remarks>
+    public int CurrencyCount { get; init; }
+
     /// <summary>
     /// The error rate among settled runs (0–1). <see langword="null"/> if no
     /// run has settled.
@@ -252,7 +262,16 @@ public sealed record TimeSeriesPoint
     public long OutputTokens { get; init; }
 
     /// <summary>The total cost. <see langword="null"/> if no run was ever priced.</summary>
+    /// <remarks>Also <see langword="null"/> on every point when the series spans more than one currency (<see cref="CurrencyCount"/>).</remarks>
     public decimal? Cost { get; init; }
+
+    /// <summary>The number of currencies the priced runs of the WHOLE series are in.</summary>
+    /// <remarks>
+    /// A point carries no currency, so the series is judged as one: above one, no point
+    /// carries a <c>Cost</c>, since a chart would draw amounts in two currencies on one
+    /// line. The value is the same on every point.
+    /// </remarks>
+    public int CurrencyCount { get; init; }
 
     /// <summary>The average duration of settled runs (milliseconds).</summary>
     public double? AverageDurationMs { get; init; }

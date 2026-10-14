@@ -17,6 +17,10 @@ namespace Tracon;
 /// <para>
 /// The queued agent run applies the same rule in <c>AgentRunJobHandler</c>. A
 /// batch item and an eval case run without a session too, and both use this.
+/// So do the surfaces whose caller cannot send an approval back: the
+/// Chat Completions endpoint, which carries no session, and an agent exposed over
+/// MCP or A2A, which never answers one. Each still tells its own caller
+/// in its own wire shape; this closes the run.
 /// </para>
 /// </remarks>
 internal static class SessionlessApprovalRun
@@ -25,6 +29,17 @@ internal static class SessionlessApprovalRun
     public const string Message =
         "The run requested a tool approval, but it has no session; approval is the input to the next turn " +
         "and cannot be resolved without one.";
+
+    /// <summary>The reason a run started by an external caller (MCP, A2A) carries.</summary>
+    public const string ExternalMessage =
+        "The run requested a tool approval, but an externally-invoked agent cannot respond to an approval request.";
+
+    /// <summary>The error type of a run closed because nobody can answer its approval.</summary>
+    /// <remarks>
+    /// The MCP task store reads it: a poller sees such a run as the approval refusal, the same
+    /// shape the tool call itself returned, not as a failure.
+    /// </remarks>
+    public const string ErrorType = "approval_unanswerable";
 
     /// <summary>Says whether a response stopped at a tool approval.</summary>
     /// <param name="messages">The response's messages.</param>
@@ -39,10 +54,11 @@ internal static class SessionlessApprovalRun
     /// <param name="completedAt">When the run is closed.</param>
     /// <param name="logger">Logs a store that cannot close the row.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="message">The reason the run carries; <see cref="Message"/> when <see langword="null"/>.</param>
     /// <returns>A task that completes when the row is written or the failure is logged.</returns>
     /// <remarks>
-    /// A store error is logged and swallowed: the item or the case is still reported
-    /// as failed, and observability does not break the job.
+    /// A store error is logged and swallowed: the item, the case or the caller is still
+    /// told the run failed, and observability does not break the work.
     /// </remarks>
     public static async ValueTask CloseAsFailedAsync(
         IRunStore? runStore,
@@ -50,7 +66,8 @@ internal static class SessionlessApprovalRun
         string tenantId,
         DateTimeOffset completedAt,
         ILogger? logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? message = null)
     {
         if (runStore is null)
         {
@@ -65,7 +82,7 @@ internal static class SessionlessApprovalRun
                     RunId = runId,
                     Status = RunStatus.Failed,
                     CompletedAt = completedAt,
-                    Error = new RunError { Type = nameof(TraconException), Message = Message },
+                    Error = new RunError { Type = ErrorType, Message = message ?? Message },
                     TenantId = tenantId,
                 },
                 cancellationToken).ConfigureAwait(false);

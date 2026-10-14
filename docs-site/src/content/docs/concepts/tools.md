@@ -318,6 +318,15 @@ A skill can also be registered in code with `AddSkill`. The code skill wins its 
 as a code-defined agent does: the console opens it read only, and the API refuses to
 save a stored skill under that name (`409`), because such a copy would never run.
 
+A skill can also live on disk, as a `SKILL.md` directory under a skill root
+(`UseSkillScripts`, `SkillRoots`). An agent names it like any other skill. A name is
+looked up in code first, then in the tenant's store, then under the skill roots, so a
+disk skill is installation-wide like a code skill: whoever deploys the application
+writes it, and every tenant may name it; a tenant's stored skill under the same name
+shadows it for that tenant. An edit to its `SKILL.md`, or a script or resource added
+or removed, reaches the next run of an agent that names it. The console's skill list
+shows stored skills only, so name a disk skill through the API.
+
 An agent lists skills by name. Deleting a skill an agent still names is a real break:
 compiling that agent then fails with "the skill was not found" until the reference is
 removed or the skill is recreated. Check which agents use a skill before deleting it.

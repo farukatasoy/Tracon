@@ -232,6 +232,12 @@ internal sealed partial class InMemoryRunStore
         string? costCurrency = null;
         long unknownPricing = 0;
 
+        // F-419: amounts in two currencies are never added. Only a run that carries an
+        // amount counts, and letter case is not a second currency; the SQL stores count
+        // the same way (CurrencyTotals).
+        var costCurrencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? pricedCurrency = null;
+
         void AccumulateCost(RunCost? cost)
         {
             if (cost is null)
@@ -241,6 +247,12 @@ internal sealed partial class InMemoryRunStore
 
             sawCost = true;
             costCurrency ??= cost.Currency;
+
+            if (cost.Currency is { } currency && cost.Total() is not null)
+            {
+                costCurrencies.Add(currency);
+                pricedCurrency ??= currency;
+            }
 
             if (cost.Source == PricingSource.Unknown)
             {
@@ -275,6 +287,8 @@ internal sealed partial class InMemoryRunStore
         string? nonTokenCurrency = null;
         var nonTokenEstimated = false;
         var nonTokenUnsummed = 0;
+        var nonTokenCurrencies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? reportedCurrency = null;
 
         void AccumulateNonToken(RunNonTokenCost? nonToken)
         {
@@ -285,6 +299,12 @@ internal sealed partial class InMemoryRunStore
 
             sawNonToken = true;
             nonTokenCurrency ??= nonToken.Currency;
+
+            if (nonToken.Currency is { } currency && nonToken.Amount is not null)
+            {
+                nonTokenCurrencies.Add(currency);
+                reportedCurrency ??= currency;
+            }
             nonTokenEstimated |= nonToken.IsEstimated;
             nonTokenUnsummed += nonToken.UnsummedItemCount;
 
@@ -334,23 +354,21 @@ internal sealed partial class InMemoryRunStore
                 }
                 : null,
             TreeCost = sawCost
-                ? new RunTreeCost
-                {
-                    InputCost = inputCost,
-                    OutputCost = outputCost,
-                    CachedInputCost = cachedInputCost,
-                    Currency = costCurrency,
-                    RunsWithUnknownPricing = unknownPricing,
-                }
+                ? CurrencyTotals.Tree(
+                    inputCost,
+                    outputCost,
+                    cachedInputCost,
+                    pricedCurrency ?? costCurrency,
+                    costCurrencies.Count,
+                    unknownPricing)
                 : null,
             TreeNonTokenCost = sawNonToken
-                ? new RunNonTokenCost
-                {
-                    Amount = nonTokenAmount,
-                    Currency = nonTokenCurrency,
-                    IsEstimated = nonTokenEstimated,
-                    UnsummedItemCount = nonTokenUnsummed,
-                }
+                ? CurrencyTotals.NonToken(
+                    nonTokenAmount,
+                    reportedCurrency ?? nonTokenCurrency,
+                    nonTokenCurrencies.Count,
+                    nonTokenEstimated,
+                    nonTokenUnsummed)
                 : null,
         };
     }

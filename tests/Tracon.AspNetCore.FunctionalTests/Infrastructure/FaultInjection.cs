@@ -37,6 +37,30 @@ internal static class FaultInjection
         return services;
     }
 
+    /// <summary>
+    /// Replaces the last registration of <typeparamref name="TService"/> with one whose
+    /// <paramref name="memberName"/> runs the real call and THEN throws, the first
+    /// <paramref name="times"/> calls: a write the store committed but reported as failed
+    /// (a timeout after the commit).
+    /// </summary>
+    /// <remarks>Only members that return <see cref="ValueTask"/> or <see cref="Task"/>.</remarks>
+    public static IServiceCollection ThrowAfter<TService>(
+        this IServiceCollection services,
+        string memberName,
+        Func<Exception> fault,
+        int times = int.MaxValue)
+        where TService : class
+    {
+        var descriptor = services.Last(candidate => candidate.ServiceType == typeof(TService));
+
+        services.Add(ServiceDescriptor.Describe(
+            typeof(TService),
+            provider => FaultInjectingProxy<TService>.Wrap(Resolve<TService>(provider, descriptor), memberName, fault, times, afterInner: true),
+            descriptor.Lifetime));
+
+        return services;
+    }
+
     private static TService Resolve<TService>(IServiceProvider provider, ServiceDescriptor descriptor)
         where TService : class
         => (TService)(descriptor.ImplementationInstance
@@ -55,8 +79,9 @@ internal class FaultInjectingProxy<TService> : DispatchProxy
     private string _memberName = null!;
     private Func<Exception> _fault = null!;
     private int _remaining;
+    private bool _afterInner;
 
-    public static TService Wrap(TService inner, string memberName, Func<Exception> fault, int times)
+    public static TService Wrap(TService inner, string memberName, Func<Exception> fault, int times, bool afterInner = false)
     {
         var proxy = Create<TService, FaultInjectingProxy<TService>>();
         var self = (FaultInjectingProxy<TService>)(object)proxy;
@@ -65,6 +90,7 @@ internal class FaultInjectingProxy<TService> : DispatchProxy
         self._memberName = memberName;
         self._fault = fault;
         self._remaining = times;
+        self._afterInner = afterInner;
 
         return proxy;
     }
@@ -76,7 +102,20 @@ internal class FaultInjectingProxy<TService> : DispatchProxy
         if (string.Equals(targetMethod.Name, _memberName, StringComparison.Ordinal)
             && Interlocked.Decrement(ref _remaining) >= 0)
         {
-            throw _fault();
+            if (!_afterInner)
+            {
+                throw _fault();
+            }
+
+            var committed = targetMethod.Invoke(_inner, args) switch
+            {
+                ValueTask valueTask => ThrowAfterAsync(valueTask.AsTask()),
+                Task task => ThrowAfterAsync(task),
+                _ => throw new NotSupportedException($"'{_memberName}' returns no task; ThrowAfter cannot wrap it."),
+            };
+
+            // A proxy returns object: the caller's ValueTask is the boxed wrapper of this task.
+            return targetMethod.ReturnType == typeof(ValueTask) ? new ValueTask(committed) : committed;
         }
 
         try
@@ -88,5 +127,12 @@ internal class FaultInjectingProxy<TService> : DispatchProxy
             ExceptionDispatchInfo.Capture(inner).Throw();
             throw;
         }
+    }
+
+    private async Task ThrowAfterAsync(Task inner)
+    {
+        await inner.ConfigureAwait(false);
+
+        throw _fault();
     }
 }

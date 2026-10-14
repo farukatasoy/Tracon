@@ -27,6 +27,13 @@ namespace Tracon;
 /// behaviour does not change at all.
 /// </para>
 /// <para>
+/// <strong>A response that waits for the caller is not judged.</strong> A
+/// turn that stops at a tool approval or at a client-side tool call has no answer
+/// yet: the answer comes in the turn that carries the decision or the tool result,
+/// and that turn is judged. Before, such a turn was rejected as empty and the run
+/// failed before it could wait.
+/// </para>
+/// <para>
 /// <strong>Well-formedness first.</strong> Before <see cref="IStructuredResponseValidator"/>
 /// is ever called, the response must be non-empty and parse as JSON. Tracon
 /// checks this itself — <c>System.Text.Json</c> is already a dependency, no
@@ -179,6 +186,11 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
 
         for (var attempt = 1; ; attempt++)
         {
+            if (WaitsForCaller(response.Messages))
+            {
+                return response;
+            }
+
             var answer = FinalAnswerText(response.Messages);
             var reason = await ValidationReasonAsync(format, answer, cancellationToken).ConfigureAwait(false);
 
@@ -326,7 +338,14 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         // Repair never runs here (see the class remarks): a rejection is
         // always the FIRST and ONLY attempt on the streaming path, regardless
         // of MaxRepairAttempts.
-        var text = FinalAnswerText(AgentResponseExtensions.ToAgentResponse(updates).Messages);
+        var streamed = AgentResponseExtensions.ToAgentResponse(updates).Messages;
+
+        if (WaitsForCaller(streamed))
+        {
+            yield break;
+        }
+
+        var text = FinalAnswerText(streamed);
         var reason = await ValidationReasonAsync(format, text, cancellationToken).ConfigureAwait(false);
 
         if (reason is null)
@@ -337,6 +356,45 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         await RejectedAsync(format, reason, attempt: 1, maxAttempts: 1, repairSuppressed: false, cancellationToken).ConfigureAwait(false);
 
         throw new TraconStructuredResponseException(reason);
+    }
+
+    /// <summary>
+    /// Whether the response stops to wait for the caller: a tool approval request, or a
+    /// client-side tool call the response carries no result for.
+    /// </summary>
+    /// <param name="messages">The response's messages.</param>
+    /// <returns><see langword="true"/> when the response is a pause, not an answer.</returns>
+    /// <remarks>
+    /// A server tool's call always comes with its result: on its last tool round
+    /// Microsoft.Extensions.AI's function-invoking client takes every function tool
+    /// away from the model (10.9.0, read from the decompiled client), so a call with no
+    /// result is a client-side tool's.
+    /// </remarks>
+    internal static bool WaitsForCaller(IList<ChatMessage> messages)
+    {
+        HashSet<string>? answered = null;
+        List<string>? called = null;
+
+        foreach (var message in messages)
+        {
+            foreach (var content in message.Contents)
+            {
+                switch (content)
+                {
+                    case ToolApprovalRequestContent:
+                        return true;
+                    case FunctionResultContent result:
+                        (answered ??= new HashSet<string>(StringComparer.Ordinal)).Add(result.CallId);
+                        break;
+                    // A call the provider handled itself is informational: it waits for nobody.
+                    case FunctionCallContent { InformationalOnly: false } call:
+                        (called ??= []).Add(call.CallId);
+                        break;
+                }
+            }
+        }
+
+        return called is not null && called.Exists(callId => answered is null || !answered.Contains(callId));
     }
 
     /// <summary>

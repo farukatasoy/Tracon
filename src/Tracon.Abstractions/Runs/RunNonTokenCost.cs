@@ -60,4 +60,16 @@ public sealed record RunNonTokenCost
     /// visible instead of reading as a smaller bill.
     /// </remarks>
     public int UnsummedItemCount { get; init; }
+
+    /// <summary>
+    /// Gets how many currencies the added amounts are in: 0 or 1 for one run, which
+    /// adds in one currency.
+    /// </summary>
+    /// <remarks>
+    /// A tree total (<see cref="RunRecord.TreeNonTokenCost"/>) adds the runs' totals, and
+    /// the runs can be in different currencies. Amounts in two currencies are never
+    /// added: above one, <c>Amount</c> and <c>Currency</c> are <see langword="null"/>, and
+    /// each run keeps its own total. Currencies are compared without regard to letter case.
+    /// </remarks>
+    public int CurrencyCount { get; init; }
 }

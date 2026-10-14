@@ -467,6 +467,11 @@ internal sealed class SqlRunStore : IRunStore
                 var audioInputTokens = reader.GetInt64(16);
                 var audioOutputTokens = reader.GetInt64(17);
 
+                // 18 (F-419): amounts in two currencies are never added, and a breakdown
+                // carries no currency of its own, so a mixed window leaves every cost out.
+                var currencies = ToCount(reader, 18);
+                var mixed = CurrencyTotals.IsMixed(currencies);
+
                 // Second result set: the breakdown by agent.
                 var byAgent = new List<RunAgentStatistics>();
 
@@ -500,7 +505,7 @@ internal sealed class SqlRunStore : IRunStore
                             InputTokens = reader.GetInt64(2),
                             OutputTokens = reader.GetInt64(3),
                             TotalTokens = reader.GetInt64(4),
-                            TotalCost = DbHelpers.GetNullableDecimal(reader, 5),
+                            TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 5),
                         });
                     }
                 }
@@ -578,7 +583,7 @@ internal sealed class SqlRunStore : IRunStore
                             TotalRuns = reader.GetInt64(1),
                             FailedRuns = reader.GetInt64(2),
                             TotalTokens = reader.GetInt64(3),
-                            TotalCost = DbHelpers.GetNullableDecimal(reader, 4),
+                            TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 4),
                         });
                     }
                 }
@@ -599,7 +604,7 @@ internal sealed class SqlRunStore : IRunStore
                             TotalRuns = reader.GetInt64(2),
                             FailedRuns = reader.GetInt64(3),
                             TotalTokens = reader.GetInt64(4),
-                            TotalCost = DbHelpers.GetNullableDecimal(reader, 5),
+                            TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 5),
                         });
                     }
                 }
@@ -630,8 +635,9 @@ internal sealed class SqlRunStore : IRunStore
                     ReasoningTokens = reasoningTokens,
                     AudioInputTokens = audioInputTokens,
                     AudioOutputTokens = audioOutputTokens,
-                    TotalCost = totalCost,
-                    Currency = currency,
+                    TotalCost = mixed ? null : totalCost,
+                    Currency = mixed ? null : currency,
+                    CurrencyCount = currencies,
                     RunsWithUnknownPricing = runsWithUnknownPricing,
                     ScoredRuns = scoredRuns,
                     PositiveRate = positiveRate,
@@ -1199,14 +1205,18 @@ internal sealed class SqlRunStore : IRunStore
             cachedInputCost = (cachedInputCost ?? 0) + ownCached;
         }
 
-        return new RunTreeCost
-        {
-            InputCost = inputCost,
-            OutputCost = outputCost,
-            CachedInputCost = cachedInputCost,
-            Currency = DbHelpers.GetNullableString(reader, RunOrdinals.TreeCostCurrency) ?? ownCost?.Currency,
-            RunsWithUnknownPricing = unknownPricing,
-        };
+        // F-419: the query counts the descendants' currencies the own row does not carry,
+        // so the own one, when it carries an amount, adds exactly one.
+        var currencies = ToCount(reader, RunOrdinals.TreeCostCurrencies)
+            + (ownCost is { Currency: not null } && ownCost.Total() is not null ? 1 : 0);
+
+        return CurrencyTotals.Tree(
+            inputCost,
+            outputCost,
+            cachedInputCost,
+            DbHelpers.GetNullableString(reader, RunOrdinals.TreeCostCurrency) ?? ownCost?.Currency,
+            currencies,
+            unknownPricing);
     }
 
     /// <summary>Reads the run's own reported non-token total.</summary>
@@ -1222,10 +1232,14 @@ internal sealed class SqlRunStore : IRunStore
             return null;
         }
 
+        var amount = DbHelpers.GetNullableDecimal(reader, RunOrdinals.NonTokenCost);
+        var currency = DbHelpers.GetNullableString(reader, RunOrdinals.NonTokenCurrency);
+
         return new RunNonTokenCost
         {
-            Amount = DbHelpers.GetNullableDecimal(reader, RunOrdinals.NonTokenCost),
-            Currency = DbHelpers.GetNullableString(reader, RunOrdinals.NonTokenCurrency),
+            Amount = amount,
+            Currency = currency,
+            CurrencyCount = amount is null ? 0 : CurrencyTotals.Of(currency),
             IsEstimated = !reader.IsDBNull(RunOrdinals.NonTokenEstimated) &&
                           DbHelpers.ToBoolean(reader.GetValue(RunOrdinals.NonTokenEstimated)),
             UnsummedItemCount = ToCount(reader, RunOrdinals.NonTokenUnsummed),
@@ -1257,15 +1271,14 @@ internal sealed class SqlRunStore : IRunStore
         var unsummed = (anyDescendantReported ? ToCount(reader, RunOrdinals.TreeNonTokenUnsummed) : 0)
             + (ownNonTokenCost?.UnsummedItemCount ?? 0);
 
-        return new RunNonTokenCost
-        {
-            Amount = amount,
-            Currency = DbHelpers.GetNullableString(reader, RunOrdinals.TreeNonTokenCurrency) ?? ownNonTokenCost?.Currency,
-            IsEstimated = ownNonTokenCost?.IsEstimated == true
-                          || (!reader.IsDBNull(RunOrdinals.TreeNonTokenEstimatedRows)
-                              && ToCount(reader, RunOrdinals.TreeNonTokenEstimatedRows) > 0),
-            UnsummedItemCount = unsummed,
-        };
+        return CurrencyTotals.NonToken(
+            amount,
+            DbHelpers.GetNullableString(reader, RunOrdinals.TreeNonTokenCurrency) ?? ownNonTokenCost?.Currency,
+            ToCount(reader, RunOrdinals.TreeNonTokenCurrencies) + (ownNonTokenCost?.CurrencyCount ?? 0),
+            ownNonTokenCost?.IsEstimated == true
+                || (!reader.IsDBNull(RunOrdinals.TreeNonTokenEstimatedRows)
+                    && ToCount(reader, RunOrdinals.TreeNonTokenEstimatedRows) > 0),
+            unsummed);
     }
 
     /// <summary>Reads an integer count whatever width the provider returned it in.</summary>
@@ -1361,19 +1374,30 @@ internal sealed class SqlRunStore : IRunStore
         };
 
     private static TimeSeriesPoint ReadTimeSeriesPoint(DbDataReader reader)
-        => new()
+    {
+        // F-419: the series' currency count is the same on every row (CurrencyTotals).
+        var currencies = ToCount(reader, 7);
+
+        return new TimeSeriesPoint
         {
             Bucket = DbHelpers.GetTimestamp(reader, 0),
             Runs = reader.GetInt64(1),
             FailedRuns = reader.GetInt64(2),
             InputTokens = reader.GetInt64(3),
             OutputTokens = reader.GetInt64(4),
-            Cost = DbHelpers.GetNullableDecimal(reader, 5),
+            Cost = CurrencyTotals.IsMixed(currencies) ? null : DbHelpers.GetNullableDecimal(reader, 5),
+            CurrencyCount = currencies,
             AverageDurationMs = reader.IsDBNull(6) ? null : reader.GetDouble(6),
         };
+    }
 
     private static ExperimentVariantResult ReadExperimentVariantResult(DbDataReader reader)
-        => new()
+    {
+        // F-419: amounts in two currencies are never added (CurrencyTotals).
+        var currencies = ToCount(reader, 13);
+        var mixed = CurrencyTotals.IsMixed(currencies);
+
+        return new ExperimentVariantResult
         {
             Variant = reader.GetString(0),
             Version = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
@@ -1385,10 +1409,12 @@ internal sealed class SqlRunStore : IRunStore
             OutputTokens = reader.GetInt64(7),
             TotalTokens = reader.GetInt64(8),
             AverageDurationMs = reader.IsDBNull(9) ? null : reader.GetDouble(9),
-            TotalCost = DbHelpers.GetNullableDecimal(reader, 10),
-            Currency = DbHelpers.GetNullableString(reader, 11),
+            TotalCost = mixed ? null : DbHelpers.GetNullableDecimal(reader, 10),
+            Currency = mixed ? null : DbHelpers.GetNullableString(reader, 11),
+            CurrencyCount = currencies,
             AverageScore = reader.IsDBNull(12) ? null : reader.GetDouble(12),
         };
+    }
 
     /// <summary>
     /// Binds the label filter parameters.

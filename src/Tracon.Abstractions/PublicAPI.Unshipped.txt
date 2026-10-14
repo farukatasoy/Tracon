@@ -897,6 +897,8 @@ Tracon.ExperimentVariantResult.CompletedRuns.get -> long
 Tracon.ExperimentVariantResult.CompletedRuns.init -> void
 Tracon.ExperimentVariantResult.Currency.get -> string?
 Tracon.ExperimentVariantResult.Currency.init -> void
+Tracon.ExperimentVariantResult.CurrencyCount.get -> int
+Tracon.ExperimentVariantResult.CurrencyCount.init -> void
 Tracon.ExperimentVariantResult.Equals(Tracon.ExperimentVariantResult? other) -> bool
 Tracon.ExperimentVariantResult.ErrorRate.get -> double?
 Tracon.ExperimentVariantResult.ExperimentVariantResult() -> void
@@ -2959,6 +2961,8 @@ Tracon.RunStatistics.RunningRuns.get -> long
 Tracon.RunStatistics.RunningRuns.init -> void
 Tracon.RunStatistics.RunsWithUnknownPricing.get -> long
 Tracon.RunStatistics.RunsWithUnknownPricing.init -> void
+Tracon.RunStatistics.CurrencyCount.get -> int
+Tracon.RunStatistics.CurrencyCount.init -> void
 Tracon.RunStatistics.ScoredRuns.get -> long
 Tracon.RunStatistics.ScoredRuns.init -> void
 Tracon.RunStatistics.TotalCost.get -> decimal?
@@ -3044,6 +3048,8 @@ Tracon.RunTreeCost.OutputCost.init -> void
 Tracon.RunTreeCost.RunTreeCost() -> void
 Tracon.RunTreeCost.RunsWithUnknownPricing.get -> long
 Tracon.RunTreeCost.RunsWithUnknownPricing.init -> void
+Tracon.RunTreeCost.CurrencyCount.get -> int
+Tracon.RunTreeCost.CurrencyCount.init -> void
 Tracon.RunTreeCost.Total() -> decimal?
 Tracon.RunUsage
 Tracon.RunUsage.<Clone>$() -> Tracon.RunUsage!
@@ -3538,6 +3544,8 @@ Tracon.TimeSeriesPoint.Bucket.get -> System.DateTimeOffset
 Tracon.TimeSeriesPoint.Bucket.init -> void
 Tracon.TimeSeriesPoint.Cost.get -> decimal?
 Tracon.TimeSeriesPoint.Cost.init -> void
+Tracon.TimeSeriesPoint.CurrencyCount.get -> int
+Tracon.TimeSeriesPoint.CurrencyCount.init -> void
 Tracon.TimeSeriesPoint.Equals(Tracon.TimeSeriesPoint? other) -> bool
 Tracon.TimeSeriesPoint.FailedRuns.get -> long
 Tracon.TimeSeriesPoint.FailedRuns.init -> void
@@ -6021,6 +6029,8 @@ Tracon.RunNonTokenCost.IsEstimated.init -> void
 Tracon.RunNonTokenCost.RunNonTokenCost() -> void
 Tracon.RunNonTokenCost.UnsummedItemCount.get -> int
 Tracon.RunNonTokenCost.UnsummedItemCount.init -> void
+Tracon.RunNonTokenCost.CurrencyCount.get -> int
+Tracon.RunNonTokenCost.CurrencyCount.init -> void
 Tracon.RunRecord.NonTokenCost.get -> Tracon.RunNonTokenCost?
 Tracon.RunRecord.NonTokenCost.init -> void
 Tracon.RunRecord.TreeNonTokenCost.get -> Tracon.RunNonTokenCost?

@@ -46,6 +46,14 @@ public sealed record ExperimentVariantResult
     /// <summary>Gets the currency. It is populated when <c>TotalCost</c> is populated.</summary>
     public string? Currency { get; init; }
 
+    /// <summary>Gets the number of currencies this variant's runs are priced in.</summary>
+    /// <remarks>
+    /// Amounts in two currencies are never added: above one, <c>TotalCost</c> and
+    /// <c>Currency</c> are <see langword="null"/>. Currencies are compared without regard
+    /// to letter case.
+    /// </remarks>
+    public int CurrencyCount { get; init; }
+
     /// <summary>
     /// Gets the average duration of settled runs in milliseconds. Returns
     /// <see langword="null"/> when no run is settled.

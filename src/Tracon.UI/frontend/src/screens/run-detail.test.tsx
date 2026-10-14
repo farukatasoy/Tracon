@@ -268,6 +268,28 @@ describe('RunDetailScreen non-token usage', () => {
     expect(tree.textContent).toContain('1.25 USD');
   });
 
+  it('says the tree is in mixed currencies instead of showing a sum across them', async () => {
+    // F-419: the server leaves a tree in two currencies without an amount; "unpriced"
+    // would say nothing could be priced, which is not what happened.
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', {
+        ...closedWorkflow,
+        childRunCount: 1,
+        nonTokenCost: { amount: 1, currency: 'USD', currencyCount: 1, isEstimated: false, unsummedItemCount: 0 },
+        treeNonTokenCost: { amount: null, currency: null, currencyCount: 2, isEstimated: false, unsummedItemCount: 0 },
+      }),
+      ...settled,
+      fixture('GET', 'api/runs/:runId/usage', [speech]),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    const tree = await screen.findByTestId('usage-tree-total');
+
+    expect(tree.textContent).toContain('mixed currencies');
+    expect(tree.textContent).not.toContain('unpriced');
+  });
+
   it('draws no panel for a run that reported nothing', async () => {
     restoreFetch = installApiMock([
       fixture('GET', 'api/runs/:runId', {

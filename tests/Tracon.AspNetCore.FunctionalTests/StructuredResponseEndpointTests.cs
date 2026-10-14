@@ -198,6 +198,90 @@ public sealed class StructuredResponseEndpointTests
         (await EventTypesAsync(host, run.Id)).ShouldContain("StructuredResponseRejected");
     }
 
+    /// <summary>
+    /// F-350: a response that stops at a tool approval carries no assistant text yet.
+    /// The validator must not read it as an empty structured answer and fail the run
+    /// before it can wait for the approval.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_response_that_stops_at_an_approval_waits_for_it_instead_of_failing_validation(bool streaming)
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder
+                .AddTool(
+                    (Func<string, string>)(orderId => $"{{\"canceled\":\"{orderId}\"}}"),
+                    name: "cancel_order",
+                    description: "Cancels an order.",
+                    configure: static options => options.RequiresApproval = true)
+                .AddModelProvider(new FakeModelProvider("structured")
+                    .CallsTool("cancel_order", new { orderId = "7" })
+                    .EchoesLastToolResult())
+                .AddAgent(JsonSchemaAgent() with { ToolNames = ["cancel_order"] }),
+            configureServices: static services => services.Configure<TraconStructuredResponseOptions>(static options => options.Enabled = true));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, Run)
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "cancel order 7", SessionId = "structured-session" }),
+        };
+
+        if (!streaming)
+        {
+            request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+        }
+
+        using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldBe(RunStatus.AwaitingApproval, run.Error?.Message);
+        (await EventTypesAsync(host, run.Id)).ShouldNotContain("StructuredResponseRejected");
+    }
+
+    /// <summary>
+    /// The same class as the approval (F-350 scan): a response that stops at a
+    /// client-side tool call waits for the caller's tool result and has no text yet.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_response_that_stops_at_a_client_tool_call_is_returned_instead_of_failing_validation(bool streaming)
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder
+                .AddClientTool(
+                    "read_page_title",
+                    "Reads the current browser page title.",
+                    System.Text.Json.JsonDocument.Parse("{\"type\":\"object\",\"properties\":{}}").RootElement)
+                .AddModelProvider(new FakeModelProvider("structured")
+                    .CallsTool("read_page_title")
+                    .EchoesLastToolResult())
+                .AddAgent(JsonSchemaAgent() with { ToolNames = ["read_page_title"] }),
+            configureServices: static services => services.Configure<TraconStructuredResponseOptions>(static options => options.Enabled = true));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, Run)
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "what is the page title?", SessionId = "client-tool-session" }),
+        };
+
+        if (!streaming)
+        {
+            request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+        }
+
+        using var response = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+        var run = await SingleRunAsync(host);
+
+        run.Status.ShouldNotBe(RunStatus.Failed, run.Error?.Message);
+        (await EventTypesAsync(host, run.Id)).ShouldNotContain("StructuredResponseRejected");
+    }
+
     private static Task<TraconTestHost> StartAsync(
         string modelResponse, bool enabled = true, Action<IServiceCollection>? configureServices = null)
         => TraconTestHost.StartAsync(

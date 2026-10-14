@@ -285,17 +285,21 @@ public sealed class WorkflowRecoveryTests
     /// the job to its lease; the next worker continues it. Two hosts share one SQLite
     /// database, the way a deploy replaces a process.
     /// </summary>
-    [Fact]
-    public async Task A_run_stopped_by_a_graceful_shutdown_is_continued_by_the_next_worker()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_run_stopped_by_a_graceful_shutdown_is_continued_by_the_next_worker(bool keepCheckpointsAfterCompletion)
     {
-        using var database = new TempSqliteDatabase("workflow-graceful-resume");
+        // F-433: with KeepCheckpointsAfterCompletion off, the stopped run's close deleted
+        // the session's checkpoints, and the continuation ran the first step again.
+        using var database = new TempSqliteDatabase($"workflow-graceful-resume-{keepCheckpointsAfterCompletion}");
         var probe = new RecoveryProbe();
         await using var lifetime = probe;
 
         Guid headId;
         Guid jobId;
 
-        await using (var first = await StartOnDatabaseAsync(probe, database))
+        await using (var first = await StartOnDatabaseAsync(probe, database, keepCheckpointsAfterCompletion))
         {
             await SaveRecoverableAsync(first);
 
@@ -312,7 +316,7 @@ public sealed class WorkflowRecoveryTests
                 "the first super-step's checkpoint");
         }
 
-        await using var second = await StartOnDatabaseAsync(probe, database);
+        await using var second = await StartOnDatabaseAsync(probe, database, keepCheckpointsAfterCompletion);
 
         var stopped = await second.Services.GetRequiredService<IRunStore>().GetRunAsync(headId);
         stopped.ShouldNotBeNull().Status.ShouldBe(RunStatus.Canceled, "a graceful shutdown closes the run it stops");
@@ -324,8 +328,14 @@ public sealed class WorkflowRecoveryTests
         var continuation = (await WorkflowRunsAsync(second)).Single(run => run.ContinuedFromRunId == headId);
         continuation.Status.ShouldBe(RunStatus.Completed, continuation.Error?.Message);
 
-        probe.FirstCalls.ShouldBe(1);
+        probe.FirstCalls.ShouldBe(1, "the finished first step must not run again");
         probe.SecondCalls.ShouldBe(2);
+
+        // The continuation finished the work, so the setting applies again: nothing is kept.
+        var checkpoints = await second.Services.GetRequiredService<IWorkflowCheckpointStore>()
+            .ListByRunAsync(TenantOf(second), headId);
+
+        (checkpoints.Count == 0).ShouldBe(!keepCheckpointsAfterCompletion);
     }
 
     /// <summary>
@@ -394,12 +404,17 @@ public sealed class WorkflowRecoveryTests
             MaxAttempts = maxAttempts,
         })).Id;
 
-    private static Task<TraconTestHost> StartOnDatabaseAsync(RecoveryProbe probe, TempSqliteDatabase database)
+    private static Task<TraconTestHost> StartOnDatabaseAsync(
+        RecoveryProbe probe,
+        TempSqliteDatabase database,
+        bool keepCheckpointsAfterCompletion = true)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
                 builder.UseSqlite(database.ConnectionString);
                 Register(builder, probe, resumeInterruptedRuns: true, maxResumeAttempts: 1);
+                builder.Services.Configure<TraconWorkflowOptions>(
+                    options => options.KeepCheckpointsAfterCompletion = keepCheckpointsAfterCompletion);
             },
             configureServices: static services => services.Configure<TraconSchedulingOptions>(static options =>
             {

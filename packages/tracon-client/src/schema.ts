@@ -167,7 +167,7 @@ export interface paths {
         put?: never;
         /**
          * Runs an agent for trial purposes and streams the response via SSE.
-         * @description If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required').
+         * @description If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota.When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'.
          */
         post: operations["TraconRunAgent"];
         delete?: never;
@@ -2703,7 +2703,7 @@ export interface paths {
         put?: never;
         /**
          * Run endpoint compatible with the OpenAI Chat Completions API.
-         * @description Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path.
+         * @description Stateless: the client carries history. The agent is selected from the 'model' field; if not found, 'metadata.entity_id' is tried. If a registered IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the streaming and the non-streaming path. A tool that needs approval ends the request: this endpoint carries no session, so the approval can never be answered. The run closes as Failed and the answer is 409 with the error type 'approval_required', or, on a stream, an error frame of that type and no [DONE].
          */
         post: operations["TraconOpenAIChatCompletions"];
         delete?: never;
@@ -4414,6 +4414,11 @@ export interface components {
             /** @description Gets the currency. It is populated when `TotalCost` is populated. */
             currency?: null | string;
             /**
+             * Format: int32
+             * @description Gets the number of currencies this variant's runs are priced in.
+             */
+            currencyCount?: number | string;
+            /**
              * Format: double
              * @description Gets the average duration of settled runs in milliseconds. Returns
              *     `null` when no run is settled.
@@ -5493,6 +5498,11 @@ export interface components {
             judgeCost?: null | number | string;
             /** @description Gets the judge-cost currency. */
             judgeCostCurrency?: null | string;
+            /**
+             * Format: int32
+             * @description Gets the number of currencies the window's judge runs are priced in.
+             */
+            judgeCostCurrencyCount?: number | string;
         };
         OpenAIErrorBody: {
             message: string;
@@ -6190,6 +6200,12 @@ export interface components {
              *     amount, and items in another currency than `Currency`.
              */
             unsummedItemCount?: number | string;
+            /**
+             * Format: int32
+             * @description Gets how many currencies the added amounts are in: 0 or 1 for one run, which
+             *     adds in one currency.
+             */
+            currencyCount?: number | string;
         };
         /** @description Summary of a run. It acts as the header of the event stream. */
         RunRecord: {
@@ -6629,6 +6645,11 @@ export interface components {
              */
             runsWithUnknownPricing?: number | string;
             /**
+             * Format: int32
+             * @description The number of currencies the matched runs are priced in.
+             */
+            currencyCount?: number | string;
+            /**
              * Format: double
              * @description The error rate among settled runs (0–1). `null` if no
              *     run has settled.
@@ -6707,6 +6728,11 @@ export interface components {
              * @description Gets how many runs in the tree have an unknown price.
              */
             runsWithUnknownPricing?: number | string;
+            /**
+             * Format: int32
+             * @description Gets how many currencies the tree's runs are priced in.
+             */
+            currencyCount?: number | string;
         };
         /** @description Token usage of a run. */
         RunUsage: {
@@ -7182,6 +7208,11 @@ export interface components {
              * @description The total cost. `null` if no run was ever priced.
              */
             cost?: null | number | string;
+            /**
+             * Format: int32
+             * @description The number of currencies the priced runs of the WHOLE series are in.
+             */
+            currencyCount?: number | string;
             /**
              * Format: double
              * @description The average duration of settled runs (milliseconds).
@@ -8992,6 +9023,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13294,6 +13334,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenAIErrorEnvelope"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

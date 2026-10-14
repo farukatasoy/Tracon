@@ -1653,7 +1653,11 @@ audit trail is not applied, and the tool it approved does not run. See [what is
 guaranteed to be written](#what-is-guaranteed-to-be-written).
 
 **In-band.** A streaming run that hits a tool needing approval carries the request in
-its stream and the decision in the next turn.
+its stream and the decision in the next turn. The next turn needs the run's session: a
+run started without a `sessionId` can never be answered, so it closes `Failed` with the
+error type `approval_unanswerable` — `409` on a non-streaming run, an `error` event on a
+stream. The same holds for every surface that cannot carry an answer back: Chat
+Completions, an agent exposed over MCP or A2A, a batch item and an eval case.
 
 **The mailbox.** A queued run stops at `AwaitingApproval` and the request waits in
 `GET /api/approvals/pending`, with the tool's recorded arguments for the approver to
@@ -2350,7 +2354,19 @@ nothing, which is not zero, and an `amount` of `null` beside a non-zero `unsumme
 means items were reported but none could be priced: unknown, not free. The
 [budget, the tenant's quota and the `run.completed` webhook](/concepts/workflows/#report-what-a-node-spent-beyond-tokens)
 count the reported amount beside the token cost. `GET /api/stats`, the dashboard and the
-comparison of two runs show the token cost only. `GET /api/runs/{runId}/usage` lists the items
+comparison of two runs show the token cost only.
+
+A total over many runs never adds amounts in two currencies. When the runs behind it are
+priced in more than one, the total keeps no amount and no currency, and `currencyCount` says
+how many there are: `treeCost` and `treeNonTokenCost` on a run, the totals of
+`GET /api/stats` (with every breakdown's cost, since a breakdown carries no currency of its
+own), every point of `GET /api/stats/timeseries`, an experiment arm, and the judge cost of
+the online evaluation window. Each run keeps its own `cost`. Letter case is not a second
+currency. The tenant's quota and the root's `run.completed` webhook then count what a single
+currency can say: an agent root its own cost, a workflow root nothing beyond tokens. The
+built-in pricing prices every run in `Tracon:Pricing:Currency`, so more than one currency
+comes from a custom `IRunPricingResolver` or from a currency setting changed over time. The
+console shows *mixed currencies* where the number would be. `GET /api/runs/{runId}/usage` lists the items
 a function node reported, and `GET /api/runs/{runId}/tools` carries a tool's measurement on its call.
 
 The conversation is the **event stream**, written with gapless sequence numbers by a
@@ -2805,7 +2821,9 @@ text is: the key may have come from an untrusted source, and that field is read
 back over HTTP. A job whose worker died and whose attempt limit is used up fails
 with `tracon.job.attempts-exhausted`. A queued run whose turn finished but whose
 session could not be saved fails with `tracon.job.session-save-failed`; the model
-is not called again. Match on the code, never on the sentence around it.
+is not called again. One whose turn asked for approval but whose approval could not be
+written fails with `tracon.job.approval-save-failed`, and its run closes `Failed`. Match
+on the code, never on the sentence around it.
 
 ## Replay and comparison
 
@@ -3487,6 +3505,15 @@ A skill can also be registered in code with `AddSkill`. The code skill wins its 
 as a code-defined agent does: the console opens it read only, and the API refuses to
 save a stored skill under that name (`409`), because such a copy would never run.
 
+A skill can also live on disk, as a `SKILL.md` directory under a skill root
+(`UseSkillScripts`, `SkillRoots`). An agent names it like any other skill. A name is
+looked up in code first, then in the tenant's store, then under the skill roots, so a
+disk skill is installation-wide like a code skill: whoever deploys the application
+writes it, and every tenant may name it; a tenant's stored skill under the same name
+shadows it for that tenant. An edit to its `SKILL.md`, or a script or resource added
+or removed, reaches the next run of an agent that names it. The console's skill list
+shows stored skills only, so name a disk skill through the API.
+
 An agent lists skills by name. Deleting a skill an agent still names is a real break:
 compiling that agent then fails with "the skill was not found" until the reference is
 removed or the skill is recreated. Check which agents use a skill before deleting it.
@@ -3708,6 +3735,14 @@ Framework drops a message that no handler takes, without an error, so the chain 
 end every run `Completed` with no output. A run of a chain stored before this check,
 or after a deployment changed a function's types, fails before its first node runs and
 says the same.
+
+The first node must not take `object`. Every start and every resume also sends the first
+node Microsoft Agent Framework's turn token, and a node that takes `object` receives it as a
+second input: the node would run twice, and a node that writes to an outside system or calls
+a paid service would do that work twice. Saving such a chain answers `400`, and a stored one
+fails before its first node runs. Declare `List<ChatMessage>` or `IEnumerable<ChatMessage>`
+instead. A graph you build in code (`AddWorkflow`) gets the same token on its start
+executor; give that executor a `List<ChatMessage>` handler, not an `object` one.
 
 The console builds such a chain too: **Workflows → New workflow**, then *Add an agent*
 and *Add a function*, which picks from the functions registered in code. The arrows
@@ -4310,10 +4345,10 @@ The job notices the stop only when its lease runs out (`Tracon:Scheduling:LeaseD
 five minutes by default) and a worker leases it again. A run bound to a connection is
 never resumed automatically: its reader is gone. Recovery needs `EnableCheckpointing`
 (turning recovery on without it fails at startup) and a SQL provider, so checkpoints
-survive the restart. Keep `KeepCheckpointsAfterCompletion` on as well: a graceful stop
-closes the run it stops as `Canceled`, and with that setting off its checkpoints are
-deleted, so its continuation starts from the beginning. Run reconciliation still never
-resumes a workflow run itself: two owners would resume the same run twice.
+survive the restart. A graceful stop closes the run it stops as `Canceled` and keeps
+its checkpoints, even with `KeepCheckpointsAfterCompletion` off: the continuation shares
+the session, and the cleanup runs when the continuation finishes. Run reconciliation
+still never resumes a workflow run itself: two owners would resume the same run twice.
 
 Checkpoints survive a process restart only with a SQL provider registered
 (`UsePostgreSql()`, `UseSqlServer()`, or `UseSqlite()`). The in-memory store keeps at
@@ -4324,7 +4359,9 @@ waiting for a human answer, whose checkpoints retention keeps.
 
 With `KeepCheckpointsAfterCompletion = false`, a finished run deletes its session's
 checkpoints only when no other run of the session still needs them — none is
-waiting for an answer and none is running. A run that asked a human keeps waiting
+waiting for an answer and none is running. A run that a stopping worker left to its
+job is not finished: with `ResumeInterruptedRuns` on, it keeps its checkpoints for the
+continuation. A run that asked a human keeps waiting
 even after an answer (a second answer opens a new branch), so a session that
 paused for input keeps its checkpoints; retention removes those of its finished
 runs.
@@ -6305,7 +6342,10 @@ whose status is no longer `Pending`; see
   message names the log entry that carries the cause. A turn that asked for
   approval saves its session before the approval is listed; when that save fails,
   its run closes `Failed` with the same code, because an approval without its
-  session cannot be answered.
+  session cannot be answered. The approval it then writes is tried again the same
+  way; a write the store committed but reported as failed is not written twice. If
+  it still fails, the job fails with `tracon.job.approval-save-failed`, the run
+  closes `Failed`, and the model and the tools are not run again.
 - `JobRetryException.RetryAfter` asks the queue to delay the next attempt. Other
   failures can be retried immediately.
 - A missing handler marks the job as failed.
@@ -8184,7 +8224,9 @@ startup. Create the key before enabling remote access.
 An exposed agent cannot contain an approval-required tool. The application waits
 until the catalog is queryable, checks the selected agents, and prevents MCP requests
 from running if an approval boundary would be crossed. An external protocol caller
-cannot act as the missing human.
+cannot act as the missing human. A tool that gains approval after the agent was exposed
+is refused at the call, and the run closes `Failed` with the error type
+`approval_unanswerable`: nobody can ever answer it, so it does not wait.
 
 ### Long-running calls as MCP tasks
 
@@ -10560,10 +10602,18 @@ for await (const frame of readSse(response)) {
 | Server conversation | `conversation` or `previous_response_id` | no | Maps to Tracon sessions |
 | Client-carried history | input items | `messages` | Resolved attachments reach the provider |
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
-| Pending approval visibility | yes | provider-shaped output | The call cannot supply an interactive approval turn |
+| Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
+
+A Chat Completions request whose agent asks to call a tool that needs approval ends
+there. The answer to an approval is the next turn of a session, and this endpoint has
+none, so nobody could ever answer it. The run closes as `Failed`, and the caller gets
+`409` with the error type `approval_required` — or, on a stream that already answered
+`200`, an `error` frame of that type and no `[DONE]`. Run such an agent through
+`/v1/responses` with a conversation, or through `POST /api/agents/{name}/run` with a
+`sessionId`.
 
 Fields understood by the OpenAI parser can be accepted without becoming a
 Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service
@@ -12235,6 +12285,12 @@ The check reads the **answer**: the last assistant message that carries text. A
 response can hold more than that — the text a model wrote before it called a tool,
 or the earlier drafts of a harness loop — and none of it is part of the structured
 answer.
+
+A turn that stops to wait for the caller has no answer yet and is not checked: one that
+asks for a tool approval, and one that ends at a client-side tool call the caller must
+run. The run waits as it would without validation, and the turn that carries the
+decision or the tool result is the one checked. Your validator is not called for the
+pause either.
 
 With it on, Tracon first checks well-formedness itself: the response must be
 non-empty and parse as JSON. That check alone catches the two failure modes every

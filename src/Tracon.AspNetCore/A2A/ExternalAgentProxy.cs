@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -109,7 +110,8 @@ internal sealed class ExternalAgentProxy : AIAgent
 
         var response = await agent.RunAsync(messages, session, runOptions, cancellationToken).ConfigureAwait(false);
 
-        RefuseIfApprovalPending(ChildRunApproval.Describe(response.Messages));
+        await RefuseIfApprovalPendingAsync(ChildRunApproval.Describe(response.Messages), runOptions.RunId!.Value)
+            .ConfigureAwait(false);
 
         await ExternalCallAudit.WriteAsync(_services!, "a2a", _agentName, runOptions.RunId!.Value, cancellationToken)
             .ConfigureAwait(false);
@@ -135,13 +137,13 @@ internal sealed class ExternalAgentProxy : AIAgent
             yield return update;
         }
 
-        RefuseIfApprovalPending(pendingApproval);
+        await RefuseIfApprovalPendingAsync(pendingApproval, runOptions.RunId!.Value).ConfigureAwait(false);
 
         await ExternalCallAudit.WriteAsync(_services!, "a2a", _agentName, runOptions.RunId!.Value, cancellationToken)
             .ConfigureAwait(false);
     }
 
-    private void RefuseIfApprovalPending(string? pending)
+    private async ValueTask RefuseIfApprovalPendingAsync(string? pending, Guid runId)
     {
         if (pending is null)
         {
@@ -153,6 +155,18 @@ internal sealed class ExternalAgentProxy : AIAgent
         // but the definition can be updated AFTERWARD to add an approval-
         // requiring tool. This is the runtime enforcement of the same K-103
         // boundary.
+        //
+        // F-448: the run closed AwaitingApproval, and an A2A caller never answers
+        // one; it is closed as Failed so it does not wait forever.
+        await SessionlessApprovalRun.CloseAsFailedAsync(
+            _services!.GetService<IRunStore>(),
+            runId,
+            _services!.GetRequiredService<ITenantContext>().TenantId,
+            DateTimeOffset.UtcNow,
+            _services!.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.a2a.ExternalCall"),
+            CancellationToken.None,
+            SessionlessApprovalRun.ExternalMessage).ConfigureAwait(false);
+
         throw new TraconExternalCallException(
             $"Agent '{_agentName}' could not complete: tool '{pending}' requires user approval. " +
             "An externally-invoked agent cannot respond to an approval request.")

@@ -8,7 +8,9 @@ namespace Tracon;
 /// <summary>Maps a run's status and output to the MCP task shape a poller sees.</summary>
 /// <remarks>
 /// <para>
-/// <see cref="RunStatus.AwaitingApproval"/> and <see cref="RunStatus.AwaitingInput"/> map
+/// <see cref="RunStatus.AwaitingApproval"/>, <see cref="RunStatus.AwaitingInput"/> and a
+/// run the tool call closed as unanswerable (<see cref="RunStatus.Failed"/> with
+/// <see cref="SessionlessApprovalRun.ErrorType"/>) map
 /// to <see cref="McpTaskStatus.Completed"/>, not <see cref="McpTaskStatus.Failed"/>: in
 /// this fallback path (used when <see cref="RunBackedMcpTaskStore"/>'s same-instance cache
 /// missed — see its remarks), a synthesized error <c>CallToolResult</c> is built here,
@@ -79,6 +81,17 @@ internal static class McpTaskStatusMapping
                         Result = result,
                     };
                 }
+
+            // F-448: the tool call closes a run its caller can never answer as Failed, with
+            // this error type. The caller was told the K-103 refusal, and a poller on
+            // another instance must see the same thing, not a failure.
+            case RunStatus.Failed when string.Equals(run.Error?.Type, SessionlessApprovalRun.ErrorType, StringComparison.Ordinal):
+                return new McpTaskInfo(
+                    run.Id.ToString(), McpTaskStatus.Completed, run.StartedAt, lastUpdatedAt,
+                    options.TaskTimeToLive, (long)options.TaskPollInterval.TotalMilliseconds)
+                {
+                    Result = BuildApprovalRejectedResult(run),
+                };
 
             case RunStatus.Failed:
                 return new McpTaskInfo(

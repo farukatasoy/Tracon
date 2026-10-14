@@ -118,6 +118,8 @@ export const enRuns = {
   "usage.panel.treeTotal": 'Reported in the whole tree',
   "usage.panel.notAdded": '{count} not added',
   "usage.panel.notAdded.hint": 'Items with no amount, or in a currency other than {currency}, are listed but not in the total.',
+  "cost.mixedCurrencies": 'mixed currencies',
+  "cost.mixedCurrencies.hint": 'These runs are priced in {count} currencies. Amounts in different currencies are not added; each run keeps its own cost.',
   "runDetail.streamed": 'streamed',
   "runDetail.nonStreaming": 'non-streaming',
   "runDetail.cancel.button": 'Cancel run',

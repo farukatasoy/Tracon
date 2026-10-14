@@ -108,6 +108,14 @@ end every run `Completed` with no output. A run of a chain stored before this ch
 or after a deployment changed a function's types, fails before its first node runs and
 says the same.
 
+The first node must not take `object`. Every start and every resume also sends the first
+node Microsoft Agent Framework's turn token, and a node that takes `object` receives it as a
+second input: the node would run twice, and a node that writes to an outside system or calls
+a paid service would do that work twice. Saving such a chain answers `400`, and a stored one
+fails before its first node runs. Declare `List<ChatMessage>` or `IEnumerable<ChatMessage>`
+instead. A graph you build in code (`AddWorkflow`) gets the same token on its start
+executor; give that executor a `List<ChatMessage>` handler, not an `object` one.
+
 The console builds such a chain too: **Workflows → New workflow**, then *Add an agent*
 and *Add a function*, which picks from the functions registered in code. The arrows
 reorder the steps and ✕ removes one. The function picker appears only for `Sequential`,
@@ -709,10 +717,10 @@ The job notices the stop only when its lease runs out (`Tracon:Scheduling:LeaseD
 five minutes by default) and a worker leases it again. A run bound to a connection is
 never resumed automatically: its reader is gone. Recovery needs `EnableCheckpointing`
 (turning recovery on without it fails at startup) and a SQL provider, so checkpoints
-survive the restart. Keep `KeepCheckpointsAfterCompletion` on as well: a graceful stop
-closes the run it stops as `Canceled`, and with that setting off its checkpoints are
-deleted, so its continuation starts from the beginning. Run reconciliation still never
-resumes a workflow run itself: two owners would resume the same run twice.
+survive the restart. A graceful stop closes the run it stops as `Canceled` and keeps
+its checkpoints, even with `KeepCheckpointsAfterCompletion` off: the continuation shares
+the session, and the cleanup runs when the continuation finishes. Run reconciliation
+still never resumes a workflow run itself: two owners would resume the same run twice.
 
 Checkpoints survive a process restart only with a SQL provider registered
 (`UsePostgreSql()`, `UseSqlServer()`, or `UseSqlite()`). The in-memory store keeps at
@@ -723,7 +731,9 @@ waiting for a human answer, whose checkpoints retention keeps.
 
 With `KeepCheckpointsAfterCompletion = false`, a finished run deletes its session's
 checkpoints only when no other run of the session still needs them — none is
-waiting for an answer and none is running. A run that asked a human keeps waiting
+waiting for an answer and none is running. A run that a stopping worker left to its
+job is not finished: with `ResumeInterruptedRuns` on, it keeps its checkpoints for the
+continuation. A run that asked a human keeps waiting
 even after an answer (a second answer opens a new branch), so a session that
 paused for input keeps its checkpoints; retention removes those of its finished
 runs.

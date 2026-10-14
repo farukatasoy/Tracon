@@ -81,6 +81,92 @@ internal abstract class SqlQueriesBase
         return string.Join(" + ", CostAddends.Select(addend => $"COALESCE(SUM({prefix}{addend}), 0)"));
     }
 
+    /// <summary>
+    /// The currency of a row that carries a token cost amount, upper-cased; NULL for a
+    /// row without one.
+    /// </summary>
+    /// <param name="alias">The table alias, or <see langword="null"/> for none.</param>
+    /// <returns>A scalar expression.</returns>
+    /// <remarks>
+    /// A money total over many runs counts its currencies with this, and a count
+    /// above one leaves the amount out (<c>CurrencyTotals</c>). A row with no amount (an
+    /// unknown price) adds nothing, so its label does not count. Upper-cased because SQL
+    /// Server compares text without regard to case and PostgreSQL and SQLite do not: the
+    /// in-memory store counts with a case-insensitive set.
+    /// </remarks>
+    protected static string PricedCurrency(string? alias)
+    {
+        var prefix = alias is null ? string.Empty : $"{alias}.";
+        var priced = string.Join(" OR ", CostAddends.Select(addend => $"{prefix}{addend} IS NOT NULL"));
+
+        return $"CASE WHEN {priced} THEN UPPER({prefix}cost_currency) END";
+    }
+
+    /// <summary>The currency of a row that carries a reported (non-token) amount, upper-cased; NULL otherwise.</summary>
+    /// <param name="alias">The table alias, or <see langword="null"/> for none.</param>
+    /// <returns>A scalar expression.</returns>
+    protected static string ReportedCurrency(string? alias)
+    {
+        var prefix = alias is null ? string.Empty : $"{alias}.";
+
+        return $"CASE WHEN {prefix}non_token_cost IS NOT NULL THEN UPPER({prefix}non_token_currency) END";
+    }
+
+    /// <summary>
+    /// The token-cost currency label of the current aggregate: one a priced row carries,
+    /// or, when no row carries an amount, any row's.
+    /// </summary>
+    /// <param name="alias">The table alias, or <see langword="null"/> for none.</param>
+    /// <returns>An aggregate expression.</returns>
+    protected static string CostCurrencyLabel(string? alias)
+    {
+        var prefix = alias is null ? string.Empty : $"{alias}.";
+        var priced = string.Join(" OR ", CostAddends.Select(addend => $"{prefix}{addend} IS NOT NULL"));
+
+        return $"COALESCE(MAX(CASE WHEN {priced} THEN {prefix}cost_currency END), MAX({prefix}cost_currency))";
+    }
+
+    /// <summary>The reported (non-token) currency label of the current aggregate; see <see cref="CostCurrencyLabel"/>.</summary>
+    /// <param name="alias">The table alias, or <see langword="null"/> for none.</param>
+    /// <returns>An aggregate expression.</returns>
+    protected static string ReportedCurrencyLabel(string? alias)
+    {
+        var prefix = alias is null ? string.Empty : $"{alias}.";
+
+        return $"COALESCE(MAX(CASE WHEN {prefix}non_token_cost IS NOT NULL THEN {prefix}non_token_currency END), " +
+               $"MAX({prefix}non_token_currency))";
+    }
+
+    /// <summary>Counts the distinct token-cost currencies of the current aggregate.</summary>
+    /// <param name="alias">The table alias, or <see langword="null"/> for none.</param>
+    /// <returns>An aggregate expression.</returns>
+    protected static string CostCurrencyCount(string? alias) => $"COUNT(DISTINCT {PricedCurrency(alias)})";
+
+    /// <summary>
+    /// Counts the distinct currencies of a run's DESCENDANTS that its own row does not
+    /// already carry.
+    /// </summary>
+    /// <param name="currency">
+    /// <see cref="PricedCurrency"/> or <see cref="ReportedCurrency"/>: which amount.
+    /// </param>
+    /// <param name="descendant">The descendant rows' alias.</param>
+    /// <param name="ownCurrency">
+    /// The run's own currency, as <paramref name="currency"/> computes it for the own row.
+    /// PostgreSQL and SQLite pass the expression over the outer row; SQL Server refuses
+    /// an outer reference inside an aggregate that also reads an inner column, so it
+    /// passes a column of an inner <c>CROSS APPLY</c> that computed it.
+    /// </param>
+    /// <returns>An aggregate expression.</returns>
+    /// <remarks>
+    /// A tree aggregate covers the descendants only, and the reader adds the run's own
+    /// share (<c>SqlRunStore.ReadTreeCost</c>). Counting the descendants' currencies alone
+    /// could not say whether the own one is among them; leaving the own one out here
+    /// makes the tree's count this value plus one when the run carries an amount.
+    /// </remarks>
+    protected static string DescendantCurrencyCount(Func<string?, string> currency, string descendant, string ownCurrency)
+        => $"COUNT(DISTINCT CASE WHEN {ownCurrency} IS NULL OR {currency(descendant)} <> {ownCurrency} " +
+           $"THEN {currency(descendant)} END)";
+
     /// <summary>Counts the rows in which any of <paramref name="columns"/> is not null.</summary>
     /// <param name="columns">The columns to test.</param>
     /// <param name="alias">The table alias to qualify each column with, or <see langword="null"/> for none.</param>
@@ -194,6 +280,8 @@ internal abstract class SqlQueriesBase
         new("non_token_currency", RunColumnSource.Tree),
         new("non_token_estimated_rows", RunColumnSource.Tree),
         new("non_token_unsummed", RunColumnSource.Tree),
+        new("cost_currencies", RunColumnSource.Tree),
+        new("non_token_currencies", RunColumnSource.Tree),
     ];
 
     /// <summary>Gets the query that inserts a tool invocation record.</summary>

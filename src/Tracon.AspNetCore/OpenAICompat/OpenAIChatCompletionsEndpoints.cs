@@ -36,11 +36,23 @@ namespace Tracon;
 /// resulting text is returned to the client. Use the management API's run
 /// events to see tool details.
 /// </para>
+/// <para>
+/// <strong>A tool that needs approval ends the request.</strong> The
+/// answer to an approval is the input to the next turn, read from the session,
+/// and this endpoint has none: nobody can ever answer it. The run closes
+/// <see cref="RunStatus.Failed"/>, and the caller gets <c>409</c> with the error type
+/// <c>approval_required</c>, or, on a stream that already answered <c>200</c>, an
+/// error frame of that type and no <c>[DONE]</c>. Before, the caller got <c>200</c>
+/// with empty content and the run waited for an approval forever.
+/// </para>
 /// </remarks>
 internal static class OpenAIChatCompletionsEndpoints
 {
     private const string ObjectCompletion = "chat.completion";
     private const string ObjectChunk = "chat.completion.chunk";
+
+    /// <summary>The OpenAI error type of a request that stopped at a tool approval.</summary>
+    private const string ApprovalRequiredType = "approval_required";
 
     /// <summary>Connects the Chat Completions endpoint.</summary>
     /// <param name="builder">Endpoint group.</param>
@@ -69,7 +81,10 @@ internal static class OpenAIChatCompletionsEndpoints
                 "Stateless: the client carries history. The agent is selected from the " +
                 "'model' field; if not found, 'metadata.entity_id' is tried. If a registered " +
                 "IRunAuthorizationHandler denies the caller, the response is 403 on BOTH the " +
-                "streaming and the non-streaming path.")
+                "streaming and the non-streaming path. A tool that needs approval ends the request: " +
+                "this endpoint carries no session, so the approval can never be answered. The run " +
+                "closes as Failed and the answer is 409 with the error type 'approval_required', or, " +
+                "on a stream, an error frame of that type and no [DONE].")
             // One of two shapes, depending on the 'stream' flag in the body.
             // For the same status code, a SECOND .Produces call OVERWRITES the
             // FIRST (measured); the two must be written in a single call using
@@ -84,6 +99,7 @@ internal static class OpenAIChatCompletionsEndpoints
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status400BadRequest)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status403Forbidden)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status404NotFound)
+            .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status409Conflict)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status502BadGateway)
             .Produces<OpenAICompatSupport.OpenAIErrorEnvelope>(StatusCodes.Status503ServiceUnavailable);
     }
@@ -183,17 +199,30 @@ internal static class OpenAIChatCompletionsEndpoints
 
         var completionId = OpenAICompatSupport.CreateId("chatcmpl-");
 
+        // Fixed here so a run that stops at an approval can be closed by its id (F-448).
+        var runId = TraconId.NewId();
+
         if (OpenAICompatSupport.ReadStreamFlag(body))
         {
-            return new ChatCompletionsStream(agent, messages, completionId, agentName);
+            return new ChatCompletionsStream(agent, messages, completionId, agentName, runId, tenantContext.TenantId);
         }
 
         try
         {
             // The session is deliberately not passed: Chat Completions is stateless.
             var response = await agent
-                .RunAsync(messages, session: null, cancellationToken: cancellationToken)
+                .RunAsync(messages, session: null, new TraconRunOptions { RunId = runId }, cancellationToken)
                 .ConfigureAwait(false);
+
+            if (ChildRunApproval.Describe(response.Messages) is { } pending)
+            {
+                await CloseUnanswerableRunAsync(httpContext, runId, tenantContext.TenantId).ConfigureAwait(false);
+
+                return OpenAICompatSupport.Error(
+                    StatusCodes.Status409Conflict,
+                    ApprovalRequiredMessage(agentName, pending),
+                    type: ApprovalRequiredType);
+            }
 
             return Results.Json(
                 new ChatCompletion(
@@ -235,6 +264,34 @@ internal static class OpenAIChatCompletionsEndpoints
                 type: "upstream_error");
         }
     }
+
+    /// <summary>The text a caller gets when the run stopped at a tool approval.</summary>
+    /// <param name="agentName">The agent.</param>
+    /// <param name="pending">The names of the tools that wait for approval.</param>
+    /// <returns>The error message.</returns>
+    private static string ApprovalRequiredMessage(string agentName, string pending)
+        => $"Agent '{agentName}' asked for approval to call '{pending}'. The Chat Completions endpoint carries " +
+           "no session, so the approval can never be answered, and the run was closed as failed. Run an agent " +
+           "with tools that need approval through /v1/responses with a conversation, or through " +
+           "POST /api/agents/{name}/run with a 'sessionId'.";
+
+    /// <summary>Closes a run that stopped at an approval nobody can answer.</summary>
+    /// <param name="httpContext">The request, for the run store and the logger.</param>
+    /// <param name="runId">The run.</param>
+    /// <param name="tenantId">The tenant the run belongs to.</param>
+    /// <returns>A task that completes when the row is written or the failure is logged.</returns>
+    /// <remarks>
+    /// Not the request's token: a caller that disconnects right after the answer must not
+    /// leave the run waiting for an approval forever.
+    /// </remarks>
+    private static ValueTask CloseUnanswerableRunAsync(HttpContext httpContext, Guid runId, string tenantId)
+        => SessionlessApprovalRun.CloseAsFailedAsync(
+            httpContext.RequestServices.GetService<IRunStore>(),
+            runId,
+            tenantId,
+            DateTimeOffset.UtcNow,
+            httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.OpenAICompat"),
+            CancellationToken.None);
 
     /// <summary>
     /// Converts the <c>messages</c> array into a <see cref="ChatMessage"/> list.
@@ -344,7 +401,9 @@ internal static class OpenAIChatCompletionsEndpoints
         AIAgent agent,
         List<ChatMessage> messages,
         string completionId,
-        string model) : IResult
+        string model,
+        Guid runId,
+        string tenantId) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -361,15 +420,40 @@ internal static class OpenAIChatCompletionsEndpoints
                 await WriteChunkAsync(writer, new ChatDelta("assistant", null), finishReason: null, created, cancellationToken)
                     .ConfigureAwait(false);
 
-                var updates = agent.RunStreamingAsync(messages, session: null, cancellationToken: cancellationToken);
+                var updates = agent.RunStreamingAsync(
+                    messages,
+                    session: null,
+                    new TraconRunOptions { RunId = runId },
+                    cancellationToken);
+                List<string>? pending = null;
 
                 await foreach (var update in updates.ConfigureAwait(false))
                 {
+                    if (ChildRunApproval.Describe(update.Contents) is { } names)
+                    {
+                        (pending ??= []).Add(names);
+                    }
+
                     if (update.Text is { Length: > 0 } text)
                     {
                         await WriteChunkAsync(writer, new ChatDelta(null, text), finishReason: null, created, cancellationToken)
                             .ConfigureAwait(false);
                     }
+                }
+
+                // F-448: the stream already said 200, so the refusal is an error frame,
+                // the same shape as a failure's, and the stream does not say it finished.
+                if (pending is not null)
+                {
+                    await CloseUnanswerableRunAsync(httpContext, runId, tenantId).ConfigureAwait(false);
+
+                    await WriteErrorAsync(
+                        writer,
+                        ApprovalRequiredMessage(model, string.Join(", ", pending.Distinct(StringComparer.Ordinal))),
+                        ApprovalRequiredType,
+                        cancellationToken).ConfigureAwait(false);
+
+                    return;
                 }
 
                 await WriteChunkAsync(writer, new ChatDelta(null, null), "stop", created, cancellationToken)
@@ -395,12 +479,18 @@ internal static class OpenAIChatCompletionsEndpoints
                     .CreateLogger("Tracon.OpenAICompat")
                     .LogError(ex, "Streaming Chat Completions run for agent '{AgentName}' failed. (ref: {CorrelationId})", model, correlationId);
 
-                var payload = JsonSerializer.Serialize(
-                    new ChatStreamError(new ChatStreamErrorBody(SafeErrorText.ForPersistence(ex, correlationId), "upstream_error")),
-                    OpenAICompatSupport.JsonOptions);
-
-                await writer.WriteRawAsync($"data: {payload}\n\n", CancellationToken.None).ConfigureAwait(false);
+                await WriteErrorAsync(writer, SafeErrorText.ForPersistence(ex, correlationId), "upstream_error", CancellationToken.None)
+                    .ConfigureAwait(false);
             }
+        }
+
+        private static Task WriteErrorAsync(SseWriter writer, string message, string type, CancellationToken cancellationToken)
+        {
+            var payload = JsonSerializer.Serialize(
+                new ChatStreamError(new ChatStreamErrorBody(message, type)),
+                OpenAICompatSupport.JsonOptions);
+
+            return writer.WriteRawAsync($"data: {payload}\n\n", cancellationToken);
         }
 
         private Task WriteChunkAsync(

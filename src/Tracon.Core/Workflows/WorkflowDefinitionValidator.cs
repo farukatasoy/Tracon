@@ -21,9 +21,9 @@ namespace Tracon;
 /// would give a false guarantee.
 /// </para>
 /// <para>
-/// <see cref="ValidateNodeTypes"/> adds the one rule that needs the function
+/// <see cref="ValidateNodeTypes"/> adds the rules that need the function
 /// registry: each node of a node list must take what the node before it
-/// passes on. The registry is fixed for the process lifetime, so the
+/// passes on, and the first node must not take <see cref="object"/>. The registry is fixed for the process lifetime, so the
 /// save-time check is an honest guarantee, and the compiler repeats it.
 /// </para>
 /// </remarks>
@@ -377,7 +377,7 @@ internal static class WorkflowDefinitionValidator
 
     /// <summary>
     /// Validates that every node of a node list can take what the node before it
-    /// passes on, and that the first node can take the run's message.
+    /// passes on, and that the first node can take the run's message and nothing else.
     /// </summary>
     /// <param name="definition">The definition. Only its <see cref="WorkflowDefinition.Nodes"/> are read.</param>
     /// <param name="functions">The registered functions; <see langword="null"/> when none are registered.</param>
@@ -401,6 +401,17 @@ internal static class WorkflowDefinitionValidator
     /// exactly the type it declares (a function that declares an interface and returns a
     /// class fails at run time, loudly), except a node that declares <see cref="object"/>:
     /// it may send any type, so the node after it is not checked.
+    /// </para>
+    /// <para>
+    /// <strong>The first node must not take <see cref="object"/></strong> (seen
+    /// on 1.20.0). The engine sends Microsoft Agent Framework's turn token to the first
+    /// node after the run's message, on every start and every resume: a resume without it
+    /// waits for its deadline when the checkpoint has nothing left to run. A node that
+    /// takes <see cref="object"/> receives the token as a second input and runs twice, so
+    /// a node that writes to an outside system or calls a paid service does that work
+    /// twice. No other input type takes the token: it derives from <see cref="object"/>
+    /// only and implements no interface (a test in <c>Tracon.Workflows.UnitTests</c> pins
+    /// that for every upgrade).
     /// </para>
     /// <para>
     /// The HTTP save calls this with the function registry, and so does the compiler
@@ -446,6 +457,15 @@ internal static class WorkflowDefinitionValidator
                 passedOn = typeof(object);
 
                 continue;
+            }
+
+            if (previous is null && takes == typeof(object))
+            {
+                return $"Node '{node.Name}' is the first node of workflow '{definition.Name}' and takes " +
+                       $"{Display(takes)}. A run sends the first node the user's message and then Microsoft Agent " +
+                       "Framework's turn token, on every start and every resume, and a node that takes " +
+                       $"{Display(takes)} receives both: '{node.Name}' would run twice. The first node must take " +
+                       $"{Display(RunInputType)} or {Display(typeof(IEnumerable<ChatMessage>))}; an agent node does.";
             }
 
             if (passedOn != typeof(object) && !takes.IsAssignableFrom(passedOn))
