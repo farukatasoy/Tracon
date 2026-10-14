@@ -432,8 +432,20 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string SelectAgentFilesFiltered { get; protected set; } = string.Empty;
 
-    /// <summary>Gets the query that saves a workflow definition and increments its version.</summary>
+    /// <summary>
+    /// Gets the query that saves a workflow definition and increments its version. A name that
+    /// has no current row continues the numbering from the highest version in the history.
+    /// </summary>
     public string UpsertWorkflow { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that writes one version into the workflow definition history.</summary>
+    public string InsertWorkflowVersion { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads one version from the workflow definition history.</summary>
+    public string SelectWorkflowVersion { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that lists a workflow definition's history, newest first.</summary>
+    public string SelectWorkflowVersions { get; protected set; } = string.Empty;
 
     /// <summary>Gets the query that reads a single workflow definition.</summary>
     public string SelectWorkflow { get; protected set; } = string.Empty;
@@ -1639,6 +1651,26 @@ internal abstract class SqlQueriesBase
             """;
 
         DeleteWorkflow = $"DELETE FROM {Table("workflows")} WHERE tenant_id = @tenant_id AND name = @name;";
+
+        // The history has no foreign key to `workflows` on purpose: deleting a workflow keeps
+        // its versions, so a number is never given to a second content.
+        InsertWorkflowVersion = $"""
+            INSERT INTO {Table("workflow_definition_versions")} (tenant_id, name, version, definition, created_at)
+            VALUES (@tenant_id, @name, @version, @definition, @created_at);
+            """;
+
+        SelectWorkflowVersion = $"""
+            SELECT definition, created_at
+            FROM {Table("workflow_definition_versions")}
+            WHERE tenant_id = @tenant_id AND name = @name AND version = @version;
+            """;
+
+        SelectWorkflowVersions = $"""
+            SELECT definition, version, created_at
+            FROM {Table("workflow_definition_versions")}
+            WHERE tenant_id = @tenant_id AND name = @name
+            ORDER BY version DESC;
+            """;
 
         // Tracon generates the checkpoint id; a conflict means only that
         // the same id was written twice, and that is an error -- it is not

@@ -151,6 +151,18 @@ public sealed record WorkflowResumeHttpRequest
     /// most recent checkpoint is used.
     /// </summary>
     public string? CheckpointId { get; init; }
+
+    /// <summary>
+    /// The version of the workflow's stored definition to resume with. Leave it out to
+    /// resume with the version the run recorded, so an edit made while the run waited does
+    /// not change what resumes.
+    /// </summary>
+    /// <remarks>
+    /// A version the workflow does not have is refused with <c>400</c>; the run never
+    /// falls back to the current definition. A version whose graph differs from the one the
+    /// checkpoint was written with fails the run with "the graph's structure differs".
+    /// </remarks>
+    public int? DefinitionVersion { get; init; }
 }
 
 /// <summary>Response to a pending human input request.</summary>
@@ -184,4 +196,31 @@ public sealed record WorkflowRespondHttpRequest
     /// recent checkpoint is used.
     /// </summary>
     public string? CheckpointId { get; init; }
+
+    /// <summary>
+    /// The version of the workflow's stored definition to continue with. Leave it out to
+    /// continue with the version the waiting run recorded. See
+    /// <see cref="WorkflowResumeHttpRequest.DefinitionVersion"/>.
+    /// </summary>
+    public int? DefinitionVersion { get; init; }
+}
+
+/// <summary>Request to roll a workflow definition back to a previous version.</summary>
+public sealed record WorkflowRollbackRequest
+{
+    /// <summary>Version number to roll back to.</summary>
+    public required int Version { get; init; }
+}
+
+/// <summary>
+/// Raw JSON response for comparing two workflow definition versions. The diff is not
+/// computed on the server; the client compares the two definitions field by field.
+/// </summary>
+public sealed record WorkflowVersionDiffResponse
+{
+    /// <summary>Left (usually older) side of the comparison.</summary>
+    public required WorkflowDefinition Left { get; init; }
+
+    /// <summary>Right (usually newer) side of the comparison.</summary>
+    public required WorkflowDefinition Right { get; init; }
 }

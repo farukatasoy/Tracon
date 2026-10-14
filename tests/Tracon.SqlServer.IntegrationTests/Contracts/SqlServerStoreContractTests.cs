@@ -151,6 +151,18 @@ public sealed class SqlServerWorkflowDefinitionStoreContractTests(SqlServerSchem
         await schema.ResetAsync();
         return schema.Context.Workflows;
     }
+
+    /// <inheritdoc />
+    protected override bool SupportsRawHistory => true;
+
+    /// <inheritdoc />
+    protected override string QualifiedWorkflowHistoryTable => $"{schema.Context.SchemaName}.workflow_definition_versions";
+
+    /// <inheritdoc />
+    protected override string RawNowExpression => "SYSDATETIMEOFFSET()";
+
+    /// <inheritdoc />
+    protected override async ValueTask ExecuteRawAsync(string sql) => await schema.Context.ExecuteAsync(sql);
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />

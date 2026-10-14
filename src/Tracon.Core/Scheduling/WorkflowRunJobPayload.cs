@@ -63,6 +63,12 @@ internal static class WorkflowRunJobPayload
             }
 
             WriteOptional(writer, "checkpointId", request.CheckpointId);
+
+            if (request.DefinitionVersion is { } definitionVersion)
+            {
+                writer.WriteNumber("definitionVersion", definitionVersion);
+            }
+
             WriteOptional(writer, "requestId", request.RequestId);
 
             if (request.Approved is { } approved)
@@ -134,6 +140,20 @@ internal static class WorkflowRunJobPayload
             return Refused(runId, "'parameters' must be an object of string values");
         }
 
+        int? definitionVersion = null;
+
+        if (payload.TryGetProperty("definitionVersion", out var versionElement) && versionElement.ValueKind != JsonValueKind.Null)
+        {
+            if (versionElement.ValueKind != JsonValueKind.Number ||
+                !versionElement.TryGetInt32(out var version) ||
+                version < 1)
+            {
+                return Refused(runId, "'definitionVersion' must be a whole number of 1 or more");
+            }
+
+            definitionVersion = version;
+        }
+
         bool? approved = null;
 
         if (payload.TryGetProperty("approved", out var approvedElement) && approvedElement.ValueKind != JsonValueKind.Null)
@@ -195,6 +215,7 @@ internal static class WorkflowRunJobPayload
                 Parameters = parameters,
                 SourceRunId = sourceRunId,
                 CheckpointId = checkpointId,
+                DefinitionVersion = definitionVersion,
                 RequestId = requestId,
                 Approved = approved,
                 Text = text,
@@ -321,6 +342,12 @@ internal sealed record WorkflowRunJobRequest
 
     /// <summary>Gets the checkpoint a <c>resume</c> or <c>respond</c> names; the latest when <see langword="null"/>.</summary>
     public string? CheckpointId { get; init; }
+
+    /// <summary>
+    /// Gets the workflow definition version a <c>resume</c> or <c>respond</c> names;
+    /// the version the source run recorded when <see langword="null"/>.
+    /// </summary>
+    public int? DefinitionVersion { get; init; }
 
     /// <summary>Gets the request a <c>respond</c> answers.</summary>
     public string? RequestId { get; init; }

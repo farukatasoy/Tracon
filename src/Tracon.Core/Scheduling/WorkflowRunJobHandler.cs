@@ -338,6 +338,7 @@ internal sealed class WorkflowRunJobHandler(
                     RunId = request.SourceRunId!.Value,
                     CheckpointId = request.CheckpointId,
                     NewRunId = runId,
+                    DefinitionVersion = request.DefinitionVersion,
                 },
                 cancellationToken),
 
@@ -351,6 +352,7 @@ internal sealed class WorkflowRunJobHandler(
                     Json = request.Json,
                     CheckpointId = request.CheckpointId,
                     NewRunId = runId,
+                    DefinitionVersion = request.DefinitionVersion,
                 },
                 cancellationToken),
 

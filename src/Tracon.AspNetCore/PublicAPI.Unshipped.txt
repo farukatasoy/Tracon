@@ -882,6 +882,8 @@ Tracon.WorkflowRespondHttpRequest.CheckpointId.get -> string?
 Tracon.WorkflowRespondHttpRequest.CheckpointId.init -> void
 Tracon.WorkflowRespondHttpRequest.Data.get -> System.Text.Json.JsonElement?
 Tracon.WorkflowRespondHttpRequest.Data.init -> void
+Tracon.WorkflowRespondHttpRequest.DefinitionVersion.get -> int?
+Tracon.WorkflowRespondHttpRequest.DefinitionVersion.init -> void
 Tracon.WorkflowRespondHttpRequest.Equals(Tracon.WorkflowRespondHttpRequest? other) -> bool
 Tracon.WorkflowRespondHttpRequest.RequestId.get -> string!
 Tracon.WorkflowRespondHttpRequest.RequestId.init -> void
@@ -892,8 +894,16 @@ Tracon.WorkflowResumeHttpRequest
 Tracon.WorkflowResumeHttpRequest.<Clone>$() -> Tracon.WorkflowResumeHttpRequest!
 Tracon.WorkflowResumeHttpRequest.CheckpointId.get -> string?
 Tracon.WorkflowResumeHttpRequest.CheckpointId.init -> void
+Tracon.WorkflowResumeHttpRequest.DefinitionVersion.get -> int?
+Tracon.WorkflowResumeHttpRequest.DefinitionVersion.init -> void
 Tracon.WorkflowResumeHttpRequest.Equals(Tracon.WorkflowResumeHttpRequest? other) -> bool
 Tracon.WorkflowResumeHttpRequest.WorkflowResumeHttpRequest() -> void
+Tracon.WorkflowRollbackRequest
+Tracon.WorkflowRollbackRequest.<Clone>$() -> Tracon.WorkflowRollbackRequest!
+Tracon.WorkflowRollbackRequest.Equals(Tracon.WorkflowRollbackRequest? other) -> bool
+Tracon.WorkflowRollbackRequest.Version.get -> int
+Tracon.WorkflowRollbackRequest.Version.init -> void
+Tracon.WorkflowRollbackRequest.WorkflowRollbackRequest() -> void
 Tracon.WorkflowRunHttpRequest
 Tracon.WorkflowRunHttpRequest.<Clone>$() -> Tracon.WorkflowRunHttpRequest!
 Tracon.WorkflowRunHttpRequest.Equals(Tracon.WorkflowRunHttpRequest? other) -> bool
@@ -930,6 +940,14 @@ Tracon.WorkflowSaveRequest.RequirePlanApproval.init -> void
 Tracon.WorkflowSaveRequest.RunTimeout.get -> System.TimeSpan?
 Tracon.WorkflowSaveRequest.RunTimeout.init -> void
 Tracon.WorkflowSaveRequest.WorkflowSaveRequest() -> void
+Tracon.WorkflowVersionDiffResponse
+Tracon.WorkflowVersionDiffResponse.<Clone>$() -> Tracon.WorkflowVersionDiffResponse!
+Tracon.WorkflowVersionDiffResponse.Equals(Tracon.WorkflowVersionDiffResponse? other) -> bool
+Tracon.WorkflowVersionDiffResponse.Left.get -> Tracon.WorkflowDefinition!
+Tracon.WorkflowVersionDiffResponse.Left.init -> void
+Tracon.WorkflowVersionDiffResponse.Right.get -> Tracon.WorkflowDefinition!
+Tracon.WorkflowVersionDiffResponse.Right.init -> void
+Tracon.WorkflowVersionDiffResponse.WorkflowVersionDiffResponse() -> void
 const Tracon.TraconA2AExtensions.DefaultPattern = "/tracon/a2a" -> string!
 const Tracon.TraconEndpointRouteBuilderExtensions.DefaultPrefix = "/tracon" -> string!
 const Tracon.TraconMcpServerExtensions.DefaultPattern = "/tracon/mcp" -> string!
@@ -1141,6 +1159,9 @@ override Tracon.WorkflowRespondHttpRequest.ToString() -> string!
 override Tracon.WorkflowResumeHttpRequest.Equals(object? obj) -> bool
 override Tracon.WorkflowResumeHttpRequest.GetHashCode() -> int
 override Tracon.WorkflowResumeHttpRequest.ToString() -> string!
+override Tracon.WorkflowRollbackRequest.Equals(object? obj) -> bool
+override Tracon.WorkflowRollbackRequest.GetHashCode() -> int
+override Tracon.WorkflowRollbackRequest.ToString() -> string!
 override Tracon.WorkflowRunHttpRequest.Equals(object? obj) -> bool
 override Tracon.WorkflowRunHttpRequest.GetHashCode() -> int
 override Tracon.WorkflowRunHttpRequest.ToString() -> string!
@@ -1290,7 +1311,14 @@ static Tracon.WorkflowRespondHttpRequest.operator !=(Tracon.WorkflowRespondHttpR
 static Tracon.WorkflowRespondHttpRequest.operator ==(Tracon.WorkflowRespondHttpRequest? left, Tracon.WorkflowRespondHttpRequest? right) -> bool
 static Tracon.WorkflowResumeHttpRequest.operator !=(Tracon.WorkflowResumeHttpRequest? left, Tracon.WorkflowResumeHttpRequest? right) -> bool
 static Tracon.WorkflowResumeHttpRequest.operator ==(Tracon.WorkflowResumeHttpRequest? left, Tracon.WorkflowResumeHttpRequest? right) -> bool
+static Tracon.WorkflowRollbackRequest.operator !=(Tracon.WorkflowRollbackRequest? left, Tracon.WorkflowRollbackRequest? right) -> bool
+static Tracon.WorkflowRollbackRequest.operator ==(Tracon.WorkflowRollbackRequest? left, Tracon.WorkflowRollbackRequest? right) -> bool
 static Tracon.WorkflowRunHttpRequest.operator !=(Tracon.WorkflowRunHttpRequest? left, Tracon.WorkflowRunHttpRequest? right) -> bool
 static Tracon.WorkflowRunHttpRequest.operator ==(Tracon.WorkflowRunHttpRequest? left, Tracon.WorkflowRunHttpRequest? right) -> bool
 static Tracon.WorkflowSaveRequest.operator !=(Tracon.WorkflowSaveRequest? left, Tracon.WorkflowSaveRequest? right) -> bool
 static Tracon.WorkflowSaveRequest.operator ==(Tracon.WorkflowSaveRequest? left, Tracon.WorkflowSaveRequest? right) -> bool
+override Tracon.WorkflowVersionDiffResponse.Equals(object? obj) -> bool
+override Tracon.WorkflowVersionDiffResponse.GetHashCode() -> int
+override Tracon.WorkflowVersionDiffResponse.ToString() -> string!
+static Tracon.WorkflowVersionDiffResponse.operator !=(Tracon.WorkflowVersionDiffResponse? left, Tracon.WorkflowVersionDiffResponse? right) -> bool
+static Tracon.WorkflowVersionDiffResponse.operator ==(Tracon.WorkflowVersionDiffResponse? left, Tracon.WorkflowVersionDiffResponse? right) -> bool

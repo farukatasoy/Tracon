@@ -146,6 +146,11 @@ internal static class WorkflowDefinitionValidator
                 {
                     return timeoutProblem;
                 }
+
+                if (NodeAgentVersionProblem(definition.Name, node) is { } versionProblem)
+                {
+                    return versionProblem;
+                }
             }
         }
         else
@@ -303,6 +308,36 @@ internal static class WorkflowDefinitionValidator
             : $"Node '{node.Name}' in workflow '{workflowName}' has a 'timeout' of {timeout}. A function node's " +
               $"timeout must be from 1 to {TimerPeriod.MaxMilliseconds} milliseconds (about 49.7 days). Leave it " +
               "out to use the timeout the function was registered with.";
+    }
+
+    /// <summary>Checks one node's agent version pin against the kind that may carry it.</summary>
+    /// <param name="workflowName">The workflow the node belongs to, for the message.</param>
+    /// <param name="node">The node.</param>
+    /// <returns>User-facing error text; <see langword="null"/> when the node has no pin or a valid one.</returns>
+    /// <remarks>
+    /// Only the shape every pin shares is here. Whether the agent has that version is
+    /// judged against the agent catalog (<see cref="AgentVersionPin"/>), which a pure
+    /// function of the definition cannot see.
+    /// </remarks>
+    public static string? NodeAgentVersionProblem(string workflowName, WorkflowNodeReference node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (node.AgentVersion is not { } version)
+        {
+            return null;
+        }
+
+        if (node.Kind != WorkflowNodeKind.Agent)
+        {
+            return $"Node '{node.Name}' in workflow '{workflowName}' is a function node but carries an " +
+                   "'agentVersion'. A version pin belongs to agent nodes only; a function is code and has no versions.";
+        }
+
+        return version >= 1
+            ? null
+            : $"Node '{node.Name}' in workflow '{workflowName}' has an 'agentVersion' of {version}. " +
+              "Versions are numbered from 1. Leave it out to run the agent's current version.";
     }
 
     /// <summary>

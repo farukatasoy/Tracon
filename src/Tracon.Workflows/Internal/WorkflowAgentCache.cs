@@ -105,16 +105,26 @@ internal sealed class WorkflowAgentCache
     /// hard cutoff is the timeout plus 30 seconds. <see langword="null"/> uses the
     /// installation's limits.
     /// </param>
+    /// <param name="agentVersion">
+    /// The version of the agent the step runs (<see cref="WorkflowNodeReference.AgentVersion"/>).
+    /// <see langword="null"/> runs the agent's current version on every call.
+    /// </param>
     /// <returns>An agent with a stable identity, ready to be placed in the graph.</returns>
     /// <remarks>
-    /// The timeout is part of the cache key, because <see cref="ChildAgentInvoker"/> takes
-    /// its limits in its constructor; it is NOT part of the identity. Every wrapper of the
-    /// same <c>(workflow, agent)</c> pair gets the same executor id, so a changed timeout
-    /// does not make a waiting run's checkpoint incompatible.
+    /// The timeout and the version are part of the cache key, because
+    /// <see cref="ChildAgentInvoker"/> takes both in its constructor; neither is part of the
+    /// identity. Every wrapper of the same <c>(workflow, agent)</c> pair gets the same executor
+    /// id, so a changed timeout or a changed pin does not make a waiting run's checkpoint
+    /// incompatible.
     /// </remarks>
-    public ChildAgentInvoker Get(string workflowName, string agentName, string? description, TimeSpan? timeout = null)
+    public ChildAgentInvoker Get(
+        string workflowName,
+        string agentName,
+        string? description,
+        TimeSpan? timeout = null,
+        int? agentVersion = null)
         => _agents.GetOrAdd(
-            new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout),
+            new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout, agentVersion),
             static (key, state) => Create(key, state),
             (
                 Resolver: _resolver,
@@ -160,7 +170,8 @@ internal sealed class WorkflowAgentCache
             // Only a workflow step binds the workflow's parameter values (F-294);
             // an agent called as a tool never does.
             state.ParameterFactory,
-            limitName);
+            limitName,
+            key.AgentVersion);
 
         // The identity is written on the instance BEFORE it enters the graph:
         // MAF reads the executor id at binding time, and changing it afterward
@@ -186,6 +197,13 @@ internal sealed class WorkflowAgentCache
     // by phase 16 onward stay readable.
     //
     // The timeout is part of the key (F-405) for the same reason the tenant is: the
-    // wrapper takes it in its constructor. Like the tenant, it never reaches the id.
-    private readonly record struct AgentKey(string TenantId, string WorkflowName, string AgentName, TimeSpan? Timeout);
+    // wrapper takes it in its constructor. Like the tenant, it never reaches the id. The
+    // pinned agent version (phase 200) follows the same rule: two steps of the same
+    // (workflow, agent) pair that pin different versions are two wrappers with ONE id.
+    private readonly record struct AgentKey(
+        string TenantId,
+        string WorkflowName,
+        string AgentName,
+        TimeSpan? Timeout,
+        int? AgentVersion);
 }

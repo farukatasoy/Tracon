@@ -6,8 +6,8 @@ namespace Tracon;
 /// <summary>Wraps <see cref="IWorkflowDefinitionStore"/> in a decorator that writes an audit trail.</summary>
 /// <remarks>
 /// A workflow definition chains catalog agents and can start dozens of model calls
-/// from one request. The <c>workflow.save</c> and <c>workflow.delete</c> actions
-/// therefore always enter the audit trail.
+/// from one request. The <c>workflow.save</c>, <c>workflow.rollback</c> and
+/// <c>workflow.delete</c> actions therefore always enter the audit trail.
 /// </remarks>
 internal sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore, IAuditDecorated
 {
@@ -112,6 +112,56 @@ internal sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore
         }
 
         return deleted;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<WorkflowDefinition?> GetVersionAsync(
+        string tenantId,
+        string name,
+        int version,
+        CancellationToken cancellationToken = default)
+        => _inner.GetVersionAsync(tenantId, name, version, cancellationToken);
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<WorkflowDefinition>> ListVersionsAsync(
+        string tenantId,
+        string name,
+        CancellationToken cancellationToken = default)
+        => _inner.ListVersionsAsync(tenantId, name, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Written as <c>workflow.rollback</c>, not <c>workflow.save</c>: the entry names the
+    /// version the content came from and the new version it was written as, which is what
+    /// an auditor asks of a rollback. The content itself is not repeated; it is the stored
+    /// version. A rollback that throws (the version does not exist) writes nothing.
+    /// </remarks>
+    public async ValueTask<WorkflowDefinition> RollbackAsync(
+        string tenantId,
+        string name,
+        int version,
+        CancellationToken cancellationToken = default)
+    {
+        var before = await _inner.GetAsync(tenantId, name, cancellationToken).ConfigureAwait(false);
+        var rolledBack = await _inner.RollbackAsync(tenantId, name, version, cancellationToken).ConfigureAwait(false);
+
+        await AuditRecorder.WriteAsync(
+            _auditLog,
+            _actorResolver,
+            _logger,
+            _metrics,
+            tenantId,
+            action: "workflow.rollback",
+            entity: $"workflow:{name}",
+            before: before is null ? null : AuditPayload.Write(writer => writer.WriteNumber("version", before.Version)),
+            after: AuditPayload.Write(writer =>
+            {
+                writer.WriteNumber("rolledBackToVersion", version);
+                writer.WriteNumber("newVersion", rolledBack.Version);
+            }),
+            cancellationToken).ConfigureAwait(false);
+
+        return rolledBack;
     }
 
     private static string Serialize(WorkflowDefinition definition)

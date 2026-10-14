@@ -3,14 +3,15 @@ using System.Text.Json;
 
 namespace Tracon;
 
-/// <summary>Stores workflow definitions in process memory.</summary>
+/// <summary>Stores workflow definitions, and every version of them, in process memory.</summary>
 /// <remarks>
-/// Its behavior contract matches <c>PostgresWorkflowDefinitionStore</c> and is
-/// protected by shared contract tests.
+/// Its behavior contract matches <c>SqlWorkflowDefinitionStore</c> and is
+/// protected by shared contract tests. A deleted definition keeps its history, so a
+/// version number is never given to two different contents.
 /// </remarks>
 internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
 {
-    private readonly ConcurrentDictionary<WorkflowKey, WorkflowDefinition> _workflows = new();
+    private readonly ConcurrentDictionary<WorkflowKey, WorkflowHistory> _workflows = new();
 
     /// <inheritdoc />
     public ValueTask<WorkflowDefinition?> GetAsync(
@@ -22,9 +23,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
 
-        _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var definition);
-
-        return new ValueTask<WorkflowDefinition?>(definition);
+        return new ValueTask<WorkflowDefinition?>(
+            _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) ? history.Current() : null);
     }
 
     /// <inheritdoc />
@@ -37,7 +37,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
 
         var definitions = _workflows
             .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
-            .Select(static pair => pair.Value)
+            .Select(static pair => pair.Value.Current())
+            .OfType<WorkflowDefinition>()
             .OrderBy(static definition => definition.Name, StringComparer.Ordinal)
             .ToArray();
 
@@ -54,13 +55,8 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var saved = _workflows.AddOrUpdate(
-            new WorkflowKey(tenantId, definition.Name),
-            (_, value) => Stamp(value, tenantId, version: 1),
-            (_, current, value) => Stamp(value, tenantId, current.Version + 1),
-            definition);
-
-        return new ValueTask<WorkflowDefinition>(saved);
+        return new ValueTask<WorkflowDefinition>(
+            HistoryOf(tenantId, definition.Name).Append(definition, tenantId));
     }
 
     /// <inheritdoc />
@@ -73,18 +69,144 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return new ValueTask<bool>(_workflows.TryRemove(new WorkflowKey(tenantId, name), out _));
+        return new ValueTask<bool>(
+            _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) && history.Delete());
     }
 
-    private static WorkflowDefinition Stamp(WorkflowDefinition definition, string tenantId, int version)
-        => definition with
+    /// <inheritdoc />
+    public ValueTask<WorkflowDefinition?> GetVersionAsync(
+        string tenantId,
+        string name,
+        int version,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new ValueTask<WorkflowDefinition?>(
+            _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) ? history.Find(version) : null);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<WorkflowDefinition>> ListVersionsAsync(
+        string tenantId,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new ValueTask<IReadOnlyList<WorkflowDefinition>>(
+            _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history) ? history.Newest() : []);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<WorkflowDefinition> RollbackAsync(
+        string tenantId,
+        string name,
+        int version,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_workflows.TryGetValue(new WorkflowKey(tenantId, name), out var history))
         {
-            TenantId = tenantId,
-            Version = version,
-            UpdatedAt = DateTimeOffset.UtcNow,
-        };
+            throw MissingVersion(name, version);
+        }
+
+        return new ValueTask<WorkflowDefinition>(
+            history.AppendCopyOf(version, tenantId) ?? throw MissingVersion(name, version));
+    }
+
+    private WorkflowHistory HistoryOf(string tenantId, string name)
+        => _workflows.GetOrAdd(new WorkflowKey(tenantId, name), static _ => new WorkflowHistory());
+
+    private static TraconException MissingVersion(string name, int version)
+        => new($"Version {version} of the '{name}' workflow definition was not found.");
 
     private readonly record struct WorkflowKey(string TenantId, string Name);
+
+    /// <summary>
+    /// Every version one name has ever had, oldest first. Kept after a delete: the last entry
+    /// is then not current, but its number is still taken.
+    /// </summary>
+    private sealed class WorkflowHistory
+    {
+        private readonly List<WorkflowDefinition> _versions = [];
+        private bool _exists;
+
+        public WorkflowDefinition? Current()
+        {
+            lock (_versions)
+            {
+                return _exists ? _versions[^1] : null;
+            }
+        }
+
+        public WorkflowDefinition? Find(int version)
+        {
+            lock (_versions)
+            {
+                // Versions are numbered from 1 and never skip, so the number is the position.
+                return version >= 1 && version <= _versions.Count ? _versions[version - 1] : null;
+            }
+        }
+
+        public IReadOnlyList<WorkflowDefinition> Newest()
+        {
+            lock (_versions)
+            {
+                return [.. Enumerable.Reverse(_versions)];
+            }
+        }
+
+        public WorkflowDefinition Append(WorkflowDefinition definition, string tenantId)
+        {
+            lock (_versions)
+            {
+                return Add(definition, tenantId);
+            }
+        }
+
+        public WorkflowDefinition? AppendCopyOf(int version, string tenantId)
+        {
+            lock (_versions)
+            {
+                return version >= 1 && version <= _versions.Count ? Add(_versions[version - 1], tenantId) : null;
+            }
+        }
+
+        public bool Delete()
+        {
+            lock (_versions)
+            {
+                var deleted = _exists;
+                _exists = false;
+
+                return deleted;
+            }
+        }
+
+        // The caller holds the lock.
+        private WorkflowDefinition Add(WorkflowDefinition definition, string tenantId)
+        {
+            var saved = definition with
+            {
+                TenantId = tenantId,
+                Version = _versions.Count + 1,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            };
+
+            _versions.Add(saved);
+            _exists = true;
+
+            return saved;
+        }
+    }
 }
 
 /// <summary>Stores workflow checkpoints in process memory.</summary>

@@ -92,7 +92,19 @@ internal sealed class WorkflowCatalog
     /// <param name="name">The workflow name.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The summary; <see langword="null"/> if it does not exist.</returns>
-    public async ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken cancellationToken = default)
+    public ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken cancellationToken = default)
+        => GetAsync(name, version: null, cancellationToken);
+
+    /// <summary>Gets the summary of a single workflow, as one of its versions describes it.</summary>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="version">The stored version to describe; <see langword="null"/> for the current one.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summary; <see langword="null"/> if the workflow does not exist.</returns>
+    /// <exception cref="TraconException">The workflow has no such version.</exception>
+    public async ValueTask<WorkflowDescriptor?> GetAsync(
+        string name,
+        int? version,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -106,17 +118,77 @@ internal sealed class WorkflowCatalog
             };
         }
 
-        var definition = await _store
+        var found = await FindAsync(name, version, cancellationToken).ConfigureAwait(false);
+
+        return found?.Definition is { } definition ? Describe(definition) : null;
+    }
+
+    /// <summary>
+    /// Reads the named workflow, and nothing else: no graph is built and no agent is touched.
+    /// </summary>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="version">
+    /// The stored version to read. <see langword="null"/> reads the current one. Ignored for a
+    /// workflow defined in code, which has no versions.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>What was found; <see langword="null"/> if the workflow is not in the catalog.</returns>
+    /// <exception cref="TraconException">The workflow exists but has no such version.</exception>
+    /// <remarks>
+    /// <para>
+    /// A run reads the definition ONCE, here, and takes everything it needs from that read: the
+    /// graph (<see cref="CompileAsync"/>), the parameter schema, the run timeout and the version
+    /// it stamps on its row. Two reads could see two versions of a workflow being edited.
+    /// </para>
+    /// <para>
+    /// A named version requires the workflow to exist now. History outlives a delete (so a
+    /// number is never reused), but a run is not resumed into a workflow that was removed: the
+    /// definition is the thing the operator removed.
+    /// </para>
+    /// </remarks>
+    public async ValueTask<FoundWorkflow?> FindAsync(
+        string name,
+        int? version,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (_codeWorkflows.TryGetValue(name, out var registration))
+        {
+            return new FoundWorkflow(registration, null);
+        }
+
+        var current = await _store
             .GetAsync(_tenantContext.TenantId, name, cancellationToken)
             .ConfigureAwait(false);
 
-        return definition is null ? null : Describe(definition);
+        if (current is null)
+        {
+            return null;
+        }
+
+        if (version is not { } pinned || pinned == current.Version)
+        {
+            return new FoundWorkflow(null, current);
+        }
+
+        var definition = await _store
+            .GetVersionAsync(_tenantContext.TenantId, name, pinned, cancellationToken)
+            .ConfigureAwait(false);
+
+        // Never the current definition in its place: an operator who named a version, and a
+        // run that recorded one, must not be handed a different content in silence.
+        return definition is null
+            ? throw new TraconException(
+                $"Workflow '{name}' has no version {pinned}. List its versions with " +
+                $"GET /api/workflows/{name}/versions.")
+            : new FoundWorkflow(null, definition);
     }
 
-    /// <summary>Turns the named workflow into a runnable graph.</summary>
-    /// <param name="name">The workflow name.</param>
+    /// <summary>Turns what <see cref="FindAsync"/> read into a runnable graph.</summary>
+    /// <param name="found">The workflow that was read.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The built graph; <see langword="null"/> if the workflow is not in the catalog.</returns>
+    /// <returns>The built graph.</returns>
     /// <exception cref="TraconException">The definition is invalid, or an agent cannot be found.</exception>
     /// <remarks>
     /// The graph is <strong>rebuilt on every run</strong>, never cached.
@@ -125,52 +197,25 @@ internal sealed class WorkflowCatalog
     /// share that state between them. The build cost is negligible next to a
     /// single model call.
     /// </remarks>
-    public async ValueTask<Workflow?> ResolveAsync(string name, CancellationToken cancellationToken = default)
-        => (await ResolveWithDefinitionAsync(name, cancellationToken).ConfigureAwait(false))?.Graph;
+    public ValueTask<Workflow> CompileAsync(FoundWorkflow found, CancellationToken cancellationToken = default)
+        => found.Code is { } registration
+            ? new ValueTask<Workflow>(registration.Factory(_services))
+            : _compiler.CompileAsync(found.Definition!, cancellationToken);
 
-    /// <summary>
-    /// Turns the named workflow into a runnable graph and returns the definition
-    /// it was compiled from.
-    /// </summary>
+    /// <summary>Turns the named workflow into a runnable graph.</summary>
     /// <param name="name">The workflow name.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>
-    /// The graph and, for a stored workflow, its definition; <see langword="null"/>
-    /// if the workflow is not in the catalog.
-    /// </returns>
+    /// <returns>The built graph; <see langword="null"/> if the workflow is not in the catalog.</returns>
     /// <exception cref="TraconException">The definition is invalid, or an agent cannot be found.</exception>
-    /// <remarks>
-    /// A run reads its parameter schema from the SAME definition the graph came
-    /// from: two separate reads could see two versions of a workflow being
-    /// edited, and validate values against a schema the graph no longer has.
-    /// A code-defined workflow has no definition (and so no schema).
-    /// </remarks>
-    public async ValueTask<ResolvedWorkflow?> ResolveWithDefinitionAsync(
-        string name,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+    public async ValueTask<Workflow?> ResolveAsync(string name, CancellationToken cancellationToken = default)
+        => await FindAsync(name, version: null, cancellationToken).ConfigureAwait(false) is { } found
+            ? await CompileAsync(found, cancellationToken).ConfigureAwait(false)
+            : null;
 
-        if (_codeWorkflows.TryGetValue(name, out var registration))
-        {
-            return new ResolvedWorkflow(registration.Factory(_services), null);
-        }
-
-        var definition = await _store
-            .GetAsync(_tenantContext.TenantId, name, cancellationToken)
-            .ConfigureAwait(false);
-
-        return definition is null
-            ? null
-            : new ResolvedWorkflow(
-                await _compiler.CompileAsync(definition, cancellationToken).ConfigureAwait(false),
-                definition);
-    }
-
-    /// <summary>A compiled graph and the definition it came from.</summary>
-    /// <param name="Graph">The runnable graph.</param>
+    /// <summary>A workflow as the catalog read it, before any graph is built.</summary>
+    /// <param name="Code">The registration of a workflow defined in code; <see langword="null"/> for a stored one.</param>
     /// <param name="Definition">The stored definition; <see langword="null"/> for a workflow defined in code.</param>
-    internal readonly record struct ResolvedWorkflow(Workflow Graph, WorkflowDefinition? Definition);
+    internal readonly record struct FoundWorkflow(CodeWorkflowRegistration? Code, WorkflowDefinition? Definition);
 
     private static WorkflowDescriptor Describe(WorkflowDefinition definition)
         => new()

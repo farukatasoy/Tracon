@@ -112,4 +112,11 @@ public sealed record WorkflowRespondRequest
 
     /// <summary>Gets the identifier of the new run. When supplied, recording starts with this id.</summary>
     public Guid? NewRunId { get; init; }
+
+    /// <summary>
+    /// Gets the version of the workflow's stored definition to continue with. See
+    /// <see cref="WorkflowResumeRequest.DefinitionVersion"/>: <see langword="null"/> continues with
+    /// the version the waiting run recorded.
+    /// </summary>
+    public int? DefinitionVersion { get; init; }
 }

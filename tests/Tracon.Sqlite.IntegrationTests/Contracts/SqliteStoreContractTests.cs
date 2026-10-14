@@ -155,6 +155,18 @@ public sealed class SqliteWorkflowDefinitionStoreContractTests(SqliteSchemaFixtu
         await schema.ResetAsync();
         return schema.Context.Workflows;
     }
+
+    /// <inheritdoc />
+    protected override bool SupportsRawHistory => true;
+
+    /// <inheritdoc />
+    protected override string QualifiedWorkflowHistoryTable => $"{schema.Context.TablePrefix}workflow_definition_versions";
+
+    /// <inheritdoc />
+    protected override string RawNowExpression => "datetime('now')";
+
+    /// <inheritdoc />
+    protected override async ValueTask ExecuteRawAsync(string sql) => await schema.Context.ExecuteAsync(sql);
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />

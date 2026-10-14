@@ -209,4 +209,25 @@ public sealed record WorkflowResumeRequest
 
     /// <summary>The new run's identifier. If given, the record is opened with this identifier.</summary>
     public Guid? NewRunId { get; init; }
+
+    /// <summary>
+    /// The version of the workflow's stored definition to resume with.
+    /// <see langword="null"/> (the default) resumes with the version the source run
+    /// recorded, so an edit made while the run waited does not change what resumes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A source run that recorded no version (it predates version recording, or the
+    /// workflow is defined in code) resumes with the current definition. A version the
+    /// workflow does not have fails the run; the run never falls back to the current
+    /// definition.
+    /// </para>
+    /// <para>
+    /// Naming a version whose graph differs from the one the checkpoint was written
+    /// with fails the run with "the graph's structure differs": the checkpoint belongs
+    /// to the graph it was written from. That is how an operator carries a run over a
+    /// fix, when the fix did not change the structure.
+    /// </para>
+    /// </remarks>
+    public int? DefinitionVersion { get; init; }
 }
