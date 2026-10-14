@@ -33,6 +33,7 @@ public sealed class WorkflowRunJobHandlerTests
             Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "audio" },
             SourceRunId = source,
             CheckpointId = "cp-1",
+            DefinitionVersion = 4,
             RequestId = "gate",
             Approved = true,
             Text = "ship it",
@@ -50,6 +51,7 @@ public sealed class WorkflowRunJobHandlerTests
         request.Labels.ShouldNotBeNull()["team"].ShouldBe("audio");
         request.SourceRunId.ShouldBe(source);
         request.CheckpointId.ShouldBe("cp-1");
+        request.DefinitionVersion.ShouldBe(4);
         request.RequestId.ShouldBe("gate");
         request.Approved.ShouldBe(true);
         request.Text.ShouldBe("ship it");
@@ -64,12 +66,52 @@ public sealed class WorkflowRunJobHandlerTests
     [InlineData("""{"operation":"run","runId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a1","sessionId":"has spaces"}""", "sessionId")]
     [InlineData("""{"operation":"run","runId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a1","parameters":{"tone":7}}""", "parameters")]
     [InlineData("""{"operation":"run","runId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a1","approved":"yes"}""", "approved")]
+    [InlineData("""{"operation":"resume","runId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a1","sourceRunId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a2","definitionVersion":0}""", "definitionVersion")]
+    [InlineData("""{"operation":"resume","runId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a1","sourceRunId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a2","definitionVersion":"3"}""", "definitionVersion")]
+    [InlineData("""{"operation":"resume","runId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a1","sourceRunId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a2","definitionVersion":2.5}""", "definitionVersion")]
     public void A_malformed_payload_is_refused_naming_the_field(string json, string field)
     {
         var (request, _, problem) = WorkflowRunJobPayload.Read(JsonDocument.Parse(json).RootElement, logger: null);
 
         request.ShouldBeNull();
         problem.ShouldNotBeNull().ShouldContain(field, Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_payload_without_a_definition_version_reads_none()
+    {
+        // The default is the version the source run recorded; a payload queued before the field
+        // existed must read exactly that.
+        var json = """{"operation":"resume","runId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a1","sourceRunId":"01a1340e-ad31-75e4-b64b-e3d0a26ab0a2"}""";
+
+        var (request, _, problem) = WorkflowRunJobPayload.Read(JsonDocument.Parse(json).RootElement, logger: null);
+
+        problem.ShouldBeNull();
+        request.ShouldNotBeNull().DefinitionVersion.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_queued_resume_and_a_queued_respond_hand_their_definition_version_to_the_engine()
+    {
+        var runs = new InMemoryRunStore();
+        var source = TraconId.NewId();
+        var runner = new ScriptedRunner(runs, RunStatus.Completed);
+        var handler = new WorkflowRunJobHandler(runner, Recovery(runs), NullLogger<WorkflowRunJobHandler>.Instance);
+
+        var resumeId = await QueueAsync(runs);
+
+        await handler.ExecuteAsync(Context(
+            resumeId,
+            $$"""{"operation":"resume","runId":"{{resumeId}}","sourceRunId":"{{source}}","definitionVersion":3}"""));
+
+        var respondId = await QueueAsync(runs);
+
+        await handler.ExecuteAsync(Context(
+            respondId,
+            $$"""{"operation":"respond","runId":"{{respondId}}","sourceRunId":"{{source}}","requestId":"gate","approved":true,"definitionVersion":5}"""));
+
+        runner.Resumes.Select(static request => request.DefinitionVersion).ShouldBe([3]);
+        runner.Responses.Select(static request => request.DefinitionVersion).ShouldBe([5]);
     }
 
     [Fact]
@@ -285,6 +327,10 @@ public sealed class WorkflowRunJobHandlerTests
     {
         public int Started { get; private set; }
 
+        public List<WorkflowResumeRequest> Resumes { get; } = [];
+
+        public List<WorkflowRespondRequest> Responses { get; } = [];
+
         public ValueTask<IReadOnlyList<WorkflowDescriptor>> ListAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken cancellationToken = default) => throw new NotSupportedException();
@@ -295,10 +341,41 @@ public sealed class WorkflowRunJobHandlerTests
             => throw new NotSupportedException();
 
         public IAsyncEnumerable<RunEvent> RespondStreamingAsync(WorkflowRespondRequest request, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            Responses.Add(request);
+
+            return Continuation(request.NewRunId!.Value, request.RunId, cancellationToken);
+        }
 
         public IAsyncEnumerable<RunEvent> ResumeStreamingAsync(WorkflowResumeRequest request, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            Resumes.Add(request);
+
+            return Continuation(request.NewRunId!.Value, request.RunId, cancellationToken);
+        }
+
+        private async IAsyncEnumerable<RunEvent> Continuation(
+            Guid runId,
+            Guid sourceRunId,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            await runs!.StartRunAsync(new RunStartInfo
+            {
+                RunId = runId,
+                AgentName = "podcast",
+                Kind = RunKind.Workflow,
+                WorkflowName = "podcast",
+                StartedAt = DateTimeOffset.UtcNow,
+                TenantId = Tenant,
+                ContinuedFromRunId = sourceRunId,
+            }, cancellationToken);
+
+            yield return new RunEvent { RunId = runId, Sequence = 0, Type = RunEventType.RunStarted, Timestamp = DateTimeOffset.UtcNow };
+
+            await runs.CompleteRunAsync(new RunCompletion { RunId = runId, Status = outcome, CompletedAt = DateTimeOffset.UtcNow }, cancellationToken);
+
+            yield return new RunEvent { RunId = runId, Sequence = 1, Type = RunEventType.RunCompleted, Timestamp = DateTimeOffset.UtcNow };
+        }
 
         public async IAsyncEnumerable<RunEvent> RunStreamingAsync(
             WorkflowRunRequest request,
