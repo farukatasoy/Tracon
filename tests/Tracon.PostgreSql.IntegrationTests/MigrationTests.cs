@@ -80,7 +80,8 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
         // (applyMigrations: false + Migrations.ApplyAsync() below applies BOTH
         // sets), so the table still gets created here and the total is unchanged.
         // Phase 199 added the `run_non_token_usage` table: 49 -> 50.
-        tableCount.ShouldBe(50);
+        // Phase 200 added the `workflow_definition_versions` table: 50 -> 51.
+        tableCount.ShouldBe(51);
     }
 
     [Fact]

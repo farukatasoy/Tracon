@@ -44,7 +44,8 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         // Phase 65 added `tenant_provider_bindings` and `tenant_egress_policies`: 45 -> 47.
         // Phase 66 added the `inbound_triggers` table: 47 -> 48.
         // Phase 199 added the `run_non_token_usage` table: 48 -> 49.
-        tableCount.ShouldBe(49);
+        // Phase 200 added the `workflow_definition_versions` table: 49 -> 50.
+        tableCount.ShouldBe(50);
     }
 
     [Fact]
