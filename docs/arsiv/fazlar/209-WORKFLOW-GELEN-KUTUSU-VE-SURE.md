@@ -139,7 +139,10 @@ Manuel case 3 (konsol, satıra tıkla) ve 6/7 ayrı yerlerde kanıtlandı: 3 →
 
 ### Kapanış kapısı (2026-10-14)
 
-*(kapıların sonucu aşağıya kapanışta yazılır)*
+- `kapi.py kapanis --taban 661618fe` (`d81ac76f`) ✅ çıkış 0: tarama, `--denetle`, betik testleri, agent haritası, denetim paketi, build (85 sn, **0 uyarı**), tam test (564 sn), `dotnet pack`, `dotnet format --verify-no-changes`, `npm run check` (1108 sayfa, kırık bağlantı 0, en ağır `concepts/workflows` 58 983 B / 59 000).
+- Yolda kırmızı görülenler (hepsi düzeltildi): `dotnet test Tracon.slnx` iki mimari kapıda düştü — `TestDelayClassificationTests` (etiketsiz `Task.Delay`) ve `PlaywrightLocatorTests` (üç riskli locator, `Exact = true`); ikisi de önceki commit'lerdendi, kapıyı o commit'ler koşmamıştı. `build-agent-map.mjs --check` ilk koşuda `llms-full.txt` eskidiği için düştü (yenilendi).
+- `kapi.py yayin --kuru --surum 1.0.0-preview.4` ✅ çıkış 0: 20 paket, kırıcı liste 5 tip (hepsi `Unreleased`'de), `npm publish --dry-run`, 6 exact-version örnek, Native AOT ve net8.0 tüketici smoke. İlk koşum eski aday dizini yüzünden durdu (gitignore'lu `artifacts/package/yayin/1.0.0-preview.4`, Faz 208 provasından); araç önerdiği gibi silindi.
+- `dokuman-bakim.py --site-denetle --taban 661618fe --site-gerekce-yazildi` ✅ (gerekçe *Site gerekçesi* altında).
 
 ## Bu Fazda Verilen Kararlar
 
