@@ -231,6 +231,22 @@ easy to miss in a custom store because everything else keeps passing without the
 A store that ignores `OwnerId` still compiles and still runs — session ownership just
 never works on it. Running `SessionStoreContract` is what makes that visible.
 
+`IWorkflowDefinitionStore` keeps the [version history](/concepts/workflows/#versions-rollback-and-pinning-an-agent-step)
+of a stored workflow, so it has three members beside the record-level ones:
+`GetVersionAsync`, `ListVersionsAsync` and `RollbackAsync`. A store written against an
+earlier preview does not compile until it adds them. `WorkflowDefinitionStoreContract`
+runs the history scenarios, and three rules are easy to miss:
+
+- **A version number is an identity.** A run records the version it was compiled from, so
+  one number must never name two contents. The history outlives the workflow's row:
+  deleting a workflow keeps its versions, and the next save continues from the highest
+  number ever written.
+- **A save writes the current row and its history entry together.** A failed history
+  write must leave the current definition as it was. The contract proves this only for a
+  store that overrides its raw-history hooks (`SupportsRawHistory`).
+- **A rollback appends.** It writes the old content as a new version and never rewrites an
+  entry; concurrent saves still get distinct numbers.
+
 `IJobStore` carries one aggregate method alongside the record-level ones.
 `GetQueueDepthAsync` counts outstanding jobs grouped by lane and status, the way
 `IRunStore.GetStatisticsAsync` sits on the run store rather than in an interface of

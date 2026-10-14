@@ -143,8 +143,8 @@ is the list.
 
 | Capability | Enable it | Storage and execution model |
 |---|---|---|
-| Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run |
-| Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again |
+| Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, and a step can pin a version of a stored agent |
+| Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
 | Human input | Workflow request and response endpoints | A waiting workflow resumes from its checkpoint as a new execution step |
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
@@ -257,7 +257,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-171-operation HTTP reference.
+174-operation HTTP reference.
 
 ## Embedding points
 

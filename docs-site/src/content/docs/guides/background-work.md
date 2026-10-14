@@ -244,7 +244,9 @@ A workflow run, a resume and an answer to a waiting request queue the same way: 
 `POST /api/workflows/runs/{runId}/resume` or `POST /api/workflows/runs/{runId}/respond`.
 The answer is `202 Accepted` with the run id, which is also the job id, and the job
 runs under the built-in key `tracon.workflow-run`. Every check the streamed call makes
-happens before the `202`, so a refused request queues nothing. See
+happens before the `202`, so a refused request queues nothing. A queued resume or answer
+carries the optional `definitionVersion` too, and a version the workflow does not have is
+refused with `400` before the job exists. See
 [Queue a run instead of streaming it](/concepts/workflows/#queue-a-run-instead-of-streaming-it).
 
 `tracon.workflow-run` cannot be scheduled, with or without

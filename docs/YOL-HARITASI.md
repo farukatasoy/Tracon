@@ -212,7 +212,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [197](arsiv/fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md) | Dayanıklı Workflow Yürütmesi: Bağlantısız Run ve Otomatik Sürdürme | ✅ Tamamlandı |
 | [198](arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md) | Adlı Konuşma Sağlayıcısı ve Kiracı Bağlaması | ✅ Tamamlandı |
 | [199](arsiv/fazlar/199-FONKSIYON-DUGUMU-MALIYETI.md) | Fonksiyon Düğümünün Token Dışı Maliyeti | ✅ Tamamlandı |
-| [200](200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) | Workflow Sürüm Geçmişi ve Sürüm Sabitleme | 📋 Planlandı |
+| [200](200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) | Workflow Sürüm Geçmişi ve Sürüm Sabitleme | 🚧 Uygulandı, kapanış sürüyor (2026-10-14) |
 | [201](arsiv/fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) | Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası | ✅ Tamamlandı |
 | [202](arsiv/fazlar/202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | ✅ Tamamlandı |
 | [203](arsiv/fazlar/203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) | Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları | ✅ Tamamlandı |

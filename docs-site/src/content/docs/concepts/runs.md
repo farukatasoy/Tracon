@@ -94,6 +94,14 @@ comes from a custom `IRunPricingResolver` or from a currency setting changed ove
 console shows *mixed currencies* where the number would be. `GET /api/runs/{runId}/usage` lists the items
 a function node reported, and `GET /api/runs/{runId}/tools` carries a tool's measurement on its call.
 
+`agentVersion` names the definition version a run used. The row of a workflow run records
+the version of the workflow definition it was compiled from, and a resume or a response is
+stamped with the version it ran, so a waiting run continues with the same definition (see
+[Versions, rollback and pinning an agent step](/concepts/workflows/#versions-rollback-and-pinning-an-agent-step)).
+An agent step pinned to a version records that version on its own row. The field is `null`
+for a code-defined agent or workflow, and for a workflow row written before versions were
+kept.
+
 The conversation is the **event stream**, written with gapless sequence numbers by a
 single writer:
 

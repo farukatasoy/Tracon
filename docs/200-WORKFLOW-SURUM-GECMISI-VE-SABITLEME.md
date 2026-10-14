@@ -1,6 +1,6 @@
 # Faz 200 — Workflow Sürüm Geçmişi ve Sürüm Sabitleme
 
-> **Durum:** 🚧 Uygulandı, kapanış sürüyor (2026-10-14)
+> **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 (Açık Soruların önerileri olduğu gibi kabul edildi: 1-A, 2-A, 3-A, 4-N, 5-A, 6-B)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-300**
 > **Önkoşul:** [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmalı (ortak düğüm modeli ve editör); Faz 197 ve 201 ile dosya ortak
@@ -199,18 +199,18 @@ src/Tracon.{AspNetCore,Testing.Contracts.Xunit,UI}/   uçlar, sözleşmeler, ver
 - [x] Bekleyen run kaynak sürümle sürer, sürüm yoksa kapalı düşer (test 9-11) — `WorkflowResumePinTests` (6) · `WorkflowStructuralChangeResumeTests` (iki yarı) · `WorkflowResumeVersionHttpTests` (akış açılmadan `400`) · `WorkflowFunctionSettingsResumeTests`
 - [x] Sabitli adımın çocuk satırı sabiti yazar; sabit değişimi checkpoint'i kırmaz (test 14-15) — `WorkflowAgentVersionPinTests.A_pinned_step_runs_the_pinned_text_while_the_agent_is_edited` (modele ulaşan talimat metniyle) · `…binds_the_workflows_parameters_still_runs_its_pinned_version` (parametreli yol) · `WorkflowStructuralChangeResumeTests.Re_pinning_an_agent_step_leaves_the_old_checkpoint_usable_for_either_version`
 - [x] §200.4 sınıf taraması belgeye yazıldı — aşağıda
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban c8b9ea01` (kapanışta koşulur)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban c8b9ea01`: `build` 0 uyarı; tam test koşumu yeşil (4. koşum; 3. koşumda `JobWorkerDeadlineTests` net9.0 tam koşumda 30 sn'de düştü, yalıtılmış geçti, sonraki tam koşumda geçti — kaynak çekişmesi sınıfı); `pack` yeşil; `dotnet format` ilk koşumda `WorkflowRollbackTests` içe aktarma sırasını yakaladı, düzeltildi, temiz; `npm run check` yeşil (1088 sayfa, bağlantı ve SEO temiz)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (sabit + resume), çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`: ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` içine eklendi (`MT-WF-150`…`155`); otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi, `npm run build` + `check-links.mjs` temiz; `en.ts`/`tr.ts` eksiksiz; bundle payı yazıldı; `CHANGELOG.md` davranışı anar
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 🔴 yok; dört 🟡 (üçü düzeltildi, biri gerekçelendi + F-488, `respond` kısmı F-492) ve beş 🟢 (aşağıda)
+- [x] `docs-site/` güncellendi, `npm run check` (build, bağlantılar, SEO, ağırlık) temiz; `en.ts`/`tr.ts` eksiksiz (`i18n.test.ts`); konsol paketi 209,0 KB gzip; `workflow-editor*` ekran görüntüleri ve damga yenilendi; `CHANGELOG.md` davranış değişimini anar. **Site yayınlanmadı** (`site-deploy.sh` bakımcının kararıdır)
 
 ## Kapanış kanıtı
 
 ### §200.4 sınıf taraması
 
-`grep -rn "new WorkflowExecution" src/Tracon.Workflows` → `WorkflowRunner.cs`'te üç yer: `RunStreamingAsync` (yeni run: sürüm kayıt anında **okunan** tanımdan damgalanır), `PrepareResumeAsync` ve `PrepareResponseAsync` (`DefinitionVersion = istek ?? kaynak.AgentVersion`). Faz 197'nin kurtarma yolu (`WorkflowRecovery`, `WorkflowRunJobHandler.Continue`) resume'u çağırır: kaynak olarak zincirin son satırını verir, bu satır kendi damgasını taşır (`The_stamp_follows_a_chain_of_resumes`). Kuyruk yükü (`WorkflowRunJobPayload`) `definitionVersion` taşır ve geçersizse işi KAPALI düşürür. `new WorkflowExecution` tarandıktan sonra sürüm taşımayan üçüncü bir yer yoktur; `ReadRecordedParametersAsync` ve `RequireParticipantCoverageAsync` de aynı sürümü kullanır.
+`grep -rn "new WorkflowExecution" src/Tracon.Workflows` → `WorkflowRunner.cs`'te üç yer: `RunStreamingAsync` (yeni run: sürüm kayıt anında **okunan** tanımdan damgalanır), `PrepareResumeAsync` ve `PrepareResponseAsync` (`DefinitionVersion = istek ?? kaynak.AgentVersion`). Faz 197'nin kurtarma yolu (`WorkflowRecovery`, `WorkflowRunJobHandler.Continue`) checkpoint varsa resume'u çağırır: kaynak olarak checkpoint'i yazan satırı verir (`checkpoint.RunId`), o satır kendi damgasını taşır (`The_stamp_follows_a_chain_of_resumes`). Checkpoint yoksa işlem yeni kimlikle yeniden uygulanır; `resume`/`respond` yükü `definitionVersion` taşır, yeni `run` güncel tanımı derler (sapma 11). Kuyruk yükü (`WorkflowRunJobPayload`) `definitionVersion` taşır ve geçersizse işi KAPALI düşürür. `new WorkflowExecution` tarandıktan sonra sürüm taşımayan üçüncü bir yer yoktur; `ReadRecordedParametersAsync` ve `RequireParticipantCoverageAsync` de aynı sürümü kullanır.
 
 ### Örnek uygulama koşumu (`samples/Tracon.Api`, SQLite, Echo sağlayıcı)
 
@@ -274,6 +274,9 @@ Plan 2026-10-12'de yazıldı, bakımcı 2026-10-14'te altı Açık Sorunun öner
 | 8 | `IWorkflowRunner` | Üye eklenmedi; `WorkflowResumeRequest.DefinitionVersion` ve `WorkflowRespondRequest.DefinitionVersion` yetti | Arayüz üyesi uygulayıcıyı kırardı (Açık Soru 2'nin ruhu); HTTP erken denetimi `IWorkflowDefinitionStore` ile uçta yapılır |
 | 9 | Kuyruk yükü planda yoktu | `WorkflowRunJobPayload` `definitionVersion` taşır (`1`'den küçük ya da tam sayı olmayan → iş KAPALI düşer) | `resume`/`respond` kuyruğa alınabildiği için sürümü sessizce düşürmek K-983'ü kuyrukta çiğnerdi |
 | 10 | — | `WorkflowEndpoints.ValidateDefinitionAsync` **tek** doğrulama yeri: `PUT` ve geri alma ikisi de onu çağırır | Geri alma içeriği "kaydedildiğinde geçerliydi"; sonradan kaldırılan fonksiyon veya silinip yeniden yaratılan agent'ın sürümü "güncel" tanımı derlenemez yapardı |
+| 11 | Faz 197'nin kurtarma yolları damgayı taşır (§200.4 sınıf taraması) | Checkpoint'siz yeniden başlatma — `WorkflowRunJobHandler.Continue` → `Apply` ve `WorkflowJobHandler` (batch öğesi) — yeni bir `run` açar ve **güncel** tanımı derler; kesilen denemenin damgası taşınmaz | Checkpoint yoksa hiçbir super-step bitmedi, kayıp iş yoktur; kesilen satır `Failed` kalır, yeni satır kendi damgasını yazar. Resume yolları (`checkpoint.RunId`) doğru kalır. Kapatmak için damgayı `WorkflowRunRequest`'e taşımak gerekir — bilinçli olarak yapılmadı: sürüm geçişinde "yeniden başlatma yeni sürümle koşar" tutarlı ve zararsız, kapsam büyütür. Aday: F-488 |
+| 12 | Test 5 "mevcut migration testleri" geri doldurmayı sınar | `WorkflowVersionHistoryMigrationTests` üç sağlayıcıda eski şemaya iki workflow tohumlar, migration'ı uygular, geçmişi, bir sonraki kaydı ve geri alma'yı sınar; migration SQL'i ikinci kez koşar, satır eklenmez ya da değişmez. Ayrıca kuyruklu `resume` için `definitionVersion` iki test (`WorkflowAsyncRunTests`) | Denetimin 🟡1 ve 🟡2 bulgusu: plan "mevcut testler" dedi, hiçbiri geri doldurmayı ya da HTTP → iş yükü → işçi zincirini koşmuyordu. Bağımsız bir test yoksa `SELECT` sütunu ya da `WHERE` bozulduğunda hiçbir test kırılmazdı |
+| 13 | Geri alma ucu depo hatasını da yakalar (agent ucunun kalıbı) | `RollbackAsync` ucu `TraconException`'ı yakalamaz: "sürüm yok" `GetVersionAsync` ile önceden `404` olur | Sürüm hiç silinmez; yakalanan istisna okunamayan bir yük gibi gerçek bir depo hatasını `404`'e çevirirdi (denetim 🟢1) |
 
 ## Bu Fazda Verilen Kararlar
 
@@ -283,7 +286,7 @@ Dört kategoriye giren üç karar `docs/KARARLAR.md`'ye yazıldı (tam gerekçe 
 - **K-983** *(public-api, geri-dönüşü-pahalı)* — Kök satır derlediği sürümü `runs.agent_version`'a yazar; resume/respond kaynak damgasını derler; `definitionVersion` başka sürümü seçer; olmayan sürüm kapalı düşer. K-900'ün "resume güncel ayarı okur" ve K-901'in "bekleyen run kırılır" cümleleri **değişti** (K-901 satırı yerinde düzeltildi).
 - **K-984** *(public-api)* — `WorkflowNodeReference.AgentVersion`: yalnız `nodes`, yalnız veritabanı agent'ı, kayıtta ve derlemede doğrulanır, önbellek anahtarında ama kimlikte değil; K-901 konsolun `nodes` yazma kuralını "fonksiyon veya sabit" yapar.
 
-Kategori dışı yerel kararlar (burada kalır, `K-*` açılmadı): silinmiş bir ad için mağaza `RollbackAsync`'i yeniden yaratır (sapma 1) · geri alma `PUT` ile aynı tek doğrulayıcıyı kullanır (sapma 10) · SQL kancaları yalnız sözleşme testinde (sapma 6).
+Kategori dışı yerel kararlar (burada kalır, `K-*` açılmadı): silinmiş bir ad için mağaza `RollbackAsync`'i yeniden yaratır (sapma 1) · geri alma `PUT` ile aynı tek doğrulayıcıyı kullanır (sapma 10) · SQL kancaları yalnız sözleşme testinde (sapma 6) · checkpoint'siz yeniden başlatma güncel tanımı derler (sapma 11).
 
 ## Gerçekleşen Public API
 
@@ -330,20 +333,42 @@ tests/                                 Workflows.UnitTests (7 dosya) · AspNetCo
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur; tablo olarak.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 — bakımcı 2026-10-14'te altı Açık Soru önerisini olduğu gibi onayladı; 13 uygulama sapması "Plandan Sapmalar"da, plan metni değişmedi |
+| Düzeltme turu sayısı | 3 — kapanış kapısı iki tur kırmızı döndü (ilk tur: E2E ve doküman sayıları; ikinci tur: üç sağlayıcının tablo sayısı ve SQL Server kiracı kapsamı listesi), bir tur denetim bulguları |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 — denetimde 🔴 çıkmadı (🟡: 4 gerçek, 0 gürültü) |
+| Fazın ürettiği regresyon | 0 davranışta. Kapı turunda 2 bayat sayım: `MigrationRunnerTests` tablo sayısı (×3 sağlayıcı) ve SQL Server `TenantCoverageTests` listesi — yeni tablo ve üyeler onları eskitti; bilerek kırılan kapılardır, düzeltildi |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi — kapanış anında; sonraki `kusur-giderme` koşumu doldurur |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur; bulgu yoksa "🔴 ve 🟡 yok".
+Bağımsız denetçi (`faz-denetcisi`, taban `c8b9ea01`): **🔴 yok.** Dört 🟡 ve beş 🟢. Triyaj hepsinde "gerçek".
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🟡 | Geri doldurma hiçbir testle sınanmıyordu | **Düzeltildi** — `WorkflowVersionHistoryMigrationTests` ×3 sağlayıcı (sapma 12) |
+| 2 | 🟡 | Kuyruklu `resume`/`respond` için `definitionVersion` zinciri uçtan uca sınanmıyordu | **Kısmen düzeltildi** (`resume`), `respond` devredildi — `WorkflowAsyncRunTests`: kuyruklu resume kaydedilen sürümü derler, adı konan sürüm işçiye ulaşır, olmayan sürüm `400` ve iş kuyruğa girmez. Kuyruklu `respond` için uçtan uca test **yazılmadı**: stored workflow'un insan girdisi bekleyen bir tezgâhı yok; `WorkflowRunJobPayload` ve handler birim testleri yalnız parçaları sınar — **F-492** |
+| 3 | 🟡 | Sevk edilen metinler run satırı damgasının alanını `version` diye yazıyordu; alan `agentVersion` | **Düzeltildi** — `Tracon.Workflows` README, iki `WorkflowEndpoints` açıklaması; OpenAPI, TS ve C# istemcisi yeniden üretildi |
+| 4 | 🟡 | Checkpoint'siz kurtarma yeniden başlatması güncel tanımı derliyor; belgede yok; "son satır" cümlesi koda uymuyor | **Gerekçelendi + devredildi** — sapma 11, §200.4 cümlesi düzeltildi, **F-488** |
+| 5 | 🟢 | Geri alma ucu her `TraconException`'ı `404` yapıyordu; yorum yanlıştı | **Düzeltildi** — yakalama kalktı, yorum düzeldi (sapma 13) |
+| 6 | 🟢 | Birim test sabit sürümünü kendi sahtesinin yazdığı değerden okuyor | **Gerekçelendi** — gerçek kanıt `WorkflowAgentVersionPinTests` (agent v2 iken satır v1); birim test yalnız bağlantıyı sınar |
+| 7 | 🟢 | Geçmiş girdisi silinemez; ayara yanlışlıkla yazılan `secret` kalır | **Devredildi** — **F-489** (denetim izi zaten aynı tanımı tutar; site uyarır) |
+| 8 | 🟢 | Graf görünümü her zaman güncel grafiği çizer | **Devredildi** — **F-490** |
+| 9 | 🟢 | "Olmayan sürüm run'ı düşürür" sözü doğrudan API'de istisnadır | **Düzeltildi** — `IWorkflowRunner` XML'i ve `CHANGELOG.md` |
+
+Ayrıca bu fazda çıkan, faz dışı kusur: üretilen `docs-site/src/content/docs/api/` sayfaları xunit `[Fact]` özniteliğinin mutlak kaynak yolunu taşır (yerel kullanıcı yolu siteye gider) — **F-491**.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+Faz 201 (Loop ölçütü) ile dosya ortaktır (`workflow-editor/steps.tsx`, `lib/workflow-steps.ts`, `WorkflowEndpoints.cs`); yeni `WorkflowNodeReference` alanı ve `WorkflowDefinitionPayload` kuralları geçerlidir.
+
+- **Kural (yeni):** bir workflow run satırı açan her yol `AgentVersion` damgasını yazar ve resume/respond kaynağın damgasını derler. Yeni bir `new WorkflowExecution` ya da yeni bir kuyruk işlemi eklenirse `definitionVersion` taşımalıdır; sınıf taraması §200.4'te.
+- **Kural:** `IWorkflowDefinitionStore` üç soyut üye alır — üçüncü taraf uygulayıcıyı kırar (K-982). Bir üyeyi daha eklemek `WorkflowDefinitionStoreContract`, `InMemoryWorkflowStores.WorkflowHistory`, `AuditingWorkflowDefinitionStore` ve üç SQL katmanını birlikte ister.
+- **🚨 Tuzaklar:**
+  - Yeni bir tablo üç sağlayıcının `MigrationRunnerTests` sayısını ve yeni bir mağaza üyesi SQL Server `TenantCoverageTests.Covered` listesini kırar — kapanış kapısı bunu ancak tam koşumda gösterir.
+  - Migration numaraları bu fazda: PostgreSQL `0059`, SQL Server `0047`, SQLite `0046`. Başka bir oturum aynı numarayı almış olabilir; birleştirmede `scripts/applied-migrations.json` ve numara çakışmasını denetle.
+  - `docs-site/src/content/docs/api/` üretilen sayfalar mutlak yol gömer; adında `faz` geçen bir çalışma ağacında `SourceLanguageTests` kırılır. Koşmadan önce klasörü sil (F-491).
+  - `TRACON_UI_SCREENSHOTS=1` yetmiş kadar PNG'yi yeniden yazar; yalnız gerçekten değişen ekranı commit et (bu fazda `workflow-editor*`) ve `refresh-console-screenshot-stamp.mjs` çalıştır.
+  - Örnek uygulamayı `Tracon__PostgreSql__ConnectionString=` boş koşmazsan `user-secrets`'taki paylaşılan yerel veritabanına migration yazar (`docs/hafiza/elle-kosum-ortami.md`).
+- **Aday olarak açık:** F-408 (skill sürüm geçmişi) · F-409 (alt agent ve skill sabiti) · F-488 (checkpoint'siz yeniden başlatma) · F-489 (geçmiş budama) · F-490 (sürüme göre graf) · F-491 (mutlak yol sızıntısı) · F-492 (kuyruklu `respond`'un `definitionVersion` testi).
