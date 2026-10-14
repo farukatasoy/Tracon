@@ -2,10 +2,10 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 — boyut kararı (yalnız maliyet ve süre) ve üç engelleyici soru sohbette cevaplandı: 🔒1 = A (`Failed` + `run_budget_exceeded`), 🔒2 = B (yalnız kodda muafiyet), 🔒3 = A (her denemeden önce). Bloklamayan 4-8 uygulamada karara bağlanır. Uygulama Faz 208 bitince başlar (bakımcı kararı; dosya örtüşmesi yok)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-407**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-407**
 > **Genellik:** Ağaç bütçesine maliyet (`MaxTotalCost`) ya da süre (`MaxDuration`) tavanı koyan ve ücretli fonksiyon düğümü (TTS, render, GPU) çalıştıran her host etkilenir. İş tüketici kodunda kalamaz: tavanı operatör kurulum ayarıyla koyar, düğümü başka biri yazar; denetimi her düğüme bırakmak, unutulan tek düğümde sözleşmeyi bozar. İlk ilke: bütçe model çağrısını durdurur ama ücretli düğümün başlamasına izin verir — kendi sözleşmesiyle çelişir. Faz 199 token dışı tutarı aynı bütçeye saydı (K-972); bugün yalnız fonksiyon düğümlerinden oluşan bir zincir `MaxTotalCost` ve `MaxDuration` ile **hiç** durmaz (§ Kanıt). İki pilot raporu "üretim maliyet tavanı" satırında bu kalemi adlandırır (podcast `:839`, video `:759`); ikisi aynı tüketicinin iki hattıdır, bu yüzden ikinci kanıt ilk ilkedir
 > **Karşı görüş:** (1) "Düğüm kendi bütçesini okuyabilir: `TraconRunContext.Current.Budget` public'tir; iş tüketici kodunda kalsın." Cevap: tavan ağaç genelinde bir yönetişim sınırıdır; model çağrısı kapısı da her agent'a bırakılmadı. Kodla kurulan grafın özel executor'ı için okuma yolu belgelenir (§210.5). (2) "Davranış değişikliğidir (K1, Faz 199 bu yüzden ayırdı): tavan koymuş tüketicide ücretsiz son düğüm de reddedilir, run `Failed` olur." Cevap: varsayılan kurulum değişmez — `MaxTotalCost` ve `MaxDuration` varsayılanda kapalıdır, token boyutu bakımcı kararıyla kapının dışındadır (`MaxTotalTokens = 200_000` açık kalır). Değişiklik yalnız tavanı kendisi isteyen host'a ulaşır ve `CHANGELOG`'da adıyla anılır. Ücretsiz son düğüm 🔒2'nin konusudur
-> **Önkoşul:** [Faz 208](arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md) (✅ kapandı, 2026-10-14) — ortak dosyalar (`samples/Tracon.Api/Program.cs`, `CHANGELOG.md`, `concepts/workflows.md`). Bu planın ölçümüne göre kapı fonksiyon sarmalayıcısındadır ve `WorkflowRunner`'a dokunulmaz; dokunmak gerekirse sembolle anılır (Faz 208 onu şu an değiştiriyor). [Faz 199](arsiv/fazlar/199-FONKSIYON-DUGUMU-MALIYETI.md) (token dışı tutar bütçeye girer) ve [Faz 205](arsiv/fazlar/205-GEC-BITEN-HARCAMA-KOTASI.md) (`TreeAccount`) kapalı. [Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md)'dan bağımsızdır; aynı site sayfasına başka bölümde dokunur
+> **Önkoşul:** [Faz 208](208-WORKFLOW-KARAR-SOZLESMESI.md) (✅ kapandı, 2026-10-14) — ortak dosyalar (`samples/Tracon.Api/Program.cs`, `CHANGELOG.md`, `concepts/workflows.md`). Bu planın ölçümüne göre kapı fonksiyon sarmalayıcısındadır ve `WorkflowRunner`'a dokunulmaz; dokunmak gerekirse sembolle anılır (Faz 208 onu şu an değiştiriyor). [Faz 199](199-FONKSIYON-DUGUMU-MALIYETI.md) (token dışı tutar bütçeye girer) ve [Faz 205](205-GEC-BITEN-HARCAMA-KOTASI.md) (`TreeAccount`) kapalı. [Faz 209](../../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md)'dan bağımsızdır; aynı site sayfasına başka bölümde dokunur
 > **Paketler:** `Tracon.Abstractions` (yalnız `internal` üye + XML), `Tracon.Core` (yalnız XML), `Tracon.Workflows`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** 🔒2 = A ise büyümüyor; 🔒2 = B ise `WorkflowFunctionOptions` bir özellik alır — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-14): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, toplam 17 satır (her biri yalnız `#nullable enable`)
@@ -36,10 +36,10 @@
    ```
    199: F-407'yi ayırdı, ön koşulu (tutarın bütçeye anında girmesi) sağladı. 205: `TreeAccount` ve kota yazımı — bu faz kotaya dokunmaz
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/workflows.md`](hafiza/workflows.md) (`NodeWrapper` sırası, "Düğüm adı ve run kapsamı AMBİYANT akar" notu) ·
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) (`QuotaExceeded` iki yoldan dolar) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`AsyncLocal` yalnız okunur, yazılmaz)
-5. Gerektiğinde: [`MIMARI.md`](MIMARI.md) § ağaç kuralları (`grep -n "K-096" docs/MIMARI.md`)
+   [`hafiza/workflows.md`](../../hafiza/workflows.md) (`NodeWrapper` sırası, "Düğüm adı ve run kapsamı AMBİYANT akar" notu) ·
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md) (`QuotaExceeded` iki yoldan dolar) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`AsyncLocal` yalnız okunur, yazılmaz)
+5. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) § ağaç kuralları (`grep -n "K-096" docs/MIMARI.md`)
 
 ---
 
@@ -64,20 +64,20 @@ Ağaç bütçesi bugün yalnız model çağrısını ve yeni agent adımını du
 
 | Kanıt | Gözlem |
 |---|---|
-| [`TraconWorkflowFunctionExtensions.cs:488-509`](../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs) | `NodeWrapper` sırası `scope(retry(timeout(handler)))`; hiçbir katman bütçeyi okumaz. İki çağrı yeri: `:237` (ayarsız aile), `:439` (ayarlı aile); bütün `AddWorkflowFunction` aşırı yüklemeleri bu ikisinden geçer |
-| [`RunBudgetChatClient.cs:99`](../src/Tracon.Core/Models/RunBudgetChatClient.cs) | Model çağrısı kapısı: `budget.IsExhausted` (token, maliyet, süre) |
-| [`ChildAgentInvoker.cs:476-481`](../src/Tracon.Core/Graph/ChildAgentInvoker.cs), `:657` | Agent adımı başlarken `TryReserveRun()` okur (üç boyut + sayı); workflow adımında ret `TraconRunBudgetExceededException` olarak atılır. **Aday satırındaki "yalnız model çağrısı denetler" iddiası kısmen düştü:** agent adımının başlangıcı da denetlenir |
-| [`AgentRunBudget.cs:157-175`](../src/Tracon.Abstractions/Runs/AgentRunBudget.cs) | Boyut başına yüklem **zaten public**: `IsTokenBudgetExhausted`, `IsCostBudgetExhausted`, `IsDurationBudgetExhausted`; `IsExhausted` üçünün birleşimidir. Yeni public yüklem gerekmez |
-| [`AgentRunBudget.cs:296-310`](../src/Tracon.Abstractions/Runs/AgentRunBudget.cs) | `DescribeExceededLimit` önce token'ı adlandırır; token ve maliyet birlikte tükenmişse düğüm reddi yanlış boyutu söylerdi → düğüme ayrı metin gerekir |
-| [`TraconOptions.cs:173`](../src/Tracon.Core/TraconOptions.cs), `:184`, `:208`, `:263-272` | `MaxTotalTokens = 200_000` açık; `MaxTotalCost` ve `MaxDuration` varsayılanı yok, `CreateBudget` sıfırı `null`'a çevirir → varsayılan kurulumda kapı hiç ret vermez |
-| [`NonTokenCostAccumulator.cs:347-353`](../src/Tracon.Core/Recording/NonTokenCostAccumulator.cs), [`NonTokenUsageReporter.cs:45`](../src/Tracon.Core/Recording/NonTokenUsageReporter.cs) | Düğüm kalemi bütçeye **raporlandığı anda** ve depo yazımından **önce** girer; sonraki düğümün kapısı tutarı görür |
-| [`WorkflowDefinitionValidator.cs:90-95`](../src/Tracon.Core/Workflows/WorkflowDefinitionValidator.cs), `:116` | Fonksiyon düğümü yalnız `Sequential` zincirde olur; düğüm adları tekildir |
-| [`WorkflowDefinitionCompiler.cs:167-192`](../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs) | Zincir elle kurulur: düğüm `i-1` → `i`. Fonksiyon düğümü paralel dalda koşmaz |
+| [`TraconWorkflowFunctionExtensions.cs:488-509`](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs) | `NodeWrapper` sırası `scope(retry(timeout(handler)))`; hiçbir katman bütçeyi okumaz. İki çağrı yeri: `:237` (ayarsız aile), `:439` (ayarlı aile); bütün `AddWorkflowFunction` aşırı yüklemeleri bu ikisinden geçer |
+| [`RunBudgetChatClient.cs:99`](../../../src/Tracon.Core/Models/RunBudgetChatClient.cs) | Model çağrısı kapısı: `budget.IsExhausted` (token, maliyet, süre) |
+| [`ChildAgentInvoker.cs:476-481`](../../../src/Tracon.Core/Graph/ChildAgentInvoker.cs), `:657` | Agent adımı başlarken `TryReserveRun()` okur (üç boyut + sayı); workflow adımında ret `TraconRunBudgetExceededException` olarak atılır. **Aday satırındaki "yalnız model çağrısı denetler" iddiası kısmen düştü:** agent adımının başlangıcı da denetlenir |
+| [`AgentRunBudget.cs:157-175`](../../../src/Tracon.Abstractions/Runs/AgentRunBudget.cs) | Boyut başına yüklem **zaten public**: `IsTokenBudgetExhausted`, `IsCostBudgetExhausted`, `IsDurationBudgetExhausted`; `IsExhausted` üçünün birleşimidir. Yeni public yüklem gerekmez |
+| [`AgentRunBudget.cs:296-310`](../../../src/Tracon.Abstractions/Runs/AgentRunBudget.cs) | `DescribeExceededLimit` önce token'ı adlandırır; token ve maliyet birlikte tükenmişse düğüm reddi yanlış boyutu söylerdi → düğüme ayrı metin gerekir |
+| [`TraconOptions.cs:173`](../../../src/Tracon.Core/TraconOptions.cs), `:184`, `:208`, `:263-272` | `MaxTotalTokens = 200_000` açık; `MaxTotalCost` ve `MaxDuration` varsayılanı yok, `CreateBudget` sıfırı `null`'a çevirir → varsayılan kurulumda kapı hiç ret vermez |
+| [`NonTokenCostAccumulator.cs:347-353`](../../../src/Tracon.Core/Recording/NonTokenCostAccumulator.cs), [`NonTokenUsageReporter.cs:45`](../../../src/Tracon.Core/Recording/NonTokenUsageReporter.cs) | Düğüm kalemi bütçeye **raporlandığı anda** ve depo yazımından **önce** girer; sonraki düğümün kapısı tutarı görür |
+| [`WorkflowDefinitionValidator.cs:90-95`](../../../src/Tracon.Core/Workflows/WorkflowDefinitionValidator.cs), `:116` | Fonksiyon düğümü yalnız `Sequential` zincirde olur; düğüm adları tekildir |
+| [`WorkflowDefinitionCompiler.cs:167-192`](../../../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs) | Zincir elle kurulur: düğüm `i-1` → `i`. Fonksiyon düğümü paralel dalda koşmaz |
 | `WorkflowRunner.PumpAsync` (sembol) | `TraconRunContext.SetCurrent(scope)` çalıştırmadan önce ve her adımda yazılır; düğüm gövdesi kök kapsamı ve bütçeyi görür (`NonTokenUsageReporter` aynı okumaya dayanır) |
-| `WorkflowRunner.ToRunError` (sembol), [`DefaultRunErrorClassifier.cs:56`](../src/Tracon.Core/Runs/DefaultRunErrorClassifier.cs) | Run hatası `TraconException.ErrorType` yazar; `run_budget_exceeded` → `QuotaExceeded` |
-| [`WorkflowNodeRetry.cs:21-27`](../src/Tracon.Workflows/Internal/WorkflowNodeRetry.cs), `:152`, `:174` | `QuotaExceeded` geçici sınıf değildir; ama tüketicinin sınıflandırıcısı onu geçici sayarsa ret yeniden denenir |
-| [`WorkflowStepRefusalTests.cs:93-111`](../tests/Tracon.AspNetCore.FunctionalTests/WorkflowStepRefusalTests.cs), [`NonTokenSpendTests.cs:188-216`](../tests/Tracon.AspNetCore.FunctionalTests/NonTokenSpendTests.cs) | Emsal: reddedilen agent adımı → `Failed`, `run_budget_exceeded`, `QuotaExceeded`. Bugünkü testte düğümün tutarı yalnız **sonraki agent adımını** durdurur |
-| [`concepts/workflows.md:327`](../docs-site/src/content/docs/concepts/workflows.md), [`guides/reliability.md:434-436`](../docs-site/src/content/docs/guides/reliability.md), [`CHANGELOG.md:1428`](../CHANGELOG.md) | Sevk edilen metin bugünkü açığı söz olarak yazar: "a function node still starts when the budget is already spent". `:1428` `[Unreleased]` içindedir |
+| `WorkflowRunner.ToRunError` (sembol), [`DefaultRunErrorClassifier.cs:56`](../../../src/Tracon.Core/Runs/DefaultRunErrorClassifier.cs) | Run hatası `TraconException.ErrorType` yazar; `run_budget_exceeded` → `QuotaExceeded` |
+| [`WorkflowNodeRetry.cs:21-27`](../../../src/Tracon.Workflows/Internal/WorkflowNodeRetry.cs), `:152`, `:174` | `QuotaExceeded` geçici sınıf değildir; ama tüketicinin sınıflandırıcısı onu geçici sayarsa ret yeniden denenir |
+| [`WorkflowStepRefusalTests.cs:93-111`](../../../tests/Tracon.AspNetCore.FunctionalTests/WorkflowStepRefusalTests.cs), [`NonTokenSpendTests.cs:188-216`](../../../tests/Tracon.AspNetCore.FunctionalTests/NonTokenSpendTests.cs) | Emsal: reddedilen agent adımı → `Failed`, `run_budget_exceeded`, `QuotaExceeded`. Bugünkü testte düğümün tutarı yalnız **sonraki agent adımını** durdurur |
+| [`concepts/workflows.md:327`](../../../docs-site/src/content/docs/concepts/workflows.md), [`guides/reliability.md:434-436`](../../../docs-site/src/content/docs/guides/reliability.md), [`CHANGELOG.md:1428`](../../../CHANGELOG.md) | Sevk edilen metin bugünkü açığı söz olarak yazar: "a function node still starts when the budget is already spent". `:1428` `[Unreleased]` içindedir |
 
 > Kanıtlar 2026-10-14 tarihinde bu worktree'de doğrulandı. `WorkflowRunner` satır numarasıyla anılmaz: Faz 208 dosyayı değiştiriyor.
 
@@ -263,7 +263,7 @@ docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Kapı `AsyncLocal` kapsamını MAF'in arka plan görevinde okur: bu sınırı yalnız
-> fonksiyonel test kanıtlar ([`test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md)).
+> fonksiyonel test kanıtlar ([`test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md)).
 
 | # | Ne bozulabilir | Seviye | Test |
 |---|---|---|---|
@@ -490,7 +490,7 @@ Bağımsız `faz-denetcisi`, `git diff b1d4879f...720e23f7`, 2026-10-14. **🔴 
 
 ## Sonraki Faza Devir Notu
 
-Sıradaki faz: [Faz 209](209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) (planlı; bu fazla dosya örtüşmesi: aynı site sayfasının başka bölümü, `CHANGELOG`).
+Sıradaki faz: [Faz 209](../../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) (planlı; bu fazla dosya örtüşmesi: aynı site sayfasının başka bölümü, `CHANGELOG`).
 
 **Devralınan sözleşmeler**
 
