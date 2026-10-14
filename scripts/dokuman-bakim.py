@@ -2596,7 +2596,9 @@ _DUS_DESENLERI = (
     # Plan anindaki kapsam sinirlari. Kapanista kalici kismi baska yerdedir:
     # devredilen is "Sonraki Faza Devir Notu"nda veya ADAYLAR'da (F-NN),
     # sinirin gerekcesi "Bu Fazda Verilen Kararlar"da (Faz 191, `Kapsam Dışı`).
-    re.compile(r"^Kapsam\s+d[ıi]ş[ıi]$", re.I),
+    # Tireli ek (`Kapsam dışı — kapanışta aday açılır`, Faz 206) ayni plan
+    # bolumudur; tiresiz `Kapsam dışı kalan işler` ise kalici kayittir, kalir.
+    re.compile(r"^Kapsam\s+d[ıi]ş[ıi](\s+[—–]\s.*)?$", re.I),
 )
 
 
