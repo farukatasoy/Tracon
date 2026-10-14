@@ -48,8 +48,16 @@ public enum WorkflowResponseMode
     /// stops in the middle of a streamed answer's run, the run row stays
     /// <see cref="RunStatus.Running"/>, and a repeat of the answer follows a run that never
     /// moves. Only run reconciliation (<see cref="RunReconciliationOptions.Enabled"/>,
-    /// <c>Tracon:RunReconciliation:Enabled</c>, off by default) closes such a run; turn it on where a single-answer workflow must be answerable again
-    /// after a crash. A queued answer is not affected: its job continues or closes the run.
+    /// <c>Tracon:RunReconciliation:Enabled</c>, off by default) closes such a run: it closes
+    /// a <see cref="RunStatus.Running"/> run whose heartbeat stopped. Turn it on where a
+    /// single-answer workflow must be answerable again after a crash.
+    /// </para>
+    /// <para>
+    /// A queued answer does not depend on reconciliation, which reads no
+    /// <see cref="RunStatus.Queued"/> run. Once its job is written, the job continues or
+    /// closes the run. When the process stopped after the answer was recorded but before
+    /// its job was written, a repeat of the same answer writes the job and follows the run;
+    /// two repeats at the same time write it once.
     /// </para>
     /// </remarks>
     SingleAnswer = 1,

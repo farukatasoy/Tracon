@@ -20,18 +20,24 @@ internal static class FaultInjection
     /// Replaces the last registration of <typeparamref name="TService"/> with one that
     /// throws from <paramref name="memberName"/> the first <paramref name="times"/> calls.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="when"/> narrows the calls that count: only a call whose arguments it
+    /// accepts throws (and uses up one of <paramref name="times"/>); every other call goes to the
+    /// real service.
+    /// </remarks>
     public static IServiceCollection ThrowFrom<TService>(
         this IServiceCollection services,
         string memberName,
         Func<Exception> fault,
-        int times = int.MaxValue)
+        int times = int.MaxValue,
+        Func<object?[], bool>? when = null)
         where TService : class
     {
         var descriptor = services.Last(candidate => candidate.ServiceType == typeof(TService));
 
         services.Add(ServiceDescriptor.Describe(
             typeof(TService),
-            provider => FaultInjectingProxy<TService>.Wrap(Resolve<TService>(provider, descriptor), memberName, fault, times),
+            provider => FaultInjectingProxy<TService>.Wrap(Resolve<TService>(provider, descriptor), memberName, fault, times, when: when),
             descriptor.Lifetime));
 
         return services;
@@ -81,8 +87,15 @@ internal class FaultInjectingProxy<TService> : DispatchProxy
     private Func<Exception> _fault = null!;
     private int _remaining;
     private bool _afterInner;
+    private Func<object?[], bool>? _when;
 
-    public static TService Wrap(TService inner, string memberName, Func<Exception> fault, int times, bool afterInner = false)
+    public static TService Wrap(
+        TService inner,
+        string memberName,
+        Func<Exception> fault,
+        int times,
+        bool afterInner = false,
+        Func<object?[], bool>? when = null)
     {
         var proxy = Create<TService, FaultInjectingProxy<TService>>();
         var self = (FaultInjectingProxy<TService>)(object)proxy;
@@ -92,6 +105,7 @@ internal class FaultInjectingProxy<TService> : DispatchProxy
         self._fault = fault;
         self._remaining = times;
         self._afterInner = afterInner;
+        self._when = when;
 
         return proxy;
     }
@@ -101,6 +115,7 @@ internal class FaultInjectingProxy<TService> : DispatchProxy
         ArgumentNullException.ThrowIfNull(targetMethod);
 
         if (string.Equals(targetMethod.Name, _memberName, StringComparison.Ordinal)
+            && (_when is null || _when(args ?? []))
             && Interlocked.Decrement(ref _remaining) >= 0)
         {
             if (!_afterInner)

@@ -66,7 +66,10 @@ internal static class WorkflowResponseGate
         /// <summary>Start the run <see cref="Decision.RunId"/>; its row is already open.</summary>
         Start,
 
-        /// <summary>Follow the run an identical answer started.</summary>
+        /// <summary>
+        /// Follow the run an identical answer started; when that queued run has no job
+        /// (<see cref="Decision.MissingJob"/>), write the job first.
+        /// </summary>
         Follow,
 
         /// <summary>A different answer holds the request.</summary>
@@ -197,19 +200,19 @@ internal static class WorkflowResponseGate
 
             if (!string.Equals(existing.AnswerHash, answer.AnswerHash, StringComparison.Ordinal))
             {
-                return new Decision(Outcome.Conflict, Guid.Empty, Guid.Empty, Redrive: false);
+                return new Decision(Outcome.Conflict, Guid.Empty, Guid.Empty, Redrive: false, MissingJob: false);
             }
 
             var state = await ReadStateAsync(existing, answer.TenantId, services, cancellationToken).ConfigureAwait(false);
 
             if (state.Gone)
             {
-                return new Decision(Outcome.Gone, existing.ResponseRunId, Guid.Empty, Redrive: false);
+                return new Decision(Outcome.Gone, existing.ResponseRunId, Guid.Empty, Redrive: false, MissingJob: false);
             }
 
             if (!state.Stopped)
             {
-                return new Decision(Outcome.Follow, existing.ResponseRunId, state.InFlight, Redrive: false);
+                return new Decision(Outcome.Follow, existing.ResponseRunId, state.InFlight, Redrive: false, state.MissingJob);
             }
 
             // The run this answer started stopped before it finished with it: the same answer
@@ -259,6 +262,15 @@ internal static class WorkflowResponseGate
     /// answer twice. The answer then follows instead.
     /// </para>
     /// <para>
+    /// <strong>A queued run with no job gets its job.</strong> A chain of one
+    /// <see cref="RunStatus.Queued"/> run whose job does not exist was left between its record and
+    /// its enqueue (the process stopped, or the queue refused the job and the row could not be
+    /// closed either). Nothing else moves such a run: run reconciliation reads only running rows,
+    /// and a queued run with no job cannot be cancelled. The follower is told to write the job
+    /// (<see cref="Decision.MissingJob"/>); the queue's refusal of a second job with the same id
+    /// keeps two followers from starting the work twice.
+    /// </para>
+    /// <para>
     /// <strong>Delivery.</strong> A record still <see cref="WorkflowResponseStatus.Accepted"/> with a
     /// chain of one run was never handed to the workflow, so starting again is safe. Any other
     /// stopped chain - a <see cref="WorkflowResponseStatus.Delivered"/> record, or an accepted one
@@ -286,26 +298,34 @@ internal static class WorkflowResponseGate
 
         if (chain.Count == 0)
         {
-            return new RecordState(Gone: true, Stopped: false, Guid.Empty);
+            return new RecordState(Gone: true, Stopped: false, Guid.Empty, MissingJob: false);
         }
 
         var last = chain[^1];
+        var jobs = services.GetRequiredService<IJobStore>();
 
         if (last.Status is not (RunStatus.Failed or RunStatus.Canceled))
         {
-            return new RecordState(Gone: false, Stopped: false, last.Id);
+            // A queued answer's row opens Queued before its record and its job (the job id is the
+            // run id). A process that stopped between the record and the enqueue, or an enqueue
+            // whose row could not be closed either, left a row no worker will ever lease: the
+            // follower writes the job.
+            var missingJob = chain.Count == 1
+                && last.Status == RunStatus.Queued
+                && await jobs.GetAsync(tenantId, existing.ResponseRunId, cancellationToken).ConfigureAwait(false) is null;
+
+            return new RecordState(Gone: false, Stopped: false, last.Id, missingJob);
         }
 
-        if (await services.GetRequiredService<IJobStore>()
-                .GetAsync(tenantId, existing.ResponseRunId, cancellationToken)
-                .ConfigureAwait(false) is { Status: JobStatus.Pending or JobStatus.Leased or JobStatus.Running })
+        if (await jobs.GetAsync(tenantId, existing.ResponseRunId, cancellationToken).ConfigureAwait(false)
+            is { Status: JobStatus.Pending or JobStatus.Leased or JobStatus.Running })
         {
-            return new RecordState(Gone: false, Stopped: false, last.Id);
+            return new RecordState(Gone: false, Stopped: false, last.Id, MissingJob: false);
         }
 
         if (existing.Status == WorkflowResponseStatus.Accepted && chain.Count == 1)
         {
-            return new RecordState(Gone: false, Stopped: true, last.Id);
+            return new RecordState(Gone: false, Stopped: true, last.Id, MissingJob: false);
         }
 
         var checkpoints = services.GetRequiredService<IWorkflowCheckpointStore>();
@@ -314,11 +334,11 @@ internal static class WorkflowResponseGate
         {
             if ((await checkpoints.ListByRunAsync(tenantId, run.Id, cancellationToken).ConfigureAwait(false)).Count > 0)
             {
-                return new RecordState(Gone: false, Stopped: false, last.Id);
+                return new RecordState(Gone: false, Stopped: false, last.Id, MissingJob: false);
             }
         }
 
-        return new RecordState(Gone: false, Stopped: true, last.Id);
+        return new RecordState(Gone: false, Stopped: true, last.Id, MissingJob: false);
     }
 
     /// <summary>
@@ -392,9 +412,16 @@ internal static class WorkflowResponseGate
             services);
 
     /// <summary>
-    /// Closes a run the engine never started. Best-effort: the decision is already made, and a row
-    /// that cannot be closed is left to run reconciliation.
+    /// Closes a run the engine never started. Best-effort: the decision is already made, and a
+    /// failed close is logged.
     /// </summary>
+    /// <remarks>
+    /// A row that cannot be closed stays as it was opened. Run reconciliation, when it is on,
+    /// closes a <see cref="RunStatus.Running"/> one; nothing closes a <see cref="RunStatus.Queued"/>
+    /// one, because reconciliation reads only running rows. Either way no request waits on it: the
+    /// row belongs to an answer that lost the claim (the record names the winner's run) or whose
+    /// record was never written.
+    /// </remarks>
     private static async ValueTask CloseAsync(
         Answer answer,
         Guid runId,
@@ -427,7 +454,7 @@ internal static class WorkflowResponseGate
         }
     }
 
-    private static Decision Start(Guid runId, bool redrive) => new(Outcome.Start, runId, runId, redrive);
+    private static Decision Start(Guid runId, bool redrive) => new(Outcome.Start, runId, runId, redrive, MissingJob: false);
 
     private static WorkflowResponseRecord Record(Answer answer, Guid runId, string? claimScope, string? actor)
         => new()
@@ -506,11 +533,16 @@ internal static class WorkflowResponseGate
     /// continued.
     /// </param>
     /// <param name="Redrive">Whether the run starts the work of a stopped answer again.</param>
-    public readonly record struct Decision(Outcome Outcome, Guid RunId, Guid FollowRunId, bool Redrive);
+    /// <param name="MissingJob">
+    /// Whether the followed run is a queued run whose job was never written: the follower writes
+    /// it before it follows (see <see cref="ReadStateAsync"/>).
+    /// </param>
+    public readonly record struct Decision(Outcome Outcome, Guid RunId, Guid FollowRunId, bool Redrive, bool MissingJob);
 
     /// <summary>What a stored answer's run chain says about it.</summary>
     /// <param name="Gone">The record's run no longer exists.</param>
     /// <param name="Stopped">The work stopped before it finished with the answer.</param>
     /// <param name="InFlight">The run a follower watches first.</param>
-    private readonly record struct RecordState(bool Gone, bool Stopped, Guid InFlight);
+    /// <param name="MissingJob">The record's run is a queued run with no job.</param>
+    private readonly record struct RecordState(bool Gone, bool Stopped, Guid InFlight, bool MissingJob);
 }
