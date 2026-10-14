@@ -208,7 +208,8 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
     /// The upsert decides the number (one more than the row, or one more than the highest
     /// version in the history when the row is gone) and the history insert uses what the
     /// upsert returned. Two concurrent saves of one name serialize on the row, so they get
-    /// two numbers; a collision in the history rolls the whole save back.
+    /// two numbers; a collision in the history rolls the whole save back. A deadlock victim
+    /// is run again whole by the store context.
     /// </remarks>
     private async ValueTask<WorkflowDefinition> WriteVersionAsync(
         string tenantId,
@@ -218,13 +219,8 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
     {
         var now = DateTimeOffset.UtcNow;
 
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        return await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
                 var upsert = _context.CreateCommand(_sql.UpsertWorkflow, connection, transaction);
 
@@ -253,8 +249,8 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                 return ReadDefinition(payload, name, written.Version, tenantId, written.UpdatedAt);
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
