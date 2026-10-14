@@ -186,6 +186,15 @@ rows belong to a run and are deleted with it, and appends four nullable snapshot
 `runs` and two (`usage_provider`, `usage_model`) to `tool_invocations`. Existing rows keep
 `NULL` on purpose: for a run that closed before the upgrade, `nonTokenCost` is `null`, which
 means "nobody reported a number", not zero ([Runs](/concepts/runs/#what-a-run-carries)).
+
+The `workflow_definition_versions` migration only adds: `0059` on PostgreSQL, `0047` on
+SQL Server and `0046` on SQLite. It creates the table that keeps every version a stored
+workflow has had, and copies each existing workflow's current definition into it as the
+first entry of that workflow's history. The versions a workflow had before the upgrade
+were never kept, so its history starts at the version it has today. The table has no
+foreign key to `workflows`: deleting a workflow keeps its versions, and saving the name
+again continues the numbering
+([Workflows](/concepts/workflows/#versions-rollback-and-pinning-an-agent-step)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds

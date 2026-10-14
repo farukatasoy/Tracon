@@ -1,6 +1,6 @@
 ---
 title: Workflows
-description: Five multi-agent patterns, queued runs, checkpoints, recovery after a restart, and asking a human mid-execution.
+description: Five multi-agent patterns, queued runs, version history and rollback, checkpoints, recovery after a restart, and asking a human mid-execution.
 sidebar:
   order: 6
 ---
@@ -123,12 +123,13 @@ and the pattern stays `Sequential` while the chain holds a function.
 
 A chain of agents only can be stored in either form over HTTP, `agentNames` or `nodes`,
 and both keep working. The console writes one form per chain: **`nodes` when the chain
-holds at least one function, `agentNames` otherwise.** Removing the last function in the
-console therefore saves the chain back as a plain agent list on the built-in sequential
-pattern, and adding the first one saves it as a node list. The editor says which form it
-is about to store. The difference you can observe is token streaming: an agent step in a
-node list does not stream its tokens into the workflow's live event feed (its own run row
-keeps the full message history), while the built-in pattern does.
+holds at least one function or one agent step [pinned to a version](#pin-an-agent-step-to-a-version),
+`agentNames` otherwise.** Removing the last function or pin in the console therefore saves
+the chain back as a plain agent list on the built-in sequential pattern, and adding the
+first one saves it as a node list. The editor says which form it is about to store. The
+difference you can observe is token streaming: an agent step in a node list does not
+stream its tokens into the workflow's live event feed (its own run row keeps the full
+message history), while the built-in pattern does.
 
 The factory passed to `AddWorkflowFunction` runs once, when the function
 registry is built — not once per run. Every workflow compile shares the same
@@ -209,15 +210,20 @@ with the fields the function takes listed under it.
 - **Some settings are refused whatever the type.** Settings on an agent node, settings that
   are not a JSON object, and settings on a function that declares no settings type.
 - **A change takes effect on the next run.** The graph is built again for every run, so
-  the run in progress keeps the settings it started with. A resume reads the current
-  settings, and an older checkpoint stays usable: the settings are not part of the node's
-  identity, its name and place in the chain are.
+  the run in progress keeps the settings it started with. So does a run that waits to be
+  resumed: a resume compiles the definition version the run recorded (see
+  [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
+  Name the edited version to carry the run over the new settings. The checkpoint stays
+  usable: the settings are not part of the node's identity, its name and place in the
+  chain are.
 - **A settings type that changed since the workflow was saved fails the run by name.**
   The run ends `Failed` before any node runs, and the error names the workflow, the node
   and the member. Save the workflow again with settings that fit. The same happens to a
   function that stopped taking settings while a stored node still carries some.
 - **Never put a secret in settings.** They are stored in the workflow definition, appear
-  in the audit trail and are returned to everyone who can read the workflow. Make the
+  in the audit trail, stay in every [version](#versions-rollback-and-pinning-an-agent-step)
+  of its history (a later save does not rewrite them) and are returned to everyone who
+  can read the workflow. Make the
   setting the *name* of the configuration key (`"apiKeyConfigurationKey": "Tts:ApiKey"`)
   and read the value from `IConfiguration` inside the factory.
 - **A chain uses a function once.** A node's name is its identity in the graph, so the
@@ -412,10 +418,10 @@ shows each registered timeout.
 An **agent node** of a node list can carry a `timeout` too. It replaces the
 installation's `Tracon:AgentGraph:ChildDeadline` for that step, and the hard cutoff for
 an agent that ignores its deadline stays 30 seconds after it. A step past it fails the
-run with `child_run_timeout`, and the message names the node. A chain without a
-function step is stored as `agentNames`, which has no node to carry a timeout, so its
-steps use the installation's deadline; the console offers the field only on a chain
-with a function step.
+run with `child_run_timeout`, and the message names the node. A chain with neither a
+function step nor a pinned agent step is stored as `agentNames`, which has no node to
+carry a timeout, so its steps use the installation's deadline; the console offers the
+field only on a chain it saves as a node list.
 
 Workflows can also be built in code with MAF's own builder.
 
@@ -482,16 +488,115 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
   returning an empty set, so a forgotten setup is not read as "no values".
 - **Resume and respond use the same values.** The run records its final values, and a
   resume from a checkpoint or an answer to a waiting request reads them back and passes
-  them on to the run it opens. If the workflow declares parameters now but the run
-  recorded none, the resume is refused — the agents would otherwise continue under their
-  defaults, halfway through the work. That happens when
+  them on to the run it opens. If the version the run continues with declares parameters
+  but the run recorded none, the resume is refused — the agents would otherwise continue
+  under their defaults, halfway through the work. That happens when
   `RunRecording:RecordRunInput` is off, so a workflow with parameters that waits for a
-  human needs it on. A name the schema no longer declares is dropped; a required name it
-  gained since is refused.
+  human needs it on. The values are read against the schema of the version the run
+  continues with, which by default is the one it recorded (see
+  [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
+  When you name a newer version, a name its schema no longer declares is dropped and a
+  required name it gained since is refused.
 - **A workflow defined in code declares no parameters** (`AddWorkflow` builds a free graph
   with no definition), so any value sent to it is refused.
 
 A workflow row stores no message: the values are the only input it records.
+
+## Versions, rollback and pinning an agent step
+
+Every save of a stored workflow appends a version. Nothing rewrites history:
+
+- `GET /api/workflows/{name}/versions` lists full snapshots, newest first. It needs the
+  Reader role (the `WorkflowsRead` scope for an API key).
+- `GET /api/workflows/{name}/versions/{a}/diff/{b}` returns both snapshots verbatim, as
+  `left` and `right`. The client computes the diff.
+- `POST /api/workflows/{name}/rollback` with `{"version": 2}` writes the content of
+  version 2 as a **new** version. It needs the Admin role (the `WorkflowsAdmin` scope).
+  The audit trail records `workflow.rollback`, and a rollback can be rolled back in turn.
+
+A rollback is checked like a save. A version that names a function that is no longer
+registered, settings that no longer fit their function, or an agent version that no longer
+exists answers `400`; nothing is written and nothing is audited. An unknown version answers
+`404`. A workflow defined in code answers `409` to a rollback and `404` ("Workflow has no
+version history") to the read calls: its history is your source history.
+
+A version number is never reused. Deleting a workflow keeps its history, and saving the same
+name again continues the numbering: after version 3 and a delete, the next save is version
+4. The kept versions are not served over HTTP while the workflow is deleted. A workflow
+stored before versions were kept starts its history at the version it has today.
+
+### A resume compiles the version the run recorded
+
+The row of a workflow run records the definition version it was compiled from, as
+`agentVersion` on `GET /api/runs/{runId}`. It is `null` for a workflow defined in code and
+for a row written before versions were kept. A resume and a response are stamped with the
+version they ran.
+
+A resume compiles the version the run **recorded**, not the current one. An edit made while
+the run waits changes nothing for it: not a setting, a timeout or the parameter schema, and
+not a step that was added or removed. A run that recorded no version resumes with the
+current definition. A workflow that was deleted is still refused.
+
+```mermaid
+flowchart LR
+    accTitle: Which definition version a resume compiles
+    accDescr: A resume or respond request compiles the version named in definitionVersion when the workflow has it, and is refused with 400 when it does not. Without definitionVersion it compiles the version the run recorded, and a run that recorded none uses the current definition.
+    REQ["resume or respond"] --> NAMED{"definitionVersion<br/>in the body?"}
+    NAMED -->|"yes, the workflow has it"| GIVEN["compile that version"]
+    NAMED -->|"yes, it does not"| REFUSE["400 before any stream<br/>opens or job is queued"]
+    NAMED -->|"no"| REC{"run recorded<br/>a version?"}
+    REC -->|"yes"| RECORDED["compile the recorded version"]
+    REC -->|"no"| CURRENT["compile the current definition"]
+```
+
+To carry a waiting run over a fix, send the edited version in the optional
+`definitionVersion` field of `resume` or `respond`, for example
+`{"definitionVersion": 4}`:
+
+- A version the workflow does not have answers `400` ("Definition version not found"),
+  and so does a recorded version the workflow no longer has. `0`, a negative number, or a
+  version of a workflow defined in code answers `400` ("Definition version invalid"). The
+  check runs before a stream opens or a job is queued.
+- The checkpoint belongs to the graph that wrote it. A version whose graph differs from it
+  — a step added, removed or reordered, another pattern, another stored form — fails the
+  run, and the error says the graph's structure differs. A version that differs only in
+  settings, timeouts or an agent pin resumes: those are not part of a step's identity.
+
+### Pin an agent step to a version
+
+An agent step in the `nodes` form can run one version of its agent while the agent is
+edited. Set `agentVersion` on the node:
+
+```bash
+curl -sS -X PUT http://localhost:5081/tracon/api/workflows/narrated \
+     -H 'Content-Type: application/json' -d '{
+       "kind": "Sequential",
+       "nodes": [
+         { "name": "writer", "kind": "Agent", "agentVersion": 4 },
+         { "name": "tts", "kind": "Function" }
+       ]
+     }'
+```
+
+- The step runs version 4's instructions, model and tools, and its own run row records
+  version 4. A step with no `agentVersion` runs the agent's current version, resolved each
+  time the step runs.
+- A save refuses a pin that cannot hold with `400`: a pin on a function node, a number
+  below 1, an agent defined in code (it keeps no version history), and a version the stored
+  agent does not have. The compile repeats the check, because the agent can be deleted
+  after the workflow was saved: the run then fails before its first step.
+- A pin is not part of the step's identity. Changing the pin of a step in a node list never
+  makes a waiting run's checkpoint unusable.
+- A pin reaches the step's agent only. The agent's own callable agents and skills resolve
+  their current version, as they do for a direct run.
+- Only `Sequential` workflows have `nodes`, so only they can pin. A chain written as
+  `agentNames` cannot.
+
+The console lists a workflow's versions, compares two of them and rolls back; its chain
+editor pins an agent step (see [the console](/ui/#workflows)). It saves a pinned chain in
+the `nodes` form, so pinning the first step of a chain stored as `agentNames` changes the
+stored form. A different form is a different graph, and a run that waits keeps resuming
+the version it recorded.
 
 ## Running one
 
@@ -508,8 +613,9 @@ separately.
 
 The request is checked before the stream opens, so a mistake is a status code, not an
 event in a `200` stream. An unknown workflow or run answers `404`, and so does a run of
-another tenant. An invalid `sessionId`, a checkpoint the run does not have, and an
-answer to a run that does not wait for input answer `400`. None of these opens a run.
+another tenant. An invalid `sessionId`, a checkpoint the run does not have, a
+`definitionVersion` the workflow does not have, and an answer to a run that does not
+wait for input answer `400`. None of these opens a run.
 
 The name `functions` is reserved: `GET /api/workflows/functions` lists the function
 nodes, so a workflow saved under that name could not be read back. Saving it answers
@@ -548,8 +654,9 @@ run id. Read the events from `GET /api/runs/{runId}/events`. A run queued withou
 `sessionId` gets one before the `202`, and the row names it.
 
 `resume` and `respond` take the same header. A queued answer is checked before the
-`202`: an answer of the wrong shape, a request id that is not pending, and a run that
-is not waiting are each refused with `400`, and an unknown run with `404`. A machine
+`202`: an answer of the wrong shape, a request id that is not pending, a run that
+is not waiting, and a `definitionVersion` the workflow does not have are each refused
+with `400`, and an unknown run with `404`. A machine
 that answers a request when its own work finishes therefore never has a background run
 fail on the answer. The queued answer is stored with the job until the job is removed:
 do not put a secret in it.
@@ -633,7 +740,9 @@ A workflow writes checkpoints as it goes, controlled by
 from the latest.
 
 Resuming opens a **new** run. The original is never rewritten, so "what happened, then
-what we did about it" stays two readable records rather than one edited one.
+what we did about it" stays two readable records rather than one edited one. The new run
+compiles the definition version the original recorded, unless the request names another
+(see [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
 
 A workflow run whose process stopped is closed as `Failed` by
 [run reconciliation](/guides/reliability/#reconcile-runs-left-behind-by-a-crash), like
@@ -690,6 +799,9 @@ flowchart LR
 - The new run uses the same session, the parameter values the chain recorded, and the
   user and labels of whoever queued the job. It is not counted against the quota or
   asked for authorization again: the job was, when it was queued.
+- A continuation from a checkpoint compiles the definition version the run that wrote the
+  checkpoint recorded, like any other resume. A save made while the job waits for its
+  lease does not change it.
 - If no run of the chain wrote a checkpoint — the process stopped before the first
   super-step ended — the run starts again in the same session, or the resume or the
   answer is applied again.
@@ -793,7 +905,9 @@ a `data` value that does not read into the type is still reported on the stream,
 failed run.
 
 This is the same append-only shape as tool approvals: the waiting run stays as it was,
-and the response opens a new one.
+and the response opens a new one. The new run compiles the definition version the waiting
+run recorded, so editing the workflow while a person decides does not change what continues
+(see [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
 
 ## Read next
 

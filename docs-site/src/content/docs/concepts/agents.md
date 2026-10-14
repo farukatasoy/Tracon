@@ -242,7 +242,9 @@ rolled back in turn.
 
 Versions are also what make [experiments](/concepts/evaluation/) possible —
 an A/B test splits traffic between two versions of the same agent, which is why a
-code-defined agent cannot be experimented on.
+code-defined agent cannot be experimented on. A [workflow step](/concepts/workflows/#pin-an-agent-step-to-a-version)
+can pin one version of a stored agent, so a chain keeps running tested text while the
+agent is edited; a code-defined agent has no version to pin.
 
 ## Agents calling agents
 
@@ -303,9 +305,13 @@ The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 
 A child resolves the callable agent's **current** version. This is deliberate: a
 version or an [experiment](/concepts/evaluation/#experiments) arm applies to the agent
-it was set on, not to the agents it calls. A workflow step resolves its agent the same
-way. A parent run pinned to version 1 can therefore call a child that runs version 3.
-To compare a child agent's versions, run an experiment on that agent directly.
+it was set on, not to the agents it calls. A workflow step resolves its agent's current
+version the same way, unless the step pins one (see
+[Pin an agent step to a version](/concepts/workflows/#pin-an-agent-step-to-a-version)).
+A pin reaches only the step's own agent: the callable agents of that agent still run
+their current version. A parent run pinned to version 1 can therefore call a child that
+runs version 3. To compare a child agent's versions, run an experiment on that agent
+directly.
 
 ## Run until the work is done
 

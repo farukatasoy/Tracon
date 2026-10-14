@@ -260,22 +260,45 @@ the field says not to put a secret there. The server also refuses a chain whose 
 cannot take what the step before it passes on (see
 [Function nodes](/concepts/workflows/#function-nodes)); that answer names both steps.
 
-Before a save that changes the chain, the editor says what it is about to do. It stores a
-chain that holds a function as a node list and a chain without one as a plain agent list,
-and tells you when the save changes the form. It also warns when the pattern, the steps or
-their order change: a run that is waiting for input cannot be resumed after that, because
-its saved state belongs to the old graph. Editing a step's settings, a timeout or the
-description does not.
+An agent step of a stored agent has an **Agent version** field. *Current version* runs the
+agent's latest version each time the step runs; picking a version pins the step to it, so
+the agent can be edited while the workflow keeps running the text that was tested (see
+[Versions, rollback and pinning an agent step](/concepts/workflows/#versions-rollback-and-pinning-an-agent-step)).
+The field is absent for an agent defined in code, which keeps no versions, and for every
+pattern except `Sequential`. A version the agent no longer lists stays selectable as
+*Version N (not found)*, so a save never drops a pin silently; the server's answer says
+whether it can still run.
 
-In a chain with a function step, each step has a **timeout** field, in seconds (`90`,
+Before a save that changes the chain, the editor says what it is about to do. It stores a
+chain that holds a function step or a pinned agent version as a node list and any other
+chain as a plain agent list, and tells you when the save changes the form. It also warns
+when the pattern, the steps or their order change: a run that is waiting for input keeps
+resuming the version it recorded, and resuming it with the new version fails, because its
+saved state belongs to the old graph. Editing a step's settings, a timeout, a pinned
+version or the description does not change the graph. Pinning the first step of a chain
+that was a plain agent list does, because the form changes.
+
+In a chain saved as a node list, each step has a **timeout** field, in seconds (`90`,
 `2.5`) or as `hh:mm:ss`. Empty uses the step's default, which the placeholder names: the
 timeout the function was registered with, or the installation's sub-agent deadline. A
 plain agent list has no node to keep a timeout on, so its steps show no field. If a step
-still carries one there — its chain lost its last function step, or it was written over
-HTTP — Save stays disabled with a note until you clear it or add a function step. The
+still carries one there — its chain lost its last function step or pin, or it was written
+over HTTP — Save stays disabled with a note until you clear it, add a function step or pin
+an agent version. The
 **Run timeout** field sets the workflow's own run timeout; empty uses the installation's,
 and a longer value is accepted only up to `Tracon:Workflows:MaxRunTimeout` (see
 [Bound a node with a timeout](/concepts/workflows/#bound-a-node-with-a-timeout)).
+
+A workflow defined in the database also has a **Versions** section on its screen: every
+save is a version, with the time it was saved and which one is current. Tick two versions
+to compare them (the display name, the description, the pattern, the steps with their pins,
+timeouts and settings, the parameters and the run timeout), or press **Rollback** on an
+older one. A rollback deletes nothing: it writes that version's content as a new version,
+and every run started after it uses the restored definition. A run that is waiting keeps the
+version it recorded. A rollback an administrator presses on content that no longer passes the
+save checks — a function that is no longer registered, or an agent version that no longer
+exists — is refused with the reason and writes nothing. A workflow defined in code has no
+Versions section: it has no stored definition.
 
 A workflow waiting on human input shows the pending request as a card; answering it
 resumes execution from the checkpoint as a new run. The card opens for any waiting

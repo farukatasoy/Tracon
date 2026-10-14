@@ -243,7 +243,7 @@ form. This matrix shows where a change can originate.
 | Model catalog and prices | View | Read | Configure | The catalog is informative, not an allowlist |
 | Skills and stored skill content | Create and edit | Create and edit | Define in code or discover from configured roots | Script execution has additional deployment and grant gates |
 | Skill-script grant | Manage in Skills | Manage | Configure the execution boundary | A grant cannot bypass disabled scripts or a missing interpreter |
-| Workflow definition | Create, edit, inspect, run | Create, edit, inspect, run | Define in code | Code workflows are read-only in the console |
+| Workflow definition | Create, edit, diff, roll back, inspect, run | Create, edit, diff, roll back, inspect, run | Define in code | Code workflows are read-only in the console and keep no version history |
 | Job schedule | Create, edit, trigger, delete | Create, edit, trigger, delete | Configure worker behavior | The job handler itself is code |
 | Eval suite and experiment | Create and operate | Create and operate | Add custom checks and judges | Custom executable evaluation logic is code-only |
 | Remote MCP server record | Manage | Manage | May seed or configure | Stored records refer to secret configuration keys, never secret values |
@@ -275,7 +275,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 171 management and OpenAI-compatible
+The generated HTTP reference contains 174 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -312,8 +312,8 @@ authority is `role ∩ scopes`.
 | `ExternalInvoke` | Explicitly exposed MCP-server and A2A invocation surfaces |
 | `KnowledgeRead` | Knowledge collection listing and semantic search |
 | `KnowledgeAdmin` | Knowledge document upload and deletion |
-| `WorkflowsRead` | Workflow definitions, graphs, checkpoints, and pending requests |
-| `WorkflowsAdmin` | Workflow definition writes and deletion; running still needs `RunsWrite` |
+| `WorkflowsRead` | Workflow definitions, version history, graphs, checkpoints, and pending requests |
+| `WorkflowsAdmin` | Workflow definition writes, version rollback and deletion; running still needs `RunsWrite` |
 | `EvalsRead` | Eval suites, cases, runs, and online-evaluation summaries |
 | `EvalsAdmin` | Eval suite and case writes; triggering a run still needs `RunsWrite` |
 | `ExperimentsRead` | Experiments, results, and canary status |

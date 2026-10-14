@@ -129,11 +129,11 @@ each term means inside Tracon.
 
 ## Workflows and background work
 
-**Workflow.** A compiled MAF execution graph. Database workflows compose supported patterns;
-  code workflows can build custom executors and edges.
+**Workflow.** A compiled MAF execution graph. Database workflows compose supported patterns and keep a
+  version history; code workflows can build custom executors and edges.
 
 **Checkpoint.** Durable workflow state written at a resumable boundary. It lets another process
-  continue without replaying completed steps.
+  continue without replaying completed steps. A resume compiles the definition version the run recorded.
 
 **Human-input request.** A typed question that pauses a workflow. A response resumes execution from its
   checkpoint rather than changing the old run.
