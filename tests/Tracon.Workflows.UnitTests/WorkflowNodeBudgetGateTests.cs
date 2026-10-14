@@ -152,6 +152,28 @@ public sealed class WorkflowNodeBudgetGateTests
     }
 
     [Fact]
+    public async Task A_cancelled_call_with_room_in_the_budget_still_reaches_the_handler()
+    {
+        // The gate decides nothing while the tree has room: what a handler does with a token
+        // that is already cancelled is the handler's, as it was before the gate existed.
+        var budget = new AgentRunBudget { MaxTotalCost = 1m };
+
+        budget.RecordUsage(0, 0.5m);
+
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var calls = 0;
+
+        await InScopeAsync(budget, async () =>
+        {
+            await Gate(() => calls++)(Messages, NoContext, cancellation.Token);
+        });
+
+        calls.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task A_call_outside_a_run_scope_passes()
     {
         // A handler called directly by a test, or by an executor that no run opened.

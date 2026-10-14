@@ -1578,7 +1578,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   joins the same total. A run that reports nothing is unaffected. Still token-only on
   purpose: `GET /api/stats`, the dashboard, the `tracon.run.cost` metric, the comparison
   of two runs and the console's Tools screen. A quota has no limit on a unit such as
-  characters. The same ceiling also stops a function node from starting (the first entry of this section).
+  characters. The same ceiling also stops a function node from starting (see the entry that begins
+  "A workflow function node no longer starts" at the top of this section).
 
 ## [1.0.0-preview.3] - 2026-09-24
 
