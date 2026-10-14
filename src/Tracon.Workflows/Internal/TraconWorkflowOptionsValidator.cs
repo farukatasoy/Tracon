@@ -82,6 +82,24 @@ internal sealed class TraconWorkflowOptionsValidator : IValidateOptions<TraconWo
                 "run is resumed from its latest checkpoint. Turn checkpointing on, or turn recovery off.");
         }
 
+        // Phase 209: the expiry scan runs on a PeriodicTimer, which refuses a period outside
+        // one millisecond to about 49.7 days from inside a hosted service, where the default
+        // StopHost turns it into a stopped host (F-278). Only while the engine is on.
+        if (options.Enabled && !TimerPeriod.IsValid(options.RequestExpirationScanInterval))
+        {
+            return ValidateOptionsResult.Fail(TimerPeriod.Failure(
+                $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.RequestExpirationScanInterval)}",
+                options.RequestExpirationScanInterval,
+                $" when {nameof(TraconWorkflowOptions.Enabled)} is on"));
+        }
+
+        if (options.MaxRequestExpirationsPerScan < 1)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxRequestExpirationsPerScan)} must be at " +
+                $"least 1. Actual value: {options.MaxRequestExpirationsPerScan}.");
+        }
+
         if (options.MaxResumeAttempts is < 0 or > MaxResumeAttemptsLimit)
         {
             return ValidateOptionsResult.Fail(

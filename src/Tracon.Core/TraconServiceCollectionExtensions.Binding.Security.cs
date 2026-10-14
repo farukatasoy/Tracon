@@ -447,6 +447,7 @@ public static partial class TraconServiceCollectionExtensions
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.VoiceSessions)), options.VoiceSessions);
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.RunScores)), options.RunScores);
         BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.DocumentEmbeddings)), options.DocumentEmbeddings);
+        BindRetentionTarget(section.GetSection(nameof(TraconRetentionOptions.WorkflowRequests)), options.WorkflowRequests);
     }
 
     private static void BindRetentionTarget(IConfigurationSection section, RetentionTargetOptions options)

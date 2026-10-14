@@ -92,6 +92,17 @@ public static class RetentionTargets
     /// </summary>
     public const string DocumentEmbeddings = "document_embeddings";
 
+    /// <summary>
+    /// The inbox rows of workflow requests whose run was closed because the request expired
+    /// (<see cref="WorkflowDefinition.RequestTimeout"/>).
+    /// </summary>
+    /// <remarks>
+    /// Only a closed row is deleted: a row of a run that still waits for an answer is the
+    /// request's entry in the inbox. The row carries a session id, a request id and a workflow
+    /// name, no prompt and no answer; it is not user data, so the configuration-based default applies.
+    /// </remarks>
+    public const string WorkflowRequests = "workflow_requests";
+
     /// <summary>All recognized target names.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -111,6 +122,7 @@ public static class RetentionTargets
         IdempotencyKeys,
         RunInputs,
         DocumentEmbeddings,
+        WorkflowRequests,
     ];
 
     /// <summary>The targets that carry user data and are OFF by default.</summary>

@@ -157,6 +157,8 @@ internal static class WorkflowResponseGate
                     () => store.AddAsync(Record(answer, answer.NewRunId, claimScope: null, actor), CancellationToken.None).AsTask())
                 .ConfigureAwait(false);
 
+            await MarkAnsweredAsync(answer, answer.NewRunId, services).ConfigureAwait(false);
+
             return Start(answer.NewRunId, redrive: false);
         }
 
@@ -180,6 +182,8 @@ internal static class WorkflowResponseGate
 
                 if (claim.Claimed)
                 {
+                    await MarkAnsweredAsync(answer, answer.NewRunId, services).ConfigureAwait(false);
+
                     return Start(answer.NewRunId, redrive: false);
                 }
 
@@ -233,6 +237,8 @@ internal static class WorkflowResponseGate
 
             if (replaced)
             {
+                await MarkAnsweredAsync(answer, redriveRunId, services).ConfigureAwait(false);
+
                 return Start(redriveRunId, redrive: true);
             }
 
@@ -395,6 +401,46 @@ internal static class WorkflowResponseGate
             throw new TraconException(
                 $"The answer to request '{answer.RequestId}' of run '{answer.Source.Id}' was not applied because it could not be recorded.",
                 exception);
+        }
+    }
+
+    /// <summary>
+    /// Marks the request answered in the inbox, so the tenant-wide list shows it as answered and
+    /// the expiry closes its run as completed instead of failed. Best-effort: the answer is already
+    /// recorded and its run is open, and a failed mark is logged.
+    /// </summary>
+    /// <remarks>
+    /// An answer that cannot be marked leaves its request listed as pending until it expires; the
+    /// run it started is unaffected. The mark names the run of the LATEST answer, so a re-driven
+    /// answer (<see cref="WorkflowResponseStatus.Abandoned"/> replaced) names the run to watch.
+    /// </remarks>
+    private static async ValueTask MarkAnsweredAsync(Answer answer, Guid responseRunId, IServiceProvider services)
+    {
+        var requests = services.GetService<IWorkflowRequestStore>();
+
+        if (requests is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await requests.MarkAnsweredAsync(
+                answer.Source.SessionId!,
+                answer.RequestId,
+                responseRunId,
+                DateTimeOffset.UtcNow,
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Tracon.WorkflowEndpoints")
+                .LogWarning(
+                    exception,
+                    "The answer to request {RequestId} (run {RunId}) could not be marked in the workflow request inbox; the request stays listed as pending until it expires.",
+                    answer.RequestId,
+                    responseRunId);
         }
     }
 

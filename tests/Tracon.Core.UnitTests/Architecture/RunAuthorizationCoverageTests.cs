@@ -139,8 +139,9 @@ public sealed class RunAuthorizationCoverageTests
         ("src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs", ResourceMarker, 3),
         ("src/Tracon.AspNetCore/Endpoints/SessionEndpoints.cs", ResourceMarker, 4),
         // Phase 208: the third is GET /api/workflows/runs/{runId}/responses (read access,
-        // the same 404 as the request list).
-        ("src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceMarker, 3),
+        // the same 404 as the request list). Phase 209: the fourth is GET /api/workflows/requests,
+        // the tenant-wide list (read access, a denial is a 403 and never filters the page).
+        ("src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceMarker, 4),
         ("src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs", ResourceMarker, 2),
         // 🚨 Phase 161 moved the voice surface's gate calls into a SHARED helper so
         // that the conversation endpoint and the live endpoints deny with the same

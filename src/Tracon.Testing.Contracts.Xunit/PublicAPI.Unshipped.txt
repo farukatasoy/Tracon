@@ -1043,3 +1043,33 @@ override Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.SeedAsyn
 override Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
 virtual Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.EraseRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask<bool>
 virtual Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId, string! sessionId) -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_closed_row_leaves_the_list_and_cannot_be_marked_answered() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_logical_request_stays_listed_while_an_older_run_of_it_closes() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_page_outside_the_range_is_cut_to_it() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_row_expires_at_its_time_and_not_before() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_row_is_closed_once() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_row_without_a_time_limit_reads_back_without_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_run_lists_its_requests_in_event_order() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_second_answer_names_its_own_run_and_keeps_the_first_time() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_written_row_is_read_back_with_every_field() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Another_tenant_cannot_mark_a_row_answered() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Concurrent_expiries_close_each_row_exactly_once() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Erasing_the_run_removes_its_rows() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Expiry_closes_only_the_open_rows_whose_time_has_come_and_returns_them() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Expiry_closes_the_oldest_deadlines_first_and_no_more_than_max() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Expiry_closes_the_rows_of_every_tenant_and_keeps_the_answer_mark() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Marking_answered_marks_every_open_row_of_the_logical_request_and_no_other() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.The_list_can_be_limited_to_one_workflow() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.The_list_is_oldest_first_and_pages_without_gaps_or_repeats() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.The_same_request_id_in_two_sessions_is_two_requests() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.The_same_request_of_a_session_is_listed_once_under_its_newest_open_run() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.The_state_filter_runs_before_the_page_so_a_page_is_never_short() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Two_tenants_hold_the_same_session_and_request_without_seeing_each_other() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.WorkflowRequestStoreContract() -> void
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Writing_the_same_run_and_request_twice_keeps_the_first_row() -> System.Threading.Tasks.Task!
+override Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.CountAsync(string! tenantId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.SeedAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<object!>
+virtual Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.EraseRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask<bool>
+virtual Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId, string! sessionId) -> System.Threading.Tasks.ValueTask

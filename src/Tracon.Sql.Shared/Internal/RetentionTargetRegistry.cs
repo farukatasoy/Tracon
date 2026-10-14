@@ -78,6 +78,9 @@ internal static class RetentionTargetRegistry
     /// <summary>The key of <c>run_inputs</c>: one row per run.</summary>
     private static readonly string[] RunInputKey = ["run_id"];
 
+    /// <summary>The key of <c>workflow_requests</c>: <c>(run_id, request_id)</c>.</summary>
+    private static readonly string[] WorkflowRequestKey = ["run_id", "request_id"];
+
     /// <summary>The key of <c>idempotency_keys</c> within one tenant.</summary>
     private static readonly string[] IdempotencyKey = ["key"];
 
@@ -126,10 +129,13 @@ internal static class RetentionTargetRegistry
         // completed_at once it pauses — and the request became permanently
         // unanswerable. An answered request leaves its run AwaitingInput too
         // (a second answer opens a new branch, K-130), so these rows are kept
-        // for as long as the run waits; an expiry for them is F-319's scope.
+        // for as long as the run waits. The way out is the run's RequestTimeout (phase 209): when
+        // it passes, the run is closed, no longer AwaitingInput, and the next round deletes
+        // these rows by age like any other.
         var awaitingInput = (int)RunStatus.AwaitingInput;
         var workflowRequest = (int)RunEventType.WorkflowRequest;
         var workflowKind = (int)RunKind.Workflow;
+        var workflowRequestClosed = (int)WorkflowRequestStatus.Closed;
 
         return target switch
         {
@@ -343,6 +349,18 @@ internal static class RetentionTargetRegistry
                     + $"WHERE rr.id = {Table("run_inputs")}.run_id AND rr.status = {awaitingInput}) "
                     + "THEN NULL ELSE created_at END",
                 RunInputKey),
+
+            // The inbox rows of workflow requests (phase 209). A row is OPEN while its run waits for
+            // an answer and is the request's entry in the inbox, so it is never old; it is CLOSED when
+            // the request expired, and then only its age counts. The row carries a session id, a
+            // request id and a workflow name: no prompt and no answer.
+            RetentionTargets.WorkflowRequests => new RetentionTargetDefinition(
+                Table("workflow_requests"),
+                $"status = {workflowRequestClosed} AND closed_at < @cutoff",
+                "tenant_id = @tenant_id",
+                "closed_at",
+                $"CASE WHEN status = {workflowRequestClosed} THEN closed_at ELSE NULL END",
+                WorkflowRequestKey),
 
             // Knowledge base chunks (phase 51). 🚨 The table exists ONLY in the
             // PostgreSQL migration set; binding this target to a policy on SQL

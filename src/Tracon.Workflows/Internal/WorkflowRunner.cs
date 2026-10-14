@@ -61,6 +61,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly IRunInputStore? _runInputs;
     private readonly ParameterizedAgentFactory? _parameterFactory;
     private readonly IWorkflowResponseStore? _responses;
+    private readonly IWorkflowRequestStore? _requests;
 
     /// <summary>Creates a new runner.</summary>
     /// <param name="catalog">The workflow catalog.</param>
@@ -110,6 +111,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <see langword="null"/> nothing is recorded, and an answer whose run fails after the hand-over
     /// can be given again.
     /// </param>
+    /// <param name="requestStore">
+    /// The inbox of the requests a run waits on. When <see langword="null"/> a run that waits writes no
+    /// row: the tenant-wide list stays empty, no request expires, and a request carries no expiry.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -130,7 +135,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         IWebhookPublisher? webhookPublisher = null,
         IRunInputStore? runInputStore = null,
         ParameterizedAgentFactory? parameterFactory = null,
-        IWorkflowResponseStore? responseStore = null)
+        IWorkflowResponseStore? responseStore = null,
+        IWorkflowRequestStore? requestStore = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -160,6 +166,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _runInputs = runInputStore;
         _parameterFactory = parameterFactory;
         _responses = responseStore;
+        _requests = requestStore;
     }
 
     /// <inheritdoc />
@@ -196,7 +203,114 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             return [];
         }
 
-        var requests = new List<WorkflowPendingRequest>();
+        var events = await ReadRequestEventsAsync(runId, cancellationToken).ConfigureAwait(false);
+        var rows = await TryReadRowsAsync(runId, cancellationToken).ConfigureAwait(false);
+        var requests = new List<WorkflowPendingRequest>(events.Count);
+
+        foreach (var (request, _) in events)
+        {
+            var row = rows.FirstOrDefault(candidate => string.Equals(candidate.RequestId, request.RequestId, StringComparison.Ordinal));
+
+            requests.Add(Enrich(request, record.WorkflowName, record.SessionId, row));
+        }
+
+        return requests;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListRequestsAsync(
+        WorkflowRequestQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        if (_requests is null)
+        {
+            return [];
+        }
+
+        var rows = await _requests.ListAsync(query, cancellationToken).ConfigureAwait(false);
+        var items = new List<WorkflowPendingRequest>(rows.Count);
+
+        foreach (var row in rows)
+        {
+            items.Add(await ReadRequestOfRowAsync(row, cancellationToken).ConfigureAwait(false));
+        }
+
+        return items;
+    }
+
+    /// <summary>
+    /// Reads the request a row names from its run's event, so the prompt and the form are the
+    /// ones the event holds and never a copy.
+    /// </summary>
+    /// <param name="row">The inbox row.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The request. When the event is gone or is not the request the row names, a request with
+    /// the row's own facts only: it can still be answered, and the card of its run shows it.
+    /// </returns>
+    /// <remarks>
+    /// The run closes right after it publishes its requests, so the events from the request's
+    /// sequence on are few; reading stops at the first.
+    /// </remarks>
+    private async ValueTask<WorkflowPendingRequest> ReadRequestOfRowAsync(
+        WorkflowRequestRecord row,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var runEvent in _runStore
+                           .ReadEventsAsync(row.RunId, row.EventSequence, cancellationToken)
+                           .ConfigureAwait(false))
+        {
+            if (runEvent.Sequence == row.EventSequence &&
+                runEvent.Type == RunEventType.WorkflowRequest &&
+                WorkflowRequestDescriptor.Parse(runEvent) is { } parsed &&
+                string.Equals(parsed.RequestId, row.RequestId, StringComparison.Ordinal))
+            {
+                return Enrich(parsed, row.WorkflowName, row.SessionId, row);
+            }
+
+            break;
+        }
+
+        return Enrich(
+            new WorkflowPendingRequest
+            {
+                RunId = row.RunId,
+                RequestId = row.RequestId,
+                PortId = row.PortId,
+                Form = WorkflowRequestForm.Json,
+                RequestedAt = row.RequestedAt,
+            },
+            row.WorkflowName,
+            row.SessionId,
+            row);
+    }
+
+    /// <summary>Adds what the run and the inbox row know to a request read from the event.</summary>
+    private static WorkflowPendingRequest Enrich(
+        WorkflowPendingRequest request,
+        string? workflowName,
+        string? sessionId,
+        WorkflowRequestRecord? row)
+        => request with
+        {
+            WorkflowName = workflowName,
+            SessionId = sessionId,
+            ExpiresAt = row?.ExpiresAt,
+            Answered = row?.AnsweredAt is not null,
+            LastResponseRunId = row?.LastResponseRunId,
+        };
+
+    /// <summary>
+    /// Reads the run's <see cref="RunEventType.WorkflowRequest"/> events as requests, with the
+    /// sequence of the event each came from.
+    /// </summary>
+    private async ValueTask<IReadOnlyList<(WorkflowPendingRequest Request, long Sequence)>> ReadRequestEventsAsync(
+        Guid runId,
+        CancellationToken cancellationToken)
+    {
+        var requests = new List<(WorkflowPendingRequest, long)>();
 
         await foreach (var runEvent in _runStore
                            .ReadEventsAsync(runId, 0, cancellationToken)
@@ -209,11 +323,39 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
             if (WorkflowRequestDescriptor.Parse(runEvent) is { } request)
             {
-                requests.Add(request);
+                requests.Add((request, runEvent.Sequence));
             }
         }
 
         return requests;
+    }
+
+    /// <summary>
+    /// Reads a run's inbox rows for the facts a request carries beyond its event. A failure is
+    /// logged and answered with no rows: answering a request must not depend on the inbox.
+    /// </summary>
+    private async ValueTask<IReadOnlyList<WorkflowRequestRecord>> TryReadRowsAsync(
+        Guid runId,
+        CancellationToken cancellationToken)
+    {
+        if (_requests is null)
+        {
+            return [];
+        }
+
+        try
+        {
+            return await _requests.ListByRunAsync(runId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            _logger.LogWarning(
+                exception,
+                "The inbox rows of workflow run {RunId} could not be read; its requests are listed without an expiry or an answer mark.",
+                runId);
+
+            return [];
+        }
     }
 
     /// <inheritdoc />
@@ -655,6 +797,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             lookupFailure = ExceptionDispatchInfo.Capture(exception);
         }
 
+        // Phase 209: how long a request this run publishes may wait. Taken from the SAME read as the
+        // graph, so a run compiled from a version carries that version's limit; the row it writes
+        // freezes the time, and an edit made while the run waits does not move it.
+        var requestTimeout = found?.Code?.RequestTimeout ?? found?.Definition?.RequestTimeout;
+
         var budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider);
 
         // F-418: the workflow names the counter its steps add to. An agent step is a child
@@ -895,7 +1042,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 error = StopReason(deadline);
             }
 
-            await CompleteAsync(execution, scope, writer, status, error, activity, startedAt).ConfigureAwait(false);
+            await CompleteAsync(execution, scope, writer, status, error, activity, startedAt, requestTimeout)
+                .ConfigureAwait(false);
 
             closed = true;
 
@@ -919,7 +1067,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             // still lands on an already-cancelled token.
             if (!closed)
             {
-                await CompleteAsync(execution, scope, writer, RunStatus.Canceled, error ?? StopReason(deadline), activity, startedAt)
+                await CompleteAsync(execution, scope, writer, RunStatus.Canceled, error ?? StopReason(deadline), activity, startedAt, requestTimeout)
                     .ConfigureAwait(false);
             }
         }
@@ -1633,7 +1781,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         RunStatus status,
         RunError? error,
         Activity? activity,
-        long startedAt)
+        long startedAt,
+        TimeSpan? requestTimeout)
     {
         // 🚨 Classified HERE, where the row closes, so every error the runner
         // builds gets a class: a participant's exception, the deadline, the
@@ -1663,7 +1812,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         await RecordQuotaAsync(execution, scope, nonTokenCost, CancellationToken.None).ConfigureAwait(false);
 
-        await PublishWebhooksAsync(execution, scope, status, error, startedAt, nonTokenCost).ConfigureAwait(false);
+        // The requests the run waits on are read once: the inbox rows and the webhooks share it.
+        var awaiting = status == RunStatus.AwaitingInput
+            ? await ReadAwaitingRequestsAsync(execution).ConfigureAwait(false)
+            : [];
+
+        await RecordRequestsAsync(execution, scope, awaiting, requestTimeout).ConfigureAwait(false);
+
+        await PublishWebhooksAsync(execution, scope, status, error, startedAt, nonTokenCost, awaiting).ConfigureAwait(false);
 
         // 🚨 The checkpoints of a run awaiting a human are NEVER deleted: the
         // response resumes from exactly those checkpoints. The cleanup
@@ -1718,6 +1874,90 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     }
 
     /// <summary>
+    /// Reads the requests a run that just closed as <see cref="RunStatus.AwaitingInput"/> waits
+    /// on. A failure is logged and answered with none: the run is already closed, and neither the
+    /// inbox rows nor the webhooks may break it.
+    /// </summary>
+    private async ValueTask<IReadOnlyList<(WorkflowPendingRequest Request, long Sequence)>> ReadAwaitingRequestsAsync(
+        WorkflowExecution execution)
+    {
+        try
+        {
+            return await ReadRequestEventsAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            _logger.LogWarning(
+                exception,
+                "The requests workflow run {RunId} waits on could not be read; it writes no inbox row and publishes no request webhook.",
+                execution.RunId);
+
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// Writes the inbox rows of the requests a run waits on, with the time each expires.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The one write point: the run has just closed as <see cref="RunStatus.AwaitingInput"/>, and
+    /// every request it published is in its event stream. The time counts from the request's own
+    /// event, so a continuation that republishes a request starts the count again.
+    /// </para>
+    /// <para>
+    /// A row that cannot be written does not fail the run - the same rule as every other
+    /// observation of a run. The request is still listed by <c>GET /api/workflows/runs/{runId}/requests</c>
+    /// and can still be answered; it is missing from the tenant-wide list and it never expires, so
+    /// retention keeps the rows of its run. That is logged as a warning.
+    /// </para>
+    /// </remarks>
+    private async ValueTask RecordRequestsAsync(
+        WorkflowExecution execution,
+        AgentRunScope scope,
+        IReadOnlyList<(WorkflowPendingRequest Request, long Sequence)> awaiting,
+        TimeSpan? requestTimeout)
+    {
+        if (_requests is null || awaiting.Count == 0)
+        {
+            return;
+        }
+
+        var tenantId = scope.TenantId ?? _tenantContext.TenantId;
+
+        try
+        {
+            var rows = new List<WorkflowRequestRecord>(awaiting.Count);
+
+            foreach (var (request, sequence) in awaiting)
+            {
+                rows.Add(new WorkflowRequestRecord
+                {
+                    RunId = execution.RunId,
+                    RequestId = request.RequestId,
+                    SessionId = execution.SessionId,
+                    WorkflowName = execution.WorkflowName,
+                    PortId = request.PortId,
+                    EventSequence = sequence,
+                    RequestedAt = request.RequestedAt,
+                    ExpiresAt = requestTimeout is { } timeout ? request.RequestedAt + timeout : null,
+                    Status = WorkflowRequestStatus.Open,
+                    TenantId = tenantId,
+                });
+            }
+
+            await _requests.AddAsync(rows, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            _logger.LogWarning(
+                exception,
+                "The inbox rows of workflow run {RunId} could not be written. Its requests can still be answered from the run, but they are missing from GET /api/workflows/requests and never expire.",
+                execution.RunId);
+        }
+    }
+
+    /// <summary>
     /// Publishes the workflow root's webhooks: <c>run.completed</c> or
     /// <c>run.failed</c> when the run ends, and one
     /// <c>workflow.request.pending</c> per request the run waits on.
@@ -1744,7 +1984,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         RunStatus status,
         RunError? error,
         long startedAt,
-        RunNonTokenCost? nonTokenCost)
+        RunNonTokenCost? nonTokenCost,
+        IReadOnlyList<(WorkflowPendingRequest Request, long Sequence)> awaiting)
     {
         if (_webhookPublisher is null)
         {
@@ -1757,9 +1998,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         {
             if (status == RunStatus.AwaitingInput)
             {
-                var requests = await ListPendingRequestsAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
-
-                foreach (var request in requests)
+                foreach (var (request, _) in awaiting)
                 {
                     await _webhookPublisher.PublishAsync(
                         tenantId,

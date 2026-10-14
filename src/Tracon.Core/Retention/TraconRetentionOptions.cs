@@ -109,6 +109,13 @@ public sealed class TraconRetentionOptions
     /// </summary>
     public RetentionTargetOptions DocumentEmbeddings { get; } = new();
 
+    /// <summary>
+    /// Gets the default for <see cref="RetentionTargets.WorkflowRequests"/>. A closed row names a
+    /// request that expired; it carries no prompt and no answer, so it is kept for a short while
+    /// (the run that owns it is kept by the run history, not by this target).
+    /// </summary>
+    public RetentionTargetOptions WorkflowRequests { get; } = new() { MaxAgeDays = 30 };
+
     /// <summary>Returns the option object that corresponds to a target name.</summary>
     /// <param name="target">See <see cref="RetentionTargets"/>.</param>
     /// <returns>The option object, or <see langword="null"/> for an unknown target.</returns>
@@ -131,6 +138,7 @@ public sealed class TraconRetentionOptions
             RetentionTargets.VoiceSessions => VoiceSessions,
             RetentionTargets.RunScores => RunScores,
             RetentionTargets.DocumentEmbeddings => DocumentEmbeddings,
+            RetentionTargets.WorkflowRequests => WorkflowRequests,
             _ => null,
         };
 }

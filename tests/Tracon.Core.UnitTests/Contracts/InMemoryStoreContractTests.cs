@@ -280,3 +280,11 @@ public sealed class InMemoryWorkflowResponseStoreContractTests : WorkflowRespons
     protected override ValueTask<IWorkflowResponseStore> CreateStoreAsync()
         => ValueTask.FromResult<IWorkflowResponseStore>(new InMemoryWorkflowResponseStore(AmbientTenant));
 }
+
+/// <inheritdoc cref="InMemoryAgentDefinitionStoreContractTests" />
+public sealed class InMemoryWorkflowRequestStoreContractTests : WorkflowRequestStoreContract
+{
+    /// <inheritdoc />
+    protected override ValueTask<IWorkflowRequestStore> CreateStoreAsync()
+        => ValueTask.FromResult<IWorkflowRequestStore>(new InMemoryWorkflowRequestStore(AmbientTenant));
+}

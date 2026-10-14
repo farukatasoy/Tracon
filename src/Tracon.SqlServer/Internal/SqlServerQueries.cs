@@ -1963,6 +1963,28 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    );
             """;
 
+        // Phase 209 -- the workflow request inbox (see PostgreSQL for the pattern). SQL Server has
+        // no row-value IN, so the candidates are a CTE joined back on the key. take >= 1 is
+        // guaranteed by the store, which cuts it to 1..200.
+        SelectWorkflowRequests = BuildSelectWorkflowRequests("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
+
+        ExpireWorkflowRequests = $"""
+            WITH due AS (
+                SELECT TOP (@max) run_id, request_id FROM {Schema}.workflow_requests
+                 WHERE status = @status_open AND expires_at IS NOT NULL AND expires_at <= @now
+                 ORDER BY expires_at ASC
+            )
+            UPDATE w
+               SET status = @status_closed, closed_at = @now
+            OUTPUT inserted.run_id, inserted.request_id, inserted.tenant_id, inserted.session_id,
+                   inserted.workflow_name, inserted.port_id, inserted.event_seq, inserted.requested_at,
+                   inserted.expires_at, inserted.status, inserted.answered_at,
+                   inserted.last_response_run_id, inserted.closed_at
+              FROM {Schema}.workflow_requests AS w
+              JOIN due ON due.run_id = w.run_id AND due.request_id = w.request_id
+             WHERE w.status = @status_open;
+            """;
+
         // -------------------------------------------------------------------
         // Phase 65 -- tenant provider bindings (BYOK) and egress policy
         // -------------------------------------------------------------------

@@ -203,6 +203,28 @@ public sealed record WorkflowDefinition
     /// </remarks>
     public WorkflowResponseMode ResponseMode { get; init; }
 
+    /// <summary>
+    /// Gets how long a human request of this workflow may wait for an answer before the run that
+    /// waits on it is closed. <see langword="null"/> (the default) means it waits without limit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A run that waits for a human keeps its request event, its checkpoints and its input row
+    /// without limit, because answering needs them (a retention policy does not delete them while
+    /// the run waits). A limit is what lets those rows go: when the time passes the run is closed
+    /// <see cref="RunStatus.Failed"/> with the error type <c>WorkflowRequestExpired</c>, or
+    /// <see cref="RunStatus.Completed"/> without an error when every request it waited on was
+    /// answered, and the retention policy deletes its rows on its next round. An answer to a
+    /// run that was closed is refused with <c>400</c>.
+    /// </para>
+    /// <para>
+    /// The time counts from the moment the run published the request. A run that waits keeps the
+    /// limit of the definition version it recorded, so an edit made while it waits changes
+    /// neither the graph nor the limit. Must be from one minute to 365 days.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? RequestTimeout { get; init; }
+
     /// <summary>Gets the tenant the definition belongs to. <see langword="null"/> for workflows defined in code.</summary>
     public string? TenantId { get; init; }
 

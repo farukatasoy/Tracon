@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -95,6 +96,11 @@ public static class TraconWorkflowsBuilderExtensions
         // F-405: the save checks a definition's run timeout against the host's
         // ceiling through this seam, for the same reason.
         services.TryAddSingleton<IWorkflowRunTimeoutPolicy, TraconWorkflowRunTimeoutPolicy>();
+
+        // Phase 209: closes the runs whose human request expired, so retention can release
+        // what a waiting run keeps (K-888). Scans nothing while no workflow sets a limit.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, WorkflowRequestExpirationService>());
 
         return builder;
     }
@@ -193,7 +199,8 @@ public static class TraconWorkflowsBuilderExtensions
     /// <exception cref="ArgumentException">
     /// <paramref name="name"/> is empty or reserved (see the other overload), or
     /// <paramref name="configure"/> set a <see cref="WorkflowRegistrationOptions.ResponseMode"/>
-    /// that is not a member of <see cref="WorkflowResponseMode"/>.
+    /// that is not a member of <see cref="WorkflowResponseMode"/>, or a
+    /// <see cref="WorkflowRegistrationOptions.RequestTimeout"/> outside one minute to 365 days.
     /// </exception>
     /// <remarks>
     /// <para>
@@ -207,6 +214,10 @@ public static class TraconWorkflowsBuilderExtensions
     /// the run the first one started, and a different answer is refused with <c>409</c>. Every
     /// answer that starts a run is written to the audit trail before the run starts.
     /// </para>
+    /// <para>
+    /// <see cref="WorkflowRegistrationOptions.RequestTimeout"/> closes a run whose request nobody
+    /// answers in time, which is also what lets retention delete the rows such a run keeps.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddTracon()
@@ -215,6 +226,7 @@ public static class TraconWorkflowsBuilderExtensions
     ///        {
     ///            options.Description = "Routes a ticket after one approval.";
     ///            options.ResponseMode = WorkflowResponseMode.SingleAnswer;
+    ///            options.RequestTimeout = TimeSpan.FromDays(7);
     ///        });
     /// </code>
     /// </example>
@@ -245,7 +257,21 @@ public static class TraconWorkflowsBuilderExtensions
                 nameof(configure));
         }
 
-        builder.Services.AddSingleton(new CodeWorkflowRegistration(name, options.Description, factory, options.ResponseMode));
+        if (options.RequestTimeout is { } requestTimeout && !WorkflowDefinitionValidator.IsValidRequestTimeout(requestTimeout))
+        {
+            throw new ArgumentException(
+                $"Workflow '{name}' has a request timeout of {requestTimeout}. It must be from " +
+                $"{WorkflowDefinitionValidator.MinRequestTimeout} to {WorkflowDefinitionValidator.MaxRequestTimeout.TotalDays:0} days; " +
+                "leave it unset and a request waits without limit.",
+                nameof(configure));
+        }
+
+        builder.Services.AddSingleton(new CodeWorkflowRegistration(
+            name,
+            options.Description,
+            factory,
+            options.ResponseMode,
+            options.RequestTimeout));
 
         return builder;
     }

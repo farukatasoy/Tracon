@@ -576,3 +576,49 @@ public sealed class SqlServerWorkflowResponseStoreContractTests(SqlServerSchemaF
         return true;
     }
 }
+
+
+/// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />
+public sealed class SqlServerWorkflowRequestStoreContractTests(SqlServerSchemaFixture schema)
+    : WorkflowRequestStoreContract, IClassFixture<SqlServerSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IWorkflowRequestStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.WorkflowRequests;
+    }
+
+    /// <summary>
+    /// <c>workflow_requests.run_id</c> is a foreign key to the <c>runs</c> table;
+    /// the row must exist before a request is recorded.
+    /// </summary>
+    /// <inheritdoc />
+    protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId, string sessionId)
+        => await schema.Context.Runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "contract",
+            Kind = RunKind.Workflow,
+            WorkflowName = "contract",
+            SessionId = sessionId,
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = tenantId,
+        });
+
+    /// <summary>
+    /// Erases through the data subject store: the measurement that the run's cascade
+    /// reaches <c>workflow_requests</c> with no target of its own.
+    /// </summary>
+    /// <inheritdoc />
+    protected override async ValueTask<bool> EraseRunAsync(Guid runId, string tenantId)
+    {
+        await schema.Context.DataSubjects.EraseAsync(
+            tenantId,
+            new DataSubjectScope { SessionIds = [], RunIds = [runId], ConversationIds = [] },
+            static (_, _) => default);
+
+        return true;
+    }
+}

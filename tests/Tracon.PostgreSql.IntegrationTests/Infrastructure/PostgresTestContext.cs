@@ -111,6 +111,7 @@ internal sealed class PostgresTestContext : IAsyncDisposable
         ConversationBranches = new SqlConversationBranchStore(wrapped);
         PendingApprovals = new SqlPendingApprovalStore(wrapped, TenantContext);
         WorkflowResponses = new SqlWorkflowResponseStore(wrapped, TenantContext);
+        WorkflowRequests = new SqlWorkflowRequestStore(wrapped, TenantContext);
         DataSubjects = new SqlDataSubjectStore(wrapped);
         Migrations = new MigrationRunner(wrapped, NullLogger<MigrationRunner>.Instance);
     }
@@ -150,6 +151,9 @@ internal sealed class PostgresTestContext : IAsyncDisposable
 
     /// <summary>Gets the workflow response store.</summary>
     public SqlWorkflowResponseStore WorkflowResponses { get; }
+
+    /// <summary>Gets the workflow request inbox store.</summary>
+    public SqlWorkflowRequestStore WorkflowRequests { get; }
 
     /// <summary>MCP server store (Phase 6).</summary>
     public SqlMcpServerStore McpServers { get; }

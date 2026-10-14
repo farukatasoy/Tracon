@@ -132,6 +132,18 @@ public sealed record WorkflowSaveRequest
     /// mode of the version it recorded.
     /// </remarks>
     public WorkflowResponseMode ResponseMode { get; init; }
+
+    /// <summary>
+    /// How long a human request of this workflow may wait for an answer, as <c>d.hh:mm:ss</c>,
+    /// from one minute to 365 days. Leave it out and a request waits without limit.
+    /// </summary>
+    /// <remarks>
+    /// When the time passes the run that waits is closed and its stored rows can be released by
+    /// retention; see <see cref="WorkflowDefinition.RequestTimeout"/>. Replaced on every save like
+    /// every other field, so a client that does not send it removes the limit. A run that is
+    /// waiting keeps the limit of the version it recorded.
+    /// </remarks>
+    public TimeSpan? RequestTimeout { get; init; }
 }
 
 /// <summary>Request to run a workflow.</summary>

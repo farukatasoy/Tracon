@@ -265,4 +265,23 @@ public sealed class TraconWorkflowOptions
     /// </para>
     /// </remarks>
     public int MaxResumeAttempts { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets how often the background scan looks for human requests whose time has run
+    /// out (<see cref="WorkflowDefinition.RequestTimeout"/>) and closes their runs.
+    /// </summary>
+    /// <remarks>
+    /// The default is one minute. A request is closed at most one interval after its time, so
+    /// a finer value only matters for a very short <c>RequestTimeout</c>. Only one instance of
+    /// a cluster scans at a time. The scan reads a partial index of the requests that have a
+    /// limit, so it costs nothing while no workflow sets one. Must be from one millisecond to
+    /// about 49.7 days.
+    /// </remarks>
+    public TimeSpan RequestExpirationScanInterval { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Gets or sets the most requests one scan closes (<see cref="RequestExpirationScanInterval"/>).
+    /// </summary>
+    /// <remarks>The default is 100. A backlog is closed over several scans. Must be at least 1.</remarks>
+    public int MaxRequestExpirationsPerScan { get; set; } = 100;
 }

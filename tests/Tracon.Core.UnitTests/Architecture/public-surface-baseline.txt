@@ -4,7 +4,7 @@
 # Counts TYPES, not entries - an Options accessor does not move this number.
 # The number may only shrink; a growth is a deliberate surface addition.
 Tracon=0
-Tracon.Abstractions=435
+Tracon.Abstractions=440
 Tracon.Anthropic=3
 Tracon.AspNetCore=86
 Tracon.Azure=4
@@ -16,7 +16,7 @@ Tracon.PostgreSql=2
 Tracon.SqlServer=2
 Tracon.Sqlite=2
 Tracon.Testing=6
-Tracon.Testing.Contracts.Xunit=52
+Tracon.Testing.Contracts.Xunit=53
 Tracon.UI=1
 Tracon.Voice=3
 Tracon.Workflows=8

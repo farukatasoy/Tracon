@@ -25,4 +25,24 @@ public sealed class WorkflowRegistrationOptions
     /// applies to every request the graph publishes.
     /// </remarks>
     public WorkflowResponseMode ResponseMode { get; set; }
+
+    /// <summary>
+    /// Gets or sets how long a human request of the workflow may wait for an answer before the
+    /// run that waits on it is closed. <see langword="null"/> (the default) means it waits
+    /// without limit.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same setting as <see cref="WorkflowDefinition.RequestTimeout"/>; its remarks apply.
+    /// A run that waits for a human keeps its request event, its checkpoints and its input row
+    /// until it is answered or closed. The limit is what lets a request nobody answers release
+    /// them. Must be from one minute to 365 days.
+    /// </para>
+    /// <para>
+    /// A workflow defined in code has no versions, so a run that waits takes the limit from the
+    /// registration of the process that started it: a deployment that changes this value does
+    /// not move the time of a request that was already published.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? RequestTimeout { get; set; }
 }

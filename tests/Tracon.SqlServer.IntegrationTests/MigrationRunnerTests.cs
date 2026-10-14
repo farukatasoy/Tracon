@@ -46,7 +46,8 @@ public sealed class MigrationRunnerTests(SqlServerFixture fixture)
         // Phase 199 added the `run_non_token_usage` table: 48 -> 49.
         // Phase 200 added the `workflow_definition_versions` table: 49 -> 50.
         // Phase 208 added the `workflow_responses` table: 50 -> 51.
-        tableCount.ShouldBe(51);
+        // Phase 209 added the `workflow_requests` table: 51 -> 52.
+        tableCount.ShouldBe(52);
     }
 
     [Fact]

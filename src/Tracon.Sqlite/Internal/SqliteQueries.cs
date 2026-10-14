@@ -1686,6 +1686,23 @@ internal sealed class SqliteQueries : SqlQueriesBase
                        decided_by, decided_at, expires_at, created_at, presentation;
             """;
 
+        // Phase 209 -- the workflow request inbox (see PostgreSQL for the pattern). SQLite
+        // accepts a row value in IN (3.15) and RETURNING (3.35).
+        SelectWorkflowRequests = BuildSelectWorkflowRequests("LIMIT @take OFFSET @skip;");
+
+        ExpireWorkflowRequests = $"""
+            UPDATE {Schema}workflow_requests AS w
+               SET status = @status_closed, closed_at = @now
+             WHERE (w.run_id, w.request_id) IN (
+                       SELECT run_id, request_id FROM {Schema}workflow_requests
+                        WHERE status = @status_open AND expires_at IS NOT NULL AND expires_at <= @now
+                        ORDER BY expires_at ASC
+                        LIMIT @max
+                   )
+               AND w.status = @status_open
+            RETURNING {WorkflowRequestColumns};
+            """;
+
         // -------------------------------------------------------------------
         // Phase 65 -- tenant provider bindings (BYOK) and egress policy
         // -------------------------------------------------------------------

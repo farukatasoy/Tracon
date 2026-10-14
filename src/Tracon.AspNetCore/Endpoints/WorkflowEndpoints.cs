@@ -316,6 +316,31 @@ internal static class WorkflowEndpoints
             .ProducesProblem(StatusCodes.Status501NotImplemented)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
+        builder.MapGet("/api/workflows/requests", ListInboxAsync)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
+            .WithName("TraconListWorkflowInbox")
+            .WithTags("Tracon", "Workflows")
+            .WithSummary("Lists the human input requests the tenant's workflow runs are waiting on.")
+            .WithDescription(
+                "One item per request, oldest first. The same request id in the same session is ONE " +
+                "request even when several runs hold it (an answered run stays 'AwaitingInput' and the " +
+                "continuation republishes the requests that are still open); the item names the newest " +
+                "run that waits on it, which is the run to answer. 'state' is 'pending' (the default: " +
+                "nobody has answered), 'answered' (answered, but the run still waits) or 'all'; " +
+                "'workflowName' narrows the list to one workflow. The filter runs before the page, so " +
+                "'skip' and 'take' (1-200, default 50) page over the filtered list. Each item carries " +
+                "'expiresAt' (when the workflow sets a request timeout), 'answered' and " +
+                "'lastResponseRunId'. A run whose request expired is closed and leaves the list. The " +
+                "list is the tenant's: a registered IRunAuthorizationHandler that denies reading runs " +
+                "rejects it with 403 and never filters it, so a page is never shorter than the " +
+                "caller is allowed to see. An installation that has not registered the workflow " +
+                "engine answers 501. Runs that started waiting before this list existed are not in " +
+                "it; read them with GET /api/workflows/runs/{runId}/requests.")
+            .Produces<IReadOnlyList<WorkflowPendingRequest>>()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status501NotImplemented);
+
         builder.MapGet("/api/workflows/runs/{runId:guid}/requests", ListRequestsAsync)
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.RunsRead)
@@ -323,10 +348,11 @@ internal static class WorkflowEndpoints
             .WithTags("Tracon", "Workflows")
             .WithSummary("Lists a run's pending human input requests.")
             .WithDescription(
-                "Only a run in the 'AwaitingInput' state returns requests. Requests are read " +
-                "from the run's event stream; there is no separate table. A run belonging to " +
-                "another tenant, and a denial by a registered IRunAuthorizationHandler, both " +
-                "return the same 404.")
+                "Only a run in the 'AwaitingInput' state returns requests. The prompt and the form " +
+                "are read from the run's event stream; 'expiresAt', 'answered' and 'lastResponseRunId' " +
+                "come from the inbox row the run wrote when it started waiting (see GET " +
+                "/api/workflows/requests). A run belonging to another tenant, and a denial by a " +
+                "registered IRunAuthorizationHandler, both return the same 404.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapPost("/api/workflows/runs/{runId:guid}/respond", (
@@ -531,6 +557,7 @@ internal static class WorkflowEndpoints
             Parameters = request.Parameters ?? [],
             RunTimeout = request.RunTimeout,
             ResponseMode = request.ResponseMode,
+            RequestTimeout = request.RequestTimeout,
         };
 
         if (await ValidateDefinitionAsync(
@@ -1101,6 +1128,57 @@ internal static class WorkflowEndpoints
                 },
                 cancellationToken),
             newRunId);
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<WorkflowPendingRequest>>, ProblemHttpResult>>
+        ListInboxAsync(
+            [FromServices] IWorkflowRunner? runner,
+            [FromServices] ITenantContext tenants,
+            [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+            [FromServices] IRunAttributionContext? attributionContext,
+            HttpContext httpContext,
+            CancellationToken cancellationToken,
+            [FromQuery] WorkflowRequestState? state = null,
+            [FromQuery] string? workflowName = null,
+            [FromQuery] int? skip = null,
+            [FromQuery] int? take = null)
+    {
+        if (runner is null)
+        {
+            return NotRegistered();
+        }
+
+        // 🚨 A denied list is REJECTED (403), never silently filtered: there is no single run
+        // identity to hide, and filtering rows out server-side would break the skip/take paging
+        // contract - the same rule the run list and the approval list follow (K-671).
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler,
+                    tenants,
+                    runId: null,
+                    agentName: null,
+                    sessionId: null,
+                    attributionContext,
+                    RunAccess.Read,
+                    NotAuthorized(),
+                    httpContext,
+                    cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
+        }
+
+        var requests = await runner.ListRequestsAsync(
+            new WorkflowRequestQuery
+            {
+                State = state ?? WorkflowRequestState.Pending,
+                WorkflowName = string.IsNullOrWhiteSpace(workflowName) ? null : workflowName,
+                Skip = Math.Max(skip ?? 0, 0),
+                Take = Math.Clamp(take ?? 50, 1, WorkflowRequestQuery.MaxTake),
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(requests);
     }
 
     private static async Task<Results<Ok<IReadOnlyList<WorkflowPendingRequest>>, ProblemHttpResult>>
@@ -1850,6 +1928,7 @@ internal static class WorkflowEndpoints
             Nodes = definition.Nodes,
             Parameters = definition.Parameters,
             ResponseMode = definition.ResponseMode,
+            RequestTimeout = definition.RequestTimeout,
             Version = definition.Version,
             UpdatedAt = definition.UpdatedAt,
         };
