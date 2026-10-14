@@ -50,6 +50,28 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
+    public async Task An_id_that_is_already_queued_is_refused_and_the_queued_job_is_kept()
+    {
+        // A caller that writes a job a crash left missing can race another caller writing the
+        // same job (same id). The store's refusal of the second write is what keeps the work
+        // from running twice: a store that replaced the job would reset a leased job to
+        // Pending, and a second worker would lease it.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        var owner = Owner();
+
+        (await LeaseAsync(owner, TimeSpan.FromMinutes(5))).ShouldNotBeNull();
+
+        await Should.ThrowAsync<Exception>(async () => await Store.EnqueueAsync(job with { TargetName = "second-writer" }, ["b"]));
+
+        var kept = (await Store.GetAsync(job.TenantId, job.Id)).ShouldNotBeNull();
+
+        kept.Status.ShouldBe(JobStatus.Leased);
+        kept.LeaseOwner.ShouldBe(owner);
+        kept.TargetName.ShouldBe(job.TargetName);
+        (await Store.ListItemsAsync(job.Id)).ShouldHaveSingleItem().Input.ShouldBe("a");
+    }
+
+    [Fact]
     public async Task Job_not_yet_due_cannot_be_leased()
     {
         await Store.EnqueueAsync(TestData.Job(scheduledFor: DateTimeOffset.UtcNow.AddMinutes(5)), ["a"]);

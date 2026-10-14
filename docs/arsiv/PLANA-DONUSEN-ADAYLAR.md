@@ -2409,6 +2409,47 @@ Gövdeler aday dosyasındaki son hâliyle, aynen:
 
 **Karşı görüş:** Tüketici `Temperature`, `TopP` ve `budgetTokens`'ı boş bırakabilir; ama önbellek yerleşimini Tracon dışından değiştiremez.
 
+## 2026-10-14 — F-319 Faz 208 ve 209'a dönüştü
+
+Bakımcı 2026-10-14'te kalemi ikiye böldü: karar sözleşmesi
+([Faz 208](fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md): opt-in tek yanıt, aynı cevap aynı
+devam, zıt cevap `409`, her `respond` fail-closed denetim, kaynak bağı) ve gelen
+kutusu ([Faz 209](../209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md): kiracı geneli liste,
+istek süresi). Kararlar: `workflow_responses` tablosu (K-128 bozulmaz), K-130
+varsayılanı korunur, fail-closed kümesi 6 → 7. Kanıt `245afe91` zemininde yeniden
+doğrulandı. Belirgin düzeltmeler: satır kayması (`WorkflowEndpoints.cs:175-186` →
+`:315-326`, `ApprovalEndpoints.cs:238` → `:232`); "`respond` `Idempotency-Key`
+almaz" kısmen düştü (K-925: yalnız `Prefer: respond-async` ile); K-929'un "senkron
+uçta yanıt run olayına zaten yazılır" gerekçesi kodla çelişir (Faz 208 kapanışında
+düzeltilir).
+
+### F-319 · Workflow HITL karar sözleşmesi: kiracı geneli liste, opt-in tek yanıt, karar denetimi, süre
+
+**Kanal:** faz planlama · 🟠
+
+**Sorun:** İstekler yalnız run başına listelenir (`WorkflowEndpoints.cs:175-186`). K-130 gereği yanıtlanan run `AwaitingInput` kalır; gerçekten bekleyen ayrılamaz. İkinci yanıt yeni dal açar; `respond` `Idempotency-Key` almaz. Yanıt denetim izine yazılmaz, tool onayı yazar (`ApprovalEndpoints.cs:238`). İstek için süre yoktur.
+
+**Kapsam:** Kiracı geneli bekleyen istek listesi (sayfalı, "yanıtlandı" işaretli). Workflow başına opt-in tek yanıt: aynı cevap aynı devamı sürer, zıt cevap 409 (tool onayı kuralı). `workflow.respond` denetim kaydı (aktör, requestId, karar özeti hash'i) ve yeni run'a kaynak run bağı. İsteğe bağlı süre ve süre dolunca kapanış.
+
+**Değer:** Host ekranı n revizyonlu onayı tek listeden yönetir; çift tıklama ikinci render üretmez; "kim neyi onayladı" cevaplanır.
+
+**Mercek:** 2, 3, 5.
+
+**Hazırlık:** Tool onay posta kutusu (Faz 55) ve fail-closed denetim deseni var.
+
+**Maliyet:** Yeni uç ve public yanıt tipi, `RunEventType` üyesi; olası projeksiyon tablosu (migration; K-128'i açar).
+
+**Risk:** K-128: kiracı geneli olay taraması pahalı olabilir — önce ölçülür. K-130 varsayılanı korunur.
+
+**F-327 kapanışı eki (2026-10-12):** retention artık `AwaitingInput` run'ın istek olayını ve checkpoint'lerini süresiz tutar (K-888); yanıtlanan istek de K-130 gereği `AwaitingInput` kalır, yani bu satırlar hiç silinmez. Bu adayın "süre" maddesi o büyümenin de sınırıdır: süre dolan istek kapanınca retention onu silebilir. F-332 (2026-10-12) sonrası aynı run'ın oturumundaki ekler de run yaşadıkça tutulur; süre maddesi onları da kapsar.
+
+**Bağımlılık:** Yok (F-327 ve F-335 kapandı). Faz 197'den sonra planlanırsa tek yanıt kuralı arka plan `respond`'una da uygulanır.
+
+**F-341 kapanışı eki (2026-10-12):** uymayan yanıt artık akıştan önce `400` alır ve run açmaz (K-908); bu adayın "zıt cevap `409`" kuralı o denetimin üstüne kurulur. Faz 197 (planlandı) `respond`'a `Idempotency-Key`'i yalnız arka plan kipinde getirir; aynı cevabın aynı devamı sürmesi ve kiracı geneli liste bu adayda kalır.
+
+**Ekosistem:** MCP Tasks `input_required` aynı ihtiyacı protokolde karşılar; Tracon görev deposu onu boş bırakır (`RunBackedMcpTaskStore.cs`, 2026-10-11).
+
+**Karşı görüş:** Onay tüketicinin ekranında ve domain'inde tutulabilir; değer yalnız Tracon HITL'ini kullanan host içindir.
 ---
 
 ## 2026-10-14 — F-247 Faz 206'ya dönüştü

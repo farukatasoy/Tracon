@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 
 namespace Tracon.Api;
 
@@ -29,8 +30,15 @@ namespace Tracon.Api;
 /// </para>
 /// </remarks>
 /// <param name="accessor">The accessor that resolves the current request.</param>
-internal sealed class DemoRunAttributionContext(IHttpContextAccessor accessor) : IRunAttributionContext
+internal sealed class DemoRunAttributionContext(IHttpContextAccessor accessor, IConfiguration configuration) : IRunAttributionContext
 {
+    /// <summary>
+    /// The configuration key that makes the demonstration identity pipeline fail. <c>throw</c>
+    /// makes <see cref="UserId"/> throw on every HTTP request, the way a real identity provider
+    /// that is down does; any other value, or none, leaves it working. For manual tests only.
+    /// </summary>
+    public const string ModeKey = "Tracon:Demo:Attribution:Mode";
+
     /// <summary>The header carrying the demonstration user identity.</summary>
     public const string UserHeader = "X-Demo-User";
 
@@ -52,6 +60,13 @@ internal sealed class DemoRunAttributionContext(IHttpContextAccessor accessor) :
             if (accessor.HttpContext is not { } httpContext)
             {
                 return AmbientRunAttributionScope.CurrentUserId;
+            }
+
+            // A manual-test switch: Tracon must record the run with no attribution, never fail it,
+            // when the identity pipeline throws.
+            if (string.Equals(configuration[ModeKey], "throw", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("The demonstration identity pipeline is down (Tracon:Demo:Attribution:Mode = throw).");
             }
 
             var value = httpContext.Request.Headers[UserHeader].ToString();

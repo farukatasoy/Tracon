@@ -145,6 +145,46 @@ describe('RunDetailScreen', () => {
   });
 });
 
+describe('RunDetailScreen answered workflow request (phase 208)', () => {
+  let restoreFetch: () => void;
+
+  afterEach(() => restoreFetch());
+
+  it('links the run an answer continues back to the run that waited', async () => {
+    const source = '33333333-3333-3333-3333-333333333333';
+    const event = {
+      runId,
+      sequence: 1,
+      type: 'WorkflowResponseApplied',
+      timestamp: '2026-09-01T10:00:01Z',
+      text: 'req-1',
+      payload: JSON.stringify({ sourceRunId: source, requestId: 'req-1' }),
+    };
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', { ...runRecord(), kind: 'Workflow', workflowName: 'approval', status: 'Completed' }),
+      {
+        method: 'GET',
+        pattern: 'api/runs/:runId/events',
+        handler: () =>
+          new Response(`id: 1\nevent: workflow.response-applied\ndata: ${JSON.stringify(event)}\n\n`, {
+            status: 200,
+            headers: { 'Content-Type': 'text/event-stream' },
+          }),
+      },
+      fixture('GET', 'api/runs/:runId/trace', { spans: [] }),
+      fixture('GET', 'api/runs/:runId/tree', []),
+      fixture('GET', 'api/runs/:runId/tools', []),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    const link = await screen.findByRole('link', { name: /answers a request of run/ });
+
+    expect(link.getAttribute('href')).toContain(source);
+  });
+});
+
 describe('RunDetailScreen non-token usage', () => {
   let restoreFetch: () => void;
 

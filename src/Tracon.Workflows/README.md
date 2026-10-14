@@ -51,6 +51,28 @@ builder.AddWorkflow("custom-graph", services =>
 });
 ```
 
+## Answering a request once
+
+A graph that asks a person through a `RequestPort` waits as `AwaitingInput`, and
+`POST /api/workflows/runs/{runId}/respond` continues it in a new run. By default every
+answer opens a new run (`WorkflowResponseMode.Branch`). A workflow that must act on one
+decision per request takes `SingleAnswer`:
+
+```csharp
+builder.AddWorkflow("publish-approval", services => BuildApprovalGraph(services), options =>
+{
+    options.Description = "Asks an editor before publishing.";
+    options.ResponseMode = WorkflowResponseMode.SingleAnswer;
+});
+```
+
+The same answer given twice — a double click, a retried call — follows the run the first
+one started; a different answer is refused with `409`. A stored definition sets
+`responseMode` the same way. Every answer that starts a run is written to the audit
+trail as `workflow.respond` before the run starts, and refused when that write fails.
+`GET /api/workflows/runs/{runId}/responses` lists who answered and which run each answer
+started; the answer itself is kept only as a SHA-256.
+
 ## Running
 
 ```http

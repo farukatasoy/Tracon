@@ -196,4 +196,6 @@ export type WorkflowDefinition = Omit<Fix<Generated.WorkflowDefinition, 'agentNa
 export type WorkflowDescriptor = Omit<Fix<Generated.WorkflowDescriptor, 'agentNames' | 'version'>, 'nodes'> & { nodes: WorkflowNodeReference[] };
 export type WorkflowGraph = Fix<Generated.WorkflowGraph, 'edges' | 'nodes'>;
 export type WorkflowPendingRequest = Fix<Generated.WorkflowPendingRequest, 'requestedAt'>;
+export type WorkflowResponseMode = Generated.WorkflowResponseMode;
+export type WorkflowResponseRecord = Generated.WorkflowResponseRecord;
 export type WorkflowVersionDiffResponse = Omit<Generated.WorkflowVersionDiffResponse, 'left' | 'right'> & { left: WorkflowDefinition; right: WorkflowDefinition };

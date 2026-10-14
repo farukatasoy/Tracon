@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -3350,3 +3350,191 @@ Otomatik karşılığı: `WorkflowDefinitionStoreContract.Deleting_keeps_the_his
 - 1. adım `204`; 2. adım `404` (silinmiş workflow geçmişi sunmaz).
 - 3. adım `version: 4`; `GET .../versions` artık `[4, 3, 2, 1]` verir.
 - Eski bir run'ın damgası olan sürüm 3'ün içeriği değişmemiştir.
+
+### MT-WF-156 — Tek cevaplı workflow'da çift tık tek devam açar (Faz 208, F-319) · 👤
+
+Konsol çift tıkı 👤 görseldir; HTTP yarısı örnek uygulamada ölçüldü. Otomatik karşılığı:
+`WorkflowSingleResponseTests.Two_identical_streamed_answers_at_once_start_one_run_and_the_second_follows_it`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-994, K-997 |
+
+**Ön koşul** — Örnek uygulama; `summarize-and-approve-once` (`SingleAnswer`) run'ı `AwaitingInput`.
+
+**Adımlar**
+1. Konsolda kartta onayla düğmesine hızlıca iki kez bas (ya da aynı `respond` gövdesini iki eşzamanlı istekle gönder).
+2. `GET $APU/api/workflows/runs/<kaynak>/responses`.
+3. `GET $APU/api/runs?limit=20` ile yeni run'ları oku.
+
+**Beklenen sonuç**
+- İki yanıt da `200`; ikisinin ilk `run` çerçevesi AYNI devamı adlandırır; izleyen akış `done` ile biter; devam `Completed`.
+- 2: tek satır, `claimScope` dolu, `answerHash` 64 karakter.
+- 3: iki cevap aynı anda geldiyse ikinci bir run olabilir: `Canceled`, `error.type` `request_already_answered`, sıfır olay.
+
+### MT-WF-157 — Tek cevaplı workflow'da zıt cevap `409` alır (Faz 208, F-319)
+
+Otomatik karşılığı: `WorkflowSingleResponseTests.Two_different_answers_at_once_start_one_run_and_the_other_gets_409_that_names_neither`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-994 |
+
+**Ön koşul** — MT-WF-156 sonrası kaynak run.
+
+**Adımlar**
+1. Aynı `requestId`'ye `{"approved": false}` gönder.
+
+**Beklenen sonuç**
+- `409`, başlık `Request already answered`; gövde devam kimliğini ve öbür cevabı taşımaz. Yeni run açılmaz.
+
+### MT-WF-158 — Kuyruklu tekrar ilk cevabın `202`'sini alır (Faz 208, F-319)
+
+Otomatik karşılığı: `WorkflowSingleResponseTests.Two_identical_queued_answers_with_different_keys_get_the_same_202_and_queue_one_job`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-994 |
+
+**Ön koşul** — Yeni bir `summarize-and-approve-once` run'ı `AwaitingInput`.
+
+**Adımlar**
+1. Aynı cevabı `Prefer: respond-async` ve iki farklı `Idempotency-Key` ile iki kez gönder.
+
+**Beklenen sonuç**
+- İki `202`; aynı `runId`, aynı `jobId` (run kimliği), aynı `Location`; kuyrukta tek iş; run `Completed`.
+
+### MT-WF-159 — Varsayılan `Branch` modu her cevaba yeni dal açar (Faz 208, F-319)
+
+Otomatik karşılığı: `WorkflowSingleResponseTests.Branch_mode_still_opens_a_branch_for_every_answer`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-130, K-994 |
+
+**Ön koşul** — `summarize-and-approve` (`Branch`) run'ı `AwaitingInput`.
+
+**Adımlar**
+1. Aynı isteğe iki cevap gönder.
+2. `GET .../responses` ve `GET $APU/api/audit?action=workflow.respond`.
+
+**Beklenen sonuç**
+- İki `200`, iki ayrı devam; 2: iki satır (`claimScope` boş), iki denetim kaydı (`mode: Branch`).
+
+### MT-WF-160 — Düz `/resume` sonrası aynı istek ilk cevabı izler (Faz 208, F-319)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-994 |
+| **Devir** | ➜ CI: `WorkflowSingleResponseTests.A_resumed_source_answered_again_follows_the_first_answer_and_a_different_answer_conflicts` |
+
+**Ön koşul** — `summarize-and-approve-once` cevaplandı; aynı oturumda kaynak `POST .../resume` ile yeniden yayınlandı.
+
+**Adımlar**
+1. Yeni run'ın aynı `requestId`'sine önce aynı, sonra zıt cevap ver.
+
+**Beklenen sonuç**
+- Aynı cevap ilk devamı izler (yeni run yok); zıt cevap `409`.
+
+### MT-WF-161 — Editörde "One answer per request" kaydedilir ve sürüm farkında görünür (Faz 208, F-319) · 👤
+
+Otomatik karşılığı: `full-replace-editors.test.tsx` · `WorkflowResponseModeVersionTests`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-994 |
+
+**Ön koşul** — Konsol, Admin; kayıtlı bir workflow.
+
+**Adımlar**
+1. Editörde **One answer per request**'i işaretle, kaydet.
+2. Sürümler bölümünde iki sürümü karşılaştır.
+3. Başka bir alanı değiştirip yeniden kaydet.
+
+**Beklenen sonuç**
+- `GET $APU/api/workflows/<ad>` `responseMode: "SingleAnswer"`; karşılaştırmada **Answers per request** satırı; 3. adım modu sıfırlamaz.
+
+### MT-WF-162 — Fırlatan atıf getter'ı tek cevaplı isteği kilitlemez (Faz 208, F-319)
+
+Otomatik karşılığı: `WorkflowResponseOwnershipTests.A_throwing_attribution_getter_does_not_lock_a_streamed_request` (ve kuyruklu kardeşi).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-997 |
+
+**Ön koşul** — Örnek uygulama `Tracon:Demo:Attribution:Mode = throw` ile; `summarize-and-approve-once` run'ı `AwaitingInput`.
+
+**Adımlar**
+1. Cevap ver; aynı cevabı tekrarla; zıt cevap ver.
+2. Başka bir run'a `Prefer: respond-async` ile cevap ver.
+
+**Beklenen sonuç**
+- 1: ilk cevap `200`, devam `Completed`, `userId` boş; tekrar aynı devamı izler (`done`); zıt cevap `409`.
+- 2: `202`, run `Completed`. Günlükte atıf uyarısı; istek kilitlenmez.
+
+### MT-WF-163 — Devam run'ı cevapladığı run'a bağlanır (Faz 208, F-319) · 👤
+
+Run detayındaki bağlantı 👤 görseldir; olay sırası HTTP ile ölçüldü. Otomatik karşılığı:
+`WorkflowResponseLinkTests.The_run_an_answer_starts_names_its_source_even_with_payload_recording_off`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-995 |
+
+**Ön koşul** — Bir cevabın başlattığı devam run'ı.
+
+**Adımlar**
+1. `GET $APU/api/runs/<devam>/events`.
+2. Konsolda devamın run detayını aç.
+
+**Beklenen sonuç**
+- 1: olaylar `run.started`, `workflow.response-applied`, `workflow.started`… sırasıyla; ikincisi kaynak run'ı ve `requestId`'yi taşır.
+- 2: zaman çizelgesinde *answers a request of run …* bağlantısı kaynağa gider.
+
+### MT-WF-164 — İşi yazılmamış kuyruklu cevabı aynı cevabın tekrarı bitirir (Faz 208, F-319, ikinci tur denetim)
+
+Otomatik karşılığı: `WorkflowResponseOwnershipTests.A_queued_answer_whose_job_was_never_written_is_finished_by_the_same_answer` ·
+`Two_repeats_that_both_find_the_job_missing_write_it_once`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 208 |
+| **İlgili karar** | K-997, K-998 |
+
+**Ön koşul** — Örnek uygulama SQLite ile, `Tracon__Scheduling__RunWorker=false`; iki `summarize-and-approve-once` run'ı `AwaitingInput`.
+
+**Adımlar**
+1. İki run'a da `Prefer: respond-async` ile cevap ver (`202`, run `Queued`).
+2. Uygulamayı durdur; SQLite'ta iki run'ın `tracon_job_items` ve `tracon_jobs` satırını sil (kimlikler büyük harf). Bu, kayıttan sonra ve kuyruğa yazımdan önce duran sürecin bıraktığı durumdur.
+3. İşçi açık yeniden başlat. Birinci run'a aynı cevabı kuyruklu, ikincisine akışlı gönder.
+
+**Beklenen sonuç**
+- 3: kuyruklu tekrar `202`, aynı `runId`, `jobId` run kimliği; akışlı tekrar `200`, ilk çerçeve aynı run, son çerçeve `done`.
+- İki run da `Completed`, 13 olay; her run için tek iş (`Completed`); `…/responses` tek satır (`Delivered`).
+- Günlükte `had a recorded answer but no job; a repeat of the answer writes the job` uyarısı.

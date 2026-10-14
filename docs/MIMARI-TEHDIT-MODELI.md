@@ -85,7 +85,7 @@ kümedir — bir satır o tablodan silinir veya eklenirse burası da değişir.*
 | B9 | Content guards | Yapılandırılmış bir `guard`'ın reddettiği girdi/çıktı |
 | B10 | Secret handling | `secret` değerinin depoya, log'a veya yanıta ulaşması |
 | B11 | At-rest protection | Tam güvenilmeyen bir veritabanındaki okunabilir içerik |
-| B12 | Audit trail | Altı işlemin kaydı olmadan sürmesi |
+| B12 | Audit trail | Yedi işlemin kaydı olmadan sürmesi |
 | B13 | Quotas and rate limits | Yapılandırılmış tavanın üzerinde harcama/istek hacmi |
 | B14 | Production profile | Hiç verilmemiş bir güvenlik kararıyla başlayan host |
 
@@ -192,9 +192,9 @@ maddesi tam bunun için var.
 
 ### R6 — Denetim izinin best-effort yarısı, bir depo arızasında sessizce boşluk bırakabilir
 
-K-776: altı işlem (onay kararı, `script` izni verme/alma, `script`
+K-776/K-996: yedi işlem (onay kararı, `script` izni verme/alma, `script`
 çalıştırma, tetikleyici kayıt/silme, otomatik kanarya geri alma, veri
-konusu silme) fail-closed'dır — kayıt başarısız olursa işlem **de**
+konusu silme, workflow isteğine cevap) fail-closed'dır — kayıt başarısız olursa işlem **de**
 uygulanmaz. Kalan her denetim yazımı best-effort'tur: depo hatası kaydı
 düşürür, işlem **sürer**. Bu, gözlemlenebilirliğin ürün işlevselliğini
 kesmemesi için bilinçli bir tasarımdır (`docs-site/.../concepts/governance.md`

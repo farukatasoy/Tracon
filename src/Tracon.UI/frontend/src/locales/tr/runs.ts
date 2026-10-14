@@ -76,6 +76,7 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "runDetail.calledBy": 'çağıran',
   "runDetail.related": 'İlişkili',
   "runDetail.continuationOf": 'devam ettiği koşu',
+  "runDetail.answersRequestOf": '{id} koşusunun isteğine cevap',
   "runDetail.inputTokens": 'Girdi token',
   "runDetail.outputTokens": 'Çıktı token',
   "runDetail.unitPrice.input": 'Girdi fiyatı',

@@ -264,6 +264,7 @@ written *before* the change is applied, and a write failure aborts the change:
 | Saving or deleting an inbound trigger | The trigger is not changed |
 | An automatic canary rollback | The rollback is not applied |
 | A data subject erasure | The erasure does not commit |
+| An answer to a workflow's pending request that starts a run, [in either response mode](/concepts/workflow-answers/) | The answer is refused with `500`; no run starts and nothing is recorded |
 
 **Best-effort — the operation continues and the record can be missing.** Every other
 audit write takes this path: the failure is logged as a warning, and the call carries
@@ -387,7 +388,7 @@ approval card.
 
 :::note[The audit entry is written before the decision is applied]
 An approval decision that cannot be recorded is not applied at all. This is one of the
-six fail-closed operations listed in
+seven fail-closed operations listed in
 [What is guaranteed to be written](#what-is-guaranteed-to-be-written); every other
 audit write is best-effort and is swallowed on failure.
 :::

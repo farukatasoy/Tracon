@@ -535,3 +535,48 @@ public sealed class SqlitePendingApprovalStoreContractTests(SqliteSchemaFixture 
             TenantId = tenantId,
         });
 }
+
+/// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />
+public sealed class SqliteWorkflowResponseStoreContractTests(SqliteSchemaFixture schema)
+    : WorkflowResponseStoreContract, IClassFixture<SqliteSchemaFixture>
+{
+    /// <inheritdoc />
+    protected override async ValueTask<IWorkflowResponseStore> CreateStoreAsync()
+    {
+        UseAmbientTenant(schema.Tenant);
+        await schema.ResetAsync();
+        return schema.Context.WorkflowResponses;
+    }
+
+    /// <summary>
+    /// <c>workflow_responses.source_run_id</c> is a foreign key to the <c>runs</c> table;
+    /// the row must exist before an answer is recorded.
+    /// </summary>
+    /// <inheritdoc />
+    protected override async ValueTask PrepareRunAsync(Guid runId, string tenantId, string sessionId)
+        => await schema.Context.Runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "contract",
+            Kind = RunKind.Workflow,
+            WorkflowName = "contract",
+            SessionId = sessionId,
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = tenantId,
+        });
+
+    /// <summary>
+    /// Erases through the data subject store: the measurement that the source run's cascade
+    /// reaches <c>workflow_responses</c> with no target of its own.
+    /// </summary>
+    /// <inheritdoc />
+    protected override async ValueTask<bool> EraseRunAsync(Guid runId, string tenantId)
+    {
+        await schema.Context.DataSubjects.EraseAsync(
+            tenantId,
+            new DataSubjectScope { SessionIds = [], RunIds = [runId], ConversationIds = [] },
+            static (_, _) => default);
+
+        return true;
+    }
+}

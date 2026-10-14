@@ -40,7 +40,8 @@ Tracon.WorkflowNodeRetryPolicy.InitialDelay.get -> System.TimeSpan
 Tracon.WorkflowNodeRetryPolicy.InitialDelay.set -> void
 Tracon.WorkflowNodeRetryPolicy.BackoffMultiplier.get -> double
 Tracon.WorkflowNodeRetryPolicy.BackoffMultiplier.set -> void
-static Tracon.TraconWorkflowsBuilderExtensions.AddWorkflow(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, string? description = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconWorkflowsBuilderExtensions.AddWorkflow(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, string? description) -> Tracon.ITraconBuilder!
+static Tracon.TraconWorkflowsBuilderExtensions.AddWorkflow(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconWorkflowsBuilderExtensions.UseWorkflows(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconWorkflowOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.WorkflowAgentBinding.GetWorkflowAgent(this System.IServiceProvider! services, string! workflowName, string! agentName, string? description = null) -> Microsoft.Agents.AI.AIAgent!
 Tracon.WorkflowFunctionOptions.Description.get -> string?
@@ -51,3 +52,10 @@ Tracon.WorkflowFunctionOptions.Timeout.get -> System.TimeSpan?
 Tracon.WorkflowFunctionOptions.Timeout.set -> void
 Tracon.WorkflowFunctionOptions.WorkflowFunctionOptions() -> void
 static Tracon.TraconWorkflowContextExtensions.ReportUsageAsync(this Microsoft.Agents.AI.Workflows.IWorkflowContext! context, Tracon.ToolCallUsage! usage) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.WorkflowRegistrationOptions
+Tracon.WorkflowRegistrationOptions.Description.get -> string?
+Tracon.WorkflowRegistrationOptions.Description.set -> void
+Tracon.WorkflowRegistrationOptions.ResponseMode.get -> Tracon.WorkflowResponseMode
+Tracon.WorkflowRegistrationOptions.ResponseMode.set -> void
+Tracon.WorkflowRegistrationOptions.WorkflowRegistrationOptions() -> void
+static Tracon.TraconWorkflowsBuilderExtensions.AddWorkflow(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, System.Action<Tracon.WorkflowRegistrationOptions!>! configure) -> Tracon.ITraconBuilder!

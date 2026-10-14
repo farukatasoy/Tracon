@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- Answering a workflow's pending human request is now the seventh fail-closed audit
+  operation. Every `POST /api/workflows/runs/{runId}/respond` that starts a run writes
+  `workflow.respond` (the source run, the request id, the run the answer starts, the
+  response mode and a SHA-256 of the answer — never the answer itself) before the run
+  starts, queued or streamed, in every response mode. **Behavior change:** when the audit
+  store cannot write the entry, the answer is refused with `500` and no run, record or job
+  is created; before, an answer was never audited. `IAuditLog`'s documented set grows from
+  six operations to seven. The hash tells two answers apart; it does not hide an answer
+  with few possible values, such as a yes or no.
+
 - A refused provider setting no longer repeats its value. The Anthropic choice
   settings (`anthropic.effort`, `anthropic.thinking.mode`, the prompt-caching
   placement and TTL) and thinking budget, and the Google safety thresholds and
@@ -804,6 +814,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- One answer per workflow request. `WorkflowResponseMode` (`Branch`, the default, and
+  `SingleAnswer`) is set on a stored definition (`WorkflowDefinition.ResponseMode`,
+  `responseMode` on `PUT /api/workflows/{name}`) or on a workflow defined in code with the
+  new `AddWorkflow(name, factory, Action<WorkflowRegistrationOptions>)` overload, and is
+  reported on `WorkflowDescriptor`. In `SingleAnswer`, two identical answers to one
+  request — a double click, a retried call — start one run: the second follows it (the
+  same SSE frames read from the stored run, or the same `202` with
+  `Prefer: respond-async`), and a different answer gets `409`, which names neither the run
+  nor the other answer. An answer whose run failed or was cancelled before the workflow
+  received it can be given again and starts a new run; a queued answer whose job is still
+  waiting or running is followed instead, because the job's recovery owns that work. Two
+  answers that arrive together may both open a run before one of them claims the request:
+  the other closes its own run as `Canceled` with the error type `request_already_answered`
+  and no events (no webhook, metric or event sink fires for it), and its audit entry names
+  that run. That run is still a run: it is listed by `GET /api/runs` and counted in
+  `RunStatistics.CanceledRuns`, so it is part of the `ErrorRate` denominator. A waiting run is
+  answered under the mode of the definition version it recorded. `Branch` keeps opening a new
+  run for every answer. A queued `SingleAnswer` answer whose job was never written (the
+  process stopped after the answer was recorded and before the job was queued, or the queue
+  refused the job and its `Queued` run could not be closed) is finished by a repeat of the
+  same answer: the repeat writes the job and follows the run, and two repeats at the same
+  time write it once. **Known limit:** when a process stops in the middle of a streamed
+  `SingleAnswer` run, the run stays `Running` and a repeat of the answer follows it forever.
+  Only run reconciliation (`Tracon:RunReconciliation:Enabled`, off by default) closes it:
+  reconciliation closes `Running` runs whose heartbeat stopped and reads no `Queued` run.
+  Turn reconciliation on where such a request must stay answerable after a crash.
+- `GET /api/workflows/runs/{runId}/responses` lists the answers given to a run's requests:
+  who answered, when, the run each answer started and its state. The records live in the
+  new `IWorkflowResponseStore` (in memory by default; the new `workflow_responses` table
+  on PostgreSQL, SQL Server and SQLite). A record is removed only with its source run, by a
+  data subject erasure; no retention target deletes runs, so the table grows with the run
+  history. A store implementation is checked with the new
+  `WorkflowResponseStoreContract` in `Tracon.Testing.Contracts.Xunit`.
+- `RunEventType.WorkflowResponseApplied` (`workflow.response-applied` on
+  `GET /api/runs/{runId}/events`): the run an answer starts names the run it answered and
+  the request id right after it starts, even with `RecordToolPayloads` off. The console's
+  run timeline links it back to the source run.
+- The console shows which pending requests already have an answer, links the run that
+  answer started, says when a one-answer workflow refused a different answer, and has a
+  "One answer per request" switch in the workflow editor and the version comparison.
+
 - The live stream of an agent run (`POST /api/agents/{name}/run` without
   `Idempotency-Key`) now says when the answer was cut off. A plain-text answer the
   model stopped at its output token limit or at its context window completes, and
@@ -1206,6 +1257,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that a failed history write leaves the current definition as it was.
 
 ### Changed
+
+- `POST /api/workflows/runs/{runId}/respond` changes in the default `Branch` mode too.
+  The run an answer starts now has its row opened (`Running` for a streamed answer,
+  `Queued` for a queued one) before the answer is recorded and before the stream starts,
+  and the answer's record is written before the run is handed over. **Behavior change:**
+  when the record cannot be written (`workflow_responses` unavailable), the answer is
+  refused with `500` and the opened run is closed `Failed` with the error type
+  `answer_not_recorded` and no events; before, the answer was not recorded at all. A run
+  store that cannot open the row refuses the streamed answer with `500` too; before, the
+  engine's run writer logged that failure and the run went on unrecorded. Every
+  run an answer starts now carries `WorkflowResponseApplied` at sequence 1, so its later
+  events are numbered one higher than before.
+- **Behavior change:** the in-memory job store (the default `IJobStore`) refuses a job whose
+  id is already queued, as the PostgreSQL, SQL Server and SQLite stores' primary key does;
+  before, it replaced the queued job, which could set a leased job back to `Pending`. The
+  `IJobStore.EnqueueAsync` documentation now states the refusal, and `JobStoreContract`
+  checks it with a new case. A queued run whose enqueue is refused because its job is
+  already there (another call wrote it) is no longer closed as `Failed`; the call answers
+  with the job that is there.
+- `AddWorkflow(builder, name, factory, string? description = null)` is now two overloads,
+  `AddWorkflow(builder, name, factory)` and `AddWorkflow(builder, name, factory, string? description)`,
+  beside the new one that takes `Action<WorkflowRegistrationOptions>`. Every call compiles
+  as before except one that passes a literal `null` as the third argument, which is now
+  ambiguous; leave the argument out instead.
 
 - **Behavior change:** a configuration entry Tracon cannot read now stops the
   application at startup instead of being dropped without a word. Four settings

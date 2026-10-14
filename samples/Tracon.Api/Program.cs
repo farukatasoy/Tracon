@@ -758,65 +758,23 @@ tracon.AddWorkflow(
 // stream is append-only (K-014).
 tracon.AddWorkflow(
     "summarize-and-approve",
-    static services =>
-    {
-        var port = RequestPort.Create<string, bool>("publish-approval");
-
-        var summarize = services.GetWorkflowAgent(
-            "summarize-and-approve",
-            "summarizer",
-            "Summarizes incoming text in three bullet points.");
-
-        // 🚨 A TRANSLATOR sits between the agent and the port. The agent host
-        // emits `List<ChatMessage>`, but the port expects `string`; if the two
-        // are connected directly, the port is called but CANNOT PROCESS the
-        // message and produces no request - the run silently "completes"
-        // without producing output. Measured: the port was called three
-        // times with zero RequestInfoEvent.
-        var ask = ExecutorBindingExtensions.BindAsExecutor(
-            static (List<ChatMessage> messages) =>
-                "Should this summary be published?" + Environment.NewLine + Environment.NewLine +
-                (messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
-                 ?? string.Empty),
-            id: "approval-question");
-
-        // 🚨 The output type is declared from the HANDLER'S RETURN TYPE. A
-        // handler whose body calls YieldOutputAsync but has no return value
-        // declares no output type, and at runtime it fails with
-        // "Cannot output object of type ... Expecting one of []" (measured).
-        var publish = ExecutorBindingExtensions.BindAsExecutor(
-            static (bool approved) => approved
-                ? "Summary published."
-                : "Publication canceled; summary kept in the archive.",
-            id: "publish");
-
-        // Bindings are set up ONCE and reused: each call would otherwise
-        // produce a new object, and the edges would appear connected to two
-        // separate nodes instead of the same one.
-        // 🚨 `ForwardIncomingMessages` is turned off. When on, the agent host
-        // forwards both the incoming message and its own response downstream;
-        // the next node then runs TWICE and produces two separate pending
-        // requests instead of one approval. Measured: in a real run,
-        // `/requests` returned two records.
-        var summarizeBinding = new AIAgentBinding(
-            summarize,
-            new AIAgentHostOptions
-            {
-                EmitAgentResponseEvents = true,
-                EmitAgentUpdateEvents = true,
-                ForwardIncomingMessages = false,
-            });
-        var portBinding = port.BindAsExecutor(allowWrappedRequests: false);
-
-        return new WorkflowBuilder(summarizeBinding)
-            .AddEdge(summarizeBinding, ask)
-            .AddEdge(ask, portBinding)
-            .AddEdge(portBinding, publish)
-            .WithOutputFrom(publish)
-            .WithName("summarize-and-approve")
-            .Build();
-    },
+    static services => BuildSummarizeAndApprove(services, "summarize-and-approve"),
     "Summarizes text, then waits for human approval to publish. Defined in code.");
+
+// The same graph, taking ONE answer per request (phase 208). A double click or a
+// retried call with the same answer follows the run the first answer started;
+// a different answer is refused with 409. Every answer that starts a run is
+// written to the audit trail ('workflow.respond') before the run starts. The
+// registration above keeps the default (Branch): every answer opens a new run.
+tracon.AddWorkflow(
+    "summarize-and-approve-once",
+    static services => BuildSummarizeAndApprove(services, "summarize-and-approve-once"),
+    static options =>
+    {
+        options.Description = "Summarizes text, then waits for one approval to publish. Defined in code.";
+        options.ResponseMode = WorkflowResponseMode.SingleAnswer;
+    });
+
 
 // A code function usable as a workflow node (phase 71). AddWorkflowFunction
 // registers the function by NAME; a Sequential definition's `nodes` list can
@@ -1624,6 +1582,67 @@ app.MapTraconMcpServer();
 app.MapTraconA2A();
 
 app.Run();
+
+// The graph of the two approval workflows registered earlier. The workflow name is passed in:
+// it is part of each participant agent's identity (GetWorkflowAgent).
+static Workflow BuildSummarizeAndApprove(IServiceProvider services, string name)
+{
+    var port = RequestPort.Create<string, bool>("publish-approval");
+
+    var summarize = services.GetWorkflowAgent(
+        name,
+        "summarizer",
+        "Summarizes incoming text in three bullet points.");
+
+    // 🚨 A TRANSLATOR sits between the agent and the port. The agent host
+    // emits `List<ChatMessage>`, but the port expects `string`; if the two
+    // are connected directly, the port is called but CANNOT PROCESS the
+    // message and produces no request - the run silently "completes"
+    // without producing output. Measured: the port was called three
+    // times with zero RequestInfoEvent.
+    var ask = ExecutorBindingExtensions.BindAsExecutor(
+        static (List<ChatMessage> messages) =>
+            "Should this summary be published?" + Environment.NewLine + Environment.NewLine +
+            (messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+             ?? string.Empty),
+        id: "approval-question");
+
+    // 🚨 The output type is declared from the HANDLER'S RETURN TYPE. A
+    // handler whose body calls YieldOutputAsync but has no return value
+    // declares no output type, and at runtime it fails with
+    // "Cannot output object of type ... Expecting one of []" (measured).
+    var publish = ExecutorBindingExtensions.BindAsExecutor(
+        static (bool approved) => approved
+            ? "Summary published."
+            : "Publication canceled; summary kept in the archive.",
+        id: "publish");
+
+    // Bindings are set up ONCE and reused: each call would otherwise
+    // produce a new object, and the edges would appear connected to two
+    // separate nodes instead of the same one.
+    // 🚨 `ForwardIncomingMessages` is turned off. When on, the agent host
+    // forwards both the incoming message and its own response downstream;
+    // the next node then runs TWICE and produces two separate pending
+    // requests instead of one approval. Measured: in a real run,
+    // `/requests` returned two records.
+    var summarizeBinding = new AIAgentBinding(
+        summarize,
+        new AIAgentHostOptions
+        {
+            EmitAgentResponseEvents = true,
+            EmitAgentUpdateEvents = true,
+            ForwardIncomingMessages = false,
+        });
+    var portBinding = port.BindAsExecutor(allowWrappedRequests: false);
+
+    return new WorkflowBuilder(summarizeBinding)
+        .AddEdge(summarizeBinding, ask)
+        .AddEdge(ask, portBinding)
+        .AddEdge(portBinding, publish)
+        .WithOutputFrom(publish)
+        .WithName(name)
+        .Build();
+}
 
 /// <summary>
 /// The agent names the sample exposes over <paramref name="surface"/>.

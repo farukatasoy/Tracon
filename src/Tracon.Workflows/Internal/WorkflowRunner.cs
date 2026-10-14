@@ -60,6 +60,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly IReadOnlyList<IRunEventSink> _sinks;
     private readonly IRunInputStore? _runInputs;
     private readonly ParameterizedAgentFactory? _parameterFactory;
+    private readonly IWorkflowResponseStore? _responses;
 
     /// <summary>Creates a new runner.</summary>
     /// <param name="catalog">The workflow catalog.</param>
@@ -104,6 +105,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// and applies the configured value length limit. When <see langword="null"/>
     /// the coverage check is skipped.
     /// </param>
+    /// <param name="responseStore">
+    /// Where a run that answers a request records that it handed the answer over. When
+    /// <see langword="null"/> nothing is recorded, and an answer whose run fails after the hand-over
+    /// can be given again.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -123,7 +129,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         IRunErrorClassifier? errorClassifier = null,
         IWebhookPublisher? webhookPublisher = null,
         IRunInputStore? runInputStore = null,
-        ParameterizedAgentFactory? parameterFactory = null)
+        ParameterizedAgentFactory? parameterFactory = null,
+        IWorkflowResponseStore? responseStore = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -152,6 +159,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _webhookPublisher = webhookPublisher;
         _runInputs = runInputStore;
         _parameterFactory = parameterFactory;
+        _responses = responseStore;
     }
 
     /// <inheritdoc />
@@ -400,6 +408,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
                 .ConfigureAwait(false),
             Answers = [new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json)],
+            AnsweredRequest = new AnsweredRequest(request.RunId, request.RequestId),
             Parameters = await ReadRecordedParametersAsync(record, "answered", definitionVersion, cancellationToken)
                 .ConfigureAwait(false),
             DefinitionVersion = definitionVersion,
@@ -745,6 +754,22 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         try
         {
             yield return FirstEvent(execution);
+
+            // Phase 208: a run that answers a request names, in its own history, the run and
+            // the request it answers - the only link back, since the answer starts a new row
+            // (K-130). Written on None like the closing event: the link must not be lost to a
+            // stop that comes before the graph does anything.
+            if (execution.AnsweredRequest is { } answered)
+            {
+                yield return await writer.AppendAsync(
+                        new RunEventDraft(RunEventType.WorkflowResponseApplied)
+                        {
+                            Text = answered.RequestId,
+                            Payload = WorkflowResponseLink.Write(answered.SourceRunId, answered.RequestId),
+                        },
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
 
             // Graph setup is tried separately: an error here (agent not found,
             // invalid definition) is one the user can fix, and it must not leave
@@ -1283,6 +1308,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             {
                                 responded = true;
 
+                                await RecordDeliveryAsync(execution).ConfigureAwait(false);
+
                                 continue;
                             }
                         }
@@ -1426,6 +1453,40 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         await run.SendResponseAsync(response).ConfigureAwait(false);
 
         return new ResponseDelivery(true, null);
+    }
+
+    /// <summary>
+    /// Records that this run handed its answer to the workflow, so the same answer is not
+    /// given again for a run that goes on to fail.
+    /// </summary>
+    /// <param name="execution">The run that delivered the answer.</param>
+    /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// Best-effort, like every write of the run's own record: a failure is logged and the run
+    /// goes on. A lost write leaves the record <see cref="WorkflowResponseStatus.Accepted"/>, and
+    /// the same answer can then start the work again if this run fails - at least once, the
+    /// guarantee a resume already gives. A run with no record (a recovery continuation, a caller
+    /// of the runner that skipped the HTTP layer) changes nothing.
+    /// </remarks>
+    private async ValueTask RecordDeliveryAsync(WorkflowExecution execution)
+    {
+        if (_responses is null || execution.AnsweredRequest is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _responses.MarkDeliveredAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            _logger.LogWarning(
+                exception,
+                "Workflow run {RunId} delivered its answer, but the delivery could not be recorded. The run " +
+                "continues; if it fails, the same answer can start the work again.",
+                execution.RunId);
+        }
     }
 
     /// <summary>Starts the graph and triggers the first turn.</summary>
@@ -2186,6 +2247,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         /// </summary>
         public IReadOnlyList<WorkflowAnswer> Answers { get; init; } = [];
 
+        /// <summary>The run and the request this execution answers; <see langword="null"/> for a run or a resume.</summary>
+        public AnsweredRequest? AnsweredRequest { get; init; }
+
         /// <summary>
         /// The parameter values: what the caller supplied to a new run, or the
         /// source run's recorded values on a resume or a response.
@@ -2269,6 +2333,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <param name="Delivered">Whether the response was sent to execution.</param>
     /// <param name="Failure">The error, if the response could not be converted.</param>
     private readonly record struct ResponseDelivery(bool Delivered, RunError? Failure);
+
+    /// <summary>The request a run answers, and the run that waited for it.</summary>
+    /// <param name="SourceRunId">The run that waited.</param>
+    /// <param name="RequestId">The request.</param>
+    private readonly record struct AnsweredRequest(Guid SourceRunId, string RequestId);
 
     /// <summary>A single result coming out of the pump: an event, an error, a cancellation, or a wait.</summary>
     private readonly record struct PumpedEvent(RunEvent? Event, RunError? Failure, bool Canceled, bool Awaiting)
