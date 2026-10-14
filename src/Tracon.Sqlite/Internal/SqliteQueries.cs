@@ -1690,6 +1690,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // accepts a row value in IN (3.15) and RETURNING (3.35).
         SelectWorkflowRequests = BuildSelectWorkflowRequests("LIMIT @take OFFSET @skip;");
 
+        SelectStrandedWorkflowRequests = BuildSelectStrandedWorkflowRequests("", "LIMIT @max;");
+
         ExpireWorkflowRequests = $"""
             UPDATE {Schema}workflow_requests AS w
                SET status = @status_closed, closed_at = @now

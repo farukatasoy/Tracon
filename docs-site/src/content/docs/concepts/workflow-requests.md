@@ -129,9 +129,23 @@ nothing while no workflow sets one.
 :::caution[A request whose row could not be written never expires]
 When the row of a request cannot be written, the run still waits and the request can still be
 answered from the run, but it is missing from the list and it never expires. That is logged
-as a warning. A scan that closes a request but fails to close its run tries the run again on
-each scan of the same process; a process that stops in between leaves the run waiting.
+as a warning.
 :::
+
+A scan closes the request first and the run second. If the second write fails, the scan tries
+the run again on each scan of the same process. If the process stops between the two writes,
+the next instance that takes the scan lease looks for runs that still wait although none of their
+requests is open, and closes them the same way.
+
+### An answer that arrives with the time limit
+
+The request and the run are two writes, so an answer can arrive between them.
+
+- An answer **before** the scan closes the request is taken and marks the request answered. At the limit the run closes `Completed`.
+- An answer **between** the two writes is taken too, and its work runs: the run still waits, so the check passes. The request is already closed and cannot be marked. The run you answered then closes `Failed` with `WorkflowRequestExpired`, and the run that carried out your answer is not affected.
+- An answer **after** the run is closed is refused with `400`, as above. A queued answer (`Prefer: respond-async`) that was accepted before the limit but starts after it fails on its own run for the same reason.
+
+The window is the time between two writes, usually milliseconds.
 
 ## Read next
 

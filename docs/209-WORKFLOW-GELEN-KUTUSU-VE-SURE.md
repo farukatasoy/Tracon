@@ -1,6 +1,6 @@
 # Faz 209 — Workflow Gelen Kutusu ve İstek Süresi
 
-> **Durum:** 🚧 Uygulamada (2026-10-14)
+> **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** onaylandı (2026-10-14) — 🔒1 **B** (`workflow_requests` projeksiyonu, K-128 yeni gerekçeyle açılır) · 🔒2 **B** (`(oturum, requestId)` başına mantıksal istek) · 🔒3 **A** (`Failed` + `WorkflowRequestExpired`) · 🔒4 **A** (cevaplanmış bekleyen istek `Completed` ile kapanır) · 🔒5 **A** (workflow başına `RequestTimeout`, `RequestedAt`'ten) · 🔒6 **A** (`Reader` + `RunAccess.Read`). Açık Soru 7-11 önerileriyle uygulanır (7 B, 8 A, 9 A, 10 A, 11 A). Faz 208 kapandı (`arsiv/fazlar/208-*`)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-319** (gelen kutusu ve süre yarısı; karar yarısı [Faz 208](arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md))
 > **Genellik:** Tracon HITL'ini kullanan her host etkilenir. Kalem tek tüketici turundan geldi (video tüketicisi, 2026-10-11); tüketici geri bildirimi kuralı uygulanır. İkinci kanıt ilk ilkedir: (1) retention bekleyen run'ın istek olayını, checkpoint'lerini ve girdi satırını süresiz tutar (K-888) ve K-130 gereği cevaplanan istek de bekler — bu satırlar **hiç** silinmez (`RetentionTargetRegistry.cs:122-144`); tüketici bunu süre olmadan sınırlayamaz; (2) yönetişim eşitliği: tool onayının kiracı geneli kutusu ve süresi var (`GET /api/approvals/pending`, `ApprovalExpirationService`), workflow isteğinin yok. Ekosistem sinyali: MCP Tasks `input_required` görevi bir yaşam süresiyle (TTL) tanımlar
@@ -309,24 +309,24 @@ Beş soru: **iptal** (tarama ve liste isteği iptali) · **eşzamanlılık** (ik
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] §209.1 ölçümü üç sağlayıcıda yapıldı; sayılar ve Açık Soru 1'in kararı "Plandan Sapmalar"da
-- [ ] `GET /api/workflows/requests` kiracının bekleyen isteklerini sayfalı döner; `state=pending` sayfaları doğru toplar; cevaplanan istek `answered: true`
-- [ ] Başka kiracının isteği listede yok; reddeden yetki işleyicisi listeyi `403` ile reddeder
-- [ ] `RequestTimeout`'u dolan istek kapanır (Açık Soru 3-4 kararıyla); süre dolmuş run'a `respond` `400`
-- [ ] Süre dolan run'ın istek olayı, checkpoint'leri ve girdi satırı bir sonraki retention turunda silinir
-- [ ] K-130 ve K-888 satırları güncellendi; 1-B seçildiyse K-128 yeni gerekçeyle açıldı (kategori: kalıcı-veri)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1, 4), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `15-WORKFLOWS.md`, `13-KIRACI-VE-GUVENLIK.md`, `23-SAKLAMA-ARSIV-KOTA.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (Tüketici yüzeyi satırı); `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı gzip KB olarak ölçüldü ve yazıldı
+- [x] §209.1 ölçümü üç sağlayıcıda yapıldı; sayılar ve Açık Soru 1'in kararı "Plandan Sapmalar"da — A olay taraması run başına olay sayısıyla büyür (SQLite 3.3 → 54.1 ms, SQL Server 46.3 → 118.7 ms, PostgreSQL 21.8 → 40.7 ms); B düz kalır; B seçildi
+- [x] `GET /api/workflows/requests` kiracının bekleyen isteklerini sayfalı döner; `state=pending` sayfaları doğru toplar; cevaplanan istek `answered: true` — `WorkflowRequestInboxHttpTests` (28), `WorkflowRequestStoreContract.The_state_filter_runs_before_the_page_so_a_page_is_never_short` (4 depo); örnek uygulama: 3 öğe → cevap sonrası `pending` 2, `answered` 1, `take=1&skip=1` 1
+- [x] Başka kiracının isteği listede yok; reddeden yetki işleyicisi listeyi `403` ile reddeder — `A_tenant_sees_only_its_own_requests`, `A_handler_that_refuses_reading_runs_rejects_the_list_with_403_and_never_filters_it`, `TenantIsolationContract` (4 depo)
+- [x] `RequestTimeout`'u dolan istek kapanır (Açık Soru 3-4 kararıyla); süre dolmuş run'a `respond` `400` — örnek uygulama: cevapsız run vadeden 1.2 sn sonra `Failed` + `WorkflowRequestExpired`, `respond` `400` ve yeni run yok (workflow run sayısı 10 → 10); cevaplı iki run `Completed`, hatasız
+- [x] Süre dolan run'ın istek olayı, checkpoint'leri ve girdi satırı bir sonraki retention turunda silinir — `What_a_waiting_run_keeps_is_kept_until_its_request_expires_and_released_after` (olay ve checkpoint; girdi satırı yalnız parametre bildiren workflow'larda vardır, aynı `runs.status` süzgeci `RunInputRetentionTests`'te), `WorkflowRequestRetentionTests` ×3
+- [x] K-130 ve K-888 satırları güncellendi; K-128 yeni gerekçeyle açıldı (kategori: kalıcı-veri) — K-1000…K-1005
+- [x] Dört doğrulama kapısı sıfır uyarı verir — *Kapanış kapısı* altında
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1, 2, 4, 5, 174), çıktı belgede — *Örnek uygulama koşumu*
+- [x] `secret` taraması boş döndü — `kapi.py kapanis`'in ilk komutu (`tarama`), *Kapanış kapısı* altında
+- [x] Manuel kabul case'leri `15-WORKFLOWS.md` (`MT-WF-165`…`174`), `13-KIRACI-VE-GUVENLIK.md` (`MT-SEC-222`, `223`), `23-SAKLAMA-ARSIV-KOTA.md` (`MT-RET-085`, `086`) içine eklendi; otomatikleştirilebilenler koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (0 🔴, 5 🟡 kapandı)
+- [x] `docs-site/` güncellendi (`concepts/workflow-requests.md` yeni; beş sayfa daha); `npm run check` temiz — *Kapanış kapısı* altında
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı gzip KB olarak ölçüldü: **211.9 KB** (Faz 208 sonu 209.8 KB; pay +2.1 KB; bütçe 250 KB)
 
 ### Doğrulama komutları
 
 ```bash
-python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "*WorkflowRequestInboxTests" "*WorkflowRequestExpirationTests"
+python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "*WorkflowRequestInboxHttpTests" "*WorkflowRequestExpirationHttpTests"
 
 curl -s "http://localhost:5081/tracon/api/workflows/requests?state=pending&take=50" -H "Authorization: Bearer $TOKEN"
 ```
@@ -347,47 +347,288 @@ curl -s "http://localhost:5081/tracon/api/workflows/requests?state=pending&take=
 ---
 
 <!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
+     AŞAĞISI KAPANIŞTA DOLDURULDU — `faz-tamamlama` skill'i.
      ============================================================ -->
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir. §209.1'in ölçümü buraya yazılır.
+> Plan ile gerçek arasındaki fark **gizlenmez** — sonraki oturumun en değerli bilgisidir.
+> §209.1'in ölçümü aşağıdadır.
+
+### §209.1 ölçümü (2026-10-14, taban `661618fe`)
+
+Yöntem: 50 bekleyen workflow run'ı tohumlanır (run başına 10 / 100 / 1000 olay: `MessageDelta` yığını + bir `WorkflowRequest` + `RunAwaitingInput`). **A** her run'ın olaylarını okuyup istek olayını süzer (sayfa başına 50 okuma). **B** `workflow_requests` satırlarından bir sayfa (`take = 50`) okur. Her sağlayıcıda gerçek veritabanı. Ölçüm kodu atılmıştır (tek seferlik prob, depoda yoktur).
+
+| Sağlayıcı | Olay / run | A: olay taraması | B: projeksiyon |
+|---|---:|---:|---:|
+| SQLite | 10 | 3.3 ms | 1.5 ms |
+| SQLite | 100 | 10.7 ms | 1.6 ms |
+| SQLite | 1000 | 54.1 ms | 1.3 ms |
+| PostgreSQL | 10 | 21.8 ms | 19.2 ms |
+| PostgreSQL | 100 | 24.7 ms | 17.6 ms |
+| PostgreSQL | 1000 | 40.7 ms | 17.0 ms |
+| SQL Server | 10 | 46.3 ms | 40.0 ms |
+| SQL Server | 100 | 45.3 ms | 34.0 ms |
+| SQL Server | 1000 | 118.7 ms | 38.4 ms |
+
+Süre taraması (`ExpireAsync`, 10 000 açık satır): vadesi gelen yokken ortanca tur SQLite 0.1 ms, PostgreSQL 0.4 ms, SQL Server 1.9 ms. Vadesi gelen 100 satırı kapatmak SQLite 7.7 ms, PostgreSQL 1.9 ms, SQL Server 11.9 ms. Örnek uygulamanın `summarize-and-approve` run'ı 28–35 olay yazdı.
+
+**Sonuç:** A'nın maliyeti run başına olay sayısıyla büyür (SQLite 16×, SQL Server 2.6×, PostgreSQL 1.9× 10 → 1000 olay arasında); B düzdür. İşlevsel ölçüt zaten B'yi gerektiriyordu (süzgeç sayfadan önce, süre indeksi). 🔒1 **B** kesinleşti; A'nın sayfa başına 50 ayrı okuması hiçbir sağlayıcıda B'den hızlı çıkmadı.
+
+### Planda olmayan ya da planı değiştiren kararlar
+
+1. **K-128 yeniden açıldı (K-1000).** Plan bunu öngörüyordu; gerekçe: kararın kendi koşulu run başına istek sayısıydı, kiracı geneli liste değildi. İstek yükü (istem, form) olayda **kalır**; satır olayı sırasıyla (`event_seq`) adlandırır ve istemi kopyalamaz — kopya, içerik korumasını atlardı (K-325, K-899).
+2. **Depo sözleşmesi plan taslağından farklı.** Taslak `AddAsync` tek kayıt, `ListAsync(query)`, `ExpireAsync(now, max)`, `MarkAnsweredAsync` diyordu. Gerçek: `AddAsync(IReadOnlyList<WorkflowRequestRecord>)` (bir run birkaç istek yayınlar, toplu yazım), **`ListByRunAsync(runId)`** eklendi (run başına `/requests` aynı alanları satırdan doldurur; olay yükü ayrıştırması aynı kalır) ve `ExpireAsync` **kiracıdan bağımsız** tek `UPDATE … RETURNING` / `OUTPUT` döner (`[TenantAgnostic]`; servis her satır için `AmbientTenantScope` açar).
+3. **Satır `(run, istek)` başınadır, mantıksal istek başına değil.** Mantıksal istek (`(oturum, requestId)`) listede `NOT EXISTS` ile türer: o isteği tutan en yeni **açık** satır görünür. Yeniden yayınlayan devam run'ı kendi satırını yazar; eski run `AwaitingInput` kaldıkça eski satırı da açık kalır ve liste yalnız en yenisini gösterir. `MarkAnsweredAsync` o isteğin **bütün açık satırlarını** işaretler; kapalı satıra dokunmaz (K-1001).
+4. **Satır tek yerde yazılır:** `WorkflowRunner.CompleteAsync`, durum `AwaitingInput` iken (`RecordRequestsAsync`). Yazım **best-effort**: hata uyarı olarak loglanır, run etkilenmez. Plan "uyarı ve metrik" diyordu — **metrik eklenmedi**, yalnız uyarı var. Satırı yazılamayan istek listede yoktur ve **hiç sona ermez**; run'dan cevaplanabilir.
+5. **`expires_at` yazım anında dondurulur** (`RequestedAt + RequestTimeout`, kaydedilen tanım sürümünden). Tanım sonradan değişirse bekleyen run'ın süresi değişmez (K-988 emsali, K-1002).
+6. **Liste ucu `state`'i dize okur.** Plan `WorkflowRequestState` enum'unu doğrudan bağlıyordu; minimal API'nin enum bağlayıcısı büyük/küçük harfe duyarlıdır (`state=all` `400` verdi). Uç `Enum.TryParse(ignoreCase)` kullanır; bilinmeyen değer `400`. `WorkflowRequestState`'te `JsonConverter` yok (sorgu parametresidir).
+7. **`requests` ayrılmış workflow adı** (`functions` gibi): rota `/api/workflows/{name}`'den önce eşleşir, bu adla kaydedilen workflow okunamazdı. `PUT` `400` (K-1005). Plan bunu görmemişti.
+8. **`ApprovalExpirationService` kusuru bulundu ve giderildi** (aşağıda, *Süre servisinin emsali*).
+9. **Süre servisi emsalinden üç yerde ayrılır.** (a) Run'ı kapatırken `CompleteRunAsync` `EventCount`, `Usage`, `Cost` ve `NonTokenCost`'u **değiştirdiği** için önce run'ı okuyup değerleri geri yazar. (b) Satırı kapatıp run'ı kapatamadığında (depo hatası) run'ı **bellekte** bir yeniden deneme listesinde tutar (en çok 10 tur). (c) 🚨 **Süreç iki yazımın arasında durursa** (satır kapalı, run kapanmamış) kapanmış satır `ExpireAsync` ile bir daha bulunmaz; ilk uygulama bunu "belgeli sınır" bıraktı ve bağımsız denetim bunun planın "sonraki örnek kalanı kapatır" cümlesini karşılamadığını gösterdi (🟡1). Düzeltme: `IWorkflowRequestStore.ListStrandedAsync` (altıncı üye) ve servisin lease'i aldığında bir kez koşan taraması (aşağıda *Denetim sonrası eklenenler*).
+10. **Yalnız `AwaitingInput` run kapatılır.** Servis run okur; durum başkaysa dokunmaz (cevap kazandıysa ya da run silindiyse).
+11. **Geriye dönük doldurma yok** (Açık Soru 7-B). Satırdan önce `AwaitingInput`'a giren run'lar listede görünmez ve süresiz bekler; run başına `/requests` çalışır. Sitede ve `CHANGELOG`'da yazılı.
+12. **`IWorkflowRunner.ListRequestsAsync` varsayılan uygulaması `[]`** (plan gibi); `WorkflowRunner` gerçeği döner. Run başına `/requests` ve kiracı listesi aynı `WorkflowRunner.Enrich` adımından geçer. Sayfa başına olay okuması **N+1** kaldı (satır olayı `event_seq` ile adlandırır ama olay tek tek okunur): sayfa en çok 200 öğe ile sınırlı; toplu okuma ADAYLAR'a girdi.
+13. **`WorkflowRegistrationOptions.RequestTimeout`, `WorkflowDefinition.RequestTimeout`, `WorkflowDescriptor.RequestTimeout`, `WorkflowSaveRequest.RequestTimeout`** — plan `WorkflowDescriptor`'ı anmıyordu; katalog bunu da taşır ki tüketici süreyi görsün. Sürüm karşılaştırması (`versions.tsx`) yeni bir etiket kazandı.
+14. **Retention hedefi `workflow_requests`:** yalnız kapalı satırlar `closed_at`'e göre silinir; açık satır asla silinmez ve `MaxRows`'a sayılmaz; varsayılan 30 gün. Plan "kapanan satır" diyordu (Açık Soru 11-A); ayrıntı K-1004.
+15. **Örnek uygulamaya `summarize-and-approve-timed` eklendi** (2 dakikalık `RequestTimeout`); manuel case 4 için gerekliydi. E2E sunucusunun `approval-flow` grafı 2 günlük süre aldı (konsol panelinde "expires" sütunu görünsün).
+16. **E2E ve ekran görüntüsü işi plandan büyüktü.** Konsol paneli test kimliği panelin tamamını sarar (araç çubuğu değil); `DocumentationScreenshotTests` bekleyen bir workflow isteği tohumlar; 45 ekran görüntüsü ve `.ui-source.sha256` yenilendi. Site sayfası `workflows.md` gzip tavanına (59 000 B) 58 983 B ile yakın: yeni anlatı `concepts/workflow-requests.md`'ye konuldu, tavan yükseltilmedi.
+17. **Migration numaraları:** PostgreSQL `0061`, SQL Server `0049`, SQLite `0048`. `scripts/applied-migrations.json` ankrajı ikinci commit'te (`327de791`) yazıldı. Geliştirici PostgreSQL veritabanı (`agentprism`) örnek uygulamanın ilk koşusunda `0060` ve `0061`'i uyguladı; tekrar uygulanmaz, geri alma yok.
+
+### Denetim sonrası eklenenler (2026-10-14)
+
+Bağımsız denetimin 🟡'leri (aşağıda *Denetim Bulguları*) şunları ekledi; hepsi planda yoktu.
+
+- **`IWorkflowRequestStore.ListStrandedAsync(max)`** — kiracıdan bağımsız (`[TenantAgnostic]`); kapalı satırı olan, açık satırı kalmamış ve `runs.status = AwaitingInput` run'ın kapalı satırlarını döner. Tek `SELECT … JOIN runs … NOT EXISTS`, üç sağlayıcıda aynı metin (yalnız satır sınırı sözdizimi: `LIMIT` / `TOP`). Bellek içi depo boş döner. Migration gerekmedi: sorgu lease alındığında bir kez koşar ve kapalı satırları (en çok 30 gün yaşar) tarar.
+- **Servis taraması:** lease alındığında bir kez bakar; tam tur (`MaxRequestExpirationsPerScan` satır) dönerse sonraki turlarda yine bakar; bulduğu run'ları yeniden deneme listesine ekler ve aynı yolla kapatır (`Failed`/`Completed` ayrımı, sayaçlar korunur). Lease kaybolunca bayrak sıfırlanır.
+- **`WorkflowRequestStoreContract` +3 case** (dört depoda; `SetRunStatusAsync` kancası: SQL'de run'ı `AwaitingInput`/`Failed` yapar, bellek içinde `false`). **`WorkflowDefinitionStoreContract` +1 case** (`The_request_timeout_survives_the_round_trip`). İkisi de sevk edilen sözleşme: yayın provası *Kapanış kapısı*nda.
+- **`?state=` yalnız bir ad kabul eder** (`1`, `pending,answered` artık `400`); denetim 🟢1.
+- **Testler:** `WorkflowRequestExpirationServiceTests` +6, `ApprovalExpirationServiceTests` +1 (kiracılı), `WorkflowRequestExpirationHttpTests` +2 (iki SQLite host'u art arda: kurtarma ve cevap-süre penceresi), `WorkflowRequestInboxHttpTests` `state` Theory'leri.
+- **Sitede** *An answer that arrives with the time limit* bölümü ve süreç durması cümlesi; **K-1003** satırı ve geçmişi güncellendi; **MT-WF-174** (örnek uygulamada ölçüldü).
+
+### Süre servisinin emsali — bulunan kusur (giderildi)
+
+Plan `ApprovalExpirationService`'i "birebir desen" olarak gösterdi. Desen okunurken şu kusur çıktı: süresi dolan onayın run'ı `CompleteRunAsync` ile kapatılırken run'ın **`EventCount`, `Usage`, `Cost` ve `NonTokenCost` değerleri sıfırlanıyordu** (`CompleteRunAsync` bu kolonları değiştirir, servis önce okumuyordu). Kapanan her süresi dolmuş onay, run'ın olay sayısını ve maliyetini siler; panolar ve stat'lar bunu gösterirdi. Önce kırmızı test (`ApprovalExpirationServiceTests`, 3 case) yazıldı, düştüğü görüldü, servis run'ı okuyup değerleri geri yazacak biçimde düzeltildi (`74be3ae5`, `CHANGELOG` *Fixed*). Süre servisi aynı deseni baştan doğru kurdu.
+
+### Örnek uygulama koşumu (2026-10-14)
+
+`samples/Tracon.Api`, geçici SQLite deposu (`Tracon__Sqlite__ConnectionString` scratchpad'e), port 5081, `Tracon__Ui__AuthToken` tek kullanımlık, gerçek model çağrısı. Açılışta 48 SQLite migration uygulandı (`0048_workflow_requests` dahil). İlk deneme ortak PostgreSQL'e bağlandı (kullanıcı sırları) ve jeton istedi — durdurulup geçici SQLite ile yeniden açıldı; ortak veritabanına yalnız yukarıdaki iki migration uygulanmıştı.
+
+| Manuel case | Gözlem |
+|---|---|
+| 1 — üç bekleyen run, biri cevaplı | `GET /api/workflows/requests?state=all` → 3 öğe (üç ayrı oturum, üç mantıksal istek); cevap sonrası `answered: true`, `lastResponseRunId` dolu |
+| 2 — `state=pending` (varsayılan) | 2 öğe; `state=answered` → 1 öğe; `take=1&skip=1` → 1 öğe |
+| 4 — `summarize-and-approve-timed` (2 dk), cevapsız üçüncü run | `requestedAt 19:22:12.25` → `expiresAt 19:24:12.25` (tam 2 dk). Cevapsız run `Failed` oldu: `completedAt 19:26:15.09` (süre 19:26:13.88, 1.2 sn sonra), `eventCount 32`, `error.type = WorkflowRequestExpired`, `error.class = Timeout`, ileti istek kimliğini ve vadeyi söyler |
+| Cevaplanmış iki zamanlı run | `Completed` (`error = null`), `completedAt` vadeden 2–3 sn sonra; ilk run'ın `eventCount`'u kapanıştan önce de sonra da 35 — süre kapanışı olay sayısını silmedi |
+| 5 — süresi dolan run'a `respond` | `400` `Run '…' is not awaiting human input (status: Failed)`; workflow run sayısı önce/sonra 10/10 (yeni run açılmadı); kiracı listesi 3 öğeye indi, dolan run listede yok |
+| Tanım sınırları | `requestTimeout 00:00:30` → `400`; `400.00:00:00` → `400`; `06:00:00` → `200` (`GET` aynısını döner, sürüm 1); süresiz kayıt → `requestTimeout: null`, sürüm 2 |
+| Ayrılmış ad | `PUT requests` / `Requests` / `functions` → `400`, ileti adın neden ayrıldığını söyler |
+| Hata yolları | `state=waiting` → `400`; jetonsuz → `401` |
+| 174 — süreç iki yazımın arasında durdu | Tarama saatte bire ayarlı örnek; zamanlı run `AwaitingInput` (`eventCount 38`). Uygulama durduruldu, `workflow_requests` satırı `sqlite3` ile `status = 1, closed_at = şimdi` yapıldı (run hâlâ `AwaitingInput`, liste boş). Yeniden başlatınca günlükte `1 workflow request rows were closed but their runs still wait; closing the runs.` ve run `Failed`, `error.type = WorkflowRequestExpired`, `eventCount` 38 (korundu) |
+
+Manuel case 3 (konsol, satıra tıkla) ve 6/7 ayrı yerlerde kanıtlandı: 3 → E2E `ApprovalTests` + ekran görüntüsü (👤 göz denetimi kaldı: `MT-WF-166`), 6 → `WorkflowRequestExpirationHttpTests` + üç sağlayıcıda `WorkflowRequestRetentionTests`, 7 → `TenantIsolationContract` + `WorkflowRequestInboxHttpTests` iki kiracı.
+
+### Önce kırmızı kaydı (dürüst)
+
+| Test | Nasıl kırmızı görüldü |
+|---|---|
+| `ApprovalExpirationServiceTests` (3 case) | Gerçek kırmızı: onay süresi dolunca run'ın olay sayısı, kullanımı ve maliyeti siliniyordu; düzeltmeden önce düştü |
+| `WorkflowRequestStoreContract` | Gerçek kırmızı iki kez, ilk koşumda: SQLite `RETURNING w.run_id` takma adı bulamadı (`no such column`); `RETURNING` sırası tanımsız olduğundan sıra iddiası düştü → küme karşılaştırması |
+| `WorkflowRequestInboxHttpTests` — `state=all` | Gerçek kırmızı: `400` (minimal API enum bağlayıcısı büyük/küçük harfe duyarlı); uç `state`'i dize okuyup `Enum.TryParse(ignoreCase)` ile ayrıştırır |
+| Denetim sonrası eklenenler: iki kurtarma, tek arama, başarısız arama (`WorkflowRequestExpirationServiceTests`), iki restart testi (`WorkflowRequestExpirationHttpTests`) | **Mutasyonla görüldü:** kurtarma taraması devre dışı → servis testlerinden dördü, HTTP testlerinden ikisi kırmızı; geri alındı |
+| `The_request_timeout_survives_the_round_trip` | Mutasyonla görüldü: `WorkflowDefinitionPayload.ToDefinition` süreyi `null` yazınca SQLite'ta kırmızı; geri alındı |
+| `ApprovalExpirationServiceTests` kiracılı case | Mutasyonla görüldü: `AmbientTenantScope.Begin` satırı kaldırılınca kırmızı; geri alındı |
+| Mimari kapılar, taban çizgileri, SQL metin anlık görüntüsü, kapsama listeleri (yedi kapı) | Yeni yüzey önce kırmızı yaptı, sonra güncellendi |
+| Kalan yeni sınıflar (`WorkflowRequestInboxTests`, `WorkflowRequestTimeoutValidationTests`, `WorkflowRequestInboxHttpTests`, üç `WorkflowRequestRetentionTests`, `workflow-requests.test.tsx`) | Önce kırmızı kaydı tutulmadı; kod ve test birlikte yazıldı. Mutasyonla sınanmadı |
+
+### Kapanış kapısı (2026-10-14)
+
+*(kapıların sonucu aşağıya kapanışta yazılır)*
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Fazın kararları burada yazılır. Dört kategoriden birine
-> giren karar (AGENTS.md) ayrıca `docs/KARARLAR.md`'ye K-NNN ve kategori
-> etiketiyle girer ve numarası burada anılır; girmeyen karar yalnız burada
-> kalır (`faz-tamamlama` Adım 8). Plan numara rezerve etmez.
+| Karar | Kayıt |
+|---|---|
+| `workflow_requests` projeksiyonu açıldı; istek yükü olayda kalır, satır onu `event_seq` ile adlandırır; yazım `CompleteAsync`'te, best-effort; geriye dönük doldurma yok. K-128 yeniden açıldı (kullanıcı kararı) | **K-1000** *(kalıcı-veri, public-api)*; K-128 satırı yerinde annotated |
+| Liste `(oturum, requestId)` başına bir mantıksal istektir; süzgeç sayfadan önce; "yanıtlandı" `MarkAnsweredAsync` ile; sıra `RequestedAt` (kullanıcı kararı) | **K-1001** *(public-api)* |
+| Workflow başına `RequestTimeout` (1 dk – 365 gün), `RequestedAt`'ten sayılır, yazım anında `expires_at`'e sabitlenir (kullanıcı kararı) | **K-1002** *(public-api)* |
+| Süre dolunca kapanış: cevapsız istek → `Failed` + `WorkflowRequestExpired` (`Timeout`); hepsi cevaplı → `Completed`, hatasız; K-130 istisnası (kullanıcı kararı) | **K-1003** *(kalıcı-veri, geri-dönüşü-pahalı)*; K-130 ve K-888 satırları işaretli |
+| `RetentionTargets.WorkflowRequests`: yalnız kapalı satır, `closed_at`'e göre, 30 gün; K-888 muafiyetleri run kapanınca kendiliğinden serbest kalır | **K-1004** *(kalıcı-veri)* |
+| Liste yetkisi `Reader` + `RunAccess.Read`; reddeden işleyici listeyi `403` ile reddeder; `requests` ayrılmış ad (kullanıcı kararı) | **K-1005** *(güvenlik, public-api)* |
+| Kapatılamayan run bellekte en çok 10 tur denenir; süreç iki yazımın arasında durursa lease'i alan örnek `ListStrandedAsync` ile bulup kapatır (bağımsız denetim 🟡1 sonrası) | K-1003 içinde (satırı ve geçmişi güncellendi) |
+| Kategori dışı: satır yazımı başarısız olursa yalnız uyarı loglanır, metrik yoktur | Yalnız burada (planda "uyarı ve metrik" idi) |
+| Kategori dışı: sayfa başına olay okuması N+1 kalır; sayfa en çok 200 | Yalnız burada; ADAYLAR'a aday |
+| Kategori dışı: `state` sorgu parametresi dize okunur (minimal API enum bağlayıcısı büyük/küçük harfe duyarlı) | Yalnız burada |
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+`PublicAPI.Unshipped.txt` ile birebir (127 satır, beş dosya: Abstractions, Core, Workflows, AspNetCore, Testing.Contracts.Xunit). Taslaktan farklar: `IWorkflowRequestStore` dört yerine **altı** üye (`ListByRunAsync` ve `ListStrandedAsync` eklendi), `AddAsync` toplu, `MarkAnsweredAsync` etkilenen satır sayısını (`int`) döner, `WorkflowDescriptor.RequestTimeout` ve `RetentionTargets.WorkflowRequests` / `TraconRetentionOptions.WorkflowRequests` eklendi.
+
+```csharp
+// Tracon.Abstractions
+public sealed record WorkflowDefinition { public TimeSpan? RequestTimeout { get; init; } }
+public sealed record WorkflowDescriptor  { public TimeSpan? RequestTimeout { get; init; } }
+
+public sealed record WorkflowPendingRequest
+{
+    // mevcut üyeler +
+    public string? WorkflowName { get; init; }
+    public string? SessionId { get; init; }
+    public DateTimeOffset? ExpiresAt { get; init; }
+    public bool Answered { get; init; }
+    public Guid? LastResponseRunId { get; init; }
+}
+
+public enum WorkflowRequestState { Pending = 0, Answered = 1, All = 2 }
+public enum WorkflowRequestStatus { Open = 0, Closed = 1 }
+
+public sealed record WorkflowRequestQuery
+{
+    public const int MaxTake = 200;
+    public WorkflowRequestState State { get; init; }
+    public string? WorkflowName { get; init; }
+    public int Skip { get; init; }
+    public int Take { get; init; } = 50;
+}
+
+public sealed record WorkflowRequestRecord
+{
+    public Guid RunId { get; init; }            public string RequestId { get; init; }
+    public string SessionId { get; init; }      public string WorkflowName { get; init; }
+    public string PortId { get; init; }         public long EventSequence { get; init; }
+    public DateTimeOffset RequestedAt { get; init; }
+    public DateTimeOffset? ExpiresAt { get; init; }
+    public WorkflowRequestStatus Status { get; init; }
+    public DateTimeOffset? AnsweredAt { get; init; }
+    public Guid? LastResponseRunId { get; init; }
+    public DateTimeOffset? ClosedAt { get; init; }
+    public string? TenantId { get; init; }
+}
+
+public interface IWorkflowRequestStore
+{
+    ValueTask AddAsync(IReadOnlyList<WorkflowRequestRecord> records, CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<WorkflowRequestRecord>> ListAsync(WorkflowRequestQuery query, CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<WorkflowRequestRecord>> ListByRunAsync(Guid runId, CancellationToken cancellationToken = default);
+    ValueTask<int> MarkAnsweredAsync(string sessionId, string requestId, Guid responseRunId, DateTimeOffset answeredAt, CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<WorkflowRequestRecord>> ExpireAsync(DateTimeOffset now, int max, CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<WorkflowRequestRecord>> ListStrandedAsync(int max, CancellationToken cancellationToken = default);   // kapalı satırı olup run'ı hâlâ bekleyen
+}
+
+public interface IWorkflowRunner
+{
+    ValueTask<IReadOnlyList<WorkflowPendingRequest>> ListRequestsAsync(
+        WorkflowRequestQuery query, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult<IReadOnlyList<WorkflowPendingRequest>>([]);   // varsayılan uygulama
+}
+
+public static class RetentionTargets { public const string WorkflowRequests = "workflow_requests"; }
+
+// Tracon.Core
+public sealed class TraconRetentionOptions { public RetentionTargetOptions WorkflowRequests { get; } }   // MaxAgeDays = 30
+
+// Tracon.Workflows
+public sealed class WorkflowRegistrationOptions { public TimeSpan? RequestTimeout { get; set; } }
+public sealed class TraconWorkflowOptions
+{
+    public TimeSpan RequestExpirationScanInterval { get; set; }   // 1 dk
+    public int MaxRequestExpirationsPerScan { get; set; }         // 100
+}
+
+// Tracon.AspNetCore
+public sealed record WorkflowSaveRequest { public TimeSpan? RequestTimeout { get; init; } }
+
+// Tracon.Testing.Contracts.Xunit
+public abstract class WorkflowRequestStoreContract : /* TenantIsolationContract */ { /* 26 case; SetRunStatusAsync kancası */ }
+// WorkflowDefinitionStoreContract: +The_request_timeout_survives_the_round_trip
+```
+
+HTTP: `GET /api/workflows/requests` (yeni, `Reader`, `RunAccess.Read`); `GET /api/workflows/runs/{runId}/requests` öğeleri beş yeni alan taşır; `PUT /api/workflows/{name}` `requestTimeout` alır; `GET /api/workflows` ve `GET /api/workflows/{name}` `requestTimeout` döner. İşlem sayısı 175 → **176**, yol sayısı 137 → **138**. Üretilen TS ve .NET istemcileri yenilendi.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.Abstractions/Workflows/
+├── IWorkflowRequestStore.cs, WorkflowRequestQuery.cs              (yeni)
+└── IWorkflowRunner.cs, WorkflowDefinition.cs, WorkflowDescriptor.cs, WorkflowPendingRequest.cs
+src/Tracon.Abstractions/Retention/RetentionTargets.cs
+src/Tracon.Core/
+├── Workflows/{InMemoryWorkflowRequestStore, WorkflowRequestExpiry}.cs (yeni) · WorkflowDefinitionValidator.cs
+├── Approvals/ApprovalExpirationService.cs                         (kusur düzeltmesi; TickAsync internal)
+├── Runs/DefaultRunErrorClassifier.cs, Retention/TraconRetentionOptions.cs
+└── TraconServiceCollectionExtensions.{Binding.Security,Registration.Storage}.cs
+src/Tracon.Sql.Shared/{Stores/SqlWorkflowRequestStore.cs (yeni), Internal/{RetentionTargetRegistry,SqlQueriesBase,WorkflowDefinitionPayload}.cs}
+src/Tracon.{PostgreSql 0061, SqlServer 0049, Sqlite 0048}/Migrations/*_workflow_requests.sql     (yeni) · Internal/*Queries.cs · builder uzantıları
+src/Tracon.Workflows/Internal/{WorkflowRequestExpirationService (yeni), WorkflowRunner, CodeWorkflowRegistration, WorkflowCatalog, TraconWorkflowOptionsValidator}.cs
+src/Tracon.Workflows/{TraconWorkflowOptions, WorkflowRegistrationOptions, TraconWorkflowsBuilderExtensions}.cs
+src/Tracon.AspNetCore/{Endpoints/WorkflowEndpoints.cs, Contracts/WorkflowContracts.cs, Internal/WorkflowResponseGate.cs}
+src/Tracon.Testing.Contracts.Xunit/Contracts/WorkflowRequestStoreContract.cs    (yeni; sevk edilen sözleşme)
+src/Tracon.UI/frontend/src/screens/{approvals.tsx, approvals/workflow-requests.tsx (yeni), workflow-editor.tsx, workflow-detail/versions.tsx} · locales/{en,tr}/{operations,workflows}.ts · test/api-fixtures.ts
+src/Tracon.Client/Generated/TraconApiClient.g.cs · packages/tracon-client/src/schema.ts · docs/openapi/tracon.json
+samples/Tracon.Api/Program.cs                                                  (summarize-and-approve-timed)
+tests/                                                                         (aşağıda)
+docs-site/ (concepts/workflow-requests.md yeni; workflows, configuration, ui, capabilities, index, getting-started, http-api, compatibility; llms*.txt; 45 ekran görüntüsü)
+docs/ (KARARLAR K-1000…K-1005, KARARLAR-GECMISI, hafiza/{workflow-cevaplari,kod-haritasi}, manuel-test/{15,13,23,00}, ADAYLAR) · CHANGELOG.md · src/*/README.md
+```
+
+### Testler
+
+| Sınıf | Seviye | Case | Ne doğrular |
+|---|---|---:|---|
+| `WorkflowRequestStoreContract` (bellek içi, SQLite, PostgreSQL, SQL Server) | Sözleşme | 26 × 4 depo | Yazım ve geri okuma, mantıksal istek (en yeni açık satır), süzgeç sayfadan önce, sıra, aralık dışı sayfa, kiracı yalıtımı, `MarkAnsweredAsync` (ikinci cevap, başka kiracı), `ExpireAsync` (vade, sıra ve `max`, tek kapanış, eşzamanlı çift, çok kiracılı), `ListStrandedAsync` (üç case), veri sahibi silmesi |
+| `WorkflowRequestInboxTests` | Birim (gerçek runner) | 11 | Satır ve vade yazımı, süresiz istek, beklemeyen run satır yazmaz, kayıtlı tanımın süresi, bekleme sırasındaki düzenleme vadeyi oynatmaz, iki run'ın aynı isteği tek satır, istem ve form olaydan okunur, olayı silinmiş satır, yazılamayan satır run'ı bozmaz, okunamayan kutu run başına listeyi durdurmaz, kutusuz runner |
+| `WorkflowRequestExpirationServiceTests` | Birim | 16 | Vade → `Failed` + hata, vadeden önce dokunmaz, hepsi cevaplı → `Completed` hatasız, biri cevaplı biri değil → `Failed`, olay sayısı ve kullanım/maliyet/`NonTokenCost` korunur, son istek dolunca kapanır, beklemeyen run'a dokunulmaz, kapanış hatası sonraki turda tekrar denenir ve 10 denemeden sonra vazgeçilir, iki kurtarma (`Failed`/`Completed`), arama bir kez yapılır, başarısız arama süreyi durdurmaz, boş tur, ulaşılamayan kutu servisi düşürmez |
+| `WorkflowRequestTimeoutValidationTests` | Birim | 10 (+17 satır) | Tarama aralığı ve tur sınırı doğrulaması, varsayılanlar ve kayıt, tanım sınırı (1 dk – 365 gün), süresiz tanım, kod kaydı, katalog, ayrılmış rota adları |
+| `ApprovalExpirationServiceTests` | Birim | 4 | Süresi dolan onay run'ın kaydını silmez (bulunan kusur), süresi dolmamış onaya dokunulmaz, başka yerde kapanmış run'a dokunulmaz, kiracının run'ı istek dışı taramada da kapanır |
+| `WorkflowRequestInboxHttpTests` | Fonksiyonel (HTTP) | 28 (Theory satırları dahil) | Liste ve vade, run başına aynı alanlar, cevap işareti ve `state`, süzgeç sayfadan önce, sıra, `take` aralığı, `workflowName`, `state` yalnız ad (`1`, `pending,answered` → `400`), harf duyarsız, iki kiracı, reddeden işleyici `403` (süzmez), motorsuz kurulum `501`, ayrılmış ad, `PUT` süre doğrulaması, kayıtlı workflow'un vadesi, kutu işaretlenemese de cevap çalışır |
+| `WorkflowRequestExpirationHttpTests` | Fonksiyonel (HTTP + gerçek servis, oynatılan saat) | 8 | Kapanış ve cevap reddi (`400`, yeni run yok), süresiz istek hiç dolmaz, cevaplı istek `Completed`, kiracı başına kapanış, kaydedilen sürümün vadesi, bekleyen run'ın tuttukları süre dolana kadar kalır ve sonra retention'a serbest kalır; **iki SQLite host'u art arda:** süreç durmasından kalan run kapanır, süre ile cevabın penceresi |
+| `WorkflowRequestRetentionTests` ×3 (SQLite, PostgreSQL, SQL Server) | Entegrasyon | 3 × 3 | Kapalı satır yaşa göre gider, açık satır asla; kesim sonrası kapanan kalır; açık satırlar satır sınırına sayılmaz |
+| `RetentionArchiveKeyTests` ×3 | Entegrasyon | `request_id` eşlemesi | Arşiv anahtarı `workflow_requests` için çözülür |
+| `workflow-requests.test.tsx` · `full-replace-editors.test.tsx` · `workflow-editor.test.tsx` | Vitest | 7 + editör case'leri | Panel, süzgeç, durum, vade; editör `requestTimeout`'u taşır, kayıt süreyi silmez |
+| `ApprovalTests` (yeni case) · `DocumentationScreenshotTests` | E2E (Playwright) | 1 + ekran görüntüsü | "Workflow requests" paneli gerçek tarayıcıda, satır run'ın kartına gider |
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 (altı 🔒 cevabı belge başlığına işlendi; plan gövdesi yeniden yazılmadı, sapmalar *Plandan Sapmalar*'da) |
+| Düzeltme turu sayısı | 1 (bağımsız denetimin beş 🟡'sinin ve bir 🟢'sinin düzeltmesi; kapılar yeniden koşuldu) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (denetim 🔴 bulmadı; beş 🟡'nin dördü gerçek, biri belgelenen test boşluğu — hepsi kapandı) |
+| Fazın ürettiği regresyon | 0 (mevcut davranışı bozan bulunmadı). Bulunan **mevcut** kusur: `ApprovalExpirationService` süresi dolan onayın run sayaçlarını siliyordu — giderildi |
+| Faz kapandıktan sonra bulunan kusur | 0 (kapanış anı; sonraki `kusur-giderme` koşumu günceller) |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı.
+Bağımsız `faz-denetim` (`faz-denetcisi`, salt-okunur), 2026-10-14: **0 🔴**, 5 🟡, 7 🟢. Denetçi kiracı sınırını, yetki kapısını, üç sağlayıcının migration ve sorgu eşdeğerliğini, retention muafiyetlerini, uyumluluğu ve `K-1000…K-1005` ile kodun çelişmediğini kanıtla doğruladı.
+
+| Bulgu | Seviye | Triyaj | Sonuç |
+|---|---|---|---|
+| Satır kapanır, sonra run kapanır; süreç arada durursa run `AwaitingInput` kalır, kapalı satır bir daha bulunmaz (planın "sonraki örnek kalanı kapatır" cümlesi uygulanmamış; K-1003 sınırı kullanıcıya sorulmadan "kullanıcı kararı" altında) | 🟡1 | gerçek | **Düzeltildi:** `IWorkflowRequestStore.ListStrandedAsync` + servisin lease'te koşan taraması; dört depoda sözleşme case'i, dört servis testi, iki uçtan uca restart testi (mutasyonla görüldü); K-1003 satırı düzeltildi. *Plandan Sapmalar* 9(c) |
+| Cevap ile süre dolumu yarışı test edilmemiş ve sitede yazılmamış | 🟡2 | gerçek | **Düzeltildi:** akışlı yol için pencere testi (satır kapalı, run bekliyor → cevap alınır, işi koşar, işaret 0 satır değiştirir, run sonra `Failed` + `WorkflowRequestExpired`); sitede *An answer that arrives with the time limit*. Kuyruklu yol testle sabitlenmedi: iş süre dolduktan sonra başlarsa `WorkflowRunJobHandler` kaynağı reddeden isteği kendi run'ını `Failed` kapatır (kod okuması, `RefuseAsync`); sitede yazılı |
+| `RequestTimeout`'un `WorkflowDefinitionPayload` gidiş-dönüşü SQL depolarda sözleşmeyle sabit değil | 🟡3 | gerçek | **Düzeltildi:** `The_request_timeout_survives_the_round_trip` (`GetAsync`, `ListAsync`, `GetVersionAsync`, `RollbackAsync`); payload'ı `null` yazınca kırmızı (mutasyon). Sevk edilen sözleşme genişledi → yayın provası |
+| Workflow süre servisinin testi yalnız `EventCount`'u sabitliyor; `Usage`/`Cost`/`NonTokenCost` değil | 🟡4 | gerçek | **Düzeltildi:** `The_usage_cost_and_non_token_cost_of_the_run_survive_the_close` |
+| `ApprovalExpirationService` ortam kiracısına bağımlı (onay düzeltmesinde doğdu), kiracılı test yok | 🟡5 | gerçek | **Düzeltildi:** `The_run_of_a_tenant_is_closed_although_the_scan_runs_in_no_tenants_request`; kapsam satırı kaldırılınca kırmızı (mutasyon) |
+| `?state=` ayrıştırması gevşek: `1`, `pending,answered`, `pending,all` kabul edilir; site "üçünden biri değilse `400`" der | 🟢1 | gerçek | **Düzeltildi** (ucuzdu): yalnız ad kabul edilir; `A_state_that_is_not_one_of_the_three_names_is_refused` (5 satır) |
+| Süre kapanışı normal kapanışın `KeepCheckpointsAfterCompletion = false` temizliğini ve `RecordRun` metriğini atlar | 🟢2 | gerçek, düşük | Devredildi: **F-532** (onay emsali aynı; retention yolu açık) |
+| `What_a_waiting_run_keeps…` yalnız `RunEvents` ve `WorkflowCheckpoints`'ı sınar; `RunInputs` sınanmaz | 🟢3 | gerçek, düşük | **Gerekçelendi:** denendi, `run_inputs` satırı yalnız parametre bildiren workflow'lar için yazılır (`BindParametersAsync`), testin graflarında satır yok. Filtre aynı `runs.status` koşuludur ve `RunInputRetentionTests` `AwaitingInput` muafiyetini ayrı kanıtlar |
+| §209.1 ölçüm düzeneği depoda yok; sayılar yeniden üretilemez | 🟢4 | gerçek | **Gerekçelendi:** tek seferlik prob atıldı; yöntem *Plandan Sapmalar*'da yazılı (50 run, 10/100/1000 olay, A ve B). Kalıcı kapasite düzeneği kapsam dışı |
+| Kısmen dolmuş run'da kapanmış isteğe cevap alınır (kapı satır durumuna bakmaz; işaret kapalı satıra yazılmaz) | 🟢5 | gerçek, dar pencere | Devredildi: **F-533** |
+| `MaxCloseAttempts` vazgeçme dalı ve iptal yolu testsiz | 🟢6 | gerçek | Vazgeçme dalı **eklendi** (`A_run_that_cannot_be_closed_is_given_up_after_ten_scans_and_logged_as_an_error`), ayrıca kurtarma taraması bu run'ı bir sonraki lease'te yeniden dener. İptal yolu testsiz kaldı: servis iptalde dönen tek `return`'dür |
+| `--site-denetle` ❌: `kalicilik` (`PostgresQueries.cs`), `paket-readme` (`Tracon.AspNetCore/README.md`) | 🟢7 | gürültü | **Gerekçelendi** (aşağıda *Site gerekçesi*) |
+
+### Site gerekçesi (`--site-gerekce-yazildi`)
+
+- `kalicilik` → `getting-started/persistence.md`: migration yalnız yeni tablo `workflow_requests` ekler. Sayfa tablo listesi ya da tek yönlü migration örneği taşımaz, retention'dan "run olayları 30 gün, span'ler 14 gün gibi" örnekle söz eder. Tablonun ve hedefin kuralları `concepts/workflow-requests.md` ve `reference/configuration.md`'dedir (ikisi de güncellendi).
+- `paket-readme` → `packages.md`: `Tracon.AspNetCore` README'sinde yalnız işlem sayısı değişti (175 → 176, 137 → 138 yol); `packages.md` sayı taşımaz.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+Sıradaki faz seçilmedi; aday sırası [`ADAYLAR.md`](../ADAYLAR.md)'dedir (Faz 209 için F-319 satırı çıkarıldı). Bu faz şunları bıraktı:
+
+- **Devralınan sözleşmeler:** yukarıdaki *Gerçekleşen Public API*. `IWorkflowRequestStore` altı üyeli; yeni bir depo uygulayan `WorkflowRequestStoreContract`'ı geçmelidir (`SetRunStatusAsync` kancasını run tablosu varsa uygulamalıdır). Satır tek yerde yazılır: `WorkflowRunner.CompleteAsync` → `RecordRequestsAsync`.
+- 🚨 **Bilinen tuzaklar** (ayrıntı [`hafiza/workflow-cevaplari.md`](../hafiza/workflow-cevaplari.md)): `CompleteRunAsync` sayaçları **değiştirir** (kapatırken önce oku, geri yaz); arka plan servisi kiracısız koşar (`AmbientTenantScope.Begin`, test host'unda sına); "satırı kapat sonra bir şey yap" adımının çökme boşluğu `ListStrandedAsync`'le kapatıldı; `UPDATE … RETURNING` sırası tanımsızdır; minimal API enum bağlayıcısı harf duyarlıdır.
+- 🚨 **Uygulanmış migration'lar değişmez:** PostgreSQL `0061`, SQL Server `0049`, SQLite `0048` (`applied-migrations.json` ankrajlı). Yeni sütun/indeks yeni migration ister.
+- **Açık uçlar (ADAYLAR):** F-532 (süre kapanışı normal kapanış temizliğini atlar), F-533 (kapanmış isteğe cevap), F-534 (sayfa başına olay okuması), F-535 (satırı olmayan bekleyen run için uzlaştırma), F-518 (`workflow_responses` büyümesi; `workflow_requests` için kalıp hazır, K-1004).
+- **Sınırlar (kullanıcıya söylenmiştir):** Faz 209 öncesi bekleyen run'lar listede yok ve dolmaz (geriye dönük doldurma yok); satırı yazılamayan istek listede yok ve dolmaz; süre ile cevap arasında iki yazımlık (ms) pencere vardır ve davranışı sabit; webhook yayınlanmaz.
+- **El ile kalan:** `MT-WF-166` 👤 (konsol, göz denetimi; Vitest ve E2E karşılığı var). `MT-WF-172`, `173`, `MT-SEC-222`, `223` ☐ (➜ CI: otomatik karşılıkları var).
+- **Geliştirici ortamı notu:** örnek uygulama kullanıcı sırlarıyla ortak PostgreSQL'e bağlanır; ilk koşuda yerel `agentprism` şeması `0060` ve `0061`'i aldı (geri alma yok). SQLite için `Tracon__PostgreSql__ConnectionString=""` ver.

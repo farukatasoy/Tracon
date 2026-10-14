@@ -141,6 +141,22 @@ internal sealed class SqlWorkflowRequestStore : IWorkflowRequestStore
         return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    [TenantAgnostic(
+        "Maintenance work: the recovery of a run left waiting after its rows were closed looks at the runs of EVERY tenant in one pass, so the statement carries no tenant_id by design (the same rationale as ExpireAsync).")]
+    public async ValueTask<IReadOnlyList<WorkflowRequestRecord>> ListStrandedAsync(
+        int max,
+        CancellationToken cancellationToken = default)
+    {
+        var command = _context.CreateCommand(_sql.SelectStrandedWorkflowRequests);
+        DbHelpers.Add(command, "status_open", (short)WorkflowRequestStatus.Open);
+        DbHelpers.Add(command, "status_closed", (short)WorkflowRequestStatus.Closed);
+        DbHelpers.Add(command, "status_awaiting", (short)RunStatus.AwaitingInput);
+        DbHelpers.Add(command, "max", Math.Max(max, 0));
+
+        return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
+    }
+
     private void Bind(DbCommand command, WorkflowRequestRecord record)
     {
         DbHelpers.Add(command, "run_id", record.RunId);

@@ -57,13 +57,13 @@ public sealed class ApprovalTests(BrowserFixture browsers)
 
         var panel = session.Page.GetByTestId("workflow-requests");
 
-        await Expect(panel.GetByText("Requests approval: publish the report")).ToBeVisibleAsync();
+        await Expect(panel.GetByText("Requests approval: publish the report", new() { Exact = true })).ToBeVisibleAsync();
         await Expect(panel.GetByText("Waiting", new() { Exact = true })).ToBeVisibleAsync();
 
         // The workflow sets a limit, so the row shows when the request runs out, not "No limit".
-        await Expect(panel.GetByText("No limit")).ToHaveCountAsync(0);
+        await Expect(panel.GetByText("No limit", new() { Exact = true })).ToHaveCountAsync(0);
 
-        await panel.GetByRole(AriaRole.Link, new() { Name = "approval-flow" }).ClickAsync();
+        await panel.GetByRole(AriaRole.Link, new() { Name = "approval-flow", Exact = true }).ClickAsync();
 
         await Expect(session.Page).ToHaveURLAsync(new Regex(
             @"/workflows/approval-flow\?runId=[0-9a-f-]{36}$",

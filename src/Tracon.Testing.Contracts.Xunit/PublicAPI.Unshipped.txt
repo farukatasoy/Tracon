@@ -1073,3 +1073,8 @@ override Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.ExistsAsy
 override Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.SeedAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<object!>
 virtual Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.EraseRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask<bool>
 virtual Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId, string! sessionId) -> System.Threading.Tasks.ValueTask
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_run_that_is_closed_or_has_an_open_row_is_not_stranded() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.A_run_that_still_waits_after_its_last_row_closed_is_listed_as_stranded() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.Stranded_runs_are_listed_oldest_closure_first_and_no_more_than_max() -> System.Threading.Tasks.Task!
+virtual Tracon.Testing.Contracts.Storage.WorkflowRequestStoreContract.SetRunStatusAsync(System.Guid runId, string! tenantId, Tracon.RunStatus status) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.The_request_timeout_survives_the_round_trip() -> System.Threading.Tasks.Task!

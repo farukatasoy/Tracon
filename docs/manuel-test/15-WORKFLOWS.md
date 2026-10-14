@@ -3740,3 +3740,30 @@ Otomatik karşılığı: `WorkflowRequestInboxTests.A_row_that_cannot_be_written
 
 **Beklenen sonuç**
 - Run `AwaitingInput` kapanır; günlükte `inbox rows … could not be written` uyarısı vardır; run'ın kendi listesi isteği gösterir, kiracı listesi göstermez; cevap `200` verir ve run tamamlanır.
+
+### MT-WF-174 — Kapanmış satırlı ama hâlâ bekleyen run, sonraki süreç lease'i alınca kapanır (Faz 209, F-319)
+
+Otomatik karşılığı: `WorkflowRequestExpirationHttpTests.A_run_left_waiting_by_a_process_that_stopped_after_closing_its_row_is_closed_by_the_next_process` ·
+`WorkflowRequestExpirationHttpTests.An_answer_that_arrives_after_the_row_closed_and_before_the_run_did_is_taken_and_the_run_is_then_closed_as_expired` ·
+`WorkflowRequestExpirationServiceTests.A_run_left_waiting_by_a_process_that_stopped_after_closing_its_row_is_closed_by_the_next_instance` ·
+`WorkflowRequestStoreContract.A_run_that_still_waits_after_its_last_row_closed_is_listed_as_stranded`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 209 |
+| **İlgili karar** | K-1003 |
+
+**Ön koşul** — Örnek uygulama SQLite ile, `Tracon__Workflows__RequestExpirationScanInterval=01:00:00` (tarama saatte bir; vakada hiçbir şey kapatmaz); `summarize-and-approve-timed` run'ı `AwaitingInput`, cevapsız. İki yazımın arasında durmuş bir süreci elle kurmak için `sqlite3` gerekir.
+
+**Adımlar**
+1. Satırı elle kapat: `UPDATE workflow_requests SET status = 1, closed_at = <şimdi> WHERE run_id = '<runId>';` (veritabanı dosyasında, tablo öneki `tracon_`).
+2. `GET /api/runs/{runId}`: hâlâ `AwaitingInput`. `GET /api/workflows/requests?state=all`: istek yok (satır kapalı).
+3. Uygulamayı durdur ve varsayılan tarama aralığıyla (1 dk) yeniden başlat; bir tarama bekle.
+4. `GET /api/runs/{runId}`.
+
+**Beklenen sonuç**
+- 2: run bekliyor görünür; bu, süreç iki yazımın arasında durunca kalan durumdur.
+- 4: `status: Failed`, `error.type: WorkflowRequestExpired`, `eventCount` korunur. Günlükte `workflow request rows were closed but their runs still wait` uyarısı vardır.
+

@@ -1171,10 +1171,10 @@ internal static class WorkflowEndpoints
 
         // Read as text so 'pending', 'answered' and 'all' are accepted in any letter case: the model
         // binder of an enum is case-sensitive, and the other list filters of this API are names too.
+        // Only a name is a state: Enum.TryParse would also take '1' and 'pending,answered'.
         var requestedState = WorkflowRequestState.Pending;
 
-        if (!string.IsNullOrWhiteSpace(state) &&
-            (!Enum.TryParse(state, ignoreCase: true, out requestedState) || !Enum.IsDefined(requestedState)))
+        if (!string.IsNullOrWhiteSpace(state) && !TryParseRequestState(state, out requestedState))
         {
             return TypedResults.Problem(
                 title: "Unknown state",
@@ -1193,6 +1193,23 @@ internal static class WorkflowEndpoints
             cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(requests);
+    }
+
+    private static bool TryParseRequestState(string value, out WorkflowRequestState state)
+    {
+        foreach (var name in Enum.GetNames<WorkflowRequestState>())
+        {
+            if (string.Equals(name, value, StringComparison.OrdinalIgnoreCase))
+            {
+                state = Enum.Parse<WorkflowRequestState>(name);
+
+                return true;
+            }
+        }
+
+        state = default;
+
+        return false;
     }
 
     private static async Task<Results<Ok<IReadOnlyList<WorkflowPendingRequest>>, ProblemHttpResult>>

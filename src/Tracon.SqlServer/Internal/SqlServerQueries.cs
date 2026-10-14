@@ -1968,6 +1968,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // guaranteed by the store, which cuts it to 1..200.
         SelectWorkflowRequests = BuildSelectWorkflowRequests("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
 
+        SelectStrandedWorkflowRequests = BuildSelectStrandedWorkflowRequests("TOP (@max) ", ";");
+
         ExpireWorkflowRequests = $"""
             WITH due AS (
                 SELECT TOP (@max) run_id, request_id FROM {Schema}.workflow_requests

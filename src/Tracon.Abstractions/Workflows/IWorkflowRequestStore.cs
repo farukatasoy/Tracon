@@ -132,6 +132,33 @@ public interface IWorkflowRequestStore
         DateTimeOffset now,
         int max,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists the closed rows of runs that still wait and have no open row left: the trace of a
+    /// process that stopped after <see cref="ExpireAsync"/> closed the last row of a run and before
+    /// the run itself was closed.
+    /// </summary>
+    /// <param name="max">The upper number of rows returned.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The rows (<see cref="WorkflowRequestRecord.Status"/> is <see cref="WorkflowRequestStatus.Closed"/>),
+    /// oldest closure first; empty when no run is stranded.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// <c>[TenantAgnostic]</c>: the same maintenance work as <see cref="ExpireAsync"/>, across every
+    /// tenant. A closed row is never returned by <see cref="ExpireAsync"/> again, so without this
+    /// listing a run closed by nobody would stay <see cref="RunStatus.AwaitingInput"/> and retention
+    /// would keep its request event, checkpoints and input row for good.
+    /// </para>
+    /// <para>
+    /// A store whose rows do not outlive the process (the in-memory store) cannot be left in that
+    /// state and returns an empty list.
+    /// </para>
+    /// </remarks>
+    ValueTask<IReadOnlyList<WorkflowRequestRecord>> ListStrandedAsync(
+        int max,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Whether a run still waits on a request.</summary>

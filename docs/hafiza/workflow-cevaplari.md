@@ -37,9 +37,18 @@
   satiri once okur ve degerleri geri yazar. `ApprovalExpirationService` bos tamamlama
   kuruyor ve onay suresi dolunca run'in olay sayisi 0'a, kullanimi `NULL`'a dusuyordu
   (duzeltildi). Sinif taramasi: baska cagiran kayitli degeri olan bir run'i kapatmaz.
-- **🚨 Satir kapaninca run kapatilamazsa o satir bir daha bulunmaz** (K-1003):
-  `ExpireAsync` satiri once kapatir. Servis kapatilamayan run'i bellekte tutar ve her
-  turda en cok 10 kez dener; surec arada durursa run `AwaitingInput` kalir.
+- **🚨 Satir kapaninca run kapatilamazsa o satir `ExpireAsync` ile bir daha bulunmaz**
+  (K-1003): satir once kapanir. Servis kapatilamayan run'i bellekte tutar ve her turda
+  en cok 10 kez dener. Surec arada durursa liste gider; lease'i alan sonraki ornek
+  `ListStrandedAsync` ile (kapali satir + acik satir yok + `runs.status = AwaitingInput`)
+  run'i bulup kapatir. Sonraki ornek bir kez bakar; tam tur dolarsa tekrar bakar.
+  Yeni bir "satiri once kapat, sonra bir seyi yap" adimi eklersen ayni boslugu orada da
+  kapat. Bellek ici depo bos doner (satir ile run birlikte gider).
+- **Cevap ile sure ayni anda:** satir kapandi, run henuz degil → cevap alinir, isi
+  kosar, satir isaretlenmez, run `Failed` + `WorkflowRequestExpired` kapanir. Kuyruklu
+  cevap is kosarken run kapanmissa kendi run'i reddeder. Testler
+  `WorkflowRequestExpirationHttpTests` (iki SQLite host'u art arda: ikinci host ilk
+  surecin biraktigi run'i kapatir).
 - **🚨 Arka plan servisi kiracisiz calisir:** satir ve run okumasi
   `AmbientTenantScope.Begin(satirin kiracisi)` ister (`SingleTenantContext` ve
   `HttpTenantContext` onu okur; test `FixedTenantContext`'i OKUMAZ — kiracili sureyi

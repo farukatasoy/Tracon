@@ -179,14 +179,34 @@ public sealed class WorkflowRequestInboxHttpTests
         (await ListAsync(host, "workflowName=")).Count.ShouldBe(2);
     }
 
-    [Fact]
-    public async Task An_unknown_state_is_refused()
+    [Theory]
+    [InlineData("waiting")]
+    [InlineData("1")]
+    [InlineData("-1")]
+    [InlineData("pending,answered")]
+    [InlineData("pending,all")]
+    public async Task A_state_that_is_not_one_of_the_three_names_is_refused(string state)
     {
         await using var host = await StartAsync();
 
-        using var response = await SendListAsync(host, "state=waiting");
+        // Only a name is a state. Enum.TryParse alone would take '1' as 'answered' and a
+        // comma-separated list as a combination, and the answer would not be what was asked.
+        using var response = await SendListAsync(host, $"state={Uri.EscapeDataString(state)}");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Theory]
+    [InlineData("pending")]
+    [InlineData("Answered")]
+    [InlineData("ALL")]
+    public async Task The_three_names_are_accepted_in_any_letter_case(string state)
+    {
+        await using var host = await StartAsync();
+
+        using var response = await SendListAsync(host, $"state={state}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]

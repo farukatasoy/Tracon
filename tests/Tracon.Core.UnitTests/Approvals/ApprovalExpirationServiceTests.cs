@@ -77,11 +77,72 @@ public sealed class ApprovalExpirationServiceTests
         run.Error.ShouldBeNull();
     }
 
+    [Fact]
+    public async Task The_run_of_a_tenant_is_closed_although_the_scan_runs_in_no_tenants_request()
+    {
+        // The scan is a background service: no request names its tenant. The run store reads the
+        // ambient tenant, so the service has to enter the approval's tenant before it reads the run;
+        // read as the default tenant, another tenant's run is not found and is silently left waiting.
+        var world = new World(tenanted: true);
+        var runId = Guid.NewGuid();
+
+        using (AmbientTenantScope.Begin("acme"))
+        {
+            await world.Runs.StartRunAsync(new RunStartInfo
+            {
+                RunId = runId,
+                AgentName = "support",
+                StartedAt = Now.AddMinutes(-30),
+                TenantId = "acme",
+            });
+            await world.Runs.CompleteRunAsync(new RunCompletion
+            {
+                RunId = runId,
+                Status = RunStatus.AwaitingApproval,
+                CompletedAt = Now.AddMinutes(-29),
+                EventCount = 42,
+                Usage = new RunUsage { InputTokens = 200, OutputTokens = 100, TotalTokens = 300 },
+                TenantId = "acme",
+            });
+        }
+
+        await world.Approvals.CreateAsync(new PendingApproval
+        {
+            Id = Guid.NewGuid(),
+            TenantId = "acme",
+            RunId = runId,
+            SessionId = "session",
+            RequestId = "request",
+            ToolName = "cancel_order",
+            Status = ApprovalStatus.Pending,
+            ExpiresAt = Now.AddMinutes(-1),
+            CreatedAt = Now.AddMinutes(-20),
+        });
+
+        AmbientTenantScope.Current.ShouldBeNull();
+
+        await world.Service.TickAsync(CancellationToken.None);
+
+        AmbientTenantScope.Current.ShouldBeNull();
+
+        using (AmbientTenantScope.Begin("acme"))
+        {
+            var run = (await world.Runs.GetRunAsync(runId)).ShouldNotBeNull();
+
+            run.Status.ShouldBe(RunStatus.Failed);
+            run.Error.ShouldNotBeNull().Type.ShouldBe("ApprovalExpired");
+            run.EventCount.ShouldBe(42);
+            run.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(300);
+        }
+    }
+
     private sealed class World
     {
-        public World()
+        public World(bool tenanted = false)
         {
-            Runs = new InMemoryRunStore();
+            Runs = tenanted
+                ? new InMemoryRunStore(tenantContext: new SingleTenantContext(Options.Create(new TraconOptions())))
+                : new InMemoryRunStore();
             Approvals = new InMemoryPendingApprovalStore();
             Clock = new FixedClock(Now);
 

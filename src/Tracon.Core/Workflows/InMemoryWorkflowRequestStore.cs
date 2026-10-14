@@ -192,4 +192,18 @@ internal sealed class InMemoryWorkflowRequestStore : IWorkflowRequestStore
 
         return ValueTask.FromResult<IReadOnlyList<WorkflowRequestRecord>>(closed);
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Always empty: the rows and the runs they belong to live in this process and go together, so
+    /// a process that stops between the two writes leaves nothing behind.
+    /// </remarks>
+    public ValueTask<IReadOnlyList<WorkflowRequestRecord>> ListStrandedAsync(
+        int max,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return ValueTask.FromResult<IReadOnlyList<WorkflowRequestRecord>>([]);
+    }
 }

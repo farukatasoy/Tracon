@@ -33,6 +33,13 @@ namespace Tracon;
 /// service carries them over, and closes only a run that is still
 /// <see cref="RunStatus.AwaitingInput"/>.
 /// </para>
+/// <para>
+/// <strong>A process that stops between the two writes is recovered.</strong> A row is closed first
+/// and a closed row is never found again, so a stop after the first write would leave the run
+/// <see cref="RunStatus.AwaitingInput"/> for good. The instance that takes the lease therefore
+/// looks once for such runs (<see cref="IWorkflowRequestStore.ListStrandedAsync"/>) and closes
+/// them the same way; it looks again on the next scans while a scan finds a full round of them.
+/// </para>
 /// </remarks>
 internal sealed class WorkflowRequestExpirationService(
     IWorkflowRequestStore requests,
@@ -53,6 +60,10 @@ internal sealed class WorkflowRequestExpirationService(
     // The runs whose rows are closed but which are not closed themselves yet, with the scans that
     // already tried. Read and written only by the scan, which never overlaps itself.
     private readonly Dictionary<(string TenantId, Guid RunId), int> _unfinished = [];
+
+    // Whether the stranded runs of an earlier process were looked for since this instance took
+    // the lease. Set by the scan; cleared by the loop whenever the lease is not held.
+    private bool _recovered;
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -85,6 +96,12 @@ internal sealed class WorkflowRequestExpirationService(
                 {
                     await TickAsync(stoppingToken).ConfigureAwait(false);
                 }
+                else
+                {
+                    // Another instance scans now; when this one takes the lease again, the runs the
+                    // other left behind are looked for again.
+                    _recovered = false;
+                }
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -107,6 +124,11 @@ internal sealed class WorkflowRequestExpirationService(
     {
         var options = optionsMonitor.CurrentValue;
         var now = _clock.GetUtcNow();
+
+        if (!_recovered)
+        {
+            await FindStrandedRunsAsync(options.MaxRequestExpirationsPerScan, stoppingToken).ConfigureAwait(false);
+        }
 
         try
         {
@@ -136,8 +158,8 @@ internal sealed class WorkflowRequestExpirationService(
         // 🚨 The runs are closed AFTER their rows, and a row that is closed is never found again:
         // a run whose close failed (a store that blinked) would stay AwaitingInput for good. The
         // runs that are not closed yet are kept here and tried again on every scan, up to
-        // MaxCloseAttempts. They are kept in this process only; a process that stops in between
-        // leaves the run waiting, and retention keeps its rows like before the limit existed.
+        // MaxCloseAttempts. The list lives in this process only; a process that stops in between
+        // leaves the run to FindStrandedRunsAsync, which the next instance to hold the lease runs.
         foreach (var (key, attempts) in _unfinished.ToArray())
         {
             if (stoppingToken.IsCancellationRequested)
@@ -164,6 +186,44 @@ internal sealed class WorkflowRequestExpirationService(
             else
             {
                 _unfinished[key] = attempts + 1;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Adds to the unfinished runs the ones a process that stopped left behind: runs that still
+    /// wait although none of their rows is open.
+    /// </summary>
+    /// <remarks>
+    /// Looking is done once per time the lease is taken, and again on the next scans while a look
+    /// returns a full round: the runs found are closed by the same scan, so the next look sees the
+    /// rest. A failed look is tried again on the next scan.
+    /// </remarks>
+    private async ValueTask FindStrandedRunsAsync(int max, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var stranded = await requests.ListStrandedAsync(max, cancellationToken).ConfigureAwait(false);
+
+            foreach (var run in stranded.GroupBy(static row => (row.TenantId!, row.RunId)))
+            {
+                _unfinished.TryAdd(run.Key, 0);
+            }
+
+            _recovered = stranded.Count < max;
+
+            if (stranded.Count > 0 && logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    "{Count} workflow request rows were closed but their runs still wait; closing the runs.",
+                    stranded.Count);
+            }
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "The search for workflow runs left waiting after their requests closed failed.");
             }
         }
     }

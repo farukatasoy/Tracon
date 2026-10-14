@@ -1116,6 +1116,13 @@ internal abstract class SqlQueriesBase
     /// </summary>
     public string ExpireWorkflowRequests { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the query that lists the closed inbox rows of runs that still wait on input and have no
+    /// open row left (the run a process stopped before closing). It carries NO tenant filter - it
+    /// is a maintenance operation, like <see cref="ExpireWorkflowRequests"/>.
+    /// </summary>
+    public string SelectStrandedWorkflowRequests { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that creates or replaces a tenant's provider binding (BYOK).</summary>
     public string UpsertTenantProviderBinding { get; protected set; } = string.Empty;
 
@@ -1209,6 +1216,26 @@ internal abstract class SqlQueriesBase
                                OR (n.requested_at = r.requested_at AND n.run_id > r.run_id)))
              ORDER BY r.requested_at ASC, r.run_id ASC, r.request_id ASC
              {paging}
+            """;
+
+    /// <summary>
+    /// Builds <see cref="SelectStrandedWorkflowRequests"/> around the provider's row-limit syntax.
+    /// </summary>
+    /// <param name="top">The text after <c>SELECT</c> that limits the rows (<c>TOP (@max)</c>), or empty.</param>
+    /// <param name="limit">The clause ending the statement (<c>LIMIT @max;</c>), or just <c>;</c>.</param>
+    /// <returns>The query text.</returns>
+    protected string BuildSelectStrandedWorkflowRequests(string top, string limit)
+        => $"""
+            SELECT {top}{WorkflowRequestColumnsOf("w")}
+              FROM {Table("workflow_requests")} AS w
+              JOIN {Table("runs")} AS r ON r.id = w.run_id
+             WHERE w.status = @status_closed
+               AND r.status = @status_awaiting
+               AND NOT EXISTS (
+                       SELECT 1 FROM {Table("workflow_requests")} AS o
+                        WHERE o.run_id = w.run_id AND o.status = @status_open)
+             ORDER BY w.closed_at ASC, w.run_id ASC, w.request_id ASC
+             {limit}
             """;
 
     protected const string InboundTriggerColumns = """

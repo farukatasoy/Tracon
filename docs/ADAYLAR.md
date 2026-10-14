@@ -353,8 +353,12 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-508** · Bağlayıcıların kalan sessiz düşmeleri | Faz 206 kapsam dışı + denetim 🟢1: skaler/enum yazım hatası (`RateLimit.Partition`, `VoiceLive.DelegationMode`, bool/int/TimeSpan `TryParse`-atla) varsayılana düşer; liste anahtarına tek değer (`__0`'sız) ve boş dizi `GetChildren()`'da çocuksuzdur, yok sayılır | Karar: K-993'ü skalere genişletmek (açılışta hata) — public sözleşme |
 | 🟢 | **F-513** · Retention hedefi yapılandırmadan kapatılamaz | Faz 206 Açık Soru 1-A: `MaxAgeDays` yalnız sayı alır; JSON `null` (8.0.1 `""`, 10.0.0 `null`) varsayılanı sessizce bırakır | Karar (1-B): boş değer `null` bağlar mı; saklama süresini uzatma yönü |
 | 🟢 | **F-517** · Tek cevaplı istek için yönetici çıkışı | Faz 208 denetimi 🟢1 + kapsam dışı: teslimden sonra düşen devamda zıt cevap hep `409`; motorun teslimde reddettiği cevap isteği kilitler; kaydı `Abandoned` yapan uç yok | Admin ucu, denetim kaydı, konsol düğmesi |
-| 🟢 | **F-518** · `workflow_responses` sınırsız büyür | Faz 208 🟡5: kayıt yalnız veri sahibi silmesiyle gider; hiçbir saklama hedefi `runs` silmez | Faz 209 izdüşümünün saklamasıyla birlikte `RetentionTarget` kararı |
+| 🟢 | **F-518** · `workflow_responses` sınırsız büyür | Faz 208 🟡5: kayıt yalnız veri sahibi silmesiyle gider; hiçbir saklama hedefi `runs` silmez | `workflow_requests` hedefi var (K-1004); aynı kalıp `workflow_responses` için ayrı karar |
 | 🟢 | **F-519** · Yalnız devam run'ı silinince cevap kaydı kalır | Faz 208 denetimi 🟢2: FK yalnız `source_run_id`'de; zincir boş görünür, aynı cevap `Gone` → `409` alır | Karar: `response_run_id` FK'sı ya da `Gone`'da yeniden sürme |
+| 🟢 | **F-532** · Süre kapanışı normal kapanışın temizliğini atlar | Faz 209 denetimi 🟢2: süre ile kapanan run `KeepCheckpointsAfterCompletion = false` temizliğini ve `RecordRun` metriğini çalıştırmaz (onay emsali aynı); retention yine bırakır | Ortak kapanış yardımcısı ya da karar: emsal gibi kalsın |
+| 🟢 | **F-533** · Kısmen dolmuş run'da kapanmış isteğe cevap alınır | Faz 209 denetimi 🟢5: bir istek kapanmış, öbürü açıkken kapalı isteğe cevap `WorkflowRunner` denetiminden geçer (satır durumuna bakılmaz); işaret kapalı satıra yazılmaz | Karar: kapı kapalı satırı `400` ile reddetsin mi |
+| 🟢 | **F-534** · Kiracı listesi sayfa başına olay okur | Faz 209 §209.1: satır olayı `event_seq` ile adlandırır ama istem her satır için `ReadEventsAsync`'le okunur (sayfa en çok 200) | Tek olay okuyan `IRunStore` üyesi; önce ölç |
+| 🟢 | **F-535** · Satırı olmayan bekleyen run listede yok ve dolmaz | Faz 209: satır yazımı best-effort; Faz 209 öncesi bekleyenler ve yazılamayan satırlar için doldurma yok (Açık Soru 7-B) | Karar: olaydan satır üreten uzlaştırma (SQL JSON ayrıştırma) |
 
 ### Doğrudan
 
@@ -496,7 +500,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-532**.
+numara: **F-536**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
