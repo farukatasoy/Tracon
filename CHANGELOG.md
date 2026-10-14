@@ -201,6 +201,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `/v1/chat/completions` now reports why the answer ended. `finish_reason` was always
+  `"stop"`, so an OpenAI SDK caller could not tell a cut-off answer from a complete
+  one. **Behavior change:** an answer the model stopped at its output token limit or
+  at its context window is `"length"`, and an answer a content filter cut off after
+  it produced text is `"content_filter"`, on the JSON response and on the last chunk
+  of the stream (`data: [DONE]` still ends it). The value comes from the answer's
+  final model call; a tool turn's reason is never reported, and run recording does
+  not need to be on. A filtered answer with no content still fails with `502`
+  (`error` on the stream), and a cut-off structured answer still fails as before.
+- A failed read of the quota threshold notice no longer fails the agent run's stream.
+  With `TraconQuotaOptions.PublishThresholdToRunStream` on, a run store error while
+  the stream read the notice back ended the stream of a completed run with an
+  `error` frame. **Behavior change:** the stream now logs a warning and ends with
+  `done`, without the notice; the notice stays on `GET /api/runs/{id}/events`.
 - A job no longer repeats a failure the next attempt would get again. The worker
   retried every handler failure up to the attempt limit: an eval whose judge was cut
   off at its output limit ran its unfinished case and paid for it on every attempt,
@@ -767,6 +781,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The live stream of an agent run (`POST /api/agents/{name}/run` without
+  `Idempotency-Key`) now says when the answer was cut off. A plain-text answer the
+  model stopped at its output token limit or at its context window completes, and
+  its `tracon.output.truncated` event (`RunEventCustomTypes.OutputTruncated`) was
+  only on `GET /api/runs/{id}/events`; a client that read the live stream took the
+  partial answer for a complete one. The stream now sends that event as a `custom`
+  frame right before `done`, always, with the same data `/events` serves. Each
+  recorded event is one frame: a harness loop whose iterations were cut sends more
+  than one, and a tool turn cut off in the middle of the run sends none. With the
+  quota notice on, both notices arrive in record order. A client that reads frames
+  by name and ignores unknown `customType` values needs no change. No event, and so
+  no frame, is written while run recording is off.
 - `TraconFinishReasons.ContextWindowExceeded`: the finish reason a model provider
   reports when the conversation and the answer filled the model's context window.
   Tracon treats it as a cut-off answer and names the window.

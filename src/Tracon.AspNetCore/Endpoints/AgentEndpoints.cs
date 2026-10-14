@@ -1364,12 +1364,19 @@ internal static class AgentEndpoints
 
                 List<string>? pending = null;
 
+                // Phase 207: ANY update, not the last one. A tool turn cut at the limit
+                // raises it too; the notice scan then finds no event, which costs one
+                // read. Missing the final turn's reason would lose the notice.
+                var sawTruncation = false;
+
                 await foreach (var update in updates.ConfigureAwait(false))
                 {
                     if (session is null && ChildRunApproval.Describe(update.Contents) is { } names)
                     {
                         (pending ??= []).Add(names);
                     }
+
+                    sawTruncation |= FinishReasonDetectingChatClient.IsTruncated(update.FinishReason);
 
                     var payload = JsonSerializer.Serialize(update, AIJsonUtilities.DefaultOptions);
                     await writer.WriteEventAsync(sequence++, "update", payload, cancellationToken).ConfigureAwait(false);
@@ -1398,7 +1405,8 @@ internal static class AgentEndpoints
                         httpContext, sessions, agent, session, runId, cancellationToken).ConfigureAwait(false);
                 }
 
-                sequence = await WriteQuotaThresholdNoticesAsync(httpContext, runId, writer, sequence, cancellationToken)
+                sequence = await RunNoticeMirror
+                    .WriteAsync(httpContext, runId, writer, sequence, sawTruncation, cancellationToken)
                     .ConfigureAwait(false);
 
                 await writer.WriteEventAsync(
@@ -1509,61 +1517,6 @@ internal static class AgentEndpoints
 
                 throw;
             }
-        }
-
-
-        /// <summary>
-        /// Mirrors any quota threshold notice this run's completion just wrote
-        /// into its own persisted event stream onto THIS SSE connection, as a
-        /// <c>custom</c> frame ahead of <c>done</c>.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// This stream only ever forwards Microsoft Agent Framework's own
-        /// <see cref="Microsoft.Agents.AI.AgentResponseUpdate"/>s as <c>update</c>
-        /// frames — a notice written through <c>AgentRunScope.Writer</c> mid-run
-        /// (this one included) never passes through that path. By the time
-        /// the update loop above finishes, the run has already closed and any
-        /// notice is already durably written; reading it back here is what
-        /// gives this connection the SAME frame <c>GET /api/runs/{id}/events</c>
-        /// serves, byte for byte — not a second, independently built copy.
-        /// </para>
-        /// <para>
-        /// Skipped without a store round-trip when the run stream option is
-        /// off (the default): nothing would be found anyway, and a
-        /// consumer who never turned this on should not pay for the query.
-        /// </para>
-        /// </remarks>
-        private static async ValueTask<long> WriteQuotaThresholdNoticesAsync(
-            HttpContext httpContext,
-            Guid runId,
-            SseWriter writer,
-            long sequence,
-            CancellationToken cancellationToken)
-        {
-            var quotaOptions = httpContext.RequestServices.GetService<IOptionsMonitor<TraconQuotaOptions>>();
-
-            if (quotaOptions?.CurrentValue.PublishThresholdToRunStream is not true)
-            {
-                return sequence;
-            }
-
-            var runs = httpContext.RequestServices.GetRequiredService<IRunStore>();
-
-            await foreach (var runEvent in runs.ReadEventsAsync(runId, 0, cancellationToken).ConfigureAwait(false))
-            {
-                if (runEvent.Type == RunEventType.Custom &&
-                    string.Equals(runEvent.CustomType, RunEventCustomTypes.QuotaThreshold, StringComparison.Ordinal))
-                {
-                    await writer.WriteEventAsync(
-                        sequence++,
-                        "custom",
-                        JsonSerializer.Serialize(runEvent, JsonOptions),
-                        cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            return sequence;
         }
 
         /// <summary>The text a caller gets when a run without a session stopped at a tool approval.</summary>
