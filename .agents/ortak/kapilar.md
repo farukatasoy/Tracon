@@ -9,7 +9,7 @@
 Dördü de sıfır uyarı vermelidir. Bir tanesi kırmızıysa iş **bitmemiştir**.
 
 ```bash
-python3 scripts/kapi.py ic-dongu                 # build + etkilenen test projeleri (hızlı iç döngü)
+python3 scripts/kapi.py ic-dongu [--taban <commit>]   # build + etkilenen test projeleri (hızlı iç döngü)
 python3 scripts/kapi.py tarama                    # sync kopyası · secret · migration bütünlüğü · bayat doküman referansı (saniyeler)
 python3 scripts/kapi.py kapanis --taban <faz öncesi commit>   # tamamı, ucuzdan pahalıya, tek özet
 python3 scripts/kapi.py test --proje <Proje> --sinif "*Ad*" [--tfm net8.0]   # MTP filtresi; çoklu TFM projesinde her bacak ya da tek bacak (Faz 183)
@@ -59,13 +59,16 @@ bir kategoriye, çoğunlukla uyumluluğa giriyorsa `docs/KARARLAR.md`'ye de yaz
 
 Arayüze dokunmuyorsan `-p:TraconFrontendEnabled=false` npm/Vite/Vitest
 adımlarını atlar (`kapi.py ic-dongu` bunu değişen dosyalara bakarak otomatik
-seçer). Dördünün tamamı **faz kapanışında** ve arayüz/paket değişiminde
+seçer). E2E'yi koşan iç döngü (tam koşuma genişleyen ya da
+`Tracon.Ui.E2ETests`'i seçen) bayrağı **koymaz**: UI'sız derlemede E2E'nin
+tamamı düşüyor ve gerçek regresyon o gürültüde kayboluyordu (F-356). Dördünün tamamı **faz kapanışında** ve arayüz/paket değişiminde
 çalışır.
 
 🚨 `ic-dongu` yalnız **commit edilmemiş** yolları görür: işi commit ettikten
 sonra koşarsan yalnız build koşar ve "yeşil" der. Faz 203'te iki derlenmeyen
 `<example>` (`Tracon.Generators.UnitTests`, `ExampleCompilationTests`) bu yüzden
-bir commit boyunca görünmedi. Commit'ten önce koş ya da projeleri
+bir commit boyunca görünmedi. Commit'ten önce koş, `--taban <faz öncesi
+commit>` ver (F-356; boş aralıkta komut bunu hatırlatır) ya da projeleri
 `kapi.py test --proje` ile adla koş.
 
 `ic-dongu`'nun kapsamadığı tek yer: `samples/Tracon.Samples.*` **hiçbir

@@ -1049,6 +1049,9 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     # Faz 204: son bitis sebebi kurali FunctionInvokingChatClient'in ara turun
     # guncellemelerini akisa verme sirasina dayanir; yukseltmede yeniden olculur.
     "src/Tracon.Core/Models/FinishReasonDetectingChatClient.cs": "Microsoft.Extensions.AI",
+    # F-426: bitis sebebi eslemesi ve sunucu tool bloklarinin donusumu SDK
+    # adaptorunun decompile okumasina dayanir; yukseltmede yeniden olculur.
+    "src/Tracon.Anthropic/AnthropicStopReasonChatClient.cs": "Anthropic",
 }
 
 # Bilerek ESKI bir surumu anan damgalar: "1.18.0'da su hâlâ basarisizdi" gibi

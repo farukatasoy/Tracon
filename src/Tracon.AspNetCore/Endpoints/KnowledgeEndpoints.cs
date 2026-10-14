@@ -129,7 +129,7 @@ internal static class KnowledgeEndpoints
         {
             return Invalid(CleanMessage(ex));
         }
-        catch (TenantProviderRefusedException ex)
+        catch (TraconTenantProviderRefusedException ex)
         {
             return Refused(ex);
         }
@@ -209,7 +209,7 @@ internal static class KnowledgeEndpoints
         {
             return Invalid(CleanMessage(ex));
         }
-        catch (TenantProviderRefusedException ex)
+        catch (TraconTenantProviderRefusedException ex)
         {
             return Refused(ex);
         }
@@ -219,7 +219,7 @@ internal static class KnowledgeEndpoints
     /// The tenant's own rule, not a provider failure: <c>403</c>, as for images and
     /// speech. The message names the tenant and the provider only.
     /// </summary>
-    private static ProblemHttpResult Refused(TenantProviderRefusedException exception)
+    private static ProblemHttpResult Refused(TraconTenantProviderRefusedException exception)
         => TypedResults.Problem(
             title: "Embedding provider not available for this tenant",
             detail: exception.Message,

@@ -483,7 +483,11 @@ filter, a blocked guard decision, a quota, a timeout, a rejected structured resp
 structured response cut off at the output limit (`OutputTruncated`, see
 [Truncated output](#truncated-output)), a
 harness loop that ran out of iterations unsatisfied (`LoopUnsatisfied`, see
-[failing the run](/concepts/agents/#fail-the-run-when-the-loop-is-not-satisfied)).
+[failing the run](/concepts/agents/#fail-the-run-when-the-loop-is-not-satisfied)), a
+provider the tenant's rules refused before any call (`TenantProviderRefused`, error type
+`tenant_provider_refused`: its egress policy does not allow the provider, or it has its
+own credential for a provider that cannot use one). A provider that answered `429` is
+`RateLimited`, also when the provider SDK's failure was masked as `upstream_error`.
 Two of them are deliberately distinct — `ContentFiltered` means the *provider's*
 filter cut the response, while `ContentBlocked` means *your* guard refused it. The
 operator response differs: one is a provider setting, the other is your policy.
@@ -509,7 +513,7 @@ treats the two kinds of answer differently:
 | The agent asks for | Outcome |
 |---|---|
 | A structured response (`Json` or `JsonSchema`) | The run fails with error type `output_truncated`, class `OutputTruncated`. A cut-off JSON document cannot be parsed. No repair turn runs, because it would hit the same limit; the `StructuredResponseRejected` event carries `repairSkippedTruncated: true` when a repair attempt was left |
-| Plain text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.truncated`. Its payload names the provider and, when the binding set one, the limit — never the answer text |
+| Plain text | The run completes with the partial answer and writes a `Custom` run event of type `tracon.output.truncated`. Its payload names the provider, the limit when the binding set one, and the `cause` — never the answer text |
 
 Only the turn that ends the run decides. A tool call the model was still writing when
 it hit the limit is an intermediate turn: the tool loop runs it and asks the model
@@ -520,6 +524,17 @@ frames; read the run's events or its error.
 The fix is a higher `ModelBinding.MaxOutputTokens`. When the binding leaves it empty,
 `POST /api/agents/validate` warns with `output_truncation_risk` if the provider's
 default is below the catalog's `MaxOutputTokens` for the model.
+
+A model can also stop because the conversation and its answer filled the model's
+**context window**. A provider reports that with
+`TraconFinishReasons.ContextWindowExceeded` (Anthropic's
+`model_context_window_exceeded`), and the outcome is the same as above, with one
+difference: the error message and the event's `cause` (`context_window` instead of
+`output_limit`) name the window. A higher output limit does not help there; a shorter
+conversation (context compaction) or a model with a larger window does.
+
+A job does not run a cut-off structured answer again: the next attempt sends the same
+limit (see [Delivery and failure behavior](/guides/background-work/#delivery-and-failure-behavior)).
 
 An online-evaluation judge asks for a structured answer too. When its answer is cut
 off, the judge fails with `judge_failed` and the job does not retry it: the next

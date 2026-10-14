@@ -5670,7 +5670,7 @@
           "Voice"
         ],
         "summary": "Lists the available voices.",
-        "description": "The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent\u0027s \u0027speak\u0027 tool accept. The optional \u0027provider\u0027 query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant\u0027s egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.",
+        "description": "The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent\u0027s \u0027speak\u0027 tool accept. The optional \u0027provider\u0027 query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant\u0027s egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address. A provider that fails while listing its voices is 502, as for the speak endpoint.",
         "operationId": "TraconVoiceList",
         "parameters": [
           {
@@ -5717,6 +5717,16 @@
           },
           "501": {
             "description": "Not Implemented",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
@@ -14702,6 +14712,7 @@
           "StructuredResponseInvalid",
           "LoopUnsatisfied",
           "OutputTruncated",
+          "TenantProviderRefused",
           null
         ]
       },

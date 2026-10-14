@@ -769,6 +769,13 @@ internal sealed class JobWorkerBackgroundService(
     /// persisted as is and not logged a second time.
     /// </para>
     /// <para>
+    /// A failure <see cref="FinalFailure.IsFinal"/> calls final fails the job on
+    /// this attempt too: the next attempt would get the same answer and pay for the
+    /// work again. It is logged and persisted like any other failure. A
+    /// <see cref="JobRetryException"/> is the handler asking for another attempt,
+    /// and it gets one.
+    /// </para>
+    /// <para>
     /// An attempt that reached its time limit fails with
     /// <see cref="JobErrorCodes.MaxDurationExceeded"/>, whatever the handler threw on
     /// its way out: the exception is the handler noticing its token, not the cause. It
@@ -786,6 +793,12 @@ internal sealed class JobWorkerBackgroundService(
         CancellationToken stoppingToken)
     {
         var nonRetryable = exception is NonRetryableJobException;
+
+        // F-429: read from the failure's stable identity, never its text. An attempt
+        // that reached its time limit is not judged by what the handler threw on its
+        // way out (see the remarks).
+        var final = nonRetryable
+            || (maxDurationExceeded is null && exception is not JobRetryException && FinalFailure.IsFinal(exception));
         var correlationId = SafeErrorText.NewCorrelationId();
         string safeMessage;
 
@@ -829,7 +842,7 @@ internal sealed class JobWorkerBackgroundService(
             return;
         }
 
-        if (nonRetryable || job.Attempt >= maxAttempts)
+        if (final || job.Attempt >= maxAttempts)
         {
             var completion = new JobCompletion
             {

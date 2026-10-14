@@ -240,6 +240,7 @@ export const enRuns = {
   "dashboard.errorClass.StructuredResponseInvalid": 'Structured response invalid',
   "dashboard.errorClass.LoopUnsatisfied": 'Loop unsatisfied',
   "dashboard.errorClass.OutputTruncated": 'Output truncated',
+  "dashboard.errorClass.TenantProviderRefused": 'Refused by tenant provider rules',
   "transcript.reasoning": 'Reasoning',
   "transcript.approved": 'approved',
   "transcript.rejected": 'rejected',

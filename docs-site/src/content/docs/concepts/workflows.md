@@ -367,7 +367,13 @@ from `EnsureSuccessStatusCode()` or a `404` from a model provider — is also th
 the first attempt: the same request gets the same answer, and a repeated `409` on a
 non-idempotent call can repeat its side effect. Tracon reads the status from
 `HttpRequestException.StatusCode` or from `HTTP nnn` text in the exception chain,
-and a registered `IRunErrorClassifier` cannot make such a failure retry. The retry loop
+and a registered `IRunErrorClassifier` cannot make such a failure retry. Neither can
+a failure whose stable error type says the next attempt gets the same answer: a
+provider the tenant's rules refuse (`tenant_provider_refused`), or a structured
+answer cut off at the output limit. The type decides, not the message, which names
+the tenant and its providers. A definition that does not compile keeps its retries:
+it can fail because a loop criterion or a provider client could not be created for
+the moment. The retry loop
 runs entirely inside the node's own call: Microsoft Agent Framework invokes the
 node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third

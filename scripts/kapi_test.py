@@ -526,6 +526,44 @@ class KapiTestleri(unittest.TestCase):
         self.assertTrue(kapi.frontend_changed(["src/Tracon.UI/frontend/src/app.tsx"]))
         self.assertFalse(kapi.frontend_changed(["src/Tracon.Core/Thing.cs"]))
 
+    def test_e2e_kosan_ic_dongu_arayuzlu_derler(self):
+        # F-356 (2026-10-12, ölçüldü): haritası eksik bir yol iç döngüyü tam
+        # koşuma genişletti ama derleme `-p:TraconFrontendEnabled=false` ile
+        # kaldı; gömülü varlık olmadan E2E'nin tamamı düştü ve gerçek bir
+        # regresyon o gürültünün içinde kayboldu. E2E'yi seçen her yol (tam
+        # koşum ya da E2E projesinin kendisi) arayüzlü derlemelidir.
+        for path in ("src/Unknown.Package/Thing.cs",
+                     "tests/Shared/Infrastructure/ProcessRunner.cs",
+                     "tests/Tracon.Ui.E2ETests/RunsPageTests.cs"):
+            with contextlib.redirect_stdout(io.StringIO()):
+                build = kapi.inner_loop_commands([path])[0]
+
+            self.assertEqual(build.args[:2], ("dotnet", "build"), path)
+            self.assertNotIn("-p:TraconFrontendEnabled=false", build.args, path)
+
+    def test_e2e_kosmayan_ic_dongu_arayuzsuz_derler(self):
+        build = kapi.inner_loop_commands(["src/Tracon.Core/Thing.cs"])[0]
+
+        self.assertIn("-p:TraconFrontendEnabled=false", build.args)
+
+    def test_ic_dongu_tabani_commit_edilen_isi_de_gorur(self):
+        # F-356: iş commit edildikten sonra `ic-dongu` HEAD'e karşı hiçbir şey
+        # görmüyor, yalnız build koşup "yeşil" diyordu (Faz 203'te iki derlenmeyen
+        # <example> bu yüzden bir commit boyunca görünmedi). `--taban` aralığı verir.
+        with mock.patch.object(kapi, "changed_paths", return_value=["src/Tracon.Core/Thing.cs"]) as paths, \
+                contextlib.redirect_stdout(io.StringIO()):
+            code = kapi.main(["--komutlari-bas", "ic-dongu", "--taban", "abc123"])
+
+        self.assertEqual(code, 0)
+        paths.assert_called_once_with("abc123")
+
+    def test_ic_dongu_bos_degisiklikte_tabani_hatirlatir(self):
+        with mock.patch.object(kapi, "changed_paths", return_value=[]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            kapi.main(["--komutlari-bas", "ic-dongu"])
+
+        self.assertIn("--taban", output.getvalue())
+
     def test_kapanis_komutlari_dort_net_kapisini_tasir(self):
         commands = kapi.closing_commands("abc123", site=False)
         rendered = [command.display for command in commands]

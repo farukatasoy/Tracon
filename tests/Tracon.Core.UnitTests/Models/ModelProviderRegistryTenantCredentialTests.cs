@@ -92,7 +92,7 @@ public sealed class ModelProviderRegistryTenantCredentialTests
         var exception = await Should.ThrowAsync<TraconException>(
             async () => await registry.CreateChatClientAsync(TestData.Binding(provider: provider.Name)));
 
-        exception.ErrorType.ShouldBe("provider_credential_unsupported");
+        exception.ErrorType.ShouldBe("tenant_provider_refused");
         exception.Message.ShouldNotContain("tenant-private-value");
         provider.InvocationCount.ShouldBe(0);
     }

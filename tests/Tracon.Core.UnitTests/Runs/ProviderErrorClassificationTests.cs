@@ -25,6 +25,29 @@ public sealed class ProviderErrorClassificationTests
         classification.Class.ShouldBe(RunErrorClass.ProviderError);
     }
 
+    /// <summary>
+    /// F-353: a status .NET carries only on <see cref="HttpRequestException.StatusCode"/>
+    /// reaches the record and the retry decision.
+    /// </summary>
+    /// <remarks>
+    /// The message .NET writes for it has no "HTTP nnn" text, and the normalizer read
+    /// the status from text alone: the record lost the 401, and a retry could not tell
+    /// it from a connection that never got an answer.
+    /// </remarks>
+    [Fact]
+    public void A_status_carried_only_by_the_property_reaches_the_normalized_failure()
+    {
+        var failure = ProviderInvocationException.UpstreamFailure(
+            new HttpRequestException(
+                "Response status code does not indicate success: 401 (Unauthorized).",
+                inner: null,
+                System.Net.HttpStatusCode.Unauthorized),
+            "openai");
+
+        failure.StatusCode.ShouldBe(401);
+        failure.Message.ShouldEndWith("(HTTP 401).");
+    }
+
     [Fact]
     public void Two_different_provider_faults_do_not_share_one_fingerprint()
     {

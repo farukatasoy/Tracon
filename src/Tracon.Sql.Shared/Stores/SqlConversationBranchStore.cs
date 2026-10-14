@@ -50,13 +50,8 @@ internal sealed class SqlConversationBranchStore : IConversationBranchStore
         var newConversationId = TraconId.NewId();
         var now = DateTimeOffset.UtcNow;
 
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        return await _context.ExecuteInTransactionAsync<ConversationBranch?>(
+            async (connection, transaction) =>
             {
                 var branchPoint = await ReadBranchPointAsync(
                     connection,
@@ -92,8 +87,8 @@ internal sealed class SqlConversationBranchStore : IConversationBranchStore
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                 return new ConversationBranch(newConversationId, branchPoint.LastSequence, copied);
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask<BranchPoint> ReadBranchPointAsync(

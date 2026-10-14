@@ -8,7 +8,8 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 /// <summary>
 /// A local Anthropic Messages API (<c>POST /v1/messages</c>) that keeps every
-/// request body and answers with one canned, non-streaming message.
+/// request body and answers with one canned, non-streaming message, or with the
+/// answers a test queued (<see cref="Respond"/>, <see cref="Stream"/>).
 /// </summary>
 /// <remarks>
 /// F-346: what an <c>anthropic.*</c> setting puts on the wire is only proven by
@@ -26,6 +27,7 @@ internal sealed class FakeAnthropicServer : IAsyncDisposable
         """;
 
     private readonly WebApplication _app;
+    private readonly Queue<(string Body, bool Streamed)> _answers = new();
 
     private FakeAnthropicServer(WebApplication app, Uri baseAddress)
     {
@@ -38,6 +40,32 @@ internal sealed class FakeAnthropicServer : IAsyncDisposable
 
     /// <summary>Every request body received, in order.</summary>
     public List<JsonObject> Bodies { get; } = [];
+
+    /// <summary>Queues a non-streaming answer: a Messages API response body.</summary>
+    /// <param name="message">The response JSON.</param>
+    /// <returns>This server, for chaining.</returns>
+    public FakeAnthropicServer Respond(string message)
+    {
+        lock (_answers)
+        {
+            _answers.Enqueue((message, Streamed: false));
+        }
+
+        return this;
+    }
+
+    /// <summary>Queues a streaming answer: the server-sent events of one message.</summary>
+    /// <param name="events">The <c>event:</c>/<c>data:</c> lines, ending with <c>message_stop</c>.</param>
+    /// <returns>This server, for chaining.</returns>
+    public FakeAnthropicServer Stream(string events)
+    {
+        lock (_answers)
+        {
+            _answers.Enqueue((events, Streamed: true));
+        }
+
+        return this;
+    }
 
     /// <summary>Starts the server on a random loopback port.</summary>
     /// <returns>The running server.</returns>
@@ -59,7 +87,16 @@ internal sealed class FakeAnthropicServer : IAsyncDisposable
                 server.Bodies.Add(body);
             }
 
-            return Results.Text(Response, "application/json");
+            (string Body, bool Streamed) answer;
+
+            lock (server._answers)
+            {
+                answer = server._answers.Count > 0 ? server._answers.Dequeue() : (Response, Streamed: false);
+            }
+
+            return answer.Streamed
+                ? Results.Text(answer.Body, "text/event-stream")
+                : Results.Text(answer.Body, "application/json");
         });
 
         await app.StartAsync().ConfigureAwait(false);

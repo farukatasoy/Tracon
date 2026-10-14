@@ -120,8 +120,10 @@ internal sealed class AnthropicChatClientFactory
         // which output limit this client sends when the binding sets none
         // (ModelOutputLimit). With no setting that changes the body, it passes
         // the caller's options through without a copy or a raw body.
+        // The stop-reason reader sits on the adapter itself, inside the settings:
+        // a paused turn's continuation goes out with the same settings (F-426).
         return new AnthropicProviderSettingsChatClient(
-            _client.AsIChatClient(model, _defaultMaxOutputTokens),
+            new AnthropicStopReasonChatClient(_client.AsIChatClient(model, _defaultMaxOutputTokens)),
             model,
             _defaultMaxOutputTokens,
             settings);

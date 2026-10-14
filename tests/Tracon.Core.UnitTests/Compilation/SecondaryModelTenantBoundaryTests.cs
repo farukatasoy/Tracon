@@ -33,11 +33,11 @@ public sealed class SecondaryModelTenantBoundaryTests
         var host = await Host.CreateAsync(allowedProviders: ["openai"]);
         var definition = Agent() with { Compaction = Summarizing(strategy, summarizationModel: Binding("anthropic")) };
 
-        var exception = await Should.ThrowAsync<TraconCompilationException>(
+        var exception = await Should.ThrowAsync<TraconTenantProviderRefusedException>(
             async () => await host.Compiler.CompileAsync(definition, CancellationToken.None));
 
         exception.Message.ShouldContain("anthropic");
-        exception.AgentName.ShouldBe(definition.Name);
+        exception.Message.ShouldContain($"Agent '{definition.Name}'");
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class SecondaryModelTenantBoundaryTests
         var host = await Host.CreateAsync(allowedProviders: ["openai"], utilityModel: Binding("anthropic"));
         var definition = Agent() with { Compaction = Summarizing(CompactionStrategyKind.Summarization, summarizationModel: null) };
 
-        var exception = await Should.ThrowAsync<TraconCompilationException>(
+        var exception = await Should.ThrowAsync<TraconTenantProviderRefusedException>(
             async () => await host.Compiler.CompileAsync(definition, CancellationToken.None));
 
         exception.Message.ShouldContain("anthropic");
@@ -63,11 +63,11 @@ public sealed class SecondaryModelTenantBoundaryTests
         var host = await Host.CreateAsync(allowedProviders: ["openai"], judgeModel: Binding("anthropic"));
         var definition = JudgedAgent();
 
-        var exception = await Should.ThrowAsync<TraconCompilationException>(
+        var exception = await Should.ThrowAsync<TraconTenantProviderRefusedException>(
             async () => await host.Compiler.CompileAsync(definition, CancellationToken.None));
 
         exception.Message.ShouldContain("anthropic");
-        exception.AgentName.ShouldBe(definition.Name);
+        exception.Message.ShouldContain($"Agent '{definition.Name}'");
     }
 
     [Fact]

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (922 kalem)
+## Arşivlenen Kararlar (927 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -931,3 +931,8 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-920 | 971 | Anthropic istek ayarları: `anthropic.effort` (`output_config.effort`), `anthropic.thinking.mode` (`enabled`/`adaptive`; tek başına bütçe `enabled`), `anthropic.promptCaching.ttl` (`5m`/`1h`), `anthropic.promptCaching.placement` (`request`/`system`; talimatsız `system` üst düzey kırılma noktasına düşer). Değer listeleri SDK enum'larından okunur; `ttl`/`placement` `promptCaching` olmadan, `adaptive` + bütçe ve bütçesiz `enabled` hatadır (F-346, Faz 204; Açık Soru 3-A) |
 | K-921 | 972 | `ModelDescriptor.SupportsSampling` (`bool?`, `null` = bilinmiyor): `false` iken `Temperature`/`TopP` derlemeyi durdurur, doğrulama `sampling_unsupported` verir; bağlamanın `Fallbacks` bağlantıları da denetlenir (Faz 204; yedek denetimi ana oturum varsayılanı, bakımcı onayı bekler) |
 | K-922 | 973 | Sağlayıcının varsayılan çıktı sınırı `ModelOutputLimit` kaydıyla (`DefaultMaxOutputTokens`, `HighReasoningEffort`) bağlamaya göre kurulan ham istemcinin `IChatClient.GetService` yanıtından okunur; doğrulama, `MaxOutputTokens` boşken varsayılan katalog sınırından küçükse ve yanıt yapılandırılmışsa ya da effort yüksekse `output_truncation_risk` (Warning) verir (Faz 204 #1, #2; Açık Soru 5-B; seam biçimi ana oturum varsayılanı, bakımcı onayı bekler) |
+| K-923 | 974 | Kesilen kuyruklu workflow run'ını yalnız onu başlatan job sürdürür; uzlaştırma workflow kökünü `Failed` kapatır ama sürdürmez; zincir `ContinuedFromRunId` ile ileri yürünür; çökme, deploy ve zarif kapanış ayırt edilmez; varsayılan kapalı (`ResumeInterruptedRuns`) ve checkpoint ister (Faz 197, Açık Soru 1-A) (kullanıcı kararı) 👤 |
+| K-924 | 975 | Kuyruklu workflow işlemi tek anahtardır: `tracon.workflow-run` + yükte `operation` (`run`/`resume`/`respond`); iş kimliği run kimliğidir; anahtar HTTP ile zamanlanamaz (`HttpSchedulableHandlerKeys` de açamaz); kapılar `202`'den önce, senkron uçla aynı sırada koşar; kuyruklu resume/respond kotaya girmez; respond-async F-319'u beklemez (Faz 197, Açık Soru 2-A, 3-A, 6-A) (kullanıcı kararı) 👤 |
+| K-925 | 976 | Üç workflow ucu `Idempotency-Key`'i yalnız `Prefer: respond-async` ile kabul eder; `Prefer`'siz anahtar `400` alır (Faz 197, Açık Soru 5-A) (kullanıcı kararı) 👤 |
+| K-926 | 977 | `RunStartInfo.ContinuedFromRunId` ikinci başlatmada korunur (dört depoda `COALESCE`); `RunQuery.ContinuedFromRunId` ve `GET /api/runs?continuedFromRunId=` devam zincirini ileri yürür; `IJobStore.ReportItemAsync` yalnız bekleyen öğeyi değiştirir ve `Pending` rapor sayaç artırmayan bir işarettir — dördü sevk edilen sözleşmededir (Faz 197) |
+| K-927 | 978 | Kurtarma açıkken kuyruklu workflow run'ının işi `2 + MaxResumeAttempts` deneme alır; işin son denemesi devam BAŞLATMAZ, zinciri kapatır (`tracon.job.workflow-run-not-continued`); batch işi kendi sınırını korur ve öğe başına en çok `MaxAttempts − 2` devam alır; kapalıyken `AsyncRun.MaxAttempts`; run kendi başına `Failed`/`Canceled` biterse iş tekrar denemeden düşer; kurtarma adımındaki `store` hatası işi değil denemeyi düşürür (Faz 197, Açık Soru 4-A ve denetim 🔴1 düzeltmesi) (kullanıcı kararı) 👤 |

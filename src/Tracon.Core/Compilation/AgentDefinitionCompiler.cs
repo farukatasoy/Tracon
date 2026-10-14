@@ -319,9 +319,14 @@ public sealed partial class AgentDefinitionCompiler
     /// <returns>The executable agent.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconCompilationException">
-    /// A model provider cannot be found, the definition references a tool name that is not
-    /// registered, the current tenant's egress policy forbids a provider the agent calls, or
-    /// the tenant's provider binding cannot be resolved to a credential value.
+    /// A model provider cannot be found, or the definition references a tool name that is
+    /// not registered.
+    /// </exception>
+    /// <exception cref="TraconTenantProviderRefusedException">
+    /// The current tenant's egress policy forbids a provider the agent calls, or the
+    /// tenant's provider binding cannot be resolved to a credential value. The message
+    /// names the agent; the type stays the refusal so a retry and a classifier read it
+    /// as one.
     /// </exception>
     /// <remarks>
     /// <para>

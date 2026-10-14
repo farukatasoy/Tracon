@@ -189,13 +189,8 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         var tenantId = _tenantContext.TenantId;
         var now = DateTimeOffset.UtcNow;
 
-        var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (connection.ConfigureAwait(false))
-        {
-            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using (transaction.ConfigureAwait(false))
+        return await _context.ExecuteInTransactionAsync(
+            async (connection, transaction) =>
             {
                 var upsert = _context.CreateCommand(_sql.UpsertAgentDefinition, connection, transaction);
 
@@ -223,8 +218,8 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                 return ReadDefinition(payload, name, written.Version, tenantId, now);
-            }
-        }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask<TraconException> BuildRollbackFailureAsync(

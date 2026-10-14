@@ -250,7 +250,7 @@ internal sealed class LiveVoiceSessionLauncher
         {
             var policy = await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
-            TenantProviderAccess.EnsureAllowed(policy, tenantId, providerName);
+            TenantProviderAccess.EnsureAllowed(policy, tenantId, providerName, TenantProviderCallKind.LiveVoice);
         }
 
         var credential = await TenantProviderAccess

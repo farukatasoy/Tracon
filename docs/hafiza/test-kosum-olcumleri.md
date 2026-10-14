@@ -146,6 +146,12 @@ ayrımı **atlar** ve gerçek bir regresyonu maskeleyebilirdi.
 `QueryRuns` artışı (44832 → 45456 B) gerçekti: yeni `continued_from_run_id`
 parametresi her sorguda taşınır.
 
+**Üçüncü vaka (2026-10-14, F-419):** `QueryRuns` 47104 → 48184 B (+1080 B) gerçekti:
+taban `92c4de8c` ayrı worktree'de 47104 B ölçüldü. Kaynak, satıra eklenen iki para
+birimi sayım sütunu ve uzayan SQL metnidir (SQLite komut metnini her koşumda UTF-8'e
+çevirir); metin kısaltılınca +1536 B'den indi. Süre 818 → 956 µs oldu (kapı süreyi
+ölçmez; SQLite'ta her ağaç sütunu ayrı ilişkili alt sorgudur).
+
 ## Faz 178 — 🚨 `Barrier(N)` + `Task.Run`, N çekirdek sayısını aşınca kapıya ~70 sn ekler
 
 **Ölçüldü (2026-09-16, 10 çekirdekli Apple Silicon).** Dört sağlayıcı birim test

@@ -75,6 +75,6 @@ internal static class CurrencyTotals
 
     /// <summary>How many currencies a single total is in: one when it names one.</summary>
     /// <param name="currency">The total's currency.</param>
-    /// <returns>0 or 1.</returns>
-    public static int Of(string? currency) => currency is null ? 0 : 1;
+    /// <returns>0 or 1; an empty label is not a currency.</returns>
+    public static int Of(string? currency) => string.IsNullOrEmpty(currency) ? 0 : 1;
 }

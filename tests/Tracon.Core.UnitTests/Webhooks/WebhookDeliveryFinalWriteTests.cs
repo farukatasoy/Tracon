@@ -120,6 +120,59 @@ public sealed class WebhookDeliveryFinalWriteTests
             .ShouldBe(WebhookDeliveryStatus.Pending);
     }
 
+    /// <summary>
+    /// F-393: a store error while recording a FAILED send is the store's too. It
+    /// used to escape the handler as a raw error: the worker put the job back with no
+    /// pause, so the recipient was called again at once instead of after the ladder's
+    /// delay.
+    /// </summary>
+    [Fact]
+    public async Task A_store_error_after_a_failed_send_keeps_the_ladder_delay()
+    {
+        var store = new FlakyResultWebhookStore(new InMemoryWebhookStore()) { FailedPathWriteFailuresLeft = 1 };
+        var delivery = await ArrangeDeliveryAsync(store);
+        var recipient = new CountingRecipient(HttpStatusCode.InternalServerError);
+        using var client = new WebhookHttpClient(recipient);
+        var handler = CreateHandler(store, client, TimeSpan.FromMinutes(5));
+
+        var retry = await Should.ThrowAsync<JobRetryException>(
+            async () => await handler.ExecuteAsync(
+                BuildContext(delivery, attempt: 1, []),
+                TestContext.Current.CancellationToken));
+
+        retry.RetryAfter.ShouldBe(new TraconWebhookOptions().RetryDelays[0]);
+        recipient.Requests.ShouldBe(1);
+        (await store.GetDeliveryAsync(delivery.Id, TestContext.Current.CancellationToken))!.Attempt.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// F-393: on the last attempt the failed result is recorded through the same
+    /// retry, so the delivery ends <see cref="WebhookDeliveryStatus.Failed"/>. One
+    /// store error used to leave it <see cref="WebhookDeliveryStatus.Pending"/> for
+    /// good, with no attempt left to finish it.
+    /// </summary>
+    [Fact]
+    public async Task A_store_error_on_the_last_failed_attempt_still_records_the_delivery_as_failed()
+    {
+        var store = new FlakyResultWebhookStore(new InMemoryWebhookStore()) { FailedPathWriteFailuresLeft = 1 };
+        var delivery = await ArrangeDeliveryAsync(store);
+        var recipient = new CountingRecipient(HttpStatusCode.InternalServerError);
+        using var client = new WebhookHttpClient(recipient);
+        var handler = CreateHandler(store, client, TimeSpan.FromMinutes(5));
+        var reported = new List<JobItemResult>();
+        var lastAttempt = new TraconWebhookOptions().RetryDelays.Count;
+
+        var failure = await Should.ThrowAsync<TraconException>(
+            async () => await handler.ExecuteAsync(
+                BuildContext(delivery, attempt: lastAttempt, reported),
+                TestContext.Current.CancellationToken));
+
+        failure.Message.ShouldContain($"after {lastAttempt} attempts");
+        (await store.GetDeliveryAsync(delivery.Id, TestContext.Current.CancellationToken))!.Status
+            .ShouldBe(WebhookDeliveryStatus.Failed);
+        reported.Single().Status.ShouldBe(JobItemStatus.Failed);
+    }
+
     private static async Task<WebhookDelivery> ArrangeDeliveryAsync(IWebhookStore store)
     {
         var subscription = await store.SaveSubscriptionAsync(new WebhookSubscription
@@ -212,8 +265,8 @@ public sealed class WebhookDeliveryFinalWriteTests
             IsCancelledAsync = _ => ValueTask.FromResult(false),
         };
 
-    /// <summary>A recipient that answers <c>200</c> and counts what reached it.</summary>
-    private sealed class CountingRecipient : HttpMessageHandler
+    /// <summary>A recipient that answers with one status (<c>200</c> by default) and counts what reached it.</summary>
+    private sealed class CountingRecipient(HttpStatusCode status = HttpStatusCode.OK) : HttpMessageHandler
     {
         private int _requests;
 
@@ -223,7 +276,7 @@ public sealed class WebhookDeliveryFinalWriteTests
         {
             Interlocked.Increment(ref _requests);
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            return Task.FromResult(new HttpResponseMessage(status));
         }
     }
 
@@ -234,6 +287,7 @@ public sealed class WebhookDeliveryFinalWriteTests
     private sealed class FlakyResultWebhookStore(IWebhookStore inner) : IWebhookStore
     {
         private int _deliveredWriteFailuresLeft;
+        private int _failedPathWriteFailuresLeft;
 
         public int DeliveredWriteFailuresLeft
         {
@@ -241,9 +295,18 @@ public sealed class WebhookDeliveryFinalWriteTests
             init => _deliveredWriteFailuresLeft = value;
         }
 
+        /// <summary>Gets how many times a Pending or Failed result write is refused.</summary>
+        public int FailedPathWriteFailuresLeft
+        {
+            get => Volatile.Read(ref _failedPathWriteFailuresLeft);
+            init => _failedPathWriteFailuresLeft = value;
+        }
+
         public ValueTask RecordDeliveryResultAsync(WebhookDeliveryResult result, CancellationToken cancellationToken = default)
         {
-            if (result.Status == WebhookDeliveryStatus.Delivered && TryTakeFailure())
+            if (result.Status == WebhookDeliveryStatus.Delivered
+                    ? TryTakeFailure(ref _deliveredWriteFailuresLeft)
+                    : TryTakeFailure(ref _failedPathWriteFailuresLeft))
             {
                 throw new InvalidOperationException("The webhook store is unavailable.");
             }
@@ -283,18 +346,18 @@ public sealed class WebhookDeliveryFinalWriteTests
         public ValueTask<IReadOnlyList<WebhookDelivery>> QueryDeliveriesAsync(WebhookDeliveryQuery query, CancellationToken cancellationToken = default)
             => inner.QueryDeliveriesAsync(query, cancellationToken);
 
-        private bool TryTakeFailure()
+        private static bool TryTakeFailure(ref int failuresLeft)
         {
             while (true)
             {
-                var left = Volatile.Read(ref _deliveredWriteFailuresLeft);
+                var left = Volatile.Read(ref failuresLeft);
 
                 if (left <= 0)
                 {
                     return false;
                 }
 
-                if (left == int.MaxValue || Interlocked.CompareExchange(ref _deliveredWriteFailuresLeft, left - 1, left) == left)
+                if (left == int.MaxValue || Interlocked.CompareExchange(ref failuresLeft, left - 1, left) == left)
                 {
                     return true;
                 }

@@ -52,6 +52,16 @@ high effort. When the catalog states the model's `MaxOutputTokens`,
 `POST /api/agents/validate` warns about a structured or high-effort agent left on
 the default.
 
+A response the model stopped because the conversation filled its context window
+(`model_context_window_exceeded`) is a cut-off answer too. The error message and
+the event's `cause` (`context_window`) name the window: shorten the conversation or
+use a model with a larger window; a larger `MaxOutputTokens` does not help.
+
+A turn the API paused (`pause_turn`, a long turn of its own server tools such as web
+search) is continued: the paused answer goes back as the API returned it, server
+tool blocks included, and the model goes on. Each call is billed and counted. A turn
+still paused after five continuations fails the call.
+
 ## Provider-specific settings
 
 Given per agent through the `ModelBinding.ProviderSettings` dictionary. **A key

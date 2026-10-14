@@ -168,7 +168,7 @@ internal sealed class VoiceConversationDriver
     /// </summary>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The transcriber and the synthesizer the connection uses.</returns>
-    /// <exception cref="TenantProviderRefusedException">The tenant's checks refuse one of the providers.</exception>
+    /// <exception cref="TraconTenantProviderRefusedException">The tenant's checks refuse one of the providers.</exception>
     /// <remarks>
     /// The endpoint calls this BEFORE it reserves a slot and upgrades the socket: a
     /// refused tenant sees an HTTP error, holds no slot, and no audio reaches a

@@ -1834,3 +1834,23 @@ sessizce bellekte kalır.
 - Geri alınca sınıf 8/8 yeşildir.
 
 **Durum:** koşulmadı; ➜ CI (mutasyon kanıtı kusur-giderme kaydında, 2026-09-23).
+
+---
+
+### MT-SQL-080 — SQL Server upsert'i deadlock kurbanı olunca işlemin tamamını yeniden koşar (kusur-giderme, 2026-10-14, F-430)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-986 |
+| **Devir** | ➜ CI: `UpsertDeadlockRetryTests` · `SqlTransactionSiteTests` · üç sağlayıcının sözleşme testleri |
+
+Regresyon. Eşzamanlı yazımda upsert `SqlException` 1205 ile ham düşüyordu.
+
+**Ön koşul** — SQL Server; deterministik döngü yalnız testte kurulur.
+
+**Beklenen sonuç**
+- Kurban upsert ikinci denemede yazar; değerler bir kez uygulanır (`101,101`).
+- `src/Tracon.Sql.Shared` altında yalnız gerekçeli dosyalar işlemi elle açar.

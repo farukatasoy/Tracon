@@ -2264,3 +2264,21 @@ birimindeki tutarları toplayıp tek etiket yazıyordu (1 USD + 1 EUR = "2 USD")
 - İstatistik `totalCost` ve `currency` `null`, `currencyCount` `2`, model dökümü maliyeti `null`.
 - Pano *mixed currencies* rozeti gösterir; kota satırı yalnız kökün kendi maliyetini sayar.
 - 🚨 Eski kusur: toplam iki tutarın toplamını tek para birimiyle gösterdi.
+
+---
+
+### MT-OBS-077 — Sütuna sığmayan tool ölçümü bildirilirken reddedilir (kusur-giderme, 2026-10-14, F-484)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-974 |
+| **Devir** | ➜ CI: `NonTokenSpendTests.A_tool_measurement_its_columns_cannot_hold_is_refused_when_it_is_reported` |
+
+Regresyon. Düğüm kalemi doğrulanıyordu, tool ölçümü doğrulanmıyordu: PostgreSQL
+ve SQL Server'da sığmayan değer insert'i düşürüyor, çağrının tüm kaydı kayboluyordu.
+
+**Beklenen sonuç**
+- 65 karakterlik birimle `TraconToolUsage.Report` `false` döner; çağrının kaydında ölçüm yok, run'ın token dışı toplamı boş.

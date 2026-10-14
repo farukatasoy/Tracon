@@ -97,10 +97,20 @@ internal abstract class SqlQueriesBase
     protected static string PricedCurrency(string? alias)
     {
         var prefix = alias is null ? string.Empty : $"{alias}.";
-        var priced = string.Join(" OR ", CostAddends.Select(addend => $"{prefix}{addend} IS NOT NULL"));
 
-        return $"CASE WHEN {priced} THEN UPPER({prefix}cost_currency) END";
+        return $"CASE WHEN {Priced(prefix)} IS NOT NULL THEN NULLIF(UPPER({prefix}cost_currency), '') END";
     }
+
+    /// <summary>A scalar that is NULL exactly when the row carries no token cost amount.</summary>
+    /// <param name="prefix">The alias with its dot, or empty.</param>
+    /// <returns>A <c>COALESCE</c> over <see cref="CostAddends"/>.</returns>
+    /// <remarks>
+    /// Kept short on purpose: the run list repeats it per tree column, and a SQLite command
+    /// converts its whole text to UTF-8 on every execution (measured on the
+    /// <c>QueryRuns</c> allocation benchmark).
+    /// </remarks>
+    private static string Priced(string prefix)
+        => $"COALESCE({string.Join(", ", CostAddends.Select(addend => prefix + addend))})";
 
     /// <summary>The currency of a row that carries a reported (non-token) amount, upper-cased; NULL otherwise.</summary>
     /// <param name="alias">The table alias, or <see langword="null"/> for none.</param>
@@ -109,7 +119,7 @@ internal abstract class SqlQueriesBase
     {
         var prefix = alias is null ? string.Empty : $"{alias}.";
 
-        return $"CASE WHEN {prefix}non_token_cost IS NOT NULL THEN UPPER({prefix}non_token_currency) END";
+        return $"CASE WHEN {prefix}non_token_cost IS NOT NULL THEN NULLIF(UPPER({prefix}non_token_currency), '') END";
     }
 
     /// <summary>
@@ -121,9 +131,8 @@ internal abstract class SqlQueriesBase
     protected static string CostCurrencyLabel(string? alias)
     {
         var prefix = alias is null ? string.Empty : $"{alias}.";
-        var priced = string.Join(" OR ", CostAddends.Select(addend => $"{prefix}{addend} IS NOT NULL"));
 
-        return $"COALESCE(MAX(CASE WHEN {priced} THEN {prefix}cost_currency END), MAX({prefix}cost_currency))";
+        return $"COALESCE(MAX(CASE WHEN {Priced(prefix)} IS NOT NULL THEN {prefix}cost_currency END), MAX({prefix}cost_currency))";
     }
 
     /// <summary>The reported (non-token) currency label of the current aggregate; see <see cref="CostCurrencyLabel"/>.</summary>
@@ -162,10 +171,11 @@ internal abstract class SqlQueriesBase
     /// share (<c>SqlRunStore.ReadTreeCost</c>). Counting the descendants' currencies alone
     /// could not say whether the own one is among them; leaving the own one out here
     /// makes the tree's count this value plus one when the run carries an amount.
+    /// <c>NULLIF</c> drops the own currency; with no own currency it compares to an empty
+    /// label, which no row carries: an empty label is not a currency anywhere.
     /// </remarks>
     protected static string DescendantCurrencyCount(Func<string?, string> currency, string descendant, string ownCurrency)
-        => $"COUNT(DISTINCT CASE WHEN {ownCurrency} IS NULL OR {currency(descendant)} <> {ownCurrency} " +
-           $"THEN {currency(descendant)} END)";
+        => $"COUNT(DISTINCT NULLIF({currency(descendant)}, COALESCE({ownCurrency}, '')))";
 
     /// <summary>Counts the rows in which any of <paramref name="columns"/> is not null.</summary>
     /// <param name="columns">The columns to test.</param>

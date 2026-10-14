@@ -233,7 +233,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
 
     /// <summary>Applies the tenant's egress policy and resolves its own credential.</summary>
     /// <returns>The tenant's credential, or <see langword="null"/> for the provider's configured one.</returns>
-    /// <exception cref="TenantProviderRefusedException">The tenant's checks refuse the provider.</exception>
+    /// <exception cref="TraconTenantProviderRefusedException">The tenant's checks refuse the provider.</exception>
     private async ValueTask<ModelProviderCredential?> AuthorizeAsync(
         string noun,
         string providerName,
@@ -248,25 +248,16 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
 
             if (!TenantProviderAccess.IsAllowed(policy, providerName))
             {
-                throw new TenantProviderRefusedException(
+                throw new TraconTenantProviderRefusedException(
                     TenantProviderAccess.DescribeDenial(policy!, tenantId, providerName, TenantProviderCallKind.Speech));
             }
         }
 
-        ModelProviderCredential? credential;
-
-        try
-        {
-            credential = await TenantProviderAccess
-                .ResolveCredentialAsync(_providerBindings, _credentialResolver, tenantId, providerName, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (TraconException exception)
-        {
-            // A binding whose key has no value: the call does not fall back to the
-            // setup key either.
-            throw new TenantProviderRefusedException(exception.Message);
-        }
+        // A binding whose key has no value is refused there: the call does not fall
+        // back to the setup key either.
+        var credential = await TenantProviderAccess
+            .ResolveCredentialAsync(_providerBindings, _credentialResolver, tenantId, providerName, cancellationToken)
+            .ConfigureAwait(false);
 
         if (credential is null)
         {
@@ -275,7 +266,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
 
         if (!supportsTenantCredentials)
         {
-            throw new TenantProviderRefusedException(
+            throw new TraconTenantProviderRefusedException(
                 $"Tenant '{tenantId}' has its own credential for '{providerName}', and the speech {noun} " +
                 "cannot use it. The call is not made on the setup credential.");
         }
@@ -285,7 +276,7 @@ internal sealed class SpeechProviderResolver : ISpeechProviderResolver
         // the tenant's key sent to an address the tenant did not choose.
         if (credential.Endpoint is { Length: > 0 })
         {
-            throw new TenantProviderRefusedException(
+            throw new TraconTenantProviderRefusedException(
                 $"Tenant '{tenantId}' has a '{providerName}' binding with an endpoint override. A speech {noun} " +
                 "calls its configured address and cannot honour that override, so the call is not made.");
         }

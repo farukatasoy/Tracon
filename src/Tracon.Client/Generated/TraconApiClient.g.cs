@@ -12643,7 +12643,7 @@ namespace Tracon.Client.Generated
         /// Lists the available voices.
         /// </summary>
         /// <remarks>
-        /// The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent's 'speak' tool accept. The optional 'provider' query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant's egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address.
+        /// The list comes from the speech provider, not from Tracon; the identifiers it returns are the values the speak endpoint and the agent's 'speak' tool accept. The optional 'provider' query parameter names a synthesizer registered with AddSpeechSynthesizer; without it the default synthesizer is used. Returns 400 for an unknown name, and 403 when the tenant's egress policy does not allow the provider or the tenant has its own credential that the provider cannot use. When no default synthesizer is registered (UseVoice() was never called), the response is 501 rather than 404, so a missing configuration is not mistaken for a wrong address. A provider that fails while listing its voices is 502, as for the speak endpoint.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -12730,6 +12730,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 502)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Gateway", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         {
@@ -24240,6 +24250,9 @@ namespace Tracon.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"OutputTruncated")]
         OutputTruncated = 15,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"TenantProviderRefused")]
+        TenantProviderRefused = 16,
 
     }
 
