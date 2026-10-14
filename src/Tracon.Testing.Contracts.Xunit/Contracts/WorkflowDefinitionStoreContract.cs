@@ -219,6 +219,43 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     }
 
     [Fact]
+    public async Task The_request_timeout_survives_the_round_trip()
+    {
+        // Added in phase 209: the hand-written DTO trap a fourth time. A limit the payload
+        // dropped would read back as none, and every request of the workflow would wait for
+        // good with nothing failing: the rows the engine writes take their expiry from it.
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "approval",
+            Kind = WorkflowKind.Magentic,
+            ManagerAgentName = "manager",
+            AgentNames = ["writer"],
+            RequirePlanApproval = true,
+            RequestTimeout = TimeSpan.FromHours(6),
+        });
+
+        (await Store.GetAsync("tenant-a", "approval"))!.RequestTimeout.ShouldBe(TimeSpan.FromHours(6));
+        (await Store.ListAsync("tenant-a")).Single().RequestTimeout.ShouldBe(TimeSpan.FromHours(6));
+        (await Store.GetVersionAsync("tenant-a", "approval", 1))!.RequestTimeout.ShouldBe(TimeSpan.FromHours(6));
+
+        // A save replaces the definition (K-725): a version saved without the limit has none,
+        // and going back to the first version brings the limit back.
+        await Store.SaveAsync("tenant-a", new WorkflowDefinition
+        {
+            Name = "approval",
+            Kind = WorkflowKind.Magentic,
+            ManagerAgentName = "manager",
+            AgentNames = ["writer"],
+            RequirePlanApproval = true,
+        });
+
+        (await Store.GetAsync("tenant-a", "approval"))!.RequestTimeout.ShouldBeNull();
+        (await Store.GetVersionAsync("tenant-a", "approval", 1))!.RequestTimeout.ShouldBe(TimeSpan.FromHours(6));
+        (await Store.RollbackAsync("tenant-a", "approval", 1)).RequestTimeout.ShouldBe(TimeSpan.FromHours(6));
+        (await Store.GetAsync("tenant-a", "approval"))!.RequestTimeout.ShouldBe(TimeSpan.FromHours(6));
+    }
+
+    [Fact]
     public async Task Saving_again_without_timeouts_clears_them()
     {
         // A save replaces the definition (K-725): a field the request leaves out is

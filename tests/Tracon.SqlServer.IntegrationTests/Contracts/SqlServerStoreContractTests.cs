@@ -608,6 +608,24 @@ public sealed class SqlServerWorkflowRequestStoreContractTests(SqlServerSchemaFi
         });
 
     /// <summary>
+    /// A run waits when its row says so: the stranded-run case needs a run that is
+    /// <c>AwaitingInput</c>, which the inbox row alone does not make.
+    /// </summary>
+    /// <inheritdoc />
+    protected override async ValueTask<bool> SetRunStatusAsync(Guid runId, string tenantId, RunStatus status)
+    {
+        await schema.Context.Runs.CompleteRunAsync(new RunCompletion
+        {
+            RunId = runId,
+            Status = status,
+            CompletedAt = DateTimeOffset.UtcNow,
+            TenantId = tenantId,
+        });
+
+        return true;
+    }
+
+    /// <summary>
     /// Erases through the data subject store: the measurement that the run's cascade
     /// reaches <c>workflow_requests</c> with no target of its own.
     /// </summary>

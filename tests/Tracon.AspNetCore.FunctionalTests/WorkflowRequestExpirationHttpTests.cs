@@ -72,7 +72,7 @@ public sealed class WorkflowRequestExpirationHttpTests
         var (runId, _) = await RunToAwaitAsync(host, Open);
 
         clock.Advance(TimeSpan.FromDays(3650));
-        await Task.Delay(400);
+        await Task.Delay(400); // delay: negative
 
         (await RunAsync(host, runId)).GetProperty("status").GetString().ShouldBe("AwaitingInput");
         (await ListAsync(host)).ShouldHaveSingleItem();
@@ -155,6 +155,86 @@ public sealed class WorkflowRequestExpirationHttpTests
         // The run started after the edit has ten days.
         (await RunAsync(host, second.RunId)).GetProperty("status").GetString().ShouldBe("AwaitingInput");
         (await ListAsync(host)).ShouldHaveSingleItem().GetProperty("runId").GetGuid().ShouldBe(second.RunId);
+    }
+
+    [Fact]
+    public async Task A_run_left_waiting_by_a_process_that_stopped_after_closing_its_row_is_closed_by_the_next_process()
+    {
+        using var database = new TempSqliteDatabase("request-expiry-restart");
+        var clock = new ManualTimeProvider();
+        Guid runId;
+
+        // The first process scans once an hour, so it does nothing during the case. It closes the
+        // row the way a scan does and stops before it closes the run: a closed row is never found
+        // by the expiry again, and nothing in memory remembers the run.
+        await using (var first = await StartAsync(clock: clock, configureTracon: builder => UseSqliteAndSlowScan(builder, database)))
+        {
+            (runId, _) = await RunToAwaitAsync(first, Timed);
+
+            clock.Advance(PastTheLimit);
+
+            var inbox = first.Services.GetRequiredService<IWorkflowRequestStore>();
+
+            (await inbox.ExpireAsync(clock.GetUtcNow(), max: 100)).ShouldHaveSingleItem();
+            (await RunAsync(first, runId)).GetProperty("status").GetString().ShouldBe("AwaitingInput");
+        }
+
+        // The next process takes the lease, looks for runs a stopped process left, and closes this one.
+        await using var second = await StartAsync(clock: new ManualTimeProvider(), configureTracon: builder => builder.UseSqlite(database.ConnectionString));
+
+        await second.WaitForRunStatusAsync(runId, "Failed");
+
+        var run = await RunAsync(second, runId);
+
+        run.GetProperty("error").GetProperty("type").GetString().ShouldBe("WorkflowRequestExpired");
+        run.GetProperty("eventCount").GetInt64().ShouldBeGreaterThan(0);
+        (await ListAsync(second, "state=all")).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task An_answer_that_arrives_after_the_row_closed_and_before_the_run_did_is_taken_and_the_run_is_then_closed_as_expired()
+    {
+        // The two writes of an expiry (the row, then the run) leave a window. An answer that comes
+        // in it passes the check "the run still waits" and starts its work; the row is closed, so
+        // the answer cannot mark it. When the run is closed, nothing on it says it was answered.
+        using var database = new TempSqliteDatabase("request-expiry-window");
+        var clock = new ManualTimeProvider();
+        Guid runId;
+        Guid answerRun;
+
+        await using (var first = await StartAsync(clock: clock, configureTracon: builder => UseSqliteAndSlowScan(builder, database)))
+        {
+            string requestId;
+            (runId, requestId) = await RunToAwaitAsync(first, Timed);
+
+            clock.Advance(PastTheLimit);
+
+            var inbox = first.Services.GetRequiredService<IWorkflowRequestStore>();
+
+            (await inbox.ExpireAsync(clock.GetUtcNow(), max: 100)).ShouldHaveSingleItem();
+
+            answerRun = await AnswerAsync(first, runId, requestId);
+
+            (await first.WaitForTerminalRunAsync(answerRun)).Status.ShouldBe(RunStatus.Completed);
+
+            var row = (await inbox.ListByRunAsync(runId)).ShouldHaveSingleItem();
+
+            row.Status.ShouldBe(WorkflowRequestStatus.Closed);
+            row.AnsweredAt.ShouldBeNull();
+        }
+
+        await using var second = await StartAsync(clock: new ManualTimeProvider(), configureTracon: builder => builder.UseSqlite(database.ConnectionString));
+
+        await second.WaitForRunStatusAsync(runId, "Failed");
+
+        (await RunAsync(second, runId)).GetProperty("error").GetProperty("type").GetString().ShouldBe("WorkflowRequestExpired");
+        (await RunAsync(second, answerRun)).GetProperty("status").GetString().ShouldBe("Completed");
+    }
+
+    private static void UseSqliteAndSlowScan(ITraconBuilder builder, TempSqliteDatabase database)
+    {
+        builder.UseSqlite(database.ConnectionString);
+        builder.UseWorkflows(static options => options.RequestExpirationScanInterval = TimeSpan.FromHours(1));
     }
 
     [Fact]

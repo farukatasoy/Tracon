@@ -1727,6 +1727,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // returns nothing. There is NO tenant filter -- this is a maintenance operation.
         SelectWorkflowRequests = BuildSelectWorkflowRequests("OFFSET @skip LIMIT @take;");
 
+        SelectStrandedWorkflowRequests = BuildSelectStrandedWorkflowRequests("", "LIMIT @max;");
+
         ExpireWorkflowRequests = $"""
             UPDATE {Schema}.workflow_requests AS w
                SET status = @status_closed, closed_at = @now

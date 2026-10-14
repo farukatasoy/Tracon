@@ -39,6 +39,16 @@ public abstract class WorkflowRequestStoreContract : TenantIsolationContract<IWo
     /// </returns>
     protected virtual ValueTask<bool> EraseRunAsync(Guid runId, string tenantId) => new(false);
 
+    /// <summary>Gives a run the status a run has when it stops waiting, or starts to.</summary>
+    /// <param name="runId">The run, opened by <see cref="PrepareRunAsync"/>.</param>
+    /// <param name="tenantId">The run's tenant.</param>
+    /// <param name="status">The status to give.</param>
+    /// <returns>
+    /// <see langword="true"/> when the run now has the status; <see langword="false"/> when the
+    /// store under test has no run table, and the cases that need a waiting run do not apply.
+    /// </returns>
+    protected virtual ValueTask<bool> SetRunStatusAsync(Guid runId, string tenantId, RunStatus status) => new(false);
+
     /// <inheritdoc />
     protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
@@ -513,6 +523,88 @@ public abstract class WorkflowRequestStoreContract : TenantIsolationContract<IWo
 
         closed.Count.ShouldBe(Rows);
         closed.Distinct(StringComparer.Ordinal).Count().ShouldBe(Rows);
+    }
+
+    [Fact]
+    public async Task A_run_that_still_waits_after_its_last_row_closed_is_listed_as_stranded()
+    {
+        var stranded = await RunAsync(TenantA, "session-1");
+        var otherTenant = await RunAsync(TenantB, "session-2");
+
+        if (!await SetRunStatusAsync(stranded, TenantA, RunStatus.AwaitingInput) ||
+            !await SetRunStatusAsync(otherTenant, TenantB, RunStatus.AwaitingInput))
+        {
+            // Rows and runs do not outlive the process together here: nothing can be stranded.
+            (await Store.ListStrandedAsync(max: 100)).ShouldBeEmpty();
+            return;
+        }
+
+        await Store.AddAsync([Row(TenantA, stranded, "session-1", "request-1", Now) with { ExpiresAt = Now.AddHours(1) }]);
+        await Store.AddAsync([Row(TenantB, otherTenant, "session-2", "request-2", Now) with { ExpiresAt = Now.AddHours(1) }]);
+
+        // Open rows are not stranded: the run waits on them.
+        (await Store.ListStrandedAsync(max: 100)).ShouldBeEmpty();
+
+        await Store.ExpireAsync(Now.AddHours(2), max: 100);
+
+        // The process stopped here: the rows are closed, the runs still wait. Across tenants, like the expiry.
+        var listed = await Store.ListStrandedAsync(max: 100);
+
+        listed.Select(static row => row.RunId).Order().ShouldBe(new[] { stranded, otherTenant }.Order());
+        listed.ShouldAllBe(static row => row.Status == WorkflowRequestStatus.Closed);
+        listed.Single(row => row.RunId == stranded).TenantId.ShouldBe(TenantA);
+        listed.Single(row => row.RunId == otherTenant).TenantId.ShouldBe(TenantB);
+    }
+
+    [Fact]
+    public async Task A_run_that_is_closed_or_has_an_open_row_is_not_stranded()
+    {
+        var closedRun = await RunAsync(TenantA, "session-1");
+        var openSibling = await RunAsync(TenantA, "session-2");
+
+        if (!await SetRunStatusAsync(closedRun, TenantA, RunStatus.AwaitingInput) ||
+            !await SetRunStatusAsync(openSibling, TenantA, RunStatus.AwaitingInput))
+        {
+            return;
+        }
+
+        await Store.AddAsync([Row(TenantA, closedRun, "session-1", "request-1", Now) with { ExpiresAt = Now.AddHours(1) }]);
+        await Store.AddAsync(
+        [
+            Row(TenantA, openSibling, "session-2", "request-2", Now) with { ExpiresAt = Now.AddHours(1) },
+            Row(TenantA, openSibling, "session-2", "request-3", Now) with { ExpiresAt = Now.AddDays(1) },
+        ]);
+
+        await Store.ExpireAsync(Now.AddHours(2), max: 100);
+
+        // One run still has an open request; the other was closed the way the expiry service closes it.
+        (await SetRunStatusAsync(closedRun, TenantA, RunStatus.Failed)).ShouldBeTrue();
+        (await Store.ListStrandedAsync(max: 100)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Stranded_runs_are_listed_oldest_closure_first_and_no_more_than_max()
+    {
+        var runIds = new List<Guid>();
+
+        for (var i = 0; i < 3; i++)
+        {
+            var runId = await RunAsync(TenantA, $"session-{i}");
+            runIds.Add(runId);
+
+            if (!await SetRunStatusAsync(runId, TenantA, RunStatus.AwaitingInput))
+            {
+                return;
+            }
+
+            await Store.AddAsync([Row(TenantA, runId, $"session-{i}", $"request-{i}", Now) with { ExpiresAt = Now.AddMinutes(10 + i) }]);
+
+            // Closed one round apart, so the closure order is the write order.
+            await Store.ExpireAsync(Now.AddMinutes(10 + i), max: 100);
+        }
+
+        (await Store.ListStrandedAsync(max: 2)).Select(static row => row.RunId).ShouldBe([runIds[0], runIds[1]]);
+        (await Store.ListStrandedAsync(max: 0)).ShouldBeEmpty();
     }
 
     [Fact]

@@ -858,7 +858,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the list. **Behavior change:** `requests` joins `functions` as a workflow name that cannot be
   saved, because `GET /api/workflows/requests` matches before `GET /api/workflows/{name}`.
 - `Tracon.Testing.Contracts.Xunit`: `WorkflowRequestStoreContract` for `IWorkflowRequestStore`, the
-  seam behind the list; a custom store passes it the way it passes the other store contracts.
+  seam behind the list; a custom store passes it the way it passes the other store contracts. The
+  request store also lists the runs a stopped process left waiting
+  (`IWorkflowRequestStore.ListStrandedAsync`): the scan closes a request before its run, and the
+  instance that takes the scan lease next closes the runs whose requests were closed and which
+  still wait. `WorkflowDefinitionStoreContract` gains `The_request_timeout_survives_the_round_trip`;
+  a custom `IWorkflowDefinitionStore` that keeps its own copy of a definition must carry
+  `RequestTimeout`.
 - One answer per workflow request. `WorkflowResponseMode` (`Branch`, the default, and
   `SingleAnswer`) is set on a stored definition (`WorkflowDefinition.ResponseMode`,
   `responseMode` on `PUT /api/workflows/{name}`) or on a workflow defined in code with the

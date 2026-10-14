@@ -351,6 +351,9 @@ public sealed class WorkflowRequestInboxTests
 
         public ValueTask<IReadOnlyList<WorkflowRequestRecord>> ExpireAsync(DateTimeOffset now, int max, CancellationToken cancellationToken = default)
             => inner.ExpireAsync(now, max, cancellationToken);
+
+        public ValueTask<IReadOnlyList<WorkflowRequestRecord>> ListStrandedAsync(int max, CancellationToken cancellationToken = default)
+            => inner.ListStrandedAsync(max, cancellationToken);
     }
 
     private sealed class UnreadableInbox(IWorkflowRequestStore inner) : IWorkflowRequestStore
@@ -369,5 +372,8 @@ public sealed class WorkflowRequestInboxTests
 
         public ValueTask<IReadOnlyList<WorkflowRequestRecord>> ExpireAsync(DateTimeOffset now, int max, CancellationToken cancellationToken = default)
             => inner.ExpireAsync(now, max, cancellationToken);
+
+        public ValueTask<IReadOnlyList<WorkflowRequestRecord>> ListStrandedAsync(int max, CancellationToken cancellationToken = default)
+            => inner.ListStrandedAsync(max, cancellationToken);
     }
 }
