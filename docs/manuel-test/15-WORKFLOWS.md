@@ -3216,7 +3216,7 @@ karşılığı `curl` ile koşulur. Otomatik karşılığı: `WorkflowVersionEnd
 | **İzlek** | A |
 | **Önem** | Yüksek |
 | **İlgili faz** | 200 |
-| **İlgili karar** | K-982 |
+| **İlgili karar** | K-987 |
 
 **Ön koşul** — Örnek uygulama SQLite ile ayakta; `word-count` fonksiyonu kayıtlı; `scribe` adlı ve `proof` adlı iki stored agent (Echo sağlayıcı, `echo-instructions-1` modeli).
 
@@ -3240,7 +3240,7 @@ Otomatik karşılığı: `WorkflowVersionEndpointTests` · `WorkflowRollbackTest
 | **İzlek** | A |
 | **Önem** | Yüksek |
 | **İlgili faz** | 200 |
-| **İlgili karar** | K-982 |
+| **İlgili karar** | K-987 |
 
 **Ön koşul** — MT-WF-150'deki `pinned-demo` (sürüm 1 ve 2).
 
@@ -3266,7 +3266,7 @@ Otomatik karşılığı: `WorkflowStructuralChangeResumeTests` · `WorkflowResum
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 200 |
-| **İlgili karar** | K-983 |
+| **İlgili karar** | K-988 |
 
 **Ön koşul** — `pinned-demo` sürüm 1 (iki düğüm: `scribe` sabitli, `word-count`) ile koşturulmuş ve tamamlanmış bir run (`$RID`, ilk checkpoint'i `$CP`); sonra `proof` adımı eklenerek sürüm 2 kaydedilmiş (MT-WF-150 sırası, run'ı 1. ve 2. kayıt arasında koş).
 
@@ -3289,7 +3289,7 @@ Sınır senaryosu. Otomatik karşılığı: `WorkflowResumeVersionHttpTests` ·
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 200 |
-| **İlgili karar** | K-983 |
+| **İlgili karar** | K-988 |
 
 **Ön koşul** — MT-WF-152'deki `$RID` ve `$CP`.
 
@@ -3313,7 +3313,7 @@ Otomatik karşılığı: `WorkflowAgentVersionPinTests` · `WorkflowNodeAgentVer
 | **İzlek** | A |
 | **Önem** | Yüksek |
 | **İlgili faz** | 200 |
-| **İlgili karar** | K-984 |
+| **İlgili karar** | K-989 |
 
 **Ön koşul** — `scribe` iki sürümlü (1: `SCRIBE-ALPHA: write one line.`, 2: `SCRIBE-BETA: write two lines.`); `proof` stored agent; `podcast-writer` kodda tanımlı.
 
@@ -3337,7 +3337,7 @@ Otomatik karşılığı: `WorkflowDefinitionStoreContract.Deleting_keeps_the_his
 | **İzlek** | B |
 | **Önem** | Orta |
 | **İlgili faz** | 200 |
-| **İlgili karar** | K-982 |
+| **İlgili karar** | K-987 |
 
 **Ön koşul** — MT-WF-151 sonrası `pinned-demo`, sürüm 3.
 

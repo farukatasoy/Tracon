@@ -195,7 +195,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `conversations` | Konuşma başlığı; `PostgresChatHistoryProvider` yazar |
 | `conversation_items` | Konuşma mesajları, sıralı (**`json`**) |
 | `responses` | **Boş.** `/v1/responses` ve `/v1/conversations` durumu `sessions` tablosunda tutulur (K-036, K-043); ayrı bir yanıt kaydı yazılmadı |
-| `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet; token dışı harcamanın dört snapshot sütunu (`non_token_*`, K-974). Workflow kök satırında `agent_version` derlenen **tanım sürümüdür** (kod workflow'unda NULL, K-983) |
+| `runs` | Çalıştırma özeti: agent, oturum, durum, token, süre, maliyet; token dışı harcamanın dört snapshot sütunu (`non_token_*`, K-974). Workflow kök satırında `agent_version` derlenen **tanım sürümüdür** (kod workflow'unda NULL, K-988) |
 | `run_events` | Append-only olay akışı, `(run_id, seq)` birincil anahtar |
 | `tool_invocations` | Tool çağrıları: ad, argüman, sonuç, süre, hata; tool'un bildirdiği ölçüm ve sağlayıcı/model |
 | `run_non_token_usage` | Workflow fonksiyon düğümünün bildirdiği her token dışı kalem (birim, miktar, tutar, düğüm adı); run silinince cascade (K-974) |
@@ -204,7 +204,7 @@ yazılırsa aynı satır güncellenir, tekrar kaydı oluşmaz.
 | `attachments` | Yüklenen ek ustverisi + ikili içerik (`bytea`); `session_id` FK **değil** (K-112) |
 | `agent_files` | Kalıcı `AgentFileStore`: agent başına yol→metin çifti |
 | `workflows` | Arayüzden tanımlanan workflow grafının güncel hali (`jsonb`); `version` = geçmişteki en büyük numara |
-| `workflow_definition_versions` | Workflow tanımının değişmez sürüm geçmişi, anahtar `(tenant_id, name, version)`, **`workflows`'a yabancı anahtarı YOK**: silme geçmişi silmez ve numara yeniden verilmez (K-982). Kayıt iki satırı tek işlemde yazar |
+| `workflow_definition_versions` | Workflow tanımının değişmez sürüm geçmişi, anahtar `(tenant_id, name, version)`, **`workflows`'a yabancı anahtarı YOK**: silme geçmişi silmez ve numara yeniden verilmez (K-987). Kayıt iki satırı tek işlemde yazar |
 | `workflow_checkpoints` | Yürütme kontrol noktaları — durum **`json`**, `jsonb` değil (K-121); `state_schema_version`/`state_maf_version` NULL = Faz 126 öncesi satır (K-649) |
 | `job_schedules` | Zamanlama tanımı: cron, saat dilimi, yük, etkin/pasif |
 | `jobs` | Kuyruktaki iş: durum, kira, deneme sayısı, ilerleme sayaçları |
@@ -301,7 +301,7 @@ kuyruğu + `202`; işçi alınca diyagram normal işler (K-304). Workflow'un `ru
 `resume` ve `respond` uçları aynı yolu `tracon.workflow-run` işiyle izler (K-924);
 kesilen workflow run'ını yalnız onu başlatan iş, yeniden kiralandığında son
 checkpoint'ten sürdürür (K-923, K-927). `resume`/`respond` kaynak run'ın damgaladığı
-tanım sürümünü derler; başka sürümü `definitionVersion` seçer (K-983). Kök çalıştırma onay
+tanım sürümünü derler; başka sürümü `definitionVersion` seçer (K-988). Kök çalıştırma onay
 isteyerek biterse `AwaitingApproval` ile kapanır ve bir daha DEĞİŞMEZ (K-014);
 karar YENİ bir çalıştırma açar (K-368) — bkz. §7.
 
