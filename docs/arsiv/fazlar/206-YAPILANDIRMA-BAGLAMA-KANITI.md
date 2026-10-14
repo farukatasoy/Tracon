@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 — kapsam kararı sohbette alındı (22 tipin tamamı + IdempotencyKeys + okunamayan değerin açılışta hatası) ve Faz 205 ile paralel başlatma onaylandı; plan metni sohbette okunmadı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-247**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-247**
 > **Genellik:** İlk ilke: belgelenen ama bağlanmayan bir anahtar bir sözleşme ihlalidir. Yapılandırma dosyası ya da ortam değişkeni kullanan her tüketici etkilenir. İş tüketici kodunda kalamaz, çünkü bağlayıcıyı yalnız Tracon yazar. Ölçülen iki vaka var: `TraconImageOptions.Timeout` (`HATA-S1-010`) ve bu planın ölçtüğü `TraconRetentionOptions.IdempotencyKeys` (§206.3). Kalem bir sözleşme ihlali sınıfıdır, bu yüzden § *Tüketici geri bildirimi kuralı*'ndan muaftır
 > **Karşı görüş:** "Bağlayıcılar küçüktür ve gözle denetlenebilir. 22 test sınıfı bakım yükü ekler. Okunamayan değerde açılışı durdurmak, yazım hatası olan tüketicinin uygulamasını yükseltmeden sonra açılmaz yapar." Cevap: gözle denetim aynı sınıfı beş kez kaçırdı (`RecordRunInput` K-406, `IncludeAgentVersionTag`, `McpTimeout` K-253, F-385 lane koleksiyonları, F-416 Knowledge) ve altıncısı bu planın ölçümünde çıktı. Test maliyeti tip başına bir kezdir; ratchet yeni bölümü zaten zorlar. Açılıştaki hata anahtarı adlandırır. Bugünkü sessiz varsayılan ise hatayı üretime taşır: PII maskeleme kapanır, korunması istenen bir sütun korumasız kalır. Davranış değişikliği `CHANGELOG`'da adıyla yazılır
 > **Önkoşul:** Yok. Faz 205'in kirli dosya kümesine dokunmaz: `AgentRunBudget.cs`, `QuotaEnforcer.cs`, `src/Tracon.Core/Recording/*`, `WorkflowRunner.cs`, `QuotaStoreContract.cs`, `IQuotaRecorder.cs`. Faz 205 ile paralel koşabilir. Paylaşılan dosyalar yalnız birleştirmede çakışabilir (§ *Riskler*)
@@ -29,9 +29,9 @@
    **K-735** ve **K-934** (`Columns` varsayılanı bütün `ProtectedColumn` üyeleridir; üye sayısı 12)
 3. Önceki faz devri: yok. Kalemin öncülleri faz dışı kusur gidermedir (F-385 lane koleksiyonları, F-416 Knowledge). Tuzakları alan hafızasındadır (madde 4)
 4. Alan hafızası:
-   [`hafiza/secenek-baglama-ve-gizlilik.md`](hafiza/secenek-baglama-ve-gizlilik.md) — yalnız § *Seçenek bağlama* (satır 16-31). Üç not doğrudan bu fazın kuralıdır: satır 21 (`ValidateOnStart` olmadan doğrulayıcı tembeldir), satır 30 (F-385: okunamayan koleksiyon değeri doğrulayıcıya ulaşır), satır 31 (F-416: "bu bölümden okunur" diyen sınıf bağlanmamış olabilir) ·
-   [`hafiza/icerik-koruma-ve-saglayici-kayit.md`](hafiza/icerik-koruma-ve-saglayici-kayit.md) (yalnız §206.4'ün `ContentProtection`/`ContentGuard` satırlarına dokunurken)
-5. Gerektiğinde: [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md) (35 satır; §206.1'in seviye gerekçesi ona dayanır)
+   [`hafiza/secenek-baglama-ve-gizlilik.md`](../../hafiza/secenek-baglama-ve-gizlilik.md) — yalnız § *Seçenek bağlama* (satır 16-31). Üç not doğrudan bu fazın kuralıdır: satır 21 (`ValidateOnStart` olmadan doğrulayıcı tembeldir), satır 30 (F-385: okunamayan koleksiyon değeri doğrulayıcıya ulaşır), satır 31 (F-416: "bu bölümden okunur" diyen sınıf bağlanmamış olabilir) ·
+   [`hafiza/icerik-koruma-ve-saglayici-kayit.md`](../../hafiza/icerik-koruma-ve-saglayici-kayit.md) (yalnız §206.4'ün `ContentProtection`/`ContentGuard` satırlarına dokunurken)
+5. Gerektiğinde: [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md) (35 satır; §206.1'in seviye gerekçesi ona dayanır)
 
 ---
 
@@ -52,16 +52,16 @@ uygulanır ya da uygulama açılırken anahtarı adıyla söyler.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`OptionsSectionCoverageTests.cs:39-48`](../tests/Tracon.Core.UnitTests/Configuration/OptionsSectionCoverageTests.cs) | Ratchet yalnız **ada** bakar: assembly'de adı `{Tip}BindingTests` olan herhangi bir tip yeter. Boş bir sınıf listeden çıkarır |
-| [`options-section-coverage-baseline.txt:12-33`](../tests/Tracon.Core.UnitTests/Configuration/options-section-coverage-baseline.txt) | 22 tip testsiz kayıtlıdır. Aday metnindeki "24" bayattır: `6466aebb` Scheduling'i, `1c78f6fe` Knowledge'ı listeden çıkardı |
-| [`TraconRetentionOptions.cs:82`](../src/Tracon.Core/Retention/TraconRetentionOptions.cs), `:129` | `IdempotencyKeys` hedefi tanımlıdır ve `ForTarget` onu döndürür |
-| [`TraconServiceCollectionExtensions.Binding.Security.cs:363-381`](../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs) | `BindRetention` 16 hedeften 15'ini okur, `IdempotencyKeys` yoktur. `Tracon:Retention:IdempotencyKeys:*` sessizce yok sayılır. Bu, `:375`'teki HATA-S1-005 yorumunun anlattığı sınıfın yeni bir vakasıdır |
-| [`configuration.md:531-533`](../docs-site/src/content/docs/reference/configuration.md) | Site boşluğu belgeler ama çözüm olarak `Configure(TraconOptions)` yazar. `TraconOptions`'ta Retention yoktur (`grep -c Retention src/Tracon.Core/TraconOptions.cs` → 0) |
-| [`…Binding.Operations.cs:203-205`](../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Operations.cs) | `ThresholdPercents`'teki `"abc"`, `"0"` ve `"-5"` sessizce düşer. Bu yüzden [`TraconQuotaOptionsValidator.cs:46`](../src/Tracon.Core/Quotas/TraconQuotaOptionsValidator.cs)'daki `<= 0` dalına yapılandırmadan ulaşılamaz |
-| [`…Binding.Security.cs:316-318`](../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs) | `RetryDelays`'te aynı şekil vardır. [`TraconWebhookOptionsValidator.cs:55`](../src/Tracon.Core/Webhooks/TraconWebhookOptionsValidator.cs)'teki `<= Zero` dalına ulaşılamaz |
-| [`…Binding.Security.cs:208`](../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs), `:223` | `Keys`'teki boş değer atlanır. `Columns`'taki bilinmeyen ad atlanır; yorum (`:179-184`) bunu bilinçli diye yazar. `["RunInput","Typo"]` yazılırsa yalnız `RunInput` korunur |
-| [`…Binding.Security.cs:167`](../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs) | `MaskedPii`'deki bir yazım hatası (`"Emial,CreditCard"`) `Enum.TryParse`'ı **tümüyle** düşürür, değer `None` kalır ve PII maskeleme kapanır. `PatternContentGuardOptions`'ın doğrulayıcısı yoktur |
-| [`TraconSchedulingOptionsValidator.cs`](../src/Tracon.Core/Scheduling/TraconSchedulingOptionsValidator.cs) (`BindSchedulingCollections`, `…Binding.Operations.cs:88-140`) | **Emsal.** F-385 okunamayan değeri `0` olarak bağlar. Doğrulayıcı koleksiyonları `Enabled`'dan bağımsız denetler |
+| [`OptionsSectionCoverageTests.cs:39-48`](../../../tests/Tracon.Core.UnitTests/Configuration/OptionsSectionCoverageTests.cs) | Ratchet yalnız **ada** bakar: assembly'de adı `{Tip}BindingTests` olan herhangi bir tip yeter. Boş bir sınıf listeden çıkarır |
+| [`options-section-coverage-baseline.txt:12-33`](../../../tests/Tracon.Core.UnitTests/Configuration/options-section-coverage-baseline.txt) | 22 tip testsiz kayıtlıdır. Aday metnindeki "24" bayattır: `6466aebb` Scheduling'i, `1c78f6fe` Knowledge'ı listeden çıkardı |
+| [`TraconRetentionOptions.cs:82`](../../../src/Tracon.Core/Retention/TraconRetentionOptions.cs), `:129` | `IdempotencyKeys` hedefi tanımlıdır ve `ForTarget` onu döndürür |
+| [`TraconServiceCollectionExtensions.Binding.Security.cs:363-381`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs) | `BindRetention` 16 hedeften 15'ini okur, `IdempotencyKeys` yoktur. `Tracon:Retention:IdempotencyKeys:*` sessizce yok sayılır. Bu, `:375`'teki HATA-S1-005 yorumunun anlattığı sınıfın yeni bir vakasıdır |
+| [`configuration.md:531-533`](../../../docs-site/src/content/docs/reference/configuration.md) | Site boşluğu belgeler ama çözüm olarak `Configure(TraconOptions)` yazar. `TraconOptions`'ta Retention yoktur (`grep -c Retention src/Tracon.Core/TraconOptions.cs` → 0) |
+| [`…Binding.Operations.cs:203-205`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Operations.cs) | `ThresholdPercents`'teki `"abc"`, `"0"` ve `"-5"` sessizce düşer. Bu yüzden [`TraconQuotaOptionsValidator.cs:46`](../../../src/Tracon.Core/Quotas/TraconQuotaOptionsValidator.cs)'daki `<= 0` dalına yapılandırmadan ulaşılamaz |
+| [`…Binding.Security.cs:316-318`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs) | `RetryDelays`'te aynı şekil vardır. [`TraconWebhookOptionsValidator.cs:55`](../../../src/Tracon.Core/Webhooks/TraconWebhookOptionsValidator.cs)'teki `<= Zero` dalına ulaşılamaz |
+| [`…Binding.Security.cs:208`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs), `:223` | `Keys`'teki boş değer atlanır. `Columns`'taki bilinmeyen ad atlanır; yorum (`:179-184`) bunu bilinçli diye yazar. `["RunInput","Typo"]` yazılırsa yalnız `RunInput` korunur |
+| [`…Binding.Security.cs:167`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs) | `MaskedPii`'deki bir yazım hatası (`"Emial,CreditCard"`) `Enum.TryParse`'ı **tümüyle** düşürür, değer `None` kalır ve PII maskeleme kapanır. `PatternContentGuardOptions`'ın doğrulayıcısı yoktur |
+| [`TraconSchedulingOptionsValidator.cs`](../../../src/Tracon.Core/Scheduling/TraconSchedulingOptionsValidator.cs) (`BindSchedulingCollections`, `…Binding.Operations.cs:88-140`) | **Emsal.** F-385 okunamayan değeri `0` olarak bağlar. Doğrulayıcı koleksiyonları `Enabled`'dan bağımsız denetler |
 
 > Kanıtlar 2026-10-14 tarihinde `245afe91` zemininde (bu worktree) doğrulandı.
 
@@ -75,13 +75,13 @@ Testler **birim projesinde, DI kökünde** koşar: gerçek `AddTracon(section)` 
 gerçek `UseVoiceConversation(section)`/`UseLiveVoice(section)`), gerçek
 `ServiceProvider` ve `IOptions<T>.Value` kullanılır. Gerekçe:
 
-- Host bu yola bir şey eklemez. `AddTracon(IHostApplicationBuilder)` yalnız `services.AddTracon(builder.Configuration.GetSection("Tracon"))` çağırır ([`TraconServiceCollectionExtensions.cs:36-40`](../src/Tracon.Core/TraconServiceCollectionExtensions.cs)). DI kökü tüketicinin kompozisyonunu birebir koşar.
+- Host bu yola bir şey eklemez. `AddTracon(IHostApplicationBuilder)` yalnız `services.AddTracon(builder.Configuration.GetSection("Tracon"))` çağırır ([`TraconServiceCollectionExtensions.cs:36-40`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.cs)). DI kökü tüketicinin kompozisyonunu birebir koşar.
 - `test-seviyeleri.md` "DI kaydı → fonksiyonel" der. O satırın gerekçesi K-283'tür (depo davranışı çağıranı değiştirir) ve bağlamaya uymaz. Bağlamanın geçtiği sınır yapılandırma → container'dır; DI kökü onu geçer.
 - 🚨 Private `BindX`'i yansımayla çağıran `TraconPricingBindingTests.BindOnly` deseni bu sınırı **geçmez**. Emsal değildir; aday metni onu emsal gösteriyordu.
 - Host'un eklediği tek şey yapılandırma kaynağıdır: ortam değişkeni (`__`) ve JSON dosyası. O yarıyı manuel case'ler örnek uygulamada ölçer.
 
 "Açılışta hata" testleri `IStartupValidator.Validate()` üzerinden gider
-(emsal: [`TimeoutOptionValidationTests.cs:189-217`](../tests/Tracon.Core.UnitTests/Hosting/TimeoutOptionValidationTests.cs)). `IOptions<T>.Value` doğrulayıcıyı çalıştırır, ama `ValidateOnStart` kaydı olmasa da çalıştırır. Hafıza satırı 21 bu farkı ölçtü.
+(emsal: [`TimeoutOptionValidationTests.cs:189-217`](../../../tests/Tracon.Core.UnitTests/Hosting/TimeoutOptionValidationTests.cs)). `IOptions<T>.Value` doğrulayıcıyı çalıştırır, ama `ValidateOnStart` kaydı olmasa da çalıştırır. Hafıza satırı 21 bu farkı ölçtü.
 
 ### İskelet
 
@@ -109,7 +109,7 @@ private static X Bind(Dictionary<string, string?> values)
 Kurallar:
 
 - Anahtar **literal** yazılır (`"Tracon:Quotas:TimeZone"`), `nameof` kullanılmaz. Belgelenen anahtar sözleşmedir; `nameof` bir yeniden adlandırmayı gizler.
-- `AddTracon(configuration)` (kök) değil `GetSection("Tracon")` geçirilir. Kök verilirse anahtar `Quotas:…` aranır ve test boşa geçer. `AddTracon()` ise yapılandırma almazsa hiçbir şey bağlamaz ([`…Registration.Operations.cs:169`](../src/Tracon.Core/TraconServiceCollectionExtensions.Registration.Operations.cs)).
+- `AddTracon(configuration)` (kök) değil `GetSection("Tracon")` geçirilir. Kök verilirse anahtar `Quotas:…` aranır ve test boşa geçer. `AddTracon()` ise yapılandırma almazsa hiçbir şey bağlamaz ([`…Registration.Operations.cs:169`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Registration.Operations.cs)).
 - Biçimler: TimeSpan `"00:00:45"`, `"1.00:00:00"` (ISO 8601 desteklenmez); enum adı büyük/küçük harf duyarsızdır; flags `"Email,CreditCard"`; liste `:0`, `:1`; sözlük `:<anahtar>`; bool `"true"`/`"false"`; double `"0.25"`.
 - Test sınıfı adı tam olarak `<Tip>BindingTests`'tir, namespace `Tracon.Core.UnitTests.Configuration`'dır, dosyası `tests/Tracon.Core.UnitTests/Configuration/` altındadır. Ratchet yalnız bu assembly'ye bakar. Voice testleri de buraya girer.
 
@@ -236,7 +236,7 @@ Yeni test önce kırmızıdır. Namespace koşulu eklenmez.
 
 `docs-site/src/content/docs/reference/configuration.md`:
 
-- Bölüm indeksine (:39-76) üç satır: `Tracon:SessionOwnership` → `TraconSessionOwnershipOptions` · `AddTracon()` (anahtarlar [`concepts/sessions.md`](../docs-site/src/content/docs/concepts/sessions.md)); `Tracon:Voice:Live` → `VoiceLiveOptions` · `UseLiveVoice()`'un yapılandırma aşırı yüklemesi (anahtarlar `guides/voice.md`); `Tracon:InboundTriggers` → `TraconInboundTriggerOptions` · `AddTracon()` (anahtarlar `guides/inbound-triggers.md`).
+- Bölüm indeksine (:39-76) üç satır: `Tracon:SessionOwnership` → `TraconSessionOwnershipOptions` · `AddTracon()` (anahtarlar [`concepts/sessions.md`](../../../docs-site/src/content/docs/concepts/sessions.md)); `Tracon:Voice:Live` → `VoiceLiveOptions` · `UseLiveVoice()`'un yapılandırma aşırı yüklemesi (anahtarlar `guides/voice.md`); `Tracon:InboundTriggers` → `TraconInboundTriggerOptions` · `AddTracon()` (anahtarlar `guides/inbound-triggers.md`).
 - :489 `All eleven protected columns` → twelve (`ProtectedColumn` 0…11; `getting-started/security.md:320` "twelve" der).
 - :531-533 silinir (§206.3).
 - :708 `### Live voice conversation` → tablonun gerçek bölümünü (`Tracon:Voice:Conversation`) anlatan bir başlık. `Tracon:Voice:Live` ile karışmaz.
@@ -314,7 +314,7 @@ docs/hafiza/secenek-baglama-ve-gizlilik.md                       kapanışta: Id
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 "DI kökü" = birim projesinde gerçek `AddTracon`/`UseX` + gerçek container (§206.1).
 
