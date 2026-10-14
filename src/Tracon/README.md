@@ -45,7 +45,7 @@ newer preview.
 | `Tracon.Core` | Runtime: catalog, definition compiler, tool registry, run recording |
 | `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | The OpenAI provider |
-| `Tracon.AspNetCore` | The HTTP API — 171 operations, layered access control |
+| `Tracon.AspNetCore` | The HTTP API — 174 operations, layered access control |
 | `Tracon.Workflows` | Multi-agent workflows, checkpoints, human-in-the-loop |
 | `Tracon.Mcp` | Tools from remote MCP servers |
 | `Tracon.UI` | The embedded management console — 30 screens, no `node_modules` |

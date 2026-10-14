@@ -212,8 +212,8 @@ agent version that no longer exists, is a `400` and nothing is written. A versio
 never reused: deleting a workflow keeps its history, and saving the name again continues
 the numbering.
 
-A run's row records the definition version it was compiled from (`version` on a workflow
-run). `resume` and `respond` compile that version.
+A run's row records the definition version it was compiled from (the `agentVersion` field of a
+workflow run). `resume` and `respond` compile that version.
 
 A step in a `nodes` chain can pin the version of its agent:
 

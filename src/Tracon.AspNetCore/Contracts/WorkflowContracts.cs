@@ -199,8 +199,8 @@ public sealed record WorkflowRespondHttpRequest
 
     /// <summary>
     /// The version of the workflow's stored definition to continue with. Leave it out to
-    /// continue with the version the waiting run recorded. See
-    /// <see cref="WorkflowResumeHttpRequest.DefinitionVersion"/>.
+    /// continue with the version the waiting run recorded. It behaves like
+    /// <c>definitionVersion</c> on a resume.
     /// </summary>
     public int? DefinitionVersion { get; init; }
 }

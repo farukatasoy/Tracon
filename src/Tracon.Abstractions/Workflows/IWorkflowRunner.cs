@@ -219,8 +219,8 @@ public sealed record WorkflowResumeRequest
     /// <para>
     /// A source run that recorded no version (it predates version recording, or the
     /// workflow is defined in code) resumes with the current definition. A version the
-    /// workflow does not have fails the run; the run never falls back to the current
-    /// definition.
+    /// workflow does not have is refused with a <see cref="TraconException"/> before any run row is
+    /// opened; the run never falls back to the current definition.
     /// </para>
     /// <para>
     /// Naming a version whose graph differs from the one the checkpoint was written

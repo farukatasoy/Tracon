@@ -147,7 +147,7 @@ internal static class WorkflowEndpoints
                 "stored definition; a deleted name returns 404 even though its versions are kept " +
                 "(a version number is never reused). A workflow defined in code also returns 404, " +
                 "with a reason that says so: it is not stored by Tracon and has no version history. " +
-                "The 'version' of a run's row is the version it was compiled from.")
+                "The 'agentVersion' of a run's row is the workflow version it was compiled from.")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         builder.MapPost("/api/workflows/{name}/rollback", RollbackAsync)
@@ -289,7 +289,7 @@ internal static class WorkflowEndpoints
                 "row is never rewritten, and the first streamed frame reports the new run id. " +
                 "The body is optional — without a checkpoint id the run resumes from its latest " +
                 "checkpoint. The run resumes with the version of the workflow's definition that " +
-                "it recorded ('version' of its row), so an edit made while it waited changes " +
+                "it recorded ('agentVersion' of its row), so an edit made while it waited changes " +
                 "nothing; 'definitionVersion' names another stored version, and a version the " +
                 "workflow does not have is 400, never a silent fall-back to the current one. A " +
                 "version whose graph differs from the checkpoint's fails the run with 'the graph's " +
@@ -694,8 +694,9 @@ internal static class WorkflowEndpoints
 
         if (await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false) is null)
         {
-            // A workflow defined in code is changed by changing the application: 409, the
-            // answer a PUT or DELETE of it would get. Anything else has no stored definition.
+            // A workflow defined in code is changed by changing the application, so it has no
+            // versions to roll back to: 409, the answer an agent defined in code gets for the same
+            // request. Anything else has no stored definition and is a 404.
             return runner is not null && await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is not null
                 ? TypedResults.Problem(
                     title: "Code-defined workflow cannot be modified",
@@ -731,18 +732,11 @@ internal static class WorkflowEndpoints
             return problem;
         }
 
-        try
-        {
-            return TypedResults.Ok(
-                await store.RollbackAsync(tenants.TenantId, name, request.Version, cancellationToken).ConfigureAwait(false));
-        }
-        catch (TraconException exception)
-        {
-            return TypedResults.Problem(
-                title: "Rollback failed",
-                detail: exception.Message,
-                statusCode: StatusCodes.Status404NotFound);
-        }
+        // No catch: the version was read above, and a version is never removed, so the store has
+        // nothing left to report as "not found". A TraconException from here is a store fault (a
+        // payload it cannot read) and must not be dressed as a 404.
+        return TypedResults.Ok(
+            await store.RollbackAsync(tenants.TenantId, name, request.Version, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
