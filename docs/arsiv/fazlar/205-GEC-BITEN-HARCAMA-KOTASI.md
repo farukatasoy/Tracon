@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** 2026-10-14 — kullanıcı "Faz 205'i geliştir" dedi; engelleyici dört tasarım sorusu aynı gün cevaplanmıştı (§205.1 A, F-482 dahil, webhook belgelenir, eşik bildirimi çocuğun akışı). Açık Soru 1-4 önerilen seçenekle (hepsi A) uygulandı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-418**, **F-482**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-418**, **F-482**
 > **Genellik:** Alt agent çağıran ya da tool'u zaman aşımına düşebilen her tüketici, kiracı kotası açıksa etkilenir. İş tüketici kodunda kalamaz: kota sayacını yalnız Tracon yazar. Kalem bir sözleşme ihlalidir (kiracı kotası bir yönetişim sınırıdır, site "consumption is counted" der), bu yüzden § *Tüketici geri bildirimi kuralı*'ndan muaftır. İkinci kanıt ilk ilkedir: K-913 kendi bilinen sınırını yazar ve bir model talimatı ("görevi başlat, bekleme") harcamayı kotadan gizler
 > **Karşı görüş:** "Arka plan alt run'ı `ChildDeadline` (2 dk) ile sınırlıdır; kaçak küçük ve nadirdir." Cevap: sınır run başınadır, toplam değildir. Bir kök en çok `MaxTotalRuns` (25) çocuk başlatır ve her biri 2 dakikaya kadar harcar; aynı istek tekrarlanınca kaçak sınırsız büyür. Geç biten tool'un harcaması (F-482) gerçek paradır ve bugün hiçbir sayaca girmez. Mekanizma ikisini de aynı kuralla kapatır
 > **Önkoşul:** Yok — K-913 (Faz dışı, F-383) ve Faz 199 (K-972…K-974) kapalı
@@ -31,9 +31,9 @@
 3. Önceki faz devri: `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/199-FONKSIYON-DUGUMU-MALIYETI.md`
    — geç tool ölçümünün (`LateToolCompletionRecorder`) ve `NonTokenCostAccumulator.Seal()`'ın sözleşmesi
 4. Alan hafızası:
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) (kota, toplama ifadesi, K-483 sınıfı) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`AsyncLocal`/scope kuralı; arka plan görevi ortamı göremez)
-5. Gerektiğinde: [`MIMARI.md`](MIMARI.md) — agent çağrı grafiği ve kota bölümü (`grep -n "kota\|quota" docs/MIMARI.md`)
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md) (kota, toplama ifadesi, K-483 sınıfı) ·
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`AsyncLocal`/scope kuralı; arka plan görevi ortamı göremez)
+5. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) — agent çağrı grafiği ve kota bölümü (`grep -n "kota\|quota" docs/MIMARI.md`)
 
 ---
 
@@ -53,15 +53,15 @@ kotadan okuyan tüketici kazanır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunRecordingAgent.Completion.cs:162-169`](../src/Tracon.Core/Recording/RunRecordingAgent.Completion.cs) | Yalnız `Depth == 0` run'ı ağacı okur ve kotaya yazar; çocuk hiç yazmaz (`:200` webhook için aynı kapı) |
-| [`RunRecordingAgent.Notifications.cs:57-160`](../src/Tracon.Core/Recording/RunRecordingAgent.Notifications.cs) | Ağaç toplamı kökün satırı kapanmadan depodan **bir kez** okunur; o anda koşan çocuğun satırında usage yoktur |
-| [`AgentDefinitionCompiler.Agents.cs:119-124`](../src/Tracon.Core/Compilation/AgentDefinitionCompiler.Agents.cs) | Alt agent'lar MAF `BackgroundAgentsProvider` ile sunulur; `start_task` görevi başlatıp hemen döner |
+| [`RunRecordingAgent.Completion.cs:162-169`](../../../src/Tracon.Core/Recording/RunRecordingAgent.Completion.cs) | Yalnız `Depth == 0` run'ı ağacı okur ve kotaya yazar; çocuk hiç yazmaz (`:200` webhook için aynı kapı) |
+| [`RunRecordingAgent.Notifications.cs:57-160`](../../../src/Tracon.Core/Recording/RunRecordingAgent.Notifications.cs) | Ağaç toplamı kökün satırı kapanmadan depodan **bir kez** okunur; o anda koşan çocuğun satırında usage yoktur |
+| [`AgentDefinitionCompiler.Agents.cs:119-124`](../../../src/Tracon.Core/Compilation/AgentDefinitionCompiler.Agents.cs) | Alt agent'lar MAF `BackgroundAgentsProvider` ile sunulur; `start_task` görevi başlatıp hemen döner |
 | `grep -rn "ReleaseSessionAsync" src/` → boş | Tracon görevleri kök bitince iptal etmez; görev oturumla yaşar ve sonraki turda da sonuçlanabilir. Kökü bekletmek ya da çocuğu iptal etmek bu yüzden çözüm değildir |
-| [`TraconOptions.cs:190`, `:229`](../src/Tracon.Core/TraconOptions.cs) | `MaxTotalRuns = 25`, `ChildDeadline = 2 dk`: çocuk başına sınır var, toplamda yok |
-| [`WorkflowRunner.cs:1551`, `:1737-1781`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs) | Workflow kökü satırını kapattıktan **sonra** ağacı okur ve yazar; adımın başlattığı arka plan görevi aynı açıktadır |
-| [`LateToolCompletionRecorder.cs:128`](../src/Tracon.Core/Recording/LateToolCompletionRecorder.cs) | Geç biten tool'un ölçümü yalnız çağrının `tool_invocations` satırına yazılır (K-974); kotaya gitmez |
-| [`ChildAgentInvoker.cs:477-499`](../src/Tracon.Core/Graph/ChildAgentInvoker.cs) | Çocuk ağacın `AgentRunBudget` örneğini **aynı referansla** alır; kökün adını ve kiracısını almaz |
-| [`concepts/governance.md:494-497`](../docs-site/src/content/docs/concepts/governance.md) | Site sınırı yazar: "A child run that is still running in the background when its root ends is not counted." |
+| [`TraconOptions.cs:190`, `:229`](../../../src/Tracon.Core/TraconOptions.cs) | `MaxTotalRuns = 25`, `ChildDeadline = 2 dk`: çocuk başına sınır var, toplamda yok |
+| [`WorkflowRunner.cs:1551`, `:1737-1781`](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs) | Workflow kökü satırını kapattıktan **sonra** ağacı okur ve yazar; adımın başlattığı arka plan görevi aynı açıktadır |
+| [`LateToolCompletionRecorder.cs:128`](../../../src/Tracon.Core/Recording/LateToolCompletionRecorder.cs) | Geç biten tool'un ölçümü yalnız çağrının `tool_invocations` satırına yazılır (K-974); kotaya gitmez |
+| [`ChildAgentInvoker.cs:477-499`](../../../src/Tracon.Core/Graph/ChildAgentInvoker.cs) | Çocuk ağacın `AgentRunBudget` örneğini **aynı referansla** alır; kökün adını ve kiracısını almaz |
+| [`concepts/governance.md:494-497`](../../../docs-site/src/content/docs/concepts/governance.md) | Site sınırı yazar: "A child run that is still running in the background when its root ends is not counted." |
 
 > Kanıtlar 2026-10-14 tarihinde doğrulandı.
 
