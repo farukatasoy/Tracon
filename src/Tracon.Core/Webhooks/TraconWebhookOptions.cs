@@ -95,9 +95,19 @@ public sealed class TraconWebhookOptions
     /// The retry ladder. The list's length is also the maximum number of attempts.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This ladder is handed to the queue through
     /// <c>ReleaseForRetryAsync(retryAfter)</c>; a second queue or scheduler
     /// is not written.
+    /// </para>
+    /// <para>
+    /// In configuration, a list (<c>RetryDelays:0 = "00:01:00"</c>) that replaces the
+    /// default. Each delay must be greater than zero: a delay of zero or below, or
+    /// one that is not a <see cref="TimeSpan"/>, stops the application at startup
+    /// with an <see cref="Microsoft.Extensions.Options.OptionsValidationException"/>
+    /// that names <c>RetryDelays</c> and quotes the entry as written. Such an entry
+    /// used to be dropped without a word.
+    /// </para>
     /// </remarks>
     public IList<TimeSpan> RetryDelays { get; } =
     [
@@ -113,4 +123,14 @@ public sealed class TraconWebhookOptions
     /// the value recommended to the recipient in the README; Tracon only documents it.
     /// </summary>
     public TimeSpan SignatureTolerance { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// The text of each <see cref="RetryDelays"/> entry the binder could not read,
+    /// keyed by its index. <see cref="TimeSpan.Zero"/> stands in for it in the list.
+    /// </summary>
+    /// <remarks>
+    /// For the startup message only: the failure itself comes from the zero, so code
+    /// that rewrites the list after binding clears it.
+    /// </remarks>
+    internal Dictionary<int, string> UnreadableRetryDelays { get; } = [];
 }

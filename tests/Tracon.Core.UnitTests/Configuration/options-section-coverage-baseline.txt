@@ -9,25 +9,7 @@
 # defect this shape produces was measured on a section that DID get a test
 # afterwards - TraconImageOptions.Timeout was added, documented as
 # configurable, and bound nowhere; a live run caught it, no test did.
-CanaryOptions
-OnlineEvaluationOptions
-PatternContentGuardOptions
-RunReconciliationOptions
-SingletonExecutionOptions
-TraconApprovalOptions
-TraconAsyncRunOptions
-TraconContentGuardOptions
-TraconContentProtectionOptions
-TraconDrainOptions
-TraconEgressOptions
-TraconIdempotencyOptions
-TraconMcpSecurityOptions
-TraconQuotaOptions
-TraconRateLimitOptions
-TraconRetentionOptions
-TraconRunContinuationOptions
-TraconSessionOwnershipOptions
-TraconStructuredResponseOptions
-TraconWebhookOptions
-VoiceConversationOptions
-VoiceLiveOptions
+#
+# Emptied 2026-10-14 (F-247): every section listed here got its binding test.
+# A class counts only when it carries a test method; an empty
+# '<TypeName>BindingTests' class no longer takes a section off this list.
