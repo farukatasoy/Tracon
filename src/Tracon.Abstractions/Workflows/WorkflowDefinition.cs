@@ -185,6 +185,24 @@ public sealed record WorkflowDefinition
     /// </remarks>
     public TimeSpan? RunTimeout { get; init; }
 
+    /// <summary>
+    /// Gets how the workflow treats more than one answer to the same pending human request.
+    /// <see cref="WorkflowResponseMode.Branch"/> (the default) opens a new run for every answer;
+    /// <see cref="WorkflowResponseMode.SingleAnswer"/> allows one answer per request.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Applies to every kind. A stored definition's requests come from a manager agent's plan
+    /// approval (<see cref="RequirePlanApproval"/>); a workflow defined in code chooses its mode
+    /// when it is registered.
+    /// </para>
+    /// <para>
+    /// A waiting run is answered under the mode of the definition version it recorded. Changing
+    /// the mode affects runs started after the change.
+    /// </para>
+    /// </remarks>
+    public WorkflowResponseMode ResponseMode { get; init; }
+
     /// <summary>Gets the tenant the definition belongs to. <see langword="null"/> for workflows defined in code.</summary>
     public string? TenantId { get; init; }
 

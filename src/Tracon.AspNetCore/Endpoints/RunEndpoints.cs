@@ -1267,43 +1267,26 @@ internal static class RunEndpoints
 
             try
             {
-                while (!cancellationToken.IsCancellationRequested)
+                // 🚨 Phase 46: 'Queued' is also an EXPECTED intermediate status — the
+                // worker may not have picked up the job yet; the tail keeps reading it.
+                // A run whose row is gone ends the stream at once (no grace): it was
+                // asked for by id, and the existence check above already passed.
+                await foreach (var (runEvent, _) in RunEventTail
+                                   .ReadAsync(
+                                       runs,
+                                       runId,
+                                       next,
+                                       pollInterval,
+                                       token => new ValueTask(writer.WriteKeepAliveAsync("waiting", token)),
+                                       missingRowGrace: TimeSpan.Zero,
+                                       cancellationToken)
+                                   .ConfigureAwait(false))
                 {
-                    var snapshot = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
-                    var wroteAny = false;
-
-                    await foreach (var runEvent in runs
-                        .ReadEventsAsync(runId, next, cancellationToken)
-                        .ConfigureAwait(false))
-                    {
-                        await writer.WriteEventAsync(
-                            runEvent.Sequence,
-                            EventName(runEvent.Type),
-                            JsonSerializer.Serialize(runEvent, JsonOptions),
-                            cancellationToken).ConfigureAwait(false);
-
-                        next = runEvent.Sequence + 1;
-                        wroteAny = true;
-                    }
-
-                    // If the run has been deleted or has ended, all events have
-                    // been written. 🚨 Phase 46: 'Queued' is also an EXPECTED
-                    // intermediate status — the worker may not have picked up
-                    // the job yet. Only a status other than Running/Queued (or
-                    // the record's own absence) closes the stream; otherwise a
-                    // client connecting right after the 202 would see the
-                    // stream close before the job ever started.
-                    if (snapshot is null || snapshot.Status is not (RunStatus.Running or RunStatus.Queued))
-                    {
-                        break;
-                    }
-
-                    if (!wroteAny)
-                    {
-                        await writer.WriteKeepAliveAsync("waiting", cancellationToken).ConfigureAwait(false);
-                    }
-
-                    await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
+                    await writer.WriteEventAsync(
+                        runEvent.Sequence,
+                        EventName(runEvent.Type),
+                        JsonSerializer.Serialize(runEvent, JsonOptions),
+                        cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1359,6 +1342,7 @@ internal static class RunEndpoints
             RunEventType.ChildRunTimedOut => "child.timed-out",
             RunEventType.LoopIterationCompleted => "loop.iteration-completed",
             RunEventType.SessionWriteConflicted => "session.write-conflicted",
+            RunEventType.WorkflowResponseApplied => "workflow.response-applied",
             _ => "unknown",
         };
     }

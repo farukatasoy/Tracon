@@ -35,7 +35,7 @@ import {
   type Step,
 } from '../lib/workflow-steps';
 import type { AgentParameter, WorkflowFunctionResponse, WorkflowSaveRequest } from '@tracon/client';
-import type { AgentDescriptor, WorkflowDefinition, WorkflowKind } from '../lib/server-types';
+import type { AgentDescriptor, WorkflowDefinition, WorkflowKind, WorkflowResponseMode } from '../lib/server-types';
 
 const KINDS: WorkflowKind[] = ['Sequential', 'Concurrent', 'Handoff', 'GroupChat', 'Magentic'];
 
@@ -78,6 +78,12 @@ interface Draft {
   runTimeout: string;
   /** The run timeout the server sent, so an untouched field goes back exactly as stored. */
   storedRunTimeout: string | null;
+  /**
+   * How a repeated answer to one request is treated (phase 208). Sent back on every save: the
+   * save is a full replace (K-725), and a dropped value would turn a one-answer workflow back
+   * into Branch.
+   */
+  responseMode: WorkflowResponseMode;
 }
 
 const EMPTY: Draft = {
@@ -93,6 +99,7 @@ const EMPTY: Draft = {
   requirePlanApproval: false,
   runTimeout: '',
   storedRunTimeout: null,
+  responseMode: 'Branch',
 };
 
 /**
@@ -177,6 +184,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       requirePlanApproval: loaded.requirePlanApproval,
       runTimeout: timeoutText(loaded.runTimeout),
       storedRunTimeout: loaded.runTimeout ?? null,
+      responseMode: loaded.responseMode ?? 'Branch',
     });
   }, [existing.data]);
 
@@ -197,6 +205,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         handoffInstructions: draft.kind === 'Handoff' ? blank(draft.handoffInstructions) : null,
         requirePlanApproval: draft.kind === 'Magentic' && draft.requirePlanApproval,
         runTimeout: timeoutValue(draft.runTimeout, draft.storedRunTimeout),
+        responseMode: draft.responseMode,
       };
 
       return unwrap(
@@ -453,6 +462,8 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 
             {draft.kind === 'Magentic' && <PlanApproval draft={draft} onChange={setDraft} />}
 
+            <SingleAnswer draft={draft} onChange={setDraft} />
+
             <Field
               label={t('workflowEditor.runTimeout')}
               hint={t('workflowEditor.runTimeoutHint')}
@@ -474,6 +485,41 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         </Panel>
       </div>
     </>
+  );
+}
+
+/**
+ * The one-answer switch (phase 208): with it on, the same answer given twice follows the run the
+ * first one started and a different answer is refused. Shown for every kind - the server takes
+ * it for every kind - and carried on every save.
+ */
+function SingleAnswer({
+  draft,
+  onChange,
+}: {
+  draft: Draft;
+  onChange: (draft: Draft) => void;
+}): ReactNode {
+  const t = useT();
+
+  return (
+    <div className="rounded-md border border-line bg-raised p-3">
+      <label className="flex items-start gap-2.5">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          data-testid="workflow-single-answer"
+          checked={draft.responseMode === 'SingleAnswer'}
+          onChange={(event) =>
+            onChange({ ...draft, responseMode: event.target.checked ? 'SingleAnswer' : 'Branch' })
+          }
+        />
+        <span>
+          <span className="block text-base font-medium">{t('workflowEditor.singleAnswer')}</span>
+          <span className="mt-0.5 block text-sm text-muted">{t('workflowEditor.singleAnswerNotice')}</span>
+        </span>
+      </label>
+    </div>
   );
 }
 

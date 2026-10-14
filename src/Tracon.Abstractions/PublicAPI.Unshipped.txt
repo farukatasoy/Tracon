@@ -6072,3 +6072,64 @@ Tracon.TraconTenantProviderRefusedException
 Tracon.TraconTenantProviderRefusedException.TraconTenantProviderRefusedException() -> void
 Tracon.TraconTenantProviderRefusedException.TraconTenantProviderRefusedException(string! message) -> void
 Tracon.TraconTenantProviderRefusedException.TraconTenantProviderRefusedException(string! message, System.Exception! innerException) -> void
+Tracon.RunEventType.WorkflowResponseApplied = 33 -> Tracon.RunEventType
+Tracon.WorkflowDefinition.ResponseMode.get -> Tracon.WorkflowResponseMode
+Tracon.WorkflowDefinition.ResponseMode.init -> void
+Tracon.WorkflowDescriptor.ResponseMode.get -> Tracon.WorkflowResponseMode
+Tracon.WorkflowDescriptor.ResponseMode.init -> void
+Tracon.WorkflowResponseMode
+Tracon.WorkflowResponseMode.Branch = 0 -> Tracon.WorkflowResponseMode
+Tracon.WorkflowResponseMode.SingleAnswer = 1 -> Tracon.WorkflowResponseMode
+Tracon.WorkflowResponseStatus
+Tracon.WorkflowResponseStatus.Accepted = 0 -> Tracon.WorkflowResponseStatus
+Tracon.WorkflowResponseStatus.Delivered = 1 -> Tracon.WorkflowResponseStatus
+Tracon.WorkflowResponseStatus.Abandoned = 2 -> Tracon.WorkflowResponseStatus
+Tracon.IWorkflowResponseStore
+Tracon.IWorkflowResponseStore.AddAsync(Tracon.WorkflowResponseRecord! record, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowResponseClaim!>
+Tracon.IWorkflowResponseStore.FindClaimAsync(string! claimScope, string! requestId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowResponseRecord?>
+Tracon.IWorkflowResponseStore.ReplaceAsync(System.Guid abandonedResponseRunId, Tracon.WorkflowResponseRecord! replacement, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.IWorkflowResponseStore.MarkDeliveredAsync(System.Guid responseRunId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IWorkflowResponseStore.ListBySourceRunAsync(System.Guid sourceRunId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowResponseRecord!>!>
+Tracon.IWorkflowResponseStore.GetAsync(System.Guid responseRunId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowResponseRecord?>
+Tracon.WorkflowResponseRecord
+Tracon.WorkflowResponseRecord.<Clone>$() -> Tracon.WorkflowResponseRecord!
+Tracon.WorkflowResponseRecord.WorkflowResponseRecord() -> void
+Tracon.WorkflowResponseRecord.ResponseRunId.get -> System.Guid
+Tracon.WorkflowResponseRecord.ResponseRunId.init -> void
+Tracon.WorkflowResponseRecord.SourceRunId.get -> System.Guid
+Tracon.WorkflowResponseRecord.SourceRunId.init -> void
+Tracon.WorkflowResponseRecord.SessionId.get -> string!
+Tracon.WorkflowResponseRecord.SessionId.init -> void
+Tracon.WorkflowResponseRecord.RequestId.get -> string!
+Tracon.WorkflowResponseRecord.RequestId.init -> void
+Tracon.WorkflowResponseRecord.AnswerHash.get -> string!
+Tracon.WorkflowResponseRecord.AnswerHash.init -> void
+Tracon.WorkflowResponseRecord.ClaimScope.get -> string?
+Tracon.WorkflowResponseRecord.ClaimScope.init -> void
+Tracon.WorkflowResponseRecord.Status.get -> Tracon.WorkflowResponseStatus
+Tracon.WorkflowResponseRecord.Status.init -> void
+Tracon.WorkflowResponseRecord.RespondedBy.get -> string?
+Tracon.WorkflowResponseRecord.RespondedBy.init -> void
+Tracon.WorkflowResponseRecord.RespondedAt.get -> System.DateTimeOffset
+Tracon.WorkflowResponseRecord.RespondedAt.init -> void
+Tracon.WorkflowResponseRecord.TenantId.get -> string?
+Tracon.WorkflowResponseRecord.TenantId.init -> void
+Tracon.WorkflowResponseClaim
+Tracon.WorkflowResponseClaim.<Clone>$() -> Tracon.WorkflowResponseClaim!
+Tracon.WorkflowResponseClaim.WorkflowResponseClaim() -> void
+Tracon.WorkflowResponseClaim.Claimed.get -> bool
+Tracon.WorkflowResponseClaim.Claimed.init -> void
+Tracon.WorkflowResponseClaim.Existing.get -> Tracon.WorkflowResponseRecord?
+Tracon.WorkflowResponseClaim.Existing.init -> void
+Tracon.WorkflowResponseClaim.Equals(Tracon.WorkflowResponseClaim? other) -> bool
+Tracon.WorkflowResponseRecord.Equals(Tracon.WorkflowResponseRecord? other) -> bool
+override Tracon.WorkflowResponseClaim.Equals(object? obj) -> bool
+override Tracon.WorkflowResponseClaim.GetHashCode() -> int
+override Tracon.WorkflowResponseClaim.ToString() -> string!
+override Tracon.WorkflowResponseRecord.Equals(object? obj) -> bool
+override Tracon.WorkflowResponseRecord.GetHashCode() -> int
+override Tracon.WorkflowResponseRecord.ToString() -> string!
+static Tracon.WorkflowResponseClaim.operator !=(Tracon.WorkflowResponseClaim? left, Tracon.WorkflowResponseClaim? right) -> bool
+static Tracon.WorkflowResponseClaim.operator ==(Tracon.WorkflowResponseClaim? left, Tracon.WorkflowResponseClaim? right) -> bool
+static Tracon.WorkflowResponseRecord.operator !=(Tracon.WorkflowResponseRecord? left, Tracon.WorkflowResponseRecord? right) -> bool
+static Tracon.WorkflowResponseRecord.operator ==(Tracon.WorkflowResponseRecord? left, Tracon.WorkflowResponseRecord? right) -> bool

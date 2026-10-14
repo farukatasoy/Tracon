@@ -41,11 +41,15 @@ internal static class WorkflowEndpoints
     /// key only together with <c>Prefer: respond-async</c>: their synchronous answer is a
     /// stream, which cannot be stored and replayed.
     /// </param>
+    /// <param name="runEventPollInterval">
+    /// How often a repeated answer that follows a run reads that run's new events from the store.
+    /// </param>
     public static void Map(
         IEndpointRouteBuilder builder,
         TraconRolePolicies roles,
         string prefix,
-        IdempotencyFilter idempotencyFilter)
+        IdempotencyFilter idempotencyFilter,
+        TimeSpan runEventPollInterval)
     {
         builder.MapGet("/api/workflows", ListAsync)
             .RequireRole(roles.Reader)
@@ -338,7 +342,7 @@ internal static class WorkflowEndpoints
                     CancellationToken cancellationToken)
                 => RespondAsync(
                     runId, httpContext, runner, runs, definitions, tenants, runAuthorizationHandler, attributionContext,
-                    drainState, prefix, cancellationToken))
+                    drainState, prefix, runEventPollInterval, cancellationToken))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
@@ -359,14 +363,41 @@ internal static class WorkflowEndpoints
                 "is '202 Accepted' and the run continues in the background worker, so a machine " +
                 "that answers a request does not have to keep a connection open. The queued answer " +
                 "is stored with the job until the job is removed; do not put a secret in it. " +
-                "'Idempotency-Key' is accepted only together with 'Prefer: respond-async'.")
+                "'Idempotency-Key' is accepted only together with 'Prefer: respond-async'. Every answer that " +
+                "starts a run is written to the audit trail as 'workflow.respond' before the run starts, with a " +
+                "SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer " +
+                "is refused with 500 and nothing is started. A workflow whose responseMode is 'SingleAnswer' takes " +
+                "one answer per request: repeating the same answer (approved, text and data; the checkpoint and " +
+                "version do not count) starts nothing and follows the run the first one started - the same SSE " +
+                "frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different " +
+                "answer is 409, which names neither the run nor the other answer. An answer whose run failed or " +
+                "was cancelled before the workflow received it can be given again and starts a new run. With " +
+                "'Branch', the default, every answer opens a new run.")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .Produces<AcceptedRunResponse>(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status501NotImplemented)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+
+        builder.MapGet("/api/workflows/runs/{runId:guid}/responses", ListResponsesAsync)
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.RunsRead)
+            .WithName("TraconListWorkflowResponses")
+            .WithTags("Tracon", "Workflows")
+            .WithSummary("Lists the answers given to a run's human input requests.")
+            .WithDescription(
+                "One entry per answer that started a run, oldest first: the request it answered, the run it " +
+                "started (responseRunId), who answered and when, and a SHA-256 of the answer (answerHash) - " +
+                "never the answer itself. The hash tells two answers apart; it does not hide an answer with " +
+                "few possible values, such as a yes or no. 'claimScope' is set when the workflow takes one " +
+                "answer per request; 'status' is Accepted until the workflow received the answer (Delivered), " +
+                "and Abandoned for an answer whose run stopped and was started again. A run belonging to " +
+                "another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.")
+            .Produces<IReadOnlyList<WorkflowResponseRecord>>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static async Task<Results<Ok<IReadOnlyList<WorkflowDescriptor>>, ProblemHttpResult>> ListAsync(
@@ -499,6 +530,7 @@ internal static class WorkflowEndpoints
             RequirePlanApproval = request.RequirePlanApproval,
             Parameters = request.Parameters ?? [],
             RunTimeout = request.RunTimeout,
+            ResponseMode = request.ResponseMode,
         };
 
         if (await ValidateDefinitionAsync(
@@ -1124,6 +1156,7 @@ internal static class WorkflowEndpoints
         IRunAttributionContext? attributionContext,
         ITraconDrainState drainState,
         string prefix,
+        TimeSpan runEventPollInterval,
         CancellationToken cancellationToken)
     {
         // 🚨 Checked BEFORE anything else, like the agent run endpoint: a
@@ -1243,13 +1276,65 @@ internal static class WorkflowEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (RespondAsyncPreference.IsRequested(httpContext))
+        var queued = RespondAsyncPreference.IsRequested(httpContext);
+
+        // Phase 208: refused BEFORE the answer is decided. Deciding writes the audit entry and
+        // the answer's record, and a 501 after them would leave a claim with no run behind it.
+        if (queued && QueuingDisabled(httpContext) is { } queuingProblem)
+        {
+            return queuingProblem;
+        }
+
+        // Phase 208 (F-319): the answer is audited, recorded and - for a SingleAnswer workflow -
+        // claimed here, after every other check and before the stream or the queue. A repeat of
+        // the same answer follows the run the first one started; a different one conflicts.
+        var mode = await WorkflowResponseGate
+            .ResolveModeAsync(source, runner, definitions, tenants.TenantId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var decision = await WorkflowResponseGate
+            .DecideAsync(
+                new WorkflowResponseGate.Answer(
+                    source,
+                    request.RequestId,
+                    WorkflowAnswerDigest.Compute(request.RequestId, request.Approved, request.Text, respondRequest.Json),
+                    mode,
+                    newRunId,
+                    tenants.TenantId),
+                httpContext.RequestServices,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        switch (decision.Outcome)
+        {
+            case WorkflowResponseGate.Outcome.Conflict:
+                // Neither the run the other answer started nor that answer is named: the
+                // caller that gave the same answer learns the run from its own follow.
+                return TypedResults.Problem(
+                    title: "Request already answered",
+                    detail: $"Request '{request.RequestId}' of run '{runId}' was already answered with a different " +
+                            "answer, and this workflow takes one answer per request.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            // The job of a queued answer carries the run's id (K-924), so the 202 its first answer
+            // got is rebuilt from the run id alone. An answer first given on a stream has no job;
+            // the id then names the run only.
+            case WorkflowResponseGate.Outcome.Follow when queued:
+                return Accepted(decision.RunId, decision.RunId, prefix, httpContext);
+
+            case WorkflowResponseGate.Outcome.Follow:
+                return new WorkflowFollowStream(decision.FollowRunId, runs, runEventPollInterval);
+        }
+
+        var startedRunId = decision.RunId;
+
+        if (queued)
         {
             return await QueueAsync(
                 new WorkflowRunJobRequest
                 {
                     Operation = WorkflowRunJobPayload.RespondOperation,
-                    RunId = newRunId,
+                    RunId = startedRunId,
                     SessionId = source.SessionId,
                     SourceRunId = runId,
                     CheckpointId = request.CheckpointId,
@@ -1268,9 +1353,123 @@ internal static class WorkflowEndpoints
                 cancellationToken).ConfigureAwait(false);
         }
 
+        if (mode == WorkflowResponseMode.SingleAnswer)
+        {
+            // The claim is only as good as the row behind it: a second identical answer that
+            // reads the claim must find a run to follow, never "no run" - which it would take
+            // for a stopped run and start a second one. The engine upserts this row when it
+            // starts; WorkflowEventStream closes it if the engine never does.
+            await PreOpenAsync(startedRunId, source, tenants, attributionContext, runs, cancellationToken).ConfigureAwait(false);
+
+            return new WorkflowEventStream(
+                runner.RespondStreamingAsync(respondRequest with { NewRunId = startedRunId }, cancellationToken),
+                startedRunId,
+                preOpened: runs,
+                tenants.TenantId);
+        }
+
         return new WorkflowEventStream(
-            runner.RespondStreamingAsync(respondRequest, cancellationToken),
-            newRunId);
+            runner.RespondStreamingAsync(respondRequest with { NewRunId = startedRunId }, cancellationToken),
+            startedRunId);
+    }
+
+    /// <summary>Lists the answers given to a run's requests.</summary>
+    /// <param name="runId">The source run.</param>
+    /// <param name="runs">The run store.</param>
+    /// <param name="responses">The answer records.</param>
+    /// <param name="tenants">The tenant context.</param>
+    /// <param name="runAuthorizationHandler">The optional run authorization gate.</param>
+    /// <param name="attributionContext">The caller's attribution.</param>
+    /// <param name="httpContext">The request's context.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The records; <c>404</c> for a run this tenant does not have or may not read.</returns>
+    private static async Task<Results<Ok<IReadOnlyList<WorkflowResponseRecord>>, ProblemHttpResult>> ListResponsesAsync(
+        Guid runId,
+        [FromServices] IRunStore runs,
+        [FromServices] IWorkflowResponseStore responses,
+        [FromServices] ITenantContext tenants,
+        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+        [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        // Another tenant's run and a missing one answer alike: the existence is not leaked.
+        if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } source ||
+            !string.Equals(source.TenantId, tenants.TenantId, StringComparison.Ordinal))
+        {
+            return RunNotFound(runId);
+        }
+
+        // The same gate and the same answer as the request list: read access, and a denial is
+        // the 404 of a run that does not exist.
+        if (await RunAuthorizationGate
+                .CheckRunResourceAsync(
+                    runAuthorizationHandler, tenants, runId, source.AgentName, source.SessionId,
+                    attributionContext, RunAccess.Read, RunNotFound(runId), httpContext, cancellationToken)
+                .ConfigureAwait(false) is { } authorizationProblem)
+        {
+            return authorizationProblem;
+        }
+
+        return TypedResults.Ok(await responses.ListBySourceRunAsync(runId, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Opens the row of a streamed run that a single-answer claim just took, before the engine
+    /// starts it.
+    /// </summary>
+    private static async ValueTask PreOpenAsync(
+        Guid runId,
+        RunRecord source,
+        ITenantContext tenants,
+        IRunAttributionContext? attributionContext,
+        IRunStore runs,
+        CancellationToken cancellationToken)
+        => await runs.StartRunAsync(
+            new RunStartInfo
+            {
+                RunId = runId,
+                AgentName = source.WorkflowName!,
+                Kind = RunKind.Workflow,
+                WorkflowName = source.WorkflowName,
+                Status = RunStatus.Running,
+                StartedAt = DateTimeOffset.UtcNow,
+                TenantId = tenants.TenantId,
+                UserId = attributionContext?.UserId,
+                Labels = attributionContext?.Labels,
+                SessionId = source.SessionId,
+                IsStreaming = true,
+            },
+            cancellationToken).ConfigureAwait(false);
+
+    /// <summary>The <c>501</c> of a host with queuing turned off; <see langword="null"/> when it is on.</summary>
+    private static ProblemHttpResult? QueuingDisabled(HttpContext httpContext)
+        => httpContext.RequestServices.GetRequiredService<IOptionsMonitor<TraconAsyncRunOptions>>().CurrentValue.Enabled
+            ? null
+            : TypedResults.Problem(
+                title: "Queuing not enabled",
+                detail: "The 'Prefer: respond-async' header was sent, but queuing support is disabled " +
+                        "in this setup (TraconAsyncRunOptions.Enabled = false).",
+                statusCode: StatusCodes.Status501NotImplemented);
+
+    /// <summary>
+    /// The <c>202</c> of a queued run: the run id, the job id and the two addresses. A repeated
+    /// answer that follows a run gets the one its first answer got.
+    /// </summary>
+    private static Accepted<AcceptedRunResponse> Accepted(Guid runId, Guid jobId, string prefix, HttpContext httpContext)
+    {
+        // RFC 7240 treats the preference as advisory: a 202 says it was applied.
+        RespondAsyncPreference.MarkApplied(httpContext);
+
+        var location = $"{prefix}/api/runs/{runId}";
+
+        return TypedResults.Accepted(location, new AcceptedRunResponse
+        {
+            RunId = runId,
+            JobId = jobId,
+            Location = location,
+            EventsLocation = $"{location}/events",
+        });
     }
 
     /// <summary>
@@ -1317,13 +1516,9 @@ internal static class WorkflowEndpoints
         var services = httpContext.RequestServices;
         var asyncOptions = services.GetRequiredService<IOptionsMonitor<TraconAsyncRunOptions>>().CurrentValue;
 
-        if (!asyncOptions.Enabled)
+        if (QueuingDisabled(httpContext) is { } queuingProblem)
         {
-            return TypedResults.Problem(
-                title: "Queuing not enabled",
-                detail: "The 'Prefer: respond-async' header was sent, but queuing support is disabled " +
-                        "in this setup (TraconAsyncRunOptions.Enabled = false).",
-                statusCode: StatusCodes.Status501NotImplemented);
+            return queuingProblem;
         }
 
         var runStore = services.GetRequiredService<IRunStore>();
@@ -1378,18 +1573,7 @@ internal static class WorkflowEndpoints
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.WorkflowEndpoints"),
             cancellationToken).ConfigureAwait(false);
 
-        // RFC 7240 treats the preference as advisory: a 202 says it was applied.
-        RespondAsyncPreference.MarkApplied(httpContext);
-
-        var location = $"{prefix}/api/runs/{runId}";
-
-        return TypedResults.Accepted(location, new AcceptedRunResponse
-        {
-            RunId = runId,
-            JobId = job.Id,
-            Location = location,
-            EventsLocation = $"{location}/events",
-        });
+        return Accepted(runId, job.Id, prefix, httpContext);
     }
 
     /// <summary>
@@ -1544,6 +1728,7 @@ internal static class WorkflowEndpoints
             AgentNames = definition.AgentNames,
             Nodes = definition.Nodes,
             Parameters = definition.Parameters,
+            ResponseMode = definition.ResponseMode,
             Version = definition.Version,
             UpdatedAt = definition.UpdatedAt,
         };
@@ -1617,21 +1802,74 @@ internal static class WorkflowEndpoints
     /// Writes workflow events as SSE.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Written as a separate <see cref="IResult"/> because the status code
     /// cannot be changed after the stream has started; an <c>event: error</c>
     /// frame is sent on failure. The same pattern is also used for agent trial runs.
+    /// </para>
+    /// <para>
+    /// A run whose row the endpoint opened itself (<paramref name="preOpened"/>, a single-answer
+    /// claim) is closed here when the engine never took it over - it failed before its first
+    /// event, or the client went away first. Left open, the row would read as a run in flight
+    /// and lock the request: a repeated answer follows a running run and never starts again.
+    /// </para>
     /// </remarks>
-    private sealed class WorkflowEventStream(IAsyncEnumerable<RunEvent> events, Guid runId) : IResult
+    /// <param name="events">The engine's events.</param>
+    /// <param name="runId">The run the stream announces.</param>
+    /// <param name="preOpened">The run store the endpoint opened the row in; <see langword="null"/> when the engine opens it.</param>
+    /// <param name="tenantId">The tenant of a pre-opened row.</param>
+    private sealed class WorkflowEventStream(
+        IAsyncEnumerable<RunEvent> events,
+        Guid runId,
+        IRunStore? preOpened = null,
+        string? tenantId = null) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
             ArgumentNullException.ThrowIfNull(httpContext);
 
             var cancellationToken = httpContext.RequestAborted;
+            var engineStarted = false;
+            RunError? unstarted = null;
+
+            try
+            {
+                await StreamAsync(httpContext, () => engineStarted = true, error => unstarted = error, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                if (preOpened is not null && !engineStarted)
+                {
+                    await preOpened.CompleteRunAsync(
+                        new RunCompletion
+                        {
+                            RunId = runId,
+                            Status = unstarted is null ? RunStatus.Canceled : RunStatus.Failed,
+                            CompletedAt = DateTimeOffset.UtcNow,
+                            Error = unstarted ?? new RunError
+                            {
+                                Type = nameof(OperationCanceledException),
+                                Message = "The connection closed before the run started.",
+                            },
+                            TenantId = tenantId,
+                        },
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async Task StreamAsync(
+            HttpContext httpContext,
+            Action started,
+            Action<RunError> failedBeforeStart,
+            CancellationToken cancellationToken)
+        {
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
             // Stops the writer's keep-alive loop before the response ends (F-325).
             await using var writerScope = writer.ConfigureAwait(false);
             long sequence = 0;
+            var startedSeen = false;
 
             try
             {
@@ -1643,6 +1881,14 @@ internal static class WorkflowEndpoints
 
                 await foreach (var runEvent in events.WithCancellation(cancellationToken).ConfigureAwait(false))
                 {
+                    // The engine yields its first event only after it opened the run's row;
+                    // from here on it closes the row itself, whatever happens.
+                    if (!startedSeen)
+                    {
+                        startedSeen = true;
+                        started();
+                    }
+
                     await writer.WriteEventAsync(
                         sequence++,
                         "event",
@@ -1685,6 +1931,15 @@ internal static class WorkflowEndpoints
                     .CreateLogger("Tracon.WorkflowEndpoints")
                     .LogError(ex, "Streaming workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
 
+                if (!startedSeen)
+                {
+                    failedBeforeStart(new RunError
+                    {
+                        Type = ex.GetType().Name,
+                        Message = SafeErrorText.ForPersistence(ex, correlationId),
+                    });
+                }
+
                 await writer.WriteEventAsync(
                     sequence,
                     "error",
@@ -1700,5 +1955,109 @@ internal static class WorkflowEndpoints
         private sealed record WorkflowRunCompleted(Guid RunId);
 
         private sealed record WorkflowRunFailed(string Type, string Message);
+    }
+
+    /// <summary>
+    /// Writes, as SSE, the run an identical earlier answer started: the frames of
+    /// <see cref="WorkflowEventStream"/> (<c>run</c>, <c>event</c>…, <c>done</c>), read from the
+    /// stored run.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The follower does not own the run: when its connection drops, only this read stops, and the
+    /// run goes on for the connection (or the job) that started it.
+    /// </para>
+    /// <para>
+    /// The stored events are the run's history and match the live stream with two differences,
+    /// measured. The stored <see cref="RunEventType.RunStarted"/> carries
+    /// neither the workflow name nor the session; this stream fills them from the run, as the live
+    /// stream writes them. The closing event keeps its stored sequence number, where the live stream
+    /// numbers it one past. Events the engine writes beside the graph's (a function node's tool
+    /// record, a quota notice) are stored only, so a follower can see more than the live client did.
+    /// </para>
+    /// <para>
+    /// A row that is not there yet is waited for (<see cref="MissingRowGrace"/>): a follower can read
+    /// the claim in the moment between the claim and its row.
+    /// </para>
+    /// </remarks>
+    /// <param name="runId">The run to follow.</param>
+    /// <param name="runs">The run store.</param>
+    /// <param name="pollInterval">How often new events are read.</param>
+    private sealed class WorkflowFollowStream(Guid runId, IRunStore runs, TimeSpan pollInterval) : IResult
+    {
+        /// <summary>How long a run whose row does not exist yet is waited for.</summary>
+        private static readonly TimeSpan MissingRowGrace = TimeSpan.FromSeconds(30);
+
+        public async Task ExecuteAsync(HttpContext httpContext)
+        {
+            ArgumentNullException.ThrowIfNull(httpContext);
+
+            var cancellationToken = httpContext.RequestAborted;
+            var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
+            await using var writerScope = writer.ConfigureAwait(false);
+            long sequence = 0;
+
+            try
+            {
+                await writer.WriteEventAsync(
+                    sequence++,
+                    "run",
+                    JsonSerializer.Serialize(new FollowedRun(runId), JsonOptions),
+                    cancellationToken).ConfigureAwait(false);
+
+                await foreach (var (stored, run) in RunEventTail
+                                   .ReadAsync(
+                                       runs,
+                                       runId,
+                                       next: 0,
+                                       pollInterval,
+                                       token => new ValueTask(writer.WriteKeepAliveAsync("waiting", token)),
+                                       MissingRowGrace,
+                                       cancellationToken)
+                                   .ConfigureAwait(false))
+                {
+                    var runEvent = stored.Type == RunEventType.RunStarted && run is not null
+                        ? stored with { Text = run.WorkflowName ?? run.AgentName, Payload = run.SessionId }
+                        : stored;
+
+                    await writer.WriteEventAsync(
+                        sequence++,
+                        "event",
+                        JsonSerializer.Serialize(runEvent, JsonOptions),
+                        cancellationToken).ConfigureAwait(false);
+                }
+
+                await writer.WriteEventAsync(
+                    sequence,
+                    "done",
+                    JsonSerializer.Serialize(new FollowedRun(runId), JsonOptions),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
+            {
+                // The follower went away; the run it followed is not its own and goes on.
+            }
+            catch (Exception ex)
+            {
+                // The SSE headers are already sent: every failure becomes a frame (K-296).
+                var correlationId = SafeErrorText.NewCorrelationId();
+
+                httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Tracon.WorkflowEndpoints")
+                    .LogError(ex, "Following workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+
+                await writer.WriteEventAsync(
+                    sequence,
+                    "error",
+                    JsonSerializer.Serialize(
+                        new FollowFailed(ex.GetType().Name, SafeErrorText.ForPersistence(ex, correlationId)),
+                        JsonOptions),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        private sealed record FollowedRun(Guid RunId);
+
+        private sealed record FollowFailed(string Type, string Message);
     }
 }

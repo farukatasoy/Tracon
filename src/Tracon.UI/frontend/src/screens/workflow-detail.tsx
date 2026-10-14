@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { client, openStream, STREAM_IDLE_TIMEOUT_MS, unwrap } from '../lib/api';
+import { client, openStream, STREAM_IDLE_TIMEOUT_MS, TraconError, unwrap } from '../lib/api';
 import { readSse, SseIdleTimeoutError } from '@tracon/client';
 import { Link, useNavigate, useSearchParams } from '../lib/router';
 import { shortId } from '../lib/format';
@@ -28,7 +28,13 @@ import { KIND_HINT } from './workflows';
 import { WorkflowVersions } from './workflow-detail/versions';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
 import type { RunEvent } from '../lib/run-event';
-import type { RunRecord, WorkflowDescriptor, WorkflowGraph, WorkflowPendingRequest } from '../lib/server-types';
+import type {
+  RunRecord,
+  WorkflowDescriptor,
+  WorkflowGraph,
+  WorkflowPendingRequest,
+  WorkflowResponseRecord,
+} from '../lib/server-types';
 
 /**
  * One workflow: its graph, a place to run it, and the human decisions it is
@@ -130,6 +136,21 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
           params: { path: { runId: runId as string } },
         }),
       ) as Promise<WorkflowPendingRequest[]>,
+    enabled: finished,
+  });
+
+  // Phase 208: the answers already given to this run's requests. A request with one carries a
+  // badge and a link to the run that answer started; it can still be answered - a Branch
+  // workflow opens another run, a one-answer workflow follows the same answer or refuses a
+  // different one.
+  const responses = useQuery({
+    queryKey: ['workflow-responses', runId],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/workflows/runs/{runId}/responses', {
+          params: { path: { runId: runId as string } },
+        }),
+      ) as Promise<WorkflowResponseRecord[]>,
     enabled: finished,
   });
 
@@ -252,6 +273,11 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
           // The console recognises this one, so it says it in the reader's
           // language — unlike a server message, which ErrorNote shows as-is.
           setError(new Error(t('common.streamLost')));
+        } else if (caught instanceof TraconError && caught.status === 409) {
+          // A one-answer workflow refused a different answer: said in the reader's
+          // language, like the stream loss above.
+          setError(new Error(t('workflowDetail.answeredOtherwise')));
+          await queryClient.invalidateQueries({ queryKey: ['workflow-responses', request.runId] });
         } else if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
           setError(caught);
         }
@@ -259,7 +285,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
         setStreaming(false);
       }
     },
-    [consume],
+    [consume, queryClient],
   );
 
   if (workflow.isPending) {
@@ -463,6 +489,11 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
                 <PendingRequestCard
                   key={request.requestId}
                   request={request}
+                  answeredBy={
+                    responses.data?.find(
+                      (record) => record.requestId === request.requestId && record.status !== 'Abandoned',
+                    ) ?? null
+                  }
                   disabled={streaming || !meta.roles.canOperate}
                   onRespond={(body) => void respond(request, body)}
                 />
@@ -526,10 +557,13 @@ function Output({ events }: { events: readonly RunEvent[] }): ReactNode {
  */
 function PendingRequestCard({
   request,
+  answeredBy,
   disabled,
   onRespond,
 }: {
   request: WorkflowPendingRequest;
+  /** The answer already given to this request, when there is one. */
+  answeredBy: WorkflowResponseRecord | null;
   disabled: boolean;
   onRespond: (body: Record<string, unknown>) => void;
 }): ReactNode {
@@ -548,6 +582,14 @@ function PendingRequestCard({
         <Mono className="text-xs text-subtle" copy={request.requestId}>
           {request.portId}
         </Mono>
+        {answeredBy !== null && (
+          <span className="flex items-center gap-1.5 text-sm" data-testid="workflow-request-answered">
+            <Badge tone="success">{t('workflowDetail.answered')}</Badge>
+            <Link to={`runs/${encodeURIComponent(answeredBy.responseRunId)}`} className="text-accent underline">
+              {t('workflowDetail.answeredRun', { id: shortId(answeredBy.responseRunId, 8, 4) })}
+            </Link>
+          </span>
+        )}
       </div>
 
       {request.prompt != null && request.prompt.length > 0 && (

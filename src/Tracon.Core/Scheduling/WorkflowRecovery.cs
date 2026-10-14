@@ -87,12 +87,6 @@ internal sealed class WorkflowRecovery(
     /// <summary>The error type an interrupted run is closed with.</summary>
     public const string InterruptedErrorType = "interrupted";
 
-    /// <summary>
-    /// The longest chain read. Past the configured limit the work fails anyway; the
-    /// bound only keeps a corrupted chain (a cycle written by hand) from looping.
-    /// </summary>
-    private const int MaxChainLength = 128;
-
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
     /// <summary>Gets whether recovery is on.</summary>
@@ -402,47 +396,8 @@ internal sealed class WorkflowRecovery(
             cancellationToken).ConfigureAwait(false);
     }
 
-    private async ValueTask<List<RunRecord>> ReadChainAsync(Guid headRunId, string tenantId, CancellationToken cancellationToken)
-    {
-        var head = await runStore.GetRunAsync(headRunId, cancellationToken).ConfigureAwait(false);
-
-        if (head is null || !string.Equals(head.TenantId, tenantId, StringComparison.Ordinal))
-        {
-            return [];
-        }
-
-        var chain = new List<RunRecord> { head };
-        var seen = new HashSet<Guid> { head.Id };
-
-        while (chain.Count < MaxChainLength)
-        {
-            // Newest first: if a lease was lost while its owner was still alive
-            // (K-886), two continuations of one run can exist, and the newer one
-            // is the work in flight.
-            var continuations = await runStore
-                .QueryRunsAsync(
-                    new RunQuery
-                    {
-                        TenantId = tenantId,
-                        ContinuedFromRunId = chain[^1].Id,
-                        Kind = RunKind.Workflow,
-                        Take = 1,
-                    },
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            var next = continuations.Count > 0 ? continuations[0] : null;
-
-            if (next is null || !seen.Add(next.Id))
-            {
-                break;
-            }
-
-            chain.Add(next);
-        }
-
-        return chain;
-    }
+    private ValueTask<List<RunRecord>> ReadChainAsync(Guid headRunId, string tenantId, CancellationToken cancellationToken)
+        => WorkflowContinuationChain.ReadAsync(runStore, headRunId, tenantId, cancellationToken);
 
     private async ValueTask<WorkflowCheckpointPointer?> FindCheckpointAsync(
         List<RunRecord> chain,

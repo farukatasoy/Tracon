@@ -40,7 +40,8 @@ export type RunEventType =
   | 'Custom'
   | 'ChildRunTimedOut'
   | 'LoopIterationCompleted'
-  | 'SessionWriteConflicted';
+  | 'SessionWriteConflicted'
+  | 'WorkflowResponseApplied';
 
 export interface RunEvent {
   runId: string;

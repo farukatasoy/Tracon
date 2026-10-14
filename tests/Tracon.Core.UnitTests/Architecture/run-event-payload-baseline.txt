@@ -23,3 +23,4 @@ ToolInvoked | covered | tests/Tracon.Core.UnitTests/Recording/RunRecordingAgentT
 ToolInvoking | covered | tests/Tracon.Core.UnitTests/Recording/RunRecordingAgentTests.cs
 ToolOutputTruncated | covered | tests/Tracon.Core.UnitTests/Tools/TruncatingAIFunctionTests.cs
 WorkflowRequest | covered | tests/Tracon.Workflows.UnitTests/WorkflowRequestDescriptorTests.cs
+WorkflowResponseApplied | covered | tests/Tracon.AspNetCore.FunctionalTests/WorkflowResponseRecordTests.cs

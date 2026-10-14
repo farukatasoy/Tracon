@@ -1017,3 +1017,28 @@ override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.SeedAsync(string
 override Tracon.Testing.Contracts.Storage.NonTokenUsageContract.CancellableReadAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
 Tracon.Testing.Contracts.Storage.NonTokenUsageContract.The_largest_quantity_and_amount_a_run_accepts_fit_the_columns() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_largest_total_a_run_writes_fits_the_snapshot_column() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.The_response_mode_survives_the_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.A_claim_is_found_by_its_scope_and_request() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.A_delivered_record_can_be_replaced_too() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.A_recorded_answer_is_read_back_with_every_field() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.A_second_answer_to_a_claimed_request_is_not_written_and_names_the_first() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.An_abandoned_record_cannot_be_replaced_again_and_nothing_is_written() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Another_tenant_cannot_mark_a_record_delivered() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Answers_without_a_claim_are_all_written() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Concurrent_answers_to_one_request_leave_exactly_one_claim() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Concurrent_replacements_of_one_record_leave_exactly_one_claim() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Erasing_the_source_run_removes_its_answers() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Marking_delivered_moves_only_an_accepted_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Replacing_abandons_the_record_and_hands_the_claim_to_the_replacement() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Replacing_an_unknown_record_writes_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.The_answers_of_a_source_are_listed_oldest_first() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.Two_tenants_claim_the_same_scope_and_request_without_seeing_each_other() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.WorkflowResponseStoreContract() -> void
+override Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.CancellableReadAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+override Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.CountAsync(string! tenantId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
+override Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.ExistsAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool>
+override Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.SeedAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<object!>
+override Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.TryDeleteAsync(string! tenantId, object! key) -> System.Threading.Tasks.ValueTask<bool?>
+virtual Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.EraseRunAsync(System.Guid runId, string! tenantId) -> System.Threading.Tasks.ValueTask<bool>
+virtual Tracon.Testing.Contracts.Storage.WorkflowResponseStoreContract.PrepareRunAsync(System.Guid runId, string! tenantId, string! sessionId) -> System.Threading.Tasks.ValueTask

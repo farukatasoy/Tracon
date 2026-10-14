@@ -34,9 +34,9 @@ public sealed class AuditWritePolicyTests
 
     /// <summary>
     /// The fail-closed operations: the file each one lives in, and every action name it
-    /// writes. This list IS the published contract of K-776 — six operations refuse to
+    /// writes. This list IS the published contract of K-776 — seven operations refuse to
     /// apply when their audit entry cannot be written, and every other audit write is
-    /// best-effort.
+    /// best-effort. Phase 208 added the seventh: answering a workflow request.
     /// </summary>
     /// <remarks>
     /// Adding or removing an entry changes a published security guarantee, so it travels
@@ -77,18 +77,25 @@ public sealed class AuditWritePolicyTests
             "A data subject erasure",
             "src/Tracon.AspNetCore/Endpoints/DataSubjectEndpoints.cs",
             ["data_subject.erase"]),
+        (
+            // Every answer that starts a run, in either response mode, before its record and
+            // its run. The gate holds the one call site the respond endpoint uses for a fresh
+            // answer and for a re-driven one alike.
+            "Answering a workflow request",
+            "src/Tracon.AspNetCore/Internal/WorkflowResponseGate.cs",
+            ["workflow.respond"]),
     ];
 
     /// <summary>
     /// The expected number of <c>WriteOrThrowAsync</c> call sites across the whole tree.
     /// </summary>
     /// <remarks>
-    /// NINE, not six: grant and revoke are two call sites of one operation, so are the
+    /// TEN, not seven: grant and revoke are two call sites of one operation, so are the
     /// trigger upsert and the trigger delete, and an approval decision can arrive on two
     /// surfaces (the approval inbox and the run request body). Counting operations and
     /// counting call sites are different questions, and this test asks both.
     /// </remarks>
-    private const int ExpectedFailClosedCallSites = 9;
+    private const int ExpectedFailClosedCallSites = 10;
 
     /// <remarks>
     /// No <c>\b</c> before <c>auditLog</c> — a word boundary does not exist between
@@ -163,16 +170,16 @@ public sealed class AuditWritePolicyTests
         var repoRoot = FindRepoRoot();
         var missing = new List<string>();
 
-        // A qualifier in brackets marks a second SURFACE of the same operation, not a
-        // seventh operation: "An approval decision (in band)" and "(out of band)" are one
+        // A qualifier in brackets marks a second SURFACE of the same operation, not an
+        // eighth operation: "An approval decision (in band)" and "(out of band)" are one
         // published guarantee reached two ways.
         FailClosedOperations
             .Select(static entry => BaseOperation(entry.Operation))
             .Distinct(StringComparer.Ordinal)
             .Count()
             .ShouldBe(
-                6,
-                "The published guarantee names six fail-closed operations. Changing that number "
+                7,
+                "The published guarantee names seven fail-closed operations. Changing that number "
                 + "changes what consumers were promised, not just this test.");
 
         foreach (var (operation, file, actions) in FailClosedOperations)
@@ -204,7 +211,7 @@ public sealed class AuditWritePolicyTests
 
         missing.ShouldBeEmpty(
             "A fail-closed operation no longer takes the fail-closed path, or moved file. Each "
-            + "of these six operations refuses to apply when its audit entry cannot be written; "
+            + "of these seven operations refuses to apply when its audit entry cannot be written; "
             + "losing that is invisible until the audit store actually breaks in production.");
     }
 

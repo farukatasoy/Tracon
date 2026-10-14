@@ -1322,3 +1322,5 @@ override Tracon.WorkflowVersionDiffResponse.GetHashCode() -> int
 override Tracon.WorkflowVersionDiffResponse.ToString() -> string!
 static Tracon.WorkflowVersionDiffResponse.operator !=(Tracon.WorkflowVersionDiffResponse? left, Tracon.WorkflowVersionDiffResponse? right) -> bool
 static Tracon.WorkflowVersionDiffResponse.operator ==(Tracon.WorkflowVersionDiffResponse? left, Tracon.WorkflowVersionDiffResponse? right) -> bool
+Tracon.WorkflowSaveRequest.ResponseMode.get -> Tracon.WorkflowResponseMode
+Tracon.WorkflowSaveRequest.ResponseMode.init -> void

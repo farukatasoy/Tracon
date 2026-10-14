@@ -46,6 +46,13 @@ public sealed record WorkflowDescriptor
     /// </summary>
     public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
 
+    /// <summary>
+    /// Gets how the workflow treats more than one answer to the same pending human request.
+    /// For a stored workflow this is the current version's mode; a run that waits keeps the
+    /// mode of the version it recorded.
+    /// </summary>
+    public WorkflowResponseMode ResponseMode { get; init; }
+
     /// <summary>Gets the definition version. Always 1 for code-defined workflows.</summary>
     public int Version { get; init; } = 1;
 
