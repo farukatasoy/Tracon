@@ -6194,3 +6194,346 @@ F-300'ün çalışma sözleşmesi. **Damga:** workflow kök satırı derlediği 
 ### K-989
 
 F-300'ün adım sözleşmesi. `WorkflowNodeReference.AgentVersion` (`int?`, `null` = güncel). **Kayıt:** `WorkflowDefinitionValidator.NodeAgentVersionProblem` biçimi (fonksiyon düğümünde ve `< 1`'de `400`), `AgentVersionPin.FindProblemAsync` varlığı denetler: kod agent'ı ("keeps no version history") ve olmayan sürüm (`GetVersionAsync`) adıyla `400`; olmayan agent ve özel kaynak agent'ı atlanır (agent adları kayıtta denetlenmez; sürüm agent olmadan yargılanamaz). Betimleyici (`ListAsync`) ve tek sürüm satırı okunur, agent DERLENMEZ: derleme MCP bağlantısı açar ve bu denetim her derlemede, graf görünümünde de koşar. **Derleme:** aynı denetim `WorkflowDefinitionCompiler.BuildMixedSequentialAsync`'in başında tekrarlanır; sabit yazıldıktan sonra silinip yeniden yaratılan agent'ın numarası sıfırlanır (K-811) ve run ilk model çağrısından önce "pins agent 'x' to version N" ile düşer. **Çözüm:** `WorkflowAgentCache.Get(..., agentVersion)` anahtarı sabiti taşır ve `ChildAgentInvoker`'a `pinnedVersion` geçirir; invoker `CallableAgentResolver.ResolveAsync(ad, sürüm)`'ü (katalogun sürümlü çözümü) ve parametreli yolda `ParameterizedAgentFactory.FindAsync(ad, sürüm)`'ü kullanır, bu yüzden çocuk satır sabit sürümü yazar (K-891 betimleyicisi doğru sürümü tanımlar) ve katılımcı kapsaması da sabitli sürümün şemasına karşı denetlenir. **Kimlik:** sabit executor kimliğine girmez (`WorkflowAgentIdentity` `(workflow, agent)` çiftidir); aynı çiftin iki sabiti iki sarmalayıcı, tek kimliktir, bu yüzden sabit değişimi eski checkpoint'i bozmaz (ölçüldü: `Re_pinning_an_agent_step_leaves_the_old_checkpoint_usable_for_either_version`). **Biçim:** `AgentNames` yalnız ad taşır; ilk sabit `agentNames` → `nodes` çevirisi demektir ve bu yapısal değişikliktir (farklı executor'lar) — konsol K-901'in kuralıyla uyarır. Sabitsiz adım güncel agent'ı çözer (K-895 (c) sürer). Alt agent ve skill sabiti kapsam dışıdır (F-409): sabitli agent'ın kendi alt agent'ları ve skill'leri güncel sürümle çözülür.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-208 — devam (Faz 90 damıtması)
+
+**2026-10-12 (F-340):** artık OpenAI'yi de kapsar — `openai`, `openai-responses` ve her `UseOpenAICompatible()` kaydı tek `openai` önekini ve boş `SupportedSettings`'i kullanır; `ModelProviderSettingsContract` her sağlayıcıya türetilir.
+
+### K-444 — devam (Faz 90 damıtması)
+
+**Düzeltme (2026-10-12, F-342):** başlıktaki "sıcaklık devretmez" yanlıştı; istek düzeyindeki `ChatOptions` (sıcaklık, `TopP`, `MaxOutputTokens`, `ResponseFormat`, tool'lar) yedek halkaya kopyalanır (`FallbackChatClient.OptionsForLink`), yalnız `ProviderSettings` devretmez.
+
+### K-884 — devam (Faz 90 damıtması)
+
+Tek alanı GA'dan sonra ikiye bölmek kırıcı olurdu; değerlendirmeden düşürmek son turda karşılanan ölçütü reddederdi; sağlayıcı arızası kalite reddiyle aynı kovaya karışmamalı.
+
+### K-894 — devam (Faz 90 damıtması)
+
+Ölçüldü: kuyruklu run varsayılan talimat ve güncel sürümle koştu, hiçbir kola sayılmadı.
+
+### K-896 — devam (Faz 90 damıtması)
+
+Migration yok.
+
+### K-897 — devam (Faz 90 damıtması)
+
+Katılımcı agent kayıttan sonra değişebildiği için kayıtta kapsama kontrolü yanlış güvence verirdi.
+
+### K-898 — devam (Faz 90 damıtması)
+
+Workflow mesajı içerik koruyucudan geçmeden `run_inputs`'a yazılırsa koruyucuyu atlardı, değerlerle ihtiyaç yoktu. Migration PostgreSQL `0056` · SQL Server `0044` · SQLite `0043`.
+
+### K-899 — devam (Faz 90 damıtması)
+
+Metin tür taşımadığı için `{"message":…}` içerikli düz bir öğe yapılı sayılır (belgelendi).
+
+### K-900 — devam (Faz 90 damıtması)
+
+Ölçüldü: `System.Text.Json` 10.0.0 geçişli paketi `net8.0` dahil üç hedefte bunları verir ve `AIJsonUtilities.CreateJsonSchema` aynı seçenekle `required` ve `additionalProperties: false` üretir; şema yalnız gösterimdir, üretilemezse `{"type":"object"}`. Tüketicinin setter/ctor'u fırlatırsa istisna sarılmadan gelir; kayıt `500` yerine `400` verir ve mesaj yanıta girmez. Sınır `TraconWorkflowOptions.MaxNodeSettingsLength` (16 KiB): saklı tanım çalışmaya devam eder. Ayar executor kimliğinin parçası değildir.
+
+### K-901 — devam (Faz 90 damıtması)
+
+Yalnız-agent `nodes`'u sunucuda reddetmek API ile kaydedilmiş tanımları kırardı; dönüşüm kaydetme anında istemcide ve bir bilgi satırıyla yapılır. Düğüm adı executor kimliğidir.
+
+### K-902 — devam (Faz 90 damıtması)
+
+İki aşırı yükleme (fabrika; fabrika + seçenek); iki parametreli aşırı yükleme DEĞİŞMEZ; arayüz üyesi uygulayıcıyı kırar, tek uygulayıcı iç kayıttır.
+
+### K-903
+
+Artan bekleme kanıtlanan kira penceresinde (iç `JobContext.ProvableLeaseRemaining`); pes edilince iç `NonRetryableJobException` handler'ı tekrar koşturmaz; onay yolunda run `Failed`; Tracon reddi tekrarlanmaz. Kod `jobs.error_message`'a yazılır, sitede belgeli.
+
+### K-904
+
+`IJobDispatcher` çağrı anının, inbound trigger kabul isteğinin atfını yazar; zamanlama zarfını Admin yazar, sınır aşımı `400`; bozuk değer düşer. Toplu işte yük öğe kaynağıdır, üst düzey alan öğeyi bozardı; tipli job sütunu migration isterdi. Kapı `JobAttributionScopeSiteTests`.
+
+### K-905
+
+Terfi tam sorguyu, belgeleri (`Context`'e aynen) ve değerleri (yeni `EvalCaseDraft.Parameters`) taşır; kayıt yoksa `RunStarted` metni `…[truncated]` ile kalır; belgeli kayıtsız run, ek ya da çok mesajlı girdi `422`. K-300'ün "tek kalıcı yer" öncülü Faz 47'de bayatlamıştı.
+
+### K-906
+
+Sayılan: bağlantı, zaman aşımı, `5xx`, `408`, `429`, `401`/`403`. Köken `ForeignProviderInvocationException`, durum `ProviderHttpStatus`; yeniden fırlatılan tool hatası, run bütçesi ve eksik ek sayılmaz.
+
+### K-907
+
+Özetleyici ya da `aiJudge` payı cevap veren modelle fiyatlanır (K-893), geçiş loglanır. Mekanizma çağrı başına kapsam kopyası (`AgentRunScope.SideChannelFallback`).
+
+### K-908
+
+Yeni üye varsayılan uygulamalıdır; `respond` `400` verir ve run açmaz, runner akış içi otorite kalır; istek olayı `responseAssembly` taşır.
+
+### K-909
+
+Ölçüldü: workflow kökü agent devamına giriyordu, alt run kökün oturumunda tool'larını tekrarlıyordu. Alt run: `ParentRunId` ya da `Depth > 0`; işleyici de reddeder; `RunStoreContract` claim kaydında `Kind` ve ağaç alanlarını ister.
+
+### K-910
+
+Yüklem silmede yeniden denetlenir, sink transaction dışındadır, teslim en az bir kez. Transaction'lı `DELETE…RETURNING` kilit yükseltirdi. Varsayılan gövde eski iki çağrıdır; sözleşme yakalar. K-200 arşivsiz modda geçerli. Public üye de eklendi.
+
+### K-911
+
+K-888 yalnız retention içindir; `state` saklandığı JSON metni olarak dışa aktarılır. Kapı `DataSubjectCoverageTests`.
+
+### K-912
+
+Üretici kurulum anahtarıyla kurulur ve kiracınınkini kullanamaz; üretmek ev sahibinin hesabına fatura keser. Ret tipi `TenantProviderRefusedException` uçta `403`'ü sağlayıcı hatasının `502`'sinden ayırır. Sınıf taraması: bilgi tabanı embedding çağrısı aynı sınıftır ama sağlayıcı adı taşımaz (F-416); konuşma Faz 198'dedir.
+
+### K-913
+
+`AgentTreeQuotaTests` üç test önce kırmızı (sayaç 10 yerine 20, webhook girdisi 4 yerine 8). Workflow kökü ağacı zaten sayıyordu (emsal); site "consumption is counted once at the tree's root" diyordu. Webhook yükünün agent kökünde anlamı değişti: artık ağacın toplamıdır (sınıf taraması, aynı düzeltme). Bilinen sınır: kök kapandığında hâlâ koşan arka plan alt run'ı sayılmaz (F-418); ağaç içinde karışık para birimi tek etiketle toplanır (F-419). Satırın önceki denemeden kalan usage'ı ağaçtan düşülür; okuma iptal token'ı almaz.
+
+### K-914
+
+Eşzamanlı ilk derlemeler tek çağrı görür (kilitsiz sürümde test kırmızı); kilit aynı iş parçacığında yeniden girilebildiği için kendi türünü derleyen fabrika hata alır. `LoopEvaluatorTenantTests`: fabrika ilk derlemenin kiracısını gördü, değerlendirme her run'ın kendi kiracısını (workflow adımı dahil). Açıklama parametresi (Açık Soru 4-A) iki aşırı yüklemeye opsiyonel konamadı: RS0026; emsal `AddTool`. Reviewer deseni çocuk run'ı `TraconRunOptions` ile ağaca bağlar; derinlik ve `Budget.TryReserveRun()` ölçütün işidir (ölçüldü: ölçüt rezerve edince `StartedRuns = 2`, reviewer token'ları aynı ağaç bütçesine girer, `ConsumedTokens = 30`)
+
+### K-915
+
+Serbest metin tür alanı (Açık Soru 2-B) yazım hatasını kayda kadar gizlerdi. `ModelBinding` dönülmez: `ProviderSettings` anahtar adı taşıyabilir (`LoopCriteriaEndpointTests` sızmadığını kanıtlar). Yargıç tanımda değil host bağlamasındadır (K-706, Açık Soru 3-A); egress'in yargıcı yasaklaması kiracıya özgü olduğundan katalogda değil doğrulama raporunda görünür (K-916). Yerleşik türün açıklaması Tracon'un İngilizce cümlesidir, konsol kendi `en`/`tr` metnini gösterir (K-232)
+
+### K-916
+
+İki ayrı kural kümesi raporun geçirip derleyicinin reddettiği tanımı üretirdi. Kod adları ve yol biçimi (`harness.loop.criteria[i].marker`, `…judgeCriteria[j]`) istemcilerin dayandığı sözleşmedir. Yargıç egress reddi K-874 gereği rapora girer; kod değişimi `SecondaryModelEgressTests`'e işlendi. Boş girdi önce derleniyor ve yargıca metinsiz ölçüt gidiyordu; kural GA'dan önce sıkılaştı (CHANGELOG)
+
+### K-917
+
+`LoopEvaluatorRegistryTests` mesajda fabrika metninin olmadığını kanıtlar. Ayıklama bilgisi kaybolmaz: log istisnanın tamamını yazar
+
+### K-918
+
+Kodla ya da API ile yazılmış `marker` (aiJudge'da yok sayılır), `modes` ve kayıtsız tür `full-replace-editors.test.tsx`'te derin `Complete` ile gidiş-dönüş yapar. Tür değişiminde temizlemek (Açık Soru 6-A) sürüm farkında hayalet alan bırakmaz. Denetim (🟡): kanonik ad listesi `aijudge`'ı seçicide kaybediyordu; yazım artık kendi seçeneğidir (Vitest)
+
+### K-919
+
+Ölçüldü: kaydedici istisnayla biten run'a iki yolda da usage yazmaz, kesilen çağrı bir çıktı sınırı harcar (K-483 sınıfı); MEAI 10.9.0 `FunctionInvokingChatClient` akışta ara turun sebebini önce verir, bu yüzden son sebep okunur. Ayrı sınıf panoyu sağlayıcı hatasından ayırır. Online değerlendirme kesilen yargıç yanıtını tekrarlamaz (denetim, Faz 204 #17).
+
+### K-920
+
+Ölçüldü (SDK 12.39.0 decompile + ham gövde): adaptör var olan `OutputConfig`'i `with { Format }` ile kopyalar, `effort` ve şema birlikte gider; `Instructions` cache kontrolsüz blok olur, bu yüzden `system` yerleşimi talimatı ayrı sistem mesajı olarak ekler. Canlı: ikinci run talimat önekini önbellekten okudu (`cachedInputTokens: 1537`). Örtük adaptive varsayımı davranış değiştirirdi (3-B). Sözleşme yanlış değeri de reddeder (`InvalidSettingValue`).
+
+### K-921
+
+`FallbackChatClient` bağlantıya aynı `ChatOptions`'ı gönderir, bağlantı aynı `400`'ü alır. Canlı: katalogda `false` olan modele `temperature: 0.2` → `/validate` `sampling_unsupported`, kayıt `400`. Model yargıcının bağlaması kapsam dışı (F-428).
+
+### K-922
+
+`IModelProvider`'a isteğe bağlı arayüz bağlamaya göre değil sağlayıcıya göre cevaplar ve doğrulayıcıya registry tesisatı ister (Faz 201 ile çakışan dosyalar); MEAI `ChatClientMetadata` deyimi en dar yüzeydir. Sabit eşik model listesi gibi bayatlar (K-032). Canlı: `claude-haiku-4-5` için 4096 < 64000 uyarısı. Bugün yalnız Anthropic bildirir.
+
+### K-923
+
+Job zaten kiralar ve deneme sayar; işaret (batch öğesinde `RunId`, tek run'lı işte `Queued` satır) migration'sız. Ölçüldü: SIGKILL sonrası devam yalnız kesilen adımı koştu (`TwoProcessWorkflowResumeTests`, PostgreSQL; örnek uygulama).
+
+### K-924
+
+Yük bir run'ı ve işlemi adlandırır, çağıran yalnız HTTP ucunda denetlenir: zamanlama kaydı bu denetimi atlardı. Senkron resume/respond da kotaya girmez (K-394, K-162). Tekrarı `Idempotency-Key` kapatır (K-925).
+
+### K-925
+
+Yok saymak (5-B) korumayı sessizce düşürür; akışsız JSON (5-C) yeni bir yanıt biçimi açar. Ajan uçları değişmedi.
+
+### K-926
+
+Bellek içi iş deposu biten öğeyi eziyordu (sözleşme case'i yakaladı). Üçüncü taraf depo bu iki kuralı uygulamazsa kurtarma kopar: `RunStoreContract` dört, `JobStoreContract` iki case aldı. Migration yok (`0037` indeksi ve `job_items.run_id` vardı).
+
+### K-927
+
+`1 + MaxResumeAttempts` ile son devam `Running`, açılmış devam `Queued` kalıyor, `0` kesintiyi hiç görmüyordu: gerçek worker'dan geçen dört test önce düştü; örnek uygulamada `MaxResumeAttempts=0` + SIGKILL → run `Failed`, iş `not-continued`, `attempt 2 of 2`. Batch sınırını yükseltmek tüketicinin açık `maxAttempts`'ını ezerdi; son deneme kuralı her kuyruk yolunda tutar. `AsyncRun.MaxAttempts` (4-B) varsayılan `1` ile kurtarmayı kapatırdı.
+
+### K-928
+
+Öğe işin sahibinin oturumudur; kuyrukta oturum sahipliği denetlenmez. Ajan öğesi oturumsuz koşar (K-899); sessizce yok saymak tüketiciyi yanıltırdı. Kayıt şekli kabul eder, öğe çalışınca düşer (F-434).
+
+### K-929
+
+Ayrı koruma migration ve anahtar kararı ister.
+
+### K-930
+
+Kapı kapatılınca 20 fonksiyonel ve 6 tool testi kırmızı (mutasyon). Kayıt adıyla egress, takma adla politikayı atlatırdı (`The_policy_judges_the_provider_name_not_the_registration_name`). Yerleşik ElevenLabs istemcisi kiracı anahtarı almaz (4-A): bağlamalı kiracı reddedilir. Davranış değişikliği `CHANGELOG`'da. Sağlık kontrolü platform düzeyidir ve kiracı verisi göndermez
+
+### K-931
+
+Keyed çözüm son kaydı sessizce kazandırırdı (K-663 sınıfı): çift ad kurulumda atar (`SpeechProviderRegistrationTests`). İç anahtar nesnesi tüketicinin keyed kaydıyla çakışmayı ve kapının `GetKeyedService` ile atlanmasını önler. Kiracı varsayılan satırı (1-B) üç tablo, uç, denetim ve konsol isterdi ve host'un verisinin ikinci kopyası olurdu; `name == null` onu sonra kırmadan ekler. Opsiyonel `ListVoicesAsync(ct)` yanında aynı adlı aşırı yükleme RS0026/RS0027 verdiği için kimlikli liste `ListVoicesWithCredentialAsync` adını aldı (K-878'in `AttachSessionAsync` emsali)
+
+### K-932
+
+Varsayılan üye uygulayıcıyı kırmaz; `ForCharacters` yedeği yalnız onu uygulayan tüketici okuyucusunu korur. `VoicePricingTests` (iki proje) adlı sentezleyicinin varsayılan fiyatı ödünç almadığını ölçer
+
+### K-933
+
+Ölçüldü: drain sırasında `resume` `200` ile yeni run açtı; on yüzeyin dokuzu kapısızdı. Site "new runs are refused" diyordu. Her protokol kendi ret biçimini taşır: OpenAI SDK'sı ProblemDetails okumaz, MCP ve A2A HTTP durumunu taşımaz. Job yazan yüzeyi reddetmek dayanıklı işi kaybettirirdi; işçi drain'de kiralamaz. Kapı: `RunAuthorizationCoverageTests.Every_known_in_process_run_starting_surface_refuses_while_draining`
+
+### K-934
+
+Checkpoint durumu öznenin mesajlarını taşır (governance) ama korumanın dışındaydı. Zarf geçerli JSON olduğu için `json` sütununa sığar; `$type` sırası çözülen metinde korunur. `DataSubjectCoverageTests` her `ProtectedColumn`'un tablosunu ister ve dışa aktarılan korumalı sütunu listede arar. Retention arşivi aynı sınıftır, karar bekler (F-447)
+
+### K-935
+
+Terfi edilen vaka bir kopya olduğu için silinir ve suite'in vaka sayısı azalır (denetim kaydı satır sayısını yazar). Bekleyen ya da koşan öğe de silinir; run'ı da siliniyor. Bilinen sınır: kimliği run kimliği olmayan batch işinin `payload`'u kalır (F-374); silme commit olduktan sonra koşan run'ın geri yazımı F-400'de açık
+
+### K-936
+
+Ölçüldü: MEAI metadata adı OpenAI ve Azure OpenAI üreteçlerinde `openai`, Google.GenAI'de `gcp.gen_ai` — yalnız bildirilen ada bakmak Azure'u OpenAI'den ayıramaz, bu yüzden yapılandırılan ad önce gelir (K-930'un "örneğin adı" kuralından bilinçli sapma: embedding üreteci tüketicinin kaydıdır, ad güvenilir değil). Keyed kayıt API'si (K-931 deseni) daha geniş yüzeydi. `Tracon:Knowledge` bölümü hiç bağlanmıyordu; bu turda bağlandı (`TraconKnowledgeOptionsBindingTests`)
+
+### K-937
+
+Sınıf taraması: kullanıcı adı alan ve yanında sabit `GET` segmenti olan yalnız iki koleksiyon var. Sabit uçları başka yola taşımak (2. seçenek) yayınlanmış HTTP sözleşmesini ve iki istemciyi kırardı; ad ayırmak yalnız o adı kullanan (geri okunamayan) kaydı etkiler
+
+### K-938
+
+Kuyruklu yol aynı denetimleri `202`'den önce yapıyordu; iki yol farklı kod verirse istemci iki hata biçimi okumak zorunda kalır. `409` yerine `400`: kuyruklu yolun yayınlanmış kodu `400`'dür. Davranış değişikliği `CHANGELOG`'da; `WorkflowParameterTenantIsolationTests` artık `404` bekler
+
+### K-939
+
+Silmenin run'ı iptal etmesi (öteki seçenek) silme ucuna run yaşam döngüsü yetkisi verirdi ve iptal ile commit arasında yine yarış kalırdı. `AwaitingApproval`/`AwaitingInput` run'ı yazmaz, silmeyi engellemez (K-935'in run silmesi onu da götürür). `DataSubjectEndpointTests` beş durumu ölçer
+
+### K-940
+
+Örneklenen run'a eklemek (öteki okuma) yargıç harcamasını üretim maliyetine karıştırırdı; K-328 bunu `RunKind.Eval` dışlamasıyla ayırmıştı. Evaluator kendi çağrılarını raporlamaz, bu yüzden kullanım istemci sarmalayıcısında sayılır. `EvaluatorJudgeCostTests` gerçek kayıt yolundan ölçer
+
+### K-941
+
+Zarfı sink'te bırakmak arşivi anahtar rotasyonuna bağlardı: eski anahtar kaldırılınca arşiv okunamaz olur. Davranış değişikliği `CHANGELOG`'da (sink artık okunur içerik alır). `DataSubjectCoverageTests` üç sağlayıcıda hedefi olan her korumalı sütunun arşiv listesinde olmasını ister; SQLite `ContentProtectionTests` sink'e giden satırı uçtan uca ölçer (yol paylaşılan `SqlRetentionStore`'dur)
+
+### K-952
+
+DI kaydı ham örneği verip egress ve kiracı anahtarı kuralını atlardı (`VoiceDialogueRegistrationTests`). Kapı kaldırılınca 11 fonksiyonel test kırmızı (mutasyon, `SpeechDialogueTenantTests`). Soyut üye ölçülerek seçildi: `ISpeechProviderResolver` `[Unreleased]`'dadır, `v1.0.0-preview.3`'te yoktur, tek uygulayıcı `internal`'dır; varsayılan gövde yalnız istisna atabilirdi (kapı Core'da); ad tekil olduğu için RS0026/RS0027 yoktur. Bölme kuralı (bölüm sınırı, cümle) domain'e aittir
+
+### K-953
+
+Ölçüldü: ElevenLabs diyalog servisi bilinmeyen `settings` alanını hatasız kabul eder (`settings.style` → `200`), yani düşen ayar hiç görünmez; diyalog `settings` yalnız `stability` ve `similarity` taşır. Tek kural (K-483) iki yerde iki ret metni üretmesin diye. Ayarlar sessizce düşürülünce 19 test kırmızı (mutasyon)
+
+### K-954
+
+Yanlış tip zaten değeri değil `JsonValueKind`'i yazıyordu. Kural yalnız konuşmada kalsaydı üç sağlayıcı üç ayrı kural taşırdı (Faz 204'ün açık bıraktığı seçim). Önce kırmızı: Anthropic ve Google sözleşme sınıfları; `MT-PROV-032…034` örnek uygulamada yankısız
+
+### K-955
+
+(ref: …)` diye maskeler. Diyaloğun tek çağıranı iş akışı düğümüdür ve operatör nedeni run kaydında görmelidir (`MT-MM-134`, `136`). Var olan konuşma doğrulaması (ses kimliği yok, akış + zaman damgası) da `TraconException`'dır
+
+### K-956
+
+Canlı ölçüm: tek ses ve diyalog yanıtı `request-id` başlığını döndürür. `sealed` sınıfa `init` özelliği eklemek kırıcı değildir
+
+### K-957
+
+Çözümleyici bu istemciye kimlik göndermez; Tracon yolları etkilenmez. `ListVoicesWithCredentialAsync` varsayılan gövdesi aynı kuralı zaten izliyordu. Önce kırmızı: 2 test (mutasyon). Sınıf taraması: `OpenAILiveProvider` kimliği kullanır, örnek `ToneSpeechSynthesizer` dışında başka vaka yok
+
+### K-958
+
+Öncelik düğüm > kayıt > yok; `retry(timeout(handler))`; aşımda gövde token'ı iptal olur, bekleme dinlemeyen gövdede de kesilir, geç bitiş loglanır; hata `TraconWorkflowFunctionTimeoutException` (sınıf `Timeout`); sebep yalnız düğümün kendi gecikmesinden okunur, çağıran iptali ve `RunTimeout` K-844 gereği `Canceled` kalır (`WorkflowFunctionTimeoutReasonTests`). Ölçüldü: sarmalayıcıdan önce dinlemeyen fonksiyon run'ı dönene kadar tuttu; MAF `FunctionExecutor` run token'ını geçirir (Adım 0 probu). `TSettings` yolu K-900'ü açardı; opsiyonel parametre K-422/K-902'ye aykırıydı. Bedel: konumsal `null` üçüncü argüman `CS0121` verir; `1.0.0` öncesi kabul edildi, `CHANGELOG` yazar
+
+### K-959
+
+Sert kesim süre + 30 sn; önbellek anahtarı süreyi taşır, executor kimliği `(workflow, agent)` kalır (`WorkflowAgentNodeTimeoutResumeTests` bekleyen run'ı yeni süreyle sürdürür). Konsol süre alanını yalnız fonksiyon adımlı zincirde gösterir; `agentNames` biçimine düşen süreli adım kaydı tutar, istek kurulmaz. Gerekçe: biçim değişimi `AwaitingInput`'ta bekleyen run'ı "graph's structure differs" ile resume edilemez yapar ve agent adımlarının canlı token akışını durdurur (Faz 195 ölçümü); Aşama 1'in "adım süresi → `nodes`" kuralı bu yüzden geri alındı
+
+### K-960
+
+`MaxRunTimeout` varsayılanı `null` (yalnız kısaltma); tavan sonradan düşerse kayıtlı değer tavana kesilir ve uyarı loglanır; `MaxRunTimeout ≥ RunTimeout` açılışta motor kapalıyken de doğrulanır; tanım çözümü slot beklemesinden önce yapılır. Uzun run paylaşılan `MaxConcurrentRuns` slotunu tutar (F-322); tavanı host seçer. Kayıtlı tanım tavan düşünce run'ı düşürmemeli (ayar tavanı emsali). Düğüm süresi `RunTimeout`'a göre doğrulanmaz: önce dolan durdurur. Ölçüldü: örnek uygulama case 10-11
+
+### K-961
+
+`JobRequest`/`JobRecord.MaxDuration`; sütun `bigint NULL`, PostgreSQL 0057 · SQL Server 0045 · SQLite 0044 (49,7 gün `int` ms'yi aşar). Öncelik job > harita > yok; süre deneme başınadır; dinlemeyen handler beklenir; süreden sonra normal dönen handler işi tamamlar; depodaki aralık dışı değer loglanır ve haritaya düşer. `MaxAttempts` emsali; payload handler'ındır (F-374). Terminal deneme (7-B) K-886 deneme kuralıyla çelişirdi; terk (8-B) çift yürütme getirirdi. `JobStoreContract` iki case ile alanı sınar
+
+### K-962
+
+İşçi çalışan her job'u her `PollInterval`'da okur, iptal edilmiş ya da silinmiş bulunca iptal kaynağını düşürür; okuma hatası tick başına yakalanır (F-326); `IJobStore` değişmez. Önce iptal yalnız depoya yazılıyor, token yalnız kapanışta düşüyordu. Bedel: çalışan job başına aralıkta bir okuma. Ölçüldü: örnek uygulamada iptal 7,8 sn sonra run'a ulaştı; `JobWorkerCancellationTests` işçinin kendi saatinde tam bir aralıkta düştüğünü kanıtlar
+
+### K-963
+
+Kuyruklu run'ın işi kodla hemen düşer; batch durdurulan öğeyi `Failed` yazar ve deneme başarısız olur, bekleyen öğe kalmadıysa iş kodla hemen düşer; aynı anda tamamlanan son öğede iş tamamlanır; run'ı bu denemede başlamamış (hazırlıktaki) öğe bekler kalır. Faz 197 kurtarması aşımı kesintiden ayırmıyordu: sonraki deneme run'ı sürdürür, süre durdurmazdı. Sebep run satırının hata tipindedir, kalıcı tek gerçek. Hazırlıkta düşen sınır K-926'yı bozuyordu: devam satırı sonsuza dek `Queued` kalıyordu. Ölçüldü: örnek uygulama case 7
+
+### K-964
+
+Denetim yürütücüye taşınsaydı host onu atlayabilirdi (`AuditWritePolicyTests` yeri dosya adıyla izler). Fonksiyonel nöbetçi dosya testi kayıtlı yürütücüde yerel süreç başlamadığını ölçer; sözleşme ailesi `Tracon.Testing.Contracts.Scripts` 10 senaryodur
+
+### K-965
+
+Yerel yürütmeyi kapatmanın yolu `RequireCustomBinding<ISkillScriptExecutor>()`'dır
+
+### K-966
+
+Kota Tracon'un sınırıdır. Tolerans yeni seçenek yüzeyi açmaz; validator `Timeout`'u `~49,7 gün − 5 sn` ile sınırlar. Örnek uygulamada süreyi yok sayan yürütücü 7,009 sn'de bırakıldı
+
+### K-967
+
+Docker yürütücüsüyle örnek uygulamada script host ortamını görmedi (`host-only-value` yok)
+
+### K-968
+
+Ölçüldü: FIFO ve `/dev/zero` .NET'te `Attributes=Normal`, `Length=0`; tür ayırt edilemez, boyut sıfır reddedilir. Kapıdan sonra FIFO'ya dönen dosya bekleme sınırında bırakılır, slot serbest kalır (birim testi); açılışta bloklanan iş parçacığı yazar gelene kadar kalır
+
+### K-969
+
+Önceden güvensiz ad `script.run`'dan sonra yazma sınırında atıyordu
+
+### K-970
+
+`CHANGELOG` `### Changed` davranış değişikliği olarak yazar
+
+### K-971
+
+Grant hash'i alan ayırıcılı ve `internal`'dır (`SkillScriptHashing`); farklı ad karışmayı önler. Fonksiyonel test isteği JSON'a seri hâle getirip host `secret`'ını, log'da içeriği arar
+
+### K-972
+
+Boş para birimi etiketi yapılandırılmış olandır (yapılandırılmamışsa yalnız etiketsiz kalem toplanır); tutarsız ya da başka para birimli kalem listelenir ve `UnsummedItemCount`'ta sayılır; tahmini kalem toplanır ve `IsEstimated`'ı yakar. Açık Soru 1-A, 2-A, 3-A, 5-A. K-219 ses maliyetini token maliyetiyle toplamadı çünkü iki BİRİM toplanmaz; toplanan şey tutardır ve tutarı olan kod zaten hesaplar (K-032: Tracon fiyat uydurmaz). Ölçüldü: kota yalnız token tutarını sayıyordu — örnek uygulamada `speak` + `synthesize` workflow'u sıfır token harcıyor ve kotayı hiç doldurmuyordu; değişiklikten sonra dört run'da sayaç `0.0441`, dördüncü run `429` (`MT-OBS-072`). K-483 sınıfı: elle tekrarlanan toplam ifadesi sessiz eksik sayım üretir, bu yüzden tek fonksiyon ve yer başına test (`NonTokenSpendTests`, mutasyonla doğrulandı). Araç ölçümü RAPOR ANINDA girer (çağrı kimliğiyle, son rapor kazanır): akışsız run araç kaydını son model turundan sonra okur, sonra girerse bütçe sonraki turu kesemez. İki para birimi toplanmaz (K-893): para birimleri ayrışırsa token toplamı tek başına kalır
+
+### K-973
+
+Payload'da `Cost`'u token payı sayıp yeni alan açmak tüketiciye elle toplatır ve billing'i webhook'tan yapan alıcıyı sessizce eksik faturalar. `IRunStore` üyelerine varsayılan uygulama verilmedi: kalemi sessizce atan bir depo harcamayı gizlerdi; `1.0.0`'dan (K-603) önce kırmak ucuzdur ve `CHANGELOG` anar. Uç, `/tools` ile aynı sırayla (önce run, sonra yetki) çalışır: bilinmeyen, başka kiracının ve reddedilen run aynı `404` (K-671)
+
+### K-974
+
+Sınırlar: run başına 1.000 düğüm kalemi; birim 64, para birimi 16, sağlayıcı 100, model 200 karakter; miktar ≤ 9.999.999.999, tutar ≤ 1.000.000.000, toplam ≤ 9.999.999.999. Açık Soru 4-A. `tool_invocations` satırı tek birim taşır ve Tools toplamlarını şişirirdi (K-806 emsali). Snapshot run'da, detay tabloda: detayın silinmesi geçmiş toplamı değiştirmez; `NULL` ≠ `0` (K-482). Sınır nedeni ölçüldü: `numeric(20,10)` kolonunun taşan değeri insert'i düşürür ve düşen insert run'ın yazıcısını kapatır (`NodeUsageStoreFailureTests`), bu yüzden taşacak kalem reddedilir (`false` + log) ve toplam aşılırsa sayılır, kesilmez. Zaman aşımından sonra biten gövdenin kalemi (K-806'nın durumu) kapanmış satırı değiştirmez; detaya yazılır ve loglanır. Üç sağlayıcıda migration `0058`/`0046`/`0045`; kalem silinmesi run'a cascade eder, saklama ve veri sahibi silmesi onu kapsar (`DataSubjectCoverageTests`)
+
+### K-975
+
+Ölçüldü (MAF 1.20.0): `object` girdili ilk düğüm bir kez `List<ChatMessage>`, bir kez `TurnToken` ile koştu (`WorkflowEntryFunctionRunsOnceTests`, önce iki case kırmızı). Düğüm listesi başlamak için token'a ihtiyaç duymuyor; ama tokensız resume, işi kalmamış checkpoint'te `RunTimeout`'a (10 dk) kadar asılı kaldı (`Resuming_an_ALREADY_COMPLETED_mixed_chain…` 9 dk 51 sn) ve resume token'ı da ilk düğüme ulaşıyor. Token'ı yalnız başlangıçta kesmek kurtarma devamında çift çalışmayı bırakırdı; iç giriş düğümü süren run'ların checkpoint'ini uyumsuz yapardı. Önceden kabul edilen tanım artık reddedilir.
+
+### K-976
+
+Yalnız tutarı olan satırın para birimi sayılır; harf büyüklüğü ayrı para birimi değildir. `RunSpend.Total(RunTreeCost, …)` karışık token ağacında `null`; kök agent kotası ve webhook'u kendi maliyetini yazar. Ölçüldü: bellek deposu ilk para birimini, SQL `MAX(cost_currency)`'yi etiket yaptı; 1 USD + 1 EUR "2 USD" okundu (`RunStoreContract.No_cost_total_adds_amounts_in_two_currencies`, bellek ve SQLite önce kırmızı; PG ve SQL Server dahil dört depoda yeşil). Ağaç sorgusu yalnız torunları toplar; sayım kökün kendi para birimini dışarıda bırakır, okuyucu ekler. SQL Server, dış referans ile iç sütunu aynı agregada reddeder: kökün para birimi iç `CROSS APPLY` ile gelir. Döküm satırı para birimi taşımaz, bu yüzden karışık pencerede döküm maliyetleri de `null`.
+
+### K-977
+
+Ölçüldü: dört yüzeyde run `AwaitingApproval` kaldı ve posta kutusu satırı yazılmadı (`SessionlessApprovalTests`, altı yeni case önce kırmızı). Onay oturumun sonraki turudur; bu yüzeyler onu taşıyamaz. `200` istemciye başarı, run'a sonsuz bekleme gösteriyordu. `SessionlessApprovalRun` batch/eval'in hata tipini de `approval_unanswerable` yapar. A2A istemcisi reddin metnini görmez (F-485).
+
+### K-978
+
+Ölçüldü: iki host tek SQLite'ta, zarif kapanış sonrası devam ilk adımı ikinci kez koştu (`WorkflowRecoveryTests.A_run_stopped_by_a_graceful_shutdown…(false)` önce kırmızı). Ayrım `AmbientJobAttempt.Reason == WorkerStopping` ile yapılır; HTTP'ye bağlı run'da ortam yoktur, temizlik eskisi gibidir. Devamı hiç gelmeyen (deneme sınırı) run'ın checkpoint'ini retention siler.
+
+### K-979
+
+Ölçüldü: tek `CreateAsync` hatası üç denemelik işte modeli üç kez çağırdı ve ikinci deneme oturum çakışmasıyla düştü (`QueuedTurnSessionSaveTests`, dört yeni case önce kırmızı). Pencere `QueuedTurn.WithinLeaseAsync`'te oturum kaydıyla ortaktır. Webhook yayını yazımdan sonra, onay başına bir kez.
+
+### K-980
+
+Ölçüldü: Json Schema agent'ı onay isteyen tool'da ve istemci tool'unda "The response is empty." ile `Failed` oldu, akışlı ve akışsız (`StructuredResponseEndpointTests`, dört case önce kırmızı). MEAI 10.9 son tool turunda bütün fonksiyon tool'larını modelden alır, bu yüzden sonucu olmayan çağrı istemci tool'udur (decompile okuması).
+
+### K-981
+
+Ölçüldü: disk skill'ini adlandıran agent HTTP'den `400` "the skill was not found" aldı, kayıt da reddetti (`SkillScriptExecutorRoutingTests`, üç case önce kırmızı; HTTP → derleme → MAF → executor zinciri artık yeşil). Kökleri yalnız kod verir (dağıtımı yapan yazar), bu yüzden kurulum geneli kod skill'iyle aynı güvendedir. Bedel: çözüm başına disk taraması. Devre dışı `store` kaydı ile aynı adlı disk skill'i ayrışır (F-487); konsol listesi disk skill'ini göstermez (F-486).
+
+### K-982
+
+Normalleştirilmiş hata durumu özellikle taşır (`StatusCode`). `JobRetryException` işleyicinin açık tekrar isteğidir ve kazanır; süre sınırına çarpan deneme eskisi gibi denemesini harcar. Başarısız denemeyi kaydeden yazım tekrarlanır, atmaz (asıl hatayı gizliyordu). Ölçüldü: eval'in yargıcı çıktı sınırında kesildiğinde iş 3 deneme koştu ve her deneme case'in agent run'ını yeniden ödedi; kuyruklu run `400` aldığında da (`FinalFailureJobRetryTests`, ikisi önce kırmızı). `compilation_failed` yok (bağımsız inceleme): derleme ölçüt fabrikasının ve kayıt defterinin geçici olabilen hatasını sarar.
+
+### K-983
+
+Derleyici ve yargıç reddi sarmaz, aynı tiple ajan adını ekler. Metin sağlayıcı türünü adlandırır. Ölçüldü: izinli listede `timeout-relay` geçen ret `Timeout` sınıflandı, düğüm üç kez koştu (önce kırmızı). Kuyruklu yolun kaydı CLR adını yazar: F-491.
+
+### K-984
+
+`RateLimited`'ın belgesi zaten "The provider returned 429" diyordu. `UpstreamFailure` durumu `ProviderHttpStatus.Read` ile okur; kayıt `StatusCode`'daki durumu kaybediyordu (önce kırmızı).
+
+### K-985
+
+Sürdürme adaptörün hemen üstündedir (`AnthropicStopReasonChatClient`); her çağrının kullanımı sayılır. Ölçüldü (SDK decompile): adaptör yalnız üç bitişi eşler, sunucu tool bloklarını kendi dönüşümünde düşürür; `pause_turn` harness `EnableWebSearch` ile erişilebilir. Sınır aşılınca kayıt `upstream_error` (fault: istisna tipi). `AnthropicStopReasonTests` beş case önce kırmızı.
+
+### K-986
+
+Upsert ve sekiz depo buradan geçer. İstisnalar `SqlTransactionSiteTests`'te gerekçelidir: migration kendi tekrarını yapar (K-540), veri sahibi silmesi dış içerik siler (tekrarı güvenli değil), `PgVectorSearchStore` kendi veri kaynağını kullanır (F-488). Ölçüldü: deterministik döngüde upsert 1205 ile düşüyordu; şimdi ikinci denemede bir kez yazar.
+
