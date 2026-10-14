@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-14)
 > **Plan onayı:** Bakımcı, 2026-10-14 — sözleşme kararı sohbette alındı (A: `done`'dan önce `tracon.output.truncated` custom çerçevesi, her zaman açık; chat/completions `finish_reason` düzeltmesi kapsamda) ve Faz 205 ile paralel başlatma onaylandı; plan metni sohbette okunmadı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-427**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-427**
 > **Genellik:** İlk ilke. Faz 204 kesilmeyi ayrı bir sonuç yaptı (K-919): kesik düz metin `Completed` biter ve `tracon.output.truncated` olayı yazar. Canlı akış bu olayı taşımaz. Akış okuyan her tüketici (C# ve TS istemcisi, konsol, kendi SSE okuyucusu) yarım yanıtı tam sanabilir. İş tüketici kodunda kalamaz: istemci kesilmeyi ancak `done`'dan sonra ikinci bir istekle (`GET /api/runs/{id}/events`) öğrenir. `/v1/chat/completions` ise ekosistem standardı bir alanı (`finish_reason`) her zaman `"stop"` ile doldurur; OpenAI SDK'sı kullanan tüketicinin başka kanalı yoktur. Kalem bir sözleşme kusurudur, bu yüzden § *Tüketici geri bildirimi kuralı*'ndan muaftır
 > **Karşı görüş:** "İstemci `/events`'i okuyabilir. MAF `update` çerçevesinde `finishReason`'ı zaten taşıyor olabilir; yeni çerçeve gereksizdir." Cevap: `/events` ayrı bir sözleşme ve ikinci bir istektir; canlı istemci `done`'da durur. `update.finishReason` MAF'ın model çağrısı başına ham değeridir: tool turunda `tool_calls` olur, harness döngüsünde birden çok kez gelir, Tracon'un kararını (side-channel hariç tutma, `cause`) taşımaz ve MAF tipinin biçimine bağlıdır. Çerçeve, kararı tek yerde (`FinishReasonDetectingChatClient`) verir ve kayıtla bayt bayt aynıdır. Faz `update.finishReason`'ı bu yüzden yalnız belgeler (§207.1), sözleşme yapmaz
 > **Önkoşul:** Kod: yok. Faz 205 ile örtüşme: **kodda dosya örtüşmesi yok** — 205'in dosyaları `AgentRunBudget.cs`, `QuotaEnforcer.cs`, `RunRecordingAgent.*.cs`, `LateToolCompletionRecorder.cs`, `NonTokenCostAccumulator.cs`, `WorkflowRunner.cs`, `QuotaStoreContract.cs`'tir; bu faz bunlara dokunmaz. **Semantik örtüşme** §205.4'tedir: çocuğun eşik bildirimi çocuğun kendi akışına taşınır. Bu fazın kota+kesilme sıra testleri 205'in semantiğine göre yazılır (yalnız kökün kendi eşiği kökün akışına gelir). **Doküman örtüşmesi** `concepts/governance.md` ve `capabilities.md`'dedir; bu iki sayfa kapanışta, 205 `main`'e girdikten sonra düzenlenir
@@ -37,11 +37,11 @@
    bu faz o metodu genelleştirir
 4. Faz 205'in §205.4 bölümü (semantik örtüşme): `sed -n '/## 205.4/,/^## 205.5/p' docs/205-GEC-BITEN-HARCAMA-KOTASI.md`
 5. Alan hafızası:
-   [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (dekoratör sırası, dedektör) ·
-   [`hafiza/http-uc-tuzaklari.md`](hafiza/http-uc-tuzaklari.md) (SSE tuzakları, satır 107 ve 111) ·
-   [`hafiza/run-olay-sozlesmesi.md`](hafiza/run-olay-sozlesmesi.md) (olay sözleşmesi) ·
-   [`hafiza/maf-harness-ve-loop.md`](hafiza/maf-harness-ve-loop.md) (§207.3 ölçümü) ·
-   [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md) satır 60-75 (yalnız Açık Soru 2-A seçilirse)
+   [`hafiza/model-boru-hatti.md`](../../hafiza/model-boru-hatti.md) (dekoratör sırası, dedektör) ·
+   [`hafiza/http-uc-tuzaklari.md`](../../hafiza/http-uc-tuzaklari.md) (SSE tuzakları, satır 107 ve 111) ·
+   [`hafiza/run-olay-sozlesmesi.md`](../../hafiza/run-olay-sozlesmesi.md) (olay sözleşmesi) ·
+   [`hafiza/maf-harness-ve-loop.md`](../../hafiza/maf-harness-ve-loop.md) (§207.3 ölçümü) ·
+   [`hafiza/nswag-istemci-uretimi.md`](../../hafiza/nswag-istemci-uretimi.md) satır 60-75 (yalnız Açık Soru 2-A seçilirse)
 
 ---
 
@@ -60,13 +60,13 @@ SDK kullanıcısı kazanır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentEndpoints.cs:1367-1376`](../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | Akış yalnız MAF güncellemelerini `update` çerçevesi olarak iletir; writer ile yazılan olay bu yoldan geçmez |
-| [`AgentEndpoints.cs:1515-1569`](../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | Tek ayna `WriteQuotaThresholdNoticesAsync`'tir: `PublishThresholdToRunStream` ile kapılı (1546), yalnız `QuotaThreshold`'u süzer (1556) |
-| [`AgentEndpoints.cs:1404-1408`, `:1855`](../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | `done` yalnız `sessionId` taşır |
-| [`FinishReasonDetectingChatClient.cs:149-158`, `:267-298`](../src/Tracon.Core/Models/FinishReasonDetectingChatClient.cs) | Düz metin kesilmesi akış sonunda `Custom` olayı yazar; yük `provider`, `maxOutputTokens`, `cause` (341-363) |
-| [`OutputTruncationStreamingTests.cs:84-105`](../tests/Tracon.AspNetCore.FunctionalTests/OutputTruncationStreamingTests.cs) | Test olayın kayıtta olduğunu kanıtlar (102-104). "`update` çerçevesi bitiş sebebi taşımaz" iddiası yalnız bir yorumdur (95); bunu hiçbir test iddia etmez |
-| [`OpenAIChatCompletionsEndpoints.cs:233`, `:459`](../src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs) | `finish_reason` akışsızda ve akışta sabit `"stop"`'tur |
-| [`concepts/runs.md:521-522`](../docs-site/src/content/docs/concepts/runs.md) | Site "akışlı istemci `length` sebebini `update` çerçevelerinde görmez" der; §207.1 bunu ölçer |
+| [`AgentEndpoints.cs:1367-1376`](../../../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | Akış yalnız MAF güncellemelerini `update` çerçevesi olarak iletir; writer ile yazılan olay bu yoldan geçmez |
+| [`AgentEndpoints.cs:1515-1569`](../../../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | Tek ayna `WriteQuotaThresholdNoticesAsync`'tir: `PublishThresholdToRunStream` ile kapılı (1546), yalnız `QuotaThreshold`'u süzer (1556) |
+| [`AgentEndpoints.cs:1404-1408`, `:1855`](../../../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | `done` yalnız `sessionId` taşır |
+| [`FinishReasonDetectingChatClient.cs:149-158`, `:267-298`](../../../src/Tracon.Core/Models/FinishReasonDetectingChatClient.cs) | Düz metin kesilmesi akış sonunda `Custom` olayı yazar; yük `provider`, `maxOutputTokens`, `cause` (341-363) |
+| [`OutputTruncationStreamingTests.cs:84-105`](../../../tests/Tracon.AspNetCore.FunctionalTests/OutputTruncationStreamingTests.cs) | Test olayın kayıtta olduğunu kanıtlar (102-104). "`update` çerçevesi bitiş sebebi taşımaz" iddiası yalnız bir yorumdur (95); bunu hiçbir test iddia etmez |
+| [`OpenAIChatCompletionsEndpoints.cs:233`, `:459`](../../../src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs) | `finish_reason` akışsızda ve akışta sabit `"stop"`'tur |
+| [`concepts/runs.md:521-522`](../../../docs-site/src/content/docs/concepts/runs.md) | Site "akışlı istemci `length` sebebini `update` çerçevelerinde görmez" der; §207.1 bunu ölçer |
 
 > Kanıtlar 2026-10-14 tarihinde bu worktree'de (`245afe91`) doğrulandı.
 
@@ -327,7 +327,7 @@ CHANGELOG.md
 ## Hata Modları ve Testler
 
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim testiyle kanıtlanamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md). Bu fazın her davranışı HTTP akış
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md). Bu fazın her davranışı HTTP akış
 > sınırını geçer; seviye fonksiyoneldir.
 
 | Ne bozulabilir | Seviye | Test sınıfı |
