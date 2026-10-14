@@ -119,7 +119,7 @@ curl -s http://localhost:5081/tracon/v1/chat/completions -H "Authorization: Bear
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 (plan değişmedi; sapmalar yukarıda) |
-| Düzeltme turu sayısı | 2 (uygulamada `ShippedDocumentationSelfContainmentTests` XML'deki faz/karar atıfları için bir kez kırmızı · denetimin iki 🟡'ı tek turda) |
+| Düzeltme turu sayısı | 3 (uygulamada `ShippedDocumentationSelfContainmentTests` XML'deki faz/karar atıfları için bir kez kırmızı · denetimin iki 🟡'ı tek turda · kapanış kapısının ilk koşumu ortam kaynaklı `SourceLanguageTests` kırmızısı, F-507) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
 | Fazın ürettiği regresyon | 0 (mevcut hiçbir test değiştirilmeden kırmızı olmadı; yapılandırılmış ara tur testindeki etkisiz iddia kaldırıldı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz bugün kapandı) |
@@ -199,4 +199,6 @@ Sıradaki faz yok: seçilmemiş işler `ADAYLAR.md`'dedir. Faz 206 ve 208 parale
 - **Site yayını (`faz-tamamlama` Adım 10) koşulmadı:** dal `main`'e birleşmedi; yayın birleşmeden sonra
   `./scripts/site-deploy.sh` ile yapılır.
 - Adaylar: **F-503** (Responses `incomplete`), **F-504** (workflow SSE kesilmesi), **F-505** (içerikli
-  `content_filter` izi), **F-506** (konsol `custom` rozeti).
+  `content_filter` izi), **F-506** (konsol `custom` rozeti), **F-507** (kapanışta ölçülen kapı kırılganlığı:
+  `SourceLanguageTests` üretilen site `api/` sayfalarını tarar ve `faz-NNN` worktree'sinde yanlış kırmızı verir;
+  `hafiza/site-icerik-yazimi.md`).
