@@ -812,6 +812,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflows/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the human input requests the tenant's workflow runs are waiting on.
+         * @description One item per request, oldest first. The same request id in the same session is ONE request even when several runs hold it (an answered run stays 'AwaitingInput' and the continuation republishes the requests that are still open); the item names the newest run that waits on it, which is the run to answer. 'state' is 'pending' (the default: nobody has answered), 'answered' (answered, but the run still waits) or 'all'; 'workflowName' narrows the list to one workflow. The filter runs before the page, so 'skip' and 'take' (1-200, default 50) page over the filtered list. Each item carries 'expiresAt' (when the workflow sets a request timeout), 'answered' and 'lastResponseRunId'. A run whose request expired is closed and leaves the list. The list is the tenant's: a registered IRunAuthorizationHandler that denies reading runs rejects it with 403 and never filters it, so a page is never shorter than the caller is allowed to see. An installation that has not registered the workflow engine answers 501. Runs that started waiting before this list existed are not in it; read them with GET /api/workflows/runs/{runId}/requests.
+         */
+        get: operations["TraconListWorkflowInbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workflows/runs/{runId}/requests": {
         parameters: {
             query?: never;
@@ -821,7 +841,7 @@ export interface paths {
         };
         /**
          * Lists a run's pending human input requests.
-         * @description Only a run in the 'AwaitingInput' state returns requests. Requests are read from the run's event stream; there is no separate table. A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.
+         * @description Only a run in the 'AwaitingInput' state returns requests. The prompt and the form are read from the run's event stream; 'expiresAt', 'answered' and 'lastResponseRunId' come from the inbox row the run wrote when it started waiting (see GET /api/workflows/requests). A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.
          */
         get: operations["TraconListWorkflowRequests"];
         put?: never;
@@ -8243,6 +8263,11 @@ export interface components {
              *     WorkflowResponseMode.SingleAnswer allows one answer per request.
              */
             responseMode?: components["schemas"]["WorkflowResponseMode"];
+            /**
+             * @description Gets how long a human request of this workflow may wait for an answer before the run that
+             *     waits on it is closed. `null` (the default) means it waits without limit.
+             */
+            requestTimeout?: null | string;
             /** @description Gets the tenant the definition belongs to. `null` for workflows defined in code. */
             tenantId?: null | string;
             /**
@@ -8286,6 +8311,12 @@ export interface components {
              *     mode of the version it recorded.
              */
             responseMode?: components["schemas"]["WorkflowResponseMode"];
+            /**
+             * @description Gets how long a human request of the workflow may wait for an answer; `null`
+             *     when it waits without limit. For a stored workflow this is the current version's value; a run
+             *     that waits keeps the limit of the version it recorded.
+             */
+            requestTimeout?: null | string;
             /**
              * Format: int32
              * @description Gets the definition version. Always 1 for code-defined workflows.
@@ -8424,6 +8455,32 @@ export interface components {
              * @description Gets the UTC time when the request was published.
              */
             requestedAt?: string;
+            /** @description Gets the name of the workflow whose run waits on the request. */
+            workflowName?: null | string;
+            /**
+             * @description Gets the execution session of the run. The runs that continue one another share it, and
+             *     the same request id in the same session is one request.
+             */
+            sessionId?: null | string;
+            /**
+             * Format: date-time
+             * @description Gets when the request expires (UTC). `null` when the workflow sets no
+             *     request timeout, or when the request was published before requests had an expiry.
+             */
+            expiresAt?: null | string;
+            /**
+             * @description Gets a value indicating whether somebody answered the request. An answered run stays
+             *     `AwaitingInput` and keeps listing its request; the answer continues on a new run, which
+             *     `lastResponseRunId` names.
+             */
+            answered?: boolean;
+            /**
+             * Format: uuid
+             * @description Gets the run that carried out the latest answer; `null` while the request
+             *     is unanswered. An answer that stopped before it finished is replaced by the answer that
+             *     started again, so this names the run to watch.
+             */
+            lastResponseRunId?: null | string;
         };
         /**
          * @description Defines how the UI presents a pending request.
@@ -8587,6 +8644,11 @@ export interface components {
              *     new run; WorkflowResponseMode.SingleAnswer allows one answer per request.
              */
             responseMode?: components["schemas"]["WorkflowResponseMode"];
+            /**
+             * @description How long a human request of this workflow may wait for an answer, as `d.hh:mm:ss`,
+             *     from one minute to 365 days. Leave it out and a request waits without limit.
+             */
+            requestTimeout?: null | string;
         };
         /**
          * @description Raw JSON response for comparing two workflow definition versions. The diff is not
@@ -10518,6 +10580,58 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TraconListWorkflowInbox: {
+        parameters: {
+            query?: {
+                state?: string;
+                workflowName?: string;
+                skip?: number | string;
+                take?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowPendingRequest"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };

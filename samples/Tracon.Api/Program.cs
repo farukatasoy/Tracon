@@ -775,6 +775,21 @@ tracon.AddWorkflow(
         options.ResponseMode = WorkflowResponseMode.SingleAnswer;
     });
 
+// The same graph with a time limit on the request (phase 209). A run that waits for a
+// person keeps its request, checkpoints and input until somebody answers; a limit lets a
+// request nobody answers close its run, so retention can release what it kept. The limit
+// is two minutes here on purpose, so the expiry can be watched: GET /api/workflows/requests
+// shows 'expiresAt', and two minutes later the run is Failed with the error type
+// WorkflowRequestExpired. A real workflow would allow hours or days.
+tracon.AddWorkflow(
+    "summarize-and-approve-timed",
+    static services => BuildSummarizeAndApprove(services, "summarize-and-approve-timed"),
+    static options =>
+    {
+        options.Description = "Summarizes text, then waits two minutes for an approval to publish. Defined in code.";
+        options.RequestTimeout = TimeSpan.FromMinutes(2);
+    });
+
 
 // A code function usable as a workflow node (phase 71). AddWorkflowFunction
 // registers the function by NAME; a Sequential definition's `nodes` list can

@@ -272,7 +272,7 @@ internal sealed class WorkflowResponseHarness
             .Build();
     }
 
-    private static Workflow Build(string name, Func<bool, ValueTask<string>> end)
+    internal static Workflow Build(string name, Func<bool, ValueTask<string>> end)
     {
         var port = RequestPort.Create<string, bool>(Port).BindAsExecutor(allowWrappedRequests: false);
 

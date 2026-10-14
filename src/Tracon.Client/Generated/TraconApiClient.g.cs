@@ -5444,10 +5444,135 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Lists the human input requests the tenant's workflow runs are waiting on.
+        /// </summary>
+        /// <remarks>
+        /// One item per request, oldest first. The same request id in the same session is ONE request even when several runs hold it (an answered run stays 'AwaitingInput' and the continuation republishes the requests that are still open); the item names the newest run that waits on it, which is the run to answer. 'state' is 'pending' (the default: nobody has answered), 'answered' (answered, but the run still waits) or 'all'; 'workflowName' narrows the list to one workflow. The filter runs before the page, so 'skip' and 'take' (1-200, default 50) page over the filtered list. Each item carries 'expiresAt' (when the workflow sets a request timeout), 'answered' and 'lastResponseRunId'. A run whose request expired is closed and leaves the list. The list is the tenant's: a registered IRunAuthorizationHandler that denies reading runs rejects it with 403 and never filters it, so a page is never shorter than the caller is allowed to see. An installation that has not registered the workflow engine answers 501. Runs that started waiting before this list existed are not in it; read them with GET /api/workflows/runs/{runId}/requests.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<WorkflowPendingRequest>> TraconListWorkflowInboxAsync(string? state = null, string? workflowName = null, int? skip = null, int? take = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/workflows/requests"
+                    urlBuilder_.Append("api/workflows/requests");
+                    urlBuilder_.Append('?');
+                    if (state != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("state")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(state, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (workflowName != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("workflowName")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(workflowName, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (skip != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("skip")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(skip, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (take != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("take")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(take, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<System.Collections.Generic.ICollection<WorkflowPendingRequest>>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        if (status_ == 400)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 501)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Not Implemented", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await response_.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Lists a run's pending human input requests.
         /// </summary>
         /// <remarks>
-        /// Only a run in the 'AwaitingInput' state returns requests. Requests are read from the run's event stream; there is no separate table. A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.
+        /// Only a run in the 'AwaitingInput' state returns requests. The prompt and the form are read from the run's event stream; 'expiresAt', 'answered' and 'lastResponseRunId' come from the inbox row the run wrote when it started waiting (see GET /api/workflows/requests). A run belonging to another tenant, and a denial by a registered IRunAuthorizationHandler, both return the same 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -28772,6 +28897,14 @@ namespace Tracon.Client.Generated
         public WorkflowResponseMode ResponseMode { get; set; } = default!;
 
         /// <summary>
+        /// Gets how long a human request of this workflow may wait for an answer before the run that
+        /// <br/>waits on it is closed. `null` (the default) means it waits without limit.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("requestTimeout")]
+        public string? RequestTimeout { get; set; } = default!;
+
+        /// <summary>
         /// Gets the tenant the definition belongs to. `null` for workflows defined in code.
         /// </summary>
 
@@ -28869,6 +29002,15 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("responseMode")]
         public WorkflowResponseMode ResponseMode { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how long a human request of the workflow may wait for an answer; `null`
+        /// <br/>when it waits without limit. For a stored workflow this is the current version's value; a run
+        /// <br/>that waits keeps the limit of the version it recorded.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("requestTimeout")]
+        public string? RequestTimeout { get; set; } = default!;
 
         /// <summary>
         /// Gets the definition version. Always 1 for code-defined workflows.
@@ -29243,6 +29385,47 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("requestedAt")]
         public System.DateTimeOffset RequestedAt { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the name of the workflow whose run waits on the request.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("workflowName")]
+        public string? WorkflowName { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the execution session of the run. The runs that continue one another share it, and
+        /// <br/>the same request id in the same session is one request.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("sessionId")]
+        public string? SessionId { get; set; } = default!;
+
+        /// <summary>
+        /// Gets when the request expires (UTC). `null` when the workflow sets no
+        /// <br/>request timeout, or when the request was published before requests had an expiry.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("expiresAt")]
+        public System.DateTimeOffset? ExpiresAt { get; set; } = default!;
+
+        /// <summary>
+        /// Gets a value indicating whether somebody answered the request. An answered run stays
+        /// <br/>`AwaitingInput` and keeps listing its request; the answer continues on a new run, which
+        /// <br/>`lastResponseRunId` names.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("answered")]
+        public bool Answered { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the run that carried out the latest answer; `null` while the request
+        /// <br/>is unanswered. An answer that stopped before it finished is replaced by the answer that
+        /// <br/>started again, so this names the run to watch.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("lastResponseRunId")]
+        public System.Guid? LastResponseRunId { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -29598,6 +29781,14 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("responseMode")]
         public WorkflowResponseMode ResponseMode { get; set; } = default!;
+
+        /// <summary>
+        /// How long a human request of this workflow may wait for an answer, as `d.hh:mm:ss`,
+        /// <br/>from one minute to 365 days. Leave it out and a request waits without limit.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("requestTimeout")]
+        public string? RequestTimeout { get; set; } = default!;
 
     }
 

@@ -148,6 +148,7 @@ public sealed class RetentionArchiveKeyTests(PostgresFixture fixture) : IAsyncLi
     {
         "seq" => 0L,
         "key" => "no-such-row",
+        "request_id" => "no-such-row",
         "id" when string.Equals(target, RetentionTargets.Sessions, StringComparison.Ordinal) => "no-such-row",
         _ => Guid.NewGuid(),
     };

@@ -23,6 +23,7 @@ import { ConfirmDialog } from '../components/confirm-dialog';
 import { StatusDot } from '../components/status-dot';
 import { ThumbsDownIcon, ThumbsUpIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta, PendingApproval } from '@tracon/client';
+import { WorkflowRequestsPanel } from './approvals/workflow-requests';
 
 /**
  * Pending tool-approval requests for queued agent runs (phase 55).
@@ -258,6 +259,11 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
           <ErrorNote error={decide.error} />
         </div>
       )}
+
+      {/* Phase 209: the human requests of workflow runs, a different record from the tool approvals above. */}
+      <div className="mt-4">
+        <WorkflowRequestsPanel />
+      </div>
     </>
   );
 }
