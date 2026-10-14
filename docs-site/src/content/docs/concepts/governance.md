@@ -498,7 +498,10 @@ Turning on `Quotas:PublishThresholdToRunStream` (off by default) also writes the
 crossed threshold into the *triggering run's own* event stream — a `custom` frame
 carrying `tracon.quota.threshold` before the run's terminal event, so a client
 already watching that one run's SSE stream sees the warning without a separate
-webhook subscription. The frame's payload carries a `noticeId` (stable across a
+webhook subscription. When the same run's answer was also cut off, its
+`tracon.output.truncated` frame comes first, in record order; if the run store cannot
+be read back at that point, the stream still ends with `done` and the notice stays on
+the run's recorded events. The frame's payload carries a `noticeId` (stable across a
 reconnect, for dedup), the run and user the threshold belongs to, and the same
 metric/period/limit/consumption fields the webhook carries. A threshold is claimed
 for notification **once per period** durably — a restart or a second worker

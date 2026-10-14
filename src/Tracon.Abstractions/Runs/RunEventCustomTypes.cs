@@ -48,10 +48,19 @@ public static partial class RunEventCustomTypes
     /// document has no use.
     /// </para>
     /// <para>
-    /// The payload carries the provider name and, when the binding set one, the
-    /// output token limit. It never carries the response text. Written only for the
-    /// agent's own model calls, not for a side-channel call such as a context
-    /// summarizer or a loop judge.
+    /// The payload carries the provider name, what cut the answer off
+    /// (<c>cause</c>: <c>output_limit</c> or <c>context_window</c>) and, when the
+    /// binding set one, the output token limit. It never carries the response text.
+    /// Written only for the agent's own model calls, not for a side-channel call such
+    /// as a context summarizer or a loop judge.
+    /// </para>
+    /// <para>
+    /// The live stream of an agent run (<c>POST /api/agents/{name}/run</c> without
+    /// <c>Idempotency-Key</c>) also carries this event, always: it arrives as a
+    /// <c>custom</c> frame right before <c>done</c>, with the same data
+    /// <c>GET /api/runs/{id}/events</c> serves. Each recorded event is one frame, so a
+    /// harness loop whose iterations were cut sends more than one. No event is
+    /// written, and no frame is sent, when run recording is off.
     /// </para>
     /// </remarks>
     public const string OutputTruncated = ReservedPrefix + "output.truncated";
