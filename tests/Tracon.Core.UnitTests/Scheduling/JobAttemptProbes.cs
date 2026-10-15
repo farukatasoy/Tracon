@@ -190,6 +190,16 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
     /// <summary>Makes the next <paramref name="count"/> reads throw.</summary>
     public void FailNextReads(int count) => Volatile.Write(ref _failures, count);
 
+    /// <summary>
+    /// Gets or sets a step that runs after a job is released for another attempt and
+    /// before the release returns to the worker, so a test can hold the worker between
+    /// the store write and the end of the attempt.
+    /// </summary>
+    public Func<Guid, Task>? AfterReleaseForRetry { get; set; }
+
+    /// <summary>Gets or sets a step that sees every job the store leases.</summary>
+    public Action<JobRecord>? Leased { get; set; }
+
     /// <inheritdoc />
     public ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
     {
@@ -208,8 +218,17 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
         => inner.EnqueueAsync(job, items, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes, CancellationToken cancellationToken = default)
-        => inner.LeaseAsync(owner, leaseDuration, lanes, cancellationToken);
+    public async ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes, CancellationToken cancellationToken = default)
+    {
+        var job = await inner.LeaseAsync(owner, leaseDuration, lanes, cancellationToken).ConfigureAwait(false);
+
+        if (job is not null)
+        {
+            Leased?.Invoke(job);
+        }
+
+        return job;
+    }
 
     /// <inheritdoc />
     public ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
@@ -224,8 +243,15 @@ internal sealed class ProbeJobStore(InMemoryJobStore inner) : IJobStore
         => inner.CompleteAsync(completion, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
-        => inner.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken);
+    public async ValueTask ReleaseForRetryAsync(Guid jobId, string errorMessage, TimeSpan? retryAfter = null, CancellationToken cancellationToken = default)
+    {
+        await inner.ReleaseForRetryAsync(jobId, errorMessage, retryAfter, cancellationToken).ConfigureAwait(false);
+
+        if (AfterReleaseForRetry is { } step)
+        {
+            await step(jobId).ConfigureAwait(false);
+        }
+    }
 
     /// <inheritdoc />
     public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)

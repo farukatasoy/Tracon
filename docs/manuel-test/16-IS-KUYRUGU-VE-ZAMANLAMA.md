@@ -3438,3 +3438,26 @@ yeniden deneniyordu; son denemede teslim `Pending` kalıyordu.
 **Beklenen sonuç**
 - İlk deneme: `JobRetryException`, `RetryAfter` merdivenin ilk gecikmesi.
 - Son deneme: teslim `Failed`, iş öğesi `Failed`, hata metni `after N attempts`.
+
+---
+
+### MT-JOB-152 — Yeniden denemeye bırakılan iş aynı worker'da hemen kiralansa da ikinci denemesi koşar (kusur-giderme, 2026-10-15, F-547)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `JobWorkerReleaseRaceTests` · `JobWorkerDeadlineTests.With_attempts_left_the_timed_out_attempt_is_released_and_the_next_attempt_gets_the_whole_limit` |
+
+Regresyon. İlk denemesi düşen ve hakkı kalan iş hemen yeniden kiralanabilir. Worker
+onu, bırakan deneme bitmeden yeniden kiralayınca kirayı bırakıyordu: iş `Leased`
+kalıyor, kira dolunca ikinci deneme hiç koşmadan `Failed` oluyordu.
+
+**Ön koşul** — Yarış penceresi milisaniyelerle ölçülür; elle koşum CI'a devredilir.
+
+**Beklenen sonuç**
+- İş `Completed`, `attempt = 2`; handler iki kez çağrılır.
+- İş başka yerde bittiyse bekleyen kira handler'ı yeniden çağırmaz.
+
