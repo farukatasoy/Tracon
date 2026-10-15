@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz A zinciri, tek şerit) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `a51a8496` donuk · worktree `34280712` |
+| **Kod** | `cfe5ebe8` donuk · worktree `217258db` |
 | **Case sayısı** | 81 (MT-PKG-001..122) |
 
 **Sapma — `user-secrets` yazılmaz** (skill §1.2): Senaryolarda geçen her
@@ -64,7 +64,7 @@ sayfa); üretilen `reference/changelog.md` ve `dist/` ağaçta kaldı — ikisi 
 `.gitignore` kapsamında, `git status` boş. Preview sunucusu durduruldu.
 `<scratch>/ap-pack` (20 paket) hâlâ duruyor, dosya 02 kullanmıyor.
 
-**Kod donuk kaldı:** `git diff a51a8496..HEAD -- src samples tests` boş.
+**Kod donuk kaldı:** `git diff cfe5ebe8..HEAD -- src samples tests` boş.
 `MT-PKG-109..114` ağacı geçici kirletti, altısı da aynı case içinde
 `git checkout --` ile geri alındı; her birinin sonunda `git status --porcelain`
 boş doğrulandı. `MT-PKG-113`'ün ürettiği iki `dirty.deneme` paketi silindi.
@@ -110,7 +110,7 @@ Açık ya da işaretsiz case yok. Bloklar 000-009 · 010-019 · 020-029 · 030-0
   - `~/tracon-manuel/uretec` — `Tracon.Core` paketine **doğrudan**
     `PackageReference` ile bağlı konsol projesi; `Tools.cs` ve `Program.cs`
     özgün hâlinde. `MT-PKG-060`, `061`, `070`+ bunu kullanır.
-- **Kod donuk kaldı:** `git diff a51a8496..HEAD -- src samples tests` boş.
+- **Kod donuk kaldı:** `git diff cfe5ebe8..HEAD -- src samples tests` boş.
   Case'lerin geçici kaynak değişiklikleri (`MT-PKG-011`, `012`, `013`, `015`,
   `016`) aynı oturumda geri alındı; her birinin sonunda `git status --short`
   boş doğrulandı.
@@ -123,7 +123,7 @@ bloklamadı.
 
 | Case | Ne düzeltildi |
 |---|---|
-| — | Üreteç bölümünün **ön koşulu geri getirildi** (`946a37fb`'de kaybolmuştu) |
+| — | Üreteç bölümünün **ön koşulu geri getirildi** (`c89c919f`'de kaybolmuştu) |
 | MT-PKG-015 | Türkçe hata metni alıntısı → bugünkü İngilizce metin |
 | MT-PKG-020 | 17/16 paket → 20/18; 18 proje → 22; sembolsüz paket 1 → 2 |
 | MT-PKG-022 | `Tracon.Testing` tek TFM → üç TFM (K-780) |
@@ -140,7 +140,7 @@ tutarsızlığı · `MT-PKG-020` ↔ `098` ↔ `105` paket sayısı çelişkisi.
 🚨 **Bölme noktası kuralı bu dosyada uygulanamıyor.** `DEVIR.md` §6 "bölme
 noktası dosyanın kendi `#` bölüm başlığıdır" der; spec'te **tek** bölüm
 başlığı var (`# 1 — Ön koşullar`, satır 52) ve 81 case'in tamamı onun
-altında. Ölçüldü: bölüm başlıkları 2..8 `946a37fb` ("faz 58",
+altında. Ölçüldü: bölüm başlıkları 2..8 `c89c919f` ("faz 58",
 spec/kayıt ayrımı) ile spec'ten düştü, koşum kaydında kaldı. Ayrıntı ve
 kullanılan sınır aşağıda — `NOT-01`. **Kullanıcı kararı (2026-09-16):**
 onluk blok sınırı bölme noktasıdır; spec'e dokunulmaz.
@@ -164,7 +164,7 @@ Faz 58 öncesi spec sekiz bölümdü:
 | 7 — İzlek A: temiz tüketici ve proje şablonu | 070..077 |
 | 8 — Sıfır sürpriz ve `TryAdd` sözleşmesi | 080..082 |
 
-Kanıt: `git show 946a37fb~1:docs/manuel-test/01-KURULUM-VE-PAKETLEME.md | grep -n "^# [0-9]\+ — "`
+Kanıt: `git show c89c919f~1:docs/manuel-test/01-KURULUM-VE-PAKETLEME.md | grep -n "^# [0-9]\+ — "`
 
 Faz 58'den sonra eklenen 33 case (090..122) aynı onluk blok düzenini sürdürür.
 Bu oturum **onluk blok sınırını** bölme noktası saydı; hiçbir blok ortasında
@@ -179,7 +179,7 @@ durmadı.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show fa83a5ce:docs/manuel-test/kosumlar/2026-09-16/01-KURULUM-VE-PAKETLEME.md
+> git show ec850dd2:docs/manuel-test/kosumlar/2026-09-16/01-KURULUM-VE-PAKETLEME.md
 > ```
 
 ---
@@ -635,7 +635,7 @@ kayıp bir kısıt değil:
 - `docs/KARARLAR-INDEKS.md:83` → **K-780**: "`Tracon.Testing` çalışma
   paketleriyle AYNI matrisi hedefler (`net8.0;net9.0;net10.0`); K-270'in
   tek-TFM daralması KALDIRILDI".
-- Commit `362bb4ef` "feat(testing): widen Tracon.Testing to the runtime target matrix".
+- Commit `6c162056` "feat(testing): widen Tracon.Testing to the runtime target matrix".
 - `src/Tracon.Testing/Tracon.Testing.csproj` yorumu gerekçeyi taşıyor:
   ".NET 8 LTS üzerinde koşan bir tüketici uygulamasını test edebilmelidir."
 
@@ -660,7 +660,7 @@ kayıp bir kısıt değil:
 <tags>tracon ai agents microsoft-agent-framework llm dotnet runtime catalog harness</tags>
 <repository type="git" url="https://github.com/farukatasoy/Tracon"
             branch="refs/heads/test/kosum-s1"
-            commit="342807125972a48242d85167c40e2f40cc4516dd" />
+            commit="217258db4ae7a201dc9d5caf214a6d14e59b84d7" />
 ```
 
 Madde madde:
@@ -670,7 +670,7 @@ Madde madde:
   lisanslı pakette element **yazılıyor**; 2026-08-15'te düzeltilen not tutuyor
 - `<readme>README.md</readme>` ✅
 - `<authors>Faruk Atasoy</authors>` · `<projectUrl>` · `<repository type="git" url=...>` ✅
-- `<repository>` `commit` niteliği **boş değil** ✅ → `342807125972…`
+- `<repository>` `commit` niteliği **boş değil** ✅ → `217258db4ae7…`
 - `<tags>` içinde `tracon ai agents microsoft-agent-framework llm dotnet` ✅
   (sonuna `runtime catalog harness` de eklenmiş)
 - `TODO` / `placeholder` / boş eleman taraması → **temiz** ✅
@@ -691,7 +691,7 @@ NuGet'in `license` elementi kullanıldığında otomatik yazdığı yer tutucudu
 etiketsiz : Tracon.Abstractions.0.0.0-preview.0.789.nupkg
 git tag v1.0.0-preview.1
 etiketli  : Tracon.Abstractions.1.0.0-preview.1.nupkg
-git tag -d v1.0.0-preview.1   -> Deleted tag (was 34280712)
+git tag -d v1.0.0-preview.1   -> Deleted tag (was 217258db)
 ```
 
 MinVer davranışı doğrulandı: etiketsizken `0.0.0-preview.0.<N>`, etiket
@@ -835,7 +835,7 @@ ilgilidir. Ayrıca "`GizliYardimci` sayısı 0" iddiası tek dosya yerine
 ---
 
 > ## 🔁 Oturum 2 — `MT-PKG-050..099`
-> Şerit `ap-s1`, kod `a51a8496` donuk. Ön koşullar oturum 1'den **hazır**
+> Şerit `ap-s1`, kod `cfe5ebe8` donuk. Ön koşullar oturum 1'den **hazır**
 > devralındı: `<scratch>/ap-pack` (20 nupkg) ve `~/tracon-manuel/uretec`.
 
 ## MT-PKG-050 — Üreteç meta paket üzerinden de akıyor
@@ -1510,7 +1510,7 @@ söyledi.
 | **Bulunduğu case** | MT-PKG-099 |
 | **Sınıf** | Doğrulama kapısı · üretilen dosya senkronizasyonu |
 
-Hiçbir değişiklik yapılmadan, `a51a8496` donuk kodunda:
+Hiçbir değişiklik yapılmadan, `cfe5ebe8` donuk kodunda:
 
 ```
 cd docs-site && node scripts/check-content.mjs   -> cikis 1
@@ -1915,7 +1915,7 @@ Koşulduğunda **önce bu doğrulanmalı**, yoksa doğru davranış kusur sanıl
 **Yeniden koşum — 2026-09-19 (kapanış, §5(a) PKG) · ☑ GEÇTİ**
 
 Engel kalktı: `HATA-S1-007` kapandı, prova terfiye ulaşıyor, `release/` altında
-20 paket var (`1.0.0-preview.1`, commit `2841b02a`).
+20 paket var (`1.0.0-preview.1`, commit `34356bdd`).
 
 ```
 $ unzip -p artifacts/package/release/Tracon.Core.1.0.0-preview.1.nupkg '*.nuspec' | grep releaseNotes
@@ -1927,7 +1927,7 @@ taşıyor; `v$(Version)` de boş sürüm de görünmüyor. `BeforeTargets="Gener
 hedefi MinVer'den **sonra** değerlendiği için `$(Version)` dolu okunuyor.
 
 ⚠️ **Turdaki uyarı doğru çıktı — beklenen değer bayattı.** Spec bir GitHub blob
-URL'i bekliyordu. Hedef Faz 162'de (`025803d5`) site sayfasına döndü; gerekçe
+URL'i bekliyordu. Hedef Faz 162'de (`bea3901f`) site sayfasına döndü; gerekçe
 `src/Directory.Build.props:120-137` yorumunda yazılı: *"a github.com URL would
 404 for every consumer while the repository is private."* Spec'in
 `Beklenen sonuç`'u koda göre düzeltildi (skill §1.1 istisnası). Kaydın 2026-09-16
@@ -2023,8 +2023,8 @@ olduğunu doğrula — aksi hâlde `--hard` yazılmamış sonuçları siler.
 **Yeniden koşum — 2026-09-19 (kapanış, §5(a) PKG) · ☑ GEÇTİ**
 
 🚨 **Case'in senaryosu KENDİLİĞİNDEN oluşmuştu — sentetik commit'e hiç gerek
-kalmadı.** `release/` altındaki paketler commit `d2425ad4`'ten, `HEAD` ise
-`2841b02a`'ten (K-831'in kod düzeltmesi, 04:40'ta indi; paketler 04:26–04:32'de
+kalmadı.** `release/` altındaki paketler commit `cb576a3a`'ten, `HEAD` ise
+`34356bdd`'ten (K-831'in kod düzeltmesi, 04:40'ta indi; paketler 04:26–04:32'de
 üretilmişti). Yani "aynı sürüm iddiası, farklı içerik" durumu gerçek bir
 geliştirme olayı olarak zaten oradaydı. Kaydın `git add -A` uyarısı bu yüzden
 hiç devreye girmedi: **hiçbir commit atılmadı, hiçbir `--hard` reset koşulmadı.**
@@ -2043,7 +2043,7 @@ Dosyanın `mtime`'ı da hiç oynamadı (`Sep 19 04:26:22`): mevcut artifact ger�
 
 💡 **Neden 3 proje değişmişken 20 paketin hepsi "farklı" işaretlendi?** Aşırı
 raporlama değil: her `.nuspec` commit kimliğini taşıyor —
-`<repository … commit="2841b02ab7c738605a5affc9027900c9e6d39bbc" />`. Kimlik
+`<repository … commit="34356bdd129eec31a02f8fddeb9914ba88ae0f23" />`. Kimlik
 metadata'sı her commit'te değişir, dolayısıyla her paketin baytları da değişir.
 Doğru davranış. Buildin kendisi deterministiktir; MT-PKG-115 aynı commit'ten
 iki koşumda **birebir aynı** SHA-256'yı ölçtü.
@@ -2141,7 +2141,7 @@ Tracon.Abstractions → symbolsFile: Tracon.Abstractions.1.0.0-preview.1.snupkg
 
 #### MT-PKG-135 — Yayın provası son yayına karşı kırıcı listeyi çıkarır ve yeşil verir
 
-**Gerçek sonuç (2026-09-24, `40a1af00`)**
+**Gerçek sonuç (2026-09-24, `48ee6ba6`)**
 - Çıkış 0, 112,5 sn. `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten:
   17 paket, kaynak api.nuget.org` · `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi
   'Unreleased' notunda` · `artifacts/package/breaking-changes.json`. AOT ve net8.0 smoke geçti.
@@ -2234,7 +2234,7 @@ Tracon.Abstractions → symbolsFile: Tracon.Abstractions.1.0.0-preview.1.snupkg
 
 #### MT-PKG-151 — Yayın provası sample'ları ve kırıcı değişiklik notunu geçer (Faz 189)
 
-**Gerçek sonuç (2026-09-24, temiz ağaç `7af5532e`)**
+**Gerçek sonuç (2026-09-24, temiz ağaç `da490bc5`)**
 - `✅ Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` · `✅ 20 paket, sürüm '1.0.0-preview.2.70'` ·
   `provider/source/generated-tool AOT host smoke passed` · `net8.0 consumer smoke passed on .NET 8.0.31` ·
   `✅ 6 exact-version packed sample` · `çıkış=0`. İlk deneme kapı kusuru yüzünden kırmızıydı (çitli kod bloğu span eşleşmesini kaydırıyordu; düzeltildi, `docs/hafiza/yayin-ve-surumleme.md`).

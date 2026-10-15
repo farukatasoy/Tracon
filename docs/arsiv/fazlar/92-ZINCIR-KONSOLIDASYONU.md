@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 1cc7396:docs/arsiv/fazlar/92-ZINCIR-KONSOLIDASYONU.md
+> git show 627f046:docs/arsiv/fazlar/92-ZINCIR-KONSOLIDASYONU.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -38,7 +38,7 @@ Faz 91 kuralları koda taşıdı. Bu faz **metni** konsolide eder: zincirde her 
 - [x] Faz 91'in tekrar kapısı yeşil — hiçbir komut/regex ikinci kopyası kalmadı (`dokuman-bakim.py`: "Tekrarlanan kapı tanımları: ✅ temiz")
 - [x] `.agents/skills/README.md` taşınabilirlik konvansiyonu gerçeğe göre güncellendi
 - [x] **Kısaltılan her tuzak Faz 91 devir notundaki kapı listesinde var** — liste dışı kısaltma yok. Kalem kalem eşleştirme Plandan Sapmalar'da
-- [x] `arsiv/fazlar/{73,74,75}` bayat `dotnet test --filter` komutları düzeltildi; damıtılmış kayıt tam metin kapısı yeşil (K-598 doğrulandı: `git show f272e70:docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md` hâlâ eski komutu taşıyor, bugünkü dosya düzeltilmiş)
+- [x] `arsiv/fazlar/{73,74,75}` bayat `dotnet test --filter` komutları düzeltildi; damıtılmış kayıt tam metin kapısı yeşil (K-598 doğrulandı: `git show b569600:docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md` hâlâ eski komutu taşıyor, bugünkü dosya düzeltilmiş)
 - [x] `faz-tamamlama` kulvar sırası yazıldı; **adım numaraları korundu** (Adım 1–10 başlıkları değişmedi; şema girişten sonra, Adım 1'den önce eklendi)
 - [x] Kulvar metni alt agent'sız ortam için seri geri düşüşü yazıyor; denetimin bağımsızlığının hızdan önce geldiğini söylüyor
 - [x] **Zincir metni öncesi/sonrası ölçüldü ve yazıldı**: taban (plan tabanı değil, `faz-uygulama` Adım 1 ile ölçülen gerçek taban — bkz. Plandan Sapmalar #1) **1337 satır / 61.704 B** → sonrası **1328 satır / 60.429 B**. Net kazanç 9 satır / 1.275 B (~%2) — küçük, çünkü 92.3'ün kulvar şeması 92.1/92.2'nin düşürdüğü metni büyük ölçüde geri ekledi (bkz. Plandan Sapmalar #6)
@@ -129,7 +129,7 @@ python3 scripts/dokuman-bakim.py
    tutarlılık için o da bağlandı. Sonuç: altı çağıran, planın tahmin ettiği
    dört/üç değil.
 
-4. **`kapi.py kapanis --taban 1637151` üç ardışık koşumda da `dotnet test`
+4. **`kapi.py kapanis --taban f2efc83` üç ardışık koşumda da `dotnet test`
    adımında kırmızı çıktı — üçünde de FARKLI bir tekil test.** Bu faz hiçbir
    `src/`/`tests/` dosyasına dokunmuyor (yalnız `.md`); nedensellik yoktur.
 
@@ -161,7 +161,7 @@ python3 scripts/dokuman-bakim.py
 5. **`samples/Tracon.Api`'nin varsayılan PostgreSQL dev veritabanı, ilk
    denemede `0032_tenant_provider_bindings` migration'ı için checksum
    uyuşmazlığıyla başlamayı reddetti** (`git log` migration dosyasının son
-   dokunulduğu commit'i `f272e70` — "döküman düzeni sağlandı" — olarak
+   dokunulduğu commit'i `b569600` — "döküman düzeni sağlandı" — olarak
    gösteriyor; dosyanın biçimlendirmesi o commit'te değişmiş, yerel veritabanı
    hâlâ eski checksum'ı taşıyor). Bu, Faz 92'den **önce** var olan yerel ortam
    sürüklenmesidir; bu faz migration dosyalarına dokunmuyor. Postgres
@@ -208,7 +208,7 @@ fazın yerel sözleşmesidir:
 
 ## Denetim Bulguları
 
-Bağımsız (taze bağlamlı, ayrı `Agent` çağrısı) `faz-denetim`, taban `1637151`,
+Bağımsız (taze bağlamlı, ayrı `Agent` çağrısı) `faz-denetim`, taban `f2efc83`,
 2026-08-23.
 
 ### 🔴 Kapanmadan faz bitmez

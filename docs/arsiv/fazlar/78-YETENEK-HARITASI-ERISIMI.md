@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f272e70:docs/arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md
+> git show b569600:docs/arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -227,7 +227,7 @@ görüntüleri · paket `README.md`'leri · `sidebar.mjs` (yeni sayfa yok).
 | `LocalReferenceTests` | **10/10** |
 | `build-agent-map.mjs --check` | `Agent map: up to date and within budget.` |
 | `npm run check` (içerik · derleme · bağlantı · ağırlık) | `Content: 39 manual pages and 1009 total pages passed.` · `Links: 130991 internal reference(s) across 1010 pages and llms.txt, none broken.` · `Weight: 1010 pages under 57000 B gzip. Heaviest: troubleshooting/index.html at 49873 B.` |
-| `dokuman-bakim.py --site-denetle --taban 01a5674` | `✅ Site 3 sayfada değişti` |
+| `dokuman-bakim.py --site-denetle --taban 938e319` | `✅ Site 3 sayfada değişti` |
 | `dotnet build` · `dotnet test` · `dotnet pack` · `dotnet format` | 0 uyarı · **16/16 proje geçti** · 0 uyarı · `exit 0` |
 
 🚨 Hiçbir muafiyet listesi ve hiçbir taban çizgisi büyümedi. `check-content.mjs`

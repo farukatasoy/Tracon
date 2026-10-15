@@ -16,7 +16,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 595ecd8:docs/arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md
+> git show 005eccd:docs/arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

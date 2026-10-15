@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 0e30dd7f:docs/arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md
+> git show 99eb04ea:docs/arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md
 > ```
 >
 > Damıtıldı 2026-09-08 · `scripts/dokuman-bakim.py faz-damit`
@@ -37,7 +37,7 @@ Tracon'in bugün **tek** yerleşik yargıcı var ve o da elle yazılmış tek bi
 - [x] Ölçüm üretmeyen metrik `Value = null` yazar, `0` değil (K-711) — birim + fonksiyonel test, manuel EVAL-138
 - [x] `maf-api-kesfi` koşuldu; `IEvaluator`/`IAgentEvaluator` gerçek imzaları belgeye yazıldı (§ *Ölçülen MAF imzaları*) — üç tespit planı değiştirdi
 - [x] Yeni paketin geçişli ağırlığı **gerçek restore** ile sayıldı ve belgeye yazıldı (§ *Yeni paketin gerçek ağırlığı*) — sevk edilen grafiğe giren yeni paket: **0**
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 6af857d0`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 1cfa8840`
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (gerçek OpenAI modeli), çıktı belgeye yazıldı (§ *Gerçek koşum kanıtı*)
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` → `Tarama: ✅ temiz`
 - [x] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi (**EVAL-136…142**); otomatikleştirilebilenlerin tamamı `EvaluatorJudgeEndToEndTests` olarak koşuldu

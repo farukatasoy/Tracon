@@ -14,7 +14,7 @@
 |---|---|
 | **Şerit** | `ap-s2` (Faz B, ikinci aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s2` · dal `test/kosum-s2` |
-| **Kod** | `a51a8496` donuk |
+| **Kod** | `cfe5ebe8` donuk |
 | **Case sayısı** | 25 (MT-DKP-001..025) |
 | **Port** | N/A — bu aile `scripts/dokuman-bakim.py` ve `docs-site/scripts/check-content.mjs` kapılarını sınar, örnek uygulama gerekmez |
 | **Depo** | N/A |
@@ -37,7 +37,7 @@ temizleniyor; hiçbir case commit oluşturmuyor (spec'in kendi kuralı).
 001-016 arası koşmuştu (15 ☑ Geçti, MT-DKP-006 İŞARETSİZ kalmıştı — sayım
 betiğinin regex'i dört seçenekten hiçbirinin işaretlenmediği bir satırı
 yakalayamıyordu). Bu oturum:
-1. Kod donmasını doğruladı: `git diff --stat a51a8496..HEAD -- src samples
+1. Kod donmasını doğruladı: `git diff --stat cfe5ebe8..HEAD -- src samples
    tests` boş (hem oturum başında hem oturum sonunda tekrar kontrol edildi).
 2. MT-DKP-006'nın `Durum` satırını düzeltti — **yalnız işaretleme
    sözdizimi**: dört seçenekten biri (`Beklemede`) ☑ ile işaretlendi, sonuç
@@ -98,7 +98,7 @@ zaten "beklenen, panik yok" olarak kayıtlı); (2) **yeni gözlem**:
 **iki illüstratif metin parçası** doküman kapısının desen eşleyicisini
 yanlışlıkla tetikliyor — MT-GDK-013'ün "Gerçek sonuç"unda geçen, kasıtlı
 olarak **çalışmayan** bir örnek olarak yazılmış `git show
-f272e70:docs/73-TUKETICI-AGENT-DESTEGI.md` metni "Damıtılmış kayıt tam
+b569600:docs/73-TUKETICI-AGENT-DESTEGI.md` metni "Damıtılmış kayıt tam
 metni" kontrolünü kırıyor; MT-GDK-034'ün kaydındaki `[kapilar.md]
 (kapilar.md)` Markdown bağlantı sözdizimi de "Kırık bağlantı" sayısına
 giriyor (bkz. MT-DKP-004'ün yan bulgusu). İkisi de **file 36'nın kendi
@@ -117,7 +117,7 @@ yapıldı — tıpkı MT-GDK-036'nın (dosya 36) kendi turunda yaptığı gibi.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 4f218d55:docs/manuel-test/kosumlar/2026-09-16/33-DOKUMAN-KAPILARI.md
+> git show d38bc2b6:docs/manuel-test/kosumlar/2026-09-16/33-DOKUMAN-KAPILARI.md
 > ```
 
 ---

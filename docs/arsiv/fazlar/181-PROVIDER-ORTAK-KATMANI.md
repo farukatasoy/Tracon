@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show b59f3d50:docs/arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md
+> git show 526c473c:docs/arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md
 > ```
 >
 > Damıtıldı 2026-09-22 · `scripts/dokuman-bakim.py faz-damit`
@@ -35,9 +35,9 @@ Dört sağlayıcı paketi aynı gövdeyi elle kopyalıyor. K-646 bu kopyanın be
 ## Bitiş Ölçütleri (DoD)
 
 - [x] `sed`+`diff` ölçümü tekrarlanır ve üç dosya çiftinde farklı-satır sayısı yalnız gerçek sağlayıcı farkını içerir (auth · endpoint · ayrıştırma); ölçüm kapanışa yazılır — **Süreç Ölçümü**'nde; kalan farklı kod satırlarının hepsi sağlayıcı farkıdır (SDK seçenekleri, auth başlığı, endpoint, gövde biçimi, Azure'un deployment log metni)
-- [x] Dört paketin `PublicAPI.Unshipped.txt` dosyalarında net satır değişimi 0 — `git diff --stat ceb40384 -- 'src/*/PublicAPI.*'` boş; `Tracon.Core`'da da 0 (cache logger'ı `internal init`)
+- [x] Dört paketin `PublicAPI.Unshipped.txt` dosyalarında net satır değişimi 0 — `git diff --stat 03522e40 -- 'src/*/PublicAPI.*'` boş; `Tracon.Core`'da da 0 (cache logger'ı `internal init`)
 - [x] Mevcut sözleşme, credential ve secret-leak testleri **değiştirilmeden** yeşil — test dosyalarında yalnız ekleme var (denetçi `--numstat` ile doğruladı); OpenAI 126→169 · Anthropic 80→121 · Google 84→125 · Azure 76→120, hepsi yeşil
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban ceb40384` (sonuç: Süreç Ölçümü altındaki not)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 03522e40` (sonuç: Süreç Ölçümü altındaki not)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — **Örnek Uygulama Koşumu**
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: `✅ temiz (17 işaretli sentetik credential atlandı)`
 - [x] Manuel kabul: sağlayıcı smoke case'leri koşuldu, sonuç belgede — **Örnek Uygulama Koşumu**

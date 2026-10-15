@@ -131,7 +131,7 @@ Taban çizgisi (`bench/baseline.json`, aynı makine): `CacheHit` 24 B,
 
 `kapi.py performans` `AppendEvent` için 104 B → 112 B kırmızısı verdi;
 `RunEventWriter.cs`'in tek diff'i `CompleteAsync` içindeydi, `AppendAsync`'e
-HİÇ dokunmamıştı. Şüpheli: `git worktree add` ile taban commit'i (`349ace0d`)
+HİÇ dokunmamıştı. Şüpheli: `git worktree add` ile taban commit'i (`153b3a85`)
 AYRI bir dizinde derlenip TEK BAŞINA ölçüldü — sonuç yine 112 B. Aynı kodun
 2026-09-02 ölçümü 104 B'ydi; makine aynı (Apple M1 Pro), yalnız iki gün
 içinde OS/SDK yama düzeyi kaymış olabilir (`kaynak tespit edilemedi` —
@@ -142,12 +142,12 @@ ortamın mı sorumlu olduğunu ayırt eder — doğrudan `--guncelle` çalışt�
 ayrımı **atlar** ve gerçek bir regresyonu maskeleyebilirdi.
 
 **İkinci vaka (2026-10-13, Faz 197):** `CacheHit` uyarısı (24 → 0 B) taban
-`f0eda76a`'de de 0 B ölçüldü: satır fazdan önce bayattı, 0'a çekildi. Aynı fazın
+`1bc581ec`'de de 0 B ölçüldü: satır fazdan önce bayattı, 0'a çekildi. Aynı fazın
 `QueryRuns` artışı (44832 → 45456 B) gerçekti: yeni `continued_from_run_id`
 parametresi her sorguda taşınır.
 
 **Üçüncü vaka (2026-10-14, F-419):** `QueryRuns` 47104 → 48184 B (+1080 B) gerçekti:
-taban `60ee0855` ayrı worktree'de 47104 B ölçüldü. Kaynak, satıra eklenen iki para
+taban `55b8b9d5` ayrı worktree'de 47104 B ölçüldü. Kaynak, satıra eklenen iki para
 birimi sayım sütunu ve uzayan SQL metnidir (SQLite komut metnini her koşumda UTF-8'e
 çevirir); metin kısaltılınca +1536 B'den indi. Süre 818 → 956 µs oldu (kapı süreyi
 ölçmez; SQLite'ta her ağaç sütunu ayrı ilişkili alt sorgudur).
@@ -217,12 +217,12 @@ eşzamanlılık probu var; eskiden ilk gelenler sonuncuyu yirmi saniye bekliyord
 
 | Commit | Ölçüm | Ne söyler |
 |---|---:|---|
-| `349ace0d` (taban çizgisinin kendi tarihi) | 44 832 B | Taban bu makinede **birebir** üretilebiliyor — sapma ölçüm gürültüsü değil |
-| `9e906e77` (Faz 179 **öncesi**) | 45 040 B | Artış faz başlamadan önce oradaydı |
+| `153b3a85` (taban çizgisinin kendi tarihi) | 44 832 B | Taban bu makinede **birebir** üretilebiliyor — sapma ölçüm gürültüsü değil |
+| `eac8d2d3` (Faz 179 **öncesi**) | 45 040 B | Artış faz başlamadan önce oradaydı |
 | `HEAD` (Faz 179 dahil) | 45 040 B | Faz 179 tahsis açısından **nötr** |
 
 `git bisect` (8 adım, her adımda derleme + filtreli benchmark) tek suçluyu
-buldu: **`19f3a0cd`** — `SqliteRetryingCommand`. Benchmark SQLite üzerinde
+buldu: **`a8cfe6a8`** — `SqliteRetryingCommand`. Benchmark SQLite üzerinde
 koşuyor ve dekoratör komut başına bir sarmalayıcı nesne + retry closure'ı +
 async durum makinesi ekliyor. Bu bir kusur değil, bir **doğruluk düzeltmesinin
 kabul edilmiş bedelidir**; taban çizgisi bu yüzden güncellendi, kapı

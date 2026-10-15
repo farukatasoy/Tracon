@@ -11,7 +11,7 @@
 > **Tüketici yüzeyi:** Console'un tamamı · `docs-site/src/content/docs/ui.md` ·
 > 19 ekran görüntüsü · `capabilities.md` console satırı
 > **Manuel test alanı:** `docs/manuel-test/09-ARAYUZ-GENEL.md`
-> **Taban:** `3a9745bd8562aafbd467fbcbf09a0f901d2c991a`
+> **Taban:** `445d521341f4895076b92da76b6e6445f11d2c81`
 
 ---
 
@@ -23,7 +23,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 8a9a1ef5:docs/arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md
+> git show ade87406:docs/arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md
 > ```
 >
 > Damıtıldı 2026-09-12 · `scripts/dokuman-bakim.py faz-damit`

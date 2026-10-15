@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 211f175:docs/arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md
+> git show 656f3bd:docs/arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md
 > ```
 >
 > Damıtıldı 2026-08-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Tracon 716 public tip ve 8.063 API girdisi ile hiç yayınlanmadı. Yüzeyi kü�
 - [x] `ConsumerSurfaceTests` `internal` yapılmış bir tipin tüketici projesinde **derlenmediğini**, karşılık gelen arayüzün derlendiğini kanıtlıyor; MT-PKG-094 koşuldu
 - [x] Tüm test metotları yeşil (`dotnet test Tracon.slnx -c Release --no-build` → 0 failed); hiçbir test **davranış** değişikliği için düzeltilmedi (yalnız `internal` erişimi için `InternalsVisibleTo` veya taşıma) — DoD taslağındaki "2.897" bayat bir sayıydı, ölçülmedi, düzeltilmedi
 - [x] K-285 için yeniden açma kararı `docs/KARARLAR.md`'ye yazıldı (engel Faz 88'de kalktı) — K-601
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 421d2fb`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 127064a`
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi (MT-PKG-094/095/096); üçü de koşuldu
@@ -119,7 +119,7 @@ python3 scripts/kapi.py kapanis --taban <faz oncesi commit>
 
 ## Denetim Bulguları
 
-`faz-denetim` taze bağlamlı bir alt agent ile koşuldu (taban: `421d2fb`).
+`faz-denetim` taze bağlamlı bir alt agent ile koşuldu (taban: `127064a`).
 
 🔴 ve 🟡 yok — üç 🟡 bulgu uygulayan oturum tarafından bu kapanışta kapatıldı:
 

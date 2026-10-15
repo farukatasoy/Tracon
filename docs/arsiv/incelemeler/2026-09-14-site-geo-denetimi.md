@@ -1,6 +1,6 @@
 # docs-site GEO denetimi — 2026-09-14
 
-Taban: `7bacbf90`. Commit ve production deploy yapılmadı. Klasik SEO denetimi
+Taban: `efeca4f9`. Commit ve production deploy yapılmadı. Klasik SEO denetimi
 (`2026-09-14-site-seo-denetimi.md`) **canlıya alınmıştır** — bu tur onu tekrar
 ölçmedi; canlı `llms.txt` ve `robots.txt` o turun `dist` çıktısıyla birebir aynı
 doğrulandı, `/getting-started` göreli 301 veriyor.
@@ -90,8 +90,8 @@ Sıralama veya alıntılanma artışı vaat edilmiyor.
 npm --prefix docs-site run check          # content · build · links+SEO · weight
 python3 scripts/site-http-denetle.py http://127.0.0.1:4175
 node docs-site/scripts/build-agent-map.mjs --check
-python3 scripts/dokuman-bakim.py --site-denetle --taban 7bacbf90
-python3 scripts/kapi.py kapanis --taban 7bacbf90
+python3 scripts/dokuman-bakim.py --site-denetle --taban efeca4f9
+python3 scripts/kapi.py kapanis --taban efeca4f9
 ```
 
 Yerel nginx ön koşulu SEO turuyla aynıdır (`dist` salt okunur bağlı, `SITE_HOST`

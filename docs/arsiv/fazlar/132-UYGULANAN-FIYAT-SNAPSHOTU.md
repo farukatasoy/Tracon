@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 66933b8:docs/arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md
+> git show c36b292:docs/arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md
 > ```
 >
 > Damıtıldı 2026-09-02 · `scripts/dokuman-bakim.py faz-damit`
@@ -153,7 +153,7 @@ fiyat karoları için bir cümle eklendi), üçü kapsam dışı kaldı:
 
 ## Denetim Bulguları
 
-Bağımsız denetim (taze bağlamlı agent, taban `a2d0bba`) iki bulgu üretti;
+Bağımsız denetim (taze bağlamlı agent, taban `a7c189f`) iki bulgu üretti;
 ikisi de kapatıldı.
 
 **🔴 1 — Yeni alanların `<summary>` bloğu `<see cref>` kullanıyordu; bu tipler

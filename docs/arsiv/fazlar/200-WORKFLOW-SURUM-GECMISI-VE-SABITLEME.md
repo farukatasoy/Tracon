@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show cd33ec1c:docs/arsiv/fazlar/200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md
+> git show fa2d6571:docs/arsiv/fazlar/200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md
 > ```
 >
 > Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -37,7 +37,7 @@ Operatör zinciri, ayarı ve talimatı canlı değiştirir; workflow tanımını
 - [x] Bekleyen run kaynak sürümle sürer, sürüm yoksa kapalı düşer (test 9-11) — `WorkflowResumePinTests` (6) · `WorkflowStructuralChangeResumeTests` (iki yarı) · `WorkflowResumeVersionHttpTests` (akış açılmadan `400`) · `WorkflowFunctionSettingsResumeTests`
 - [x] Sabitli adımın çocuk satırı sabiti yazar; sabit değişimi checkpoint'i kırmaz (test 14-15) — `WorkflowAgentVersionPinTests.A_pinned_step_runs_the_pinned_text_while_the_agent_is_edited` (modele ulaşan talimat metniyle) · `…binds_the_workflows_parameters_still_runs_its_pinned_version` (parametreli yol) · `WorkflowStructuralChangeResumeTests.Re_pinning_an_agent_step_leaves_the_old_checkpoint_usable_for_either_version`
 - [x] §200.4 sınıf taraması belgeye yazıldı — aşağıda
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban f110f251`: `build` 0 uyarı; tam test koşumu yeşil (4. koşum; 3. koşumda `JobWorkerDeadlineTests` net9.0 tam koşumda 30 sn'de düştü, yalıtılmış geçti, sonraki tam koşumda geçti — kaynak çekişmesi sınıfı); `pack` yeşil; `dotnet format` ilk koşumda `WorkflowRollbackTests` içe aktarma sırasını yakaladı, düzeltildi, temiz; `npm run check` yeşil (1088 sayfa, bağlantı ve SEO temiz)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban b1b81ef1`: `build` 0 uyarı; tam test koşumu yeşil (4. koşum; 3. koşumda `JobWorkerDeadlineTests` net9.0 tam koşumda 30 sn'de düştü, yalıtılmış geçti, sonraki tam koşumda geçti — kaynak çekişmesi sınıfı); `pack` yeşil; `dotnet format` ilk koşumda `WorkflowRollbackTests` içe aktarma sırasını yakaladı, düzeltildi, temiz; `npm run check` yeşil (1088 sayfa, bağlantı ve SEO temiz)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (sabit + resume), çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`: ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` içine eklendi (`MT-WF-150`…`155`); otomatikleştirilebilenler koşuldu
@@ -126,7 +126,7 @@ Kategori dışı yerel kararlar (burada kalır, `K-*` açılmadı): silinmiş bi
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (`faz-denetcisi`, taban `f110f251`): **🔴 yok.** Dört 🟡 ve beş 🟢. Triyaj hepsinde "gerçek".
+Bağımsız denetçi (`faz-denetcisi`, taban `b1b81ef1`): **🔴 yok.** Dört 🟡 ve beş 🟢. Triyaj hepsinde "gerçek".
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|

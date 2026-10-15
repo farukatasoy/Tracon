@@ -47,7 +47,7 @@
 > [`../arsiv/manuel-test-kosum-2026-09/13-KIRACI-VE-GUVENLIK.md`](../arsiv/manuel-test-kosum-2026-09/13-KIRACI-VE-GUVENLIK.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
-> tam metin: git show aa9c0a7f:docs/manuel-test/kosumlar/2026-08-13/13-KIRACI-VE-GUVENLIK.md
+> tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/13-KIRACI-VE-GUVENLIK.md
 
 ---
 
@@ -137,7 +137,7 @@ export APULAN="http://$LANIP:5080/tracon"
 >
 > **Doküman düzeltmesi (koşumda, 2026-08-13).** Yukarıdaki not artık YANLIŞ:
 > `Tracon:Ui:AllowRemoteAccess` anahtarı 2026-08-11'de `Program.cs`'e
-> bağlandı (commit `419981b`, satır 708-715 —
+> bağlandı (commit `05067d1`, satır 708-715 —
 > `builder.Configuration.GetValue<bool?>("Tracon:Ui:AllowRemoteAccess")`).
 > §7'deki `MT-SEC-070`/`071` artık **geçici kod değişikliği GEREKTİRMİYOR**;
 > `Tracon__Ui__AllowRemoteAccess` ortam değişkeni/`user-secrets` anahtarı

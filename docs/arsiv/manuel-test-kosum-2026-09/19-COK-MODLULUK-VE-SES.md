@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz B — sıradaki aile: `13 · 19 · 04 · 18 · 10 · 08`) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `37b13b23` donuk |
+| **Kod** | `ea93fc16` donuk |
 | **Case sayısı** | 93 (MT-MM-001..122, seyrek numaralı) |
 | **Port** | 5081 |
 | **Depo** | `mt_s1` PostgreSQL şeması (aile 13'ten devreden test verisi temizlenmedi — bu aile ona dokunmuyor) |
@@ -80,7 +80,7 @@ yerde görünmedi) ama not düşülüyor.
 **Oturum 2 — aile KAPANDI: MT-MM-059..122 koşuldu (66 Geçti · 3 Kaldı · 23
 Beklemede · 1 Atlandı, toplam 93/93 case hesaba katıldı).** Devralınan
 durum stale idi — `DEVIR.md` "19 henüz açılmadı" diyordu ama aslında 3
-önceki commit (`f8d2c835`, `97bf5d12`, `af159519`) MT-MM-001..055'i zaten
+önceki commit (`4ab2a733`, `ce3f97bb`, `355f152a`) MT-MM-001..055'i zaten
 bitirmişti; ayrıca yarıda kalmış bir önceki oturumdan DB'de leftover state
 bulundu (bkz. MT-MM-067, MT-MM-082) — dosyaya hiçbir kayıp yazılmamıştı,
 yalnız uygulama süreci ve birkaç test satırı temizlenip yeniden koşuldu.
@@ -125,7 +125,7 @@ sıradaki dosya) açılmalı — bu dosyanın kalanı (§Fiziksel eylem tablosu)
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 4f218d55:docs/manuel-test/kosumlar/2026-09-16/19-COK-MODLULUK-VE-SES.md
+> git show d38bc2b6:docs/manuel-test/kosumlar/2026-09-16/19-COK-MODLULUK-VE-SES.md
 > ```
 
 ---

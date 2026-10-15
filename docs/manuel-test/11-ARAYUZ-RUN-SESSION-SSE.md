@@ -26,7 +26,7 @@
 > [`../arsiv/manuel-test-kosum-2026-09/11-ARAYUZ-RUN-SESSION-SSE.md`](../arsiv/manuel-test-kosum-2026-09/11-ARAYUZ-RUN-SESSION-SSE.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
-> tam metin: git show aa9c0a7f:docs/manuel-test/kosumlar/2026-08-13/11-ARAYUZ-RUN-SESSION-SSE.md
+> tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/11-ARAYUZ-RUN-SESSION-SSE.md
 
 ---
 
@@ -681,7 +681,7 @@ sıra `0`'dan başlar. Bu, veri kaybı değil, bir verimsizliktir; kod okumasıy
 ### MT-UIRUN-020 — Aynı çalıştırma iki sekmede aynı anda izlenebilir, ikisi de bağımsız akış açar
 
 Hafif yük senaryosu (2026-08 turu PROMPT §3 — silindi, K-847;
-`git show aa9c0a7f:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`).
+`git show 0a802674:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`).
 
 | | |
 |---|---|
@@ -1628,7 +1628,7 @@ doğrulandı.
 - Olay Zaman Çizelgesi'nde `reasoning.delta` satırları `message.delta`'dan
   **etiket adıyla** ayrılır, renkle değil. ⚠️ Bu satır 2026-09-19'a kadar mor
   (`--ap-violet`) diyordu ve iki yönden bayattı: `--ap-*` değişkenleri ürün
-  adı değişiminde (`025803d5`) kalktı, ve ikisi **aynı** `accent` tonunu
+  adı değişiminde (`bea3901f`) kalktı, ve ikisi **aynı** `accent` tonunu
   bilerek paylaşır — `run-detail.tsx:90-92`'nin yorumu gerekçeyi yazıyor
   ("still the model producing, so it shares the live accent with MessageDelta").
 

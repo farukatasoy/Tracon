@@ -7,8 +7,8 @@ Profile: `sweep`.
 
 | Field | Value |
 |---|---|
-| Commit | 729c368977937502d89e047bd1505e3aa3bc68e7 |
-| Tracon package | 0.0.0-capacity166.729c368 |
+| Commit | d3696d94fc048a925f89a89645d5547361a70e1e |
+| Tracon package | 0.0.0-capacity166.d3696d9 |
 | Operating system | Darwin 25.6.0 |
 | Architecture | arm64 |
 | Logical processors | 10 |

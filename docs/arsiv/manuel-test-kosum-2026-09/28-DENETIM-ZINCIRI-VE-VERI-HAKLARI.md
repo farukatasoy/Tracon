@@ -14,7 +14,7 @@
 |---|---|
 | **Şerit** | `ap-s4` (Faz B, sekizinci aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s4` · dal `test/kosum-s4` |
-| **Kod** | `a3f2f176` donuk (doğrulandı: `git status --short` boş, `git diff --stat a51a8496..HEAD -- src samples tests` boş) |
+| **Kod** | `6505b0af` donuk (doğrulandı: `git status --short` boş, `git diff --stat cfe5ebe8..HEAD -- src samples tests` boş) |
 | **Case sayısı** | 10 (MT-DVR-001..010) |
 | **Ana uygulama** | port 5084, şema `mt_s4` |
 
@@ -73,7 +73,7 @@ bu oturumda taze koşuldu) üstünde bırakıldı.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show ce200496:docs/manuel-test/kosumlar/2026-09-16/28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md
+> git show dbc1729c:docs/manuel-test/kosumlar/2026-09-16/28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md
 > ```
 
 ---

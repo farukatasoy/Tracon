@@ -12,7 +12,7 @@
 |---|---|
 | **Şerit** | `ap-s4` (Faz B, yedinci aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s4` · dal `test/kosum-s4` |
-| **Kod** | `7e509c0f` donuk (doğrulandı: `git status --short` boş, `git diff --stat a51a8496..HEAD -- src samples tests` boş) |
+| **Kod** | `9d72c01a` donuk (doğrulandı: `git status --short` boş, `git diff --stat cfe5ebe8..HEAD -- src samples tests` boş) |
 | **Case sayısı** | 16 (MT-IST-001..016) |
 | **Ana uygulama** | port 5084, şema `mt_s4`, gerçek `openai` Healthy |
 
@@ -75,7 +75,7 @@ MT-IST-001/002/007/008/009/012/014 gerçek `openai`'ye küçük çağrılar yapt
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show a3f2f176:docs/manuel-test/kosumlar/2026-09-16/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md
+> git show 6505b0af:docs/manuel-test/kosumlar/2026-09-16/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md
 > ```
 
 ---

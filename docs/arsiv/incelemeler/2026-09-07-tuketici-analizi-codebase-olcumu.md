@@ -10,7 +10,7 @@
 ## 1. Kapsam, zemin ve kanıt sınırı
 
 - Girdi: [Tracon — Kapsamlı Teknik ve Ürün Analizi](2026-09-07-tuketici-analizi-girdi-raporu.md), 1005 satır. SHA-256: `5127dd2a98ad24792c8de8c57baafae9bf70151a428c2402e14c7101f22aec1c`.
-- Codebase: `1d72ef7e3c46b168516dbc0de491ce1f7bc01656`. Başlangıçta yalnız girdi raporu untracked idi. Bu inceleme ürün kodunu değiştirmedi, commit veya yayın yapmadı.
+- Codebase: `8f1d8fb051e1728340ac8732e83dcf713e65e351`. Başlangıçta yalnız girdi raporu untracked idi. Bu inceleme ürün kodunu değiştirmedi, commit veya yayın yapmadı.
 - Kullanıcının netleştirmesi: **“şu an için henüz yayınlanmamış geliştirme sürümü”**. Registry'de yokluk bir yayın arızası değildir. Yayınlanmış gibi anlatmak doküman kusurudur.
 - [Yol haritasında](../../YOL-HARITASI.md) son numaralı faz 154 kapalıdır. Üretecin 155 kayıt sayması ile son faz numarası aynı ölçüm değildir. Son üç fazın devir notları okundu. Faz 153 özellikle case snapshot'ının bulunmadığını ve K-716 sınırını devreder.
 - [Aday değerlendirme çerçevesi](../../ADAYLAR.md#değerlendirme-ölçütleri), F-171, ilgili mevcut adaylar, reddedilen karar indeksi ve ilgili kararların gerekçeleri kontrol edildi. Manuel test indeksi tarihsel koşum notları taşır; oradaki eski bulgular güncel kusur diye aktarılmadı.

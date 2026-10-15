@@ -212,7 +212,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertTrue(full)
 
     def test_her_src_degisikligi_ornek_derleyen_projeyi_secer(self):
-        # KACIS e780344a: src/Tracon.Core'a eklenen bir XML <example>
+        # KACIS ef9c8ee1: src/Tracon.Core'a eklenen bir XML <example>
         # blogu Tracon.Generators.UnitTests'i DERLENMEZ hale getirdi;
         # ic dongu Core.UnitTests + AspNetCore.FunctionalTests seciyordu ve
         # gercekte dusen projeyi HIC kosmuyordu. ExampleExtractor
@@ -394,7 +394,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertTrue(full)
 
     def test_embedded_ornegi_kendi_test_projesini_secer(self):
-        # KACIS 57443003: Faz 139 altinci genisleme noktasini ekledi,
+        # KACIS 6e9cc8f6: Faz 139 altinci genisleme noktasini ekledi,
         # samples/Tracon.Embedded geride kaldi. O gun bir samples/
         # degisikligi HICBIR test projesi secmiyordu; Embedded.Tests ise
         # ProjectReference ile tam o ornege bagli.
@@ -1057,7 +1057,7 @@ class YayinTestleri(unittest.TestCase):
             manifest_path = kapi._write_manifest(
                 release_dir,
                 version="1.0.0-preview.1",
-                commit="022b6c26745190769bb3c68f070ccee110fef753",
+                commit="691dfbe17061bd6932576e892f4eeffe044468df",
                 packages=[
                     {"id": "Tracon.Core", "file": "Tracon.Core.1.0.0-preview.1.nupkg", "sha256": "abc",
                      "symbolsFile": "Tracon.Core.1.0.0-preview.1.snupkg", "symbolsSha256": "def"},

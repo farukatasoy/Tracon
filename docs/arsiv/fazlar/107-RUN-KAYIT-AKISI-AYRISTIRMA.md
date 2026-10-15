@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show a986169:docs/arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md
+> git show b3f4437:docs/arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`

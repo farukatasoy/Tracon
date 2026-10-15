@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f10c3f5:docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
+> git show 9579951:docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`
@@ -103,7 +103,7 @@ yeni bir `K-*` kaydı açılmadı.
 
 ## Denetim Bulguları
 
-Bağımsız denetim (taze bağlamlı `general-purpose` agent), taban `af4b56c`,
+Bağımsız denetim (taze bağlamlı `general-purpose` agent), taban `b95358a`,
 2026-09-01. Tam rapor bu oturumun geçmişinde; özet:
 
 | # | Seviye | Bulgu | Sonuç |

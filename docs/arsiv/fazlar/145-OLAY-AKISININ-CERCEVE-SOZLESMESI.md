@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show c5c1964a:docs/arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md
+> git show 51f2d930:docs/arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md
 > ```
 >
 > Damıtıldı 2026-09-05 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Tracon iki SSE akışı sevk ediyor ve **ikisi de sözleşmesini eksik ilan ediy
 - [x] `docs/openapi/tracon.json` yeniden üretildi; SSE bildiren işlem sayısı **6 → 7** oldu — ölçüldü, `sorted(n)` yedi operationId listeler
 - [x] `packages/tracon-client/src/schema.ts` yeniden üretildi ve diff'te yeni `text/event-stream` girdisi görünür
 - [x] `TraconStreamRunEvents` `404`'ü de bildirir — `samples/Tracon.Api`'de canlı doğrulandı
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 87f96f6d` (build, 4200+ test, pack, format, docs-site dört kapısı — hepsi ✅, `exit=0`)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 5689b783` (build, 4200+ test, pack, format, docs-site dört kapısı — hepsi ✅, `exit=0`)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, akış çıktısı belgeye yazıldı — bkz. "Gerçekleşen Public API" altındaki canlı çıktı
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md` içine eklendi (MT-UIRUN-056..061); otomatikleştirilebilen beşi `samples/Tracon.Api`'de canlı koşuldu, altıncısı (`child.timed-out`, MT-UIRUN-061) gerçek HTTP `TestServer` üzerinden `SubAgentTimeoutTests`'in fonksiyonel testiyle kanıtlandı (canlı sağlayıcıya karşı bir alt-agent askıya alma senaryosu bu oturumun bütçesinde kurulmadı)
@@ -151,7 +151,7 @@ print(len(n), sorted(n))"
 
 ## Denetim Bulguları
 
-Taze bağlamlı bağımsız denetim (`general-purpose` agent, taban `87f96f6d`)
+Taze bağlamlı bağımsız denetim (`general-purpose` agent, taban `5689b783`)
 iki tur koştu: ilk tur iki 🔴 buldu, düzeltmeler sonrası ikinci doğrulama
 (bu oturumun kendisi tarafından, gerçek test koşumuyla) ikisini de kapattı.
 

@@ -27,7 +27,7 @@
 > değil.** Dosya 05'in emsaline uyularak (kural 1.1: "doküman ile kod
 > çelişirse doküman yanlıştır") **spec dosyasının kendisi** de bu oturumda
 > düzeltildi (`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`, commit
-> `6c109da2`), yalnız bu kayıt dosyasına not düşülmedi. Ayrı `HATA-S2-*`
+> `0b52deb6`), yalnız bu kayıt dosyasına not düşülmedi. Ayrı `HATA-S2-*`
 > kaydı açılmadı.
 
 **⚠️ Paylaşılan durum notu (kural 1.3 kapsamı dışı sapma):** Oturum

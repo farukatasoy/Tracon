@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 74c77d5d:docs/arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md
+> git show db6dc082:docs/arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md
 > ```
 >
 > Damıtıldı 2026-09-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -129,7 +129,7 @@ provasındaki koşum "Kapanış Kapısı" bölümünde.
   `~/.dotnet`'teki net8'i görmedi. Tüketici artık `dotnet build` + apphost ile koşar;
   prova paketlemeden önce net8 runtime'ını da denetler. CI'da muxer kökü ile
   `DOTNET_ROOT` aynıdır, orada düşmezdi — kusur yalnız yerelde görünürdü.
-- `kapi.py kapanis --taban 05603177` → **EXIT 0**: tarama · doküman denetimi · 446
+- `kapi.py kapanis --taban 2d0cac2e` → **EXIT 0**: tarama · doküman denetimi · 446
   betik testi · agent haritası · denetim paketi · build 126 sn · test 901 sn (38 bacak,
   hepsi yeşil) · pack · format · `npm run check`. İlk koşumda üç `Tracon.Package.Tests`
   case'i ortamdan düştü (özel kök PATH'teydi, "Faz Dışı" altında); ikinci koşum
@@ -148,7 +148,7 @@ provasındaki koşum "Kapanış Kapısı" bölümünde.
 
 ## Denetim Bulguları
 
-Denetçi `faz-denetcisi`, çalışma ağacı `05603177` tabanına göre. Triyaj: uygulayan oturum
+Denetçi `faz-denetcisi`, çalışma ağacı `2d0cac2e` tabanına göre. Triyaj: uygulayan oturum
 (kullanıcı oturumda değildi; iki 🔴'nin ikisi de ölçümle doğrulandı).
 
 | # | Seviye | Bulgu | Triyaj | Sonuç |

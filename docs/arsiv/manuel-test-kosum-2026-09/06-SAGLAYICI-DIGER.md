@@ -13,7 +13,7 @@
 |---|---|
 | **Şerit** | `ap-s4` (Faz B, **dokuzuncu ve SON** aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s4` · dal `test/kosum-s4` |
-| **Kod** | `ce200496` donuk (doğrulandı: `git status --short` boş, `git diff --stat a51a8496..HEAD -- src samples tests` boş, oturum başında VE her mutasyon sonrası) |
+| **Kod** | `dbc1729c` donuk (doğrulandı: `git status --short` boş, `git diff --stat cfe5ebe8..HEAD -- src samples tests` boş, oturum başında VE her mutasyon sonrası) |
 | **Case sayısı** | 39 (MT-PROV-001..003, 010..014, 020..021, 030..037, 040..042, 050..053, 060..061, 070..072, 080..088) |
 | **Ana uygulama** | port 5084, şema `mt_s4`, gerçek `openai`/`anthropic`/`google` Healthy; Azure kimliği **yok** |
 
@@ -266,7 +266,7 @@ istemler). §2 (030-034) yalnız `/validate` (model çağırmaz). §6/7 (060,
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 2841b02a:docs/manuel-test/kosumlar/2026-09-16/06-SAGLAYICI-DIGER.md
+> git show 34356bdd:docs/manuel-test/kosumlar/2026-09-16/06-SAGLAYICI-DIGER.md
 > ```
 
 ---

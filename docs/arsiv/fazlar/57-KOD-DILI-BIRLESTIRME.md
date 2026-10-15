@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 595ecd8:docs/arsiv/fazlar/57-KOD-DILI-BIRLESTIRME.md
+> git show 005eccd:docs/arsiv/fazlar/57-KOD-DILI-BIRLESTIRME.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

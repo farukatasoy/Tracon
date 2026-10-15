@@ -94,7 +94,7 @@
 
 - **🚨 MinVer her commit'te benzersiz ve monoton bir sürüm üretir; `v*` etiketi
   sürümü DEĞİL, yalnız nuget.org yayınını açar.** Ölçüldü (2026-09-04, temiz
-  klon, aynı HEAD `ed99ff4a`): etiket yok → `0.0.0-preview.0.578`;
+  klon, aynı HEAD `7919bad8`): etiket yok → `0.0.0-preview.0.578`;
   `v1.0.0-preview.1` + 3 commit → `1.0.0-preview.1.3` (yayınlanan
   `preview.1`'in ÜSTÜNDE, `preview.2`'nin ALTINDA); `v1.0.0` + 3 commit →
   `1.1.0-preview.0.3` — `MinVerAutoIncrement=minor` yalnız **stable** etiketten

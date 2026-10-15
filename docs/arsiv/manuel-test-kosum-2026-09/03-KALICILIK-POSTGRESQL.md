@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz A zinciri, tek şerit) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `a51a8496` donuk |
+| **Kod** | `cfe5ebe8` donuk |
 | **Case sayısı** | 50 (MT-PG-001..075) |
 | **Port** | 5081 (spec 5080 yazar — şerit sapması) |
 | **Şema** | `mt_s1` (spec `tracon` yazar — şerit sapması, skill §1.3) |
@@ -167,7 +167,7 @@ kalem **kapandı**. (§3.2 tool tablosu hâlâ bayat — o dosya 02'nin konusu.)
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 4f218d55:docs/manuel-test/kosumlar/2026-09-16/03-KALICILIK-POSTGRESQL.md
+> git show d38bc2b6:docs/manuel-test/kosumlar/2026-09-16/03-KALICILIK-POSTGRESQL.md
 > ```
 
 ---
@@ -1489,7 +1489,7 @@ Tracon.Sql.Shared.UnitTests -> Passed!  22/22, failed 0, skipped 0  (203ms)
 **Adım 2 — KOŞULAMADI.** Case `SqlQueriesBase.CostAddends`'e sahte bir dördüncü
 terim eklemeyi istiyor. Bu `src/` altında bir kod değişikliğidir ve turun
 **değişmez kuralı 1**'i ihlal eder (skill §1.1): `src/` · `samples/` · `tests/`
-tur boyunca donuktur ve bütünlük kapısı `git diff a51a8496..HEAD -- src samples
+tur boyunca donuktur ve bütünlük kapısı `git diff cfe5ebe8..HEAD -- src samples
 tests`'in **boş** dönmesidir. Geri alınan bir değişiklik bile o kapıyı bu
 oturum boyunca kirletir. Karar kullanıcıya bırakıldı — aşağıdaki bekleyen
 kalem tablosuna yazıldı.

@@ -402,7 +402,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 Turun kusurları kodlandı ve kapandı (`docs/KARARLAR.md` K-392..K-407). Aşağıdaki
 altı case **kapanmadı** ve bir sonraki tura devreder. Kaynak: turun kapanış
 kaydı, 2026-08 turu kapanış planı §6, §10 (silindi 2026-09-22, K-847;
-`git show aa9c0a7f:docs/arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md`).
+`git show 0a802674:docs/arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md`).
 
 | Case | Dosya | Durum | Neden açık |
 |---|---|---|---|
@@ -447,7 +447,7 @@ almadı (E maddesi). Kaynak: turun kapanış kaydı,
 | `MT-UI-042` | 09 | Gerçek WebKit/Safari motoru — bu kurulum yalnız Chromium sağlıyor |
 | `MT-MCP-058` | 18 | Erişilebilir gerçek bir **iç ağ** MCP sunucusu |
 | `MT-MCP-067` | 18 | Gerçek zaman aralığı — `TaskTimeToLive` dolana kadar bekleme |
-| `MT-YRF-026` · `027` | 30 | Dış ölçüm deposu (tüketici deposu) bu ortamda yok |
+| `MT-YRF-026` · `027` | 30 | Dış tüketici deposu bu ortamda yok |
 | `MT-GDK-024` | 36 | İkinci bir işletim sistemi (Linux CI'da `kapi.py performans --guncelle`) |
 
 **C. İzole bir agent/CLI koşumu gerekiyor** (2)
@@ -523,7 +523,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 
 > ## 🔧 2026-09-16 — Tur öncesi tazeleme (`manuel-test-tazelik.py`)
 >
-> Tam tur açılmadan önce set, taban tura (`12fb6477`, 2026-08-15) karşı ölçüldü.
+> Tam tur açılmadan önce set, taban tura (`fb375724`, 2026-08-15) karşı ölçüldü.
 > Ölçüm ve koşum sırası: [`../arsiv/manuel-test-kosum-2026-09/00-KOSUM-PLANI.md`](../arsiv/manuel-test-kosum-2026-09/00-KOSUM-PLANI.md).
 >
 > **Kapatıldı:**
@@ -601,7 +601,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `MT-PKG-050`. **Kod değiştirilmedi.**
 - **`EchoModelProvider` izleği yanlış yerde tarif edilmişti (2026-08-09, düzeltildi).**
   2026-08 turu PROMPT'u §3 (silindi 2026-09-22, K-847;
-  `git show aa9c0a7f:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`)
+  `git show 0a802674:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`)
   onu izlek C'nin (`Tracon.Testing`) parçası
   sayıyordu. Ölçüm: paket böyle bir tip taşımıyor; sınıf örnek uygulamanın
   kendisindedir (`samples/Tracon.Api/EchoModelProvider.cs`, sağlayıcı adı

@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9f3f7a9:docs/arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md
+> git show a03219b:docs/arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Tracon sağlayıcı arızasını iki ayrı yerde ve iki ayrı amaçla sınıflan
 - [x] Tüketici sınıflandırıcısı exception atarsa run **durmaz**; yerleşiğe düşülür ve hata loglanır (`RunRecordingAgent.Completion.cs`'e eklenen `ClassifyOrFallback` — plan bunu içermiyordu, bkz. Plandan Sapmalar; `RunRecordingAgentTests.A_throwing_error_classifier_falls_back_...` + gerçek koşum MT-OBS-053)
 - [x] Her iki nokta `TryAdd*` ile kayıtlı; tüketicinin kaydı kazanır (`ProviderRetryClassifierRegistrationTests`, `RunErrorClassifierRegistrationTests`, `ServiceRegistrationSnapshotTests`)
 - [x] `Tracon.Core` yeni bir sağlayıcı SDK referansı **almadı** — `grep -c PackageReference src/Tracon.Core/Tracon.Core.csproj` faz öncesiyle **aynı** (14)
-- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 18e33ea`)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 61c6344`)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (§ Gerçek Koşum Kanıtı)
 - [x] `secret` taraması boş döndü (`kapi.py tarama`, kapı zincirinin içinde)
 - [x] Manuel kabul case'leri iki alan dosyasına eklendi; otomatikleştirilebilenler koşuldu (`27-MODEL-YEDEK-VE-ON-UCUS.md` MT-MYU-015/016, `12-GOZLEMLENEBILIRLIK-MALIYET.md` MT-OBS-051/052/053 — beşi de gerçek OpenAI çağrısıyla koşuldu, MT-OBS-053'ün log satırı 👤 insan gözüyle doğrulandı)

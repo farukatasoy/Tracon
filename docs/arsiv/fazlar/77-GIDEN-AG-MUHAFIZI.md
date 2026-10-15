@@ -1,8 +1,8 @@
 # Faz 77 — Giden Ağ Muhafızı
 
 > **Durum:** ✅ Tamamlandı (2026-08-20)
-> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-131** · bulgular
-> [`guvenlik-tarama/BULGULAR.md`](../../guvenlik-tarama/BULGULAR.md) B05-2 · B05-3 · B05-4 · B05-5 · B05-6 · B05-7
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-131** · güvenlik taraması bulguları
+> B05-2 · B05-3 · B05-4 · B05-5 · B05-6 · B05-7
 > **Önkoşul:** Yok — K-164'ün `ConnectCallback` deseni bugün webhook yolunda çalışıyor ve bu faz onu genelleştirir
 > **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.Mcp`, `Tracon.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f272e70:docs/arsiv/fazlar/77-GIDEN-AG-MUHAFIZI.md
+> git show b569600:docs/arsiv/fazlar/77-GIDEN-AG-MUHAFIZI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -45,7 +45,7 @@ Tracon bugün **üç** yerden dışarı ağ isteği atar: webhook teslimi, MCP s
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` ve `18-MCP-VE-A2A.md` içine eklendi; otomatikleştirilebilenler koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [x] `docs-site/` güncellendi (`security.md` giden ağ bölümü + `production.md` yükseltme notu); `npm run build` + `check-links.mjs` temiz
-- [x] [`BULGULAR.md`](../../guvenlik-tarama/BULGULAR.md) içindeki B05-2/3/4/5/6/7 satırları **KAPANDI** olarak işaretlendi
+- [x] Tarama bulgu kaydındaki B05-2/3/4/5/6/7 satırları **KAPANDI** olarak işaretlendi
 
 ### Doğrulama komutları
 

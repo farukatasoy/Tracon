@@ -424,8 +424,10 @@ biri kırmızıysa hiçbir şey yayınlanmaz. Sonra doğrula:
 
 ```bash
 curl -sI https://tracon.dev/ | head -1     # 200
-curl -sI https://eski-site.invalid/ | head -1                # apex bozulmadi (405 = HEAD, normal)
 ```
+
+`scripts/site-deploy.local.env` bir `SITE_NEIGHBOR_URL` tanımlıyorsa script sonda
+bir `curl` satırı daha basar; onu da koş — aynı sunucudaki diğer servis bozulmamalı.
 
 🚨 **Fazın DEĞİŞTİRDİĞİ sayfayı canlıda aç.** `200` yalnız sitenin ayakta
 olduğunu söyler, YENİ olduğunu değil.

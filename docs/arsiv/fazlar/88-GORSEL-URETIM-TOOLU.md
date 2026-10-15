@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f272e70:docs/arsiv/fazlar/88-GORSEL-URETIM-TOOLU.md
+> git show b569600:docs/arsiv/fazlar/88-GORSEL-URETIM-TOOLU.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

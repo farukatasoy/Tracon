@@ -1,6 +1,6 @@
 # docs-site SEO denetimi — 2026-09-14
 
-Taban: `657dc80895c63aa1b7ad97c147ef4183eb04314e`. Commit ve production deploy yapılmadı.
+Taban: `7e6a292112afed0e818d3b37bb4bf87856af2187`. Commit ve production deploy yapılmadı.
 Ham ölçümler yerelde `artifacts/seo/` altında; bu kayıt yeniden koşulabilir komutları taşır.
 
 ## Doğrulanan altyapı ve kapsam
@@ -74,9 +74,9 @@ P1: erişimi bozan sorun. P2: keşif ve sonuçların anlaşılması. P3: ek siny
 npm --prefix docs-site run check   # content · build · links+SEO · weight
 python3 scripts/site-seo-denetle.py
 python3 scripts/site-http-denetle.py http://127.0.0.1:4175
-python3 scripts/dokuman-bakim.py --site-denetle --taban 657dc80895c63aa1b7ad97c147ef4183eb04314e
+python3 scripts/dokuman-bakim.py --site-denetle --taban 7e6a292112afed0e818d3b37bb4bf87856af2187
 node docs-site/scripts/build-agent-map.mjs --check
-python3 scripts/kapi.py kapanis --taban 657dc80895c63aa1b7ad97c147ef4183eb04314e
+python3 scripts/kapi.py kapanis --taban 7e6a292112afed0e818d3b37bb4bf87856af2187
 ```
 
 HTTP testinin ön koşulu: production `dist` yerel nginx container'ına salt okunur bağlı;

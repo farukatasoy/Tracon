@@ -15,10 +15,10 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 595ecd8:docs/arsiv/fazlar/05-AGENTPRISM-UI.md
+> git show 005eccd:docs/arsiv/fazlar/05-AGENTPRISM-UI.md
 > ```
 >
-> Yol eski adı taşır **bilerek**: bu bir git komutudur ve `595ecd8`
+> Yol eski adı taşır **bilerek**: bu bir git komutudur ve `005eccd`
 > commit'inde dosya o adla durur. Faz 162 adı değiştirdi; komutu
 > çevirmek onu çalışmaz hâle getirirdi.
 >

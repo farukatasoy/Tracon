@@ -990,7 +990,7 @@ kendi oturumudur.
 ### F-150 · `JobWorkerBackgroundService` kapanışta dispose edilmiş `SemaphoreSlim`'i serbest bırakıyor — süreç çöküyor — ✅ KAPATILDI (2026-08-25)
 
 **Nereden geldi:** Faz 99 kapanış kapısının izole koşumu (2026-08-25).
-**Temel commit'te doğrulandı** (`bb36b30`, `git worktree` ile) — Faz 99'un ürünü
+**Temel commit'te doğrulandı** (`52d48f1`, `git worktree` ile) — Faz 99'un ürünü
 DEĞİL, mevcut bir kusurdur.
 
 **Kapanış:** Worker uçuştaki her işi başlatmadan önce kaydeder; `ExecuteAsync`,
@@ -1012,7 +1012,7 @@ taşımıyor veya kendi iptal/gözlem yoluna sahip; aynı kusur sınıfı bulunm
 **işlenmemiş** olur — .NET süreci sonlandırır. Ölçülen: tek bir testi izole
 koşmak (`Tracon.AspNetCore.FunctionalTests --filter-method
 "*Timed_out_call_completes*"`) test host'unu **exit 134 (SIGABRT)** ile
-çökertir; aynı çökme `bb36b30` üzerinde birebir tekrarlanır.
+çökertir; aynı çökme `52d48f1` üzerinde birebir tekrarlanır.
 
 **Neden bugüne kadar görünmedi:** Tam çözüm koşumunda süit uzun sürer ve host
 kapanışı uçuştaki işle çakışmaz; çökme yalnız hızlı kapanışta (tek test
@@ -1051,26 +1051,26 @@ değiştirir; önceki SQL toplu-onarım kök neden iddiası ölçümle çürüt�
 > doğrudur: "An applied migration is never edited; add a new migration file
 > for the change."
 >
-> Ama commit `f272e70` ("döküman düzeni sağlandı", 2026-08-23) tam olarak bunu
+> Ama commit `b569600` ("döküman düzeni sağlandı", 2026-08-23) tam olarak bunu
 > yaptı: `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
 > dosyalarındaki **yorum satırlarında** doküman yolunu güncelledi
 > (`docs/65-...md` → `docs/arsiv/fazlar/65-...md`). SQL'in kendisi değişmedi;
 > checksum değişti.
 
-**Etki:** Bu iki migration'ı `f272e70` ÖNCESİNDE uygulamış **her** kurulum,
+**Etki:** Bu iki migration'ı `b569600` ÖNCESİNDE uygulamış **her** kurulum,
 yeni sürüme yükseltince açılışta çöker. Yerel geliştirme veritabanında
 ölçüldü — `samples/Tracon.Api` başlamıyor:
 `Checksum in the database: 9116FE1E...`, `checksum of the file: 16D3AB60...`.
 Bu bir geliştirme rahatsızlığı değil, **sevk edilmiş bir kırılmadır**.
 
 **Başlangıçtaki kök neden varsayımı yanlıştı:** Ölçüm, Faz 90 arşivleme yolunun
-yalnız `*.md` dosyalarına dokunduğunu gösterdi. `f272e70` değişikliği başka bir
+yalnız `*.md` dosyalarına dokunduğunu gösterdi. `b569600` değişikliği başka bir
 toplu düzenleme ile geldi. Yeni kapı aracı değil baytı korur; bu nedenle aynı
 etki hangi düzenleme yolundan gelirse gelsin kırmızıya döner.
 
 **Uygulanan kapsam:**
-1. İki dosyanın **baytları geri alındı** (`git show 7071d2e:<yol>` ve
-   `git show a772976:<yol>`). Uygulanmış migration değişmez; içindeki bayat
+1. İki dosyanın **baytları geri alındı** (`git show af486c9:<yol>` ve
+   `git show b2c93ec:<yol>`). Uygulanmış migration değişmez; içindeki bayat
    doküman bağlantısı checksum'dan daha ucuz bir sorundur.
 2. Arşivleme kodunda SQL hariç tutma yapılmadı; ölçülen kök neden o kod değildir.
 3. **Kapı eklendi:** uygulanmış migration, değiştirilemeyen Git kaynak baytıyla
@@ -2036,7 +2036,7 @@ var (`AgentParameter`)" iddiası düştü.
 
 İki tüketici turunun (podcast ve video tüketicisi, 2026-10-11) üçüncü
 değerlendirmesinde bakımcı on kalemin planını istedi. Kanıt 2026-10-12'de
-`1afa3685` zemininde yeniden doğrulandı; düşen ve düzelen iddialar her planın
+`e59ee892` zemininde yeniden doğrulandı; düşen ve düzelen iddialar her planın
 kanıt tablosundadır. Belirgin düzeltmeler: F-301'in "örnek derleyici kurulurken
 çözülür" kapsamı döngüye girer, plan "ilk derlemede, tür başına bir kez" der;
 F-300'ün skill geçmişi ve alt agent sabiti iki yeni adaya ayrıldı (F-408, F-409);
@@ -2317,7 +2317,7 @@ girer; F-320 öne alınır ve F-346'nın kapsamına önbellek yazma fiyatı ekle
 Aynı gün tüketici geri bildirimi kuralıyla (ADAYLAR § Değerlendirme Ölçütleri)
 yeniden tartıldı: Faz 203 daraldı ve Faz 198'in arkasına geçti, önbellek yazma
 fiyatı F-420 adayına ayrıldı.
-Kanıt `68c0903c` zemininde yeniden doğrulandı. Belirgin düzeltmeler: F-296'nın
+Kanıt `5405c013` zemininde yeniden doğrulandı. Belirgin düzeltmeler: F-296'nın
 "ses ayarları" maddesi önekli sağlayıcı ayarı sözlüğüne döndü (ortak payda
 yok); bölme ve PCM birleştirme yardımcı fonksiyon oldu, sözleşme tek istektir.
 F-405 aday dosyasında yalnız tablo satırıydı; gövdesi yoktur. Planlar
@@ -2413,7 +2413,7 @@ Bakımcı 2026-10-14'te kalemi ikiye böldü: karar sözleşmesi
 devam, zıt cevap `409`, her `respond` fail-closed denetim, kaynak bağı) ve gelen
 kutusu ([Faz 209](fazlar/209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md): kiracı geneli liste,
 istek süresi). Kararlar: `workflow_responses` tablosu (K-128 bozulmaz), K-130
-varsayılanı korunur, fail-closed kümesi 6 → 7. Kanıt `ebf6e379` zemininde yeniden
+varsayılanı korunur, fail-closed kümesi 6 → 7. Kanıt `f648c741` zemininde yeniden
 doğrulandı. Belirgin düzeltmeler: satır kayması (`WorkflowEndpoints.cs:175-186` →
 `:315-326`, `ApprovalEndpoints.cs:238` → `:232`); "`respond` `Idempotency-Key`
 almaz" kısmen düştü (K-925: yalnız `Prefer: respond-async` ile); K-929'un "senkron
@@ -2453,7 +2453,7 @@ düzeltilir).
 
 Bakımcı kapsamı 2026-10-14'te sohbette seçti: 22 tipin tamamı, `IdempotencyKeys`
 bağlaması ve okunamayan değerin açılışta hatası; Faz 205 ile paralel başlar.
-Kanıt `ebf6e379` zemininde yeniden doğrulandı. Belirgin düzeltmeler: "yirmi dört"
+Kanıt `f648c741` zemininde yeniden doğrulandı. Belirgin düzeltmeler: "yirmi dört"
 bölüm bugün 22'dir (Scheduling ve Knowledge testini kazandı); `TraconPricingBindingTests`
 emsal değildir (DI sınırını yansımayla atlar); "yeni ürün kodu gerekmez" ve "risk yok"
 iddiaları düştü — `Retention:IdempotencyKeys` bağlanmıyordu ve dört bağlayıcı okunamayan

@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 1cf5883b:docs/arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md
+> git show a0c9d17a:docs/arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md
 > ```
 >
 > Damıtıldı 2026-09-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -136,7 +136,7 @@ Kapsam dışı bulunan ve kapatılan kusur: **1** (`MT-GDK-011` bayat skill say�
 
 `samples/Tracon.Api` Release'te ayağa kaldırıldı (2026-09-13, `:5081`).
 Bu faz `src/`, `samples/` ve `tests/` altına **hiç** dokunmadı
-(`git diff --stat 3de2a585 -- src/ samples/ tests/` → **0 satır**), bu yüzden
+(`git diff --stat 663ad4d9 -- src/ samples/ tests/` → **0 satır**), bu yüzden
 koşum bir davranış kanıtı değil, **regresyon kanıtıdır**.
 
 | Ne | Gerçek çıktı |

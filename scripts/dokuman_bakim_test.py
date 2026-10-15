@@ -1501,13 +1501,13 @@ class TamMetinKarsiOrnekTestleri(unittest.TestCase):
         self.assertEqual(dokuman_bakim._TAM_METIN.findall(soyulmus), [])
 
     def test_blok_alintisindaki_mesru_referans_gorulur(self):
-        metin = "> git show 595ecd8:sahte/05-X.md\n"
+        metin = "> git show 005eccd:sahte/05-X.md\n"
 
         soyulmus = dokuman_bakim._kod_bloklarini_soy(metin)
 
         self.assertEqual(
             dokuman_bakim._TAM_METIN.findall(soyulmus),
-            [("595ecd8", "sahte/05-X.md")])
+            [("005eccd", "sahte/05-X.md")])
 
 if __name__ == "__main__":
     unittest.main()
@@ -1516,7 +1516,7 @@ if __name__ == "__main__":
 class SevkEdilenGenislemeNoktasiTestleri(unittest.TestCase):
     """Genişleme noktası sayısı kod ↔ sevk edilen metin (2026-09-04, KUSUR-A1).
 
-    Sınıf ÜÇ kez ölçüldü: `57443003` (Faz 139, altıncı nokta) · Faz 142'nin
+    Sınıf ÜÇ kez ölçüldü: `6e9cc8f6` (Faz 139, altıncı nokta) · Faz 142'nin
     denetim bulgusu #2 (yedinci nokta) · 2026-09-04 süreç denetimi. Faz 142'nin
     devir notu "hiçbir kapı bu boşluğu otomatik yakalamaz" diyordu; kapı budur.
     """

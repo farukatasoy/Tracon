@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 6858b59e:docs/arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md
+> git show 4d3f272a:docs/arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md
 > ```
 >
 > Damıtıldı 2026-09-08 · `scripts/dokuman-bakim.py faz-damit`

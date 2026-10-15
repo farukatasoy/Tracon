@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz B — bu şeridin ilk ailesi) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `a51a8496` donuk |
+| **Kod** | `cfe5ebe8` donuk |
 | **Case sayısı** | 144 (MT-SEC-001..193) |
 | **Port** | 5081 |
 | **Depo** | Oturum 2'ye kadar çoğunlukla **bellek içi**; MT-SEC-071/110-119 blokları geçici SQLite kullandı. **Oturum 3'ten itibaren `mt_s1` PostgreSQL şeması** (içerik koruması, oturum sahipliği, webhook testleri SQL kalıcılık istiyordu) — önceki oturumun "hiç dokunulmadı" notu artık GEÇERSİZ, `mt_s1` bu ailenin test verisiyle dolu (temizlenmedi, §"Sıradaki oturumun işi"ne bakın). |
@@ -418,7 +418,7 @@ YAPILANDIRMA değil). `docs/ADAYLAR.md` adayı olabilir.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 4f218d55:docs/manuel-test/kosumlar/2026-09-16/13-KIRACI-VE-GUVENLIK.md
+> git show d38bc2b6:docs/manuel-test/kosumlar/2026-09-16/13-KIRACI-VE-GUVENLIK.md
 > ```
 
 ---

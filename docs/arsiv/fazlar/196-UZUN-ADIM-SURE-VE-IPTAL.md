@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-10-13)
 > **Plan onayı:** Bakımcı, 2026-10-13 (Açık Sorular'ın önerileri kabul edildi: 1-B, 2-A, 3-A, 4-A, 5-A, 6-A, 7-A, 8-A, 9-A, 10-B, 11-B, 12-B, 13-A). Faz 203 ile paralel geliştirilir
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-303**, **F-323**, **F-405**
-> **Önkoşul:** [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) — aynı kayıt yüzeyi ve editör satırı; 2026-10-12'de kapandı (`68c0903c`)
+> **Önkoşul:** [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) — aynı kayıt yüzeyi ve editör satırı; 2026-10-12'de kapandı (`5405c013`)
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.Sql.Shared`, SQL sağlayıcıları, `.AspNetCore`, `.Testing.Contracts.Xunit`, `.UI` · üretilen istemciler
 > **Yeni paket:** Yok · **Migration:** gerekli (Açık Soru 5) — `jobs` süre sütunu, üç sağlayıcı; numara uygulamada alınır
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`
@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 99088e72:docs/arsiv/fazlar/196-UZUN-ADIM-SURE-VE-IPTAL.md
+> git show e4a47496:docs/arsiv/fazlar/196-UZUN-ADIM-SURE-VE-IPTAL.md
 > ```
 >
 > Damıtıldı 2026-10-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -38,7 +38,7 @@ Bugün fonksiyon düğümünü yalnız kurulum geneli `RunTimeout` keser; job'un
 - [x] İptal handler token'ını bir `PollInterval` içinde düşürür; aşım `tracon.job.max-duration-exceeded` yazar (test 14-15)
 - [x] İki alan dört depoda round-trip; harita bağlanır; `TimeoutSiteTests` güncel (test 12, 19-20, 22)
 - [x] Agent düğümü süresi `ChildDeadline`'ı geçersiz kılar ve resume'u bozmaz; tanım `RunTimeout`'u tavanla sınırlıdır (test 24-28)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 4edd857d`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `065adc5e` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 5b2ff557`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `31f6cc8d` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
 - [x] `samples/Tracon.Api` ile gerçek `run` (case 1, 6, 7, 9, 11), çıktı belgeye yazıldı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri iki alan dosyasına eklendi; otomatikleştirilebilenler koşuldu
@@ -48,18 +48,18 @@ Bugün fonksiyon düğümünü yalnız kurulum geneli `RunTimeout` keser; job'un
 
 ### Kapanış kapısı ve yayın provası (`main`, 2026-10-13)
 
-Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`96786179` → 203, `8f9c8631` → 196, `065adc5e` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın tabanı `4edd857d`'dir.
+Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`c2c65c54` → 203, `e25a81fa` → 196, `31f6cc8d` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın tabanı `5b2ff557`'dir.
 
 | Kapı | Commit | Sonuç |
 |---|---|---|
-| `python3 scripts/kapi.py kapanis --taban 4edd857d` | `065adc5e` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
-| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `065adc5e` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
+| `python3 scripts/kapi.py kapanis --taban 5b2ff557` | `31f6cc8d` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
+| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `31f6cc8d` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
 
-Önceki prova çıktısı (Faz 197/198, `b20eeb1b`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-b20eeb1b`.
+Önceki prova çıktısı (Faz 197/198, `a63d21d1`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-a63d21d1`.
 
 ### Doğrulama komutları
 
-Örnek uygulama 2026-10-13'te koşuldu: `6d063198` derlemesi, port 5081,
+Örnek uygulama 2026-10-13'te koşuldu: `6d120c18` derlemesi, port 5081,
 PostgreSQL şeması `faz196`, `Development`, `Tracon__Demo__SlowModel__Seconds=20`.
 İstek yolları `/tracon/api/...` altındadır; gövdeler `MT-WF-142`…`147` ve
 `MT-JOB-146`…`148` içindedir.
@@ -80,7 +80,7 @@ curl -sX POST $APU/api/jobs/{jobId}/cancel
 | 3 | Fonksiyon düğümünde `00:00:00` → `400` "Node 'slow' in workflow 'bad' has a 'timeout' of 00:00:00. A function node's timeout must be from 1 to 4294967294 milliseconds…" · agent düğümünde `00:00:05` → `200` |
 | 5 | `deaf`: `2.2 s`, `Failed`; ~4 sn sonra log: "Function node deaf of workflow run 01a13615-fea6-… returned 00:00:06.0025155 after it started, past its timeout of 00:00:02; its result is discarded" |
 | 6 | İptal `16:29:49.25` → `204`; iş hemen `Cancelled`; run `01a13619-408c…` `Canceled`, `completedAt 16:29:57.03` (iptalden 7,8 sn sonra; render 60 sn sürerdi); öğe `Pending` |
-| 7 | Harita `tracon.workflow=00:00:05`: iş `Failed`, `attempt 1`, "tracon.job.max-duration-exceeded (ref: 7262b7b0)"; run 5,0 sn sonra `Canceled`, `job_max_duration_exceeded`; öğe `Failed`. Düzeltmeden önce: `attempt 2`, "All of the job's items failed." (kusur, `46d25e74`) |
+| 7 | Harita `tracon.workflow=00:00:05`: iş `Failed`, `attempt 1`, "tracon.job.max-duration-exceeded (ref: 7262b7b0)"; run 5,0 sn sonra `Canceled`, `job_max_duration_exceeded`; öğe `Failed`. Düzeltmeden önce: `attempt 2`, "All of the job's items failed." (kusur, `d443d9d1`) |
 | 8 | Harita `00:00:00`: süreç dinlemeden çıktı (134); "TraconSchedulingOptions.MaxDurationByHandlerKey['tracon.workflow'] must be between 1 and 4294967294 milliseconds. Actual value: 00:00:00." |
 | 9 | `podcast` (agent düğümü `00:00:05`, model 20 sn): `5.3 s`, `Failed`, `child_run_timeout` / `Timeout`, "Agent 'slow-writer' did not respond in time (limit: 00:00:05, set by the 'timeout' of node 'slow-writer' in workflow 'podcast')…" · `podcast-plain`: `20.2 s`, `Completed` |
 | 10 | `runTimeout 00:30:00`, tavan yok → `400` "…above the installation's run timeout (00:10:00). A definition may only shorten 'Tracon:Workflows:RunTimeout' unless the host sets 'Tracon:Workflows:MaxRunTimeout'…" |
@@ -90,7 +90,7 @@ Case 4 👤 görseldir; koşulmadı (Vitest karşılığı: `workflow-editor.tes
 "timeouts"; Aşama 2'de E2E `WorkflowTests` konsoldan süre girip run'ı ölçer).
 **Arayüz payı:** gzip bundle 205,5 KB, taban 204,1 KB → **+1,4 KB**.
 
-Aşama 2 yeniden koşumu (`723d20b5` derlemesi, aynı ortam): case 7 — iş `Failed`,
+Aşama 2 yeniden koşumu (`553f6d34` derlemesi, aynı ortam): case 7 — iş `Failed`,
 `attempt 1`, "tracon.job.max-duration-exceeded (ref: a3fe3931)", run 5,0 sn sonra
 `Canceled` + `job_max_duration_exceeded`, öğe `Failed`; case 6 — iptal
 `18:25:54.84`, run `Canceled` `18:26:02.76` (7,9 sn), iş `Cancelled`, öğe `Pending`.
@@ -108,7 +108,7 @@ Aşama 2 yeniden koşumu (`723d20b5` derlemesi, aynı ortam): case 7 — iş `Fa
 | 1 | §196.2 Adım 0: MAF `FunctionExecutor` run token'ını geçiriyor mu? | **Geçiriyor.** Prob testi: `RunTimeout`'ta gövdenin token'ı 2 sn içinde iptal oldu. `kusur-giderme` gerekmedi; prob silindi | Ölçüm |
 | 2 | §196.5: tanım slot beklemesinden önce çözülmemişse CTS sonra kurulur, slot beklemesi kurulum değerine sayılır | Tanım çözümü ve derleme **slot beklemesinden önceye** alındı; tanımın `RunTimeout`'u slot beklemesini de sayar; derlenemeyen tanım slot almadan düşer. **Onaylandı (karar 2, K-960)** | Geri dönüş yolu tanımın süresini kuyrukta yok sayardı |
 | 3 | §196.5 + Açık Soru 10-B: `agentNames` biçimi süre taşımaz; konsolda süre alanı agent düğümünde de görünür | Aşama 1: süreli agent-only zincir `nodes` yazılıyordu ve sapma K-901'i yanlış alıntıladı (K-901: "fonksiyon varsa `nodes`, yoksa `agentNames`"). **Aşama 2 (karar 1, denetim 🟡4, K-959):** alan yalnız fonksiyon adımlı zincirde görünür; süre biçimi değiştirmez; `agentNames` biçimine düşen süreli adım (son fonksiyon kaldırıldı ya da HTTP ile yazılmış `nodes`) uyarıyla kaydı tutar, `chainBody` istek kurmaz | Biçim değişimi bekleyen run'ı "graph's structure differs" ile resume edilemez yapar ve agent adımının canlı akışını keser. Süre isteyen operatör fonksiyon adımı ekler ya da `nodes`'u HTTP ile yazar |
-| 4 | Açık Soru 7-A: aşım denemesi başarısızdır, deneme kaldıkça yeniden kiralanır | Genel handler'da öyle. Workflow handler'larında 13-A önce gelir (**karar 4, K-963**): kuyruklu run işi hemen düşer; batch durdurulan öğeyi `Failed` yazar, deneme başarısız olur; bekleyen öğe kalmadıysa iş kodla hemen düşer. Aşama 2: aynı anda tamamlanan son öğede iş tamamlanır (🟡2); run'ı başlamamış öğe bekler kalır (🟡1) | Örnek uygulama case 7: tek öğeli batch kodsuz "All of the job's items failed." ile bitiyordu (`46d25e74`) |
+| 4 | Açık Soru 7-A: aşım denemesi başarısızdır, deneme kaldıkça yeniden kiralanır | Genel handler'da öyle. Workflow handler'larında 13-A önce gelir (**karar 4, K-963**): kuyruklu run işi hemen düşer; batch durdurulan öğeyi `Failed` yazar, deneme başarısız olur; bekleyen öğe kalmadıysa iş kodla hemen düşer. Aşama 2: aynı anda tamamlanan son öğede iş tamamlanır (🟡2); run'ı başlamamış öğe bekler kalır (🟡1) | Örnek uygulama case 7: tek öğeli batch kodsuz "All of the job's items failed." ile bitiyordu (`d443d9d1`) |
 | 5 | §196.3: depoda okunan geçersiz `MaxDuration` için kural yok | Aşama 1: işçi loglar, işi sınırsız koşar. **Aşama 2 (🟡3):** loglar ve anahtarın haritadaki sınırına düşer; harita yoksa sınırsız | Bozuk satır operatörün sınırını kapatmamalı |
 | 6 | §196.3: runner job sınırını nasıl öğrenir — yazılmadı | İç `JobAttemptSignals` + ambient `AmbientJobAttempt` (işçinin `ExecuteWithHandlerAsync` gövdesinde açılır); `AmbientWriteSiteTests` yeni işaretçi aldı; `JobContext.Signals` iç özelliktir | Run hata tipini yalnız sebebi bilen yazabilir; public yüzey büyümez |
 | 7 | §196.5: kayıtta tavan `400` | `Tracon.Core` içinde iç `IWorkflowRunTimeoutPolicy`; `UseWorkflows` kaydeder; `PUT` onu opsiyonel `[FromServices]` ile alır | `Tracon.AspNetCore` `Tracon.Workflows`'a bağımlı değil; motor kayıtlı değilken yalnız `TimerPeriod` denetlenir |
@@ -124,7 +124,7 @@ Aşama 2 yeniden koşumu (`723d20b5` derlemesi, aynı ortam): case 7 — iş `Fa
 | 17 | Test 23 (E2E) | Aşama 1'de koşulmadı. Aşama 2: `WorkflowTests.A_step_timeout_typed_in_the_console_is_saved_on_its_node_and_stops_the_run` yazıldı; tam koşumda yeşil | — |
 | 18 | Job satırları sahte saatle (`ManualTimeProvider`) | Core'un `ManualTimeProvider`'ı zamanlayıcı sürmez; Aşama 1 job testleri gerçek saat + kısa süre kullandı. **Aşama 2 (🟡6):** due-time `ManualClock` `tests/Shared/Time/`'a taşındı (Core + Workflows, K-411 bağlantı), periyodik zamanlayıcı aldı; iptalin tam bir `PollInterval`'da ve sürenin tam sınırda düştüğü işçinin kendi saatinde ölçülür. Kalan: diğer job satırları gerçek saatle, sınırları hata sınırıdır | İşçinin iş arama döngüsü `TimeProvider` almaz (`new PeriodicTimer(PollInterval)`): tamamen sahte saatle işçi iş kiralamaz |
 | 19 | §196.2: geç bitiş logu | Çağıran iptali veya run süresiyle beklenmeyen gövdenin geç bitişi artık "past its timeout" demez (🟢4) | Yanıltıcı log |
-| 20 | — | Aşama 1'in iki `<example>` bloğu örnek kapısında derlenmedi (JSON parçası `language="json"` taşımıyordu; örnek tanımsız `IAudioRenderer`'a dayanıyordu). Aşama 1 `ic-dongu` yalnız derlemişti; Aşama 2'nin tam koşumu yakaladı (`b8a658fa`) | Fazın ürettiği regresyon |
+| 20 | — | Aşama 1'in iki `<example>` bloğu örnek kapısında derlenmedi (JSON parçası `language="json"` taşımıyordu; örnek tanımsız `IAudioRenderer`'a dayanıyordu). Aşama 1 `ic-dongu` yalnız derlemişti; Aşama 2'nin tam koşumu yakaladı (`74006af4`) | Fazın ürettiği regresyon |
 | 21 | `capabilities.md` iki satır | Birleşik dalda ajan haritası bütçeyi 38 B aştı (11 302 / 11 264); iki satır tek "Time limits" satırı oldu (11 213 B) | `build-agent-map.mjs` bütçesi |
 | 22 | — | Yeni public istisna `TraconWorkflowFunctionTimeoutException` yüzey envanterinde `kanıtsız` çıktı; site sayfası sabitini adlandırır (`concepts/workflows.md`) | `public-yuzey-envanteri.py` |
 
@@ -155,7 +155,7 @@ Kategori dışı (K açılmadı):
 | Plan revizyonu sayısı | 2 — plan aşamasında F-405 kapsamı eklendi, Faz 197 devri Açık Soru 13'ü ekledi; uygulamada bir karar değişti (K-959, karar 1) |
 | Düzeltme turu sayısı | 1 — Aşama 2: denetimin 6 🟡'ı ve 🟢4 |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
-| Fazın ürettiği regresyon | 1 — iki `<example>` bloğu örnek kapısında derlenmedi (Sapma 20, `b8a658fa`) |
+| Fazın ürettiği regresyon | 1 — iki `<example>` bloğu örnek kapısında derlenmedi (Sapma 20, `74006af4`) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi — faz henüz kapanmadı |
 
 ## Denetim Bulguları
@@ -164,16 +164,16 @@ Kategori dışı (K açılmadı):
 
 | # | Bulgu | Triyaj | Sonuç |
 |---|---|---|---|
-| 🟡1 | Hazırlık penceresinde sınır (K-926): devam satırı sonsuza dek `Queued`; başlamamış öğe run kimliksiz `Failed` | gerçek | Düzeltildi `723d20b5`: sınır yolu `ItemRun.Started`'a bağlı; iki düşen test, mutasyonla kırmızı |
-| 🟡2 | Son öğe sınırla aynı anda tamamlanınca iş yine kodla `Failed` | gerçek | Düzeltildi `723d20b5`; düşen test |
-| 🟡3 | Depodaki aralık dışı `MaxDuration` haritaya düşmüyor | gerçek | Düzeltildi `723d20b5`; `JobRecord` XML'i; düşen test |
-| 🟡4 | Sapma 3'ün K-901 alıntısı yanlış; biçim değişimi resume'u ve akışı bozar | gerçek | Karar 1 ile değişti `25c88f5e` (K-959); Vitest, E2E, MT-WF-144 |
-| 🟡5 | `Stopped` plan adımının handler dalları testsiz | gerçek | İki fonksiyonel test, son kiralama gerçek işçiden `723d20b5`; mutasyonla kırmızı |
-| 🟡6 | DoD "bir `PollInterval` içinde" ölçülmüyor | gerçek | `ManualClock` testleri `723d20b5`; kalan sapma Sapma 18 |
+| 🟡1 | Hazırlık penceresinde sınır (K-926): devam satırı sonsuza dek `Queued`; başlamamış öğe run kimliksiz `Failed` | gerçek | Düzeltildi `553f6d34`: sınır yolu `ItemRun.Started`'a bağlı; iki düşen test, mutasyonla kırmızı |
+| 🟡2 | Son öğe sınırla aynı anda tamamlanınca iş yine kodla `Failed` | gerçek | Düzeltildi `553f6d34`; düşen test |
+| 🟡3 | Depodaki aralık dışı `MaxDuration` haritaya düşmüyor | gerçek | Düzeltildi `553f6d34`; `JobRecord` XML'i; düşen test |
+| 🟡4 | Sapma 3'ün K-901 alıntısı yanlış; biçim değişimi resume'u ve akışı bozar | gerçek | Karar 1 ile değişti `1e2cfc5b` (K-959); Vitest, E2E, MT-WF-144 |
+| 🟡5 | `Stopped` plan adımının handler dalları testsiz | gerçek | İki fonksiyonel test, son kiralama gerçek işçiden `553f6d34`; mutasyonla kırmızı |
+| 🟡6 | DoD "bir `PollInterval` içinde" ölçülmüyor | gerçek | `ManualClock` testleri `553f6d34`; kalan sapma Sapma 18 |
 | 🟢1 | `TimeoutSiteTests` `Task.Delay(TimeSpan, TimeProvider, …)` sitelerini görmez | gerçek | Devredildi: F-449 |
 | 🟢2 | `WorkflowAgentCache` süre başına girdi açar, tahliye yok | gerçek | Devredildi: F-450 |
 | 🟢3 | `JobStoreContract` `int` ms sınırını aşan süreyi sınamıyor | gerçek | Devredildi: F-451 |
-| 🟢4 | Çağıran iptalinde geç bitiş "past its timeout" diye loglanıyor | gerçek | Düzeltildi `b8a658fa`; düşen test |
+| 🟢4 | Çağıran iptalinde geç bitiş "past its timeout" diye loglanıyor | gerçek | Düzeltildi `74006af4`; düşen test |
 
 ## Sonraki Faza Devir Notu
 

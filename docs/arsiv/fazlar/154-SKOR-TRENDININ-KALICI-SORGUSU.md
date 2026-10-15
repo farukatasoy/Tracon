@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show b3f44564:docs/arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md
+> git show 23c43f42:docs/arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md
 > ```
 >
 > Damıtıldı 2026-09-07 · `scripts/dokuman-bakim.py faz-damit`

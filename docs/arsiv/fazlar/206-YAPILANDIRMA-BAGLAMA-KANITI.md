@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 61d2ae8a:docs/arsiv/fazlar/206-YAPILANDIRMA-BAGLAMA-KANITI.md
+> git show 85934d2a:docs/arsiv/fazlar/206-YAPILANDIRMA-BAGLAMA-KANITI.md
 > ```
 >
 > Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -41,7 +41,7 @@ Tracon'un elle bağlanan 22 kardeş yapılandırma bölümünün her anahtarı g
 - [x] `Every_retention_target_is_bound` önce kırmızı (`IdempotencyKeys`), düzeltmeden sonra yeşil; kırmızı çıktı faz dokümanına yazıldı
 - [x] Dört bağlayıcının "açılışta hata" testleri önce kırmızı görüldü ve `IStartupValidator` üzerinden yeşil
 - [x] `CHANGELOG.md` `[Unreleased]`: `Changed` (davranış değişikliği) ve `Fixed` (`IdempotencyKeys`) girdileri var
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 2be3968a` (§ *Örnek Uygulama Koşumu*, son madde)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 1b033e02` (§ *Örnek Uygulama Koşumu*, son madde)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (manuel case 7) ve case 1-6'nın açılış hataları yazıldı
 - [x] `secret` taraması boş döndü (`kapi.py tarama`: temiz)
 - [x] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içine eklendi (`MT-CORE-147`…`153`); hepsi örnek uygulamada koşuldu
@@ -62,7 +62,7 @@ grep -v '^#' tests/Tracon.Core.UnitTests/Configuration/options-section-coverage-
 grep -c 'BindRetentionTarget(section.GetSection' src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Security.cs   # → 16
 
 # Kapanış (taban: ana dalın faz birleşmesinden önceki son commit'i)
-python3 scripts/kapi.py kapanis --taban 2be3968a
+python3 scripts/kapi.py kapanis --taban 1b033e02
 ```
 
 ---
@@ -209,7 +209,7 @@ Uygulama oturumu yazdı (2026-10-14, `net10.0`, `kapi.py test`). Her test düzel
 
 ### Kapı koşumu notu
 
-İlk `kapi.py ic-dongu --taban ebf6e379` koşumunda `JobWorkerDeadlineTests.With_attempts_left_the_timed_out_attempt_is_released_and_the_next_attempt_gets_the_whole_limit`
+İlk `kapi.py ic-dongu --taban f648c741` koşumunda `JobWorkerDeadlineTests.With_attempts_left_the_timed_out_attempt_is_released_and_the_next_attempt_gets_the_whole_limit`
 `net8.0` tam koşumda 30 sn'de düştü (iş `Leased`'te kaldı). Yalıtılmış koşumda 3/3
 geçti; ikinci tam koşum yeşildi. Faz 200'ün arşivindeki aynı kaynak çekişmesi
 vakasıdır, bu fazla ilgisi yoktur (zamanlayıcı seçeneklerine dokunulmadı).
@@ -250,7 +250,7 @@ Hiçbir `secret` değeri yazılmadı ya da basılmadı.
    `TraconQuotaOptions.ThresholdPercents[1] is 'yuz', which is not a whole number. Values must be between 1 and 100.` ·
    `TraconWebhookOptions.RetryDelays[1] is 'soon', which is not a TimeSpan (for example 00:05:00). Values must be greater than zero.`
    Retention ve `MaskedPii` hataları aynı kaldı.
-7. **Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban 2be3968a` → **çıkış 0** (ikinci koşum):
+7. **Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban 1b033e02` → **çıkış 0** (ikinci koşum):
    tarama 5 sn · `--denetle` · betik testleri · agent haritası · denetim paketi · build 177 sn (0 uyarı) ·
    test 700 sn (38 test koşumu, 22 444 test, 0 düşen; E2E dahil) · pack · format 154 sn · `npm run check`
    47 sn (1090 sayfa, ağırlık tavanında). İlk koşum yalnız `build-agent-map.mjs --check`'te düştü:
@@ -276,7 +276,7 @@ Bağımsız denetim (2026-10-14): 🔴 yok, iki 🟡, dört 🟢.
 
 ## Tüketici Yüzeyi Envanteri
 
-`tuketici-dokuman-senkronu` Adım 1 (taban `2be3968a`):
+`tuketici-dokuman-senkronu` Adım 1 (taban `1b033e02`):
 
 1. **`docs-site/` (elle):** `reference/configuration.md` — bölüm indeksine üç satır (`Tracon:InboundTriggers`,
    `Tracon:SessionOwnership`, `Tracon:Voice:Live`, anahtarların yaşadığı sayfaya bağlantıyla); `Quotas:ThresholdPercents`,

@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-265**
-> **Önkoşul:** Yok — turun ilk fazı. Varsayım: K-852…K-854 (`3c18b5a8`) ve bu turun `kusur-giderme` işleri ana dalda. **Sonraki yayın (K-852…K-854 güvenlik yayını) bu fazı bekler** (kullanıcı kararı). Sonra 186…191 sırayla. 187 `src/Directory.Build.props:86-95`'i düzenler; 191 `kapi.py yayin`'in pack çağrısını değiştirir. İkisi de `TraconPinSiblingDependencies`'i adlandırmaz: hedefi nuspec fact'i korur, devir notu ikisini adlandırır
+> **Önkoşul:** Yok — turun ilk fazı. Varsayım: K-852…K-854 (`5510935a`) ve bu turun `kusur-giderme` işleri ana dalda. **Sonraki yayın (K-852…K-854 güvenlik yayını) bu fazı bekler** (kullanıcı kararı). Sonra 186…191 sırayla. 187 `src/Directory.Build.props:86-95`'i düzenler; 191 `kapi.py yayin`'in pack çağrısını değiştirir. İkisi de `TraconPinSiblingDependencies`'i adlandırmaz: hedefi nuspec fact'i korur, devir notu ikisini adlandırır
 > **Paketler:** `Tracon.Core` (başlangıç kontrolü) · 16 paketin nuspec'i (`src/Directory.Build.props` hedefi) · `Tracon.Templates` (şablon) · örnek `samples/Tracon.Samples.ExtensionAotSmoke`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor, daralmıyor — kontrol `internal`. `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya × 1 satır; K-603 gereği Shipped boş (2026-09-23). Değişen: nuspec aralığı ve başlangıç davranışı; ikisi de K-* açar (185.9)
@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 5eb10f3d:docs/arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md
+> git show 7292a3a3:docs/arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md
 > ```
 >
 > Damıtıldı 2026-09-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -45,13 +45,13 @@ Tracon tek sürüm hattında çıkar (K-602). Ama `dotnet pack` her `ProjectRefe
 - [x] K-858 ve K-859 `*(kategori: public-api)*` ile açıldı; K dışı kararlar "Bu Fazda Verilen Kararlar"da
 - [x] Devir notu 185.8 bakımcı eylemini açık iş yazar (20 kimlik × 2 sürüm, ölçüldü); `TraconPinSiblingDependencies` ve nuspec fact'ini adlandırır
 - [x] `hafiza/test-kosum-tuzaklari.md` preview.1 önbellek zehirlenmesi 🚨 satırını taşır (kaynağıyla birlikte)
-- [x] Dört doğrulama kapısı sıfır uyarı: `python3 scripts/kapi.py kapanis --taban 453b4317` — sonuç "Kapanış Kapısı" bölümünde
+- [x] Dört doğrulama kapısı sıfır uyarı: `python3 scripts/kapi.py kapanis --taban 8a707b6b` — sonuç "Kapanış Kapısı" bölümünde
 - [x] `samples/Tracon.Api` ile gerçek `run` — "Örnek Uygulama Koşumu"
 - [x] `secret` taraması boş (`kapi.py tarama`, kapanışın ilk adımı)
 - [x] Manuel case'ler `MT-PKG-130…134` ve `MT-TEST-095…097`; 134 👤 dışında hepsi koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 yok, 🟡 1 düzeltildi
 - [x] `docs-site/` güncel; `npm run check` temiz (içerik · derleme · bağlantı · ağırlık)
-- [x] `python3 scripts/kapi.py yayin --kuru` commit sonrası yeşil (`7d59ee7f`): 20 paket `1.0.0-preview.2.46`, 6 exact-version örnek, NativeAOT host smoke ve net8 tüketici — "Kapanış Kapısı"
+- [x] `python3 scripts/kapi.py yayin --kuru` commit sonrası yeşil (`10c9bf0e`): 20 paket `1.0.0-preview.2.46`, 6 exact-version örnek, NativeAOT host smoke ve net8 tüketici — "Kapanış Kapısı"
 
 ### Doğrulama komutları
 
@@ -138,7 +138,7 @@ python3 scripts/kapi.py yayin --kuru   # AOT host smoke burada
 8. **AOT ölçümü:** NativeAOT'de `AppDomain.GetAssemblies()` 81 derleme döndürdü;
    aile derlemesi **2** (`Tracon.Abstractions`, `Tracon.Core`; meta paketin öteki
    kardeşleri kırpıldı), ikisinde de informational version tam
-   (`1.0.0-preview.2.43+453b4317…`). Hizalı AOT host çıkış 0 verdi. Sıfır değil —
+   (`1.0.0-preview.2.43+8a707b6b…`). Hizalı AOT host çıkış 0 verdi. Sıfır değil —
    bakımcıya sorulacak durum oluşmadı. Ölçüm geçici bir prob satırıyla yapıldı; prob
    geri alındı.
 9. **`NU1605` SDK'da varsayılan olarak hatadır** (185.5 "ölçülmeli"): daha düşük
@@ -251,7 +251,7 @@ agent'lar `echo` sağlayıcısında):
 > (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
 > Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
 
-Denetçi: `faz-denetcisi` (salt-okunur alt agent), çalışma ağacı, taban `453b4317`,
+Denetçi: `faz-denetcisi` (salt-okunur alt agent), çalışma ağacı, taban `8a707b6b`,
 2026-09-24. **🔴 yok** (triyaj gerekmedi). 🟢 yok.
 
 | # | Bulgu | Seviye | Sonuç |
@@ -317,7 +317,7 @@ adımı yapmak) bakımcı onayı bekliyor.
 
 ## Kapanış Kapısı
 
-`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 453b4317`, commit
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 8a707b6b`, commit
 öncesi çalışma ağacı (kod bu hâliyle commit edildi; sonraki arşivleme ve damıtma
 yalnız dokümandır), 2026-09-24 → **EXIT 0, ~600 sn**:
 
@@ -335,7 +335,7 @@ Performans kapısı tetiklenmedi (sıcak yol değişmedi). İlk kapanış deneme
 denetiminde durdu: Faz 186 devir notunda anılan bir F-ID sayacı "kullanılmış" saydırdı
 (düzeltme turu 4).
 
-**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `7d59ee7f`, 2026-09-24) → **EXIT 0**:
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `10c9bf0e`, 2026-09-24) → **EXIT 0**:
 20 paket `1.0.0-preview.2.46` · `npm publish --dry-run` ✅ ·
 `provider/source/generated-tool AOT host smoke passed` (gerçek generic host,
 başlangıç kontrolü AOT altında koştu) · `net8.0 consumer smoke passed on .NET 8.0.31`

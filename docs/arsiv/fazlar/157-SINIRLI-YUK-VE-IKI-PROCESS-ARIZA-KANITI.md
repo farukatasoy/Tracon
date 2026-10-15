@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 21220664:docs/arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md
+> git show 9caebf01:docs/arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md
 > ```
 >
 > Damıtıldı 2026-09-08 · `scripts/dokuman-bakim.py faz-damit`
@@ -129,7 +129,7 @@ beklenen sonuç `502` + `Failed`.
 ## Denetim Bulguları
 
 `faz-denetim` taze bağlamlı bir denetçiyle koşuldu (2026-09-08, taban
-`1333292d`). **🔴 bulgu yok.** Denetçi K-737 düzeltmesinde aradığı dört
+`4c8509e5`). **🔴 bulgu yok.** Denetçi K-737 düzeltmesinde aradığı dört
 gerilemenin hiçbirini bulamadı: gerçek iptal hâlâ `Canceled` yazıyor,
 `when` filtreleri doğru token'ı okuyor, `WorkflowEndpoints`'in dar `catch`'ine
 `TaskCanceledException` ulaşamıyor (`WorkflowRunner` onu `PumpedEvent`'e
@@ -174,7 +174,7 @@ yük raporundaki RAM/CPU alanlarının GC/container değerleri olması)
   `TRACON_LOAD=1` ile koşar, `artifacts/load/` altına yazar. Bu makinede
   ölçülen ilk değerler: 8 eşzamanlı, 200 `run` × 20 olay, 256 karakter payload
   → kontrol düzlemi `run` başına ~17,7 ms / olay başına ~0,88 ms
-  (macOS arm64, PostgreSQL 18.4 container, commit `1333292d`).
+  (macOS arm64, PostgreSQL 18.4 container, commit `4c8509e5`).
 - **Rolling upgrade manifesti "eski sürüm" olarak DAHA AZ opsiyonel migration
   seti açan bir context kullanır** — ikinci bir Tracon ikilisi değil. İki
   gerçek sürümü yan yana koşturmak ölçülmedi; `production.md` bunu vaat etmez.

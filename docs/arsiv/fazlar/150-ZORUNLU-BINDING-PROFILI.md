@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 883f11df:docs/arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md
+> git show a9091a9c:docs/arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md
 > ```
 >
 > Damıtıldı 2026-09-06 · `scripts/dokuman-bakim.py faz-damit`

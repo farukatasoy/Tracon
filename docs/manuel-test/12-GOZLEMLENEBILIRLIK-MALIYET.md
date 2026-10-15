@@ -34,7 +34,7 @@
 > [`../arsiv/manuel-test-kosum-2026-09/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../arsiv/manuel-test-kosum-2026-09/12-GOZLEMLENEBILIRLIK-MALIYET.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
-> tam metin: git show aa9c0a7f:docs/manuel-test/kosumlar/2026-08-13/12-GOZLEMLENEBILIRLIK-MALIYET.md
+> tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/12-GOZLEMLENEBILIRLIK-MALIYET.md
 
 ---
 

@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show a21e74c:docs/arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md
+> git show 5abf370:docs/arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`
@@ -39,7 +39,7 @@ Tracon'in iş kuyruğu bugün **tek havuzdur**. Dokuz `JobKind` aynı sırayı v
 - [x] `retry` `lane`'i korur (case 5) — `JobStoreContract.Retry_preserves_the_jobs_lane`
 - [x] `JobStoreContract` dört koşumun dördünde de yeşil (bellek içi + PostgreSQL + SqlServer + Sqlite) — 2216/2216 (Core), 685/685 (PostgreSQL), 615/615 (SqlServer), 629/629 (Sqlite)
 - [x] `EXPLAIN ANALYZE` çıktısı `jobs_claim_idx` kullanımını gösterir ve belgeye yazıldı (aşağıda) — bu doğrulama sırasında `jobs_claim_idx`'in ORİJİNAL kısmi koşulunun (`status IN (0,1)`) `LeaseJob`'ın OR'lu `WHERE`'ini hiç KARŞILAYAMADIĞI bulundu; bkz. Plandan Sapmalar
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 1e33436`; K-612 gereği `scripts/applied-migrations.json`'a bu fazın üç yeni migration'ı iki-commit deseniyle pin'lendi (bkz. Plandan Sapmalar)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban d5c8cc7`; K-612 gereği `scripts/applied-migrations.json`'a bu fazın üç yeni migration'ı iki-commit deseniyle pin'lendi (bkz. Plandan Sapmalar)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (aşağıda)
 - [x] `secret` taraması boş döndü — `kapi.py tarama` içinde koştu
 - [x] Manuel kabul case'leri `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` içine eklendi (MT-JOB-110..116); otomatikleştirilebilenler (110, 111, 113, 114, 115) fonksiyonel/birim testlerle zaten kapsandı

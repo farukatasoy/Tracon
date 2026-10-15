@@ -12,7 +12,7 @@
 |---|---|
 | **Şerit** | `ap-s4` (Faz B) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s4` · dal `test/kosum-s4` |
-| **Kod** | `a51a8496` donuk (`git diff --stat a51a8496..HEAD -- src samples tests` boş, doğrulandı) |
+| **Kod** | `cfe5ebe8` donuk (`git diff --stat cfe5ebe8..HEAD -- src samples tests` boş, doğrulandı) |
 | **Case sayısı** | 98 toplam (MT-JOB-001..131, numaralar bloklu, sıralı değil) |
 | **Port** | 5084 |
 | **Şema** | `mt_s4` (PostgreSQL, paylaşılan `ap-pg` container) |
@@ -91,7 +91,7 @@ case bu turda etkilenmedi — ama sınıf taraması (aynı desende başka bir
 **🎉 AİLE 16 (JOB) KAPANDI — bu oturum (oturum 14).** Önceki devir notu
 (oturum 5-13 birikimi) `MT-JOB-091`'den `121`'e kadarki çalışmayı
 kaydetmiş ve "`122`'den `131`'e kadar (37 case) koşulmadı" demişti — bu
-sayı **bayattı**: dosyanın git geçmişi (`45de031a`, `da721804`, `32edb486`)
+sayı **bayattı**: dosyanın git geçmişi (`a794aff3`, `9eb741a4`, `edfcaadf`)
 gösteriyor ki `091..121` zaten önceki oturumlarda koşulmuş. Bu oturum
 gerçek kalanı ölçtü (`### MT-JOB-` blok sayımı: spec 98 blok, kayıt 87 blok
 → 11 eksik) ve hepsini kapattı: **`MT-JOB-122..131`** (Bölüm 9-10, 10 case)
@@ -142,7 +142,7 @@ değil. UI formu `payload`'ı her zaman `"[]"` gönderdiği için arayüzden
 ERİŞİLEMEZ; yalnız `payload` alanını atlayan bir HTTP API tüketicisini
 etkiler. Ayrıntı ve tam repro case kaydında (`MT-JOB-129`, yukarıda).
 
-**Kod donması ihlali YOK.** `git diff --stat a51a8496..HEAD -- src samples
+**Kod donması ihlali YOK.** `git diff --stat cfe5ebe8..HEAD -- src samples
 tests` bu oturumun sonunda da **boş**. Scratch host (`~/tracon-manuel/
 job-handlers-s4`) ve geçici migration şeması (`mtjob128mig`, iş bitince
 `DROP SCHEMA ... CASCADE` ile silindi) repo **dışında**.
@@ -182,7 +182,7 @@ temizlenmedi çünkü zararsız ve kanıt değeri taşıyor).
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 4f218d55:docs/manuel-test/kosumlar/2026-09-16/16-IS-KUYRUGU-VE-ZAMANLAMA.md
+> git show d38bc2b6:docs/manuel-test/kosumlar/2026-09-16/16-IS-KUYRUGU-VE-ZAMANLAMA.md
 > ```
 
 ---

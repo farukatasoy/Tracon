@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show a47b1927:docs/arsiv/fazlar/169-FAZ-PLANI-SOZLESMESI.md
+> git show 7b3f27ce:docs/arsiv/fazlar/169-FAZ-PLANI-SOZLESMESI.md
 > ```
 >
 > Damıtıldı 2026-09-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -47,7 +47,7 @@
 - [x] Bu fazın **kendi** `## Süreç Ölçümü` tablosu dolu; kapı onu **gerçekten** denetliyor (eşik 167 ≤ 169) — ✅ dolu; kapı onu kökte **gerçekten** denetliyor (mutation ile kırmızı görüldü, satır numarası raporlandı)
 - [x] `python3 -m unittest discover -s scripts -p "*_test.py"` yeşil — ✅ **279** yeşil (taban 260)
 - [x] `python3 scripts/dokuman-bakim.py --denetle` çıkış `0`; kırık bağlantı `0` — ✅ arşivleme sonrası 0; kırık bağlantı 0
-- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`) — ✅ `kapi.py kapanis --taban a942a18e`. 🚨 İlk tam test koşumunda **bir** test düştü (`TwoProcessLeaseTakeoverTests.A_dead_workers_job_is_not_taken_over_before_its_lease_expires`); izole geçti ve **ikinci tam koşum** 21 proje / 7039 test ile temiz döndü — kaynak çekişmesi sınıfı, kusur değil
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`) — ✅ `kapi.py kapanis --taban 9d871057`. 🚨 İlk tam test koşumunda **bir** test düştü (`TwoProcessLeaseTakeoverTests.A_dead_workers_job_is_not_taken_over_before_its_lease_expires`); izole geçti ve **ikinci tam koşum** 21 proje / 7039 test ile temiz döndü — kaynak çekişmesi sınıfı, kusur değil
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — 🚨 **bu faz kod değiştirmez; koşum bir regresyon kanıtıdır** (Faz 92 emsali) — ✅ koşuldu; SSE akışı, 7 agent ve 401/200 guard'ı belgeye yazıldı
 - [x] `secret` taraması boş döndü — ✅ `kapi.py tarama` → temiz; token yalnız ortam değişkeninde yaşadı (K-059)
 - [x] Manuel kabul case'leri `docs/manuel-test/36-GELISTIRME-KAPILARI.md` içine eklendi; ikisi de koşuldu — ✅ **üç** case eklendi (`MT-GDK-036`·`037`·`038` — üçüncüsü faz dışı kusurun kapısını koruyor); üçü de koşuldu
@@ -180,7 +180,7 @@ sınıf taraması iki mevcut vaka buldu).
 
 `samples/Tracon.Api` Release'te ayağa kaldırıldı (2026-09-13, `:5080`).
 Bu faz `src/`, `samples/` ve `tests/` altına **hiç** dokunmadı
-(`git diff --stat a942a18e -- src/ samples/ tests/` → **0 satır**), bu yüzden
+(`git diff --stat 9d871057 -- src/ samples/ tests/` → **0 satır**), bu yüzden
 koşum bir davranış kanıtı değil, **regresyon kanıtıdır**.
 
 | Ne | Gerçek çıktı |
@@ -203,7 +203,7 @@ veritabanına yazılmadı (K-059) ve `kapi.py tarama` temiz döndü.
 ## Denetim Bulguları
 
 Denetçi `faz-denetcisi` tipiyle, taze bağlamla koştu (2026-09-13). Taban
-`a942a18e`; 14 dosya + izlenmeyen `defter-bakimi.md`. **Triyaj bu fazın kendi
+`9d871057`; 14 dosya + izlenmeyen `defter-bakimi.md`. **Triyaj bu fazın kendi
 5.1 adımıyla koştu — 🔴 kullanıcıya soruldu ve kullanıcı karar verdi.**
 
 ### 🔴 (1) — triyaj: **gerçek**

@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
 > **Kaynak:** Tüketici turu (2026-08-31) · **T-7**
-> **Önkoşul:** [Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) (çalıştırma-içi bütçe tavanı, `RunBudgetChatClient`) — arşivde; **damıtılmış**, tam metin `git show 09ebcef:docs/arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md`
+> **Önkoşul:** [Faz 114](114-CALISTIRMA-ICI-BUTCE-TAVANI.md) (çalıştırma-içi bütçe tavanı, `RunBudgetChatClient`) — arşivde; **damıtılmış**, tam metin `git show 93098ec:docs/arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md`
 > **Paketler:** `Tracon.Abstractions` (`Runs/AgentRunBudget.cs`), `Tracon.Core` (`Models/RunBudgetChatClient.cs`, `TraconOptions.cs`)
 > **Yeni paket:** Yok · **Migration:** Yok — tavan yapılandırmadan gelir
 > **Public API:** Büyüyor — mevcut iki tipe birer alan. Faz 7'den önce ucuz: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır (K-603)
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show ce7d720:docs/arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md
+> git show 0c11fc1:docs/arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`

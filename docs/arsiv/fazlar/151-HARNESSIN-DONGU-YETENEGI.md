@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show d3e036fe:docs/arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md
+> git show cc1a4529:docs/arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md
 > ```
 >
 > Damıtıldı 2026-09-07 · `scripts/dokuman-bakim.py faz-damit`

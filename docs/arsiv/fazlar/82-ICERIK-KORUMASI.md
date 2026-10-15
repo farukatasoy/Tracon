@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f272e70:docs/arsiv/fazlar/82-ICERIK-KORUMASI.md
+> git show b569600:docs/arsiv/fazlar/82-ICERIK-KORUMASI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

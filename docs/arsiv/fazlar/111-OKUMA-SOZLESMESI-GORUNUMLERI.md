@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 69ce483:docs/arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md
+> git show 726a953:docs/arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`
@@ -41,7 +41,7 @@ Tüketici kendi raporunda koşu maliyetini kendi entity'sinin yanında gösterme
 - [x] Görünüm sütunları ile `ProtectedColumn` kesişimi boş — `ReadViewColumnSetTests` üç ayrı test, üç sağlayıcı
 - [x] `reference/read-views.md` yayında; EF keyless entity örneği çalışıyor — sayfa `docs-site/src/content/docs/reference/read-views.md`, sidebar'a eklendi
 - [x] `npm run build` + `check-links.mjs` temiz — `npm run check` (dördü birden) yeşil
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 5e8c943`, iki ayrı koşumda
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 253bd2c`, iki ayrı koşumda
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek Koşum Kanıtı" altbölümü
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/03-KALICILIK-POSTGRESQL.md` ve `04-KALICILIK-DIGER.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-PG-072..075, MT-SQL-077..078

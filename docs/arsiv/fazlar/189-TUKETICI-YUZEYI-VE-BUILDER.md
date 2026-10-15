@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 37a84b0a:docs/arsiv/fazlar/189-TUKETICI-YUZEYI-VE-BUILDER.md
+> git show c3a7b978:docs/arsiv/fazlar/189-TUKETICI-YUZEYI-VE-BUILDER.md
 > ```
 >
 > Damıtıldı 2026-09-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -189,8 +189,8 @@ yüklem; Sapma 4).
 
 ## Denetim Bulguları
 
-`faz-denetcisi`, 2026-09-24, kapsam `c8ea5ae0` + çalışma ağacı. **🔴 yok.**
-Denetçi 27 gövdeyi `git show c8ea5ae0:src/Tracon.Core/TraconBuilder.cs` ile satır
+`faz-denetcisi`, 2026-09-24, kapsam `7ce608cb` + çalışma ağacı. **🔴 yok.**
+Denetçi 27 gövdeyi `git show 7ce608cb:src/Tracon.Core/TraconBuilder.cs` ile satır
 satır karşılaştırdı: tek fark `ThrowIfNull(builder)` ve `builder.Services`;
 `TryAddEnumerable` yalnız dört generic metotta, RUC/RDC/DAM/MAAI001 yerinde.
 Temiz başlıklar: 3.2, 3.3, 3.5, 3.6, 3.7.
@@ -239,8 +239,8 @@ Adım 10) bakımcı eylemidir.
 
 ## Kapanış Kapısı
 
-`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban c8ea5ae0`, commit'li ağaç
-`b88d3cd6`, 2026-09-24 → **EXIT 0**:
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 7ce608cb`, commit'li ağaç
+`cec0501a`, 2026-09-24 → **EXIT 0**:
 
 | Adım | Süre | Sonuç |
 |---|---|---|
@@ -255,10 +255,10 @@ Adım 10) bakımcı eylemidir.
 İlk iki deneme kırmızıydı: (1) kırılgan `ExperimentTests` (Sapma 9); (2) faz
 dokümanı arşivlenmeden koşuldu (`kapanmış faz docs/arsiv/fazlar/ altında
 olmalı`). Performans kapısı tetiklenmedi (sıcak yol değişmedi). Kapı
-düzeltmesi (`7af5532e`, yalnız Python) sonrası `python3 -m unittest discover -s scripts`
+düzeltmesi (`da490bc5`, yalnız Python) sonrası `python3 -m unittest discover -s scripts`
 yeniden yeşil.
 
-**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `7af5532e`) → **EXIT 0**:
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `da490bc5`) → **EXIT 0**:
 `Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` ·
 20 paket `1.0.0-preview.2.70` · `npm publish --dry-run` ✅ ·
 `provider/source/generated-tool AOT host smoke passed` ·

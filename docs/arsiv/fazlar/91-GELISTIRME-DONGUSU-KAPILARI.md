@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 2bd464a:docs/arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md
+> git show 17e3088:docs/arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -47,7 +47,7 @@ Bu faz, geliştirme döngüsünün **prose ile taşınan** kalite kurallarını 
 - [x] `python3 -m unittest discover -s scripts -p "*_test.py"` yeşil: 140 test (132 + bağımsız denetimin bulduğu 8 regresyon testi, bkz. Denetim Bulguları)
 - [x] **Ölçüm karşılaştırması yazıldı**: §91.0 ve §91.5 rakamları yan yana. Tam testte 8,70 s artış olduğu için iyileşme iddia edilmedi
 - [x] **Eklenen script satırı ile düşen prose satırı ölçüldü ve yazıldı.** Üretim script'leri 643 satır, script testleri 215 satır ekledi; ortak kapı/senkronizasyon/secret prose'undan 63 satır düştü. Script'in büyük olması, prose'un yerine test edilebilir tek kaynak koyma bedelidir
-- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis` ile); kapanış koşumu `2900106` tabanıyla ve Node 22 PATH'iyle yeşildir
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis` ile); kapanış koşumu `5b97361` tabanıyla ve Node 22 PATH'iyle yeşildir
 - [x] `samples/Tracon.Api` ayağa kalktı: `/tracon` 200 HTML, `/tracon/api/meta` bearer ile 200, `/health` 200 `Degraded`, support run SSE akışı Echo yanıtıyla tamamlandı. Örnek UI için Playwright `Tracon.Ui.E2ETests` 57/57 geçti; in-app browser connector bu ortamda kullanılamadı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri eklendi: §91.4 kapıları `33-DOKUMAN-KAPILARI.md`'ye, `kapi.py`/`denetim-paketi.py` case'leri yeni `36-GELISTIRME-KAPILARI.md`'ye + `00-INDEKS.md` satırı. Otomatikleştirilebilenler koşuldu
@@ -64,9 +64,9 @@ python3 scripts/kapi.py --komutlari-bas
 python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 
 # Tarihsel tekrar oynatma — bu fazın en güçlü kanıtı
-python3 scripts/denetim-paketi.py --taban 7717ff1 --hedef 9b05f4b   # Faz 20
-python3 scripts/denetim-paketi.py --taban f348014 --hedef d1fb16c   # Faz 68
-python3 scripts/denetim-paketi.py --taban 7a08f07 --hedef 90161c2   # Faz 73
+python3 scripts/denetim-paketi.py --taban 78da656 --hedef 4e4cc02   # Faz 20
+python3 scripts/denetim-paketi.py --taban 08169a9 --hedef 55b0a75   # Faz 68
+python3 scripts/denetim-paketi.py --taban 5acad98 --hedef 50c6f90   # Faz 73
 
 # Doküman kapıları
 python3 scripts/dokuman-bakim.py --denetle
@@ -107,7 +107,7 @@ dotnet build Tracon.slnx -c Release          # ikinci: npm run build koşmamalı
    Faz 91 koduyla nedensellik kurulmadı.
 7. Kullanıcı "doğru yapıldığından emin değilim" diyerek bağımsız bir doğrulama
    istedi (2026-08-23, ayrı oturum). İki adım koşuldu: (a) `kapi.py kapanis
-   --taban 2900106` tam kapanış kapısı — build/test/pack/format/`docs-site`
+   --taban 5b97361` tam kapanış kapısı — build/test/pack/format/`docs-site`
    dahil hepsi yeşil (bkz. Denetim Bulguları'ndaki koşum kanıtı); (b) **gerçek**
    taze bağlamlı `Agent` çağrısıyla `faz-denetim` — madde 5'te "aynı oturumda
    self-review" olarak işaretlenen sınırlamayı kapattı. Dört 🟡 bulgu çıktı,
@@ -121,7 +121,7 @@ dotnet build Tracon.slnx -c Release          # ikinci: npm run build koşmamalı
    çöküyordu, dokümante edilen "git yok → temiz hata" sözleşmesinin aksine.
    İkisi de `OSError` yakalayacak şekilde düzeltildi ve regresyon testiyle
    sabitlendi.
-9. Dört 🟡 bulgu düzeltildikten sonra `kapi.py kapanis --taban 2900106`
+9. Dört 🟡 bulgu düzeltildikten sonra `kapi.py kapanis --taban 5b97361`
    **ikinci kez** koşuldu (yalnız `.py`/`.md` değişti, hiçbir C# dosyası
    dokunulmadı). `dotnet test` bu tekrarda `Tracon.Templates.Tests`
    içinde `ExitCode 70` ile kırmızı çıktı — mesaj birebir

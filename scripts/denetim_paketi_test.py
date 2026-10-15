@@ -103,17 +103,17 @@ class DenetimPaketiTestleri(unittest.TestCase):
         return result.stdout
 
     def test_faz20_tekrar_oynatma_cost_adayini_gosterir(self):
-        output = self._run_historical("7717ff1", "9b05f4b")
+        output = self._run_historical("78da656", "4e4cc02")
         self.assertIn("Cost", output)
         self.assertIn("ADAY", output)
 
     def test_faz68_tekrar_oynatma_cache_adayini_gosterir(self):
-        output = self._run_historical("f348014", "d1fb16c")
+        output = self._run_historical("08169a9", "55b0a75")
         self.assertIn("cached_input_cost", output)
         self.assertIn("ADAY", output)
 
     def test_faz73_tekrar_oynatma_iddiasiz_test_adayini_gosterir(self):
-        output = self._run_historical("7a08f07", "90161c2")
+        output = self._run_historical("5acad98", "50c6f90")
         self.assertIn("İddiası olmayan test metotları", output)
         self.assertIn("ADAY", output)
 

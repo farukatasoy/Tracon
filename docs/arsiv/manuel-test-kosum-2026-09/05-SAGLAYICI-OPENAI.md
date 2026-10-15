@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz A zinciri, tek şerit) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `a51a8496` donuk |
+| **Kod** | `cfe5ebe8` donuk |
 | **Case sayısı** | 40 (MT-OAI-001..093) |
 | **Port** | 5081 (spec 5080 yazar — şerit sapması) |
 | **Şema** | `mt_s1` (spec `tracon` yazar — şerit sapması, skill §1.3) |
@@ -120,7 +120,7 @@ case'ler için `<scratch>/kos.sh <etiket> <port> [ek args]` kullanılır —
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 2841b02a:docs/manuel-test/kosumlar/2026-09-16/05-SAGLAYICI-OPENAI.md
+> git show 34356bdd:docs/manuel-test/kosumlar/2026-09-16/05-SAGLAYICI-OPENAI.md
 > ```
 
 ---
@@ -166,7 +166,7 @@ Kayıt adımı `HTTP 400` ile **reddedildi**; agent hiç yazılmadı:
    `AgentEndpoints.cs:1670-1677` XML dokümanı aynen söylüyor — *"Before this
    check existed, only the separate `POST /api/agents/validate` endpoint was
    called; the SAVE path itself would save an unknown skill/tool name without
-   any error."* Git ile doğrulandı: `c886c2f0` ("phase 75") bu bloğu taşırken
+   any error."* Git ile doğrulandı: `d2f99004` ("phase 75") bu bloğu taşırken
    yorumdan `K-404` ve `HATA-K-001` referanslarını düşürmüş. Yani spec'in
    "düzeltilmiş" beklentisi **K-404'ün düzelttiği kusurun kendisini** tarif
    ediyor. Bugünkü davranış doğru olandır.

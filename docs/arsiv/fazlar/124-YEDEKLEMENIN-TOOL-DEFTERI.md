@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show b7bba9f:docs/arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md
+> git show a59f419:docs/arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md
 > ```
 >
 > Damıtıldı 2026-08-31 · `scripts/dokuman-bakim.py faz-damit`
@@ -99,10 +99,10 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
      gösteriyordu). Düzeltme: baytı düz boşluk karakteriyle değiştirmek;
      davranış değişmedi (okuma ve yazma yolu zaten aynı ayırıcıyı
      kullanıyordu). Ders `docs/hafiza/build-ve-analyzer.md`'ye yazıldı.
-  2. `scripts/applied-migrations.json`'da HEAD'deki (`890ce69`) üç yeni
+  2. `scripts/applied-migrations.json`'da HEAD'deki (`59c9ac9`) üç yeni
      `session_version` migration dosyası için eksik `sourceCommits` girdileri
      — `scripts/kapi.py tarama` bunlar olmadan başarısız oluyordu. Girdiler o
-     dosyaların gerçek kaynak commit'ine (`890ce69`) eklendi.
+     dosyaların gerçek kaynak commit'ine (`59c9ac9`) eklendi.
 - **`docs/manuel-test/00-INDEKS.md`'deki dosya 27 case sayısı (14) gerçek
   sayıyla (bu fazdan önce bile 16'ydı) uyumsuzdu** — bu fazın MT-MYU-017'yi
   eklemesiyle sayı 17'ye çıktı; index satırı düzeltildi, "İlgili faz" sütununa

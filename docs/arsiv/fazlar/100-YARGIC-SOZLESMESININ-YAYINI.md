@@ -34,7 +34,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show a8e2496:docs/arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md
+> git show 0f1c37d:docs/arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md
 > ```
 >
 > Damıtıldı 2026-08-25 · `scripts/dokuman-bakim.py faz-damit`
@@ -78,7 +78,7 @@
 
 ```bash
 # Dört kapı — taban, bu fazdan ÖNCEKİ commit
-python3 scripts/kapi.py kapanis --taban 5550039
+python3 scripts/kapi.py kapanis --taban f09267a
 
 # Ölü alan gerçekten gitti
 grep -rn "JudgeUsage" src/ tests/ docs-site/src/content/docs/api/ || echo "temiz"

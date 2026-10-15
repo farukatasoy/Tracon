@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f7766ab0:docs/arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md
+> git show bda3a496:docs/arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md
 > ```
 >
 > Damıtıldı 2026-09-16 · `scripts/dokuman-bakim.py faz-damit`

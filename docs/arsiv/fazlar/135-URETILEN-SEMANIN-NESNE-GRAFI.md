@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 0e92d8d:docs/arsiv/fazlar/135-URETILEN-SEMANIN-NESNE-GRAFI.md
+> git show 1174747:docs/arsiv/fazlar/135-URETILEN-SEMANIN-NESNE-GRAFI.md
 > ```
 >
 > Damıtıldı 2026-09-02 · `scripts/dokuman-bakim.py faz-damit`
@@ -41,7 +41,7 @@ Generator bugün skalerleri ve onların dizilerini ifade edebiliyor, kısıtlar�
 - [x] `IncrementalGeneratorCacheTests` yeşil — model değer eşitliği korundu
 - [x] 🚨 Dış tüketici projesinde `PublishAot` derlemesi **uyarısız** ve tool çalışma anında çağrılabiliyor (case 8) — `ObjectToolAotPackageTests`, `osx-arm64`, 2026-09-02
 - [x] `AnalyzerReleases.Unshipped.md` iki yeni kodu taşıyor; `DiagnosticIntegrityTests` yeşil
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 7768201`, 2026-09-02
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban aa95e9a`, 2026-09-02
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (case 7) — bkz. MT-CORE-121, gerçek OpenAI (`gpt-5.4-mini`) çağrısı
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içine eklendi (MT-CORE-115..122); otomatikleştirilebilenler koşuldu

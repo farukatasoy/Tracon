@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9b24b509:docs/arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md
+> git show 7714ddff:docs/arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md
 > ```
 >
 > Damıtıldı 2026-09-03 · `scripts/dokuman-bakim.py faz-damit`

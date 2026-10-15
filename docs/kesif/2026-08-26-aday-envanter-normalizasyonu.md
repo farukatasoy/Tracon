@@ -44,7 +44,7 @@ Toplam: **43**. F-164 bu sayımdan önce kapatıldığı için bu envantere girm
 
 | ID | Kapanış kanıtı | Sonuç |
 |---|---|---|
-| F-106 | `WorkflowRunner` 2026-08-18'den beri yanıt sonrası `GetStatusAsync()` ile terminal MAF run'ını yeniden açmıyor (K-433, `dc2cbd2`). | Önceki kod düzeltmesi bulunmadan açık görünüyordu; yeni kod işi yok. Gerçek modelli manuel koşum ancak yeniden açma eşiğidir. |
+| F-106 | `WorkflowRunner` 2026-08-18'den beri yanıt sonrası `GetStatusAsync()` ile terminal MAF run'ını yeniden açmıyor (K-433, `486487f`). | Önceki kod düzeltmesi bulunmadan açık görünüyordu; yeni kod işi yok. Gerçek modelli manuel koşum ancak yeniden açma eşiğidir. |
 | F-130 | İlk `GET /cases` pending iken `Add case` yeni satırı, geç gelen boş yanıtla siliyordu. Yeni frontend testi önce kırmızıydı; UI artık ilk yükleme bitene kadar `Add case`/`Save cases`i kapatır. | Kapatıldı. Targeted E2E geçti. |
 | F-137 | Token submit artık `Dashboard` beklemesinden önce authenticated `GET /api/agents` `200` yanıtını bekliyor. Eski çalışma-yolu belirtisi bu kopyada yeniden oluşmadı. | Kapatıldı. Targeted E2E geçti. Yeniden görülürse ortam kaydıyla ayrı kusur açılır. |
 | F-138 | İki bağımsız `WorkflowOutput` assertion'ı (`WorkflowAgentEntryRespondTests`, `WorkflowHumanInTheLoopTests`) 10 tekrarın tamamında geçti; tam workflow unit seti 102/102 geçti. | Kapatıldı; güncel ürün kusuru yok. |

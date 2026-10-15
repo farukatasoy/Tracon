@@ -12,7 +12,7 @@
 |---|---|
 | **Şerit** | `ap-s4` (Faz B, üçüncü aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s4` · dal `test/kosum-s4` |
-| **Kod** | `a51a8496` donuk (doğrulandı: `git diff --stat a51a8496..HEAD -- src samples tests` boş, oturum başında VE sonunda) |
+| **Kod** | `cfe5ebe8` donuk (doğrulandı: `git diff --stat cfe5ebe8..HEAD -- src samples tests` boş, oturum başında VE sonunda) |
 | **Case sayısı** | 27 (MT-YRF-001..027) |
 | **Paket sürümü** | `0.0.0-preview.0.829` (`dotnet pack Tracon.src.slnf -c Release` bu oturumda koşuldu — aile 16'nın kapanış commit'i sürüm yüksekliğini `.819`'dan `.829`'a çıkardı) |
 | **Tüketici dizinleri** | Hepsi repo **dışında** (`mktemp -d`), `NuGet.config` yerel feed'i `ap-s4/artifacts/package/release`'e işaret ediyor |
@@ -54,7 +54,7 @@ anahtar sızıntı örneği").
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 1f473779:docs/manuel-test/kosumlar/2026-09-16/30-YEREL-REFERANS.md
+> git show 56a582b6:docs/manuel-test/kosumlar/2026-09-16/30-YEREL-REFERANS.md
 > ```
 
 ---
@@ -241,7 +241,7 @@ aşağıdaki tabloya taşındı.
 
 | Case | Neden | Kullanıcıdan istenen |
 |---|---|---|
-| MT-YRF-026 | Gerçek tüketici deposu (tüketici deposu) ve taze bir kod agent örneği gerekir; case'in kendi metni "otomatik karşılığı yoktur" diyor | Bu paketleri gerçek bir tüketici deposunda yükseltip, kendi `AGENTS.md`'sine `TRC0402` işaretçisini ekleyip, sıfırdan başlatılan bir kod agent'ına "Tracon hangi yetenekleri sunuyor?" sorusunu sorarak agent'ın `AGENTS.md → Tracon.LocalReference.md → Tracon.AgentMap.md` zincirini gerçekten izleyip izlemediğini gözlemlemek |
+| MT-YRF-026 | Gerçek bir tüketici deposu ve taze bir kod agent örneği gerekir; case'in kendi metni "otomatik karşılığı yoktur" diyor | Bu paketleri gerçek bir tüketici deposunda yükseltip, kendi `AGENTS.md`'sine `TRC0402` işaretçisini ekleyip, sıfırdan başlatılan bir kod agent'ına "Tracon hangi yetenekleri sunuyor?" sorusunu sorarak agent'ın `AGENTS.md → Tracon.LocalReference.md → Tracon.AgentMap.md` zincirini gerçekten izleyip izlemediğini gözlemlemek |
 | MT-YRF-027 | MT-YRF-026'nın devamı, aynı gerçek depo ve agent oturumu gerekir | Aynı agent'a "`UseTenancy()` çağırmazsam ne olur?" sorusunu sorup cevabın `llms.txt` → `concepts/governance.md` zincirini izleyip izlemediğini, "Off by default" cevabını türetmeden verip vermediğini gözlemlemek |
 
 ## Doküman kusurları (skill §1.1 istisnası, ürün kusuru DEĞİL)

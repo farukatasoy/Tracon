@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 82212b3f:docs/arsiv/fazlar/207-AKISTA-KESILEN-CIKTI-BILDIRIMI.md
+> git show 30bb0f3d:docs/arsiv/fazlar/207-AKISTA-KESILEN-CIKTI-BILDIRIMI.md
 > ```
 >
 > Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -147,7 +147,7 @@ dizeleri ortam değişkeniyle boşaltıldı), Anthropic `claude-haiku-4-5-202510
   `"finish_reason":"length"` taşır, ardından `data: [DONE]`.
 - **Case 4 (`MT-COMPAT-053`):** iki kolda `"stop"`.
 - Ölçüm notu: `update` verisi girintili JSON'dur ve birden çok `data:` satırına yayılır; `custom` tek satırdır.
-- **Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban 63aaf3ef` → **çıkış 0** (ikinci koşum):
+- **Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban 2064bacf` → **çıkış 0** (ikinci koşum):
   tarama · `--denetle` · betik testleri · agent haritası · denetim paketi · build 129 sn · test 631 sn (38 test
   koşumu, 22 180 test, 0 düşen; E2E dahil) · pack · format · `npm run check`. İlk koşum yalnız
   `SourceLanguageTests`'te düştü: önceki `npm run check`'in ürettiği site `api/` sayfaları worktree yolunu
@@ -155,7 +155,7 @@ dizeleri ortam değişkeniyle boşaltıldı), Anthropic `claude-haiku-4-5-202510
 
 ## Tüketici Yüzeyi Envanteri
 
-`tuketici-dokuman-senkronu` Adım 1 (taban `63aaf3ef`):
+`tuketici-dokuman-senkronu` Adım 1 (taban `2064bacf`):
 
 1. **`docs-site/` (elle):** `http-api.md` § Streaming (kapalı liste tablosu, depo hatası) · `concepts/runs.md`
    (iki sözleşme tablosu `custom` aldı; workflow ve OpenAI akışlarının kendi kümeleri ayrı cümle — §207.6
@@ -172,7 +172,7 @@ dizeleri ortam değişkeniyle boşaltıldı), Anthropic `claude-haiku-4-5-202510
    tabloda (`build-agent-map.mjs --check`: "up to date and within budget").
 
 Kapılar: (1) sevk edilen metin testleri kapanış kapısının tam test koşumunda · (2) `build-agent-map.mjs --check`
-yeşil · (3) `npm run check` yeşil · (4) `dokuman-bakim.py --site-denetle --taban 63aaf3ef`: 2 kural tetiklendi,
+yeşil · (3) `npm run check` yeşil · (4) `dokuman-bakim.py --site-denetle --taban 2064bacf`: 2 kural tetiklendi,
 ikisinin hedefi değişti (✅).
 
 ## Sonraki Faza Devir Notu

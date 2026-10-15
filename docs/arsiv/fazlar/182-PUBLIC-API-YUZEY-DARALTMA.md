@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 3b24a5db:docs/arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md
+> git show cd7f3795:docs/arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md
 > ```
 >
 > Damıtıldı 2026-09-22 · `scripts/dokuman-bakim.py faz-damit`
@@ -36,8 +36,8 @@ Yüzey bugün dondurulamayacak kadar büyük: 17 pakette **9.771 satır** `Publi
 - [x] Envanter üretildi; paket başına sınıf sayıları bu dokümana yazıldı — "Gerçekleşen Public API" tablosu (dört sınıf: plan üç diyordu, `gerekçeli` eklendi — Sapma 1)
 - [x] "Kanıtsız" sınıfı işlendi: 108 adaydan (paket×tip) 93'ü — 91 ayrı ad — `internal` oldu, 15'i kaldı: 12 kök gerekçe + 3 imza kapanışı (`scripts/public-yuzey-gerekceleri.tsv`); `python3 scripts/public-yuzey-envanteri.py --denetle` → çıkış 0, kanıtsız **0**
 - [x] `wc -l src/*/PublicAPI.Unshipped.txt` toplamı: **9.771 → 9.119** (tip: 766 → 673)
-- [x] 6 dış sample packed sürüme karşı derleniyor ve koşuyor — `kapi.py yayin --kuru`, `077800ee`, sürüm `1.0.0-preview.2.10`: 101 · 38 · 11 · 15 · 18 · 10 test, AOT smoke geçti
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban eaa55499`: build 0 uyarı · 22 test projesi (714 sn) · pack · `dotnet format --verify-no-changes` · performans · site; ilk koşumda yalnız `llms-full.txt` bayattı (site metni düzenlendikten sonra yeniden üretilmemişti), yeniden üretildi ve kapanış yeniden koşuldu
+- [x] 6 dış sample packed sürüme karşı derleniyor ve koşuyor — `kapi.py yayin --kuru`, `4d8356b0`, sürüm `1.0.0-preview.2.10`: 101 · 38 · 11 · 15 · 18 · 10 test, AOT smoke geçti
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban b2a56217`: build 0 uyarı · 22 test projesi (714 sn) · pack · `dotnet format --verify-no-changes` · performans · site; ilk koşumda yalnız `llms-full.txt` bayattı (site metni düzenlendikten sonra yeniden üretilmemişti), yeniden üretildi ve kapanış yeniden koşuldu
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — "Örnek Uygulama Koşumu" bölümü
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ (17 işaretli sentetik credential atlandı)
 - [x] Manuel kabul case'leri koşuldu — `MT-PKG-123` (envanter) ✅ · `MT-PKG-124` (yayın provası) ✅ · `MT-PKG-125` ➜ CI · `MT-SEC-199` ✅ (canlı SQLite)
@@ -177,8 +177,8 @@ Hepsi `kusur-giderme` ile: önce düşen test, sonra düzeltme, sonra sınıf ta
 
 ## Denetim Bulguları
 
-`faz-denetim` taze bağlamlı `faz-denetcisi` ile koşuldu (taban `eaa55499`,
-aralık `…077800ee`). **🔴 yok · 🟡 3 · 🟢 4.**
+`faz-denetim` taze bağlamlı `faz-denetcisi` ile koşuldu (taban `b2a56217`,
+aralık `…4d8356b0`). **🔴 yok · 🟡 3 · 🟢 4.**
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|

@@ -3,7 +3,7 @@
 > ## 📦 KOŞUM BİTTİ — bu dosya artık TARİHSEL KAYITTIR
 >
 > **Koşum 2026-09-18'de kapandı:** 36 ailenin 36'sı koşuldu, dört şerit dalı
-> `main`'e alındı, worktree'ler silindi. Kod tur boyunca `a51a8496`'de donuk
+> `main`'e alındı, worktree'ler silindi. Kod tur boyunca `cfe5ebe8`'de donuk
 > kaldı ve öyle kaldı.
 >
 > **Sıradaki iş kapanıştır ve buradan yürütülmez.** Kapanışın tek kontrol
@@ -158,7 +158,7 @@ Bloklananlar `Beklemede` bırakıldı: `MT-PKG-104 · 105 · 115 · 116 · 117`.
 
 | Alan | Değer |
 |---|---|
-| **Kod donması** | `src/` · `samples/` · `tests/` — son dokunan `a51a8496`; tur boyunca **değişmez** |
+| **Kod donması** | `src/` · `samples/` · `tests/` — son dokunan `cfe5ebe8`; tur boyunca **değişmez** |
 | Doküman hattı | Her oturum kendi sonucunu commit eder, yani `HEAD` **ilerler**. Bu normaldir; kodu çözmez |
 | Set | 1866 case · 36 aile |
 | Tahmin | 85 oturum (zincir 13 + dört şerit 19/17/18/18) |
@@ -207,7 +207,7 @@ Her oturum bununla açılır. Biri kırmızıysa **koşma**, önce onu düzelt.
 cd ~/Desktop/projects/Tracon
 
 git status --short                          # temiz olmali
-git diff --stat a51a8496..HEAD -- src samples tests   # BOS olmali: kod donuk
+git diff --stat cfe5ebe8..HEAD -- src samples tests   # BOS olmali: kod donuk
 docker ps --format '{{.Names}}\t{{.Status}}'          # ap-pg + ap-mssql Up
 (cd samples/Tracon.Api && dotnet user-secrets list | wc -l)   # 17
 ```
@@ -305,7 +305,7 @@ gerektiren case'ler repo **dışında** tüketici host'uyla koşulur
 (`~/tracon-manuel/ohost`, tur sonunda silinecek).
 
 🚨 **Bölme noktası onluk case bloğudur, `#` bölüm başlığı DEĞİL.** Ölçüldü
-(2026-09-16): spec dosyalarında bölüm başlığı yok — `946a37fb` ("faz 58",
+(2026-09-16): spec dosyalarında bölüm başlığı yok — `c89c919f` ("faz 58",
 spec/kayıt ayrımı) onları spec'ten düşürdü, yalnız koşum kaydında kaldılar.
 Case numaraları zaten blok hâlindedir (`001-003` · `010-016` · `020-027` …) ve
 Faz 58 öncesi bölümlerle birebir örtüşür. **Bir bloğun ortasında oturum
@@ -319,9 +319,9 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 
 | Şerit | Port | Şema | Aileler | Durum (oturum 14 sonu) |
 |---|---|---|---|---|
-| `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | 🎉 **ALTI AİLENİN ALTISI DA KAPANDI** (aynı oturum zincirinde arka arkaya): 13 (142/142), 19 (66 Geçti·3 Kaldı·23 Beklemede·1 Atlandı), 04 (44 Geçti·1 Beklemede, 45/45), 18 (48 Geçti·9 Beklemede·1 Kaldı, 58/58), 10 (54 Geçti·2 Kaldı·2 Atlandı, 58/58, `HATA-S1-027/028`), 08 (50/50). **Bu şeridin Faz B işi bitti** — sıradaki aile yok. Uygulama durduruldu, commit `0d0fcd39` |
-| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉🎉 **SEKİZ AİLE KAPANDI — ap-s2'nin TÜM ataması bitti** — 36, 33, 12, 24, 35, 23, 15, 14 (48/48, 25/25, 65/65, 64/66, 9/11, 45/45, 70/70, **45/47**). Dosya 23 (RET) sıfır kusurla bitti — tek dikkat çeken bulgu (`MT-RET-040`) bir güvenlik açığının ZATEN kapanmış olduğunu doğruladı. Dosya 15 (WF) sıfır kusurla bitti (70/70) — `MT-WF-100` aynı "boşluk zaten kapanmış" desenini doğruladı. Dosya 14 (SKILL) 45/47 ile kapandı — **yeni kusur `HATA-S2-003`**: başarılı script çalıştırmalarında bile `execute_skill_script` span'i `exit_code`/`duration_ms` taşımıyor ve ebeveyn span yanlışlıkla "Error" gösteriyor (yalnız gözlemlenebilirlik, işlevsel etki yok, `SandboxedSkillScriptRunner.cs:355-359`); MT-SKILL-063 (kiracı eşzamanlılık sınırı) kısmen doğrulandı — mekanizma kaynaktan (`SkillScriptConcurrencyLimiter.cs`) kanıtlandı ama canlı zamanlama sıralı tarayıcı otomasyonuyla ölçülemedi; MT-SKILL-041 önemli bir önerme tersine çevirmesi buldu — script yorumlayıcıları artık YALNIZ kodda ayarlanabiliyor, config'ten bağlanmıyor (bilinçli güvenlik sıkılaştırması). Önemli bir yöntem dersi (dosya 23'ten): `QuotaEnforcer`'ın `_firedThresholds` süreç-içi önbelleği SQL ile temizlenmiyor, uygulama YENİDEN BAŞLATILMALI (kapanışta `docs/hafiza/`'ya taşınmalı). Kod tamamen donuk bırakıldı, `Tracon.Core.UnitTests` tam takım yeşil (2805/2805), commit `87495aff` (`test/kosum-s2` dalında). Kapanış (§6-§9, kusur giderme dahil) ayrı çok-şeritli bir faz — bu şeridin koşum sorumluluğu bitti. |
-| `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | 🎉 **SEKİZ AİLENİN SEKİZİ DE KAPANDI — ap-s3'ün TÜM ataması bitti** — 372/372 case işlendi (348 Geçti · 10 Kaldı — `HATA-S3-001..008`, ikisi `HATA-S1-020` ile aynı kök nedeni paylaşıyor · 10 Beklemede (fiziksel/ortam kısıtı) · 4 Atlandı). Uygulama normal duruma (PostgreSQL+OpenAI açık, tenancy kapalı) döndürüldü, commit `a558d268` |
+| `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | 🎉 **ALTI AİLENİN ALTISI DA KAPANDI** (aynı oturum zincirinde arka arkaya): 13 (142/142), 19 (66 Geçti·3 Kaldı·23 Beklemede·1 Atlandı), 04 (44 Geçti·1 Beklemede, 45/45), 18 (48 Geçti·9 Beklemede·1 Kaldı, 58/58), 10 (54 Geçti·2 Kaldı·2 Atlandı, 58/58, `HATA-S1-027/028`), 08 (50/50). **Bu şeridin Faz B işi bitti** — sıradaki aile yok. Uygulama durduruldu, commit `07a49d2e` |
+| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉🎉 **SEKİZ AİLE KAPANDI — ap-s2'nin TÜM ataması bitti** — 36, 33, 12, 24, 35, 23, 15, 14 (48/48, 25/25, 65/65, 64/66, 9/11, 45/45, 70/70, **45/47**). Dosya 23 (RET) sıfır kusurla bitti — tek dikkat çeken bulgu (`MT-RET-040`) bir güvenlik açığının ZATEN kapanmış olduğunu doğruladı. Dosya 15 (WF) sıfır kusurla bitti (70/70) — `MT-WF-100` aynı "boşluk zaten kapanmış" desenini doğruladı. Dosya 14 (SKILL) 45/47 ile kapandı — **yeni kusur `HATA-S2-003`**: başarılı script çalıştırmalarında bile `execute_skill_script` span'i `exit_code`/`duration_ms` taşımıyor ve ebeveyn span yanlışlıkla "Error" gösteriyor (yalnız gözlemlenebilirlik, işlevsel etki yok, `SandboxedSkillScriptRunner.cs:355-359`); MT-SKILL-063 (kiracı eşzamanlılık sınırı) kısmen doğrulandı — mekanizma kaynaktan (`SkillScriptConcurrencyLimiter.cs`) kanıtlandı ama canlı zamanlama sıralı tarayıcı otomasyonuyla ölçülemedi; MT-SKILL-041 önemli bir önerme tersine çevirmesi buldu — script yorumlayıcıları artık YALNIZ kodda ayarlanabiliyor, config'ten bağlanmıyor (bilinçli güvenlik sıkılaştırması). Önemli bir yöntem dersi (dosya 23'ten): `QuotaEnforcer`'ın `_firedThresholds` süreç-içi önbelleği SQL ile temizlenmiyor, uygulama YENİDEN BAŞLATILMALI (kapanışta `docs/hafiza/`'ya taşınmalı). Kod tamamen donuk bırakıldı, `Tracon.Core.UnitTests` tam takım yeşil (2805/2805), commit `c7e2f49e` (`test/kosum-s2` dalında). Kapanış (§6-§9, kusur giderme dahil) ayrı çok-şeritli bir faz — bu şeridin koşum sorumluluğu bitti. |
+| `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | 🎉 **SEKİZ AİLENİN SEKİZİ DE KAPANDI — ap-s3'ün TÜM ataması bitti** — 372/372 case işlendi (348 Geçti · 10 Kaldı — `HATA-S3-001..008`, ikisi `HATA-S1-020` ile aynı kök nedeni paylaşıyor · 10 Beklemede (fiziksel/ortam kısıtı) · 4 Atlandı). Uygulama normal duruma (PostgreSQL+OpenAI açık, tenancy kapalı) döndürüldü, commit `5f5d6bd9` |
 | `ap-s4` | 5084 | `mt_s4` | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅✅ **TÜM 9 AİLE KAPANDI — şeridin ataması BİTTİ** (35/35, 98/98 — 1 Kaldı → `HATA-S4-002`, 27/27 — 25 Geçti/2 fiziksel, 56/56 — 53 Geçti/1 Kaldı → `HATA-S4-003`/2 fiziksel, 57/57 — 56 Geçti/1 fiziksel, 17/17, 16/16, 10/10, 39/39 — 27 Geçti/3 Kaldı/9 Atlandı). Aile 06 (SON aile) **İKİ yeni kusur** buldu: `HATA-S4-004` (**Kritik** — `CompiledAgentCache.Evict` hiçbir yerden çağrılmıyor; silinip aynı adla yeniden oluşturulan bir agent, versiyon sayacı 1'e sıfırlandığı için ESKİ silinmiş tanımla çalışmaya devam ediyor — `GET /api/agents/{name}` doğru görünür ama ÇALIŞTIRMA yanlış), `HATA-S4-005` (Orta — `ProviderFailureNormalizer`, Anthropic/Google fabrikalarının kendi el ile attığı `TraconException` doğrulama hatalarını (düşünme bütçesi/güvenlik eşiği) yabancı SDK hatasıyla aynı şekilde maskeliyor, özgül mesaj `/api/agents/validate`'te kayboluyor). Azure (9 case) kimlik yokluğundan `⏭ Atlandı`. Ana uygulama port 5084'te temel durumuna döndürülüp açık bırakıldı; `samples/Tracon.Api/Program.cs`/`appsettings.json` `git status --short` temiz. **Sıradaki:** bu şeridin ataması yok — tur kapanışı (Aşama 2: `HATA-S4-002..005`'in `KARARLAR.md`'ye işlenmesi, `docs/hafiza/`'ya tuzak notları, dört doğrulama kapısı, anahtar rotasyonu) bekleniyor |
 
 `ap-s2`/`ap-s3`/`ap-s4` oturum 13'te `main`'e fast-forward edildi (Faz A
@@ -399,7 +399,7 @@ Tazeleme turu üç Faz 162 kalıntısı kapattı. Bunları tekrar aramana gerek 
 3. **Faz 172 hiç case almamıştı.** İki yönlü tazelik kapısı için MT-DDG-033..035
    yazıldı.
 
-Ölçümün kendisi: `python3 scripts/manuel-test-tazelik.py --taban 12fb6477`.
+Ölçümün kendisi: `python3 scripts/manuel-test-tazelik.py --taban fb375724`.
 
 ---
 

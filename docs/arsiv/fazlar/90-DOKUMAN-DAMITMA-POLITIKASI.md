@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show aa30766:docs/arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md
+> git show 1e6a2ba:docs/arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -154,7 +154,7 @@ eksenleri, işaret kümeleri, alt komut adları.
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (taze bağlam) `480a335..HEAD` aralığını denetledi. Fazın
+Bağımsız denetçi (taze bağlam) `c9c8b85..HEAD` aralığını denetledi. Fazın
 merkezî iddiası **doğrulandı**: 90/90 kayıtta `git show` çözüldü ve tam metin
 döndü, `Plandan Sapmalar`/`Devir Notu`/`Kararlar`/`Denetim Bulguları` 90/90
 bire bir korundu, üç yeni kapı mock'suz kırıldı ve gerçekten kırmızı oldu.
@@ -211,7 +211,7 @@ bire bir korundu, üç yeni kapı mock'suz kırıldı ve gerçekten kırmızı o
   `(Password|pwd)=[^ \";']{6,}`; `.github/workflows/ci.yml:58` ve
   `.agents/skills/faz-tamamlama/SKILL.md:73` deseni **anlatırken** birebir
   içeriyor ve `--exclude-dir` listesi bu iki yolu kapsamıyor. İkisi de
-  `480a335`'de aynen vardı, yani adım CI'da ilk koştuğunda **kırmızı olur**.
+  `c9c8b85`'de aynen vardı, yani adım CI'da ilk koştuğunda **kırmızı olur**.
   Düzeltme ucuz: desen anlatılırken değer bölünür (`Pass` + `word=`) ya da
   `--exclude-dir=.github --exclude-dir=.agents` eklenir. Bir sonraki faz bunu
   ilk iş kapatmalı.

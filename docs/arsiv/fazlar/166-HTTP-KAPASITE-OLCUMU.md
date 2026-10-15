@@ -25,7 +25,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 0bfce6bd:docs/arsiv/fazlar/166-HTTP-KAPASITE-OLCUMU.md
+> git show 46ffbaf5:docs/arsiv/fazlar/166-HTTP-KAPASITE-OLCUMU.md
 > ```
 >
 > Damıtıldı 2026-09-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Belirli donanım, configuration ve veri hacminde gerçek paket tüketicisinin HT
 
 Ölçüm koşumları: `sweep` (72 hücre) · `arrival` (12) · `workers` (9) · `soak` (1)
 — **94 hücrenin 94'ü `complete`, 0 `incomplete`, 0 `invalid`**. Dördü de
-`0.0.0-capacity166.729c368` sürümünü, temiz ağaçtan paketlenmiş `729c3689`
+`0.0.0-capacity166.d3696d9` sürümünü, temiz ağaçtan paketlenmiş `d3696d94`
 commit'ini ölçtü. Kayıtlar: [`bench/capacity/measurements/`](../../../bench/capacity/measurements).
 
 - [x] `kapasite` komutu exact sürüm/izole cache ile repo dışında host/driver kurar; gerçek TCP ve SQL yolu kanıtlıdır. — `CapacityPackageIsolationTests` (5 test) `project.assets.json`'ı okur: her Tracon kütüphanesi `package` tipinde ve tam o sürümde, restore izole `NUGET_PACKAGES`'i kullanmış, hiçbiri `project` değil.
@@ -229,7 +229,7 @@ bekletilirdi.
 
 | # | Seviye | Bulgu | Kapanış |
 |---|---|---|---|
-| 1 | 🔴 | Yayımlanan sayıların yarısı sayfanın yazdığı commit'te ölçülmedi: `workers`/`soak` `eef7f9d2`'yı, `sweep`/`arrival` `729c3689`'i ölçtü | **Düzeltildi.** Ölçüldü: `git diff 729c3689..eef7f9d2 -- src/` **boş** — sevk edilen kaynak iki commit arasında bayt bayt aynı, yalnız aparat değişti. Sayfa ve `measurements/README.md` artık hangi koşumun hangi commit'i ölçtüğünü ayrı ayrı yazıyor ve kaynak özdeşliğini doğrulanabilir komutla veriyor |
+| 1 | 🔴 | Yayımlanan sayıların yarısı sayfanın yazdığı commit'te ölçülmedi: `workers`/`soak` `af66b869`'yı, `sweep`/`arrival` `d3696d94`'i ölçtü | **Düzeltildi.** Ölçüldü: `git diff d3696d94..af66b869 -- src/` **boş** — sevk edilen kaynak iki commit arasında bayt bayt aynı, yalnız aparat değişti. Sayfa ve `measurements/README.md` artık hangi koşumun hangi commit'i ölçtüğünü ayrı ayrı yazıyor ve kaynak özdeşliğini doğrulanabilir komutla veriyor |
 | 2 | 🔴 | Yayımlanan p50/p95 birleştirilmiş örneklerin percentile'ı değil, **tekrarların percentile'larının ortalamasıydı** — kodun kendi dokümanının ve §166.5'in yasakladığı işlem; düşük örnek uyarısını da bastırıyordu | **Düzeltildi.** `ReportBuilder` artık her hücrenin `requests.jsonl`'ını geri okuyup örnekleri birleştiriyor ve percentile'ı **bir kez** hesaplıyor; `LatencyStatistics.Merge`'ün iddia ettiği davranış nihayet rapor yolunda. Ayrıca `ThinnestRepeat` eklendi: birleşik sayım tabanı geçse bile **en ince tekrar** geçmiyorsa satır `⚠repeat` alıyor. Üç yeni test, ikisi ters yönde |
 | 3 | 🔴 | Yayımlanan worker dağılımı (%34/33/19/15) hiçbir ölçülen hücreye karşılık gelmiyordu: tek tekrarın sayısı **ve** içinde transkripsiyon hatası (%17 → %19) | **Düzeltildi.** Üç tekrarın toplamı hesaplandı: **%33/31/19/17**. Throughput da kayıttan alındı (5,93 / 5,93 / 5,96) |
 | 4 | 🔴 | "Bytes per run" Buffered ve Queued için **tek bir temiz tekrardan** geliyordu ve ortalama gibi sunuluyordu; seed şekli de karışıktı | **Düzeltildi.** `SummaryRow.StorageRepeats` eklendi; rapor `(1 rpt)` diye işaretliyor, sayfa "1 clean repeat" yazıyor ve yalnız streaming'in üç temiz penceresi ortalama olarak sunuluyor |
@@ -274,6 +274,6 @@ bekletilirdi.
 - **`sweep` ~100 dakika, `soak` ~32 dakika, `workers` ~13 dakika sürüyor.**
   Tam set ~2,5 saat ve makineyi meşgul eder. Ölçüm sırasında build/test koşma:
   aynı makinede ölçüm yapan bir koşumu kirletirsin.
-- **Yayımlanan tablo `729c3689` + `eef7f9d2` çiftine bağlıdır.** Bir sonraki
+- **Yayımlanan tablo `d3696d94` + `af66b869` çiftine bağlıdır.** Bir sonraki
   sürüm bu sayıları devralamaz (K-775). Tabloyu güncellemenin yolu `kapasite`
   profillerini yeniden koşmaktır; sayıyı elle düzeltmek değil.

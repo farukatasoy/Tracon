@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show e16a283:docs/arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md
+> git show 8c80f21:docs/arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md
 > ```
 >
 > Damıtıldı 2026-08-24 · `scripts/dokuman-bakim.py faz-damit`

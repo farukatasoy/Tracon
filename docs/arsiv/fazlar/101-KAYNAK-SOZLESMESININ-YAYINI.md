@@ -35,7 +35,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 1e699ba:docs/arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md
+> git show 099ace3:docs/arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md
 > ```
 >
 > Damıtıldı 2026-08-25 · `scripts/dokuman-bakim.py faz-damit`
@@ -83,8 +83,8 @@
 ### Doğrulama komutları
 
 ```bash
-# Dört kapı — taban, bu fazın implementasyon commit'i (544317a)
-python3 scripts/kapi.py kapanis --taban 544317a
+# Dört kapı — taban, bu fazın implementasyon commit'i (ee66811)
+python3 scripts/kapi.py kapanis --taban ee66811
 
 # Yanlış sevk edilen metin gerçekten gitti
 grep -rn "MAF hosting source\|from onwards" src/ docs-site/src/content/docs/api/ || echo "temiz"
@@ -122,7 +122,7 @@ $B --filter-method "*ContractCoverage*"
 
 ## Plandan Sapmalar
 
-**101 iki oturumda kapandı.** İlk oturum (`544317a`, "feat: publish agent
+**101 iki oturumda kapandı.** İlk oturum (`ee66811`, "feat: publish agent
 source contract") kodun ilk sürümünü yazdı ama hiçbir kapanış kapısını
 koşmadı — `PublicSurfaceBaselineTests`, `CapabilityExampleTests` ve
 `OpenApiSnapshotTests` bayattı, kanıt katmanı (test) neredeyse yoktu. Bu ikinci
@@ -191,7 +191,7 @@ yukarıda ve `AgentCompilationDependencies.cs`'in kendi XML'inde duruyor.
 
 ## Denetim Bulguları
 
-`faz-denetim` skill'i taze bağlamlı bir agent olarak koştu (`544317a`
+`faz-denetim` skill'i taze bağlamlı bir agent olarak koştu (`ee66811`
 tabanına karşı çalışma ağacı diff'i). **🔴 yok.** Dört 🟡 bulgunun hepsi bu
 oturumda kapandı:
 
@@ -242,7 +242,7 @@ iki kural tetikledi, ikisi de bu ikinci oturumdan önce zaten karşılanmıştı
 
 - **`buildtransitive → capabilities.md`**: `AgentMap.md` bu oturumda
   yeniden üretildiği (`build-agent-map.mjs`) için değişti, ama `capabilities.md`
-  "Custom agent source" satırını **ilk** oturumda (`544317a`) zaten almıştı —
+  "Custom agent source" satırını **ilk** oturumda (`ee66811`) zaten almıştı —
   üç `AddAgentSource` aşırı yüklemesi, salt-okunur davranış hepsi orada.
   İkinci oturum yeni bir yetenek eklemedi, yalnız XML metnini düzeltti.
 - **`cekirdek-kavram → concepts/`**: `TraconException.cs`'in tek

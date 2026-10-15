@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show e3a0f88b:docs/arsiv/fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md
+> git show 97440259:docs/arsiv/fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md
 > ```
 >
 > Damıtıldı 2026-10-12 · `scripts/dokuman-bakim.py faz-damit`
@@ -45,7 +45,7 @@ Bir agent run'ı bugün yalnız senkron `/run` yolunda parametre değeri taşır
 - [x] Retention `AwaitingInput` run'ın girdisini tutar (test 11) — ✅ `RetentionDataPlaneTests` (PostgreSQL) · `RetentionMaxRowsDataPlaneTests` (SQLite) · `RunInputRetentionTests` (SQL Server); mutasyon denetimi kırıyor
 - [x] Değer log'da, span'de ve `run_events`'te düz görünmez (test 31) — ✅ `ParameterValueLeakTests`
 - [x] Derleme maliyeti ölçüldü ve Açık Soru 7 karara bağlandı — ✅ 0,064 ms/çağrı (katalog önbellek isabeti 0,077 ms); Açık Soru 7 → B, K-897
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — ✅ `python3 scripts/kapi.py kapanis --taban 2b58f75a` — sonucu aşağıdaki "Kapanış kapıları" bölümünde
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — ✅ `python3 scripts/kapi.py kapanis --taban 6ee25bda` — sonucu aşağıdaki "Kapanış kapıları" bölümünde
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (parametreli workflow + kuyruklu agent), çıktı belgeye yazıldı — ✅ bkz. *Örnek Uygulama Koşumu*
 - [x] `secret` taraması boş döndü — ✅ `kapanis` ilk komutu `kapi.py tarama` (kapanış koşumunda boş döndü)
 - [x] Manuel kabul case'leri üç alan dosyasına eklendi; otomatikleştirilebilenler koşuldu — ✅ 10 case: `MT-WF-127…131`, `MT-JOB-136…139`, `MT-CORE-141…142`; `136`, `137` örnek uygulamada koşuldu
@@ -147,7 +147,7 @@ gerektirir. Kanıtı `InboundTriggerDispatcherTests` (dispatcher + handler çift
 
 ## Kapanış Kapıları
 
-`python3 scripts/kapi.py kapanis --taban 2b58f75a` (denetim düzeltmelerinden **sonra**): **10/10 adım yeşil**,
+`python3 scripts/kapi.py kapanis --taban 6ee25bda` (denetim düzeltmelerinden **sonra**): **10/10 adım yeşil**,
 çıkış 0. İlk koşum `SourceLanguageTests`'te düştü (yeni test girdimdeki `ü`); girdi değişti,
 baz çizgisi büyütülmedi, kapı baştan koşuldu.
 
@@ -170,7 +170,7 @@ sample testi, Native AOT smoke ve net8.0 tüketici smoke geçti. Hiçbir sample 
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | 0 — plan tek commit'te kaldı (`2b58f75a`); sapmalar "Plandan Sapmalar"da |
+| Plan revizyonu sayısı | 0 — plan tek commit'te kaldı (`6ee25bda`); sapmalar "Plandan Sapmalar"da |
 | Düzeltme turu sayısı | 6 — mimari ve ratchet kapıları (2: servis kaydı/yüzey/SQL metni; kaynak dili/sevk edilen doküman) · migration bütünlük manifesti (1) · site kapıları: ekran görüntüsü damgası, anasayfa pin'leri, agent map (1) · bağımsız denetim sonrası (1) · kapanış koşumunda kaynak dili: denetim testimdeki `ü` (1) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
 | Fazın ürettiği regresyon | 2 — `🔴1` (webhook gövdesi yapılı batch öğesi sayılıyordu, bu fazın ayrıştırıcısı getirdi) ve `🟡4` (parametreli workflow'un boş mesajlı satırı judge'ı kör puanlamaya açtı). İkisini de bağımsız denetim yakaladı, kapanıştan önce düzeltildi |
@@ -178,7 +178,7 @@ sample testi, Native AOT smoke ve net8.0 tüketici smoke geçti. Hiçbir sample 
 
 ## Denetim Bulguları
 
-Denetçi: `faz-denetcisi` (taze bağlam, salt-okunur), aralık `2b58f75a..e9c2f3b4`. Triyaj
+Denetçi: `faz-denetcisi` (taze bağlam, salt-okunur), aralık `6ee25bda..78dd7ad5`. Triyaj
 `faz-tamamlama` Adım 5.1: her bulgunun kanıtı kodda **elle** doğrulandı.
 
 | # | Seviye | Bulgu | Triyaj | Sonuç |

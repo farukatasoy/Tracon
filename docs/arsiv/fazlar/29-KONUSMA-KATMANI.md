@@ -17,7 +17,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 480a335:docs/arsiv/fazlar/29-KONUSMA-KATMANI.md
+> git show c9c8b85:docs/arsiv/fazlar/29-KONUSMA-KATMANI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

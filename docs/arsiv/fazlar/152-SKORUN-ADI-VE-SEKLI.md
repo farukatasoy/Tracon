@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 57c7e8c8:docs/arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md
+> git show 36634921:docs/arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md
 > ```
 >
 > Damıtıldı 2026-09-07 · `scripts/dokuman-bakim.py faz-damit`
@@ -43,7 +43,7 @@
 | 7 | K-638 korunur: bir judge birden çok ad yazsa da retry'da yeniden çağrılmaz | ✅ | `OnlineEvalRetryTests.A_judge_holding_two_named_scores_is_still_skipped_on_retry` — `goodJudge.CallCount == 1`, üç skor satırı |
 | 8 | `EvalCaseResult.Scores` değer ve `rating` taşır; `metadata` taşımaz | ✅ | `SerializeScoresTests` (8 case) · canlı eval koşumu: `{"name":"non_empty","kind":"boolean","value":true,"passed":true,"rating":"Good","reason":"Response length 32 meets minimum 1"}` — `metadata` yok |
 | 9 | AOT kapısı geçer — `SerializeScores` `reflection` kullanmaz | ✅ | Desen eşlemesi (`is BooleanMetric` / `is NumericMetric` / `is StringMetric`), `Utf8JsonWriter` elle; `kapi.py kapanis` içindeki tam test koşumu yeşil |
-| 10 | Dört doğrulama kapısı sıfır uyarı verir | ✅ | `python3 scripts/kapi.py kapanis --taban 3f925c89` — bkz. **Kapı koşumu** |
+| 10 | Dört doğrulama kapısı sıfır uyarı verir | ✅ | `python3 scripts/kapi.py kapanis --taban b360d459` — bkz. **Kapı koşumu** |
 | 11 | `samples/Tracon.Api` ile gerçek `run` + skor yazımı yapıldı | ✅ | Aşağıdaki **Canlı koşum çıktısı** |
 | 12 | `secret` taraması boş döndü | ✅ | `kapi.py tarama` |
 | 13 | Manuel kabul case'leri sete eklendi; otomatikleştirilebilenler koşuldu | ✅ | `docs/manuel-test/17-EVAL-VE-DENEYLER.md` **EVAL-112 … EVAL-119**; 112–116 ve 118 canlı koşuldu, 117 ve 119 `👤 insan gerekir` |
@@ -246,7 +246,7 @@ atar — dört uygulamada da (bellek içi, üç SQL, ve `samples/…FileRunStore
 - 🚨 **Yeni migration'ı `scripts/applied-migrations.json`'a PİNLEMEYİ unutma.**
   `kapi.py tarama` yeni bir migration dosyasını manifest'te bulamazsa kırmızı
   olur; akış: önce özellik commit'i, sonra o commit'in sha'sıyla manifest
-  commit'i (emsal: `b73aaad5`).
+  commit'i (emsal: `30f2b533`).
 - **`SqlDialect.AddDouble` ve `DbHelpers.GetNullableDouble` eklendi.** Nullable
   bir `double` bağlarken/okurken bunları kullan; `AddDecimal` para içindir
   (SQL Server `Precision`/`Scale` ister).

@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 5199124:docs/arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md
+> git show 7fe14e6:docs/arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md
 > ```
 >
 > Damıtıldı 2026-08-25 · `scripts/dokuman-bakim.py faz-damit`
@@ -110,7 +110,7 @@ açık fabrika. Bu, `docs/hafiza/aspnetcore-di.md`'deki kayıtlı tuzağın ayn�
 **5. Faz dışı iki düzeltme yapıldı.**
 [`ModelRunJudgeTests.cs`](103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md)
 `using System.Reflection;`'ı son sıraya koyuyordu ve `dotnet format` kapısı
-**Faz 103'ün commit'inden (`96dd54f`) beri kırmızıydı**. Tek satırlık import
+**Faz 103'ün commit'inden (`fc96eff`) beri kırmızıydı**. Tek satırlık import
 sırası düzeltildi. İkincisi: `MetaEndpoints`'ten `Unwrap` kaldırılınca öksüz
 kalan XML yorumu silindi.
 

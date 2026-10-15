@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 2adb624:docs/arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md
+> git show 8fc8a75:docs/arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md
 > ```
 >
 > Damıtıldı 2026-08-27 · `scripts/dokuman-bakim.py faz-damit`
@@ -43,7 +43,7 @@ Bir `OnlineEval` işi yeniden denendiğinde **başarılı yargıçlar da yeniden
 - [x] `judge:` öneki **tek bir sabitten** üretiliyor — `OnlineEvalJobHandler.JudgeAuthorPrefix`
 - [x] Yeni tablo **yok**, migration **yok** (`ls src/Tracon.*/Migrations/` değişmedi) — doğrulandı
 - [x] `PublicAPI.*.txt` dosyaları **değişmedi** — `git diff --stat` boş döndü
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 83a234c` yeşil (588 test + tam matris + format + pack, docs-site `check:content` düzeltmesiyle birlikte)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 3df33bc` yeşil (588 test + tam matris + format + pack, docs-site `check:content` düzeltmesiyle birlikte)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — gerçek PostgreSQL + gerçek model + gerçek `ModelRunJudge`: run `01a041c8-…`, `/judge` skor `12`→`20` (ikinci çağrı gerçekten yeniden koştu). Otomatik retry-skip bu ortamda `OnlineEvaluation` kapalı olduğu için canlı tetiklenmedi; `OnlineEvalRetryTests` gerçek `IJobStore`+DI ile kanıtladı.
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içine eklendi; otomatikleştirilebilenler koşuldu — EVAL-105..111; EVAL-107/108'in otomatik karşılığı yukarıdaki test dosyalarında zaten yeşil
@@ -80,7 +80,7 @@ git diff --stat src/*/PublicAPI.Unshipped.txt
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (taze bağlam, `git diff 83a234c` + bizzat koşulan testler) 🔴/🟡 bulgu üretmedi. On maddelik kontrol listesinin tamamı (Attempt→skip bağlantısı, manuel uç etkilenmemesi, `judge:` sabiti tekliği ve `:` içeren isim ayrıştırması, `OperationCanceledException` yutulmaması, okuma hatasında atlama kapanması, skip dalının `Scores`'a eklenip metrik/summary'e tekrar sayılmaması, testlerin gerçek olması, dört-store sözleşme testi, XML/site metin tutarlılığı, DoD) kod okuması ve/veya bizzat koşulan testlerle doğrulandı.
+Bağımsız denetçi (taze bağlam, `git diff 3df33bc` + bizzat koşulan testler) 🔴/🟡 bulgu üretmedi. On maddelik kontrol listesinin tamamı (Attempt→skip bağlantısı, manuel uç etkilenmemesi, `judge:` sabiti tekliği ve `:` içeren isim ayrıştırması, `OperationCanceledException` yutulmaması, okuma hatasında atlama kapanması, skip dalının `Scores`'a eklenip metrik/summary'e tekrar sayılmaması, testlerin gerçek olması, dört-store sözleşme testi, XML/site metin tutarlılığı, DoD) kod okuması ve/veya bizzat koşulan testlerle doğrulandı.
 
 Üç 🟢 gözlem, ikisi kapanışta doğrudan düzeltildi:
 

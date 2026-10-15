@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show edb695e8:docs/arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md
+> git show 0d4c58e1:docs/arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md
 > ```
 >
 > Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -65,7 +65,7 @@ Bir workflow insan cevabı beklediğinde, bugün aynı isteğe gelen her cevap y
 > Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
 > oturumun en değerli bilgisidir. §208.7'nin beş ölçümü buraya yazılır.
 
-### §208.7 ölçümleri (2026-10-14, worktree `faz-208`, taban `d5d98bff`)
+### §208.7 ölçümleri (2026-10-14, worktree `faz-208`, taban `05247d45`)
 
 Hiçbir ölçüm onaylı bir öneriyi düşürmedi.
 
@@ -95,7 +95,7 @@ Uygulama günlüğünde hata yoktu.
 
 **İkinci koşum (önce satır, 2026-10-14):** aynı sonuçlar; her denetim kaydı var olan bir run'ı adlandırdı; kaybedenler `Canceled` + `request_already_answered`, sıfır olay. `Tracon:Demo:Attribution:Mode = throw` (`MT-WF-162`): ilk cevap `200` ve kullanıcısız `Completed`, tekrar `done`, zıt `409`, kuyruklu `202` → `Completed`; istek kilitlenmedi.
 
-**Üçüncü koşum (`596e6ddf`):** normal ve `throw` modu aynı. **Çökme penceresi gerçek uygulamada (`MT-WF-164`):** işçi kapalı iki kuyruklu cevap; uygulama durduruldu, SQLite'ta iki işin satırı silindi (run `Queued`, kayıt `Accepted`, iş yok); işçiyle yeniden açıldı. Kuyruklu tekrar `202` aynı run (`jobId` = run), akışlı tekrar `run`…`done`; iki run `Completed` (13 olay), run başına tek iş ve tek kayıt; günlükte iki kez `had a recorded answer but no job`.
+**Üçüncü koşum (`13bd069d`):** normal ve `throw` modu aynı. **Çökme penceresi gerçek uygulamada (`MT-WF-164`):** işçi kapalı iki kuyruklu cevap; uygulama durduruldu, SQLite'ta iki işin satırı silindi (run `Queued`, kayıt `Accepted`, iş yok); işçiyle yeniden açıldı. Kuyruklu tekrar `202` aynı run (`jobId` = run), akışlı tekrar `run`…`done`; iki run `Completed` (13 olay), run başına tek iş ve tek kayıt; günlükte iki kez `had a recorded answer but no job`.
 
 ### Bakımcı kararları — 2026-10-14 (bağımsız denetimden sonra)
 
@@ -138,8 +138,8 @@ Kapılar: `ShippedDocumentationSelfContainmentTests`, `CapabilityExampleTests`, 
 
 ### Kapanış kapısı (2026-10-14)
 
-- `kapi.py ic-dongu --taban 1c1d7c8e` ✅ (`596e6ddf`, 16 test projesi).
-- `kapi.py kapanis --taban 1c1d7c8e` (`d01e2fd8`): tarama, `--denetle`, betik testleri, agent haritası, denetim paketi, build (87,7 sn) ✅; tam test ❌ iki case, ikisi de fazdan bağımsız: (1) `TemplateInstantiationTests.Most_full_combination_compiles_with_zero_warnings` izole de düşer — `NU1902`/`NU1903`, `Microsoft.Data.SqlClient` 7.0.2 → `System.Security.Cryptography.Pkcs` 9.0.13 (yeni GitHub uyarısı) → **F-524**; (2) SQL Server `RetentionArchiveKeyTests(tool_invocations)` tam koşumda `Execution Timeout Expired`, sınıf tek başına ✅ 17/17 (`hafiza/test-paralellik-ve-zamanlama.md`). Kapı ilk kırmızıda durduğu için kalan adımlar elle koşuldu: `dotnet pack` ✅, `dotnet format --verify-no-changes` ✅, `kapi.py performans` ✅, `npm run check` ✅.
+- `kapi.py ic-dongu --taban 5a22758e` ✅ (`13bd069d`, 16 test projesi).
+- `kapi.py kapanis --taban 5a22758e` (`a1eaec27`): tarama, `--denetle`, betik testleri, agent haritası, denetim paketi, build (87,7 sn) ✅; tam test ❌ iki case, ikisi de fazdan bağımsız: (1) `TemplateInstantiationTests.Most_full_combination_compiles_with_zero_warnings` izole de düşer — `NU1902`/`NU1903`, `Microsoft.Data.SqlClient` 7.0.2 → `System.Security.Cryptography.Pkcs` 9.0.13 (yeni GitHub uyarısı) → **F-524**; (2) SQL Server `RetentionArchiveKeyTests(tool_invocations)` tam koşumda `Execution Timeout Expired`, sınıf tek başına ✅ 17/17 (`hafiza/test-paralellik-ve-zamanlama.md`). Kapı ilk kırmızıda durduğu için kalan adımlar elle koşuldu: `dotnet pack` ✅, `dotnet format --verify-no-changes` ✅, `kapi.py performans` ✅, `npm run check` ✅.
 - Yayın provası `kapi.py yayin --kuru --surum 1.0.0-preview.4`: 20 paket ✅, kırıcı liste ✅ (5 tip, hepsi `Unreleased`'de), `npm publish --dry-run` ✅; `Tracon.Samples.FileRunStore` 128/129 ❌ = **F-502** (Faz 205'ten beri açık). Prova orada durur; kalan örnekler ve AOT smoke ölçülmedi. Hiçbir örnek `IJobStore` ya da `IWorkflowResponseStore` uygulamaz, bu yüzden fazın iki sözleşme genişlemesi örneklere dokunmaz.
 
 ### Uygulama sapmaları
@@ -152,7 +152,7 @@ Kapılar: `ShippedDocumentationSelfContainmentTests`, `CapabilityExampleTests`, 
 - **Fail-closed çağrı yeri `Internal/WorkflowResponseGate.cs`** (plan `WorkflowEndpoints.cs` diyordu): 7 işlem / 10 çağrı yeri.
 - **Eşzamanlı iki cevap iki denetim + iki run satırı bırakabilir**; ikisi de var olan run'ı adlandırır.
 - **`WorkflowContinuationChain`** `WorkflowRecovery`'den ortak yardımcıya çıktı. `RunAuthorizationCoverageTests` kaynak kapısı 2 → 3.
-- **🚨 Migration:** PostgreSQL `0060`, SQL Server `0048`, SQLite `0047` (K-178); `applied-migrations.json` ankrajı `7935fdbf`, yorum düzeltmesiyle `cdf42b71`. Kardeş worktree aynı numarayı alırsa birleştirmede yeniden numaralanır.
+- **🚨 Migration:** PostgreSQL `0060`, SQL Server `0048`, SQLite `0047` (K-178); `applied-migrations.json` ankrajı `1c432f64`, yorum düzeltmesiyle `31daf104`. Kardeş worktree aynı numarayı alırsa birleştirmede yeniden numaralanır.
 - **Site:** kurallar yeni `concepts/workflow-answers.md`'ye taşındı — `workflows.md` 60 221 B gzip ile tavanı (59 000) aştı, tavan yükseltilmedi (58 470 B). İşlem sayısı 174 → 175 (README ×5, site ×5); ekran görüntüleri yeniden üretildi, anasayfa kırpımları aynı.
 - **İkinci tur K-998 planda yoktu:** `JobStoreContract` yeni case — sevk edilen sözleşme genişledi, yayın provası *Kapanış kapısı*nda.
 - **Konsol:** editör anahtarı her `Kind`'da; geri bağ `runDetail.answersRequestOf` (`locales/*/runs.ts`).

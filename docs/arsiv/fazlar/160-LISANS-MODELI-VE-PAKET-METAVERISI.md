@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 68eb4db6:docs/arsiv/fazlar/160-LISANS-MODELI-VE-PAKET-METAVERISI.md
+> git show b0fb4471:docs/arsiv/fazlar/160-LISANS-MODELI-VE-PAKET-METAVERISI.md
 > ```
 >
 > Damıtıldı 2026-09-08 · `scripts/dokuman-bakim.py faz-damit`
@@ -34,12 +34,12 @@ Tracon bugün MIT lisanslıdır ve hiç yayınlanmamıştır. MIT, üçüncü ta
 
 - [x] **`ReleaseArtifactTests` 51/51 yeşil** — `EveryPackageCarriesMetadata` 20 paketin her biri için lisans dosyasını, `.nuspec` `type="file"` değerini ve `requireLicenseAcceptance`'ı doğrular. Fixture paketleri taze üretir
 - [x] **`unzip -l` ile ölçüldü (`1.0.0-preview.1`, 20 paket):** 3 MIT paketi `LICENSE-MIT.md` + `acc=0`, 17 paket `LICENSE.md` + `acc=1`. Her pakette beyan edilen dosya ile içerideki dosya aynı; hiçbiri ikisini birden taşımıyor
-- [x] **`python3 scripts/kapi.py yayin --kuru` çıkış kodu 0** (commit `d25b0bdf`, temiz ağaç, sürüm `0.0.0-preview.0.669`): 20 paket · `npm publish --dry-run` · **6 exact-version packed sample izole `NUGET_PACKAGES` ile koştu** · Native AOT smoke publish. Ağa hiçbir şey yazılmadı
+- [x] **`python3 scripts/kapi.py yayin --kuru` çıkış kodu 0** (commit `189a185c`, temiz ağaç, sürüm `0.0.0-preview.0.669`): 20 paket · `npm publish --dry-run` · **6 exact-version packed sample izole `NUGET_PACKAGES` ile koştu** · Native AOT smoke publish. Ağa hiçbir şey yazılmadı
 - [x] `COMMERCIAL.md` silindi; `README.md`, `src/Directory.Build.props` ve `scripts/kapi.py` içinde MIT yalnız üçlüye ait satırlarda geçiyor. Ayrıca **8 paket README'sindeki** `License: MIT` çelişkisi giderildi (planda yoktu)
 - [x] `Company` = `Atanova`; `Copyright` = `Copyright (c) Faruk Atasoy` değişmedi
 - [x] `PackageLicenseTests` 6/6 yeşil: bağımlılık yönü · 20 projenin tamamı tabloda · props ↔ `kapi.py` matris uyumu · npm kopyasının birebirliği · kanonik PolyForm gövdesi. **red→green doğrulandı** (kapıda tek bir paket kaydırıldı, `The_build_matrix_and_the_release_gate_agree_on_which_packages_are_MIT` düştü)
 - [x] İzole `NUGET_PACKAGES` + exact sürümle 6 örnek tüketici `restore` + `build` + test koştu (`yayin --kuru` içinden)
-- [x] **Dört doğrulama kapısı sıfır uyarı** (`kapanis --taban ba8c5ce0`, EXIT=0; `dotnet test Tracon.slnx` ✅ 654.58 s)
+- [x] **Dört doğrulama kapısı sıfır uyarı** (`kapanis --taban d7ceff9e`, EXIT=0; `dotnet test Tracon.slnx` ✅ 654.58 s)
 - [x] `samples/Tracon.Api` ayağa kalktı ve hizmet verdi — **model çağıran bir `run` YAPILMADI**, çünkü bu faz çalışma anına hiç dokunmuyor ve gerçek bir `run` için sağlayıcı `secret`'ı gerekir. Ölçülen: 36 migration uygulandı · `Now listening on: http://localhost:5080` · `GET /tracon` → `200` (konsol HTML'i) · `/api/agents`, `/api/diagnostics`, `/api/models/health` → `401` (yetkilendirme katmanı çalışıyor). Daha güçlü kanıt `yayin --kuru` içindedir: **6 packed sample izole feed'den `restore` + `build` + test koştu**
 - [x] `secret` taraması boş döndü (`kapanis` içindeki `tarama` aşaması ✅)
 - [x] `MT-PKG-118..121` eklendi (`01-KURULUM-VE-PAKETLEME.md`, sayım 76 → 80); `MT-PKG-023`'ün eski MIT beklentisi düzeltildi. `MT-PKG-121` 👤 işaretli

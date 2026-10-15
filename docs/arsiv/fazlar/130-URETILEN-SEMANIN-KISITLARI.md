@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 784463e:docs/arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md
+> git show b96bcdf:docs/arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`
@@ -118,7 +118,7 @@ satırı ekli; SQL/Playwright baseline düzeltmelerinin GERÇEKTEN yalnız `lane
 sütunu ve tek bir riskli locator'la ilgili olduğu bağımsızca (satır satır
 `git diff` incelemesiyle) doğrulandı.
 
-Düzeltmelerden sonra dört kapı (`kapi.py kapanis --taban 6237fc8`) yeniden
+Düzeltmelerden sonra dört kapı (`kapi.py kapanis --taban fa09c67`) yeniden
 koşuldu — sıfır uyarı.
 
 ## Sonraki Faza Devir Notu

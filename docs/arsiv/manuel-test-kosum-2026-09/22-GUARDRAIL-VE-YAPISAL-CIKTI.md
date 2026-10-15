@@ -9,7 +9,7 @@
 |---|---|
 | **Şerit** | `ap-s4` (Faz B, dördüncü aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s4` · dal `test/kosum-s4` |
-| **Kod** | `a51a8496` donuk (`git diff --stat a51a8496..HEAD -- src samples tests` boş, oturum başında VE sonunda doğrulandı) |
+| **Kod** | `cfe5ebe8` donuk (`git diff --stat cfe5ebe8..HEAD -- src samples tests` boş, oturum başında VE sonunda doğrulandı) |
 | **Case sayısı** | 56 (MT-GUARD-001..106, numaralar bloklu) |
 | **Port** | 5084, şema `mt_s4` |
 | **Paket sürümü** | `0.0.0-preview.0.829`/`.830` (aile 16/30'dan devam) |
@@ -165,7 +165,7 @@ kontroller run satırı yazıldıktan SONRA, döngü içindeki korumalı bölged
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 2841b02a:docs/manuel-test/kosumlar/2026-09-16/22-GUARDRAIL-VE-YAPISAL-CIKTI.md
+> git show 34356bdd:docs/manuel-test/kosumlar/2026-09-16/22-GUARDRAIL-VE-YAPISAL-CIKTI.md
 > ```
 
 ---

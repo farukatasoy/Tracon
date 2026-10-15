@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 5c60e4df:docs/arsiv/fazlar/209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md
+> git show 5b09e270:docs/arsiv/fazlar/209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md
 > ```
 >
 > Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -64,7 +64,7 @@ curl -s "http://localhost:5081/tracon/api/workflows/requests?state=pending&take=
 > Plan ile gerçek arasındaki fark **gizlenmez** — sonraki oturumun en değerli bilgisidir.
 > §209.1'in ölçümü aşağıdadır.
 
-### §209.1 ölçümü (2026-10-14, taban `d118e7f5`)
+### §209.1 ölçümü (2026-10-14, taban `55ffa387`)
 
 Yöntem: 50 bekleyen workflow run'ı tohumlanır (run başına 10 / 100 / 1000 olay: `MessageDelta` yığını + bir `WorkflowRequest` + `RunAwaitingInput`). **A** her run'ın olaylarını okuyup istek olayını süzer (sayfa başına 50 okuma). **B** `workflow_requests` satırlarından bir sayfa (`take = 50`) okur. Her sağlayıcıda gerçek veritabanı. Ölçüm kodu atılmıştır (tek seferlik prob, depoda yoktur).
 
@@ -98,7 +98,7 @@ Süre taraması (`ExpireAsync`, 10 000 açık satır): vadesi gelen yokken ortan
 10. **Sayfa başına olay okuması N+1 kaldı** (sayfa en çok 200 öğe; F-534). `WorkflowDescriptor.RequestTimeout` planda yoktu, katalog süreyi de taşır.
 11. **Retention hedefi `workflow_requests`:** yalnız kapalı satır, `closed_at`'e göre, 30 gün; açık satır silinmez ve `MaxRows`'a sayılmaz (K-1004).
 12. **Örnek uygulamaya `summarize-and-approve-timed` eklendi** (2 dk sınır; manuel case 4 için). E2E sunucusunun `approval-flow` grafı 2 günlük süre aldı. Ekran görüntüleri (45) ve `.ui-source.sha256` yenilendi; `workflows.md` gzip tavana (59 000 B) 58 983 B ile yakın olduğundan anlatı `concepts/workflow-requests.md`'ye konuldu.
-13. **Migration numaraları:** PostgreSQL `0061`, SQL Server `0049`, SQLite `0048` (ankraj `e7fe72a0`). Örnek uygulamanın ilk koşusu yerel `agentprism` şemasına `0060` ve `0061`'i uyguladı; geri alma yok.
+13. **Migration numaraları:** PostgreSQL `0061`, SQL Server `0049`, SQLite `0048` (ankraj `bc5be676`). Örnek uygulamanın ilk koşusu yerel `agentprism` şemasına `0060` ve `0061`'i uyguladı; geri alma yok.
 
 ### Denetim sonrası eklenenler (2026-10-14)
 
@@ -109,7 +109,7 @@ Süre taraması (`ExpireAsync`, 10 000 açık satır): vadesi gelen yokken ortan
 
 ### Süre servisinin emsali — bulunan kusur (giderildi)
 
-Plan `ApprovalExpirationService`'i "birebir desen" olarak gösterdi. Desen okunurken şu kusur çıktı: süresi dolan onayın run'ı `CompleteRunAsync` ile kapatılırken run'ın **`EventCount`, `Usage`, `Cost` ve `NonTokenCost` değerleri sıfırlanıyordu** (`CompleteRunAsync` bu kolonları değiştirir, servis önce okumuyordu). Kapanan her süresi dolmuş onay, run'ın olay sayısını ve maliyetini siler; panolar ve stat'lar bunu gösterirdi. Önce kırmızı test (`ApprovalExpirationServiceTests`, 3 case) yazıldı, düştüğü görüldü, servis run'ı okuyup değerleri geri yazacak biçimde düzeltildi (`fc889379`, `CHANGELOG` *Fixed*). Süre servisi aynı deseni baştan doğru kurdu.
+Plan `ApprovalExpirationService`'i "birebir desen" olarak gösterdi. Desen okunurken şu kusur çıktı: süresi dolan onayın run'ı `CompleteRunAsync` ile kapatılırken run'ın **`EventCount`, `Usage`, `Cost` ve `NonTokenCost` değerleri sıfırlanıyordu** (`CompleteRunAsync` bu kolonları değiştirir, servis önce okumuyordu). Kapanan her süresi dolmuş onay, run'ın olay sayısını ve maliyetini siler; panolar ve stat'lar bunu gösterirdi. Önce kırmızı test (`ApprovalExpirationServiceTests`, 3 case) yazıldı, düştüğü görüldü, servis run'ı okuyup değerleri geri yazacak biçimde düzeltildi (`ebe1f83c`, `CHANGELOG` *Fixed*). Süre servisi aynı deseni baştan doğru kurdu.
 
 ### Örnek uygulama koşumu (2026-10-14)
 
@@ -139,10 +139,10 @@ Manuel case 3 (konsol, satıra tıkla) ve 6/7 ayrı yerlerde kanıtlandı: 3 →
 
 ### Kapanış kapısı (2026-10-14)
 
-- `kapi.py kapanis --taban d118e7f5` (`2aeee6d2`) ✅ çıkış 0: tarama, `--denetle`, betik testleri, agent haritası, denetim paketi, build (85 sn, **0 uyarı**), tam test (564 sn), `dotnet pack`, `dotnet format --verify-no-changes`, `npm run check` (1108 sayfa, kırık bağlantı 0, en ağır `concepts/workflows` 58 983 B / 59 000).
+- `kapi.py kapanis --taban 55ffa387` (`20c35365`) ✅ çıkış 0: tarama, `--denetle`, betik testleri, agent haritası, denetim paketi, build (85 sn, **0 uyarı**), tam test (564 sn), `dotnet pack`, `dotnet format --verify-no-changes`, `npm run check` (1108 sayfa, kırık bağlantı 0, en ağır `concepts/workflows` 58 983 B / 59 000).
 - Yolda kırmızı görülenler (hepsi düzeltildi): `dotnet test Tracon.slnx` iki mimari kapıda düştü — `TestDelayClassificationTests` (etiketsiz `Task.Delay`) ve `PlaywrightLocatorTests` (üç riskli locator, `Exact = true`); ikisi de önceki commit'lerdendi, kapıyı o commit'ler koşmamıştı. `build-agent-map.mjs --check` ilk koşuda `llms-full.txt` eskidiği için düştü (yenilendi).
 - `kapi.py yayin --kuru --surum 1.0.0-preview.4` ✅ çıkış 0: 20 paket, kırıcı liste 5 tip (hepsi `Unreleased`'de), `npm publish --dry-run`, 6 exact-version örnek, Native AOT ve net8.0 tüketici smoke. İlk koşum eski aday dizini yüzünden durdu (gitignore'lu `artifacts/package/yayin/1.0.0-preview.4`, Faz 208 provasından); araç önerdiği gibi silindi.
-- `dokuman-bakim.py --site-denetle --taban d118e7f5 --site-gerekce-yazildi` ✅ (gerekçe *Site gerekçesi* altında).
+- `dokuman-bakim.py --site-denetle --taban 55ffa387 --site-gerekce-yazildi` ✅ (gerekçe *Site gerekçesi* altında).
 
 ## Bu Fazda Verilen Kararlar
 

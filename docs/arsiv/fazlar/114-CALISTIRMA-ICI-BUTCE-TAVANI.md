@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 09ebcef:docs/arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md
+> git show 93098ec:docs/arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`
@@ -43,7 +43,7 @@ Tracon kurulumu bugün varsayılan olarak **200 000 token'lık bir ağaç bütç
 - [x] `RunBudgetChatClient` içinde `AsyncLocal`'a **yazan** hiçbir satır yok (yalnız okur) — kod okunarak doğrulandı, bağımsız denetimin de teyit ettiği madde
 - [x] `RunErrorClass` üye kümesi **değişmedi**; `9` tanımsız kaldı (`RunErrorClassContractTests` yeşil)
 - [x] `AgentRunBudget` ve `TraconAgentGraphOptions` XML dokümanları gerçeğe uydu — denetimin 🔴 bulgusu düzeltildi (bkz. Denetim Bulguları)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 8dce4a6` (tam koşum, SQL Server/Sqlite/PostgreSQL entegrasyon testleri dahil)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 905ecea` (tam koşum, SQL Server/Sqlite/PostgreSQL entegrasyon testleri dahil)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. aşağıdaki gerçek çıktı
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` → `✅ temiz`
 - [x] Manuel kabul case'leri `docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-RET-050/051 gerçek OpenAI çağrısıyla koşuldu ve ölçülen sonuca göre düzeltildi; MT-RET-052..055 tam manuel-test koşumuna bırakıldı (bkz. Sonraki Faza Devir Notu)

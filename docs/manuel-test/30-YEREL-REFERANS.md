@@ -537,7 +537,7 @@ harita üretmekle aynı kusurdur: yapıt tam görünür, atlanan sayfa bulunamaz
 > gerektirir; otomatik karşılığı yoktur.
 
 **Ön koşul:** Kendi `AGENTS.md`'si olan gerçek bir tüketici deposu
-(ölçüm deposu: tüketici deposu, 191 satırlık elle yazılmış `AGENTS.md`).
+(ölçüm deposu: 191 satırlık elle yazılmış `AGENTS.md` taşıyan bir tüketici deposu).
 `TraconWriteLocalReference=true`, `TraconWriteAgentsFile` **kapalı**.
 
 **Adımlar:**

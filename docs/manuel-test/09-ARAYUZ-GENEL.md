@@ -21,7 +21,7 @@
 > [`../arsiv/manuel-test-kosum-2026-09/09-ARAYUZ-GENEL.md`](../arsiv/manuel-test-kosum-2026-09/09-ARAYUZ-GENEL.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
-> tam metin: git show aa9c0a7f:docs/manuel-test/kosumlar/2026-08-13/09-ARAYUZ-GENEL.md
+> tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/09-ARAYUZ-GENEL.md
 
 ---
 
@@ -59,7 +59,7 @@ flowchart TD
 | Ayarlar ekranındaki `QuotaPanel`/`WebhookPanel`/`ApiKeyPanel`/`RetentionPanel`'in kendi CRUD işlevi | `13-KIRACI-VE-GUVENLIK.md` (API anahtarı) · `16-IS-KUYRUGU-VE-ZAMANLAMA.md` (webhook) · `23-SAKLAMA-ARSIV-KOTA.md` (kota, saklama) |
 | Skills, Workflows, Jobs, Evals, Experiments, MCP, Approvals, Audit, Diagnostics ekranlarının kendi iş akışı | İlgili alan dosyaları (14, 15, 16, 17, 18, 21, 13, 25) |
 | Ses paneli (`voice-panel.tsx`) işlevi | `19-COK-MODLULUK-VE-SES.md` — burada yalnız Ayarlar'daki dil-başına ses tercihi seçicisinin **var olduğu** var |
-| Erişilebilirliğin ekran okuyucu derinliği | Kapsam dışı (2026-08 turu PROMPT §3 kapsam kararı: "ekran okuyucu hariç"; kayıt silindi 2026-09-22, K-847 — `git show aa9c0a7f:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`) |
+| Erişilebilirliğin ekran okuyucu derinliği | Kapsam dışı (2026-08 turu PROMPT §3 kapsam kararı: "ekran okuyucu hariç"; kayıt silindi 2026-09-22, K-847 — `git show 0a802674:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`) |
 | Arayüz derlemesinin kendisi (bundle bütçesi, Brotli, `tsc --noEmit`) | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) (zaten üretildi) |
 
 ## Koşmadan önce
@@ -892,7 +892,7 @@ is single-language on purpose."*
 | **İlgili karar** | — |
 
 2026-08 turu PROMPT'unun (silindi 2026-09-22, K-847;
-`git show aa9c0a7f:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`)
+`git show 0a802674:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`)
 §3'ünün istediği "derin metin denetimi 5 ekranda"
 maddesi. Ekranlar: **Dashboard, Agents (liste), Settings, Tools, Models** —
 metin yoğunluğu en yüksek beş genel ekran.

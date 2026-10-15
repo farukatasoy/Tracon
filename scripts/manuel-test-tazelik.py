@@ -24,8 +24,8 @@ yargılanmamıştır. Sayım tabansız da koşar; gösterdiği test artık yoksa
 Kullanım:
     python3 scripts/manuel-test-tazelik.py                       # yalnız devir ölçümü
     python3 scripts/manuel-test-tazelik.py --taban <onceki turun son commit'i>
-    python3 scripts/manuel-test-tazelik.py --taban 12fb6477 --kuru
-    python3 scripts/manuel-test-tazelik.py --taban 12fb6477 --kosum docs/manuel-test/kosumlar/2026-09-16
+    python3 scripts/manuel-test-tazelik.py --taban fb375724 --kuru
+    python3 scripts/manuel-test-tazelik.py --taban fb375724 --kosum docs/manuel-test/kosumlar/2026-09-16
 
 Çözülemeyen her kaynak yolu RAPORLANIR. Sessiz geçmek ölçümü sessizce yanlış
 yapar: `00-INDEKS.md` §7'nin `Kaynak` sütunu bayatlarsa kod kayması olduğundan

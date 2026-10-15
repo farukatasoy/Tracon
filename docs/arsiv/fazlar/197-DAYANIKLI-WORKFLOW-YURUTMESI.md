@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9caa3c94:docs/arsiv/fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md
+> git show 6437c9c0:docs/arsiv/fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md
 > ```
 >
 > Damıtıldı 2026-10-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -34,7 +34,7 @@ Workflow run'ı okuyan HTTP akışıyla yaşar (K-845); kuyruktan başlayan run 
 ## Bitiş Ölçütleri (DoD)
 
 - [x] Üç uç `202` döner, aynı anahtar tek iş açar (test 1-8); kesilen iş checkpoint'ten sürer, bayrak kapalıyken davranış aynı (test 12-18) — `WorkflowAsync*Tests` (7 sınıf, 33 test), `WorkflowRecoveryTests` (9), `WorkflowRecoveryAttemptLimitTests` (5, son kiralama gerçek worker'dan), `TwoProcessWorkflowResumeTests` (PostgreSQL, `SIGKILL`)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban f0eda76a`, `main` birleştirilmiş dalda tek koşum, çıkış 0 (§ *Kapanış kapısı*); sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` `main`'de üçüncü koşumda çıkış 0 (§ *Yayın provası*)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 1bc581ec`, `main` birleştirilmiş dalda tek koşum, çıkış 0 (§ *Kapanış kapısı*); sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` `main`'de üçüncü koşumda çıkış 0 (§ *Yayın provası*)
 - [x] `samples/Tracon.Api` ile gerçek `run` (async, süreç öldürme, devam) yapıldı, çıktı belgeye yazıldı — aşağıdaki iki tablo; ikincisi denetim düzeltmesinden sonra
 - [x] `secret` taraması boş döndü — `kapi.py tarama`, kapanış zincirinin ilk adımı
 - [x] Manuel kabul case'leri eklendi; otomatikleştirilebilenler koşuldu — `MT-WF-139`…`141` ✅, `MT-RES-095`/`096` ve `MT-JOB-145` 👤 (örnek uygulamada koşuldu)
@@ -76,21 +76,21 @@ alıyordu (`attempt … of 2`). Düzeltmeden sonra aynı iş `of 3` gösterir.
 
 ### Örnek uygulama koşumu — denetim düzeltmesinden sonra (2026-10-13, port 5197)
 
-Aynı yapılandırma, yeni bir SQLite dosyası, `c057cc1e`'teki kod. `episode`
+Aynı yapılandırma, yeni bir SQLite dosyası, `4b5d03b4`'teki kod. `episode`
 (`render` 40 sn) yeniden kaydedildi.
 
 | Kontrol | Gerçek çıktı |
 |---|---|
 | `Tracon__Workflows__MaxResumeAttempts=0`; `episode` kuyrukta, ilk checkpoint yazıldıktan sonra `kill -9`, yeniden başlatma | iş `Failed attempt 2 of 2`, `errorMessage: tracon.job.workflow-run-not-continued (ref: 88016f5c)`; run `Failed`, `error.type: interrupted`, mesaj "…stopped before the run ended. It is not continued: its chain already has 0 continuation run(s), and 'Tracon:Workflows:MaxResumeAttempts' allows no more."; devam run'ı yok. Düzeltmeden önce bu kiralama handler'a ulaşmıyordu (iş `attempts-exhausted`, run `Running`) |
-| Aynı süreç günlüğü | tek `fail:` satırı, beklenen ret: `WorkflowRunJobHandler` … `not-continued`; run kimliği `(null)` yazıyordu → `c057cc1e` run'ı adlandırır |
+| Aynı süreç günlüğü | tek `fail:` satırı, beklenen ret: `WorkflowRunJobHandler` … `not-continued`; run kimliği `(null)` yazıyordu → `4b5d03b4` run'ı adlandırır |
 | `MaxResumeAttempts=1` (varsayılan), `episode` kuyrukta | iş `Pending maxAttempts 3`; run `Completed`; iş `Completed attempt 1 of 3` |
 
 Uygulama `kill -TERM` ile kapatıldı; 5197 boş.
 
 ### Kapanış kapısı
 
-`python3 scripts/kapi.py kapanis --taban f0eda76a`, `main` (`608d9ee2`, Faz 198)
-birleştirilmiş dalda, `0e4a59ca` üzerinde, baştan sona **tek koşum: çıkış 0, 1219 sn**
+`python3 scripts/kapi.py kapanis --taban 1bc581ec`, `main` (`75356c70`, Faz 198)
+birleştirilmiş dalda, `41a5aae0` üzerinde, baştan sona **tek koşum: çıkış 0, 1219 sn**
 (2026-10-13).
 
 | Adım | Süre |
@@ -99,7 +99,7 @@ birleştirilmiş dalda, `0e4a59ca` üzerinde, baştan sona **tek koşum: çıkı
 | `dokuman-bakim.py --denetle` | 1,91 sn |
 | `scripts` birim testleri | 8,41 sn |
 | `build-agent-map.mjs --check` | 0,10 sn |
-| `denetim-paketi.py --taban f0eda76a` | 0,42 sn |
+| `denetim-paketi.py --taban 1bc581ec` | 0,42 sn |
 | `dotnet build Tracon.slnx -c Release` | 128,23 sn |
 | `dotnet test Tracon.slnx` (tam, `-maxcpucount:2`) | 684,04 sn |
 | `dotnet pack` | 9,76 sn |
@@ -109,12 +109,12 @@ birleştirilmiş dalda, `0e4a59ca` üzerinde, baştan sona **tek koşum: çıkı
 
 Bu turun önceki iki koşumu: (1) ilki 59 sn'de, derleme adımında **elle durduruldu**
 (`--site-denetle` mağaza yazarı rehberinin eksiğini gösterdi; sayfa yazıldı,
-`26b20904`). (2) İkincisi on adımı yeşil geçti, `npm run check` düştü:
+`a47a0d7c`). (2) İkincisi on adımı yeşil geçti, `npm run check` düştü:
 `guides/coding-agents.md` `llms-full.txt`'i "about 825 KB" diyordu, iki fazın birleşik
-metni 978,4 KB'tır (%15 bandı dışında). Sayı düzeltildi (`0e4a59ca`). Kırılgan test
+metni 978,4 KB'tır (%15 bandı dışında). Sayı düzeltildi (`41a5aae0`). Kırılgan test
 görülmedi (F-356, F-430 dahil).
 
-Sonra `python3 scripts/dokuman-bakim.py --site-denetle --taban f0eda76a
+Sonra `python3 scripts/dokuman-bakim.py --site-denetle --taban 1bc581ec
 --site-gerekce-yazildi` → çıkış 0 (gerekçeli iki kural aşağıda; bayraksız koşum bu
 ikisi için çıkış 1 verir). Bu bölümü yazan commit yalnız bu dokümanı değiştirir;
 üstünde `tarama`, `--denetle` ve `--site-denetle` yeniden koşuldu.
@@ -128,17 +128,17 @@ koşmadı (orkestratör kararı); iki kusuru yalnız prova gördü:
 
 | Koşum | Commit | Sonuç | Düzeltme |
 |---|---|---|---|
-| 1 | `6ac0f9af` | ❌ kırıcı liste notla eşleşmedi: `Tracon.Client: TraconApiClient` | `TraconListRunsAsync` `continuedFromRunId`'yi `skip`/`take`'ten önce, `TraconVoiceListAsync` (Faz 198) `provider`'ı token'dan önce aldı; konumsal çağıran derlenmez. `CHANGELOG` `[Unreleased] → Changed` iki imzayı adıyla anar (`26eb754e`) |
-| 2 | `26eb754e` | ❌ `Tracon.Samples.FileRunStore.Tests` 103/106: `A_second_start_without_a_continuation_link_keeps_the_first_one`, `Query_filters_by_the_run_a_continuation_continues`, `Query_by_continuation_does_not_return_another_tenants_run` | Örnek depo bağı `COALESCE` eder ve `RunQuery.ContinuedFromRunId` ile süzer (`b20eeb1b`) — BL-053 sınıfı: örnekler çözümde değildir, kapanış kapısı onları koşmaz |
-| 3 | `b20eeb1b` | ✅ çıkış 0 | kırıcı liste 3 tip, 3 paket (hepsi `Unreleased`'da) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106/106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
+| 1 | `fe08070c` | ❌ kırıcı liste notla eşleşmedi: `Tracon.Client: TraconApiClient` | `TraconListRunsAsync` `continuedFromRunId`'yi `skip`/`take`'ten önce, `TraconVoiceListAsync` (Faz 198) `provider`'ı token'dan önce aldı; konumsal çağıran derlenmez. `CHANGELOG` `[Unreleased] → Changed` iki imzayı adıyla anar (`ea3b767d`) |
+| 2 | `ea3b767d` | ❌ `Tracon.Samples.FileRunStore.Tests` 103/106: `A_second_start_without_a_continuation_link_keeps_the_first_one`, `Query_filters_by_the_run_a_continuation_continues`, `Query_by_continuation_does_not_return_another_tenants_run` | Örnek depo bağı `COALESCE` eder ve `RunQuery.ContinuedFromRunId` ile süzer (`a63d21d1`) — BL-053 sınıfı: örnekler çözümde değildir, kapanış kapısı onları koşmaz |
+| 3 | `a63d21d1` | ✅ çıkış 0 | kırıcı liste 3 tip, 3 paket (hepsi `Unreleased`'da) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106/106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
 
-Önceki prova çıktıları silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-6af4f395`
-(Faz 201/204) ve `-onceki-26eb754e`. İki düzeltme yalnız `CHANGELOG.md` ve
+Önceki prova çıktıları silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-85f60d91`
+(Faz 201/204) ve `-onceki-ea3b767d`. İki düzeltme yalnız `CHANGELOG.md` ve
 `samples/` dosyasına dokunur; `samples/` hiçbir çözümde değildir ve `CHANGELOG`
-derlenmez, bu yüzden kapanış kapısı (`0e4a59ca`) yeniden koşulmadı; prova üstünde
+derlenmez, bu yüzden kapanış kapısı (`41a5aae0`) yeniden koşulmadı; prova üstünde
 `tarama` ve `--denetle` yeşil.
 
-### Site senkronu (`--site-denetle --taban f0eda76a`)
+### Site senkronu (`--site-denetle --taban 1bc581ec`)
 
 Aralık Faz 198'in birleştirilen commit'lerini de kapsar. Sekiz kuralın altısı
 sayfa değişikliğiyle karşılandı; ikisi gerekçeyle geçer (`--site-gerekce-yazildi`):
@@ -212,7 +212,7 @@ Uygulama oturumunda yazıldı (faz-uygulama Adım 1). Kapanış oturumu gözden 
     (kayma). Fabrika artık `CreateWorkflowRecovery` ile politikayı geçirir; geçirmeyen
     fabrika yedi kurtarma testini düşürdü (mutasyonla ölçüldü).
 15. **Tahsis taban çizgisi `QueryRuns` 44832 → 45456 B (+624 B).** `kapi.py performans`
-    kırmızı verdi. Taban commit'i (`f0eda76a`) ayrı bir worktree'de tek başına ölçüldü:
+    kırmızı verdi. Taban commit'i (`1bc581ec`) ayrı bir worktree'de tek başına ölçüldü:
     43,78 KB (= taban). Artış bu fazındır: `SelectRuns` her komutta yeni
     `continued_from_run_id` parametresini taşır (paylaşılan SQL metni sabit olduğu için
     parametre süzgeç boşken de eklenir). Yalnız bu satır güncellendi; `CacheHit`'in
@@ -242,7 +242,7 @@ Denetim düzeltmelerinden doğan sapmalar (2026-10-13):
     DIŞINDA; devam satırı, onu adlandıran kapanıştan ÖNCE yazılır; kapatılamayan
     `Queued` satır (`CloseIfQueuedAsync` → `false`) denemeyi düşürür. Batch'te de
     aynı: işaret yazımı ve zincir okuması öğeyi değil denemeyi düşürür.
-19. **`CacheHit` taban çizgisi 24 → 0 B (🟡3).** Taban `f0eda76a` ayrı worktree'de
+19. **`CacheHit` taban çizgisi 24 → 0 B (🟡3).** Taban `1bc581ec` ayrı worktree'de
     0 B ölçtü: satır fazdan önce bayattı. `measuredAt` güncellendi; `kapi.py
     performans` uyarısız.
 20. **Kuyruklu iş reddinin günlük satırı run'ı adlandırır.** `not-continued` ve
@@ -282,21 +282,21 @@ kaydeder · son deneme kuralı sınırı worker'ın okuduğu yerden okur.
 | Plan revizyonu sayısı | 1 — Açık Soru 4-A denetimden sonra `2 + MaxResumeAttempts` oldu (Sapma 16, kullanıcı kararı); öbür sapmalar ölçümün sonucudur |
 | Düzeltme turu sayısı | 12 — çözümleyici (RS0016 · CA1826/CA1859 · MA0006/MA0002) · kurucu değişikliği sonrası test derlemesi · mimari kapılar (`///` içinde iç referans, Türkçe test metni, atıf ve sonuç sitesi listeleri, ambient tabanı) · `// delay:` etiketi · agent map tazeliği · manuel test bütçesi · kapanış 1: anlık görüntü testleri · kapanış 2: `QueryRuns` tahsisi · denetim düzeltmeleri (🔴1, 🟡1-4) · birleştirme sonrası kapanış: mağaza yazarı rehberi ve `llms-full` boyut iddiası (§ *Kapanış kapısı*) · `main`'de yayın provası: sürüm notu kırıcı istemci imzasını anmıyordu ve paketlenmiş `FileRunStore` örneği üç yeni sözleşme case'inde düştü (§ *Yayın provası*) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
-| Fazın ürettiği regresyon | 3 — 🔴1 (deneme sayısı son kiralamayı handler'dan önce düşürüyordu), 🟡1 (geçici `store` hatası işi tekrar denemesiz düşürüyordu), 🟡2 (site bayrak kapalı kuyruklu run'ı yanlış anlatıyordu). Üçünü de bağımsız denetim yakaladı, kapanıştan önce düzeltildi. Ayrıca sevk edilen sözleşmenin yeni üç case'i paketlenmiş `FileRunStore` örneğini kırdı; yalnız yayın provası gördü (`b20eeb1b`) |
+| Fazın ürettiği regresyon | 3 — 🔴1 (deneme sayısı son kiralamayı handler'dan önce düşürüyordu), 🟡1 (geçici `store` hatası işi tekrar denemesiz düşürüyordu), 🟡2 (site bayrak kapalı kuyruklu run'ı yanlış anlatıyordu). Üçünü de bağımsız denetim yakaladı, kapanıştan önce düzeltildi. Ayrıca sevk edilen sözleşmenin yeni üç case'i paketlenmiş `FileRunStore` örneğini kırdı; yalnız yayın provası gördü (`a63d21d1`) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı; sonraki `kusur-giderme` koşumu doldurur) |
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (`faz-denetim`, taze bağlam, salt-okunur), aralık `f0eda76a..1a3e40e8`.
-Triyaj Adım 5.1: 🔴'nın sonucunu kullanıcı seçti (2026-10-13). Düzeltmeler `fcfa2b23`
-(kod, test), `fb2ee2e7` (site, CHANGELOG, MT-RES-095), `8e042a54` (taban çizgisi) ve
-`c057cc1e` (günlük) commit'lerindedir.
+Bağımsız denetçi (`faz-denetim`, taze bağlam, salt-okunur), aralık `1bc581ec..2d15db9c`.
+Triyaj Adım 5.1: 🔴'nın sonucunu kullanıcı seçti (2026-10-13). Düzeltmeler `b8b81c1a`
+(kod, test), `53fffc2b` (site, CHANGELOG, MT-RES-095), `4e34dd14` (taban çizgisi) ve
+`4b5d03b4` (günlük) commit'lerindedir.
 
 | # | Sv. | Bulgu | Triyaj | Sonuç |
 |---|---|---|---|---|
 | 1 | 🔴 | Kuyruklu tek run'lı iş `1 + MaxResumeAttempts` deneme alır; worker son kiralamayı handler'dan önce `attempts-exhausted` ile düşürür (`JobWorkerBackgroundService.cs:322-345`): son devam `Running` kalır, `Exhausted` dalına ulaşılmaz, `MaxResumeAttempts=0` kesintiyi görmez, `OpenContinuationAsync` ile motor arasındaki çökme `Queued` satır bırakır. Testler kaçırdı: koşum deneme denetimini atlıyordu, test 15 yalnız batch'te koştu, seçenek testi tiyatroydu | **Gerçek** (kullanıcı; düzeltme yolu a) | **Düzeltildi:** `2 + MaxResumeAttempts` + son deneme kuralı + açılmış devam kesinti sayılır (Sapma 16, 17). **Önce düşen test görüldü:** `WorkflowRecoveryAttemptLimitTests` — `A_queued_run_interrupted_past_its_limit_is_closed_Failed_by_the_jobs_last_lease`, `With_no_continuation_allowed_…`, `A_continuation_whose_process_stopped_before_it_started_counts_as_an_interruption` eski kodda `tracon.job.attempts-exhausted (ref: …)` ile, `A_batch_jobs_last_attempt_closes_…` zaman aşımıyla düştü. Sınıf taraması: batch'in üç denemesi `Max ≥ 2` iken kusurluydu → aynı kural, `A_batch_job_with_two_more_attempts_than_continuations_gets_every_continuation`. Tiyatro testi `Zero_continuations_is_allowed_and_leaves_the_job_the_attempt_that_closes_the_interrupted_run` oldu (sayıyı ve nedenini iddia eder; uçtan uca kanıt fonksiyonel testtir). Plan birim testleri (+6), `WorkflowAsyncRunTests` teorisi (+`(true, 0, 2)`). XML, site, `CHANGELOG`, README, MT-RES-095. Örnek uygulama: `MaxResumeAttempts=0` + `SIGKILL` → `not-continued` |
 | 2 | 🟡 | Kurtarma açıkken kurtarma okumasındaki geçici `store` hatası işi tekrar denemesiz düşürür; `CloseIfQueuedAsync` aynı hatada satırı `Queued` bırakır; `OpenContinuationAsync` düşerse kapanan run olmayan run'ı adlandırır; birim testleri hep `policy: null` | Gerçek | **Düzeltildi** (Sapma 18). Testler (kurtarma açık): `With_recovery_on_a_store_error_while_reading_the_chain_fails_the_attempt_not_the_work`, `…a_continuation_that_cannot_be_opened_leaves_the_interrupted_run_for_the_next_attempt`, `…a_refused_run_whose_row_cannot_be_closed_is_closed_by_the_next_attempt`, batch `With_recovery_on_a_store_error_while_writing_the_items_run_id_fails_the_attempt_not_the_item`. Önce düşen test görülmedi (testler düzeltmeyle yazıldı); yerine mutasyon: eski üç davranış geri konunca üç handler testi de düştü |
-| 3 | 🟡 | `reliability.md:383` bayrak kapalı kuyruklu run'ı "baştan başlar" diye anlatır; kodda iş `AsyncRun.MaxAttempts` (1) alır ve kesintiden sonra `attempts-exhausted` ile düşer | Gerçek | **Düzeltildi** (`fb2ee2e7`): satır koda göre yazıldı |
+| 3 | 🟡 | `reliability.md:383` bayrak kapalı kuyruklu run'ı "baştan başlar" diye anlatır; kodda iş `AsyncRun.MaxAttempts` (1) alır ve kesintiden sonra `attempts-exhausted` ile düşer | Gerçek | **Düzeltildi** (`53fffc2b`): satır koda göre yazıldı |
 | 4 | 🟡 | `bench/baseline.json` `CacheHit` 24 B, ölçüm 0 B; kapı uyarı verir, DoD "sıfır uyarı" der | Gerçek (taban fazdan önce bayattı) | **Düzeltildi** (Sapma 19): taban commit 0 B ölçtü; `kapi.py performans` ✅ üç satır |
 | 5 | 🟡 | `Registration.Storage.cs:200` yorumu olmayan `WorkflowRecoveryRegistrationTests`'i adlandırır | Gerçek | **Düzeltildi:** yorum gerçek sınıfları adlandırır (`WorkflowRecoveryTests`, `WorkflowRecoveryAttemptLimitTests`) ve zamanlama seçeneğinin de geçirilmesi gerektiğini yazar |
 | 6 | 🟢 | `queued-workflow.test.ts:29-67` sahte gövdeyi cast ile okur; `202` tipini şemadan kanıtlamaz | Gerçek | **Devredildi:** F-435 |
@@ -329,7 +329,7 @@ sözleşmeler* tablosundadır; 196'ya Açık Soru 13 ve hata modu 29 eklendi.
   sahip yaşarsa iki kopya koşar (K-886).
 - **7-A:** `Loop` adımı kesintiden sonra tamamladığı turları yeniden koşar; ihtiyaç
   ölçülürse aday.
-- **Yayın provası `main`'de yeşil** (`b20eeb1b`, § *Yayın provası*); iki kusuru
+- **Yayın provası `main`'de yeşil** (`a63d21d1`, § *Yayın provası*); iki kusuru
   yalnız o gördü. 🚨 Sevk edilen sözleşmeye case ekleyen faz provayı kapanıştan
   önce koşmalıdır — paketlenmiş örnek depo onu ilk uygulayan tüketicidir.
 - Site yayınlanmadı (`site-deploy.sh` bakımcı onayı bekler).

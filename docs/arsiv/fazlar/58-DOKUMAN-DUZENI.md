@@ -17,7 +17,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 595ecd8:docs/arsiv/fazlar/58-DOKUMAN-DUZENI.md
+> git show 005eccd:docs/arsiv/fazlar/58-DOKUMAN-DUZENI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -53,7 +53,7 @@ grep -rn "sekiz ekran\|00–32" README.md docs/       # boş dönmeli
 
 ### 🚨 S1 — Faz kapsamı dışı ama fazı bloke eden kusur: `main` derlenmiyordu
 
-Faz 58'in ilk ölçümünde `HEAD` (`64882c6` "faz 57") **derlenmiyor** bulundu.
+Faz 58'in ilk ölçümünde `HEAD` (`8f24c64` "faz 57") **derlenmiyor** bulundu.
 Senkronizasyon istemcisi iki test dosyasının Faz 57 ÖNCESİ Türkçe kopyasını
 üretmiş ve kopyalar **commit edilmişti**:
 

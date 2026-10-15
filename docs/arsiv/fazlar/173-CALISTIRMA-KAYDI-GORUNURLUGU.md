@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show efb1dad5:docs/arsiv/fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md
+> git show f0c2dcc1:docs/arsiv/fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md
 > ```
 >
 > Damıtıldı 2026-09-15 · `scripts/dokuman-bakim.py faz-damit`
@@ -235,7 +235,7 @@ satırından alınır. Bu, manuel case'lerin ön koşuluna yazıldı.
 
 ## Denetim Bulguları
 
-> Bağımsız denetçi (`faz-denetim`, taze bağlam) `84273864` → çalışma ağacını yargıladı.
+> Bağımsız denetçi (`faz-denetim`, taze bağlam) `4c5ee8e3` → çalışma ağacını yargıladı.
 > **2 🔴 · 4 🟡 · 2 🟢.** Hepsi kapandı.
 >
 > İki 🔴 aynı sınıfın iki yüzüydü ve ikisi de fazın **kendi yazdığı dersi** fazın

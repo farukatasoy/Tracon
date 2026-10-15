@@ -25,7 +25,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 8dcf678:docs/arsiv/fazlar/94-SQL-TEK-KAYNAK.md
+> git show 9ebf38b:docs/arsiv/fazlar/94-SQL-TEK-KAYNAK.md
 > ```
 >
 > Damıtıldı 2026-08-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -47,7 +47,7 @@ Bu faz, üç SQL dialect'inde **elle tekrarlanan** metni tek kaynağa indirir. �
 - [x] `SqlQueryCompletenessTests` üç sağlayıcıda koşar; SQLite'ın `UpgradeMigrationsTable` muafiyeti gerekçesiyle listede — GERÇEKTEN denendi (`UpsertMcpServer`'ı `string.Empty` yapıp koşuldu, düştü, geri alındı)
 - [x] Sözleşme testleri (`tests/Shared/Contracts/`) üç sağlayıcıda da yeşil — `Tracon.PostgreSql.IntegrationTests` 638/638, `Tracon.SqlServer.IntegrationTests` 574/574, `Tracon.Sqlite.IntegrationTests` 592/592 (hepsi gerçek veritabanına/dosyaya karşı, bu oturumda 94.2/94.3/94.4/94.4.3'ün her adımından sonra tekrar koşuldu)
 - [x] SQLite tablo nitelendirmesi **noktasız** kalır — `sql-text-baseline.sqlite.txt` elle kontrol edildi (`tracon_mcp_servers`, nokta yok); `Tracon.Sqlite.IntegrationTests` yeşil
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 43e8adf` TAM koşuldu (tarama, dokuman-bakim, scripts unittest, agent-map, denetim-paketi, `dotnet build`, `dotnet test Tracon.slnx` [tüm proje ağacı], `dotnet pack`, `dotnet format --verify-no-changes`, `docs-site npm run check`) — hepsi ✅, çıkış kodu 0
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 25c823c` TAM koşuldu (tarama, dokuman-bakim, scripts unittest, agent-map, denetim-paketi, `dotnet build`, `dotnet test Tracon.slnx` [tüm proje ağacı], `dotnet pack`, `dotnet format --verify-no-changes`, `docs-site npm run check`) — hepsi ✅, çıkış kodu 0
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — PostgreSQL (`ap-pg`, taze `tracon_p94` şeması) ile, bkz. `docs/manuel-test/03-KALICILIK-POSTGRESQL.md` MT-PG-067
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` kapanış koşumunun parçasıydı, ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/03-KALICILIK-POSTGRESQL.md` (MT-PG-067) ve `04-KALICILIK-DIGER.md` (MT-SQL-074, MT-SQL-075) içine eklendi; otomatikleştirilebilenlerin TAMAMI gerçekten koşuldu (bu sahte-hata-enjeksiyonları dahil)

@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f865fbd2:docs/arsiv/fazlar/191-TEK-DERLEME-ZINCIRI.md
+> git show 5051b06e:docs/arsiv/fazlar/191-TEK-DERLEME-ZINCIRI.md
 > ```
 >
 > Damıtıldı 2026-09-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -45,7 +45,7 @@ Bugün bir `v*` etiketi üç ayrı derleme üretir: build işi birini test eder,
 - [x] 191.9: `git grep -n "CI .pack. job" -- Directory.Build.targets scripts` → boş; `git grep -n "ci.yml:[0-9]" -- scripts/kapi.py scripts/kapi_test.py` → boş; `MT-PKG-100` case 9'un `awk`'ını taşır — ✅ ikisi de boş; MT-PKG-100 `awk`'ı taşır
 - [x] `YAYIN-HAZIRLIK.md`: A-15 §13'ten çıktı; "Deterministic/reproducible" ikiye ayrıldı; `OP-010`'daki `nuget-publish` düzeldi — ✅
 - [x] `hafiza/yayin-ve-surumleme.md`: "tek derleme zinciri" bölümü (sıra tuzağı, pack anı/artifact anı, depo imzası, 191.0 sonuçları; bugün 12.099 / 16.000 B, sığmazsa taşınır) — ✅ 15.509 / 16.000 B
-- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — ✅ `--taban 259a3132` EXIT 0 (Kapanış Kapısı)
+- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — ✅ `--taban 6182ed76` EXIT 0 (Kapanış Kapısı)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (komut aşağıda; beklenen: HTTP `200`, gövde `runId` taşır; OpenAI anahtarı yoksa `echo` sağlayıcısı, `samples/Tracon.Api/Program.cs:479-485`). Fazın kendi tüketici koşumu case 1'in altı dış sample + AOT smoke'udur — ✅ HTTP `200`, SSE `event: run` `runId` `01a0d415-…`, `echo` sağlayıcısı (Örnek Uygulama Koşumu)
 - [x] `secret` taraması boş döndü: `python3 scripts/kapi.py tarama` — ✅ `kapanis`'in ilk adımı
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler (1–6, 9) koşuldu; case 8 (👤) etiket gününe devredildi ve `YAYIN-HAZIRLIK` §13'e adım olarak bağlandı — ✅ MT-PKG-153…160 (8 case) + MT-PKG-100; 153–158 ve 100 koşuldu; 159 ➜ CI; 160 👤 `YAYIN-HAZIRLIK` §13'e bağlandı
@@ -76,7 +76,7 @@ kill %1
 > oturumun en değerli bilgisidir.
 
 
-1. **191.0 ölçümleri** (HEAD `259a3132`, taze klon `git clone --no-local`, CI ortamı):
+1. **191.0 ölçümleri** (HEAD `6182ed76`, taze klon `git clone --no-local`, CI ortamı):
    (1) önkoşullar birleşmişti: `timeout-minutes` 11 kez, `zaman_siniri_olmayan_isler` ve
    `_yaml_girinti` var, 187 arşivde; 187.0 adım 6 = "farksız pakette SDK rapor YAZMAZ".
    (2) `Derle` dahil her `run:` adımından sonra `git status --porcelain` **boş** → karar 3
@@ -167,7 +167,7 @@ net8.0 tüketicisi `paketle`'nin ürettiği dosyalarla koştu.
 > Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
 
 
-`faz-denetcisi`, 2026-09-24, çalışma ağacı ↔ `259a3132`. **🔴 yok.**
+`faz-denetcisi`, 2026-09-24, çalışma ağacı ↔ `6182ed76`. **🔴 yok.**
 
 | Bulgu | Seviye | Triyaj | Sonuç |
 |---|---|---|---|
@@ -209,9 +209,9 @@ Açık iş:
 
 ## Kapanış Kapısı
 
-`DOTNET_ROOT=~/.dotnet MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py kapanis --taban 259a3132`, 2026-09-24:
+`DOTNET_ROOT=~/.dotnet MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py kapanis --taban 6182ed76`, 2026-09-24:
 
 | Koşum | Ağaç | Sonuç |
 |---|---|---|
 | 1 | denetim düzeltmelerinden önce (commit'siz) | ✅ EXIT 0 — build 130 sn · test 658 sn · pack 14 sn · format 153 sn · site 40 sn |
-| 2 | commit'li ağaç `6943c56f` (denetim düzeltmeleri dahil) | ✅ EXIT 0 — build 111 sn · test 752 sn · pack 9 sn · format 127 sn · site 35 sn |
+| 2 | commit'li ağaç `2acac286` (denetim düzeltmeleri dahil) | ✅ EXIT 0 — build 111 sn · test 752 sn · pack 9 sn · format 127 sn · site 35 sn |

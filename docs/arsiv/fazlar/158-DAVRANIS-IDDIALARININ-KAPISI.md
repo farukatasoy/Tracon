@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show aab038a1:docs/arsiv/fazlar/158-DAVRANIS-IDDIALARININ-KAPISI.md
+> git show 89fc7792:docs/arsiv/fazlar/158-DAVRANIS-IDDIALARININ-KAPISI.md
 > ```
 >
 > Damıtıldı 2026-09-08 · `scripts/dokuman-bakim.py faz-damit`
@@ -37,7 +37,7 @@ Sevk edilen metindeki **sayılabilir** iddialar artık kapı altındadır. **Dav
 - [x] İşaretsiz davranış iddiası sayısı raporda **görünür** (sıfır olması gerekmez) — `node docs-site/scripts/check-content.mjs` çıktısı: `Behavior claims: 11 marked and verified by DocumentedPolicyTests.cs; 146 sentence(s) across manual pages match "by default" or "defaults to"`
 - [x] Bir uç scope'u ile sayfanın yazdığı scope ayrıştığında fonksiyonel test kırmızı — `OpenAIChatCompletionsEndpoints`'in `RequireApiKeyScope`'u `RunsRead`'e çevrilip elle doğrulandı: `Every_marked_endpoint_policy_claim_is_actually_enforced` kırmızı, mesaj her iki değeri de yazdı
 - [x] Kapı yanlış pozitif üretmiyor: mevcut 147 satırın hiçbiri işaretlenmeden kırmızı yapmıyor — `npm run check:content` işaretlemeden önceki taban çizgiye karşı yeşil kaldı
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 1af15684` (test adımı ilk turda kaynak çekişmesiyle kırmızı oldu, izole yeniden koşum ve tam ikinci koşum yeşildi; `docs/hafiza/test-altyapisi.md`'deki bilinen sınıf)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban feee24a9` (test adımı ilk turda kaynak çekişmesiyle kırmızı oldu, izole yeniden koşum ve tam ikinci koşum yeşildi; `docs/hafiza/test-altyapisi.md`'deki bilinen sınıf)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bu faz üretim/çalışma anı davranışını değiştirmiyor (yalnız doküman metni ve bir doğrulama kapısı); örnek uygulama `dotnet build` + `dotnet run` ile ayağa kaldırıldı, `GET /tracon/api/meta` → `200` doğrulandı, regresyon yok. Bu fazın gerçek iddiası (scope allow/deny) `DocumentedPolicyTests.cs` içinde **gerçek bir ASP.NET Core host'a karşı gerçek HTTP isteğiyle** kanıtlanıyor — samples üzerinde tekrarlamak aynı kanıtı ikinci kez üretmek olurdu
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/32-DOKUMAN-KALITESI.md` içine eklendi ve **`00-INDEKS.md` sayımı güncellendi** — `MT-DKL-021`..`024`, sayaç 20 → 24
@@ -83,7 +83,7 @@ içermiyor — karar defterine girecek bir kalem yok.
 ## Denetim Bulguları
 
 `faz-denetim` taze bağlamlı bir agent ile koşuldu (git diff + DoD, taban
-`1af15684`).
+`feee24a9`).
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|

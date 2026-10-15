@@ -14,21 +14,37 @@
 #   scripts/site-deploy.sh              build, check, publish
 #   scripts/site-deploy.sh --dry-run    build, check, show what would change
 #
-# Overridable:
-#   SITE_HOST      ssh destination            (default user@site-host.invalid)
-#   SITE_PATH      document root on the host  (default /srv/site/www)
-#   SITE_STACK     compose directory on host  (default /srv/site/stack)
-#   SITE_SSH_KEY   private key                (default ~/.ssh/id_ed25519_site)
+# Configuration. Nothing about the host is committed: each value comes from the
+# environment or from scripts/site-deploy.local.env (git-ignored, KEY=value lines).
+# A value already in the environment wins over the file.
+#   SITE_HOST          ssh destination                      (required)
+#   SITE_PATH          document root on the host            (required)
+#   SITE_STACK         compose directory on the host        (required)
+#   SITE_SSH_KEY       private key                          (required)
+#   SITE_NEIGHBOR_URL  another service on the same host, printed as a
+#                      post-publish probe                   (optional)
 
 set -euo pipefail
 
-SITE_HOST="${SITE_HOST:-user@site-host.invalid}"
-SITE_PATH="${SITE_PATH:-/srv/site/www}"
-SITE_STACK="${SITE_STACK:-/srv/site/stack}"
-SITE_SSH_KEY="${SITE_SSH_KEY:-$HOME/.ssh/id_ed25519_site}"
-
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repository_root"
+
+local_env="scripts/site-deploy.local.env"
+if [[ -f "$local_env" ]]; then
+  while IFS='=' read -r key value || [[ -n "$key" ]]; do
+    [[ -z "$key" || "$key" == \#* ]] && continue
+    if [[ -z "${!key:-}" ]]; then
+      export "$key=${value/#\~/$HOME}"
+    fi
+  done <"$local_env"
+fi
+
+for required in SITE_HOST SITE_PATH SITE_STACK SITE_SSH_KEY; do
+  if [[ -z "${!required:-}" ]]; then
+    echo "$required is not set; put it in $local_env or the environment." >&2
+    exit 2
+  fi
+done
 
 dry_run=""
 if [[ "${1:-}" == "--dry-run" ]]; then
@@ -99,7 +115,7 @@ npm --prefix docs-site run check
 step "Publishing the serving stack to $SITE_HOST:$SITE_STACK"
 env_file="$(mktemp)"
 trap 'rm -f "$env_file"' EXIT
-printf 'SITE_HOST=%s\n' "$(site_host)" >"$env_file"
+printf 'SITE_HOST=%s\nSITE_PATH=%s\n' "$(site_host)" "$SITE_PATH" >"$env_file"
 
 rsync -az ${dry_run:+"$dry_run"} \
   -e "${ssh_command[*]}" \
@@ -229,4 +245,6 @@ for page in / /getting-started/ /packages/ /reference/changelog/; do
 done
 
 printf '\nPublished and verified (%s -> %s).\n' "$probe" "$served"
-printf '  curl -sI https://eski-site.invalid/ | head -1   # the app at the apex, untouched\n'
+if [[ -n "${SITE_NEIGHBOR_URL:-}" ]]; then
+  printf '  curl -sI %s | head -1   # the other service on this host, untouched\n' "$SITE_NEIGHBOR_URL"
+fi

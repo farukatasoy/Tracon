@@ -28,7 +28,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show b4c3288:docs/arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md
+> git show 0e45e9f:docs/arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md
 > ```
 >
 > Damıtıldı 2026-08-25 · `scripts/dokuman-bakim.py faz-damit`
@@ -198,7 +198,7 @@ iki 🔴 ve üç 🟡 bulgunun tamamı aşağıdaki odak testleriyle kapatıldı
 | F-150 için kapanış yarışını doğrudan ölçen test yoktu | 🟡 | `JobWorkerBackgroundServiceTests` `StopAsync`'in iş slotu serbest kalmadan dönmediğini doğrular |
 | Sağlayıcı site örneğinde `HttpClient` kaydı yoktu | 🟡 | Örneğe `services.AddHttpClient()` eklendi |
 
-F-150, temel commit `bb36b30` üzerinde yeniden üretildi ve düzeltildi. F-151'in
+F-150, temel commit `52d48f1` üzerinde yeniden üretildi ve düzeltildi. F-151'in
 iki dosyası ilk uygulanmış baytlarına döndürüldü. İnceleme ayrıca
 `dokuman-bakim.py` arşivleme yolunun yalnız `*.md` dosyalarına dokunduğunu
 gösterdi; önceki "arşivleme SQL yorumunu değiştirdi" kök neden iddiası yanlıştı.

@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 8c18ae3c:docs/arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md
+> git show a5ce0ddc:docs/arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md
 > ```
 >
 > Damıtıldı 2026-09-16 · `scripts/dokuman-bakim.py faz-damit`
@@ -41,7 +41,7 @@ Onaylar ekranında bir tool çağrısını onaylamak veya reddetmek **tek tıkt�
 - [x] Etkilenen E2E olguları aynı commit'te taşındı; olgu sayısı yazıldı — `UiTests.cs` **70 → 78**, proje **71 → 79**. Taşınan tek olgu `Approvals_screen_…` ve **gevşetilmedi**
 - [x] `en` ve `tr` eksiksiz; `npm run build` temiz — 16 anahtar iki dile birlikte eklendi, 4 ölü anahtar silindi; `Pick<Messages, …>` eksik anahtarı derleme hatası yapar (K-228)
 - [x] Bundle payı **gzip KB olarak** ölçüldü ve yazıldı — **190,5 → 192,4 KB** (+1,9 KB), 250 KB bütçesinin altında. Taban temiz bir `git worktree` içinde ölçüldü
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 04b0ccfc`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 509290cd`
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: "✅ temiz (6 işaretli sentetik credential atlandı)"
 - [x] Manuel kabul case'leri eklendi; otomatikleştirilebilenler koşuldu — `09-ARAYUZ-GENEL.md` MT-UI-055…057, üçünün de otomatik karşılığı yeşil. Ayrıca **yedi bayat case** yeni akışa taşındı (denetim 🟡 #4 + sınıf taraması)

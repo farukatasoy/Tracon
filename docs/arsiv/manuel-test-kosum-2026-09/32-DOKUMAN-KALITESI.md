@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s3` (Faz B, dağılım: `32 · 29 · 34 · 21 · 11 · 25 · 17 · 20`) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s3` · dal `test/kosum-s3` |
-| **Kod** | `c022c50f` donuk (`git diff --stat a51a8496..HEAD -- src samples tests` boş — doğrulandı) |
+| **Kod** | `a0066618` donuk (`git diff --stat cfe5ebe8..HEAD -- src samples tests` boş — doğrulandı) |
 | **Case sayısı** | 40 (MT-DKL-001..040) |
 | **Port** | 5083 (strand app — bu aile `docs-site`'ı test eder, app'e neredeyse hiç dokunmaz) |
 | **Depo** | PostgreSQL `mt_s3` (reset edildi, uygulama sağlıklı — bu aile için kullanılmadı) |
@@ -44,7 +44,7 @@ case'in **13'ü** bu oturumda çözüldü:
   (aile 31'in emsaliyle aynı yöntem):** MT-DKL-023, MT-DKL-024 → ikisi de
   **☑ Geçti** — kaynak geçici olarak mutasyona uğratıldı, self-test'in tam
   beklenen mesajla kızardığı doğrulandı, sonra `git checkout` ile **birebir**
-  geri alındı. `git diff --stat a51a8496..HEAD -- src samples tests` bu
+  geri alındı. `git diff --stat cfe5ebe8..HEAD -- src samples tests` bu
   turlardan sonra da **boş** — kod donması bozulmadı.
 
 **Kalan 5 case** (MT-DKL-001, 002, 003, 004, 006) gerçekten göz gerektiriyor
@@ -182,7 +182,7 @@ oturumunun ilk çalıştırmasını yanıltıyor.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 1a811d3d:docs/manuel-test/kosumlar/2026-09-16/32-DOKUMAN-KALITESI.md
+> git show eb1b5d17:docs/manuel-test/kosumlar/2026-09-16/32-DOKUMAN-KALITESI.md
 > ```
 
 ---
@@ -379,7 +379,7 @@ değiştirmeyi ister; kod donması bunu yasaklıyor. MT-DKL-023 ile aynı gerek�
 4. `git checkout -- src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs`
    ile geri alındı; yeniden derleme + test → **2/2 geçti**.
 
-**Doğrulama (kod donması):** `git diff --stat a51a8496..HEAD -- src samples tests`
+**Doğrulama (kod donması):** `git diff --stat cfe5ebe8..HEAD -- src samples tests`
 bu iki mutasyon-geri-alma turundan sonra **boş** — kaynak, mutasyon öncesiyle
 bit-bit aynı. `git status --short` de temiz.
 

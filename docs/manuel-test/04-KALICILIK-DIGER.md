@@ -26,7 +26,7 @@
 > [`../arsiv/manuel-test-kosum-2026-09/04-KALICILIK-DIGER.md`](../arsiv/manuel-test-kosum-2026-09/04-KALICILIK-DIGER.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
-> tam metin: git show aa9c0a7f:docs/manuel-test/kosumlar/2026-08-13/04-KALICILIK-DIGER.md
+> tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/04-KALICILIK-DIGER.md
 
 ---
 

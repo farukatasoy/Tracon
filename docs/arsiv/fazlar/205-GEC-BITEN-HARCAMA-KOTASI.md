@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 93b1d1ae:docs/arsiv/fazlar/205-GEC-BITEN-HARCAMA-KOTASI.md
+> git show 93d0659d:docs/arsiv/fazlar/205-GEC-BITEN-HARCAMA-KOTASI.md
 > ```
 >
 > Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -41,7 +41,7 @@ Kiracı kotası bir çağrı ağacının harcamasını eksiksiz saymalıdır. Bu
 - [x] `AgentTreeQuotaTests`, `NonTokenSpendAgentTreeTests`, `NonTokenSpendTests` değiştirilmeden yeşil
 - [x] `QuotaStoreContract` `Runs = 0` case'i dört depoda yeşil (bellek içi · Sqlite · PostgreSQL · SQL Server; iki case)
 - [x] K-913 ve K-974'ün kota yarısını değiştiren karar `KARARLAR.md`'ye yazıldı (K-990, kategori: güvenlik, public-api)
-- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis --taban ebf6e379` çıkış 0: build · test 691 sn · pack · format; sözleşme paketine dokunulduğu için `kapi.py yayin --kuru` ayrıca koşar)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis --taban f648c741` çıkış 0: build · test 691 sn · pack · format; sözleşme paketine dokunulduğu için `kapi.py yayin --kuru` ayrıca koşar)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1 ve 3), çıktı aşağıda
 - [x] `secret` taraması boş döndü (`kapi.py tarama`)
 - [x] Manuel kabul case'leri `docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md` içine eklendi (`MT-RET-081…084`); otomatikleştirilebilenler koşuldu

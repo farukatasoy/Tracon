@@ -7,7 +7,7 @@
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Yüzey değişmedi; sevk edilen XML metni değişti (sapma 1)
 > **Tüketici yüzeyi:** docs-site tüm şablonlar ve 52 el yazısı sayfa · SVG/PNG marka asset'leri · console görüntüleri · llms türevleri
-> **Taban:** `594dbd538be9e9dd07906c6295cece717b593a73`
+> **Taban:** `2ce5f648d7e5d97f0d8b61bb30582cff49d341ea`
 > **Teslim:** Yerel production preview; kullanıcı commit ve deploy istemiyor.
 
 > ### ⚗️ Damıtılmış kayıt
@@ -18,7 +18,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 79f4ab7b:docs/arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md
+> git show 07c64a95:docs/arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md
 > ```
 >
 > Damıtıldı 2026-09-12 · `scripts/dokuman-bakim.py faz-damit`
@@ -156,7 +156,7 @@ kurallarına tabi tutar.
 - [x] `npm run check` dört adımda yeşil: 53 el yazısı · 1138 toplam sayfa,
       179 717 iç bağlantı kırıksız, en ağır sayfa 57 368 B. Agent haritası
       `--check` ile taze.
-- [x] Dört repo kapısı sıfır uyarı (`kapi.py kapanis`, taban `594dbd53`, tek
+- [x] Dört repo kapısı sıfır uyarı (`kapi.py kapanis`, taban `2ce5f648`, tek
       koşumda uçtan uca yeşil): `tarama` 4,2 s · `dokuman-bakim --denetle` 8,9 s ·
       betik birim testleri 9,8 s · `build-agent-map --check` 0,1 s ·
       `denetim-paketi` 0,8 s · `dotnet build` 62,5 s · `dotnet test` 670,0 s ·
@@ -333,7 +333,7 @@ Pagefind filtre indeksi üç grubu taşıyor · `id="_top"` her sayfada tek ·
 
 ## Sonraki Faza Devir Notu
 
-**Faz kapandı.** `kapi.py kapanis --taban 594dbd53` tek koşumda uçtan uca sıfır
+**Faz kapandı.** `kapi.py kapanis --taban 2ce5f648` tek koşumda uçtan uca sıfır
 uyarı verdi; bağımsız denetimin üç 🔴 bulgusu da kapatıldı. Doküman arşivlendi ve
 damıtıldı, commit atıldı, site yayınlandı.
 

@@ -1,6 +1,6 @@
 # Tehdit Modeli
 
-> **Ölçüldü:** 2026-09-24, Faz 186 (taban `825f1bb1`; ilk ölçüm `99d04649`). Kaynak sınır kümesi
+> **Ölçüldü:** 2026-09-24, Faz 186 (taban `1309c9d7`; ilk ölçüm `11a3123d`). Kaynak sınır kümesi
 > [`getting-started/security.md`](../docs-site/src/content/docs/getting-started/security.md)
 > § *The boundaries Tracon enforces* (14 satır). Bu dosya o kümeyle
 > **eşitlenmek zorundadır** — tazelik kapısı `docs-site/scripts/check-content.mjs`

@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 79d082eb:docs/arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md
+> git show cdf88d4e:docs/arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md
 > ```
 >
 > Damıtıldı 2026-09-16 · `scripts/dokuman-bakim.py faz-damit`
@@ -174,7 +174,7 @@ Server'ın `OUTPUT` listesi — çevrildi ve mutasyonla doğrulandı.
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (taze bağlam, salt-okunur) `git diff 72ab931e` + dört izlenmeyen
+Bağımsız denetçi (taze bağlam, salt-okunur) `git diff 7434a83b` + dört izlenmeyen
 dosya üzerinde koştu.
 
 **🔴 bulgu: YOK.** Denetimin ağır dört maddesi temiz çıktı: ordinal zinciri

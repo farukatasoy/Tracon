@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9f6e9b8:docs/arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md
+> git show d66f9c8:docs/arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md
 > ```
 >
 > Damıtıldı 2026-08-28 · `scripts/dokuman-bakim.py faz-damit`

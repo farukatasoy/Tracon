@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f272e70:docs/arsiv/fazlar/86-TALIMATIN-GIRDI-YUZEYI.md
+> git show b569600:docs/arsiv/fazlar/86-TALIMATIN-GIRDI-YUZEYI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -185,7 +185,7 @@ deposuna karşı gerçek bir HTTP isteğiyle ortaya çıktı.
 
 ## `docs-site` senkron denetimi — gerekçeli geçişler
 
-`python3 scripts/dokuman-bakim.py --site-denetle --taban d64171a` beş kuraldan
+`python3 scripts/dokuman-bakim.py --site-denetle --taban b976a96` beş kuraldan
 üçünü otomatik karşıladı (`ui.md` — playground'daki parametre formu için yeni
 paragraf eklendi; `capabilities.md`/`llms-full.txt` — `build-agent-map.mjs` ile
 yeniden üretildi; `concepts/`). İki kural elle gerekçelendirilir:

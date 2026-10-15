@@ -14,7 +14,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 595ecd8:docs/arsiv/fazlar/00-ALTYAPI.md
+> git show 005eccd:docs/arsiv/fazlar/00-ALTYAPI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f272e70:docs/arsiv/fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md
+> git show b569600:docs/arsiv/fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

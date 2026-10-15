@@ -13,7 +13,7 @@
 |---|---|
 | **Şerit** | `ap-s2` (Faz B, ilk aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s2` · dal `test/kosum-s2` |
-| **Kod** | `a51a8496` donuk (bu şeridin `HEAD`'i `c022c50f`, yalnız doküman commit'leri) |
+| **Kod** | `cfe5ebe8` donuk (bu şeridin `HEAD`'i `a0066618`, yalnız doküman commit'leri) |
 | **Case sayısı** | 48 (MT-GDK-001..048) |
 | **Port** | 5082 / şema `mt_s2` — bu aile CLI-only, örnek uygulama gerekmez |
 | **Depo** | N/A — bu aile `scripts/`, `.agents/`, `docs/`, `bench/` kapılarını sınar, `samples/Tracon.Api`'yi değil |
@@ -155,7 +155,7 @@ Ayrıntı case'in kendi kaydında.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 4f218d55:docs/manuel-test/kosumlar/2026-09-16/36-GELISTIRME-KAPILARI.md
+> git show d38bc2b6:docs/manuel-test/kosumlar/2026-09-16/36-GELISTIRME-KAPILARI.md
 > ```
 
 ---
@@ -210,10 +210,10 @@ Ayrıntı case'in kendi kaydında.
 
 **Gerçek sonuç**
 Bu git geçmişi her fazı **tek squash commit** olarak taşıyor (`git log
---oneline` içinde literal `phase NN` mesajlı commit'ler, ör. `d1fb16c3 phase
-68`, `f3480142 phase 67`; `f3480142..d1fb16c3` arasında **tek** commit var).
+--oneline` içinde literal `phase NN` mesajlı commit'ler, ör. `55b0a75c phase
+68`, `08169a93 phase 67`; `08169a93..55b0a75c` arasında **tek** commit var).
 Aralıkları önceki fazın kapanış commit'inden bu fazın kapanış commit'ine
-tanımladım: Faz 68 = `f3480142..d1fb16c3`, Faz 73 = `7a08f07a..90161c2b`.
+tanımladım: Faz 68 = `08169a93..55b0a75c`, Faz 73 = `5acad985..50c6f904`.
 
 - Faz 68: `İmza-gövde kayması adayları: 2 aday` — `RunEventWriter.cs:
   CompleteAsync(cost) → RunRecord.Cost` VE `cost totals:
@@ -352,7 +352,7 @@ metninde söylüyor, spec düzeltildi.
 
 **Gerçek sonuç**
 `docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md`'nin kendi damıtma bloğu
-şunu taşıyor: `git show f272e70:docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md`
+şunu taşıyor: `git show b569600:docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md`
 (case metninin yazdığı `docs/73-...md` kısaltılmış bir yoldu — gerçek
 göstergede `arsiv/fazlar/` öneki var, o yol **hiç var olmadı**:
 aynı komut kısaltılmış yolla, yani `arsiv/fazlar/` öneki olmadan
@@ -381,7 +381,7 @@ scripts/kapi.py performans` (~156 s) çıktısı:
 satır tek başına ❌ değilken genel çıkış **0** kalır (spec'in iddiası: "Çıkış
 `0`; o satır ❌ değil ⚠️'dır"). `--guncelle` bayrağı mesajda tam olarak
 geçiyor. Satır `Take = 50`'ye geri alındı (`git checkout --`);
-`git diff --stat a51a8496..HEAD -- src samples tests` boş.
+`git diff --stat cfe5ebe8..HEAD -- src samples tests` boş.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

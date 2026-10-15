@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f9353711:docs/arsiv/fazlar/172-TEHDIT-MODELI.md
+> git show 225b860c:docs/arsiv/fazlar/172-TEHDIT-MODELI.md
 > ```
 >
 > Damıtıldı 2026-09-15 · `scripts/dokuman-bakim.py faz-damit`
@@ -97,7 +97,7 @@ python3 scripts/dokuman-bakim.py --denetle
 
 ## Denetim Bulguları
 
-`faz-denetcisi` (taze bağlamlı) koştu. Kapsam: `git diff 43cb5156...` (commit
+`faz-denetcisi` (taze bağlamlı) koştu. Kapsam: `git diff 9df43202...` (commit
 edilmemiş çalışma ağacı, 9 dosya).
 
 | # | Seviye | Bulgu | Triyaj | Sonuç |

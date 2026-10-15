@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 2db9109f:docs/arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md
+> git show ffd15f2e:docs/arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md
 > ```
 >
 > Damıtıldı 2026-09-07 · `scripts/dokuman-bakim.py faz-damit`

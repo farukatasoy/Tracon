@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 486bf4b:docs/arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md
+> git show ff45541:docs/arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`
@@ -187,7 +187,7 @@ tarafında ise metadata sorgusu (`ListAsync`) yalnız BAŞARISIZLIK yolunda
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (taze bağlamlı ayrı agent), `git diff 9359843...HEAD`'in
+Bağımsız denetçi (taze bağlamlı ayrı agent), `git diff ae209c4...HEAD`'in
 tamamını ve ilgili testleri okudu; kendi ölçümü için 2278 test (Core +
 Workflows + SQL Server + SQLite) koştu. **🔴 bulgu yok.**
 

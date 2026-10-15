@@ -39,8 +39,8 @@ açık kalem tablosu ve ortam kuralları ilgilidir; baştan sona okuma.
 ## 2. Nerede duruyoruz
 
 Koşum 36 ailenin 36'sında bitti. Dört şerit dalı `main`'e alındı, worktree'ler
-silindi. Kod tur boyunca `a51a8496`'de donuk kaldı ve merge'lerden sonra da
-donuk (`git diff --stat a51a8496..HEAD -- src samples tests` boş).
+silindi. Kod tur boyunca `cfe5ebe8`'de donuk kaldı ve merge'lerden sonra da
+donuk (`git diff --stat cfe5ebe8..HEAD -- src samples tests` boş).
 
 ```mermaid
 flowchart LR
@@ -113,7 +113,7 @@ Bu turun ölçtüğü ve bir daha keşfedilmemesi gereken şeyler.
 ### 3.1 Sayım betiğinin üç kör noktası kapandı
 
 `SKILL.md` §7'nin betiği bu turun **her** ölçümünü bozuyordu. Üçü de düzeltildi
-(commit `36f12d90`): glob 30–36 ailelerini görmüyordu · başlık yalnız `^## `
+(commit `e928e2f1`): glob 30–36 ailelerini görmüyordu · başlık yalnız `^## `
 arıyordu (dosyaların yarısı `### MT-…` kullanır) · blok sayıyordu, case
 kimliği değil. **Eski sayılara güvenme**, betiği yeniden koş.
 
@@ -127,7 +127,7 @@ kapıyı doğrudan koşar:
 ```bash
 python3 -m unittest discover -s scripts -p '*_test.py'
 node docs-site/scripts/build-agent-map.mjs --check
-python3 scripts/denetim-paketi.py --taban a51a8496
+python3 scripts/denetim-paketi.py --taban cfe5ebe8
 dotnet build Tracon.slnx -c Release
 dotnet test  Tracon.slnx -c Release --no-build -maxcpucount:1 -- --report-trx
 dotnet pack  Tracon.slnx -c Release --no-build -p:TraconSkipCleanWorkingTreeCheck=true
@@ -163,7 +163,7 @@ Konsolidasyon sonrası sekiz kapı doğrudan koşuldu:
 |---|---|
 | `unittest discover -s scripts` | ✅ |
 | `build-agent-map.mjs --check` | ✅ |
-| `denetim-paketi.py --taban a51a8496` | ✅ |
+| `denetim-paketi.py --taban cfe5ebe8` | ✅ |
 | `dotnet build -c Release` | ✅ sıfır uyarı |
 | `dotnet test -c Release` | ⚠️ **1 düşen** — `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004`; diğer her test projesi yeşil |
 | `dotnet pack` · `dotnet format` · `npm run check` | ✅ |
@@ -182,7 +182,7 @@ Dördü de kapandıktan sonra sekiz kapı **temiz ağaçta** baştan koşuldu:
 |---|---|
 | `unittest discover -s scripts` | ✅ 339 test |
 | `build-agent-map.mjs --check` | ✅ (`llms-full.txt` tazelendi) |
-| `denetim-paketi.py --taban a51a8496` | ✅ çıkış 0 |
+| `denetim-paketi.py --taban cfe5ebe8` | ✅ çıkış 0 |
 | `dotnet build -c Release` | ✅ sıfır uyarı |
 | `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7813 test · 0 düşen** (TRX ile ikinci kez doğrulandı) |
 | `dotnet pack --no-build` | ✅ çıkış 0 |
@@ -210,7 +210,7 @@ Sekizi de **boş bir makinede**, temiz ağaçta, tek tek koşuldu:
 |---|---|
 | `unittest discover -s scripts` | ✅ 351 test |
 | `build-agent-map.mjs --check` | ✅ bütçede |
-| `denetim-paketi.py --taban a51a8496` | ✅ çıkış 0 |
+| `denetim-paketi.py --taban cfe5ebe8` | ✅ çıkış 0 |
 | `dotnet build -c Release` | ✅ sıfır uyarı |
 | `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7848 test · 0 düşen · 599 sn** (TRX ile ayrıca doğrulandı) |
 | `dotnet pack --no-build` | ✅ çıkış 0 |
@@ -221,9 +221,9 @@ Sekizi de **boş bir makinede**, temiz ağaçta, tek tek koşuldu:
 kabul edilmiş). Diğer her kontrol yeşil, kırık bağlantı **0**.
 
 ⚠️ `kapi.py tarama` **kırmızı, ama bu turun işinden değil** — ikisi de bu
-oturumdan öncedir ve dokunulmadı (`git diff b4596a68..HEAD` o yollarda boş):
+oturumdan öncedir ve dokunulmadı (`git diff 9fda0c4d..HEAD` o yollarda boş):
 `ConsumerStoreRegistrationTests.cs:61`'deki sentetik `Password=unused`, ve
-tarama tabanı `025803d5`'den **sonra** eklenmiş üç migration dosyası. Yayın
+tarama tabanı `bea3901f`'den **sonra** eklenmiş üç migration dosyası. Yayın
 öncesi bunlar ayrıca ele alınmalıdır (`YAYIN-HAZIRLIK` Adım 3).
 
 🚨 **Altı kırılganlık örneğinin hiçbiri bu koşumda düşmedi** — ikinci kez.
@@ -239,7 +239,7 @@ Koşum profili değişikliği (§4'ün Aile T satırı) yürürlükte.
 |---|---|
 | `unittest discover -s scripts` | ✅ 351 test · `OK` |
 | `build-agent-map.mjs --check` | ✅ bütçede |
-| `denetim-paketi.py --taban a51a8496` | ✅ çıkış 0 |
+| `denetim-paketi.py --taban cfe5ebe8` | ✅ çıkış 0 |
 | `dotnet build -c Release` | ✅ sıfır uyarı |
 | `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7853 test · 0 düşen** |
 | `dotnet pack --no-build` | ✅ çıkış 0 |
@@ -274,7 +274,7 @@ K-833'ün kod düzeltmesi (beş arayüz paneli + yeni test) dahil:
 |---|---|
 | `unittest discover -s scripts` | ✅ 351 test · `OK` |
 | `build-agent-map.mjs --check` | ✅ bütçede |
-| `denetim-paketi.py --taban a51a8496` | ✅ çıkış 0 |
+| `denetim-paketi.py --taban cfe5ebe8` | ✅ çıkış 0 |
 | `dotnet build -c Release` | ✅ sıfır uyarı |
 | `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7853 test · 0 düşen** (TRX ile ikinci kez doğrulandı) |
 | `dotnet pack --no-build` | ✅ çıkış 0 |
@@ -316,7 +316,7 @@ tool, dört yeni dosya):
 |---|---|
 | `unittest discover -s scripts` | ✅ 351 test · `OK` |
 | `build-agent-map.mjs --check` | ✅ bütçede |
-| `denetim-paketi.py --taban a51a8496` | ✅ çıkış 0 |
+| `denetim-paketi.py --taban cfe5ebe8` | ✅ çıkış 0 |
 | `dotnet build -c Release` | ✅ sıfır uyarı |
 | `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7853 test · 0 düşen** (TRX ile doğrulandı) |
 | `dotnet pack --no-build` | ✅ çıkış 0 |
@@ -345,7 +345,7 @@ yalnız `1.0.0-preview.1` kaldı.
 |---|---|
 | `unittest discover -s scripts` | ✅ 351 test · `OK` |
 | `build-agent-map.mjs --check` | ✅ bütçede |
-| `denetim-paketi.py --taban a51a8496` | ✅ çıkış 0 |
+| `denetim-paketi.py --taban cfe5ebe8` | ✅ çıkış 0 |
 | `dotnet build -c Release` | ✅ sıfır uyarı |
 | `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7853 test · 0 düşen** |
 | `dotnet pack --no-build` | ✅ çıkış 0 |
@@ -372,10 +372,10 @@ sekiz komutluk listesi `kapanis` fail-fast olduğu için **elle** yazılmıştı
 referansı) o listeye hiç girmedi — yani tur boyunca bir kez bile koşmadı.
 Kapanışta koşuldu ve üç migration dosyasının
 `scripts/applied-migrations.json`'a **ankrajlanmadığını** buldu
-(`0052_tool_late_completion.sql` + iki kardeşi, `547e8cbd`). Ölçüldü:
+(`0052_tool_late_completion.sql` + iki kardeşi, `52b23ef2`). Ölçüldü:
 tabandan beri migration'larda **yalnız ekleme** var (`git diff --name-status`
 altı satırın altısı da `A`), yani uygulanmış bir migration değişmemiş; üç dosya
-emsaldeki gibi (`2fe40097` üçlüsü) kendi commit'ine ankrajlandı ve `tarama`
+emsaldeki gibi (`30bdaa0d` üçlüsü) kendi commit'ine ankrajlandı ve `tarama`
 ✅ temiz döndü (7 işaretli sentetik credential atlandı — bu aynı zamanda bitti
 tanımının `secret` maddesidir). Ders
 [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md)'ye yazıldı:
@@ -739,7 +739,7 @@ karşılaştırmak **üç** kayıp gösterdi.
 | Tüketici yüzeyi | `concepts/evaluation.md` kusuru bir **özellik** olarak belgeliyordu ("`PUT` fresh identifiers assigns… makes that safe"); iki paragraf yeniden yazıldı |
 
 🚨 **Üretilen .NET istemcisi kaynak belgesinden BAYATTI ve hiçbir kapı bunu
-söylemiyor.** Yeniden üretim, Faz 176'da (`2fe40097`) OpenAPI'ye eklenen ama
+söylemiyor.** Yeniden üretim, Faz 176'da (`30bdaa0d`) OpenAPI'ye eklenen ama
 `TraconApiClient.g.cs`'e hiç işlenmeyen `EvaluatorVersion` alanını da
 getirdi — yani istemci bir fazdan beri eksikti. `ClientDescriptionBaselineTests`
 ve `ClientCoverageTests` var ama ikisi de **eksik bir DTO alanını** görmüyor.
@@ -1305,17 +1305,17 @@ bittikten **sonra** aynı oturumda koşulur.
 
 | Case | Sonuç | Notu |
 |---|---|---|
-| `MT-PKG-104` | ☑ | Çözümlenmiş sürüm taşınıyor. Beklenen **URL** bayattı: Faz 162 (`025803d5`) GitHub blob'dan site sayfasına döndü — repo private olduğu için `github.com` URL'i her tüketiciye `404` verirdi |
+| `MT-PKG-104` | ☑ | Çözümlenmiş sürüm taşınıyor. Beklenen **URL** bayattı: Faz 162 (`bea3901f`) GitHub blob'dan site sayfasına döndü — repo private olduğu için `github.com` URL'i her tüketiciye `404` verirdi |
 | `MT-PKG-105` | ☑ | 20/20 paket `releaseNotes` taşıyor; hiç `EKSIK` satırı yok |
 | `MT-PKG-115` | ☑ | İki ardışık prova, ikisi de çıkış `0`, `❌` yok, SHA-256 birebir aynı — no-op deterministik. Ön koşula ikinci madde eklendi (bayat feed) |
-| `MT-PKG-116` | ☑ | Senaryo **kendiliğinden** oluştu (paketler `d2425ad4`'ten, `HEAD` `2841b02a`) → sentetik commit'e gerek kalmadı, kaydın `git add -A` uyarısı hiç devreye girmedi |
+| `MT-PKG-116` | ☑ | Senaryo **kendiliğinden** oluştu (paketler `cb576a3a`'ten, `HEAD` `34356bdd`) → sentetik commit'e gerek kalmadı, kaydın `git add -A` uyarısı hiç devreye girmedi |
 | `MT-PKG-117` | ☑ | `20 1.0.0-preview.1 False`; 18 kütüphane kaydında `symbols*` dolu, boş olan iki paket metapaket ve şablon |
 | `MT-UIRUN-001` | ☑ | Taze boş şema (`mt_u1`). Şerit **gizlenmedi**, `Empty` ile **aynı anda** çizildi. Hata oranı kutusu `%0` değil `—` — `errorRate` `null`; spec keskinleştirildi |
 | `MT-UIRUN-063` | ☑ | Dört adımın dördü de kilit + rol metni. İki spec düzeltmesi (panel `settings`'te değil `skills`'te; script grant listesi reader'a **açık**) → **yeni kusur: K-833** |
 
 **Neden 20 paketin hepsi "farklı" işaretlenir** (MT-PKG-116'nın yan ürünü): her
 `.nuspec` commit kimliğini taşır —
-`<repository … commit="2841b02a…" />`. Kimlik metadata'sı her commit'te
+`<repository … commit="34356bdd…" />`. Kimlik metadata'sı her commit'te
 değişir, ∴ yalnız 3 proje değişmiş olsa da 20 paketin baytı değişir. Aşırı
 raporlama değil, doğru davranış; build'in kendisi deterministiktir.
 
@@ -1325,7 +1325,7 @@ raporlama değil, doğru davranış; build'in kendisi deterministiktir.
 |---|---|
 | `mt_u1` · `mt_u63` şemaları | `ap-pg` içinde; `MT-UIRUN-001` ve `MT-UIRUN-063`'ün ölçüm verisi |
 | `artifacts/package/kosum-2026-09-16/bayat-feed/` | §4.1'in 182 adet `0.0.0-preview.0.8xx` paketi — **silinmedi**, release feed'den çıkarıldı |
-| `artifacts/package/kosum-2026-09-16/onceki-commit/` | `d2425ad4`'ten kalan 39 dosya — `MT-PKG-116`'nın kanıtı |
+| `artifacts/package/kosum-2026-09-16/onceki-commit/` | `cb576a3a`'ten kalan 39 dosya — `MT-PKG-116`'nın kanıtı |
 | `mt_u63` içindeki `mt-u63-skill` · `mt-u63-mcp` | Ön koşul fixture'ları (denetim kaydı ve MCP satırı için) |
 
 **Ortam yordamı** (§4.1'inkine ek olarak):
@@ -1460,7 +1460,7 @@ koşulmayanlar `00-INDEKS.md` §7.1'e gerekçesiyle yazılır.
 | `MT-GUARD-095` · `106` | Geçersiz yapısal yanıt — OpenAI'nin `response_format` sözdizimsel garantisi yüzünden gerçek sağlayıcıyla **üretilemez** |
 | `MT-AGD-018` | İzole, taze bağlamlı bir kod agent'ına yalnız yayımlanmış `guides/embedding.md` verilerek ölçüm |
 | `MT-AGD-024` | Gerçek `claude` CLI (`--output-format stream-json`) izole bir proje kökünde |
-| `MT-YRF-026` · `027` | Dış ölçüm deposu (tüketici deposu) bu ortamda yok |
+| `MT-YRF-026` · `027` | Dış tüketici deposu bu ortamda yok |
 | `MT-DDG-017` · `018` | İnsan gözü — üretilen görüntünün anlattığının **doğruluğu** |
 | `MT-DKL-001` · `002` · `003` · `004` · `006` | İnsan gözü — tipografi/hizalama yargısı |
 | `MT-GDK-024` | İkinci bir işletim sistemi (Linux CI'da `kapi.py performans --guncelle`) |

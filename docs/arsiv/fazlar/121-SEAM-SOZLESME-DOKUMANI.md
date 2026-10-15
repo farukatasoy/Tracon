@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 3391ae5:docs/arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md
+> git show 23f8ae4:docs/arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md
 > ```
 >
 > Damıtıldı 2026-08-28 · `scripts/dokuman-bakim.py faz-damit`
@@ -39,7 +39,7 @@ Tracon'in extension seam'lerinin **tek bir sözleşme standardı yoktur.** Üç�
 - [x] `git diff --stat -- 'src/*/PublicAPI.Unshipped.txt'` — **`Tracon.Abstractions`/`Tracon.Core` boş** (imza değişmedi); `Tracon.Testing.Contracts.Xunit` **+3 satır** (bilinçli sapma, BL-046 gerçek kusur düzeltmesinin `AuditLogContract`'a eklediği 3 yeni `[Fact]` — bkz. Plandan Sapmalar, K-644)
 - [x] `IRunCancellationRegistry`'nin cooperative-only sınırı fonksiyonel testle ölçüldü — `RunCancellationRegistryTests.TryCancel_does_not_stop_a_run_body_that_never_reads_its_token`: token'ı hiç okumayan bir "run body" `TryCancel` sonrası da "spend" saymaya devam ediyor
 - [x] `AuditLogContract` `null` tenant vakasını dört koşumda birden ölçüyor — `InMemory` (21/21), `PostgreSQL` (21/21), `SqlServer` (21/21), `Sqlite` (21/21), hepsi ayrı ayrı yeşil
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban d64b05c` tamamı ✅ (tarama, dokuman-bakim, build, `dotnet test` tüm solution 2887+ test, `dotnet pack`, `dotnet format --verify-no-changes`, docs-site build+check:links+check:weight)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 59c4671` tamamı ✅ (tarama, dokuman-bakim, build, `dotnet test` tüm solution 2887+ test, `dotnet pack`, `dotnet format --verify-no-changes`, docs-site build+check:links+check:weight)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. altındaki "Örnek Uygulama Koşumu"
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` ✅ temiz
 - [x] Manuel kabul case'i **üretilmedi**; gerekçe: bu faz yalnız XML doküman + bir mevcut kusuru düzeltir (BL-046); kusurun kendisi `curl` ile `samples/Tracon.Api` üzerinde uçtan uca ölçüldü (audit trail yazma/okuma), ayrı bir manuel case gerektirecek yeni bir kullanıcı-görünür akış yok

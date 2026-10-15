@@ -30,7 +30,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f042dbc8:docs/arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md
+> git show 7f64e334:docs/arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md
 > ```
 >
 > Damıtıldı 2026-09-03 · `scripts/dokuman-bakim.py faz-damit`

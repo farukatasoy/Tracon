@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 5c880cf:docs/arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md
+> git show 245dc4c:docs/arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`

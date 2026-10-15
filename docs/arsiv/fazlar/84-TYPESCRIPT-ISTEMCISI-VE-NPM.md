@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show f272e70:docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md
+> git show b569600:docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -129,7 +129,7 @@ dotnet format Tracon.slnx --verify-no-changes --no-restore
   `@tracon/client`'a) taşıdı — `ApiError` → `TraconError`,
   `api.meta()` → `client.GET('/api/meta')` gibi bire bir karşılıklarla. Hiçbir
   ekran, route veya görünür davranış değişmedi; `ui.md` zaten bunu anlatıyordu.
-  Doğrulandı: `git diff 5f22421 -- src/Tracon.UI/frontend/src/screens/`
+  Doğrulandı: `git diff 618037c -- src/Tracon.UI/frontend/src/screens/`
   yalnız `M` (değişti) satırları gösterdi, hiçbir ekran eklenmedi/silinmedi.
 - **`cekirdek-kavram` (hedef `concepts/`):**
   `src/Tracon.Core/Security/TraconContentProtectionOptions.cs` tetikledi.

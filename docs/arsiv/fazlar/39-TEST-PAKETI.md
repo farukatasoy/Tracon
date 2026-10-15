@@ -17,7 +17,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 0c7caee:docs/arsiv/fazlar/39-TEST-PAKETI.md
+> git show 5c4c256:docs/arsiv/fazlar/39-TEST-PAKETI.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`
