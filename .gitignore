@@ -123,3 +123,6 @@ docfx/_site/
 ## ---------------------------------------------------------------------------
 __pycache__/
 *.pyc
+
+# Site deploy host settings (scripts/site-deploy.sh)
+scripts/site-deploy.local.env

@@ -55,7 +55,7 @@ APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.jso
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # Faz 184: iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
 # timeout uretiyordu, Faz 100). Sabit beklemeler kosul-beklemeye donunce
-# olculdu, ayni makine, ayni kod (7be58ae1): -maxcpucount:1 863 ve 879 sn,
+# olculdu, ayni makine, ayni kod (d0cdd2c2): -maxcpucount:1 863 ve 879 sn,
 # -maxcpucount:2 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
 # ci.yml 1'de KALIR: runner donanimi olculmedi. Kaynak cekismesi imzali bir
 # kapanis kirmizisi (izole tekrar kosumda gecen) gorulurse 1'e don ve
@@ -686,7 +686,7 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
 # Every src/ change reaches this project, whatever the package: its
 # ExampleExtractor enumerates src/**/*.cs and COMPILES every <example> block it
 # finds, so an XML doc comment added anywhere under src/ can break it. Measured
-# escape: e780344a ("caught only by the full solution test run, not by
+# escape: ef9c8ee1 ("caught only by the full solution test run, not by
 # Tracon.Core.UnitTests alone") - the inner loop selected Core.UnitTests +
 # AspNetCore.FunctionalTests and never ran the project that actually failed.
 # Costs 2.4 s measured (2026-09-04 per-project profile).
@@ -697,7 +697,7 @@ EXAMPLE_COMPILING_TEST_PROJECT = "Tracon.Generators.UnitTests"
 UI_TEST_PROJECT = "Tracon.Ui.E2ETests"
 
 # A sample directory the solution really tests, and the project that tests it
-# (via ProjectReference). Measured escape: 57443003 - phase 139 added a sixth
+# (via ProjectReference). Measured escape: 6e9cc8f6 - phase 139 added a sixth
 # embedding point, samples/Tracon.Embedded fell behind, and `ic-dongu`
 # selected NO test project at all for a samples/ change.
 SAMPLE_TEST_PROJECTS: dict[str, str] = {

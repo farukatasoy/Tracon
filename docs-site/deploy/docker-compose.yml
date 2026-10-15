@@ -8,9 +8,9 @@
 #
 # The apex host is a different container and is not touched by anything here.
 #
-# SITE_HOST comes from .env, which scripts/site-deploy.sh writes from
-# docs-site/site.config.mjs. It is not committed: a literal here would be one more
-# copy of the address for nothing to keep in agreement.
+# SITE_HOST and SITE_PATH come from .env, which scripts/site-deploy.sh writes from
+# docs-site/site.config.mjs and its own configuration. It is not committed: a
+# literal here would be one more copy of the value for nothing to keep in agreement.
 name: tracon-site
 
 services:
@@ -26,7 +26,7 @@ services:
     volumes:
       # Read-only on purpose: the site is delivered by rsync, never written from
       # inside the container.
-      - /srv/site/www:/usr/share/nginx/html:ro
+      - ${SITE_PATH:?SITE_PATH must come from .env}:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
 
     networks:
