@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fixture, installApiMock } from '../../test/api-fixtures';
 import { renderScreen, screen, waitFor, within } from '../../test/render';
 import { WorkflowRequestsPanel } from './workflow-requests';
@@ -36,7 +36,16 @@ describe('WorkflowRequestsPanel', () => {
   let restoreFetch: () => void;
   const queries: URLSearchParams[] = [];
 
+  // The fixtures carry fixed timestamps and the panel shows them relative to now. With
+  // the real clock, a day after the fixtures were written "requested" read "yesterday",
+  // and a case that looked for a stray letter in the row failed on every runner.
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-10-14T12:00:00Z'));
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     restoreFetch();
     queries.length = 0;
   });
@@ -109,7 +118,7 @@ describe('WorkflowRequestsPanel', () => {
   });
 
   it('shows the start of a long request and leaves the rest to the run card', async () => {
-    const long = `${'x'.repeat(140)}${'y'.repeat(60)}`;
+    const long = `${'x'.repeat(140)}${'§'.repeat(60)}`;
 
     install(() => [request({ prompt: long })]);
 
@@ -118,7 +127,7 @@ describe('WorkflowRequestsPanel', () => {
     const row = await screen.findByTestId('workflow-request-request-1');
 
     expect(row.textContent).toContain(`${'x'.repeat(140)}…`);
-    expect(row.textContent).not.toContain('y');
+    expect(row.textContent).not.toContain('§');
   });
 
   it('links a request whose workflow is unknown to its run', async () => {
