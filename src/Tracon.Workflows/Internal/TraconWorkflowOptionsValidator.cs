@@ -19,7 +19,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>A workflow registered in code is checked against the ceiling here</strong>
-/// (<see cref="WorkflowRegistrationOptions.RunTimeout"/>, F-537). A stored definition meets the ceiling
+/// (<see cref="WorkflowRegistrationOptions.RunTimeout"/>). A stored definition meets the ceiling
 /// at its save, an HTTP call someone can answer; a registration is written at build time and meets the
 /// host's settings only at startup, where a value the deployment cannot honour should stop the host
 /// instead of cutting every run in silence.

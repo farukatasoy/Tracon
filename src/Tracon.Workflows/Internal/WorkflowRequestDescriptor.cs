@@ -289,14 +289,14 @@ internal static class WorkflowRequestDescriptor
     /// <returns><see langword="true"/> when the port declares the plan-review request type.</returns>
     /// <remarks>
     /// <para>
-    /// 🚨 Decided by the PORT'S declared request type, never by what the data deserializes into. A
+    /// Decided by the PORT'S declared request type, never by what the data deserializes into. A
     /// request that comes back from a checkpoint holds its data as JSON, and
     /// <c>ExternalRequest.TryGetDataAs</c> then <em>tries to deserialize it into whatever type it is asked
     /// for</em>: a code graph's own request record (<c>{"text": "...", "violation": null}</c>) reads into
     /// <see cref="MagenticPlanReviewRequest"/> without an error, because every member of it is optional. The
     /// run that answered was built a plan-review response, and Microsoft Agent Framework refused it with
     /// "Message type MagenticPlanReviewResponse does not match expected response type". The first run held the
-    /// live object, so the defect showed only on the run that ANSWERS (phase 211).
+    /// live object, so the defect showed only on the run that ANSWERS.
     /// </para>
     /// </remarks>
     internal static bool IsPlanReview(ExternalRequest request)

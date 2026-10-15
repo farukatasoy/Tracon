@@ -181,8 +181,9 @@ geneli ve fonksiyon başınadır; saklanan zincire ve kod grafına birlikte ula�
 `Failed` kapattığı dalda `run.failed` yayınlar; yük runner kapanışıyla aynı
 yardımcıdan kurulur ([`WorkflowRunner.cs:2021-2030`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs)).
 Yayın hatası loglanır, kapanışı bozmaz. Bütün istekleri cevaplanmış run'ı
-`Completed` kapattığı dalda `run.completed` yayınlar (Açık Soru 3).
-`workflow.request.answered` (F-523) bu faz dışıdır.
+`Completed` kapattığı dalda **hiçbir olay yayınlanmaz**: cevabın kendi run'ı zaten
+`run.completed` yayınlamıştır ve ikinci olay aynı üretimi iki kez sayardı (Açık Soru 3,
+Plandan Sapmalar 3). `workflow.request.answered` (F-523) bu faz dışıdır.
 
 ## 211.7 — Örnek, rehber ve revizyon sayacı
 
@@ -222,6 +223,7 @@ public sealed class WorkflowFunctionStepOptions
 {
     public TimeSpan? Timeout { get; set; }
     public JsonElement? Settings { get; set; }
+    public void SetSettings<TSettings>(TSettings settings) where TSettings : class;   // Açık Soru 1-B
 }
 
 public static class WorkflowAgentBinding // mevcut sınıf; yeni üyeler
@@ -235,7 +237,7 @@ public static class WorkflowAgentBinding // mevcut sınıf; yeni üyeler
 
 public sealed class WorkflowAgentStepOptions
 {
-    public string? Description { get; set; }
+    // Description kapanışta çıkarıldı (Plandan Sapmalar 2)
     public TimeSpan? Timeout { get; set; }
     public int? AgentVersion { get; set; }
 }
@@ -336,19 +338,19 @@ iki cevap) · boş/aşırı girdi (sınırsız revizyon, boş ret notu) · başk
 |---|---|---|---|
 | 1 | Fonksiyon ayarı kod grafında hangi tiple verilir? | A: yalnız `JsonElement?` · B: `JsonElement?` + `SetSettings<TSettings>(value)` yardımcısı (aynı katı seçenekle yazar) | **B**: tek okuma yolu (K-900) korunur, kod yazan tüketici tipli değer verir |
 | 2 | Kod `RunTimeout`'u tavanı aşarsa? | A: host açılışında hata · B: run'da kes ve logla | **A**: kod değeri dağıtımla gelir; açılışta düşmek sessiz kesmeden iyidir. Tavan sonradan düşerse B davranışı (saklanan tanımla aynı) |
-| 3 | Süre dolumu servisi `Completed` dalında `run.completed` yayınlasın mı? | A: evet · B: yalnız `run.failed` | **A**: run kapanışının bütün yolları aynı olayı yayınlar |
+| 3 | Süre dolumu servisi `Completed` dalında `run.completed` yayınlasın mı? | A: evet · B: yalnız `run.failed` | ~~A~~ **B uygulandı** (uygulamada ölçüldü: cevaplanan isteğin run'ı süre dolunca `Completed` kapanır, bu sık yoldur; A ikinci bir `run.completed` üretirdi — K-1011) |
 | 4 | `MaxConcurrency` beklemesi run olayı yazsın mı? | A: yazmaz, `Debug` log · B: yeni olay tipi | **A**: yeni olay tipi sözleşme büyütür; ihtiyaç ölçülmedi |
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Kod grafındaki `GetWorkflowFunction` düğümü saklanan zincirdeki aynı fonksiyonla aynı süre, retry, bütçe kapısı ve düğüm adlı maliyet davranışını verir (fonksiyonel test)
-- [ ] Geri kenarla dönen mesaj `GetWorkflowAgentStep` adımını koşturur; n'inci ret run'ı düşürür; sayaç cevap run'ları arasında korunur
-- [ ] Workflow agent adımında `JsonSchema` ihlali `MaxRepairAttempts` ile onarılır
-- [ ] Kod kaydının `RunTimeout`'u ve `Parameters`'ı saklanan tanımla aynı kuralla uygulanır
-- [ ] `MaxConcurrency` aynı anda koşan deneme sayısını sınırlar; iptal bekleyeni bırakır
-- [ ] Süresi dolan run `run.failed` webhook'u üretir
+- [x] Kod grafındaki `GetWorkflowFunction` düğümü saklanan zincirdeki aynı fonksiyonla aynı süre, retry, bütçe kapısı ve düğüm adlı maliyet davranışını verir (fonksiyonel test) — CodeWorkflowFunctionNodeTests
+- [x] Geri kenarla dönen mesaj `GetWorkflowAgentStep` adımını koşturur; n'inci ret run'ı düşürür; sayaç cevap run'ları arasında korunur — CodeWorkflowRevisionTests
+- [x] Workflow agent adımında `JsonSchema` ihlali `MaxRepairAttempts` ile onarılır — WorkflowAgentStepRepairTests
+- [x] Kod kaydının `RunTimeout`'u ve `Parameters`'ı saklanan tanımla aynı kuralla uygulanır — CodeWorkflowRunTimeoutTests · CodeWorkflowParameterTests · CodeWorkflowRegistrationValidationTests
+- [x] `MaxConcurrency` aynı anda koşan deneme sayısını sınırlar; iptal bekleyeni bırakır — WorkflowFunctionConcurrencyTests
+- [x] Süresi dolan run `run.failed` webhook'u üretir — WorkflowRequestExpiryWebhookTests
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
 - [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (ret → revizyon → onay; kesinti sonrası devam), çıktı belgeye yazıldı
 - [ ] `secret` taraması boş döndü
@@ -523,8 +525,28 @@ Testler (72 yeni): `CodeWorkflowFunctionNodeTests` 10 (süre, retry, bütçe kap
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur.
+Bağımsız denetçi (`faz-denetcisi`, taze bağlam, `git diff 2ee06055...HEAD`) iki 🔴, üç 🟡 ve üç 🟢 buldu. Denetçi ayrıca tüm fonksiyonel testleri (2120), `Tracon.Workflows.UnitTests`'i (423) ve `dokuman-bakim.py --denetle`'yi koştu; çift yayın, sarmalayıcı sırası, slot sızıntısı, kod `RunTimeout` tutarlılığı ve `Parameters` yollarında sorun görmedi.
+
+| # | Seviye | Triyaj | Bulgu | Sonuç |
+|---|---|---|---|---|
+| 1 | 🔴 | gerçek | Sevk edilen `///` metnine iç referans (`F-537`, `K-889`, `phase 211`, `🚨`) girdi; `ShippedDocumentationSelfContainmentTests` taban 0 iken 5 dosya | Düzeltildi: cümleler tüketici sesiyle yeniden yazıldı (5 dosya, 7 satır); test yeşil, taban dokunulmadı |
+| 2 | 🔴 | gerçek | Yeni testlerde 5 `Task.Delay` sınıf etiketsiz (`TestDelayClassificationTests`) | Düzeltildi: negatif kanıt olanlara `// delay: negative`, takılı/iş taklidine `// delay: simulated` |
+| 3 | 🟡 | gerçek | `PublicSurfaceBaselineTests`: `Tracon.Workflows` 8 → 11 genel tip | Plana uygun büyüme (`WorkflowFunctionBinding`, `WorkflowFunctionStepOptions`, `WorkflowAgentStepOptions`); taban `TRACON_PUBLIC_SURFACE_REFRESH=1` ile yenilendi |
+| 4 | 🟡 | gerçek | `MaxConcurrency`'nin saklanan zincire ulaştığı ve zincirle kod grafının aynı slotu paylaştığı hiçbir testte kanıtlı değildi | Düzeltildi: `WorkflowFunctionConcurrencyTests.A_stored_chain_and_a_code_graph_share_the_functions_slots` |
+| 5 | 🟡 | gerçek | Süre dolumu webhook testi yükün token/maliyet alanlarını doğrulamıyordu | Düzeltildi: `WorkflowRequestExpiryWebhookTests.The_payload_carries_what_the_run_spent_before_it_waited` (`Cost`, `NonTokenCost`, `Currency`) |
+| 6 | 🟢 | gerçek, devredildi | Zaman aşımında limit sarmalayıcısı slotu bırakır; token'ı yok sayan handler arka planda sürer, `RetryPolicy` ile yeni deneme `MaxConcurrency=1`'i aşabilir | Planlı sıra ve belgeli sınır ("pass the token on"); F-542 |
+| 7 | 🟢 | gerçek | `A_pin_to_a_version_the_agent_does_not_have_fails_the_step_by_name…` yalnız `"7"` arıyordu | Düzeltildi: `Version 7` ve `'writer'` aranır |
+| 8 | 🟢 | gerçek, devredildi | Kod `RunTimeout`'unun çalışma anı kesme dalı (tavan sonradan düşünce) kod kaydı için sınanmıyor | Dal saklanan tanımla aynı kodu paylaşır, fark log metni; F-543 |
+
+Denetçinin plan sapması listesi (plan-review tespiti · `Description` yok · `Completed`'da yayın yok · `SetSettings`) "Plandan Sapmalar"la örtüşür; ikisi — Açık Soru 3 metni ve "Planlanan Public API" bloğu — denetim sonrası koda göre düzeltildi (yukarıda).
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur.
+Sıradaki faz seçilmedi; aday sırası [`ADAYLAR.md`](ADAYLAR.md)'dedir. Bu faz şunları bıraktı:
+
+- **Devralınan sözleşmeler:** yukarıdaki *Gerçekleşen Public API*. Fonksiyon sarmalayıcı sırası `scope(retry(limit(gate(timeout(handler)))))`'dır (`NodeWrapper` XML'i ve `hafiza/workflows.md`). Yeni bir halka eklenirse üç yerde de güncellenir. Kod grafı hatası katalogda `WorkflowGraphBindingException` ile workflow adını alır.
+- 🚨 **Bilinen tuzaklar** (ayrıntı [`hafiza/workflow-cevaplari.md`](hafiza/workflow-cevaplari.md) "Kod grafı"): geri kenara dönen mesaj `AIAgentBinding`'i koşturmaz (agent adımı `GetWorkflowAgentStep`); revizyon sayacı `IWorkflowContext` durumunda tutulur (executor alanı sıfırlanır); `ExternalRequest.TryGetDataAs<T>` checkpoint'ten gelen JSON'u istenen tipe okumayı dener (plan-review tespiti port tipindendir); kod grafı yapısı değişirse bekleyen run sürmez, zaman aşımı/ayar değişirse sürer; süre dolumu servisi yalnız `Failed` kapanışta webhook yayınlar.
+- **Açık uçlar (ADAYLAR):** F-540 (kod grafında katılımcı kapsaması run başında), F-541 (kod workflow'u için tekil betimleyici ucu), F-542 (zaman aşımı sonrası slot ve token'ı yok sayan handler), F-543 (kod `RunTimeout` çalışma anı kesmesinin testi). F-528 bu fazda kapandı.
+- **Sınırlar (kullanıcıya söylenmiştir):** `MaxConcurrency` süreç başınadır, replika sayısıyla çoğalır; her cevap run'ı yeni bütçeyle başlar (F-531), bu yüzden revizyon sayacı ve `MaxTotalCost` birlikte verilir; kod grafı `Parameters`'ı için katılımcı kapsaması adım koşarken denetlenir.
+- **El ile kalan:** yok; altı manuel case örnek uygulamada koşuldu. Site yayını (`faz-tamamlama` Adım 10) **koşulmadı**: `./scripts/site-deploy.sh` dış dünyaya yayın yapar, kullanıcı onayı bekler.
+- **Geliştirici ortamı notu:** örnek uygulamada gerçek model anahtarı kullanıcı sırlarındadır; `Tracon__PostgreSql__ConnectionString=""` ve `Tracon__Sqlite__ConnectionString` verilmezse ortak PostgreSQL'e bağlanır. Webhook alıcısı için `Tracon__Webhooks__AllowInsecureHttp=true` ve `AllowPrivateNetworkTargets=true` gerekir.

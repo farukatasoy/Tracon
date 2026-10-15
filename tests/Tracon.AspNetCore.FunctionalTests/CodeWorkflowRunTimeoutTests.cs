@@ -95,7 +95,7 @@ public sealed class CodeWorkflowRunTimeoutTests
                     "render",
                     _ => async (messages, _, token) =>
                     {
-                        await Task.Delay(work, token);
+                        await Task.Delay(work, token); // delay: simulated
 
                         return messages;
                     });

@@ -1065,3 +1065,11 @@ taşıyordu. Her ID'nin gövdesi bu dosyada veya
 **Aciliyet:** 🟡
 
 **İş:** Ölçüldü (2026-09-24, Faz 185): sayfa 58 994 B gzip, tavan 59 000 B (`docs-site/scripts/check-weight.mjs`) — 6 B boşluk. Faz 185'in iki kısa girdisi (NU1107/NU1608 ve "Tracon packages from more than one release") 59 850 B, tek başlığa indirilmiş hâli 59 335 B ölçüldü; ikisi de geri alındı, içerik `reference/versioning.md`'de. Kapının kendi yorumu "bir sonraki yükseltme yerine sayfayı böl" der. İş: sayfayı böl (ör. `## Build diagnostics and the agent map` bölümü ayrı sayfaya; semptom dizini, `sidebar.mjs`, TRC tanı kapısı birlikte), sonra Faz 185'in girdisini ekle. Tavanı yükseltmek ölçümle bile kapının kendi kuralına aykırıdır
+
+## Kısaltılan kalem ayrıntıları
+
+> `ADAYLAR.md` bütçesi için Faz 211 kapanışında satırlardan taşındı (2026-10-15); satırlar anlamını korur, ayrıntı aşağıdadır.
+
+- **F-241** — Aynı kırpma deseni `TextValue` kırpmasında da var ([`EvaluatorRunJudge.cs`](../../src/Tracon.Core/Evaluation/EvaluatorRunJudge.cs)); hata yazma döngüsünde `retryable` sayılır. Yanlış kırpılan alan `varchar`/`nvarchar` yazımında kodlama hatası verir.
+- **F-491** — Yedi yer `Type = exception.GetType().Name` yazar: `AgentRunJobHandler.cs:248`, `RunContinuationJobHandler.cs:296`, `QueuedRunPlaceholder.cs:73`, `WorkflowRecovery.cs:294`, `RunReconciliationService.cs:352`, `EvaluatorRunJudge.cs:220`, `ApprovalResumeJobHandler.cs:333` (2026-10-14 satır numaraları).
+- **F-466** — Betik `kapanis`'te koşmaz; GA freeze turu (UR-003) onu iş listesi olarak okur. `TraconChildRunTimeoutException` ve `TraconLoopUnsatisfiedException` yalnız Core içinde atılır; site sayfası, `<example>` veya kalan bir tipin `<exception cref>`'i onları anmaz.

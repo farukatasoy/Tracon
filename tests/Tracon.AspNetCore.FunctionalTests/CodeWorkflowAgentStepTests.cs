@@ -97,7 +97,10 @@ public sealed class CodeWorkflowAgentStepTests
         var run = await RunAsync(host);
 
         run.Status.ShouldBe(RunStatus.Failed);
-        run.Error.ShouldNotBeNull().Message.ShouldContain("7", Case.Sensitive);
+        var message = run.Error.ShouldNotBeNull().Message;
+
+        message.ShouldContain("Version 7", Case.Sensitive);
+        message.ShouldContain("'writer'", Case.Sensitive);
         provider.Requests.ShouldBeEmpty("a model was called although the pinned version does not exist");
     }
 
