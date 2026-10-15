@@ -103,6 +103,57 @@ class ChangelogTestleri(unittest.TestCase):
         self.assertIsNone(body)
         self.assertIsNone(heading)
 
+    def test_sigan_notlar_github_govdesine_degismeden_girer(self):
+        notes = "Summary.\n\n### Fixed\n- one fix"
+
+        self.assertEqual(changelog.github_release_body(notes, "1.0.0", limit=1_000), notes)
+
+    def test_uzun_notlar_butun_gruplarla_sigar_ve_kalanlari_adlandirir(self):
+        notes = (
+            "Summary.\n\n"
+            "### Security\n" + "- s\n" * 20 +
+            "### Fixed\n" + "- f\n" * 20 +
+            "### Added\n" + "- a\n" * 400 +
+            "### Changed\n- c\n"
+        )
+
+        body = changelog.github_release_body(notes, "1.0.0-preview.9", limit=600)
+
+        self.assertLessEqual(len(body), 600)
+        self.assertIn("### Security", body)
+        self.assertIn("### Fixed", body)
+        self.assertNotIn("### Added", body)
+        # Order is kept: the small group after the one that did not fit is
+        # left out too, and both are named.
+        self.assertNotIn("### Changed", body)
+        self.assertIn("Not shown here: Added, Changed.", body)
+        self.assertIn("https://tracon.dev/reference/changelog/#v1.0.0-preview.9", body)
+
+    def test_ilk_gruptan_once_gelen_metin_tek_basina_sigmazsa_satirda_kesilir(self):
+        notes = "".join(f"line {i}\n" for i in range(500)) + "### Fixed\n- f\n"
+
+        body = changelog.github_release_body(notes, "1.0.0", limit=400)
+
+        self.assertLessEqual(len(body), 400)
+        head = body.split("\n\n---", 1)[0]
+        self.assertTrue(notes.startswith(head + "\n"))
+        self.assertIn("Not shown here: the rest of the notes.", body)
+
+    def test_deponun_her_surum_notu_github_govdesine_sigar(self):
+        """Every section the repository has cut fits once it is cut down."""
+        path = pathlib.Path(__file__).resolve().parent.parent / "CHANGELOG.md"
+        text = path.read_text(encoding="utf-8")
+        versions = [
+            match.group("version")
+            for line in text.splitlines()
+            if (match := changelog.SECTION_HEADER_PATTERN.match(line))
+            and match.group("version") != changelog.UNRELEASED
+        ]
+
+        for version in versions:
+            body = changelog.github_release_body(changelog.section_body(text, version) or "", version)
+            self.assertLessEqual(len(body), changelog.GITHUB_RELEASE_BODY_LIMIT, version)
+
     def test_deponun_kendi_changelogu_provayi_gecirir(self):
         """Whatever state the repository's own file is in, the rehearsal finds notes.
 

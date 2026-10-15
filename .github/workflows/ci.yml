@@ -669,6 +669,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      # GitHub 125 000 karakterden uzun release govdesini reddeder (HTTP 422,
+      # v1.0.0-preview.4); uzun notlar butun `###` gruplariyla kesilir ve
+      # gerisi sitedeki tam nota baglanir (`changelog.github_release_body`).
       # Etiket adindan 'v' onekini dusurmek CHANGELOG basligindaki surumle
       # eslesir (`## [1.0.0-preview.1]`, `v` onceki degil). Etiket adi ortam
       # degiskeniyle tasinir - bir YAML ifadesini Python string literaline
@@ -689,7 +692,10 @@ jobs:
           if not body:
               sys.exit(f\"CHANGELOG.md has no '## [{version}]' and no '## [Unreleased]' section\")
           print(f'release notes read from: ## [{heading}]')
-          pathlib.Path('release-notes.md').write_text(body, encoding='utf-8')
+          release_body = changelog.github_release_body(body, version)
+          if release_body != body:
+              print(f'notes cut from {len(body)} to {len(release_body)} characters to fit a GitHub release')
+          pathlib.Path('release-notes.md').write_text(release_body, encoding='utf-8')
           "
 
       # Ayni etiket yeniden itilirse is KIRILMAZ - npm-publish'in "already

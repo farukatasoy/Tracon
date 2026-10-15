@@ -70,6 +70,59 @@ def release_notes(changelog_text: str, version: str) -> tuple[str | None, str | 
     return None, None
 
 
+GITHUB_RELEASE_BODY_LIMIT = 125_000
+"""GitHub refuses a longer release body: `HTTP 422 ... body is too long
+(maximum is 125000 characters)`. Measured on the `v1.0.0-preview.4` tag run,
+whose notes were 130 589 characters long."""
+
+SUBSECTION_PATTERN = re.compile(r"(?m)^(?=### )")
+
+
+def github_release_body(notes: str, version: str, limit: int = GITHUB_RELEASE_BODY_LIMIT) -> str:
+    """The release notes cut to fit a GitHub release body.
+
+    Notes that fit are returned unchanged. Longer notes keep the text before
+    the first `### ` heading and then whole `### ` groups, in their order,
+    while they fit; the first group that does not fit and every group after it
+    are left out and named in a closing line that links to the full notes.
+    Order is kept, not size: the groups near the top (upgrade steps, security,
+    fixes) are the ones a reader of a release page acts on. The link is the
+    `PackageReleaseNotes` anchor every package already ships with.
+    """
+    if len(notes) <= limit:
+        return notes
+
+    parts = SUBSECTION_PATTERN.split(notes)
+    lead, groups = parts[0], parts[1:]
+    url = f"https://tracon.dev/reference/changelog/#v{version}"
+
+    def footer(omitted: list[str]) -> str:
+        names = ", ".join(omitted) if omitted else "the rest of the notes"
+        return (
+            "\n\n---\n\nThese notes are longer than a GitHub release allows. "
+            f"Not shown here: {names}. Read the full notes at {url}"
+        )
+
+    kept = lead
+    for index, group in enumerate(groups):
+        omitted = [g.split("\n", 1)[0].removeprefix("### ").strip() for g in groups[index + 1:]]
+        if len(kept) + len(group) + len(footer(omitted)) > limit:
+            omitted = [g.split("\n", 1)[0].removeprefix("### ").strip() for g in groups[index:]]
+            break
+        kept += group
+    else:
+        omitted = []
+
+    body = kept.rstrip() + footer(omitted)
+    if len(body) <= limit:
+        return body
+
+    # The text before the first group is itself too long: cut it at a line.
+    tail = footer([])
+    cut = kept[: limit - len(tail)]
+    return cut[: cut.rfind("\n")].rstrip() + tail
+
+
 def read_section(changelog_path: pathlib.Path, version: str) -> str | None:
     """Convenience wrapper: reads the file, then extracts the section."""
     return section_body(changelog_path.read_text(encoding="utf-8"), version)
