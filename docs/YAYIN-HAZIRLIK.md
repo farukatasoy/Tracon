@@ -6,20 +6,19 @@
 >
 > **Son güncelleme:** 2026-10-15  
 > **Çalışma modu:** `nuget-danismani` — yayın kararı (`1.0.0-preview.4`)  
-> **GÜNCEL DURUM (2026-10-15):** ✅ **`1.0.0-preview.4` yayınlanabilir; preview
-> 🔴'si yok.** İçerik: Faz 194–211 ve F-536 (Loop'un taslakları cevap yüzeylerine
-> gitmiyor). Yerel kanıt `eb60cfe3`'te: `kapi.py yayin --kuru --surum
-> 1.0.0-preview.4` yeşil (20 paket, kırıcı liste 5 tip / 3 paket hepsi notta,
-> `npm --dry-run`, 6 exact-version örnek, Native AOT, net8.0 smoke; KN-034);
-> kapanış kapısı yeşil (Faz 211 kaydı); CI'ın SDK'sıyla (`10.0.402`) tam derleme
-> ve `format` yeşil (KN-035). A-73 kapandı: `global.json` `10.0.402` +
-> `latestPatch` (`eb60cfe3`). Yayın **tek atomik push**'tur (OP-012, bakımcı
-> kararı 2026-10-15): birikmiş commit'ler, kesim ve etiket birlikte gider;
-> `main`'in önce yeşil olması beklenmez. Bilinen sınırlar sürüm notuna girer:
-> F-544 (native SSE Loop taslağını akıtır) · F-545 (kod grafında üretim başına
-> agent sürüm sabiti yok). Defter bütçeleri dolu (`KARARLAR.md` %100,
-> `ADAYLAR.md` %100): sonraki fazdan önce `karar-damit` ve aday damıtması.
-> Ayrıntı: §4 "KARAR — 2026-10-15 (`preview.4`)".
+> **GÜNCEL DURUM (2026-10-15, 13:17 UTC):** ✅ **`1.0.0-preview.4` SEVK EDİLDİ.**
+> `v1.0.0-preview.4` → `0079b1b2`; etiket koşumu #269 2. denemede npm ve NuGet'i
+> yayımladı. npm `latest` = `next` = preview.4; nuget.org 20/20; site yayında.
+> GitHub release işi düştü (F-553, not 125 000 karakter sınırını aştı; düzeltme
+> `de5cbfeb`); sayfa elle açılır 👤. Açık 👤 karar: preview.4'ün `Security` notu
+> OP-008 gereği preview.3'ün deprecate edilmesini gerektirir mi? Yayın kuralı
+> değişti: tek atomik push, `main` yeşili beklenmez (OP-012). Defter bütçeleri
+> dolu (`KARARLAR.md`, `ADAYLAR.md` %100): sonraki fazdan önce `karar-damit` ve
+> aday damıtması. Ayrıntı: §4 "YAYINLANDI — 2026-10-15".
+>
+> **Önceki durum (2026-10-15, kesimden önce):** preview.4 yayınlanabilir, preview
+> 🔴'si yok; yerel kanıt `eb60cfe3` (KN-034, KN-035); A-73 kapandı. Ayrıntı: §4
+> "KARAR — 2026-10-15 (`preview.4`)".
 >
 > **Önceki durum (2026-09-24, 21:50 UTC):** ✅ **`1.0.0-preview.3` SEVK EDİLDİ.**
 > `v1.0.0-preview.3` → `b0771b3e`, etiket koşumu `36057172063` yeşil (npm ·
@@ -117,6 +116,23 @@ sayının ürün politikası mı yoksa bayat ölçüm mü olduğu artifact sonra
 değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
+
+### ✅ YAYINLANDI — 2026-10-15, `1.0.0-preview.4`
+
+**Etiket `v1.0.0-preview.4` → `0079b1b2`**, OP-012'ye göre `main` yeşili
+beklenmeden itildi. Koşum #269 (`38728837357`): 1. denemede Ubuntu F-552'de
+düştü (test kusuru); "Re-run failed jobs" 👤, Windows bacağı 1. denemeden kaldı.
+2. deneme: build ×2 · Yayin provasi · npm · NuGet yeşil; GitHub release
+kırmızı (F-553); Dokuman sitesi etikette atlanır.
+
+| Ne | Kanıt |
+|---|---|
+| npm | `@tracon/client@1.0.0-preview.4` 13:09:54 UTC; `latest` = `next` = preview.4 (stable yok) |
+| nuget.org | Push işi 13:08:42 UTC'de bitti; flat container 13:13'te 5/20, 13:17'de **20/20** |
+| GitHub release | `gh release create` → `HTTP 422 … body is too long (maximum is 125000 characters)`; not 130 589 karakter. `de5cbfeb` gövdeyi kırpar (preview.4: 106 134, `Changed` sitede). Bu etiketin sayfası elle açılır 👤: yeniden koşum etiketin eski `ci.yml`'ini koşar |
+| Site | `site-deploy.sh` 13:14 UTC, kendi doğrulaması yeşil; `/`, `/packages/`, `/getting-started/`, `/reference/changelog/` preview.4 der |
+| `MT-PKG-160` | **Ölçülmedi:** `nuget-verified` artifact'ini indirmek GitHub `token`'ı ister; bu oturumda yok. Paket CI'da bir kez üretilir ve `publish` aynı artifact'i iter (Faz 191 zinciri) |
+| Deprecation | **👤 Karar bekliyor:** preview.4'ün `Security` grubu (yanıt denetim izi fail-closed, reddedilen ayarın değerini yazmayan mesaj, ElevenLabs kiracı `credential` reddi) OP-008'in "güvenlik kusuru" ölçütüne giriyor mu? Girerse preview.3 npm'de (`npm deprecate`) ve nuget.org'da (arayüz) deprecate edilir |
 
 ### ✅ KARAR — 2026-10-15 (`nuget-danismani`, `preview.4` yayın kararı)
 
@@ -660,7 +676,7 @@ KG-001…KG-039 (2026-08-27…2026-09-20; hepsi kapanmış) [`arsiv/YAYIN-HAZIRL
 | KG-044 | 2026-09-24 | Tamamlandı | **Site etiketten ÖNCE yayımlandı 👤** (`scripts/site-deploy.sh`, o anki HEAD `78dc72bc` — kesim `17ca8dfb` dahil, 21:43; Voice bölümü taşınmadan önce). KG-038 emsalinin tersine kullanıcı kararı | Risk söylendi ve kabul edildi: site `1.0.0-preview.3` der ve 13 `Security` notunu gösterir, paket nuget.org'a etiketin `publish` işiyle gelir; arada `dotnet add package … 1.0.0-preview.3` restore edilemez. Script kendi tazelik denetimini geçti (`/`, `/packages/`, `/reference/changelog/` preview.3 der) | `Published and verified (https://tracon.dev/capabilities/index.md -> 200 text/markdown)`; lisans sayfası `THIRD-PARTY-NOTICES.txt`'yi anlatır |
 | KG-045 | 2026-09-24 | Tamamlandı | **İkinci CI koşumu: build yeşil, `release-dryrun` ve `site` kırmızı; iki kusur `88f8e4ce`'de kapandı, kesim yine düzeltmelerin üstüne yeniden yazıldı** | (1) Sample doğrulaması sözleşme paketinin grafiğini kaynak projenin `artifacts/obj` restore çıktısından okuyordu; Faz 191'den beri `release-dryrun` restore etmez → `FileNotFoundError`. Artık paketlenen nuspec'lerin Tracon kapanışından okunur; o `obj` dizini kaldırılmış hâlde doğrulama yerelde yeşil. Hafızadaki kural ("`release-dryrun`'da `obj/` yoktur") vardı, uygulanmamıştı. (2) `troubleshooting` CI'da 59 003 B (tavan 59 000; yerelde 58 993): kapının kendi notu gereği tavan yükseltilmedi, sayfa bölündü — Voice belirtileri `guides/voice.md#troubleshooting`'e taşındı, 58 151 B. Eski sıra `yedek/preview3-ci2-once-a0c8cbca` dalında | Üçüncü koşum: build ×2 + `release-dryrun` + `site` yeşil |
 | KG-046 | 2026-09-24 | Tamamlandı | **`1.0.0-preview.3` sevk edildi; A-64 kapandı.** Üçüncü `main` koşumu (`36048047050`) Windows'taki yarış testi (F-257) yüzünden kırmızıydı; aynı kod önceki koşumda Windows'ta geçmişti ve aradaki diff `src/`/`tests/`'e dokunmuyordu → "Re-run failed jobs" (API) → yeşil. Etiket bu yeşil koşumun üstüne atıldı | Yarış testi kod kusuru değil ama etiket koşumunu da düşürebilir; F-257 🟠'a çıktı | KN-032 · KN-033 · etiket koşumu `36057172063` |
-| KG-047 | 2026-10-15 | Tamamlandı | **`preview.4` yayın turu: on bir koşum (#259–#269) yerel kapanışta görünmeyen kusurları kapattı (F-546…F-551, `ad8b329b`); etiket iki kez taşındı (`4e984aa0` → `313cc186` → `0079b1b2`); push sırası kuralı değişti (OP-012) 👤.** İkisi ürün kusurudur ve CHANGELOG'dadır: F-547 (iş kuyruğu yeniden denemesi), F-550 (süre sınırında akış istisnası). Hiçbir koşumda yayın işi koşmadı; nuget.org ve npm preview.3'te kaldı | `main` ~98 commit boyunca CI görmemişti; Windows bacağı Faz 196–211 testlerini ilk kez koştu; F-549 takvime bağlı bir testti | Etiket koşumu #269 (`0079b1b2`) yeşil olunca yayın kaydı |
+| KG-047 | 2026-10-15 | Tamamlandı | **`preview.4` yayın turu: on bir koşum (#259–#269) yerel kapanışta görünmeyen kusurları kapattı (F-546…F-551, `ad8b329b`); etiket iki kez taşındı (`4e984aa0` → `313cc186` → `0079b1b2`); push sırası kuralı değişti (OP-012) 👤.** İkisi ürün kusurudur ve CHANGELOG'dadır: F-547 (iş kuyruğu yeniden denemesi), F-550 (süre sınırında akış istisnası). Hiçbir koşumda yayın işi koşmadı; nuget.org ve npm preview.3'te kaldı | `main` ~98 commit boyunca CI görmemişti; Windows bacağı Faz 196–211 testlerini ilk kez koştu; F-549 takvime bağlı bir testti | Sevk edildi 13:17 UTC (§4 "YAYINLANDI — 2026-10-15"); #269 2. denemede F-552 ve F-553 çıktı |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
