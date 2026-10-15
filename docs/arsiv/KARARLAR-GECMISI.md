@@ -6628,3 +6628,86 @@ Yerler: `AuditWritePolicyTests.FailClosedOperations` (7 işlem, 10 çağrı yeri
 ### K-999
 
 Ölçüldü: bütçe model çağrısını ve yeni agent adımını durduruyordu, yalnız fonksiyon düğümlerinden oluşan zincir `MaxTotalCost` ve `MaxDuration` ile hiç durmuyordu (`FunctionNodeBudgetGateTests` taban sürümde kırmızı, run `Completed`). Kapı `NodeWrapper`'dadır (`scope(retry(gate(timeout(handler))))`): her `AddWorkflowFunction` ailesi oradan geçer, `WorkflowRunner`'a dokunulmaz (pompa düğümü geç görür). Token dışarıda çünkü varsayılanda açıktır (200.000) ve düğüm token harcamaz; içeride olsaydı her kurulumun davranışı değişirdi. Ret `Failed` + `run_budget_exceeded`: `Canceled` sitenin "`MaxDuration` reddi `Failed` biter" sözünü bozar, atlama K-887'nin kapattığı kusuru (ret metni sonraki düğüme akar, run `Completed`) geri açar. Kapı retry'ın içindedir: ikinci deneme de ücretli iştir. `WorkflowNodeRetry` bütçe reddini sınıflandırıcıya sormadan tekrar denemez (bir run içinde maliyet ve süre yalnız artar); kural `FinalFailure`'a girmez, çünkü çevrimiçi değerlendirme yeni run ile yeni bütçe açar ve orada ret değişebilir. Muafiyet kodun özelliğidir: operatör ayarı tavanı arayüzden gevşetmeye kapı açardı. Koşan düğüm kesilmez; ağaç tavanı son düğümün harcadığı kadar aşar. Kodla kurulan graf (`AddWorkflow`) özel executor'ı sarmalayıcıdan geçmez, orada okuma yolu belgelidir. Davranış değişikliği yalnız `MaxTotalCost`/`MaxDuration` koyan host'a ulaşır ve `CHANGELOG`'da adıyla anılır.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-130 — devam (Faz 90 damıtması)
+
+**(istisna: 2026-10-14, Faz 209: istek süresi dolunca run kapanır — K-1003)**
+
+### K-929 — devam (Faz 90 damıtması)
+
+`jobs.payload` kuyruklu yanıtın tek düz kopyasıdır ve koruma kapsamında değildir (K-899). İlk metin "senkron uçta yanıt run olayına zaten yazılır" diyordu; kod bunu yapmıyordu.
+
+### K-990 — devam (Faz 90 damıtması)
+
+Çocuğun girdisini ortam kiracısından yazan sürümde iki kiracılı test kırmızı.
+
+### K-995 — devam (Faz 90 damıtması)
+
+Kısmi indeks üç sağlayıcıda ölçüldü (§208.7 #3); FK zinciri veri sahibi silmesini kapsar (§208.7 #5).
+
+### K-996 — devam (Faz 90 damıtması)
+
+`AuditWritePolicyTests` 7 işlem / 10 çağrı yeri.
+
+### K-997 — devam (Faz 90 damıtması)
+
+Altı + dört case önce kırmızı.
+
+### K-998 — devam (Faz 90 damıtması)
+
+Eksik iş yazımı iki eşzamanlı tekrarda tek iş için bu redde dayanır.
+
+### K-999 — devam (Faz 90 damıtması)
+
+Kapı `NodeWrapper`'dadır, her `AddWorkflowFunction` ailesi oradan geçer; token dışarıdadır (varsayılanda açık, düğüm token harcamaz); muafiyet kodun özelliğidir. Faz 211'den beri kod grafı da aynı sarmalayıcıyı `GetWorkflowFunction` ile alır (K-1007).
+
+### K-1000 — devam (Faz 90 damıtması)
+
+Ölçüldü (§209.1; sayfa = 50 istek, ortanca ms): olay taraması 3,3 / 10,7 / 54,1 (SQLite), 21,8 / 24,7 / 40,7 (PostgreSQL), 46,3 / 45,3 / 118,7 (SQL Server); projeksiyon 1,5 / 1,6 / 1,3 · 19,2 / 17,6 / 17,0 · 40,0 / 34,0 / 38,4 (run başına 10 / 100 / 1000 olay). Süre taraması 10 000 açık satırda 0,1–1,9 ms; taramasız yol aynı turda 10 000 run'ın olayını okurdu. Prompt kopyalanmaz: olay içerik korumasından geçer, kopya geçmezdi.
+
+### K-1001 — devam (Faz 90 damıtması)
+
+Cevap kaydı (K-995) yeterli kaynak değildi: `Abandoned` ve Branch kaydı iddiasızdır, işaretin süre servisine de gitmesi gerekir. `WorkflowRequestInboxTests` (çok istekli graf), `WorkflowRequestStoreContract` dört depoda.
+
+### K-1002 — devam (Faz 90 damıtması)
+
+Üst sınır yok olsaydı K-888 büyümesi yeniden açılırdı. Süre bir zamanlayıcı kurmaz (servis zamanları karşılaştırır), bu yüzden `TimeoutSiteTests` tetiklenmez.
+
+### K-1003 — devam (Faz 90 damıtması)
+
+Cevaplanan run'ın cevabı verildi, devam ayrı run'dır: `Failed` yanlış olurdu. Ayrıntı (onay süresi kusuru, çöküş penceresi, süre ile cevabın yarışı) arşivdedir.
+
+### K-1004 — devam (Faz 90 damıtması)
+
+Üç süzgeç (`AwaitingInput`) değişmedi: yalnız run'ın durumu değişti. `WorkflowRequestExpirationHttpTests.What_a_waiting_run_keeps_is_kept_until_its_request_expires_and_released_after` (SQLite) ve üç sağlayıcıda `WorkflowRequestRetentionTests`.
+
+### K-1005 — devam (Faz 90 damıtması)
+
+Süzgeç yerine ret sayfa sözleşmesini korur. `WorkflowRequestInboxHttpTests.A_handler_that_refuses_reading_runs_rejects_the_list_with_403_and_never_filters_it`.
+
+### K-1006 — devam (Faz 90 damıtması)
+
+`WorkflowLoopStepOutputTests`, `LoopAnswerSurfaceTests`.
+
+### K-1007 — devam (Faz 90 damıtması)
+
+Adım seçeneğinde `Description` bilerek yok (hiçbir model okumaz); ayar `JsonElement?` ve `SetSettings<T>` aynı katı seçenekle yazar (K-900). `GetWorkflowAgent`'a opsiyonel parametre eklemek ikili kırıcıdır.
+
+### K-1008 — devam (Faz 90 damıtması)
+
+Ölçüldü (aynı agent, taban ve yeni sürüm): satır `run.started`, `message.delta`, `run.completed` yazıyordu; akışsız yol bunlara `message.completed` ekler; token, maliyet ve girdi aynı. Akışlı yolda JSON onarımı yoktu: `WorkflowAgentStepRepairTests` taban sürümde 4/4 kırmızı. Onay isteyen tool ve süre ihlali akışsız yolda da run'ı düşürür.
+
+### K-1009 — devam (Faz 90 damıtması)
+
+Zaman aşımından sonra token'ı yok sayan handler slotsuz sürer (belgeli). Replika sayısıyla çoğalır; dağıtık sınır ve kiracı adaleti kapsam dışıdır (F-322). Ölçüldü: 5 run, sınır 2 → en çok 2 eşzamanlı; retry gecikmesinde ikinci run slotu alır; iptal bekleyeni bırakır; bekleme sırasında geçen `MaxDuration` düğümü başlatmaz.
+
+### K-1010 — devam (Faz 90 damıtması)
+
+Kod grafı katılımcıları graf kurulmadan bilinmez ve sürüm sabitli adım için güncel şemayı denetlemek yanlış hata verirdi. `GET /api/workflows/{name}` kod workflow'u için `404` kalır (düzenlenebilir tanım yok); şema liste betimleyicisindedir.
+
+### K-1011 — devam (Faz 90 damıtması)
+
+Orada yayınlamak aynı üretim için, bir yıla kadar sonra ikinci bir `run.completed` olurdu; cevabın kendi run'ı zaten yayınlamıştır (`WorkflowRequestExpiryWebhookTests`).
+

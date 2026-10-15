@@ -28988,7 +28988,7 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Gets the run parameters the workflow accepts. Empty for a workflow that
-        /// <br/>takes none, and always empty for a workflow defined in code.
+        /// <br/>takes none. For a workflow defined in code it is the schema its registration declared.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("parameters")]

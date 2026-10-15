@@ -1,7 +1,7 @@
 # Faz 211 — Kod Grafında Düğüm Yetenekleri ve Revizyon Döngüsü
 
-> **Durum:** 📋 Planlandı (2026-10-15)
-> **Plan onayı:** kapsam kararları bakımcıdan, 2026-10-15 (tam paket · yeni `GetWorkflowAgentStep` · agent adımı akışsız · SDK sabiti ayrı iş). Yazılı planın onayı bekleniyor — onaylanmadan uygulama başlamaz.
+> **Durum:** 🚧 Uygulandı, kapanış bekliyor (2026-10-15)
+> **Plan onayı:** kapsam kararları bakımcıdan, 2026-10-15 (tam paket · yeni `GetWorkflowAgentStep` · agent adımı akışsız · SDK sabiti ayrı iş). Yazılı planın onayı: uygulama talimatı "Faz 211 geliştir" ve "commit atabilirsin" ile verildi (2026-10-15); dört Açık Soru bakımcıya ayrıca sorulmadı, planın önerileri uygulandı (1-B · 2-A · 4-A) ve 3-A önerisi ölçümle çürütüldüğü için B uygulandı (Plandan Sapmalar 3).
 > **Kaynak:** **F-537**, **F-538**, **F-539**
 > **Genellik:** İnsan onayı ve revizyon geri kenarı taşıyan her workflow kod grafı ister, çünkü saklanan tanım yalnız doğrusal agent/fonksiyon zinciridir ([`WorkflowNodeReference.cs:19-23`](../src/Tracon.Abstractions/Workflows/WorkflowNodeReference.cs)). Faz 196 (düğüm süresi), 199 (düğüm adlı maliyet), 200 (agent sürüm sabiti) ve 210 (bütçe kapısı) yetenekleri yalnız saklanan zincire ulaştı; kod grafı yazan her tüketici bunları kaybeder. Bütçe kapısı tüketici kodunda kurulamaz, çünkü `AgentRunBudget.IsNodeStartExhausted` internal'dır. Kanıt: iki tüketici hattı (video yol A, podcast insan onayı genişlemesi) ve örnek uygulamanın kendi `BuildSummarizeAndApprove` grafı ([`samples/Tracon.Api/Program.cs:1612-1670`](../samples/Tracon.Api/Program.cs)) aynı boşluğa düşer.
 > **Karşı görüş:** (1) "Kod grafı yazan tüketici kendi `Executor`'ını yazar." Cevap: süre, retry, katı ayar okuması ve düğüm adlı maliyet kopyalanabilir, ama bütçe kapısı kopyalanamaz. `AIAgentBinding` geri kenarda `TurnToken` ister; unutulursa run hata vermeden çıktısız biter (ölçüldü, § Bugün ne çalışmıyor). (2) "Onay düğümü saklanan tanıma girsin; operatör düzenlesin." Cevap: bu faz dışı. K-131 ve K-901 ile çatışır, konsol editörü ve kalıcı veri değişir; F-411 onayı `Loop` ölçütüne taşıma yönündedir.
@@ -387,31 +387,139 @@ curl -s http://localhost:5081/tracon/api/workflows/requests?state=pending
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+1. **`GET /api/workflows/{name}` kod workflow'unun şemasını dönmez.** Plan (§ HTTP `endpoint`'leri) uç şemayı da döner demişti. O uç `WorkflowDefinition` döner ve kod workflow'u için `404` ("No editable definition") verir; şema ve `requestTimeout`, `ResponseMode` `GET /api/workflows` listesindeki betimleyicidedir. Uç değiştirilmedi (sözleşme büyürdü); boşluk F-541 olarak açıldı. Site ve CHANGELOG "liste" der.
+2. **`WorkflowAgentStepOptions.Description` çıkarıldı.** Plan taslağında vardı. Adım `FunctionExecutor` olarak bağlanır; açıklama hiçbir modele ulaşmaz (yalnız `GroupChat`/`Magentic` katılımcı listesi okur) ve yalan bir ayar olurdu. Sonradan eklemek bedavadır (sealed sınıf).
+3. **Açık Soru 3: A değil B uygulandı** (süre dolumu servisi yalnız `Failed` kapanışında `run.failed` yayınlar, `Completed`'da yayınlamaz). Planın önerisi A idi; uygulamada `WorkflowRequestExpirationHttpTests.An_answered_request_closes_its_run_as_completed...` şunu gösterdi: cevaplanan isteğin kaynak run'ı süre dolana kadar `AwaitingInput` kalır ve o anda `Completed` kapanır — bu SIK yoldur. A, her süreli insan onayı için bir yıla kadar sonra ikinci bir `run.completed` yayınlardı. Bakımcıya sorulmadan değiştirildi; geri almak tek satırdır (`PublishClosedAsync`'teki `status != Failed` koşulu). K-1011.
+4. **Plan dışı kusur: plan-review tespiti.** `WorkflowResponseFactory.Create` ve `WorkflowRequestDescriptor` Magentic plan-review'u `TryGetDataAs<MagenticPlanReviewRequest>` ile (verinin ne olarak deserialize edilebildiğiyle) tanıyordu. Checkpoint'ten gelen JSON veri, tüm üyeleri isteğe bağlı bu tipe herhangi bir kayıttan hatasız okunur; kayıt tipli (`{"text":..., "violation":null}`) istek cevap run'ında yanlış cevap tipine (`MagenticPlanReviewResponse`) çevrilirdi. Kod grafında kayıt tipli istek en doğal tasarım olduğu için faz kapsamına alındı: tespit port'un bildirdiği istek tipine bağlandı (`WorkflowRequestDescriptor.IsPlanReview`); `WorkflowStructuredRequestTests` taban sürümde kırmızı, sonra yeşil. Örnek uygulama ve rehber yine de `string` istek tipi kullanır (console kayıt tipini yalnız tip adıyla gösterir).
+5. **Plan "sayaç durumunun cevap run'ında checkpoint'ten geri geldiği ölçülmedi" demişti: ölçüldü, geri gelir** (`CodeWorkflowRevisionTests.The_revision_counter_survives_the_run_that_answers_and_the_run_fails_after_the_limit`). İmza ölçümü: `ReadStateAsync<T>(key, scopeName, ct)`, `QueueStateUpdateAsync<T>(key, value, scopeName, ct)` (MAF 1.20.0 XML dokümanı); güncelleme yazan executor için hemen, diğerleri için sonraki super-step'ten itibaren görünür.
+6. **Kod grafında katılımcı kapsaması yok** (K-1010). Plan "agent adımı yalnız kendi şemasındaki adları alır" diyordu — bu sağlandı (`CodeWorkflowParameterTests.An_agent_step_receives_only_the_values...`); run başındaki kapsama denetimi (`RequireParticipantCoverageAsync`) saklanan tanım içindir, kod grafında eksik zorunlu değer adım koşarken adıyla düşer. F-540.
+7. **Akışsız adım ölçümü** (plan "ölçülmeli" demişti): aynı agent'la taban ve yeni sürüm karşılaştırıldı — alt run satırı eskiden `IsStreaming = True`, olaylar `run.started`/`message.delta`/`run.completed`; yeni `IsStreaming = False`, `message.completed` bir olay fazla; token, maliyet ve girdi aynı. Fark CHANGELOG'da davranış değişikliği olarak anılır (K-1008).
+8. **Üretilen yüzeyler yenilendi.** `WorkflowDescriptor.Parameters` XML'i ("kod workflow'u için her zaman boş") yanlış kaldığı için düzeltildi; `docs/openapi/tracon.json`, `TraconApiClient.g.cs` (nswag yeniden koşuldu, fark tek satır) ve `packages/tracon-client/src/schema.ts` yenilendi. Ayrıca `reference/configuration.md`'ye `AgentGraph:ChildDeadline` ve `WaitTimeout` satırları eklendi (F-528 kapandı).
+9. **Beklenmeyen bütçe işi.** `docs/KARARLAR.md` bütçesi (586 000 B) beş yeni kararla aşıldı; `karar-damit` 3,8 KB taşıdı, kalan baytlar yeni satırların gerekçeleri `KARARLAR-GECMISI.md`'ye taşınarak karşılandı (bütçe artırılmadı). `docs/hafiza/workflows.md` aşıldı; yeni notlar `workflow-cevaplari.md` "Kod grafı" bölümüne, bir eski uzun not `HAFIZA-GECMISI.md`'ye taşındı. Agent haritası (11 264 B tavan) için `capabilities.md`'de yeni satır açılmadı, mevcut `Workflow functions` satırı genişletildi.
+10. **Yeni internal tipler** (planda yoktu): `WorkflowNodeConcurrencyLimit`, `WorkflowGraphBindingException` (katalog workflow adını ekler, böylece `GetWorkflowFunction` imzası plandaki gibi `workflowName` almaz), `WorkflowRunWebhooks` (runner ve süre servisi için ortak `run.*` yükü). `TraconWorkflowOptionsValidator` artık `IEnumerable<CodeWorkflowRegistration>` alan (varsayılanlı) bir kurucuya sahiptir.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur.
+Dört kategoriye giren kararlar `docs/KARARLAR.md`'dedir:
+
+- **K-1007** — kod grafı yardımcıları `GetWorkflowFunction` / `GetWorkflowAgentStep` (kullanıcı kararı: tam paket, yeni `GetWorkflowAgentStep`).
+- **K-1008** — workflow agent adımı akışsız (kullanıcı kararı).
+- **K-1009** — `WorkflowFunctionOptions.MaxConcurrency` (süreç başına, fonksiyon başına; sarmalayıcı sırası; bekleme `Timeout`'a sayılmaz).
+- **K-1010** — kod kaydında `RunTimeout` (açılışta tavan doğrulaması) ve `Parameters`; kod grafında katılımcı kapsaması yok.
+- **K-1011** — süre dolumu servisi yalnız `Failed` kapanışında `run.failed` yayınlar.
+
+Yerel tercihler (K açılmadı): Açık Soru 1-B (`SetSettings<T>` yardımcısı, aynı katı seçenekle yazar), 2-A (açılışta düşer), 4-A (bekleme `Debug` loglanır, yeni olay tipi yok); SDK sabiti ayrı iş kalır; sample'ın revizyon sınırı sabittir (`MaxRevisions = 2`), parametre değildir.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+```csharp
+// Tracon.Workflows
+public static class WorkflowFunctionBinding
+{
+    public static ExecutorBinding GetWorkflowFunction(this IServiceProvider services, string functionName);
+    public static ExecutorBinding GetWorkflowFunction(
+        this IServiceProvider services, string functionName, Action<WorkflowFunctionStepOptions> configure);
+}
+
+public sealed class WorkflowFunctionStepOptions
+{
+    public TimeSpan? Timeout { get; set; }
+    public JsonElement? Settings { get; set; }
+    public void SetSettings<TSettings>(TSettings settings) where TSettings : class;   // plana eklendi (Açık Soru 1-B)
+}
+
+public static class WorkflowAgentBinding // mevcut sınıf
+{
+    public static ExecutorBinding GetWorkflowAgentStep(this IServiceProvider services, string workflowName, string agentName);
+    public static ExecutorBinding GetWorkflowAgentStep(
+        this IServiceProvider services, string workflowName, string agentName, Action<WorkflowAgentStepOptions> configure);
+}
+
+public sealed class WorkflowAgentStepOptions   // plandaki Description çıkarıldı (Plandan Sapmalar 2)
+{
+    public TimeSpan? Timeout { get; set; }
+    public int? AgentVersion { get; set; }
+}
+
+public sealed class WorkflowRegistrationOptions // mevcut
+{
+    public TimeSpan? RunTimeout { get; set; }
+    public IReadOnlyList<AgentParameter> Parameters { get; set; } = [];
+}
+
+public sealed class WorkflowFunctionOptions // mevcut
+{
+    public int? MaxConcurrency { get; set; }
+}
+```
+
+`Tracon.Abstractions`'ta imza değişmedi: `WorkflowDescriptor.Parameters` XML'i kod workflow'u için artık kayıtlı şemayı söyler. HTTP uçları ve konsol: değişiklik yok. `PublicAPI.Unshipped.txt` (Workflows): 22 yeni satır.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.Workflows/
+├── WorkflowFunctionBinding.cs                  (yeni)
+├── WorkflowFunctionStepOptions.cs              (yeni)
+├── WorkflowAgentStepOptions.cs                 (yeni)
+├── WorkflowAgentBinding.cs                     (GetWorkflowAgentStep)
+├── WorkflowRegistrationOptions.cs              (RunTimeout, Parameters)
+├── WorkflowFunctionOptions.cs                  (MaxConcurrency)
+├── TraconWorkflowFunctionExtensions.cs         (limit halkası, Configure doğrulaması)
+├── TraconWorkflowsBuilderExtensions.cs         (AddWorkflow doğrulaması)
+├── Internal/WorkflowNodeConcurrencyLimit.cs    (yeni)
+├── Internal/WorkflowGraphBindingException.cs   (yeni)
+├── Internal/WorkflowRunWebhooks.cs             (yeni)
+├── Internal/WorkflowAgentStepExecutor.cs       (RunAsync)
+├── Internal/WorkflowCatalog.cs                 (kod grafı hatasına workflow adı, Describe(Parameters))
+├── Internal/CodeWorkflowRegistration.cs        (RunTimeout, Parameters)
+├── Internal/WorkflowRunner.cs                  (kod RunTimeout ve Parameters okuması, ortak webhook yükü)
+├── Internal/WorkflowRequestExpirationService.cs (run.failed)
+├── Internal/TraconWorkflowOptionsValidator.cs  (açılışta tavan denetimi)
+├── Internal/WorkflowFunctionSettings.cs        (Serialize)
+├── Internal/WorkflowRequestDescriptor.cs       (IsPlanReview)
+├── Internal/WorkflowResponseFactory.cs         (IsPlanReview)
+├── PublicAPI.Unshipped.txt · README.md
+src/Tracon.Abstractions/Workflows/WorkflowDescriptor.cs (yalnız XML)
+samples/Tracon.Api/ReviewAndReviseWorkflow.cs (yeni) · EchoModelProvider.cs · Program.cs
+tests/Tracon.AspNetCore.FunctionalTests/
+├── CodeWorkflowFunctionNodeTests · CodeWorkflowRevisionTests · CodeWorkflowAgentStepTests
+├── CodeWorkflowParameterTests · CodeWorkflowRunTimeoutTests · CodeWorkflowRecoveryTests
+├── WorkflowAgentStepRecordingTests · WorkflowAgentStepRepairTests · WorkflowStructuredRequestTests
+├── WorkflowFunctionConcurrencyTests · WorkflowRequestExpiryWebhookTests
+└── Infrastructure/ReviewAndReviseHarness · AgentStepHost · RecordingWebhookPublisher
+tests/Tracon.Workflows.UnitTests/ CodeWorkflowRegistrationValidationTests · WorkflowFunctionStepOptionsTests
+docs-site/src/content/docs/guides/review-and-revise-workflow.md (yeni) · concepts/workflows.md · concepts/workflow-requests.md
+  · capabilities.md · reference/configuration.md · sidebar.mjs
+docs/manuel-test/15-WORKFLOWS.md (MT-WF-176…181) · docs/openapi/tracon.json · src/Tracon.Client/Generated/* · packages/tracon-client/src/schema.ts
+```
+
+Testler (72 yeni): `CodeWorkflowFunctionNodeTests` 10 (süre, retry, bütçe kapısı, düğüm adlı maliyet, ayar, bilinmeyen fonksiyon) · `CodeWorkflowRevisionTests` 6 (geri kenar, sayaç cevap run'ları arasında, doğrulama döngüsü, kiracı, yapı değişince bekleyen run, zaman aşımı değişince) · `CodeWorkflowAgentStepTests` 6 · `CodeWorkflowParameterTests` 8 (HTTP erken 400, kuyruk, cevap, agent adımı) · `CodeWorkflowRunTimeoutTests` 4 · `CodeWorkflowRecoveryTests` 1 · `WorkflowAgentStepRecordingTests` 6 · `WorkflowAgentStepRepairTests` 4 · `WorkflowStructuredRequestTests` 2 · `WorkflowFunctionConcurrencyTests` 7 · `WorkflowRequestExpiryWebhookTests` 4 · `CodeWorkflowRegistrationValidationTests` 11 (birim) · `WorkflowFunctionStepOptionsTests` 3 (birim).
+
+## Örnek Uygulama Koşumu
+
+`samples/Tracon.Api`, SQLite (`Tracon__PostgreSql__ConnectionString=""`), `http://localhost:5081`; gerçek model anahtarı yapılandırılı olduğu için `episode-writer` gerçek `gpt-5.4-mini` ile koştu (yerel `echo-writer-1` modeli anahtarsız ortam içindir). Tüm altı manuel case (`MT-WF-176`…`181`) gerçek süreçte koşuldu:
+
+| Case | Gerçek çıktı |
+|---|---|
+| 176 (ret → revizyon → onay) | İlk taslak `[Jenerik] Merhaba! Bugün küçük bir soruyla başlıyoruz…`; `approved:false, note:"Daha kısa olsun ve bir soruyla bitsin."` → yeni run, ikinci taslak `Merhaba! Bir fikir nasıl harekete dönüşür? … Peki, bugün sizin ilk adımınız ne?` (daha kısa, soruyla biter); onay → son run `Completed`, olaylar `episode-review`, `approved`, `episode-tts`, `episode-render`, `episode-qa` (her biri bir kez), `WorkflowOutput` metni `Episode p-1 (tr) passed QA: …` (parametreler cevap run'larında korundu). `GET /runs/{id}/usage`: `episode-tts` 151 karakter · 0,0151 USD (tahmini), `episode-render` 2 gpu-seconds (fiyatsız); `nonTokenCost` 0,0151 USD |
+| 177 (sınır) | Üç ret → `Failed`, `error.type` `content_rejected`, `The script was sent back 2 times and is still not accepted; the limit is 2.`; `usage` boş |
+| 178 (SIGKILL → devam) | Render sürerken `kill -9`; yeniden başlatınca öldürülen run `Failed` `interrupted` ("Run … continues"), devam run'ı `Completed`, `continuedFromRunId` öldürülen run; devam `usage`: yalnız `episode-render` (tts tekrar koşmadı); bekleyen istek 0 (onay yeniden sorulmadı) |
+| 179 (süre dolumu webhook) | Yerel HTTP alıcısı sırasıyla `workflow.request.pending` ve `run.failed` aldı (`kind: Workflow`, `status: Failed`, `agentName: review-and-revise`, `durationMs: 64963`); `RequestTimeout` 1 dk |
+| 180 (`MaxConcurrency`) | Üç run aynı anda onaylandı: `episode-tts` çağrıları 0,31 sn ve 0,61 sn'de bitti (biri bekledi), ikisi aynı anda koşmadı; `episode-render` (sınır 2) iki çağrı 3,0 sn aynı pencerede koştu. (Worker iş eşzamanlılığı 2 olduğundan üçüncü run daha geç başladı; sınırın kendisi tts'in 0,3 sn'lik serileşmesiyle görünür) |
+| 181 (tavan) | `Tracon__Demo__ReviewAndRevise__RunTimeout=02:00:00`: host `OptionsValidationException: Workflow 'review-and-revise' sets WorkflowRegistrationOptions.RunTimeout to 02:00:00, above the longest run timeout a workflow may set (00:10:00). Lower it, or set 'Tracon:Workflows:MaxRunTimeout' above it …` ile açılmadı |
+
+İlk gerçek koşum bir kusur gösterdi: yazar agent'ın talimatı uzunluk sınırını söylemiyordu ve gerçek model 400 karakteri aşan Türkçe taslak yazdı; doğrulama iki kez geri gönderip `content_rejected` ile run'ı düşürdü (döngü doğru çalıştı, örnek yanlıştı). Talimata sınır eklendi.
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 (plan yazılı onaya gelmeden uygulamaya geçildi; sapmalar yukarıda 10 madde) |
+| Düzeltme turu sayısı | 3 (gerçek model ilk koşumda uzunluk sınırı kusuru → talimat; `KARARLAR.md` bütçesi → damıtma + sıkıştırma; agent haritası bütçesi → satır birleştirme) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | bkz. Denetim Bulguları |
+| Fazın ürettiği regresyon | 0 (tam `ic-dongu` koşumunda tek kırmızı `OpenApiSnapshotTests`, beklenen: XML doküman metni değişti, snapshot yenilendi) |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anında henüz yok) |
 
 ## Denetim Bulguları
 

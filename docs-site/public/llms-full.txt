@@ -61,7 +61,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
 | Concurrent tool calls | Independent tool calls in one turn run at the same time instead of one after another | `ModelBinding.AllowConcurrentToolCalls` | Off by default; each call still gets its own authorization, result, and metric |
 | Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values | `AgentDefinition.Parameters` and the run's `parameters` field | Value substitution only — no expression, condition, loop, or field access |
-| Workflow and queued run parameters | A workflow declares a schema; each agent step binds the values its own schema names; queued runs, batch items, replay, continuation and approval resume carry or repeat values | `WorkflowDefinition.Parameters`, `WorkflowRunRequest.Parameters`, `GetRunParameters()`, `RunReplayRequest.Parameters` | A run that recorded no values is not repeated for an agent with parameters; a code-defined workflow declares none; `jobs.payload` is not content-protected |
+| Workflow and queued run parameters | A workflow declares a schema; each agent step binds the values its own schema names; queued runs, batch items, replay, continuation and approval resume carry or repeat values | `WorkflowDefinition.Parameters`, `WorkflowRunRequest.Parameters`, `GetRunParameters()`, `RunReplayRequest.Parameters` | A run that recorded no values is not repeated for an agent with parameters; a code-defined workflow declares its schema in `WorkflowRegistrationOptions.Parameters`; `jobs.payload` is not content-protected |
 | Shared instructions blocks | One definition's instructions prepended to another's at compile time | `AgentDefinition.SharedInstructionsName` | A block cannot reference another block |
 
 Tracon uses `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction` directly.
@@ -156,11 +156,11 @@ is the list.
 |---|---|---|
 | Multi-agent workflows | `Tracon.Workflows`, `UseWorkflows()`, and `AddWorkflow()` | Compiled graphs execute MAF workflow nodes and record a root run; a stored workflow keeps a version history that can be compared and rolled back, and a step can pin a version of a stored agent |
 | Durable checkpoints | Workflow options and a SQL store | A workflow can resume after a restart instead of starting again; the resume compiles the definition version the run recorded, so an edit made while it waits changes nothing for it |
-| Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`); `GET /api/workflows/requests` lists the tenant's waiting requests, and a `RequestTimeout` closes a run nobody answered so retention can release what it kept |
+| Human input | Workflow request and response endpoints, `WorkflowResponseMode` | A waiting workflow resumes from its checkpoint as a new execution step; every answer that starts a run is audited first, and a `SingleAnswer` workflow takes one answer per request (a repeat follows the first run, a different answer gets `409`); `GET /api/workflows/requests` lists the tenant's waiting requests, and a `RequestTimeout` closes a run nobody answered (`run.failed`) so retention can release what it kept |
 | Job queue | Registered by `AddTracon()` | Leases, retries, items, status, cancellation, and handler dispatch |
 | Custom jobs | `IServiceCollection.AddJobHandler<THandler>(handlerKey)` | A string handler key adds a new job type without changing the core queue; dispatch is an exact key match, so registration order never decides the winner, and execution is at-least-once. See [Write your own job handler](/guides/write-your-own-job-handler/) |
 | Queue work from code | `IJobDispatcher.EnqueueAsync()` | Queues a job for a registered handler key and refuses one nobody serves |
-| Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved |
+| Workflow functions | `AddWorkflowFunction<TInput, TOutput[, TSettings]>()`, `GetWorkflowFunction` | A typed function runs as a graph node without an agent of its own; with a settings type, each workflow's node carries values for it, checked when the workflow is saved; `MaxConcurrency` limits parallel calls per process; `GetWorkflowFunction()` and `GetWorkflowAgentStep()` give a graph built in code the same time limit, retry, budget gate, cost line and version pin, and `WorkflowRegistrationOptions.RunTimeout`/`Parameters` add a run limit and a schema |
 | Non-token usage | `context.ReportUsageAsync()` | A function node reports what it spent that is not tokens (speech characters, render seconds) and a tool reports with `TraconToolUsage.Report`; amounts in `Tracon:Pricing:Currency` add into a total beside the token cost that the call-tree budget, the tenant's cost quota and `run.completed` count; a spent cost or time ceiling stops the next function node from starting, and `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` exempts one; an amount a tool reports after its run closed reaches the quota counter only. A unit is never added to another unit, and an item with no amount is unpriced, not free; `GET /api/runs/{runId}/usage` lists the items |
 | Schedules | Scheduling API, console, or store | One-time and cron schedules enqueue work; time zones are explicit |
 | Worker control | `IServiceCollection.UseScheduling()` | A process can run workers or act only as an API node |
@@ -433,7 +433,7 @@ These ways to start a run carry values too:
 - a **batch or schedule** item can name its own values, see
   [Background work](/guides/background-work/#give-an-item-its-own-values)
 - a **workflow step** receives the values its own schema declares from the workflow's
-  run, see [Workflows](/concepts/workflows/#parameters)
+  run, see [Workflow parameters](/concepts/workflow-parameters/)
 
 A run records the values it was bound with — the supplied ones with the defaults
 applied — beside its input. A **replay**, an **automatic continuation** after a crash
@@ -3816,6 +3816,101 @@ answer with `500`, and the run does not start.
 
 ---
 
+# Workflow parameters
+
+Source: https://tracon.dev/concepts/workflow-parameters/
+
+How do one workflow definition serve many tones, voices or customers without being copied? A workflow declares run
+parameters, a run supplies the values, and every step receives the part of them it declared.
+
+```mermaid
+flowchart LR
+    accTitle: How a run's parameter values reach the steps
+    accDescr: The caller supplies values with the run. The workflow's schema checks them before the stream opens. Each agent step is bound with the names its own schema declares, and a function node reads the full set. The run records its final values so a resume or an answer to a waiting request uses them again.
+    CALL["Run request<br/>with values"] --> CHECK{"Workflow schema<br/>check"}
+    CHECK -->|"invalid"| BAD["400 before the stream"]
+    CHECK -->|"valid"| RUN["Run records<br/>the final values"]
+    RUN --> AGENT["Agent step:<br/>its own names only"]
+    RUN --> FN["Function node:<br/>GetRunParameters()"]
+    RUN --> AGAIN["Resume or answer<br/>reads them back"]
+```
+
+A stored workflow can declare run parameters, the same `AgentParameter` an agent
+declares (name, kind, `Required`, `DefaultValue`, `Description`). The values a run
+supplies reach every agent step, so one definition serves many tones, voices or
+customers without being copied:
+
+```bash
+curl -sS -X PUT http://localhost:5081/tracon/api/workflows/podcast \
+     -H 'Content-Type: application/json' -d '{
+       "kind": "Sequential",
+       "agentNames": ["podcast-writer", "podcast-editor"],
+       "parameters": [
+         { "name": "tone",  "kind": "Text", "required": true },
+         { "name": "voice", "kind": "Text", "defaultValue": "alloy" }
+       ]
+     }'
+
+curl -N -X POST http://localhost:5081/tracon/api/workflows/podcast/run \
+     -H 'Content-Type: application/json' \
+     -d '{"message":"Episode 12","parameters":{"tone":"formal","voice":"nova"}}'
+```
+
+- **The workflow's schema is the contract.** A missing required value, a name the
+  workflow does not declare, or a value over `MaxParameterValueLength` is refused with
+  `400` before the stream opens, with the same body an agent run gives
+  (`missingParameters`, `unknownParameters`, `tooLongParameters`). The runner checks
+  again, so a caller that skips HTTP gets the same refusal.
+- **A step receives the values its own schema names.** `podcast-writer` declares only
+  `tone`, so it never sees `voice`; `podcast-editor` declares both. A name the step does
+  not declare is dropped for that step, and a value the workflow supplies wins over the
+  step's own default. The step is bound the way a direct run of that agent would be
+  (its instructions, its recording, its tool-approval gate), and its own run row records
+  the values it was bound with.
+- **Every participant is checked before the first model call.** If an agent in the
+  workflow needs a required parameter that has no default and that the workflow does not
+  supply, the run ends `Failed` without a single model call, and the error names the
+  agent and the parameter. Saving the workflow does not check this, because the agents
+  can change after it is saved.
+- **A function node reads the values** with `context.GetRunParameters()`, a read-only
+  dictionary with the defaults applied:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "narrate",
+    services => (messages, context, cancellationToken) =>
+    {
+        var voice = context.GetRunParameters().GetValueOrDefault("voice", "plain");
+        return ValueTask.FromResult<List<ChatMessage>>([new(ChatRole.User, $"[{voice}] {messages[^1].Text}")]);
+    });
+```
+
+  Called outside a workflow run it throws `InvalidOperationException` instead of
+  returning an empty set, so a forgotten setup is not read as "no values".
+- **Resume and respond use the same values.** The run records its final values, and a
+  resume from a checkpoint or an answer to a waiting request reads them back and passes
+  them on to the run it opens. If the version the run continues with declares parameters
+  but the run recorded none, the resume is refused — the agents would otherwise continue
+  under their defaults, halfway through the work. That happens when
+  `RunRecording:RecordRunInput` is off, so a workflow with parameters that waits for a
+  human needs it on. The values are read against the schema of the version the run
+  continues with, which by default is the one it recorded (see
+  [Versions, rollback and pinning an agent step](/concepts/workflows/#versions-rollback-and-pinning-an-agent-step)).
+  When you name a newer version, a name its schema no longer declares is dropped and a
+  required name it gained since is refused.
+- **A workflow defined in code declares its schema in its registration**
+  (`WorkflowRegistrationOptions.Parameters`), checked, queued and recorded like a stored one's.
+  Without a schema every value sent is refused.
+
+A workflow row stores no message: the values are the only input it records.
+
+## Read next
+
+- [Workflows](/concepts/workflows/): the patterns, function nodes, versions and recovery these values flow through.
+- [A workflow that a person can send back](/guides/review-and-revise-workflow/): parameters on a graph built in code.
+
+---
+
 # Workflow requests and time limits
 
 Source: https://tracon.dev/concepts/workflow-requests/
@@ -3923,6 +4018,12 @@ no other request:
 | A request nobody answered | `Failed`, with the error type `WorkflowRequestExpired` (error class `Timeout`) |
 | Requests that were all answered | `Completed`, with no error: the answer was given and its work continued on another run |
 | Several requests, the last one now due | When the last one passes. A request a slower branch published later keeps the run waiting |
+
+A run that fails this way publishes `run.failed` to the webhooks subscribed to it, with the same
+payload any failed workflow run carries, so a pipeline driven by webhooks learns that the review ended
+without polling. The event is sent after the run is closed; a publisher that fails is logged and the
+close stands. A run closed `Completed` publishes nothing: the answer started a run of its own, which
+published its own `run.completed` when it ended.
 
 An answer to a closed run is refused with `400`, as an answer to any run that is not
 `AwaitingInput` is, and opens no run. The closed run keeps its usage, cost and event count.
@@ -4402,6 +4503,9 @@ shows each registered timeout.
 - A timeout runs from 1 millisecond to about 49.7 days; a value outside the range is
   refused with `400` on save, or with `ArgumentOutOfRangeException` at registration.
   It is not checked against `RunTimeout`: whichever passes first stops the node.
+- `options.MaxConcurrency` limits how many calls of the function run at once in the process;
+  [the review-and-revise guide](/guides/review-and-revise-workflow/#limits-that-work-together) says how it
+  interacts with retries, the budget and the node's timeout.
 
 An **agent node** of a node list can carry a `timeout` too. It replaces the
 installation's `Tracon:AgentGraph:ChildDeadline` for that step, and the hard cutoff for
@@ -4420,75 +4524,19 @@ cosmetic — and an inconsistency between the two produces a silent `404` or a t
 rather than an error. Use the same string in both places.
 :::
 
+## Graphs built in code
+
+A graph with a way back or a human gate is built in code with `AddWorkflow`. Two helpers give its steps
+what a stored chain's steps have: `GetWorkflowFunction` binds a registered function with its time limit,
+retry, budget gate and cost line, and `GetWorkflowAgentStep` binds an agent as a plain step that a message
+can return to. A registration also takes `RunTimeout` and `Parameters`.
+[A workflow that a person can send back](/guides/review-and-revise-workflow/) builds one.
+
 ## Parameters
 
-A stored workflow can declare run parameters, the same `AgentParameter` an agent
-declares (name, kind, `Required`, `DefaultValue`, `Description`). The values a run
-supplies reach every agent step, so one definition serves many tones, voices or
-customers without being copied:
-
-```bash
-curl -sS -X PUT http://localhost:5081/tracon/api/workflows/podcast \
-     -H 'Content-Type: application/json' -d '{
-       "kind": "Sequential",
-       "agentNames": ["podcast-writer", "podcast-editor"],
-       "parameters": [
-         { "name": "tone",  "kind": "Text", "required": true },
-         { "name": "voice", "kind": "Text", "defaultValue": "alloy" }
-       ]
-     }'
-
-curl -N -X POST http://localhost:5081/tracon/api/workflows/podcast/run \
-     -H 'Content-Type: application/json' \
-     -d '{"message":"Episode 12","parameters":{"tone":"formal","voice":"nova"}}'
-```
-
-- **The workflow's schema is the contract.** A missing required value, a name the
-  workflow does not declare, or a value over `MaxParameterValueLength` is refused with
-  `400` before the stream opens, with the same body an agent run gives
-  (`missingParameters`, `unknownParameters`, `tooLongParameters`). The runner checks
-  again, so a caller that skips HTTP gets the same refusal.
-- **A step receives the values its own schema names.** `podcast-writer` declares only
-  `tone`, so it never sees `voice`; `podcast-editor` declares both. A name the step does
-  not declare is dropped for that step, and a value the workflow supplies wins over the
-  step's own default. The step is bound the way a direct run of that agent would be
-  (its instructions, its recording, its tool-approval gate), and its own run row records
-  the values it was bound with.
-- **Every participant is checked before the first model call.** If an agent in the
-  workflow needs a required parameter that has no default and that the workflow does not
-  supply, the run ends `Failed` without a single model call, and the error names the
-  agent and the parameter. Saving the workflow does not check this, because the agents
-  can change after it is saved.
-- **A function node reads the values** with `context.GetRunParameters()`, a read-only
-  dictionary with the defaults applied:
-
-```csharp
-tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
-    "narrate",
-    services => (messages, context, cancellationToken) =>
-    {
-        var voice = context.GetRunParameters().GetValueOrDefault("voice", "plain");
-        return ValueTask.FromResult<List<ChatMessage>>([new(ChatRole.User, $"[{voice}] {messages[^1].Text}")]);
-    });
-```
-
-  Called outside a workflow run it throws `InvalidOperationException` instead of
-  returning an empty set, so a forgotten setup is not read as "no values".
-- **Resume and respond use the same values.** The run records its final values, and a
-  resume from a checkpoint or an answer to a waiting request reads them back and passes
-  them on to the run it opens. If the version the run continues with declares parameters
-  but the run recorded none, the resume is refused — the agents would otherwise continue
-  under their defaults, halfway through the work. That happens when
-  `RunRecording:RecordRunInput` is off, so a workflow with parameters that waits for a
-  human needs it on. The values are read against the schema of the version the run
-  continues with, which by default is the one it recorded (see
-  [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
-  When you name a newer version, a name its schema no longer declares is dropped and a
-  required name it gained since is refused.
-- **A workflow defined in code declares no parameters** (`AddWorkflow` builds a free graph
-  with no definition), so any value sent to it is refused.
-
-A workflow row stores no message: the values are the only input it records.
+A workflow declares run parameters, the same `AgentParameter` an agent declares. A run supplies the values, each agent
+step is bound with the names its own schema declares, and a function node reads them with `context.GetRunParameters()`.
+[Workflow parameters](/concepts/workflow-parameters/) has the rules, for a stored workflow and for one defined in code.
 
 ## Versions, rollback and pinning an agent step
 
@@ -4913,6 +4961,7 @@ the crash case that needs run reconciliation.
 
 ## Read next
 
+- [A workflow that a person can send back](/guides/review-and-revise-workflow/) — a code graph with a human gate and a bounded revision loop.
 - [Runs and recording](/concepts/runs/) — reading the tree
 - [Evaluation and experiments](/concepts/evaluation/) — compare agent versions using cases, judges, and experiments.
 
@@ -12681,6 +12730,210 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 
 ---
 
+# A workflow that a person can send back
+
+Source: https://tracon.dev/guides/review-and-revise-workflow/
+
+How do you build a workflow where an agent writes, code checks the draft, a person approves it
+or sends it back with a note, and costly steps run only after the approval? This page builds
+that graph in code, on the sample's `review-and-revise` workflow, and says what each part
+gives you.
+
+A stored workflow chain cannot do this. It is a straight line of agents and functions, with no
+way back and no human gate. A graph built in code can, and two helpers give its steps what a
+stored chain's steps have: `GetWorkflowAgentStep` for the writer and `GetWorkflowFunction` for
+every function you registered.
+
+## The graph
+
+```mermaid
+flowchart TD
+    accTitle: A review and revise workflow built in code
+    accDescr: A writer agent step feeds a validation function. A draft that fails validation returns to the writer. A valid draft goes to a person, who approves it or rejects it with a note. A rejection returns to the writer until the revision limit fails the run. An approval runs three media functions in order.
+    IN["Run with productionId and language"] --> W["writer<br/>agent step"]
+    W --> V["validate<br/>function"]
+    V -->|"violation"| R1["revise: count and limit"]
+    V -->|"valid"| A{"review<br/>a person answers"}
+    A -->|"reject with a note"| R1
+    R1 -->|"under the limit"| W
+    R1 -->|"limit reached"| F["Run fails: content_rejected"]
+    A -->|"approve"| T["tts · render · qa<br/>functions"]
+    T --> OUT["Output; run.completed"]
+```
+
+## Register the pieces
+
+The agent and the functions are registered the usual way. The graph itself is a registration
+too, and it carries the workflow-level settings a stored definition would:
+
+```csharp
+tracon.AddAgent(new AgentDefinition
+{
+    Name = "episode-writer",
+    Instructions = "Write a short script in {{language}}. Answer ONLY with JSON: {\"title\": string, \"script\": string}.",
+    Parameters = [new AgentParameter { Name = "language", Kind = AgentParameterKind.Text, DefaultValue = "en" }],
+    Model = new ModelBinding
+    {
+        Provider = "openai",
+        Model = "gpt-5.4-mini",
+        ResponseFormat = new AgentResponseFormat { Kind = AgentResponseFormatKind.JsonSchema, SchemaName = "episode_script", Schema = schema },
+    },
+});
+
+tracon.AddWorkflowFunction<List<ChatMessage>, ScriptCheck>("episode-validate", ValidateFactory);
+
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
+    "episode-tts",
+    TtsFactory,
+    options =>
+    {
+        options.Timeout = TimeSpan.FromMinutes(2);
+        options.MaxConcurrency = 1;       // one voice synthesis at a time in this process
+    });
+
+tracon.AddWorkflow(
+    "review-and-revise",
+    services => Build(services),
+    options =>
+    {
+        options.ResponseMode = WorkflowResponseMode.SingleAnswer;   // a double click follows the first answer
+        options.RequestTimeout = TimeSpan.FromDays(2);              // a review nobody answers fails the run
+        options.RunTimeout = TimeSpan.FromMinutes(5);               // one run, not the wait for a person
+        options.Parameters =
+        [
+            new AgentParameter { Name = "productionId", Kind = AgentParameterKind.Text, Required = true },
+            new AgentParameter { Name = "language", Kind = AgentParameterKind.Text, DefaultValue = "en" },
+        ];
+    });
+```
+
+## Build the graph
+
+The graph is built again for every run, so the factory must be cheap and must not keep state.
+
+```csharp
+static Workflow Build(IServiceProvider services)
+{
+    var writer = services.GetWorkflowAgentStep("review-and-revise", "episode-writer", step => step.Timeout = TimeSpan.FromMinutes(3));
+    var validate = services.GetWorkflowFunction("episode-validate");
+    var ask = Step<ScriptCheck, string>("ask", (check, _, _) => new ValueTask<string>(check.Text));
+    var review = RequestPort.Create<string, EpisodeReview>("episode-review").BindAsExecutor(allowWrappedRequests: false);
+    var reviseAfterViolation = Step<ScriptCheck, List<ChatMessage>>("revise-after-violation", (c, ctx, ct) => ReviseAsync(c.Violation!, ctx, ct));
+    var reviseAfterRejection = Step<EpisodeReview, List<ChatMessage>>("revise-after-rejection", (d, ctx, ct) => ReviseAsync(d.Note ?? "", ctx, ct));
+    var approved = Step<EpisodeReview, List<ChatMessage>>("approved", async (_, ctx, ct) => [new(ChatRole.User, await ctx.ReadStateAsync<string>("draft", "review", ct) ?? "")]);
+    var tts = services.GetWorkflowFunction("episode-tts", step => step.SetSettings(new SpeakSettings { Voice = "alloy" }));
+    var render = services.GetWorkflowFunction("episode-render");
+    var qa = services.GetWorkflowFunction("episode-qa");
+
+    return new WorkflowBuilder(writer)
+        .AddEdge(writer, validate)
+        .AddEdge<ScriptCheck>(validate, reviseAfterViolation, check => check?.Violation is not null)
+        .AddEdge<ScriptCheck>(validate, ask, check => check is not null && check.Violation is null)
+        .AddEdge(reviseAfterViolation, writer)
+        .AddEdge(ask, review)
+        .AddEdge<EpisodeReview>(review, reviseAfterRejection, decision => decision is { Approved: false })
+        .AddEdge<EpisodeReview>(review, approved, decision => decision is { Approved: true })
+        .AddEdge(reviseAfterRejection, writer)
+        .AddEdge(approved, tts).AddEdge(tts, render).AddEdge(render, qa)
+        .WithOutputFrom(qa)
+        .WithName("review-and-revise")
+        .Build();
+}
+```
+
+`Step` is a two-line helper over `new FunctionExecutor<TIn, TOut>(id, handler).BindExecutor()`.
+`ReviseAsync` reads and writes the counter described below.
+
+## Three traps this graph avoids
+
+- **The writer is an agent step, not an agent binding.** An agent bound with
+  `GetWorkflowAgent` and an `AIAgentBinding` runs only when the framework sends it a turn token,
+  and nothing sends one to a node that is not the graph's entry. A message that returns to it
+  over a back edge is accepted and nothing happens: the run ends with no output and no error.
+  `GetWorkflowAgentStep` returns a plain function executor that runs whenever a message arrives.
+  The price is that it streams no token deltas into the workflow's event feed and keeps no
+  framework session, so a revision carries the previous draft and the note in its input.
+- **The revision counter lives in the workflow's state.** Every answer is a new run and the
+  graph is built again, so a counter kept in a field of an executor starts from zero each time and
+  the loop never ends. `QueueStateUpdateAsync` and `ReadStateAsync` keep it in the checkpoint,
+  and the run that answers reads it back. An update is visible to the executor that wrote it at once
+  and to the others from the next super-step on: the step that counts also reads the counter, and the
+  approval reads the draft a super-step after the validation wrote it.
+- **The request is a string.** The console shows a request's text. A record shows its type name,
+  and the answer is read into `EpisodeReview` from the `data` field of the respond call.
+
+## What each helper gives a step
+
+`GetWorkflowFunction` takes a `WorkflowFunctionStepOptions` (`Timeout`, `Settings`, and `SetSettings(value)` for a typed
+value). `GetWorkflowAgentStep` takes a `WorkflowAgentStepOptions` (`Timeout`, `AgentVersion`).
+
+| Step | Time limit | Retry | Budget gate | Cost named by node | Settings | Version pin | Concurrency |
+|---|---|---|---|---|---|---|---|
+| `GetWorkflowFunction` | the registration's, or the step's own | the registration's | yes | yes | strict read, typed or JSON | no | the registration's |
+| `GetWorkflowAgentStep` | the step's own, else `ChildDeadline` | no | yes: a refused step fails | the agent's own run rows | no | yes, `AgentVersion` | no |
+
+A pinned version that does not exist, or an agent defined in code that keeps no versions, fails the
+step by name before its model call. A graph factory is synchronous, so it cannot check this when
+the graph is built, as a stored chain does.
+
+The agent step asks the agent for its whole answer. A JSON answer that does not fit the schema is
+repaired as it is for a plain agent run (`Tracon:StructuredResponse`), and a loop agent hands the
+next node its final iteration only.
+
+## Limits that work together
+
+- **A revision limit and a cost ceiling.** Each answer is a new run with a new budget, so
+  `MaxTotalCost` does not add up across rounds. Bound the rounds with your own counter, as here, and
+  set the ceiling for one round.
+- **`MaxConcurrency` is per process and per function.** It holds across workflows and tenants, in a stored chain
+  and in a graph built in code, and it multiplies with the number of replicas. A call that finds every slot taken
+  waits. The wait is not part of the node's own `Timeout`, and it ends when the run is cancelled or reaches its
+  `RunTimeout`. Each attempt of a retried node takes a slot of its own and gives it back before the retry's delay,
+  and the budget gate is read after the slot is taken, so a budget that runs out during the wait refuses the node
+  when its turn comes. A handler that ignores its token after a timeout keeps running without a slot, so pass the
+  token on. A value below 1 throws at registration.
+- **`RunTimeout` is held to the host's ceiling.** A value above `Tracon:Workflows:MaxRunTimeout`
+  (or above `RunTimeout` while no ceiling is set) stops the host at startup and names the workflow.
+- **A request nobody answers** fails the run with `WorkflowRequestExpired` and publishes `run.failed`
+  to your webhooks, so a pipeline driven by webhooks hears that the review ended.
+
+## Run it
+
+```bash
+curl -sS -X POST http://localhost:5081/tracon/api/workflows/review-and-revise/run \
+  -H 'Prefer: respond-async' -H 'Content-Type: application/json' \
+  -d '{"message":"start","parameters":{"productionId":"p-1","language":"en"}}'
+
+curl -sS "http://localhost:5081/tracon/api/workflows/requests?state=pending"
+
+curl -sS -X POST http://localhost:5081/tracon/api/workflows/runs/{runId}/respond \
+  -H 'Prefer: respond-async' -H 'Content-Type: application/json' \
+  -d '{"requestId":"{requestId}","data":{"approved":false,"note":"Make it shorter."}}'
+```
+
+The answer returns the run that continues. List the pending requests again for the next draft, and
+answer with `"approved": true` to run the media functions. `GET /api/runs/{runId}/usage` lists what
+each media function reported, by node name.
+
+## After a crash, and after a change
+
+A queued run that the process left half done continues from its latest checkpoint with
+`ResumeInterruptedRuns` on, as a new run linked by `continuedFromRunId`. The finished steps do not run
+again, and an approval already given is not asked for again. The run parameters are the recorded ones.
+
+A run that waits for a person was written against the graph it ran. If you change the graph's
+structure (add, remove or rename a node) while a run waits, that run cannot continue under the new
+graph: the framework refuses its checkpoint. Changing a handler's code, a node's settings or a time limit
+does not. Let waiting runs finish or expire before a structural change.
+
+## Read next
+
+- [Workflows](/concepts/workflows/): the five patterns, function nodes, parameters and recovery.
+- [Answering a workflow](/concepts/workflow-answers/): the rules for one answer per request.
+- [Workflow requests and time limits](/concepts/workflow-requests/): the list of waiting requests and how they expire.
+
+---
+
 # Structured output
 
 Source: https://tracon.dev/guides/structured-output/
@@ -17489,6 +17742,8 @@ script.
 | `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree. It counts the token cost and the amounts that function nodes and tools reported beyond tokens; falls back to the token limit when a model's price is undefined. Once spent, the next model call is refused and a workflow function node does not start |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `AgentGraph:MaxDuration` | none | Wall-clock budget for the whole call tree, counted from the root run's start. Once passed, the next model call is refused and a workflow function node does not start; a call or node already running is not stopped |
+| `AgentGraph:ChildDeadline` | 2 minutes | Longest one sub-agent call, or one agent step of a workflow, may take before it is cancelled (the cooperative layer). A workflow agent step can carry its own `timeout`, which replaces this value for that step. From 1 millisecond to about 49.7 days |
+| `AgentGraph:WaitTimeout` | `ChildDeadline` plus 30 seconds | Hard cutoff for a call that ignores cancellation. Must be greater than `ChildDeadline`; when unset it follows it |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
@@ -18070,7 +18325,9 @@ The section does not register the execution engine. Call `UseWorkflows()`; that 
 binds this section and then applies its optional code override.
 
 `MaxRunTimeout` is the longest run timeout a workflow definition may set. A save above
-it, or above `RunTimeout` while it is unset, is refused with `400`. It must be at least
+it, or above `RunTimeout` while it is unset, is refused with `400`. A workflow defined in code
+sets it with `WorkflowRegistrationOptions.RunTimeout`; a value above the ceiling stops the host at
+startup, naming the workflow, while `Enabled` is `true`. It must be at least
 `RunTimeout` and fails at startup otherwise, even while `Enabled` is `false`. A
 stored definition above a ceiling that was lowered later runs with the ceiling, and a
 warning is logged.

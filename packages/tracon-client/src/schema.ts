@@ -8302,7 +8302,7 @@ export interface components {
             nodes?: components["schemas"]["WorkflowNodeReference"][];
             /**
              * @description Gets the run parameters the workflow accepts. Empty for a workflow that
-             *     takes none, and always empty for a workflow defined in code.
+             *     takes none. For a workflow defined in code it is the schema its registration declared.
              */
             parameters?: components["schemas"]["AgentParameter"][];
             /**

@@ -81,7 +81,7 @@ These ways to start a run carry values too:
 - a **batch or schedule** item can name its own values, see
   [Background work](/guides/background-work/#give-an-item-its-own-values)
 - a **workflow step** receives the values its own schema declares from the workflow's
-  run, see [Workflows](/concepts/workflows/#parameters)
+  run, see [Workflow parameters](/concepts/workflow-parameters/)
 
 A run records the values it was bound with — the supplied ones with the defaults
 applied — beside its input. A **replay**, an **automatic continuation** after a crash
