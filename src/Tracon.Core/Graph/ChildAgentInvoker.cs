@@ -302,8 +302,11 @@ public sealed class ChildAgentInvoker : AIAgent
         var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(_childDeadline);
 
-        var enumerator = agent
-            .RunStreamingAsync(messages, session, childOptions, deadline.Token)
+        // A child's caller - a workflow step, the next participant - reads the
+        // answer and acts on it, so a loop child hands over its final iteration
+        // only (AgentAnswerStream). The limits below bound it the same way.
+        var enumerator = AgentAnswerStream
+            .RunAsync(agent, messages, session, childOptions, deadline.Token)
             .GetAsyncEnumerator(CancellationToken.None);
 
         // The hard cutoff bounds the WHOLE call, not the gap between two

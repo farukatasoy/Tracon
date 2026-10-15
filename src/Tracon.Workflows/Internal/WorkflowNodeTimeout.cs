@@ -170,11 +170,14 @@ internal static class WorkflowNodeTimeout
                 // unobserved task exception, long after the run closed.
                 if (task.IsCanceled)
                 {
-                    logger.LogInformation(
-                        "Function node {Function} of workflow run {RunId} stopped on its cancelled token {Elapsed} after it started.",
-                        functionName,
-                        runId,
-                        elapsed);
+                    if (logger.IsEnabled(LogLevel.Information))
+                    {
+                        logger.LogInformation(
+                            "Function node {Function} of workflow run {RunId} stopped on its cancelled token {Elapsed} after it started.",
+                            functionName,
+                            runId,
+                            elapsed);
+                    }
                 }
                 else if (timeout is { } limit)
                 {

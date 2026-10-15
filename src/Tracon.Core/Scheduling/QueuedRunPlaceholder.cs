@@ -117,7 +117,7 @@ internal static class QueuedRunPlaceholder
         {
             var written = await jobStore.GetAsync(job.TenantId, job.Id, CancellationToken.None).ConfigureAwait(false);
 
-            if (written is not null)
+            if (written is not null && logger.IsEnabled(LogLevel.Information))
             {
                 logger.LogInformation(
                     "Queued run {RunId} already has its job; another call wrote it, so this enqueue is not repeated.",

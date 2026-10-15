@@ -693,7 +693,10 @@ internal sealed class VoiceConversationDriver
             _agent = await driver._catalog.ResolveAsync(_agentName!, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"There is no agent named '{_agentName}'.");
 
-            var updates = _agent.RunStreamingAsync(
+            // A harness loop hands over its final iteration only (K-889): every
+            // update below is spoken, and a draft must not be.
+            var updates = AgentAnswerStream.RunAsync(
+                _agent,
                 [new ChatMessage(ChatRole.User, prompt)],
                 _session,
                 new TraconRunOptions { RunId = runId, SessionId = request.SessionId },

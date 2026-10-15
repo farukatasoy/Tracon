@@ -423,7 +423,10 @@ internal static class OpenAIChatCompletionsEndpoints
                 await WriteChunkAsync(writer, new ChatDelta("assistant", null), finishReason: null, created, cancellationToken)
                     .ConfigureAwait(false);
 
-                var updates = agent.RunStreamingAsync(
+                // A harness loop hands over its final iteration only (K-889): the
+                // client reads this stream as the answer, not as a draft forming.
+                var updates = AgentAnswerStream.RunAsync(
+                    agent,
                     messages,
                     session: null,
                     new TraconRunOptions { RunId = runId },

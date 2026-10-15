@@ -130,7 +130,9 @@ internal sealed class ExternalAgentProxy : AIAgent
         var runOptions = CreateRunOptions();
         string? pendingApproval = null;
 
-        await foreach (var update in agent.RunStreamingAsync(messages, session, runOptions, cancellationToken).ConfigureAwait(false))
+        // A harness loop hands over its final iteration only (K-889): the A2A
+        // caller reads this stream as the answer, not as a draft forming.
+        await foreach (var update in AgentAnswerStream.RunAsync(agent, messages, session, runOptions, cancellationToken).ConfigureAwait(false))
         {
             pendingApproval ??= ChildRunApproval.Describe(update.Contents);
 
