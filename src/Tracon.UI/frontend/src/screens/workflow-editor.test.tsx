@@ -98,6 +98,15 @@ async function save(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await waitFor(() => expect(sent).toHaveLength(1));
 }
 
+/**
+ * Waits until the stored workflow is on screen. The participant list renders before the GET
+ * answers (the form starts empty), so waiting for the list alone let a case read the chain while
+ * it was still the new-workflow form - it failed on a loaded CI runner and never on a laptop.
+ */
+async function loaded(): Promise<void> {
+  await screen.findAllByTestId('workflow-step');
+}
+
 /** The chain as the screen shows it: `Kind:name`, in order. */
 function steps(): string[] {
   return screen
@@ -112,7 +121,7 @@ describe('WorkflowEditorScreen - the chain', () => {
   it('opens a function-node chain with its settings and keeps the pattern the chain needs', async () => {
     open(mixed);
 
-    await screen.findByTestId('workflow-participants');
+    await loaded();
 
     expect(steps()).toEqual(['Agent:summarizer', 'Function:word-count']);
 
@@ -176,7 +185,7 @@ describe('WorkflowEditorScreen - the chain', () => {
       }),
     );
 
-    await screen.findByTestId('workflow-participants');
+    await loaded();
     await user.click(screen.getByRole('button', { name: 'Move function word-count down' }));
 
     expect(steps()).toEqual(['Agent:summarizer', 'Function:word-count', 'Function:pass-through']);
@@ -248,7 +257,7 @@ describe('WorkflowEditorScreen - the stored form', () => {
       }),
     );
 
-    await screen.findByTestId('workflow-participants');
+    await loaded();
 
     expect(screen.getByTestId('workflow-form-notice').textContent).toContain('plain agent list');
 
@@ -260,7 +269,7 @@ describe('WorkflowEditorScreen - the stored form', () => {
   it('says nothing about the stored form when a save leaves it as it is', async () => {
     open(mixed);
 
-    await screen.findByTestId('workflow-participants');
+    await loaded();
 
     expect(screen.queryByTestId('workflow-form-notice')).toBeNull();
   });
@@ -439,7 +448,7 @@ describe('WorkflowEditorScreen - the settings field', () => {
     open(mixed, [fixture('GET', 'api/workflows/functions', { title: 'boom' }, 500)]);
 
     // The chain is the record; the function list is only what adding a step needs.
-    await screen.findByTestId('workflow-participants');
+    await loaded();
 
     expect(steps()).toEqual(['Agent:summarizer', 'Function:word-count']);
     expect(await screen.findByText('The list of functions could not be loaded.')).toBeTruthy();
@@ -468,7 +477,7 @@ describe('WorkflowEditorScreen - what a save changes', () => {
 
     open(agentsOnly);
 
-    await screen.findByTestId('workflow-participants');
+    await loaded();
 
     expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
 
@@ -556,7 +565,7 @@ describe('WorkflowEditorScreen - timeouts', () => {
 
     open(agentsOnly);
 
-    await screen.findByTestId('workflow-participants');
+    await loaded();
 
     expect(screen.queryByTestId('workflow-timeout-summarizer')).toBeNull();
     expect(screen.queryByTestId('workflow-timeout-drafter')).toBeNull();
@@ -626,7 +635,7 @@ describe('WorkflowEditorScreen - timeouts', () => {
   it('offers no step timeout outside a Sequential chain, where steps are not nodes', async () => {
     open(stored({ kind: 'Concurrent', agentNames: ['summarizer', 'drafter'] }));
 
-    await screen.findByTestId('workflow-participants');
+    await loaded();
 
     expect(screen.queryByTestId('workflow-timeout-summarizer')).toBeNull();
     expect(screen.getByTestId('workflow-run-timeout')).toBeTruthy();
@@ -716,7 +725,7 @@ describe('WorkflowEditorScreen - agent versions', () => {
 
     open(agentsOnly, [versions]);
 
-    await screen.findByTestId('workflow-participants');
+    await loaded();
     expect(screen.queryByTestId('workflow-structure-notice')).toBeNull();
 
     const selector = await screen.findByTestId('workflow-version-drafter');
