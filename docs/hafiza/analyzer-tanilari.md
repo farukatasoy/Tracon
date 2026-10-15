@@ -133,6 +133,14 @@
   `~/.dotnet/dotnet build Tracon.slnx -c Release` ve `format --verify-no-changes`.
   `~/.dotnet`'i PATH'e koyma (`test-kosum-tuzaklari.md`). Negatif kontrol:
   düzeltme geri alınınca aynı SDK `CA1875` verdi.
+- **🚨 Sınıf ÜÇ kez tekrarladı; kapısı SDK sabitidir (A-73).** 2026-10-15'te CI
+  `10.0.402` kurdu ve `CA1873` (`Information`/`Debug` log argümanında `??`,
+  `TimeSpan`, özellik okuması) iki kez doğdu: önce üç dosyada (Faz 199/196/197
+  kodu, `main`'in üç CI koşumunu kırdı), sonra Faz 211'in yeni
+  `WorkflowNodeConcurrencyLimit`'inde. İkisi de yerel `10.0.100` kapanışında
+  yeşildi. Düzeltme `IsEnabled` korumasıdır. Kapı: `global.json` CI'ın
+  sürümüne sabitlenir (`latestPatch`) ve SDK yükseltmesi açık bir commit olur;
+  sabit gelene kadar her push'tan önce yukarıdaki iki komutu CI'ın sürümüyle koş.
 
 
 - **RS0026 genel tip ARİTESİ farkını görmez** (2026-10-12, Faz 195): `AddWorkflowFunction<TIn,TOut>` ile `<TIn,TOut,TSettings>` aynı adlı iki aşırı yükleme sayılır; ikisi de opsiyonel parametre taşırsa İKİSİNDE de RS0026 verir (gerçekte çağrı yeri belirsizliği oluşmaz). Bastırma yerine yeni aşırı yüklemeyi opsiyonelsiz kur: `Action<Options>` + `init` ayarları (K-422/K-867 çizgisi, K-902); mevcut kısa aşırı yükleme değişmez.
