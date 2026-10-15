@@ -35,7 +35,8 @@
 | Analyzer/lint TANI kodu (RS/MA/CA) | [analyzer-tanilari](analyzer-tanilari.md) |
 | Analyzer/üreteç **yazımı** (`APG*`) | [analyzer-yazimi](analyzer-yazimi.md) |
 | `dotnet pack`, `buildTransitive/`, şablon, feed | [paketleme-ve-dagitim](paketleme-ve-dagitim.md) |
-| MinVer sürümleme, repo dışı tüketiciyi bağlama | [yayin-ve-surumleme](yayin-ve-surumleme.md) |
+| MinVer, repo dışı tüketici, tek derleme zinciri | [yayin-ve-surumleme](yayin-ve-surumleme.md) |
+| Etiket, push sırası, registry | [yayin-turu](yayin-turu.md) |
 | Üçüncü taraf lisans bildirimi, ön sürüm üst akış aralığı | [tedarik-zinciri](tedarik-zinciri.md) |
 | NSwag ile üretilen istemci (`Tracon.Client`/`@tracon/client`) | [nswag-istemci-uretimi](nswag-istemci-uretimi.md) |
 | Test **yazımı** (xunit, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |

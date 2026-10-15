@@ -13,9 +13,9 @@
 > `npm --dry-run`, 6 exact-version örnek, Native AOT, net8.0 smoke; KN-034);
 > kapanış kapısı yeşil (Faz 211 kaydı); CI'ın SDK'sıyla (`10.0.402`) tam derleme
 > ve `format` yeşil (KN-035). A-73 kapandı: `global.json` `10.0.402` +
-> `latestPatch` (`eb60cfe3`). Kalan koşul **iki push** ister (Faz 187 kuralı):
-> önce `main` (CI'da hiç koşmamış ~98 commit, iki OS + prova + site), yeşilse
-> kesim + etiket **tek atomik push** 👤. Bilinen sınırlar sürüm notuna girer:
+> `latestPatch` (`eb60cfe3`). Yayın **tek atomik push**'tur (OP-012, bakımcı
+> kararı 2026-10-15): birikmiş commit'ler, kesim ve etiket birlikte gider;
+> `main`'in önce yeşil olması beklenmez. Bilinen sınırlar sürüm notuna girer:
 > F-544 (native SSE Loop taslağını akıtır) · F-545 (kod grafında üretim başına
 > agent sürüm sabiti yok). Defter bütçeleri dolu (`KARARLAR.md` %100,
 > `ADAYLAR.md` %100): sonraki fazdan önce `karar-damit` ve aday damıtması.
@@ -35,7 +35,7 @@
 > `e0fd4f61`'de; prova ve dış tüketici repro'su yeşil (KN-030, KN-031). Açık
 > tek koşul A-64'tür ve **iki push** ister: önce `6a77957d` `main`'e, CI yeşil;
 > sonra kesim + etiket **tek atomik push** (Faz 187 kuralı,
-> `hafiza/yayin-ve-surumleme.md`). preview.3 bir **güvenlik sürümüdür**.
+> `hafiza/yayin-turu.md`). preview.3 bir **güvenlik sürümüdür**.
 > Sınıf taraması A-72'yi açtı (`Tracon.Cli`, GA). Ayrıntı: §4 "KARAR —
 > 2026-09-24 (`preview.3`)".
 >
@@ -174,20 +174,27 @@ kapandı, hiçbiri yerel kapanışta görünmüyordu:
   `build`'e bağlı olduğu için atlandı; nuget.org ve npm'e hiçbir şey gitmedi.
 - #265 (`16e15f3a`): Ubuntu `Paketle` düştü — yayımlanmamış etiket artık bir ata
   olduğu için taban `1.0.0-preview.4` seçildi ve nuget.org'da bulunamadı. Bakımcı
-  kararıyla (2026-10-15) etiket silindi ve CI yeşil olan son commit'e yeniden
-  atılır. 🚨 Ders: yayın koşumu düşen bir etiket `main`'in atası olarak kalırsa
-  sonraki her `main` koşumunu kırar; etiket ya taşınır ya yeni sürüm kesilir.
+  kararıyla etiket silindi. 🚨 Ders: yayın koşumu düşen bir etiket `main`'in
+  atası olarak kalırsa sonraki her `main` koşumunu kırar; etiket ya taşınır ya
+  yeni sürüm kesilir.
+- #266 (`313cc186`, `main`): iki bacak + site yeşil; prova beklenen kırmızı
+  (etiketsiz kesim, `[Unreleased]` boş). Etiket `313cc186`'ya atıldı (#267):
+  Ubuntu testi süre sınırında akış istisnasıyla düştü (F-550, ürün kusuru,
+  `dab74b62`); "Re-run failed jobs" yüklü runner'da arayüz testi zaman aşımına
+  düştü (F-551, `0079b1b2`).
+- Etiket `0079b1b2`'ye taşındı ve `main` yeşili beklenmeden itildi (#268 `main`,
+  #269 etiket) — OP-012'nin ilk uygulaması.
 
 
 **Sıra (👤 adımlar işaretli):**
-1. 👤 `main`'i it; CI iki OS'te build/test, prova ve site kapısında yeşil.
-2. Kesim commit'i (`e0fd4f61` deseni): `## [1.0.0-preview.4] - <tarih>`,
+1. Kesim commit'i (`e0fd4f61` deseni): `## [1.0.0-preview.4] - <tarih>`,
    yükseltme özeti (5 kırıcı tip, migration'lar), sevk edilen sürüm metni
    preview.3 → preview.4, site changelog ve agent map yeniden üretimi.
-3. 👤 Kesim + `v1.0.0-preview.4` etiketi tek atomik push; etiket koşumu
-   yeşil; nuget.org 20/20 ve npm dist-tag'ler doğrulanır (MT-PKG-160 deseni).
-4. 👤 Site yayını (`scripts/site-deploy.sh`) etiketten **sonra**.
-5. Tüketici duyurusu: iki uyum raporu (`docs/arsiv/incelemeler/`) başlangıç
+2. 👤 Birikmiş commit'ler + kesim + `v1.0.0-preview.4` etiketi tek atomik push
+   (OP-012); etiket koşumu yeşil; nuget.org 20/20 ve npm dist-tag'ler
+   doğrulanır (MT-PKG-160 deseni).
+3. 👤 Site yayını (`scripts/site-deploy.sh`) etiketten **sonra**.
+4. Tüketici duyurusu: iki uyum raporu (`docs/arsiv/incelemeler/`) başlangıç
    kitleriyle güncel.
 
 ### ✅ YAYINLANDI — 2026-09-24, `1.0.0-preview.3`
@@ -540,6 +547,7 @@ GA'yı bloklar ve bir kod işidir. Aşağıdaki 2026-08-28 maddelerinin
 | OP-009 | Dependency/vulnerability takibi | **Tamamlandı (2026-09-03)** | **Ölçüldü:** `.github/dependabot.yml` **dört** ekosistemi kapsıyor (NuGet haftalık · `Tracon.UI/frontend` npm haftalık · `docs-site` npm haftalık · github-actions aylık) ve `Directory.Build.props:23` `TreatWarningsAsErrors=true` altında NuGet Audit'in `NU1903`'ü restore'u zaten kırıyor | **Ek kapı eklenmedi** — kullanıcı kararı. Mevcut iki mekanizma yeterli sayıldı; ayrı bir zamanlanmış `dotnet list package --vulnerable` işi eklenmedi |
 | OP-010 | npm/NuGet asimetrik kısmi yayın | **Tamamlandı (2026-08-28, KG-021/KN-021)** | Aynı `v*` tag'i `publish` (o gün `nuget-publish`) ve `npm-publish` işlerini ([`ci.yml`](../.github/workflows/ci.yml)) **paralel** tetikliyordu (farklı `needs`). `tracon` npm scope'u bugün yok; `NPM_TOKEN` durumu repo dışında. Scope hazır değilse 20 NuGet paketi **kalıcı** yayınlanır, npm işi kırılır — ve sevk edilen doküman `npm install @tracon/client` diyor (`docs-site/src/content/docs/packages.md:70`, `guides/typescript-client.md:25`) | **Yol A + C.** **C uygulandı:** `publish` işi `needs: [release-dryrun, npm-publish]` taşır (Faz 191 `pack`'i düşürdü; [`ci.yml`](../.github/workflows/ci.yml)) — geri dönüşü olmayan kanal (NuGet) EN SON basar; npm kırılırsa 20 paket hiç yayınlanmaz. Zincir kırılmaz: `npm-publish` var olan sürümü atlar, aynı etiket yeniden itilebilir. **A tamamlandı (KN-021):** npm scope ve `NPM_TOKEN` hazırlığını kullanıcı doğruladı; token yetkisi ilk publish işinde ölçülecek |
 | OP-011 | GitHub Free/private repo CI koruması | **Tamamlandı (2026-09-03)** | KN-020: GitHub Free private repo'da environment secret, required reviewer ve deployment tag restriction yok. **Ölçüldü 2026-09-03:** CI'da kalıcı secret **tek**tir — `NPM_TOKEN` ([`ci.yml:405`](../.github/workflows/ci.yml#L405)); NuGet tarafı OIDC trusted publishing kullanır ve secret taşımaz (OP-004/005) | **A — GitHub Free'de kal** (kullanıcı kararı). Tek bakımcı riski kabul edilir; tag öncesi §10 checklist'i elle uygulanır. Not: repo public yapılırsa environment protection ve deployment tag restriction Free planda zaten gelir — bu, K-659'un yeniden açılma ölçütüyle aynı kapıdır |
+| OP-012 | Yayın push sırası | **Karar (2026-10-15, bakımcı)** | 2026-10-15 turu (KG-047): `main` önce itildi ve yeşili beklendi (#262), sonra kesim + etiket atomik itildi. Etiket koşumu `build` ×2'yi baştan koşar ve yeşil `main`'den sonra iki yeni kusur buldu (F-549 #264, F-550 #267): önceki `main` yeşili etiketin yeşilini garanti etmedi, bekleme yalnız süre ekledi. Düşen etiket ata kalınca #265 `Paketle`'de kırıldı. Etiket koşumu kendi kapılıdır: `build` ×2 → `release-dryrun` → `publish`/`npm-publish` → `github-release`; biri kırmızıysa sonrakiler atlanır, yarım yayın olmaz | **Yayın tek atomik push'tur:** birikmiş commit'ler, kesim ve etiket `git push --atomic origin main v<sürüm>` ile birlikte gider; `main`'in önce yeşil olması **beklenmez** (A-64'ün "önce main, sonra etiket" sırası kalktı). Etiket koşumu düşerse: kırılgan test → "Re-run failed jobs"; kod kusuru → düzelt, etiketi **hemen** sil (`git push origin :refs/tags/v<sürüm>`), düzeltmeyi kesimle aynı sürüme it, etiketi yeni commit'e at. Hiçbir şey yayımlanmadıysa etiketi taşımak tüketiciye görünmez; düşen etiket ata olarak bırakılmaz (taban seçimi onu yayımlanmış sanar). CI kör noktasını yayın anında beklemek değil, `main`'i sık itmek kapatır |
 
 ## 9. Risk kaydı
 
@@ -648,6 +656,7 @@ KG-001…KG-039 (2026-08-27…2026-09-20; hepsi kapanmış) [`arsiv/YAYIN-HAZIRL
 | KG-044 | 2026-09-24 | Tamamlandı | **Site etiketten ÖNCE yayımlandı 👤** (`scripts/site-deploy.sh`, o anki HEAD `78dc72bc` — kesim `17ca8dfb` dahil, 21:43; Voice bölümü taşınmadan önce). KG-038 emsalinin tersine kullanıcı kararı | Risk söylendi ve kabul edildi: site `1.0.0-preview.3` der ve 13 `Security` notunu gösterir, paket nuget.org'a etiketin `publish` işiyle gelir; arada `dotnet add package … 1.0.0-preview.3` restore edilemez. Script kendi tazelik denetimini geçti (`/`, `/packages/`, `/reference/changelog/` preview.3 der) | `Published and verified (https://tracon.dev/capabilities/index.md -> 200 text/markdown)`; lisans sayfası `THIRD-PARTY-NOTICES.txt`'yi anlatır |
 | KG-045 | 2026-09-24 | Tamamlandı | **İkinci CI koşumu: build yeşil, `release-dryrun` ve `site` kırmızı; iki kusur `88f8e4ce`'de kapandı, kesim yine düzeltmelerin üstüne yeniden yazıldı** | (1) Sample doğrulaması sözleşme paketinin grafiğini kaynak projenin `artifacts/obj` restore çıktısından okuyordu; Faz 191'den beri `release-dryrun` restore etmez → `FileNotFoundError`. Artık paketlenen nuspec'lerin Tracon kapanışından okunur; o `obj` dizini kaldırılmış hâlde doğrulama yerelde yeşil. Hafızadaki kural ("`release-dryrun`'da `obj/` yoktur") vardı, uygulanmamıştı. (2) `troubleshooting` CI'da 59 003 B (tavan 59 000; yerelde 58 993): kapının kendi notu gereği tavan yükseltilmedi, sayfa bölündü — Voice belirtileri `guides/voice.md#troubleshooting`'e taşındı, 58 151 B. Eski sıra `yedek/preview3-ci2-once-a0c8cbca` dalında | Üçüncü koşum: build ×2 + `release-dryrun` + `site` yeşil |
 | KG-046 | 2026-09-24 | Tamamlandı | **`1.0.0-preview.3` sevk edildi; A-64 kapandı.** Üçüncü `main` koşumu (`36048047050`) Windows'taki yarış testi (F-257) yüzünden kırmızıydı; aynı kod önceki koşumda Windows'ta geçmişti ve aradaki diff `src/`/`tests/`'e dokunmuyordu → "Re-run failed jobs" (API) → yeşil. Etiket bu yeşil koşumun üstüne atıldı | Yarış testi kod kusuru değil ama etiket koşumunu da düşürebilir; F-257 🟠'a çıktı | KN-032 · KN-033 · etiket koşumu `36057172063` |
+| KG-047 | 2026-10-15 | Tamamlandı | **`preview.4` yayın turu: on bir koşum (#259–#269) yerel kapanışta görünmeyen kusurları kapattı (F-546…F-551, `ad8b329b`); etiket iki kez taşındı (`4e984aa0` → `313cc186` → `0079b1b2`); push sırası kuralı değişti (OP-012) 👤.** İkisi ürün kusurudur ve CHANGELOG'dadır: F-547 (iş kuyruğu yeniden denemesi), F-550 (süre sınırında akış istisnası). Hiçbir koşumda yayın işi koşmadı; nuget.org ve npm preview.3'te kaldı | `main` ~98 commit boyunca CI görmemişti; Windows bacağı Faz 196–211 testlerini ilk kez koştu; F-549 takvime bağlı bir testti | Etiket koşumu #269 (`0079b1b2`) yeşil olunca yayın kaydı |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
