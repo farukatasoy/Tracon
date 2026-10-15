@@ -66,6 +66,16 @@
   yayin-sonrasi adimlarin duzeltilmesi etiketi yeniden kosturmakla olur; yayin
   adimi var olan surumu `npm view` ile gorup atlar.
 
+## Üçüncü yayın turunda ölçülenler (2026-10-15, `1.0.0-preview.4`)
+
+- **🚨 GitHub release gövdesi en fazla 125 000 karakterdir; aşan not paketler yayımlandıktan SONRA düşer** (F-553).
+  `github-release` zincirin son işidir: npm ve NuGet çoktan yayımlanmıştır, düşen yalnız release sayfasıdır. Prova
+  bunu göremezdi — sınır yalnız GitHub API'sinde ölçülür. `changelog.github_release_body` artık notu bütün `###`
+  gruplarıyla kırpar ve kalanı `https://tracon.dev/reference/changelog/#v<sürüm>`'e bağlar.
+- **🚨 "Re-run failed jobs" düzeltilmiş `ci.yml`'i KOŞMAZ.** Yeniden koşum etiketin commit'indeki workflow'u kullanır.
+  Paketler yayımlandıktan sonra düzeltme o etikete ulaşamaz ve etiket taşınamaz (yayımlanan paketler o commit'ten derlendi). Release sayfası
+  elle açılır: aynı fonksiyonun çıktısı yapıştırılır, "Set as a pre-release" işaretlenir.
+
 ## Sürüm kesimi ve etiket TEK push'ta (Faz 187, Açık Soru 1 = C)
 
 - **🚨 Kesim commit'i etiketsiz itilirse yayın provası kırmızıdır.** Kesim
