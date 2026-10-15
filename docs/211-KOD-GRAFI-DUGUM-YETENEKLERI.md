@@ -1,6 +1,6 @@
 # Faz 211 — Kod Grafında Düğüm Yetenekleri ve Revizyon Döngüsü
 
-> **Durum:** 🚧 Uygulandı, kapanış bekliyor (2026-10-15)
+> **Durum:** ✅ Tamamlandı (2026-10-15)
 > **Plan onayı:** kapsam kararları bakımcıdan, 2026-10-15 (tam paket · yeni `GetWorkflowAgentStep` · agent adımı akışsız · SDK sabiti ayrı iş). Yazılı planın onayı: uygulama talimatı "Faz 211 geliştir" ve "commit atabilirsin" ile verildi (2026-10-15); dört Açık Soru bakımcıya ayrıca sorulmadı, planın önerileri uygulandı (1-B · 2-A · 4-A) ve 3-A önerisi ölçümle çürütüldüğü için B uygulandı (Plandan Sapmalar 3).
 > **Kaynak:** **F-537**, **F-538**, **F-539**
 > **Genellik:** İnsan onayı ve revizyon geri kenarı taşıyan her workflow kod grafı ister, çünkü saklanan tanım yalnız doğrusal agent/fonksiyon zinciridir ([`WorkflowNodeReference.cs:19-23`](../src/Tracon.Abstractions/Workflows/WorkflowNodeReference.cs)). Faz 196 (düğüm süresi), 199 (düğüm adlı maliyet), 200 (agent sürüm sabiti) ve 210 (bütçe kapısı) yetenekleri yalnız saklanan zincire ulaştı; kod grafı yazan her tüketici bunları kaybeder. Bütçe kapısı tüketici kodunda kurulamaz, çünkü `AgentRunBudget.IsNodeStartExhausted` internal'dır. Kanıt: iki tüketici hattı (video yol A, podcast insan onayı genişlemesi) ve örnek uygulamanın kendi `BuildSummarizeAndApprove` grafı ([`samples/Tracon.Api/Program.cs:1612-1670`](../samples/Tracon.Api/Program.cs)) aynı boşluğa düşer.
@@ -352,11 +352,11 @@ iki cevap) · boş/aşırı girdi (sınırsız revizyon, boş ret notu) · başk
 - [x] `MaxConcurrency` aynı anda koşan deneme sayısını sınırlar; iptal bekleyeni bırakır — WorkflowFunctionConcurrencyTests
 - [x] Süresi dolan run `run.failed` webhook'u üretir — WorkflowRequestExpiryWebhookTests
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (ret → revizyon → onay; kesinti sonrası devam), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (yeni rehber, `concepts/workflows.md`, `capabilities.md`, `reference/configuration.md`); `npm run build` + `check-links.mjs` temiz
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (ret → revizyon → onay; kesinti sonrası devam), çıktı belgeye yazıldı — § Örnek Uygulama Koşumu (MT-WF-176…181)
+- [x] `secret` taraması boş döndü — `kapi.py tarama` (kapanış kapısının ilk komutu) her koşumda temiz
+- [x] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-WF-176…181, altısı da gerçek süreçte koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — § Denetim Bulguları (iki 🔴 de kapandı)
+- [x] `docs-site/` güncellendi (yeni rehber, `concepts/workflows.md`, `capabilities.md`, `reference/configuration.md`); `npm run build` + `check-links.mjs` temiz — `npm run check` kapıda geçti; yayın (`site-deploy.sh`) kullanıcı onayı bekler
 
 ### Doğrulama komutları
 
