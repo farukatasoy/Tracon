@@ -3,14 +3,14 @@
 > **Durum:** ✅ Tamamlandı (2026-10-15)
 > **Plan onayı:** kapsam kararları bakımcıdan, 2026-10-15 (tam paket · yeni `GetWorkflowAgentStep` · agent adımı akışsız · SDK sabiti ayrı iş). Yazılı planın onayı: uygulama talimatı "Faz 211 geliştir" ve "commit atabilirsin" ile verildi (2026-10-15); dört Açık Soru bakımcıya ayrıca sorulmadı, planın önerileri uygulandı (1-B · 2-A · 4-A) ve 3-A önerisi ölçümle çürütüldüğü için B uygulandı (Plandan Sapmalar 3).
 > **Kaynak:** **F-537**, **F-538**, **F-539**
-> **Genellik:** İnsan onayı ve revizyon geri kenarı taşıyan her workflow kod grafı ister, çünkü saklanan tanım yalnız doğrusal agent/fonksiyon zinciridir ([`WorkflowNodeReference.cs:19-23`](../src/Tracon.Abstractions/Workflows/WorkflowNodeReference.cs)). Faz 196 (düğüm süresi), 199 (düğüm adlı maliyet), 200 (agent sürüm sabiti) ve 210 (bütçe kapısı) yetenekleri yalnız saklanan zincire ulaştı; kod grafı yazan her tüketici bunları kaybeder. Bütçe kapısı tüketici kodunda kurulamaz, çünkü `AgentRunBudget.IsNodeStartExhausted` internal'dır. Kanıt: iki tüketici hattı (video yol A, podcast insan onayı genişlemesi) ve örnek uygulamanın kendi `BuildSummarizeAndApprove` grafı ([`samples/Tracon.Api/Program.cs:1612-1670`](../samples/Tracon.Api/Program.cs)) aynı boşluğa düşer.
+> **Genellik:** İnsan onayı ve revizyon geri kenarı taşıyan her workflow kod grafı ister, çünkü saklanan tanım yalnız doğrusal agent/fonksiyon zinciridir ([`WorkflowNodeReference.cs:19-23`](../../../src/Tracon.Abstractions/Workflows/WorkflowNodeReference.cs)). Faz 196 (düğüm süresi), 199 (düğüm adlı maliyet), 200 (agent sürüm sabiti) ve 210 (bütçe kapısı) yetenekleri yalnız saklanan zincire ulaştı; kod grafı yazan her tüketici bunları kaybeder. Bütçe kapısı tüketici kodunda kurulamaz, çünkü `AgentRunBudget.IsNodeStartExhausted` internal'dır. Kanıt: iki tüketici hattı (video yol A, podcast insan onayı genişlemesi) ve örnek uygulamanın kendi `BuildSummarizeAndApprove` grafı ([`samples/Tracon.Api/Program.cs:1612-1670`](../../../samples/Tracon.Api/Program.cs)) aynı boşluğa düşer.
 > **Karşı görüş:** (1) "Kod grafı yazan tüketici kendi `Executor`'ını yazar." Cevap: süre, retry, katı ayar okuması ve düğüm adlı maliyet kopyalanabilir, ama bütçe kapısı kopyalanamaz. `AIAgentBinding` geri kenarda `TurnToken` ister; unutulursa run hata vermeden çıktısız biter (ölçüldü, § Bugün ne çalışmıyor). (2) "Onay düğümü saklanan tanıma girsin; operatör düzenlesin." Cevap: bu faz dışı. K-131 ve K-901 ile çatışır, konsol editörü ve kalıcı veri değişir; F-411 onayı `Loop` ölçütüne taşıma yönündedir.
 > **Önkoşul:** Faz 196, 199, 200, 208, 209, 210 (kapandı) · `kusur-giderme` F-536 (Loop'lu agent akışta yalnız son iterasyonu verir; 2026-10-15)
 > **Paketler:** `Tracon.Workflows`, `Tracon.Core`, `Tracon.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. `PublicAPI.Shipped.txt` dosyaları boştur (`wc -l src/*/PublicAPI.Shipped.txt` uygulama başında ölçülür)
 > **Tüketici yüzeyi:** site: yeni `guides/review-and-revise-workflow.md`; `concepts/workflows.md` (kod workflow'u bölümü), `capabilities.md` (workflow satırı), `reference/configuration.md` (`AgentGraph:ChildDeadline` satırı, F-528) · sevk edilen: `GetWorkflowFunction` ve `GetWorkflowAgentStep` XML `<example>`, `src/Tracon.Workflows/README.md`, `CHANGELOG.md`
-> **Manuel test alanı:** [`docs/manuel-test/15-WORKFLOWS.md`](manuel-test/15-WORKFLOWS.md)
+> **Manuel test alanı:** [`docs/manuel-test/15-WORKFLOWS.md`](../../manuel-test/15-WORKFLOWS.md)
 
 ---
 
@@ -41,10 +41,10 @@
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/210-BUTCE-DUGUM-KAPISI.md
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md
    ```
-4. Alan hafızası: [`hafiza/workflows.md`](hafiza/workflows.md) (MAF executor ve checkpoint tuzakları) ·
-   [`hafiza/workflow-cevaplari.md`](hafiza/workflow-cevaplari.md) (cevap run'ı, tek cevap) ·
-   [`hafiza/maf-harness-ve-loop.md`](hafiza/maf-harness-ve-loop.md) (Loop'un akış davranışı)
-5. Gerektiğinde: [`MIMARI.md`](MIMARI.md) workflow bölümü
+4. Alan hafızası: [`hafiza/workflows.md`](../../hafiza/workflows.md) (MAF executor ve checkpoint tuzakları) ·
+   [`hafiza/workflow-cevaplari.md`](../../hafiza/workflow-cevaplari.md) (cevap run'ı, tek cevap) ·
+   [`hafiza/maf-harness-ve-loop.md`](../../hafiza/maf-harness-ve-loop.md) (Loop'un akış davranışı)
+5. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) workflow bölümü
 
 ---
 
@@ -65,17 +65,17 @@ bildirilir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`WorkflowFunctionRegistry.cs:19`](../src/Tracon.Workflows/Internal/WorkflowFunctionRegistry.cs), [`:156`](../src/Tracon.Workflows/Internal/WorkflowFunctionRegistry.cs) | Kayıtlı fonksiyonu executor'a çeviren `CreateExecutor` internal'dır; yalnız saklanan zincir derleyicisi çağırır ([`WorkflowDefinitionCompiler.cs:221`](../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs)) |
-| [`TraconWorkflowFunctionExtensions.cs:492-519`](../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs) | Sarmalayıcı zincir `scope(retry(gate(timeout(handler))))` yalnız bu yoldan kurulur |
-| [`WorkflowAgentBinding.cs:70-80`](../src/Tracon.Workflows/WorkflowAgentBinding.cs) | `GetWorkflowAgent` süre ve sürüm almaz; adım kurulum geneli `ChildDeadline` (2 dk, [`TraconOptions.cs:241`](../src/Tracon.Core/TraconOptions.cs)) ile koşar |
-| MAF 1.20.0 `AIAgentHostExecutor` (internal; probe ile ölçüldü, 2026-10-15) | Geri kenarla dönen mesaj `TurnToken` olmadan agent'ı koşturmaz; run hata vermeden çıktısız `Idle` biter. Cevap run'ı token göndermez ([`WorkflowRunner.cs:1769-1772`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs)). K-495'in tuzağı kod grafında da geçerlidir |
-| [`WorkflowAgentStepExecutor.cs:39`](../src/Tracon.Workflows/Internal/WorkflowAgentStepExecutor.cs) | Agent adımı `RunStreamingAsync` ile koşar; akış yolunda yapılandırılmış yanıt onarımı yoktur ([`StructuredResponseValidatingAgent.cs:279-350`](../src/Tracon.Core/Compilation/StructuredResponseValidatingAgent.cs)) |
-| [`WorkflowRegistrationOptions.cs:15,27,47`](../src/Tracon.Workflows/WorkflowRegistrationOptions.cs) | Kod kaydı yalnız `Description`, `ResponseMode`, `RequestTimeout` taşır |
-| [`WorkflowRunner.cs:2298-2312`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs) | Kod workflow'u tanımsızdır; `RunTimeout` kurulum değerinde (10 dk) kalır |
-| [`WorkflowRunner.cs:1099`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs) | Kod workflow'unun parametre şeması boştur; her değer `unknown` reddi alır |
-| [`WorkflowFunctionOptions.cs:17,25,55,77`](../src/Tracon.Workflows/WorkflowFunctionOptions.cs) | Fonksiyon başına eşzamanlılık sınırı yoktur; tek sınır süreç başına ve kiracılara ortak `MaxConcurrentRuns`'tır |
-| [`WorkflowRequestExpirationService.cs:43-52`](../src/Tracon.Workflows/Internal/WorkflowRequestExpirationService.cs) | Servis webhook yayıncısı almaz; süresi dolan run `Failed` kapanır ama `run.failed` yayınlanmaz (Faz 209 bilinen sınırı) |
-| [`WorkflowCatalog.cs:184-195`](../src/Tracon.Workflows/Internal/WorkflowCatalog.cs) | Kod grafı her run'da yeniden kurulur; executor alanında tutulan revizyon sayacı her cevap run'ında sıfırlanır |
+| [`WorkflowFunctionRegistry.cs:19`](../../../src/Tracon.Workflows/Internal/WorkflowFunctionRegistry.cs), [`:156`](../../../src/Tracon.Workflows/Internal/WorkflowFunctionRegistry.cs) | Kayıtlı fonksiyonu executor'a çeviren `CreateExecutor` internal'dır; yalnız saklanan zincir derleyicisi çağırır ([`WorkflowDefinitionCompiler.cs:221`](../../../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs)) |
+| [`TraconWorkflowFunctionExtensions.cs:492-519`](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs) | Sarmalayıcı zincir `scope(retry(gate(timeout(handler))))` yalnız bu yoldan kurulur |
+| [`WorkflowAgentBinding.cs:70-80`](../../../src/Tracon.Workflows/WorkflowAgentBinding.cs) | `GetWorkflowAgent` süre ve sürüm almaz; adım kurulum geneli `ChildDeadline` (2 dk, [`TraconOptions.cs:241`](../../../src/Tracon.Core/TraconOptions.cs)) ile koşar |
+| MAF 1.20.0 `AIAgentHostExecutor` (internal; probe ile ölçüldü, 2026-10-15) | Geri kenarla dönen mesaj `TurnToken` olmadan agent'ı koşturmaz; run hata vermeden çıktısız `Idle` biter. Cevap run'ı token göndermez ([`WorkflowRunner.cs:1769-1772`](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs)). K-495'in tuzağı kod grafında da geçerlidir |
+| [`WorkflowAgentStepExecutor.cs:39`](../../../src/Tracon.Workflows/Internal/WorkflowAgentStepExecutor.cs) | Agent adımı `RunStreamingAsync` ile koşar; akış yolunda yapılandırılmış yanıt onarımı yoktur ([`StructuredResponseValidatingAgent.cs:279-350`](../../../src/Tracon.Core/Compilation/StructuredResponseValidatingAgent.cs)) |
+| [`WorkflowRegistrationOptions.cs:15,27,47`](../../../src/Tracon.Workflows/WorkflowRegistrationOptions.cs) | Kod kaydı yalnız `Description`, `ResponseMode`, `RequestTimeout` taşır |
+| [`WorkflowRunner.cs:2298-2312`](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs) | Kod workflow'u tanımsızdır; `RunTimeout` kurulum değerinde (10 dk) kalır |
+| [`WorkflowRunner.cs:1099`](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs) | Kod workflow'unun parametre şeması boştur; her değer `unknown` reddi alır |
+| [`WorkflowFunctionOptions.cs:17,25,55,77`](../../../src/Tracon.Workflows/WorkflowFunctionOptions.cs) | Fonksiyon başına eşzamanlılık sınırı yoktur; tek sınır süreç başına ve kiracılara ortak `MaxConcurrentRuns`'tır |
+| [`WorkflowRequestExpirationService.cs:43-52`](../../../src/Tracon.Workflows/Internal/WorkflowRequestExpirationService.cs) | Servis webhook yayıncısı almaz; süresi dolan run `Failed` kapanır ama `run.failed` yayınlanmaz (Faz 209 bilinen sınırı) |
+| [`WorkflowCatalog.cs:184-195`](../../../src/Tracon.Workflows/Internal/WorkflowCatalog.cs) | Kod grafı her run'da yeniden kurulur; executor alanında tutulan revizyon sayacı her cevap run'ında sıfırlanır |
 
 > Kanıtlar 2026-10-15 tarihinde doğrulandı.
 
@@ -123,7 +123,7 @@ güvenlidir. Girdi ve çıktı `List<ChatMessage>`'dır.
   adım çalışırken ve model çağrısından önce adımı adıyla düşürür. Bu fark
   belgelenir.
 - Executor kimliği agent'ın katalog adıdır; `WorkflowGraphReader` agent adını
-  kimlikten okur ([`WorkflowAgentStepExecutor.cs:11-17`](../src/Tracon.Workflows/Internal/WorkflowAgentStepExecutor.cs)).
+  kimlikten okur ([`WorkflowAgentStepExecutor.cs:11-17`](../../../src/Tracon.Workflows/Internal/WorkflowAgentStepExecutor.cs)).
   Aynı agent iki düğümde kullanılmaz.
 - Adımın MAF oturumu yoktur. Revizyon girdisi taslağı ve geri bildirimi
   kendisi taşır; rehber bunu örnekle gösterir.
@@ -140,7 +140,7 @@ ve yeni kod adımı birlikte değişir.
   Tracon damgalı oturum taşımaz).
 - Karma zincir zaten `MessageDelta` yaymıyordu (K-495); görünen akış değişmez.
 - Executor'ın bugünkü yorumu "alt run tam mesaj ve usage geçmişini akışlı
-  yolda tutar" der ([`WorkflowDefinitionCompiler.cs:132-134`](../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs)).
+  yolda tutar" der ([`WorkflowDefinitionCompiler.cs:132-134`](../../../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs)).
   Akışsız yolun aynı geçmişi yazdığı **ölçülmeli**; ölçüm testi aşağıdadır.
 - Hazır desenler (`AgentWorkflowBuilder`) MAF'ın kendi executor'ıyla akışlı
   koşar; bu faz onları değiştirmez. Onlarda Loop F-536 ile son iterasyonu
@@ -179,7 +179,7 @@ geneli ve fonksiyon başınadır; saklanan zincire ve kod grafına birlikte ula�
 
 `WorkflowRequestExpirationService` opsiyonel `IWebhookPublisher` alır. Run'ı
 `Failed` kapattığı dalda `run.failed` yayınlar; yük runner kapanışıyla aynı
-yardımcıdan kurulur ([`WorkflowRunner.cs:2021-2030`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs)).
+yardımcıdan kurulur ([`WorkflowRunner.cs:2021-2030`](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs)).
 Yayın hatası loglanır, kapanışı bozmaz. Bütün istekleri cevaplanmış run'ı
 `Completed` kapattığı dalda **hiçbir olay yayınlanmaz**: cevabın kendi run'ı zaten
 `run.completed` yayınlamıştır ve ikinci olay aynı üretimi iki kez sayardı (Açık Soru 3,
@@ -542,10 +542,10 @@ Denetçinin plan sapması listesi (plan-review tespiti · `Description` yok · `
 
 ## Sonraki Faza Devir Notu
 
-Sıradaki faz seçilmedi; aday sırası [`ADAYLAR.md`](ADAYLAR.md)'dedir. Bu faz şunları bıraktı:
+Sıradaki faz seçilmedi; aday sırası [`ADAYLAR.md`](../../ADAYLAR.md)'dedir. Bu faz şunları bıraktı:
 
 - **Devralınan sözleşmeler:** yukarıdaki *Gerçekleşen Public API*. Fonksiyon sarmalayıcı sırası `scope(retry(limit(gate(timeout(handler)))))`'dır (`NodeWrapper` XML'i ve `hafiza/workflows.md`). Yeni bir halka eklenirse üç yerde de güncellenir. Kod grafı hatası katalogda `WorkflowGraphBindingException` ile workflow adını alır.
-- 🚨 **Bilinen tuzaklar** (ayrıntı [`hafiza/workflow-cevaplari.md`](hafiza/workflow-cevaplari.md) "Kod grafı"): geri kenara dönen mesaj `AIAgentBinding`'i koşturmaz (agent adımı `GetWorkflowAgentStep`); revizyon sayacı `IWorkflowContext` durumunda tutulur (executor alanı sıfırlanır); `ExternalRequest.TryGetDataAs<T>` checkpoint'ten gelen JSON'u istenen tipe okumayı dener (plan-review tespiti port tipindendir); kod grafı yapısı değişirse bekleyen run sürmez, zaman aşımı/ayar değişirse sürer; süre dolumu servisi yalnız `Failed` kapanışta webhook yayınlar.
+- 🚨 **Bilinen tuzaklar** (ayrıntı [`hafiza/workflow-cevaplari.md`](../../hafiza/workflow-cevaplari.md) "Kod grafı"): geri kenara dönen mesaj `AIAgentBinding`'i koşturmaz (agent adımı `GetWorkflowAgentStep`); revizyon sayacı `IWorkflowContext` durumunda tutulur (executor alanı sıfırlanır); `ExternalRequest.TryGetDataAs<T>` checkpoint'ten gelen JSON'u istenen tipe okumayı dener (plan-review tespiti port tipindendir); kod grafı yapısı değişirse bekleyen run sürmez, zaman aşımı/ayar değişirse sürer; süre dolumu servisi yalnız `Failed` kapanışta webhook yayınlar.
 - **Açık uçlar (ADAYLAR):** F-540 (kod grafında katılımcı kapsaması run başında), F-541 (kod workflow'u için tekil betimleyici ucu), F-542 (zaman aşımı sonrası slot ve token'ı yok sayan handler), F-543 (kod `RunTimeout` çalışma anı kesmesinin testi). F-528 bu fazda kapandı.
 - **Sınırlar (kullanıcıya söylenmiştir):** `MaxConcurrency` süreç başınadır, replika sayısıyla çoğalır; her cevap run'ı yeni bütçeyle başlar (F-531), bu yüzden revizyon sayacı ve `MaxTotalCost` birlikte verilir; kod grafı `Parameters`'ı için katılımcı kapsaması adım koşarken denetlenir.
 - **El ile kalan:** yok; altı manuel case örnek uygulamada koşuldu. Site yayını (`faz-tamamlama` Adım 10) **koşulmadı**: `./scripts/site-deploy.sh` dış dünyaya yayın yapar, kullanıcı onayı bekler.
