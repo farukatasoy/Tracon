@@ -1502,8 +1502,31 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             continue;
                         }
 
-                        yield return PumpedEvent.FromEvent(
-                            await writer.AppendAsync(draft, linked.Token).ConfigureAwait(false));
+                        RunEvent? appended = null;
+
+                        try
+                        {
+                            appended = await writer.AppendAsync(draft, linked.Token).ConfigureAwait(false);
+                        }
+                        // 🚨 F-550: the deadline or the caller can stop the run between
+                        // reading this event and writing it. That is the run stopping, as at
+                        // a step boundary above, not an error for the caller to catch: the
+                        // exception used to leave the stream, which ended without its closing
+                        // event (measured on CI, the run timeout test, one run in hundreds).
+                        catch (OperationCanceledException) when (linked.IsCancellationRequested)
+                        {
+                        }
+
+                        if (appended is null)
+                        {
+                            await CancelAsync(run, linked.Token).ConfigureAwait(false);
+
+                            yield return PumpedEvent.FromCancellation();
+
+                            yield break;
+                        }
+
+                        yield return PumpedEvent.FromEvent(appended);
 
                         // 🚨 A graph-level error FAILS the run. Measured
                         // (phase 16): when it was only written to the event

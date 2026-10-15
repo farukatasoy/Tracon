@@ -16912,6 +16912,11 @@ each SQL provider: read Upgrading from 1.0.0-preview.3 first.
 
 #### Fixed
 
+- A workflow run that reaches its time limit no longer ends its stream with an exception. When the
+  limit fell between the moment an event arrived and the moment it was recorded, recording it on
+  the run's cancelled token threw `TaskCanceledException` out of the stream: the run was closed
+  `Canceled`, but a streaming caller got the exception instead of the closing event. The run now
+  stops there as it does between two steps.
 - A job released for another attempt no longer loses that attempt. A failed attempt with attempts
   left makes the job leasable at once, and the worker could lease it again while the attempt that
   released it was still finishing on the same worker. It logged "already executing" and dropped the
