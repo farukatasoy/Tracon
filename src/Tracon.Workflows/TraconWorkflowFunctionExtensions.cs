@@ -48,10 +48,10 @@ public static class TraconWorkflowFunctionExtensions
     /// for a free-form graph.
     /// </para>
     /// <para>
-    /// A timeout is set with the overload that takes a
-    /// <see cref="WorkflowFunctionOptions"/> callback
-    /// (<see cref="WorkflowFunctionOptions.Timeout"/>). A node of a function registered
-    /// here can still carry its own <see cref="WorkflowNodeReference.Timeout"/>.
+    /// A timeout (<see cref="WorkflowFunctionOptions.Timeout"/>) and a limit on how many calls
+    /// run at once (<see cref="WorkflowFunctionOptions.MaxConcurrency"/>) are set with the overload that
+    /// takes a <see cref="WorkflowFunctionOptions"/> callback. A node of a function registered here can
+    /// still carry its own <see cref="WorkflowNodeReference.Timeout"/>.
     /// </para>
     /// <para>
     /// <strong><paramref name="factory"/> runs exactly once</strong>, when the
@@ -135,7 +135,7 @@ public static class TraconWorkflowFunctionExtensions
 
     /// <summary>
     /// Registers a function that a <see cref="WorkflowKind.Sequential"/> workflow can use
-    /// as a node, with a description, a retry policy and a timeout.
+    /// as a node, with a description, a retry policy, a timeout and a concurrency limit.
     /// </summary>
     /// <typeparam name="TInput">The type the function accepts.</typeparam>
     /// <typeparam name="TOutput">The type the function returns.</typeparam>
@@ -148,7 +148,7 @@ public static class TraconWorkflowFunctionExtensions
     /// Resolves the function's dependencies from the service provider and
     /// returns the handler that runs on every call.
     /// </param>
-    /// <param name="configure">Sets the description, the retry policy and the timeout.</param>
+    /// <param name="configure">Sets the description, the retry policy, the timeout and the concurrency limit.</param>
     /// <returns>The chain, for continued configuration.</returns>
     /// <exception cref="ArgumentNullException">One of the required parameters is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
@@ -367,7 +367,7 @@ public static class TraconWorkflowFunctionExtensions
     /// Resolves the function's dependencies and returns the handler that runs on every
     /// call; the handler receives the node's settings as the second argument.
     /// </param>
-    /// <param name="configure">Sets the description, the retry policy and the timeout.</param>
+    /// <param name="configure">Sets the description, the retry policy, the timeout and the concurrency limit.</param>
     /// <returns>The chain, for continued configuration.</returns>
     /// <exception cref="ArgumentNullException">One of the required parameters is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
