@@ -1,6 +1,6 @@
 ---
 title: Workflows
-description: Five multi-agent patterns, queued runs, version history and rollback, checkpoints, recovery after a restart, and asking a human mid-execution.
+description: Five multi-agent patterns, function nodes, graphs built in code, queued runs, version history, checkpoints, recovery, and asking a human mid-execution.
 sidebar:
   order: 6
 ---
@@ -434,6 +434,35 @@ shows each registered timeout.
   refused with `400` on save, or with `ArgumentOutOfRangeException` at registration.
   It is not checked against `RunTimeout`: whichever passes first stops the node.
 
+### Limit how many calls run at once
+
+A node that is costly to run in parallel, such as a GPU voice synthesis or a render, can take a
+limit on how many of its calls run at the same time in this process:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "render-audio",
+    services => (messages, context, cancellationToken) => RenderAsync(messages, cancellationToken),
+    options =>
+    {
+        options.Timeout = TimeSpan.FromMinutes(2);
+        options.MaxConcurrency = 2;
+    });
+```
+
+- The limit belongs to the **function**. It holds across every workflow that uses it and
+  across every tenant, in a stored chain and in a graph built in code alike. Leave it unset for no
+  limit; a value below 1 throws `ArgumentOutOfRangeException` at registration.
+- A call that finds every slot taken **waits**. The wait ends when the run is cancelled or reaches
+  its `RunTimeout`, and it is not part of the node's `Timeout`, which bounds the node's own work.
+  A wait writes no run event and is logged at the `Debug` level.
+- Each attempt of a retried node takes a slot of its own and gives it back before the retry's
+  delay, so a node that waits to retry holds nothing. The budget gate is read after the slot is
+  taken: a budget that runs out during the wait refuses the node when its turn comes.
+- The limit is **per process**: a host with three replicas allows three times the number. It is not
+  a fairness mechanism between tenants either. A handler that ignores its token after a timeout
+  keeps running without a slot, so pass the token on.
+
 An **agent node** of a node list can carry a `timeout` too. It replaces the
 installation's `Tracon:AgentGraph:ChildDeadline` for that step, and the hard cutoff for
 an agent that ignores its deadline stays 30 seconds after it. A step past it fails the
@@ -450,6 +479,51 @@ URL resolves against. A different name passed to the builder's `WithName(…)` i
 cosmetic — and an inconsistency between the two produces a silent `404` or a timeout
 rather than an error. Use the same string in both places.
 :::
+
+## Graphs built in code
+
+A stored chain is a straight line. A graph with a way back, a conditional edge or a human gate is
+built in code with `AddWorkflow` and MAF's `WorkflowBuilder`. Two helpers give its steps what a stored
+chain's steps have, because those capabilities live in a wrapper that only the stored chain's compiler
+could reach:
+
+```csharp
+tracon.AddWorkflow("review-and-revise", services =>
+{
+    var writer = services.GetWorkflowAgentStep("review-and-revise", "episode-writer", step => step.Timeout = TimeSpan.FromMinutes(3));
+    var render = services.GetWorkflowFunction("render", step => step.Timeout = TimeSpan.FromMinutes(5));
+
+    return new WorkflowBuilder(writer).AddEdge(writer, render).WithOutputFrom(render).WithName("review-and-revise").Build();
+});
+```
+
+- **`GetWorkflowFunction(name[, configure])`** binds a function registered with `AddWorkflowFunction`.
+  It is the same executor a stored chain gets: the node's time limit, retry, the budget gate, the
+  per-function concurrency limit, a cost line that names the node and a strict read of its settings.
+  `configure` sets the node's `Timeout` (it wins over the registered one) and its `Settings`, as JSON or
+  typed with `SetSettings(value)`. An unknown function or settings that do not fit end the run `Failed`
+  before its first node, naming the workflow and the node. Its id is the function's name, so a function
+  appears once in a graph; register the code a second time under another name to use it twice.
+- **`GetWorkflowAgentStep(workflow, agent[, configure])`** binds a catalog agent as a plain step that takes and
+  passes on a `List<ChatMessage>`. `configure` sets the step's `Timeout` (it replaces
+  `Tracon:AgentGraph:ChildDeadline` for that step) and a version pin, `AgentVersion`. Use it, not
+  `GetWorkflowAgent`, for a step a message can return to: an agent bound as an `AIAgentBinding` runs only
+  after the framework sends it a turn token, and nothing sends one to a node that is not the graph's entry.
+  A pin that cannot hold fails the step by name before its model call: a graph factory is synchronous, so
+  the check cannot happen when the graph is built.
+
+A workflow registration also takes the workflow-level settings a stored definition has:
+
+| `WorkflowRegistrationOptions` | What it does |
+|---|---|
+| `RunTimeout` | Shortens `Tracon:Workflows:RunTimeout`, or lengthens it up to `MaxRunTimeout`. A value above the ceiling stops the host at startup and names the workflow |
+| `Parameters` | The run's parameter schema, checked and recorded like a stored workflow's |
+| `RequestTimeout`, `ResponseMode`, `Description` | As for a stored workflow |
+
+The input and output types of a graph built in code are yours to match: the chain check a stored
+workflow gets at save time does not run for it, and the framework drops a message no handler takes.
+[A workflow that a person can send back](/guides/review-and-revise-workflow/) builds a full graph
+with a revision loop.
 
 ## Parameters
 
@@ -516,8 +590,12 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
   [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
   When you name a newer version, a name its schema no longer declares is dropped and a
   required name it gained since is refused.
-- **A workflow defined in code declares no parameters** (`AddWorkflow` builds a free graph
-  with no definition), so any value sent to it is refused.
+- **A workflow defined in code declares its schema in its registration**
+  (`WorkflowRegistrationOptions.Parameters`), with the same rules: the runner and the HTTP endpoint
+  check it, a queued run carries the values, and a run that is answered or resumed uses the recorded
+  ones. `GET /api/workflows` lists the schema. One difference: the agents a graph in code runs are not
+  known until the graph is built, so a step whose agent needs a required value nobody supplied fails
+  when the step runs, not before the first model call. Without a schema every value sent is refused.
 
 A workflow row stores no message: the values are the only input it records.
 
@@ -944,5 +1022,6 @@ the crash case that needs run reconciliation.
 
 ## Read next
 
+- [A workflow that a person can send back](/guides/review-and-revise-workflow/) — a code graph with a human gate and a bounded revision loop.
 - [Runs and recording](/concepts/runs/) — reading the tree
 - [Evaluation and experiments](/concepts/evaluation/) — compare agent versions using cases, judges, and experiments.

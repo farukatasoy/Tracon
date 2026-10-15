@@ -109,6 +109,12 @@ no other request:
 | Requests that were all answered | `Completed`, with no error: the answer was given and its work continued on another run |
 | Several requests, the last one now due | When the last one passes. A request a slower branch published later keeps the run waiting |
 
+A run that fails this way publishes `run.failed` to the webhooks subscribed to it, with the same
+payload any failed workflow run carries, so a pipeline driven by webhooks learns that the review ended
+without polling. The event is sent after the run is closed; a publisher that fails is logged and the
+close stands. A run closed `Completed` publishes nothing: the answer started a run of its own, which
+published its own `run.completed` when it ended.
+
 An answer to a closed run is refused with `400`, as an answer to any run that is not
 `AwaitingInput` is, and opens no run. The closed run keeps its usage, cost and event count.
 The next retention round deletes its request event, checkpoints and input row by age, like

@@ -89,8 +89,49 @@ builder.AddWorkflow("publish-approval", services => BuildApprovalGraph(services)
 
 When the time passes, the run that waits is closed (`Failed` with the error type
 `WorkflowRequestExpired`, or `Completed` when every request was answered), and the request
-event, checkpoints and run input row it kept can be deleted by retention. A request without a
-limit waits without limit.
+event, checkpoints and run input row it kept can be deleted by retention. A run that fails this
+way publishes `run.failed` to the webhooks subscribed to it. A request without a limit waits
+without limit.
+
+## Graphs built in code: the same node capabilities
+
+A graph with a way back (a rejected draft returns to its writer) or a human gate is built in
+code with `AddWorkflow` and MAF's `WorkflowBuilder`. Two helpers hand its steps what a stored
+chain's steps have:
+
+```csharp
+builder.AddWorkflow("review-and-revise", services =>
+{
+    var writer = services.GetWorkflowAgentStep("review-and-revise", "writer", step => step.Timeout = TimeSpan.FromMinutes(3));
+    var validate = services.GetWorkflowFunction("validate");
+    var render = services.GetWorkflowFunction("render", step => step.Timeout = TimeSpan.FromMinutes(5));
+
+    return new WorkflowBuilder(writer)
+        .AddEdge(writer, validate)
+        .AddEdge(validate, render)
+        .WithOutputFrom(render)
+        .WithName("review-and-revise")
+        .Build();
+},
+options =>
+{
+    options.RunTimeout = TimeSpan.FromMinutes(5);
+    options.Parameters = [new AgentParameter { Name = "productionId", Kind = AgentParameterKind.Text, Required = true }];
+});
+```
+
+- `GetWorkflowFunction` binds a function registered with `AddWorkflowFunction`: its time limit, retry,
+  the budget gate, a cost line that names the node and the strict read of its settings
+  (`step.Settings`, or typed with `step.SetSettings(value)`).
+- `GetWorkflowAgentStep` binds a catalog agent as a plain step with its own timeout and version pin. Use
+  it, not `GetWorkflowAgent`, for a step a message can return to over a back edge.
+- `WorkflowFunctionOptions.MaxConcurrency` limits how many calls of a function run at once in the
+  process, across workflows.
+- `WorkflowRegistrationOptions.RunTimeout` is held to `Tracon:Workflows:MaxRunTimeout` when the host
+  starts.
+
+The guide <https://tracon.dev/guides/review-and-revise-workflow/> builds a full graph with a bounded
+revision loop.
 
 ## Running
 
@@ -242,7 +283,8 @@ POST /tracon/api/workflows/podcast/run
 
 A missing required value, an undeclared name or an over-long value is a `400` before
 the stream opens. The run records its final values, and a resume or an answer to a
-waiting request uses them again. A workflow defined in code declares no parameters.
+waiting request uses them again. A workflow defined in code declares its schema in
+`WorkflowRegistrationOptions.Parameters`.
 
 ## Versions, rollback and pinning an agent step
 

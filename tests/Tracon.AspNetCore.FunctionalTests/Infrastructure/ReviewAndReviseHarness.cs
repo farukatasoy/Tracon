@@ -64,6 +64,15 @@ internal sealed class ReviewAndReviseHarness
     /// <summary>Gets how many times the revision loop may send a draft back before the run fails.</summary>
     public int MaxRevisions { get; init; } = 2;
 
+    /// <summary>
+    /// Gets or sets whether the graph carries one more node between the approval and the media nodes. The graph is built
+    /// for every run, so a test can change the structure while a run waits.
+    /// </summary>
+    public bool ExtraNode { get; set; }
+
+    /// <summary>Gets or sets the writer step's own timeout. It is not part of the step's identity.</summary>
+    public TimeSpan WriterTimeout { get; set; } = TimeSpan.FromMinutes(2);
+
     /// <summary>Gets the names of the media functions that ran, in order.</summary>
     public IReadOnlyList<string> Media
     {
@@ -154,7 +163,7 @@ internal sealed class ReviewAndReviseHarness
     /// <returns>The graph.</returns>
     public Workflow Build(IServiceProvider services)
     {
-        var writer = services.GetWorkflowAgentStep(Workflow, WriterName, step => step.Timeout = TimeSpan.FromMinutes(2));
+        var writer = services.GetWorkflowAgentStep(Workflow, WriterName, step => step.Timeout = WriterTimeout);
         var validate = services.GetWorkflowFunction("validate");
         var ask = Step<ReviewDraft, string>("ask", static (draft, _, _) => new ValueTask<string>(draft.Text));
         var review = RequestPort.Create<string, ReviewDecision>(Port).BindAsExecutor(allowWrappedRequests: false);
@@ -177,7 +186,9 @@ internal sealed class ReviewAndReviseHarness
         var render = services.GetWorkflowFunction("render");
         var qa = services.GetWorkflowFunction("qa");
 
-        return new WorkflowBuilder(writer)
+        var extra = Step<List<ChatMessage>, List<ChatMessage>>("extra", static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages));
+
+        var builder = new WorkflowBuilder(writer)
             .AddEdge(writer, validate)
             .AddEdge<ReviewDraft>(validate, reviseAfterViolation, static draft => draft?.Violation is not null)
             .AddEdge<ReviewDraft>(validate, ask, static draft => draft is not null && draft.Violation is null)
@@ -185,8 +196,13 @@ internal sealed class ReviewAndReviseHarness
             .AddEdge(reviseAfterViolation, writer)
             .AddEdge<ReviewDecision>(review, reviseAfterRejection, static decision => decision is { Approved: false })
             .AddEdge<ReviewDecision>(review, approved, static decision => decision is { Approved: true })
-            .AddEdge(reviseAfterRejection, writer)
-            .AddEdge(approved, tts)
+            .AddEdge(reviseAfterRejection, writer);
+
+        builder = ExtraNode
+            ? builder.AddEdge(approved, extra).AddEdge(extra, tts)
+            : builder.AddEdge(approved, tts);
+
+        return builder
             .AddEdge(tts, render)
             .AddEdge(render, qa)
             .WithOutputFrom(qa)

@@ -143,4 +143,40 @@ public sealed class CodeWorkflowRevisionTests
         await host.WaitForRunStatusAsync(WorkflowResponseHarness.RunIdOf(frames), nameof(RunStatus.Completed), "tenant-a");
         harness.Media.ShouldBe(["tts", "render", "qa"]);
     }
+
+    [Fact]
+    public async Task A_run_that_waits_cannot_continue_under_a_graph_whose_structure_changed()
+    {
+        var harness = new ReviewAndReviseHarness("first draft");
+        await using var host = await harness.StartAsync();
+
+        var (waiting, _) = await StartRunAsync(host);
+
+        // A deployment adds a node while the run waits: the graph the factory builds now differs from the one the
+        // checkpoint was written against.
+        harness.ExtraNode = true;
+
+        var (answer, _) = await AnswerAsync(host, waiting, new ReviewDecision(true, null));
+        var run = await host.WaitForTerminalRunAsync(answer);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        harness.Media.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_run_that_waits_continues_under_a_graph_whose_timeout_changed()
+    {
+        var harness = new ReviewAndReviseHarness("first draft", "second draft");
+        await using var host = await harness.StartAsync();
+
+        var (waiting, _) = await StartRunAsync(host);
+
+        // The step's timeout is not part of its identity: a deployment may change it while a run waits.
+        harness.WriterTimeout = TimeSpan.FromMinutes(7);
+
+        var (answer, _) = await AnswerAsync(host, waiting, new ReviewDecision(false, "shorter"));
+
+        harness.Provider.Requests.Count.ShouldBe(2);
+        (await PendingDraftAsync(host, answer)).ShouldContain("second draft", Case.Sensitive);
+    }
 }

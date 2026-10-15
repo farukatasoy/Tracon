@@ -99,6 +99,8 @@ script.
 | `AgentGraph:MaxTotalCost` | none | Cost budget shared by the whole call tree. It counts the token cost and the amounts that function nodes and tools reported beyond tokens; falls back to the token limit when a model's price is undefined. Once spent, the next model call is refused and a workflow function node does not start |
 | `AgentGraph:MaxTotalRuns` | `25` | Largest child-run count; the root does not count |
 | `AgentGraph:MaxDuration` | none | Wall-clock budget for the whole call tree, counted from the root run's start. Once passed, the next model call is refused and a workflow function node does not start; a call or node already running is not stopped |
+| `AgentGraph:ChildDeadline` | 2 minutes | Longest one sub-agent call, or one agent step of a workflow, may take before it is cancelled (the cooperative layer). A workflow agent step can carry its own `timeout`, which replaces this value for that step. From 1 millisecond to about 49.7 days |
+| `AgentGraph:WaitTimeout` | `ChildDeadline` plus 30 seconds | Hard cutoff for a call that ignores cancellation. Must be greater than `ChildDeadline`; when unset it follows it |
 | `UtilityModel` | `null` | Optional model binding for compaction summarization |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
@@ -680,7 +682,9 @@ The section does not register the execution engine. Call `UseWorkflows()`; that 
 binds this section and then applies its optional code override.
 
 `MaxRunTimeout` is the longest run timeout a workflow definition may set. A save above
-it, or above `RunTimeout` while it is unset, is refused with `400`. It must be at least
+it, or above `RunTimeout` while it is unset, is refused with `400`. A workflow defined in code
+sets it with `WorkflowRegistrationOptions.RunTimeout`; a value above the ceiling stops the host at
+startup, naming the workflow, while `Enabled` is `true`. It must be at least
 `RunTimeout` and fails at startup otherwise, even while `Enabled` is `false`. A
 stored definition above a ceiling that was lowered later runs with the ceiling, and a
 warning is logged.
