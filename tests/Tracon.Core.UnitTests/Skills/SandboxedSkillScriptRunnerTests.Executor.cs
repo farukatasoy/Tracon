@@ -830,6 +830,15 @@ public sealed partial class SandboxedSkillScriptRunnerTests
 
     private static bool TryMakeFifo(string path)
     {
+        // A Windows runner has Git for Windows' mkfifo on its PATH. It exits 0, but what
+        // it makes is MSYS's emulation, not a file the .NET file APIs see as a FIFO:
+        // measured on CI (2026-10-15), the runner reported "does not exist" and a read
+        // never blocked. FIFOs are a Unix file type; the cases that need one skip here.
+        if (OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
         try
         {
             using var mkfifo = Process.Start(new ProcessStartInfo("mkfifo") { ArgumentList = { path }, UseShellExecute = false });
