@@ -183,7 +183,11 @@ kapandı, hiçbiri yerel kapanışta görünmüyordu:
   `dab74b62`); "Re-run failed jobs" yüklü runner'da arayüz testi zaman aşımına
   düştü (F-551, `0079b1b2`).
 - Etiket `0079b1b2`'ye taşındı ve `main` yeşili beklenmeden itildi (#268 `main`,
-  #269 etiket) — OP-012'nin ilk uygulaması.
+  #269 etiket) — OP-012'nin ilk uygulaması. #268'de iki bacak yeşil. #269'da
+  Ubuntu bir şifreli sütun testinde düştü: iddia `"Ada"`'yı büyük/küçük harfe
+  duyarsız arıyordu ve rastgele şifreli metin onu taşıdı (F-552, test kusuru).
+  OP-012 gereği etiket taşınmadı; "Re-run failed jobs" 👤. Test düzeltmesi
+  `main`'e ayrıca gider.
 
 
 **Sıra (👤 adımlar işaretli):**

@@ -265,7 +265,10 @@ public sealed class ContentProtectionTests(SqliteFixture fixture)
         var raw = await baseContext.ScalarAsync<string>($"SELECT messages FROM {baseContext.TablePrefix}run_inputs WHERE run_id = '{runId.ToString().ToUpperInvariant()}';");
         raw.ShouldNotBeNull();
         raw.ShouldContain("$apEnc");
-        raw.ShouldNotContain("4111");
+        // Each marker holds a space. The ciphertext is base64 and Shouldly compares
+        // case-insensitively, so a marker inside the base64 alphabet ("Ada") can
+        // match the random ciphertext by chance; a space cannot.
+        raw.ShouldNotContain("4111 1111");
 
         var loaded = await runInputs.GetAsync(baseContext.TenantContext.TenantId, runId);
         loaded.ShouldNotBeNull();
@@ -297,8 +300,11 @@ public sealed class ContentProtectionTests(SqliteFixture fixture)
         var rawParameters = await baseContext.ScalarAsync<string>($"SELECT parameters FROM {baseContext.TablePrefix}run_inputs WHERE run_id = '{runId.ToString().ToUpperInvariant()}';");
         rawParameters.ShouldNotBeNull();
         rawParameters.ShouldContain("$apEnc");
-        rawParameters.ShouldNotContain("Ada");
-        rawParameters.ShouldNotContain("4111");
+        // Each marker holds a space. The ciphertext is base64 and Shouldly compares
+        // case-insensitively, so a marker inside the base64 alphabet ("Ada") can
+        // match the random ciphertext by chance; a space cannot.
+        rawParameters.ShouldNotContain("Ada Lovelace");
+        rawParameters.ShouldNotContain("4111 1111");
 
         var rawMessages = await baseContext.ScalarAsync<string>($"SELECT messages FROM {baseContext.TablePrefix}run_inputs WHERE run_id = '{runId.ToString().ToUpperInvariant()}';");
         rawMessages.ShouldNotBeNull();
