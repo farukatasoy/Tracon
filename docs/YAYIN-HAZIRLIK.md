@@ -154,6 +154,21 @@ ile 1.20'de kalır). 🟢: A-71 (sürüm metni elle; kesimde güncellenir), A-61
 **En küçük güvenli kapsam:** tam set; hiçbir paket çıkarılmaz. Sürüm türü
 preview, çünkü public API dondurulmadı (UR-003) ve Hosting ön sürümdür.
 
+**CI turu (2026-10-15):** `main` itildi; dört koşumda dört kusur bulundu ve
+kapandı, hiçbiri yerel kapanışta görünmüyordu:
+- #259: Ubuntu arayüz testi kayıtlı tanım gelmeden zinciri okudu (F-546, test
+  yarışı); Windows'ta iki FIFO testi (F-548, `mkfifo` MSYS emülasyonu) ve iş
+  kuyruğu yarışı (F-547).
+- #260: konsol ekran görüntüsü damgası test dosyasını da hash'liyordu; test
+  düzeltmesi kapıyı kırdı (`ad8b329b`, damga artık testleri saymaz).
+- #261: Windows'ta F-547 ve F-548 yine düştü.
+- **F-547 bir ürün kusurudur:** hakkı kalan ve gecikmesiz yeniden denemeye
+  bırakılan iş, aynı worker'da bırakan deneme bitmeden kiralanınca kira
+  bırakılıyordu; iş beş dakika `Leased` kaldı ve ikinci deneme hiç koşmadan düştü.
+  macOS'ta 25 koşumda 1, Windows'ta her koşumda görüldü. `8fd70de4` kapatır;
+  CHANGELOG'da.
+- #262 (`0728821d`): iki bacak + prova + site yeşil.
+
 **Sıra (👤 adımlar işaretli):**
 1. 👤 `main`'i it; CI iki OS'te build/test, prova ve site kapısında yeşil.
 2. Kesim commit'i (`e0fd4f61` deseni): `## [1.0.0-preview.4] - <tarih>`,
