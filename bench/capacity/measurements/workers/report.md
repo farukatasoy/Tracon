@@ -7,8 +7,8 @@ Profile: `workers`.
 
 | Field | Value |
 |---|---|
-| Commit | df45a7bac76eb09997159e0a8372cf4ea826b007 |
-| Tracon package | 0.0.0-capacity166.df45a7b |
+| Commit | eef7f9d22a89e3a9368820226dfe90d7d234ee1b |
+| Tracon package | 0.0.0-capacity166.eef7f9d |
 | Operating system | Darwin 25.6.0 |
 | Architecture | arm64 |
 | Logical processors | 10 |

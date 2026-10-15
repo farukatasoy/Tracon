@@ -11927,9 +11927,9 @@ consumed Tracon by `PackageReference` at one exact version from an isolated
 feed; the driver was a separate process calling it over loopback TCP.
 
 The load sweep and the arrival runs measured Tracon packed from commit
-`e44d89f5`; the worker and soak runs measured `df45a7ba`. Only the measurement
+`729c3689`; the worker and soak runs measured `eef7f9d2`. Only the measurement
 apparatus differs between those two commits — the shipped source is byte
-identical (`git diff e44d89f5..df45a7ba -- src/` is empty). Each run's own
+identical (`git diff 729c3689..eef7f9d2 -- src/` is empty). Each run's own
 manifest, under `bench/capacity/measurements/`, names the commit it measured.
 
 **The model is a synthetic fixture that makes no network call**: one second of

@@ -16,10 +16,10 @@ Tracon.CapacityDriver report --run artifacts/capacity/<run-id>
 
 These are the runs the numbers in
 `docs-site/src/content/docs/guides/production.md` come from. `sweep` and
-`arrival` measured Tracon packed from commit `e44d89f5`; `workers` and `soak`
-measured `df45a7ba`, because two apparatus defects were fixed between them. The
+`arrival` measured Tracon packed from commit `729c3689`; `workers` and `soak`
+measured `eef7f9d2`, because two apparatus defects were fixed between them. The
 **shipped source is byte identical across those commits** — `git diff
-e44d89f5..df45a7ba -- src/` is empty — so the two halves measure the same
+729c3689..eef7f9d2 -- src/` is empty — so the two halves measure the same
 Tracon. Each manifest names its own commit and package version; do not read one
 commit off another run's manifest.
 
