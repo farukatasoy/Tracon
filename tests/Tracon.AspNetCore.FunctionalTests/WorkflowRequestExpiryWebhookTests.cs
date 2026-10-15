@@ -1,5 +1,8 @@
+using Microsoft.Agents.AI.Workflows;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using static Tracon.AspNetCore.FunctionalTests.Infrastructure.NodeUsageHost;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowInboxHarness;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHarness;
 
@@ -54,6 +57,60 @@ public sealed class WorkflowRequestExpiryWebhookTests
     }
 
     [Fact]
+    public async Task The_payload_carries_what_the_run_spent_before_it_waited()
+    {
+        var clock = new ManualTimeProvider();
+        var publisher = new RecordingWebhookPublisher();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder =>
+            {
+                builder.UseWorkflows(static options => options.RequestExpirationScanInterval = TimeSpan.FromMilliseconds(50));
+
+                // A node that spends something beyond tokens, then a person's review.
+                builder.AddWorkflowFunction<List<ChatMessage>, string>(
+                    "speak",
+                    static _ => async (_, context, _) =>
+                    {
+                        await context.ReportUsageAsync(Speech(5m));
+
+                        return "Approve the recording?";
+                    });
+
+                builder.AddWorkflow(
+                    "spent-gate",
+                    static services =>
+                    {
+                        var speak = services.GetWorkflowFunction("speak");
+                        var review = RequestPort.Create<string, bool>(Port).BindAsExecutor(allowWrappedRequests: false);
+                        var end = ExecutorBindingExtensions.BindAsExecutor<bool, string>(static approved => approved ? "ok" : "no", id: "end");
+
+                        return new WorkflowBuilder(speak).AddEdge(speak, review).AddEdge(review, end).WithOutputFrom(end).WithName("spent-gate").Build();
+                    },
+                    static options => options.RequestTimeout = Limit);
+            },
+            configureServices: services =>
+            {
+                services.AddSingleton<TimeProvider>(clock);
+                services.AddSingleton<IWebhookPublisher>(publisher);
+                services.Configure<TraconOptions>(static options => options.Pricing.Currency = "USD");
+            });
+
+        var (runId, _) = await RunToAwaitAsync(host, "spent-gate");
+
+        clock.Advance(PastTheLimit);
+        await host.WaitForRunStatusAsync(runId, "Failed");
+        await WaitUntil.TrueAsync(() => publisher.Runs(WebhookEvents.RunFailed).Count == 1, "run.failed to be published");
+
+        // The same fields the runner's own close publishes: the amount the node reported, and its currency.
+        var failed = publisher.Runs(WebhookEvents.RunFailed).ShouldHaveSingleItem();
+
+        failed.NonTokenCost.ShouldBe(5m);
+        failed.Cost.ShouldBe(5m);
+        failed.Currency.ShouldBe("USD");
+    }
+
+    [Fact]
     public async Task An_answered_requests_run_closes_without_a_second_run_completed()
     {
         var clock = new ManualTimeProvider();
@@ -70,7 +127,7 @@ public sealed class WorkflowRequestExpiryWebhookTests
         await host.WaitForRunStatusAsync(runId, "Completed");
 
         // Give the service the scans it needs to have published, if it were going to.
-        await Task.Delay(300);
+        await Task.Delay(300); // delay: negative
 
         // The answer's run published its own completion; the source run, closed at the request's time, published nothing.
         publisher.Runs(WebhookEvents.RunCompleted).ShouldHaveSingleItem().RunId.ShouldBe(responseRun.ToString());

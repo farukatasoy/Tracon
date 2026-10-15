@@ -7,10 +7,10 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// A run is closed in two places: the runner, when the graph ends, and the request expiry service, when a
-/// human request nobody answered runs out of time (F-539). Before this helper the payload existed only
+/// human request nobody answered runs out of time. Before this helper the payload existed only
 /// in the runner, and a run closed by the service published nothing - the receiver of the webhook never
 /// learnt that a request it was told to wait for had expired. Two places that build the same payload
-/// by hand would let the second drift from the first, as the summing of cost already did once (K-483);
+/// by hand would let the second drift from the first, as the summing of cost already did once;
 /// they share this one.
 /// </para>
 /// <para>

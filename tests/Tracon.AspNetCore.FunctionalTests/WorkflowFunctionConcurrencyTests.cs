@@ -36,7 +36,7 @@ public sealed class WorkflowFunctionConcurrencyTests
         await WaitUntil.TrueAsync(() => node.Running == 2, "two calls to be running");
 
         // A third call has had every chance to start by now.
-        await Task.Delay(300);
+        await Task.Delay(300); // delay: negative
         node.Running.ShouldBe(2);
 
         node.Open();
@@ -48,6 +48,37 @@ public sealed class WorkflowFunctionConcurrencyTests
 
         node.MostAtOnce.ShouldBe(2);
         node.Calls.ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task A_stored_chain_and_a_code_graph_share_the_functions_slots()
+    {
+        var node = new BlockingNode();
+
+        await using var host = await StartAsync(node, maxConcurrency: 1);
+
+        // The same function sits in a graph built in code and in a chain saved over HTTP.
+        await SaveAsync(host, "stored-media", Function("render"));
+
+        var codeRun = RunAsync(host, Flow, "code");
+
+        await WaitUntil.TrueAsync(() => node.Running == 1, "the code graph's call to hold the slot");
+
+        var storedRun = RunAsync(host, "stored-media", "stored");
+
+        await WaitUntil.TrueAsync(
+            () => host.Logs.AllText.Contains("waiting for a free slot", StringComparison.Ordinal),
+            "the stored chain's call to be waiting for the slot");
+
+        node.Running.ShouldBe(1);
+        node.Calls.ShouldBe(1);
+
+        node.Open();
+
+        (await RecordAsync(host, await codeRun)).Status.ShouldBe(RunStatus.Completed);
+        (await RecordAsync(host, await storedRun)).Status.ShouldBe(RunStatus.Completed);
+        node.MostAtOnce.ShouldBe(1);
+        node.Calls.ShouldBe(2);
     }
 
     [Fact]

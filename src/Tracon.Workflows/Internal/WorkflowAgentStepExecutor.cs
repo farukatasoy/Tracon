@@ -28,7 +28,8 @@ namespace Tracon;
 /// forwarded a delta to the workflow's feed, so the stream bought nothing, and the
 /// streaming path has no structured-response repair
 /// (<c>StructuredResponseValidatingAgent</c> repairs a whole response) and keeps a
-/// loop agent's every iteration out of reach of the answer rules (K-889, K-1006).
+/// loop agent's every iteration out of reach of the rule that a caller reading the answer gets the
+/// final iteration only.
 /// </para>
 /// </remarks>
 internal sealed class WorkflowAgentStepExecutor : FunctionExecutor<List<ChatMessage>, List<ChatMessage>>

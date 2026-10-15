@@ -34,7 +34,7 @@ public sealed class CodeWorkflowFunctionNodeTests
                 "render",
                 static _ => async (_, _, token) =>
                 {
-                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
 
                     return [];
                 },
@@ -55,7 +55,7 @@ public sealed class CodeWorkflowFunctionNodeTests
                 "render",
                 static _ => async (_, _, token) =>
                 {
-                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
 
                     return [];
                 },
