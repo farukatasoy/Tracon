@@ -15,5 +15,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // Above the 5 s a single findBy*/waitFor may now wait (src/test/setup.ts), so a slow
+    // wait fails as "unable to find", naming the element, not as a bare test timeout.
+    testTimeout: 20_000,
   },
 });
