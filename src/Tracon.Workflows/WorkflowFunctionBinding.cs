@@ -82,10 +82,15 @@ public static class WorkflowFunctionBinding
     /// </para>
     /// <example>
     /// <code>
-    /// var tts = services.GetWorkflowFunction("tts", step =>
+    /// tracon.AddWorkflow("narrated", services =>
     /// {
-    ///     step.Timeout = TimeSpan.FromMinutes(10);
-    ///     step.SetSettings(new TtsSettings { Voice = "mira" });
+    ///     var tts = services.GetWorkflowFunction("tts", step =>
+    ///     {
+    ///         step.Timeout = TimeSpan.FromMinutes(10);
+    ///         step.SetSettings(new TtsSettings { Voice = "mira" });
+    ///     });
+    ///
+    ///     return new WorkflowBuilder(tts).WithOutputFrom(tts).WithName("narrated").Build();
     /// });
     /// </code>
     /// </example>
