@@ -790,6 +790,48 @@ tracon.AddWorkflow(
         options.RequestTimeout = TimeSpan.FromMinutes(2);
     });
 
+// A graph with a way BACK and a human gate (phase 211): a writer agent, a code check of its draft, a
+// human review that can send the draft back with a note (a bounded loop), then three media nodes behind the
+// approval. The graph is built with WorkflowBuilder in ReviewAndReviseWorkflow.cs and takes its steps from
+// GetWorkflowAgentStep and GetWorkflowFunction, so the writer and the nodes have the timeout, retry, budget
+// gate, concurrency limit, cost line and strict settings a stored chain has. The run's parameters are the
+// production's identity (productionId) and the language. Start it queued and answer the review:
+//
+//   POST /tracon/api/workflows/review-and-revise/run   (Prefer: respond-async)
+//   {"message":"start","parameters":{"productionId":"p-1","language":"en"}}
+//   GET  /tracon/api/workflows/requests?state=pending
+//   POST /tracon/api/workflows/runs/{runId}/respond
+//   {"requestId":"...","data":{"approved":false,"note":"Make it shorter."}}
+//
+// A brief that contains "#long" makes the first draft fail the code check and go back to the writer on its own.
+// The request limit and the run timeout can be changed to watch the expiry and the startup check:
+//   Tracon:Demo:ReviewAndRevise:RequestTimeout=00:01:00   (a review nobody answers fails the run in a minute)
+//   Tracon:Demo:ReviewAndRevise:RunTimeout=02:00:00       (above Tracon:Workflows:MaxRunTimeout: the host does not start)
+//   Tracon:Demo:ReviewAndRevise:RenderSeconds=30          (a render long enough to stop the process in the middle of it)
+tracon.AddReviewAndRevise(
+    openAiEnabled
+        ? model with
+        {
+            ResponseFormat = new AgentResponseFormat
+            {
+                Kind = AgentResponseFormatKind.JsonSchema,
+                SchemaName = "episode_script",
+                Schema = JsonDocument.Parse(
+                    """
+                    {
+                      "type": "object",
+                      "properties": { "title": { "type": "string" }, "script": { "type": "string" } },
+                      "required": ["title", "script"],
+                      "additionalProperties": false
+                    }
+                    """).RootElement.Clone(),
+            },
+        }
+        : new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoWriterModel },
+    requestTimeout: builder.Configuration.GetValue<TimeSpan?>("Tracon:Demo:ReviewAndRevise:RequestTimeout") ?? TimeSpan.FromHours(1),
+    runTimeout: builder.Configuration.GetValue<TimeSpan?>("Tracon:Demo:ReviewAndRevise:RunTimeout") ?? TimeSpan.FromMinutes(5),
+    renderSeconds: builder.Configuration.GetValue<int?>("Tracon:Demo:ReviewAndRevise:RenderSeconds") ?? 2);
+
 
 // A code function usable as a workflow node (phase 71). AddWorkflowFunction
 // registers the function by NAME; a Sequential definition's `nodes` list can
@@ -829,7 +871,8 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 // Parameter values reach a workflow's steps. A stored workflow declares a
 // `parameters` schema (PUT /tracon/api/workflows/podcast); a run supplies
 // values, and each agent step binds the ones ITS OWN schema names into its
-// instructions. Code-defined workflows carry no schema.
+// instructions. A workflow defined in code declares its schema in its registration
+// (WorkflowRegistrationOptions.Parameters; see review-and-revise below).
 //
 //   podcast-writer  - {{tone}}, required
 //   podcast-editor  - {{tone}} (default "plain") and {{voice}} (default "alloy")
