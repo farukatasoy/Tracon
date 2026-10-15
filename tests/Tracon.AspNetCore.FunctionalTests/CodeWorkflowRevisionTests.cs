@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.Json;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.ReviewAndReviseHarness;
 
@@ -99,4 +101,46 @@ public sealed class CodeWorkflowRevisionTests
         secondRequest.ShouldContain("over the length limit", Case.Sensitive);
     }
 
+    [Fact]
+    public async Task Another_tenant_cannot_see_or_answer_the_review_of_a_run_it_does_not_own()
+    {
+        var harness = new ReviewAndReviseHarness("first draft", "second draft");
+
+        await using var host = await harness.StartAsync(configureTracon: static builder => builder.UseTenancy(static options =>
+        {
+            options.Enabled = true;
+            options.AllowHeaderResolution = true;
+        }));
+
+        var (runId, requestId) = await WorkflowResponseHarness.RunToAwaitAsync(host, Workflow, "tenant-a");
+
+        // Tenant B neither lists the request nor answers it; the run is not even confirmed to exist.
+        using var listing = new HttpRequestMessage(HttpMethod.Get, new Uri($"/tracon/api/workflows/runs/{runId}/requests", UriKind.Relative));
+        listing.Headers.Add(WorkflowResponseHarness.TenantHeader, "tenant-b");
+
+        using var listed = await host.Client.SendAsync(listing);
+
+        listed.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        using var refused = await WorkflowResponseHarness.RespondAsync(
+            host,
+            runId,
+            new { requestId, data = JsonSerializer.SerializeToElement(new ReviewDecision(true, null), JsonSerializerOptions.Web) },
+            "tenant-b");
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        harness.Media.ShouldBeEmpty();
+        harness.Provider.Requests.Count.ShouldBe(1);
+
+        // The owner still can.
+        using var answered = await WorkflowResponseHarness.RespondAsync(
+            host,
+            runId,
+            new { requestId, data = JsonSerializer.SerializeToElement(new ReviewDecision(true, null), JsonSerializerOptions.Web) },
+            "tenant-a");
+        var frames = await WorkflowResponseHarness.FramesAsync(answered);
+
+        await host.WaitForRunStatusAsync(WorkflowResponseHarness.RunIdOf(frames), nameof(RunStatus.Completed), "tenant-a");
+        harness.Media.ShouldBe(["tts", "render", "qa"]);
+    }
 }

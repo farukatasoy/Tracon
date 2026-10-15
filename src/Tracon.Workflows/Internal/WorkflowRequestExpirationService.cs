@@ -34,13 +34,17 @@ namespace Tracon;
 /// <see cref="RunStatus.AwaitingInput"/>.
 /// </para>
 /// <para>
-/// <strong>A run this service closes publishes the same webhook the runner does</strong>
-/// (<c>run.failed</c>, or <c>run.completed</c> when every request had been answered), from the same
+/// <strong>A run this service fails publishes <c>run.failed</c>, the event the runner publishes</strong>, from the same
 /// payload builder (<see cref="WorkflowRunWebhooks"/>): the receiver was told the run waits
-/// (<c>workflow.request.pending</c>) and would otherwise never hear that it ended. The event is sent after
-/// the run is closed, and a failure to send is logged and changes nothing: the close stands. Delivery is
-/// at most once - a process that stops between the close and the send loses the event, as it does in the
-/// runner.
+/// (<c>workflow.request.pending</c>) and would otherwise never hear that it ended. The event is sent after the run
+/// is closed, and a failure to send is logged and changes nothing: the close stands. Delivery is at most once - a
+/// process that stops between the close and the send loses the event, as it does in the runner.
+/// </para>
+/// <para>
+/// A run closed <see cref="RunStatus.Completed"/> publishes nothing. That is the ORDINARY end of a run whose request was
+/// answered: the answer started a run of its own, which published its own <c>run.completed</c> when it ended, and this
+/// run stayed <see cref="RunStatus.AwaitingInput"/> only until its request's time came. Publishing here would send a second
+/// <c>run.completed</c> for one production, up to a year after the first.
 /// </para>
 /// <para>
 /// <strong>A process that stops between the two writes is recovered.</strong> A row is closed first
@@ -325,7 +329,8 @@ internal sealed class WorkflowRequestExpirationService(
         RunError? error,
         DateTimeOffset now)
     {
-        if (webhookPublisher is null || WorkflowRunWebhooks.EventFor(status) is not { } eventType)
+        // Only a failure: see the class remarks. The answered run's close is a bookkeeping end, not news.
+        if (webhookPublisher is null || status != RunStatus.Failed || WorkflowRunWebhooks.EventFor(status) is not { } eventType)
         {
             return;
         }
