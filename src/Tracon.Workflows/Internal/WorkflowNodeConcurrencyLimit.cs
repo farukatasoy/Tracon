@@ -70,10 +70,13 @@ internal static class WorkflowNodeConcurrencyLimit
             // has to wait says so, so a log at the Debug level shows queueing without a new event.
             if (!await slots.WaitAsync(TimeSpan.Zero, cancellationToken).ConfigureAwait(false))
             {
-                logger.LogDebug(
-                    "Function node {Function} is waiting for a free slot (the limit is {Limit} call(s) at once).",
-                    functionName,
-                    limit);
+                if (logger.IsEnabled(LogLevel.Debug))
+                {
+                    logger.LogDebug(
+                        "Function node {Function} is waiting for a free slot (the limit is {Limit} call(s) at once).",
+                        functionName,
+                        limit);
+                }
 
                 await slots.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
