@@ -4,8 +4,8 @@ using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
-using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 using static Tracon.AspNetCore.FunctionalTests.Infrastructure.WorkflowResponseHarness;
+using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
