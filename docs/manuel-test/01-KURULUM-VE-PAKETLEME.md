@@ -12,7 +12,7 @@
 > [`../arsiv/manuel-test-kosum-2026-09/01-KURULUM-VE-PAKETLEME.md`](../arsiv/manuel-test-kosum-2026-09/01-KURULUM-VE-PAKETLEME.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
-> tam metin: git show 64c8a103:docs/manuel-test/kosumlar/2026-08-13/01-KURULUM-VE-PAKETLEME.md
+> tam metin: git show aa9c0a7f:docs/manuel-test/kosumlar/2026-08-13/01-KURULUM-VE-PAKETLEME.md
 
 ---
 
@@ -2798,7 +2798,7 @@ unzip -p artifacts/package/release/Tracon.Core.1.0.0-preview.1.nupkg '*.nuspec' 
 - `https://tracon.dev/reference/changelog/#v1.0.0-preview.1`.
 - `v$(Version)` veya `#v` (boş sürüm) **görünmez**.
 
-> Hedef Faz 162'de (`630f3212`) GitHub blob URL'inden site sayfasına döndü:
+> Hedef Faz 162'de (`025803d5`) GitHub blob URL'inden site sayfasına döndü:
 > repo private olduğu sürece bir `github.com` URL'i her tüketici için `404`
 > verir. Gerekçe `src/Directory.Build.props:120-137` yorumundadır. Case'in
 > asıl konusu URL'in **adresi** değil, `$(Version)`'ın çözümlenmiş olmasıdır.
@@ -3485,7 +3485,7 @@ python3 scripts/kapi.py yayin --kuru
 - Altı `samples/Tracon.Samples.*.Tests` projesi paketlenmiş sürüme karşı
   derlenir ve testleri geçer; AOT smoke yayımlanır.
 - Hiçbir sample `CS0122` vermez.
-- Ölçüldü (2026-09-22, `e284868b`, sürüm `1.0.0-preview.2.10`): 20 paket; altı
+- Ölçüldü (2026-09-22, `077800ee`, sürüm `1.0.0-preview.2.10`): 20 paket; altı
   sample 101 · 38 · 11 · 15 · 18 · 10 test geçti; AOT smoke geçti. 🚨 İlk koşum
   `release feed contains stale Tracon packages` ile durdu — yerel
   `artifacts/package/release` önceki sürümleri tutuyordu; `rm -rf
@@ -3859,7 +3859,7 @@ dotnet list package --deprecated
 | **İlgili karar** | K-864 |
 
 **Ön koşul**
-- Worktree; `CHANGELOG.md` Faz 187 öncesi hâline döndü (`git show fa34f7ed:CHANGELOG.md`), commit edildi.
+- Worktree; `CHANGELOG.md` Faz 187 öncesi hâline döndü (`git show 35da6216:CHANGELOG.md`), commit edildi.
 
 **Adımlar**
 1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`

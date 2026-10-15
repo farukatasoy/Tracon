@@ -16,7 +16,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 7f1833e:docs/arsiv/fazlar/23-SQL-SERVER.md
+> git show 595ecd8:docs/arsiv/fazlar/23-SQL-SERVER.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

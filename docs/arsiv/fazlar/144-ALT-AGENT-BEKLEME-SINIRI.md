@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show ecc4da23:docs/arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md
+> git show 66ce7ae5:docs/arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md
 > ```
 >
 > Damıtıldı 2026-09-05 · `scripts/dokuman-bakim.py faz-damit`
@@ -37,7 +37,7 @@ Tracon bir agent'ın başka bir agent'ı çağırmasına izin verir. Bugün o ç
 - [x] İki davranış **harness yolunda da** kanıtlanır (ayrı test case'i) — `Harness_path_produces_the_same_hard_cutoff_behavior`, `Harness_path_produces_the_same_cooperative_layer_behavior`
 - [x] Zaman aşımından sonra tamamlanan çocuk hiçbir olay, metrik veya unobserved exception üretmez — aynı test dosyası, `Release` çağrısından sonra olay sayısı sabit kaldığı ölçüldü
 - [x] `(int)RunEventType.Custom == 29` testi yeşil — `RunEventTypeTests.Custom_stays_29`
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 3a729fd0` (bkz. Denetim Bulguları'ndaki iki tur)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 1a012679` (bkz. Denetim Bulguları'ndaki iki tur)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Gerçek koşum" altında
 - [x] `secret` taraması boş döndü — `kapi.py tarama` içinde (kapanışın ilk adımı)
 - [x] Manuel kabul case'leri `docs/manuel-test/21-DAYANIKLILIK-VE-IPTAL.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-RES-080`..`084`

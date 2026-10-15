@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 39dda88a:docs/arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md
+> git show f0366ee9:docs/arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md
 > ```
 >
 > Damıtıldı 2026-10-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -37,7 +37,7 @@ Tracon süreçte tek konuşma sağlayıcısı tanır: adsız kayıt, süreç gen
 - [x] Yedi yolda ret sağlayıcıyı çağırmaz; konuşma el sıkışmadan önce `403` döner (test 5, 10) — üç tool `Tracon.Voice.UnitTests.SpeechTenantPolicyTests` (×3 teori), `/speak`, `/voices`, düğüm `SpeechTenantPolicyTests`, soket `VoiceConversationTenantPolicyTests`; kapı kapatılınca 20 fonksiyonel + 6 tool testi kırmızı (mutasyon)
 - [x] Desteklemeyen sağlayıcıda bağlamalı kiracı reddedilir; destekleyende anahtar ulaşır, sızmaz (test 6-7) — `SpeechTenantCredentialTests` (6; 24 paralel istek), `SecretLeakTests` (iki proje)
 - [x] Test 11, 12, 17 yeşil (ambient kiracı, model fiyatı, konsol listesi) — `SpeechResolverTenantTests` (sınırı: Plandan Sapmalar #16), `VoicePricingTests` (iki proje), Vitest `tenant-provider-panel.test.tsx` + E2E `A_speech_provider_allowed_in_the_console_unblocks_speech_for_the_tenant`
-- [x] Dört doğrulama kapısı sıfır uyarı verir — uygulama dalında `python3 scripts/kapi.py kapanis --taban 65d72b98` çıkış 0 (`db9fc9fe`): tarama 5,9 sn · `--denetle` 1,8 sn · betik testleri 7,6 sn · ajan haritası 0,1 sn · denetim paketi 0,3 sn · build 101,4 sn · test 1053,4 sn (38 koşum, 20 386 test, 20 367 geçti, 19 atlandı) · pack 47,7 sn · format 334,2 sn · site 87,2 sn. İlk koşum test adımında kırmızıydı (etiketsiz `Task.Delay`, § Süreç Ölçümü). Denetim düzeltmeleri hedefli testlerle doğrulandı. Birleştirmeden sonra tam kapı Faz 197'nin birleştirilmiş dalında (`3b93b79d`, Faz 198'in tamamını taşır) baştan sona tek koşumda çıkış 0 verdi (1219 sn; ayrıntı Faz 197 § *Kapanış kapısı*). `main`'de `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda `Tracon.Client: TraconApiClient`'ı kırıcı buldu: `TraconVoiceListAsync` `provider`'ı iptal token'ından önce aldı, konumsal çağıran derlenmez; `CHANGELOG` `[Unreleased] → Changed` imzayı adıyla anar (`61283c9a`). Üçüncü koşum çıkış 0 (`dcc1a88f`): kırıcı liste 3 tip, 20 paket, altı paketlenmiş örnek, AOT ve net8.0 smoke
+- [x] Dört doğrulama kapısı sıfır uyarı verir — uygulama dalında `python3 scripts/kapi.py kapanis --taban f0eda76a` çıkış 0 (`c3218bca`): tarama 5,9 sn · `--denetle` 1,8 sn · betik testleri 7,6 sn · ajan haritası 0,1 sn · denetim paketi 0,3 sn · build 101,4 sn · test 1053,4 sn (38 koşum, 20 386 test, 20 367 geçti, 19 atlandı) · pack 47,7 sn · format 334,2 sn · site 87,2 sn. İlk koşum test adımında kırmızıydı (etiketsiz `Task.Delay`, § Süreç Ölçümü). Denetim düzeltmeleri hedefli testlerle doğrulandı. Birleştirmeden sonra tam kapı Faz 197'nin birleştirilmiş dalında (`0e4a59ca`, Faz 198'in tamamını taşır) baştan sona tek koşumda çıkış 0 verdi (1219 sn; ayrıntı Faz 197 § *Kapanış kapısı*). `main`'de `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda `Tracon.Client: TraconApiClient`'ı kırıcı buldu: `TraconVoiceListAsync` `provider`'ı iptal token'ından önce aldı, konumsal çağıran derlenmez; `CHANGELOG` `[Unreleased] → Changed` imzayı adıyla anar (`26eb754e`). Üçüncü koşum çıkış 0 (`b20eeb1b`): kırıcı liste 3 tip, 20 paket, altı paketlenmiş örnek, AOT ve net8.0 smoke
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (adlı sentezleyicili fonksiyon düğümü), çıktı belgeye yazıldı — aşağıdaki tablo
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz (17 işaretli sentetik değer atlandı)
 - [x] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-MM-126`…`131`; `126`, `127`, `129` ve `131` adım 1 örnek uygulamada; `128` 👤 görsel, `130` ➜ CI
@@ -66,7 +66,7 @@ adlı `tone` kayıtlı. Agent'lar Echo kipinde.
 | `PUT /api/tenants/default/providers/tone` değersiz anahtar adıyla, `/speak` `tone` | `403` "… pointing at configuration key 'Tracon:ProviderKeys:Tone', but that key has no value … the call does NOT fall back to the global key." |
 | Günlük | `fail: Tracon.WorkflowRunner … node synthesize failed. (ref: cb39036a)` — yalnız ret run'ı; başka hata yok |
 
-Bundle payı (worktree tabanı `65d72b98`, `npx vite build && node scripts/postbuild.mjs`):
+Bundle payı (worktree tabanı `f0eda76a`, `npx vite build && node scripts/postbuild.mjs`):
 `index-DLWGvGp3.js.br` 170 990 B → `index-DfMBSjQB.js.br` 171 340 B (**+350 B** brotli);
 JS gzip toplamı 203,7 KB → 204,1 KB (bütçe 250 KB).
 
@@ -82,12 +82,12 @@ curl -s http://localhost:5081/tracon/api/voice/providers
 
 > Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
 > oturumun en değerli bilgisidir.
-> Uygulama oturumunda yazıldı (2026-10-13); yapısal iddialar `65d72b98` üzerinde ölçüldü.
+> Uygulama oturumunda yazıldı (2026-10-13); yapısal iddialar `f0eda76a` üzerinde ölçüldü.
 
 | # | Plan | Gerçek | Neden |
 |---|---|---|---|
 | 1 | `ListVoicesAsync(credential, ct)` | `ListVoicesWithCredentialAsync(ModelProviderCredential?, CancellationToken = default)` | Var olan `ListVoicesAsync(ct = default)` opsiyonel parametre taşıyor: aynı adlı ikinci aşırı yükleme opsiyonelli `RS0026`, opsiyonelsiz `RS0027` verir. K-878 emsali (`AttachSessionAsync`) gibi ayrı ad |
-| 2 | Kanıt tablosu satırları (`99fe0b13`) | Konum ve sıra iddialarının hepsi tuttu; satır kaymaları: `TraconWorkflowContextExtensions.cs:52` → `:53`; `WorkflowRunner` yolu `src/Tracon.Workflows/Internal/`, kapsam `:612`/`:630`; `ModelProviderRegistry.cs:330-334` → `:320-336` | Faz 201/204 arada geldi; ses dosyalarına dokunmadılar |
+| 2 | Kanıt tablosu satırları (`1afa3685`) | Konum ve sıra iddialarının hepsi tuttu; satır kaymaları: `TraconWorkflowContextExtensions.cs:52` → `:53`; `WorkflowRunner` yolu `src/Tracon.Workflows/Internal/`, kapsam `:612`/`:630`; `ModelProviderRegistry.cs:330-334` → `:320-336` | Faz 201/204 arada geldi; ses dosyalarına dokunmadılar |
 | 3 | Kapsam dışı: "Görsel yolunun egress'i (F-384)" | F-384 bu fazdan önce kapandı (K-912). Speech ret yolu onun `TenantProviderRefusedException`'ını (internal) yeniden kullanır; uçlar `403`'ü ondan çıkarır | Ret tipi uçta `403` ile sağlayıcı hatasının `502`'sini ayırır; ikinci bir ret tipi kopya olurdu. Görsel ret metni "model provider" der; değiştirilmedi |
 | 4 | "`DescribeDenial` tür alır" | İç enum `TenantProviderCallKind { Model, Speech }` ve yeni aşırı yükleme; eski imza model metnini aynen üretir | `SecondaryModelEgressTests`, `EgressPolicyCacheTests` ve `ImageTenantPolicyTests` değişmeden yeşil |
 | 5 | "Bilinmeyen ad → `TraconException`" | İç `SpeechProviderNotFoundException : TraconException`; uç adsız istekte `501`, adlıda `400` verir. Geçersiz biçimli ad (boş, 64+, karakter dışı) da `400`'dür ve mesaj girdiyi tekrar etmez | Public API büyümez; function node'da çağıran yine `TraconException` görür |
@@ -105,8 +105,8 @@ curl -s http://localhost:5081/tracon/api/voice/providers
 | 17 | Test sınıfı adları | Hata modu 14'ün birim kısmı `Core.UnitTests/Voice/SpeechProviderRegistrationTests`; 12 birim `Tracon.Voice.UnitTests/VoicePricingTests`, fonksiyonel `AspNetCore.FunctionalTests/VoicePricingTests`; üç tool'un ret testleri `Tracon.Voice.UnitTests/SpeechTenantPolicyTests` | Fonksiyonel test projesi `Tracon.Voice`'a bilerek referans vermez (soyutlamanın doğru pakette olduğunun kanıtı); tool'lar orada DI bileşimi (`AddTracon().UseVoice()`), kurulum anı sağlayıcısı ve `Services`'siz argümanla koşar |
 | 18 | `<example>` | `ExampleCompilationTests` örnekteki tüketici tiplerini ister; `ExamplePrelude`'a `StudioSpeechSynthesizer`, `OnPremiseTranscriber`, `NarrationSettings` taslakları eklendi | Repo deseni (`OnPremiseModelProvider`, `TtsSettings`) |
 | 19 | Örnek uygulama | Var olan `speak` düğümü (sahte) değişmedi; yeni `synthesize` düğümü (`SynthesizeSettings { Provider, Voice }`) sesi gerçekten üretir ve ek yazar | Eski düğüm `MT-WF-*` case'lerinin dayandığı çıktıyı üretir |
-| 20 | Hata modu 15: "çözümlemede iptal sağlayıcıyı çağırmaz" | Çözümleyici iptali kontrollerden **sonra** da denetler (`35721434`) | Denetimin ikincil notu testin sağlayıcı-çağrı iddiasını boş buldu; anlamlı hâliyle (belirteci yok sayan depolar) test kırmızı oldu: depo iptalden sonra normal dönünce çözümleyici sağlayıcıyı iptal edilmiş çağırana veriyordu |
-| 21 | Sevk edilen metin: "politika her çağrıda okunur", "Tracon örneği doğrudan çağırmaz" | Soket bağlantı başına bir kez denetler; sağlık kontrolü varsayılan örneği doğrudan çağırır — XML, kılavuz, `Tracon.Voice` README ve `CHANGELOG` bunu yazar (`0ebc2a73`) | Denetim 🟡 #1; kod plana (§198.4 el sıkışma kapısı) uyuyordu, metin fazlasını vaat ediyordu |
+| 20 | Hata modu 15: "çözümlemede iptal sağlayıcıyı çağırmaz" | Çözümleyici iptali kontrollerden **sonra** da denetler (`5c1d4d81`) | Denetimin ikincil notu testin sağlayıcı-çağrı iddiasını boş buldu; anlamlı hâliyle (belirteci yok sayan depolar) test kırmızı oldu: depo iptalden sonra normal dönünce çözümleyici sağlayıcıyı iptal edilmiş çağırana veriyordu |
+| 21 | Sevk edilen metin: "politika her çağrıda okunur", "Tracon örneği doğrudan çağırmaz" | Soket bağlantı başına bir kez denetler; sağlık kontrolü varsayılan örneği doğrudan çağırır — XML, kılavuz, `Tracon.Voice` README ve `CHANGELOG` bunu yazar (`3fe4fa10`) | Denetim 🟡 #1; kod plana (§198.4 el sıkışma kapısı) uyuyordu, metin fazlasını vaat ediyordu |
 | 22 | `MIMARI-GUVENLIK.md` bölümü | BYOK/egress paragrafı "her sağlayıcı çağrısı" olarak düzeltildi; canlı ses, görsel ve konuşma tek cümlede | Dosya bütçesi 23 200 B, boşluk 12 B idi; yeni metin 23 199 B'ye sıkıştırıldı (taşınacak birikimli kısım yoktu) |
 
 ## Bu Fazda Verilen Kararlar
@@ -133,7 +133,7 @@ Kategori dışı yerel tercihler (K-* açılmadı):
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 1 (2026-10-13: Önkoşul satırı Faz 203 sırasıyla yeniden tartıldı); uygulama plan metnini değiştirmedi, sapmalar tabloda (22 satır) |
-| Düzeltme turu sayısı | 3 — (1) ilk kapanış kapısı kırmızı: etiketsiz `Task.Delay` (`db9fc9fe`); (2) denetim: 🟡 #1 metin düzeltmesi + ikincil notun açığa çıkardığı iptal kusuru (`35721434`, `8585802c`, `0ebc2a73`); (3) `main`'de yayın provası: sürüm notu `TraconVoiceListAsync`'in kırıcı imzasını anmıyordu (`61283c9a`) |
+| Düzeltme turu sayısı | 3 — (1) ilk kapanış kapısı kırmızı: etiketsiz `Task.Delay` (`c3218bca`); (2) denetim: 🟡 #1 metin düzeltmesi + ikincil notun açığa çıkardığı iptal kusuru (`5c1d4d81`, `78536196`, `3fe4fa10`); (3) `main`'de yayın provası: sürüm notu `TraconVoiceListAsync`'in kırıcı imzasını anmıyordu (`26eb754e`) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
 | Fazın ürettiği regresyon | 1 — `TestDelayClassificationTests` kapısını kıran etiketsiz `Task.Delay` (yeni test; kapanış kapısında yakalandı). Ayrıca yeni kodun kendi kusuru: iptalden sonra sağlayıcıyı vermek (birleştirmeden önce düzeltildi) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı; sonraki `kusur-giderme` koşumu doldurur) |
@@ -144,9 +144,9 @@ Kategori dışı yerel tercihler (K-* açılmadı):
 
 | Seviye | Bulgu | Triyaj | Sonuç |
 |---|---|---|---|
-| 🟡 #1 | Sevk edilen metin konuşma soketi için koddan fazlasını vaat ediyordu: "politika her çağrıda okunur, şimdi kaydedilen politika sonraki çağrıyı durdurur" (soket bağlantı başına bir kez okur, `VoiceConversationDriver.cs`) ve "Tracon örneği hiç doğrudan çağırmaz" (sağlık kontrolü doğrudan çağırır, `SynthesizerVoiceHealthCheck.cs:48`). Yerler: `SpeechProviderContracts.cs`, `SpeechContracts.cs`, `guides/voice.md` | Gerçek (metin; kod plana uyuyordu) | **Düzeltildi** — `0ebc2a73`: XML (çözümleyici, sözleşme, iç çözümleyici), `guides/voice.md`, `Tracon.Voice` README, `CHANGELOG` "bağlantı başına bir kez; açık bağlantı kapanana kadar sağlayıcısını tutar" ve sağlık kontrolünü platform istisnası olarak yazar; `llms*.txt` yeniden üretildi. Tarama: `grep -rn -i "stops the next\|never calls an instance\|every call: a policy"` başka sevk edilen yerde eşleşme bırakmadı (`api/` üretilir) |
+| 🟡 #1 | Sevk edilen metin konuşma soketi için koddan fazlasını vaat ediyordu: "politika her çağrıda okunur, şimdi kaydedilen politika sonraki çağrıyı durdurur" (soket bağlantı başına bir kez okur, `VoiceConversationDriver.cs`) ve "Tracon örneği hiç doğrudan çağırmaz" (sağlık kontrolü doğrudan çağırır, `SynthesizerVoiceHealthCheck.cs:48`). Yerler: `SpeechProviderContracts.cs`, `SpeechContracts.cs`, `guides/voice.md` | Gerçek (metin; kod plana uyuyordu) | **Düzeltildi** — `3fe4fa10`: XML (çözümleyici, sözleşme, iç çözümleyici), `guides/voice.md`, `Tracon.Voice` README, `CHANGELOG` "bağlantı başına bir kez; açık bağlantı kapanana kadar sağlayıcısını tutar" ve sağlık kontrolünü platform istisnası olarak yazar; `llms*.txt` yeniden üretildi. Tarama: `grep -rn -i "stops the next\|never calls an instance\|every call: a policy"` başka sevk edilen yerde eşleşme bırakmadı (`api/` üretilir) |
 | 🟢 #1 | Konuşma soketi ses sağlayıcısını tur başına yeniden çözmez (model tarafı her turda okur, F-310) | — | **Devredildi** — **F-445** (Faz planlama; tur ortası ret davranışı protokol kararı ister) |
-| Not | İki boş iddia: iptal testindeki `Studio.Calls.ShouldBe(0)` (test sentezlemiyordu) ve geçersiz ad testindeki `ShouldNotContain("\"\"")` | — | **Düzeltildi** — iptal testi belirteci yok sayan depolarla yeniden yazıldı ve **kırmızı** oldu: çözümleyici iptalden sonra sağlayıcıyı veriyordu; çözümleyici artık kontrollerden sonra da iptali denetler (`35721434`). Geçersiz ad testi kural metnini ve girdinin yankılanmadığını ölçer (`8585802c`) |
+| Not | İki boş iddia: iptal testindeki `Studio.Calls.ShouldBe(0)` (test sentezlemiyordu) ve geçersiz ad testindeki `ShouldNotContain("\"\"")` | — | **Düzeltildi** — iptal testi belirteci yok sayan depolarla yeniden yazıldı ve **kırmızı** oldu: çözümleyici iptalden sonra sağlayıcıyı veriyordu; çözümleyici artık kontrollerden sonra da iptali denetler (`5c1d4d81`). Geçersiz ad testi kural metnini ve girdinin yankılanmadığını ölçer (`78536196`) |
 
 ## Sonraki Faza Devir Notu
 

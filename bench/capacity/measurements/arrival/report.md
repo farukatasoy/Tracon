@@ -7,8 +7,8 @@ Profile: `arrival`.
 
 | Field | Value |
 |---|---|
-| Commit | e44d89f58f5e36442d8a5e819e067f076c147373 |
-| Tracon package | 0.0.0-capacity166.e44d89f |
+| Commit | 729c368977937502d89e047bd1505e3aa3bc68e7 |
+| Tracon package | 0.0.0-capacity166.729c368 |
 | Operating system | Darwin 25.6.0 |
 | Architecture | arm64 |
 | Logical processors | 10 |

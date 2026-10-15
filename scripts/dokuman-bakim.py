@@ -1463,7 +1463,7 @@ def sevk_edilen_genisleme_noktasi(kok: pathlib.Path = ROOT) -> list[str]:
 
     Kusur sinifi (K-483 ailesi), UC kez olctu:
       1. Faz 139 altinci noktayi ekledi -> samples/Tracon.Embedded geride
-         kaldi (`a377106e`).
+         kaldi (`57443003`).
       2. Faz 142 yedinciyi ekledi -> `faz-denetim` capabilities.md ve
          DiagnosticsCollector'i yakaladi (bulgu #2), ORNEGIN kendi metnini
          kacirdi. Fazin devir notu bunu aynen yazdi: "ikisi de elle senkron
@@ -3335,7 +3335,7 @@ _TAM_METIN = re.compile(r"git show ([0-9a-f]{7,40}):(\S+\.md)")
 # gecerdi (2026-09-22 temizlik turu bulgusu, K-847). `kosumlar` zorunlu
 # DEGILDIR: kosum dizini tur acilisinda acilir, kapanista arsive tasinir
 # (manuel-test-kosumu SKILL semasi) -- turlar arasinda yoklugu mesrudur.
-# 2026-08 tur arsivi ayni turda silindi (K-847); tam metinleri 64c8a103'te.
+# 2026-08 tur arsivi ayni turda silindi (K-847); tam metinleri aa9c0a7f'te.
 TAM_METIN_KAYNAKLARI: tuple[tuple[str, bool], ...] = (
     ("docs/arsiv/fazlar", True),
     ("docs/manuel-test/kosumlar", False),

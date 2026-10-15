@@ -7,7 +7,7 @@
 > Kural: **kanıtsız iddia yok.** Her sayı bir komuttan gelir. Reddedilen
 > öneriler de yazılıdır — sonraki oturum aynı fikri yeniden önermesin.
 >
-> Ölçüm tabanı: `e599259f` · macOS/Apple M1 Pro · Docker ayakta.
+> Ölçüm tabanı: `d7606ac8` · macOS/Apple M1 Pro · Docker ayakta.
 
 ---
 
@@ -337,7 +337,7 @@ takip etmedi:
 | `samples/Tracon.Embedded/README.md:42` | "`samples/Tracon.Api`, which reports `true` for **five of the six**" | Api artık `IToolApprovalPresenter`'ı da bağlıyor (`Program.cs:145`) |
 
 **Sınıf 6, ÜÇÜNCÜ tekrar.** Faz 139 altıncı noktayı ekledi → örnek geride
-kaldı (`a377106e`). Faz 142 yedinciyi ekledi → denetim `capabilities.md` +
+kaldı (`57443003`). Faz 142 yedinciyi ekledi → denetim `capabilities.md` +
 `DiagnosticsCollector`'ı yakaladı (bulgu #2) ama **örneğin kendi metnini
 kaçırdı**. Faz 142'nin devir notu bunu zaten yazmış:
 
@@ -399,14 +399,14 @@ yoksa restore birkaç saniyedir.
 
 | Değişen yol | ÖNCE seçilen | SONRA seçilen | Bağlı kaçış |
 |---|---|---|---|
-| `src/Tracon.Core/Builder/ITraconBuilder.cs` | `AspNetCore.FunctionalTests`, `Core.UnitTests` | + **`Generators.UnitTests`** | `9433efe4` |
-| `samples/Tracon.Embedded/Program.cs` | **hiçbiri** | **`Embedded.Tests`** | `a377106e` |
+| `src/Tracon.Core/Builder/ITraconBuilder.cs` | `AspNetCore.FunctionalTests`, `Core.UnitTests` | + **`Generators.UnitTests`** | `e780344a` |
+| `samples/Tracon.Embedded/Program.cs` | **hiçbiri** | **`Embedded.Tests`** | `57443003` |
 | `samples/Tracon.Samples.CustomJobHandler/Program.cs` | hiçbiri, **sessizce** | hiçbiri + **uyarı** | F-183 |
 
 **Kanıt 1.** `ExampleExtractor.SourceFiles` = `Directory.EnumerateFiles(root/src,
 "*.cs", AllDirectories)` — `Generators.UnitTests` `src/`'nin **tamamındaki**
 `<example>` bloklarını derler. Harita ise yalnız `src/Tracon.Generators` ve
-`src/Tracon.OpenAI`'ı oraya yönlendiriyordu. `9433efe4`'ün commit gövdesi
+`src/Tracon.OpenAI`'ı oraya yönlendiriyordu. `e780344a`'ün commit gövdesi
 bunu kendisi yazmış: *"caught only by the full solution test run, not by
 Tracon.Core.UnitTests alone"*.
 
@@ -666,7 +666,7 @@ büyük olasılıkla `end_of_line` ve `charset` de) Roslyn'in IDE0055'inde
 
 ### C7. Bu turun kendi kapanış koşumu — ÖLÇÜLDÜ
 
-`python3 scripts/kapi.py kapanis --taban e599259f` · **EXIT=0 · 656 sn**
+`python3 scripts/kapi.py kapanis --taban d7606ac8` · **EXIT=0 · 656 sn**
 
 | Adım | Süre | Sonuç |
 |---|---:|---|
@@ -674,7 +674,7 @@ büyük olasılıkla `end_of_line` ve `charset` de) Roslyn'in IDE0055'inde
 | `dokuman-bakim.py --denetle` | 5,23 sn | ✅ |
 | `python3 -m unittest discover -s scripts` (221 test) | 6,15 sn | ✅ |
 | `build-agent-map.mjs --check` | 0,09 sn | ✅ |
-| `denetim-paketi.py --taban e599259f` | 0,25 sn | ✅ |
+| `denetim-paketi.py --taban d7606ac8` | 0,25 sn | ✅ |
 | `dotnet build Tracon.slnx -c Release` | 19,43 sn | ✅ 0 uyarı |
 | `dotnet test Tracon.slnx ... -- --report-trx` | 497,48 sn | ✅ |
 | `dotnet pack` | 6,07 sn | ✅ |
@@ -719,7 +719,7 @@ yapılan üç doğrulama artık kapıdır.
 |---|---|---|
 | `dokuman-bakim.py` → `sevk_edilen_genisleme_noktasi()` + 6 test | **KUSUR-A1** (sınıf 6, 3. tekrar) | Kapı düzeltmeden önce **3 gerçek bulgu** verdi, sonra temiz (§B5) |
 | `samples/Tracon.Embedded/{Program.cs,README.md}` · `docs-site/guides/embedding.md` | KUSUR-A1 | Kod 7 nokta bildiriyordu, metin 6 diyordu |
-| `kapi.py` → `affected_test_projects()` + 3 test | `9433efe4` · `a377106e` · F-183 (sınıf 4) | Önce/sonra seçim tablosu (§C2) |
+| `kapi.py` → `affected_test_projects()` + 3 test | `e780344a` · `57443003` · F-183 (sınıf 4) | Önce/sonra seçim tablosu (§C2) |
 | `kapi.py` → `failed_tests_from_trx()` · `isolate_failed_tests()` + 5 test | Sınıf 11, **7 vaka** | §C3; çıkış kodu değişmez |
 | `kapi.py` → tam test komutuna `-- --report-trx` | Yukarıdakinin ön koşulu | `ci.yml:183` ile birebir aynı oldu |
 | `faz-tamamlama` Adım 1 — ayrı `tarama` ön koşumu **silindi** | Ölçüm-D1 | `closing_commands()[0]` zaten `tarama`, ilk kırmızıda durur |

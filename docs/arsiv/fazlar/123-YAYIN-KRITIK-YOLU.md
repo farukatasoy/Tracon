@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 33aa15e:docs/arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md
+> git show 6338dfe:docs/arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md
 > ```
 >
 > Damıtıldı 2026-08-28 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Bu faz yayın **kritik yolunu** kapatır. Üç kalem tek fazdadır çünkü üç
 - [x] Dört adaptör test projesi `ModelProviderContract` + `ModelProviderCredentialContract` türetir; `secret` ve ağ olmadan yeşil — MT-PKG-106 (79/76/84/111 test, `Skip` yok)
 - [x] `ContractCoverage` muafiyetlerinin her biri gerekçe taşır — Azure ve OpenAI, `ModelProviderSettingsContract` için (ikisi de `ProviderSettings` okumuyor)
 - [x] `.github/workflows/ci.yml` `github-release` işi tanımlı; `needs` ve tag koşulu doğru — `needs: [publish, npm-publish]`, `if: startsWith(github.ref, 'refs/tags/v')`
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban ef780fc` uçtan uca yeşil (build, 4779 test, pack, format, site)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 4ed5243` uçtan uca yeşil (build, 4779 test, pack, format, site)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — OpenAI (`support`) ve Anthropic (`claude-support`) agent'ları gerçek tamamlama döndürdü, `/api/runs`'da `Completed` olarak kaydedildi
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-PKG-101..107 (107 yalnız 👤)
@@ -126,7 +126,7 @@ dotnet test tests/Tracon.Anthropic.UnitTests -c Release
 ## Denetim Bulguları
 
 `faz-denetim`, taze bağlamlı ayrı bir agent olarak koştu (çalışma ağacına
-karşı, taban `ef780fc`). Dört adaptörün gerçek `dotnet test` koşumunu ve
+karşı, taban `4ed5243`). Dört adaptörün gerçek `dotnet test` koşumunu ve
 `kapi.py yayin --kuru --surum 1.0.0-preview.1`'in kendi çıktısını bağımsızca
 doğruladı.
 

@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 7321ea32:docs/arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md
+> git show 5c417bc9:docs/arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md
 > ```
 >
 > Damıtıldı 2026-09-06 · `scripts/dokuman-bakim.py faz-damit`

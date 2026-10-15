@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz B — sıradaki aile: `13 · 19 · 04 · 18 · 10 · 08`) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `f721b229` donuk |
+| **Kod** | `37b13b23` donuk |
 | **Case sayısı** | 58 (MT-MCP-001..068, seyrek numaralı) |
 | **Port** | 5081 |
 | **Depo** | `mt_s1` PostgreSQL şeması |
@@ -98,7 +98,7 @@ tarayıcı boşalınca geriye dönüp koşulabilir).
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 45cfed58:docs/manuel-test/kosumlar/2026-09-16/18-MCP-VE-A2A.md
+> git show 4f218d55:docs/manuel-test/kosumlar/2026-09-16/18-MCP-VE-A2A.md
 > ```
 
 ---

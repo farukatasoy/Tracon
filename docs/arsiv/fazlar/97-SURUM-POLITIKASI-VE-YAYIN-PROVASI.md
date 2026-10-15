@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show de5c2af:docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md
+> git show a9e4501:docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md
 > ```
 >
 > Damıtıldı 2026-08-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -43,7 +43,7 @@ Tracon 97 faz ve 337 commit sonra hâlâ **yayınlanmadı**. Depoda tek bir sür
 - [x] `versioning.md` tek sürüm hattını ve preview hattı boyunca `Shipped`'in boş kaldığını beyan ediyor
 - [x] 97.1'in iki kararı `docs/KARARLAR.md`'ye yazıldı; **K-068 kapatıldı** ve **K-421'in yeniden açılma notu** yeni politikaya göre güncellendi — K-602/K-603/K-604
 - [x] `find src -name PublicAPI.Shipped.txt -exec cat {} + | grep -vcE '^\s*$|^#'` → **0**; `PublicSurfaceBaselineTests` hâlâ 618 tip görüyor (yüzey değişmedi) — ikisi de ölçüldü
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 2fa5a40`; kanıt ve bilinen istisna için "Plandan Sapmalar" madde 8'e bkz.
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 6ecea8d`; kanıt ve bilinen istisna için "Plandan Sapmalar" madde 8'e bkz.
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — fresh SQLite: 24 migration uygulandı, `/health` `Degraded` (model provider yok, beklenen), host temiz açıldı/kapandı
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` → ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi (MT-PKG-097..100); MT-PKG-100 dışındakiler koşuldu — 097/098/099 gerçekten koşuldu, 100 👤 yordamı belgelendi
@@ -131,7 +131,7 @@ find src -name PublicAPI.Unshipped.txt -exec cat {} + \
 7. **`docs/manuel-test/00-INDEKS.md` satır 01 güncellendi** (hedef case 48→52,
    Faz sütununa 97 eklendi, Koşum sütununa 🆕 notu) — plan dosya listesinde
    yoktu ama `faz-tamamlama` Adım 3'ün standart defter tutma işidir.
-8. **🚨 `python3 scripts/kapi.py kapanis --taban 2fa5a40` tek bir kesintisiz
+8. **🚨 `python3 scripts/kapi.py kapanis --taban 6ecea8d` tek bir kesintisiz
    koşumda hiç yeşil olmadı — ama sebebi bu fazın kodu değil, makinenin yükü.**
    Kapanış yedi kez koşuldu; `dotnet test Tracon.slnx` her seferinde
    **farklı, ilgisiz** bir test sınıfında kırıldı: `Tracon.AspNetCore.

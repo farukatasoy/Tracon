@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show ba7f4ab7:docs/arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md
+> git show 5dcc6816:docs/arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md
 > ```
 >
 > Damıtıldı 2026-09-05 · `scripts/dokuman-bakim.py faz-damit`
@@ -43,7 +43,7 @@ Kota eşiği bugün doğru hesaplanıyor ve `quota.threshold` webhook'u ile yay�
 - [x] Çocuk kullanımı kökün tüketiminde **bir kez** bildirilir; alt `run` notice yazmaz (`RecordQuotaAsync` çağrısı `RunRecordingAgent.Completion.cs`'nin mevcut `if (scope.Depth == 0)` kapısının İÇİNE taşındı, kapı değişmedi; MT-RET-076)
 - [x] `CustomType` `RunEventCustomTypes.ReservedPrefix` altındadır ve tüketici onu taklit **edemez** (`RunEventDraftValidationTests.The_quota_threshold_reserved_type_is_rejected_by_the_public_append_path`; yalnız `internal AppendReservedAsync` bypass eder)
 - [x] Üç migration seti uygulandı; `SqlTextSnapshotTests` ve üç `IntegrationTests` yeşil (PostgreSQL `0046`, SQL Server `0033`, SQLite `0033`; `SqlTextSnapshotTests` 20/20; dört `QuotaStoreContract` koşumu 28/28)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 8cff12a9`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 4b11533c`
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, notice çerçevesi belgeye yazıldı (2026-09-05, `gpt-5.4-mini`; MT-RET-071/072'nin `Gerçek sonuç` alanları)
 - [x] `secret` taraması boş döndü (`kapi.py tarama`, kapanış kapısının ilk adımı)
 - [x] Manuel kabul case'leri `docs/manuel-test/23-SAKLAMA-ARSIV-KOTA.md` içine eklendi (MT-RET-070..076); 070/071/072 gerçek koşumla ölçüldü, 073..076 otomatik karşılıklarıyla kanıtlandı
@@ -86,7 +86,7 @@ curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB" \
 
 ## Denetim Bulguları
 
-Bağımsız denetim (taze bağlamlı ayrı agent, `git diff 8cff12a9` + DoD)
+Bağımsız denetim (taze bağlamlı ayrı agent, `git diff 4b11533c` + DoD)
 **🔴 bulgu bulmadı**. Promptta özellikle işaretlenen yedi risk (sıra
 değişikliği, reserved-prefix bypass, never-throws sözleşmesi, üç dialect
 atomikliği, K1 varsayılan-kapalı parite, tail-scan maliyeti, kapsanmayan

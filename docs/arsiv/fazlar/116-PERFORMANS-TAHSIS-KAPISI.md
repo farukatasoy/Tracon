@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show fda062d:docs/arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md
+> git show 629ae5e:docs/arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md
 > ```
 >
 > Damıtıldı 2026-08-27 · `scripts/dokuman-bakim.py faz-damit`

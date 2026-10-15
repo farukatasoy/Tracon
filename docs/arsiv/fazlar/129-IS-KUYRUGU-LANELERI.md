@@ -1,7 +1,7 @@
 # Faz 129 — İş Kuyruğu `lane`'leri
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-172**
+> **Kaynak:** Tüketici turu (2026-09-01) — **F-172**
 > **Önkoşul:** Yok
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`, `.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** gerekli — üç set (PostgreSQL · SqlServer · Sqlite); numara uygulama anında alınır
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 1633088:docs/arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md
+> git show a21e74c:docs/arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`
@@ -39,7 +39,7 @@ Tracon'in iş kuyruğu bugün **tek havuzdur**. Dokuz `JobKind` aynı sırayı v
 - [x] `retry` `lane`'i korur (case 5) — `JobStoreContract.Retry_preserves_the_jobs_lane`
 - [x] `JobStoreContract` dört koşumun dördünde de yeşil (bellek içi + PostgreSQL + SqlServer + Sqlite) — 2216/2216 (Core), 685/685 (PostgreSQL), 615/615 (SqlServer), 629/629 (Sqlite)
 - [x] `EXPLAIN ANALYZE` çıktısı `jobs_claim_idx` kullanımını gösterir ve belgeye yazıldı (aşağıda) — bu doğrulama sırasında `jobs_claim_idx`'in ORİJİNAL kısmi koşulunun (`status IN (0,1)`) `LeaseJob`'ın OR'lu `WHERE`'ini hiç KARŞILAYAMADIĞI bulundu; bkz. Plandan Sapmalar
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 91f345b`; K-612 gereği `scripts/applied-migrations.json`'a bu fazın üç yeni migration'ı iki-commit deseniyle pin'lendi (bkz. Plandan Sapmalar)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 1e33436`; K-612 gereği `scripts/applied-migrations.json`'a bu fazın üç yeni migration'ı iki-commit deseniyle pin'lendi (bkz. Plandan Sapmalar)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (aşağıda)
 - [x] `secret` taraması boş döndü — `kapi.py tarama` içinde koştu
 - [x] Manuel kabul case'leri `docs/manuel-test/16-IS-KUYRUGU-VE-ZAMANLAMA.md` içine eklendi (MT-JOB-110..116); otomatikleştirilebilenler (110, 111, 113, 114, 115) fonksiyonel/birim testlerle zaten kapsandı
@@ -86,7 +86,7 @@ GET  /api/jobs?lane=media                                                       
 
 ## Plandan Sapmalar
 
-1. **🚨 Plan iki yerde var olmayan bir uca (`POST /api/agents/{name}/batch`) referans veriyordu — böyle bir uç yok ve hiç olmadı.** `grep -rni batch src/Tracon.AspNetCore/` sıfır sonuç döndü; `AgentBatch` job'ları yalnız `PUT /api/schedules/{name}` + `POST .../trigger` üzerinden yaratılabiliyor. Kuyruklu TEK çalıştırma gerçek ucu `POST /api/agents/{name}/run` + `Prefer: respond-async`'tir (`AgentEndpoints.RunQueuedAsync`). "Görünürlük" tablosu, "Planlanan Public API"nin HTTP `endpoint`'leri bölümü, manuel kabul case 4 ve DoD doğrulama komutu bu gerçek uca göre uygulandı; manuel test dosyasına (MT-JOB-110..116) bu düzeltme açıkça not edildi. Bu, `faz-uygulama`'nın "planın yapısal iddiasını grep'le ölç" kuralının tam bir örneğidir (K-320 sınıfı) — plan muhtemelen keşif raporunun (`kesif/2026-09-01-tuketici-feature-talepleri.md`) kavramsal "toplu iş" dilinden bu somut yolu doğrulamadan türetmişti.
+1. **🚨 Plan iki yerde var olmayan bir uca (`POST /api/agents/{name}/batch`) referans veriyordu — böyle bir uç yok ve hiç olmadı.** `grep -rni batch src/Tracon.AspNetCore/` sıfır sonuç döndü; `AgentBatch` job'ları yalnız `PUT /api/schedules/{name}` + `POST .../trigger` üzerinden yaratılabiliyor. Kuyruklu TEK çalıştırma gerçek ucu `POST /api/agents/{name}/run` + `Prefer: respond-async`'tir (`AgentEndpoints.RunQueuedAsync`). "Görünürlük" tablosu, "Planlanan Public API"nin HTTP `endpoint`'leri bölümü, manuel kabul case 4 ve DoD doğrulama komutu bu gerçek uca göre uygulandı; manuel test dosyasına (MT-JOB-110..116) bu düzeltme açıkça not edildi. Bu, `faz-uygulama`'nın "planın yapısal iddiasını grep'le ölç" kuralının tam bir örneğidir (K-320 sınıfı) — plan muhtemelen keşif raporunun kavramsal "toplu iş" dilinden bu somut yolu doğrulamadan türetmişti.
 2. **Aynı sınıftan ikinci ölçüm hatası: `Hata Modları` tablosundaki `SchedulingEndpointsTests` ve E2E `jobs.spec.ts` gerçek dosya adları değil.** Gerçek dosyalar `tests/Tracon.AspNetCore.FunctionalTests/SchedulingEndpointTests.cs` (tekil "Endpoint") ve `tests/Tracon.Ui.E2ETests/UiTests.cs` (E2E testleri TypeScript `.spec.ts` değil, C#/Playwright'tır — repoda hiç `.spec.ts` yok). Case'ler bu dosyalara eklendi.
 3. **`LaneByKind` çözümü on çağrı yerine değil, `IJobStore.EnqueueAsync`'in TEK noktasına merkezileşti.** Plan dosya listesi on üretim çağrı yerinin (`EvalEndpoints`, `RetentionEndpoints`, `ApprovalEndpoints`, `InboundTriggerDispatcher` ×2, `RunReconciliationService`, `RunSampler`, `WebhookPublisher`, `JobWorkerBackgroundService`, `AgentEndpoints`, `SchedulingEndpoints`) tek tek gözden geçirilmesini ima ediyordu. Ölçüldü: sekiz çağrı yeri `Lane` alanını hiç ayarlamıyor (varsayılan `JobLanes.Default`'a düşüyor) — `JobLanes.Resolve(job.Lane, job.Kind, laneByKind)` her `EnqueueAsync` uygulamasının (bellek içi + SQL) İÇİNDE çağrılır ve `job.Lane == Default` olduğunda `LaneByKind`'ı okur. Sonuç aynı garantiyi verir (hiçbir çağıran unutulmaz, çünkü hiçbiri elle değiştirilmedi) ve gerçek dokunulan yer sayısını 10'dan 2'ye indirir. Yalnız açıkça bir `lane` kabul eden iki uç (`AgentEndpoints.RunQueuedAsync`, `SchedulingEndpoints.SaveScheduleAsync`) HTTP gövdesinden `lane` okuyup doğrular.
 4. **`Lanes: null` + `MaxConcurrentJobsPerLane` dolu kombinasyonu planda tanımsızdı; `IJobStore.LeaseAsync(lanes)` yalnız bir İÇERME listesi (plan böyle tanımlıyor).** `MaxConcurrentJobsPerLane`'de adı geçen bir `lane`'i paylaşılan havuzdan HARİÇ tutmak bir DIŞLAMA listesi gerektirir ve arayüz bunu desteklemiyor. Çözüm: paylaşılan (shared) geçiş, `Lanes` `null` VE `MaxConcurrentJobsPerLane` doluyken kapsamını `{"default"} ∪ adlandırılmış lane'ler`'e daraltır, sonra adlandırılmışları çıkarır — geriye yalnız `["default"]` kalır (sonlu, ifade edilebilir bir liste). `Lanes` boşken ve `MaxConcurrentJobsPerLane` de boşken davranış TAMAMEN değişmeden kalır (K1). Etkisi: bir üçüncü, adlandırılmamış `lane` (`"default"` da değil, `MaxConcurrentJobsPerLane`'de de yok) `Lanes` `null`'ken artık YALNIZCA `MaxConcurrentJobsPerLane` boşsa işlenir — dolu olduğunda o `lane`'i işlemek için `Lanes`'in açıkça listelenmesi gerekir. Bu, planın kendi "bilinmeyen `lane`'in görünürlükle çözüldüğü" mitigasyon deseniyle (129.1) uyumludur ve `TraconSchedulingOptions.MaxConcurrentJobsPerLane`'in XML dokümanında ve `guides/background-work.md`'de açıkça yazılıdır.

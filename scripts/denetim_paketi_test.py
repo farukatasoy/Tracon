@@ -108,12 +108,12 @@ class DenetimPaketiTestleri(unittest.TestCase):
         self.assertIn("ADAY", output)
 
     def test_faz68_tekrar_oynatma_cache_adayini_gosterir(self):
-        output = self._run_historical("03f1ac3", "2f5d4d0")
+        output = self._run_historical("f348014", "d1fb16c")
         self.assertIn("cached_input_cost", output)
         self.assertIn("ADAY", output)
 
     def test_faz73_tekrar_oynatma_iddiasiz_test_adayini_gosterir(self):
-        output = self._run_historical("4580ed4", "049ff30")
+        output = self._run_historical("7a08f07", "90161c2")
         self.assertIn("İddiası olmayan test metotları", output)
         self.assertIn("ADAY", output)
 

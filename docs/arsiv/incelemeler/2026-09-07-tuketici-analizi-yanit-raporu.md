@@ -2,7 +2,7 @@
 
 **Yanıt verilen belge:** [Tracon — Kapsamlı Teknik ve Ürün Analizi](2026-09-07-tuketici-analizi-girdi-raporu.md) (1005 satır)
 **Girdi SHA-256:** `5127dd2a98ad24792c8de8c57baafae9bf70151a428c2402e14c7101f22aec1c`
-**Ölçüm zemini:** `2a3f5cff0f43078d7c41d5faf24ad45cb7131a8e`; son kapalı faz 154
+**Ölçüm zemini:** `1d72ef7e3c46b168516dbc0de491ce1f7bc01656`; son kapalı faz 154
 **Ölçüm tarihi:** 7 Eylül 2026 · **Sevkiyat:** 8 Eylül 2026
 **Ürün durumu:** Yayımlanmamış geliştirme sürümü — NuGet veya npm'de sürüm yok
 
@@ -336,5 +336,5 @@ tarafında kırık bağlantı sıfır, üretilen dosyalar taze.
 ---
 
 **Tracon · Bulgu kapanış raporu · 7 Eylül 2026**
-Ölçüm zemini `2a3f5cff` · Girdi raporu SHA-256 `5127dd2a…22aec1c`
+Ölçüm zemini `1d72ef7e` · Girdi raporu SHA-256 `5127dd2a…22aec1c`
 Ürün yayımlanmamış geliştirme sürümüdür.

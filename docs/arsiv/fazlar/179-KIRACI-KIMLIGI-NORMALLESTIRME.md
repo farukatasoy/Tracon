@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show a1d504d7:docs/arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md
+> git show 62213962:docs/arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md
 > ```
 >
 > Damıtıldı 2026-09-19 · `scripts/dokuman-bakim.py faz-damit`

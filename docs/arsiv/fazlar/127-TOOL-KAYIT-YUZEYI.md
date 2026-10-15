@@ -1,7 +1,7 @@
 # Faz 127 — Tool Kayıt Yüzeyi: Tek Kompozisyon, Argüman Kapısı ve Kapsamlı Tool
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-4**, **T-3**
+> **Kaynak:** Tüketici turu (2026-08-31) · **T-4**, **T-3**
 > **Önkoşul:** [Faz 69](69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md) (sarmalayıcı zinciri ve sırası) ve [Faz 89](89-TOOL-CIKTISI-BOYUT-SINIRI.md) (`TruncatingAIFunction`) — ikisi de arşivde
 > **Paketler:** `Tracon.Abstractions` (yeni arayüz), `Tracon.Core` (`Tools/`), `Tracon.Mcp` (`Internal/McpTenantTools.cs`)
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 7f5a295:docs/arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md
+> git show 3067021:docs/arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`

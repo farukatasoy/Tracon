@@ -18,7 +18,7 @@
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show bbc8abc6:docs/manuel-test/kosumlar/2026-09-16/15-WORKFLOWS.md
+> git show 8cf499c8:docs/manuel-test/kosumlar/2026-09-16/15-WORKFLOWS.md
 > ```
 
 ---

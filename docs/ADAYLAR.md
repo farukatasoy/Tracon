@@ -124,9 +124,8 @@ dosyayı **aynı değişiklikte** düzeltir.
 ## Sıralanabilir Adaylar
 
 Bir kalem buraya § *Değerlendirme Ölçütleri*'nin tam gövdesiyle girer; yeni
-aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
-([keşif notu](kesif/2026-10-11-podcast-tuketici.md)) ve video tüketicisi
-([keşif notu](kesif/2026-10-11-video-tuketici.md)) turlarından gelir; kanal ve aciliyet
+aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast ve video
+tüketicisi turlarından gelir; kanal ve aciliyet
 § *Faz planlama* tablosundadır.
 
 ### F-297 · `Tracon.Google` için Gemini konuşma (TTS) adaptörü

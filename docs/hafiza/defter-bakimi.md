@@ -171,7 +171,7 @@ python3 -c 'import re,collections; c=collections.Counter(m.group(1) for s in ope
 wc -c docs/KARARLAR.md; grep -n '"docs/KARARLAR.md":' scripts/dokuman-bakim.py
 ```
 
-| Ölçü (2026-09-23, `bb9953e3`) | Taban |
+| Ölçü (2026-09-23, `3c18b5a8`) | Taban |
 |---|---|
 | Yalnız doküman commit'i | 608/1135 (%54; dosya değiştiren commit) · 2026-09-02'den beri 376/581 (%65) |
 | Yeni K / gün | tüm dönem 15,8 (853/54 gün) · kural sonrası 8,5 (272/32) · son 7 gün 8,1 |

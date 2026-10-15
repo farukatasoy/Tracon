@@ -27,7 +27,7 @@
 > [`../arsiv/manuel-test-kosum-2026-09/15-WORKFLOWS.md`](../arsiv/manuel-test-kosum-2026-09/15-WORKFLOWS.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
-> tam metin: git show 64c8a103:docs/manuel-test/kosumlar/2026-08-13/15-WORKFLOWS.md
+> tam metin: git show aa9c0a7f:docs/manuel-test/kosumlar/2026-08-13/15-WORKFLOWS.md
 
 ---
 

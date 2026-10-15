@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 93be13fd:docs/arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md
+> git show 83fcdbfd:docs/arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md
 > ```
 >
 > Damıtıldı 2026-09-12 · `scripts/dokuman-bakim.py faz-damit`
@@ -85,7 +85,7 @@ notu düşülür.
 ### S6 — Bir damıtılmış kayıt işaretçisi eski yolu adlandırmak ZORUNDA
 
 `docs/arsiv/fazlar/05-TRACON-UI.md` başındaki "tam metin" bloğu bir **git
-komutudur**: `git show 7f1833e:<yol>`. Geçiş yolu çevirince komut çalışmaz
+komutudur**: `git show 595ecd8:<yol>`. Geçiş yolu çevirince komut çalışmaz
 oldu — o commit'te dosya eski adıyla durur. `dokuman-bakim.py --denetle`
 bunu yakaladı (`Damıtılmış kayıt tam metni: 1 bulgu`).
 
@@ -167,7 +167,7 @@ değildir.
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (2026-09-12, taze bağlam, `96e515db..HEAD`).
+Bağımsız denetçi (2026-09-12, taze bağlam, `cba819f0..HEAD`).
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|
@@ -240,6 +240,6 @@ geri getirilir (K-542).
 - [x] Üretilen istemci yeniden üretildi, kaçan ad yok (aynı satır kümesi)
 - [x] SQL baseline'ları yeniden üretildi → değiştirilmişle **birebir aynı**
 - [x] Agent map yeniden üretildi, drift kapısı geçiyor
-- [x] `kapi.py kapanis --taban 96e515db` dört kapı sıfır uyarı (çıkış 0)
+- [x] `kapi.py kapanis --taban cba819f0` dört kapı sıfır uyarı (çıkış 0)
 - [x] `kapi.py yayin --kuru` yeşil (çıkış 0): 20 paket, npm dry-run, 6 packed sample + Native AOT smoke. Kimlik kümesi tam `Tracon.*`
 - [x] 19 ekran görüntüsü yeniden üretildi (`Ui.E2ETests` 58/58)

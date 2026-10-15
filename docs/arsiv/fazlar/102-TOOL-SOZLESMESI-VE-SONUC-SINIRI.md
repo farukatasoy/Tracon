@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show e5b20eb:docs/arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md
+> git show 17feadf:docs/arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md
 > ```
 >
 > Damıtıldı 2026-08-25 · `scripts/dokuman-bakim.py faz-damit`
@@ -61,8 +61,8 @@ Bir üçüncü taraf geliştirici bugün **basit** bir tool yazabilir; **üretim
       ile Tracon'e bağlanır ve yeşil koşar — 9/9 (ContractCoverage dahil)
 - [x] `Tracon.Core` ve `.Abstractions` AOT uyumlu kalır
       (`grep -l "AotCompatible>false" src/*/*.csproj` çıktısı değişmedi) —
-      taban commit `8929903` ile birebir karşılaştırıldı, aynı 11 proje
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 8929903`
+      taban commit `cfce1af` ile birebir karşılaştırıldı, aynı 11 proje
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban cfce1af`
       tam yeşil (build · test · pack · format · `docs-site npm run check`); 20 paket,
       tek sürüm hattı, `kapi.py yayin --kuru` temiz
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
@@ -190,7 +190,7 @@ Tam gerekçe her dördü için [`docs/KARARLAR.md`](../../KARARLAR.md)'dedir.
   Core testleri ve gerçek package tüketicisi sample ile doğrulanır.
 
 **İkinci tur — bağımsız denetim (kapanış oturumu, taze bağlamlı ayrı agent).**
-Taban `8929903`, kapsam `git diff 8929903` (commit'lenmiş + çalışma ağacı).
+Taban `cfce1af`, kapsam `git diff cfce1af` (commit'lenmiş + çalışma ağacı).
 
 - 🔴 **DÜZELTİLDİ — content guard'ın "fail-closed" sözü gerçek değildi.**
   `ContentGuardMessageMasker.ReadText`, normalize edilemeyen bir tool sonucu

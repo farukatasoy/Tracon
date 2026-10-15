@@ -1,7 +1,7 @@
 # Faz 131 — Yapısal Yanıt Doğrulama Seam'i
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-174**
+> **Kaynak:** Tüketici turu (2026-09-01) — **F-174**
 > **Önkoşul:** Yok
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore` (yalnız `RunEventType` yüzeyi), `.UI` (olay etiketi)
 > **Yeni paket:** Yok · **Migration:** Yok — yeni `RunEventType` ve `RunErrorClass` değerleri mevcut `smallint` sütunlarına yazılır
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show da91139:docs/arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md
+> git show 5c880cf:docs/arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`

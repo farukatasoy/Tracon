@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 3982ce8e:docs/arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md
+> git show 9b24b509:docs/arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md
 > ```
 >
 > Damıtıldı 2026-09-03 · `scripts/dokuman-bakim.py faz-damit`
@@ -52,7 +52,7 @@
 - [x] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi (MT-MM-100..107)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (ilk turda 3 🔴 + 2 🟡 + 1 🟢 bulundu, tamamı bu fazda kapatıldı — bkz. Denetim Bulguları)
 - [x] `docs-site/guides/voice.md` güncellendi; `npm run build` + bağlantı kontrolü temiz
-- [x] `docs/kesif/2026-09-03-tuketici-gap-yaniti.md` TT-003 bölümü §9 şablonuyla dolduruldu
+- [x] Tüketici yanıt dokümanının TT-003 bölümü §9 şablonuyla dolduruldu
 
 ---
 
@@ -176,7 +176,6 @@ API yok), 3.7 (repo kuralları temiz).
 ## Sonraki Faza Devir Notu
 
 Üç fazın (136 · 137 · 138) tamamı kapandı. Tüketici yanıt dokümanı
-[`docs/kesif/2026-09-03-tuketici-gap-yaniti.md`](../kesif/2026-09-03-tuketici-gap-yaniti.md)
 TT-002 ve TT-003 bölümleriyle tamamlandı. TT-001 bölümü Faz 137
 kapanışında BOŞ kaldı (o fazın kendi kapanış notu: hedef dosya o an
 oluşturulmamıştı) — bu faz onu doldurmadı, kapsamı yalnız TT-003'tü;

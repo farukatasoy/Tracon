@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 16f0ae20:docs/arsiv/fazlar/161-GPT-LIVE-SIDEBAND-DENETIMI.md
+> git show 7e3e6931:docs/arsiv/fazlar/161-GPT-LIVE-SIDEBAND-DENETIMI.md
 > ```
 >
 > Damıtıldı 2026-09-11 · elle (damıtıcı, `Bu Faza Başlarken` içindeki fenced
@@ -389,7 +389,7 @@ kaldırılınca `cost` `null` döndü.
 ### Doğrulama komutları
 
 ```bash
-python3 scripts/kapi.py kapanis --taban f7fc7cb9
+python3 scripts/kapi.py kapanis --taban 13a88be3
 MSBUILDDISABLENODEREUSE=1 dotnet build -c Release
 
 ./artifacts/bin/Tracon.AspNetCore.FunctionalTests/release/Tracon.AspNetCore.FunctionalTests \

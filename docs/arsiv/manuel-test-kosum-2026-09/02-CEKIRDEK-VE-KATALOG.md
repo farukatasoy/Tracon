@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz A zinciri, tek şerit) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `7e3a4de7` donuk |
+| **Kod** | `a51a8496` donuk |
 | **Case sayısı** | 97 (MT-CORE-001..129) |
 | **Port** | 5081 (spec 5080 yazar — şerit sapması) |
 | **Şema** | `mt_s1` (spec `tracon` yazar — şerit sapması, skill §1.3) |
@@ -145,7 +145,7 @@ olarak işaretlenir.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 89f44ab3:docs/manuel-test/kosumlar/2026-09-16/02-CEKIRDEK-VE-KATALOG.md
+> git show 2841b02a:docs/manuel-test/kosumlar/2026-09-16/02-CEKIRDEK-VE-KATALOG.md
 > ```
 
 ---

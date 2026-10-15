@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show a6ad7b6f:docs/arsiv/fazlar/202-SKILL-SCRIPT-YURUTUCU-SEAM.md
+> git show 57d54d22:docs/arsiv/fazlar/202-SKILL-SCRIPT-YURUTUCU-SEAM.md
 > ```
 >
 > Damıtıldı 2026-10-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -38,7 +38,7 @@ Skill script'i bugün beş kapıdan geçer ve Tracon'un makinesinde, Tracon'un O
 - [x] Varsayılanla mevcut script testleri davranış iddiası değişmeden yeşil — `SandboxedSkillScriptRunnerTests`, `SkillScriptProcessRunnerTests` (yalnız kurulum satırı), `SkillScriptContentPinTests`, `SkillScriptGrantTests`, E2E `SkillTests` (UI'lı derleme, 4/4); örnek uygulamada yerel yürütücü nöbetçi dosyayı yarattı
 - [x] Süreye uymayan yürütücü `Timeout + tolerans` içinde `TimedOut` kaydı üretir (test 6) — "kayıt" `ToolInvocationRecord.Error` = `Timed out; the script executor did not return in time.` metnidir (`ToolInvocationRecord.TimedOut` alanı `TraconToolTimeoutException`'a aittir, yazılmaz); `An_executor_past_its_timeout_is_abandoned_at_the_wait_limit_and_frees_the_quota` (kurulan gecikme tam 35 sn); örnek uygulamada `MT-SKILL-080` (kayıt süresi 7,009 sn; düzeltmeden sonra 7,002 sn)
 - [x] Yerel yürütücü sözleşmeyi geçer; `RequireCustomBinding` yerel varsayılanda açılışı durdurur — `SkillScriptProcessRunnerContractTests` 10/10 (net8 · net9 · net10), `SkillScriptExecutorRegistrationTests`; örnek uygulamada `MT-SKILL-082`
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9088e92e`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `c2592ccd` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 4edd857d`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `065adc5e` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (manuel case 1, 4), çıktı belgeye yazıldı — § *Örnek uygulama koşumu*; denetim düzeltmesinden sonra `078`/`080` yeniden koşuldu
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz (17 işaretli sentetik credential atlandı)
 - [x] Manuel kabul case'leri `docs/manuel-test/14-SKILL-VE-SCRIPT.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-SKILL-078`…`083` (§ 9); `078`…`082` örnek uygulamada koşuldu; `078`…`080`, `082`, `083` ➜ CI (`083`'ün HTTP yolu yok, F-481)
@@ -47,14 +47,14 @@ Skill script'i bugün beş kapıdan geçer ve Tracon'un makinesinde, Tracon'un O
 
 ### Kapanış kapısı ve yayın provası (`main`, 2026-10-13)
 
-Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`bc3c7d11` → 203, `fac7fbd6` → 196, `c2592ccd` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın kendi tabanı `12cfee4b`'dir; kapanış tabanı `9088e92e` onu kapsar.
+Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`96786179` → 203, `8f9c8631` → 196, `065adc5e` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın kendi tabanı `61505b29`'dir; kapanış tabanı `4edd857d` onu kapsar.
 
 | Kapı | Commit | Sonuç |
 |---|---|---|
-| `python3 scripts/kapi.py kapanis --taban 9088e92e` | `c2592ccd` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
-| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `c2592ccd` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
+| `python3 scripts/kapi.py kapanis --taban 4edd857d` | `065adc5e` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
+| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `065adc5e` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
 
-Önceki prova çıktısı (Faz 197/198, `dcc1a88f`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-dcc1a88f`.
+Önceki prova çıktısı (Faz 197/198, `b20eeb1b`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-b20eeb1b`.
 
 ### Örnek uygulama koşumu — gerçek çıktı (2026-10-13, port 5083)
 
@@ -78,7 +78,7 @@ koşuludur; commit edilmedi, koşum sonunda geri alındı. `run_skill_script` ve
 Temizlik: üç grant iptal, agent ve skill silindi, iki onay kuralı silindi,
 nöbetçi dosya silindi; 5083 boş. `faz202` şeması `ap-pg`'de duruyor.
 
-**Denetim düzeltmesinden sonra (`bcb15ad5`, aynı kurulum):** bekleme sınırı artık
+**Denetim düzeltmesinden sonra (`731d6f1b`, aynı kurulum):** bekleme sınırı artık
 okumadan önce kuruluyor; stored yol etkilenmemeli. `asili` + `merhaba` eşzamanlı,
 `Timeout=00:00:02`: `asili` kaydı `00:00:07.002`, aynı hata metni; `merhaba` 8 ms
 sonra (`18:49:54.337` → `.345`) `exit_code: 0` / `faz202-executor:merhaba:FDBA1ED41483`;
@@ -123,7 +123,7 @@ Envanter: **site** — `guides/write-your-own-script-executor.md` (yeni, `src/si
 | `Tracon.Package.Tests` `LocalReferenceTests` | 10/10 |
 | `build-agent-map.mjs --check` | `Agent map: up to date and within budget.` |
 | `npm run check` | `Content: 57 manual pages and 1070 total pages passed.` · `Links: 178293 internal reference(s) across 1070 pages and llms.txt, none broken.` · `SEO: … 0 hata` · `Weight: 1070 pages under 59000 B gzip.` |
-| `dokuman-bakim.py --site-denetle --taban 12cfee4b` | üç kural (`buildtransitive`, `cekirdek-kavram`, `paket-readme`) ✅ |
+| `dokuman-bakim.py --site-denetle --taban 61505b29` | üç kural (`buildtransitive`, `cekirdek-kavram`, `paket-readme`) ✅ |
 
 ### `main` ile birleşme (Faz 196 + 203, 2026-10-13)
 

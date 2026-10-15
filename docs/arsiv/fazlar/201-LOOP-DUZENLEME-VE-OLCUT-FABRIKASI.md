@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show d06030c3:docs/arsiv/fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md
+> git show 5ebf02e6:docs/arsiv/fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md
 > ```
 >
 > Damıtıldı 2026-10-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Operatör `Loop`'u konsoldan kuramaz; editör onu yalnız taşır. Host kod öl�
 - [x] `GET /api/loop-criteria` türleri ve yargıç modelini döner; fabrika çağrılmaz (test 8) — `LoopCriteriaEndpointTests` (5); örnek uygulama çıktısı aşağıda
 - [x] `POST /api/agents/validate` loop hatası başına yollu mesaj döner (test 9) — `AgentValidationLoopTests` (13; ilk 11 vakanın 9'u temel commit'te kırmızı)
 - [x] Konsol Loop'u kurar ve kaydeder; run koşar (test 15); değiştirmeden kayıt `loop`'u korur (test 12) — E2E `Loop_built_in_the_console_is_saved_read_back_and_runs` · `full-replace-editors.test.tsx`
-- [x] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban 643b9eee` birleştirmeden sonra `main`'de (`4800b280`, Faz 201 + Faz 204 birlikte) çıkış 0: tarama 4,8 sn · `--denetle` · betik testleri · ajan haritası · denetim paketi · build 86,7 sn · test 441,0 sn (38 koşum, 20 241 geçti, 19 atlandı) · pack · format 107,8 sn · site `npm run check` 33,2 sn. İlk koşum ajan haritası tazeliğinde durdu: birleştirmeden sonra `build-agent-map.mjs` koşulmamıştı (`4800b280` yeniden üretti). Bu dalda `ic-dongu` yeşildi, tam çözüm testi dahil
+- [x] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban b3a24388` birleştirmeden sonra `main`'de (`6af4f395`, Faz 201 + Faz 204 birlikte) çıkış 0: tarama 4,8 sn · `--denetle` · betik testleri · ajan haritası · denetim paketi · build 86,7 sn · test 441,0 sn (38 koşum, 20 241 geçti, 19 atlandı) · pack · format 107,8 sn · site `npm run check` 33,2 sn. İlk koşum ajan haritası tazeliğinde durdu: birleştirmeden sonra `build-agent-map.mjs` koşulmamıştı (`6af4f395` yeniden üretti). Bu dalda `ic-dongu` yeşildi, tam çözüm testi dahil
 - [x] `samples/Tracon.Api` ile gerçek `run` (`openai-responses`, konsoldan `aiJudge` + fabrikalı ölçüt); çıktı belgeye yazıldı — aşağıdaki tablo
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz
 - [x] Manuel kabul case'leri iki alana eklendi; otomatikleştirilebilenler koşuldu — `MT-CORE-143`…`146`, `MT-UIAG-059`…`062`
@@ -142,7 +142,7 @@ Plan onayı (2026-10-13) Açık Soruların yedisini de önerisiyle kapattı (kul
 > Kapanışta doldurulur — `faz-denetim` çıktısı. Bulgu yoksa "🔴 ve 🟡 yok"
 > yazılır; boş bırakılmaz.
 
-Bağımsız denetçi (`643b9eee...HEAD`): 🔴 yok; fonksiyonel testler 51/51 yeşil; beş sapma
+Bağımsız denetçi (`b3a24388...HEAD`): 🔴 yok; fonksiyonel testler 51/51 yeşil; beş sapma
 (dört aşırı yükleme, `loop_judge_unavailable`, boş `judgeCriteria`, fabrika mesajı, `GetLoopEvaluators()`)
 kabul edildi; `loop_judge_unavailable` bir sözleşme değişimidir → K-916.
 
@@ -187,7 +187,7 @@ kabul edildi; `loop_judge_unavailable` bir sözleşme değişimidir → K-916.
 - F-410 (kod ölçütüne tanım başına ayar), F-411 (onay ölçütü ve denetim izi) — ADAYLAR'da Faz 201 devriyle güncellendi.
 - F-422 — `openai-responses` akış kopyası ölçümü.
 - 👤 görsel kısımlar: `MT-UIAG-059`…`062`'nin görsel adımları insan bekler.
-- Birleştirmeden sonra `main`'de `kapanis --taban 643b9eee` yeşil, faz arşivlendi ve damıtıldı. **Site yayınlanmadı** (`scripts/site-deploy.sh` dışa açık bir iştir; bakımcı koşar) — Faz 201 ve Faz 204'ün sayfaları birlikte yayınlanır.
+- Birleştirmeden sonra `main`'de `kapanis --taban b3a24388` yeşil, faz arşivlendi ve damıtıldı. **Site yayınlanmadı** (`scripts/site-deploy.sh` dışa açık bir iştir; bakımcı koşar) — Faz 201 ve Faz 204'ün sayfaları birlikte yayınlanır.
 
 **Sıradaki faz:** Faz 200 (workflow sürüm geçmişi) editör dosyalarını paylaşır; devir notu `docs/200-*.md`
 "Bu Faza Başlarken" 5. maddededir.

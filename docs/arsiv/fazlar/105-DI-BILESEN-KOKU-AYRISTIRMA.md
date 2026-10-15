@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 11edb8d:docs/arsiv/fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md
+> git show dec78c0:docs/arsiv/fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`
@@ -103,7 +103,7 @@ compatibility contract, güvenlik/kiracı sınırı veya kalıcı veri kararı
 ## Denetim Bulguları
 
 Bağımsız denetçi (`faz-denetim`, taze bağlamlı alt agent) çalışma ağacını
-`git show 12c867a:...` ile method-method karşılaştırdı (48 orijinal metodun
+`git show 18b2bcc:...` ile method-method karşılaştırdı (48 orijinal metodun
 tamamı — örnekleme değil), build/format/PublicAPI/test kanıtlarını bağımsız
 yeniden koştu. 🔴 bulgu **yok**.
 

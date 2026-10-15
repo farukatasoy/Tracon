@@ -17,7 +17,7 @@
 > `11-ARAYUZ-RUN-SESSION-SSE.md` — case ekranın **sahibi olan** dosyaya girer.
 > 🚨 `09-ARAYUZ-GENEL.md` 54 case'e çıktı ve bütçesine yaklaşıyor; oraya yalnız
 > gerçekten kesişen bir case eklenir
-> **Taban:** `18a3d6f2` (Faz 164'ün damıtma commit'i)
+> **Taban:** `c0d48249` (Faz 164'ün damıtma commit'i)
 
 ---
 
@@ -29,7 +29,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 75dc9622:docs/arsiv/fazlar/165-KONSOLUN-KALAN-EKRANLARI.md
+> git show 0efdbf31:docs/arsiv/fazlar/165-KONSOLUN-KALAN-EKRANLARI.md
 > ```
 >
 > Damıtıldı 2026-09-12 · `scripts/dokuman-bakim.py faz-damit`
@@ -193,7 +193,7 @@ kararı **değişmedi**; karar defterine yeni `K-*` kaydı girmez. Yerel tercihl
 
 ## Ölçülen sonuç
 
-Her satır **aynı** betikle iki kez ölçüldü: taban `18a3d6f2`'nin ağacı
+Her satır **aynı** betikle iki kez ölçüldü: taban `c0d48249`'nin ağacı
 `git archive` ile çıkarılıp aynı sayım koşuldu. Planın kendi sayıları bazı
 yerlerde farklıydı (`title` 211, `Empty` 45, `ErrorNote` 85) çünkü farklı bir
 desen kullanıyordu; aşağıdaki iki kolon karşılaştırılabilirdir.
@@ -320,7 +320,7 @@ locator'lara `Exact = true` ekledikten sonra o iki olguyu yeniden koşmamıştı
 | 7 | Tooltip kırpması `useEffect` ile ölçüyordu (passive effect boyamadan **sonra** koşar) ve `resize`'da yeniden hesaplamıyordu. | Kusur listesi #10. |
 | 8 | 375 px gezintisi 14 ekranın sekizinde **satırsız** koşuyordu — "boş ekran taşmaz" kuralının ihlali. | `SeedEveryListAsync` her listeye bir satır yazıyor; denetim izi yan etki olarak doluyor. Tohumlama iki sözleşmeyi ortaya çıkardı: bir deney **kayıtlı** agent ister (kodda tanımlının sürüm geçmişi yoktur) ve `PUT /api/agents/{ad}` günceller, oluşturmak `POST /api/agents`'tır. `diagnostics`'in listesi yoktur; yorum olarak yazıldı. |
 | 9 | `identicalOnPurpose` muafiyeti **+2 büyüdü**; skill'e göre gerekçeli olsa bile 🔴. | **Bilinçli kapatıldı** — aşağıdaki bölüm. Diğer üç taban çizgisi dokunulmadı. |
-| 10 | "Ölçülen sonuç"un beş sayısı **yeniden üretilemiyordu** (`Empty` sayımı `<EmptyChart`'ı da sayıyordu; `aria` sayısı hiçbir desenle çıkmıyordu). | Tablo yeniden yazıldı; her satır taban ağacı `git archive 18a3d6f2` ile çıkarılıp **aynı betikle** iki kez ölçüldü. |
+| 10 | "Ölçülen sonuç"un beş sayısı **yeniden üretilemiyordu** (`Empty` sayımı `<EmptyChart`'ı da sayıyordu; `aria` sayısı hiçbir desenle çıkmıyordu). | Tablo yeniden yazıldı; her satır taban ağacı `git archive c0d48249` ile çıkarılıp **aynı betikle** iki kez ölçüldü. |
 | 11 | Sevk edilen bundle sayısı yanlıştı. | Son ölçüm **190,3 KB**; `ui.md` ve bu doküman aynı sayıyı taşıyor. |
 | 12 | Üretilen `YOL-HARITASI.md` kaynağıyla aynı değil. | Kapanışta düzeltildi. |
 

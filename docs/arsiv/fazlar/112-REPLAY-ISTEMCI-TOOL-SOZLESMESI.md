@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show c6c96be:docs/arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md
+> git show c5c21ae:docs/arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`
@@ -37,7 +37,7 @@ Faz 61 `AddClientTool` ile **sevk edilmiş** bir yetenek getirdi: gövdesi taray
 - [x] Yalnız sunucu tool'u taşıyan agent için replay eskisi gibi `200` döner — gerileme yok
 - [x] Kod tanımlı (katalog) agent kolu da `409` döner
 - [x] `RunReplayOutcome.ClientToolNotReplayable` için `RunEndpoints` `switch`'inde **açık** bir arm var; `_ =>` koluna düşmüyor
-- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 0c4d931`)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 788149c`)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. altında
 - [x] `secret` taraması boş döndü (`python3 scripts/kapi.py tarama`)
 - [x] Manuel kabul case'leri `docs/manuel-test/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md` içine eklendi (MT-IST-014…016); otomatikleştirilebilenler (014, 015) koşuldu, çıktı aşağıda; 016 👤 insan gerekir

@@ -19,7 +19,7 @@
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 89f44ab3:docs/manuel-test/kosumlar/2026-09-16/14-SKILL-VE-SCRIPT.md
+> git show 2841b02a:docs/manuel-test/kosumlar/2026-09-16/14-SKILL-VE-SCRIPT.md
 > ```
 
 ---

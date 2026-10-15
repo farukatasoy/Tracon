@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show d6b81914:docs/arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md
+> git show f05e5bc9:docs/arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md
 > ```
 >
 > Damıtıldı 2026-09-23 · `scripts/dokuman-bakim.py faz-damit`
@@ -174,12 +174,12 @@ geri dönüşü pahalı sistem kararı yok).
 
 | Koşum | Kod | `-maxcpucount` | Süre | Test | Kırmızı | E2E projesi |
 |---|---|---|---|---|---|---|
-| Taban | `515fe8c2` | 1 | **884 sn** | 16.911 | 0 | 1:33 |
-| 184.1 + 184.2 | `78dbafd0` | 1 | 863 sn | 16.944 | 0 | 1:29 (seri) |
-| + 184.3 + E2E paralel | `f210c797` | 1 | 879 sn | 16.962 | 0 | 0:35 |
-| aynı | `f210c797` | 2 | **607 sn** | 16.962 | 0 | 0:38 |
-| aynı | `f210c797` | 2 | 658 sn | 16.962 | 0 | 0:42 |
-| aynı | `f210c797` | 2 | 524 sn | 16.962 | 0 | 0:36 |
+| Taban | `96d66cc1` | 1 | **884 sn** | 16.911 | 0 | 1:33 |
+| 184.1 + 184.2 | `014ae1c8` | 1 | 863 sn | 16.944 | 0 | 1:29 (seri) |
+| + 184.3 + E2E paralel | `7be58ae1` | 1 | 879 sn | 16.962 | 0 | 0:35 |
+| aynı | `7be58ae1` | 2 | **607 sn** | 16.962 | 0 | 0:38 |
+| aynı | `7be58ae1` | 2 | 658 sn | 16.962 | 0 | 0:42 |
+| aynı | `7be58ae1` | 2 | 524 sn | 16.962 | 0 | 0:36 |
 
 Toplam süre E2E kazancını göstermez: koşumdan koşuma `Package.Tests` tek
 başına 2:30–3:40 oynar. `-maxcpucount:2`'de `AspNetCore.FunctionalTests`
@@ -222,14 +222,14 @@ altında da ayağa kalktığını gösterir, yeni bir davranış göstermez.
 
 ## Denetim Bulguları
 
-Denetçi `faz-denetcisi` (taze bağlam, salt-okunur), `git diff 515fe8c2...HEAD`
-(o an `72d2f4de`), 2026-09-23. Kapıları koşmadı (salt-okunur kural).
+Denetçi `faz-denetcisi` (taze bağlam, salt-okunur), `git diff 96d66cc1...HEAD`
+(o an `b7762ced`), 2026-09-23. Kapıları koşmadı (salt-okunur kural).
 
 | # | Seviye | Bulgu | Triyaj | Sonuç |
 |---|---|---|---|---|
-| 1 | 🔴 | DoD "`PlaywrightLocatorTests` tabanı değişmedi" karşılanmıyor: kayıtlı taban 119 → 127 büyüdü; taban yalnız küçülür | gerçek | **düzeltildi** — gizlenen borç ödendi, on bir tam-metin `GetByPlaceholder` `Exact = true` aldı; kayıtlı taban 116 (`2ad816e2`) |
-| 2 | 🟡 | `WaitUntil` hiç dönmeyen bir probe'u kesemiyor — sınır ve token probe'a ulaşmıyor | gerçek | **düzeltildi** — probe `WaitAsync(kalan, token)` altında; iki yeni test (`50074b00`) |
-| 3 | 🟡 | Engellenen append testinde pozitif sinyal (log) yanlış etkinin oluşacağı noktadan ÖNCE yazılıyor | gerçek, **denetçinin gördüğünden büyük** | **düzeltildi** — tur sayısı + soket kapanışı beklenir. Mutasyon (runner'ın `return`'ü silindi) testin **zaten** yeşil kaldığını gösterdi: yalnız `commentary`'ye bakıyordu, sızan append `thinking`'deydi. Artık her kanala bakar ve mutasyonda düşer (`44844f3c`). Aynı "log etkiden önce" biçimi geç tool testinde kısa `negative` pencereyle kapatıldı |
+| 1 | 🔴 | DoD "`PlaywrightLocatorTests` tabanı değişmedi" karşılanmıyor: kayıtlı taban 119 → 127 büyüdü; taban yalnız küçülür | gerçek | **düzeltildi** — gizlenen borç ödendi, on bir tam-metin `GetByPlaceholder` `Exact = true` aldı; kayıtlı taban 116 (`84813731`) |
+| 2 | 🟡 | `WaitUntil` hiç dönmeyen bir probe'u kesemiyor — sınır ve token probe'a ulaşmıyor | gerçek | **düzeltildi** — probe `WaitAsync(kalan, token)` altında; iki yeni test (`f3b841e5`) |
+| 3 | 🟡 | Engellenen append testinde pozitif sinyal (log) yanlış etkinin oluşacağı noktadan ÖNCE yazılıyor | gerçek, **denetçinin gördüğünden büyük** | **düzeltildi** — tur sayısı + soket kapanışı beklenir. Mutasyon (runner'ın `return`'ü silindi) testin **zaten** yeşil kaldığını gösterdi: yalnız `commentary`'ye bakıyordu, sızan append `thinking`'deydi. Artık her kanala bakar ve mutasyonda düşer (`a5f3ab63`). Aynı "log etkiden önce" biçimi geç tool testinde kısa `negative` pencereyle kapatıldı |
 | 4 | 🟢 | `WorkflowTests` düğüm sayısı tek atımlık okuma | gerçek | **düzeltildi** — `Expect(nodes.Nth(2))` |
 | 5 | 🟢 | Pozitif çapası olmayan iki negatif E2E iddiası (`AgentTests` düzenleme formu, `RoleTests` `/mcp`) | gerçek | **düzeltildi** — önce yüklenmiş ekran beklenir |
 
@@ -265,8 +265,8 @@ Sıradaki iş `aday-kesfi` ile seçilir (yalnız kullanıcı isteğiyle).
 
 ## Kapanış Kapısı
 
-`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 515fe8c2`,
-`40cb3cd7`, 2026-09-23 → **EXIT 0, 723 sn**:
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 96d66cc1`,
+`2e89626d`, 2026-09-23 → **EXIT 0, 723 sn**:
 
 | Adım | Süre | Sonuç |
 |---|---|---|

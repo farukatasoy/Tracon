@@ -1,7 +1,7 @@
 # Faz 132 — Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği
 
 > **Durum:** ✅ Tamamlandı (2026-09-02)
-> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-175**
+> **Kaynak:** Tüketici turu (2026-09-01) — **F-175**
 > **Önkoşul:** Yok
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.AspNetCore`, `.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli — üç set (`runs` tablosuna dört sütun) + üç `MigrationsViews` güncellemesi; numara uygulama anında alınır
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show ecfc78e:docs/arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md
+> git show 66933b8:docs/arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md
 > ```
 >
 > Damıtıldı 2026-09-02 · `scripts/dokuman-bakim.py faz-damit`
@@ -153,7 +153,7 @@ fiyat karoları için bir cümle eklendi), üçü kapsam dışı kaldı:
 
 ## Denetim Bulguları
 
-Bağımsız denetim (taze bağlamlı agent, taban `c47bdf7`) iki bulgu üretti;
+Bağımsız denetim (taze bağlamlı agent, taban `a2d0bba`) iki bulgu üretti;
 ikisi de kapatıldı.
 
 **🔴 1 — Yeni alanların `<summary>` bloğu `<see cref>` kullanıyordu; bu tipler

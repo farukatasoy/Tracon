@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 90e83ee7:docs/arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md
+> git show 774ac0f5:docs/arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md
 > ```
 >
 > Damıtıldı 2026-09-03 · `scripts/dokuman-bakim.py faz-damit`

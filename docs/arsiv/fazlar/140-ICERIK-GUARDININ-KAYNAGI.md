@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 01c6e267:docs/arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md
+> git show bc735208:docs/arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md
 > ```
 >
 > Damıtıldı 2026-09-04 · `scripts/dokuman-bakim.py faz-damit`
@@ -51,7 +51,7 @@ Guard bugün denetlediği metnin bir **tool sonucu** mu, bir **kullanıcı mesaj
       `bench/baseline.json` üç sıcak yolunun hiçbirine bu davranış girmiyor —
       guard hattı o listede zaten yoktu, yeni bir kayıt açılmadı (kapsam dışı,
       bkz. Denetim Bulguları 🟢)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban c77b4d3c`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 8a43349c`
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı —
       aşağıda
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ temiz

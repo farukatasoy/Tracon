@@ -1,7 +1,7 @@
 # Faz 125 — Üretilen Tool Şemasının İfade Gücü
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-1**, **T-2**
+> **Kaynak:** Tüketici turu (2026-08-31) · **T-1**, **T-2**
 > **Önkoşul:** [Faz 52](52-KAYNAK-URETECI.md) (kaynak üreteci ve derleme anı doğrulama) — arşivde; yalnız grep'le okunur
 > **Paketler:** `Tracon.Generators`
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 8bf0f3c:docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
+> git show f10c3f5:docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`
@@ -103,7 +103,7 @@ yeni bir `K-*` kaydı açılmadı.
 
 ## Denetim Bulguları
 
-Bağımsız denetim (taze bağlamlı `general-purpose` agent), taban `9621eeb`,
+Bağımsız denetim (taze bağlamlı `general-purpose` agent), taban `af4b56c`,
 2026-09-01. Tam rapor bu oturumun geçmişinde; özet:
 
 | # | Seviye | Bulgu | Sonuç |

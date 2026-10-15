@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 806965a:docs/arsiv/fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md
+> git show 3058840:docs/arsiv/fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`
@@ -73,7 +73,7 @@ güvenlik/kiracı sınırı veya kalıcı veri kararı gerektiren bir seçim yap
 ## Denetim Bulguları
 
 `faz-denetim` skill'i, taze bağlamlı bir `general-purpose` agent ile koştu.
-Yöntem: orijinal dosya `git show 8c99924:...AgentDefinitionCompiler.cs` ile
+Yöntem: orijinal dosya `git show 6f289fa:...AgentDefinitionCompiler.cs` ile
 çıkarılıp yedi yeni dosyayla satır satır karşılaştırıldı (gövde kayması
 taraması), `#pragma warning disable/restore MAAI001` sınırları her dosyada tek
 tek doğrulandı, ve yeni test dosyasının 106.3 matrisini gerçekten kapattığı

@@ -1,7 +1,7 @@
 # Faz 130 — Üretilen Şemanın Kısıtları
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-09-01-tuketici-feature-talepleri.md](../../kesif/2026-09-01-tuketici-feature-talepleri.md) — **F-173**
+> **Kaynak:** Tüketici turu (2026-09-01) — **F-173**
 > **Önkoşul:** Yok
 > **Paketler:** `Tracon.Generators` (tek paket)
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 8a8e41b:docs/arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md
+> git show 784463e:docs/arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`
@@ -118,7 +118,7 @@ satırı ekli; SQL/Playwright baseline düzeltmelerinin GERÇEKTEN yalnız `lane
 sütunu ve tek bir riskli locator'la ilgili olduğu bağımsızca (satır satır
 `git diff` incelemesiyle) doğrulandı.
 
-Düzeltmelerden sonra dört kapı (`kapi.py kapanis --taban d5aef08`) yeniden
+Düzeltmelerden sonra dört kapı (`kapi.py kapanis --taban 6237fc8`) yeniden
 koşuldu — sıfır uyarı.
 
 ## Sonraki Faza Devir Notu

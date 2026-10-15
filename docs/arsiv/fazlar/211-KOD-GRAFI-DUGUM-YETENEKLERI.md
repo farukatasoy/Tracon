@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 3cee7304:docs/arsiv/fazlar/211-KOD-GRAFI-DUGUM-YETENEKLERI.md
+> git show 2c7d2ca1:docs/arsiv/fazlar/211-KOD-GRAFI-DUGUM-YETENEKLERI.md
 > ```
 >
 > Damıtıldı 2026-10-15 · `scripts/dokuman-bakim.py faz-damit`
@@ -41,7 +41,7 @@ Bir tüketici, insan onayı ve sınırlı revizyon taşıyan uçtan uca bir work
 - [x] Kod kaydının `RunTimeout`'u ve `Parameters`'ı saklanan tanımla aynı kuralla uygulanır — CodeWorkflowRunTimeoutTests · CodeWorkflowParameterTests · CodeWorkflowRegistrationValidationTests
 - [x] `MaxConcurrency` aynı anda koşan deneme sayısını sınırlar; iptal bekleyeni bırakır — WorkflowFunctionConcurrencyTests
 - [x] Süresi dolan run `run.failed` webhook'u üretir — WorkflowRequestExpiryWebhookTests
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 2ee06055` (üçüncü koşumda `dotnet format` yalnız using sırasında kırmızıydı, düzeltildi; son koşum aşağıda)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban a87e50b6` (üçüncü koşumda `dotnet format` yalnız using sırasında kırmızıydı, düzeltildi; son koşum aşağıda)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (ret → revizyon → onay; kesinti sonrası devam), çıktı belgeye yazıldı — § Örnek Uygulama Koşumu (MT-WF-176…181)
 - [x] `secret` taraması boş döndü — `kapi.py tarama` (kapanış kapısının ilk komutu) her koşumda temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/15-WORKFLOWS.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-WF-176…181, altısı da gerçek süreçte koşuldu
@@ -112,7 +112,7 @@ Yerel tercihler (K açılmadı): Açık Soru 1-B (`SetSettings<T>` yardımcısı
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (`faz-denetcisi`, taze bağlam, `git diff 2ee06055...HEAD`) iki 🔴, üç 🟡 ve üç 🟢 buldu. Denetçi ayrıca tüm fonksiyonel testleri (2120), `Tracon.Workflows.UnitTests`'i (423) ve `dokuman-bakim.py --denetle`'yi koştu; çift yayın, sarmalayıcı sırası, slot sızıntısı, kod `RunTimeout` tutarlılığı ve `Parameters` yollarında sorun görmedi.
+Bağımsız denetçi (`faz-denetcisi`, taze bağlam, `git diff a87e50b6...HEAD`) iki 🔴, üç 🟡 ve üç 🟢 buldu. Denetçi ayrıca tüm fonksiyonel testleri (2120), `Tracon.Workflows.UnitTests`'i (423) ve `dokuman-bakim.py --denetle`'yi koştu; çift yayın, sarmalayıcı sırası, slot sızıntısı, kod `RunTimeout` tutarlılığı ve `Parameters` yollarında sorun görmedi.
 
 | # | Seviye | Triyaj | Bulgu | Sonuç |
 |---|---|---|---|---|

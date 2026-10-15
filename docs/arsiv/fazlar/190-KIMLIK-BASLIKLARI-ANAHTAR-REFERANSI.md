@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-272**
-> **Önkoşul:** K-852 (`RequireTenantKey`, `bb9953e3`) — yeni alanın her anahtar adı ondan geçer ·
+> **Önkoşul:** K-852 (`RequireTenantKey`, `3c18b5a8`) — yeni alanın her anahtar adı ondan geçer ·
 > bu turun maskeleme `kusur-giderme`'si — okuma tarafı (GET `"***"`, PUT `"***"` → `400`) şart; denetim tarafı ölçülür, inmediyse bu fazındır (190.6) ·
 > [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) — **teknik**: `kapi.py yayin --kuru` bu fazın `CHANGELOG` satırlarını denetler ·
 > turun K-* kategori etiketi kapısı (K-855'ten itibaren) · Faz 185, 186, 188, 189 — yalnız sıra (kullanıcı kararı; teknik bağımlılık yok)
@@ -24,7 +24,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show de138077:docs/arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md
+> git show 7d516a60:docs/arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md
 > ```
 >
 > Damıtıldı 2026-09-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -92,7 +92,7 @@ maskeli, denetim değersiz; dokümana yazılır) · MCP toplam başlık sınır�
 - [x] `grep -rn "pragma warning disable CS0618" src tests` → **11** (src 9, tests 2); her biri satır içi gerekçeli
 - [x] `AdditionalHeaders` + OAuth ölçümü devir notunda
 - [x] `CHANGELOG.md` `Added`/`Deprecated`/`Security`/`Fixed`; `python3 scripts/kapi.py yayin --kuru` — sonuç "Kapanış Kapısı"nda
-- [x] Dört doğrulama kapısı: `python3 scripts/kapi.py kapanis --taban cd985bd7` — sonuç "Kapanış Kapısı"nda
+- [x] Dört doğrulama kapısı: `python3 scripts/kapi.py kapanis --taban 0ff92efd` — sonuç "Kapanış Kapısı"nda
 - [x] `samples/Tracon.Api` ile gerçek `run`: komut 1-6 ve `run.completed` webhook'u yakalayıcıya `X-API-Key: dogrulama-degeri` ile ulaştı
 - [x] `secret` taraması: `python3 scripts/kapi.py tarama` — migration ankrajı commit sonrası; sonuç "Kapanış Kapısı"nda
 - [x] Manuel kabul case'leri: `MT-MCP-070`…`077`, `MT-SEC-207`…`210` eklendi, `MT-MCP-069` ve `MT-SEC-091` yeniden yazıldı; otomatikleştirilebilenler koşuldu (Örnek Uygulama Koşumu)
@@ -173,7 +173,7 @@ uca yol `CredentialHeaderDeliveryTests` (loopback `MapMcp`) ile kanıtlı.
 ## Plandan Sapmalar
 | # | Plan | Gerçekleşen | Gerekçe |
 |---|---|---|---|
-| 1 | Önkoşul: maskeleme `kusur-giderme`'si ayrı commit | `3d79f8bc` (plan commit'i) içinde indi; okuma ve denetim tarafı ikisi de vardı | Başlangıç 4 ölçtü: `HeaderValueMask` + üç test yeşil. 190.6'nın "denetim değer düşürme" işi gerekmedi |
+| 1 | Önkoşul: maskeleme `kusur-giderme`'si ayrı commit | `7d13df60` (plan commit'i) içinde indi; okuma ve denetim tarafı ikisi de vardı | Başlangıç 4 ölçtü: `HeaderValueMask` + üç test yeşil. 190.6'nın "denetim değer düşürme" işi gerekmedi |
 | 2 | Açık Soru 4 önerisi A (`DiagnosticId` + `UrlFormat`) | **B**: yalnız mesaj; `DiagnosticId` yok. `UrlFormat` de sonradan kaldırıldı — site adresinin C#'taki tek sahibi `DocumentationLinks`; elle kopya `check-content.mjs` §11'de kırmızı (kapanış kapısı) | Ölçüldü: `TRC9001` ile Tracon.Core'un STJ context'i 30 hatayla kırıldı; üretilen kod yalnız `CS0612/CS0618` bastırır. Tüketici de kırılırdı (K-869) |
 | 3 | `maf-api-kesfi` ile `AdditionalHeaders` + OAuth ölçümü | ilspy ile `ModelContextProtocol.Core` 2.2.0 decompile | Soru imza değil davranıştı; reflection davranışı göstermez. Bulgu devir notunda |
 | 4 | 190.4: yalnız boş/CR-LF değer düşer | Ek: transport'un **ekleyemeyeceği** başlık (içerik başlığı) da düşer | Decompile, SDK'nın bu durumda **değeri** exception mesajına koyduğunu ve bağlantı yolunun logladığını gösterdi — plansız bir log sızıntısı yolu |
@@ -216,7 +216,7 @@ Yerel tercihler (K-* değil):
 
 ## Denetim Bulguları
 
-`faz-denetcisi`, taze bağlam, taban `cd985bd7`, çalışma ağacı (2026-09-24).
+`faz-denetcisi`, taze bağlam, taban `0ff92efd`, çalışma ağacı (2026-09-24).
 
 | # | Bulgu | Seviye | Triyaj | Sonuç |
 |---|---|---|---|---|
@@ -265,12 +265,12 @@ Açık iş:
 
 ## Kapanış Kapısı
 
-`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban cd985bd7`, commit'li ağaç
-`16256a9c`, 2026-09-24 → **EXIT 0**:
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 0ff92efd`, commit'li ağaç
+`827b0c6b`, 2026-09-24 → **EXIT 0**:
 
 | Adım | Süre | Sonuç |
 |---|---|---|
-| `kapi.py tarama` | 5,4 sn | ✅ temiz (migration'lar `27ccdab0` ile ankrajlı) |
+| `kapi.py tarama` | 5,4 sn | ✅ temiz (migration'lar `fdba25d2` ile ankrajlı) |
 | `dokuman-bakim.py --denetle` · Python testleri · ajan haritası · denetim paketi | ~8 sn | ✅ |
 | `dotnet build Tracon.slnx -c Release` | 75,0 sn | ✅ 0 uyarı |
 | `dotnet test … -maxcpucount:2 -- --report-trx` | 461,5 sn | ✅ 18.113 test (38 koşum), 0 kırmızı |
@@ -279,12 +279,12 @@ Açık iş:
 | `docs-site npm run check` | 29,2 sn | ✅ |
 
 İlk iki deneme kırmızıydı (düzeltme turları, Süreç Ölçümü'ne ek): (1) site sayfaları sevk
-edilen agent haritasını (`llms-full.txt`) bayatlattı — yeniden üretildi (`eab1ab52`);
+edilen agent haritasını (`llms-full.txt`) bayatlattı — yeniden üretildi (`f0642702`);
 (2) `check-content.mjs`: `mcp.tsx` değişti, konsol ekran görüntüsü damgası bayattı
 (E2E'den `TRACON_UI_SCREENSHOTS=1` ile yeniden üretildi) ve `ObsoleteMessages.cs` site
-adresini elle yazıyordu (§11) — `UrlFormat` kaldırıldı (`16256a9c`, K-869 güncellendi).
+adresini elle yazıyordu (§11) — `UrlFormat` kaldırıldı (`827b0c6b`, K-869 güncellendi).
 
-**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `16256a9c`) → **EXIT 0**: taban
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `827b0c6b`) → **EXIT 0**: taban
 `v1.0.0-preview.2` (17 paket, nuget.org izole cache); kırıcı liste 121 tip, 0 TFM düşüşü,
 10 paket — hepsi `[Unreleased]` notunda; 20 paket `1.0.0-preview.2.78`; `npm publish
 --dry-run` ✅; 6 paketlenmiş örnek, Native AOT smoke ve net8.0 tüketici ✅ (sözleşme

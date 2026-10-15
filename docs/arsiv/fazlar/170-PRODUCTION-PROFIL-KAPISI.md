@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 27038de7:docs/arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md
+> git show 62a32c57:docs/arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md
 > ```
 >
 > Damıtıldı 2026-09-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -51,7 +51,7 @@
 - [x] AOT smoke koşar; kontrol kaydı açıktır, hiçbir yerde tip taraması yoktur. `Abstractions`/`Core` AOT uyumluluğu korunur. *(`kapi.py kapanis` içindeki AOT smoke; `Enum.GetValues<T>()`/`Enum.IsDefined<T>()` generic aşırı yüklemeleri ve `GetServices<T>()` kapalı generic'tir — `GetServices(Type)` kullanılmadı)*
 - [x] `reference/compatibility.md` yükseltme sözleşmesini taşır: profile anahtar eklemek **davranışsal kırıcı değişikliktir** ve `CHANGELOG.md`'de öyle ilan edilir (§170.4). *(yeni bölüm: "The production profile is a versioned contract" · `CHANGELOG.md` Unreleased/Added · `ITraconBuilder` XML `<remarks>` — K-773)*
 - [x] `guides/production.md`'nin "Production-sensitive defaults" tablosu ve dağıtım checklist'i kapıya bağlanır; `guides/embedding.md` "Make a binding required" bölümünün kardeşi yazılır. *(ayrıca `concepts/governance.md`, `getting-started/security.md`, `capabilities.md`, `packages.md` — site senkron kapısı dört kuralın dördünü de yeşil verdi)*
-- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban 7079e3a9`.
+- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban 04901c17`.
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — hem profil **çağrılmadan** hem çağrılıp karşılanarak. *(bkz. "Örnek Uygulama Koşumu"; geçici yama geri alındı, `git diff --stat samples/` boş)*
 - [x] `secret` taraması boş döndü.
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine `MT-SEC-182`'den eklendi ve `00-INDEKS.md` sayacı güncellendi (132 → 140); otomatikleştirilebilenlerin **hepsi** koşuldu.
@@ -334,7 +334,7 @@ kayması) · 3.6 (plan dışı public API) · 3.7 (repo kuralları) · 3.8 (ür�
 
 **Denetçinin ölçmediğini yazdığı yer:** salt-okunur olduğu için dört kapıyı,
 `dotnet build`'i ve AOT smoke'u koşmadı. Bunlar uygulayan oturum tarafından
-koşuldu (`kapi.py kapanis --taban 7079e3a9`, çıkış 0) ve 🔴 düzeltmelerinden
+koşuldu (`kapi.py kapanis --taban 04901c17`, çıkış 0) ve 🔴 düzeltmelerinden
 **sonra** tekrar koşuldu.
 
 ## Sonraki Faza Devir Notu

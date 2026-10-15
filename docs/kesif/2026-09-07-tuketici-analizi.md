@@ -8,7 +8,7 @@ Bu giriş yalnız yönlendirir. Ayrıntı tek dosyadadır. Tur başında keşif 
 355.426 / 370.000 B olduğundan tam ölçüm raporu arşiv inceleme ağacında tutulur;
 mevcut keşif kayıtları silinmedi veya değiştirilmedi.
 
-**Zemin:** `2a3f5cff0f43078d7c41d5faf24ad45cb7131a8e`; son faz 154 kapalı.
+**Zemin:** `1d72ef7e3c46b168516dbc0de491ce1f7bc01656`; son faz 154 kapalı.
 Kullanıcı ürünün henüz yayımlanmamış geliştirme sürümü olduğunu belirtti.
 
 **Kapsam:** Kaynak raporun 18 önerisi, 18 doküman tutarsızlık/belirsizlik

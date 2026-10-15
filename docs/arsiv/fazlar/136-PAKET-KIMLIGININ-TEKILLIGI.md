@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9a0371f0:docs/arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md
+> git show e9b40c9e:docs/arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md
 > ```
 >
 > Damıtıldı 2026-09-03 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,16 +40,16 @@ Bir NuGet paketinin kimliği `<id, version>` çiftidir. Bugün Tracon aynı çif
 - [x] `TraconAllowDirtyPack=true` yalnız `dirty` taşıyan açık `MinVerVersionOverride` ile geçer; CI'da hiç geçmez — elle + `OverrideWithoutDirtyVersionStopsPackWithTracon0006` (`TRACON0006`) + `OverrideInCiStopsPackWithTracon0005` (`TRACON0005`) + `OverrideWithDirtyVersionPacksSuccessfully`
 - [x] Aynı ID+sürüm, farklı SHA-256 → `kapi.py yayin` durur ve mevcut artifact **yerinde kalır** — gerçek koşumda KAZARA yeniden üretildi (bir önceki commit'in artifact'leri yeni commit'e karşı 20/20 reddedildi, hiçbiri değişmedi) + `test_farkli_icerik_koşumu_durdurur_ve_mevcut_artifacti_korur`
 - [x] Aynı ID+sürüm, aynı SHA-256 → koşum deterministik no-op olarak geçer — **plan yanlıştı, düzeltildi** (bkz. Plandan Sapmalar): gerçek "aynı commit, aynı sürüm, iki ardışık koşum" `EXIT=0` ve sıfır ❌ verdi (`/tmp/yayin7a.out`, `/tmp/yayin7b.out`); `test_ayni_icerik_parmak_izi_deterministik_no_op_olarak_gecer` + `test_farkli_opc_rastgele_adi_tek_basina_konflikt_saymaz`
-- [x] `package-manifest.json` 20 paketin ID · sürüm · commit · dirty state · SHA-256 değerlerini taşır — gerçek koşumdan: `20 1.0.0-preview.1 False`, commit `2fd0c3ab...`, her paket `symbolsFile`/`symbolsSha256` dahil
+- [x] `package-manifest.json` 20 paketin ID · sürüm · commit · dirty state · SHA-256 değerlerini taşır — gerçek koşumdan: `20 1.0.0-preview.1 False`, commit `bd641e1f...`, her paket `symbolsFile`/`symbolsSha256` dahil
 - [x] `_clean_stale_packages` kaldırıldı; onun yerine geçen davranışın testi yeşil — `grep -c _clean_stale_packages scripts/kapi.py` → `0`; `_promote_staged_packages` dört testle kilitli
 - [x] `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1` → `EXIT=0` — gerçek koşum, 20 paket + npm dry-run + 6 sample + Native AOT smoke (`provider/source/generated-tool AOT smoke passed`)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 8b21cf9f` → `EXIT=0` (dil sınırı regresyonu bulundu ve düzeltildi, bkz. Denetim Bulguları)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 022b6c26` → `EXIT=0` (dil sınırı regresyonu bulundu ve düzeltildi, bkz. Denetim Bulguları)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda
 - [x] `secret` taraması boş döndü — `kapi.py tarama` → `✅ temiz`
 - [x] Manuel kabul case'leri `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-PKG-108..115, 117 elle/testle koşuldu; MT-PKG-116 senaryosu gerçek koşumda kazara tekrarlandı (yukarı bakınız)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 1× 🔴 bulundu ve kapandı (aşağıda)
 - [x] `docs-site/reference/versioning.md` artifact kimliği politikasını anlatır; `npm run build` + bağlantı kontrolü temiz — `npm run check` (content+build+links+weight) `EXIT=0`, 154653 iç bağlantı, 0 kırık
-- [x] `docs/kesif/2026-09-03-tuketici-gap-yaniti.md` TT-002 bölümü §9 şablonuyla dolduruldu
+- [x] Tüketici yanıt dokümanının TT-002 bölümü §9 şablonuyla dolduruldu
 
 ### `samples/Tracon.Api` gerçek koşum kanıtı
 
@@ -123,7 +123,7 @@ büyük bir yapısal sapma öngörmüyordu; bağımsız denetim bir tane buldu:
   (ikincisi `EXIT=0`, hiç ❌ çakışma satırı yok); ayrıca üç yeni birim testi
   (`test_farkli_opc_rastgele_adi_tek_basina_konflikt_saymaz` ve komşuları,
   `scripts/kapi_test.py`) bunu kilitler. Ayrı bir commit'te düzeltildi
-  (`3928f50d`) — ana faz commit'inden (`2fd0c3ab`) SONRA, DoD doğrulaması
+  (`11040ce8`) — ana faz commit'inden (`bd641e1f`) SONRA, DoD doğrulaması
   sırasında bulundu.
 
 ## Bu Fazda Verilen Kararlar

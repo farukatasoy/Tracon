@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 6073f89e:docs/arsiv/fazlar/210-BUTCE-DUGUM-KAPISI.md
+> git show 973692b4:docs/arsiv/fazlar/210-BUTCE-DUGUM-KAPISI.md
 > ```
 >
 > Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -111,7 +111,7 @@ Ayar alanları örnek uygulamanın kendi yorumlarından alındı (`Program.cs:88
 
 ## Denetim Bulguları
 
-Bağımsız `faz-denetcisi`, `git diff b1d4879f...720e23f7`, 2026-10-14. **🔴 yok.**
+Bağımsız `faz-denetcisi`, `git diff 3e561864...53c983e3`, 2026-10-14. **🔴 yok.**
 
 | # | Bulgu | Seviye | Sonuç |
 |---|---|---|---|

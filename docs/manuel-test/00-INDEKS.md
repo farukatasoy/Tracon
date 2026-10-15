@@ -402,7 +402,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 Turun kusurları kodlandı ve kapandı (`docs/KARARLAR.md` K-392..K-407). Aşağıdaki
 altı case **kapanmadı** ve bir sonraki tura devreder. Kaynak: turun kapanış
 kaydı, 2026-08 turu kapanış planı §6, §10 (silindi 2026-09-22, K-847;
-`git show 64c8a103:docs/arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md`).
+`git show aa9c0a7f:docs/arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md`).
 
 | Case | Dosya | Durum | Neden açık |
 |---|---|---|---|
@@ -601,7 +601,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `MT-PKG-050`. **Kod değiştirilmedi.**
 - **`EchoModelProvider` izleği yanlış yerde tarif edilmişti (2026-08-09, düzeltildi).**
   2026-08 turu PROMPT'u §3 (silindi 2026-09-22, K-847;
-  `git show 64c8a103:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`)
+  `git show aa9c0a7f:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`)
   onu izlek C'nin (`Tracon.Testing`) parçası
   sayıyordu. Ölçüm: paket böyle bir tip taşımıyor; sınıf örnek uygulamanın
   kendisindedir (`samples/Tracon.Api/EchoModelProvider.cs`, sağlayıcı adı

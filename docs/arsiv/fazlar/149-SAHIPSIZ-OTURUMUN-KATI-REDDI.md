@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 430cd0df:docs/arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md
+> git show d74ef22b:docs/arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md
 > ```
 >
 > Damıtıldı 2026-09-06 · `scripts/dokuman-bakim.py faz-damit`
@@ -42,7 +42,7 @@ Faz 148 sahipliği sevk etti ve bilinçli bir taviz verdi (K-693): **sahipsiz es
 - [x] `RunAuthorizationCoverageTests` `OpenAIConversationsEndpoints.cs`'i sayar; tarama sıfır bulguda **kırmızı** olur — `ExpectedResourceFiles`'a eklendi; `A_file_missing_the_call_is_reported_by_name` iki yönü de sınar
 - [x] Haritalama kapatıldığında dört uç `404` döner ve OpenAPI'de **görünmez** — `Turning_the_surface_off_removes_all_four_routes` · `..._from_the_OpenAPI_document`
 - [x] Haritalama bayrağının varsayılanı bugünkü davranıştır (yüzey haritalanır) — `The_conversations_surface_is_mapped_by_default`
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — `--taban dc196ff6`; `dotnet format` bir kez kırmızı oldu (import sırası) ve düzeltildi
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` — `--taban 01cc8333`; `dotnet format` bir kez kırmızı oldu (import sırası) ve düzeltildi
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı; katı mod çıktısı belgeye yazıldı — sonuçlar "Örnek Uygulama Koşumu" bölümünde
 - [x] `secret` taraması boş döndü — `scripts/kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi; on biri de koşuldu — `MT-SEC-175` … `181` (yedi case, on bir iddia); hepsinin otomatik karşılığı var ve koşuldu

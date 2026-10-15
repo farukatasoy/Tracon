@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz B — sıradaki aile: `13 · 19 · 04 · 18 · 10 · 08`) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `f721b229` donuk |
+| **Kod** | `37b13b23` donuk |
 | **Case sayısı** | 50 (MT-COMPAT-001..050) |
 | **Port** | 5081 |
 | **Depo** | `mt_s1` PostgreSQL şeması |
@@ -68,7 +68,7 @@ toplu olarak değerlendirmeyi düşün.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 19630654:docs/manuel-test/kosumlar/2026-09-16/08-OPENAI-UYUMLU-UCLAR.md
+> git show c10cf392:docs/manuel-test/kosumlar/2026-09-16/08-OPENAI-UYUMLU-UCLAR.md
 > ```
 
 ---

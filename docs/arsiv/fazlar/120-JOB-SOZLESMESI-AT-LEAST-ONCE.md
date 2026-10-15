@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 94e0b19:docs/arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md
+> git show e419255:docs/arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md
 > ```
 >
 > Damıtıldı 2026-08-27 · `scripts/dokuman-bakim.py faz-damit`
@@ -36,7 +36,7 @@
 - [x] `JobHandlerContract` var ve **üç yerleşik handler** tarafından türetiliyor
 - [x] En az bir **dış sample** (`PackageReference`, `ProjectReference` yok) contract'ı koşuyor — `Tracon.Samples.CustomJobHandler(.Tests)`
 - [x] `JobLeaseExpiryTests` dokümante edilen davranışın gerçekten var olduğunu **ölçüyor** (doküman runtime'dan güçlü garanti vermiyor)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 11df16c` yeşil (build, 3153 test, pack, format, docs-site dört alt kapısı)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban e151d44` yeşil (build, 3153 test, pack, format, docs-site dört alt kapısı)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. § *Gerçekleşen Public API* altındaki koşum notu
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/` içine eklendi — `MT-JOB-103`, `MT-JOB-104` (`16-IS-KUYRUGU-VE-ZAMANLAMA.md`)
@@ -67,7 +67,7 @@
 
 ## Denetim Bulguları
 
-Bağımsız denetim (taze bağlamlı agent, `11df16c` tabanına karşı) **🔴 bulgu üretmedi**. Üç 🟡 ve iki 🟢 bulgu:
+Bağımsız denetim (taze bağlamlı agent, `e151d44` tabanına karşı) **🔴 bulgu üretmedi**. Üç 🟡 ve iki 🟢 bulgu:
 
 | # | Seviye | Bulgu | Sonuç |
 |---|---|---|---|

@@ -1,7 +1,7 @@
 # Faz 124 — Yedeklemenin Tool Defteri
 
 > **Durum:** ✅ Tamamlandı (2026-08-31)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **K-1** (kusur kanalından faz kanalına geçti)
+> **Kaynak:** Tüketici turu (2026-08-31) · **K-1** (kusur kanalından faz kanalına geçti)
 > **Önkoşul:** [Faz 62](62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md) (yedek zinciri) ve [Faz 87](87-KESILEN-ISIN-DEVAMI.md) (kesinti devamı, `RecordedToolPlayback`) — ikisi de arşivde; yalnız aşağıdaki grep'lerle okunur
 > **Paketler:** `Tracon.Core` (`Models/FallbackChatClient.cs`, `Replay/RecordedToolPlayback.cs`)
 > **Yeni paket:** Yok · **Migration:** Yok — defter turun ömrü kadar yaşar, hiçbir yere yazılmaz
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show abf8a8a:docs/arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md
+> git show b7bba9f:docs/arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md
 > ```
 >
 > Damıtıldı 2026-08-31 · `scripts/dokuman-bakim.py faz-damit`
@@ -99,10 +99,10 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
      gösteriyordu). Düzeltme: baytı düz boşluk karakteriyle değiştirmek;
      davranış değişmedi (okuma ve yazma yolu zaten aynı ayırıcıyı
      kullanıyordu). Ders `docs/hafiza/build-ve-analyzer.md`'ye yazıldı.
-  2. `scripts/applied-migrations.json`'da HEAD'deki (`20c9732`) üç yeni
+  2. `scripts/applied-migrations.json`'da HEAD'deki (`890ce69`) üç yeni
      `session_version` migration dosyası için eksik `sourceCommits` girdileri
      — `scripts/kapi.py tarama` bunlar olmadan başarısız oluyordu. Girdiler o
-     dosyaların gerçek kaynak commit'ine (`20c9732`) eklendi.
+     dosyaların gerçek kaynak commit'ine (`890ce69`) eklendi.
 - **`docs/manuel-test/00-INDEKS.md`'deki dosya 27 case sayısı (14) gerçek
   sayıyla (bu fazdan önce bile 16'ydı) uyumsuzdu** — bu fazın MT-MYU-017'yi
   eklemesiyle sayı 17'ye çıktı; index satırı düzeltildi, "İlgili faz" sütununa

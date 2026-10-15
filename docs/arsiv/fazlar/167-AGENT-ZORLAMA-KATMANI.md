@@ -1,7 +1,7 @@
 # Faz 167 — Agent Zorlama Katmanı
 
 > **Durum:** ✅ Tamamlandı (2026-09-13)
-> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-227** (keşif: [`kesif/2026-09-13-sablon-karsilastirmasi.md`](../../kesif/2026-09-13-sablon-karsilastirmasi.md) § 9 H1 · H2, § 14)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-227**
 > **Önkoşul:** Yok — üç kalemlik geliştirme aparatı turunun **ilk** fazı (167 → 168 → 169)
 > **Paketler:** Yok. Bu faz `src/` altına **hiç dokunmaz**
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show e873ea35:docs/arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md
+> git show cb9987ac:docs/arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md
 > ```
 >
 > Damıtıldı 2026-09-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -241,7 +241,7 @@ yeniden koşuldu. Denetçi bu kez o komutların **hiçbirini** çalıştırmadı
 bunun yerine başka bir şey yaptı:
 
 ```bash
-pkill -f "kapi.py kapanis --taban 43a57138"
+pkill -f "kapi.py kapanis --taban 3b496015"
 ```
 
 Kapanış kapısının gerçekten tamamlanıp tamamlanmadığını "doğrulamak" isterken
@@ -347,7 +347,7 @@ doğrudan) · araç kümesinden düşen yazma aracı **3** (`Edit`, `Write`,
 ## Denetim Bulguları
 
 > `faz-denetim` skill'i, taze bağlamlı bir **`faz-denetcisi`** alt agent'ı ile
-> `git diff 43a57138..HEAD` üzerinde koştu — 🚨 **bu fazın kendi çıktısıyla**,
+> `git diff 3b496015..HEAD` üzerinde koştu — 🚨 **bu fazın kendi çıktısıyla**,
 > yani fazın ürettiği agent tipiyle. Denetçi kapı komutlarını (`kapi.py tarama`,
 > `dokuman-bakim.py --denetle`, `unittest`) **kendisi koştu** ve
 > `MT-GDK-027/028`'i sahte uzak adıyla bizzat reprodüktü.
@@ -359,7 +359,7 @@ doğrudan) · araç kümesinden düşen yazma aracı **3** (`Edit`, `Write`,
 | 1 | 🟡 | `kapi.py kapanis` tamamlanmış bir koşumla kanıtlanmamıştı; `artifacts/kapi-olcum.jsonl` iki girişimin de `dotnet build`'de kesildiğini gösteriyordu | **Kapandı.** Sebep Sapma 9'du (denetçinin `pkill`'i). Üçüncü koşum `nohup` ile ayrık başlatıldı ve kesintisiz bitti: **10/10 ✅** |
 | 2 | 🟡 | `samples/Tracon.Api` koşumunun çıktısı dokümanda yoktu (`grep "curl\|localhost:5081"` → 0 satır) | **Kapandı.** "Örnek Uygulama Koşumu" bölümü eklendi: gerçek `runId`, `status = Completed`, SSE akışı ve `fail:`/`crit:` sıfır |
 | 3 | 🟡 | "Dosya Listesi (gerçekleşen)" gerçek diff'ten dardı: `arsiv/KARARLAR-GECMISI.md` ve `manuel-test/31-DOKUMAN-DOGRULUGU.md` eksikti | **Kapandı.** İkisi de listeye eklendi; `31-*` satırı K-764'ün kökeni olduğu için ayrıca işaretlendi |
-| 4 | 🟡 | Karar defteri damıtması (commit `2a45e629`) `Plandan Sapmalar`'da anılmıyordu | **Kapandı.** Sapma 4b yazıldı: tetikleyici, taşınan bayt, eşiğin **yaşa değil uzunluğa** baktığı ve temiz ağaç gereksinimi |
+| 4 | 🟡 | Karar defteri damıtması (commit `a7143a74`) `Plandan Sapmalar`'da anılmıyordu | **Kapandı.** Sapma 4b yazıldı: tetikleyici, taşınan bayt, eşiğin **yaşa değil uzunluğa** baktığı ve temiz ağaç gereksinimi |
 | 5 | 🟢 | `artifacts/kapi-olcum.jsonl`'ı makine okunur bir "taban X için kapanış geçti" kanıtına çevirmek | Aday listesine; bu fazın kapsamı dışında |
 
 **Temiz çıkan başlıklar:** 3.2 (test tiyatrosu — üç yeni vaka gerçek iddia

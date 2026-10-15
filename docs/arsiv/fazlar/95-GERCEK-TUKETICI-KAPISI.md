@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 59e0b2e:docs/arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md
+> git show 6b953ee:docs/arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md
 > ```
 >
 > Damıtıldı 2026-08-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -94,7 +94,7 @@ test altyapısı ve doküman beyanı eklendi. `docs/KARARLAR.md`'ye yeni bir
 ## Denetim Bulguları
 
 `faz-denetim` skill'i taze bağlamlı bir agent ile koşuldu (git diff çalışma
-ağacına karşı, taban `a1bc6e85319ec442f975f59b4559933ceda1f545`).
+ağacına karşı, taban `200e78bfae1ea46eb0ea609ef5da63b694093a30`).
 
 - **🔴 yok.**
 - **🟡 1 — `packages.md`'nin yeni bölümü ölçülmeyen bir iddia taşıyordu**

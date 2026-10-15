@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9a7eb02:docs/arsiv/fazlar/119-HATA-METNI-SIZINTISI.md
+> git show ca0d7f3:docs/arsiv/fazlar/119-HATA-METNI-SIZINTISI.md
 > ```
 >
 > Damıtıldı 2026-08-27 · `scripts/dokuman-bakim.py faz-damit`
@@ -38,7 +38,7 @@ Ham `exception.Message` metni bugün **21 ayrı yoldan** kalıcı duruma veya d�
 - [x] Fırlatan sahte handler/exception ile: `jobs.error_message` ham metin taşımıyor, log tam detayı **aynı korelasyon kimliğiyle** taşıyor — `JobWorkerBackgroundServiceTests.A_throwing_handlers_own_message_never_reaches_jobs_error_message` (gerçek `InMemoryJobStore` + gerçek arka plan döngüsü + gerçek `ILoggerProvider` yakalayıcı, aynı `(ref: ...)` hem `jobs.error_message`'ta hem log kaydında bulundu)
 - [x] Webhook payload'ı dış uçta yakalandı; ham provider metni içermediği doğrulandı — `WebhookDeliveryRedactionTests` (gövde + `HttpRequestException` iki ayrı vaka, gerçek `WebhookHttpClient`/`HttpMessageHandler` boru hattı)
 - [x] `TraconException` mesajlarının korunduğu doğrulandı (aşırı düzeltme yok) — `SafeErrorTextTests.An_TraconException_own_message_is_preserved` + mevcut `RunRecordingAgentTests` (ör. `ProviderInvocationException` mesajı `"The model provider request failed."` aynen kalıyor)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 6e82c21` tamamı ✅ (bkz. Doğrulama komutları)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban a8bb191` tamamı ✅ (bkz. Doğrulama komutları)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. altta "Örnek uygulama koşumu"
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ temiz (ayrıca bu turda pre-existing bir migration-manifest kaydı boşluğu bulundu ve kapatıldı, bkz. Plandan Sapmalar)
 - [x] Manuel kabul case'leri `docs/manuel-test/` içine eklendi; otomatikleştirilebilenler koşuldu — `12-GOZLEMLENEBILIRLIK-MALIYET.md`'ye MT-OBS-054..058 eklendi; MT-OBS-058 gerçekten koşuldu (2026-08-27), 054-057 gerçek sağlayıcı anahtarı/webhook hedefi gerektirdiği için 👤 koşulmadı
@@ -82,12 +82,12 @@ curl -s http://localhost:5081/tracon/api/runs/<id> | jq '.error'
    durum kodu (`"HTTP {statusCode}"`) kalıcılaşıyor — Açık Soru #3'ün planlanan
    kararıydı, değişiklik yok.
 5. **Pre-existing, konuyla ilgili bir kusur bulundu ve kapatıldı:** faz öncesi
-   commit'te (`6e82c21`) eklenen üç `provider_name` case-fix migration'ı
+   commit'te (`a8bb191`) eklenen üç `provider_name` case-fix migration'ı
    (`0038_provider_name_case.sql` PostgreSQL, `0025_provider_name_case.sql`
    SQLite/SQL Server — K-639'un kapanışı) `scripts/applied-migrations.json`
    manifestine hiç kaydedilmemişti; bu, `kapi.py tarama`'yı (dolayısıyla dört
    kapının tamamını) kırıyordu. Migrasyonların içeriği doğruydu, yalnız manifest
-   kaydı eksikti — üçü de kendi ekleme commit'ine (`6e82c21`) sabitlenerek
+   kaydı eksikti — üçü de kendi ekleme commit'ine (`a8bb191`) sabitlenerek
    eklendi. Bu Faz 119'un kapsamı değil ama onu engelliyordu, bu yüzden bu
    turda kapatıldı.
 6. **Mevcut bir işlevsel test beklenen davranışı güncellemek zorunda kaldı:**
@@ -112,7 +112,7 @@ curl -s http://localhost:5081/tracon/api/runs/<id> | jq '.error'
 
 ## Denetim Bulguları
 
-`faz-denetim` taze bağlamlı bir agent ile koşuldu (taban `6e82c21`). Özet: 🔴
+`faz-denetim` taze bağlamlı bir agent ile koşuldu (taban `a8bb191`). Özet: 🔴
 yok, 4 🟡, 0 🟢. Tam çözüm derlendi, `RawExceptionTextSiteTests` yeşildi,
 `Tracon.Core.UnitTests` (2068/2068) ve `Tracon.AspNetCore.FunctionalTests`
 (691/691) tam koşumu geçti — regresyon yok.

@@ -22,7 +22,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 842cd28e:docs/arsiv/fazlar/203-COK-KONUSMACILI-DIYALOG-SENTEZI.md
+> git show a4ac889d:docs/arsiv/fazlar/203-COK-KONUSMACILI-DIYALOG-SENTEZI.md
 > ```
 >
 > Damıtıldı 2026-10-13 · `scripts/dokuman-bakim.py faz-damit`
@@ -39,7 +39,7 @@ Tracon'un ses sözleşmesi istek başına tek ses taşır. İki konuşmacılı b
 - [x] Sınır ve ayar ihlali ağdan önce `TraconException` (Sapma 4, K-955); ret değeri yankılamaz (test 3, 4) — `SpeechDialogueValidationTests` (11), `SpeechProviderSettingsTests` (23), `ModelProviderSettingsContract`
 - [x] Tek ses yolu `voice_settings` ve süreklilik alanlarını gönderir; mevcut istekler değişmez (test 5) — `ElevenLabsSpeechRequestTests` (5): ayarsız gövde birebir aynı
 - [x] Yetenek kaydı tüketicinin kaydını ezmez; yeteneksiz sentezleyici açık hata verir (test 10) — kayıt yok (Sapma 1); `VoiceDialogueRegistrationTests` (10), `SpeechDialogueTenantTests` (14)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9088e92e`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `c2592ccd` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 4edd857d`, üç faz (196, 202, 203) `main`'e birleştirildikten sonra `065adc5e` üzerinde tek koşum, çıkış 0; sevk edilen sözleşme değiştiği için `yayin --kuru --surum 1.0.0-preview.4` ilk koşumda çıkış 0 (§ *Kapanış kapısı ve yayın provası*)
 - [x] `samples/Tracon.Api` ile gerçek diyalog `run`'ı (case 1), çıktı belgeye yazıldı — § Doğrulama komutları; 👤 dinleme bakımcıya kalır
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: "✅ temiz (17 işaretli sentetik credential atlandı)"
 - [x] Manuel kabul case'leri `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-MM-132…137` (altısı koşuldu), `MT-PROV-032…034` güncellendi ve koşuldu
@@ -48,14 +48,14 @@ Tracon'un ses sözleşmesi istek başına tek ses taşır. İki konuşmacılı b
 
 ### Kapanış kapısı ve yayın provası (`main`, 2026-10-13)
 
-Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`bc3c7d11` → 203, `fac7fbd6` → 196, `c2592ccd` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın tabanı `9088e92e`'dir.
+Faz 196, 202 ve 203 ayrı worktree dallarında paralel geliştirildi ve `main`'e birleştirildi (`96786179` → 203, `8f9c8631` → 196, `065adc5e` → 202). Uygulama dalları `kapanis` ve `yayin` koşmadı (orkestratör kararı, makine paylaşılıyordu); ikisi birleşik `main`'de bir kez koştu. Fazın tabanı `4edd857d`'dir.
 
 | Kapı | Commit | Sonuç |
 |---|---|---|
-| `python3 scripts/kapi.py kapanis --taban 9088e92e` | `c2592ccd` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
-| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `c2592ccd` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
+| `python3 scripts/kapi.py kapanis --taban 4edd857d` | `065adc5e` | ✅ çıkış 0 — `tarama` · `--denetle` · script testleri · agent map · denetim paketi · `dotnet build` 89 sn · tam `dotnet test` 506 sn · `dotnet pack` · `dotnet format --verify-no-changes` 114 sn · `npm run check` (1078 sayfa, kırık bağlantı yok, SEO 0 hata). Performans kapısı tetiklenmedi: diff üç sıcak yola ve `bench/`'e dokunmaz |
+| `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` | `065adc5e` | ✅ ilk koşumda çıkış 0 — kırıcı liste 3 tip, 0 TFM düşüşü, 3 paket (hepsi `Unreleased` notunda) · 20 paket · npm dry-run · altı paketlenmiş örnek (`FileRunStore` 106, `CustomModelProvider` 38 + 1 atlandı, `CustomRunJudge` 11, `CustomAgentSource` 15, `CustomTool` 18, `CustomJobHandler` 10) · Native AOT smoke · net8.0 tüketici smoke |
 
-Önceki prova çıktısı (Faz 197/198, `dcc1a88f`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-dcc1a88f`.
+Önceki prova çıktısı (Faz 197/198, `b20eeb1b`) silinmedi: `artifacts/package/yayin/1.0.0-preview.4-onceki-b20eeb1b`.
 
 ### Doğrulama komutları
 
@@ -271,7 +271,7 @@ Kategori dışı yerel tercihler:
 ## Denetim Bulguları
 
 Bağımsız `faz-denetim` (2026-10-13): **🔴 yok, 3 × 🟡, 🟢 yok.** Üçü gerçek
-bulgu olarak kabul edildi ve kapandı (`4c8047a5` ve Aşama 2 doküman commit'leri).
+bulgu olarak kabul edildi ve kapandı (`05b255bd` ve Aşama 2 doküman commit'leri).
 
 | # | Bulgu | Triyaj | Sonuç |
 |---|---|---|---|

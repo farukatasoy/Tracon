@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show fd91a9e:docs/arsiv/fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md
+> git show 8d13c6e:docs/arsiv/fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`
@@ -37,7 +37,7 @@
 - [x] `RunStoreContract` ve `TenantIsolationContract` dört sağlayıcı koşumunda yeşildir — bellek içi 1970/1970, PostgreSQL 88/88, SQL Server 88/88, SQLite 88/88
 - [x] F-148 davranışı ve aday kaydı değişmeden kalır — `AppendEventAsync`'in doğrusal `Sequence` taraması karakter düzeyinde taşındı, dokunulmadı
 - [x] Public API dosyalarında fark yoktur — `PublicAPI.Shipped/Unshipped.txt` diff'i boş (tip zaten `internal`)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `scripts/kapi.py kapanis --taban 9dc53b9` yeşil
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `scripts/kapi.py kapanis --taban 6241f36` yeşil
 - [x] `samples/Tracon.Embedded` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. MT-CORE-106
 - [x] `secret` taraması boş döndü
 - [x] Manuel kabul case'leri ilgili ailelere eklendi ve otomatik olanlar koşuldu — MT-CORE-106 (`02-CEKIRDEK-VE-KATALOG.md`), MT-RET-044 (`23-SAKLAMA-ARSIV-KOTA.md`)
@@ -88,10 +88,10 @@ güvenlik/kiracı sınırı veya kalıcı veri kararı gerektiren bir seçim yap
 ## Denetim Bulguları
 
 Taze bağlamlı bir `general-purpose` agent `faz-denetim` skill'ini uyguladı
-(2026-08-26). Yöntem: `git diff 9dc53b9` satır satır okundu, orijinal dosyayla
+(2026-08-26). Yöntem: `git diff 6241f36` satır satır okundu, orijinal dosyayla
 karşılaştırıldı; bağımsız olarak `dotnet build`, `dotnet test
 Tracon.Core.UnitTests` (1970/1970) ve tam `scripts/kapi.py kapanis
---taban 9dc53b9 --site-atla` (tarama, dokuman-bakim, unittest, agent-map,
+--taban 6241f36 --site-atla` (tarama, dokuman-bakim, unittest, agent-map,
 denetim-paketi, build, tam test paketi, pack, `dotnet format` — hepsi ✅)
 koştu.
 

@@ -1,7 +1,7 @@
 # Faz 126 — Kalıcı Payload Sürüm Sözleşmesi
 
 > **Durum:** ✅ Tamamlandı (2026-09-01)
-> **Kaynak:** [kesif/2026-08-31-tuketici-raporu-faz-adaylari.md](../../kesif/2026-08-31-tuketici-raporu-faz-adaylari.md) · **T-5**
+> **Kaynak:** Tüketici turu (2026-08-31) · **T-5**
 > **Önkoşul:** [Faz 97](97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) (sürüm politikası ve yayın provası) — arşivde; yalnız grep'le okunur
 > **Paketler:** `Tracon.Abstractions` (`Sessions/`, `Workflows/`), `Tracon.Core`, `Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`, `Tracon.Sql.Shared`
 > **Yeni paket:** Yok · **Migration:** **Gerekli — üç set** (PostgreSQL + SqlServer + Sqlite). Numaralar uygulama anında alınır (K-178)
@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 4e0626f:docs/arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md
+> git show 486bf4b:docs/arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md
 > ```
 >
 > Damıtıldı 2026-09-01 · `scripts/dokuman-bakim.py faz-damit`
@@ -187,7 +187,7 @@ tarafında ise metadata sorgusu (`ListAsync`) yalnız BAŞARISIZLIK yolunda
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (taze bağlamlı ayrı agent), `git diff 9bbafe4...HEAD`'in
+Bağımsız denetçi (taze bağlamlı ayrı agent), `git diff 9359843...HEAD`'in
 tamamını ve ilgili testleri okudu; kendi ölçümü için 2278 test (Core +
 Workflows + SQL Server + SQLite) koştu. **🔴 bulgu yok.**
 

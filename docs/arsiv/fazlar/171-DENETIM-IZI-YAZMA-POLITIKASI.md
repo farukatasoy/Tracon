@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 41c4590e:docs/arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md
+> git show 373a045b:docs/arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md
 > ```
 >
 > Damıtıldı 2026-09-15 · `scripts/dokuman-bakim.py faz-damit`
@@ -93,7 +93,7 @@ tracon.audit.write_failures[tracon.audit.action=trigger.delete;tracon.audit.outc
 | Açık Soru §1 — sayaç fail-closed yolda da artsın mı? | **A (öneri)**: tek sayaç, `tracon.audit.outcome` etiketiyle `swallowed`/`refused` | Ölçüldü: canlı süreçte iki seri ayrı ayrı göründü (`agent.create`→`swallowed` rate 2, `trigger.delete`→`refused` rate 1). Tek sorgu "iz ne sıklıkla yazılamıyor", etiket "kaç işlem durdu" |
 | Açık Soru §2 — `DataSubjectEndpoints` taşınabilir mi? | **A: taşındı** | `IDataSubjectStore.EraseAsync`'in `beforeCommitAsync` geri çağrısı `Func<…, ValueTask>`'tir ve atınca her `DELETE` geri alınır — `WriteOrThrowAsync`'in şekliyle **birebir** oturur. Çağrı geri çağrının **içinden** yapıldı, dışından değil |
 | Açık Soru §3 — kaynak taraması mı, analyzer mı? | **A: kaynak taraması** | Emsal `AuditCoverageTests` de kaptan doğrular. Boş-küme tuzağına karşı tarama **500'den fazla dosya okuduğunu** ayrıca iddia eder |
-| 🚨 **Planın kanıt tablosu yanlıştı**: *"`SandboxedSkillScriptRunner` `LogError` yazmaz"* | Düzeltildi | Ölçüldü (`git show 33abea50:<dosya> \| grep -c LogError`): dört kopyanın **dördü de** `LogError` yazıyordu. Ayrışan yer `CanaryEvaluationService`'ti — o bir kopya değil, doğrudan çağrıydı ve `LogWarning` yazıp `return` ediyordu. Yanlış iddia alan hafızasına ve bir test yorumuna kadar taşınmıştı; üçü de düzeltildi |
+| 🚨 **Planın kanıt tablosu yanlıştı**: *"`SandboxedSkillScriptRunner` `LogError` yazmaz"* | Düzeltildi | Ölçüldü (`git show 43cb5156:<dosya> \| grep -c LogError`): dört kopyanın **dördü de** `LogError` yazıyordu. Ayrışan yer `CanaryEvaluationService`'ti — o bir kopya değil, doğrudan çağrıydı ve `LogWarning` yazıp `return` ediyordu. Yanlış iddia alan hafızasına ve bir test yorumuna kadar taşınmıştı; üçü de düzeltildi |
 | Planda yoktu: `AuditContentPolicyTests`'in deseni genişletildi | `\bAuditRecorder\.Write(?:OrThrow)?Async` | Desen yalnız `WriteAsync` arıyordu; beş dosya fail-closed yola geçince **izleme listesinden düştüler** ve testin ikinci yarısı (`Every_allowed_file_still_exists`) kırmızı döndü. Düzeltme listeden silmek değil, deseni genişletmektir: fail-closed yol da aynı `AuditEntry`'yi yazar, yani içerik politikası ona da uygulanır |
 | Planda yoktu: iki sevk edilen metin düzeltildi | `trigger.delete`'in reddi artık *"was not deleted"* (önce *"was not saved"*); `governance.md` satırı *"Saving or deleting an inbound trigger"* | Ortak kopya tek cümleyi hem upsert hem delete için kullanıyordu, site tablosu da yalnız kaydetmeyi sayıyordu. İkisi de **silmenin de fail-closed olduğunu** gizliyordu |
 | Planda yoktu: `PublicAPI.Unshipped.txt` **tamamen yeniden sıralandı** (457+/451−) | Bırakıldı | Taban dosya sıralı değildi; girişleri eklerken tamamı sıralandı. Küme farkı doğrulandı — `diff <(sort taban) <(sort yeni)` yalnız 6 yeni + 2 değişen gösterir, **kayıp yok**. Bir kerelik gürültü; bundan sonraki `git diff`'ler daha okunur |
@@ -152,7 +152,7 @@ koştu; `tracon_audit_log` üzerine `RAISE(ABORT)` yazan bir trigger kondu:
 
 ## Denetim Bulguları
 
-> Bağımsız denetçi (`faz-denetim`, taze bağlam) `33abea50` → çalışma ağacını yargıladı.
+> Bağımsız denetçi (`faz-denetim`, taze bağlam) `43cb5156` → çalışma ağacını yargıladı.
 > **1 🔴 · 5 🟡 · 3 🟢.** Hepsi kapandı.
 
 ### 🔴 1 — `approval.decision`'ın ikinci yolu yayımlanmış garantiyi yalanlıyordu
@@ -201,7 +201,7 @@ data: {"type":"TraconException","message":"The approval decision for tool 'cance
 | 2 | `DataSubjectEndpoints.cs:1` `using` sırası bozuk — repo'daki **tek** ihlal (1/~1500). DoD *"dört kapı sıfır uyarı"* diyordu ama `dotnet format` o dosyadan sonra koşulmamıştı | `dotnet format` ile düzeltildi; `--verify-no-changes` **temiz** |
 | 3 | `CanaryEvaluationService.cs:180` `var now` taşımadan kalan ölü satır (IDE0059 yalnız `suggestion`, kapılardan geçerdi) | Silindi |
 | 4 | `script.grant` / `script.revoke` için **hiçbir davranış testi yoktu** — ne yeni ne eski. Riskler tablosu ise *"`FailClosedAuditTests` her altı işlemi ayrı ayrı koşar"* diye **yanlış** iddia ediyordu | `AuditingSkillScriptGrantStoreTests` (3 test) eklendi. 🚨 Yükü taşıdığı ölçüldü: `GrantAsync`'in iki satırı yer değiştirildi → **üç mimari test de yeşil kaldı**, yalnız yeni davranış testi düştü. Riskler tablosundaki iddia gerçekle değiştirildi |
-| 5 | 🚨 **Kalıcı hafızaya yanlış bir olgu yazılmıştı**: *"dört kopyadan biri `LogError` yazmıyordu"*. Kaynağı planın kanıt tablosuydu; kopyalandı | `git show 33abea50:<dosya> \| grep -c LogError` → **dördü de 1**. İddia yanlış. Üç yerde düzeltildi: alan hafızası, faz dokümanı (iki yer), `AuditRecorderTests` yorumu. Ayrışan yer `CanaryEvaluationService`'ti (kopya değil, doğrudan çağrı) |
+| 5 | 🚨 **Kalıcı hafızaya yanlış bir olgu yazılmıştı**: *"dört kopyadan biri `LogError` yazmıyordu"*. Kaynağı planın kanıt tablosuydu; kopyalandı | `git show 43cb5156:<dosya> \| grep -c LogError` → **dördü de 1**. İddia yanlış. Üç yerde düzeltildi: alan hafızası, faz dokümanı (iki yer), `AuditRecorderTests` yorumu. Ayrışan yer `CanaryEvaluationService`'ti (kopya değil, doğrudan çağrı) |
 | 6 | Plandan sapma yazılmamış: boş `refusal` planda *"genel cümle"*, kodda `ArgumentException` | *Plandan Sapmalar*'a satır eklendi |
 
 ### 🟢 Aday / kozmetik

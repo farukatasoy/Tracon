@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9c32242:docs/arsiv/fazlar/76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md
+> git show f272e70:docs/arsiv/fazlar/76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

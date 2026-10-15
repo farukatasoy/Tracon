@@ -3,7 +3,7 @@
 > **Üretilir, elle yazılmaz.** Kaynak:
 > `python3 scripts/manuel-test-tazelik.py --taban <commit>`.
 >
-> **Taban:** `12fb6477` · **Ölçülen:** `e6d91cf4` · **Araya giren commit:** 631
+> **Taban:** `12fb6477` · **Ölçülen:** `7f85c5fc` · **Araya giren commit:** 631
 
 ## 1. Kovalar
 

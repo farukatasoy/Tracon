@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 8e061fe3:docs/arsiv/fazlar/188-DI-KURUCU-DARALTMA.md
+> git show fa60002f:docs/arsiv/fazlar/188-DI-KURUCU-DARALTMA.md
 > ```
 >
 > Damıtıldı 2026-09-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -41,7 +41,7 @@
 - [x] `FakeModelProviderTests` DI ile; `git grep -n "new ModelProviderRegistry(" -- tests/Tracon.Testing.UnitTests` boş; `Tracon.Testing.UnitTests`'e IVT eklenmedi; test ham istemciyle bir kez kırmızı gösterildi — `AddLogging()` gerekmedi
 - [x] `public-yuzey-envanteri.py --denetle` → çıkış 0; 19 adayın yargıç + şüpheci sonucu "Gerçekleşen Public API"de; `PublicSurfaceBaselineTests` tip tabanı yenilendi — 654 tip, kanıtsız 0; Core 79, Abstractions 404
 - [x] §2 tüketici yüzeyi grep'i boş; `MT-TEST-027` yeni koduyla paketlenmiş `Tracon.Testing`'e karşı koşuldu — çıktı `Sonuc: hazirlaniyor (ORD-7)` (`1.0.0-preview.2.61`)
-- [x] `CHANGELOG.md` `Removed`: 15 tip + dalgada internal olan her tip, tam adla + geçiş örneği; `kapi.py yayin --kuru` temiz ağaçta (commit izni veya scratch worktree) çıkış 0, Faz 187 kapısı dahil — commit `c10d0032`: `✅ Kırıcı liste: 119 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda`
+- [x] `CHANGELOG.md` `Removed`: 15 tip + dalgada internal olan her tip, tam adla + geçiş örneği; `kapi.py yayin --kuru` temiz ağaçta (commit izni veya scratch worktree) çıkış 0, Faz 187 kapısı dahil — commit `e27f8b34`: `✅ Kırıcı liste: 119 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda`
 - [x] 188.6'daki üç karar kaydı `docs/KARARLAR.md`'de; `aspnetcore-di.md` ve `analyzer-tanilari.md` güncel — K-866 + K-614/K-850 notları
 - [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>` (tahsis kapısı `RunEventWriter.cs` ve `bench/` yüzünden tetiklenir ve yeşildir) — sonuç: "Kapanış Kapısı" bölümü
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — komut ve beklenen çıktı: Doğrulama komutları §6; ortam: `docs/hafiza/elle-kosum-ortami.md` — "Örnek Uygulama Koşumu"
@@ -122,7 +122,7 @@ yazılmadı).
 
 ## Plandan Sapmalar
 
-Ölçüm 2026-09-24, taban `926096d4`. Adım 0: `bb9953e3..HEAD` üç commit bu
+Ölçüm 2026-09-24, taban `34a723cf`. Adım 0: `3c18b5a8..HEAD` üç commit bu
 dosyalara dokunmuştu; DoD §1 yine **482 / 19** verdi, 15 satırlık tablo
 değişmedi.
 
@@ -206,7 +206,7 @@ Gövde kullanımları mevcut IVT'lerle çözüldü; tip başına tablo tam metin
 
 ## Denetim Bulguları
 
-`faz-denetcisi`, 2026-09-24, kapsam `926096d4...c10d0032` + çalışma ağacı.
+`faz-denetcisi`, 2026-09-24, kapsam `34a723cf...e27f8b34` + çalışma ağacı.
 **🔴 yok.** Temiz başlıklar: 3.1–3.7; 3.8 kod/test tarafında temiz.
 
 | # | Bulgu | Seviye | Triyaj | Sonuç |
@@ -257,8 +257,8 @@ ve `ITraconBuilder`.
 
 ## Kapanış Kapısı
 
-`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 926096d4`, commit'li ağaç
-`80a60a46`, 2026-09-24 → **EXIT 0, 963 sn**:
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 34a723cf`, commit'li ağaç
+`6d098778`, 2026-09-24 → **EXIT 0, 963 sn**:
 
 | Adım | Süre | Sonuç |
 |---|---|---|

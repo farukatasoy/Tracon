@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 3e986c3d:docs/arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md
+> git show 65fb82e1:docs/arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md
 > ```
 >
 > Damıtıldı 2026-09-16 · `scripts/dokuman-bakim.py faz-damit`
@@ -39,7 +39,7 @@ Bir tüketici `UpsertAsync(score, alreadyCancelledToken)` çağırdığında ne 
 - [x] Dört koşum yeşil (denetim düzeltmelerinden **sonra** yeniden koşuldu): bellek içi **2805** · PostgreSQL **888** (1 ⏭, faz öncesinden) · SQL Server **806** · SQLite **825**. Koşum başına iptal + kapı case'i ölçüldü: SQL **97**, bellek içi **91**
 - [x] Eşleme ölçüldü: 32 sözleşme = 28 `TenantIsolationContract` türevi + 4 doğrudan türev. Karşılıksız sözleşme **çıkmadı**; iki bellek içi muafiyet zaten `StoreContractCoverageTests.Exemptions` içinde belgeliydi (sapma 6)
 - [x] `PublicAPI.Shipped.txt` ölçüldü: on yedi pakette de **17 bayt** (`#nullable enable`) — boş. "Bugün ucuz" iddiası doğrulandı (K-603)
-- [x] `python3 scripts/kapi.py kapanis --taban 9816bc46` yeşil
+- [x] `python3 scripts/kapi.py kapanis --taban 70c7b5d7` yeşil
 
   🚨 İlk koşum `ObjectToolAotPackageTests`'te düştü ve bu **koda ait değildi**:
   hata `System.IO.IOException: ... Tracon.Abstractions.pdb ... being used by

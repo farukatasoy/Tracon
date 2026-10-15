@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show c90f78e:docs/arsiv/fazlar/117-MCP-TASKS-UZANTISI.md
+> git show fce9f0b:docs/arsiv/fazlar/117-MCP-TASKS-UZANTISI.md
 > ```
 >
 > Damıtıldı 2026-08-27 · `scripts/dokuman-bakim.py faz-damit`
@@ -44,7 +44,7 @@ Tracon'i MCP sunucusu olarak tüketen bir ekip, uzun süren bir agent çağrıs�
 - [x] `dotnet list package --include-transitive` net yeni geçişli paket **0** gösteriyor — ölçüldü, aşağıdaki komut çıktısı
 - [x] `Tracon.Mcp` uzantı paketini **görmüyor** (K-057 korunuyor); `DependencyDirectionTests` yeşil
 - [x] İki örnekli kurulumda task ikinci örnekten okunuyor — **Sapma:** plan bunu 👤 elle koşulacak bir case sayıyordu; `McpTaskCrossInstanceTests` iki gerçek `TraconTestHost`'u AYNI SQLite dosyasına bağlayarak otomatikleştirdi — ikinci host'un `RunBackedMcpTaskStore`'u ilkinin cache'ini hiç görmez, bu yüzden `McpTaskStatusMapping`'in yeniden-inşa yolunu da GERÇEKTEN test eder (`faz-denetim`'in 🔴#3 bulgusu)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 2ca326e`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban a9d2a07`
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — § "Gerçek sunucu koşumu"
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/18-MCP-VE-A2A.md` içine eklendi; otomatikleştirilebilenler koşuldu

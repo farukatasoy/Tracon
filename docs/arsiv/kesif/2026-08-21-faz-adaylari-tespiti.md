@@ -18,7 +18,7 @@
 
 **Tetikleyen:** Kullanıcı — "faza dönüştürülmesi gereken fikirleri tespit & analiz et".
 **Zemin:** Faz 78 kapalı · aday dosyasında 31 seçilmemiş kalem · en büyük numara F-137.
-**Taban:** `e45278d` (phase 78).
+**Taban:** `85a0087` (phase 78).
 **Ekosistem taraması:** 2026-08-20 turu (bir gün önce) devralındı; MAF/MEAI/MCP
 yüzeyi orada tarandı. Rakip ürün iddiaları (LiteLLM · Portkey · Langfuse) önceki
 turların **kendi tarih damgalarıyla** taşındı, bu turda yeniden doğrulanmadı.

@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show c968fa74:docs/arsiv/fazlar/199-FONKSIYON-DUGUMU-MALIYETI.md
+> git show 60c7d2b0:docs/arsiv/fazlar/199-FONKSIYON-DUGUMU-MALIYETI.md
 > ```
 >
 > Damıtıldı 2026-10-14 · `scripts/dokuman-bakim.py faz-damit`
@@ -37,7 +37,7 @@ Fonksiyon düğümü harcamasını bildiremez: TTS karakteri, GPU ve render sani
 - [x] Kökün token dışı toplamı ve ağaç toplamı dört depoda aynıdır (test 8) — `NonTokenUsageContract` dört depoda + `RunStoreContract` 6 yeni case; PostgreSQL, SQL Server, SQLite ve bellek içi koşumları 0 başarısız
 - [x] Kota, bütçe ve iki webhook tutarı `RunSpend.Total` ile sayar (test 6) — `NonTokenSpendTests` (9), `NonTokenSpendAgentTreeTests` (3), `WorkflowTreeSpendTests` (7)
 - [x] Konsol tool satırında ve düğüm panelinde aynı ölçüm satırını gösterir (test 15) — `run-detail.test.tsx` 8/8 geçti (2026-10-14)
-- [x] Dört doğrulama kapısı sıfır uyarı — `kapi.py kapanis --taban d926c508` 2026-10-14 koşumunda çıkış 0; derleme `0 Warning(s)`, `0 Error(s)`. İlk üç koşum kırmızıydı; nedenleri Denetim Bulguları ve Süreç Ölçümü'nde
+- [x] Dört doğrulama kapısı sıfır uyarı — `kapi.py kapanis --taban ad18785c` 2026-10-14 koşumunda çıkış 0; derleme `0 Warning(s)`, `0 Error(s)`. İlk üç koşum kırmızıydı; nedenleri Denetim Bulguları ve Süreç Ölçümü'nde
 - [x] `samples/Tracon.Api` ile gerçek `run` (`speak` düğümü kalem raporlar; `curl .../runs/<id>/usage`), çıktı belgeye yazıldı — § Örnek Uygulama Koşumu
 - [x] `secret` taraması boş döndü — `kapi.py tarama` temiz (17 işaretli sentetik credential atlandı, gerçek bulgu yok)
 - [x] Manuel kabul case'leri `12-GOZLEMLENEBILIRLIK-MALIYET.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-OBS-070…075 eklendi (index satırı 75); otomatik karşılıkları kapanış koşumunda geçti. 👤 MT-OBS-071'in el koşumu Devir Notu'nda
@@ -60,7 +60,7 @@ Fonksiyon düğümü harcamasını bildiremez: TTS karakteri, GPU ve render sani
 | 6 | Planda yok | Yeni sözleşme sınıfı `NonTokenUsageContract` (dört depoda bağlı) + `RunStoreContract`/`ToolInvocationContract`'a case'ler; `TenantCoverageTests` (SQL Server) iki üye aldı | Sevk edilen sözleşme yüzeyi büyüdü (`Tracon.Testing.Contracts.Xunit`, +1 tip) |
 | 7 | Planda yok | `ToolInvocationTracker.DrainUnfinished` bildirilmiş ölçümü kapanan kayda taşır | İptal anında "bildirdi ama bitmedi" tool'un harcaması kayıtta kaybolurdu |
 | 8 | §Dosya Listesi: `Tracon.Core/Recording/TraconRunContext`, `RunEventWriter`… | `NonTokenUsageReporter` (Core, `internal`) eklendi: doğrula → topla → yaz tek yerde | `ReportUsageAsync` Workflows'ta, mantık Core'da; üç paket aynı gövdeyi paylaşır |
-| 9 | §Kanıt tablosu satır numaraları (`99fe0b13`) | Kod K-913 (F-383) ile değişmişti: agent kökü ağacı `ReadTreeConsumptionAsync` ile okuyor | Para birimi ve çocuk payı hesabı `RunSpend` üstüne yeniden kuruldu (`RunRecordingAgent.Notifications.cs`) |
+| 9 | §Kanıt tablosu satır numaraları (`1afa3685`) | Kod K-913 (F-383) ile değişmişti: agent kökü ağacı `ReadTreeConsumptionAsync` ile okuyor | Para birimi ve çocuk payı hesabı `RunSpend` üstüne yeniden kuruldu (`RunRecordingAgent.Notifications.cs`) |
 | 10 | Manuel case alanı `12-…` bütçesi | 2026-08-10 inceleme turu notu `arsiv/manuel-test-kosum-2026-09/`'a taşındı (F-441 deseni) | Dizin bütçesi 396 B boştu |
 | 11 | `bench/baseline.json` | `QueryRuns` 45.456 → 47.104 B (+1.648 B / 50 satır) güncellendi | `RunRecord`'a iki, okuyucuya sekiz sütun eklendi; sahibi bu faz |
 | 12 | Planda yok | `WorkflowTreeSpend` (Workflows, `internal`): workflow'un kota girdisi ve `run.completed` webhook'u, satırın kendi snapshot'ı mağazada **yoksa** düğümlerin bellekteki toplamını ağaç toplamına ekler | Kalem yazımı düşünce yazıcı kapanır, satırın snapshot'ı mağazaya hiç gitmez; workflow ağaç toplamını mağazadan okuduğu için kotası tam düğümlerin harcadığı kadar eksik kalıyordu (agent yolu kendi payını bellekten sayar). Ayrı test: `NodeUsageStoreFailureTests` (önce kırmızı, düzeltmeyle yeşil) + `WorkflowTreeSpendTests` (7) · `AgentRunBudgetCostTests` (+3: taşmada tavan açılmaz). Sağlıklı run'da satır snapshot'ı tuttuğu için çift sayılmaz |
@@ -97,7 +97,7 @@ Başlangıçta bulunan ortam tuzağı: örnek uygulama bakımcının user-secret
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 — onay tek turda (2026-10-13, Açık Sorular 1–6 = A). Plandan sapma 13 satır, hepsi gerekçeli |
-| Düzeltme turu sayısı | 2 — uygulama sırasında kota açığı (`c48c4220`; kırmızı test önce yazıldı). Denetim sonrası tur (`2c36dbfe`, `562287f5`, `dd5a8501`) |
+| Düzeltme turu sayısı | 2 — uygulama sırasında kota açığı (`dce4a76d`; kırmızı test önce yazıldı). Denetim sonrası tur (`412404de`, `6806ee40`, `fe0754b5`) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | Denetçi: 2 gerçek (yüzey tabanı, örnek mağaza). Kapanış kapısının bir koşumunda 5 farklı test düştü, hepsi gerçek eksik güncelleme (yüzey tabanı denetçinin 🔴 1'iyle aynı, ayrı sayılmadı). Başka bir koşumda 1 gürültü (`JobWorkerLeaseContractTests`, yük altında 30 sn; izolasyonda geçti, sonraki koşumda da geçti). Araştırılacak: 1 (`HarnessDefaultsTests` cwd; tekrarlanmadı, F-483) |
 | Fazın ürettiği regresyon | Davranış: 0 — koşum 4'te 38 test koşumunun hiçbiri başarısız değil. Kapı katmanı: `QueryRuns` +1.648 B (kasıtlı, taban güncellendi). Kapanıştan önce yakalanan: 1 derleme kırığı (örnek mağaza; kapanış kapısı görmez, denetçi buldu, yayın provası sonra geçti) |
 | Faz kapandıktan sonra bulunan kusur | Henüz ölçülmedi — kapanıştan sonra izlenir |

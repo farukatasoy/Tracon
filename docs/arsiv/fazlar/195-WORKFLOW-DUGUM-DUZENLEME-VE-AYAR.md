@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show d4583d22:docs/arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md
+> git show e6933dfa:docs/arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md
 > ```
 >
 > Damıtıldı 2026-10-12 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Bir operatör bugün fonksiyon düğümlü bir workflow'u konsoldan kuramaz ve d
 - [x] Son fonksiyon silinince `agentNames`, ilk fonksiyon eklenince `nodes` (test 13) — ✅ `workflow-editor.test.tsx`; örnek uygulamada `agentNames: ["support"]`, `version: 2`
 - [x] `GET /api/workflows/functions` `settingsSchema` taşır; uç açıklaması koda uyar — ✅ `WorkflowFunctionCatalogSchemaTests`
 - [x] Ayarsız + ayarlı düğüm aynı listede `GET /api/workflows`'u çökertmez (test 5) — ✅ `WorkflowFunctionSettingsTests`
-- [x] Dört doğrulama kapısı sıfır uyarı verir — ✅ `python3 scripts/kapi.py kapanis --taban b1a771fe`: 11/11 adım yeşil (bkz. *Kapanış kapıları*)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — ✅ `python3 scripts/kapi.py kapanis --taban 98f66633`: 11/11 adım yeşil (bkz. *Kapanış kapıları*)
 - [x] `samples/Tracon.Api` ile gerçek `run` (konsoldan kurulan ayarlı zincir) — ✅ bkz. *Örnek Uygulama Koşumu*
 - [x] `secret` taraması boş; site ve XML "anahtar adı yazılır, anahtar yazılmaz" kuralını yazar — ✅ `kapi.py tarama`; site, XML, `<example>`
 - [x] Manuel kabul case'leri eklendi, otomatikleştirilebilenler koşuldu — ✅ `MT-WF-132…137` (+`120`); `132`–`135` ve `137` örnek uygulamada koşuldu
@@ -105,7 +105,7 @@ Site **yayınlanmadı** (`./scripts/site-deploy.sh`, Adım 10 dışarıya dönü
 
 ## Örnek Uygulama Koşumu
 
-`samples/Tracon.Api`, Echo sağlayıcıyla (anahtarsız), `ASPNETCORE_ENVIRONMENT=Production` (bellek içi) ve `127.0.0.1:5199` üzerinde, `842d126a` ile birleşmiş kodla koştu. Çıktılar gerçektir.
+`samples/Tracon.Api`, Echo sağlayıcıyla (anahtarsız), `ASPNETCORE_ENVIRONMENT=Production` (bellek içi) ve `127.0.0.1:5199` üzerinde, `658165f2` ile birleşmiş kodla koştu. Çıktılar gerçektir.
 
 | Komut | Çıktı |
 |---|---|
@@ -123,7 +123,7 @@ Varsayılan dışı yapılandırma: `Tracon__Workflows__MaxNodeSettingsLength=64
 
 ### Kapanış kapıları ve yayın provası
 
-`python3 scripts/kapi.py kapanis --taban b1a771fe` (denetim düzeltmelerinden **sonra**, `faa68345` üzerinde, ilk koşumda): **11/11 adım yeşil**, çıkış 0.
+`python3 scripts/kapi.py kapanis --taban 98f66633` (denetim düzeltmelerinden **sonra**, `22bff734` üzerinde, ilk koşumda): **11/11 adım yeşil**, çıkış 0.
 
 | Adım | Süre |
 |---|---|
@@ -148,23 +148,23 @@ Başlıca test sayıları (net10.0): Core.UnitTests 3552 · AspNetCore.Functiona
 
 ## Denetim Bulguları
 
-Denetçi `faz-denetcisi` (taze bağlam, salt-okunur), aralık `b1a771fe..HEAD`; `842d126a` yalnız F-341 etkileşimi için okundu. Denetçi derleme, test ve kapı koşturmadı. Triyaj Adım 5.1: **🔴'ların sonucunu kullanıcı seçti**; her bulgu kodda elle doğrulandı.
+Denetçi `faz-denetcisi` (taze bağlam, salt-okunur), aralık `98f66633..HEAD`; `658165f2` yalnız F-341 etkileşimi için okundu. Denetçi derleme, test ve kapı koşturmadı. Triyaj Adım 5.1: **🔴'ların sonucunu kullanıcı seçti**; her bulgu kodda elle doğrulandı.
 
 | # | Sv. | Bulgu | Triyaj | Sonuç |
 |---|---|---|---|---|
-| 1 | 🔴 | Hata bandındaki **Retry** Save'in korumasını aşar; geçersiz JSON `settings: null` olur, PUT tam değiştirdiği için kayıtlı ayar silinir (§195.5, K-725) | **Gerçek** (kullanıcı) | **Düzeltildi** (`98fa3105`): Retry, Save gibi tutulur; `chainBody` geçersiz metinde fırlatır. Testler: editörde "holds Retry back, like Save…" (400 → bozuk metin → Retry yok, PUT yok → JSON → `null` değil), `workflow-steps.test.ts`. Mutasyon denetimi: koruma kalkınca ikisi de düşer |
+| 1 | 🔴 | Hata bandındaki **Retry** Save'in korumasını aşar; geçersiz JSON `settings: null` olur, PUT tam değiştirdiği için kayıtlı ayar silinir (§195.5, K-725) | **Gerçek** (kullanıcı) | **Düzeltildi** (`c94da095`): Retry, Save gibi tutulur; `chainBody` geçersiz metinde fırlatır. Testler: editörde "holds Retry back, like Save…" (400 → bozuk metin → Retry yok, PUT yok → JSON → `null` değil), `workflow-steps.test.ts`. Mutasyon denetimi: koruma kalkınca ikisi de düşer |
 | 2 | 🔴 | Taban çizgisi büyüdü: `Tracon.Workflows` 6 → 7 (`WorkflowFunctionOptions`) | **Gürültü — gerekçeli ret** (kullanıcı) | Opsiyonel parametreli aşırı yükleme RS0026 ile derlenmedi; opsiyonel parametre `1.0.0`'da donar; `AddTool` emsali; karar K-902; Faz 194 de 5 → 6 yaptı. Taban 7'de kalır |
-| 3 | 🟡 | Liste `nodes` biçimini okumaz: konsolun yazdığı fonksiyonlu zincir `—` görünür | Gerçek | **Düzeltildi** (`98fa3105`): `participantsOf`, sütun **Participants**, `workflows.test.tsx`, ekran görüntüleri |
-| 4 | 🟡 | Konsol ayarı JS `Number`'ına çevirir; 2^53 − 1'i aşan tamsayı yuvarlanır | Gerçek (sınır) | **Gerekçelendi** (`8e161a34`): XML ve site "`string` bildirin" der; kayıpsız taşıma **devredildi**, F-414 |
-| 5 | 🟡 | `MaxNodeSettingsLength < 1` doğrulaması testsiz | Gerçek | **Düzeltildi** (`a7f5f72e`): `WorkflowNodeSettingsLimitValidationTests` (4) |
+| 3 | 🟡 | Liste `nodes` biçimini okumaz: konsolun yazdığı fonksiyonlu zincir `—` görünür | Gerçek | **Düzeltildi** (`c94da095`): `participantsOf`, sütun **Participants**, `workflows.test.tsx`, ekran görüntüleri |
+| 4 | 🟡 | Konsol ayarı JS `Number`'ına çevirir; 2^53 − 1'i aşan tamsayı yuvarlanır | Gerçek (sınır) | **Gerekçelendi** (`990f3d28`): XML ve site "`string` bildirin" der; kayıpsız taşıma **devredildi**, F-414 |
+| 5 | 🟡 | `MaxNodeSettingsLength < 1` doğrulaması testsiz | Gerçek | **Düzeltildi** (`6565e507`): `WorkflowNodeSettingsLimitValidationTests` (4) |
 | 6 | 🟡 | DoD 9: konsoldan kurulan zincir sample'da koşulmadı | Gerçek | **Düzeltildi:** konsolda kuruldu, koşuldu, `agentNames`'e dönüldü (*Örnek Uygulama Koşumu*; `MT-WF-132`, `134`) |
 | 7 | 🟢 | Tüketici `JsonConverter`'ının `JsonException` mesajı `400`'e ve `runs.error`'a girer | Gerçek, dar | **Devredildi:** F-415 |
-| 8 | 🟢 | Uyarı ölçülenden geniş (sıra, desen, silme ölçülmemişti) | Gerçek | **Düzeltildi** (`a7f5f72e`): beş ölçüm; uyarı her desende doğrudur (#8) |
-| 9 | 🟢 | 16 KiB'nin dayanağı yok; `ValidateSettings` XML'i boyut reddini anmıyor | Gerçek | **Düzeltildi** (`8e161a34`); dayanak tavan mantığı (#17) |
-| 10 | 🟢 | CHANGELOG iki yeni sözleşme vakasını anmıyor | Gerçek | **Düzeltildi** (`8e161a34`) |
-| 11 | 🟢 | `configure` aşırı yüklemesinde `<example>` yok | Gerçek | **Düzeltildi** (`8e161a34`) |
-| 12 | 🟢 | Retry testi "SAME object" der, `record` eşitliğiyle sayar | Gerçek | **Düzeltildi** (`a7f5f72e`): `ReferenceEquals` |
-| 13 | 🟢 | `99fe0b13` ilgisiz iki arşiv raporu taşıyor | Hijyen | **Dokunulmadı:** kullanıcının 2026-10-12 kararlarını taşırlar |
+| 8 | 🟢 | Uyarı ölçülenden geniş (sıra, desen, silme ölçülmemişti) | Gerçek | **Düzeltildi** (`6565e507`): beş ölçüm; uyarı her desende doğrudur (#8) |
+| 9 | 🟢 | 16 KiB'nin dayanağı yok; `ValidateSettings` XML'i boyut reddini anmıyor | Gerçek | **Düzeltildi** (`990f3d28`); dayanak tavan mantığı (#17) |
+| 10 | 🟢 | CHANGELOG iki yeni sözleşme vakasını anmıyor | Gerçek | **Düzeltildi** (`990f3d28`) |
+| 11 | 🟢 | `configure` aşırı yüklemesinde `<example>` yok | Gerçek | **Düzeltildi** (`990f3d28`) |
+| 12 | 🟢 | Retry testi "SAME object" der, `record` eşitliğiyle sayar | Gerçek | **Düzeltildi** (`6565e507`): `ReferenceEquals` |
+| 13 | 🟢 | `1afa3685` ilgisiz iki arşiv raporu taşıyor | Hijyen | **Dokunulmadı:** kullanıcının 2026-10-12 kararlarını taşırlar |
 
 Denetçi "bilinen sapmaları" yargıladı (K-902 biçimi, Açık Sorular, `{"type":"object"}` yedeği, setter → `400`, tabanlar, iptal iddiası): **sağlam**. Hata Modları 1–19'un karşılığı vardır.
 
@@ -172,7 +172,7 @@ Denetçi "bilinen sapmaları" yargıladı (K-902 biçimi, Açık Sorular, `{"typ
 
 ## Faz Dışı Bulunan ve Kapatılan Kusur
 
-`GetRunParameters` `<example>`'ı (`TraconWorkflowContextExtensions.cs`, Faz 194) `string` girdili fonksiyon gösteriyordu; F-341'den (K-908) sonra böyle zincir kayıtta `400` verir. `List<ChatMessage>` yapıldı (`cf9e07bf`); `ExampleCompilationTests` 81/81. El yazısı kaynaklarda başka `string` girdili örnek yok (`grep -rn "AddWorkflowFunction<string" src samples docs-site/src/content`, `api/` hariç).
+`GetRunParameters` `<example>`'ı (`TraconWorkflowContextExtensions.cs`, Faz 194) `string` girdili fonksiyon gösteriyordu; F-341'den (K-908) sonra böyle zincir kayıtta `400` verir. `List<ChatMessage>` yapıldı (`6bfcb291`); `ExampleCompilationTests` 81/81. El yazısı kaynaklarda başka `string` girdili örnek yok (`grep -rn "AddWorkflowFunction<string" src samples docs-site/src/content`, `api/` hariç).
 
 ## Sonraki Faza Devir Notu
 

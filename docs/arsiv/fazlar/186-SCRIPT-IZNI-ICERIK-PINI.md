@@ -3,7 +3,7 @@
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-269**
-> **Önkoşul:** [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) — sonraki sürüm (K-852…K-854 güvenlik sürümü) 185'i bekler; 186 ondan sonra başlar (kullanıcı kararı). K-853 `bb9953e3`'tedir. **Anahtar basma açığı kapandı** (kusur-giderme, 2026-09-23; K-853 genişletildi, yeni K açılmadı); bu faz yalnız sonucunu doğrular (§ 186.0).
+> **Önkoşul:** [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) — sonraki sürüm (K-852…K-854 güvenlik sürümü) 185'i bekler; 186 ondan sonra başlar (kullanıcı kararı). K-853 `3c18b5a8`'tedir. **Anahtar basma açığı kapandı** (kusur-giderme, 2026-09-23; K-853 genişletildi, yeni K açılmadı); bu faz yalnız sonucunu doğrular (§ 186.0).
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`, `.UI`; üretilen `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** gerekli — numara uygulama anında alınır (üç sağlayıcı, K-178)
 > **Public API:** büyüyor; bir imza değişiyor. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, 17 satır, yalnız `#nullable enable` (K-603). Davranış da kırıcıdır (Karar 3).
@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 0aa5c2c2:docs/arsiv/fazlar/186-SCRIPT-IZNI-ICERIK-PINI.md
+> git show f688e964:docs/arsiv/fazlar/186-SCRIPT-IZNI-ICERIK-PINI.md
 > ```
 >
 > Damıtıldı 2026-09-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -42,7 +42,7 @@ Script grant'ı bugün bir **ada** verilir, bir **koda** değil. `SecurityAdmin`
 - [x] Kod/stored ad çakışması Açık Soru 1 A'yı verir (#26): kod skill'i pinlenir ve kazanır; gölgelenen kopyanın hash'i `409` — ayrıca kod adı artık yazılamaz (K-863)
 - [x] Hash'siz grant stored script'i reddeder, file script'i çalıştırır — `SandboxedSkillScriptRunnerTests`; örnek uygulamada faz öncesi grant (MT-SKILL-069)
 - [x] Yeni sözleşme testleri dört koşumda yeşil — bellek içi 23, PostgreSQL/SqlServer/Sqlite 20'şer
-- [x] Üç migration uygulanır ve `07c787d9`'a ankrajlıdır (`kapi.py tarama` temiz); faz öncesi satır `ContentHash = null` okunur — `SkillScriptGrantContentHashMigrationTests` ×3
+- [x] Üç migration uygulanır ve `825f1bb1`'a ankrajlıdır (`kapi.py tarama` temiz); faz öncesi satır `ContentHash = null` okunur — `SkillScriptGrantContentHashMigrationTests` ×3
 - [x] Karar 6: "Script execution gates" beş dosyada 1/1/1/1/2; `### R8` satır 224; `threat-model.md` "Accepted risks" R8'i taşır
 - [x] `npm run build` sonrası yasak sandbox ifadesi taraması boş (`SECURITY.md`, `docs/MIMARI-TEHDIT-MODELI.md`, `docs-site/src/content/docs`, `llms-full.txt`)
 - [x] `check-content.mjs` üç yeni kontrolü taşır; her biri bir kez kırmızı gösterildi ("Süreç Ölçümü" § Kırmızı → yeşil); `check-content.mjs` temiz; `dokuman-bakim.py --denetle` → 0
@@ -101,7 +101,7 @@ grant "{\"skillName\":\"scriptli-skill\",\"scriptName\":\"merhaba\",\"expectedCo
    `Hashes_and_origin_sent_with_a_skill_are_ignored` sunucunun gönderilen hash'i ve
    `origin`'i yok saydığını kanıtlar (konsol `GET` → `PUT` ile tam bunu gönderir).
    Pre-1.0'da geri dönüşü ucuzdur; kullanıcıya kapanış raporunda bildirildi.
-2. **Migration'lar ayrı commit'e alındı (`07c787d9`).** Ankraj kuralı
+2. **Migration'lar ayrı commit'e alındı (`825f1bb1`).** Ankraj kuralı
    (`sql-migration.md`) dosyayı içeren commit'i ister; uygulama commit'i en sonda
    atılacağı için üç `.sql` önce commit'lendi ve `scripts/applied-migrations.json`
    ona ankrajlandı. Böylece `kapi.py tarama` faz boyunca yeşil kaldı.
@@ -279,7 +279,7 @@ edilen grant satırları SQL'de kalır — tasarım gereği).
 
 ## Kapanış Kapısı
 
-`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban d6153fe1`, commit
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 97c329b9`, commit
 öncesi çalışma ağacı (kod bu hâliyle commit edildi; sonraki arşivleme ve damıtma
 yalnız dokümandır), 2026-09-24 → **EXIT 0, ~703 sn**:
 
@@ -297,7 +297,7 @@ Performans kapısı tetiklenmedi (üç sıcak yol değişmedi). İlk kapanış d
 adımında durdu (Sapma 16: locator tabanı, `<example>` derlemesi, `ConfirmationTests`
 yarışı); o sırada denetçi de koşuyordu — denetçiye `dotnet`/`npm` koşturulmadı.
 
-**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `dcb7207f`, 2026-09-24) — sevk
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `2c615501`, 2026-09-24) — sevk
 edilen `SkillScriptGrantContract`'a case eklendiği için zorunlu → **EXIT 0**: 20 paket
 `1.0.0-preview.2.51` · `npm publish --dry-run` ✅ · `provider/source/generated-tool AOT
 host smoke passed` · `net8.0 consumer smoke passed on .NET 8.0.31` · `6 exact-version

@@ -33,7 +33,7 @@
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show e06f6577:docs/manuel-test/kosumlar/2026-09-16/23-SAKLAMA-ARSIV-KOTA.md
+> git show 90b3851d:docs/manuel-test/kosumlar/2026-09-16/23-SAKLAMA-ARSIV-KOTA.md
 > ```
 
 ---

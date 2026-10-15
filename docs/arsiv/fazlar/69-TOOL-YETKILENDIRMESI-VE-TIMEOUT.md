@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9c32242:docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md
+> git show f272e70:docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md
 > ```
 >
 > Damıtıldı 2026-08-23 · `scripts/dokuman-bakim.py faz-damit`

@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 4b227a7f:docs/arsiv/fazlar/180-MANUEL-SET-DEVIR-SABLONU.md
+> git show 772190b6:docs/arsiv/fazlar/180-MANUEL-SET-DEVIR-SABLONU.md
 > ```
 >
 > Damıtıldı 2026-09-22 · `scripts/dokuman-bakim.py faz-damit`

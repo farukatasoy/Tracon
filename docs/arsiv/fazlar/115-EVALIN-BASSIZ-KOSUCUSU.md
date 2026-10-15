@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 3f7dc97:docs/arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md
+> git show a3654bd:docs/arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md
 > ```
 >
 > Damıtıldı 2026-08-27 · `scripts/dokuman-bakim.py faz-damit`

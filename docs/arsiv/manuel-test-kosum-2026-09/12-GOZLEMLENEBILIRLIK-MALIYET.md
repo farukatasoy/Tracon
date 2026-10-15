@@ -17,7 +17,7 @@
 |---|---|
 | **Şerit** | `ap-s2` (Faz B) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s2` · dal `test/kosum-s2` |
-| **Kod** | `7e3a4de7` donuk |
+| **Kod** | `a51a8496` donuk |
 | **Case sayısı** | 65 (MT-OBS-001..065) |
 | **Port** | `5082` · şema `mt_s2` |
 | **Depo** | PostgreSQL (`mt_s2`) |
@@ -77,7 +77,7 @@ kapsamı dışı).
 
 **Oturum 2 (2026-09-17) — DEVIR.md bayattı, gerçek durum bu dosyadaydı.**
 Üst düzey `kosumlar/2026-09-16/DEVIR.md` bu ailenin "henüz açılmadı" olduğunu
-söylüyordu; commit `07a654c6` (Oturum 1) zaten 001-025'i işlemişti. Sıradaki
+söylüyordu; commit `56690d77` (Oturum 1) zaten 001-025'i işlemişti. Sıradaki
 oturum bu farkı bilmeli — **DEVIR.md güncellenmeden** bırakıldı, kapanışta
 düzeltilmeli. Uygulama önceki oturumdan beri **yeniden başlatılmış** (PID
 `4008` → şimdi `29561`) ve MT-OBS-003'ün `gpt-5.4-mini` fiyat env değişkenleri
@@ -113,7 +113,7 @@ filtresiz çalıştırılmamalı.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 45cfed58:docs/manuel-test/kosumlar/2026-09-16/12-GOZLEMLENEBILIRLIK-MALIYET.md
+> git show 4f218d55:docs/manuel-test/kosumlar/2026-09-16/12-GOZLEMLENEBILIRLIK-MALIYET.md
 > ```
 
 ---

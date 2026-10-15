@@ -9,7 +9,7 @@
 |---|---|
 | **Şerit** | `ap-s4` (Faz B, beşinci aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s4` · dal `test/kosum-s4` |
-| **Kod** | `7e3a4de7` donuk (`git diff --stat 7e3a4de7..HEAD -- src samples tests` boş, oturum başında VE sonunda) |
+| **Kod** | `a51a8496` donuk (`git diff --stat a51a8496..HEAD -- src samples tests` boş, oturum başında VE sonunda) |
 | **Case sayısı** | 57 (MT-UI-001..057) |
 | **Port** | 5084 (ana), geçici ikinci süreç 5094 (yalnız MT-UI-004/005/008, işi bitince durduruldu) |
 | **Tarayıcı** | Chrome (Playwright) — Safari case'i (042) fiziksel eylem, gerçek Safari gerektirir |
@@ -63,7 +63,7 @@ sınıyor (bu turda henüz koşulmadı, ayrı aile).
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show bd25ab0f:docs/manuel-test/kosumlar/2026-09-16/09-ARAYUZ-GENEL.md
+> git show 6b1a80f3:docs/manuel-test/kosumlar/2026-09-16/09-ARAYUZ-GENEL.md
 > ```
 
 ---

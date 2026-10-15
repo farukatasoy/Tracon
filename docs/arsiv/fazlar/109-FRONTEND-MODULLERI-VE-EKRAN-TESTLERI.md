@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 1c68c9a:docs/arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md
+> git show 9171c70:docs/arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`

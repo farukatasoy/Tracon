@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 0e38c382:docs/arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md
+> git show f5b9d71c:docs/arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md
 > ```
 >
 > Damıtıldı 2026-09-08 · `scripts/dokuman-bakim.py faz-damit`
@@ -169,7 +169,7 @@ Kapı `--site-gerekce-yazildi` ile geçildi; bu bölüm o gerekçenin kaydıdır
 
 ## Denetim Bulguları
 
-Bağımsız denetçi (taze bağlam, yalnız DoD + `git diff 9539b670`) koştu.
+Bağımsız denetçi (taze bağlam, yalnız DoD + `git diff fbf3b691`) koştu.
 **Bir 🔴, altı 🟡, üç 🟢.** Hepsi kapandı veya devredildi.
 
 | # | Sev. | Bulgu | Sonuç |

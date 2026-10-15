@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s4` (Faz B, ilk aile) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s4` · dal `test/kosum-s4` |
-| **Kod** | `7e3a4de7` donuk (doğrulandı: `git diff --stat 7e3a4de7..HEAD -- src samples tests` boş) |
+| **Kod** | `a51a8496` donuk (doğrulandı: `git diff --stat a51a8496..HEAD -- src samples tests` boş) |
 | **Case sayısı** | 35 (MT-DDG-001..035) |
 | **Port** | 5084 (bu aile ağırlıkla build/pack/docs-site çıktısı denetler, uygulama nadiren gerekir) |
 | **Şema** | `mt_s4` — bu ailede kullanılmadı |
@@ -90,7 +90,7 @@ da kalıcı açık kalem olarak `00-INDEKS.md`'ye yazılınca) sıradaki aile `1
 06`).
 
 **Bozuk ön koşul bırakılan:** Yok — kod ağacı (`src`/`samples`/`tests`)
-`7e3a4de7`'ye göre birebir donuk (`git diff --stat` boş, her mutasyondan
+`a51a8496`'ye göre birebir donuk (`git diff --stat` boş, her mutasyondan
 sonra doğrulandı), `docs-site/public/dist` ve `docfx/api-md` bu oturumda
 üretilen ama gitignore'lı türetilmiş çıktılar (temiz bırakılabilir, kalıcı
 kirlilik değil). `~/tracon-local-feed`, `docfx` dotnet tool'ları ve
@@ -110,7 +110,7 @@ etkilemeyen Orta önemli bir bulgu.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show fca6f3a1:docs/manuel-test/kosumlar/2026-09-16/31-DOKUMAN-DOGRULUGU.md
+> git show 1a811d3d:docs/manuel-test/kosumlar/2026-09-16/31-DOKUMAN-DOGRULUGU.md
 > ```
 
 ---
@@ -194,7 +194,7 @@ değil, özellikle "iç geliştirme kaydı göndergesi (`phase NN`) enjekte etme
 deseniyle eşleşiyor gibi görünüyor (sınıflandırıcı bunu muhtemelen bir
 güvenlik/doküman-testini atlatma girişimi olarak okuyor). Hiçbir dosyaya
 gerçekten yazılmadı — her iki deneme de araç seviyesinde reddedildi, disk
-değişmedi (`git status --short` boş, `git diff --stat 7e3a4de7..HEAD -- src
+değişmedi (`git status --short` boş, `git diff --stat a51a8496..HEAD -- src
 samples tests` boş, doğrulandı). Baseline dosyası bu case için hiç
 dokunulmadı.
 
@@ -307,7 +307,7 @@ koşumda **ikinci, ilgisiz bir test** de düştü —
 ("TRC0013 is defined but never reported"). Bu, benim scaffold'umun eksikliği
 — gerçek bir kod kusuru değil, not düşüldü. Mutasyon (`ToolDiagnostics.cs` +
 `AnalyzerReleases.Unshipped.md`) geri alındı, `Tracon.Generators` yeniden
-derlendi (Build succeeded, 0/0). `git diff --stat 7e3a4de7..HEAD -- src
+derlendi (Build succeeded, 0/0). `git diff --stat a51a8496..HEAD -- src
 samples tests` boş, doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
@@ -351,7 +351,7 @@ Düzeltme: `@"APG\d{4}"` → `@"TRC\d{4}"`. Kural 1 gereği düzeltilmedi, kayda
 geçirildi.
 
 Mutasyon geri alındı (`git diff --stat -- docs-site/src/content/docs/troubleshooting.md`
-boş, doğrulandı); `git diff --stat 7e3a4de7..HEAD -- src samples tests` boş.
+boş, doğrulandı); `git diff --stat a51a8496..HEAD -- src samples tests` boş.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
@@ -401,7 +401,7 @@ düşme, ayrı bir kusur değil. Toplam: `Failed: 2, Passed: 217, Total: 219`.
 **Geri yükleme:** `git checkout -- src` ile **tek komutta** tüm 50 dosya
 geri yüklendi (elle yeniden yazma yok). Doğrulama: `git status --short src`
 → boş, `grep -rc "<example>" src` → **73** (tam eski hâline döndü),
-`git diff --stat 7e3a4de7..HEAD -- src samples tests` → **boş**.
+`git diff --stat a51a8496..HEAD -- src samples tests` → **boş**.
 `dotnet build tests/Tracon.Generators.UnitTests -c Release` geri yükleme
 sonrası temiz koştu (`Build succeeded, 0 Warning(s), 0 Error(s)`).
 

@@ -20,7 +20,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 8f2412f9:docs/arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md
+> git show c63bd59a:docs/arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md
 > ```
 >
 > Damıtıldı 2026-09-15 · `scripts/dokuman-bakim.py faz-damit`
@@ -41,8 +41,8 @@ Faz 166 kapasite sayılarını ölçtü ve yayımladı. Denetimi **beş 🔴 bul
 - [x] Sayfadaki **19 tablo satırının tamamı** işaret taşır; işaretsiz satır **ve işaretsiz tablo** bulgu üretir
 - [x] Sayfadaki iki commit damgası da manifest'le eşleştiği doğrulandı — **iki yönde** (sayfanın andığı damga saklı olmalı, saklı koşum sayfada anılmalı)
 - [x] Kapı hiçbir dosyayı değiştirmez — `the gate changes no file` testi ağacı bayt bayt karşılaştırır
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban f4cfb9d0`, on adımın onu da ✅
-- [x] ~~`samples/Tracon.Api` ile gerçek `run`~~ — **muaf.** Bu faz çalışma anı kodu içermiyor: `git diff f4cfb9d0 --stat -- src/ tests/ samples/` boş. Çalıştırılacak yeni davranış yok; kapının kendisi `node scripts/check-content.mjs` ile gerçekten koşuldu
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 667e559d`, on adımın onu da ✅
+- [x] ~~`samples/Tracon.Api` ile gerçek `run`~~ — **muaf.** Bu faz çalışma anı kodu içermiyor: `git diff 667e559d --stat -- src/ tests/ samples/` boş. Çalıştırılacak yeni davranış yok; kapının kendisi `node scripts/check-content.mjs` ile gerçekten koşuldu
 - [x] `secret` taraması boş döndü — `kapi.py tarama` ✅ (3,71 sn)
 - [x] Manuel kabul case'leri `docs/manuel-test/33-DOKUMAN-KAPILARI.md` içine eklendi (`MT-DKP-017…021`); beşinin beşi de koşuldu
 - [x] `faz-denetim` koşuldu; **2 🔴 + 6 🟡** bulgu üretti, hepsi kapandı — bkz. *Denetim Bulguları*

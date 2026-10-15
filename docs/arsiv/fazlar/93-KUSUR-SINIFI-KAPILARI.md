@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 9915df5:docs/arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md
+> git show eceaa8c:docs/arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md
 > ```
 >
 > Damıtıldı 2026-08-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Bu faz, **üç kez veya daha fazla tekrarlamış** iki kusur sınıfını yazıd
 - [x] `AmbientWriteSiteTests` **11** benzersiz `<yol>:<metot>` yerini taban çizgisiyle eşleştirir (14 = ham grep satır sayısı, çoklu-yazım-tek-metot durumları dedup edildi — bkz. "Plandan Sapmalar"); elle eklenen yeni yer testi düşürür (manuel case 6, gerçekten koşuldu)
 - [x] `PlaywrightLocatorTests` bugünkü sayıyı (`tests/Tracon.Ui.E2ETests/UiTests.cs` → 128) dondurur; elle eklenen riskli locator testi düşürür (manuel case 7, gerçekten koşuldu)
 - [x] İki taban çizgisi dosyasının tazeleme ortam değişkeni belgelendi ve **koşularak** doğrulandı (`TRACON_AMBIENT_WRITE_REFRESH=1`, `TRACON_PLAYWRIGHT_LOCATOR_REFRESH=1`)
-- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 7d1f43c`, 2026-08-24, tüm 10 alt komut ✅)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`python3 scripts/kapi.py kapanis --taban 1a47eac`, 2026-08-24, tüm 10 alt komut ✅)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. "Plandan Sapmalar"
 - [x] `secret` taraması boş döndü (`kapi.py tarama` → "Tarama: ✅ temiz")
 - [x] Manuel kabul case'leri `docs/manuel-test/29-AGENT-DESTEGI.md` (MT-AGD-021) ve `36-GELISTIRME-KAPILARI.md` (MT-GDK-014–016) içine eklendi; otomatikleştirilebilenlerin tamamı gerçekten koşuldu
@@ -184,7 +184,7 @@ seviyesi), 3.5 (imza-gövde kayması), 3.6 (plan dışı public API), 3.7 (repo
 kuralları — secret/İngilizce/XML doküman/`ConfigureAwait`), 3.8 (ürün yüzeyi).
 
 Denetim sonrası dört doğrulama kapısı **yeniden koşuldu**:
-`python3 scripts/kapi.py kapanis --taban 7d1f43c` → tüm 10 alt komut ✅
+`python3 scripts/kapi.py kapanis --taban 1a47eac` → tüm 10 alt komut ✅
 (2026-08-24, dördüncü koşum — üçüncü koşum iki kararsız testle kırmızı oldu,
 bkz. "Kararsız test keşfi" altında).
 
@@ -194,7 +194,7 @@ bkz. "Kararsız test keşfi" altında).
 `AspNetCore.FunctionalTests.ToolGovernanceEndpointTests.Timed_out_call_...`
 ve `Ui.E2ETests.UiTests.Shell_opens_and_asks_for_token_when_required`. İkisi
 de Faz 93'ün dokunduğu koddan tamamen bağımsız. Doğrulandı:
-- `ToolGovernanceEndpointTests` testi **baz commit'te (`7d1f43c`, Faz 93
+- `ToolGovernanceEndpointTests` testi **baz commit'te (`1a47eac`, Faz 93
   öncesi) izole `git worktree`'de** de aynı `ObjectDisposedException`'ı verdi
   — `JobWorkerBackgroundService.RunJobAsync:148`'de host teardown'ı ile
   yarışan **önceden var olan** bir kusur, Faz 93 sebep olmadı.

@@ -21,7 +21,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 967f410c:docs/arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md
+> git show 464374bd:docs/arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md
 > ```
 >
 > Damıtıldı 2026-09-24 · `scripts/dokuman-bakim.py faz-damit`
@@ -60,7 +60,7 @@ hepsi **(kullanıcı kararı, 2026-09-23)**'dir ve tartışmaya açık değildir
 - [x] `grep -n "not shipped yet" src/Directory.Build.props` → boş — ✅ boş
 - [x] `dotnet msbuild src/Tracon.Client/Tracon.Client.csproj -getProperty:EnableStrictModeForCompatibleTfms` → `true`; `StrictModeIsOnForEveryLibraryPackage` 17 pakette yeşil — ✅ `true`; 17 pakette yeşil
 - [x] `grep -n '\*ChatClientFactory\|\*ModelCatalog' CHANGELOG.md` → boş; sekiz ad code span olarak geçer — ✅ boş
-- [x] `python3 scripts/kapi.py yayin --kuru` temiz ağaçta çıkış 0; çıktı taban, "17 paket" ve `breaking-changes.json` yolunu yazar; ardından `git status --porcelain` ve `find src -name CompatibilitySuppressions.xml` boş; koşum süresi yazıldı — ✅ `f8f85052`, çıkış 0, 112,5 sn (MT-PKG-135)
+- [x] `python3 scripts/kapi.py yayin --kuru` temiz ağaçta çıkış 0; çıktı taban, "17 paket" ve `breaking-changes.json` yolunu yazar; ardından `git status --porcelain` ve `find src -name CompatibilitySuppressions.xml` boş; koşum süresi yazıldı — ✅ `40a1af00`, çıkış 0, 112,5 sn (MT-PKG-135)
 - [x] Bilerek kırmızı koşum (Manuel 2): çıkış 1, eksik ad paketiyle, release dizinine yeni dosya yok — ✅ MT-PKG-136
 - [x] `python3 -m unittest discover -s scripts -p '*_test.py'` yeşil; her Birim satırının testi var — ✅ 539 test
 - [x] `python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif "*PackageBaselineWiring*"` yeşil — ✅ 9/9 (denetim düzeltmesinden sonra 79,6 sn)
@@ -94,7 +94,7 @@ curl -s -N -X POST http://127.0.0.1:5199/tracon/api/agents/support/run \
 
 ---
 
-## Ölçüm Sonuçları (187.0) (2026-09-24, HEAD `fa34f7ed`, SDK 10.0.100, macOS)
+## Ölçüm Sonuçları (187.0) (2026-09-24, HEAD `35da6216`, SDK 10.0.100, macOS)
 
 1. **Taban:** `v1.0.0-preview.2` (güvenlik sürümü kesilmedi).
 2. **Strict mode:** `dotnet pack Tracon.src.slnf` + iki strict özelliği → `EXIT=0`, 64 sn, sıfır
@@ -204,7 +204,7 @@ kırmızı yoktu) · AS 5 = A (restore hatası kırmızı, mesaj yayını tamaml
 `event: update` ×5 · `event: done` ×1; `GET /tracon/api/runs/01a0d261-c5e1-7f7e-b6ca-f8067431e719`
 → `Completed`. Faz çalışma anı koduna dokunmadı; koşum regresyon kontrolüdür.
 
-**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `f8f85052`, 2026-09-24) → **EXIT 0,
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `40a1af00`, 2026-09-24) → **EXIT 0,
 112,5 sn**: `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten: 17
 paket, kaynak api.nuget.org` · `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi
 'Unreleased' notunda` · 20 paket `1.0.0-preview.2.53` · npm dry-run ✅ · AOT smoke ✅ ·
@@ -238,7 +238,7 @@ MT-PKG-135…141, 143, 144 koşuldu (sonuçlar case'lerde); 142 ➜ CI.
 > (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
 > Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
 
-Denetçi: `faz-denetcisi` (salt-okunur alt agent), taban `fa34f7ed` → çalışma ağacı,
+Denetçi: `faz-denetcisi` (salt-okunur alt agent), taban `35da6216` → çalışma ağacı,
 2026-09-24. **🔴 yok** (triyaj gerekmedi).
 
 | # | Bulgu | Seviye | Sonuç |
@@ -302,8 +302,8 @@ doğrulama" ve `hafiza/yayin-ve-surumleme.md` "Sürüm kesimi ve etiket TEK push
 
 ## Kapanış Kapısı
 
-`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban fa34f7ed`, commit'li ağaç
-`50b50444`, 2026-09-24 → **EXIT 0, 810 sn**:
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 35da6216`, commit'li ağaç
+`4f4c5d04`, 2026-09-24 → **EXIT 0, 810 sn**:
 
 | Adım | Süre | Sonuç |
 |---|---|---|

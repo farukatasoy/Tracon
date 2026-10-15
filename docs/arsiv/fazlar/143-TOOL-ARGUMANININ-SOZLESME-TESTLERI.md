@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 15f1f734:docs/arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md
+> git show da5cdbc7:docs/arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md
 > ```
 >
 > Damıtıldı 2026-09-04 · `scripts/dokuman-bakim.py faz-damit`

@@ -988,7 +988,7 @@ notu (2026-08-19, 7 `ReasoningDelta` kaydedilmiş) bu turda ASLA tekrar
 ### Yeniden koşum — 2026-09-18 (Aile F kapanışı)
 
 **Gerçek sonuç — ✅ GEÇTİ; kusur YENİDEN ÜRETİLEMEDİ.** Kod tur boyunca donuk
-kaldı ve bu yol A–E ailelerinde hiç değişmedi (`git diff 7e3a4de7..HEAD --
+kaldı ve bu yol A–E ailelerinde hiç değişmedi (`git diff a51a8496..HEAD --
 src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs`: `Reasoning`
 dalına dokunulmadı). Aynı `claude-thinking` agent'ıyla, gerçek Anthropic
 anahtarıyla:
@@ -1140,7 +1140,7 @@ kusuru DEĞİL): satır `reasoning.delta`'nın mor (`--ap-violet`),
 `rgb(115, 217, 194)` olduğunu gösterdi; kaynak bunun **bilinçli** olduğunu
 yazıyor (`run-detail.tsx:90-92`: `ReasoningDelta` ve `MessageDelta` ikisi de
 `tone: 'accent'`, çünkü ikisi de "model üretirken"dir). `--ap-*` değişkenleri
-zaten ürün adı değişiminde (`630f3212`) kalkmıştı. İki satır **etiket adıyla**
+zaten ürün adı değişiminde (`025803d5`) kalkmıştı. İki satır **etiket adıyla**
 ayrılıyor ve zaman çizelgesinde ayrı ayrı okunuyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı

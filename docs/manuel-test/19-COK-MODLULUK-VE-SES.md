@@ -26,7 +26,7 @@
 > [`../arsiv/manuel-test-kosum-2026-09/19-COK-MODLULUK-VE-SES.md`](../arsiv/manuel-test-kosum-2026-09/19-COK-MODLULUK-VE-SES.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
-> tam metin: git show 64c8a103:docs/manuel-test/kosumlar/2026-08-13/19-COK-MODLULUK-VE-SES.md
+> tam metin: git show aa9c0a7f:docs/manuel-test/kosumlar/2026-08-13/19-COK-MODLULUK-VE-SES.md
 
 ---
 

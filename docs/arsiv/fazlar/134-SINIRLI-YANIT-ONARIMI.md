@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 854d4e4:docs/arsiv/fazlar/134-SINIRLI-YANIT-ONARIMI.md
+> git show 8ea81d0:docs/arsiv/fazlar/134-SINIRLI-YANIT-ONARIMI.md
 > ```
 >
 > Damıtıldı 2026-09-02 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ Faz 131 geçersiz yapısal yanıtı **yakalıyor** ama tek yapabildiği `run`'ı
 - [x] Akışlı yolda onarım açılmaz (case 6) — `Streaming_never_repairs_even_when_MaxRepairAttempts_is_positive`
 - [x] Onarım mesajları oturuma yazılmaz — `Repair_messages_are_not_written_to_the_callers_own_session` (repair turu `session: null` ile çağrılır; ORİJİNAL turun kendi reddedilen yanıtı yine de oturuma yazılır, bu Faz 131'in değişmeyen davranışıdır — bkz. Plandan Sapmalar)
 - [x] Onarım hakkı tükenince `run` `StructuredResponseInvalid` ile biter — **yeni hata sınıfı eklenmedi** — `Repair_attempts_are_capped_then_the_run_fails_exactly_like_an_unrepaired_rejection`; `RunErrorClass.cs` diff'i yeni üye eklemediğini gösterir
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban f510c94` tamamı ✅ (tarama, doküman denetimi, script birim testleri, agent-map, denetim-paketi, `dotnet build`, `dotnet test` (735+2282+… tüm projeler, 0 başarısız), `dotnet pack`, `dotnet format --verify-no-changes`, `docs-site` `npm run check`)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban b0565df` tamamı ✅ (tarama, doküman denetimi, script birim testleri, agent-map, denetim-paketi, `dotnet build`, `dotnet test` (735+2282+… tüm projeler, 0 başarısız), `dotnet pack`, `dotnet format --verify-no-changes`, `docs-site` `npm run check`)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md` §11 başlığındaki "Gerçek sonuç" bloğu (2026-09-02, `order-summary` agent'ı, `MaxRepairAttempts: 2` açıkken geçerli-ilk-denemeli gerçek bir `gpt-5.4-mini` çağrısı — sıfır sürpriz kanıtı)
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` ✅
 - [x] Manuel kabul case'leri `docs/manuel-test/22-GUARDRAIL-VE-YAPISAL-CIKTI.md` içine eklendi; otomatikleştirilebilenler koşuldu — MT-GUARD-100..106, hepsinin otomatik karşılığı koşuldu (106 hariç, 👤 gerekir)

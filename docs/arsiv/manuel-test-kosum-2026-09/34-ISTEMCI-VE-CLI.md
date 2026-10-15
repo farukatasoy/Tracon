@@ -56,7 +56,7 @@ var (bu şeridin dağılımı: `32 · 29 · 34 · 21 · 11 · 25 · 17 · 20`).
 |---|---|
 | **Şerit** | `ap-s3` (Faz B, üçüncü aile — bu şeridin dağılımı: 32 · 29 · **34** · 21 · 11 · 25 · 17 · 20) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s3` · dal `test/kosum-s3` |
-| **Kod** | `7e3a4de7` donuk — `git diff --stat 7e3a4de7..HEAD -- src samples tests` boş, doğrulandı (adım 2). `ap-s3` HEAD `cc9895d2` |
+| **Kod** | `a51a8496` donuk — `git diff --stat a51a8496..HEAD -- src samples tests` boş, doğrulandı (adım 2). `ap-s3` HEAD `a197ffc8` |
 | **Case sayısı** | 46 (MT-CLI-001..046) |
 | **Port** | 5083 (`mt_s3`) — health/eval/state-check case'leri için `samples/Tracon.Api` bu portta koşuldu. MT-CLI-009 istisna: özel `MapTracon("control")` öneki gerçek uygulamada test edilemediği için (`samples/Tracon.Api`/`Tracon.Embedded` ikisi de `/tracon`'u sabit yazıyor, kod donuk) `/tmp` altında paketlenmiş bir tüketici host'u port `5094`'te açıldı, case sonunda kapatıldı |
 | **Depo** | PostgreSQL `mt_s3` — case 34 başında düşürüldü, uygulama migration'ları yeniden uyguladı (51 migration), sağlıklı |
@@ -112,7 +112,7 @@ var (bu şeridin dağılımı: `32 · 29 · 34 · 21 · 11 · 25 · 17 · 20`).
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 89f44ab3:docs/manuel-test/kosumlar/2026-09-16/34-ISTEMCI-VE-CLI.md
+> git show 2841b02a:docs/manuel-test/kosumlar/2026-09-16/34-ISTEMCI-VE-CLI.md
 > ```
 
 ---

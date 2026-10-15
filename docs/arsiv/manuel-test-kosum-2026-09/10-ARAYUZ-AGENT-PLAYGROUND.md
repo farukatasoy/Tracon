@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz B — sıradaki aile: `13 · 19 · 04 · 18 · 10 · 08`, `08` sonrası tek kalan aile `10`) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `19630654` donuk |
+| **Kod** | `c10cf392` donuk |
 | **Case sayısı** | 58 (MT-UIAG-001..058) |
 | **Port** | 5081 |
 | **Depo** | `mt_s1` PostgreSQL şeması |
@@ -92,7 +92,7 @@ onay davranışını test etmek isterse bu kuralı hesaba katmalı ya da
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show fca6f3a1:docs/manuel-test/kosumlar/2026-09-16/10-ARAYUZ-AGENT-PLAYGROUND.md
+> git show 1a811d3d:docs/manuel-test/kosumlar/2026-09-16/10-ARAYUZ-AGENT-PLAYGROUND.md
 > ```
 
 ---

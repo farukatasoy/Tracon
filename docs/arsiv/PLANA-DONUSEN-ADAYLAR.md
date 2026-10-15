@@ -25,8 +25,7 @@
 ## 2026-08-18 — Tüketici raporu turu (F-110…F-119)
 
 On kalem, harici bir tüketici projesinin uygulanabilirlik raporundan doğdu ve
-aynı gün altı faza dönüştü. Turun tam kaydı:
-[`kesif/2026-08-18-tuketici-raporu.md`](kesif/2026-08-18-tuketici-raporu.md).
+aynı gün altı faza dönüştü.
 
 | Kalem | Faz |
 |---|---|
@@ -406,8 +405,7 @@ Faz 65'in kapsamına katılmadıkça planlanmamalıdır.
 > 🚨 **Aynı gün ikinci bir tur koştu — tüketici raporu turu.** Kaynağı bu depo
 > değildi: gerçek bir tüketici projesi `docs-site/`'ın 91 sayfasını tarayıp bir
 > uygulanabilirlik raporu üretti; rapor ölçüldü ve **on yeni kalem** doğdu
-> (F-110…F-119). Turun tamamı:
-> [`kesif/2026-08-18-tuketici-raporu.md`](kesif/2026-08-18-tuketici-raporu.md).
+> (F-110…F-119).
 >
 > 🚨 **Onu da aynı gün plana dönüştü** — altı yeni faz (67–72) ve F-119'un
 > [Faz 65](fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md)'e katılması. Açık kalem sayısı
@@ -992,7 +990,7 @@ kendi oturumudur.
 ### F-150 · `JobWorkerBackgroundService` kapanışta dispose edilmiş `SemaphoreSlim`'i serbest bırakıyor — süreç çöküyor — ✅ KAPATILDI (2026-08-25)
 
 **Nereden geldi:** Faz 99 kapanış kapısının izole koşumu (2026-08-25).
-**Temel commit'te doğrulandı** (`c4e3189`, `git worktree` ile) — Faz 99'un ürünü
+**Temel commit'te doğrulandı** (`bb36b30`, `git worktree` ile) — Faz 99'un ürünü
 DEĞİL, mevcut bir kusurdur.
 
 **Kapanış:** Worker uçuştaki her işi başlatmadan önce kaydeder; `ExecuteAsync`,
@@ -1014,7 +1012,7 @@ taşımıyor veya kendi iptal/gözlem yoluna sahip; aynı kusur sınıfı bulunm
 **işlenmemiş** olur — .NET süreci sonlandırır. Ölçülen: tek bir testi izole
 koşmak (`Tracon.AspNetCore.FunctionalTests --filter-method
 "*Timed_out_call_completes*"`) test host'unu **exit 134 (SIGABRT)** ile
-çökertir; aynı çökme `c4e3189` üzerinde birebir tekrarlanır.
+çökertir; aynı çökme `bb36b30` üzerinde birebir tekrarlanır.
 
 **Neden bugüne kadar görünmedi:** Tam çözüm koşumunda süit uzun sürer ve host
 kapanışı uçuştaki işle çakışmaz; çökme yalnız hızlı kapanışta (tek test
@@ -1053,26 +1051,26 @@ değiştirir; önceki SQL toplu-onarım kök neden iddiası ölçümle çürüt�
 > doğrudur: "An applied migration is never edited; add a new migration file
 > for the change."
 >
-> Ama commit `9c32242` ("döküman düzeni sağlandı", 2026-08-23) tam olarak bunu
+> Ama commit `f272e70` ("döküman düzeni sağlandı", 2026-08-23) tam olarak bunu
 > yaptı: `0032_tenant_provider_bindings.sql` ve `0037_run_continuation.sql`
 > dosyalarındaki **yorum satırlarında** doküman yolunu güncelledi
 > (`docs/65-...md` → `docs/arsiv/fazlar/65-...md`). SQL'in kendisi değişmedi;
 > checksum değişti.
 
-**Etki:** Bu iki migration'ı `9c32242` ÖNCESİNDE uygulamış **her** kurulum,
+**Etki:** Bu iki migration'ı `f272e70` ÖNCESİNDE uygulamış **her** kurulum,
 yeni sürüme yükseltince açılışta çöker. Yerel geliştirme veritabanında
 ölçüldü — `samples/Tracon.Api` başlamıyor:
 `Checksum in the database: 9116FE1E...`, `checksum of the file: 16D3AB60...`.
 Bu bir geliştirme rahatsızlığı değil, **sevk edilmiş bir kırılmadır**.
 
 **Başlangıçtaki kök neden varsayımı yanlıştı:** Ölçüm, Faz 90 arşivleme yolunun
-yalnız `*.md` dosyalarına dokunduğunu gösterdi. `9c32242` değişikliği başka bir
+yalnız `*.md` dosyalarına dokunduğunu gösterdi. `f272e70` değişikliği başka bir
 toplu düzenleme ile geldi. Yeni kapı aracı değil baytı korur; bu nedenle aynı
 etki hangi düzenleme yolundan gelirse gelsin kırmızıya döner.
 
 **Uygulanan kapsam:**
-1. İki dosyanın **baytları geri alındı** (`git show f261cda:<yol>` ve
-   `git show 8cf727a:<yol>`). Uygulanmış migration değişmez; içindeki bayat
+1. İki dosyanın **baytları geri alındı** (`git show 7071d2e:<yol>` ve
+   `git show a772976:<yol>`). Uygulanmış migration değişmez; içindeki bayat
    doküman bağlantısı checksum'dan daha ucuz bir sorundur.
 2. Arşivleme kodunda SQL hariç tutma yapılmadı; ölçülen kök neden o kod değildir.
 3. **Kapı eklendi:** uygulanmış migration, değiştirilemeyen Git kaynak baytıyla
@@ -1130,7 +1128,7 @@ diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
 >
 >
 > **Ek (2026-09-01, tüketici turu):** Dış bir tüketici raporu koda karşı
-> ölçüldü ([`kesif/2026-09-01-tuketici-feature-talepleri.md`](../kesif/2026-09-01-tuketici-feature-talepleri.md)).
+> ölçüldü.
 > Dört kalem **doğrudan plana** dönüştü — bu dosyada hiç sıralanmadılar, çünkü
 > kanıtları raporla birlikte geldi ve aynı turda doğrulandı:
 > **F-172** → [Faz 129](fazlar/129-IS-KUYRUGU-LANELERI.md) · **F-173** →
@@ -1166,7 +1164,7 @@ diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
 >
 >
 > **Ek (2026-09-05, tüketici turu 4):** Tüketicinin `0.0.0-preview.0.589`
-> raporu koda karşı ölçüldü ([kesif](../kesif/2026-09-05-tuketici-turu-4-olcumu.md)).
+> raporu koda karşı ölçüldü.
 > On dört iddianın on üçü doğru çıktı; yanlış olan tek iddia bir risk satırıydı
 > (`MigrationDescriptor` public sanılmış, `internal` çıktı). Dört kalem **doğrudan
 > plana** dönüştü — bu dosyada hiç sıralanmadılar, çünkü kanıtları raporla
@@ -1187,7 +1185,7 @@ diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
 > kaydındadır.
 >
 > **Ek (2026-09-06, tüketici turu 4 yanıtı):** Tüketici §8'deki üç soruyu
-> yanıtladı ([yanıt raporu](../kesif/2026-09-06-tuketici-turu-4-yaniti.md)). İki
+> yanıtladı. İki
 > kalem **doğrudan plana** dönüştü: **F-201** →
 > [Faz 149](fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) (sahipsiz oturumun katı reddi;
 > **K-693'ün yeniden açılma koşulu karşılandı**) · **F-202** →
@@ -1283,7 +1281,7 @@ diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
 
 **F-225 → [Faz 166 — HTTP Kapasite Ölçümü](fazlar/166-HTTP-KAPASITE-OLCUMU.md)** (2026-09-13): kullanıcı isteğiyle doğrudan plana dönüştü; kapsam ve kanıt faz dokümanındadır.
 
-**F-227 · F-228 · F-229 → [Faz 167](fazlar/167-AGENT-ZORLAMA-KATMANI.md) · [168](fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) · [169](fazlar/169-FAZ-PLANI-SOZLESMESI.md)** (2026-09-13, yedinci planlama turu): üçü de **geliştirme aparatıdır** — ürün yüzeyine dokunmaz; emsali Faz 90 · 91 · 92 · 93. Kaynak: [`kesif/2026-09-13-sablon-karsilastirmasi.md`](../kesif/2026-09-13-sablon-karsilastirmasi.md). Sıra **bağlayıcıdır**: 169 → `KR-05` üzerinden 168'e, 168 → `git reset --hard` yasağı üzerinden 167'ye bağlıdır. Kapsam ve kanıt faz dokümanlarındadır.
+**F-227 · F-228 · F-229 → [Faz 167](fazlar/167-AGENT-ZORLAMA-KATMANI.md) · [168](fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) · [169](fazlar/169-FAZ-PLANI-SOZLESMESI.md)** (2026-09-13, yedinci planlama turu): üçü de **geliştirme aparatıdır** — ürün yüzeyine dokunmaz; emsali Faz 90 · 91 · 92 · 93. Sıra **bağlayıcıdır**: 169 → `KR-05` üzerinden 168'e, 168 → `git reset --hard` yasağı üzerinden 167'ye bağlıdır. Kapsam ve kanıt faz dokümanlarındadır.
 
 Planlama sırasında ölçümle **düzelen üç kayıt** (aday metinleri şöyle diyordu):
 
@@ -1336,7 +1334,7 @@ bir adayın gerekçesini çürüttü — § *Sıralamayı Değiştiren Ölçüml
 > `run` kanıtına yazılması kaldı. Plan bu üçünü kapsar.
 
 > **Ek (2026-09-03, tüketici turu 3).** Tüketicinin `1.0.0-preview.1`
-> raporu ölçüldü ([kesif](../kesif/2026-09-03-tuketici-turu-3-olcumu.md)). On iki
+> raporu ölçüldü. On iki
 > iddianın onu doğru çıktı; ikisi yanlıştı ve **ikisi de bizim dokümanımızın**
 > ürettiği yanlış anlamaydı — `kusur-giderme` ile kapandı ve
 > `sevk_edilen_olay_anlatisi()` kapısı eklendi.
@@ -1908,7 +1906,7 @@ taşındı (2026-09-24).
 
 F-266 aday dosyasında gövdesiz bir kanal satırıydı; kanıtı ve dokunulan
 yüzeyin tam envanteri faz dokümanındadır. F-293 2026-10-11 podcast turunun
-([keşif notu](../kesif/2026-10-11-podcast-tuketici.md)) kalemidir; gövdesi
+kalemidir; gövdesi
 aşağıdadır. Engelleyici kararlar aynı gün sohbette alındı.
 
 | Kalem | Faz |
@@ -1944,7 +1942,7 @@ aşağıdadır. Engelleyici kararlar aynı gün sohbette alındı.
 
 ## 2026-10-12 — Bir kalem plana dönüştü (F-294)
 
-F-294 2026-10-11 podcast turunun ([keşif notu](../kesif/2026-10-11-podcast-tuketici.md))
+F-294 2026-10-11 podcast turunun
 kalemidir; video tüketicisi turu ve F-330 kapanışı ona iki ek yazdı. Gövdesi
 aşağıdadır. Engelleyici kararlar aynı gün sohbette alındı (tam kapsam, workflow
 şeması, `run_inputs` sütunu, kuyruk yükünde alan, öğe başına batch nesnesi).
@@ -2038,7 +2036,7 @@ var (`AgentParameter`)" iddiası düştü.
 
 İki tüketici turunun (podcast ve video tüketicisi, 2026-10-11) üçüncü
 değerlendirmesinde bakımcı on kalemin planını istedi. Kanıt 2026-10-12'de
-`99fe0b13` zemininde yeniden doğrulandı; düşen ve düzelen iddialar her planın
+`1afa3685` zemininde yeniden doğrulandı; düşen ve düzelen iddialar her planın
 kanıt tablosundadır. Belirgin düzeltmeler: F-301'in "örnek derleyici kurulurken
 çözülür" kapsamı döngüye girer, plan "ilk derlemede, tür başına bir kez" der;
 F-300'ün skill geçmişi ve alt agent sabiti iki yeni adaya ayrıldı (F-408, F-409);
@@ -2313,14 +2311,13 @@ Gövdeler aday dosyasındaki son hâliyle, aynen:
 
 ## 2026-10-13 — Dört kalem iki yeni faza ve Faz 196'ya dönüştü (F-296 · F-320 · F-346 · F-405)
 
-Podcast tüketicisinin reposu 2026-10-13'te ölçüldü (dördüncü değerlendirme,
-[podcast raporu](incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)).
+Podcast tüketicisinin reposu 2026-10-13'te ölçüldü (dördüncü değerlendirme).
 Bakımcı üç kararı verdi: F-296'nın planı Faz 201'den önce; F-405 Faz 196'ya
 girer; F-320 öne alınır ve F-346'nın kapsamına önbellek yazma fiyatı eklenir.
 Aynı gün tüketici geri bildirimi kuralıyla (ADAYLAR § Değerlendirme Ölçütleri)
 yeniden tartıldı: Faz 203 daraldı ve Faz 198'in arkasına geçti, önbellek yazma
 fiyatı F-420 adayına ayrıldı.
-Kanıt `55272673` zemininde yeniden doğrulandı. Belirgin düzeltmeler: F-296'nın
+Kanıt `68c0903c` zemininde yeniden doğrulandı. Belirgin düzeltmeler: F-296'nın
 "ses ayarları" maddesi önekli sağlayıcı ayarı sözlüğüne döndü (ortak payda
 yok); bölme ve PCM birleştirme yardımcı fonksiyon oldu, sözleşme tek istektir.
 F-405 aday dosyasında yalnız tablo satırıydı; gövdesi yoktur. Planlar
@@ -2416,7 +2413,7 @@ Bakımcı 2026-10-14'te kalemi ikiye böldü: karar sözleşmesi
 devam, zıt cevap `409`, her `respond` fail-closed denetim, kaynak bağı) ve gelen
 kutusu ([Faz 209](fazlar/209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md): kiracı geneli liste,
 istek süresi). Kararlar: `workflow_responses` tablosu (K-128 bozulmaz), K-130
-varsayılanı korunur, fail-closed kümesi 6 → 7. Kanıt `245afe91` zemininde yeniden
+varsayılanı korunur, fail-closed kümesi 6 → 7. Kanıt `ebf6e379` zemininde yeniden
 doğrulandı. Belirgin düzeltmeler: satır kayması (`WorkflowEndpoints.cs:175-186` →
 `:315-326`, `ApprovalEndpoints.cs:238` → `:232`); "`respond` `Idempotency-Key`
 almaz" kısmen düştü (K-925: yalnız `Prefer: respond-async` ile); K-929'un "senkron
@@ -2456,7 +2453,7 @@ düzeltilir).
 
 Bakımcı kapsamı 2026-10-14'te sohbette seçti: 22 tipin tamamı, `IdempotencyKeys`
 bağlaması ve okunamayan değerin açılışta hatası; Faz 205 ile paralel başlar.
-Kanıt `245afe91` zemininde yeniden doğrulandı. Belirgin düzeltmeler: "yirmi dört"
+Kanıt `ebf6e379` zemininde yeniden doğrulandı. Belirgin düzeltmeler: "yirmi dört"
 bölüm bugün 22'dir (Scheduling ve Knowledge testini kazandı); `TraconPricingBindingTests`
 emsal değildir (DI sınırını yansımayla atlar); "yeni ürün kodu gerekmez" ve "risk yok"
 iddiaları düştü — `Retention:IdempotencyKeys` bağlanmıyordu ve dört bağlayıcı okunamayan

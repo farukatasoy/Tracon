@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show e8ce06e:docs/arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md
+> git show c4aa304:docs/arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md
 > ```
 >
 > Damıtıldı 2026-08-26 · `scripts/dokuman-bakim.py faz-damit`
@@ -40,7 +40,7 @@ EF Core kullanan bir uygulama Tracon'i gömünce **iki bağlantı düzlemi** do�
 - [x] `embedding.md` havuz cümlesi ölçümle uyumludur
 - [x] `guides/ef-core.md` yayında; `npm run build` + `check-links.mjs` temiz
 - [x] `samples/Tracon.Embedded` hem veritabanısız hem PostgreSQL'li yolda koşar — veritabanısız: `Tracon.Embedded.Tests` 3/3; PostgreSQL'li: canlı konteynere karşı `POST /tickets` + `GET /tracon/api/runs/{id}` (bkz. `MT-PG-068`)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 678ba30`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 18db60b`
 - [x] `samples/Tracon.Embedded` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — plan `samples/Tracon.Api`yı işaret ediyordu; bu fazın kendi örneği `Tracon.Embedded` olduğu için kanıt oradan alındı (bkz. "Plandan Sapmalar")
 - [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` → ✅ temiz
 - [x] Manuel kabul case'leri `docs/manuel-test/03-KALICILIK-POSTGRESQL.md` ve `04-KALICILIK-DIGER.md` içine eklendi (plan `26-...`yi işaret ediyordu, bkz. "Plandan Sapmalar"); otomatikleştirilebilenler koşuldu

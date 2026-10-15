@@ -19,7 +19,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 1881ff31:docs/arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md
+> git show 4e949d7b:docs/arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md
 > ```
 >
 > Damıtıldı 2026-09-05 · `scripts/dokuman-bakim.py faz-damit`

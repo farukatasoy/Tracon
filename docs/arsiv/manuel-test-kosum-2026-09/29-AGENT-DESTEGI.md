@@ -11,7 +11,7 @@
 |---|---|
 | **Şerit** | `ap-s3` (Faz B, ilk aile — bu şeridin dağılımı: 32 · **29** · 34 · 21 · 11 · 25 · 17 · 20) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s3` · dal `test/kosum-s3` |
-| **Kod** | `7e3a4de7` donuk (`ap-s3` HEAD `e5d302e5`, fast-forward — aynı kaynak) |
+| **Kod** | `a51a8496` donuk (`ap-s3` HEAD `e1726f04`, fast-forward — aynı kaynak) |
 | **Case sayısı** | 24 (MT-AGD-001..024) |
 | **Port** | Bu aile ağırlıklı olarak `dotnet build`/CLI tabanlı; şeridin kendi 5083/`mt_s3`'üne **dokunulmadı**. MT-AGD-019/020 istisna — bkz. aşağıdaki sapma notu |
 | **Paket kaynağı** | `dotnet pack Tracon.src.slnf -c Release` **`ap-s3`'ün kendi worktree'sinden** koşuldu (spec'in "Koşmadan önce"i `~/Desktop/projects/Tracon`'u yazar — bu oturumun talimatı başka worktree'ye dokunmayı yasakladığı için `ap-s3`'e uyarlandı). Üretilen paket: `Tracon 0.0.0-preview.0.821`, yerel feed `~/Desktop/projects/ap-s3/artifacts/package/release` |
@@ -90,7 +90,7 @@ transkript incelemesi istiyor.
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show cc9895d2:docs/manuel-test/kosumlar/2026-09-16/29-AGENT-DESTEGI.md
+> git show a197ffc8:docs/manuel-test/kosumlar/2026-09-16/29-AGENT-DESTEGI.md
 > ```
 
 ---

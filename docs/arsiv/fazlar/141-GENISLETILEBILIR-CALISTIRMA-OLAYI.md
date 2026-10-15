@@ -36,7 +36,7 @@
 > Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 5f9931bf:docs/arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md
+> git show 40f091ae:docs/arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md
 > ```
 >
 > Damıtıldı 2026-09-04 · `scripts/dokuman-bakim.py faz-damit`
@@ -58,7 +58,7 @@ Tüketici bugün SSE akışına **hiçbir** kendi olayını yazamıyor. Yazma yo
 - [x] 🚨 `.cs` ve `.ts` enum listesi eşleşir; eşleşme testle kilitli — `RunEventTypeFrontendParityTests` (yeni); koşum SIRASINDA `.ts`'nin zaten iki üye (`DocumentAttached`, `RunContinuationBlocked`) eksik olduğu bulundu ve düzeltildi — bu fazdan önce vardı, konuyla ilgisiz bir kusurdu
 - [x] K-647 taban çizgisi büyümedi veya `Custom` gerekçesiyle **beyan edildi** — mekanik olarak `covered` oldu (`StreamingTests.cs` gerçekten payload'ı okuyup doğruluyor), bkz. Plandan Sapmalar
 - [x] Bundle payı ölçüldü ve yazıldı — **176.9 KB gzip / 250 KB bütçe** (ölçüldü, `npm run build`)
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 9a243228`, commit sonrası **iki** tam koşum: 1. koşum `Tracon.Sql.Shared.UnitTests`'in `SqlTextSnapshotTests`'ini kırdı (beklenen — `custom_type` sütunu SQL metnini değiştirdi; `TRACON_SQL_SNAPSHOT_REFRESH=1` ile taban çizgisi yenilendi, ayrı commit), 2. koşum `Tracon.Ui.E2ETests.UiTests.Runs_screen_lists_only_roots_by_default`'ı bir kez kırdı — bilinen "tam çözüm koşumunda kaynak çakışması" flaky sınıfının (`docs/hafiza/test-altyapisi.md`, Faz 103'te belgelendi) altıncı örneği; izole 4/4 ve tüm E2E projesi 58/58 geçti, fazın kendi değişikliğiyle ilgisiz
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 6d991eeb`, commit sonrası **iki** tam koşum: 1. koşum `Tracon.Sql.Shared.UnitTests`'in `SqlTextSnapshotTests`'ini kırdı (beklenen — `custom_type` sütunu SQL metnini değiştirdi; `TRACON_SQL_SNAPSHOT_REFRESH=1` ile taban çizgisi yenilendi, ayrı commit), 2. koşum `Tracon.Ui.E2ETests.UiTests.Runs_screen_lists_only_roots_by_default`'ı bir kez kırdı — bilinen "tam çözüm koşumunda kaynak çakışması" flaky sınıfının (`docs/hafiza/test-altyapisi.md`, Faz 103'te belgelendi) altıncı örneği; izole 4/4 ve tüm E2E projesi 58/58 geçti, fazın kendi değişikliğiyle ilgisiz
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — bkz. MT-UIRUN-052 (run `01a06aa0-5eac-705b-9101-d0c5bdeeaea4`)
 - [x] `secret` taraması boş döndü — `scripts/kapi.py tarama`
 - [x] Manuel kabul case'leri `docs/manuel-test/11-ARAYUZ-RUN-SESSION-SSE.md` içine eklendi — MT-UIRUN-052..055
@@ -132,7 +132,7 @@ KENDİSİ zaten plan onayıyla public API'ye giriyordu).
 ## Denetim Bulguları
 
 Bağımsız, taze bağlamlı bir denetçi (`faz-denetim`) çalışma ağacının tamamını
-(`git diff 9a243228`) inceledi ve derleme + beş test projesini (`Core.UnitTests`
+(`git diff 6d991eeb`) inceledi ve derleme + beş test projesini (`Core.UnitTests`
 2329/2329, `AspNetCore.FunctionalTests` 766/766, üç SQL entegrasyon projesi
 gerçek Docker konteynerleriyle) bağımsızca yeniden koştu. **🔴 yok.**
 

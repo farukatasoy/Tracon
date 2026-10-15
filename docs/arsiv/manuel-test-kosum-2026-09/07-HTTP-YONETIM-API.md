@@ -10,7 +10,7 @@
 |---|---|
 | **Şerit** | `ap-s1` (Faz A zinciri, tek şerit — zincirin SON ailesi) |
 | **Çalışma kopyası** | `~/Desktop/projects/ap-s1` · dal `test/kosum-s1` |
-| **Kod** | `7e3a4de7` donuk |
+| **Kod** | `a51a8496` donuk |
 | **Case sayısı** | 43 (MT-API-001..100) |
 | **Port** | 5081 (spec 5080 yazar — şerit sapması) |
 | **Depo** | **Bellek içi** (`storage.persistent: false`) — dosyanın kendi varsayılanı (MT-API-053/054 bunu ön koşul sayar), `mt_s1` şemasına dokunulmadı |
@@ -73,7 +73,7 @@ güncelle ve Faz B'yi aç (dört worktree zaten hazır: `ap-s1..4`, dallar
 > her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
 >
 > ```bash
-> git show 54479468:docs/manuel-test/kosumlar/2026-09-16/07-HTTP-YONETIM-API.md
+> git show a64b8698:docs/manuel-test/kosumlar/2026-09-16/07-HTTP-YONETIM-API.md
 > ```
 
 ---
