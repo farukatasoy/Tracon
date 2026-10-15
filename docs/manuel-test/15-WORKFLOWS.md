@@ -3767,3 +3767,27 @@ Otomatik karşılığı: `WorkflowRequestExpirationHttpTests.A_run_left_waiting_
 - 2: run bekliyor görünür; bu, süreç iki yazımın arasında durunca kalan durumdur.
 - 4: `status: Failed`, `error.type: WorkflowRequestExpired`, `eventCount` korunur. Günlükte `workflow request rows were closed but their runs still wait` uyarısı vardır.
 
+---
+
+### MT-WF-175 — Loop'lu agent'tan sonraki düğüm yalnız son iterasyonu alır (kusur-giderme, 2026-10-15, F-536)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | kusur-giderme (F-536) |
+| **İlgili karar** | K-1006 |
+| **Devir** | ➜ CI: `WorkflowLoopStepOutputTests` |
+
+**Ön koşul**
+- Örnek uygulamada `Harness.Loop` taşıyan bir agent (ölçüt `completionMarker`) ve girdisini olduğu gibi döndüren bir fonksiyon düğümü.
+
+**Adımlar**
+1. `PUT /api/workflows/loop-then-echo` ile `nodes: [<loop agent>, <fonksiyon>]` kaydet.
+2. `POST /api/workflows/loop-then-echo/run` ile en az iki iterasyon süren bir istek gönder.
+3. Fonksiyon düğümünün aldığı mesajları ve agent run'ının `loop.iteration-completed` olaylarını oku.
+
+**Beklenen sonuç**
+- Fonksiyon yalnız son iterasyonun cevabını alır; ilk taslak ve Loop'un geri bildirim mesajı yoktur.
+- Agent run'ı her iterasyon için bir `loop.iteration-completed` olayı taşır; usage bütün iterasyonların toplamıdır.
+- 🚨 Eski kusur: fonksiyon `[taslak, geri bildirim, son cevap]` alıyordu.

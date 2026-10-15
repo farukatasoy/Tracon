@@ -218,6 +218,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A harness loop agent no longer hands its drafts to the caller that acts on its
+  answer. A streaming loop yields every iteration, its drafts and its feedback
+  included, and six surfaces read that stream as the answer: the next node of a
+  workflow (a text-to-speech node spoke the rejected version), the next agent
+  of a ready-made Sequential workflow, the streaming
+  `/v1/chat/completions` and `/v1/responses`, the streaming A2A call, and the two
+  voice surfaces, which spoke the drafts aloud. These surfaces now run a loop
+  agent through the non-streaming path and stream its final iteration only; its
+  usage stays the sum of every iteration (K-889). **Behavior change:** on these
+  surfaces a loop agent's answer arrives in one piece when the loop ends, not
+  token by token. The native `POST /api/agents/{name}/run` stream is unchanged
+  and still streams every iteration. A custom `IAgentDecorator` that does not
+  delegate `GetService` hides the loop, and the agent then streams as before.
 - An approval that ran out of time no longer erases what the run that asked had recorded. The
   expiry closed the run `Failed` with a completion built from nothing, and `IRunStore.CompleteRunAsync`
   replaces the event count, usage and cost of the row with what the completion carries, so a run that

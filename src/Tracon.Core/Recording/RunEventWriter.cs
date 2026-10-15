@@ -449,11 +449,16 @@ public sealed class RunEventWriter
     /// <summary>Logs an item a function node reported after its run's total was already read.</summary>
     /// <param name="nodeName">The reporting node, or <see langword="null"/> when unknown.</param>
     internal void LogNonTokenUsageLate(string? nodeName)
-        => _logger.LogInformation(
-            "Node {Node} of run {RunId} reported a non-token usage item after the run's total was written. " +
-            "The item is kept in the run's detail; the run's total, its quota entry and its budget do not include it.",
-            nodeName ?? "(none)",
-            RunId);
+    {
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            _logger.LogInformation(
+                "Node {Node} of run {RunId} reported a non-token usage item after the run's total was written. " +
+                "The item is kept in the run's detail; the run's total, its quota entry and its budget do not include it.",
+                nodeName ?? "(none)",
+                RunId);
+        }
+    }
 
     /// <summary>
     /// Writes the settled outcome of a call whose timeout had already been

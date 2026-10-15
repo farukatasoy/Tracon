@@ -134,7 +134,10 @@ internal sealed class LiveVoiceDelegationRunner
             var agent = await _resolveAgent(cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException($"There is no agent named '{_agentName}'.");
 
-            var updates = agent.RunStreamingAsync(
+            // A harness loop hands over its final iteration only (K-889): every
+            // update below is spoken, and a draft must not be.
+            var updates = AgentAnswerStream.RunAsync(
+                agent,
                 [new ChatMessage(ChatRole.User, LiveTranscriptLedger.RenderPrompt(cut))],
                 _session,
                 new TraconRunOptions { RunId = runId, SessionId = _sessionId },

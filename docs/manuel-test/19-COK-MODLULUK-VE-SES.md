@@ -3076,3 +3076,27 @@ Regresyon. `/speak` sağlayıcı hatasını `502` veriyordu, `/voices` `500`.
 
 **Beklenen sonuç**
 - `502`, başlık `Voices could not be listed`; gövde sağlayıcının yanıt gövdesini taşımaz.
+
+---
+
+### MT-MM-139 — Loop'lu agent sesli konuşmada ve canlı seste yalnız son iterasyonu söyler (kusur-giderme, 2026-10-15, F-536)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | kusur-giderme (F-536) |
+| **İlgili karar** | K-1006 |
+| **Devir** | ➜ CI: `LoopAnswerSurfaceTests` |
+
+**Ön koşul**
+- `Harness.Loop` taşıyan bir agent; sesli konuşma (`UseVoiceConversation`) ve canlı ses (`UseLiveVoice`) açık.
+
+**Adımlar**
+1. Sesli konuşmada agent'a en az iki iterasyon süren bir soru sor.
+2. Canlı seste aynı isteği delege et.
+
+**Beklenen sonuç**
+- İki yolda da yalnız son iterasyon seslendirilir; ilk taslak ve Loop'un geri bildirimi okunmaz.
+- Seslendirme döngü bitince başlar.
+- 🚨 Eski kusur: iki yol da taslağı ve geri bildirimi okuyordu.

@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 943 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 944 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 995 kalem)
+## En Yeni Kalıcı Kararlar (52 / 996 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-954 | 995 | Sağlayıcı ayarının reddi anahtarı ve kabul edilen değerleri adlandırır, reddedilen değeri asla yazmaz: konuşma ayarları, Anthropic seçim ayarları ve düşünme bütçesi, Google güvenlik eşiği ve düşünme bütçesi. `ModelProviderSettingsContract` metin `InvalidSettingValue` için bunu doğrular; değeri yankılayan üçüncü taraf sağlayıcı bu senaryoda düşer (F-296, Faz 203; Faz 204 devri) (ana oturum varsayılanı, bakımcıya bildirildi) |
 | K-955 | 996 | Konuşma ve diyalog isteğinin ağdan önceki reddi (sınır, boş tur, sessiz tur kimliği, ayar ihlali) `TraconException`'dır, `ArgumentException` değildir; `null` istek `ArgumentNullException` kalır (F-296, Faz 203 planından sapma) (ana oturum varsayılanı, bakımcıya bildirildi) |
 | K-956 | 997 | `SpeechAudio.ProviderRequestId` sağlayıcının üretim kimliğini taşır (yerleşik istemcide `request-id` başlığı, tek ses ve diyalog yolu); `elevenlabs.previousRequestIds` (≤ 3) bu kimliklerle parçalar arası süreklilik kurar (F-296, Faz 203 planından sapma) (ana oturum varsayılanı, bakımcıya bildirildi) |
 | K-957 | 998 | Yerleşik ElevenLabs istemcisi kendisine doğrudan verilen kiracı kimliğini sentez, akışlı sentez, diyalog ve tanımada `NotSupportedException` ile reddeder; kurulum anahtarıyla çağırmaz (F-296, Faz 203, kusur-giderme; K-930 Açık Soru 4-A'nın uygulama düzeyi) |
@@ -62,3 +61,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-1003 | 1044 | Süre dolunca kapanış: `WorkflowRequestExpirationService` (`SingletonGuard`, `RequestExpirationScanInterval` 1 dk, `MaxRequestExpirationsPerScan` 100) önce `ExpireAsync` ile satırı kapatır, sonra run'ı son açık satırı kapanınca kapatır: cevapsız bir istek varsa `Failed` + `WorkflowRequestExpired` (sınıf `Timeout`), hepsi cevaplıysa hata taşımayan `Completed`; run satırını OKUYUP olay sayısını, kullanımı, maliyeti geri yazar (`CompleteRunAsync` bunları değiştirir) ve yalnız hâlâ `AwaitingInput` olan run'ı kapatır; kapatılamayan run aynı süreçte her turda 10 kez denenir ve süreç satırı kapatıp run'ı kapatmadan dururse lease'i alan sonraki örnek `IWorkflowRequestStore.ListStrandedAsync` ile (kapalı satırı olan, açık satırı kalmamış, hâlâ `AwaitingInput` run) onu bulup kapatır; cevaplanıp bekleyen run K-130'un "durum geriye değişmez" cümlesine istisnadır (onay süresi aynısını `AwaitingApproval` için yapar) (F-319, Faz 209) (kullanıcı kararı) 👤 |
 | K-1004 | 1045 | `RetentionTargets.WorkflowRequests` (`workflow_requests`): yalnız KAPALI satır yaşına (`closed_at`) göre silinir, açık satır silinmez ve satır sınırına sayılmaz; varsayılan 30 gün (`Tracon:Retention:WorkflowRequests`), kullanıcı verisi değildir; süre dolup run `AwaitingInput` olmaktan çıkınca K-888'in üç muafiyeti (istek olayı, checkpoint, girdi satırı) bırakır ve bir sonraki turda silinir; `RetentionTargetRegistry` yorumu "an expiry for them is F-319's scope" kalktı (F-319, Faz 209) |
 | K-1005 | 1046 | Kiracı listesi `GET /api/workflows/requests` `Reader` + `RunAccess.Read` ister; run okumayı reddeden `IRunAuthorizationHandler` listeyi `403` ile REDDEDER, süzmez (K-671); `requests` adı `functions` gibi ayrılmış workflow adıdır (rota `/api/workflows/{name}`'den önce eşleşir) (F-319, Faz 209) (kullanıcı kararı) 👤 |
+| K-1006 | 1047 | Cevabı okuyan akışlı yüzey Loop'lu agent'tan yalnız son iterasyonu alır (`AgentAnswerStream`); native agent SSE'si her iterasyonu akıtır (F-536, K-889 uzantısı) |

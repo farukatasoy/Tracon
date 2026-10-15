@@ -2027,3 +2027,27 @@ grep -o '"finish_reason":"[a-z_]*"' akis.txt; tail -2 akis.txt
 - İki kolda da `"stop"`; akışta son satır `data: [DONE]`'dur.
 
 > **Koşum (2026-10-14, Faz 207 kapanışı):** ✅ — iki kolda `stop`.
+
+---
+
+### MT-COMPAT-054 — Loop'lu agent'ın Chat Completions ve Responses akışı yalnız son iterasyonu taşır (kusur-giderme, 2026-10-15, F-536)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | kusur-giderme (F-536) |
+| **İlgili karar** | K-1006 |
+| **Devir** | ➜ CI: `LoopAnswerSurfaceTests` |
+
+**Ön koşul**
+- `Harness.Loop` taşıyan bir agent kayıtlı; ilk iterasyonu ölçütü karşılamaz.
+
+**Adımlar**
+1. `/v1/chat/completions` ile `"stream": true` çağır.
+2. `/v1/responses` ile `"stream": true` çağır.
+
+**Beklenen sonuç**
+- İki akış da yalnız son iterasyonun metnini taşır; ilk taslak ve Loop'un geri bildirimi akışta yoktur.
+- Cevap döngü bitince tek parça gelir.
+- 🚨 Eski kusur: akış taslağı ve geri bildirimi cevabın parçası olarak taşıyordu.

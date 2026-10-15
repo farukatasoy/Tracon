@@ -338,9 +338,13 @@ new AgentDefinition
 The loop is off while `Loop` is null, which is the default.
 
 A non-streaming run returns the **final iteration's answer**; its usage and cost
-are the sum of every iteration. A streaming run streams every iteration as it
-happens. Either way each iteration is recorded on the run as a
-`LoopIterationCompleted` event.
+are the sum of every iteration. The native streaming run
+(`POST /api/agents/{name}/run`) streams every iteration as it happens. Every
+other surface that hands the answer to a program, or speaks it, gets the
+**final iteration only**: a workflow step and the step after it, the
+OpenAI-compatible streams, the A2A stream and both voice surfaces. On those
+surfaces a loop agent's answer arrives in one piece when the loop ends. Either
+way each iteration is recorded on the run as a `LoopIterationCompleted` event.
 
 **`MaxIterations` is not `MaximumIterationsPerRequest`.** The two bound
 different loops. `MaximumIterationsPerRequest` bounds the harness's *inner*

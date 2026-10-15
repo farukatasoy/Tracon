@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (943 kalem)
+## Arşivlenen Kararlar (944 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -952,3 +952,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-941 | 992 | Retention arşivi korumalı sütunu `IArchiveSink`'e düz metin verir (`RetentionTargetRegistry.ProtectedArchiveColumns`, dışa aktarımın K-934 deseni); arşivin at-rest şifrelenmesi sink'in işidir; silinen satır ile arşivlenen satırın eşleşme kuralı değişmez (F-447) (kullanıcı kararı) 👤 |
 | K-952 | 993 | Çok konuşmacılı diyalog ayrı bir yetenek arayüzüdür (`ISpeechDialogueSynthesizer`) ve yalnız `ISpeechProviderResolver.GetDialogueSynthesizerAsync(name, ct)` ile alınır: çözümleyici yeteneği kayıtlı sentezleyici örneğinde okur (sarmalayıcıda değil); yeteneği taşımayan motoru kayıt adı ve `ProviderName` ile reddeder ve yerleşik istemciye düşmez; K-930 kapısını diyaloğun `ProviderName`'ine uygular; kiracı anahtarını yalnız `SupportsTenantCredentials` (varsayılan `false`) diyen motora `SpeechDialogueRequest.Credential` ile iletir. Yetenek DI'a kaydedilmez. Çözümleyici üyesi soyuttur. Sınırı aşan istek ağdan önce reddedilir; Tracon bölmez ve birleştirmez. Diyalog modeli `VoiceOptions.DialogueModelId`'dir, `SynthesisModelId` kullanılmaz. HTTP ucu ve tool yoktur (F-296, Faz 203; Açık Soru 1-A, 3-A, 4-B, 5-B, 7-B) (kullanıcı kararı) 👤 |
 | K-953 | 994 | Konuşma isteği sağlayıcıya özgü ayarları önekli sözlükle taşır (`SpeechRequest.ProviderSettings`, `SpeechDialogueRequest.ProviderSettings`, boş varsayılan). Kural `ModelProviderSettings.Validate`'in yeni sözlük aşırı yüklemesidir; `ModelBinding` sürümü aynı kodu koşar. Tip okuyucuları `internal` kalır ve `Tracon.Voice` `InternalsVisibleTo` alır. Bilinmeyen, başka önekli, yanlış tipli, aralık dışı ve diyalogda etkisiz anahtar ağdan önce reddedilir. `speak` tool'u ve `POST /api/voice/speak` ayar taşımaz (F-296, Faz 203; Açık Soru 2-A, 6-B) (kullanıcı kararı) 👤 |
+| K-954 | 995 | Sağlayıcı ayarının reddi anahtarı ve kabul edilen değerleri adlandırır, reddedilen değeri asla yazmaz: konuşma ayarları, Anthropic seçim ayarları ve düşünme bütçesi, Google güvenlik eşiği ve düşünme bütçesi. `ModelProviderSettingsContract` metin `InvalidSettingValue` için bunu doğrular; değeri yankılayan üçüncü taraf sağlayıcı bu senaryoda düşer (F-296, Faz 203; Faz 204 devri) (ana oturum varsayılanı, bakımcıya bildirildi) |
