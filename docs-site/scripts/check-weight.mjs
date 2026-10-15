@@ -52,6 +52,16 @@ const dist = resolve(here, '../dist');
 // dropped to 58 151 B. Ceiling unchanged.
 const CEILING = 59_000;
 
+// The release notes page is generated from CHANGELOG.md and is the one page whose
+// size grows with every release, not with what a reader needs from one visit: a
+// reader lands on one version's anchor (each package's PackageReleaseNotes links
+// there). Measured 2026-10-15 at the 1.0.0-preview.4 cut: 97 534 B gzip, of which
+// the 1.0.0-preview.4 section alone is 44 221 B of gzipped Markdown - so splitting
+// the page per release would not bring that release under CEILING either. Ceiling
+// 110 000 B, about 13% headroom. When a release crosses it, the notes move to one
+// page per release with this page as the index; the anchors then stay on the index.
+const PAGE_CEILINGS = new Map([['reference/changelog/index.html', 110_000]]);
+
 if (!existsSync(dist)) {
   console.error('dist/ is missing; run `npm run build` before checking page weight.');
   process.exit(1);
@@ -97,12 +107,15 @@ for (const page of pages) {
   let weight = gzip(html);
   for (const asset of assets) weight += assetWeight(asset);
 
-  if (weight > heaviest.weight) {
-    heaviest = { page: relative(dist, page), weight };
+  const name = relative(dist, page).split('\\').join('/');
+  const ceiling = PAGE_CEILINGS.get(name) ?? CEILING;
+
+  if (!PAGE_CEILINGS.has(name) && weight > heaviest.weight) {
+    heaviest = { page: name, weight };
   }
 
-  if (weight > CEILING) {
-    over.push(`${relative(dist, page)}: ${weight} B gzip, ceiling ${CEILING} B`);
+  if (weight > ceiling) {
+    over.push(`${name}: ${weight} B gzip, ceiling ${ceiling} B`);
   }
 }
 
@@ -114,8 +127,9 @@ if (over.length > 0) {
 }
 
 console.log(
-  `Weight: ${pages.length} pages under ${CEILING} B gzip. ` +
-    `Heaviest: ${heaviest.page} at ${heaviest.weight} B.`,
+  `Weight: ${pages.length} pages under ${CEILING} B gzip ` +
+    `(${[...PAGE_CEILINGS].map(([page, limit]) => `${page} under ${limit} B`).join(', ')}). ` +
+    `Heaviest of the rest: ${heaviest.page} at ${heaviest.weight} B.`,
 );
 
 function collect(directory) {
