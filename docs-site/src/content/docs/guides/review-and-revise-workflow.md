@@ -133,6 +133,9 @@ static Workflow Build(IServiceProvider services)
 
 ## What each helper gives a step
 
+`GetWorkflowFunction` takes a `WorkflowFunctionStepOptions` (`Timeout`, `Settings`, and `SetSettings(value)` for a typed
+value). `GetWorkflowAgentStep` takes a `WorkflowAgentStepOptions` (`Timeout`, `AgentVersion`).
+
 | Step | Time limit | Retry | Budget gate | Cost named by node | Settings | Version pin | Concurrency |
 |---|---|---|---|---|---|---|---|
 | `GetWorkflowFunction` | the registration's, or the step's own | the registration's | yes | yes | strict read, typed or JSON | no | the registration's |
@@ -151,11 +154,13 @@ next node its final iteration only.
 - **A revision limit and a cost ceiling.** Each answer is a new run with a new budget, so
   `MaxTotalCost` does not add up across rounds. Bound the rounds with your own counter, as here, and
   set the ceiling for one round.
-- **`MaxConcurrency` is per process and per function.** It holds across workflows and tenants, and it
-  multiplies with the number of replicas. A call that finds every slot taken waits, and the wait
-  is not part of the node's own `Timeout`. Cancelling the run or reaching its `RunTimeout` ends
-  the wait. A handler that ignores its token after a timeout keeps running without a slot, so pass
-  the token on.
+- **`MaxConcurrency` is per process and per function.** It holds across workflows and tenants, in a stored chain
+  and in a graph built in code, and it multiplies with the number of replicas. A call that finds every slot taken
+  waits. The wait is not part of the node's own `Timeout`, and it ends when the run is cancelled or reaches its
+  `RunTimeout`. Each attempt of a retried node takes a slot of its own and gives it back before the retry's delay,
+  and the budget gate is read after the slot is taken, so a budget that runs out during the wait refuses the node
+  when its turn comes. A handler that ignores its token after a timeout keeps running without a slot, so pass the
+  token on. A value below 1 throws at registration.
 - **`RunTimeout` is held to the host's ceiling.** A value above `Tracon:Workflows:MaxRunTimeout`
   (or above `RunTimeout` while no ceiling is set) stops the host at startup and names the workflow.
 - **A request nobody answers** fails the run with `WorkflowRequestExpired` and publishes `run.failed`

@@ -55,6 +55,7 @@ export const sidebar = [
     items: [
       { label: 'Sessions and conversations', slug: 'concepts/sessions' },
       { label: 'Workflows', slug: 'concepts/workflows' },
+      { label: 'Workflow parameters', slug: 'concepts/workflow-parameters' },
       { label: 'Answering a workflow', slug: 'concepts/workflow-answers' },
       { label: 'Workflow requests and time limits', slug: 'concepts/workflow-requests' },
       { label: 'A workflow a person can send back', slug: 'guides/review-and-revise-workflow' },
