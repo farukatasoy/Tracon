@@ -220,18 +220,47 @@ internal sealed class JobWorkerBackgroundService(
 
             if (!_runningJobs.TryAdd(job.Id, completion.Task))
             {
-                semaphore.Release();
-
-                if (logger is not null && logger.IsEnabled(LogLevel.Warning))
-                {
-                    logger.LogWarning("Job {JobId} is already executing on this worker.", job.Id);
-                }
+                // 🚨 F-547: a job released for another attempt is leasable at once, so
+                // this loop can lease it again while the attempt that released it is
+                // still finishing here. The store has already counted the new attempt
+                // and set its lease; dropping it left the job Leased until the lease
+                // ran out, and then failed it as out of attempts without running the
+                // attempt. The new lease waits for the previous attempt instead, and
+                // MarkRunningAsync still refuses it if that attempt finished the job.
+                _ = RunAfterPreviousAttemptAsync(job, leaseRequestedAt, semaphore, completion, stoppingToken);
 
                 continue;
             }
 
             _ = RunJobAsync(job, leaseRequestedAt, semaphore, completion, stoppingToken);
         }
+    }
+
+    private async Task RunAfterPreviousAttemptAsync(
+        JobRecord job,
+        long leaseRequestedAt,
+        SemaphoreSlim semaphore,
+        TaskCompletionSource completion,
+        CancellationToken stoppingToken)
+    {
+        if (logger is not null && logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Job {JobId} was leased for attempt {Attempt} while its previous attempt was still finishing on this worker; it runs once that attempt ends.",
+                job.Id,
+                job.Attempt);
+        }
+
+        // The previous entry's task never faults: RunJobAsync completes it with TrySetResult.
+        while (!_runningJobs.TryAdd(job.Id, completion.Task))
+        {
+            if (_runningJobs.TryGetValue(job.Id, out var previous))
+            {
+                await previous.ConfigureAwait(false);
+            }
+        }
+
+        await RunJobAsync(job, leaseRequestedAt, semaphore, completion, stoppingToken).ConfigureAwait(false);
     }
 
     private async Task RunJobAsync(
@@ -255,7 +284,9 @@ internal sealed class JobWorkerBackgroundService(
         finally
         {
             semaphore.Release();
-            _runningJobs.TryRemove(job.Id, out _);
+
+            // Removes this attempt's own entry only: a lease that waited for it adds the next one.
+            _runningJobs.TryRemove(KeyValuePair.Create(job.Id, completion.Task));
             completion.TrySetResult();
         }
     }

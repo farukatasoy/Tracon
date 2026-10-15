@@ -218,6 +218,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A job released for another attempt no longer loses that attempt. A failed attempt with attempts
+  left makes the job leasable at once, and the worker could lease it again while the attempt that
+  released it was still finishing on the same worker. It logged "already executing" and dropped the
+  new lease, but the store had already counted the attempt: the job stayed `Leased` until the lease
+  ran out and then failed as out of attempts without running again. The new lease now waits for the
+  previous attempt and runs, unless that attempt finished the job.
 - A pending workflow request whose type is a record of the graph's own is answered correctly. The run that
   answers reads the request back from a checkpoint, where its data is JSON, and the plan-review check asked the
   framework to read that JSON as a Magentic plan review, every member of which is optional: a record such as
