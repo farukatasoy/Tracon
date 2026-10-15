@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Tracon;
 
@@ -55,6 +56,17 @@ internal sealed class EchoModelProvider : IModelProvider
             MaxOutputTokens = 1_024,
             SupportsTools = false,
         },
+
+        // Answers as the writer of the review-and-revise workflow: a JSON script, a revised one when the message asks
+        // for a revision, and a script over the length limit when the brief says "#long".
+        new ModelDescriptor
+        {
+            Name = EchoWriterModel,
+            DisplayName = "Echo episode writer (local, no network)",
+            ContextWindowTokens = 8_192,
+            MaxOutputTokens = 1_024,
+            SupportsTools = false,
+        },
     ];
 
     /// <summary>The model whose reply also names the instructions it received.</summary>
@@ -62,6 +74,9 @@ internal sealed class EchoModelProvider : IModelProvider
 
     /// <summary>The model that answers with a review verdict: fail on round 1, pass after.</summary>
     public const string EchoReviewerModel = "echo-reviewer-1";
+
+    /// <summary>The model that writes the script of the review-and-revise workflow as JSON.</summary>
+    public const string EchoWriterModel = "echo-writer-1";
 
     public IChatClient CreateChatClient(ModelBinding binding)
     {
@@ -125,9 +140,41 @@ internal sealed class EchoModelProvider : IModelProvider
                     : """{"decision":"pass","findings":[]}""";
             }
 
+            if (string.Equals(_modelId, EchoWriterModel, StringComparison.Ordinal))
+            {
+                return WriterReply(text);
+            }
+
             return string.Equals(_modelId, EchoInstructionsModel, StringComparison.Ordinal)
                 ? $"Echo [instructions: {options?.Instructions ?? "(none)"}]: {text}"
                 : $"Echo: {text}";
+        }
+
+        private static string WriterReply(string text)
+        {
+            const string feedbackMarker = "Feedback: ";
+
+            // A revision names its feedback: the revised script applies it, so a person can see it was read.
+            if (text.Contains("Revise the script.", StringComparison.Ordinal))
+            {
+                var start = text.LastIndexOf(feedbackMarker, StringComparison.Ordinal);
+                var feedback = start < 0 ? string.Empty : text[(start + feedbackMarker.Length)..];
+
+                return JsonSerializer.Serialize(new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["title"] = "Episode (revised)",
+                    ["script"] = $"Revised script. Applied the feedback: {feedback}",
+                });
+            }
+
+            // "#long" makes the first draft longer than the check allows, so the validation loop can be watched.
+            return JsonSerializer.Serialize(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["title"] = "Episode",
+                ["script"] = text.Contains("#long", StringComparison.Ordinal)
+                    ? "Hello and welcome. " + new string('x', 500)
+                    : $"Hello and welcome. Today: {text}",
+            });
         }
     }
 }
