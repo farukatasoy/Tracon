@@ -10,8 +10,8 @@
 > `v1.0.0-preview.4` → `0079b1b2`; etiket koşumu #269 2. denemede npm ve NuGet'i
 > yayımladı. npm `latest` = `next` = preview.4; nuget.org 20/20; site yayında.
 > GitHub release işi düştü (F-553, not 125 000 karakter sınırını aştı; düzeltme
-> `de5cbfeb`); sayfa elle açılır 👤. Açık 👤 karar: preview.4'ün `Security` notu
-> OP-008 gereği preview.3'ün deprecate edilmesini gerektirir mi? Yayın kuralı
+> `de5cbfeb`); sayfa 13:59 UTC'de elle açıldı 👤. Bakımcı kararı: preview.3
+> deprecate edilir (OP-008); npm ve nuget.org adımı 👤 bekliyor. Yayın kuralı
 > değişti: tek atomik push, `main` yeşili beklenmez (OP-012). Defter bütçeleri
 > dolu (`KARARLAR.md`, `ADAYLAR.md` %100): sonraki fazdan önce `karar-damit` ve
 > aday damıtması. Ayrıntı: §4 "YAYINLANDI — 2026-10-15".
@@ -129,10 +129,10 @@ kırmızı (F-553); Dokuman sitesi etikette atlanır.
 |---|---|
 | npm | `@tracon/client@1.0.0-preview.4` 13:09:54 UTC; `latest` = `next` = preview.4 (stable yok) |
 | nuget.org | Push işi 13:08:42 UTC'de bitti; flat container 13:13'te 5/20, 13:17'de **20/20** |
-| GitHub release | `gh release create` → `HTTP 422 … body is too long (maximum is 125000 characters)`; not 130 589 karakter. `de5cbfeb` gövdeyi kırpar (preview.4: 106 134, `Changed` sitede). Bu etiketin sayfası elle açılır 👤: yeniden koşum etiketin eski `ci.yml`'ini koşar |
+| GitHub release | `gh release create` → `HTTP 422 … body is too long (maximum is 125000 characters)`; not 130 589 karakter. `de5cbfeb` gövdeyi kırpar (preview.4: 106 134, `Changed` sitede). Yeniden koşum etiketin eski `ci.yml`'ini koştuğu için sayfa elle açıldı 👤 (13:59 UTC, pre-release). API'den ölçüldü: gövde 107 544 karakter; tarayıcı satır sonlarını CRLF yaptı (1 410 satır), LF'ye çevrilince kırpılmış notla birebir aynı |
 | Site | `site-deploy.sh` 13:14 UTC, kendi doğrulaması yeşil; `/`, `/packages/`, `/getting-started/`, `/reference/changelog/` preview.4 der |
 | `MT-PKG-160` | **Ölçülmedi:** `nuget-verified` artifact'ini indirmek GitHub `token`'ı ister; bu oturumda yok. Paket CI'da bir kez üretilir ve `publish` aynı artifact'i iter (Faz 191 zinciri) |
-| Deprecation | **👤 Karar bekliyor:** preview.4'ün `Security` grubu (yanıt denetim izi fail-closed, reddedilen ayarın değerini yazmayan mesaj, ElevenLabs kiracı `credential` reddi) OP-008'in "güvenlik kusuru" ölçütüne giriyor mu? Girerse preview.3 npm'de (`npm deprecate`) ve nuget.org'da (arayüz) deprecate edilir |
+| Deprecation | **Karar (2026-10-15, bakımcı): preview.3 deprecate edilir** — preview.4'ün `Security` grubu (yanıt denetim izi fail-closed, reddedilen ayarın değerini yazmayan mesaj, ElevenLabs kiracı `credential` reddi) OP-008 ölçütüne girer. npm 👤: yerel `npm` oturumu yok (`npm whoami` → `E401`); mesaj preview.1/2 deseniyle aynı. nuget.org 👤: 20 paket, arayüzden (herkese açık API yok). preview.1/2 npm mesajları preview.3'ü gösterir ve doğru kalır |
 
 ### ✅ KARAR — 2026-10-15 (`nuget-danismani`, `preview.4` yayın kararı)
 
