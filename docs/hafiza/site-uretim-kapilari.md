@@ -228,3 +228,14 @@ Sonuc yalnız cirkinlik degildi: XML artikeli **kisa ada** gore secer
 (`an <see cref="IRunJudge"/>`), uzun ad onu bozar — 60 uretilen sayfada
 "an Tracon.IRunJudge". `plainText` artik tip kumesini alir ve ayni kurali
 uygular. **Bir kural iki yolda da gecerliyse ikisine de yaz.**
+
+## 🚨 Konsol ekran görüntüsü damgası test dosyasını saymaz (2026-10-15)
+
+`public/screenshots/.ui-source.sha256`, `frontend/src` altındaki her dosyayı
+hash'liyordu; `main` #260'ta yalnız bir Vitest beklemesini düzelten commit
+(F-546) iki bacakta "İçerik ve sunum kapıları"nı kırdı ve değişmeyen bir ekranın
+görüntüsünü istedi. `computeUiSourceHash` artık `*.test.ts(x)` dosyalarını ve
+`src/test/` yardımcılarını dışarıda bırakır (`check-console-screens.test.mjs`
+son case). Damgayı tazelemeden önce son geçerli damgadan bu yana arayüzde
+yalnız test dosyası değiştiğini `git diff --stat <sha>..HEAD -- src/Tracon.UI/frontend`
+ile göster; ekran kaynağı değiştiyse görüntüler yeniden üretilir.

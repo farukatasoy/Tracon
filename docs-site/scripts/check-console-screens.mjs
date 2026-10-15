@@ -8,6 +8,7 @@ const screenshotStamp = '.ui-source.sha256';
 export function computeUiSourceHash(sourceRoot) {
   const frontendRoot = join(sourceRoot, 'Tracon.UI/frontend');
   const files = [join(frontendRoot, 'package.json'), join(frontendRoot, 'package-lock.json')];
+  const testHelpers = join(frontendRoot, 'src', 'test');
   const pending = [join(frontendRoot, 'src')];
 
   while (pending.length > 0) {
@@ -15,8 +16,14 @@ export function computeUiSourceHash(sourceRoot) {
 
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
-      if (entry.isDirectory()) pending.push(path);
-      else files.push(path);
+      // A test cannot change what the console draws: `*.test.ts(x)` files and the
+      // `src/test/` helpers stay out, so a test-only change does not ask for
+      // screenshots of a screen that did not change.
+      if (entry.isDirectory()) {
+        if (path !== testHelpers) pending.push(path);
+      } else if (!/\.test\.[cm]?[jt]sx?$/.test(entry.name)) {
+        files.push(path);
+      }
     }
   }
 

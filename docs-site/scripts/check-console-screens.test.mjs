@@ -100,3 +100,16 @@ test('an entry written in a different property order fails loudly instead of van
     /declares 1 screens but only 0 parsed/,
   );
 });
+
+test('a change that only touches tests leaves the screenshot set current', (t) => {
+  // A test cannot change what the console draws. Hashing `*.test.tsx` and the
+  // `src/test/` helpers made a test-only fix fail this gate on CI and ask for
+  // screenshots of a screen that had not changed.
+  const f = fixture(t);
+  writeFileSync(join(f.site, 'public/screenshots/agents.png'), 'fixture');
+  writeFileSync(join(f.source, 'Tracon.UI/frontend/src/components/navigation.test.tsx'), 'it("a", () => {});');
+  mkdirSync(join(f.source, 'Tracon.UI/frontend/src/test'), { recursive: true });
+  writeFileSync(join(f.source, 'Tracon.UI/frontend/src/test/render.tsx'), 'export {};');
+
+  assert.deepEqual(checkConsoleScreens(f.source, f.docs, f.site), []);
+});
