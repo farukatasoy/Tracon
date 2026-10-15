@@ -6,6 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-preview.4] - 2026-10-15
+
+Workflows become a control plane for long-running pipelines that a person
+reviews. A run can be queued and resumes after a restart; a waiting request has
+one answer, an inbox and a time limit; every step has a time limit,
+cancellation, a cost record and a budget gate; and a graph written in code gets
+the same node capabilities as a saved chain, with a revision loop that is safe
+on a back edge. Speech gains multi-speaker dialogue and named providers chosen
+per tenant. The release changes the public API and adds seven migrations to
+each SQL provider: read Upgrading from 1.0.0-preview.3 first.
+
+### Upgrading from 1.0.0-preview.3
+
+- **Migrations.** PostgreSQL `0055`–`0061`, SQL Server `0043`–`0049` and SQLite
+  `0042`–`0048`. With `AutoApplyMigrations` (the default) they run at startup.
+- **Five public types changed.** Each entry below says what to do:
+  - `IRunStore` gains `RecordNonTokenUsageAsync` and `ListNonTokenUsageAsync`; a
+    custom store adds both (Changed).
+  - `IWorkflowDefinitionStore` gains `GetVersionAsync`, `ListVersionsAsync` and
+    `RollbackAsync`; a custom store keeps the version history (Changed).
+  - `IWorkflowFunctionCatalog` gains `ValidateSettings` (Changed).
+  - `TraconApiClient`: three methods gain optional parameters; a call that passes
+    `skip`, `take` or the cancellation token by position names the argument.
+  - `ModelProviderSettingsContract.SupportedSetting` is now `virtual` and nullable;
+    an existing override adds `?` to its return type.
+- **One source break:** `AddWorkflowFunction<TInput, TOutput>(name, factory, null)`
+  is ambiguous (`CS0121`); pass a description or use the overload that takes
+  options.
+- **Behavior changes most likely to reach an upgrade**, each described in its
+  entry below: a configuration value Tracon cannot read stops startup; answering
+  a workflow request is audited before it runs, and an audit store that cannot
+  write refuses the answer with `500`; knowledge-base embedding applies the
+  tenant's egress policy; every run of a tree adds its spend to the quota; a
+  harness-loop agent hands only its final iteration to a workflow step, the
+  OpenAI-compatible and A2A streams and voice; `functions` and `requests` are
+  reserved workflow names.
+- Pin every Tracon package to the same exact version. The pre-release Microsoft
+  Agent Framework hosting packages stay pinned at their 1.20.0 previews.
+
+### Known limitations
+
+- The native agent stream (`POST /api/agents/{name}/run`) streams every
+  harness-loop iteration, the loop's feedback included, with no boundary between
+  iterations. A client that shows that stream as the answer shows the drafts.
+  Read the run's `loop.iteration-completed` events, or use a surface that
+  returns the final iteration (the non-streaming run, the OpenAI-compatible
+  endpoints, a workflow step).
+- In a graph written in code, an agent step's version pin is fixed when the graph
+  is built, and the graph is built for every run; there is no pin per production.
+  A revision that runs after a new agent version is saved uses that version.
+
 ### Security
 
 - Answering a workflow's pending human request is now the seventh fail-closed audit
@@ -239,7 +290,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `/v1/chat/completions` and `/v1/responses`, the streaming A2A call, and the two
   voice surfaces, which spoke the drafts aloud. These surfaces now run a loop
   agent through the non-streaming path and stream its final iteration only; its
-  usage stays the sum of every iteration (K-889). **Behavior change:** on these
+  usage stays the sum of every iteration. **Behavior change:** on these
   surfaces a loop agent's answer arrives in one piece when the loop ends, not
   token by token. The native `POST /api/agents/{name}/run` stream is unchanged
   and still streams every iteration. A custom `IAgentDecorator` that does not
