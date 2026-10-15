@@ -80,9 +80,9 @@ cat global.json
 ```
 
 **Beklenen sonuç**
-- `dotnet --version` çıktısı `10.0.1xx` bandındadır.
-- `global.json` şu üç değeri taşır: `version: 10.0.100`, `rollForward: latestFeature`,
-  `allowPrerelease: false`.
+- `dotnet --version` çıktısı `10.0.4xx` bandındadır (`10.0.402` veya daha yeni bir yama).
+- `global.json` şu üç değeri taşır: `version: 10.0.402`, `rollForward: latestPatch`,
+  `allowPrerelease: false` (A-73: yerel ve CI aynı analyzer'ı koşar).
 - `dotnet --version` bir önizleme (`-preview`, `-rc`) sürümü **döndürmez** —
   `allowPrerelease: false` bunu engeller.
 

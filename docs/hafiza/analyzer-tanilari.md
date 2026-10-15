@@ -138,9 +138,9 @@
   `TimeSpan`, özellik okuması) iki kez doğdu: önce üç dosyada (Faz 199/196/197
   kodu, `main`'in üç CI koşumunu kırdı), sonra Faz 211'in yeni
   `WorkflowNodeConcurrencyLimit`'inde. İkisi de yerel `10.0.100` kapanışında
-  yeşildi. Düzeltme `IsEnabled` korumasıdır. Kapı: `global.json` CI'ın
-  sürümüne sabitlenir (`latestPatch`) ve SDK yükseltmesi açık bir commit olur;
-  sabit gelene kadar her push'tan önce yukarıdaki iki komutu CI'ın sürümüyle koş.
+  yeşildi. Düzeltme `IsEnabled` korumasıdır. Kapı (2026-10-15'ten beri): `global.json`
+  `10.0.402` + `latestPatch`; CI aynı sürümü kurar ve SDK yükseltmesi açık bir
+  commit olur. Yeni sürüme geçerken önce o sürümle tam derleme + `format` koş.
 
 
 - **RS0026 genel tip ARİTESİ farkını görmez** (2026-10-12, Faz 195): `AddWorkflowFunction<TIn,TOut>` ile `<TIn,TOut,TSettings>` aynı adlı iki aşırı yükleme sayılır; ikisi de opsiyonel parametre taşırsa İKİSİNDE de RS0026 verir (gerçekte çağrı yeri belirsizliği oluşmaz). Bastırma yerine yeni aşırı yüklemeyi opsiyonelsiz kur: `Action<Options>` + `init` ayarları (K-422/K-867 çizgisi, K-902); mevcut kısa aşırı yükleme değişmez.

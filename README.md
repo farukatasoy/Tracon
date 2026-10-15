@@ -322,7 +322,7 @@ dotnet format Tracon.slnx --verify-no-changes
 
 `TreatWarningsAsErrors` is on — there are no warnings, only errors.
 
-Requirements: .NET SDK 10.0.100+ plus the **.NET 8 and .NET 9 runtimes** (a representative
+Requirements: .NET SDK 10.0.402 (pinned in `global.json`) plus the **.NET 8 and .NET 9 runtimes** (a representative
 set of test projects runs on every shipped framework), **Node.js 20.19+** (the console
 build), and **Docker** (integration tests bring up a real database with Testcontainers).
 The end-to-end tests download Chromium themselves on first run.
