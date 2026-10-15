@@ -168,6 +168,16 @@ kapandı, hiçbiri yerel kapanışta görünmüyordu:
   macOS'ta 25 koşumda 1, Windows'ta her koşumda görüldü. `8fd70de4` kapatır;
   CHANGELOG'da.
 - #262 (`0728821d`): iki bacak + prova + site yeşil.
+- Kesim `4e984aa0` + etiket atomik itildi (#263 `main`, #264 etiket); iki koşum
+  da `Derle`'de düştü: arayüz testi sabit tarihli fixture'ı göreli gösteriyordu ve
+  2026-10-15 09:00Z'den sonra `yesterday` yazdı (F-549, `16e15f3a`). Yayın işleri
+  `build`'e bağlı olduğu için atlandı; nuget.org ve npm'e hiçbir şey gitmedi.
+- #265 (`16e15f3a`): Ubuntu `Paketle` düştü — yayımlanmamış etiket artık bir ata
+  olduğu için taban `1.0.0-preview.4` seçildi ve nuget.org'da bulunamadı. Bakımcı
+  kararıyla (2026-10-15) etiket silindi ve CI yeşil olan son commit'e yeniden
+  atılır. 🚨 Ders: yayın koşumu düşen bir etiket `main`'in atası olarak kalırsa
+  sonraki her `main` koşumunu kırar; etiket ya taşınır ya yeni sürüm kesilir.
+
 
 **Sıra (👤 adımlar işaretli):**
 1. 👤 `main`'i it; CI iki OS'te build/test, prova ve site kapısında yeşil.
