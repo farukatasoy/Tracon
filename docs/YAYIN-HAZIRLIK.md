@@ -4,9 +4,24 @@
 > düzlemidir. Faz planı, sohbet özeti veya genel karar defteri değildir. Yalnız
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
-> **Son güncelleme:** 2026-09-24  
-> **Çalışma modu:** `nuget-danismani` — yayın sonrası (`1.0.0-preview.3`)  
-> **GÜNCEL DURUM (2026-09-24, 21:50 UTC):** ✅ **`1.0.0-preview.3` SEVK EDİLDİ.**
+> **Son güncelleme:** 2026-10-15  
+> **Çalışma modu:** `nuget-danismani` — yayın kararı (`1.0.0-preview.4`)  
+> **GÜNCEL DURUM (2026-10-15):** ✅ **`1.0.0-preview.4` yayınlanabilir; preview
+> 🔴'si yok.** İçerik: Faz 194–211 ve F-536 (Loop'un taslakları cevap yüzeylerine
+> gitmiyor). Yerel kanıt `eb60cfe3`'te: `kapi.py yayin --kuru --surum
+> 1.0.0-preview.4` yeşil (20 paket, kırıcı liste 5 tip / 3 paket hepsi notta,
+> `npm --dry-run`, 6 exact-version örnek, Native AOT, net8.0 smoke; KN-034);
+> kapanış kapısı yeşil (Faz 211 kaydı); CI'ın SDK'sıyla (`10.0.402`) tam derleme
+> ve `format` yeşil (KN-035). A-73 kapandı: `global.json` `10.0.402` +
+> `latestPatch` (`eb60cfe3`). Kalan koşul **iki push** ister (Faz 187 kuralı):
+> önce `main` (CI'da hiç koşmamış ~98 commit, iki OS + prova + site), yeşilse
+> kesim + etiket **tek atomik push** 👤. Bilinen sınırlar sürüm notuna girer:
+> F-544 (native SSE Loop taslağını akıtır) · F-545 (kod grafında üretim başına
+> agent sürüm sabiti yok). Defter bütçeleri dolu (`KARARLAR.md` %100,
+> `ADAYLAR.md` %100): sonraki fazdan önce `karar-damit` ve aday damıtması.
+> Ayrıntı: §4 "KARAR — 2026-10-15 (`preview.4`)".
+>
+> **Önceki durum (2026-09-24, 21:50 UTC):** ✅ **`1.0.0-preview.3` SEVK EDİLDİ.**
 > `v1.0.0-preview.3` → `b0771b3e`, etiket koşumu `36057172063` yeşil (npm ·
 > NuGet · GitHub release). npm `latest` = `next` = preview.3; nuget.org 20/20
 > görünür. `MT-PKG-160`: 20/20 paket CI'ın
@@ -14,7 +29,7 @@
 > yayımlandı. npm deprecation ✅. Kalan 👤: nuget.org'da preview.1/2 deprecation
 > (OP-008, arayüz) · A-61 advisory. Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
 >
-> **Yayın öncesi karar (2026-09-24):** ✅ **Yayınlanabilir; ürün
+> **preview.3 yayın öncesi kararı (2026-09-24):** ✅ **Yayınlanabilir; ürün
 > 🔴'si yok.** UR-008 = **B** 👤: A-59 (K-872, tam aralık) ve BL-058 (lisans
 > bildirimi) `de52ecdf`'de kapandı; kapanış kapısı yeşil (KN-029). Kesim
 > `e0fd4f61`'de; prova ve dış tüketici repro'su yeşil (KN-030, KN-031). Açık
@@ -102,6 +117,53 @@ sayının ürün politikası mı yoksa bayat ölçüm mü olduğu artifact sonra
 değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
+
+### ✅ KARAR — 2026-10-15 (`nuget-danismani`, `preview.4` yayın kararı)
+
+**Hedef:** `1.0.0-preview.4` (preview), tam 20 paket + `@tracon/client` (UR-002
+kapsamı değişmedi). **Karar: ✅ Yayınlanabilir — preview 🔴'si yok.**
+
+**Canlı durum (Adım 0.2, 2026-10-15):** nuget.org ve npm'de son sürüm
+`1.0.0-preview.3`; Faz 194–211 hiçbir pakette yok. `origin/main` `c8b9ea01`
+(2026-10-14); son üç `main` koşumu kırmızıydı: ikisi `CA1873` (CI'ın 10.0.402
+SDK'sı; yerel 10.0.100 görmüyordu), biri içerik kapısı. Site paketin önünde:
+2026-10-13 yayını preview.3'te olmayan API'leri anlatır (sürüm yayınlanınca
+kapanır). MAF GA ailesi nuget.org'da `1.25.0`, Hosting ailesi hâlâ ön sürüm
+(`1.25.0-preview.261014.1`); ER-001 değişmedi.
+
+**Kanıt:** KN-034 (yayın provası), KN-035 (CI SDK'sıyla derleme), Faz 211 ve
+F-536 kapanış kapıları, zafiyet taraması 47 projede 0 (2026-10-14).
+
+**Bu turda kapanan/açılan:**
+- A-73 kapandı (`eb60cfe3`): sınıf üç kez tekrarladı (`CA1875`, iki kez
+  `CA1873`); kapı SDK sabitidir. Bakımcı makinesine SDK 10.0.402'nin global
+  kurulumu 👤 gerekir.
+- `CA1873` iki kez düzeltildi (`2ee06055`, `a98083a1`); `main`'in kırmızısının
+  sebebi kapandı, CI'da doğrulanmalı.
+- F-536 kapandı (K-1006): Loop'lu agent workflow adımında, OpenAI uyumlu ve
+  A2A akışlarında ve iki ses yolunda yalnız son iterasyonu verir. **Davranış
+  değişikliği** CHANGELOG'da.
+- F-544 ve F-545 açıldı (preview.4 dışı, bakımcı kararı); sürüm notunda
+  bilinen sınır olarak anılır.
+
+**Seviyelendirme (Adım 8):** 🔴 yok. 🟡: A-62 (bot PR'ları kırmızı), A-66 (npm
+token'ı; en geç 2026-11-26), A-72 (`Tracon.Cli` bildirimi, GA), F-544/F-545,
+MAF 1.25'e karşı ileri uyum ölçülmedi (`uyum-probu ileri`; tüketici exact pin
+ile 1.20'de kalır). 🟢: A-71 (sürüm metni elle; kesimde güncellenir), A-61.
+
+**En küçük güvenli kapsam:** tam set; hiçbir paket çıkarılmaz. Sürüm türü
+preview, çünkü public API dondurulmadı (UR-003) ve Hosting ön sürümdür.
+
+**Sıra (👤 adımlar işaretli):**
+1. 👤 `main`'i it; CI iki OS'te build/test, prova ve site kapısında yeşil.
+2. Kesim commit'i (`e0fd4f61` deseni): `## [1.0.0-preview.4] - <tarih>`,
+   yükseltme özeti (5 kırıcı tip, migration'lar), sevk edilen sürüm metni
+   preview.3 → preview.4, site changelog ve agent map yeniden üretimi.
+3. 👤 Kesim + `v1.0.0-preview.4` etiketi tek atomik push; etiket koşumu
+   yeşil; nuget.org 20/20 ve npm dist-tag'ler doğrulanır (MT-PKG-160 deseni).
+4. 👤 Site yayını (`scripts/site-deploy.sh`) etiketten **sonra**.
+5. Tüketici duyurusu: iki uyum raporu (`docs/arsiv/incelemeler/`) başlangıç
+   kitleriyle güncel.
 
 ### ✅ YAYINLANDI — 2026-09-24, `1.0.0-preview.3`
 
@@ -240,7 +302,7 @@ Nuget.org'daki paketlerin `net10.0` ikililerini metadata seviyesinde okur.
 | **A-70** | **Contract paketi `xunit.v3` 3.x'e bağlı; 4.x kararlı.** Alt sınır `3.2.2`, nuget.org'da `4.0.1`. İkili metadata uyumu temiz (6 üye referansı); test platformu v2 ile çalışma anı ölçülmedi. `dependabot.yml` `xunit.v3 >= 4.0.0`'ı yok sayar | 🟢 | Repo'nun kendi test platformu kısıtı sevk edilen pakete taşınıyor | Ölçüm → `faz-planlama` | Hayır |
 | **A-71** | 🟡 **Kesim yapıldı (`e0fd4f61`); kapı hâlâ yok** — **Sevk edilen sürüm metni etikete bağlı değil.** `1.0.0-preview.2` 26 yerde elle yazılı: 24'ü `docs-site/src` (`Footer.astro:16` her sayfada, `versioning.md:7` dahil), ikisi **pakete giren** README (`src/Tracon/README.md:33`, `src/Tracon.Templates/README.md:8` — `dotnet new install Tracon.Templates@1.0.0-preview.2`). Kesim commit'i unutulursa preview.3'ün nuget.org sayfası preview.2 kurulumunu önerir ve bu baytlar geri alınmaz. `grep` ile bu metni etiket sürümüne bağlayan bir kapı bulunamadı. A-35 (preview.1) ve `32fb31ee` (preview.2 kesimi) aynı sınıfın önceki vakalarıdır | 🟢 | Sürüm her turda elle yazılıyor; kapı yalnız CHANGELOG başlığını arıyor | `tuketici-dokuman-senkronu` (kesim) → `kusur-giderme` (kapı) | Her etiketten önce (kesim) |
 | **A-72** | **`Tracon.Cli` 54 üçüncü taraf ikiliyi bildirimsiz taşıyor — BL-058'in sınıf taramasının ikinci vakası.** `dotnet tool` paketi yayın çıktısının tamamını taşır; preview.3 adayında Tracon dışı 54 ikili var (Npgsql — PostgreSQL License, SQLitePCLRaw — Apache-2.0, Google.Protobuf — BSD-3-Clause, `Microsoft.Data.SqlClient`, `Microsoft.IdentityModel.*` — MIT, `e_sqlite3` …). Pakette `LICENSE.md` dışında bildirim dosyası yok. Apache-2.0 ayrıca `NOTICE` ister. Kapı hazır: `THIRD_PARTY_NOTICE_PACKAGES`'e `Tracon.Cli` eklenir; üretim NuGet bağımlılıklarının lisans dosyalarından yapılır (npm yolu değil) | 🟡 preview · 🔴 GA (BL-058 ile aynı gerekçe) | Tool paketi bağımlılık ikililerini **içinde** taşır; kütüphane paketleri taşımaz | `kusur-giderme` | Evet — GA'dan önce |
-| **A-73** | **Yerel kapanış kapısı CI'ın SDK'sını koşmuyor.** `global.json` `10.0.100` + `rollForward: latestFeature`; `setup-dotnet` en yeni bandı kurar (ölçüldü: `10.0.401`, 2026-09-08 sürümü), bakımcı makinesinde yalnız `10.0.100` vardı. `AnalysisLevel` `latest-recommended` olduğu için her yeni SDK'nın yeni kuralı CI'da hata olarak doğar: Faz 190'ın test kodu yerelde yeşil, CI'da `CA1875` ile kırmızıydı (A-64'ün ilk koşumu). Aynı koşum Windows'ta iki yol testini de düşürdü (Faz 180, 187; Windows bacağı o testleri ilk kez koştu) | 🟡 | Yerel ve CI SDK'sı iki ayrı kaynaktan seçiliyor | `faz-planlama` — öneri: `global.json`'u CI'ın sürümüne sabitle (`10.0.401`, `rollForward: latestPatch`), SDK yükseltmesi açık bir commit olsun | Hayır — preview.3 için elle aşıldı (`~/.dotnet` 10.0.401 ile build + format) |
+| **A-73** | ✅ **KAPANDI (`eb60cfe3`, 2026-10-15)** — `global.json` `10.0.402` + `latestPatch`. **Yerel kapanış kapısı CI'ın SDK'sını koşmuyordu.** `global.json` `10.0.100` + `rollForward: latestFeature`; `setup-dotnet` en yeni bandı kurar (ölçüldü: `10.0.401`, 2026-09-08 sürümü), bakımcı makinesinde yalnız `10.0.100` vardı. `AnalysisLevel` `latest-recommended` olduğu için her yeni SDK'nın yeni kuralı CI'da hata olarak doğar: Faz 190'ın test kodu yerelde yeşil, CI'da `CA1875` ile kırmızıydı (A-64'ün ilk koşumu). Aynı koşum Windows'ta iki yol testini de düşürdü (Faz 180, 187; Windows bacağı o testleri ilk kez koştu) | 🟡 | Yerel ve CI SDK'sı iki ayrı kaynaktan seçiliyor | `faz-planlama` — öneri: `global.json`'u CI'ın sürümüne sabitle (`10.0.401`, `rollForward: latestPatch`), SDK yükseltmesi açık bir commit olsun | Hayır — preview.3 için elle aşıldı (`~/.dotnet` 10.0.401 ile build + format) |
 
 #### Bu turun sınıfı: **dışarıdaki olgu değişti, içeride kimse ölçmedi**
 
@@ -345,6 +407,8 @@ Kalıcı sonuçlar:
 | KN-031 | A-59 düzeltmesinin dış tüketici kanıtı (6. seviye) | Tamamlandı | Repo dışı `net10.0` konsol, izole `NUGET_PACKAGES`, `Tracon*` → yerel feed eşlemesi; `Tracon.AspNetCore` + `Microsoft.Agents.AI.Hosting` `1.22.0-preview.260918.1` | **Negatif kontrol:** yayınlanmış `1.0.0-preview.2` ile restore **uyarısız** geçti (kusurun kendisi). **Düzeltme:** preview.3 adayıyla `warning NU1608: ... requires Microsoft.Agents.AI.Hosting (= 1.20.0-preview.260831.1) but version ... 1.22.0-preview.260918.1 was resolved`. Nuspec beş bağımlılığı `[x]` yazar; `Tracon.UI` `THIRD-PARTY-NOTICES.txt`'yi kökte taşır ve repo dosyasıyla aynıdır (MT-PKG-161; 162 adım 1–2) | 2026-09-24 |
 | KN-032 | `MT-PKG-160` — nuget.org baytı = CI'ın doğruladığı bayt | Tamamlandı | `nuget-verified` (koşum `36057172063`, artifact `10834248786`) indirildi; 20 paket `v3-flatcontainer`'dan; `.signature.p7s` hariç girdi kümesi ve her girdinin baytı karşılaştırıldı | 20/20 aynı, 0 fark. `Tracon.Core`: CI 16 girdi, nuget.org 17 (fark yalnız imza); ham SHA-256 farklı (beklenen). `Tracon.Cli` 22:03 UTC'de görününce ayrıca karşılaştırıldı: CI 124 girdi, nuget.org 125, fark yok | 2026-09-24 |
 | KN-033 | "Re-run failed jobs" artifact'i yeniden kullanır mı | Tamamlandı | Koşum `36048047050` işleri (`filter=all`) ve artifact listesi | Evet: 2. denemede ubuntu işi yeniden koşmadı (başlangıç 19:25:32Z iki denemede aynı); tek `nuget-packages` 1. denemeden (20:00:04Z); 2. denemenin `release-dryrun`'u onu okuyup `nuget-verified`'ı üretti (20:43:07Z). `test-results-windows-latest` her denemede ayrı yüklendi | 2026-09-24 |
+| KN-034 | `1.0.0-preview.4` yayın provası | Tamamlandı | `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` (`a98083a1`, 2026-10-15). İlk koşum Faz 209 provasının aynı kimlikli eski paketlerini koruyup durdu; set `artifacts/package/yayin/1.0.0-preview.4-onceki-d81ac76f`'ye alındı | Çıkış 0: kırıcı liste 5 tip / 0 TFM düşüşü / 3 paket, hepsi `Unreleased` notunda; 20 paket; `npm publish --dry-run`; 6 exact-version packed sample, Native AOT smoke, net8.0 tüketici smoke |
+| KN-035 | CI'ın SDK'sıyla yerel derleme | Tamamlandı | `~/.dotnet/dotnet` 10.0.402: `build Tracon.slnx -c Release --no-incremental` + `format --verify-no-changes` (2026-10-15). Negatif kontrol: düzeltmeden önce aynı komut `CA1873` verdi (üç dosya; sonra `WorkflowNodeConcurrencyLimit`) | Çıkış 0 / 0 hata; yerel 10.0.100 aynı kodda yeşildi — kapı SDK sabitidir (A-73) |
 
 ### Henüz ölçülmeyen alanlar
 
