@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209, 211
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -18,7 +18,8 @@
 > `src/Tracon.UI/frontend/src/lib/workflow-graph.ts` ·
 > `samples/Tracon.Api/Program.cs` (yalnız `AddWorkflow(...)` blokları:
 > `summarize-and-translate`, `summarize-and-approve`; ve `AddWorkflowFunction(...)`
-> blokları: `word-count` (Faz 71), `speak` (Faz 195, ayarlı)).
+> blokları: `word-count` (Faz 71), `speak` (Faz 195, ayarlı)) ·
+> `samples/Tracon.Api/ReviewAndReviseWorkflow.cs` (Faz 211: `review-and-revise`).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -3791,3 +3792,136 @@ Otomatik karşılığı: `WorkflowRequestExpirationHttpTests.A_run_left_waiting_
 - Fonksiyon yalnız son iterasyonun cevabını alır; ilk taslak ve Loop'un geri bildirim mesajı yoktur.
 - Agent run'ı her iterasyon için bir `loop.iteration-completed` olayı taşır; usage bütün iterasyonların toplamıdır.
 - 🚨 Eski kusur: fonksiyon `[taslak, geri bildirim, son cevap]` alıyordu.
+
+
+### MT-WF-176 — Kod grafında ret, notla geri dönüş ve onay (Faz 211, F-537)
+
+Otomatik karşılığı: `CodeWorkflowRevisionTests.A_rejected_draft_goes_back_to_the_writer_with_the_note_and_the_media_nodes_run_once_after_the_approval`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 211 |
+| **İlgili karar** | K-1007 |
+
+**Ön koşul** — Örnek uygulama, SQLite (`Tracon__PostgreSql__ConnectionString=""`, `Tracon__Sqlite__ConnectionString=...`). Gerçek model anahtarı varsa gerçek model, yoksa yerel `echo-writer-1` yazar.
+
+**Adımlar**
+1. `POST /api/workflows/review-and-revise/run` ile `Prefer: respond-async`, gövde `{"message":"start","parameters":{"productionId":"p-1","language":"tr"}}`.
+2. `GET /api/workflows/requests?state=pending`: taslağı oku. `POST /api/workflows/runs/{runId}/respond` ile `{"requestId":"...","data":{"approved":false,"note":"Daha kısa olsun."}}`.
+3. Bekleyen isteği tekrar listele (yeni run), `approved: true` ile cevapla.
+4. Son run'ın olaylarını ve `GET /api/runs/{id}/usage` çıktısını oku.
+
+**Beklenen sonuç**
+- 2'den sonra yeni bir run, notu yansıtan **ikinci bir taslak** için yeni bir istek yayınlar (yazar adımı geri kenardan yeniden koştu).
+- 3'ten sonra run `Completed`; olaylarda `episode-tts`, `episode-render`, `episode-qa` **birer kez** koşar ve `WorkflowOutput` metni `Episode p-1 (tr) passed QA:` ile başlar (kayıtlı parametre değerleri cevap run'larında korundu).
+- `usage` iki kalem taşır ve `nodeName` değerleri `episode-tts` (karakter, tutarlı) ve `episode-render` (gpu-seconds, tutarsız) adlarını verir.
+
+### MT-WF-177 — Revizyon sınırı: n ret run'ı düşürür, medya düğümü koşmaz (Faz 211, F-537)
+
+Otomatik karşılığı: `CodeWorkflowRevisionTests.The_revision_counter_survives_the_run_that_answers_and_the_run_fails_after_the_limit`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 211 |
+| **İlgili karar** | K-1007 |
+
+**Ön koşul** — MT-WF-176 ile aynı.
+
+**Adımlar**
+1. `review-and-revise`'ı başlat ve her taslağı `approved: false` ile reddet; üç ret ver (sınır 2).
+
+**Beklenen sonuç**
+- Üçüncü ret run'ı `Failed` kapatır; `error.type` `content_rejected`, mesaj `limit is 2` içerir.
+- `GET /api/runs/{finalRunId}/usage` boştur: `episode-tts` ve `episode-render` koşmadı.
+- 🚨 Sayaç executor alanında tutulsaydı her cevap run'ı sıfırdan başlar ve döngü hiç bitmezdi.
+
+### MT-WF-178 — Kesinti sonrası devam kod grafında son checkpoint'ten sürer (Faz 211, F-537)
+
+Otomatik karşılığı: `CodeWorkflowRecoveryTests.A_code_graph_interrupted_in_its_second_step_is_continued_without_running_the_first_again`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 211 |
+| **İlgili karar** | K-1007 |
+
+**Ön koşul** — Örnek uygulama; `Tracon__Demo__ReviewAndRevise__RenderSeconds=40`, `Tracon__Workflows__ResumeInterruptedRuns=true`, `Tracon__Scheduling__LeaseDuration=00:00:10`, `Tracon__Scheduling__PollInterval=00:00:01`.
+
+**Adımlar**
+1. `review-and-revise`'ı başlat, isteği `approved: true` ile cevapla.
+2. Cevap run'ı `Running` iken (render bekliyor) süreci `kill -9` ile öldür.
+3. Aynı veritabanı ve ayarlarla yeniden başlat; bir dakika bekle.
+4. `GET /api/runs?continuedFromRunId={cevapRunId}` ve devam run'ının `usage` çıktısını oku.
+
+**Beklenen sonuç**
+- Öldürülen run `Failed`, `error.type` `interrupted`, mesaj devam run'ını adlandırır.
+- Devam run'ı `Completed`, `continuedFromRunId` kesilen run'ı gösterir; `usage` yalnız `episode-render` taşır (`episode-tts` tekrar koşmadı).
+- `GET /api/workflows/requests?state=pending` boştur: onay yeniden sorulmadı.
+
+### MT-WF-179 — Süresi dolan istek `run.failed` webhook'u üretir (Faz 211, F-539)
+
+Otomatik karşılığı: `WorkflowRequestExpiryWebhookTests.A_run_failed_by_an_expired_request_publishes_run_failed_with_the_runs_payload`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 211 |
+| **İlgili karar** | K-1011 |
+
+**Ön koşul** — Örnek uygulama; `Tracon__Demo__ReviewAndRevise__RequestTimeout=00:01:00`, `Tracon__Workflows__RequestExpirationScanInterval=00:00:05`, `Tracon__Webhooks__AllowInsecureHttp=true`, `Tracon__Webhooks__AllowPrivateNetworkTargets=true`; `http://127.0.0.1:5090/hook` adresinde gövdeleri bir dosyaya yazan basit bir HTTP alıcısı; `PUT /api/webhooks/expiry` ile `run.failed` ve `workflow.request.pending` aboneliği.
+
+**Adımlar**
+1. `review-and-revise`'ı başlat; isteği cevaplama.
+2. Bir buçuk dakika bekle ve alıcının dosyasını oku.
+
+**Beklenen sonuç**
+- Alıcı önce `workflow.request.pending`, sonra `run.failed` alır; `run.failed` yükü `kind: Workflow`, `status: Failed`, `agentName: review-and-revise`, `error` alanında istek kimliği ve `durationMs` ≈ 65 000 taşır.
+- Run `Failed`, `error.type` `WorkflowRequestExpired`.
+
+### MT-WF-180 — `MaxConcurrency`: pahalı düğüm aynı anda sınırlı koşar (Faz 211, F-538)
+
+Otomatik karşılığı: `WorkflowFunctionConcurrencyTests.No_more_calls_run_at_once_than_the_function_allows_across_runs`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 211 |
+| **İlgili karar** | K-1009 |
+
+**Ön koşul** — Örnek uygulama; `Tracon__Demo__ReviewAndRevise__RenderSeconds=3`. `episode-tts` `MaxConcurrency = 1` ve çağrısı 300 ms sürer.
+
+**Adımlar**
+1. Üç `review-and-revise` run'ı başlat, hepsinin isteğini aynı anda `approved: true` ile cevapla.
+2. Her cevap run'ının olaylarından `episode-tts` için `ExecutorInvoked` ve `ExecutorCompleted` zaman damgalarını oku.
+
+**Beklenen sonuç**
+- İki `episode-tts` çağrısı **0,3 sn arayla** biter (biri bekler, çünkü slot tek); üçü de sırayla koşar, ikisi aynı anda koşmaz.
+- Üç run da `Completed`. Bekleme run olayı yazmaz; `Debug` günlüğünde `waiting for a free slot` görünür.
+
+### MT-WF-181 — Tavanı aşan kod `RunTimeout`'u host'u açılışta düşürür (Faz 211, F-537)
+
+Otomatik karşılığı: `CodeWorkflowRegistrationValidationTests.A_run_timeout_above_the_installations_value_stops_the_host_and_names_the_workflow` ·
+`CodeWorkflowRunTimeoutTests.A_run_timeout_above_the_ceiling_stops_the_host_when_it_starts`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 211 |
+| **İlgili karar** | K-1010 |
+
+**Ön koşul** — Örnek uygulama; `Tracon__Demo__ReviewAndRevise__RunTimeout=02:00:00`, `Tracon:Workflows:MaxRunTimeout` ayarsız.
+
+**Adımlar**
+1. Uygulamayı başlat.
+
+**Beklenen sonuç**
+- Host `OptionsValidationException` ile başlamaz; mesaj `Workflow 'review-and-revise'`, `WorkflowRegistrationOptions.RunTimeout` ve `Tracon:Workflows:MaxRunTimeout` adlarını verir.
+- `MaxRunTimeout` 3 saat verilince uygulama açılır.

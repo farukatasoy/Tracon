@@ -218,6 +218,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A pending workflow request whose type is a record of the graph's own is answered correctly. The run that
+  answers reads the request back from a checkpoint, where its data is JSON, and the plan-review check asked the
+  framework to read that JSON as a Magentic plan review, every member of which is optional: a record such as
+  `{"text": "...", "violation": null}` was taken for one, and the answer was built the wrong response type
+  (`Message type MagenticPlanReviewResponse does not match expected response type`). The check now reads the
+  port's declared request type. The run that published the request held the live object and never showed the defect.
+
 - A harness loop agent no longer hands its drafts to the caller that acts on its
   answer. A streaming loop yields every iteration, its drafts and its feedback
   included, and six surfaces read that stream as the answer: the next node of a
@@ -840,6 +847,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Function nodes and agent steps for a workflow graph built in code. `GetWorkflowFunction(name[, configure])`
+  binds a function registered with `AddWorkflowFunction` and `GetWorkflowAgentStep(workflow, agent[, configure])`
+  binds a catalog agent as a plain step, so a hand-built graph with a way back and a human gate gets what a
+  stored chain's steps have: the time limit, the retry policy, the budget gate, a cost line that names the node,
+  the strict read of the settings (`WorkflowFunctionStepOptions.Settings`, or typed with `SetSettings`) and an agent
+  step's own timeout and version pin (`WorkflowAgentStepOptions`). Until now the wrapper that carries them was
+  reachable only from a stored chain's compiler, and the budget gate could not be built in consumer code. An agent
+  bound with `GetWorkflowAgent` still cannot be the target of a back edge (it runs only after a turn token), so the
+  agent step is the way to put an agent where a message returns. An unknown function or settings that do not fit
+  end the run `Failed` before its first node, naming the workflow and the node; a version pin that cannot hold
+  fails the step by name before its model call.
+- `WorkflowRegistrationOptions.RunTimeout` and `WorkflowRegistrationOptions.Parameters` give a workflow defined in
+  code the run time limit and the parameter schema a stored definition has. The run timeout shortens
+  `Tracon:Workflows:RunTimeout` or lengthens it up to `MaxRunTimeout`, and a value above the ceiling stops the host
+  at startup, naming the workflow. With a schema, `GET /api/workflows` lists it, the run endpoint answers `400`
+  early for an unknown or missing value, a queued run carries the values, and a run that is answered or resumed
+  uses the recorded ones. Without one, every value is still refused as unknown.
+- `WorkflowFunctionOptions.MaxConcurrency` limits how many calls of a function run at the same time in the process,
+  across workflows and tenants, in a stored chain and in a graph built in code. A call that finds every slot taken
+  waits; the wait ends when its run is cancelled or reaches its deadline and is not part of the node's `Timeout`;
+  each attempt of a retried node takes a slot of its own; the budget gate is read after the slot is taken. The limit
+  is per process, so replicas multiply it.
+- A workflow run that the request expiry service fails now publishes `run.failed`, with the payload any failed
+  workflow run carries. Until now such a run was closed in the store and the webhooks heard nothing, so a pipeline
+  driven by webhooks waited for a run that had ended. A run closed `Completed` (every request answered) publishes
+  nothing: its answer's own run published `run.completed`.
+
 - A list of the human requests a tenant's workflow runs wait on, and a time limit for them.
   `GET /api/workflows/requests` (`state` is `pending`, `answered` or `all`; `workflowName`,
   `skip`, `take`) lists one item per request, oldest first, across every workflow; it needs the
@@ -1321,6 +1355,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that a failed history write leaves the current definition as it was.
 
 ### Changed
+
+- The agent step of a workflow, in a stored chain and in a graph built in code, now asks the agent for its whole
+  answer instead of a stream. The step never forwarded a delta to the workflow's feed, so the stream bought
+  nothing, and the streaming path has no structured-response repair. **Behavior change:** a step whose model
+  answers JSON that does not fit the agent's schema is asked again up to `Tracon:StructuredResponse:MaxRepairAttempts`
+  (before, the broken answer reached the next node), and the step's own `runs` row has `IsStreaming = false` and a
+  `message.completed` event beside the `message.delta` it already had. Its tokens, cost and input are recorded as
+  before. A loop agent still hands the next node its final iteration only.
 
 - A workflow function node no longer starts once the call tree's cost or time budget is spent.
   Until now the budget refused a model call and a new agent step but let a function node run

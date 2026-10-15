@@ -1446,3 +1446,10 @@ Kural alan dosyasında tek satır olarak kaldı; tam metin aynen buradadır.
 - **Agent düğümü sabiti sarmalayıcının anahtarındadır, kimliğinde değil** (2026-10-14, Faz 200, K-989): `WorkflowAgentCache` anahtarı sabiti taşır, `WorkflowAgentIdentity` hâlâ `(workflow, agent)`. Varlık `AgentVersionPin` ile betimleyici + tek sürüm satırından ölçülür, agent DERLENMEZ. Parametreli yol da `FindAsync(ad, sürüm)` kullanır; yoksa değer verildiği an sabit düşer.
 
 - **Workflow geçmişinde numara KİMLİKTİR** (2026-10-14, Faz 200, K-987): `workflow_definition_versions`'ın `workflows`'a yabancı anahtarı yoktur, `UpsertWorkflow`'un INSERT dalı `MAX(version)+1`'i geçmişten okur, kayıt iki satırı TEK `DbTransaction`'da yazar (işlemi ayırınca `A_save_whose_history_write_fails_…` kırılır). Agent geçmişi silmede gider (K-811).
+
+## `docs/hafiza/workflows.md`'den — Faz 211 (kod grafı notuna yer açmak için)
+
+Kural alan dosyasında kısa kaldı; tam metin aynen buradadır.
+
+- **🚨 Kuyruklu workflow işinin SON denemesi handler'a ulaşmalı** (2026-10-13, Faz 197 denetimi 🔴1, K-927): worker deneme sınırını handler'dan ÖNCE denetler (`JobWorkerBackgroundService`, F-326) ve sınırı aşan kiralamayı `tracon.job.attempts-exhausted` ile düşürür. `1 + MaxResumeAttempts` denemede son devam run'ı `Running`, açılıp başlamamış devam `Queued` kaldı; `MaxResumeAttempts = 0` kesintiyi hiç görmedi. Kural: iş `2 + MaxResumeAttempts` alır; son deneme devam BAŞLATMAZ, zinciri kapatır (`WorkflowRecovery.PlanAsync`). Batch işi kendi sınırını korur, öğe başına en çok `MaxAttempts − 2` devam alır. Sınır: son denemede hiç başlamamış baş run'ı (`NotStarted`) yine koşar; o da kesilirse onu yalnız uzlaştırma kapatır.
+

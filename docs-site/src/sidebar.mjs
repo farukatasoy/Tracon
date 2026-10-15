@@ -57,6 +57,7 @@ export const sidebar = [
       { label: 'Workflows', slug: 'concepts/workflows' },
       { label: 'Answering a workflow', slug: 'concepts/workflow-answers' },
       { label: 'Workflow requests and time limits', slug: 'concepts/workflow-requests' },
+      { label: 'A workflow a person can send back', slug: 'guides/review-and-revise-workflow' },
       { label: 'Jobs, schedules, and queues', slug: 'guides/background-work' },
     ],
   },
