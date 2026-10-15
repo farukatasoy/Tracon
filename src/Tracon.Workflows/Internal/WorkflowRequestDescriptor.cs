@@ -284,6 +284,28 @@ internal static class WorkflowRequestDescriptor
     /// <summary>The marker <c>RunEventWriter</c> appends to a value it cut.</summary>
     private const string TruncationMarker = "…[truncated]";
 
+    /// <summary>Reports whether the request is a Magentic plan review.</summary>
+    /// <param name="request">The Microsoft Agent Framework request.</param>
+    /// <returns><see langword="true"/> when the port declares the plan-review request type.</returns>
+    /// <remarks>
+    /// <para>
+    /// 🚨 Decided by the PORT'S declared request type, never by what the data deserializes into. A
+    /// request that comes back from a checkpoint holds its data as JSON, and
+    /// <c>ExternalRequest.TryGetDataAs</c> then <em>tries to deserialize it into whatever type it is asked
+    /// for</em>: a code graph's own request record (<c>{"text": "...", "violation": null}</c>) reads into
+    /// <see cref="MagenticPlanReviewRequest"/> without an error, because every member of it is optional. The
+    /// run that answered was built a plan-review response, and Microsoft Agent Framework refused it with
+    /// "Message type MagenticPlanReviewResponse does not match expected response type". The first run held the
+    /// live object, so the defect showed only on the run that ANSWERS (phase 211).
+    /// </para>
+    /// </remarks>
+    internal static bool IsPlanReview(ExternalRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return request.PortInfo.RequestType.IsMatch<MagenticPlanReviewRequest>();
+    }
+
     /// <summary>Chooses the input form the UI should ask for, based on the port's response type.</summary>
     /// <param name="request">The Microsoft Agent Framework request.</param>
     /// <returns>The input form.</returns>
@@ -291,7 +313,7 @@ internal static class WorkflowRequestDescriptor
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (request.IsDataOfType<MagenticPlanReviewRequest>())
+        if (IsPlanReview(request))
         {
             return WorkflowRequestForm.PlanReview;
         }
@@ -316,7 +338,7 @@ internal static class WorkflowRequestDescriptor
     /// <summary>Extracts the request text to show the user.</summary>
     private static string? Prompt(ExternalRequest request)
     {
-        if (request.TryGetDataAs<MagenticPlanReviewRequest>(out var review))
+        if (IsPlanReview(request) && request.TryGetDataAs<MagenticPlanReviewRequest>(out var review))
         {
             var plan = review.Plan.Text;
 
@@ -335,7 +357,7 @@ internal static class WorkflowRequestDescriptor
             return value;
         }
 
-        if (request.TryGetDataAs<ChatMessage>(out var message))
+        if (request.PortInfo.RequestType.IsMatch<ChatMessage>() && request.TryGetDataAs<ChatMessage>(out var message))
         {
             return message.Text;
         }

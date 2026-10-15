@@ -10,6 +10,8 @@ namespace Tracon;
 /// <param name="Factory">The factory that builds the graph.</param>
 /// <param name="ResponseMode">How the workflow treats more than one answer to the same request.</param>
 /// <param name="RequestTimeout">How long a human request may wait; <see langword="null"/> for no limit.</param>
+/// <param name="RunTimeout">How long a run may take; <see langword="null"/> for the installation's value.</param>
+/// <param name="Parameters">The run parameters the workflow accepts; <see langword="null"/> when it takes none.</param>
 /// <remarks>
 /// A code-defined workflow has a <strong>free graph</strong>. It can use custom
 /// <c>Executor</c> types, conditional edges, and child workflows. This does not break
@@ -21,4 +23,6 @@ internal sealed record CodeWorkflowRegistration(
     string? Description,
     Func<IServiceProvider, Workflow> Factory,
     WorkflowResponseMode ResponseMode = WorkflowResponseMode.Branch,
-    TimeSpan? RequestTimeout = null);
+    TimeSpan? RequestTimeout = null,
+    TimeSpan? RunTimeout = null,
+    IReadOnlyList<AgentParameter>? Parameters = null);

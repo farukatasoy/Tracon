@@ -189,8 +189,25 @@ internal sealed class WorkflowCatalog
     /// </remarks>
     public ValueTask<Workflow> CompileAsync(FoundWorkflow found, CancellationToken cancellationToken = default)
         => found.Code is { } registration
-            ? new ValueTask<Workflow>(registration.Factory(_services))
+            ? new ValueTask<Workflow>(BuildCodeGraph(registration))
             : _compiler.CompileAsync(found.Definition!, cancellationToken);
+
+    /// <summary>Runs the factory of a workflow defined in code.</summary>
+    /// <remarks>
+    /// A binding helper the factory called (<c>GetWorkflowFunction</c>) knows the node but not the
+    /// workflow; the workflow's name is added here, where it is known, so the run's error names both.
+    /// </remarks>
+    private Workflow BuildCodeGraph(CodeWorkflowRegistration registration)
+    {
+        try
+        {
+            return registration.Factory(_services);
+        }
+        catch (WorkflowGraphBindingException exception)
+        {
+            throw new TraconException($"Workflow '{registration.Name}' cannot run. {exception.Message}", exception);
+        }
+    }
 
     /// <summary>Turns the named workflow into a runnable graph.</summary>
     /// <param name="name">The workflow name.</param>
@@ -232,6 +249,7 @@ internal sealed class WorkflowCatalog
             Name = registration.Name,
             Description = registration.Description,
             Origin = AgentDefinitionOrigin.Code,
+            Parameters = registration.Parameters ?? [],
             ResponseMode = registration.ResponseMode,
             RequestTimeout = registration.RequestTimeout,
         };

@@ -137,6 +137,19 @@ internal static partial class WorkflowFunctionSettings
         }
     }
 
+    /// <summary>Writes a typed settings value as the JSON element a node carries.</summary>
+    /// <typeparam name="T">The function's settings type.</typeparam>
+    /// <param name="settings">The value.</param>
+    /// <returns>A detached element that reads back into <typeparamref name="T"/>.</returns>
+    /// <exception cref="JsonException">The value cannot be written.</exception>
+    /// <remarks>
+    /// The same options as the read, so what a graph built in code hands over and what an operator saves
+    /// are checked by one rule.
+    /// </remarks>
+    public static JsonElement Serialize<T>(T settings)
+        where T : class
+        => JsonSerializer.SerializeToElement(settings, StrictOptions);
+
     /// <summary>Produces the JSON schema of the settings type, for display.</summary>
     /// <param name="settingsType">The function's settings type.</param>
     /// <returns>A detached schema element.</returns>

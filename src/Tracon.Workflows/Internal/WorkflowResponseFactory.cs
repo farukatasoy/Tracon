@@ -50,7 +50,7 @@ internal static class WorkflowResponseFactory
         // Plan approval produces its own response type: MagenticPlanReviewResponse
         // only carries a ChatMessage list, and building it by hand would mean
         // repeating MAF's internal format.
-        if (request.TryGetDataAs<MagenticPlanReviewRequest>(out var review))
+        if (WorkflowRequestDescriptor.IsPlanReview(request) && request.TryGetDataAs<MagenticPlanReviewRequest>(out var review))
         {
             if (answer.Approved is not false)
             {

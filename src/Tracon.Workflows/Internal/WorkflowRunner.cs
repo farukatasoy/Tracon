@@ -939,13 +939,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                 var graph = await _catalog.CompileAsync(resolved, linked.Token).ConfigureAwait(false);
 
-                await ApplyRunTimeoutAsync(execution, resolved.Definition, settings, deadline).ConfigureAwait(false);
+                await ApplyRunTimeoutAsync(execution, resolved, settings, deadline).ConfigureAwait(false);
 
                 // F-294: values are checked against the schema of the SAME
                 // definition the graph was built from, before any model
                 // call. A failure here closes the run like a graph-setup
                 // failure: the caller can fix it and nothing was spent.
-                scope = await BindParametersAsync(execution, resolved.Definition, scope, linked.Token)
+                scope = await BindParametersAsync(execution, resolved, scope, linked.Token)
                     .ConfigureAwait(false);
 
                 workflow = graph;
@@ -1079,7 +1079,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// scope the graph runs under.
     /// </summary>
     /// <param name="execution">What is being run.</param>
-    /// <param name="definition">The definition the graph came from; <see langword="null"/> for code.</param>
+    /// <param name="found">The workflow the graph came from: a stored definition, or a registration in code.</param>
     /// <param name="scope">The run's scope so far.</param>
     /// <param name="cancellationToken">The run's token.</param>
     /// <returns>
@@ -1092,11 +1092,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// </exception>
     private async ValueTask<AgentRunScope> BindParametersAsync(
         WorkflowExecution execution,
-        WorkflowDefinition? definition,
+        WorkflowCatalog.FoundWorkflow found,
         AgentRunScope scope,
         CancellationToken cancellationToken)
     {
-        var schema = definition?.Parameters ?? [];
+        // A stored workflow declares its schema in its definition, a workflow defined in code in its
+        // registration (F-537): the same schema, checked by the same code below.
+        var definition = found.Definition;
+        var schema = definition?.Parameters ?? found.Code?.Parameters ?? [];
 
         // The runner is the authority (the HTTP endpoint only answers 400
         // early): a consumer can call IWorkflowRunner directly and skip HTTP.
@@ -1121,8 +1124,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         var final = ParameterValueSet.Resolve(schema, execution.Parameters);
 
-        await RequireParticipantCoverageAsync(execution.WorkflowName, definition!, final, cancellationToken)
-            .ConfigureAwait(false);
+        // The participants of a stored workflow are named by its definition. A graph built in code has
+        // no definition to read them from, so its agent steps are checked when they run (the step
+        // validates the values it receives and fails by name).
+        if (definition is not null)
+        {
+            await RequireParticipantCoverageAsync(execution.WorkflowName, definition, final, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         await SaveRunInputAsync(execution, scope, final, cancellationToken).ConfigureAwait(false);
 
@@ -2019,47 +2028,26 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 return;
             }
 
-            var eventType = status switch
-            {
-                RunStatus.Completed => WebhookEvents.RunCompleted,
-                RunStatus.Failed => WebhookEvents.RunFailed,
-                _ => null,
-            };
-
-            if (eventType is null)
+            if (WorkflowRunWebhooks.EventFor(status) is not { } eventType)
             {
                 return;
             }
 
             var record = await _runStore.GetRunAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
-            var treeNonTokenCost = WorkflowTreeSpend.NonTokenCost(record, nonTokenCost);
 
             await _webhookPublisher.PublishAsync(
                 tenantId,
                 eventType,
-                new WebhookEventPayload
-                {
-                    OccurredAt = _timeProvider.GetUtcNow(),
-                    Run = new WebhookRunSummary
-                    {
-                        RunId = execution.RunId.ToString(),
-                        RootRunId = execution.RunId.ToString(),
-                        SessionId = execution.SessionId,
-                        AgentName = execution.WorkflowName,
-                        Kind = nameof(RunKind.Workflow),
-                        Status = status.ToString(),
-                        DurationMs = (long)_timeProvider.GetElapsedTime(startedAt).TotalMilliseconds,
-                        InputTokens = record?.TreeUsage?.InputTokens,
-                        OutputTokens = record?.TreeUsage?.OutputTokens,
-
-                        // The token cost and the amount the tree reported beyond tokens,
-                        // added in ONE place (RunSpend); the second is also given on its own.
-                        Cost = RunSpend.Total(record?.TreeCost, treeNonTokenCost),
-                        NonTokenCost = treeNonTokenCost?.Amount,
-                        Currency = record?.TreeCost?.Currency ?? treeNonTokenCost?.Currency,
-                        Error = error?.Message,
-                    },
-                },
+                WorkflowRunWebhooks.RunPayload(
+                    _timeProvider.GetUtcNow(),
+                    execution.RunId,
+                    execution.SessionId,
+                    execution.WorkflowName,
+                    status,
+                    _timeProvider.GetElapsedTime(startedAt),
+                    record,
+                    nonTokenCost,
+                    error?.Message),
                 CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
@@ -2288,26 +2276,25 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     }
 
     /// <summary>
-    /// Re-arms the run's deadline from the definition's own run timeout, cut to the
-    /// host's ceiling.
+    /// Re-arms the run's deadline from the workflow's own run timeout, cut to the host's ceiling.
     /// </summary>
     /// <param name="execution">The run.</param>
-    /// <param name="definition">The definition the graph came from; <see langword="null"/> for code.</param>
+    /// <param name="found">The workflow the graph came from: a stored definition, or a registration in code.</param>
     /// <param name="settings">The engine's settings.</param>
     /// <param name="deadline">The run's deadline.</param>
     /// <returns>A task that completes when the deadline is re-armed.</returns>
     /// <remarks>
-    /// The save refuses a value above the ceiling; a stored one that is above a ceiling
-    /// lowered later still runs, cut to it, and the cut is logged. A code workflow has
-    /// no definition and keeps the installation's value.
+    /// The save refuses a value above the ceiling, and so does the host's start for a workflow
+    /// registered in code (<see cref="TraconWorkflowOptionsValidator"/>); a value that is above a
+    /// ceiling lowered later still runs, cut to it, and the cut is logged.
     /// </remarks>
     private async ValueTask ApplyRunTimeoutAsync(
         WorkflowExecution execution,
-        WorkflowDefinition? definition,
+        WorkflowCatalog.FoundWorkflow found,
         TraconWorkflowOptions settings,
         RunDeadline deadline)
     {
-        if (definition?.RunTimeout is not { } requested)
+        if ((found.Definition?.RunTimeout ?? found.Code?.RunTimeout) is not { } requested)
         {
             return;
         }
@@ -2318,16 +2305,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         if (requested > ceiling)
         {
             _logger.LogWarning(
-                "Workflow {Workflow} sets a run timeout of {Requested}, above the host's ceiling of {Ceiling}; run {RunId} is cut to the ceiling. Save the workflow again with a value that fits.",
+                "Workflow {Workflow} sets a run timeout of {Requested}, above the host's ceiling of {Ceiling}; run {RunId} is cut to the ceiling. {Fix}",
                 execution.WorkflowName,
                 requested,
                 ceiling,
-                execution.RunId);
+                execution.RunId,
+                found.Code is null
+                    ? "Save the workflow again with a value that fits."
+                    : "Lower WorkflowRegistrationOptions.RunTimeout, or raise 'Tracon:Workflows:MaxRunTimeout'.");
 
             limit = ceiling;
         }
 
-        await deadline.RearmAsync(limit, _timeProvider).ConfigureAwait(false);
+        await deadline.RearmAsync(limit, _timeProvider, byRegistration: found.Code is not null).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2515,6 +2505,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     {
         private TimeSpan _limit = installation;
         private bool _setByDefinition;
+        private bool _setByRegistration;
 
         /// <summary>Gets whether the deadline has passed.</summary>
         public bool Fired => source.IsCancellationRequested;
@@ -2526,13 +2517,15 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         /// Moves the deadline to <paramref name="limit"/> after the start of the run; a
         /// limit that has already passed cancels at once.
         /// </summary>
-        /// <param name="limit">The run timeout the definition sets.</param>
+        /// <param name="limit">The run timeout the workflow sets.</param>
         /// <param name="clock">The runner's time source.</param>
+        /// <param name="byRegistration">Whether a registration in code, not a stored definition, sets it.</param>
         /// <returns>A task that completes when the source is re-armed.</returns>
-        public async ValueTask RearmAsync(TimeSpan limit, TimeProvider clock)
+        public async ValueTask RearmAsync(TimeSpan limit, TimeProvider clock, bool byRegistration)
         {
             _limit = limit;
             _setByDefinition = true;
+            _setByRegistration = byRegistration;
 
             if (source.IsCancellationRequested)
             {
@@ -2559,7 +2552,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             => new()
             {
                 Type = nameof(TimeoutException),
-                Message = _setByDefinition
+                Message = _setByRegistration
+                    ? $"Workflow timed out and was stopped after {_limit}, the run timeout its registration sets. " +
+                      "Raise WorkflowRegistrationOptions.RunTimeout (up to 'Tracon:Workflows:MaxRunTimeout'), or shorten the graph."
+                    : _setByDefinition
                     ? $"Workflow timed out and was stopped after {_limit}, the run timeout its definition sets. " +
                       "Raise the workflow's 'runTimeout' (up to 'Tracon:Workflows:MaxRunTimeout'), or shorten the graph."
                     : "Workflow timed out and was stopped. " +

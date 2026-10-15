@@ -45,4 +45,47 @@ public sealed class WorkflowRegistrationOptions
     /// </para>
     /// </remarks>
     public TimeSpan? RequestTimeout { get; set; }
+
+    /// <summary>
+    /// Gets or sets how long one run of the workflow may take. <see langword="null"/> (the default) uses
+    /// <c>Tracon:Workflows:RunTimeout</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same setting as <see cref="WorkflowDefinition.RunTimeout"/>, with the same rule: it shortens the
+    /// installation's run timeout, and it may lengthen it only up to <c>Tracon:Workflows:MaxRunTimeout</c>.
+    /// The time counts the wait for a run slot. A workflow that reaches it ends <c>Canceled</c> and the
+    /// error names this setting.
+    /// </para>
+    /// <para>
+    /// <strong>A value above the ceiling stops the host at startup</strong> with an error that names the
+    /// workflow: the value comes with the deployment, and a deployment that cannot honour it should not start
+    /// and cut every run silently. If the ceiling is lowered later (a configuration reload), a run is cut to
+    /// the new ceiling and the cut is logged. Must be from 1 millisecond to about 49.7 days.
+    /// </para>
+    /// </remarks>
+    public TimeSpan? RunTimeout { get; set; }
+
+    /// <summary>
+    /// Gets or sets the run parameters the workflow accepts. Empty (the default) takes none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same schema as <see cref="WorkflowDefinition.Parameters"/>, with the same rules: the run's
+    /// <c>parameters</c> are checked against it before the first node runs (the HTTP endpoint answers
+    /// <c>400</c> early), an unknown name, a missing required value and an over-long value are refused, a
+    /// queued run carries the values, and a run that is resumed or answered continues with the values it
+    /// started with. A function node reads them with <c>context.GetRunParameters()</c>; an agent step
+    /// receives only the names its own agent declares.
+    /// </para>
+    /// <para>
+    /// A parameter is for identity and instruction, not for payload: pass an id and let the nodes load what
+    /// they need. Without a schema every value is refused as unknown, as before. The registration is checked
+    /// when it is made: a name that is not an identifier, or a repeated name, throws
+    /// <see cref="ArgumentException"/>. The required parameters of a step's agent are checked when the step
+    /// runs, not before the run starts as they are for a stored workflow, because the graph is built in code
+    /// and its steps are not known until it is built.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<AgentParameter> Parameters { get; set; } = [];
 }

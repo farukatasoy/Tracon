@@ -20,7 +20,15 @@ namespace Tracon;
 /// <para>
 /// See <c>WorkflowDefinitionCompiler.BuildMixedSequentialAsync</c> for why a
 /// mixed Sequential chain binds agent steps this way instead of
-/// <see cref="AIAgentBinding"/>.
+/// <see cref="AIAgentBinding"/>. A graph built in code binds the same executor
+/// with <see cref="WorkflowAgentBinding.GetWorkflowAgentStep(IServiceProvider, string, string)"/>.
+/// </para>
+/// <para>
+/// <strong>The step asks for the whole answer, not a stream.</strong> It never
+/// forwarded a delta to the workflow's feed, so the stream bought nothing, and the
+/// streaming path has no structured-response repair
+/// (<c>StructuredResponseValidatingAgent</c> repairs a whole response) and keeps a
+/// loop agent's every iteration out of reach of the answer rules (K-889, K-1006).
 /// </para>
 /// </remarks>
 internal sealed class WorkflowAgentStepExecutor : FunctionExecutor<List<ChatMessage>, List<ChatMessage>>
@@ -35,9 +43,7 @@ internal sealed class WorkflowAgentStepExecutor : FunctionExecutor<List<ChatMess
         List<ChatMessage> messages,
         CancellationToken cancellationToken)
     {
-        var response = await AgentResponseExtensions.ToAgentResponseAsync(
-            agent.RunStreamingAsync(messages, cancellationToken: cancellationToken),
-            cancellationToken).ConfigureAwait(false);
+        var response = await agent.RunAsync(messages, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         return [.. response.Messages];
     }

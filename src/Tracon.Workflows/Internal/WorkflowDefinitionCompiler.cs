@@ -129,10 +129,11 @@ internal sealed class WorkflowDefinitionCompiler
     /// stream <c>MessageDelta</c> events into the workflow's own event feed
     /// (streaming a single node's tokens through a boundary that was not
     /// designed to carry them would be a much larger change).
-    /// The step still runs through <c>RunStreamingAsync</c> so
-    /// its own child <c>runs</c> row keeps full message and usage history,
-    /// queryable through the tree exactly like any other agent step; only the
-    /// live top-level stream loses per-token granularity for that one node.
+    /// The step asks the agent for its whole answer (<c>RunAsync</c>, F-537),
+    /// so the structured-response repair runs for it, and its own child
+    /// <c>runs</c> row keeps full message and usage history, queryable through
+    /// the tree exactly like any other agent step; only the live top-level
+    /// stream loses per-token granularity for that one node.
     /// </para>
     /// </remarks>
     private async ValueTask<Workflow> BuildMixedSequentialAsync(

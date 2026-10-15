@@ -19199,7 +19199,7 @@
             "items": {
               "$ref": "#/components/schemas/AgentParameter"
             },
-            "description": "Gets the run parameters the workflow accepts. Empty for a workflow that\ntakes none, and always empty for a workflow defined in code."
+            "description": "Gets the run parameters the workflow accepts. Empty for a workflow that\ntakes none. For a workflow defined in code it is the schema its registration declared."
           },
           "responseMode": {
             "description": "Gets how the workflow treats more than one answer to the same pending human request.\nFor a stored workflow this is the current version\u0027s mode; a run that waits keeps the\nmode of the version it recorded.",
