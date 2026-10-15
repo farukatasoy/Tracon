@@ -199,8 +199,10 @@ public static class TraconWorkflowsBuilderExtensions
     /// <exception cref="ArgumentException">
     /// <paramref name="name"/> is empty or reserved (see the other overload), or
     /// <paramref name="configure"/> set a <see cref="WorkflowRegistrationOptions.ResponseMode"/>
-    /// that is not a member of <see cref="WorkflowResponseMode"/>, or a
-    /// <see cref="WorkflowRegistrationOptions.RequestTimeout"/> outside one minute to 365 days.
+    /// that is not a member of <see cref="WorkflowResponseMode"/>, a
+    /// <see cref="WorkflowRegistrationOptions.RequestTimeout"/> outside one minute to 365 days, a
+    /// <see cref="WorkflowRegistrationOptions.RunTimeout"/> outside one millisecond to about 49.7 days, or
+    /// <see cref="WorkflowRegistrationOptions.Parameters"/> with a name that is not an identifier or is repeated.
     /// </exception>
     /// <remarks>
     /// <para>
@@ -217,6 +219,9 @@ public static class TraconWorkflowsBuilderExtensions
     /// <para>
     /// <see cref="WorkflowRegistrationOptions.RequestTimeout"/> closes a run whose request nobody
     /// answers in time, which is also what lets retention delete the rows such a run keeps.
+    /// <see cref="WorkflowRegistrationOptions.RunTimeout"/> and <see cref="WorkflowRegistrationOptions.Parameters"/>
+    /// give the graph the run time limit and the run parameters a stored workflow carries; a run timeout
+    /// above <c>Tracon:Workflows:MaxRunTimeout</c> stops the host at startup.
     /// </para>
     /// <example>
     /// <code>
@@ -266,12 +271,32 @@ public static class TraconWorkflowsBuilderExtensions
                 nameof(configure));
         }
 
+        if (options.RunTimeout is { } runTimeout && !TimerPeriod.IsValid(runTimeout))
+        {
+            throw new ArgumentException(
+                $"Workflow '{name}' has a run timeout of {runTimeout}. It must be from 1 millisecond to about 49.7 days " +
+                $"({(long)TimerPeriod.MaxMilliseconds} milliseconds); leave it unset to use 'Tracon:Workflows:RunTimeout'.",
+                nameof(configure));
+        }
+
+        // A copy: the registration is a singleton and the options object stays in the caller's hands.
+        IReadOnlyList<AgentParameter> parameters = [.. options.Parameters];
+
+        if (AgentParameterValidator.ValidateNames(parameters) is { Count: > 0 } parameterErrors)
+        {
+            throw new ArgumentException(
+                $"Workflow '{name}' has an invalid parameter schema: {string.Join(" ", parameterErrors)}",
+                nameof(configure));
+        }
+
         builder.Services.AddSingleton(new CodeWorkflowRegistration(
             name,
             options.Description,
             factory,
             options.ResponseMode,
-            options.RequestTimeout));
+            options.RequestTimeout,
+            options.RunTimeout,
+            parameters));
 
         return builder;
     }

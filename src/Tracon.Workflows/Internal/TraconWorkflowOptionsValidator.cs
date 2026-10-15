@@ -17,8 +17,16 @@ namespace Tracon;
 /// This validation is handwritten. <c>ValidateDataAnnotations()</c> uses reflection
 /// and produces <c>IL2026</c>.
 /// </para>
+/// <para>
+/// <strong>A workflow registered in code is checked against the ceiling here</strong>
+/// (<see cref="WorkflowRegistrationOptions.RunTimeout"/>, F-537). A stored definition meets the ceiling
+/// at its save, an HTTP call someone can answer; a registration is written at build time and meets the
+/// host's settings only at startup, where a value the deployment cannot honour should stop the host
+/// instead of cutting every run in silence.
+/// </para>
 /// </remarks>
-internal sealed class TraconWorkflowOptionsValidator : IValidateOptions<TraconWorkflowOptions>
+/// <param name="codeWorkflows">The workflows registered in code; none when the validator is built by hand.</param>
+internal sealed class TraconWorkflowOptionsValidator(IEnumerable<CodeWorkflowRegistration>? codeWorkflows = null) : IValidateOptions<TraconWorkflowOptions>
 {
     /// <summary>
     /// The largest continuation count accepted. A queued run's job gets one lease
@@ -68,6 +76,33 @@ internal sealed class TraconWorkflowOptionsValidator : IValidateOptions<TraconWo
                     $"below {nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.RunTimeout)} ({options.RunTimeout}): " +
                     "it is the longest run timeout a workflow definition may set. Leave it unset to let a definition " +
                     "only shorten the run timeout.");
+            }
+        }
+
+        // F-537: the ceiling a workflow registered in code is held to. Only while the engine is on:
+        // nothing arms a run timeout otherwise.
+        if (options.Enabled && codeWorkflows is not null)
+        {
+            var allowed = WorkflowDefinitionValidator.RunTimeoutCeiling(options.RunTimeout, options.MaxRunTimeout);
+            List<string>? failures = null;
+
+            foreach (var registration in codeWorkflows)
+            {
+                if (registration.RunTimeout is { } requested && requested > allowed)
+                {
+                    (failures ??= []).Add(
+                        $"Workflow '{registration.Name}' sets {nameof(WorkflowRegistrationOptions)}.{nameof(WorkflowRegistrationOptions.RunTimeout)} " +
+                        $"to {requested}, above the longest run timeout a workflow may set ({allowed}). Lower it" +
+                        (options.MaxRunTimeout is null
+                            ? ", or set 'Tracon:Workflows:MaxRunTimeout' above it: while that is unset a workflow may only shorten " +
+                              "'Tracon:Workflows:RunTimeout', because a running workflow holds a slot every tenant shares."
+                            : $", or raise 'Tracon:Workflows:MaxRunTimeout' ({options.MaxRunTimeout})."));
+                }
+            }
+
+            if (failures is not null)
+            {
+                return ValidateOptionsResult.Fail(failures);
             }
         }
 

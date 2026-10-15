@@ -42,7 +42,7 @@ public sealed record WorkflowDescriptor
 
     /// <summary>
     /// Gets the run parameters the workflow accepts. Empty for a workflow that
-    /// takes none, and always empty for a workflow defined in code.
+    /// takes none. For a workflow defined in code it is the schema its registration declared.
     /// </summary>
     public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
 

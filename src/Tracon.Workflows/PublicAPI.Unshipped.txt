@@ -67,3 +67,27 @@ Tracon.TraconWorkflowOptions.RequestExpirationScanInterval.get -> System.TimeSpa
 Tracon.TraconWorkflowOptions.RequestExpirationScanInterval.set -> void
 Tracon.WorkflowRegistrationOptions.RequestTimeout.get -> System.TimeSpan?
 Tracon.WorkflowRegistrationOptions.RequestTimeout.set -> void
+Tracon.WorkflowFunctionBinding
+static Tracon.WorkflowFunctionBinding.GetWorkflowFunction(this System.IServiceProvider! services, string! functionName) -> Microsoft.Agents.AI.Workflows.ExecutorBinding!
+static Tracon.WorkflowFunctionBinding.GetWorkflowFunction(this System.IServiceProvider! services, string! functionName, System.Action<Tracon.WorkflowFunctionStepOptions!>! configure) -> Microsoft.Agents.AI.Workflows.ExecutorBinding!
+Tracon.WorkflowFunctionStepOptions
+Tracon.WorkflowFunctionStepOptions.WorkflowFunctionStepOptions() -> void
+Tracon.WorkflowFunctionStepOptions.Timeout.get -> System.TimeSpan?
+Tracon.WorkflowFunctionStepOptions.Timeout.set -> void
+Tracon.WorkflowFunctionStepOptions.Settings.get -> System.Text.Json.JsonElement?
+Tracon.WorkflowFunctionStepOptions.Settings.set -> void
+Tracon.WorkflowFunctionStepOptions.SetSettings<TSettings>(TSettings! settings) -> void
+static Tracon.WorkflowAgentBinding.GetWorkflowAgentStep(this System.IServiceProvider! services, string! workflowName, string! agentName) -> Microsoft.Agents.AI.Workflows.ExecutorBinding!
+static Tracon.WorkflowAgentBinding.GetWorkflowAgentStep(this System.IServiceProvider! services, string! workflowName, string! agentName, System.Action<Tracon.WorkflowAgentStepOptions!>! configure) -> Microsoft.Agents.AI.Workflows.ExecutorBinding!
+Tracon.WorkflowAgentStepOptions
+Tracon.WorkflowAgentStepOptions.WorkflowAgentStepOptions() -> void
+Tracon.WorkflowAgentStepOptions.Timeout.get -> System.TimeSpan?
+Tracon.WorkflowAgentStepOptions.Timeout.set -> void
+Tracon.WorkflowAgentStepOptions.AgentVersion.get -> int?
+Tracon.WorkflowAgentStepOptions.AgentVersion.set -> void
+Tracon.WorkflowRegistrationOptions.RunTimeout.get -> System.TimeSpan?
+Tracon.WorkflowRegistrationOptions.RunTimeout.set -> void
+Tracon.WorkflowRegistrationOptions.Parameters.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentParameter!>!
+Tracon.WorkflowRegistrationOptions.Parameters.set -> void
+Tracon.WorkflowFunctionOptions.MaxConcurrency.get -> int?
+Tracon.WorkflowFunctionOptions.MaxConcurrency.set -> void

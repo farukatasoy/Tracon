@@ -2,8 +2,8 @@ namespace Tracon;
 
 /// <summary>
 /// The optional settings of a workflow function registered with
-/// <c>AddWorkflowFunction</c>: its description, retry policy, timeout and whether it
-/// starts when the call tree's budget is spent.
+/// <c>AddWorkflowFunction</c>: its description, retry policy, timeout, how many calls may run at
+/// once and whether it starts when the call tree's budget is spent.
 /// </summary>
 /// <remarks>
 /// A callback with properties rather than optional parameters: a public method
@@ -75,4 +75,37 @@ public sealed class WorkflowFunctionOptions
     /// </para>
     /// </remarks>
     public bool StartsWhenBudgetIsSpent { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many calls of the function may run at the same time in this process.
+    /// <see langword="null"/> (the default) means no limit of its own: only the run slots
+    /// (<c>Tracon:Workflows:MaxConcurrentRuns</c>) bound it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For a node that is costly to run in parallel: a GPU voice synthesis, a render. The limit
+    /// belongs to the function, so it holds across every workflow that uses it and across
+    /// every tenant, and it reaches a node of a stored chain and a node of a graph built in code
+    /// (<see cref="WorkflowFunctionBinding.GetWorkflowFunction(System.IServiceProvider, string)"/>) alike.
+    /// </para>
+    /// <para>
+    /// A call that finds every slot taken waits. The wait belongs to the run: it ends when the run is
+    /// cancelled or reaches its deadline, and it is <em>not</em> counted against
+    /// <see cref="Timeout"/>, which bounds the node's own work. Each attempt of a retried node takes a
+    /// slot of its own and gives it back before the retry's delay, so a node that waits to retry does
+    /// not hold a slot. The budget gate (<see cref="StartsWhenBudgetIsSpent"/>) is read after the slot
+    /// is taken, because the budget can run out while the call waits.
+    /// </para>
+    /// <para>
+    /// <strong>The limit is per process.</strong> A host with several replicas allows that many calls
+    /// per replica. A handler that ignores its token after a <see cref="Timeout"/> keeps running
+    /// without a slot; pass the token on. A wait writes no run event; it is logged at the
+    /// <c>Debug</c> level.
+    /// </para>
+    /// <para>
+    /// Must be 1 or more; another value throws <see cref="ArgumentOutOfRangeException"/> when the
+    /// function is registered.
+    /// </para>
+    /// </remarks>
+    public int? MaxConcurrency { get; set; }
 }

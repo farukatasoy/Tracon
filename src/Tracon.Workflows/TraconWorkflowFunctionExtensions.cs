@@ -234,7 +234,7 @@ public static class TraconWorkflowFunctionExtensions
                 services =>
                 {
                     var handler = factory(services);
-                    var wrap = NodeWrapper<TInput, TOutput>(name, options.RetryPolicy, options.StartsWhenBudgetIsSpent, services);
+                    var wrap = NodeWrapper<TInput, TOutput>(name, options, services);
 
                     // The registry refuses settings for this function before it gets here.
                     // The timeout is the node's or the registration's, applied per compile.
@@ -436,7 +436,7 @@ public static class TraconWorkflowFunctionExtensions
                 services =>
                 {
                     var handler = factory(services);
-                    var wrap = NodeWrapper<TInput, TOutput>(name, options.RetryPolicy, options.StartsWhenBudgetIsSpent, services);
+                    var wrap = NodeWrapper<TInput, TOutput>(name, options, services);
 
                     // The settings are read here, once per compile: every attempt of a
                     // retried node and every call in the run sees the same object, and a
@@ -457,7 +457,7 @@ public static class TraconWorkflowFunctionExtensions
     /// <summary>Runs the caller's callback and checks what it set.</summary>
     /// <param name="configure">The caller's callback.</param>
     /// <returns>The options it set.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">The retry policy or the timeout is out of range.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The retry policy, the timeout or the concurrency limit is out of range.</exception>
     private static WorkflowFunctionOptions Configure(Action<WorkflowFunctionOptions> configure)
     {
         var options = new WorkflowFunctionOptions();
@@ -473,49 +473,66 @@ public static class TraconWorkflowFunctionExtensions
             WorkflowNodeTimeout.Validate(timeout);
         }
 
+        if (options.MaxConcurrency is { } maxConcurrency)
+        {
+            WorkflowNodeConcurrencyLimit.Validate(maxConcurrency);
+        }
+
         return options;
     }
 
     /// <summary>
-    /// Builds the function that wraps a handler in the node's timeout, the budget gate and
-    /// its retry policy, resolving their collaborators once, and puts the node's name in
-    /// scope.
+    /// Builds the function that wraps a handler in the node's timeout, the budget gate, the
+    /// concurrency limit and its retry policy, resolving their collaborators once, and puts the
+    /// node's name in scope.
     /// </summary>
     /// <remarks>
-    /// The order is <c>scope(retry(gate(timeout(handler))))</c>: each attempt gets the whole
-    /// timeout, and a timed-out attempt is a transient failure the policy retries. The gate
-    /// is inside the retry, so every attempt is checked against the tree's budget (a second
-    /// attempt is new paid work), and outside the timeout, so a refusal is a refusal and not
-    /// a timeout. The node scope (<see cref="WorkflowFunctionNodeScope"/>) is outermost.
-    /// Applied per compile, because the timeout is the node's.
+    /// The order is <c>scope(retry(limit(gate(timeout(handler)))))</c>: each attempt gets the whole
+    /// timeout, and a timed-out attempt is a transient failure the policy retries. The limit is inside
+    /// the retry, so every attempt takes a slot and a retry's delay gives it back, and outside the
+    /// timeout, so the wait for a slot is not the node's own time (<see cref="WorkflowNodeConcurrencyLimit"/>).
+    /// The gate is inside the limit, so the tree's budget is read after the wait - a second attempt is
+    /// new paid work, and the budget can run out while a call waits - and outside the timeout, so a
+    /// refusal is a refusal and not a timeout. The node scope (<see cref="WorkflowFunctionNodeScope"/>)
+    /// is outermost. Applied per compile, because the timeout is the node's; the slots are made here, once,
+    /// and shared by every compile - which is what makes the limit the function's and not a run's.
     /// </remarks>
     private static Func<
         Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>,
         TimeSpan?,
         Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>>> NodeWrapper<TInput, TOutput>(
         string name,
-        WorkflowNodeRetryPolicy? retryPolicy,
-        bool startsWhenBudgetIsSpent,
+        WorkflowFunctionOptions options,
         IServiceProvider services)
     {
-        var withRetry = RetryWrapper<TInput, TOutput>(retryPolicy, services);
+        var withRetry = RetryWrapper<TInput, TOutput>(options.RetryPolicy, services);
         var timeProvider = services.GetService<TimeProvider>() ?? TimeProvider.System;
         var logger = services.GetService<ILoggerFactory>()?.CreateLogger(typeof(WorkflowNodeTimeout))
             ?? (ILogger)NullLogger.Instance;
+        var startsWhenBudgetIsSpent = options.StartsWhenBudgetIsSpent;
 
-        // scope(retry(gate(timeout(handler)))): the node's name is set once, outside every
-        // attempt, so an item a retried attempt reports names the node (phase 199). The gate
-        // reads the tree's budget before each attempt starts (F-407); a node registered to
-        // start when the budget is spent has none.
+        var slotCount = options.MaxConcurrency;
+        var slots = slotCount is { } count ? WorkflowNodeConcurrencyLimit.CreateSlots(count) : null;
+        var limitLogger = services.GetService<ILoggerFactory>()?.CreateLogger(typeof(WorkflowNodeConcurrencyLimit))
+            ?? (ILogger)NullLogger.Instance;
+
+        // scope(retry(limit(gate(timeout(handler))))): the node's name is set once, outside every
+        // attempt, so an item a retried attempt reports names the node (phase 199). The slot is taken
+        // before the gate reads the tree's budget (F-538); the gate reads it before each attempt starts
+        // (F-407), and a node registered to start when the budget is spent has none.
         return (handler, timeout) =>
         {
             var bounded = timeout is { } limit
                 ? WorkflowNodeTimeout.Wrap(handler, name, limit, timeProvider, logger)
                 : handler;
 
-            return WorkflowFunctionNodeScope.Wrap(
-                name,
-                withRetry(startsWhenBudgetIsSpent ? bounded : WorkflowNodeBudgetGate.Wrap(bounded, name)));
+            var gated = startsWhenBudgetIsSpent ? bounded : WorkflowNodeBudgetGate.Wrap(bounded, name);
+
+            var limited = slots is null
+                ? gated
+                : WorkflowNodeConcurrencyLimit.Wrap(gated, slots, slotCount.GetValueOrDefault(), name, limitLogger);
+
+            return WorkflowFunctionNodeScope.Wrap(name, withRetry(limited));
         };
     }
 

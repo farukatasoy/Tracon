@@ -34,6 +34,15 @@ namespace Tracon;
 /// <see cref="RunStatus.AwaitingInput"/>.
 /// </para>
 /// <para>
+/// <strong>A run this service closes publishes the same webhook the runner does</strong>
+/// (<c>run.failed</c>, or <c>run.completed</c> when every request had been answered), from the same
+/// payload builder (<see cref="WorkflowRunWebhooks"/>): the receiver was told the run waits
+/// (<c>workflow.request.pending</c>) and would otherwise never hear that it ended. The event is sent after
+/// the run is closed, and a failure to send is logged and changes nothing: the close stands. Delivery is
+/// at most once - a process that stops between the close and the send loses the event, as it does in the
+/// runner.
+/// </para>
+/// <para>
 /// <strong>A process that stops between the two writes is recovered.</strong> A row is closed first
 /// and a closed row is never found again, so a stop after the first write would leave the run
 /// <see cref="RunStatus.AwaitingInput"/> for good. The instance that takes the lease therefore
@@ -50,7 +59,8 @@ internal sealed class WorkflowRequestExpirationService(
     SchemaReadyGate schemaReadyGate,
     TimeProvider? timeProvider = null,
     ILogger<WorkflowRequestExpirationService>? logger = null,
-    IRunErrorClassifier? errorClassifier = null) : BackgroundService
+    IRunErrorClassifier? errorClassifier = null,
+    IWebhookPublisher? webhookPublisher = null) : BackgroundService
 {
     /// <summary>How many scans try to close a run before the service gives up on it.</summary>
     private const int MaxCloseAttempts = 10;
@@ -266,20 +276,26 @@ internal sealed class WorkflowRequestExpirationService(
                 .OrderBy(static row => row.ExpiresAt)
                 .FirstOrDefault();
 
+            var status = unanswered is null ? RunStatus.Completed : RunStatus.Failed;
+            var error = unanswered is null ? null : Classify(ExpiredError(unanswered));
+
             await runStore.CompleteRunAsync(
                 new RunCompletion
                 {
                     RunId = runId,
-                    Status = unanswered is null ? RunStatus.Completed : RunStatus.Failed,
+                    Status = status,
                     CompletedAt = now,
                     EventCount = run.EventCount,
                     Usage = run.Usage,
                     Cost = run.Cost,
                     NonTokenCost = run.NonTokenCost,
-                    Error = unanswered is null ? null : Classify(ExpiredError(unanswered)),
+                    Error = error,
                     TenantId = tenantId,
                 },
                 cancellationToken).ConfigureAwait(false);
+
+            // The run is closed: from here the close stands whatever the send does.
+            await PublishClosedAsync(tenantId, run, status, error, now).ConfigureAwait(false);
 
             return true;
         }
@@ -294,6 +310,56 @@ internal sealed class WorkflowRequestExpirationService(
             }
 
             return false;
+        }
+    }
+
+    /// <summary>Publishes the event a run closed by this service owes its receiver.</summary>
+    /// <remarks>
+    /// Never throws: a failure is logged. The run row is read again after the close, because the tree's
+    /// tokens and cost are computed by the store over the closed row; the runner reads it the same way.
+    /// </remarks>
+    private async ValueTask PublishClosedAsync(
+        string tenantId,
+        RunRecord run,
+        RunStatus status,
+        RunError? error,
+        DateTimeOffset now)
+    {
+        if (webhookPublisher is null || WorkflowRunWebhooks.EventFor(status) is not { } eventType)
+        {
+            return;
+        }
+
+        try
+        {
+            // CancellationToken.None, as the runner's close: a service that is stopping has closed the run
+            // and still owes the event, and the publisher only hands it over.
+            var record = await runStore.GetRunAsync(run.Id, CancellationToken.None).ConfigureAwait(false);
+
+            await webhookPublisher.PublishAsync(
+                tenantId,
+                eventType,
+                WorkflowRunWebhooks.RunPayload(
+                    now,
+                    run.Id,
+                    run.SessionId ?? string.Empty,
+                    run.WorkflowName ?? run.AgentName,
+                    status,
+                    now - run.StartedAt,
+                    record,
+                    nonTokenCost: null,
+                    error?.Message),
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    exception,
+                    "The webhook of workflow run {RunId}, closed for an expired request, could not be published.",
+                    run.Id);
+            }
         }
     }
 
