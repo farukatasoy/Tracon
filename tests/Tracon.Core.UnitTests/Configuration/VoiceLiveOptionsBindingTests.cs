@@ -34,7 +34,6 @@ public sealed class VoiceLiveOptionsBindingTests
             ["Tracon:Voice:Live:MaxTranscriptLedgerCharacters"] = "10000",
             ["Tracon:Voice:Live:MaxLedgerEntriesPerDelegation"] = "20",
             ["Tracon:Voice:Live:DelegationTimeout"] = "00:01:00",
-            ["Tracon:Voice:Live:DelegationMode"] = "responses",
             ["Tracon:Voice:Live:Instructions"] = "Answer in one sentence.",
             ["Tracon:Voice:Live:PersistTranscript"] = "false",
             ["Tracon:Voice:Live:MaxSessionDuration"] = "00:15:00",
@@ -49,13 +48,49 @@ public sealed class VoiceLiveOptionsBindingTests
         options.MaxTranscriptLedgerCharacters.ShouldBe(10_000);
         options.MaxLedgerEntriesPerDelegation.ShouldBe(20);
         options.DelegationTimeout.ShouldBe(TimeSpan.FromMinutes(1));
-        options.DelegationMode.ShouldBe(LiveVoiceDelegationMode.Responses);
         string.Equals(options.Instructions, "Answer in one sentence.", StringComparison.Ordinal).ShouldBeTrue();
         options.PersistTranscript.ShouldBeFalse();
         options.MaxSessionDuration.ShouldBe(TimeSpan.FromMinutes(15));
         options.PendingSessionTimeout.ShouldBe(TimeSpan.FromMinutes(1));
         options.MaxConcurrentSessionsPerTenant.ShouldBe(2);
-        OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Voice:Live", options);
+
+        // DelegationMode has one defined value, which is also its default, so a bound value can
+        // never be told from the default here. The two tests below prove the key is read: a name
+        // that is not a mode stops the host, and 'client' in any case starts it.
+        OptionsKeyCoverage.ShouldCoverEveryMember(values, "Tracon:Voice:Live", options, nameof(VoiceLiveOptions.DelegationMode));
+    }
+
+    [Fact]
+    public void The_Client_delegation_mode_is_read_by_name_in_any_case()
+    {
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Voice:Live:DelegationMode"] = "CLIENT",
+        };
+
+        SectionBinding.Bind<VoiceLiveOptions>(values, ComposeLiveVoice).DelegationMode.ShouldBe(LiveVoiceDelegationMode.Client);
+    }
+
+    [Theory]
+    [InlineData("responses")]
+    [InlineData("Responses")]
+    [InlineData("1")]
+    [InlineData("not-a-mode")]
+    public void A_delegation_mode_the_contract_does_not_define_stops_the_host_at_startup(string mode)
+    {
+        // 'Responses' was part of the contract and never worked: a session that chose it
+        // failed at the provider. The setting must stop the host instead, and a typo must
+        // not fall back to 'Client' without a word.
+        var values = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Voice:Live:DelegationMode"] = mode,
+        };
+
+        var failure = Should.Throw<InvalidOperationException>(
+            () => SectionBinding.StartsCleanly(values, ComposeLiveVoice));
+
+        failure.Message.ShouldContain("DelegationMode");
+        failure.Message.ShouldContain("'Client'");
     }
 
     [Fact]

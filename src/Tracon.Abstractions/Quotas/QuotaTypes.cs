@@ -229,12 +229,4 @@ public sealed record QuotaUsageQuery
     /// </para>
     /// </remarks>
     public IReadOnlyDictionary<QuotaPeriod, DateOnly>? PeriodStarts { get; init; }
-
-    /// <summary>Has no effect: no store applies it.</summary>
-    /// <remarks>
-    /// No store ever read this value, and a store cannot turn an instant into
-    /// a period without the configured time zone. Use <see cref="PeriodStarts"/>.
-    /// </remarks>
-    [Obsolete("QuotaUsageQuery.AsOf has no effect because no store applies it. Use PeriodStarts, computed from the configured time zone.")]
-    public DateTimeOffset? AsOf { get; init; }
 }

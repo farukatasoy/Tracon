@@ -307,7 +307,7 @@ public static class TraconWorkflowFunctionExtensions
     /// </para>
     /// <para>
     /// The names are camelCase and matched without regard to case. The exported JSON
-    /// schema (<see cref="WorkflowFunctionDescriptor.SettingsSchema"/>) lists them for the
+    /// schema (<c>settingsSchema</c> on <c>GET /api/workflows/functions</c>) lists them for the
     /// console and is for display only - the read above is the check.
     /// </para>
     /// <para>

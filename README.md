@@ -277,8 +277,10 @@ write tool **code**, only pick from the tools registered in code. A security bou
 **3. MAF objects are passed through, not wrapped.** `AIAgent`, `AgentSession` and
 `ChatMessage` are used directly — Tracon is a control plane, not an abstraction layer.
 
-**4. Every extension point is replaceable.** Every service is registered with
-`TryAdd*`; register your own implementation first and yours wins.
+**4. Every documented extension point is replaceable.** A service an extension guide
+names is registered with `TryAdd*`; register your own implementation first and yours
+wins. The interfaces Tracon's packages use between themselves are `internal`: they are
+plumbing, not extension points.
 
 ---
 

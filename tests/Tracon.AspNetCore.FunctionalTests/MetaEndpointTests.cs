@@ -163,7 +163,7 @@ public sealed class MetaEndpointTests
         public ValueTask UpdateRunCostAsync(
             Guid runId,
             RunCost? cost,
-            string? tenantId = null,
+            string? tenantId,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

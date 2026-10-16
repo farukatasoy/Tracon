@@ -6,6 +6,11 @@ namespace Tracon;
 /// The catalog that joins every agent source into a single view. The user interface
 /// and the HTTP layer reach agents only through this interface.
 /// </summary>
+/// <remarks>
+/// Call this interface to look agents up. Tracon supplies the implementation; do not
+/// implement or replace it, because a replacement would have to join every agent source
+/// itself. To add agents, implement <see cref="IAgentSource"/> instead.
+/// </remarks>
 public interface IAgentCatalog
 {
     /// <summary>

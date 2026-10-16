@@ -188,8 +188,9 @@ public interface ISpeechTranscriber
 /// returned — <strong>not</strong> zero.
 /// </para>
 /// <para>
-/// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
-/// <c>TryAdd</c>; a consumer's own registration wins.
+/// <strong>DI lifetime — singleton.</strong> Registered as a singleton by
+/// <c>Tracon.Voice</c>. Call this interface; Tracon supplies the implementation, so
+/// do not implement or replace it.
 /// </para>
 /// <para>
 /// <strong>Tenant behavior — TENANT-INDEPENDENT.</strong> Pricing is

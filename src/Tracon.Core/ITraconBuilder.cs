@@ -14,9 +14,10 @@ namespace Tracon;
 /// add theirs (<c>UsePostgreSql()</c>, <c>UseOpenAI()</c>, and so on).
 /// </para>
 /// <para>
-/// <c>AddTracon()</c> returns Tracon's implementation. A chain of your own,
-/// for example a test double, only has to supply <see cref="Services"/>; the
-/// extension methods run the same way against it.
+/// <c>AddTracon()</c> returns Tracon's implementation, and this interface is for
+/// calling, not for implementing in an application. The one other implementation it is
+/// meant for is a test double: a chain of your own only has to supply
+/// <see cref="Services"/>, and the extension methods run the same way against it.
 /// </para>
 /// </remarks>
 public interface ITraconBuilder

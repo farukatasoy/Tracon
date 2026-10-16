@@ -1,0 +1,27 @@
+# Checked by PublicSurfaceBaselineTests (Public_constructors_of_concrete_classes_match_the_checked_in_baseline).
+# One line per PUBLIC constructor of a concrete class (not abstract, not static, not a record,
+# not a struct; a name ending in Options, Settings or Exception is out of scope):
+#   <package>:<full type name> | <reason that names who builds the type, at least 40 characters>
+# A new line is added BY HAND and names the decision that allows it. The refresh
+#   TRACON_PUBLIC_CTOR_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release
+# only removes stale lines, so this file can only shrink through it.
+# A service type the container or the run pipeline builds takes an internal constructor and a
+# factory registration instead (the container-built types are SingleTenantContext,
+# HttpTenantContext, TimeoutAIFunction, CompiledAgentCache and DefaultRunAttributionContext).
+Tracon.Abstractions:Tracon.AgentRunBudget | A consumer builds the budget itself and passes it to TraconRunOptions.Budget for an in-process run (guides/external-agents.md).
+Tracon.Abstractions:Tracon.AttachmentContent | A consumer's upload code builds the content it hands to the attachment store (samples/Tracon.Api); a class so equality never copies the bytes.
+Tracon.Abstractions:Tracon.JobContext | A consumer's unit test of an IJobHandler builds the context it passes to ExecuteAsync; the handler needs no store to be tested.
+Tracon.Abstractions:Tracon.SpeechAudio | A consumer's ISpeechProvider implementation builds the audio it returns (samples/Tracon.Api/ToneSpeechSynthesizer.cs).
+Tracon.Abstractions:Tracon.SpeechDialogueAudio | A consumer's ISpeechProvider implementation builds the dialogue audio it returns; a class so equality never walks the audio.
+Tracon.Abstractions:Tracon.ToolApprovalContext | A consumer's approval policy or IToolApprovalPresenter is unit-tested with a context built by object initializer (required init properties).
+Tracon.Abstractions:Tracon.TraconToolAttribute | A consumer writes the attribute on a method; the compiler builds it, so the constructor must be public.
+Tracon.Abstractions:Tracon.TraconToolRegistration | A consumer builds the registration it adds to DI (guides/write-your-own-tool.md, samples/Tracon.Samples.CustomTool).
+Tracon.AspNetCore:Tracon.TraconAgentSessionStore | Its XML tells a consumer to wrap this instance in IsolationKeyScopedAgentSessionStore, so a consumer builds it; revisit with F-560.
+Tracon.Core:Tracon.DefaultRunErrorClassifier | guides/write-your-own-error-classifier.md wraps it: a consumer's classifier decorates new DefaultRunErrorClassifier().
+Tracon.Core:Tracon.FixedTenantContext | A consumer that builds a store outside DI passes it as the tenant context (samples/Tracon.Samples.FileRunStore).
+Tracon.Core:Tracon.ImagePriceOverride | A consumer fills TraconOptions price lists in code; the type is the options element, not a service the container builds.
+Tracon.Core:Tracon.ModelPriceOverride | A consumer fills TraconOptions price lists in code; the type is the options element, not a service the container builds.
+Tracon.Core:Tracon.VoicePriceOverride | A consumer fills TraconOptions price lists in code; the type is the options element, not a service the container builds.
+Tracon.Testing:Tracon.Testing.FakeModelProvider | Consumer test code builds the fake provider directly (guides/testing.md); the optional name keys the model binding.
+Tracon.Testing.Contracts.Xunit:Tracon.Testing.Contracts.Storage.MutableTenantContext | A store contract suite swaps the tenant between calls and builds this context in its own test class.
+Tracon.Workflows:Tracon.WorkflowNodeRetryPolicy | A consumer passes one to AddWorkflowFunction to retry a node (concepts/workflows.md).

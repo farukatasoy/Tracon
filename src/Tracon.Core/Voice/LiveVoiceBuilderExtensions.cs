@@ -135,6 +135,19 @@ public static class LiveVoiceBuilderExtensions
         return builder;
     }
 
+    /// <summary>Reads a delegation mode by name and refuses a name that is not one.</summary>
+    /// <remarks>
+    /// A name that does not parse used to fall back to the default without a word. The mode
+    /// decides who runs delegated work, so a setting that names another mode (the removed
+    /// <c>Responses</c> mode, for one) must stop the host at startup instead of running
+    /// with a mode the operator did not ask for.
+    /// </remarks>
+    private static LiveVoiceDelegationMode ParseDelegationMode(string value)
+        => Enum.TryParse<LiveVoiceDelegationMode>(value, ignoreCase: true, out var mode) && Enum.IsDefined(mode)
+            ? mode
+            : throw new InvalidOperationException(
+                $"The live voice setting 'DelegationMode' is '{value}', which is not a delegation mode. The only mode is 'Client'.");
+
     /// <summary>Binds the live voice section by hand.</summary>
     /// <remarks>
     /// Hand-written because <c>Bind</c> uses reflection and the package must stay
@@ -169,9 +182,9 @@ public static class LiveVoiceBuilderExtensions
             options.DelegationTimeout = delegationTimeout;
         }
 
-        if (Enum.TryParse<LiveVoiceDelegationMode>(section["DelegationMode"], ignoreCase: true, out var mode))
+        if (section["DelegationMode"] is { Length: > 0 } delegationMode)
         {
-            options.DelegationMode = mode;
+            options.DelegationMode = ParseDelegationMode(delegationMode);
         }
 
         if (section["Instructions"] is { Length: > 0 } instructions)

@@ -15,6 +15,11 @@ namespace Tracon;
 /// worker. This interface closes both gaps.
 /// </para>
 /// <para>
+/// Call this interface to queue work; Tracon supplies the implementation, so do not
+/// implement or replace it. To run work of your own kind, implement
+/// <see cref="IJobHandler"/>.
+/// </para>
+/// <para>
 /// It performs no authorization of its own: the caller is already inside the
 /// process. The HTTP surface has its own, narrower gate
 /// (<see cref="TraconSchedulingOptions.HttpSchedulableHandlerKeys"/>).

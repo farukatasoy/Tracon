@@ -51,7 +51,7 @@ public sealed partial class PublicSurfaceBaselineTests
         if (string.Equals(Environment.GetEnvironmentVariable(OptionalConstructorRefreshEnvVar), "1", StringComparison.Ordinal)
             && File.Exists(OptionalConstructorBaselinePath))
         {
-            RemoveStaleOptionalConstructorEntries(actual);
+            RemoveStaleConstructorEntries(OptionalConstructorBaselinePath, actual);
         }
 
         var baselineLines = File.Exists(OptionalConstructorBaselinePath)
@@ -185,10 +185,23 @@ public sealed partial class PublicSurfaceBaselineTests
     }
 
     internal static List<string> EvaluateOptionalConstructorBaseline(IReadOnlySet<string> actual, string[]? baselineLines)
+        => EvaluateConstructorBaseline(
+            actual,
+            baselineLines,
+            OptionalConstructorBaselinePath,
+            "<package>:<type>(<parameters>/<optional>) | <reason>",
+            "new public constructor with optional parameters");
+
+    internal static List<string> EvaluateConstructorBaseline(
+        IReadOnlySet<string> actual,
+        string[]? baselineLines,
+        string baselinePath,
+        string lineShape,
+        string newEntryMeaning)
     {
         if (baselineLines is null)
         {
-            return [$"'{OptionalConstructorBaselinePath}' is missing - the gate is never silently green."];
+            return [$"'{baselinePath}' is missing - the gate is never silently green."];
         }
 
         var failures = new List<string>();
@@ -207,7 +220,7 @@ public sealed partial class PublicSurfaceBaselineTests
 
             if (separator <= 0)
             {
-                failures.Add($"! Malformed line (expected '<package>:<type>(<parameters>/<optional>) | <reason>'): '{line}'");
+                failures.Add($"! Malformed line (expected '{lineShape}'): '{line}'");
                 continue;
             }
 
@@ -227,12 +240,12 @@ public sealed partial class PublicSurfaceBaselineTests
 
         if (entries == 0)
         {
-            return [$"'{OptionalConstructorBaselinePath}' has no entries - the gate is never silently green."];
+            return [$"'{baselinePath}' has no entries - the gate is never silently green."];
         }
 
         failures.AddRange(actual
             .Where(key => !baseline.Contains(key))
-            .Select(static key => $"+ {key}: new public constructor with optional parameters - this needs a public API decision"));
+            .Select(key => $"+ {key}: {newEntryMeaning} - this needs a public API decision"));
 
         failures.AddRange(baseline
             .Where(key => !actual.Contains(key))
@@ -288,11 +301,11 @@ public sealed partial class PublicSurfaceBaselineTests
         return keys;
     }
 
-    private static void RemoveStaleOptionalConstructorEntries(SortedSet<string> actual)
+    private static void RemoveStaleConstructorEntries(string baselinePath, SortedSet<string> actual)
     {
         var builder = new StringBuilder();
 
-        foreach (var line in File.ReadLines(OptionalConstructorBaselinePath))
+        foreach (var line in File.ReadLines(baselinePath))
         {
             var separator = line.IndexOf(" | ", StringComparison.Ordinal);
 
@@ -304,7 +317,7 @@ public sealed partial class PublicSurfaceBaselineTests
             builder.AppendLine(line);
         }
 
-        File.WriteAllText(OptionalConstructorBaselinePath, builder.ToString());
+        File.WriteAllText(baselinePath, builder.ToString());
     }
 
     private static List<string> SplitParameters(string parameters)

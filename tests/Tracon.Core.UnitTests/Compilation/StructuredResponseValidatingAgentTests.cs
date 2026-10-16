@@ -562,7 +562,7 @@ public sealed class StructuredResponseValidatingAgentTests
             => _inner.GetTimeSeriesAsync(query, cancellationToken);
 
         public ValueTask UpdateRunCostAsync(
-            Guid runId, RunCost? cost, string? tenantId = null, CancellationToken cancellationToken = default)
+            Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
             => _inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
         public ValueTask TouchHeartbeatAsync(

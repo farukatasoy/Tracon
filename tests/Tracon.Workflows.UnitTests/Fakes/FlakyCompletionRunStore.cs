@@ -83,7 +83,7 @@ internal sealed class FlakyCompletionRunStore(IRunStore inner, int failures) : I
         => inner.GetTimeSeriesAsync(query, cancellationToken);
 
     /// <inheritdoc />
-    public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId = null, CancellationToken cancellationToken = default)
+    public ValueTask UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default)
         => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 
     /// <inheritdoc />

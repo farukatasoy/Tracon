@@ -71,11 +71,7 @@ Tracon.ClientToolResult.ErrorMessage.init -> void
 Tracon.ClientToolResult.Result.get -> string?
 Tracon.ClientToolResult.Result.init -> void
 Tracon.HttpTenantContext
-Tracon.HttpTenantContext.HttpTenantContext(Microsoft.AspNetCore.Http.IHttpContextAccessor! accessor, Microsoft.Extensions.Options.IOptions<Tracon.TraconOptions!>! coreOptions, Microsoft.Extensions.Options.IOptions<Tracon.TraconTenancyOptions!>! tenancyOptions) -> void
 Tracon.HttpTenantContext.TenantId.get -> string!
-Tracon.ITraconUiProvider
-Tracon.ITraconUiProvider.HasAssets.get -> bool
-Tracon.ITraconUiProvider.TryServeAsync(Microsoft.AspNetCore.Http.HttpContext! context, string! basePath, string! relativePath) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.McpServerRequest
 Tracon.McpServerRequest.<Clone>$() -> Tracon.McpServerRequest!
 Tracon.McpServerRequest.AuthorizationConfigurationKey.get -> string?

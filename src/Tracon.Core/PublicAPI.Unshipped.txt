@@ -83,7 +83,6 @@ Tracon.CanaryOptions.ScanInterval.set -> void
 Tracon.ChildAgentInvoker
 Tracon.CompiledAgentCache
 Tracon.CompiledAgentCache.Clear() -> void
-Tracon.CompiledAgentCache.CompiledAgentCache() -> void
 Tracon.CompiledAgentCache.Count.get -> int
 Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, string! definitionFingerprint, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
 Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, string! definitionFingerprint, string! dependencyFingerprint, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
@@ -91,7 +90,6 @@ Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, string! defin
 Tracon.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, string! definitionFingerprint, string! dependencyFingerprint, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 Tracon.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, string! definitionFingerprint, string! dependencyFingerprint, string! culture, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 Tracon.DefaultRunAttributionContext
-Tracon.DefaultRunAttributionContext.DefaultRunAttributionContext() -> void
 Tracon.DefaultRunAttributionContext.Labels.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 Tracon.DefaultRunAttributionContext.UserId.get -> string?
 Tracon.DefaultRunErrorClassifier
@@ -208,11 +206,8 @@ Tracon.RunEventWriter.RunId.get -> System.Guid
 Tracon.RunEventWriter.TenantId.get -> string?
 Tracon.RunRecordingAgent
 Tracon.SingleTenantContext
-Tracon.SingleTenantContext.SingleTenantContext(Microsoft.Extensions.Options.IOptions<Tracon.TraconOptions!>! options) -> void
 Tracon.SingleTenantContext.TenantId.get -> string!
 Tracon.TimeoutAIFunction
-Tracon.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<Tracon.TimeoutAIFunction!>! logger) -> void
-Tracon.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<Tracon.TimeoutAIFunction!>! logger, System.TimeProvider! timeProvider) -> void
 Tracon.TraconAgentGraphOptions
 Tracon.TraconAgentGraphOptions.ChildDeadline.get -> System.TimeSpan
 Tracon.TraconAgentGraphOptions.ChildDeadline.set -> void

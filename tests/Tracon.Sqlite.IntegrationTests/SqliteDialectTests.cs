@@ -36,7 +36,7 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
             Source = PricingSource.Catalog,
         };
 
-        await context.Runs.UpdateRunCostAsync(runId, cost);
+        await context.Runs.UpdateRunCostAsync(runId, cost, context.TenantContext.TenantId);
 
         var run = await context.Runs.GetRunAsync(runId);
 

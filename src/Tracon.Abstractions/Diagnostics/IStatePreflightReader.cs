@@ -47,7 +47,7 @@ namespace Tracon;
 /// persistence is in memory, so the preflight resolves it as optional.
 /// </para>
 /// </remarks>
-public interface IStatePreflightReader
+internal interface IStatePreflightReader
 {
     /// <summary>Gets the provider name, for example <c>PostgreSQL</c>.</summary>
     string ProviderName { get; }
@@ -82,7 +82,7 @@ public interface IStatePreflightReader
 }
 
 /// <summary>Names a table a state preflight can read.</summary>
-public enum StatePreflightTarget
+internal enum StatePreflightTarget
 {
     /// <summary>The <c>sessions</c> table — serialized agent session state.</summary>
     Sessions = 0,
@@ -92,7 +92,7 @@ public enum StatePreflightTarget
 }
 
 /// <summary>The number of stored rows carrying one schema generation.</summary>
-public sealed record StateGenerationTally
+internal sealed record StateGenerationTally
 {
     /// <summary>
     /// The stored Tracon schema generation, or <see langword="null"/> for
@@ -110,7 +110,7 @@ public sealed record StateGenerationTally
 }
 
 /// <summary>One sampled row, read for a decode attempt.</summary>
-public sealed record StateSample
+internal sealed record StateSample
 {
     /// <summary>The row identifier — a session id, or a checkpoint's row id.</summary>
     public required string Id { get; init; }

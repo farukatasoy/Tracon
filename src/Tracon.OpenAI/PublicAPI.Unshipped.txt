@@ -3,8 +3,6 @@ Tracon.OpenAICompatibleProviderExtensions
 Tracon.OpenAICompatibleProviderOptions
 Tracon.OpenAIImageBuilderExtensions
 Tracon.OpenAILiveOptions
-Tracon.OpenAILiveOptions.BackendModel.get -> string?
-Tracon.OpenAILiveOptions.BackendModel.set -> void
 Tracon.OpenAILiveOptions.Endpoint.get -> System.Uri?
 Tracon.OpenAILiveOptions.Endpoint.set -> void
 Tracon.OpenAILiveOptions.MaxAppendCharacters.get -> int

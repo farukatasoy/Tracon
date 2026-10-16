@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -51,7 +53,11 @@ public static class TraconTenancyBuilderExtensions
 
         // Replace, NOT TryAdd: AddTracon() runs earlier in the chain and has
         // already registered SingleTenantContext.
-        services.Replace(ServiceDescriptor.Singleton<ITenantContext, HttpTenantContext>());
+        services.Replace(ServiceDescriptor.Singleton<ITenantContext>(
+            static provider => new HttpTenantContext(
+                provider.GetRequiredService<IHttpContextAccessor>(),
+                provider.GetRequiredService<IOptions<TraconOptions>>(),
+                provider.GetRequiredService<IOptions<TraconTenancyOptions>>())));
 
         // Phase 170: the production profile gate's tenant question is answered
         // in Core by WHICH ITenantContext is bound, which this call has just

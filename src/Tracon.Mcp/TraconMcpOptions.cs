@@ -75,7 +75,7 @@ public sealed class TraconMcpOptions
     /// addresses. Example: <c>https://myapp.example.com/</c>. Must already be
     /// registered with the provider. When <see langword="null"/>, no
     /// connection is made to a server with OAuth enabled, and
-    /// <c>/oauth/start</c> returns <see cref="McpOAuthOperationStatus.NotConfigured"/>.
+    /// <c>/oauth/start</c> answers that OAuth is not configured.
     /// </summary>
     public Uri? OAuthCallbackBaseUri { get; set; }
 }

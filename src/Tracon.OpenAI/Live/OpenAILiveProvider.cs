@@ -108,10 +108,10 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
                     Type = request.Options.DelegationMode switch
                     {
                         LiveVoiceDelegationMode.Client => "client",
-                        LiveVoiceDelegationMode.Responses => throw new NotSupportedException(
-                            "The 'Responses' delegation mode is part of the contract but is not implemented yet; " +
-                            "use 'Client'."),
-                        _ => "client",
+                        _ => throw new ArgumentOutOfRangeException(
+                            nameof(request),
+                            request.Options.DelegationMode,
+                            "The live voice delegation mode is not one this provider knows."),
                     },
                 },
             },

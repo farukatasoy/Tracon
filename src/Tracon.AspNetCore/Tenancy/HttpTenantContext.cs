@@ -40,7 +40,7 @@ public sealed partial class HttpTenantContext : ITenantContext
     /// <param name="coreOptions">The Tracon settings.</param>
     /// <param name="tenancyOptions">The tenant resolution settings.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
-    public HttpTenantContext(
+    internal HttpTenantContext(
         IHttpContextAccessor accessor,
         IOptions<TraconOptions> coreOptions,
         IOptions<TraconTenancyOptions> tenancyOptions)

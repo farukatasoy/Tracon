@@ -18,7 +18,7 @@ public sealed class SingleTenantContext : ITenantContext
     /// <summary>Initializes a new single-tenant context.</summary>
     /// <param name="options">The Tracon options.</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    public SingleTenantContext(IOptions<TraconOptions> options)
+    internal SingleTenantContext(IOptions<TraconOptions> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;

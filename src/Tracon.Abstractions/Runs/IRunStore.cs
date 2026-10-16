@@ -359,8 +359,9 @@ public interface IRunStore
     /// The new cost. May be <see langword="null"/>.
     /// </param>
     /// <param name="tenantId">
-    /// The EXPECTED tenant of the run. Defence in depth; when <see langword="null"/> no
-    /// tenant check is made. <c>TenantId</c>.
+    /// The EXPECTED tenant of the run. Defence in depth: the call has no default, so a
+    /// caller states the tenant on purpose. <see langword="null"/> makes no tenant
+    /// check, and only a maintenance path that already filtered by tenant passes it.
     /// </param>
     /// <param name="cancellationToken">
     /// The cancellation token.
@@ -371,7 +372,7 @@ public interface IRunStore
     ValueTask UpdateRunCostAsync(
         Guid runId,
         RunCost? cost,
-        string? tenantId = null,
+        string? tenantId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

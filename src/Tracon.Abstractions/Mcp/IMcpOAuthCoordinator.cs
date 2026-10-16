@@ -1,7 +1,7 @@
 namespace Tracon;
 
 /// <summary>The result status of an OAuth authorization request.</summary>
-public enum McpOAuthOperationStatus
+internal enum McpOAuthOperationStatus
 {
     /// <summary>The request succeeded.</summary>
     Ok = 0,
@@ -27,7 +27,7 @@ public enum McpOAuthOperationStatus
 }
 
 /// <summary>The result of an OAuth start request.</summary>
-public sealed record McpOAuthStartResult
+internal sealed record McpOAuthStartResult
 {
     /// <summary>The result status.</summary>
     public required McpOAuthOperationStatus Status { get; init; }
@@ -43,7 +43,7 @@ public sealed record McpOAuthStartResult
 }
 
 /// <summary>The result of the OAuth callback.</summary>
-public sealed record McpOAuthCompleteResult
+internal sealed record McpOAuthCompleteResult
 {
     /// <summary>The result status.</summary>
     public required McpOAuthOperationStatus Status { get; init; }
@@ -74,7 +74,8 @@ public sealed record McpOAuthCompleteResult
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
-/// <c>TryAdd</c>; a consumer's own registration wins. This is required, not
+/// <c>TryAdd</c>. This interface is plumbing between Tracon's own packages;
+/// a consumer does not implement it. A singleton is required, not
 /// incidental: the in-memory tokens and pending-flow state (matched by
 /// <c>state</c> between <see cref="StartAsync"/> and <see cref="CompleteAsync"/>)
 /// must survive across the two separate HTTP requests of one OAuth round trip,
@@ -82,7 +83,7 @@ public sealed record McpOAuthCompleteResult
 /// safe under concurrent flows from unrelated tenants.
 /// </para>
 /// </remarks>
-public interface IMcpOAuthCoordinator
+internal interface IMcpOAuthCoordinator
 {
     /// <summary>
     /// Starts the authorization flow for a server and returns the provider's

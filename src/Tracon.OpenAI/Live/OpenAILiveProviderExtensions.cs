@@ -125,11 +125,6 @@ public static class OpenAILiveProviderExtensions
             options.Endpoint = parsed;
         }
 
-        if (section["BackendModel"] is { Length: > 0 } backendModel)
-        {
-            options.BackendModel = backendModel;
-        }
-
         if (int.TryParse(
                 section["MaxAppendCharacters"],
                 NumberStyles.Integer,

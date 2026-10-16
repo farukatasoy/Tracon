@@ -44,11 +44,6 @@ public sealed class OpenAILiveOptions
     public Uri? Endpoint { get; set; }
 
     /// <summary>
-    /// Gets or sets the model the provider uses in <c>Responses</c> delegation mode.
-    /// </summary>
-    public string? BackendModel { get; set; }
-
-    /// <summary>
     /// Gets or sets the per-append character ceiling. The default is derived from
     /// <see cref="ProviderAppendTokenLimit"/> and <see cref="ConservativeCharactersPerToken"/>.
     /// </summary>

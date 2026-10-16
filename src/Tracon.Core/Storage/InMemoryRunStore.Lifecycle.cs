@@ -115,7 +115,7 @@ internal sealed partial class InMemoryRunStore
     public ValueTask UpdateRunCostAsync(
         Guid runId,
         RunCost? cost,
-        string? tenantId = null,
+        string? tenantId,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

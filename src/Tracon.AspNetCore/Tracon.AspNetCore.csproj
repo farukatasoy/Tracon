@@ -16,6 +16,18 @@
   </ItemGroup>
 
   <!--
+    Tracon.UI registers the ITraconUiProvider that MapTracon serves the
+    management UI through. The interface is a first-party plumbing seam: the
+    asset list, caching and fallback rules belong to the one shipped
+    implementation, and no guide or sample asks a consumer to write another.
+    The end-to-end UI test host builds the same registration.
+  -->
+  <ItemGroup Label="Internal visibility - management UI package and its end-to-end tests">
+    <InternalsVisibleTo Include="Tracon.UI" />
+    <InternalsVisibleTo Include="Tracon.Ui.E2ETests" />
+  </ItemGroup>
+
+  <!--
     Phase 74: the OpenAPI document travels with the package that serves the
     endpoints it describes, and Tracon.AspNetCore.targets hands its path to
     the local reference file. No dependency is added - this is a static JSON

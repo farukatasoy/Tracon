@@ -9,9 +9,10 @@ namespace Tracon;
 /// against the SAME <see cref="WebhookDelivery.Id"/>, and each attempt is
 /// recorded with its own <see cref="RecordDeliveryResultAsync"/> call rather
 /// than overwriting the last one. This store neither deduplicates nor
-/// collapses those attempts — it is <c>IWebhookPublisher</c>'s and the
-/// recipient's job to do so; see <see cref="IWebhookPublisher"/>'s remarks
-/// for the header a recipient uses to recognize a retry.
+/// collapses those attempts — it is the recipient's job to do so. Every
+/// attempt, the original and every retry, carries the SAME delivery id in the
+/// <c>X-Tracon-Delivery</c> header; a recipient that wants exactly-once
+/// processing MUST deduplicate on that header's value.
 /// </remarks>
 public interface IWebhookStore
 {
@@ -145,7 +146,7 @@ public interface IWebhookStore
 /// does not deduplicate on the recipient's behalf.
 /// </para>
 /// </remarks>
-public interface IWebhookPublisher
+internal interface IWebhookPublisher
 {
     /// <summary>Writes an event to the queue.</summary>
     /// <param name="tenantId">The tenant identifier.</param>

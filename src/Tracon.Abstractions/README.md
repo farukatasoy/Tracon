@@ -17,7 +17,7 @@ dotnet add package Tracon.Abstractions --prerelease
 
 ## What is in here
 
-85 public interfaces among 404 exported public types. The ones a consumer actually implements
+79 public interfaces among 389 exported public types. The ones a consumer actually implements
 fall into four groups.
 
 ### Storage seams
@@ -49,12 +49,19 @@ packages the same behavior tests the shipped implementations run — see
 |---|---|
 | `IAgentSource` | The catalog is built — this is how agents from a source of your own appear |
 | `IModelProvider` | An agent needs an `IChatClient` |
-| `IToolRegistry` | A definition's tool names are resolved |
 | `IContentGuard` | Content enters or leaves a run and may be blocked |
 | `IRunJudge` | A finished run is scored automatically |
 | `IAgentDecorator` | An `AIAgent` is wrapped before it runs |
 | `IJobHandler` | A job of your own kind is leased from the queue |
 | `ISkillScriptExecutor` | An approved skill script runs — in a container or a remote runner of yours instead of a local process |
+
+Some interfaces are the opposite: your code calls them and Tracon supplies the
+implementation. `IToolRegistry`, `IAgentCatalog`, `IModelProviderRegistry`,
+`IJobDispatcher`, `IWorkflowRunner`, `ISpeechProviderResolver`, `IVoicePricingReader`,
+`IMigrationApplier`, `ISqlPersistenceDiagnostics` and `ITraconBuilder` are the ones to
+call, not to implement. Their XML documentation says so; `IToolRegistry`, for one, owns
+the authorization, timeout, approval and truncation wrappers every tool call passes
+through.
 
 ### Ambient context
 

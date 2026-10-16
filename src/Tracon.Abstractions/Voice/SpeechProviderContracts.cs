@@ -45,8 +45,12 @@ namespace Tracon;
 /// provider's own guarantee.
 /// </para>
 /// <para>
-/// <strong>DI lifetime — singleton.</strong> Registered by <c>AddTracon()</c> with
-/// <c>TryAdd</c>; a consumer's own registration wins.
+/// <strong>DI lifetime — singleton.</strong> Registered by <c>AddTracon()</c>.
+/// Call this interface; do not implement or replace it. The tenant's egress policy and
+/// credential checks above run inside it, and a replacement would send a tenant's text
+/// or audio to a provider without them. To add a provider, register an
+/// <see cref="ISpeechSynthesizer"/> or <see cref="ISpeechTranscriber"/> as described
+/// above.
 /// </para>
 /// <para>
 /// <strong>Tenant behavior — AMBIENT tenant.</strong> No member takes a tenant

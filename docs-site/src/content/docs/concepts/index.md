@@ -86,10 +86,12 @@ the MAF ecosystem. Tracon is a *control plane*, not an *abstraction layer*.
 
 ### Replaceable services
 
-Default service registrations use `TryAdd`, so an implementation your application
-registers before `AddTracon()` is the one that stays. The same seam covers MAF's own
-hosting types, which is why interfaces like conversation storage can be swapped out.
-Each extension guide states the lifetime and registration contract its seam expects.
+Default registrations of the documented extension points use `TryAdd`, so an
+implementation your application registers before `AddTracon()` is the one that stays.
+The same seam covers MAF's own hosting types, which is why interfaces like
+conversation storage can be swapped out. Each extension guide states the lifetime and
+registration contract its seam expects. An interface that only Tracon's own packages
+use is `internal`: it is plumbing, and no guide asks you to implement it.
 
 ## Where things live
 

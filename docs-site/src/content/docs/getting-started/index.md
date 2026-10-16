@@ -64,9 +64,10 @@ These conventions explain the default setup and the extension model.
 2. **Tools are code only.** The console selects from registered tools; it never
    defines them.
 3. **MAF objects are passed through, not wrapped.**
-4. **Replaceable services.** Default service registrations use `TryAdd` so a
-   consumer registration can supply the implementation. Follow each extension
-   guide for its lifetime and registration contract.
+4. **Replaceable services.** Default registrations of the documented extension
+   points use `TryAdd` so a consumer registration can supply the implementation.
+   Follow each extension guide for its lifetime and registration contract.
+   Interfaces that only Tracon's own packages use are `internal`.
 
 ## Is it for you?
 
