@@ -54,14 +54,15 @@ public sealed class TemplateRunTests(TemplateFixture fixture)
                     response = await httpClient.GetAsync("tracon/api/agents");
                     break;
                 }
-                catch (HttpRequestException)
+                catch (HttpRequestException ex)
                 {
                     if (process.HasExited)
                     {
                         var stdOut = await process.StandardOutput.ReadToEndAsync();
                         var stdErr = await process.StandardError.ReadToEndAsync();
                         throw new InvalidOperationException(
-                            $"The application exited unexpectedly (code {process.ExitCode}).{Environment.NewLine}{stdOut}{Environment.NewLine}{stdErr}");
+                            $"The application exited unexpectedly (code {process.ExitCode}).{Environment.NewLine}{stdOut}{Environment.NewLine}{stdErr}",
+                            ex);
                     }
 
                     await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: retry

@@ -55,25 +55,28 @@ updates:
           - "Testcontainers*"
           - "Microsoft.Playwright"
           - "Microsoft.Testing.*"
-          - "SSH.NET"
       analyzers:
         patterns:
           - "Meziantou.Analyzer"
           - "Microsoft.CodeAnalysis.*Analyzers"
           - "MinVer"
     ignore:
-      # Kaynak ureteci, kendisini yukleyen derleyicinin Roslyn'inden YENI olamaz.
-      # Tracon net8.0'i da hedefler (K-005) ve .NET 8 SDK GA Roslyn 4.8.0
-      # tasir; daha yenisi eski SDK'da SESSIZCE yuklenmez.
+      # Kaynak ureteci, kendisini yukleyen derleyicinin Roslyn'inden YENI olamaz
+      # (K-349). Tracon net8.0'i da hedefler (K-005) ve .NET 8 SDK GA Roslyn
+      # 4.8.0 tasir; daha yenisi eski SDK'da SESSIZCE yuklenmez. Olculdu
+      # (2026-10-16): SDK 10.0.100 -> 5.0.0 · 10.0.402 -> 5.9.0 · 9.0.306 -> 4.14.0.
+      # Faz 193 net8/net9'u dusurunce (K-855) taban 5.0.0 olur, 5.9.0 DEGIL
+      # (en eski desteklenen SDK'nin Roslyn'i, F-569) - bu satir o zaman kalkar.
       - dependency-name: "Microsoft.CodeAnalysis.CSharp"
         versions: ["> 4.8.0"]
-      # TrxReport 2.x, Microsoft.Testing.Platform 2.x ceker; xunit.v3 3.2.2
-      # platform v1 uzerine kuruludur ve calisma aninda TypeLoadException verir.
-      - dependency-name: "Microsoft.Testing.Extensions.TrxReport"
-        versions: [">= 2.0.0"]
-      # xunit.v3 4.x ayni kisitin diger ucudur: platform surumunu birlikte
-      # tasir. 3.x yama/minor guncellemeleri serbesttir.
-      - dependency-name: "xunit.v3"
+      # Sevk edilen `Tracon.Testing.Contracts.Xunit` paketinin xunit alt siniri
+      # (Faz 215, A-70). Reponun kendi testleri xunit.v3 4.x'te kosar; bu iki alt
+      # paket nuspec'te `>= 3.2.2` olarak sevk edilir ki xunit.v3 3.x'teki tuketici
+      # NU1608 almasin. 4.x'e yukseltmek bir bagimlilik guncellemesi degil,
+      # TUKETICIYI xunit.v3 4'e zorlayan bir uyumluluk karari (K-1018).
+      - dependency-name: "xunit.v3.extensibility.core"
+        versions: [">= 4.0.0"]
+      - dependency-name: "xunit.v3.assert"
         versions: [">= 4.0.0"]
 
   # ---------------------------------------------------------------------------

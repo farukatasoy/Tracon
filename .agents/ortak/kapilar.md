@@ -138,6 +138,21 @@ altısı da 2026-08-28'de arka arkaya çıktı, hiçbiri ubuntu'da görünmüyor
   `packages/tracon-client/scripts/generate.mjs`). `dotnet` gibi gerçek bir
   `.exe` sorun değildir.
 
+## MTP kipi — `dotnet test`'in bayrakları (Faz 215)
+
+`global.json` `test.runner = Microsoft.Testing.Platform` ister (xunit.v3 4 +
+TrxReport 2). Ham `dotnet test` yazmak yerine `kapi.py`'yi çağır; yazman gerekirse:
+
+| Eski | MTP kipi |
+|---|---|
+| `dotnet test Tracon.slnx -maxcpucount:2 -- --report-trx` | `dotnet test --solution Tracon.slnx --max-parallel-test-modules 2 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module` |
+| `dotnet test <proje>.csproj` | `dotnet test --project <proje>.csproj` |
+| TRX `artifacts/bin/<P>/release*/TestResults/` | TRX `artifacts/test-results/<P>/<tfm>_<mimari>/` |
+
+🚨 `-maxcpucount` bu kipte **sıfır test** koşar ve çıkış kodu 5 verir. `kapi.py`
+tam koşumdan sonra TRX'teki testleri sayar; sıfırsa kırmızıdır. Ayrıntı ve ölçüm:
+[`test-kosum-tuzaklari.md`](../../docs/hafiza/test-kosum-tuzaklari.md).
+
 ## MTP filtresi — `dotnet test --filter` YAZMA
 
 MTP'de `--filter` diye bir seçenek **yoktur**; sessizce yutulur ve paketin

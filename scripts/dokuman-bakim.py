@@ -1854,7 +1854,8 @@ def tek_derleme_zinciri_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
         konum = build.index(adim)
         if not ubuntu(adim):
             bulgu(adim.no, "`nuget-packages` yüklemesi `ubuntu` koşulu taşımıyor")
-        test = sira(build, lambda a: "dotnet test Tracon.slnx" in yorumsuz(a))
+        # Faz 215: MTP kipinde hedef `--solution Tracon.slnx` ile verilir; eski konumsal biçim de sayılır.
+        test = sira(build, lambda a: re.search(r"dotnet test\b[^\n]*\bTracon\.slnx\b", yorumsuz(a)) is not None)
         if test is None or test > konum:
             bulgu(adim.no, "`nuget-packages` yüklemesi `dotnet test Tracon.slnx` adımından önce")
         else:

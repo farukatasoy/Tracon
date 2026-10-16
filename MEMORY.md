@@ -55,6 +55,7 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
   taşımıyordu, yazma yolu taşıyordu (K-525).
 - **Bash'te `cd` kalıcıdır**; doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` yoktur (`MSB1001`).
+  🚨 `-maxcpucount` **sıfır test** koşar (çıkış 5): `--max-parallel-test-modules`.
   Tek test: `./artifacts/bin/<Proje>/release/<Proje> --filter-method "*Ad*"`.
   🚨 Çok hedefli temsilci projede (Faz 183) klasör `release_<tfm>/`'dir ve eski
   `release/` **bayat** kalır — `kapi.py test --proje <P> --sinif … --tfm …` kullan.

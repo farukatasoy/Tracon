@@ -74,11 +74,12 @@ internal static class ProcessRunner
         {
             await process.WaitForExitAsync(cts.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
             KillProcessTree(process);
             throw new TimeoutException(
-                $"'{fileName} {arguments}' did not finish within {timeout}.{Environment.NewLine}stdout:{stdOut}{Environment.NewLine}stderr:{stdErr}");
+                $"'{fileName} {arguments}' did not finish within {timeout}.{Environment.NewLine}stdout:{stdOut}{Environment.NewLine}stderr:{stdErr}",
+                ex);
         }
 
         return new ProcessResult(process.ExitCode, stdOut.ToString(), stdErr.ToString());

@@ -192,10 +192,11 @@ public sealed class StreamKeepAliveTests
         {
             return await reader.ReadLineAsync(idle.Token);
         }
-        catch (OperationCanceledException) when (!TestContext.Current.CancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (!TestContext.Current.CancellationToken.IsCancellationRequested)
         {
             throw new ShouldAssertException(
-                $"The stream sent nothing for {IdleLimit.TotalSeconds} seconds; a reader with an idle limit closes it here.");
+                $"The stream sent nothing for {IdleLimit.TotalSeconds} seconds; a reader with an idle limit closes it here.",
+                ex);
         }
     }
 

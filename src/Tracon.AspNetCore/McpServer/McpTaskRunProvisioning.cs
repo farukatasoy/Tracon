@@ -77,12 +77,11 @@ internal static class McpTaskRunProvisioningFilter
         var mcpOptions = services.GetRequiredService<IOptionsMonitor<TraconMcpServerOptions>>().CurrentValue;
         var toolName = context.Params?.Name;
 
-        var agentName = "";
-
-        if (toolName is not null)
-        {
-            ExternalAgentToolNaming.TryParseAgentName(mcpOptions.ToolNamePrefix, toolName, out agentName);
-        }
+        // A name that is not an agent tool leaves the agent name empty, as before.
+        var agentName = toolName is not null
+            && ExternalAgentToolNaming.TryParseAgentName(mcpOptions.ToolNamePrefix, toolName, out var parsedName)
+                ? parsedName
+                : "";
 
         var tenantId = services.GetRequiredService<ITenantContext>().TenantId;
         var previous = McpTaskRunAmbient.Current;

@@ -3,14 +3,14 @@
   "isRoot": true,
   "tools": {
     "docfx": {
-      "version": "2.78.5",
+      "version": "2.81.0",
       "commands": [
         "docfx"
       ],
       "rollForward": false
     },
     "nswag.consolecore": {
-      "version": "14.2.0",
+      "version": "14.7.1",
       "commands": [
         "nswag"
       ],

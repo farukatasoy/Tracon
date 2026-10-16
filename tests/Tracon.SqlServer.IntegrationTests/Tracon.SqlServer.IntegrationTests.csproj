@@ -14,8 +14,6 @@
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.MsSql" />
-    <!-- Pins to the patched version for GHSA-q939-rpr3-3284 (SSH.NET, a transitive dependency of Testcontainers). -->
-    <PackageReference Include="SSH.NET" />
   </ItemGroup>
 
   <!--

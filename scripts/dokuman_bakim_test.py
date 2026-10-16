@@ -2691,6 +2691,13 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
                                   "        run: echo test\n")
         self._icerir(bulgular, "`dotnet test Tracon.slnx` adımından önce")
 
+    def test_mtp_biciminde_test_adimi_da_testtir(self):
+        """Faz 215: `dotnet test --solution Tracon.slnx` (MTP kipi) de test adımı sayılır."""
+        bulgular = self._degistir(
+            "        run: dotnet test Tracon.slnx -c Release --no-build\n",
+            "        run: dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 1\n")
+        self.assertEqual(bulgular, [])
+
     # 5
     def test_prova_paket_dizinisiz_kirmizi(self):
         bulgular = self._degistir("kapi.py yayin --kuru --paket-dizini artifacts/ci-paket",

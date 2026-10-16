@@ -9,10 +9,7 @@
 > [`test-paralellik-ve-zamanlama.md`](test-paralellik-ve-zamanlama.md).
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana dokunurken okunur.
-> Faz 90'da ayrildi: `test-altyapisi.md` 15.751/16.000 B'ye ulasmisti (%1
-> bosluk). 400 B madde tavani OLCULDU ve REDDEDILDI -- en buyuk madde (1.296 B)
-> kesilse kok sebep kalir, COZUM (`MSBUILDDISABLENODEREUSE=1`, 8 dk -> 18,5 sn)
-> giderdi. K-214 merdiveni: gercek bolunme.
+> Faz 90'da `test-altyapisi.md`'den ayrildi (K-214 merdiveni: gercek bolunme).
 
 ## Alt surec ve MSBuild
 
@@ -104,60 +101,54 @@ Yani eski linker + yeni SDK.
 - **CI etkilenmez** — `ci.yml` bu isleri `ubuntu-latest` uzerinde kosar. Bu yuzden
   kusur yalnizca yerel kapanis kapisinda gorunur.
 
-**✅ COZULDU (2026-09-16, Faz 178).** Xcode 27.0 (build 27A266a) kuruldu ve
-`xcode-select -p` onu gosteriyor; linker'i artik 27.0 SDK'yi taniyor. Ama
-yukseltme **yeni bir kapi** getirdi ve belirtisi yukaridakinden TAMAMEN
-FARKLIDIR:
-
-```
-You have not agreed to the Xcode license agreements.
-Please run 'sudo xcodebuild -license' ...
-```
-
-🚨 **Bu satir bir LINKER hatasi gibi gorunmez ve `dotnet publish` ciktisinda
-`MSB3073` altinda kaybolur.** Ayirt etme yolu tek satirliktir ve repo'dan
-bagimsizdir:
+**✅ COZULDU (2026-09-16, Faz 178).** Xcode 27.0 kuruldu, linker 27.0 SDK'yi taniyor.
+Yukseltme yeni bir kapi getirdi: `You have not agreed to the Xcode license
+agreements.` 🚨 Bu satir bir linker hatasi gibi gorunmez, `dotnet publish`
+ciktisinda `MSB3073` altinda kaybolur. Ayirt etme (repo'dan bagimsiz):
 
 ```bash
 printf 'int main(void){return 0;}\n' > /tmp/t.c && cc /tmp/t.c -o /tmp/t
 ```
 
-Iki satirlik bir C programi linklenmiyorsa hata **koda ait degildir**. Lisans
-kapisi `/usr/bin/cc`, `/usr/bin/clang` ve `ld` shim'lerinin **hepsini** reddeder;
-`isysroot` degistirmek ise YARAMAZ (uc SDK ile de ayni hata olculdu). Shim'i
-atlayip gercek derleyiciyi cagirmak calisir ve teshisi kesinlestirir:
-`/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang`.
-
-**Cozum kullanicinindir** (agent `sudo` kosmaz): `sudo xcodebuild -license accept`.
-Sonrasi olculdu: `ObjectToolAotPackageTests` 1/1, yayin provasi Native AOT smoke
-dahil tam yesil. `DEVELOPER_DIR` gecici cozumune artik gerek yok.
+Iki satirlik C programi linklenmiyorsa hata koda ait degildir. `isysroot`
+degistirmek YARAMAZ. Cozum kullanicinindir (agent `sudo` kosmaz):
+`sudo xcodebuild -license accept`. Sonrasi: `ObjectToolAotPackageTests` 1/1,
+`DEVELOPER_DIR` gecici cozumune gerek kalmadi.
 
 🚨 Ayirt etme yolu: ayni testi `git worktree add <dizin> <faz oncesi sha>` ile
 temel surumde de kos. Ayni hatayi veriyorsa ortamdir, fazin regresyonu degildir.
 
 ## 🚨 AOT publish'i deponun PAYLASILAN `.pdb`'sini acar — tam kosumda cakisir (Faz 176)
 
-Ayni AOT case'i (`ObjectToolAotPackageTests`) **ikinci** bir sekilde de duser ve
-bu sefer sebep linker degil **dosya cekismesidir**:
+`ObjectToolAotPackageTests` ikinci bir sekilde de duser ve sebep linker degil
+**dosya cekismesidir**: `ILCompiler.CodeGenerationFailedException` →
+`IOException: … artifacts/obj/Tracon.Abstractions/release_net10.0/Tracon.Abstractions.pdb
+… being used by another process`. Paketlenen DLL'in debug dizini deponun kendi
+`artifacts/obj` yolunu gosterir; tam kosumda baska bir surec ayni `.pdb`'yi
+tutuyorsa publish **5-6 sn icinde** duser ve gercek bir AOT kusuru gibi gorunur.
 
-```
-ILCompiler.CodeGenerationFailedException: Code generation failed for method
-  '[Consumer]Program+<<Main>$>d__0.MoveNext()'
- ---> System.IO.IOException: The process cannot access the file
-      'artifacts/obj/Tracon.Abstractions/release_net10.0/Tracon.Abstractions.pdb'
-      because it is being used by another process
-```
+🚨 Hata `IOException`/`being used by another process` iceriyorsa kod yolunu
+okuma: case izole kosulunca gecer (olculdu 2026-09-16: tam kapanista dustu, izole
+53/53). Ayni kosumda `Tracon.Ui.E2ETests`'ten baska bir testin dusmesi ayni
+cekismenin ikinci yuzudur ([`test-yalitimi.md`](test-yalitimi.md) Faz 161).
 
-Sebep: paketlenen DLL'in debug dizini **deponun kendi** `artifacts/obj` yolunu
-gosterir, ILCompiler modulun sembol dosyasini oradan acmaya calisir. Tam paket
-kosumunda baska bir surec ayni `.pdb`'yi tutuyorsa publish **5-6 sn icinde**
-codegen hatasiyla duser — gercek bir AOT kusuru gibi gorunur, degildir.
+## 🚨 `dotnet test` MTP 2 kipindedir — eski bayraklar SESSİZCE test koşturmaz (Faz 215)
 
-🚨 Ayirt etme: hata `IOException`/`being used by another process` iceriyorsa
-kod yolunu okuma. Case izole kosuldugunda gecer (olculdu 2026-09-16: tam
-kapanis kapisinda dustu, izole 53/53). Ayni kosumda `Tracon.Ui.E2ETests`'ten
-**baska** bir testin de dusmesi ayni cekismenin ikinci yuzudur
-([`test-yalitimi.md`](test-yalitimi.md) Faz 161 kaydi).
+`global.json` `test.runner = Microsoft.Testing.Platform` ister. Yoksa xunit.v3 4 +
+TrxReport 2 ile her `dotnet test` "VSTest target is no longer supported" ile düşer.
+Üç eski alışkanlık çalışmaz:
+
+- **`-maxcpucount:N` → `--max-parallel-test-modules N`.** Eski bayrak bu kipte
+  **çıkış kodu 5** verir ve **sıfır test** koşar (ölçüldü 2026-10-16: beş modülün
+  hepsi "Exit code: 5"). `--` ayıracı yoktur; `--report-trx` doğrudan verilir.
+  Hedef `--solution` / `--project` ile verilir; "modül" = bir test ikilisi.
+- **TRX ikilinin yanına yazılmaz.** `--results-directory artifacts/test-results
+  --results-directory-layout per-module` → `<proje>/<tfm>_<mimari>/*.trx`.
+  `kapi.py` ve `ci.yml` aynı yolu okur; `kapi_test.py` ikisini birlikte denetler.
+  Eski `release*/TestResults/` yolunu taramak düşen test **bulmaz**: kapı kırmızı
+  kalır, izole teşhis sessizce kaybolur. Bacağın ikilisi TRX'in `codeBase`'inden okunur.
+- **Çıkış kodu 0 "test koştu" demek değildir.** `kapi.py` tam koşumdan sonra TRX'teki
+  testleri sayar; sıfırsa kırmızı döner (çıkış 8). Negatif kontrol `kapi_test.py`'dedir.
 
 ## Kapanış kapısı taban ölçümleri
 
@@ -169,8 +160,7 @@ bu dosya bütçeyi aştı). Aktif tuzak değil, tarihsel ölçüm kaydıdır.
 
 ## 🚨 Bekleme "zaman aşımı" ile düşerse önce verinin HİÇ yazılıp yazılmadığını sor (Faz 163 → F-257)
 
-`LiveVoiceLifecycleTests` transkript testinin "okuma yazmayı geçti" teşhisi yanlıştı: veri yavaş değil KAYIPTI (kapanış pompayı erken iptal ediyordu). Bekleme yardımcısı kayıp veriyi gecikme gibi gösterir. Teşhis sırası ucuzdan pahalıya: tek test izole → tek assembly'nin tamamı → tüm çözüm. Tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-
+`LiveVoiceLifecycleTests` transkript testinin "okuma yazmayı geçti" teşhisi yanlıştı: veri yavaş değil KAYIPTI (kapanış pompayı erken iptal ediyordu). Bekleme yardımcısı kayıp veriyi gecikme gibi gösterir. Teşhis sırası ucuzdan pahalıya: tek test izole → tek assembly'nin tamamı → tüm çözüm; ortadaki adım belirleyici oldu (1046 testin geçmesi "sıra bağımlılığı değil, zamanlama" dedi). Tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 **Sahte sunucuda gonderim ile baglanti sokumu yarisir** (2026-10-11, F-257):
 `SendClosedAsync` yazarken Tracon kapatiyor, attach handler'i `using` ile soketi
@@ -179,9 +169,6 @@ CI). Tetikleyen cerceve kendi tepkisiyle yarisir: gonderim ve sokum ayni kapiyi
 alir; esin kapanmasindan sonraki gonderim hatasi BEKLENEN sonuctur. Yukte
 olculdu: CPU stresi + 8 serit, 120 sinif kosumu, 0 dusus.
 
-**Teshis sirasi ucuzdan pahaliya:** once tek test izole, sonra **tek assembly'nin
-tamami**, sonra tum cozum. Ortadaki adim burada belirleyici oldu — 1046 testin
-gecmesi "sira bagimliligi degil, zamanlama" dedi.
 - **`ActivityListener` SÜREÇ GENELİDİR.** Bir teste listener takıp "durdurulan
   tek span" iddiası kurmak, aynı assembly'deki diğer testlerin aynı kaynakta
   açtığı span'ler yüzünden düşer — ölçüldü: bir yerine **on** span geldi. Span'i
