@@ -11,8 +11,9 @@
 #     Stream, JsonElement) - Tracon does not own their documentation;
 #   - Tracon enums and OpenAI-compatible wire types that had no description before
 #     Phase 212 and still have none.
-# HTTP request and response DTOs are not here and must not be: they are `internal`
-# and take their text from [Description]. Describe a new entry instead of listing it.
+# The 81 request and response DTOs of Phase 212 are not here and must not be added: they
+# are `internal` and take their text from [Description]. Describe a new entry instead of
+# listing it.
 AIAnnotation
 AIAnnotationBase
 AIAnnotationBase.additionalProperties
