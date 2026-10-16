@@ -42,7 +42,7 @@ Test, derleme ve üretim araçlarını en yeni sürüme taşı; kapanış kapıs
 | `bench/capacity/Tracon.Capacity.Acceptance/Tracon.Capacity.Acceptance.csproj:49` | `xunit.v3` `3.2.0` CPM dışında sabit |
 | `.config/dotnet-tools.json` | docfx `2.78.5` (son `2.81.0`), nswag `14.2.0` (son `14.7.1`) |
 
-> Kanıtlar 2026-10-16'da doğrulandı (HEAD `9aaa6544`). Deneme yükseltmesi aynı gün izole worktree'de koşuldu (§215.1-215.5).
+> Kanıtlar 2026-10-16'da doğrulandı (HEAD `9aaa6544`). Deneme yükseltmesi aynı gün izole worktree'de koşuldu (§215.1-215.5). **Deneme tabanı `1ae92822`'dir** (Faz 212 ve 213'ten önce; ajan worktree'si oturum başındaki commit'ten açıldı). Derleme hatası listeleri ve test sayıları bu yüzden uygulamanın ilk adımında HEAD üzerinde yeniden ölçülür.
 
 ---
 
