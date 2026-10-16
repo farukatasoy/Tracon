@@ -5,7 +5,7 @@
 > **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-554**
 > **Genellik:** Her .NET tüketicisi. 1.0 sözü bugün 81 HTTP DTO'sunu da kapsar; .NET tüketicisi bunları kullanmaz (`Tracon.Client` kendi DTO'larını üretir). İş tüketici kodunda kalamaz: sözleşme bizim. İkinci kanıt: ilk ilke (donan yüzey küçüldükçe söz ucuzlar) ve [Faz 182](182-PUBLIC-API-YUZEY-DARALTMA.md) emsali (91 tip, aynı ölçüt).
 > **Karşı görüş:** Faz 182 "OpenAPI şema tipi daraltılmaz" dedi: üretici yalnız public tipin XML'ini taşır, tip `internal` olunca `description` silinir. **Cevap:** Bu doğrudur ve ölçüldü; plan onu çözer, yok saymaz. `[Description]` aynı metni geri getirir (5 tip / 12 özellik denendi, fark yok). Bedeli: 393 metin tek yere taşınır. Kopya değil **taşıma** olduğu için ikinci kaynak doğmaz; kaybı görünür kılan yeni bir kapı eklenir (§212.4).
-> **Önkoşul:** Yok. [Faz 213](../../213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) bu fazdan **sonra** gelir (ikisi de `PublicAPI.Unshipped.txt` ve envanter betiğini değiştirir; paralel koşmaz).
+> **Önkoşul:** Yok. [Faz 213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) bu fazdan **sonra** gelir (ikisi de `PublicAPI.Unshipped.txt` ve envanter betiğini değiştirir; paralel koşmaz).
 > **Paketler:** `Tracon.Abstractions`, `Tracon.AspNetCore`, `Tracon.Core` (+ `scripts/`, `tests/`)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Küçülüyor.** 81 tip ve 1 345 `PublicAPI.Unshipped.txt` satırı gider (AspNetCore 1 058 · Abstractions 258 · Core 29). `PublicAPI.Shipped.txt` bugün **0** satırdır: `find src -name PublicAPI.Shipped.txt -exec cat {} + | grep -vcE '^\s*$|^#'` → `0`. Daraltma `1.0.0`'dan önce bedavadır; sonra her biri major sürümdür.
@@ -133,7 +133,7 @@ Denetçi salt-okunur çalıştığı için `dotnet build/test` koşmadı; derlem
 
 ## Sonraki Faza Devir Notu
 
-- **[Faz 213](../../213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) başlangıç sayıları:** `PublicAPI.Unshipped.txt` toplamı `8530`; `public-surface-baseline.txt` Abstractions `423`, AspNetCore `23`, Core `79`; `--liste kanıtsız` boş. İkisi de aynı dosyaları değiştirir; 212 işlenmiştir, 213 bu sayılardan başlar.
+- **[Faz 213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) başlangıç sayıları:** `PublicAPI.Unshipped.txt` toplamı `8530`; `public-surface-baseline.txt` Abstractions `423`, AspNetCore `23`, Core `79`; `--liste kanıtsız` boş. İkisi de aynı dosyaları değiştirir; 212 işlenmiştir, 213 bu sayılardan başlar.
 - 🚨 **Yeni HTTP istek/yanıt DTO'su `internal` doğar:** `using System.ComponentModel;`, tipte ve her özellikte `[Description("…")]`, `<summary>` yazılmaz (`<remarks>` kalabilir), konumsal `record`'ta `[property: Description("…")]`. Metni unutmak derlenir ve her davranış testinden geçer; `OpenApiDescriptionCoverageTests` yakalar.
 - 🚨 **`openapi-undescribed-baseline.txt` yalnız küçülür.** Yeni açıklamasız şema/özellik kırmızıdır; açıklama kazanmış bayat satır da kırmızıdır. Snapshot yenileme tabanı yeniden yazmaz.
 - 🚨 **Swashbuckle + `IncludeXmlComments` ölçülmedi.** O yoldan kendi belgesini üreten tüketici 81 tipin `<summary>`'sini kaybeder. Desteklenen yol değildir (K-352); biri talep ederse K-1012'nin yeniden açılma koşuludur.

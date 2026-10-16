@@ -1,16 +1,16 @@
 # Faz 213 — Tesisat Arayüzleri ve Üye Hijyeni
 
 > **Durum:** ✅ Tamamlandı (2026-10-16)
-> **Plan onayı:** onaylandı — farukatasoy, 2026-10-16, "planı uygula". Kapsam kararları: **UR-011 B** ve **UR-009 B** ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §7). **Sapma:** UR-011 14 arayüz saydı; ölçüm ikisini public tutmayı gerektiriyor (§213.1); onay bu sapmayı kapsar. Dört Açık Soru ayrı ayrı cevaplanmadı; uygulama dördünde de **önerilen A** seçeneğini aldı (Plandan Sapmalar §1).
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-555**, **F-556**
+> **Plan onayı:** onaylandı — farukatasoy, 2026-10-16, "planı uygula". Kapsam kararları: **UR-011 B** ve **UR-009 B** ([`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §7). **Sapma:** UR-011 14 arayüz saydı; ölçüm ikisini public tutmayı gerektiriyor (§213.1); onay bu sapmayı kapsar. Dört Açık Soru ayrı ayrı cevaplanmadı; uygulama dördünde de **önerilen A** seçeneğini aldı (Plandan Sapmalar §1).
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-555**, **F-556**
 > **Genellik:** Her .NET tüketicisi. Donacak yüzeyde hiçbir tüketicinin uygulamadığı 12 arayüz ve DI'ın kurduğu 5 tipin public kurucusu var; 1.0'dan sonra her biri major sürümdür. İş tüketici kodunda kalamaz. İki kalem bir fazda, çünkü aynı altyapıyı paylaşır: aynı `PublicAPI.Unshipped.txt`, aynı envanter kapısı, aynı `InternalsVisibleTo` ve aynı CHANGELOG girdisi.
 > **Karşı görüş:** (1) MIMARI K4 "her genişleme noktası değiştirilebilir" der; XML'i "tüketicinin kendi kaydı kazanır" diyen 8 arayüzü `internal` yapmak bu sözü daraltır. (2) K-614 / K-866'nın `IToolRegistry` için yeniden açılma koşulu doğdu ve kullanıcı yine de public tuttu (Faz 188). **Cevap:** K4 "belgelenmiş seam" anlamına gelecek şekilde daraltılır (yeni `K-*`, kapanışta). Seam'i rehber, sample ya da contract suite belgeler; bu 12 arayüzün hiçbirini hiçbiri belgelemez, uygulayanların hepsi `internal` veya test sınıfıdır (ölçüldü). `IToolRegistry` farklıdır: rehber (`write-your-own-tool.md:160`) onu anar ve değiştirmek 4 güvenlik sarmalayıcısını düşürür; bu yüzden "çağrılır, uygulanmaz" listesinde kalır, `internal` olmaz.
-> **Önkoşul:** [Faz 212](arsiv/fazlar/212-HTTP-DTO-DARALTMA.md) — ikisi de `PublicAPI.Unshipped.txt` ve `scripts/public-yuzey-envanteri.py` dosyalarını değiştirir; paralel koşmaz. **Tamamlandı (2026-10-16).** Başlangıç sayıları: `PublicAPI.Unshipped.txt` toplamı `8530`; `public-surface-baseline.txt` Abstractions `423`, AspNetCore `23`, Core `79`; `public-yuzey-envanteri.py --liste kanıtsız` boş ve OpenAPI şeması artık kanıt değil. Yeni HTTP DTO'su `internal` + `[Description]` doğar (devir notu: Faz 212).
+> **Önkoşul:** [Faz 212](212-HTTP-DTO-DARALTMA.md) — ikisi de `PublicAPI.Unshipped.txt` ve `scripts/public-yuzey-envanteri.py` dosyalarını değiştirir; paralel koşmaz. **Tamamlandı (2026-10-16).** Başlangıç sayıları: `PublicAPI.Unshipped.txt` toplamı `8530`; `public-surface-baseline.txt` Abstractions `423`, AspNetCore `23`, Core `79`; `public-yuzey-envanteri.py --liste kanıtsız` boş ve OpenAPI şeması artık kanıt değil. Yeni HTTP DTO'su `internal` + `[Description]` doğar (devir notu: Faz 212).
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.Mcp`, `.Workflows`, `.Voice`, `.OpenAI`, `.UI`, `.Cli` (yalnız `InternalsVisibleTo`)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Küçülüyor.** `PublicAPI.Shipped.txt` bugün **0** satırdır (`find src -name PublicAPI.Shipped.txt -exec cat {} + | grep -vcE '^\s*$|^#'` → `0`); daraltma `1.0.0`'dan önce bedavadır.
 > **Tüketici yüzeyi:** site: `guides/voice.md` ve `reference/configuration.md` (kalkan `BackendModel` anahtarı), `guides/write-your-own-store.md:48` (`UpdateRunCostAsync` varsayılanı), `concepts/workflows.md` ve `capabilities.md` hiç değişmez · sevk edilen: `src/Tracon.Abstractions/README.md:20` (tip sayıları), `UseUI()` ve `IWebhookStore` XML'i, `CHANGELOG.md` `[Unreleased]`
-> **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md) — packed-consumer case'leri; MCP (`18`), ses (`19`) ve arayüz (`09`) alanlarına birer case
+> **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) — packed-consumer case'leri; MCP (`18`), ses (`19`) ve arayüz (`09`) alanlarına birer case
 
 ---
 
@@ -25,16 +25,16 @@
    grep -n "K-866\|K-867\|K-902\|K-850\|K-614\|K-509\|K-663\|K-144" docs/KARARLAR.md
    ```
    **K-866** (DI'ın kurduğu tipin kurucusu `internal`) · **K-867** (opsiyonel parametre varsayılanı çağırana derlenir) · **K-902** (`AddWorkflowFunction` iki parametreli aşırı yükleme **değişmez**) · **K-850** (seam = public arayüz; kanıt ölçütü) · **K-614** (`IToolRegistry`) · **K-509** (`IServiceCollection` kayıt alıcısı sayılır) · **K-663** (`AddJobHandler` sıradan bağımsız) · **K-144** (`Experiment.AssignmentKey` bilerek tutulur)
-3. [Faz 188](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md) ve [Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) — yalnız devir notları:
+3. [Faz 188](188-DI-KURUCU-DARALTMA.md) ve [Faz 182](182-PUBLIC-API-YUZEY-DARALTMA.md) — yalnız devir notları:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/188-DI-KURUCU-DARALTMA.md
    ```
    Faz 188 opsiyonel parametreli kurucuları ölçtü ve **orada durdu**; bu fazın 5 tipi kapsam dışı kaldığı için kaçtı.
 4. Alan hafızası:
-   [`hafiza/analyzer-tanilari.md`](hafiza/analyzer-tanilari.md) (daraltma tarifi: `~` satırlar, `RS0017`, kurucu tabanı) ·
-   [`hafiza/genisleme-noktalari-ve-denetim.md`](hafiza/genisleme-noktalari-ve-denetim.md) (seam kayıtları) ·
-   [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) (fabrika kaydı)
-5. [`MIMARI.md`](MIMARI.md) satır 142-143 (K4) — yalnız o iki satır; daraltılacak cümle orada
+   [`hafiza/analyzer-tanilari.md`](../../hafiza/analyzer-tanilari.md) (daraltma tarifi: `~` satırlar, `RS0017`, kurucu tabanı) ·
+   [`hafiza/genisleme-noktalari-ve-denetim.md`](../../hafiza/genisleme-noktalari-ve-denetim.md) (seam kayıtları) ·
+   [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) (fabrika kaydı)
+5. [`MIMARI.md`](../../MIMARI.md) satır 142-143 (K4) — yalnız o iki satır; daraltılacak cümle orada
 
 ---
 
@@ -50,16 +50,16 @@ Donmadan önce yüzeyden iki tür fazlalık çıkar. **Birincisi** tesisat aray�
 | Kanıt | Gözlem |
 |---|---|
 | `src/Tracon.Abstractions/**` 14 arayüz (aşağıda) | Başka hiçbir public imzada anılmaz (tüm `PublicAPI.*.txt` taraması); `where` kısıtı yok; uygulayanların hepsi `internal` veya test sınıfı |
-| [`src/Tracon.Abstractions/Tools/IToolRegistry.cs:11`](../src/Tracon.Abstractions/Tools/IToolRegistry.cs) | Emsal: "Do not implement or replace this service". Zorlama: [`ToolRegistrationValidationService.cs:18`](../src/Tracon.Core/Tools/ToolRegistrationValidationService.cs) `registry is not IVerifiedToolRegistry` ise `TraconException` |
-| [`SingleTenantContext.cs:21`](../src/Tracon.Core/Tenancy/SingleTenantContext.cs) | `public SingleTenantContext(IOptions<TraconOptions>)`; kaydı tip tabanlı (`Registration.Core.cs:29`); örnek, rehber ve README'de `new` yok |
-| [`HttpTenantContext.cs:43`](../src/Tracon.AspNetCore/Tenancy/HttpTenantContext.cs) | Public kurucu; kaydı `Replace(<ITenantContext, HttpTenantContext>)` (`TraconTenancyBuilderExtensions.cs:54`); hiçbir yerde `new` yok |
-| [`TimeoutAIFunction.cs:47`](../src/Tracon.Core/Tools/TimeoutAIFunction.cs) ve `:62` | İki public kurucu (ikincisi `TimeProvider` ekledi); boru hattında yalnız 3 bağımsız değişkenli kurucu çağrılır (`ToolWrapperChain.cs:108`); 4'lü yalnız testte |
-| `CompiledAgentCache`, `DefaultRunAttributionContext` | Örtük public kurucu; kayıtlar `Registration.Core.cs:293` ve `:35`; örnek DI ile çözer ([`samples/Tracon.Samples.CustomAgentSource.Tests/JsonFileAgentSourceRunTests.cs:71`](../samples/Tracon.Samples.CustomAgentSource.Tests/JsonFileAgentSourceRunTests.cs)) |
-| [`OpenAILiveOptions.cs:49`](../src/Tracon.OpenAI/Live/OpenAILiveOptions.cs) `BackendModel` | Tek yazan bağlayıcı (`OpenAILiveProviderExtensions.cs:128-131`); **okuyan 0** |
-| [`LiveVoiceContracts.cs:249`](../src/Tracon.Abstractions/Voice/LiveVoiceContracts.cs) `BackendModel` | Yazan 0, okuyan 0 |
-| [`QuotaTypes.cs:238`](../src/Tracon.Abstractions/Quotas/QuotaTypes.cs) `QuotaUsageQuery.AsOf` | `[Obsolete]` ("no effect because no store applies it"); preview.3'ten beri CHANGELOG'da **Deprecated**; okuyan ve yazan 0 |
-| [`IRunStore.cs:371`](../src/Tracon.Abstractions/Runs/IRunStore.cs) `UpdateRunCostAsync(…, string? tenantId = null)` | Public imzada opsiyonel `tenantId` taşıyan **tek** üye; `null` "kiracı denetimi yok" demektir (`IRunStore.cs:29-34`). Üretim çağıranı kiracıyı geçer (`RunCostRecalculationService.cs:107`); atlayanlar: sevk edilen `RunStoreContract.cs:2477`, `SqliteDialectTests.cs:39`, `SqlServerDialectTests.cs:39` |
-| [`LiveVoiceContracts.cs:264`](../src/Tracon.Abstractions/Voice/LiveVoiceContracts.cs) `Responses` | Seçilirse [`OpenAILiveProvider.cs:111`](../src/Tracon.OpenAI/Live/OpenAILiveProvider.cs) `NotSupportedException` ("not implemented yet"); uç `502` döner ([`Voice/LiveVoiceEndpoints.cs:230-243`](../src/Tracon.AspNetCore/Voice/LiveVoiceEndpoints.cs)), açılışta hata yok. `delegationMode` OpenAPI belgesinde **yok** (tel sözleşmesi değil) |
+| [`src/Tracon.Abstractions/Tools/IToolRegistry.cs:11`](../../../src/Tracon.Abstractions/Tools/IToolRegistry.cs) | Emsal: "Do not implement or replace this service". Zorlama: [`ToolRegistrationValidationService.cs:18`](../../../src/Tracon.Core/Tools/ToolRegistrationValidationService.cs) `registry is not IVerifiedToolRegistry` ise `TraconException` |
+| [`SingleTenantContext.cs:21`](../../../src/Tracon.Core/Tenancy/SingleTenantContext.cs) | `public SingleTenantContext(IOptions<TraconOptions>)`; kaydı tip tabanlı (`Registration.Core.cs:29`); örnek, rehber ve README'de `new` yok |
+| [`HttpTenantContext.cs:43`](../../../src/Tracon.AspNetCore/Tenancy/HttpTenantContext.cs) | Public kurucu; kaydı `Replace(<ITenantContext, HttpTenantContext>)` (`TraconTenancyBuilderExtensions.cs:54`); hiçbir yerde `new` yok |
+| [`TimeoutAIFunction.cs:47`](../../../src/Tracon.Core/Tools/TimeoutAIFunction.cs) ve `:62` | İki public kurucu (ikincisi `TimeProvider` ekledi); boru hattında yalnız 3 bağımsız değişkenli kurucu çağrılır (`ToolWrapperChain.cs:108`); 4'lü yalnız testte |
+| `CompiledAgentCache`, `DefaultRunAttributionContext` | Örtük public kurucu; kayıtlar `Registration.Core.cs:293` ve `:35`; örnek DI ile çözer ([`samples/Tracon.Samples.CustomAgentSource.Tests/JsonFileAgentSourceRunTests.cs:71`](../../../samples/Tracon.Samples.CustomAgentSource.Tests/JsonFileAgentSourceRunTests.cs)) |
+| [`OpenAILiveOptions.cs:49`](../../../src/Tracon.OpenAI/Live/OpenAILiveOptions.cs) `BackendModel` | Tek yazan bağlayıcı (`OpenAILiveProviderExtensions.cs:128-131`); **okuyan 0** |
+| [`LiveVoiceContracts.cs:249`](../../../src/Tracon.Abstractions/Voice/LiveVoiceContracts.cs) `BackendModel` | Yazan 0, okuyan 0 |
+| [`QuotaTypes.cs:238`](../../../src/Tracon.Abstractions/Quotas/QuotaTypes.cs) `QuotaUsageQuery.AsOf` | `[Obsolete]` ("no effect because no store applies it"); preview.3'ten beri CHANGELOG'da **Deprecated**; okuyan ve yazan 0 |
+| [`IRunStore.cs:371`](../../../src/Tracon.Abstractions/Runs/IRunStore.cs) `UpdateRunCostAsync(…, string? tenantId = null)` | Public imzada opsiyonel `tenantId` taşıyan **tek** üye; `null` "kiracı denetimi yok" demektir (`IRunStore.cs:29-34`). Üretim çağıranı kiracıyı geçer (`RunCostRecalculationService.cs:107`); atlayanlar: sevk edilen `RunStoreContract.cs:2477`, `SqliteDialectTests.cs:39`, `SqlServerDialectTests.cs:39` |
+| [`LiveVoiceContracts.cs:264`](../../../src/Tracon.Abstractions/Voice/LiveVoiceContracts.cs) `Responses` | Seçilirse [`OpenAILiveProvider.cs:111`](../../../src/Tracon.OpenAI/Live/OpenAILiveProvider.cs) `NotSupportedException` ("not implemented yet"); uç `502` döner ([`Voice/LiveVoiceEndpoints.cs:230-243`](../../../src/Tracon.AspNetCore/Voice/LiveVoiceEndpoints.cs)), açılışta hata yok. `delegationMode` OpenAPI belgesinde **yok** (tel sözleşmesi değil) |
 
 > Kanıtlar 2026-10-16'da doğrulandı (HEAD `69e9cf59`). İlk denetimin iki iddiası **yanlış** çıktı ve plandan çıkarıldı: (a) "`UseScheduling`/`AddJobHandler<T>` K-867'ye aykırı" — K-867 böyle bir kural koymaz; K-509 `IServiceCollection`'ı geçerli alıcı sayar, K-663 sıradan bağımsızlık ister. (b) "`TimeoutAIFunction` dört aşırı yükleme" — iki kurucu.
 
@@ -392,7 +392,7 @@ Taze bağlamlı `faz-denetcisi` (2026-10-16, taban `f3b266c3`, çalışma ağac�
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki iş:** [`ADAYLAR.md`](ADAYLAR.md) **F-557** (bağımlılıkları en yeni sürüme yükselt, freeze sırası 2). Faz dokümanı henüz yok; `faz-planlama` açar. `YAYIN-HAZIRLIK.md` §4 "Freeze giriş ölçütleri" 1. madde (küçültme) **bitti**: A-74, A-75, A-79, A-78, A-80.
+**Sıradaki iş:** [`ADAYLAR.md`](../../ADAYLAR.md) **F-557** (bağımlılıkları en yeni sürüme yükselt, freeze sırası 2). Faz dokümanı henüz yok; `faz-planlama` açar. `YAYIN-HAZIRLIK.md` §4 "Freeze giriş ölçütleri" 1. madde (küçültme) **bitti**: A-74, A-75, A-79, A-78, A-80.
 
 **Başlangıç sayıları (F-557 planı bunları ön koşul olarak yazar):** `PublicAPI.Unshipped.txt` toplamı `8077` · `public-surface-baseline.txt` Abstractions `389`, AspNetCore `22`, Core `79` · envanter toplam `591`, kanıtsız `0` · `seam-contract-baseline.txt` −23 satır · `public-constructor-baseline.txt` 17 giriş · kapanış kapısı 38 koşumda 23.338 test.
 
