@@ -14,179 +14,18 @@
 
 ---
 
-## Bu Faza Başlarken
-
-1. Bu doküman
-2. Kararlar — `grep -n "K-543\|K-349\|K-605\|K-197\|K-855" docs/KARARLAR.md`: **K-543** (bot `ignore` listesi ve gerekçeleri) · **K-349** (üretecin Roslyn'i en eski desteklenen SDK'nınkidir) · **K-605** (contract paketi) · **K-197** (SQLitePCLRaw) · **K-855** (net8/net9 2026-11-10'dan sonra düşer)
-3. [Faz 214](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) devir notu: `awk '/## Sonraki Faza Devir Notu
-
-**Sıradaki iş:** [Faz 216](../../216-NPM-BAGIMLILIKLARI.md) (npm: `src/Tracon.UI/frontend`, `packages/tracon-client`, `docs-site`). `Directory.Packages.props` ve `dependabot.yml` bu fazdan sonra kısmen boşalır; Faz 216 yalnız `package.json`/kilit dosyalarına ve CHANGELOG'a dokunur. Sonra F-558 (modernleşme) ve F-560 (deneysel tip).
-
-**Başlangıç sayıları:** tam koşum **23.409** test (Faz 214: 23.370; +39 = `TraconUtilityModelBindingTests` 13 × 3 TFM) · `PublicAPI.Unshipped.txt` farkı 0 · `ADAYLAR.md` F-ID sayacı F-573'ün bir fazlasını gösterir · `kapi_test.py` + `dokuman_bakim_test.py` Faz 214 sonu 439 → bu fazda +10.
-
-**Devralınan sözleşmeler:**
-
-- **K-1018** — contract paketinin xunit alt sınırı `3.2.2`; `Directory.Packages.props`'taki iki sabit, `dependabot.yml`'daki iki `ignore` ve `kapi.py` `SHIPPED_DEPENDENCY_FLOORS` üçü birlikte durur. Yükseltmek tüketiciyi xunit.v3 4'e zorlar.
-- **Test komutu MTP kipindedir.** `global.json` `test.runner`; `-maxcpucount` sıfır test koşar. Kapı: `kapi.py kapanis` (TRX `artifacts/test-results/<proje>/<tfm>_<mimari>/`).
-- **F-568 kuralı:** `Tracon:UtilityModel` sayısı okunamazsa açılış durur (K-993 genişledi). Skaler seçeneklerde kural **yok** — F-572.
-
-**🚨 Tuzaklar:**
-
-- **`-maxcpucount` ve `--` ayıracı MTP kipinde sessizce test koşturmaz** (çıkış 5). Yeni bir `dotnet test` satırı yazarken `kapilar.md` tablosundaki karşılığı kullan; `kapi.py` sıfır testli yeşili artık kırmızı sayar (çıkış 8).
-- **TRX ikilinin yanında değildir.** Tarayan her yeni araç `artifacts/test-results/` altını okur; ikilinin klasörü TRX'in `TestMethod codeBase` alanındadır.
-- **`performans` kapısını depo içi ajan worktree'leri kırar** (BenchmarkDotNet "birden çok `Tracon.Benchmarks.csproj`"). Bu faz iki tanesini `~/Desktop/projects/Tracon-parked-worktrees/` altına taşıdı (Faz 216 denemesinin kaydedilmemiş farkı `agent-a6ce…` içinde). `git worktree list` ile bak; işin bitince `git worktree remove`.
-- **NSwag çıktısına `generate-client-json-context.py`'nin ikinci argümanı olarak elle yazılan dosyayı verme** (`src/Tracon.Client/TraconApiClient.JsonContext.cs` ezilir). Çıktı `Generated/TraconClientJsonContext.g.cs`'tir.
-- **`///` satırına iç numara (`F-NNN`, `K-NNN`) yazma:** `ShippedDocumentationSelfContainmentTests` kırar (özel metot dahil).
-- **Sevk edilen paketin xunit alt sınırı yalnız 3.2.2 ile derlenir ama reponun her tüketicisi 4.0.2'dir:** 3.x tüketicisini yalnız `restore -warnaserror` ölçümü (`MT-TEST-098`) ve nuspec kapısı kapsar; çalışma anı 3.x'te ölçülmedi.
-
-**Açık iş:** Faz 216, F-558, F-560, **F-572** (skaler `TryParse`-atla), **F-573** (hijyen), F-569 (Faz 193 net8/net9'u düşürünce Roslyn `5.0.0`). **Bakımcı eylemleri:** ilk CI koşumunda test sayısı ve `test-results-*` artifact'ının TRX taşıdığının okunması (DoD son madde; push yapılmadı), site yayını (`faz-tamamlama` Adım 10, `./scripts/site-deploy.sh` **koşulmadı** — `llms-full.txt`, CHANGELOG ve `write-your-own-store`/`configuration` sayfaları canlıda bir önceki fazı söylemeye devam eder).
-
-## Amaç
-
-Test, derleme ve üretim araçlarını en yeni sürüme taşı; kapanış kapısının ve CI'ın aynı şeyi koştuğunu yeniden kanıtla; artık geçersiz `ignore` gerekçelerini K-543'ten çıkar.
-
-- **F-557 (2/3)** — xunit.v3 4 + Microsoft.Testing.Platform 2, MinVer 8, analyzer'lar, test altyapısı, docfx, NSwag.
-- **F-568** — Meziantou 3.0.303'ün `MA0060`'ı: yardımcı model bağlamasında okunamayan sayı sessizce `0` olur.
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| [`TraconServiceCollectionExtensions.Binding.Models.cs:279-281`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Models.cs) | `Tracon:UtilityModel:Temperature = "abc"` → `TryParse` sonucu yok sayılır, değer boş olmadığı için `0` atanır (`:288-290`). preview.4'ün "okunamayan yapılandırma değeri başlangıcı durdurur" kuralı bu yolu kaçırdı (**F-568**) |
-| `.github/dependabot.yml` `ignore` | Üç major: `Microsoft.CodeAnalysis.CSharp > 4.8.0`, `TrxReport >= 2`, `xunit.v3 >= 4` (K-543). `Microsoft.OpenApi >= 3` ve `SQLitePCLRaw.* >= 3` Faz 214'te sabitleriyle birlikte silindi: ikisi de artık `PackageVersion` değil, bot görmez |
-| `.github/workflows/ci.yml:293,299` · [`scripts/kapi.py:1059`](../../../scripts/kapi.py) | `dotnet test … -maxcpucount:N -- --report-trx` |
-| [`scripts/kapi.py:1080-1089`](../../../scripts/kapi.py) `failed_tests_from_trx` | TRX'i `artifacts/bin/*/release*/TestResults/` altında arar · `ci.yml:355` aynı glob'u yükler |
-| `bench/capacity/Tracon.Capacity.Acceptance/Tracon.Capacity.Acceptance.csproj:49` | `xunit.v3` `3.2.0` CPM dışında sabit |
-| `.config/dotnet-tools.json` | docfx `2.78.5` (son `2.81.0`), nswag `14.2.0` (son `14.7.1`) |
-
-> Kanıtlar 2026-10-16'da doğrulandı (HEAD `9aaa6544`). Deneme yükseltmesi aynı gün izole worktree'de koşuldu (§215.1-215.5). **Deneme tabanı `1ae92822`'dir** (Faz 212 ve 213'ten önce; ajan worktree'si oturum başındaki commit'ten açıldı). Derleme hatası listeleri ve test sayıları bu yüzden uygulamanın ilk adımında HEAD üzerinde yeniden ölçülür.
-
----
-
-## 215.1 — xunit.v3 4 ve Microsoft.Testing.Platform 2
-
-Deneme: `xunit.v3*` `3.2.2` → `4.0.2`, `TrxReport` `1.9.1` → `2.5.1`. Tüm çözüm 0 uyarıyla derlendi; Core 4125/4125 (net10.0 ve net8.0), Contracts.Xunit 14/14 ×3 TFM, Testing 32/32, AspNetCore.FunctionalTests 2124/2124. Ama üç yer **değişmek zorunda**:
-
-| Değişiklik | Neden | Yer |
-|---|---|---|
-| `global.json`'a `"test": {"runner": "Microsoft.Testing.Platform"}` | Olmadan her `dotnet test` "VSTest target is no longer supported" ile düşer | `global.json` |
-| `-maxcpucount:N` → `--max-parallel-test-modules N`, `--` ayırıcısı kalkar | MTP modunda `-maxcpucount` çıkış kodu 5 verir: **sıfır test koşar** | `ci.yml:293,299` · `kapi.py:1059` · `kapi_test.py` (deneme 3 satır saydı) |
-| TRX artık `<cwd>/TestResults/`'a yazılır | `failed_tests_from_trx` ve CI yüklemesi **sessizce boş** kalır: düşen test izole yeniden koşulmaz, CI rapor yüklemez | `--results-directory … --results-directory-layout per-module` + `kapi.py:1080` ayrıştırması + `ci.yml:355` |
-
-🚨 İkinci ve üçüncü satır, kapının "yeşil" demesine rağmen hiçbir şey koşmamasının ya da düşen testi raporlamamasının yoludur. Negatif kontrol zorunlu: kasıtlı düşen bir testle `kapi.py kapanis` kırmızı olur **ve** "izole de DÜŞTÜ" satırını basar; CI'da TRX yüklenir.
-
-**Sevk edilen contract paketi (A-70).** Yeni nuspec `xunit.v3.extensibility.core` ve `.assert`'i `>= 4.0.2` ister. 3.2.2'de kalan tüketici uyarı-hata altında dört `NU1608` alır. Ters yön çalışır: 3.2.2 ile derlenen preview.4 paketi 4.0.2 + TrxReport 2.5.1 üzerinde koştu (FileRunStore sample 129/129). **Açık Soru 1.**
-
-## 215.2 — Kalan araçlar
-
-| Küme | Hedef | Deneme sonucu | İş |
-|---|---|---|---|
-| MinVer | `7.0.0` → `8.0.0` | Sürüm, nuspec ve dosya listesi HEAD ile aynı (`1.0.0-preview.4.7`); tek kırıcı değişiklik (#1245) bu repoda kullanılmıyor | Yükselt |
-| NSubstitute, Playwright, SwaggerUI | `6.2.0`, `1.63.0`, `10.3.0` | Restore ve derleme temiz (Playwright yalnız derlendi) | Yükselt; CI'daki `playwright install` sürümü ölç |
-| Testcontainers | `4.13.0` → `4.16.0` | `SSH.NET` `2026.0.0`'ı doğrudan çeker (açıksız) | Yükselt; `SSH.NET` sabitini ve iki `csproj` referansını kaldır |
-| Shouldly, BenchmarkDotNet, BannedApi/PublicApi analyzer'ları | — | Zaten son kararlı | — |
-| Meziantou.Analyzer | `3.0.138` → `3.0.303` | **8 yeni hata** | §215.3 |
-| docfx (yerel araç) | `2.78.5` → `2.81.0` | Ölçülmedi | Yükselt; site `npm run check` yeşil kalmalı |
-| NSwag (yerel araç) | `14.2.0` → `14.7.1` | Yeniden üretilmedi | **Açık Soru 3** |
-| `bench/…Acceptance.csproj` | `xunit.v3 3.2.0` CPM dışı | — | CPM'e al |
-
-**Değişmeyenler (gerekçeli):**
-
-| Paket | Neden | K-543 `ignore` |
-|---|---|---|
-| `Microsoft.OpenApi` 3.x | AspNetCore.OpenApi 10.0.13 `[2.12.2, 3.0.0)` ister; 3.x yalnız ASP.NET Core 11 RC ile; 10.0.10 + 3.10.2 üretecin kodunda `CS0200` | `ignore` Faz 214'te silindi (sabit kalktı); `PackageVersion` yeniden eklenirse 3.x yeniden dışlanır — gerekçe "3.x yalnız ASP.NET Core 11 ile" |
-| `SQLitePCLRaw.*` 3.x | Derlenir, testler geçer; ama `Tracon.Sqlite` nuspec'i her tüketicinin SQLite yığınını Microsoft'un yalnız Data.Sqlite 11 ile eşlediği major'a taşır | `ignore` Faz 214'te silindi (sabit kalktı); gerekçe "Data.Sqlite 11'i izler" |
-| `Microsoft.CodeAnalysis.CSharp` | K-349: üreteç en eski desteklenen SDK'nın derleyicisinde yüklenir. Ölçüldü: SDK 10.0.100 → Roslyn `5.0.0`, 10.0.402 → `5.9.0`, 9.0.306 → `4.14.0` | Kalır; **F-569**: Faz 193 net8/net9'u düşürünce `5.0.0`'a (5.9.0 değil) |
-
-## 215.3 — Meziantou 3.0.303 ve F-568
-
-| Bulgu | Yer | İş |
-|---|---|---|
-| `MA0060` **gerçek kusur (F-568)** | `Binding.Models.cs:279-281` | `kusur-giderme` protokolü: önce düşen test (`"abc"` → başlangıç durur, hata anahtarı adlandırır), sonra düzeltme; davranış preview.4 kuralına hizalanır. Sınıf taraması: `grep -rn "\.TryParse(" src | grep -v "if\|is\|=>"` |
-| `MA0060` | `McpServer/McpTaskRunProvisioning.cs:84` | Ucuz düzeltme |
-| `MA0054` (bilinçli) | `Internal/ExplainedEnumConverter.cs:81` | Gerekçeli bastırma (iç istisna bilerek atılır) |
-| `MA0054` ×3 | `tests/Shared/Infrastructure/ProcessRunner.cs:80`, `StreamKeepAliveTests.cs:197`, `TemplateRunTests.cs:63` | Ucuz düzeltme |
-
-## 215.4 — Sıra
-
-```mermaid
-flowchart TD
-    A["1. Hedefleri yeniden ölç"] --> B["2. xunit 4 + MTP 2<br/>global.json, max-parallel, TRX"]
-    B --> C["3. Negatif kontrol:<br/>kasıtlı kırmızı → izole yeniden koşum"]
-    C --> D["4. Contract paketi aralığı<br/>Açık Soru 1, packed sample"]
-    D --> E["5. MinVer, Testcontainers, SSH.NET,<br/>NSubstitute, Playwright, SwaggerUI"]
-    E --> F["6. F-568 düşen test → düzeltme;<br/>Meziantou 3.0.303"]
-    F --> G["7. docfx, NSwag (Açık Soru 3)"]
-    G --> H["8. dependabot ignore + K-543 notu,<br/>kapilar.md, CHANGELOG, kapılar"]
-```
-
----
-
-## Planlanan Public API
-
-Yok. `Tracon.Client` farkı Açık Soru 3'ün seçimine bağlıdır.
-
-### HTTP `endpoint`'leri
-
-Değişmez.
-
-### Arayüz payı
-
-Yok.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-global.json · Directory.Packages.props · .config/dotnet-tools.json · .github/dependabot.yml
-.github/workflows/ci.yml                         (max-parallel-test-modules, TRX yolu)
-scripts/kapi.py · scripts/kapi_test.py           (test komutu, failed_tests_from_trx)
-.agents/ortak/kapilar.md                         (komut yüzeyi)
-src/Tracon.Testing.Contracts.Xunit/Tracon.Testing.Contracts.Xunit.csproj   (Açık Soru 1)
-src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Models.cs        (F-568)
-src/Tracon.AspNetCore/{McpServer/McpTaskRunProvisioning.cs,Internal/ExplainedEnumConverter.cs}
-tests/** (MA0054 ×3, Testcontainers/SSH.NET referansları) · bench/capacity/**/…Acceptance.csproj
-src/Tracon.Client/Generated/* (Açık Soru 3) · CHANGELOG.md
-```
-
----
-
-## Hata Modları ve Testler
-
-| Ne bozulabilir | Seviye | Test |
-|---|---|---|
-| Kapı sıfır test koşar ama yeşil der | Kapı | `kapi_test.py` (komut satırı) + negatif kontrol: test sayısı > 0 iddiası |
-| Düşen test izole yeniden koşulmaz (TRX bulunmaz) | Kapı | `kapi_test.py` `failed_tests_from_trx` vakası + kasıtlı kırmızı koşum |
-| CI TRX yüklemez | CI | ilk CI koşumunda artifact listesi okunur |
-| Contract paketi tüketiciyi xunit 4'e zorlar | Paket | `release_extension_samples.verify` + Açık Soru 1'in nuspec iddiası |
-| `UtilityModel` sayı alanı sessizce `0` | Birim + Fonksiyonel | F-568 düşen testi (bağlayıcı) + başlangıç testi |
-| MinVer sürümü kayar | Paket | `kapi.py yayin --kuru`'nun sürüm iddiası |
-| NSwag üretimi `Tracon.Client` public yüzeyini değiştirir | Paket | `kapi.py yayin` ApiCompat (`breaking_changes.py`) + `nswag_postprocess_client_test.py` |
-| SSH.NET sabiti kalkınca açık döner | Paket | `dotnet list … --vulnerable --include-transitive` |
-
-Beş soru: yeni çalışma anı kod yolu yalnız F-568'dir — **boş girdi**: boş değer bugünkü gibi `null`; **aşırı girdi**: okunamayan değer başlangıcı durdurur. Diğer dördü uygulanmaz (yapılandırma bağlaması başlangıçta bir kez koşar).
-
----
-
-## Manuel Kabul Case'leri
-
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | Temiz ağaç | Bir testi kasıtlı kır, `python3 scripts/kapi.py kapanis --taban HEAD` | Kırmızı; "izole de DÜŞTÜ" satırı; TRX `--results-directory` altında |
-| 2 | Aynı | `python3 scripts/kapi.py test --proje Tracon.Testing.UnitTests --sinif "*"` | Test sayısı > 0 |
-| 3 | `Tracon:UtilityModel:Temperature=abc` | Host'u başlat | Başlangıç durur, hata anahtarı adlandırır |
-| 4 | xunit.v3 3.2.2 kullanan dış tüketici | Contract paketini `PackageReference` ile al | Açık Soru 1'in seçimine göre: NU1608 yok (A) ya da belgelenmiş alt sınır (B) |
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | Contract paketinin xunit alt sınırı (A-70) | A: repo testleri 4.x'te; sevk edilen paket `VersionOverride` ile `>= 3.2.2` kalır · B: paket `>= 4.0.2` ister | **A** — ters yön ölçüldü ve çalışıyor; tüketiciyi zorlamak bedava değil. 4.x'e geçiş 1.x minor'unda ekleyici değildir, bu yüzden karar freeze'den önce yazılır |
-| 2 | Meziantou'nun `MA0054` bilinçli vakası | A: gerekçeli `#pragma` · B: kuralı dosyada kapat | **A** — repo deseni (gerekçe koda yazılır) |
-| 3 | NSwag `14.2.0` → `14.7.1` | A: bu fazda; yeniden üret, `Tracon.Client` farkı yalnız başlık/biçimse kabul, public tip değişirse **dur** ve ayrı karar · B: freeze sonrası istisna olarak bırak | **A** — `Tracon.Client`'ın üretilen yüzeyi de 1.0'da donar; değişecekse şimdi |
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 76aabda9:docs/arsiv/fazlar/215-TEST-VE-DERLEME-ARACLARI.md
+> ```
+>
+> Damıtıldı 2026-10-16 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
@@ -210,23 +49,6 @@ Beş soru: yeni çalışma anı kod yolu yalnız F-568'dir — **boş girdi**: b
 - [x] İlk CI koşumunda test sayısı ve TRX yüklemesi okundu (push bakımcı onayıyla) — **bakımcıya devredildi**: push yapılmadı; yerel eşdeğer (`kapi.py` TRX sayımı ve `kapi_test.py` CI↔kapı uyumu) koştu; *Sonraki Faza Devir Notu* → *Bakımcı eylemleri*
 
 ---
-
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| MTP 2 kapıyı sessizce boşaltır | Negatif kontrol; test sayısı iddiası |
-| Windows CI bacağı farklı davranır | İlk CI koşumu iki bacakta okunur |
-| NSwag çıktısı post-processor regex'lerini kırar | `nswag_postprocess_client_test.py`; Açık Soru 3'ün durma kuralı |
-| F-568 düzeltmesi bugün çalışan bir yapılandırmayı durdurur | Yalnız okunamayan değer durur; CHANGELOG'da davranış değişikliği olarak anılır |
-| Roslyn 5.0.0'a geçiş unutulur | F-569 tetik kalemi (Faz 193 kapanınca) |
-
----
-
-<!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
-     ============================================================ -->
 
 ## Plandan Sapmalar
 
@@ -262,40 +84,6 @@ Faz içi kararlar (dört kategoriye girmediği için `K-*` açılmadı):
 - **Tam koşum paralelliği:** yerel kapı `--max-parallel-test-modules 2` (Faz 184 ölçümü), CI `1` (runner donanımı ölçülmedi) — sayılar eski `-maxcpucount` değerleriyle aynı.
 - **Sıfır test kapısı çıkış kodu `8`** (MTP'nin kendi "sıfır test" kodu): `kapi.py` TRX'ten sayar; modül başına sıfırı MTP kendisi yakalar, toplam sıfırı bu kapı.
 - **MTP kipi** `global.json` `test.runner` ile açılır; hiçbir `csproj` özelliği değişmedi (`UseMicrosoftTestingPlatformRunner` ve `TestingPlatformDotnetTestSupport` yerinde kaldı).
-
-## Gerçekleşen Public API
-
-**Büyüme yok.** `PublicAPI.Unshipped.txt` farkı 0 dosya (`denetim-paketi.py`). `TraconOptions.UnreadableUtilityModel` `internal`'dır.
-
-Davranış değişikliği (CHANGELOG `[Unreleased]` → *Changed*): `Tracon:UtilityModel`'in `Temperature`, `TopP`, `MaxOutputTokens` değeri sayı değilse host açılışta durur ve mesaj `TraconOptions.UtilityModel.<anahtar> is '<yazılan metin>', which is not a number…` der; boş/boşluk değer "verilmedi"dir.
-
-`Tracon.Client`: yeniden üretildi, public yüzey özdeş; yalnız hata yanıtı gövdesinin okunmasında iptal belirteci geçer.
-
-## Dosya Listesi (gerçekleşen)
-
-```
-global.json · Directory.Packages.props · .config/dotnet-tools.json · nswag.json
-.github/dependabot.yml · .github/workflows/ci.yml
-scripts/kapi.py (+ kapi_test.py) · scripts/dokuman-bakim.py (+ dokuman_bakim_test.py)
-scripts/release_extension_samples.py · scripts/nswag_postprocess_client_test.py
-src/Tracon.Core/{TraconOptions.cs, TraconOptionsValidator.cs, TraconServiceCollectionExtensions.cs,
-                 TraconServiceCollectionExtensions.Binding.Models.cs}                  (F-568)
-src/Tracon.AspNetCore/{Internal/ExplainedEnumConverter.cs, McpServer/McpTaskRunProvisioning.cs}
-src/Tracon.Client/{Generated/TraconApiClient.g.cs, FileParameter.cs}
-tests/Tracon.Core.UnitTests/Configuration/TraconUtilityModelBindingTests.cs            (yeni, 13 vaka)
-tests/Shared/Infrastructure/ProcessRunner.cs · tests/Tracon.AspNetCore.FunctionalTests/StreamKeepAliveTests.cs
-tests/Tracon.Package.Tests/TemplateRunTests.cs                                           (MA0054 ×3)
-tests/Tracon.{SqlServer,PostgreSql}.IntegrationTests/*.csproj                            (SSH.NET referansı kalktı)
-bench/capacity/Tracon.Capacity.Acceptance/Tracon.Capacity.Acceptance.csproj             (xunit.v3 3.2.0 → 4.0.2, literal)
-CHANGELOG.md · README.md · MEMORY.md · docs/KARARLAR.md · docs/ADAYLAR.md · docs/YAYIN-HAZIRLIK.md
-docs/hafiza/{test-kosum-tuzaklari,nswag-istemci-uretimi,build-ve-analyzer}.md · .agents/ortak/kapilar.md
-.agents/skills/{faz-baslangic,faz-uygulama,kusur-giderme}/SKILL.md · nuget-danismani/resources/mercekler.md
-docs/manuel-test/{00-INDEKS,02-CEKIRDEK-VE-KATALOG,24-TEST-PAKETI-VE-SABLON,36-GELISTIRME-KAPILARI}.md
-docs-site/src/content/docs/{guides/write-your-own-store,reference/configuration}.md · docs-site/scripts/check-console-screens.mjs
-docs-site/public/llms-full.txt (üretilen) · src/Tracon.Testing.Contracts.Xunit/README.md
-```
-
-Testler: yeni `TraconUtilityModelBindingTests` 13 vaka ×3 TFM = 39 (tam koşum 23.370 → 23.409); `kapi_test.py` ve `dokuman_bakim_test.py`'ye 10 yeni vaka (TRX yolu, sıfır test kapısı, `--solution`/`--project` biçimi, CI↔kapı uyumu, xunit alt sınırı).
 
 ## Örnek Uygulama Koşumu
 

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (955 kalem)
+## Arşivlenen Kararlar (956 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -964,3 +964,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-963 | 1004 | Workflow işinde süre aşımı işin sonudur: run `job_max_duration_exceeded` ile kapanır ve kurtarma onu sürdürmez; 13-A, 7-A'dan önce gelir (F-323) (kullanıcı kararı) 👤 |
 | K-964 | 1005 | Onaylanan skill script'i public `ISkillScriptExecutor` seam'ine gider (singleton · beklenen kiracı · teslim garantisi yok); kapılar, içerik pini, `script.run` denetimi, kota, `Timeout + 5 sn` bekleme sınırı ve çıktı sınırı runner'da kalır, yürütücü yalnız yeri seçer; yerel süreç `UseSkillScripts`'in işaretli varsayılanıdır (`TryAddTraconDefault`, `RequireCustomBinding` reddeder); `SkillScriptExecutionResult` `Duration`'sız `Abstractions`'a taşındı, süreyi runner ölçer, tutarsız/`null` sonuç çağrıyı düşürür (Faz 202, F-345) |
 | K-965 | 1006 | Harici yürütücüde de `PlatformIsolationAcknowledged` zorunludur ve K-861 (çok kiracılı host'ta stored grant için platform yetkisi) değişmez; yürütücü yalıtım beyan etse de gevşemez (Faz 202, Açık Soru 1-A ve 2-A) (kullanıcı kararı) 👤 |
+| K-966 | 1007 | Disk script'i de yürütücüye gider: içeriği runner kotadan sonra okur ve istekte taşır, kardeş dosyalar taşınmaz (`SourcePath` yalnız yerel yürütücü içindir); kota harici yürütücüde de uygulanır; bekleme toleransı seçenek değil sabit 5 sn'dir (Faz 202, Açık Soru 3-A, 4-A, 5-A) (kullanıcı kararı) 👤 |

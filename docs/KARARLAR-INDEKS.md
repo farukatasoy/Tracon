@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 955 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 956 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1007 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1008 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-966 | 1007 | Disk script'i de yürütücüye gider: içeriği runner kotadan sonra okur ve istekte taşır, kardeş dosyalar taşınmaz (`SourcePath` yalnız yerel yürütücü içindir); kota harici yürütücüde de uygulanır; bekleme toleransı seçenek değil sabit 5 sn'dir (Faz 202, Açık Soru 3-A, 4-A, 5-A) (kullanıcı kararı) 👤 |
 | K-967 | 1008 | R8 "varsayılan yürütücüyle" diye daralır: script yalnız yerel yürütücüde Tracon'un işletim sistemi kimliğiyle çalışır; B7'nin adı ("Script execution gates") ve `SECURITY.md`/politika kapsam satırı değişmez; site ve XML "sandbox" vaadi vermez, harici yürütücünün yalıtımı host'undur (Faz 202) |
 | K-968 | 1009 | `MaxScriptContentLength` disk script'ine de uygulanır; sınırı aşan, boş, yok ya da düzenli dosya olmayan (FIFO, aygıta bağlantı) disk script'i dosya AÇILMADAN meta veriden reddedilir; okuma havuz iş parçacığında, yürütücüyle aynı bekleme sınırı altında ve sınır+1 baytta durur (Faz 202 denetimi) (kullanıcı kararı) 👤 |
 | K-969 | 1010 | Stored script adı ve disk script'i boyut/tür kapısı denetimden ÖNCE kapıdır (`script.denied`, `script.run` yok, kota slotu yok); kapıdan sonraki okuma hatası (`could not be read`, `in time`, sınır aşımı) `script.run`'dan sonra tool hatası olarak kaydedilir (Faz 202) |
@@ -62,3 +61,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-1015 | 1056 | `LiveVoiceDelegationMode.Responses` silindi, enum yalnız `Client`; `Tracon:Voice:Live:DelegationMode` bilinmeyen adı başlangıçta reddeder (F-556, Faz 213) |
 | K-1016 | 1057 | `TraconAgentSessionStore` `internal`; köprünün `GetSessionAsync`'i oturum AÇMAZ; anahtarın `isolation` bölümü eski önek biçimine (`kaçışlı-anahtar::kimlik`) katlanır, başka her bölüm `NotSupportedException` ile reddedilir; `MAAI001` bastırması yalnız köprü dosyasında ve onu kullanan iki yerde (`OpenAIResponsesEndpoints`, `ResolveSessionStore`) (F-557, Faz 214) |
 | K-1017 | 1058 | Bağımlılık yükseltmesi istek davranışını değiştirmez: `Tracon.Anthropic` SDK adaptörünü `AnthropicThinkingMode.Extended` ile kurar (SDK varsayılanı `Adaptive`), önbellek işaretli talimat bloğu `system` dizisinde ilk system-olmayan mesajdan ÖNCE yerleşir (F-557, Faz 214) |
+| K-1018 | 1059 | Sevk edilen `Tracon.Testing.Contracts.Xunit` paketi `xunit.v3.extensibility.core` ve `xunit.v3.assert` için `>= 3.2.2` alt sınırını korur; reponun kendi testleri xunit.v3 `4.0.2` + `Microsoft.Testing.Extensions.TrxReport` `2.5.1` üzerinde koşar (F-557, Faz 215, A-70) |
