@@ -1,6 +1,6 @@
 # Faz 212 — HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip
 
-> **Durum:** 🚧 Uygulanıyor (başladı 2026-10-16)
+> **Durum:** ✅ Tamamlandı (2026-10-16)
 > **Plan onayı:** onaylandı — farukatasoy, 2026-10-16 ("planı uygula", `faz-uygulama` ile). Kapsam kararı: **UR-010 B**, farukatasoy, 2026-10-16 ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §7). Açık Soru 1 ve 2'de önerilen seçenek (A) uygulandı; kullanıcıya ayrıca sorulmadı, itiraz gelirse geri alınır.
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-554**
 > **Genellik:** Her .NET tüketicisi. 1.0 sözü bugün 81 HTTP DTO'sunu da kapsar; .NET tüketicisi bunları kullanmaz (`Tracon.Client` kendi DTO'larını üretir). İş tüketici kodunda kalamaz: sözleşme bizim. İkinci kanıt: ilk ilke (donan yüzey küçüldükçe söz ucuzlar) ve [Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) emsali (91 tip, aynı ölçüt).
@@ -318,7 +318,17 @@ docs/manuel-test/{25-SAGLIK-TESHIS-OPENAPI,00-INDEKS}.md
 | Negatif kontrol, envanter | `Tracon.ZzProbeResponse` satırı `PublicAPI.Unshipped.txt`'e eklendi → `kapi.py tarama` ❌ `kanıtsız public yüzey (K-850)`; geri alınca ✅ |
 | `ic-dongu` | `Tracon.AspNetCore.FunctionalTests` 2 127 test, 0 hata; `Tracon.Core.UnitTests` 4 125 test üç hedefte; ilk koşumda tek kırmızı `SourceLanguageTests` (yeni test dosyalarında "Faz" sözcüğü, "Phase" yapıldı) |
 | `kapi.py kapanis --taban 87fa2918`, ilk koşum | Tam test aşamasında (628 sn) tek kırmızı: `LiveVoiceTests.An_empty_cut_opens_NO_run_and_says_so_on_the_thinking_channel`, `ObjectDisposedException` (`LiveVoiceSessionHost.cs:474`). Faz diff'i bu dosyaya dokunmaz; sınıf yalıtık 5/5 yeşil. Kök neden kodu okuyarak bulundu (`CancelAsync` ile `Dispose` yarışı) ve **F-564** olarak devredildi; kapı yeniden koşuldu — bkz. aşağıdaki satır |
-| `kapi.py kapanis --taban 87fa2918`, yeniden koşum | koşuyor (sonuç bu satıra yazılır) |
+| `kapi.py kapanis --taban 87fa2918`, yeniden koşum | Dokuz aşamanın tamamı yeşil, `exit=0`: `tarama` · `dokuman-bakim --denetle` · script birim testleri · agent haritası · `denetim-paketi` · `dotnet build` (0 uyarı, 0 hata, 93 sn) · `dotnet test Tracon.slnx` (677 sn, 76 test derlemesi, 0 hata; önceki koşumun `LiveVoiceTests` kırmızısı tekrarlanmadı) · `dotnet pack` · `dotnet format --verify-no-changes` · `docs-site` `npm run check` (1 031 sayfa, kırık bağlantı yok) |
+
+### Tüketici yüzeyi senkronu (`tuketici-dokuman-senkronu`)
+
+`dokuman-bakim.py --site-denetle --taban 87fa2918` iki kural tetikledi: `http-api` (karşılandı: `docs/openapi/tracon.json` değişti) ve `cekirdek-kavram` (hedef `concepts/` değişmedi). **Site güncellemesi gerekmiyor**, gerekçe:
+
+- Elle yazılan hiçbir `docs-site/` sayfası 81 tipten birini anmaz: envanterin `kanıtsız` tanımı tam olarak budur (site, sample, şablon, README ve `<example>` korpusunda yok).
+- `api/` DocFX'ten üretilir ve izlenmez: 81 tipin sayfası kalktı. `http-api/` OpenAPI'den üretilir: yalnız 5 `description` satırı değişti. Uç sayısı, yol, yöntem ve şema adı aynıdır (`http-api.md` sayısı değişmedi).
+- `concepts/` bir davranış anlatır; bu faz davranış değiştirmedi, yalnız görünürlük ve açıklama kaynağı değişti.
+- Sevk edilen metin: `CHANGELOG.md` `[Unreleased]` → Removed (81 tip adıyla) ve Fixed (5 açıklama). `capabilities.md` ve agent haritası etkilenmedi (`build-agent-map.mjs --check` güncel).
+- `npm run check` yeşil: 1 031 sayfa, kırık bağlantı yok, SEO 0 hata, ağırlık tavanı altında.
 
 ## Süreç Ölçümü
 
