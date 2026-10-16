@@ -2,15 +2,15 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-16)
 > **Plan onayı:** kullanıcı fazı `faza başla ve bitir` diyerek başlattı (2026-10-16); Açık Sorular 1-3 ayrıca yanıtlanmadı, **planın önerdiği seçenekle (A) uygulandı** — bkz. *Plandan Sapmalar* 1 ve *Bu Fazda Verilen Kararlar*. Kapsam kararı: **UR-009 B**, farukatasoy, 2026-10-16.
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-557** (üç fazın ikincisi), **F-568** (analyzer yükseltmesinin bulduğu yapılandırma kusuru)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-557** (üç fazın ikincisi), **F-568** (analyzer yükseltmesinin bulduğu yapılandırma kusuru)
 > **Genellik:** Tüketiciye iki yoldan dokunur: sevk edilen `Tracon.Testing.Contracts.Xunit` `xunit.v3`'e bağlıdır (A-70) ve `Tracon.Client` NSwag ile üretilir. Geri kalanı geliştirme aparatıdır (`PrivateAssets=all`), ama kapanış kapısı ve CI ona dayanır. İkinci kanıt: K-543'ün beş `ignore` kaleminden ikisinin gerekçesi artık yok (deneme, 2026-10-16).
 > **Karşı görüş:** "Araç yükseltmesi ürün değeri üretmez; MTP 2 test koşum hattını değiştirir ve kapanış kapısını kırabilir." **Cevap:** Doğru, bu yüzden faz ayrıdır ve ölçütü kapının kendisidir: kapı aynı testleri koşar, düşen testi aynı yolla yeniden koşar ve TRX'i aynı yere yükler. Deneme bu üçünün **sessizce** bozulduğunu gösterdi (§215.1); düzeltme kanıtlanmadan faz bitmez. Analyzer yükseltmesi bir gerçek kusur buldu (F-568) — bu da değerdir.
-> **Önkoşul:** [Faz 214](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) — `Directory.Packages.props`, `dependabot.yml`, `CHANGELOG.md` ortak; paralel koşmaz.
+> **Önkoşul:** [Faz 214](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) — `Directory.Packages.props`, `dependabot.yml`, `CHANGELOG.md` ortak; paralel koşmaz.
 > **Paketler:** `Tracon.Testing.Contracts.Xunit` (sevk edilen bağımlılık aralığı), `Tracon.Client` (NSwag üretimi, Açık Soru 3), `Tracon.Core` (F-568), analyzer'ların dokunduğu kaynaklar
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `Tracon.Client` üretilen yüzeyi NSwag 14.7.1 ile değişebilir (Açık Soru 3; ApiCompat ölçer). `PublicAPI.Shipped.txt` bugün **0** satır.
 > **Tüketici yüzeyi:** site: `guides/testing.md` (contract paketinin xunit sürüm aralığı) · `reference/compatibility.md` · sevk edilen: `src/Tracon.Testing.Contracts.Xunit/README.md`, `CHANGELOG.md` `[Unreleased]` (F-568 davranış değişikliği)
-> **Manuel test alanı:** [`manuel-test/36-GELISTIRME-KAPILARI.md`](manuel-test/36-GELISTIRME-KAPILARI.md) (kapı hattı) · [`manuel-test/24-TEST-PAKETI-VE-SABLON.md`](manuel-test/24-TEST-PAKETI-VE-SABLON.md) (contract paketi)
+> **Manuel test alanı:** [`manuel-test/36-GELISTIRME-KAPILARI.md`](../../manuel-test/36-GELISTIRME-KAPILARI.md) (kapı hattı) · [`manuel-test/24-TEST-PAKETI-VE-SABLON.md`](../../manuel-test/24-TEST-PAKETI-VE-SABLON.md) (contract paketi)
 
 ---
 
@@ -18,9 +18,9 @@
 
 1. Bu doküman
 2. Kararlar — `grep -n "K-543\|K-349\|K-605\|K-197\|K-855" docs/KARARLAR.md`: **K-543** (bot `ignore` listesi ve gerekçeleri) · **K-349** (üretecin Roslyn'i en eski desteklenen SDK'nınkidir) · **K-605** (contract paketi) · **K-197** (SQLitePCLRaw) · **K-855** (net8/net9 2026-11-10'dan sonra düşer)
-3. [Faz 214](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) devir notu: `awk '/## Sonraki Faza Devir Notu
+3. [Faz 214](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) devir notu: `awk '/## Sonraki Faza Devir Notu
 
-**Sıradaki iş:** [Faz 216](216-NPM-BAGIMLILIKLARI.md) (npm: `src/Tracon.UI/frontend`, `packages/tracon-client`, `docs-site`). `Directory.Packages.props` ve `dependabot.yml` bu fazdan sonra kısmen boşalır; Faz 216 yalnız `package.json`/kilit dosyalarına ve CHANGELOG'a dokunur. Sonra F-558 (modernleşme) ve F-560 (deneysel tip).
+**Sıradaki iş:** [Faz 216](../../216-NPM-BAGIMLILIKLARI.md) (npm: `src/Tracon.UI/frontend`, `packages/tracon-client`, `docs-site`). `Directory.Packages.props` ve `dependabot.yml` bu fazdan sonra kısmen boşalır; Faz 216 yalnız `package.json`/kilit dosyalarına ve CHANGELOG'a dokunur. Sonra F-558 (modernleşme) ve F-560 (deneysel tip).
 
 **Başlangıç sayıları:** tam koşum **23.409** test (Faz 214: 23.370; +39 = `TraconUtilityModelBindingTests` 13 × 3 TFM) · `PublicAPI.Unshipped.txt` farkı 0 · `ADAYLAR.md` F-ID sayacı F-573'ün bir fazlasını gösterir · `kapi_test.py` + `dokuman_bakim_test.py` Faz 214 sonu 439 → bu fazda +10.
 
@@ -52,10 +52,10 @@ Test, derleme ve üretim araçlarını en yeni sürüme taşı; kapanış kapıs
 
 | Kanıt | Gözlem |
 |---|---|
-| [`TraconServiceCollectionExtensions.Binding.Models.cs:279-281`](../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Models.cs) | `Tracon:UtilityModel:Temperature = "abc"` → `TryParse` sonucu yok sayılır, değer boş olmadığı için `0` atanır (`:288-290`). preview.4'ün "okunamayan yapılandırma değeri başlangıcı durdurur" kuralı bu yolu kaçırdı (**F-568**) |
+| [`TraconServiceCollectionExtensions.Binding.Models.cs:279-281`](../../../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Models.cs) | `Tracon:UtilityModel:Temperature = "abc"` → `TryParse` sonucu yok sayılır, değer boş olmadığı için `0` atanır (`:288-290`). preview.4'ün "okunamayan yapılandırma değeri başlangıcı durdurur" kuralı bu yolu kaçırdı (**F-568**) |
 | `.github/dependabot.yml` `ignore` | Üç major: `Microsoft.CodeAnalysis.CSharp > 4.8.0`, `TrxReport >= 2`, `xunit.v3 >= 4` (K-543). `Microsoft.OpenApi >= 3` ve `SQLitePCLRaw.* >= 3` Faz 214'te sabitleriyle birlikte silindi: ikisi de artık `PackageVersion` değil, bot görmez |
-| `.github/workflows/ci.yml:293,299` · [`scripts/kapi.py:1059`](../scripts/kapi.py) | `dotnet test … -maxcpucount:N -- --report-trx` |
-| [`scripts/kapi.py:1080-1089`](../scripts/kapi.py) `failed_tests_from_trx` | TRX'i `artifacts/bin/*/release*/TestResults/` altında arar · `ci.yml:355` aynı glob'u yükler |
+| `.github/workflows/ci.yml:293,299` · [`scripts/kapi.py:1059`](../../../scripts/kapi.py) | `dotnet test … -maxcpucount:N -- --report-trx` |
+| [`scripts/kapi.py:1080-1089`](../../../scripts/kapi.py) `failed_tests_from_trx` | TRX'i `artifacts/bin/*/release*/TestResults/` altında arar · `ci.yml:355` aynı glob'u yükler |
 | `bench/capacity/Tracon.Capacity.Acceptance/Tracon.Capacity.Acceptance.csproj:49` | `xunit.v3` `3.2.0` CPM dışında sabit |
 | `.config/dotnet-tools.json` | docfx `2.78.5` (son `2.81.0`), nswag `14.2.0` (son `14.7.1`) |
 

@@ -227,7 +227,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [212](arsiv/fazlar/212-HTTP-DTO-DARALTMA.md) | HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip | ✅ Tamamlandı |
 | [213](arsiv/fazlar/213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) | Tesisat Arayüzleri ve Üye Hijyeni | ✅ Tamamlandı |
 | [214](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) | Çalışma Anı Bağımlılıkları ve MAF 1.25 | ✅ Tamamlandı |
-| [215](215-TEST-VE-DERLEME-ARACLARI.md) | Test ve Derleme Araçları | 📋 Planlandı |
+| [215](arsiv/fazlar/215-TEST-VE-DERLEME-ARACLARI.md) | Test ve Derleme Araçları | 📋 Planlandı |
 | [216](216-NPM-BAGIMLILIKLARI.md) | npm Bağımlılıkları: Arayüz, TypeScript İstemcisi ve Site | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
