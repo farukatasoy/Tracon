@@ -9,8 +9,8 @@
 > **Çalışma modu:** `nuget-danismani` — public API freeze programı (UR-009 B)  
 > **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.4`. Freeze yolunun ilk üç
 > ölçütü bitti: küçültme (Faz 212–213), bağımlılık yükseltmesi (Faz 214–216)
-> ve modernizasyon (Faz 217). Sıradaki iş ölçüt 4: yeni yeteneklerin seçimi
-> (UR-012 👤). Faz 212–217 `origin/main`'de yok; CI onları hiç koşmadı. GA
+> ve modernizasyon (Faz 217); ölçüt 4 karar verildi (UR-012 = A: yeni yetenek
+> yok). Sıradaki iş ölçüt 5: F-560, F-466, F-290, F-559. Faz 212–217 `origin/main`'de yok; CI onları hiç koşmadı. GA
 > hâlâ ❌ (`NU5104`, ER-001).
 
 ## 1. Canlı durum (ölçüldü 2026-10-16)
@@ -42,8 +42,8 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 | 1 | Küçültme | ✅ | Faz 212 (A-74) · Faz 213 (A-75, A-79) · A-78 · A-80 |
 | 2 | Her bağımlılık en yeni sürümde | ✅ | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
 | 3 | Modernizasyon | ✅ **[Faz 217](arsiv/fazlar/217-SAGLAYICI-MODERNLESME-VE-AOT-VAADI.md)** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
-| 4 | Yeni yetenekler toplu girer | ⏳ seçim 👤 | UR-012. UR-005 A: yeni yetenek doğrudan kararlı katmana girer; freeze'den sonra yetenek eklenmez |
-| 5 | Public imzada upstream deneysel tip yok · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-560 (A-63 `AddLoopEvaluator` ×4, A-77 `AgentFileStoreContract`) · F-559 (A-76, A-67, A-68) |
+| 4 | Yeni yetenekler toplu girer | ✅ UR-012 = A 👤 (2026-10-17) | Freeze'den önce **yeni yetenek girmez**; yalnız sözleşmeyi değiştiren kırıcı kalemler girer: F-290 (`AuthorizationConfigurationKey` kaldırma + veri taşıma), F-466 (kanıtsız iki public istisna). Ekleyici yetenekler 1.x minor'a kalır; RC ile GA arasında yetenek eklenmez (UR-005 A) |
+| 5 | Kırıcı kalemler kapandı · public imzada upstream deneysel tip yok · 1.x evrim kuralları yazılı ve kapılı | ⏳ **sıradaki** | F-560 (A-63 `AddLoopEvaluator` ×4, A-77 `AgentFileStoreContract`) · F-466 · F-290 · F-559 (A-76, A-67, A-68) |
 | 6 | Faz 193 (`net8.0`/`net9.0` düşer) | 📋 planlandı | En erken 2026-11-10 (K-855) |
 | 7 | Bir preview aralığı kararlı katmanda **sıfır** kırılmayla geçer | ⏳ | 3–6'dan sonra. `kapi.py yayin` kırılma listesi boş olur. Her yeni yetenek pencereyi yeniden başlatır |
 | 8 | `1.0.0-rc.1` provası yeşil | ⏳ | `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-rc.1` |
@@ -120,9 +120,8 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 
 | Kimlik | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| UR-004 | Upstream kararlı değilken 1.0'a nasıl gidilir? | A: upstream GA'yı bekle · B: Hosting'e bağlı yüzeyi ayrı ön sürüm pakete ayır · C: yüzeyi dondur, `1.0.0-rc.N` çık, GA upstream'e bağlı | **C.** UR-009 B bu yolu fiilen seçti; kalemi kapatmak için bakımcı teyidi gerekir |
+| UR-004 | Upstream kararlı değilken 1.0'a nasıl gidilir? | A: upstream GA'yı bekle · B: Hosting'e bağlı yüzeyi ayrı ön sürüm pakete ayır · C: yüzeyi dondur, `1.0.0-rc.N` çık, GA upstream'e bağlı | **C** önerilir. UR-009 B bu yolu fiilen seçti; bakımcı 2026-10-17'de kalemi **açık tuttu** 👤 |
 | UR-007 | Hangi 1.x sürümü ne kadar güvenlik yaması alır? | A: yalnız son minor · B: son minor + yeni major çıkınca önceki major N ay | **B**; N bakımcı kararıdır. `SECURITY.md` ve site aynı tabloyu taşır |
-| UR-012 | Freeze'den önce hangi yeni yetenekler girer (ölçüt 4)? | Aday havuzu: `ADAYLAR.md` § Sıralanabilir Adaylar ve § Faz planlama | Öneri yok — bakımcı seçer. Liste kapanınca yeni yetenek 1.0 sonrasına kalır |
 
 ## 5. Yürürlükteki kararlar
 
@@ -133,6 +132,7 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 | UR-005 | **A:** tek kararlı katman; Tracon'un kendi `[Experimental]` katmanı yok | — |
 | UR-006 | **A:** ön sürüm upstream bağımlılığı tam sürüm `[x]` yazılır (K-872) | Upstream kararlı olunca alt sınıra döner |
 | UR-009 | **B:** küçült → yükselt → modernize et → yetenekler → kurallar → RC'de dondur (§2) | — |
+| UR-012 | **A** 👤 (2026-10-17): freeze'den önce yeni yetenek yok; yalnız kırıcı kalemler (F-290, F-466). Ekleyici yetenekler 1.x minor; RC ile GA arasında yetenek eklenmez | Upstream GA uzun süre gelmezse ve RC'de bekleyen yetenek birikirse yeniden bakılır |
 | OP-001 | Paket sahibi nuget.org organizasyonu `Tracon` (K-755) | — |
 | OP-005 | NuGet yayını OIDC trusted publishing: `Tracon` sahipliğinde policy, `Tracon*`, push-only; kalıcı API key yok (OP-004) | — |
 | OP-006 · OP-007 | Her `v*` etiketi NuGet, npm ve GitHub release basar; not `CHANGELOG.md`'den gelir, gövde en fazla 125 000 karakter (F-553) | — |
