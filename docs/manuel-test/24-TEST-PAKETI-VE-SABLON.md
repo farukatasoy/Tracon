@@ -6,7 +6,8 @@
 > 99 (sağlayıcı sözleşmesi paketi ve örnek sağlayıcı),
 > 143 (tool argümanı/yetkilendirme sözleşmesi ve tohumlu fuzz üreteci),
 > 185 (kardeş sürüm sabitleme: şablonun NU1608'i ve fixture sürüm çözümü),
-> 188 (`ModelProviderRegistry` kurucusu `internal`; `MT-TEST-027` DI ile)
+> 188 (`ModelProviderRegistry` kurucusu `internal`; `MT-TEST-027` DI ile),
+> 215 (xunit.v3 4 + MTP 2; sevk edilen paketin xunit alt sınırı `>= 3.2.2`)
 > **Kaynak:** `src/Tracon.Templates/` (tümü — `content/Tracon.Starter/`,
 > `.template.config/template.json`, `dotnetcli.host.json`) ·
 > `src/Tracon.Testing/` (tümü — `FakeModelProvider.cs`, `FakeModelRequest.cs`,
@@ -3001,3 +3002,37 @@ ls -d ~/.nuget/packages/tracon*/1.0.0-preview.1
 
 **Beklenen sonuç**
 - `TemplateFixtureVersionTests` yeşil; `ls` boş.
+
+---
+
+### MT-TEST-098 — xunit.v3 3.2.2 ve 4.0.2 tüketicisi contract paketini `NU1608` almadan restore eder (Faz 215, K-1018)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 215 |
+| **İlgili karar** | K-1018 |
+
+Reponun kendi testleri xunit.v3 4.x'te koşar; sevk edilen paket `xunit.v3.extensibility.core` ve
+`xunit.v3.assert` için `>= 3.2.2` ister. Bu case ikisinin de tüketicide çalıştığını ve nuspec'in
+alt sınırı taşıdığını ölçer.
+
+**Ön koşul**
+- `python3 scripts/kapi.py yayin --kuru --surum <yeni sürüm>` yeşil (paketler `artifacts/package/yayin/<sürüm>/`).
+
+**Adımlar**
+1. Depo dışında iki boş proje aç: biri `xunit.v3` `3.2.2` + `Microsoft.Testing.Extensions.TrxReport` `1.9.1`, öteki `4.0.2` + `2.5.1`; ikisi de `Tracon.Testing.Contracts.Xunit` ister. `NuGet.config` yalnız yerel feed (`Tracon*`) ve nuget.org.
+2. Her projede izole `NUGET_PACKAGES` ile `dotnet restore -warnaserror`.
+3. Nuspec'i oku.
+
+**Girilecek veri**
+```bash
+NUGET_PACKAGES=$PWD/pkgs dotnet restore -warnaserror
+unzip -p artifacts/package/yayin/<sürüm>/Tracon.Testing.Contracts.Xunit.<sürüm>.nupkg Tracon.Testing.Contracts.Xunit.nuspec | grep -o '<dependency id="xunit[^>]*>'
+```
+
+**Beklenen sonuç**
+- İki restore da `NU1608` ve başka uyarı olmadan biter; çözülen `xunit.v3.extensibility.core` sırasıyla `3.2.2` ve `4.0.2`'dir.
+- Nuspec üç hedef çerçevede de `xunit.v3.extensibility.core` ve `xunit.v3.assert` için `version="3.2.2"` yazar.
+- ➜ CI: `python3 -m unittest scripts.kapi_test -k xunit_alt_sinir` ve `kapi.py yayin --kuru` (`dependency_floor_errors`).

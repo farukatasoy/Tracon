@@ -47,6 +47,13 @@ EXACT_RANGE_PATTERN = re.compile(r"\[(?P<version>[^,\]\s]+)(?:\s*,\s*(?P=version
 REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="(?P<commit>[0-9a-f]{7,})"[^>]*/>')
 RELEASE_NOTES_PATTERN = re.compile(r"<releaseNotes>(?P<url>[^<]*)</releaseNotes>")
 K008_EXEMPT_PACKAGE = "Tracon.AspNetCore"
+# Faz 215 (K-1018): sevk edilen contract paketi xunit.v3 3.x tüketicisini zorlamaz.
+# Reponun kendi testleri xunit.v3 4.x'te koşar ve her tüketici bu repoda (örnekler dahil)
+# 4.x'tir; 3.x tüketicisini hiçbir koşum ölçmez. Alt sınırı nuspec'e bakan bu kapı sabitler.
+SHIPPED_DEPENDENCY_FLOORS = {
+    "Tracon.Testing.Contracts.Xunit": {"xunit.v3.extensibility.core": "3.2.2", "xunit.v3.assert": "3.2.2"},
+}
+NUSPEC_DEPENDENCY_PATTERN = re.compile(r'<dependency id="(?P<id>[^"]+)" version="(?P<range>[^"]*)"')
 # BL-058: üçüncü taraf kodunu PAKETİN İÇİNDE taşıyan paket, o kodun lisans
 # bildirimini de taşır. Değer repo'daki kaynak dosyadır; paketteki kopya ona
 # bayt bayt eşit olmalı (paketleme kontrol edilen dosyayı mı aldı?).
@@ -1555,6 +1562,29 @@ def _entry_names(nupkg: pathlib.Path) -> set[str]:
         return set(archive.namelist())
 
 
+def dependency_floor_errors(project_id: str, nuspec: str) -> list[str]:
+    """Hatalar: nuspec'in sabitlenmiş bir bağımlılığın alt sınırı `SHIPPED_DEPENDENCY_FLOORS`'tan farklıysa.
+
+    Alt sınır `version="3.2.2"` (= `>= 3.2.2`) ya da `[3.2.2, )` yazar. Yükseltmek bir
+    güncelleme değil bir uyumluluk kararıdır (K-1018); bağımlılık hiç yoksa da hatadır,
+    yoksa kapı boş geçerdi."""
+    errors: list[str] = []
+    for dependency, floor in SHIPPED_DEPENDENCY_FLOORS.get(project_id, {}).items():
+        ranges = [
+            match.group("range") for match in NUSPEC_DEPENDENCY_PATTERN.finditer(nuspec)
+            if match.group("id") == dependency
+        ]
+        if not ranges:
+            errors.append(f"{dependency} bağımlılığı nuspec'te yok (alt sınır {floor} bekleniyordu)")
+            continue
+        wrong = sorted({value for value in ranges if value.replace(" ", "") not in (floor, f"[{floor},)")})
+        if wrong:
+            errors.append(
+                f"{dependency} alt sınırı {', '.join(wrong)}; sevk edilen alt sınır {floor} (K-1018) - "
+                "yükseltmek tüketiciyi xunit.v3 4'e zorlar")
+    return errors
+
+
 def _third_party_notice_error(root: pathlib.Path, nupkg: pathlib.Path, source: pathlib.PurePath) -> str | None:
     """BL-058: None when the package root carries the checked-in notice byte for byte."""
     expected_path = root / source
@@ -2333,6 +2363,8 @@ def _finish_release_rehearsal_unchecked(
         })
         if open_ranges:
             errors.append(f"{project_id}: ön sürüm bağımlılık tam aralık değil (A-59): {', '.join(open_ranges)}")
+
+        errors.extend(f"{project_id}: {error}" for error in dependency_floor_errors(project_id, nuspec))
 
         notice_source = THIRD_PARTY_NOTICE_PACKAGES.get(project_id)
         if notice_source is not None:

@@ -90,7 +90,7 @@ sonuna biriktirme.
 
 ```bash
 dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false
-dotnet test tests/Tracon.Core.UnitTests -c Release --no-build
+dotnet test --project tests/Tracon.Core.UnitTests -c Release --no-build
 ```
 
 Arayüze dokunuyorsan `-p:TraconFrontendEnabled=false` **kullanma** — E2E

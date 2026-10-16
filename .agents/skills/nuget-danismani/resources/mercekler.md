@@ -189,8 +189,9 @@ Ara:
   GA'dan **önce** yazılır.
 - **Test/contract paketinin framework bağı.** `Tracon.Testing.Contracts.Xunit`
   `xunit.v3 3.2.2` alt sınırı taşır; `xunit.v3 4.x` kararlı yayında. Tüketici
-  4.x'e geçerse ne olur? İkili probu metadata uyumunu ölçer; çalışma anı
-  (test platformu v2) ayrıca ölçülür.
+  4.x'e geçerse ne olur? İkili probu metadata uyumunu ölçer. Çalışma anı Faz 215'te
+  ölçüldü (4.0.2 + test platformu v2 yeşil; K-1018); alt sınırı `kapi.py`
+  `dependency_floor_errors` kapısı sabitler.
 - **CVE zorlamaları.** `K-007` deseniyle zorlanan geçişli sürümler GA'da hâlâ
   gerekli mi, yoksa upstream düzeltti mi?
 

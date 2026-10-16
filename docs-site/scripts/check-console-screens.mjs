@@ -104,7 +104,7 @@ export function checkConsoleScreens(sourceRoot, docsRoot, siteRoot) {
     if (!existsSync(join(screenshotRoot, `${path}.png`))) {
       errors.push(
         `public/screenshots/${path}.png is missing; regenerate with ` +
-          'TRACON_UI_SCREENSHOTS=1 dotnet test tests/Tracon.Ui.E2ETests -c Release',
+          'TRACON_UI_SCREENSHOTS=1 dotnet test --project tests/Tracon.Ui.E2ETests -c Release',
       );
     }
   }

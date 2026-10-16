@@ -317,7 +317,7 @@ depend on GA packages only.
 
 ```bash
 dotnet build  Tracon.slnx -c Release              # 0 warnings expected
-dotnet test   Tracon.slnx -c Release --no-build   # 22 test projects run
+dotnet test --solution Tracon.slnx -c Release --no-build   # 22 test projects run
 dotnet pack   Tracon.slnx -c Release --no-build
 dotnet format Tracon.slnx --verify-no-changes
 ```

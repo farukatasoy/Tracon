@@ -24,7 +24,9 @@ nothing else from Tracon — no `Tracon.Core`, no SQL package, no ASP.NET Core.
 xunit.v3 and Shouldly are ordinary dependencies: your test project's own xunit.v3
 runner discovers the `[Fact]` methods the inherited contract class declares. The
 package asks for xunit.v3 `3.2.2` or newer; it was run on xunit.v3 `4.0.2` with
-`Microsoft.Testing.Extensions.TrxReport` `2.5.1`.
+`Microsoft.Testing.Extensions.TrxReport` `2.5.1`. On the .NET 10 SDK, xunit.v3 4
+also needs `"test": { "runner": "Microsoft.Testing.Platform" }` in your `global.json`;
+without it `dotnet test` stops with "Testing with VSTest target is no longer supported".
 
 ## Implement the interface
 

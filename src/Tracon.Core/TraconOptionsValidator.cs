@@ -356,10 +356,6 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         }
     }
 
-    /// <summary>
-    /// Validates that configuration price overrides are not negative. A negative
-    /// price would silently corrupt cost reporting.
-    /// </summary>
     private static void ValidateUtilityModel(TraconOptions options, ref List<string>? failures)
     {
         // The failure holds while the binding is still the one the binder built:
@@ -377,6 +373,10 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         }
     }
 
+    /// <summary>
+    /// Validates that configuration price overrides are not negative. A negative
+    /// price would silently corrupt cost reporting.
+    /// </summary>
     private static void ValidatePricing(TraconPricingOptions? pricing, ref List<string>? failures)
     {
         if (pricing is null)

@@ -101,14 +101,12 @@
   [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 - **🚨 `$(Version)` iceren bir MSBuild ozelligi duz bir `<PropertyGroup>`'ta
-  HER ZAMAN bos okunur** (2026-08-28, olculdu: `PackageReleaseNotes` ureten
-  URL her paket icin `.../blob/v/CHANGELOG.md` cikti). Sebep `IsAotCompatible`
-  tuzaginin AYNI SINIFI, farkli ekseni: `<Project>`'in DOGRUDAN cocugu olan
-  her `<PropertyGroup>` **evaluation phase**'de, TUM target'lardan ONCE
-  degerlendirilir; MinVer `$(Version)`'i kendi TARGET'inde (**execution
-  phase**) hesaplar. Cozum: ozelligi `BeforeTargets="GenerateNuspec"` bir
-  `<Target>`'in ICINDEKI `<PropertyGroup>`'a tasi — o zaman `$(Version)` zaten
-  dolu. Kanit: `src/Directory.Build.props`.
+  HER ZAMAN bos okunur** (2026-08-28, olculdu: `PackageReleaseNotes` URL'si her
+  pakette `.../blob/v/CHANGELOG.md` cikti). Dogrudan `<Project>` cocugu her
+  `<PropertyGroup>` **evaluation phase**'de degerlendirilir; MinVer `$(Version)`'i
+  kendi TARGET'inde (**execution phase**) hesaplar. Cozum: ozelligi
+  `BeforeTargets="GenerateNuspec"` bir `<Target>`'in ICINDEKI `<PropertyGroup>`'a
+  tasi. Kanit: `src/Directory.Build.props`.
 
 - **🚨 Packed-consumer sample projelerini `Tracon.slnx`'e ekleme.** Bu
   projeler `artifacts/package/release` local feed'inden exact paket tuketir;
@@ -137,9 +135,7 @@
   uretimdir: `dotnet tool restore` → `nswag-prepare-document.py` →
   `dotnet nswag run nswag.json` → `nswag-postprocess-client.py` →
   `generate-client-json-context.py`. Belge degismediyse cikti yalniz yeni
-  gecisin deltasi kadar farkli olmalidir; `diff` ile DOGRULA (F-197'de
-  100 satir = 50 cift, baska kayma yok; Faz 159'da 1003 ekleme, JSON context
-  DEGISMEDI). Faz 159'dan beri ALTINCI gecis bunu kendisi de yakalar: uretilecek
+  gecisin deltasi kadar farkli olmalidir; `diff` ile DOGRULA. Faz 159'dan beri ALTINCI gecis bunu kendisi de yakalar: uretilecek
   `<operation>StreamAsync` zaten varsa `SystemExit` atar — ikinci kosum sessizce
   CS0111 uretmez.
 
@@ -215,5 +211,7 @@ sıfır veya negatif değer `ArgumentException` atar. `tracon eval` ve
   `JsonPropertyNameAttribute`'tan okur, ∴ adlandırma kuralıyla kaymaz).
 
 - **🚨 `oneOf: [null, {description, $ref}]` olan nullable nesne özelliği C# istemciye BELGESİZ gider** (2026-10-12, Faz 195): OpenAPI üreteci nullable `$ref` özelliğini böyle yazar ve açıklama ikinci dalın İÇİNDE kalır; NSwag yalnız özelliğin kendi `description`'ını okur. 41 özellik (`AgentDefinition.Harness` dahil) XML belgesiz çıkıyordu. `nswag-prepare-document.py` açıklamayı özelliğe TAŞIR (üçüncü dönüşüm, yalnız atılan kopyada); `client-description-baseline.txt` 396 → 357. TS tarafı (`openapi-typescript`) yazılı belgeden üretilir ve bu dönüşümü ALMAZ.
+
+- **🚨 `nswag.json` `runtime` aracın kendi çalışma anıyla aynı olmalıdır** (2026-10-16, Faz 215): 14.7.1 aracı `net10.0` altında koşar; `Net90` ile `…differs from the current process runtime` verip durur, eski dosya kalır. Zinciri `&&` ile bağla: sonraki adımlar yine koşar ve `generate-client-json-context.py`'ye **elle yazılan** `TraconApiClient.JsonContext.cs` verilirse onu ezer (çıktı `Generated/TraconClientJsonContext.g.cs`'tir). 14.7.1 farkı yalnız gövdedir (public bildirimler özdeş).
 
 - **🚨 Var olan bir uca sorgu parametresi eklemek üretilen C# istemcisini KIRAR; bunu yalnız yayın provası görür** (2026-10-13, Faz 197 + 198): NSwag yeni parametreyi sıraya `skip`/`take` ve iptal token'ından ÖNCE koyar (`TraconListRunsAsync(…, continuedFromRunId, skip, take, ct)`, `TraconVoiceListAsync(provider, ct)`). Parametre isteğe bağlıdır ama konumsal çağıran derlenmez ve ikili uyum düşer. `kapi.py kapanis` bunu görmez; `kapi.py yayin --kuru` `TraconApiClient`'ı kırıcı listeye koyar ve `CHANGELOG` `[Unreleased]` tipi kod span'iyle anmazsa kırmızı döner. Uca parametre ekleyen faz notu aynı değişiklikte yazar.

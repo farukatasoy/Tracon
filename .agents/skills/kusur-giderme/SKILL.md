@@ -50,7 +50,7 @@ pahalıdır: gerçek kusuru "kırılgan" saymak onu üretime taşır, kırılgan
 
 ```bash
 # 1. Tam paketi BIR KEZ DAHA koştur — yük altında kırılgan olabilir
-dotnet test Tracon.slnx -c Release --no-build
+dotnet test --solution Tracon.slnx -c Release --no-build
 
 # 2. Tek başına koştur (MTP; --filter-query YOKTUR)
 ./artifacts/bin/<Proje>/release/<Proje> --filter-method "*Ad*"
