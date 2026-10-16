@@ -196,7 +196,7 @@ public static partial class TraconServiceCollectionExtensions
         BindAgentGraph(section.GetSection(nameof(TraconOptions.AgentGraph)), options.AgentGraph);
         BindAttachments(section.GetSection(nameof(TraconOptions.Attachments)), options.Attachments);
         BindPricing(section.GetSection(nameof(TraconOptions.Pricing)), options.Pricing);
-        options.UtilityModel = BindUtilityModel(section.GetSection(nameof(TraconOptions.UtilityModel)));
+        BindUtilityModel(section.GetSection(nameof(TraconOptions.UtilityModel)), options);
         BindValidation(section.GetSection(nameof(TraconOptions.Validation)), options.Validation);
         BindPreflight(section.GetSection(nameof(TraconOptions.Preflight)), options.Preflight);
         BindModelConcurrency(section.GetSection(nameof(TraconOptions.ModelConcurrency)), options.ModelConcurrency);

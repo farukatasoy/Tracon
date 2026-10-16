@@ -256,16 +256,29 @@ public static partial class TraconServiceCollectionExtensions
     /// Reads the utility model binding from configuration.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <see cref="ModelBinding.Provider"/> and <see cref="ModelBinding.Model"/>
     /// are required; when both are not set, no binding is built. A partially
     /// filled binding would silently accept a configuration that was
     /// mistakenly written incomplete.
+    /// </para>
+    /// <para>
+    /// An empty number means "not set": the provider default applies. A number
+    /// that does not parse is NOT skipped (F-568): the failed parse left the out
+    /// value at zero and the non-empty key then wrote <c>Temperature = 0</c>, so a
+    /// typo silently ran the summarizer at temperature zero. The binding is built
+    /// without that number and the text is kept beside it, so
+    /// <see cref="TraconOptionsValidator"/> names it at startup.
+    /// </para>
     /// </remarks>
-    private static ModelBinding? BindUtilityModel(IConfigurationSection section)
+    private static void BindUtilityModel(IConfigurationSection section, TraconOptions options)
     {
+        options.UtilityModel = null;
+        options.UnreadableUtilityModel = null;
+
         if (!section.Exists())
         {
-            return null;
+            return;
         }
 
         var provider = section[nameof(ModelBinding.Provider)];
@@ -273,22 +286,59 @@ public static partial class TraconServiceCollectionExtensions
 
         if (string.IsNullOrWhiteSpace(provider) || string.IsNullOrWhiteSpace(model))
         {
-            return null;
+            return;
         }
 
-        float.TryParse(section[nameof(ModelBinding.Temperature)], NumberStyles.Float, CultureInfo.InvariantCulture, out var temperature);
-        int.TryParse(section[nameof(ModelBinding.MaxOutputTokens)], NumberStyles.Integer, CultureInfo.InvariantCulture, out var maxOutputTokens);
-        float.TryParse(section[nameof(ModelBinding.TopP)], NumberStyles.Float, CultureInfo.InvariantCulture, out var topP);
+        List<(string Key, string Text)>? unreadable = null;
 
-        return new ModelBinding
+        var binding = new ModelBinding
         {
             Provider = provider,
             Model = model,
-            Temperature = section[nameof(ModelBinding.Temperature)] is { Length: > 0 } ? temperature : null,
-            MaxOutputTokens = section[nameof(ModelBinding.MaxOutputTokens)] is { Length: > 0 } ? maxOutputTokens : null,
-            TopP = section[nameof(ModelBinding.TopP)] is { Length: > 0 } ? topP : null,
+            Temperature = ReadFloat(section, nameof(ModelBinding.Temperature), ref unreadable),
+            MaxOutputTokens = ReadInt(section, nameof(ModelBinding.MaxOutputTokens), ref unreadable),
+            TopP = ReadFloat(section, nameof(ModelBinding.TopP), ref unreadable),
             ReasoningEffort = section[nameof(ModelBinding.ReasoningEffort)],
         };
+
+        options.UtilityModel = binding;
+
+        if (unreadable is not null)
+        {
+            options.UnreadableUtilityModel = (binding, unreadable);
+        }
+    }
+
+    private static float? ReadFloat(IConfiguration section, string key, ref List<(string Key, string Text)>? unreadable)
+    {
+        if (section[key] is not { } text || string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        if (float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        {
+            return value;
+        }
+
+        (unreadable ??= []).Add((key, text));
+        return null;
+    }
+
+    private static int? ReadInt(IConfiguration section, string key, ref List<(string Key, string Text)>? unreadable)
+    {
+        if (section[key] is not { } text || string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+        {
+            return value;
+        }
+
+        (unreadable ??= []).Add((key, text));
+        return null;
     }
 
     private static void BindAgentGraph(IConfigurationSection section, TraconAgentGraphOptions options)
