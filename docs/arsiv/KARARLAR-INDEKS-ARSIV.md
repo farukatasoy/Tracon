@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (956 kalem)
+## Arşivlenen Kararlar (959 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -965,3 +965,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-964 | 1005 | Onaylanan skill script'i public `ISkillScriptExecutor` seam'ine gider (singleton · beklenen kiracı · teslim garantisi yok); kapılar, içerik pini, `script.run` denetimi, kota, `Timeout + 5 sn` bekleme sınırı ve çıktı sınırı runner'da kalır, yürütücü yalnız yeri seçer; yerel süreç `UseSkillScripts`'in işaretli varsayılanıdır (`TryAddTraconDefault`, `RequireCustomBinding` reddeder); `SkillScriptExecutionResult` `Duration`'sız `Abstractions`'a taşındı, süreyi runner ölçer, tutarsız/`null` sonuç çağrıyı düşürür (Faz 202, F-345) |
 | K-965 | 1006 | Harici yürütücüde de `PlatformIsolationAcknowledged` zorunludur ve K-861 (çok kiracılı host'ta stored grant için platform yetkisi) değişmez; yürütücü yalıtım beyan etse de gevşemez (Faz 202, Açık Soru 1-A ve 2-A) (kullanıcı kararı) 👤 |
 | K-966 | 1007 | Disk script'i de yürütücüye gider: içeriği runner kotadan sonra okur ve istekte taşır, kardeş dosyalar taşınmaz (`SourcePath` yalnız yerel yürütücü içindir); kota harici yürütücüde de uygulanır; bekleme toleransı seçenek değil sabit 5 sn'dir (Faz 202, Açık Soru 3-A, 4-A, 5-A) (kullanıcı kararı) 👤 |
+| K-967 | 1008 | R8 "varsayılan yürütücüyle" diye daralır: script yalnız yerel yürütücüde Tracon'un işletim sistemi kimliğiyle çalışır; B7'nin adı ("Script execution gates") ve `SECURITY.md`/politika kapsam satırı değişmez; site ve XML "sandbox" vaadi vermez, harici yürütücünün yalıtımı host'undur (Faz 202) |
+| K-968 | 1009 | `MaxScriptContentLength` disk script'ine de uygulanır; sınırı aşan, boş, yok ya da düzenli dosya olmayan (FIFO, aygıta bağlantı) disk script'i dosya AÇILMADAN meta veriden reddedilir; okuma havuz iş parçacığında, yürütücüyle aynı bekleme sınırı altında ve sınır+1 baytta durur (Faz 202 denetimi) (kullanıcı kararı) 👤 |
+| K-969 | 1010 | Stored script adı ve disk script'i boyut/tür kapısı denetimden ÖNCE kapıdır (`script.denied`, `script.run` yok, kota slotu yok); kapıdan sonraki okuma hatası (`could not be read`, `in time`, sınır aşımı) `script.run`'dan sonra tool hatası olarak kaydedilir (Faz 202) |

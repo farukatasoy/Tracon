@@ -1,6 +1,6 @@
 # 06 — Sağlayıcı: Anthropic, Google, Azure OpenAI (`PROV`)
 
-> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214
+> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214, 217
 > **Kaynak:** `src/Tracon.Anthropic` (tümü), `src/Tracon.Google` (tümü),
 > `src/Tracon.Azure` (tümü) — üç paket de `Tracon.OpenAI` ile **aynı**
 > iskeleti tekrarlar (`XxxProviderOptions*`, `XxxProviderExtensions`,
@@ -1623,8 +1623,8 @@ tracon.UseAzureOpenAI(o =>
 Negatif senaryo, gerçek para harcar. README'nin `🚨 Deployment ≠ model`
 uyarısının uçtan uca kanıtı: `ModelBinding.Model` bir model adı
 (`gpt-5.4-mini`) değil, Azure kaynağında tanımlı bir **deployment** adı
-taşımalıdır; istek yolu `POST {endpoint}/openai/deployments/{deployment}/chat/completions`
-biçimindedir.
+taşımalıdır; deployment adı isteğin gövdesindeki `model` alanına girer
+(`POST {endpoint}/openai/v1/chat/completions`, Faz 217).
 
 **Ön koşul**
 - Örnek uygulama gerçek bir Azure OpenAI kaynağıyla çalışıyor.
@@ -1647,8 +1647,9 @@ curl -s -X POST "$APU/api/agents/manuel-azure-yanlis-ad/run" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- İstek Azure'dan `HTTP 404` alır (model adı deployment olarak var olmadığı
-  için) — "model bulunamadı" değil, doğrudan **404**.
+- İstek Azure'dan bir hata alır (model adı deployment olarak var olmadığı
+  için); v1 ucunda durum kodu ve gövde **ölçülmedi** — `MT-PROV-091` ile
+  birlikte koşulunca buraya yazılır (klasik uçta `HTTP 404` idi).
 - `GET /api/runs/{runId}` çıktısında `status: Failed`.
 
 ---
@@ -1665,9 +1666,9 @@ curl -s -X POST "$APU/api/agents/manuel-azure-yanlis-ad/run" -H "$APB" \
 | **İlgili karar** | K-211 |
 
 Negatif senaryo. `AzureOpenAIProviderNames.SupportedSettings` **boş bir
-listedir** — Azure'un sohbet isteğine ek alan yazan tek yol
-(`AzureChatExtensions`) kullandığımız OpenAI SDK sürümüyle çalışma anında
-`MissingMethodException` verdiği için (ölçüldü, K-211) hiçbir ayar sunulmaz.
+listedir** — Azure'a özgü istek alanları (On Your Data vb.) düz OpenAI
+istemcisinde karşılıksızdır (Faz 217; önceki `AzureChatExtensions` yolu
+`MissingMethodException` veriyordu, K-211) ve hiçbir ayar sunulmaz.
 
 **Ön koşul**
 - Örnek uygulama gerçek bir Azure OpenAI kaynağıyla çalışıyor.
@@ -1708,7 +1709,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 | **İlgili faz** | Faz 27 |
 | **İlgili karar** | — |
 
-`GET {endpoint}/openai/models?api-version=2024-10-21` ucuna gider, **ücret
+`GET {endpoint}/openai/v1/models` ucuna gider, **ücret
 üretmez**. README'nin `🚨` uyarısı: dönen liste kaynağın erişebildiği
 **modelleri** listeler, kaynakta tanımlı **deployment'ları değil** — denetimin
 kanıtladığı şey adresin doğru, kimliğin geçerli ve kaynağın ayakta olduğudur;
@@ -1770,8 +1771,8 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
 - Yanıt metni `ORD-1001` dizgisini içerir.
 - `status: Completed`, `get_order_status` tool'u tam bir kez çağrılır — Azure
   OpenAI SDK'sının mesaj eşlemesi, akışı ve tool çağrısı doğrudan OpenAI
-  SDK'sından geldiği için (`Azure.AI.OpenAI` yalnız yönlendirme ekler) bu
-  davranış `05-SAGLAYICI-OPENAI.md` `MT-OAI-040` ile **birebir aynı** olmalıdır.
+  SDK'sından geldiği için (Azure'a v1 ucundan düz OpenAI istemcisiyle
+  bağlanılır, Faz 217) bu davranış `05-SAGLAYICI-OPENAI.md` `MT-OAI-040` ile **birebir aynı** olmalıdır.
 
 ---
 
@@ -1840,18 +1841,19 @@ Regresyon. SDK adaptörü `model_context_window_exceeded` ve `pause_turn`'ü dü
 
 ---
 
-### MT-PROV-090 — Anthropic: `ReasoningEffort` genişletilmiş düşünme bütçesi olarak gider, önbellekli talimat `system` dizisinde kalır (Faz 214)
+### MT-PROV-090 — Anthropic: `ReasoningEffort` uyarlanabilir düşünme olarak gider, önbellekli talimat `system` dizisinde kalır (Faz 214, Faz 217)
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 214 |
+| **İlgili faz** | Faz 214 · Faz 217 |
 | **İlgili karar** | K-1017 |
 | **Devir** | ➜ CI: `AnthropicRequestSettingsTests` · `AnthropicRequestSettingsEndpointTests` (yerel Messages API, gerçek SDK) |
 
 SDK `12.58` iki şeyi değiştirdi: `ReasoningEffort` için varsayılan `adaptive` oldu ve yalnız ilk mesajlardan önceki
-system mesajları üst düzey `system` dizisine girer. Yükseltme istek gövdesini değiştirmemelidir.
+system mesajları üst düzey `system` dizisine girer. Faz 214 bütçeli biçimi (`enabled`) sabitlemişti; Faz 217 canlı ölçümle
+(`MT-PROV-092`) bunu **geri aldı**: bütçeli biçim her güncel modelde `400` verir.
 
 **Ön koşul**
 - Gerçek Anthropic anahtarı; `anthropic.promptCaching = true`, `anthropic.promptCaching.placement = system` ve
@@ -1864,6 +1866,103 @@ system mesajları üst düzey `system` dizisine girer. Yükseltme istek gövdesi
 3. `GET /api/runs/{runId}` ile ikinci turun kullanımını oku.
 
 **Beklenen sonuç**
-- (1) İstek gövdesinde `thinking: {"type":"enabled","budget_tokens":8192}`; `output_config` yoktur.
+- (1) İstek gövdesinde `thinking: {"type":"adaptive"}` ve `output_config: {"effort":"medium"}`; `budget_tokens` yoktur.
 - (1) Talimat `system` dizisinin son elemanıdır ve `cache_control` taşır; `messages` içinde `role: system` girdisi yoktur.
 - (3) İkinci turda önbellekten okunan girdi token'ı `0`'dan büyüktür.
+
+---
+
+### MT-PROV-091 — Azure OpenAI v1 ucu: anahtar ve Entra yolu gerçek kaynakta çalışır (Faz 217)
+
+⏭ **ATLA — Azure kimliği yok.** 👤 Kaynak bulunduğunda koşulur.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 217 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `AzureOpenAIChatRequestWireTests` (yol, `Bearer`, gövdedeki `model`, Entra kapsamı); gerçek kaynak yalnız burada kanıtlanır |
+
+`Tracon.Azure` kaynağın `/openai/v1/` ucuna düz `OpenAI` istemcisiyle gider.
+Wire testleri isteğin biçimini sınar; Azure'un bu biçimi kabul ettiğini yalnız
+gerçek bir kaynak kanıtlar.
+
+**Ön koşul**
+- v1 API'yi destekleyen bir Azure OpenAI kaynağı ve içinde bir deployment.
+- `samples/Tracon.Api`; `dotnet user-secrets set "Tracon:Providers:AzureOpenAI:Endpoint" "https://<kaynak>.openai.azure.com/"` ve `...:ApiKey`.
+
+**Adımlar**
+1. `azure-openai` sağlayıcılı, `Model` alanı deployment adı olan bir agent'ı koş (akışsız, sonra akışlı).
+2. `GET /tracon/api/models/health/azure-openai` çağır.
+3. `ApiKey`'i sil; `CredentialFactory` ile (`DefaultAzureCredential`) aynı agent'ı yeniden koş.
+4. `Model` alanına var olmayan bir ad ver ve koş.
+5. Bir görsel üretim agent'ı (`UseAzureOpenAIImages`) koş.
+
+**Beklenen sonuç**
+- (1) Yanıt döner; akışta delta'lar gelir.
+- (2) `Healthy`.
+- (3) Yanıt döner (Entra yolu, HTTPS).
+- (4) Azure hata verir; durum kodu ve gövde bu satıra yazılır (`MT-PROV-084` aynı sonucu bekler).
+- (5) Görsel üretilir ya da v1 görsel ucu farklı davranıyorsa sonuç yazılır (**ölçülmedi** — planın riski).
+
+---
+
+### MT-PROV-092 — Anthropic: `ReasoningEffort` güncel katalog modellerinde reddedilmez (Faz 217)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 217 |
+| **İlgili karar** | K-1017 |
+| **Devir** | ➜ CI: `AnthropicRequestSettingsTests` (istek gövdesi). Model kabulü yalnız canlı API ile kanıtlanır |
+
+Faz 214 `ReasoningEffort`'u bütçeli düşünmeye (`thinking.type=enabled`) sabitledi. Bu case her katalog
+modeli için iki biçimi canlı API'ye karşı ölçer: bütçeli (`enabled`) ve uyarlanabilir (`adaptive` + `effort`).
+
+**Ön koşul**
+- Gerçek Anthropic anahtarı. Ortam değişkeni ile verilir (`Tracon__Providers__Anthropic__ApiKey`); hiçbir dosyaya
+  yazılmaz, `user-secrets` de gerekmez.
+
+**Adımlar**
+1. Katalogdaki her model için `ReasoningEffort = Medium` taşıyan bir agent'ı **Faz 217 öncesi** davranışla (bütçeli) koş.
+2. Aynısını bugünkü varsayılanla (uyarlanabilir) koş; sonra `ReasoningEffort = ExtraHigh` ile.
+3. Bütçeli biçimi isteyen model için `anthropic.thinking.mode = enabled` + `anthropic.thinking.budgetTokens = 2048` koş.
+
+**Beklenen sonuç**
+- Ölçüm tablosu (2026-10-17, SDK `12.58.0`; HTTP durumu):
+
+  | Model | Bütçeli (`enabled`) | Uyarlanabilir `medium` | Uyarlanabilir `xhigh` |
+  |---|---|---|---|
+  | `claude-opus-5-5` · `claude-sonnet-5-5` · `claude-haiku-5-5` · `claude-fable-5-1` | `400` | `200` | `200` |
+  | `claude-sonnet-5` · `claude-opus-5` | `400` | `200` | `200` |
+  | `claude-haiku-4-5-20251001` | `200` | `400` | `400` |
+  | `claude-sonnet-4-5` | `404` (kimlik yok) | `404` | `404` |
+
+- (2) Bugünkü varsayılan hiçbir güncel katalog modelinde `400` vermez.
+- (3) Bütçeli biçim yalnız `claude-haiku-4-5` için gerekli kaçış kapısıdır ve `200` döner.
+
+---
+
+### MT-PROV-093 — Anthropic: akışlı run, araç çağrısı ve önbellek Faz 214 kapanışıyla aynı davranır (Faz 217)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 217 |
+| **İlgili karar** | K-1017 |
+
+Faz 217 düşünme biçimini değiştirdi; akış, araç çağrısı ve önbellek yolu değişmemeli.
+
+**Ön koşul**
+- Gerçek Anthropic anahtarı (ortam değişkeni); `samples/Tracon.Api` ve `anthropic` sağlayıcılı bir agent.
+
+**Adımlar**
+1. Akışlı `run` başlat (`/api/agents/{ad}/run?stream=true` ya da konsol oyun alanı); bir araç çağrısı gerektiren istem ver.
+2. `anthropic.promptCaching = true` ile aynı konuşmada ikinci tur çalıştır.
+
+**Beklenen sonuç**
+- (1) Delta'lar akar, araç çağrılır, run `Completed`.
+- (2) İkinci turda önbellekten okunan girdi token'ı `0`'dan büyüktür.

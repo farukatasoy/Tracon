@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (217 kalem)
+## Fazlar (218 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -229,5 +229,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [214](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) | Çalışma Anı Bağımlılıkları ve MAF 1.25 | ✅ Tamamlandı |
 | [215](arsiv/fazlar/215-TEST-VE-DERLEME-ARACLARI.md) | Test ve Derleme Araçları | ✅ Tamamlandı |
 | [216](arsiv/fazlar/216-NPM-BAGIMLILIKLARI.md) | npm Bağımlılıkları: Arayüz, TypeScript İstemcisi ve Site | ✅ Tamamlandı |
+| [217](217-SAGLAYICI-MODERNLESME-VE-AOT-VAADI.md) | Sağlayıcı Modernleşmesi ve AOT Vaadinin Kanıtı | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
