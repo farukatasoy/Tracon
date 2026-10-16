@@ -15,7 +15,7 @@ member needs XML documentation.
   works), plus the **.NET 8 and .NET 9 runtimes** — a
   representative set of test projects runs on `net8.0`, `net9.0`, and `net10.0`
   (`tests/Directory.Build.props`). The gate runner stops early if one is missing.
-- **Node.js 20.19+** — `dotnet build` builds the React console as part of the
+- **Node.js 22.22.2+, 24.15+ or 26+** — `dotnet build` builds the React console as part of the
   build
 - **Docker** — the integration tests start real databases with Testcontainers
 

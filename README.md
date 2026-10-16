@@ -325,7 +325,7 @@ dotnet format Tracon.slnx --verify-no-changes
 `TreatWarningsAsErrors` is on — there are no warnings, only errors.
 
 Requirements: .NET SDK 10.0.402 (pinned in `global.json`) plus the **.NET 8 and .NET 9 runtimes** (a representative
-set of test projects runs on every shipped framework), **Node.js 20.19+** (the console
+set of test projects runs on every shipped framework), **Node.js 22.22.2+, 24.15+ or 26+** (the console
 build), and **Docker** (integration tests bring up a real database with Testcontainers).
 The end-to-end tests download Chromium themselves on first run.
 
@@ -364,7 +364,7 @@ the site — `docs/` is the journal, `docs-site/` is the product documentation.
 | [docs/hafiza/](docs/hafiza/) · [docs/arsiv/](docs/arsiv/) | Area-specific traps · closed record |
 | [CONTRIBUTING.md](CONTRIBUTING.md) · [ARCHITECTURE.md](ARCHITECTURE.md) | **English** — how to build, which gate to run, which test level a change needs · an architecture map for people changing the code |
 | [AGENTS.md](AGENTS.md) · [MEMORY.md](MEMORY.md) · [.agents/skills/](.agents/skills/) | Agent instructions, memory routing, workflow skills (`CLAUDE.md` symlinks `AGENTS.md`) |
-| [docs-site/](docs-site/) · [docfx/](docfx/) | **The product site** (English, Astro Starlight) and the API reference generator. A separate pipeline, not attached to `dotnet build`. Needs Node 22.12+ |
+| [docs-site/](docs-site/) · [docfx/](docfx/) | **The product site** (English, Astro Starlight) and the API reference generator. A separate pipeline, not attached to `dotnet build`. Needs Node 22.22+ |
 | [scripts/dokuman-bakim.py](scripts/dokuman-bakim.py) | Generates the decision index; checks the documentation budgets |
 
 ---

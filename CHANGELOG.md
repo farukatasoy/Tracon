@@ -49,6 +49,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Microsoft.Bcl.HashCode` and `Microsoft.Bcl.Memory` leave the dependency graph of `Tracon.Core`
   (and so of `Tracon` and `Tracon.Google`): the token-counting data package now ships a `net8.0`
   build.
+- **The console build tools move to their newest lines; building the console needs Node.js
+  22.22.2 or later on the 22 line, 24.15 or later on the 24 line, or 26 and above.** TypeScript
+  `7`, Vite `8` (Rolldown), Vitest `5`, jsdom `30` and React `19.3.1`. The embedded console grows from 211.9 KB to 215.4 KB gzip (budget 250 KB), and the
+  embeddable widget (`embed/embed.js`) still runs in strict mode: Vite 8 dropped the
+  `"use strict"` directive and the build now asks for it. The embedded file set, the public API
+  and the HTTP contract do not change. A contributor on Node.js 20 now gets an `npm ci` engine
+  error that names the required version, not a wall of failing tests. The NuGet packages are not
+  affected: a consumer does not build the console.
+- **The compiled `dist/` of `@tracon/client` is byte for byte the same, in the same 23 files.**
+  Only the development dependencies in its `package.json` move (Vitest `5`, `@types/node`
+  `26.6`); a consumer installs the same code and the same runtime dependency. It still builds
+  with TypeScript `5.9`, because `openapi-typescript` `7` needs the TypeScript 5 compiler API
+  that TypeScript 7 does not ship.
 
 ### Removed
 
