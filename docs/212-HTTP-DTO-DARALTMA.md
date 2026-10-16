@@ -88,7 +88,7 @@ Gruplama bağımsız: altı çoklu tip grubu var (örnek: `AgentValidationReport
 4. **5 özellik `cref`'i** (örnek `WorkflowSaveRequest.AgentNames`) bugün `IReadOnlyList&lt;string&gt;? WorkflowSaveRequest.AgentNames` diye bozuk çıkar ([`hafiza/http-uc-guvenlik-ve-sozlesme.md`](hafiza/http-uc-guvenlik-ve-sozlesme.md) satır 39). Düz metne çevrilir. **Anlık görüntüde yalnız bu 5 `description` satırı değişir**; başka her satır birebir aynıdır.
 5. Taşıma **tek seferlik bir betikle** yapılır (geçici; iş bitince silinir, `AGENTS.md` çalışma alanı kuralı). Elle yazma 393 yerde hata üretir.
 
-> **Doğrulanmadı — ölçülmeli:** enum tipinde (`CanaryDecisionKind`, `ValidationSeverity`) tip düzeyi `[Description]`'ın şemaya geçmesi; `Microsoft.AspNetCore.OpenApi` 10.0.10'un `[Description]`'ı net8/net9 tüketicilerinde de okuması (bu paketler çok hedeflidir; üretici tüketicinin paketidir).
+> **Ölçüldü (bkz. Plandan Sapmalar 2) — plan anında doğrulanmamıştı:** enum tipinde (`CanaryDecisionKind`, `ValidationSeverity`) tip düzeyi `[Description]`'ın şemaya geçmesi; `Microsoft.AspNetCore.OpenApi` 10.0.10'un `[Description]`'ı net8/net9 tüketicilerinde de okuması (bu paketler çok hedeflidir; üretici tüketicinin paketidir).
 
 ## 212.4 — Kaybı gören kapı
 
@@ -204,19 +204,19 @@ Beş soru (iptal · eşzamanlılık · boş/aşırı girdi · başka kiracı · 
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `python3 scripts/public-yuzey-envanteri.py --denetle` çıkış `0`; kanıt kuralı değişikliğinden **sonra** `--liste kanıtsız` boş
-- [ ] 81 tipin her biri `internal`; `cat src/*/PublicAPI.Unshipped.txt | grep -vcE '^\s*$|^#'` → `9 875 − 1 345 = 8 530`
-- [ ] `OpenApiSnapshotTests` yeşil ve `git diff docs/openapi/tracon.json` **yalnız 5 `description` satırı** gösteriyor
-- [ ] `OpenApiDescriptionCoverageTests` yeşil; negatif kontrol (öznitelik kaldır → kırmızı) kayda geçti
-- [ ] `packages/tracon-client` `npm run generate` + `npm run build` sonrası `src/schema.ts` farkı yalnız o 5 satır; NSwag zinciri sonrası `src/Tracon.Client/Generated/` farkı aynı 5 satır
-- [ ] `CHANGELOG.md` `[Unreleased]` → Removed, 81 tipin her biri adıyla; `kapi.py yayin --kuru` yeşil
-- [ ] Dört doğrulama kapısı sıfır uyarı: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü (`kapi.py tarama`)
-- [ ] Manuel kabul case'leri `docs/manuel-test/25-SAGLIK-TESHIS-OPENAPI.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] K-850 devir notunun ikinci kuralı yeni `K-*` ile geçersiz kılındı; `hafiza/http-uc-guvenlik-ve-sozlesme.md` satır 30 güncellendi
-- [ ] Site: `docs-site/` `npm run check` temiz (81 üretilen sayfa kalkar, bağlantı kırığı olmamalı)
+- [x] `python3 scripts/public-yuzey-envanteri.py --denetle` çıkış `0`; kanıt kuralı değişikliğinden **sonra** `--liste kanıtsız` boş — kural değişince `--liste kanıtsız | wc -l` → `81`; 81 tip `internal` olunca `--denetle` çıkış `0`, liste boş
+- [x] 81 tipin her biri `internal`; `cat src/*/PublicAPI.Unshipped.txt | grep -vcE '^\s*$|^#'` → `8530` (9 875 − 1 345; Abstractions 258 · AspNetCore 1 058 · Core 29); `Shipped` → `0`
+- [x] `OpenApiSnapshotTests` yeşil ve `git diff docs/openapi/tracon.json` **yalnız 5 `description` satırı**: `5 insertions(+), 5 deletions(-)`
+- [x] `OpenApiDescriptionCoverageTests` yeşil; negatif kontrol kayda geçti — § Örnek Uygulama Koşumu
+- [x] `packages/tracon-client` `npm run generate` + `npm run build` sonrası `src/schema.ts` farkı yalnız o 5 satır (`tsc` temiz); NSwag zinciri sonrası `src/Tracon.Client/Generated/` farkı aynı 5 satır (`TraconClientJsonContext.g.cs` değişmedi)
+- [x] `CHANGELOG.md` `[Unreleased]` → Removed, 81 tipin her biri adıyla; `kapi.py yayin --kuru` yeşil (`exit=0`; ApiCompat tabanı `1.0.0-preview.4`, `breaking-changes.json` 17 + 63 + 1 tip, notlar hepsini adlandırdı; altı paketlenmiş sample, Native AOT ve net8.0 tüketici smoke)
+- [x] Dört doğrulama kapısı sıfır uyarı: `python3 scripts/kapi.py kapanis --taban 87fa2918` — § Örnek Uygulama Koşumu
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — § Örnek Uygulama Koşumu
+- [x] `secret` taraması boş döndü (`kapi.py tarama` → `✅ temiz`)
+- [x] Manuel kabul case'leri `docs/manuel-test/25-SAGLIK-TESHIS-OPENAPI.md` içine eklendi (`MT-DIAG-066`…`069`, `00-INDEKS.md` sayımı 49); dördü de koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (🔴 ve 🟡 yok; dört 🟢)
+- [x] K-850 devir notunun ikinci kuralı yeni `K-1012` ile geçersiz kılındı; `hafiza/http-uc-guvenlik-ve-sozlesme.md` satır 30 güncellendi
+- [x] Site: `docs-site/` `npm run check` temiz (`1031 pages`, `none broken`, SEO 0 hata, ağırlık tavanı altında)
 
 ### Doğrulama komutları
 
@@ -250,39 +250,108 @@ curl -s http://localhost:5081/openapi/v1.json | python3 -c "import json,sys; pri
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki oturumun en değerli bilgisidir.
+| # | Plan ne diyordu | Ne oldu | Neden |
+|---|---|---|---|
+| 1 | §212.4: kapı `docs/openapi/tracon.json`'u okur, tabanı **sayı** tutar | Kapı **canlı belgeyi** okur (`OpenApiSnapshotTests.GenerateAsync` `internal static` oldu) ve tabanı **ad listesi** tutar: 290 satır (62 şema + 228 özellik) | Snapshot yenileme koşusu dosyayı yazarken kapı onu okurdu (yarış); canlı belge snapshot yenilenmeden önce de konuşur. Sayı tabanı bir kaybı bir kazançla gizler; ad listesi gizleyemez. Açık Soru 1-A uygulandı: `AIContent*` gerekçeli satırlarla tabanda |
+| 2 | §212.3 "Doğrulanmadı": enum tip düzeyi `[Description]`; net8/net9 tüketicisi | **Ölçüldü.** .NET 10: tip, özellik, enum (`CanaryDecisionKind`, `ValidationSeverity`), `oneOf` dalı ve konumsal `[property: Description]` snapshot'ı **değiştirmedi**; diff yalnız 5 `cref` satırı. net9 (`Microsoft.AspNetCore.OpenApi` 9.0.8, ayrı probe): özellik düzeyi okunur, tip düzeyi okunmaz, `$ref` taşıyan özelliğin metni başvurulan şemaya yazılır. XML yolu .NET 10'a özgüdür (9.0.8 paketinde `analyzers/` yok), yani net9 tüketicisi **bir şey yitirmez**. net8'de `AddOpenApi()` yoktur | Plan "ilk iş ölç" demişti. **Ölçülmedi:** Swashbuckle + `IncludeXmlComments` ile kendi belgesini üreten tüketici bu 81 tipin `<summary>`'sini kaybeder; Tracon belgeyi `AddOpenApi()` ile üretir (K-352), Swashbuckle desteklenen yol değildir. Risk satırı buna göre okunur |
+| 3 | Kanıt tablosu: `HeaderBearingTypeTests.cs:43` ve `:50` | Gerçek konum: `GetExportedTypes()` `:56`, sentinel `:50`. Tarama `GetTypes()`'e çevrildi; yeni ihlal çıkmadı | Plan satırı yaklaşık yazmıştı. Daha geniş tarama (internal tipler dahil) hiçbir yeni `Headers` taşıyıcısı bulmadı |
+| 4 | Manuel case 1: `curl :5081`; case 4: `CS0122` beklenir | Örnek uygulamanın varsayılan adresi `:5080`; case'ler `MT-DIAG-066`…`069`. Case 4 paketlenmiş tüketiciyle ölçüldü: `CS0122` doğru | Plan portu `--urls` ile verilen koşumdan almıştı. `CS0122` beklentisi plan anında ölçülmemişti, ölçüm doğruladı |
+| 5 | §212.3 madde 3: çok satırlı metin (75 adet) `\n` ile kalır | 71 çok satırlı + 320 tek satırlı + 2 konumsal = 393 `[Description]`. Çok satırlı metin `"…\n" +` birleştirmesiyle yazıldı | Kaynak satır yapısı korunur; ham çok satırlı dize satır sonunu platforma bağlar |
+| 6 | §212.3 madde 5: tek seferlik betik, iş bitince silinir | Betik yazıldı, koştu, repoya **girmedi** (scratchpad). Bir hata: konumsal `record`'ta kapanış `)` düşmüştü; elle düzeltildi, derleme yakalamıştı | Betik yalnız bir dosyalı konumsal kolu desteklemişti |
+| 7 | Hafıza notu ve karar defteri bütçesi planda yok | `hafiza/http-uc-guvenlik-ve-sozlesme.md` 16 000 B sınırını aştı (16 326) → iki satır sıkıştırıldı (15 494). `KARARLAR.md` 586 000 B sınırını aştı → `karar-damit --sinir 350` ve `--sinir 330` (12 satır, 781 B `KARARLAR-GECMISI.md`'ye taşındı) ve yeni satır kısaltıldı (585 833 B) | İçerik silinmedi, taşındı. Ledger sınırı tükenmeye yakın: sonraki faz yeniden kalibre etmek zorunda kalabilir |
+| 8 | Planlanan dosya listesi | Eklenen: `scripts/kapi.py` (yalnız docstring), `ADAYLAR.md` (F-562, F-563), `KARARLAR.md` + `KARARLAR-GECMISI.md` (K-1012), `manuel-test/` (2 dosya) | Denetim 🟢'leri ve kapanış adımları |
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Dört kategoriden birine giren karar (AGENTS.md) ayrıca `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; plan numara rezerve etmez.
+- **`K-1012`** *(kategori: public-api, kullanıcı kararı UR-010 B)* — HTTP istek/yanıt DTO'su `internal` doğar, açıklamasını `[Description]` taşır; OpenAPI şeması kanıt değildir; K-850'nin ikinci kuralı geçersiz. Tam gerekçe `arsiv/KARARLAR-GECMISI.md`.
+- **Kapı canlı belgeyi okur, tabanı ad listesi tutar** (yerel tercih, `K-*` açılmadı): Plandan Sapmalar 1.
+- **Karma açıklama kaynağı kasıtlıdır** (yerel tercih): beş public istek DTO'su (`AgentDefinitionRequest`, `AgentRunRequest`, `McpServerRequest`, `SearchKnowledgeRequest`, `UploadDocumentRequest`) site kanıtı taşıdığı için public kalır ve açıklamasını XML `<summary>`'den almaya devam eder. Aynı dizinde iki kaynak vardır; kural: public tip → XML, `internal` DTO → `[Description]`.
+- **Açık Soru 1-A ve 2-A** kullanıcıya ayrıca sorulmadan önerilen seçenekle uygulandı: `AIContent*` tabanda, `<remarks>` internal tipte kalır (kullanıcı itiraz ederse geri alınır).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+Yeni imza yok. Yüzey küçüldü.
+
+| Paket | Public tip (önce → sonra) | `PublicAPI.Unshipped.txt` satırı |
+|---|---|---|
+| `Tracon.Abstractions` | 440 → 423 (−17) | −258 |
+| `Tracon.AspNetCore` | 86 → 23 (−63) | −1 058 |
+| `Tracon.Core` | 80 → 79 (−1) | −29 |
+| Toplam | 707 → 626 (−81) | 9 875 → 8 530 (−1 345) |
+
+`PublicAPI.Shipped.txt` bugün 0 satırdır; daraltma `1.0.0`'dan önce bedavadır. Tam tip listesi EK-A'dadır.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+scripts/public-yuzey-envanteri.py            OpenAPI kanıtı çıkarıldı; ipucu mesajı
+scripts/public_yuzey_envanteri_test.py       OpenAPI şemasının kanıt olmadığı vakası
+scripts/kapi.py                              docstring
+src/Tracon.Abstractions/**  (13 dosya)       17 tip: internal + [Description]
+src/Tracon.AspNetCore/**    (21 dosya)       63 tip: internal + [Description]
+src/Tracon.Core/Evaluation/OnlineEvalSummaryService.cs
+src/*/PublicAPI.Unshipped.txt  (3)           −1 345 satır
+src/Tracon.Client/Generated/TraconApiClient.g.cs           5 satır
+docs/openapi/tracon.json · packages/tracon-client/src/schema.ts        5 satır
+tests/Tracon.AspNetCore.FunctionalTests/OpenApiDescriptionCoverageTests.cs   (yeni)
+tests/Tracon.AspNetCore.FunctionalTests/openapi-undescribed-baseline.txt     (yeni, 290 satır)
+tests/Tracon.AspNetCore.FunctionalTests/OpenApiSnapshotTests.cs              GenerateAsync internal
+tests/Tracon.AspNetCore.FunctionalTests/HeaderBearingTypeTests.cs            GetTypes
+tests/Tracon.Core.UnitTests/Architecture/public-surface-baseline.txt         423 / 23 / 79
+CHANGELOG.md · docs/KARARLAR.md · docs/arsiv/KARARLAR-GECMISI.md · docs/ADAYLAR.md
+docs/hafiza/{http-uc-guvenlik-ve-sozlesme,analyzer-tanilari}.md
+docs/manuel-test/{25-SAGLIK-TESHIS-OPENAPI,00-INDEKS}.md
+```
+
+## Örnek Uygulama Koşumu
+
+`samples/Tracon.Api`, PostgreSQL (kullanıcı sırlarından), `http://localhost:5081` ve `:5080`; gerçek model anahtarları yapılandırılı, tek bir kısa gerçek `run` yapıldı.
+
+| Ne | Gerçek çıktı |
+|---|---|
+| Canlı belge (`MT-DIAG-066`) | `WorkflowSaveRequest` → `Request to save a workflow definition.`; `nodes` üç satır, `AgentNames; leave both empty or set only one.`, `&lt;` sayısı `0`; `CanaryDecisionKind` → `Defines the outcome of a canary evaluation.`; `UploadDocumentResponse.sourceId` → `Identifier of the uploaded source.` |
+| HTTP bağlama (`MT-DIAG-067`) | `PUT /api/workflows/mt-diag-067` `200` (`"kind":"Sequential"`, `"agentNames":["support","translator"]`), okuma `200`, silme `204`; `meta` anahtarları `authentication,prefix,roles,storage,version`; kiracı `{"tenantId":"default"}`; kota `dailyResetsAt,definitions,monthlyResetsAt,tenantId,timeZone,usage` |
+| Gerçek `run` | `POST /api/agents/summarizer/run` `{"message":"Reply with the single word: pong"}` → SSE `run` olayı `runId 01a14471-7ffb-7638-acef-de8de8efbc59`, güncellemeler `"-"` ve `" pong"`; uygulama `gpt-5.4-mini` ile yanıtladı |
+| Yeniden üretim (`MT-DIAG-068`) | `OpenApiSnapshotTests` yenileme, `npm run generate` + `build`, NSwag zinciri → `git status --short` boş |
+| Paketlenmiş tüketici (`MT-DIAG-069`) | `Tracon.AspNetCore 1.0.0-preview.4.17` + `new WorkflowSaveRequest { … }` → `error CS0122: 'WorkflowSaveRequest' is inaccessible due to its protection level` |
+| Negatif kontrol, kapı | `WorkflowRollbackRequest.Version`'dan `[Description]` kaldırıldı → `OpenApiDescriptionCoverageTests` kırmızı: `["WorkflowRollbackRequest.version"]`; geri konunca 27/27 `*OpenApi*` testi yeşil |
+| Negatif kontrol, envanter | `Tracon.ZzProbeResponse` satırı `PublicAPI.Unshipped.txt`'e eklendi → `kapi.py tarama` ❌ `kanıtsız public yüzey (K-850)`; geri alınca ✅ |
+| `ic-dongu` | `Tracon.AspNetCore.FunctionalTests` 2 127 test, 0 hata; `Tracon.Core.UnitTests` 4 125 test üç hedefte; ilk koşumda tek kırmızı `SourceLanguageTests` (yeni test dosyalarında "Faz" sözcüğü, "Phase" yapıldı) |
+| `kapi.py kapanis --taban 87fa2918` | Aşağıdaki "Kapanış kapıları" satırı |
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
-
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 (plan kullanıcı onayıyla olduğu gibi uygulandı; sekiz sapma yukarıda) |
+| Düzeltme turu sayısı | 4 (konumsal `record` kapanış parantezi; `SourceLanguageTests` "Faz" sözcüğü; hafıza notu bütçesi; `KARARLAR.md` bütçesi) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (denetçi 🔴 ve 🟡 bulmadı; dört 🟢) |
+| Fazın ürettiği regresyon | 1, kapanıştan önce yakalandı (`SourceLanguageTests`, `ic-dongu`); üretim yolunda 0 |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anında henüz yok) |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Bulgu yoksa "🔴 ve 🟡 yok" yazılır.
+Bağımsız `faz-denetcisi` (taze bağlam, `git diff 87fa2918..HEAD`): **🔴 ve 🟡 yok.** Denetçi 393 metni kaynaktan ayrıştırıp snapshot ile karşılaştırdı (0 uyuşmazlık), 1 345 silinen satırın hepsinin 81 tipe ait olduğunu ve tabanın faz öncesi/sonrası açıklamasız kümeyle birebir aynı olduğunu doğruladı.
+
+| # | 🟢 bulgu | Sonuç |
+|---|---|---|
+| 1 | `HeaderBearingTypeTests` yorumu `McpServerRequest`'i internal sanıyor; tip public | Düzeltildi (yorum) |
+| 2 | `test_openapi_semasi_tuketici_kaniti_degildir` `envanter_olustur`'daki geri eklemeyi uçtan uca görmez | Devredildi: F-562 |
+| 3 | Taban başlığı "HTTP DTO'ları burada olmaz" diyor; tabanda `internal` OpenAI uyumlu tipler ve 7 public enum var | Başlık düzeltildi (yalnız 81 tip); açıklama işi devredildi: F-563 |
+| 4 | Beş public istek DTO'su XML'den, 81 tip `[Description]`'dan açıklama alıyor (iki kaynak) | Gerekçelendi: Bu Fazda Verilen Kararlar (karma durum kasıtlı) |
+
+Denetçi salt-okunur çalıştığı için `dotnet build/test` koşmadı; derleme ve test durumunu `kapi-olcum.jsonl` ve test günlüklerinden okudu. Kapanış kapıları aşağıda ana oturumda koştu.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım kalan işler, sıradaki faz.
+- **[Faz 213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) başlangıç sayıları:** `PublicAPI.Unshipped.txt` toplamı `8530`; `public-surface-baseline.txt` Abstractions `423`, AspNetCore `23`, Core `79`; `--liste kanıtsız` boş. İkisi de aynı dosyaları değiştirir; 212 işlenmiştir, 213 bu sayılardan başlar.
+- 🚨 **Yeni HTTP istek/yanıt DTO'su `internal` doğar:** `using System.ComponentModel;`, tipte ve her özellikte `[Description("…")]`, `<summary>` yazılmaz (`<remarks>` kalabilir), konumsal `record`'ta `[property: Description("…")]`. Metni unutmak derlenir ve her davranış testinden geçer; `OpenApiDescriptionCoverageTests` yakalar.
+- 🚨 **`openapi-undescribed-baseline.txt` yalnız küçülür.** Yeni açıklamasız şema/özellik kırmızıdır; açıklama kazanmış bayat satır da kırmızıdır. Snapshot yenileme tabanı yeniden yazmaz.
+- 🚨 **Swashbuckle + `IncludeXmlComments` ölçülmedi.** O yoldan kendi belgesini üreten tüketici 81 tipin `<summary>`'sini kaybeder. Desteklenen yol değildir (K-352); biri talep ederse K-1012'nin yeniden açılma koşuludur.
+- 🚨 **Test kaynaklarında "Faz" yazma.** `SourceLanguageTests` Türkçe sözcük sayar; test ve `src` yorumlarında "Phase" kullan.
+- **Karma açıklama kaynağı:** beş public istek DTO'su XML'den okur. Biri `internal` olursa `<summary>`'sini `[Description]`'a taşı.
+- **Ledger sınırı:** `KARARLAR.md` 585 833 / 586 000 B. `karar-damit` tükendi (12 satır taşındı); bir sonraki karar satırı yeniden kalibrasyon ister (`scripts/dokuman-bakim.py` sabiti ve gerekçesi).
+- **Yarım kalan iş:** yok. Site `npm run check` yeşil, **yayınlanmadı** (`site-deploy.sh` kullanıcı onayı bekler).
 
 ---
 

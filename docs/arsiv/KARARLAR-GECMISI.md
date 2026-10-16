@@ -6745,3 +6745,25 @@ uzun bir sistem talimatı) reddedilebilir.
 
 Belge yalnız 5 `cref` satırı kadar değişti.
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-055 — devam (Faz 90 damıtması)
+
+Bir exporter kaydetmek, tüketicinin kendi OTLP boru hattıyla yarışırdı.
+
+### K-091 — devam (Faz 90 damıtması)
+
+Stdin ham bayt taşır; ayrıştırma yoktur.
+
+### K-106
+
+`HarnessSettings.DisableCompaction`'ın "MAF varsayılanını koru" felsefesiyle tutarlı — konuşma geçmişi bir agent tanımı açıkça istemeden sessizce değişmez (K1).
+
+### K-163 — devam (Faz 90 damıtması)
+
+Zaman damgası imzaya dâhil olmasaydı, yakalanan bir istek sonsuza kadar yeniden oynatılabilirdi.
+
+### K-177 — devam (Faz 90 damıtması)
+
+Yerine `UPDATE ...
+
