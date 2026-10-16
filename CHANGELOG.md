@@ -28,7 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `MaxOutputTokens` that do not parse (`"abc"`, `"1.5"` for the token limit, `"0,7"`) stop the host
   at startup with a message that names the key and the text as written. Such a value used to bind
   as `0`, so a typo ran the context-compaction summarizer at temperature zero without a word. An
-  empty value still means "not set": the provider default applies. Code that assigns
+  empty or blank value still means "not set": the provider default applies. Code that assigns
   `TraconOptions.UtilityModel` after binding still wins.
 - **`Tracon.Client` is regenerated with NSwag `14.7.1`.** Its public surface does not change. The
   client now passes the cancellation token when it reads the body of an unexpected response, so a

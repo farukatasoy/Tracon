@@ -553,6 +553,29 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertEqual(result, 0)
 
+    def test_contract_paketi_xunit_alt_sinirini_korur(self):
+        # Faz 215 / K-1018: iki alt paketin `PackageVersion`'i 4.x'e cikarsa paket
+        # xunit.v3 3.x tuketicisini sessizce zorlar. Kapi nuspec'e bakar.
+        proje = "Tracon.Testing.Contracts.Xunit"
+        iyi = ('<dependency id="xunit.v3.extensibility.core" version="3.2.2" exclude="Build,Analyzers" />'
+               '<dependency id="xunit.v3.assert" version="3.2.2" />')
+        self.assertEqual(kapi.dependency_floor_errors(proje, iyi + iyi), [])
+        self.assertEqual(kapi.dependency_floor_errors("Tracon.Core", ""), [])
+
+        yukseltilmis = iyi.replace('"xunit.v3.assert" version="3.2.2"', '"xunit.v3.assert" version="4.0.2"')
+        hatalar = kapi.dependency_floor_errors(proje, yukseltilmis)
+        self.assertEqual(len(hatalar), 1)
+        self.assertIn("xunit.v3.assert alt sınırı 4.0.2", hatalar[0])
+
+        eksik = kapi.dependency_floor_errors(proje, '<dependency id="xunit.v3.assert" version="3.2.2" />')
+        self.assertEqual(len(eksik), 1)
+        self.assertIn("xunit.v3.extensibility.core bağımlılığı nuspec'te yok", eksik[0])
+
+    def test_depodaki_xunit_alt_siniri_props_ile_ayni(self):
+        props = (ROOT / "Directory.Packages.props").read_text(encoding="utf-8")
+        for paket, alt_sinir in kapi.SHIPPED_DEPENDENCY_FLOORS["Tracon.Testing.Contracts.Xunit"].items():
+            self.assertIn(f'<PackageVersion Include="{paket}" Version="{alt_sinir}" />', props)
+
     def test_tek_proje_komutu_project_bayragini_kullanir(self):
         self.assertEqual(
             kapi._dotnet_test_project("P").args,
