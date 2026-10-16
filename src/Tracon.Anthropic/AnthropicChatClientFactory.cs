@@ -30,17 +30,6 @@ namespace Tracon;
 /// </remarks>
 internal sealed class AnthropicChatClientFactory
 {
-    // 🚨 Anthropic SDK 12.58 changed what `ChatOptions.Reasoning` becomes: the
-    // adapter now defaults to adaptive thinking (`thinking.type=adaptive` plus
-    // `output_config.effort`); 12.39 sent `thinking.type=enabled` with a
-    // budget derived from the effort. Tracon keeps the budget form so that a
-    // dependency upgrade changes no request (Phase 214, Open Question 3); moving
-    // to adaptive is a separate decision, because models that predate it
-    // reject it. Fully qualified: Tracon's own AnthropicThinkingMode is the
-    // `anthropic.thinking.mode` setting, a different enum.
-    private const Microsoft.Extensions.AI.AnthropicThinkingMode ExtendedThinking
-        = Microsoft.Extensions.AI.AnthropicThinkingMode.Extended;
-
     private readonly IAnthropicClient _client;
     private readonly string? _defaultModel;
     private readonly int _defaultMaxOutputTokens;
@@ -127,6 +116,14 @@ internal sealed class AnthropicChatClientFactory
         // TraconCompilationException and compilation stops.
         var settings = AnthropicRequestSettings.Read(binding);
 
+        // 🚨 `ModelBinding.ReasoningEffort` becomes ADAPTIVE thinking
+        // (`thinking.type=adaptive` plus `output_config.effort`), the SDK
+        // adapter's default. Measured live against every current model (Claude 5
+        // family, 2026-10-17): the budget form (`thinking.type=enabled`) is
+        // rejected with 400 and the adaptive form is accepted. A model that
+        // predates adaptive thinking (claude-haiku-4-5) is the reverse; it is
+        // selected with `anthropic.thinking.mode = enabled` and a budget (K-1017).
+        //
         // The decorator is always added: it also tells the validation report
         // which output limit this client sends when the binding sets none
         // (ModelOutputLimit). With no setting that changes the body, it passes
@@ -134,7 +131,7 @@ internal sealed class AnthropicChatClientFactory
         // The stop-reason reader sits on the adapter itself, inside the settings:
         // a paused turn's continuation goes out with the same settings (F-426).
         return new AnthropicProviderSettingsChatClient(
-            new AnthropicStopReasonChatClient(_client.AsIChatClient(model, _defaultMaxOutputTokens, ExtendedThinking)),
+            new AnthropicStopReasonChatClient(_client.AsIChatClient(model, _defaultMaxOutputTokens)),
             model,
             _defaultMaxOutputTokens,
             settings);
