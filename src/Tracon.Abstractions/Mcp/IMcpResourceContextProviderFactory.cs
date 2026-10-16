@@ -16,12 +16,13 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
-/// <c>TryAdd</c>; a consumer's own registration wins. <see cref="Create"/>
+/// <c>TryAdd</c>. This interface is plumbing between Tracon's own packages;
+/// a consumer does not implement it. <see cref="Create"/>
 /// itself is a pure factory call — the returned <see cref="AIContextProvider"/>
 /// carries the per-agent state, not this factory.
 /// </para>
 /// </remarks>
-public interface IMcpResourceContextProviderFactory
+internal interface IMcpResourceContextProviderFactory
 {
     /// <summary>
     /// Builds a context provider from the given resource references.

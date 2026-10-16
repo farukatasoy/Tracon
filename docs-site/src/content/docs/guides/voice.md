@@ -594,7 +594,7 @@ The live layer reads `Tracon:Voice:Live`, bound to `VoiceLiveOptions`:
 | `DelegationTimeout` | `00:02:00` | How long one delegated run may take. |
 | `MaxTranscriptLedgerCharacters` | `20000` | How much transcript is kept for cutting delegations from. Oldest entries drop first, so a long conversation cannot grow without limit. |
 | `MaxLedgerEntriesPerDelegation` | `40` | How many transcript entries one delegation's prompt may carry. |
-| `DelegationMode` | `Client` | Who executes delegated work. `Client` means your agents do. |
+| `DelegationMode` | `Client` | Who executes delegated work. `Client` means your agents do, and it is the only mode. A name that is not a mode stops the host at startup. |
 | `Instructions` | *(none)* | System instructions for the live model — for example, telling it to delegate rather than guess. |
 | `PersistTranscript` | `true` | Whether the conversation text is written to durable session history. See [Privacy and retention](#privacy-and-retention). |
 
@@ -607,7 +607,6 @@ The OpenAI provider reads `Tracon:Providers:OpenAI:Live`, bound to
 | `Voice` | *(provider default)* | The output voice. |
 | `Endpoint` | `https://api.openai.com/v1/` | The API root. |
 | `MaxAppendCharacters` | `1000` | The per-append ceiling. The provider states its limit in tokens; Tracon ships no tokenizer, so the limit is converted once and conservatively — text over it is split, never dropped. |
-| `BackendModel` | *(none)* | The backing model for provider-side delegation. |
 | `Timeout` | `00:00:30` | The timeout of the session-creation call. |
 
 The API key comes from `Tracon:Providers:OpenAI:ApiKey`; the live provider does

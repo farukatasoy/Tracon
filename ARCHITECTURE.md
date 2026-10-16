@@ -41,9 +41,10 @@ flowchart TD
 ```
 
 At run time the HTTP layer does reach the console and the optional packages, but
-it never references them: it finds them through `ITraconUiProvider`,
-`IMcpToolRefresher`, and `IWorkflowRunner`, which live in `Abstractions`. That is
-what keeps each of them an optional package.
+it never references them: it finds them through internal interfaces such as
+`ITraconUiProvider` and `IMcpToolRefresher`, and through the public
+`IWorkflowRunner`, which live in `Abstractions` (`ITraconUiProvider` lives in
+`AspNetCore`). That is what keeps each of them an optional package.
 
 **The dependency direction is one-way and has no cycles.** Every provider and
 persistence package points at `Core`, `Core` points at `Abstractions`, and `UI`
@@ -68,8 +69,9 @@ The full picture, including the data model and every extension point, is in
 3. **MAF objects are passed through, not wrapped.** `AIAgent`, `AgentSession`,
    `ChatMessage` and `AIFunction` are used directly. Tracon adds a control
    plane; it does not add a parallel type hierarchy you would have to learn.
-4. **Every extension point is replaceable.** Registration uses `TryAdd*`, so a
-   consumer's own registration always wins.
+4. **Every documented extension point is replaceable.** Registration uses
+   `TryAdd*`, so a consumer's own registration wins. Interfaces that only Tracon's
+   own packages use are `internal` and are not extension points.
 
 ## The execution path
 

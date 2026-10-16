@@ -64,7 +64,7 @@ public sealed record WorkflowDefinition
     /// </para>
     /// <para>
     /// Whether each function name is actually registered is checked at
-    /// <em>save</em> time (the HTTP layer, via <see cref="IWorkflowFunctionCatalog"/>)
+    /// <em>save</em> time (the HTTP layer, against the function registry)
     /// and again at <em>compile</em> time, unlike agent names - which are
     /// checked only at compile time because the agent catalog can change
     /// between the two. The function registry cannot: it is fixed for the
@@ -73,7 +73,7 @@ public sealed record WorkflowDefinition
     /// <para>
     /// A function node may carry <see cref="WorkflowNodeReference.Settings"/>, checked
     /// the same way against the settings type its function declares
-    /// (<see cref="IWorkflowFunctionCatalog.ValidateSettings"/>) and read again at
+    /// (the save-time settings check) and read again at
     /// compile time, because that type can change between deployments.
     /// </para>
     /// <para>

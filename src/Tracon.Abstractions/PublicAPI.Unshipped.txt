@@ -963,10 +963,6 @@ Tracon.IAttachmentStore.GetAsync(string! tenantId, System.Guid id, System.Thread
 Tracon.IAttachmentStore.ListAsync(Tracon.AttachmentQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.AttachmentDescriptor!>!>
 Tracon.IAttachmentStore.OpenReadAsync(string! tenantId, System.Guid id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.IO.Stream?>
 Tracon.IAttachmentStore.SaveAsync(Tracon.AttachmentContent! content, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AttachmentDescriptor!>
-Tracon.IAuditActorResolver
-Tracon.IAuditActorResolver.Resolve() -> string?
-Tracon.IAuditDecorated
-Tracon.IAuditDecorated.AuditedInner.get -> object!
 Tracon.IAuditLog
 Tracon.IAuditLog.QueryAsync(Tracon.AuditQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.AuditEntry!>!>
 Tracon.IAuditLog.VerifyChainAsync(Tracon.AuditChainQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AuditChainVerification!>
@@ -1059,24 +1055,11 @@ Tracon.ILiveVoiceProvider.ProviderName.get -> string!
 Tracon.ILiveVoiceSideband
 Tracon.ILiveVoiceSideband.AppendAsync(Tracon.LiveVoiceAppend! append, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.ILiveVoiceSideband.ReceiveAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<Tracon.LiveVoiceEvent!>!
-Tracon.IMcpOAuthCoordinator
-Tracon.IMcpOAuthCoordinator.CompleteAsync(string! state, string? code, string? iss, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.McpOAuthCompleteResult!>
-Tracon.IMcpOAuthCoordinator.StartAsync(string! tenantId, string! serverName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.McpOAuthStartResult!>
-Tracon.IMcpPromptClient
-Tracon.IMcpPromptClient.GetPromptAsync(string! tenantId, string! serverName, string! promptName, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? arguments, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<(Tracon.McpOperationStatus Status, Tracon.McpPromptContent? Content)>
-Tracon.IMcpPromptClient.ListPromptsAsync(string! tenantId, string! serverName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.McpPromptListResult!>
-Tracon.IMcpResourceClient
-Tracon.IMcpResourceClient.ListResourcesAsync(string! tenantId, string! serverName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.McpResourceListResult!>
-Tracon.IMcpResourceClient.ReadResourceAsync(string! tenantId, string! serverName, string! uri, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<(Tracon.McpOperationStatus Status, Tracon.McpResourceContent? Content)>
-Tracon.IMcpResourceContextProviderFactory
-Tracon.IMcpResourceContextProviderFactory.Create(System.Collections.Generic.IReadOnlyList<string!>! resourceReferences, string! tenantId) -> Microsoft.Agents.AI.AIContextProvider!
 Tracon.IMcpServerStore
 Tracon.IMcpServerStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IMcpServerStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.McpServerDefinition?>
 Tracon.IMcpServerStore.ListAsync(string! tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.McpServerDefinition!>!>
 Tracon.IMcpServerStore.SaveAsync(Tracon.McpServerDefinition! server, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.McpServerDefinition!>
-Tracon.IMcpToolRefresher
-Tracon.IMcpToolRefresher.RefreshAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.McpRefreshOutcome>
 Tracon.IMigrationApplier
 Tracon.IMigrationApplier.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 Tracon.IModelProvider
@@ -1172,7 +1155,7 @@ Tracon.IRunStore.ReadEventsAsync(System.Guid runId, long fromSequence = 0, Syste
 Tracon.IRunStore.RecordToolInvocationAsync(Tracon.ToolInvocationRecord! invocation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRunStore.StartRunAsync(Tracon.RunStartInfo! info, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunRecord!>
 Tracon.IRunStore.TouchHeartbeatAsync(System.Collections.Generic.IReadOnlyCollection<System.Guid>! runIds, System.DateTimeOffset at, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-Tracon.IRunStore.UpdateRunCostAsync(System.Guid runId, Tracon.RunCost? cost, string? tenantId = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.IRunStore.UpdateRunCostAsync(System.Guid runId, Tracon.RunCost? cost, string? tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.ISessionStore
 Tracon.ISessionStore.DeleteAsync(string! sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.ISessionStore.GetAsync(string! sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SessionRecord?>
@@ -1217,10 +1200,6 @@ Tracon.ISpeechTranscriber.TranscribeAsync(System.IO.Stream! audio, string! media
 Tracon.ISqlPersistenceDiagnostics
 Tracon.ISqlPersistenceDiagnostics.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SqlPersistenceDiagnosticsSnapshot!>
 Tracon.ISqlPersistenceDiagnostics.ProviderName.get -> string!
-Tracon.IStatePreflightReader
-Tracon.IStatePreflightReader.ProviderName.get -> string!
-Tracon.IStatePreflightReader.SampleAsync(Tracon.StatePreflightTarget target, int perGeneration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.StateSample!>!>
-Tracon.IStatePreflightReader.TallyAsync(Tracon.StatePreflightTarget target, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.StateGenerationTally!>!>
 Tracon.IStructuredResponseValidator
 Tracon.IStructuredResponseValidator.ValidateAsync(Tracon.StructuredResponseValidationContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.StructuredResponseValidationResult!>
 Tracon.ITenantContext
@@ -1256,8 +1235,6 @@ Tracon.IToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunction
 Tracon.ITraceStore
 Tracon.ITraceStore.GetTraceByRunAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunTrace?>
 Tracon.ITraceStore.WriteSpansAsync(Tracon.TraceSpanBatch! batch, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-Tracon.ITraconDrainState
-Tracon.ITraconDrainState.IsDraining.get -> bool
 Tracon.IVectorSearchStore
 Tracon.IVectorSearchStore.DeleteSourceAsync(string! tenantId, string! collection, string! sourceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 Tracon.IVectorSearchStore.Dimensions.get -> int
@@ -1276,8 +1253,6 @@ Tracon.IVoicePricingReader.ForTranscription(string! providerName, string? modelI
 Tracon.IVoiceSessionStore
 Tracon.IVoiceSessionStore.QueryAsync(string! tenantId, Tracon.VoiceSessionQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.VoiceSessionRecord!>!>
 Tracon.IVoiceSessionStore.SaveAsync(Tracon.VoiceSessionRecord! record, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-Tracon.IWebhookPublisher
-Tracon.IWebhookPublisher.PublishAsync(string! tenantId, string! eventType, Tracon.WebhookEventPayload! payload, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 Tracon.IWebhookStore
 Tracon.IWebhookStore.CreateDeliveryAsync(Tracon.WebhookDelivery! delivery, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WebhookDelivery!>
 Tracon.IWebhookStore.DeleteSubscriptionAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
@@ -1303,10 +1278,6 @@ Tracon.IWorkflowDefinitionStore.ListAsync(string! tenantId, System.Threading.Can
 Tracon.IWorkflowDefinitionStore.ListVersionsAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowDefinition!>!>
 Tracon.IWorkflowDefinitionStore.RollbackAsync(string! tenantId, string! name, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDefinition!>
 Tracon.IWorkflowDefinitionStore.SaveAsync(string! tenantId, Tracon.WorkflowDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDefinition!>
-Tracon.IWorkflowFunctionCatalog
-Tracon.IWorkflowFunctionCatalog.Contains(string! name) -> bool
-Tracon.IWorkflowFunctionCatalog.List() -> System.Collections.Generic.IReadOnlyList<Tracon.WorkflowFunctionDescriptor!>!
-Tracon.IWorkflowFunctionCatalog.ValidateSettings(string! name, System.Text.Json.JsonElement? settings) -> string?
 Tracon.IWorkflowRunner
 Tracon.IWorkflowRunner.GetAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowDescriptor?>
 Tracon.IWorkflowRunner.GetGraphAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.WorkflowGraph?>
@@ -1647,7 +1618,6 @@ Tracon.LiveVoiceCreateRequest.SdpOffer.get -> string!
 Tracon.LiveVoiceCreateRequest.SdpOffer.init -> void
 Tracon.LiveVoiceDelegationMode
 Tracon.LiveVoiceDelegationMode.Client = 0 -> Tracon.LiveVoiceDelegationMode
-Tracon.LiveVoiceDelegationMode.Responses = 1 -> Tracon.LiveVoiceDelegationMode
 Tracon.LiveVoiceEvent
 Tracon.LiveVoiceEvent.<Clone>$() -> Tracon.LiveVoiceEvent!
 Tracon.LiveVoiceEvent.DelegationId.get -> string?
@@ -1693,8 +1663,6 @@ Tracon.LiveVoiceSessionHandle.SdpAnswer.get -> string!
 Tracon.LiveVoiceSessionHandle.SdpAnswer.init -> void
 Tracon.LiveVoiceSessionOptions
 Tracon.LiveVoiceSessionOptions.<Clone>$() -> Tracon.LiveVoiceSessionOptions!
-Tracon.LiveVoiceSessionOptions.BackendModel.get -> string?
-Tracon.LiveVoiceSessionOptions.BackendModel.init -> void
 Tracon.LiveVoiceSessionOptions.DelegationMode.get -> Tracon.LiveVoiceDelegationMode
 Tracon.LiveVoiceSessionOptions.DelegationMode.init -> void
 Tracon.LiveVoiceSessionOptions.Equals(Tracon.LiveVoiceSessionOptions? other) -> bool
@@ -1731,121 +1699,6 @@ Tracon.LoopSettings.MaxIterations.get -> int?
 Tracon.LoopSettings.MaxIterations.init -> void
 Tracon.McpOAuthAuthorizationMode
 Tracon.McpOAuthAuthorizationMode.AuthorizationCode = 0 -> Tracon.McpOAuthAuthorizationMode
-Tracon.McpOAuthCompleteResult
-Tracon.McpOAuthCompleteResult.<Clone>$() -> Tracon.McpOAuthCompleteResult!
-Tracon.McpOAuthCompleteResult.Equals(Tracon.McpOAuthCompleteResult? other) -> bool
-Tracon.McpOAuthCompleteResult.Error.get -> string?
-Tracon.McpOAuthCompleteResult.Error.init -> void
-Tracon.McpOAuthCompleteResult.McpOAuthCompleteResult() -> void
-Tracon.McpOAuthCompleteResult.ServerName.get -> string?
-Tracon.McpOAuthCompleteResult.ServerName.init -> void
-Tracon.McpOAuthCompleteResult.Status.get -> Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthCompleteResult.Status.init -> void
-Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthOperationStatus.AuthorizationFailed = 5 -> Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthOperationStatus.ConnectionFailed = 3 -> Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthOperationStatus.InvalidState = 4 -> Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthOperationStatus.NotConfigured = 2 -> Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthOperationStatus.Ok = 0 -> Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthOperationStatus.ServerNotFound = 1 -> Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthStartResult
-Tracon.McpOAuthStartResult.<Clone>$() -> Tracon.McpOAuthStartResult!
-Tracon.McpOAuthStartResult.AuthorizationUri.get -> System.Uri?
-Tracon.McpOAuthStartResult.AuthorizationUri.init -> void
-Tracon.McpOAuthStartResult.Equals(Tracon.McpOAuthStartResult? other) -> bool
-Tracon.McpOAuthStartResult.McpOAuthStartResult() -> void
-Tracon.McpOAuthStartResult.State.get -> string?
-Tracon.McpOAuthStartResult.State.init -> void
-Tracon.McpOAuthStartResult.Status.get -> Tracon.McpOAuthOperationStatus
-Tracon.McpOAuthStartResult.Status.init -> void
-Tracon.McpOperationStatus
-Tracon.McpOperationStatus.CapabilityUnsupported = 2 -> Tracon.McpOperationStatus
-Tracon.McpOperationStatus.ConnectionFailed = 3 -> Tracon.McpOperationStatus
-Tracon.McpOperationStatus.ItemNotFound = 4 -> Tracon.McpOperationStatus
-Tracon.McpOperationStatus.Ok = 0 -> Tracon.McpOperationStatus
-Tracon.McpOperationStatus.ServerNotFound = 1 -> Tracon.McpOperationStatus
-Tracon.McpOperationStatus.UriNotDeclared = 5 -> Tracon.McpOperationStatus
-Tracon.McpPromptArgumentSummary
-Tracon.McpPromptArgumentSummary.<Clone>$() -> Tracon.McpPromptArgumentSummary!
-Tracon.McpPromptArgumentSummary.Description.get -> string?
-Tracon.McpPromptArgumentSummary.Description.init -> void
-Tracon.McpPromptArgumentSummary.Equals(Tracon.McpPromptArgumentSummary? other) -> bool
-Tracon.McpPromptArgumentSummary.McpPromptArgumentSummary() -> void
-Tracon.McpPromptArgumentSummary.Name.get -> string!
-Tracon.McpPromptArgumentSummary.Name.init -> void
-Tracon.McpPromptArgumentSummary.Required.get -> bool
-Tracon.McpPromptArgumentSummary.Required.init -> void
-Tracon.McpPromptContent
-Tracon.McpPromptContent.<Clone>$() -> Tracon.McpPromptContent!
-Tracon.McpPromptContent.Equals(Tracon.McpPromptContent? other) -> bool
-Tracon.McpPromptContent.Hash.get -> string!
-Tracon.McpPromptContent.Hash.init -> void
-Tracon.McpPromptContent.McpPromptContent() -> void
-Tracon.McpPromptContent.Text.get -> string!
-Tracon.McpPromptContent.Text.init -> void
-Tracon.McpPromptListResult
-Tracon.McpPromptListResult.<Clone>$() -> Tracon.McpPromptListResult!
-Tracon.McpPromptListResult.Equals(Tracon.McpPromptListResult? other) -> bool
-Tracon.McpPromptListResult.McpPromptListResult() -> void
-Tracon.McpPromptListResult.Prompts.get -> System.Collections.Generic.IReadOnlyList<Tracon.McpPromptSummary!>!
-Tracon.McpPromptListResult.Prompts.init -> void
-Tracon.McpPromptListResult.Status.get -> Tracon.McpOperationStatus
-Tracon.McpPromptListResult.Status.init -> void
-Tracon.McpPromptSummary
-Tracon.McpPromptSummary.<Clone>$() -> Tracon.McpPromptSummary!
-Tracon.McpPromptSummary.Arguments.get -> System.Collections.Generic.IReadOnlyList<Tracon.McpPromptArgumentSummary!>!
-Tracon.McpPromptSummary.Arguments.init -> void
-Tracon.McpPromptSummary.Description.get -> string?
-Tracon.McpPromptSummary.Description.init -> void
-Tracon.McpPromptSummary.Equals(Tracon.McpPromptSummary? other) -> bool
-Tracon.McpPromptSummary.McpPromptSummary() -> void
-Tracon.McpPromptSummary.Name.get -> string!
-Tracon.McpPromptSummary.Name.init -> void
-Tracon.McpPromptSummary.Title.get -> string?
-Tracon.McpPromptSummary.Title.init -> void
-Tracon.McpRefreshOutcome
-Tracon.McpRefreshOutcome.Equals(Tracon.McpRefreshOutcome other) -> bool
-Tracon.McpRefreshOutcome.HadUnreachableServers.get -> bool
-Tracon.McpRefreshOutcome.HadUnreachableServers.init -> void
-Tracon.McpRefreshOutcome.McpRefreshOutcome() -> void
-Tracon.McpRefreshOutcome.ToolCount.get -> int
-Tracon.McpRefreshOutcome.ToolCount.init -> void
-Tracon.McpResourceContent
-Tracon.McpResourceContent.<Clone>$() -> Tracon.McpResourceContent!
-Tracon.McpResourceContent.ByteSize.get -> int
-Tracon.McpResourceContent.ByteSize.init -> void
-Tracon.McpResourceContent.Equals(Tracon.McpResourceContent? other) -> bool
-Tracon.McpResourceContent.IsBinary.get -> bool
-Tracon.McpResourceContent.IsBinary.init -> void
-Tracon.McpResourceContent.McpResourceContent() -> void
-Tracon.McpResourceContent.MimeType.get -> string?
-Tracon.McpResourceContent.MimeType.init -> void
-Tracon.McpResourceContent.Text.get -> string?
-Tracon.McpResourceContent.Text.init -> void
-Tracon.McpResourceContent.Truncated.get -> bool
-Tracon.McpResourceContent.Truncated.init -> void
-Tracon.McpResourceContent.Uri.get -> string!
-Tracon.McpResourceContent.Uri.init -> void
-Tracon.McpResourceListResult
-Tracon.McpResourceListResult.<Clone>$() -> Tracon.McpResourceListResult!
-Tracon.McpResourceListResult.Equals(Tracon.McpResourceListResult? other) -> bool
-Tracon.McpResourceListResult.McpResourceListResult() -> void
-Tracon.McpResourceListResult.Resources.get -> System.Collections.Generic.IReadOnlyList<Tracon.McpResourceSummary!>!
-Tracon.McpResourceListResult.Resources.init -> void
-Tracon.McpResourceListResult.Status.get -> Tracon.McpOperationStatus
-Tracon.McpResourceListResult.Status.init -> void
-Tracon.McpResourceSummary
-Tracon.McpResourceSummary.<Clone>$() -> Tracon.McpResourceSummary!
-Tracon.McpResourceSummary.Description.get -> string?
-Tracon.McpResourceSummary.Description.init -> void
-Tracon.McpResourceSummary.Equals(Tracon.McpResourceSummary? other) -> bool
-Tracon.McpResourceSummary.McpResourceSummary() -> void
-Tracon.McpResourceSummary.MimeType.get -> string?
-Tracon.McpResourceSummary.MimeType.init -> void
-Tracon.McpResourceSummary.Name.get -> string!
-Tracon.McpResourceSummary.Name.init -> void
-Tracon.McpResourceSummary.Uri.get -> string!
-Tracon.McpResourceSummary.Uri.init -> void
 Tracon.McpServerDefinition
 Tracon.McpServerDefinition.<Clone>$() -> Tracon.McpServerDefinition!
 Tracon.McpServerDefinition.AuthorizationConfigurationKey.get -> string?
@@ -2142,8 +1995,6 @@ Tracon.QuotaUsageQuery
 Tracon.QuotaUsageQuery.<Clone>$() -> Tracon.QuotaUsageQuery!
 Tracon.QuotaUsageQuery.AgentName.get -> string?
 Tracon.QuotaUsageQuery.AgentName.init -> void
-Tracon.QuotaUsageQuery.AsOf.get -> System.DateTimeOffset?
-Tracon.QuotaUsageQuery.AsOf.init -> void
 Tracon.QuotaUsageQuery.Equals(Tracon.QuotaUsageQuery? other) -> bool
 Tracon.QuotaUsageQuery.Period.get -> Tracon.QuotaPeriod?
 Tracon.QuotaUsageQuery.Period.init -> void
@@ -3275,29 +3126,6 @@ Tracon.SqlPersistenceDiagnosticsSnapshot.Equals(Tracon.SqlPersistenceDiagnostics
 Tracon.SqlPersistenceDiagnosticsSnapshot.PendingMigrations.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.SqlPersistenceDiagnosticsSnapshot.PendingMigrations.init -> void
 Tracon.SqlPersistenceDiagnosticsSnapshot.SqlPersistenceDiagnosticsSnapshot() -> void
-Tracon.StateGenerationTally
-Tracon.StateGenerationTally.<Clone>$() -> Tracon.StateGenerationTally!
-Tracon.StateGenerationTally.Equals(Tracon.StateGenerationTally? other) -> bool
-Tracon.StateGenerationTally.RecordCount.get -> long
-Tracon.StateGenerationTally.RecordCount.init -> void
-Tracon.StateGenerationTally.SchemaGeneration.get -> int?
-Tracon.StateGenerationTally.SchemaGeneration.init -> void
-Tracon.StateGenerationTally.StateGenerationTally() -> void
-Tracon.StatePreflightTarget
-Tracon.StatePreflightTarget.Sessions = 0 -> Tracon.StatePreflightTarget
-Tracon.StatePreflightTarget.WorkflowCheckpoints = 1 -> Tracon.StatePreflightTarget
-Tracon.StateSample
-Tracon.StateSample.<Clone>$() -> Tracon.StateSample!
-Tracon.StateSample.Equals(Tracon.StateSample? other) -> bool
-Tracon.StateSample.Id.get -> string!
-Tracon.StateSample.Id.init -> void
-Tracon.StateSample.MafVersion.get -> string?
-Tracon.StateSample.MafVersion.init -> void
-Tracon.StateSample.SchemaGeneration.get -> int?
-Tracon.StateSample.SchemaGeneration.init -> void
-Tracon.StateSample.State.get -> System.Text.Json.JsonElement
-Tracon.StateSample.State.init -> void
-Tracon.StateSample.StateSample() -> void
 Tracon.StructuredResponseValidationContext
 Tracon.StructuredResponseValidationContext.<Clone>$() -> Tracon.StructuredResponseValidationContext!
 Tracon.StructuredResponseValidationContext.AgentName.get -> string!
@@ -4055,20 +3883,6 @@ Tracon.VoiceSessionRecord.TenantId.init -> void
 Tracon.VoiceSessionRecord.Turns.get -> int
 Tracon.VoiceSessionRecord.Turns.init -> void
 Tracon.VoiceSessionRecord.VoiceSessionRecord() -> void
-Tracon.WebhookApprovalSummary
-Tracon.WebhookApprovalSummary.<Clone>$() -> Tracon.WebhookApprovalSummary!
-Tracon.WebhookApprovalSummary.Equals(Tracon.WebhookApprovalSummary? other) -> bool
-Tracon.WebhookApprovalSummary.Prompt.get -> string?
-Tracon.WebhookApprovalSummary.Prompt.init -> void
-Tracon.WebhookApprovalSummary.RequestId.get -> string!
-Tracon.WebhookApprovalSummary.RequestId.init -> void
-Tracon.WebhookApprovalSummary.RunId.get -> string?
-Tracon.WebhookApprovalSummary.RunId.init -> void
-Tracon.WebhookApprovalSummary.ToolName.get -> string?
-Tracon.WebhookApprovalSummary.ToolName.init -> void
-Tracon.WebhookApprovalSummary.WebhookApprovalSummary() -> void
-Tracon.WebhookApprovalSummary.WorkflowName.get -> string?
-Tracon.WebhookApprovalSummary.WorkflowName.init -> void
 Tracon.WebhookDelivery
 Tracon.WebhookDelivery.<Clone>$() -> Tracon.WebhookDelivery!
 Tracon.WebhookDelivery.Attempt.get -> int
@@ -4130,113 +3944,7 @@ Tracon.WebhookDeliveryStatus.Delivered = 1 -> Tracon.WebhookDeliveryStatus
 Tracon.WebhookDeliveryStatus.Dropped = 3 -> Tracon.WebhookDeliveryStatus
 Tracon.WebhookDeliveryStatus.Failed = 2 -> Tracon.WebhookDeliveryStatus
 Tracon.WebhookDeliveryStatus.Pending = 0 -> Tracon.WebhookDeliveryStatus
-Tracon.WebhookEventPayload
-Tracon.WebhookEventPayload.<Clone>$() -> Tracon.WebhookEventPayload!
-Tracon.WebhookEventPayload.Approval.get -> Tracon.WebhookApprovalSummary?
-Tracon.WebhookEventPayload.Approval.init -> void
-Tracon.WebhookEventPayload.DeliveryId.get -> string?
-Tracon.WebhookEventPayload.DeliveryId.init -> void
-Tracon.WebhookEventPayload.Equals(Tracon.WebhookEventPayload? other) -> bool
-Tracon.WebhookEventPayload.Event.get -> string?
-Tracon.WebhookEventPayload.Event.init -> void
-Tracon.WebhookEventPayload.Job.get -> Tracon.WebhookJobSummary?
-Tracon.WebhookEventPayload.Job.init -> void
-Tracon.WebhookEventPayload.OccurredAt.get -> System.DateTimeOffset?
-Tracon.WebhookEventPayload.OccurredAt.init -> void
-Tracon.WebhookEventPayload.Quota.get -> Tracon.WebhookQuotaSummary?
-Tracon.WebhookEventPayload.Quota.init -> void
-Tracon.WebhookEventPayload.Run.get -> Tracon.WebhookRunSummary?
-Tracon.WebhookEventPayload.Run.init -> void
-Tracon.WebhookEventPayload.Score.get -> Tracon.WebhookScoreSummary?
-Tracon.WebhookEventPayload.Score.init -> void
-Tracon.WebhookEventPayload.TenantId.get -> string?
-Tracon.WebhookEventPayload.TenantId.init -> void
-Tracon.WebhookEventPayload.WebhookEventPayload() -> void
 Tracon.WebhookEvents
-Tracon.WebhookJobSummary
-Tracon.WebhookJobSummary.<Clone>$() -> Tracon.WebhookJobSummary!
-Tracon.WebhookJobSummary.DoneItems.get -> int
-Tracon.WebhookJobSummary.DoneItems.init -> void
-Tracon.WebhookJobSummary.Equals(Tracon.WebhookJobSummary? other) -> bool
-Tracon.WebhookJobSummary.Error.get -> string?
-Tracon.WebhookJobSummary.Error.init -> void
-Tracon.WebhookJobSummary.FailedItems.get -> int
-Tracon.WebhookJobSummary.FailedItems.init -> void
-Tracon.WebhookJobSummary.JobId.get -> string!
-Tracon.WebhookJobSummary.JobId.init -> void
-Tracon.WebhookJobSummary.Kind.get -> string?
-Tracon.WebhookJobSummary.Kind.init -> void
-Tracon.WebhookJobSummary.Status.get -> string?
-Tracon.WebhookJobSummary.Status.init -> void
-Tracon.WebhookJobSummary.TargetName.get -> string?
-Tracon.WebhookJobSummary.TargetName.init -> void
-Tracon.WebhookJobSummary.TotalItems.get -> int
-Tracon.WebhookJobSummary.TotalItems.init -> void
-Tracon.WebhookJobSummary.WebhookJobSummary() -> void
-Tracon.WebhookQuotaSummary
-Tracon.WebhookQuotaSummary.<Clone>$() -> Tracon.WebhookQuotaSummary!
-Tracon.WebhookQuotaSummary.AgentName.get -> string?
-Tracon.WebhookQuotaSummary.AgentName.init -> void
-Tracon.WebhookQuotaSummary.Equals(Tracon.WebhookQuotaSummary? other) -> bool
-Tracon.WebhookQuotaSummary.Limit.get -> decimal
-Tracon.WebhookQuotaSummary.Limit.init -> void
-Tracon.WebhookQuotaSummary.Metric.get -> Tracon.QuotaMetric
-Tracon.WebhookQuotaSummary.Metric.init -> void
-Tracon.WebhookQuotaSummary.Period.get -> Tracon.QuotaPeriod
-Tracon.WebhookQuotaSummary.Period.init -> void
-Tracon.WebhookQuotaSummary.ResetsAt.get -> System.DateTimeOffset?
-Tracon.WebhookQuotaSummary.ResetsAt.init -> void
-Tracon.WebhookQuotaSummary.RunId.get -> string?
-Tracon.WebhookQuotaSummary.RunId.init -> void
-Tracon.WebhookQuotaSummary.ThresholdPercent.get -> int
-Tracon.WebhookQuotaSummary.ThresholdPercent.init -> void
-Tracon.WebhookQuotaSummary.Used.get -> decimal
-Tracon.WebhookQuotaSummary.Used.init -> void
-Tracon.WebhookQuotaSummary.UserId.get -> string?
-Tracon.WebhookQuotaSummary.UserId.init -> void
-Tracon.WebhookQuotaSummary.WebhookQuotaSummary() -> void
-Tracon.WebhookRunSummary
-Tracon.WebhookRunSummary.<Clone>$() -> Tracon.WebhookRunSummary!
-Tracon.WebhookRunSummary.AgentName.get -> string?
-Tracon.WebhookRunSummary.AgentName.init -> void
-Tracon.WebhookRunSummary.Cost.get -> decimal?
-Tracon.WebhookRunSummary.Cost.init -> void
-Tracon.WebhookRunSummary.Currency.get -> string?
-Tracon.WebhookRunSummary.Currency.init -> void
-Tracon.WebhookRunSummary.DurationMs.get -> long?
-Tracon.WebhookRunSummary.DurationMs.init -> void
-Tracon.WebhookRunSummary.Equals(Tracon.WebhookRunSummary? other) -> bool
-Tracon.WebhookRunSummary.Error.get -> string?
-Tracon.WebhookRunSummary.Error.init -> void
-Tracon.WebhookRunSummary.InputTokens.get -> long?
-Tracon.WebhookRunSummary.InputTokens.init -> void
-Tracon.WebhookRunSummary.ModelId.get -> string?
-Tracon.WebhookRunSummary.ModelId.init -> void
-Tracon.WebhookRunSummary.OutputTokens.get -> long?
-Tracon.WebhookRunSummary.OutputTokens.init -> void
-Tracon.WebhookRunSummary.RootRunId.get -> string?
-Tracon.WebhookRunSummary.RootRunId.init -> void
-Tracon.WebhookRunSummary.RunId.get -> string!
-Tracon.WebhookRunSummary.RunId.init -> void
-Tracon.WebhookRunSummary.SessionId.get -> string?
-Tracon.WebhookRunSummary.SessionId.init -> void
-Tracon.WebhookRunSummary.Status.get -> string?
-Tracon.WebhookRunSummary.Status.init -> void
-Tracon.WebhookRunSummary.WebhookRunSummary() -> void
-Tracon.WebhookScoreSummary
-Tracon.WebhookScoreSummary.<Clone>$() -> Tracon.WebhookScoreSummary!
-Tracon.WebhookScoreSummary.AverageScore.get -> double
-Tracon.WebhookScoreSummary.AverageScore.init -> void
-Tracon.WebhookScoreSummary.Equals(Tracon.WebhookScoreSummary? other) -> bool
-Tracon.WebhookScoreSummary.SampleCount.get -> long
-Tracon.WebhookScoreSummary.SampleCount.init -> void
-Tracon.WebhookScoreSummary.Threshold.get -> int
-Tracon.WebhookScoreSummary.Threshold.init -> void
-Tracon.WebhookScoreSummary.WebhookScoreSummary() -> void
-Tracon.WebhookScoreSummary.WindowEnd.get -> System.DateTimeOffset?
-Tracon.WebhookScoreSummary.WindowEnd.init -> void
-Tracon.WebhookScoreSummary.WindowStart.get -> System.DateTimeOffset?
-Tracon.WebhookScoreSummary.WindowStart.init -> void
 Tracon.WebhookSubscription
 Tracon.WebhookSubscription.<Clone>$() -> Tracon.WebhookSubscription!
 Tracon.WebhookSubscription.ConsecutiveFailures.get -> int
@@ -4351,24 +4059,6 @@ Tracon.WorkflowEdgeKind
 Tracon.WorkflowEdgeKind.Direct = 0 -> Tracon.WorkflowEdgeKind
 Tracon.WorkflowEdgeKind.FanIn = 2 -> Tracon.WorkflowEdgeKind
 Tracon.WorkflowEdgeKind.FanOut = 1 -> Tracon.WorkflowEdgeKind
-Tracon.WorkflowFunctionDescriptor
-Tracon.WorkflowFunctionDescriptor.<Clone>$() -> Tracon.WorkflowFunctionDescriptor!
-Tracon.WorkflowFunctionDescriptor.Description.get -> string?
-Tracon.WorkflowFunctionDescriptor.Description.init -> void
-Tracon.WorkflowFunctionDescriptor.Equals(Tracon.WorkflowFunctionDescriptor? other) -> bool
-Tracon.WorkflowFunctionDescriptor.InputType.get -> System.Type!
-Tracon.WorkflowFunctionDescriptor.InputType.init -> void
-Tracon.WorkflowFunctionDescriptor.Name.get -> string!
-Tracon.WorkflowFunctionDescriptor.Name.init -> void
-Tracon.WorkflowFunctionDescriptor.OutputType.get -> System.Type!
-Tracon.WorkflowFunctionDescriptor.OutputType.init -> void
-Tracon.WorkflowFunctionDescriptor.SettingsSchema.get -> System.Text.Json.JsonElement?
-Tracon.WorkflowFunctionDescriptor.SettingsSchema.init -> void
-Tracon.WorkflowFunctionDescriptor.SettingsType.get -> System.Type?
-Tracon.WorkflowFunctionDescriptor.SettingsType.init -> void
-Tracon.WorkflowFunctionDescriptor.Timeout.get -> System.TimeSpan?
-Tracon.WorkflowFunctionDescriptor.Timeout.init -> void
-Tracon.WorkflowFunctionDescriptor.WorkflowFunctionDescriptor() -> void
 Tracon.WorkflowGraph
 Tracon.WorkflowGraph.<Clone>$() -> Tracon.WorkflowGraph!
 Tracon.WorkflowGraph.Edges.get -> System.Collections.Generic.IReadOnlyList<Tracon.WorkflowGraphEdge!>!
@@ -4792,34 +4482,6 @@ override Tracon.LoopCriterion.ToString() -> string!
 override Tracon.LoopSettings.Equals(object? obj) -> bool
 override Tracon.LoopSettings.GetHashCode() -> int
 override Tracon.LoopSettings.ToString() -> string!
-override Tracon.McpOAuthCompleteResult.Equals(object? obj) -> bool
-override Tracon.McpOAuthCompleteResult.GetHashCode() -> int
-override Tracon.McpOAuthCompleteResult.ToString() -> string!
-override Tracon.McpOAuthStartResult.Equals(object? obj) -> bool
-override Tracon.McpOAuthStartResult.GetHashCode() -> int
-override Tracon.McpOAuthStartResult.ToString() -> string!
-override Tracon.McpPromptArgumentSummary.Equals(object? obj) -> bool
-override Tracon.McpPromptArgumentSummary.GetHashCode() -> int
-override Tracon.McpPromptArgumentSummary.ToString() -> string!
-override Tracon.McpPromptContent.Equals(object? obj) -> bool
-override Tracon.McpPromptContent.GetHashCode() -> int
-override Tracon.McpPromptContent.ToString() -> string!
-override Tracon.McpPromptListResult.Equals(object? obj) -> bool
-override Tracon.McpPromptListResult.GetHashCode() -> int
-override Tracon.McpPromptListResult.ToString() -> string!
-override Tracon.McpPromptSummary.Equals(object? obj) -> bool
-override Tracon.McpPromptSummary.GetHashCode() -> int
-override Tracon.McpPromptSummary.ToString() -> string!
-override Tracon.McpRefreshOutcome.GetHashCode() -> int
-override Tracon.McpResourceContent.Equals(object? obj) -> bool
-override Tracon.McpResourceContent.GetHashCode() -> int
-override Tracon.McpResourceContent.ToString() -> string!
-override Tracon.McpResourceListResult.Equals(object? obj) -> bool
-override Tracon.McpResourceListResult.GetHashCode() -> int
-override Tracon.McpResourceListResult.ToString() -> string!
-override Tracon.McpResourceSummary.Equals(object? obj) -> bool
-override Tracon.McpResourceSummary.GetHashCode() -> int
-override Tracon.McpResourceSummary.ToString() -> string!
 override Tracon.McpServerDefinition.Equals(object? obj) -> bool
 override Tracon.McpServerDefinition.GetHashCode() -> int
 override Tracon.McpServerDefinition.ToString() -> string!
@@ -5021,12 +4683,6 @@ override Tracon.SpeechTranscriptionOptions.ToString() -> string!
 override Tracon.SqlPersistenceDiagnosticsSnapshot.Equals(object? obj) -> bool
 override Tracon.SqlPersistenceDiagnosticsSnapshot.GetHashCode() -> int
 override Tracon.SqlPersistenceDiagnosticsSnapshot.ToString() -> string!
-override Tracon.StateGenerationTally.Equals(object? obj) -> bool
-override Tracon.StateGenerationTally.GetHashCode() -> int
-override Tracon.StateGenerationTally.ToString() -> string!
-override Tracon.StateSample.Equals(object? obj) -> bool
-override Tracon.StateSample.GetHashCode() -> int
-override Tracon.StateSample.ToString() -> string!
 override Tracon.StructuredResponseValidationContext.Equals(object? obj) -> bool
 override Tracon.StructuredResponseValidationContext.GetHashCode() -> int
 override Tracon.StructuredResponseValidationContext.ToString() -> string!
@@ -5128,9 +4784,6 @@ override Tracon.VoiceSessionQuery.ToString() -> string!
 override Tracon.VoiceSessionRecord.Equals(object? obj) -> bool
 override Tracon.VoiceSessionRecord.GetHashCode() -> int
 override Tracon.VoiceSessionRecord.ToString() -> string!
-override Tracon.WebhookApprovalSummary.Equals(object? obj) -> bool
-override Tracon.WebhookApprovalSummary.GetHashCode() -> int
-override Tracon.WebhookApprovalSummary.ToString() -> string!
 override Tracon.WebhookDelivery.Equals(object? obj) -> bool
 override Tracon.WebhookDelivery.GetHashCode() -> int
 override Tracon.WebhookDelivery.ToString() -> string!
@@ -5140,21 +4793,6 @@ override Tracon.WebhookDeliveryQuery.ToString() -> string!
 override Tracon.WebhookDeliveryResult.Equals(object? obj) -> bool
 override Tracon.WebhookDeliveryResult.GetHashCode() -> int
 override Tracon.WebhookDeliveryResult.ToString() -> string!
-override Tracon.WebhookEventPayload.Equals(object? obj) -> bool
-override Tracon.WebhookEventPayload.GetHashCode() -> int
-override Tracon.WebhookEventPayload.ToString() -> string!
-override Tracon.WebhookJobSummary.Equals(object? obj) -> bool
-override Tracon.WebhookJobSummary.GetHashCode() -> int
-override Tracon.WebhookJobSummary.ToString() -> string!
-override Tracon.WebhookQuotaSummary.Equals(object? obj) -> bool
-override Tracon.WebhookQuotaSummary.GetHashCode() -> int
-override Tracon.WebhookQuotaSummary.ToString() -> string!
-override Tracon.WebhookRunSummary.Equals(object? obj) -> bool
-override Tracon.WebhookRunSummary.GetHashCode() -> int
-override Tracon.WebhookRunSummary.ToString() -> string!
-override Tracon.WebhookScoreSummary.Equals(object? obj) -> bool
-override Tracon.WebhookScoreSummary.GetHashCode() -> int
-override Tracon.WebhookScoreSummary.ToString() -> string!
 override Tracon.WebhookSubscription.Equals(object? obj) -> bool
 override Tracon.WebhookSubscription.GetHashCode() -> int
 override Tracon.WebhookSubscription.ToString() -> string!
@@ -5167,9 +4805,6 @@ override Tracon.WorkflowDefinition.ToString() -> string!
 override Tracon.WorkflowDescriptor.Equals(object? obj) -> bool
 override Tracon.WorkflowDescriptor.GetHashCode() -> int
 override Tracon.WorkflowDescriptor.ToString() -> string!
-override Tracon.WorkflowFunctionDescriptor.Equals(object? obj) -> bool
-override Tracon.WorkflowFunctionDescriptor.GetHashCode() -> int
-override Tracon.WorkflowFunctionDescriptor.ToString() -> string!
 override Tracon.WorkflowGraph.Equals(object? obj) -> bool
 override Tracon.WorkflowGraph.GetHashCode() -> int
 override Tracon.WorkflowGraph.ToString() -> string!
@@ -5346,26 +4981,6 @@ static Tracon.LoopCriterion.operator !=(Tracon.LoopCriterion? left, Tracon.LoopC
 static Tracon.LoopCriterion.operator ==(Tracon.LoopCriterion? left, Tracon.LoopCriterion? right) -> bool
 static Tracon.LoopSettings.operator !=(Tracon.LoopSettings? left, Tracon.LoopSettings? right) -> bool
 static Tracon.LoopSettings.operator ==(Tracon.LoopSettings? left, Tracon.LoopSettings? right) -> bool
-static Tracon.McpOAuthCompleteResult.operator !=(Tracon.McpOAuthCompleteResult? left, Tracon.McpOAuthCompleteResult? right) -> bool
-static Tracon.McpOAuthCompleteResult.operator ==(Tracon.McpOAuthCompleteResult? left, Tracon.McpOAuthCompleteResult? right) -> bool
-static Tracon.McpOAuthStartResult.operator !=(Tracon.McpOAuthStartResult? left, Tracon.McpOAuthStartResult? right) -> bool
-static Tracon.McpOAuthStartResult.operator ==(Tracon.McpOAuthStartResult? left, Tracon.McpOAuthStartResult? right) -> bool
-static Tracon.McpPromptArgumentSummary.operator !=(Tracon.McpPromptArgumentSummary? left, Tracon.McpPromptArgumentSummary? right) -> bool
-static Tracon.McpPromptArgumentSummary.operator ==(Tracon.McpPromptArgumentSummary? left, Tracon.McpPromptArgumentSummary? right) -> bool
-static Tracon.McpPromptContent.operator !=(Tracon.McpPromptContent? left, Tracon.McpPromptContent? right) -> bool
-static Tracon.McpPromptContent.operator ==(Tracon.McpPromptContent? left, Tracon.McpPromptContent? right) -> bool
-static Tracon.McpPromptListResult.operator !=(Tracon.McpPromptListResult? left, Tracon.McpPromptListResult? right) -> bool
-static Tracon.McpPromptListResult.operator ==(Tracon.McpPromptListResult? left, Tracon.McpPromptListResult? right) -> bool
-static Tracon.McpPromptSummary.operator !=(Tracon.McpPromptSummary? left, Tracon.McpPromptSummary? right) -> bool
-static Tracon.McpPromptSummary.operator ==(Tracon.McpPromptSummary? left, Tracon.McpPromptSummary? right) -> bool
-static Tracon.McpRefreshOutcome.operator !=(Tracon.McpRefreshOutcome left, Tracon.McpRefreshOutcome right) -> bool
-static Tracon.McpRefreshOutcome.operator ==(Tracon.McpRefreshOutcome left, Tracon.McpRefreshOutcome right) -> bool
-static Tracon.McpResourceContent.operator !=(Tracon.McpResourceContent? left, Tracon.McpResourceContent? right) -> bool
-static Tracon.McpResourceContent.operator ==(Tracon.McpResourceContent? left, Tracon.McpResourceContent? right) -> bool
-static Tracon.McpResourceListResult.operator !=(Tracon.McpResourceListResult? left, Tracon.McpResourceListResult? right) -> bool
-static Tracon.McpResourceListResult.operator ==(Tracon.McpResourceListResult? left, Tracon.McpResourceListResult? right) -> bool
-static Tracon.McpResourceSummary.operator !=(Tracon.McpResourceSummary? left, Tracon.McpResourceSummary? right) -> bool
-static Tracon.McpResourceSummary.operator ==(Tracon.McpResourceSummary? left, Tracon.McpResourceSummary? right) -> bool
 static Tracon.McpServerDefinition.operator !=(Tracon.McpServerDefinition? left, Tracon.McpServerDefinition? right) -> bool
 static Tracon.McpServerDefinition.operator ==(Tracon.McpServerDefinition? left, Tracon.McpServerDefinition? right) -> bool
 static Tracon.MemorySettings.operator !=(Tracon.MemorySettings? left, Tracon.MemorySettings? right) -> bool
@@ -5525,10 +5140,6 @@ static Tracon.SpeechTranscriptionOptions.operator !=(Tracon.SpeechTranscriptionO
 static Tracon.SpeechTranscriptionOptions.operator ==(Tracon.SpeechTranscriptionOptions? left, Tracon.SpeechTranscriptionOptions? right) -> bool
 static Tracon.SqlPersistenceDiagnosticsSnapshot.operator !=(Tracon.SqlPersistenceDiagnosticsSnapshot? left, Tracon.SqlPersistenceDiagnosticsSnapshot? right) -> bool
 static Tracon.SqlPersistenceDiagnosticsSnapshot.operator ==(Tracon.SqlPersistenceDiagnosticsSnapshot? left, Tracon.SqlPersistenceDiagnosticsSnapshot? right) -> bool
-static Tracon.StateGenerationTally.operator !=(Tracon.StateGenerationTally? left, Tracon.StateGenerationTally? right) -> bool
-static Tracon.StateGenerationTally.operator ==(Tracon.StateGenerationTally? left, Tracon.StateGenerationTally? right) -> bool
-static Tracon.StateSample.operator !=(Tracon.StateSample? left, Tracon.StateSample? right) -> bool
-static Tracon.StateSample.operator ==(Tracon.StateSample? left, Tracon.StateSample? right) -> bool
 static Tracon.StructuredResponseValidationContext.operator !=(Tracon.StructuredResponseValidationContext? left, Tracon.StructuredResponseValidationContext? right) -> bool
 static Tracon.StructuredResponseValidationContext.operator ==(Tracon.StructuredResponseValidationContext? left, Tracon.StructuredResponseValidationContext? right) -> bool
 static Tracon.StructuredResponseValidationResult.Invalid(string! reason) -> Tracon.StructuredResponseValidationResult!
@@ -5601,26 +5212,14 @@ static Tracon.VoiceSessionQuery.operator !=(Tracon.VoiceSessionQuery? left, Trac
 static Tracon.VoiceSessionQuery.operator ==(Tracon.VoiceSessionQuery? left, Tracon.VoiceSessionQuery? right) -> bool
 static Tracon.VoiceSessionRecord.operator !=(Tracon.VoiceSessionRecord? left, Tracon.VoiceSessionRecord? right) -> bool
 static Tracon.VoiceSessionRecord.operator ==(Tracon.VoiceSessionRecord? left, Tracon.VoiceSessionRecord? right) -> bool
-static Tracon.WebhookApprovalSummary.operator !=(Tracon.WebhookApprovalSummary? left, Tracon.WebhookApprovalSummary? right) -> bool
-static Tracon.WebhookApprovalSummary.operator ==(Tracon.WebhookApprovalSummary? left, Tracon.WebhookApprovalSummary? right) -> bool
 static Tracon.WebhookDelivery.operator !=(Tracon.WebhookDelivery? left, Tracon.WebhookDelivery? right) -> bool
 static Tracon.WebhookDelivery.operator ==(Tracon.WebhookDelivery? left, Tracon.WebhookDelivery? right) -> bool
 static Tracon.WebhookDeliveryQuery.operator !=(Tracon.WebhookDeliveryQuery? left, Tracon.WebhookDeliveryQuery? right) -> bool
 static Tracon.WebhookDeliveryQuery.operator ==(Tracon.WebhookDeliveryQuery? left, Tracon.WebhookDeliveryQuery? right) -> bool
 static Tracon.WebhookDeliveryResult.operator !=(Tracon.WebhookDeliveryResult? left, Tracon.WebhookDeliveryResult? right) -> bool
 static Tracon.WebhookDeliveryResult.operator ==(Tracon.WebhookDeliveryResult? left, Tracon.WebhookDeliveryResult? right) -> bool
-static Tracon.WebhookEventPayload.operator !=(Tracon.WebhookEventPayload? left, Tracon.WebhookEventPayload? right) -> bool
-static Tracon.WebhookEventPayload.operator ==(Tracon.WebhookEventPayload? left, Tracon.WebhookEventPayload? right) -> bool
 static Tracon.WebhookEvents.All.get -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.WebhookEvents.IsKnown(string? eventType) -> bool
-static Tracon.WebhookJobSummary.operator !=(Tracon.WebhookJobSummary? left, Tracon.WebhookJobSummary? right) -> bool
-static Tracon.WebhookJobSummary.operator ==(Tracon.WebhookJobSummary? left, Tracon.WebhookJobSummary? right) -> bool
-static Tracon.WebhookQuotaSummary.operator !=(Tracon.WebhookQuotaSummary? left, Tracon.WebhookQuotaSummary? right) -> bool
-static Tracon.WebhookQuotaSummary.operator ==(Tracon.WebhookQuotaSummary? left, Tracon.WebhookQuotaSummary? right) -> bool
-static Tracon.WebhookRunSummary.operator !=(Tracon.WebhookRunSummary? left, Tracon.WebhookRunSummary? right) -> bool
-static Tracon.WebhookRunSummary.operator ==(Tracon.WebhookRunSummary? left, Tracon.WebhookRunSummary? right) -> bool
-static Tracon.WebhookScoreSummary.operator !=(Tracon.WebhookScoreSummary? left, Tracon.WebhookScoreSummary? right) -> bool
-static Tracon.WebhookScoreSummary.operator ==(Tracon.WebhookScoreSummary? left, Tracon.WebhookScoreSummary? right) -> bool
 static Tracon.WebhookSubscription.operator !=(Tracon.WebhookSubscription? left, Tracon.WebhookSubscription? right) -> bool
 static Tracon.WebhookSubscription.operator ==(Tracon.WebhookSubscription? left, Tracon.WebhookSubscription? right) -> bool
 static Tracon.WorkflowCheckpointRecord.operator !=(Tracon.WorkflowCheckpointRecord? left, Tracon.WorkflowCheckpointRecord? right) -> bool
@@ -5629,8 +5228,6 @@ static Tracon.WorkflowDefinition.operator !=(Tracon.WorkflowDefinition? left, Tr
 static Tracon.WorkflowDefinition.operator ==(Tracon.WorkflowDefinition? left, Tracon.WorkflowDefinition? right) -> bool
 static Tracon.WorkflowDescriptor.operator !=(Tracon.WorkflowDescriptor? left, Tracon.WorkflowDescriptor? right) -> bool
 static Tracon.WorkflowDescriptor.operator ==(Tracon.WorkflowDescriptor? left, Tracon.WorkflowDescriptor? right) -> bool
-static Tracon.WorkflowFunctionDescriptor.operator !=(Tracon.WorkflowFunctionDescriptor? left, Tracon.WorkflowFunctionDescriptor? right) -> bool
-static Tracon.WorkflowFunctionDescriptor.operator ==(Tracon.WorkflowFunctionDescriptor? left, Tracon.WorkflowFunctionDescriptor? right) -> bool
 static Tracon.WorkflowGraph.operator !=(Tracon.WorkflowGraph? left, Tracon.WorkflowGraph? right) -> bool
 static Tracon.WorkflowGraph.operator ==(Tracon.WorkflowGraph? left, Tracon.WorkflowGraph? right) -> bool
 static Tracon.WorkflowGraphEdge.operator !=(Tracon.WorkflowGraphEdge? left, Tracon.WorkflowGraphEdge? right) -> bool
@@ -5650,8 +5247,6 @@ static Tracon.WorkflowRunRequest.operator ==(Tracon.WorkflowRunRequest? left, Tr
 virtual Tracon.TraconException.ErrorType.get -> string!
 ~override Tracon.ConversationBranch.Equals(object obj) -> bool
 ~override Tracon.ConversationBranch.ToString() -> string
-~override Tracon.McpRefreshOutcome.Equals(object obj) -> bool
-~override Tracon.McpRefreshOutcome.ToString() -> string
 Tracon.ILiveVoiceProvider.AttachSessionAsync(Tracon.LiveVoiceAttachRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ILiveVoiceSideband!>
 Tracon.ILiveVoiceProvider.SupportsTenantCredentials.get -> bool
 Tracon.LiveVoiceAttachRequest
@@ -5714,41 +5309,6 @@ override Tracon.ModelOutputLimit.GetHashCode() -> int
 override Tracon.ModelOutputLimit.ToString() -> string!
 static Tracon.ModelOutputLimit.operator !=(Tracon.ModelOutputLimit? left, Tracon.ModelOutputLimit? right) -> bool
 static Tracon.ModelOutputLimit.operator ==(Tracon.ModelOutputLimit? left, Tracon.ModelOutputLimit? right) -> bool
-Tracon.WebhookEvalSummary
-Tracon.WebhookEvalSummary.AgentName.get -> string?
-Tracon.WebhookEvalSummary.AgentName.init -> void
-Tracon.WebhookEvalSummary.AgentVersion.get -> int?
-Tracon.WebhookEvalSummary.AgentVersion.init -> void
-Tracon.WebhookEvalSummary.EvalRunId.get -> string!
-Tracon.WebhookEvalSummary.EvalRunId.init -> void
-Tracon.WebhookEvalSummary.Failed.get -> int
-Tracon.WebhookEvalSummary.Failed.init -> void
-Tracon.WebhookEvalSummary.InputTokens.get -> long?
-Tracon.WebhookEvalSummary.InputTokens.init -> void
-Tracon.WebhookEvalSummary.ModelId.get -> string?
-Tracon.WebhookEvalSummary.ModelId.init -> void
-Tracon.WebhookEvalSummary.OutputTokens.get -> long?
-Tracon.WebhookEvalSummary.OutputTokens.init -> void
-Tracon.WebhookEvalSummary.Passed.get -> int
-Tracon.WebhookEvalSummary.Passed.init -> void
-Tracon.WebhookEvalSummary.Status.get -> string?
-Tracon.WebhookEvalSummary.Status.init -> void
-Tracon.WebhookEvalSummary.SuiteName.get -> string?
-Tracon.WebhookEvalSummary.SuiteName.init -> void
-Tracon.WebhookEvalSummary.Total.get -> int
-Tracon.WebhookEvalSummary.Total.init -> void
-Tracon.WebhookEvalSummary.WebhookEvalSummary() -> void
-Tracon.WebhookEventPayload.Eval.get -> Tracon.WebhookEvalSummary?
-Tracon.WebhookEventPayload.Eval.init -> void
-Tracon.WebhookRunSummary.Kind.get -> string?
-Tracon.WebhookRunSummary.Kind.init -> void
-Tracon.WebhookEvalSummary.<Clone>$() -> Tracon.WebhookEvalSummary!
-Tracon.WebhookEvalSummary.Equals(Tracon.WebhookEvalSummary? other) -> bool
-override Tracon.WebhookEvalSummary.Equals(object? obj) -> bool
-override Tracon.WebhookEvalSummary.GetHashCode() -> int
-override Tracon.WebhookEvalSummary.ToString() -> string!
-static Tracon.WebhookEvalSummary.operator !=(Tracon.WebhookEvalSummary? left, Tracon.WebhookEvalSummary? right) -> bool
-static Tracon.WebhookEvalSummary.operator ==(Tracon.WebhookEvalSummary? left, Tracon.WebhookEvalSummary? right) -> bool
 Tracon.IRunStore.ListNonTokenUsageAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.NonTokenUsageRecord!>!>
 Tracon.IRunStore.RecordNonTokenUsageAsync(Tracon.NonTokenUsageRecord! record, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.NonTokenUsageRecord
@@ -5792,8 +5352,6 @@ Tracon.ToolCallUsage.Model.get -> string?
 Tracon.ToolCallUsage.Model.init -> void
 Tracon.ToolCallUsage.Provider.get -> string?
 Tracon.ToolCallUsage.Provider.init -> void
-Tracon.WebhookRunSummary.NonTokenCost.get -> decimal?
-Tracon.WebhookRunSummary.NonTokenCost.init -> void
 override Tracon.NonTokenUsageRecord.Equals(object? obj) -> bool
 override Tracon.NonTokenUsageRecord.GetHashCode() -> int
 override Tracon.NonTokenUsageRecord.ToString() -> string!

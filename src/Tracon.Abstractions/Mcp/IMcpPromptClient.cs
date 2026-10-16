@@ -1,7 +1,9 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
 /// <summary>The result status of an MCP request.</summary>
-public enum McpOperationStatus
+internal enum McpOperationStatus
 {
     /// <summary>The request succeeded.</summary>
     Ok = 0,
@@ -25,37 +27,37 @@ public enum McpOperationStatus
     UriNotDeclared = 5,
 }
 
-/// <summary>The summary of an MCP prompt argument.</summary>
-public sealed record McpPromptArgumentSummary
+[Description("The summary of an MCP prompt argument.")]
+internal sealed record McpPromptArgumentSummary
 {
-    /// <summary>The argument name.</summary>
+    [Description("The argument name.")]
     public required string Name { get; init; }
 
-    /// <summary>The description.</summary>
+    [Description("The description.")]
     public string? Description { get; init; }
 
-    /// <summary>Whether the argument is required.</summary>
+    [Description("Whether the argument is required.")]
     public bool Required { get; init; }
 }
 
-/// <summary>The summary of an MCP prompt.</summary>
-public sealed record McpPromptSummary
+[Description("The summary of an MCP prompt.")]
+internal sealed record McpPromptSummary
 {
-    /// <summary>The prompt name.</summary>
+    [Description("The prompt name.")]
     public required string Name { get; init; }
 
-    /// <summary>The title shown in the UI.</summary>
+    [Description("The title shown in the UI.")]
     public string? Title { get; init; }
 
-    /// <summary>The description.</summary>
+    [Description("The description.")]
     public string? Description { get; init; }
 
-    /// <summary>The arguments the prompt accepts.</summary>
+    [Description("The arguments the prompt accepts.")]
     public IReadOnlyList<McpPromptArgumentSummary> Arguments { get; init; } = [];
 }
 
 /// <summary>The result of listing prompts.</summary>
-public sealed record McpPromptListResult
+internal sealed record McpPromptListResult
 {
     /// <summary>The result status.</summary>
     public required McpOperationStatus Status { get; init; }
@@ -64,23 +66,20 @@ public sealed record McpPromptListResult
     public IReadOnlyList<McpPromptSummary> Prompts { get; init; } = [];
 }
 
-/// <summary>
-/// The resolved content of a prompt.
-/// </summary>
 /// <remarks>
 /// <strong>This is a snapshot.</strong> This content MUST BE COPIED into the agent's instructions; it is not re-fetched at run time. A remote server cannot change the agent's behavior through this path.
 /// </remarks>
-public sealed record McpPromptContent
+[Description("The resolved content of a prompt.")]
+internal sealed record McpPromptContent
 {
-    /// <summary>The text concatenated from the prompt's messages.</summary>
+    [Description("The text concatenated from the prompt's messages.")]
     public required string Text { get; init; }
 
-    /// <summary>
-    /// The content's SHA-256 digest (hex). The snapshot is stored in
-    /// <c>AgentDefinition.Metadata</c> under the <c>mcp.prompt.hash</c> key;
-    /// when the server's content changes, the UI compares this digest and
-    /// shows a badge.
-    /// </summary>
+    [Description(
+        "The content's SHA-256 digest (hex). The snapshot is stored in\n" +
+        "`AgentDefinition.Metadata` under the `mcp.prompt.hash` key;\n" +
+        "when the server's content changes, the UI compares this digest and\n" +
+        "shows a badge.")]
     public required string Hash { get; init; }
 }
 
@@ -99,11 +98,12 @@ public sealed record McpPromptContent
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
-/// <c>TryAdd</c>; a consumer's own registration wins. Per-call connections
+/// <c>TryAdd</c>. This interface is plumbing between Tracon's own packages;
+/// a consumer does not implement it. Per-call connections
 /// (above) mean the implementation itself carries no per-run state.
 /// </para>
 /// </remarks>
-public interface IMcpPromptClient
+internal interface IMcpPromptClient
 {
     /// <summary>Fetches a server's prompt list.</summary>
     /// <param name="tenantId">The tenant identifier.</param>

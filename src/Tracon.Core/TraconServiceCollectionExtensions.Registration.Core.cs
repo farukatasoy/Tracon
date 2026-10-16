@@ -26,13 +26,14 @@ public static partial class TraconServiceCollectionExtensions
 
         // Tenant context. In a multi-tenant setup, the consumer registers
         // their own implementation before this call.
-        services.TryAddSingleton<ITenantContext, SingleTenantContext>();
+        services.TryAddSingleton<ITenantContext>(
+            static provider => new SingleTenantContext(provider.GetRequiredService<IOptions<TraconOptions>>()));
 
         // Run attribution: who ran this, and for which job. The default reports
         // only what AmbientRunAttributionScope carries, so an application that
         // registers nothing keeps its exact current behaviour. A consumer binds
         // this to its own identity pipeline; TryAdd makes that registration win.
-        services.TryAddSingleton<IRunAttributionContext, DefaultRunAttributionContext>();
+        services.TryAddSingleton<IRunAttributionContext>(static _ => new DefaultRunAttributionContext());
 
         // Tool authorization (phase 69, F-113): allows every call by default, so
         // an application that registers nothing keeps today's behaviour exactly.
@@ -290,7 +291,7 @@ public static partial class TraconServiceCollectionExtensions
 #pragma warning restore MAAI001
 
         // Compiler and cache.
-        services.TryAddSingleton<CompiledAgentCache>();
+        services.TryAddSingleton(static _ => new CompiledAgentCache());
 
         // Sub-agent resolver. Requests the catalog on FIRST USE, not in its
         // CONSTRUCTOR; otherwise the IAgentCatalog -> IAgentSource ->

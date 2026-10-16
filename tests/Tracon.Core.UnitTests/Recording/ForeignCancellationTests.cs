@@ -251,7 +251,7 @@ public sealed class ForeignCancellationTests
         public ValueTask UpdateRunCostAsync(
             Guid runId,
             RunCost? cost,
-            string? tenantId = null,
+            string? tenantId,
             CancellationToken cancellationToken = default)
             => inner.UpdateRunCostAsync(runId, cost, tenantId, cancellationToken);
 

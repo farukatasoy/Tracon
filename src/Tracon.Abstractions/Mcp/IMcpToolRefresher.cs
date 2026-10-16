@@ -16,12 +16,13 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
-/// <c>TryAdd</c>; a consumer's own registration wins. The same instance also
+/// <c>TryAdd</c>. This interface is plumbing between Tracon's own packages;
+/// a consumer does not implement it. The same instance also
 /// runs the background, fixed-interval refresh, so an implementation must be
 /// safe under a concurrent on-demand <see cref="RefreshAsync"/> call.
 /// </para>
 /// </remarks>
-public interface IMcpToolRefresher
+internal interface IMcpToolRefresher
 {
     /// <summary>Refreshes the tool list now.</summary>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -30,7 +31,7 @@ public interface IMcpToolRefresher
 }
 
 /// <summary>The result of an <see cref="IMcpToolRefresher.RefreshAsync"/> call.</summary>
-public readonly record struct McpRefreshOutcome
+internal readonly record struct McpRefreshOutcome
 {
     /// <summary>The total number of tools discovered in this refresh.</summary>
     public required int ToolCount { get; init; }

@@ -17,6 +17,10 @@ namespace Tracon;
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
 /// <c>Replace</c> by whichever SQL provider is active.
 /// </para>
+/// <para>
+/// Call this interface; the SQL provider package supplies the implementation, so do not
+/// implement or replace it.
+/// </para>
 /// </remarks>
 public interface ISqlPersistenceDiagnostics
 {

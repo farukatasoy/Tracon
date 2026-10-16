@@ -9,7 +9,8 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
-/// <c>TryAdd</c>; a consumer's own registration wins. The default
+/// <c>TryAdd</c>. This interface is plumbing between Tracon's own packages;
+/// a consumer does not implement it. The default
 /// implementation is safe as a singleton because it does not capture any
 /// per-request state itself — it reads <see cref="Resolve"/>'s caller on each
 /// call from an internal <see cref="System.Threading.AsyncLocal{T}"/>
@@ -24,7 +25,7 @@ namespace Tracon;
 /// parameter and applies no tenant filtering of its own.
 /// </para>
 /// </remarks>
-public interface IAuditActorResolver
+internal interface IAuditActorResolver
 {
     /// <summary>Resolves the current actor.</summary>
     /// <returns>The actor id, or <see langword="null"/> when it cannot be resolved.</returns>

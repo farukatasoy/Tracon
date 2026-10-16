@@ -44,7 +44,7 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
     /// <paramref name="timeout"/> is outside one millisecond to about 49.7 days, the range
     /// the timeout's delay accepts.
     /// </exception>
-    public TimeoutAIFunction(AIFunction innerFunction, TimeSpan timeout, ILogger<TimeoutAIFunction> logger)
+    internal TimeoutAIFunction(AIFunction innerFunction, TimeSpan timeout, ILogger<TimeoutAIFunction> logger)
         : this(innerFunction, timeout, logger, TimeProvider.System)
     {
     }
@@ -59,7 +59,7 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
     /// the timeout's delay accepts.
     /// </exception>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
-    public TimeoutAIFunction(
+    internal TimeoutAIFunction(
         AIFunction innerFunction,
         TimeSpan timeout,
         ILogger<TimeoutAIFunction> logger,

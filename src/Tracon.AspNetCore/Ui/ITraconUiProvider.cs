@@ -21,11 +21,11 @@ namespace Tracon;
 /// is unchanged.
 /// </para>
 /// <para>
-/// Implementations are registered with <c>TryAdd</c>; the consumer's own
-/// registration wins (the replaceable-extension rule).
+/// Implementations are registered with <c>TryAdd</c>. This interface is
+/// plumbing between Tracon's own packages; a consumer does not implement it.
 /// </para>
 /// </remarks>
-public interface ITraconUiProvider
+internal interface ITraconUiProvider
 {
     /// <summary>
     /// Whether an asset is available to serve. If <see langword="false"/>, the UI

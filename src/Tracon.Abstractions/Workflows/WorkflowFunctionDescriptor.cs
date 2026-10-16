@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Tracon;
 
 /// <summary>Describes a function node registered in code.</summary>
-public sealed record WorkflowFunctionDescriptor
+internal sealed record WorkflowFunctionDescriptor
 {
     /// <summary>Gets the function's unique name. Serves as the key a workflow node points to.</summary>
     public required string Name { get; init; }

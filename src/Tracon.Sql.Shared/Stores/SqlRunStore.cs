@@ -270,7 +270,7 @@ internal sealed class SqlRunStore : IRunStore
     public async ValueTask UpdateRunCostAsync(
         Guid runId,
         RunCost? cost,
-        string? tenantId = null,
+        string? tenantId,
         CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.UpdateRunCost);

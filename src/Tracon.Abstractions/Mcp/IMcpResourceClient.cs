@@ -1,23 +1,25 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
-/// <summary>The summary of an MCP resource.</summary>
-public sealed record McpResourceSummary
+[Description("The summary of an MCP resource.")]
+internal sealed record McpResourceSummary
 {
-    /// <summary>The resource URI.</summary>
+    [Description("The resource URI.")]
     public required string Uri { get; init; }
 
-    /// <summary>The resource name.</summary>
+    [Description("The resource name.")]
     public required string Name { get; init; }
 
-    /// <summary>The MIME type.</summary>
+    [Description("The MIME type.")]
     public string? MimeType { get; init; }
 
-    /// <summary>The description.</summary>
+    [Description("The description.")]
     public string? Description { get; init; }
 }
 
 /// <summary>The result of listing resources.</summary>
-public sealed record McpResourceListResult
+internal sealed record McpResourceListResult
 {
     /// <summary>The result status.</summary>
     public required McpOperationStatus Status { get; init; }
@@ -26,27 +28,25 @@ public sealed record McpResourceListResult
     public IReadOnlyList<McpResourceSummary> Resources { get; init; } = [];
 }
 
-/// <summary>The content of a resource that was read.</summary>
-public sealed record McpResourceContent
+[Description("The content of a resource that was read.")]
+internal sealed record McpResourceContent
 {
-    /// <summary>The resource URI.</summary>
+    [Description("The resource URI.")]
     public required string Uri { get; init; }
 
-    /// <summary>The MIME type.</summary>
+    [Description("The MIME type.")]
     public string? MimeType { get; init; }
 
-    /// <summary>The text content. <see langword="null"/> for binary resources.</summary>
+    [Description("The text content. `null` for binary resources.")]
     public string? Text { get; init; }
 
-    /// <summary>Whether the resource is binary (a blob).</summary>
+    [Description("Whether the resource is binary (a blob).")]
     public bool IsBinary { get; init; }
 
-    /// <summary>The byte size of the raw content (before truncation).</summary>
+    [Description("The byte size of the raw content (before truncation).")]
     public int ByteSize { get; init; }
 
-    /// <summary>
-    /// Whether the content was truncated because it exceeded the size limit.
-    /// </summary>
+    [Description("Whether the content was truncated because it exceeded the size limit.")]
     public bool Truncated { get; init; }
 }
 
@@ -65,11 +65,12 @@ public sealed record McpResourceContent
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
-/// <c>TryAdd</c>; a consumer's own registration wins. Each call opens its own
+/// <c>TryAdd</c>. This interface is plumbing between Tracon's own packages;
+/// a consumer does not implement it. Each call opens its own
 /// short-lived connection, so the implementation carries no per-run state.
 /// </para>
 /// </remarks>
-public interface IMcpResourceClient
+internal interface IMcpResourceClient
 {
     /// <summary>Fetches a server's resource list.</summary>
     /// <param name="tenantId">The tenant identifier.</param>

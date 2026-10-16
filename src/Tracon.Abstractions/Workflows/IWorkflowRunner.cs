@@ -7,10 +7,14 @@ namespace Tracon;
 /// <para>
 /// The abstraction lives in <c>Tracon.Abstractions</c> because the HTTP
 /// layer runs workflows but does <strong>not</strong> depend on the
-/// <c>Tracon.Workflows</c> package. This is the same pattern established
-/// with <see cref="IMcpToolRefresher"/> in MCP: the workflow engine stays an
+/// <c>Tracon.Workflows</c> package. This is the same pattern the MCP
+/// package follows: the workflow engine stays an
 /// optional package, and a consumer who does not use it does not pull in a
 /// 130-type execution engine.
+/// </para>
+/// <para>
+/// Call this interface to run a workflow in process; the <c>Tracon.Workflows</c> package
+/// supplies the implementation, so do not implement or replace it.
 /// </para>
 /// <para>
 /// The contract carries no Microsoft Agent Framework type. Events flow

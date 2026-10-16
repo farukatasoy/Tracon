@@ -410,7 +410,7 @@ public sealed class RunEventSinkTests
         public ValueTask UpdateRunCostAsync(
             Guid runId,
             RunCost? cost,
-            string? tenantId = null,
+            string? tenantId,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
@@ -522,7 +522,7 @@ public sealed class RunEventSinkTests
         public ValueTask UpdateRunCostAsync(
             Guid runId,
             RunCost? cost,
-            string? tenantId = null,
+            string? tenantId,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

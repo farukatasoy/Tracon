@@ -19,7 +19,8 @@
     Helpers that other Tracon packages call from their own implementation, and
     that no consumer names: the SQL stores read the session state bag keys and
     the schema-ready gate, the ASP.NET Core endpoints and the MCP host read the
-    same gate and SafeErrorText. Each was public only so that a sibling package
+    same gate and SafeErrorText, and the `tracon state-check` command reads the
+    state preflight reader. Each was public only so that a sibling package
     could reach it; an evidence pass over the public surface found no site page,
     sample, template, or seam document that asks a consumer to use one. A
     third-party store or host needs none of them - the seams it implements are
@@ -27,6 +28,7 @@
   -->
   <ItemGroup Label="Internal visibility - first-party hosts and stores">
     <InternalsVisibleTo Include="Tracon.AspNetCore" />
+    <InternalsVisibleTo Include="Tracon.Cli" />
     <InternalsVisibleTo Include="Tracon.Mcp" />
     <InternalsVisibleTo Include="Tracon.PostgreSql" />
     <InternalsVisibleTo Include="Tracon.SqlServer" />

@@ -244,9 +244,6 @@ public sealed record LiveVoiceSessionOptions
 
     /// <summary>Gets how the live model hands work back. The default is <see cref="LiveVoiceDelegationMode.Client"/>.</summary>
     public LiveVoiceDelegationMode DelegationMode { get; init; } = LiveVoiceDelegationMode.Client;
-
-    /// <summary>Gets the backing model used in <see cref="LiveVoiceDelegationMode.Responses"/> mode.</summary>
-    public string? BackendModel { get; init; }
 }
 
 /// <summary>How a live model hands heavier work back.</summary>
@@ -259,9 +256,6 @@ public enum LiveVoiceDelegationMode
 {
     /// <summary>The delegated work is executed by the attached client — Tracon.</summary>
     Client = 0,
-
-    /// <summary>The provider executes the delegated work against a backing model of its own.</summary>
-    Responses = 1,
 }
 
 /// <summary>Text sent into a live conversation's context.</summary>

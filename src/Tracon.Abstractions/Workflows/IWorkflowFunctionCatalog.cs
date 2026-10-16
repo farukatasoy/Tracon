@@ -11,7 +11,7 @@ namespace Tracon;
 /// definition can only point to a registered function by name; the function's
 /// <em>code</em> cannot be written from the UI, only selected from this list.
 /// </remarks>
-public interface IWorkflowFunctionCatalog
+internal interface IWorkflowFunctionCatalog
 {
     /// <summary>Returns the descriptors of all registered functions, ordered by name.</summary>
     /// <returns>The function descriptors.</returns>

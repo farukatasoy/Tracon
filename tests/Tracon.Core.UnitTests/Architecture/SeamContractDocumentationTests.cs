@@ -486,13 +486,15 @@ public sealed class SeamContractDocumentationTests
             ["does not isolate the script process", "cancellation is cooperative", "does not force"]
         },
         {
-            // BL-026: IsDraining relies on the HTTP host's own request draining and the
+            // BL-026: draining relies on the HTTP host's own request draining and the
             // job worker's own WaitForRunningJobsAsync to actually stop accepting work
-            // in time - it does not itself guarantee that a run in the register/accept
-            // window is never started after the flag flips.
-            Path.Combine("Tracon.Abstractions", "Runs", "ITraconDrainState.cs"),
-            "public interface ITraconDrainState",
-            ["does not itself", "backup mechanism"]
+            // in time - the flag does not itself guarantee that a run in the
+            // register/accept window is never started after it flips. The interface that
+            // reports the flag is internal, so the consumer-facing statement lives on the
+            // public setting that turns draining on.
+            Path.Combine("Tracon.Core", "Hosting", "TraconDrainOptions.cs"),
+            "public bool Enabled { get; set; }",
+            ["does not, by itself", "backup mechanism"]
         },
     };
 

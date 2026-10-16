@@ -2480,7 +2480,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
             OutputCost = 5m,
             Currency = "USD",
             Source = PricingSource.Configuration,
-        });
+        }, AmbientTenant.TenantId);
 
         var record = await Store.GetRunAsync(runId);
 

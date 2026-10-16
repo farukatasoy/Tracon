@@ -17,7 +17,7 @@ namespace Tracon;
 /// database backup would carry sensitive data too.
 /// </para>
 /// </remarks>
-public sealed record WebhookEventPayload
+internal sealed record WebhookEventPayload
 {
     /// <summary>The event name. Filled in by the publisher.</summary>
     public string? Event { get; init; }
@@ -51,7 +51,7 @@ public sealed record WebhookEventPayload
 }
 
 /// <summary>A run's webhook summary.</summary>
-public sealed record WebhookRunSummary
+internal sealed record WebhookRunSummary
 {
     /// <summary>The run identifier.</summary>
     public required string RunId { get; init; }
@@ -108,7 +108,7 @@ public sealed record WebhookRunSummary
 }
 
 /// <summary>A job's webhook summary.</summary>
-public sealed record WebhookJobSummary
+internal sealed record WebhookJobSummary
 {
     /// <summary>The job identifier.</summary>
     public required string JobId { get; init; }
@@ -136,7 +136,7 @@ public sealed record WebhookJobSummary
 }
 
 /// <summary>A pending approval or human-input request's webhook summary.</summary>
-public sealed record WebhookApprovalSummary
+internal sealed record WebhookApprovalSummary
 {
     /// <summary>The approval or request identifier.</summary>
     public required string RequestId { get; init; }
@@ -155,7 +155,7 @@ public sealed record WebhookApprovalSummary
 }
 
 /// <summary>An exceeded quota threshold's webhook summary.</summary>
-public sealed record WebhookQuotaSummary
+internal sealed record WebhookQuotaSummary
 {
     /// <summary>The exceeded metric.</summary>
     public required QuotaMetric Metric { get; init; }
@@ -193,7 +193,7 @@ public sealed record WebhookQuotaSummary
 }
 
 /// <summary>A score window threshold's webhook summary.</summary>
-public sealed record WebhookScoreSummary
+internal sealed record WebhookScoreSummary
 {
     /// <summary>The window's average score (0-100).</summary>
     public required double AverageScore { get; init; }
@@ -212,7 +212,7 @@ public sealed record WebhookScoreSummary
 }
 
 /// <summary>An evaluation run's webhook summary.</summary>
-public sealed record WebhookEvalSummary
+internal sealed record WebhookEvalSummary
 {
     /// <summary>The evaluation run identifier.</summary>
     public required string EvalRunId { get; init; }

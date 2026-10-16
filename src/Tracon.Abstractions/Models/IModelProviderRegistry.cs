@@ -3,6 +3,11 @@ using Microsoft.Extensions.AI;
 namespace Tracon;
 
 /// <summary>The registry that keeps registered model providers by name.</summary>
+/// <remarks>
+/// Call this interface to list providers or to build a chat client. Tracon supplies the
+/// implementation; do not implement or replace it. To add a provider, implement
+/// <see cref="IModelProvider"/> and register it with <c>AddModelProvider</c>.
+/// </remarks>
 public interface IModelProviderRegistry
 {
     /// <summary>Returns the definitions of the registered providers.</summary>

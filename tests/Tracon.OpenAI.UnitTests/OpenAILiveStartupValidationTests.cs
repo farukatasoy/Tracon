@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Tracon.OpenAI.UnitTests.Infrastructure;
@@ -41,6 +42,30 @@ public sealed class OpenAILiveStartupValidationTests
 
         Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IStartupValidator>().Validate())
             .Message.ShouldContain("UseOpenAI(...)");
+    }
+
+    [Fact]
+    public void A_BackendModel_key_left_in_configuration_is_ignored_and_the_host_starts()
+    {
+        // 'BackendModel' belonged to the 'Responses' delegation mode, which never worked and is
+        // gone. A host that still carries the key in its configuration must keep starting.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["Live:Model"] = "gpt-live-test",
+                ["Live:BackendModel"] = "gpt-backend-test",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddTracon()
+            .UseOpenAI(TestData.ApiKey)
+            .UseOpenAILive(configuration.GetSection("Live"));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IStartupValidator>().Validate();
+        provider.GetRequiredService<IOptions<OpenAILiveOptions>>().Value.Model.ShouldBe("gpt-live-test");
     }
 
     [Fact]

@@ -16,7 +16,8 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with
-/// <c>TryAdd</c>; a consumer's own registration wins.
+/// <c>TryAdd</c>. This interface is plumbing between Tracon's own packages;
+/// a consumer does not implement it.
 /// </para>
 /// <para>
 /// <strong>Guarantee limit: <see cref="IsDraining"/> does not itself
@@ -34,7 +35,7 @@ namespace Tracon;
 /// narrow window (BL-026; see <c>TraconDrainOptions.Enabled</c> too).
 /// </para>
 /// </remarks>
-public interface ITraconDrainState
+internal interface ITraconDrainState
 {
     /// <summary>
     /// Gets whether the process has begun stopping and is waiting for

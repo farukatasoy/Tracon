@@ -10,7 +10,7 @@ namespace Tracon;
 /// of the real implementation, not of the decorator, when it asks which store is
 /// registered.
 /// </remarks>
-public interface IAuditDecorated
+internal interface IAuditDecorated
 {
     /// <summary>Gets the real store instance the decorator wraps.</summary>
     object AuditedInner { get; }

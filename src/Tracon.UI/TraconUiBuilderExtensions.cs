@@ -22,8 +22,8 @@ public static class TraconUiBuilderExtensions
     /// once out of sync, would make the UI show a blank page without any error.
     /// </para>
     /// <para>
-    /// Registration uses <c>TryAdd</c>. A consumer that registers its own
-    /// <see cref="ITraconUiProvider"/> implementation earlier wins (the replaceable-extension rule).
+    /// Registration uses <c>TryAdd</c>, so calling <c>UseUI()</c> twice registers
+    /// the UI once.
     /// </para>
     /// <example>
     /// <code>

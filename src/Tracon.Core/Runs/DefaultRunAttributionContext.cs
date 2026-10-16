@@ -24,6 +24,10 @@ namespace Tracon;
 /// </remarks>
 public sealed class DefaultRunAttributionContext : IRunAttributionContext
 {
+    internal DefaultRunAttributionContext()
+    {
+    }
+
     /// <inheritdoc />
     public string? UserId => AmbientRunAttributionScope.CurrentUserId;
 

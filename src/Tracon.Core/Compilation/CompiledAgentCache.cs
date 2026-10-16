@@ -63,6 +63,10 @@ public sealed class CompiledAgentCache
 {
     private readonly ConcurrentDictionary<SlotKey, Entry> _entries = new();
 
+    internal CompiledAgentCache()
+    {
+    }
+
     /// <summary>Number of entries in the cache: one per tenant, agent name, definition, and culture.</summary>
     public int Count => _entries.Count;
 

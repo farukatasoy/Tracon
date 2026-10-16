@@ -6,8 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **`IRunStore.UpdateRunCostAsync` no longer defaults `tenantId` to `null`.** The parameter stays
+  `string?`; a caller now states the tenant on purpose. `null` skipped the tenant check, so a
+  caller that left the argument out silently wrote a cost onto another tenant's run. A call
+  `UpdateRunCostAsync(runId, cost)` stops compiling: pass the run's tenant. A store implementation
+  drops `= null` from its own signature; the call shape does not change otherwise. The shipped
+  `RunStoreContract` passes the tenant explicitly.
+- **Five service types keep a public type and lose the public constructor.** The container, or the
+  tool pipeline, builds them, and the guides and samples never call `new` on them:
+  `SingleTenantContext`, `HttpTenantContext`, `TimeoutAIFunction` (both constructors),
+  `CompiledAgentCache` and `DefaultRunAttributionContext`. Resolve them from DI. Their
+  registrations are factories now; `TryAdd` and `Replace` behave as before, so an `ITenantContext`
+  registered before `AddTracon()` still wins. A new test pins every public constructor of a
+  concrete class, so the next service type cannot reach the surface unnoticed.
+- **`Tracon:Voice:Live:DelegationMode` refuses a name that is not a delegation mode.** The host
+  stops at startup with a message that names the setting. A misspelled name used to fall back to
+  `Client` without a word.
+
 ### Removed
 
+- **Twelve interfaces and the 23 types that only they used are `internal`.** They are plumbing
+  between Tracon's own packages. No guide, sample or contract suite asks a consumer to implement
+  one, and the shipped implementations are the only ones. `IToolRegistry`, `IVoiceHealthCheck` and
+  `IWorkflowRunner` stay public: a guide names the first two, and `IWorkflowRunner` is the one
+  public way to run a workflow in process. A host that registered its own implementation of one of
+  these interfaces, or named one of the types, stops compiling. The types, by package:
+  - `Tracon.Abstractions` (34): `IAuditActorResolver`, `IAuditDecorated`, `IMcpOAuthCoordinator`,
+    `IMcpPromptClient`, `IMcpResourceClient`, `IMcpResourceContextProviderFactory`,
+    `IMcpToolRefresher`, `IStatePreflightReader`, `ITraconDrainState`, `IWebhookPublisher`,
+    `IWorkflowFunctionCatalog`, `McpOAuthCompleteResult`, `McpOAuthOperationStatus`,
+    `McpOAuthStartResult`, `McpOperationStatus`, `McpPromptArgumentSummary`, `McpPromptContent`,
+    `McpPromptListResult`, `McpPromptSummary`, `McpRefreshOutcome`, `McpResourceContent`,
+    `McpResourceListResult`, `McpResourceSummary`, `StateGenerationTally`,
+    `StatePreflightTarget`, `StateSample`, `WebhookApprovalSummary`, `WebhookEvalSummary`,
+    `WebhookEventPayload`, `WebhookJobSummary`, `WebhookQuotaSummary`, `WebhookRunSummary`,
+    `WebhookScoreSummary`, `WorkflowFunctionDescriptor`.
+  - `Tracon.AspNetCore` (1): `ITraconUiProvider`.
+- **Four members that never worked or never did anything are gone.**
+  `OpenAILiveOptions.BackendModel` and `LiveVoiceSessionOptions.BackendModel` were read by
+  nothing. `QuotaUsageQuery.AsOf` was `[Obsolete]` since `1.0.0-preview.3` and no store applied
+  it; use `PeriodStarts`. `LiveVoiceDelegationMode.Responses` made every session that chose it fail
+  at the provider with a `502`; the enum keeps `Client`, the only mode. A `BackendModel` key left
+  in configuration is ignored and the host starts.
 - **81 HTTP request and response types are `internal`.** They were public only so that the
   OpenAPI document could carry their descriptions. A .NET client does not use them:
   `Tracon.Client` generates its own types, and the HTTP contract does not change. Paths, methods,

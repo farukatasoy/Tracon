@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -54,6 +55,54 @@ public sealed class DiConstructedServiceResolutionTests
         services.GetRequiredService<SkillScriptSupport>().ShouldNotBeNull();
         services.GetRequiredService<ModelProviderCircuitBreaker>().ShouldNotBeNull();
         services.GetRequiredService<TraconMetrics>().ShouldNotBeNull();
+        services.GetRequiredService<ITenantContext>().ShouldBeOfType<SingleTenantContext>();
+        services.GetRequiredService<IRunAttributionContext>().ShouldBeOfType<DefaultRunAttributionContext>();
+        services.GetRequiredService<CompiledAgentCache>().ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task CompiledAgentCache_is_a_single_instance()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        // Two caches would compile every agent twice and split the dependency-fingerprint
+        // replacement across two dictionaries.
+        host.Services.GetRequiredService<CompiledAgentCache>()
+            .ShouldBeSameAs(host.Services.GetRequiredService<CompiledAgentCache>());
+    }
+
+    [Fact]
+    public async Task The_single_tenant_context_reads_the_configured_default_tenant()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services => services.Configure<TraconOptions>(static options => options.DefaultTenantId = "acme"));
+
+        // A factory that built the context from a fresh TraconOptions would answer "default".
+        host.Services.GetRequiredService<ITenantContext>().TenantId.ShouldBe("acme");
+    }
+
+    [Fact]
+    public async Task A_tenant_context_the_consumer_registers_before_AddTracon_is_the_one_that_resolves()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services => services.AddSingleton<ITenantContext, ConsumerTenantContext>());
+
+        host.Services.GetRequiredService<ITenantContext>().ShouldBeOfType<ConsumerTenantContext>();
+    }
+
+    [Fact]
+    public async Task UseTenancy_binds_the_HTTP_tenant_context_with_the_configured_options()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder => builder.UseTenancy(static options => options.Enabled = true),
+            configureServices: static services => services.Configure<TraconOptions>(static options => options.DefaultTenantId = "acme"));
+
+        var tenantContext = host.Services.GetRequiredService<ITenantContext>();
+
+        // Outside a request the HTTP context has no header or claim to read, so the answer
+        // is the default tenant from the options the factory passed.
+        tenantContext.ShouldBeOfType<HttpTenantContext>();
+        tenantContext.TenantId.ShouldBe("acme");
     }
 
     [Fact]
@@ -135,6 +184,11 @@ public sealed class DiConstructedServiceResolutionTests
             TestContext.Current.CancellationToken);
 
         runs.ShouldHaveSingleItem().Status.ShouldBe(RunStatus.Completed);
+    }
+
+    private sealed class ConsumerTenantContext : ITenantContext
+    {
+        public string TenantId => "consumer";
     }
 
     private static RunSampleRequest Request() => new()
