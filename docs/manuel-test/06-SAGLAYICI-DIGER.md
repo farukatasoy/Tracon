@@ -1,6 +1,6 @@
 # 06 — Sağlayıcı: Anthropic, Google, Azure OpenAI (`PROV`)
 
-> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203
+> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214
 > **Kaynak:** `src/Tracon.Anthropic` (tümü), `src/Tracon.Google` (tümü),
 > `src/Tracon.Azure` (tümü) — üç paket de `Tracon.OpenAI` ile **aynı**
 > iskeleti tekrarlar (`XxxProviderOptions*`, `XxxProviderExtensions`,
@@ -1837,3 +1837,33 @@ Regresyon. SDK adaptörü `model_context_window_exceeded` ve `pause_turn`'ü dü
 **Beklenen sonuç**
 - Run `Completed` ise cevap bitmiştir; `pause_turn` olduysa sağlayıcı çağrı sayısı birden fazladır ve kullanım ikisini de sayar.
 - Bağlamı dolduran bir konuşmada yapılandırılmış yanıt `output_truncated` ile düşer ve mesaj "context window" der; düz metin `tracon.output.truncated` olayını `cause: context_window` ile yazar.
+
+---
+
+### MT-PROV-090 — Anthropic: `ReasoningEffort` genişletilmiş düşünme bütçesi olarak gider, önbellekli talimat `system` dizisinde kalır (Faz 214)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 214 |
+| **İlgili karar** | K-1017 |
+| **Devir** | ➜ CI: `AnthropicRequestSettingsTests` · `AnthropicRequestSettingsEndpointTests` (yerel Messages API, gerçek SDK) |
+
+SDK `12.58` iki şeyi değiştirdi: `ReasoningEffort` için varsayılan `adaptive` oldu ve yalnız ilk mesajlardan önceki
+system mesajları üst düzey `system` dizisine girer. Yükseltme istek gövdesini değiştirmemelidir.
+
+**Ön koşul**
+- Gerçek Anthropic anahtarı; `anthropic.promptCaching = true`, `anthropic.promptCaching.placement = system` ve
+  önbelleğe girecek kadar uzun bir talimat taşıyan agent. İstek gövdesini görmek için yerel yakalama (proxy) ya da
+  fonksiyonel testin sahte Anthropic ucu.
+
+**Adımlar**
+1. Agent'a `ReasoningEffort = Medium` ver (başka `anthropic.thinking.*` ayarı yok); bir `run` başlat.
+2. Aynı agent ile aynı konuşmada ikinci tur çalıştır.
+3. `GET /api/runs/{runId}` ile ikinci turun kullanımını oku.
+
+**Beklenen sonuç**
+- (1) İstek gövdesinde `thinking: {"type":"enabled","budget_tokens":8192}`; `output_config` yoktur.
+- (1) Talimat `system` dizisinin son elemanıdır ve `cache_control` taşır; `messages` içinde `role: system` girdisi yoktur.
+- (3) İkinci turda önbellekten okunan girdi token'ı `0`'dan büyüktür.

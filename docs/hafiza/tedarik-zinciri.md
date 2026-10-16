@@ -69,3 +69,21 @@
   tamamını taşır: 54 üçüncü taraf ikili (Npgsql, SQLitePCLRaw, Google.Protobuf,
   Microsoft.Data.SqlClient …), bildirim dosyası yok (A-72). Kapanınca
   `THIRD_PARTY_NOTICE_PACKAGES`'e eklenir.
+
+## Çalışma anı yükseltmesi ve CVE sabitleri (Faz 214, 2026-10-16)
+
+- **🚨 Eski bir CVE sabiti, yükseltmenin kendisini kırar.** Data.Sqlite 10.0.13 `SQLitePCLRaw >= 2.1.13`,
+  AspNetCore.OpenApi 10.0.13 `Microsoft.OpenApi [2.12.2, 3.0.0)` ister; 2.1.12 ve 2.11.0 sabitleri `NU1605`
+  verir. Sabitin açığı artık yok, bu yüzden sabit **kalkar**, yükseltilmez (K-197). Üstünde işlem yapmadan önce
+  sabitin ihtiyacını `dotnet list package --vulnerable --include-transitive` ve boş bir projede `NuGetAudit` ile ölç.
+- **Sabiti silmek tüketen `csproj`'u da kırar.** Merkezî yönetimde `PackageReference` sürümsüzdür; `Microsoft.OpenApi`
+  (FunctionalTests, `samples/Tracon.Api`), `SQLitePCLRaw.bundle_e_sqlite3` (`Tracon.Sqlite`) ve `Microsoft.Bcl.Memory`
+  (`Tracon.Core`) referansları sabitle birlikte gitti; `Microsoft.Data.Sqlite` ve `AspNetCore.OpenApi` aynı paketleri
+  zaten çeker.
+- **`Microsoft.Bcl.Memory` CVE'si grafikten çıktı, sabitlenmedi:** `Microsoft.ML.Tokenizers.Data.O200kBase` 2.0.1 kendi
+  `net8.0` grubunu taşır (2.0.0 yalnız `netstandard2.0` taşıyordu ve oradan `Bcl.Memory 9.0.4` geliyordu). Grafik
+  tabanı (`transitive-dependencies.txt`) üç ad kaybetti: `Microsoft.Bcl.{AsyncInterfaces,HashCode,Memory}`.
+- **`System.Security.Cryptography.Pkcs` ×3 sabiti KALIR** (yeniden ölçüldü, SqlClient 7.1.1): net8.0 8.0.1,
+  net9.0/net10.0 9.0.18, `NU1902` + `NU1903`.
+- **Bot tek grup açar:** `agent-stack` (MAF + `Microsoft.Extensions.*` + OpenAI + A2A + AspNetCore/Bcl/Data). Zincir
+  koparsa her PR `restore`'da kırmızı kalır (A-62).

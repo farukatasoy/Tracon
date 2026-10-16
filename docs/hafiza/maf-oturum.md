@@ -11,8 +11,8 @@
 
 ## Oturum ve durum
 
-- **`AgentSessionStore` soyut sınıf** (2026-08-01): `SaveSessionAsync` / `GetSessionAsync` / `DeleteSessionAsync`.
-- **Çok kiracılılık için MAF'ta hazır yapı var** (2026-08-01): `IsolationKeyScopedAgentSessionStore` + `SessionIsolationKeyProvider`. Sıfırdan yazmaya gerek yok.
+- **`AgentSessionStore` soyut sınıf** (2026-10-16, MAF 1.25.0 ölçüldü; 1.20'de farklıydı): `SaveSessionAsync(agent, AgentSessionStoreKey, session)` / `GetSessionAsync(...) → AgentSession?` (**asla oluşturmaz**, her çağrı bağımsız örnek döner) / sanal `GetOrCreateSessionAsync`. `DeleteSessionAsync` yok. Tip artık GA `Abstractions` paketinde ama `[Experimental("MAAI001")]`. Tracon'un köprüsü `internal` (K-1016).
+- **Çok kiracılılık MAF'ta anahtarın `isolation` bölümüdür** (2026-10-16): `IsolationKeyScopedAgentSessionStore` kimliği öneklemez, `AgentSessionStoreKey.WithPartition("isolation", anahtar)` ekler. 🚨 Yalnız `key.SessionId`'yi okuyan bir depo sarmalandığında kiracıları sessizce BİRLEŞTİRİR; derleme ve çoğu test bunu görmez. Tracon köprüsü bölümü eski önek biçimine (`kaçışlı-anahtar::kimlik`) katlar ve tanımadığı bölümü reddeder (`SessionStoreIsolationTests`).
 - **`AgentSessionStateBag`, `SerializeSessionAsync` çıktısına dahildir** (2026-08-02): oturuma yazılan her şey (kimlik damgası, konuşma kimliği) oturumla birlikte kalıcılaşır. Doğrulandı: `/sessions` çıktısında `stateBag` altında görünüyor.
 - **`StateBag.SetValue`/`TryGetValue` AOT tanısı üretmiyor** (2026-08-02): kaynak üreteciyle kurulmuş `JsonSerializerOptions` geçildiğinde `IL2026` çıkmıyor. `TraconCoreJsonContext` bunun için var.
 

@@ -19,12 +19,28 @@
 Aşağıdaki imzalar **reflection ile doğrulanmıştır**. Bir sonraki fazda yeni bir MAF
 tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kesfi/SKILL.md`.
 
-> **Sürüm damgası — 2026-09-05.** Bölüm başlıklarındaki damgalar imzanın **ilk**
+> **Sürüm damgası — 2026-10-16.** Bölüm başlıklarındaki damgalar imzanın **ilk**
 > ölçüldüğü sürümü söyler (MAF 1.16.0 · MEAI 10.8.3 · MCP 2.0.0). Pinlenmiş sürüm
-> bugün **MAF 1.20.0 · MEAI 10.9.0 · MCP 2.2.0**'dir. Her yükseltmede iki tam yüzey
-> dump'ı alınıp tip kapsamlı diff'lendi: **hiçbir tip ve hiçbir üye kaldırılmadı** —
-> değişimin tamamı eklemedir, yani aşağıdaki her imza bugün de geçerlidir. Yöntem:
+> bugün **MAF 1.25.0 · MEAI 10.11.0 · MCP 2.2.0**'dir. Her yükseltmede iki tam yüzey
+> dump'ı alınıp tip kapsamlı diff'lendi: çekirdek yüzeyde **hiçbir tip ve hiçbir üye
+> kaldırılmadı** — değişimin tamamı eklemedir, yani aşağıdaki imzalar bugün de geçerlidir;
+> **tek istisna** `Hosting` ailesinin `AgentSessionStore`'udur ve Faz 4 bölümünde yeni
+> imzasıyla yazılıdır. Yöntem:
 > [`maf-api-kesfi`](../.agents/skills/maf-api-kesfi/SKILL.md) § *Sürüm yükseltirken*.
+>
+> **1.20.0 → 1.25.0 turu (2026-10-16, Faz 214):** pin **MAF 1.25.0 · MEAI 10.11.0 · MCP 2.2.0**.
+> Çekirdek yüzeyde (`Microsoft.Agents.AI*`, MEAI, MCP) **0 tip ve 0 üye kaldırıldı**; 4 tip eklendi.
+> Kaldırma/yeniden adlandırma yalnız `Hosting` ailesindedir (ön sürüm): `AgentSessionStore` GA
+> `Abstractions` paketine taşındı ve imzası değişti (`DeleteSessionAsync` gitti, anahtar
+> `AgentSessionStoreKey` oldu); `AgentRunMode.DisallowBackground` → `ReturnMessage`. İkisi de
+> [`214`](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) ile karşılandı. `Hosting` hâlâ
+> **preview**, `Hosting.OpenAI` hâlâ **alpha** — K-008'in sınırı yerinde durur.
+>
+> | Sürüm | Eklenen | Tracon'e etkisi |
+> |---|---|---|
+> | MAF 1.25.0 | `AgentSessionStore` · `AgentSessionStoreKey` (GA `Abstractions`, MAAI001) · `DelegatingAgentSessionStore` · `Hosting.{InMemory,Noop}AgentSessionStore` · `Hosting.AgentIsolationKeyProvider` | `AgentSessionStore` **kullanılıyor** (internal köprü, K-1016); gerisi kullanılmıyor — `IsolationKeyScopedAgentSessionStore` bir tüketicinin sarmalayıcısıdır, Tracon sarmalamaz |
+> | MAF 1.25.0 | `Hosting.A2A.AgentRunMode.{ReturnMessage,ReturnTask,ReturnTaskWhen}` (MEAI001) | `ReturnMessage` **kullanılıyor** (K-103: görev yanıtı askıya alınan çalışma gibidir). Varsayılan da mesajdır; satır yine de açık yazılır ve `A2ARunModeTests` sonucu sabitler |
+> | MAF 1.25.0 | `FunctionInvocationContextExtensions` · `AIAgentExtensions.AsIChatClient(agent, session, conversationId, allowNonChatClientAgents)` · `AgentModeProvider.SetModeAsync(…, disableNotification)` · `AgentModeProviderOptions.Disable{ModeGet,ModeSet}Tool` · `AgentFileStore.{FindMatchingFilesAsync,ScanContent,SplitLines}` · `FileLineEdit.ExpectedLine` | Kullanılmıyor |
 >
 > 1.18.0 → 1.20.0 turu (2026-09-05): **0 kaldırma**, 5 yeni tip, 4 tipte yeni üye.
 > MEAI 10.9.0 ve MCP 2.2.0 zaten en güncel sürümdür ve değişmedi. `Hosting` hâlâ
@@ -187,14 +203,26 @@ Reflection ile doğrulandı: `Microsoft.Agents.AI.Hosting` 1.16.0-preview.260730
 `Microsoft.Agents.AI.Hosting.OpenAI` 1.16.0-alpha.260730.1.
 
 ```csharp
-// Microsoft.Agents.AI.Hosting — ON SURUM, K-008 geregi yalniz Tracon.AspNetCore
+// 🚨 MAF 1.22'den beri GA Microsoft.Agents.AI.Abstractions paketinde, [Experimental("MAAI001")]
+// (1.16–1.20'de ön sürüm Hosting paketindeydi, kimlik tek dizeydi ve DeleteSessionAsync vardı).
+// Ölçüldü: 1.25.0 (2026-10-16, decompile).
 public abstract class AgentSessionStore
 {
-    public abstract ValueTask SaveSessionAsync(AIAgent agent, string sessionStoreId, AgentSession session, CancellationToken ct = default);
-    public abstract ValueTask<AgentSession> GetSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
-    public abstract ValueTask DeleteSessionAsync(AIAgent agent, string sessionStoreId, CancellationToken ct = default);
+    public abstract ValueTask SaveSessionAsync(AIAgent agent, AgentSessionStoreKey key, AgentSession session, CancellationToken ct = default);
+    public abstract ValueTask<AgentSession?> GetSessionAsync(AIAgent agent, AgentSessionStoreKey key, CancellationToken ct = default); // ASLA oluşturmaz
+    public virtual  ValueTask<AgentSession> GetOrCreateSessionAsync(AIAgent agent, AgentSessionStoreKey key, CancellationToken ct = default);
+    public virtual  object? GetService(Type serviceType, object? serviceKey = null);
 }
-// TraconAgentSessionStore bunu AgentSessionManager'a delege eder (K-026).
+public sealed class AgentSessionStoreKey   // [Experimental("MAAI001")]
+{
+    AgentSessionStoreKey(string sessionId, IReadOnlyDictionary<string,string>? partitions = null);
+    string SessionId; IReadOnlyDictionary<string,string>? Partitions;   // her bölüm kimliğin parçasıdır, sıra önemsiz, ordinal
+    AgentSessionStoreKey WithPartition(string name, string value);
+}
+// Microsoft.Agents.AI.Hosting (ön sürüm): IsolationKeyScopedAgentSessionStore anahtara "isolation" bölümü ekler,
+// InMemoryAgentSessionStore · NoopAgentSessionStore · AgentIsolationKeyProvider. Silme üyesi YOKTUR.
+// TraconAgentSessionStore (internal, Tracon.AspNetCore) bunu AgentSessionManager'a delege eder (K-026, K-1016):
+// "isolation" bölümü eski önek biçimine (kaçışlı-anahtar::kimlik) katlanır, başka bölüm reddedilir.
 
 // Microsoft.Agents.AI.Hosting.OpenAI — PUBLIC yardimci. /v1/responses bunun uzerine kurulu.
 public static class OpenAIResponses

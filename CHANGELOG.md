@@ -24,6 +24,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`Tracon:Voice:Live:DelegationMode` refuses a name that is not a delegation mode.** The host
   stops at startup with a message that names the setting. A misspelled name used to fall back to
   `Client` without a word.
+- **Runtime dependencies move to the newest lines.** Microsoft Agent Framework `1.25.0` (the
+  hosting packages `1.25.0-preview.261014.1`, `Microsoft.Agents.AI.Hosting.OpenAI`
+  `1.25.0-alpha.261014.1`, `A2A.AspNetCore` `1.0.0-preview3`, all still exact pins),
+  Microsoft.Extensions.AI `10.11.0`, OpenAI `2.14.0`, the .NET platform packages `10.0.13`,
+  Anthropic `12.58.0`, Google.GenAI `1.26.1`, Azure.Core `1.63.0` and Microsoft.Data.SqlClient
+  `7.1.1`. A project that pins Agent Framework hosting packages next to Tracon now gets `NU1608`
+  or `NU1107` at restore, as before; move it to these versions. Behavior does not change: the
+  Anthropic provider still sends `ReasoningEffort` as an extended-thinking budget, although the
+  SDK's own default is now adaptive thinking. `Microsoft.Bcl.AsyncInterfaces`,
+  `Microsoft.Bcl.HashCode` and `Microsoft.Bcl.Memory` leave the dependency graph of `Tracon.Core`
+  (and so of `Tracon` and `Tracon.Google`): the token-counting data package now ships a `net8.0`
+  build.
 
 ### Removed
 
@@ -44,6 +56,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `WebhookEventPayload`, `WebhookJobSummary`, `WebhookQuotaSummary`, `WebhookRunSummary`,
     `WebhookScoreSummary`, `WorkflowFunctionDescriptor`.
   - `Tracon.AspNetCore` (1): `ITraconUiProvider`.
+- **`TraconAgentSessionStore` is `internal`.** Its base type, `AgentSessionStore`, has been
+  `[Experimental]` since Agent Framework `1.22`, and a public type cannot freeze a base its owner
+  may still change. `/v1/responses` keeps using it unless the host registers its own
+  `AgentSessionStore`; that registration always wins. No guide or sample built the class. A host
+  that did, to wrap it in `IsolationKeyScopedAgentSessionStore`, supplies its own store instead.
+  The store keeps session identities as before: the `isolation` partition of a key is folded into
+  the identity as `<escaped key>::<session id>`, and a partition it does not know is refused.
 - **Four members that never worked or never did anything are gone.**
   `OpenAILiveOptions.BackendModel` and `LiveVoiceSessionOptions.BackendModel` were read by
   nothing. `QuotaUsageQuery.AsOf` was `[Obsolete]` since `1.0.0-preview.3` and no store applied
@@ -94,6 +113,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sends the same request.
 
 ### Fixed
+
+- Anthropic prompt caching with `anthropic.promptCaching.placement = system` keeps the cached
+  instructions in the top-level `system` array under Anthropic SDK `12.58`. The SDK adapter now
+  moves only the system messages in front of the first user or assistant message there; the
+  provider appended the instructions block after the conversation, so it went out as a
+  `role: system` entry inside `messages` and the cache breakpoint sat in the conversation. The
+  block is now placed in front of the first non-system message.
 
 - Five property descriptions in the OpenAPI document no longer carry an unresolved XML
   reference. `WorkflowSaveRequest.nodes` read `IReadOnlyList&lt;string&gt;? WorkflowSaveRequest.AgentNames`

@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -4513,3 +4513,31 @@ restore olup çalışma anında `TypeLoadException` veriyordu.
 - (3) `CS7036` (zorunlu `tenantId` parametresi verilmemiş).
 - (4) `CS0117` ("does not contain a definition for") dört satırda.
 - (5) Hata YOKTUR.
+
+---
+
+### MT-PKG-166 — Paketlenmiş tüketici yeni çalışma anı grafiğinde restore ve build olur; açık yok (Faz 214)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 214 |
+| **İlgili karar** | K-1016 · K-197 · K-448 |
+| **Devir** | ➜ CI: `kapi.py yayin --kuru` (altı dış sample + AOT smoke + net8 tüketici) |
+
+**Ön koşul**
+- `python3 scripts/kapi.py yayin --kuru --surum <sürüm>` yeşil; `artifacts/package/yayin/<sürüm>/` beslemesi. Temiz
+  `NUGET_PACKAGES` ve yerel besleme + nuget.org içeren `NuGet.config`.
+
+**Adımlar**
+1. `dotnet new tracon-api -o Deneme && cd Deneme`
+2. `dotnet restore` ve `dotnet build -c Release`
+3. `dotnet list package --include-transitive | grep -E "Microsoft.Agents.AI |Microsoft.Extensions.AI |Microsoft.Bcl"`
+4. `dotnet list package --vulnerable --include-transitive`
+
+**Beklenen sonuç**
+- (2) `NU1605`, `NU1608`, `NU1107` ve `NU1903` yoktur; derleme uyarısızdır.
+- (3) `Microsoft.Agents.AI` `1.25.0`, `Microsoft.Extensions.AI` `10.11.0`; `Microsoft.Bcl.Memory`, `.HashCode` ve
+  `.AsyncInterfaces` listede yoktur (belirtilen kümeden yalnız MAF ve MEAI satırları gelir).
+- (4) "has no vulnerable packages".

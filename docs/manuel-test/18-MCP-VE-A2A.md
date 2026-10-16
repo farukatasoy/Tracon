@@ -1,6 +1,6 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
-> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle)
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle), 214 (A2A yanıtı mesajdır)
 > **Kaynak:** `src/Tracon.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
 > tool/prompt/resource köprüsü, OAuth) · `src/Tracon.AspNetCore/McpServer/`
 > (tümü — Tracon'i MCP sunucusu olarak dışa açma) ·
@@ -2174,3 +2174,29 @@ minimal API'nin `internal` bir arayüzü çalışma anında hâlâ bağladığı
 **Beklenen sonuç**
 - (1) `HTTP 200` ve `{"toolCount":0}` (kayıtlı sunucu yok).
 - (2) `HTTP 501`; uç sessizce başarılı görünmez.
+
+---
+
+### MT-MCP-085 — A2A `SendMessage` yanıtı bir mesajdır, görev değildir (Faz 214)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 214 |
+| **İlgili karar** | K-103 |
+| **Devir** | ➜ CI: `A2ARunModeTests.SendMessage_answers_with_a_message_and_not_a_task` |
+
+MAF `1.22` `AgentRunMode.DisallowBackground`'u `ReturnMessage` yaptı ve `1.25` eski `AllowBackgroundResponses` anahtarını
+artık yazmıyor. Görev yanıtı, çalışma arka planda sürerken sorgulanan bir tutamaçtır; Tracon çalışmayı onay için ortada
+askıya alamaz (K-103).
+
+**Ön koşul**
+- `samples/Tracon.Api` ayakta; `UseA2A(o => o.ExposedAgents.Add("<agent>"))` ve `MapTraconA2A()` etkin.
+
+**Adımlar**
+1. `POST /tracon/a2a/<agent>` JSON-RPC `SendMessage` (bir kullanıcı mesajı, `messageId` dolu).
+2. Yanıtın `result` nesnesine bak.
+
+**Beklenen sonuç**
+- `result` bir `message` alanı taşır (`role` dolu); `task` alanı yoktur.

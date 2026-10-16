@@ -1,6 +1,6 @@
 # 08 — OpenAI Uyumlu Uçlar (`COMPAT`)
 
-> **Alan kodu:** `COMPAT` · **Faz:** 50, 207
+> **Alan kodu:** `COMPAT` · **Faz:** 50, 207, 214
 > **Kaynak:** `src/Tracon.AspNetCore/OpenAICompat/` — `OpenAIChatCompletionsEndpoints.cs`
 > (`/v1/chat/completions`), `OpenAIResponsesEndpoints.cs` (`/v1/responses`),
 > `OpenAIConversationsEndpoints.cs` (`/v1/conversations*`), `OpenAICompatSupport.cs`
@@ -2051,3 +2051,59 @@ grep -o '"finish_reason":"[a-z_]*"' akis.txt; tail -2 akis.txt
 - İki akış da yalnız son iterasyonun metnini taşır; ilk taslak ve Loop'un geri bildirimi akışta yoktur.
 - Cevap döngü bitince tek parça gelir.
 - 🚨 Eski kusur: akış taslağı ve geri bildirimi cevabın parçası olarak taşıyordu.
+
+---
+
+### MT-COMPAT-055 — `previous_response_id` ile oturum MAF 1.25 oturum deposu anahtarıyla sürer (Faz 214)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 214 |
+| **İlgili karar** | K-1016 |
+| **Devir** | ➜ CI: `OpenAICompatTests.Responses_chains_history_via_previous_response_id` · `SessionStoreIsolationTests` |
+
+MAF `1.22`'den beri oturum deposu anahtarı bir `AgentSessionStoreKey`'dir (kimlik + bölümler). Köprü (`TraconAgentSessionStore`)
+anahtarı Tracon'un tek dize kimliğine çevirir; zincirleme bu çeviriden geçer.
+
+**Ön koşul**
+- `samples/Tracon.Api` Production'da, bellek içi depoyla ayakta (`docs/hafiza/elle-kosum-ortami.md` tarifi); bir agent kayıtlı.
+
+**Adımlar**
+1. `POST /tracon/v1/responses` `{"model":"<agent>","input":"first turn"}`; yanıttaki `id`'yi al.
+2. Aynı uca `{"model":"<agent>","input":"second turn","previous_response_id":"<id>"}` gönder.
+3. `GET /tracon/api/sessions`
+
+**Beklenen sonuç**
+- (2) `200`; ikinci yanıt birinci turun geçmişini görür.
+- (3) Liste `<id>` kimlikli oturumu içerir; ikinci turun oturumu da ayrı bir kayıt olarak durur. Kimlik önekli (`...::`) kayıt yoktur.
+
+---
+
+### MT-COMPAT-056 — Tüketicinin `IsolationKeyScopedAgentSessionStore`'u aynı `conversation` kimliğini iki yalıtım anahtarı için ayırır (Faz 214)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 214 |
+| **İlgili karar** | K-1016 |
+| **Devir** | ➜ CI: `SessionStoreIsolationTests.Two_isolation_keys_with_the_same_conversation_id_keep_separate_sessions` |
+
+🚨 Kiracı sınırı. MAF `1.22`'den beri yalıtımı anahtarın `isolation` bölümüne yazar; köprü yalnız `SessionId`'yi okusaydı iki
+anahtar aynı oturumu paylaşırdı.
+
+**Ön koşul**
+- Host, `MapTracon`'dan önce kendi `AgentSessionStore`'unu kaydeder (örn. `IsolationKeyScopedAgentSessionStore` + bir
+  `AgentIsolationKeyProvider`); köprü `internal` olduğu için bu kayıt fonksiyonel testte yapılır.
+
+**Adımlar**
+1. Anahtar `tenant-a` iken `POST /tracon/v1/responses` `{"model":"<agent>","input":"a1","conversation":"shared"}`.
+2. Anahtar `tenant-b` iken aynı çağrı (`"input":"b1"`).
+3. Anahtar `tenant-a` iken üçüncü çağrı (`"input":"a2"`).
+4. `GET /tracon/api/sessions`
+
+**Beklenen sonuç**
+- (4) `tenant-a::shared` ve `tenant-b::shared` kimlikli iki oturum vardır; çıplak `shared` yoktur; üçüncü çağrı üçüncü bir
+  oturum açmaz.

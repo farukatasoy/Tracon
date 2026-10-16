@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (953 kalem)
+## Arşivlenen Kararlar (955 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -962,3 +962,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-961 | 1002 | Job süresi: `MaxDuration` alanı + `jobs.max_duration_ms` sütunu + `MaxDurationByHandlerKey` haritası; aşan deneme `tracon.job.max-duration-exceeded` ile başarısızdır ve yeniden kiralanır (F-323) (kullanıcı kararı) 👤 |
 | K-962 | 1003 | Job iptali handler token'ına bir `PollInterval` içinde ulaşır: üç kaynaklı token, sonuç kaynaktan okunur, işçi çalışan job'u yoklar (F-323) (kullanıcı kararı) 👤 |
 | K-963 | 1004 | Workflow işinde süre aşımı işin sonudur: run `job_max_duration_exceeded` ile kapanır ve kurtarma onu sürdürmez; 13-A, 7-A'dan önce gelir (F-323) (kullanıcı kararı) 👤 |
+| K-964 | 1005 | Onaylanan skill script'i public `ISkillScriptExecutor` seam'ine gider (singleton · beklenen kiracı · teslim garantisi yok); kapılar, içerik pini, `script.run` denetimi, kota, `Timeout + 5 sn` bekleme sınırı ve çıktı sınırı runner'da kalır, yürütücü yalnız yeri seçer; yerel süreç `UseSkillScripts`'in işaretli varsayılanıdır (`TryAddTraconDefault`, `RequireCustomBinding` reddeder); `SkillScriptExecutionResult` `Duration`'sız `Abstractions`'a taşındı, süreyi runner ölçer, tutarsız/`null` sonuç çağrıyı düşürür (Faz 202, F-345) |
+| K-965 | 1006 | Harici yürütücüde de `PlatformIsolationAcknowledged` zorunludur ve K-861 (çok kiracılı host'ta stored grant için platform yetkisi) değişmez; yürütücü yalıtım beyan etse de gevşemez (Faz 202, Açık Soru 1-A ve 2-A) (kullanıcı kararı) 👤 |
