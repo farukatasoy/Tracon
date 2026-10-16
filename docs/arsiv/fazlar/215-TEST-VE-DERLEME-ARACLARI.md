@@ -145,4 +145,4 @@ Denetçinin kendi eylem açıklaması: iki geçici dosyayı depo dışında (scr
 
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım kalan işler, sıradaki faz.
 
-**Kapanış kapısı:** *(kapanış koşumundan sonra yazılır)*
+**Kapanış kapısı:** `python3 scripts/kapi.py kapanis --taban a0ec0223` — 11 adımın hepsi yeşil (2026-10-16): `tarama` · `dokuman-bakim --denetle` · `unittest` (scripts) · `llms-full --check` · `denetim-paketi` · `dotnet build` (0 uyarı, 97,6 sn) · `dotnet test` **23.409 test, 38 modül, 0 kırmızı** (699 sn; ilk koşum `ShippedDocumentationSelfContainmentTests` ×3 TFM ile kırmızıydı, düzeltme sonrası temiz) · `dotnet pack` · `dotnet format --verify-no-changes` · `performans` (üç benchmark tabanda: 0 B · 112 B · 48.184 B) · `docs-site npm run check`. MinVer 8: paket sürümü `1.0.0-preview.4.52` = `git rev-list --count v1.0.0-preview.4..HEAD` (52); sürüm kaymadı. `kapi.py yayin --kuru --surum 1.0.0-preview.5.215` EXIT 0 (20 paket, kırıcı liste `0 TFM düşüşü`, `npm publish --dry-run`, altı örnek, Native AOT ve net8 smoke).
