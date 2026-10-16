@@ -104,7 +104,7 @@ jobs:
             8.0.x
             9.0.x
 
-      # Arayuz derlemesi icin. Vite 7, Node ^20.19 veya >=22.12 ister.
+      # Arayuz derlemesi icin. jsdom 30 Node ^22.22.2 (veya ^24.15, >=26) ister.
       # npm onbellegi package-lock.json uzerinden anahtarlanir.
       - name: Node.js kur
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -776,7 +776,7 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Astro 7 >= 22.12 ister; arayuzun Vite 7'si ^20.19 ile de calisiyordu.
+      # Astro 7.4 >= 22.22 ister; arayuzun jsdom 30'u ^22.22.2 ister.
       # Iki hat ayni surumu kullanir.
       - name: Node.js kur
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4

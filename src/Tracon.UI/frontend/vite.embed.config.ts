@@ -25,6 +25,10 @@ export default defineConfig({
     sourcemap: false,
     reportCompressedSize: false,
     cssCodeSplit: false,
+    // Rolldown (Vite 8) defaults to 'auto' and dropped the IIFE's "use strict"
+    // that Rollup emitted; keep the widget strict on third-party pages
+    // (src/embed/embed-build.test.ts holds this).
+    rolldownOptions: { output: { strict: true } },
     lib: {
       entry: 'src/embed/main.ts',
       formats: ['iife'],

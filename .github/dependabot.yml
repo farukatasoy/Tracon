@@ -7,9 +7,10 @@
 # Surumler yalnizca Directory.Packages.props icinde yasar (Central Package
 # Management); Dependabot NuGet guncellemelerini oraya yazar.
 #
-# Asagidaki `ignore` kalemleri KEYFI DEGILDIR — her biri Directory.Packages.props
-# icinde gerekcesi yazili bir sabittir. Bir kalemi buradan cikarmadan once oradaki
-# yorumu ve ilgili karari (docs/KARARLAR.md) oku.
+# Asagidaki `ignore` kalemleri KEYFI DEGILDIR. NuGet kalemlerinin gerekcesi
+# Directory.Packages.props icinde, npm kalemlerinin gerekcesi kalemin hemen ustundeki
+# yorumda yazilidir. Bir kalemi buradan cikarmadan once ilgili yorumu ve karari
+# (docs/KARARLAR.md) oku.
 version: 2
 
 updates:
@@ -114,6 +115,13 @@ updates:
       docs-site:
         patterns:
           - "*"
+    ignore:
+      # `astro-mermaid` 2.1.0 (en yenisi) mermaid'i `^10 || ^11` ile sinirlar
+      # (Faz 216). mermaid 12 ile `npm ci` ERESOLVE ile duser (CI kirilir);
+      # `overrides` kurulumu gecirir ama 1,46 MB elkjs parcasi ekler ve hicbir
+      # diyagram ELK kullanmaz. `astro-mermaid` 12'yi destekleyince bu satir kalkar.
+      - dependency-name: "mermaid"
+        update-types: ["version-update:semver-major"]
 
   # ---------------------------------------------------------------------------
   # 4. npm — @tracon/client (packages/tracon-client/)
@@ -141,6 +149,14 @@ updates:
       tracon-client:
         patterns:
           - "*"
+    ignore:
+      # TypeScript 7'nin `typescript` paketi derleyici API'si tasimaz; istemcinin
+      # `npm run generate` adimi ve `schema-drift.test.ts` onu cagiran
+      # `openapi-typescript` 7.x'e (eş bagimlilik `typescript ^5`) baglidir
+      # (Faz 216). `openapi-typescript` TypeScript 7'yi destekleyince bu
+      # satir kalkar. Arayuz (frontend/) TypeScript 7'dedir.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # ---------------------------------------------------------------------------
   # 5. GitHub Actions — ci.yml'deki action surumleri

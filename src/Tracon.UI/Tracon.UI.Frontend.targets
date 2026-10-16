@@ -279,7 +279,7 @@
 
     <Warning Condition=" '@(TraconFrontendAsset)' == '' AND '$(TraconNodeAvailable)' != 'true' "
              Code="TRACON0002"
-             Text="Tracon.UI: Node.js was not found and there are no previously built UI assets. The package will be built without a UI; MapTracon will not bind the UI routes. Install Node.js 20.19+ or skip this project with -p:TraconFrontendEnabled=false." />
+             Text="Tracon.UI: Node.js was not found and there are no previously built UI assets. The package will be built without a UI; MapTracon will not bind the UI routes. Install Node.js 22.22.2+, 24.15+ or 26+ or skip this project with -p:TraconFrontendEnabled=false." />
   </Target>
 
   <!--
@@ -292,7 +292,7 @@
           Condition=" '$(TraconFrontendEnabled)' == 'true' ">
     <Error Condition="!Exists('$(TraconShellFile)')"
            Code="TRACON0003"
-           Text="Tracon.UI: UI assets were not produced ($(TraconShellFile) does not exist). A package with an empty UI cannot be published. Install Node.js 20.19+ and rebuild." />
+           Text="Tracon.UI: UI assets were not produced ($(TraconShellFile) does not exist). A package with an empty UI cannot be published. Install Node.js 22.22.2+, 24.15+ or 26+ and rebuild." />
   </Target>
 
 </Project>
