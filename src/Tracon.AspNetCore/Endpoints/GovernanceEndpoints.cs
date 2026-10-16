@@ -377,7 +377,7 @@ internal static class GovernanceEndpoints
                 "returns 404.");
 
         builder.MapPost("/api/mcp-servers/refresh", async Task<Results<Ok<McpRefreshResponse>, ProblemHttpResult>> (
-                IMcpToolRefresher? refresher,
+                [FromServices] IMcpToolRefresher? refresher,
                 IAuditLog auditLog,
                 IAuditActorResolver actorResolver,
                 ITenantContext tenants,

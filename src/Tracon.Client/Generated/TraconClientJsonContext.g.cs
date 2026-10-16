@@ -57,7 +57,6 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(ExperimentCanaryResponse))]
 [JsonSerializable(typeof(ExperimentResultsResponse))]
 [JsonSerializable(typeof(ExperimentSaveRequest))]
-[JsonSerializable(typeof(IMcpToolRefresher))]
 [JsonSerializable(typeof(ImageGenerationOperatorRequest))]
 [JsonSerializable(typeof(ImageGenerationOperatorResponse))]
 [JsonSerializable(typeof(InboundTriggerAcceptedResponse))]

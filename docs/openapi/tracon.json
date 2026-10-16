@@ -6685,22 +6685,6 @@
         "summary": "Refreshes the tool list of remote MCP servers now.",
         "description": "The refresh normally happens in the background at fixed intervals. This endpoint lets the tools of a newly added server appear without waiting for the next scheduled refresh.",
         "operationId": "TraconRefreshMcpTools",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/IMcpToolRefresher"
-                  }
-                ]
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "OK",
@@ -11945,10 +11929,6 @@
           }
         },
         "description": "The result of an operator image-generation action."
-      },
-      "IMcpToolRefresher": {
-        "type": "object",
-        "description": "Refreshes the tool list of remote MCP servers on demand."
       },
       "InboundTriggerAcceptedResponse": {
         "required": [

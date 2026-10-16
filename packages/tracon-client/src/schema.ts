@@ -4615,8 +4615,6 @@ export interface components {
             /** @description Gets the observed generation quantity and configured cost. */
             usage: components["schemas"]["ToolCallUsage"];
         };
-        /** @description Refreshes the tool list of remote MCP servers on demand. */
-        IMcpToolRefresher: Record<string, never>;
         /** @description The response for a successfully accepted inbound trigger event. */
         InboundTriggerAcceptedResponse: {
             /**
@@ -8771,7 +8769,6 @@ export type HarnessSettings = components['schemas']['HarnessSettings'];
 export type IFormFile = components['schemas']['IFormFile'];
 export type ImageGenerationOperatorRequest = components['schemas']['ImageGenerationOperatorRequest'];
 export type ImageGenerationOperatorResponse = components['schemas']['ImageGenerationOperatorResponse'];
-export type IMcpToolRefresher = components['schemas']['IMcpToolRefresher'];
 export type InboundTriggerAcceptedResponse = components['schemas']['InboundTriggerAcceptedResponse'];
 export type InboundTriggerPayloadMode = components['schemas']['InboundTriggerPayloadMode'];
 export type InboundTriggerResponse = components['schemas']['InboundTriggerResponse'];
@@ -13340,11 +13337,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": null | components["schemas"]["IMcpToolRefresher"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
