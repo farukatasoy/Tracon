@@ -208,7 +208,8 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
             restore = ["dotnet", "restore", str(csproj), "--configfile", str(nuget_config), property_arg]
             if _run(restore, root=root, environment=environment):
                 return 1
-            test = ["dotnet", "test", str(csproj), "-c", "Release", "--no-restore", property_arg]
+            # Faz 215: MTP kipinde hedef `--project` ile verilir (konumsal biçim eski kipten kalma).
+            test = ["dotnet", "test", "--project", str(csproj), "-c", "Release", "--no-restore", property_arg]
             if _run(test, root=root, environment=environment):
                 return 1
 

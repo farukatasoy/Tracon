@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206, 215
 > **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
@@ -4204,3 +4204,23 @@ Sınır senaryosu. Otomatik karşılığı: `RunContinuationTests` ·
 
 **Beklenen sonuç**
 - Açılır; akış `run` · `update` · `done`; `GET $BASE/api/runs/{runId}` → `status: Completed`.
+
+---
+
+### MT-CORE-154 — Okunamayan `UtilityModel` sayısı açılışı durdurur ve yazılan metni alıntılar (Faz 215, F-568)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 215 |
+| **İlgili karar** | — (F-568; K-993'ün "okunamayan girdi atlanmaz" kuralı) |
+
+**Ön koşul** — `Tracon__UtilityModel__Provider=openai`, `Tracon__UtilityModel__Model=gpt-5.4-mini`, `Tracon__UtilityModel__Temperature=abc`.
+
+**Adımlar** — Uygulamayı başlat. Sonra `Tracon__UtilityModel__Temperature` değerini boş yap ve yeniden başlat.
+
+**Beklenen sonuç**
+- İlkinde açılmaz; mesaj `TraconOptions.UtilityModel.Temperature is 'abc', which is not a number` içerir (bağlanan `0`'ı değil, yazılan metni). Eski kusur: `Temperature = 0` ile açılıyordu ve bağlam özetleyicisi sıfır sıcaklıkta koşuyordu.
+- İkincisinde açılır; sağlayıcı varsayılanı kullanılır.
+- ➜ CI: `TraconUtilityModelBindingTests.An_unreadable_number_fails_at_startup` · `An_empty_number_means_the_provider_default`.
