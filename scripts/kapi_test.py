@@ -331,6 +331,10 @@ class KapiTestleri(unittest.TestCase):
     def test_cok_hedefli_projeye_ulasan_test_komutu_taninir(self):
         self.assertTrue(kapi.runs_multi_target_tests([kapi.full_solution_test_command()]))
         self.assertTrue(kapi.runs_multi_target_tests(
+            [kapi.Command(("dotnet", "test", "--project", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))]))
+        self.assertFalse(kapi.runs_multi_target_tests(
+            [kapi.Command(("dotnet", "test", "--project", "tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj"))]))
+        self.assertTrue(kapi.runs_multi_target_tests(
             [kapi.Command(("dotnet", "test", "tests/Tracon.Core.UnitTests/Tracon.Core.UnitTests.csproj"))]))
         self.assertFalse(kapi.runs_multi_target_tests(
             [kapi.Command(("dotnet", "test", "tests/Tracon.Generators.UnitTests/Tracon.Generators.UnitTests.csproj"))]))
@@ -446,23 +450,113 @@ class KapiTestleri(unittest.TestCase):
         self.assertFalse(full)
         self.assertIn("kapi.py yayin", output.getvalue())
 
-    def test_tam_kosum_komutu_trx_uretir(self):
-        # ci.yml "Test et" adimlariyla AYNI kuyruk: dusen testin adi makine okunur olmadan
-        # izole yeniden kosum yazilamaz.
+    def test_tam_kosum_komutu_mtp_bayraklarini_tasir(self):
+        # Faz 215: `dotnet test` MTP kipindedir. `-maxcpucount` bu kipte HIC TEST
+        # KOSTURMADAN cikis kodu 5 verir; `--` ayiricisi da artik yoktur.
         command = kapi.full_solution_test_command()
+        args = command.args
 
-        self.assertEqual(command.args[-2:], ("--", "--report-trx"))
+        self.assertEqual(args[:4], ("dotnet", "test", "--solution", "Tracon.slnx"))
+        self.assertNotIn("--", args)
+        self.assertFalse([arg for arg in args if arg.startswith("-maxcpucount")])
+        self.assertEqual(args[args.index("--max-parallel-test-modules") + 1], str(kapi.TEST_MAX_CPU_COUNT))
+        self.assertIn("--report-trx", args)
+        self.assertEqual(args[args.index("--results-directory") + 1], kapi.TEST_RESULTS_DIRECTORY)
+        self.assertEqual(args[args.index("--results-directory-layout") + 1], "per-module")
+
+    def test_ci_ve_kapi_ayni_trx_yolunu_ve_bayraklari_kullanir(self):
+        # Kapi (kapi.py) ile CI (ci.yml) AYRI yazilmis iki komuttur ve bir tarafin
+        # TRX yolunu degistirmek digerini sessizce bosaltir: CI yuklemesi artifact
+        # bulamaz (`if-no-files-found: ignore`) ve kimse fark etmez.
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        test_lines = [
+            line.strip() for line in ci.splitlines()
+            if line.strip().startswith("run: dotnet test ") and "Tracon" in line
+        ]
+
+        self.assertEqual(len(test_lines), 2, test_lines)
+        for line in test_lines:
+            self.assertNotIn("-maxcpucount", line)
+            self.assertIn("--max-parallel-test-modules 1", line)
+            self.assertIn("--report-trx", line)
+            self.assertIn(f"--results-directory {kapi.TEST_RESULTS_DIRECTORY}", line)
+            self.assertIn("--results-directory-layout per-module", line)
+        self.assertIn(f"path: {kapi.TEST_RESULTS_DIRECTORY}/**/*.trx", ci)
+        self.assertNotIn("TestResults/*.trx", ci)
 
     def _trx(self, kok: pathlib.Path, proje: str, sonuclar: list[tuple[str, str]], cikti: str = "release") -> None:
-        dizin = kok / "artifacts" / "bin" / proje / cikti / "TestResults"
+        # MTP 2 `--results-directory-layout per-module`: <proje>/<tfm>_<mimari>/*.trx.
+        # `codeBase` testin kosan ikilisinin yolunu tasir; Windows'ta ters egik cizgiyle gelir.
+        tfm = "net10.0" if cikti == "release" else cikti.removeprefix("release_")
+        dizin = kok / kapi.TEST_RESULTS_DIRECTORY / proje / f"{tfm}_arm64"
         dizin.mkdir(parents=True, exist_ok=True)
         satirlar = "".join(
             f'<UnitTestResult testName="{ad}" outcome="{durum}" />' for ad, durum in sonuclar)
         (dizin / "r.trx").write_text(
             '<?xml version="1.0"?><TestRun xmlns='
             '"http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
-            f"<Results>{satirlar}</Results></TestRun>",
+            f"<Results>{satirlar}</Results>"
+            f'<TestDefinitions><UnitTest><TestMethod codeBase="C:\\r\\artifacts\\bin\\{proje}\\{cikti}\\{proje}.dll"'
+            ' className="C" name="M" /></UnitTest></TestDefinitions></TestRun>',
             encoding="utf-8")
+
+    def test_eski_trx_yeri_artik_taranmaz(self):
+        # Faz 215: TRX ikilinin yanindaki TestResults/'a degil `--results-directory`'ye
+        # yazilir. Eski yoldaki bir dosya DUSEN TEST SAYILMAZ - yoksa taranan yer ile
+        # yazilan yer ayrisir ve teshis sessizce bos kalir.
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            eski = kok / "artifacts" / "bin" / "P" / "release" / "TestResults"
+            eski.mkdir(parents=True)
+            (eski / "r.trx").write_text(
+                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>'
+                '<UnitTestResult testName="N.S.Dusen" outcome="Failed" /></Results></TestRun>',
+                encoding="utf-8")
+
+            self.assertEqual(kapi.failed_tests_from_trx(0, kok), [])
+
+    def test_sifir_test_koşan_yesil_kosum_kirmizi_sayilir(self):
+        # NEGATIF KONTROL (Faz 215): cikis kodu 0 "test kostu" demek degildir. TRX yoksa
+        # ya da bossa kapi YESIL donmez.
+        with tempfile.TemporaryDirectory() as directory:
+            kok = pathlib.Path(directory)
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(kapi.require_executed_tests(0, kok), kapi.ZERO_TESTS_EXIT_CODE)
+            self.assertIn("koşulmuş test yok", output.getvalue())
+
+            self._trx(kok, "P", [("N.S.Gecen", "Passed"), ("N.S.Dusen", "Failed")])
+            self._trx(kok, "Q", [("N.S.Gecen", "Passed")], cikti="release_net8.0")
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(kapi.require_executed_tests(0, kok), 0)
+            self.assertIn("3 test, 2 modül", output.getvalue())
+
+    def test_run_commands_cikis_kodu_sifir_ama_test_yoksa_durur(self):
+        runner = mock.Mock(return_value=mock.Mock(returncode=0))
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(kapi, "executed_tests_from_trx", return_value=(0, 0)), \
+                contextlib.redirect_stdout(io.StringIO()):
+            result = kapi.run_commands(
+                "test", [kapi.full_solution_test_command()], runner=runner,
+                measurement_path=pathlib.Path(directory) / "m.jsonl")
+
+        self.assertEqual(result, kapi.ZERO_TESTS_EXIT_CODE)
+
+    def test_run_commands_trx_istemeyen_komutu_sifir_test_diye_kirmaz(self):
+        # `dotnet build` ya da tek proje komutu TRX uretmez; kapi onlara sayi sormaz.
+        runner = mock.Mock(return_value=mock.Mock(returncode=0))
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(kapi, "executed_tests_from_trx", return_value=(0, 0)), \
+                contextlib.redirect_stdout(io.StringIO()):
+            result = kapi.run_commands(
+                "test", [kapi.Command(("dotnet", "build", "Tracon.slnx")), kapi._dotnet_test_project("P")],
+                runner=runner, measurement_path=pathlib.Path(directory) / "m.jsonl")
+
+        self.assertEqual(result, 0)
+
+    def test_tek_proje_komutu_project_bayragini_kullanir(self):
+        self.assertEqual(
+            kapi._dotnet_test_project("P").args,
+            ("dotnet", "test", "--project", "tests/P/P.csproj", "-c", "Release", "--no-build"))
 
     def test_trx_yalniz_dusen_testi_verir(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -600,7 +694,8 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertIn("dotnet build Tracon.slnx -c Release", rendered)
         self.assertIn(
-            "dotnet test Tracon.slnx -c Release --no-build -maxcpucount:2 -- --report-trx",
+            "dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 2"
+            " --report-trx --results-directory artifacts/test-results --results-directory-layout per-module",
             rendered)
         # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
         # packaging CONTRACT during iteration, not a release candidate - it must
@@ -629,7 +724,8 @@ class KapiTestleri(unittest.TestCase):
         rendered = [command.display for command in commands]
 
         self.assertIn(
-            "dotnet test Tracon.slnx -c Release --no-build -maxcpucount:2 -- --report-trx",
+            "dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 2"
+            " --report-trx --results-directory artifacts/test-results --results-directory-layout per-module",
             rendered)
 
     def test_dry_run_komut_calistirmaz(self):

@@ -24,6 +24,7 @@ import tempfile
 import time
 import zipfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"
@@ -55,12 +56,23 @@ APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.jso
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # Faz 184: iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
 # timeout uretiyordu, Faz 100). Sabit beklemeler kosul-beklemeye donunce
-# olculdu, ayni makine, ayni kod (d0cdd2c2): -maxcpucount:1 863 ve 879 sn,
-# -maxcpucount:2 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
+# olculdu, ayni makine, ayni kod (d0cdd2c2): 1 modul 863 ve 879 sn,
+# 2 modul 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
 # ci.yml 1'de KALIR: runner donanimi olculmedi. Kaynak cekismesi imzali bir
 # kapanis kirmizisi (izole tekrar kosumda gecen) gorulurse 1'e don ve
 # docs/hafiza/test-paralellik-ve-zamanlama.md'ye yaz.
+#
+# Faz 215: `dotnet test` MTP kipindedir (global.json `test.runner`). Eski
+# `-maxcpucount:N` bu kipte HIC TEST KOSTURMADAN cikis kodu 5 verir; esdegeri
+# `--max-parallel-test-modules N`'dir. Sayi ayni kalir: bir "modul" bir test
+# ikilisidir (cok hedefli projede her TFM bacagi ayri modul).
 TEST_MAX_CPU_COUNT = 2
+
+# Faz 215: MTP 2 TRX'i test ikilisinin yanina degil `--results-directory`'ye
+# yazar; `per-module` dizilimi `<proje>/<tfm>_<mimari>/*.trx` verir. ci.yml
+# "Test et" adimlari ve "Test sonuclarini yukle" adimi AYNI yolu tasir
+# (`kapi_test.py` ikisini birlikte denetler).
+TEST_RESULTS_DIRECTORY = "artifacts/test-results"
 
 SYNC_ROOTS = ("src", "tests", "samples", "docs", ".agents")
 SCAN_EXCLUDED_DIRS = {
@@ -197,6 +209,9 @@ def run_commands(
             print(f"❌ Komut çalıştırılamadı: {exception}")
             exit_code = 126
 
+        if not exit_code and reports_trx(command):
+            exit_code = require_executed_tests(wall_started)
+
         _record_measurement(stage, command, started, exit_code, measurement_path)
         elapsed = time.monotonic() - started
         if exit_code:
@@ -206,6 +221,29 @@ def run_commands(
             return exit_code
         print(f"✅ {elapsed:.2f} s")
 
+    return 0
+
+
+def reports_trx(command: Command) -> bool:
+    """True for a `dotnet test` that was asked for TRX reports (the full-solution run)."""
+    return command.args[:2] == ("dotnet", "test") and "--report-trx" in command.args
+
+
+ZERO_TESTS_EXIT_CODE = 8  # MTP'nin kendi "sifir test" cikis kodu
+
+
+def require_executed_tests(since: float, root: pathlib.Path = ROOT) -> int:
+    """0 if the run left TRX reports with tests in them, else `ZERO_TESTS_EXIT_CODE`.
+
+    Faz 215: cikis kodu 0 "test kostu" demek degildir. Kosum ya hic TRX
+    yazmadiysa (yol degisti, bayrak yutuldu) ya da TRX'ler bos ise kapi YESIL
+    degil KIRMIZI doner; ayrintiyi basar ki "yesil" sayiyla okunsun."""
+    tests, modules = executed_tests_from_trx(since, root)
+    if tests == 0:
+        print(f"❌ Test kosumu çıkış kodu 0 verdi ama {TEST_RESULTS_DIRECTORY} altında koşulmuş test yok"
+              f" ({modules} TRX). Kapı yeşil sayılmaz: bayrak yutulmuş ya da TRX yolu değişmiş olabilir.")
+        return ZERO_TESTS_EXIT_CODE
+    print(f"   {tests} test, {modules} modül (TRX: {TEST_RESULTS_DIRECTORY})")
     return 0
 
 
@@ -979,13 +1017,24 @@ def require_test_runtimes(
     return False
 
 
+def _test_target(args: Sequence[str]) -> str:
+    """The project or solution a `dotnet test` command targets.
+
+    Faz 215: MTP kipi hedefi `--solution` / `--project` ile alir; ilk konumsal
+    arguman (eski bicim) hala kabul edilir."""
+    for flag in ("--solution", "--project"):
+        if flag in args and args.index(flag) + 1 < len(args):
+            return args[args.index(flag) + 1]
+    return args[2]
+
+
 def runs_multi_target_tests(commands: Iterable[Command], root: pathlib.Path = ROOT) -> bool:
     """True if a `dotnet test` in `commands` reaches a multi-targeted project."""
     multi = set(multi_target_test_projects(root))
     for command in commands:
         if command.args[:2] != ("dotnet", "test") or len(command.args) < 3:
             continue
-        target = pathlib.PurePath(command.args[2])
+        target = pathlib.PurePath(_test_target(command.args))
         if target.suffix in (".slnx", ".slnf", ".sln") or target.stem in multi or target.name in multi:
             return True
     return False
@@ -1037,7 +1086,8 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
 
 
 def _dotnet_test_project(project: str) -> Command:
-    return Command(("dotnet", "test", f"tests/{project}/{project}.csproj", "-c", "Release", "--no-build"))
+    return Command((
+        "dotnet", "test", "--project", f"tests/{project}/{project}.csproj", "-c", "Release", "--no-build"))
 
 
 def full_solution_test_command() -> Command:
@@ -1050,13 +1100,15 @@ def full_solution_test_command() -> Command:
     three starved each other, two ran green three times once the tests stopped
     sleeping fixed times (Phase 184).
     """
-    # `-- --report-trx` ci.yml "Test et" adimlariyla AYNI: dusen testin adi makine
+    # TRX bayraklari ci.yml "Test et" adimlariyla AYNI: dusen testin adi makine
     # okunur hale gelir ve `isolate_failed_tests` onu izole tekrar kosar.
     # Olculdu 2026-09-04: TRX yazimi kosum suresini olcum gurultusunun
     # altinda etkiler (557 sn TRX'li, 561 sn TRX'siz).
     return Command((
-        "dotnet", "test", "Tracon.slnx", "-c", "Release", "--no-build",
-        f"-maxcpucount:{TEST_MAX_CPU_COUNT}", "--", "--report-trx"))
+        "dotnet", "test", "--solution", "Tracon.slnx", "-c", "Release", "--no-build",
+        "--max-parallel-test-modules", str(TEST_MAX_CPU_COUNT),
+        "--report-trx", "--results-directory", TEST_RESULTS_DIRECTORY,
+        "--results-directory-layout", "per-module"))
 
 
 TRX_NS = "{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}"
@@ -1077,31 +1129,73 @@ class FailedTest:
         return f"{self.project} ({framework})" if framework else self.project
 
 
-def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[FailedTest]:
-    """`since`'ten sonra yazilmis her TRX'teki dusen test.
+def _recent_trx_reports(since: float, root: pathlib.Path) -> Iterable[tuple[str, pathlib.Path, Any]]:
+    """`since`'ten sonra yazilmis her TRX: (proje, dosya, ayristirilmis agac).
 
-    Faz 183: cok hedefli bir projenin TRX'i `release_<tfm>/TestResults/`
-    altindadir; yalniz `release/` taramak o projelerin dusen testini SESSIZCE
-    kaybederdi ve izole yeniden kosum hic tetiklenmezdi."""
+    Faz 215: dizilim `--results-directory-layout per-module`'dur,
+    `<TEST_RESULTS_DIRECTORY>/<proje>/<tfm>_<mimari>/*.trx`. Okunamayan dosya
+    atlanir; TRX hic yoksa bos doner (cagiran bunu "sifir test" olarak yorumlar)."""
     import xml.etree.ElementTree as elementtree
 
-    failures: list[FailedTest] = []
-    for trx in sorted((root / "artifacts" / "bin").glob("*/release*/TestResults/*.trx")):
-        project, output = trx.relative_to(root / "artifacts" / "bin").parts[:2]
-        if output != "release" and not output.startswith("release_"):
-            continue
+    for trx in sorted((root / TEST_RESULTS_DIRECTORY).glob("*/*/*.trx")):
         try:
             if trx.stat().st_mtime < since:
                 continue
             tree = elementtree.parse(trx)
         except (OSError, elementtree.ParseError):
             continue
+        yield trx.relative_to(root / TEST_RESULTS_DIRECTORY).parts[0], trx, tree
+
+
+def _trx_output_directory(tree: Any) -> str:
+    """Test ikilisinin `artifacts/bin/<proje>/` altindaki cikti klasoru adi.
+
+    TRX her modulun DLL yolunu `codeBase` olarak tasir; klasor adi `release` ya
+    da cok hedefli projede `release_<tfm>`'dir. Yol DECLARED cerceveden degil
+    TRX'in kendisinden okunur: bayat bir `release/` klasoru yanlis ikiliyi
+    kosturmaz."""
+    for method in tree.getroot().iter(TRX_NS + "TestMethod"):
+        code_base = method.get("codeBase")
+        if code_base:
+            parts = re.split(r"[\\/]", code_base)
+            if len(parts) >= 2 and (parts[-2] == "release" or parts[-2].startswith("release_")):
+                return parts[-2]
+    return "release"
+
+
+def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[FailedTest]:
+    """`since`'ten sonra yazilmis her TRX'teki dusen test.
+
+    Faz 183: cok hedefli bir projenin her TFM bacagi AYRI bir TRX'tir; bacagin
+    ikilisi (`release_<tfm>`) TRX'ten okunur, yoksa o projelerin dusen testi
+    SESSIZCE kaybolur ve izole yeniden kosum hic tetiklenmezdi.
+
+    Faz 215: TRX artik ikilinin yaninda degil `TEST_RESULTS_DIRECTORY` altindadir.
+    Eski yolu taramak HIC dusen test bulmaz ve kapi "izole kosacak bir sey yok"
+    der - kirmizi kirmizi kalir ama teshis sessizce kaybolur."""
+    failures: list[FailedTest] = []
+    for project, _, tree in _recent_trx_reports(since, root):
+        output = _trx_output_directory(tree)
         for result in tree.getroot().iter(TRX_NS + "UnitTestResult"):
             if result.get("outcome") not in (None, "Passed", "NotExecuted"):
                 name = result.get("testName")
                 if name:
                     failures.append(FailedTest(project, output, name))
     return failures
+
+
+def executed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> tuple[int, int]:
+    """(koşulan test sayisi, modul sayisi): `since`'ten sonra yazilmis TRX'lerden.
+
+    Faz 215: MTP kipinde yanlis bir bayrak (`-maxcpucount` gibi) cikis kodu
+    vererek HIC test kosturmeden de bitebilir; tersi de dogru - cikis kodu 0
+    ve TRX'siz bir kosum "yesil" gorunur. Bu sayi o sessizligin kapisidir."""
+    tests = 0
+    modules = 0
+    for _, _, tree in _recent_trx_reports(since, root):
+        modules += 1
+        tests += sum(1 for _ in tree.getroot().iter(TRX_NS + "UnitTestResult"))
+    return tests, modules
 
 
 def isolate_failed_tests(

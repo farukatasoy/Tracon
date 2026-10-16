@@ -30,6 +30,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   as `0`, so a typo ran the context-compaction summarizer at temperature zero without a word. An
   empty value still means "not set": the provider default applies. Code that assigns
   `TraconOptions.UtilityModel` after binding still wins.
+- **`Tracon.Client` is regenerated with NSwag `14.7.1`.** Its public surface does not change. The
+  client now passes the cancellation token when it reads the body of an unexpected response, so a
+  cancelled call no longer waits for that body.
+- **`Tracon.Testing.Contracts.Xunit` keeps asking for `xunit.v3.extensibility.core` and
+  `xunit.v3.assert` `>= 3.2.2`.** The package was measured on xunit.v3 `4.0.2` with
+  `Microsoft.Testing.Extensions.TrxReport` `2.5.1`; a project on either line restores without
+  `NU1608`.
 - **Runtime dependencies move to the newest lines.** Microsoft Agent Framework `1.25.0` (the
   hosting packages `1.25.0-preview.261014.1`, `Microsoft.Agents.AI.Hosting.OpenAI`
   `1.25.0-alpha.261014.1`, `A2A.AspNetCore` `1.0.0-preview3`, all still exact pins),

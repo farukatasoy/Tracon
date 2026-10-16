@@ -236,10 +236,10 @@
   </ItemGroup>
 
   <ItemGroup Label="Analyzer'lar (PrivateAssets=all)">
-    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.138" />
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.303" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
-    <PackageVersion Include="MinVer" Version="7.0.0" />
+    <PackageVersion Include="MinVer" Version="8.0.0" />
   </ItemGroup>
 
   <!--
@@ -285,31 +285,26 @@
       ile uretiliyor (AddOpenApi/MapOpenApi), bu paket sadece /openapi/v1.json'u
       interaktif bir sayfada gosterir. samples/Tracon.Api disinda kullanilmaz.
     -->
-    <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
-    <!-- 1.x serisi: xunit.v3 3.2.2 Microsoft Testing Platform v1 uzerine kuruludur.
-         2.x TrxReport, Testing.Platform 2.x ceker ve calisma aninda TypeLoadException verir. -->
-    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="1.9.1" />
+    <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.0" />
+    <!-- xunit.v3 4.x, Microsoft Testing Platform 2.x uzerine kuruludur; TrxReport ayni platform
+         surumunu ceker. 1.x ile birlikte calisma aninda TypeLoadException verir (Faz 215). -->
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.1" />
     <!--
       Playwright arayuz E2E testleri icin. Tarayici ikilisi NuGet paketiyle
       gelmez; test fixture'i eksikse kendisi indirir (bkz.
       tests/Tracon.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
     -->
-    <PackageVersion Include="Microsoft.Playwright" Version="1.61.0" />
-    <PackageVersion Include="NSubstitute" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.63.0" />
+    <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <!--
-      Testcontainers.MsSql/PostgreSql 4.13.0'in gecisli bagimliligi SSH.NET
-      2025.1.0, GHSA-q939-rpr3-3284 (yuksek onem, CVE-2026-48798) tasir;
-      NU1903 restore'u kirar. CentralPackageTransitivePinningEnabled kapali
-      (Directory.Build.props:49) oldugu icin gecisli surum burada degil,
-      etkilenen projelerde dogrudan PackageReference ile sabitlenir. Yama
-      surumu (2026.0.0) NuGet cozumlemesinde Testcontainers'in cektigi
-      surumun onune gecer.
+      Testcontainers 4.16.0 yama surumu SSH.NET 2026.0.0'i dogrudan ceker
+      (GHSA-q939-rpr3-3284 kapanir); eski SSH.NET sabiti Faz 215'te kalkti.
+      Sabit geri gerekirse once bos projede `NuGetAudit` ile olc.
     -->
-    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
-    <PackageVersion Include="Testcontainers.MsSql" Version="4.13.0" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
-    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <!--
       Tracon.Testing.Contracts.Xunit (Phase 98) is a LIBRARY of abstract
       [Fact]/[Theory] fixtures, not a runnable test project: the plain
@@ -319,6 +314,14 @@
       the SAME xunit.v3.core.dll without that requirement: "test authors
       should include xunit.v3 instead" (its own description); this is not a
       test author, it is the library the test author's project references.
+
+      Phase 215 (A-70): 3.2.2 is the SHIPPED FLOOR, not a stale pin. The
+      repo's own tests run on xunit.v3 4.x; this package's nuspec keeps
+      asking for ">= 3.2.2" so a consumer still on xunit.v3 3.x restores
+      without NU1608. Measured: the preview.4 package (built on 3.2.2) runs
+      green on xunit.v3 4.0.2 + TrxReport 2.5.1. Raising it forces every
+      consumer to xunit.v3 4 and is a compatibility decision, not a bump
+      (.github/dependabot.yml ignores both sub-packages for that reason).
     -->
     <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />
     <!--
@@ -328,7 +331,7 @@
       Assert.SkipWhen for a schema shape its generator cannot fuzz (a nested
       object parameter, K-615). This sub-package is the assertion library
       alone: no buildTransitive props, so it does not force <OutputType>Exe>
-      the way plain "xunit.v3" does.
+      the way plain "xunit.v3" does. Same shipped floor as above.
     -->
     <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
     <!--

@@ -25,7 +25,8 @@ dotnet add package Tracon.Testing.Contracts.Xunit --prerelease
 
 The package name says what it needs: xunit.v3 and Shouldly are ordinary
 dependencies, not private ones — a consuming test project's runner discovers
-and runs the `[Fact]` methods the contract classes inherit. There is no
+and runs the `[Fact]` methods the contract classes inherit. The package asks for
+xunit.v3 `3.2.2` or newer and was run on xunit.v3 `4.0.2`. There is no
 NUnit or MSTest edition; a project on either framework cannot use this
 package.
 

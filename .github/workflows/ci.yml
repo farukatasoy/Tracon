@@ -261,7 +261,7 @@ jobs:
             ~/.cache/ms-playwright
             ~/Library/Caches/ms-playwright
             ~\AppData\Local\ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-1.61.0
+          key: ${{ runner.os }}-playwright-chromium-1.63.0
 
       - name: Playwright sistem bagimliliklari
         if: runner.os == 'Linux'
@@ -284,19 +284,22 @@ jobs:
         # Olculen en uzun 24,6 dk, ama Faz 183'un uc TFM bacagindan ONCE.
         # Bacaklar yerel tam kosumu 782 -> 910 sn uzatti (%16): 24,6 x 1,16 x 2 = 57.
         timeout-minutes: 60
-        # xunit.v3 Microsoft Testing Platform kullanir; rapor bayraklari VSTest'ten farklidir.
-        # `--` sonrasi gelen argumanlar dogrudan test uygulamasina gecer.
-        # TRX ciktisi test ikilisinin yanindaki TestResults klasorune yazilir.
-        # -maxcpucount:1 BILEREK: yerel kapi (kapi.py) Faz 184'ten beri 2 ile
-        # kosar, ama o olcum gelistirici makinesindeydi; runner donanimi
+        # Faz 215: `dotnet test` Microsoft Testing Platform kipindedir (global.json
+        # `test.runner`); `-maxcpucount` bu kipte HIC TEST KOSTURMADAN cikis kodu 5
+        # verir ve `--` ayiricisi yoktur. Esdegeri `--max-parallel-test-modules`.
+        # TRX `--results-directory`'ye yazilir (ikilinin yanina degil); asagidaki
+        # "Test sonuclarini yukle" adimi ve kapi.py (TEST_RESULTS_DIRECTORY) AYNI
+        # yolu okur - kapi_test.py ucunun bir arada kaldigini denetler.
+        # --max-parallel-test-modules 1 BILEREK: yerel kapi (kapi.py) Faz 184'ten beri
+        # 2 ile kosar, ama o olcum gelistirici makinesindeydi; runner donanimi
         # olculmeden burasi degismez.
-        run: dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1 -- --report-trx
+        run: dotnet test --solution Tracon.slnx -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
       - name: Test et (Docker gerektirmeyenler)
         if: matrix.os == 'windows-latest'
         # Olculen en uzun 30,9 dk (2026-09-06, kirmizi kosum); yesil kosumda 29,0.
         timeout-minutes: 65
-        run: dotnet test Tracon.no-docker.slnf -c Release --no-build -maxcpucount:1 -- --report-trx
+        run: dotnet test --solution Tracon.no-docker.slnf -c Release --no-build --max-parallel-test-modules 1 --report-trx --results-directory artifacts/test-results --results-directory-layout per-module
 
       # Faz 166. Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
       # DEGIL. Uc HTTP yolu, iki kiraci, gercek TCP, gercek SQL ve packed
@@ -352,7 +355,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-${{ matrix.os }}
-          path: artifacts/**/TestResults/*.trx
+          path: artifacts/test-results/**/*.trx
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
