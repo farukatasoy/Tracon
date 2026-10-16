@@ -1,6 +1,6 @@
 # 35 — TypeScript İstemcisi ve npm Kanalı (`TSC`)
 
-> **Alan kodu:** `TSC` · **Faz:** 84
+> **Alan kodu:** `TSC` · **Faz:** 84, 216
 > **Kaynak:** `packages/tracon-client/` · `src/Tracon.UI/frontend/src/lib/{api.ts,server-types.ts}` ·
 > `src/Tracon.UI/Tracon.UI.Frontend.targets` · `.github/workflows/ci.yml`
 >
@@ -40,7 +40,7 @@ dotnet run --no-build -c Release --urls http://localhost:5081
 
 | # | Kod | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|---|
-| 1 | `MT-TSC-001` | Temiz `artifacts/`, Node.js 20.19+ kurulu | `dotnet build Tracon.slnx -c Release` | `@tracon/client` arayüzden **önce** derlenir (`TraconBuildClientPackage` hedefi); arayüz derlemesi geçer; sıfır uyarı |
+| 1 | `MT-TSC-001` | Temiz `artifacts/`, Node.js 22.22.2+ (veya 24.15+, 26+) kurulu | `dotnet build Tracon.slnx -c Release` | `@tracon/client` arayüzden **önce** derlenir (`TraconBuildClientPackage` hedefi); arayüz derlemesi geçer; sıfır uyarı |
 | 2 | `MT-TSC-002` | Derleme geçti, `samples/Tracon.Api` ayakta | Konsol açılır | Agent listesi, `run` listesi ve `run` ayrıntısı **eskisi gibi** yüklenir |
 | 3 | `MT-TSC-003` | Konsol açık, bir agent seçili | Playground'da bir `run` başlatılır | Token'lar **akarak** gelir — SSE yolu göçten etkilenmemiştir (`openStream` hâlâ elle yazılı) |
 | 4 | `MT-TSC-004` | Konsol açık | Bir workflow çalıştırılır ve insan girdisi istenir | `resume`/`respond` akışı çalışır |
@@ -51,6 +51,7 @@ dotnet run --no-build -c Release --urls http://localhost:5081
 | 9 | `MT-TSC-009` | 👤 insan gerekir — bir `v*` etiketi atıldı | CI koşumu izlenir | NuGet ve npm **aynı sürüm numarasıyla** yayınlanır; ikinci koşum var olan sürümü **atlar**, kırılmaz |
 | 10 | `MT-TSC-010` | Tanı ucu açık bir uygulama (`EnableDiagnosticsEndpoint = true`) | `GET /tracon/api/diagnostics` çağrılır | Rapor döner — §84.3 kanıtlanır |
 | 11 | `MT-TSC-011` | Tanı ucu **kapalı** (varsayılan) | Aynı çağrı | `404` döner |
+| 12 | `MT-TSC-012` | Faz 216: istemcinin geliştirme bağımlılıkları yükseldi (`vitest` 5, `@types/node` 26.6); `typescript` 5.9'da kalır; temiz `node_modules` | `npm ci && npm run build && npm test && npm run generate`; `diff -r dist <önceki dist>`; `npm pack --dry-run --json` | `npm ci` hatasız; 41 test geçer; `git diff src/schema.ts` boş; **aynı 23 dosya** paketlenir ve `dist/` önceki derlemeyle bayt bayt aynıdır (yayımlanan paket değişmez); `npm ls typescript` 5.9.x gösterir — TypeScript 7'de `openapi-typescript` 7.x `createKeywordTypeNode` hatasıyla düşer ve `.github/dependabot.yml` bu pakette `typescript` major'ını yok sayar |
 
 ## Otomasyon karşılığı
 

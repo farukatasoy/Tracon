@@ -87,3 +87,24 @@
   net9.0/net10.0 9.0.18, `NU1902` + `NU1903`.
 - **Bot tek grup açar:** `agent-stack` (MAF + `Microsoft.Extensions.*` + OpenAI + A2A + AspNetCore/Bcl/Data). Zincir
   koparsa her PR `restore`'da kırmızı kalır (A-62).
+
+## npm araç zinciri majörleri (Faz 216, 2026-10-16)
+
+- **🚨 Vite 8 (Rolldown) IIFE'nin `"use strict"`'ini bırakır.** Ölçüldü: `embed.js` `(function(){var e=…` ile
+  başladı, 418 test ve E2E yeşildi. `vite.embed.config.ts` `rolldownOptions.output.strict: true` ister; yönerge artık
+  IIFE'nin **önüne** yazılır (`"use strict";(function(){`). Kapı `src/embed/embed-build.test.ts`: gerçek yapılandırmayı
+  bellek içinde derler. `// @vitest-environment node` ÇALIŞMAZ — `setup.ts` `Element`'e dokunur; test jsdom'da koşar.
+- **🚨 `@tracon/client` TypeScript 5.9'da kalır.** `openapi-typescript` 7.13 `typescript ^5` ister ve derleyici API'sini
+  çağırır; TypeScript 7'nin `typescript` paketi onu taşımaz (`createKeywordTypeNode` hatası; `overrides` ERESOLVE'yi
+  çözmez). `tsgo` takma adlı ikinci derleyici reddedildi: iki paket de `tsc` bin'i taşır, `.bin/tsc` hangisine bağlanır
+  belgelenmemiş. Arayüz TypeScript 7'de. `dependabot.yml` istemcide `typescript` major'ını yok sayar.
+- **🚨 `mermaid` 11'de kalır.** `astro-mermaid` 2.1.0 eşi `^10 || ^11`: mermaid 12'de `npm ci` ERESOLVE ile düşer;
+  `overrides` kurulumu geçirir ama 1,46 MB (449 KB gzip) elkjs parçası ekler ve hiçbir diyagram ELK kullanmaz.
+- **🚨 Node alt sınırı 22.22.2.** jsdom 30 `^22.22.2 || ^24.15.0 || >=26`, Vitest 5 `^22.12 || ^24 || >=26`, Astro 7.4
+  `>=22.22`. Node 20.19.4'te `npm ci` geçer ama Vitest 36 kez `Failed to start forks worker` verir (undici,
+  `Cannot read properties of undefined (reading 'bind')`) ve Node'dan söz eden tek cümle çıkmaz.
+  `src/Tracon.UI/frontend/.npmrc` `engine-strict=true` taşır: `npm ci` `EBADENGINE` ile `node_modules`'e dokunmadan
+  durur. `TraconDetectNode` yalnız `npm --version` çalışıyor mu bakar; sürüm denetlemez.
+- **`npm audit fix` yalnız aralık içi kilit değişimidir.** İstemci ve arayüz 0 açıkta; `docs-site`'ta 12 uyarı
+  (`katex` mermaid'den, `postcss-selector-parser` expressive-code'dan) kalır ve çözümü `--force` ile starlight'ı geriye
+  almaktır. Yükseltme (mermaid 12) bile ikisini kapatmaz; üst akış sürümünü bekle.

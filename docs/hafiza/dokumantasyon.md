@@ -202,3 +202,13 @@ fabrika içinde `DelegateLoopEvaluator` gibi bir lambda kullan. (2) Prelude'un `
 `#pragma warning disable MAAI001` ifade bloğunda çalışır; tip bildirimi bloğunun ilk satırı olursa
 blok tip bildirimi sayılmaz.
 - **`security.md` § "The boundaries Tracon enforces" ile `reference/threat-model.md` § "Boundary mapping" birebir eşlenir** (2026-10-13, Faz 198): `check-content.mjs` iki tablonun sınır adlarını karşılaştırır; birine satır eklemek diğerine de satır ve sayıyı ("fourteen" → "fifteen") ister. Ekran görüntüsü damgası (`.ui-source.sha256`) yalnız UI kaynağını hash'ler: değişen bileşen görüntüde görünmüyorsa (Faz 198'de kiracı paneli `settings.png`'nin altında) görüntüleri değil yalnız damgayı tazele — tam üretim her görüntünün sürüm metnini değiştirir ve merge çakışması üretir.
+
+## Arayüz bağımlılığı değişince ekran görüntüleri bayttan farklı çıkar (Faz 216)
+
+- `.ui-source.sha256` arayüzün `package.json` + kilidini + `src/`'i özetler: tek bir bağımlılık yükseltmesi 44 PNG'nin
+  hepsini yeniden üretmeyi ister. Ölçüldü (Vite 8 + Tailwind 4.3): hepsi bayttan farklıydı, ama fark yalnız
+  dinamik metindeydi — sürüm etiketi (üst çubuk, ~6.100 px), ULID, süre, "N sn önce". Düzen ve renk aynı kaldı.
+- **Yöntem:** eski PNG'yi `git show HEAD:<yol>` ile al, `sharp` ile piksel piksel karşılaştır, farklı pikselleri kırmızıyla
+  boyayıp bak. Aşağı örneklenmiş fark ≤0,2/255 ortalama ise stil değişmemiştir; baytlara bakmak yetmez.
+- `approvals*` ve `run-detail*` yeniden üretilince `CAPTURE_PINS` değişir; kırpımı
+  `public/landing/*.avif`'ten PNG'ye çevirip gözle doğrula.

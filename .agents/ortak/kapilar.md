@@ -78,7 +78,7 @@ geçmez (2026-09-04 süreç denetimi, F-183). E2E tuzağı: `faz-uygulama` Adım
 **kullanma**, E2E testleri gömülü varlıkları arar ve koşum asılı kalır.
 
 `dotnet build` **arayüzü de derler**: `npm ci` → `tsc --noEmit` → Vitest →
-Vite → Brotli → bundle bütçesi (250 KB gzip). Node.js 20.19+ gerekir.
+Vite → Brotli → bundle bütçesi (250 KB gzip). Node.js 22.22.2+, 24.15+ veya 26+ gerekir.
 
 ## `secret`
 

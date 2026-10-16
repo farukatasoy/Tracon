@@ -1,6 +1,6 @@
 # 32 — Doküman Kalitesi ve Görsel Kimlik (`DKL`)
 
-> **Alan kodu:** `DKL` · **Faz:** 76, 158, 163
+> **Alan kodu:** `DKL` · **Faz:** 76, 158, 163, 216
 > **Kaynak:** `docs-site/src/styles/site.css` · `docs-site/astro.config.mjs` ·
 > `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` ·
 > `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` ·
@@ -38,9 +38,10 @@ flowchart LR
 
 ```bash
 cd ~/Desktop/projects/Tracon/docs-site
-npm ci            # bir kez; Node 22.12+ gerekir
+npm ci            # bir kez; Node 22.22+ gerekir
 npm run check     # content -> build -> links -> weight
-npx astro preview --port 4321
+npx astro preview --port 4321   # Astro 7.4: arka planda başlar ve komut döner
+npx astro preview stop          # işin bitince
 ```
 
 Görsel case'ler `http://localhost:4321/` üzerinde koşulur (`base` artık `/`). Tema
@@ -84,7 +85,7 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 | 30 | `MT-DKL-030` | Aynı | Temayı koyuya çevir, sonra tarayıcıyı %200 yakınlaştır | Koyu temada her sayfanın gövde arkaplanı koyu; %200'de (≈640 px genişlik) taşma yok | 👤 |
 | 31 | `MT-DKL-031` | Aynı | Sayfayı incele: sonsuz animasyon ve `prefers-reduced-motion` | Sonsuz tekrarlı animasyon **yok**; açılış dizisi ~2,4 sn'de durur, sonra sayfa dururken animasyon koşmaz; reduced-motion'da ilk kare bitmiş hâldir; geniş ekranda uçuş şeridi yuvasına iner |
 | 32 | `MT-DKL-032` | Aynı | Bir kod bloğunun kopyalama düğmesine bas; bir başlık çapasına tıkla | Pano bloğun metnini alır; çapa adres çubuğuna yazılır ve sayfa o başlığa gider | 👤 |
-| 33 | `MT-DKL-033` | `npm run build` koşuldu | `dist/404.html` açılır | Özel 404 sayfası gelir: "Page not found", dokümana ve ana sayfaya bağlantı, aramaya yönlendirme. `astro preview` bilinmeyen bir yolda **kendi** 404'ünü gösterir; bu dosya gerçek host tarafından sunulur |
+| 33 | `MT-DKL-033` | `npm run build` koşuldu | `dist/404.html` açılır | Özel 404 sayfası gelir: "Page not found", dokümana ve ana sayfaya bağlantı, aramaya yönlendirme. `astro preview` (arka plan sunucusu) bilinmeyen bir yolda **kendi** 404'ünü gösterir; bu dosya gerçek host tarafından sunulur |
 | 34 | `MT-DKL-034` | — | Bir el yazısı sayfaya `🚨` yazılır, `npm run check:content` | Kızarır: `alarm emoji in shipped prose` — sayfa ve satır numarası yazılır |
 | 35 | `MT-DKL-035` | — | Bir el yazısı sayfaya `an Tracon agent` yazılır, `npm run check:content` | Kızarır: `the product name takes "a", not "an"` — bağlamı da yazar |
 | 36 | `MT-DKL-036` | — | `guides/coding-agents.md`'deki `about 700 KB` değeri `about 400 KB` yapılır, `npm run check:content` | Kızarır ve **gerçek** boyutu yazar: `says llms-full.txt is about 400 KB, but it is <ölçülen değer> KB` (rakam site büyüdükçe kayar; 2026-09-16 koşumunda `784.4 KB` ölçüldü — sabit sayıya değil kızarma davranışına bak) |
@@ -92,6 +93,8 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 | 38 | `MT-DKL-038` | Production site build hazır | Repo kökünde `python3 scripts/site-seo-denetle.py` çalıştır | Tekil title/description, doğru canonical ve WebSite JSON-LD, sitemap eşitliği, erişilebilir sayfalar, atlamayan başlık seviyeleri ve hata noindex denetimi sıfır hata verir |
 | 39 | `MT-DKL-039` | `deploy/nginx.conf` resmi nginx image içinde template olarak yüklenmiş; `SITE_HOST` production host | `python3 scripts/site-http-denetle.py http://127.0.0.1:4175` çalıştır | Slash redirect query'yi korur; iç port/scheme sızmaz; production indekslenebilir, preview host noindex; olmayan adres 404 verir |
 | 40 | `MT-DKL-040` | Ayrı çıktı dizininde `TRACON_SITE_INDEXING=disabled` ile Astro build alınmış | `python3 scripts/site-seo-denetle.py --preview --dist <çıktı>` çalıştır | Tüm HTML noindex taşır; robots taramayı engellemez; canonical production'a işaret eder; sıfır hata verir |
+| 41 | `MT-DKL-041` | Faz 216: Astro `7.4`, Starlight `0.42`, mermaid `11.17`; `npm run build` koşuldu, `npx astro preview --port 4321` ayakta | `/concepts/runs/` açılır, 3 sn beklenir; sonra `npx astro preview stop` | İki diyagram (`flowchart` ve `stateDiagram-v2`) SVG olarak çizilir (`pre.mermaid svg` sayısı 2); `[id^="dmermaid"]` hata düğümü yok; tarayıcı konsolunda hata ve uyarı yok. mermaid 12 + `overrides` da çizer ama 1,46 MB'lık tembel elkjs parçası ekler ve `npm ci` `astro-mermaid` eşinde ERESOLVE verir; bu yüzden `.github/dependabot.yml` mermaid'in major'ını yok sayar |
+| 42 | `MT-DKL-042` | `docs-site/src/content/i18n/en.json` (`{}`) ve `content.config.ts`'te `i18n` koleksiyonu var | `npx astro build` çıktısında `i18n` aranır | `The collection "i18n" does not exist or is empty` uyarısı **yok**; koleksiyon dosyası silinirse uyarı geri gelir (Starlight 0.42) |
 
 ---
 

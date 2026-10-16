@@ -1,6 +1,6 @@
 # 09 — Arayüz Genel (`UI`)
 
-> **Alan kodu:** `UI` · **Faz:** 5, 30, 164, 213
+> **Alan kodu:** `UI` · **Faz:** 5, 30, 164, 213, 216
 > **Kaynak:** `src/Tracon.UI/frontend/src/app.tsx` (kabuk, rota tablosu) ·
 > `components/access-gate.tsx` (kimlik doğrulama akışı) · `components/layout.tsx`
 > (gezinme, tema/dil düğmeleri, klavye bağlamaları) · `components/command-palette.tsx`
@@ -1554,3 +1554,78 @@ derlenmesi bir kanıttır, çalışma anında kaydın ve varlıkların sunulmas�
 - (1) `HTTP 200 text/html; charset=utf-8`; gövde `<base href="/tracon/" />` taşır. Arayüz önek kökündedir (`/tracon/`);
   `/tracon/ui` de `200` verir çünkü SPA yedek rotası her GET yolunu karşılar, ayrı bir sayfa değildir.
 - (2) `HTTP 200 text/javascript`.
+
+### MT-UI-059 — Konsol Vite 8 ve Lightning CSS ile derlendikten sonra iki temada aynı görünür (Faz 216)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 216 |
+| **İlgili karar** | — |
+
+Vite 8 CSS'i Lightning CSS ile küçültür: `oklch` renkler çevrilir ve üç `-webkit-` öneki eklenir (+1,7 KB ham CSS).
+Derleme bunu görsel olarak kanıtlamaz. Yükseltmeden önceki ve sonraki 22 ekran görüntüsü (iki tema, 44 PNG)
+piksel piksel karşılaştırıldı: düzen, kenarlık ve zemin rengi aynı; fark yalnız dinamik metindedir (sürüm
+etiketi, ULID, süre, "N sn önce"). Gözle bakış 👤 insan gerekir.
+
+**Ön koşul**
+- `samples/Tracon.Api` arayüzü gömerek derlenmiş (`-p:TraconFrontendEnabled=false` OLMADAN), `--urls http://localhost:5081`.
+- Bearer token biliniyor (`Tracon:Ui:AuthToken`).
+
+**Adımlar**
+1. Konsolu aç, token'ı gir; koyu temada agent listesini, playground'u ve workflow düzenleyiciyi gez.
+2. Tema düğmesiyle açık temaya geç ve aynı üç ekranı tekrar gez.
+3. Tarayıcı konsoluna bak.
+
+**Beklenen sonuç**
+- Hiçbir ekranda bozuk renk, kayık hizalama veya eksik kenarlık yoktur; iki temada metin okunur.
+- Konsolda yalnız token girilmeden önceki `401` (`/tracon/api/agents`) görünür; CSP, betik veya katı mod hatası yoktur.
+
+### MT-UI-060 — Gömülebilir pencere öğesi katı modda sunulur (Faz 216)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 216 |
+| **İlgili karar** | — |
+
+Vite 8 (Rolldown) IIFE çıktısındaki `"use strict"` yönergesini bırakmıştı (Rollup yazıyordu). `vite.embed.config.ts`
+`rolldownOptions.output.strict: true` ile geri koyar; `src/embed/embed-build.test.ts` gerçek yapılandırmayla bellek
+içinde derleyip ilk baytları denetler. Bu case aynı iddiayı **sevk edilen** baytlar üzerinde ölçer (gömülü kaynak → HTTP).
+
+**Ön koşul**
+- `samples/Tracon.Api` arayüzü gömerek derlenmiş, `--urls http://localhost:5081`.
+
+**Adımlar**
+1. `curl -s --compressed http://localhost:5081/tracon/embed/embed.js | head -c 40`
+2. Gömülebilir sohbet sayfasında (`ToolTests` senaryosu) pencere öğesiyle bir mesaj gönder.
+
+**Beklenen sonuç**
+- (1) Çıktı `"use strict";(function(){` ile başlar.
+- (2) Sohbet çalışır; tarayıcı konsolunda katı mod ihlali (`ReferenceError`, `TypeError: ... read-only`) yoktur.
+
+### MT-UI-061 — Node.js 20'de `npm ci` açık bir motor hatasıyla durur (Faz 216)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 216 |
+| **İlgili karar** | — |
+
+jsdom 30 Node `^22.22.2 || ^24.15.0 || >=26` ister. `src/Tracon.UI/frontend/.npmrc` `engine-strict=true` taşır; yoksa
+Node 20.19.4'te Vitest 36 kez `Failed to start forks worker` verir ve Node sürümünden söz eden tek cümle çıkmaz.
+
+**Ön koşul**
+- PATH'in başında Node.js 20.x var (ör. `npm i node@20.19.4` ile ayrı bir dizine kurulmuş; `node --version` → `v20.19.4`).
+
+**Adımlar**
+1. `cd src/Tracon.UI/frontend`, sonra `npm ci --no-audit --no-fund`.
+2. PATH'i eski hâline döndürüp (Node 22.22.2+) aynı komutu tekrarla.
+
+**Beklenen sonuç**
+- `npm error code EBADENGINE` ve `Required: {"node":"^22.22.2 || ^24.15.0 || >=26.0.0"}` satırları görünür; `Actual` Node 20'yi gösterir.
+- Vitest hiç başlamaz; `Failed to start forks worker` iletisi yoktur. `npm ci` `node_modules`'e dokunmadan durur (ölçüldü: 87 giriş, önce ve sonra).
+- (2) Node 22.22.2+ ile komut hatasız biter (`added 116 packages`).

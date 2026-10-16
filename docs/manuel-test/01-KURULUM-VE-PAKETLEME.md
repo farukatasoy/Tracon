@@ -111,7 +111,7 @@ npm --version
 ```
 
 **Beklenen sonuç**
-- Node sürümü **20.19** veya üstüdür.
+- Node sürümü **22.22.2** (22.x), **24.15** (24.x) veya **26** ve üstüdür.
 - `npm --version` sıfır çıkış kodu verir.
 
 ---
@@ -390,7 +390,7 @@ dotnet build src/Tracon.UI -c Release
 **Beklenen sonuç**
 - `pack` **başarısız** olur ve `TRACON0003` kodlu hata verir.
 - Hata metni eksik varlığı ve çözümü adıyla taşır: `UI assets were not produced`
-  (`wwwroot/index.html does not exist`) ve `Install Node.js 20.19+ and rebuild`.
+  (`wwwroot/index.html does not exist`) ve `Install Node.js 22.22.2+, 24.15+ or 26+ and rebuild`.
   *(2026-09-16 turunda düzeltildi: metin İngilizce'dir; eski Türkçe alıntı bayattı.)*
 - Son adımdan sonra `src/Tracon.UI/wwwroot/index.html` yeniden vardır.
 
@@ -2896,7 +2896,8 @@ done
 
 **Girilecek veri**
 ```bash
-cd docs-site && npm run build && npm run preview
+cd docs-site && npm run build && npm run preview   # Astro 7.4: komut arka planda başlatır ve döner
+npx astro preview stop                              # işin bitince
 ```
 
 **Beklenen sonuç**

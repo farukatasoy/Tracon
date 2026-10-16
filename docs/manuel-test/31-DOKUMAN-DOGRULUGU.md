@@ -39,7 +39,7 @@ cd ~/Desktop/projects/Tracon
 dotnet build Tracon.slnx -c Release
 ```
 
-Site kapıları için Node 22.12+ gerekir; `cd docs-site && npm ci` bir kez koşar.
+Site kapıları için Node 22.22+ gerekir; `cd docs-site && npm ci` bir kez koşar.
 
 ---
 

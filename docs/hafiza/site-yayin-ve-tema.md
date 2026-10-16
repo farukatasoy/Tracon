@@ -19,7 +19,7 @@ dizisi orada degistirilebilir. Faz 76 sifir bilesen gecersiz kildi.
 **sarar** (cengel baglantilari aciksa). `.sl-markdown-content > h2` seciciisi
 hicbir seyi eslemez.
 - **`docs-site/` yayin hatti** (AGENTS.md'den, Faz 77): site `dotnet build`'e BAGLANMAZ,
-  pakete GIRMEZ, Node **22.12+** ister. `api/` ve `http-api/` sayfalari URETILIR
+  pakete GIRMEZ, Node **22.22+** ister. `api/` ve `http-api/` sayfalari URETILIR
   (`npm run generate`) ve commit EDILMEZ; ekran goruntuleri E2E kosumundan uretilir
   (`TRACON_UI_SCREENSHOTS=1`) ve commit EDILIR.
 - **🚨 Yayin GitHub Pages DEGILDIR (K-542).** Site `tracon.dev` adresinde
@@ -154,3 +154,13 @@ alır ama Python'un `urllib.robotparser`'ı ilkini alır. Politikanın kendisi
 `site.config.mjs`'deki `crawlerPolicy`'dedir; karar veri, endpoint yalnız render
 eder. Ölçülmüş kapsam gerçekleri:
 [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+## Astro 7.4 / Starlight 0.42 (Faz 216)
+
+- **`i18n` koleksiyonu zorunludur.** Starlight 0.42 koleksiyon yoksa `The collection "i18n" does not exist or is empty`
+  uyarısı verir. `content.config.ts` `i18nLoader` + `i18nSchema` taşır; `src/content/i18n/en.json` `{}`'dır (site
+  İngilizce, arayüz metni ezilmez).
+- **🚨 `astro preview` arka planda başlar** ve komut döner (pty'de de, `--background` olmadan da): durdur
+  `npx astro preview stop`, durum `status`, günlük `logs`. Manuel setteki "ön planda çalışır" varsayımı bayattı.
+- **`[WARN] Could not render /404 … conflicts with higher priority route /404` ESKİDEN beri vardır**
+  (2026-09-14 denetimi); yükseltme getirmedi.
