@@ -6715,3 +6715,33 @@ Kod grafı katılımcıları graf kurulmadan bilinmez ve sürüm sabitli adım i
 
 Orada yayınlamak aynı üretim için, bir yıla kadar sonra ikinci bir `run.completed` olurdu; cevabın kendi run'ı zaten yayınlamıştır (`WorkflowRequestExpiryWebhookTests`).
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-038 — devam (Faz 90 damıtması)
+
+`ProblemDetails` döndürmek istemcide anlamsız bir hata üretirdi.
+
+### K-088 — devam (Faz 90 damıtması)
+
+`python3`) koymak, özelliği açan tüketiciye farkında olmadığı bir çalıştırma yüzeyi verirdi.
+
+### K-100 — devam (Faz 90 damıtması)
+
+Varsayılan `false` olsaydı Runs listesi kullanıcının başlatmadığı satırlarla dolardı.
+
+### K-177 — devam (Faz 90 damıtması)
+
+WITH (UPDLOCK, SERIALIZABLE) ...
+
+### K-194 — devam (Faz 90 damıtması)
+
+OUTPUT` deseni (K-177) SQLite için GEREKMEDİ.
+
+### K-446 — devam (Faz 90 damıtması)
+
+uzun bir sistem talimatı) reddedilebilir.
+
+### K-1012 — devam (Faz 90 damıtması)
+
+Belge yalnız 5 `cref` satırı kadar değişti.
+
