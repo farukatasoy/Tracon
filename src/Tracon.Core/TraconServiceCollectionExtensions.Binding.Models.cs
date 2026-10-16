@@ -264,7 +264,7 @@ public static partial class TraconServiceCollectionExtensions
     /// </para>
     /// <para>
     /// An empty number means "not set": the provider default applies. A number
-    /// that does not parse is NOT skipped (F-568): the failed parse left the out
+    /// that does not parse is NOT skipped: the failed parse left the out
     /// value at zero and the non-empty key then wrote <c>Temperature = 0</c>, so a
     /// typo silently ran the summarizer at temperature zero. The binding is built
     /// without that number and the text is kept beside it, so
