@@ -310,7 +310,7 @@ Boyut sınırları ve akış: [`22-MCP-DERINLESMESI.md`](arsiv/fazlar/22-MCP-DER
 
 ## Başlangıç kompozisyon kapıları (Faz 150 · 170)
 
-`AddTracon()` her genişleme noktasını `TryAdd` ile kaydeder ve güvenlik duyarlı her
+`AddTracon()` genişleme noktalarını `TryAdd` ile kaydeder ve güvenlik duyarlı her
 anahtarı **izin verici** varsayılanla getirir — K1'in ("sıfır sürpriz") doğru sonucu,
 ve bir production dağıtımı için yanlış varsayılan. İki kapı bunu **başlatma
 hatasına** çevirir; ikisi de **varsayılan kapalıdır** ve hiçbir değeri değiştirmez.

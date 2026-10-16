@@ -1,6 +1,6 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
-> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla)
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle)
 > **Kaynak:** `src/Tracon.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
 > tool/prompt/resource köprüsü, OAuth) · `src/Tracon.AspNetCore/McpServer/`
 > (tümü — Tracon'i MCP sunucusu olarak dışa açma) ·
@@ -2147,3 +2147,30 @@ Regresyon. İstemci K-103 reddini alıyor, run `AwaitingApproval` kalıyordu.
 **Beklenen sonuç**
 - Sonuç `isError: true`, metin "cannot respond to an approval request".
 - Run `Failed`, hata tipi `approval_unanswerable`; görev kipinde başka örnekten okuyan poller yine tamamlanmış red görür.
+
+---
+
+### MT-MCP-084 — Tazeleme ucu `internal` arayüzle çalışır: `UseMcp()` ile `200`, MCP kayıtsızken `501` (Faz 213, F-555)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 213 |
+| **İlgili karar** | K-1013 |
+| **Devir** | (2) ➜ CI: `GovernanceEndpointTests.Refresh_returns_501_when_Mcp_not_registered` |
+
+`IMcpToolRefresher` `internal` oldu; uç onu `[FromServices]` ile nullable alır. Bu case,
+minimal API'nin `internal` bir arayüzü çalışma anında hâlâ bağladığını ölçer.
+
+**Ön koşul**
+- `samples/Tracon.Api` Production'da, bellek içi depoyla ayakta (`docs/hafiza/elle-kosum-ortami.md` tarifi,
+  `--urls http://127.0.0.1:5299`); örnek `UseMcp()` çağırır.
+
+**Adımlar**
+1. `curl -s -w "\nHTTP %{http_code}\n" -X POST http://127.0.0.1:5299/tracon/api/mcp-servers/refresh`
+2. `UseMcp()` çağırmayan bir host'ta aynı çağrı (fonksiyonel test).
+
+**Beklenen sonuç**
+- (1) `HTTP 200` ve `{"toolCount":0}` (kayıtlı sunucu yok).
+- (2) `HTTP 501`; uç sessizce başarılı görünmez.

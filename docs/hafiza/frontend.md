@@ -23,7 +23,7 @@
 > Bu bes not `kod-haritasi.md`'den TASINDI (2026-08-05, Faz 28): o dosya
 > bütçesini asmisti ve arayuz notlarinin dogal yeri zaten burasidir.
 
-- **Arayüz üç dosyada** (2026-08-02): `UI/TraconUiBuilderExtensions.cs` (`UseUI()`), `UI/Internal/EmbeddedUiProvider.cs` (sunum), `AspNetCore/Endpoints/UiEndpoints.cs` (rotalar). Sözleşme `AspNetCore/Ui/ITraconUiProvider.cs` — tek metotlu (K-049).
+- **Arayüz üç dosyada** (2026-08-02): `UI/TraconUiBuilderExtensions.cs` (`UseUI()`), `UI/Internal/EmbeddedUiProvider.cs` (sunum), `AspNetCore/Endpoints/UiEndpoints.cs` (rotalar). Sözleşme `AspNetCore/Ui/ITraconUiProvider.cs` — tek metotlu (K-049), Faz 213'ten beri `internal`; `Tracon.UI` ve `Tracon.Ui.E2ETests` `InternalsVisibleTo` ile görür.
 - **Frontend derleme zinciri tek dosyada** (2026-08-02): `src/Tracon.UI/Tracon.UI.Frontend.targets`. npm adımları, damga dosyaları, `EmbeddedResource` toplama ve `pack` doğrulaması orada.
 - **Bundle bütçesi + Brotli + base yer tutucusu tek betikte** (2026-08-02): `frontend/scripts/postbuild.mjs`. `npm run build` bunu çağırır; kapı bu yüzden hem yerelde hem `dotnet build`'de çalışır.
 - **Frontend saf mantık `src/lib/` altında** (2026-08-02): `transcript.ts` (olay/güncelleme birleştirme), `format.ts`, `router.tsx`. Vitest yalnız bunları test eder; ekranlar Playwright ile doğrulanır. 🚨 SSE çözümleyici artık burada DEĞİL: Faz 159'da `packages/tracon-client/src/sse.ts`'e taşındı ve `readSse`/`SseDecoder` olarak dışa açıldı — ekranlar onu `@tracon/client`'tan alır ve o import `dist/`'i çözer (K-627).

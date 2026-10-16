@@ -354,7 +354,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-504** · Workflow SSE'si agent adımının kesildiğini söylemez | Faz 207 §207.6, kod okuması: olay alt run'da kalır; workflow `MessageDelta`'sı bitiş sebebi taşımaz | Önce ölçüm; sonra çerçeve kararı (K-991 emsali) |
 | 🟢 | **F-505** · İçerikli `content_filter` yarım yanıtı kayıtta iz bırakmaz | Faz 207 §207.6: dedektör yalnız boş yanıtı hata yapar; yalnız chat/completions `content_filter` der | Karar: yeni ayrılmış `CustomType` ve ayna listesi (K-991) |
 | 🟢 | **F-506** · Konsol playground'u `custom` çerçevelerini göstersin | Faz 207 §207.6: `use-playground-run.ts` `custom`'u yok sayar; kesilme ve kota bildirimi görünmez | Rozet tasarımı (`en.ts` + `tr.ts`), E2E |
-| 🟢 | **F-508** · Bağlayıcıların kalan sessiz düşmeleri | Faz 206 kapsam dışı + denetim 🟢1: skaler/enum yazım hatası (`RateLimit.Partition`, `VoiceLive.DelegationMode`, bool/int/TimeSpan `TryParse`-atla) varsayılana düşer; liste anahtarına tek değer (`__0`'sız) ve boş dizi `GetChildren()`'da çocuksuzdur, yok sayılır | Karar: K-993'ü skalere genişletmek (açılışta hata) — public sözleşme |
+| 🟢 | **F-508** · Bağlayıcıların kalan sessiz düşmeleri | Faz 206 kapsam dışı + denetim 🟢1: skaler/enum yazım hatası (`RateLimit.Partition`, bool/int/TimeSpan `TryParse`-atla; `VoiceLive.DelegationMode` Faz 213'te kapandı) varsayılana düşer; liste anahtarına tek değer (`__0`'sız) ve boş dizi `GetChildren()`'da çocuksuzdur, yok sayılır | Karar: K-993'ü skalere genişletmek (açılışta hata) — public sözleşme |
 | 🟢 | **F-513** · Retention hedefi yapılandırmadan kapatılamaz | Faz 206 Açık Soru 1-A: `MaxAgeDays` yalnız sayı alır; JSON `null` (8.0.1 `""`, 10.0.0 `null`) varsayılanı sessizce bırakır | Karar (1-B): boş değer `null` bağlar mı; saklama süresini uzatma yönü |
 | 🟢 | **F-517** · Tek cevaplı istek için yönetici çıkışı | Faz 208 denetimi 🟢1 + kapsam dışı: teslimden sonra düşen devamda zıt cevap hep `409`; motorun teslimde reddettiği cevap isteği kilitler; kaydı `Abandoned` yapan uç yok | Admin ucu, denetim kaydı, konsol düğmesi |
 | 🟢 | **F-518** · `workflow_responses` sınırsız büyür | Faz 208 🟡5: kayıt yalnız veri sahibi silmesiyle gider; hiçbir saklama hedefi `runs` silmez | `workflow_requests` hedefi var (K-1004); aynı kalıp `workflow_responses` için ayrı karar |
@@ -382,6 +382,8 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-561** · Store rehberi ve uyumluluk sayfası sayıları bayat | Ölçüldü (2026-10-16, A-81): `write-your-own-store.md` "32 diğer / 29 contract" der, ölçülen 35 / 31; `compatibility.md:88` "six" contract ailesi der, `ContractCoverage.cs` 7. Sayılar elle yazılı ve kapısız | Sayıları koddan türet ya da `check-content.mjs` sayı kapısına bağla |
 | 🟢 | **F-562** · Envanter testi OpenAPI okumasının geri eklenmesini uçtan uca görmez | Faz 212 denetimi 🟢2: `_envanter` yardımcısı `envanter_olustur`'u atlar; `test_openapi_semasi_tuketici_kaniti_degildir` yalnız `KORPUS_UZANTILARI`'nı ve `siniflandir` imzasını kilitler. Biri `envanter_olustur`'a belge okumayı geri koyarsa test geçer | `envanter_olustur(root)`'u geçici git dizininde koş: belgede şema adı olan, başka kanıtı olmayan tip `kanıtsız` kalmalı |
 | 🟢 | **F-563** · OpenAI uyumlu yanıt tipleri ve yedi public enum OpenAPI belgesinde açıklamasız | Faz 212 denetimi 🟢3: `openapi-undescribed-baseline.txt` `ChatCompletion`, `ItemResource` gibi `internal` OpenAI uyumlu tipleri ve `WorkflowKind`, `RunErrorClass`, `RunScoreBucket`, `RunScoreTarget`, `TimeSeriesBucket`, `VoiceSessionEndReason`, `EvalCaseSource` enum'larını listeler. Public bir enum'un XML özeti şemaya geçmez; `CanaryDecisionKind` geçer | Önce ölçüm: enum özetinin neden geçmediği. Sonra `[Description]` ekle; taban küçülür |
+| 🟢 | **F-565** · `UseLiveVoice(Action<VoiceLiveOptions>)` yolunda tanımsız `DelegationMode` açılışta reddedilmez | Faz 213 denetimi 🟢1: ret yalnız yapılandırma bağlayıcısındadır (`LiveVoiceBuilderExtensions.Bind`). Koddan `(LiveVoiceDelegationMode)1` atanırsa `OpenAILiveProvider` ilk oturumda `ArgumentOutOfRangeException` atar ve uç bunu `502` değil `500` döndürür (`LiveVoiceEndpoints.cs` catch süzgecinde yok). Gerçekçi değil (sayı ataması gerekir) | `VoiceLiveOptionsValidator`'a tek satır `Enum.IsDefined`; test `VoiceLiveOptionsBindingTests`'te |
+| 🟢 | **F-566** · Kurucu tabanı gerekçelerinin doğruluğu denetlenmiyor | Faz 213 denetimi 🟢2: `public-constructor-baseline.txt` yalnız gerekçe uzunluğunu (≥ 40) zorlar. `JobContext`, `ToolApprovalContext`, `SpeechDialogueAudio`, `MutableTenantContext` için "tüketici kurar" iddiasının rehber/sample kanıtı yok (`grep "new JobContext"` samples ve docs-site'ta boş; testlerde var) | Her girişe somut bir kanıt yolu zorunlu kılmak (rehber, sample veya test sınıfı) ya da kanıtsız girişleri `internal` yapmak; tasarım kararı |
 
 ### Tetik bekleyenler
 
@@ -512,7 +514,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-565**.
+numara: **F-567**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

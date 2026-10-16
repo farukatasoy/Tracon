@@ -1,7 +1,7 @@
 # Faz 213 — Tesisat Arayüzleri ve Üye Hijyeni
 
-> **Durum:** 📋 Planlandı (2026-10-16)
-> **Plan onayı:** onaylanmadı — plan metni onay bekler. Kapsam kararları verildi: **UR-011 B** ve **UR-009 B**, farukatasoy, 2026-10-16 ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §7). **Sapma:** UR-011 14 arayüz saydı; ölçüm ikisini public tutmayı gerektiriyor (§213.1). Onay bu sapmayı da kapsar. Uygulama onaydan önce başlamaz.
+> **Durum:** 🚧 Devam ediyor — kod uygulandı, kapanış kapıları koşuyor (2026-10-16)
+> **Plan onayı:** onaylandı — farukatasoy, 2026-10-16, "planı uygula". Kapsam kararları: **UR-011 B** ve **UR-009 B** ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §7). **Sapma:** UR-011 14 arayüz saydı; ölçüm ikisini public tutmayı gerektiriyor (§213.1); onay bu sapmayı kapsar. Dört Açık Soru ayrı ayrı cevaplanmadı; uygulama dördünde de **önerilen A** seçeneğini aldı (Plandan Sapmalar §1).
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-555**, **F-556**
 > **Genellik:** Her .NET tüketicisi. Donacak yüzeyde hiçbir tüketicinin uygulamadığı 12 arayüz ve DI'ın kurduğu 5 tipin public kurucusu var; 1.0'dan sonra her biri major sürümdür. İş tüketici kodunda kalamaz. İki kalem bir fazda, çünkü aynı altyapıyı paylaşır: aynı `PublicAPI.Unshipped.txt`, aynı envanter kapısı, aynı `InternalsVisibleTo` ve aynı CHANGELOG girdisi.
 > **Karşı görüş:** (1) MIMARI K4 "her genişleme noktası değiştirilebilir" der; XML'i "tüketicinin kendi kaydı kazanır" diyen 8 arayüzü `internal` yapmak bu sözü daraltır. (2) K-614 / K-866'nın `IToolRegistry` için yeniden açılma koşulu doğdu ve kullanıcı yine de public tuttu (Faz 188). **Cevap:** K4 "belgelenmiş seam" anlamına gelecek şekilde daraltılır (yeni `K-*`, kapanışta). Seam'i rehber, sample ya da contract suite belgeler; bu 12 arayüzün hiçbirini hiçbiri belgelemez, uygulayanların hepsi `internal` veya test sınıfıdır (ölçüldü). `IToolRegistry` farklıdır: rehber (`write-your-own-tool.md:160`) onu anar ve değiştirmek 4 güvenlik sarmalayıcısını düşürür; bu yüzden "çağrılır, uygulanmaz" listesinde kalır, `internal` olmaz.
@@ -286,19 +286,81 @@ curl -s -XPOST http://localhost:5081/tracon/api/mcp-servers/refresh # 200 (UseMc
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki oturumun en değerli bilgisidir.
+1. **Onay ve Açık Sorular.** Plan "onay bekler" idi; kullanıcı "planı uygula, commit atabilirsin" dedi. Dört Açık Soru ayrı ayrı sorulmadı: planın önerisi **A** dördünde de uygulandı (1: `Responses` silindi, enum `Client`; 2: kurucu tabanı kapısı bu fazda; 3: dokuz arayüze yalnız XML cümlesi; 4: `IVoiceHealthCheck` ve `IWorkflowRunner` public). Biri geri alınmak istenirse yeri bellidir: kapı ve `Responses` bağımsız commit'lerdir.
+2. **3 arayüzlük prob yapılmadı; 12 arayüz birlikte `internal` yapıldı.** Probun sorusu (minimal API `[FromServices]` ile `internal` bir arayüzü çalışma anında bağlar mı, vekil sınıf kurulur mu) şöyle ölçüldü: ilk derleme sıfır hata verdi, `GovernanceEndpointTests` + MCP + Drain 88 fonksiyonel test geçti (`IMcpOAuthCoordinator?`, `IMcpToolRefresher?`, `IMcpPromptClient?`, `IMcpResourceClient?` hepsi nullable `[FromServices]`; kayıtsızken `501`). NSubstitute bu arayüzlerde hiç kullanılmıyor (`grep Substitute.For<…>` boş). Risk gerçekleşmedi.
+3. **Yetim tip: planda 19 benzetim, gerçek 23** (iki tur): planın saydığına `McpOperationStatus`, `McpPromptArgumentSummary`, `McpPromptContent`, `McpPromptSummary`, `McpResourceContent`, `McpResourceSummary` ve `WorkflowFunctionDescriptor` eklendi. Liste elle tutulmadı; `public-yuzey-envanteri.py --liste kanıtsız` boşalana kadar döngü koşuldu.
+4. **Beş MCP özet tipi OpenAPI şemasıdır ve `[Description]` istedi.** `McpPromptArgumentSummary`, `McpPromptSummary`, `McpPromptContent`, `McpResourceSummary`, `McpResourceContent` HTTP yanıtında şema olarak yaşıyor; `internal` olunca `OpenApiDescriptionCoverageTests` 24 açıklamanın kaybını yakaladı. Faz 212 kuralı uygulandı: `<summary>` yerine `[Description]`, **aynı metin**. `docs/openapi/tracon.json` byte-aynı kaldı (`OpenApiSnapshotTests` yenilenmeden geçti). Plan "belge değişmez" diyordu — doğru; ama bu iş planın dosya listesinde yoktu. `WorkflowFunctionDescriptor` etkilenmedi: HTTP tarafı `WorkflowFunctionResponse` ile projekte eder.
+5. **Seam tabanından 26 değil 23 satır düştü**, ve bir kapı ek olarak taşındı: `SeamContractDocumentationTests.A_guarantee_limit_contract_states_what_is_NOT_guaranteed` `ITraconDrainState` XML'ini arıyordu. Tüketiciye dönük cümle public ayarın (`TraconDrainOptions.Enabled`) metnine taşındı ve kapı oraya bağlandı (`"does not, by itself"`, `"backup mechanism"`).
+6. **Public XML'de planın listesinden fazla yer vardı:** `TraconMcpOptions` (`McpOAuthOperationStatus.NotConfigured`), `TraconWorkflowFunctionExtensions` (`WorkflowFunctionDescriptor.SettingsSchema`), `IWorkflowRunner` (`IMcpToolRefresher`). Plandaki `IWorkflowCheckpointStore.cs:25` gerekmedi: atıf `IWorkflowRunner.ResumeStreamingAsync`'e ve o public kaldı. Tüketici-dışı `internal` arayüzlerin XML'indeki "tüketicinin kaydı kazanır" cümleleri de yeniden yazıldı (sekiz arayüz) — derleyici bunu istemez, ama yalan söyleyen bir yorum bırakmak sonraki oturumu yanıltır.
+7. **Kurucu tabanı 17 giriş, planın "~14"ü değil.** Kapsam kuralı plandaki gibi (public, soyut olmayan, statik olmayan, `record` olmayan sınıf; `*Options`/`*Settings`/`*Exception` hariç). Tür (sınıf/yapı/soyut) `PublicAPI.Unshipped.txt`'ten okunamadığı için kapı paketin kendi kaynağındaki bildirimi tarar (`record struct`lar — `RunEventDraft`, `CallableAgentInfo`, `ResolvedCallableAgents`, `ConversationBranch` — ve 53 soyut sözleşme sınıfı kapsam dışı kalır); bildirimi bulunamayan tip kapsamda kalır. Üç fiyat geçersiz kılma tipi, `TraconToolAttribute` ve `JobContext`/`AttachmentContent`/`SpeechAudio`/`SpeechDialogueAudio`/`ToolApprovalContext` planın sayımında yoktu. `PublicSurfaceBaselineTests.OptionalConstructors.cs`'in değerlendirici ve bayat-silme yardımcıları paylaşıma açıldı (`EvaluateConstructorBaseline`, `RemoveStaleConstructorEntries`).
+8. **`Responses` ek işleri.** `OpenAILiveProvider`'ın `switch`'i `Client => "client"` ve tanımsız değerde `ArgumentOutOfRangeException` oldu (eski `_ => "client"` sessiz düşüşü kalktı). `OptionsKeyCoverage` "test değeri varsayılana eşit" kuralı tek üyeli enum'da geçilemez: `DelegationMode` `exempt` oldu, anahtarın okunduğunu bağlayıcının reddi kanıtlar (`VoiceLiveOptionsBindingTests`). Ret `Bind` içinde, `InvalidOperationException` ile ve başlangıçta olur; `UseLiveVoice(Action<VoiceLiveOptions>)` yolunda enum'a sayı atamak hâlâ mümkündür ve o yolda ret yoktur (provider ilk oturumda `ArgumentOutOfRangeException` verir) — plan bunu istemedi, YAGNI.
+9. **`bench/Tracon.Benchmarks/NoOpRunStore.cs`** `IRunStore`'u uyguluyordu ve `tenantId = null` taşıyordu (`MA0061`); planın dosya listesinde yoktu. Örnek (`samples/Tracon.Samples.FileRunStore`) ve rehber (`write-your-own-store.md:48`) planlıydı.
+10. **`AspNetCore`'un hiç `InternalsVisibleTo`'su yoktu.** `Tracon.AspNetCore.csproj`'a yeni `ItemGroup` (Tracon.UI, Tracon.Ui.E2ETests) eklendi; `Tracon.Abstractions.csproj`'a `Tracon.Cli`.
+11. **Manuel case 3'ün adresi yanlıştı.** Plan `GET /tracon/ui` dedi; UI önek köküne eşlenir (`GET /tracon/`, `UiEndpoints.Map` `"/"` ve `"/{**path}"`). Case buna göre yazıldı. Case 2'nin `501` yarısı ve case 6 örnek uygulamada ölçülemez (`UseMcp()` ve özel `ITenantContext` için `Program.cs` değişikliği ister; K-834) — fonksiyonel testlere devredildi.
+12. **`docs-site/.../reference/configuration.md`'de `BackendModel` anahtarı yoktu** (planın tüketici yüzeyi bunu öngörmüştü); anahtar yalnız `guides/voice.md` tablosundaydı.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Dört kategoriden birine giren karar (AGENTS.md) ayrıca `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; plan numara rezerve etmez.
+**`docs/KARARLAR.md`'ye girenler (kategori: `public-api`):**
+
+- **K-1013** — Seam = bir rehberin, sample'ın veya contract suite'in tüketiciye uygulatmayı anlattığı public arayüz; 12 tesisat arayüzü ve 23 yetim tip `internal`; MIMARI K4 "belgelenmiş genişleme noktası" olarak daraldı; K-850'ye seam tanımı notu, K-614'e `IToolRegistry` "çağrılır, uygulanmaz" notu (UR-011 B, kullanıcı kararı).
+- **K-1014** — DI'ın ve araç boru hattının kurduğu beş tipin kurucusu `internal`, kaydı fabrika; somut sınıfın her public kurucusu `public-constructor-baseline.txt`'e gerekçeyle bağlı; `UpdateRunCostAsync` `tenantId` varsayılanı yok; `BackendModel` ×2 ve `QuotaUsageQuery.AsOf` silindi (K-866 ve K-867'nin devamı; UR-009 B, kullanıcı kararı).
+- **K-1015** — `LiveVoiceDelegationMode.Responses` silindi, `Tracon:Voice:Live:DelegationMode` bilinmeyen adı başlangıçta reddeder (Açık Soru 1 A, planın önerisi).
+
+**Faz içinde kalan yerel tercihler (`K-*` açılmadı):** kurucu tabanı anahtarı `<paket>:<tip>` (parametre sayısı yok; tek amaç tipin varlığı); ret `Bind` içinde, doğrulayıcıda değil (ham dize yalnız orada görünür); `OptionsKeyCoverage` istisnası; `ITraconDrainState` garanti-sınırı kapısının `TraconDrainOptions.Enabled`'a taşınması; `[Description]` metinleri XML özetinin birebir kopyası.
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+`PublicAPI.Unshipped.txt` toplamı **8530 → 8077** (−453 satır). Envanter: **591 tip, kanıtsız 0** (`--denetle` çıkış 0). Taban (`public-surface-baseline.txt`): Abstractions 423 → **389**, AspNetCore 23 → **22**, Core 79 (değişmedi). `seam-contract-baseline.txt`: −23 satır.
+
+```csharp
+// internal oldu (35 tip). Abstractions (34): IAuditActorResolver, IAuditDecorated, IMcpOAuthCoordinator,
+// IMcpPromptClient, IMcpResourceClient, IMcpResourceContextProviderFactory, IMcpToolRefresher,
+// IStatePreflightReader, ITraconDrainState, IWebhookPublisher, IWorkflowFunctionCatalog + 23 yetim tip
+// (McpOAuth{Complete,Start}Result, McpOAuthOperationStatus, McpOperationStatus, McpPrompt{ArgumentSummary,Content,
+// ListResult,Summary}, McpRefreshOutcome, McpResource{Content,ListResult,Summary}, StateGenerationTally,
+// StatePreflightTarget, StateSample, Webhook{Approval,Eval,Job,Quota,Run,Score}Summary, WebhookEventPayload,
+// WorkflowFunctionDescriptor). AspNetCore (1): ITraconUiProvider.
+
+// Tip public, kurucu internal (kayıt fabrika):
+internal SingleTenantContext(IOptions<TraconOptions> options)
+internal HttpTenantContext(IHttpContextAccessor, IOptions<TraconOptions>, IOptions<TraconTenancyOptions>)
+internal TimeoutAIFunction(AIFunction, TimeSpan, ILogger<TimeoutAIFunction>)                         // ve TimeProvider'lı kardeşi
+internal CompiledAgentCache()          internal DefaultRunAttributionContext()
+
+// Silindi:
+OpenAILiveOptions.BackendModel · LiveVoiceSessionOptions.BackendModel · QuotaUsageQuery.AsOf · LiveVoiceDelegationMode.Responses
+
+// Değişti (kaynak kırıcı, ikili uyumlu):
+ValueTask IRunStore.UpdateRunCostAsync(Guid runId, RunCost? cost, string? tenantId, CancellationToken cancellationToken = default);
+```
+
+HTTP `endpoint`'leri: değişmedi (`docs/openapi/tracon.json` byte-aynı).
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.Abstractions/{Audit,Diagnostics,Mcp,Runs,Webhooks,Workflows,Voice,Quotas}/**   12 arayüz + 23 tip internal; 5 MCP özeti [Description]; UpdateRunCostAsync; BackendModel; AsOf; Responses
+src/Tracon.Abstractions/Tracon.Abstractions.csproj · README.md                              IVT Tracon.Cli · sayılar (79 arayüz / 389 tip)
+src/Tracon.AspNetCore/Tracon.AspNetCore.csproj                                              IVT Tracon.UI, Tracon.Ui.E2ETests (yeni ItemGroup)
+src/Tracon.AspNetCore/{Ui/ITraconUiProvider.cs,Tenancy/*.cs}                                internal arayüz · internal kurucu + fabrika Replace
+src/Tracon.Core/{TraconServiceCollectionExtensions.Registration.Core.cs,Tenancy,Tools,Runs,Compilation,Hosting,Voice}/**   fabrika kayıtları · internal kurucular · DelegationMode ret
+src/Tracon.Core/Storage/InMemoryRunStore.Lifecycle.cs · src/Tracon.Sql.Shared/Stores/SqlRunStore.cs   UpdateRunCostAsync imzası
+src/Tracon.OpenAI/Live/{OpenAILiveOptions,OpenAILiveProvider,OpenAILiveProviderExtensions}.cs
+src/Tracon.{Mcp,Workflows,UI}/…                                                              public XML'de internal atıflar
+src/Tracon.Testing.Contracts.Xunit/Contracts/RunStoreContract.cs                             açık tenantId
+src/*/PublicAPI.Unshipped.txt                                                                Abstractions, AspNetCore, Core, OpenAI
+bench/Tracon.Benchmarks/NoOpRunStore.cs · samples/Tracon.Samples.FileRunStore/FileRunStore.cs
+tests/Tracon.Core.UnitTests/Architecture/{PublicSurfaceBaselineTests.Constructors.cs (yeni), public-constructor-baseline.txt (yeni), PublicSurfaceBaselineTests.OptionalConstructors.cs, SeamContractDocumentationTests.cs, seam-contract-baseline.txt, public-surface-baseline.txt}
+tests/Tracon.Core.UnitTests/Configuration/{ServiceRegistrationSnapshotTests,VoiceLiveOptionsBindingTests}.cs
+tests/Tracon.AspNetCore.FunctionalTests/DiConstructedServiceResolutionTests.cs
+tests/Tracon.OpenAI.UnitTests/OpenAILiveStartupValidationTests.cs
+tests/{Tracon.Core.UnitTests,Tracon.Workflows.UnitTests,Tracon.AspNetCore.FunctionalTests,Tracon.Sqlite.IntegrationTests,Tracon.SqlServer.IntegrationTests}/…   UpdateRunCostAsync imzası
+CHANGELOG.md · README.md · ARCHITECTURE.md · docs/{MIMARI.md,MIMARI-GUVENLIK.md,hafiza/*,manuel-test/*}
+docs-site/src/content/docs/{concepts/index.md,getting-started/index.md,guides/voice.md,guides/write-your-own-store.md} · docs-site/public/llms-full.txt
+```
+
+**Testler (yeni/değişen):** `PublicSurfaceBaselineTests.Public_constructors_of_concrete_classes_match_the_checked_in_baseline` (+ 15 ayrıştırıcı vakası); `DiConstructedServiceResolutionTests` (+4: `CompiledAgentCache` tek örnek, yapılandırılmış `DefaultTenantId`, tüketici bağlamı kazanır, `UseTenancy` → `HttpTenantContext`; ilk vaka üç tipi daha çözer); `VoiceLiveOptionsBindingTests` (+5: dört ret vakası, `CLIENT` büyük/küçük harf); `OpenAILiveStartupValidationTests.A_BackendModel_key_left_in_configuration_is_ignored_and_the_host_starts`; `ServiceRegistrationSnapshotTests` (3 satır `Factory`).
 
 ## Süreç Ölçümü
 

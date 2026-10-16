@@ -184,7 +184,8 @@ tip `internal`'a cekilince uc sey bayatlar ve hicbiri derlemeyi kirmaz:
 - public bir tipin `<see cref>`'i — ayni derlemede sessizce derlenir, docfx onu
   baglantisiz koda cevirir (site kirilmaz ama okuyucu gorunmeyen bir tipe gider);
 - public bir seam'in tuketiciye o tipi kullanmasini soyleyen cumlesi
-  (`IMigrationApplier`, `IStatePreflightReader`).
+  (`IMigrationApplier`; Faz 213'te `IWebhookStore`'un `IWebhookPublisher`'a
+  yolladigi cumle de boyleydi ve yeniden yazildi).
 
 Tarama: daraltilan her ad icin `git grep -n 'cref="<Ad>' -- src` ve
 `git grep -n '<c><Ad>' -- src`; public tipte olanlar duz metne cevrilir.

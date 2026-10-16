@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182, 190, 208, 209
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182, 190, 208, 209, 213
 > **Kaynak:** `src/Tracon.AspNetCore/Security/` (tümü: `TraconEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `TraconPolicies`,
@@ -5090,3 +5090,28 @@ Otomatik karşılığı: `WorkflowRequestInboxHttpTests.A_handler_that_refuses_r
 **Beklenen sonuç**
 - 1: `403`; gövde istek içeriği taşımaz; işleyiciye `RunId` olmadan bir `Read` sorusu gelir.
 - 2: tam sayfa döner (kısa sayfa asla dönmez).
+
+---
+
+### MT-SEC-224 — Tenant bağlamının fabrika kaydı davranışı değiştirmez; tüketicinin kaydı kazanır (Faz 213, F-556)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 213 |
+| **İlgili karar** | K-1014 |
+| **Devir** | (2) ➜ CI: `DiConstructedServiceResolutionTests` |
+
+`SingleTenantContext` ve `HttpTenantContext` kurucuları `internal` oldu; kayıtları fabrikadır.
+
+**Ön koşul**
+- `samples/Tracon.Api` Production'da, `Tracon:Tenancy` ayarsız (`--urls http://127.0.0.1:5299`).
+
+**Adımlar**
+1. `curl -s -w "\nHTTP %{http_code}\n" http://127.0.0.1:5299/tracon/api/tenants/current`
+2. Kendi `ITenantContext`'ini `AddTracon()`'dan ÖNCE kaydeden bir host (fonksiyonel test) aynı ucu çağırır.
+
+**Beklenen sonuç**
+- (1) `{"tenantId":"default"}`, `HTTP 200`.
+- (2) Tüketicinin bağlamı çözülür; `SingleTenantContext` kurulmaz.

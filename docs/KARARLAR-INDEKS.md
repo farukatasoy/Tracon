@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 950 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 953 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1002 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1005 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-961 | 1002 | Job süresi: `MaxDuration` alanı + `jobs.max_duration_ms` sütunu + `MaxDurationByHandlerKey` haritası; aşan deneme `tracon.job.max-duration-exceeded` ile başarısızdır ve yeniden kiralanır (F-323) (kullanıcı kararı) 👤 |
-| K-962 | 1003 | Job iptali handler token'ına bir `PollInterval` içinde ulaşır: üç kaynaklı token, sonuç kaynaktan okunur, işçi çalışan job'u yoklar (F-323) (kullanıcı kararı) 👤 |
-| K-963 | 1004 | Workflow işinde süre aşımı işin sonudur: run `job_max_duration_exceeded` ile kapanır ve kurtarma onu sürdürmez; 13-A, 7-A'dan önce gelir (F-323) (kullanıcı kararı) 👤 |
 | K-964 | 1005 | Onaylanan skill script'i public `ISkillScriptExecutor` seam'ine gider (singleton · beklenen kiracı · teslim garantisi yok); kapılar, içerik pini, `script.run` denetimi, kota, `Timeout + 5 sn` bekleme sınırı ve çıktı sınırı runner'da kalır, yürütücü yalnız yeri seçer; yerel süreç `UseSkillScripts`'in işaretli varsayılanıdır (`TryAddTraconDefault`, `RequireCustomBinding` reddeder); `SkillScriptExecutionResult` `Duration`'sız `Abstractions`'a taşındı, süreyi runner ölçer, tutarsız/`null` sonuç çağrıyı düşürür (Faz 202, F-345) |
 | K-965 | 1006 | Harici yürütücüde de `PlatformIsolationAcknowledged` zorunludur ve K-861 (çok kiracılı host'ta stored grant için platform yetkisi) değişmez; yürütücü yalıtım beyan etse de gevşemez (Faz 202, Açık Soru 1-A ve 2-A) (kullanıcı kararı) 👤 |
 | K-966 | 1007 | Disk script'i de yürütücüye gider: içeriği runner kotadan sonra okur ve istekte taşır, kardeş dosyalar taşınmaz (`SourcePath` yalnız yerel yürütücü içindir); kota harici yürütücüde de uygulanır; bekleme toleransı seçenek değil sabit 5 sn'dir (Faz 202, Açık Soru 3-A, 4-A, 5-A) (kullanıcı kararı) 👤 |
@@ -62,3 +59,6 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-1010 | 1051 | Kod kaydı `WorkflowRegistrationOptions.RunTimeout` ve `Parameters` taşır: `RunTimeout` K-960'ın kuralını izler, ama tavanı aşan değer HOST AÇILIŞINDA (`TraconWorkflowOptionsValidator`, `Enabled` iken) workflow adıyla düşer, tavan sonradan düşerse run tavana kesilir ve loglanır; `Parameters` K-897'nin kuralını izler (HTTP erken `400`); katılımcı kapsaması kod grafında YOKTUR, eksik zorunlu değeri adım koşarken düşürür (F-537, Faz 211) |
 | K-1011 | 1052 | Süre dolumu servisi (`WorkflowRequestExpirationService`) kapattığı run `Failed` ise `run.failed` yayınlar; `Completed` kapanışta HİÇBİR olay yayınlamaz; yayın `CancellationToken.None` ile yapılır, hata loglanır ve kapanışı bozmaz (F-539, Faz 211) |
 | K-1012 | 1053 | HTTP istek/yanıt DTO'su `internal` doğar ve açıklamasını `[Description]` taşır: 81 tip `internal` oldu; OpenAPI şeması artık public kalma kanıtı değildir, K-850'nin ikinci kuralı geçersiz (F-554, Faz 212) (kullanıcı kararı) 👤 |
+| K-1013 | 1054 | Seam, bir rehberin, sample'ın veya contract suite'in tüketiciye uygulatmayı anlattığı public arayüzdür; 12 tesisat arayüzü ve yalnız onların imzasında yaşayan 23 tip `internal` oldu, MIMARI K4 "belgelenmiş genişleme noktası" olarak daraldı (F-555, Faz 213) (kullanıcı kararı) 👤 |
+| K-1014 | 1055 | DI'ın ve araç boru hattının kurduğu 5 tipin kurucusu `internal`, kaydı fabrika; somut sınıfın her public kurucusu `public-constructor-baseline.txt`'e gerekçeyle bağlı ve taban yalnız küçülür; `UpdateRunCostAsync` `tenantId` varsayılanı yok; `BackendModel` ×2 ve `QuotaUsageQuery.AsOf` silindi (F-556, Faz 213) (kullanıcı kararı) 👤 |
+| K-1015 | 1056 | `LiveVoiceDelegationMode.Responses` silindi, enum yalnız `Client`; `Tracon:Voice:Live:DelegationMode` bilinmeyen adı başlangıçta reddeder (F-556, Faz 213) |

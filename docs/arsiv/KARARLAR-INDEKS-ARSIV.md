@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (950 kalem)
+## Arşivlenen Kararlar (953 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -959,3 +959,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-958 | 999 | Fonksiyon düğümü süresi: kayıtta `WorkflowFunctionOptions.Timeout` (yeni `Action<>` aşırı yüklemesi), düğümde `WorkflowNodeReference.Timeout`; aşım run'ı `Failed` + `workflow_function_timeout` bitirir; süre deneme başınadır (F-303) (kullanıcı kararı) 👤 |
 | K-959 | 1000 | Agent düğümü `timeout`'u yalnız `nodes` zincirinde o adımın `ChildDeadline`'ını ezer; konsol süre için biçimi `nodes`'a çevirmez, K-901 değişmez (F-405) (kullanıcı kararı) 👤 |
 | K-960 | 1001 | Tanım `RunTimeout`'u kurulum değerini kısaltır, `MaxRunTimeout` tavanına kadar uzatır; tavan aşımı kayıtta `400`; süre slot beklemesini sayar (F-405) (kullanıcı kararı) 👤 |
+| K-961 | 1002 | Job süresi: `MaxDuration` alanı + `jobs.max_duration_ms` sütunu + `MaxDurationByHandlerKey` haritası; aşan deneme `tracon.job.max-duration-exceeded` ile başarısızdır ve yeniden kiralanır (F-323) (kullanıcı kararı) 👤 |
+| K-962 | 1003 | Job iptali handler token'ına bir `PollInterval` içinde ulaşır: üç kaynaklı token, sonuç kaynaktan okunur, işçi çalışan job'u yoklar (F-323) (kullanıcı kararı) 👤 |
+| K-963 | 1004 | Workflow işinde süre aşımı işin sonudur: run `job_max_duration_exceeded` ile kapanır ve kurtarma onu sürdürmez; 13-A, 7-A'dan önce gelir (F-323) (kullanıcı kararı) 👤 |

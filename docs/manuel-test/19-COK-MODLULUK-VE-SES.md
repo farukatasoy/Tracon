@@ -1,6 +1,6 @@
 # 19 — Çok Modluluk: Ek, Ses Tool'ları ve Gerçek Zamanlı Konuşma (`MM`)
 
-> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198, 203
+> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198, 203, 213
 > **Kaynak:** `src/Tracon.Abstractions/Attachments/` (tümü) ·
 > `src/Tracon.Core/Attachments/` (tümü) ·
 > `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
@@ -3100,3 +3100,31 @@ Regresyon. `/speak` sağlayıcı hatasını `502` veriyordu, `/voices` `500`.
 - İki yolda da yalnız son iterasyon seslendirilir; ilk taslak ve Loop'un geri bildirimi okunmaz.
 - Seslendirme döngü bitince başlar.
 - 🚨 Eski kusur: iki yol da taslağı ve geri bildirimi okuyordu.
+
+---
+
+### MT-MM-140 — Yapılandırmada kalan `BackendModel` yok sayılır, tanımsız `DelegationMode` ana bilgisayarı başlangıçta durdurur (Faz 213, F-556)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 213 |
+| **İlgili karar** | K-1014 · K-1015 |
+| **Devir** | ➜ CI: `OpenAILiveStartupValidationTests` · `VoiceLiveOptionsBindingTests` |
+
+**Ön koşul**
+- `samples/Tracon.Api` Production'da; canlı ses kayıtlı olsun diye sahte bir OpenAI anahtarı ve kapalı bir
+  yerel uç (ağa çıkmaz): `--Tracon:Providers:OpenAI:ApiKey=sk-local-test-not-real
+  --Tracon:Providers:OpenAI:Endpoint=http://127.0.0.1:9/v1/`.
+
+**Adımlar**
+1. Ek bayrak `--Tracon:Providers:OpenAI:Live:BackendModel=gpt-x` ile başlat, `GET /tracon/api/meta` çağır.
+2. Ek bayrak `--Tracon:Voice:Live:DelegationMode=Responses` ile başlat.
+3. Ek bayrak `--Tracon:Voice:Live:DelegationMode=client` ile başlat, `GET /tracon/api/meta` çağır.
+
+**Beklenen sonuç**
+- (1) Host açılır, `meta` `200`; anahtar yok sayılır (CHANGELOG **Removed**'da anılır).
+- (2) Host açılışta düşer: `The live voice setting 'DelegationMode' is 'Responses', which is not a delegation mode.
+  The only mode is 'Client'.` (çıkış 134, ilk istekten önce).
+- (3) Host açılır; ad büyük/küçük harfe bakmaz.

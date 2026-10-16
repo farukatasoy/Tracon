@@ -97,8 +97,9 @@ Kural `DependencyDirectionTests.AllowedReferences` ile zorlanır. AOT uyumluluk
 tablosu 9. bölümdedir (K-006).
 
 > `Mcp` ve `Workflows`, `AspNetCore`'a **referans vermez** (kesikli oklar): HTTP
-> katmanı onları `IMcpToolRefresher` ve `IWorkflowRunner` soyutlamaları üzerinden
-> tetikler. Böylece ikisi de isteğe bağlı paket kalır. Workflow motoru kayıtlı
+> katmanı onları `IMcpToolRefresher` (`internal`, Faz 213) ve `IWorkflowRunner`
+> (public) soyutlamaları üzerinden tetikler. Böylece ikisi de isteğe bağlı paket
+> kalır. Workflow motoru kayıtlı
 > değilse yalnız çalıştırma uçları `501` döner; tanım yönetimi çalışır (K-118).
 
 > `Tracon.Client` **hiçbir Tracon paketini referanslamaz** (Faz 83,
@@ -139,8 +140,8 @@ rol ve iki ayrı kayıttır. Bu ayrım kuralın özüdür.
 
 > **Gerekçe:** Sarmalama, MAF'ın her yeni sürümünde bakım borcu üretir ve tüketiciyi MAF ekosisteminden koparır. Tracon bir *kontrol düzlemi*dir, bir *soyutlama katmanı* değil.
 
-### K4 — Her genişleme noktası değiştirilebilir
-Tüm servisler `TryAdd*` ile kaydedilir. Tüketici kendi implementasyonunu daha önce kaydederse onunki kazanır. Aynı kural MAF'ın kendi `Hosting.OpenAI` paketinde de geçerlidir — bu yüzden `IConversationStorage` gibi arayüzleri değiştirebiliyoruz.
+### K4 — Her *belgelenmiş* genişleme noktası değiştirilebilir
+Genişleme noktası bir rehberin, sample'ın veya contract suite'in tüketiciye uygulatmayı anlattığı public arayüzdür; Tracon'un paketleri arasındaki tesisat arayüzleri `internal`'dır ve genişleme noktası sayılmaz (Faz 213, K-1013). Genişleme noktaları `TryAdd*` ile kaydedilir. Tüketici kendi implementasyonunu daha önce kaydederse onunki kazanır. Aynı kural MAF'ın kendi `Hosting.OpenAI` paketinde de geçerlidir — bu yüzden `IConversationStorage` gibi arayüzleri değiştirebiliyoruz.
 
 ---
 
