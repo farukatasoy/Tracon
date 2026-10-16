@@ -225,6 +225,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [210](arsiv/fazlar/210-BUTCE-DUGUM-KAPISI.md) | Bütçe Tükenince Fonksiyon Düğümü Başlamaz | ✅ Tamamlandı |
 | [211](arsiv/fazlar/211-KOD-GRAFI-DUGUM-YETENEKLERI.md) | Kod Grafında Düğüm Yetenekleri ve Revizyon Döngüsü | ✅ Tamamlandı |
 | [212](arsiv/fazlar/212-HTTP-DTO-DARALTMA.md) | HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip | ✅ Tamamlandı |
-| [213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) | Tesisat Arayüzleri ve Üye Hijyeni | 🚧 Devam ediyor — kod uygulandı, kapanış kapıları koşuyor (2026-10-16) |
+| [213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) | Tesisat Arayüzleri ve Üye Hijyeni | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

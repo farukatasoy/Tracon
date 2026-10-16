@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -4480,3 +4480,36 @@ restore olup çalışma anında `TypeLoadException` veriyordu.
 - (2) Derleme `0 Error(s)`; çıktıda `get_order_status` ve `total_invoice`.
 - (3) Derleme `TRC0005` ile düşer; mesaj "register a referenced library's tools with the extension that library exposes" der. `CS0121` YOKTUR.
 
+---
+
+### MT-PKG-165 — Paketlenmiş tüketici: tesisat arayüzleri, kurucular ve silinen üyeler derleme hatası verir (Faz 213)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 213 |
+| **İlgili karar** | K-1013 · K-1014 · K-1015 |
+
+**Ön koşul**
+- `python3 scripts/kapi.py yayin --kuru --surum <sürüm>` yeşil; `artifacts/package/yayin/<sürüm>/` beslemesi. Atılabilir
+  `net10.0` projesi (`Microsoft.NET.Sdk.Web`) yalnız `Tracon` meta paketine başvurur; `NuGet.config` yerel besleme +
+  nuget.org, `NUGET_PACKAGES` izole.
+
+**Adımlar**
+1. Bir dosyaya `Tracon.IMcpToolRefresher`, `Tracon.IWebhookPublisher`, `Tracon.ITraconUiProvider` ve `Tracon.McpRefreshOutcome` türünde yerel değişken yaz.
+2. `new Tracon.SingleTenantContext(null!)`, `new Tracon.HttpTenantContext(null!, null!, null!)`, `new Tracon.CompiledAgentCache()`,
+   `new Tracon.DefaultRunAttributionContext()`.
+3. `await store.UpdateRunCostAsync(Guid.NewGuid(), null)` (`store` bir `IRunStore`).
+4. `new Tracon.OpenAILiveOptions { BackendModel = "x" }`, `new Tracon.LiveVoiceSessionOptions { BackendModel = "x" }`,
+   `new Tracon.QuotaUsageQuery { AsOf = … }`, `Tracon.LiveVoiceDelegationMode.Responses`.
+5. Kontrol: `Tracon.IVoiceHealthCheck`, `Tracon.IWorkflowRunner`, `Tracon.IToolRegistry`, `Tracon.ITenantContext`,
+   `Tracon.CompiledAgentCache` türünde yerel değişken ve `UpdateRunCostAsync(Guid.NewGuid(), null, "default")`.
+6. `dotnet build -c Release`
+
+**Beklenen sonuç**
+- (1) `CS0122` ("inaccessible due to its protection level") dört satırda.
+- (2) `CS1729` ("does not contain a constructor that takes N arguments") dört satırda. Tip erişilebilir, kurucu aday bile değildir.
+- (3) `CS7036` (zorunlu `tenantId` parametresi verilmemiş).
+- (4) `CS0117` ("does not contain a definition for") dört satırda.
+- (5) Hata YOKTUR.

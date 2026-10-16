@@ -1,6 +1,6 @@
 # 09 — Arayüz Genel (`UI`)
 
-> **Alan kodu:** `UI` · **Faz:** 5, 30, 164
+> **Alan kodu:** `UI` · **Faz:** 5, 30, 164, 213
 > **Kaynak:** `src/Tracon.UI/frontend/src/app.tsx` (kabuk, rota tablosu) ·
 > `components/access-gate.tsx` (kimlik doğrulama akışı) · `components/layout.tsx`
 > (gezinme, tema/dil düğmeleri, klavye bağlamaları) · `components/command-palette.tsx`
@@ -1526,3 +1526,31 @@ Otomatikleştirilmiş: `ConfirmationTests.A_confirmation_fits_a_narrow_screen_in
 - Dialog ekrandan taşmaz; başlık uzun adla birlikte sarar.
 - `İptal` ve `Sil` düğmelerinin ikisi de görünür ve basılabilir.
 - Türkçe metin İngilizcesinden uzun olduğu hâlde düğmeleri ekran dışına itmez.
+
+---
+
+### MT-UI-058 — `UseUI()` ile konsol yüklenir: `ITraconUiProvider` `internal` olsa da `Tracon.UI` kaydeder (Faz 213, F-555)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 213 |
+| **İlgili karar** | K-1013 |
+
+`ITraconUiProvider` `Tracon.AspNetCore`'da `internal` oldu; `Tracon.UI` onu `InternalsVisibleTo` ile görür. Derlemede `Tracon.UI`'nin
+derlenmesi bir kanıttır, çalışma anında kaydın ve varlıkların sunulması başka bir kanıt.
+
+**Ön koşul**
+- Arayüzü gömerek derlenmiş örnek uygulama (`-p:TraconFrontendEnabled=false` OLMADAN `dotnet build`);
+  `samples/Tracon.Api` Production'da, `--urls http://127.0.0.1:5299`. (Arayüzsüz derlemede uç `404` verir:
+  `HasAssets` yanlıştır ve rotalar hiç bağlanmaz.)
+
+**Adımlar**
+1. `curl -s -o /dev/null -w "HTTP %{http_code} %{content_type}\n" http://127.0.0.1:5299/tracon/`
+2. Dönen HTML'deki `./assets/index-*.js` yolunu `/tracon/` altından iste.
+
+**Beklenen sonuç**
+- (1) `HTTP 200 text/html; charset=utf-8`; gövde `<base href="/tracon/" />` taşır. Arayüz önek kökündedir (`/tracon/`);
+  `/tracon/ui` de `200` verir çünkü SPA yedek rotası her GET yolunu karşılar, ayrı bir sayfa değildir.
+- (2) `HTTP 200 text/javascript`.

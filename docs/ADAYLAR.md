@@ -384,6 +384,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-563** · OpenAI uyumlu yanıt tipleri ve yedi public enum OpenAPI belgesinde açıklamasız | Faz 212 denetimi 🟢3: `openapi-undescribed-baseline.txt` `ChatCompletion`, `ItemResource` gibi `internal` OpenAI uyumlu tipleri ve `WorkflowKind`, `RunErrorClass`, `RunScoreBucket`, `RunScoreTarget`, `TimeSeriesBucket`, `VoiceSessionEndReason`, `EvalCaseSource` enum'larını listeler. Public bir enum'un XML özeti şemaya geçmez; `CanaryDecisionKind` geçer | Önce ölçüm: enum özetinin neden geçmediği. Sonra `[Description]` ekle; taban küçülür |
 | 🟢 | **F-565** · `UseLiveVoice(Action<VoiceLiveOptions>)` yolunda tanımsız `DelegationMode` açılışta reddedilmez | Faz 213 denetimi 🟢1: ret yalnız yapılandırma bağlayıcısındadır (`LiveVoiceBuilderExtensions.Bind`). Koddan `(LiveVoiceDelegationMode)1` atanırsa `OpenAILiveProvider` ilk oturumda `ArgumentOutOfRangeException` atar ve uç bunu `502` değil `500` döndürür (`LiveVoiceEndpoints.cs` catch süzgecinde yok). Gerçekçi değil (sayı ataması gerekir) | `VoiceLiveOptionsValidator`'a tek satır `Enum.IsDefined`; test `VoiceLiveOptionsBindingTests`'te |
 | 🟢 | **F-566** · Kurucu tabanı gerekçelerinin doğruluğu denetlenmiyor | Faz 213 denetimi 🟢2: `public-constructor-baseline.txt` yalnız gerekçe uzunluğunu (≥ 40) zorlar. `JobContext`, `ToolApprovalContext`, `SpeechDialogueAudio`, `MutableTenantContext` için "tüketici kurar" iddiasının rehber/sample kanıtı yok (`grep "new JobContext"` samples ve docs-site'ta boş; testlerde var) | Her girişe somut bir kanıt yolu zorunlu kılmak (rehber, sample veya test sınıfı) ya da kanıtsız girişleri `internal` yapmak; tasarım kararı |
+| 🟢 | **F-567** · "Çağrılır, uygulanmaz" arayüz cümlesini hiçbir kapı zorlamıyor | Faz 213 denetimi 🔴1'in kök sebebi: plan dokuz arayüze `IToolRegistry` emsali XML cümlesi istedi, uygulama atladı, yalnız okuma buldu. `SeamContractDocumentationTests` lifetime/tenant/delivery cümlelerini zorlar, "bu arayüzü uygulama" cümlesini zorlamaz; bu liste (`IToolRegistry` + dokuz arayüz) hiçbir yerde makine okunur değil | Listeyi bir `[Fact]` içine yaz ve her arayüzün özetinde `do not implement` ara (taban küçülür; liste büyürse gerekçe ister) |
 
 ### Tetik bekleyenler
 
@@ -514,7 +515,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-567**.
+numara: **F-568**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
