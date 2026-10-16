@@ -24,6 +24,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`Tracon:Voice:Live:DelegationMode` refuses a name that is not a delegation mode.** The host
   stops at startup with a message that names the setting. A misspelled name used to fall back to
   `Client` without a word.
+- **`Tracon:UtilityModel` refuses a number it cannot read.** `Temperature`, `TopP` and
+  `MaxOutputTokens` that do not parse (`"abc"`, `"1.5"` for the token limit, `"0,7"`) stop the host
+  at startup with a message that names the key and the text as written. Such a value used to bind
+  as `0`, so a typo ran the context-compaction summarizer at temperature zero without a word. An
+  empty value still means "not set": the provider default applies. Code that assigns
+  `TraconOptions.UtilityModel` after binding still wins.
 - **Runtime dependencies move to the newest lines.** Microsoft Agent Framework `1.25.0` (the
   hosting packages `1.25.0-preview.261014.1`, `Microsoft.Agents.AI.Hosting.OpenAI`
   `1.25.0-alpha.261014.1`, `A2A.AspNetCore` `1.0.0-preview3`, all still exact pins),

@@ -101,7 +101,7 @@ script.
 | `AgentGraph:MaxDuration` | none | Wall-clock budget for the whole call tree, counted from the root run's start. Once passed, the next model call is refused and a workflow function node does not start; a call or node already running is not stopped |
 | `AgentGraph:ChildDeadline` | 2 minutes | Longest one sub-agent call, or one agent step of a workflow, may take before it is cancelled (the cooperative layer). A workflow agent step can carry its own `timeout`, which replaces this value for that step. From 1 millisecond to about 49.7 days |
 | `AgentGraph:WaitTimeout` | `ChildDeadline` plus 30 seconds | Hard cutoff for a call that ignores cancellation. Must be greater than `ChildDeadline`; when unset it follows it |
-| `UtilityModel` | `null` | Optional model binding for compaction summarization |
+| `UtilityModel` | `null` | Optional model binding for compaction summarization. `Provider` and `Model` are both required, or no binding is built. A `Temperature`, `TopP` or `MaxOutputTokens` that is not a number stops the host at startup; an empty one means the provider default |
 | `Tools:DefaultTimeout` | 30 seconds | Longest one tool call may run when its own registration sets no timeout |
 | `Tools:DefaultMaxOutputBytes` | `null` (unlimited) | UTF-8 byte limit for a tool result when its own registration sets none; must be at least 57 bytes when set |
 

@@ -53,6 +53,16 @@ public sealed class TraconOptions
     /// </remarks>
     public ModelBinding? UtilityModel { get; set; }
 
+    /// <summary>
+    /// The <see cref="UtilityModel"/> numbers the binder could not read, each as its
+    /// key and the text written, and the binding it built without them.
+    /// </summary>
+    /// <remarks>
+    /// For the startup message only: the failure holds while <see cref="UtilityModel"/>
+    /// is still that binding, so code that assigns the member after binding clears it.
+    /// </remarks>
+    internal (ModelBinding Bound, IReadOnlyList<(string Key, string Text)> Values)? UnreadableUtilityModel { get; set; }
+
     /// <summary>Gets or sets definition-validation endpoint options.</summary>
     public TraconValidationOptions Validation { get; set; } = new();
 

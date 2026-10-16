@@ -167,6 +167,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         }
 
         ValidatePricing(options.Pricing, ref failures);
+        ValidateUtilityModel(options, ref failures);
 
         var tools = options.Tools;
 
@@ -359,6 +360,23 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
     /// Validates that configuration price overrides are not negative. A negative
     /// price would silently corrupt cost reporting.
     /// </summary>
+    private static void ValidateUtilityModel(TraconOptions options, ref List<string>? failures)
+    {
+        // The failure holds while the binding is still the one the binder built:
+        // code that assigns UtilityModel after binding wins (K4, F-385 precedent).
+        if (options.UnreadableUtilityModel is not { } unreadable || !ReferenceEquals(options.UtilityModel, unreadable.Bound))
+        {
+            return;
+        }
+
+        foreach (var (key, text) in unreadable.Values)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconOptions)}.{nameof(TraconOptions.UtilityModel)}.{key} is '{text}', " +
+                "which is not a number. Write a number or remove the key to use the provider default.");
+        }
+    }
+
     private static void ValidatePricing(TraconPricingOptions? pricing, ref List<string>? failures)
     {
         if (pricing is null)
