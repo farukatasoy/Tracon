@@ -8,7 +8,7 @@ namespace Tracon.Client.Generated;
 // enough to also emit the support class NSwag's own template normally
 // includes automatically. The shape below is NSwag's own template output,
 // copied by hand because that template is not reachable from a $ref'd binary
-// schema in this NSwag version (14.2.0). Re-run
+// schema in this NSwag version (14.7.1, re-checked 2026-10-16). Re-run
 // scripts/nswag-postprocess-client.py after every `dotnet nswag run` and
 // confirm this class is still needed (grep the regenerated file for "class
 // FileParameter"); if a future NSwag version emits it, delete this file.
