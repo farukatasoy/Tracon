@@ -45,7 +45,7 @@ options.DataSource = yourDbDataSource;   // ConnectionString is then not require
 
 Tracon never disposes an instance it did not build; the caller keeps
 ownership. `Microsoft.Data.SqlClient` does not itself offer a `DbDataSource`
-implementation (measured against version 7.0.2), so this is for a `DbDataSource`
+implementation (measured against version 7.1.1), so this is for a `DbDataSource`
 adapter you write yourself — see `Tracon.PostgreSql`'s
 `https://tracon.dev/guides/ef-core/` for the pattern.
 

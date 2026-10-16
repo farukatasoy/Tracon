@@ -141,6 +141,74 @@ public sealed class OpenAICompatTests
     }
 
     [Fact]
+    public async Task Responses_second_turn_loads_the_session_the_first_turn_saved()
+    {
+        // Phase 214: the load and the save go through the Agent Framework's
+        // session store key. The chaining test above only shows that the first
+        // record EXISTS; a load that missed it would still pass. The stored
+        // state of the second record must carry BOTH turns, the first record
+        // only its own.
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        string firstResponseId;
+        string secondResponseId;
+
+        using (var first = await host.Client.PostAsJsonAsync(
+            Responses,
+            new { model = "kod-agent", input = "turn-one-marker" }))
+        {
+            first.EnsureSuccessStatusCode();
+            firstResponseId = (await TraconTestHost.ReadJsonAsync(first)).GetProperty("id").GetString()!;
+        }
+
+        using (var second = await host.Client.PostAsJsonAsync(
+            Responses,
+            new { model = "kod-agent", input = "turn-two-marker", previous_response_id = firstResponseId }))
+        {
+            second.EnsureSuccessStatusCode();
+            secondResponseId = (await TraconTestHost.ReadJsonAsync(second)).GetProperty("id").GetString()!;
+        }
+
+        var firstState = await StoredStateAsync(host, firstResponseId);
+        var secondState = await StoredStateAsync(host, secondResponseId);
+
+        firstState.ShouldContain("turn-one-marker");
+        firstState.ShouldNotContain("turn-two-marker", Case.Sensitive);
+        secondState.ShouldContain("turn-one-marker");
+        secondState.ShouldContain("turn-two-marker");
+    }
+
+    [Fact]
+    public async Task Responses_streaming_saves_the_session_under_the_conversation_id()
+    {
+        // Phase 214: the streamed turn saves its session after the last frame;
+        // the other streaming test only reads event names.
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        using (var response = await host.Client.PostAsJsonAsync(
+            Responses,
+            new { model = "kod-agent", input = "streamed-marker", stream = true, conversation = "conv-streamed" }))
+        {
+            response.EnsureSuccessStatusCode();
+            _ = await SseReader.ReadAllAsync(await response.Content.ReadAsStreamAsync());
+        }
+
+        (await StoredStateAsync(host, "conv-streamed")).ShouldContain("streamed-marker");
+    }
+
+    private static async Task<string> StoredStateAsync(TraconTestHost host, string sessionId)
+    {
+        using var response = await host.Client.GetAsync(
+            new Uri($"/tracon/api/sessions/{sessionId}", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, $"session '{sessionId}' was not saved");
+
+        return (await TraconTestHost.ReadJsonAsync(response)).GetProperty("state").GetRawText();
+    }
+
+    [Fact]
     public async Task Responses_conversation_id_stays_stable_across_turns()
     {
         await using var host = await TraconTestHost.StartAsync(
