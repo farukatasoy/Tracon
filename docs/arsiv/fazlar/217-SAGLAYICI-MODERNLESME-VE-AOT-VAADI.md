@@ -2,10 +2,10 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-17)
 > **Plan onayı:** onaylandı — farukatasoy, 2026-10-17, "onaylıyorum". Açık Sorular 1–5 ayrıca yanıtlanmadı; uygulama planın önerisini izler (Açık Soru 1 canlı ölçümden sonra kapanır). Planlamada verilen kararlar (farukatasoy, 2026-10-17): Anthropic AOT vaadi **geri çekilir** · AOT vaadinin ölçütü **smoke + sıfır uyarı** · Azure **düz `OpenAI` istemcisi + `/openai/v1/`** · canlı doğrulama **yalnız Anthropic** (Azure canlı case'i 👤 bekler).
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-558**
-> **Genellik:** Sağlayıcı paketini Native AOT ile yayımlayan **her** tüketici (Anthropic bugün ilk istekte çöker — ölçüldü) ve Azure OpenAI kullanan **her** tüketici (kararlı `Azure.AI.OpenAI` 2024-12'den beri sürüm almadı; 1.0 bu bağımlılığı dondurur). İş tüketici kodunda kalamaz: vaat ve bağımlılık paketin kendisindedir. İkinci kanıt: freeze yolu ölçüt 3 ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §2) ve 2026-10-16 denetimi A-83.
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-558**
+> **Genellik:** Sağlayıcı paketini Native AOT ile yayımlayan **her** tüketici (Anthropic bugün ilk istekte çöker — ölçüldü) ve Azure OpenAI kullanan **her** tüketici (kararlı `Azure.AI.OpenAI` 2024-12'den beri sürüm almadı; 1.0 bu bağımlılığı dondurur). İş tüketici kodunda kalamaz: vaat ve bağımlılık paketin kendisindedir. İkinci kanıt: freeze yolu ölçüt 3 ([`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §2) ve 2026-10-16 denetimi A-83.
 > **Karşı görüş:** "Çalışan bir adaptörü yeniden yazmak risktir; Azure kullanıcısı v1 yolunu desteklemeyen bir kaynakta kalabilir." Cevap: değişiklik yalnız iç istemciyi değiştirir, public API aynı kalır. Ölçülen kırık (`AddDataSource`, K-211) ve 62 AOT uyarısı eski adaptördedir. Bedel (istek yolu değişir) sürüm notunda adıyla yazılır. 1.0'dan sonra aynı değişiklik daha pahalıdır.
-> **Önkoşul:** [Faz 214](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) · [215](arsiv/fazlar/215-TEST-VE-DERLEME-ARACLARI.md) · [216](arsiv/fazlar/216-NPM-BAGIMLILIKLARI.md) — bağımlılıklar en yeni sürümde (kapandı)
+> **Önkoşul:** [Faz 214](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) · [215](215-TEST-VE-DERLEME-ARACLARI.md) · [216](216-NPM-BAGIMLILIKLARI.md) — bağımlılıklar en yeni sürümde (kapandı)
 > **Paketler:** `Tracon.Azure`, `Tracon.Anthropic`, `Tracon.Google`, `Tracon.Voice` (+ `Directory.Packages.props`, `scripts/release_extension_samples.py`, yeni örnek `samples/Tracon.Samples.ProviderAotSmoke`)
 > **Yeni paket:** Yok — bir paket **kalkar** (`Azure.AI.OpenAI`) · **Migration:** Yok
 > **Public API:** Büyümüyor. `wc -l src/Tracon.{Azure,Anthropic,Google,Voice}/PublicAPI.Shipped.txt` → toplam 4 satır (yalnız `#nullable enable` başlıkları); `AzureOpenAIProviderOptions` aynı kalır
@@ -26,11 +26,11 @@
    grep -n "^| \*\*K-006 \|^| \*\*K-007 \|^| \*\*K-210 \|^| \*\*K-211 \|^| \*\*K-212 \|^| \*\*K-216 \|^| \*\*K-1017 " docs/KARARLAR.md
    ```
    **K-006** (AOT uyumu katman bazlıdır; verilemeyen vaat verilmez) · **K-007** (geçişli sabitleme kapalı; yeni paket gerekçe ister) · **K-210** (ad `azure-openai`; kimlik fabrikası tüketiciden gelir, `Azure.Identity` alınmaz) · **K-211** (`AzureChatExtensions` çalışma anında kırık; `SupportedSettings` boş) · **K-212** (Foundry ertelendi — bu faz onu **açmaz**) · **K-216** (`Tracon.Voice` ham `HttpClient` kullanır) · **K-1017** (`Tracon.Anthropic` `Extended` thinking sabiti; `Adaptive`'e geçiş bu fazın kararı)
-3. [`arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md`](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) — yalnız devir notu:
+3. [`arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md`](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu
 
-**Sıradaki iş:** freeze ölçüt 4 (UR-012 👤 — hangi yeni yetenekler girer), sonra F-560 (upstream deneysel tip: `AddLoopEvaluator` ×4, `AgentFileStoreContract`), F-559 (1.x evrim kuralları), Faz 193 (en erken 2026-11-10), ardından temiz pencere ve `1.0.0-rc.1` ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) § 2).
+**Sıradaki iş:** freeze ölçüt 4 (UR-012 👤 — hangi yeni yetenekler girer), sonra F-560 (upstream deneysel tip: `AddLoopEvaluator` ×4, `AgentFileStoreContract`), F-559 (1.x evrim kuralları), Faz 193 (en erken 2026-11-10), ardından temiz pencere ve `1.0.0-rc.1` ([`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) § 2).
 
 **Devralınan sözleşmeler:**
 - Sağlayıcı/ses paketi "Native AOT: Yes" için `ProviderAotSmoke`'ta `PackageReference` + gerçek çağrı ister; tablodaki her "Yes" satırı listede ya da gerekçeli muaf olmalı (`release_extension_samples.py`).
@@ -73,21 +73,21 @@ yedi operasyonunu yayımlanan OpenAPI belgesine bağlar.
 | Planlama probu (aşağıda) | **Native AOT ile yayımlanan tüketicide `Tracon.Anthropic` ilk istekte çöker:** `TypeInitializationException` → `InvalidOperationException: Reflection-based serialization has been disabled`. Kaynak: Anthropic SDK'sının MEAI adaptörü `Microsoft.Extensions.AI.AnthropicClientExtensions..cctor` (IL2026/IL3050) |
 | Aynı prob | Yayın, Anthropic SDK'sından 2.869 farklı IL uyarısı, `Azure.AI.OpenAI`'dan 62, Google tarafında 3 (`Google.GenAI`) + 1 (`Google.Apis`) + 99 (`Newtonsoft.Json`, `Google.Apis.Auth` üzerinden) verir. Tracon'un kendi kodundan **0** |
 | Aynı prob | Google ve Azure istek yolu ağa kadar çalıştı (`Connection refused`); yanıt ayrıştırma ölçülmedi |
-| [`compatibility.md:83-86`](../docs-site/src/content/docs/reference/compatibility.md) · [`packages.md:159-160`](../docs-site/src/content/docs/packages.md) | Anthropic, Google, Azure ve Voice için "Native AOT: Yes" der |
-| [`Tracon.Anthropic/README.md:39`](../src/Tracon.Anthropic/README.md) · [`Tracon.Google/README.md:64`](../src/Tracon.Google/README.md) | "AOT compatible (`IsAotCompatible=true`, zero warnings)" — bu, paketin **kendi** derlemesidir; tüketicinin yayınını ölçmez |
-| [`release_extension_samples.py:32`](../scripts/release_extension_samples.py) | Tek AOT smoke `Tracon.Samples.ExtensionAotSmoke`'tur; hiçbir sağlayıcı paketine referans vermez |
-| [`Directory.Packages.props:157`](../Directory.Packages.props) | `Azure.AI.OpenAI` `2.1.0`. nuget.org (2026-10-16): kararlı hat `2.0.0`, `2.1.0` (2024-12-06); en yeni `2.9.0-beta.1` (2026-03-13) — ön sürüm `Tracon.AspNetCore` dışına giremez (K-008) |
-| [`AzureOpenAIChatClientFactory.cs:128`](../src/Tracon.Azure/AzureOpenAIChatClientFactory.cs) · `:159` · `:191` · `:205` · `:215` | `AzureOpenAIClient` ve `AzureOpenAIClientOptions` kurulur; sohbet `GetChatClient(deployment).AsIChatClient()`, görsel `GetImageClient(...)` |
-| [`AzureOpenAIModelProvider.cs:135`](../src/Tracon.Azure/AzureOpenAIModelProvider.cs) | Kiracı kimlik bilgisi yolu aynı `CreateClient`'ı egress guard ile çağırır |
-| [`AzureOpenAIProviderHealthCheck.cs:46`](../src/Tracon.Azure/AzureOpenAIProviderHealthCheck.cs) · `:110` | Sağlık denetimi `openai/models?api-version=2024-10-21` çağırır |
+| [`compatibility.md:83-86`](../../../docs-site/src/content/docs/reference/compatibility.md) · [`packages.md:159-160`](../../../docs-site/src/content/docs/packages.md) | Anthropic, Google, Azure ve Voice için "Native AOT: Yes" der |
+| [`Tracon.Anthropic/README.md:39`](../../../src/Tracon.Anthropic/README.md) · [`Tracon.Google/README.md:64`](../../../src/Tracon.Google/README.md) | "AOT compatible (`IsAotCompatible=true`, zero warnings)" — bu, paketin **kendi** derlemesidir; tüketicinin yayınını ölçmez |
+| [`release_extension_samples.py:32`](../../../scripts/release_extension_samples.py) | Tek AOT smoke `Tracon.Samples.ExtensionAotSmoke`'tur; hiçbir sağlayıcı paketine referans vermez |
+| [`Directory.Packages.props:157`](../../../Directory.Packages.props) | `Azure.AI.OpenAI` `2.1.0`. nuget.org (2026-10-16): kararlı hat `2.0.0`, `2.1.0` (2024-12-06); en yeni `2.9.0-beta.1` (2026-03-13) — ön sürüm `Tracon.AspNetCore` dışına giremez (K-008) |
+| [`AzureOpenAIChatClientFactory.cs:128`](../../../src/Tracon.Azure/AzureOpenAIChatClientFactory.cs) · `:159` · `:191` · `:205` · `:215` | `AzureOpenAIClient` ve `AzureOpenAIClientOptions` kurulur; sohbet `GetChatClient(deployment).AsIChatClient()`, görsel `GetImageClient(...)` |
+| [`AzureOpenAIModelProvider.cs:135`](../../../src/Tracon.Azure/AzureOpenAIModelProvider.cs) | Kiracı kimlik bilgisi yolu aynı `CreateClient`'ı egress guard ile çağırır |
+| [`AzureOpenAIProviderHealthCheck.cs:46`](../../../src/Tracon.Azure/AzureOpenAIProviderHealthCheck.cs) · `:110` | Sağlık denetimi `openai/models?api-version=2024-10-21` çağırır |
 | K-211 notu (2026-10-16) | `AddDataSource` OpenAI 2.14.0'a karşı hâlâ `MissingMethodException` atar |
 | `dump-api.sh` (OpenAI 2.14.0, Azure.Core 1.63.0, System.ClientModel 1.16.0) | `OpenAIClient(AuthenticationPolicy, OpenAIClientOptions)` var · `BearerTokenPolicy(AuthenticationTokenProvider, string scope)` var · **`Azure.Core.TokenCredential : AuthenticationTokenProvider`** → `AzureOpenAIProviderOptions.CredentialFactory` (`Func<TokenCredential>`) değişmeden çalışır |
-| [`AzureOpenAIProviderOptions.cs:88-103`](../src/Tracon.Azure/AzureOpenAIProviderOptions.cs) | `Audience` zaten bir token `scope`'udur (`https://cognitiveservices.azure.com/.default`) → `BearerTokenPolicy`'nin ikinci argümanına doğrudan gider |
-| [`Tracon.Voice.csproj:13-15`](../src/Tracon.Voice/Tracon.Voice.csproj) | Yorum "only three HTTP endpoints" der |
-| [`ElevenLabsSpeechClient.cs:344`](../src/Tracon.Voice/Internal/ElevenLabsSpeechClient.cs) · `:403` · `:524-526` · `:566` | Gerçek yüzey **yedi** operasyon: `GET v2/voices` · `POST v1/speech-to-text` · `POST v1/text-to-speech/{voice_id}` (+ `/stream`, `/with-timestamps`) · `POST v1/text-to-dialogue` (+ `/with-timestamps`) |
+| [`AzureOpenAIProviderOptions.cs:88-103`](../../../src/Tracon.Azure/AzureOpenAIProviderOptions.cs) | `Audience` zaten bir token `scope`'udur (`https://cognitiveservices.azure.com/.default`) → `BearerTokenPolicy`'nin ikinci argümanına doğrudan gider |
+| [`Tracon.Voice.csproj:13-15`](../../../src/Tracon.Voice/Tracon.Voice.csproj) | Yorum "only three HTTP endpoints" der |
+| [`ElevenLabsSpeechClient.cs:344`](../../../src/Tracon.Voice/Internal/ElevenLabsSpeechClient.cs) · `:403` · `:524-526` · `:566` | Gerçek yüzey **yedi** operasyon: `GET v2/voices` · `POST v1/speech-to-text` · `POST v1/text-to-speech/{voice_id}` (+ `/stream`, `/with-timestamps`) · `POST v1/text-to-dialogue` (+ `/with-timestamps`) |
 | `https://api.elevenlabs.io/openapi.json` (2026-10-16) | OpenAPI 3.1.0, 418 operasyon; yedi yolun yedisi de var |
-| [`AnthropicChatClientFactory.cs:33-42`](../src/Tracon.Anthropic/AnthropicChatClientFactory.cs) · `:137` | `ExtendedThinking` sabiti SDK'nın `Adaptive` varsayılanını kapatır (K-1017) |
-| [`Tracon.Anthropic/README.md:103-109`](../src/Tracon.Anthropic/README.md) | "Current models reject a thinking budget … with `400`" ve "`ModelBinding.ReasoningEffort` becomes a thinking budget" — iki cümle birlikte okununca `ReasoningEffort` güncel modelde `400` üretir (**ölçülmedi** — Açık Soru 1) |
+| [`AnthropicChatClientFactory.cs:33-42`](../../../src/Tracon.Anthropic/AnthropicChatClientFactory.cs) · `:137` | `ExtendedThinking` sabiti SDK'nın `Adaptive` varsayılanını kapatır (K-1017) |
+| [`Tracon.Anthropic/README.md:103-109`](../../../src/Tracon.Anthropic/README.md) | "Current models reject a thinking budget … with `400`" ve "`ModelBinding.ReasoningEffort` becomes a thinking budget" — iki cümle birlikte okununca `ReasoningEffort` güncel modelde `400` üretir (**ölçülmedi** — Açık Soru 1) |
 
 > Kanıtlar 2026-10-16/17 tarihinde doğrulandı.
 
@@ -307,7 +307,7 @@ CHANGELOG.md
 
 ## Hata Modları ve Testler
 
-> Seviye kuralı: [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> Seviye kuralı: [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 > Paket sınırını geçen davranış (AOT, tüketici yayını) birim testiyle
 > kanıtlanamaz.
 
@@ -372,7 +372,7 @@ CHANGELOG.md
 - [x] Açık Soru 1 217.4 ölçümüyle kapandı (B); sonuç tablosu *Plandan Sapmalar* 7 ve `MT-PROV-092` — ✅
 - [x] K-216, K-006, K-211, K-1017 notları; yeni K-1019 (AOT vaadi), K-1020 (Azure v1), K-1021 (Anthropic `ReasoningEffort`) — ✅
 - [x] `CHANGELOG.md` `[Unreleased]`: Azure v1 (+ sağlık, görsel, Entra HTTPS), Anthropic thinking biçimi, Anthropic/Google AOT vaadi — ✅
-- [ ] Anthropic SDK deposuna issue açıldı 👤; bağlantı karara yazıldı — **devredildi** (`YAYIN-HAZIRLIK.md` § 3.2)
+- ➜ Anthropic SDK deposuna issue açılır 👤; bağlantı karara yazılır — **devredildi** (yapılmadı) (`YAYIN-HAZIRLIK.md` § 3.2)
 - [x] Dört doğrulama kapısı sıfır uyarı verir: `kapi.py kapanis --taban ac5ab062` — build ✅ · tam test 23.472 (38 modül, 0 başarısız, 19 atlandı — sağlayıcı sözleşmelerinin "ayar yok" atlamaları) ✅ · pack ✅ · format ✅ · site (`npm run check`) ✅. Dördüncü koşum; önceki üçünün kırmızıları: shipped-doc kapısı (`K-211` XML'de), `llms-full.txt` bayatlığı, fonksiyonel sağlık testi (http→https), faz durumu/arşiv kuralı
 - [x] `samples/Tracon.Api` ile gerçek `run` — Anthropic canlı (`claude-haiku-5-5`): sağlık `Healthy`; `claude-support` akışlı run `Completed`, `functionCall → functionResult → text` ("Order ORD-1001 has shipped…"); önbellekli uzun talimat agent'ı iki turda `cachedInputTokens` 24.321/24.332 — ✅ (Azure: kaynak yok, `MT-PROV-091` 👤)
 - [x] `secret` taraması boş döndü (`kapi.py tarama` ✅); Anthropic anahtarı yalnız süreç ortam değişkeniyle verildi, hiçbir dosyada ve günlükte yok (`grep -rn "sk-ant-usr"` 0) — ✅

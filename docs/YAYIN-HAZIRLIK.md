@@ -41,7 +41,7 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 |---|---|---|---|
 | 1 | Küçültme | ✅ | Faz 212 (A-74) · Faz 213 (A-75, A-79) · A-78 · A-80 |
 | 2 | Her bağımlılık en yeni sürümde | ✅ | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
-| 3 | Modernizasyon | ✅ **[Faz 217](217-SAGLAYICI-MODERNLESME-VE-AOT-VAADI.md)** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
+| 3 | Modernizasyon | ✅ **[Faz 217](arsiv/fazlar/217-SAGLAYICI-MODERNLESME-VE-AOT-VAADI.md)** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
 | 4 | Yeni yetenekler toplu girer | ⏳ seçim 👤 | UR-012. UR-005 A: yeni yetenek doğrudan kararlı katmana girer; freeze'den sonra yetenek eklenmez |
 | 5 | Public imzada upstream deneysel tip yok · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-560 (A-63 `AddLoopEvaluator` ×4, A-77 `AgentFileStoreContract`) · F-559 (A-76, A-67, A-68) |
 | 6 | Faz 193 (`net8.0`/`net9.0` düşer) | 📋 planlandı | En erken 2026-11-10 (K-855) |
