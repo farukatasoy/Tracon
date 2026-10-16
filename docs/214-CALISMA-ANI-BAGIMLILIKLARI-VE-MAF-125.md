@@ -381,7 +381,7 @@ Denetçinin temiz bulduğu başlıklar: 3.1 (DoD kanıtları; kapanış sonucu h
 
 **Sıradaki iş:** [Faz 215](215-TEST-VE-DERLEME-ARACLARI.md) (test ve derleme araçları: xunit.v3 4 + MTP 2, Meziantou, F-568), sonra [Faz 216](216-NPM-BAGIMLILIKLARI.md) (npm). Üçü `Directory.Packages.props`, `dependabot.yml` ve `CHANGELOG.md`'yi paylaşır, paralel koşmaz. Sonra F-558 (modernleşme: Azure için düz `OpenAI` + `/openai/v1/`, Anthropic'in `Adaptive` düşünmesi) ve F-560 (deneysel tip: `AddLoopEvaluator` ×4, `AgentFileStoreContract`).
 
-**Başlangıç sayıları (Faz 215 bunları ön koşul olarak yazar):** `PublicAPI.Unshipped.txt` toplamı −5 (`Tracon.AspNetCore`) · `public-surface-baseline.txt` `Tracon.AspNetCore` `21` · `public-constructor-baseline.txt` 16 giriş · `transitive-dependencies.txt` üç bölümde −3 ad (`Microsoft.Bcl.{AsyncInterfaces,HashCode,Memory}`) · tam koşum 38 koşumda 23.362 test (+ Azure 6 + Responses 2 = **23.370**) · `uyum-probu -- deneysel` public maruziyet 4 · `uyum-probu -- ileri` 1.237 üye, 0 eksik · `ADAYLAR.md` sayaç **F-572**.
+**Başlangıç sayıları (Faz 215 bunları ön koşul olarak yazar):** `PublicAPI.Unshipped.txt` toplamı −5 (`Tracon.AspNetCore`) · `public-surface-baseline.txt` `Tracon.AspNetCore` `21` · `public-constructor-baseline.txt` 16 giriş · `transitive-dependencies.txt` üç bölümde −3 ad (`Microsoft.Bcl.{AsyncInterfaces,HashCode,Memory}`) · tam koşum 38 koşumda 23.362 test (+ Azure 6 + Responses 2 = **23.370**) · `uyum-probu -- deneysel` public maruziyet 4 · `uyum-probu -- ileri` 1.237 üye, 0 eksik · `ADAYLAR.md` F-ID sayacı F-571'den sonrasını gösterir.
 
 **Devralınan sözleşmeler:**
 
