@@ -2,15 +2,15 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-16)
 > **Plan onayı:** 2026-10-16, farukatasoy: "faza başla ve bitir, commit atabilirsin". Açık Sorular 1-3 tek tek cevaplanmadı; **planın önerisi (A · A · A) ile kapatıldı** — bkz. *Açık Sorular*. Kapsam kararı: **UR-009 B**, farukatasoy, 2026-10-16.
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-557** (üç fazın üçüncüsü)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-557** (üç fazın üçüncüsü)
 > **Genellik:** İki sevk edilen yapıta dokunur: `Tracon.UI.dll`'e gömülen arayüz (her `UseUI()` tüketicisi) ve npm'deki `@tracon/client`. Site tüketiciye dönük belgedir. İş tüketici kodunda kalamaz. İkinci kanıt: Node 20'nin destek sonu (Nisan 2026) ve sürüm gerilemesi — dört major geride (TypeScript, Vite, Vitest, jsdom).
 > **Karşı görüş:** "Ön uç araçlarının major'ı ürüne değer katmaz; paket boyutu ve tarayıcı davranışı kayabilir." **Cevap:** Deneme (izole worktree, 2026-10-16) üç paketi dört küçük düzeltmeyle yeşile çevirdi; arayüz paketi 211.9 → 215.4 KB (bütçe 250 KB), `@tracon/client` paketi aynı 23 dosyayı, `.js`/`.d.ts` **baytı baytına aynı** çıkarır. Değişen her şey ölçülü ve aşağıdadır. Üç yerde "en yeni" bilerek seçilmez (Açık Sorular).
-> **Önkoşul:** [Faz 215](arsiv/fazlar/215-TEST-VE-DERLEME-ARACLARI.md) — `CHANGELOG.md` ve CI ortak; paralel koşmaz. (Teknik bağımlılık yok; sıra yalnız birleştirme çakışmasını önler.)
+> **Önkoşul:** [Faz 215](215-TEST-VE-DERLEME-ARACLARI.md) — `CHANGELOG.md` ve CI ortak; paralel koşmaz. (Teknik bağımlılık yok; sıra yalnız birleştirme çakışmasını önler.)
 > **Paketler:** `Tracon.UI` (gömülü varlıklar), `@tracon/client` (npm), `docs-site`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. `@tracon/client`'ın yayımlanan dosyaları aynı kalır (Açık Soru 1 = A ile).
 > **Tüketici yüzeyi:** site: `getting-started/` ve kurulum sayfalarındaki Node alt sınırı; konsol ekran görüntüleri (damga yenilenir) · sevk edilen: `Tracon.UI.Frontend.targets:282,295` hata metni (Node sürümü), `README.md:328`, `CONTRIBUTING.md:18`
-> **Manuel test alanı:** [`manuel-test/09-ARAYUZ-GENEL.md`](manuel-test/09-ARAYUZ-GENEL.md) · [`manuel-test/35-TYPESCRIPT-ISTEMCISI.md`](manuel-test/35-TYPESCRIPT-ISTEMCISI.md) · [`manuel-test/32-DOKUMAN-KALITESI.md`](manuel-test/32-DOKUMAN-KALITESI.md)
+> **Manuel test alanı:** [`manuel-test/09-ARAYUZ-GENEL.md`](../../manuel-test/09-ARAYUZ-GENEL.md) · [`manuel-test/35-TYPESCRIPT-ISTEMCISI.md`](../../manuel-test/35-TYPESCRIPT-ISTEMCISI.md) · [`manuel-test/32-DOKUMAN-KALITESI.md`](../../manuel-test/32-DOKUMAN-KALITESI.md)
 
 ---
 
@@ -18,7 +18,7 @@
 
 1. Bu doküman
 2. Kararlar — `grep -n "K-228\|K-543" docs/KARARLAR.md`: **K-228** (yerelleştirme; eksik anahtar derleme hatasıdır) · **K-543** (bot grupları)
-3. Alan hafızası: [`hafiza/frontend.md`](hafiza/frontend.md) (bütçe, gömme, damga) · [`hafiza/frontend-test-altyapisi.md`](hafiza/frontend-test-altyapisi.md) · [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md) (satır 60-62: `@tracon/client` `dist/` önce derlenir) · [`hafiza/site-yayin-ve-tema.md`](hafiza/site-yayin-ve-tema.md)
+3. Alan hafızası: [`hafiza/frontend.md`](../../hafiza/frontend.md) (bütçe, gömme, damga) · [`hafiza/frontend-test-altyapisi.md`](../../hafiza/frontend-test-altyapisi.md) · [`hafiza/nswag-istemci-uretimi.md`](../../hafiza/nswag-istemci-uretimi.md) (satır 60-62: `@tracon/client` `dist/` önce derlenir) · [`hafiza/site-yayin-ve-tema.md`](../../hafiza/site-yayin-ve-tema.md)
 4. `MEMORY.md` — senkronizasyon kopyaları ve `tracon-frontend.stamp` (varlık değişince damga silinir)
 
 ---
@@ -34,7 +34,7 @@
 | Kanıt | Gözlem |
 |---|---|
 | `npm outdated` (2026-10-16) | Arayüz: `typescript 5.9.3→7.0.2`, `vite 7.3.6→8.3.4`, `vitest 3.2.7→5.0.5`, `jsdom 27.4.0→30.1.3`, `@vitejs/plugin-react 5.2.0→6.1.2`, `react 19.2.8→19.3.1`. İstemci: `typescript→7.0.2`, `vitest→5.0.5`. Site: `astro 7.2.2→7.4.0`, `@astrojs/starlight 0.41.7→0.42.6`, `mermaid 11.16.1→12.2.0` |
-| [`src/Tracon.UI/Tracon.UI.Frontend.targets:282`](../src/Tracon.UI/Tracon.UI.Frontend.targets) ve `:295` | Hata metni "Install Node.js 20.19+" der; jsdom 30 Node `^22.22.2` ister |
+| [`src/Tracon.UI/Tracon.UI.Frontend.targets:282`](../../../src/Tracon.UI/Tracon.UI.Frontend.targets) ve `:295` | Hata metni "Install Node.js 20.19+" der; jsdom 30 Node `^22.22.2` ister |
 | `.github/workflows/ci.yml:112,402,546,781` | `node-version: '22'` (en yeni 22.x'e çözülür; yeni alt sınırları karşılar) |
 
 > Kanıtlar 2026-10-16'da doğrulandı (HEAD `9aaa6544`). Deneme yükseltmesi aynı gün izole worktree'de koşuldu; fark `scratchpad/probe-npm.patch` (10 dosya, kilit dosyaları dahil) yalnız referanstır. **Deneme tabanı `1ae92822`'dir** (Faz 212 ve 213'ten önce; ajan worktree'si oturum başındaki commit'ten açıldı). Derleme hatası listeleri ve test sayıları bu yüzden uygulamanın ilk adımında HEAD üzerinde yeniden ölçülür.
@@ -308,4 +308,4 @@ E2E: `./artifacts/bin/Tracon.Ui.E2ETests/release/Tracon.Ui.E2ETests` → `total:
 - İlk CI koşumunda `setup-node` `'22'`'nin hangi sürüme çözüldüğü okunur (*Denetim Bulguları* 5). İlk Dependabot koşumunda arayüz PR'ı gelmeli (*Denetim Bulguları* 6).
 - Gözle bakış `MT-UI-059` 👤.
 
-**Sıradaki faz:** [F-558](ADAYLAR.md) (entegrasyon modernleşme işleri) — önkoşulu "Faz 214-216" bu fazla sağlandı. Plan dokümanı henüz yazılmadı; `faz-planlama` ile açılır.
+**Sıradaki faz:** [F-558](../../ADAYLAR.md) (entegrasyon modernleşme işleri) — önkoşulu "Faz 214-216" bu fazla sağlandı. Plan dokümanı henüz yazılmadı; `faz-planlama` ile açılır.
