@@ -14,13 +14,20 @@ public sealed class AzureOpenAIProviderHealthCheckTests
     public void Base_address_with_trailing_slash_joins_to_the_data_plane_path()
         => AzureOpenAIProviderHealthCheck.BuildModelsEndpoint(TestData.Endpoint)
             .ToString().ShouldBe(
-                $"{TestData.EndpointText}openai/models?api-version={AzureOpenAIProviderHealthCheck.ApiVersion}");
+                $"{TestData.EndpointText}openai/v1/models");
+
+    [Theory]
+    [InlineData("https://r.openai.azure.com/openai/v1")]
+    [InlineData("https://r.openai.azure.com/openai/v1/")]
+    public void Base_address_that_already_ends_in_openai_v1_is_not_doubled(string address)
+        => AzureOpenAIProviderHealthCheck.BuildModelsEndpoint(new Uri(address))
+            .ToString().ShouldBe("https://r.openai.azure.com/openai/v1/models");
 
     [Fact]
     public void Base_address_without_trailing_slash_does_not_swallow_the_last_segment()
         => AzureOpenAIProviderHealthCheck.BuildModelsEndpoint(new Uri("https://example.gateway/azure"))
             .ToString().ShouldBe(
-                $"https://example.gateway/azure/openai/models?api-version={AzureOpenAIProviderHealthCheck.ApiVersion}");
+                "https://example.gateway/azure/openai/v1/models");
 
     [Fact]
     public async Task Model_ids_are_read_from_the_response_and_sorted()
@@ -60,7 +67,7 @@ public sealed class AzureOpenAIProviderHealthCheckTests
         // A closed port: the connection is refused. HttpRequestException.Message
         // would embed the target address in the body; the HttpRequestError
         // category does not carry the address.
-        var health = await CheckAsync(o => o.Endpoint = new Uri("http://127.0.0.1:1/"));
+        var health = await CheckAsync(o => o.Endpoint = new Uri("https://127.0.0.1:1/"));
 
         health.Status.ShouldBe(ModelProviderHealthStatus.Unhealthy);
         health.Detail.ShouldNotBeNull();
@@ -84,7 +91,7 @@ public sealed class AzureOpenAIProviderHealthCheckTests
 
         await CheckAsync(o =>
         {
-            o.Endpoint = new Uri("http://127.0.0.1:1/");
+            o.Endpoint = new Uri("https://127.0.0.1:1/");
             o.CredentialFactory = () => credential;
         });
 
@@ -99,7 +106,7 @@ public sealed class AzureOpenAIProviderHealthCheckTests
 
         await CheckAsync(o =>
         {
-            o.Endpoint = new Uri("http://127.0.0.1:1/");
+            o.Endpoint = new Uri("https://127.0.0.1:1/");
             o.Audience = Scope;
             o.CredentialFactory = () => credential;
         });
@@ -117,7 +124,7 @@ public sealed class AzureOpenAIProviderHealthCheckTests
             AzureOpenAIProviderNames.AzureOpenAI,
             TestData.Options(o =>
             {
-                o.Endpoint = new Uri("http://127.0.0.1:1/");
+                o.Endpoint = new Uri("https://127.0.0.1:1/");
                 o.CredentialFactory = () => { setupCount++; return credential; };
             }));
 

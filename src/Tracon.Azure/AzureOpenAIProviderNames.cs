@@ -17,7 +17,7 @@ namespace Tracon;
 /// </remarks>
 public static class AzureOpenAIProviderNames
 {
-    /// <summary>The provider that uses the Azure OpenAI Chat Completions endpoint: <c>azure-openai</c>.</summary>
+    /// <summary>The provider that uses the Azure OpenAI v1 Chat Completions endpoint: <c>azure-openai</c>.</summary>
     public const string AzureOpenAI = "azure-openai";
 
     /// <summary>The prefix for provider-specific settings: <c>azure-openai</c>.</summary>
@@ -28,13 +28,13 @@ public static class AzureOpenAIProviderNames
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The list is deliberately empty. The custom fields Azure lets you add to
-    /// a chat request (data sources, the <c>max_completion_tokens</c> key) are
-    /// written through <c>Azure.AI.OpenAI.Chat.AzureChatExtensions</c>; it was
-    /// measured that <strong>all</strong> of these extensions throw
-    /// <c>MissingMethodException</c> at run time against the OpenAI SDK version
-    /// we use. Offering a setting that doesn't work is worse than not offering
-    /// it at all.
+    /// The list is deliberately empty. The Azure-only request fields (data
+    /// sources, and the like) were written through the Azure SDK's own request
+    /// extensions, which threw <c>MissingMethodException</c> at run time against
+    /// the OpenAI SDK version in use. The provider now talks to the
+    /// resource's v1 endpoint through the plain OpenAI client, which has no
+    /// counterpart for them. Offering a setting that doesn't work is worse than
+    /// not offering it at all.
     /// </para>
     /// <para>
     /// Because the list is empty, <see cref="ModelProviderSettings.Validate(ModelBinding, string, IReadOnlyCollection{string})"/>

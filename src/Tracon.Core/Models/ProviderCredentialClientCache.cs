@@ -9,9 +9,9 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// Every provider package's SDK client is built once and shared (measured:
-/// <c>OpenAIClient</c>, <c>AnthropicClient</c>, the Google GenAI
-/// <c>Client</c>, and <c>AzureOpenAIClient</c> are all constructed once in
-/// their factory and manage their own HTTP connection pool). A tenant
+/// <c>OpenAIClient</c> (also the Azure provider's, pointed at the v1 endpoint),
+/// <c>AnthropicClient</c>, and the Google GenAI <c>Client</c> are all
+/// constructed once in their factory and manage their own HTTP connection pool). A tenant
 /// credential cannot reuse that shared instance — it carries a different key
 /// — so a second client is built for it. This cache exists so that is done
 /// <strong>once per distinct credential</strong>, not once per call: the same

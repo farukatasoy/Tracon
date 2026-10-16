@@ -1,14 +1,15 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
-using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using OpenAI;
 
 namespace Tracon;
 
 /// <summary>
-/// Builds an <see cref="AzureOpenAIClient"/> from options and produces <see
-/// cref="IChatClient"/> instances from model bindings.
+/// Builds an <see cref="OpenAIClient"/> that talks to an Azure OpenAI resource's
+/// <c>/openai/v1/</c> endpoint and produces <see cref="IChatClient"/> instances
+/// from model bindings.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -20,30 +21,29 @@ namespace Tracon;
 /// see the tool-call turns.
 /// </para>
 /// <para>
-/// <see cref="AzureOpenAIClient"/> is built once and shared; it manages its own
+/// <see cref="OpenAIClient"/> is built once and shared; it manages its own
 /// HTTP connection pool. Building a new client on every call fragments the pool.
 /// </para>
 /// <para>
 /// <strong>What Azure calls is a deployment name, not a model name.</strong>
 /// The <see cref="ModelBinding.Model"/> field carries the deployment name for
-/// this provider and goes into the request path:
-/// <c>POST {endpoint}/openai/deployments/{deployment}/chat/completions</c>.
+/// this provider and goes into the <c>model</c> field of the request body:
+/// <c>POST {endpoint}/openai/v1/chat/completions</c>.
 /// The same model may be deployed under one name (e.g. <c>prod-gpt</c>) on one
 /// resource and another (e.g. <c>gpt-mini-tr</c>) on another; the person who sets
 /// up the resource chooses the name.
 /// </para>
 /// <para>
 /// The provider supports <strong>no keys at all</strong> inside
-/// <see cref="ModelBinding.ProviderSettings"/>. Custom fields Azure lets you add
-/// to a chat request are written through <c>AzureChatExtensions</c>, and those
-/// extensions break at run time against whichever OpenAI SDK version we use.
-/// When a defined key arrives, the build stops with an
-/// explicit error.
+/// <see cref="ModelBinding.ProviderSettings"/>. The Azure-only request fields
+/// (data sources and the like) have no counterpart on the plain OpenAI client
+/// this provider uses. When a defined key arrives, the build stops with
+/// an explicit error.
 /// </para>
 /// </remarks>
 internal sealed class AzureOpenAIChatClientFactory
 {
-    private readonly AzureOpenAIClient _client;
+    private readonly OpenAIClient _client;
     private readonly string? _defaultDeployment;
     private readonly ILoggerFactory? _loggerFactory;
 
@@ -61,7 +61,7 @@ internal sealed class AzureOpenAIChatClientFactory
     }
 
     /// <summary>Builds a new factory from a ready-made client.</summary>
-    /// <param name="client">The Azure OpenAI client to use.</param>
+    /// <param name="client">The client, already pointed at the resource's v1 endpoint.</param>
     /// <param name="defaultDeployment">The name to use when no deployment name is given.</param>
     /// <param name="loggerFactory">The logger factory passed to produced clients.</param>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
@@ -69,7 +69,7 @@ internal sealed class AzureOpenAIChatClientFactory
     /// <see cref="FromClient"/> calls this constructor.
     /// </remarks>
     private AzureOpenAIChatClientFactory(
-        AzureOpenAIClient client,
+        OpenAIClient client,
         string? defaultDeployment,
         ILoggerFactory? loggerFactory)
     {
@@ -81,7 +81,7 @@ internal sealed class AzureOpenAIChatClientFactory
     }
 
     /// <summary>Builds a new factory from a ready-made client.</summary>
-    /// <param name="client">The Azure OpenAI client to use.</param>
+    /// <param name="client">The client, already pointed at the resource's v1 endpoint.</param>
     /// <param name="defaultDeployment">The name to use when no deployment name is given.</param>
     /// <param name="loggerFactory">The logger factory passed to produced clients.</param>
     /// <returns>The new factory.</returns>
@@ -91,7 +91,7 @@ internal sealed class AzureOpenAIChatClientFactory
     /// creates the client for that credential, then wraps it here.
     /// </remarks>
     public static AzureOpenAIChatClientFactory FromClient(
-        AzureOpenAIClient client,
+        OpenAIClient client,
         string? defaultDeployment = null,
         ILoggerFactory? loggerFactory = null)
         => new(client, defaultDeployment, loggerFactory);
@@ -128,7 +128,7 @@ internal sealed class AzureOpenAIChatClientFactory
         return _client.GetChatClient(deployment).AsIChatClient();
     }
 
-    /// <summary>Builds an Azure OpenAI client from options.</summary>
+    /// <summary>Builds a client for an Azure OpenAI resource's v1 endpoint from options.</summary>
     /// <param name="options">The provider options.</param>
     /// <param name="egressGuard">
     /// When given, every connection this client opens passes through the
@@ -136,13 +136,29 @@ internal sealed class AzureOpenAIChatClientFactory
     /// override; a setup-time endpoint is the operator's own decision and is
     /// written in code.
     /// </param>
+    /// <param name="transport">
+    /// Replaces the HTTP transport. Tests only: the Entra path refuses a
+    /// non-HTTPS address, so a loopback server cannot carry it. Wins over
+    /// <paramref name="egressGuard"/>.
+    /// </param>
     /// <returns>The built client.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">
     /// <see cref="AzureOpenAIProviderOptions.Endpoint"/> is empty, or neither an API key
     /// nor a credential factory is given.
     /// </exception>
-    public static AzureOpenAIClient CreateClient(AzureOpenAIProviderOptions options, EgressSocketGuard? egressGuard = null)
+    /// <remarks>
+    /// Azure's v1 API is the OpenAI wire protocol under
+    /// <c>{endpoint}/openai/v1/</c>, so the plain <see cref="OpenAIClient"/> is
+    /// enough: no <c>api-version</c> query string, and the deployment name is
+    /// the request's <c>model</c> field. An API key travels as
+    /// <c>Authorization: Bearer</c>; an Entra credential is wrapped in a
+    /// <see cref="BearerTokenPolicy"/> for the <see cref="AzureOpenAIProviderOptions.Audience"/> scope.
+    /// </remarks>
+    public static OpenAIClient CreateClient(
+        AzureOpenAIProviderOptions options,
+        EgressSocketGuard? egressGuard = null,
+        PipelineTransport? transport = null)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -156,7 +172,7 @@ internal sealed class AzureOpenAIChatClientFactory
                 "option.");
         }
 
-        var clientOptions = new AzureOpenAIClientOptions();
+        var clientOptions = new OpenAIClientOptions { Endpoint = V1Endpoint(options.Endpoint) };
 
         // 🚨 Same family as OpenAIClientOptions: the hook is
         // ClientPipelineOptions.Transport, not an HttpClient property.
@@ -168,14 +184,14 @@ internal sealed class AzureOpenAIChatClientFactory
             clientOptions.Transport = new HttpClientPipelineTransport(egressGuard.CreateHttpClient(Timeout.InfiniteTimeSpan));
         }
 
+        if (transport is not null)
+        {
+            clientOptions.Transport = transport;
+        }
+
         if (options.Timeout is { } timeout)
         {
             clientOptions.NetworkTimeout = timeout;
-        }
-
-        if (!string.IsNullOrWhiteSpace(options.Audience))
-        {
-            clientOptions.Audience = new AzureOpenAIAudience(options.Audience);
         }
 
         // The credential factory OVERRIDES the key: when both are given, the
@@ -188,7 +204,20 @@ internal sealed class AzureOpenAIChatClientFactory
                     $"{nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.CredentialFactory)} " +
                     "returned null. The factory must always produce a credential.");
 
-            return new AzureOpenAIClient(options.Endpoint, credential, clientOptions);
+            var scope = string.IsNullOrWhiteSpace(options.Audience)
+                ? AzureOpenAIProviderHealthCheck.DefaultAudience
+                : options.Audience;
+
+            // 🚨 OPENAI001: the OpenAI library marks this constructor experimental.
+            // It is the only way to give an OpenAI client an Entra credential, and
+            // Microsoft's own Azure OpenAI v1 guidance uses it. The suppression is
+            // confined to this one call (the key path below uses the stable
+            // constructor). If an OpenAI upgrade renames or removes it, the build
+            // breaks right here; a consumer who floats OpenAI above the tested
+            // version still sees the failure only at run time, on this path.
+#pragma warning disable OPENAI001
+            return new OpenAIClient(new BearerTokenPolicy(credential, scope), clientOptions);
+#pragma warning restore OPENAI001
         }
 
         if (string.IsNullOrWhiteSpace(options.ApiKey))
@@ -202,7 +231,32 @@ internal sealed class AzureOpenAIChatClientFactory
                 $"{nameof(AzureOpenAIProviderOptions.CredentialFactory)} for a managed credential.");
         }
 
-        return new AzureOpenAIClient(options.Endpoint, new ApiKeyCredential(options.ApiKey), clientOptions);
+        return new OpenAIClient(new ApiKeyCredential(options.ApiKey), clientOptions);
+    }
+
+    /// <summary>Points a resource address at its v1 data-plane endpoint.</summary>
+    /// <param name="resourceEndpoint">The resource address, with or without the <c>openai/v1</c> suffix.</param>
+    /// <returns>The address ending in <c>/openai/v1/</c>; the suffix is never added twice.</returns>
+    /// <remarks>
+    /// <c>internal</c>: unit tests verify the combination without a network call.
+    /// A path prefix in front of the resource (a gateway) is kept.
+    /// </remarks>
+    internal static Uri V1Endpoint(Uri resourceEndpoint)
+    {
+        const string V1Suffix = "openai/v1/";
+
+        // The path only: a query string or fragment on the address must not end up
+        // in front of the suffix.
+        var text = resourceEndpoint.GetLeftPart(UriPartial.Path);
+
+        if (!text.EndsWith('/'))
+        {
+            text += "/";
+        }
+
+        return text.EndsWith("/" + V1Suffix, StringComparison.OrdinalIgnoreCase)
+            ? new Uri(text, UriKind.Absolute)
+            : new Uri(text + V1Suffix, UriKind.Absolute);
     }
 
     /// <summary>Creates an image generator that shares this factory's Azure OpenAI client.</summary>

@@ -5,7 +5,7 @@ namespace Tracon;
 
 /// <summary>
 /// Checks whether an Azure OpenAI resource is reachable by calling
-/// <c>GET {endpoint}/openai/models?api-version=...</c>.
+/// <c>GET {endpoint}/openai/v1/models</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -28,23 +28,15 @@ namespace Tracon;
 /// without a network call.
 /// </para>
 /// <para>
-/// Authentication happens one of two ways: an <c>api-key</c> header for the API
-/// key (on Azure this is not <c>Authorization: Bearer</c>), or a <c>Bearer</c>
-/// token obtained through <see cref="TokenCredential"/> for a managed credential.
+/// Authentication matches the chat call: the API key goes as
+/// <c>Authorization: Bearer</c>, and a managed credential obtained through
+/// <see cref="TokenCredential"/> goes as a <c>Bearer</c> token. An Entra token is
+/// sent only over HTTPS: for a plain <c>http://</c> address the check reports
+/// <em>unhealthy</em> without asking the credential for a token.
 /// </para>
 /// </remarks>
 internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
 {
-    /// <summary>
-    /// The Azure OpenAI data-plane API version the check uses.
-    /// </summary>
-    /// <remarks>
-    /// Kept identical to the version the <c>Azure.AI.OpenAI</c> version we use
-    /// produces for a chat request (measured 2026-08-05:
-    /// <c>?api-version=2024-10-21</c>). Upgrading it is a deliberate decision.
-    /// </remarks>
-    internal const string ApiVersion = "2024-10-21";
-
     /// <summary>The Entra token scope on the Azure public cloud.</summary>
     internal const string DefaultAudience = "https://cognitiveservices.azure.com/.default";
 
@@ -76,6 +68,14 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
                 _core.Unhealthy(DateTimeOffset.UtcNow, TimeSpan.Zero, "The resource address is not defined."));
         }
 
+        if (_credential is not null && !string.Equals(_options.Endpoint.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return ValueTask.FromResult(_core.Unhealthy(
+                DateTimeOffset.UtcNow,
+                TimeSpan.Zero,
+                "An Entra credential is sent only over HTTPS; the resource address uses another scheme."));
+        }
+
         return _core.CheckAsync(
             BuildModelsEndpoint(_options.Endpoint),
             _options.Timeout,
@@ -84,7 +84,7 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
             cancellationToken);
     }
 
-    private async ValueTask AuthorizeAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    internal async ValueTask AuthorizeAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (_credential is not null)
         {
@@ -93,21 +93,24 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
                 .GetTokenAsync(new TokenRequestContext([scope]), cancellationToken)
                 .ConfigureAwait(false);
 
-            request.Headers.Add("Authorization", $"Bearer {token.Token}");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token.Token);
         }
         else if (!string.IsNullOrWhiteSpace(_options.ApiKey))
         {
-            // Azure OpenAI authenticates a key through the `api-key` header.
-            request.Headers.Add("api-key", _options.ApiKey);
+            // The same header form the chat call sends for a key: the v1 API takes
+            // `Authorization: Bearer <key>`, so one resource or gateway answers
+            // both calls alike.
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.ApiKey);
         }
     }
 
     /// <summary>
-    /// Combines the resource address with <c>openai/models?api-version=...</c>.
+    /// Combines the resource address with <c>openai/v1/models</c>; an address that
+    /// already ends in <c>/openai/v1</c> is not extended twice.
     /// </summary>
     /// <remarks><c>internal</c>: unit tests verify this combination without a network call.</remarks>
     internal static Uri BuildModelsEndpoint(Uri baseEndpoint)
-        => ProviderHealthCheckCore.JoinEndpoint(baseEndpoint, $"openai/models?api-version={ApiVersion}");
+        => ProviderHealthCheckCore.JoinEndpoint(AzureOpenAIChatClientFactory.V1Endpoint(baseEndpoint), "models");
 
     /// <summary>
     /// Reads model ids from a <c>{"data":[{"id":"gpt-..."}]}</c> body.

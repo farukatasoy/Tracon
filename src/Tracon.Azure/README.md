@@ -49,14 +49,21 @@ Model = new ModelBinding
 }
 ```
 
-The name goes into the request path:
+The package calls the resource's **v1 API** (`{endpoint}/openai/v1/`), the OpenAI
+wire protocol Azure serves next to its classic API. The deployment name travels in
+the request body's `model` field:
 
 ```
-POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-10-21
+POST {endpoint}/openai/v1/chat/completions
+{ "model": "production-gpt", ... }
 ```
 
-This is why a wrong name produces **HTTP 404**, not a "model not found" error.
-When the field is left empty, the error message says so too.
+A wrong name comes back as an Azure error naming the deployment, not as a
+"model not found" error. When the field is left empty, the error message says so.
+
+The resource must support the v1 API. Give the resource address
+(`https://my-resource.openai.azure.com/`); an address that already ends in
+`/openai/v1` is used as it is, and a gateway path in front of the resource is kept.
 
 ## Authentication
 
@@ -67,6 +74,8 @@ There are two ways. If both are provided, **managed identity wins**.
 ```csharp
 .UseAzureOpenAI(endpoint, apiKey)
 ```
+
+The key is sent as `Authorization: Bearer <key>`.
 
 The key is a secret; it is **never** written to `appsettings.json` — use
 `dotnet user-secrets`.
@@ -100,48 +109,55 @@ o.Audience = "https://cognitiveservices.azure.us/.default";   // Azure Governmen
 
 Default: `https://cognitiveservices.azure.com/.default`.
 
+The token is sent only over **HTTPS**. An Entra credential with a plain `http://`
+resource address is refused at the first chat call, and the health check reports
+unhealthy without asking the credential for a token.
+
 ## Provider-specific settings — none
 
 This provider supports **no keys at all** in `ModelBinding.ProviderSettings`. If a
 defined key is present, the build stops with a clear error.
 
-The reason is measured: the only way to write extra fields onto an
-Azure chat request is `Azure.AI.OpenAI.Chat.AzureChatExtensions` (`AddDataSource`,
-`SetNewMaxCompletionTokensPropertyEnabled`, `GetDataSources`), and **all** of these
-extensions throw `MissingMethodException` at runtime against the OpenAI SDK version
-we use. Offering a setting that doesn't work is worse than not offering it at all.
+The reason is measured: the Azure-only request fields (`AddDataSource` for
+Azure OpenAI On Your Data, and the like) were written through the Azure SDK's request
+extensions, and **all** of them threw `MissingMethodException` at runtime against the
+OpenAI SDK version in use. The package now talks to the v1 API through the plain
+OpenAI client, which has no counterpart for them. Offering a setting that doesn't
+work is worse than not offering it at all.
 
 The `max_completion_tokens` field is already sent correctly — the OpenAI SDK uses
-this name itself, no Azure extension is needed (measured).
+this name itself (measured).
 
 ## SDK used
 
-The official [`Azure.AI.OpenAI`](https://www.nuget.org/packages/Azure.AI.OpenAI)
-package (owner: Microsoft, MIT). The package adds only **routing** on top of the
-OpenAI SDK: the deployment path, the `api-version` query parameter, and
-`api-key` / Entra credentials. Message mapping, streaming, tool calling, and usage
-counters all come from the OpenAI SDK's own code.
+The official [`OpenAI`](https://www.nuget.org/packages/OpenAI) package, pointed at the
+resource's v1 endpoint. The Azure-specific
+[`Azure.AI.OpenAI`](https://www.nuget.org/packages/Azure.AI.OpenAI) package is **not**
+used: its stable line stopped at 2.1.0 (December 2024). Message mapping, streaming,
+tool calling, and usage counters all come from the OpenAI SDK's own code.
 
-Transitive dependencies: `Azure.Core`, `OpenAI`, `System.ClientModel`,
-`System.Memory.Data`, `Microsoft.Bcl.AsyncInterfaces`. The package is AOT-compatible
-(`IsAotCompatible=true`, zero warnings).
+Direct dependencies: `OpenAI`, `Azure.Core` (carried in the public API as
+`TokenCredential`), `Microsoft.Extensions.AI.OpenAI`.
+
+The package is Native AOT-compatible: a Native AOT app that calls it through a real
+chat request with an API key (plain and streamed) publishes with no trim or AOT warning and runs
+(`samples/Tracon.Samples.ProviderAotSmoke`, checked on every release rehearsal).
 
 ### Unsupported surfaces
 
-- **Responses API.** `AzureOpenAIClient.GetResponsesClient()` does **not** return an
-  Azure-specific client; it returns OpenAI's base class, and there is no confirmation
-  it conforms to Azure's path/`api-version` shape. This package only uses Chat
-  Completions.
-- **Azure OpenAI On Your Data** (`AddDataSource`) — the runtime breakage described
-  above.
+- **Responses API.** This package only uses Chat Completions (and images). The v1
+  API serves a Responses surface, but it has not been measured here.
+- **Azure OpenAI On Your Data** (`AddDataSource`) — no counterpart on the plain
+  OpenAI client (see above).
 - **Azure AI Foundry Agents.** This is a separate capability (`IAgentSource`, not
   `IModelProvider`) and has been left to a separate package; see
 
 ## Health check
 
-Hits `GET {endpoint}/openai/models?api-version=2024-10-21`, which **produces no
-charge**. Authentication is done with the `api-key` header or an Entra `Bearer`
-token. Error detail is limited to the HTTP status code and a short reason; the API
+Hits `GET {endpoint}/openai/v1/models`, which **produces no
+charge**. Authentication matches the chat call: `Authorization: Bearer` with the key,
+or an Entra token (HTTPS only; over plain HTTP the check reports unhealthy without
+asking the credential for a token). Error detail is limited to the HTTP status code and a short reason; the API
 key and resource address are **never leaked**.
 
 ```
