@@ -278,7 +278,7 @@ internal static class Program
                 @"\$\((?<ad>\w+)\)",
                 m => ozellikler.GetValueOrDefault(m.Groups["ad"].Value, m.Value),
                 RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-                TimeSpan.FromSeconds(1));
+                TimeSpan.FromSeconds(1)).Trim('[', ']');
             var hedef = surum.Contains('-', StringComparison.Ordinal) ? "latest-pre" : "latest";
             sonuc.Add(id + "@" + (enYeni ? hedef : surum));
         }
