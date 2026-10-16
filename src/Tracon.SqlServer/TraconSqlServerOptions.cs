@@ -29,7 +29,7 @@ public sealed class TraconSqlServerOptions
     /// <remarks>
     /// <para>
     /// <c>Microsoft.Data.SqlClient</c> does not itself offer a <see cref="DbDataSource"/>
-    /// implementation (measured against version 7.0.2); give an adapter of your
+    /// implementation (measured against version 7.1.1); give an adapter of your
     /// own if you need to share a connection pool with another consumer of the
     /// same database. When set, <see cref="ConnectionString"/> is not required,
     /// and giving both is a startup error.

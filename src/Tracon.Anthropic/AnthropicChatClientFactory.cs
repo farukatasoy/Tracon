@@ -30,6 +30,17 @@ namespace Tracon;
 /// </remarks>
 internal sealed class AnthropicChatClientFactory
 {
+    // 🚨 Anthropic SDK 12.58 changed what `ChatOptions.Reasoning` becomes: the
+    // adapter now defaults to adaptive thinking (`thinking.type=adaptive` plus
+    // `output_config.effort`); 12.39 sent `thinking.type=enabled` with a
+    // budget derived from the effort. Tracon keeps the budget form so that a
+    // dependency upgrade changes no request (Phase 214, Open Question 3); moving
+    // to adaptive is a separate decision, because models that predate it
+    // reject it. Fully qualified: Tracon's own AnthropicThinkingMode is the
+    // `anthropic.thinking.mode` setting, a different enum.
+    private const Microsoft.Extensions.AI.AnthropicThinkingMode ExtendedThinking
+        = Microsoft.Extensions.AI.AnthropicThinkingMode.Extended;
+
     private readonly IAnthropicClient _client;
     private readonly string? _defaultModel;
     private readonly int _defaultMaxOutputTokens;
@@ -123,7 +134,7 @@ internal sealed class AnthropicChatClientFactory
         // The stop-reason reader sits on the adapter itself, inside the settings:
         // a paused turn's continuation goes out with the same settings (F-426).
         return new AnthropicProviderSettingsChatClient(
-            new AnthropicStopReasonChatClient(_client.AsIChatClient(model, _defaultMaxOutputTokens)),
+            new AnthropicStopReasonChatClient(_client.AsIChatClient(model, _defaultMaxOutputTokens, ExtendedThinking)),
             model,
             _defaultMaxOutputTokens,
             settings);

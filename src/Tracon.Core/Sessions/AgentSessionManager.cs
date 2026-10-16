@@ -23,8 +23,8 @@ namespace Tracon;
 /// identity to the run record.
 /// </para>
 /// <para>
-/// Microsoft Agent Framework's pre-release <c>AgentSessionStore</c> abstraction
-/// (<c>Microsoft.Agents.AI.Hosting</c>) is wired to this class by delegation.
+/// Microsoft Agent Framework's <c>AgentSessionStore</c> abstraction is wired to
+/// this class by delegation.
 /// </para>
 /// <para>
 /// <c>AddTracon()</c> registers the manager as a singleton; resolve it with
@@ -164,65 +164,109 @@ public sealed class AgentSessionManager
 
         var record = await _store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
-        AgentSession session;
-
-        if (record is null)
-        {
-            // 🚨 NOTHING is written to the store YET. The chat history
-            // provider's (ChatHistoryProvider) conversation identity is only
-            // produced once the agent ACTUALLY runs — not here. A concurrent
-            // "first request" also starts the same way, with an empty
-            // session; the atomic claim happens in SaveSessionAsync, at the
-            // moment of the first save (see that method's description,
-            // HATA-004).
-            // 🚨 Ownership is resolved HERE, before the agent has run, and not
-            // only at the save that follows: a rejection after the turn has
-            // already reached the model has cost real money and produced an
-            // answer nobody may keep. The value is deliberately DISCARDED --
-            // the save resolves it again through the same method, from the
-            // same source, and this call exists purely to fail early. Both
-            // calls have to stay: a session whose identity was stamped by hand
-            // never passes through here at all, and the save is the only place
-            // that can still keep the invariant for it.
-            _ = ClaimOwnerId(sessionId);
-
-            session = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
-            _newlyOpenedSessions.Add(session, NewSessionMarker);
-        }
-        else
-        {
-            if (record.StateSchemaVersion > CurrentStateSchemaVersion)
-            {
-                throw new TraconException(
-                    $"Session '{sessionId}' was written with Tracon schema generation {record.StateSchemaVersion}; " +
-                    $"this Tracon version can read up to generation {CurrentStateSchemaVersion}. " +
-                    "Update the Tracon packages.");
-            }
-
-            try
-            {
-                session = await agent
-                    .DeserializeSessionAsync(record.State, jsonSerializerOptions: null, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException or ArgumentException)
-            {
-                var recordedMafVersion = record.StateMafVersion ?? "unknown (written before version stamping existed)";
-
-                throw new TraconException(
-                    $"Session '{sessionId}' could not be restored. The stored state belongs to agent " +
-                    $"'{record.AgentName}' and cannot be read by agent '{agent.Name ?? agent.Id}'. " +
-                    $"It was written with Microsoft Agent Framework {recordedMafVersion}; this process is " +
-                    $"running {CurrentMafVersion}. If the Microsoft Agent Framework version changed, open a new " +
-                    "session instead, or clear old sessions before upgrading.",
-                    ex);
-            }
-        }
-
         if (record is not null)
         {
-            _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, record.Version, record.OwnerId));
+            return await RestoreSessionAsync(agent, sessionId, record, cancellationToken).ConfigureAwait(false);
         }
+
+        // 🚨 NOTHING is written to the store YET. The chat history
+        // provider's (ChatHistoryProvider) conversation identity is only
+        // produced once the agent ACTUALLY runs — not here. A concurrent
+        // "first request" also starts the same way, with an empty
+        // session; the atomic claim happens in SaveSessionAsync, at the
+        // moment of the first save (see that method's description,
+        // HATA-004).
+        // 🚨 Ownership is resolved HERE, before the agent has run, and not
+        // only at the save that follows: a rejection after the turn has
+        // already reached the model has cost real money and produced an
+        // answer nobody may keep. The value is deliberately DISCARDED --
+        // the save resolves it again through the same method, from the
+        // same source, and this call exists purely to fail early. Both
+        // calls have to stay: a session whose identity was stamped by hand
+        // never passes through here at all, and the save is the only place
+        // that can still keep the invariant for it.
+        _ = ClaimOwnerId(sessionId);
+
+        var session = await agent.CreateSessionAsync(cancellationToken).ConfigureAwait(false);
+        _newlyOpenedSessions.Add(session, NewSessionMarker);
+
+        AgentSessionIdentity.SetId(session, sessionId);
+        return session;
+    }
+
+    /// <summary>
+    /// Restores the session with the given identity; returns
+    /// <see langword="null"/> if no record exists. Never opens a session.
+    /// </summary>
+    /// <param name="agent">The agent the session belongs to.</param>
+    /// <param name="sessionId">The session identity.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The restored session, stamped with its identity, or <see langword="null"/>.</returns>
+    /// <remarks>
+    /// The lookup Microsoft Agent Framework's <c>AgentSessionStore.GetSessionAsync</c>
+    /// contract asks for ("this method never creates a session"). Not public:
+    /// a consumer opens sessions through <see cref="GetOrCreateSessionAsync"/>,
+    /// which also arms the first-save claim a lookup that returns nothing
+    /// must not arm.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="agent"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
+    /// <exception cref="TraconException">The stored state cannot be restored by this agent.</exception>
+    internal async ValueTask<AgentSession?> GetExistingSessionAsync(
+        AIAgent agent,
+        string sessionId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        var record = await _store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
+
+        return record is null
+            ? null
+            : await RestoreSessionAsync(agent, sessionId, record, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Turns a stored record back into a session and remembers which record
+    /// (identity and generation) it was read from.
+    /// </summary>
+    private async ValueTask<AgentSession> RestoreSessionAsync(
+        AIAgent agent,
+        string sessionId,
+        SessionRecord record,
+        CancellationToken cancellationToken)
+    {
+        if (record.StateSchemaVersion > CurrentStateSchemaVersion)
+        {
+            throw new TraconException(
+                $"Session '{sessionId}' was written with Tracon schema generation {record.StateSchemaVersion}; " +
+                $"this Tracon version can read up to generation {CurrentStateSchemaVersion}. " +
+                "Update the Tracon packages.");
+        }
+
+        AgentSession session;
+
+        try
+        {
+            session = await agent
+                .DeserializeSessionAsync(record.State, jsonSerializerOptions: null, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException or ArgumentException)
+        {
+            var recordedMafVersion = record.StateMafVersion ?? "unknown (written before version stamping existed)";
+
+            throw new TraconException(
+                $"Session '{sessionId}' could not be restored. The stored state belongs to agent " +
+                $"'{record.AgentName}' and cannot be read by agent '{agent.Name ?? agent.Id}'. " +
+                $"It was written with Microsoft Agent Framework {recordedMafVersion}; this process is " +
+                $"running {CurrentMafVersion}. If the Microsoft Agent Framework version changed, open a new " +
+                "session instead, or clear old sessions before upgrading.",
+                ex);
+        }
+
+        _restoredVersions.AddOrUpdate(session, new RestoredRecord(sessionId, record.Version, record.OwnerId));
 
         AgentSessionIdentity.SetId(session, sessionId);
         return session;

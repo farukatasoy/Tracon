@@ -9,21 +9,27 @@ using Microsoft.Extensions.AI;
 namespace Tracon;
 
 /// <summary>
-/// Reads the two Anthropic stop reasons the SDK's adapter reports as an ordinary
-/// stop: <c>model_context_window_exceeded</c> and <c>pause_turn</c>.
+/// Reads the two Anthropic stop reasons the SDK's adapter does not report as what
+/// they are: <c>model_context_window_exceeded</c> and <c>pause_turn</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured (Anthropic SDK 12.39.0, the adapter decompiled): <c>ToFinishReason</c> maps
-/// only <c>refusal</c>, <c>max_tokens</c> and <c>tool_use</c>, and every other stop
-/// reason becomes <see cref="ChatFinishReason.Stop"/>. The stop reason itself is still on
+/// Measured (Anthropic SDK 12.58.0, the adapter decompiled): <c>ToFinishReason</c> maps
+/// <c>end_turn</c> and <c>stop_sequence</c> to <see cref="ChatFinishReason.Stop"/>,
+/// <c>max_tokens</c> and <c>model_context_window_exceeded</c> to
+/// <see cref="ChatFinishReason.Length"/>, <c>tool_use</c> to
+/// <see cref="ChatFinishReason.ToolCalls"/> and <c>refusal</c> to
+/// <see cref="ChatFinishReason.ContentFilter"/>; any other reason (<c>pause_turn</c>)
+/// passes through as a finish reason of its own name. The stop reason itself is still on
 /// the raw representation: the response's <see cref="Message"/>, and the
 /// <see cref="RawMessageDeltaEvent"/> of a stream.
 /// </para>
 /// <para>
 /// <c>model_context_window_exceeded</c>: the answer was cut off because the conversation
-/// filled the context window. Reported as <see cref="TraconFinishReasons.ContextWindowExceeded"/>,
-/// so the registry's finish-reason ring treats it as a cut-off answer and names the window.
+/// filled the context window. The adapter reports plain <see cref="ChatFinishReason.Length"/>,
+/// which would blame the output limit. Reported as
+/// <see cref="TraconFinishReasons.ContextWindowExceeded"/> instead, so the registry's
+/// finish-reason ring treats it as a cut-off answer and names the window.
 /// </para>
 /// <para>
 /// <c>pause_turn</c>: the API paused a long turn of its own server tools (web search, for
@@ -192,11 +198,14 @@ internal sealed class AnthropicStopReasonChatClient(IChatClient inner) : Delegat
 
     /// <summary>Rebuilds the blocks of one streamed message from its events, as the API's JSON.</summary>
     /// <remarks>
-    /// The SDK's own <c>MessageContentAggregator</c> cannot be used: it reads a server
-    /// tool block's deltas as blocks of that type and throws on the first
-    /// <c>input_json_delta</c> (decompiled, 12.39.0). Each block starts as the JSON of its
-    /// <c>content_block_start</c>; text, thinking and signature deltas are appended, a
-    /// citation is added, and the partial JSON of a tool's input is parsed at the end.
+    /// Each block starts as the JSON of its <c>content_block_start</c>; text, thinking
+    /// and signature deltas are appended, a citation is added, and the partial JSON of
+    /// a tool's input is parsed at the end.
+    /// The SDK's own <c>MessageContentAggregator</c> threw on a server tool's first
+    /// <c>input_json_delta</c> in the version this code was written against; the
+    /// decompiled aggregator of 12.58.0 merges that input (<c>StreamedToolInput</c>). This
+    /// rebuild stays because a dependency upgrade changes no request; replacing it with
+    /// the aggregator is a simplification to decide on its own.
     /// </remarks>
     private static IEnumerable<ContentBlockParam> StreamedBlocks(IEnumerable<RawMessageStreamEvent> events)
     {

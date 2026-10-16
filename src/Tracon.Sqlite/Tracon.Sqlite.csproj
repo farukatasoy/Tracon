@@ -21,11 +21,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" />
-    <!--
-      CVE pinning (see Directory.Packages.props). Since transitive pinning is
-      off (K-007), a version is forced with a single deliberate PackageReference.
-    -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
   </ItemGroup>
 
   <ItemGroup Label="Embedded SQL migrations (Phase 24)">

@@ -27,29 +27,26 @@ updates:
     commit-message:
       prefix: "chore(deps)"
     groups:
-      # MAF'in GA, preview ve alpha katmanlari AYNI surum hattinda ilerler
-      # (K-008). Ayri PR'lara bolunurse hat kayar ve derleme kirilir.
-      microsoft-agent-framework:
+      # 🚨 Calisma ani yigini TEK grupta yukselir (Faz 214, A-62). Zincir: MAF belli
+      # bir MEAI ister, MEAI belli bir Microsoft.Extensions.* / System.Text.Json
+      # alt siniri ve belli bir OpenAI ister, MAF Hosting belli bir A2A ister.
+      # Bu uc hat ayri PR'lara bolunurse her PR `restore`'da NU1605/NU1107 ile
+      # kirmizi kalir ve hicbiri birlestirilemez: PR #20...#37 boyle, besi hafta
+      # birlestirilmeden kapandi. MAF'in GA, preview ve alpha katmanlari da ayni
+      # hatta ilerler (K-008, K-872).
+      agent-stack:
         patterns:
           - "Microsoft.Agents.AI*"
-      # MEAI kendi icinde uc paket; ucu de ayni surumde olmak zorunda.
-      microsoft-extensions-ai:
-        patterns:
-          - "Microsoft.Extensions.AI*"
+          - "Microsoft.Extensions.*"
+          - "OpenAI"
+          - "A2A*"
+          - "Microsoft.AspNetCore.*"
+          - "Microsoft.Bcl.*"
+          - "Microsoft.Data.*"
       # `.Core` (istemci) ve `.AspNetCore` (sunucu) birlikte hareket eder (K-334).
       model-context-protocol:
         patterns:
           - "ModelContextProtocol*"
-      # Microsoft.Extensions.* / AspNetCore.* yama hatti tek PR'da gelir;
-      # MEAI bu gruba GIRMEZ (kendi grubu var, farkli surum semasi).
-      microsoft-platform:
-        patterns:
-          - "Microsoft.Extensions.*"
-          - "Microsoft.AspNetCore.*"
-          - "Microsoft.Bcl.*"
-          - "Microsoft.Data.*"
-        exclude-patterns:
-          - "Microsoft.Extensions.AI*"
       test-tooling:
         patterns:
           - "xunit*"
@@ -78,16 +75,6 @@ updates:
       # tasir. 3.x yama/minor guncellemeleri serbesttir.
       - dependency-name: "xunit.v3"
         versions: [">= 4.0.0"]
-      # Microsoft.OpenApi surumu bir CVE zorlamasidir (NU1903,
-      # GHSA-v5pm-xwqc-g5wc). 3.x major bir yuzey degisimidir ve
-      # Microsoft.AspNetCore.OpenApi'nin bekledigi hat degildir.
-      - dependency-name: "Microsoft.OpenApi"
-        versions: [">= 3.0.0"]
-      # SQLitePCLRaw 2.1.12 de bir CVE zorlamasidir (NU1903,
-      # GHSA-2m69-gcr7-jv3q). 3.x major, Microsoft.Data.Sqlite'in cektigi
-      # hattin disindadir.
-      - dependency-name: "SQLitePCLRaw.*"
-        versions: [">= 3.0.0"]
 
   # ---------------------------------------------------------------------------
   # 2. npm — arayuz (bundle butcesi 250 KB gzip; kapi dotnet build icindedir)

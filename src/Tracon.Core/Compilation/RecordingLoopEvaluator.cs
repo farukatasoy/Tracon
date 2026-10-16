@@ -34,7 +34,7 @@ internal sealed record LoopCriterionBinding(string Kind, LoopEvaluator Evaluator
 /// three things that aggregation does not give: exactly one run event per
 /// iteration (a wrapper per criterion would write one event each), the NAME of
 /// the criterion that asked for another iteration, and containment of a
-/// criterion that throws. Measured against MAF 1.20.0 (2026-09-07), MAF's own
+/// criterion that throws. Measured against MAF 1.25.0 (2026-10-16, decompiled), MAF's own
 /// aggregation short-circuits on the first evaluator that asks to continue and
 /// skips the rest; this type reproduces that order exactly, so a costly
 /// <c>aiJudge</c> placed after a cheap marker still costs nothing on the
@@ -42,7 +42,7 @@ internal sealed record LoopCriterionBinding(string Kind, LoopEvaluator Evaluator
 /// </para>
 /// <para>
 /// <strong>The event marks an EVALUATED iteration, not a model turn.</strong>
-/// Measured against MAF 1.20.0: the loop does not consult its evaluator after
+/// Measured against MAF 1.25.0: the loop does not consult its evaluator after
 /// the turn that reaches <c>MaxIterations</c> — there is nothing left to
 /// decide. A ceiling-bounded loop therefore produces one event fewer than it
 /// produces model turns, and the last event carries

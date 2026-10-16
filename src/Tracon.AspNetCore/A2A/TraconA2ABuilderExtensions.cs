@@ -61,14 +61,15 @@ public static class TraconA2ABuilderExtensions
 
             services.AddA2AServer(proxy, register =>
             {
-                // MAF has no mid-run approval suspension (K-103). Background
-                // mode is another form of that same suspension; it is turned
-                // off explicitly to avoid the same boundary.
+                // MAF has no mid-run approval suspension (K-103). A task
+                // response is another form of that same suspension; every run
+                // answers with a single message to avoid the same boundary.
+                // (MAF 1.22 renamed DisallowBackground to ReturnMessage.)
                 //
                 // MEAI001: AgentRunMode is marked "for evaluation purposes".
                 // Usage is consolidated in this ONE file (same pattern as MAAI001).
 #pragma warning disable MEAI001
-                register.AgentRunMode = AgentRunMode.DisallowBackground;
+                register.AgentRunMode = AgentRunMode.ReturnMessage;
 #pragma warning restore MEAI001
             });
         }

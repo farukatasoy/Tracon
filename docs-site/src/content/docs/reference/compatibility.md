@@ -131,13 +131,13 @@ These are the versions they declare.
 
 | Package | Declared dependencies |
 |---|---|
-| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.20.0 · `Microsoft.Extensions.AI.Abstractions` 10.9.0 |
-| `Tracon.Core` | `Microsoft.Agents.AI` 1.20.0 · `Microsoft.Agents.AI.Harness` 1.20.0 · `Microsoft.Extensions.AI` 10.9.0 · `Microsoft.Extensions.AI.Evaluation` 10.9.0 |
-| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.20.0 |
-| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.20.0 · `Microsoft.Extensions.AI.OpenAI` 10.9.0 |
-| `Tracon.Azure` | `Microsoft.Extensions.AI.OpenAI` 10.9.0 |
-| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.20.0 · `Microsoft.Extensions.AI` 10.9.0 |
-| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.20.0 pre-release · `.Hosting.OpenAI` at exactly a 1.20.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview2` |
+| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.25.0 · `Microsoft.Extensions.AI.Abstractions` 10.11.0 |
+| `Tracon.Core` | `Microsoft.Agents.AI` 1.25.0 · `Microsoft.Agents.AI.Harness` 1.25.0 · `Microsoft.Extensions.AI` 10.11.0 · `Microsoft.Extensions.AI.Evaluation` 10.11.0 |
+| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.25.0 |
+| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.25.0 · `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
+| `Tracon.Azure` | `Microsoft.Extensions.AI.OpenAI` 10.11.0 |
+| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.25.0 · `Microsoft.Extensions.AI` 10.11.0 |
+| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.25.0 pre-release · `.Hosting.OpenAI` at exactly a 1.25.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview3` |
 
 `Tracon.AspNetCore` is the only package that carries a pre-release Agent Framework
 dependency, and it is the only one permitted to.
@@ -145,7 +145,7 @@ dependency, and it is the only one permitted to.
 ### A pre-release dependency is an exact pin
 
 The five pre-release entries of `Tracon.AspNetCore` are exact ranges, such as
-`[1.20.0-preview.260831.1]`. A pre-release package makes no compatibility promise
+`[1.25.0-preview.261014.1]`. A pre-release package makes no compatibility promise
 between its own previews, and this one broke: `Microsoft.Agents.AI.Hosting.AgentSessionStore`
 left the Hosting assembly in `1.22.0-preview`, so a project that raised Hosting under
 `1.0.0-preview.2` restored without a warning and failed at run time with a
@@ -158,7 +158,7 @@ that is built against it.
 
 ### A stable dependency is a floor, not a pin
 
-Every other entry above is a minimum. NuGet reads `1.20.0` as `[1.20.0, )` and then resolves
+Every other entry above is a minimum. NuGet reads `1.25.0` as `[1.25.0, )` and then resolves
 the **lowest** version that satisfies every constraint in the graph, so a project that
 asks for nothing else restores exactly the version listed. You get a different version
 only when something asks for one: a direct `PackageReference` to a higher version, or

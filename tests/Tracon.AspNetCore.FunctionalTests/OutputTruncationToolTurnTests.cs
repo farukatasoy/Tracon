@@ -11,7 +11,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// turn that ends the loop decides the run's outcome.
 /// </summary>
 /// <remarks>
-/// Measured (MEAI 10.9.0 <c>FunctionInvokingChatClient</c>, decompiled): the
+/// Measured (MEAI 10.11.0 <c>FunctionInvokingChatClient</c>, decompiled 2026-10-16): the
 /// non-streaming loop returns the LAST turn's response object, so its finish
 /// reason is the final one; the streaming loop yields the tool-call turn's
 /// updates (with that turn's reason), then the tool results, then the next

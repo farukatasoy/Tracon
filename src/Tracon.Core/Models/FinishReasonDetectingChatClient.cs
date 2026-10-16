@@ -38,7 +38,7 @@ namespace Tracon;
 /// path the loop returns the last turn's response, so its finish reason is the
 /// final one. On the streaming path the loop forwards every turn's updates, so
 /// the LAST finish reason in the stream is the final turn's — measured against
-/// <c>FunctionInvokingChatClient</c> (MEAI 10.9.0), which yields the tool-call
+/// <c>FunctionInvokingChatClient</c> (MEAI 10.11.0), which yields the tool-call
 /// turn's updates, then the tool results, then the next turn.
 /// </para>
 /// <para>

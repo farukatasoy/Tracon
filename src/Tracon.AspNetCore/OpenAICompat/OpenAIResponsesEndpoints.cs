@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Hosting;
 using Microsoft.Agents.AI.Hosting.OpenAI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -14,6 +13,11 @@ using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
+// MAAI001: since Microsoft Agent Framework 1.22, AgentSessionStore and
+// AgentSessionStoreKey are marked "evaluation purposes only" (same rationale
+// as TraconAgentSessionStore and K-020).
+#pragma warning disable MAAI001
+
 /// <summary>
 /// Run endpoint compatible with the OpenAI Responses API.
 /// </summary>
@@ -23,7 +27,7 @@ namespace Tracon;
 /// That endpoint does its storage through the <c>IConversationStorage</c>,
 /// <c>IResponsesService</c>, and <c>IAgentConversationIndex</c> abstractions;
 /// those interfaces are also <strong>internal</strong> inside
-/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.20.0-alpha.260831.1).
+/// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> (measured, 1.25.0-alpha.261014.1).
 /// A consumer assembly cannot name these types, so no matter the registration
 /// order it cannot replace MAF's in-memory implementations. Using that path
 /// would silently lose all of the persistence, tenant isolation, audit trail,
@@ -275,7 +279,7 @@ internal static class OpenAIResponsesEndpoints
         }
 
         var session = await sessionStore
-            .GetSessionAsync(agent, loadId, cancellationToken).ConfigureAwait(false);
+            .GetOrCreateSessionAsync(agent, new AgentSessionStoreKey(loadId), cancellationToken).ConfigureAwait(false);
 
         if (OpenAICompatSupport.ReadStreamFlag(body))
         {
@@ -288,7 +292,7 @@ internal static class OpenAIResponsesEndpoints
                 .RunAsync(runRequest.Messages, session, runRequest.Options, cancellationToken)
                 .ConfigureAwait(false);
 
-            await sessionStore.SaveSessionAsync(agent, saveId, session, cancellationToken).ConfigureAwait(false);
+            await sessionStore.SaveSessionAsync(agent, new AgentSessionStoreKey(saveId), session, cancellationToken).ConfigureAwait(false);
 
             var responseJson = OpenAIResponses.WriteResponse(response, responseId, runRequest.ConversationId);
 
@@ -385,8 +389,9 @@ internal static class OpenAIResponsesEndpoints
     /// </para>
     /// <para>
     /// <strong>The caller cannot answer that call over this endpoint.</strong>
-    /// Re-measured on 2026-09-05 against <c>Microsoft.Agents.AI.Hosting.OpenAI</c>
-    /// 1.20.0-alpha.260831.1: <see cref="OpenAIResponses.ToAgentRunRequest"/>
+    /// Re-measured on 2026-10-16 (a probe that calls the helper) against
+    /// <c>Microsoft.Agents.AI.Hosting.OpenAI</c> 1.25.0-alpha.261014.1:
+    /// <see cref="OpenAIResponses.ToAgentRunRequest"/>
     /// deserializes <em>every</em> item of the <c>input</c> array into its
     /// internal <c>Responses.Models.InputMessage</c>, which declares <c>role</c>
     /// and <c>content</c> as required. There is no polymorphic dispatch on the
@@ -498,7 +503,7 @@ internal static class OpenAIResponsesEndpoints
                     await writer.WriteRawAsync(frame, cancellationToken).ConfigureAwait(false);
                 }
 
-                await sessionStore.SaveSessionAsync(agent, saveId, session, cancellationToken).ConfigureAwait(false);
+                await sessionStore.SaveSessionAsync(agent, new AgentSessionStoreKey(saveId), session, cancellationToken).ConfigureAwait(false);
             }
             // 🚨 `when (httpContext.RequestAborted.IsCancellationRequested)`,
             // not a bare catch. HttpClient reports its own request timeout as a
@@ -534,3 +539,4 @@ internal static class OpenAIResponsesEndpoints
         private sealed record ResponsesStreamError(string Type, string Message);
     }
 }
+#pragma warning restore MAAI001

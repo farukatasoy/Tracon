@@ -11,7 +11,8 @@ namespace Tracon.Workflows.UnitTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured on MAF 1.20.0 (Phase 208, measurement 1): a request port issues
+/// Measured on MAF 1.20.0 (Phase 208, measurement 1; the tests pass on 1.25.0, re-run
+/// 2026-10-16): a request port issues
 /// <c>Guid.NewGuid().ToString("N")</c> for every request it publishes, and a run resumed
 /// from a checkpoint republishes the pending request under the id it already had. A MAF
 /// upgrade that changes either rule breaks this class first.

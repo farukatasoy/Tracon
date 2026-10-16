@@ -14,7 +14,9 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// Measured (Anthropic SDK 12.39.0, the adapter decompiled): <c>ToFinishReason</c>
 /// maps only <c>refusal</c>, <c>max_tokens</c> and <c>tool_use</c>; every other stop
-/// reason became <c>Stop</c>. A structured answer cut off by the context window was
+/// reason became <c>Stop</c>. (12.58.0 maps the window to <c>Length</c> and passes
+/// <c>pause_turn</c> through under its own name; the tests below pass on both.) A
+/// structured answer cut off by the context window was
 /// rejected as "invalid JSON", a plain one completed without a trace, and a paused
 /// turn closed the run <c>Completed</c> with the half-done answer.
 /// </para>
