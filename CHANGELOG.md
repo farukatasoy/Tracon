@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- `Tracon.Client.Generated.IMcpToolRefresher` and the `body` parameter of
+  `TraconApiClient.TraconRefreshMcpToolsAsync`. The class was never a request body: it was
+  the server's own refresher service, published by mistake as a schema. A call that passed
+  `null` or nothing as the body drops the argument; `TraconRefreshMcpToolsAsync(cancellationToken)`
+  sends the same request.
+
+### Fixed
+
+- `POST /api/mcp-servers/refresh` no longer declares a request body. The endpoint took its
+  refresher service without `[FromServices]`; in a host without `Tracon.Mcp` the framework read
+  the service from the body instead, so the OpenAPI document, `@tracon/client` and `Tracon.Client`
+  carried a body schema (`IMcpToolRefresher`) for four preview releases. The request itself is
+  unchanged. A test now fails the build when any endpoint reads a service interface from its body.
+
 ## [1.0.0-preview.4] - 2026-10-15
 
 Workflows become a control plane for long-running pipelines that a person

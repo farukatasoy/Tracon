@@ -48,6 +48,7 @@ public sealed class DeclaredRequestBodyTests
         ["POST /tracon/api/webhooks/{name}/test"] = "Action route: sends a probe to the registered target; no body.",
         ["POST /tracon/api/retention/run"] = "Action route: runs the configured policy; no body.",
         ["POST /tracon/api/mcp-servers/{name}/oauth/start"] = "Action route: starts authorization; no body.",
+        ["POST /tracon/api/mcp-servers/refresh"] = "Action route: refreshes every registered server's tool list; no body. The leaked `IMcpToolRefresher` body schema used to hide this (A-78).",
         ["POST /tracon/v1/conversations"] = "Reserves an identifier only; writes nothing and reads no body.",
 
         // 🚨 This route DOES read a body, and having no schema for it is
