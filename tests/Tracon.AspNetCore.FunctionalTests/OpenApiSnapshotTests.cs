@@ -122,7 +122,7 @@ public sealed class OpenApiSnapshotTests
     }
 
 #pragma warning disable MEAI001
-    private static async Task<string> GenerateAsync()
+    internal static async Task<string> GenerateAsync()
     {
         // Section 84.3: the document is generated with every optional endpoint turned
         // on. A default-off endpoint (like /api/diagnostics) is still part of the
