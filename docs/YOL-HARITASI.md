@@ -226,7 +226,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [211](arsiv/fazlar/211-KOD-GRAFI-DUGUM-YETENEKLERI.md) | Kod Grafında Düğüm Yetenekleri ve Revizyon Döngüsü | ✅ Tamamlandı |
 | [212](arsiv/fazlar/212-HTTP-DTO-DARALTMA.md) | HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip | ✅ Tamamlandı |
 | [213](arsiv/fazlar/213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) | Tesisat Arayüzleri ve Üye Hijyeni | ✅ Tamamlandı |
-| [214](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) | Çalışma Anı Bağımlılıkları ve MAF 1.25 | ✅ Tamamlandı |
+| [214](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) | Çalışma Anı Bağımlılıkları ve MAF 1.25 | ✅ Tamamlandı |
 | [215](215-TEST-VE-DERLEME-ARACLARI.md) | Test ve Derleme Araçları | 📋 Planlandı |
 | [216](216-NPM-BAGIMLILIKLARI.md) | npm Bağımlılıkları: Arayüz, TypeScript İstemcisi ve Site | 📋 Planlandı |
 

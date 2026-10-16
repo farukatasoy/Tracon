@@ -1,16 +1,16 @@
 # Faz 214 — Çalışma Anı Bağımlılıkları ve MAF 1.25
 
 > **Durum:** ✅ Tamamlandı (2026-10-16)
-> **Plan onayı:** kullanıcı fazı `faza başla ve bitir` diyerek başlattı (2026-10-16); Açık Sorular 1-5 ayrıca yanıtlanmadı, **planın önerdiği seçenekle (A) uygulandı** — bkz. *Plandan Sapmalar* 1 ve *Bu Fazda Verilen Kararlar*. Kapsam kararı: **UR-009 B** (küçült → yükselt → modernize et), farukatasoy, 2026-10-16 ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §7).
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-557** (üç fazın birincisi: çalışma anı; [Faz 215](215-TEST-VE-DERLEME-ARACLARI.md) test ve derleme araçları, [Faz 216](216-NPM-BAGIMLILIKLARI.md) npm)
+> **Plan onayı:** kullanıcı fazı `faza başla ve bitir` diyerek başlattı (2026-10-16); Açık Sorular 1-5 ayrıca yanıtlanmadı, **planın önerdiği seçenekle (A) uygulandı** — bkz. *Plandan Sapmalar* 1 ve *Bu Fazda Verilen Kararlar*. Kapsam kararı: **UR-009 B** (küçült → yükselt → modernize et), farukatasoy, 2026-10-16 ([`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §7).
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-557** (üç fazın birincisi: çalışma anı; [Faz 215](../../215-TEST-VE-DERLEME-ARACLARI.md) test ve derleme araçları, [Faz 216](../../216-NPM-BAGIMLILIKLARI.md) npm)
 > **Genellik:** Her tüketici. Sevk edilen 20 paketin bağımlılık grafiği beş MAF minor sürümü geride (`1.20` → `1.25`); tüketici daha yeni MAF'ı kendi projesine alınca Tracon'un ikilisi `TypeLoadException` ile kırılır (A-59, ölçüldü). İş tüketici kodunda kalamaz. İkinci kanıt: ilk ilke (1.0 bu grafiği dondurur) ve bağımlılık botu PR'larının beş haftadır kırmızı kapanması (A-62).
 > **Karşı görüş:** "Yükseltme kendi başına değer üretmez; ön sürüm Hosting her minor'da kırar, freeze'e yakın yükseltmek risk alır." **Cevap:** Freeze'den sonra yükseltme daha pahalıdır: zorunlu tip değişikliği (`AgentSessionStore` taşındı) 1.x içinde major ister. Deneme yükseltmesi (izole worktree, 2026-10-16) derlemeyi 6 dosyada yeşile çevirdi; kırılmalar bilinir ve aşağıda tek tek planlıdır. **Bu faz davranış değiştirmez:** upstream'in getirdiği davranış farkı ya korunur (eski davranış açıkça istenir) ya da Açık Soru olarak karara bağlanır.
-> **Önkoşul:** [Faz 212](arsiv/fazlar/212-HTTP-DTO-DARALTMA.md), [Faz 213](arsiv/fazlar/213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) (kapandı). Faz 215 ve 216 bu fazdan **sonra** gelir; üçü de `Directory.Packages.props`, `dependabot.yml` ve `CHANGELOG.md` değiştirir, paralel koşmaz.
+> **Önkoşul:** [Faz 212](212-HTTP-DTO-DARALTMA.md), [Faz 213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) (kapandı). Faz 215 ve 216 bu fazdan **sonra** gelir; üçü de `Directory.Packages.props`, `dependabot.yml` ve `CHANGELOG.md` değiştirir, paralel koşmaz.
 > **Paketler:** `Tracon.AspNetCore`, `.Core`, `.Anthropic`, `.Google`, `.Azure`, `.OpenAI`, `.Sqlite`, `.SqlServer` (+ `Directory.Packages.props`, `.github/dependabot.yml`)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Değişiyor.** `TraconAgentSessionStore`'un taban tipi ve üç override'ı upstream yüzünden zorunlu değişir; Açık Soru 1'in önerisiyle tip `internal` olur (küçülür). `PublicAPI.Shipped.txt` bugün **0** satırdır (`find src -name PublicAPI.Shipped.txt -exec cat {} + | grep -vcE '^\s*$|^#'` → `0`); değişiklik `1.0.0`'dan önce bedavadır.
 > **Tüketici yüzeyi:** site: `reference/compatibility.md:134-148` (test edilen sürümler: `1.20.0`/`10.9.0` → `1.25.0`/`10.11.0`) · sevk edilen: `src/Tracon.Anthropic/README.md` (thinking satırları, Açık Soru 3'e bağlı), `TraconAgentSessionStore` XML'i, `CHANGELOG.md` `[Unreleased]`
-> **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md) (paketlenmiş tüketici) · `06-SAGLAYICI-DIGER.md` (Anthropic) · `08-OPENAI-UYUMLU-UCLAR.md` (Responses oturumu) · `18-MCP-VE-A2A.md` (A2A)
+> **Manuel test alanı:** [`manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) (paketlenmiş tüketici) · `06-SAGLAYICI-DIGER.md` (Anthropic) · `08-OPENAI-UYUMLU-UCLAR.md` (Responses oturumu) · `18-MCP-VE-A2A.md` (A2A)
 
 ---
 
@@ -25,8 +25,8 @@
    grep -n "K-008\|K-026\|K-872\|K-211\|K-197\|K-448\|K-543\|K-1013\|K-1014" docs/KARARLAR.md
    ```
    **K-008** (ön sürüm MAF yalnız `Tracon.AspNetCore`) · **K-026** (oturum yaşam döngüsü `AgentSessionManager`'da) · **K-872** (ön sürüm upstream tam sürümle sabitlenir) · **K-211** (Azure SDK'sı CPM altında çalışma anında sessiz kırılır) · **K-197**, **K-448** (CVE sabitleri) · **K-543** (bot grupları ve `ignore`) · **K-1013/K-1014** (seam tanımı; DI'ın kurduğu tipin kurucusu)
-3. [Faz 213](arsiv/fazlar/213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) — yalnız devir notu (`awk '/## Sonraki Faza Devir Notu/,0' …`): başlangıç sayıları ve `TraconAgentSessionStore`'un kurucu tabanındaki gerekçeli girişi
-4. Alan hafızası: [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (NU1605/NU1903, CPM) · [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (oturum) · [`hafiza/http-uc-guvenlik-ve-sozlesme.md`](hafiza/http-uc-guvenlik-ve-sozlesme.md) (anlık görüntü farkı okunur)
+3. [Faz 213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) — yalnız devir notu (`awk '/## Sonraki Faza Devir Notu/,0' …`): başlangıç sayıları ve `TraconAgentSessionStore`'un kurucu tabanındaki gerekçeli girişi
+4. Alan hafızası: [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) (NU1605/NU1903, CPM) · [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (oturum) · [`hafiza/http-uc-guvenlik-ve-sozlesme.md`](../../hafiza/http-uc-guvenlik-ve-sozlesme.md) (anlık görüntü farkı okunur)
 5. Deneme yükseltmesinin farkı (yalnız referans, uygulanmaz): `git -C .claude/worktrees/agent-aa02ba7797a9e3efd diff` — worktree silindiyse plan bu dokümandadır
 6. MAF tipleri için önce `maf-api-kesfi` — `AgentSessionStore`, `AgentSessionStoreKey`, `AgentRunMode` 1.25 imzaları
 
@@ -44,7 +44,7 @@ Sevk edilen paketlerin çalışma anı grafiğini en yeni sürümlere taşı; up
 |---|---|
 | `Directory.Packages.props:19` | `MicrosoftAgentsAIVersion` `1.20.0`; nuget.org `1.25.0` (2026-10-16, flat container). Hosting ailesi `[1.20.0-preview.260831.1]`; son `1.25.0-preview.261014.1`, kararlısı yok |
 | `uyum-probu.cs -- ileri --tracon 1.0.0-preview.4` | Tüm upstream en yeni: **1 eksik tip** (`Microsoft.Agents.AI.Hosting.AgentSessionStore`) + **1 eksik üye** (`AgentRunMode.DisallowBackground`). Yalnız GA upstream: 0 eksik |
-| [`src/Tracon.AspNetCore/Sessions/TraconAgentSessionStore.cs:30`](../src/Tracon.AspNetCore/Sessions/TraconAgentSessionStore.cs) | `public sealed class TraconAgentSessionStore : AgentSessionStore`; XML (`:23-26`) tüketiciye "bu örneği `IsolationKeyScopedAgentSessionStore` ile sar" der. `docs-site`'ta bu iki adı anan izlenen sayfa yok |
+| [`src/Tracon.AspNetCore/Sessions/TraconAgentSessionStore.cs:30`](../../../src/Tracon.AspNetCore/Sessions/TraconAgentSessionStore.cs) | `public sealed class TraconAgentSessionStore : AgentSessionStore`; XML (`:23-26`) tüketiciye "bu örneği `IsolationKeyScopedAgentSessionStore` ile sar" der. `docs-site`'ta bu iki adı anan izlenen sayfa yok |
 | `.github/dependabot.yml` | MAF, MEAI ve `Microsoft.*` platform ayrı gruplarda; `OpenAI` hiçbir grupta değil. MEAI 10.10+ `Microsoft.Extensions.*` 10.0.12+ ister; ayrı PR'lar `restore`'da kırmızıdır (A-62; PR #20…#37 birleştirilmeden kapandı) |
 | `docs-site/src/content/docs/reference/compatibility.md:134-148` | Test edilen sürümleri `1.20.0` / `10.9.0` diye yazar |
 | `src` | `1.20.0` veya "measured on 1.20" geçen 10 yorum; deneme 21 "ölçüldü" yorumu saydı — her biri yeniden ölçülür ya da tarihlenir |
@@ -379,7 +379,7 @@ Denetçinin temiz bulduğu başlıklar: 3.1 (DoD kanıtları; kapanış sonucu h
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki iş:** [Faz 215](215-TEST-VE-DERLEME-ARACLARI.md) (test ve derleme araçları: xunit.v3 4 + MTP 2, Meziantou, F-568), sonra [Faz 216](216-NPM-BAGIMLILIKLARI.md) (npm). Üçü `Directory.Packages.props`, `dependabot.yml` ve `CHANGELOG.md`'yi paylaşır, paralel koşmaz. Sonra F-558 (modernleşme: Azure için düz `OpenAI` + `/openai/v1/`, Anthropic'in `Adaptive` düşünmesi) ve F-560 (deneysel tip: `AddLoopEvaluator` ×4, `AgentFileStoreContract`).
+**Sıradaki iş:** [Faz 215](../../215-TEST-VE-DERLEME-ARACLARI.md) (test ve derleme araçları: xunit.v3 4 + MTP 2, Meziantou, F-568), sonra [Faz 216](../../216-NPM-BAGIMLILIKLARI.md) (npm). Üçü `Directory.Packages.props`, `dependabot.yml` ve `CHANGELOG.md`'yi paylaşır, paralel koşmaz. Sonra F-558 (modernleşme: Azure için düz `OpenAI` + `/openai/v1/`, Anthropic'in `Adaptive` düşünmesi) ve F-560 (deneysel tip: `AddLoopEvaluator` ×4, `AgentFileStoreContract`).
 
 **Başlangıç sayıları (Faz 215 bunları ön koşul olarak yazar):** `PublicAPI.Unshipped.txt` toplamı −5 (`Tracon.AspNetCore`) · `public-surface-baseline.txt` `Tracon.AspNetCore` `21` · `public-constructor-baseline.txt` 16 giriş · `transitive-dependencies.txt` üç bölümde −3 ad (`Microsoft.Bcl.{AsyncInterfaces,HashCode,Memory}`) · tam koşum 38 koşumda 23.362 test (+ Azure 6 + Responses 2 = **23.370**) · `uyum-probu -- deneysel` public maruziyet 4 · `uyum-probu -- ileri` 1.237 üye, 0 eksik · `ADAYLAR.md` F-ID sayacı F-571'den sonrasını gösterir.
 

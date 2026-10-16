@@ -33,7 +33,7 @@ tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kes
 > Kaldırma/yeniden adlandırma yalnız `Hosting` ailesindedir (ön sürüm): `AgentSessionStore` GA
 > `Abstractions` paketine taşındı ve imzası değişti (`DeleteSessionAsync` gitti, anahtar
 > `AgentSessionStoreKey` oldu); `AgentRunMode.DisallowBackground` → `ReturnMessage`. İkisi de
-> [`214`](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) ile karşılandı. `Hosting` hâlâ
+> [`214`](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) ile karşılandı. `Hosting` hâlâ
 > **preview**, `Hosting.OpenAI` hâlâ **alpha** — K-008'in sınırı yerinde durur.
 >
 > | Sürüm | Eklenen | Tracon'e etkisi |
