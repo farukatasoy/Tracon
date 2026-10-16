@@ -217,7 +217,7 @@ Ara:
 - **İmza.** nuget.org her pakete depo imzası koyar. Yazar imzası sertifika
   maliyeti getirir — ⚪ gerçek talep çıkana kadar.
 - **Tekrar üretilebilir derleme.** `Deterministic` + `ContinuousIntegrationBuild`
-  bir iddiadır; bağımsız yeniden üretim kanıttır (GA'ya ertelendi, §12 ER).
+  bir iddiadır; bağımsız yeniden üretim kanıttır (GA'ya ertelendi, defter §3.6).
 - **CI sertleştirme.** Action'lar SHA-pinli mi? İş başına en az yetki mi?
   Yayın environment'ı **tag kuralı ve onaylayıcı** ile korunuyor mu? Public
   repo'da bu koruma ücretsiz gelir (OP-011'in yeniden açılma ölçütü).

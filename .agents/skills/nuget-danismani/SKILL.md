@@ -102,15 +102,15 @@ Bir önceki turun kararı bugünün kanıtı değildir. Beş okuma, bu sırayla
 ([`kanit-komutlari.md`](resources/kanit-komutlari.md) §10–§12):
 
 1. **Defter.** [`docs/YAYIN-HAZIRLIK.md`](../../../docs/YAYIN-HAZIRLIK.md)
-   başlığı ("GÜNCEL DURUM"), §6 açık blocker'lar ve §13 sonraki adım. Tam
-   dosyayı okuma — başlık ve iki bölüm yeter; gerisi grep'le.
+   başlığı ("GÜNCEL DURUM"), §2 freeze yolu ve §3 açık kalemler. Kapanmış
+   kayıt defterde durmaz; kimliği grep'le, bulamazsan §7'deki `git show`.
 2. **CI'ın gördüğü.** `git rev-list --count origin/main..HEAD`. Yerelde olan
    ama CI'da hiç koşmamış commit'ler için "CI yeşil" denmez. Son CI
    koşumlarını ve açık bağımlılık PR'larının sonucunu oku.
 3. **Tüketicinin aldığı.** nuget.org ve npm'deki canlı sürüm ve dist-tag'ler.
 4. **Tetiklenmiş yeniden açılma ölçütleri.** Karar ve defter kayıtlarındaki
    "şu olursa yeniden aç" koşulu bugün sağlanıyor mu? Metin doğru kalır,
-   **öncül** bayatlar (defter §4: "premis bayatladı, metin değil").
+   **öncül** bayatlar ("premis bayatladı, metin değil" — 2026-09-20 duyuru denetimi).
 5. **Dış olgular.** .NET destek tarihleri, upstream GA durumu, registry ve CI
    politikaları **canlı** kaynaktan, tarihiyle okunur; ezberden yazılmaz.
 

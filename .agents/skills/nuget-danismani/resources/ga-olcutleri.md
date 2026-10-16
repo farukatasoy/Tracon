@@ -50,7 +50,7 @@ flowchart TD
     F --> G["Kararli prova<br/>kapi.py yayin --kuru --surum 1.0.0"]
     G --> H["CI main'de yesil<br/>ayni commit"]
     H --> I["Kullanici karari: v1.0.0 etiketi"]
-    I --> J["Yayin sonrasi 72 saat<br/>defter §14"]
+    I --> J["Yayin sonrasi 72 saat<br/>defter §6"]
 ```
 
 Adım notları:
@@ -65,7 +65,7 @@ Adım notları:
   **kırmızı** olduğunu bir deneme kırılmasıyla göster (negatif kontrol).
 - **Doküman.** `Tracon is published as 1.0.0-preview.N` notları, "pre-1.0
   package family" cümleleri ve `--prerelease` kurulum komutları kalkar; npm
-  `latest` kararlı sürüme geçer (defter §4, A-42 emsali).
+  `latest` kararlı sürüme geçer (A-42 emsali, `hafiza/yayin-turu.md`).
 - **Kararlı prova.** `--surum 1.0.0` ile koşulur; `NU5104` burada ilk kez
   gerçek kararlı pack'te sınanır.
 - **CI main'de yeşil.** Yerelde yeşil olan ama `origin`'e itilmemiş commit

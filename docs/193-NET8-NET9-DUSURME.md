@@ -112,7 +112,7 @@ git grep -n -E "net8\.0|net9\.0|net8/|net8;|\.NET 8|\.NET 9|Net8Consumer|8\.0\.x
 | Sevk edilen metin | `src/Tracon.{Abstractions,AspNetCore,Core,PostgreSql}/README.md` "Targets `net8.0`, `net9.0`, and `net10.0`" · `README.md:196-203,325-327` · `CONTRIBUTING.md:14-16` |
 | Sürüm notu | `CHANGELOG.md` `[Unreleased]` → `### Removed` altında **tek liste maddesi**, 17 paket kimliğini ve iki TFM'i code span olarak taşır (§ *193.3*). `1.0.0-preview.3` duyurusu **tarih olarak kalır** |
 | Geliştirme dokümanı | `hafiza/build-ve-analyzer.md:16,22,28,31,105-106,114-131` · `hafiza/analyzer-yazimi.md:14` · `hafiza/test-kosum-tuzaklari.md:51,191-225` · `hafiza/test-altyapisi.md:24` · `hafiza/paketleme-ve-dagitim.md:31-38` · `hafiza/elle-kosum-ortami.md:108` · `hafiza/frontend-test-altyapisi.md:27` · `hafiza/test-kosum-olcumleri.md:269,283` · `hafiza/site-uretim-kapilari.md:29,213` · `.agents/ortak/kapilar.md:15` · `.agents/skills/kusur-giderme/SKILL.md:57-59` · `.agents/skills/nuget-danismani/resources/mercekler.md:249-251`, `ga-olcutleri.md:29` · `MEMORY.md:59-60` |
-| Defterler | `YAYIN-HAZIRLIK.md` TFM sütunu (`:78-97`) ve `:160,175,316,341,344,594` · `KARARLAR.md`: K-005'in yerine yeni karar (kapanışta), K-023/K-349 yeniden açılma notları |
+| Defterler | `YAYIN-HAZIRLIK.md` (2026-10-16 sadeleştirmesinden sonra TFM tablosu yok; §2 ölçüt 6 satırı "✅" olur) · `KARARLAR.md`: K-005'in yerine yeni karar (kapanışta), K-023/K-349 yeniden açılma notları |
 | Manuel set | `01-KURULUM-VE-PAKETLEME.md` (36 satır; Net8Consumer case'leri `:3557-3686`) · `24-TEST-PAKETI-VE-SABLON.md` (12 satır) · `00-INDEKS.md:363` |
 
 ## 193.3 — Sürüm notu ve yayın provası
