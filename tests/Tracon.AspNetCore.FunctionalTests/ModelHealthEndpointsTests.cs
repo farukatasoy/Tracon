@@ -218,7 +218,7 @@ public sealed class ModelHealthEndpointsTests
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: builder => builder.UseAzureOpenAI(options =>
             {
-                options.Endpoint = new Uri("http://127.0.0.1:1/");
+                options.Endpoint = new Uri("https://127.0.0.1:1/");
                 options.CredentialFactory = static () => new ThrowingTokenCredential();
             }));
 

@@ -10,16 +10,18 @@
   </ItemGroup>
 
   <!--
-    Azure.AI.OpenAI is Azure's OFFICIAL adapter and only adds routing on top of
-    the OpenAI SDK: POST {endpoint}/openai/deployments/{deployment}/chat/completions
-    ?api-version=... Message mapping, streaming, tool calls, and usage counters
-    all come from the OpenAI SDK's own code; Tracon writes none of them.
+    Azure OpenAI's v1 API is the OpenAI wire protocol under {endpoint}/openai/v1/
+    (Phase 217): POST {endpoint}/openai/v1/chat/completions with the deployment
+    name in the body's `model` field. The plain OpenAI SDK therefore talks to it
+    directly; `Azure.AI.OpenAI` (stable line frozen at 2.1.0, December 2024)
+    is not used. Message mapping, streaming, tool calls, and usage counters all
+    come from the OpenAI SDK's own code; Tracon writes none of them.
 
     Azure.Core is written directly because it appears in the public API (see
     Directory.Packages.props).
   -->
   <ItemGroup>
-    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="OpenAI" />
     <PackageReference Include="Azure.Core" />
     <!-- The ChatClient -> IChatClient adapter (`AsIChatClient`) comes from this package. -->
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />

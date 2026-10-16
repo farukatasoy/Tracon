@@ -12,8 +12,11 @@ namespace Tracon.Azure.UnitTests;
 public sealed class AzureOpenAIProviderHealthCheckWireTests
 {
     [Fact]
-    public async Task Sends_the_key_in_the_api_key_header()
+    public async Task Sends_the_key_as_a_Bearer_token_like_the_chat_call_does()
     {
+        // One key, one header form: the chat call sends `Authorization: Bearer`,
+        // so a gateway that accepts only one form cannot report Healthy here and
+        // reject the first real call.
         await using var server = StubHttpServer.Respond(200, "OK", """{"data":[{"id":"gpt-test"}]}""");
 
         var health = await new AzureOpenAIProviderHealthCheck(
@@ -24,27 +27,67 @@ public sealed class AzureOpenAIProviderHealthCheckWireTests
         health.Status.ShouldBe(ModelProviderHealthStatus.Healthy);
 
         var head = await server.RequestHead;
-        head.ShouldStartWith($"GET /openai/models?api-version={AzureOpenAIProviderHealthCheck.ApiVersion} HTTP/1.1");
-        head.ShouldContain($"api-key: {TestData.ApiKey}");
-        head.ShouldNotContain("Authorization:", Case.Insensitive);
+        head.ShouldStartWith("GET /openai/v1/models HTTP/1.1");
+        head.ShouldContain($"Authorization: Bearer {TestData.ApiKey}");
+        head.ShouldNotContain("api-key:", Case.Insensitive);
     }
 
     [Fact]
-    public async Task Credential_factory_wins_over_the_key_and_sends_a_Bearer_token()
+    public async Task An_address_that_already_ends_in_openai_v1_is_asked_once()
     {
         await using var server = StubHttpServer.Respond(200, "OK", """{"data":[]}""");
 
         await new AzureOpenAIProviderHealthCheck(
                 AzureOpenAIProviderNames.AzureOpenAI,
+                TestData.Options(o => o.Endpoint = new Uri(server.BaseAddress, "openai/v1")))
+            .CheckHealthAsync(TestContext.Current.CancellationToken);
+
+        (await server.RequestHead).ShouldStartWith("GET /openai/v1/models HTTP/1.1");
+    }
+
+    [Fact]
+    public async Task An_Entra_credential_is_never_sent_over_plain_HTTP()
+    {
+        // The chat call refuses a non-HTTPS address for an Entra token; the
+        // periodic health check must not be the way around that.
+        await using var server = StubHttpServer.Respond(200, "OK", """{"data":[]}""");
+        var credential = new FakeTokenCredential("entra-token");
+
+        var health = await new AzureOpenAIProviderHealthCheck(
+                AzureOpenAIProviderNames.AzureOpenAI,
                 TestData.Options(o =>
                 {
                     o.Endpoint = server.BaseAddress;
-                    o.CredentialFactory = static () => new FakeTokenCredential("entra-token");
+                    o.ApiKey = null;
+                    o.CredentialFactory = () => credential;
                 }))
             .CheckHealthAsync(TestContext.Current.CancellationToken);
 
-        var head = await server.RequestHead;
-        head.ShouldContain("Authorization: Bearer entra-token");
-        head.ShouldNotContain("api-key:", Case.Insensitive);
+        health.Status.ShouldBe(ModelProviderHealthStatus.Unhealthy);
+        health.Detail.ShouldNotBeNull().ShouldContain("HTTPS");
+        credential.RequestedTokenCount.ShouldBe(0, "no token is even requested");
+        server.RequestHead.IsCompleted.ShouldBeFalse("nothing reached the server");
+    }
+
+    [Theory]
+    [InlineData(null, AzureOpenAIProviderHealthCheck.DefaultAudience)]
+    [InlineData("https://cognitiveservices.azure.us/.default", "https://cognitiveservices.azure.us/.default")]
+    public async Task An_Entra_credential_over_HTTPS_sends_a_Bearer_token_for_the_requested_scope(string? audience, string expectedScope)
+    {
+        var credential = new FakeTokenCredential("entra-token");
+        var check = new AzureOpenAIProviderHealthCheck(
+            AzureOpenAIProviderNames.AzureOpenAI,
+            TestData.Options(o =>
+            {
+                o.ApiKey = null;
+                o.Audience = audience;
+                o.CredentialFactory = () => credential;
+            }));
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://test-resource.openai.azure.com/openai/v1/models");
+
+        await check.AuthorizeAsync(request, TestContext.Current.CancellationToken);
+
+        request.Headers.Authorization.ShouldNotBeNull().ToString().ShouldBe("Bearer entra-token");
+        credential.LastScope.ShouldBe(expectedScope);
     }
 }

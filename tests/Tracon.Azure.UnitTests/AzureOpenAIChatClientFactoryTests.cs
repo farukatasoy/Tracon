@@ -26,9 +26,8 @@ public sealed class AzureOpenAIChatClientFactoryTests
     [Fact]
     public void Deployment_name_is_reflected_in_client_metadata_as_the_model()
     {
-        // In Azure the path is shaped like
-        // {endpoint}/openai/deployments/{deployment}/chat/completions; in
-        // MEAI metadata this name fills the "model" field.
+        // On Azure's v1 endpoint the deployment name is the request's `model`
+        // field; in MEAI metadata the same name fills the "model" field.
         using var chatClient = Factory().CreateChatClient(TestData.Binding());
 
         var metadata = chatClient.GetService(typeof(ChatClientMetadata)).ShouldBeOfType<ChatClientMetadata>();
@@ -61,6 +60,14 @@ public sealed class AzureOpenAIChatClientFactoryTests
         exception.Message.ShouldContain(nameof(ModelBinding.Model));
         exception.Message.ShouldContain(nameof(AzureOpenAIProviderOptions.DefaultDeployment));
     }
+
+    [Theory]
+    [InlineData("https://r.openai.azure.com", "https://r.openai.azure.com/openai/v1/")]
+    [InlineData("https://r.openai.azure.com/OpenAI/V1", "https://r.openai.azure.com/OpenAI/V1/")]
+    [InlineData("https://r.openai.azure.com/?x=1#frag", "https://r.openai.azure.com/openai/v1/")]
+    [InlineData("https://gw.example/azure/", "https://gw.example/azure/openai/v1/")]
+    public void The_v1_address_is_built_from_the_path_only(string address, string expected)
+        => AzureOpenAIChatClientFactory.V1Endpoint(new Uri(address)).AbsoluteUri.ShouldBe(expected);
 
     [Fact]
     public void Client_setup_without_an_endpoint_fails()
@@ -127,18 +134,6 @@ public sealed class AzureOpenAIChatClientFactoryTests
             })));
 
         exception.Message.ShouldContain(nameof(AzureOpenAIProviderOptions.CredentialFactory));
-    }
-
-    [Fact]
-    public void Sovereign_cloud_audience_can_be_given_to_the_client()
-    {
-        // Setup must not fail; the audience goes into the SDK's internal
-        // configuration and cannot be read from outside. Its counterpart
-        // on the health-check side is tested separately.
-        var client = AzureOpenAIChatClientFactory.CreateClient(TestData.Options(o =>
-            o.Audience = "https://cognitiveservices.azure.us/.default"));
-
-        client.ShouldNotBeNull();
     }
 
     [Fact]

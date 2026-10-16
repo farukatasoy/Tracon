@@ -1453,3 +1453,17 @@ Kural alan dosyasında kısa kaldı; tam metin aynen buradadır.
 
 - **🚨 Kuyruklu workflow işinin SON denemesi handler'a ulaşmalı** (2026-10-13, Faz 197 denetimi 🔴1, K-927): worker deneme sınırını handler'dan ÖNCE denetler (`JobWorkerBackgroundService`, F-326) ve sınırı aşan kiralamayı `tracon.job.attempts-exhausted` ile düşürür. `1 + MaxResumeAttempts` denemede son devam run'ı `Running`, açılıp başlamamış devam `Queued` kaldı; `MaxResumeAttempts = 0` kesintiyi hiç görmedi. Kural: iş `2 + MaxResumeAttempts` alır; son deneme devam BAŞLATMAZ, zinciri kapatır (`WorkflowRecovery.PlanAsync`). Batch işi kendi sınırını korur, öğe başına en çok `MaxAttempts − 2` devam alır. Sınır: son denemede hiç başlamamış baş run'ı (`NotStarted`) yine koşar; o da kesilirse onu yalnız uzlaştırma kapatır.
 
+---
+
+## `docs/hafiza/openai-saglayici.md`'den (Faz 217, Azure v1 geçişi)
+
+> Faz 217'den önceki Azure bölümü, olduğu gibi. `Azure.AI.OpenAI` 2.1.0 ve klasik `deployments/{d}` yolu içindir; bugünkü kural alan dosyasındadır.
+
+### Azure OpenAI (Faz 27, 2026-08-05)
+
+- **🚨 Bir SDK baska bir SDK'nin tipini genisletiyorsa, surum kaymasini CALISMA ANINDA olc** (K-211): `Azure.AI.OpenAI` 2.1.0 `OpenAI` 2.1.0'a karsi derlendi, biz 2.12.0 kullaniyoruz; NuGet cakismayi sessizce cozer ve `dotnet build` **sifir uyari** verir ama `AzureChatExtensions`'in istek tarafi metotlarinin TAMAMI `MissingMethodException` atar. Derleme yesilligi burada hicbir sey kanitlamaz. Olcum: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **Temel sohbet yolu ise saglam.** Olculdu: `POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version=2024-10-21`, `api-key` basligi, govdede `max_completion_tokens` (OpenAI 2.12.0 bu adi kendisi kullanir — Azure uzantisina gerek yok).
+- **🚨 Azure'da `ModelBinding.Model` MODEL adi degil DEPLOYMENT adi tasir.** Ad istegin YOLUNA girer; yanlis ad `model_not_found` degil **HTTP 404** verir. Ayni model iki kaynakta iki farkli adla konuslandirilmis olabilir; adi kaynagi kuran kisi secer. Ayar adi bu yuzden `DefaultDeployment`, `DefaultModel` degil.
+- **Yonetilen kimlik `Azure.Identity` GEREKTIRMEZ** (K-210): `AzureOpenAIClient(Uri, TokenCredential, ...)` kurucusu vardir ve `TokenCredential` `Azure.Core`'dadir; Tracon yalniz `Azure.Core`'a baglanir, `Func<TokenCredential>` tuketiciden gelir. Token `scope`'u `AzureOpenAIAudience.AzurePublicCloud` = `https://cognitiveservices.azure.com/.default` — TAM metindir, `/.default` EKLENMEZ. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **`AzureOpenAIClientOptions.ServiceVersion` yalniz iki deger tasir** (`V2024_06_01`, `V2024_10_21`) ve parametresiz kurucu sonuncusunu secer. Yeni bir API surumu icin SDK yukseltilir; Tracon bu enum'u public yuzeyine almadi.
+- **`AzureOpenAIClient.GetResponsesClient()` Azure'a ozgu DEGILDIR.** `OpenAI.OpenAIClient+TopLevelResponsesClient` doner (karsilastirma: `GetChatClient()` → `Azure.AI.OpenAI.Chat.AzureChatClient`). Responses yuzeyi bu yuzden desteklenmiyor (K-213).

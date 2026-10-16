@@ -134,27 +134,18 @@
     <PackageVersion Include="Google.GenAI" Version="1.26.1" />
     <PackageVersion Include="OpenAI" Version="2.14.0" />
     <!--
-      Azure OpenAI (Faz 27). Bu paket yalnizca Tracon.Azure icindedir ve
-      OpenAI SDK'sinin ustune Azure yonlendirmesini (deployment yolu, api-version,
-      api-key/Entra kimligi) ekler.
+      Azure OpenAI (Faz 27, Faz 217). Tracon.Azure talks to the resource's v1
+      endpoint ({endpoint}/openai/v1/) through the plain OpenAI SDK; the Azure
+      SDK `Azure.AI.OpenAI` is no longer used (its stable line stopped at 2.1.0 in
+      December 2024, built against OpenAI 2.1.0, and its request extensions threw
+      MissingMethodException against the OpenAI version in use - K-211).
 
-      🚨 SURUM KAYMASI VAR VE BILINCLIDIR. Azure.AI.OpenAI 2.1.0, OpenAI 2.1.0'a
-      karsi derlendi; biz OpenAI 2.14.0 kullaniyoruz (Tracon.OpenAI'in ihtiyaci).
-      Olculdu (2026-08-05): temel sohbet yolu (GetChatClient -> AsIChatClient ->
-      istek) sorunsuz calisir, ama Azure.AI.OpenAI.Chat.AzureChatExtensions'in
-      ISTEK tarafi metotlarinin TAMAMI calisma aninda MissingMethodException verir
-      ("OpenAI.Chat.ChatCompletionOptions.get_SerializedAdditionalRawData bulunamadi").
-      Yeniden olculdu (2026-10-16, OpenAI 2.14.0): AddDataSource ayni eksik
-      metotla ayni istisnayi atiyor; sohbet ve akis yolu calisir
-      (AzureOpenAIChatRequestWireTests).
-      Bu yuzden Tracon.Azure o uzantilarin hicbirini kullanmaz ve saglayiciya
-      ozgu ayar (ProviderSettings) sunmaz. Ayrinti: docs/KARARLAR.md, karar K-211.
-
-      Azure.Core dogrudan yazilir cunku Tracon.Azure'un PUBLIC API'si
-      Azure.Core.TokenCredential tipini tasir (kimlik fabrikasi, K-210); gecisli
-      bir bagimliligin tipini public yuzeyde tasimak kirilgan olurdu.
+      Azure.Core is written directly because Tracon.Azure's PUBLIC API carries
+      Azure.Core.TokenCredential (credential factory, K-210); a transitive
+      dependency's type in the public surface would be fragile. TokenCredential
+      is an AuthenticationTokenProvider, so System.ClientModel's BearerTokenPolicy
+      wraps it without Azure.Identity or Azure.AI.OpenAI.
     -->
-    <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
     <PackageVersion Include="Azure.Core" Version="1.63.0" />
   </ItemGroup>
 
