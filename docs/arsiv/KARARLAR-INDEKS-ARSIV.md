@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (949 kalem)
+## Arşivlenen Kararlar (950 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -958,3 +958,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-957 | 998 | Yerleşik ElevenLabs istemcisi kendisine doğrudan verilen kiracı kimliğini sentez, akışlı sentez, diyalog ve tanımada `NotSupportedException` ile reddeder; kurulum anahtarıyla çağırmaz (F-296, Faz 203, kusur-giderme; K-930 Açık Soru 4-A'nın uygulama düzeyi) |
 | K-958 | 999 | Fonksiyon düğümü süresi: kayıtta `WorkflowFunctionOptions.Timeout` (yeni `Action<>` aşırı yüklemesi), düğümde `WorkflowNodeReference.Timeout`; aşım run'ı `Failed` + `workflow_function_timeout` bitirir; süre deneme başınadır (F-303) (kullanıcı kararı) 👤 |
 | K-959 | 1000 | Agent düğümü `timeout`'u yalnız `nodes` zincirinde o adımın `ChildDeadline`'ını ezer; konsol süre için biçimi `nodes`'a çevirmez, K-901 değişmez (F-405) (kullanıcı kararı) 👤 |
+| K-960 | 1001 | Tanım `RunTimeout`'u kurulum değerini kısaltır, `MaxRunTimeout` tavanına kadar uzatır; tavan aşımı kayıtta `400`; süre slot beklemesini sayar (F-405) (kullanıcı kararı) 👤 |

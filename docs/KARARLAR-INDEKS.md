@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 949 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 950 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1001 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1002 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-960 | 1001 | Tanım `RunTimeout`'u kurulum değerini kısaltır, `MaxRunTimeout` tavanına kadar uzatır; tavan aşımı kayıtta `400`; süre slot beklemesini sayar (F-405) (kullanıcı kararı) 👤 |
 | K-961 | 1002 | Job süresi: `MaxDuration` alanı + `jobs.max_duration_ms` sütunu + `MaxDurationByHandlerKey` haritası; aşan deneme `tracon.job.max-duration-exceeded` ile başarısızdır ve yeniden kiralanır (F-323) (kullanıcı kararı) 👤 |
 | K-962 | 1003 | Job iptali handler token'ına bir `PollInterval` içinde ulaşır: üç kaynaklı token, sonuç kaynaktan okunur, işçi çalışan job'u yoklar (F-323) (kullanıcı kararı) 👤 |
 | K-963 | 1004 | Workflow işinde süre aşımı işin sonudur: run `job_max_duration_exceeded` ile kapanır ve kurtarma onu sürdürmez; 13-A, 7-A'dan önce gelir (F-323) (kullanıcı kararı) 👤 |
@@ -62,3 +61,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-1009 | 1050 | `WorkflowFunctionOptions.MaxConcurrency` (`int?`, en az 1) fonksiyon başına, SÜREÇ başına ve kiracılara ortak slot sayısıdır; sarmalayıcı sırası `scope(retry(limit(gate(timeout(handler)))))`: her deneme slotu yeniden alır, retry gecikmesinde slot bırakılır, bütçe kapısı slot alındıktan sonra okunur, bekleme run token'ına bağlıdır (iptal ve `RunTimeout` bekleyeni bırakır) ve düğüm `Timeout`'una sayılmaz; bekleme run olayı yazmaz, `Debug` loglanır (F-538, Faz 211) |
 | K-1010 | 1051 | Kod kaydı `WorkflowRegistrationOptions.RunTimeout` ve `Parameters` taşır: `RunTimeout` K-960'ın kuralını izler, ama tavanı aşan değer HOST AÇILIŞINDA (`TraconWorkflowOptionsValidator`, `Enabled` iken) workflow adıyla düşer, tavan sonradan düşerse run tavana kesilir ve loglanır; `Parameters` K-897'nin kuralını izler (HTTP erken `400`); katılımcı kapsaması kod grafında YOKTUR, eksik zorunlu değeri adım koşarken düşürür (F-537, Faz 211) |
 | K-1011 | 1052 | Süre dolumu servisi (`WorkflowRequestExpirationService`) kapattığı run `Failed` ise `run.failed` yayınlar; `Completed` kapanışta HİÇBİR olay yayınlamaz; yayın `CancellationToken.None` ile yapılır, hata loglanır ve kapanışı bozmaz (F-539, Faz 211) |
+| K-1012 | 1053 | HTTP istek/yanıt DTO'su `internal` doğar ve OpenAPI açıklamasını `[Description]` taşır: 81 tip `internal` oldu (`Tracon.Abstractions` 17 · `Tracon.AspNetCore` 63 · `Tracon.Core` 1), `<summary>` `[Description]`'a TAŞINDI (kopya değil), envanter OpenAPI şema adını kanıt saymaz, açıklama kaybını `OpenApiDescriptionCoverageTests` + `openapi-undescribed-baseline.txt` yakalar; K-850'nin "OpenAPI şema tipi daraltılmaz" kuralı geçersizdir (F-554, Faz 212) (kullanıcı kararı) 👤 |

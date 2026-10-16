@@ -51,9 +51,9 @@ public sealed class HeaderBearingTypeTests
         found.ShouldContain(static name => string.Equals(name, nameof(IdempotencyResponse), StringComparison.Ordinal));
     }
 
-    // GetTypes, not GetExportedTypes: the HTTP request DTOs (WebhookSaveRequest,
-    // McpServerRequest) are internal since Phase 212, and a scan limited to public
-    // types would stop seeing exactly the types this rule exists for.
+    // GetTypes, not GetExportedTypes: the HTTP request DTOs are internal since
+    // Phase 212 (WebhookSaveRequest is one; McpServerRequest stays public), and a
+    // scan limited to public types would stop seeing the types this rule exists for.
     private static IEnumerable<Type> HeaderBearingTypes()
         => new[] { typeof(McpServerDefinition).Assembly, typeof(McpServerRequest).Assembly }
             .SelectMany(static assembly => assembly.GetTypes())

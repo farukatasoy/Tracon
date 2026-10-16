@@ -379,6 +379,8 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-510** · Bağlama kanıtı kapısının boşlukları | Faz 206 denetimi 🟢2-4: `[Fact(Skip/Explicit)]` ya da ilgisiz tek `[Fact]` sınıfı sayar; `OptionsKeyCoverage` çağrısı zorlanmaz; yüklem testi `.Where`'i kanıtlamaz; (b) mesajı okunmayan anahtarda da "the test value" der; ayarlanabilir Tracon sınıfı skaler sayılır; Retention anahtarları property adından türer | Yüklemi atlanan/açık testi dışlayacak biçimde sıkılaştır; literal hedef listesi + yansımalı eşitlik |
 | 🟢 | **F-512** · Doğrulayıcısı olmayan yedi seçenek tipi | Faz 206 kapsam dışı: `AsyncRun`, `ContentGuard`, `Egress`, `Idempotency`, `McpSecurity`, `RateLimit`, `SessionOwnership`; geçersiz aralığın çalışma anı etkisi ölçülmedi | Önce ölçüm; sonra `IValidateOptions` + `ValidateOnStart` |
 | 🟢 | **F-561** · Store rehberi ve uyumluluk sayfası sayıları bayat | Ölçüldü (2026-10-16, A-81): `write-your-own-store.md` "32 diğer / 29 contract" der, ölçülen 35 / 31; `compatibility.md:88` "six" contract ailesi der, `ContractCoverage.cs` 7. Sayılar elle yazılı ve kapısız | Sayıları koddan türet ya da `check-content.mjs` sayı kapısına bağla |
+| 🟢 | **F-562** · Envanter testi OpenAPI okumasının geri eklenmesini uçtan uca görmez | Faz 212 denetimi 🟢2: `_envanter` yardımcısı `envanter_olustur`'u atlar; `test_openapi_semasi_tuketici_kaniti_degildir` yalnız `KORPUS_UZANTILARI`'nı ve `siniflandir` imzasını kilitler. Biri `envanter_olustur`'a belge okumayı geri koyarsa test geçer | `envanter_olustur(root)`'u geçici git dizininde koş: belgede şema adı olan, başka kanıtı olmayan tip `kanıtsız` kalmalı |
+| 🟢 | **F-563** · OpenAI uyumlu yanıt tipleri ve yedi public enum OpenAPI belgesinde açıklamasız | Faz 212 denetimi 🟢3: `openapi-undescribed-baseline.txt` `ChatCompletion`, `ItemResource` gibi `internal` OpenAI uyumlu tipleri ve `WorkflowKind`, `RunErrorClass`, `RunScoreBucket`, `RunScoreTarget`, `TimeSeriesBucket`, `VoiceSessionEndReason`, `EvalCaseSource` enum'larını listeler. Public bir enum'un XML özeti şemaya geçmez; `CanaryDecisionKind` geçer | Önce ölçüm: enum özetinin neden geçmediği. Sonra `[Description]` ekle; taban küçülür |
 
 ### Tetik bekleyenler
 
@@ -509,7 +511,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-562**.
+numara: **F-564**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

@@ -1,6 +1,6 @@
 # 25 — Sağlık Denetimi, Teşhis ve OpenAPI Yayını (`DIAG`)
 
-> **Alan kodu:** `DIAG` · **Faz:** 33 (sağlık denetimi + `/api/diagnostics`), 40 (OpenAPI yayını), 85 (`extensionPoints`), 150 (zorunlu binding profili)
+> **Alan kodu:** `DIAG` · **Faz:** 33 (sağlık denetimi + `/api/diagnostics`), 40 (OpenAPI yayını), 85 (`extensionPoints`), 150 (zorunlu binding profili), 212 (HTTP DTO'ları `internal`, açıklama kapısı)
 > **Kaynak:** `src/Tracon.AspNetCore/Health/` (tümü) ·
 > `src/Tracon.AspNetCore/Endpoints/DiagnosticsEndpoints.cs` ·
 > `src/Tracon.Abstractions/Diagnostics/` (tümü) ·
@@ -1946,3 +1946,146 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq -r '.extensionPoints[0] | keys | j
   Zorunluluğu bildiren yeni bir alan **yoktur**.
 
 ---
+
+---
+
+### MT-DIAG-066 — `internal` bir HTTP DTO'sunun açıklaması canlı host'un belgesinde durur — Faz 212
+
+HTTP istek/yanıt DTO'ları `internal`'dır ve metinlerini `[Description]` taşır.
+Bu case tüketicinin kendi `AddOpenApi()` belgesinde metnin gerçekten
+çıktığını örnek uygulama üzerinde ölçer.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 212 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulama ayakta (`cd samples/Tracon.Api && dotnet run`).
+
+**Adımlar**
+1. Canlı belgeyi al.
+2. Tip, özellik, enum ve konumsal `record` açıklamasını oku.
+
+**Girilecek veri**
+```bash
+curl -s http://localhost:5080/openapi/v1.json > /tmp/apidoc.json
+jq -r '.components.schemas.WorkflowSaveRequest.description' /tmp/apidoc.json
+jq -r '.components.schemas.WorkflowSaveRequest.properties.nodes.description' /tmp/apidoc.json
+jq -r '.components.schemas.CanaryDecisionKind.description' /tmp/apidoc.json
+jq -r '.components.schemas.UploadDocumentResponse.properties.sourceId.description' /tmp/apidoc.json
+jq -r '.components.schemas.WorkflowSaveRequest.properties.nodes.description' /tmp/apidoc.json | grep -c '&lt;'
+```
+
+**Beklenen sonuç**
+- Sırayla: `Request to save a workflow definition.` · üç satırlı `nodes`
+  metni (`Mutually exclusive with` / `AgentNames; leave both empty or set only one.`)
+  · `Defines the outcome of a canary evaluation.` · `Identifier of the uploaded source.`
+- Son komut `0` yazar: metinde çözülmemiş `cref` (`&lt;`) yoktur.
+
+---
+
+### MT-DIAG-067 — `internal` DTO HTTP'de bağlanır ve serileşir — Faz 212
+
+Görünürlük değişikliği `System.Text.Json` bağlamasını ve yanıt yazımını
+bozmamalıdır. Birim testi bunu kanıtlamaz (sınır: HTTP).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 212 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-DIAG-066 ile aynı kurulum; `APB` ve `APU` tanımlı.
+
+**Adımlar**
+1. `WorkflowSaveRequest` ile bir workflow kaydet, oku, sil.
+2. `TraconMetaResponse`, `CurrentTenantResponse`, `QuotaUsageResponse` döndüren uçları çağır.
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP %{http_code}\n" -X PUT "$APU/api/workflows/mt-diag-067" -H "$APB" -H "Content-Type: application/json" \
+  -d '{"displayName":"MT 067","kind":"Sequential","agentNames":["support","translator"]}'
+curl -s -o /dev/null -w "%{http_code}\n" "$APU/api/workflows/mt-diag-067" -H "$APB"
+curl -s -o /dev/null -w "%{http_code}\n" -X DELETE "$APU/api/workflows/mt-diag-067" -H "$APB"
+curl -s "$APU/api/meta" -H "$APB" | jq -r 'keys | join(",")'
+curl -s "$APU/api/tenants/current" -H "$APB"
+curl -s "$APU/api/quotas/usage" -H "$APB" | jq -r 'keys | join(",")'
+```
+
+**Beklenen sonuç**
+- `PUT` `200` ve gövde `"kind":"Sequential"`, `"agentNames":["support","translator"]` taşır; okuma `200`; silme `204`.
+- `meta` anahtarları `authentication,prefix,roles,storage,version`; kiracı `{"tenantId":"default"}`;
+  kota anahtarları `dailyResetsAt,definitions,monthlyResetsAt,tenantId,timeZone,usage`.
+
+---
+
+### MT-DIAG-068 — Belge ve iki istemci yeniden üretimi sıfır fark verir — Faz 212
+
+Açıklama kaynağı değişti (XML → `[Description]`). Üretilen yüzeylerin üçü de
+aynı belgeden türer; biri atlanırsa `tsc` kırmızı döner.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 212 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Temiz çalışma ağacı (`git status --short` boş). Node.js ve `dotnet tool restore` çalışır.
+
+**Adımlar**
+1. Belgeyi yenile.
+2. TypeScript şemasını üret ve istemciyi derle.
+3. NSwag zincirini koş.
+4. Farkı say.
+
+**Girilecek veri**
+```bash
+TRACON_OPENAPI_REFRESH=1 python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "*OpenApiSnapshotTests"
+(cd packages/tracon-client && npm run generate && npm run build)
+python3 scripts/nswag-prepare-document.py docs/openapi/tracon.json artifacts/openapi/tracon.client-input.json
+dotnet nswag run nswag.json
+python3 scripts/nswag-postprocess-client.py src/Tracon.Client/Generated/TraconApiClient.g.cs docs/openapi/tracon.json
+python3 scripts/generate-client-json-context.py src/Tracon.Client/Generated/TraconApiClient.g.cs src/Tracon.Client/Generated/TraconClientJsonContext.g.cs
+git status --short
+```
+
+**Beklenen sonuç**
+- `git status --short` boştur: üç yüzey de commit'li hâliyle aynıdır.
+
+---
+
+### MT-DIAG-069 — Tüketici `internal` DTO'ya bağlanamaz — Faz 212
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 212 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Yayın provası paketleri üretilmiş: `python3 scripts/kapi.py yayin --kuru`
+  (`artifacts/package/yayin/<sürüm>/`).
+
+**Adımlar**
+1. Boş bir `net10.0` web projesi aç. `nuget.config`'e o dizini yerel kaynak olarak ekle.
+2. `Tracon.AspNetCore` paketine başvur.
+3. `Program.cs`'e `var request = new Tracon.WorkflowSaveRequest { DisplayName = "x" };` yaz.
+4. Derle.
+
+**Girilecek veri**
+```bash
+dotnet build 2>&1 | grep -E "error|Build succeeded"
+```
+
+**Beklenen sonuç**
+- `error CS0122: 'WorkflowSaveRequest' is inaccessible due to its protection level`.
+- Tüketici bu 81 tipi kullanamaz; HTTP gövdesini kendi `record`'uyla ya da `Tracon.Client`'ın
+  üretilmiş tipiyle kurar.
