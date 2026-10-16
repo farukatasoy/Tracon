@@ -92,6 +92,12 @@
 
 ### Public yuzey daraltma tarifi (Faz 182, K-850)
 
+- **🚨 Envanter denetimi (`public-yuzey-envanteri.py --denetle`) `kapi.py tarama`'nin parcasidir
+  (A-80, 2026-10-16); once hicbir kapida kosmuyordu.** Cirkir iki kez sessizce gevsedi: iki
+  istisna tipi (Faz 192, 2026-10-12) rehberde yalniz hata-turu DIZGESIYLE anildigi icin
+  `kanitsiz` sayildi. Cozum `internal` degil, rehberde tipin ADI: `error.type` ile bir
+  `catch`/karsilastirma ayni sozlesmedir. Yeni public tip `tarama`yi kirarsa uc cikis:
+  `internal` yap, rehberde adiyla an, ya da `public-yuzey-gerekceleri.tsv`'ye gerekce yaz.
 - **Tip `internal` olunca `PublicAPI.Unshipped.txt`'ten TIP satiri ile birlikte
   HER uye satiri silinmeli — `~` onekliler dahil.** Nullable-oblivious uyeler
   `~Tracon.X.Y` (bosluksuz) ve `~override Tracon.X.Equals(object obj)`

@@ -539,6 +539,10 @@ What `FailRun` changes, besides the outcome:
 - **A workflow stops at that agent.** Its run fails and the next node does not
   run. The agent's own run and the workflow's run both carry the
   `loop_unsatisfied` error type and the `LoopUnsatisfied` class.
+- **Called from your own code, the agent throws.** `TraconLoopUnsatisfiedException`
+  carries `AgentName`, `Iterations` and `UnsatisfiedCriterion`; its message never
+  repeats what the model wrote. Match a run's `error.type` with
+  `TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType`.
 
 The run's own cancellation is never a criterion error: a cancelled run ends as
 `Canceled` in both modes.

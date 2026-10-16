@@ -205,6 +205,36 @@ class KapiTestleri(unittest.TestCase):
         # referanslar bugune kadar guncellenmiyordu (43 bayat referans olculdu).
         self.assertEqual(kapi.find_stale_doc_references(), [])
 
+    def test_kanitsiz_public_tip_tarama_kapisini_kirar(self):
+        # A-80: `public-yuzey-envanteri.py --denetle` hicbir kapida kosmuyordu; K-850'nin
+        # cirkirligi iki kez sessizce gevsedi (Faz 192 ve 2026-10-12, iki kanitsiz istisna).
+        runner = mock.Mock(side_effect=[
+            mock.Mock(returncode=1, stdout="", stderr="denetim: 1 kanitsiz tip, 0 bayat gerekce\n"),
+            mock.Mock(returncode=0, stdout="Tracon.Abstractions\tTracon.OrnekTip\tclass\tkanitsiz\n", stderr=""),
+        ])
+        with mock.patch.object(kapi.subprocess, "run", runner):
+            found = kapi.public_surface_violations()
+
+        self.assertTrue(any("Tracon.OrnekTip" in line for line in found), found)
+
+    def test_temiz_envanter_tarama_kapisini_kirmaz(self):
+        runner = mock.Mock(return_value=mock.Mock(returncode=0, stdout="", stderr=""))
+        with mock.patch.object(kapi.subprocess, "run", runner):
+            self.assertEqual(kapi.public_surface_violations(), [])
+
+    def test_scan_kanitsiz_public_tipte_kirmizi_doner(self):
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(kapi, "public_surface_violations", return_value=["Tracon.OrnekTip: kanitsiz"]), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            result = kapi.scan(pathlib.Path(directory))
+
+        self.assertEqual(result, 1)
+        self.assertIn("Tracon.OrnekTip", output.getvalue())
+
+    def test_public_yuzey_repoda_kanitsiz_tip_icermez(self):
+        # SINIF KAPISI: bu repoda gercek olan denetim (K-850).
+        self.assertEqual(kapi.public_surface_violations(), [])
+
     def test_harita_eksigi_tam_test_kosumuna_duser(self):
         projects, full = kapi.affected_test_projects(["src/Unknown.Package/Thing.cs"])
 

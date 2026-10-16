@@ -305,13 +305,44 @@ def find_stale_doc_references(root: pathlib.Path = ROOT) -> list[str]:
     return sorted(found)
 
 
+PUBLIC_SURFACE_AUDIT = pathlib.Path("scripts") / "public-yuzey-envanteri.py"
+
+
+def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
+    """K-850 ratchet: public types with no external evidence, and stale justifications.
+
+    A public type must be seen by a consumer (site page, sample, template, README,
+    OpenAPI schema), be a seam, or carry a written reason in
+    `scripts/public-yuzey-gerekceleri.tsv`. Without this scan the audit ran only when
+    someone remembered it, and two unproven exception types slipped in twice (A-80).
+    """
+    script = root / PUBLIC_SURFACE_AUDIT
+    if not script.is_file():
+        return []
+    # The audit prints Turkish type-class names; pin UTF-8 on both ends so a cp1252 console
+    # (Windows) cannot turn the audit itself into a crash.
+    run = dict(cwd=root, capture_output=True, text=True, encoding="utf-8", check=False,
+               env={**os.environ, "PYTHONUTF8": "1"})
+    result = subprocess.run([sys.executable, str(script), "--denetle"], **run)
+    if result.returncode == 0:
+        return []
+    found = [line for line in result.stderr.splitlines() if line.strip()]
+    listing = subprocess.run([sys.executable, str(script), "--liste", "kanıtsız"], **run)
+    for line in listing.stdout.splitlines():
+        columns = line.split("\t")
+        if len(columns) >= 2:
+            found.append(f"{columns[1]}: kanıtsız public tip ({columns[0]})")
+    return found
+
+
 def scan(root: pathlib.Path = ROOT) -> int:
-    """Run the synchronization-copy, secret, migration-integrity and doc-reference scans."""
+    """Run the synchronization-copy, secret, migration-integrity, doc-reference and public-surface scans."""
     copies = find_sync_copies(root)
     secrets, synthetic = find_secrets(root)
     migrations = migration_integrity_violations(root)
     stale_docs = find_stale_doc_references(root)
-    if not copies and not secrets and not migrations and not stale_docs:
+    public_surface = public_surface_violations(root)
+    if not copies and not secrets and not migrations and not stale_docs and not public_surface:
         print("Tarama: ✅ temiz"
               + (f" ({synthetic} işaretli sentetik credential atlandı)" if synthetic else ""))
         return 0
@@ -336,6 +367,11 @@ def scan(root: pathlib.Path = ROOT) -> int:
             print(f"  {reference}")
         if len(stale_docs) > 20:
             print(f"  … +{len(stale_docs) - 20}")
+    if public_surface:
+        print("Tarama: ❌ kanıtsız public yüzey (K-850) — tipi `internal` yap, rehberde adıyla an "
+              "ya da `scripts/public-yuzey-gerekceleri.tsv`'ye gerekçe yaz")
+        for violation in public_surface:
+            print(f"  {violation}")
     return 1
 
 
@@ -2323,7 +2359,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--komutlari-bas", action="store_true", help="komutları çalıştırmadan listele")
     subparsers = parser.add_subparsers(dest="stage")
 
-    subparsers.add_parser("tarama", help="sync kopyası ve secret taraması")
+    subparsers.add_parser("tarama", help="sync kopyası, secret, migration, bayat doküman ve kanıtsız public yüzey taraması")
     ic_dongu = subparsers.add_parser("ic-dongu", help="build ve etkilenen test projeleri")
     ic_dongu.add_argument(
         "--taban", default="HEAD",

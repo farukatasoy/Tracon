@@ -44,7 +44,9 @@ workflow step's answer, so the refusal would reach the next node as its input. T
 run ends `Failed` and no later node runs: past the wait limit with error type
 `child_run_timeout` (class `Timeout`), refused by the call-tree budget with
 `run_budget_exceeded` (class `QuotaExceeded`), when a tool asks for approval, or
-with the provider's own error when the provider never answered.
+with the provider's own error when the provider never answered. Match the wait-limit
+type with `TraconChildRunTimeoutException.ChildRunTimeoutErrorType` when you read a
+run's `error`.
 
 ```csharp
 new WorkflowDefinition
