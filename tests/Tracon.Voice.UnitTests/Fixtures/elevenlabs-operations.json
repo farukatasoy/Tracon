@@ -1,0 +1,176 @@
+{
+  "_comment": "Tracon.Voice's declared dependency on ElevenLabs (K-216, Phase 217). Equal to what the code does: ElevenLabsOperationDriftTests. Still valid against the live OpenAPI document: python3 scripts/elevenlabs-kayma.py. Field paths are dotted; [] marks an array element.",
+  "source": "https://api.elevenlabs.io/openapi.json",
+  "operations": [
+    {
+      "method": "POST",
+      "path": "/v1/text-to-speech/{voice_id}",
+      "query": [
+        "output_format"
+      ],
+      "request": [
+        "language_code",
+        "model_id",
+        "next_text",
+        "previous_request_ids[]",
+        "previous_text",
+        "seed",
+        "text",
+        "voice_settings",
+        "voice_settings.similarity_boost",
+        "voice_settings.speed",
+        "voice_settings.stability",
+        "voice_settings.style",
+        "voice_settings.use_speaker_boost"
+      ],
+      "response": []
+    },
+    {
+      "method": "POST",
+      "path": "/v1/text-to-speech/{voice_id}/stream",
+      "query": [
+        "output_format"
+      ],
+      "request": [
+        "language_code",
+        "model_id",
+        "next_text",
+        "previous_request_ids[]",
+        "previous_text",
+        "seed",
+        "text",
+        "voice_settings",
+        "voice_settings.similarity_boost",
+        "voice_settings.speed",
+        "voice_settings.stability",
+        "voice_settings.style",
+        "voice_settings.use_speaker_boost"
+      ],
+      "response": []
+    },
+    {
+      "method": "POST",
+      "path": "/v1/text-to-speech/{voice_id}/with-timestamps",
+      "query": [
+        "output_format"
+      ],
+      "request": [
+        "language_code",
+        "model_id",
+        "next_text",
+        "previous_request_ids[]",
+        "previous_text",
+        "seed",
+        "text",
+        "voice_settings",
+        "voice_settings.similarity_boost",
+        "voice_settings.speed",
+        "voice_settings.stability",
+        "voice_settings.style",
+        "voice_settings.use_speaker_boost"
+      ],
+      "response": [
+        "alignment",
+        "alignment.character_end_times_seconds[]",
+        "alignment.character_start_times_seconds[]",
+        "alignment.characters[]",
+        "audio_base64",
+        "normalized_alignment",
+        "normalized_alignment.character_end_times_seconds[]",
+        "normalized_alignment.character_start_times_seconds[]",
+        "normalized_alignment.characters[]"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/text-to-dialogue",
+      "query": [
+        "output_format"
+      ],
+      "request": [
+        "future_text",
+        "inputs[]",
+        "inputs[].text",
+        "inputs[].voice_id",
+        "language_code",
+        "model_id",
+        "previous_request_ids[]",
+        "previous_text",
+        "seed",
+        "settings",
+        "settings.similarity",
+        "settings.stability"
+      ],
+      "response": []
+    },
+    {
+      "method": "POST",
+      "path": "/v1/text-to-dialogue/with-timestamps",
+      "query": [
+        "output_format"
+      ],
+      "request": [
+        "future_text",
+        "inputs[]",
+        "inputs[].text",
+        "inputs[].voice_id",
+        "language_code",
+        "model_id",
+        "previous_request_ids[]",
+        "previous_text",
+        "seed",
+        "settings",
+        "settings.similarity",
+        "settings.stability"
+      ],
+      "response": [
+        "alignment",
+        "alignment.character_end_times_seconds[]",
+        "alignment.character_start_times_seconds[]",
+        "alignment.characters[]",
+        "audio_base64",
+        "voice_segments[]",
+        "voice_segments[].dialogue_input_index",
+        "voice_segments[].end_time_seconds",
+        "voice_segments[].start_time_seconds",
+        "voice_segments[].voice_id"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/speech-to-text",
+      "query": [],
+      "request": [
+        "file",
+        "language_code",
+        "model_id"
+      ],
+      "response": [
+        "audio_duration_secs",
+        "language_code",
+        "language_probability",
+        "text"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v2/voices",
+      "query": [
+        "next_page_token",
+        "page_size"
+      ],
+      "request": [],
+      "response": [
+        "has_more",
+        "next_page_token",
+        "voices[]",
+        "voices[].category",
+        "voices[].labels",
+        "voices[].name",
+        "voices[].verified_languages[]",
+        "voices[].verified_languages[].language",
+        "voices[].voice_id"
+      ]
+    }
+  ]
+}
