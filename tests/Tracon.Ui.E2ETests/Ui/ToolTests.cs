@@ -118,5 +118,10 @@ public sealed class ToolTests(BrowserFixture browsers)
 
         // The global the embedding page calls after the script tag loads.
         body.ShouldContain("TraconEmbed");
+
+        // Third-party pages run this file; it must stay in strict mode. Vite 8 (Rolldown)
+        // dropped the directive until the build asked for it, and no other test noticed.
+        // This reads the shipped bytes (embedded resource, Brotli, HTTP), not the config.
+        body.ShouldStartWith("\"use strict\"");
     }
 }
