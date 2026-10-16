@@ -267,11 +267,13 @@ agent sends the same request as before:
   catalog states a higher maximum for the model. See
   [Truncated output](/concepts/runs/#truncated-output).
 
-`ModelBinding.ReasoningEffort` maps differently on Anthropic: the Anthropic adapter
-turns it into `thinking.budget_tokens` (1024 for `Low` up to 32768 for
-`ExtraHigh`), which current models reject. Use `anthropic.effort` with
-`anthropic.thinking.mode = adaptive` for them. When `anthropic.thinking.mode` or
-`budgetTokens` is set, the provider setting wins and `ReasoningEffort` is not sent.
+`ModelBinding.ReasoningEffort` maps differently on Anthropic: it becomes adaptive
+thinking (`thinking.type = adaptive`) plus `output_config.effort` (`low`, `medium`,
+`high`, `xhigh`), which every current Claude model accepts. A model that predates
+adaptive thinking (for example `claude-haiku-4-5`) rejects that form with `400`:
+select it with `anthropic.thinking.mode = enabled` and `anthropic.thinking.budgetTokens`.
+When `anthropic.thinking.mode` or `budgetTokens` is set, the provider setting wins and
+`ReasoningEffort` is not sent.
 Provider settings do not reach a `Fallbacks` link: a link gets the binding's
 portable fields only.
 
@@ -298,7 +300,11 @@ the wrong field, and the message reaches logs and run records.
 ## Azure OpenAI uses deployments
 
 For `azure-openai`, `ModelBinding.Model` is the **deployment name**, not the base model
-name. A wrong deployment usually produces `404` even when provider health is good.
+name. A wrong deployment produces an Azure error even when provider health is good.
+
+The provider calls the resource's v1 API (`{endpoint}/openai/v1/`) with the plain
+OpenAI client; the deployment name travels in the request's `model` field. The
+resource must support the v1 API.
 
 Use an API key, or supply an Azure Core credential factory. Managed identity wins if
 both are present.
@@ -316,8 +322,8 @@ tracon.UseAzureOpenAI(options =>
 ```
 
 `Tracon.Azure` depends on `Azure.Core`, not `Azure.Identity`. The consumer chooses
-the credential implementation. Azure OpenAI Responses, On Your Data, and Azure AI
-Foundry Agents are not exposed by this provider.
+the credential implementation. The Entra token is sent only over HTTPS. Azure OpenAI
+Responses, On Your Data, and Azure AI Foundry Agents are not exposed by this provider.
 
 ## Per-tenant credentials (BYOK)
 

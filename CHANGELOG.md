@@ -8,6 +8,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`Tracon.Azure` calls the Azure OpenAI v1 API.** Requests go to `{endpoint}/openai/v1/` through
+  the plain `OpenAI` client, with the deployment name in the request's `model` field and no
+  `api-version` query string; `Azure.AI.OpenAI` is no longer a dependency (its stable line stopped
+  at 2.1.0 in December 2024). The resource must support the v1 API. `UseAzureOpenAI`,
+  `AzureOpenAIProviderOptions` and the registered provider name do not change; an address that
+  already ends in `/openai/v1` is used as it is. An API key is sent as `Authorization: Bearer`. An
+  Entra credential now goes only over HTTPS: a `CredentialFactory` with a plain `http://` address is
+  refused at the first call instead of sending the token. The health check calls
+  `GET /openai/v1/models`, sends the key as `Authorization: Bearer` like the chat call (it sent an
+  `api-key` header), and reports unhealthy instead of sending an Entra token over plain HTTP.
+  Image generation uses the same v1 endpoint (`/openai/v1/images/generations`). The Azure-only request fields (On Your Data) never worked with the OpenAI
+  version in use and have no counterpart on the plain client; `SupportedSettings` stays empty.
+- **`ModelBinding.ReasoningEffort` becomes adaptive thinking on Anthropic.** The request now carries
+  `thinking: {"type":"adaptive"}` and `output_config.effort` (`low`, `medium`, `high`, `xhigh`). The
+  budget form Tracon sent before (`thinking.type = enabled` with `budget_tokens`) is rejected with
+  `400` by every current Claude model; the adaptive form is accepted by all of them (measured on the
+  Claude 5 family). A model that predates adaptive thinking, `claude-haiku-4-5`, is the reverse: set
+  `anthropic.thinking.mode = enabled` and `anthropic.thinking.budgetTokens` for it. A binding that
+  names no `ReasoningEffort` sends the same request as before.
+- **`Tracon.Anthropic` and `Tracon.Google` no longer promise Native AOT compatibility.** The promise
+  is now a measured result: a Native AOT app that calls the provider through its real request and
+  response path must publish with no trim or AOT warning and run. `Tracon.OpenAI`, `Tracon.Azure`
+  and `Tracon.Voice` pass. The Anthropic SDK's chat adapter fails on the first request under
+  Native AOT, and the Gemini credential library publishes with about a hundred warnings. The
+  packages' own code is unchanged and stays analyzer-clean. The release rehearsal now publishes and
+  runs a provider smoke, and fails when the compatibility page promises AOT for a provider package
+  the smoke does not reference.
+
 - **`IRunStore.UpdateRunCostAsync` no longer defaults `tenantId` to `null`.** The parameter stays
   `string?`; a caller now states the tenant on purpose. `null` skipped the tenant check, so a
   caller that left the argument out silently wrote a cost onto another tenant's run. A call
@@ -198,6 +226,8 @@ each SQL provider: read Upgrading from 1.0.0-preview.3 first.
   harness-loop agent hands only its final iteration to a workflow step, the
   OpenAI-compatible and A2A streams and voice; `functions` and `requests` are
   reserved workflow names.
+  Provider changes: `Tracon.Azure` uses the Azure OpenAI v1 API and refuses an Entra
+  token over plain HTTP; Anthropic `ReasoningEffort` is adaptive thinking.
 - Pin every Tracon package to the same exact version. The pre-release Microsoft
   Agent Framework hosting packages stay pinned at their 1.20.0 previews.
 
