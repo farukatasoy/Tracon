@@ -457,6 +457,14 @@ yönlendirmesi reflection kullanır) · `UI` (gömülü varlık tarama) · `SqlS
 (sıfır IL2/IL3 ölçüldü ama canlı sorgu doğrulanmadı — vaat ertelendi, K-181) ·
 `Sqlite` (`SQLitePCLRaw` yerel kütüphane taşır, K-196).
 
+**Bayrak ile vaat ayrı şeylerdir (Faz 217).** `TraconAotCompatible` paketin KENDİ
+IL'ini analiz eder; tüketicinin yayınını ölçmez. Sağlayıcı ve ses paketleri için
+"Native AOT: Yes" vaadi ancak `samples/Tracon.Samples.ProviderAotSmoke` onu
+kanıtlarsa verilir: gerçek istek/yanıt yolu sahte sunucuya karşı AOT'ta koşar ve
+yayın sıfır uyarı verir (`release_extension_samples.py` sitenin tablosunu smoke'un
+paket listesiyle karşılaştırır). `Anthropic` ve `Google` bayrağı taşır ama vaat
+vermez: SDK'ları yansımalı JSON kullanır.
+
 `Core` uyumludur: yansıma yalnız `AddToolsFrom` / `AddTool(Delegate)` yolundadır
 ve ikisi de işaretlidir (K-350). **Önerilen yol** `AddGeneratedTools()`
 (Faz 52) — derleme anında üretilir, sıfır yansıma. Ölçüm notları:

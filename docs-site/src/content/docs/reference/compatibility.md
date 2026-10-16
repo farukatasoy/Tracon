@@ -80,9 +80,9 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.UI` | Yes | net8/9/10 | No | Embedded asset discovery plus its ASP.NET Core dependency |
 | `Tracon.SqlServer` | No | net8/9/10 | No promise | Measured clean, but no live-query AOT guarantee is made |
 | `Tracon.Sqlite` | No | net8/9/10 | No | `SQLitePCLRaw` carries a native library |
-| `Tracon.Anthropic` | No | net8/9/10 | Yes | Claude provider |
-| `Tracon.Google` | No | net8/9/10 | Yes | Gemini provider |
-| `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider; managed identity stays consumer-selected |
+| `Tracon.Anthropic` | No | net8/9/10 | No | Claude provider; the Anthropic SDK's `IChatClient` adapter uses reflection-based JSON, so a Native AOT app fails on the first request |
+| `Tracon.Google` | No | net8/9/10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
+| `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected |
 | `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
 | `Tracon.Testing` | No | net8/9/10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
 | `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for six extension families — storage (`IRunStore` and 29 other store interfaces), model providers, run judges, agent sources, job handlers, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |

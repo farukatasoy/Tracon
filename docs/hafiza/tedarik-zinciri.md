@@ -108,3 +108,13 @@
 - **`npm audit fix` yalnız aralık içi kilit değişimidir.** İstemci ve arayüz 0 açıkta; `docs-site`'ta 12 uyarı
   (`katex` mermaid'den, `postcss-selector-parser` expressive-code'dan) kalır ve çözümü `--force` ile starlight'ı geriye
   almaktır. Yükseltme (mermaid 12) bile ikisini kapatmaz; üst akış sürümünü bekle.
+
+## Native AOT vaadi ve sağlayıcı smoke'u (Faz 217, 2026-10-17)
+
+- **🚨 "AOT: Yes" bir ölçüm sonucudur, bayrak değil** (K-1019). `TraconAotCompatible` paketin KENDİ IL'ini analiz eder; SDK'sı yansımalı JSON kullanan paket bayrakla temiz görünür ve tüketicide çöker (`Tracon.Anthropic`: ilk istekte `Reflection-based serialization has been disabled`; `Tracon.Google`: ~100 uyarı). Vaat `samples/Tracon.Samples.ProviderAotSmoke` + `compatibility.md` tablosunun `release_extension_samples.py` kapısıyla verilir.
+- **Smoke'a paket eklemek** = csproj'a `PackageReference` + `Program.cs`'e gerçek istek/yanıt çağrısı + `FakeProviderServer`'a yanıt. `TrimmerSingleWarn=false` kalsın: uyarı üyeyi adıyla göstersin. Negatif kontrol: kırılgan sağlayıcıyı geçici ekle, yayın hata vermeli.
+- **Örnekler hiçbir çözümde olmadığı için hızlı döngü yok.** Yerelde ölçmek için geçici bir klasörde aynı kaynakları `ProjectReference` ile derle (silmeyi unutma); gerçek kanıt `kapi.py yayin --kuru`dur ve **temiz ağaç** ister. Commit atmadan koşmak için: `git worktree add --detach <dizin> HEAD`, değişen dosyaları `rsync -R` ile kopyala, orada commit'le, provayı orada koş, `git worktree remove --force <dizin>`.
+- **`CreateChatClient(binding)` HAM istemcidir:** `MaxOutputTokens`/`ReasoningEffort` gibi alanları agent derleyicisi `ChatOptions`'a koyar. Elle prob yazarken `ChatOptions.Reasoning`'i kendin ver; yoksa ayar hiç gitmez ve "çalışıyor" görünür.
+- **macOS python.org kurulumunda `urllib` CA bulamaz** (`CERTIFICATE_VERIFY_FAILED`): sertifika doğrulamasını kapatma; `curl` ile indirip betiğe `--dosya` ver (`scripts/elevenlabs-kayma.py`).
+- **`dokuman-bakim.py` "bayat kod yolu" `git ls-files` okur:** henüz commit edilmemiş yeni dosyaya hafızadan yol verirsen kırmızı olur; `git add -N <dosya>` yeter.
+

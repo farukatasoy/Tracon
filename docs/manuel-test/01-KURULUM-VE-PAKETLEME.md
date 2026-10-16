@@ -4542,3 +4542,53 @@ restore olup çalışma anında `TypeLoadException` veriyordu.
 - (3) `Microsoft.Agents.AI` `1.25.0`, `Microsoft.Extensions.AI` `10.11.0`; `Microsoft.Bcl.Memory`, `.HashCode` ve
   `.AsyncInterfaces` listede yoktur (belirtilen kümeden yalnız MAF ve MEAI satırları gelir).
 - (4) "has no vulnerable packages".
+
+---
+
+### MT-PKG-167 — Sağlayıcı paketlerinin Native AOT vaadi: gerçek istek/yanıt yolu AOT'ta koşar, yayın uyarısızdır (Faz 217)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 217 |
+| **İlgili karar** | K-006 |
+| **Devir** | ➜ CI: `kapi.py yayin --kuru` (`ProviderAotSmoke` yayımlanır ve koşar) |
+
+"Native AOT: Yes" diyen her sağlayıcı/ses paketi, onu `PackageReference` ile alan bir AOT uygulamasında
+sahte sunucuya karşı gerçek çağrıyı yapabilmeli ve yayın hiçbir IL/AOT uyarısı vermemelidir.
+
+**Ön koşul**
+- Temiz ağaç; `python3 scripts/kapi.py yayin --kuru --surum <yeni sürüm>`. macOS/Linux/Windows'ta kendi RID'si.
+
+**Adımlar**
+1. Provayı koş.
+2. Çıktıda `ProviderAotSmoke` yayını ve koşusunu ara.
+
+**Beklenen sonuç**
+- (1) Çıkış `0`; `✅ … 2 Native AOT smoke …`.
+- (2) `provider AOT smoke passed: openai azure-openai voice`; yayın adımında `warning IL`/`error IL` satırı yoktur.
+
+---
+
+### MT-PKG-168 — AOT vaadi smoke olmadan verilemez: kapı vaadi smoke'a bağlar (Faz 217)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 217 |
+| **İlgili karar** | K-006 |
+| **Devir** | ➜ CI: `release_extension_samples_test.py` (`test_saglayici_aot_vaadi_smoke_olmadan_reddedilir`) |
+
+**Ön koşul**
+- Temiz ağaç.
+
+**Adımlar**
+1. `docs-site/src/content/docs/reference/compatibility.md` paket tablosunda `Tracon.Anthropic` satırının "Native AOT" hücresini `Yes` yap.
+2. `python3 scripts/release_extension_samples_test.py` ve `python3 scripts/kapi.py yayin --kuru --surum <sürüm>` koş.
+3. Değişikliği geri al.
+
+**Beklenen sonuç**
+- (2) Kapı `Tracon.Anthropic is promised 'Native AOT: Yes' … the promise has no smoke behind it` basar ve kırmızıdır.
+- (3) Kapı yeşile döner.

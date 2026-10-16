@@ -91,7 +91,7 @@ Same OpenAPI document, same version number as every package above — `@tracon/c
 and `Tracon.Client` are cut from the same `v*` git tag, so a matching pair always
 describes the identical set of operations. There is no separate npm version scheme.
 What differs is the ecosystem: it ships from a browser or Node.js process instead of
-a .NET one, and it is not part of the eight AOT-compatible packages or the twenty
+a .NET one, and it is not part of the six AOT-compatible packages or the twenty
 NuGet packages counted above. See the [TypeScript client guide](/guides/typescript-client/)
 for setup, the error model, streaming, and what it deliberately does not cover.
 
@@ -156,12 +156,16 @@ deliberately is not](/getting-started/#what-it-deliberately-is-not).
 
 ## Trimming and native AOT
 
-Eight runtime packages make the trimming and Native AOT compatibility promise:
-`Tracon.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Anthropic`, `Google`,
-`Azure`, and `Voice`. The following do not:
+Six runtime packages make the trimming and Native AOT compatibility promise:
+`Tracon.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Azure`, and `Voice`. For the
+provider and voice packages the promise is a measured result: a Native AOT app that
+calls each of them through its real request and response path publishes with no trim
+or AOT warning and runs. The following do not:
 
 | Package | Why not |
 |---|---|
+| `Tracon.Anthropic` | The Anthropic SDK's `IChatClient` adapter uses reflection-based JSON; a Native AOT app fails on the first request. The promise returns when the SDK ships a source-generated adapter |
+| `Tracon.Google` | The Gemini credential library (`Google.Apis.Auth`) uses reflection-based JSON; a Native AOT publish emits about 100 trim and AOT warnings |
 | `Tracon.AspNetCore` | Minimal API delegate routing uses reflection |
 | `Tracon.UI` | Embedded asset scanning |
 | `Tracon.Sqlite` | `SQLitePCLRaw` carries a native library |

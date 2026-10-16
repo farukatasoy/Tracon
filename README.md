@@ -208,12 +208,12 @@ Terms and thresholds: [§ Licence](#licence) below.
 
 ### AOT compatibility
 
-Eight packages promise trimming and Native AOT compatibility:
-`Tracon.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Anthropic`, `Google`,
-`Azure`, and `Voice`. The other twelve do not — including the **meta package
-`Tracon` itself**, which pulls in `Tracon.AspNetCore` and `Tracon.UI`. Reference the
-meta package expecting "the whole family is AOT-safe" and `PublishAot` fails on one
-of those two. Per-package reasons:
+Six packages promise trimming and Native AOT compatibility:
+`Tracon.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Azure`, and `Voice`. The other
+fourteen do not — including `Tracon.Anthropic` and `Tracon.Google`, whose SDKs use
+reflection-based JSON, and the **meta package `Tracon` itself**, which pulls in
+`Tracon.AspNetCore` and `Tracon.UI`. Reference the meta package expecting "the whole
+family is AOT-safe" and `PublishAot` fails on one of those two. Per-package reasons:
 [Compatibility reference](https://tracon.dev/reference/compatibility/).
 
 ---

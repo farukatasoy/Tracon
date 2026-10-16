@@ -19,11 +19,30 @@ spec.loader.exec_module(release_extension_samples)
 EXACT_VERSION = "1.0.0-preview.1"
 
 
+COMPATIBILITY_TABLE = """\
+| Package | Meta | Frameworks | Native AOT | Purpose or limit |
+|---|---:|---|---:|---|
+| `Tracon.OpenAI` | Yes | net8/9/10 | Yes | OpenAI |
+| `Tracon.Anthropic` | No | net8/9/10 | No | Claude provider |
+| `Tracon.Google` | No | net8/9/10 | No | Gemini provider |
+| `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider |
+| `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs |
+"""
+
+SMOKE_PACKAGES = ("Tracon.Core", "Tracon.OpenAI", "Tracon.Azure", "Tracon.Voice")
+
+
+def _write_compatibility_page(root: pathlib.Path, table: str = COMPATIBILITY_TABLE) -> None:
+    page = root / release_extension_samples.COMPATIBILITY_PAGE
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(f"# Compatibility\n\nSome prose.\n\n{table}\nAfter the table.\n", encoding="utf-8")
+
+
 def _write_clean_tree(root: pathlib.Path) -> None:
     samples = root / "samples"
     for project in (
         *release_extension_samples.SAMPLE_TEST_PROJECTS,
-        release_extension_samples.AOT_PROJECT,
+        *release_extension_samples.AOT_PROJECTS,
         release_extension_samples.NET8_CONSUMER_PROJECT,
     ):
         project_dir = samples / project
@@ -31,12 +50,15 @@ def _write_clean_tree(root: pathlib.Path) -> None:
         framework = (
             "<PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>"
             if project == release_extension_samples.NET8_CONSUMER_PROJECT else "")
+        packages = SMOKE_PACKAGES if project == release_extension_samples.PROVIDER_AOT_PROJECT else ("Tracon",)
+        references = "".join(
+            f'<PackageReference Include="{package}" VersionOverride="$(TraconSamplePackageVersion)" />'
+            for package in packages)
         (project_dir / f"{project}.csproj").write_text(
-            f'<Project Sdk="Microsoft.NET.Sdk">{framework}'
-            f'<ItemGroup><PackageReference Include="Tracon" VersionOverride="$(TraconSamplePackageVersion)" /></ItemGroup>'
-            f'</Project>',
+            f'<Project Sdk="Microsoft.NET.Sdk">{framework}<ItemGroup>{references}</ItemGroup></Project>',
             encoding="utf-8",
         )
+    _write_compatibility_page(root)
 
 
 class ReleaseExtensionSamplesTestleri(unittest.TestCase):
@@ -63,6 +85,74 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
             errors = release_extension_samples.validate_sample_contract(root, EXACT_VERSION)
 
         self.assertTrue(any("must target net8.0" in error for error in errors), errors)
+
+    def test_saglayici_aot_vaadi_smoke_olmadan_reddedilir(self):
+        # Faz 217 (MT-PKG-168): "Native AOT: Yes" yalnız smoke'un kanıtladığı
+        # paket için verilir. Anthropic'i "Yes" yapmak smoke'a eklemeden geçmemeli.
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+            _write_compatibility_page(root, COMPATIBILITY_TABLE.replace(
+                "| `Tracon.Anthropic` | No | net8/9/10 | No |", "| `Tracon.Anthropic` | No | net8/9/10 | Yes |"))
+
+            errors = release_extension_samples.validate_sample_contract(root, EXACT_VERSION)
+
+        self.assertTrue(any("Tracon.Anthropic" in error and "no smoke behind it" in error for error in errors), errors)
+
+    def test_saglayici_aot_vaadi_geri_cekilince_smoke_zorunlu_olmaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+
+            errors = release_extension_samples.validate_provider_aot_promises(root)
+
+        self.assertEqual(errors, [])
+
+    def test_listede_olmayan_yes_satiri_reddedilir(self):
+        # Yeni bir paket "Yes" yazıp iki listeden de dışarıda kalamaz.
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+            _write_compatibility_page(root, COMPATIBILITY_TABLE + "| `Tracon.NewProvider` | No | net10 | Yes | New |\n")
+
+            errors = release_extension_samples.validate_provider_aot_promises(root)
+
+        self.assertTrue(any("Tracon.NewProvider" in error and "neither" in error for error in errors), errors)
+
+    def test_saglayici_satiri_tablodan_silinirse_reddedilir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+            _write_compatibility_page(root, "\n".join(
+                line for line in COMPATIBILITY_TABLE.splitlines() if "Tracon.Google" not in line) + "\n")
+
+            errors = release_extension_samples.validate_provider_aot_promises(root)
+
+        self.assertTrue(any("no Native AOT row for Tracon.Google" in error for error in errors), errors)
+
+    def test_uyumluluk_sayfasi_yoksa_reddedilir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+            (root / release_extension_samples.COMPATIBILITY_PAGE).unlink()
+
+            errors = release_extension_samples.validate_provider_aot_promises(root)
+
+        self.assertTrue(any("cannot be checked" in error for error in errors), errors)
+
+    def test_native_aot_sutunu_basliga_gore_okunur(self):
+        promises = release_extension_samples.native_aot_promises(
+            "intro\n\n" + COMPATIBILITY_TABLE + "\n| Other | Native |\n|---|---|\n| `Tracon.X` | Yes |\n")
+
+        self.assertEqual(promises["Tracon.OpenAI"], "Yes")
+        self.assertEqual(promises["Tracon.Anthropic"], "No")
+        self.assertNotIn("Tracon.X", promises)
+
+    def test_gercek_agac_saglayici_aot_vaatlerini_smoke_ile_tutar(self):
+        # The real site table against the real smoke project. Red here means a
+        # package was promised AOT (or the smoke lost a package) without the
+        # other half being updated.
+        self.assertEqual(release_extension_samples.validate_provider_aot_promises(ROOT), [])
 
     def test_gercek_net8_tuketicisi_net8_hedefler(self):
         errors = release_extension_samples.validate_sample_contract(ROOT, EXACT_VERSION)

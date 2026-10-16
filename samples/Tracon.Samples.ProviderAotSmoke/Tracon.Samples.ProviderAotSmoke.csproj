@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      One warning per call site, not one summary line per assembly: when a
+      provider package regresses, the warning must name the member that did it.
+    -->
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The provider packages this smoke vouches for. The release gate
+      (release_extension_samples.py) requires every package the site lists as
+      "Native AOT: Yes" among the sample-vouched providers to appear here.
+      Tracon.Core carries AddTracon(); Microsoft.Extensions.Hosting is the
+      generic host the smoke starts and stops.
+    -->
+    <PackageReference Include="Tracon.Core" VersionOverride="$(TraconSamplePackageVersion)" />
+    <PackageReference Include="Tracon.OpenAI" VersionOverride="$(TraconSamplePackageVersion)" />
+    <PackageReference Include="Tracon.Azure" VersionOverride="$(TraconSamplePackageVersion)" />
+    <PackageReference Include="Tracon.Voice" VersionOverride="$(TraconSamplePackageVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+</Project>
