@@ -187,7 +187,13 @@ YONETIM_BUTCESI = {
     # olmadan reddedilir, commit'ten sonra kosulmalidir). Ayni formul: damitma
     # SONRASI olculen deger / 0.85.
     "docs/KARARLAR.md": 586_000,           # YENIDEN KALIBRE 2026-10-12; olculen 497_750 (kuru damitma sonrasi)
-    "docs/ADAYLAR.md": 80_000,  # olculen 67_195
+    # 2026-10-16 (public API freeze programi): 80_000 -> 98_000. Sinir 79_880 B ile %0
+    # bosluktaydi ve bakimci "damitma yerine siniri buyutebilirsin" dedi (UR-009). Beş
+    # yeni kalem (F-557..F-561: yukseltme, evrim kurallari, modernlesme, deneysel tip,
+    # sayi drift'i) ~3 KB ekledi; kalemlerin hepsi YAPILACAK is (tamamlananlar zaten
+    # ERTELENEN-ADAYLAR'a tasinir), bu yuzden damitilacak bir kayit yoktu. Ayni formul:
+    # olculen deger (82_869) / 0.85. Ledger "yalniz aramada" katmanindadir.
+    "docs/ADAYLAR.md": 98_000,  # YENIDEN KALIBRE 2026-10-16; olculen 82_869
     # YAYIN-HAZIRLIK: `nuget-danismani`nin calisma dosyasi; her yayin turunda
     # buyur ve 2026-09-22'ye kadar hicbir freni yoktu (temizlik turu bulgusu).
     # Ledger gibi "yalniz aramada" okunur. ILK SINIR -- K-214'e girmez.

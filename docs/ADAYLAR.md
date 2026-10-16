@@ -323,6 +323,9 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
+| 🟠 | **F-557** · Bütün bağımlılıkları en yeni sürüme yükselt (freeze sırası 2) | Ölçüldü (2026-10-16, A-82): 71 merkezî NuGet pin'inin 58'i geride; MAF `1.20`→`1.25`, MEAI `10.9`→`10.11` (OpenAI `2.14` ister), Hosting `1.25.0-preview.261014.1`, `A2A.AspNetCore` `preview3`, `Microsoft.Extensions.*` `10.0.13`. Major: `xunit.v3` 4, `Microsoft.OpenApi` 3, `SQLitePCLRaw` 3, MinVer 8, TrxReport 2; npm: TypeScript 7, vite 8, vitest 5, jsdom 30. `OpenTelemetry.*` pin'i kullanılmıyor; üç CVE pin'i kalkabilir | Önkoşul: Faz 212 ve 213. Birlikte yükselen küme küme; her küme sonrası `uyum-probu.cs ileri`. F-560 bu işin çıktısına bağlı. Kaynak: `YAYIN-HAZIRLIK.md` A-82 |
+| 🟠 | **F-559** · 1.x evrim kuralları ve kapıları (freeze sırası 5) | Ölçüldü (2026-10-16, A-76/A-67/A-68): `versioning.md` arayüz, enum, `required` üye (833), `Tracon.Testing.Contracts.Xunit` (691 public test), `Tracon.Client` DTO adı (`SourceKind2`), HTTP/yapılandırma/telemetri/hata kodu ve rota varsayılanları için 1.x kuralı vermiyor. `tracon.tenant.id` metrik etiketi koşulsuz | Kural önce, kapı sonra: seam'e üye yalnız varsayılan gövdeyle; enum büyümesi; tarafsız kırılma kapısı HTTP için. Önkoşul: Faz 213 (hangi arayüz seam'dir). Kaynak: A-76, A-67, A-68 |
+| 🟡 | **F-558** · Entegrasyon modernleşme denetiminin işleri (freeze sırası 3) | Ölçüldü (2026-10-16, A-83): sevk edilen pakette topluluk SDK'sı yok. Açık işler: Azure için düz `OpenAI` istemcisi + `/openai/v1/` (kararlı `Azure.AI.OpenAI` 2024-12'de duruyor; ölçülmedi), Anthropic ve Google için `PublishAot` smoke (`IsTrimmable` yok), ElevenLabs'ın 7 operasyonunu yayımlanan OpenAPI'ye karşı ölçen kayma testi + K-216 yeniden değerlendirme notu + `Tracon.Voice.csproj:13` bayat yorumu | Önkoşul: F-557. ElevenLabs'ta SDK yok: resmî .NET SDK'sı yoktur, topluluk SDK'ları TFM ve AOT kuralını geçmez |
 | 🟡 | **F-544** · Native agent SSE'si Loop iterasyonlarının sınırını yazmaz | Ölçüldü (2026-10-15, F-536 taraması): `POST /api/agents/{name}/run` her iterasyonu ve geri bildirimi tek metin akıtır; sınır olayı yalnız run olayları ucunda. Gömülebilir sohbet ve TS istemcisi taslağı cevap sanar (K-1006) | Eklemeli `loop.iteration` frame'i; preview.4 dışı (bakımcı kararı) |
 | 🟡 | **F-545** · Kod grafında üretim başına agent sürüm sabiti yok | Kod okuması (2026-10-15, video raporu): `AgentVersion` graf kurulurken verilir, fabrika yalnız `IServiceProvider` alır; sabitsiz adım güncel sürümü çözer, template yayınından sonraki revizyon yeni sürümle koşar | Sürümü run parametresinden okuyan adım seçeneği |
 | 🟡 | **F-529** · Kiracı kotasıyla fonksiyon düğümü durdurma | Faz 210 ölçtü ve kapsam dışı bıraktı: kota sayacı koşan workflow'un kendi düğüm tutarını görmez (workflow kökü payını kapanırken yazar, K-990) ve `QuotaEnforcer.CheckAsync` her çağrıda iki depo okuması yapar | Tutarlı sürüm koşan ağacın bellekteki payını sayaçla birleştirir; ayrı tasarım. K-999'un kota eşi |
@@ -375,11 +378,13 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-509** · Seçenek ratchet'ı iki bölümü ve 13 tipi görmez | Faz 206 kapsam dışı: `SectionName`'siz `TraconTenantProviderOptions`, `TraconInboundTriggerOptions` (testsiz); ratchet yalnız Core ve Abstractions'ı tarar (`TraconWorkflowOptions`, `VoiceOptions`, sağlayıcı ve SQL tipleri) | Kapsamı genişlet; her biri için `<Tip>BindingTests` |
 | 🟢 | **F-510** · Bağlama kanıtı kapısının boşlukları | Faz 206 denetimi 🟢2-4: `[Fact(Skip/Explicit)]` ya da ilgisiz tek `[Fact]` sınıfı sayar; `OptionsKeyCoverage` çağrısı zorlanmaz; yüklem testi `.Where`'i kanıtlamaz; (b) mesajı okunmayan anahtarda da "the test value" der; ayarlanabilir Tracon sınıfı skaler sayılır; Retention anahtarları property adından türer | Yüklemi atlanan/açık testi dışlayacak biçimde sıkılaştır; literal hedef listesi + yansımalı eşitlik |
 | 🟢 | **F-512** · Doğrulayıcısı olmayan yedi seçenek tipi | Faz 206 kapsam dışı: `AsyncRun`, `ContentGuard`, `Egress`, `Idempotency`, `McpSecurity`, `RateLimit`, `SessionOwnership`; geçersiz aralığın çalışma anı etkisi ölçülmedi | Önce ölçüm; sonra `IValidateOptions` + `ValidateOnStart` |
+| 🟢 | **F-561** · Store rehberi ve uyumluluk sayfası sayıları bayat | Ölçüldü (2026-10-16, A-81): `write-your-own-store.md` "32 diğer / 29 contract" der, ölçülen 35 / 31; `compatibility.md:88` "six" contract ailesi der, `ContractCoverage.cs` 7. Sayılar elle yazılı ve kapısız | Sayıları koddan türet ya da `check-content.mjs` sayı kapısına bağla |
 
 ### Tetik bekleyenler
 
 | Kalem | Engel | Koşul ne zaman oluşur |
 |---|---|---|
+| **F-560** · Upstream'in deneysel/taşınan tipi public imzada (freeze sırası 4) | UR-005 A: Tracon'un kendi deneysel katmanı yok, dolayısıyla `[Experimental]` tip donamaz. Ölçüldü (2026-10-16, A-63/A-77): `AddLoopEvaluator` dört aşırı yükleme (`MAAI001`), `TraconAgentSessionStore : AgentSessionStore` (Hosting ≥ 1.22'de taşındı, XML'i tüketiciye `IsolationKeyScopedAgentSessionStore` ile sarmayı söyler), `AgentFileStoreContract : TenantIsolationContract<AgentFileStore>` | F-557 kapanınca MAF 1.25'te bu üçü yeniden ölçülür: upstream kararlıya geçtiyse donar; geçmediyse Tracon tipiyle sarılır ya da imzadan çıkar |
 | **F-95** · Agent düzeyinde kesinti/devam kancası | MAF yolu kapalı (2026-09-05 ölçümü): kanca alpha pakette, native FFI taşır, kesinti/devam sözleşmesi sunmaz | Kalem yalnız F-141 üzerinden ilerler. Gövde: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-178** · Model deneme (attempt) telemetrisi | Job/kuyruk metrikleri yarısı Faz 133'te kapandı; deneme telemetrisi yarısı için gerçek bir üretim fallback gecikmesi olayı ölçülmedi, tüketici bilerek erteledi | İlk fallback gecikme olayı ölçülünce. Gövde: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-179** · Çalışma anı model yönlendirme policy'si | F-178 deneme süresini ölçmüyor; gerçek üretim trafiği yok | F-178 kapanır ve üretim trafiği oluşursa. Gövde: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
@@ -504,7 +509,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-554**.
+numara: **F-562**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
