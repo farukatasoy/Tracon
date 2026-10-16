@@ -16,13 +16,14 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Tum MAF GA paketleri ayni surumde ilerler. -->
-    <MicrosoftAgentsAIVersion>1.20.0</MicrosoftAgentsAIVersion>
+    <MicrosoftAgentsAIVersion>1.25.0</MicrosoftAgentsAIVersion>
     <!--
-      MEAI 10.9.0 Microsoft.Extensions.* >= 10.0.11 ister; 10.0.10'da kalmak
-      NU1605 (paket dusurme) verir ve TreatWarningsAsErrors altinda restore'u
-      kirar. Bu satir MEAI yukseltmesinin ZORUNLU sonucudur, ayri bir secim degil.
+      MEAI 10.11.0 System.Text.Json >= 10.0.13 ister (olculdu 2026-10-16:
+      nuspec); 10.0.11'de kalmak NU1605 (paket dusurme) verir ve
+      TreatWarningsAsErrors altinda restore'u kirar. Bu satir MEAI
+      yukseltmesinin ZORUNLU sonucudur, ayri bir secim degil.
     -->
-    <MicrosoftExtensionsVersion>10.0.11</MicrosoftExtensionsVersion>
+    <MicrosoftExtensionsVersion>10.0.13</MicrosoftExtensionsVersion>
   </PropertyGroup>
 
   <ItemGroup Label="Microsoft Agent Framework - GA">
@@ -37,8 +38,8 @@
     <!--
       K-007: yeni paket gerekce ister. Bu bir EKLEME degil, var olan gecisli bir
       bagimliligin ACIK hale getirilmesidir. `Microsoft.Extensions.AI.Evaluation`
-      10.9.0 `Core`/`AspNetCore`/`Cli` grafiginde ZATEN vardir; `Microsoft.Agents.AI`
-      1.20.0 onu getirir (olculdu 2026-09-07: `dotnet list package` gecisli listesiyle).
+      10.11.0 `Core`/`AspNetCore`/`Cli` grafiginde ZATEN vardir; `Microsoft.Agents.AI`
+      1.25.0 onu alt sinir 10.10.0 ile getirir (olculdu 2026-10-16: nuspec).
       `IEvaluator` koprusu (EvaluatorRunJudge) o arayuze DOGRUDAN baglandigi icin
       gecisli bir referansa guvenmek kirilgandir - MAF bir gun onu birakabilir.
       Net gecisli agirlik: 0.
@@ -48,8 +49,8 @@
       projeleri referanslar. Katalogu isteyen tuketici paketi kendisi ekler ve
       `AddEvaluatorJudge` ile baglar. Kullanmayanin grafigi buyumez (Faz 155, K-727).
     -->
-    <PackageVersion Include="Microsoft.Extensions.AI.Evaluation" Version="10.9.0" />
-    <PackageVersion Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Evaluation" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="10.11.0" />
   </ItemGroup>
 
   <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca Tracon.AspNetCore)">
@@ -63,11 +64,11 @@
       Kapi: ReleaseArtifactTests.EveryPrereleaseThirdPartyDependencyIsExact ve
       `kapi.py yayin`. Yukseltme bu bes satiri BIRLIKTE degistirir.
     -->
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="[1.20.0-preview.260831.1]" />
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="[1.20.0-alpha.260831.1]" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="[1.25.0-preview.261014.1]" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="[1.25.0-alpha.261014.1]" />
     <!--
       Faz 50: Tracon'i disa acan A2A sunucusu. Ayni surum hatti
-      (1.20.0-preview.260831.1), K-008 kapsaminda yalnizca Tracon.AspNetCore.
+      (1.25.0-preview.261014.1), K-008 kapsaminda yalnizca Tracon.AspNetCore.
       `Microsoft.Agents.AI.Hosting.AspNetCore` plan taslaginda OLCULMEMISTI;
       `AddA2AServer` yalniz KAYIT yapar, HTTP ucunu `A2A.AspNetCore`'un
       `MapA2A`/`MapHttpA2A` uzantilari acar (K-057'nin yeniden acilma notuna
@@ -75,15 +76,15 @@
       Microsoft.Agents.AI.Hosting.A2A, Microsoft.Agents.AI.Hosting.AspNetCore
       (4 paket, hepsi ayni SDK ailesi; yabanci bagimlilik yok).
     -->
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="[1.20.0-preview.260831.1]" />
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="[1.20.0-preview.260831.1]" />
-    <PackageVersion Include="A2A.AspNetCore" Version="[1.0.0-preview2]" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="[1.25.0-preview.261014.1]" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="[1.25.0-preview.261014.1]" />
+    <PackageVersion Include="A2A.AspNetCore" Version="[1.0.0-preview3]" />
   </ItemGroup>
 
   <ItemGroup Label="Microsoft.Extensions.AI">
-    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.9.0" />
-    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.9.0" />
-    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.11.0" />
   </ItemGroup>
 
   <!--
@@ -93,19 +94,8 @@
     bu yuzden gecisli surume guvenmek ust paket onu birakirsa derlemeyi kirar.
   -->
   <ItemGroup Label="Ic ucus token sayimi">
-    <PackageVersion Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
-    <PackageVersion Include="Microsoft.ML.Tokenizers.Data.O200kBase" Version="2.0.0" />
-    <!--
-      CVE zorlamasi (K-007 deseni, satir 220 ile ayni gerekce).
-      Microsoft.ML.Tokenizers.Data.O200kBase 2.0.0'in TEK bagimlilik grubu
-      .NETStandard2.0'dir ve orada Microsoft.Bcl.Memory 9.0.4 vardir; Tracon.Core
-      net8/9/10 hedefledigi icin NuGet en yakin uyumlu grup olarak oraya duser.
-      (Tokenizers'in KENDI net8.0 grubu yalniz Google.Protobuf tasir; eski yorum
-      yanlis paketi sucluyordu.) O surumde yuksek onem dereceli bir acik var
-      (NU1903, GHSA-73j8-2gch-69rq). Gecisli sabitleme kapali (K-007) oldugu icin surum
-      Tracon.Core'da dogrudan bir PackageReference ile zorlanir.
-    -->
-    <PackageVersion Include="Microsoft.Bcl.Memory" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageVersion Include="Microsoft.ML.Tokenizers" Version="2.0.1" />
+    <PackageVersion Include="Microsoft.ML.Tokenizers.Data.O200kBase" Version="2.0.1" />
   </ItemGroup>
 
   <ItemGroup Label="Microsoft.Extensions - barindirma ve DI">
@@ -140,20 +130,23 @@
     almaz. Ayrinti: docs/KARARLAR.md, karar K-205.
   -->
   <ItemGroup Label="Saglayicilar">
-    <PackageVersion Include="Anthropic" Version="12.39.0" />
-    <PackageVersion Include="Google.GenAI" Version="1.16.0" />
-    <PackageVersion Include="OpenAI" Version="2.12.0" />
+    <PackageVersion Include="Anthropic" Version="12.58.0" />
+    <PackageVersion Include="Google.GenAI" Version="1.26.1" />
+    <PackageVersion Include="OpenAI" Version="2.14.0" />
     <!--
       Azure OpenAI (Faz 27). Bu paket yalnizca Tracon.Azure icindedir ve
       OpenAI SDK'sinin ustune Azure yonlendirmesini (deployment yolu, api-version,
       api-key/Entra kimligi) ekler.
 
       🚨 SURUM KAYMASI VAR VE BILINCLIDIR. Azure.AI.OpenAI 2.1.0, OpenAI 2.1.0'a
-      karsi derlendi; biz OpenAI 2.12.0 kullaniyoruz (Tracon.OpenAI'in ihtiyaci).
+      karsi derlendi; biz OpenAI 2.14.0 kullaniyoruz (Tracon.OpenAI'in ihtiyaci).
       Olculdu (2026-08-05): temel sohbet yolu (GetChatClient -> AsIChatClient ->
       istek) sorunsuz calisir, ama Azure.AI.OpenAI.Chat.AzureChatExtensions'in
       ISTEK tarafi metotlarinin TAMAMI calisma aninda MissingMethodException verir
       ("OpenAI.Chat.ChatCompletionOptions.get_SerializedAdditionalRawData bulunamadi").
+      Yeniden olculdu (2026-10-16, OpenAI 2.14.0): AddDataSource ayni eksik
+      metotla ayni istisnayi atiyor; sohbet ve akis yolu calisir
+      (AzureOpenAIChatRequestWireTests).
       Bu yuzden Tracon.Azure o uzantilarin hicbirini kullanmaz ve saglayiciya
       ozgu ayar (ProviderSettings) sunmaz. Ayrinti: docs/KARARLAR.md, karar K-211.
 
@@ -162,7 +155,7 @@
       bir bagimliligin tipini public yuzeyde tasimak kirilgan olurdu.
     -->
     <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
-    <PackageVersion Include="Azure.Core" Version="1.61.0" />
+    <PackageVersion Include="Azure.Core" Version="1.63.0" />
   </ItemGroup>
 
   <ItemGroup Label="Veri erisimi">
@@ -171,12 +164,14 @@
       SQL Server surucusu (Faz 23). Kirpma/AOT icin isaretli DEGILDIR; bu yuzden
       Tracon.SqlServer TraconAotCompatible=false yazar (K-181).
     -->
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <!--
       CVE zorlamasi (F-524). SqlClient'in her yayini (7.0.2'den 7.1.1'e, olculdu
       2026-10-14) acik uyarili System.Security.Cryptography.Pkcs ceker: net8.0
       8.0.1, net9.0/net10.0 9.0.13 ve 9.0.18 (GHSA-846f-f764-76mx yuksek,
-      GHSA-2fmv-rv2c-59x7 orta). SqlClient'i yukseltmek bunu kapatmaz; yama
+      GHSA-2fmv-rv2c-59x7 orta). Yeniden olculdu 2026-10-16 (SqlClient 7.1.1,
+      bos bir proje, NuGetAudit): net8.0 8.0.1, net9.0/net10.0 9.0.18, iki uyari
+      de duruyor (NU1902 + NU1903). SqlClient'i yukseltmek bunu kapatmaz; yama
       surumleri 8.0.2, 9.0.21 ve 10.0.13'tur. CentralPackageTransitivePinningEnabled
       kapali (K-007) oldugu icin surum Tracon.SqlServer'da dogrudan
       PackageReference ile zorlanir; bu, tuketicinin grafiginde de SqlClient'in
@@ -191,16 +186,10 @@
     <!--
       SQLite surucusu (Faz 24). SQLitePCLRaw yerel kutuphane tasir; AOT/publish
       etkisi olculur (K-018 deseni, docs/24-SQLITE.md).
-      Microsoft.Data.Sqlite 10.0.10'un cektigi SQLitePCLRaw.lib.e_sqlite3
-      2.1.11'de bilinen yuksek onem dereceli bir acik var (NU1903,
-      GHSA-2m69-gcr7-jv3q). K-007 deseniyle ayni: gecisli surum bilincli tek
-      bir PackageVersion ile zorlanir.
+      SQLitePCLRaw surumu Microsoft.Data.Sqlite'in bagimliligidir (10.0.13 ->
+      2.1.13, acik yok); K-197'nin CVE sabitleri Faz 214'te kalkti.
     -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
-    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
-    <PackageVersion Include="SQLitePCLRaw.core" Version="2.1.12" />
-    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
-    <PackageVersion Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.12" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
   </ItemGroup>
 
   <!--
@@ -220,7 +209,7 @@
     bunlar sunucu barindirma icindir ve Tracon yalnizca istemcidir.
     `.Core` bagimliliklari (2.2.0 nuspec'i, olculdu 2026-08-21): Microsoft.Extensions.AI.Abstractions
     10.8.3, Logging.Abstractions 10.0.10, System.IO.Pipelines, System.Net.ServerSentEvents.
-    Ucu de TABANDIR; bizim pinlerimiz (10.9.0 ve 10.0.11) daha yuksek oldugu icin
+    Ucu de TABANDIR; bizim pinlerimiz (10.11.0 ve 10.0.13) daha yuksek oldugu icin
     NuGet bizimkini secer ve ek paket gelmez. Ayrinti: docs/KARARLAR.md, karar K-057.
   -->
   <ItemGroup Label="Model Context Protocol">
@@ -244,11 +233,6 @@
       (istemci) bu paketi hic gormez, K-057 bozulmaz.
     -->
     <PackageVersion Include="ModelContextProtocol.Extensions.Tasks" Version="2.2.0" />
-  </ItemGroup>
-
-  <ItemGroup Label="Gozlemlenebilirlik">
-    <PackageVersion Include="OpenTelemetry.Api" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
   </ItemGroup>
 
   <ItemGroup Label="Analyzer'lar (PrivateAssets=all)">
@@ -287,24 +271,15 @@
       noktasi derlemesi ister ve Tracon bir kutuphanedir. TestHost, minimal
       API uclarini kendi barindiricisinda ayaga kaldirmaya yeter.
     -->
-    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.13" />
     <!--
       Only for testing an actual application ENTRY POINT (samples/Tracon.Embedded),
       not the library: WebApplicationFactory<T> needs one, and Tracon.* itself
       is a library with none — TestHost above stays the pattern for testing it.
-      Same 10.0.10 ASP.NET Core line as TestHost/OpenApi above.
+      Same 10.0.13 ASP.NET Core line as TestHost/OpenApi.
     -->
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
-    <!--
-      CVE zorlamasi. Microsoft.AspNetCore.OpenApi 10.0.10, Microsoft.OpenApi 2.0.0
-      cekiyor; o surumde yuksek onem dereceli bir acik var (NU1903,
-      GHSA-v5pm-xwqc-g5wc). Gecisli sabitleme kapali oldugu icin (K-007) surum
-      bilincli tek bir PackageReference ile zorlanir. K-007'nin yeniden acilma
-      kosulu tam olarak budur. Yalnizca OpenApi kullanan projeler referans verir;
-      yayinlanan paketlerin bagimlilik grafigine girmez.
-    -->
-    <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
     <!--
       Yalnizca UI paketi (SwaggerGen degil): dokuman zaten Microsoft.AspNetCore.OpenApi
       ile uretiliyor (AddOpenApi/MapOpenApi), bu paket sadece /openapi/v1.json'u

@@ -11,7 +11,8 @@ namespace Tracon;
 /// the same pattern <c>TraconA2ABuilderExtensions</c> uses for
 /// <c>AgentRunMode</c> and <c>ChatHistoryReader</c> uses for <c>MAAI001</c>.
 /// <c>InputAudioTokenCount</c> and <c>OutputAudioTokenCount</c> are marked
-/// "for evaluation purposes only" in Microsoft.Extensions.AI 10.9.0;
+/// "for evaluation purposes only" in Microsoft.Extensions.AI 10.11.0 (as are
+/// <c>InputTextTokenCount</c> and <c>OutputTextTokenCount</c>, which are not read);
 /// <c>CachedInputTokenCount</c> and <c>ReasoningTokenCount</c> are NOT, and are
 /// read here only so that all four counters travel together.
 /// </para>

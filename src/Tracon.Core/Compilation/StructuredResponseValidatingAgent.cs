@@ -367,7 +367,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
     /// <remarks>
     /// A server tool's call always comes with its result: on its last tool round
     /// Microsoft.Extensions.AI's function-invoking client takes every function tool
-    /// away from the model (10.9.0, read from the decompiled client), so a call with no
+    /// away from the model (10.11.0, read from the decompiled client), so a call with no
     /// result is a client-side tool's.
     /// </remarks>
     internal static bool WaitsForCaller(IList<ChatMessage> messages)

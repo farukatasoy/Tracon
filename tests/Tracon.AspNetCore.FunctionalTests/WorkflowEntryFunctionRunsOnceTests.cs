@@ -12,7 +12,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured on Microsoft Agent Framework 1.20.0: the engine sends a <c>TurnToken</c> to the
+/// Measured on Microsoft Agent Framework 1.20.0 (the tests pass on 1.25.0, re-run 2026-10-16):
+/// the engine sends a <c>TurnToken</c> to the
 /// first node after the run's message, on every start and every resume. A first node that
 /// takes <c>object</c> accepted both and ran once with the <c>List&lt;ChatMessage&gt;</c> and
 /// once with the token, so a node that writes to an outside system or calls a paid service

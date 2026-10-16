@@ -113,7 +113,7 @@ internal sealed class OpenAIChatClientFactory
     /// <param name="model">The image model.</param>
     /// <returns>The native Microsoft.Extensions.AI image generator.</returns>
     /// <remarks>
-    /// The image surface is marked experimental by MEAI 10.9.0. It remains in
+    /// The image surface is marked experimental by MEAI 10.11.0. It remains in
     /// this one factory method so a future MEAI change does not spread through
     /// the provider package.
     /// </remarks>

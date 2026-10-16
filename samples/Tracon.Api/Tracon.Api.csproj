@@ -62,8 +62,6 @@
     -->
     <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-    <!-- CVE pin; rationale in Directory.Packages.props. -->
-    <PackageReference Include="Microsoft.OpenApi" />
     <!--
       UI-only package: renders the /openapi/v1.json document produced above at
       /swagger. Does not bring in Swashbuckle's own SwaggerGen, so there is no

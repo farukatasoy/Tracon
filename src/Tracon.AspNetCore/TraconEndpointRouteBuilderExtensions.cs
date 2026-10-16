@@ -1,4 +1,4 @@
-using Microsoft.Agents.AI.Hosting;
+using Microsoft.Agents.AI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -443,7 +443,11 @@ public static class TraconEndpointRouteBuilderExtensions
     /// registration step (the no-surprises rule).
     /// </para>
     /// </remarks>
+    // MAAI001: AgentSessionStore is marked "evaluation purposes only" since
+    // Microsoft Agent Framework 1.22 (same rationale as TraconAgentSessionStore).
+#pragma warning disable MAAI001
     private static AgentSessionStore ResolveSessionStore(IServiceProvider services)
         => services.GetService<AgentSessionStore>()
            ?? new TraconAgentSessionStore(services.GetRequiredService<AgentSessionManager>());
+#pragma warning restore MAAI001
 }

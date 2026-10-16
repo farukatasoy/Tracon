@@ -5091,6 +5091,7 @@ export interface components {
         /**
          * @description Turns the harness loop on: the agent is re-invoked until a stop criterion
          *     says the work is finished.
+         * @example null
          */
         LoopSettings: {
             /** @description Gets the stop criteria, evaluated in order. At least one is required. */
@@ -5251,6 +5252,7 @@ export interface components {
              * @description Credential request headers, as a map from the header name to the NAME
              *     of the configuration key its value is read from. The value is resolved
              *     through `IConfiguration` on every connection and is never stored.
+             * @example null
              */
             headerConfigurationKeys?: {
                 [key: string]: string;
@@ -7191,7 +7193,10 @@ export interface components {
         SpeechProviderKind: "Synthesizer" | "Transcriber";
         /** Format: binary */
         Stream: string;
-        /** @description Determines how long an agent waits for the agents it calls. */
+        /**
+         * @description Determines how long an agent waits for the agents it calls.
+         * @example null
+         */
         SubAgentSettings: {
             /** @description Gets the deadline applied to a single sub-agent run (the cooperative layer). */
             childDeadline?: null | string;
@@ -8117,6 +8122,7 @@ export interface components {
              * @description Credential headers, as a map from the header name to the NAME of the
              *     configuration key its value is read from. The value is resolved through
              *     `IConfiguration` on every delivery and is never stored.
+             * @example null
              */
             headerConfigurationKeys?: {
                 [key: string]: string;

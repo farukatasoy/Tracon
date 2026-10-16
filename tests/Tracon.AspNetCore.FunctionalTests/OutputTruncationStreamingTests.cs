@@ -112,7 +112,8 @@ public sealed class OutputTruncationStreamingTests
     [Fact]
     public async Task The_last_update_frame_carries_the_model_finish_reason()
     {
-        // Phase 207.1 measurement (2026-10-14, MAF 1.20.0): MAF copies
+        // Phase 207.1 measurement (2026-10-14, MAF 1.20.0; the test passes on 1.25.0, re-run
+        // 2026-10-16): MAF copies
         // ChatResponseUpdate.FinishReason into AgentResponseUpdate.FinishReason and
         // the endpoint serializes the update as is. This is MAF's raw value per
         // model call, not a Tracon contract; the endpoint's notice gate and the

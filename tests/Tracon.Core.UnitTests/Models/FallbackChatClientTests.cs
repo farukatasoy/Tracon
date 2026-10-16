@@ -97,7 +97,7 @@ public sealed class FallbackChatClientTests
     public async Task A_bare_connection_failure_wrapped_the_way_the_real_OpenAI_client_wraps_it_falls_over()
     {
         // Regression for the phase 62 audit finding: measured against the
-        // real OpenAI 2.12.0 client pointed at a port nothing listens on,
+        // real OpenAI client (2.14.0, re-measured with a probe 2026-10-16) pointed at a port nothing listens on,
         // the exception that reaches this layer is an AggregateException
         // ("Retry failed after 4 tries...") whose InnerException is
         // System.ClientModel.ClientResultException ("Connection refused

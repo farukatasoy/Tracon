@@ -127,14 +127,27 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
             // 🚨 The adapter turns ChatOptions.Instructions into a system block
             // WITHOUT cache control, and reads cache control only from a
             // content's AdditionalProperties. The instructions therefore travel
-            // as a system message of their own, appended after the caller's
-            // messages: the adapter gathers every system message into the
-            // system array in order and adds Instructions last, so the block
-            // keeps today's position. A new message and a new content — the
-            // caller's list and contents are never mutated.
+            // as a system message of their own, placed after the caller's
+            // LEADING system messages and before the first other message: the
+            // adapter gathers the system messages in order and adds
+            // Instructions last, so the block keeps today's position.
+            // 🚨 Position matters since Anthropic SDK 12.58 (measured, adapter
+            // decompiled): only system messages BEFORE the first user or
+            // assistant message join the top-level `system` array; a later one
+            // goes out as a `role: system` entry inside `messages`, and the
+            // cache breakpoint lands in the conversation instead of after the
+            // instructions. A new list, message and content — the caller's
+            // list and contents are never mutated.
             var block = new TextContent(copy.Instructions).WithCacheControl(CacheControl());
 
-            messages = [.. messages, new ChatMessage(ChatRole.System, [block])];
+            var requestMessages = messages.ToList();
+            var firstConversational = requestMessages.FindIndex(static message => message.Role != ChatRole.System);
+
+            requestMessages.Insert(
+                firstConversational < 0 ? requestMessages.Count : firstConversational,
+                new ChatMessage(ChatRole.System, [block]));
+
+            messages = requestMessages;
             copy.Instructions = null;
         }
 

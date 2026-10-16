@@ -131,8 +131,6 @@ Tracon.TraconA2AOptions.Budget.get -> Tracon.AgentRunBudget!
 Tracon.TraconA2AOptions.Budget.set -> void
 Tracon.TraconA2AOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
 Tracon.TraconA2AOptions.TraconA2AOptions() -> void
-Tracon.TraconAgentSessionStore
-Tracon.TraconAgentSessionStore.TraconAgentSessionStore(Tracon.AgentSessionManager! sessions) -> void
 Tracon.TraconEndpointOptions
 Tracon.TraconEndpointOptions.AllowRemoteAccess.get -> bool
 Tracon.TraconEndpointOptions.AllowRemoteAccess.set -> void
@@ -231,9 +229,6 @@ override Tracon.SearchKnowledgeRequest.ToString() -> string!
 override Tracon.ToolApprovalDecision.Equals(object? obj) -> bool
 override Tracon.ToolApprovalDecision.GetHashCode() -> int
 override Tracon.ToolApprovalDecision.ToString() -> string!
-override Tracon.TraconAgentSessionStore.DeleteSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-override Tracon.TraconAgentSessionStore.GetSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AgentSession!>
-override Tracon.TraconAgentSessionStore.SaveSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, Microsoft.Agents.AI.AgentSession! session, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 override Tracon.UploadDocumentChunk.Equals(object? obj) -> bool
 override Tracon.UploadDocumentChunk.GetHashCode() -> int
 override Tracon.UploadDocumentChunk.ToString() -> string!

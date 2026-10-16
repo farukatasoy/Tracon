@@ -13,7 +13,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Measured on Microsoft Agent Framework 1.20.0: a message no handler of the next node
+/// Measured on Microsoft Agent Framework 1.20.0 (the tests pass on 1.25.0, re-run 2026-10-16):
+/// a message no handler of the next node
 /// takes is dropped without an error. The next node never runs and the run ends
 /// <c>Completed</c> with no output. A first node that cannot take the run's message
 /// (<c>List&lt;ChatMessage&gt;</c>) runs nothing at all. Delivery is by assignability:

@@ -64,8 +64,6 @@
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
     <!-- To verify that the OpenAPI document is actually generated. -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-    <!-- CVE pin; rationale in Directory.Packages.props. -->
-    <PackageReference Include="Microsoft.OpenApi" />
   </ItemGroup>
 
   <!--

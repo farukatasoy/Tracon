@@ -12874,6 +12874,9 @@
         "description": "What a harness loop does when it ends without every criterion satisfied: return\nthe last response, or fail the run."
       },
       "LoopSettings": {
+        "examples": [
+          null
+        ],
         "required": [
           "criteria"
         ],
@@ -13174,6 +13177,9 @@
             "description": "Extra request headers, sent as given with every request to the server.\nAn HTTP response never returns a stored value: it carries every header\nname with the value \u0060***\u0060."
           },
           "headerConfigurationKeys": {
+            "examples": [
+              null
+            ],
             "type": "object",
             "additionalProperties": {
               "type": "string"
@@ -16902,6 +16908,9 @@
         "format": "binary"
       },
       "SubAgentSettings": {
+        "examples": [
+          null
+        ],
         "type": "object",
         "properties": {
           "childDeadline": {
@@ -18868,6 +18877,9 @@
             "description": "Extra headers added to every request. An HTTP response never returns a\nstored value: it carries every header name with the value \u0060***\u0060."
           },
           "headerConfigurationKeys": {
+            "examples": [
+              null
+            ],
             "type": "object",
             "additionalProperties": {
               "type": "string"
