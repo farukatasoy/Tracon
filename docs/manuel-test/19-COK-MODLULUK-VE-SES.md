@@ -3128,3 +3128,31 @@ Regresyon. `/speak` sağlayıcı hatasını `502` veriyordu, `/voices` `500`.
 - (2) Host açılışta düşer: `The live voice setting 'DelegationMode' is 'Responses', which is not a delegation mode.
   The only mode is 'Client'.` (çıkış 134, ilk istekten önce).
 - (3) Host açılır; ad büyük/küçük harfe bakmaz.
+
+---
+
+### MT-MM-141 — ElevenLabs'in yayımlanan sözleşmesi Tracon.Voice'in beyanıyla örtüşür (Faz 217, F-558)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 217 |
+| **İlgili karar** | K-216 |
+| **Devir** | ➜ CI: `ElevenLabsOperationDriftTests` (beyan = kod). Canlı belgeyle karşılaştırma ağa bağlıdır, CI'da koşmaz |
+
+`Tracon.Voice` ElevenLabs'e ham `HttpClient` ile konuşur; sağlayıcının sözleşme
+değişikliğini derleyici görmez. Bu case beyanı (`tests/Tracon.Voice.UnitTests/Fixtures/elevenlabs-operations.json`)
+canlı OpenAPI belgesiyle karşılaştırır.
+
+**Ön koşul**
+- Ağ erişimi. Anahtar gerekmez.
+
+**Adımlar**
+1. `python3 scripts/elevenlabs-kayma.py`. Sertifika hatası verirse (macOS, python.org kurulumu):
+   `curl -s https://api.elevenlabs.io/openapi.json -o /tmp/openapi.json && python3 scripts/elevenlabs-kayma.py --dosya /tmp/openapi.json`.
+2. Beyana var olmayan bir alan ekle (`voice_settings.stability_x`) ve komutu tekrar koş; sonra geri al.
+
+**Beklenen sonuç**
+- (1) `✅ 7 operasyon, 105 beyan canlı belgede geçerli`; çıkış `0`.
+- (2) `❌ ElevenLabs kaymasi` ve eklenen alanı adıyla basar; çıkış `1`.

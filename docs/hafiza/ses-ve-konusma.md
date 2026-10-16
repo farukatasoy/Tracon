@@ -13,7 +13,7 @@
 
 - **Ses `Tracon.Voice/` altinda, olcum Core'da** (2026-08-05, Faz 28):
   sozlesmeler `Abstractions/Voice/` (HTTP katmani gorsun diye, K-215);
-  `Internal/ElevenLabsSpeechClient.cs` uc HTTP ucunu ham `HttpClient` ile
+  `Internal/ElevenLabsSpeechClient.cs` yedi HTTP operasyonunu ham `HttpClient` ile
   konusur ve eszamanlilik sayacini tutar; `Tools/VoiceToolBase.cs` 🚨
   bagimliligi KURULUM aninda alir (K-218). Token disi olcum:
   `Core/Tools/TraconToolUsage.cs` (public bildirim) →
@@ -191,3 +191,4 @@ tazele.
 - **🚨 Run kaydı `TraconException` olmayan istisnayı maskeler** (`ArgumentException failed. (ref: …)`): operatörün göreceği ret `TraconException` olmalı (K-955).
 - **"Ağ çağrısı yok" iddiası canlı uçta sayılamaz:** örneği `Tracon__Voice__Endpoint=http://127.0.0.1:<port>/` ile istek kaydeden yerel bir sahte uca yönelt (Faz 203 case 2–6).
 - **🚨 Diyalog düğümü sonucu TEK ses sonucu gibi raporlar** (2026-10-13, Faz 199): `SpeechDialogueAudio.Audio` (`CharactersBilled`, `UsageSource`, `ModelId`) bir `ReportUsageAsync` kalemi olur. `DialogueModelId` boşken `ModelId = null`; fiyat modelsiz aranır ve model anahtarlı fiyat BULUNMAZ → kalem **fiyatsız** listelenir, başka modelin fiyatıyla doldurulmaz (`samples/Tracon.Api` `dialogue` düğümü).
+- **ElevenLabs sözleşmesi YAZILI bir beyandır** (Faz 217, K-216 KEEP; resmî SDK yok): `tests/Tracon.Voice.UnitTests/Fixtures/elevenlabs-operations.json`. `ElevenLabsOperationDriftTests` onu KODLA eşitler; `scripts/elevenlabs-kayma.py` canlı OpenAPI'ye karşı koşar (ağ, CI'da değil).

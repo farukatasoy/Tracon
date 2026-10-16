@@ -5,6 +5,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The declared ElevenLabs contract (ElevenLabsOperationDriftTests); scripts/elevenlabs-kayma.py reads the same file. -->
+    <Content Include="Fixtures/elevenlabs-operations.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- In-memory configuration provider for the settings-binding-from-configuration tests. -->
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
