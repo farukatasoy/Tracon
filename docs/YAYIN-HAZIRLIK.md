@@ -4,9 +4,19 @@
 > düzlemidir. Faz planı, sohbet özeti veya genel karar defteri değildir. Yalnız
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
-> **Son güncelleme:** 2026-10-15  
-> **Çalışma modu:** `nuget-danismani` — yayın kararı (`1.0.0-preview.4`)  
-> **GÜNCEL DURUM (2026-10-15, 13:17 UTC):** ✅ **`1.0.0-preview.4` SEVK EDİLDİ.**
+> **Son güncelleme:** 2026-10-16  
+> **Çalışma modu:** `nuget-danismani` — GA olgunluk, nokta: public API freeze zamanı  
+> **GÜNCEL DURUM (2026-10-16):** 🧊 **Public API bugün dondurulmaz; önce
+> küçültülür, sonra RC'de donar.** Yüzey yakınsamıyor: preview.3 → preview.4
+> (21 gün) +927/−2 satır, 52 yeni tip, 5 yeni arayüz; 3 mevcut arayüze 6
+> soyut üye. En az 5 bilinen kırılma açık. Upstream: MAF pin `1.20`, son `1.25`;
+> Hosting ailesi hâlâ ön sürüm. Dış tüketici geri bildirimi sıfır. Küçültme
+> payı ölçüldü: yalnız OpenAPI için public 81 tip / 1.264 satır (%12,8) + 14 iç
+> tesisat arayüzü. Bulgular A-74…A-83. Bakımcı kararı 👤: UR-009 B (küçült →
+> tüm bağımlılıkları yükselt → modernize et → yeni yetenekler → RC'de dondur),
+> UR-010 B, UR-011 B, UR-005 A (Tracon'un kendi deneysel katmanı yok; hepsi donar). Ayrıntı: §4 "KARAR — 2026-10-16".
+>
+> **Önceki durum (2026-10-15, 13:17 UTC):** ✅ **`1.0.0-preview.4` SEVK EDİLDİ.**
 > `v1.0.0-preview.4` → `5442cf31`; etiket koşumu #269 2. denemede npm ve NuGet'i
 > yayımladı. npm `latest` = `next` = preview.4; nuget.org 20/20; site yayında.
 > GitHub release işi düştü (F-553, not 125 000 karakter sınırını aştı; düzeltme
@@ -116,6 +126,56 @@ sayının ürün politikası mı yoksa bayat ölçüm mü olduğu artifact sonra
 değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
+
+### 🧊 KARAR — 2026-10-16 (`nuget-danismani`, public API freeze zamanı)
+
+**Bugün dondurulmaz.** Öneri UR-009 **B**: önce küçült ve 1.x evrim kurallarını
+yaz, giriş ölçütleri sağlanınca `1.0.0-rc.1` ile dondur (`Shipped` dolumu,
+K-603). GA kararı değişmez: `NU5104` stable 1.0'ı hâlâ durdurur (§4
+"GÜNCEL KARAR — 2026-09-24").
+
+#### Ölçülen kanıtlar (2026-10-16, HEAD `1ae92822` = preview.4 + yalnız doküman)
+
+| Ne | Nasıl ölçüldü | Sonuç |
+|---|---|---|
+| Yüzey büyüklüğü | `src/*/PublicAPI.*.txt` sayımı | `Shipped` 0 · `Unshipped` 9.875 satır / 707 tip. Ayrıca `Tracon.Client` 329 üretilen tip — PublicAPI izlemesi kapalı, `Shipped` dolumu onu kapsamaz; ApiCompat kapsar |
+| Yüzey eğilimi | `git diff vA vB -- 'src/*/PublicAPI.Unshipped.txt'` | p1 9.754 → p3 8.950 (−873, K-850) → p4 9.875 (**+927/−2**, 21 günde). HTTP: 168 → 176 operasyon, 280 → 293 şema |
+| Seam değişimi p3 → p4 | Aynı diff, arayüz bazında | 5 yeni arayüz; 10 mevcut arayüze 16 üye (6 soyut: `IRunStore` 2, `IWorkflowDefinitionStore` 3, `IWorkflowFunctionCatalog` 1; 10 DIM). 3 enum büyüdü (`RunErrorClass` 14→17, `RunEventType` 33→34, `ProtectedColumn` 10→12) |
+| Karar hızı | `KARARLAR.md` tarih sütunu | p3 → p4 aralığı: 129 karar, 97'si `public-api`; kırıcı: K-902, K-973, K-987, K-1010 |
+| Açık kırılmalar | ADAYLAR + §6/§7 taraması | Kesin 5: A-63, F-290, F-466, UR-003 daraltması, `TraconAgentSessionStore` taban tipi (A-77). Olası 3: F-534, F-408, F-322. Paket seviyesi: Faz 193 (≥ 2026-11-10) |
+| Upstream | nuget.org flat container | MAF `1.25.0` (pin `1.20.0`) · MEAI `10.11.0` (pin `10.9.0`) · Hosting ailesi `1.25.0-preview.261014.1` / kararlı **yok** · `A2A.AspNetCore` `1.0.0-preview3` / kararlı **yok** |
+| İleri uyum | `uyum-probu.cs -- ileri --tracon 1.0.0-preview.4` | Tüm upstream en yeni: 1.229 referans, **1 eksik tip + 1 eksik üye** (A-59 ile aynı; exact pin restore'da durdurur). Yalnız GA upstream (MAF 1.25, MEAI 10.11): 1.081 referans, **0 eksik** ✅. Negatif kontrol (MAF 1.13): 1 tip + 2 üye eksik ✅ |
+| Deneysel maruziyet | `uyum-probu.cs -- deneysel` | Public imzada **4** `AddLoopEvaluator` aşırı yüklemesi (`MAAI001`; 2026-09-24'te 1). `MAAI001` bastırması 25 → 28. Araç taban tipini görmez (A-77) |
+| Dış geri bildirim | GitHub API · nuget.org arama · npm | İnsan kaynaklı issue 0 (37 kaydın hepsi bot PR), yıldız 0. NuGet indirmesi paket başına 160–377, sürüm başına düz dağılım — ayna/bot deseni (çıkarım). ER-001'in "üçüncü taraf feedback" ölçütü sağlanmadı |
+| Envanter kapısı | `public-yuzey-envanteri.py --denetle` · `grep` kapı/CI | 2 kanıtsız tip (A-80); betik hiçbir kapıda koşmuyor |
+| Ölçüm aracı | `uyum-probu.cs -- deneysel` | K-872'nin `[x]` pin sözdizimiyle 404 verdi; `VarsayilanUpstream` köşeli parantezi artık kırpar (araç düzeltmesi, bu tur) |
+
+#### Bulgular
+
+| # | Bulgu | Seviye | Kanal |
+|---|---|---|---|
+| **A-74** | **81 tip / 1.264 satır yalnız OpenAPI açıklaması için public** (63 `AspNetCore`, 17 `Abstractions`, 1 `Core`). Ölçüm: envanter OpenAPI kanıtı olmadan koşuldu. Betiğin gerekçesi **doğru** (worktree deneyi): `XmlCommentGenerator` başka derlemedeki public olmayan sembolü atar, IVT saymaz; 5 tip `internal` olunca 5 tip + 12 özellik açıklaması silindi, şema adı/tipi/`$ref` değişmedi. Geçici çözüm **ölçüldü**: `[Description]` aynı metni geri getirir (bedel: metin kopyası). .NET HTTP tüketicisi bu tipleri kullanmaz — `Tracon.Client` kendi DTO'larını üretir. Engeller: `AspNetCore` IVT vermez (26 tip fonksiyonel testte); `Abstractions` IVT'si `Core`/`AspNetCore`'u zaten kapsar | 🟡 | UR-010 → `faz-planlama` |
+| **A-75** | **14 iç tesisat arayüzü / 30 üye public** (`IWorkflowRunner`, `IWorkflowFunctionCatalog`, `IWebhookPublisher`, `IMcp*` ×5, `IStatePreflightReader`, `ITraconDrainState`, `IAuditDecorated`, `ITraconUiProvider`, `IVoiceHealthCheck`, `IAuditActorResolver`). Örnek, şablon veya rehber bunları uygulamaz. 9'unun XML'i "tüketici kaydı kazanır" der (MIMARI K4) — `internal` yapmak K4'ü daraltır. IVT boşluğu: `Tracon.Cli`, `Tracon.UI`. 8 "yalnız çağrılan" arayüz için `IToolRegistry` emsali ("implementasyon için değil") var | 🟡 | UR-011 → `faz-planlama` |
+| **A-76** | **1.x evrim kuralları yazılı değil.** `reference/versioning.md` "interface" 0 eşleşme; 70 uygulanan arayüz / 278 üye. Enum büyümesi, yeni `required` üye (833 public `required` üye), `Tracon.Testing.Contracts.Xunit` (691 public test metodu; p3→p4 +168 satır), `Tracon.Client` DTO adları (NSwag çakışma adı `SourceKind2`) için kural yok. Dondurmadan sonra her biri tahminle karara bağlanır | 🟡 freeze öncesi | `faz-planlama` + `tuketici-dokuman-senkronu` |
+| **A-77** | **Upstream yüzeyi taban tipten sızıyor; araç görmüyor.** `TraconAgentSessionStore : AgentSessionStore` (`Hosting`) — tip Hosting ≥ 1.22'de `Microsoft.Agents.AI`'a taşındı (A-59); MAF yetişmesi public bir tipin tabanını değiştirir. `AgentFileStoreContract : TenantIsolationContract<AgentFileStore>` deneysel (`MAAI001`). PublicAPI metni taban tipi taşımadığı için `uyum-probu deneysel` ikisini de saymaz | 🟡 | A-63/UR-005 ile birlikte; araç: `uyum-probu.cs` |
+| **A-78** | ✅ **KAPANDI (2026-10-16, commit bekliyor)** — `[FromServices]` eklendi; `EndpointBodyInferenceTests` önce kırmızıydı (yalnız bu uç), yeşil; `tracon.json`, `schema.ts`, `TraconApiClient.g.cs` yeniden üretildi, delta yalnız sızıntı (−20/−9/−25 satır); sınıf taraması: OpenAPI'de başka servis-gövdesi yok (`IFormFile` form parçasıdır; dört boş şema MEAI polimorfik taban tipleridir, A-67/A-82). `Tracon.Client` kırılması `CHANGELOG [Unreleased]`'da adıyla. **`IMcpToolRefresher` HTTP sözleşmesine sızdı.** `POST /api/mcp-servers/refresh` (`GovernanceEndpoints.cs:380`, `[FromServices]` yok) OpenAPI'de `IMcpToolRefresher` şemalı istek gövdesi yayımlar; `Tracon.Client` `partial class IMcpToolRefresher` taşır. `bea3901f` (2026-09-12) ile girdi, preview.1–4'te sevk edildi. Freeze'den sonra kaldırmak `Tracon.Client` için ikili kırılmadır | 🟡 | `kusur-giderme` |
+| **A-79** | **Üye seviyesi hijyen.** DI'ın kurduğu 6 tipte public kurucu (`SingleTenantContext`, `HttpTenantContext`, `TraconAgentSessionStore`, `TimeoutAIFunction` — zaten 2 aşırı yükleme, `CompiledAgentCache`, `DefaultRunAttributionContext`; K-866 cırcırı yalnız opsiyonel parametreli kurucuyu görür). Okunmayan veya işlevsiz public seçenek: `OpenAILiveOptions.BackendModel`, `LiveVoiceSessionOptions.BackendModel`, `Experiment.AssignmentKey`, `LiveVoiceDelegationMode.Responses` (`NotSupportedException`). Çift aşırı yükleme: `AddWorkflowFunction<TIn,TOut>`. `UseScheduling`/`AddJobHandler<T>` `IServiceCollection` üzerinde (K-867 kuralına aykırı). Çağırana derlenen rota varsayılanları (`MapTracon("/tracon")` …) | 🟡 | `faz-planlama` (küçültme turu) |
+| **A-80** | ✅ **KAPANDI (2026-10-16, commit bekliyor)** — `--denetle` artık `kapi.py tarama`'nın parçası (CI'ın ubuntu bacağı ve kapanış zinciri); iki tip rehberde adıyla anıldı (`agents.md`, `workflows.md`), kanıtsız 0. Negatif kontrol: rehber değişikliği geri alınınca `tarama` kırmızı ve iki tipi adıyla basıyor; geri konunca yeşil. Sınıf taraması: `scripts/` altında başka sahipsiz denetim yok (`manuel-test-tazelik.py` bilinçli tur-öncesi ölçümdür). **K-850 cırcırının kapısı yok.** `--denetle` kapıda koşmuyor; Faz 192 (2026-10-11) ve 2026-10-12 commit'i iki kanıtsız tip ekledi. İkisi de tüketiciye ulaşır ve hata kodu wire'dadır — tut, rehberde adıyla an, `--denetle`'yi kapıya bağla | 🟡 | `kusur-giderme` |
+| **A-81** | Store rehberi "32 diğer / 29 contract" der; ölçülen 35 / 31. `compatibility.md:88` "six" contract ailesi der; `ContractCoverage.cs` 7 | 🟢 | `tuketici-dokuman-senkronu` |
+
+| **A-82** | **Bağımlılıklar geride: merkezî 71 NuGet pin'inin 58'i** (flat container, 2026-10-16). Birlikte yükselen kümeler: MAF `1.25` + Hosting `1.25.0-preview.261014.1` + `A2A.AspNetCore` `preview3`; MEAI `10.11` + `OpenAI` `2.14` (MEAI 10.11 OpenAI 2.14 ister); `Microsoft.Extensions.*`/ASP.NET Core `10.0.13`. Major: `xunit.v3` 4 (contract paketinin public bağımlılığı, A-70), `Microsoft.OpenApi` 3 (ASP.NET Core 10 uyumu ölçülmedi), `SQLitePCLRaw` 3, `MinVer` 8, `TrxReport` 2. Bilinçli: `Microsoft.CodeAnalysis.CSharp` 4.8 (üreteç), `Pkcs` 8/9 (Faz 193 ile düşer). Kullanılmayan pin: `OpenTelemetry.*` (csproj almıyor). Kalkabilecek CVE pin'i: Tokenizers 2.0.1 · Sqlite 10.0.13 (çıkarım) · Testcontainers 4.16 (`SSH.NET`). npm major: TypeScript 7, vite 8, vitest 5, jsdom 30, `@vitejs/plugin-react` 6, mermaid 12 | 🟡 | `faz-planlama` (yükseltme fazı) |
+| **A-83** | **Entegrasyon modernlik denetimi.** Sevk edilen pakette topluluk SDK'sı yok (K-007 riski 0). OpenAI, Anthropic, Gemini, MCP resmî SDK'yla ✅. **ElevenLabs:** ham `HttpClient`; K-216'nın metni tetiklendi (3 → 7 operasyon, 4 grup), yeniden değerlendirme **KEEP**: resmî .NET SDK yok (elevenlabs org'unda C# deposu yok); `ElevenLabs-DotNet` 3.7.2 yalnız `net8.0`, `IsTrimmable` yok; tryAGI 1.0.8 yalnız `net10.0`. İzleme: K-216'ya yeniden değerlendirme notu, `Tracon.Voice.csproj:13` bayat "three HTTP" yorumu, 7 operasyonu yayımlanan OpenAPI'ye (3.1, 415 operasyon) karşı ölçen kayma testi. **Azure:** `Azure.AI.OpenAI` kararlı hattı 2.1.0'da (2024-12-06) duruyor → düz `OpenAI` istemcisi + Azure `/openai/v1/` araştırılır (ölçülmedi). **AOT:** Anthropic SDK'sında `IsTrimmable` yok; Anthropic/Google için AOT iddiası yalnız analyzer sessizliğine dayanır → `PublishAot` smoke | 🟡 | `faz-planlama` (modernizasyon fazı) |
+
+#### Freeze giriş ölçütleri (UR-009 B, bakımcı sırası 👤)
+
+1. **Küçültme** bitti: A-78, A-80 (`kusur-giderme`) · A-74 (UR-010) · A-75 (UR-011) · A-79; `--denetle` kapıda ve 0.
+2. **Upstream yükseltme** bitti (A-82): her bağımlılık en yeni kararlı, kararlısı olmayan en yeni ön sürüm; istisnalar gerekçeli. İleri prob temiz; `TraconAgentSessionStore` çözüldü (A-77).
+3. **Modernizasyon** bitti (A-83). "Modern" ölçülür: resmî SDK varsa ve AOT/TFM/K-007'yi geçiyorsa kullanılır; upstream `[Obsolete]` kullanımı 0 (bugün 0 — 9 `CS0618` bastırmasının hepsi Tracon'un kendi F-290 üyesi); deneysel bastırma (`MAAI001` 28, `MEAI001` 14) gerekçeli.
+4. **Yeni yetenekler** girdi — UR-005 A: doğrudan kararlı katmana; her yeni yetenek ölçüt 7'nin penceresini yeniden başlatır, bu yüzden yetenekler freeze'den önce **toplu** girer ve sonra yeni yetenek eklenmez.
+5. **Upstream deneysel tip public imzada yok** (A-63 `AddLoopEvaluator`, A-77 `AgentFileStoreContract`; UR-005 A'da Tracon'un kendi deneysel katmanı yok) ve **1.x evrim kuralları** (A-76, A-67) yazıldı ve kapıya bağlandı.
+6. Faz 193 (TFM düşürme) kapandı — K-855, ≥ 2026-11-10. `net11.0` eklemek ekleyicidir; freeze'i beklemez.
+7. Bir tam preview aralığı kararlı katmanda **sıfır** kırılmayla geçti (`kapi.py yayin` kırılma listesi boş).
+8. `1.0.0-rc.1` provası yeşil; `Shipped` dolumu tek commit (K-603).
 
 ### ✅ YAYINLANDI — 2026-10-15, `1.0.0-preview.4`
 
@@ -547,10 +607,13 @@ GA'yı bloklar ve bir kod işidir. Aşağıdaki 2026-08-28 maddelerinin
 | UR-002 | İlk hedef tüketici | Tamamlandı | Ürün anlatısı ve en küçük paket kapsamı hangi birincil persona için optimize edilmeli? | Repo bir control plane, provider, storage, transport, UI ve extension paketleri taşıyor | Yalnız çekirdek / tam entegrasyon seti / çekirdek + kanıtlanmış alt küme | Tam entegrasyon seti (20 paketin tamamı) | Kullanıcı, dry-run'da zaten kanıtlanmış tam kapsamı (20 paket, 160 sample testi, AOT smoke yeşil) korumayı seçti | Yüksek — audit yükü en geniş seçenek düzeyinde | `nuget-danismani` | Kullanıcı kararı | 2026-08-27 |
 | UR-003 | Public API freeze | **Tamamlandı — GA'ya ertelendi** | Preview öncesinde hangi yüzey korunmalı veya küçültülmeli? | Ölçüldü 2026-08-27: 17 `PublicAPI.Shipped.txt` **0** satır, unshipped **8417** satır / **680** tip | Preview'dan önce tara / **GA turuna ertele** | **GA turuna ertelendi; seviye 🔴 → 🟡** | Sevk edilen `versioning.md:11-13` preview hattında yüzey daralmasının kırıcı sayılmadığını zaten söylüyor; K-603 `Shipped` dolumunu GA'ya erteledi; K-602 tek sürüm hattını bu gerekçeyle seçti. Faz 96 aynı erişilebilirlik ölçütünü koşup 96 tipi `internal` yapmıştı (K-601) — ikinci turun verimi düşük | Orta — GA'da yüzey büyükse daraltma pahalılaşır; azaltım: tarama `Unshipped → Shipped` dolumuyla aynı turda koşar | `nuget-danismani` (GA turu) | GA kapısında `Shipped.txt` dolumu | 2026-08-27 |
 | UR-004 | 1.0 yolu | **Açık — kullanıcı kararı bekliyor** | Upstream kararlı olmadan 1.0'a nasıl yaklaşılır? | ER-001 · §4 GÜNCEL KARAR 2026-09-24 (Hosting ailesi ve `A2A.AspNetCore` kararlı değil) | A: upstream GA'yı bekle · B: Hosting'e bağlı özellikleri ayrı ön sürüm pakete ayır (K-602'nin reddettiği ayrık hattın türevi; yeniden açma ister) · C: yüzeyi dondur, `1.0.0-rc.N` çık, GA upstream'e bağlı | — | Öneri **C**: RC ön sürümdür, `NU5104` durdurmaz; yüzey sahada donar, GA aynı yüzeyle gelir | Orta | `nuget-danismani` | RC provası `kapi.py yayin --kuru --surum 1.0.0-rc.1` yeşil | 2026-09-24 |
-| UR-005 | Donacak yüzey | **Açık — kullanıcı kararı bekliyor** | ~650 tipin hepsi mi donar, yoksa olgun olmayan kısım ayrı bir katmanda mı kalır? | A-63 · UR-003 · K-850 | A: hepsini dondur · B: kararlı çekirdek + Tracon'un kendi `[Experimental]` katmanı | — | Öneri **B**; önce K-869 emsaliyle STJ kaynak üretecine etkisi ölçülür | Orta | `faz-planlama` | Katmana giren her üye derleyici uyarısı üretir; `Shipped`'e girmez | 2026-09-24 |
+| UR-005 | Donacak yüzey | **Tamamlandı — A** 👤 | ~650 tipin hepsi mi donar, yoksa olgun olmayan kısım ayrı bir katmanda mı kalır? | A-63 · UR-003 · K-850 | A: hepsini dondur · B: kararlı çekirdek + Tracon'un kendi `[Experimental]` katmanı | **A** 👤 (2026-10-16; öneri B idi, bakımcı A seçti) | Tracon'un kendi `[Experimental]` katmanı yok; yeni yetenek doğrudan kararlı katmana girer. Sonuç: upstream deneysel tip public imzada donamaz → A-63 ve A-77 ya imzadan çıkarılır (Tracon tipiyle sarılır / `internal` olur) ya da upstream kararlıya geçince donar; bu karar MAF 1.25 yükseltmesinden sonra ölçülür. Her yeni yetenek ölçüt 7'nin penceresini yeniden başlatır | Orta | `faz-planlama` | Katmana giren her üye derleyici uyarısı üretir; `Shipped`'e girmez | 2026-09-24 |
 | UR-006 | Ön sürüm upstream aralığı | **Tamamlandı — A (K-872)** | Ön sürüm bağımlılık alt sınır mı, tam sürüm mü yazılır? | A-59 | A: tam sürüm (`[x]`) — uyumsuzluk restore'da görünür · B: açık alt sınır + doküman | **A** (2026-09-24, UR-008 B ile) | Öneri **A**: kırılma çalışma anı yerine restore'da görünür; bedeli tüketicinin Hosting'i bağımsız yükseltememesidir, ki zaten uyumsuzdur | Orta | `kusur-giderme` | `Tracon.AspNetCore` nuspec'i beş ön sürüm bağımlılığı için `[x]` yazar | 2026-09-24 |
 | UR-007 | 1.x destek penceresi | **Açık — kullanıcı kararı bekliyor** | Hangi 1.x sürümü ne kadar güvenlik yaması alır? | `SECURITY.md` yalnız preview sözü taşır | A: yalnız son minor · B: son minor + yeni major çıkınca önceki major N ay güvenlik yaması | — | Öneri **B**; N kullanıcı kararıdır | Orta | `tuketici-dokuman-senkronu` | `SECURITY.md` ve site politikası aynı tabloyu taşır | 2026-09-24 |
 | UR-008 | `preview.3` kapsamı | **Tamamlandı — B** 👤 | preview.3 bugünkü içerikle mi çıkar, yoksa önce A-59 ve BL-058 mi kapanır? | KN-027 · KN-028 · 13 `Security` notu · A-64 (push, düzeltmeleri public yapar) | A: bugünkü içerikle çık; A-59 geçici çözümü sürüm notuna yazılır · B: önce UR-006 A (tam sürüm sınırı) + BL-058 (lisans bildirimi), ikisi `kusur-giderme` · C: önce MAF `1.22` / Hosting `1.22` yükseltmesi (A-62 + taşınan tip) | **B** 👤 (2026-09-24) | Öneri **B**: iki küçük iş preview.3'ün taşıyacağı iki bilinen kusuru kapatır; `main` itilmediği için güvenlik düzeltmeleri bu sürede public olmaz. C upstream ön sürüm çalkantısını güvenlik sürümünün kritik yoluna sokar | Orta | `kusur-giderme` | preview.3 nuspec'i `[x]` yazar; `Tracon.UI` paketi notice dosyası taşır | 2026-09-24 |
+| UR-009 | Freeze zamanı | **Tamamlandı — B, sıra değişikliğiyle** 👤 | Public .NET API ne zaman donar? | §4 KARAR — 2026-10-16 | A: şimdi dondur · B: küçült + kural yaz, giriş ölçütleriyle RC'de dondur · C: upstream Hosting GA'ya kadar bekle | **B** 👤 (2026-10-16) + bakımcı eki: küçültmeden sonra tüm paketler en yeni sürüme, sonra modernizasyon refactor'ü ve yeni yetenekler, en son freeze (§4 giriş ölçütleri) | Öneri **B**: yüzey yakınsamıyor ve en az 5 kırılma açık; küçültme bugün ücretsizdir (`versioning.md:14-18`) | Orta | `nuget-danismani` → `faz-planlama` | §4 giriş ölçütleri 1–7 | 2026-10-16 |
+| UR-010 | Yalnız OpenAPI için public DTO'lar | **Tamamlandı — B** 👤 | 81 tip / 1.264 satır `internal` olur mu? | A-74 | A: public kalır · B: `internal` + `[Description]` (ölçüldü) + test IVT'si · C: `internal` + XML okuyan şema dönüştürücü (ölçülmedi) | **B** 👤 (2026-10-16) | Öneri **B**; metin kopyasını bir test eşitler | Düşük | `faz-planlama` | `tracon.json` açıklama diff'i boş | 2026-10-16 |
+| UR-011 | İç tesisat arayüzleri | **Tamamlandı — B** 👤 | 14 arayüz `internal` olur mu (K4 daraltması)? | A-75 | A: public kalır · B: `internal` (K4 için yeni `K-*`) · C: public + "implementasyon için değil" (`IToolRegistry` emsali) | **B** 👤 (2026-10-16); K4 daraltması küçültme fazında `K-*` olur | Öneri **B**; uygulayan dış kanıt yok | Orta | `faz-planlama` | Envanter + paketlenmiş sample'lar yeşil | 2026-10-16 |
 
 ## 8. Operasyonel yayın kararları
 
@@ -678,6 +741,7 @@ KG-001…KG-039 (2026-08-27…2026-09-20; hepsi kapanmış) [`arsiv/YAYIN-HAZIRL
 | KG-046 | 2026-09-24 | Tamamlandı | **`1.0.0-preview.3` sevk edildi; A-64 kapandı.** Üçüncü `main` koşumu (`36048047050`) Windows'taki yarış testi (F-257) yüzünden kırmızıydı; aynı kod önceki koşumda Windows'ta geçmişti ve aradaki diff `src/`/`tests/`'e dokunmuyordu → "Re-run failed jobs" (API) → yeşil. Etiket bu yeşil koşumun üstüne atıldı | Yarış testi kod kusuru değil ama etiket koşumunu da düşürebilir; F-257 🟠'a çıktı | KN-032 · KN-033 · etiket koşumu `36057172063` |
 | KG-047 | 2026-10-15 | Tamamlandı | **`preview.4` yayın turu: on bir koşum (#259–#269) yerel kapanışta görünmeyen kusurları kapattı (F-546…F-551, `50902ec0`); etiket iki kez taşındı (`44685cfa` → `031c78c2` → `5442cf31`); push sırası kuralı değişti (OP-012) 👤.** İkisi ürün kusurudur ve CHANGELOG'dadır: F-547 (iş kuyruğu yeniden denemesi), F-550 (süre sınırında akış istisnası). Hiçbir koşumda yayın işi koşmadı; nuget.org ve npm preview.3'te kaldı | `main` ~98 commit boyunca CI görmemişti; Windows bacağı Faz 196–211 testlerini ilk kez koştu; F-549 takvime bağlı bir testti | Sevk edildi 13:17 UTC (§4 "YAYINLANDI — 2026-10-15"); #269 2. denemede F-552 ve F-553 çıktı |
 | KG-048 | 2026-10-15 | Tamamlandı | **`docs/guvenlik-tarama/` public repodan ve geçmişinden çıkarıldı 👤 — KG-030'un yayımlama kararı geri alındı** | Açık sağlamlaştırma kalemleri `dosya:satır` konumuyla herkese açık duruyordu; bu, `SECURITY.md`'nin özel bildirim kanalıyla çelişir. Bakımcı kararı; kaydın kopyası tutulmadı, açık kalemlerin yeri yok | `git log --all -- docs/guvenlik-tarama` boş döner |
+| KG-049 | 2026-10-16 | Kabul edildi 👤 | **Public API bugün dondurulmaz; küçültme + 1.x kuralları önce, freeze `1.0.0-rc.1`'de (UR-009 B).** A-74…A-81 açıldı; `uyum-probu.cs` `[x]` pin sözdizimine uyarlandı | §4 KARAR — 2026-10-16: +927 satır/21 gün, 5 açık kırılma, MAF 5 minor geride, dış geri bildirim 0 | Kullanıcı UR-009…UR-011'i karara bağlar; kategori: `public-api` → onaydan sonra `K-*` |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -688,6 +752,14 @@ KG-001…KG-039 (2026-08-27…2026-09-20; hepsi kapanmış) [`arsiv/YAYIN-HAZIRL
 | ER-003 | Kapsamlı düzeltme fazı | Ertelendi | Henüz doğrulanmış aksiyon kapsamı yok | Audit ölçülmüş bir iş üretir ve kullanıcı faz açılmasını onaylar |
 
 ## 13. Sonraki adım
+
+> **Public API freeze (2026-10-16, KG-049 👤).** UR-009 B · UR-010 B · UR-011 B
+> kabul; A-78 ve A-80 kapandı (2026-10-16). Sıra §4 "Freeze giriş ölçütleri" 1–8: küçültme → upstream yükseltme
+> (A-82) → modernizasyon (A-83) → yeni yetenekler → katman + kurallar → Faz
+> 193 → temiz pencere → RC. UR-005 A: deneysel katman yok; yeni yetenek kararlıya girer. İş
+> kalemleri `ADAYLAR.md`'ye damıtmadan sonra girer (bütçe %100). `K-*`
+> kayıtları (K4 daraltması dahil) uygulayan fazda açılır; `KARARLAR.md` bütçesi
+> de %100 ve `karar-damit --kuru` 0 B kazandırır.
 
 > **`preview.3` SEVK EDİLDİ (2026-09-24, KG-046).** Kalan 👤: preview.1/2
 > deprecation (OP-008, nuget.org) · A-61 advisory. Sonra GA hattı: A-72
