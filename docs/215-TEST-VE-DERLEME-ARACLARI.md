@@ -18,7 +18,7 @@
 
 1. Bu doküman
 2. Kararlar — `grep -n "K-543\|K-349\|K-605\|K-197\|K-855" docs/KARARLAR.md`: **K-543** (bot `ignore` listesi ve gerekçeleri) · **K-349** (üretecin Roslyn'i en eski desteklenen SDK'nınkidir) · **K-605** (contract paketi) · **K-197** (SQLitePCLRaw) · **K-855** (net8/net9 2026-11-10'dan sonra düşer)
-3. [Faz 214](214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) devir notu (kapanınca)
+3. [Faz 214](arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md) devir notu: `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md` — 🚨 `kapi.py test` derlemez · sürüm damgası kapısı · `Faz` sözcüğü dil kapısı · tam koşum süresi
 4. Alan hafızası: [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md) (MTP, `-maxcpucount`, öksüz düğüm) · [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md) (yeniden üretim zinciri) · [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md)
 5. [`.agents/ortak/kapilar.md`](../.agents/ortak/kapilar.md) — kapı komut yüzeyi (bu faz onu değiştirir)
 
@@ -36,7 +36,7 @@ Test, derleme ve üretim araçlarını en yeni sürüme taşı; kapanış kapıs
 | Kanıt | Gözlem |
 |---|---|
 | [`TraconServiceCollectionExtensions.Binding.Models.cs:279-281`](../src/Tracon.Core/TraconServiceCollectionExtensions.Binding.Models.cs) | `Tracon:UtilityModel:Temperature = "abc"` → `TryParse` sonucu yok sayılır, değer boş olmadığı için `0` atanır (`:288-290`). preview.4'ün "okunamayan yapılandırma değeri başlangıcı durdurur" kuralı bu yolu kaçırdı (**F-568**) |
-| `.github/dependabot.yml` `ignore` | Beş major: `Microsoft.CodeAnalysis.CSharp > 4.8.0`, `TrxReport >= 2`, `xunit.v3 >= 4`, `Microsoft.OpenApi >= 3`, `SQLitePCLRaw.* >= 3` (K-543) |
+| `.github/dependabot.yml` `ignore` | Üç major: `Microsoft.CodeAnalysis.CSharp > 4.8.0`, `TrxReport >= 2`, `xunit.v3 >= 4` (K-543). `Microsoft.OpenApi >= 3` ve `SQLitePCLRaw.* >= 3` Faz 214'te sabitleriyle birlikte silindi: ikisi de artık `PackageVersion` değil, bot görmez |
 | `.github/workflows/ci.yml:293,299` · [`scripts/kapi.py:1059`](../scripts/kapi.py) | `dotnet test … -maxcpucount:N -- --report-trx` |
 | [`scripts/kapi.py:1080-1089`](../scripts/kapi.py) `failed_tests_from_trx` | TRX'i `artifacts/bin/*/release*/TestResults/` altında arar · `ci.yml:355` aynı glob'u yükler |
 | `bench/capacity/Tracon.Capacity.Acceptance/Tracon.Capacity.Acceptance.csproj:49` | `xunit.v3` `3.2.0` CPM dışında sabit |
@@ -77,8 +77,8 @@ Deneme: `xunit.v3*` `3.2.2` → `4.0.2`, `TrxReport` `1.9.1` → `2.5.1`. Tüm �
 
 | Paket | Neden | K-543 `ignore` |
 |---|---|---|
-| `Microsoft.OpenApi` 3.x | AspNetCore.OpenApi 10.0.13 `[2.12.2, 3.0.0)` ister; 3.x yalnız ASP.NET Core 11 RC ile; 10.0.10 + 3.10.2 üretecin kodunda `CS0200` | Kalır; gerekçe "3.x yalnız ASP.NET Core 11 ile" |
-| `SQLitePCLRaw.*` 3.x | Derlenir, testler geçer; ama `Tracon.Sqlite` nuspec'i her tüketicinin SQLite yığınını Microsoft'un yalnız Data.Sqlite 11 ile eşlediği major'a taşır | Kalır; gerekçe "Data.Sqlite 11'i izler" |
+| `Microsoft.OpenApi` 3.x | AspNetCore.OpenApi 10.0.13 `[2.12.2, 3.0.0)` ister; 3.x yalnız ASP.NET Core 11 RC ile; 10.0.10 + 3.10.2 üretecin kodunda `CS0200` | `ignore` Faz 214'te silindi (sabit kalktı); `PackageVersion` yeniden eklenirse 3.x yeniden dışlanır — gerekçe "3.x yalnız ASP.NET Core 11 ile" |
+| `SQLitePCLRaw.*` 3.x | Derlenir, testler geçer; ama `Tracon.Sqlite` nuspec'i her tüketicinin SQLite yığınını Microsoft'un yalnız Data.Sqlite 11 ile eşlediği major'a taşır | `ignore` Faz 214'te silindi (sabit kalktı); gerekçe "Data.Sqlite 11'i izler" |
 | `Microsoft.CodeAnalysis.CSharp` | K-349: üreteç en eski desteklenen SDK'nın derleyicisinde yüklenir. Ölçüldü: SDK 10.0.100 → Roslyn `5.0.0`, 10.0.402 → `5.9.0`, 9.0.306 → `4.14.0` | Kalır; **F-569**: Faz 193 net8/net9'u düşürünce `5.0.0`'a (5.9.0 değil) |
 
 ## 215.3 — Meziantou 3.0.303 ve F-568
@@ -182,7 +182,7 @@ Beş soru: yeni çalışma anı kod yolu yalnız F-568'dir — **boş girdi**: b
 - [ ] F-568: düşen test önce kırmızıydı; düzeltme sonrası yeşil; sınıf taraması sonucu yazıldı
 - [ ] Meziantou 3.0.303 ile sıfır uyarı
 - [ ] `SSH.NET` sabiti yok; `dotnet list … --vulnerable --include-transitive` açık yok
-- [ ] `dependabot.yml`: xunit ve TrxReport `ignore`'u kalktı; OpenApi, SQLitePCLRaw ve CodeAnalysis gerekçeleri yeni metinle; K-543 notu
+- [ ] `dependabot.yml`: xunit ve TrxReport `ignore`'u kalktı; CodeAnalysis gerekçesi yeni metinle (OpenApi ve SQLitePCLRaw `ignore`'ları Faz 214'te silindi); K-543 notu
 - [ ] Açık Soru 3'ün seçimi uygulandı; `Tracon.Client` farkı okundu
 - [ ] `.agents/ortak/kapilar.md` ve `hafiza/test-kosum-tuzaklari.md` yeni komut yüzeyini yazar
 - [ ] Dört doğrulama kapısı sıfır uyarı: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`

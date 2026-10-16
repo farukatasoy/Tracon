@@ -319,6 +319,8 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-514** · Tek cevaplı isteği kapatılamayan satır kilitler | Faz 208 denetimi (🟢, iki tur): `WorkflowEventStream`'in `finally` kapatması try/catch'siz, depo hatası başlıktan sonra kaçar ve satır `Running` kalır (yalnız uzlaştırma kapatır); kuyruklu iptalde iş `Cancelled` olup satır kapatılamazsa satır `Queued` kalır ve tekrar onu sonsuza dek izler | `finally` kapatmasını yakala ve logla; `Queued` baş + bitmiş iş durumunu karar kuralına ekle |
 | 🟢 | **F-515** · İzleyici aynı run kimliğiyle yeniden koşan işi görmez | Faz 208 ikinci tur denetimi 🟢4: `NextRunAsync` yalnız `ContinuedFromRunId` ardılı arar; kurtarma kapalı ve `MaxAttempts > 1` iken iş aynı run'ı yeniden koşar, izleyici `never started` der (varsayılan dışı yapılandırma) | Ardıl yoksa ve iş yeniden kiralandıysa aynı run'ı yeniden oku |
 | 🟢 | **F-516** · Açık `Branch` `definitionVersion`'lı `/resume` tek-cevap iddiasını atlar | Faz 208 denetimi 🟢3: yalnız Operator/Admin; `Branch` modlu sürümle yeniden yayınlanan istek iddiasız cevaplanır | Karar: mod isteğin ilk cevabından mı okunur, `/resume` sürüm değişimi iddiayı mı taşır |
+| 🟢 | **F-570** · Üretilen sözleşmede `"examples":[null]` gürültüsü; site örneğinde `evaluatorVersion` 10.9.0 | Faz 214 denetimi 🟢1-2: ASP.NET Core OpenApi 10.0.13 + Microsoft.OpenApi 2.12.2 dört şemaya (`LoopSettings`, `SubAgentSettings`, iki `headerConfigurationKeys`) `examples:[null]` ekledi; Açık Soru 4 = A (upstream çıktısı) ile kabul edildi, ama `ModelBinding`/`ModelProviderSettings` de `<example>` taşıyor ve belirti vermiyor: sebep tam açıklanmadı. `concepts/evaluation.md:291` örnek JSON'u `10.9.0+…` diyor | Karar: dönüştürücüyle silmek (B) mi, sebebi ölçüp kabul etmek mi; örnek sürümü hash'iyle birlikte yeniden üretilir
+| 🟢 | **F-571** · Anthropic duraklatılmış tur yeniden kurma kodu SDK aggregator'ına taşınabilir mi | Faz 214: SDK 12.58 `MessageContentAggregator` sunucu tool'unun `input_json_delta`'sını birleştirir; `AnthropicStopReasonChatClient.StreamedBlocks`'un varlık gerekçesi kısmen düştü. Kod bilerek kaldı (yükseltme istek değiştirmez) | Ölçüm: aggregator `redacted_thinking`, atıf ve bilinmeyen blok türlerini ham JSON'a birebir döndürüyor mu; evet ise ~80 satır silinir
 
 ### Faz planlama
 
@@ -515,7 +517,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-570**.
+numara: **F-572**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

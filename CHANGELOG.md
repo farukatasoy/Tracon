@@ -60,7 +60,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `[Experimental]` since Agent Framework `1.22`, and a public type cannot freeze a base its owner
   may still change. `/v1/responses` keeps using it unless the host registers its own
   `AgentSessionStore`; that registration always wins. No guide or sample built the class. A host
-  that did, to wrap it in `IsolationKeyScopedAgentSessionStore`, supplies its own store instead.
+  that did, to wrap it in `IsolationKeyScopedAgentSessionStore`, supplies its own store instead. A
+  store the host supplies replaces the Tracon-backed one for `/v1/responses` entirely: the tenant
+  filter, the session ownership check and the sessions API of Tracon do not see those
+  conversations.
   The store keeps session identities as before: the `isolation` partition of a key is folded into
   the identity as `<escaped key>::<session id>`, and a partition it does not know is refused.
 - **Four members that never worked or never did anything are gone.**
