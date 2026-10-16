@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify extension samples, the Native AOT smoke, and the net8.0 consumer against one exact packed Tracon version."""
+"""Verify extension samples, the Native AOT smokes, and the net8.0 consumer against one exact packed Tracon version."""
 
 from __future__ import annotations
 
@@ -30,6 +30,36 @@ SAMPLE_TEST_PROJECTS = (
 SAMPLE_TEST_EXCLUSIONS: dict[str, str] = {}
 
 AOT_PROJECT = "Tracon.Samples.ExtensionAotSmoke"
+
+# Faz 217. The meta-package smoke above proves the graph; this one calls each
+# provider package's real request and response path under Native AOT. A package
+# the site lists as "Native AOT: Yes" earns it ONLY by being referenced here:
+# the published promise is the smoke's result, not a reading of the package's
+# own IsAotCompatible flag (which analyzes the package, not a consumer's publish).
+PROVIDER_AOT_PROJECT = "Tracon.Samples.ProviderAotSmoke"
+AOT_PROJECTS = (AOT_PROJECT, PROVIDER_AOT_PROJECT)
+
+# The provider and voice packages whose "Yes" must be backed by the smoke.
+# Abstractions and Core are exercised by ExtensionAotSmoke's meta-package graph;
+# PostgreSql needs a live database and is a known gap (YAYIN-HAZIRLIK § 3.6).
+PROVIDER_AOT_PACKAGES = (
+    "Tracon.OpenAI",
+    "Tracon.Anthropic",
+    "Tracon.Google",
+    "Tracon.Azure",
+    "Tracon.Voice",
+)
+
+# Packages the site promises Native AOT for whose proof is NOT the provider smoke.
+# Every "Yes" row must be in PROVIDER_AOT_PACKAGES or here with the reason, so a
+# new package cannot earn the promise by being left out of both lists.
+AOT_PROOF_ELSEWHERE = {
+    "Tracon.Abstractions": "ExtensionAotSmoke publishes the contracts and runs against them",
+    "Tracon.Core": "ExtensionAotSmoke publishes AddTracon() and runs a host",
+    "Tracon.PostgreSql": "known gap: a smoke needs a live database (YAYIN-HAZIRLIK § 3.6)",
+}
+
+COMPATIBILITY_PAGE = "docs-site/src/content/docs/reference/compatibility.md"
 
 # Faz 183. Every other sample runs on net10.0 (samples/Directory.Build.props),
 # so without this one no consumer path ever restored the net8.0 dependency group
@@ -68,15 +98,82 @@ def validate_sample_inventory(root: pathlib.Path) -> list[str]:
     return errors
 
 
+def native_aot_promises(page_text: str) -> dict[str, str]:
+    """The "Native AOT" column of the compatibility page's package table.
+
+    Reads the table whose header names a "Native AOT" column and returns the
+    cell text per package id, so a gate can compare the published promise with
+    what a smoke actually proves."""
+    promises: dict[str, str] = {}
+    column: int | None = None
+
+    for line in page_text.splitlines():
+        if not line.startswith("|"):
+            if promises:
+                break
+            column = None
+            continue
+
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+        if column is None:
+            if "Native AOT" in cells:
+                column = cells.index("Native AOT")
+            continue
+
+        match = re.fullmatch(r"`(Tracon[\w.]*)`", cells[0])
+        if match and column < len(cells):
+            promises[match.group(1)] = cells[column]
+
+    return promises
+
+
+def validate_provider_aot_promises(root: pathlib.Path) -> list[str]:
+    """Every provider package the site promises Native AOT for must be in the smoke."""
+    page = root / COMPATIBILITY_PAGE
+    smoke = root / "samples" / PROVIDER_AOT_PROJECT / f"{PROVIDER_AOT_PROJECT}.csproj"
+
+    if not page.exists():
+        return [f"{COMPATIBILITY_PAGE} is missing; the Native AOT promise cannot be checked"]
+
+    if not smoke.exists():
+        return []  # reported separately as a missing release sample project
+
+    promises = native_aot_promises(page.read_text(encoding="utf-8"))
+    referenced = set(re.findall(r'<PackageReference\s+Include="([^"]+)"', smoke.read_text(encoding="utf-8")))
+    errors: list[str] = []
+
+    for package in PROVIDER_AOT_PACKAGES:
+        promise = promises.get(package)
+
+        if promise is None:
+            errors.append(f"{COMPATIBILITY_PAGE} has no Native AOT row for {package}")
+        elif promise.startswith("Yes") and package not in referenced:
+            errors.append(
+                f"{package} is promised 'Native AOT: Yes' in {COMPATIBILITY_PAGE} but "
+                f"{PROVIDER_AOT_PROJECT} does not reference it: the promise has no smoke behind it"
+            )
+
+    for package, promise in promises.items():
+        if promise.startswith("Yes") and package not in PROVIDER_AOT_PACKAGES and package not in AOT_PROOF_ELSEWHERE:
+            errors.append(
+                f"{package} is promised 'Native AOT: Yes' in {COMPATIBILITY_PAGE} but is in neither "
+                "PROVIDER_AOT_PACKAGES nor AOT_PROOF_ELSEWHERE (scripts/release_extension_samples.py)"
+            )
+
+    return errors
+
+
 def validate_sample_contract(root: pathlib.Path, version: str) -> list[str]:
     """Return deterministic release-consumer configuration violations."""
     errors: list[str] = validate_sample_inventory(root)
+    errors += validate_provider_aot_promises(root)
     samples = root / "samples"
 
     if not version or "*" in version:
         errors.append("exact Tracon sample package version is required")
 
-    for project in (*SAMPLE_TEST_PROJECTS, AOT_PROJECT, NET8_CONSUMER_PROJECT):
+    for project in (*SAMPLE_TEST_PROJECTS, *AOT_PROJECTS, NET8_CONSUMER_PROJECT):
         csproj = samples / project / f"{project}.csproj"
         if not csproj.exists():
             errors.append(f"missing release sample project: {project}")
@@ -222,8 +319,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
             print("❌ Testing.Contracts.Xunit graph'ına Tracon.Core sızdı")
             return 1
 
-        aot_csproj = root / "samples" / AOT_PROJECT / f"{AOT_PROJECT}.csproj"
-        # Native AOT publish needs a concrete RID; the sample carries none of its
+        # Native AOT publish needs a concrete RID; the samples carry none of their
         # own (a real consumer publishes for whatever RID their deploy target
         # is), so this run resolves it to the machine actually running the gate.
         # A separate `dotnet restore` step (as used for the other samples) does
@@ -231,22 +327,25 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
         # isolated NUGET_PACKAGES cache; restore and publish run as ONE command
         # instead, matching how a real consumer publishes.
         rid = _current_runtime_identifier(root=root, environment=environment)
-        publish_dir = temp / "aot"
-        publish = [
-            "dotnet", "publish", str(aot_csproj), "-c", "Release",
-            "--configfile", str(nuget_config), "-r", rid, property_arg, "-o", str(publish_dir),
-        ]
-        if _run(publish, root=root, environment=environment):
-            return 1
 
-        aot_assets = _project_assets_json(root, AOT_PROJECT).read_text(encoding="utf-8")
-        if '"Tracon.Testing/' in aot_assets or '"Tracon.Testing.Contracts.Xunit/' in aot_assets:
-            print("❌ Meta package graph'ına testing paketi sızdı")
-            return 1
+        for aot_project in AOT_PROJECTS:
+            aot_csproj = root / "samples" / aot_project / f"{aot_project}.csproj"
+            publish_dir = temp / f"aot-{aot_project}"
+            publish = [
+                "dotnet", "publish", str(aot_csproj), "-c", "Release",
+                "--configfile", str(nuget_config), "-r", rid, property_arg, "-o", str(publish_dir),
+            ]
+            if _run(publish, root=root, environment=environment):
+                return 1
 
-        executable = publish_dir / AOT_PROJECT
-        if _run([str(executable)], root=root, environment=environment):
-            return 1
+            aot_assets = _project_assets_json(root, aot_project).read_text(encoding="utf-8")
+            if '"Tracon.Testing/' in aot_assets or '"Tracon.Testing.Contracts.Xunit/' in aot_assets:
+                print(f"❌ {aot_project}: graph'a testing paketi sızdı")
+                return 1
+
+            executable = publish_dir / aot_project
+            if _run([str(executable)], root=root, environment=environment):
+                return 1
 
         # The program itself exits non-zero unless it runs on the net8.0
         # runtime; a missing runtime fails here with the host's own message.
@@ -271,6 +370,6 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
             print(f"❌ {NET8_CONSUMER_PROJECT}: restore isolated NUGET_PACKAGES kullanmadı")
             return 1
 
-    print(f"✅ {len(SAMPLE_TEST_PROJECTS)} exact-version packed sample, Native AOT smoke"
+    print(f"✅ {len(SAMPLE_TEST_PROJECTS)} exact-version packed sample, {len(AOT_PROJECTS)} Native AOT smoke"
           f" ve {NET8_CONSUMER_FRAMEWORK} tüketici smoke: {version}")
     return 0

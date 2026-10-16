@@ -36,7 +36,12 @@ mapping, streaming, tool calling and usage counters are not written in Tracon.
 Its transitive dependencies are only `Microsoft.Extensions.AI.Abstractions`,
 `System.Net.ServerSentEvents`, `System.Text.Json` and `System.IO.Pipelines`.
 
-The package is AOT compatible (`IsAotCompatible=true`, zero warnings).
+**Not Native AOT-compatible.** The package's own code is analyzer-clean
+(`IsAotCompatible=true`, zero warnings), but the Anthropic SDK's `IChatClient`
+adapter initializes reflection-based JSON serialization: a Native AOT app that
+calls the provider fails on the first request with `Reflection-based serialization
+has been disabled`, and the publish emits thousands of trim and AOT warnings from
+the SDK. Measured 2026-10-17 with SDK 12.58.0.
 
 ## `max_tokens` is required
 
@@ -104,9 +109,13 @@ var binding = new ModelBinding
   Use `anthropic.thinking.mode = adaptive` with `anthropic.effort`, leave
   `Temperature` and `TopP` empty, and set `SupportsSampling = false` on the model's
   catalog entry so such a definition fails at compile time instead of at run time.
-- **`ModelBinding.ReasoningEffort` becomes a thinking budget.** The SDK adapter maps
-  it to `budget_tokens` (1024 for `Low` up to 32768 for `ExtraHigh`); use
-  `anthropic.effort` on current models. A `thinking` provider setting wins over it.
+- **`ModelBinding.ReasoningEffort` becomes adaptive thinking.** It is sent as
+  `thinking: {"type":"adaptive"}` plus `output_config.effort` (`low`, `medium`, `high`,
+  `xhigh`), which every current Claude model accepts. A model that predates adaptive
+  thinking (`claude-haiku-4-5`) rejects it with `400`: select that model with
+  `anthropic.thinking.mode = enabled` and `anthropic.thinking.budgetTokens`. A `thinking`
+  provider setting wins over `ReasoningEffort`. Measured live on 2026-10-17 across the
+  Claude 5 family and `claude-haiku-4-5`.
 - **Temperature must be 1 while budgeted thinking is on.** When
   `anthropic.thinking.budgetTokens` is given, `ModelBinding.Temperature` must be
   either left empty or set to `1`; any other value gets the request rejected with

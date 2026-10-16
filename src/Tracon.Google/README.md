@@ -61,7 +61,11 @@ deliberate trade-off and is kept isolated inside this package: a consumer not us
 Gemini pulls in none of it. Other Tracon packages are unaffected by these
 dependencies.
 
-The package is AOT-compatible (`IsAotCompatible=true`, zero warnings).
+**Not Native AOT-compatible.** The package's own code is analyzer-clean
+(`IsAotCompatible=true`), but the SDK's credential library (`Google.Apis.Auth`)
+uses reflection-based JSON (`Newtonsoft.Json`): a Native AOT publish of an app that
+calls the provider emits about 100 trim and AOT warnings. Measured 2026-10-17 with
+`Google.GenAI` 1.26.1.
 
 ## Provider-specific settings
 
