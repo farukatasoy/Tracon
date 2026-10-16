@@ -10,7 +10,7 @@
 > **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.4`. Freeze yolunun ilk üç
 > ölçütü bitti: küçültme (Faz 212–213), bağımlılık yükseltmesi (Faz 214–216)
 > ve modernizasyon (Faz 217); ölçüt 4 karar verildi (UR-012 = A: yeni yetenek
-> yok). Sıradaki iş ölçüt 5: F-560, F-290, F-559. Faz 212–217 `origin/main`'de yok; CI onları hiç koşmadı. GA
+> yok). Sıradaki iş ölçüt 5: Faz 218 (F-290) ve F-559; F-560 MAF GA'sını bekler (UR-013). Faz 212–217 `origin/main`'de yok; CI onları hiç koşmadı. GA
 > hâlâ ❌ (`NU5104`, ER-001).
 
 ## 1. Canlı durum (ölçüldü 2026-10-16)
@@ -43,7 +43,7 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 | 2 | Her bağımlılık en yeni sürümde | ✅ | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
 | 3 | Modernizasyon | ✅ **[Faz 217](arsiv/fazlar/217-SAGLAYICI-MODERNLESME-VE-AOT-VAADI.md)** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
 | 4 | Yeni yetenekler toplu girer | ✅ UR-012 = A 👤 (2026-10-17) | Freeze'den önce **yeni yetenek girmez**; yalnız sözleşmeyi değiştiren kırıcı kalemler girer: F-290 (`AuthorizationConfigurationKey` kaldırma + veri taşıma). F-466 (kanıtsız iki public istisna) ölçümle kapandı: A-80 ikisini belgeledi, kırıcı iş gerekmedi. Ekleyici yetenekler 1.x minor'a kalır; RC ile GA arasında yetenek eklenmez (UR-005 A) |
-| 5 | Kırıcı kalemler kapandı · public imzada upstream deneysel tip yok · 1.x evrim kuralları yazılı ve kapılı | ⏳ **sıradaki** | F-560 (A-63 `AddLoopEvaluator` ×4, A-77 `AgentFileStoreContract`) · F-290 · F-559 (A-76, A-67, A-68). F-466 ✅ (2026-10-17, ölçüm) |
+| 5 | Kırıcı kalemler kapandı · public imzada upstream deneysel tip yok · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 → 📋 **[Faz 218](218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md)** (plan onayı bekler) · F-559 (A-76, A-67, A-68) · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |
 | 6 | Faz 193 (`net8.0`/`net9.0` düşer) | 📋 planlandı | En erken 2026-11-10 (K-855) |
 | 7 | Bir preview aralığı kararlı katmanda **sıfır** kırılmayla geçer | ⏳ | 3–6'dan sonra. `kapi.py yayin` kırılma listesi boş olur. Her yeni yetenek pencereyi yeniden başlatır |
 | 8 | `1.0.0-rc.1` provası yeşil | ⏳ | `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-rc.1` |
@@ -133,6 +133,7 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 | UR-006 | **A:** ön sürüm upstream bağımlılığı tam sürüm `[x]` yazılır (K-872) | Upstream kararlı olunca alt sınıra döner |
 | UR-009 | **B:** küçült → yükselt → modernize et → yetenekler → kurallar → RC'de dondur (§2) | — |
 | UR-012 | **A** 👤 (2026-10-17): freeze'den önce yeni yetenek yok; yalnız kırıcı kalemler (F-290; F-466 ölçümle kapandı). Ekleyici yetenekler 1.x minor; RC ile GA arasında yetenek eklenmez | Upstream GA uzun süre gelmezse ve RC'de bekleyen yetenek birikirse yeniden bakılır |
+| UR-013 | **F-560: MAF'ın GA'sı beklenir** 👤 (2026-10-17). `AddLoopEvaluator` ×4 ve `AgentFileStoreContract` olduğu gibi kalır; Tracon kendi ölçüt tipini kurmaz, sözleşmeyi `internal`'a çekmez. Freeze (`rc.1`) bu tetiğe bağlıdır | `uyum-probu.cs -- deneysel` public maruziyeti 0 gösterince F-560 kapanır; MAF GA uzarsa freeze'in bu tetiğe bağlılığı yeniden tartılır |
 | OP-001 | Paket sahibi nuget.org organizasyonu `Tracon` (K-755) | — |
 | OP-005 | NuGet yayını OIDC trusted publishing: `Tracon` sahipliğinde policy, `Tracon*`, push-only; kalıcı API key yok (OP-004) | — |
 | OP-006 · OP-007 | Her `v*` etiketi NuGet, npm ve GitHub release basar; not `CHANGELOG.md`'den gelir, gövde en fazla 125 000 karakter (F-553) | — |
@@ -168,7 +169,7 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 Önekler: `BL-` blocker · `RK-` risk · `OP-` operasyon kararı · `KG-` karar
 günlüğü · `KN-` kanıt · `UR-` ürün kararı · `ER-` ertelenen iş · `A-` dış
 denetim bulgusu (`ADAYLAR.md` ile ortak). **Sıradaki boş numara:** A-84 ·
-BL-059 · KN-036 · KG-050 · UR-013 · OP-013 · RK-016 · ER-004.
+BL-059 · KN-036 · KG-050 · UR-014 · OP-013 · RK-016 · ER-004.
 
 Kapanmış kayıt bu dosyada tutulmaz. Bir kimlik burada yoksa önce
 `grep -rn "<kimlik>" docs/` ile ara; sonra 2026-10-16 sadeleştirmesinden

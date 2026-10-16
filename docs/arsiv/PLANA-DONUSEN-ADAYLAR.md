@@ -2490,3 +2490,16 @@ deseni gösteriyor. İş mekaniktir ve paralelleştirilebilir.
 **Maliyet:** Ölçülmedi. Yeni ürün kodu gerekmez; yirmi dört test sınıfı.
 
 **Risk:** Yok — yalnız test eklenir.
+
+## 2026-10-17 — F-290 Faz 218'e dönüştü
+
+Plan: [`../218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md`](../218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md). Kararlar: eski alan `400`; aynı migration'da taşı ve sütunu düşür (UR-012).
+
+### F-290 · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi
+
+**Aciliyet:** 🟡
+
+**Sorun:** Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`)
+
+**Ne yapılır:** GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir
+
