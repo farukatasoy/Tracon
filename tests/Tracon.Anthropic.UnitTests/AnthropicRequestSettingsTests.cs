@@ -154,21 +154,37 @@ public sealed class AnthropicRequestSettingsTests
     }
 
     [Theory]
-    [InlineData(ReasoningEffort.Low, 1024)]
-    [InlineData(ReasoningEffort.High, 16384)]
-    [InlineData(ReasoningEffort.ExtraHigh, 32768)]
-    public async Task ReasoningEffort_alone_becomes_an_enabled_thinking_budget(ReasoningEffort effort, int budgetTokens)
+    [InlineData(ReasoningEffort.Low, "low")]
+    [InlineData(ReasoningEffort.Medium, "medium")]
+    [InlineData(ReasoningEffort.High, "high")]
+    [InlineData(ReasoningEffort.ExtraHigh, "xhigh")]
+    public async Task ReasoningEffort_alone_becomes_adaptive_thinking_with_an_effort(ReasoningEffort effort, string expectedEffort)
     {
-        // The SDK adapter's mapping, read from the body it sends. The guide and
-        // the README state these numbers; this keeps them honest across an SDK
-        // update.
+        // Phase 217 (K-1017 revised): measured against the live API on every
+        // current model, the budget form (`thinking.type=enabled`) is rejected
+        // with 400 and the adaptive form is accepted. The SDK adapter's mapping,
+        // read from the body it sends; the README states it.
         var body = await SendAsync(
             Settings(),
             new ChatOptions { MaxOutputTokens = 64000, Reasoning = new ReasoningOptions { Effort = effort } });
 
+        var thinking = body["thinking"]!.AsObject();
+
+        thinking["type"]!.GetValue<string>().ShouldBe("adaptive");
+        thinking.ContainsKey("budget_tokens").ShouldBeFalse();
+        body["output_config"]!["effort"]!.GetValue<string>().ShouldBe(expectedEffort);
+    }
+
+    [Fact]
+    public async Task The_enabled_mode_setting_restores_the_budget_form_for_models_that_predate_adaptive()
+    {
+        // claude-haiku-4-5 accepts a budget and rejects `adaptive` (live, 2026-10-17).
+        var body = await SendAsync(Settings(
+            (AnthropicProviderNames.ThinkingModeSetting, "enabled"),
+            (AnthropicProviderNames.ThinkingBudgetTokensSetting, 4096)));
+
         body["thinking"]!["type"]!.GetValue<string>().ShouldBe("enabled");
-        body["thinking"]!["budget_tokens"]!.GetValue<int>().ShouldBe(budgetTokens);
-        body.ContainsKey("output_config").ShouldBeFalse("ReasoningEffort is not anthropic.effort");
+        body["thinking"]!["budget_tokens"]!.GetValue<int>().ShouldBe(4096);
     }
 
     [Fact]
