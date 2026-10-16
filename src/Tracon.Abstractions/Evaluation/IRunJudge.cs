@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.Extensions.AI;
 
 namespace Tracon;
@@ -130,25 +131,25 @@ public sealed record RunJudgment
     public string? EvaluatorVersion { get; init; }
 }
 
-/// <summary>A normalized judge failure returned by manual scoring.</summary>
-public sealed record JudgeFailure
+[Description("A normalized judge failure returned by manual scoring.")]
+internal sealed record JudgeFailure
 {
-    /// <summary>The judge that failed.</summary>
+    [Description("The judge that failed.")]
     public required string JudgeName { get; init; }
 
-    /// <summary>The stable failure code.</summary>
+    [Description("The stable failure code.")]
     public required string ErrorType { get; init; }
 
-    /// <summary>Whether retrying the job can help.</summary>
+    [Description("Whether retrying the job can help.")]
     public required bool IsRetryable { get; init; }
 }
 
-/// <summary>The result of manually scoring a run.</summary>
-public sealed record JudgeRunResponse
+[Description("The result of manually scoring a run.")]
+internal sealed record JudgeRunResponse
 {
-    /// <summary>The score rows that were written.</summary>
+    [Description("The score rows that were written.")]
     public IReadOnlyList<RunScore> Scores { get; init; } = [];
 
-    /// <summary>The normalized failures reported by judges.</summary>
+    [Description("The normalized failures reported by judges.")]
     public IReadOnlyList<JudgeFailure> Failures { get; init; } = [];
 }

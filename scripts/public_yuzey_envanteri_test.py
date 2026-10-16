@@ -107,7 +107,7 @@ public sealed class UndocumentedException : System.Exception { }
 """
 
 
-def _envanter(korpus_girdileri, semalar=frozenset(), gerekceler=None, ek_paketler=None):
+def _envanter(korpus_girdileri, gerekceler=None, ek_paketler=None):
     tipler = {}
     for tip in envanter.unshipped_ayristir("Tracon.Core", CORE_UNSHIPPED).values():
         tipler[tip.anahtar] = tip
@@ -121,7 +121,7 @@ def _envanter(korpus_girdileri, semalar=frozenset(), gerekceler=None, ek_paketle
             tipler[tip.anahtar] = tip
         kaynaklar[paket] = [(f"src/{paket}/Types.cs", kaynak)]
     envanter.bildirimleri_tara(tipler, kaynaklar)
-    envanter.siniflandir(tipler, envanter.Korpus.kur(korpus_girdileri), set(semalar), gerekceler or {})
+    envanter.siniflandir(tipler, envanter.Korpus.kur(korpus_girdileri), gerekceler or {})
     return tipler
 
 
@@ -225,9 +225,12 @@ class SiniflandirmaTestleri(unittest.TestCase):
         tipler = _envanter([("site", "a.md", "The SampleTool mode is fast.")])
         self.assertEqual(_tip(tipler, "Tracon.SampleToolAttribute").sinif, "kanıtsız")
 
-    def test_openapi_semasi_tuketici_kanitidir(self):
-        tipler = _envanter([], semalar={"AgentDescriptor"})
-        self.assertEqual(_tip(tipler, "Tracon.AgentDescriptor").gerekce, "http-sema:docs/openapi/tracon.json")
+    def test_openapi_semasi_tuketici_kaniti_degildir(self):
+        # Faz 212: HTTP DTO'su internal doğar; sevk edilen belgede görünmesi onu public tutmaz.
+        # Belge korpusa girmez (`.json` uzantısı yok) ve sınıflandırıcı şema adı almaz.
+        self.assertNotIn(".json", envanter.KORPUS_UZANTILARI)
+        tipler = _envanter([])
+        self.assertEqual(_tip(tipler, "Tracon.AgentDescriptor").sinif, "kanıtsız")
 
     def test_arayuz_ve_abstract_sinif_seamdir_ve_imzalarini_tutar(self):
         tipler = _envanter([])

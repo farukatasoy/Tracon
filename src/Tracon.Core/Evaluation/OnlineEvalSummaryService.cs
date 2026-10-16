@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Options;
 
@@ -199,43 +200,42 @@ internal sealed class OnlineEvalSummaryService(
     }
 }
 
-/// <summary>Summarizes the online evaluation window (<c>GET /api/evaluation/online</c>).</summary>
-public sealed record OnlineEvaluationSummary
+[Description("Summarizes the online evaluation window (`GET /api/evaluation/online`).")]
+internal sealed record OnlineEvaluationSummary
 {
-    /// <summary>Gets the window start in UTC.</summary>
+    [Description("Gets the window start in UTC.")]
     public required DateTimeOffset WindowStart { get; init; }
 
-    /// <summary>Gets the window end in UTC.</summary>
+    [Description("Gets the window end in UTC.")]
     public required DateTimeOffset WindowEnd { get; init; }
 
-    /// <summary>Gets the sample count, which is the number of scored runs in the window.</summary>
+    [Description("Gets the sample count, which is the number of scored runs in the window.")]
     public required long SampleCount { get; init; }
 
-    /// <summary>Gets the average score in the window, from 0 to 100, or <see langword="null"/> with no samples.</summary>
+    [Description("Gets the average score in the window, from 0 to 100, or `null` with no samples.")]
     public double? AverageScore { get; init; }
 
-    /// <summary>Gets the configured low-score threshold.</summary>
+    [Description("Gets the configured low-score threshold.")]
     public required int LowScoreThreshold { get; init; }
 
-    /// <summary>Gets the minimum sample count required for an alarm.</summary>
+    [Description("Gets the minimum sample count required for an alarm.")]
     public required int MinSampleSize { get; init; }
 
-    /// <summary>
-    /// Gets <see langword="true"/> when the average is below the threshold and
-    /// the sample count meets the minimum.
-    /// </summary>
+    [Description(
+        "Gets `true` when the average is below the threshold and\n" +
+        "the sample count meets the minimum.")]
     public required bool BelowThreshold { get; init; }
 
-    /// <summary>Gets the total judge cost in the window, or <see langword="null"/> when unknown.</summary>
+    [Description("Gets the total judge cost in the window, or `null` when unknown.")]
     public decimal? JudgeCost { get; init; }
 
-    /// <summary>Gets the judge-cost currency.</summary>
+    [Description("Gets the judge-cost currency.")]
     public string? JudgeCostCurrency { get; init; }
 
-    /// <summary>Gets the number of currencies the window's judge runs are priced in.</summary>
     /// <remarks>
     /// Amounts in two currencies are never added: above one, <c>JudgeCost</c> and
     /// <c>JudgeCostCurrency</c> are <see langword="null"/>.
     /// </remarks>
+    [Description("Gets the number of currencies the window's judge runs are priced in.")]
     public int JudgeCostCurrencyCount { get; init; }
 }

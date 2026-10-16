@@ -4007,7 +4007,7 @@ export interface components {
         DataSubjectErasureResult: {
             /**
              * @description Gets whether this was a preview: `true` means
-             *     IReadOnlyDictionary&lt;string, int&gt; DataSubjectErasureResult.RowsByTarget shows what WOULD be deleted and nothing was
+             *     RowsByTarget shows what WOULD be deleted and nothing was
              *     actually removed.
              */
             dryRun: boolean;
@@ -4653,7 +4653,7 @@ export interface components {
             resolved: boolean;
             /** @description Gets how the request body becomes the run's message. */
             payloadMode: components["schemas"]["InboundTriggerPayloadMode"];
-            /** @description Gets the dotted path used when InboundTriggerPayloadMode InboundTriggerResponse.PayloadMode is InboundTriggerPayloadMode.Path. */
+            /** @description Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path. */
             payloadPath?: null | string;
             /** @description Gets whether the trigger accepts requests. */
             enabled: boolean;
@@ -4678,7 +4678,7 @@ export interface components {
             signingSecretConfigurationName?: null | string;
             /** @description Gets how the request body becomes the run's message. Default InboundTriggerPayloadMode.WholeBody. */
             payloadMode?: components["schemas"]["InboundTriggerPayloadMode"];
-            /** @description Gets the dotted path used when InboundTriggerPayloadMode InboundTriggerSaveRequest.PayloadMode is InboundTriggerPayloadMode.Path. */
+            /** @description Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path. */
             payloadPath?: null | string;
             /** @description Gets whether the trigger accepts requests. Default `true`. */
             enabled?: boolean;
@@ -4924,7 +4924,7 @@ export interface components {
              * @description The lane the jobs this schedule produces run in. See
              *     `JobLanes`. Left empty, the jobs run in `JobLanes.Default`
              *     (or whatever `TraconSchedulingOptions.LaneByHandlerKey` maps
-             *     string JobScheduleSaveRequest.HandlerKey to).
+             *     HandlerKey to).
              */
             lane?: null | string;
             /** @description Input set or parameters. */
@@ -8609,7 +8609,7 @@ export interface components {
             /**
              * @description Ordered agent/function node list for a Sequential workflow that mixes
              *     function nodes in with agents. Mutually exclusive with
-             *     IReadOnlyList&lt;string&gt;? WorkflowSaveRequest.AgentNames; leave both empty or set only one.
+             *     AgentNames; leave both empty or set only one.
              */
             nodes?: null | components["schemas"]["WorkflowNodeReference"][];
             /** @description Name of the manager agent. Only for WorkflowKind.Magentic. */

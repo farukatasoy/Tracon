@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -215,15 +216,15 @@ internal static class ApiKeyEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>The request body for creating an API key.</summary>
-public sealed record ApiKeyCreateRequest
+[Description("The request body for creating an API key.")]
+internal sealed record ApiKeyCreateRequest
 {
-    /// <summary>Gets the name that lets the operator identify the key.</summary>
+    [Description("Gets the name that lets the operator identify the key.")]
     public string? Name { get; init; }
 
-    /// <summary>Gets the set of scopes. Cannot be empty; an unknown value is rejected.</summary>
+    [Description("Gets the set of scopes. Cannot be empty; an unknown value is rejected.")]
     public IReadOnlyList<ApiKeyScope>? Scopes { get; init; }
 
-    /// <summary>Gets the expiration time. If not given, the key never expires.</summary>
+    [Description("Gets the expiration time. If not given, the key never expires.")]
     public DateTimeOffset? ExpiresAt { get; init; }
 }

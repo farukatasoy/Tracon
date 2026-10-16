@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -574,61 +575,58 @@ internal static class WebhookEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>The request body for saving a webhook subscription.</summary>
 /// <remarks>
 /// This contract has <strong>no secret field</strong>. An extra
 /// <c>secret</c> field sent by the client is not bound and is not written
 /// anywhere.
 /// </remarks>
-public sealed record WebhookSaveRequest
+[Description("The request body for saving a webhook subscription.")]
+internal sealed record WebhookSaveRequest
 {
-    /// <summary>The address events are sent to. Only <c>https</c> (or loopback <c>http</c>).</summary>
+    [Description("The address events are sent to. Only `https` (or loopback `http`).")]
     public string? Url { get; init; }
 
-    /// <summary>The names of the subscribed events. See <see cref="WebhookEvents"/>.</summary>
+    [Description("The names of the subscribed events. See WebhookEvents.")]
     public IReadOnlyList<string>? Events { get; init; }
 
-    /// <summary>
-    /// The <strong>name</strong> of the configuration key from which the signing secret is read.
-    /// Not the secret itself.
-    /// </summary>
+    [Description(
+        "The <strong>name</strong> of the configuration key from which the signing secret is read.\n" +
+        "Not the secret itself.")]
     public string? SecretConfigurationKey { get; init; }
 
-    /// <summary>
-    /// Additional headers to add to every request. The values are stored as
-    /// plain text, so a header whose name looks like a credential
-    /// (<c>Authorization</c>, <c>X-Api-Key</c>, <c>Cookie</c>, any name ending
-    /// in <c>-key</c>) is rejected with <c>400</c>: declare it in
-    /// <c>HeaderConfigurationKeys</c>. Send every header with its real
-    /// value on each save: a response masks the values as <c>***</c>, and a
-    /// value of <c>***</c> is rejected with <c>400</c>. Absent or
-    /// <see langword="null"/> keeps the stored headers; <c>{}</c> removes them.
-    /// </summary>
+    [Description(
+        "Additional headers to add to every request. The values are stored as\n" +
+        "plain text, so a header whose name looks like a credential\n" +
+        "(`Authorization`, `X-Api-Key`, `Cookie`, any name ending\n" +
+        "in `-key`) is rejected with `400`: declare it in\n" +
+        "`HeaderConfigurationKeys`. Send every header with its real\n" +
+        "value on each save: a response masks the values as `***`, and a\n" +
+        "value of `***` is rejected with `400`. Absent or\n" +
+        "`null` keeps the stored headers; `{}` removes them.")]
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
 
-    /// <summary>
-    /// Credential headers, as a map from the header name to the NAME of the
-    /// configuration key its value is read from, for example
-    /// <c>{"X-Api-Key": "Tracon:WebhookSecrets:acme:OrdersKey"}</c>. Every name
-    /// must sit inside the caller's tenant key space. A response returns the
-    /// map unmasked: it carries no value. Absent or <see langword="null"/> keeps
-    /// the stored map; <c>{}</c> removes it.
-    /// </summary>
+    [Description(
+        "Credential headers, as a map from the header name to the NAME of the\n" +
+        "configuration key its value is read from, for example\n" +
+        "`{\"X-Api-Key\": \"Tracon:WebhookSecrets:acme:OrdersKey\"}`. Every name\n" +
+        "must sit inside the caller's tenant key space. A response returns the\n" +
+        "map unmasked: it carries no value. Absent or `null` keeps\n" +
+        "the stored map; `{}` removes it.")]
     public IReadOnlyDictionary<string, string>? HeaderConfigurationKeys { get; init; }
 
-    /// <summary>Whether the subscription is enabled.</summary>
+    [Description("Whether the subscription is enabled.")]
     public bool Enabled { get; init; } = true;
 }
 
-/// <summary>The response for the test event.</summary>
-public sealed record WebhookTestResponse
+[Description("The response for the test event.")]
+internal sealed record WebhookTestResponse
 {
-    /// <summary>The subscription name.</summary>
+    [Description("The subscription name.")]
     public required string Name { get; init; }
 
-    /// <summary>Whether the event was written to the queue.</summary>
+    [Description("Whether the event was written to the queue.")]
     public required bool Queued { get; init; }
 
-    /// <summary>The description shown to the user.</summary>
+    [Description("The description shown to the user.")]
     public required string Message { get; init; }
 }

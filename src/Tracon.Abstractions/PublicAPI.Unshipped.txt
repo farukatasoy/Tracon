@@ -218,16 +218,6 @@ Tracon.AgentSourceDiagnostic.Name.init -> void
 Tracon.AgentSourceDiagnostic.Priority.get -> int
 Tracon.AgentSourceDiagnostic.Priority.init -> void
 Tracon.AgentSourcePriority
-Tracon.AgentValidationReport
-Tracon.AgentValidationReport.<Clone>$() -> Tracon.AgentValidationReport!
-Tracon.AgentValidationReport.AgentValidationReport() -> void
-Tracon.AgentValidationReport.Equals(Tracon.AgentValidationReport? other) -> bool
-Tracon.AgentValidationReport.Inconclusive.get -> bool
-Tracon.AgentValidationReport.Inconclusive.init -> void
-Tracon.AgentValidationReport.Messages.get -> System.Collections.Generic.IReadOnlyList<Tracon.ValidationMessage!>!
-Tracon.AgentValidationReport.Messages.init -> void
-Tracon.AgentValidationReport.Valid.get -> bool
-Tracon.AgentValidationReport.Valid.init -> void
 Tracon.AmbientRunAttributionScope
 Tracon.AmbientTenantScope
 Tracon.ApiKeyCreationResult
@@ -421,24 +411,6 @@ Tracon.AuditQuery.Limit.get -> int
 Tracon.AuditQuery.Limit.init -> void
 Tracon.AuditQuery.TenantId.get -> string?
 Tracon.AuditQuery.TenantId.init -> void
-Tracon.CanaryDecisionKind
-Tracon.CanaryDecisionKind.Healthy = 1 -> Tracon.CanaryDecisionKind
-Tracon.CanaryDecisionKind.InsufficientData = 0 -> Tracon.CanaryDecisionKind
-Tracon.CanaryDecisionKind.RollBack = 2 -> Tracon.CanaryDecisionKind
-Tracon.CanaryEvaluation
-Tracon.CanaryEvaluation.<Clone>$() -> Tracon.CanaryEvaluation!
-Tracon.CanaryEvaluation.Canary.get -> Tracon.ExperimentVariantResult?
-Tracon.CanaryEvaluation.Canary.init -> void
-Tracon.CanaryEvaluation.CanaryEvaluation() -> void
-Tracon.CanaryEvaluation.Control.get -> Tracon.ExperimentVariantResult?
-Tracon.CanaryEvaluation.Control.init -> void
-Tracon.CanaryEvaluation.Decision.get -> Tracon.CanaryDecisionKind
-Tracon.CanaryEvaluation.Decision.init -> void
-Tracon.CanaryEvaluation.Equals(Tracon.CanaryEvaluation? other) -> bool
-Tracon.CanaryEvaluation.EvaluatedAt.get -> System.DateTimeOffset
-Tracon.CanaryEvaluation.EvaluatedAt.init -> void
-Tracon.CanaryEvaluation.Reason.get -> string!
-Tracon.CanaryEvaluation.Reason.init -> void
 Tracon.CanaryPolicy
 Tracon.CanaryPolicy.<Clone>$() -> Tracon.CanaryPolicy!
 Tracon.CanaryPolicy.CanaryPolicy() -> void
@@ -543,18 +515,6 @@ Tracon.ContentGuardSource.SkillResource = 5 -> Tracon.ContentGuardSource
 Tracon.ContentGuardSource.ToolResult = 2 -> Tracon.ContentGuardSource
 Tracon.ContentGuardSource.Unknown = 0 -> Tracon.ContentGuardSource
 Tracon.ContentGuardSource.UserMessage = 1 -> Tracon.ContentGuardSource
-Tracon.ContextWindowEstimate
-Tracon.ContextWindowEstimate.<Clone>$() -> Tracon.ContextWindowEstimate!
-Tracon.ContextWindowEstimate.AllowedPromptTokens.get -> int?
-Tracon.ContextWindowEstimate.AllowedPromptTokens.init -> void
-Tracon.ContextWindowEstimate.ContextWindowEstimate() -> void
-Tracon.ContextWindowEstimate.ContextWindowTokens.get -> int?
-Tracon.ContextWindowEstimate.ContextWindowTokens.init -> void
-Tracon.ContextWindowEstimate.Equals(Tracon.ContextWindowEstimate? other) -> bool
-Tracon.ContextWindowEstimate.PromptTokens.get -> int
-Tracon.ContextWindowEstimate.PromptTokens.init -> void
-Tracon.ContextWindowEstimate.WouldBeRejected.get -> bool
-Tracon.ContextWindowEstimate.WouldBeRejected.init -> void
 Tracon.ConversationBranch
 Tracon.ConversationBranch.BranchFromSequence.get -> long
 Tracon.ConversationBranch.BranchFromSequence.init -> void
@@ -566,16 +526,6 @@ Tracon.ConversationBranch.CopiedItemCount.get -> int
 Tracon.ConversationBranch.CopiedItemCount.init -> void
 Tracon.ConversationBranch.Deconstruct(out System.Guid ConversationId, out long BranchFromSequence, out int CopiedItemCount) -> void
 Tracon.ConversationBranch.Equals(Tracon.ConversationBranch other) -> bool
-Tracon.DataSubjectErasureResult
-Tracon.DataSubjectErasureResult.<Clone>$() -> Tracon.DataSubjectErasureResult!
-Tracon.DataSubjectErasureResult.ActiveRunIds.get -> System.Collections.Generic.IReadOnlyList<System.Guid>!
-Tracon.DataSubjectErasureResult.ActiveRunIds.init -> void
-Tracon.DataSubjectErasureResult.DataSubjectErasureResult() -> void
-Tracon.DataSubjectErasureResult.DryRun.get -> bool
-Tracon.DataSubjectErasureResult.DryRun.init -> void
-Tracon.DataSubjectErasureResult.Equals(Tracon.DataSubjectErasureResult? other) -> bool
-Tracon.DataSubjectErasureResult.RowsByTarget.get -> System.Collections.Generic.IReadOnlyDictionary<string!, int>!
-Tracon.DataSubjectErasureResult.RowsByTarget.init -> void
 Tracon.DataSubjectExport
 Tracon.DataSubjectExport.<Clone>$() -> Tracon.DataSubjectExport!
 Tracon.DataSubjectExport.DataSubjectExport() -> void
@@ -1405,26 +1355,6 @@ Tracon.IdempotencyState.Completed = 2 -> Tracon.IdempotencyState
 Tracon.IdempotencyState.FingerprintMismatch = 3 -> Tracon.IdempotencyState
 Tracon.IdempotencyState.InProgress = 1 -> Tracon.IdempotencyState
 Tracon.IdempotencyState.Reserved = 0 -> Tracon.IdempotencyState
-Tracon.ImageGenerationOperatorRequest
-Tracon.ImageGenerationOperatorRequest.<Clone>$() -> Tracon.ImageGenerationOperatorRequest!
-Tracon.ImageGenerationOperatorRequest.Count.get -> int?
-Tracon.ImageGenerationOperatorRequest.Count.init -> void
-Tracon.ImageGenerationOperatorRequest.Equals(Tracon.ImageGenerationOperatorRequest? other) -> bool
-Tracon.ImageGenerationOperatorRequest.ImageGenerationOperatorRequest() -> void
-Tracon.ImageGenerationOperatorRequest.Prompt.get -> string?
-Tracon.ImageGenerationOperatorRequest.Prompt.init -> void
-Tracon.ImageGenerationOperatorRequest.SessionId.get -> string?
-Tracon.ImageGenerationOperatorRequest.SessionId.init -> void
-Tracon.ImageGenerationOperatorRequest.Size.get -> string?
-Tracon.ImageGenerationOperatorRequest.Size.init -> void
-Tracon.ImageGenerationOperatorResponse
-Tracon.ImageGenerationOperatorResponse.<Clone>$() -> Tracon.ImageGenerationOperatorResponse!
-Tracon.ImageGenerationOperatorResponse.Attachments.get -> System.Collections.Generic.IReadOnlyList<Tracon.AttachmentDescriptor!>!
-Tracon.ImageGenerationOperatorResponse.Attachments.init -> void
-Tracon.ImageGenerationOperatorResponse.Equals(Tracon.ImageGenerationOperatorResponse? other) -> bool
-Tracon.ImageGenerationOperatorResponse.ImageGenerationOperatorResponse() -> void
-Tracon.ImageGenerationOperatorResponse.Usage.get -> Tracon.ToolCallUsage!
-Tracon.ImageGenerationOperatorResponse.Usage.init -> void
 Tracon.InboundTrigger
 Tracon.InboundTrigger.<Clone>$() -> Tracon.InboundTrigger!
 Tracon.InboundTrigger.CreatedAt.get -> System.DateTimeOffset
@@ -1661,24 +1591,6 @@ Tracon.JobStatus.Failed = 4 -> Tracon.JobStatus
 Tracon.JobStatus.Leased = 1 -> Tracon.JobStatus
 Tracon.JobStatus.Pending = 0 -> Tracon.JobStatus
 Tracon.JobStatus.Running = 2 -> Tracon.JobStatus
-Tracon.JudgeFailure
-Tracon.JudgeFailure.<Clone>$() -> Tracon.JudgeFailure!
-Tracon.JudgeFailure.Equals(Tracon.JudgeFailure? other) -> bool
-Tracon.JudgeFailure.ErrorType.get -> string!
-Tracon.JudgeFailure.ErrorType.init -> void
-Tracon.JudgeFailure.IsRetryable.get -> bool
-Tracon.JudgeFailure.IsRetryable.init -> void
-Tracon.JudgeFailure.JudgeFailure() -> void
-Tracon.JudgeFailure.JudgeName.get -> string!
-Tracon.JudgeFailure.JudgeName.init -> void
-Tracon.JudgeRunResponse
-Tracon.JudgeRunResponse.<Clone>$() -> Tracon.JudgeRunResponse!
-Tracon.JudgeRunResponse.Equals(Tracon.JudgeRunResponse? other) -> bool
-Tracon.JudgeRunResponse.Failures.get -> System.Collections.Generic.IReadOnlyList<Tracon.JudgeFailure!>!
-Tracon.JudgeRunResponse.Failures.init -> void
-Tracon.JudgeRunResponse.JudgeRunResponse() -> void
-Tracon.JudgeRunResponse.Scores.get -> System.Collections.Generic.IReadOnlyList<Tracon.RunScore!>!
-Tracon.JudgeRunResponse.Scores.init -> void
 Tracon.JudgeScore
 Tracon.JudgeScore.<Clone>$() -> Tracon.JudgeScore!
 Tracon.JudgeScore.Comment.get -> string?
@@ -2294,20 +2206,6 @@ Tracon.RetentionPolicy.TenantId.get -> string!
 Tracon.RetentionPolicy.TenantId.init -> void
 Tracon.RetentionPolicy.UpdatedAt.get -> System.DateTimeOffset
 Tracon.RetentionPolicy.UpdatedAt.init -> void
-Tracon.RetentionPreview
-Tracon.RetentionPreview.<Clone>$() -> Tracon.RetentionPreview!
-Tracon.RetentionPreview.Cutoff.get -> System.DateTimeOffset?
-Tracon.RetentionPreview.Cutoff.init -> void
-Tracon.RetentionPreview.Enabled.get -> bool
-Tracon.RetentionPreview.Enabled.init -> void
-Tracon.RetentionPreview.Equals(Tracon.RetentionPreview? other) -> bool
-Tracon.RetentionPreview.MatchingRows.get -> long
-Tracon.RetentionPreview.MatchingRows.init -> void
-Tracon.RetentionPreview.MaxAgeDays.get -> int?
-Tracon.RetentionPreview.MaxAgeDays.init -> void
-Tracon.RetentionPreview.RetentionPreview() -> void
-Tracon.RetentionPreview.Target.get -> string!
-Tracon.RetentionPreview.Target.init -> void
 Tracon.RetentionRun
 Tracon.RetentionRun.<Clone>$() -> Tracon.RetentionRun!
 Tracon.RetentionRun.ArchivedRows.get -> long
@@ -2417,18 +2315,6 @@ Tracon.RunCost.RunCost() -> void
 Tracon.RunCost.Source.get -> Tracon.PricingSource
 Tracon.RunCost.Source.init -> void
 Tracon.RunCost.Total() -> decimal?
-Tracon.RunCostRecalculationResult
-Tracon.RunCostRecalculationResult.<Clone>$() -> Tracon.RunCostRecalculationResult!
-Tracon.RunCostRecalculationResult.Equals(Tracon.RunCostRecalculationResult? other) -> bool
-Tracon.RunCostRecalculationResult.RunCostRecalculationResult() -> void
-Tracon.RunCostRecalculationResult.RunsConsidered.get -> long
-Tracon.RunCostRecalculationResult.RunsConsidered.init -> void
-Tracon.RunCostRecalculationResult.RunsSkipped.get -> long
-Tracon.RunCostRecalculationResult.RunsSkipped.init -> void
-Tracon.RunCostRecalculationResult.RunsStillUnknown.get -> long
-Tracon.RunCostRecalculationResult.RunsStillUnknown.init -> void
-Tracon.RunCostRecalculationResult.RunsUpdated.get -> long
-Tracon.RunCostRecalculationResult.RunsUpdated.init -> void
 Tracon.RunError
 Tracon.RunError.<Clone>$() -> Tracon.RunError!
 Tracon.RunError.Class.get -> Tracon.RunErrorClass?
@@ -3119,30 +3005,6 @@ Tracon.SessionAuthorizationRequest.TenantId.get -> string!
 Tracon.SessionAuthorizationRequest.TenantId.init -> void
 Tracon.SessionAuthorizationRequest.UserId.get -> string?
 Tracon.SessionAuthorizationRequest.UserId.init -> void
-Tracon.SessionBranchRequest
-Tracon.SessionBranchRequest.<Clone>$() -> Tracon.SessionBranchRequest!
-Tracon.SessionBranchRequest.Equals(Tracon.SessionBranchRequest? other) -> bool
-Tracon.SessionBranchRequest.NewSessionId.get -> string?
-Tracon.SessionBranchRequest.NewSessionId.init -> void
-Tracon.SessionBranchRequest.SessionBranchRequest() -> void
-Tracon.SessionBranchRequest.UpToSequence.get -> long?
-Tracon.SessionBranchRequest.UpToSequence.init -> void
-Tracon.SessionBranchResult
-Tracon.SessionBranchResult.<Clone>$() -> Tracon.SessionBranchResult!
-Tracon.SessionBranchResult.BranchFromSequence.get -> long
-Tracon.SessionBranchResult.BranchFromSequence.init -> void
-Tracon.SessionBranchResult.ConversationId.get -> System.Guid
-Tracon.SessionBranchResult.ConversationId.init -> void
-Tracon.SessionBranchResult.CopiedItemCount.get -> int
-Tracon.SessionBranchResult.CopiedItemCount.init -> void
-Tracon.SessionBranchResult.Equals(Tracon.SessionBranchResult? other) -> bool
-Tracon.SessionBranchResult.ParentConversationId.get -> System.Guid
-Tracon.SessionBranchResult.ParentConversationId.init -> void
-Tracon.SessionBranchResult.ParentSessionId.get -> string!
-Tracon.SessionBranchResult.ParentSessionId.init -> void
-Tracon.SessionBranchResult.SessionBranchResult() -> void
-Tracon.SessionBranchResult.SessionId.get -> string!
-Tracon.SessionBranchResult.SessionId.init -> void
 Tracon.SessionQuery
 Tracon.SessionQuery.<Clone>$() -> Tracon.SessionQuery!
 Tracon.SessionQuery.AgentName.get -> string?
@@ -3260,36 +3122,6 @@ Tracon.SkillScriptGrant.TenantId.init -> void
 Tracon.SkillScriptOrigin
 Tracon.SkillScriptOrigin.File = 0 -> Tracon.SkillScriptOrigin
 Tracon.SkillScriptOrigin.Stored = 1 -> Tracon.SkillScriptOrigin
-Tracon.SpeakRequest
-Tracon.SpeakRequest.<Clone>$() -> Tracon.SpeakRequest!
-Tracon.SpeakRequest.Equals(Tracon.SpeakRequest? other) -> bool
-Tracon.SpeakRequest.IncludeTimestamps.get -> bool
-Tracon.SpeakRequest.IncludeTimestamps.init -> void
-Tracon.SpeakRequest.Provider.get -> string?
-Tracon.SpeakRequest.Provider.init -> void
-Tracon.SpeakRequest.SessionId.get -> string?
-Tracon.SpeakRequest.SessionId.init -> void
-Tracon.SpeakRequest.SpeakRequest() -> void
-Tracon.SpeakRequest.Text.get -> string!
-Tracon.SpeakRequest.Text.init -> void
-Tracon.SpeakRequest.VoiceId.get -> string?
-Tracon.SpeakRequest.VoiceId.init -> void
-Tracon.SpeakResponse
-Tracon.SpeakResponse.<Clone>$() -> Tracon.SpeakResponse!
-Tracon.SpeakResponse.Alignment.get -> System.Collections.Generic.IReadOnlyList<Tracon.SpeechAlignment!>?
-Tracon.SpeakResponse.Alignment.init -> void
-Tracon.SpeakResponse.Attachment.get -> Tracon.AttachmentDescriptor!
-Tracon.SpeakResponse.Attachment.init -> void
-Tracon.SpeakResponse.Characters.get -> int
-Tracon.SpeakResponse.Characters.init -> void
-Tracon.SpeakResponse.Cost.get -> decimal?
-Tracon.SpeakResponse.Cost.init -> void
-Tracon.SpeakResponse.Currency.get -> string?
-Tracon.SpeakResponse.Currency.init -> void
-Tracon.SpeakResponse.Equals(Tracon.SpeakResponse? other) -> bool
-Tracon.SpeakResponse.IsEstimated.get -> bool
-Tracon.SpeakResponse.IsEstimated.init -> void
-Tracon.SpeakResponse.SpeakResponse() -> void
 Tracon.SpeechAlignment
 Tracon.SpeechAlignment.<Clone>$() -> Tracon.SpeechAlignment!
 Tracon.SpeechAlignment.Character.get -> string!
@@ -4089,21 +3921,6 @@ Tracon.TraconWorkflowFunctionTimeoutException.Timeout.init -> void
 Tracon.TraconWorkflowFunctionTimeoutException.TraconWorkflowFunctionTimeoutException() -> void
 Tracon.TraconWorkflowFunctionTimeoutException.TraconWorkflowFunctionTimeoutException(string! message) -> void
 Tracon.TraconWorkflowFunctionTimeoutException.TraconWorkflowFunctionTimeoutException(string! message, System.Exception! innerException) -> void
-Tracon.ValidationMessage
-Tracon.ValidationMessage.<Clone>$() -> Tracon.ValidationMessage!
-Tracon.ValidationMessage.Code.get -> string!
-Tracon.ValidationMessage.Code.init -> void
-Tracon.ValidationMessage.Equals(Tracon.ValidationMessage? other) -> bool
-Tracon.ValidationMessage.Message.get -> string!
-Tracon.ValidationMessage.Message.init -> void
-Tracon.ValidationMessage.Path.get -> string?
-Tracon.ValidationMessage.Path.init -> void
-Tracon.ValidationMessage.Severity.get -> Tracon.ValidationSeverity
-Tracon.ValidationMessage.Severity.init -> void
-Tracon.ValidationMessage.ValidationMessage() -> void
-Tracon.ValidationSeverity
-Tracon.ValidationSeverity.Error = 1 -> Tracon.ValidationSeverity
-Tracon.ValidationSeverity.Warning = 2 -> Tracon.ValidationSeverity
 Tracon.VectorChunk
 Tracon.VectorChunk.<Clone>$() -> Tracon.VectorChunk!
 Tracon.VectorChunk.Content.get -> string!
@@ -4804,9 +4621,6 @@ override Tracon.AgentSkillScriptDefinition.ToString() -> string!
 override Tracon.AgentSourceDiagnostic.Equals(object? obj) -> bool
 override Tracon.AgentSourceDiagnostic.GetHashCode() -> int
 override Tracon.AgentSourceDiagnostic.ToString() -> string!
-override Tracon.AgentValidationReport.Equals(object? obj) -> bool
-override Tracon.AgentValidationReport.GetHashCode() -> int
-override Tracon.AgentValidationReport.ToString() -> string!
 override Tracon.ApiKeyCreationResult.Equals(object? obj) -> bool
 override Tracon.ApiKeyCreationResult.GetHashCode() -> int
 override Tracon.ApiKeyCreationResult.ToString() -> string!
@@ -4837,9 +4651,6 @@ override Tracon.AuditEntry.ToString() -> string!
 override Tracon.AuditQuery.Equals(object? obj) -> bool
 override Tracon.AuditQuery.GetHashCode() -> int
 override Tracon.AuditQuery.ToString() -> string!
-override Tracon.CanaryEvaluation.Equals(object? obj) -> bool
-override Tracon.CanaryEvaluation.GetHashCode() -> int
-override Tracon.CanaryEvaluation.ToString() -> string!
 override Tracon.CanaryPolicy.Equals(object? obj) -> bool
 override Tracon.CanaryPolicy.GetHashCode() -> int
 override Tracon.CanaryPolicy.ToString() -> string!
@@ -4855,13 +4666,7 @@ override Tracon.ContentGuardContext.ToString() -> string!
 override Tracon.ContentGuardResult.Equals(object? obj) -> bool
 override Tracon.ContentGuardResult.GetHashCode() -> int
 override Tracon.ContentGuardResult.ToString() -> string!
-override Tracon.ContextWindowEstimate.Equals(object? obj) -> bool
-override Tracon.ContextWindowEstimate.GetHashCode() -> int
-override Tracon.ContextWindowEstimate.ToString() -> string!
 override Tracon.ConversationBranch.GetHashCode() -> int
-override Tracon.DataSubjectErasureResult.Equals(object? obj) -> bool
-override Tracon.DataSubjectErasureResult.GetHashCode() -> int
-override Tracon.DataSubjectErasureResult.ToString() -> string!
 override Tracon.DataSubjectExport.Equals(object? obj) -> bool
 override Tracon.DataSubjectExport.GetHashCode() -> int
 override Tracon.DataSubjectExport.ToString() -> string!
@@ -4932,12 +4737,6 @@ override Tracon.IdempotencyReservation.ToString() -> string!
 override Tracon.IdempotencyResponse.Equals(object? obj) -> bool
 override Tracon.IdempotencyResponse.GetHashCode() -> int
 override Tracon.IdempotencyResponse.ToString() -> string!
-override Tracon.ImageGenerationOperatorRequest.Equals(object? obj) -> bool
-override Tracon.ImageGenerationOperatorRequest.GetHashCode() -> int
-override Tracon.ImageGenerationOperatorRequest.ToString() -> string!
-override Tracon.ImageGenerationOperatorResponse.Equals(object? obj) -> bool
-override Tracon.ImageGenerationOperatorResponse.GetHashCode() -> int
-override Tracon.ImageGenerationOperatorResponse.ToString() -> string!
 override Tracon.InboundTrigger.Equals(object? obj) -> bool
 override Tracon.InboundTrigger.GetHashCode() -> int
 override Tracon.InboundTrigger.ToString() -> string!
@@ -4966,12 +4765,6 @@ override Tracon.JobRetryException.ErrorType.get -> string!
 override Tracon.JobSchedule.Equals(object? obj) -> bool
 override Tracon.JobSchedule.GetHashCode() -> int
 override Tracon.JobSchedule.ToString() -> string!
-override Tracon.JudgeFailure.Equals(object? obj) -> bool
-override Tracon.JudgeFailure.GetHashCode() -> int
-override Tracon.JudgeFailure.ToString() -> string!
-override Tracon.JudgeRunResponse.Equals(object? obj) -> bool
-override Tracon.JudgeRunResponse.GetHashCode() -> int
-override Tracon.JudgeRunResponse.ToString() -> string!
 override Tracon.JudgeScore.Equals(object? obj) -> bool
 override Tracon.JudgeScore.GetHashCode() -> int
 override Tracon.JudgeScore.ToString() -> string!
@@ -5078,9 +4871,6 @@ override Tracon.ResponseCacheSettings.ToString() -> string!
 override Tracon.RetentionPolicy.Equals(object? obj) -> bool
 override Tracon.RetentionPolicy.GetHashCode() -> int
 override Tracon.RetentionPolicy.ToString() -> string!
-override Tracon.RetentionPreview.Equals(object? obj) -> bool
-override Tracon.RetentionPreview.GetHashCode() -> int
-override Tracon.RetentionPreview.ToString() -> string!
 override Tracon.RetentionRun.Equals(object? obj) -> bool
 override Tracon.RetentionRun.GetHashCode() -> int
 override Tracon.RetentionRun.ToString() -> string!
@@ -5099,9 +4889,6 @@ override Tracon.RunCompletion.ToString() -> string!
 override Tracon.RunCost.Equals(object? obj) -> bool
 override Tracon.RunCost.GetHashCode() -> int
 override Tracon.RunCost.ToString() -> string!
-override Tracon.RunCostRecalculationResult.Equals(object? obj) -> bool
-override Tracon.RunCostRecalculationResult.GetHashCode() -> int
-override Tracon.RunCostRecalculationResult.ToString() -> string!
 override Tracon.RunError.Equals(object? obj) -> bool
 override Tracon.RunError.GetHashCode() -> int
 override Tracon.RunError.ToString() -> string!
@@ -5189,12 +4976,6 @@ override Tracon.RunVersionStatistics.ToString() -> string!
 override Tracon.SessionAuthorizationRequest.Equals(object? obj) -> bool
 override Tracon.SessionAuthorizationRequest.GetHashCode() -> int
 override Tracon.SessionAuthorizationRequest.ToString() -> string!
-override Tracon.SessionBranchRequest.Equals(object? obj) -> bool
-override Tracon.SessionBranchRequest.GetHashCode() -> int
-override Tracon.SessionBranchRequest.ToString() -> string!
-override Tracon.SessionBranchResult.Equals(object? obj) -> bool
-override Tracon.SessionBranchResult.GetHashCode() -> int
-override Tracon.SessionBranchResult.ToString() -> string!
 override Tracon.SessionQuery.Equals(object? obj) -> bool
 override Tracon.SessionQuery.GetHashCode() -> int
 override Tracon.SessionQuery.ToString() -> string!
@@ -5210,12 +4991,6 @@ override Tracon.SkillScriptExecutionResult.ToString() -> string!
 override Tracon.SkillScriptGrant.Equals(object? obj) -> bool
 override Tracon.SkillScriptGrant.GetHashCode() -> int
 override Tracon.SkillScriptGrant.ToString() -> string!
-override Tracon.SpeakRequest.Equals(object? obj) -> bool
-override Tracon.SpeakRequest.GetHashCode() -> int
-override Tracon.SpeakRequest.ToString() -> string!
-override Tracon.SpeakResponse.Equals(object? obj) -> bool
-override Tracon.SpeakResponse.GetHashCode() -> int
-override Tracon.SpeakResponse.ToString() -> string!
 override Tracon.SpeechAlignment.Equals(object? obj) -> bool
 override Tracon.SpeechAlignment.GetHashCode() -> int
 override Tracon.SpeechAlignment.ToString() -> string!
@@ -5329,9 +5104,6 @@ override Tracon.TraconSessionOwnerRequiredException.ErrorType.get -> string!
 override Tracon.TraconStructuredResponseException.ErrorType.get -> string!
 override Tracon.TraconToolTimeoutException.ErrorType.get -> string!
 override Tracon.TraconWorkflowFunctionTimeoutException.ErrorType.get -> string!
-override Tracon.ValidationMessage.Equals(object? obj) -> bool
-override Tracon.ValidationMessage.GetHashCode() -> int
-override Tracon.ValidationMessage.ToString() -> string!
 override Tracon.VectorChunk.Equals(object? obj) -> bool
 override Tracon.VectorChunk.GetHashCode() -> int
 override Tracon.VectorChunk.ToString() -> string!
@@ -5440,8 +5212,6 @@ static Tracon.AgentSkillScriptDefinition.operator !=(Tracon.AgentSkillScriptDefi
 static Tracon.AgentSkillScriptDefinition.operator ==(Tracon.AgentSkillScriptDefinition? left, Tracon.AgentSkillScriptDefinition? right) -> bool
 static Tracon.AgentSourceDiagnostic.operator !=(Tracon.AgentSourceDiagnostic? left, Tracon.AgentSourceDiagnostic? right) -> bool
 static Tracon.AgentSourceDiagnostic.operator ==(Tracon.AgentSourceDiagnostic? left, Tracon.AgentSourceDiagnostic? right) -> bool
-static Tracon.AgentValidationReport.operator !=(Tracon.AgentValidationReport? left, Tracon.AgentValidationReport? right) -> bool
-static Tracon.AgentValidationReport.operator ==(Tracon.AgentValidationReport? left, Tracon.AgentValidationReport? right) -> bool
 static Tracon.AmbientRunAttributionScope.Begin(string? userId, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? labels) -> System.IDisposable!
 static Tracon.AmbientRunAttributionScope.CurrentLabels.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 static Tracon.AmbientRunAttributionScope.CurrentUserId.get -> string?
@@ -5472,8 +5242,6 @@ static Tracon.AuditEntry.operator !=(Tracon.AuditEntry? left, Tracon.AuditEntry?
 static Tracon.AuditEntry.operator ==(Tracon.AuditEntry? left, Tracon.AuditEntry? right) -> bool
 static Tracon.AuditQuery.operator !=(Tracon.AuditQuery? left, Tracon.AuditQuery? right) -> bool
 static Tracon.AuditQuery.operator ==(Tracon.AuditQuery? left, Tracon.AuditQuery? right) -> bool
-static Tracon.CanaryEvaluation.operator !=(Tracon.CanaryEvaluation? left, Tracon.CanaryEvaluation? right) -> bool
-static Tracon.CanaryEvaluation.operator ==(Tracon.CanaryEvaluation? left, Tracon.CanaryEvaluation? right) -> bool
 static Tracon.CanaryPolicy.operator !=(Tracon.CanaryPolicy? left, Tracon.CanaryPolicy? right) -> bool
 static Tracon.CanaryPolicy.operator ==(Tracon.CanaryPolicy? left, Tracon.CanaryPolicy? right) -> bool
 static Tracon.CompactionSettings.operator !=(Tracon.CompactionSettings? left, Tracon.CompactionSettings? right) -> bool
@@ -5487,12 +5255,8 @@ static Tracon.ContentGuardResult.Block(string! ruleName, string! reason) -> Trac
 static Tracon.ContentGuardResult.Mask(string! maskedText, string! ruleName) -> Tracon.ContentGuardResult!
 static Tracon.ContentGuardResult.operator !=(Tracon.ContentGuardResult? left, Tracon.ContentGuardResult? right) -> bool
 static Tracon.ContentGuardResult.operator ==(Tracon.ContentGuardResult? left, Tracon.ContentGuardResult? right) -> bool
-static Tracon.ContextWindowEstimate.operator !=(Tracon.ContextWindowEstimate? left, Tracon.ContextWindowEstimate? right) -> bool
-static Tracon.ContextWindowEstimate.operator ==(Tracon.ContextWindowEstimate? left, Tracon.ContextWindowEstimate? right) -> bool
 static Tracon.ConversationBranch.operator !=(Tracon.ConversationBranch left, Tracon.ConversationBranch right) -> bool
 static Tracon.ConversationBranch.operator ==(Tracon.ConversationBranch left, Tracon.ConversationBranch right) -> bool
-static Tracon.DataSubjectErasureResult.operator !=(Tracon.DataSubjectErasureResult? left, Tracon.DataSubjectErasureResult? right) -> bool
-static Tracon.DataSubjectErasureResult.operator ==(Tracon.DataSubjectErasureResult? left, Tracon.DataSubjectErasureResult? right) -> bool
 static Tracon.DataSubjectExport.operator !=(Tracon.DataSubjectExport? left, Tracon.DataSubjectExport? right) -> bool
 static Tracon.DataSubjectExport.operator ==(Tracon.DataSubjectExport? left, Tracon.DataSubjectExport? right) -> bool
 static Tracon.DataSubjectScope.operator !=(Tracon.DataSubjectScope? left, Tracon.DataSubjectScope? right) -> bool
@@ -5540,10 +5304,6 @@ static Tracon.IdempotencyReservation.operator !=(Tracon.IdempotencyReservation? 
 static Tracon.IdempotencyReservation.operator ==(Tracon.IdempotencyReservation? left, Tracon.IdempotencyReservation? right) -> bool
 static Tracon.IdempotencyResponse.operator !=(Tracon.IdempotencyResponse? left, Tracon.IdempotencyResponse? right) -> bool
 static Tracon.IdempotencyResponse.operator ==(Tracon.IdempotencyResponse? left, Tracon.IdempotencyResponse? right) -> bool
-static Tracon.ImageGenerationOperatorRequest.operator !=(Tracon.ImageGenerationOperatorRequest? left, Tracon.ImageGenerationOperatorRequest? right) -> bool
-static Tracon.ImageGenerationOperatorRequest.operator ==(Tracon.ImageGenerationOperatorRequest? left, Tracon.ImageGenerationOperatorRequest? right) -> bool
-static Tracon.ImageGenerationOperatorResponse.operator !=(Tracon.ImageGenerationOperatorResponse? left, Tracon.ImageGenerationOperatorResponse? right) -> bool
-static Tracon.ImageGenerationOperatorResponse.operator ==(Tracon.ImageGenerationOperatorResponse? left, Tracon.ImageGenerationOperatorResponse? right) -> bool
 static Tracon.InboundTrigger.operator !=(Tracon.InboundTrigger? left, Tracon.InboundTrigger? right) -> bool
 static Tracon.InboundTrigger.operator ==(Tracon.InboundTrigger? left, Tracon.InboundTrigger? right) -> bool
 static Tracon.JobCompletion.operator !=(Tracon.JobCompletion? left, Tracon.JobCompletion? right) -> bool
@@ -5568,10 +5328,6 @@ static Tracon.JobRequest.operator !=(Tracon.JobRequest? left, Tracon.JobRequest?
 static Tracon.JobRequest.operator ==(Tracon.JobRequest? left, Tracon.JobRequest? right) -> bool
 static Tracon.JobSchedule.operator !=(Tracon.JobSchedule? left, Tracon.JobSchedule? right) -> bool
 static Tracon.JobSchedule.operator ==(Tracon.JobSchedule? left, Tracon.JobSchedule? right) -> bool
-static Tracon.JudgeFailure.operator !=(Tracon.JudgeFailure? left, Tracon.JudgeFailure? right) -> bool
-static Tracon.JudgeFailure.operator ==(Tracon.JudgeFailure? left, Tracon.JudgeFailure? right) -> bool
-static Tracon.JudgeRunResponse.operator !=(Tracon.JudgeRunResponse? left, Tracon.JudgeRunResponse? right) -> bool
-static Tracon.JudgeRunResponse.operator ==(Tracon.JudgeRunResponse? left, Tracon.JudgeRunResponse? right) -> bool
 static Tracon.JudgeScore.operator !=(Tracon.JudgeScore? left, Tracon.JudgeScore? right) -> bool
 static Tracon.JudgeScore.operator ==(Tracon.JudgeScore? left, Tracon.JudgeScore? right) -> bool
 static Tracon.LateToolCompletion.operator !=(Tracon.LateToolCompletion? left, Tracon.LateToolCompletion? right) -> bool
@@ -5652,8 +5408,6 @@ static Tracon.ResponseCacheSettings.operator !=(Tracon.ResponseCacheSettings? le
 static Tracon.ResponseCacheSettings.operator ==(Tracon.ResponseCacheSettings? left, Tracon.ResponseCacheSettings? right) -> bool
 static Tracon.RetentionPolicy.operator !=(Tracon.RetentionPolicy? left, Tracon.RetentionPolicy? right) -> bool
 static Tracon.RetentionPolicy.operator ==(Tracon.RetentionPolicy? left, Tracon.RetentionPolicy? right) -> bool
-static Tracon.RetentionPreview.operator !=(Tracon.RetentionPreview? left, Tracon.RetentionPreview? right) -> bool
-static Tracon.RetentionPreview.operator ==(Tracon.RetentionPreview? left, Tracon.RetentionPreview? right) -> bool
 static Tracon.RetentionRun.operator !=(Tracon.RetentionRun? left, Tracon.RetentionRun? right) -> bool
 static Tracon.RetentionRun.operator ==(Tracon.RetentionRun? left, Tracon.RetentionRun? right) -> bool
 static Tracon.RetentionTargets.All.get -> System.Collections.Generic.IReadOnlyList<string!>!
@@ -5671,8 +5425,6 @@ static Tracon.RunCompletion.operator !=(Tracon.RunCompletion? left, Tracon.RunCo
 static Tracon.RunCompletion.operator ==(Tracon.RunCompletion? left, Tracon.RunCompletion? right) -> bool
 static Tracon.RunCost.operator !=(Tracon.RunCost? left, Tracon.RunCost? right) -> bool
 static Tracon.RunCost.operator ==(Tracon.RunCost? left, Tracon.RunCost? right) -> bool
-static Tracon.RunCostRecalculationResult.operator !=(Tracon.RunCostRecalculationResult? left, Tracon.RunCostRecalculationResult? right) -> bool
-static Tracon.RunCostRecalculationResult.operator ==(Tracon.RunCostRecalculationResult? left, Tracon.RunCostRecalculationResult? right) -> bool
 static Tracon.RunError.operator !=(Tracon.RunError? left, Tracon.RunError? right) -> bool
 static Tracon.RunError.operator ==(Tracon.RunError? left, Tracon.RunError? right) -> bool
 static Tracon.RunErrorClassification.operator !=(Tracon.RunErrorClassification? left, Tracon.RunErrorClassification? right) -> bool
@@ -5743,10 +5495,6 @@ static Tracon.RunVersionStatistics.operator !=(Tracon.RunVersionStatistics? left
 static Tracon.RunVersionStatistics.operator ==(Tracon.RunVersionStatistics? left, Tracon.RunVersionStatistics? right) -> bool
 static Tracon.SessionAuthorizationRequest.operator !=(Tracon.SessionAuthorizationRequest? left, Tracon.SessionAuthorizationRequest? right) -> bool
 static Tracon.SessionAuthorizationRequest.operator ==(Tracon.SessionAuthorizationRequest? left, Tracon.SessionAuthorizationRequest? right) -> bool
-static Tracon.SessionBranchRequest.operator !=(Tracon.SessionBranchRequest? left, Tracon.SessionBranchRequest? right) -> bool
-static Tracon.SessionBranchRequest.operator ==(Tracon.SessionBranchRequest? left, Tracon.SessionBranchRequest? right) -> bool
-static Tracon.SessionBranchResult.operator !=(Tracon.SessionBranchResult? left, Tracon.SessionBranchResult? right) -> bool
-static Tracon.SessionBranchResult.operator ==(Tracon.SessionBranchResult? left, Tracon.SessionBranchResult? right) -> bool
 static Tracon.SessionQuery.operator !=(Tracon.SessionQuery? left, Tracon.SessionQuery? right) -> bool
 static Tracon.SessionQuery.operator ==(Tracon.SessionQuery? left, Tracon.SessionQuery? right) -> bool
 static Tracon.SessionRecord.operator !=(Tracon.SessionRecord? left, Tracon.SessionRecord? right) -> bool
@@ -5757,10 +5505,6 @@ static Tracon.SkillScriptExecutionResult.operator !=(Tracon.SkillScriptExecution
 static Tracon.SkillScriptExecutionResult.operator ==(Tracon.SkillScriptExecutionResult? left, Tracon.SkillScriptExecutionResult? right) -> bool
 static Tracon.SkillScriptGrant.operator !=(Tracon.SkillScriptGrant? left, Tracon.SkillScriptGrant? right) -> bool
 static Tracon.SkillScriptGrant.operator ==(Tracon.SkillScriptGrant? left, Tracon.SkillScriptGrant? right) -> bool
-static Tracon.SpeakRequest.operator !=(Tracon.SpeakRequest? left, Tracon.SpeakRequest? right) -> bool
-static Tracon.SpeakRequest.operator ==(Tracon.SpeakRequest? left, Tracon.SpeakRequest? right) -> bool
-static Tracon.SpeakResponse.operator !=(Tracon.SpeakResponse? left, Tracon.SpeakResponse? right) -> bool
-static Tracon.SpeakResponse.operator ==(Tracon.SpeakResponse? left, Tracon.SpeakResponse? right) -> bool
 static Tracon.SpeechAlignment.operator !=(Tracon.SpeechAlignment? left, Tracon.SpeechAlignment? right) -> bool
 static Tracon.SpeechAlignment.operator ==(Tracon.SpeechAlignment? left, Tracon.SpeechAlignment? right) -> bool
 static Tracon.SpeechDialogueCapabilities.operator !=(Tracon.SpeechDialogueCapabilities? left, Tracon.SpeechDialogueCapabilities? right) -> bool
@@ -5841,8 +5585,6 @@ static Tracon.TraconId.DeriveId(System.DateTimeOffset timestamp, string! seed) -
 static Tracon.TraconId.GetTimestamp(System.Guid id) -> System.DateTimeOffset
 static Tracon.TraconId.NewId() -> System.Guid
 static Tracon.TraconId.NewId(System.DateTimeOffset timestamp) -> System.Guid
-static Tracon.ValidationMessage.operator !=(Tracon.ValidationMessage? left, Tracon.ValidationMessage? right) -> bool
-static Tracon.ValidationMessage.operator ==(Tracon.ValidationMessage? left, Tracon.ValidationMessage? right) -> bool
 static Tracon.VectorChunk.operator !=(Tracon.VectorChunk? left, Tracon.VectorChunk? right) -> bool
 static Tracon.VectorChunk.operator ==(Tracon.VectorChunk? left, Tracon.VectorChunk? right) -> bool
 static Tracon.VectorSearchHit.operator !=(Tracon.VectorSearchHit? left, Tracon.VectorSearchHit? right) -> bool

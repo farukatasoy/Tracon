@@ -311,8 +311,8 @@ PUBLIC_SURFACE_AUDIT = pathlib.Path("scripts") / "public-yuzey-envanteri.py"
 def public_surface_violations(root: pathlib.Path = ROOT) -> list[str]:
     """K-850 ratchet: public types with no external evidence, and stale justifications.
 
-    A public type must be seen by a consumer (site page, sample, template, README,
-    OpenAPI schema), be a seam, or carry a written reason in
+    A public type must be seen by a consumer (site page, sample, template, README),
+    be a seam, or carry a written reason in
     `scripts/public-yuzey-gerekceleri.tsv`. Without this scan the audit ran only when
     someone remembered it, and two unproven exception types slipped in twice (A-80).
     """

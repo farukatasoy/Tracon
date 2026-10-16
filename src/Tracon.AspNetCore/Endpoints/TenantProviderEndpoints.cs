@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -421,57 +422,54 @@ internal static class TenantProviderEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>The response describing a tenant provider binding.</summary>
 /// <remarks>Carries no credential value, only the configuration key's NAME.</remarks>
-public sealed record TenantProviderBindingResponse
+[Description("The response describing a tenant provider binding.")]
+internal sealed record TenantProviderBindingResponse
 {
-    /// <summary>Gets the provider name.</summary>
+    [Description("Gets the provider name.")]
     public required string ProviderName { get; init; }
 
-    /// <summary>Gets the configuration key name the credential is read from.</summary>
+    [Description("Gets the configuration key name the credential is read from.")]
     public required string ApiKeyConfigurationName { get; init; }
 
-    /// <summary>Gets the optional endpoint override.</summary>
+    [Description("Gets the optional endpoint override.")]
     public string? Endpoint { get; init; }
 
-    /// <summary>
-    /// Gets whether <c>ApiKeyConfigurationName</c> currently resolves to a value.
-    /// </summary>
+    [Description("Gets whether `ApiKeyConfigurationName` currently resolves to a value.")]
     public required bool Resolved { get; init; }
 
-    /// <summary>Gets the time this binding was last written.</summary>
+    [Description("Gets the time this binding was last written.")]
     public required DateTimeOffset UpdatedAt { get; init; }
 }
 
-/// <summary>The request body for creating or replacing a tenant provider binding.</summary>
-public sealed record TenantProviderBindingRequest
+[Description("The request body for creating or replacing a tenant provider binding.")]
+internal sealed record TenantProviderBindingRequest
 {
-    /// <summary>Gets the configuration key name the credential is read from. Never a value.</summary>
+    [Description("Gets the configuration key name the credential is read from. Never a value.")]
     public string? ApiKeyConfigurationName { get; init; }
 
-    /// <summary>Gets the optional endpoint override.</summary>
+    [Description("Gets the optional endpoint override.")]
     public string? Endpoint { get; init; }
 }
 
-/// <summary>The response describing a tenant's egress policy.</summary>
-public sealed record TenantEgressPolicyResponse
+[Description("The response describing a tenant's egress policy.")]
+internal sealed record TenantEgressPolicyResponse
 {
-    /// <summary>Gets the tenant this policy belongs to.</summary>
+    [Description("Gets the tenant this policy belongs to.")]
     public required string TenantId { get; init; }
 
-    /// <summary>
-    /// Gets the closed set of allowed provider names, or <see langword="null"/>
-    /// when the tenant is unrestricted (no policy saved).
-    /// </summary>
+    [Description(
+        "Gets the closed set of allowed provider names, or `null`\n" +
+        "when the tenant is unrestricted (no policy saved).")]
     public IReadOnlyList<string>? AllowedProviders { get; init; }
 
-    /// <summary>Gets the time the policy was last written; <see langword="null"/> when unrestricted.</summary>
+    [Description("Gets the time the policy was last written; `null` when unrestricted.")]
     public DateTimeOffset? UpdatedAt { get; init; }
 }
 
-/// <summary>The request body for creating or replacing a tenant's egress policy.</summary>
-public sealed record TenantEgressPolicyRequest
+[Description("The request body for creating or replacing a tenant's egress policy.")]
+internal sealed record TenantEgressPolicyRequest
 {
-    /// <summary>Gets the closed set of allowed provider names. An empty list allows no provider.</summary>
+    [Description("Gets the closed set of allowed provider names. An empty list allows no provider.")]
     public IReadOnlyList<string>? AllowedProviders { get; init; }
 }

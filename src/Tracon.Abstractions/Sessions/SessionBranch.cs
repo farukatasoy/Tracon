@@ -1,50 +1,48 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
-/// <summary>A request to branch a conversation from a specific point.</summary>
-public sealed record SessionBranchRequest
+[Description("A request to branch a conversation from a specific point.")]
+internal sealed record SessionBranchRequest
 {
-    /// <summary>
-    /// The sequence number of the last item to include (inclusive). If not
-    /// given, the whole conversation is copied.
-    /// </summary>
     /// <remarks>
     /// <c>0</c> is a valid value and opens a branch carrying only the first
     /// item. A negative value is rejected.
     /// </remarks>
+    [Description(
+        "The sequence number of the last item to include (inclusive). If not\n" +
+        "given, the whole conversation is copied.")]
     public long? UpToSequence { get; init; }
 
-    /// <summary>
-    /// The identifier of the new session to open. Generated if not given.
-    /// </summary>
     /// <remarks>
     /// If the identifier comes from the caller, an existing session with the
     /// same identifier is <strong>not overwritten</strong>; the request is rejected.
     /// </remarks>
+    [Description("The identifier of the new session to open. Generated if not given.")]
     public string? NewSessionId { get; init; }
 }
 
-/// <summary>The result of branching.</summary>
-public sealed record SessionBranchResult
+[Description("The result of branching.")]
+internal sealed record SessionBranchResult
 {
-    /// <summary>The new session's identifier.</summary>
+    [Description("The new session's identifier.")]
     public required string SessionId { get; init; }
 
-    /// <summary>The new conversation's identifier.</summary>
+    [Description("The new conversation's identifier.")]
     public required Guid ConversationId { get; init; }
 
-    /// <summary>The source session's identifier.</summary>
+    [Description("The source session's identifier.")]
     public required string ParentSessionId { get; init; }
 
-    /// <summary>The source conversation's identifier.</summary>
+    [Description("The source conversation's identifier.")]
     public required Guid ParentConversationId { get; init; }
 
-    /// <summary>
-    /// The branch point: the sequence number of the last item copied to the
-    /// new conversation. <c>-1</c> if no item was copied.
-    /// </summary>
+    [Description(
+        "The branch point: the sequence number of the last item copied to the\n" +
+        "new conversation. `-1` if no item was copied.")]
     public required long BranchFromSequence { get; init; }
 
-    /// <summary>The number of items copied.</summary>
+    [Description("The number of items copied.")]
     public required int CopiedItemCount { get; init; }
 }
 

@@ -5,8 +5,8 @@
 söylemez. Bu betik her public TİPİ (üye değil) dört sınıftan birine koyar:
 
   tüketici   — tüketici onu görür: site sayfası, sample, şablon çıktısı, paket
-               README'si, XML `<example>`/`<code>` bloğu, kayıt giriş noktası
-               (K-509) veya sevk edilen OpenAPI şeması
+               README'si, XML `<example>`/`<code>` bloğu veya kayıt giriş noktası
+               (K-509)
   seam       — genişleme noktası: public arayüz (§15 seam envanteri, bugün
                `SeamContractDocumentationTests`'in taradığı küme), abstract sınıf
                veya `Tracon.Testing.Contracts.Xunit` sözleşme paketi
@@ -30,6 +30,10 @@ Kullanım:
     python3 scripts/public-yuzey-envanteri.py --json            # makine çıktısı
     python3 scripts/public-yuzey-envanteri.py --denetle         # kanıtsız > 0 → 1
 
+OpenAPI şeması kanıt DEĞİLDİR (Faz 212): .NET tüketicisi bir HTTP DTO'suna
+dokunmaz, `Tracon.Client` kendi DTO'larını üretir. HTTP istek/yanıt DTO'su
+`internal` doğar; sevk edilen OpenAPI açıklaması `[Description]` ile taşınır.
+
 Ölçüt tip ADIDIR, üye değil. Bir ad eşleşmesi yanlış pozitif üretebilir
 (bir tipin adı başka bir tipin özellik adıyla aynıysa) — yanlış pozitif tipi
 TUTAR, yani güvenli yöndedir. Yanlış negatifi (tüketicinin gerçekten
@@ -49,7 +53,6 @@ from collections import deque
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GEREKCE_YOLU = pathlib.Path("scripts") / "public-yuzey-gerekceleri.tsv"
-OPENAPI_YOLU = pathlib.Path("docs") / "openapi" / "tracon.json"
 
 # Faz 182 Açık Soru 2 = B: sözleşme paketi bu dalgaya girmez. Sözleşme
 # sınıfları tüketicinin TÜRETECEĞİ yüzeydir; tanım gereği "seam" sınıfındadır.
@@ -316,14 +319,13 @@ def gerekceleri_oku(metin: str) -> dict[str, str]:
 def siniflandir(
     tipler: dict[Anahtar, Tip],
     korpus: Korpus,
-    openapi_semalari: set[str],
     gerekceler: dict[str, str],
 ) -> None:
     """Kökleri bulur, imza kapanışını yayar. Öncelik: tüketici > seam > gerekçeli."""
     kokler: dict[str, list[tuple[Anahtar, str]]] = {sinif: [] for sinif in SINIFLAR[:3]}
     for tip in tipler.values():
         tip.sinif, tip.gerekce = "kanıtsız", ""
-        kanit = _tuketici_kaniti(tip, korpus, openapi_semalari)
+        kanit = _tuketici_kaniti(tip, korpus)
         if kanit:
             kokler["tüketici"].append((tip.anahtar, kanit))
             continue
@@ -354,7 +356,7 @@ def siniflandir(
                         kuyruk.append(hedef)
 
 
-def _tuketici_kaniti(tip: Tip, korpus: Korpus, openapi_semalari: set[str]) -> str | None:
+def _tuketici_kaniti(tip: Tip, korpus: Korpus) -> str | None:
     if tip.paket in SOZLESME_PAKETLERI:
         return None
     kanit = korpus.bul(tip.basit)
@@ -374,12 +376,8 @@ def _tuketici_kaniti(tip: Tip, korpus: Korpus, openapi_semalari: set[str]) -> st
         kanit = korpus.bul(uzanti.group("ad"))
         if kanit:
             return f"uzanti:{uzanti.group('ad')}@{kanit}"
-    if tip.basit in openapi_semalari:
-        # Sevk edilen OpenAPI belgesinin açıklamaları yalnız PUBLIC tipin XML
-        # dokümanından gelir (XmlCommentGenerator; ölçüldü 2026-09-22: önbellekte
-        # 604 tip, sıfırı internal). Şema tipini internal yapmak HTTP sözleşmesinin
-        # dokümanını siler — HTTP yüzeyi bu envanterin kapsamı dışındadır.
-        return f"http-sema:{OPENAPI_YOLU.as_posix()}"
+    # OpenAPI şeması kanıt değildir (Faz 212): açıklama `[Description]` ile taşınır,
+    # tip `internal` kalabilir.
     return None
 
 
@@ -466,14 +464,9 @@ def envanter_olustur(root: pathlib.Path = ROOT) -> tuple[dict[Anahtar, Tip], dic
         kaynaklar[paket] = kaynaklari_topla(root, paket)
     bildirimleri_tara(tipler, kaynaklar)
 
-    semalar: set[str] = set()
-    if (root / OPENAPI_YOLU).is_file():
-        belge = json.loads((root / OPENAPI_YOLU).read_text(encoding="utf-8"))
-        semalar = set(belge.get("components", {}).get("schemas", {}))
-
     gerekceler = gerekceleri_oku(_oku(root, GEREKCE_YOLU.as_posix())) if (root / GEREKCE_YOLU).is_file() else {}
 
-    siniflandir(tipler, korpus_topla(root), semalar, gerekceler)
+    siniflandir(tipler, korpus_topla(root), gerekceler)
     return tipler, gerekceler
 
 
@@ -568,6 +561,11 @@ def main(argv: list[str] | None = None) -> int:
     kanitsiz = sum(1 for tip in sirali if tip.sinif == "kanıtsız")
     if args.denetle and (kanitsiz or sorunlar):
         print(f"denetim: {kanitsiz} kanıtsız tip, {len(sorunlar)} bayat gerekçe", file=sys.stderr)
+        if kanitsiz:
+            print("ipucu: HTTP istek/yanıt DTO'suysa tipi `internal` yap ve açıklamayı "
+                  "`[Description]` ile yaz (Faz 212); değilse bir site sayfası, sample ya da "
+                  "`<example>` ile göster ya da scripts/public-yuzey-gerekceleri.tsv'ye gerekçe yaz.",
+                  file=sys.stderr)
         return 1
     return 0
 

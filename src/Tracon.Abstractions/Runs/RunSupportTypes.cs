@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
@@ -585,7 +586,6 @@ public sealed record RunTimeSeriesQuery
     public string? TenantId { get; init; }
 }
 
-/// <summary>Result of a cost recalculation.</summary>
 /// <remarks>
 /// A run's price is a snapshot (<see cref="RunCost"/>): once a run carries a
 /// known price (<see cref="PricingSource.Catalog"/> or
@@ -593,23 +593,22 @@ public sealed record RunTimeSeriesQuery
 /// again. Only rows with <see cref="PricingSource.Unknown"/> — or no cost at
 /// all, from before cost tracking existed — are candidates.
 /// </remarks>
-public sealed record RunCostRecalculationResult
+[Description("Result of a cost recalculation.")]
+internal sealed record RunCostRecalculationResult
 {
-    /// <summary>
-    /// Gets the number of runs considered, that is those with a model and usage
-    /// AND an unpriced (<c>PricingSource.Unknown</c> or absent) cost.
-    /// </summary>
+    [Description(
+        "Gets the number of runs considered, that is those with a model and usage\n" +
+        "AND an unpriced (`PricingSource.Unknown` or absent) cost.")]
     public required long RunsConsidered { get; init; }
 
-    /// <summary>Gets the number of runs whose price resolved and was updated.</summary>
+    [Description("Gets the number of runs whose price resolved and was updated.")]
     public required long RunsUpdated { get; init; }
 
-    /// <summary>Gets the number of runs whose price is still unknown afterwards.</summary>
+    [Description("Gets the number of runs whose price is still unknown afterwards.")]
     public required long RunsStillUnknown { get; init; }
 
-    /// <summary>
-    /// Gets the number of runs skipped because they already carried a known
-    /// price. A priced run's cost is a snapshot and is never rewritten.
-    /// </summary>
+    [Description(
+        "Gets the number of runs skipped because they already carried a known\n" +
+        "price. A priced run's cost is a snapshot and is never rewritten.")]
     public required long RunsSkipped { get; init; }
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -1347,41 +1348,38 @@ internal static class RunEndpoints
     }
 }
 
-/// <summary>Request body for writing a run/message score.</summary>
-public sealed record RunFeedbackRequest
+[Description("Request body for writing a run/message score.")]
+internal sealed record RunFeedbackRequest
 {
-    /// <summary>
-    /// The score's stable, low-cardinality name. Left blank it becomes
-    /// <c>overall</c>.
-    /// </summary>
     /// <remarks>
     /// Must match <c>[A-Za-z0-9._-]{1,64}</c>, the rule
     /// <see cref="RunScoreRules"/> carries. The same author can write more than
     /// one name onto the same run; writing the same name twice updates the
     /// existing row.
     /// </remarks>
+    [Description(
+        "The score's stable, low-cardinality name. Left blank it becomes\n" +
+        "`overall`.")]
     public string? Name { get; init; }
 
-    /// <summary>The format of the score.</summary>
+    [Description("The format of the score.")]
     public required RunScoreKind Kind { get; init; }
 
-    /// <summary>
-    /// 0/1 for <see cref="RunScoreKind.Binary"/>, 1 to 5 for
-    /// <see cref="RunScoreKind.Stars"/>, 0 to 100 for
-    /// <see cref="RunScoreKind.Numeric"/>. Left out for
-    /// <see cref="RunScoreKind.Categorical"/>, required otherwise.
-    /// </summary>
+    [Description(
+        "0/1 for RunScoreKind.Binary, 1 to 5 for\n" +
+        "RunScoreKind.Stars, 0 to 100 for\n" +
+        "RunScoreKind.Numeric. Left out for\n" +
+        "RunScoreKind.Categorical, required otherwise.")]
     public double? Value { get; init; }
 
-    /// <summary>
-    /// The categorical label. Required for <see cref="RunScoreKind.Categorical"/>
-    /// and rejected for every other kind.
-    /// </summary>
+    [Description(
+        "The categorical label. Required for RunScoreKind.Categorical\n" +
+        "and rejected for every other kind.")]
     public string? TextValue { get; init; }
 
-    /// <summary>The id of the scored message. If left blank, the score applies to the whole run.</summary>
+    [Description("The id of the scored message. If left blank, the score applies to the whole run.")]
     public string? MessageId { get; init; }
 
-    /// <summary>Free-text comment.</summary>
+    [Description("Free-text comment.")]
     public string? Comment { get; init; }
 }

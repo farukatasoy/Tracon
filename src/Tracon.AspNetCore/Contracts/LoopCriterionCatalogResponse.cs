@@ -1,63 +1,59 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
-/// <summary>
-/// Response for <c>GET {prefix}/api/loop-criteria</c>: the loop criterion kinds a
-/// definition's <c>harness.loop.criteria</c> can name, and the judge model an
-/// <c>aiJudge</c> criterion calls.
-/// </summary>
 /// <remarks>
 /// The list is what the host registered; it is the same for every tenant. Whether
 /// a tenant's egress policy allows the judge's provider is not part of it: the
 /// validation report (<c>POST /api/agents/validate</c>) answers that for the
 /// calling tenant.
 /// </remarks>
-public sealed record LoopCriterionCatalogResponse
+[Description(
+    "Response for `GET {prefix}/api/loop-criteria`: the loop criterion kinds a\n" +
+    "definition's `harness.loop.criteria` can name, and the judge model an\n" +
+    "`aiJudge` criterion calls.")]
+internal sealed record LoopCriterionCatalogResponse
 {
-    /// <summary>
-    /// Gets the kinds: the built-in kinds first, in a fixed order, then the kinds
-    /// registered in code with <c>AddLoopEvaluator</c>, ordered by name.
-    /// </summary>
+    [Description(
+        "Gets the kinds: the built-in kinds first, in a fixed order, then the kinds\n" +
+        "registered in code with `AddLoopEvaluator`, ordered by name.")]
     public required IReadOnlyList<LoopCriterionKindResponse> Kinds { get; init; }
 
-    /// <summary>
-    /// Gets the model an <c>aiJudge</c> criterion calls, or <see langword="null"/>
-    /// when the host bound none (<c>AddModelRunJudge</c>). With
-    /// <see langword="null"/>, a definition with an <c>aiJudge</c> criterion does
-    /// not compile; it never falls back to the agent's own model.
-    /// </summary>
+    [Description(
+        "Gets the model an `aiJudge` criterion calls, or `null`\n" +
+        "when the host bound none (`AddModelRunJudge`). With\n" +
+        "`null`, a definition with an `aiJudge` criterion does\n" +
+        "not compile; it never falls back to the agent's own model.")]
     public LoopJudgeModelResponse? JudgeModel { get; init; }
 }
 
-/// <summary>One loop criterion kind in <see cref="LoopCriterionCatalogResponse"/>.</summary>
-public sealed record LoopCriterionKindResponse
+[Description("One loop criterion kind in LoopCriterionCatalogResponse.")]
+internal sealed record LoopCriterionKindResponse
 {
-    /// <summary>Gets the name a definition writes in <c>LoopCriterion.Kind</c>.</summary>
+    [Description("Gets the name a definition writes in `LoopCriterion.Kind`.")]
     public required string Kind { get; init; }
 
-    /// <summary>
-    /// Gets whether the kind is built in. A kind that is not built in was
-    /// registered in code and reads no field of the criterion except its kind.
-    /// </summary>
+    [Description(
+        "Gets whether the kind is built in. A kind that is not built in was\n" +
+        "registered in code and reads no field of the criterion except its kind.")]
     public required bool BuiltIn { get; init; }
 
-    /// <summary>
-    /// Gets what the kind checks. A built-in kind always carries Tracon's own
-    /// English sentence. A kind registered in code carries the text its
-    /// registration gave, in the host's language, or <see langword="null"/>
-    /// when it gave none.
-    /// </summary>
+    [Description(
+        "Gets what the kind checks. A built-in kind always carries Tracon's own\n" +
+        "English sentence. A kind registered in code carries the text its\n" +
+        "registration gave, in the host's language, or `null`\n" +
+        "when it gave none.")]
     public string? Description { get; init; }
 }
 
-/// <summary>
-/// The judge model in <see cref="LoopCriterionCatalogResponse"/>: the provider and
-/// model names only. The binding's provider settings are never returned.
-/// </summary>
-public sealed record LoopJudgeModelResponse
+[Description(
+    "The judge model in LoopCriterionCatalogResponse: the provider and\n" +
+    "model names only. The binding's provider settings are never returned.")]
+internal sealed record LoopJudgeModelResponse
 {
-    /// <summary>Gets the provider name.</summary>
+    [Description("Gets the provider name.")]
     public required string Provider { get; init; }
 
-    /// <summary>Gets the model name.</summary>
+    [Description("Gets the model name.")]
     public required string Model { get; init; }
 }

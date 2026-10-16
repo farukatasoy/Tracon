@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -371,28 +372,28 @@ internal static class RetentionEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>Request body for saving a retention policy.</summary>
-public sealed record RetentionPolicySaveRequest
+[Description("Request body for saving a retention policy.")]
+internal sealed record RetentionPolicySaveRequest
 {
-    /// <summary>Rows older than this age are candidates for deletion.</summary>
+    [Description("Rows older than this age are candidates for deletion.")]
     public int? MaxAgeDays { get; init; }
 
-    /// <summary>The maximum number of rows to keep for the target. The oldest rows are deleted.</summary>
+    [Description("The maximum number of rows to keep for the target. The oldest rows are deleted.")]
     public long? MaxRows { get; init; }
 
-    /// <summary>Whether to archive rows before deleting them.</summary>
+    [Description("Whether to archive rows before deleting them.")]
     public bool Archive { get; init; }
 
-    /// <summary>Whether the policy is enabled.</summary>
+    [Description("Whether the policy is enabled.")]
     public bool Enabled { get; init; } = true;
 }
 
-/// <summary>Response to a "run now" request.</summary>
-public sealed record RetentionRunTriggerResponse
+[Description("Response to a \"run now\" request.")]
+internal sealed record RetentionRunTriggerResponse
 {
-    /// <summary>The id of the enqueued job.</summary>
+    [Description("The id of the enqueued job.")]
     public required Guid JobId { get; init; }
 
-    /// <summary>The target to process; <c>"*"</c> for all targets.</summary>
+    [Description("The target to process; `\"*\"` for all targets.")]
     public required string Target { get; init; }
 }

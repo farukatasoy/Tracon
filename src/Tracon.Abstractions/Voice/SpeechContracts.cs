@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
 /// <summary>A provider that generates speech from text.</summary>
@@ -233,58 +235,55 @@ public interface IVoicePricingReader
     decimal? ForTranscription(string providerName, string? modelId, TimeSpan duration) => null;
 }
 
-/// <summary>A speech synthesis request as an operator action.</summary>
-public sealed record SpeakRequest
+[Description("A speech synthesis request as an operator action.")]
+internal sealed record SpeakRequest
 {
-    /// <summary>The text to speak.</summary>
+    [Description("The text to speak.")]
     public required string Text { get; init; }
 
-    /// <summary>
-    /// The session the attachment is bound to. If left empty, the
-    /// attachment is considered orphaned and deleted by the retention policy.
-    /// </summary>
+    [Description(
+        "The session the attachment is bound to. If left empty, the\n" +
+        "attachment is considered orphaned and deleted by the retention policy.")]
     public string? SessionId { get; init; }
 
-    /// <summary>The identifier of the voice to use. The default voice if empty.</summary>
+    [Description("The identifier of the voice to use. The default voice if empty.")]
     public string? VoiceId { get; init; }
 
-    /// <summary>Requests character-level timing alongside the audio. Default <see langword="false"/>.</summary>
+    [Description("Requests character-level timing alongside the audio. Default `false`.")]
     public bool IncludeTimestamps { get; init; }
 
-    /// <summary>
-    /// The registration name of the synthesizer to use; <see langword="null"/> for the
-    /// default one.
-    /// </summary>
     /// <remarks>
     /// A name registered with <c>AddSpeechSynthesizer</c>, compared in lower case.
     /// <c>GET /api/voice/providers</c> lists the registered names. The tenant's egress
     /// policy applies to the provider name the synthesizer reports, not to this value.
     /// </remarks>
+    [Description(
+        "The registration name of the synthesizer to use; `null` for the\n" +
+        "default one.")]
     public string? Provider { get; init; }
 }
 
-/// <summary>The result of speech synthesis.</summary>
-public sealed record SpeakResponse
+[Description("The result of speech synthesis.")]
+internal sealed record SpeakResponse
 {
-    /// <summary>The saved attachment.</summary>
+    [Description("The saved attachment.")]
     public required AttachmentDescriptor Attachment { get; init; }
 
-    /// <summary>The billed character count.</summary>
+    [Description("The billed character count.")]
     public required int Characters { get; init; }
 
-    /// <summary>Whether the character count is estimated.</summary>
+    [Description("Whether the character count is estimated.")]
     public required bool IsEstimated { get; init; }
 
-    /// <summary>The computed amount. <see langword="null"/> if pricing is undefined.</summary>
+    [Description("The computed amount. `null` if pricing is undefined.")]
     public decimal? Cost { get; init; }
 
-    /// <summary>The currency label.</summary>
+    [Description("The currency label.")]
     public string? Currency { get; init; }
 
-    /// <summary>
-    /// Character-level timing. <see langword="null"/> when not requested via
-    /// <c>SpeakRequest.IncludeTimestamps</c>, or when the provider does not support it.
-    /// </summary>
+    [Description(
+        "Character-level timing. `null` when not requested via\n" +
+        "`SpeakRequest.IncludeTimestamps`, or when the provider does not support it.")]
     public IReadOnlyList<SpeechAlignment>? Alignment { get; init; }
 }
 

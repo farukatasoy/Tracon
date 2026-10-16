@@ -1,36 +1,34 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
-/// <summary>
-/// Response for <c>{prefix}/api/meta</c>. Carries the minimum information the
-/// UI needs to configure itself.
-/// </summary>
 /// <remarks>
 /// This endpoint is reachable <strong>without authentication</strong>; the UI
 /// has no other way to learn which authentication method to use. Its content
 /// is therefore deliberately narrow: it carries no secret, tenant data, agent
 /// name, or count information.
 /// </remarks>
-public sealed record TraconMetaResponse
+[Description(
+    "Response for `{prefix}/api/meta`. Carries the minimum information the\n" +
+    "UI needs to configure itself.")]
+internal sealed record TraconMetaResponse
 {
-    /// <summary>Tracon version.</summary>
+    [Description("Tracon version.")]
     public required string Version { get; init; }
 
-    /// <summary>Path prefix the endpoints are connected to. The UI builds its own calls from this.</summary>
+    [Description("Path prefix the endpoints are connected to. The UI builds its own calls from this.")]
     public required string Prefix { get; init; }
 
-    /// <summary>Active authentication methods.</summary>
+    [Description("Active authentication methods.")]
     public required TraconAuthenticationMeta Authentication { get; init; }
 
-    /// <summary>Active storage implementations.</summary>
+    [Description("Active storage implementations.")]
     public required TraconStorageMeta Storage { get; init; }
 
-    /// <summary>Role permissions of the current caller.</summary>
+    [Description("Role permissions of the current caller.")]
     public required TraconRoleMeta Roles { get; init; }
 }
 
-/// <summary>
-/// Reports which role levels the current request's caller satisfies.
-/// </summary>
 /// <remarks>
 /// The UI uses this field to hide edit buttons the caller has no permission
 /// for; server-side authorization is still the only source of truth, this
@@ -40,71 +38,66 @@ public sealed record TraconMetaResponse
 /// <see langword="true"/>: there is no role restriction, the endpoint only
 /// passes through the existing three-layer protection.
 /// </remarks>
-public sealed record TraconRoleMeta
+[Description("Reports which role levels the current request's caller satisfies.")]
+internal sealed record TraconRoleMeta
 {
-    /// <summary>Whether the caller may read agents, runs, sessions, traces, and statistics.</summary>
+    [Description("Whether the caller may read agents, runs, sessions, traces, and statistics.")]
     public required bool CanRead { get; init; }
 
-    /// <summary>Whether the caller may, in addition to Reader, start runs, give approvals, and delete sessions.</summary>
+    [Description("Whether the caller may, in addition to Reader, start runs, give approvals, and delete sessions.")]
     public required bool CanOperate { get; init; }
 
-    /// <summary>Whether the caller may write agent definitions, add MCP servers, and manage tenants and audit trails.</summary>
+    [Description("Whether the caller may write agent definitions, add MCP servers, and manage tenants and audit trails.")]
     public required bool CanAdminister { get; init; }
 }
 
-/// <summary>
-/// Reports which authentication layers are enabled.
-/// </summary>
 /// <remarks>
 /// Carries only <see langword="bool"/> fields. The policy name is
 /// deliberately <strong>not</strong> returned: the UI cannot do anything with
 /// the name, and the name would be a configuration detail leaking from an
 /// unauthenticated endpoint.
 /// </remarks>
-public sealed record TraconAuthenticationMeta
+[Description("Reports which authentication layers are enabled.")]
+internal sealed record TraconAuthenticationMeta
 {
-    /// <summary>Whether access from outside loopback is allowed.</summary>
+    [Description("Whether access from outside loopback is allowed.")]
     public required bool AllowRemoteAccess { get; init; }
 
-    /// <summary>Whether an <c>Authorization: Bearer</c> header is expected.</summary>
+    [Description("Whether an `Authorization: Bearer` header is expected.")]
     public required bool RequiresBearerToken { get; init; }
 
-    /// <summary>Whether an ASP.NET Core authorization policy is applied.</summary>
+    [Description("Whether an ASP.NET Core authorization policy is applied.")]
     public required bool RequiresAuthorizationPolicy { get; init; }
 }
 
-/// <summary>
-/// Reports which storage implementations are active.
-/// </summary>
 /// <remarks>
 /// In-memory stores are a supported mode, not a test helper.
 /// They do have limits, however — process lifetime and single node — and the
 /// UI should be able to show this to the user.
 /// </remarks>
-public sealed record TraconStorageMeta
+[Description("Reports which storage implementations are active.")]
+internal sealed record TraconStorageMeta
 {
-    /// <summary>
-    /// Whether all three stores are persistent. Returns
-    /// <see langword="false"/> if any is in-memory.
-    /// </summary>
+    [Description(
+        "Whether all three stores are persistent. Returns\n" +
+        "`false` if any is in-memory.")]
     public required bool Persistent { get; init; }
 
-    /// <summary>Type name of the agent definition store.</summary>
+    [Description("Type name of the agent definition store.")]
     public required string AgentDefinitionStore { get; init; }
 
-    /// <summary>Type name of the run store.</summary>
+    [Description("Type name of the run store.")]
     public required string RunStore { get; init; }
 
-    /// <summary>Type name of the session store.</summary>
+    [Description("Type name of the session store.")]
     public required string SessionStore { get; init; }
 
-    /// <summary>Type name of the job queue store.</summary>
+    [Description("Type name of the job queue store.")]
     public required string JobStore { get; init; }
 
-    /// <summary>
-    /// Whether the background job worker is running in this process. If
-    /// <see langword="false"/>, the queue can still be written to and read
-    /// from; only this process does not lease jobs.
-    /// </summary>
+    [Description(
+        "Whether the background job worker is running in this process. If\n" +
+        "`false`, the queue can still be written to and read\n" +
+        "from; only this process does not lease jobs.")]
     public required bool JobWorkerEnabled { get; init; }
 }
