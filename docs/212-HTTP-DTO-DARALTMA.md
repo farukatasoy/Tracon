@@ -1,7 +1,7 @@
 # Faz 212 — HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip
 
-> **Durum:** 📋 Planlandı (2026-10-16)
-> **Plan onayı:** onaylanmadı — plan metni onay bekler. Kapsam kararı verildi: **UR-010 B**, farukatasoy, 2026-10-16 ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §7). Uygulama onaydan önce başlamaz.
+> **Durum:** 🚧 Uygulanıyor (başladı 2026-10-16)
+> **Plan onayı:** onaylandı — farukatasoy, 2026-10-16 ("planı uygula", `faz-uygulama` ile). Kapsam kararı: **UR-010 B**, farukatasoy, 2026-10-16 ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §7). Açık Soru 1 ve 2'de önerilen seçenek (A) uygulandı; kullanıcıya ayrıca sorulmadı, itiraz gelirse geri alınır.
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-554**
 > **Genellik:** Her .NET tüketicisi. 1.0 sözü bugün 81 HTTP DTO'sunu da kapsar; .NET tüketicisi bunları kullanmaz (`Tracon.Client` kendi DTO'larını üretir). İş tüketici kodunda kalamaz: sözleşme bizim. İkinci kanıt: ilk ilke (donan yüzey küçüldükçe söz ucuzlar) ve [Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) emsali (91 tip, aynı ölçüt).
 > **Karşı görüş:** Faz 182 "OpenAPI şema tipi daraltılmaz" dedi: üretici yalnız public tipin XML'ini taşır, tip `internal` olunca `description` silinir. **Cevap:** Bu doğrudur ve ölçüldü; plan onu çözer, yok saymaz. `[Description]` aynı metni geri getirir (5 tip / 12 özellik denendi, fark yok). Bedeli: 393 metin tek yere taşınır. Kopya değil **taşıma** olduğu için ikinci kaynak doğmaz; kaybı görünür kılan yeni bir kapı eklenir (§212.4).

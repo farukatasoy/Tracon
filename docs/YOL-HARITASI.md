@@ -224,7 +224,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [209](arsiv/fazlar/209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md) | Workflow Gelen Kutusu ve İstek Süresi | ✅ Tamamlandı |
 | [210](arsiv/fazlar/210-BUTCE-DUGUM-KAPISI.md) | Bütçe Tükenince Fonksiyon Düğümü Başlamaz | ✅ Tamamlandı |
 | [211](arsiv/fazlar/211-KOD-GRAFI-DUGUM-YETENEKLERI.md) | Kod Grafında Düğüm Yetenekleri ve Revizyon Döngüsü | ✅ Tamamlandı |
-| [212](212-HTTP-DTO-DARALTMA.md) | HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip | 📋 Planlandı |
+| [212](212-HTTP-DTO-DARALTMA.md) | HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip | 🚧 Uygulanıyor (başladı 2026-10-16) |
 | [213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) | Tesisat Arayüzleri ve Üye Hijyeni | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

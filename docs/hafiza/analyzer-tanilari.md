@@ -105,6 +105,7 @@
   ve derleme `RS0017` (beyanli ama public degil) ile kirilir. Olculdu: ilk
   deneme 17 `~` + 10 `~override` satiri biraktı. `scripts/public-yuzey-envanteri.py`
   ayristiricisi (`DEGISTIRICI`) bu bicimi bilir; elle silerken ayni satirlari ara.
+- **HTTP istek/yanit DTO'su `internal` dogar (Faz 212); OpenAPI sema adi tuketici kaniti degildir.** Aciklama `[Description]` ile yazilir (tip, ozellik, konumsal `record` icin `[property: Description]`); `<summary>` yazilmaz, `<remarks>` kalabilir. Tarif: tipi `internal` yap, `PublicAPI.Unshipped.txt`'ten tip + uye satirlarini sil, `OpenApiSnapshotTests`'i `TRACON_OPENAPI_REFRESH=1` ile yenile ve diff'in beklenen satirlari gosterdigini oku. Metni kaybetmek derleme hatasi vermez: `OpenApiDescriptionCoverageTests` yeni aciklamasiz sema/ozelligi kirmizi yapar. Tarayan test `GetExportedTypes()` yerine `GetTypes()` kullanir (`HeaderBearingTypeTests`).
 - **Kaynak uretecin (`System.Text.Json`) public bir `JsonSerializerContext` icin
   urettigi uyeler `RS0041` verir; baglam `internal` olunca tani kendiliginden
   kaybolur** (K-423 bu yuzden yerine gecildi, `NoWarn` kaldirildi).
