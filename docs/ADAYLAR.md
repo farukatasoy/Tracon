@@ -268,6 +268,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
+| 🟡 | **F-564** · `LiveVoiceSessionHost.StopDelegationsAsync` biten bir delegasyonun iptal kaynağına `CancelAsync` çağırıp `ObjectDisposedException` atabilir | Faz 212 kapanış kapısında bir kez görüldü (2026-10-16, tam çözüm koşusu, `-maxcpucount:2`): `LiveVoiceTests.An_empty_cut_opens_NO_run_and_says_so_on_the_thinking_channel` host kapanışında düştü (`LiveVoiceSessionHost.cs:474`). Kök neden kodu okuyarak: `StopDelegationsAsync` `_delegations.Values` üzerinde `CancelAsync` çağırır; biten delegasyon `finally`'de `TryRemove` ardından kaynağı `Dispose` eder (`:538-541`). Sınıf yalıtık 5/5 yeşil, `ic-dongu` 2 127/2 127 yeşil: yarış nadir. Faz 212'nin diff'i bu dosyaya dokunmaz | `kusur-giderme`: yarışı deterministik yeniden üret (biten delegasyon + eşzamanlı kapanış) ve düşen testi yaz; `CancelAsync`'i atılmış kaynağa karşı güvenli yap; `grep` ile aynı deseni tara (`.Values` üzerinde iptal/dispose) |
 | 🟡 | **F-525** · Kapanış kapısı yeni yayımlanan güvenlik uyarısını görmez | Ölçüldü (2026-10-14, F-524): yamasız `Tracon.SqlServer`'da `dotnet build` sıfır uyarı verdi (restore no-op), `dotnet restore --force` aynı projede `NU1902`/`NU1903`'ü hata yaptı. `kapi.py kapanis` önbellekli restore'a güvenir; yeni advisory'yi yalnız şablon testi (boş dizin) ve CI'nın soğuk checkout'u görür | `kapanis`'e `dotnet list Tracon.slnx package --vulnerable --include-transitive` taraması ekle (çıkış kodu vermez: çıktıyı ayrıştır) ya da restore'u `--force-evaluate` ile koştur; süreyi ölç |
 | 🟡 | **F-492** · Kuyruktaki `run`'ın checkpoint'siz kurtarma yeniden başlatması güncel tanımı derler | Faz 200 denetimi (🟡, gerekçelendi): `WorkflowRunJobHandler.Continue` ve `WorkflowJobHandler` (batch öğesi) checkpoint yoksa işlemi yeni kimlikle yeniden uygular; `run` işlemi o anki güncel tanımı derler, kesilen denemenin damgası (`runs.agent_version`) kullanılmaz. `resume`/`respond` yükü `definitionVersion` taşıdığı için etkilenmez | Zincirin kök satırı damgalıysa yeniden başlatmayı o sürüme sabitle; `Apply` yeni `run` için de sürüm kabul etsin |
 | 🟢 | **F-526** · `kapi.py` sevk edilen sözleşme değişimini çözüm dışı örnek depoya bağlamıyor | Ölçüldü (2026-10-14, F-502): `RunStoreContract`'a case ekleyen değişiklik `samples/Tracon.Samples.FileRunStore`'u kırdı; çözümde olmadığı için yalnız `kapi.py yayin --kuru` gördü. `faz-tamamlama` bunu yazar, kapı hatırlatmaz | `src/Tracon.Testing.Contracts.Xunit/` dokunulduğunda `ic-dongu` ve `kapanis`, `samples/Tracon.Samples.*` uyarısının kardeşi olarak "yayın provası gerekir" bassın |
@@ -511,7 +512,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-564**.
+numara: **F-565**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

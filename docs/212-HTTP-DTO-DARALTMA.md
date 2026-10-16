@@ -317,7 +317,8 @@ docs/manuel-test/{25-SAGLIK-TESHIS-OPENAPI,00-INDEKS}.md
 | Negatif kontrol, kapı | `WorkflowRollbackRequest.Version`'dan `[Description]` kaldırıldı → `OpenApiDescriptionCoverageTests` kırmızı: `["WorkflowRollbackRequest.version"]`; geri konunca 27/27 `*OpenApi*` testi yeşil |
 | Negatif kontrol, envanter | `Tracon.ZzProbeResponse` satırı `PublicAPI.Unshipped.txt`'e eklendi → `kapi.py tarama` ❌ `kanıtsız public yüzey (K-850)`; geri alınca ✅ |
 | `ic-dongu` | `Tracon.AspNetCore.FunctionalTests` 2 127 test, 0 hata; `Tracon.Core.UnitTests` 4 125 test üç hedefte; ilk koşumda tek kırmızı `SourceLanguageTests` (yeni test dosyalarında "Faz" sözcüğü, "Phase" yapıldı) |
-| `kapi.py kapanis --taban 87fa2918` | Aşağıdaki "Kapanış kapıları" satırı |
+| `kapi.py kapanis --taban 87fa2918`, ilk koşum | Tam test aşamasında (628 sn) tek kırmızı: `LiveVoiceTests.An_empty_cut_opens_NO_run_and_says_so_on_the_thinking_channel`, `ObjectDisposedException` (`LiveVoiceSessionHost.cs:474`). Faz diff'i bu dosyaya dokunmaz; sınıf yalıtık 5/5 yeşil. Kök neden kodu okuyarak bulundu (`CancelAsync` ile `Dispose` yarışı) ve **F-564** olarak devredildi; kapı yeniden koşuldu — bkz. aşağıdaki satır |
+| `kapi.py kapanis --taban 87fa2918`, yeniden koşum | koşuyor (sonuç bu satıra yazılır) |
 
 ## Süreç Ölçümü
 
