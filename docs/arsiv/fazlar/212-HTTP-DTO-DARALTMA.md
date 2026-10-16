@@ -1,16 +1,16 @@
 # Faz 212 — HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip
 
 > **Durum:** ✅ Tamamlandı (2026-10-16)
-> **Plan onayı:** onaylandı — farukatasoy, 2026-10-16 ("planı uygula", `faz-uygulama` ile). Kapsam kararı: **UR-010 B**, farukatasoy, 2026-10-16 ([`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §7). Açık Soru 1 ve 2'de önerilen seçenek (A) uygulandı; kullanıcıya ayrıca sorulmadı, itiraz gelirse geri alınır.
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-554**
-> **Genellik:** Her .NET tüketicisi. 1.0 sözü bugün 81 HTTP DTO'sunu da kapsar; .NET tüketicisi bunları kullanmaz (`Tracon.Client` kendi DTO'larını üretir). İş tüketici kodunda kalamaz: sözleşme bizim. İkinci kanıt: ilk ilke (donan yüzey küçüldükçe söz ucuzlar) ve [Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) emsali (91 tip, aynı ölçüt).
+> **Plan onayı:** onaylandı — farukatasoy, 2026-10-16 ("planı uygula", `faz-uygulama` ile). Kapsam kararı: **UR-010 B**, farukatasoy, 2026-10-16 ([`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §7). Açık Soru 1 ve 2'de önerilen seçenek (A) uygulandı; kullanıcıya ayrıca sorulmadı, itiraz gelirse geri alınır.
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-554**
+> **Genellik:** Her .NET tüketicisi. 1.0 sözü bugün 81 HTTP DTO'sunu da kapsar; .NET tüketicisi bunları kullanmaz (`Tracon.Client` kendi DTO'larını üretir). İş tüketici kodunda kalamaz: sözleşme bizim. İkinci kanıt: ilk ilke (donan yüzey küçüldükçe söz ucuzlar) ve [Faz 182](182-PUBLIC-API-YUZEY-DARALTMA.md) emsali (91 tip, aynı ölçüt).
 > **Karşı görüş:** Faz 182 "OpenAPI şema tipi daraltılmaz" dedi: üretici yalnız public tipin XML'ini taşır, tip `internal` olunca `description` silinir. **Cevap:** Bu doğrudur ve ölçüldü; plan onu çözer, yok saymaz. `[Description]` aynı metni geri getirir (5 tip / 12 özellik denendi, fark yok). Bedeli: 393 metin tek yere taşınır. Kopya değil **taşıma** olduğu için ikinci kaynak doğmaz; kaybı görünür kılan yeni bir kapı eklenir (§212.4).
-> **Önkoşul:** Yok. [Faz 213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) bu fazdan **sonra** gelir (ikisi de `PublicAPI.Unshipped.txt` ve envanter betiğini değiştirir; paralel koşmaz).
+> **Önkoşul:** Yok. [Faz 213](../../213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) bu fazdan **sonra** gelir (ikisi de `PublicAPI.Unshipped.txt` ve envanter betiğini değiştirir; paralel koşmaz).
 > **Paketler:** `Tracon.Abstractions`, `Tracon.AspNetCore`, `Tracon.Core` (+ `scripts/`, `tests/`)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Küçülüyor.** 81 tip ve 1 345 `PublicAPI.Unshipped.txt` satırı gider (AspNetCore 1 058 · Abstractions 258 · Core 29). `PublicAPI.Shipped.txt` bugün **0** satırdır: `find src -name PublicAPI.Shipped.txt -exec cat {} + | grep -vcE '^\s*$|^#'` → `0`. Daraltma `1.0.0`'dan önce bedavadır; sonra her biri major sürümdür.
 > **Tüketici yüzeyi:** site: Yok (API referansında 81 üretilen sayfa kalkar; izlenen hiçbir sayfa onlara bağlanmaz). Sevk edilen: `CHANGELOG.md` `[Unreleased]` → **Removed**, 81 tipin her biri adıyla (K-864 kapısı ister); OpenAPI belgesi `docs/openapi/tracon.json` yalnız 5 `description` satırı değişir (§212.3)
-> **Manuel test alanı:** [`manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](manuel-test/25-SAGLIK-TESHIS-OPENAPI.md)
+> **Manuel test alanı:** [`manuel-test/25-SAGLIK-TESHIS-OPENAPI.md`](../../manuel-test/25-SAGLIK-TESHIS-OPENAPI.md)
 
 ---
 
@@ -25,15 +25,15 @@
    grep -n "K-850\|K-352\|K-864\|K-603" docs/KARARLAR.md
    ```
    **K-850** (kanıtsız tip `internal`; "OpenAPI şema tipi daraltılmaz" bu kararın devir notundadır, Faz 182) · **K-352** (OpenAPI belgesini tüketicinin `AddOpenApi()`'si üretir) · **K-864** (kırılma sürüm notunda adıyla anılır) · **K-603** (`Shipped` dolumu `1.0.0`'a kadar boş)
-3. [Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) — yalnız devir notu:
+3. [Faz 182](182-PUBLIC-API-YUZEY-DARALTMA.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md
    ```
    Bu faz onun ikinci kuralını (OpenAPI şema tipi daraltılmaz) **değiştirir**; neden değiştiği §212.1'dedir.
 4. Alan hafızası:
-   [`hafiza/http-uc-guvenlik-ve-sozlesme.md`](hafiza/http-uc-guvenlik-ve-sozlesme.md) (satır 30: OpenAPI açıklama tuzağı; satır 39: `cref` tuzağı) ·
-   [`hafiza/analyzer-tanilari.md`](hafiza/analyzer-tanilari.md) (§ Public yüzey daraltma tarifi: `~` önekli satırlar, `RS0017`) ·
-   [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md) (yeniden üretim sırası, satır 60-62)
+   [`hafiza/http-uc-guvenlik-ve-sozlesme.md`](../../hafiza/http-uc-guvenlik-ve-sozlesme.md) (satır 30: OpenAPI açıklama tuzağı; satır 39: `cref` tuzağı) ·
+   [`hafiza/analyzer-tanilari.md`](../../hafiza/analyzer-tanilari.md) (§ Public yüzey daraltma tarifi: `~` önekli satırlar, `RS0017`) ·
+   [`hafiza/nswag-istemci-uretimi.md`](../../hafiza/nswag-istemci-uretimi.md) (yeniden üretim sırası, satır 60-62)
 5. `python3 scripts/public-yuzey-envanteri.py --help` — bu fazın ölçüm aracı
 
 ---
@@ -48,9 +48,9 @@
 
 | Kanıt | Gözlem |
 |---|---|
-| [`public-yuzey-envanteri.py`](../scripts/public-yuzey-envanteri.py) `_tuketici_kaniti` | OpenAPI şema adı "tüketici kanıtı" sayılır; 161 tip bu kanıtla public kalır. Kanıt çıkarılınca **81** tip kanıtsız kalır (63 AspNetCore · 17 Abstractions · 1 Core; 79 `record`, 2 `enum`) |
-| [`tests/Tracon.AspNetCore.FunctionalTests/OpenApiDocumentTests.cs:116`](../tests/Tracon.AspNetCore.FunctionalTests/OpenApiDocumentTests.cs) | Açıklamalı özellik tabanı `> 500`; anlık görüntüde 1 164 özellik var, 298'i bu 81 tipte. Hepsi silinse 866 kalır: **kapı kaybı görmez** |
-| [`tests/Tracon.AspNetCore.FunctionalTests/HeaderBearingTypeTests.cs:43`](../tests/Tracon.AspNetCore.FunctionalTests/HeaderBearingTypeTests.cs) | `GetExportedTypes()` ile tarar ve `:50`'de `WebhookSaveRequest`'i bekler; tip `internal` olunca kırılır |
+| [`public-yuzey-envanteri.py`](../../../scripts/public-yuzey-envanteri.py) `_tuketici_kaniti` | OpenAPI şema adı "tüketici kanıtı" sayılır; 161 tip bu kanıtla public kalır. Kanıt çıkarılınca **81** tip kanıtsız kalır (63 AspNetCore · 17 Abstractions · 1 Core; 79 `record`, 2 `enum`) |
+| [`tests/Tracon.AspNetCore.FunctionalTests/OpenApiDocumentTests.cs:116`](../../../tests/Tracon.AspNetCore.FunctionalTests/OpenApiDocumentTests.cs) | Açıklamalı özellik tabanı `> 500`; anlık görüntüde 1 164 özellik var, 298'i bu 81 tipte. Hepsi silinse 866 kalır: **kapı kaybı görmez** |
+| [`tests/Tracon.AspNetCore.FunctionalTests/HeaderBearingTypeTests.cs:43`](../../../tests/Tracon.AspNetCore.FunctionalTests/HeaderBearingTypeTests.cs) | `GetExportedTypes()` ile tarar ve `:50`'de `WebhookSaveRequest`'i bekler; tip `internal` olunca kırılır |
 | `src/Tracon.Abstractions/Tracon.Abstractions.csproj:14-73` | `InternalsVisibleTo`: Core, Workflows, AspNetCore, Mcp, üç SQL sağlayıcı, Voice, dört model sağlayıcı ve beş test projesi. **Yeni grant gerekmez** |
 | `src/Directory.Build.props:219-222` | `<Ad>.UnitTests/.IntegrationTests/.FunctionalTests` otomatik IVT alır; `Tracon.AspNetCore.FunctionalTests` (27 tipi kullanır) kapsanır |
 | `PublicAPI.*.txt` (9 875 satır) | 81 tipten birini başka bir public imzada anan satır **yok** (`CS0050/51/53` riski 0); taban liste ve `where` kısıtlarında da 0 |
@@ -85,7 +85,7 @@ Gruplama bağımsız: altı çoklu tip grubu var (örnek: `AgentValidationReport
 1. Her `<summary>` metni `[Description("…")]` olur (özellikte `[property: Description]` yalnız konumsal `record` için: `UploadDocumentResponse`, `KnowledgeContracts.cs:47`).
 2. `///` bloğundan `<summary>` **silinir**, `<remarks>` kalır. İki kopya doğmaz; kaynak öznitelik olur.
 3. Dönüştürme kuralları (üreticiden ölçüldü, 388/393 birebir eşleşti): `<c>x</c>` → `` `x` `` · `<see langword="null"/>` → `` `null` `` · `<see cref="T:…"/>` → tip adı · satır başı girintisi atılır, çok satırlı metin (75 adet) `\n` ile kalır · `<strong>` ham kalır (1 adet, `WebhookSaveRequest.SecretConfigurationKey`).
-4. **5 özellik `cref`'i** (örnek `WorkflowSaveRequest.AgentNames`) bugün `IReadOnlyList&lt;string&gt;? WorkflowSaveRequest.AgentNames` diye bozuk çıkar ([`hafiza/http-uc-guvenlik-ve-sozlesme.md`](hafiza/http-uc-guvenlik-ve-sozlesme.md) satır 39). Düz metne çevrilir. **Anlık görüntüde yalnız bu 5 `description` satırı değişir**; başka her satır birebir aynıdır.
+4. **5 özellik `cref`'i** (örnek `WorkflowSaveRequest.AgentNames`) bugün `IReadOnlyList&lt;string&gt;? WorkflowSaveRequest.AgentNames` diye bozuk çıkar ([`hafiza/http-uc-guvenlik-ve-sozlesme.md`](../../hafiza/http-uc-guvenlik-ve-sozlesme.md) satır 39). Düz metne çevrilir. **Anlık görüntüde yalnız bu 5 `description` satırı değişir**; başka her satır birebir aynıdır.
 5. Taşıma **tek seferlik bir betikle** yapılır (geçici; iş bitince silinir, `AGENTS.md` çalışma alanı kuralı). Elle yazma 393 yerde hata üretir.
 
 > **Ölçüldü (bkz. Plandan Sapmalar 2) — plan anında doğrulanmamıştı:** enum tipinde (`CanaryDecisionKind`, `ValidationSeverity`) tip düzeyi `[Description]`'ın şemaya geçmesi; `Microsoft.AspNetCore.OpenApi` 10.0.10'un `[Description]`'ı net8/net9 tüketicilerinde de okuması (bu paketler çok hedeflidir; üretici tüketicinin paketidir).
@@ -162,7 +162,7 @@ CHANGELOG.md · docs/hafiza/http-uc-guvenlik-ve-sozlesme.md · docs/hafiza/analy
 
 ## Hata Modları ve Testler
 
-> Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test |
 |---|---|---|
@@ -355,7 +355,7 @@ Denetçi salt-okunur çalıştığı için `dotnet build/test` koşmadı; derlem
 
 ## Sonraki Faza Devir Notu
 
-- **[Faz 213](213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) başlangıç sayıları:** `PublicAPI.Unshipped.txt` toplamı `8530`; `public-surface-baseline.txt` Abstractions `423`, AspNetCore `23`, Core `79`; `--liste kanıtsız` boş. İkisi de aynı dosyaları değiştirir; 212 işlenmiştir, 213 bu sayılardan başlar.
+- **[Faz 213](../../213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md) başlangıç sayıları:** `PublicAPI.Unshipped.txt` toplamı `8530`; `public-surface-baseline.txt` Abstractions `423`, AspNetCore `23`, Core `79`; `--liste kanıtsız` boş. İkisi de aynı dosyaları değiştirir; 212 işlenmiştir, 213 bu sayılardan başlar.
 - 🚨 **Yeni HTTP istek/yanıt DTO'su `internal` doğar:** `using System.ComponentModel;`, tipte ve her özellikte `[Description("…")]`, `<summary>` yazılmaz (`<remarks>` kalabilir), konumsal `record`'ta `[property: Description("…")]`. Metni unutmak derlenir ve her davranış testinden geçer; `OpenApiDescriptionCoverageTests` yakalar.
 - 🚨 **`openapi-undescribed-baseline.txt` yalnız küçülür.** Yeni açıklamasız şema/özellik kırmızıdır; açıklama kazanmış bayat satır da kırmızıdır. Snapshot yenileme tabanı yeniden yazmaz.
 - 🚨 **Swashbuckle + `IncludeXmlComments` ölçülmedi.** O yoldan kendi belgesini üreten tüketici 81 tipin `<summary>`'sini kaybeder. Desteklenen yol değildir (K-352); biri talep ederse K-1012'nin yeniden açılma koşuludur.
