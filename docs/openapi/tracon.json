@@ -10720,7 +10720,7 @@
         "properties": {
           "dryRun": {
             "type": "boolean",
-            "description": "Gets whether this was a preview: \u0060true\u0060 means\nIReadOnlyDictionary\u0026lt;string, int\u0026gt; DataSubjectErasureResult.RowsByTarget shows what WOULD be deleted and nothing was\nactually removed."
+            "description": "Gets whether this was a preview: \u0060true\u0060 means\nRowsByTarget shows what WOULD be deleted and nothing was\nactually removed."
           },
           "rowsByTarget": {
             "type": "object",
@@ -12014,7 +12014,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the dotted path used when InboundTriggerPayloadMode InboundTriggerResponse.PayloadMode is InboundTriggerPayloadMode.Path."
+            "description": "Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path."
           },
           "enabled": {
             "type": "boolean",
@@ -12063,7 +12063,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the dotted path used when InboundTriggerPayloadMode InboundTriggerSaveRequest.PayloadMode is InboundTriggerPayloadMode.Path."
+            "description": "Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path."
           },
           "enabled": {
             "type": "boolean",
@@ -12557,7 +12557,7 @@
               "null",
               "string"
             ],
-            "description": "The lane the jobs this schedule produces run in. See\n\u0060JobLanes\u0060. Left empty, the jobs run in \u0060JobLanes.Default\u0060\n(or whatever \u0060TraconSchedulingOptions.LaneByHandlerKey\u0060 maps\nstring JobScheduleSaveRequest.HandlerKey to)."
+            "description": "The lane the jobs this schedule produces run in. See\n\u0060JobLanes\u0060. Left empty, the jobs run in \u0060JobLanes.Default\u0060\n(or whatever \u0060TraconSchedulingOptions.LaneByHandlerKey\u0060 maps\nHandlerKey to)."
           },
           "payload": {
             "description": "Input set or parameters.",
@@ -19772,7 +19772,7 @@
             "items": {
               "$ref": "#/components/schemas/WorkflowNodeReference"
             },
-            "description": "Ordered agent/function node list for a Sequential workflow that mixes\nfunction nodes in with agents. Mutually exclusive with\nIReadOnlyList\u0026lt;string\u0026gt;? WorkflowSaveRequest.AgentNames; leave both empty or set only one."
+            "description": "Ordered agent/function node list for a Sequential workflow that mixes\nfunction nodes in with agents. Mutually exclusive with\nAgentNames; leave both empty or set only one."
           },
           "managerAgentName": {
             "type": [

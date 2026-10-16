@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
 /// <summary>Request to upload a document.</summary>
@@ -41,10 +43,10 @@ public sealed record UploadDocumentChunk
     public IReadOnlyDictionary<string, string>? Metadata { get; init; }
 }
 
-/// <summary>Result of a document upload request.</summary>
-/// <param name="SourceId">Identifier of the uploaded source.</param>
-/// <param name="ChunkCount">Number of chunks written.</param>
-public sealed record UploadDocumentResponse(string SourceId, int ChunkCount);
+[Description("Result of a document upload request.")]
+internal sealed record UploadDocumentResponse(
+    [property: Description("Identifier of the uploaded source.")] string SourceId,
+    [property: Description("Number of chunks written.")] int ChunkCount);
 
 /// <summary>A semantic search request.</summary>
 public sealed record SearchKnowledgeRequest
@@ -56,21 +58,21 @@ public sealed record SearchKnowledgeRequest
     public int? Top { get; init; }
 }
 
-/// <summary>A semantic search hit.</summary>
-public sealed record SearchKnowledgeHit
+[Description("A semantic search hit.")]
+internal sealed record SearchKnowledgeHit
 {
-    /// <summary>Identifier of the source the chunk belongs to.</summary>
+    [Description("Identifier of the source the chunk belongs to.")]
     public required string SourceId { get; init; }
 
-    /// <summary>Sequence number within the source.</summary>
+    [Description("Sequence number within the source.")]
     public required int ChunkIndex { get; init; }
 
-    /// <summary>The chunk's text.</summary>
+    [Description("The chunk's text.")]
     public required string Content { get; init; }
 
-    /// <summary>Cosine distance. A smaller value means closer.</summary>
+    [Description("Cosine distance. A smaller value means closer.")]
     public required double Distance { get; init; }
 
-    /// <summary>Optional metadata given at write time.</summary>
+    [Description("Optional metadata given at write time.")]
     public IReadOnlyDictionary<string, string>? Metadata { get; init; }
 }

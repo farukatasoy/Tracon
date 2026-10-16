@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
 /// <summary>
@@ -112,40 +114,37 @@ public sealed record AgentDefinitionRequest
         };
 }
 
-/// <summary>Request to create or update a skill.</summary>
-public sealed record AgentSkillRequest
+[Description("Request to create or update a skill.")]
+internal sealed record AgentSkillRequest
 {
-    /// <summary>Skill name.</summary>
+    [Description("Skill name.")]
     public required string Name { get; init; }
 
-    /// <summary>Skill description.</summary>
+    [Description("Skill description.")]
     public required string Description { get; init; }
 
-    /// <summary>Markdown instructions.</summary>
+    [Description("Markdown instructions.")]
     public required string Instructions { get; init; }
 
-    /// <summary>Compatibility statement.</summary>
+    [Description("Compatibility statement.")]
     public string? Compatibility { get; init; }
 
-    /// <summary>Skill license.</summary>
+    [Description("Skill license.")]
     public string? License { get; init; }
 
-    /// <summary>Allowed-tools declaration from the MAF frontmatter.</summary>
+    [Description("Allowed-tools declaration from the MAF frontmatter.")]
     public string? AllowedTools { get; init; }
 
-    /// <summary>Application-specific metadata.</summary>
+    [Description("Application-specific metadata.")]
     public IReadOnlyDictionary<string, System.Text.Json.JsonElement> Metadata { get; init; }
         = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
 
-    /// <summary>Whether the skill is enabled.</summary>
+    [Description("Whether the skill is enabled.")]
     public bool Enabled { get; init; } = true;
 
-    /// <summary>Skill resources.</summary>
+    [Description("Skill resources.")]
     public IReadOnlyList<AgentSkillResourceDefinition> Resources { get; init; } = [];
 
-    /// <summary>
-    /// Skill scripts.
-    /// </summary>
     /// <remarks>
     /// Content written here <strong>can be executed on the server</strong>.
     /// Writing it is not enough by itself: a script runs only when
@@ -154,6 +153,7 @@ public sealed record AgentSkillRequest
     /// <c>SkillScriptGrant</c> pinned to this exact content. Changing a granted
     /// script stops it until it is granted again.
     /// </remarks>
+    [Description("Skill scripts.")]
     public IReadOnlyList<AgentSkillScriptDefinition> Scripts { get; init; } = [];
 
     /// <summary>Converts the request into a persistable skill definition.</summary>
@@ -176,7 +176,6 @@ public sealed record AgentSkillRequest
         };
 }
 
-/// <summary>Request to grant script execution permission.</summary>
 /// <remarks>
 /// Granting permission means authorizing code to run on the server on behalf
 /// of this tenant. Because of this, the endpoint is open only to the admin role
@@ -184,25 +183,20 @@ public sealed record AgentSkillRequest
 /// a stored script also needs platform authority. Every grant is written to the
 /// audit trail; a refused request writes nothing.
 /// </remarks>
-public sealed record SkillScriptGrantRequest
+[Description("Request to grant script execution permission.")]
+internal sealed record SkillScriptGrantRequest
 {
-    /// <summary>Name of the skill being granted permission.</summary>
+    [Description("Name of the skill being granted permission.")]
     public required string SkillName { get; init; }
 
-    /// <summary>
-    /// Name of the script being granted permission. If <see langword="null"/>,
-    /// every script of the skill is covered.
-    /// </summary>
+    [Description(
+        "Name of the script being granted permission. If `null`,\n" +
+        "every script of the skill is covered.")]
     public string? ScriptName { get; init; }
 
-    /// <summary>Expiration time of the grant. If <see langword="null"/>, it is unlimited.</summary>
+    [Description("Expiration time of the grant. If `null`, it is unlimited.")]
     public DateTimeOffset? ExpiresAt { get; init; }
 
-    /// <summary>
-    /// The content the grant pins, read from <c>GET /api/skills/{name}</c>: the
-    /// script's <c>contentHash</c> when <c>scriptName</c> is set, the skill's
-    /// <c>scriptSetHash</c> when it is not.
-    /// </summary>
     /// <remarks>
     /// <para>
     /// Required for a skill stored in the database or registered in code (<c>400</c>
@@ -222,12 +216,13 @@ public sealed record SkillScriptGrantRequest
     /// }
     /// </code>
     /// </remarks>
+    [Description(
+        "The content the grant pins, read from `GET /api/skills/{name}`: the\n" +
+        "script's `contentHash` when `scriptName` is set, the skill's\n" +
+        "`scriptSetHash` when it is not.")]
     public string? ExpectedContentHash { get; init; }
 }
 
-/// <summary>
-/// Detailed view of a single agent.
-/// </summary>
 /// <remarks>
 /// The catalog shows agents defined both in code and in the database. Those
 /// defined in code <strong>cannot be edited</strong>: on a name collision,
@@ -237,54 +232,52 @@ public sealed record SkillScriptGrantRequest
 /// without ambiguity — see <c>Definition</c> and <c>FactoryInstructions</c> —
 /// even though it cannot be edited here.
 /// </remarks>
-public sealed record AgentDetailResponse
+[Description("Detailed view of a single agent.")]
+internal sealed record AgentDetailResponse
 {
-    /// <summary>Catalog summary.</summary>
+    [Description("Catalog summary.")]
     public required AgentDescriptor Descriptor { get; init; }
 
-    /// <summary>
-    /// The agent's definition. <see langword="null"/> only for a code agent built
-    /// from a factory (<c>AddAgent(name, factory)</c>), which carries no
-    /// <c>AgentDefinition</c> at all. A code agent declared with
-    /// <c>AddAgent(AgentDefinition)</c> returns its in-memory definition here
-    /// despite never being written to the database.
-    /// </summary>
+    [Description(
+        "The agent's definition. `null` only for a code agent built\n" +
+        "from a factory (`AddAgent(name, factory)`), which carries no\n" +
+        "`AgentDefinition` at all. A code agent declared with\n" +
+        "`AddAgent(AgentDefinition)` returns its in-memory definition here\n" +
+        "despite never being written to the database.")]
     public AgentDefinition? Definition { get; init; }
 
-    /// <summary>
-    /// Best-effort instructions read directly from the resolved agent when
-    /// <c>Definition</c> is <see langword="null"/> because the agent is
-    /// built from a factory (<c>AddAgent(name, factory)</c>) and its concrete
-    /// type exposes them (currently only <c>Microsoft.Agents.AI.ChatClientAgent</c>).
-    /// <see langword="null"/> when <c>Definition</c> is populated instead
-    /// (read <c>Definition.Instructions</c> there), when the factory's concrete
-    /// type does not expose instructions, or when invoking the factory to check
-    /// failed — this field is diagnostic only and never blocks the response.
-    /// </summary>
+    [Description(
+        "Best-effort instructions read directly from the resolved agent when\n" +
+        "`Definition` is `null` because the agent is\n" +
+        "built from a factory (`AddAgent(name, factory)`) and its concrete\n" +
+        "type exposes them (currently only `Microsoft.Agents.AI.ChatClientAgent`).\n" +
+        "`null` when `Definition` is populated instead\n" +
+        "(read `Definition.Instructions` there), when the factory's concrete\n" +
+        "type does not expose instructions, or when invoking the factory to check\n" +
+        "failed — this field is diagnostic only and never blocks the response.")]
     public string? FactoryInstructions { get; init; }
 
-    /// <summary>Whether this agent can be modified through the management API.</summary>
+    [Description("Whether this agent can be modified through the management API.")]
     public required bool IsEditable { get; init; }
 }
 
-/// <summary>Request to roll back a definition to a previous version.</summary>
-public sealed record AgentRollbackRequest
+[Description("Request to roll back a definition to a previous version.")]
+internal sealed record AgentRollbackRequest
 {
-    /// <summary>Version number to roll back to.</summary>
+    [Description("Version number to roll back to.")]
     public required int Version { get; init; }
 }
 
-/// <summary>
-/// Raw JSON response for comparing two definition versions. The
-/// diff is not computed on the server; the client compares the two raw
-/// definitions field by field.
-/// </summary>
-public sealed record AgentVersionDiffResponse
+[Description(
+    "Raw JSON response for comparing two definition versions. The\n" +
+    "diff is not computed on the server; the client compares the two raw\n" +
+    "definitions field by field.")]
+internal sealed record AgentVersionDiffResponse
 {
-    /// <summary>Left (usually older) side of the comparison.</summary>
+    [Description("Left (usually older) side of the comparison.")]
     public required AgentDefinition Left { get; init; }
 
-    /// <summary>Right (usually newer) side of the comparison.</summary>
+    [Description("Right (usually newer) side of the comparison.")]
     public required AgentDefinition Right { get; init; }
 }
 
@@ -447,26 +440,24 @@ public sealed record ClientToolResult
     public string? ErrorMessage { get; init; }
 }
 
-/// <summary>
-/// <c>202 Accepted</c> response for a queued run.
-/// </summary>
 /// <remarks>
 /// Returned for a run started with the <c>Prefer: respond-async</c> header.
 /// The same information is also carried in the <c>Location</c> header; the
 /// body spares the client from having to also construct an event stream
 /// address (<see cref="EventsLocation"/>).
 /// </remarks>
-public sealed record AcceptedRunResponse
+[Description("`202 Accepted` response for a queued run.")]
+internal sealed record AcceptedRunResponse
 {
-    /// <summary>Run identifier.</summary>
+    [Description("Run identifier.")]
     public required Guid RunId { get; init; }
 
-    /// <summary>Identifier of the queue record carrying the work.</summary>
+    [Description("Identifier of the queue record carrying the work.")]
     public required Guid JobId { get; init; }
 
-    /// <summary>Address of the run record. Same as the <c>Location</c> header.</summary>
+    [Description("Address of the run record. Same as the `Location` header.")]
     public required string Location { get; init; }
 
-    /// <summary>Address of the event stream.</summary>
+    [Description("Address of the event stream.")]
     public required string EventsLocation { get; init; }
 }

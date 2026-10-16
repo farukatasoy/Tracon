@@ -1,10 +1,8 @@
+using System.ComponentModel;
 using System.Text.Json;
 
 namespace Tracon;
 
-/// <summary>
-/// Detailed view of a single session: metadata and chat history.
-/// </summary>
 /// <remarks>
 /// <para>
 /// <see cref="Messages"/> is Microsoft Agent Framework's <c>ChatMessage</c>
@@ -18,29 +16,29 @@ namespace Tracon;
 /// interpret it.
 /// </para>
 /// </remarks>
-public sealed record SessionDetailResponse
+[Description("Detailed view of a single session: metadata and chat history.")]
+internal sealed record SessionDetailResponse
 {
-    /// <summary>Session identifier.</summary>
+    [Description("Session identifier.")]
     public required string Id { get; init; }
 
-    /// <summary>Agent the session belongs to.</summary>
+    [Description("Agent the session belongs to.")]
     public required string AgentName { get; init; }
 
-    /// <summary>Tenant identifier.</summary>
+    [Description("Tenant identifier.")]
     public string? TenantId { get; init; }
 
-    /// <summary>Creation time.</summary>
+    [Description("Creation time.")]
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>Last update time.</summary>
+    [Description("Last update time.")]
     public required DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>
-    /// Chat history. Returns <see langword="null"/> if the history could not
-    /// be read (e.g. the agent is no longer in the catalog).
-    /// </summary>
+    [Description(
+        "Chat history. Returns `null` if the history could not\n" +
+        "be read (e.g. the agent is no longer in the catalog).")]
     public JsonElement? Messages { get; init; }
 
-    /// <summary>Serialized session state.</summary>
+    [Description("Serialized session state.")]
     public required JsonElement State { get; init; }
 }

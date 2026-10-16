@@ -1,105 +1,101 @@
+using System.ComponentModel;
 using Microsoft.Extensions.AI;
 
 namespace Tracon;
 
-/// <summary>HTTP response for a run's recorded input.</summary>
-public sealed record RunInputResponse
+[Description("HTTP response for a run's recorded input.")]
+internal sealed record RunInputResponse
 {
-    /// <summary>Run identifier.</summary>
+    [Description("Run identifier.")]
     public required Guid RunId { get; init; }
 
-    /// <summary>Creation time of the record (UTC).</summary>
+    [Description("Creation time of the record (UTC).")]
     public required DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>
-    /// Input messages, with their polymorphic content, exactly as recorded.
-    /// </summary>
+    [Description("Input messages, with their polymorphic content, exactly as recorded.")]
     public required IReadOnlyList<ChatMessage> Messages { get; init; }
 }
 
-/// <summary>Result of a replay.</summary>
-public sealed record RunReplayResponse
+[Description("Result of a replay.")]
+internal sealed record RunReplayResponse
 {
-    /// <summary>Identifier of the newly started run.</summary>
+    [Description("Identifier of the newly started run.")]
     public required Guid RunId { get; init; }
 
-    /// <summary>Identifier of the source run. Same as <c>runs.replay_of_run_id</c>.</summary>
+    [Description("Identifier of the source run. Same as `runs.replay_of_run_id`.")]
     public required Guid SourceRunId { get; init; }
 
-    /// <summary>Tool mode applied.</summary>
+    [Description("Tool mode applied.")]
     public required ReplayToolMode ToolMode { get; init; }
 
-    /// <summary>Definition version used. <see langword="null"/> for a code agent.</summary>
+    [Description("Definition version used. `null` for a code agent.")]
     public int? AgentVersion { get; init; }
 
-    /// <summary>Model used.</summary>
+    [Description("Model used.")]
     public string? ModelId { get; init; }
 
-    /// <summary>Text produced by the model.</summary>
+    [Description("Text produced by the model.")]
     public string? Output { get; init; }
 
-    /// <summary>Address of the endpoint that places the two runs side by side.</summary>
+    [Description("Address of the endpoint that places the two runs side by side.")]
     public required string CompareLocation { get; init; }
 }
 
-/// <summary>Side-by-side summary of two runs.</summary>
 /// <remarks>
 /// The diff is <strong>not computed on the server</strong>; the endpoint
 /// only returns the two summaries and the UI shows the comparison. The definition
 /// definition version diff follows the same pattern and the UI already has a
 /// diff component; a second computation would mean maintenance in two places.
 /// </remarks>
-public sealed record RunComparisonResponse
+[Description("Side-by-side summary of two runs.")]
+internal sealed record RunComparisonResponse
 {
-    /// <summary>The left-hand run.</summary>
+    [Description("The left-hand run.")]
     public required RunComparisonSide Left { get; init; }
 
-    /// <summary>The right-hand run.</summary>
+    [Description("The right-hand run.")]
     public required RunComparisonSide Right { get; init; }
 }
 
-/// <summary>One side of the comparison.</summary>
-public sealed record RunComparisonSide
+[Description("One side of the comparison.")]
+internal sealed record RunComparisonSide
 {
-    /// <summary>Run identifier.</summary>
+    [Description("Run identifier.")]
     public required Guid RunId { get; init; }
 
-    /// <summary>Agent name.</summary>
+    [Description("Agent name.")]
     public required string AgentName { get; init; }
 
-    /// <summary>Definition version. <see langword="null"/> if unknown.</summary>
+    [Description("Definition version. `null` if unknown.")]
     public int? AgentVersion { get; init; }
 
-    /// <summary>Model used.</summary>
+    [Description("Model used.")]
     public string? ModelId { get; init; }
 
-    /// <summary>Final status.</summary>
+    [Description("Final status.")]
     public required RunStatus Status { get; init; }
 
-    /// <summary>Duration (milliseconds). <see langword="null"/> if the run has not finished.</summary>
+    [Description("Duration (milliseconds). `null` if the run has not finished.")]
     public long? DurationMs { get; init; }
 
-    /// <summary>Token usage.</summary>
+    [Description("Token usage.")]
     public RunUsage? Usage { get; init; }
 
-    /// <summary>Cost.</summary>
+    [Description("Cost.")]
     public RunCost? Cost { get; init; }
 
-    /// <summary>Number of tool calls.</summary>
+    [Description("Number of tool calls.")]
     public required int ToolCallCount { get; init; }
 
-    /// <summary>Error class. <see langword="null"/> for a successful run.</summary>
+    [Description("Error class. `null` for a successful run.")]
     public RunErrorClass? ErrorClass { get; init; }
 
-    /// <summary>Error message. <see langword="null"/> for a successful run.</summary>
+    [Description("Error message. `null` for a successful run.")]
     public string? ErrorMessage { get; init; }
 
-    /// <summary>Source of this run, if it is a replay.</summary>
+    [Description("Source of this run, if it is a replay.")]
     public Guid? ReplayOfRunId { get; init; }
 
-    /// <summary>
-    /// Text produced by the model.
-    /// </summary>
     /// <remarks>
     /// The non-streaming path writes <c>MessageCompleted</c>, the streaming
     /// path produces only <c>MessageDelta</c>. The two are NOT SUMMED:
@@ -107,8 +103,9 @@ public sealed record RunComparisonSide
     /// are concatenated — otherwise the text would be counted twice on the
     /// non-streaming path.
     /// </remarks>
+    [Description("Text produced by the model.")]
     public string? Output { get; init; }
 
-    /// <summary>Scores written against this run.</summary>
+    [Description("Scores written against this run.")]
     public IReadOnlyList<RunScore> Scores { get; init; } = [];
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -7,78 +8,77 @@ using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
-/// <summary>The request that opens a provider-hosted live voice session.</summary>
-public sealed record LiveVoiceSessionCreateRequest
+[Description("The request that opens a provider-hosted live voice session.")]
+internal sealed record LiveVoiceSessionCreateRequest
 {
-    /// <summary>Gets the agent session the conversation runs in.</summary>
+    [Description("Gets the agent session the conversation runs in.")]
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
 
-    /// <summary>Gets the agent to talk to.</summary>
+    [Description("Gets the agent to talk to.")]
     [JsonPropertyName("agent")]
     public required string Agent { get; init; }
 
-    /// <summary>Gets the media peer's SDP offer.</summary>
+    [Description("Gets the media peer's SDP offer.")]
     [JsonPropertyName("sdp")]
     public required string Sdp { get; init; }
 
-    /// <summary>Gets the requested output voice; <see langword="null"/> leaves the configured default.</summary>
+    [Description("Gets the requested output voice; `null` leaves the configured default.")]
     [JsonPropertyName("voice")]
     public string? Voice { get; init; }
 }
 
-/// <summary>The answer that opens a provider-hosted live voice session.</summary>
-public sealed record LiveVoiceSessionCreateResponse
+[Description("The answer that opens a provider-hosted live voice session.")]
+internal sealed record LiveVoiceSessionCreateResponse
 {
-    /// <summary>Gets Tracon's identifier for the session.</summary>
+    [Description("Gets Tracon's identifier for the session.")]
     [JsonPropertyName("voiceSessionId")]
     public required Guid VoiceSessionId { get; init; }
 
-    /// <summary>Gets the SDP answer to hand to the media peer.</summary>
+    [Description("Gets the SDP answer to hand to the media peer.")]
     [JsonPropertyName("sdp")]
     public required string Sdp { get; init; }
 
-    /// <summary>Gets the model the session is bound to.</summary>
+    [Description("Gets the model the session is bound to.")]
     [JsonPropertyName("model")]
     public string? Model { get; init; }
 
-    /// <summary>
-    /// Gets whether the conversation's transcript will be written to the session's
-    /// durable history.
-    /// </summary>
     /// <remarks>
     /// Reported so that no recording happens silently. The user's audio is never
     /// stored, but the text of what they say is durable while this is
     /// <see langword="true"/>.
     /// </remarks>
+    [Description(
+        "Gets whether the conversation's transcript will be written to the session's\n" +
+        "durable history.")]
     [JsonPropertyName("persistTranscript")]
     public required bool PersistTranscript { get; init; }
 }
 
-/// <summary>The status of a provider-hosted live voice session.</summary>
-public sealed record LiveVoiceSessionStatusResponse
+[Description("The status of a provider-hosted live voice session.")]
+internal sealed record LiveVoiceSessionStatusResponse
 {
-    /// <summary>Gets Tracon's identifier for the session.</summary>
+    [Description("Gets Tracon's identifier for the session.")]
     [JsonPropertyName("voiceSessionId")]
     public required Guid VoiceSessionId { get; init; }
 
-    /// <summary>Gets the lifecycle state: <c>pending</c>, <c>active</c> or <c>ended</c>.</summary>
+    [Description("Gets the lifecycle state: `pending`, `active` or `ended`.")]
     [JsonPropertyName("state")]
     public required string State { get; init; }
 
-    /// <summary>Gets the model the session is bound to.</summary>
+    [Description("Gets the model the session is bound to.")]
     [JsonPropertyName("model")]
     public string? Model { get; init; }
 
-    /// <summary>Gets when the session was created.</summary>
+    [Description("Gets when the session was created.")]
     [JsonPropertyName("startedAt")]
     public required DateTimeOffset StartedAt { get; init; }
 
-    /// <summary>Gets the billable duration the provider has reported so far.</summary>
+    [Description("Gets the billable duration the provider has reported so far.")]
     [JsonPropertyName("liveSeconds")]
     public decimal? LiveSeconds { get; init; }
 
-    /// <summary>Gets how many delegations have become runs.</summary>
+    [Description("Gets how many delegations have become runs.")]
     [JsonPropertyName("turns")]
     public required int Turns { get; init; }
 }

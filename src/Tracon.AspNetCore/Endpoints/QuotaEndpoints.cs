@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -300,49 +301,48 @@ internal static class QuotaEndpoints
             statusCode: StatusCodes.Status400BadRequest);
 }
 
-/// <summary>Request body for saving a quota rule.</summary>
-public sealed record QuotaSaveRequest
+[Description("Request body for saving a quota rule.")]
+internal sealed record QuotaSaveRequest
 {
-    /// <summary>
-    /// Gets the agent the rule is bound to. If left empty, the rule applies to all
-    /// of the tenant's runs.
-    /// </summary>
+    [Description(
+        "Gets the agent the rule is bound to. If left empty, the rule applies to all\n" +
+        "of the tenant's runs.")]
     public string? AgentName { get; init; }
 
-    /// <summary>Gets the counter's reset interval.</summary>
+    [Description("Gets the counter's reset interval.")]
     public QuotaPeriod Period { get; init; } = QuotaPeriod.Daily;
 
-    /// <summary>Gets the maximum number of runs per period.</summary>
+    [Description("Gets the maximum number of runs per period.")]
     public long? MaxRuns { get; init; }
 
-    /// <summary>Gets the maximum number of tokens per period.</summary>
+    [Description("Gets the maximum number of tokens per period.")]
     public long? MaxTokens { get; init; }
 
-    /// <summary>Gets the maximum monetary amount per period.</summary>
+    [Description("Gets the maximum monetary amount per period.")]
     public decimal? MaxCost { get; init; }
 
-    /// <summary>Gets whether the rule is enabled.</summary>
+    [Description("Gets whether the rule is enabled.")]
     public bool Enabled { get; init; } = true;
 }
 
-/// <summary>Response for the quota usage endpoint.</summary>
-public sealed record QuotaUsageResponse
+[Description("Response for the quota usage endpoint.")]
+internal sealed record QuotaUsageResponse
 {
-    /// <summary>Gets the tenant identifier.</summary>
+    [Description("Gets the tenant identifier.")]
     public required string TenantId { get; init; }
 
-    /// <summary>Gets the time zone the period boundaries are computed in.</summary>
+    [Description("Gets the time zone the period boundaries are computed in.")]
     public required string TimeZone { get; init; }
 
-    /// <summary>Gets the current period's counters.</summary>
+    [Description("Gets the current period's counters.")]
     public required IReadOnlyList<QuotaUsageRecord> Usage { get; init; }
 
-    /// <summary>Gets the defined quota rules. The UI computes the percentage from these.</summary>
+    [Description("Gets the defined quota rules. The UI computes the percentage from these.")]
     public required IReadOnlyList<QuotaDefinition> Definitions { get; init; }
 
-    /// <summary>Gets the moment (UTC) the daily counters reset.</summary>
+    [Description("Gets the moment (UTC) the daily counters reset.")]
     public required DateTimeOffset DailyResetsAt { get; init; }
 
-    /// <summary>Gets the moment (UTC) the monthly counters reset.</summary>
+    [Description("Gets the moment (UTC) the monthly counters reset.")]
     public required DateTimeOffset MonthlyResetsAt { get; init; }
 }

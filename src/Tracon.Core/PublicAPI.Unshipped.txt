@@ -150,30 +150,6 @@ Tracon.OnlineEvaluationOptions.MinSampleSize.set -> void
 Tracon.OnlineEvaluationOptions.OnlineEvaluationOptions() -> void
 Tracon.OnlineEvaluationOptions.SampleRate.get -> double
 Tracon.OnlineEvaluationOptions.SampleRate.set -> void
-Tracon.OnlineEvaluationSummary
-Tracon.OnlineEvaluationSummary.<Clone>$() -> Tracon.OnlineEvaluationSummary!
-Tracon.OnlineEvaluationSummary.AverageScore.get -> double?
-Tracon.OnlineEvaluationSummary.AverageScore.init -> void
-Tracon.OnlineEvaluationSummary.BelowThreshold.get -> bool
-Tracon.OnlineEvaluationSummary.BelowThreshold.init -> void
-Tracon.OnlineEvaluationSummary.Equals(Tracon.OnlineEvaluationSummary? other) -> bool
-Tracon.OnlineEvaluationSummary.JudgeCost.get -> decimal?
-Tracon.OnlineEvaluationSummary.JudgeCost.init -> void
-Tracon.OnlineEvaluationSummary.JudgeCostCurrency.get -> string?
-Tracon.OnlineEvaluationSummary.JudgeCostCurrency.init -> void
-Tracon.OnlineEvaluationSummary.JudgeCostCurrencyCount.get -> int
-Tracon.OnlineEvaluationSummary.JudgeCostCurrencyCount.init -> void
-Tracon.OnlineEvaluationSummary.LowScoreThreshold.get -> int
-Tracon.OnlineEvaluationSummary.LowScoreThreshold.init -> void
-Tracon.OnlineEvaluationSummary.MinSampleSize.get -> int
-Tracon.OnlineEvaluationSummary.MinSampleSize.init -> void
-Tracon.OnlineEvaluationSummary.OnlineEvaluationSummary() -> void
-Tracon.OnlineEvaluationSummary.SampleCount.get -> long
-Tracon.OnlineEvaluationSummary.SampleCount.init -> void
-Tracon.OnlineEvaluationSummary.WindowEnd.get -> System.DateTimeOffset
-Tracon.OnlineEvaluationSummary.WindowEnd.init -> void
-Tracon.OnlineEvaluationSummary.WindowStart.get -> System.DateTimeOffset
-Tracon.OnlineEvaluationSummary.WindowStart.init -> void
 Tracon.PatternContentGuardOptions
 Tracon.PatternContentGuardOptions.DeniedTerms.get -> System.Collections.Generic.IList<string!>!
 Tracon.PatternContentGuardOptions.MaskReplacement.get -> string!
@@ -728,9 +704,6 @@ override Tracon.AgentRunScope.ToString() -> string!
 override Tracon.CallableAgentInfo.GetHashCode() -> int
 override Tracon.ChildAgentInvoker.Description.get -> string?
 override Tracon.ChildAgentInvoker.Name.get -> string!
-override Tracon.OnlineEvaluationSummary.Equals(object? obj) -> bool
-override Tracon.OnlineEvaluationSummary.GetHashCode() -> int
-override Tracon.OnlineEvaluationSummary.ToString() -> string!
 override Tracon.ResolvedCallableAgents.GetHashCode() -> int
 override Tracon.RunEventDraft.GetHashCode() -> int
 static Tracon.AgentDecoratorPipeline.Apply(Microsoft.Agents.AI.AIAgent! agent, Tracon.AgentDescriptor! descriptor, System.Collections.Generic.IEnumerable<Tracon.IAgentDecorator!>! decorators) -> Microsoft.Agents.AI.AIAgent!
@@ -750,8 +723,6 @@ static Tracon.FixedTenantContext.Default.get -> Tracon.FixedTenantContext!
 static Tracon.LiveVoiceBuilderExtensions.UseLiveVoice(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.LiveVoiceBuilderExtensions.UseLiveVoice(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.LiveVoiceBuilderExtensions.UseLiveVoice(this Tracon.ITraconBuilder! builder, System.Action<Tracon.VoiceLiveOptions!>! configure) -> Tracon.ITraconBuilder!
-static Tracon.OnlineEvaluationSummary.operator !=(Tracon.OnlineEvaluationSummary? left, Tracon.OnlineEvaluationSummary? right) -> bool
-static Tracon.OnlineEvaluationSummary.operator ==(Tracon.OnlineEvaluationSummary? left, Tracon.OnlineEvaluationSummary? right) -> bool
 static Tracon.ResolvedCallableAgents.Empty.get -> Tracon.ResolvedCallableAgents
 static Tracon.ResolvedCallableAgents.operator !=(Tracon.ResolvedCallableAgents left, Tracon.ResolvedCallableAgents right) -> bool
 static Tracon.ResolvedCallableAgents.operator ==(Tracon.ResolvedCallableAgents left, Tracon.ResolvedCallableAgents right) -> bool

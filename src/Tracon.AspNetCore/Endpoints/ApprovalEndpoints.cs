@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -379,9 +380,9 @@ internal static class ApprovalEndpoints
             statusCode: StatusCodes.Status409Conflict);
 }
 
-/// <summary>Request body for deciding a pending approval request.</summary>
-public sealed record ApprovalDecisionRequest
+[Description("Request body for deciding a pending approval request.")]
+internal sealed record ApprovalDecisionRequest
 {
-    /// <summary>Gets whether the request was approved.</summary>
+    [Description("Gets whether the request was approved.")]
     public required bool Approved { get; init; }
 }

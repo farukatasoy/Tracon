@@ -1,9 +1,7 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
-/// <summary>
-/// Represents the result of evaluating a canary policy against the current results
-/// of the canary and control variants.
-/// </summary>
 /// <remarks>
 /// This type is <strong>not persisted</strong>. Each
 /// <c>GET /api/experiments/{name}/canary</c> call evaluates the policy again
@@ -11,20 +9,23 @@ namespace Tracon;
 /// results already accumulate from the start of the experiment; an evaluation
 /// history table would store the same information twice.
 /// </remarks>
-public sealed record CanaryEvaluation
+[Description(
+    "Represents the result of evaluating a canary policy against the current results\n" +
+    "of the canary and control variants.")]
+internal sealed record CanaryEvaluation
 {
-    /// <summary>Gets the evaluation outcome.</summary>
+    [Description("Gets the evaluation outcome.")]
     public required CanaryDecisionKind Decision { get; init; }
 
-    /// <summary>Gets the human-readable reason for the decision.</summary>
+    [Description("Gets the human-readable reason for the decision.")]
     public required string Reason { get; init; }
 
-    /// <summary>Gets the current canary variant results. Returns <see langword="null"/> when no runs exist.</summary>
+    [Description("Gets the current canary variant results. Returns `null` when no runs exist.")]
     public ExperimentVariantResult? Canary { get; init; }
 
-    /// <summary>Gets the current control variant results. Returns <see langword="null"/> when no runs exist.</summary>
+    [Description("Gets the current control variant results. Returns `null` when no runs exist.")]
     public ExperimentVariantResult? Control { get; init; }
 
-    /// <summary>Gets the UTC time when the evaluation occurred.</summary>
+    [Description("Gets the UTC time when the evaluation occurred.")]
     public required DateTimeOffset EvaluatedAt { get; init; }
 }

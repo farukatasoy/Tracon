@@ -1,18 +1,19 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
 
-/// <summary>Tenant of the current request.</summary>
-public sealed record CurrentTenantResponse
+[Description("Tenant of the current request.")]
+internal sealed record CurrentTenantResponse
 {
-    /// <summary>Tenant identifier.</summary>
+    [Description("Tenant identifier.")]
     public required string TenantId { get; init; }
 }
 
-/// <summary>Request to create/update a tenant record.</summary>
-public sealed record TenantRequest
+[Description("Request to create/update a tenant record.")]
+internal sealed record TenantRequest
 {
-    /// <summary>Name shown in the UI. If left empty, the key is used.</summary>
+    [Description("Name shown in the UI. If left empty, the key is used.")]
     public string? DisplayName { get; init; }
 }
 
@@ -109,27 +110,27 @@ public sealed record McpServerRequest
     public McpOAuthAuthorizationMode OAuthAuthorizationMode { get; init; } = McpOAuthAuthorizationMode.AuthorizationCode;
 }
 
-/// <summary>Result of an MCP tool refresh.</summary>
-public sealed record McpRefreshResponse
+[Description("Result of an MCP tool refresh.")]
+internal sealed record McpRefreshResponse
 {
-    /// <summary>Total number of tools available after the refresh.</summary>
+    [Description("Total number of tools available after the refresh.")]
     public required int ToolCount { get; init; }
 }
 
-/// <summary>Request to resolve an MCP prompt with arguments.</summary>
-public sealed record McpPromptArgumentsRequest
+[Description("Request to resolve an MCP prompt with arguments.")]
+internal sealed record McpPromptArgumentsRequest
 {
-    /// <summary>Prompt arguments.</summary>
+    [Description("Prompt arguments.")]
     public IReadOnlyDictionary<string, string>? Arguments { get; init; }
 }
 
-/// <summary>Response for starting OAuth Mode 1.</summary>
-public sealed record McpOAuthStartResponse
+[Description("Response for starting OAuth Mode 1.")]
+internal sealed record McpOAuthStartResponse
 {
-    /// <summary>Authorization address the admin is redirected to.</summary>
+    [Description("Authorization address the admin is redirected to.")]
     public required string AuthorizationUri { get; init; }
 
-    /// <summary>Single-use state value generated for CSRF protection.</summary>
+    [Description("Single-use state value generated for CSRF protection.")]
     public required string State { get; init; }
 }
 
@@ -169,9 +170,6 @@ public sealed record ToolApprovalDecision
     public bool RememberArgumentsOnly { get; init; }
 }
 
-/// <summary>
-/// Request to create a persistent, argument-conditioned approval rule.
-/// </summary>
 /// <remarks>
 /// This is a separate creation path from the "remember this decision" rule
 /// <see cref="ToolApprovalResolver"/> writes from the approve/reject flow — that
@@ -179,17 +177,17 @@ public sealed record ToolApprovalDecision
 /// standing, admin-authored comparison instead. There is no free-text expression
 /// field here — the code-only tools rule applies to the HTTP surface too.
 /// </remarks>
-public sealed record ToolApprovalRuleRequest
+[Description("Request to create a persistent, argument-conditioned approval rule.")]
+internal sealed record ToolApprovalRuleRequest
 {
-    /// <summary>The agent the rule holds for. When empty it covers every agent of the tenant.</summary>
+    [Description("The agent the rule holds for. When empty it covers every agent of the tenant.")]
     public string? AgentName { get; init; }
 
-    /// <summary>The tool the rule holds for.</summary>
+    [Description("The tool the rule holds for.")]
     public required string ToolName { get; init; }
 
-    /// <summary>
-    /// All conditions must match for the rule to apply (<c>AND</c>). An empty list
-    /// (the default) matches every call of the tool.
-    /// </summary>
+    [Description(
+        "All conditions must match for the rule to apply (`AND`). An empty list\n" +
+        "(the default) matches every call of the tool.")]
     public IReadOnlyList<ToolArgumentCondition> ArgumentConditions { get; init; } = [];
 }

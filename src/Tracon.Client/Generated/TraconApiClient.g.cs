@@ -19924,7 +19924,7 @@ namespace Tracon.Client.Generated
     {
         /// <summary>
         /// Gets whether this was a preview: `true` means
-        /// <br/>IReadOnlyDictionary&amp;lt;string, int&amp;gt; DataSubjectErasureResult.RowsByTarget shows what WOULD be deleted and nothing was
+        /// <br/>RowsByTarget shows what WOULD be deleted and nothing was
         /// <br/>actually removed.
         /// </summary>
 
@@ -21289,7 +21289,7 @@ namespace Tracon.Client.Generated
         public InboundTriggerPayloadMode PayloadMode { get; set; } = default!;
 
         /// <summary>
-        /// Gets the dotted path used when InboundTriggerPayloadMode InboundTriggerResponse.PayloadMode is InboundTriggerPayloadMode.Path.
+        /// Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("payloadPath")]
@@ -21353,7 +21353,7 @@ namespace Tracon.Client.Generated
         public InboundTriggerPayloadMode PayloadMode { get; set; } = default!;
 
         /// <summary>
-        /// Gets the dotted path used when InboundTriggerPayloadMode InboundTriggerSaveRequest.PayloadMode is InboundTriggerPayloadMode.Path.
+        /// Gets the dotted path used when PayloadMode is InboundTriggerPayloadMode.Path.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("payloadPath")]
@@ -21868,7 +21868,7 @@ namespace Tracon.Client.Generated
         /// The lane the jobs this schedule produces run in. See
         /// <br/>`JobLanes`. Left empty, the jobs run in `JobLanes.Default`
         /// <br/>(or whatever `TraconSchedulingOptions.LaneByHandlerKey` maps
-        /// <br/>string JobScheduleSaveRequest.HandlerKey to).
+        /// <br/>HandlerKey to).
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("lane")]
@@ -29701,7 +29701,7 @@ namespace Tracon.Client.Generated
         /// <summary>
         /// Ordered agent/function node list for a Sequential workflow that mixes
         /// <br/>function nodes in with agents. Mutually exclusive with
-        /// <br/>IReadOnlyList&amp;lt;string&amp;gt;? WorkflowSaveRequest.AgentNames; leave both empty or set only one.
+        /// <br/>AgentNames; leave both empty or set only one.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("nodes")]

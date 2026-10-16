@@ -8,6 +8,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- **81 HTTP request and response types are `internal`.** They were public only so that the
+  OpenAPI document could carry their descriptions. A .NET client does not use them:
+  `Tracon.Client` generates its own types, and the HTTP contract does not change. Paths, methods,
+  schema names, `required`, property types and `$ref` are identical, and the document keeps every
+  description (see Fixed for the five that changed). A host that referenced one of these types
+  declares its own record for the body or uses the generated client type of the same name. The
+  descriptions now come from `[Description]`, so a new HTTP type must carry it; a test fails the
+  build when a schema or property loses its description. The types, by package:
+  - `Tracon.Abstractions` (17): `AgentValidationReport`, `CanaryDecisionKind`,
+    `CanaryEvaluation`, `ContextWindowEstimate`, `DataSubjectErasureResult`,
+    `ImageGenerationOperatorRequest`, `ImageGenerationOperatorResponse`, `JudgeFailure`,
+    `JudgeRunResponse`, `RetentionPreview`, `RunCostRecalculationResult`,
+    `SessionBranchRequest`, `SessionBranchResult`, `SpeakRequest`, `SpeakResponse`,
+    `ValidationMessage`, `ValidationSeverity`.
+  - `Tracon.AspNetCore` (63): `AcceptedRunResponse`, `AgentDetailResponse`,
+    `AgentRollbackRequest`, `AgentSkillRequest`, `AgentVersionDiffResponse`,
+    `ApiKeyCreateRequest`, `ApprovalDecisionRequest`, `CurrentTenantResponse`, `EvalCaseInput`,
+    `EvalCasePromotionRequest`, `EvalRunDetailResponse`, `EvalRunTriggerRequest`,
+    `EvalSuiteSaveRequest`, `ExperimentCanaryResponse`, `ExperimentResultsResponse`,
+    `ExperimentSaveRequest`, `InboundTriggerAcceptedResponse`, `InboundTriggerResponse`,
+    `InboundTriggerSaveRequest`, `JobDetailResponse`, `JobScheduleSaveRequest`,
+    `JobTriggerRequest`, `LiveVoiceSessionCreateRequest`, `LiveVoiceSessionCreateResponse`,
+    `LiveVoiceSessionStatusResponse`, `LoopCriterionCatalogResponse`,
+    `LoopCriterionKindResponse`, `LoopJudgeModelResponse`, `McpOAuthStartResponse`,
+    `McpPromptArgumentsRequest`, `McpRefreshResponse`, `QuotaSaveRequest`, `QuotaUsageResponse`,
+    `RetentionPolicySaveRequest`, `RetentionRunTriggerResponse`, `RunComparisonResponse`,
+    `RunComparisonSide`, `RunFeedbackRequest`, `RunInputResponse`, `RunReplayResponse`,
+    `SearchKnowledgeHit`, `SessionDetailResponse`, `SkillScriptGrantRequest`,
+    `TenantEgressPolicyRequest`, `TenantEgressPolicyResponse`, `TenantProviderBindingRequest`,
+    `TenantProviderBindingResponse`, `TenantRequest`, `ToolApprovalRuleRequest`,
+    `TraconAuthenticationMeta`, `TraconMetaResponse`, `TraconRoleMeta`, `TraconStorageMeta`,
+    `UploadDocumentResponse`, `WebhookSaveRequest`, `WebhookTestResponse`,
+    `WorkflowFunctionResponse`, `WorkflowRespondHttpRequest`, `WorkflowResumeHttpRequest`,
+    `WorkflowRollbackRequest`, `WorkflowRunHttpRequest`, `WorkflowSaveRequest`,
+    `WorkflowVersionDiffResponse`.
+  - `Tracon.Core` (1): `OnlineEvaluationSummary`.
+
 - `Tracon.Client.Generated.IMcpToolRefresher` and the `body` parameter of
   `TraconApiClient.TraconRefreshMcpToolsAsync`. The class was never a request body: it was
   the server's own refresher service, published by mistake as a schema. A call that passed
@@ -15,6 +52,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   sends the same request.
 
 ### Fixed
+
+- Five property descriptions in the OpenAPI document no longer carry an unresolved XML
+  reference. `WorkflowSaveRequest.nodes` read `IReadOnlyList&lt;string&gt;? WorkflowSaveRequest.AgentNames`
+  where the text means `AgentNames`; `DataSubjectErasureResult.dryRun`, `JobScheduleSaveRequest.lane`,
+  `InboundTriggerSaveRequest.payloadPath` and `InboundTriggerResponse.payloadPath` had the same
+  fault. `@tracon/client` and `Tracon.Client` carry the corrected text.
 
 - `POST /api/mcp-servers/refresh` no longer declares a request body. The endpoint took its
   refresher service without `[FromServices]`; in a host without `Tracon.Mcp` the framework read

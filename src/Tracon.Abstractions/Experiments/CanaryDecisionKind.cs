@@ -1,10 +1,11 @@
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace Tracon;
 
-/// <summary>Defines the outcome of a canary evaluation.</summary>
+[Description("Defines the outcome of a canary evaluation.")]
 [JsonConverter(typeof(JsonStringEnumConverter<CanaryDecisionKind>))]
-public enum CanaryDecisionKind
+internal enum CanaryDecisionKind
 {
     /// <summary>
     /// The control or canary variant has not reached <see

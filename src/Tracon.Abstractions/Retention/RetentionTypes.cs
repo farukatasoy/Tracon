@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace Tracon;
 
 /// <summary>An age- and volume-based retention rule for a target.</summary>
@@ -77,22 +79,22 @@ public sealed record RetentionRun
     public string? Error { get; init; }
 }
 
-/// <summary>A preview of "how many rows would be deleted if run now" for a target.</summary>
-public sealed record RetentionPreview
+[Description("A preview of \"how many rows would be deleted if run now\" for a target.")]
+internal sealed record RetentionPreview
 {
-    /// <summary>The previewed target.</summary>
+    [Description("The previewed target.")]
     public required string Target { get; init; }
 
-    /// <summary><see langword="null"/> if no policy was found (nothing would be deleted).</summary>
+    [Description("`null` if no policy was found (nothing would be deleted).")]
     public int? MaxAgeDays { get; init; }
 
-    /// <summary>Whether the policy is enabled.</summary>
+    [Description("Whether the policy is enabled.")]
     public bool Enabled { get; init; }
 
-    /// <summary>The computed cutoff date (UTC). <see langword="null"/> if there is no policy.</summary>
+    [Description("The computed cutoff date (UTC). `null` if there is no policy.")]
     public DateTimeOffset? Cutoff { get; init; }
 
-    /// <summary>The number of rows currently older than the cutoff date.</summary>
+    [Description("The number of rows currently older than the cutoff date.")]
     public long MatchingRows { get; init; }
 }
 
