@@ -6779,3 +6779,17 @@ Zaman damgası imzaya dâhil olmasaydı, yakalanan bir istek sonsuza kadar yenid
 
 Yerine `UPDATE ...
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-1013 — devam (Faz 90 damıtması)
+
+`IVoiceHealthCheck` (rehber + README) ve `IWorkflowRunner` (süreç içi çalıştırmanın tek yolu) UR-011'den sapma olarak public kaldı; `IToolRegistry` (K-614) "çağrılır, uygulanmaz". −453 `PublicAPI.Unshipped.txt` satırı; Abstractions 423 → 389 tip.
+
+### K-1014 — devam (Faz 90 damıtması)
+
+Yeni kapı 17 giriş buldu. `null` kiracı denetimi kapatır; varsayılan kalkınca atlayan çağıran derleme hatası alır.
+
+### K-1015 — devam (Faz 90 damıtması)
+
+Eklemek sonra bedava (enum büyümesi A-76'da kurala bağlanır). Planın Açık Soru 1 önerisi A.
+

@@ -186,7 +186,11 @@ YONETIM_BUTCESI = {
     # 852 B tasiyabildi (498_602 -> 497_750; gercek kosum calisma agaci temiz
     # olmadan reddedilir, commit'ten sonra kosulmalidir). Ayni formul: damitma
     # SONRASI olculen deger / 0.85.
-    "docs/KARARLAR.md": 586_000,           # YENIDEN KALIBRE 2026-10-12; olculen 497_750 (kuru damitma sonrasi)
+    # 2026-10-16 (Faz 213, K-1013..K-1015): 586_000 -> 692_000. Sinir Faz 212 kapanisinda
+    # 585_833 B ile %0 bosluktaydi; uc yeni karar +2_618 B ekledi. `karar-damit` yalniz
+    # 492 B tasiyabildi (588_451 -> 587_959; alti satir elle bakilmali, dordu 👤/🔁 kaynagi
+    # tasiyor). Ayni formul: damitma SONRASI olculen deger (587_959) / 0.85.
+    "docs/KARARLAR.md": 692_000,           # YENIDEN KALIBRE 2026-10-16; olculen 587_959 (damitma sonrasi)
     # 2026-10-16 (public API freeze programi): 80_000 -> 98_000. Sinir 79_880 B ile %0
     # bosluktaydi ve bakimci "damitma yerine siniri buyutebilirsin" dedi (UR-009). Beş
     # yeni kalem (F-557..F-561: yukseltme, evrim kurallari, modernlesme, deneysel tip,
