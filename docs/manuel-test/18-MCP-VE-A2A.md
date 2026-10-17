@@ -2321,16 +2321,20 @@ curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/x" -H "$AP
 | **İlgili faz** | Faz 218 |
 | **İlgili karar** | K-870 |
 | **İnsan gerekir** | Evet (tarayıcıda form) |
-| **Devir** | ➜ CI: `mcp.test.tsx` (üç case) · `McpTests.Mcp_screen_states_security_boundary_and_server_can_be_added` (E2E, anahtarı doldurur ve listede okur) |
+| **Devir** | ➜ CI: `mcp.test.tsx` (beş case) · `McpTests.Mcp_screen_states_security_boundary_and_server_can_be_added` (E2E, anahtarı doldurur ve listede okur) |
 
 **Adımlar**
 1. `/tracon/mcp` → "Sunucu ekle"; ad ve adres gir; "Authorization yapılandırma anahtarı"na
    `Tracon:McpSecrets:SampleToken` yaz; kaydet.
 2. Aynı formu bu kez anahtarı BOŞ bırakıp aynı adla kaydet.
 3. Yeni bir formda anahtarı yaz, sonra OAuth'u aç ve kapat.
+4. `X-Api-Key` anahtar adını `headerConfigurationKeys`'te taşıyan bir sunucunun ADIYLA formu doldur ve yeni
+   bir "Authorization yapılandırma anahtarı" yaz; kaydet.
 
 **Beklenen sonuç**
 - (1) Satır oluşur; auth sütunu `Tracon:McpSecrets:SampleToken` gösterir; `GET /api/mcp-servers`
   `headerConfigurationKeys.Authorization` taşır.
 - (2) Anahtar silinmez: boş alan harita göndermez, saklı harita korunur (K-870).
 - (3) OAuth açılınca alan boşalır; kapatınca boş kalır (geri gelmez).
+- (4) `GET /api/mcp-servers`: harita hem `X-Api-Key` hem yeni `Authorization` girdisini taşır; form saklı anahtar
+  adlarını kaybettirmez (sunucu dolu haritayı tam değiştirir, bu yüzden form saklı olanı taşır).

@@ -3699,7 +3699,8 @@ Tracon is only a client. Five guards:
 3. **A remote tool whose name collides with a code-registered tool is ignored.** Your
    code always wins; a remote server cannot shadow a local tool.
 4. **The registration stores no credential.** It stores the *name* of the
-   configuration key the value is read from at call time.
+   configuration key the value is read from at call time — for the `Authorization`
+   header and for any other credential header alike, in `headerConfigurationKeys`.
 5. **Every call is recorded** with the source server's name.
 
 Prompts fetched from an MCP server are a **snapshot** an administrator copies into the
@@ -5430,6 +5431,13 @@ It does not fold those rows for you. On PostgreSQL and SQLite, which compare
 case-sensitively, `Acme` and `acme` may be two real tenants, and merging two
 tenants cannot be undone. Decide per table whether the rows belong to one
 tenant (lower-case them) or to two (rename one), then start again.
+:::
+
+:::caution[A migration can be one-way]
+A migration may move data and drop a column in the same file, and Tracon ships no
+downgrade. After such a migration an older build of the application cannot read the
+table. Back up the database before you upgrade; the release notes name every migration
+that drops or rewrites data.
 :::
 
 :::danger[Do not edit an applied migration]
@@ -22670,8 +22678,9 @@ A provider that implements no health check reports `Unknown`, which is not an er
 <a class="ui-shot" href="/screenshots/mcp.png"><img src="/screenshots/mcp.png" alt="Registered MCP servers and the tools discovered from them" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Remote MCP servers and the tools discovered from each. A server is a definition — an
-endpoint, a transport, and the name of the configuration key its authorization value is
-read from — so the console never holds a credential. Discovered tools carry the same
+endpoint, a transport, and the name of the configuration key its `Authorization` header
+is read from (saved as `headerConfigurationKeys.Authorization`) — so the console never
+holds a credential. Discovered tools carry the same
 approval badges as code-defined ones, and refreshing a server re-reads its catalog
 without a restart.
 

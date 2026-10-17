@@ -388,6 +388,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-574** · Sağlayıcı AOT smoke'u yalnız anahtar yolunu, düz/akışlı sohbeti, TTS'i ve ses listesini koşar | Faz 217 denetimi 🟡4 (2026-10-17): "Azure: Yes" Entra (`BearerTokenPolicy`) yolunu, görsel yolunu; "Voice: Yes" STT'yi ve diyaloğu da kapsar, ama `ProviderAotSmoke` bunları çağırmaz. Entra dalı HTTPS ister (`http://` sahte sunucu taşıyamaz) | Smoke'a kendi imzalı sertifikalı bir `https` sahte sunucu ve Entra çağrısı ekle (ya da vaat metnini "API anahtarı yolu" ile daralt); STT, diyalog ve görsel çağrılarını ekle. Kapı: aynı betik |
 | 🟢 | **F-575** · AOT vaadinin düz yazı sayımı kapısız | Faz 217 denetimi (2026-10-17): kapı yalnız `compatibility.md` tablosunu smoke'a bağlar; `packages.md` ("Six runtime packages …"), kök `README.md` ("Six packages …") ve paket README'lerindeki "AOT-compatible" cümleleri elle yazılır ve tablodan sapabilir | `release_extension_samples.py` ya da `dokuman-bakim.py` sayıyı ve ad listesini tablodan türetip iki metinle karşılaştırır |
 | 🟢 | **F-576** · ElevenLabs beyanı alan tiplerini taşımıyor; `elevenlabs-kayma.py` testsiz | Faz 217 denetimi (2026-10-17): `Fixtures/elevenlabs-operations.json` yalnız alan ADLARINI beyan eder (bir alanın tipi değişirse görünmez); betiğin `has_path`/`check` mantığının otomatik testi yok, negatif kontrol `MT-MM-141` adım 2'de elle | Beyana tip ekle (`string`, `array`, `number`) ve hem testte hem betikte karşılaştır; betiğe küçük bir OpenAPI parçasıyla `unittest` ekle |
+| 🟢 | **F-577** · `RemovedFieldFilter` gövdeyi yalnız UTF-8 ve varsayılan `JsonDocument` ayarlarıyla okur | Faz 218 denetimi (2026-10-17; ölçülmedi, okumaya dayanıyor): bağlayıcı `charset` dönüştürmesi yapar ve uygulamanın `JsonOptions`'ını kullanır. `charset=utf-16` gövdede ya da `AllowTrailingCommas` açık bir tüketicide filtre `JsonException` yakalar, gövdeyi geçirir ve kaldırılan alan yine sessizce düşer. Varsayılan seçeneklerde sapma yok (`git grep AllowTrailingCommas src` boş) ve gerçekçi bir istemci bilinmiyor | Bir tüketici `ConfigureHttpJsonOptions` ile okuma seçeneklerini değiştirirse; ya da ikinci bir kaldırılan alan eklenirse filtre bağlayıcının okuma yoluna taşınır |
 
 ### Tetik bekleyenler
 
@@ -519,7 +520,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-577**.
+numara: **F-578**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

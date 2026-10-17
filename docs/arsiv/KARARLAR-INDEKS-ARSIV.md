@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (959 kalem)
+## Arşivlenen Kararlar (961 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -968,3 +968,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-967 | 1008 | R8 "varsayılan yürütücüyle" diye daralır: script yalnız yerel yürütücüde Tracon'un işletim sistemi kimliğiyle çalışır; B7'nin adı ("Script execution gates") ve `SECURITY.md`/politika kapsam satırı değişmez; site ve XML "sandbox" vaadi vermez, harici yürütücünün yalıtımı host'undur (Faz 202) |
 | K-968 | 1009 | `MaxScriptContentLength` disk script'ine de uygulanır; sınırı aşan, boş, yok ya da düzenli dosya olmayan (FIFO, aygıta bağlantı) disk script'i dosya AÇILMADAN meta veriden reddedilir; okuma havuz iş parçacığında, yürütücüyle aynı bekleme sınırı altında ve sınır+1 baytta durur (Faz 202 denetimi) (kullanıcı kararı) 👤 |
 | K-969 | 1010 | Stored script adı ve disk script'i boyut/tür kapısı denetimden ÖNCE kapıdır (`script.denied`, `script.run` yok, kota slotu yok); kapıdan sonraki okuma hatası (`could not be read`, `in time`, sınır aşımı) `script.run`'dan sonra tool hatası olarak kaydedilir (Faz 202) |
+| K-970 | 1011 | Modele ve `tool_invocations`'a dönen script metinleri: zaman aşımı `The script timed out and was stopped.`, bekleme sınırı ayrı metin ve `Timed out; the script executor did not return in time.`; kesme işaretini yalnız runner sonuna ekler (`[Tracon: output truncated at the N-byte limit per stream.]`) ve her akışı yeniden keser; yürütücü istisnasında yalnız tip yazılır, mesaj sunucu log'una gider (Faz 202) (kullanıcı kararı) 👤 |
+| K-971 | 1012 | `SkillScriptExecutionRequest` ortam değeri taşımaz; script'e `TRACON_SKILL_NAME` ve çağrıya özel `TRACON_SKILL_TEMP` verilir; `ContentSha256` grant pini değil içeriğin UTF-8 SHA-256'sıdır; `ToString` `Content` ve `ArgumentsJson`'ı basmaz (Faz 202) |

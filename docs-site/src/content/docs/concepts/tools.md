@@ -423,7 +423,8 @@ Tracon is only a client. Five guards:
 3. **A remote tool whose name collides with a code-registered tool is ignored.** Your
    code always wins; a remote server cannot shadow a local tool.
 4. **The registration stores no credential.** It stores the *name* of the
-   configuration key the value is read from at call time.
+   configuration key the value is read from at call time — for the `Authorization`
+   header and for any other credential header alike, in `headerConfigurationKeys`.
 5. **Every call is recorded** with the source server's name.
 
 Prompts fetched from an MCP server are a **snapshot** an administrator copies into the
