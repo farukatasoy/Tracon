@@ -650,7 +650,7 @@ resolved. See
 `TraconMcpOptions`, and binds through `AddTracon()` — the rule is enforced
 both where a server definition is saved and where its key is resolved, and those two
 live in packages that do not reference each other. The section name is the same, so
-it stays one section to configure. It bounds both `authorizationConfigurationKey` and
+it stays one section to configure. It bounds both `headerConfigurationKeys` and
 `oauthClientSecretConfigurationKey`, and inside it a tenant's server names
 `{prefix}{tenant}:...`; a flat name belongs to the default tenant.
 
