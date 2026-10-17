@@ -128,8 +128,7 @@ internal sealed class IdempotencyFilter : IEndpointFilter
             return Results.Problem(
                 title: "Idempotency-Key not supported on streaming requests",
                 detail: $"A request carrying the '{HeaderName}' header cannot be streaming (SSE, " +
-                        "'stream: true'). Replaying a stored SSE body is out of scope for this " +
-                        "version (docs/arsiv/fazlar/43-IDEMPOTENCY-KEY.md, section 43.4).",
+                        "'stream: true'). Replaying a stored SSE body is not supported.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 

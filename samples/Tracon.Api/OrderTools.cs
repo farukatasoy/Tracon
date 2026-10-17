@@ -73,7 +73,7 @@ internal static class OrderTools
         => $"Refunded {amount} for order {orderId}.";
 
     /// <summary>
-    /// Demo tool for F-114 (docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md): its
+    /// Demo tool for F-114 (Phase 69): its
     /// body sleeps far longer than its own 1-second timeout, showing that the
     /// registry's <c>TimeoutAIFunction</c> wrapper cuts the WAIT short — the
     /// body itself keeps running in the background, a documented limit of
@@ -92,7 +92,7 @@ internal static class OrderTools
     /// <param name="address">The delivery address.</param>
     /// <returns>The shipping estimate text.</returns>
     /// <remarks>
-    /// Demo tool for F-176 (docs/arsiv/fazlar/135-URETILEN-SEMANIN-NESNE-GRAFI.md): its one
+    /// Demo tool for F-176 (Phase 135): its one
     /// parameter is a supported OBJECT type (135.1), not a scalar — the
     /// generator produces a nested JSON Schema node for <see cref="ShippingAddress"/>
     /// and binds it through <see cref="ShippingAddressJsonContext"/>
@@ -109,7 +109,7 @@ internal static class OrderTools
     /// <param name="orderId">The order number.</param>
     /// <returns>A human-readable confirmation message.</returns>
     /// <remarks>
-    /// Demo tool for F-187 (docs/arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md): the
+    /// Demo tool for F-187 (Phase 141): the
     /// consumer's own event does not fit any built-in <see cref="RunEventType"/>,
     /// so it writes <see cref="RunEventType.Custom"/> directly through the
     /// ambient <see cref="TraconRunContext"/> — the same writer

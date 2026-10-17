@@ -11,7 +11,7 @@ resolves the concrete enum type via `MakeGenericType`, which is
 [JsonConverter] always wins over anything registered on
 JsonSerializerOptions.Converters, so this cannot be fixed by configuration
 alone - the attribute itself has to name the closed generic
-JsonStringEnumConverter<TEnum> (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.6).
+JsonStringEnumConverter<TEnum> (Phase 83, section 83.6).
 
 Every OTHER enum (the ~37 plain business enums: RunStatus, ApiKeyScope, ...)
 carries no per-property attribute at all. MEASURED (2026-08-22): registering
@@ -41,7 +41,7 @@ of the real one. MEASURED (2026-08-26): discovered via JsonElement, whose 16
 affected properties throw JsonException on any wire value that is not a JSON
 object (an array, e.g. EvalCaseResult.Scores) - a pre-existing, previously
 undetected defect found while adding the eval CLI command (EvalCommandTests,
-docs/arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md). CLASS SWEEP found a second instance:
+Phase 115). CLASS SWEEP found a second instance:
 ChatRole (ChatMessage.Role) has the identical empty-schema shape for the
 identical reason (its own [JsonConverter(typeof(ChatRole.Converter))]).
 Renaming a colliding schema would only rename the collision, not fix it: a

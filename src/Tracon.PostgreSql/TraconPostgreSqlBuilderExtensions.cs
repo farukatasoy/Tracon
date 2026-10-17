@@ -183,7 +183,7 @@ public static class TraconPostgreSqlBuilderExtensions
         // audit-trail decorators, so the audit trail behaves the same way
         // whether the store is in-memory or PostgreSQL. Rationale: same pattern
         // as the AddTracon() registration in Tracon.Core
-        // (docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md).
+        // (Phase 9).
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(
             static provider => new AuditingAgentDefinitionStore(
                 ActivatorUtilities.CreateInstance<SqlAgentDefinitionStore>(provider),

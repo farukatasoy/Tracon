@@ -7,7 +7,7 @@ import type { components } from './schema.js';
 /** Wire contracts, by schema name. Example: `Schemas['RunRecord']`. */
 export type Schemas = components['schemas'];
 
-// Hand-written — the thin layer described in docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section 84.5.
+// Hand-written — the thin layer described in Phase 84, section 84.5.
 export { TraconError } from './error.js';
 export { createTraconClient, type TraconClient, type TraconClientOptions } from './client.js';
 

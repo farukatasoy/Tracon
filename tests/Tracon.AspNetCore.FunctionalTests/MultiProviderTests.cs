@@ -20,8 +20,8 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// <para>
 /// <strong>No test calls a real model</strong> (a decision in force since
 /// Phase 3). Verification that requires the network is done manually; the
-/// evidence is in <c>docs/arsiv/fazlar/26-ANTHROPIC-VE-GEMINI.md</c> and
-/// <c>docs/arsiv/fazlar/27-AZURE-FOUNDRY.md</c>.
+/// evidence is in Phase 26 and
+/// Phase 27.
 /// </para>
 /// </remarks>
 public sealed class MultiProviderTests

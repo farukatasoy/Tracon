@@ -59,7 +59,7 @@ public sealed class RunScoreStatisticsTests
     {
         // Averaging a star score with a binary score is meaningless; the rate
         // is computed only from Binary scores (see
-        // docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md, risks).
+        // Phase 31, risks).
         var scores = new InMemoryRunScoreStore();
         var runs = new InMemoryRunStore(scores);
 

@@ -140,7 +140,7 @@ public sealed partial class RunRecordingAgent
         var modelId = fallbackUsed?.Model ?? _modelId;
 
         // The cost is calculated HERE, once, when the run ends — the price is a
-        // snapshot (see docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md section 20.2): if the price
+        // snapshot (see Phase 20 section 20.2): if the price
         // list changes later, the cost of this run does not change. Each model's
         // share is priced at that model; with no other model it is exactly the
         // resolver's answer for the agent's model (RunCostCombiner).

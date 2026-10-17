@@ -17,7 +17,7 @@ public static partial class TraconServiceCollectionExtensions
         // decorators. The persistence package (Tracon.PostgreSql) wraps its
         // own implementations with the same decorators (see UsePostgreSql);
         // this way the audit trail works identically no matter which store is
-        // registered. Rationale: docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md, section 9.2.
+        // registered. Rationale: Phase 9, section 9.2.
         services.TryAddTraconDefault<IAgentDefinitionStore>(static provider => new AuditingAgentDefinitionStore(
             new InMemoryAgentDefinitionStore(provider.GetRequiredService<ITenantContext>()),
             provider.GetRequiredService<IAuditLog>(),

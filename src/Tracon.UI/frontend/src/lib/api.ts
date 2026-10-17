@@ -53,7 +53,7 @@ async function toError(response: Response): Promise<TraconError> {
  *
  * Not part of `@tracon/client`: six operations answer
  * `text/event-stream`, not JSON, and a `fetch`-based typed client reads a
- * response body as JSON (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section 84.4).
+ * response body as JSON (Phase 84, section 84.4).
  */
 /**
  * How long a run's event stream may send NOTHING AT ALL before the console

@@ -4,8 +4,8 @@ using Microsoft.Extensions.Logging;
 namespace Tracon;
 
 // Composition order and rationale: docs/127 (127.1, 127.2),
-// docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md (69.1),
-// docs/arsiv/fazlar/89-TOOL-CIKTISI-BOYUT-SINIRI.md (89.3).
+// Phase 69 (69.1),
+// Phase 89 (89.3).
 /// <summary>
 /// The single place the tool wrapper chain is composed. The code-defined
 /// tool registry (<see cref="ToolRegistry"/>) and the MCP tenant tool set

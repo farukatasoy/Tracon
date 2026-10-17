@@ -9,7 +9,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 
 /// <summary>
 /// Verifies edge cases of <c>AddTraconHealthChecks()</c> + the <c>/health</c> endpoint
-/// (Phase 33, F-38). See <c>docs/arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md</c>, section 33.3.
+/// (Phase 33, F-38).
 /// </summary>
 public sealed class HealthCheckTests
 {

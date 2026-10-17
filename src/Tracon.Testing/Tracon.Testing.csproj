@@ -29,7 +29,7 @@
       package that can carry prerelease MAF packages; since Testing
       depends on it, it inherits those dependencies TRANSITIVELY.
       Acceptable — the test package is not in the production graph
-      anyway. Rationale: docs/arsiv/fazlar/39-TEST-PAKETI.md, section 39.1.
+      anyway. Rationale: Phase 39, section 39.1.
     -->
     <ProjectReference Include="../Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
   </ItemGroup>

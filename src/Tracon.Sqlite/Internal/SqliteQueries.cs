@@ -1251,7 +1251,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
             """;
 
         // Same rationale as PostgreSQL's InsertEvalCaseWithComputedSeq
-        // (docs/arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md, section 45.2). SQLite 3.35+
+        // (Phase 45, section 45.2). SQLite 3.35+
         // supports RETURNING (already used in the other eval queries).
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}eval_cases
