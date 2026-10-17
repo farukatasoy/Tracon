@@ -60,7 +60,7 @@ bu ikinci vakadır.
 
 ## 🚨 Bir kapının DIŞLAMA listesi onun sözleşmesidir — `arsiv` dışlanınca secret kapısı körleşti (2026-09-19)
 
-`kapi.py tarama` ✅ **temiz** derken `docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md:78`
+`kapi.py tarama` ✅ **temiz** derken Faz 53:78`
 içinde GERÇEK bir `ApiKeyGenerator.Generate` çıktısı duruyordu. Repo public
 yapılmadan önceki denetimde bulundu; kapı 13 ay boyunca yeşildi.
 

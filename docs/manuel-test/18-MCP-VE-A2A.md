@@ -16,8 +16,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/18-MCP-VE-A2A.md`](../arsiv/manuel-test-kosum-2026-09/18-MCP-VE-A2A.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/18-MCP-VE-A2A.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/18-MCP-VE-A2A.md
@@ -258,7 +258,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/karisik-yetki" 
 ### MT-MCP-006 — JSON yanıtında OAuth alanları `oauthEnabled`/`oauthClientId` biçiminde (camelCase, çift büyük harf DEĞİL)
 
 Sınır senaryosu — Faz 22'nin kendi devir notunda kayıtlı, testler
-yakalamamış bir sınıf hata (`docs/arsiv/fazlar/22-MCP-DERINLESMESI.md` "Plandan
+yakalamamış bir sınıf hata (Faz 22 "Plandan
 Sapmalar"). Bu, önceden bir kez elle `curl` ile yakalanmış bir hatanın
 tekrar tetiklenmediğini doğrular.
 

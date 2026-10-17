@@ -6,8 +6,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/02-CEKIRDEK-VE-KATALOG.md`](../arsiv/manuel-test-kosum-2026-09/02-CEKIRDEK-VE-KATALOG.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/02-CEKIRDEK-VE-KATALOG.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/02-CEKIRDEK-VE-KATALOG.md
@@ -2429,7 +2429,7 @@ curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: a
 - `400`; gövdede `"detail":"Parameter 'musteri' exceeds the maximum value
   length."` ve `tooLongParameters: ["musteri"]`. Koşu başlamaz, model
   çağrılmaz. 2026-08-22'de `samples/Tracon.Api`'ye karşı canlı doğrulandı
-  (bkz. `docs/arsiv/fazlar/86-TALIMATIN-GIRDI-YUZEYI.md`, "Doğrulama komutları").
+  (bkz. Faz 86, "Doğrulama komutları").
 
 ---
 

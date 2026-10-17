@@ -6,7 +6,7 @@
 >
 > ```bash
 > grep -rn "idempotency" docs/arsiv/fazlar/
-> awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md
+> awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/NN-AD.md
 > ```
 >
 > Faz durumu ve bağlantılar **üretilir**: [`../../YOL-HARITASI.md`](../../YOL-HARITASI.md).

@@ -21,11 +21,10 @@
 Üçü karışmaz. Spec dosyalarında `Durum:` satırı **yoktur**; ikinci bir tur
 spec'in üzerine yazmaz, `kosumlar/` altında yeni bir tarih dizini açar.
 
-> 🔄 **Açık tur: 2026-09-16.** Bir koşum oturumuna başlıyorsan bu dosyayı değil,
-> önce turun devir notunu oku:
-> [`../arsiv/manuel-test-kosum-2026-09/DEVIR.md`](../arsiv/manuel-test-kosum-2026-09/DEVIR.md) — durum,
-> değişmez kurallar, ortam doğrulaması ve sıradaki iş oradadır. Bu dosya turdan
-> **bağımsız** ortamı tarif eder, turun kendisini değil.
+> **Açık tur yok.** Son tur (2026-09-16) 2026-09-19'da kapandı. Kaydı
+> 2026-10-17'de silindi; tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/DEVIR.md. Bu dosya
+> turdan **bağımsız** ortamı tarif eder, turun kendisini değil.
 
 > **Şeride özgü ortam kurulumu ve reset yordamı** skill'in
 > [`resources/serit-kurulumu.md`](../../.agents/skills/manuel-test-kosumu/resources/serit-kurulumu.md)
@@ -427,7 +426,7 @@ ya da artar.
 Tur kapandı: **1.813 case geçti**, 1 `Kaldı`, 19 `Atlandı`. Aşağıdaki **26**
 case koşulamadı ve gerekçesiyle devreder; ayrıca **8** case hiç kayıt bloğu
 almadı (E maddesi). Kaynak: turun kapanış kaydı,
-[`../arsiv/manuel-test-kosum-2026-09/KAPANIS-PLANI.md`](../arsiv/manuel-test-kosum-2026-09/KAPANIS-PLANI.md)
+git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/KAPANIS-PLANI.md
 §5 ve her case'in kendi koşum kaydı.
 
 **A. İnsan gözü gerekiyor — tipografi, görsel doğruluk, iki dil** (10)
@@ -524,7 +523,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > ## 🔧 2026-09-16 — Tur öncesi tazeleme (`manuel-test-tazelik.py`)
 >
 > Tam tur açılmadan önce set, taban tura (`fb375724`, 2026-08-15) karşı ölçüldü.
-> Ölçüm ve koşum sırası: [`../arsiv/manuel-test-kosum-2026-09/00-KOSUM-PLANI.md`](../arsiv/manuel-test-kosum-2026-09/00-KOSUM-PLANI.md).
+> Ölçüm ve koşum sırası: git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/00-KOSUM-PLANI.md.
 >
 > **Kapatıldı:**
 >
@@ -568,7 +567,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > ## 🔧 2026-08-10 — Koşum başlamadan önce inceleme turu
 >
 > Bu bölümdeki ~40 notun tek tek gözden geçirildiği tur ve her aksiyonun kaydı
-> arşive taşındı: [`../arsiv/manuel-test-kosum-2026-09/00-INDEKS-INCELEME-TURU-2026-08-10.md`](../arsiv/manuel-test-kosum-2026-09/00-INDEKS-INCELEME-TURU-2026-08-10.md).
+> arşive taşındı: git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/00-INDEKS-INCELEME-TURU-2026-08-10.md.
 > Aşağıdaki notlar kendi orijinal metninde durur.
 - **`mssql/server` "çelişkisi" ÇÜRÜTÜLDÜ (2026-08-09, `04-KALICILIK-DIGER.md`
   üretilirken ölçüldü).** Çelişki yoktur: `SqlServerFixture.cs:28` gerçekten
@@ -744,7 +743,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   Sonraki üretim oturumu (21, 17 veya 16) bu ayrımı tekrar keşfetmek zorunda
   kalmasın diye burada da not edilir.
 - **`/api/meta`'nın gerçekleşen şekli Faz 4 dokümanındaki örnekten FARKLI
-  (2026-08-09, ölçüldü, `07-HTTP-YONETIM-API.md` üretilirken).** `docs/arsiv/fazlar/04-HTTP-API.md`'nin
+  (2026-08-09, ölçüldü, `07-HTTP-YONETIM-API.md` üretilirken).** Faz 4'nin
   "Gerçek çıktı" bölümündeki örnek (`{"version":...,"authentication":{...},"storage":{...}}`)
   Faz 4 kapanışındaki bir anlık görüntüdür; güncel `MetaEndpoints.cs` ayrıca
   `storage.jobStore`, `storage.jobWorkerEnabled` ve üst düzey `roles`
@@ -818,7 +817,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   > 🚨 Faz 31 (Geri Bildirim ve Puanlama) §7 tablosunda HİÇBİR dosyaya
   > atanmamış. `run-detail.tsx`'in `FeedbackControl` bileşeni (thumbs
   > up/down, yorum, judge puanlama — `RunEndpoints.cs`'in `/feedback`
-  > uçları, kod yorumunda açıkça `docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md`'ye
+  > uçları, kod yorumunda açıkça Faz 31'ye
   > referans verir) §7 tablosundaki hiçbir satırın `Faz` sütununda
   > YOKTUR: 12 (OBS) `6, 20, 35` taşır, 17 (EVAL) `18, 19, 45, 49, 56`
   > taşır — ikisi de 31'i içermez. `11-ARAYUZ-RUN-SESSION-SSE.md` bu
@@ -852,7 +851,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   Faz 35 bu motoru GÖZLEMLEYEN iki OpenTelemetry enstrümanıdır
   (`TraconMetrics.RunCost` sayacı, `QuotaUsageObserver`'ın
   `tracon.quota.usage`/`.limit` ölçerleri) ve **arayüzü yoktur**
-  (`docs/arsiv/fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md`: "arayüz işi yok") — yalnız
+  (Faz 35: "arayüz işi yok") — yalnız
   `dotnet-counters` gibi bir OTel tüketicisiyle gözlemlenebilir; örnek
   uygulama hiçbir metrik exporter'ı (`AddOpenTelemetry()`) kaydetmez.
   `12-GOZLEMLENEBILIRLIK-MALIYET.md` §12 bu ölçerleri `dotnet-counters
@@ -1077,7 +1076,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   kaydedebilir (`RequireApiKeyScope` yalnız DB-destekli API anahtarlarına
   uygulanır, statik token bu denetimin tamamen DIŞINDADIR). Bu boşluğun
   KENDİSİ hâlâ gerçek ve 2026-09-17'de `MT-MCP-052` ile yeniden doğrulandı.
-  `docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md:442-451`'in kendi
+  Faz 53:442-451`'in kendi
   kapsam-denetim tablosu da `GovernanceEndpoints`'i "uygulanan uçlar"
   listesine almıyor — bu, kasıtlı bir "kapsamsız uç" kararı değil,
   gözden kaçmış bir boşluk gibi görünüyor. Kod değiştirilmedi;
@@ -1239,7 +1238,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   silmez — tablo süresiz büyüyebilir. Kod değiştirilmedi; bu bir hacim
   boşluğu olarak `23-SAKLAMA-ARSIV-KOTA.md`'yi üretecek oturuma not düşüldü.
 - 🚨 **`GET /api/runs?errorType=...` diye bir sorgu parametresi YOKTUR —
-  `docs/arsiv/fazlar/48-GUARDRAILS.md`'nin plan aşamasındaki doğrulama komutu (§"Doğrulama
+  Faz 48'nin plan aşamasındaki doğrulama komutu (§"Doğrulama
   komutları", madde 5) gerçekleşmeyen bir filtreye dayanıyor (2026-08-10,
   ölçüldü, `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` üretilirken).**
   `src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs:42-53`'teki
@@ -1314,7 +1313,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   zararsızdır) ama eski dönem sayaçları sonsuza dek birikir. Kod
   değiştirilmedi; `MT-RET-042` bunu koşumda doğrulayan bir case olarak
   ekledi; kalıcı çözüm `ADAYLAR.md`'ye aday olarak yazılabilir.
-- **`docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`'nin kendi "K-260: `MaxRows` kiracı
+- **Faz 36'nin kendi "K-260: `MaxRows` kiracı
   başına değil, tablo genelinde çalışır" notu ARTIK YANLIŞ — kod ondan
   ileri gitmiş (2026-08-10, ölçüldü, `23-SAKLAMA-ARSIV-KOTA.md`
   üretilirken).** Güncel `IRetentionStore.FindRowLimitCutoffAsync` imzası

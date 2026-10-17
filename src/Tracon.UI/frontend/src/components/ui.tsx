@@ -558,7 +558,7 @@ export function ErrorNote({ error, onRetry }: { error: unknown; onRetry?: () => 
  * 🚨 A reader who opens an admin screen used to see the empty state and
  * conclude there was nothing there. This says the opposite: there IS something
  * here, and your role does not reach it. The server is the enforcement; this is
- * only the explanation (`docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md`).
+ * only the explanation (Phase 9).
  */
 export function Unauthorized({ requires }: { requires: 'operator' | 'administrator' }): ReactNode {
   const t = useT();

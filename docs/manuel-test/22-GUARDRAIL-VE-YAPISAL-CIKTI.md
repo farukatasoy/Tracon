@@ -26,8 +26,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](../arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/22-GUARDRAIL-VE-YAPISAL-CIKTI.md
@@ -123,7 +123,7 @@ ham istemciye `ChatOptions.ResponseFormat` alanı iletilir.
 | **İlgili karar** | K-208 (desen), K-034 (derleme anı doğrulama) |
 
 Faz kapanışında gerçek `gpt-5.4-mini` ile doğrulanmış senaryonun tekrarı
-(`docs/arsiv/fazlar/38-YAPILANDIRILMIS-CIKTI.md`, 2026-08-06 koşumu).
+(Faz 38, 2026-08-06 koşumu).
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
@@ -1235,7 +1235,7 @@ curl -s -i -X POST "$APU/api/agents/support/run" \
 | **İlgili faz** | Faz 48 |
 | **İlgili karar** | — |
 
-Negatif senaryo — **şüpheli bulgu**. `docs/arsiv/fazlar/48-GUARDRAILS.md`'nin plan
+Negatif senaryo — **şüpheli bulgu**. Faz 48'nin plan
 aşamasındaki doğrulama komutu `GET /api/runs?errorType=content_blocked`
 kullanıyordu, ama `RunEndpoints.cs:42-53`'teki `MapGet("/api/runs", ...)`
 imzası yalnız `agentName`, `status`, `kind`, `sessionId`, `startedAfter`,
@@ -2095,7 +2095,7 @@ curl -s -X POST "$APU/api/agents/order-summary/run" \
   -d '{"message":"Give me a summary for order ORD-1."}' | jq '.response.text'
 ```
 
-2026-09-01 koşum sonucu: [koşum kaydı](../arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md).
+2026-09-01 koşum sonucu: koşum kaydı (git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md).
 
 **Beklenen sonuç**
 - `run.status` `Completed`, `run.error` `null`.
@@ -2239,7 +2239,7 @@ otomatik karşılıklarıyla kanıtlanır (`tests/Tracon.AspNetCore.FunctionalTe
 bu, MT-GUARD-090..096'nın devraldığı, kapanmamış aynı sınırdır — bkz. Faz 131'in
 devir notu.
 
-Gerçek bir `gpt-5.4-mini` çağrısıyla 2026-09-02 koşumu (geçerli ilk yanıt, ek çağrı ve olay yok): [koşum kaydı](../arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md).
+Gerçek bir `gpt-5.4-mini` çağrısıyla 2026-09-02 koşumu (geçerli ilk yanıt, ek çağrı ve olay yok): koşum kaydı (git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/22-GUARDRAIL-VE-YAPISAL-CIKTI.md).
 
 ### MT-GUARD-100 — `MaxRepairAttempts` verilmemişken davranış Faz 131 ile birebir aynıdır
 

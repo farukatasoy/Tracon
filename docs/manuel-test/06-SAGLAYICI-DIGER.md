@@ -24,8 +24,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/06-SAGLAYICI-DIGER.md`](../arsiv/manuel-test-kosum-2026-09/06-SAGLAYICI-DIGER.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/06-SAGLAYICI-DIGER.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/06-SAGLAYICI-DIGER.md
@@ -69,7 +69,7 @@ flowchart TD
 | `/api/diagnostics` ucunun genel sözleşmesi, tüm sağlayıcıların OpenAPI görünürlüğü | `25-SAGLIK-TESHIS-OPENAPI.md` |
 | Kiracı/rol/API anahtarı HTTP güvenlik sınırları | `13-KIRACI-VE-GUVENLIK.md` |
 | AOT publish smoke testi (8 paket, doküman-kod uyuşmazlığı zaten not edildi), paket bağımlılık grafiği | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) |
-| Azure AI Foundry Agents (ayrı yetenek, `IAgentSource`) | `docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` — kapsam dışı, F-tipi aday |
+| Azure AI Foundry Agents (ayrı yetenek, `IAgentSource`) | Faz 27 — kapsam dışı, F-tipi aday |
 
 ## Koşmadan önce
 

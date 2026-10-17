@@ -97,7 +97,7 @@ gerçekten yalnız `Microsoft.Extensions.AI` · `.Abstractions` · `.OpenAI`
 ∴ F-208'in *"bağımlılığı almak mı, şekilleri kopyalamak mı"* karar noktası
 ağırlıkla çözülmedi; **tip doğasıyla** çözüldü (kalıcı kayıt ↔ mutable
 çalışma-anı nesnesi). Karar: şekli hizala, tipi alma —
-[`../152-SKORUN-ADI-VE-SEKLI.md`](../arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) § 152.1.
+Faz 152 § 152.1.
 
 ---
 
@@ -136,7 +136,7 @@ kapsamına birleşti; fikir 7 (case sürümleme) risk satırına taşındı.
 - `src/Tracon.Core/Evaluation/ModelRunJudge.cs:75` — judge bu sınırı
   `author = "judge:{Name}"` ile aşıyor; insan gözden geçirenin böyle bir kaçışı yok.
 - `RunScoreKind.cs` — üç değerli kapalı enum (Binary · Stars · Numeric 0-100).
-- `docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md:38` — indeksin bu hâli
+- Faz 31:38` — indeksin bu hâli
   **kasıtlı** (açık soru 4), hata değil.
 
 **Mercek:** 3, 5, 6, 7.
@@ -182,9 +182,9 @@ sorgula" demesi sözleşme dışıdır; kalem tasarımı değiştirmiyor, eksik 
 
 | F-NN | Başlık | Aday dosyasına yazıldı mı |
 |---|---|---|
-| F-207 | Eval koşumları arasında regresyon farkı | ✅ → [Faz 153](../arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md) |
-| F-208 | Score'un adı ve şekli | ✅ → [Faz 152](../arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) |
-| F-209 | Skor trendinin kalıcı sorgusu | ✅ → [Faz 154](../arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md) |
+| F-207 | Eval koşumları arasında regresyon farkı | ✅ → Faz 153 |
+| F-208 | Score'un adı ve şekli | ✅ → Faz 152 |
+| F-209 | Skor trendinin kalıcı sorgusu | ✅ → Faz 154 |
 
 **Ek (2026-09-07, aynı gün, planlama turu):** Üçü de plana dönüştü. Ölçüm bir
 **dördüncü aday** üretti: **F-210** — `Microsoft.Extensions.AI.Evaluation.Quality`

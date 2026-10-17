@@ -15,8 +15,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/03-KALICILIK-POSTGRESQL.md`](../arsiv/manuel-test-kosum-2026-09/03-KALICILIK-POSTGRESQL.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/03-KALICILIK-POSTGRESQL.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/03-KALICILIK-POSTGRESQL.md
@@ -1847,7 +1847,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-esz-1/run" -
 `0024_vector.sql`, `MigrationsKnowledge/0001_vector.sql`'a taşındı ve yalnız
 `Tracon:PostgreSql:EnableKnowledge = true` iken uygulanır (K1, varsayılan
 kapalı). Karar: K-475/K-476/K-477. Aşağıdaki beş case, faz dokümanının
-([`67-ISTEGE-BAGLI-MIGRATION-SETI.md`](../arsiv/fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md))
+(Faz 67)
 manuel kabul tablosunun karşılığıdır; MT-PG-062/063/064 kapanışta **gerçek**
 konteynerlere karşı koşuldu (kanıt aşağıda).
 
@@ -2180,7 +2180,7 @@ connection string'e değil, `NpgsqlDataSource` **örneğine** aittir.
 `{schema}.runs_v1` — sürümlü, salt-okunur okuma sözleşmesi görünümü. Yalnız
 `Tracon:PostgreSql:EnableReadViews = true` iken kurulur (varsayılan
 kapalı). Aşağıdaki case'ler faz dokümanının
-([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
+(Faz 111)
 manuel kabul tablosunun karşılığıdır; tamamı kapanışta **gerçek** bir
 PostgreSQL konteynerine karşı otomatik koştu (kanıt aşağıda).
 

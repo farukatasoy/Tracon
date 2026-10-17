@@ -271,7 +271,7 @@ arar (`403`), çünkü script Tracon'un OS kimliğiyle çalışır — kabul edi
 K2 istisnasının tam gerekçesi, beş kapının akış şeması, koruma tablosu (ortam
 temizliği, zaman aşımı, çıktı sınırı, eşzamanlılık, `SkillScriptGrant`, denetim
 olayları) ve barındırma kurulumu:
-[`11-SKILL-SCRIPT-CALISTIRMA.md`](arsiv/fazlar/11-SKILL-SCRIPT-CALISTIRMA.md).
+Faz 11.
 
 ## Kota ve webhook imzası
 
@@ -285,7 +285,7 @@ adres, soketin bağlandığı adresin ta kendisidir — önce doğrulayıp sonra
 `SendAsync(url)` çağırmak TOCTOU açığı bırakırdı (K-164). Koruma
 `WebhookHttpClient`'a **gömülüdür**; tüketici değiştiremez. Tek doğruluk noktası
 `WebhookUrlValidator.IsAllowedTarget`; reddedilen aralıklar
-[`21-KOTA-VE-OLAY-YAYINI.md`](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md)'dedir.
+Faz 21'dedir.
 
 **Webhook `secret`'i veritabanında durmaz** — kayıt yalnız yapılandırma
 anahtarının **adını** taşır; sözleşmede `secret` alanı hiç yoktur (K-059).
@@ -306,7 +306,7 @@ URI bir SSRF aracı olurdu. OAuth token'ı `(kiracı, sunucu)` başına bellek i
 tutulur, **veritabanına yazılmaz**; SDK yalnız Authorization Code destekler
 (K-168). `/oauth/callback` arayüz kabuğuyla aynı gruptadır: loopback + policy
 geçerli, yalnız bearer muaf — güvenlik tek kullanımlık `state`'e dayanır.
-Boyut sınırları ve akış: [`22-MCP-DERINLESMESI.md`](arsiv/fazlar/22-MCP-DERINLESMESI.md).
+Boyut sınırları ve akış: Faz 22.
 
 ## Başlangıç kompozisyon kapıları (Faz 150 · 170)
 
@@ -357,7 +357,7 @@ sonucu modele ikinci çağrıda girer ve döngü dışı bir halka onu göremez.
 Engellenen içerik ağa **hiç çıkmaz**, devre kesiciyi **tetiklemez** (K-322) ve
 **hiçbir yere yazılmaz**; iz yalnız guard/kural/yön taşır (K-325). 🚨 Maskeleme
 model sınırındadır — `run_events`/`run_inputs` ham metni saklar.
-Ayrıntı: [`48-GUARDRAILS.md`](arsiv/fazlar/48-GUARDRAILS.md).
+Ayrıntı: Faz 48.
 
 `ContentGuardContext.Source` (Faz 140) denetlenen metnin kullanıcı mesajı mı, tool
 sonucu mu (+ `ToolName`) yoksa model çıktısı mı olduğunu taşır — üçü eskiden aynı

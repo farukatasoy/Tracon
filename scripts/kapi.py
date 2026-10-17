@@ -522,7 +522,7 @@ def frontend_changed(paths: Iterable[str]) -> bool:
 
 
 # -----------------------------------------------------------------------------
-# `performans` - allocation gate (docs/arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md)
+# `performans` - allocation gate (Phase 116)
 #
 # The gate compares ALLOCATED BYTES, never wall-clock duration: on a shared CI
 # runner, allocation is deterministic (same code -> same byte count) while
@@ -1329,7 +1329,7 @@ def test_commands(
 
 
 # -----------------------------------------------------------------------------
-# `yayin` - release rehearsal (docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.2)
+# `yayin` - release rehearsal (Phase 97, 97.2)
 #
 # Writes nothing to a network. It packs the solution (forcing a version via the
 # MinVerVersionOverride environment variable when --surum is given - no git tag
@@ -2243,7 +2243,7 @@ def _finish_release_rehearsal_unchecked(
         # Yalnız GERÇEK bir sürüm şeklinde çözümlenen koşumda zorlanır - ya
         # `--surum` ile insan tarafından yerel bir provada, ya da gerçek bir
         # `v*` etiketiyle. Etiketlenmemiş her rutin CI koşumu yukarıdaki dalı
-        # alır ve bu kapıyı hiç görmez (docs/arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md, 123.3).
+        # alır ve bu kapıyı hiç görmez (Faz 123, 123.3).
         sys.path.insert(0, str(ROOT / "scripts"))
         import changelog
 

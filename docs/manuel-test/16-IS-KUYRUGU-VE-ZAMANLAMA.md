@@ -39,8 +39,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/16-IS-KUYRUGU-VE-ZAMANLAMA.md`](../arsiv/manuel-test-kosum-2026-09/16-IS-KUYRUGU-VE-ZAMANLAMA.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/16-IS-KUYRUGU-VE-ZAMANLAMA.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/16-IS-KUYRUGU-VE-ZAMANLAMA.md
@@ -1840,7 +1840,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
 
 ## Gelen Tetikleyiciler (Faz 66)
 
-Bu bölümün kaynağı `docs/arsiv/fazlar/66-GELEN-TETIKLEYICILER.md`'dir. İmza `openssl` ile
+Bu bölümün kaynağı Faz 66'dir. İmza `openssl` ile
 elle hesaplanır — `$APU`/`$APB` bu dosyanın da temel değişkenleridir
 ([`00-INDEKS.md`](00-INDEKS.md)), ayrıca `$TRIGSECRET` bu bölüme özeldir.
 

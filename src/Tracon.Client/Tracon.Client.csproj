@@ -16,7 +16,7 @@
     -->
     <TraconPublicApiTrackingEnabled>false</TraconPublicApiTrackingEnabled>
     <!--
-      🚨 MEASURED (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.6/risk table):
+      🚨 MEASURED (Phase 83, section 83.6/risk table):
       the AOT promise does NOT hold for the NSwag-generated client. Every
       request/response call is hand-wired to TraconClientJsonContext (a
       source-generated JsonSerializerContext, see TraconApiClient.JsonContext.cs)
@@ -39,7 +39,7 @@
   </PropertyGroup>
 
   <!--
-    NO Tracon package is taken on (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section
+    NO Tracon package is taken on (Phase 83, section
     83.6). The generated client's DTOs mirror the OpenAPI document, not
     Tracon.Abstractions - reusing Abstractions would fight the code
     generator and would leak server-side store interfaces (like IRunStore)

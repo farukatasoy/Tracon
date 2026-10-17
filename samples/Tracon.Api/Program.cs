@@ -57,10 +57,10 @@
 //     is NOT a dependency of Tracon, the credential factory comes from the
 //     consumer
 //
-// See docs/arsiv/fazlar/04-HTTP-API.md, docs/arsiv/fazlar/05-TRACON-UI.md, docs/arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md,
-//     docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md, docs/arsiv/fazlar/12-AGENT-CAGRI-GRAFIGI.md,
-//     docs/arsiv/fazlar/15-WORKFLOWS-YURUTME.md, docs/arsiv/fazlar/26-ANTHROPIC-VE-GEMINI.md,
-//     docs/arsiv/fazlar/27-AZURE-FOUNDRY.md
+// See Phase 4, Phase 5, Phase 6,
+//     Phase 8, Phase 12,
+//     Phase 15, Phase 26,
+//     Phase 27
 //
 // Set secrets before running:
 //   dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "Host=localhost;Database=Tracon;Username=...;Password=..."
@@ -494,7 +494,7 @@ tracon.AddSpeechSynthesizer(ToneSpeechSynthesizer.Name, static _ => new ToneSpee
 //
 // A known difference: Ollama's tool_choice support varies by model; on
 // servers that do not send usage in the stream, RunRecord.TotalTokens stays
-// null — this is not a bug (see docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md, section
+// null — this is not a bug (see Phase 8, section
 // 8.2).
 
 var model = openAiEnabled
@@ -509,7 +509,7 @@ var model = openAiEnabled
 // judge — by itself it SCORES nothing. The real gate is
 // `Tracon:OnlineEvaluation:Enabled` AND `:SampleRate` (K1); both are OFF
 // in the committed appsettings and are only turned on at runtime through an
-// environment variable (see docs/arsiv/fazlar/49-CEVRIMICI-DEGERLENDIRME.md, DoD).
+// environment variable (see Phase 49, DoD).
 if (openAiEnabled)
 {
     tracon.AddModelRunJudge(options =>
@@ -745,7 +745,7 @@ tracon.AddWorkflow(
             // DIRECTLY from the catalog. An agent taken directly opens its own
             // root `runs` row and the workflow tree appears empty. Measured:
             // in the sample app the tree returned one row instead of three
-            // (see docs/arsiv/fazlar/15-WORKFLOWS-YURUTME.md).
+            // (see Phase 15).
             services.GetWorkflowAgent("summarize-and-translate", "summarizer", "Summarizes incoming text in three bullet points."),
             services.GetWorkflowAgent("summarize-and-translate", "translator", "Translates incoming text into English."),
         ]),
@@ -1233,11 +1233,11 @@ if (openRouterEnabled)
         {
             Provider = "openrouter",
             // OpenRouter model identifiers carry a provider prefix; not
-            // "gpt-5.4-mini" but "openai/gpt-5.4-mini". Measured: docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md.
+            // "gpt-5.4-mini" but "openai/gpt-5.4-mini". Measured: Phase 8.
             Model = openRouter["DefaultModel"] ?? "openai/gpt-5.4-mini",
             // OpenRouter's credit check treats max_tokens as a "worst case";
             // the default (65536) produces HTTP 402 on low-balance keys.
-            // Measured: docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md.
+            // Measured: Phase 8.
             MaxOutputTokens = 512,
         },
         ToolNames = ["get_order_status", "list_recent_orders", "cancel_order"],
@@ -1386,7 +1386,7 @@ if (voiceEnabled && openAiEnabled)
 // IEmbeddingGenerator are both registered; if either is missing, the build
 // stops with an explicit error. Document upload is an ADMIN operation
 // (POST /tracon/api/knowledge/{collection}/documents), not something the
-// agent does itself — see docs/arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md, 51.6.
+// agent does itself — see Phase 51, 51.6.
 if (openAiEnabled)
 {
     tracon.AddAgent(new AgentDefinition

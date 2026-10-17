@@ -18,8 +18,8 @@
 > Rol tabanlı yetkilendirme kurulumu (Admin case'leri için) [`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md) §8'dedir.
 > Devre kesici kurulumu [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) §8'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/25-SAGLIK-TESHIS-OPENAPI.md`](../arsiv/manuel-test-kosum-2026-09/25-SAGLIK-TESHIS-OPENAPI.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/25-SAGLIK-TESHIS-OPENAPI.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/25-SAGLIK-TESHIS-OPENAPI.md
@@ -115,7 +115,7 @@ mekanizma olsa da HTTP yüzeyinin **kendi kendini tanımlama** yeteneğinin
 | **İlgili faz** | Faz 33 |
 | **İlgili karar** | 33.3 |
 
-Faz 33'ün kendi kapanış ölçümünün (`docs/arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md`,
+Faz 33'ün kendi kapanış ölçümünün (Faz 33,
 "Doğrulama komutları") birebir tekrarı.
 
 **Ön koşul**
@@ -658,7 +658,7 @@ curl -s -i "$APU/api/diagnostics" -H "$APB" -H "X-Test-Role: admin"  | head -1
 | **İlgili faz** | Faz 33 |
 | **İlgili karar** | K-059 |
 
-Faz 33'ün kendi kapanış ölçümünün (`docs/arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md`,
+Faz 33'ün kendi kapanış ölçümünün (Faz 33,
 sızıntı denetimi) birebir tekrarı — bu depodaki `secret` sızıntı testlerinin
 en doğrudan olanlarından biridir.
 

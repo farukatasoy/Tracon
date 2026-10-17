@@ -216,7 +216,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
         // Carries the audit trail actor into the ambient context. AmbientAuditActorResolver
         // in Tracon.Core reads it through an AsyncLocal, so Core can answer the
         // "who did it" question without taking a dependency on ASP.NET Core.
-        // Rationale: docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md, section 9.2.
+        // Rationale: Phase 9, section 9.2.
         //
         // 🚨 An API-key request used to leave the actor EMPTY. Nothing assigns
         // HttpContext.User for those requests, so the resolver saw an anonymous

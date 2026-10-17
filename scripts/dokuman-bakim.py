@@ -827,10 +827,10 @@ def yol_haritasi_uret() -> str:
             "|-----|------|-------|",
             *satirlar,
             "",
-            "Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada,"
-            " hangi gerekçeyle sıralandığı (Faz 8–56, kapandı):"
-            " [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) ·"
-            " [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).",
+            "Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Faz 0–218 arasındaki"
+            " kapanmış kayıtların çoğu 2026-10-17'de silindi; numaralar kullanılmıştır"
+            " ve tam metinleri `2a8149ef` commit'indedir"
+            " (`git show 2a8149ef:docs/arsiv/fazlar/<dosya>`).",
             "",
         ]
     )
@@ -2139,7 +2139,7 @@ def _site_slug_haritasi(kok: pathlib.Path) -> dict[str, pathlib.Path]:
 # Faz 90: `LINK` ham metni tarar ve KOD BLOGUNU ayirt etmez. Bir dokuman bir
 # markdown ORNEGI gosterdiginde (damitilmis faz kaydinin sablonu gibi) ornekteki
 # `](...)` gercek bir baglanti sanilir ve kapi kalici yanlis pozitif uretir --
-# olculdu: `docs/arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md -> ../../ADAYLAR.md`. Var olan
+# olculdu (Faz 90 kaydi): `... -> ../../ADAYLAR.md`. Var olan
 # `"sablonu.md" in rel` istisnasi ayni sinifin dosya bazli, kaba cozumuydu;
 # bu islev sorunu kaynaginda kapatir ve istisnayi gereksizlestirmez (sablon
 # dosyalari fence DISINDA da yer tutucu tasir).
@@ -3347,10 +3347,11 @@ _TAM_METIN = re.compile(r"git show ([0-9a-f]{7,40}):(\S+\.md)")
 # DEGILDIR: kosum dizini tur acilisinda acilir, kapanista arsive tasinir
 # (manuel-test-kosumu SKILL semasi) -- turlar arasinda yoklugu mesrudur.
 # 2026-08 tur arsivi ayni turda silindi (K-847); tam metinleri 0a802674'te.
+# 2026-09 tur arsivi 2026-10-17 gecmis kayit temizliginde silindi; tam
+# metinleri 2a8149ef'te.
 TAM_METIN_KAYNAKLARI: tuple[tuple[str, bool], ...] = (
     ("docs/arsiv/fazlar", True),
     ("docs/manuel-test/kosumlar", False),
-    ("docs/arsiv/manuel-test-kosum-2026-09", True),
 )
 
 

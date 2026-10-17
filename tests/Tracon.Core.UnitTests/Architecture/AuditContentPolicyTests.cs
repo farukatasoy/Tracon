@@ -18,7 +18,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// conversation content in <c>audit_log</c> through it just as easily. A new call site fails this test
 /// until a human adds it to the list — which is the point: the review happens
 /// once, deliberately, not by guessing from a diff later. See phase 64's
-/// evidence table (<c>docs/arsiv/fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md</c>) for
+/// evidence table (Phase 64) for
 /// the review that produced this list; every entry is a management/governance
 /// action (API key, catalog, quota, retention, session/agent/tool-rule/tenant
 /// administration, approval decision, external-call audit), never conversation

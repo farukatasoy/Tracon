@@ -5,13 +5,13 @@
 > kayıtlar burada durmaz; tam metinleri git'tedir (§7). İş kalemi buraya değil,
 > [`ADAYLAR.md`](ADAYLAR.md)'ye yazılır.
 >
-> **Son güncelleme:** 2026-10-16 (sadeleştirme; ölçümler satırında tarihli)  
+> **Son güncelleme:** 2026-10-17 (UR-004 = A; ölçümler satırında tarihli)  
 > **Çalışma modu:** `nuget-danismani` — public API freeze programı (UR-009 B)  
 > **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.4`. Freeze yolunun ilk üç
 > ölçütü bitti: küçültme (Faz 212–213), bağımlılık yükseltmesi (Faz 214–216)
 > ve modernizasyon (Faz 217); ölçüt 4 karar verildi (UR-012 = A: yeni yetenek
 > yok). Ölçüt 5'ten F-290 Faz 218'de kapandı (2026-10-17: son `[Obsolete]` üye ve sütun kalktı); sıradaki iş F-559; F-560 MAF GA'sını bekler (UR-013). Faz 212–218 `origin/main`'de yok; CI onları hiç koşmadı. GA
-> hâlâ ❌ (`NU5104`, ER-001).
+> hâlâ ❌ (`NU5104`, ER-001). UR-004 = A (2026-10-17): `rc.1` de ER-001 kalkana kadar çıkmaz.
 
 ## 1. Canlı durum (ölçüldü 2026-10-16)
 
@@ -32,8 +32,10 @@
 ## 2. Hedef ve freeze yolu
 
 **Hedef:** yüzey `1.0.0-rc.1`'de donar; `Shipped` dolumu tek commit'tir
-(K-603). **GA (`1.0.0`) ayrı bir adımdır:** `Tracon.AspNetCore`'un ön sürüm
-bağımlılıkları kararlı olunca gelir (ER-001, K-008, K-602).
+(K-603). **Upstream GA beklenir (UR-004 A):** `rc.1` de `Tracon.AspNetCore`'un
+ön sürüm bağımlılıkları (Hosting ailesi, `A2A.AspNetCore`) kararlı olunca
+çıkar (ER-001, K-008, K-602). O güne kadar preview hattı sürer. GA (`1.0.0`)
+`rc.1`'den sonra ayrı bir adımdır.
 
 Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 
@@ -41,12 +43,12 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 |---|---|---|---|
 | 1 | Küçültme | ✅ | Faz 212 (A-74) · Faz 213 (A-75, A-79) · A-78 · A-80 |
 | 2 | Her bağımlılık en yeni sürümde | ✅ | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
-| 3 | Modernizasyon | ✅ **[Faz 217](arsiv/fazlar/217-SAGLAYICI-MODERNLESME-VE-AOT-VAADI.md)** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
+| 3 | Modernizasyon | ✅ **Faz 217** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
 | 4 | Yeni yetenekler toplu girer | ✅ UR-012 = A 👤 (2026-10-17) | Freeze'den önce **yeni yetenek girmez**; yalnız sözleşmeyi değiştiren kırıcı kalemler girer: F-290 (`AuthorizationConfigurationKey` kaldırma + veri taşıma). F-466 (kanıtsız iki public istisna) ölçümle kapandı: A-80 ikisini belgeledi, kırıcı iş gerekmedi. Ekleyici yetenekler 1.x minor'a kalır; RC ile GA arasında yetenek eklenmez (UR-005 A) |
 | 5 | Kırıcı kalemler kapandı · public imzada upstream deneysel tip yok · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 ✅ **[Faz 218](arsiv/fazlar/218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md)** (2026-10-17; `[Obsolete]` kalmadı, `git grep "\[Obsolete" src` boş) · F-559 (A-76, A-67, A-68) · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |
 | 6 | Faz 193 (`net8.0`/`net9.0` düşer) | 📋 planlandı | En erken 2026-11-10 (K-855) |
 | 7 | Bir preview aralığı kararlı katmanda **sıfır** kırılmayla geçer | ⏳ | 3–6'dan sonra. `kapi.py yayin` kırılma listesi boş olur. Her yeni yetenek pencereyi yeniden başlatır |
-| 8 | `1.0.0-rc.1` provası yeşil | ⏳ | `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-rc.1` |
+| 8 | Upstream kararlı (ER-001 kalktı) · `1.0.0-rc.1` provası yeşil | ⏳ dış | UR-004 A: Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alır. Sonra `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-rc.1` |
 
 ## 3. Açık kalemler
 
@@ -54,7 +56,7 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 
 | Kimlik | Kalem | Seviye | Sahip |
 |---|---|---|---|
-| ER-001 | Hosting ailesi ve `A2A.AspNetCore` kararlı değil; kararlı pack `NU5104` ile durur | 🔴 GA · dış | upstream |
+| ER-001 | Hosting ailesi ve `A2A.AspNetCore` kararlı değil; kararlı pack `NU5104` ile durur. UR-004 A ile `rc.1` de bunu bekler | 🔴 rc.1 + GA · dış | upstream |
 | BL-057 | nuget.org `Tracon` organizasyonunda ikinci üye yok. Tek bakımcı erişilemezse güvenlik yaması çıkmaz (RK-012) | 🔴 GA | 👤 nuget.org |
 | A-72 | `Tracon.Cli` 54 üçüncü taraf ikiliyi bildirim dosyası olmadan taşır (Apache-2.0 ayrıca `NOTICE` ister). Çözüm: `kapi.py` `THIRD_PARTY_NOTICE_PACKAGES`'e ekle; bildirimi NuGet bağımlılıklarının lisans dosyalarından üret | 🟡 preview · 🔴 GA | `kusur-giderme` |
 
@@ -120,18 +122,18 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 
 | Kimlik | Soru | Seçenekler | Öneri |
 |---|---|---|---|
-| UR-004 | Upstream kararlı değilken 1.0'a nasıl gidilir? | A: upstream GA'yı bekle · B: Hosting'e bağlı yüzeyi ayrı ön sürüm pakete ayır · C: yüzeyi dondur, `1.0.0-rc.N` çık, GA upstream'e bağlı | **C** önerilir. UR-009 B bu yolu fiilen seçti; bakımcı 2026-10-17'de kalemi **açık tuttu** 👤 |
 | UR-007 | Hangi 1.x sürümü ne kadar güvenlik yaması alır? | A: yalnız son minor · B: son minor + yeni major çıkınca önceki major N ay | **B**; N bakımcı kararıdır. `SECURITY.md` ve site aynı tabloyu taşır |
 
 ## 5. Yürürlükteki kararlar
 
 | Kimlik | Karar | Yeniden açılma ölçütü |
 |---|---|---|
-| UR-001 | Yayın türü `preview` | UR-009 ölçütleri sağlanınca `rc` |
+| UR-001 | Yayın türü `preview` | UR-009 ölçütleri sağlanınca **ve** ER-001 kalkınca `rc` (UR-004 A) |
 | UR-002 | Kapsam: paketlenen her proje (bugün 20) + `@tracon/client`, tek sürüm hattı (K-602) | — |
+| UR-004 | **A** 👤 (2026-10-17): upstream GA beklenir. Freeze (`1.0.0-rc.1`) de ER-001 kalkana kadar çıkmaz — Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alana kadar preview hattı sürer. B (Hosting'e bağlı yüzeyi ayrı ön sürüm pakete ayırmak) ve C (önce dondur, `rc.N` çık, yalnız GA upstream'i bekler) seçilmedi | Upstream kararlı sürüm takvimi uzar ve preview hattında bekleyen iş birikirse C yeniden tartılır |
 | UR-005 | **A:** tek kararlı katman; Tracon'un kendi `[Experimental]` katmanı yok | — |
 | UR-006 | **A:** ön sürüm upstream bağımlılığı tam sürüm `[x]` yazılır (K-872) | Upstream kararlı olunca alt sınıra döner |
-| UR-009 | **B:** küçült → yükselt → modernize et → yetenekler → kurallar → RC'de dondur (§2) | — |
+| UR-009 | **B:** küçült → yükselt → modernize et → yetenekler → kurallar → RC'de dondur (§2). RC upstream kararlı olunca çıkar (UR-004 A) | — |
 | UR-012 | **A** 👤 (2026-10-17): freeze'den önce yeni yetenek yok; yalnız kırıcı kalemler (F-290; F-466 ölçümle kapandı). Ekleyici yetenekler 1.x minor; RC ile GA arasında yetenek eklenmez | Upstream GA uzun süre gelmezse ve RC'de bekleyen yetenek birikirse yeniden bakılır |
 | UR-013 | **F-560: MAF'ın GA'sı beklenir** 👤 (2026-10-17). `AddLoopEvaluator` ×4 ve `AgentFileStoreContract` olduğu gibi kalır; Tracon kendi ölçüt tipini kurmaz, sözleşmeyi `internal`'a çekmez. Freeze (`rc.1`) bu tetiğe bağlıdır | `uyum-probu.cs -- deneysel` public maruziyeti 0 gösterince F-560 kapanır; MAF GA uzarsa freeze'in bu tetiğe bağlılığı yeniden tartılır |
 | OP-001 | Paket sahibi nuget.org organizasyonu `Tracon` (K-755) | — |

@@ -22,8 +22,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/04-KALICILIK-DIGER.md`](../arsiv/manuel-test-kosum-2026-09/04-KALICILIK-DIGER.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/04-KALICILIK-DIGER.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/04-KALICILIK-DIGER.md
@@ -1741,7 +1741,7 @@ tüketicinin kendi yazdığı bir adaptör içindir (Tracon'in kendi
 
 `runs_v1` — sürümlü, salt-okunur okuma sözleşmesi görünümü, `EnableReadViews`
 ile isteğe bağlı. Faz dokümanının
-([`111-OKUMA-SOZLESMESI-GORUNUMLERI.md`](../arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md))
+(Faz 111)
 manuel kabul tablosunun SQL Server/SQLite karşılığı; kapanışta gerçek bir SQL
 Server konteynerine ve gerçek bir SQLite dosyasına karşı otomatik koştu.
 

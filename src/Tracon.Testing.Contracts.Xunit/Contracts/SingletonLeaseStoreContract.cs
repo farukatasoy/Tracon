@@ -113,7 +113,7 @@ public abstract class SingletonLeaseStoreContract : StoreCancellationContract<IS
 
         // 🚨 If the former owner tries to renew its lease, this must return
         // false -- the caller MUST step down (Tests table,
-        // docs/arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md).
+        // Phase 42).
         (await Store.RenewAsync(lease, firstOwner, TimeSpan.FromMinutes(5))).ShouldBeFalse();
     }
 

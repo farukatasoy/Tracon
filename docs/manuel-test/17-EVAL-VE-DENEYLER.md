@@ -24,8 +24,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/17-EVAL-VE-DENEYLER.md`](../arsiv/manuel-test-kosum-2026-09/17-EVAL-VE-DENEYLER.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/17-EVAL-VE-DENEYLER.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/17-EVAL-VE-DENEYLER.md
@@ -3079,7 +3079,7 @@ Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
 **Beklenen sonuç**
 - İki satır **farklı** `evaluatorVersion` taşır.
 - Skorlar arasındaki fark artık "model bozuldu" ile "yargıç değişti" ayrımıyla
-  yorumlanabilir — [Faz 153](../arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)
+  yorumlanabilir — Faz 153
   regresyon taban çizgisinin sessizce kaymasının nedeni budur.
 
 **Alan kodu:** `EVAL`

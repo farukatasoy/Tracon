@@ -19,8 +19,8 @@
 > davranışın tarifi burada, kanıtı CI'da durur. Şablon:
 > [`00-INDEKS.md` §9](00-INDEKS.md#9-devir-şablonu--bir-casein-üç-olası-kaderi).
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/07-HTTP-YONETIM-API.md`](../arsiv/manuel-test-kosum-2026-09/07-HTTP-YONETIM-API.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/07-HTTP-YONETIM-API.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/07-HTTP-YONETIM-API.md

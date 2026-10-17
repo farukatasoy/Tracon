@@ -911,7 +911,7 @@ internal static class RunEndpoints
 
         // "Does not exist" and "belongs to another tenant" return the SAME
         // 404; a separate message would leak existence
-        // (docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md, section 31.3).
+        // (Phase 31, section 31.3).
         if (run is null || !string.Equals(run.TenantId, tenants.TenantId, StringComparison.Ordinal))
         {
             return NotFoundFeedback(runId);

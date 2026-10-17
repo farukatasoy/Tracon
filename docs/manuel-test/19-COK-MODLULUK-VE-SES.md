@@ -22,8 +22,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/19-COK-MODLULUK-VE-SES.md`](../arsiv/manuel-test-kosum-2026-09/19-COK-MODLULUK-VE-SES.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/19-COK-MODLULUK-VE-SES.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/19-COK-MODLULUK-VE-SES.md
@@ -621,7 +621,7 @@ curl -s "$APU/v1/chat/completions" -H "$APB" -H "content-type: application/json"
 **Beklenen sonuç**
 - İstek reddedilmez ama görsel parça sessizce YOK sayılır (yalnız `text`
   parçası modele ulaşır) — `OpenAIChatCompletionsEndpoints.ReadContent`
-  `image_url`/`input_file` okumaz. Bu, `docs/arsiv/fazlar/14-COK-MODLULUK.md`'nin
+  `image_url`/`input_file` okumaz. Bu, Faz 14'nin
   bilinçli kapsam kararıdır; koşum bu davranışı doğrular/çürütür.
 
 ---

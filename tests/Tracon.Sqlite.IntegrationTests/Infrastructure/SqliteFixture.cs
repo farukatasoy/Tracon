@@ -10,7 +10,7 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// <para>
 /// <strong>A container is NOT REQUIRED.</strong> Since SQLite is a single
 /// file, a temporary file path is enough; this shortens CI time compared to
-/// the PostgreSQL/SQL Server contract runs (docs/arsiv/fazlar/24-SQLITE.md, section 24.5).
+/// the PostgreSQL/SQL Server contract runs (Phase 24, section 24.5).
 /// </para>
 /// <para>
 /// 🚨 <strong>Every table prefix gets its OWN database file</strong>

@@ -41,8 +41,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/23-SAKLAMA-ARSIV-KOTA.md`](../arsiv/manuel-test-kosum-2026-09/23-SAKLAMA-ARSIV-KOTA.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/23-SAKLAMA-ARSIV-KOTA.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/23-SAKLAMA-ARSIV-KOTA.md
@@ -578,7 +578,7 @@ curl -s "$APU/api/retention/preview?target=sessions" -H "$APB" | jq
 | **İlgili karar** | K-200, K-258 |
 
 Faz kapanışında gerçek koşumla (SQLite, port 5080) doğrulanmış senaryonun
-**birebir tekrarı** — `docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`, 2026-08-06.
+**birebir tekrarı** — Faz 36, 2026-08-06.
 
 **Ön koşul**
 - SQLite ile çalışıyor, reset yapıldı.
@@ -719,7 +719,7 @@ curl -s "$APU/api/retention/preview?target=run_events" -H "$APB" | jq
 | **İlgili faz** | Faz 36, 41 |
 | **İlgili karar** | K-260 (eski), K-279 (güncel — düzeltti) |
 
-Sınır senaryosu — **düzeltici bulgu**. `docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md`
+Sınır senaryosu — **düzeltici bulgu**. Faz 36
 (Plandan Sapmalar #2) *"`MaxRows` kiracı başına değil, tablo genelinde
 çalışır"* diyor (K-260). Ölçüldü: `src/Tracon.Abstractions/Retention/
 IRetentionStore.cs`'in **güncel** `FindRowLimitCutoffAsync` imzası bir
@@ -1152,7 +1152,7 @@ sqlite3 samples/Tracon.Api/tracon-manuel.db \
 | **İlgili faz** | Faz 21, 25 |
 | **İlgili karar** | — |
 
-Negatif senaryo — **şüpheli bulgu**. `docs/arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md`'nin
+Negatif senaryo — **şüpheli bulgu**. Faz 21'nin
 kendi devir notu ("Faz 25 (saklama) için") şunu yazıyordu: *"`quota_usage`
 geçmiş dönemleri sonsuza dek tutar — yalnız geçerli dönem sorgulanır,
 eskiler ölü veridir."* Bu, Faz 25'in ele alması beklenen bir iş kalemiydi.

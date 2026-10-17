@@ -16,7 +16,7 @@ namespace Tracon.SqlProviders.Tests;
 public sealed class ReadViewColumnSetTests
 {
     /// <summary>
-    /// The published contract (docs/arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md,
+    /// The published contract (Phase 111,
     /// 111.2). A column dropped from here is a BREAKING change and ships as
     /// <c>runs_v2</c>, never edited in place.
     /// </summary>

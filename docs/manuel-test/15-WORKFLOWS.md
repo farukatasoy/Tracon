@@ -23,8 +23,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/15-WORKFLOWS.md`](../arsiv/manuel-test-kosum-2026-09/15-WORKFLOWS.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/15-WORKFLOWS.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/15-WORKFLOWS.md
@@ -1996,7 +1996,7 @@ Regresyon kapısı — `Nodes` boşken hiçbir kod yolu değişmemeli.
 ### MT-WF-111 — `GET /api/workflows/functions` kayıtlı fonksiyonu listeler
 
 **Gerçekten koşuldu ve doğrulandı** (2026-08-19, `samples/Tracon.Api`,
-port 5091, EchoModelProvider — bkz. `docs/arsiv/fazlar/71-WORKFLOW-KOD-DUGUMU.md` "Doğrulama
+port 5091, EchoModelProvider — bkz. Faz 71 "Doğrulama
 komutları" bölümü).
 
 | | |

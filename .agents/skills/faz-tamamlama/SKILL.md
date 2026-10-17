@@ -336,7 +336,7 @@ listeleme, desen yaz.
 
 ```bash
 # Faz durumu tek yerde mi, çelişki var mı?
-grep -rn "Sıradaki faz" AGENTS.md README.md docs/arsiv/IKINCI-FAZ-YOL-HARITASI.md
+grep -rn "Sıradaki faz" AGENTS.md README.md
 
 # Bayatlamış API adı kaldı mı? (fazda kaldırdığın tipi yaz)
 grep -rn "KaldirilanTipAdi" docs/ README.md src/

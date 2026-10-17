@@ -46,7 +46,7 @@ Liste bir önceki fazın dokümanına yolluyorsa yalnız **"Sonraki Faza Devir N
 bölümünü oku, dokümanın tamamını değil:
 
 ```bash
-awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md
+awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/NN-AD.md
 ```
 
 ---

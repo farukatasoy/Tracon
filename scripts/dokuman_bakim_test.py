@@ -545,7 +545,6 @@ class TamMetinDenetleTestleri(unittest.TestCase):
 
     def _faz(self, tmp: pathlib.Path, govde: str) -> None:
         (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
-        (tmp / "docs" / "arsiv" / "manuel-test-kosum-2026-09").mkdir(parents=True)
         (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(govde, encoding="utf-8")
 
     def test_cozulmeyen_sha_yakalanir(self):
@@ -584,7 +583,6 @@ class TamMetinDenetleTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
             (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
-            (tmp / "docs" / "arsiv" / "manuel-test-kosum-2026-09").mkdir(parents=True)
             self.assertEqual(dokuman_bakim.tam_metin_denetle(tmp), [])
 
 
@@ -1346,7 +1344,6 @@ class DenetimBulgulariTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
             (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
-            (tmp / "docs" / "arsiv" / "manuel-test-kosum-2026-09").mkdir(parents=True)
             (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(
                 "> git show deadbee:docs/arsiv/fazlar/01-X.md\n", encoding="utf-8")
             with mock.patch.object(dokuman_bakim, "_git",
@@ -1416,7 +1413,6 @@ class TamMetinKodBloguTestleri(unittest.TestCase):
 
     def _kur(self, tmp):
         (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
-        (tmp / "docs" / "arsiv" / "manuel-test-kosum-2026-09").mkdir(parents=True)
         (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(
             "> git show deadbee:docs/arsiv/fazlar/01-X.md\n", encoding="utf-8")
 
@@ -2259,7 +2255,7 @@ class BayatKodYoluTestleri(unittest.TestCase):
     def test_arsiv_yolu_tarihsel_kayittir_atlanir(self):
         # Gerçek bir arşiv yolu kullanılır: `kapi.py tarama`nın arşiv referans
         # denetimi bu dosyayı da tarar ve uydurma bir yol onu kırmızı yapar.
-        metin = "Eski anlatı `docs/arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md` içindedir."
+        metin = "Eski anlatı `docs/arsiv/FAZ-GECMISI.md` içindedir."
         self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, self._mevcut))
 
     def test_joker_ve_yer_tutucu_eslesmez(self):

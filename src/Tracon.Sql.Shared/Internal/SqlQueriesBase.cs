@@ -1745,7 +1745,7 @@ internal abstract class SqlQueriesBase
             WHERE tenant_id = @tenant_id AND id = @id;
             """;
 
-        // content is read only when requested (docs/arsiv/fazlar/14-COK-MODLULUK.md, section 14.2).
+        // content is read only when requested (Phase 14, section 14.2).
         SelectAttachmentContent = $"""
             SELECT content, external_uri, media_type
             FROM {Table("attachments")}

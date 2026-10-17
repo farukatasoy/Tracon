@@ -66,8 +66,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/21-DAYANIKLILIK-VE-IPTAL.md`](../arsiv/manuel-test-kosum-2026-09/21-DAYANIKLILIK-VE-IPTAL.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/21-DAYANIKLILIK-VE-IPTAL.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/21-DAYANIKLILIK-VE-IPTAL.md
@@ -330,7 +330,7 @@ curl -s -i -X POST "$APU/api/runs/$RUNNING_ID/cancel" -H "$APB"
 
 ### MT-RES-005 — 🚨 Workflow çalıştırması gerçekten iptal edilebiliyor mu (Faz 32 kapanışında KANITLANAMAMIŞ boşluğun denemesi)
 
-`docs/arsiv/fazlar/32-CALISTIRMA-IPTALI.md`'nin "Plandan Sapmalar" bölümü açıkça şunu
+Faz 32'nin "Plandan Sapmalar" bölümü açıkça şunu
 kaydeder: `WorkflowRunner`'ın kayıt/bırakma teli `RunRecordingAgent` ile
 birebir aynı desendedir ve derleniyor, ama **gerçek bir workflow
 çalıştırmasıyla hiç kanıtlanmadı** — o fazın kendi denemesi MAF'ın

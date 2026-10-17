@@ -28,8 +28,8 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
-> [`../arsiv/manuel-test-kosum-2026-09/24-TEST-PAKETI-VE-SABLON.md`](../arsiv/manuel-test-kosum-2026-09/24-TEST-PAKETI-VE-SABLON.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16) kaydı silindi (2026-10-17); tam metin:
+> git show 2a8149ef:docs/arsiv/manuel-test-kosum-2026-09/24-TEST-PAKETI-VE-SABLON.md
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
 > her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
 > tam metin: git show 0a802674:docs/manuel-test/kosumlar/2026-08-13/24-TEST-PAKETI-VE-SABLON.md
@@ -1984,7 +1984,7 @@ grep -E "warning IL[0-9]+|NETSDK1210" aot-cikti.log
 | **İlgili karar** | — |
 
 Bu dosyanın **özet case'i** — Faz 39'un tüm amacının tek bir depo-dışı
-projede kanıtlanması. Faz 39'un kendi DoD komutlarının (`docs/arsiv/fazlar/39-TEST-PAKETI.md`
+projede kanıtlanması. Faz 39'un kendi DoD komutlarının (Faz 39
 "Doğrulama komutları — gerçek çıktı") birebir tekrarıdır.
 
 **Ön koşul**
@@ -2013,7 +2013,7 @@ dotnet run -c Release
 - Komut çalışırken **hiçbir dış ağ trafiği** üretilmez (OpenAI/Anthropic/vb.
   anahtarı bu ortamda **tanımlı olmasa bile** program başarıyla biter) —
   `FakeModelProvider` ağa hiç çıkmaz.
-- Bu, Faz 39'un kapanışta ölçtüğü gerçek çıktıyla (`docs/arsiv/fazlar/39-TEST-PAKETI.md`,
+- Bu, Faz 39'un kapanışta ölçtüğü gerçek çıktıyla (Faz 39,
   "Depo dışı tüketici senaryosu") **aynı sonucu** üretir.
 
 ---

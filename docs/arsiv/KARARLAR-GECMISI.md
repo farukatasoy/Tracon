@@ -97,7 +97,7 @@ K-387 sonrası SqlServer paketi Postgres'ten hâlâ ~2,8 kat yavaştı (355,5 sn
 
 ## K-510 — Yerel referans dosyasının konumu (Faz 74)
 
-Plan (`docs/arsiv/fazlar/74-YEREL-REFERANS-YUZEYI.md` §74.2) dosyayı `AGENTS.md` ile aynı
+Plan (Faz 74 §74.2) dosyayı `AGENTS.md` ile aynı
 dizine, git köküne koyuyordu. Faz denetimi bunu 🔴 bulgu olarak düşürdü.
 
 **Ölçüm.** Bir git kökünde iki proje kuruldu: `src/Web` (`Microsoft.NET.Sdk.Web`,
@@ -705,7 +705,7 @@ Faz 60 planı bu iki paketi "dosya eklenmez" diyerek hariç tutmayı öngörüyo
 
 **K-275 — On bir ham `Task<IResult>` ucunun tamamı yol B (`.Produces`/`.ProducesProblem` üstverisi) ile belgelendi; hiçbiri yol A'ya (`Results<...>` imza değişikliği) taşınmadı**
 
-`docs/arsiv/fazlar/40-OPENAPI-YAYINI.md` bölüm 40.2'nin kuralı: dönüş kümesi sonlu ve tipliyse A, akışlı/ikiliyse B. On bir ucun TAMAMI incelendiğinde: beşi (`TraconRunAgent`, üç workflow ucu, indirme) başarı yanıtında SAADECE SSE/ikili döndürüyor — hiçbir zaman tipli JSON dönmüyor; altısı (`/v1/responses`, `/v1/chat/completions`, dört conversations ucu) `Results.Json(...)` ile ÖZEL `JsonSerializerOptions` (`OpenAICompatSupport.JsonOptions`, `DefaultIgnoreCondition = WhenWritingNull`) kullanıyor — `TypedResults.Ok<T>`'a geçmek uygulamanın varsayılan JSON seçeneklerini kullanır (null alanlar artık dizilir) ve OpenAI istemci SDK'larıyla tel uyumluluğunu bilerek bozardı. Sonuç: A seçeneği hiçbir ucun gerçek davranışına uymuyordu; hepsi B.
+Faz 40 bölüm 40.2'nin kuralı: dönüş kümesi sonlu ve tipliyse A, akışlı/ikiliyse B. On bir ucun TAMAMI incelendiğinde: beşi (`TraconRunAgent`, üç workflow ucu, indirme) başarı yanıtında SAADECE SSE/ikili döndürüyor — hiçbir zaman tipli JSON dönmüyor; altısı (`/v1/responses`, `/v1/chat/completions`, dört conversations ucu) `Results.Json(...)` ile ÖZEL `JsonSerializerOptions` (`OpenAICompatSupport.JsonOptions`, `DefaultIgnoreCondition = WhenWritingNull`) kullanıyor — `TypedResults.Ok<T>`'a geçmek uygulamanın varsayılan JSON seçeneklerini kullanır (null alanlar artık dizilir) ve OpenAI istemci SDK'larıyla tel uyumluluğunu bilerek bozardı. Sonuç: A seçeneği hiçbir ucun gerçek davranışına uymuyordu; hepsi B.
 
 ### K-373
 
@@ -765,7 +765,7 @@ Akışlı bir uç, çalıştırma kimliğini **ilk çerçeveden önce** bilmek z
 
 **K-066 — Skill'lerde script çalıştırma kabul edildi; K2'nin ikinci bilinçli istisnası** *(kullanıcı kararı)**
 
-K2 ("tool'lar yalnız kodda") arayüze erişen birinin sunucuda kod çalıştırmasını engeller. Birinci istisna MCP'ydi (K-058) ve orada süreç **uzakta** çalışıyor. Skill script'lerinde süreç **Tracon'in makinesinde** çalışır. Kullanıcı bunu kabul edilebilir buldu. Kabul, kontrolsüz çalıştırma anlamına gelmez; [Faz 11](fazlar/11-SKILL-SCRIPT-CALISTIRMA.md) şu koşulları zorunlu kılar: yorumlayıcı beyaz listesi (varsayılan **boş**), skill başına izin kaydı, Faz 6 onay akışı, ayrı OS süreci, zaman aşımı, çıktı sınırı, temiz ortam değişkenleri ve **yazılamazsa çalıştırmayı reddeden** denetim izi. Ayrıca `PlatformIsolationAcknowledged` bayrağı olmadan özellik açılmaz: .NET taşınabilir biçimde ağ/dosya/CPU izolasyonu **sağlayamaz** ve bu sınır gizlenmez, tüketiciye bildirilir. Önkoşul [Faz 9](fazlar/09-YONETISIM-VE-DENETIM-IZI.md)'dur.
+K2 ("tool'lar yalnız kodda") arayüze erişen birinin sunucuda kod çalıştırmasını engeller. Birinci istisna MCP'ydi (K-058) ve orada süreç **uzakta** çalışıyor. Skill script'lerinde süreç **Tracon'in makinesinde** çalışır. Kullanıcı bunu kabul edilebilir buldu. Kabul, kontrolsüz çalıştırma anlamına gelmez; Faz 11 şu koşulları zorunlu kılar: yorumlayıcı beyaz listesi (varsayılan **boş**), skill başına izin kaydı, Faz 6 onay akışı, ayrı OS süreci, zaman aşımı, çıktı sınırı, temiz ortam değişkenleri ve **yazılamazsa çalıştırmayı reddeden** denetim izi. Ayrıca `PlatformIsolationAcknowledged` bayrağı olmadan özellik açılmaz: .NET taşınabilir biçimde ağ/dosya/CPU izolasyonu **sağlayamaz** ve bu sınır gizlenmez, tüketiciye bildirilir. Önkoşul Faz 9'dur.
 
 ## Faz 77 bütçe rahatlatması — ikinci tur
 
@@ -1331,7 +1331,7 @@ Faz 21 dokümanı kendi içinde çelişiyordu: karar "ikinci kuyruk yazma" derke
 
 **K-064 — İkinci faz önceliği: yetenek derinliği** *(kullanıcı kararı)**
 
-Kullanıcıya üç ölçüt soruldu: kullanıcı sayısı (F-03, F-06), kurumsal satın alma (F-20, F-21) veya yetenek derinliği (F-09, F-10, F-27). Cevap **yetenek derinliği**. Sıra buna göre kuruldu: skill'ler (Faz 10–11), agent çağrı grafiği (12), bağlam yönetimi (13), çok modluluk (14) ve workflows (15–16) öne alındı; kurumsal kalemler (SQL Server, Azure) sona bırakıldı. İki istisna gerekçeyle önde tutuldu: **F-03** (Faz 8) tek başına Claude, Gemini, Groq ve yerel modelleri açar ve sonraki her fazın geliştirme maliyetini düşürür; **F-20/F-21** (Faz 9) script çalıştırmanın (Faz 11) güvenlik önkoşuludur. Ayrıntı: [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](IKINCI-FAZ-YOL-HARITASI.md).
+Kullanıcıya üç ölçüt soruldu: kullanıcı sayısı (F-03, F-06), kurumsal satın alma (F-20, F-21) veya yetenek derinliği (F-09, F-10, F-27). Cevap **yetenek derinliği**. Sıra buna göre kuruldu: skill'ler (Faz 10–11), agent çağrı grafiği (12), bağlam yönetimi (13), çok modluluk (14) ve workflows (15–16) öne alındı; kurumsal kalemler (SQL Server, Azure) sona bırakıldı. İki istisna gerekçeyle önde tutuldu: **F-03** (Faz 8) tek başına Claude, Gemini, Groq ve yerel modelleri açar ve sonraki her fazın geliştirme maliyetini düşürür; **F-20/F-21** (Faz 9) script çalıştırmanın (Faz 11) güvenlik önkoşuludur. Ayrıntı: git show 2a8149ef:docs/arsiv/IKINCI-FAZ-YOL-HARITASI.md.
 
 ### K-226
 
@@ -1553,7 +1553,7 @@ K-105'in yeniden açılma koşulu ("`VectorStore` implementasyonu ve embedding s
 
 **K-067 — Alt agent çalıştırması ayrı bir `runs` satırıdır** *(kullanıcı kararı: "olabilir")**
 
-Kullanıcı ayrı satırı olabilir buldu; plan bunu benimsedi. Gerekçe: tek satırda toplanırsa "3 dakika sürdü, sebebi bilinmiyor" durumu oluşur — alt agent'ın maliyeti, süresi ve hatası görünmez. Ayrı satır `runs.parent_run_id` gerektirir ve waterfall doğal olarak iç içe geçer. Ek olarak `root_run_id` denormalize edilir: özyinelemeli CTE yerine tek indeksli sorgu yeter. `RunQuery.OnlyRootRuns` varsayılan `true` olur, aksi hâlde Runs ekranı alt çağrılarla dolar. Ayrıntı: [Faz 12](fazlar/12-AGENT-CAGRI-GRAFIGI.md).
+Kullanıcı ayrı satırı olabilir buldu; plan bunu benimsedi. Gerekçe: tek satırda toplanırsa "3 dakika sürdü, sebebi bilinmiyor" durumu oluşur — alt agent'ın maliyeti, süresi ve hatası görünmez. Ayrı satır `runs.parent_run_id` gerektirir ve waterfall doğal olarak iç içe geçer. Ek olarak `root_run_id` denormalize edilir: özyinelemeli CTE yerine tek indeksli sorgu yeter. `RunQuery.OnlyRootRuns` varsayılan `true` olur, aksi hâlde Runs ekranı alt çağrılarla dolar. Ayrıntı: Faz 12.
 
 ### K-032
 
@@ -1721,7 +1721,7 @@ Tarayıcı bir WebSocket el sıkışmasına `Authorization` başlığı **ekleye
 
 **K-138 — `jobs` tablosuna `(schedule_id, scheduled_for)` üzerinde benzersiz kısıt eklendi; faz belgesinin DDL'i eksikti**
 
-`docs/arsiv/fazlar/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md` bölüm 17.5 metni bu kısıtın var olduğunu söylüyordu ("Aynı schedule_id + scheduled_for için ikinci bir jobs satırı oluşmasını benzersiz bir kısıt engeller") ama bölüm 17.2'deki DDL örneğinde kısıt yoktu — metin doğru niyeti anlatıyordu, DDL eksikti. Migration 0008 metne göre tamamlandı: `CONSTRAINT jobs_schedule_scheduled_uq UNIQUE (schedule_id, scheduled_for)`. PostgreSQL NULL'ları birbirinden ayrı saydığı için elle tetiklenen (`schedule_id IS NULL`) işler bu kısıtla asla çakışmaz — ikinci savunma hattı zaten `TryClaimNextRunAsync`'in atomik CAS'ıdır.
+Faz 17 bölüm 17.5 metni bu kısıtın var olduğunu söylüyordu ("Aynı schedule_id + scheduled_for için ikinci bir jobs satırı oluşmasını benzersiz bir kısıt engeller") ama bölüm 17.2'deki DDL örneğinde kısıt yoktu — metin doğru niyeti anlatıyordu, DDL eksikti. Migration 0008 metne göre tamamlandı: `CONSTRAINT jobs_schedule_scheduled_uq UNIQUE (schedule_id, scheduled_for)`. PostgreSQL NULL'ları birbirinden ayrı saydığı için elle tetiklenen (`schedule_id IS NULL`) işler bu kısıtla asla çakışmaz — ikinci savunma hattı zaten `TryClaimNextRunAsync`'in atomik CAS'ıdır.
 
 ### K-207
 
@@ -2093,7 +2093,7 @@ Planın taslak `TraconIdempotencyOptions.Retention` alanı, Faz 25'in devir notu
 
 **K-063 — `run_events` partition'ı açılmadı (kapandı → K-199)**
 
-Faz 6 planı partition'ı bir risk önlemi olarak listeliyordu. Partition'a geçmek birincil anahtara `created_at` eklemeyi ve tabloyu yeniden kurmayı gerektirir; ölçüm olmadan yapılan böyle bir değişiklik, çözdüğünden fazla risk taşır. Faz 7'nin yük testi (saniyede 100 çalıştırma × ~50 olay) bu kararın tetikleyicisidir: darboğaz ölçülürse partition o kanıtla açılır. **(güncelleme: 2026-08-02)** Tetikleyici artık [Faz 25](fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md)'tir; o faz ölçümü yapar ve kararı **kapatır**. **(kapanış: 2026-08-05)** Faz 25 ölçtü: bkz. K-199.
+Faz 6 planı partition'ı bir risk önlemi olarak listeliyordu. Partition'a geçmek birincil anahtara `created_at` eklemeyi ve tabloyu yeniden kurmayı gerektirir; ölçüm olmadan yapılan böyle bir değişiklik, çözdüğünden fazla risk taşır. Faz 7'nin yük testi (saniyede 100 çalıştırma × ~50 olay) bu kararın tetikleyicisidir: darboğaz ölçülürse partition o kanıtla açılır. **(güncelleme: 2026-08-02)** Tetikleyici artık Faz 25'tir; o faz ölçümü yapar ve kararı **kapatır**. **(kapanış: 2026-08-05)** Faz 25 ölçtü: bkz. K-199.
 
 ### K-313
 
@@ -2105,7 +2105,7 @@ Faz 6 planı partition'ı bir risk önlemi olarak listeliyordu. Partition'a geç
 
 **K-065 — Ses: hedef gerçek zamanlı konuşma katmanı** *(kullanıcı kararı)**
 
-F-13 iki ayrı işti: (1) tool olarak TTS, (2) gerçek zamanlı konuşma katmanı. Kullanıcı **konuşma katmanını** seçti. Yine de iki faza bölündü ([28](fazlar/28-SES-TOOLLARI.md) ve [29](fazlar/29-KONUSMA-KATMANI.md)): sağlayıcı soyutlaması, kimlik doğrulama, ses depolama ve maliyet ölçümü konuşma katmanından bağımsızdır ve önce çözülmelidir. Faz 29 yalnız gerçek zamanlılık sorununa odaklanır. Konuşma katmanı **barındırma modelini değiştirir** (uzun ömürlü WebSocket, yapışkan oturum); bu yüzden yetenek isteğe bağlıdır ve çağrılmazsa hiçbir uç açılmaz.
+F-13 iki ayrı işti: (1) tool olarak TTS, (2) gerçek zamanlı konuşma katmanı. Kullanıcı **konuşma katmanını** seçti. Yine de iki faza bölündü (Faz 28 ve Faz 29): sağlayıcı soyutlaması, kimlik doğrulama, ses depolama ve maliyet ölçümü konuşma katmanından bağımsızdır ve önce çözülmelidir. Faz 29 yalnız gerçek zamanlılık sorununa odaklanır. Konuşma katmanı **barındırma modelini değiştirir** (uzun ömürlü WebSocket, yapışkan oturum); bu yüzden yetenek isteğe bağlıdır ve çağrılmazsa hiçbir uç açılmaz.
 
 ### K-293
 
@@ -2171,7 +2171,7 @@ Uygulamada yedi ekran ve iki dinamik parametre var. `History` API üzerine ~110 
 
 **K-371 — `IPendingApprovalStore.ExpireAsync`, planın taslak imzası `ValueTask<int>` yerine `ValueTask<IReadOnlyList<PendingApproval>>` döner (Faz 55, plandan sapma)**
 
-`docs/arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md`'nin ilk taslağı yalnız süresi dolan kayıt SAYISINI döndürüyordu. Ama `ApprovalExpirationService`'in süresi dolan her onay için karşılık gelen çalıştırma satırını da kapatması (`RunStatus.AwaitingApproval` → `Failed`, zaman aşımı) gerekiyordu — bunun için `RunId` listesine ihtiyaç vardı, salt bir sayıya değil. İmza süresi dolan `PendingApproval` kayıtlarının TAMAMINI döndürecek şekilde genişletildi.
+Faz 55'nin ilk taslağı yalnız süresi dolan kayıt SAYISINI döndürüyordu. Ama `ApprovalExpirationService`'in süresi dolan her onay için karşılık gelen çalıştırma satırını da kapatması (`RunStatus.AwaitingApproval` → `Failed`, zaman aşımı) gerekiyordu — bunun için `RunId` listesine ihtiyaç vardı, salt bir sayıya değil. İmza süresi dolan `PendingApproval` kayıtlarının TAMAMINI döndürecek şekilde genişletildi.
 
 ### K-041
 
@@ -2435,11 +2435,11 @@ Cevap **yetenek derinliği**. Sıra buna göre kuruldu: skill'ler (Faz 10–11),
 
 ### K-065 — devam (Faz 90 damıtması)
 
-Yine de iki faza bölündü ([28](fazlar/28-SES-TOOLLARI.md) ve [29](fazlar/29-KONUSMA-KATMANI.md)): sağlayıcı soyutlaması, kimlik doğrulama, ses depolama ve maliyet ölçümü konuşma katmanından bağımsızdır ve önce çözülmelidir. Faz
+Yine de iki faza bölündü (Faz 28 ve Faz 29): sağlayıcı soyutlaması, kimlik doğrulama, ses depolama ve maliyet ölçümü konuşma katmanından bağımsızdır ve önce çözülmelidir. Faz
 
 ### K-066 — devam (Faz 90 damıtması)
 
-Birinci istisna MCP'ydi (K-058) ve orada süreç **uzakta** çalışıyor. Skill script'lerinde süreç **Tracon'in makinesinde** çalışır. Kullanıcı bunu kabul edilebilir buldu. Kabul, kontrolsüz çalıştırma anlamına gelmez; [Faz 11](fazlar/11-SKILL-SCRIPT-CALISTIRMA.md) şu koşulları zorunlu kılar: yorumlayıcı beyaz listesi (varsayılan **boş**), skill başına izin kaydı, Faz 6 onay akışı, ayrı OS süreci, zaman aşımı, çıktı sınırı, temiz ortam değişkenleri ve
+Birinci istisna MCP'ydi (K-058) ve orada süreç **uzakta** çalışıyor. Skill script'lerinde süreç **Tracon'in makinesinde** çalışır. Kullanıcı bunu kabul edilebilir buldu. Kabul, kontrolsüz çalıştırma anlamına gelmez; Faz 11 şu koşulları zorunlu kılar: yorumlayıcı beyaz listesi (varsayılan **boş**), skill başına izin kaydı, Faz 6 onay akışı, ayrı OS süreci, zaman aşımı, çıktı sınırı, temiz ortam değişkenleri ve
 
 ### K-067 — devam (Faz 90 damıtması)
 
@@ -5746,7 +5746,7 @@ Dialog modal olduğu için ekranın kendi `ErrorNote`'u arkada kalır ve aynı c
 
 ### K-788
 
-Üç seçenek ölçüldü — `IRunJudge.Version` anlamsal olarak en yakınıydı ama public extension seam'ini büyütürdü, `JudgeScore.Version` aynı dizeyi metrik başına tekrarlardı. `RunJudgment` yargıcın Tracon'a zaten veri döndürdüğü kanaldır ve provenance kararın parçasıdır. **Tam gerekçe:** [`176-EVALUATOR-SURUM-DAMGASI.md`](fazlar/176-EVALUATOR-SURUM-DAMGASI.md) §"Plandan Sapmalar" 1.
+Üç seçenek ölçüldü — `IRunJudge.Version` anlamsal olarak en yakınıydı ama public extension seam'ini büyütürdü, `JudgeScore.Version` aynı dizeyi metrik başına tekrarlardı. `RunJudgment` yargıcın Tracon'a zaten veri döndürdüğü kanaldır ve provenance kararın parçasıdır. **Tam gerekçe:** Faz 176 §"Plandan Sapmalar" 1.
 
 ### K-789
 

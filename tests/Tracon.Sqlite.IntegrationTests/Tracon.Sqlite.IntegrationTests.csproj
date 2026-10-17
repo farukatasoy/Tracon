@@ -15,7 +15,7 @@
 
   <!--
     A container is NOT REQUIRED: a file-based temporary database is enough
-    (docs/arsiv/fazlar/24-SQLITE.md, 24.5). This shortens CI time compared to the
+    (Phase 24, 24.5). This shortens CI time compared to the
     PostgreSQL/SQL Server contract runs.
   -->
 
