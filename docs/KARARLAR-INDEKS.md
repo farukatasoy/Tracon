@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 961 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 962 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1013 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1014 kalem)
 
 | K | Karar |
 |---|---|
-| K-972 | Token dışı tutar (düğüm kalemi, tool ölçümü) `RunNonTokenCost` adlı AYRI toplamdır ve `RunCost.Total()`'a girmez; token tutarıyla toplayan TEK yer `RunSpend.Total`'dır, para kararı veren beş yer yalnız onu kullanır; yalnız `Tracon:Pricing:Currency` cinsinden tutar toplanır, kalan kalem sayılır; K-219'u daraltır (Faz 199) (kullanıcı kararı) 👤 |
 | K-973 | `WebhookRunSummary.Cost` token ve bildirilen token dışı tutarı birlikte taşır, `NonTokenCost` yalnız bildirilen payı verir; `IRunStore` iki üye alır (GA öncesi kırılma); `GET /api/runs/{runId}/usage` run'ın kendi kalemlerini döner (Faz 199) (kullanıcı kararı) 👤 |
 | K-974 | Token dışı harcamanın kalıcı biçimi: `run_non_token_usage` tablosu (kalem anında yazılır), `runs` üzerinde dört snapshot sütunu (run kapanırken), `tool_invocations`'ta sağlayıcı/model; kapanıştan sonra gelen kalem yalnız detaya; kalem sayısı ve değer sınırları kabulde denetlenir (Faz 199) (kullanıcı kararı) 👤🔁 |
 | K-975 | Düğüm listesinin ilk düğümü `object` alamaz: kayıt `400`, saklı tanım düğümden önce `Failed`; `TurnToken` her başlangıç ve cevapsız resume'da gider (F-398, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
@@ -62,3 +61,4 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1021 | `ModelBinding.ReasoningEffort` Anthropic'te uyarlanabilir düşünmeye (`thinking.type=adaptive` + `output_config.effort`) gider; K-1017'nin `Extended` sabiti kaldırıldı (F-558, Faz 217) |
 | K-1022 | `AuthorizationConfigurationKey` kalktı; `PUT /api/mcp-servers/{name}` eski alanı taşıyan gövdeyi `400` (`Removed field`) ile reddeder ve yerine geçeni adıyla söyler; kural 1.x boyunca kalır (F-290, Faz 218) (kullanıcı kararı) 👤 |
 | K-1023 | Migration `authorization_configuration_key` değerini `header_configuration_keys["Authorization"]`'a taşır ve sütunu AYNI migration'da düşürür; geri dönüş yoktur (PostgreSQL `0062`, SQL Server `0050`, SQLite `0049`) (F-290, Faz 218) (kullanıcı kararı) 👤 |
+| K-1024 | `WorkflowRunRequest.DefinitionVersion` public; checkpoint'siz kurtarma yeniden başlatması zincirin ilk run'ının sürümünü sabitler (F-492) |

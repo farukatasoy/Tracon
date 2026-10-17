@@ -469,10 +469,10 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
     /// <summary>Stops all delegation tasks currently known to the host.</summary>
     private async Task StopDelegationsAsync()
     {
-        foreach (var cancellation in _delegations.Values)
-        {
-            await cancellation.CancelAsync().ConfigureAwait(false);
-        }
+        // 🚨 `.Values` is a snapshot, and a delegation that finishes disposes its own
+        // source (RunDelegationAsync's `finally`). A source disposed since the
+        // snapshot is a delegation that already ended; it must not abort the close.
+        await SafeCancellation.CancelAllAsync(_delegations.Values).ConfigureAwait(false);
 
         foreach (var task in _delegationTasks.Values)
         {

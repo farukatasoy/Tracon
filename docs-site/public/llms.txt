@@ -287,6 +287,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Securing the endpoints](https://tracon.dev/getting-started/security/) — Protect Tracon with network boundaries, bearer tokens, scoped API keys, roles, tenancy, and outbound guards.
 - [Adding a tool](https://tracon.dev/getting-started/tools/) — Register a tool so an agent can do something, and understand the one rule that trips people up.
 - [Background work](https://tracon.dev/guides/background-work/) — Queue agent runs, schedule recurring work, operate workers, and understand leasing, retries, cancellation, and multi-instance behavior.
+- [Build diagnostics](https://tracon.dev/guides/build-diagnostics/) — What each TRC build diagnostic means, how to fix it or silence it, and how the same build writes the agent map that teaches a coding agent about Tracon.
 - [Typed client and CLI](https://tracon.dev/guides/cli/) — Call the management API from a typed client, and apply migrations, check health, or write the coding-agent gate skill without starting the application, using the tracon CLI.
 - [Client-side tools and the embeddable widget](https://tracon.dev/guides/client-side-tools/) — Register a tool whose body runs in the browser, answer its call over HTTP, and drop the pre-built chat widget into your own page.
 - [Coding agents](https://tracon.dev/guides/coding-agents/) — Teach a coding agent what Tracon already does, via a gate skill, the capability map, a local reference file, and build-time diagnostics.

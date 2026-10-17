@@ -132,6 +132,8 @@ ciktisindaki en agir sayfayi kontrol et; troubleshooting.md zaten en agir
 sayfaysa (`Heaviest: troubleshooting/index.html`), yeni icerigi ayri bir
 sayfaya (ornek: `guides/`) tasimayi degerlendir.
 
+*(2026-10-17, F-282: sayfa 58 994 B'ta tavandan 6 B altindaydi; APG/TRC tani bolumu `guides/build-diagnostics.md`'ye tasindi, `troubleshooting` 49 054 B oldu. `DiagnosticIntegrityTests` TRC kimliklerini artik yeni sayfada arar. Tavan degismedi; en agir sayfa simdi `guides/production`, 58 654 B.)*
+
 *(2026-09-07'de `dokumantasyon.md`'den butce icin tasindi — `check:weight` bir site kapisidir.)*
 
 ## Icerik kapisi yazarken

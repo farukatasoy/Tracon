@@ -22,8 +22,8 @@ python3 scripts/kapi.py performans                # tahsis kapısı - üç sıca
 listeler — ayıklama bilgisi kaybolmaz.
 
 **`kapanis` sırası (2026-10-17):** üretim → tarama, doküman denetimi, betik
-testleri → build → pack · site · format · performans → **tam test**. Tam test
-en pahalı adımdır (~9–12 dk) ve son koşar. Ölçüm (Ekim 2026): 42 kırmızı
+testleri → zorlanmış restore (yeni güvenlik uyarısı; F-525) → build → pack ·
+site · format · performans → **tam test**. Tam test en pahalı adımdır (~9–12 dk) ve son koşar. Ölçüm (Ekim 2026): 42 kırmızı
 kapanışın 11'i testten SONRA koşan bir adımda düştü (~144 dk boşa); 11'i
 bayat agent haritasında düştü. `kapanis` üretilen dosyaları **yazar** — koşum
 sonrası `git status`'a bak ve değişeni fazla birlikte commit et. CI aynı

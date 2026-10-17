@@ -50,6 +50,12 @@ const dist = resolve(here, '../dist');
 // by about ten bytes, so a margin of a few bytes is no margin. The Voice symptoms
 // moved to guides/voice.md (#troubleshooting), next to the feature, and the page
 // dropped to 58 151 B. Ceiling unchanged.
+//
+// Split again 2026-10-17 (F-282): the page was back at 58 994 B, 6 B under the ceiling, and the
+// next symptom entry could not fit. The build-diagnostics section (twenty headings, one per
+// TRC id and agent-map symptom) moved to guides/build-diagnostics.md; troubleshooting dropped
+// to 49 054 B and the new page weighs 43 648 B. The heaviest page is now guides/production.
+// Ceiling unchanged.
 const CEILING = 59_000;
 
 // The release notes page is generated from CHANGELOG.md and is the one page whose

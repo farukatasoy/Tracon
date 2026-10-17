@@ -447,6 +447,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Message = request.Message,
             ResumeFrom = null,
             Parameters = request.Parameters,
+            DefinitionVersion = request.DefinitionVersion,
         };
 
         await foreach (var runEvent in ExecuteAsync(execution, cancellationToken).ConfigureAwait(false))

@@ -298,5 +298,5 @@ written for the human making it.
 ## Read next
 
 - [Capability map](/capabilities/) — the source the generated map is built from
-- [Troubleshooting](/troubleshooting/#build-diagnostics-and-the-agent-map) — when a diagnostic fires and you disagree
+- [Build diagnostics](/guides/build-diagnostics/) — when a diagnostic fires and you disagree
 - [Your first agent](/getting-started/first-agent/) — the template that turns this on

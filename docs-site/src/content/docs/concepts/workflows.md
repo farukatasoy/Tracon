@@ -773,7 +773,9 @@ flowchart LR
   lease does not change it.
 - If no run of the chain wrote a checkpoint — the process stopped before the first
   super-step ended — the run starts again in the same session, or the resume or the
-  answer is applied again.
+  answer is applied again. A run that starts again compiles the definition version the
+  chain's first run recorded, so a save made while the job waited does not change it; a
+  workflow defined in code has no versions.
 - `MaxResumeAttempts` (default `1`, from `0` to `100`) bounds the continuations of one
   chain. Past it the batch item fails with the chain's last run closed, or the queued
   run's job fails with `tracon.job.workflow-run-not-continued`. With `0`, nothing

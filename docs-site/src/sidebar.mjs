@@ -98,6 +98,7 @@ export const sidebar = [
       { label: 'Embedding into a host application', slug: 'guides/embedding' },
       { label: 'Two connection planes: EF Core and Tracon', slug: 'guides/ef-core' },
       { label: 'Troubleshooting', slug: 'troubleshooting' },
+      { label: 'Build diagnostics', slug: 'guides/build-diagnostics' },
       { label: 'The console', slug: 'ui' },
     ],
   },

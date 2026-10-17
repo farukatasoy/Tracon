@@ -518,6 +518,44 @@ public sealed class SeamContractDocumentationTests
         }
     }
 
+    // --- Interfaces Tracon supplies: called, never implemented (F-567) ---
+    // A guide, a sample or a contract suite teaches an implementer for a seam. For these ten
+    // none does: Tracon builds the implementation and wraps it in a boundary (egress, tenant
+    // and credential checks, the tool wrappers), so a consumer's own implementation drops the
+    // boundary. The interface says so in its own header. Phase 213 asked for the sentence on
+    // nine interfaces and shipped it on none; only a reader noticed.
+
+    public static TheoryData<string, string, string> CalledNotImplementedInterfaces() => new()
+    {
+        { Path.Combine("Tracon.Abstractions", "Tools", "IToolRegistry.cs"), "public interface IToolRegistry", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Agents", "IAgentCatalog.cs"), "public interface IAgentCatalog", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Models", "IModelProviderRegistry.cs"), "public interface IModelProviderRegistry", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Scheduling", "IJobDispatcher.cs"), "public interface IJobDispatcher", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Voice", "SpeechProviderContracts.cs"), "public interface ISpeechProviderResolver", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Voice", "SpeechContracts.cs"), "public interface IVoicePricingReader", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Diagnostics", "IMigrationApplier.cs"), "public interface IMigrationApplier", "do not implement" },
+        { Path.Combine("Tracon.Abstractions", "Diagnostics", "ISqlPersistenceDiagnostics.cs"), "public interface ISqlPersistenceDiagnostics", "do not implement" },
+        { Path.Combine("Tracon.Core", "ITraconBuilder.cs"), "public interface ITraconBuilder", "for calling, not for implementing" },
+        { Path.Combine("Tracon.Abstractions", "Workflows", "IWorkflowRunner.cs"), "public interface IWorkflowRunner", "do not implement" },
+    };
+
+    [Theory]
+    [MemberData(nameof(CalledNotImplementedInterfaces))]
+    public void An_interface_Tracon_supplies_says_in_its_own_header_that_it_is_not_to_be_implemented(
+        string relativePath,
+        string declaration,
+        string sentence)
+    {
+        // Adding an interface here is a claim that no guide, sample or contract suite asks
+        // anyone to implement it; removing one means that claim changed (a K-1013 decision).
+        // ITraconBuilder words it differently on purpose: it allows a test double.
+        SummaryAbove(relativePath, declaration).ShouldContain(
+            sentence,
+            Case.Insensitive,
+            $"'{declaration}' is called, never implemented, and has to say so in its own XML header " +
+            "(see IToolRegistry for the sentence and the reason).");
+    }
+
     private static string SummaryAbove(string relativePath, string memberDeclaration)
     {
         var path = Path.Combine(RepositoryRoot, "src", relativePath);

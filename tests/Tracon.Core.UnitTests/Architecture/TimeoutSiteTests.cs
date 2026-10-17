@@ -3,14 +3,14 @@ using System.Text.RegularExpressions;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Every file in <c>src/</c> that arms a timeout with <c>CancelAfter(</c> or
-/// <c>new CancellationTokenSource(&lt;value&gt;</c> must be a known site whose value
-/// is either a constant or checked against the timer range before it is armed
-/// (F-280).
+/// Every file in <c>src/</c> that arms a timeout with <c>CancelAfter(</c>,
+/// <c>new CancellationTokenSource(&lt;value&gt;</c> or the <c>Task.Delay</c> overload
+/// that takes a <see cref="TimeProvider"/> must be a known site whose value is either a
+/// constant or checked against the timer range before it is armed (F-280, F-449).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Both calls refuse a negative value or more than about 49.7 days, and they run
+/// All three refuse a negative value or more than about 49.7 days, and they run
 /// where the timeout is armed: in a run, a request, a delivery attempt, a shutdown.
 /// The class scan found eighteen inputs that reached them with only a lower bound -
 /// the same defect <c>PeriodicTimerSiteTests</c> closed for background intervals
@@ -34,7 +34,7 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.Core/Compilation/AgentDefinitionValidator.cs"] = "TraconValidationOptions.McpTimeout — TraconOptionsValidator",
         ["src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs"] = "OnlineEvaluationOptions.JudgeTimeout — OnlineEvaluationOptionsValidator (at most 5 min)",
         ["src/Tracon.Core/Graph/ChildAgentInvoker.cs"] = "SubAgentSettings / TraconAgentGraphOptions ChildDeadline / WorkflowNodeReference.Timeout — compiler, TraconOptionsValidator, WorkflowDefinitionValidator, constructor guard",
-        ["src/Tracon.Core/Scheduling/JobWorkerBackgroundService.cs"] = "JobRecord.MaxDuration / TraconSchedulingOptions.MaxDurationByHandlerKey — JobDispatcher guard, TraconSchedulingOptionsValidator, worker check before arming (JobWorkerDeadlineTests)",
+        ["src/Tracon.Core/Scheduling/JobWorkerBackgroundService.cs"] = "JobRecord.MaxDuration / TraconSchedulingOptions.MaxDurationByHandlerKey — JobDispatcher guard, TraconSchedulingOptionsValidator, worker check before arming (JobWorkerDeadlineTests); the finalization retry delay is a constant ceiling cut to the lease window left",
         ["src/Tracon.Core/Hosting/TraconDrainService.cs"] = "TraconDrainOptions.Timeout — TraconDrainOptionsValidator",
         ["src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs"] = "TraconSkillScriptOptions.Timeout + constant 5 s executor grace — TraconOptionsValidator (sum in range)",
         ["src/Tracon.Core/Skills/Scripts/SkillScriptProcessRunner.cs"] = "TraconSkillScriptOptions.Timeout — TraconOptionsValidator",
@@ -47,6 +47,13 @@ public sealed partial class TimeoutSiteTests
         ["src/Tracon.OpenAI/Live/OpenAILiveSideband.cs"] = "constant 10 s",
         ["src/Tracon.Providers.Shared/ProviderHealthCheckCore.cs"] = "provider Timeout — the four provider validators (HTTP range, ProviderTimeoutValidationTests)",
         ["src/Tracon.Workflows/Internal/WorkflowRunner.cs"] = "TraconWorkflowOptions.RunTimeout / WorkflowDefinition.RunTimeout — TraconWorkflowOptionsValidator, WorkflowDefinitionValidator (save and compile), ceiling cut",
+        ["src/Tracon.AspNetCore/Streaming/SseWriter.cs"] = "TraconEndpointOptions.StreamKeepAliveInterval — the property setter (TimerPeriod.IsValid); the delay is the part of it still to wait",
+        ["src/Tracon.Core/Scheduling/JobOutcomeWriteRetry.cs"] = "constant 5 s ceiling (MaxDelay), cut to the lease window left",
+        ["src/Tracon.Core/Scheduling/QueuedTurn.cs"] = "constant 5 s ceiling (RetryMaxDelay), cut to the lease window left",
+        ["src/Tracon.Core/Tools/TimeoutAIFunction.cs"] = "per-tool timeout — constructor guard (TimerPeriod.IsValid)",
+        ["src/Tracon.Core/Voice/LiveVoiceSessionRegistry.cs"] = "constant 5 s sweep",
+        ["src/Tracon.Workflows/Internal/WorkflowNodeRetry.cs"] = "WorkflowNodeRetryPolicy.InitialDelay — Wrap guard; the doubling is capped at TimerPeriod.MaxMilliseconds",
+        ["src/Tracon.Workflows/Internal/WorkflowNodeTimeout.cs"] = "WorkflowFunctionOptions.Timeout — Wrap guard (TimerPeriod.IsValid)",
     };
 
     [Fact]
@@ -71,13 +78,33 @@ public sealed partial class TimeoutSiteTests
         gone.ShouldBeEmpty("A known timeout site no longer arms a timeout; remove it from the list.");
     }
 
-    // `CancelAfter(` anywhere, or a CancellationTokenSource constructed WITH an argument
-    // (the parameterless one arms nothing).
+    // `CancelAfter(` anywhere, a CancellationTokenSource constructed WITH an argument (the
+    // parameterless one arms nothing), or `Task.Delay(` whose arguments name a time source.
+    // The last one is a heuristic on the argument's name: Tracon passes its TimeProvider as
+    // timeProvider, _timeProvider or _clock. A delay with no time source argument is not
+    // matched (F-449).
     [GeneratedRegex(
-        @"\.CancelAfter\(|new\s+CancellationTokenSource\(\s*[^)\s]",
+        @"\.CancelAfter\(|new\s+CancellationTokenSource\(\s*[^)\s]|Task\.Delay\([^;]*(?:[Tt]imeProvider|[Cc]lock)\b",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         matchTimeoutMilliseconds: 5000)]
     private static partial Regex TimeoutCall();
+
+    // The call is spelled in two pieces: TestDelayClassificationTests flags a literal
+    // `Task.Delay(` in any test file, and these strings are sample source, not a delay.
+    private const string DelayCall = "Task" + ".Delay(";
+
+    [Theory]
+    [InlineData("await " + DelayCall + "delay, _clock, cancellationToken)")]
+    [InlineData("var d = " + DelayCall + "timeout, timeProvider ?? TimeProvider.System, CancellationToken.None);")]
+    [InlineData("await " + DelayCall + "\n    interval - silence,\n    _timeProvider,\n    token)")]
+    public void The_pattern_sees_the_Task_Delay_overload_that_takes_a_time_source(string source)
+        => TimeoutCall().IsMatch(source).ShouldBeTrue();
+
+    [Theory]
+    [InlineData("var wait = " + DelayCall + "Timeout.InfiniteTimeSpan, cancellationToken);")]
+    [InlineData("await " + DelayCall + "options.BatchDelay, cancellationToken);")]
+    public void The_pattern_leaves_a_delay_with_no_time_source_to_the_other_gates(string source)
+        => TimeoutCall().IsMatch(source).ShouldBeFalse();
 
     private static string FindRepositoryRoot()
     {

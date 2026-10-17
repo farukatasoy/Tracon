@@ -94,6 +94,19 @@ public sealed class VoiceLiveOptionsBindingTests
     }
 
     [Fact]
+    public void A_delegation_mode_set_in_code_that_the_contract_does_not_define_stops_the_host_at_startup()
+    {
+        // F-565: the refusal above lives in the configuration binder only. A mode assigned
+        // through UseLiveVoice(Action<VoiceLiveOptions>) skipped it, reached the provider on
+        // the first session and ended as a 500.
+        var failure = SectionBinding.FailsAtStartup(
+            SectionBinding.NoKeys,
+            static (builder, _) => builder.UseLiveVoice(options => options.DelegationMode = (LiveVoiceDelegationMode)1));
+
+        string.Join(' ', failure.Failures).ShouldContain(nameof(VoiceLiveOptions.DelegationMode));
+    }
+
+    [Fact]
     public void An_absent_section_leaves_the_shipped_defaults()
     {
         var options = SectionBinding.Bind<VoiceLiveOptions>(SectionBinding.NoKeys, ComposeLiveVoice);

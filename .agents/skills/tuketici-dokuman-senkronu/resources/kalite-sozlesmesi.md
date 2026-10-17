@@ -193,7 +193,7 @@ Tersine değişim `faz-denetim`'de 🔴 sayılır.
 |---|---|---|
 | `DIAGRAM_EXEMPT` | 6 kalem | yalnız küçülür |
 | `CLOSING_EXEMPT` | 1 kalem (`index.mdx`) | yalnız küçülür |
-| En ağır sayfa | `troubleshooting` 57 367 B gzip · tavan 58 000 B (K-756) | yalnız düşer |
+| En ağır sayfa | `guides/production` 58 654 B gzip · tavan 59 000 B (K-756; `troubleshooting` 2026-10-17'de 49 054 B'a bölündü, F-282) | yalnız düşer |
 | Kontrast — metin (site) | 5,49:1 | yalnız yükselir |
 | Kontrast — metin dışı (site) | 3,74:1 | yalnız yükselir |
 | Kontrast — metin (console) | 5,22:1 — `light subtle on raised` · kapı: `frontend/scripts/check-tokens.mjs` | yalnız yükselir |

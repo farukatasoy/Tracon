@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (961 kalem)
+## Arşivlenen Kararlar (962 kalem)
 
 | K | Karar |
 |---|---|
@@ -970,3 +970,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-969 | Stored script adı ve disk script'i boyut/tür kapısı denetimden ÖNCE kapıdır (`script.denied`, `script.run` yok, kota slotu yok); kapıdan sonraki okuma hatası (`could not be read`, `in time`, sınır aşımı) `script.run`'dan sonra tool hatası olarak kaydedilir (Faz 202) |
 | K-970 | Modele ve `tool_invocations`'a dönen script metinleri: zaman aşımı `The script timed out and was stopped.`, bekleme sınırı ayrı metin ve `Timed out; the script executor did not return in time.`; kesme işaretini yalnız runner sonuna ekler (`[Tracon: output truncated at the N-byte limit per stream.]`) ve her akışı yeniden keser; yürütücü istisnasında yalnız tip yazılır, mesaj sunucu log'una gider (Faz 202) (kullanıcı kararı) 👤 |
 | K-971 | `SkillScriptExecutionRequest` ortam değeri taşımaz; script'e `TRACON_SKILL_NAME` ve çağrıya özel `TRACON_SKILL_TEMP` verilir; `ContentSha256` grant pini değil içeriğin UTF-8 SHA-256'sıdır; `ToString` `Content` ve `ArgumentsJson`'ı basmaz (Faz 202) |
+| K-972 | Token dışı tutar (düğüm kalemi, tool ölçümü) `RunNonTokenCost` adlı AYRI toplamdır ve `RunCost.Total()`'a girmez; token tutarıyla toplayan TEK yer `RunSpend.Total`'dır, para kararı veren beş yer yalnız onu kullanır; yalnız `Tracon:Pricing:Currency` cinsinden tutar toplanır, kalan kalem sayılır; K-219'u daraltır (Faz 199) (kullanıcı kararı) 👤 |

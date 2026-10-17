@@ -98,6 +98,44 @@ public sealed class ElevenLabsOperationDriftTests
         }
     }
 
+    [Fact]
+    public void The_JSON_types_of_the_fields_the_client_uses_are_the_declared_ones()
+    {
+        // F-576: a field whose JSON type changes (a number the provider turns into a string)
+        // keeps its name, so the name-only declaration could not see it. A multipart form
+        // carries every value as text on the wire, so it declares no types.
+        foreach (var operation in Declaration())
+        {
+            var key = $"{operation.Method} {operation.Path}";
+            var (requestRoot, responseRoot) = JsonRoots[key];
+
+            (requestRoot is not null ? FieldTypes(requestRoot) : [])
+                .ShouldBe(operation.RequestTypes, $"{key}: request field types");
+            (responseRoot is not null ? FieldTypes(responseRoot) : [])
+                .ShouldBe(operation.ResponseTypes, $"{key}: response field types");
+        }
+    }
+
+    [Fact]
+    public void Every_declared_field_has_a_declared_type_unless_it_is_a_form_field()
+    {
+        foreach (var operation in Declaration())
+        {
+            var key = $"{operation.Method} {operation.Path}";
+            var (requestRoot, responseRoot) = JsonRoots[key];
+
+            if (requestRoot is not null)
+            {
+                operation.RequestTypes.Keys.Order(StringComparer.Ordinal).ShouldBe(operation.Request.Order(StringComparer.Ordinal), $"{key}: request");
+            }
+
+            if (responseRoot is not null)
+            {
+                operation.ResponseTypes.Keys.Order(StringComparer.Ordinal).ShouldBe(operation.Response.Order(StringComparer.Ordinal), $"{key}: response");
+            }
+        }
+    }
+
     /// <summary>The dotted field paths of a JSON type, from the source-generated metadata.</summary>
     /// <remarks>
     /// <c>voice_settings</c> and <c>voice_settings.stability</c> are both paths; an array
@@ -105,11 +143,17 @@ public sealed class ElevenLabsOperationDriftTests
     /// metadata (a string, a number, a dictionary, a <see cref="JsonElement"/>) is a leaf.
     /// </remarks>
     private static List<string> FieldPaths(Type root)
+        => [.. Fields(root).Select(static field => field.Path).Order(StringComparer.Ordinal)];
+
+    /// <summary>The JSON type (<c>string</c>, <c>integer</c>, <c>number</c>, <c>boolean</c>, <c>array</c>, <c>object</c>) of each field path.</summary>
+    private static SortedDictionary<string, string> FieldTypes(Type root)
+        => new(Fields(root).ToDictionary(static field => field.Path, static field => field.JsonType, StringComparer.Ordinal), StringComparer.Ordinal);
+
+    private static List<(string Path, string JsonType)> Fields(Type root)
     {
-        var paths = new List<string>();
+        var fields = new List<(string, string)>();
         Walk(root, prefix: string.Empty, depth: 0);
-        paths.Sort(StringComparer.Ordinal);
-        return paths;
+        return fields;
 
         void Walk(Type type, string prefix, int depth)
         {
@@ -126,7 +170,7 @@ public sealed class ElevenLabsOperationDriftTests
             {
                 var isArray = ElementType(property.PropertyType) is not null;
                 var name = prefix + property.Name + (isArray ? "[]" : string.Empty);
-                paths.Add(name);
+                fields.Add((name, JsonTypeOf(property.PropertyType)));
                 Walk(ElementType(property.PropertyType) ?? property.PropertyType, name + ".", depth + 1);
             }
         }
@@ -143,6 +187,18 @@ public sealed class ElevenLabsOperationDriftTests
                 && (definition == typeof(List<>) || definition == typeof(IReadOnlyList<>) || definition == typeof(IList<>))
                     ? type.GetGenericArguments()[0]
                     : null;
+        }
+
+        static string JsonTypeOf(Type type)
+        {
+            var value = Nullable.GetUnderlyingType(type) ?? type;
+
+            return value == typeof(string) ? "string"
+                : value == typeof(bool) ? "boolean"
+                : value == typeof(float) || value == typeof(double) || value == typeof(decimal) ? "number"
+                : value.IsPrimitive ? "integer"
+                : ElementType(value) is not null ? "array"
+                : "object";
         }
     }
 
@@ -224,10 +280,15 @@ public sealed class ElevenLabsOperationDriftTests
                 element.GetProperty("path").GetString()!,
                 Strings(element.GetProperty("query")),
                 Strings(element.GetProperty("request")),
-                Strings(element.GetProperty("response"))))
+                Strings(element.GetProperty("response")),
+                Types(element.GetProperty("types").GetProperty("request")),
+                Types(element.GetProperty("types").GetProperty("response"))))
             .ToList();
 
         static List<string> Strings(JsonElement array) => array.EnumerateArray().Select(item => item.GetString()!).ToList();
+
+        static SortedDictionary<string, string> Types(JsonElement map)
+            => new(map.EnumerateObject().ToDictionary(static item => item.Name, static item => item.Value.GetString()!, StringComparer.Ordinal), StringComparer.Ordinal);
     }
 
     private static string RepositoryRoot()
@@ -245,5 +306,12 @@ public sealed class ElevenLabsOperationDriftTests
 
     private sealed record Observed(HashSet<string> Query, HashSet<string> FormFields);
 
-    private sealed record DeclaredOperation(string Method, string Path, List<string> Query, List<string> Request, List<string> Response);
+    private sealed record DeclaredOperation(
+        string Method,
+        string Path,
+        List<string> Query,
+        List<string> Request,
+        List<string> Response,
+        SortedDictionary<string, string> RequestTypes,
+        SortedDictionary<string, string> ResponseTypes);
 }

@@ -250,6 +250,67 @@ public sealed class WorkflowRunJobHandlerTests
     }
 
     /// <summary>
+    /// F-492: no checkpoint to resume from, so the run starts again. It names the version the
+    /// interrupted attempt stamped on its row; reading the workflow as it is now would run an
+    /// edit the interrupted attempt never saw.
+    /// </summary>
+    [Fact]
+    public async Task With_recovery_on_a_restart_with_no_checkpoint_runs_the_version_the_interrupted_attempt_recorded()
+    {
+        var inner = new InMemoryRunStore();
+        var runId = await QueueAsync(inner);
+        await StartInterruptedAsync(inner, runId, agentVersion: 3);
+
+        var runner = new ScriptedRunner(inner);
+        var handler = new WorkflowRunJobHandler(runner, RecoveryOn(inner), NullLogger<WorkflowRunJobHandler>.Instance);
+
+        await handler.ExecuteAsync(Context(runId, RunPayload(runId), attempt: 2, maxAttempts: 3));
+
+        runner.Runs.ShouldHaveSingleItem().DefinitionVersion.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task With_recovery_on_a_restart_of_a_run_that_recorded_no_version_runs_the_current_definition()
+    {
+        // A code workflow, or a row from before versions were recorded: nothing to name.
+        var inner = new InMemoryRunStore();
+        var runId = await QueueAsync(inner);
+        await StartInterruptedAsync(inner, runId, agentVersion: null);
+
+        var runner = new ScriptedRunner(inner);
+        var handler = new WorkflowRunJobHandler(runner, RecoveryOn(inner), NullLogger<WorkflowRunJobHandler>.Instance);
+
+        await handler.ExecuteAsync(Context(runId, RunPayload(runId), attempt: 2, maxAttempts: 3));
+
+        runner.Runs.ShouldHaveSingleItem().DefinitionVersion.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_first_attempt_runs_the_current_definition()
+    {
+        var inner = new InMemoryRunStore();
+        var runId = await QueueAsync(inner);
+        var runner = new ScriptedRunner(inner);
+        var handler = new WorkflowRunJobHandler(runner, RecoveryOn(inner), NullLogger<WorkflowRunJobHandler>.Instance);
+
+        await handler.ExecuteAsync(Context(runId, RunPayload(runId)));
+
+        runner.Runs.ShouldHaveSingleItem().DefinitionVersion.ShouldBeNull("no attempt has recorded a version yet");
+    }
+
+    private static async Task StartInterruptedAsync(InMemoryRunStore runs, Guid runId, int? agentVersion)
+        => await runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = "podcast",
+            Kind = RunKind.Workflow,
+            WorkflowName = "podcast",
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = Tenant,
+            AgentVersion = agentVersion,
+        });
+
+    /// <summary>
     /// The engine refused the run and the store failed the write that closes its
     /// queued row: the attempt fails instead of the work, so the row is not left
     /// Queued with no attempt coming back for it.
@@ -331,6 +392,8 @@ public sealed class WorkflowRunJobHandlerTests
 
         public List<WorkflowRespondRequest> Responses { get; } = [];
 
+        public List<WorkflowRunRequest> Runs { get; } = [];
+
         public ValueTask<IReadOnlyList<WorkflowDescriptor>> ListAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public ValueTask<WorkflowDescriptor?> GetAsync(string name, CancellationToken cancellationToken = default) => throw new NotSupportedException();
@@ -382,6 +445,7 @@ public sealed class WorkflowRunJobHandlerTests
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             Started++;
+            Runs.Add(request);
             var runId = request.RunId!.Value;
 
             if (refuse)

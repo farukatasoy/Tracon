@@ -113,6 +113,25 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
     }
 
     [Fact]
+    public async Task A_jobs_time_limit_beyond_an_int_of_milliseconds_survives_the_round_trip_and_the_lease()
+    {
+        // Added for F-451. A store that keeps the limit in a 32-bit millisecond column
+        // overflows at about 24.8 days and either throws or stores a wrong limit; the
+        // 90 minutes above cannot tell it from a correct store. The dispatcher accepts a
+        // limit up to the timer ceiling (about 49.7 days), so 30 days is a legal value.
+        var limit = TimeSpan.FromDays(30);
+        var job = await Store.EnqueueAsync(TestData.Job() with { MaxDuration = limit }, ["a"]);
+
+        job.MaxDuration.ShouldBe(limit);
+        (await Store.GetAsync("default", job.Id))!.MaxDuration.ShouldBe(limit);
+
+        var leased = await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        leased.ShouldNotBeNull();
+        leased.MaxDuration.ShouldBe(limit);
+    }
+
+    [Fact]
     public async Task A_job_without_a_time_limit_reads_back_none()
     {
         var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);

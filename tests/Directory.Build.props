@@ -57,8 +57,9 @@
   <!--
     xunit.v3 no longer runs on VSTest; it runs on the Microsoft Testing Platform (MTP).
     A test project is now a self-contained executable.
-    `dotnet test` needs the two properties below to use this model;
-    otherwise VSTest takes over and fails with "The argument ... is invalid".
+    `dotnet test` needs `global.json` `test.runner = Microsoft.Testing.Platform` (the SDK
+    runs `dotnet test` with its solution and project switches in this mode) and the properties
+    below to use this model; otherwise VSTest takes over and fails with "The argument ... is invalid".
     Microsoft.NET.Test.Sdk and xunit.runner.visualstudio are therefore NOT referenced.
   -->
   <PropertyGroup Label="Microsoft Testing Platform" Condition=" '$(IsTestHarnessProject)' != 'true' ">

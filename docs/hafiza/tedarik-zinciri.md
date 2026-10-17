@@ -40,9 +40,10 @@
   (`TreatWarningsAsErrors`). Yani yeni bir advisory yayımlanınca temiz bir CI checkout'u
   yerel makineden önce kırılır. Şablon testi
   (`TemplateInstantiationTests.Most_full_combination_compiles_with_zero_warnings`) da boş bir
-  dizinde restore ettiği için aynı yeri görür. Yerel tarama:
-  `dotnet restore Tracon.slnx --force` ve
-  `dotnet list Tracon.slnx package --vulnerable --include-transitive`.
+  dizinde restore ettiği için aynı yeri görür. `kapi.py kapanis` bu yüzden derlemeden önce
+  `dotnet restore Tracon.slnx --force` koşar (~5 sn; F-525). Elle tarama için ikinci yol:
+  `dotnet list Tracon.slnx package --vulnerable --include-transitive` (~40 sn, çıkış kodu
+  vermez; çıktıyı oku).
 
 ## Paketin içindeki üçüncü taraf kodu bildirim taşır (BL-058, 2026-09-24)
 

@@ -79,7 +79,7 @@ public sealed class OptionsSectionCoverageTests
         // [Fact] (xUnit1000 is an error), so the class under test stands in.
         CountsAsBindingTest(typeof(OptionsSectionCoverageTests)).ShouldBeTrue();
 
-        // Measured in xunit.v3 3.2.2: TheoryAttribute derives from FactAttribute,
+        // Measured in xunit.v3 3.2.2 and held in 4.0.2: TheoryAttribute derives from FactAttribute,
         // so one check counts a [Theory]-only class too. If that ever changes,
         // this line fails before a [Theory]-only binding test class goes uncounted.
         typeof(TheoryAttribute).IsSubclassOf(typeof(FactAttribute)).ShouldBeTrue();
