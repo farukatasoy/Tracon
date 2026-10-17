@@ -151,4 +151,18 @@ Açık iş: `MT-MCP-089` 👤 tarayıcıdan form tıklaması koşulmadı (Vitest
 
 ## Kapanış Kapısı
 
-> Kapanışta `kapi.py kapanis` sonucu buraya yazılır.
+`MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py kapanis --taban 41314feb`, commit'li ağaç `2a779480`, 2026-10-17 → **EXIT 0**:
+
+| Adım | Süre | Sonuç |
+|---|---|---|
+| `kapi.py tarama` | 9,5 sn | ✅ temiz (üç migration `3f0369d1`'e ankrajlı) |
+| `dokuman-bakim.py --denetle` · Python testleri (662) · ajan haritası · denetim paketi | ~15 sn | ✅ |
+| `dotnet build Tracon.slnx -c Release` (arayüz dahil) | 197,3 sn | ✅ 0 uyarı; JS **215,4 KB** gzip (bütçe 250 KB) |
+| `dotnet test … --report-trx` | 972,7 sn | ✅ 23.486 test, 0 kırmızı, 19 atlandı |
+| `dotnet pack` | 9,4 sn | ✅ |
+| `dotnet format --verify-no-changes` | 145,3 sn | ✅ |
+| `docs-site npm run check` | 36,9 sn | ✅ (`guides/production` 58.639 B / tavan 59.000 B) |
+
+İlk tam test koşumu (denetim sürerken, yük altında) dört kırmızı verdi: `ShippedDocumentationSelfContainmentTests` (üç hedef çerçeve; `RemovedFieldFilter`'ın `///` metnindeki 🚨 — düzeltildi) ve `JobWorkerLeaseContractTests.A_cancelled_job_whose_handler_throws_stays_cancelled(maxAttempts: 1)` (`net9.0`, 30 sn zaman aşımı; yalnız koşunca 3/3 geçti, kapanış koşumunda geçti).
+
+**Yayın provası** (`kapi.py yayin --kuru --surum 1.0.0-preview.5.218`, temiz ağaç) → **EXIT 0**: taban `v1.0.0-preview.4` (17 paket, nuget.org izole cache); kırıcı liste **132 tip**, 0 TFM düşüşü, 5 paket — hepsi `[Unreleased]` notunda; 20 paket; `npm publish --dry-run` ✅; 6 paketlenmiş örnek, 2 Native AOT smoke ve net8.0 tüketici ✅. `--surum 1.0.0-preview.5` ilk denemede `artifacts/package/yayin/1.0.0-preview.5` (14 Eki'den eski bir aday) var diye durdu; o dizin silinmedi, ayrı bir sürüm etiketi kullanıldı.
