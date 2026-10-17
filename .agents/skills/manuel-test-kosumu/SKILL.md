@@ -11,7 +11,7 @@ veritabanı, gerçek insan yolu. Sekiz fazda gerçek hatalar **yalnız** orada
 çıktı (K-166, K-167).
 
 Bu skill setin **tamamının** koşumunu yönetir. Tek bir fazın kendi case'lerini
-eklemek başka bir iştir — `faz-tamamlama` Adım 6.
+eklemek başka bir iştir — `faz-tamamlama` Adım 3.
 
 ## İki mod
 

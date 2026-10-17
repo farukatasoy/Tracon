@@ -33,6 +33,9 @@ Bu üçü ~10k token'dır. Başka hiçbir dosya bu adımda okunmaz.
 
 ## Adım 2 — Fazın "Bu Faza Başlarken" listesini uygula
 
+**Hafif kademede** (`> **Kademe:** hafif`) bu liste yoktur: plan, dokunduğun
+alanın hafızası (Adım 3) ve koddaki kanıt yeter.
+
 Her faz dokümanı bir okuma listesi taşır. **O listeyi olduğu gibi izle**, fazlasını
 okuma. Listede `KARARLAR.md` kalemleri varsa tamamını değil, yalnız o kalemleri oku:
 

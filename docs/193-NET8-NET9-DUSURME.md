@@ -1,6 +1,7 @@
 # Faz 193 — `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi
 
 > **Durum:** 📋 Planlandı (2026-10-11) — uygulama 2026-11-10'dan önce başlamaz (K-855)
+> **Kademe:** tam — hedef framework değişir (`net8.0`/`net9.0` düşer; yayınlanmış sürüme göre kırıcı, `PKV006`)
 > **Plan onayı:** Bakımcı, 2026-10-11 (engelleyici kararlar sohbette alındı: uygulama zamanı, yalnız düşürme, çoklu-TFM altyapısı korunur)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-266**
 > **Önkoşul:** Faz 187 — `PKV006` kapısı düşen TFM'i sürüm notunda paket paket ister (kapandı) · takvim: Microsoft desteğinin bittiği **2026-11-10**

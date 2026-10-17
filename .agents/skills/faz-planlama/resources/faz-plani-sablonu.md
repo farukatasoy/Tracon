@@ -1,6 +1,7 @@
 # Faz Planı Şablonu
 
-> Bu dosya `faz-planlama` skill'inin şablonudur. Kopyala,
+> Bu dosya `faz-planlama` skill'inin **tam kademe** şablonudur (hafif kademe:
+> [`faz-plani-hafif.md`](faz-plani-hafif.md)). Kopyala,
 > `docs/NN-BUYUK-HARFLI-AD.md` olarak kaydet ve doldur.
 >
 > `<>` içindeki her yer tutucu değiştirilir. Doldurulmayan yer tutucu kalırsa
@@ -17,6 +18,7 @@
 # Faz <NN> — <Kısa Ad>
 
 > **Durum:** 📋 Planlandı (<YYYY-AA-GG>)
+> **Kademe:** tam — <hangi tetik: migration · public API'den silinen satır · hedef framework · güvenlik/kiracı sınırı · geri dönüşü pahalı karar>
 > **Plan onayı:** <ad>, <YYYY-AA-GG> · <yoksa "onaylanmadı — uygulama başlamaz">
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-<NN>**<, **F-<NN>**>
 > **Genellik:** <hangi tüketici sınıfı; tüketici kodunda kalabilir mi; ikinci kanıt>

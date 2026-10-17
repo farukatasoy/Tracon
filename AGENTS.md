@@ -82,8 +82,10 @@ fazdan sonra dokümanlar gözden geçirilir.
 
 - Doküman ile kod çelişirse **doküman yanlıştır** — koda göre düzeltilir
 - Plandan sapma **gizlenmez**, gerekçesiyle yazılır — en değerli bilgi odur
-- Sonraki fazın dokümanı **devir teslim kalitesine** çıkarılır; ayrı bir sohbet
-  onunla tek başına çalışabilmeli
+- Faz **kademelidir** (`faz-planlama`): migration, public API'den silinen satır,
+  hedef framework, güvenlik/kiracı sınırı ya da geri dönüşü pahalı karar varsa
+  **tam** — plan devir teslim kalitesinde, ayrı sohbet onunla tek başına
+  çalışabilmeli; yoksa **hafif** — tek sayfa plan, aynı oturum
 - Karar defterine yalnız public API/compatibility, güvenlik veya kiracı sınırı,
   kalıcı veri/migration ya da geri dönüşü pahalı sistem kararı girer. Yerel
   tercih faz dokümanında veya kod yorumunda kalır; `K-*` açılmaz. `K-855`'ten

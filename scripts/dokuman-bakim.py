@@ -208,7 +208,8 @@ YONETIM_BUTCESI = {
     # FAZ-DEFTERI: kapanan fazin TEK izi (2026-10-17, `faz-kapat`). Faz basina
     # ~150 B buyur; ILK SINIR -- K-214'e girmez. Asilirsa satir kisaltilmaz,
     # olcum tablosu ayri dosyaya bolunur.
-    "docs/FAZ-DEFTERI.md": 40_000,  # ILK SINIR 2026-10-17; olculen 33_635 (olculen/0.85=39_571)
+    # Ayni gun `Kademe` sutunu eklendi (+1_376 B); ilk sinir o olcume gore konur.
+    "docs/FAZ-DEFTERI.md": 42_000,  # ILK SINIR 2026-10-17; olculen 35_011 (olculen/0.85=41_190)
 }
 
 # Birleştirilmiş görünüm yalnız büyüme projeksiyonu içindir. Raporlama bu
@@ -987,7 +988,11 @@ def surec_olcumu_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
 FAZ_DEFTERI = "docs/FAZ-DEFTERI.md"
 _DEFTER_KAYIT_BASLIGI = "## Kapanan fazlar"
 _DEFTER_OLCUM_BASLIGI = f"## {SUREC_OLCUMU_BASLIK}"
-_DEFTER_SUTUNLARI = ("Faz", "Konu", "Durum", "Kapanış", "Kaynak", "Kayıt")
+_DEFTER_SUTUNLARI = ("Faz", "Konu", "Kademe", "Durum", "Kapanış", "Kaynak", "Kayıt")
+# Sutun adi -> kayit anahtari. Okuma basliga gore yapilir; sutun eklemek eski
+# satirlari bozmaz (2026-10-17: `Kademe` eklendi, 0-218 `tam` doldu).
+_DEFTER_ANAHTARLARI = {"Faz": "no", "Konu": "konu", "Kademe": "kademe", "Durum": "durum",
+                       "Kapanış": "kapanis", "Kaynak": "kaynak", "Kayıt": "kayit"}
 _DEFTER_SATIRI = re.compile(r"^\|\s*(\d+)\s*\|")
 _HUCRE_AYIRICI = re.compile(r"(?<!\\)\|")
 
@@ -1008,25 +1013,31 @@ def _hucre(deger: str) -> str:
 def faz_defteri_oku(kok: pathlib.Path = ROOT) -> list[dict]:
     """Defterin kayıtları, faz numarasına göre sıralı; dosya yoksa boş liste.
 
-    Kayıt: `no`, `konu`, `durum`, `kapanis`, `kaynak`, `kayit` (`<sha>:<yol>`)
-    ve `olcum` (metrik -> değer; ölçüm satırı yoksa `None`)."""
+    Kayıt: `no`, `konu`, `kademe`, `durum`, `kapanis`, `kaynak`, `kayit`
+    (`<sha>:<yol>`) ve `olcum` (metrik -> değer; ölçüm satırı yoksa `None`)."""
     yol = kok / FAZ_DEFTERI
     if not yol.exists():
         return []
     kayitlar: dict[int, dict] = {}
     olcumler: dict[int, dict[str, str]] = {}
     bolum = ""
+    sutunlar: list[str] = []
     for satir in yol.read_text(encoding="utf-8").split("\n"):
         if satir.startswith("## "):
-            bolum = satir.strip()
+            bolum, sutunlar = satir.strip(), []
+            continue
+        if bolum == _DEFTER_KAYIT_BASLIGI and satir.startswith("| Faz |"):
+            sutunlar = _hucreler(satir)
             continue
         if not _DEFTER_SATIRI.match(satir):
             continue
         h = _hucreler(satir)
         no = int(h[0])
-        if bolum == _DEFTER_KAYIT_BASLIGI and len(h) >= len(_DEFTER_SUTUNLARI):
-            kayitlar[no] = {"no": no, "konu": h[1], "durum": h[2], "kapanis": h[3],
-                            "kaynak": h[4], "kayit": h[5].strip("`"), "olcum": None}
+        if bolum == _DEFTER_KAYIT_BASLIGI and sutunlar:
+            kayit = {"kademe": "—"} | {_DEFTER_ANAHTARLARI[ad]: deger for ad, deger in zip(sutunlar, h)
+                                      if ad in _DEFTER_ANAHTARLARI}
+            kayit["no"], kayit["kayit"], kayit["olcum"] = no, kayit.get("kayit", "").strip("`"), None
+            kayitlar[no] = kayit
         elif bolum == _DEFTER_OLCUM_BASLIGI:
             olcumler[no] = dict(zip(SUREC_OLCUMU_METRIKLERI, h[1:]))
     for no, olcum in olcumler.items():
@@ -1036,7 +1047,7 @@ def faz_defteri_oku(kok: pathlib.Path = ROOT) -> list[dict]:
 
 
 def _defter_satiri(k: dict) -> str:
-    return (f"| {k['no']} | {_hucre(k['konu'])} | {_hucre(k['durum'])} | "
+    return (f"| {k['no']} | {_hucre(k['konu'])} | {_hucre(k['kademe'])} | {_hucre(k['durum'])} | "
             f"{_hucre(k['kapanis'])} | {_hucre(k['kaynak'])} | `{k['kayit']}` |")
 
 
@@ -1056,8 +1067,9 @@ def _defter_metni(kayitlar: list[dict]) -> str:
         "> kusur`dur (`kusur-giderme` Adım 6).",
         ">",
         "> Tam metin: `git show <Kayıt>`. Faz 0–218 satırları 2026-10-17'de",
-        "> `2a8149ef`'teki yol haritasından ve kayıtlardan dolduruldu. Açık ve planlı",
-        "> fazlar: [`YOL-HARITASI.md`](YOL-HARITASI.md).",
+        "> `2a8149ef`'teki yol haritasından ve kayıtlardan dolduruldu; kademeleri `tam`",
+        "> çünkü hepsi tam zincirle koştu. Açık ve planlı fazlar:",
+        "> [`YOL-HARITASI.md`](YOL-HARITASI.md).",
         "",
         _DEFTER_KAYIT_BASLIGI,
         "",
@@ -3039,6 +3051,62 @@ def _isaretsiz_kutular(metin: str) -> list[int]:
             if re.match(r"^\s*- \[ \]", s)]
 
 
+# --- Kademe (2026-10-17, kullanici karari) ----------------------------------
+# Faz `tam` ya da `hafif`tir (`faz-planlama`). Tam fazi MEKANIK tetikler ve
+# BEYAN belirler: migration, public API'den silinen/degisen satir (yayinlanmis
+# preview'a gore kirici), hedef framework degisikligi -- ya da planin
+# guvenlik/kiraci siniri veya geri donusu pahali karar beyani. Mekanik
+# tetikleri `faz-kapat` diff'e karsi denetler; beyan tarafini denetci yargilar
+# (`faz-denetim` 3.9). Freeze oncesi Unshipped API BUYUMESI (yalniz eklenen
+# satir) hafif kalir.
+KADEMELER = ("hafif", "tam")
+_KADEME = re.compile(r"^>\s*\*\*Kademe:\*\*\s*`?(\w+)", re.M)
+_KADEME_GOC = re.compile(r"^src/[^/]+/Migrations[A-Za-z]*/.+\.sql$")
+_KADEME_API = re.compile(r"^src/[^/]+/PublicAPI\.(Shipped|Unshipped)\.txt$")
+_KADEME_TFM_DOSYA = re.compile(r"(^|/)(Directory\.Build\.props|[^/]+\.csproj)$")
+
+
+def _kademe(metin: str) -> str | None:
+    m = _KADEME.search(metin)
+    return m.group(1).casefold() if m else None
+
+
+def kademe_tetikleri(fark: str) -> list[str]:
+    """`git diff --unified=0` çıktısında tam faz tetikleri; `yol: neden` satırları.
+
+    Saf fonksiyon. Tetik: migration dosyası (her değişiklik) · `PublicAPI.*.txt`'den
+    silinen satır (imza değişikliği silme + eklemedir) ve `Shipped` dosyasındaki
+    her değişiklik · `TargetFramework` taşıyan silinen satır."""
+    tetik: dict[str, str] = {}
+    dosya = ""
+    for satir in fark.split("\n"):
+        if satir.startswith("diff --git "):
+            dosya = satir.rsplit(" b/", 1)[-1]
+            if _KADEME_GOC.match(dosya):
+                tetik[dosya] = "migration"
+            continue
+        if satir.startswith(("--- ", "+++ ")) or not satir[:1] in ("+", "-"):
+            continue
+        if (m := _KADEME_API.match(dosya)) and (satir[0] == "-" or m.group(1) == "Shipped"):
+            tetik.setdefault(dosya, "public API satırı silindi ya da değişti"
+                             if m.group(1) == "Unshipped" else "PublicAPI.Shipped.txt değişti")
+        elif _KADEME_TFM_DOSYA.search(dosya) and satir[0] == "-" and "<TargetFramework" in satir:
+            tetik.setdefault(dosya, "hedef framework değişti")
+    return [f"{y}: {n}" for y, n in sorted(tetik.items())]
+
+
+def _faz_farki(rel: str) -> str | None:
+    """Faz dokümanının eklendiği commit'ten (dahil) HEAD'e kadar `src/` ve kök
+    `Directory.Build.props` farkı. Git hatası `None`dur — kapı onu temiz saymaz."""
+    eklenen = _git("log", "--diff-filter=A", "--format=%H", "--", rel)
+    if not eklenen:
+        return None
+    r = subprocess.run(["git", "diff", "--unified=0", f"{eklenen[-1]}~1", "HEAD", "--",
+                        "src", "Directory.Build.props"],
+                       cwd=ROOT, capture_output=True, text=True, check=False)
+    return r.stdout if r.returncode == 0 else None
+
+
 def faz_kapat_eksikleri(metin: str, no: int, rel: str) -> list[str]:
     """Kapanışı durduran eksikler. Saf fonksiyon.
 
@@ -3048,6 +3116,8 @@ def faz_kapat_eksikleri(metin: str, no: int, rel: str) -> list[str]:
     durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
     if not durum or not _durum_tamamlandi_mi(durum.group(1)):
         eksik.append(f"{rel}: `> **Durum:**` tamamlanmış değil — önce `✅ Tamamlandı (YYYY-AA-GG)` yaz")
+    if _kademe(metin) not in KADEMELER:
+        eksik.append(f"{rel}: `> **Kademe:**` satırı yok ya da geçersiz — `hafif` veya `tam` (`faz-planlama`)")
     for satir_no in _isaretsiz_kutular(metin):
         eksik.append(f"{rel}:{satir_no}: işaretsiz kutu — DoD'yi kapat ya da gerekçesiyle düz metne çevir")
     if no >= SUREC_OLCUMU_ESIGI:
@@ -3067,7 +3137,8 @@ def _faz_kaydi(metin: str, no: int, kayit: str, bugun: str) -> dict:
     if no >= SUREC_OLCUMU_ESIGI:
         degerler, _ = _surec_olcumu_degerleri(metin, "")
         olcum = {m: _olcum_ozeti(degerler.get(m, "")) for m in SUREC_OLCUMU_METRIKLERI}
-    return {"no": no, "konu": konu, "durum": "✅", "kapanis": tarih.group(0) if tarih else bugun,
+    return {"no": no, "konu": konu, "kademe": _kademe(metin) or "—", "durum": "✅",
+            "kapanis": tarih.group(0) if tarih else bugun,
             "kaynak": " · ".join(dict.fromkeys(fidler)) or "—", "kayit": kayit, "olcum": olcum}
 
 
@@ -3175,6 +3246,13 @@ def komut_faz_kapat(a: argparse.Namespace) -> int:
     rel = adaylar[0].relative_to(ROOT).as_posix()
     metin = adaylar[0].read_text(encoding="utf-8")
     eksik = faz_kapat_eksikleri(metin, no, rel)
+    if _kademe(metin) == "hafif":
+        fark = _faz_farki(rel)
+        if fark is None:
+            eksik.append(f"{rel}: fazın farkı alınamadı — kademe `hafif` kanıtlanamıyor")
+        else:
+            eksik += [f"kademe `hafif` ama tam faz tetiği — {t_}; kademeyi `tam` yap ve tam "
+                      f"zincirin eksiklerini kapat" for t_ in kademe_tetikleri(fark)]
     defter = faz_defteri_oku()
     if any(k["no"] == no for k in defter):
         eksik.append(f"{FAZ_DEFTERI}: Faz {no} satırı zaten var")

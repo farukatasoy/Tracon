@@ -119,7 +119,9 @@ Kod yazarken bu altısına dokunduysan ilgili kuralı uygula:
 ## Adım 7 — Manuel kabul case'ini şimdi yaz, sonra değil
 
 Fazın DoD satırlarını doğrularken çalıştırdığın her komut bir manuel case
-taslağıdır. O anda yaz; kapanışta hatırlamaya çalışma.
+taslağıdır. O anda yaz; kapanışta hatırlamaya çalışma. **Hafif kademede** yalnız
+👤 gerektiren davranış manuel case olur; curl/HTTP ile koşulabilen her şey
+otomatik teste gider.
 
 Her case dört alan taşır: **ön koşul · adımlar · beklenen sonuç · alan kodu**.
 Biçim ve nereye ekleneceği `faz-tamamlama` Adım 3'tedir.

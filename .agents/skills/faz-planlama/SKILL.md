@@ -103,7 +103,7 @@ plan yanlıştır.
 | Konu | Kural |
 |---|---|
 | **Yeni NuGet paketi** | K-007 gerekçesi ister. Geçişli ağırlığı **say** (Faz 27: 37 paket → ertelendi, K-212) |
-| **Yeni Tracon paketi** | `faz-tamamlama`'daki paket kontrol listesi: README, slnx, meta paket, `DependencyDirectionTests` |
+| **Yeni Tracon paketi** | `faz-tamamlama` ekindeki paket kontrol listesi ([`yeni-paket.md`](../faz-tamamlama/references/yeni-paket.md)): README, slnx, meta paket, `DependencyDirectionTests` |
 | **Ön sürüm MAF paketi** | Yalnız `Tracon.AspNetCore` içinde (K-008). Başka yere koyacaksan bu bir karardır |
 | **Yeni tablo** | **Üç migration seti** — PostgreSQL + SqlServer + Sqlite. Numaralar sağlayıcı başına bağımsızdır (K-178) |
 | **Migration numarası** | Plan numara **rezerve etmez**. Uygulama anında bir sonraki boş numara alınır |
@@ -114,6 +114,32 @@ plan yanlıştır.
 | **`secret`** | Dosyaya **ve veritabanına** yazılmaz. Kayıtta yalnız yapılandırma anahtarının **adı** durur (K-059) |
 | **AOT** | `Abstractions`, `Core`, `PostgreSql`, `OpenAI` AOT uyumlu kalır. Yansımaya dayanan tasarım bu paketlere giremez |
 | **Public API** | `TraconPublicApiTrackingEnabled` varsayılanı **`true`**'dur (K-421) ama `PublicAPI.Shipped.txt` dosyaları **boştur** — yüzeyi büyüten kalem `1.0.0` GA'dan (`Shipped` dolumu, K-603) **önce** hâlâ ucuzdur, sonra bir sürüm kararıdır. Plan bunu bir cümleyle söyler ve iddiayı `wc -l src/*/PublicAPI.Shipped.txt` ile **ölçer** |
+
+### Kademe — hafif mi tam mı?
+
+Her faz başlığında `> **Kademe:**` taşır (kullanıcı kararı, 2026-10-17). Faz
+**tam** olur, şunlardan biri varsa:
+
+| Tetik | Kim denetler |
+|---|---|
+| Migration (`src/*/Migrations*/*.sql`) | `faz-kapat` — diff'e karşı |
+| `PublicAPI.*.txt`'den silinen ya da değişen satır, `Shipped` değişikliği (yayınlanmış preview'a göre kırıcı) | `faz-kapat` |
+| Hedef framework değişikliği | `faz-kapat` |
+| Güvenlik veya kiracı sınırı · geri dönüşü pahalı karar | Plan beyan eder, `faz-denetim` 3.9 yargılar |
+
+Hiçbiri yoksa faz **hafif**tir. Freeze öncesi Unshipped API **büyümesi** (yalnız
+eklenen satır) hafif kalır. Emin değilsen kullanıcıya sor; `tam` önermek ucuz,
+yanlış `hafif` pahalıdır.
+
+| | Hafif | Tam |
+|---|---|---|
+| Şablon | [`resources/faz-plani-hafif.md`](resources/faz-plani-hafif.md) — tek sayfa | [`resources/faz-plani-sablonu.md`](resources/faz-plani-sablonu.md) |
+| Oturum | Plan, uygulama ve kapanış aynı oturumda olabilir; devir teslim kalitesi istenmez | Plan tek başına yeterli olmalı (bu skill'in amacı) |
+| Manuel case | Yalnız 👤 gerektiren davranış; gerisi otomatik test | `faz-tamamlama` ekine göre |
+| Bağımsız denetim | Aynen | Aynen |
+
+Küçük ve komşu kalemleri tek hafif fazda birleştir: her faz sabit bir kapanış
+bedeli öder (kapı, denetim, `faz-kapat`).
 
 ### Genellik — kalem kontrol düzleminin eksiği mi?
 
@@ -177,7 +203,10 @@ plan `AgentRunResponse` demişti, gerçek tip `AgentResponse` çıktı.
 
 ## Adım 5 — Dokümanı yaz
 
-Şablon: [`resources/faz-plani-sablonu.md`](resources/faz-plani-sablonu.md).
+Şablon kademeye göredir: hafif → [`resources/faz-plani-hafif.md`](resources/faz-plani-hafif.md),
+tam → [`resources/faz-plani-sablonu.md`](resources/faz-plani-sablonu.md). Aşağıdaki bölüm
+tablosu tam şablon içindir; hafif şablon yalnız başlık, amaç, DoD, testler ve açık
+soruları taşır.
 
 Dosya adı: `docs/NN-BUYUK-HARFLI-AD.md` — Türkçe, tire ile ayrılmış, kısa.
 Örnek: `docs/NN-CALISTIRMA-IPTALI.md`.

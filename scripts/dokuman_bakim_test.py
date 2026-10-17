@@ -636,17 +636,17 @@ class TamMetinDenetleTestleri(unittest.TestCase):
 class Faz91DokumanKapilariTestleri(unittest.TestCase):
     def test_isaretsiz_kutu_kapanisi_durdurur(self):
         # Doküman silindikten sonra açık bir DoD maddesini gösteren yer kalmaz.
-        metin = "> **Durum:** ✅ Tamamlandı\n\n- [ ] Bir\n- [x] Tamam\n- [ ] İki\n"
+        metin = "> **Durum:** ✅ Tamamlandı\n> **Kademe:** hafif\n\n- [ ] Bir\n- [x] Tamam\n- [ ] İki\n"
         eksik = dokuman_bakim.faz_kapat_eksikleri(metin, 71, "docs/71-X.md")
         self.assertEqual(len(eksik), 2, eksik)
         self.assertTrue(all("docs/71-X.md:" in e and "işaretsiz kutu" in e for e in eksik))
 
     def test_kod_ornegindeki_kutu_sayilmaz(self):
-        metin = "> **Durum:** ✅ Tamamlandı\n\n```markdown\n- [ ] örnek\n```\n"
+        metin = "> **Durum:** ✅ Tamamlandı\n> **Kademe:** tam\n\n```markdown\n- [ ] örnek\n```\n"
         self.assertEqual(dokuman_bakim.faz_kapat_eksikleri(metin, 71, "x.md"), [])
 
     def test_tamamlanmamis_faz_kapatilamaz(self):
-        eksik = dokuman_bakim.faz_kapat_eksikleri("> **Durum:** 📋 Planlandı\n", 72, "x.md")
+        eksik = dokuman_bakim.faz_kapat_eksikleri("> **Durum:** 📋 Planlandı\n> **Kademe:** hafif\n", 72, "x.md")
         self.assertEqual(len(eksik), 1)
         self.assertIn("tamamlanmış değil", eksik[0])
 
@@ -655,7 +655,7 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
         `Tamamlandı` deseni bunu kaçırıyordu — iki gerçek işaretsiz kutu
         denetimden görünmez kalmıştı."""
         for durum in ("✅ Kod tamam · 205/205 test yeşil", "✅ Tamam — 204/204 test yeşil"):
-            metin = f"> **Durum:** {durum}\n\n- [ ] AOT ölçülmedi\n"
+            metin = f"> **Durum:** {durum}\n> **Kademe:** tam\n\n- [ ] AOT ölçülmedi\n"
             eksik = dokuman_bakim.faz_kapat_eksikleri(metin, 24, "x.md")
             self.assertEqual(len(eksik), 1, (durum, eksik))
             self.assertIn("işaretsiz kutu", eksik[0])
@@ -886,7 +886,7 @@ DEFTER_OLCUMU = {
     "Fazın ürettiği regresyon": "0",
     "Faz kapandıktan sonra bulunan kusur": "ölçülmedi",
 }
-DEFTER_KAYDI = {"no": 170, "konu": "Örnek", "durum": "✅", "kapanis": "2026-10-17",
+DEFTER_KAYDI = {"no": 170, "konu": "Örnek", "kademe": "tam", "durum": "✅", "kapanis": "2026-10-17",
                 "kaynak": "F-1", "kayit": "abc12345:docs/170-X.md", "olcum": DEFTER_OLCUMU}
 
 
@@ -953,6 +953,7 @@ class FazKapatTestleri(unittest.TestCase):
 
     def _metin(self, govde: str = "") -> str:
         return ("# Faz 219 — Örnek Konu\n\n> **Durum:** ✅ Tamamlandı (2026-10-18)\n"
+                "> **Kademe:** hafif — migration yok, Shipped API değişmez\n"
                 "> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-559**, **F-560**\n\n"
                 f"## Bitiş Ölçütleri (DoD)\n\n- [x] Bir\n\n{govde}")
 
@@ -962,6 +963,7 @@ class FazKapatTestleri(unittest.TestCase):
         self.assertEqual(k["kapanis"], "2026-10-18")
         self.assertEqual(k["kaynak"], "F-559 · F-560")
         self.assertEqual(k["kayit"], "abc12345:docs/219-X.md")
+        self.assertEqual(k["kademe"], "hafif")
         self.assertEqual(list(k["olcum"].values()), ["0", "3", "0 / 0 / 0", "2", "ölçülmedi"])
 
     def test_esik_ustunde_olcum_yoksa_kapanamaz(self):
@@ -989,11 +991,76 @@ class FazKapatTestleri(unittest.TestCase):
             self.assertEqual(dokuman_bakim._baglantilari_duz_metne_indir(
                 m, "docs", "docs/219-X.md", "Faz 219"), m)
 
+    def test_kademe_satiri_yoksa_kapanamaz(self):
+        metin = self._metin(self.TAM).replace("> **Kademe:** hafif — migration yok, Shipped API değişmez\n", "")
+        eksik = dokuman_bakim.faz_kapat_eksikleri(metin, 219, "x.md")
+        self.assertEqual(len(eksik), 1, eksik)
+        self.assertIn("Kademe", eksik[0])
+
+    def test_gecersiz_kademe_kapanamaz(self):
+        metin = self._metin(self.TAM).replace("Kademe:** hafif", "Kademe:** orta")
+        self.assertEqual(len(dokuman_bakim.faz_kapat_eksikleri(metin, 219, "x.md")), 1)
+
     def test_duz_referans_dile_gore_adlanir(self):
         ad = dokuman_bakim._kapanan_faz_adi(219)
         self.assertEqual(ad("docs/ADAYLAR.md"), "Faz 219")
         self.assertEqual(ad(".agents/skills/x/SKILL.md"), "Faz 219")
         self.assertEqual(ad("src/Tracon.Core/X.cs"), "Phase 219")
+
+
+class KademeTetikleriTestleri(unittest.TestCase):
+    """2026-10-17: `hafif` fazda tam faz tetiği kapanışı durdurur (`faz-kapat`)."""
+
+    @staticmethod
+    def _fark(yol: str, *satirlar: str) -> str:
+        return f"diff --git a/{yol} b/{yol}\n--- a/{yol}\n+++ b/{yol}\n@@ -1 +1 @@\n" + "\n".join(satirlar) + "\n"
+
+    def test_migration_her_degisiklikte_tetikler(self):
+        fark = ("diff --git a/src/Tracon.Sqlite/Migrations/0050_x.sql b/src/Tracon.Sqlite/Migrations/0050_x.sql\n"
+                "new file mode 100644\n--- /dev/null\n+++ b/src/Tracon.Sqlite/Migrations/0050_x.sql\n+CREATE TABLE t (x int);\n")
+        self.assertEqual(dokuman_bakim.kademe_tetikleri(fark),
+                         ["src/Tracon.Sqlite/Migrations/0050_x.sql: migration"])
+
+    def test_unshipped_yalniz_eklenen_satir_tetiklemez(self):
+        fark = self._fark("src/Tracon.Core/PublicAPI.Unshipped.txt", "+Tracon.X.Yeni() -> void")
+        self.assertEqual(dokuman_bakim.kademe_tetikleri(fark), [])
+
+    def test_unshipped_silinen_satir_tetikler(self):
+        fark = self._fark("src/Tracon.Core/PublicAPI.Unshipped.txt",
+                          "-Tracon.X.Eski(int a) -> void", "+Tracon.X.Eski(long a) -> void")
+        self.assertEqual(len(dokuman_bakim.kademe_tetikleri(fark)), 1)
+        self.assertIn("public API", dokuman_bakim.kademe_tetikleri(fark)[0])
+
+    def test_shipped_her_degisiklikte_tetikler(self):
+        fark = self._fark("src/Tracon.Core/PublicAPI.Shipped.txt", "+Tracon.X")
+        self.assertIn("Shipped", dokuman_bakim.kademe_tetikleri(fark)[0])
+
+    def test_hedef_framework_silinmesi_tetikler(self):
+        fark = self._fark("src/Directory.Build.props",
+                          "-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>",
+                          "+    <TargetFrameworks>net10.0</TargetFrameworks>")
+        self.assertEqual(dokuman_bakim.kademe_tetikleri(fark),
+                         ["src/Directory.Build.props: hedef framework değişti"])
+
+    def test_siradan_kod_degisikligi_tetiklemez(self):
+        fark = self._fark("src/Tracon.Core/X.cs", "-a", "+b") + self._fark(
+            "src/Tracon.Core/Tracon.Core.csproj", "-<PackageReference Include=\"A\" />")
+        self.assertEqual(dokuman_bakim.kademe_tetikleri(fark), [])
+
+
+class DefterBicimiTestleri(unittest.TestCase):
+    """Okuma başlığa göredir: sütun eklemek eski satırları bozmaz."""
+
+    def test_kademesiz_eski_tablo_okunur(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d); (kok / "docs").mkdir()
+            (kok / "docs" / "FAZ-DEFTERI.md").write_text(
+                "# Faz Defteri\n\n## Kapanan fazlar\n\n| Faz | Konu | Durum | Kapanış | Kaynak | Kayıt |\n"
+                "|---|---|---|---|---|---|\n| 5 | Eski | ✅ | — | — | `abc1234:docs/5-X.md` |\n",
+                encoding="utf-8")
+            k = dokuman_bakim.faz_defteri_oku(kok)[0]
+            self.assertEqual((k["no"], k["konu"], k["kademe"], k["kayit"]),
+                             (5, "Eski", "—", "abc1234:docs/5-X.md"))
 
 
 class FazBolumleriTestleri(unittest.TestCase):

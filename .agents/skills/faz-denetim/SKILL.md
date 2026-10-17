@@ -83,7 +83,7 @@ satırı için kanıtı **kodda veya testte** bul. Bulamıyorsan bulgu yaz.
 
 ## Adım 3 — Denetim listesi
 
-Sekiz başlık. Her biri için bulgu ya vardır ya "temiz" yazılır.
+Dokuz başlık. Her biri için bulgu ya vardır ya "temiz" yazılır.
 
 ### 3.1 DoD ihlali
 Her DoD satırını tek tek al. Karşılığı olan kod veya test hangisi? Satır
@@ -161,6 +161,18 @@ içindedir; denetçi onu okur ve şunları arar:
   hâlâ **elle** tutuluyor — denetçinin bakacağı yer orasıdır.
 - Kapı seti tam koştu mu? `npm run build` **yetmez** — `npm run check` dördünü
   (`check:content` · `build` · `check:links` · `check:weight`) koşar.
+
+### 3.9 Kademe
+Plan `> **Kademe:** hafif` diyorsa diff şunlardan birine dokunuyor mu?
+
+- **Güvenlik veya kiracı sınırı:** yetki/rol kapısı, `ITenantContext`, kiracı
+  süzgeci, API anahtarı kapsamı, `secret` yolu, denetim izi, sandbox
+- **Geri dönüşü pahalı karar:** kalıcı biçim, varsayılan davranış, paket sınırı
+
+Dokunuyorsa 🔴: kademe `tam` olur ve tam zincirin eksikleri (devir teslim
+planı, manuel case, örnek uygulama koşumu) kapanır. Migration, public API'den
+silinen satır ve hedef framework değişikliğini **`faz-kapat` mekanik olarak
+denetler** — onları burada arama, diff'te görürsen yine de yaz.
 
 ---
 
