@@ -87,7 +87,7 @@ flowchart TD
 > **Rol matrisi burada da NO-OP'tur, tekrar test edilmez.** `EvalEndpoints`/
 > `ExperimentEndpoints` her ucu `RequireRole(roles.Reader/Operator/Admin)`
 > ile işaretler ama `TraconPolicies.*` örnek uygulamada kayıtlı değildir
-> (bkz. `00-INDEKS.md` §8). **Bu dosyaya özgü olan**: `ApiKeyScope` enum'ında
+> (bkz. eski `00-INDEKS.md` §8, `55584bb6`). **Bu dosyaya özgü olan**: `ApiKeyScope` enum'ında
 > Eval/Experiment için **hiçbir** kapsam değeri hiç tanımlanmamış —
 > `RunsRead`/`RunsWrite`/`AgentsRead`/`AgentsAdmin`/`ExternalInvoke` beş
 > üyeden ibarettir. Bu, "unutulan bir `RequireApiKeyScope` çağrısı" değil,

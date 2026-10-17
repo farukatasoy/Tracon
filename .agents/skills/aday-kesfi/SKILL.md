@@ -272,7 +272,7 @@ Numara: en büyük mevcut F-NN + 1. Numara geri dönüştürülmez.
 python3 scripts/dokuman-bakim.py
 ```
 
-Çıkış kodu 0 olmalıdır. Aday dosyası 80 KB bütçesindedir; aşarsa içerik
+Çıkış kodu 0 olmalıdır. Aday dosyası bütçelidir (`YONETIM_BUTCESI`); aşarsa içerik
 **silinmez**, `docs/arsiv/`'e taşınır.
 
 ---

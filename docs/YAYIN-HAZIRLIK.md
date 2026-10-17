@@ -182,7 +182,10 @@ Kapanmış kayıt bu dosyada tutulmaz. Bir kimlik burada yoksa önce
 O sürüm şunları tam metinle taşır: preview.1–4 yayın ve karar blokları,
 KN-001…035, BL-001…058, RK-001…015, OP-001…012 gerekçeleri, KG-040…049,
 A-59…A-83 bulgu metinleri, UR-001…011 gerekçeleri ve yayın checklist'i.
-KG-001…039: [`arsiv/YAYIN-HAZIRLIK-KARAR-GUNLUGU.md`](arsiv/YAYIN-HAZIRLIK-KARAR-GUNLUGU.md).
+KG-001…039:
+
+> git show 55584bb6:docs/arsiv/YAYIN-HAZIRLIK-KARAR-GUNLUGU.md
+
 2026-09-20 öncesi tur anlatısı ve A-1…A-58:
 
 > git show e35b4914:docs/YAYIN-HAZIRLIK.md

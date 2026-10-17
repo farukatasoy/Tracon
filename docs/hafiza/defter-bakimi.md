@@ -177,16 +177,11 @@ wc -c docs/KARARLAR.md; grep -n '"docs/KARARLAR.md":' scripts/dokuman-bakim.py
 | Yeni K / gün | tüm dönem 15,8 (853/54 gün) · kural sonrası 8,5 (272/32) · son 7 gün 8,1 |
 | `KARARLAR.md` | 468.280 B / bütçe 496.000 B (%94) |
 
-**Defter bütçesi dar.** Büyüme son 7 günde ~5,0 KB/gün (433.271 → 468.280),
-son 4 günde ~3,3 KB/gün; kalan 27.720 B yaklaşık 6–8 gün yeter. Aşımda K-781
-kuralı geçerlidir: önce `karar-damit` koşulur (bugün kuru koşum 8 satırda
-4.419 B taşır), taşıma tükenmişse sınır damıtma sonrası ölçülen değer / 0,85
-ile yükselir. Bu turda bütçe değişmedi.
-
-**2026-10-12:** defter 498.602 B ile 496.000 B tavanı aştı (öncelikli kusur
-turu, K-885…K-891; satırlar önce kısaltıldı). `karar-damit` gerçek koşumda
-çalışma ağacı temiz değilse reddeder; kuru koşum yalnız 852 B taşıyabildi, tavan
-aynı kuralla 586.000 B'ye çıktı. Commit'ten sonra `karar-damit` bir kez koşulur.
+Bütçe aşılırsa K-781 kuralı geçerlidir: önce `karar-damit` koşulur, taşıma
+tükenmişse sınır damıtma sonrası ölçülen değer / 0,85 ile yükselir.
+`karar-damit` gerçek koşumda çalışma ağacı temiz değilse reddeder — commit'ten
+sonra koş. Güncel boyut `--denetle` çıktısındadır; tavanın geçmişi
+`scripts/dokuman-bakim.py` `YONETIM_BUTCESI` yorumundadır.
 
 ## 🚨 `dokuman-bakim.py`'de `@dataclass` modülü yükletmez (Faz 191)
 

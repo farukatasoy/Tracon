@@ -15,10 +15,10 @@
 tekrarlanmaz. Mimari açıdan anlamı olan kalemler:
 
 - `Tracon.Sql.Shared` **paket değildir** — `.csproj`'u yoktur; üç SQL
-  sağlayıcısı onu `<Compile Include=... />` ile derler: 29 `store`,
-  `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176).
-- Migration setleri sağlayıcı başına bağımsızdır (K-178): PostgreSql `0001`–`0029`,
-  SqlServer ve Sqlite `0001`–`0016` (K-190).
+  sağlayıcısı onu `<Compile Include=... />` ile derler: SQL `store`'ları
+  (`Stores/`), `SqlQueriesBase`, `SqlDialect` (K-198), migration runner (K-176).
+- Migration numaraları sağlayıcı başına bağımsızdır (K-178); tek kaynak
+  `src/Tracon.<Sağlayıcı>/Migrations/*.sql` dosyalarıdır.
 - `PgVectorSearchStore` (Faz 51) `Sql.Shared`'den geçmeyen **tek** `store`'dur —
   doğrudan `Npgsql` kullanır (K4, K-344).
 - Meta pakete **dâhil olmayanlar**: `SqlServer` (K-185), `Sqlite`, `Anthropic`
@@ -34,8 +34,7 @@ Anthropic · Google · Azure OpenAI birlikte çalışır.
 
 **Neden Tracon?** MAF GA'dir ama resmî arayüzü DevUI preview'dur ve dokümanı
 "not intended for production use" der. Tracon onun yerine geçmez, bıraktığı
-yerden devam eder — gerekçe ve karşılaştırma:
-[`arsiv/DEVUI-KARSILASTIRMASI.md`](arsiv/DEVUI-KARSILASTIRMASI.md).
+yerden devam eder.
 Faz faz nasıl buraya gelindiği: [`arsiv/FAZ-GECMISI.md`](arsiv/FAZ-GECMISI.md).
 
 ---

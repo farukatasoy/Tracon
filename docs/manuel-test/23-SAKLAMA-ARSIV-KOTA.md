@@ -24,7 +24,7 @@
 > 🚨 **Faz 21'in yalnız KOTA dilimi bu dosyanındır.** Hız sınırı
 > (`TraconRateLimitFilter`) ve webhook/olay yayını (`WebhookEndpoints`,
 > `IWebhookPublisher`) **hiçbir manuel test dosyasına atanmamıştır** — bkz.
-> dosyanın sonundaki "Sınır" tablosu ve `00-INDEKS.md` §8'deki not.
+> dosyanın sonundaki "Sınır" tablosu ve eski `00-INDEKS.md` §8, `55584bb6`.
 >
 > 🚨 **§5'in bütçesi (Faz 114) `§4`'ün kotasıyla KARIŞTIRILMAZ.** Kota
 > (`§4`) kiracı/agent × gün/ay ölçeğindedir ve devam eden çalıştırmayı asla
@@ -82,8 +82,8 @@ flowchart TD
 
 | Konu | Nerede |
 |---|---|
-| Hız sınırı (`TraconRateLimitFilter`, Faz 21.1) | 🚨 **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 |
-| Webhook / olay yayını (Faz 21.3) | 🚨 **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 |
+| Hız sınırı (`TraconRateLimitFilter`, Faz 21.1) | 🚨 **Hiçbir dosyaya atanmamış** (eski `00-INDEKS.md` §8, `55584bb6`) |
+| Webhook / olay yayını (Faz 21.3) | 🚨 **Hiçbir dosyaya atanmamış** (eski `00-INDEKS.md` §8, `55584bb6`) |
 | Maliyet gözlemlenebilirliği (`RunCost`, `/api/stats`) | `12-GOZLEMLENEBILIRLIK-MALIYET.md` (zaten üretildi) |
 | API anahtarı kapsamının GENEL sözleşmesi | `13-KIRACI-VE-GUVENLIK.md` (zaten üretildi) |
 | İş kuyruğunun genel davranışı (`JobKind`, zamanlama, `respond-async`) | `16-IS-KUYRUGU-VE-ZAMANLAMA.md` (zaten üretildi) — bu dosya yalnız `JobKind.Retention`'ın **kendine özgü** yükünü sınar |
@@ -947,7 +947,7 @@ echo "ONCE=$ONCE SONRA=$SONRA FARK=$((SONRA - ONCE))"
 | **İlgili karar** | — |
 
 Negatif senaryo — **önceden not düşülmüş şüpheli bulgunun testi**
-(`00-INDEKS.md` §8, `12-GOZLEMLENEBILIRLIK-MALIYET.md` üretilirken bulundu).
+(eski `00-INDEKS.md` §8, `55584bb6`; `12-GOZLEMLENEBILIRLIK-MALIYET.md` üretilirken bulundu).
 `QuotaDecision.CostFellBackToTokens` hiçbir yerde `true` yapılmaz;
 `RunRecordingAgent.RecordQuotaAsync`'in kendi yorumu: fiyat tanımsızsa
 `Cost` `null` kalır (**sıfır değil**) ve `InMemoryQuotaStore.Increment`

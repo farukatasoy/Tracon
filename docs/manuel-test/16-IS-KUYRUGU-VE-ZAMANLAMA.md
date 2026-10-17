@@ -97,7 +97,7 @@ flowchart TD
 > **Rol matrisi burada da NO-OP'tur, tekrar test edilmez.** `SchedulingEndpoints`
 > her ucu `RequireRole(roles.Admin/Operator/Reader)` ile işaretler ama
 > `TraconPolicies.*` örnek uygulamada kayıtlı değildir (bkz.
-> `00-INDEKS.md` §8, `14-SKILL-VE-SCRIPT.md`). **Bu dosyaya özgü olan**,
+> eski `00-INDEKS.md` §8, `55584bb6`; `14-SKILL-VE-SCRIPT.md`). **Bu dosyaya özgü olan**,
 > `SchedulingEndpoints`'in de (tıpkı `15-WORKFLOWS.md`'nin bulduğu
 > `WorkflowEndpoints` gibi) **hiçbir ucunda** `RequireApiKeyScope(...)`
 > çağrısının bulunmaması — §8'de ayrı bir case ile ölçülür.

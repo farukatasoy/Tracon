@@ -255,7 +255,6 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 | Kalıcı bir çalışma kuralı değiştiyse | `AGENTS.md` |
 | **Kullanıcıya dönük davranış değiştiyse** | `docs-site/` — [`tuketici-dokuman-senkronu`](../tuketici-dokuman-senkronu/SKILL.md) skill'i |
 | **Public tip, HTTP ucu veya yeni paket eklendiyse** | Sevk edilen metin ve yerel referans yüzeyi — aynı skill |
-| `arsiv/BEYIN-FIRTINASI.md` kalemi yapıldı/reddedildi | üstünü çiz; ret gerekçesi KARARLAR §1'e (numarasız) |
 
 `AGENTS.md`'de faz durum tablosu **yoktur** — orada yalnız "sıradaki faz" satırı
 vardır. Tam tabloyu yalnız `README.md`'de güncelle.

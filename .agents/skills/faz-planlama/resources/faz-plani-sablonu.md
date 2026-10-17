@@ -130,8 +130,9 @@ src/Tracon.<Paket>/
 Her yeni kod yolu için beş soru cevaplanır ve cevabı bu tabloya girer:
 iptal · eşzamanlılık · boş/aşırı girdi · başka kiracının kaydı · alt sistem hatası.
 
-Sözleşme testi gerekiyorsa `tests/Shared/Contracts/` altına — hem bellek içi
-hem üç SQL sağlayıcısı üzerinde koşar.
+Sözleşme testi gerekiyorsa taban sınıf `src/Tracon.Testing.Contracts.Xunit/Contracts/`
+altına, türetilen sınıf her sağlayıcının `tests/*/Contracts/` dizinine — hem
+bellek içi hem üç SQL sağlayıcısı üzerinde koşar.
 
 ---
 

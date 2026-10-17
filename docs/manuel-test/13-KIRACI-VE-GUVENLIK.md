@@ -100,7 +100,7 @@ flowchart TD
 | Kalıcı onay kuralları (`ToolApprovalRule`) CRUD'u | `18-MCP-VE-A2A.md`'nin GovernanceEndpoints bölümü ile birlikte (`MapApprovalRules`) |
 | `PatternContentGuard`/`DeniedTerms` içerik engeli (`content.blocked` denetim kaydının KENDİSİ değil, guard'ın karar mantığı) | `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` |
 | PostgreSQL/SQLite/SQL Server'a özgü şema, migration, satır düzeyi kiracı sütunu | `03-KALICILIK-POSTGRESQL.md` · `04-KALICILIK-DIGER.md` (zaten üretildi) |
-| Hız sınırlama (`TraconRateLimitFilter`, varsayılan kapalı) | **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 düşen not |
+| Hız sınırlama (`TraconRateLimitFilter`, varsayılan kapalı) | **Hiçbir dosyaya atanmamış** (eski `00-INDEKS.md` §8, `55584bb6`) |
 | Ses WebSocket el sıkışması (`Sec-WebSocket-Protocol` token taşıma) | `19-COK-MODLULUK-VE-SES.md` |
 | `/api/diagnostics`'in genel şekli ve alanları | `25-SAGLIK-TESHIS-OPENAPI.md` — burada yalnız rol koruması bir örnek uç olarak kullanılır |
 

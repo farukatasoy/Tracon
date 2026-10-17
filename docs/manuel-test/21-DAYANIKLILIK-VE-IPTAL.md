@@ -19,7 +19,8 @@
 > `ApprovalResumeJobHandler.cs`) ·
 > `src/Tracon.Core/Runs/DefaultRunErrorClassifier.cs` (yalnız
 > `Canceled`/`Infrastructure` dalları) ·
-> `src/Tracon.Core/SingletonGuard.cs`, `SingletonExecutionOptions.cs` ·
+> `src/Tracon.Core/Coordination/SingletonGuard.cs`,
+> `src/Tracon.Abstractions/Coordination/SingletonExecutionOptions.cs` ·
 > `src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs` (yalnız
 > `CancelRunAsync`, satır 631-719) ·
 > `src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs` (tümü) ·

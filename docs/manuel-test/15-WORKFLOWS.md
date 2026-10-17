@@ -71,9 +71,9 @@ flowchart TD
 | Genel HTTP zarfı (`ProblemDetails`, CRUD, idempotency) | `07-HTTP-YONETIM-API.md` (zaten üretildi) |
 | Üç katmanlı erişim koruması, kiracı izolasyonu, API anahtarı kapsamları | `13-KIRACI-VE-GUVENLIK.md` (zaten üretildi) — burada TEKRARLANMAZ, yalnız §9'daki kapsam boşluğu bu dosyaya özgü olduğu için buradadır |
 | `run-detail.tsx`'in `kind === 'Workflow'` satırını nasıl gösterdiği, `AwaitingInput` istatistik dalı, "Dallandır" | `11-ARAYUZ-RUN-SESSION-SSE.md` (zaten üretildi, `MT-UIRUN-012`/`013`/`044`) — burada TEKRARLANMAZ |
-| SSE `error` çerçevesinin gerçek sağlayıcı istisnalarını (K-296) yakalayamaması | `05-SAGLAYICI-OPENAI.md` `MT-OAI-043` — bu dosyadaki workflow hataları `TraconException`'dır ve o boşluğa **girmez** (bkz. §8 notu) |
+| SSE `error` çerçevesinin gerçek sağlayıcı istisnalarını (K-296) yakalayamaması | `05-SAGLAYICI-OPENAI.md` `MT-OAI-043` — bu dosyadaki workflow hataları `TraconException`'dır ve o boşluğa **girmez** (bkz. eski `00-INDEKS.md` §8, `55584bb6`) |
 | İş kuyruğu (`Prefer: respond-async`) ile workflow çalıştırma | `16-IS-KUYRUGU-VE-ZAMANLAMA.md` (henüz üretilmedi) |
-| Rol matrisi (`TraconPolicies.Reader`/`.Admin`) genel no-op durumu | `00-INDEKS.md` §8 ve `14-SKILL-VE-SCRIPT.md`'de zaten kaydedildi — burada tekrar açıklanmaz, yalnız §9'un öncülü olarak anılır |
+| Rol matrisi (`TraconPolicies.Reader`/`.Admin`) genel no-op durumu | `14-SKILL-VE-SCRIPT.md`'de (ve eski `00-INDEKS.md` §8, `55584bb6`) zaten kaydedildi — burada tekrar açıklanmaz, yalnız §9'un öncülü olarak anılır |
 
 > **Rol matrisi burada da NO-OP'tur, tekrar test edilmez.** `WorkflowEndpoints`
 > her ucu `RequireRole(roles.Reader/Operator/Admin)` ile işaretler ama

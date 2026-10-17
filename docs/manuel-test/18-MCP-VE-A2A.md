@@ -1244,7 +1244,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/mcp" -H "Authorization: Bearer
 
 🚨 Şüpheli davranış — kod okumasıyla ölçüldü, koşumda doğrulanır. Bu,
 `WorkflowEndpoints`/`SchedulingEndpoints` için önceden ölçülen kalıbın
-(bkz. `00-INDEKS.md` §8) **BEŞİNCİ** bağımsız tekrarıdır — MCP sunucu
+(bkz. eski `00-INDEKS.md` §8, `55584bb6`) **BEŞİNCİ** bağımsız tekrarıdır — MCP sunucu
 **kayıt** API'si (`GET/PUT/DELETE /api/mcp-servers[/{name}]`, `POST
 /api/mcp-servers/refresh`, `GET/POST /api/mcp-servers/{name}/prompts[/{prompt}]`,
 `GET /api/mcp-servers/{name}/resources[/read]`, `POST
@@ -1297,7 +1297,7 @@ Somut, uçtan uca kanıt — MT-MCP-051'in rol katmanı boyutu.
 
 **Ön koşul**
 - Örnek uygulama `TraconPolicies.*` rol politikalarını HİÇ kaydetmez
-  (`00-INDEKS.md` §8'de zaten ölçülmüş) — bu durumda
+  (eski `00-INDEKS.md` §8, `55584bb6` — orada ölçülmüştü) — bu durumda
   `RequireRole(roles.Admin)` de no-op'tur.
 
 **Adımlar**

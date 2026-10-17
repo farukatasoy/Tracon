@@ -14,7 +14,7 @@ basittir:
 | Davranış | Doğru seviye | Neden |
 |---|---|---|
 | Saf hesap, biçimlendirme, doğrulama | Birim | Sınır yok |
-| Depo sözleşmesi (yazma/okuma/yalıtım) | `tests/Shared/Contracts/` sözleşme testi | Bellek içi + üç SQL sağlayıcısında birden koşar |
+| Depo sözleşmesi (yazma/okuma/yalıtım) | Sözleşme testi: taban sınıf `src/Tracon.Testing.Contracts.Xunit/Contracts/`, türetilen sınıf `tests/*/Contracts/` | Bellek içi + üç SQL sağlayıcısında birden koşar |
 | HTTP davranışı, DI kaydı, yetki | Fonksiyonel (`Tracon.AspNetCore.FunctionalTests`) | Bir depo davranışını düzeltmek çağıranı sessizce değiştirir (K-283) |
 | `span`, `scope`, `AsyncLocal`, akışlı yol | Fonksiyonel **ve** örnek uygulama | Birim testi `AsyncLocal` akışını taklit eder, kanıtlamaz |
 | Ekran, rota, iki dillilik | E2E (Playwright) | `tsc` yalnız anahtar varlığını zorlar |

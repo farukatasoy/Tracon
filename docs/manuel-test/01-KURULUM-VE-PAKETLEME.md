@@ -499,7 +499,7 @@ ls /tmp/ap-pack/*.nupkg | grep -i generators || echo "Generators yayimlanmadi - 
 
 🚨 **Bu case bir şüphe üzerine yazıldı ve üretim oturumunda ölçüldü.** Ölçüm
 şunu gösterdi: `--no-build` ile paketlenen `Tracon.Core`, üreteç DLL'ini
-**taşımıyor**. Ayrıntı [`00-INDEKS.md`](00-INDEKS.md) §8'dedir. Koşum bu ölçümü
+**taşımıyor**. Ayrıntı: eski `00-INDEKS.md` §8, `55584bb6`. Koşum bu ölçümü
 tekrarlar ve kapsamını kesinleştirir.
 
 Etki: üreteç eksikse tüketicinin `AddGeneratedTools()` çağrısı `CS1061` verir.

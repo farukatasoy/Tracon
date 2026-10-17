@@ -70,7 +70,7 @@ flowchart TD
 | SSE `error` çerçevesi boşluğu (K-296), sağlayıcı hata sınıflandırması, `Idempotency-Key` | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) · [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) · [`08-OPENAI-UYUMLU-UCLAR.md`](08-OPENAI-UYUMLU-UCLAR.md) — zaten üretildi |
 | Playground'ın kendi transkript katlaması, onay/tool kartları, agent kataloğu | [`10-ARAYUZ-AGENT-PLAYGROUND.md`](10-ARAYUZ-AGENT-PLAYGROUND.md) — zaten üretildi |
 | Trace/span dökümü (`Waterfall`), maliyet grafikleri, dashboard | `12-GOZLEMLENEBILIRLIK-MALIYET.md` (henüz üretilmedi) — burada yalnız Trace panelinin **hangi koşulda hiç render edilmediği** ölçülür |
-| Geri bildirim (`FeedbackControl`, thumbs up/down, judge puanlama, Faz 31) | 🚨 **Hiçbir dosyaya atanmamış** — bkz. `00-INDEKS.md` §8 notu. Bu dosya `FeedbackControl`'e HİÇ dokunmaz. |
+| Geri bildirim (`FeedbackControl`, thumbs up/down, judge puanlama, Faz 31) | `17-EVAL-VE-DENEYLER.md` (`MT-EVAL-080`…`090`). Bu dosya `FeedbackControl`'e HİÇ dokunmaz. |
 | Eval kümesine yükseltme (`PromoteToEvalCase`, Faz 45) | `17-EVAL-VE-DENEYLER.md` (henüz üretilmedi) |
 | Guard kuralının kendi tanımı/motoru (`DeniedTerms` vb.) | `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` (henüz üretilmedi) — burada yalnız `ContentBlocked`/`ContentMasked` olaylarının bu ekranda **nasıl** (yalnız zaman çizelgesinde, transkriptte DEĞİL) göründüğü ölçülür |
 | Workflow'un kendi grafiği, kontrol noktası, `resume`/`respond` mekaniği | `15-WORKFLOWS.md` (henüz üretilmedi) — burada yalnız run-detail'in `kind === 'Workflow'` satırını **nasıl gösterdiği** ölçülür |

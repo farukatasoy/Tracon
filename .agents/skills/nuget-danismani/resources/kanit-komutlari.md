@@ -204,7 +204,7 @@ grep -rnE "repository is private|repo(sitory)? private|ozel repo" \
 ```
 
 Sayı taşıyan iddialar (paket sayısı, aile sayısı) **elle güncellenir ve elle
-bayatlar**. `docs-site/check-content.mjs` bunlardan bir kısmını kapıya bağlar;
+bayatlar**. `docs-site/scripts/check-content.mjs` bunlardan bir kısmını kapıya bağlar;
 kapıya bağlanmamış her sayı bir drift adayıdır.
 
 ---

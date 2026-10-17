@@ -7,8 +7,8 @@ description: Bir faza (docs/NN-*.md) başlarken uygulanacak açılış protokol�
 
 Amaç tek şeydir: **fazı doğru bilgiyle, en az okumayla başlatmak.**
 
-Bu repoda dokümanlar birikimlidir. `KARARLAR.md` 457 KB, `arsiv/` dosyaları
-onlarca KB'dir. Hepsini okumak bağlamın yarısını harcar ve kod yazacak yer
+Bu repoda dokümanlar birikimlidir. `KARARLAR.md` ve `arsiv/` dosyaları yüzlerce
+KB'dir. Hepsini okumak bağlamın yarısını harcar ve kod yazacak yer
 bırakmaz. Ölçüldü (2026-08-03): eski protokolle bir faz **kod okumadan önce**
 ~125k token doküman yüküyle başlıyordu.
 
@@ -19,10 +19,12 @@ bırakmaz. Ölçüldü (2026-08-03): eski protokolle bir faz **kod okumadan önc
 Sırayla, tamamı:
 
 1. `AGENTS.md` — zaten yüklü
-2. [`MEMORY.md`](../../../MEMORY.md) — 5 KB
+2. [`MEMORY.md`](../../../MEMORY.md) — 6 KB
 3. Fazın kendi dokümanı: `docs/NN-*.md`
-   — kapanmış fazlar (00–89) `docs/arsiv/fazlar/NN-*.md` altındadır (Faz 77);
-     yeri [`docs/YOL-HARITASI.md`](../../../docs/YOL-HARITASI.md) satırındaki bağlantıdır.
+   — kapanmış fazlar `docs/arsiv/fazlar/NN-*.md` altındadır; yeri
+     [`docs/YOL-HARITASI.md`](../../../docs/YOL-HARITASI.md) satırındaki bağlantıdır.
+     Orada olmayan eski bir kayıt 2026-10-17'de silinmiştir:
+     `git show 2a8149ef:docs/arsiv/fazlar/<dosya>`.
    — o kayıtlar **damıtılmıştır** (Faz 90): planın gövdesi değil, fazın bıraktığı
      kalıcı bilgi (sapmalar, kararlar, denetim bulguları, devir notu) durur.
      Plana gerçekten bakman gerekirse kaydın içindeki `git show <sha>:<yol>`
@@ -123,7 +125,6 @@ Faz açılışında **hiçbir koşulda** baştan sona okunmaz:
 - `docs/KARARLAR.md` — indeksi ve grep'i var
 - `docs/arsiv/*.md` — yalnız "neden böyle olmuş?" sorusunda grep'lenir
 - Tamamlanmış fazların dokümanları — yalnız devir notu bölümü
-- `docs/arsiv/BEYIN-FIRTINASI.md` — tarihsel kayıt; faz dokümanı geçerlidir
 - `docs/MAF-GENISLEME-NOKTALARI.md` — yalnız MAF'a dokunurken
 
 Bunlardan birine gerçekten ihtiyaç duyduğunda **neden** gerektiğini bir cümleyle

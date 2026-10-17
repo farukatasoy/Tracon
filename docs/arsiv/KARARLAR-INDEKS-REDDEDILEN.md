@@ -10,7 +10,7 @@ Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe
 ```
 
-## Reddedilen İşler (30 kalem)
+## Reddedilen İşler (24 kalem)
 
 | KARARLAR.md satırı | Karar |
 |---|---|
@@ -23,24 +23,18 @@ sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe
 | L21 | MAF tipleri sarmalanmadı |
 | L22 | Trim/AOT analyzer'ları kök seviyede açılmadı |
 | L23 | Katalog MAF'ın `AddAIAgent` kayıtlarını doğrudan okumadı |
-| L24 | `AddToolsFrom<T>()` (attribute taramalı tool kaydı) Faz 1'de yapılmadı 🔁 |
-| L25 | Yerleşik OpenAI model listesi kodda tutulmadı |
-| L26 | Responses API'de sunucu tarafı konuşma durumu kullanılmadı |
-| L27 | `ValidateDataAnnotations()` kullanılmadı |
-| L28 | Çalıştırma kaydı MAF middleware'i olarak yazılmadı |
-| L29 | EF Core migration'ları yerine gömülü SQL — uygulandı ve doğrulandı |
-| L30 | `tenant_id` sütunlarına yabancı anahtar konmadı |
-| L31 | `tool_invocations` tablosu Faz 2'de doldurulmadı |
-| L32 | MAF'ın `MapOpenAIResponses()` / `MapOpenAIConversations()` uçları kullanılmadı 👤 |
-| L33 | `/v1/conversations` ucu Faz 4'te yazılmadı 👤🔁 |
-| L34 | `/api/stats` maliyet döndürmüyor |
-| L35 | OpenAPI paketi `Tracon.AspNetCore` bağımlılığı yapılmadı |
-| L36 | `run_events` gerçekten partition'lanmadı |
-| L37 | Arayüzden tool istatistiği ve model sağlık kontrolü Faz 5'te gösterilmedi 👤 |
-| L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |
-| L39 | `MigrationRunner`'a deadlock (SQL Server hata 1205) için yeniden deneme eklenmedi (Faz 63) |
-| L40 | Tam test koşumunda `-maxcpucount:1` gevşetilmedi (iki dalgalı koşum) |
-| L41 | Eval suite'i için ayrı bir CI kapısı eklenmedi — yetenek zaten var |
-| L42 | Skor düşüşü için ayrı bir alarm eklenmedi — yetenek zaten var |
-| L43 | Agent sürümüne `production`/`staging` label'ı eklenmedi — ihtiyaç zaten karşılanıyor |
-| L44 | Langfuse'un beş sütunu ayrı bir katman olarak kurulmadı — beşi de zaten var |
+| L24 | Yerleşik OpenAI model listesi kodda tutulmadı |
+| L25 | Responses API'de sunucu tarafı konuşma durumu kullanılmadı |
+| L26 | `ValidateDataAnnotations()` kullanılmadı |
+| L27 | Çalıştırma kaydı MAF middleware'i olarak yazılmadı |
+| L28 | EF Core migration'ları yerine gömülü SQL — uygulandı ve doğrulandı |
+| L29 | `tenant_id` sütunlarına yabancı anahtar konmadı |
+| L30 | MAF'ın `MapOpenAIResponses()` / `MapOpenAIConversations()` uçları kullanılmadı 👤 |
+| L31 | OpenAPI paketi `Tracon.AspNetCore` bağımlılığı yapılmadı |
+| L32 | `run_events` gerçekten partition'lanmadı |
+| L33 | `MigrationRunner`'a deadlock (SQL Server hata 1205) için yeniden deneme eklenmedi (Faz 63) |
+| L34 | Tam test koşumunda `-maxcpucount:1` gevşetilmedi (iki dalgalı koşum) |
+| L35 | Eval suite'i için ayrı bir CI kapısı eklenmedi — yetenek zaten var |
+| L36 | Skor düşüşü için ayrı bir alarm eklenmedi — yetenek zaten var |
+| L37 | Agent sürümüne `production`/`staging` label'ı eklenmedi — ihtiyaç zaten karşılanıyor |
+| L38 | Langfuse'un beş sütunu ayrı bir katman olarak kurulmadı — beşi de zaten var |
