@@ -4,7 +4,7 @@ description: Understand which Tracon release these docs describe, pin preview pa
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 

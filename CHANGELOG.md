@@ -6,6 +6,58 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-preview.5] - 2026-10-17
+
+The public API gets smaller before it freezes, and every dependency moves to its
+newest line. Twelve interfaces, 23 types that only they used, 81 HTTP request and
+response types and `TraconAgentSessionStore` leave the public surface; five service
+types lose their public constructors; `AuthorizationConfigurationKey` is removed from
+the MCP server types, and a migration moves the stored data. The runtime moves to
+Microsoft Agent Framework `1.25.0` and Microsoft.Extensions.AI `10.11.0`.
+`Tracon.Azure` calls the Azure OpenAI v1 API, Anthropic `ReasoningEffort` becomes
+adaptive thinking, and a configuration value Tracon cannot read now stops startup. The
+release adds one migration to each SQL provider and breaks source in several places:
+read Upgrading from 1.0.0-preview.4 first.
+
+### Upgrading from 1.0.0-preview.4
+
+- **Migrations.** PostgreSQL `0062`, SQL Server `0050` and SQLite `0049`
+  (`remove_authorization_configuration_key`). With `AutoApplyMigrations` (the default) they run at
+  startup. Each one moves the stored `authorization_configuration_key` of an MCP server into its
+  `header_configuration_keys` map as the `Authorization` entry, then drops the column. A row with
+  OAuth on, or whose map already names `Authorization` in any letter case, keeps its map: the
+  connection never read the old key there. An empty key moves nothing. Only the key **name** moves;
+  no secret value is stored or touched.
+- **The column is dropped in the same migration, so there is no way back.** A build from before the
+  migration cannot read the table. Back up the database before the first start on this version.
+- Every MCP connection reconnects once after the upgrade (its definition fingerprint changed).
+- **Public types changed or left the surface.** Each entry below (Changed, Removed) says what to do:
+  - `McpServerDefinition.AuthorizationConfigurationKey` and
+    `McpServerRequest.AuthorizationConfigurationKey` are removed; declare the key name as
+    `HeaderConfigurationKeys["Authorization"]`. `PUT /api/mcp-servers/{name}` answers `400` to a body
+    that still carries `authorizationConfigurationKey`.
+  - Twelve interfaces, 23 types, 81 HTTP request and response types and `TraconAgentSessionStore`
+    are `internal`. A host that named one declares its own type, or resolves a service from DI.
+  - `IRunStore.UpdateRunCostAsync` has no default for `tenantId`; pass the run's tenant.
+  - `SingleTenantContext`, `HttpTenantContext`, `TimeoutAIFunction`, `CompiledAgentCache` and
+    `DefaultRunAttributionContext` have no public constructor; resolve them from DI.
+  - `OpenAILiveOptions.BackendModel`, `LiveVoiceSessionOptions.BackendModel`,
+    `QuotaUsageQuery.AsOf` and `LiveVoiceDelegationMode.Responses` are gone.
+  - `Tracon.Client`: `IMcpToolRefresher` and the `body` parameter of `TraconRefreshMcpToolsAsync`
+    are gone.
+  - `JobStoreContract` gains a test; a third-party `IJobStore` that keeps a time limit in a 32-bit
+    millisecond column fails it.
+- **Behavior changes most likely to reach an upgrade**, each described in its entry below: a
+  `Tracon:Voice:Live:DelegationMode` or `Tracon:UtilityModel` value Tracon cannot read stops startup;
+  `Tracon.Azure` uses the Azure OpenAI v1 API and refuses an Entra token over plain HTTP; Anthropic
+  `ReasoningEffort` is adaptive thinking; `Tracon.Anthropic` and `Tracon.Google` no longer promise
+  Native AOT compatibility.
+- A project that pins Agent Framework hosting packages next to Tracon moves them to the versions in
+  the dependencies entry (Changed), or restore fails with `NU1608` or `NU1107`.
+- Pin every Tracon package to the same exact version. The pre-release Microsoft Agent Framework
+  hosting packages are pinned at `1.25.0-preview.261014.1`, `Microsoft.Agents.AI.Hosting.OpenAI` at
+  `1.25.0-alpha.261014.1` and `A2A.AspNetCore` at `1.0.0-preview3`.
+
 ### Changed
 
 - **`Tracon.Azure` calls the Azure OpenAI v1 API.** Requests go to `{endpoint}/openai/v1/` through
@@ -184,21 +236,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `null` or nothing as the body drops the argument; `TraconRefreshMcpToolsAsync(cancellationToken)`
   sends the same request.
 
-### Upgrading from 1.0.0-preview.4
-
-- **Migrations.** PostgreSQL `0062`, SQL Server `0050` and SQLite `0049`
-  (`remove_authorization_configuration_key`). With `AutoApplyMigrations` (the default) they run at
-  startup. Each one moves the stored `authorization_configuration_key` of an MCP server into its
-  `header_configuration_keys` map as the `Authorization` entry, then drops the column. A row with
-  OAuth on, or whose map already names `Authorization` in any letter case, keeps its map: the
-  connection never read the old key there. An empty key moves nothing. Only the key **name** moves;
-  no secret value is stored or touched.
-- **The column is dropped in the same migration, so there is no way back.** A build from before the
-  migration cannot read the table. Back up the database before the first start on this version.
-- Every MCP connection reconnects once after the upgrade (its definition fingerprint changed).
-- A client that still sends `authorizationConfigurationKey` to `PUT /api/mcp-servers/{name}` gets
-  `400`; move the key name into `headerConfigurationKeys["Authorization"]` (see Removed).
-
 ### Added
 
 - **`WorkflowRunRequest.DefinitionVersion`.** The version of a stored workflow's definition to
@@ -279,8 +316,6 @@ each SQL provider: read Upgrading from 1.0.0-preview.3 first.
   harness-loop agent hands only its final iteration to a workflow step, the
   OpenAI-compatible and A2A streams and voice; `functions` and `requests` are
   reserved workflow names.
-  Provider changes: `Tracon.Azure` uses the Azure OpenAI v1 API and refuses an Entra
-  token over plain HTTP; Anthropic `ReasoningEffort` is adaptive thinking.
 - Pin every Tracon package to the same exact version. The pre-release Microsoft
   Agent Framework hosting packages stay pinned at their 1.20.0 previews.
 
