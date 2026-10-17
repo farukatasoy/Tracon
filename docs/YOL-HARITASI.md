@@ -230,6 +230,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [215](arsiv/fazlar/215-TEST-VE-DERLEME-ARACLARI.md) | Test ve Derleme Araçları | ✅ Tamamlandı |
 | [216](arsiv/fazlar/216-NPM-BAGIMLILIKLARI.md) | npm Bağımlılıkları: Arayüz, TypeScript İstemcisi ve Site | ✅ Tamamlandı |
 | [217](arsiv/fazlar/217-SAGLAYICI-MODERNLESME-VE-AOT-VAADI.md) | Sağlayıcı Modernleşmesi ve AOT Vaadinin Kanıtı | ✅ Tamamlandı |
-| [218](218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md) | `AuthorizationConfigurationKey` Alanını Kaldırma | ✅ Tamamlandı |
+| [218](arsiv/fazlar/218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md) | `AuthorizationConfigurationKey` Alanını Kaldırma | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

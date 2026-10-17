@@ -2,10 +2,10 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-17)
 > **Plan onayı:** kullanıcı "faza başla ve bitir, commit atabilirsin" dedi (2026-10-17). Dört Açık Soru ayrıca sorulmadı: planın önerileri (hepsi **A**) uygulandı — bkz. *Plandan Sapmalar* 1. Planlamada verilen kararlar (farukatasoy, 2026-10-17): eski alanı gönderen istek **`400` ile reddedilir** ve yerine geçen alanı adıyla söyler · veri **aynı migration'da taşınır ve sütun düşürülür** · iş freeze'den (`1.0.0-rc.1`) önce yapılır (UR-012 = A).
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-290**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-290**
 > **Genellik:** MCP sunucusu kaydeden **her** tüketici: HTTP (`PUT /api/mcp-servers/{name}`), konsol formu ve kodla (`McpServerDefinition`) kayıt. İş tüketici kodunda kalamaz: alan, sütun ve form Tracon'dadır. İkinci kanıt: kaldırma 1.0'a duyuruldu (K-869, `CHANGELOG`, XML, `production.md`) ve UR-012 kırıcı kalemleri freeze'den önce ister.
 > **Karşı görüş:** "`[Obsolete]` alan zararsızdır; kaldırmak veri taşıma ve kırıcı değişiklik getirir." Cevap: freeze'den sonra kaldırmak bir major ister. `[Obsolete]` üye 1.x boyunca donar ve iki yol, iki çakışma kuralı ve on bir `CS0618` bastırması kalıcı olur. Preview'da kaldırma kırıcı ama serbesttir; sürüm notunda adıyla yazılır.
-> **Önkoşul:** Yok ([Faz 190](arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) `headerConfigurationKeys`'i ve `[Obsolete]`'u getirdi; kapandı)
+> **Önkoşul:** Yok ([Faz 190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) `headerConfigurationKeys`'i ve `[Obsolete]`'u getirdi; kapandı)
 > **Paketler:** `Tracon.Abstractions`, `.AspNetCore`, `.Mcp`, `.Sql.Shared` (kaynak paylaşımı), `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`, `.Client` (üretilen), `.UI`, `@tracon/client` (üretilen)
 > **Yeni paket:** Yok · **Migration:** gerekli — üç sağlayıcı; numara uygulama anında alınır (bugün son: PostgreSQL `0061`, SQL Server `0049`, SQLite `0048`)
 > **Public API:** **küçülüyor** — iki public üye kalkar (`McpServerDefinition.AuthorizationConfigurationKey`, `McpServerRequest.AuthorizationConfigurationKey`); HTTP şemasından bir alan kalkar. `PublicAPI.Shipped.txt` boş: preview'da kırıcı değişiklik serbest, sürüm notunda adıyla (K-604 kapısı tipi görür)
@@ -25,11 +25,11 @@
    grep -n "^| \*\*K-059 \|^| \*\*K-869 \|^| \*\*K-870 \|^| \*\*K-178 \|^| \*\*K-604 " docs/KARARLAR.md
    ```
    **K-059** (`secret` yazılmaz; kayıtta yalnız anahtarın adı) · **K-869** (alan `[Obsolete]`, `1.0.0`'da kalkar; iki alandan ya da OAuth ile `Authorization` `400`) · **K-870** (`PUT`'ta yok/`null` harita saklı değeri korur, `{}` temizler) · **K-178** (migration numaraları sağlayıcı başına bağımsız) · **K-604** (kırıcı değişiklik kapısı)
-3. [`arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md`](arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) — yalnız devir notu:
+3. [`arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md`](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md
    ```
-4. Alan hafızası: [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (migration kuralları) · [`hafiza/sqlite.md`](hafiza/sqlite.md) (`DROP COLUMN`, `json_each` gölgeleme tuzağı) · [`hafiza/sql-server-tuzaklari.md`](hafiza/sql-server-tuzaklari.md) (`OPENJSON`) · [`hafiza/mcp-a2a-sunucu.md`](hafiza/mcp-a2a-sunucu.md) · [`hafiza/nswag-istemci-uretimi.md`](hafiza/nswag-istemci-uretimi.md) (istemci yeniden üretimi) · [`hafiza/frontend.md`](hafiza/frontend.md)
+4. Alan hafızası: [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (migration kuralları) · [`hafiza/sqlite.md`](../../hafiza/sqlite.md) (`DROP COLUMN`, `json_each` gölgeleme tuzağı) · [`hafiza/sql-server-tuzaklari.md`](../../hafiza/sql-server-tuzaklari.md) (`OPENJSON`) · [`hafiza/mcp-a2a-sunucu.md`](../../hafiza/mcp-a2a-sunucu.md) · [`hafiza/nswag-istemci-uretimi.md`](../../hafiza/nswag-istemci-uretimi.md) (istemci yeniden üretimi) · [`hafiza/frontend.md`](../../hafiza/frontend.md)
 5. Emsal migration'lar (sütun düşürme): PostgreSQL `0043_job_handler_key.sql`, SQL Server `0030_job_handler_key.sql`, SQLite `0030_job_handler_key.sql`; JSON sütunu: PostgreSQL `0054_header_configuration_keys.sql` ve eşleri
 
 ---
@@ -48,17 +48,17 @@ Freeze'den sonra 1.x tek bir kimlik yolu taşır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`McpServerDefinition.cs:82-83`](../src/Tracon.Abstractions/Mcp/McpServerDefinition.cs) | `[Obsolete(ObsoleteMessages.AuthorizationConfigurationKey)] public string? AuthorizationConfigurationKey` |
-| [`GovernanceContracts.cs:48-49`](../src/Tracon.AspNetCore/Contracts/GovernanceContracts.cs) | `McpServerRequest` aynı alanı public taşır |
+| [`McpServerDefinition.cs:82-83`](../../../src/Tracon.Abstractions/Mcp/McpServerDefinition.cs) | `[Obsolete(ObsoleteMessages.AuthorizationConfigurationKey)] public string? AuthorizationConfigurationKey` |
+| [`GovernanceContracts.cs:48-49`](../../../src/Tracon.AspNetCore/Contracts/GovernanceContracts.cs) | `McpServerRequest` aynı alanı public taşır |
 | `ObsoleteMessages.cs:24-28` (dosya bu fazda silindi) | `internal static class`; mesaj "removed in 1.0.0" der |
-| [`GovernanceEndpoints.cs:310-312`](../src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs) · `:942-953` · `:1133-1140` | Kayıt alanı saklar; iki alanda `Authorization` → `400`; eski alan anahtar alanı kuralından geçer |
-| [`McpHeaderBuilder.cs:53-56`](../src/Tracon.Mcp/Internal/McpHeaderBuilder.cs) · `:60-66` · `:182-215` | **Öncelik:** `HeaderConfigurationKeys` içindeki bir başlık eski değeri **her zaman** ezer (`headers.Remove(header)` → `:66`); OAuth açıkken eski alan hiç okunmaz (`:196-206`); iki alan da çalışma anında `keySpace.Require`'dan geçer (`:55`, `:214`) |
-| [`McpConnection.cs:121-133`](../src/Tracon.Mcp/Internal/McpConnection.cs) | Bağlantı parmak izi eski alanı içerir; alan kalkınca her bağlantı yükseltmeden sonra **bir kez** yeniden kurulur |
-| [`SqlApprovalAndMcpStores.cs:201-205`](../src/Tracon.Sql.Shared/Stores/SqlApprovalAndMcpStores.cs) · `:296-297` | Paylaşılan SQL deposu sütunu yazar ve okur (`GetNullableString(reader, 6)` — **okuma sırası sütun indeksine bağlıdır**) |
+| [`GovernanceEndpoints.cs:310-312`](../../../src/Tracon.AspNetCore/Endpoints/GovernanceEndpoints.cs) · `:942-953` · `:1133-1140` | Kayıt alanı saklar; iki alanda `Authorization` → `400`; eski alan anahtar alanı kuralından geçer |
+| [`McpHeaderBuilder.cs:53-56`](../../../src/Tracon.Mcp/Internal/McpHeaderBuilder.cs) · `:60-66` · `:182-215` | **Öncelik:** `HeaderConfigurationKeys` içindeki bir başlık eski değeri **her zaman** ezer (`headers.Remove(header)` → `:66`); OAuth açıkken eski alan hiç okunmaz (`:196-206`); iki alan da çalışma anında `keySpace.Require`'dan geçer (`:55`, `:214`) |
+| [`McpConnection.cs:121-133`](../../../src/Tracon.Mcp/Internal/McpConnection.cs) | Bağlantı parmak izi eski alanı içerir; alan kalkınca her bağlantı yükseltmeden sonra **bir kez** yeniden kurulur |
+| [`SqlApprovalAndMcpStores.cs:201-205`](../../../src/Tracon.Sql.Shared/Stores/SqlApprovalAndMcpStores.cs) · `:296-297` | Paylaşılan SQL deposu sütunu yazar ve okur (`GetNullableString(reader, 6)` — **okuma sırası sütun indeksine bağlıdır**) |
 | `PostgresQueries.cs:1012-1024` · `SqlServerQueries.cs:1144-1174` · `SqliteQueries.cs:998` · `SqlQueriesBase.cs:1160` | Üç sağlayıcının sorgu metni sütunu anar |
 | PostgreSQL `0002_observability.sql:119` · SQL Server `0001_initial.sql:390` · SQLite `0001_initial.sql:295` | Sütun tanımı (`text` / `nvarchar(200)` / `TEXT`); `header_configuration_keys` JSON (PostgreSQL `jsonb`, SQL Server `nvarchar` + `ISJSON`, SQLite `TEXT` + `json_valid`) |
-| [`ToolApprovalRuleStoreContract.cs:289-290`](../src/Tracon.Testing.Contracts.Xunit/Contracts/ToolApprovalRuleStoreContract.cs) · `:353-354` | **Sevk edilen** sözleşme paketi eski alanı gidiş-dönüş sınar |
-| [`mcp.tsx:41`](../src/Tracon.UI/frontend/src/screens/mcp.tsx) · `:65-66` · `:378-384` · `:425-427` | Form eski alanı yazar; OAuth açılınca temizler; özet eski alanı okur. Form yalnız **ekler** (`full-replace-editors.test.tsx` `CREATE_ONLY`) |
+| [`ToolApprovalRuleStoreContract.cs:289-290`](../../../src/Tracon.Testing.Contracts.Xunit/Contracts/ToolApprovalRuleStoreContract.cs) · `:353-354` | **Sevk edilen** sözleşme paketi eski alanı gidiş-dönüş sınar |
+| [`mcp.tsx:41`](../../../src/Tracon.UI/frontend/src/screens/mcp.tsx) · `:65-66` · `:378-384` · `:425-427` | Form eski alanı yazar; OAuth açılınca temizler; özet eski alanı okur. Form yalnız **ekler** (`full-replace-editors.test.tsx` `CREATE_ONLY`) |
 | `locales/{en,tr}/operations.ts` `mcp.authKey`, `mcp.authKeyHint` | Alanın etiketi ve ipucu |
 | `git grep -n "pragma warning disable CS0618"` | 11 blok: 7 `src`, 2 sevk edilen sözleşme, 2 test |
 | Testler | `GovernanceEndpointTests`, `EgressGuardTests:160`, `TenantScopedConfigurationKeyTests`, `CredentialHeaderSaveTests`, `McpHeaderBuilderTests:154`, `ConfigurationKeyGuardTests`, `AuditSecretFilterTests`, `ObsoleteMessagesTests`, `UsageAnalyzerTests:154,214` (`TRC0201` örneği alanı kullanır), `TemplateAgentsFileTests:602` |
@@ -378,7 +378,7 @@ Denetçi `kapi.py yayin --kuru`'yu çalıştırmadı (tam test koşumuyla çakı
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki iş:** F-559 (1.x evrim kuralları ve kapıları, freeze sırası 5) — henüz faz dokümanı yok; `faz-planlama` ile plana dönüşür ([`ADAYLAR.md`](ADAYLAR.md)). F-560 upstream MAF GA'sına bağlıdır (UR-013). `docs/193-NET8-NET9-DUSURME.md` 2026-11-10 sonrasını bekler. **Site yayını bakımcı onayı bekler** (`scripts/site-deploy.sh`, `faz-tamamlama` Adım 10): bu oturumda yayınlanmadı.
+**Sıradaki iş:** F-559 (1.x evrim kuralları ve kapıları, freeze sırası 5) — henüz faz dokümanı yok; `faz-planlama` ile plana dönüşür ([`ADAYLAR.md`](../../ADAYLAR.md)). F-560 upstream MAF GA'sına bağlıdır (UR-013). `docs/193-NET8-NET9-DUSURME.md` 2026-11-10 sonrasını bekler. **Site yayını bakımcı onayı bekler** (`scripts/site-deploy.sh`, `faz-tamamlama` Adım 10): bu oturumda yayınlanmadı.
 
 Devralınan sözleşmeler:
 

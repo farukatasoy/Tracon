@@ -2493,7 +2493,7 @@ deseni gösteriyor. İş mekaniktir ve paralelleştirilebilir.
 
 ## 2026-10-17 — F-290 Faz 218'e dönüştü
 
-Plan: [`../218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md`](../218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md). Kararlar: eski alan `400`; aynı migration'da taşı ve sütunu düşür (UR-012).
+Plan: [`../218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md`](fazlar/218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md). Kararlar: eski alan `400`; aynı migration'da taşı ve sütunu düşür (UR-012).
 
 ### F-290 · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi
 
