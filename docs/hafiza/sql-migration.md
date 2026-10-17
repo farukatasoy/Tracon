@@ -65,3 +65,9 @@ tabandan **sonra eklenen** bir dosya o tabanda yoktur ve kapı onu ihlal sayar.
 - Ankrajlamadan önce **ölç**: `git diff --name-status <taban>..HEAD --
   "src/*/Migrations/*.sql"` yalnız `A` satırları göstermelidir. Bir `M` satırı
   varsa sorun ankraj değil, uygulanmış bir migration'ın değişmesidir.
+
+## Sütun düşüren veri taşıma migration'ı (Faz 218)
+
+- **Bir sütunu düşürmek, onu sıra indeksiyle okuyan her okuyucuyu kaydırır** (`SqlApprovalAndMcpStores.ReadServer`: `GetNullableString(reader, 6)`). Derleyici görmez, satır yine okunur ve yanlış değer yanlış alana düşer. Kapı: sözleşme testinde HER alanı birbirinden farklı değerle dolduran gidiş-dönüş (`McpServerStoreContract.Every_field_of_a_server_survives_a_round_trip`, kaydedilen **ve** okunan kayıt) ve `MigrationParityTests` ile SQL metin anlık görüntüsü.
+- **Taşıma testi eski şemaya satır yazar, sonra gerçek `MigrationRunner` ile yükseltir ve satırı gerçek `store` ile okur** (üç sağlayıcının `RemoveAuthorizationConfigurationKeyMigrationTests`'i). `jsonb` nesne üyelerini uzunluğa göre sıralar, SQL Server ve SQLite eklenme sırasını tutar: haritayı **sıralı** sözlükle karşılaştır, yoksa test sağlayıcıya göre kırılır. SQL Server `OPENJSON`'un `key` sütunu ikili harmanlıdır (`LOWER([key])`), SQLite `json_each` kendi `key`/`value` sütunlarını getirir (alias + nitelik); ikisi de çakışma dalını (`authorization` her harf biçimi) test eder.
+- **Yükseltme koşumu iki derlemedir:** eski sürümü `git worktree add --detach <dizin> HEAD` ile derle, aynı SQLite dosyasına bir kayıt yaz (gerekirse `sqlite3` ile eski şemaya satır ekle), uygulamayı durdur, yeni derlemeyi AYNI dosyayla başlat. `ASPNETCORE_ENVIRONMENT=Production` ile başlat: `user-secrets` yüklenmez ve gerçek sağlayıcı anahtarları koşuma karışmaz (ayrıntı: [`elle-kosum-ortami.md`](elle-kosum-ortami.md)).

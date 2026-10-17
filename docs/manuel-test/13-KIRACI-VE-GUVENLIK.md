@@ -4394,11 +4394,11 @@ adresini kaydedebiliyordu; Tracon B'nin değerini o adrese gönderirdi.
 for key in "Tracon:McpSecrets:globex:Token" "Tracon:McpSecrets:GithubToken" "Tracon:McpSecrets:acme:Token"; do
   curl -s -o /dev/null -w "$key -> %{http_code}\n" -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
     -H 'X-Tracon-Tenant: acme' -H 'Content-Type: application/json' \
-    -d "{\"endpoint\":\"https://mcp.example.com/\",\"transport\":\"StreamableHttp\",\"authorizationConfigurationKey\":\"$key\"}"
+    -d "{\"endpoint\":\"https://mcp.example.com/\",\"transport\":\"StreamableHttp\",\"headerConfigurationKeys\":{\"Authorization\":\"$key\"}}"
 done
 curl -s -o /dev/null -w "default flat -> %{http_code}\n" -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
   -H 'Content-Type: application/json' \
-  -d '{"endpoint":"https://mcp.example.com/","transport":"StreamableHttp","authorizationConfigurationKey":"Tracon:McpSecrets:GithubToken"}'
+  -d '{"endpoint":"https://mcp.example.com/","transport":"StreamableHttp","headerConfigurationKeys":{"Authorization":"Tracon:McpSecrets:GithubToken"}}'
 ```
 
 **Beklenen sonuç**

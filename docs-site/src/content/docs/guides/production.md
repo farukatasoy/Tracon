@@ -401,7 +401,7 @@ saving it again is refused with a message naming both the field and the prefix.
 
 | Record | Field | Required prefix |
 |---|---|---|
-| MCP server | `headerConfigurationKeys`, `oauthClientSecretConfigurationKey`, `authorizationConfigurationKey` (deprecated) | `Tracon:McpSecrets:` |
+| MCP server | `headerConfigurationKeys`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
 | Webhook subscription | `headerConfigurationKeys`, `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
 Fix each record by moving the key name under the prefix and re-writing the value under
@@ -448,7 +448,7 @@ configure a token.
 
 A credential header of an MCP server or a webhook subscription now lives in
 `headerConfigurationKeys`, as the **name** of the configuration key its value is read
-from. Four saves that used to succeed now return `400`, and one field is deprecated.
+from. Four saves that used to succeed now return `400`, and one field is removed.
 
 **A credential-looking plain header is refused.** A save whose `headers` carry
 `Authorization`, `Cookie`, a name containing `api-key`, `token`, `password` or
@@ -468,13 +468,24 @@ break returns `400`.
 `Tracon:Webhooks:MaxExtraHeaders` entries (20 by default); more returns `400` instead of
 being cut at delivery.
 
-**`authorizationConfigurationKey` is deprecated.** It still saves, resolves and reads
-back, and it is removed in `1.0.0`. Code that sets it on `McpServerDefinition` or
-`McpServerRequest` compiles with warning `CS0618`. Use
-`headerConfigurationKeys["Authorization"]`; a record that names `Authorization` in both,
-or in the new map while OAuth is on, returns `400`. So does turning OAuth on while the
-kept plain `headers` still carry `Authorization`: the MCP client does not send its bearer
-token while that header is present. Send `headers` without it in the same save.
+**`authorizationConfigurationKey` is removed.** `McpServerDefinition` and `McpServerRequest`
+no longer have the member, and no response carries the field. Code that sets it no longer
+compiles; use `headerConfigurationKeys["Authorization"]`. The first start on the new
+version moves every stored key into that map and drops the column, in one migration
+(PostgreSQL, SQL Server and SQLite). A row with OAuth on, or whose map already names
+`Authorization` in any letter case, keeps its map: the connection never read the old
+key in those two cases, so nothing changes on the wire. Every other connection
+reconnects once after the upgrade. **The migration has no way back**: a build from
+before it cannot read the table, so back up the database first.
+
+A save whose body still carries `authorizationConfigurationKey`, with any value
+including an empty one, returns `400` with the title `Removed field`; the detail names
+`headerConfigurationKeys["Authorization"]`. Without this the field would be dropped
+silently and the first tool call would fail with `401`. Other unknown fields are still
+ignored. Naming `Authorization` in the map while OAuth is on returns `400`. So does
+turning OAuth on while the kept plain `headers` still carry `Authorization`: the MCP
+client does not send its bearer token while that header is present. Send `headers`
+without it in the same save.
 
 **Saves now keep what they leave out.** `headers` or `headerConfigurationKeys` absent or
 `null` keeps the stored map; `{}` removes it. Before, a save without `headers` removed

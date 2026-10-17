@@ -186,14 +186,14 @@ tüketici sağlayıcısı her adı karşılayabilir.
 ### MT-AGD-009 — `TRC0201`: tanıma düz `secret` yazıldı
 
 **Ön koşul:** `McpServerDefinition` içinde
-`AuthorizationConfigurationKey = "ghp_<36 karakter>"`.
+`OAuthClientSecretConfigurationKey = "ghp_<36 karakter>"`.
 
 **Adımlar:**
 1. `dotnet build src/Consumer/Consumer.csproj -c Release -t:Rebuild`
 2. Değer `"Tracon:McpSecrets:GithubToken"` ile değiştirilir, tekrar derlenir.
 
 **Beklenen sonuç:** Adım 1 `warning TRC0201` verir ve hedefi
-`McpServerDefinition.AuthorizationConfigurationKey` olarak adıyla söyler.
+`McpServerDefinition.OAuthClientSecretConfigurationKey` olarak adıyla söyler.
 Adım 2 sessizdir. K-059'un derleme anındaki karşılığıdır.
 
 ---

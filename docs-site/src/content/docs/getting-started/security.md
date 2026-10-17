@@ -226,7 +226,7 @@ allowed prefix. Without it, a record could name `ConnectionStrings:Default` as i
 |---|---|---|
 | Inbound trigger | `signingSecretConfigurationName` | `Tracon:TriggerSecrets:` |
 | Tenant provider binding | `apiKeyConfigurationName` | `Tracon:ProviderKeys:` |
-| MCP server | `headerConfigurationKeys`, `oauthClientSecretConfigurationKey`, `authorizationConfigurationKey` (deprecated) | `Tracon:McpSecrets:` |
+| MCP server | `headerConfigurationKeys`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
 | Webhook subscription | `headerConfigurationKeys`, `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
 The prefix is one per installation, so a name must also sit inside its record's

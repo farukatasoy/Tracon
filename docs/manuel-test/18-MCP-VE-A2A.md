@@ -1,6 +1,6 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
-> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle), 214 (A2A yanıtı mesajdır)
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle), 214 (A2A yanıtı mesajdır), 218 (`authorizationConfigurationKey` kalktı)
 > **Kaynak:** `src/Tracon.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
 > tool/prompt/resource köprüsü, OAuth) · `src/Tracon.AspNetCore/McpServer/`
 > (tümü — Tracon'i MCP sunucusu olarak dışa açma) ·
@@ -224,16 +224,18 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/ftp-sunucu" -H 
 
 ---
 
-### MT-MCP-005 — `oauthEnabled: true` VE `authorizationConfigurationKey` BİRLİKTE → `400`
+### MT-MCP-005 — `oauthEnabled: true` VE `headerConfigurationKeys.Authorization` BİRLİKTE → `400`
 
-Negatif senaryo — karşılıklı dışlayan alanlar.
+Negatif senaryo — karşılıklı dışlayan alanlar. (Faz 218'e kadar bu case tek
+alanlı `authorizationConfigurationKey` ile yazılıydı; alan kalktı, kural
+`Authorization` başlığının haritadaki girdisine taşındı.)
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Orta |
-| **İlgili faz** | Faz 22 |
-| **İlgili karar** | — |
+| **İlgili faz** | Faz 22 · Faz 218 |
+| **İlgili karar** | K-869 |
 
 **Girilecek veri**
 ```bash
@@ -241,13 +243,15 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/karisik-yetki" 
      -H "content-type: application/json" -d '{
   "endpoint": "http://localhost:6062/mcp",
   "oauthEnabled": true,
-  "authorizationConfigurationKey": "Tracon:Mcp:BirTest"
+  "oauthClientId": "test-client",
+  "headerConfigurationKeys": { "Authorization": "Tracon:McpSecrets:BirTest" }
 }'
 ```
 
 **Beklenen sonuç**
 - `HTTP: 400` — bir sunucu ya statik başlık tabanlı yetkilendirme ya OAuth
-  kullanabilir, ikisi birden olamaz.
+  kullanabilir, ikisi birden olamaz. `detail` `'headerConfigurationKeys' names
+  'Authorization'` der.
 
 ---
 
@@ -299,8 +303,8 @@ curl -s "$APU/api/mcp-servers" -H "$APB" | python3 -m json.tool
 ```
 
 **Beklenen sonuç**
-- Her sunucu satırında `authorizationConfigurationKey` yalnız bir
-  yapılandırma **anahtarı adı** (ör. `"Tracon:Mcp:TestSecret"`)
+- Her sunucu satırında `headerConfigurationKeys` yalnız yapılandırma
+  **anahtarı adları** (ör. `{"Authorization":"Tracon:McpSecrets:TestSecret"}`)
   taşır — hiçbir gerçek secret DEĞERİ (token, şifre) gövdede yer almaz
   (K-059). `headers` alanı yalnız başlık **adlarını** taşır; her değer
   `"***"` döner (2026-09-23 kusur giderme, MT-MCP-069). Değer `store`'da
@@ -399,7 +403,7 @@ curl -s "$APU/api/mcp-servers" -H "$APB" | python3 -c "import json,sys; print([s
 
 ---
 
-### MT-MCP-012 — `authorizationConfigurationKey` config'te TANIMSIZ/BOŞSA → istisna YOK, başlık atlanır
+### MT-MCP-012 — `headerConfigurationKeys["Authorization"]` config'te TANIMSIZ/BOŞSA → istisna YOK, başlık atlanır
 
 Negatif/edge senaryo — sessiz bozulma, hata değil.
 
@@ -411,7 +415,7 @@ Negatif/edge senaryo — sessiz bozulma, hata değil.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `test-sunucu`, `authorizationConfigurationKey: "Tracon:Mcp:HicVarOlmayanAnahtar"`
+- `test-sunucu`, `headerConfigurationKeys: {"Authorization": "Tracon:McpSecrets:HicVarOlmayanAnahtar"}`
   ile güncellenmiş (bu anahtar `user-secrets`'ta HİÇ tanımlı DEĞİL).
 
 **Adımlar**
@@ -1154,24 +1158,26 @@ Kritik negatif senaryo. **Geçici kod değişikliği gerektirir.**
 
 ---
 
-### MT-MCP-048 — `mcp.tsx` formu: OAuth açılınca `authorizationConfigurationKey` alanı OTOMATİK TEMİZLENİR
+### MT-MCP-048 — `mcp.tsx` formu: OAuth açılınca "Authorization yapılandırma anahtarı" alanı OTOMATİK TEMİZLENİR
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Düşük |
-| **İlgili faz** | Faz 22 |
-| **İlgili karar** | — |
+| **İlgili faz** | Faz 22 · Faz 218 |
+| **İlgili karar** | K-870 |
+| **Devir** | ➜ CI: `mcp.test.tsx` (`clears the key input when OAuth is switched on`) |
 
 **Adımlar**
-1. `/tracon/mcp` → "Yeni sunucu".
-2. `authorizationConfigurationKey` alanına bir metin yaz.
-3. "OAuth kullan" onay kutusunu işaretle.
+1. `/tracon/mcp` → "Sunucu ekle".
+2. "Authorization yapılandırma anahtarı" alanına bir metin yaz.
+3. "OAuth (Authorization Code)" onay kutusunu işaretle.
 
 **Beklenen sonuç**
-- `authorizationConfigurationKey` alanı OTOMATİK boşalır (istemci tarafı)
-  — sunucu tarafındaki karşılıklı dışlama kuralını (MT-MCP-005) form
-  seviyesinde önceden yansıtır.
+- Alan OTOMATİK boşalır (istemci tarafı) — sunucu tarafındaki karşılıklı
+  dışlama kuralını (MT-MCP-005) form seviyesinde önceden yansıtır. Form
+  yeni alanı (`authorizationConfigurationKey`) hiç göndermez; dolu bir anahtar
+  `headerConfigurationKeys.Authorization` olarak gider.
 
 ---
 
@@ -1425,14 +1431,14 @@ ortam değişkeniyle başlat.
 curl -s -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
   -H 'Content-Type: application/json' \
   -d '{"endpoint":"https://mcp.example.com/","transport":"StreamableHttp",
-       "authorizationConfigurationKey":"ConnectionStrings:Default"}' | jq -r '.detail'
+       "headerConfigurationKeys":{"Authorization":"ConnectionStrings:Default"}}' | jq -r '.detail'
 ```
 
 **Beklenen sonuç**
 - `400`. `detail`: `'ConnectionStrings:Default' is outside the allowed prefix.
-  'authorizationConfigurationKey' may only reference a configuration key under
+  'headerConfigurationKeys[Authorization]' may only reference a configuration key under
   'Tracon:McpSecrets:'.`
-- `authorizationConfigurationKey` yerine `oauthClientSecretConfigurationKey`
+- `headerConfigurationKeys` yerine `oauthClientSecretConfigurationKey`
   kullanıldığında (OAuth açıkken) aynı red, alan adı değişerek gelir.
 - `Tracon:McpSecrets:Token` ile aynı istek `200` döner.
 
@@ -1447,9 +1453,11 @@ curl -s -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
 | **İlgili faz** | Faz 77 |
 | **İlgili karar** | K-533 |
 
-**Ön koşul** Veritabanında `authorization_configuration_key` sütunu
-`Tracon:Mcp:LegacyToken` (önek DIŞI) olan bir MCP kaydı. Faz 77 öncesi
-kaydedilmiş bir kurulumda bu kendiliğinden vardır; yoksa SQL ile yazılır.
+**Ön koşul** Veritabanında `header_configuration_keys` sütunu
+`{"Authorization":"Tracon:Mcp:LegacyToken"}` (önek DIŞI) olan bir MCP kaydı.
+Faz 77 öncesi kaydedilmiş bir kurulumda bu kendiliğinden vardır (Faz 218
+göçü eski `authorization_configuration_key` sütununu bu haritaya taşır);
+yoksa SQL ile yazılır.
 
 **Adımlar**
 1. `curl -s "$APU/api/mcp-servers" -H "$APB" | jq` — listeyi oku.
@@ -1458,7 +1466,7 @@ kaydedilmiş bir kurulumda bu kendiliğinden vardır; yoksa SQL ile yazılır.
 **Beklenen sonuç**
 - Adım 1 `200` döner ve kayıt listede görünür: **okuma etkilenmez.** Operatör
   neyi düzelteceğini görebilmelidir.
-- Adım 2 `400` döner ve mesaj hem alan adını (`authorizationConfigurationKey`)
+- Adım 2 `400` döner ve mesaj hem alan adını (`headerConfigurationKeys[Authorization]`)
   hem izinli öneki (`Tracon:McpSecrets:`) yazar.
 - Düzeltme elle yapılır: anahtar adı öneke taşınır ve `dotnet user-secrets`
   içindeki değer yeni adla yazılır. Taşıma yardımcısı **yoktur** ve bilinçlidir
@@ -1867,26 +1875,24 @@ curl -s -w '\n%{http_code}\n' -X PUT "$APU/api/mcp-servers/m3" -H "$APB" -H "$J"
 - `400`. `detail` `headerConfigurationKeys[X-API-Key]` alanını ve çağıranın
   anahtar alanını (`Tracon:McpSecrets:default:` veya düz ad) adlandırır.
 
-### MT-MCP-073 — `Authorization` iki alandan veya OAuth ile birlikte `400`
+### MT-MCP-073 — `Authorization` OAuth ile birlikte `400`
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 190 |
+| **İlgili faz** | Faz 190 · Faz 218 |
 | **İlgili karar** | K-869 |
 | **İnsan gerekir** | Hayır |
-| **Devir** | ✅ 2026-09-24 · ➜ CI: `CredentialHeaderSaveTests.Authorization_from_both_fields_or_with_oauth_is_rejected` · `…Authorization_conflict_counts_the_preserved_map` |
+| **Devir** | ✅ 2026-09-24 (Faz 218'de iki alanlı ilk adım kalktı: alan yok) · ➜ CI: `CredentialHeaderSaveTests.Authorization_with_oauth_is_rejected` · `…Authorization_conflict_counts_the_preserved_map` |
 
 **Adımlar**
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/m4" -H "$APB" -H "$J" \
-  -d '{"endpoint":"https://mcp.example.com/mcp","authorizationConfigurationKey":"Tracon:McpSecrets:A","headerConfigurationKeys":{"Authorization":"Tracon:McpSecrets:B"}}'
 curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/m5" -H "$APB" -H "$J" \
   -d '{"endpoint":"https://mcp.example.com/mcp","oauthEnabled":true,"oauthClientId":"c","headerConfigurationKeys":{"Authorization":"Tracon:McpSecrets:B"}}'
 ```
 
-**Beklenen sonuç** — İkisi `400`; `detail` "'headerConfigurationKeys' names 'Authorization'" der.
+**Beklenen sonuç** — `400`; `detail` "'headerConfigurationKeys' names 'Authorization'" der.
 
 ### MT-MCP-074 — 👤 Arayüz formundan kayıt iki başlık haritasını korur
 
@@ -2200,3 +2206,131 @@ askıya alamaz (K-103).
 
 **Beklenen sonuç**
 - `result` bir `message` alanı taşır (`role` dolu); `task` alanı yoktur.
+
+---
+
+## Faz 218 — `authorizationConfigurationKey` kalktı
+
+> Ortak kurulum (case 086–088): iki derleme ve bir MCP yakalayıcı.
+>
+> ```bash
+> # 1) Faz 217 sürümünü (git worktree, HEAD~) derle ve bir SQLite veritabanıyla başlat:
+> #    eski alanla bir sunucu kaydet. 2) Yeni sürümü AYNI veritabanıyla başlat.
+> # Değerler yalnız ortam değişkenindedir (K-059):
+> Tracon__Sqlite__ConnectionString="Data Source=$TMPDIR/faz218.db" ASPNETCORE_ENVIRONMENT=Production \
+> Tracon__Ui__AuthToken=<belirteç> Tracon__McpSecrets__Stub="Bearer <değer>" \
+> Tracon__Egress__AllowPrivateNetworkTargets=true dotnet run --no-build -c Release --project samples/Tracon.Api
+> ```
+>
+> `ASPNETCORE_ENVIRONMENT=Production` `user-secrets`'taki gerçek sağlayıcı anahtarlarını **yüklemez**.
+> Yakalayıcı: `Authorization` başlığı beklenen değerle gelmeyen her isteğe `401` veren, `tools/list` ve
+> `tools/call` yanıtlayan küçük bir MCP sunucusudur (SDK önce `server/discover` dener; `-32601` ile geri
+> düşer). Elle yazılır; repoda yoktur.
+
+### MT-MCP-086 — Eski şemadan yükseltme: kayıtlı anahtar adı haritaya taşınır, sütun düşer
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 218 |
+| **İlgili karar** | K-869 · K-1023 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-10-17 (SQLite, örnek uygulama) · ➜ CI: `RemoveAuthorizationConfigurationKeyMigrationTests` (üç sağlayıcı: PostgreSQL, SQL Server, SQLite) |
+
+**Ön koşul** — Faz 217 sürümüyle (`1.0.0-preview.4`, SQLite `0048`) başlamış bir veritabanı; içinde
+`PUT /api/mcp-servers/stub-218` gövdesi `authorizationConfigurationKey: "Tracon:McpSecrets:Stub"`
+ile kaydedilmiş bir sunucu. Yakalayıcı `Bearer <değer>` bekler; `Tracon__McpSecrets__Stub` aynı değerdir.
+
+**Adımlar**
+1. Yeni sürümle aynı veritabanını başlat (migration `0049` koşar).
+2. `curl -s "$APU/api/mcp-servers" -H "$APB"`
+3. `curl -s -X POST "$APU/api/mcp-servers/refresh" -H "$APB"`
+
+**Beklenen sonuç**
+- (1) Günlük `Tracon applied 1 migration(s)`; `pragma_table_info('tracon_mcp_servers')`
+  `authorization_configuration_key` sütununu **taşımaz**.
+- (2) `stub-218` satırı `"headerConfigurationKeys":{"Authorization":"Tracon:McpSecrets:Stub"}` taşır;
+  yanıtta `authorizationConfigurationKey` alanı **yoktur**.
+- (3) Yakalayıcının günlüğünde `tools/list authorization=present match=True`; araç listesinde
+  `stub-218_whoami`. Bir agent bu aracı çağırınca (`tools/call`) yakalayıcı `Authorization seen: Bearer <değer>`
+  yanıtlar: eski alanla kaydedilmiş kimlik, göçten sonra telde aynen gider.
+- Veritabanı dökümünde (`.dump`), günlükte ve denetim tablosunda `<değer>` **geçmez** (K-059).
+- Ölçülen (2026-10-17, SQLite): migration `0049` uygulandı; `tools/call` yanıtı `Authorization seen: Bearer stub-218-value`.
+
+### MT-MCP-087 — Göçün üç dalı: haritada `authorization` var, OAuth açık, boş anahtar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 218 |
+| **İlgili karar** | K-1023 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-10-17 (SQLite, örnek uygulama) · ➜ CI: `RemoveAuthorizationConfigurationKeyMigrationTests` |
+
+**Ön koşul** — MT-MCP-086'nın veritabanı; göçten ÖNCE `sqlite3` ile üç satır eklenmiş:
+`map-wins` (`authorization_configuration_key = 'Tracon:McpSecrets:Legacy'`,
+`header_configuration_keys = {"authorization":"Tracon:McpSecrets:MapWins"}`), `oauth-row`
+(`oauth_enabled = 1`, `authorization_configuration_key = 'Tracon:McpSecrets:Legacy'`) ve boş anahtarlı bir satır.
+
+**Adımlar** — Yeni sürümü başlat; `GET /api/mcp-servers`.
+
+**Beklenen sonuç**
+- `map-wins`: harita **değişmez** (`{"authorization":"Tracon:McpSecrets:MapWins"}`); eski değer atılır. Bağlantı
+  `MapWins` değerini gönderir (eskiden de harita kazanırdı).
+- `oauth-row`: harita `{}`; OAuth `Authorization` başlığını kendisi yönetir, eski anahtar zaten okunmuyordu.
+- Boş anahtarlı satır: harita `{}`.
+- Ölçülen (2026-10-17): `map-wins` → `{"authorization":"Tracon:McpSecrets:MapWins"}`, `oauth-row` → `{}`; `map-wins_whoami`
+  keşfedildi.
+
+### MT-MCP-088 — Eski alanı gönderen `PUT` `400` alır ve yerine geçeni adıyla söyler
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 218 |
+| **İlgili karar** | K-1022 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-10-17 (örnek uygulama) · ➜ CI: `CredentialHeaderSaveTests.The_removed_field_is_rejected_and_the_detail_names_its_replacement` · `…Only_the_removed_field_is_refused` |
+
+**Adımlar**
+```bash
+curl -s -w '\nHTTP %{http_code}\n' -X PUT "$APU/api/mcp-servers/x" -H "$APB" -H "$J" \
+  -d '{"endpoint":"https://example.test/mcp","transport":"StreamableHttp","authorizationConfigurationKey":"Tracon:McpSecrets:X"}'
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/x" -H "$APB" -H "$J" \
+  -d '{"endpoint":"https://example.test/mcp","authorizationConfigurationKey":""}'
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/x" -H "$APB" -H "$J" \
+  -d '{"endpoint":"https://example.test/mcp","somethingElse":1}'
+```
+
+**Beklenen sonuç**
+- Birinci istek `400`; `title` `Removed field`, `detail`
+  `'authorizationConfigurationKey' was removed in 1.0. Use headerConfigurationKeys["Authorization"].`
+- İkinci istek (boş değer) de `400`.
+- Üçüncü istek (başka bir bilinmeyen alan) `200`: kural yalnız kaldırılan alan içindir.
+- Ölçülen (2026-10-17): `400` / `400` / `200`; belirteçsiz aynı istek `401` (yetki, kuraldan önce).
+
+### MT-MCP-089 — 👤 Konsol formu anahtar adını `headerConfigurationKeys.Authorization` olarak yazar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 218 |
+| **İlgili karar** | K-870 |
+| **İnsan gerekir** | Evet (tarayıcıda form) |
+| **Devir** | ➜ CI: `mcp.test.tsx` (üç case) · `McpTests.Mcp_screen_states_security_boundary_and_server_can_be_added` (E2E, anahtarı doldurur ve listede okur) |
+
+**Adımlar**
+1. `/tracon/mcp` → "Sunucu ekle"; ad ve adres gir; "Authorization yapılandırma anahtarı"na
+   `Tracon:McpSecrets:SampleToken` yaz; kaydet.
+2. Aynı formu bu kez anahtarı BOŞ bırakıp aynı adla kaydet.
+3. Yeni bir formda anahtarı yaz, sonra OAuth'u aç ve kapat.
+
+**Beklenen sonuç**
+- (1) Satır oluşur; auth sütunu `Tracon:McpSecrets:SampleToken` gösterir; `GET /api/mcp-servers`
+  `headerConfigurationKeys.Authorization` taşır.
+- (2) Anahtar silinmez: boş alan harita göndermez, saklı harita korunur (K-870).
+- (3) OAuth açılınca alan boşalır; kapatınca boş kalır (geri gelmez).
