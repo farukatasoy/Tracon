@@ -14,6 +14,27 @@ bırakmaz. Ölçüldü (2026-08-03): eski protokolle bir faz **kod okumadan önc
 
 ---
 
+## Adım 0 — `main`'in son CI sonucuna bak
+
+Kapanış push eder ama CI'ı beklemez (`faz-tamamlama` Adım 9). Sonucu yeni oturum
+okur:
+
+```bash
+gh run list --workflow ci.yml --branch main --limit 3
+```
+
+En üstteki **tamamlanmış** koşum karar verir:
+
+| Sonuç | Ne yapılır |
+|---|---|
+| `success` | Adım 1'e geç |
+| `failure` | Faza başlamadan önce düzelt: `gh run view <id> --log-failed` ile düşen testi bul, [`kusur-giderme`](../kusur-giderme/SKILL.md)'yi uygula. Kırılgan test şüphesinde önce `gh run rerun <id> --failed`; ikinci kez düşerse kusurdur |
+
+Koşmakta olan bir koşumu bekleme. `gh` yoksa ya da oturum açık değilse
+kullanıcıya söyle; adımı sessizce atlama.
+
+---
+
 ## Adım 1 — Sabit okuma kümesi (her fazda aynı)
 
 Sırayla, tamamı:

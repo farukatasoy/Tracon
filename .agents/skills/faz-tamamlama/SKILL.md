@@ -259,7 +259,8 @@ git push                                                  # 3 — onay sorulmaz
 **Push onay istemez** (kullanıcı kararı, 2026-10-17). Her kapanış CI'a gider;
 biriken commit'ler CI'ın görmediği fazlar demektir (ölçüldü: 74 commit, yedi
 faz). Uzak dal ilerlemişse `git pull --rebase` ve yeniden push. `--force`
-**hiçbir zaman**.
+**hiçbir zaman**. CI'ı bekleme; sonucu sonraki oturum `faz-baslangic` Adım 0'da
+okur.
 
 🚨 **Tek istisna — etiketsiz sürüm kesimi.** `CHANGELOG.md`'nin en üstteki
 sürüm bölümünün `v*` etiketi yoksa push etme: kesim etiketiyle tek atomik
