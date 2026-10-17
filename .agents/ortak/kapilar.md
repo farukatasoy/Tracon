@@ -11,7 +11,8 @@ Dördü de sıfır uyarı vermelidir. Bir tanesi kırmızıysa iş **bitmemişti
 ```bash
 python3 scripts/kapi.py ic-dongu [--taban <commit>]   # build + etkilenen test projeleri (hızlı iç döngü)
 python3 scripts/kapi.py tarama                    # sync kopyası · secret · migration bütünlüğü · bayat doküman referansı (saniyeler)
-python3 scripts/kapi.py kapanis --taban <faz öncesi commit>   # tamamı, ucuzdan pahalıya, tek özet
+python3 scripts/kapi.py uret                      # üretilen dosyaları yeniden yazar: agent haritası + llms + karar indeksleri + yol haritası
+python3 scripts/kapi.py kapanis --taban <faz öncesi commit>   # önce uret, sonra ucuzdan pahalıya; tam test EN SONDA
 python3 scripts/kapi.py test --proje <Proje> --sinif "*Ad*" [--tfm net8.0]   # MTP filtresi; çoklu TFM projesinde her bacak ya da tek bacak (Faz 183)
 python3 scripts/kapi.py performans                # tahsis kapısı - üç sıcak yol, bench/baseline.json'a karşı (`KR-12`)
 ```
@@ -19,6 +20,14 @@ python3 scripts/kapi.py performans                # tahsis kapısı - üç sıca
 `kapi.py` koştuğu her komutu ekrana basar, ilk kırmızıda durur ve süreleri
 `artifacts/kapi-olcum.jsonl`'a ekler. `--komutlari-bas` hiçbirini koşmadan
 listeler — ayıklama bilgisi kaybolmaz.
+
+**`kapanis` sırası (2026-10-17):** üretim → tarama, doküman denetimi, betik
+testleri → build → pack · site · format · performans → **tam test**. Tam test
+en pahalı adımdır (~9–12 dk) ve son koşar. Ölçüm (Ekim 2026): 42 kırmızı
+kapanışın 11'i testten SONRA koşan bir adımda düştü (~144 dk boşa); 11'i
+bayat agent haritasında düştü. `kapanis` üretilen dosyaları **yazar** — koşum
+sonrası `git status`'a bak ve değişeni fazla birlikte commit et. CI aynı
+dosyaları `--check` ile denetler; commit edilmeyen üretim orada yakalanır.
 
 ## Yayın zinciri komutları (Faz 191, K-871)
 

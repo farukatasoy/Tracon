@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-10-11) — uygulama 2026-11-10'dan önce başlamaz (K-855)
 > **Plan onayı:** Bakımcı, 2026-10-11 (engelleyici kararlar sohbette alındı: uygulama zamanı, yalnız düşürme, çoklu-TFM altyapısı korunur)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-266**
-> **Önkoşul:** [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — `PKV006` kapısı düşen TFM'i sürüm notunda paket paket ister (kapandı) · takvim: Microsoft desteğinin bittiği **2026-11-10**
+> **Önkoşul:** Faz 187 — `PKV006` kapısı düşen TFM'i sürüm notunda paket paket ister (kapandı) · takvim: Microsoft desteğinin bittiği **2026-11-10**
 > **Paketler:** 17 kütüphane paketi (`Tracon.Abstractions` · `.Anthropic` · `.AspNetCore` · `.Azure` · `.Client` · `.Core` · `.Google` · `.Mcp` · `.OpenAI` · `.PostgreSql` · `.SqlServer` · `.Sqlite` · `.Testing` · `.Testing.Contracts.Xunit` · `.UI` · `.Voice` · `.Workflows`) + meta paket `Tracon`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor. Tip yüzeyi aynı kalır; her pakette `net8.0` ve `net9.0` varlıkları düşer (yayın provası tabana karşı **34** `PKV006` kaydı üretir)
@@ -29,10 +29,11 @@
    (kendi UUIDv7 üreteci; yeniden açılma koşulu "paket `net8.0`'ı bırakırsa"),
    **K-270** (`Tracon.Testing` TestHost sürümü), **K-349** (üreteç Roslyn'i
    `4.8.0`; gerekçesi .NET 8 SDK'sıdır), **K-855** (düşürme tarihi ve istisnası)
-3. İki faz devir notu — yalnız bu bölümler:
+3. İki faz devir notu — yalnız bu bölümler (kayıtlar silindi; işaretçi
+   [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md) satırındadır):
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md
-   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md
+   git show 2a8149ef:docs/arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md | awk '/## Sonraki Faza Devir Notu/,0'
+   git show 2a8149ef:docs/arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md | awk '/## Sonraki Faza Devir Notu/,0'
    ```
    183 çoklu-TFM test matrisini kurdu (bu faz onu **korur**, listeyi daraltır);
    187 `PKV006`'nın sürüm notu kuralını kurdu.

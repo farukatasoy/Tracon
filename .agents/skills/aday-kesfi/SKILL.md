@@ -64,12 +64,12 @@ dosyanın § *Okuma Sırası* tablosu da seni doğru bölüme yollar.
 | Aday dosyası § *Aday Olmayan Açık Kayıtlar* | Karar veya ölçüm eşiğinde bekleyen ID'ler **ve sıradaki F numarası**. Kapanmış veya plana dönüşmüş bir F-ID orada değildir — `grep -rn "F-NNN" docs/` |
 | `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md` | Kapatılmış tartışmalar + "zaten var, eksik diye önerilmez" kalemleri |
 | `MEMORY.md` + dokunulan alanın `docs/hafiza/` dosyası | Tuzaklar |
-| Son üç fazın § *Sonraki Faza Devir Notu* | **Bilerek bırakılmış iş** — en zengin damar |
+| Son üç fazın kapanış commit'i ve `FAZ-DEFTERI.md` satırı | **Bilerek bırakılmış iş** — en zengin damar; tam metin `git show <Kayıt>` |
 | `docs/manuel-test/00-INDEKS.md` | Gerçek koşumların düşürdüğü notlar |
 
 ```bash
-ls docs/[0-9][0-9]*-*.md | tail -3                       # son fazlar
-grep -n "Sonraki Faza Devir Notu" -A 15 docs/6[0-9]-*.md
+tail -3 <(grep "^| [0-9]" docs/FAZ-DEFTERI.md)           # son kapanan fazlar
+git log --grep "): close" -3 --format=%B                # kapanış commit'leri: sapma + karar
 grep -rho "F-[0-9]\{2,3\}" docs/ | sort -t- -k2 -n -u | tail -1   # en büyük F-NN
 ```
 

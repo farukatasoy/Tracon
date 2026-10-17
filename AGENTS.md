@@ -11,7 +11,7 @@ Bu repo büyüktür ve dokümanların çoğu birikimli defterdir. **Hiçbir dok�
 ihtiyacın olmadan baştan sona okuma.**
 
 **Oturum başında yalnız:** bu dosya · [`MEMORY.md`](MEMORY.md) · çalıştığın fazın
-dokümanı (`docs/NN-*.md`; kapanmış fazlar `docs/arsiv/fazlar/`) ve onun "Bu Faza
+dokümanı (`docs/NN-*.md`; kapanan fazın izi `docs/FAZ-DEFTERI.md`) ve onun "Bu Faza
 Başlarken" listesi. **Sonra, yalnız dokunduğun alan için** — her dosyanın tek bir
 işi vardır, aradığın iş bu tablodadır:
 
@@ -24,7 +24,7 @@ işi vardır, aradığın iş bu tablodadır:
 | Mimari resim (katman, veri modeli, çalıştırma yolu) | [MIMARI](docs/MIMARI.md) — ilgili bölüm |
 | Güvenlik modeli (kiracı, rol, denetim izi, sandbox) | [MIMARI-GUVENLIK](docs/MIMARI-GUVENLIK.md) |
 | MAF genişleme noktası | [MAF-GENISLEME-NOKTALARI](docs/MAF-GENISLEME-NOKTALARI.md) |
-| Faz durumu (**üretilen**) · adaylar · keşif turları | [YOL-HARITASI](docs/YOL-HARITASI.md) · [ADAYLAR](docs/ADAYLAR.md) · [kesif/](docs/kesif/) |
+| Faz durumu (**üretilen**) · kapanan fazlar · adaylar · keşif turları | [YOL-HARITASI](docs/YOL-HARITASI.md) · [FAZ-DEFTERI](docs/FAZ-DEFTERI.md) · [ADAYLAR](docs/ADAYLAR.md) · [kesif/](docs/kesif/) |
 | Elle koşulan kabul testi | [manuel-test/00-INDEKS](docs/manuel-test/00-INDEKS.md) — koşumu `manuel-test-kosumu` yürütür |
 | Geçmişte neden öyle yapıldı? | [arsiv/](docs/arsiv/) — kapanmış kayıt, yalnız grep'le |
 | Paketler ve kurulum | [README](README.md) |
@@ -102,16 +102,17 @@ Başlangıç bağlamı yalnız bu dosya, `MEMORY.md` ve aktif fazdır. Sorgu ba�
 ledger'dır ve açılışta okunmaz. `scripts/dokuman-bakim.py` üç katmanı ayrı
 raporlar. Bütçe aşılırsa **içerik silinmez** — taşınır.
 
-**Arşivlemek taşımak değil, damıtmaktır.** Faz kapanışında `faz-arsivle` +
-`faz-damit` koşar: plan düşer, kalıcı bilgi kalır, tam metin git'tedir ve her
-denetimde çözülebilirliği kanıtlanır. Muaf ağaçlar dahil **her ağacın kendi
-bütçesi vardır**. Kural: [`docs/arsiv/fazlar/INDEKS.md`](docs/arsiv/fazlar/INDEKS.md).
+**Kapanan faz silinir, arşivlenmez** (2026-10-17). `faz-kapat` dokümanı siler ve
+[`FAZ-DEFTERI`](docs/FAZ-DEFTERI.md)'ne tek satır yazar; tam metne giden `git show`
+işaretçisi her denetimde kanıtlanır. Kalıcı bilgi önce yerine taşınır
+(`faz-tamamlama` Adım 5). Kural yalnız faz kayıtları içindir; muaf ağaçlar dahil
+**her ağacın kendi bütçesi vardır**.
 
 ### Faz durumu
 
-Tek kaynak [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)'dir — **üretilir**,
-elle yazılmaz (K-413). Seçilmemiş kalemler [`docs/ADAYLAR.md`](docs/ADAYLAR.md)
-içindedir. Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üretir.
+Açık fazlar [`docs/YOL-HARITASI.md`](docs/YOL-HARITASI.md)'ndedir — **üretilir**,
+elle yazılmaz (K-413); sıradaki boş numarayı da o yazar. Seçilmemiş kalemler
+[`docs/ADAYLAR.md`](docs/ADAYLAR.md) içindedir. Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üretir.
 
 Faz bittiğinde **`faz-denetim` ve `faz-tamamlama` uygulanır.** Atlanmaz; kapanış
 kodu, `docs/manuel-test/` kabul case'lerini ve `docs-site/`'ı birlikte kapsar.

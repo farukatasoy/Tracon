@@ -1,0 +1,292 @@
+# Faz Defteri
+
+> **Kapanan fazların tek satırlık izi.** Satırı
+> `python3 scripts/dokuman-bakim.py faz-kapat <NN>` yazar ve faz dokümanını
+> aynı anda siler. Elle yazılan tek hücre `Faz kapandıktan sonra bulunan
+> kusur`dur (`kusur-giderme` Adım 6).
+>
+> Tam metin: `git show <Kayıt>`. Faz 0–218 satırları 2026-10-17'de
+> `2a8149ef`'teki yol haritasından ve kayıtlardan dolduruldu. Açık ve planlı
+> fazlar: [`YOL-HARITASI.md`](YOL-HARITASI.md).
+
+## Kapanan fazlar
+
+| Faz | Konu | Durum | Kapanış | Kaynak | Kayıt |
+|---|---|---|---|---|---|
+| 0 | Repository ve Build Altyapısı | ✅ | — | — | `2a8149ef:docs/arsiv/fazlar/00-ALTYAPI.md` |
+| 1 | Çekirdek Soyutlamalar ve Runtime | ✅ | 2026-08-02 | — | `2a8149ef:docs/arsiv/fazlar/01-CEKIRDEK-SOYUTLAMALAR.md` |
+| 2 | PostgreSQL Kalıcılık Katmanı | ✅ | 2026-08-02 | — | `2a8149ef:docs/arsiv/fazlar/02-POSTGRESQL-KALICILIK.md` |
+| 3 | Sağlayıcı Katmanı ve Agent Derleyici | ✅ | 2026-08-02 | — | `2a8149ef:docs/arsiv/fazlar/03-SAGLAYICI-VE-DERLEYICI.md` |
+| 4 | HTTP API Katmanı | ✅ | 2026-08-02 | — | `2a8149ef:docs/arsiv/fazlar/04-HTTP-API.md` |
+| 5 | Tracon.UI | ✅ | 2026-08-02 | — | `2a8149ef:docs/arsiv/fazlar/05-TRACON-UI.md` |
+| 6 | Gözlemlenebilirlik, Tool Onayı, MCP ve Çok Kiracılılık | ✅ | 2026-08-02 | — | `2a8149ef:docs/arsiv/fazlar/06-GOZLEMLENEBILIRLIK.md` |
+| 7 | Sağlamlaştırma ve Yayın | ⏸ | — | — | `2a8149ef:docs/arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md` |
+| 8 | Sağlayıcı Genişlemesi ve Sağlık Denetimi | ✅ | 2026-08-02 | F-03 · F-05 · F-16 | `2a8149ef:docs/arsiv/fazlar/08-SAGLAYICI-GENISLEMESI.md` |
+| 9 | Yönetişim: Rol Tabanlı Yetkilendirme ve Denetim İzi | ✅ | 2026-08-02 | F-21 · F-20 | `2a8149ef:docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md` |
+| 10 | Agent Skill'leri (script'siz) | ✅ | 2026-08-02 | F-09 | `2a8149ef:docs/arsiv/fazlar/10-AGENT-SKILLERI.md` |
+| 11 | Skill Script Çalıştırma | ✅ | 2026-08-02 | F-09 | `2a8149ef:docs/arsiv/fazlar/11-SKILL-SCRIPT-CALISTIRMA.md` |
+| 12 | Agent'ın Agent'ı Çağırması | ✅ | 2026-08-02 | F-10 | `2a8149ef:docs/arsiv/fazlar/12-AGENT-CAGRI-GRAFIGI.md` |
+| 13 | Bağlam Sıkıştırma ve Bellek Sağlayıcıları | ✅ | 2026-08-02 | F-11 | `2a8149ef:docs/arsiv/fazlar/13-BAGLAM-SIKISTIRMA-VE-BELLEK.md` |
+| 14 | Çok Modluluk: Görsel, Ses ve Dosya Girdisi | ✅ | 2026-08-02 | F-12 | `2a8149ef:docs/arsiv/fazlar/14-COK-MODLULUK.md` |
+| 15 | Workflows: Yürütme ve Kalıcılık | ✅ | 2026-08-03 | F-27 | `2a8149ef:docs/arsiv/fazlar/15-WORKFLOWS-YURUTME.md` |
+| 16 | Workflows: Graf, Arayüz ve Human-in-the-Loop | ✅ | 2026-08-03 | F-27 | `2a8149ef:docs/arsiv/fazlar/16-WORKFLOWS-ARAYUZ.md` |
+| 17 | Toplu ve Zamanlanmış Çalıştırma | ✅ | 2026-08-03 | F-22 | `2a8149ef:docs/arsiv/fazlar/17-TOPLU-VE-ZAMANLANMIS-CALISTIRMA.md` |
+| 18 | Değerlendirme (Eval) Altyapısı | ✅ | 2026-08-03 | F-14 | `2a8149ef:docs/arsiv/fazlar/18-DEGERLENDIRME.md` |
+| 19 | Sürüm Karşılaştırma, Diff ve A/B | ✅ | 2026-08-03 | F-15 · F-24 | `2a8149ef:docs/arsiv/fazlar/19-SURUM-KARSILASTIRMA-VE-AB.md` |
+| 20 | Maliyet Raporlaması ve Gösterge Paneli | ✅ | 2026-08-03 | F-17 · F-23 | `2a8149ef:docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md` |
+| 21 | Hız Sınırı, Kota ve Olay Yayını | ✅ | 2026-08-03 | F-18 · F-19 | `2a8149ef:docs/arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md` |
+| 22 | MCP Derinleşmesi: Prompts, Resources ve OAuth | ✅ | 2026-08-04 | F-28 · F-29 | `2a8149ef:docs/arsiv/fazlar/22-MCP-DERINLESMESI.md` |
+| 23 | SQL Server Desteği | ✅ | — | F-06 | `2a8149ef:docs/arsiv/fazlar/23-SQL-SERVER.md` |
+| 24 | SQLite Desteği | ✅ | — | F-07 | `2a8149ef:docs/arsiv/fazlar/24-SQLITE.md` |
+| 25 | Veri Saklama Politikası ve Arşivleme | ✅ | 2026-08-05 | F-08 | `2a8149ef:docs/arsiv/fazlar/25-VERI-SAKLAMA-VE-ARSIVLEME.md` |
+| 26 | Anthropic (Claude) ve Google Gemini Sağlayıcıları | ✅ | 2026-08-05 | F-01 · F-02 | `2a8149ef:docs/arsiv/fazlar/26-ANTHROPIC-VE-GEMINI.md` |
+| 27 | Azure OpenAI (ve ertelenen Azure AI Foundry) | ✅ | 2026-08-05 | F-04 | `2a8149ef:docs/arsiv/fazlar/27-AZURE-FOUNDRY.md` |
+| 28 | Ses Tool'ları (ElevenLabs) | ✅ | 2026-08-05 | F-13 | `2a8149ef:docs/arsiv/fazlar/28-SES-TOOLLARI.md` |
+| 29 | Konuşma Katmanı (Gerçek Zamanlı Ses) | ✅ | 2026-08-05 | F-13 | `2a8149ef:docs/arsiv/fazlar/29-KONUSMA-KATMANI.md` |
+| 30 | Arayüz Cilası: Yerelleştirme, Komut Paleti ve Kısayollar | ✅ | 2026-08-05 | F-25 · F-26 | `2a8149ef:docs/arsiv/fazlar/30-ARAYUZ-CILASI.md` |
+| 31 | Geri Bildirim ve Puanlama | ✅ | 2026-08-06 | F-52 | `2a8149ef:docs/arsiv/fazlar/31-GERI-BILDIRIM-VE-PUANLAMA.md` |
+| 32 | Çalıştırma İptali | ✅ | 2026-08-06 | F-35 | `2a8149ef:docs/arsiv/fazlar/32-CALISTIRMA-IPTALI.md` |
+| 33 | Sağlık Denetimi ve Yapılandırma Teşhisi | ✅ | 2026-08-06 | F-38 · F-62 | `2a8149ef:docs/arsiv/fazlar/33-SAGLIK-DENETIMI-VE-TESHIS.md` |
+| 34 | Tanım Doğrulama Ucu | ✅ | 2026-08-06 | F-60 | `2a8149ef:docs/arsiv/fazlar/34-TANIM-DOGRULAMA-UCU.md` |
+| 35 | Maliyet ve Kota Metrikleri | ✅ | 2026-08-06 | F-70 | `2a8149ef:docs/arsiv/fazlar/35-MALIYET-VE-KOTA-METRIKLERI.md` |
+| 36 | Saklama Hacim Sınırı (`MaxRows`) | ✅ | 2026-08-06 | F-73 | `2a8149ef:docs/arsiv/fazlar/36-SAKLAMA-HACIM-SINIRI.md` |
+| 37 | `dotnet new` Proje Şablonu | ✅ | 2026-08-06 | F-49 | `2a8149ef:docs/arsiv/fazlar/37-PROJE-SABLONU.md` |
+| 38 | Yapılandırılmış Çıktı (JSON Şeması) | ✅ | 2026-08-06 | F-42 | `2a8149ef:docs/arsiv/fazlar/38-YAPILANDIRILMIS-CIKTI.md` |
+| 39 | `Tracon.Testing` Paketi | ✅ | 2026-08-06 | F-46 | `2a8149ef:docs/arsiv/fazlar/39-TEST-PAKETI.md` |
+| 40 | OpenAPI Belgesinin Yayımlanması | ✅ | 2026-08-07 | F-63 | `2a8149ef:docs/arsiv/fazlar/40-OPENAPI-YAYINI.md` |
+| 41 | Kiracı Yalıtımının Zorlanması | ✅ | 2026-08-07 | F-76 | `2a8149ef:docs/arsiv/fazlar/41-KIRACI-YALITIMININ-ZORLANMASI.md` |
+| 42 | Tek Yürütücü Seçimi (Çok Örnekli Koordinasyon) | ✅ | 2026-08-07 | F-57 | `2a8149ef:docs/arsiv/fazlar/42-TEK-YURUTUCU-SECIMI.md` |
+| 43 | `Idempotency-Key` Desteği | ✅ | 2026-08-07 | F-37 | `2a8149ef:docs/arsiv/fazlar/43-IDEMPOTENCY-KEY.md` |
+| 44 | Hata Sınıflandırma ve Arıza Kümeleme | ✅ | 2026-08-07 | F-55 | `2a8149ef:docs/arsiv/fazlar/44-HATA-SINIFLANDIRMA.md` |
+| 45 | Üretimden Değerlendirme Veri Kümesi Toplama | ✅ | 2026-08-07 | F-53 | `2a8149ef:docs/arsiv/fazlar/45-URETIMDEN-EVAL-KUMESI.md` |
+| 46 | Dayanıklı Çalıştırma (`202 Accepted`) | ✅ | 2026-08-07 | F-68 · F-39 | `2a8149ef:docs/arsiv/fazlar/46-DAYANIKLI-CALISTIRMA.md` |
+| 47 | Yeniden Oynatma ve Konuşma Dallandırma | ✅ | 2026-08-07 | F-54 · F-66 | `2a8149ef:docs/arsiv/fazlar/47-YENIDEN-OYNATMA-VE-DALLANDIRMA.md` |
+| 48 | Guardrails ve İçerik Güvenliği Genişleme Noktası | ✅ | 2026-08-07 | F-32 | `2a8149ef:docs/arsiv/fazlar/48-GUARDRAILS.md` |
+| 49 | Çevrimiçi Değerlendirme (üretim trafiğinde yargıç) | ✅ | 2026-08-07 | F-71 | `2a8149ef:docs/arsiv/fazlar/49-CEVRIMICI-DEGERLENDIRME.md` |
+| 50 | Dışa Açılan Agent Yüzeyi (MCP sunucusu ve A2A) | ✅ | 2026-08-08 | F-31 · F-33 | `2a8149ef:docs/arsiv/fazlar/50-DISA-ACILAN-AGENT-YUZEYI.md` |
+| 51 | Vektör Bellek ve RAG (`pgvector`) | ✅ | 2026-08-08 | F-30 | `2a8149ef:docs/arsiv/fazlar/51-VEKTOR-BELLEK-VE-RAG.md` |
+| 52 | Tool Kaynak Üreteci ve Derleme Anı Doğrulama | ✅ | 2026-08-08 | F-47 | `2a8149ef:docs/arsiv/fazlar/52-KAYNAK-URETECI.md` |
+| 53 | Kiracı Bazlı API Anahtarları ve Kapsamlar | ✅ | 2026-08-08 | F-56 | `2a8149ef:docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md` |
+| 54 | Öksüz Çalıştırma Uzlaştırması | ✅ | 2026-08-09 | F-36 | `2a8149ef:docs/arsiv/fazlar/54-OKSUZ-CALISTIRMA-UZLASTIRMASI.md` |
+| 55 | Asenkron Onay Kutusu | ✅ | 2026-08-09 | F-69 | `2a8149ef:docs/arsiv/fazlar/55-ASENKRON-ONAY-KUTUSU.md` |
+| 56 | Kanarya Yayını ve Otomatik Geri Alma | ✅ | 2026-08-09 | F-74 | `2a8149ef:docs/arsiv/fazlar/56-KANARYA-YAYINI-VE-OTOMATIK-GERI-ALMA.md` |
+| 57 | Kod Dili Birleştirme (İngilizce) | ✅ | 2026-08-16 | — | `2a8149ef:docs/arsiv/fazlar/57-KOD-DILI-BIRLESTIRME.md` |
+| 58 | Doküman Düzeni | ✅ | 2026-08-16 | — | `2a8149ef:docs/arsiv/fazlar/58-DOKUMAN-DUZENI.md` |
+| 59 | Ürün Dokümantasyonu (Doküman Sitesi) | ✅ | 2026-08-16 | — | `2a8149ef:docs/arsiv/fazlar/59-URUN-DOKUMANTASYONU.md` |
+| 60 | Public API Kapısı | ✅ | 2026-08-16 | — | `2a8149ef:docs/arsiv/fazlar/60-PUBLIC-API-KAPISI.md` |
+| 61 | İstemci Tool'ları ve Gömülebilir Sohbet | ✅ | 2026-08-18 | F-108 · F-64 | `2a8149ef:docs/arsiv/fazlar/61-ISTEMCI-TOOLLARI-VE-GOMULEBILIR-SOHBET.md` |
+| 62 | Model Yedek Zinciri ve Ön Uçuş Denetimi | ✅ | 2026-08-18 | F-44 · F-59 | `2a8149ef:docs/arsiv/fazlar/62-MODEL-YEDEK-ZINCIRI-VE-ON-UCUS-DENETIMI.md` |
+| 63 | Argüman Düzeyinde Onay Politikası | ✅ | 2026-08-18 | F-61 | `2a8149ef:docs/arsiv/fazlar/63-ARGUMAN-DUZEYINDE-ONAY-POLITIKASI.md` |
+| 64 | Denetim Zinciri ve Veri Konusu Hakları | ✅ | 2026-08-18 | F-75 · F-58 | `2a8149ef:docs/arsiv/fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md` |
+| 65 | Kiracı Sağlayıcı Anahtarları (BYOK) | ✅ | 2026-08-19 | F-40 · F-119 | `2a8149ef:docs/arsiv/fazlar/65-KIRACI-SAGLAYICI-ANAHTARLARI.md` |
+| 66 | Gelen Tetikleyiciler | ✅ | 2026-08-19 | F-65 | `2a8149ef:docs/arsiv/fazlar/66-GELEN-TETIKLEYICILER.md` |
+| 67 | İsteğe Bağlı Migration Seti (`pgvector` opt-in) | ✅ | 2026-08-19 | F-110 | `2a8149ef:docs/arsiv/fazlar/67-ISTEGE-BAGLI-MIGRATION-SETI.md` |
+| 68 | Çalıştırma Kimliği ve Token Kırılımı | ✅ | 2026-08-19 | F-111 · F-112 | `2a8149ef:docs/arsiv/fazlar/68-CALISTIRMA-KIMLIGI-VE-TOKEN-KIRILIMI.md` |
+| 69 | Tool Yetkilendirmesi ve Yürütme Timeout'u | ✅ | 2026-08-19 | F-113 · F-114 | `2a8149ef:docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md` |
+| 70 | Çalıştırma Olayı Hedefi ve Düşünme Akışı | ✅ | 2026-08-19 | F-115 | `2a8149ef:docs/arsiv/fazlar/70-CALISTIRMA-OLAYI-HEDEFI.md` |
+| 71 | Workflow Kod Düğümü | ✅ | 2026-08-19 | F-116 | `2a8149ef:docs/arsiv/fazlar/71-WORKFLOW-KOD-DUGUMU.md` |
+| 72 | Çok Dilli Talimat ve Zaman Damgalı Sentez | ✅ | 2026-08-19 | F-117 · F-118 | `2a8149ef:docs/arsiv/fazlar/72-COK-DILLI-TALIMAT-VE-ZAMAN-DAMGALI-SENTEZ.md` |
+| 73 | Tüketici Agent Desteği | ✅ | 2026-08-19 | F-120 | `2a8149ef:docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md` |
+| 74 | Yerel Referans Yüzeyi | ✅ | 2026-08-20 | F-121 | `2a8149ef:docs/arsiv/fazlar/74-YEREL-REFERANS-YUZEYI.md` |
+| 75 | Tüketici Dokümanının Doğruluğu | ✅ | 2026-08-20 | F-126 · F-124 | `2a8149ef:docs/arsiv/fazlar/75-TUKETICI-DOKUMAN-DOGRULUGU.md` |
+| 76 | Doküman Kalitesi ve Görsel Kimlik | ✅ | 2026-08-20 | F-127 | `2a8149ef:docs/arsiv/fazlar/76-DOKUMAN-KALITESI-VE-GORSEL-KIMLIK.md` |
+| 77 | Giden Ağ Muhafızı | ✅ | 2026-08-20 | F-131 | `2a8149ef:docs/arsiv/fazlar/77-GIDEN-AG-MUHAFIZI.md` |
+| 78 | Yetenek Haritası Erişimi | ✅ | 2026-08-21 | F-135 | `2a8149ef:docs/arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md` |
+| 79 | Sevk Edilen Yüzey Kapıları | ✅ | 2026-08-21 | F-125 · F-136 | `2a8149ef:docs/arsiv/fazlar/79-SEVK-EDILEN-YUZEY-KAPILARI.md` |
+| 80 | Doküman Kapılarının Doğruluğu | ✅ | 2026-08-21 | F-129 | `2a8149ef:docs/arsiv/fazlar/80-DOKUMAN-KAPILARININ-DOGRULUGU.md` |
+| 81 | Yanıt Önbelleği ve Eşzamanlı Tool Çağrısı | ✅ | 2026-08-22 | F-45 · F-134 | `2a8149ef:docs/arsiv/fazlar/81-YANIT-ONBELLEGI-VE-ESZAMANLI-TOOL.md` |
+| 82 | İçerik Koruması (at-rest) | ✅ | 2026-08-22 | F-41 | `2a8149ef:docs/arsiv/fazlar/82-ICERIK-KORUMASI.md` |
+| 83 | Tipli Yönetim İstemcisi ve CLI | ✅ | 2026-08-22 | F-50 | `2a8149ef:docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md` |
+| 84 | TypeScript İstemcisi ve npm Kanalı | ✅ | 2026-08-22 | F-93 · F-50 | `2a8149ef:docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md` |
+| 85 | Gömme Ekseni | ✅ | 2026-08-22 | F-140 | `2a8149ef:docs/arsiv/fazlar/85-GOMME-EKSENI.md` |
+| 86 | Talimatın Girdi Yüzeyi | ✅ | 2026-08-22 | F-34 | `2a8149ef:docs/arsiv/fazlar/86-TALIMATIN-GIRDI-YUZEYI.md` |
+| 87 | Kesilen İşin Devamı | ✅ | 2026-08-23 | F-141 | `2a8149ef:docs/arsiv/fazlar/87-KESILEN-ISIN-DEVAMI.md` |
+| 88 | Görsel Üretim Tool'u | ✅ | 2026-08-23 | F-142 | `2a8149ef:docs/arsiv/fazlar/88-GORSEL-URETIM-TOOLU.md` |
+| 89 | Tool Çıktısı Boyut Sınırı | ✅ | 2026-08-23 | F-143 | `2a8149ef:docs/arsiv/fazlar/89-TOOL-CIKTISI-BOYUT-SINIRI.md` |
+| 90 | Doküman Damıtma Politikası | ✅ | 2026-08-23 | — | `2a8149ef:docs/arsiv/fazlar/90-DOKUMAN-DAMITMA-POLITIKASI.md` |
+| 91 | Geliştirme Döngüsü Kapıları | ✅ | 2026-08-23 | — | `2a8149ef:docs/arsiv/fazlar/91-GELISTIRME-DONGUSU-KAPILARI.md` |
+| 92 | Zincir Konsolidasyonu | ✅ | 2026-08-23 | — | `2a8149ef:docs/arsiv/fazlar/92-ZINCIR-KONSOLIDASYONU.md` |
+| 93 | Kusur Sınıfı Kapıları | ✅ | 2026-08-24 | — | `2a8149ef:docs/arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md` |
+| 94 | SQL Tek Kaynak | ✅ | 2026-08-24 | — | `2a8149ef:docs/arsiv/fazlar/94-SQL-TEK-KAYNAK.md` |
+| 95 | Gerçek Tüketici Kapısı | ✅ | 2026-08-24 | — | `2a8149ef:docs/arsiv/fazlar/95-GERCEK-TUKETICI-KAPISI.md` |
+| 96 | Public Yüzey Küçültme | ✅ | 2026-08-24 | — | `2a8149ef:docs/arsiv/fazlar/96-PUBLIC-YUZEY-KUCULTME.md` |
+| 97 | Sürüm Politikası ve Yayın Provası | ✅ | 2026-08-24 | — | `2a8149ef:docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md` |
+| 98 | Depolama Sözleşmesinin Yayını | ✅ | 2026-08-24 | — | `2a8149ef:docs/arsiv/fazlar/98-DEPOLAMA-SOZLESMESININ-YAYINI.md` |
+| 99 | Sağlayıcı Sözleşmesinin Yayını | ✅ | 2026-08-25 | — | `2a8149ef:docs/arsiv/fazlar/99-SAGLAYICI-SOZLESMESININ-YAYINI.md` |
+| 100 | Yargıç Sözleşmesinin Yayını | ✅ | 2026-08-25 | — | `2a8149ef:docs/arsiv/fazlar/100-YARGIC-SOZLESMESININ-YAYINI.md` |
+| 101 | Kaynak Sözleşmesinin Yayını | ✅ | 2026-08-25 | — | `2a8149ef:docs/arsiv/fazlar/101-KAYNAK-SOZLESMESININ-YAYINI.md` |
+| 102 | Tool Sözleşmesi ve Sonuç Sınırı | ✅ | 2026-08-25 | — | `2a8149ef:docs/arsiv/fazlar/102-TOOL-SOZLESMESI-VE-SONUC-SINIRI.md` |
+| 103 | Extension Sözleşmelerinin Yayın Öncesi Sertleştirilmesi | ✅ | 2026-08-25 | F-153 | `2a8149ef:docs/arsiv/fazlar/103-EXTENSION-SOZLESMELERININ-YAYIN-ONCESI-SERTLESTIRILMESI.md` |
+| 104 | Beyan Doğruluğu ve Giriş Rampası | ✅ | 2026-08-25 | — | `2a8149ef:docs/arsiv/fazlar/104-BEYAN-DOGRULUGU-VE-GIRIS-RAMPASI.md` |
+| 105 | DI Bileşen Kökü Ayrıştırma | ✅ | 2026-08-26 | — | `2a8149ef:docs/arsiv/fazlar/105-DI-BILESEN-KOKU-AYRISTIRMA.md` |
+| 106 | Agent Derleyici Ayrıştırma | ✅ | 2026-08-26 | — | `2a8149ef:docs/arsiv/fazlar/106-AGENT-DERLEYICI-AYRISTIRMA.md` |
+| 107 | Run Kayıt Akışı Ayrıştırma | ✅ | 2026-08-26 | — | `2a8149ef:docs/arsiv/fazlar/107-RUN-KAYIT-AKISI-AYRISTIRMA.md` |
+| 108 | Bellek İçi Run Store Ayrıştırma | ✅ | 2026-08-26 | — | `2a8149ef:docs/arsiv/fazlar/108-BELLEK-ICI-RUN-STORE-AYRISTIRMA.md` |
+| 109 | Frontend Modülleri ve Ekran Testleri | ✅ | 2026-08-26 | — | `2a8149ef:docs/arsiv/fazlar/109-FRONTEND-MODULLERI-VE-EKRAN-TESTLERI.md` |
+| 110 | Tüketici Bağlantı Düzlemi | ✅ | 2026-08-26 | — | `2a8149ef:docs/arsiv/fazlar/110-TUKETICI-BAGLANTI-DUZLEMI.md` |
+| 111 | Okuma Sözleşmesi Görünümleri | ✅ | 2026-08-26 | — | `2a8149ef:docs/arsiv/fazlar/111-OKUMA-SOZLESMESI-GORUNUMLERI.md` |
+| 112 | Replay'in İstemci Tool Sözleşmesi | ✅ | 2026-08-26 | F-109 | `2a8149ef:docs/arsiv/fazlar/112-REPLAY-ISTEMCI-TOOL-SOZLESMESI.md` |
+| 113 | Sağlayıcı Arıza Sınıflandırmasının Genişleme Noktası | ✅ | 2026-08-26 | F-149 | `2a8149ef:docs/arsiv/fazlar/113-ARIZA-SINIFLANDIRMA-SEAMI.md` |
+| 114 | Çalıştırma-İçi Bütçe Tavanı | ✅ | 2026-08-26 | F-166 | `2a8149ef:docs/arsiv/fazlar/114-CALISTIRMA-ICI-BUTCE-TAVANI.md` |
+| 115 | Eval'in Başsız Koşucusu | ✅ | 2026-08-27 | F-168 | `2a8149ef:docs/arsiv/fazlar/115-EVALIN-BASSIZ-KOSUCUSU.md` |
+| 116 | Performans Tahsis Kapısı | ✅ | 2026-08-27 | F-67 · F-163 | `2a8149ef:docs/arsiv/fazlar/116-PERFORMANS-TAHSIS-KAPISI.md` |
+| 117 | MCP Tasks Uzantısı | ✅ | 2026-08-27 | F-167 | `2a8149ef:docs/arsiv/fazlar/117-MCP-TASKS-UZANTISI.md` |
+| 118 | Yargıç Başına Checkpoint | ✅ | 2026-08-27 | F-152 | `2a8149ef:docs/arsiv/fazlar/118-YARGIC-BASINA-CHECKPOINT.md` |
+| 119 | Hata Metni Sızıntısının Kapatılması | ✅ | 2026-08-27 | — | `2a8149ef:docs/arsiv/fazlar/119-HATA-METNI-SIZINTISI.md` |
+| 120 | `IJobHandler` Sözleşmesi: At-Least-Once Yazılı Hale Gelir | ✅ | 2026-08-27 | — | `2a8149ef:docs/arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md` |
+| 121 | Seam Sözleşme Dokümanı ve Küçülen Taban Çizgisi | ✅ | 2026-08-28 | — | `2a8149ef:docs/arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md` |
+| 122 | Kayıt API'si ve Sessiz Boşluklar | ✅ | 2026-08-28 | — | `2a8149ef:docs/arsiv/fazlar/122-KAYIT-API-SI-VE-SESSIZ-BOSLUKLAR.md` |
+| 123 | Yayın Kritik Yolu: Kapı Kapsamı, Adaptör Sözleşmesi ve Sürüm Notları | ✅ | 2026-08-28 | — | `2a8149ef:docs/arsiv/fazlar/123-YAYIN-KRITIK-YOLU.md` |
+| 124 | Yedeklemenin Tool Defteri | ✅ | 2026-08-31 | — | `2a8149ef:docs/arsiv/fazlar/124-YEDEKLEMENIN-TOOL-DEFTERI.md` |
+| 125 | Üretilen Tool Şemasının İfade Gücü | ✅ | 2026-09-01 | — | `2a8149ef:docs/arsiv/fazlar/125-URETILEN-TOOL-SEMASININ-IFADE-GUCU.md` |
+| 126 | Kalıcı Payload Sürüm Sözleşmesi | ✅ | 2026-09-01 | — | `2a8149ef:docs/arsiv/fazlar/126-KALICI-PAYLOAD-SURUM-SOZLESMESI.md` |
+| 127 | Tool Kayıt Yüzeyi: Tek Kompozisyon, Argüman Kapısı ve Kapsamlı Tool | ✅ | 2026-09-01 | — | `2a8149ef:docs/arsiv/fazlar/127-TOOL-KAYIT-YUZEYI.md` |
+| 128 | Run Ağacı Süre Bütçesi | ✅ | 2026-09-01 | — | `2a8149ef:docs/arsiv/fazlar/128-RUN-AGACI-SURE-BUTCESI.md` |
+| 129 | İş Kuyruğu `lane`'leri | ✅ | 2026-09-01 | F-172 | `2a8149ef:docs/arsiv/fazlar/129-IS-KUYRUGU-LANELERI.md` |
+| 130 | Üretilen Şemanın Kısıtları | ✅ | 2026-09-01 | F-173 | `2a8149ef:docs/arsiv/fazlar/130-URETILEN-SEMANIN-KISITLARI.md` |
+| 131 | Yapısal Yanıt Doğrulama Seam'i | ✅ | 2026-09-01 | F-174 | `2a8149ef:docs/arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md` |
+| 132 | Uygulanan Fiyat Snapshot'ı ve Sağlayıcı Kimliği | ✅ | 2026-09-02 | F-175 | `2a8149ef:docs/arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md` |
+| 133 | İş Kuyruğu Metrikleri | ✅ | 2026-09-02 | F-178 | `2a8149ef:docs/arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md` |
+| 134 | Sınırlı Yapısal Yanıt Onarımı | ✅ | 2026-09-02 | F-177 | `2a8149ef:docs/arsiv/fazlar/134-SINIRLI-YANIT-ONARIMI.md` |
+| 135 | Üretilen Şemanın Nesne Grafı | ✅ | 2026-09-02 | F-176 | `2a8149ef:docs/arsiv/fazlar/135-URETILEN-SEMANIN-NESNE-GRAFI.md` |
+| 136 | Paket Kimliğinin Tekilliği | ✅ | 2026-09-03 | F-182 | `2a8149ef:docs/arsiv/fazlar/136-PAKET-KIMLIGININ-TEKILLIGI.md` |
+| 137 | İş Türünün Açık Anahtarı | ✅ | 2026-09-03 | F-183 | `2a8149ef:docs/arsiv/fazlar/137-IS-TURUNUN-ACIK-ANAHTARI.md` |
+| 138 | Ses Tanımının Sağlayıcı Üstverisi | ✅ | 2026-09-03 | F-184 | `2a8149ef:docs/arsiv/fazlar/138-SES-TANIMININ-SAGLAYICI-USTVERISI.md` |
+| 139 | Çalıştırma ve Oturum Yetkilendirmesi | ✅ | 2026-09-03 | F-185 | `2a8149ef:docs/arsiv/fazlar/139-CALISTIRMA-VE-OTURUM-YETKILENDIRMESI.md` |
+| 140 | İçerik Guard'ının Kaynağı | ✅ | 2026-09-04 | F-186 | `2a8149ef:docs/arsiv/fazlar/140-ICERIK-GUARDININ-KAYNAGI.md` |
+| 141 | Genişletilebilir Çalıştırma Olayı | ✅ | 2026-09-04 | F-187 | `2a8149ef:docs/arsiv/fazlar/141-GENISLETILEBILIR-CALISTIRMA-OLAYI.md` |
+| 142 | Onay İsteğinin Sunumu | ✅ | 2026-09-04 | F-188 | `2a8149ef:docs/arsiv/fazlar/142-ONAY-ISTEGININ-SUNUMU.md` |
+| 143 | Tool Argümanının Sözleşme Testleri | ✅ | 2026-09-04 | F-189 | `2a8149ef:docs/arsiv/fazlar/143-TOOL-ARGUMANININ-SOZLESME-TESTLERI.md` |
+| 144 | Alt-Agent Bekleme Sınırı | ✅ | 2026-09-05 | F-191 | `2a8149ef:docs/arsiv/fazlar/144-ALT-AGENT-BEKLEME-SINIRI.md` |
+| 145 | Kayıtlı Olay Akışının Çerçeve Sözleşmesi | ✅ | 2026-09-05 | F-193 | `2a8149ef:docs/arsiv/fazlar/145-OLAY-AKISININ-CERCEVE-SOZLESMESI.md` |
+| 146 | Çalıştırmaya Bağlı Kota Eşiği | ✅ | 2026-09-05 | F-194 | `2a8149ef:docs/arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md` |
+| 147 | Yetkilendirme Kapısının Kaynak Kapsamı | ✅ | 2026-09-05 | F-195 | `2a8149ef:docs/arsiv/fazlar/147-YETKI-KAPISININ-KAYNAK-KAPSAMI.md` |
+| 148 | Oturum Sahipliğinin Kalıcılığı | ✅ | 2026-09-06 | F-196 | `2a8149ef:docs/arsiv/fazlar/148-OTURUM-SAHIPLIGININ-KALICILIGI.md` |
+| 149 | Sahipsiz Oturumun Katı Reddi | ✅ | 2026-09-06 | F-201 | `2a8149ef:docs/arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md` |
+| 150 | Zorunlu Binding Profili | ✅ | 2026-09-06 | F-202 | `2a8149ef:docs/arsiv/fazlar/150-ZORUNLU-BINDING-PROFILI.md` |
+| 151 | Harness'in Döngü Yeteneği | ✅ | 2026-09-07 | F-192 | `2a8149ef:docs/arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md` |
+| 152 | Skorun Adı ve Şekli | ✅ | 2026-09-07 | F-208 | `2a8149ef:docs/arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md` |
+| 153 | Eval Koşumları Arasında Regresyon Farkı | ✅ | 2026-09-07 | F-207 | `2a8149ef:docs/arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md` |
+| 154 | Skor Trendinin Kalıcı Sorgusu | ✅ | 2026-09-07 | F-209 | `2a8149ef:docs/arsiv/fazlar/154-SKOR-TRENDININ-KALICI-SORGUSU.md` |
+| 155 | Kalibre Edilmiş Evaluator Kataloğu | ✅ | 2026-09-08 | F-210 | `2a8149ef:docs/arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md` |
+| 156 | Durum Ön Kontrolü ve Upgrade Penceresi | ✅ | 2026-09-08 | F-216 | `2a8149ef:docs/arsiv/fazlar/156-DURUM-ON-KONTROLU-VE-UPGRADE-PENCERESI.md` |
+| 157 | Sınırlı Yük ve İki Process Arıza Kanıtı | ✅ | 2026-09-08 | F-217 | `2a8149ef:docs/arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md` |
+| 158 | Davranış İddialarının Kapısı | ✅ | 2026-09-08 | F-171 | `2a8149ef:docs/arsiv/fazlar/158-DAVRANIS-IDDIALARININ-KAPISI.md` |
+| 159 | Tipli İstemcide Akışlı OpenAI Çağrısı | ✅ | 2026-09-08 | F-198 | `2a8149ef:docs/arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md` |
+| 160 | Lisans Modeli ve Paket Metaverisi | ✅ | 2026-09-08 | — | `2a8149ef:docs/arsiv/fazlar/160-LISANS-MODELI-VE-PAKET-METAVERISI.md` |
+| 161 | GPT-Live Sideband Denetimi | ✅ | 2026-09-11 | — | `2a8149ef:docs/arsiv/fazlar/161-GPT-LIVE-SIDEBAND-DENETIMI.md` |
+| 162 | Tracon Yeniden Adlandırma | ✅ | 2026-09-12 | — | `2a8149ef:docs/arsiv/fazlar/162-TRACON-YENIDEN-ADLANDIRMA.md` |
+| 163 | Marka ve Dokümantasyon Deneyimi | ✅ | 2026-09-12 | F-221 · F-222 | `2a8149ef:docs/arsiv/fazlar/163-MARKA-VE-DOKUMANTASYON.md` |
+| 164 | Console'un Enstrüman Katmanı | ✅ | 2026-09-12 | F-223 | `2a8149ef:docs/arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md` |
+| 165 | Konsolun Kalan Ekranları | ✅ | 2026-09-12 | F-223 | `2a8149ef:docs/arsiv/fazlar/165-KONSOLUN-KALAN-EKRANLARI.md` |
+| 166 | HTTP Kapasite Ölçümü | ✅ | 2026-09-14 | F-225 | `2a8149ef:docs/arsiv/fazlar/166-HTTP-KAPASITE-OLCUMU.md` |
+| 167 | Agent Zorlama Katmanı | ✅ | 2026-09-13 | F-227 | `2a8149ef:docs/arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md` |
+| 168 | Kurtarma Rampası Kataloğu | ✅ | 2026-09-13 | F-228 | `2a8149ef:docs/arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md` |
+| 169 | Faz Planı Sözleşmesi: Süreç Ölçümü ve Triyaj | ✅ | 2026-09-13 | F-229 | `2a8149ef:docs/arsiv/fazlar/169-FAZ-PLANI-SOZLESMESI.md` |
+| 170 | Production Profil Kapısı | ✅ | 2026-09-14 | F-231 | `2a8149ef:docs/arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md` |
+| 171 | Denetim İzi Yazma Politikası | ✅ | 2026-09-15 | F-234 | `2a8149ef:docs/arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md` |
+| 172 | Tehdit Modeli | ✅ | 2026-09-15 | F-235 | `2a8149ef:docs/arsiv/fazlar/172-TEHDIT-MODELI.md` |
+| 173 | Çalıştırma Kaydının Kaybı Ölçülür | ✅ | 2026-09-15 | — | `2a8149ef:docs/arsiv/fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md` |
+| 174 | Kapasite Damgası Kapısı | ✅ | 2026-09-15 | F-239 | `2a8149ef:docs/arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md` |
+| 175 | Geri Alınamaz Karar Doğrulaması | ✅ | 2026-09-16 | F-224 | `2a8149ef:docs/arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md` |
+| 176 | Evaluator Sürüm Damgası | ✅ | 2026-09-16 | F-218 | `2a8149ef:docs/arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md` |
+| 177 | Store İptal Sözleşmesi | ✅ | 2026-09-16 | F-213 | `2a8149ef:docs/arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md` |
+| 178 | Tüketici Kapı Skill'i | ✅ | 2026-09-16 | F-232 | `2a8149ef:docs/arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md` |
+| 179 | Kiracı Kimliğinin Normalleştirilmesi | ✅ | 2026-09-19 | — | `2a8149ef:docs/arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md` |
+| 180 | Manuel Set Devir Şablonu | ✅ | 2026-09-22 | F-165 | `2a8149ef:docs/arsiv/fazlar/180-MANUEL-SET-DEVIR-SABLONU.md` |
+| 181 | Provider Ortak Katmanı | ✅ | 2026-09-22 | F-258 | `2a8149ef:docs/arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md` |
+| 182 | Public API Yüzey Daraltma | ✅ | 2026-09-22 | F-259 | `2a8149ef:docs/arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md` |
+| 183 | Çoklu TFM Test Matrisi | ✅ | 2026-09-23 | F-260 | `2a8149ef:docs/arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md` |
+| 184 | Test Bekleme ve E2E Yapısı | ✅ | 2026-09-23 | F-261 | `2a8149ef:docs/arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md` |
+| 185 | Kardeş Paket Sürüm Sabitleme ve Karışık Graf Koruması | ✅ | 2026-09-24 | F-265 | `2a8149ef:docs/arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md` |
+| 186 | Script İzninin İçeriğe Bağlanması ve Tehdit Modeli Düzeltmesi | ✅ | 2026-09-24 | F-269 | `2a8149ef:docs/arsiv/fazlar/186-SCRIPT-IZNI-ICERIK-PINI.md` |
+| 187 | Yayınlanmış Sürüme Karşı Kırıcı Değişiklik Kapısı | ✅ | 2026-09-24 | F-270 | `2a8149ef:docs/arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md` |
+| 188 | DI ile Kurulan Servis Tiplerinde Kurucu Daraltması | ✅ | 2026-09-24 | F-271 | `2a8149ef:docs/arsiv/fazlar/188-DI-KURUCU-DARALTMA.md` |
+| 189 | Tüketici Yüzeyi: TraconToolRegistration ve ITraconBuilder | ✅ | 2026-09-24 | F-271 | `2a8149ef:docs/arsiv/fazlar/189-TUKETICI-YUZEYI-VE-BUILDER.md` |
+| 190 | Kimlik Taşıyan Başlıklar İçin Yapılandırma Anahtarı Referansı | ✅ | 2026-09-24 | F-272 | `2a8149ef:docs/arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md` |
+| 191 | Tek Derleme Zinciri | ✅ | 2026-09-24 | F-273 | `2a8149ef:docs/arsiv/fazlar/191-TEK-DERLEME-ZINCIRI.md` |
+| 192 | Döngü Tükenme Politikası | ✅ | 2026-10-11 | F-293 | `2a8149ef:docs/arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md` |
+| 194 | Workflow ve Kuyruk Yollarında Parametre Değerleri | ✅ | 2026-10-12 | F-294 | `2a8149ef:docs/arsiv/fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md` |
+| 195 | Workflow Düğüm Düzenleme ve Fonksiyon Düğümü Ayarı | ✅ | 2026-10-12 | F-292 · F-295 | `2a8149ef:docs/arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md` |
+| 196 | Uzun Adımların Süre Sınırı ve İptali | ✅ | 2026-10-13 | F-303 · F-323 · F-405 | `2a8149ef:docs/arsiv/fazlar/196-UZUN-ADIM-SURE-VE-IPTAL.md` |
+| 197 | Dayanıklı Workflow Yürütmesi: Bağlantısız Run ve Otomatik Sürdürme | ✅ | 2026-10-13 | F-318 · F-321 | `2a8149ef:docs/arsiv/fazlar/197-DAYANIKLI-WORKFLOW-YURUTMESI.md` |
+| 198 | Adlı Konuşma Sağlayıcısı ve Kiracı Bağlaması | ✅ | 2026-10-13 | F-298 | `2a8149ef:docs/arsiv/fazlar/198-ADLI-KONUSMA-SAGLAYICISI.md` |
+| 199 | Fonksiyon Düğümünün Token Dışı Maliyeti | ✅ | 2026-10-14 | F-299 | `2a8149ef:docs/arsiv/fazlar/199-FONKSIYON-DUGUMU-MALIYETI.md` |
+| 200 | Workflow Sürüm Geçmişi ve Sürüm Sabitleme | ✅ | 2026-10-14 | F-300 | `2a8149ef:docs/arsiv/fazlar/200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md` |
+| 201 | Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası | ✅ | 2026-10-13 | F-302 · F-301 | `2a8149ef:docs/arsiv/fazlar/201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md` |
+| 202 | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | ✅ | 2026-10-13 | F-345 | `2a8149ef:docs/arsiv/fazlar/202-SKILL-SCRIPT-YURUTUCU-SEAM.md` |
+| 203 | Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları | ✅ | 2026-10-13 | F-296 | `2a8149ef:docs/arsiv/fazlar/203-COK-KONUSMACILI-DIYALOG-SENTEZI.md` |
+| 204 | Kesilen Model Çıktısı ve Anthropic Güncel İstek Ayarları | ✅ | 2026-10-13 | F-320 · F-346 | `2a8149ef:docs/arsiv/fazlar/204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md` |
+| 205 | Kök Kapandıktan Sonra Biten Harcamanın Kotası | ✅ | 2026-10-14 | F-418 · F-482 | `2a8149ef:docs/arsiv/fazlar/205-GEC-BITEN-HARCAMA-KOTASI.md` |
+| 206 | Yapılandırma Bölümlerinin Bağlama Kanıtı | ✅ | 2026-10-14 | F-247 | `2a8149ef:docs/arsiv/fazlar/206-YAPILANDIRMA-BAGLAMA-KANITI.md` |
+| 207 | Akışta Kesilen Çıktı Bildirimi | ✅ | 2026-10-14 | F-427 | `2a8149ef:docs/arsiv/fazlar/207-AKISTA-KESILEN-CIKTI-BILDIRIMI.md` |
+| 208 | Workflow Karar Sözleşmesi: Tek Yanıt, Karar Denetimi ve Kaynak Bağı | ✅ | 2026-10-14 | F-319 | `2a8149ef:docs/arsiv/fazlar/208-WORKFLOW-KARAR-SOZLESMESI.md` |
+| 209 | Workflow Gelen Kutusu ve İstek Süresi | ✅ | 2026-10-14 | F-319 | `2a8149ef:docs/arsiv/fazlar/209-WORKFLOW-GELEN-KUTUSU-VE-SURE.md` |
+| 210 | Bütçe Tükenince Fonksiyon Düğümü Başlamaz | ✅ | 2026-10-14 | F-407 | `2a8149ef:docs/arsiv/fazlar/210-BUTCE-DUGUM-KAPISI.md` |
+| 211 | Kod Grafında Düğüm Yetenekleri ve Revizyon Döngüsü | ✅ | 2026-10-15 | F-537 · F-538 · F-539 | `2a8149ef:docs/arsiv/fazlar/211-KOD-GRAFI-DUGUM-YETENEKLERI.md` |
+| 212 | HTTP DTO'larını Daralt: Yalnız OpenAPI İçin Public Olan 81 Tip | ✅ | 2026-10-16 | F-554 | `2a8149ef:docs/arsiv/fazlar/212-HTTP-DTO-DARALTMA.md` |
+| 213 | Tesisat Arayüzleri ve Üye Hijyeni | ✅ | 2026-10-16 | F-555 · F-556 | `2a8149ef:docs/arsiv/fazlar/213-TESISAT-ARAYUZLERI-VE-UYE-HIJYENI.md` |
+| 214 | Çalışma Anı Bağımlılıkları ve MAF 1.25 | ✅ | 2026-10-16 | F-557 | `2a8149ef:docs/arsiv/fazlar/214-CALISMA-ANI-BAGIMLILIKLARI-VE-MAF-125.md` |
+| 215 | Test ve Derleme Araçları | ✅ | 2026-10-16 | F-557 · F-568 | `2a8149ef:docs/arsiv/fazlar/215-TEST-VE-DERLEME-ARACLARI.md` |
+| 216 | npm Bağımlılıkları: Arayüz, TypeScript İstemcisi ve Site | ✅ | 2026-10-16 | F-557 | `2a8149ef:docs/arsiv/fazlar/216-NPM-BAGIMLILIKLARI.md` |
+| 217 | Sağlayıcı Modernleşmesi ve AOT Vaadinin Kanıtı | ✅ | 2026-10-17 | F-558 | `2a8149ef:docs/arsiv/fazlar/217-SAGLAYICI-MODERNLESME-VE-AOT-VAADI.md` |
+| 218 | `AuthorizationConfigurationKey` Alanını Kaldırma | ✅ | 2026-10-17 | F-290 | `2a8149ef:docs/arsiv/fazlar/218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md` |
+
+## Süreç Ölçümü
+
+Eşik Faz 167'dir (K-767); öncesi ölçülmedi ve doldurulmaz. Kapı
+satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın tam metnindedir.
+
+| Faz | Plan revizyonu sayısı | Düzeltme turu sayısı | 🔴 bulgu: gerçek / gürültü / araştırılacak | Fazın ürettiği regresyon | Faz kapandıktan sonra bulunan kusur |
+|---|---|---|---|---|---|
+| 167 | 4 | 0 kod turu | 0 / 0 / 0 | 0. Denetçi iki kez ağaca/sürece müdahale etti | ölçülmedi |
+| 168 | 0 | 2 | 2 / 0 / 0 | 0 | ölçülmedi |
+| 169 | 5 | 4 | 1 / 0 / 0 | 0 | ölçülmedi |
+| 170 | 0 | 2 | 2 / 0 / 0 | 0 | — |
+| 171 | 0 | 9 | 1 / 0 / 0 | 0 | — |
+| 172 | 0 | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 173 | 0 | 9 | 2 / 0 / 0 | 0 | — |
+| 174 | 5 | 5 | 7 / 0 / 0 | 0 | (kapanışta boş) |
+| 175 | 0 | 3 | faz-denetim bölümüne bakınız | 1 | — |
+| 176 | 0 | 4 | faz-denetim bölümüne bak | 0 | — |
+| 177 | 0 | 4 | 2 / 0 / 0 | 0 | — |
+| 178 | 0 | 3 | 2 / 0 / 0 + 1 bayat | 1 | — |
+| 179 | 0 | 2 | 2 / 0 / 0 | 0 ölçülen. Kapılar üç kez kızardı ve üçü de fazın kendi eksiğiydi | 1 |
+| 180 | 0 | 1 | 1 / 0 / 0 | 0 | — |
+| 181 | 0 | 1 | 0 / 0 / 0 | 0 | — |
+| 182 | 0 | 1 | 0 / 0 / 0 | 0 | 0 |
+| 183 | 0 | 3 | 2 / 0 / 0 | 2 | ölçülmedi |
+| 184 | 0 | 3 | 1 / 0 / 0 | 0 | ölçülmedi |
+| 185 | 0 | 5 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 186 | 0 | 2 | 2 / 0 / 0 | 2 | ölçülmedi |
+| 187 | 0 | 4 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 188 | 0 | 1 | 0 / 0 / 0 | 1 | ölçülmedi |
+| 189 | 0 | 5 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 190 | 1 | 5 | 1 / 0 / 0 | 1 | ölçülmedi |
+| 191 | 0 | 3 | 0 / 1 / 0 | 0 | ölçülmedi |
+| 192 | 0 | 4 | 1 / 0 / 0 | 0 | 0 |
+| 194 | 0 | 6 | 1 / 0 / 0 | 2 | 0 |
+| 195 | 1 | 12 + kapanış kapıları | 1 / 1 / 0 | 2 | 0 |
+| 196 | 2 | 1 | 0 / 0 / 0 | 1 | ölçülmedi |
+| 197 | 1 | 12 | 1 / 0 / 0 | 3 | ölçülmedi |
+| 198 | 1 | 3 | 0 / 0 / 0 | 1 | ölçülmedi |
+| 199 | 0 | 2 | Denetçi | Davranış | Henüz ölçülmedi |
+| 200 | 0 | 3 | 0 / 0 / 0 | 0 davranışta. Kapı turunda 2 bayat sayım | ölçülmedi |
+| 201 | 0 | 10 | 0 / 0 / 0 | 0 | 0 |
+| 202 | 1 | 1 | 0 / 0 / 0 | 1 | 0 |
+| 203 | 1 | 1 | 0 / 0 / 0 | Merge'e giden | 0 |
+| 204 | 0 | 6 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 205 | 0 | 9 | 1 / 0 / 0 | 0 | ölçülmedi |
+| 206 | 0 | 3 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 207 | 0 | 3 | 0 / 0 / 0 | 0 | ölçülmedi |
+| 208 | 2 | 2 | 2 / 0 / 0 | 0 | 0 |
+| 209 | 0 | 1 | 0 / 0 / 0 | 0 | 0 |
+| 210 | 0 | 1 | 0 / 0 / 0 | 0 | 0 |
+| 211 | 0 | 3 | bkz. Denetim Bulguları | 0 | ölçülmedi |
+| 212 | 0 | 4 | 0 / 0 / 0 | 1 | ölçülmedi |
+| 213 | 0 | 5 | 1 / 0 / 0 | 0 commit edilmiş | ölçülmedi |
+| 214 | 0 | 4 kapı kırmızısı turu | 0 / 0 / 0 | 0 bilinen | ölçülmedi |
+| 215 | 0 | 2 | 1 / 1 / 0 | 1 | 0 |
+| 216 | 0 | 1 | 0 / 0 / 0 | 0 | 0 |
+| 217 | 1 | 3 | 2 / 0 / 0 | 2 | ölçülmedi |
+| 218 | 0 | 3 | 0 / 0 / 0 | 2 | ölçülmedi |

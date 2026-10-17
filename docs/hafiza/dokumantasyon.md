@@ -1,6 +1,6 @@
 # Dokumantasyon Tuzaklari
 
-> **Kardeş dosya:** geliştirme defterinin (`KARARLAR.md`, `docs/arsiv/fazlar/`)
+> **Kardeş dosya:** geliştirme defterinin (`KARARLAR.md`, `docs/FAZ-DEFTERI.md`)
 > BAKIMI ayrı bir dosyadadır: [`defter-bakimi.md`](defter-bakimi.md). Bu dosya
 > **sevk edilen** ve kullanıcıya dönük dokümanın tuzaklarını taşır.
 

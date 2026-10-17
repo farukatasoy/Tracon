@@ -7,8 +7,9 @@
 > plan **eksiktir**.
 >
 > Şablonun alt yarısındaki bölümler (Plandan Sapmalar'dan sonrası) plan anında
-> **boş bırakılır**; `faz-tamamlama` doldurur. Başlıkları silme — silinirse
-> kapanış adımı unutulur.
+> **boş bırakılır** ve faz **çalışırken** dolar. Doküman kapanışta silinir
+> (`faz-kapat`); bölümlerin kalıcı kısmı `faz-tamamlama` Adım 5'te yerine taşınır.
+> Başlıkları silme — `faz-kapat` `Süreç Ölçümü`nü buradan okur.
 
 ---
 
@@ -41,11 +42,13 @@
    grep -n "K-0NN\|K-0MM" docs/KARARLAR.md
    ```
    **K-0NN** (<tek cümlelik özet>), **K-0MM** (<tek cümlelik özet>)
-3. [`<onceki-faz>.md`](<onceki-faz>.md) — yalnız devir notu:
+3. Önceki fazdan devir — kapanan fazın dokümanı silinir; devir **bu dokümanın**
+   `## Önceki Fazdan Devir` bölümüne yazılır (`faz-tamamlama` Adım 6). Kapanmış
+   bir fazın tam metni gerçekten gerekirse `FAZ-DEFTERI.md` satırındaki işaretçi:
    ```bash
-   awk '/## Sonraki Faza Devir Notu/,0' docs/<onceki-faz>.md
+   git show <sha>:<yol> | awk '/## Sonraki Faza Devir Notu/,0'
    ```
-   <Neden bu bölüm gerekli — hangi sözleşmeyi devralıyor>
+   <Neden gerekli — hangi sözleşmeyi devralıyor>
 4. Alan hafızası (bu faz <n> alana dokunuyor):
    [`hafiza/<alan>.md`](hafiza/<alan>.md) (<neden>)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
@@ -188,41 +191,29 @@ curl -s http://localhost:5081/tracon/api/<yol>
 ---
 
 <!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
+     AŞAĞISI ÇALIŞIRKEN DOLAR — doküman kapanışta silinir (`faz-kapat`).
+     Kalıcı kısım `faz-tamamlama` Adım 5'te yerine taşınır. Başlıkları SİLME.
      ============================================================ -->
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+> Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
+> kapanış commit mesajına taşınır.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Fazın kararları burada yazılır. Dört kategoriden birine
-> giren karar (AGENTS.md) ayrıca `docs/KARARLAR.md`'ye K-NNN ve kategori
-> etiketiyle girer ve numarası burada anılır; girmeyen karar yalnız burada
-> kalır (`faz-tamamlama` Adım 8). Plan numara rezerve etmez.
-
-## Gerçekleşen Public API
-
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
-
-## Dosya Listesi (gerçekleşen)
-
-> Kapanışta doldurulur.
+> Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
+> `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
+> kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
+> etmez.
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL: arşivdeki her
-> `- [ ]` satırı `tamamlanmis_faz_isaretsiz_kutular()` kapısında ayrıca hata
-> sayılır ve bulgunun kaynağı bulanıklaşır.
->
-> `dokuman-bakim.py --denetle` 14. kapısı (`surec_olcumu_bulgulari`) bu tabloyu
-> **eşik 167**'den itibaren her kapanmış fazda arar. Boş bir değer hücresi
-> kırmızıdır; `ölçülmedi` **geçerli bir değerdir** — kapı bir sayı değil, bir
-> **karar** arar. Kapı bölümün VARLIĞINI denetler, doğruluğunu denetlemez
-> (K-766).
+> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL: `faz-kapat`
+> işaretsiz kutuda durur. `faz-kapat` bu tabloyu `docs/FAZ-DEFTERI.md`'ye taşır;
+> eşik **167**'den itibaren boş bir değer hücresinde kapanışı durdurur.
+> `ölçülmedi` **geçerli bir değerdir** — kapı bir sayı değil, bir **karar** arar.
+> Kapı bölümün VARLIĞINI denetler, doğruluğunu denetlemez (K-766).
 
 | Metrik | Değer |
 |---|---|
@@ -230,16 +221,11 @@ curl -s http://localhost:5081/tracon/api/<yol>
 | Düzeltme turu sayısı | |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | |
 | Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
-
-## Sonraki Faza Devir Notu
-
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+> `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
+> (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
+> `ADAYLAR.md`'ye gider.
 ```

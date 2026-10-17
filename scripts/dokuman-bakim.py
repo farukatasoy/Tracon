@@ -4,12 +4,15 @@
 Üç iş yapar:
   1. DÖRT dosyayı yeniden üretir: `docs/KARARLAR-INDEKS.md`,
      `docs/arsiv/KARARLAR-INDEKS-ARSIV.md`, `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`
-     (üçü `docs/KARARLAR.md`'den) ve `docs/YOL-HARITASI.md` (faz dokümanlarının
-     `> **Durum:**` satırından). Hiçbiri elle yazılmaz; böylece bayatlayamazlar.
+     (üçü `docs/KARARLAR.md`'den) ve `docs/YOL-HARITASI.md` (açık fazların
+     `> **Durum:**` satırından ve `docs/FAZ-DEFTERI.md`'den). Hiçbiri elle
+     yazılmaz; böylece bayatlayamazlar.
   2. Doküman erişim katmanlarının bütçesini denetler: başlangıç bağlamı,
      gerektiğinde sorgulanan referanslar ve ledger.
-  3. Kapanmış fazın `docs/` kökünde kalmadığını ve tüm yerel bağlantıların
-     çözüldüğünü doğrular.
+  3. Kapanmış fazın `docs/` kökünde kalmadığını, faz defterinin
+     işaretçilerini ve tüm yerel bağlantıların çözüldüğünü doğrular.
+
+Faz kapanışı: `python3 scripts/dokuman-bakim.py faz-kapat <NN>` (2026-10-17).
 
 Kullanım:
     python3 scripts/dokuman-bakim.py               # üret + denetle
@@ -202,6 +205,10 @@ YONETIM_BUTCESI = {
     # buyur ve 2026-09-22'ye kadar hicbir freni yoktu (temizlik turu bulgusu).
     # Ledger gibi "yalniz aramada" okunur. ILK SINIR -- K-214'e girmez.
     "docs/YAYIN-HAZIRLIK.md": 172_000,  # ILK SINIR 2026-09-22; olculen 145_664 (olculen/0.85=171_369)
+    # FAZ-DEFTERI: kapanan fazin TEK izi (2026-10-17, `faz-kapat`). Faz basina
+    # ~150 B buyur; ILK SINIR -- K-214'e girmez. Asilirsa satir kisaltilmaz,
+    # olcum tablosu ayri dosyaya bolunur.
+    "docs/FAZ-DEFTERI.md": 40_000,  # ILK SINIR 2026-10-17; olculen 33_635 (olculen/0.85=39_571)
 }
 
 # Birleştirilmiş görünüm yalnız büyüme projeksiyonu içindir. Raporlama bu
@@ -319,10 +326,6 @@ DIZIN_BUTCESI = {
     ("docs/kesif", True, False):        461_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 356_857
                                                     # (olculen/0.85=419_832)
 }
-
-# Damitilmis faz kaydi basina tavan: dizin butcesi TOPLAMI frenler, bu tek bir
-# fazin sismesini yakalar. Olculen max 26_068 (`04-HTTP-API.md`) + %16.
-DAMITILMIS_FAZ_BUTCESI = 31_000
 
 # Bir butcenin en az bu kadari bos kalmali; asagisi "DAR" olarak isaretlenir
 # (hata degil, erken uyari). Faz 58.0'in tum sicak yol dosyalarina koydugu hedef.
@@ -766,13 +769,13 @@ def _satir(ad: str, n: int, sinir: int, genislik: int = 30) -> tuple[str, bool]:
     return f"{ad:<{genislik}} {n:>9} {sinir:>9}  {n * 10 // 24:>8}  {durum}", asti
 
 
-def yol_haritasi_uret() -> str:
-    """Faz yol haritasi -- `docs/NN-*.md` dosyalarindan URETILIR, elle yazilmaz.
+def yol_haritasi_uret(kok: pathlib.Path = ROOT) -> str:
+    """Faz yol haritasi -- URETILIR, elle yazilmaz (K-413).
 
-    Faz 58: README'deki tablo Faz 21-56'yi tek satirda ozetliyordu ve
-    "Faz dokumanlari (00-32)" gibi elle bakilan sayilar bayatliyordu. Kaynak
-    artik fazin KENDI dokumanindaki `> **Durum:**` satiridir; bir faz kapandiginda
-    yol haritasi kendiliginden dogrulanir (K-214'un indeks deseni).
+    Acik fazlar `docs/NN-*.md` dokumanlarinin `> **Durum:**` satirindan,
+    kapanan fazlar `FAZ-DEFTERI.md`'den gelir (2026-10-17: kapanan faz
+    dokumani silinir, defter satiri kalir). Siradaki bos numara ikisinin
+    birlesiminden turetilir -- `ls docs/` tek basina eski bir numara verir.
     """
     kisalt = {
         "Tamamlandı": "✅ Tamamlandı",
@@ -780,20 +783,9 @@ def yol_haritasi_uret() -> str:
         "Beklemede": "⏸ Beklemede",
         "Planlandı": "📋 Planlandı",
     }
-
-    # Faz 77: kapanmis fazlar `docs/arsiv/fazlar/` altina tasindi --
-    # sicak yol sayacindan cikmalari icin (HARIC listesi arsivi dusuyor). Yol
-    # haritasi IKI konumu da tarar; baglanti dosyanin GERCEK yerini gosterir,
-    # yoksa 60 faz sessizce listeden duserdi.
-    kaynaklar = sorted(
-        (ROOT / "docs").glob(FAZ_DESEN),
-        key=_faz_no,
-    ) + sorted(
-        (ROOT / "docs" / "arsiv" / "fazlar").glob(FAZ_DESEN),
-        key=_faz_no,
-    )
+    acik = sorted((kok / "docs").glob(FAZ_DESEN), key=_faz_no)
     satirlar = []
-    for p in sorted(kaynaklar, key=_faz_no):
+    for p in acik:
         metin = p.read_text(encoding="utf-8")
         mb = re.search(r"^#\s+(.*)$", metin, re.M)
         md = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
@@ -804,33 +796,38 @@ def yol_haritasi_uret() -> str:
         ham = (md.group(1) if md else "?").strip()
         ham = ham.replace("*", "").replace("✅", "").replace("⏸", "").replace("📋", "").strip()
         durum = next((v for k, v in kisalt.items() if ham.startswith(k)), ham or "?")
+        satirlar.append(f"| [{_faz_no(p)}]({p.name}) | {baslik} | {durum} |")
 
-        no = str(_faz_no(p))
-        yol = p.relative_to(ROOT / "docs").as_posix()
-        satirlar.append(f"| [{no}]({yol}) | {baslik} | {durum} |")
-
+    defter = faz_defteri_oku(kok)
+    siradaki = max([_faz_no(p) for p in acik] + [k["no"] for k in defter], default=-1) + 1
+    if defter:
+        son = defter[-1]
+        kapanan = (f"Kapanan fazlar ({len(defter)} kayıt; son: Faz {son['no']} — {son['konu']}):"
+                   " [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam"
+                   " metne defterdeki `git show` işaretçisi götürür.")
+    else:
+        kapanan = "Kapanan faz yok: [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md)."
     return "\n".join(
         [
             "# Faz Yol Haritası",
             "",
-            "> **Üretilen dosya. Elle düzenleme.** Kaynak: her fazın kendi",
-            "> dokümanındaki `> **Durum:**` satırı. Açık fazlar `docs/` kökünde,",
-            "> kapanmış fazlar `docs/arsiv/fazlar/` altında yaşar.",
-            "> Yeniden üretmek için: `python3 scripts/dokuman-bakim.py`",
+            "> **Üretilen dosya. Elle düzenleme.** Kaynak: açık fazların kendi",
+            "> dokümanındaki `> **Durum:**` satırı ve kapanan fazlar için",
+            "> [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Yeniden üretmek için:",
+            "> `python3 scripts/dokuman-bakim.py`",
             "",
             "Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;",
             "bu dosyayı düzeltmek bir sonraki üretimde geri alınır.",
             "",
-            f"## Fazlar ({len(satirlar)} kalem)",
+            f"**Sıradaki boş faz numarası: {siradaki}.**",
+            "",
+            f"## Açık fazlar ({len(satirlar)} kalem)",
             "",
             "| Faz | Konu | Durum |",
             "|-----|------|-------|",
             *satirlar,
             "",
-            "Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Faz 0–218 arasındaki"
-            " kapanmış kayıtların çoğu 2026-10-17'de silindi; numaralar kullanılmıştır"
-            " ve tam metinleri `2a8149ef` commit'indedir"
-            " (`git show 2a8149ef:docs/arsiv/fazlar/<dosya>`).",
+            kapanan + " Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).",
             "",
         ]
     )
@@ -841,10 +838,10 @@ def _durum_tamamlandi_mi(durum_metni: str) -> bool:
 
     Faz 91: the literal-word check `Tamamlandı` missed real synonyms already
     in use (`✅ Tamam`, `✅ Kod tamam`) — a live example is Faz 24, whose two
-    unchecked boxes went undetected by `tamamlanmis_faz_isaretsiz_kutular`
-    until this was widened. Every completed status in the archive either
-    carries a ✅ or the literal word `Tamamlandı`; paused/planned statuses
-    carry neither.
+    unchecked boxes went undetected by the archive's unchecked-box gate until
+    this was widened. Every completed status either carries a ✅ or the
+    literal word `Tamamlandı`; paused/planned statuses carry neither. The
+    ledger's `Durum` cell (`✅`/`⏸`) is read with the same rule.
     """
     return "✅" in durum_metni or "Tamamlandı" in durum_metni
 
@@ -853,38 +850,24 @@ def kapanmis_faz_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
     """Kök `docs/` yalnız canlı fazları taşımalıdır.
 
     `Tamamlandı` durumundaki bir faz kökte kalırsa, başlangıçta bakılacak dosya
-    sayısı gereksiz büyür ve kapanmış plan güncel bağlam gibi görünür. Taşınan
-    dosyanın bağlantıları `kirik_baglantilar()` tarafından ayrıca doğrulanır.
+    sayısı gereksiz büyür ve kapanmış plan güncel bağlam gibi görünür. Kapanış
+    `faz-kapat` ile yapılır: dokümanı siler ve `FAZ-DEFTERI.md`'ye tek satır
+    yazar (2026-10-17, kullanıcı kararı). Defterde satırı olan bir numara kökte
+    de duruyorsa iki kayıt aynı numarayı iddia eder.
     """
     bulgular = []
-    docs = kok / "docs"
-    for p in sorted(docs.glob(FAZ_DESEN)):
+    defterdeki = {k["no"] for k in faz_defteri_oku(kok)}
+    for p in sorted((kok / "docs").glob(FAZ_DESEN)):
         metin = p.read_text(encoding="utf-8")
         durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
+        rel = p.relative_to(kok).as_posix()
         if durum and _durum_tamamlandi_mi(durum.group(1)):
             bulgular.append(
-                f"{p.relative_to(kok).as_posix()}: kapanmış faz `docs/arsiv/fazlar/` altında olmalı")
-    return bulgular
-
-
-def tamamlanmis_faz_isaretsiz_kutular(kok: pathlib.Path = ROOT) -> list[str]:
-    """Find unchecked checklist items left in distilled completed phases.
-
-    A completed phase may preserve an unmet historical item as prose, but an
-    unchecked Markdown task marker falsely presents the archived plan as live
-    work. The marker is therefore a documentation-drift finding, not a claim
-    that the historical work was completed.
-    """
-    bulgular: list[str] = []
-    for path in sorted((kok / "docs" / "arsiv" / "fazlar").glob(FAZ_DESEN)):
-        metin = path.read_text(encoding="utf-8")
-        durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
-        if not durum or not _durum_tamamlandi_mi(durum.group(1)):
-            continue
-        for line_number, line in enumerate(metin.splitlines(), 1):
-            if re.match(r"^\s*- \[ \]", line):
-                bulgular.append(
-                    f"{path.relative_to(kok).as_posix()}:{line_number}: işaretsiz kutu")
+                f"{rel}: kapanmış faz kökte kalamaz — "
+                f"`python3 scripts/dokuman-bakim.py faz-kapat {_faz_no(p)}`")
+        elif _faz_no(p) in defterdeki:
+            bulgular.append(
+                f"{rel}: Faz {_faz_no(p)} `{FAZ_DEFTERI}`'nde de var — bir numara tek faza aittir")
     return bulgular
 
 
@@ -916,71 +899,218 @@ def _tablo_etiketi(hucre: str) -> str:
     return " ".join(hucre.replace("*", "").replace("`", "").split()).casefold()
 
 
+def _surec_olcumu_degerleri(metin: str, rel: str) -> tuple[dict[str, str], list[str]]:
+    """Faz dokümanının `## Süreç Ölçümü` tablosu: (metrik -> değer, bulgular).
+
+    `ölçülmedi` GEÇERLİ bir değerdir: kapı bir sayı değil, bir KARAR arar. Boş
+    hücre bir karar değildir. Saf fonksiyon."""
+    # 🚨 Duz `split("## ")` YAPILMAZ: kod blogundaki baslik belgeyi
+    # parcalar. `_faz_bolumleri` o tuzagi zaten kapatiyor.
+    _, bolumler = _faz_bolumleri(metin)
+    govde = next((g for ad, g in bolumler if ad == SUREC_OLCUMU_BASLIK), None)
+    if govde is None:
+        return {}, [f"{rel}: `## {SUREC_OLCUMU_BASLIK}` bölümü yok"]
+    bas = metin[:metin.index(govde)].count("\n") + 1
+    # Bolumun KENDI govdesindeki kod blogu da soyulur; ornek bir tablo
+    # gercek tablonun yerine gecmemelidir. Soyma satir sayisini KORUR, bu
+    # yuzden satir numaralari hizali kalir.
+    satirlar: dict[str, tuple[int, str]] = {}
+    # 🚨 `_kod_bloklarini_soy` DEGIL: o satir ici kodu da bosaltir ve
+    # `` `ölçülmedi` `` yazan gecerli bir hucre "bos" gorunur (Faz 169
+    # denetim bulgusu 1). Burada yalniz FENCE gosterimdir.
+    for i, satir in enumerate(_fence_bloklarini_soy(govde).split("\n")):
+        duz = satir.strip()
+        if not duz.startswith("|"):
+            continue
+        hucreler = [h.strip() for h in duz.strip("|").split("|")]
+        if len(hucreler) < 2:
+            continue
+        satirlar.setdefault(_tablo_etiketi(hucreler[0]), (bas + i, hucreler[1]))
+    degerler: dict[str, str] = {}
+    bulgular: list[str] = []
+    for metrik in SUREC_OLCUMU_METRIKLERI:
+        kayit = satirlar.get(_tablo_etiketi(metrik))
+        if kayit is None:
+            bulgular.append(f"{rel}:{bas}: `{metrik}` satırı yok")
+            continue
+        satir_no, deger = kayit
+        if not _tablo_etiketi(deger):
+            bulgular.append(f"{rel}:{satir_no}: `{metrik}` değer hücresi boş")
+            continue
+        degerler[metrik] = deger
+    return degerler, bulgular
+
+
 def surec_olcumu_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
-    """Kapanmış her fazın `## Süreç Ölçümü` tablosu dolu mu (eşik 167).
+    """Eşik 167'den itibaren kapanan her fazın süreç ölçümü dolu mu.
 
     167 faz koşuldu ve "plandan sapma", "düzeltme turu", "gerçek/gürültü
     bulgu", "üretilen regresyon" sayılarının hiçbiri tutulmadı. `artifacts/`
     `.gitignore`'dadır, `kapi-olcum.jsonl` faz numarası taşımaz: geriye dönük
-    türetme MÜMKÜN DEĞİLDİR. Bu yüzden ölçüm kapanışta YAZILIR ve kapı onu
-    arar.
+    türetme MÜMKÜN DEĞİLDİR. Bu yüzden ölçüm kapanışta faz dokümanına YAZILIR;
+    `faz-kapat` onu `FAZ-DEFTERI.md`'nin ölçüm tablosuna taşır ve dokümanı
+    siler (2026-10-17). Kapı iki yere bakar: kökte kalmış kapanmış bir doküman
+    (eksik ölçüm `faz-kapat`'tan ÖNCE görünür) ve defter.
 
-    🚨 Kapı bölümün VARLIĞINI denetler, DOĞRULUĞUNU denetlemez — `0/0/0` yazan
-    bir faz yeşil geçer. Hiçbir kapı doğruluğu denetleyemez; bu sınır bilerek
-    kabul edildi (K-766).
-
-    Kapı hiçbir şey YAZMAZ; `tazelik_denetle()` ile aynı sözleşme. Hem kök
-    `docs/` hem `docs/arsiv/fazlar/` taranır: eksik ölçüm arşivlemeden ÖNCE
-    görünür, sonra göstermek bir tur daha maliyettir."""
+    🚨 Kapı satırın VARLIĞINI denetler, DOĞRULUĞUNU denetlemez — `0/0/0` yazan
+    bir faz yeşil geçer (K-766). Kapı hiçbir şey YAZMAZ."""
     bulgular: list[str] = []
-    for dizin in (kok / "docs", kok / "docs" / "arsiv" / "fazlar"):
-        if not dizin.exists():
+    for yol in sorted((kok / "docs").glob(FAZ_DESEN)):
+        if _faz_no(yol) < SUREC_OLCUMU_ESIGI:
             continue
-        for yol in sorted(dizin.glob(FAZ_DESEN)):
-            if _faz_no(yol) < SUREC_OLCUMU_ESIGI:
-                continue
-            try:
-                metin = yol.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                continue
-            durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
-            if not durum or not _durum_tamamlandi_mi(durum.group(1)):
-                continue
-            rel = yol.relative_to(kok).as_posix()
-            # 🚨 Duz `split("## ")` YAPILMAZ: kod blogundaki baslik belgeyi
-            # parcalar. `_faz_bolumleri` o tuzagi zaten kapatiyor.
-            _, bolumler = _faz_bolumleri(metin)
-            govde = next((g for ad, g in bolumler if ad == SUREC_OLCUMU_BASLIK), None)
-            if govde is None:
-                bulgular.append(f"{rel}: `## {SUREC_OLCUMU_BASLIK}` bölümü yok")
-                continue
-            bas = metin[:metin.index(govde)].count("\n") + 1
-            # Bolumun KENDI govdesindeki kod blogu da soyulur; ornek bir tablo
-            # gercek tablonun yerine gecmemelidir. `_kod_bloklarini_soy` satir
-            # sayisini KORUR, bu yuzden satir numaralari hizali kalir.
-            satirlar: dict[str, tuple[int, str]] = {}
-            # 🚨 `_kod_bloklarini_soy` DEGIL: o satir ici kodu da bosaltir ve
-            # `` `ölçülmedi` `` yazan gecerli bir hucre "bos" gorunur (Faz 169
-            # denetim bulgusu 1). Burada yalniz FENCE gosterimdir.
-            for i, satir in enumerate(_fence_bloklarini_soy(govde).split("\n")):
-                duz = satir.strip()
-                if not duz.startswith("|"):
-                    continue
-                hucreler = [h.strip() for h in duz.strip("|").split("|")]
-                if len(hucreler) < 2:
-                    continue
-                satirlar.setdefault(_tablo_etiketi(hucreler[0]), (bas + i, hucreler[1]))
-            for metrik in SUREC_OLCUMU_METRIKLERI:
-                kayit = satirlar.get(_tablo_etiketi(metrik))
-                if kayit is None:
-                    bulgular.append(f"{rel}:{bas}: `{metrik}` satırı yok")
-                    continue
-                satir_no, deger = kayit
-                # `ölçülmedi` GECERLI bir degerdir: kapi bir sayi degil, bir
-                # KARAR arar. Bos hucre bir karar degildir.
-                if not _tablo_etiketi(deger):
-                    bulgular.append(f"{rel}:{satir_no}: `{metrik}` değer hücresi boş")
+        try:
+            metin = yol.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
+        if durum and _durum_tamamlandi_mi(durum.group(1)):
+            bulgular += _surec_olcumu_degerleri(metin, yol.relative_to(kok).as_posix())[1]
+    for k in faz_defteri_oku(kok):
+        if k["no"] < SUREC_OLCUMU_ESIGI or not _durum_tamamlandi_mi(k["durum"]):
+            continue
+        if k["olcum"] is None:
+            bulgular.append(f"{FAZ_DEFTERI}: Faz {k['no']} için ölçüm satırı yok")
+            continue
+        for metrik in SUREC_OLCUMU_METRIKLERI:
+            if not _tablo_etiketi(k["olcum"].get(metrik, "")):
+                bulgular.append(f"{FAZ_DEFTERI}: Faz {k['no']} `{metrik}` hücresi boş")
     return bulgular
+
+
+# --- Faz defteri (2026-10-17) -----------------------------------------------
+# Kapanan faz dokumani ARSIVLENMEZ ve DAMITILMAZ, SILINIR (kullanici karari,
+# 2026-10-17; K-523 yeniden acildi). Izi bu defterin bir satiridir: konu,
+# kaynak F-ID, kapanis tarihi ve tam metne goturen `<sha>:<yol>`. Esik 167'den
+# itibaren fazin surec olcumu ayri bir tabloda durur (K-766/K-767 aynen).
+# Defteri `faz-kapat` yazar; elle yazilan tek hucre `Faz kapandıktan sonra
+# bulunan kusur`dur (`kusur-giderme` Adim 6 centigi).
+FAZ_DEFTERI = "docs/FAZ-DEFTERI.md"
+_DEFTER_KAYIT_BASLIGI = "## Kapanan fazlar"
+_DEFTER_OLCUM_BASLIGI = f"## {SUREC_OLCUMU_BASLIK}"
+_DEFTER_SUTUNLARI = ("Faz", "Konu", "Durum", "Kapanış", "Kaynak", "Kayıt")
+_DEFTER_SATIRI = re.compile(r"^\|\s*(\d+)\s*\|")
+_HUCRE_AYIRICI = re.compile(r"(?<!\\)\|")
+
+
+def _hucreler(satir: str) -> list[str]:
+    govde = satir.strip()
+    if govde.startswith("|"):
+        govde = govde[1:]
+    if govde.endswith("|") and not govde.endswith("\\|"):
+        govde = govde[:-1]
+    return [h.strip().replace("\\|", "|") for h in _HUCRE_AYIRICI.split(govde)]
+
+
+def _hucre(deger: str) -> str:
+    return " ".join(deger.split()).replace("|", "\\|")
+
+
+def faz_defteri_oku(kok: pathlib.Path = ROOT) -> list[dict]:
+    """Defterin kayıtları, faz numarasına göre sıralı; dosya yoksa boş liste.
+
+    Kayıt: `no`, `konu`, `durum`, `kapanis`, `kaynak`, `kayit` (`<sha>:<yol>`)
+    ve `olcum` (metrik -> değer; ölçüm satırı yoksa `None`)."""
+    yol = kok / FAZ_DEFTERI
+    if not yol.exists():
+        return []
+    kayitlar: dict[int, dict] = {}
+    olcumler: dict[int, dict[str, str]] = {}
+    bolum = ""
+    for satir in yol.read_text(encoding="utf-8").split("\n"):
+        if satir.startswith("## "):
+            bolum = satir.strip()
+            continue
+        if not _DEFTER_SATIRI.match(satir):
+            continue
+        h = _hucreler(satir)
+        no = int(h[0])
+        if bolum == _DEFTER_KAYIT_BASLIGI and len(h) >= len(_DEFTER_SUTUNLARI):
+            kayitlar[no] = {"no": no, "konu": h[1], "durum": h[2], "kapanis": h[3],
+                            "kaynak": h[4], "kayit": h[5].strip("`"), "olcum": None}
+        elif bolum == _DEFTER_OLCUM_BASLIGI:
+            olcumler[no] = dict(zip(SUREC_OLCUMU_METRIKLERI, h[1:]))
+    for no, olcum in olcumler.items():
+        if no in kayitlar:
+            kayitlar[no]["olcum"] = olcum
+    return [kayitlar[n] for n in sorted(kayitlar)]
+
+
+def _defter_satiri(k: dict) -> str:
+    return (f"| {k['no']} | {_hucre(k['konu'])} | {_hucre(k['durum'])} | "
+            f"{_hucre(k['kapanis'])} | {_hucre(k['kaynak'])} | `{k['kayit']}` |")
+
+
+def _defter_olcum_satiri(k: dict) -> str:
+    degerler = [_hucre(k["olcum"].get(m, "")) for m in SUREC_OLCUMU_METRIKLERI]
+    return f"| {k['no']} | " + " | ".join(degerler) + " |"
+
+
+def _defter_metni(kayitlar: list[dict]) -> str:
+    sirali = sorted(kayitlar, key=lambda k: k["no"])
+    satirlar = [
+        "# Faz Defteri",
+        "",
+        "> **Kapanan fazların tek satırlık izi.** Satırı",
+        "> `python3 scripts/dokuman-bakim.py faz-kapat <NN>` yazar ve faz dokümanını",
+        "> aynı anda siler. Elle yazılan tek hücre `Faz kapandıktan sonra bulunan",
+        "> kusur`dur (`kusur-giderme` Adım 6).",
+        ">",
+        "> Tam metin: `git show <Kayıt>`. Faz 0–218 satırları 2026-10-17'de",
+        "> `2a8149ef`'teki yol haritasından ve kayıtlardan dolduruldu. Açık ve planlı",
+        "> fazlar: [`YOL-HARITASI.md`](YOL-HARITASI.md).",
+        "",
+        _DEFTER_KAYIT_BASLIGI,
+        "",
+        "| " + " | ".join(_DEFTER_SUTUNLARI) + " |",
+        "|" + "---|" * len(_DEFTER_SUTUNLARI),
+        *(_defter_satiri(k) for k in sirali),
+        "",
+        _DEFTER_OLCUM_BASLIGI,
+        "",
+        f"Eşik Faz {SUREC_OLCUMU_ESIGI}'dir (K-767); öncesi ölçülmedi ve doldurulmaz. Kapı",
+        "satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın tam metnindedir.",
+        "",
+        "| Faz | " + " | ".join(SUREC_OLCUMU_METRIKLERI) + " |",
+        "|" + "---|" * (len(SUREC_OLCUMU_METRIKLERI) + 1),
+        *(_defter_olcum_satiri(k) for k in sirali if k["olcum"] is not None),
+    ]
+    return "\n".join(satirlar) + "\n"
+
+
+def faz_defteri_yaz(kok: pathlib.Path, kayitlar: list[dict]) -> None:
+    (kok / FAZ_DEFTERI).write_text(_defter_metni(kayitlar), encoding="utf-8")
+
+
+def _olcum_ozeti(deger: str) -> str:
+    """`3 (iç döngü: …)` -> `3`. Açıklama fazın tam metninde kalır (`Kayıt`
+    işaretçisi); defter yalnız değeri taşır."""
+    duz = " ".join(deger.replace("*", "").replace("`", "").split())
+    return re.split(r"\s+\(|,\s|:\s|;\s|\s[—–]\s", duz, maxsplit=1)[0].strip() or duz
+
+
+def defter_isaretci_denetle(kok: pathlib.Path = ROOT) -> list[str]:
+    """Defterin her `Kayıt` hücresi git'te çözülüyor mu (`<sha>:<yol>`).
+
+    Faz dokümanı silindiği için tam metne giden TEK yol bu işaretçidir. Git
+    geçmişine güvenmek ancak bir kapı onu her koşumda kanıtlıyorsa meşrudur
+    (`tam_metin_denetle` ile aynı sözleşme): `filter-branch`, agresif `gc` ya
+    da sığ bir klon SHA'yı geçersizleyebilir. Tek `git cat-file --batch-check`
+    çağrısı yeter; 200+ satır için 200+ süreç açılmaz."""
+    kayitlar = faz_defteri_oku(kok)
+    bicimli = [k for k in kayitlar if re.fullmatch(r"[0-9a-f]{7,40}:\S+\.md", k["kayit"])]
+    bulunan = [f"{FAZ_DEFTERI}: Faz {k['no']} `Kayıt` hücresi `<sha>:<yol>` değil: {k['kayit']!r}"
+               for k in kayitlar if k not in bicimli]
+    if not bicimli:
+        return bulunan
+    r = subprocess.run(["git", "cat-file", "--batch-check"], cwd=kok, check=False,
+                       input="\n".join(k["kayit"] for k in bicimli) + "\n",
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return bulunan + ["`git cat-file` başarısız — defter işaretçileri kanıtlanamıyor"]
+    for k, cikti in zip(bicimli, r.stdout.splitlines()):
+        if cikti.endswith(" missing"):
+            bulunan.append(f"{FAZ_DEFTERI}: Faz {k['no']} -> {k['kayit']} çözülmüyor")
+    return bulunan
 
 
 # Faz 187 (Açık Soru 2 = B): kökteki `EnablePublicApiTracking` hiçbir props/targets
@@ -1349,14 +1479,18 @@ def adaylar_hizasi_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
 
     bulgular: list[str] = []
 
-    fazlar = sorted((kok / "docs").glob("[0-9]*-*.md")) + sorted(
-        (kok / "docs" / "arsiv" / "fazlar").glob("[0-9]*-*.md"))
-    for p in fazlar:
+    # 2026-10-17: kapanan faz dokumani silinir; kaynak F-ID'leri defterin
+    # `Kaynak` sutununda yasar. Acik fazin kaynagi hala kendi dokumanidir.
+    kaynaklar: list[tuple[int, str, str]] = []
+    for p in sorted((kok / "docs").glob("[0-9]*-*.md")):
         kaynak = _FAZ_KAYNAK.search(p.read_text(encoding="utf-8"))
-        if kaynak is None:
-            continue
-        faz_no = int(re.match(r"\d+", p.name).group(0))
-        for m in _F_ID.finditer(kaynak.group(0)):
+        if kaynak is not None:
+            kaynaklar.append((int(re.match(r"\d+", p.name).group(0)), kaynak.group(0),
+                              f"{p.relative_to(kok).as_posix()} `Kaynak` satırı"))
+    kaynaklar += [(k["no"], k["kaynak"], f"{FAZ_DEFTERI} Faz {k['no']} satırı")
+                  for k in faz_defteri_oku(kok)]
+    for faz_no, kaynak_metni, etiket in kaynaklar:
+        for m in _F_ID.finditer(kaynak_metni):
             n = int(m.group(1))
             if n not in kalemler:
                 continue
@@ -1364,7 +1498,7 @@ def adaylar_hizasi_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
                 continue
             bulgular.append(
                 f"ADAYLAR.md:{kalemler[n][0]} F-{n} plana dönüşmüş "
-                f"({p.relative_to(kok).as_posix()} `Kaynak` satırı) ama aday dosyasında duruyor — "
+                f"({etiket}) ama aday dosyasında duruyor — "
                 f"kalemi sil (`faz-planlama` Adım 6); bilerek kısmen açıksa kalem metni "
                 f"'Faz {faz_no}' diye ansın")
 
@@ -2533,116 +2667,12 @@ _URETILEN = (
 )
 
 
-# --- Faz dokumani damitmasi (Faz 90) -------------------------------------
-# Kapanmis bir faz dokumaninin ~%62'si PLANDIR ve kapanista olur: `Planlanan
-# Public API`yi `Gerceklesen` gecersizler, `Bu Faza Baslarken` bir OTURUM
-# TALIMATIDIR, `NN.x` is kalemleri planin govdesidir ve sonuc koddadir.
-# Damitma bunlari DUSURUR, tam metin git gecmisinde kalir ve `tam_metin_denetle`
-# her kosumda cozulebilirligini kanitlar.
-#
-# `Gerceklesen Public API` ve `Dosya Listesi` de duser: kod TEK KAYNAKTIR
-# (`PublicAPI.*.txt`), dokumandaki kopya bayatlar ve AKTIF OLARAK yaniltir;
-# `git show --stat <sha>` gercek listeyi birebir uretir.
+# --- Faz bolumleri ve damitma isareti --------------------------------------
+# Faz damitmasi (Faz 90) 2026-10-17'de kalkti: kapanan faz dokumani silinir
+# (`faz-kapat`). `_faz_bolumleri` surec olcumu tablosunu okur; isaret,
+# `tam_metin_denetle`nin "zaten damitilmis" denetimi icin durur.
 
 DAMITMA_ISARETI = "### ⚗️ Damıtılmış kayıt"
-
-_FAZ_DUS = {
-    "Bu Faza Başlarken", "Planlanan Public API", "Planlanan Dosya Listesi",
-    "Gerçekleşen Public API", "Dosya Listesi", "Riskler", "Testler",
-    "Açık Sorular", "Hata Modları ve Testler", "Manuel Kabul Case'leri",
-    # olculen takma adlar (Faz 90, 91 dosya tarandi)
-    "Riskler — kapanış durumu", "Oluşturulan / Değişen Dosyalar",
-    "Planlanan Dosya Listesi (gerçekleşen)", "Dosya Listesi (gerçekleşen)",
-    # Faz 101: kalem basina preview.1/1.0/dokuman/erteleme siniflandirmasi --
-    # plan-zamani onceliklendirme, faz kapandiktan sonra "Denetim Bulgulari"
-    # ve "Sonraki Faza Devir Notu" onun yerini alir.
-    "Kalemlerin Sınıflandırması",
-}
-_FAZ_KAL = {
-    "Plandan Sapmalar", "🚨 Plandan Sapmalar", "Bu Fazda Verilen Kararlar",
-    "Bu Fazda Verilecek Kararlar", "Denetim Bulguları", "Sonraki Faza Devir Notu",
-    # Olculdu: 90 fazda TEK vaka (Faz 29) ama tam olarak AGENTS.md'nin
-    # "plandan sapma gizlenmez -- en degerli bilgi odur" kuralinin somut hali.
-    "Sağlanamayan Şeyler (dürüstlük bölümü)", "Sağlanamayan Şeyler",
-    # `tuketici-dokuman-senkronu` Adim 1 bunu ZORUNLU kilar ("Envanteri yazmadan
-    # duzenlemeye baslama... yazilmayan yuzey unutulan yuzeydir") ve tuketici
-    # yuzeyine dokunan HER fazda tekrar eder. Koddan yeniden uretilemez: hangi
-    # sayfanin neden degistigi bir karardir, bir dosya listesi degil.
-    "Tüketici Yüzeyi Envanteri",
-    # Faz 169: fazin kendi surec olcumu. `faz-damit` bunu DUSURMEZ (eklenmezse
-    # korunur ama her damitmada "taninmayan bolum KORUNDU" uyarisi basar ve
-    # gurultu kapiyi oldurur) ve `--denetle` 14. kapisi onu ARAR.
-    "Süreç Ölçümü",
-    # Ikisi de KALICI bilgidir ve damitmada duSMEZ; `_FAZ_KAL`'a girmezlerse
-    # her damitmada "taninmayan bolum KORUNDU" uyarisi basar. `Örnek Uygulama
-    # Koşumu` Faz 92'den beri her fazda yaziliyor (K-166/K-167: gercek kusurlar
-    # YALNIZ orada cikti); `Faz Dışı Bulunan ve Kapatılan Kusur` fazin kendi
-    # kapsami disinda kapatilan isi kaydeder ve baska hicbir yerde yasamaz.
-    "Örnek Uygulama Koşumu", "Faz Dışı Bulunan ve Kapatılan Kusur",
-}
-# `NN.x` kalani bunlardan biriyse de kalir (DoD bazi fazlarda numaralanmis).
-_FAZ_DOD_KALICI = {"Bitiş Ölçütleri", "Bitiş Ölçütleri (DoD)"}
-_FAZ_DOD_ADI = "Bitiş Ölçütleri"
-_FAZ_AMAC = {"Amaç", "Amaç ve Sonuç"}
-_IS_KALEMI = re.compile(r"^\d+\.\d+\b")
-AMAC_SINIRI = 400
-
-# Takma ad kurallari -- olculdu (Faz 90): 98 taninmayan H2 adi var ve cogu tek
-# bir fazda geciyor. Duz liste bayatlar; desen kalicidir. Yalniz KODDAN ya da
-# git'ten BIREBIR yeniden uretilebilen bolumler duser:
-#   * imza anlik goruntusu -- `maf-api-kesfi` skill'i reflection'la yeniden uretir
-#   * dosya listesi        -- `git show --stat <sha>` birebir verir
-#   * planlanan uc listesi -- `docs/openapi/tracon.json` uretilir
-# Geri kalan HER SEY korunur (varsayilan KAL + RAPORLA).
-_DUS_DESENLERI = (
-    re.compile(r"^(Doğrulanmış|Kullanılan)\s+.*\b(API|İmza)", re.I),
-    re.compile(r"^(Gerçekleşen|Oluşturulan|Üretilen|Planlanan)\s+.*Dosya", re.I),
-    re.compile(r"^Yeni HTTP Uçları$", re.I),
-    # 🚨 Bir plan tablosu, GERÇEKLEŞENİ ayrı bir bölümde duruyorsa plan
-    # gövdesidir. Faz 165 hem `Desen tablosu — hangi ekran neye benziyor`
-    # (plan) hem `Hangi ekran hangi desene oturdu` (gerçekleşen) taşıyordu;
-    # ikincisi kalır, birincisi kapanışta ölür. Desen "tablosu" sözcüğüne
-    # bakar, tek bir faz adına değil.
-    re.compile(r"^(Desen|Ekran|Kapsam)\s+tablosu\b", re.I),
-    # Plan anindaki kapsam sinirlari. Kapanista kalici kismi baska yerdedir:
-    # devredilen is "Sonraki Faza Devir Notu"nda veya ADAYLAR'da (F-NN),
-    # sinirin gerekcesi "Bu Fazda Verilen Kararlar"da (Faz 191, `Kapsam Dışı`).
-    # Tireli ek (`Kapsam dışı — kapanışta aday açılır`, Faz 206) ayni plan
-    # bolumudur; tiresiz `Kapsam dışı kalan işler` ise kalici kayittir, kalir.
-    re.compile(r"^Kapsam\s+d[ıi]ş[ıi](\s+[—–]\s.*)?$", re.I),
-)
-
-
-def _is_kalemi_kalani(ad: str) -> str | None:
-    """`## 29.0 — Plandan Sapmalar` -> `Plandan Sapmalar`; `NN.x` degilse None.
-
-    🚨 `NN.x` bir NUMARALANDIRMA konvansiyonudur, anlamsal bir sinif DEGILDIR.
-    Faz 90'in ilk uygulamasi oneke bakip dusuruyordu ve Faz 29 sapmalarini
-    `29.0 — Plandan Sapmalar` diye numaralandirdigi icin fazin "Plandan
-    Sapmalar AYNEN kalir" sozunu SESSIZCE bozdu (bagimsiz denetim buldu).
-    Siniflandirma numaradan SONRAKI baslikla yapilir."""
-    m = _IS_KALEMI.match(ad)
-    if not m:
-        return None
-    return re.sub(r"^\d+\.\d+\s*[—–-]?\s*", "", ad).strip()
-
-
-def _duser_mu(ad: str, yalin: str) -> bool:
-    kalan = _is_kalemi_kalani(ad)
-    if kalan is not None:
-        # Numaranin ardindaki baslik kalici bir bolume isaret ediyorsa KALIR.
-        return kalan not in _FAZ_KAL and kalan not in _FAZ_DOD_KALICI
-    if ad in _FAZ_DUS or yalin in _FAZ_DUS:
-        return True
-    return any(d.match(ad) or d.match(yalin) for d in _DUS_DESENLERI)
-
-
-def _plan_dodu_mu(govde: str) -> bool:
-    """Isaretlenmemis kutu tasiyan ve HIC yesili olmayan DoD, planin kopyasidir:
-    kapanista guncellenmemistir. Yalniz ayni dosyada BASKA bir DoD varsa duser
-    (o zaman sonucu digeri tasir). Tek DoD ise KORUNUR -- isaretsiz kutu
-    gercek bilgidir (`24-SQLITE.md`: "AOT olculmedi")."""
-    return govde.count("- [ ]") > 0 and govde.count("✅") == 0 and "- [x]" not in govde
 
 
 def _faz_bolumleri(metin: str) -> tuple[str, list[tuple[str, str]]]:
@@ -2666,90 +2696,6 @@ def _faz_bolumleri(metin: str) -> tuple[str, list[tuple[str, str]]]:
     for a, b in zip(idx, idx[1:] + [len(satirlar)]):
         bolumler.append((satirlar[a][3:].strip(), "\n".join(satirlar[a:b]).rstrip("\n")))
     return bas, bolumler
-
-
-def _amac_sikis(govde: str, sinir: int = AMAC_SINIRI) -> str:
-    """`Amaç` bolumunu CUMLE SINIRINDA kirpar. Karakter sinirinda kesmek
-    yarim cumle birakir; damitma okunabilirligi bozmamalidir."""
-    satirlar = govde.split("\n")
-    bas, govde_sat = satirlar[0], [s for s in satirlar[1:] if s.strip()]
-    duz = " ".join(" ".join(govde_sat).split())
-    if len(duz.encode()) <= sinir:
-        return f"{bas}\n\n{duz}" if duz else bas
-    parcalar = re.split(r"(?<=[.!?])\s+", duz)
-    tut: list[str] = []
-    for c in parcalar:
-        aday = " ".join(tut + [c])
-        if tut and len(aday.encode()) > sinir:
-            break
-        tut.append(c)
-    return f"{bas}\n\n{' '.join(tut)}"
-
-
-def _damitma_blogu(tam_sha: str, yol: str, bugun: str) -> str:
-    """Kaydin basina konan aciklama + tam metne goturen komutlar.
-    Komut satirlarinda `](` deseni YOKTUR -- `kirik_baglantilar()` yanlis
-    pozitif uretmesin diye kod blogu icinde ve duz metin olarak yazilir."""
-    return (
-        f"> {DAMITMA_ISARETI}\n"
-        "> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**\n"
-        "> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve\n"
-        "> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**\n"
-        ">\n"
-        "> Tam metin — kopyala, çalıştır:\n"
-        ">\n"
-        "> ```bash\n"
-        f"> git show {tam_sha}:{yol}\n"
-        "> ```\n"
-        ">\n"
-        f"> Damıtıldı {bugun} · `scripts/dokuman-bakim.py faz-damit`\n"
-    )
-
-
-def _faz_damit_metni(metin: str, *, tam_sha: str, yol: str,
-                     bugun: str) -> tuple[str, list[str]]:
-    """(damitilmis metin, uyarilar). Saf fonksiyon; SHA disaridan verilir.
-
-    Taninmayan bir H2 **DUSURULMEZ** -- korunur ve uyari uretir. Toplu bir
-    gecişte sessiz kayip yasaktir: olculdu (Faz 90), 103 taninmayan ad /
-    4.078 satir var ve iclerinde `## Açık Kalan`, `## 🚨 Ölçülen MAF
-    Davranışları` gibi kalici degerli bolumler bulunuyor."""
-    # 🚨 Isaret KOD BLOGU DISINDA aranir: damitma sablonunu BELGELEYEN bir
-    # dokuman (`docs/arsiv/fazlar/90-*.md` §90.2, `INDEKS.md`) isareti bir
-    # ORNEK olarak gosterir ve duz arama onu "zaten damitilmis" sanar --
-    # olculdu: Faz 90 kendi kaydini damitamadi. Fence ile ayni sinif.
-    if DAMITMA_ISARETI in _kod_bloklarini_soy(metin):
-        return metin, []                      # idempotent
-    bas, bolumler = _faz_bolumleri(metin)
-    if not bolumler:
-        return metin, [f"{yol}: `## ` bölümü yok, dokunulmadı"]
-
-    uyari: list[str] = []
-    tutulan: list[str] = []
-    dod_sayisi = sum(1 for ad, _ in bolumler if _FAZ_DOD_ADI in ad)
-    for ad, govde in bolumler:
-        yalin = re.sub(r"\s*\(.*?\)\s*$", "", ad).strip()
-        if _duser_mu(ad, yalin):
-            continue
-        if _FAZ_DOD_ADI in ad:
-            # DoD OZETLENMEZ: isaretsiz kutular gercek bilgidir (olculdu --
-            # 11 fazda tek DoD isaretsiz kutu tasiyor ve o kutu "AOT olculmedi"
-            # gibi kapanmamis bir isi kaydediyor). Yalniz AYNI dosyada baska
-            # bir DoD varken planin isaretsiz kopyasi duser (5 dosya).
-            if dod_sayisi > 1 and _plan_dodu_mu(govde):
-                continue
-            tutulan.append(govde)
-            continue
-        if ad in _FAZ_AMAC or yalin in _FAZ_AMAC:
-            tutulan.append(_amac_sikis(govde))
-            continue
-        tutulan.append(govde)
-        if ad not in _FAZ_KAL and yalin not in _FAZ_KAL:
-            uyari.append(f"{yol}: tanınmayan bölüm KORUNDU — `## {ad}`")
-
-    bas = bas.rstrip("\n")
-    govde = "\n\n".join(tutulan)
-    return f"{bas}\n\n{_damitma_blogu(tam_sha, yol, bugun)}\n---\n\n{govde}\n", uyari
 
 
 # --- Alt komutlar (Faz 90) -----------------------------------------------
@@ -2788,56 +2734,6 @@ def _izlenen_degisiklik_var_mi() -> str | None:
                 "başarısızlıkta `git reset --hard` koşar ve onları YOK EDER:\n  "
                 + "\n  ".join(ciktı[:10]))
     return None
-
-
-def _faz_dosyalari(secim: list[str]) -> list[pathlib.Path]:
-    kaynak = ROOT / "docs" / "arsiv" / "fazlar"
-    hepsi = sorted(kaynak.glob(FAZ_DESEN), key=_faz_no)
-    if not secim:
-        return hepsi
-    istenen = {int(x) for x in secim}
-    return [p for p in hepsi if _faz_no(p) in istenen]
-
-
-def komut_faz_damit(a: argparse.Namespace) -> int:
-    """Kapanmis faz dokumanlarini damitilmis kayda indirger."""
-    dosyalar = _faz_dosyalari(a.fazlar)
-    if not dosyalar:
-        print("Eşleşen faz dokümanı yok."); return 1
-    rel = [p.relative_to(ROOT).as_posix() for p in dosyalar]
-    if not a.kuru:
-        hata = _calisma_agaci_temiz(rel)
-        if hata:
-            print(f"❌ {hata}"); return 1
-
-    bugun = datetime.date.today().isoformat()
-    yazilan = 0; toplam_o = toplam_y = 0; uyarilar: list[str] = []
-    for p2 in dosyalar:
-        yol = p2.relative_to(ROOT).as_posix()
-        metin = p2.read_text(encoding="utf-8")
-        sha_satir = _git("log", "-1", "--format=%h", "--", yol)
-        if not sha_satir:
-            uyarilar.append(f"{yol}: tam metin commit'i bulunamadı — ATLANDI"); continue
-        yeni, u = _faz_damit_metni(metin, tam_sha=sha_satir[0], yol=yol, bugun=bugun)
-        uyarilar += u
-        toplam_o += len(metin.encode()); toplam_y += len(yeni.encode())
-        if yeni == metin:
-            continue
-        if not a.kuru:
-            p2.write_text(yeni, encoding="utf-8")
-        yazilan += 1
-        if a.ayrintili:
-            print(f"  {yol}  {len(metin.encode()):>7} → {len(yeni.encode()):>6} B")
-
-    print(f"\n{'(kuru) ' if a.kuru else ''}{yazilan}/{len(dosyalar)} dosya · "
-          f"{toplam_o:,} → {toplam_y:,} B  (-%{100 - 100 * toplam_y // max(toplam_o, 1)})")
-    if uyarilar:
-        print(f"\n{len(uyarilar)} uyarı — tanınmayan bölümler KORUNDU (düşürülmedi):")
-        for u in uyarilar[:20]:
-            print(f"  {u}")
-        if len(uyarilar) > 20:
-            print(f"  … +{len(uyarilar) - 20}")
-    return 0
 
 
 # --- Kosum kaydi damitmasi (Faz 90) --------------------------------------
@@ -3126,57 +3022,92 @@ def komut_karar_damit(a: argparse.Namespace) -> int:
     return 0
 
 
-# --- Kapanmis fazi arsive tasima (Faz 90) --------------------------------
-# Bugune kadar ELLE yapiliyordu (`shutil`/`rename` scriptte hic gecmiyordu) ve
-# Faz 58'de ayni is once 17, sonra 3 baglanti kirdi. Uc isi BIRLIKTE yapmak
-# gerekir; biri atlanirsa kapi kirmizi olur:
-#   1. `git mv` (gecmis korunur),
-#   2. dosyanin ICINDEKI goreli baglantilari yeni derinlige gore yeniden yaz,
-#   3. repo genelinde bu dosyaya GIDEN baglantilari yeni yola cevir.
+# --- Faz kapanisi (2026-10-17) ----------------------------------------------
+# Kapanan faz dokumani silinir; iz `FAZ-DEFTERI.md` satiridir (kullanici
+# karari, 2026-10-17 -- `faz-arsivle` + `faz-damit`in yerini alir). Kalici
+# bilgi kapanistan ONCE yerine tasinir (`faz-tamamlama` Adim 5): karar
+# KARARLAR'a, tuzak hafizaya, sapma ve kategori disi karar kapanis commit
+# mesajina, 🟢 bulgu ADAYLAR'a, devir notu sonraki fazin dokumanina.
 
-_YEREL_LINK = re.compile(r"\]\(([^)\s#]+)((?:#[^)\s]*)?)\)")
+_TAM_LINK = re.compile(r"\[([^\]\n]*)\]\(([^)\s#]+)((?:#[^)\s]*)?)\)")
+_BAGLANTI_TARAMA_HARIC = {".git", ".nuget", "node_modules", "artifacts", "bin", "obj", "dist", ".vs"}
 
 
-def _yeniden_konumlandir(metin: str, eski_dizin: str, yeni_dizin: str) -> str:
-    """Bir dosyanin ICINDEKI goreli baglantilari, dosya `eski_dizin`den
-    `yeni_dizin`e tasindiginda cozulmeye devam edecek sekilde yazar.
+def _isaretsiz_kutular(metin: str) -> list[int]:
+    """Kod gösterimi dışındaki `- [ ]` satırları (1 tabanlı)."""
+    return [i for i, s in enumerate(_kod_bloklarini_soy(metin).split("\n"), 1)
+            if re.match(r"^\s*- \[ \]", s)]
 
-    Dis adres (`http:`), site-mutlak (`/x/`) ve saf capa (`#x`) dokunulmaz.
-    Saf fonksiyon -- dosya sistemi istemez."""
+
+def faz_kapat_eksikleri(metin: str, no: int, rel: str) -> list[str]:
+    """Kapanışı durduran eksikler. Saf fonksiyon.
+
+    İşaretsiz kutu kapanışı durdurur: doküman silindikten sonra açık bir DoD
+    maddesini gösteren hiçbir yer kalmaz (Faz 91'in `✅ Kod tamam` vakası)."""
+    eksik: list[str] = []
+    durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
+    if not durum or not _durum_tamamlandi_mi(durum.group(1)):
+        eksik.append(f"{rel}: `> **Durum:**` tamamlanmış değil — önce `✅ Tamamlandı (YYYY-AA-GG)` yaz")
+    for satir_no in _isaretsiz_kutular(metin):
+        eksik.append(f"{rel}:{satir_no}: işaretsiz kutu — DoD'yi kapat ya da gerekçesiyle düz metne çevir")
+    if no >= SUREC_OLCUMU_ESIGI:
+        eksik += _surec_olcumu_degerleri(metin, rel)[1]
+    return eksik
+
+
+def _faz_kaydi(metin: str, no: int, kayit: str, bugun: str) -> dict:
+    """Defter kaydı. Saf fonksiyon; `kayit` = `<sha>:<yol>`."""
+    mb = re.search(r"^#\s+(.*)$", metin, re.M)
+    konu = re.sub(r"^Faz\s+\d+\s*[—-]\s*", "", mb.group(1).strip()) if mb else f"Faz {no}"
+    durum = re.search(r"^>\s*\*\*Durum:\*\*\s*(.*)$", metin, re.M)
+    tarih = re.search(r"\d{4}-\d{2}-\d{2}", durum.group(1)) if durum else None
+    kaynak = _FAZ_KAYNAK.search(metin)
+    fidler = [f"F-{m.group(1)}" for m in _F_ID.finditer(kaynak.group(0))] if kaynak else []
+    olcum = None
+    if no >= SUREC_OLCUMU_ESIGI:
+        degerler, _ = _surec_olcumu_degerleri(metin, "")
+        olcum = {m: _olcum_ozeti(degerler.get(m, "")) for m in SUREC_OLCUMU_METRIKLERI}
+    return {"no": no, "konu": konu, "durum": "✅", "kapanis": tarih.group(0) if tarih else bugun,
+            "kaynak": " · ".join(dict.fromkeys(fidler)) or "—", "kayit": kayit, "olcum": olcum}
+
+
+def _baglantilari_duz_metne_indir(metin: str, dizin: str, hedef: str, yedek: str) -> str:
+    """`dizin`deki bir dosyada `hedef`e giden her bağlantıyı düz metne indirir.
+
+    Etiket bir yolsa (`[`docs/X.md`](X.md)`) silinen yolu taşımaz, `yedek`
+    (`Faz NNN`) olur; değilse etiket aynen kalır. Saf fonksiyon."""
     def cevir(m: re.Match) -> str:
-        hedef, capa = m.group(1), m.group(2)
-        if re.match(r"^[a-z][a-z0-9+.-]*:", hedef) or hedef.startswith("/"):
+        etiket, h = m.group(1), m.group(2)
+        if re.match(r"^[a-z][a-z0-9+.-]*:", h) or h.startswith("/"):
             return m.group(0)
-        mutlak = posixpath.normpath(posixpath.join(eski_dizin, hedef))
-        return f"]({posixpath.relpath(mutlak, yeni_dizin)}{capa})"
-    return _YEREL_LINK.sub(cevir, metin)
+        if posixpath.normpath(posixpath.join(dizin, h)) != hedef:
+            return m.group(0)
+        return yedek if etiket.strip("` ").endswith(".md") else etiket
+    return _TAM_LINK.sub(cevir, metin)
 
 
-def _gelen_baglantilari_cevir(kok: pathlib.Path, eski: str, yeni: str) -> int:
-    """Repo genelinde `eski` yola giden baglantilari `yeni`ye cevirir."""
+def _gelen_baglantilari_duz_metne_indir(kok: pathlib.Path, hedef: str, yedek: str) -> int:
+    """Repo genelinde `hedef`e giden bağlantıları düz metne indirir; dokunulan dosya sayısı."""
     n = 0
-    for f in sorted(kok.rglob("*.md")):
-        r = f.relative_to(kok).as_posix()
-        if r.startswith(("node_modules/", ".git/")) or r == eski:
-            continue
-        try:
-            metin = f.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        dizin = posixpath.dirname(r)
-
-        def cevir(m: re.Match) -> str:
-            hedef, capa = m.group(1), m.group(2)
-            if re.match(r"^[a-z][a-z0-9+.-]*:", hedef) or hedef.startswith("/"):
-                return m.group(0)
-            if posixpath.normpath(posixpath.join(dizin, hedef)) != eski:
-                return m.group(0)
-            return f"]({posixpath.relpath(yeni, dizin) if dizin else yeni}{capa})"
-
-        guncel = _YEREL_LINK.sub(cevir, metin)
-        if guncel != metin:
-            f.write_text(guncel, encoding="utf-8")
-            n += 1
+    for dp, dns, fns in os.walk(kok):
+        dns[:] = [d for d in dns if d not in _BAGLANTI_TARAMA_HARIC]
+        if pathlib.Path(dp) == kok / ".claude":
+            dns[:] = [d for d in dns if d != "worktrees"]
+        for fn_ in fns:
+            if not fn_.endswith(".md"):
+                continue
+            f = pathlib.Path(dp) / fn_
+            r = f.relative_to(kok).as_posix()
+            if r in (hedef, FAZ_DEFTERI):
+                continue
+            try:
+                metin = f.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            guncel = _baglantilari_duz_metne_indir(metin, posixpath.dirname(r), hedef, yedek)
+            if guncel != metin:
+                f.write_text(guncel, encoding="utf-8")
+                n += 1
     return n
 
 
@@ -3193,20 +3124,26 @@ _DUZ_REFERANS_HARIC = {".git", "node_modules", "obj", "bin", "artifacts", "dist"
 _DUZ_REFERANS_DONMUS = re.compile(r"(^|/)Migrations[A-Za-z]*/")
 
 
-def _duz_yol_referanslarini_cevir(kok: pathlib.Path, eski: str, yeni: str) -> tuple[int, list[str]]:
-    """`docs/` disindaki DUZ METIN yol referanslarini cevirir.
+
+
+def _duz_yol_referanslarini_cevir(kok: pathlib.Path, eski: str, yeni) -> tuple[int, list[str]]:
+    """Düz metin yol referanslarını çevirir; `yeni` bir metin ya da
+    `yeni(dosya_yolu) -> metin`dir. `docs/` de taranır (defter hariç).
 
     Doner: (guncellenen dosya sayisi, onarilamayan referanslar).
     """
     desen = re.compile(r"(?<![\w/-])" + re.escape(eski))
     n = 0
     donmus: list[str] = []
-    for kok_ad in _DUZ_REFERANS_KOKLERI:
+    for kok_ad in (*_DUZ_REFERANS_KOKLERI, "docs"):
         taban = kok / kok_ad
         if not taban.exists():
             continue
         for f in sorted(taban.rglob("*")):
             if not f.is_file() or _DUZ_REFERANS_HARIC & set(f.parts):
+                continue
+            r = f.relative_to(kok).as_posix()
+            if r == FAZ_DEFTERI:
                 continue
             try:
                 metin = f.read_text(encoding="utf-8")
@@ -3214,60 +3151,80 @@ def _duz_yol_referanslarini_cevir(kok: pathlib.Path, eski: str, yeni: str) -> tu
                 continue
             if not desen.search(metin):
                 continue
-            r = f.relative_to(kok).as_posix()
             if _DUZ_REFERANS_DONMUS.search(r):
                 donmus.append(r)
                 continue
-            f.write_text(desen.sub(yeni, metin), encoding="utf-8")
+            f.write_text(desen.sub(yeni(r) if callable(yeni) else yeni, metin), encoding="utf-8")
             n += 1
     return n, donmus
 
 
-def komut_faz_arsivle(a: argparse.Namespace) -> int:
-    """`docs/NN-*.md` -> `docs/arsiv/fazlar/NN-*.md`, bağlantılarıyla birlikte."""
-    onek = f"{int(a.faz):02d}-"
-    adaylar = [p2 for p2 in sorted((ROOT / "docs").glob(FAZ_DESEN), key=_faz_no)
-               if _faz_no(p2) == int(a.faz)]
-    if len(adaylar) != 1:
-        print(f"❌ `docs/{onek}*.md` için {len(adaylar)} eşleşme; tam olarak 1 olmalı.")
-        return 1
-    kaynak = adaylar[0]
-    eski = kaynak.relative_to(ROOT).as_posix()
-    yeni = f"docs/arsiv/fazlar/{kaynak.name}"
+def _kapanan_faz_adi(no: int):
+    """Silinen faz yolunun yerine geçen ad: geliştirme aparatında (Türkçe) `Faz NNN`,
+    sevk edilen ve kod tarafında (İngilizce) `Phase NNN`."""
+    return lambda r: f"Faz {no}" if r.startswith(("docs/", ".agents/")) else f"Phase {no}"
 
-    # DAR bir yol listesi YETMEZ -- asagidaki geri alma `git reset --hard`'tir.
+
+def komut_faz_kapat(a: argparse.Namespace) -> int:
+    """`docs/NN-*.md` -> `FAZ-DEFTERI.md` satırı; doküman silinir, bağlantılar düz metne iner."""
+    no = int(a.faz)
+    adaylar = [p2 for p2 in sorted((ROOT / "docs").glob(FAZ_DESEN), key=_faz_no) if _faz_no(p2) == no]
+    if len(adaylar) != 1:
+        print(f"❌ `docs/` kökünde Faz {no} için {len(adaylar)} doküman var; tam olarak 1 olmalı.")
+        return 1
+    rel = adaylar[0].relative_to(ROOT).as_posix()
+    metin = adaylar[0].read_text(encoding="utf-8")
+    eksik = faz_kapat_eksikleri(metin, no, rel)
+    defter = faz_defteri_oku()
+    if any(k["no"] == no for k in defter):
+        eksik.append(f"{FAZ_DEFTERI}: Faz {no} satırı zaten var")
+    if eksik:
+        print("❌ Faz kapatılamaz:")
+        for e in eksik:
+            print(f"  {e}")
+        return 1
+    # Isaretci HEAD'deki metne gider: dokumandaki commit edilmemis bir duzenleme
+    # hicbir yerde kalmazdi. Geri alma `git reset --hard` oldugu icin agacin
+    # TAMAMI temiz olmali (`_izlenen_degisiklik_var_mi`).
     hata = _izlenen_degisiklik_var_mi()
     if hata:
-        print(f"❌ {hata}"); return 1
+        print(f"❌ {hata}")
+        return 1
+    sha = _git("rev-parse", "--short=8", "HEAD")
+    if not sha or _git("cat-file", "-e", f"HEAD:{rel}") is None:
+        print(f"❌ {rel} HEAD'de yok — önce commit et.")
+        return 1
+    kayit = _faz_kaydi(metin, no, f"{sha[0]}:{rel}", datetime.date.today().isoformat())
     if a.kuru:
-        print(f"(kuru) {eski} → {yeni}"); return 0
+        print(f"(kuru) {rel} silinir · {FAZ_DEFTERI} satırı:\n  {_defter_satiri(kayit)}")
+        if kayit["olcum"] is not None:
+            print(f"  {_defter_olcum_satiri(kayit)}")
+        return 0
 
     once = len(kirik_baglantilar())
-    if _git("mv", eski, yeni) is None:
-        print("❌ `git mv` başarısız."); return 1
-    hedef = ROOT / yeni
-    hedef.write_text(
-        _yeniden_konumlandir(hedef.read_text(encoding="utf-8"),
-                             posixpath.dirname(eski), posixpath.dirname(yeni)),
-        encoding="utf-8")
-    dokunulan = _gelen_baglantilari_cevir(ROOT, eski, yeni)
-    duz, donmus = _duz_yol_referanslarini_cevir(ROOT, eski, yeni)
-
+    faz_defteri_yaz(ROOT, defter + [kayit])
+    if _git("rm", "-q", rel) is None:
+        _git("reset", "--hard", "HEAD")
+        print(f"❌ `git rm {rel}` başarısız — GERİ ALINDI.")
+        return 1
+    gelen = _gelen_baglantilari_duz_metne_indir(ROOT, rel, f"Faz {no}")
+    duz, donmus = _duz_yol_referanslarini_cevir(ROOT, rel, _kapanan_faz_adi(no))
+    uretilenleri_yaz()
     sonra = kirik_baglantilar()
     if len(sonra) > once:
-        # Kismi tasima birakma: kapi kirmiziysa her seyi geri al.
+        # Kismi kapanis birakma: kapi kirmiziysa her seyi geri al.
         _git("reset", "--hard", "HEAD")
-        print(f"❌ Taşıma {len(sonra) - once} yeni kırık bağlantı üretti — GERİ ALINDI.")
+        print(f"❌ Kapanış {len(sonra) - once} yeni kırık bağlantı üretti — GERİ ALINDI.")
         for b in sonra[:5]:
             print(f"  {b}")
         return 1
-    print(f"✅ {eski} → {yeni}  ·  {dokunulan} dosyada gelen bağlantı, "
-          f"{duz} dosyada düz yol referansı güncellendi")
+    print(f"✅ Faz {no} kapandı: {rel} silindi · {FAZ_DEFTERI} satırı yazıldı · "
+          f"{gelen} dosyada bağlantı, {duz} dosyada düz yol referansı düz metne indi")
     if donmus:
         print("   ⚠️  Donmuş migration içindeki referans ONARILAMAZ (bayt donmuş):")
         for r in donmus:
             print(f"      {r}")
-    print("   `python3 scripts/dokuman-bakim.py` ile YOL-HARITASI'nı yeniden üret.")
+    print("   Değişikliği tek commit'te kaydet; sapmalar ve kategori dışı kararlar commit mesajına.")
     return 0
 
 
@@ -3342,15 +3299,12 @@ _TAM_METIN = re.compile(r"git show ([0-9a-f]{7,40}):(\S+\.md)")
 
 # Damitilmis kayit tasiyan agaclar. `zorunlu=True` bir dizinin YOKLUGU
 # bulgudur: eski `if k.exists()` korumasi yoklugu sessizce yesile ceviriyordu
-# -- sig/bozuk bir klonda ya da yanlis bir tasimada kapi hicbir sey taramadan
-# gecerdi (2026-09-22 temizlik turu bulgusu, K-847). `kosumlar` zorunlu
-# DEGILDIR: kosum dizini tur acilisinda acilir, kapanista arsive tasinir
-# (manuel-test-kosumu SKILL semasi) -- turlar arasinda yoklugu mesrudur.
-# 2026-08 tur arsivi ayni turda silindi (K-847); tam metinleri 0a802674'te.
-# 2026-09 tur arsivi 2026-10-17 gecmis kayit temizliginde silindi; tam
-# metinleri 2a8149ef'te.
+# (2026-09-22 temizlik turu bulgusu, K-847). `kosumlar` zorunlu DEGILDIR: kosum
+# dizini tur acilisinda acilir, kapanista arsive tasinir (manuel-test-kosumu
+# SKILL semasi) -- turlar arasinda yoklugu mesrudur. `docs/arsiv/fazlar`
+# 2026-10-17'de kalkti: kapanan fazin isaretcisi artik `FAZ-DEFTERI.md`'dedir ve
+# `defter_isaretci_denetle` onu kanitlar.
 TAM_METIN_KAYNAKLARI: tuple[tuple[str, bool], ...] = (
-    ("docs/arsiv/fazlar", True),
     ("docs/manuel-test/kosumlar", False),
 )
 
@@ -3440,18 +3394,6 @@ def denetle() -> int:
         dar += int(not asti and _dar_mi(len(p.read_bytes()), HAFIZA_DOSYA_BUTCESI))
 
     print(f"\nCanlı geliştirme dokümanları (hariç: {', '.join(HARIC)})")
-    kayitlar = sorted((ROOT / "docs" / "arsiv" / "fazlar").glob(FAZ_DESEN))
-    if kayitlar:
-        asan = [(p2.name, len(p2.read_bytes())) for p2 in kayitlar
-                if len(p2.read_bytes()) > DAMITILMIS_FAZ_BUTCESI]
-        enb = max(len(p2.read_bytes()) for p2 in kayitlar)
-        print(f"\nDamıtılmış faz kaydı — dosya başına (bütçe {DAMITILMIS_FAZ_BUTCESI})")
-        print(f"  {len(kayitlar)} kayıt · en büyük {enb} B · "
-              f"{'✅ hepsi bütçede' if not asan else f'❌ {len(asan)} kayıt aşıyor'}")
-        for ad, n in asan[:5]:
-            print(f"  {ad} {n} B")
-        hata |= int(bool(asan))
-
     print(f"{'dizin':<30} {'bayt':>9} {'bütçe':>9}  {'~token':>8}")
     for (yol, ozyinelemeli, haric), sinir in DIZIN_BUTCESI.items():
         ad = f"{yol}/{'**' if ozyinelemeli else '*'}.md"
@@ -3473,15 +3415,6 @@ def denetle() -> int:
     for s in faz_bulgulari:
         print(f"  {s}")
     hata |= int(bool(faz_bulgulari))
-
-    kutu_bulgulari = tamamlanmis_faz_isaretsiz_kutular()
-    print(f"\nTamamlanmış fazlarda işaretsiz kutu: "
-          f"{'❌ ' + str(len(kutu_bulgulari)) + ' bulgu' if kutu_bulgulari else '✅ temiz'}")
-    for s in kutu_bulgulari[:20]:
-        print(f"  {s}")
-    if len(kutu_bulgulari) > 20:
-        print(f"  … +{len(kutu_bulgulari) - 20}")
-    hata |= int(bool(kutu_bulgulari))
 
     olcum_bulgulari = surec_olcumu_bulgulari()
     print(f"\nKapanmış fazın süreç ölçümü (eşik {SUREC_OLCUMU_ESIGI}): "
@@ -3593,7 +3526,8 @@ def denetle() -> int:
     for ad, bulgular in (
         ("Üretilen dosya tazeliği", tazelik_denetle()),
         ("Karar gerekçesi işaretçisi", gecmis_isaretci_denetle()),
-        ("Damıtılmış kayıt tam metni", tam_metin_denetle()),
+        ("Koşum kaydı tam metni", tam_metin_denetle()),
+        ("Faz defteri işaretçisi", defter_isaretci_denetle()),
         ("Bayat kod yolu (sıcak hafıza)", bayat_kod_yollari()),
     ):
         print(f"\n{ad}: {'✅ temiz' if not bulgular else f'{len(bulgular)} bulgu'}")
@@ -3625,9 +3559,27 @@ def denetle() -> int:
     return int(hata)
 
 
-def main() -> int:
+def uretilenleri_yaz(kok: pathlib.Path = ROOT) -> list[str]:
+    """`_URETILEN` dosyalarini kaynaktan yeniden yazar; her dosya icin bir satir doner.
+
+    `--yalniz-uret` (`kapi.py uret`) bunu denetimsiz cagirir: uretim ile denetim
+    ayri adimdir, bir denetim bulgusu dosyalarin yeniden yazilmasini engellemez."""
+    satirlar: list[str] = []
+    for rel, uretici in _URETILEN:
+        hedef = kok / rel
+        yeni = uretici()
+        eski = hedef.read_text(encoding="utf-8") if hedef.exists() else ""
+        hedef.write_text(yeni, encoding="utf-8")
+        satirlar.append(f"{'değişmedi' if eski == yeni else 'yeniden üretildi'} → {rel}")
+    return satirlar
+
+
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--denetle", action="store_true", help="yalnız denetle, üretme")
+    kip = ap.add_mutually_exclusive_group()
+    kip.add_argument("--denetle", action="store_true", help="yalnız denetle, üretme")
+    kip.add_argument("--yalniz-uret", action="store_true",
+                     help="yalnız üretilen dosyaları yeniden yaz, denetleme (kapi.py uret)")
     ap.add_argument("--projeksiyon", action="store_true",
                     help="geçmiş faz commit'lerinden bayt/faz türetip kalan fazı bas")
     ap.add_argument("--site-denetle", action="store_true",
@@ -3638,12 +3590,6 @@ def main() -> int:
 
     # `required=False` (varsayilan): alt komut verilmezse ESKI akis aynen kosar.
     alt = ap.add_subparsers(dest="komut")
-    fd = alt.add_parser("faz-damit", help="kapanmış faz dokümanını damıtılmış kayda indirge")
-    fd.add_argument("fazlar", nargs="*", help="faz numaraları; boşsa tümü")
-    fd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
-    fd.add_argument("--ayrintili", action="store_true", help="dosya dosya boyut bas")
-    fd.set_defaults(_calistir=komut_faz_damit)
-
     kd = alt.add_parser("kosum-damit", help="koşum kaydını asimetrik damıt")
     kd.add_argument("dizinler", nargs="+", help="koşum dizini/dizinleri")
     kd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
@@ -3654,12 +3600,12 @@ def main() -> int:
     krd.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
     krd.set_defaults(_calistir=komut_karar_damit)
 
-    fa = alt.add_parser("faz-arsivle", help="kapanmış fazı docs/arsiv/fazlar/ altına taşı")
-    fa.add_argument("faz", help="faz numarası")
-    fa.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
-    fa.set_defaults(_calistir=komut_faz_arsivle)
+    fk = alt.add_parser("faz-kapat", help="kapanan fazı sil, FAZ-DEFTERI.md'ye tek satır yaz")
+    fk.add_argument("faz", help="faz numarası")
+    fk.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
+    fk.set_defaults(_calistir=komut_faz_kapat)
 
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     if getattr(a, "_calistir", None):
         return a._calistir(a)
 
@@ -3670,12 +3616,9 @@ def main() -> int:
         return projeksiyon()
 
     if not a.denetle:
-        for rel, uret in _URETILEN:
-            hedef = ROOT / rel
-            yeni = uret()
-            eski = hedef.read_text(encoding="utf-8") if hedef.exists() else ""
-            hedef.write_text(yeni, encoding="utf-8")
-            print("değişmedi" if eski == yeni else "yeniden üretildi", f"→ {hedef.relative_to(ROOT)}")
+        print("\n".join(uretilenleri_yaz()))
+        if a.yalniz_uret:
+            return 0
         print()
 
     return denetle()

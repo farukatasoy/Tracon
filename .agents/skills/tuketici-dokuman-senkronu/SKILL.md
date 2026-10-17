@@ -153,8 +153,8 @@ python3 scripts/kapi.py test --proje Tracon.Core.UnitTests \
 python3 scripts/kapi.py test --proje Tracon.Package.Tests \
   --sinif "*LocalReferenceTests*"
 
-# 2 — Sevk edilen agent haritası ve llms dosyaları bayat mı
-cd docs-site && node scripts/build-agent-map.mjs --check
+# 2 — Sevk edilen agent haritasını ve llms dosyalarını yeniden üret (CI `--check` ile denetler)
+python3 scripts/kapi.py uret
 
 # 3 — Site: icerik → derleme → baglanti → agirlik (dördü tek komutta)
 cd docs-site && npm run check

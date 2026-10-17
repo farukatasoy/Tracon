@@ -11,7 +11,9 @@ Koşum: python3 -m unittest discover -s scripts -p "*_test.py"
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import pathlib
 import tempfile
 import unittest
@@ -324,6 +326,19 @@ class FazYasamDongusuTestleri(unittest.TestCase):
 
             self.assertEqual(dokuman_bakim.kapanmis_faz_bulgulari(kok), [])
 
+    def test_defterdeki_numara_kokte_de_varsa_bulgudur(self):
+        with tempfile.TemporaryDirectory() as t:
+            kok = pathlib.Path(t)
+            (kok / "docs").mkdir()
+            (kok / "docs" / "90-ORNEK.md").write_text(
+                "# Faz 90 — Örnek\n\n> **Durum:** 📋 Planlandı\n", encoding="utf-8")
+            dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI | {"no": 90}])
+
+            bulgular = dokuman_bakim.kapanmis_faz_bulgulari(kok)
+
+            self.assertEqual(len(bulgular), 1)
+            self.assertIn("FAZ-DEFTERI", bulgular[0])
+
 
 class GitHatasiTestleri(unittest.TestCase):
     """`git` çağrısı düşerse kapı sessizce geçmez — çıkış kodu 1 (kullanıcı kararı)."""
@@ -489,6 +504,38 @@ class TazelikDenetleTestleri(unittest.TestCase):
             self.assertEqual(hedef.read_text(), "BAYAT")
 
 
+class UretilenleriYazTestleri(unittest.TestCase):
+    """`uretilenleri_yaz` ve `--yalniz-uret` — `kapi.py uret`in doküman yarısı."""
+
+    def test_bayat_dosyayi_yeniden_yazar_ve_soyler(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "docs").mkdir()
+            bayat = tmp / "docs" / "X.md"
+            bayat.write_text("BAYAT", encoding="utf-8")
+            (tmp / "docs" / "Y.md").write_text("TAZE", encoding="utf-8")
+            sahte = (("docs/X.md", lambda: "TAZE"), ("docs/Y.md", lambda: "TAZE"))
+            with mock.patch.object(dokuman_bakim, "_URETILEN", sahte):
+                satirlar = dokuman_bakim.uretilenleri_yaz(tmp)
+            self.assertEqual(bayat.read_text(encoding="utf-8"), "TAZE")
+            self.assertEqual(satirlar, ["yeniden üretildi → docs/X.md", "değişmedi → docs/Y.md"])
+
+    def test_yalniz_uret_denetim_kosmaz(self):
+        # Üretim ile denetim ayrı adımdır: bir denetim bulgusu `kapanis`'in ilk
+        # adımını kırmızı yapmamalı, onu kendi adımı (`--denetle`) söyler.
+        with mock.patch.object(dokuman_bakim, "uretilenleri_yaz", return_value=[]) as yaz, \
+                mock.patch.object(dokuman_bakim, "denetle", return_value=1) as denetim, \
+                contextlib.redirect_stdout(io.StringIO()):
+            sonuc = dokuman_bakim.main(["--yalniz-uret"])
+        self.assertEqual(sonuc, 0)
+        yaz.assert_called_once_with()
+        denetim.assert_not_called()
+
+    def test_denetle_ile_yalniz_uret_birlikte_verilemez(self):
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            dokuman_bakim.main(["--denetle", "--yalniz-uret"])
+
+
 class GecmisIsaretciTestleri(unittest.TestCase):
     """`gecmis_isaretci_denetle` — GECMISI'ye yollayan kararın başlığı var mı."""
 
@@ -544,20 +591,20 @@ class TamMetinDenetleTestleri(unittest.TestCase):
     """`tam_metin_denetle` — damıtılmış kayıttaki SHA git'te çözülüyor mu."""
 
     def _faz(self, tmp: pathlib.Path, govde: str) -> None:
-        (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
-        (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(govde, encoding="utf-8")
+        (tmp / "docs" / "manuel-test" / "kosumlar" / "2026-09-16").mkdir(parents=True)
+        (tmp / "docs" / "manuel-test" / "kosumlar" / "2026-09-16" / "01-X.md").write_text(govde, encoding="utf-8")
 
     def test_cozulmeyen_sha_yakalanir(self):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
-            self._faz(tmp, "> git show deadbee:docs/arsiv/fazlar/01-X.md\n")
+            self._faz(tmp, "> git show deadbee:docs/manuel-test/kosumlar/2026-09-16/01-X.md\n")
             with mock.patch.object(dokuman_bakim, "_git", return_value=None):
                 self.assertTrue(dokuman_bakim.tam_metin_denetle(tmp))
 
     def test_cozulen_sha_bulgu_uretmez(self):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
-            self._faz(tmp, "> git show deadbee:docs/arsiv/fazlar/01-X.md\n")
+            self._faz(tmp, "> git show deadbee:docs/manuel-test/kosumlar/2026-09-16/01-X.md\n")
             with mock.patch.object(dokuman_bakim, "_git", return_value=[]):
                 self.assertEqual(dokuman_bakim.tam_metin_denetle(tmp), [])
 
@@ -572,7 +619,9 @@ class TamMetinDenetleTestleri(unittest.TestCase):
     def test_zorunlu_kaynak_dizini_yoksa_bulgu(self):
         # Eski davranış boş liste döndürürdü: zorunlu kaynak dizini silinse
         # kapı hiçbir şey taramadan yeşil kalırdı (2026-09-22 bulgusu, K-847).
-        with tempfile.TemporaryDirectory() as d:
+        zorunlu = (("docs/zorunlu-kayitlar", True),)
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch.object(dokuman_bakim, "TAM_METIN_KAYNAKLARI", zorunlu):
             bulgu = dokuman_bakim.tam_metin_denetle(pathlib.Path(d))
             self.assertTrue(
                 any("tam metin kaynağı dizini yok" in b for b in bulgu), bulgu)
@@ -581,45 +630,35 @@ class TamMetinDenetleTestleri(unittest.TestCase):
         # Koşum dizini turlar arasında meşru olarak yoktur: tur açılışında
         # açılır, kapanışta arşive taşınır (manuel-test-kosumu SKILL şeması).
         with tempfile.TemporaryDirectory() as d:
-            tmp = pathlib.Path(d)
-            (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
-            self.assertEqual(dokuman_bakim.tam_metin_denetle(tmp), [])
+            self.assertEqual(dokuman_bakim.tam_metin_denetle(pathlib.Path(d)), [])
 
 
 class Faz91DokumanKapilariTestleri(unittest.TestCase):
-    def test_tamamlanmis_fazdaki_isaretsiz_kutulari_bulur(self):
-        with tempfile.TemporaryDirectory() as d:
-            tmp = pathlib.Path(d)
-            fazlar = tmp / "docs" / "arsiv" / "fazlar"
-            fazlar.mkdir(parents=True)
-            (fazlar / "71-ORNEK.md").write_text(
-                "> **Durum:** ✅ Tamamlandı\n\n- [ ] Bir\n- [ ] İki\n", encoding="utf-8")
-            (fazlar / "72-PLAN.md").write_text(
-                "> **Durum:** 📋 Planlandı\n\n- [ ] Açık\n", encoding="utf-8")
+    def test_isaretsiz_kutu_kapanisi_durdurur(self):
+        # Doküman silindikten sonra açık bir DoD maddesini gösteren yer kalmaz.
+        metin = "> **Durum:** ✅ Tamamlandı\n\n- [ ] Bir\n- [x] Tamam\n- [ ] İki\n"
+        eksik = dokuman_bakim.faz_kapat_eksikleri(metin, 71, "docs/71-X.md")
+        self.assertEqual(len(eksik), 2, eksik)
+        self.assertTrue(all("docs/71-X.md:" in e and "işaretsiz kutu" in e for e in eksik))
 
-            bulgular = dokuman_bakim.tamamlanmis_faz_isaretsiz_kutular(tmp)
+    def test_kod_ornegindeki_kutu_sayilmaz(self):
+        metin = "> **Durum:** ✅ Tamamlandı\n\n```markdown\n- [ ] örnek\n```\n"
+        self.assertEqual(dokuman_bakim.faz_kapat_eksikleri(metin, 71, "x.md"), [])
 
-            self.assertEqual(len(bulgular), 2)
-            self.assertTrue(all("71-ORNEK.md" in bulgu for bulgu in bulgular))
+    def test_tamamlanmamis_faz_kapatilamaz(self):
+        eksik = dokuman_bakim.faz_kapat_eksikleri("> **Durum:** 📋 Planlandı\n", 72, "x.md")
+        self.assertEqual(len(eksik), 1)
+        self.assertIn("tamamlanmış değil", eksik[0])
 
     def test_tamamlandi_esanlamlisi_yalin_yazimda_da_yakalanir(self):
         """Faz 91 denetimi: 24-SQLITE.md '✅ Kod tamam' yazıyordu, literal
         `Tamamlandı` deseni bunu kaçırıyordu — iki gerçek işaretsiz kutu
         denetimden görünmez kalmıştı."""
-        with tempfile.TemporaryDirectory() as d:
-            tmp = pathlib.Path(d)
-            fazlar = tmp / "docs" / "arsiv" / "fazlar"
-            fazlar.mkdir(parents=True)
-            (fazlar / "24-ORNEK.md").write_text(
-                "> **Durum:** ✅ Kod tamam · 205/205 test yeşil\n\n- [ ] AOT ölçülmedi\n",
-                encoding="utf-8")
-            (fazlar / "23-ORNEK.md").write_text(
-                "> **Durum:** ✅ Tamam — 204/204 test yeşil\n\n- [ ] Açık kalem\n",
-                encoding="utf-8")
-
-            bulgular = dokuman_bakim.tamamlanmis_faz_isaretsiz_kutular(tmp)
-
-            self.assertEqual(len(bulgular), 2)
+        for durum in ("✅ Kod tamam · 205/205 test yeşil", "✅ Tamam — 204/204 test yeşil"):
+            metin = f"> **Durum:** {durum}\n\n- [ ] AOT ölçülmedi\n"
+            eksik = dokuman_bakim.faz_kapat_eksikleri(metin, 24, "x.md")
+            self.assertEqual(len(eksik), 1, (durum, eksik))
+            self.assertIn("işaretsiz kutu", eksik[0])
 
     def test_dokuman_iddiasi_gercek_props_degeriyle_karsilastirilir(self):
         with tempfile.TemporaryDirectory() as d:
@@ -840,6 +879,123 @@ Gerçek sunucu koşturulamadı.
 """
 
 
+DEFTER_OLCUMU = {
+    "Plan revizyonu sayısı": "0",
+    "Düzeltme turu sayısı": "2",
+    "🔴 bulgu: gerçek / gürültü / araştırılacak": "1 / 0 / 0",
+    "Fazın ürettiği regresyon": "0",
+    "Faz kapandıktan sonra bulunan kusur": "ölçülmedi",
+}
+DEFTER_KAYDI = {"no": 170, "konu": "Örnek", "durum": "✅", "kapanis": "2026-10-17",
+                "kaynak": "F-1", "kayit": "abc12345:docs/170-X.md", "olcum": DEFTER_OLCUMU}
+
+
+class FazDefteriTestleri(unittest.TestCase):
+    """2026-10-17: kapanan faz silinir; iz `FAZ-DEFTERI.md` satırıdır."""
+
+    def test_yaz_oku_gidis_donus(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d); (kok / "docs").mkdir()
+            kayitlar = [DEFTER_KAYDI | {"no": 3, "olcum": None, "konu": "A | B"},
+                        DEFTER_KAYDI | {"no": 170}]
+            dokuman_bakim.faz_defteri_yaz(kok, list(reversed(kayitlar)))
+            self.assertEqual(dokuman_bakim.faz_defteri_oku(kok), kayitlar)
+
+    def test_dosya_yoksa_bos(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(dokuman_bakim.faz_defteri_oku(pathlib.Path(d)), [])
+
+    def test_yol_haritasi_acik_fazi_ve_siradaki_numarayi_yazar(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d); (kok / "docs").mkdir()
+            (kok / "docs" / "193-X.md").write_text(
+                "# Faz 193 — Açık\n\n> **Durum:** 📋 Planlandı (2026-10-11)\n", encoding="utf-8")
+            dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI | {"no": 218, "konu": "Son"}])
+            metin = dokuman_bakim.yol_haritasi_uret(kok)
+            self.assertIn("| [193](193-X.md) | Açık | 📋 Planlandı |", metin)
+            self.assertIn("Sıradaki boş faz numarası: 219.", metin)
+            self.assertIn("son: Faz 218 — Son", metin)
+
+    def test_isaretci_kapisi_eksik_nesneyi_bulur(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d); (kok / "docs").mkdir()
+            dokuman_bakim.faz_defteri_yaz(kok, [
+                DEFTER_KAYDI | {"no": 1, "kayit": "aaaaaaa:docs/1-X.md"},
+                DEFTER_KAYDI | {"no": 2, "kayit": "bbbbbbb:docs/2-Y.md"},
+                DEFTER_KAYDI | {"no": 3, "kayit": "biçimsiz"}])
+            sonuc = mock.Mock(returncode=0, stdout="aaaaaaa:docs/1-X.md missing\nbbbbbbb blob 12\n")
+            with mock.patch.object(dokuman_bakim.subprocess, "run", return_value=sonuc) as run:
+                bulgular = dokuman_bakim.defter_isaretci_denetle(kok)
+            self.assertEqual(run.call_args.kwargs["input"], "aaaaaaa:docs/1-X.md\nbbbbbbb:docs/2-Y.md\n")
+            self.assertEqual(len(bulgular), 2, bulgular)
+            self.assertTrue(any("Faz 1 -> aaaaaaa:docs/1-X.md çözülmüyor" in b for b in bulgular))
+            self.assertTrue(any("Faz 3" in b and "biçimsiz" in b for b in bulgular))
+
+    def test_git_hatasi_temiz_SAYILMAZ(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d); (kok / "docs").mkdir()
+            dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI])
+            with mock.patch.object(dokuman_bakim.subprocess, "run",
+                                   return_value=mock.Mock(returncode=128, stdout="")):
+                self.assertTrue(dokuman_bakim.defter_isaretci_denetle(kok))
+
+
+class FazKapatTestleri(unittest.TestCase):
+    """`faz-kapat`in saf parçaları: kayıt, özet ve bağlantı indirme."""
+
+    TAM = (
+        "## Süreç Ölçümü\n\n| Metrik | Değer |\n|---|---|\n"
+        "| Plan revizyonu sayısı | 0 |\n"
+        "| Düzeltme turu sayısı | 3 (iç döngü: analizör) |\n"
+        "| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (🟡 4, 🟢 2) |\n"
+        "| Fazın ürettiği regresyon | 2, ikisi de faz içinde yakalandı |\n"
+        "| Faz kapandıktan sonra bulunan kusur | `ölçülmedi` (kapanış anı) |\n")
+
+    def _metin(self, govde: str = "") -> str:
+        return ("# Faz 219 — Örnek Konu\n\n> **Durum:** ✅ Tamamlandı (2026-10-18)\n"
+                "> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-559**, **F-560**\n\n"
+                f"## Bitiş Ölçütleri (DoD)\n\n- [x] Bir\n\n{govde}")
+
+    def test_kayit_basliktan_durumdan_kaynaktan_ve_olcumden_turetilir(self):
+        k = dokuman_bakim._faz_kaydi(self._metin(self.TAM), 219, "abc12345:docs/219-X.md", "2026-10-19")
+        self.assertEqual(k["konu"], "Örnek Konu")
+        self.assertEqual(k["kapanis"], "2026-10-18")
+        self.assertEqual(k["kaynak"], "F-559 · F-560")
+        self.assertEqual(k["kayit"], "abc12345:docs/219-X.md")
+        self.assertEqual(list(k["olcum"].values()), ["0", "3", "0 / 0 / 0", "2", "ölçülmedi"])
+
+    def test_esik_ustunde_olcum_yoksa_kapanamaz(self):
+        eksik = dokuman_bakim.faz_kapat_eksikleri(self._metin(), 219, "docs/219-X.md")
+        self.assertEqual(len(eksik), 1, eksik)
+        self.assertIn("Süreç Ölçümü", eksik[0])
+
+    def test_hazir_faz_eksiksizdir(self):
+        self.assertEqual(dokuman_bakim.faz_kapat_eksikleri(self._metin(self.TAM), 219, "x.md"), [])
+
+    def test_baglanti_etiketine_iner_yol_etiketi_faz_adina_iner(self):
+        metin = ("Önkoşul: [Faz 187](arsiv/fazlar/187-X.md#devir) · "
+                 "[`docs/187-X.md`](arsiv/fazlar/187-X.md) · [başka](MIMARI.md)")
+        yeni = dokuman_bakim._baglantilari_duz_metne_indir(
+            metin, "docs", "docs/arsiv/fazlar/187-X.md", "Faz 187")
+        self.assertEqual(yeni, "Önkoşul: Faz 187 · Faz 187 · [başka](MIMARI.md)")
+
+    def test_baska_dizinden_goreli_baglanti_da_cozulur(self):
+        yeni = dokuman_bakim._baglantilari_duz_metne_indir(
+            "[x](../../docs/219-X.md)", ".agents/skills", "docs/219-X.md", "Faz 219")
+        self.assertEqual(yeni, "x")
+
+    def test_dis_adres_ve_baska_hedef_dokunulmaz(self):
+        for m in ("[x](https://a.dev/docs/219-X.md)", "[x](220-Y.md)"):
+            self.assertEqual(dokuman_bakim._baglantilari_duz_metne_indir(
+                m, "docs", "docs/219-X.md", "Faz 219"), m)
+
+    def test_duz_referans_dile_gore_adlanir(self):
+        ad = dokuman_bakim._kapanan_faz_adi(219)
+        self.assertEqual(ad("docs/ADAYLAR.md"), "Faz 219")
+        self.assertEqual(ad(".agents/skills/x/SKILL.md"), "Faz 219")
+        self.assertEqual(ad("src/Tracon.Core/X.cs"), "Phase 219")
+
+
 class FazBolumleriTestleri(unittest.TestCase):
     def test_baslik_blogu_ve_bolumler_ayrilir(self):
         bas, bol = dokuman_bakim._faz_bolumleri(FAZ_ORNEK)
@@ -852,86 +1008,6 @@ class FazBolumleriTestleri(unittest.TestCase):
         bas, bol = dokuman_bakim._faz_bolumleri("# X\n\nyalnız gövde\n")
         self.assertEqual(bol, [])
         self.assertIn("yalnız gövde", bas)
-
-
-class FazDamitmaTestleri(unittest.TestCase):
-    def _damit(self, metin=FAZ_ORNEK):
-        return dokuman_bakim._faz_damit_metni(
-            metin, tam_sha="abc1234", yol="docs/arsiv/fazlar/42-X.md", bugun="2026-08-23")
-
-    def test_durum_satiri_damitmadan_sonra_AYNI_yerde(self):
-        # `yol_haritasi_uret()` bu iki satiri okur; kayarsa faz YOL-HARITASI'ndan
-        # sessizce duser ve hicbir hata verilmez.
-        yeni, _ = self._damit()
-        self.assertTrue(yeni.startswith("# Faz 42 — Örnek"))
-        self.assertRegex(yeni, r"(?m)^>\s*\*\*Durum:\*\*\s*✅ Tamamlandı")
-
-    def test_kalici_bolumler_BIRE_BIR_korunur(self):
-        yeni, _ = self._damit()
-        for b in ("## Plandan Sapmalar\n\nPlan A dedi, gerçek B çıktı.",
-                  "## Sonraki Faza Devir Notu\n\nŞu sözleşmeyi devral."):
-            self.assertIn(b, yeni)
-
-    def test_plan_bolumleri_duser(self):
-        yeni, _ = self._damit()
-        for d in ("## Bu Faza Başlarken", "## 42.1", "## Planlanan Public API",
-                  "## Gerçekleşen Public API"):
-            self.assertNotIn(d, yeni)
-
-    def test_tek_dodun_isaretsiz_kutusu_KORUNUR(self):
-        # `24-SQLITE.md` gercegi: "AOT olculmedi" kapanmamis bir isi kaydeder.
-        yeni, _ = self._damit()
-        self.assertIn("- [ ] AOT ölçülmedi", yeni)
-
-    def test_iki_dod_varsa_planin_isaretsiz_kopyasi_duser(self):
-        metin = FAZ_ORNEK.replace(
-            "## Bitiş Ölçütleri (DoD)\n\n- [x] Bir ✅\n- [ ] AOT ölçülmedi",
-            "## Bitiş Ölçütleri (DoD)\n\n- [ ] Plan kutusu\n\n"
-            "## Bitiş Ölçütleri (DoD) — sonuç\n\n- [x] Gerçekleşen ✅")
-        yeni, _ = dokuman_bakim._faz_damit_metni(
-            metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
-        self.assertNotIn("Plan kutusu", yeni)
-        self.assertIn("Gerçekleşen ✅", yeni)
-
-    def test_taninmayan_bolum_DUSURULMEZ_uyari_uretir(self):
-        yeni, uyari = self._damit()
-        self.assertIn("## Açık Kalan", yeni)
-        self.assertTrue(any("Açık Kalan" in u for u in uyari))
-
-    def test_amac_cumle_sinirinda_kirpilir(self):
-        uzun = FAZ_ORNEK.replace("Birinci cümle. İkinci cümle. Üçüncü cümle.",
-                                 ("Kısa cümle. " + "Çok uzun bir cümle daha. " * 40).strip())
-        yeni, _ = dokuman_bakim._faz_damit_metni(
-            uzun, tam_sha="a", yol="x.md", bugun="2026-08-23")
-        _, bol = dokuman_bakim._faz_bolumleri(yeni)
-        amac = next(g for a, g in bol if a == "Amaç")
-        self.assertLessEqual(len(amac.encode()), dokuman_bakim.AMAC_SINIRI + 120)
-        self.assertTrue(amac.rstrip().endswith("."), amac[-40:])
-
-    def test_tam_metin_komutu_yazilir(self):
-        yeni, _ = self._damit()
-        self.assertIn("git show abc1234:docs/arsiv/fazlar/42-X.md", yeni)
-
-    def test_uretilen_metinde_markdown_link_deseni_YOK(self):
-        # Damitma blogu `](` tasirsa `kirik_baglantilar()` yanlis pozitif uretir.
-        yeni, _ = self._damit()
-        blok = yeni[yeni.index(dokuman_bakim.DAMITMA_ISARETI):yeni.index("\n---\n")]
-        self.assertNotIn("](", blok)
-
-    def test_IDEMPOTENT(self):
-        bir, _ = self._damit()
-        iki, uyari = self._damit(bir)
-        self.assertEqual(bir, iki)
-        self.assertEqual(uyari, [])
-
-    def test_imza_anlik_goruntusu_ve_dosya_listesi_duser(self):
-        for baslik in ("## Doğrulanmış MAF API'si", "## Kullanılan MAF API'si (reflection)",
-                       "## Gerçekleşen Dosya Listesi", "## Üretilen Dosyalar",
-                       "## Yeni HTTP Uçları"):
-            metin = FAZ_ORNEK.replace("## Açık Kalan", f"{baslik}\n\nGÖVDE\n\n## Açık Kalan")
-            yeni, _ = dokuman_bakim._faz_damit_metni(
-                metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
-            self.assertNotIn("GÖVDE", yeni, baslik)
 
 
 KOSUM_ORNEK = """# 23 — Saklama (`RET`) — Koşum Kaydı (2026-08-13)
@@ -1228,43 +1304,6 @@ class DizinButcesiTestleri(unittest.TestCase):
         for h in dokuman_bakim.HARIC:
             self.assertIn(h, butceli, f"{h} muaf ama bütçesiz")
 
-    def test_damitilmis_faz_kayitlari_butcede(self):
-        import pathlib as _p
-        for f in (_p.Path("docs/arsiv/fazlar")).glob("[0-9][0-9]*-*.md"):
-            self.assertLessEqual(len(f.read_bytes()),
-                                 dokuman_bakim.DAMITILMIS_FAZ_BUTCESI, f.name)
-
-
-class YenidenKonumlandirmaTestleri(unittest.TestCase):
-    """`_yeniden_konumlandir` — `docs/` -> `docs/arsiv/fazlar/` taşımasında
-    dosyanın İÇİNDEKİ göreli bağlantılar. Faz 58'de bu iş elle yapıldı ve önce
-    17, sonra 3 bağlantı kırdı."""
-
-    def _tasi(self, metin):
-        return dokuman_bakim._yeniden_konumlandir(metin, "docs", "docs/arsiv/fazlar")
-
-    def test_kardes_dosya_iki_seviye_yukari_cikar(self):
-        self.assertIn("](../../MIMARI.md)", self._tasi("[x](MIMARI.md)"))
-
-    def test_ayni_dizine_gelen_hedef_sadelesir(self):
-        self.assertIn("](78-X.md)", self._tasi("[x](arsiv/fazlar/78-X.md)"))
-
-    def test_arsiv_kokundeki_hedef_bir_seviye_yukari(self):
-        self.assertIn("](../KARARLAR-GECMISI.md)", self._tasi("[x](arsiv/KARARLAR-GECMISI.md)"))
-
-    def test_repo_koku_disina_cikan_hedef(self):
-        self.assertIn("](../../../src/A/B.cs)", self._tasi("[x](../src/A/B.cs)"))
-
-    def test_capa_korunur(self):
-        self.assertIn("](../../MIMARI.md#bolum-7)", self._tasi("[x](MIMARI.md#bolum-7)"))
-
-    def test_dis_adres_ve_site_mutlak_dokunulmaz(self):
-        for h in ("https://x.dev/a", "/reference/compatibility/"):
-            self.assertIn(f"]({h})", self._tasi(f"[x]({h})"))
-
-    def test_alt_dizin_hedefi(self):
-        self.assertIn("](../../hafiza/maf-api.md)", self._tasi("[x](hafiza/maf-api.md)"))
-
 
 class YenidenAcildiIsaretiTestleri(unittest.TestCase):
     """🔁 işareti şablonun biçimini (iki nokta) ister — çıplak ifadeyi değil."""
@@ -1297,33 +1336,6 @@ class YenidenAcildiIsaretiTestleri(unittest.TestCase):
 class DenetimBulgulariTestleri(unittest.TestCase):
     """Bağımsız denetimin (Faz 90) bulduğu üç kusur için regresyon kapıları."""
 
-    def test_NNx_onekli_kalici_bolum_DUSMEZ(self):
-        # 🔴 Bulgu 2: `NN.x` bir NUMARALANDIRMA konvansiyonudur. Faz 29
-        # sapmalarını `29.0 — Plandan Sapmalar` diye numaralandırmıştı ve
-        # önekle sınıflandırma onu SESSİZCE düşürdü.
-        metin = FAZ_ORNEK.replace("## Plandan Sapmalar", "## 42.0 — Plandan Sapmalar")
-        yeni, _ = dokuman_bakim._faz_damit_metni(
-            metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
-        self.assertIn("Plan A dedi, gerçek B çıktı.", yeni)
-
-    def test_NNx_onekli_saglanamayanlar_DUSMEZ(self):
-        metin = FAZ_ORNEK.replace(
-            "## Açık Kalan", "## 42.7 — Sağlanamayan Şeyler (dürüstlük bölümü)")
-        yeni, _ = dokuman_bakim._faz_damit_metni(
-            metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
-        self.assertIn("Gerçek sunucu koşturulamadı.", yeni)
-
-    def test_NNx_onekli_GERCEK_is_kalemi_duser(self):
-        metin = FAZ_ORNEK.replace("## Açık Kalan", "## 42.3 — Protokol tasarımı")
-        yeni, _ = dokuman_bakim._faz_damit_metni(
-            metin, tam_sha="a", yol="x.md", bugun="2026-08-23")
-        self.assertNotIn("Gerçek sunucu koşturulamadı.", yeni)
-
-    def test_is_kalemi_kalani_ayristirir(self):
-        self.assertEqual(dokuman_bakim._is_kalemi_kalani("29.0 — Plandan Sapmalar"),
-                         "Plandan Sapmalar")
-        self.assertIsNone(dokuman_bakim._is_kalemi_kalani("Plandan Sapmalar"))
-
     def test_kirli_agac_reset_hard_koşan_komutu_ENGELLER(self):
         # 🔴 Bulgu 1: ön denetim dar bir yol listesine bakıyordu ama geri alma
         # `git reset --hard` idi — `src/` altındaki düzenleme yok olurdu.
@@ -1343,9 +1355,9 @@ class DenetimBulgulariTestleri(unittest.TestCase):
         # 🟡 Bulgu 6: `cat-file -e` başarılı olsa bile içerik damıtılmış olabilir.
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
-            (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
-            (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(
-                "> git show deadbee:docs/arsiv/fazlar/01-X.md\n", encoding="utf-8")
+            (tmp / "docs" / "manuel-test" / "kosumlar" / "2026-09-16").mkdir(parents=True)
+            (tmp / "docs" / "manuel-test" / "kosumlar" / "2026-09-16" / "01-X.md").write_text(
+                "> git show deadbee:docs/manuel-test/kosumlar/2026-09-16/01-X.md\n", encoding="utf-8")
             with mock.patch.object(dokuman_bakim, "_git",
                                    return_value=[dokuman_bakim.DAMITMA_ISARETI]):
                 bulgu = dokuman_bakim.tam_metin_denetle(tmp)
@@ -1392,19 +1404,6 @@ class KodBlogundakiBaslikTestleri(unittest.TestCase):
         _, bol = dokuman_bakim._faz_bolumleri(self.ORNEK)
         self.assertEqual([a for a, _ in bol], ["Amaç", "1.2 — Şablon", "Plandan Sapmalar"])
 
-    def test_ornek_govde_gercek_bolume_karismaz(self):
-        yeni, _ = dokuman_bakim._faz_damit_metni(
-            self.ORNEK, tam_sha="a", yol="x.md", bugun="2026-08-23")
-        self.assertIn("Gerçek sapma.", yeni)
-        self.assertNotIn("ÖRNEK SAPMA", yeni)   # `1.2` iş kalemiyle birlikte düşer
-
-    def test_isareti_ORNEK_olarak_gosteren_dokuman_damitilabilir(self):
-        m = self.ORNEK.replace("```markdown\n## Amaç",
-                               f"```markdown\n> {dokuman_bakim.DAMITMA_ISARETI}\n## Amaç")
-        yeni, _ = dokuman_bakim._faz_damit_metni(
-            m, tam_sha="a", yol="x.md", bugun="2026-08-23")
-        self.assertNotEqual(yeni, m, "örnek işaret 'zaten damıtılmış' sanıldı")
-
 
 class TamMetinKodBloguTestleri(unittest.TestCase):
     """Kapı, işareti ÖRNEK olarak gösteren bir tam metni damıtılmış sanmamalı —
@@ -1412,9 +1411,9 @@ class TamMetinKodBloguTestleri(unittest.TestCase):
     denetimi ve bu kapı)."""
 
     def _kur(self, tmp):
-        (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
-        (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(
-            "> git show deadbee:docs/arsiv/fazlar/01-X.md\n", encoding="utf-8")
+        (tmp / "docs" / "manuel-test" / "kosumlar" / "2026-09-16").mkdir(parents=True)
+        (tmp / "docs" / "manuel-test" / "kosumlar" / "2026-09-16" / "01-X.md").write_text(
+            "> git show deadbee:docs/manuel-test/kosumlar/2026-09-16/01-X.md\n", encoding="utf-8")
 
     def test_ORNEK_olarak_gosterilen_isaret_bulgu_uretmez(self):
         with tempfile.TemporaryDirectory() as d:
@@ -1807,7 +1806,7 @@ class AdaylarHizasiTestleri(unittest.TestCase):
             "## Aday Olmayan Açık Kayıtlar\n\nSıradaki numara: **F-23**.\n")
 
     def _kok(self, adaylar: str, *, fazlar: dict[str, str] | None = None,
-             kapanan: str = "") -> pathlib.Path:
+             kapanan: str = "", defter: dict[int, str] | None = None) -> pathlib.Path:
         kok = pathlib.Path(tempfile.mkdtemp())
         (kok / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
         (kok / "docs" / "ADAYLAR.md").write_text(adaylar, encoding="utf-8")
@@ -1816,6 +1815,9 @@ class AdaylarHizasiTestleri(unittest.TestCase):
             f"{kapanan}\n### Başka bölüm\n\n| **F-22** · burada değil | x | y |\n", encoding="utf-8")
         for yol, icerik in (fazlar or {}).items():
             (kok / yol).write_text(icerik, encoding="utf-8")
+        if defter:
+            dokuman_bakim.faz_defteri_yaz(
+                kok, [DEFTER_KAYDI | {"no": no, "kaynak": kaynak} for no, kaynak in defter.items()])
         return kok
 
     @staticmethod
@@ -1833,24 +1835,23 @@ class AdaylarHizasiTestleri(unittest.TestCase):
         self.assertIn("F-21 plana dönüşmüş", bulgular[0])
         self.assertIn("docs/192-X.md", bulgular[0])
 
-    def test_arsivdeki_faz_da_sayilir(self):
-        kok = self._kok(self._adaylar(), fazlar={
-            "docs/arsiv/fazlar/150-X.md": self._faz("· **F-22** — tetik")})
+    def test_defterdeki_kapanan_faz_da_sayilir(self):
+        kok = self._kok(self._adaylar(), defter={150: "F-22"})
         bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(kok)
         self.assertEqual(1, len(bulgular), bulgular)
         self.assertIn("F-22 plana dönüşmüş", bulgular[0])
+        self.assertIn("FAZ-DEFTERI.md Faz 150", bulgular[0])
 
     def test_fazi_anan_KISMEN_acik_kalem_yesildir(self):
         # F-178 / Faz 133 deseni: kalemin bir yarisi plana donustu, digeri acik.
         adaylar = self._adaylar(kusur="| 🟡 | **F-21** · kalan yarı — ilk yarı Faz 133'te | s | y |\n")
-        kok = self._kok(adaylar, fazlar={
-            "docs/arsiv/fazlar/133-Y.md": self._faz("· **F-21** (bir yarısı)")})
+        kok = self._kok(adaylar, defter={133: "F-21"})
         self.assertEqual([], dokuman_bakim.adaylar_hizasi_bulgulari(kok))
 
     def test_faz_numarasi_onek_eslesmesi_istisna_sayilmaz(self):
         # "Faz 1330" Faz 133'u anmaz.
         adaylar = self._adaylar(kusur="| 🟡 | **F-21** · bkz. Faz 1330 | s | y |\n")
-        kok = self._kok(adaylar, fazlar={"docs/arsiv/fazlar/133-Y.md": self._faz("· **F-21**")})
+        kok = self._kok(adaylar, defter={133: "F-21"})
         self.assertEqual(1, len(dokuman_bakim.adaylar_hizasi_bulgulari(kok)))
 
     def test_kapanip_silinmeyen_kalem_KIRMIZIDIR(self):
@@ -2016,13 +2017,13 @@ class SurecOlcumuTestleri(unittest.TestCase):
     )
 
     def _kok(self, dosyalar: dict[str, str]) -> pathlib.Path:
-        """`{"arsiv/fazlar/167-X.md": gövde}` -> geçici repo kökü."""
+        """`{"167-X.md": gövde}` -> geçici repo kökü (kapanmış doküman `docs/` kökünde)."""
         kok = pathlib.Path(tempfile.mkdtemp())
         for rel, govde in dosyalar.items():
             p = kok / "docs" / rel
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(govde, encoding="utf-8")
-        (kok / "docs" / "arsiv" / "fazlar").mkdir(parents=True, exist_ok=True)
+        (kok / "docs").mkdir(parents=True, exist_ok=True)
         return kok
 
     def _faz(self, durum: str, govde: str = "") -> str:
@@ -2031,11 +2032,11 @@ class SurecOlcumuTestleri(unittest.TestCase):
     def test_esik_ALTI_faz_atlanir(self):
         # 166 faz geriye dönük doldurulmaz (kullanici karari). Esik alti bir
         # kayit bolum TASIMASA da bulgu uretmez.
-        kok = self._kok({"arsiv/fazlar/166-ESKI.md": self._faz("✅ Tamamlandı (2026-09-01)")})
+        kok = self._kok({"166-ESKI.md": self._faz("✅ Tamamlandı (2026-09-01)")})
         self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
 
     def test_esik_USTU_tamamlanmis_fazda_bolum_YOKSA_bulgudur(self):
-        kok = self._kok({"arsiv/fazlar/167-YENI.md": self._faz("✅ Tamamlandı (2026-09-12)")})
+        kok = self._kok({"167-YENI.md": self._faz("✅ Tamamlandı (2026-09-12)")})
         bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
         self.assertEqual(1, len(bulgular))
         self.assertIn("Süreç Ölçümü", bulgular[0])
@@ -2049,7 +2050,7 @@ class SurecOlcumuTestleri(unittest.TestCase):
     def test_BOS_deger_hucresi_bulgudur(self):
         eksik = self.TAM.replace("| Fazın ürettiği regresyon | 0 |",
                                  "| Fazın ürettiği regresyon | |")
-        kok = self._kok({"arsiv/fazlar/168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", eksik)})
+        kok = self._kok({"168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", eksik)})
         bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
         self.assertEqual(1, len(bulgular))
         self.assertIn("Fazın ürettiği regresyon", bulgular[0])
@@ -2058,14 +2059,14 @@ class SurecOlcumuTestleri(unittest.TestCase):
 
     def test_EKSIK_metrik_satiri_bulgudur(self):
         eksik = self.TAM.replace("| Düzeltme turu sayısı | 2 |\n", "")
-        kok = self._kok({"arsiv/fazlar/168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", eksik)})
+        kok = self._kok({"168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", eksik)})
         bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
         self.assertEqual(1, len(bulgular))
         self.assertIn("Düzeltme turu sayısı", bulgular[0])
 
     def test_DOLU_tablo_yanlis_pozitif_uretmez(self):
         # `ölçülmedi` GECERLI bir degerdir: kapi bir sayi degil, bir KARAR arar.
-        kok = self._kok({"arsiv/fazlar/168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", self.TAM)})
+        kok = self._kok({"168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", self.TAM)})
         self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
 
     def test_FAZLADAN_satir_ve_bicim_varyanti_gecer(self):
@@ -2075,7 +2076,7 @@ class SurecOlcumuTestleri(unittest.TestCase):
             "| Denetim sonrası düzeltme turu | 1 |\n"
             "| **Fazın ürettiği regresyon** | **0** |\n"
             "| Faz dışı bulunan ve kapatılan kusur | 1 |")
-        kok = self._kok({"arsiv/fazlar/167-X.md": self._faz("✅ Tamamlandı (2026-09-12)", genis)})
+        kok = self._kok({"167-X.md": self._faz("✅ Tamamlandı (2026-09-12)", genis)})
         self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
 
     def test_KOD_BLOGU_icindeki_baslik_bolum_saymaz(self):
@@ -2083,12 +2084,12 @@ class SurecOlcumuTestleri(unittest.TestCase):
         # faz kaydi (Faz 169'un kendisi) basligi kod blogu icinde tasir ve o
         # ornek GERCEK bolumun yerine gecmemelidir.
         ornek = "## Şablon\n\n```markdown\n## Süreç Ölçümü\n\n| Metrik | Değer |\n|---|---|\n| Plan revizyonu sayısı | |\n```\n\n"
-        kok = self._kok({"arsiv/fazlar/169-X.md":
+        kok = self._kok({"169-X.md":
                          self._faz("✅ Tamamlandı (2026-09-13)", ornek + self.TAM)})
         self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
 
     def test_KOK_docs_altindaki_tamamlanmis_faz_da_taranir(self):
-        # Acik Soru 1 -> A: eksik olcum ARSIVLEMEDEN once gorunur.
+        # Acik Soru 1 -> A: eksik olcum KAPANISTAN (`faz-kapat`) once gorunur.
         kok = self._kok({"169-Y.md": self._faz("✅ Tamamlandı (2026-09-13)")})
         bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
         self.assertEqual(1, len(bulgular))
@@ -2096,11 +2097,33 @@ class SurecOlcumuTestleri(unittest.TestCase):
 
     def test_kapi_HICBIR_SEY_YAZMAZ(self):
         # `tazelik_denetle()` emsali: denetim yan etkisizdir.
-        kok = self._kok({"arsiv/fazlar/167-X.md": self._faz("✅ Tamamlandı (2026-09-12)")})
+        kok = self._kok({"167-X.md": self._faz("✅ Tamamlandı (2026-09-12)")})
         once = {p: p.read_bytes() for p in sorted((kok / "docs").rglob("*.md"))}
         dokuman_bakim.surec_olcumu_bulgulari(kok)
         sonra = {p: p.read_bytes() for p in sorted((kok / "docs").rglob("*.md"))}
         self.assertEqual(once, sonra)
+
+    def test_defterde_olcum_satiri_YOKSA_bulgudur(self):
+        kok = self._kok({})
+        dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI | {"no": 170, "olcum": None}])
+        bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("Faz 170 için ölçüm satırı yok", bulgular[0])
+
+    def test_defterde_BOS_hucre_bulgudur(self):
+        kok = self._kok({})
+        olcum = dict(DEFTER_OLCUMU, **{"Fazın ürettiği regresyon": ""})
+        dokuman_bakim.faz_defteri_yaz(kok, [DEFTER_KAYDI | {"no": 170, "olcum": olcum}])
+        bulgular = dokuman_bakim.surec_olcumu_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("Fazın ürettiği regresyon", bulgular[0])
+
+    def test_defterde_esik_alti_ve_beklemedeki_faz_atlanir(self):
+        kok = self._kok({})
+        dokuman_bakim.faz_defteri_yaz(kok, [
+            DEFTER_KAYDI | {"no": 166, "olcum": None},
+            DEFTER_KAYDI | {"no": 170, "durum": "⏸", "olcum": None}])
+        self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
 
     def test_SATIR_ICI_KOD_degeri_GECERLIDIR(self):
         # 🔴 denetim bulgusu (Faz 169, triyaj: gerçek). `_kod_bloklarini_soy`
@@ -2109,21 +2132,8 @@ class SurecOlcumuTestleri(unittest.TestCase):
         # sablonun kendisi tam olarak o yazimi OGRETIYOR.
         kod = self.TAM.replace("| Faz kapandıktan sonra bulunan kusur | ölçülmedi |",
                                "| `Faz kapandıktan sonra bulunan kusur` | `ölçülmedi` |")
-        kok = self._kok({"arsiv/fazlar/168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", kod)})
+        kok = self._kok({"168-X.md": self._faz("✅ Tamamlandı (2026-09-13)", kod)})
         self.assertEqual([], dokuman_bakim.surec_olcumu_bulgulari(kok))
-
-    def test_FAZ_KAL_bolumu_damitmada_KORUR(self):
-        self.assertIn("Süreç Ölçümü", dokuman_bakim._FAZ_KAL)
-        self.assertFalse(dokuman_bakim._duser_mu("Süreç Ölçümü", "Süreç Ölçümü"))
-
-    def test_kapsam_disi_plan_bolumu_damitmada_duser(self):
-        """Faz 191: plan anındaki kapsam sınırı; iki yazımı da düşer."""
-        for ad in ("Kapsam Dışı", "Kapsam dışı"):
-            self.assertTrue(dokuman_bakim._duser_mu(ad, ad), ad)
-        # Faz 206: plan şablonunun tire ekli başlığı da aynı plan bölümüdür.
-        ad = "Kapsam dışı — kapanışta aday açılır"
-        self.assertTrue(dokuman_bakim._duser_mu(ad, ad), ad)
-        self.assertFalse(dokuman_bakim._duser_mu("Kapsam dışı kalan işler", "Kapsam dışı kalan işler"))
 
 
 class KesikKararBasligiTestleri(unittest.TestCase):

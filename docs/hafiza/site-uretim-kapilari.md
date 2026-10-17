@@ -15,8 +15,8 @@
 ## Uretilen sayfa ve onbellek tuzaklari
 
 - **Site sayfalarına dokunan HER düzenleme turundan sonra (yalnız ilkinden değil)
-  `node docs-site/scripts/build-agent-map.mjs --check` tekrar koş** (2026-09-04,
-  Faz 141) — `capabilities.md`'ye dokunmasan bile: üretici
+  `python3 scripts/kapi.py uret` koş** (2026-09-04, Faz 141; `kapanis` bunu
+  2026-10-17'den beri ilk adımda kendisi koşar) — `capabilities.md`'ye dokunmasan bile: üretici
   `docs-site/src/content/docs/**/*.md`'nin TAMAMINI `llms-full.txt`'e gömer, yani
   sonraki her düzenleme map'i yeniden bayatlatır. Vaka:
   [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).

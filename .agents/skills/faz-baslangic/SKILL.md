@@ -21,14 +21,11 @@ Sırayla, tamamı:
 1. `AGENTS.md` — zaten yüklü
 2. [`MEMORY.md`](../../../MEMORY.md) — 6 KB
 3. Fazın kendi dokümanı: `docs/NN-*.md`
-   — kapanmış fazlar `docs/arsiv/fazlar/NN-*.md` altındadır; yeri
-     [`docs/YOL-HARITASI.md`](../../../docs/YOL-HARITASI.md) satırındaki bağlantıdır.
-     Orada olmayan eski bir kayıt 2026-10-17'de silinmiştir:
-     `git show 2a8149ef:docs/arsiv/fazlar/<dosya>`.
-   — o kayıtlar **damıtılmıştır** (Faz 90): planın gövdesi değil, fazın bıraktığı
-     kalıcı bilgi (sapmalar, kararlar, denetim bulguları, devir notu) durur.
-     Plana gerçekten bakman gerekirse kaydın içindeki `git show <sha>:<yol>`
-     komutunu koştur — **önce kaydı oku, tam metni refleksle açma.**
+   — önceki fazın devri **bu dokümandadır** (`faz-tamamlama` Adım 6 yazar).
+     Kapanan bir faz dokümanı yoktur: kapanışta silinir ve
+     [`docs/FAZ-DEFTERI.md`](../../../docs/FAZ-DEFTERI.md)'ne tek satır kalır.
+     Eski bir fazın tam metni gerçekten gerekirse o satırın `Kayıt` hücresiyle
+     `git show <sha>:<yol>` koştur — **refleksle açma.**
 
 Bu üçü ~10k token'dır. Başka hiçbir dosya bu adımda okunmaz.
 
@@ -44,11 +41,11 @@ grep -n "K-059" docs/KARARLAR.md
 sed -n '120,121p' docs/KARARLAR.md
 ```
 
-Liste bir önceki fazın dokümanına yolluyorsa yalnız **"Sonraki Faza Devir Notu"**
-bölümünü oku, dokümanın tamamını değil:
+Liste kapanmış bir fazın kaydına yolluyorsa yalnız **"Sonraki Faza Devir Notu"**
+bölümünü oku, tam metnin tamamını değil (`Kayıt` hücresi defterdedir):
 
 ```bash
-awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/NN-AD.md
+git show <sha>:<yol> | awk '/## Sonraki Faza Devir Notu/,0'
 ```
 
 ---
@@ -124,7 +121,8 @@ Faz açılışında **hiçbir koşulda** baştan sona okunmaz:
 
 - `docs/KARARLAR.md` — indeksi ve grep'i var
 - `docs/arsiv/*.md` — yalnız "neden böyle olmuş?" sorusunda grep'lenir
-- Tamamlanmış fazların dokümanları — yalnız devir notu bölümü
+- Kapanmış fazların tam metni (`git show`) — yalnız devir notu bölümü
+- `docs/FAZ-DEFTERI.md` — yalnız aradığın fazın satırı (`grep -n "^| 187 "`)
 - `docs/MAF-GENISLEME-NOKTALARI.md` — yalnız MAF'a dokunurken
 
 Bunlardan birine gerçekten ihtiyaç duyduğunda **neden** gerektiğini bir cümleyle

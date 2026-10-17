@@ -200,9 +200,9 @@ class KapiTestleri(unittest.TestCase):
             self.assertEqual(kapi.find_stale_doc_references(root), [])
 
     def test_arsivlenen_faz_referansi_repoda_kalmaz(self):
-        # SINIF KAPISI: bu repoda gercek olan tarama. Bir faz arsivlendiginde
-        # `docs/NN-AD.md` -> `docs/arsiv/fazlar/NN-AD.md` olur; `docs/` disindaki
-        # referanslar bugune kadar guncellenmiyordu (43 bayat referans olculdu).
+        # SINIF KAPISI: bu repoda gercek olan tarama. Bir faz kapandiginda
+        # `docs/NN-AD.md` silinir (once arsive tasiniyordu); `docs/` disindaki
+        # referanslar bir donem guncellenmiyordu (43 bayat referans olculdu).
         self.assertEqual(kapi.find_stale_doc_references(), [])
 
     def test_kanitsiz_public_tip_tarama_kapisini_kirar(self):
@@ -727,6 +727,49 @@ class KapiTestleri(unittest.TestCase):
             "dotnet pack Tracon.slnx -c Release --no-build -p:TraconSkipCleanWorkingTreeCheck=true",
             rendered)
         self.assertIn("dotnet format Tracon.slnx --verify-no-changes", rendered)
+
+    def test_kapanis_uretimle_baslar_ve_tam_testle_biter(self):
+        # Ekim 2026: 42 kırmızı kapanışın 11'i bayat agent haritasında, 11'i
+        # testlerden SONRA koşan bir adımda düştü. Üretim ilk, en pahalı adım son.
+        rendered = [c.display for c in kapi.closing_commands("abc123", site=True, performance=True)]
+        uretim = [c.display for c in kapi.generation_commands()]
+
+        self.assertEqual(rendered[:len(uretim)], uretim)
+        self.assertTrue(rendered[-1].startswith("dotnet test --solution Tracon.slnx"), rendered[-1])
+        self.assertEqual(sum(1 for c in rendered if c.startswith("dotnet test")), 1)
+        test_sirasi = len(rendered) - 1
+        for ucuz in (
+            "dotnet format Tracon.slnx --verify-no-changes",
+            "dotnet pack Tracon.slnx -c Release --no-build -p:TraconSkipCleanWorkingTreeCheck=true",
+            "(cd docs-site && npm run check)",
+            "python3 scripts/kapi.py performans",
+        ):
+            self.assertLess(rendered.index(ucuz), test_sirasi, ucuz)
+        # DocFX derlemenin yazdığı XML dokümanını okur: site kapısı derlemeden sonra.
+        self.assertLess(rendered.index("dotnet build Tracon.slnx -c Release"),
+                        rendered.index("(cd docs-site && npm run check)"))
+        # Site (~35 sn, geç kırmızıların 6/11'i) format'tan (~2 dk) önce.
+        self.assertLess(rendered.index("(cd docs-site && npm run check)"),
+                        rendered.index("dotnet format Tracon.slnx --verify-no-changes"))
+
+    def test_kapanis_agent_haritasini_uretir_denetlemez(self):
+        # Yerelde üretim denetimi gereksiz kılar; `--check` CI'da kalır (ci.yml).
+        rendered = [c.display for c in kapi.closing_commands("abc123", site=False)]
+
+        self.assertIn("node docs-site/scripts/build-agent-map.mjs", rendered)
+        self.assertNotIn("node docs-site/scripts/build-agent-map.mjs --check", rendered)
+        self.assertIn("python3 scripts/dokuman-bakim.py --yalniz-uret", rendered)
+        self.assertLess(rendered.index("python3 scripts/dokuman-bakim.py --yalniz-uret"),
+                        rendered.index("python3 scripts/dokuman-bakim.py --denetle"))
+
+    def test_uret_alt_komutu_yalniz_ureticileri_kosar(self):
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            result = kapi.main(["--komutlari-bas", "uret"])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            [line[2:] for line in output.getvalue().splitlines() if line.startswith("$ ")],
+            [c.display for c in kapi.generation_commands()])
 
     def test_kapanis_performans_adimini_kosullu_ekler(self):
         with_it = [c.display for c in kapi.closing_commands("abc123", site=False, performance=True)]

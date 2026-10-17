@@ -28,7 +28,8 @@ flowchart LR
     J1 --> D["D · Adım 5, 6, 8<br/>faz dokümanı · sonraki faz devri · KARARLAR · hafıza"]
     C --> J2["J2 · Adım 1<br/>kapi.py kapanis"]
     D --> J2
-    J2 --> Y["Adım 10 · site-deploy.sh"]
+    J2 --> K["Adım 9 · commit → faz-kapat → commit"]
+    K --> Y["Adım 10 · site-deploy.sh"]
 ```
 
 **Kural: denetim sonucuna bağlı her iş `J1`'i bekler.** Geri kalan paralel
@@ -70,10 +71,11 @@ uyuşmalıdır. Yeni paket ayrıca şunları ister — atlanırsa build veya tes
   sonra kaldır** — paket son `v*` etiketinde varsa `kapi.py yayin` bayrağı bayat
   sayar ve kırmızı verir (Faz 187)
 
-Senkronizasyon kopyası ve `secret` taraması AYRICA koşulmaz: `kapanis`'in
-**ilk** komutu `python3 scripts/kapi.py tarama`'dır (3,1 sn) ve koşum ilk
-kırmızıda durur — ayrı bir ön koşum hiçbir tur kazandırmaz (ölçüldü: 2026-09-04
-süreç denetimi). Sync kopyası beş kez, gerçek `secret` sızıntısı bir kez
+Senkronizasyon kopyası ve `secret` taraması AYRICA koşulmaz: `kapanis`
+üretimden hemen sonra `python3 scripts/kapi.py tarama` koşar (3,1 sn) ve koşum
+ilk kırmızıda durur — ayrı bir ön koşum hiçbir tur kazandırmaz (ölçüldü:
+2026-09-04 süreç denetimi). Üretilen dosyaları da `kapanis` yeniden yazar;
+koşumdan sonra değişenleri commit et. Sync kopyası beş kez, gerçek `secret` sızıntısı bir kez
 yaşandı; vaka kayıtları [`references/gerekce.md`](references/gerekce.md).
 
 ---
@@ -204,19 +206,26 @@ taze bağlamlı bir denetçi yalnız DoD + `git diff` okur ve üç seviyede bulg
 
 ---
 
-## Adım 5 — Faz dokümanını gerçekleşenle hizala
+## Adım 5 — Kalıcı bilgiyi yerine taşı
 
-`docs/NN-*.md` dosyasını aç ve şunları düzelt:
+Faz dokümanı kapanışta **silinir** (Adım 9, `faz-kapat`); yalnız
+[`FAZ-DEFTERI`](../../../docs/FAZ-DEFTERI.md) satırı kalır. Bu yüzden kapanışta
+dokümana **yazılmaz**: gerçekleşen public API, dosya listesi ve test listesi koddan
+ve diff'ten okunur. Dokümanda yalnız `faz-kapat`'ın okuduğu üç şey düzeltilir:
 
-- [ ] Başlıktaki **Durum**: `Tamamlandı (YYYY-AA-GG)`
-- [ ] **Plandan sapmalar** bölümü: uygulama sırasında alınan kararlar ve gerekçeleri
-- [ ] **Gerçekleşen public API**: plandaki taslak imzalar değil, koddaki gerçek imzalar
-- [ ] **Dosya listesi**: gerçekten oluşturulan dosyalar
-- [ ] **Testler**: sınıf adları ve neyi doğruladıkları, test sayısı
-- [ ] **DoD tablosu**: her satır ✅ veya gerekçeli açıklama
-- [ ] **Süreç Ölçümü**: beş metriğin **hepsi** dolu — `dokuman-bakim.py --denetle` 14. kapısı (eşik **167**) boş bir değer hücresinde kırmızı döner. Ölçmediysen `ölçülmedi` yaz; boş bırakma. Üçü yazılı bilgiden türetilir ("Plandan Sapmalar" → plan revizyonu · "Denetim Bulguları" + Adım 5.1 triyajı → 🔴 dağılımı · sonraki `kusur-giderme` koşumu → kapanış sonrası kusur); "düzeltme turu" ve "üretilen regresyon" **elle sayılır** — hiçbir artefakttan okunamıyorlar (`artifacts/kapi-olcum.jsonl` faz numarası taşımaz ve `.gitignore`'dadır)
-- [ ] **Denetim bulguları**: Adım 4'ün her bulgusu — seviye, **Adım 5.1 triyaj sonucu** (gerçek / gürültü / araştırılacak), sonuç (düzeltildi / gerekçelendi / devredildi)
-- [ ] **Sonraki faza devreden notlar**: yarım kalan işler, yer tutucular, açık uçlar
+- [ ] Başlıktaki **Durum**: `✅ Tamamlandı (YYYY-AA-GG)`
+- [ ] **DoD**: her kutu `[x]`; tutulmayan madde gerekçesiyle düz metne iner — `faz-kapat` işaretsiz kutuda durur
+- [ ] **Süreç Ölçümü**: beş metriğin **hepsi** dolu (eşik **167**); `faz-kapat` tabloyu deftere taşır ve eksikte durur. Ölçmediysen `ölçülmedi` yaz. Üçü yazılı bilgiden türetilir (sapmalar → plan revizyonu · denetim + Adım 5.1 triyajı → 🔴 dağılımı · sonraki `kusur-giderme` → kapanış sonrası kusur); "düzeltme turu" ve "üretilen regresyon" **elle sayılır** (`kapi-olcum.jsonl` faz numarası taşımaz)
+
+Geri kalan her kalıcı bilgi **yerine** gider:
+
+| Ne | Nereye |
+|---|---|
+| Plandan sapma · kategori dışı karar | Kapanış commit mesajı (Adım 9) |
+| Dört kategoriden biri | `docs/KARARLAR.md` (Adım 8) |
+| Denetim bulgusu 🟢 | `docs/ADAYLAR.md` (F-NN) |
+| Keşfedilen tuzak | `docs/hafiza/<alan>.md` |
+| Devir: yarım iş, açık uç, sözleşme | Sonraki fazın dokümanı (Adım 6); yoksa `ADAYLAR.md` |
 
 > Plan ile gerçek arasındaki farkı **gizleme**. Fark, sonraki oturumun en değerli bilgisidir.
 
@@ -224,9 +233,9 @@ taze bağlamlı bir denetçi yalnız DoD + `git diff` okur ve üç seviyede bulg
 
 ## Adım 6 — Sonraki fazın dokümanını devir teslim kalitesine çıkar
 
-Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı bir sohbette yapılacaksa, o doküman **tek başına yeterli** olmalıdır.
+Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı bir sohbette yapılacaksa, o doküman **tek başına yeterli** olmalıdır. Bu fazın dokümanı silineceği için devrin **tek** yeri burasıdır.
 
-`docs/(NN+1)-*.md` dosyasına şunları ekle:
+`docs/(NN+1)-*.md` dosyasına, `## Önceki Fazdan Devir` bölümüne şunları ekle (sonraki faz henüz planlanmadıysa yarım iş `ADAYLAR.md`'ye gider):
 
 - [ ] **"Bu faza başlarken"** bölümü: hangi dosyalar hangi sırayla okunmalı
 - [ ] **Devraldığı sözleşmeler**: bu fazda tamamlanan arayüzlerin birebir imzaları
@@ -286,50 +295,26 @@ python3 scripts/dokuman-bakim.py --site-denetle --taban <faz öncesi commit>
 
 İkinci komut `docs-site` senkronunu denetler: faz kullanıcıya dönük bir yüzeye
 (HTTP ucu, ekran, paket, public tip) dokunmuş ama site hiç değişmemişse çıkış
-kodu 1 verir. Site gerçekten güncelleme gerektirmiyorsa gerekçesini faz
-dokümanına yaz ve `--site-gerekce-yazildi` ile geç.
+kodu 1 verir. Site gerçekten güncelleme gerektirmiyorsa gerekçesini kapanış
+commit mesajına yaz ve `--site-gerekce-yazildi` ile geç.
 
 İlk komut iki iş yapar:
 1. **Dört** üretilen dosyayı yeniden yazar — `docs/KARARLAR-INDEKS.md`,
    `docs/arsiv/KARARLAR-INDEKS-ARSIV.md`, `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`
-   (üçü `KARARLAR.md`'den) ve `docs/YOL-HARITASI.md` (faz dokümanlarının
-   `> **Durum:**` satırından).
+   (üçü `KARARLAR.md`'den) ve `docs/YOL-HARITASI.md` (açık fazların
+   `> **Durum:**` satırından ve `docs/FAZ-DEFTERI.md`'den).
 2. Bütçeleri, karar defteri yapısını ve bağlantıları denetler.
 
 **Çıkış kodu 0 olmalıdır.** Bütçe aşıldıysa içerik silinmez
 — birikimli kısım `docs/arsiv/`'e veya `docs/hafiza/`'ya taşınır.
 
-Denetim ayrıca üç kapı koşar (Faz 90): **üretilen dosya tazeliği** (elle
+Denetim ayrıca üç kapı koşar: **üretilen dosya tazeliği** (elle
 `dokuman-bakim.py` koşmadan commit ettiysen kırmızı olur), **karar gerekçesi
 işaretçisi** (`KARARLAR-GECMISI.md`'ye yolladığın karar orada gerçekten var mı)
-ve **damıtılmış kayıt tam metni** (her kayıttaki `git show <sha>:<yol>`
-çözülüyor mu).
+ve **faz defteri işaretçisi** (defterin her `Kayıt` hücresi git'te çözülüyor mu).
 
-### Fazı arşivle ve damıt (Faz 90 · zorunlu)
-
-Faz `✅ Tamamlandı` olduğunda dokümanı **kökte bırakma**. İki komut, bu sırayla:
-
-```bash
-python3 scripts/dokuman-bakim.py faz-arsivle <NN>          # git mv + bağlantı onarımı
-python3 scripts/dokuman-bakim.py faz-damit <NN> --kuru     # ne düşecek, önce BAK
-python3 scripts/dokuman-bakim.py faz-damit <NN>            # uygula
-python3 scripts/dokuman-bakim.py                           # YOL-HARITASI'nı yeniden üret
-```
-
-`faz-arsivle` üç işi birlikte yapar (`git mv`, dosyanın içindeki bağlantılar,
-dosyaya gelen bağlantılar) ve **tek bir yeni kırık bağlantı** üretirse taşımayı
-geri alır. Elle `mv` kullanma — Faz 58'de aynı iş önce 17, sonra 3 bağlantı
-kırdı.
-
-`faz-damit` planı düşürür, **kalıcı bilgiyi tutar**: `Plandan Sapmalar`,
-`Bu Fazda Verilen Kararlar`, `Süreç Ölçümü`, `Örnek Uygulama Koşumu`,
-`Denetim Bulguları`, `Sonraki Faza Devir Notu` ve DoD **aynen** kalır. Tam metin silinmez; kayda yazılan `git show <sha>:<yol>`
-komutu onu geri getirir ve her denetimde çözülebilirliği kanıtlanır.
-
-🚨 **`--kuru` çıktısındaki "tanınmayan bölüm KORUNDU" uyarılarını oku.** Damıtma
-tanımadığı bir başlığı **düşürmez**, korur ve bildirir. Uyarı gördüğün bölüm
-gerçekten kalıcı değer taşımıyorsa `_DUS_DESENLERI`'ne kural ekle — tek tek ad
-listeleme, desen yaz.
+Fazı kapatan komut (`faz-kapat`) bu adımda değil, **Adım 9'da** koşar: işaretçi
+commit edilmiş metne gider.
 
 ### Çapraz kontrol
 
@@ -368,7 +353,7 @@ etiketsiz veya bilinmeyen değerli satırı hata sayar; K-854 ve öncesi muaftı
 
 | Kayıt nerede doğdu | Nereye yazılır |
 |---|---|
-| Faz içinde | Faz dokümanının `## Bu Fazda Verilen Kararlar` bölümü |
+| Faz içinde | Çalışırken faz dokümanının `## Bu Fazda Verilen Kararlar` bölümü; kapanışta commit mesajına taşınır (doküman silinir) |
 | Faz dışında (`kusur-giderme`, tek düzeltme) | Commit mesajı; tuzak varsa `docs/hafiza/<alan>.md` |
 | Manuel kabul koşumunda | Koşumun kaydı (`docs/manuel-test/kosumlar/<tarih>/`) |
 
@@ -383,14 +368,23 @@ Kurallar:
 
 ---
 
-## Adım 9 — Commit
+## Adım 9 — Commit ve fazı kapat
 
-Kullanıcı istemedikçe commit **etme**. İstediğinde:
+Kullanıcı istemedikçe commit **etme**. İstediğinde kapanış iki commit'tir:
 
 ```bash
-git status --short
-git diff --stat
+git status --short && git diff --stat
+git commit …                                              # 1 — fazın işi + dokümanın son hâli
+python3 scripts/dokuman-bakim.py faz-kapat <NN> --kuru    # defter satırını önce GÖR
+python3 scripts/dokuman-bakim.py faz-kapat <NN>           # sil + defter + bağlantılar + YOL-HARITASI
+git commit -m "docs(phase-<NN>): close" …                 # 2 — gövde: sapmalar ve kategori dışı kararlar
 ```
+
+`faz-kapat` temiz ağaç ister ve işaretçiyi `HEAD`'e yazar; bu yüzden birinci
+commit ondan önce gelir. Durum tamamlanmış değilse, işaretsiz kutu varsa ya da
+süreç ölçümü eksikse **durur**. Dokümana gelen bağlantıları düz metne (`Faz NN`),
+düz yol referanslarını `Faz NN`/`Phase NN`'e çevirir ve tek bir yeni kırık
+bağlantı üretirse her şeyi geri alır. Elle silme — bağlantılar kırılır.
 
 **Ana dalda çalışmak serbesttir** (kullanıcı kararı, 2026-08-23). Bu repo
 tek bakımcılıdır ve faz dalı bir tur maliyeti ekliyordu. Genel "yalnız
@@ -448,8 +442,8 @@ Dört soruya dürüst cevap ver:
 > 5. Site **yayınlandı mı** (Adım 10)? Yeşil kapı yayın değildir — `dist/`
 >    makinende durur, sunucuda değil.
 
-1'e cevap "hayır" ise eksik bilgiyi **fazın kendi dokümanına** yaz — sıcak
-dokümana değil.
+1'e cevap "hayır" ise eksik bilgiyi **sonraki fazın dokümanına** yaz — bu fazınki
+silinir, sıcak doküman da yeri değildir.
 
 2'ye cevap "evet" ise, eklediğin şey gerçekten bugünkü mimari mi, yoksa geçmiş
 mi? Geçmişse `docs/arsiv/`'e taşı. Bu protokolün amacı sonraki oturumun **doğru

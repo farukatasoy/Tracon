@@ -75,6 +75,22 @@ public sealed class SourceLanguageTests
         ["obj", "bin", "node_modules", "artifacts", "dist", "wwwroot"];
 
     /// <summary>
+    /// Trees that the site build generates and git ignores: the DocFX API pages,
+    /// the HTTP reference and the copied OpenAPI document. Their text comes from
+    /// sources this test already scans (XML documentation and endpoint metadata
+    /// in <c>src</c>), so scanning them adds no coverage. It did add local state:
+    /// DocFX writes the absolute source path of each test, and a worktree named
+    /// after a phase puts a listed word into that path. The result then depended
+    /// on whether the site was built before the tests (F-507).
+    /// </summary>
+    private static readonly string[] GeneratedSitePrefixes =
+    [
+        "docs-site/src/content/docs/api/",
+        "docs-site/src/content/docs/http-api/",
+        "docs-site/public/openapi/",
+    ];
+
+    /// <summary>
     /// Files excluded in full. These three test files carry the Turkish dictionary
     /// itself; the locale file is a legitimate translation dictionary (K-228).
     /// </summary>
@@ -201,6 +217,16 @@ public sealed class SourceLanguageTests
 
     private static readonly Regex TurkishWordPattern = BuildWordPattern();
 
+    [Theory]
+    [InlineData("docs-site/src/content/docs/api/Tracon.AgentDefinition.md", true)]
+    [InlineData("docs-site/src/content/docs/http-api/agents.md", true)]
+    [InlineData("docs-site/public/openapi/tracon.json", true)]
+    [InlineData("docs-site/src/content/docs/guides/production.md", false)]
+    [InlineData("docs-site/src/content/docs/apis.md", false)]
+    [InlineData("docs-site/public/llms.txt", false)]
+    public void Generated_site_trees_are_skipped_and_hand_written_pages_are_not(string path, bool skipped)
+        => IsSkipped(path).ShouldBe(skipped);
+
     [Fact]
     public void Source_tree_carries_no_Turkish_outside_the_baseline()
     {
@@ -308,6 +334,14 @@ public sealed class SourceLanguageTests
         if (SkippedFiles.Contains(relativePath, StringComparer.Ordinal))
         {
             return true;
+        }
+
+        foreach (var prefix in GeneratedSitePrefixes)
+        {
+            if (relativePath.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return true;
+            }
         }
 
         foreach (var segment in SkippedDirectorySegments)

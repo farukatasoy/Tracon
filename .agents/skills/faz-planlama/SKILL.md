@@ -29,7 +29,7 @@ Kullanıcıdan üç şey gelmeli. Gelmediyse **sor**, varsayma:
 | Ne | Neden gerekir |
 |---|---|
 | Hangi F-NN kalem(ler)i? | Bir faz bir veya iki kalemi kapsar. Üç kalem bir faz değil, bir turdur |
-| Faz numarası | Sıradaki boş numara. `ls docs/[0-9][0-9]*-*.md \| tail -1` |
+| Faz numarası | `docs/YOL-HARITASI.md`'nin **Sıradaki boş faz numarası** satırı — açık fazlar + `FAZ-DEFTERI.md` birleşimi; `ls docs/` kapanan fazları görmez |
 | Bu tur bir yol haritasına mı bağlanacak? | Bağlanacaksa yol haritası dosyası da güncellenir |
 
 İki kalem tek fazda ancak **aynı altyapıyı** paylaşıyorsa birleşir. Faz 21
@@ -187,12 +187,12 @@ Dosya adı: `docs/NN-BUYUK-HARFLI-AD.md` — Türkçe, tire ile ayrılmış, kı
 | Bölüm | Kim doldurur |
 |---|---|
 | Başlık · Bu Faza Başlarken · Amaç · Tasarım · Planlanan Public API · Planlanan Dosya Listesi · Hata Modları ve Testler · Manuel Kabul Case'leri · DoD · Riskler · Açık Sorular | **Bu skill** (plan anı) |
-| Plandan Sapmalar · Bu Fazda Verilen Kararlar · Gerçekleşen Public API · Dosya Listesi (gerçekleşen) · **Süreç Ölçümü** · Denetim Bulguları · Sonraki Faza Devir Notu | **`faz-tamamlama`** (kapanış anı) |
+| Plandan Sapmalar · Bu Fazda Verilen Kararlar · **Süreç Ölçümü** · Denetim Bulguları | Çalışan faz ve **`faz-tamamlama`** — doküman kapanışta silinir (`faz-kapat`), kalıcı kısım yerine taşınır |
 
 🚨 `Süreç Ölçümü` bir **tablodur**, onay kutusu değil, ve beş satırı da
-şablondan **birebir** kopyalanır: `--denetle` 14. kapısı (eşik 167) etiketleri
-adıyla arar. Satırı eksik ya da değer hücresi boş bırakılan bir faz kapanışta
-kırmızı döner.
+şablondan **birebir** kopyalanır: `faz-kapat` (eşik 167) etiketleri adıyla arar
+ve tabloyu `FAZ-DEFTERI.md`'ye taşır. Satırı eksik ya da değer hücresi boş bir
+faz kapanamaz.
 
 İkinci gruptaki başlıkları **boş yer tutucu olarak** bırak. Kapanışta
 doldurulacaklarını yazan bir satır koy. Böylece kapanış adımı unutulmaz.
