@@ -60,11 +60,11 @@ Only a preview exists. Select it explicitly:
 dotnet add package Tracon --prerelease
 ```
 
-Pin `1.0.0-preview.4` for reproducible builds. Install the template by exact
+Pin `1.0.0-preview.5` for reproducible builds. Install the template by exact
 version too:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.4
+dotnet new install Tracon.Templates@1.0.0-preview.5
 ```
 
 ### The generated project rejects a template option

@@ -5059,7 +5059,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.4`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.5`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -5077,7 +5077,7 @@ Install the published template, then create a project. The template pins every
 Tracon package to the same version as the template package.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.4
+dotnet new install Tracon.Templates@1.0.0-preview.5
 dotnet new tracon-api -n MyAgents
 cd MyAgents
 ```
@@ -5217,7 +5217,7 @@ persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
 :::note[Preview release]
-Packages and templates are published as `1.0.0-preview.4`. The
+Packages and templates are published as `1.0.0-preview.5`. The
 [first-agent guide](/getting-started/first-agent/) starts with the public template;
 pin the exact package version when reproducibility matters.
 :::
@@ -7423,7 +7423,7 @@ pointer file, set `TraconWriteLocalReference` to `false`.
 Source: https://tracon.dev/guides/cli/
 
 :::note[Preview package]
-The CLI is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+The CLI is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for a reproducible tool manifest.
 :::
 
@@ -7821,7 +7821,7 @@ credential meant for exactly this.
 Source: https://tracon.dev/guides/coding-agents/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -7949,7 +7949,7 @@ every page — three sizes for three questions, published on the documentation s
   what**: one line per hand-written page, with its title, address, and subject. About
   24 KB.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 1230 KB.
+  page concatenated, about 1250 KB.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
@@ -13797,7 +13797,7 @@ and still reject a fenced payload at the application boundary.
 Source: https://tracon.dev/guides/testing/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -14064,7 +14064,7 @@ mistake instead of hiding it.
 Source: https://tracon.dev/guides/typescript-client/
 
 :::note[Preview package]
-`@tracon/client` is published as `1.0.0-preview.4`. Install the `next` tag or pin
+`@tracon/client` is published as `1.0.0-preview.5`. Install the `next` tag or pin
 the exact version; do not use a floating range in production.
 :::
 
@@ -14260,7 +14260,7 @@ sync.
 Source: https://tracon.dev/guides/voice/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -15432,7 +15432,7 @@ and `429`) is never retried, whatever class you return.
 Source: https://tracon.dev/guides/write-your-own-job-handler/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -15665,7 +15665,7 @@ handler actually receives a queued job.
 Source: https://tracon.dev/guides/write-your-own-judge/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -15810,7 +15810,7 @@ timeouts, persistence, or HTTP responses.
 Source: https://tracon.dev/guides/write-your-own-script-executor/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -16012,7 +16012,7 @@ a new contract in a later package version does not go untested.
 Source: https://tracon.dev/guides/write-your-own-store/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -16114,7 +16114,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.4` is extracted into your
+by package id and version, so once `1.0.0-preview.5` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.
@@ -16870,7 +16870,7 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.4`. The command below selects it from
+The current release is `1.0.0-preview.5`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 
@@ -17121,6 +17121,282 @@ entries assume.
 
 ## Releases
 
+<a id="v1.0.0-preview.5"></a>
+
+### 1.0.0-preview.5 — 2026-10-17
+
+The public API gets smaller before it freezes, and every dependency moves to its
+newest line. Twelve interfaces, 23 types that only they used, 81 HTTP request and
+response types and `TraconAgentSessionStore` leave the public surface; five service
+types lose their public constructors; `AuthorizationConfigurationKey` is removed from
+the MCP server types, and a migration moves the stored data. The runtime moves to
+Microsoft Agent Framework `1.25.0` and Microsoft.Extensions.AI `10.11.0`.
+`Tracon.Azure` calls the Azure OpenAI v1 API, Anthropic `ReasoningEffort` becomes
+adaptive thinking, and a configuration value Tracon cannot read now stops startup. The
+release adds one migration to each SQL provider and breaks source in several places:
+read Upgrading from 1.0.0-preview.4 first.
+
+#### Upgrading from 1.0.0-preview.4
+
+- **Migrations.** PostgreSQL `0062`, SQL Server `0050` and SQLite `0049`
+  (`remove_authorization_configuration_key`). With `AutoApplyMigrations` (the default) they run at
+  startup. Each one moves the stored `authorization_configuration_key` of an MCP server into its
+  `header_configuration_keys` map as the `Authorization` entry, then drops the column. A row with
+  OAuth on, or whose map already names `Authorization` in any letter case, keeps its map: the
+  connection never read the old key there. An empty key moves nothing. Only the key **name** moves;
+  no secret value is stored or touched.
+- **The column is dropped in the same migration, so there is no way back.** A build from before the
+  migration cannot read the table. Back up the database before the first start on this version.
+- Every MCP connection reconnects once after the upgrade (its definition fingerprint changed).
+- **Public types changed or left the surface.** Each entry below (Changed, Removed) says what to do:
+  - `McpServerDefinition.AuthorizationConfigurationKey` and
+    `McpServerRequest.AuthorizationConfigurationKey` are removed; declare the key name as
+    `HeaderConfigurationKeys["Authorization"]`. `PUT /api/mcp-servers/{name}` answers `400` to a body
+    that still carries `authorizationConfigurationKey`.
+  - Twelve interfaces, 23 types, 81 HTTP request and response types and `TraconAgentSessionStore`
+    are `internal`. A host that named one declares its own type, or resolves a service from DI.
+  - `IRunStore.UpdateRunCostAsync` has no default for `tenantId`; pass the run's tenant.
+  - `SingleTenantContext`, `HttpTenantContext`, `TimeoutAIFunction`, `CompiledAgentCache` and
+    `DefaultRunAttributionContext` have no public constructor; resolve them from DI.
+  - `OpenAILiveOptions.BackendModel`, `LiveVoiceSessionOptions.BackendModel`,
+    `QuotaUsageQuery.AsOf` and `LiveVoiceDelegationMode.Responses` are gone.
+  - `Tracon.Client`: `IMcpToolRefresher` and the `body` parameter of `TraconRefreshMcpToolsAsync`
+    are gone.
+  - `JobStoreContract` gains a test; a third-party `IJobStore` that keeps a time limit in a 32-bit
+    millisecond column fails it.
+- **Behavior changes most likely to reach an upgrade**, each described in its entry below: a
+  `Tracon:Voice:Live:DelegationMode` or `Tracon:UtilityModel` value Tracon cannot read stops startup;
+  `Tracon.Azure` uses the Azure OpenAI v1 API and refuses an Entra token over plain HTTP; Anthropic
+  `ReasoningEffort` is adaptive thinking; `Tracon.Anthropic` and `Tracon.Google` no longer promise
+  Native AOT compatibility.
+- A project that pins Agent Framework hosting packages next to Tracon moves them to the versions in
+  the dependencies entry (Changed), or restore fails with `NU1608` or `NU1107`.
+- Pin every Tracon package to the same exact version. The pre-release Microsoft Agent Framework
+  hosting packages are pinned at `1.25.0-preview.261014.1`, `Microsoft.Agents.AI.Hosting.OpenAI` at
+  `1.25.0-alpha.261014.1` and `A2A.AspNetCore` at `1.0.0-preview3`.
+
+#### Changed
+
+- **`Tracon.Azure` calls the Azure OpenAI v1 API.** Requests go to `{endpoint}/openai/v1/` through
+  the plain `OpenAI` client, with the deployment name in the request's `model` field and no
+  `api-version` query string; `Azure.AI.OpenAI` is no longer a dependency (its stable line stopped
+  at 2.1.0 in December 2024). The resource must support the v1 API. `UseAzureOpenAI`,
+  `AzureOpenAIProviderOptions` and the registered provider name do not change; an address that
+  already ends in `/openai/v1` is used as it is. An API key is sent as `Authorization: Bearer`. An
+  Entra credential now goes only over HTTPS: a `CredentialFactory` with a plain `http://` address is
+  refused at the first call instead of sending the token. The health check calls
+  `GET /openai/v1/models`, sends the key as `Authorization: Bearer` like the chat call (it sent an
+  `api-key` header), and reports unhealthy instead of sending an Entra token over plain HTTP.
+  Image generation uses the same v1 endpoint (`/openai/v1/images/generations`). The Azure-only request fields (On Your Data) never worked with the OpenAI
+  version in use and have no counterpart on the plain client; `SupportedSettings` stays empty.
+- **`ModelBinding.ReasoningEffort` becomes adaptive thinking on Anthropic.** The request now carries
+  `thinking: {"type":"adaptive"}` and `output_config.effort` (`low`, `medium`, `high`, `xhigh`). The
+  budget form Tracon sent before (`thinking.type = enabled` with `budget_tokens`) is rejected with
+  `400` by every current Claude model; the adaptive form is accepted by all of them (measured on the
+  Claude 5 family). A model that predates adaptive thinking, `claude-haiku-4-5`, is the reverse: set
+  `anthropic.thinking.mode = enabled` and `anthropic.thinking.budgetTokens` for it. A binding that
+  names no `ReasoningEffort` sends the same request as before.
+- **`Tracon.Anthropic` and `Tracon.Google` no longer promise Native AOT compatibility.** The promise
+  is now a measured result: a Native AOT app that calls the provider through its real request and
+  response path must publish with no trim or AOT warning and run. `Tracon.OpenAI`, `Tracon.Azure`
+  and `Tracon.Voice` pass. The Anthropic SDK's chat adapter fails on the first request under
+  Native AOT, and the Gemini credential library publishes with about a hundred warnings. The
+  packages' own code is unchanged and stays analyzer-clean. The release rehearsal now publishes and
+  runs a provider smoke, and fails when the compatibility page promises AOT for a provider package
+  the smoke does not reference.
+
+- **`IRunStore.UpdateRunCostAsync` no longer defaults `tenantId` to `null`.** The parameter stays
+  `string?`; a caller now states the tenant on purpose. `null` skipped the tenant check, so a
+  caller that left the argument out silently wrote a cost onto another tenant's run. A call
+  `UpdateRunCostAsync(runId, cost)` stops compiling: pass the run's tenant. A store implementation
+  drops `= null` from its own signature; the call shape does not change otherwise. The shipped
+  `RunStoreContract` passes the tenant explicitly.
+- **Five service types keep a public type and lose the public constructor.** The container, or the
+  tool pipeline, builds them, and the guides and samples never call `new` on them:
+  `SingleTenantContext`, `HttpTenantContext`, `TimeoutAIFunction` (both constructors),
+  `CompiledAgentCache` and `DefaultRunAttributionContext`. Resolve them from DI. Their
+  registrations are factories now; `TryAdd` and `Replace` behave as before, so an `ITenantContext`
+  registered before `AddTracon()` still wins. A new test pins every public constructor of a
+  concrete class, so the next service type cannot reach the surface unnoticed.
+- **`Tracon:Voice:Live:DelegationMode` refuses a name that is not a delegation mode.** The host
+  stops at startup with a message that names the setting. A misspelled name used to fall back to
+  `Client` without a word.
+- **`Tracon:UtilityModel` refuses a number it cannot read.** `Temperature`, `TopP` and
+  `MaxOutputTokens` that do not parse (`"abc"`, `"1.5"` for the token limit, `"0,7"`) stop the host
+  at startup with a message that names the key and the text as written. Such a value used to bind
+  as `0`, so a typo ran the context-compaction summarizer at temperature zero without a word. An
+  empty or blank value still means "not set": the provider default applies. Code that assigns
+  `TraconOptions.UtilityModel` after binding still wins.
+- **`Tracon.Client` is regenerated with NSwag `14.7.1`.** Its public surface does not change. The
+  client now passes the cancellation token when it reads the body of an unexpected response, so a
+  cancelled call no longer waits for that body.
+- **`Tracon.Testing.Contracts.Xunit` keeps asking for `xunit.v3.extensibility.core` and
+  `xunit.v3.assert` `>= 3.2.2`.** The package was measured on xunit.v3 `4.0.2` with
+  `Microsoft.Testing.Extensions.TrxReport` `2.5.1`; a project on either line restores without
+  `NU1608`.
+- **Runtime dependencies move to the newest lines.** Microsoft Agent Framework `1.25.0` (the
+  hosting packages `1.25.0-preview.261014.1`, `Microsoft.Agents.AI.Hosting.OpenAI`
+  `1.25.0-alpha.261014.1`, `A2A.AspNetCore` `1.0.0-preview3`, all still exact pins),
+  Microsoft.Extensions.AI `10.11.0`, OpenAI `2.14.0`, the .NET platform packages `10.0.13`,
+  Anthropic `12.58.0`, Google.GenAI `1.26.1`, Azure.Core `1.63.0` and Microsoft.Data.SqlClient
+  `7.1.1`. A project that pins Agent Framework hosting packages next to Tracon now gets `NU1608`
+  or `NU1107` at restore, as before; move it to these versions. Behavior does not change: the
+  Anthropic provider still sends `ReasoningEffort` as an extended-thinking budget, although the
+  SDK's own default is now adaptive thinking. `Microsoft.Bcl.AsyncInterfaces`,
+  `Microsoft.Bcl.HashCode` and `Microsoft.Bcl.Memory` leave the dependency graph of `Tracon.Core`
+  (and so of `Tracon` and `Tracon.Google`): the token-counting data package now ships a `net8.0`
+  build.
+- **The console build tools move to their newest lines; building the console needs Node.js
+  22.22.2 or later on the 22 line, 24.15 or later on the 24 line, or 26 and above.** TypeScript
+  `7`, Vite `8` (Rolldown), Vitest `5`, jsdom `30` and React `19.3.1`. The embedded console grows from 211.9 KB to 215.4 KB gzip (budget 250 KB), and the
+  embeddable widget (`embed/embed.js`) still runs in strict mode: Vite 8 dropped the
+  `"use strict"` directive and the build now asks for it. The embedded file set, the public API
+  and the HTTP contract do not change. A contributor on Node.js 20 now gets an `npm ci` engine
+  error that names the required version, not a wall of failing tests. The NuGet packages are not
+  affected: a consumer does not build the console.
+- **The compiled `dist/` of `@tracon/client` is byte for byte the same, in the same 23 files.**
+  Only the development dependencies in its `package.json` move (Vitest `5`, `@types/node`
+  `26.6`); a consumer installs the same code and the same runtime dependency. It still builds
+  with TypeScript `5.9`, because `openapi-typescript` `7` needs the TypeScript 5 compiler API
+  that TypeScript 7 does not ship.
+
+#### Removed
+
+- **`McpServerDefinition.AuthorizationConfigurationKey` and `McpServerRequest.AuthorizationConfigurationKey`
+  are gone** (`authorizationConfigurationKey` on the wire; deprecated since `1.0.0-preview.3`). The
+  `Authorization` header is declared like any other credential header:
+  `HeaderConfigurationKeys["Authorization"]` (`headerConfigurationKeys` on the wire). Code that sets
+  or reads the member stops compiling. The same members leave the generated `Tracon.Client` types
+  `McpServerDefinition` and `McpServerRequest` and the `@tracon/client` schema, and the field leaves
+  both HTTP schemas. A third-party `IMcpServerStore` that persisted the field drops it and must keep
+  `HeaderConfigurationKeys` (the shipped `McpServerStoreContract` gains
+  `Every_field_of_a_server_survives_a_round_trip`). **`PUT /api/mcp-servers/{name}` refuses a body that
+  still carries `authorizationConfigurationKey`**, with any value and in any letter case, with `400`
+  (title `Removed field`) and a detail that names `headerConfigurationKeys["Authorization"]`. Without
+  the rule the field would be dropped silently and the first tool call would fail with `401`. Other
+  unknown fields are still ignored. The console form writes the key name into
+  `headerConfigurationKeys.Authorization`; an empty input sends no map, so a stored map is kept. The
+  migration (see Upgrading) moves the stored data first.
+- **Twelve interfaces and the 23 types that only they used are `internal`.** They are plumbing
+  between Tracon's own packages. No guide, sample or contract suite asks a consumer to implement
+  one, and the shipped implementations are the only ones. `IToolRegistry`, `IVoiceHealthCheck` and
+  `IWorkflowRunner` stay public: a guide names the first two, and `IWorkflowRunner` is the one
+  public way to run a workflow in process. A host that registered its own implementation of one of
+  these interfaces, or named one of the types, stops compiling. The types, by package:
+  - `Tracon.Abstractions` (34): `IAuditActorResolver`, `IAuditDecorated`, `IMcpOAuthCoordinator`,
+    `IMcpPromptClient`, `IMcpResourceClient`, `IMcpResourceContextProviderFactory`,
+    `IMcpToolRefresher`, `IStatePreflightReader`, `ITraconDrainState`, `IWebhookPublisher`,
+    `IWorkflowFunctionCatalog`, `McpOAuthCompleteResult`, `McpOAuthOperationStatus`,
+    `McpOAuthStartResult`, `McpOperationStatus`, `McpPromptArgumentSummary`, `McpPromptContent`,
+    `McpPromptListResult`, `McpPromptSummary`, `McpRefreshOutcome`, `McpResourceContent`,
+    `McpResourceListResult`, `McpResourceSummary`, `StateGenerationTally`,
+    `StatePreflightTarget`, `StateSample`, `WebhookApprovalSummary`, `WebhookEvalSummary`,
+    `WebhookEventPayload`, `WebhookJobSummary`, `WebhookQuotaSummary`, `WebhookRunSummary`,
+    `WebhookScoreSummary`, `WorkflowFunctionDescriptor`.
+  - `Tracon.AspNetCore` (1): `ITraconUiProvider`.
+- **`TraconAgentSessionStore` is `internal`.** Its base type, `AgentSessionStore`, has been
+  `[Experimental]` since Agent Framework `1.22`, and a public type cannot freeze a base its owner
+  may still change. `/v1/responses` keeps using it unless the host registers its own
+  `AgentSessionStore`; that registration always wins. No guide or sample built the class. A host
+  that did, to wrap it in `IsolationKeyScopedAgentSessionStore`, supplies its own store instead. A
+  store the host supplies replaces the Tracon-backed one for `/v1/responses` entirely: the tenant
+  filter, the session ownership check and the sessions API of Tracon do not see those
+  conversations.
+  The store keeps session identities as before: the `isolation` partition of a key is folded into
+  the identity as `<escaped key>::<session id>`, and a partition it does not know is refused.
+- **Four members that never worked or never did anything are gone.**
+  `OpenAILiveOptions.BackendModel` and `LiveVoiceSessionOptions.BackendModel` were read by
+  nothing. `QuotaUsageQuery.AsOf` was `[Obsolete]` since `1.0.0-preview.3` and no store applied
+  it; use `PeriodStarts`. `LiveVoiceDelegationMode.Responses` made every session that chose it fail
+  at the provider with a `502`; the enum keeps `Client`, the only mode. A `BackendModel` key left
+  in configuration is ignored and the host starts.
+- **81 HTTP request and response types are `internal`.** They were public only so that the
+  OpenAPI document could carry their descriptions. A .NET client does not use them:
+  `Tracon.Client` generates its own types, and the HTTP contract does not change. Paths, methods,
+  schema names, `required`, property types and `$ref` are identical, and the document keeps every
+  description (see Fixed for the five that changed). A host that referenced one of these types
+  declares its own record for the body or uses the generated client type of the same name. The
+  descriptions now come from `[Description]`, so a new HTTP type must carry it; a test fails the
+  build when a schema or property loses its description. The types, by package:
+  - `Tracon.Abstractions` (17): `AgentValidationReport`, `CanaryDecisionKind`,
+    `CanaryEvaluation`, `ContextWindowEstimate`, `DataSubjectErasureResult`,
+    `ImageGenerationOperatorRequest`, `ImageGenerationOperatorResponse`, `JudgeFailure`,
+    `JudgeRunResponse`, `RetentionPreview`, `RunCostRecalculationResult`,
+    `SessionBranchRequest`, `SessionBranchResult`, `SpeakRequest`, `SpeakResponse`,
+    `ValidationMessage`, `ValidationSeverity`.
+  - `Tracon.AspNetCore` (63): `AcceptedRunResponse`, `AgentDetailResponse`,
+    `AgentRollbackRequest`, `AgentSkillRequest`, `AgentVersionDiffResponse`,
+    `ApiKeyCreateRequest`, `ApprovalDecisionRequest`, `CurrentTenantResponse`, `EvalCaseInput`,
+    `EvalCasePromotionRequest`, `EvalRunDetailResponse`, `EvalRunTriggerRequest`,
+    `EvalSuiteSaveRequest`, `ExperimentCanaryResponse`, `ExperimentResultsResponse`,
+    `ExperimentSaveRequest`, `InboundTriggerAcceptedResponse`, `InboundTriggerResponse`,
+    `InboundTriggerSaveRequest`, `JobDetailResponse`, `JobScheduleSaveRequest`,
+    `JobTriggerRequest`, `LiveVoiceSessionCreateRequest`, `LiveVoiceSessionCreateResponse`,
+    `LiveVoiceSessionStatusResponse`, `LoopCriterionCatalogResponse`,
+    `LoopCriterionKindResponse`, `LoopJudgeModelResponse`, `McpOAuthStartResponse`,
+    `McpPromptArgumentsRequest`, `McpRefreshResponse`, `QuotaSaveRequest`, `QuotaUsageResponse`,
+    `RetentionPolicySaveRequest`, `RetentionRunTriggerResponse`, `RunComparisonResponse`,
+    `RunComparisonSide`, `RunFeedbackRequest`, `RunInputResponse`, `RunReplayResponse`,
+    `SearchKnowledgeHit`, `SessionDetailResponse`, `SkillScriptGrantRequest`,
+    `TenantEgressPolicyRequest`, `TenantEgressPolicyResponse`, `TenantProviderBindingRequest`,
+    `TenantProviderBindingResponse`, `TenantRequest`, `ToolApprovalRuleRequest`,
+    `TraconAuthenticationMeta`, `TraconMetaResponse`, `TraconRoleMeta`, `TraconStorageMeta`,
+    `UploadDocumentResponse`, `WebhookSaveRequest`, `WebhookTestResponse`,
+    `WorkflowFunctionResponse`, `WorkflowRespondHttpRequest`, `WorkflowResumeHttpRequest`,
+    `WorkflowRollbackRequest`, `WorkflowRunHttpRequest`, `WorkflowSaveRequest`,
+    `WorkflowVersionDiffResponse`.
+  - `Tracon.Core` (1): `OnlineEvaluationSummary`.
+
+- `Tracon.Client.Generated.IMcpToolRefresher` and the `body` parameter of
+  `TraconApiClient.TraconRefreshMcpToolsAsync`. The class was never a request body: it was
+  the server's own refresher service, published by mistake as a schema. A call that passed
+  `null` or nothing as the body drops the argument; `TraconRefreshMcpToolsAsync(cancellationToken)`
+  sends the same request.
+
+#### Added
+
+- **`WorkflowRunRequest.DefinitionVersion`.** The version of a stored workflow's definition to
+  run, the same rule as `WorkflowResumeRequest.DefinitionVersion`: the run compiles that version
+  and records it on its row. `null` (the default) runs the current definition; a version the
+  workflow does not have fails the run and never falls back; a workflow defined in code ignores
+  the value. The HTTP API does not set it.
+- **`JobStoreContract` checks a job time limit beyond 24.8 days.**
+  `A_jobs_time_limit_beyond_an_int_of_milliseconds_survives_the_round_trip_and_the_lease` writes a
+  30-day limit and reads it back from the enqueue, the read and the lease. A third-party
+  `IJobStore` that keeps the limit in a 32-bit millisecond column now fails the contract.
+
+#### Fixed
+
+- A queued workflow run that recovery starts again, because the interrupted attempt wrote no
+  checkpoint, now compiles the definition version that attempt recorded. It compiled the current
+  definition, so a save made while the job waited changed what ran in the same session. Batch
+  items restart the same way.
+- Cancelling a run at the moment it finishes no longer fails with `ObjectDisposedException`.
+  `POST /api/runs/{id}/cancel` answers `409` instead of `500`, and cancelling a run tree still
+  reaches every sibling. Closing a live voice session while a delegation finishes no longer
+  ends the close with the same exception.
+- `UseLiveVoice(options => options.DelegationMode = …)` with a value outside the enum stops the
+  host at startup. It reached the provider on the first session and ended as `500`.
+
+- Anthropic prompt caching with `anthropic.promptCaching.placement = system` keeps the cached
+  instructions in the top-level `system` array under Anthropic SDK `12.58`. The SDK adapter now
+  moves only the system messages in front of the first user or assistant message there; the
+  provider appended the instructions block after the conversation, so it went out as a
+  `role: system` entry inside `messages` and the cache breakpoint sat in the conversation. The
+  block is now placed in front of the first non-system message.
+
+- Five property descriptions in the OpenAPI document no longer carry an unresolved XML
+  reference. `WorkflowSaveRequest.nodes` read `IReadOnlyList&lt;string&gt;? WorkflowSaveRequest.AgentNames`
+  where the text means `AgentNames`; `DataSubjectErasureResult.dryRun`, `JobScheduleSaveRequest.lane`,
+  `InboundTriggerSaveRequest.payloadPath` and `InboundTriggerResponse.payloadPath` had the same
+  fault. `@tracon/client` and `Tracon.Client` carry the corrected text.
+
+- `POST /api/mcp-servers/refresh` no longer declares a request body. The endpoint took its
+  refresher service without `[FromServices]`; in a host without `Tracon.Mcp` the framework read
+  the service from the body instead, so the OpenAPI document, `@tracon/client` and `Tracon.Client`
+  carried a body schema (`IMcpToolRefresher`) for four preview releases. The request itself is
+  unchanged. A test now fails the build when any endpoint reads a service interface from its body.
+
 <a id="v1.0.0-preview.4"></a>
 
 ### 1.0.0-preview.4 — 2026-10-15
@@ -17159,8 +17435,6 @@ each SQL provider: read Upgrading from 1.0.0-preview.3 first.
   harness-loop agent hands only its final iteration to a workflow step, the
   OpenAI-compatible and A2A streams and voice; `functions` and `requests` are
   reserved workflow names.
-  Provider changes: `Tracon.Azure` uses the Azure OpenAI v1 API and refuses an Entra
-  token over plain HTTP; Anthropic `ReasoningEffort` is adaptive thinking.
 - Pin every Tracon package to the same exact version. The pre-release Microsoft
   Agent Framework hosting packages stay pinned at their 1.20.0 previews.
 
@@ -19528,7 +19802,7 @@ package, and the surface may still be reduced before 1.0.
 Source: https://tracon.dev/reference/compatibility/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21453,7 +21727,7 @@ unbounded retention.
 Source: https://tracon.dev/reference/versioning/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.4`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.5`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -21833,11 +22107,11 @@ Only a preview exists. Select it explicitly:
 dotnet add package Tracon --prerelease
 ```
 
-Pin `1.0.0-preview.4` for reproducible builds. Install the template by exact
+Pin `1.0.0-preview.5` for reproducible builds. Install the template by exact
 version too:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.4
+dotnet new install Tracon.Templates@1.0.0-preview.5
 ```
 
 ### The generated project rejects a template option
