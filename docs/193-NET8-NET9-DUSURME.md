@@ -267,7 +267,7 @@ kontrolü tek TFM ile de anlamlı hata verir.
 - [ ] Case 1–4 `Tracon.Package.Tests` içinde otomatik test; Net8Consumer case'leri emekliye ayrıldı; sete yeni case girmedi (plan notu, 2026-10-17)
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] CI dalında bir tam koşum yeşil (Windows ayağı dahil) — dala push kullanıcı onayı ister
+- [ ] CI dalında bir tam koşum yeşil (Windows ayağı dahil) — push onay istemez (2026-10-17)
 
 ### Doğrulama komutları
 

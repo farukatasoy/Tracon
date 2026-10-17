@@ -126,7 +126,8 @@ kodu, kabul case'lerini (`docs/manuel-test/`; insan son çaredir) ve `docs-site/
 **Ana dalda çalışılabilir.** Repo tek bakımcılıdır; faz dalı bir tur
 maliyeti ekliyordu. Genel "yalnız feature dalı" konvansiyonu burada
 geçersizdir. Geri alması pahalı veya deneysel iş için yine de dal aç.
-Commit'i **kullanıcı istemedikçe atma**.
+Commit'i **kullanıcı istemedikçe atma**. Push onay istemez (kullanıcı kararı,
+2026-10-17); `--force` hiçbir zaman.
 
 ## Doğrulama Kapıları
 

@@ -244,7 +244,8 @@ kararını `(kullanıcı kararı)` ile işaretle.
 
 ## Adım 9 — Commit ve fazı kapat
 
-Kullanıcı istemedikçe commit **etme**. İstediğinde kapanış iki commit'tir:
+Kullanıcı istemedikçe commit **etme**. İstediğinde kapanış iki commit ve bir
+push'tur:
 
 ```bash
 git status --short && git diff --stat
@@ -252,6 +253,21 @@ git commit …                                              # 1 — fazın işi 
 python3 scripts/dokuman-bakim.py faz-kapat <NN> --kuru    # defter satırını önce GÖR
 python3 scripts/dokuman-bakim.py faz-kapat <NN>           # sil + defter + bağlantılar + YOL-HARITASI
 git commit -m "docs(phase-<NN>): close" …                 # 2 — gövde: sapmalar ve kategori dışı kararlar
+git push                                                  # 3 — onay sorulmaz
+```
+
+**Push onay istemez** (kullanıcı kararı, 2026-10-17). Her kapanış CI'a gider;
+biriken commit'ler CI'ın görmediği fazlar demektir (ölçüldü: 74 commit, yedi
+faz). Uzak dal ilerlemişse `git pull --rebase` ve yeniden push. `--force`
+**hiçbir zaman**.
+
+🚨 **Tek istisna — etiketsiz sürüm kesimi.** `CHANGELOG.md`'nin en üstteki
+sürüm bölümünün `v*` etiketi yoksa push etme: kesim etiketiyle tek atomik
+push'tur ([`hafiza/yayin-turu.md`](../../../docs/hafiza/yayin-turu.md)).
+
+```bash
+v=$(grep -m1 -oE '^## \[[0-9][^]]*\]' CHANGELOG.md | sed -E 's/^## \[(.*)\]/\1/')
+git tag -l "v$v"                                          # boşsa push etme
 ```
 
 `faz-kapat` temiz ağaç ister ve işaretçiyi `HEAD`'e yazar; bu yüzden birinci
