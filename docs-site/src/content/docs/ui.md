@@ -411,8 +411,9 @@ A provider that implements no health check reports `Unknown`, which is not an er
 <a class="ui-shot" href="/screenshots/mcp.png"><img src="/screenshots/mcp.png" alt="Registered MCP servers and the tools discovered from them" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 Remote MCP servers and the tools discovered from each. A server is a definition — an
-endpoint, a transport, and the name of the configuration key its authorization value is
-read from — so the console never holds a credential. Discovered tools carry the same
+endpoint, a transport, and the name of the configuration key its `Authorization` header
+is read from (saved as `headerConfigurationKeys.Authorization`) — so the console never
+holds a credential. Discovered tools carry the same
 approval badges as code-defined ones, and refreshing a server re-reads its catalog
 without a restart.
 

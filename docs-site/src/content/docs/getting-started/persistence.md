@@ -142,6 +142,13 @@ tenants cannot be undone. Decide per table whether the rows belong to one
 tenant (lower-case them) or to two (rename one), then start again.
 :::
 
+:::caution[A migration can be one-way]
+A migration may move data and drop a column in the same file, and Tracon ships no
+downgrade. After such a migration an older build of the application cannot read the
+table. Back up the database before you upgrade; the release notes name every migration
+that drops or rewrites data.
+:::
+
 :::danger[Do not edit an applied migration]
 The checksum covers the file's whole text, comments included. Editing a file that has
 already been applied makes every existing database refuse to start. Add a new
