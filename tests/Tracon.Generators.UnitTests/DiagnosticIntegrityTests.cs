@@ -72,7 +72,7 @@ public sealed class DiagnosticIntegrityTests
         TimeSpan.FromSeconds(5));
 
     /// <summary>
-    /// Matches a diagnostic code on the troubleshooting page, with the prefix
+    /// Matches a diagnostic code on the build-diagnostics page, with the prefix
     /// read from the DESCRIPTORS rather than written here.
     /// </summary>
     /// <remarks>
@@ -101,7 +101,7 @@ public sealed class DiagnosticIntegrityTests
         prefixes.Count.ShouldBe(
             1,
             $"The diagnostics declare more than one id prefix ({string.Join(", ", prefixes)}); " +
-            "the troubleshooting scan reads one.");
+            "the build-diagnostics scan reads one.");
 
         return prefixes[0];
     }
@@ -220,18 +220,19 @@ public sealed class DiagnosticIntegrityTests
     }
 
     /// <summary>
-    /// A coding agent's first sight of an <c>APG</c> code is the build log, and
-    /// the only page that explains all of them is <c>troubleshooting.md</c> - it
-    /// already carries nine of the fourteen (F-136). A code missing from it has
-    /// no explanation anywhere a consumer would look.
+    /// A coding agent's first sight of a <c>TRC</c> code is the build log, and
+    /// the only page that explains all of them is <c>guides/build-diagnostics.md</c>
+    /// (it moved out of <c>troubleshooting.md</c> in F-282 to free the weight
+    /// ceiling). A code missing from it has no explanation anywhere a consumer
+    /// would look.
     /// </summary>
     [Theory]
     [MemberData(nameof(DiagnosticIds))]
-    public void Every_diagnostic_is_explained_on_the_troubleshooting_page(string id)
+    public void Every_diagnostic_is_explained_on_the_build_diagnostics_page(string id)
     {
-        var page = File.ReadAllText(TroubleshootingPath);
+        var page = File.ReadAllText(BuildDiagnosticsPath);
 
-        page.ShouldContain(id, Case.Sensitive, $"{id} does not appear on troubleshooting.md.");
+        page.ShouldContain(id, Case.Sensitive, $"{id} does not appear on guides/build-diagnostics.md.");
     }
 
     /// <summary>
@@ -240,9 +241,9 @@ public sealed class DiagnosticIntegrityTests
     /// diagnostic that can never fire.
     /// </summary>
     [Fact]
-    public void The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists()
+    public void The_build_diagnostics_page_names_no_diagnostic_that_no_longer_exists()
     {
-        var page = File.ReadAllText(TroubleshootingPath);
+        var page = File.ReadAllText(BuildDiagnosticsPath);
         var known = Descriptors().Select(descriptor => descriptor.Id).ToHashSet(StringComparer.Ordinal);
 
         var stale = DiagnosticCodePattern.Matches(page)
@@ -252,7 +253,7 @@ public sealed class DiagnosticIntegrityTests
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        stale.ShouldBeEmpty($"troubleshooting.md names a diagnostic no descriptor declares: {string.Join(", ", stale)}.");
+        stale.ShouldBeEmpty($"guides/build-diagnostics.md names a diagnostic no descriptor declares: {string.Join(", ", stale)}.");
     }
 
     /// <summary>
@@ -266,7 +267,7 @@ public sealed class DiagnosticIntegrityTests
     [Fact]
     public void The_stale_reference_scan_actually_matches_the_page()
     {
-        var page = File.ReadAllText(TroubleshootingPath);
+        var page = File.ReadAllText(BuildDiagnosticsPath);
 
         DiagnosticCodePattern.Matches(page)
             .Select(match => match.Value)
@@ -331,8 +332,8 @@ public sealed class DiagnosticIntegrityTests
     private static string CapabilityMapPath { get; } =
         Path.Combine(RepositoryRoot, "docs-site", "src", "content", "docs", "capabilities.md");
 
-    private static string TroubleshootingPath { get; } =
-        Path.Combine(RepositoryRoot, "docs-site", "src", "content", "docs", "troubleshooting.md");
+    private static string BuildDiagnosticsPath { get; } =
+        Path.Combine(RepositoryRoot, "docs-site", "src", "content", "docs", "guides", "build-diagnostics.md");
 
     /// <summary>Where the documentation site is published, ending in a slash.</summary>
     /// <remarks>

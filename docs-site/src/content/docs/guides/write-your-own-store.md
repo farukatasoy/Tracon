@@ -190,7 +190,7 @@ The same three things every store contract leaves to you, regardless of interfac
 ## Other store interfaces
 
 `IRunStore` is the largest and most heavily documented seam, but the same package
-ships a contract class for 29 of the other store interfaces in `Tracon.Abstractions` —
+ships a contract class for 30 of the other store interfaces in `Tracon.Abstractions` —
 sessions, agent definitions, jobs, evals, experiments, webhooks, and more. Each follows
 the same shape: derive the matching `*Contract` class, supply a store instance, run
 `dotnet test`.

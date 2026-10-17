@@ -40,8 +40,8 @@ env:
 # gecikmesi yanlis bir kirmizi uretmesin. Olcum: GitHub Actions API, 16 kosum
 # (2026-09-06..21), is ve adim sureleri; tablo
 # `docs/hafiza/test-kosum-olcumleri.md` icindedir. Bir is sinirinin yarisini
-# gecerse once yeniden olc, sonra yukselt. `-maxcpucount:1` -> 2 gecisi
-# (F-267) sureyi kisaltir; sinirlar iki ayari da kapsar.
+# gecerse once yeniden olc, sonra yukselt. `--max-parallel-test-modules 1` -> 2
+# gecisi (F-267) sureyi kisaltir; sinirlar iki ayari da kapsar.
 #
 # Adim siniri yalniz test ve kapasite adimlarindadir. Adim siniri yalniz o
 # adimi kirar; sonraki `if: always()` yukleme adimlari yine kosar ve biten test

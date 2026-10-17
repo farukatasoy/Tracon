@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import unittest
+import xml.etree.ElementTree as ElementTree
 import zipfile
 from unittest import mock
 
@@ -515,6 +516,23 @@ class KapiTestleri(unittest.TestCase):
 
             self.assertEqual(kapi.failed_tests_from_trx(0, kok), [])
 
+    def test_trx_cikti_klasoru_codebase_ten_okunur_yoksa_tek_hedefli_release_varsayilir(self):
+        # F-573: `codeBase` olmayan dal testsizdi. Cok hedefli bacak klasorunu TRX soyler;
+        # `codeBase` yoksa tek hedefli projenin `release` klasoru varsayilir.
+        def agac(metot: str):
+            return ElementTree.ElementTree(ElementTree.fromstring(
+                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">'
+                f"<TestDefinitions><UnitTest>{metot}</UnitTest></TestDefinitions></TestRun>"))
+
+        self.assertEqual(
+            kapi._trx_output_directory(agac('<TestMethod codeBase="C:\\r\\bin\\P\\release_net8.0\\P.dll" name="M" />')),
+            "release_net8.0")
+        self.assertEqual(
+            kapi._trx_output_directory(agac('<TestMethod codeBase="/r/bin/P/release/P.dll" name="M" />')),
+            "release")
+        self.assertEqual(kapi._trx_output_directory(agac('<TestMethod name="M" />')), "release")
+        self.assertEqual(kapi._trx_output_directory(agac('<TestMethod codeBase="P.dll" name="M" />')), "release")
+
     def test_sifir_test_koşan_yesil_kosum_kirmizi_sayilir(self):
         # NEGATIF KONTROL (Faz 215): cikis kodu 0 "test kostu" demek degildir. TRX yoksa
         # ya da bossa kapi YESIL donmez.
@@ -751,6 +769,16 @@ class KapiTestleri(unittest.TestCase):
         # Site (~35 sn, geç kırmızıların 6/11'i) format'tan (~2 dk) önce.
         self.assertLess(rendered.index("(cd docs-site && npm run check)"),
                         rendered.index("dotnet format Tracon.slnx --verify-no-changes"))
+
+    def test_kapanis_restore_u_zorlar_ve_derlemeden_once_kosar(self):
+        # F-525: önbellekli restore yeni yayımlanan güvenlik uyarısını görmez
+        # (`NU1902`/`NU1903` yalnız soğuk ya da zorlanmış restore'da çıkar). Kapanış
+        # sıfır uyarıyı ancak denetimi gerçekten koşturursa kanıtlar.
+        rendered = [c.display for c in kapi.closing_commands("abc123", site=False)]
+
+        self.assertIn("dotnet restore Tracon.slnx --force", rendered)
+        self.assertLess(rendered.index("dotnet restore Tracon.slnx --force"),
+                        rendered.index("dotnet build Tracon.slnx -c Release"))
 
     def test_kapanis_agent_haritasini_uretir_denetlemez(self):
         # Yerelde üretim denetimi gereksiz kılar; `--check` CI'da kalır (ci.yml).

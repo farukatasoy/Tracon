@@ -31,7 +31,11 @@ internal sealed class RunCancellationRegistry : IRunCancellationRegistry
             return false;
         }
 
-        entry.Source.Cancel();
+        // 🚨 A run disposes its source right after it releases its entry, so an entry
+        // read here can already carry a disposed source. That run has ended: report
+        // "not cancelled" and keep going, so one finished branch does not leave its
+        // siblings uncancelled.
+        var reached = entry.Source.TryCancel();
 
         // Only cancellation of the root run propagates through the tree. Cancelling
         // a child run alone (RunId != RootRunId) does not affect sibling branches or
@@ -42,12 +46,12 @@ internal sealed class RunCancellationRegistry : IRunCancellationRegistry
             {
                 if (candidate.RunId != runId && candidate.RootRunId == runId)
                 {
-                    candidate.Source.Cancel();
+                    candidate.Source.TryCancel();
                 }
             }
         }
 
-        return true;
+        return reached;
     }
 
     private void Release(Guid runId) => _entries.TryRemove(runId, out _);

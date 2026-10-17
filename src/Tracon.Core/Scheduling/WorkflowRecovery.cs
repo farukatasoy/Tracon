@@ -482,4 +482,12 @@ internal sealed record WorkflowRecoveryPlan
 
     /// <summary>Gets the session the chain runs in; the first run's, which every continuation shares.</summary>
     public string? SessionId => Chain.Count > 0 ? Chain[0].SessionId : null;
+
+    /// <summary>
+    /// Gets the definition version the chain's first run was compiled from; <see langword="null"/>
+    /// when that run recorded none (a workflow defined in code, or a row from before versions were
+    /// recorded). A run that starts again, because the chain wrote no checkpoint, names it, so an
+    /// edit made while the job waited does not change what runs.
+    /// </summary>
+    public int? DefinitionVersion => Chain.Count > 0 ? Chain[0].AgentVersion : null;
 }

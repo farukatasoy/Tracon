@@ -4181,6 +4181,8 @@ Tracon.WorkflowResumeRequest.RunId.init -> void
 Tracon.WorkflowResumeRequest.WorkflowResumeRequest() -> void
 Tracon.WorkflowRunRequest
 Tracon.WorkflowRunRequest.<Clone>$() -> Tracon.WorkflowRunRequest!
+Tracon.WorkflowRunRequest.DefinitionVersion.get -> int?
+Tracon.WorkflowRunRequest.DefinitionVersion.init -> void
 Tracon.WorkflowRunRequest.Equals(Tracon.WorkflowRunRequest? other) -> bool
 Tracon.WorkflowRunRequest.Message.get -> string?
 Tracon.WorkflowRunRequest.Message.init -> void

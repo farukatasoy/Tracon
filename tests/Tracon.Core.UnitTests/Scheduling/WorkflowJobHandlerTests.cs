@@ -252,6 +252,38 @@ public sealed class WorkflowJobHandlerTests
     }
 
     /// <summary>
+    /// F-492: an item whose interrupted run wrote no checkpoint starts again, and it names the
+    /// version that run recorded, so an edit made while the job waited does not change what runs.
+    /// </summary>
+    [Fact]
+    public async Task With_recovery_on_an_item_restarted_with_no_checkpoint_runs_the_version_its_interrupted_run_recorded()
+    {
+        var inner = new InMemoryRunStore(tenantContext: new FixedTenantContext("tenant"));
+        var marked = TraconId.NewId();
+
+        await inner.StartRunAsync(new RunStartInfo
+        {
+            RunId = marked,
+            AgentName = "daily-report",
+            Kind = RunKind.Workflow,
+            WorkflowName = "daily-report",
+            StartedAt = DateTimeOffset.UtcNow,
+            TenantId = "tenant",
+            AgentVersion = 4,
+        });
+
+        var runner = new ScriptedWorkflowRunner(shouldFail: false);
+        var handler = new WorkflowJobHandler(
+            runner,
+            new WorkflowRecovery(inner, new InMemoryWorkflowCheckpointStore(), new OnPolicy()),
+            NullLogger<WorkflowJobHandler>.Instance);
+
+        await handler.ExecuteAsync(BuildContext([Item(0, "episode 7", runId: marked)]));
+
+        runner.Requests.ShouldHaveSingleItem().DefinitionVersion.ShouldBe(4);
+    }
+
+    /// <summary>
     /// F-323 (audit, open question 8-A): the last item's run completes in the same instant
     /// as the limit. The work is done, so the job completes, as it does for a queued run
     /// and for any handler that returns after its limit. It used to fail with the code.

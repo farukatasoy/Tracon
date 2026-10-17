@@ -334,6 +334,180 @@ if (packageRowCount !== packageCount) {
   errors.push(`compatibility.md package table has ${packageRowCount} row(s), expected ${packageCount}`);
 }
 
+// Counts the code decides and prose restates (F-561, F-446). Nobody recomputes a sentence:
+// the store guide said 29 contracts where the package ships 30, the compatibility page said
+// "six" families beside a seventh constant, and the README said 654 public types for weeks
+// while the generated reference listed 590. Each number is derived from the sources below.
+const sourceFiles = (directory) =>
+  collect(directory).filter((file) => file.endsWith('.cs') && !/[\\/](?:obj|bin)[\\/]/.test(file));
+
+// A store interface is an `interface I…Store` in Tracon.Abstractions. It has a contract when
+// a contract class derives from `…Contract<IThatStore>`; IRunStore has a guide of its own, so
+// the prose counts the others.
+const storeInterfaces = new Set(
+  sourceFiles(join(sourceRoot, 'Tracon.Abstractions')).flatMap((file) =>
+    [...readFileSync(file, 'utf8').matchAll(/\binterface\s+(I\w+Store)\b/g)].map((match) => match[1]),
+  ),
+);
+const contractSources = sourceFiles(join(sourceRoot, 'Tracon.Testing.Contracts.Xunit'))
+  .map((file) => readFileSync(file, 'utf8'))
+  .join('\n');
+const contractedStores = new Set([...contractSources.matchAll(/Contract<(I\w+Store)>/g)].map((match) => match[1]));
+const uncontractedStores = [...storeInterfaces].filter((name) => !contractedStores.has(name)).sort();
+const otherContractedStoreCount = contractedStores.size - 1;
+
+if (!contractedStores.has('IRunStore') || [...contractedStores].some((name) => !storeInterfaces.has(name))) {
+  errors.push('store contract count: a contract derives from a store interface this gate cannot find, or IRunStore has none');
+}
+
+// One constant per contract family: the namespaces ContractCoverage names.
+const contractFamilyCount = [
+  ...readFileSync(join(sourceRoot, 'Tracon.Testing.Contracts.Xunit/ContractCoverage.cs'), 'utf8').matchAll(
+    /public const string \w+Contracts = "/g,
+  ),
+].length;
+const numberWords = [
+  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty',
+];
+
+const storeGuide = readFileSync(join(docsRoot, 'guides/write-your-own-store.md'), 'utf8');
+const statedOtherStores = /contract class for (\d+) of the other store interfaces/.exec(storeGuide)?.[1];
+
+if (Number(statedOtherStores) !== otherContractedStoreCount) {
+  errors.push(
+    `write-your-own-store.md says a contract class for ${statedOtherStores ?? '(missing)'} other store interfaces, ` +
+      `expected ${otherContractedStoreCount}`,
+  );
+}
+
+const listedWithoutContract = [
+  ...(/no contract yet:([^.]*)\./.exec(storeGuide)?.[1] ?? '').matchAll(/`(I\w+Store)`/g),
+].map((match) => match[1]).sort();
+
+if (listedWithoutContract.join() !== uncontractedStores.join()) {
+  errors.push(
+    `write-your-own-store.md lists [${listedWithoutContract.join(', ')}] as having no contract, ` +
+      `expected [${uncontractedStores.join(', ')}]`,
+  );
+}
+
+const statedFamilies = /Behavior contract suite for (\w+) extension families — storage \(`IRunStore` and (\d+) other store interfaces\)/
+  .exec(compatibility);
+
+if (!statedFamilies) {
+  errors.push('compatibility.md no longer states the contract suite as "<n> extension families — storage (`IRunStore` and <n> other store interfaces)"');
+} else {
+  if (statedFamilies[1] !== numberWords[contractFamilyCount]) {
+    errors.push(
+      `compatibility.md says ${statedFamilies[1]} contract families, expected ${numberWords[contractFamilyCount]} ` +
+        `(one per namespace constant in ContractCoverage.cs)`,
+    );
+  }
+
+  if (Number(statedFamilies[2]) !== otherContractedStoreCount) {
+    errors.push(
+      `compatibility.md says IRunStore and ${statedFamilies[2]} other store interfaces, expected ${otherContractedStoreCount}`,
+    );
+  }
+}
+
+// The Native AOT promise is written as prose in two more places than the table: the README
+// ("Six packages promise …") and packages.md ("Six runtime packages make …", "the six
+// AOT-compatible packages"). Both restated the table by hand (F-575). The table decides:
+// a package promises AOT when its `Native AOT` cell is exactly "Yes". Prose that names a
+// package or a count the table does not is drift. The per-package READMEs' own AOT
+// sentences are not covered: they say it in free wording.
+const aotPackages = [
+  ...packagesSection.matchAll(/^\| `(Tracon[^`]*)` \| [^|]+ \| [^|]+ \| ([^|]+?) \|/gm),
+]
+  .filter((match) => match[2] === 'Yes')
+  .map((match) => match[1])
+  .sort();
+const aotNonPromiseCount = packageCount - aotPackages.length;
+
+/** Package names a prose list writes as `Tracon.Abstractions`, `Core`, `PostgreSql`. */
+const namedPackages = (segment) =>
+  [...segment.matchAll(/`([^`]+)`/g)]
+    .map((match) => (match[1].startsWith('Tracon') ? match[1] : `Tracon.${match[1]}`))
+    .sort();
+
+const countWord = (count) => numberWords[count] ?? String(count);
+
+const checkAotProse = (label, text, pattern, countGroups) => {
+  const match = pattern.exec(text);
+
+  if (!match) {
+    errors.push(`${label} no longer states the AOT promise in the shape this gate reads: ${pattern}`);
+    return;
+  }
+
+  const listed = namedPackages(match[2]);
+
+  if (match[1].toLowerCase() !== countWord(aotPackages.length)) {
+    errors.push(`${label} says ${match[1]} AOT packages, expected ${countWord(aotPackages.length)}`);
+  }
+
+  if (listed.join() !== aotPackages.join()) {
+    errors.push(
+      `${label} lists [${listed.join(', ')}] as AOT-compatible, ` +
+        `expected [${aotPackages.join(', ')}] (the "Native AOT" column of compatibility.md)`,
+    );
+  }
+
+  for (const [group, expected] of countGroups(match)) {
+    if (group.toLowerCase() !== countWord(expected)) {
+      errors.push(`${label} says ${group} where the table gives ${countWord(expected)}`);
+    }
+  }
+};
+
+checkAotProse(
+  'README.md',
+  readme,
+  /(\w+) packages promise trimming and Native AOT compatibility:\s*([\s\S]*?)\. The other\s+(\w+) do not/,
+  (match) => [[match[3], aotNonPromiseCount]],
+);
+
+const packagesPage = readFileSync(join(docsRoot, 'packages.md'), 'utf8');
+
+checkAotProse(
+  'packages.md',
+  packagesPage,
+  /(\w+) runtime packages make the trimming and Native AOT compatibility promise:\s*([\s\S]*?)\. For the/,
+  () => [],
+);
+
+const aotMention = /not part of the (\w+) AOT-compatible packages/.exec(packagesPage);
+
+if (!aotMention || aotMention[1].toLowerCase() !== countWord(aotPackages.length)) {
+  errors.push(
+    `packages.md says "${aotMention?.[1] ?? '(missing)'}" AOT-compatible packages in its TypeScript client note, ` +
+      `expected ${countWord(aotPackages.length)}`,
+  );
+}
+
+// The README counts the generated reference: every `api/package-*.md` page opens with its
+// package's public type count. The pages are written by `npm run generate`; with none on
+// disk there is nothing to compare against.
+const apiPackagePages = existsSync(join(docsRoot, 'api'))
+  ? readdirSync(join(docsRoot, 'api')).filter((name) => /^package-.+\.md$/.test(name))
+  : [];
+
+if (apiPackagePages.length > 0) {
+  const publicTypeCount = apiPackagePages.reduce(
+    (total, name) =>
+      total + Number(/^(\d+) public types\b/m.exec(readFileSync(join(docsRoot, 'api', name), 'utf8'))?.[1] ?? 0),
+    0,
+  );
+
+  for (const [, stated] of readme.matchAll(/\b(\d+) public types\b/g)) {
+    if (Number(stated) !== publicTypeCount) {
+      errors.push(`README.md says ${stated} public types, expected ${publicTypeCount}`);
+    }
+  }
+}
+
 // The framework claim is read BEFORE a consumer can compile anything: someone on
 // .NET 8 LTS decides from this table whether Tracon is usable at all. One default
 // matrix lives in src/Directory.Build.props and a few projects deviate from it, so

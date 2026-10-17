@@ -199,7 +199,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A client that still sends `authorizationConfigurationKey` to `PUT /api/mcp-servers/{name}` gets
   `400`; move the key name into `headerConfigurationKeys["Authorization"]` (see Removed).
 
+### Added
+
+- **`WorkflowRunRequest.DefinitionVersion`.** The version of a stored workflow's definition to
+  run, the same rule as `WorkflowResumeRequest.DefinitionVersion`: the run compiles that version
+  and records it on its row. `null` (the default) runs the current definition; a version the
+  workflow does not have fails the run and never falls back; a workflow defined in code ignores
+  the value. The HTTP API does not set it.
+- **`JobStoreContract` checks a job time limit beyond 24.8 days.**
+  `A_jobs_time_limit_beyond_an_int_of_milliseconds_survives_the_round_trip_and_the_lease` writes a
+  30-day limit and reads it back from the enqueue, the read and the lease. A third-party
+  `IJobStore` that keeps the limit in a 32-bit millisecond column now fails the contract.
+
 ### Fixed
+
+- A queued workflow run that recovery starts again, because the interrupted attempt wrote no
+  checkpoint, now compiles the definition version that attempt recorded. It compiled the current
+  definition, so a save made while the job waited changed what ran in the same session. Batch
+  items restart the same way.
+- Cancelling a run at the moment it finishes no longer fails with `ObjectDisposedException`.
+  `POST /api/runs/{id}/cancel` answers `409` instead of `500`, and cancelling a run tree still
+  reaches every sibling. Closing a live voice session while a delegation finishes no longer
+  ends the close with the same exception.
+- `UseLiveVoice(options => options.DelegationMode = …)` with a value outside the enum stops the
+  host at startup. It reached the provider on the first session and ended as `500`.
 
 - Anthropic prompt caching with `anthropic.promptCaching.placement = system` keeps the cached
   instructions in the top-level `system` array under Anthropic SDK `12.58`. The SDK adapter now

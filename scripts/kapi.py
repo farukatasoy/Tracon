@@ -1161,7 +1161,9 @@ def _trx_output_directory(tree: Any) -> str:
     TRX her modulun DLL yolunu `codeBase` olarak tasir; klasor adi `release` ya
     da cok hedefli projede `release_<tfm>`'dir. Yol DECLARED cerceveden degil
     TRX'in kendisinden okunur: bayat bir `release/` klasoru yanlis ikiliyi
-    kosturmaz."""
+    kosturmaz. `codeBase` yoksa tek hedefli projenin `release` klasoru varsayilir;
+    canli TRX'lerde `codeBase` her zaman vardir, bu dal cok hedefli bir bacaga
+    dusmez (F-573)."""
     for method in tree.getroot().iter(TRX_NS + "TestMethod"):
         code_base = method.get("codeBase")
         if code_base:
@@ -1301,6 +1303,11 @@ def closing_commands(base: str, *, site: bool = True, performance: bool = True) 
         Command(("python3", "scripts/dokuman-bakim.py", "--denetle")),
         Command(("python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "*_test.py")),
         Command(("python3", "scripts/denetim-paketi.py", "--taban", base)),
+        # F-525: a cached restore is a no-op and never re-runs the NuGet audit, so
+        # an advisory published after the last restore stayed invisible here while
+        # CI's cold checkout turned it into NU1902/NU1903 (a warning-as-error).
+        # `--force` re-evaluates every project (~5 s measured, 2026-10-17).
+        Command(("dotnet", "restore", "Tracon.slnx", "--force")),
         Command(("dotnet", "build", "Tracon.slnx", "-c", "Release")),
         # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
         # PACKAGING CONTRACT (README, icon, K-008) during iteration - it is not

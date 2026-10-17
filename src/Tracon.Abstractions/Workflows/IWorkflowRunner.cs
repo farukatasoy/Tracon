@@ -221,6 +221,26 @@ public sealed record WorkflowRunRequest
     /// </para>
     /// </remarks>
     public IReadOnlyDictionary<string, string>? Parameters { get; init; }
+
+    /// <summary>
+    /// The version of the workflow's stored definition to run.
+    /// <see langword="null"/> (the default) runs the current definition.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same rule as <see cref="WorkflowResumeRequest.DefinitionVersion"/>: the run compiles
+    /// that version and records it on its row, so a later resume or response uses it too. A
+    /// version the workflow does not have fails the run (its row opens, closes
+    /// <see cref="RunStatus.Failed"/>, and no model is called); the run never falls back to the
+    /// current definition. A workflow defined in code has no versions and ignores the value.
+    /// </para>
+    /// <para>
+    /// The HTTP API does not set it. Recovery sets it: a queued run that is started again
+    /// because the interrupted attempt wrote no checkpoint names the version that attempt
+    /// recorded, so an edit made while the job waited does not change what runs.
+    /// </para>
+    /// </remarks>
+    public int? DefinitionVersion { get; init; }
 }
 
 /// <summary>The information needed to resume a workflow from a checkpoint.</summary>

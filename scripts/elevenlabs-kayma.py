@@ -4,7 +4,8 @@
 `Tracon.Voice` ElevenLabs'e ham `HttpClient` ile konusur (K-216); resmi bir .NET
 SDK'si yoktur. Bu yuzden sağlayicinin sozlesme degisikligini derleyici gormez.
 `tests/Tracon.Voice.UnitTests/Fixtures/elevenlabs-operations.json` Tracon'un
-kullandigi operasyonlari, sorgu parametrelerini ve alan yollarini BEYAN eder;
+kullandigi operasyonlari, sorgu parametrelerini, alan yollarini ve her alanin JSON
+tipini BEYAN eder;
 birim testi (`ElevenLabsOperationDriftTests`) o beyanin KODLA birebir ayni
 oldugunu kanitlar. Bu betik beyanin CANLI belgede hala gecerli olup olmadigini
 sorar. Agdan etkilenir, bu yuzden CI'da kosmaz: `nuget-danismani` Adim 0.2 ve
@@ -55,10 +56,29 @@ def alternatives(document: dict, node: dict) -> list[dict]:
     return parts
 
 
-def has_path(document: dict, schema: dict, path: list[str]) -> bool:
-    """True when `path` (e.g. ['voices[]', 'voice_id']) exists under `schema`."""
+def schema_types(document: dict, node: dict) -> set[str]:
+    """JSON types a property can have, `null` left out. Empty when the document does not say."""
+    found: set[str] = set()
+    for option in alternatives(document, node):
+        declared = option.get("type")
+        if isinstance(declared, str):
+            found.add(declared)
+        elif isinstance(declared, list):
+            found.update(item for item in declared if isinstance(item, str))
+        elif "properties" in option:
+            found.add("object")
+        elif "items" in option:
+            found.add("array")
+    found.discard("null")
+    return found
+
+
+def find_types(document: dict, schema: dict, path: list[str]) -> set[str] | None:
+    """Live types of the property at `path` (e.g. ['voices[]', 'voice_id']), or None when it is gone.
+
+    An empty set means the property exists but the document gives it no type."""
     if not path:
-        return True
+        return set()
 
     head, rest = path[0], path[1:]
     is_array = head.endswith("[]")
@@ -69,15 +89,37 @@ def has_path(document: dict, schema: dict, path: list[str]) -> bool:
         if name not in properties:
             continue
         child = properties[name]
+        if not rest:
+            return schema_types(document, child)
         if is_array:
             for candidate in alternatives(document, child):
                 if candidate.get("type") == "array" and "items" in candidate:
-                    if has_path(document, candidate["items"], rest):
-                        return True
-        elif has_path(document, child, rest):
-            return True
+                    found = find_types(document, candidate["items"], rest)
+                    if found is not None:
+                        return found
+        else:
+            found = find_types(document, child, rest)
+            if found is not None:
+                return found
 
-    return False
+    return None
+
+
+def has_path(document: dict, schema: dict, path: list[str]) -> bool:
+    """True when `path` (e.g. ['voices[]', 'voice_id']) exists under `schema`."""
+    return find_types(document, schema, path) is not None
+
+
+def type_matches(declared: str, live: set[str]) -> bool:
+    """Whether what Tracon declares fits what the document says.
+
+    The document saying nothing fits anything. An integer Tracon sends or reads fits a
+    `number`; a number does not fit an `integer` (1.5 would be refused)."""
+    if not live:
+        return True
+    if declared == "integer":
+        return bool(live & {"integer", "number"})
+    return declared in live
 
 
 def operation_parameters(document: dict, path_item: dict, operation: dict) -> set[str]:
@@ -125,9 +167,15 @@ def check(document: dict, declaration: dict) -> list[str]:
             if schema is None:
                 problems.append(f"{label}: has no {side} body schema but Tracon relies on {len(fields)} field(s)")
                 continue
+            declared_types = declared.get("types", {}).get(side, {})
             for field in fields:
-                if not has_path(document, schema, field.split(".")):
+                live = find_types(document, schema, field.split("."))
+                if live is None:
                     problems.append(f"{label}: {side} field '{field}' is gone")
+                elif field in declared_types and not type_matches(declared_types[field], live):
+                    problems.append(
+                        f"{label}: {side} field '{field}' is {'/'.join(sorted(live))} "
+                        f"but Tracon declares {declared_types[field]}")
 
     return problems
 

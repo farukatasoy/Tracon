@@ -155,7 +155,7 @@ internal sealed class WorkflowRunJobHandler(
         {
             var events = plan is { Step: WorkflowRecoveryStep.Continue }
                 ? Continue(context.Job.TargetName, request, plan, cancellationToken)
-                : Apply(context.Job.TargetName, request, request.RunId, sessionId: null, cancellationToken);
+                : Apply(context.Job.TargetName, request, request.RunId, sessionId: null, definitionVersion: null, cancellationToken);
 
             await foreach (var runEvent in events.WithCancellation(cancellationToken).ConfigureAwait(false))
             {
@@ -299,7 +299,8 @@ internal sealed class WorkflowRunJobHandler(
     /// <remarks>
     /// With no checkpoint in the chain the process stopped before the first super-step
     /// ended: the operation is applied again under the continuation's id, in the
-    /// chain's session.
+    /// chain's session, and a run compiles the definition version the chain's first run
+    /// recorded. A resume or a response carries its own version in the payload.
     /// </remarks>
     private IAsyncEnumerable<RunEvent> Continue(
         string workflowName,
@@ -315,13 +316,14 @@ internal sealed class WorkflowRunJobHandler(
                     NewRunId = plan.ContinuationRunId!.Value,
                 },
                 cancellationToken)
-            : Apply(workflowName, request, plan.ContinuationRunId!.Value, plan.SessionId, cancellationToken);
+            : Apply(workflowName, request, plan.ContinuationRunId!.Value, plan.SessionId, plan.DefinitionVersion, cancellationToken);
 
     /// <summary>Starts the queued operation under <paramref name="runId"/>.</summary>
     /// <param name="workflowName">The workflow a run starts (the job's target).</param>
     /// <param name="request">The queued operation.</param>
     /// <param name="runId">The id the opened run carries.</param>
     /// <param name="sessionId">The chain's session for a run that starts again; <see langword="null"/> for the payload's.</param>
+    /// <param name="definitionVersion">The version the chain's first run recorded, for a run that starts again; <see langword="null"/> runs the current definition.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The run's event stream.</returns>
     private IAsyncEnumerable<RunEvent> Apply(
@@ -329,6 +331,7 @@ internal sealed class WorkflowRunJobHandler(
         WorkflowRunJobRequest request,
         Guid runId,
         string? sessionId,
+        int? definitionVersion,
         CancellationToken cancellationToken)
         => request.Operation switch
         {
@@ -364,6 +367,7 @@ internal sealed class WorkflowRunJobHandler(
                     SessionId = sessionId ?? request.SessionId,
                     RunId = runId,
                     Parameters = request.Parameters,
+                    DefinitionVersion = definitionVersion,
                 },
                 cancellationToken),
         };

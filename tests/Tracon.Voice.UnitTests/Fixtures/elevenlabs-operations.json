@@ -1,5 +1,5 @@
 {
-  "_comment": "Tracon.Voice's declared dependency on ElevenLabs (K-216, Phase 217). Equal to what the code does: ElevenLabsOperationDriftTests. Still valid against the live OpenAPI document: python3 scripts/elevenlabs-kayma.py. Field paths are dotted; [] marks an array element.",
+  "_comment": "Tracon.Voice's declared dependency on ElevenLabs (K-216, Phase 217). Equal to what the code does: ElevenLabsOperationDriftTests. Still valid against the live OpenAPI document: python3 scripts/elevenlabs-kayma.py. Field paths are dotted; [] marks an array element. `types` gives the JSON type (string, integer, number, boolean, array, object) of each JSON field path; a multipart form declares none.",
   "source": "https://api.elevenlabs.io/openapi.json",
   "operations": [
     {
@@ -23,7 +23,25 @@
         "voice_settings.style",
         "voice_settings.use_speaker_boost"
       ],
-      "response": []
+      "response": [],
+      "types": {
+        "request": {
+          "language_code": "string",
+          "model_id": "string",
+          "next_text": "string",
+          "previous_request_ids[]": "array",
+          "previous_text": "string",
+          "seed": "integer",
+          "text": "string",
+          "voice_settings": "object",
+          "voice_settings.similarity_boost": "number",
+          "voice_settings.speed": "number",
+          "voice_settings.stability": "number",
+          "voice_settings.style": "number",
+          "voice_settings.use_speaker_boost": "boolean"
+        },
+        "response": {}
+      }
     },
     {
       "method": "POST",
@@ -46,7 +64,25 @@
         "voice_settings.style",
         "voice_settings.use_speaker_boost"
       ],
-      "response": []
+      "response": [],
+      "types": {
+        "request": {
+          "language_code": "string",
+          "model_id": "string",
+          "next_text": "string",
+          "previous_request_ids[]": "array",
+          "previous_text": "string",
+          "seed": "integer",
+          "text": "string",
+          "voice_settings": "object",
+          "voice_settings.similarity_boost": "number",
+          "voice_settings.speed": "number",
+          "voice_settings.stability": "number",
+          "voice_settings.style": "number",
+          "voice_settings.use_speaker_boost": "boolean"
+        },
+        "response": {}
+      }
     },
     {
       "method": "POST",
@@ -79,7 +115,35 @@
         "normalized_alignment.character_end_times_seconds[]",
         "normalized_alignment.character_start_times_seconds[]",
         "normalized_alignment.characters[]"
-      ]
+      ],
+      "types": {
+        "request": {
+          "language_code": "string",
+          "model_id": "string",
+          "next_text": "string",
+          "previous_request_ids[]": "array",
+          "previous_text": "string",
+          "seed": "integer",
+          "text": "string",
+          "voice_settings": "object",
+          "voice_settings.similarity_boost": "number",
+          "voice_settings.speed": "number",
+          "voice_settings.stability": "number",
+          "voice_settings.style": "number",
+          "voice_settings.use_speaker_boost": "boolean"
+        },
+        "response": {
+          "alignment": "object",
+          "alignment.character_end_times_seconds[]": "array",
+          "alignment.character_start_times_seconds[]": "array",
+          "alignment.characters[]": "array",
+          "audio_base64": "string",
+          "normalized_alignment": "object",
+          "normalized_alignment.character_end_times_seconds[]": "array",
+          "normalized_alignment.character_start_times_seconds[]": "array",
+          "normalized_alignment.characters[]": "array"
+        }
+      }
     },
     {
       "method": "POST",
@@ -101,7 +165,24 @@
         "settings.similarity",
         "settings.stability"
       ],
-      "response": []
+      "response": [],
+      "types": {
+        "request": {
+          "future_text": "string",
+          "inputs[]": "array",
+          "inputs[].text": "string",
+          "inputs[].voice_id": "string",
+          "language_code": "string",
+          "model_id": "string",
+          "previous_request_ids[]": "array",
+          "previous_text": "string",
+          "seed": "integer",
+          "settings": "object",
+          "settings.similarity": "number",
+          "settings.stability": "number"
+        },
+        "response": {}
+      }
     },
     {
       "method": "POST",
@@ -134,7 +215,35 @@
         "voice_segments[].end_time_seconds",
         "voice_segments[].start_time_seconds",
         "voice_segments[].voice_id"
-      ]
+      ],
+      "types": {
+        "request": {
+          "future_text": "string",
+          "inputs[]": "array",
+          "inputs[].text": "string",
+          "inputs[].voice_id": "string",
+          "language_code": "string",
+          "model_id": "string",
+          "previous_request_ids[]": "array",
+          "previous_text": "string",
+          "seed": "integer",
+          "settings": "object",
+          "settings.similarity": "number",
+          "settings.stability": "number"
+        },
+        "response": {
+          "alignment": "object",
+          "alignment.character_end_times_seconds[]": "array",
+          "alignment.character_start_times_seconds[]": "array",
+          "alignment.characters[]": "array",
+          "audio_base64": "string",
+          "voice_segments[]": "array",
+          "voice_segments[].dialogue_input_index": "integer",
+          "voice_segments[].end_time_seconds": "number",
+          "voice_segments[].start_time_seconds": "number",
+          "voice_segments[].voice_id": "string"
+        }
+      }
     },
     {
       "method": "POST",
@@ -150,7 +259,16 @@
         "language_code",
         "language_probability",
         "text"
-      ]
+      ],
+      "types": {
+        "request": {},
+        "response": {
+          "audio_duration_secs": "number",
+          "language_code": "string",
+          "language_probability": "number",
+          "text": "string"
+        }
+      }
     },
     {
       "method": "GET",
@@ -170,7 +288,21 @@
         "voices[].verified_languages[]",
         "voices[].verified_languages[].language",
         "voices[].voice_id"
-      ]
+      ],
+      "types": {
+        "request": {},
+        "response": {
+          "has_more": "boolean",
+          "next_page_token": "string",
+          "voices[]": "array",
+          "voices[].category": "string",
+          "voices[].labels": "object",
+          "voices[].name": "string",
+          "voices[].verified_languages[]": "array",
+          "voices[].verified_languages[].language": "string",
+          "voices[].voice_id": "string"
+        }
+      }
     }
   ]
 }

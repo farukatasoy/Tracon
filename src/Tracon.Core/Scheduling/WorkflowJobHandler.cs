@@ -405,7 +405,7 @@ internal sealed class WorkflowJobHandler(
 
                 // No checkpoint in the chain: the process stopped before the first
                 // super-step ended, so there is nothing to resume from and the item
-                // runs again, in the same session.
+                // runs again, in the same session and the same definition version (F-492).
                 return plan.Checkpoint is { } checkpoint
                     ? () => runner!.ResumeStreamingAsync(
                         new WorkflowResumeRequest
@@ -415,11 +415,18 @@ internal sealed class WorkflowJobHandler(
                             NewRunId = continuation,
                         },
                         cancellationToken)
-                    : () => runner!.RunStreamingAsync(Request(context, input, plan.SessionId ?? input.SessionId, continuation), cancellationToken);
+                    : () => runner!.RunStreamingAsync(
+                        Request(context, input, plan.SessionId ?? input.SessionId, continuation, plan.DefinitionVersion),
+                        cancellationToken);
         }
     }
 
-    private static WorkflowRunRequest Request(JobContext context, BatchItemInput input, string? sessionId, Guid? runId)
+    private static WorkflowRunRequest Request(
+        JobContext context,
+        BatchItemInput input,
+        string? sessionId,
+        Guid? runId,
+        int? definitionVersion = null)
         => new()
         {
             WorkflowName = context.Job.TargetName,
@@ -427,6 +434,7 @@ internal sealed class WorkflowJobHandler(
             Parameters = input.Parameters,
             SessionId = sessionId,
             RunId = runId,
+            DefinitionVersion = definitionVersion,
         };
 
     /// <summary>Drains a run's stream; the engine advances the graph only while it is read.</summary>

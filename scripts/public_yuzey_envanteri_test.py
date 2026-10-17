@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import subprocess
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location(
@@ -315,6 +318,60 @@ class YardimciTestleri(unittest.TestCase):
         tablo = envanter.tablo_yaz(tipler)
         self.assertIn("| `Tracon.Core` |", tablo)
         self.assertTrue(tablo.splitlines()[-1].startswith(f"| **Toplam** | **{len(tipler)}** |"))
+
+
+class UcUcaEnvanterTestleri(unittest.TestCase):
+    """`envanter_olustur` gerçek bir git dizininde: korpusu toplayan yol da sınanır (F-562)."""
+
+    BELGE = '{"components": {"schemas": {"AgentDescriptor": {"type": "object"}}}}'
+
+    def _depo(self, kok: pathlib.Path) -> None:
+        dosyalar = {
+            "src/Tracon.Core/PublicAPI.Unshipped.txt": "#nullable enable\nTracon.AgentDescriptor\nTracon.Documented\n",
+            "src/Tracon.Core/Types.cs": (
+                "namespace Tracon;\npublic sealed record AgentDescriptor(string Name);\n"
+                "public sealed class Documented { }\n"),
+            # Belge şema adını taşır; tipin başka kanıtı yoktur.
+            "docs/openapi/tracon.json": self.BELGE,
+            "docs-site/src/content/docs/schema.json": self.BELGE,
+            # Olumlu kontrol: korpus toplama çalışıyor, yoksa test boşuna geçerdi.
+            "docs-site/src/content/docs/guide.md": "Use Documented from the store.\n",
+        }
+        for yol, metin in dosyalar.items():
+            hedef = kok / yol
+            hedef.parent.mkdir(parents=True, exist_ok=True)
+            hedef.write_text(metin, encoding="utf-8")
+        subprocess.run(["git", "init", "-q"], cwd=kok, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=kok, check=True)
+
+    def test_belgede_sema_adi_olan_tip_baska_kaniti_yoksa_kanitsiz_kalir(self):
+        with tempfile.TemporaryDirectory() as t:
+            kok = pathlib.Path(t)
+            self._depo(kok)
+
+            tipler, _ = envanter.envanter_olustur(kok)
+
+        self.assertEqual(tipler[("Tracon.Core", "Tracon.Documented")].sinif, "tüketici")
+        self.assertEqual(tipler[("Tracon.Core", "Tracon.AgentDescriptor")].sinif, "kanıtsız")
+
+    def test_belge_okumasini_korpusa_geri_koyan_toplayici_bu_testte_kirilir(self):
+        # Olumsuz kontrol: test, kendisini kıracak değişikliği gerçekten görüyor mu?
+        gercek = envanter.korpus_topla
+
+        def belgeyi_de_okuyan(kok):
+            korpus = gercek(kok)
+            girdiler = [(etiket, yol, korpus.metinler[yol]) for etiket, yol, _ in korpus.dosyalar] + [
+                ("belge", "docs/openapi/tracon.json", (kok / "docs/openapi/tracon.json").read_text(encoding="utf-8"))]
+            return envanter.Korpus.kur(girdiler)
+
+        with tempfile.TemporaryDirectory() as t:
+            kok = pathlib.Path(t)
+            self._depo(kok)
+
+            with mock.patch.object(envanter, "korpus_topla", belgeyi_de_okuyan):
+                tipler, _ = envanter.envanter_olustur(kok)
+
+        self.assertNotEqual(tipler[("Tracon.Core", "Tracon.AgentDescriptor")].sinif, "kanıtsız")
 
 
 if __name__ == "__main__":

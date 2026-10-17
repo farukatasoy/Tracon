@@ -2,12 +2,19 @@ using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
-/// <summary>Validates the timeouts of <see cref="VoiceLiveOptions"/> when the application starts.</summary>
+/// <summary>Validates <see cref="VoiceLiveOptions"/> when the application starts.</summary>
 /// <remarks>
+/// <para>
 /// Each delegation arms <see cref="VoiceLiveOptions.DelegationTimeout"/> with
 /// <c>CancelAfter</c>, which refuses a negative value or more than about 49.7 days.
 /// Out of range, the first delegation threw inside the sideband pump and ended the
 /// whole session with an error. Nothing validated the options before.
+/// </para>
+/// <para>
+/// The configuration binder refuses a <see cref="VoiceLiveOptions.DelegationMode"/> the
+/// contract does not define, but a value assigned in code never passes the binder: the
+/// provider threw on the first session and the endpoint answered <c>500</c>.
+/// </para>
 /// </remarks>
 internal sealed class VoiceLiveOptionsValidator : IValidateOptions<VoiceLiveOptions>
 {
@@ -16,11 +23,22 @@ internal sealed class VoiceLiveOptionsValidator : IValidateOptions<VoiceLiveOpti
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return TimerPeriod.IsValid(options.DelegationTimeout)
-            ? ValidateOptionsResult.Success
-            : ValidateOptionsResult.Fail(TimerPeriod.Failure(
+        List<string>? failures = null;
+
+        if (!TimerPeriod.IsValid(options.DelegationTimeout))
+        {
+            (failures ??= []).Add(TimerPeriod.Failure(
                 $"{nameof(VoiceLiveOptions)}.{nameof(VoiceLiveOptions.DelegationTimeout)}",
                 options.DelegationTimeout));
+        }
+
+        if (!Enum.IsDefined(options.DelegationMode))
+        {
+            (failures ??= []).Add(
+                $"{nameof(VoiceLiveOptions)}.{nameof(VoiceLiveOptions.DelegationMode)} is {(int)options.DelegationMode}, which is not a delegation mode. The only mode is '{nameof(LiveVoiceDelegationMode.Client)}'.");
+        }
+
+        return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 }
 
