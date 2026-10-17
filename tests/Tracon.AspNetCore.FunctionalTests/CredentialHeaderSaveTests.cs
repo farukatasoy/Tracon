@@ -323,6 +323,31 @@ public sealed class CredentialHeaderSaveTests
     }
 
     /// <summary>
+    /// The refusal comes AFTER authorization: a caller whose key lacks the scope learns
+    /// nothing about the contract, only that it may not call.
+    /// </summary>
+    [Fact]
+    public async Task The_removed_field_does_not_pre_empt_the_scope_check()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        var created = await ApiKeyEndpointTests.CreateKeyAsync(host, "reader", "AgentsRead");
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, Mcp)
+        {
+            Content = new StringContent(
+                """{"endpoint":"https://mcp.example.com/mcp","authorizationConfigurationKey":"Tracon:McpSecrets:Legacy"}""",
+                System.Text.Encoding.UTF8,
+                "application/json"),
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", created.PlaintextKey);
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>
     /// The rule is for this one field. Every other unknown field is ignored as it
     /// always was, a body without the field saves, and a body that is not JSON
     /// still gets the binder's own answer.

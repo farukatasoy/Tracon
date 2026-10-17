@@ -296,7 +296,8 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
         // 🚨 The reader addresses the row by column POSITION. A column added or
         // removed in one place only shifts every field after it and the row
         // still reads: the wrong value lands in the wrong property. Each
-        // field gets a value no other field shares, and the SAVED record is
+        // field gets a value no other field shares (the two adjacent booleans
+        // differ, so a swap of their positions cannot pass), and the SAVED record is
         // checked as well as the one read back (SQL Server returns the row
         // through its own OUTPUT list).
         var written = Server("tenant-a", "full") with
@@ -309,7 +310,7 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
                 ["Authorization"] = "Tracon:McpSecrets:GithubToken",
                 ["X-Api-Key"] = "Tracon:McpSecrets:SearchKey",
             },
-            Enabled = false,
+            Enabled = true,
             RequiresApproval = false,
             OAuthEnabled = true,
             OAuthClientId = "client-id-1",
@@ -331,7 +332,7 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
             server.HeaderConfigurationKeys.Count.ShouldBe(2);
             server.HeaderConfigurationKeys["Authorization"].ShouldBe("Tracon:McpSecrets:GithubToken");
             server.HeaderConfigurationKeys["X-Api-Key"].ShouldBe("Tracon:McpSecrets:SearchKey");
-            server.Enabled.ShouldBeFalse();
+            server.Enabled.ShouldBeTrue();
             server.RequiresApproval.ShouldBeFalse();
             server.OAuthEnabled.ShouldBeTrue();
             server.OAuthClientId.ShouldBe("client-id-1");

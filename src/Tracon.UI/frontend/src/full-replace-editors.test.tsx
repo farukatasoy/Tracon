@@ -673,7 +673,8 @@ const ROUND_TRIPS: RoundTrip[] = [
  */
 const CREATE_ONLY: Record<string, string> = {
   'screens/mcp.tsx::/api/mcp-servers/{name}':
-    'The form only adds a server and starts empty; an absent `headers` keeps the stored value (K-870).',
+    'The form only adds a server and starts empty; an absent `headers` keeps the stored value (K-870), and a filled ' +
+    '`headerConfigurationKeys` carries the stored key names of a server saved under the same name (mcp.test.tsx).',
   'components/webhook-panel.tsx::/api/webhooks/{name}':
     'The form only adds a subscription and starts empty; an absent `headers` keeps the stored value (K-870).',
   'components/tenant-provider-panel.tsx::/api/tenants/{tenantId}/providers/{provider}':
