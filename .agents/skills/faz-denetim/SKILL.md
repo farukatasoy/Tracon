@@ -134,7 +134,7 @@ olarak açıktır; derleyici plan dışı public API'yi **uyarır**.
 - Yeni ekran metni `en.ts` **ve** `tr.ts`'de mi, gerçekten çevrilmiş mi?
 - Yeni HTTP ucu `.WithTags`/`.Produces` üstverisi taşıyor mu? (OpenAPI ve site oradan üretilir)
 - Kullanıcıya dönük davranış değiştiyse `docs-site/` güncellenmiş mi?
-- Fazın manuel kabul case'leri `docs/manuel-test/` içine eklenmiş mi?
+- Kodla tekrarlanan davranış otomatik testte mi? `🤖` case'ler koşulmuş mu? Her `👤` denenen aracı ve neden yetmediğini yazıyor mu? ([kabul basamakları](../../ortak/test-seviyeleri.md))
 
 **Tüketici doküman sözleşmesi.** Standart
 [`tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md`](../tuketici-dokuman-senkronu/resources/kalite-sozlesmesi.md)
@@ -170,7 +170,7 @@ Plan `> **Kademe:** hafif` diyorsa diff şunlardan birine dokunuyor mu?
 - **Geri dönüşü pahalı karar:** kalıcı biçim, varsayılan davranış, paket sınırı
 
 Dokunuyorsa 🔴: kademe `tam` olur ve tam zincirin eksikleri (devir teslim
-planı, manuel case, örnek uygulama koşumu) kapanır. Migration, public API'den
+planı, örnek uygulama koşumu) kapanır. Migration, public API'den
 silinen satır ve hedef framework değişikliğini **`faz-kapat` mekanik olarak
 denetler** — onları burada arama, diff'te görürsen yine de yaz.
 

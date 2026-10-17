@@ -17,8 +17,8 @@ risk sırasına dizer:
 dosyalarını tarar ve manuel-test setinde hiç anılmayan giriş noktalarını verir.
 
 Betik ikinci bir ölçüm daha taşır: **devir sınıfı** (Faz 180). Bir case ya bir
-teste devredilmiştir (`➜ CI:`), ya insan gerektirir (`👤`), ya da henüz
-yargılanmamıştır. Sayım tabansız da koşar; gösterdiği test artık yoksa
+teste devredilmiştir (`➜ CI:`), ya ajan koşar (`🤖`), ya insan gerektirir
+(`👤`, son çare), ya da henüz yargılanmamıştır. Sayım tabansız da koşar; gösterdiği test artık yoksa
 (`bayat işaret`) çıkış kodu `1` olur.
 
 Kullanım:
@@ -83,18 +83,21 @@ CASE_TABLO = re.compile(r"^\|\s*\d+\s*\|\s*`?(MT-[A-Z0-9]+-\d+)`?")
 
 # --- Devir işareti (Faz 180) -------------------------------------------------
 #
-# Bir case üç sınıftan birine düşer ve sınıfı spec satırında görünür olur.
-# Biçim `00-INDEKS.md` §9'da tarif edilir; burada YALNIZ tanınması gerekir.
+# Bir case dört sınıftan birine düşer ve sınıfı spec satırında görünür olur.
+# Biçim `00-INDEKS.md` §9'da, basamak kuralı `.agents/ortak/test-seviyeleri.md`
+# içinde tarif edilir; burada YALNIZ tanınması gerekir.
 #
 #   ➜ CI: `TestSınıfı.TestAdı`        — davranış otomatikleşti, kanıt CI'da
-#   👤 insan gerekir — <sebep>        — model kalitesi, görsel yargı, donanım
+#   🤖 ajan koşar — <araç>            — gerçek ortam ya da yargı; ajanın aracı yeter
+#   👤 insan gerekir — <denenen araç> — son çare; ajanın araçları yetmedi
 #   (işaret yok)                      — henüz yargılanmadı
 #
-# İkisi bir arada yazılırsa `➜ CI:` kazanır: kanıtın CI'da olduğunu söylemek
-# daha güçlü bir iddiadır ve doğrulanabilir (bayat işaret kırmızıdır), "insan
-# gerekir" ise doğrulanamaz.
+# Birden çoğu yazılırsa `➜ CI:` kazanır: kanıtın CI'da olduğunu söylemek daha
+# güçlü bir iddiadır ve doğrulanabilir (bayat işaret kırmızıdır). Ardından `👤`
+# gelir: bir adımı insan isteyen case insanın listesine girmelidir.
 DEVIR_CI = re.compile(r"➜\s*CI:(?P<hedefler>[^|\n]+)")
-DEVIR_MANUEL = re.compile(r"👤\s*insan gerekir\s*[—–-]\s*(?P<sebep>[^|\n]+)")
+DEVIR_INSAN = re.compile(r"👤\s*insan gerekir\s*[—–-]\s*(?P<sebep>[^|\n]+)")
+DEVIR_AJAN = re.compile(r"🤖\s*ajan koşar\s*[—–-]\s*(?P<arac>[^|\n]+)")
 CI_HEDEF = re.compile(r"`(?P<hedef>[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)`")
 
 # Devir işaretinin kendisi case'in DAVRANIŞINI anlatmaz, kanıtının nerede
@@ -271,7 +274,8 @@ def case_imzalari(metin: str) -> dict[str, str]:
 # --------------------------------------------------------------------------
 
 DEVREDILDI = "devredildi"
-MANUEL = "manuel"
+AJAN = "ajan"
+INSAN = "insan"
 ISARETSIZ = "işaretsiz"
 
 
@@ -280,7 +284,7 @@ def devir_sinifi(blok: CaseBloku) -> tuple[str, list[str]]:
 
     🚨 YALNIZ Devir hücresine bakar. Gövde metninde geçen bir `👤` cümlesi
     işaret değildir; sayılsaydı ön koşul metni sayımı kirletirdi (ölçüldü:
-    devredilmemiş dört ailede yedi sahte `manuel`).
+    devredilmemiş dört ailede yedi sahte `insan`).
     """
     govde = blok.devir
 
@@ -293,8 +297,10 @@ def devir_sinifi(blok: CaseBloku) -> tuple[str, list[str]]:
     # 🚨 `➜ CI:` yazıp hedefi backtick'e almamak SESSİZ bir kayıp olurdu: case
     # devredilmiş görünür, hiçbir hedef doğrulanmaz. İşaret varsa hedef de
     # olmalıdır; yoksa case işaretsiz sayılır ve sayıda görünür.
-    if DEVIR_MANUEL.search(govde):
-        return MANUEL, []
+    if DEVIR_INSAN.search(govde):
+        return INSAN, []
+    if DEVIR_AJAN.search(govde):
+        return AJAN, []
 
     return ISARETSIZ, []
 
@@ -504,7 +510,8 @@ class Aile:
     cozulemeyen: list[str]
     yeni_dosya: bool
     devredildi: list[str] = dataclasses.field(default_factory=list)
-    manuel: list[str] = dataclasses.field(default_factory=list)
+    ajan: list[str] = dataclasses.field(default_factory=list)
+    insan: list[str] = dataclasses.field(default_factory=list)
     isaretsiz: list[str] = dataclasses.field(default_factory=list)
     bayat_isaretler: list[tuple[str, str]] = dataclasses.field(default_factory=list)
 
@@ -519,7 +526,8 @@ class Aile:
         `toplam` taban turla karşılaştırmaya dayanır ve taban yoksa sıfırdır;
         devir raporu tabansız da koşar.
         """
-        return len(self.devredildi) + len(self.manuel) + len(self.isaretsiz)
+        return (len(self.devredildi) + len(self.ajan) + len(self.insan)
+                + len(self.isaretsiz))
 
     @property
     def risk(self) -> int:
@@ -556,7 +564,8 @@ def aileleri_olc(taban: str | None) -> list[Aile]:
         onceki = case_imzalari(onceki_metin) if onceki_metin else {}
 
         devredildi: list[str] = []
-        manuel: list[str] = []
+        ajan: list[str] = []
+        insan: list[str] = []
         isaretsiz: list[str] = []
         bayat: list[tuple[str, str]] = []
         for ad in sorted(bloklar):
@@ -564,8 +573,10 @@ def aileleri_olc(taban: str | None) -> list[Aile]:
             if sinif == DEVREDILDI:
                 devredildi.append(ad)
                 bayat.extend((ad, h) for h in hedefler if h not in envanter)
-            elif sinif == MANUEL:
-                manuel.append(ad)
+            elif sinif == AJAN:
+                ajan.append(ad)
+            elif sinif == INSAN:
+                insan.append(ad)
             else:
                 isaretsiz.append(ad)
 
@@ -589,7 +600,8 @@ def aileleri_olc(taban: str | None) -> list[Aile]:
             cozulemeyen=cozulemeyen,
             yeni_dosya=taban is not None and onceki_metin is None,
             devredildi=devredildi,
-            manuel=manuel,
+            ajan=ajan,
+            insan=insan,
             isaretsiz=isaretsiz,
             bayat_isaretler=bayat,
         ))
@@ -659,13 +671,15 @@ def bayat_isaretler(aileler: list[Aile]) -> list[tuple[str, str, str]]:
 def _devir_aciklamasi(aileler: list[Aile]) -> list[str]:
     """Devir sayımının üç sınıfı ve bayat işaret listesi."""
     devredildi = sum(len(a.devredildi) for a in aileler)
-    manuel = sum(len(a.manuel) for a in aileler)
+    ajan = sum(len(a.ajan) for a in aileler)
+    insan = sum(len(a.insan) for a in aileler)
     isaretsiz = sum(len(a.isaretsiz) for a in aileler)
     bayat = bayat_isaretler(aileler)
 
     s = [
         "**Devir sınıfları** (`00-INDEKS.md` §9): **devredildi** "
-        f"{devredildi} · **manuel** {manuel} · **işaretsiz** {isaretsiz}.",
+        f"{devredildi} · **ajan** {ajan} · **insan** {insan} · "
+        f"**işaretsiz** {isaretsiz}.",
         "",
         "`işaretsiz` bir kusur DEĞİLDİR — o case henüz yargılanmamıştır. Sayı",
         "bir kapı değil, bir dilim planlama girdisidir.",
@@ -702,11 +716,11 @@ def devir_raporu(aileler: list[Aile]) -> str:
     s.append("")
     s.append("## 1. Aile başına devir sınıfı")
     s.append("")
-    s.append("| # | Aile | case | devredildi | manuel | işaretsiz |")
-    s.append("|---|---|---|---|---|---|")
+    s.append("| # | Aile | case | devredildi | ajan | insan | işaretsiz |")
+    s.append("|---|---|---|---|---|---|---|")
     for a in sorted(aileler, key=lambda x: x.no):
         s.append(f"| {a.no} | `{a.dosya}` | {a.case_sayisi} | {len(a.devredildi)} | "
-                 f"{len(a.manuel)} | {len(a.isaretsiz)} |")
+                 f"{len(a.ajan)} | {len(a.insan)} | {len(a.isaretsiz)} |")
     s.append("")
     s.append("## 2. Toplam")
     s.append("")
@@ -752,13 +766,14 @@ def rapor(taban: str, baslik: str, aileler: list[Aile]) -> str:
     s.append("## 2. Aile ölçümü")
     s.append("")
     s.append("| # | Aile | case | yeni | değişti | sessiz | kod kayması | risk "
-             "| devredildi | manuel | işaretsiz |")
-    s.append("|---|---|---|---|---|---|---|---|---|---|---|")
+             "| devredildi | ajan | insan | işaretsiz |")
+    s.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for a in sorted(aileler, key=lambda x: x.no):
         isaret = " 🆕" if a.yeni_dosya else ""
         s.append(f"| {a.no} | `{a.dosya}`{isaret} | {a.toplam} | {len(a.yeni)} | "
                  f"{len(a.degisti)} | {len(a.sessiz)} | {a.kod_kaymasi} | {a.risk} | "
-                 f"{len(a.devredildi)} | {len(a.manuel)} | {len(a.isaretsiz)} |")
+                 f"{len(a.devredildi)} | {len(a.ajan)} | {len(a.insan)} | "
+                 f"{len(a.isaretsiz)} |")
     s.append("")
     s.append("🆕 = taban turda bu dosya yoktu.")
     s.append("")

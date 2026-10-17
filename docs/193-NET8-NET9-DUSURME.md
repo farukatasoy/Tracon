@@ -203,14 +203,14 @@ Değişecek dosyaların tam listesi § *193.2* tablosundadır.
 | Bir paket hâlâ `net8.0`/`net9.0` varlığı taşır (proje başına ezme) | Paket | `ReleaseArtifactTests` (XML dokümanı sayısı = TFM sayısı) + `.nupkg` içinde `lib/` yalnız `net10.0` |
 | Meta paket bağımlılık grubu eski TFM'leri taşır | Paket | meta `.nuspec` grupları yalnız `net10.0` — `ReleaseArtifactTests`'e iddia eklenir (bugün kapıda değil) |
 | Çıktı klasörü `release_net10.0` → `release` kayar; docfx ve `CapabilityExampleTests` bayat yolu okur | Birim + site | `CapabilityExampleTests` + docfx/site üretimi; çoğul öğe korunur |
-| `Tracon.Testing` `net10.0`'da TestHost'u çözemez | Paket | `Tracon.Package.Tests` tüketici restore'u + `24-TEST-PAKETI` case'i |
+| `Tracon.Testing` `net10.0`'da TestHost'u çözemez | Paket | `Tracon.Package.Tests` tüketici restore'u (eski case 4) |
 | `kapi.py` hâlâ 8/9 runtime ister ya da 3 bacak bekler | Birim (script) | `kapi_test.py` güncellenmiş iddialar; `--komutlari-bas` çıktısında `net8` yok |
 | CI 8/9 runtime kurar ya da Net8Consumer'ı arar | CI | `ci.yml` gözden geçirme + `dokuman-bakim.py --denetle` *CI tek derleme zinciri*; CI dalında koşum yeşil |
 | Site uyumluluk tablosu props ile çelişir | Site | `check-content.mjs` (props ↔ tablo) + `npm run build` |
 | `Microsoft.Bcl.Memory` pini yanlışlıkla kalkar, CVE geri gelir | Paket | `dotnet list package --vulnerable --include-transitive` boş |
 | "Modernizasyon" kalıcı biçimi değiştirir (checksum, kimlik) | Sözleşme | kapsam kuralı + mevcut migration checksum ve `TraconId` testleri değişmeden yeşil |
 | Doküman `net8`/`net9`'u bugünkü gerçek gibi yazar | Doküman | § *193.2* grep komutu yalnız izinli yerleri döndürür (arşiv, `CHANGELOG` geçmişi, `breaking_changes` fixture'ları, K-005 geçmiş kaydı) |
-| `net8.0` tüketicisi yeni sürümü restore etmeye çalışır | Manuel | case 1 — `NU1202` beklenir ve site bunu yazar |
+| `net8.0` tüketicisi yeni sürümü restore etmeye çalışır | Paket | `Tracon.Package.Tests` — `NU1202` beklenir ve site bunu yazar (eski case 1) |
 
 Beş soru: **iptal / eşzamanlılık / başka kiracı** — kod yolu değişmez ·
 **boş/aşırı girdi** — tek değerli TFM listesi (`kapi.py` ve `PackableProjects`
@@ -223,6 +223,14 @@ kontrolü tek TFM ile de anlamlı hata verir.
 
 > Kapanışta `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` ve
 > `24-TEST-PAKETI-VE-SABLON.md` içine eklenir. Numara kapanışta alınır.
+
+> **Plan notu (2026-10-17, kullanıcı onayı).** Plan onayından sonra kabul
+> kuralı değişti: kodla tekrarlanan davranış sete girmez, insan son çaredir
+> ([kabul basamakları](../.agents/ortak/test-seviyeleri.md)). Case 1–4 komutla
+> tekrarlanır. Onlar `tests/Tracon.Package.Tests` içine otomatik test olarak
+> yazılır (alt süreç `dotnet` restore · pack · run; `ConsumerRunTests` ve
+> `ReleaseArtifactTests` deseni) ve sete **girmez**. Aşağıdaki tablo bu testlerin
+> ölçütüdür. Case 5 aynen kalır. Bu fazda `🤖`/`👤` case yoktur.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -256,7 +264,7 @@ kontrolü tek TFM ile de anlamlı hata verir.
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
 - [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri eklendi; Net8Consumer case'leri emekliye ayrıldı; otomatikleştirilebilenler koşuldu
+- [ ] Case 1–4 `Tracon.Package.Tests` içinde otomatik test; Net8Consumer case'leri emekliye ayrıldı; sete yeni case girmedi (plan notu, 2026-10-17)
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
 - [ ] CI dalında bir tam koşum yeşil (Windows ayağı dahil) — dala push kullanıcı onayı ister

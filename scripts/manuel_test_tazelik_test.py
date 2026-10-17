@@ -101,17 +101,21 @@ CASE_DEVREDILDI = """### MT-API-001 — `POST /api/agents` yeni bir tanım oluş
 - `HTTP: 201`.
 """
 
-CASE_MANUEL = """### MT-API-040 — Gerçek bir sağlayıcı hatası gruplanarak görünür
+CASE_AJAN = """### MT-API-040 — Gerçek bir sağlayıcı hatası gruplanarak görünür
 
 | | |
 |---|---|
 | **Önem** | Yüksek |
 | **İlgili karar** | K-296 |
-| **Devir** | 👤 insan gerekir — gerçek sağlayıcı hesabı ister |
+| **Devir** | 🤖 ajan koşar — gerçek sağlayıcı anahtarı ortam değişkeninden |
 
 **Beklenen sonuç**
 - Dizide en az bir giriş vardır.
 """
+
+CASE_INSAN = CASE_AJAN.replace(
+    "🤖 ajan koşar — gerçek sağlayıcı anahtarı ortam değişkeninden",
+    "👤 insan gerekir — Playwright sahte ses cihazı denendi · kayıt boş")
 
 
 class DevirIsaretiTestleri(unittest.TestCase):
@@ -127,8 +131,21 @@ class DevirIsaretiTestleri(unittest.TestCase):
             hedefler,
             ["AgentCrudTests.Definition_is_created_and_appears_in_the_catalog"])
 
-    def test_insan_isareti_MANUEL_sayilir(self):
-        self.assertEqual(self._sinif(CASE_MANUEL), (tazelik.MANUEL, []))
+    def test_ajan_isareti_AJAN_sayilir(self):
+        self.assertEqual(self._sinif(CASE_AJAN), (tazelik.AJAN, []))
+
+    def test_insan_isareti_INSAN_sayilir(self):
+        self.assertEqual(self._sinif(CASE_INSAN), (tazelik.INSAN, []))
+
+    def test_ajan_ve_insan_birlikteyse_INSAN_kazanir(self):
+        # 🚨 Bir adımı insan isteyen case insanın eylem listesine girmelidir.
+        # Ajan kazansaydı o adım koşum planında hiç görünmez, tur "bitti"
+        # sayılırken bir insan adımı koşulmamış kalırdı.
+        ikisi = CASE_AJAN.replace(
+            "| **Devir** | 🤖 ajan koşar — gerçek sağlayıcı anahtarı ortam değişkeninden |",
+            "| **Devir** | 🤖 ajan koşar — adım 1 · 👤 insan gerekir — "
+            "sahte cihaz denendi · adım 2 boş |")
+        self.assertEqual(self._sinif(ikisi), (tazelik.INSAN, []))
 
     def test_isaretsiz_case_ISARETSIZ_sayilir(self):
         # 🚨 Negatif yön. Sınıflandırıcı fazla geniş olsaydı her case bir
@@ -179,7 +196,7 @@ class DevirIsaretiTestleri(unittest.TestCase):
 
     def test_govdedeki_insan_cumlesi_ISARET_SAYILMAZ(self):
         # 🚨 İşaretin TEK evi `Devir` satırı/sütunudur. Ön koşul metninde geçen
-        # bir `👤` cümlesi sayılsaydı, devredilmemiş dört aile sahte `manuel`
+        # bir `👤` cümlesi sayılsaydı, devredilmemiş dört aile sahte `insan`
         # üretirdi (ölçüldü: yedi case).
         metin = ("| # | Kod | Ön koşul |\n"
                  "|---|---|---|\n"
@@ -226,7 +243,7 @@ class BayatIsaretTestleri(unittest.TestCase):
         return tazelik.Aile(
             no="07", dosya="07-AILE.md", kod="API", fazlar="", yeni=[],
             degisti=[], sessiz=[], kod_kaymasi=0, yol_sayisi=1, cozulemeyen=[],
-            yeni_dosya=False, devredildi=["MT-API-013"], manuel=[],
+            yeni_dosya=False, devredildi=["MT-API-013"], ajan=[], insan=[],
             isaretsiz=[], bayat_isaretler=bayat)
 
     def test_bayat_isaret_KIRMIZI_doner(self):
@@ -253,7 +270,8 @@ class TabansizOlcumTestleri(unittest.TestCase):
         aileler = tazelik.aileleri_olc(None)
         yedi = next(a for a in aileler if a.no == "07")
         self.assertEqual(yedi.case_sayisi, len(yedi.devredildi)
-                         + len(yedi.manuel) + len(yedi.isaretsiz))
+                         + len(yedi.ajan) + len(yedi.insan)
+                         + len(yedi.isaretsiz))
         self.assertGreater(len(yedi.devredildi), 0)
 
 

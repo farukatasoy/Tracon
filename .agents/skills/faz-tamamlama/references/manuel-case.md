@@ -1,10 +1,12 @@
-# Ek — Manuel kabul case'lerini sete ekle
+# Ek — Kabul case'lerini sete ekle
 
-> `faz-tamamlama` Adım 3'ten açılır. **Tam kademede** her faz; **hafif
-> kademede** yalnız 👤 gerektiren davranış için.
+> `faz-tamamlama` Adım 3'ten açılır. Tetik: faz kodla tekrarlanamayan bir
+> davranış getirdi — `🤖` ya da son çare olarak `👤`
+> ([kabul basamakları](../../../ortak/test-seviyeleri.md)). İki kademede aynı.
 
-`docs/manuel-test/` yayın öncesi elle koşulan kabul setidir. Case'ler **alan
-dosyasına** eklenir, faz başına yeni dosya açılmaz:
+`docs/manuel-test/` yayın öncesi gerçek ortamda koşulan kabul setidir; case'i
+ajan koşar, insan son çaredir. Case'ler **alan dosyasına** eklenir, faz başına
+yeni dosya açılmaz:
 
 1. Fazın konusuna karşılık gelen dosyayı bul (`docs/manuel-test/<NN>-<ALAN>.md`)
 2. Case'leri o dosyanın biçimiyle ekle — mevcut numaralandırmayı sürdür
@@ -21,17 +23,20 @@ Her case dört alan taşır: **ön koşul · adımlar · beklenen sonuç · alan
 Beklenen sonuç ölçülebilir olmalıdır — "çalışır" değil, "`429` ve `Retry-After`
 başlığı döner".
 
-## Otomatikleştirilebilen case'i şimdi koş (tam kademe)
+## Kodla tekrarlanan davranış sete girmez (2026-10-17)
 
-Örnek uygulama zaten ayakta (Adım 2). `curl`/HTTP ile koşulabilen her case'i
-**şimdi koş** ve gerçek çıktıyı fazın DoD tablosuna yaz.
+Kodla tekrarlanan davranış otomatik teste yazılır; kabul case'i olarak
+**eklenmez**. Gerekçe: set 2.000 case'e ulaştı, yalnız 133'ü CI'ya
+devredilmişti ve tam bir tur üç gün sürüyordu (2026-10-17 ölçümü). Faz başına
+eklenen otomatikleştirilebilir case bu turu büyütüyor ama hiçbir kapı onu
+koşmuyordu.
 
-**Hafif kademede** bu case'ler manuel sete girmez: `curl`/HTTP ile koşulabilen
-davranış otomatik teste (fonksiyonel test) yazılır.
+Case'in `Devir` satırı sınıfını taşır (`00-INDEKS.md` §9):
 
-Fiziksel veya görsel eylem isteyen case (mikrofon, dosya yükleme, göz denetimi)
-her iki kademede de `👤 insan gerekir` diye işaretlenir. Bu işaret bir eksiklik
-değil, koşum planının girdisidir.
+- `🤖 ajan koşar — <araç>` — ajan case'i kapanışta **koşar** ve gerçek çıktıyı
+  DoD'ye yazar.
+- `👤 insan gerekir — <denenen araç> · <neden yetmedi>` — yalnız ajan
+  basamaktaki yolları denediyse. Denenen araç yazılmazsa denetçi bulgu yazar.
 
 > Tam set koşumu ayrı bir iştir — [`manuel-test-kosumu`](../../manuel-test-kosumu/SKILL.md)
 > skill'i yürütür ve sürüm öncesi yapılır. Bu ek yalnız **fazın kendi**

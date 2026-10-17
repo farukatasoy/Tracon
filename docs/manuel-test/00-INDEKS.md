@@ -1,6 +1,8 @@
 # Tracon — Manuel Kabul Testi İndeksi
 
-> Yayın öncesi elle koşulan kabul testi setinin giriş noktası. Ortam kurulumu,
+> Yayın öncesi gerçek ortamda koşulan kabul testi setinin giriş noktası. Case'i
+> ajan koşar; insan son çaredir
+> ([kabul basamakları](../../.agents/ortak/test-seviyeleri.md)). Ortam kurulumu,
 > ortak fixture verisi, reset yordamı, hata bildirim şablonu ve dosya durum
 > tablosu buradadır.
 >
@@ -398,6 +400,12 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 
 ### 7.2 Açık kalemler — 2026-09-16 turundan devreden
 
+> **2026-10-17 kuralı — insan son çaredir.** A, B, C ve E listelerindeki her
+> case ile aile tablosundaki `👤 görsel` ve `👤 dinleme` notları bir sonraki
+> turda önce ajan araçlarıyla denenir
+> ([kabul basamakları](../../.agents/ortak/test-seviyeleri.md)). Bir case ancak
+> denenen araç ve neden yetmediği yazılınca 👤 kalır.
+
 Tur kapandı: **1.813 case geçti**, 1 `Kaldı`, 19 `Atlandı`. Aşağıdaki **26**
 case koşulamadı ve gerekçesiyle devreder; ayrıca **8** case hiç kayıt bloğu
 almadı (E maddesi). Kaynak: turun kapanış kaydı,
@@ -525,14 +533,23 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > kısaltmaz; **hangi case'in artık elle koşulması gerekmediğini** tek bir
 > okunabilir işarete bağlar.
 
-Şablon uygulanınca her `MT-*` case'i üç sınıftan birine düşer ve sınıfı
+Şablon uygulanınca her `MT-*` case'i dört sınıftan birine düşer ve sınıfı
 **spec satırında görünür** olur:
 
 | Sınıf | İşaret | Kural |
 |---|---|---|
 | **Devredildi** | ➜ CI: `Sınıf.Test` | Davranış [test seviyeleri tablosuna](../../.agents/ortak/test-seviyeleri.md) göre **doğru seviyede** otomatikleşti. Bir case'in mevcut bir testi göstermesi de bu sınıftır — devir yeni test yazmayı gerektirmez |
-| **Manuel kalır** | `👤 insan gerekir — <sebep>` | Model kalitesi, görsel yargı, fiziksel ortam (ses cihazı, gerçek sağlayıcı hesabı). Sebep **tek cümle** |
+| **Ajan koşar** | `🤖 ajan koşar — <araç>` | Gerçek ortam ya da yargı ister ve ajanın aracı yeter: gerçek sağlayıcı, gerçek tarayıcı, görsel ya da model kalitesi yargısı. Araç **tek cümle** |
+| **İnsan gerekir** | `👤 insan gerekir — <denenen araç> · <neden yetmedi>` | **Son çare.** Ajan [kabul basamaklarındaki](../../.agents/ortak/test-seviyeleri.md) yolları denedi ve yetmedi. Sebep denenen aracı adlandırır |
 | **İşaretsiz** | (işaret yok) | Henüz yargılanmadı. Bir kusur değildir; dilim planlama girdisidir |
+
+İki işaret birlikte yazılırsa `➜ CI:` kazanır, sonra `👤` gelir: bir adımı
+insan isteyen case insanın listesine girmelidir.
+
+**Yeni case kuralı (2026-10-17, kullanıcı kararı).** Bir faz sete yalnız 🤖 ya
+da 👤 case ekler. Kodla tekrarlanabilir davranış otomatik teste yazılır ve sete
+hiç girmez — devredilecek case üretmek, devri baştan yapmaktan pahalıdır. 🤖
+case'i ekleyen faz onu kapanışta koşar.
 
 **Case spec'ten SİLİNMEZ.** Davranışın tanımı spec'te, kanıtı CI'da durur;
 işaret tek yönlü gösterir. Silmek, testin adı değiştiğinde davranışın tarifini

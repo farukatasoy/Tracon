@@ -14,8 +14,9 @@
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 >
 > **Devir satırı (Faz 180).** Her case'in üstbilgi tablosunda bir `Devir`
-> satırı vardır: `➜ CI:` o davranışın kanıtının hangi testte olduğunu,
-> `👤` ise neden elle koşulması gerektiğini söyler. Case **silinmez** —
+> satırı vardır: `➜ CI:` o davranışın kanıtının hangi testte olduğunu, `🤖`
+> ajanın hangi araçla koştuğunu, `👤` (son çare) ajanın neden yetmediğini
+> söyler. Case **silinmez** —
 > davranışın tarifi burada, kanıtı CI'da durur. Şablon:
 > [`00-INDEKS.md` §9](00-INDEKS.md#9-devir-şablonu--bir-casein-üç-olası-kaderi).
 
@@ -916,7 +917,7 @@ wait $PID1
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 44 |
 | **İlgili karar** | K-296 |
-| **Devir** | 👤 insan gerekir — sınıfın GERÇEK sağlayıcı istisnasıyla eşleşmesi (K-296) yalnız gerçek hesapla görülür; gruplamanın kendisi `StatsErrorEndpointTests`'tedir |
+| **Devir** | 🤖 ajan koşar — sınıfın GERÇEK sağlayıcı istisnasıyla eşleşmesi (K-296) yalnız gerçek hesapla görülür; ajan sağlayıcı anahtarını ortam değişkeninden alır; gruplamanın kendisi `StatsErrorEndpointTests`'tedir |
 
 Küçük ölçüde gerçek para harcar (istek reddedilir ama gönderilir).
 

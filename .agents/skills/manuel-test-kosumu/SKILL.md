@@ -5,10 +5,14 @@ description: Manuel kabul testi setinin (docs/manuel-test/) tam koşumunu ve ko�
 
 # Manuel Kabul Testi Koşumu
 
-`docs/manuel-test/` yayın öncesi **elle** koşulan kabul setidir. Otomatik
-testlerin yakalamadığı şeyi yakalar: gerçek sağlayıcı, gerçek tarayıcı, gerçek
-veritabanı, gerçek insan yolu. Sekiz fazda gerçek hatalar **yalnız** orada
-çıktı (K-166, K-167).
+`docs/manuel-test/` yayın öncesi **gerçek ortamda** koşulan kabul setidir.
+Otomatik testlerin yakalamadığı şeyi yakalar: gerçek sağlayıcı, gerçek
+tarayıcı, gerçek veritabanı, gerçek kullanıcı yolu. Sekiz fazda gerçek hatalar
+**yalnız** orada çıktı (K-166, K-167).
+
+Case'i **ajan koşar** ve bütün araçlarını kullanır; insan son çaredir
+([kabul basamakları](../../ortak/test-seviyeleri.md), kullanıcı kararı
+2026-10-17).
 
 Bu skill setin **tamamının** koşumunu yönetir. Tek bir fazın kendi case'lerini
 eklemek başka bir iştir — `faz-tamamlama` Adım 3.
@@ -84,8 +88,10 @@ serbesttir; anahtar hiçbir dosyaya, hiçbir loga yazılmaz.
 Ajan şu durumlarda **durur ve sorar** — varsayım yapmaz:
 
 1. Bir kimlik bilgisi yok ya da çalışmıyor (sağlayıcıdan `401`/`403`).
-2. Bir case fiziksel eylem ister: mikrofon, hoparlör, göz denetimi.
-   → Önce fiziksel eylem listesine ekle; oturum sonunda topluca sor.
+2. Bir case'i ajanın araçları koşamıyor — kabul basamaklarındaki yolların
+   hepsi denendi ve yetmedi. Görsel yargı, ses ve gerçek sağlayıcı bu sınıfta
+   **değildir**; onları ajan koşar.
+   → Önce insan eylem listesine ekle (§4.3); oturum sonunda topluca sor.
 3. Bir case paylaşılan bir kaynağı bozacak: container durdurma, küresel şablon
    kaydı, `tracon` şeması, repo'nun `NuGet.config` dosyası.
 4. Beklenen sonuç iki farklı biçimde okunabiliyor ve hangisinin doğru olduğu
@@ -143,7 +149,7 @@ flowchart TD
     B --> C["3. Serit ortamini kur, uygulamayi baslat, /health dogrula"]
     C --> D["4. Reset yordamini uygula"]
     D --> E["5. Case'leri SIRAYLA kos, her birini bitirince YAZ"]
-    E --> F["6. Kalan case'ler icin HATA kaydi + fiziksel eylem listesi"]
+    E --> F["6. Kalan case'ler icin HATA kaydi + insan eylem listesi"]
     F --> G["7. Commit + devir notu, dur"]
 ```
 
@@ -188,14 +194,15 @@ case'lerin `HATA-NNN` kayıtları (`00-INDEKS.md` hata şablonu). Hata numarası
 **şerit önekiyle** verilir (`HATA-S2-001`) — böylece şeritler aynı numarayı
 üretmez.
 
-### 4.3 Fiziksel eylem listesi
+### 4.3 İnsan eylem listesi
 
-Ajanın koşamadığı her case sonuç dosyasının sonuna yazılır:
+Ajanın araçlarıyla koşamadığı her case sonuç dosyasının sonuna yazılır. Satır
+denenen aracı adlandırır; adlandırmayan satır listeye girmez:
 
 ```markdown
-| Case | Neden | Kullanıcıdan istenen |
-|---|---|---|
-| MT-MM-091 | Hoparlör çıktısı | Üretilen `.mp3` dinlenir, ses anlaşılır mı? |
+| Case | Denenen araç | Neden yetmedi | Kullanıcıdan istenen |
+|---|---|---|---|
+| MT-UI-0NN | `browser_snapshot` + Guidepup | Bu makinede VoiceOver izni yok | VoiceOver ile sayfayı dolaş; başlık sırası okunuyor mu? |
 ```
 
 Bu case'ler `☑ Atlandı` **değil**, `☐ Beklemede` kalır — koşulmadılar.
@@ -214,7 +221,10 @@ Bu case'ler `☑ Atlandı` **değil**, `☐ Beklemede` kalır — koşulmadılar
 | Tema/dil geçişi arayüzden yapılır | Depoyu elle değiştirme; kullanıcı yolunu test ediyorsun. |
 | Site verisi temizleme | Yeni bağlam aç ya da `localStorage.clear()` + yenile. |
 
-Ekran okuyucu (VoiceOver) case'leri **kullanıcıya** gider — §4.3 tablosuna yazılır.
+Görsel yargı case'inde ekran görüntüsü kanıttır ve ajan onu kendisi yargılar;
+ölçütü `Gerçek sonuç`'a yazar. Ekran okuyucu case'inde önce erişilebilirlik
+ağacı (`browser_snapshot`) denetlenir; gerçek ekran okuyucu sesi gerekiyor ve
+araç yetmiyorsa case §4.3 tablosuna yazılır.
 
 ---
 

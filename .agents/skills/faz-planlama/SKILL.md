@@ -135,7 +135,6 @@ yanlış `hafif` pahalıdır.
 |---|---|---|
 | Şablon | [`resources/faz-plani-hafif.md`](resources/faz-plani-hafif.md) — tek sayfa | [`resources/faz-plani-sablonu.md`](resources/faz-plani-sablonu.md) |
 | Oturum | Plan, uygulama ve kapanış aynı oturumda olabilir; devir teslim kalitesi istenmez | Plan tek başına yeterli olmalı (bu skill'in amacı) |
-| Manuel case | Yalnız 👤 gerektiren davranış; gerisi otomatik test | `faz-tamamlama` ekine göre |
 | Bağımsız denetim | Aynen | Aynen |
 
 Küçük ve komşu kalemleri tek hafif fazda birleştir: her faz sabit bir kapanış
@@ -267,7 +266,7 @@ Her faz DoD'sinde şu **beş** satır her zaman bulunur:
 1. Dört doğrulama kapısı sıfır uyarı
 2. `samples/Tracon.Api` ile gerçek `run` — çıktı belgeye yazıldı
 3. `secret` taraması boş döndü
-4. Fazın manuel kabul case'leri `docs/manuel-test/<alan>` içine eklendi ve otomatikleştirilebilenler koşuldu
+4. Kodla tekrarlanan davranış otomatik testte; `🤖` case'ler `docs/manuel-test/<alan>` içinde ve koşuldu; `👤` yalnız ajanın araçları yetmediyse (yoksa "kabul case'i yok")
 5. `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 
 Gerekçe: birim testleri Faz 6, 12, 15, 16, 18, 20, 21 ve 28'de gerçek hataları

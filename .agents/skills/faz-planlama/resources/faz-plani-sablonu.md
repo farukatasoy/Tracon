@@ -29,7 +29,7 @@
 > **Public API:** <Büyümüyor · veya "büyüyor — `1.0.0` GA'dan (K-603) önce ucuz">
 > **Tüketici yüzeyi:** <Yok · veya site sayfaları: `concepts/runs.md`, `packages.md`, `ui.md` + ekran görüntüsü>
 > · <sevk edilen: Yok · veya XML `<example>`, `src/<Paket>/README.md`, `capabilities.md` satırı>
-> **Manuel test alanı:** <`docs/manuel-test/<NN>-<ALAN>.md` — case'ler oraya eklenir>
+> **Manuel test alanı:** <Yok · veya `docs/manuel-test/<NN>-<ALAN>.md` — `🤖`/`👤` case'ler>
 
 ---
 
@@ -143,9 +143,11 @@ bellek içi hem üç SQL sağlayıcısı üzerinde koşar.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta `docs/manuel-test/<NN>-<ALAN>.md` içine eklenecek case'lerin
-> taslağı. Otomatikleştirilebilenler kapanışta koşulur; fiziksel/görsel
-> olanlar `👤 insan gerekir` diye işaretlenir.
+> Yalnız kodla tekrarlanmayan davranış: `🤖` (ajan koşar — gerçek sağlayıcı,
+> gerçek tarayıcı, görsel ya da model yargısı) ya da son çare `👤`
+> ([kabul basamakları](../../../ortak/test-seviyeleri.md)). Kodla tekrarlanan
+> davranış "Hata Modları ve Testler" tablosuna otomatik test olarak yazılır.
+> Yoksa "kabul case'i yok".
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
 |---|---|---|---|
@@ -170,7 +172,7 @@ bellek içi hem üç SQL sağlayıcısı üzerinde koşar.
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
 - [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
 - [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/<NN>-<ALAN>.md` içine eklendi; otomatikleştirilebilenler koşuldu
+- [ ] `🤖` case'ler `docs/manuel-test/<NN>-<ALAN>.md` içinde ve koşuldu; `👤` yalnız araçlar yetmediyse (yoksa "kabul case'i yok"); gerisi otomatik testte
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
 - [ ] <site etkisi varsa> `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
 - [ ] <arayüze dokunulduysa> `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı

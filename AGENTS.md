@@ -116,7 +116,7 @@ elle yazılmaz (K-413); sıradaki boş numarayı da o yazar. Seçilmemiş kaleml
 [`docs/ADAYLAR.md`](docs/ADAYLAR.md) içindedir. Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üretir.
 
 Faz bittiğinde **`faz-denetim` ve `faz-tamamlama` uygulanır.** Atlanmaz; kapanış
-kodu, `docs/manuel-test/` kabul case'lerini ve `docs-site/`'ı birlikte kapsar.
+kodu, kabul case'lerini (`docs/manuel-test/`; insan son çaredir) ve `docs-site/`'ı birlikte kapsar.
 `✅ Tamamlandı` faz dokümanı kökte kalamaz; denetim bunu hata sayar.
 
 ---

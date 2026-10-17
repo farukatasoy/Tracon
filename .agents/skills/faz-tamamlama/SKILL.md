@@ -20,7 +20,6 @@ Faz dokümanının `> **Kademe:**` satırı söyler (`faz-planlama` belirler, 20
 | Adım | Hafif | Tam |
 |---|---|---|
 | 2 · Örnek uygulama | Yalnız çalışma anı kodu (`src/` altında `.cs`/`.ts`/`.tsx`) değiştiyse | Her zaman |
-| 3 · Manuel case | Yalnız 👤 gerektiren davranış; gerisi otomatik test | [Ek](references/manuel-case.md) |
 | 6 · Devir | Yalnız planlanmış bir sonraki faz varsa, kısa | Devir teslim kalitesi |
 | Geri kalan her adım | Aynen | Aynen |
 
@@ -103,11 +102,19 @@ ikisi de 383 testten geçmişti. Varsayılan **dışı** bir yapılandırmayla d
 
 ---
 
-## Adım 3 — Manuel kabul case'leri
+## Adım 3 — Kabul case'leri: insan son çaredir
 
-Tam kademede [`references/manuel-case.md`](references/manuel-case.md)'yi uygula.
-Hafif kademede yalnız 👤 gerektiren davranış case olur (aynı ek, aynı biçim);
-`curl`/HTTP ile koşulabilen her şey otomatik testtir. Case eklersen
+İki kademede de aynı kural (2026-10-17). Her davranış
+[kabul basamaklarının](../../ortak/test-seviyeleri.md) ilk yeterli olanına gider:
+
+1. **Kodla tekrarlanır** → otomatik test, doğru seviyede. Sete girmez.
+2. **Gerçek ortam ya da yargı ister** → `🤖` case. Onu **şimdi koş** (örnek
+   uygulama Adım 2'de ayakta): Playwright MCP, ekran görüntüsü yargısı, verilen
+   `secret` ile gerçek sağlayıcı. Gerçek çıktıyı DoD'ye yaz.
+3. **Ajanın araçları yetmedi** → `👤` case. Sebep denenen aracı adlandırır.
+   Oturum sonunda kullanıcıya topluca sor.
+
+Case eklersen [`references/manuel-case.md`](references/manuel-case.md)'yi uygula;
 `docs/manuel-test/00-INDEKS.md`'deki sayıyı güncelle — kapı sayar.
 
 ---

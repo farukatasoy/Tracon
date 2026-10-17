@@ -37,8 +37,9 @@
 | <davranış> | <Birim · Fonksiyonel · E2E> | <sınıf/yöntem> |
 
 Beş soru — bu faza dokunanı tek satırla yaz: iptal · eşzamanlılık · boş/aşırı
-girdi · başka kiracının kaydı · alt sistem hatası. 👤 gerektiren davranış varsa
-manuel case'i burada an; gerisi otomatik testtir.
+girdi · başka kiracının kaydı · alt sistem hatası. Kodla tekrarlanmayan
+davranış varsa `🤖` case'i burada an (`👤` son çaredir); gerisi otomatik testtir
+([kabul basamakları](../.agents/ortak/test-seviyeleri.md)).
 
 ## Açık Sorular
 
