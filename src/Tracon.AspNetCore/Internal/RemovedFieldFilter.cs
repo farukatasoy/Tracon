@@ -9,7 +9,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 System.Text.Json drops a field it does not know, without a word. A client
+/// System.Text.Json drops a field it does not know, without a word. A client
 /// written for the removed field would therefore save its record with
 /// the value silently gone, and learn about it from a runtime failure far from
 /// the cause (for a credential: a <c>401</c> on the first call). The filter turns that

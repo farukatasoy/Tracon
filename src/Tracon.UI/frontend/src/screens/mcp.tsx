@@ -77,14 +77,29 @@ function credentialSummary(server: McpServerDefinition): string | null {
  * `Authorization` entry of `headerConfigurationKeys`; an empty one sends NO
  * map at all, because an absent map keeps the stored one and `{}` would erase
  * it (K-870). With OAuth on the key is never sent: OAuth manages that header.
+ *
+ * A filled map REPLACES the stored one, and the form saves by name, so a name
+ * that already exists would lose its other credential headers. The stored map
+ * (the list carries it unmasked: it holds key names only) is therefore carried
+ * over, minus any `Authorization` entry in another letter case, which the server
+ * would refuse as a duplicate.
  */
-export function buildServerRequest(form: McpForm): McpServerRequest {
+export function buildServerRequest(
+  form: McpForm,
+  existing?: Pick<McpServerDefinition, 'headerConfigurationKeys'>,
+): McpServerRequest {
   const { name: _name, authorizationKey, ...body } = form;
   const key = authorizationKey.trim();
 
-  return key.length > 0 && body.oauthEnabled !== true
-    ? { ...body, headerConfigurationKeys: { Authorization: key } }
-    : body;
+  if (key.length === 0 || body.oauthEnabled === true) {
+    return body;
+  }
+
+  const kept = Object.entries(existing?.headerConfigurationKeys ?? {}).filter(
+    ([header]) => header.toLowerCase() !== 'authorization',
+  );
+
+  return { ...body, headerConfigurationKeys: { ...Object.fromEntries(kept), Authorization: key } };
 }
 
 /** A condition row as edited in the form; `value` stays raw text until submit. */
@@ -206,7 +221,10 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
       unwrap(
         client.PUT('/api/mcp-servers/{name}', {
           params: { path: { name: form.name } },
-          body: buildServerRequest(form),
+          body: buildServerRequest(
+            form,
+            servers.data?.find((server) => server.name === form.name),
+          ),
         }),
       ),
     onSuccess: () => {
