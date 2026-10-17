@@ -1062,12 +1062,13 @@ Kaynak: Faz 0 altyapı çalışması (2026-08-01). Ayrıntı: Faz 0, [`MIMARI.md
 Bir iş "kanıt yok → yapma" ile kapatıldığında (§1) veya kabul kuralına giren kalıcı bir tercih yapıldığında (§2) ilgili tabloya satır ekle:
 
 ```
-| <karar — ne yapılmadı/yapıldı> *(kategori: <değer>)* | YYYY-AA-GG | <gerekçe — hangi kanıt/ölçüm/kısıt> | <hangi koşul gerçekleşirse yeniden açılır> |
+| **K-NNN — <karar, ≤ 160 B>** *(kategori: <değer>)* | YYYY-AA-GG | Alternatif: <reddedilen seçenek> — <neden; hangi kanıt/ölçüm/kısıt> | <hangi koşul gerçekleşirse yeniden açılır> |
 ```
 
 
 Kurallar:
 - **Kabul kuralı (AGENTS.md):** §2'ye yalnız dört kategori girer. `K-855`'ten itibaren her §2 satırı başlığı kapatan `**`'den sonra `*(kategori: <değer>)*` taşır: `public-api` (bağımlılık uyumluluğu dahil) · `güvenlik` (kiracı sınırı dahil) · `kalıcı-veri` (migration dahil) · `geri-dönüşü-pahalı`; birden çoksa virgülle. `dokuman-bakim.py --denetle` zorlar; K-854 ve öncesi muaftır (K-767 emsali). §1 satırı etiket almaz.
+- **Alternatif şartı (2026-10-17, kullanıcı kararı):** `K-1024`'ten itibaren §2 satırı reddedilen bir seçeneği `Alternatif:` ile adıyla anar; başlık ≤ 160 B, satır ≤ 600 B. Alternatifsiz "ne yaptık" kaydı ve gerekçesi koddan okunan kayıt §2'ye girmez. `dokuman-bakim.py --denetle` zorlar; K-1023 ve öncesi muaftır.
 - Kategori dışı kayıt (kullanıcı kararı ve analyzer bastırması dahil) buraya yazılmaz; yeri `faz-tamamlama` Adım 8'dedir.
 - Gerekçesiz karar ekleme — "istemedik" yeterli değil; neden istenmediği yazılmalı.
 - Bir kalem yeniden açıldığında satırı silme; sonuna "**(yeniden açıldı: YYYY-AA-GG, sebep)**" ekle ve işi normal akışta planla.

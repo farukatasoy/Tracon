@@ -158,6 +158,12 @@ itibaren her §2 satırı `*(kategori: <değer>)*` taşır; eşik sabittir ve ge
 dönük doldurma yapılmaz (K-767 emsali). Kategori dışı kaydın yeri
 `faz-tamamlama` Adım 8'dedir.
 
+**2026-10-17 — ikinci daraltma.** Kategori de yetmedi: 2026-10 kararlarının
+108/141'i `public-api` etiketi taşıyordu ve son 72 kararın yalnız 7'si bir
+alternatif anıyordu. `K-1024`'ten itibaren `_sade_olmayan_karar_satirlari`
+`Alternatif:`, başlık ≤ 160 B ve satır ≤ 600 B ister. İndeksler satır numarası
+taşımaz; bir satır eklemek artık yalnız o satırı değiştirir.
+
 ### Süreç maliyeti — elle ölçülür, kapı değildir
 
 Kapının etkisini görmek için üç sayıyı ölç ve tabanla karşılaştır:

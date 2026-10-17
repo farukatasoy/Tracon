@@ -30,8 +30,8 @@ işi vardır, aradığın iş bu tablodadır:
 | Paketler ve kurulum | [README](README.md) |
 | Kullanıcıya dönük ürün metni | [docs-site/](docs-site/) — **İngilizce**, `docs/` ile karıştırma |
 
-**`KARARLAR.md` ve `arsiv/*` baştan sona okunmaz.** İndeksten satır numarasını al,
-`sed -n 'N,Np'` ile oku. Aramak okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/`.
+**`KARARLAR.md` ve `arsiv/*` baştan sona okunmaz.** Karar tek satırdır:
+`grep -n "K-059 —" docs/KARARLAR.md`. Aramak okumaktan ucuzdur: `grep -rn "AsyncLocal" docs/`.
 
 ---
 
@@ -86,14 +86,13 @@ fazdan sonra dokümanlar gözden geçirilir.
   hedef framework, güvenlik/kiracı sınırı ya da geri dönüşü pahalı karar varsa
   **tam** — plan devir teslim kalitesinde, ayrı sohbet onunla tek başına
   çalışabilmeli; yoksa **hafif** — tek sayfa plan, aynı oturum
-- Karar defterine yalnız public API/compatibility, güvenlik veya kiracı sınırı,
-  kalıcı veri/migration ya da geri dönüşü pahalı sistem kararı girer. Yerel
-  tercih faz dokümanında veya kod yorumunda kalır; `K-*` açılmaz. `K-855`'ten
-  itibaren her satır başlıktan sonra `*(kategori: <değer>)*` taşır — değer
-  `public-api` · `güvenlik` (kiracı sınırı dahil) · `kalıcı-veri` (migration
-  dahil) · `geri-dönüşü-pahalı`; `dokuman-bakim.py --denetle` zorlar. §1'deki
-  numarasız "reddedilen iş" satırları kategori almaz. Kategori dışı kaydın yeri:
-  `faz-tamamlama` Adım 8.
+- Karar defterine (`K-*`) yalnız dört kategoriden biri girer — `public-api` ·
+  `güvenlik` (kiracı sınırı dahil) · `kalıcı-veri` (migration dahil) ·
+  `geri-dönüşü-pahalı` — **ve** kayıt reddedilen bir alternatifi adıyla anar.
+  Alternatifsiz ya da gerekçesi koddan okunan kayıt `K-*` olmaz; commit mesajına
+  gider. Satır `*(kategori: <değer>)*` (`K-855`+) ve `Alternatif:` taşır; başlık
+  ≤ 160 B, satır ≤ 600 B (`K-1024`+). `dokuman-bakim.py --denetle` zorlar; §1'deki
+  numarasız "reddedilen iş" satırları muaftır. Ayrıntı: `faz-tamamlama` Adım 8.
 - Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır, `MEMORY.md`'ye değil
 - Birikimli anlatı `docs/arsiv/`'e gider — sıcak yol büyümezse her oturum ucuz başlar
 

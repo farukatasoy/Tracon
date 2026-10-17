@@ -40,8 +40,7 @@ Her faz dokümanı bir okuma listesi taşır. **O listeyi olduğu gibi izle**, f
 okuma. Listede `KARARLAR.md` kalemleri varsa tamamını değil, yalnız o kalemleri oku:
 
 ```bash
-grep -n "K-059" docs/KARARLAR.md
-sed -n '120,121p' docs/KARARLAR.md
+grep -n "K-059 —" docs/KARARLAR.md     # karar tek satırdır; satırın tamamı gelir
 ```
 
 Liste kapanmış bir fazın kaydına yolluyorsa yalnız **"Sonraki Faza Devir Notu"**

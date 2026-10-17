@@ -438,10 +438,14 @@ def _karar_basligi(satir: str) -> tuple[str, str] | None:
 def _kararlar_kalemleri() -> tuple[list, list]:
     kaynak = (ROOT / "docs" / "KARARLAR.md").read_text(encoding="utf-8")
     satirlar = kaynak.split("\n")
+    # Fence icindeki satir bir ORNEKTIR, karar degil: §3 sablonu
+    # `| **K-NNN — …**` gosterir ve indekse `K-NNN` diye giriyordu (2026-10-17).
+    # Soyma satir sayisini korur; konum soyulmus metinden, icerik orijinalden.
+    gercek = _fence_bloklarini_soy(kaynak).split("\n")
 
     kalemler = []
     for no, s in enumerate(satirlar, 1):
-        if not s.startswith("| **"):
+        if not s.startswith("| **") or not gercek[no - 1].startswith("| **"):
             continue
         bolunme = _karar_basligi(s)
         if bolunme is None:
@@ -584,6 +588,40 @@ def _kategorisiz_karar_satirlari(govde: list[tuple[int, str]]) -> list[str]:
     return bulgular
 
 
+# 2026-10-17 (kullanici karari): `K-*` yalniz reddedilen bir alternatifi ADIYLA
+# anan ve gerekcesi koddan/XML dokumanindan okunamayan karardir. Olculdu: son
+# 72 kararin yalniz 7'si bir alternatif aniyordu, gerisi "ne yaptik" kaydiydi ve
+# kod/diff onu zaten tasir. Baslik medyani 318 B'ye cikmisti (gecmis 133 B);
+# indeks satiri basligin kendisidir. Esik sabit bir numaradir -- geriye donuk
+# doldurma yapilmaz (K-767 emsali).
+SADELIK_ESIGI = 1024
+KARAR_BASLIK_SINIRI = 160
+KARAR_SATIR_SINIRI = 600
+
+
+def _sade_olmayan_karar_satirlari(govde: list[tuple[int, str]]) -> list[str]:
+    """`K-1024` ve sonrasi: baslik <= 160 B, satir <= 600 B, gerekce `Alternatif:` tasir."""
+    bulgular: list[str] = []
+    for no, s in govde:
+        m = re.match(r"\|\s*\*\*(K-(\d+))", s)
+        if not m or int(m.group(2)) < SADELIK_ESIGI:
+            continue
+        bolunme = _karar_basligi(s)
+        baslik = bolunme[0] if bolunme else ""
+        if len(baslik.encode()) > KARAR_BASLIK_SINIRI:
+            bulgular.append(f"KARARLAR.md:{no} {m.group(1)} başlığı {len(baslik.encode())} B — "
+                            f"sınır {KARAR_BASLIK_SINIRI}; ayrıntı gerekçeye, anlatı commit mesajına")
+        if len(s.encode()) > KARAR_SATIR_SINIRI:
+            bulgular.append(f"KARARLAR.md:{no} {m.group(1)} satırı {len(s.encode())} B — "
+                            f"sınır {KARAR_SATIR_SINIRI}; uzun anlatı kapanış commit mesajına")
+        hucreler = _hucreler(s)
+        if len(hucreler) < 4 or "Alternatif:" not in hucreler[2]:
+            bulgular.append(f"KARARLAR.md:{no} {m.group(1)} gerekçesi `Alternatif:` taşımıyor — "
+                            f"reddedilen seçeneği adıyla an; anılacak alternatif yoksa kayıt `K-*` "
+                            f"olmaz, commit mesajına gider (`faz-tamamlama` Adım 8)")
+    return bulgular
+
+
 def kararlar_denetle(kok: pathlib.Path = ROOT) -> tuple[int, list[str]]:
     """§2 karar tablosunun YAPISAL bütünlüğü: yinelenen numara · tabloyu kesen
     boş satır · sıra dışı numara · `K-855` ve sonrasında kategori etiketi.
@@ -623,6 +661,7 @@ def kararlar_denetle(kok: pathlib.Path = ROOT) -> tuple[int, list[str]]:
             bulgular.append(f"KARARLAR.md:{no} K-{b} sıra dışı — önceki K-{a}")
 
     bulgular.extend(_kategorisiz_karar_satirlari(govde))
+    bulgular.extend(_sade_olmayan_karar_satirlari(govde))
 
     # 🚨 Kesik baslik taramasi §2 ile SINIRLI DEGILDIR: uretec
     # (`_kararlar_kalemleri`) dosyanin TAMAMINDAKI her `| **` satirini indekse
@@ -636,12 +675,14 @@ def kararlar_denetle(kok: pathlib.Path = ROOT) -> tuple[int, list[str]]:
     return len(numaralar), bulgular
 
 
-def _kararlar_satiri(no: int, baslik: str, isaret: str) -> str:
+def _kararlar_satiri(baslik: str, isaret: str) -> str:
     num = baslik.split("—")[0].strip()
     geri = baslik.split("—", 1)[1].strip() if "—" in baslik else baslik
     sonek = f" {isaret}" if isaret else ""
-    # "L" onekiyle degil dogrudan satir numarasi: sed -n 'N,Np'ye kopyala-yapistir.
-    return f"| {num} | {no} | {geri}{sonek} |"
+    # 2026-10-17: satir numarasi TASINMAZ. KARARLAR.md'nin basina bir satir
+    # eklemek her numarayi kaydirip arsiv indeksinde ~1.900 satirlik diff
+    # uretiyordu; anahtar K-NNN'dir ve karar tek satirdir: `grep -n "K-059 —"`.
+    return f"| {num} | {geri}{sonek} |"
 
 
 def kararlar_indeksi_uret() -> str:
@@ -657,7 +698,7 @@ def kararlar_indeksi_uret() -> str:
         "> **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` ·"
         " üretim: `scripts/dokuman-bakim.py`",
         "",
-        "Bul: `grep -n 'K-059\\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`."
+        "Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`."
         " Tarih yok (K-214). Reddedilenler:"
         " [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)."
         f" En eski {len(kalici) - len(yeni)} karar:"
@@ -668,11 +709,11 @@ def kararlar_indeksi_uret() -> str:
         "",
         f"## En Yeni Kalıcı Kararlar ({len(yeni)} / {len(kalici)} kalem)",
         "",
-        "| K | Satır | Karar |",
-        "|---|---|---|",
+        "| K | Karar |",
+        "|---|---|",
     ]
-    for no, baslik, _tarih, isaret in yeni:
-        ç.append(_kararlar_satiri(no, baslik, isaret))
+    for _no, baslik, _tarih, isaret in yeni:
+        ç.append(_kararlar_satiri(baslik, isaret))
 
     ç.append("")
     return "\n".join(ç)
@@ -696,11 +737,11 @@ def kararlar_indeksi_arsiv_uret() -> str:
         "",
         f"## Arşivlenen Kararlar ({len(eski)} kalem)",
         "",
-        "| K | Satır | Karar |",
-        "|---|---|---|",
+        "| K | Karar |",
+        "|---|---|",
     ]
-    for no, baslik, _tarih, isaret in eski:
-        ç.append(_kararlar_satiri(no, baslik, isaret))
+    for _no, baslik, _tarih, isaret in eski:
+        ç.append(_kararlar_satiri(baslik, isaret))
 
     ç.append("")
     return "\n".join(ç)
@@ -721,17 +762,17 @@ def kararlar_reddedilen_uret() -> str:
         "Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).",
         "",
         "```bash",
-        "sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe",
+        "grep -n 'Blazor' docs/KARARLAR.md   # başlıktan bir sözcükle tam gerekçe",
         "```",
         "",
         f"## Reddedilen İşler ({len(reddedilen)} kalem)",
         "",
-        "| KARARLAR.md satırı | Karar |",
-        "|---|---|",
+        "| Karar |",
+        "|---|",
     ]
-    for no, baslik, _tarih, isaret in reddedilen:
+    for _no, baslik, _tarih, isaret in reddedilen:
         sonek = f" {isaret}" if isaret else ""
-        ç.append(f"| L{no} | {baslik}{sonek} |")
+        ç.append(f"| {baslik}{sonek} |")
 
     ç.append("")
     return "\n".join(ç)
@@ -3000,6 +3041,11 @@ def komut_karar_damit(a: argparse.Namespace) -> int:
     n = 0; kazanc = 0
     for i, satir in enumerate(satirlar):
         if not satir.startswith("| **K-"):
+            continue
+        # `K-1024`+ satirin boyunu kapi sinirlar (<= 600 B); damitma onu
+        # kisaltirsa `Alternatif:` gerekceden kopabilir ve kapi kirmizi olur.
+        no = re.match(r"\| \*\*K-(\d+)", satir)
+        if no and int(no.group(1)) >= SADELIK_ESIGI:
             continue
         yeni, tasinan, sebep = _karar_satiri_damit(satir, a.sinir)
         if sebep:

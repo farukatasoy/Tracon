@@ -2522,6 +2522,67 @@ class IsZamanSiniriTestleri(unittest.TestCase):
             self.assertEqual(1, dokuman_bakim.denetle())
 
 
+class KararSadeligiTestleri(unittest.TestCase):
+    """2026-10-17 (kullanıcı kararı): `K-1024`'ten itibaren karar satırı reddedilen
+    bir alternatifi `Alternatif:` ile anar; başlık ≤ 160 B, satır ≤ 600 B."""
+
+    @staticmethod
+    def _satir(no: int, baslik: str = "bir karar", gerekce: str = "Alternatif: X — çünkü Y") -> str:
+        return f"| **K-{no} — {baslik}** *(kategori: public-api)* | 2026-10-17 | {gerekce} | koşul |"
+
+    def test_sade_satir_gecer(self):
+        self.assertEqual([], dokuman_bakim._sade_olmayan_karar_satirlari([(1, self._satir(1024))]))
+
+    def test_alternatifsiz_satir_bulgudur(self):
+        bulgular = dokuman_bakim._sade_olmayan_karar_satirlari(
+            [(7, self._satir(1024, gerekce="yalnız ne yaptığımızı anlatır"))])
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("KARARLAR.md:7 K-1024", bulgular[0])
+        self.assertIn("Alternatif:", bulgular[0])
+
+    def test_baslikta_ya_da_kosulda_gecen_alternatif_sayilmaz(self):
+        satir = "| **K-1024 — Alternatif: X** *(kategori: public-api)* | 2026-10-17 | g | Alternatif: Y |"
+        self.assertEqual(1, len(dokuman_bakim._sade_olmayan_karar_satirlari([(1, satir)])))
+
+    def test_uzun_baslik_ve_uzun_satir_ayri_bulgulardir(self):
+        uzun = self._satir(1024, baslik="ş" * 90, gerekce="Alternatif: X — " + "y" * 600)
+        bulgular = dokuman_bakim._sade_olmayan_karar_satirlari([(1, uzun)])
+        self.assertEqual(2, len(bulgular), bulgular)
+        self.assertTrue(any("başlığı" in b for b in bulgular))
+        self.assertTrue(any("satırı" in b for b in bulgular))
+
+    def test_esik_ALTI_muaftir(self):
+        self.assertEqual([], dokuman_bakim._sade_olmayan_karar_satirlari(
+            [(1, self._satir(1023, gerekce="eski biçim"))]))
+
+    def test_kacisli_boru_gerekceyi_bolmez(self):
+        satir = self._satir(1024, gerekce="Alternatif: `a \\| b` — çünkü c")
+        self.assertEqual([], dokuman_bakim._sade_olmayan_karar_satirlari([(1, satir)]))
+
+    def test_GERCEK_defterde_bulgu_YOK(self):
+        _bas, govde = dokuman_bakim._kararlar_tablosu()
+        self.assertEqual([], dokuman_bakim._sade_olmayan_karar_satirlari(govde))
+
+
+class KararIndeksiTestleri(unittest.TestCase):
+    """2026-10-17: indeks satır numarası taşımaz; anahtar K-NNN'dir."""
+
+    def test_indeks_satiri_numarasizdir(self):
+        self.assertEqual(dokuman_bakim._kararlar_satiri("K-59 — Bir karar", "👤"),
+                         "| K-59 | Bir karar 👤 |")
+
+    def test_sablondaki_ornek_satir_indekse_girmez(self):
+        # §3 sablonu fence icinde `| **K-NNN — …**` gosterir; karar degildir.
+        for metin in (dokuman_bakim.kararlar_indeksi_uret(), dokuman_bakim.kararlar_indeksi_arsiv_uret()):
+            self.assertNotIn("K-NNN", metin)
+
+    def test_uretilen_indekslerde_satir_sutunu_YOK(self):
+        for metin in (dokuman_bakim.kararlar_indeksi_uret(), dokuman_bakim.kararlar_indeksi_arsiv_uret()):
+            self.assertIn("| K | Karar |", metin)
+            self.assertNotIn("| Satır |", metin)
+        self.assertNotRegex(dokuman_bakim.kararlar_reddedilen_uret(), r"(?m)^\| L\d+ \|")
+
+
 class KararKategorisiTestleri(unittest.TestCase):
     """AGENTS.md kabul kuralı: `K-*` yalnız dört kategoriden birine açılır.
 

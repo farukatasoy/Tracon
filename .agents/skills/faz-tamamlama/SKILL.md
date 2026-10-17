@@ -206,17 +206,20 @@ kaldı mı: `grep -rn "<KaldirilanTip>" docs/ README.md src/`.
 ## Adım 8 — Karar defterine yaz
 
 `docs/KARARLAR.md`'ye yalnız AGENTS.md **kabul kuralına** giren karar yazılır:
-public API/uyumluluk · güvenlik veya kiracı sınırı · kalıcı veri/migration ·
-geri dönüşü pahalı sistem kararı. Bölüm 1 reddedilen işlerdir (numarasız);
-Bölüm 2 kalıcı tercihlerdir:
+dört kategoriden biri (public API/uyumluluk · güvenlik veya kiracı sınırı ·
+kalıcı veri/migration · geri dönüşü pahalı) **ve** reddedilen bir alternatif.
+"Ne yaptık" kaydı `K-*` değildir — kod ve diff onu taşır; commit mesajına gider.
+Bölüm 1 reddedilen işlerdir (numarasız); Bölüm 2 kalıcı tercihlerdir:
 
 ```
-| **K-0NN — <karar>** *(kategori: <değer>)* | YYYY-AA-GG | <gerekçe: hangi kanıt, ölçüm veya kısıt> | <yeniden açılma koşulu> |
+| **K-0NN — <karar, ≤ 160 B>** *(kategori: <değer>)* | YYYY-AA-GG | Alternatif: <reddedilen seçenek> — <neden; ölçüm varsa sayı> | <yeniden açılma koşulu> |
 ```
 
 Değer: `public-api` · `güvenlik` · `kalıcı-veri` · `geri-dönüşü-pahalı`; birden
 çoksa virgülle ayır — başka sözcük kapıdan geçmez. Etiket başlığı kapatan
-`**`'den sonra gelir.
+`**`'den sonra gelir. `K-1024`'ten itibaren kapı üç şey ister (kullanıcı kararı,
+2026-10-17): başlık ≤ 160 B · satır ≤ 600 B · gerekçede `Alternatif:`. Uzun
+anlatı kapanış commit mesajına gider.
 
 **Dört kategoriye girmeyen kayıt `K-*` olmaz** — kullanıcı kararı da dahil:
 
