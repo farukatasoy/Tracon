@@ -68,21 +68,6 @@ public sealed record McpServerDefinition
     public McpTransportMode Transport { get; init; }
 
     /// <summary>
-    /// The configuration key the <c>Authorization</c> header's value is read
-    /// from. Example: <c>Tracon:McpSecrets:GithubToken</c>. If left empty, the
-    /// header is not sent. Deprecated: use <c>HeaderConfigurationKeys["Authorization"]</c>;
-    /// the field is removed in the first stable release.
-    /// </summary>
-    /// <remarks>
-    /// Superseded by <c>HeaderConfigurationKeys</c>, which covers every
-    /// credential header and not only <c>Authorization</c>. A record that
-    /// names <c>Authorization</c> in both fields is rejected on save. The
-    /// field is removed in the first stable release.
-    /// </remarks>
-    [Obsolete(ObsoleteMessages.AuthorizationConfigurationKey)]
-    public string? AuthorizationConfigurationKey { get; init; }
-
-    /// <summary>
     /// Extra request headers, sent as given with every request to the server.
     /// An HTTP response never returns a stored value: it carries every header
     /// name with the value <c>***</c>.
@@ -146,10 +131,8 @@ public sealed record McpServerDefinition
     public bool Enabled { get; init; } = true;
 
     /// <summary>
-    /// Whether OAuth authentication is on. When on, neither
-    /// <c>AuthorizationConfigurationKey</c> nor an <c>Authorization</c> entry in
-    /// <c>HeaderConfigurationKeys</c> may be set — both would try to
-    /// manage the <c>Authorization</c> header.
+    /// Whether OAuth authentication is on. When on, <c>HeaderConfigurationKeys</c>
+    /// may not name <c>Authorization</c> — both would try to manage that header.
     /// </summary>
     /// <remarks>
     /// <c>[JsonPropertyName]</c> is given DELIBERATELY: System.Text.Json's

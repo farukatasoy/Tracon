@@ -93,6 +93,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- **`McpServerDefinition.AuthorizationConfigurationKey` and `McpServerRequest.AuthorizationConfigurationKey`
+  are gone** (`authorizationConfigurationKey` on the wire; deprecated since `1.0.0-preview.3`). The
+  `Authorization` header is declared like any other credential header:
+  `HeaderConfigurationKeys["Authorization"]` (`headerConfigurationKeys` on the wire). Code that sets
+  or reads the member stops compiling. The same members leave the generated `Tracon.Client` types
+  `McpServerDefinition` and `McpServerRequest` and the `@tracon/client` schema, and the field leaves
+  both HTTP schemas. A third-party `IMcpServerStore` that persisted the field drops it and must keep
+  `HeaderConfigurationKeys` (the shipped `McpServerStoreContract` gains
+  `Every_field_of_a_server_survives_a_round_trip`). **`PUT /api/mcp-servers/{name}` refuses a body that
+  still carries `authorizationConfigurationKey`**, with any value and in any letter case, with `400`
+  (title `Removed field`) and a detail that names `headerConfigurationKeys["Authorization"]`. Without
+  the rule the field would be dropped silently and the first tool call would fail with `401`. Other
+  unknown fields are still ignored. The console form writes the key name into
+  `headerConfigurationKeys.Authorization`; an empty input sends no map, so a stored map is kept. The
+  migration (see Upgrading) moves the stored data first.
 - **Twelve interfaces and the 23 types that only they used are `internal`.** They are plumbing
   between Tracon's own packages. No guide, sample or contract suite asks a consumer to implement
   one, and the shipped implementations are the only ones. `IToolRegistry`, `IVoiceHealthCheck` and
@@ -168,6 +183,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the server's own refresher service, published by mistake as a schema. A call that passed
   `null` or nothing as the body drops the argument; `TraconRefreshMcpToolsAsync(cancellationToken)`
   sends the same request.
+
+### Upgrading from 1.0.0-preview.4
+
+- **Migrations.** PostgreSQL `0062`, SQL Server `0050` and SQLite `0049`
+  (`remove_authorization_configuration_key`). With `AutoApplyMigrations` (the default) they run at
+  startup. Each one moves the stored `authorization_configuration_key` of an MCP server into its
+  `header_configuration_keys` map as the `Authorization` entry, then drops the column. A row with
+  OAuth on, or whose map already names `Authorization` in any letter case, keeps its map: the
+  connection never read the old key there. An empty key moves nothing. Only the key **name** moves;
+  no secret value is stored or touched.
+- **The column is dropped in the same migration, so there is no way back.** A build from before the
+  migration cannot read the table. Back up the database before the first start on this version.
+- Every MCP connection reconnects once after the upgrade (its definition fingerprint changed).
+- A client that still sends `authorizationConfigurationKey` to `PUT /api/mcp-servers/{name}` gets
+  `400`; move the key name into `headerConfigurationKeys["Authorization"]` (see Removed).
 
 ### Fixed
 

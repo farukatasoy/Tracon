@@ -58,7 +58,10 @@ public sealed class TenantScopedConfigurationKeyTests
     {
         endpoint = "https://mcp.example.com/",
         transport = "StreamableHttp",
-        authorizationConfigurationKey = key,
+        headerConfigurationKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Authorization"] = key,
+        },
     };
 
     // ---- MCP servers -------------------------------------------------------------
@@ -79,7 +82,7 @@ public sealed class TenantScopedConfigurationKeyTests
 
         // The message is the upgrade path: it names the field and the
         // namespace the key has to move to.
-        body.ShouldContain("authorizationConfigurationKey");
+        body.ShouldContain("headerConfigurationKeys[Authorization]");
         body.ShouldContain("Tracon:McpSecrets:acme:");
     }
 

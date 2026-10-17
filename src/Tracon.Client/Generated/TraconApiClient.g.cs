@@ -14405,7 +14405,7 @@ namespace Tracon.Client.Generated
         /// Lists registered remote MCP servers.
         /// </summary>
         /// <remarks>
-        /// No credential value is stored: 'headerConfigurationKeys' (and the deprecated 'authorizationConfigurationKey') carry only the NAME of the configuration key each value is read from, and are returned as stored. Plain 'headers' are stored as sent and are returned with their NAMES only: every value is replaced with '***'.
+        /// No credential value is stored: 'headerConfigurationKeys' carries only the NAME of the configuration key each value is read from, and is returned as stored. Plain 'headers' are stored as sent and are returned with their NAMES only: every value is replaced with '***'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -14482,7 +14482,7 @@ namespace Tracon.Client.Generated
         /// Adds or updates a remote MCP server.
         /// </summary>
         /// <remarks>
-        /// SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default; saving 'requiresApproval: false' for a new server, for a server that required approval, or together with a new 'endpoint' also requires the 'SecurityAdmin' scope when the call uses an API key (403 otherwise). A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in '-key') is declared in 'headerConfigurationKeys' as the NAME of the configuration key its value is read from; the same header in plain 'headers' is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by '***', and a header whose value is '***' is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and 'Authorization' in 'headerConfigurationKeys' cannot be combined with 'authorizationConfigurationKey' or OAuth. 'headers' or 'headerConfigurationKeys' left out or null keeps the stored map; '{}' removes it. Every other field is replaced. Changing 'endpoint' without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.
+        /// SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default; saving 'requiresApproval: false' for a new server, for a server that required approval, or together with a new 'endpoint' also requires the 'SecurityAdmin' scope when the call uses an API key (403 otherwise). A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in '-key') is declared in 'headerConfigurationKeys' as the NAME of the configuration key its value is read from; the same header in plain 'headers' is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by '***', and a header whose value is '***' is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and 'Authorization' in 'headerConfigurationKeys' cannot be combined with OAuth. A body that carries the removed field 'authorizationConfigurationKey' is rejected with 400 that names 'headerConfigurationKeys' as its replacement. 'headers' or 'headerConfigurationKeys' left out or null keeps the stored map; '{}' removes it. Every other field is replaced. Changing 'endpoint' without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -22233,15 +22233,6 @@ namespace Tracon.Client.Generated
         public McpTransportMode Transport { get; set; } = default!;
 
         /// <summary>
-        /// The configuration key the `Authorization` header's value is read
-        /// <br/>from. Example: `Tracon:McpSecrets:GithubToken`. If left empty, the
-        /// <br/>header is not sent. Deprecated: use `HeaderConfigurationKeys["Authorization"]`;
-        /// <br/>the field is removed in the first stable release.
-        /// </summary>
-        [System.Text.Json.Serialization.JsonPropertyName("authorizationConfigurationKey")]
-        public string? AuthorizationConfigurationKey { get; set; } = default!;
-
-        /// <summary>
         /// Extra request headers, sent as given with every request to the server.
         /// <br/>An HTTP response never returns a stored value: it carries every header
         /// <br/>name with the value `***`.
@@ -22264,10 +22255,8 @@ namespace Tracon.Client.Generated
         public bool Enabled { get; set; } = default!;
 
         /// <summary>
-        /// Whether OAuth authentication is on. When on, neither
-        /// <br/>`AuthorizationConfigurationKey` nor an `Authorization` entry in
-        /// <br/>`HeaderConfigurationKeys` may be set — both would try to
-        /// <br/>manage the `Authorization` header.
+        /// Whether OAuth authentication is on. When on, `HeaderConfigurationKeys`
+        /// <br/>may not name `Authorization` — both would try to manage that header.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("oauthEnabled")]
         public bool OauthEnabled { get; set; } = default!;
@@ -22346,16 +22335,6 @@ namespace Tracon.Client.Generated
         public McpTransportMode Transport { get; set; } = default!;
 
         /// <summary>
-        /// Configuration key the `Authorization` header's value is read from.
-        /// <br/>Example: `Tracon:McpSecrets:GithubToken`. Deprecated: use
-        /// <br/>`headerConfigurationKeys["Authorization"]`; the field is removed in
-        /// <br/>the first stable release. Naming `Authorization` in both fields is rejected
-        /// <br/>with `400`.
-        /// </summary>
-        [System.Text.Json.Serialization.JsonPropertyName("authorizationConfigurationKey")]
-        public string? AuthorizationConfigurationKey { get; set; } = default!;
-
-        /// <summary>
         /// Extra request headers, sent as given with every request to the server.
         /// <br/>The values are stored as plain text, so a header whose name looks like
         /// <br/>a credential (`Authorization`, `X-Api-Key`, `Cookie`, any
@@ -22393,7 +22372,6 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Whether OAuth authentication is enabled. While on,
-        /// <br/>`AuthorizationConfigurationKey` must be empty and
         /// <br/>`HeaderConfigurationKeys` may not name `Authorization`.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("oauthEnabled")]

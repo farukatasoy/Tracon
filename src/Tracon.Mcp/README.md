@@ -57,8 +57,9 @@ than the default one names keys under `Tracon:McpSecrets:<tenant>:`.
 
 Plain `headers` are stored as sent, so a save rejects a header whose name
 looks like a credential (`Authorization`, `X-Api-Key`, `Cookie`, or any name
-ending in `-key`) with `400`. `authorizationConfigurationKey` still works but is
-deprecated and is removed in `1.0.0`; use `headerConfigurationKeys["Authorization"]`.
+ending in `-key`) with `400`. The `Authorization` header is declared the same way,
+as `headerConfigurationKeys["Authorization"]`; the older `authorizationConfigurationKey`
+field is removed, and a save that still sends it returns `400`.
 
 This way, the database backup, the audit trail, and the UI response never carry a secret.
 

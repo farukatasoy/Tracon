@@ -29,9 +29,17 @@ public sealed class McpTests(BrowserFixture browsers)
         await session.Page.GetByPlaceholder("https://mcp.example.com/mcp", new() { Exact = true })
             .FillAsync("https://mcp.sample.test/mcp");
 
+        // Phase 218: the key name travels as headerConfigurationKeys.Authorization
+        // (the separate field is gone from the API), and the list reads it back
+        // from the same map. A form that still sent the removed field would be
+        // refused with 400 and the row would never appear.
+        await session.Page.GetByPlaceholder("Tracon:McpSecrets:GithubToken", new() { Exact = true })
+            .FillAsync("Tracon:McpSecrets:SampleToken");
+
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 
         await Expect(session.Page.GetByText("sample").First).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("Tracon:McpSecrets:SampleToken", new() { Exact = true })).ToBeVisibleAsync();
 
         // The approval badge must appear: MCP tools require approval by default.
         await Expect(session.Page.GetByText("approval", new() { Exact = true }).First).ToBeVisibleAsync();

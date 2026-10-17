@@ -151,7 +151,7 @@ public sealed class UsageAnalyzerTests
                     TenantId = "default",
                     Name = "github",
                     Endpoint = new Uri("https://example.test/mcp"),
-                    AuthorizationConfigurationKey = "ghp_0123456789abcdef0123456789abcdef0123", // SYNTHETIC-CREDENTIAL
+                    OAuthClientSecretConfigurationKey = "ghp_0123456789abcdef0123456789abcdef0123", // SYNTHETIC-CREDENTIAL
                 };
             }
             """);
@@ -159,7 +159,7 @@ public sealed class UsageAnalyzerTests
         var reported = diagnostics.ShouldHaveSingleItem();
         reported.Id.ShouldBe("TRC0201");
         reported.Severity.ShouldBe(DiagnosticSeverity.Warning);
-        reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("McpServerDefinition.AuthorizationConfigurationKey");
+        reported.GetMessage(CultureInfo.InvariantCulture).ShouldContain("McpServerDefinition.OAuthClientSecretConfigurationKey");
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public sealed class UsageAnalyzerTests
                     TenantId = "default",
                     Name = "sk-test",
                     Endpoint = new Uri("https://example.test/mcp"),
-                    AuthorizationConfigurationKey = "Tracon:McpSecrets:GithubToken",
+                    OAuthClientSecretConfigurationKey = "Tracon:McpSecrets:GithubToken",
                 };
             }
             """;

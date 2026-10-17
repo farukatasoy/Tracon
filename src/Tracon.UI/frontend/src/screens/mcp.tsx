@@ -33,12 +33,20 @@ import type {
 } from '@tracon/client';
 import type { McpServerDefinition, ToolApprovalRule } from '../lib/server-types';
 
-const EMPTY_FORM: McpServerRequest & { name: string } = {
+/**
+ * The create form. `authorizationKey` is a form-only field: the name of the
+ * configuration key the `Authorization` header is read from. It is sent as
+ * `headerConfigurationKeys.Authorization`, never under its own name (see
+ * {@link buildServerRequest}).
+ */
+type McpForm = McpServerRequest & { name: string; authorizationKey: string };
+
+const EMPTY_FORM: McpForm = {
   name: '',
   description: '',
   endpoint: '',
   transport: 'StreamableHttp',
-  authorizationConfigurationKey: '',
+  authorizationKey: '',
   enabled: true,
   requiresApproval: true,
   oauthEnabled: false,
@@ -49,10 +57,9 @@ const EMPTY_FORM: McpServerRequest & { name: string } = {
 
 /**
  * What the list shows in the authentication column: the configuration key the
- * `Authorization` header is read from (the deprecated field or its
- * `headerConfigurationKeys` entry), else the names of the other headers read
- * from configuration. A server authenticated only by `X-Api-Key` would
- * otherwise show "none".
+ * `Authorization` header is read from (its `headerConfigurationKeys` entry),
+ * else the names of the other headers read from configuration. A server
+ * authenticated only by `X-Api-Key` would otherwise show "none".
  */
 function credentialSummary(server: McpServerDefinition): string | null {
   const keyed = Object.entries(server.headerConfigurationKeys);
@@ -62,11 +69,22 @@ function credentialSummary(server: McpServerDefinition): string | null {
     return authorization[1];
   }
 
-  if (server.authorizationConfigurationKey != null && server.authorizationConfigurationKey.length > 0) {
-    return server.authorizationConfigurationKey;
-  }
-
   return keyed.length > 0 ? keyed.map(([header]) => header).join(', ') : null;
+}
+
+/**
+ * The body of the save request. A filled `authorizationKey` becomes the
+ * `Authorization` entry of `headerConfigurationKeys`; an empty one sends NO
+ * map at all, because an absent map keeps the stored one and `{}` would erase
+ * it (K-870). With OAuth on the key is never sent: OAuth manages that header.
+ */
+export function buildServerRequest(form: McpForm): McpServerRequest {
+  const { name: _name, authorizationKey, ...body } = form;
+  const key = authorizationKey.trim();
+
+  return key.length > 0 && body.oauthEnabled !== true
+    ? { ...body, headerConfigurationKeys: { Authorization: key } }
+    : body;
 }
 
 /** A condition row as edited in the form; `value` stays raw text until submit. */
@@ -184,11 +202,13 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   };
 
   const save = useMutation({
-    mutationFn: () => {
-      const { name, ...body } = form;
-
-      return unwrap(client.PUT('/api/mcp-servers/{name}', { params: { path: { name } }, body }));
-    },
+    mutationFn: () =>
+      unwrap(
+        client.PUT('/api/mcp-servers/{name}', {
+          params: { path: { name: form.name } },
+          body: buildServerRequest(form),
+        }),
+      ),
     onSuccess: () => {
       setForm(EMPTY_FORM);
       setShowForm(false);
@@ -376,11 +396,9 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
               hint={t('mcp.authKeyHint')}
             >
               <TextInput
-                value={form.authorizationConfigurationKey ?? ''}
+                value={form.authorizationKey}
                 placeholder="Tracon:McpSecrets:GithubToken"
-                onChange={(event) =>
-                  setForm({ ...form, authorizationConfigurationKey: event.target.value })
-                }
+                onChange={(event) => setForm({ ...form, authorizationKey: event.target.value })}
               />
             </Field>
 
@@ -422,9 +440,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                       oauthEnabled: event.target.checked,
                       // Mutually exclusive with the static Authorization header —
                       // both would try to own the same header.
-                      authorizationConfigurationKey: event.target.checked
-                        ? ''
-                        : form.authorizationConfigurationKey,
+                      authorizationKey: event.target.checked ? '' : form.authorizationKey,
                     })
                   }
                 />

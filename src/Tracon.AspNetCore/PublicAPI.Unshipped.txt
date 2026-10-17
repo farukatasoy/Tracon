@@ -74,8 +74,6 @@ Tracon.HttpTenantContext
 Tracon.HttpTenantContext.TenantId.get -> string!
 Tracon.McpServerRequest
 Tracon.McpServerRequest.<Clone>$() -> Tracon.McpServerRequest!
-Tracon.McpServerRequest.AuthorizationConfigurationKey.get -> string?
-Tracon.McpServerRequest.AuthorizationConfigurationKey.init -> void
 Tracon.McpServerRequest.Description.get -> string?
 Tracon.McpServerRequest.Description.init -> void
 Tracon.McpServerRequest.Enabled.get -> bool

@@ -131,7 +131,10 @@ public sealed class GovernanceEndpointTests
             {
                 endpoint = "https://mcp.example.com/mcp",
                 transport = "StreamableHttp",
-                authorizationConfigurationKey = "Tracon:McpSecrets:GithubToken",
+                headerConfigurationKeys = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Authorization"] = "Tracon:McpSecrets:GithubToken",
+                },
                 enabled = true,
                 requiresApproval = true,
             });
@@ -147,6 +150,7 @@ public sealed class GovernanceEndpointTests
 
         server.Name.ShouldBe("github");
         server.RequiresApproval.ShouldBeTrue();
+        server.HeaderConfigurationKeys["Authorization"].ShouldBe("Tracon:McpSecrets:GithubToken");
     }
 
     [Fact]
@@ -168,7 +172,10 @@ public sealed class GovernanceEndpointTests
             new
             {
                 endpoint = "https://mcp.example.com/mcp",
-                authorizationConfigurationKey = "Tracon:McpSecrets:GithubToken",
+                headerConfigurationKeys = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Authorization"] = "Tracon:McpSecrets:GithubToken",
+                },
                 authorization = ValueThatMustNotLeak,
                 headers = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -400,7 +407,10 @@ public sealed class GovernanceEndpointTests
                 enabled = true,
                 oauthEnabled = true,
                 oauthClientId = "tracon-client",
-                authorizationConfigurationKey = "Tracon:McpSecrets:GithubToken",
+                headerConfigurationKeys = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Authorization"] = "Tracon:McpSecrets:GithubToken",
+                },
             });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

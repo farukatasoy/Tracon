@@ -26,6 +26,10 @@ public sealed class EgressGuardTests
 
     private static Uri McpServer(string name) => new($"/tracon/api/mcp-servers/{name}", UriKind.Relative);
 
+    /// <summary>A credential header map that names only the <c>Authorization</c> header's key.</summary>
+    private static Dictionary<string, string> Authorization(string key)
+        => new(StringComparer.OrdinalIgnoreCase) { ["Authorization"] = key };
+
     // ---- MCP server registration -------------------------------------------------
 
     [Theory]
@@ -90,7 +94,7 @@ public sealed class EgressGuardTests
             {
                 endpoint = "https://mcp.example.com/",
                 transport = "StreamableHttp",
-                authorizationConfigurationKey = key,
+                headerConfigurationKeys = Authorization(key),
             });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -98,7 +102,7 @@ public sealed class EgressGuardTests
         var body = await response.Content.ReadAsStringAsync();
 
         body.ShouldContain(new TraconMcpSecurityOptions().AllowedConfigurationPrefix);
-        body.ShouldContain("authorizationConfigurationKey");
+        body.ShouldContain("headerConfigurationKeys[Authorization]");
     }
 
     [Fact]
@@ -132,7 +136,7 @@ public sealed class EgressGuardTests
             {
                 endpoint = "https://mcp.example.com/",
                 transport = "StreamableHttp",
-                authorizationConfigurationKey = "Tracon:McpSecrets:GithubToken",
+                headerConfigurationKeys = Authorization("Tracon:McpSecrets:GithubToken"),
             });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -157,9 +161,7 @@ public sealed class EgressGuardTests
                 TenantId = "default",
                 Name = "legacy",
                 Endpoint = new Uri("https://mcp.example.com/"),
-#pragma warning disable CS0618 // A pre-existing row written through the deprecated field (phase 190).
-                AuthorizationConfigurationKey = "Tracon:Mcp:LegacyToken",
-#pragma warning restore CS0618
+                HeaderConfigurationKeys = Authorization("Tracon:Mcp:LegacyToken"),
             },
             CancellationToken.None);
 
@@ -175,11 +177,11 @@ public sealed class EgressGuardTests
             {
                 endpoint = "https://mcp.example.com/",
                 transport = "StreamableHttp",
-                authorizationConfigurationKey = "Tracon:Mcp:LegacyToken",
+                headerConfigurationKeys = Authorization("Tracon:Mcp:LegacyToken"),
             });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await response.Content.ReadAsStringAsync()).ShouldContain("authorizationConfigurationKey");
+        (await response.Content.ReadAsStringAsync()).ShouldContain("headerConfigurationKeys[Authorization]");
     }
 
     /// <summary>Another tenant's definition is judged by the same rule, not exempted.</summary>

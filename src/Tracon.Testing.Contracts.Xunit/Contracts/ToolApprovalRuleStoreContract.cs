@@ -284,11 +284,61 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
         loaded.Endpoint.ToString().ShouldBe("https://example.test/mcp");
         loaded.Enabled.ShouldBeTrue();
 
-        // The deprecated field keeps its column until 1.0.0; a store that
-        // stops persisting it breaks every server registered through it.
-#pragma warning disable CS0618 // AuthorizationConfigurationKey is obsolete but still stored.
-        loaded.AuthorizationConfigurationKey.ShouldBe("Tracon:McpSecrets:GithubToken");
-#pragma warning restore CS0618
+        // The Authorization header's key name travels in the map like any
+        // other credential header; a store that stops persisting it breaks
+        // every server whose only credential is a bearer token.
+        loaded.HeaderConfigurationKeys["Authorization"].ShouldBe("Tracon:McpSecrets:GithubToken");
+    }
+
+    [Fact]
+    public async Task Every_field_of_a_server_survives_a_round_trip()
+    {
+        // 🚨 The reader addresses the row by column POSITION. A column added or
+        // removed in one place only shifts every field after it and the row
+        // still reads: the wrong value lands in the wrong property. Each
+        // field gets a value no other field shares, and the SAVED record is
+        // checked as well as the one read back (SQL Server returns the row
+        // through its own OUTPUT list).
+        var written = Server("tenant-a", "full") with
+        {
+            Description = "Every field is set.",
+            Transport = McpTransportMode.Sse,
+            Headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Team"] = "platform" },
+            HeaderConfigurationKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Authorization"] = "Tracon:McpSecrets:GithubToken",
+                ["X-Api-Key"] = "Tracon:McpSecrets:SearchKey",
+            },
+            Enabled = false,
+            RequiresApproval = false,
+            OAuthEnabled = true,
+            OAuthClientId = "client-id-1",
+            OAuthClientSecretConfigurationKey = "Tracon:McpSecrets:ClientSecret",
+            OAuthScopes = "repo read:user",
+        };
+
+        var saved = await Store.SaveAsync(written);
+        var loaded = await Store.GetAsync("tenant-a", "full");
+
+        foreach (var server in new[] { saved, loaded.ShouldNotBeNull() })
+        {
+            server.TenantId.ShouldBe("tenant-a");
+            server.Name.ShouldBe("full");
+            server.Description.ShouldBe("Every field is set.");
+            server.Endpoint.ShouldBe(written.Endpoint);
+            server.Transport.ShouldBe(McpTransportMode.Sse);
+            server.Headers.ShouldBe(written.Headers);
+            server.HeaderConfigurationKeys.Count.ShouldBe(2);
+            server.HeaderConfigurationKeys["Authorization"].ShouldBe("Tracon:McpSecrets:GithubToken");
+            server.HeaderConfigurationKeys["X-Api-Key"].ShouldBe("Tracon:McpSecrets:SearchKey");
+            server.Enabled.ShouldBeFalse();
+            server.RequiresApproval.ShouldBeFalse();
+            server.OAuthEnabled.ShouldBeTrue();
+            server.OAuthClientId.ShouldBe("client-id-1");
+            server.OAuthClientSecretConfigurationKey.ShouldBe("Tracon:McpSecrets:ClientSecret");
+            server.OAuthScopes.ShouldBe("repo read:user");
+            server.OAuthAuthorizationMode.ShouldBe(McpOAuthAuthorizationMode.AuthorizationCode);
+        }
     }
 
     [Fact]
@@ -350,9 +400,10 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
             Name = name,
             Description = "Sample server.",
             Endpoint = new Uri("https://example.test/mcp"),
-#pragma warning disable CS0618 // AuthorizationConfigurationKey is obsolete but still stored.
-            AuthorizationConfigurationKey = "Tracon:McpSecrets:GithubToken",
-#pragma warning restore CS0618
+            HeaderConfigurationKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Authorization"] = "Tracon:McpSecrets:GithubToken",
+            },
             Enabled = true,
         };
 }

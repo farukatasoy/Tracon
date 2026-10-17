@@ -295,6 +295,7 @@ Tracon.Testing.Contracts.Storage.JobStoreContract.ReportItemAsync_is_idempotent(
 Tracon.Testing.Contracts.Storage.JobStoreContract.Retry_preserves_the_jobs_lane() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Deleting_a_nonexistent_record_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.McpServerStoreContract.Every_field_of_a_server_survives_a_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Header_configuration_keys_are_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.McpServerStoreContract() -> void
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Nonexistent_server_returns_null() -> System.Threading.Tasks.Task!

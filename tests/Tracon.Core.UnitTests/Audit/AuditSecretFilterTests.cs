@@ -114,7 +114,6 @@ public sealed class AuditSecretFilterTests
     /// removes the only useful thing in the record.
     /// </summary>
     [Theory]
-    [InlineData("authorizationConfigurationKey")]
     [InlineData("oauthClientSecretConfigurationKey")]
     [InlineData("secretConfigurationKey")]
     [InlineData("apiKeyConfigurationName")]

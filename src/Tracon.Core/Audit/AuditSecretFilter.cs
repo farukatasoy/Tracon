@@ -30,10 +30,10 @@ internal static class AuditSecretFilter
     /// "token" exception was held to. A configuration-key reference holds the
     /// NAME of a configuration entry and never its value, which is the rule
     /// the whole code base follows for secrets, so redacting it removes the
-    /// only useful thing in the record; five shipped properties
-    /// have this shape (AuthorizationConfigurationKey,
-    /// OAuthClientSecretConfigurationKey, SecretConfigurationKey,
-    /// ApiKeyConfigurationName, SigningSecretConfigurationName). A name ending
+    /// only useful thing in the record; four shipped properties
+    /// have this shape (OAuthClientSecretConfigurationKey,
+    /// SecretConfigurationKey, ApiKeyConfigurationName,
+    /// SigningSecretConfigurationName). A name ending
     /// in "mode" classifies a flow: an MCP server record redacted
     /// "oauthAuthorizationMode":"AuthorizationCode" and a reader could no
     /// longer tell which OAuth flow the server used.
@@ -133,7 +133,7 @@ internal static class AuditSecretFilter
     /// A null, a true or a false holds nothing to protect, and replacing it
     /// with "***" tells a reader that a secret is present where none is - the
     /// measured complaint was an audit record whose
-    /// "authorizationConfigurationKey":null read back as "***". A number stays
+    /// "oauthClientSecretConfigurationKey":null read back as "***". A number stays
     /// in scope on purpose: a one-time code is a number, and a name-based
     /// filter cannot tell one from a counter.
     /// </remarks>

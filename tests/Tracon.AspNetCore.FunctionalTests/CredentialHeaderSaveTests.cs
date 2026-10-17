@@ -202,16 +202,9 @@ public sealed class CredentialHeaderSaveTests
     }
 
     [Fact]
-    public async Task Authorization_from_both_fields_or_with_oauth_is_rejected()
+    public async Task Authorization_with_oauth_is_rejected()
     {
         await using var host = await TraconTestHost.StartAsync();
-
-        using var both = await host.Client.PutAsJsonAsync(Mcp, new
-        {
-            endpoint = "https://mcp.example.com/mcp",
-            authorizationConfigurationKey = "Tracon:McpSecrets:Legacy",
-            headerConfigurationKeys = new Dictionary<string, string>(StringComparer.Ordinal) { ["Authorization"] = "Tracon:McpSecrets:Bearer" },
-        });
 
         using var oauth = await host.Client.PutAsJsonAsync(new Uri("/tracon/api/mcp-servers/m2", UriKind.Relative), new
         {
@@ -221,17 +214,14 @@ public sealed class CredentialHeaderSaveTests
             headerConfigurationKeys = new Dictionary<string, string>(StringComparer.Ordinal) { ["authorization"] = "Tracon:McpSecrets:Bearer" },
         });
 
-        foreach (var response in new[] { both, oauth })
-        {
-            response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-            (await Detail(response)).ShouldContain("'headerConfigurationKeys' names 'Authorization'");
-        }
+        oauth.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await Detail(oauth)).ShouldContain("'headerConfigurationKeys' names 'Authorization'");
     }
 
     /// <summary>
-    /// The conflict is judged on what will be STORED: the form writes the
-    /// deprecated field and leaves the maps out, so the stored map with
-    /// <c>Authorization</c> is kept and would sit next to it.
+    /// The conflict is judged on what will be STORED: a save that turns OAuth
+    /// on and leaves the maps out keeps the stored map with
+    /// <c>Authorization</c>, and it would sit next to OAuth.
     /// </summary>
     [Fact]
     public async Task Authorization_conflict_counts_the_preserved_map()
@@ -248,11 +238,12 @@ public sealed class CredentialHeaderSaveTests
         using var form = await host.Client.PutAsJsonAsync(Mcp, new
         {
             endpoint = "https://mcp.example.com/mcp",
-            authorizationConfigurationKey = "Tracon:McpSecrets:Legacy",
+            oauthEnabled = true,
+            oauthClientId = "client",
         });
 
         form.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await Detail(form)).ShouldContain("authorizationConfigurationKey");
+        (await Detail(form)).ShouldContain("'headerConfigurationKeys' names 'Authorization'");
     }
 
     /// <summary>
@@ -297,20 +288,77 @@ public sealed class CredentialHeaderSaveTests
         accepted.StatusCode.ShouldBe(HttpStatusCode.OK, await accepted.Content.ReadAsStringAsync());
     }
 
-    [Fact]
-    public async Task The_deprecated_field_still_saves_and_reads_back()
+    /// <summary>
+    /// 🚨 Phase 218. System.Text.Json drops an unknown field without a word, so a
+    /// client written for the removed field would save a server with NO
+    /// credential and meet <c>401</c> on its first tool call. The save refuses
+    /// the field and names what replaces it. Case, value and an empty value do
+    /// not matter: a client that sends the field has not heard it is gone.
+    /// </summary>
+    [Theory]
+    [InlineData("""{"endpoint":"https://mcp.example.com/mcp","authorizationConfigurationKey":"Tracon:McpSecrets:Legacy"}""")]
+    [InlineData("""{"endpoint":"https://mcp.example.com/mcp","authorizationConfigurationKey":""}""")]
+    [InlineData("""{"endpoint":"https://mcp.example.com/mcp","authorizationConfigurationKey":null}""")]
+    [InlineData("""{"endpoint":"https://mcp.example.com/mcp","AuthorizationConfigurationKey":"Tracon:McpSecrets:Legacy"}""")]
+    [InlineData("""{"endpoint":"https://mcp.example.com/mcp","headerConfigurationKeys":{"X-Api-Key":"Tracon:McpSecrets:Key"},"authorizationConfigurationKey":"Tracon:McpSecrets:Legacy"}""")]
+    public async Task The_removed_field_is_rejected_and_the_detail_names_its_replacement(string json)
     {
         await using var host = await TraconTestHost.StartAsync();
 
-        using var saved = await host.Client.PutAsJsonAsync(Mcp, new
-        {
-            endpoint = "https://mcp.example.com/mcp",
-            authorizationConfigurationKey = "Tracon:McpSecrets:Legacy",
-        });
+        using var response = await PutRawAsync(host, Mcp, json);
 
-        saved.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await TraconTestHost.ReadJsonAsync(saved)).GetProperty("authorizationConfigurationKey").GetString()
-            .ShouldBe("Tracon:McpSecrets:Legacy");
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var problem = await TraconTestHost.ReadJsonAsync(response);
+
+        problem.GetProperty("title").GetString().ShouldBe("Removed field");
+        problem.GetProperty("detail").GetString().ShouldNotBeNull()
+            .ShouldContain("headerConfigurationKeys[\"Authorization\"]");
+
+        // Nothing was stored: the refusal comes before the save.
+        var listed = await host.Client.GetFromJsonAsync<List<McpServerDefinition>>(
+            new Uri("/tracon/api/mcp-servers", UriKind.Relative));
+
+        listed.ShouldNotBeNull().ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// The rule is for this one field. Every other unknown field is ignored as it
+    /// always was, a body without the field saves, and a body that is not JSON
+    /// still gets the binder's own answer.
+    /// </summary>
+    [Fact]
+    public async Task Only_the_removed_field_is_refused()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var unknown = await PutRawAsync(
+            host,
+            Mcp,
+            """{"endpoint":"https://mcp.example.com/mcp","somethingElse":1,"headerConfigurationKeys":{"Authorization":"Tracon:McpSecrets:Bearer"}}""");
+
+        unknown.StatusCode.ShouldBe(HttpStatusCode.OK, await unknown.Content.ReadAsStringAsync());
+
+        var saved = await TraconTestHost.ReadJsonAsync(unknown);
+
+        saved.TryGetProperty("authorizationConfigurationKey", out _).ShouldBeFalse();
+        saved.GetProperty("headerConfigurationKeys").GetProperty("Authorization").GetString()
+            .ShouldBe("Tracon:McpSecrets:Bearer");
+
+        // A header NAMED like the field is the header rules' business, not this one's.
+        using var nested = await PutRawAsync(
+            host,
+            Mcp,
+            """{"endpoint":"https://mcp.example.com/mcp","headers":{"authorizationConfigurationKey":"v"}}""");
+
+        nested.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        string.Equals((await TraconTestHost.ReadJsonAsync(nested)).GetProperty("title").GetString(), "Removed field", StringComparison.Ordinal)
+            .ShouldBeFalse();
+
+        using var malformed = await PutRawAsync(host, Mcp, "{ not json");
+
+        malformed.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await TraconTestHost.ReadJsonAsync(malformed)).GetProperty("title").GetString().ShouldBe("Invalid request body");
     }
 
     internal static object McpBody(

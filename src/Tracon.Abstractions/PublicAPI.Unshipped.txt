@@ -1701,8 +1701,6 @@ Tracon.McpOAuthAuthorizationMode
 Tracon.McpOAuthAuthorizationMode.AuthorizationCode = 0 -> Tracon.McpOAuthAuthorizationMode
 Tracon.McpServerDefinition
 Tracon.McpServerDefinition.<Clone>$() -> Tracon.McpServerDefinition!
-Tracon.McpServerDefinition.AuthorizationConfigurationKey.get -> string?
-Tracon.McpServerDefinition.AuthorizationConfigurationKey.init -> void
 Tracon.McpServerDefinition.CreatedAt.get -> System.DateTimeOffset
 Tracon.McpServerDefinition.CreatedAt.init -> void
 Tracon.McpServerDefinition.Description.get -> string?

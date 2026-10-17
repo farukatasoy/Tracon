@@ -148,16 +148,16 @@ public sealed class McpHeaderBuilderTests
         configuration.Reads.ShouldBeEmpty("no key may be read while any key of the record is outside its tenant");
     }
 
+    /// <summary>
+    /// The <c>Authorization</c> header travels in the map like any other
+    /// credential header: the field that carried it alone is gone (phase 218).
+    /// </summary>
     [Fact]
-    public void The_deprecated_field_still_resolves()
-    {
-#pragma warning disable CS0618 // The deprecated field is resolved until 1.0.0.
-        var server = Server() with { AuthorizationConfigurationKey = "Tracon:McpSecrets:Legacy" };
-#pragma warning restore CS0618
-
-        Build(server, configured: new Dictionary<string, string?>(StringComparer.Ordinal) { ["Tracon:McpSecrets:Legacy"] = "Bearer legacy" })
-            ["Authorization"].ShouldBe("Bearer legacy");
-    }
+    public void A_keyed_authorization_is_resolved_like_any_other_credential_header()
+        => Build(
+                Server(keys: new(StringComparer.Ordinal) { ["Authorization"] = "Tracon:McpSecrets:Bearer" }),
+                configured: new Dictionary<string, string?>(StringComparer.Ordinal) { ["Tracon:McpSecrets:Bearer"] = "Bearer resolved-218" })
+            ["Authorization"].ShouldBe("Bearer resolved-218");
 
     [Fact]
     public void The_fingerprint_carries_key_names_and_never_resolved_values()
@@ -170,6 +170,19 @@ public sealed class McpHeaderBuilderTests
         fingerprint.ShouldContain("X-Api-Key=Tracon:McpSecrets:SearchKey");
         fingerprint.ShouldNotContain(Value);
         string.Equals(McpConnection.ComputeFingerprint(renamed), fingerprint, StringComparison.Ordinal).ShouldBeFalse("a new key name must reconnect");
+    }
+
+    /// <summary>
+    /// A fingerprint that moved between two reads of the same definition would
+    /// tear the connection down on every refresh.
+    /// </summary>
+    [Fact]
+    public void The_fingerprint_is_stable_for_the_same_definition()
+    {
+        var first = Server(keys: new(StringComparer.Ordinal) { ["Authorization"] = "Tracon:McpSecrets:Bearer" });
+        var second = Server(keys: new(StringComparer.Ordinal) { ["Authorization"] = "Tracon:McpSecrets:Bearer" });
+
+        McpConnection.ComputeFingerprint(second).ShouldBe(McpConnection.ComputeFingerprint(first));
     }
 
     /// <summary>
