@@ -321,10 +321,11 @@ def find_secrets(root: pathlib.Path = ROOT) -> tuple[list[str], int]:
 def find_stale_doc_references(root: pathlib.Path = ROOT) -> list[str]:
     """Return `path:line:reference` records for `docs/` targets that do not exist.
 
-    Archiving a phase moves `docs/NN-AD.md` to `docs/arsiv/fazlar/NN-AD.md`.
-    `faz-arsivle` rewrites the links inside `docs/`; every reference OUTSIDE that
-    tree — a migration comment, an analyzer release note that SHIPS in the
-    package, a CI workflow — was left pointing at a path that no longer exists.
+    Closing a phase deletes `docs/NN-AD.md` (`dokuman-bakim.py faz-kapat`, which
+    also rewrites references to it); archiving used to move it. Either way every
+    reference OUTSIDE `docs/` — a migration comment, an analyzer release note
+    that SHIPS in the package, a CI workflow — could be left pointing at a path
+    that no longer exists.
     """
     found: list[str] = []
     for relative_root in DOC_REFERENCE_ROOTS:
@@ -1272,15 +1273,35 @@ def inner_loop_commands(paths: list[str]) -> list[Command]:
     return commands + [_dotnet_test_project(project) for project in projects]
 
 
+def generation_commands() -> list[Command]:
+    """Regenerate the committed generated files whose freshness CI checks.
+
+    Measured (October 2026): 11 of 42 red closing runs stopped at
+    `build-agent-map.mjs --check` - the map was edited around but never
+    regenerated. That is a forgetting class: a check can only report it, a
+    generator removes it. CI keeps checking the same files (`ci.yml` runs
+    `build-agent-map.mjs --check` and `dokuman-bakim.py --denetle`), so a
+    regenerated file that was never committed is still caught there.
+    """
+    return [
+        Command(("node", "docs-site/scripts/build-agent-map.mjs")),
+        Command(("python3", "scripts/dokuman-bakim.py", "--yalniz-uret")),
+    ]
+
+
 def closing_commands(base: str, *, site: bool = True, performance: bool = True) -> list[Command]:
+    # Cheapest first; the full test run (~9-12 min) is the most expensive step
+    # and runs LAST. Measured (October 2026): 11 of 42 red closing runs failed
+    # in a step that used to run AFTER the tests - docs-site check 6,
+    # `performans` 4, format 1 - about 144 minutes of test time thrown away.
+    # Generation runs first so every later check sees the regenerated files.
     commands = [
+        *generation_commands(),
         Command(("python3", "scripts/kapi.py", "tarama")),
         Command(("python3", "scripts/dokuman-bakim.py", "--denetle")),
         Command(("python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "*_test.py")),
-        Command(("node", "docs-site/scripts/build-agent-map.mjs", "--check")),
         Command(("python3", "scripts/denetim-paketi.py", "--taban", base)),
         Command(("dotnet", "build", "Tracon.slnx", "-c", "Release")),
-        full_solution_test_command(),
         # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
         # PACKAGING CONTRACT (README, icon, K-008) during iteration - it is not
         # a release candidate, so it must still work on an uncommitted tree.
@@ -1290,17 +1311,23 @@ def closing_commands(base: str, *, site: bool = True, performance: bool = True) 
         Command((
             "dotnet", "pack", "Tracon.slnx", "-c", "Release", "--no-build",
             "-p:TraconSkipCleanWorkingTreeCheck=true")),
-        # 🚨 NOT --no-restore: measured (2026-08-27) that dotnet format's
-        # restore-less MSBuildWorkspace load intermittently fails to resolve
-        # PackageReference types for every samples/*.Tests project (a
-        # floating-version, local-feed consumer of Tracon.* packages)
-        # specifically right after the full solution test run above -
-        # reproduced 3 times through this exact command chain, never in
-        # isolation. A plain restore immediately before format is a few
-        # seconds when nothing changed ("all projects are up-to-date") and
-        # reliably avoids the false failure.
-        Command(("dotnet", "format", "Tracon.slnx", "--verify-no-changes")),
     ]
+    # After the build: DocFX reads the XML documentation the build wrote. Before
+    # format and the tests: ~35 s and the most frequent late red (6 of 11).
+    # F-507 made `SourceLanguageTests` skip the gitignored trees the site build
+    # generates, so building the site first no longer changes a test result.
+    if site:
+        commands.append(Command(("npm", "run", "check"), ROOT / "docs-site"))
+    # 🚨 NOT --no-restore: measured (2026-08-27) that dotnet format's
+    # restore-less MSBuildWorkspace load intermittently fails to resolve
+    # PackageReference types for every samples/*.Tests project (a
+    # floating-version, local-feed consumer of Tracon.* packages)
+    # specifically right after the full solution test run (format then ran
+    # after it) - reproduced 3 times through that command chain, never in
+    # isolation. A plain restore immediately before format is a few
+    # seconds when nothing changed ("all projects are up-to-date") and
+    # reliably avoids the false failure.
+    commands.append(Command(("dotnet", "format", "Tracon.slnx", "--verify-no-changes")))
     # Path-triggered (116.4): a fifth ALWAYS-ON gate would run BenchmarkDotNet
     # on every phase closing, even when nothing near the three hot paths
     # changed. `kapi.py performans` stays a normal subcommand; `main()` decides
@@ -1308,8 +1335,7 @@ def closing_commands(base: str, *, site: bool = True, performance: bool = True) 
     # already scopes `ic-dongu`.
     if performance:
         commands.append(Command(("python3", "scripts/kapi.py", "performans")))
-    if site:
-        commands.append(Command(("npm", "run", "check"), ROOT / "docs-site"))
+    commands.append(full_solution_test_command())
     return commands
 
 
@@ -2486,6 +2512,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="stage")
 
     subparsers.add_parser("tarama", help="sync kopyası, secret, migration, bayat doküman ve kanıtsız public yüzey taraması")
+    subparsers.add_parser("uret", help="üretilen dosyaları yeniden üret: agent haritası + doküman indeksleri")
     ic_dongu = subparsers.add_parser("ic-dongu", help="build ve etkilenen test projeleri")
     ic_dongu.add_argument(
         "--taban", default="HEAD",
@@ -2539,6 +2566,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.stage == "tarama":
         return scan()
+    if args.stage == "uret":
+        return run_commands("uret", generation_commands(), dry_run=args.komutlari_bas)
     if args.stage == "kapasite":
         return capacity_measurement(args.profil, args.surum, pathlib.Path(args.cikti))
     if args.stage == "ic-dongu":
@@ -2619,7 +2648,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.komutlari_bas:
         return run_commands("kapanis", closing_commands("<taban>"), dry_run=True)
-    parser.error("bir aşama belirtin: tarama, ic-dongu, kapanis, performans, test, yayin, paketle veya paket-dogrula")
+    parser.error("bir aşama belirtin: tarama, uret, ic-dongu, kapanis, performans, test, yayin, paketle veya paket-dogrula")
     return 2
 
 
