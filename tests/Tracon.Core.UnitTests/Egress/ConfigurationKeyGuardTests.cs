@@ -8,7 +8,7 @@ public sealed class ConfigurationKeyGuardTests
 {
     private const string Prefix = "Tracon:McpSecrets:";
     private const string DefaultTenant = "default";
-    private const string Field = "authorizationConfigurationKey";
+    private const string Field = "headerConfigurationKeys[Authorization]";
 
     private static void Require(string? key, string tenant = DefaultTenant, string prefix = Prefix)
         => ConfigurationKeyGuard.RequireTenantKey(key, prefix, tenant, DefaultTenant, Field);

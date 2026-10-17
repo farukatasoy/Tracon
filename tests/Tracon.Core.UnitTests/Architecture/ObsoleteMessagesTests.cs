@@ -3,8 +3,9 @@ using System.Reflection;
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// No obsoletion carries a diagnostic identifier or a hand-written help address
-/// (phase 190).
+/// No obsoletion carries a diagnostic identifier (phase 190). Phase 218 removed
+/// the last <c>[Obsolete]</c> member, so the guard is empty today; it stays so
+/// the next deprecation meets the rule before a consumer does.
 /// </summary>
 public sealed class ObsoleteMessagesTests
 {
@@ -27,26 +28,5 @@ public sealed class ObsoleteMessagesTests
             .ToList();
 
         offenders.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void The_deprecated_field_carries_the_shared_message_and_address()
-    {
-        var obsolete = typeof(McpServerDefinition)
-            .GetProperty(nameof(McpServerDefinition.HeaderConfigurationKeys))
-            .ShouldNotBeNull();
-
-        obsolete.GetCustomAttribute<ObsoleteAttribute>().ShouldBeNull("the replacement is not deprecated");
-
-        var attribute = typeof(McpServerDefinition)
-            .GetProperty("AuthorizationConfigurationKey")
-            .ShouldNotBeNull()
-            .GetCustomAttribute<ObsoleteAttribute>()
-            .ShouldNotBeNull();
-
-        attribute.Message.ShouldBe(ObsoleteMessages.AuthorizationConfigurationKey);
-
-        // The site address is declared once for C# and this package cannot see it.
-        attribute.UrlFormat.ShouldBeNull();
     }
 }

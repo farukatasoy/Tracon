@@ -995,14 +995,13 @@ internal sealed class SqliteQueries : SqlQueriesBase
             INSERT INTO {Schema}mcp_servers ({McpServerColumns})
             VALUES
                 (@id, @tenant_id, @name, @description, @endpoint, @transport,
-                 @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now,
+                 @headers, @enabled, @requires_approval, @now, @now,
                  @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key, @oauth_scopes, @oauth_authorization_mode,
                  @header_configuration_keys)
             ON CONFLICT (tenant_id, name) DO UPDATE
                 SET description                          = excluded.description,
                     endpoint                              = excluded.endpoint,
                     transport                              = excluded.transport,
-                    authorization_configuration_key        = excluded.authorization_configuration_key,
                     headers                                = excluded.headers,
                     enabled                                = excluded.enabled,
                     requires_approval                      = excluded.requires_approval,

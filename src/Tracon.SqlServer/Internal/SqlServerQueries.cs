@@ -1141,7 +1141,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
 
         const string mcpServerOutput = """
             inserted.id, inserted.tenant_id, inserted.name, inserted.description, inserted.endpoint,
-            inserted.transport, inserted.authorization_configuration_key, inserted.headers,
+            inserted.transport, inserted.headers,
             inserted.enabled, inserted.requires_approval, inserted.created_at, inserted.updated_at,
             inserted.oauth_enabled, inserted.oauth_client_id,
             inserted.oauth_client_secret_configuration_key, inserted.oauth_scopes,
@@ -1153,7 +1153,6 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                SET description                           = @description,
                    endpoint                              = @endpoint,
                    transport                             = @transport,
-                   authorization_configuration_key       = @authorization_configuration_key,
                    headers                               = @headers,
                    enabled                               = @enabled,
                    requires_approval                     = @requires_approval,
@@ -1171,7 +1170,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             INSERT INTO {Schema}.mcp_servers ({McpServerColumns})
             OUTPUT {mcpServerOutput}
             VALUES (@id, @tenant_id, @name, @description, @endpoint, @transport,
-                    @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now,
+                    @headers, @enabled, @requires_approval, @now, @now,
                     @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key,
                     @oauth_scopes, @oauth_authorization_mode, @header_configuration_keys);
             """;

@@ -39,16 +39,6 @@ public sealed record McpServerRequest
     public McpTransportMode Transport { get; init; }
 
     /// <summary>
-    /// Configuration key the <c>Authorization</c> header's value is read from.
-    /// Example: <c>Tracon:McpSecrets:GithubToken</c>. Deprecated: use
-    /// <c>headerConfigurationKeys["Authorization"]</c>; the field is removed in
-    /// the first stable release. Naming <c>Authorization</c> in both fields is rejected
-    /// with <c>400</c>.
-    /// </summary>
-    [Obsolete(ObsoleteMessages.AuthorizationConfigurationKey)]
-    public string? AuthorizationConfigurationKey { get; init; }
-
-    /// <summary>
     /// Extra request headers, sent as given with every request to the server.
     /// The values are stored as plain text, so a header whose name looks like
     /// a credential (<c>Authorization</c>, <c>X-Api-Key</c>, <c>Cookie</c>, any
@@ -78,7 +68,6 @@ public sealed record McpServerRequest
 
     /// <summary>
     /// Whether OAuth authentication is enabled. While on,
-    /// <c>AuthorizationConfigurationKey</c> must be empty and
     /// <c>HeaderConfigurationKeys</c> may not name <c>Authorization</c>.
     /// </summary>
     /// <remarks>

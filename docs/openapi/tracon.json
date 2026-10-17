@@ -6590,7 +6590,7 @@
           "Governance"
         ],
         "summary": "Lists registered remote MCP servers.",
-        "description": "No credential value is stored: \u0027headerConfigurationKeys\u0027 (and the deprecated \u0027authorizationConfigurationKey\u0027) carry only the NAME of the configuration key each value is read from, and are returned as stored. Plain \u0027headers\u0027 are stored as sent and are returned with their NAMES only: every value is replaced with \u0027***\u0027.",
+        "description": "No credential value is stored: \u0027headerConfigurationKeys\u0027 carries only the NAME of the configuration key each value is read from, and is returned as stored. Plain \u0027headers\u0027 are stored as sent and are returned with their NAMES only: every value is replaced with \u0027***\u0027.",
         "operationId": "TraconListMcpServers",
         "responses": {
           "200": {
@@ -6616,7 +6616,7 @@
           "Governance"
         ],
         "summary": "Adds or updates a remote MCP server.",
-        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default; saving \u0027requiresApproval: false\u0027 for a new server, for a server that required approval, or together with a new \u0027endpoint\u0027 also requires the \u0027SecurityAdmin\u0027 scope when the call uses an API key (403 otherwise). A configuration key name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in \u0027-key\u0027) is declared in \u0027headerConfigurationKeys\u0027 as the NAME of the configuration key its value is read from; the same header in plain \u0027headers\u0027 is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by \u0027***\u0027, and a header whose value is \u0027***\u0027 is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and \u0027Authorization\u0027 in \u0027headerConfigurationKeys\u0027 cannot be combined with \u0027authorizationConfigurationKey\u0027 or OAuth. \u0027headers\u0027 or \u0027headerConfigurationKeys\u0027 left out or null keeps the stored map; \u0027{}\u0027 removes it. Every other field is replaced. Changing \u0027endpoint\u0027 without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.",
+        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default; saving \u0027requiresApproval: false\u0027 for a new server, for a server that required approval, or together with a new \u0027endpoint\u0027 also requires the \u0027SecurityAdmin\u0027 scope when the call uses an API key (403 otherwise). A configuration key name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in \u0027-key\u0027) is declared in \u0027headerConfigurationKeys\u0027 as the NAME of the configuration key its value is read from; the same header in plain \u0027headers\u0027 is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by \u0027***\u0027, and a header whose value is \u0027***\u0027 is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and \u0027Authorization\u0027 in \u0027headerConfigurationKeys\u0027 cannot be combined with OAuth. A body that carries the removed field \u0027authorizationConfigurationKey\u0027 is rejected with 400 that names \u0027headerConfigurationKeys\u0027 as its replacement. \u0027headers\u0027 or \u0027headerConfigurationKeys\u0027 left out or null keeps the stored map; \u0027{}\u0027 removes it. Every other field is replaced. Changing \u0027endpoint\u0027 without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.",
         "operationId": "TraconSaveMcpServer",
         "parameters": [
           {
@@ -13162,13 +13162,6 @@
             "description": "The transport format.",
             "$ref": "#/components/schemas/McpTransportMode"
           },
-          "authorizationConfigurationKey": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The configuration key the \u0060Authorization\u0060 header\u0027s value is read\nfrom. Example: \u0060Tracon:McpSecrets:GithubToken\u0060. If left empty, the\nheader is not sent. Deprecated: use \u0060HeaderConfigurationKeys[\u0022Authorization\u0022]\u0060;\nthe field is removed in the first stable release."
-          },
           "headers": {
             "type": "object",
             "additionalProperties": {
@@ -13192,7 +13185,7 @@
           },
           "oauthEnabled": {
             "type": "boolean",
-            "description": "Whether OAuth authentication is on. When on, neither\n\u0060AuthorizationConfigurationKey\u0060 nor an \u0060Authorization\u0060 entry in\n\u0060HeaderConfigurationKeys\u0060 may be set \u2014 both would try to\nmanage the \u0060Authorization\u0060 header."
+            "description": "Whether OAuth authentication is on. When on, \u0060HeaderConfigurationKeys\u0060\nmay not name \u0060Authorization\u0060 \u2014 both would try to manage that header."
           },
           "oauthClientId": {
             "type": [
@@ -13257,13 +13250,6 @@
             "description": "Transport mode.",
             "$ref": "#/components/schemas/McpTransportMode"
           },
-          "authorizationConfigurationKey": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Configuration key the \u0060Authorization\u0060 header\u0027s value is read from.\nExample: \u0060Tracon:McpSecrets:GithubToken\u0060. Deprecated: use\n\u0060headerConfigurationKeys[\u0022Authorization\u0022]\u0060; the field is removed in\nthe first stable release. Naming \u0060Authorization\u0060 in both fields is rejected\nwith \u0060400\u0060."
-          },
           "headers": {
             "type": [
               "null",
@@ -13294,7 +13280,7 @@
           },
           "oauthEnabled": {
             "type": "boolean",
-            "description": "Whether OAuth authentication is enabled. While on,\n\u0060AuthorizationConfigurationKey\u0060 must be empty and\n\u0060HeaderConfigurationKeys\u0060 may not name \u0060Authorization\u0060."
+            "description": "Whether OAuth authentication is enabled. While on,\n\u0060HeaderConfigurationKeys\u0060 may not name \u0060Authorization\u0060."
           },
           "oauthClientId": {
             "type": [

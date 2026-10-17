@@ -225,9 +225,8 @@ internal static class GovernanceEndpoints
             .WithTags("Tracon", "Governance")
             .WithSummary("Lists registered remote MCP servers.")
             .WithDescription(
-                "No credential value is stored: 'headerConfigurationKeys' (and the deprecated " +
-                "'authorizationConfigurationKey') carry only the NAME of the configuration key " +
-                "each value is read from, and are returned as stored. Plain 'headers' are stored " +
+                "No credential value is stored: 'headerConfigurationKeys' carries only the NAME of " +
+                "the configuration key each value is read from, and is returned as stored. Plain 'headers' are stored " +
                 "as sent and are returned with their NAMES only: every value is replaced with '***'.");
 
         builder.MapPut("/api/mcp-servers/{name}", async Task<Results<Ok<McpServerDefinition>, ProblemHttpResult>> (
@@ -307,9 +306,6 @@ internal static class GovernanceEndpoints
                         Description = request.Description,
                         Endpoint = endpoint,
                         Transport = request.Transport,
-#pragma warning disable CS0618 // The deprecated field is still accepted and stored until 1.0.0 (phase 190).
-                        AuthorizationConfigurationKey = request.AuthorizationConfigurationKey,
-#pragma warning restore CS0618
                         Headers = headers,
                         HeaderConfigurationKeys = CredentialHeaderSaveRules.Copy(headerKeys, StringComparer.OrdinalIgnoreCase),
                         Enabled = request.Enabled,
@@ -326,6 +322,7 @@ internal static class GovernanceEndpoints
             })
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
+            .AddEndpointFilter(new RemovedFieldFilter("authorizationConfigurationKey", "headerConfigurationKeys[\"Authorization\"]"))
             .WithName("TraconSaveMcpServer")
             .WithTags("Tracon", "Governance")
             .WithSummary("Adds or updates a remote MCP server.")
@@ -347,8 +344,9 @@ internal static class GovernanceEndpoints
                 "value: the saved record comes back with every one replaced by '***', and a " +
                 "header whose value is '***' is rejected with 400. A header name may appear only " +
                 "once across both maps (case-insensitive, 400 otherwise), and 'Authorization' in " +
-                "'headerConfigurationKeys' cannot be combined with 'authorizationConfigurationKey' " +
-                "or OAuth. 'headers' or 'headerConfigurationKeys' left out or null keeps the stored " +
+                "'headerConfigurationKeys' cannot be combined with OAuth. A body that carries the " +
+                "removed field 'authorizationConfigurationKey' is rejected with 400 that names " +
+                "'headerConfigurationKeys' as its replacement. 'headers' or 'headerConfigurationKeys' left out or null keeps the stored " +
                 "map; '{}' removes it. Every other field is replaced. Changing 'endpoint' without " +
                 "sending the maps keeps them, so the stored headers and the resolved credential " +
                 "values go to the NEW address.");
@@ -889,10 +887,9 @@ internal static class GovernanceEndpoints
 
     /// <summary>Applies the shared header rules and the Authorization conflict rule to an MCP save.</summary>
     /// <remarks>
-    /// The conflict is judged on the EFFECTIVE map: a form that writes
-    /// <c>authorizationConfigurationKey</c> while the stored record names
-    /// <c>Authorization</c> in <c>headerConfigurationKeys</c> would otherwise
-    /// store both.
+    /// The conflict is judged on the EFFECTIVE map: a save that turns OAuth on
+    /// while the stored record names <c>Authorization</c> in
+    /// <c>headerConfigurationKeys</c> would otherwise store both.
     /// </remarks>
     private static ProblemHttpResult? ValidateHeaders(
         McpServerRequest request,
@@ -937,20 +934,6 @@ internal static class GovernanceEndpoints
         if (!headerKeys.Keys.Any(static header => string.Equals(header, "Authorization", StringComparison.OrdinalIgnoreCase)))
         {
             return null;
-        }
-
-#pragma warning disable CS0618 // The deprecated field is judged against its replacement (phase 190).
-        var legacyKey = request.AuthorizationConfigurationKey;
-#pragma warning restore CS0618
-
-        if (!string.IsNullOrEmpty(legacyKey))
-        {
-            return TypedResults.Problem(
-                title: "Conflicting authentication",
-                detail: "'headerConfigurationKeys' names 'Authorization' and 'authorizationConfigurationKey' " +
-                        "is set; both would manage the same header. Keep one — " +
-                        "'authorizationConfigurationKey' is deprecated.",
-                statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (request.OAuthEnabled)
@@ -1130,20 +1113,6 @@ internal static class GovernanceEndpoints
         // value is read from (K-059). Without a prefix restriction that name
         // could point at any configuration key in the application; without
         // the tenant segment it could point at another tenant's key.
-#pragma warning disable CS0618 // The deprecated field keeps its key space rule until 1.0.0 (phase 190).
-        var legacyAuthorizationKey = request.AuthorizationConfigurationKey;
-#pragma warning restore CS0618
-
-        if (RequireTenantKey(
-                legacyAuthorizationKey,
-                mcpSecurity.AllowedConfigurationPrefix,
-                tenantId,
-                defaultTenantId,
-                "authorizationConfigurationKey") is { } authKeyProblem)
-        {
-            return authKeyProblem;
-        }
-
         if (RequireTenantKey(
                 request.OAuthClientSecretConfigurationKey,
                 mcpSecurity.AllowedConfigurationPrefix,
@@ -1161,15 +1130,6 @@ internal static class GovernanceEndpoints
                 return TypedResults.Problem(
                     title: "OAuth client id missing",
                     detail: "'oauthClientId' is required when OAuth is enabled.",
-                    statusCode: StatusCodes.Status400BadRequest);
-            }
-
-            if (!string.IsNullOrEmpty(legacyAuthorizationKey))
-            {
-                return TypedResults.Problem(
-                    title: "Conflicting authentication",
-                    detail: "'authorizationConfigurationKey' must be empty when OAuth is enabled; " +
-                            "both would try to manage the same Authorization header.",
                     statusCode: StatusCodes.Status400BadRequest);
             }
         }

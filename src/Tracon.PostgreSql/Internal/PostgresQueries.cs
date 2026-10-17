@@ -1009,19 +1009,18 @@ internal sealed class PostgresQueries : SqlQueriesBase
         UpsertMcpServer = $"""
             INSERT INTO {Schema}.mcp_servers
                 (id, tenant_id, name, description, endpoint, transport,
-                 authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
+                 headers, enabled, requires_approval, created_at, updated_at,
                  oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode,
                  header_configuration_keys)
             VALUES
                 (@id, @tenant_id, @name, @description, @endpoint, @transport,
-                 @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now,
+                 @headers, @enabled, @requires_approval, @now, @now,
                  @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key, @oauth_scopes, @oauth_authorization_mode,
                  @header_configuration_keys)
             ON CONFLICT (tenant_id, name) DO UPDATE
                 SET description                          = EXCLUDED.description,
                     endpoint                             = EXCLUDED.endpoint,
                     transport                             = EXCLUDED.transport,
-                    authorization_configuration_key       = EXCLUDED.authorization_configuration_key,
                     headers                                = EXCLUDED.headers,
                     enabled                                = EXCLUDED.enabled,
                     requires_approval                      = EXCLUDED.requires_approval,

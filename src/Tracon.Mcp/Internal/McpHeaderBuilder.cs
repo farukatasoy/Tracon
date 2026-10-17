@@ -58,7 +58,6 @@ internal static class McpHeaderBuilder
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         AddPlainHeaders(headers, server, logger);
-        AddLegacyAuthorization(headers, server, configuration, keySpace, logger);
 
         foreach (var (header, keyName) in server.HeaderConfigurationKeys)
         {
@@ -175,55 +174,6 @@ internal static class McpHeaderBuilder
             }
 
             headers[header] = value;
-        }
-    }
-
-    /// <summary>Resolves the deprecated <c>AuthorizationConfigurationKey</c>.</summary>
-    private static void AddLegacyAuthorization(
-        Dictionary<string, string> headers,
-        McpServerDefinition server,
-        IConfiguration configuration,
-        McpKeySpace keySpace,
-        ILogger logger)
-    {
-#pragma warning disable CS0618 // The deprecated field is still resolved until 1.0.0 (phase 190).
-        var key = server.AuthorizationConfigurationKey;
-#pragma warning restore CS0618
-
-        if (key is not { Length: > 0 })
-        {
-            return;
-        }
-
-        if (server.OAuthEnabled)
-        {
-            // While OAuth is enabled, ClientOAuthOptions manages the
-            // Authorization header. A save rejects the combination with 400;
-            // only a third-party store can produce it.
-            logger.LogWarning(
-                "MCP server '{ServerName}' sets authorizationConfigurationKey while OAuth is on; OAuth manages the " +
-                "Authorization header, so the key is not read.",
-                server.Name);
-
-            return;
-        }
-
-        // 🚨 Checked here as well as where the server is saved. A definition
-        // written before the rule existed must not silently read a
-        // configuration key outside the prefix or outside its own tenant.
-        keySpace.Require(key, server, "authorizationConfigurationKey");
-
-        if (configuration[key] is { Length: > 0 } value && CanSend(AuthorizationHeader, value))
-        {
-            headers[AuthorizationHeader] = value;
-        }
-        else
-        {
-            logger.LogWarning(
-                "Configuration key '{ConfigurationKey}' for MCP server '{ServerName}' is empty or holds a line break. " +
-                "No authentication header will be sent.",
-                key,
-                server.Name);
         }
     }
 }

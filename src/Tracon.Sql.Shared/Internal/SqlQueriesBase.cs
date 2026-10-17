@@ -1157,7 +1157,7 @@ internal abstract class SqlQueriesBase
     //     providers, used by both the queries built here and the dialect's own.
     protected const string McpServerColumns = """
             id, tenant_id, name, description, endpoint, transport,
-            authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
+            headers, enabled, requires_approval, created_at, updated_at,
             oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode,
             header_configuration_keys
             """;

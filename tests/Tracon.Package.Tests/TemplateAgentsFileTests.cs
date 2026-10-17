@@ -599,7 +599,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
                     TenantId = "default",
                     Name = "github",
                     Endpoint = new Uri("https://example.test/mcp"),
-                    AuthorizationConfigurationKey = "{{token}}",
+                    OAuthClientSecretConfigurationKey = "{{token}}",
                 };
             }
 

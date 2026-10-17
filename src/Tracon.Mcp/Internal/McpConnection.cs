@@ -117,20 +117,15 @@ internal sealed class McpConnection : IAsyncDisposable
     /// <para>
     /// <c>HeaderConfigurationKeys</c> enters as sorted <c>header=keyName</c>
     /// pairs — the key NAMES, never the resolved values, so a credential never
-    /// sits in the fingerprint. The same holds for the deprecated
-    /// <c>AuthorizationConfigurationKey</c>: rotating a value in configuration
-    /// does not reconnect; a manual refresh does.
+    /// sits in the fingerprint: rotating a value in configuration does not
+    /// reconnect; a manual refresh does.
     /// </para>
     /// </remarks>
     public static string ComputeFingerprint(McpServerDefinition server)
     {
-#pragma warning disable CS0618 // The deprecated field still selects the connection until 1.0.0 (phase 190).
-        var legacyKey = server.AuthorizationConfigurationKey;
-#pragma warning restore CS0618
-
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"{server.Endpoint}|{server.Transport}|{legacyKey}|" +
+            $"{server.Endpoint}|{server.Transport}|" +
             $"{server.RequiresApproval}|{server.OAuthEnabled}|{server.OAuthClientId}|" +
             $"{server.OAuthClientSecretConfigurationKey}|{server.OAuthScopes}|{server.OAuthAuthorizationMode}|" +
             $"{string.Join(",", server.Headers.OrderBy(static pair => pair.Key, StringComparer.Ordinal).Select(static pair => $"{pair.Key}={pair.Value}"))}|" +
