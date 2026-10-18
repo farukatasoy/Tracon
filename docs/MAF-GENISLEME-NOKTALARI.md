@@ -50,7 +50,7 @@ tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kes
 >
 > | Sürüm | Eklenen | Tracon'e etkisi |
 > |---|---|---|
-> | MAF 1.18.0 | `ChatClientAgentOptions.AllowConcurrentInvocation` | 🚨 Eşzamanlı tool çağrısı artık **agent seviyesinde** açılabilir. F-134'ün "agent-seviyesi entegrasyon ölçülmedi" satırı kapandı; ekleme noktası [`AgentDefinitionCompiler.cs:1050`](../src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs#L1050) — Faz 81 §81.5 |
+> | MAF 1.18.0 | `ChatClientAgentOptions.AllowConcurrentInvocation` | Kullanılmıyor (`src/`'de hiç atanmaz) — K-553: `ModelBinding.AllowConcurrentToolCalls`, tool döngüsünü gerçekten çalıştıran `FunctionInvokingChatClient`'a bağlanır ([`ModelProviderRegistry.cs:412`](../src/Tracon.Core/Models/ModelProviderRegistry.cs#L412)); agent seçeneğine değil. Bu satırın önceki hâli "agent seviyesinde açılabilir, ekleme noktası `AgentDefinitionCompiler.cs:1050`" diyordu; Faz 81 kapanmadan yazılmıştı, K-553 ile çelişiyordu ve gösterdiği satır dosyada yoktu (687 satır). |
 > | MAF 1.18.0 | `ChatClientAgentOptions.EnableInvocableFunctionBypassing` · `ChatClientBuilderExtensions.UseInvocableFunctionBypassing` (MEAI) | Kullanılmıyor. Model bir tool'u çağırmadan sonucunu üretmesine izin verir; Tracon'in kayıt ve yetkilendirme zinciri her çağrıyı görmek üzerine kuruludur |
 > | MAF 1.18.0 | `ToolApprovalAgentOptions.MaxAutoApprovalIterations` | Kullanılmıyor — Tracon onay döngüsünü kendi yürütür (K-541) |
 > | MAF 1.18.0 | `BackgroundAgentsProvider.ReleaseSessionAsync(session, cancelRunning, timeout, ct)` | Kullanılmıyor; arka plan agent'ları K-062 kapsamında kapalı |

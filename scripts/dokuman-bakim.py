@@ -1773,6 +1773,44 @@ def geri_alinamaz_registry_islemi(kok: pathlib.Path = ROOT) -> list[str]:
     return bulgular
 
 
+def paket_aramasinda_on_surum_eksik(kok: pathlib.Path = ROOT) -> list[str]:
+    """Reject a `dotnet package search` command that does not pass `--prerelease`."""
+    # 2026-10-17: `dotnet package search` ON SURUM paketlerini `--prerelease` olmadan
+    # GOSTERMEZ. MAF ailesi yeni paketi once alpha/preview olarak yayinlar; bos sonuc
+    # "paket yok" diye okundu ve IKI kez yanlis sonuc yazildi: `Microsoft.Agents.AI.Mcp`
+    # ("yayinlanmamis", 2026-08-02) ve `Microsoft.Agents.AI.Hyperlight` ("NuGet'te
+    # YOK", 2026-08-26 -- F-169'un olcumunun ilk satiri). Ikisi de paketin
+    # yayinlanmasindan aylar sonra yazildi. Komutun kendisi `maf-api-kesfi` skill'inde
+    # `--prerelease`siz yaziliydi; ders yazi ile degil bu kapiyla tutulur.
+    #
+    # KOMUT ile ANMA ayrilir: komut `search`ten sonra bir argumanla surer; "`dotnet
+    # package search` ... olmadan" gibi bir anlatim ya da baslik argüman almaz.
+    komut = re.compile(r"dotnet\s+package\s+search\s+[^\s`]")
+    atla = {"node_modules", ".git", "artifacts", "bin", "obj", "TestResults", "packages", "arsiv"}
+    bulgular: list[str] = []
+    for dizin, altlar, dosyalar in os.walk(kok):
+        altlar[:] = [a for a in altlar if a not in atla]
+        for ad in sorted(dosyalar):
+            if not ad.endswith((".md", ".sh", ".yml", ".yaml")):
+                continue
+            yol = pathlib.Path(dizin) / ad
+            satirlar = yol.read_text(encoding="utf-8", errors="replace").splitlines()
+            i = 0
+            while i < len(satirlar):
+                # Satir sonu `\` ile devam eden komut TEK komuttur: bayrak sonraki satirda olabilir.
+                bas, birlesik = i, satirlar[i]
+                while birlesik.rstrip().endswith("\\") and i + 1 < len(satirlar):
+                    i += 1
+                    birlesik += " " + satirlar[i].strip()
+                if komut.search(birlesik) and "--prerelease" not in birlesik:
+                    bulgular.append(
+                        f"{yol.relative_to(kok).as_posix()}:{bas + 1}: `dotnet package search` "
+                        "komutunda `--prerelease` yok — ön sürüm paketleri görünmez ve boş "
+                        "sonuç yokluk kanıtlamaz (maf-api-kesfi § 5)")
+                i += 1
+    return bulgular
+
+
 def _yaml_girinti(satir: str) -> int | None:
     """Anlamli satirin girintisi; bos ve yorum satiri icin `None`."""
     govde = satir.lstrip(" ")
@@ -3606,6 +3644,13 @@ def denetle() -> int:
     for s in registry_bulgulari:
         print(f"  {s}")
     hata |= int(bool(registry_bulgulari))
+
+    arama_bulgulari = paket_aramasinda_on_surum_eksik()
+    print(f"\nPaket aramasında ön sürüm bayrağı: "
+          f"{'❌ ' + str(len(arama_bulgulari)) + ' bulgu' if arama_bulgulari else '✅ temiz'}")
+    for s in arama_bulgulari:
+        print(f"  {s}")
+    hata |= int(bool(arama_bulgulari))
 
     sinir_bulgulari = zaman_siniri_olmayan_isler()
     print(f"\nWorkflow iş zaman sınırı: "

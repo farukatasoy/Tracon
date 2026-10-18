@@ -118,7 +118,7 @@ Ucuz tur. Amaç eleme yapmaktır, kanıtlamak değil.
 | Ekosistem boşluğu | "X'te standart, .NET'te yok" — boşluk tablosunun kalan satırları |
 | Devir notları | Fazların bilerek bıraktığı iş |
 | Manuel koşum notları | `docs/manuel-test/` — gerçek kullanım acısı |
-| MAF veya .NET yeni sürümü | Elle yazdığımızı çerçeve verdi mi? Ön sürümden çıktı mı? |
+| MAF veya .NET yeni sürümü | Elle yazdığımızı çerçeve verdi mi? Ön sürümden çıktı mı? Başlangıç: `python3 scripts/maf-paket-envanteri.py --liste` — `degerlendirilmedi` satırları ve `OLGUNLAŞTI` uyarıları hazır aday girdisidir |
 | Var olanın optimizasyonu | Yeni bir API eski çözümümüzü gereksiz kıldı mı? (çoğu zaman Kanal 3) |
 | Persona acısı | İlk agent'a kadar geçen süre · gece 03:00 · satın alma kapısı |
 | Tüketici raporu | Bir tüketicinin acısı Tracon'un eksiğini gösterir. 🚨 Tek tüketiciden gelen yetenek ikinci kanıt olmadan planlamaya geçmez (ADAYLAR § *Tüketici geri bildirimi kuralı*); sözleşme ihlali kusur kanalına girer |
@@ -152,7 +152,8 @@ Bir kalem "bunu kimse yapmamış" ya da "MAF bunu artık veriyor" diyorsa
 zorunluluk değil:
 
 - MAF geliştirici blogu · `Microsoft.Agents.AI` ve `Microsoft.Extensions.AI`
-  NuGet sürüm notları
+  NuGet sürüm notları · **MAF paket ailesi envanteri** (`scripts/maf-paket-envanteri.py`):
+  ailenin ön sürüm paketleri sürüm notunda ve referans diff'inde görünmez
 - .NET sürüm notları — yeni bir BCL yeteneği elle yazdığımızı gereksiz kılmış olabilir
 - Rakip kontrol düzlemleri: LiteLLM · Portkey · Langfuse · Braintrust ·
   LangGraph · Mastra

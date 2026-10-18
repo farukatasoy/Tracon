@@ -91,13 +91,13 @@ Bilinen örnekler: `HarnessAgentOptions` üyeleri, `OpenTelemetryAgent` kurucusu
 
 **4. Sürümü sabitle.** Script sürümleri `Directory.Packages.props`'tan okur. Başka bir sürümü incelemek için `APIDUMP_PACKAGES` ortam değişkenini kullan.
 
-**5. Paket var sanma, doğrula.** Faz 6 planı `Microsoft.Agents.AI.Mcp` paketini varsayıyordu; böyle bir paket **yok** ve planın merkezi varsayımı çöktü. Bir paketi ilk kez kullanmadan önce:
+**5. Paket var sanma, doğrula — `--prerelease` ile.** MAF ailesi yeni paketi önce `alpha` veya `preview` olarak yayınlar. `--prerelease` olmadan `dotnet package search` bu paketleri **göstermez**. Ölçüm (2026-10-17): `Microsoft.Agents.AI.Mcp` için varsayılan arama boş `packages` döndürdü; `--prerelease` ile aynı arama 19 sürüm döndürdü (ilk sürüm 2026-05-28). Faz 6 notu ve 2026-08-26 keşif turu ("paket yok") bu yüzden yanlış sonuca vardı. Bir paketi ilk kez kullanmadan önce:
 
 ```bash
-dotnet package search "<PaketAdi>" --exact-match --format json
+dotnet package search "<PaketAdi>" --exact-match --prerelease --format json
 ```
 
-Boş `packages` dizisi paketin var olmadığı anlamına gelir.
+Boş `packages` dizisi **yalnız bu komutla** paketin var olmadığı anlamına gelir. `--prerelease` yazmayan komutun boş sonucu hiçbir şey kanıtlamaz. İkinci kaynak (ön sürümleri de listeler): `https://api.nuget.org/v3-flatcontainer/<paket-kimliği-küçük-harf>/index.json`.
 
 ---
 
@@ -130,6 +130,36 @@ ve tip tip küme farkı al).
 sonucu [`docs/MAF-GENISLEME-NOKTALARI.md`](../../../docs/MAF-GENISLEME-NOKTALARI.md)
 § *Sürüm damgası* tablosuna yaz — hangi eklemenin **kullanılmadığını** da yaz, yoksa
 sonraki tur onu yeniden keşfeder.
+
+### Üçüncü adım — paket ailesi envanteri (ön sürümler dahil)
+
+İki dump yalnız Tracon'un **referans verdiği** paketleri diff'ler. MAF yeni bir yeteneği
+çoğu zaman **yeni bir pakette**, önce `alpha`/`preview` olarak yayınlar; o paket ne
+referanslıdır ne dump'ta görünür. Ölçüm (2026-10-17): 40 paketlik ailenin 31'i referanslı
+değildi ve hiçbir yükseltme turu onları görmüyordu. Her yükseltmede dump'tan sonra:
+
+```bash
+python3 scripts/maf-paket-envanteri.py            # tabanla fark var mı? (çıkış 1 = var)
+python3 scripts/maf-paket-envanteri.py --liste    # ailenin tamamı + her birinin durumu
+```
+
+Betik NuGet aramasını `prerelease=true` ile okur ve `scripts/maf-paket-envanteri.tsv`
+tabanıyla karşılaştırır: `YENİ` (hiç değerlendirilmedi) · `OLGUNLAŞTI` (ör. preview → GA,
+bir kararın yeniden okunma zamanı) · `GERİLEDİ` · `GÖRÜNMÜYOR` · `TUTARSIZ` (taban ile
+`Directory.Packages.props` ayrıştı). Farkı kapatmak için:
+
+1. `--guncelle` tabanı canlı duruma getirir ve her `YENİ` paketi `degerlendirilmedi` olarak ekler.
+2. **Her `YENİ` ve `OLGUNLAŞTI` satırın `durum` ve `not` alanını ELLE yaz.** `karar` satırı
+   karar (`K-…`) veya aday (`F-…`) numarası ve gerekçe taşır; gerekçesiz `karar` taban
+   okunurken reddedilir. `OLGUNLAŞTI` bir `karar` satırının gerekçesini bayatlatabilir
+   (K-129: paket GA oldu) — gerekçeyi yeniden ölç, satırı sessizce bırakma.
+3. `degerlendirilmedi` bir sonuç değil bir **borçtur**: `aday-kesfi` turunun girdisidir.
+
+Ağ gerekir ve CI'da koşmaz. Tabanın kendi biçimi ve `Directory.Packages.props` ile
+tutarlılığı ise CI'da `maf_paket_envanteri_test.py` ile denetlenir: yeni bir MAF paketi
+referansı ekleyip tabanı güncellemeyen bir değişiklik orada kırmızı olur. macOS python.org
+kurulumunda `urllib` CA bulamaz; betik sertifika doğrulamasını kapatmaz, `curl` komutunu
+basar ve `--dosya` ile verilir (`docs/hafiza/tedarik-zinciri.md`).
 
 🚨 **Reflection davranışı görmez.** İmza aynı kalıp davranış değişebilir: 2026-08-21
 yükseltmesinde `OpenAIResponses.ToAgentRunRequest` aynı imzayla `JsonException`

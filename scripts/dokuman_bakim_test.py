@@ -2921,3 +2921,65 @@ class TekDerlemeZinciriTestleri(unittest.TestCase):
             bulgular = dokuman_bakim.zaman_siniri_olmayan_isler(kok)
         self.assertEqual(len(bulgular), 1, bulgular)
         self.assertIn("`site`", bulgular[0])
+
+
+class PaketAramasiOnSurumTestleri(unittest.TestCase):
+    """`dotnet package search` komutu `--prerelease` taşımak zorundadır.
+
+    2026-10-17 kusuru: komut `--prerelease` olmadan ön sürüm paketlerini GÖSTERMEZ ve MAF
+    yeni paketi önce alpha/preview olarak yayınlar. Boş sonuç "paket yok" diye okundu ve iki
+    kez yanlış sonuç yazıldı (`Microsoft.Agents.AI.Mcp`, `Microsoft.Agents.AI.Hyperlight`).
+    """
+
+    def _tara(self, **dosyalar: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            for yol, metin in dosyalar.items():
+                hedef = kok / yol.replace("__", "/")
+                hedef.parent.mkdir(parents=True, exist_ok=True)
+                hedef.write_text(metin, encoding="utf-8")
+            return dokuman_bakim.paket_aramasinda_on_surum_eksik(kok)
+
+    def test_on_surumsuz_komut_yakalanir(self):
+        bulgular = self._tara(
+            **{"notlar__x.md": 'dotnet package search "Paket" --exact-match --format json\n'})
+
+        self.assertEqual(len(bulgular), 1, bulgular)
+        self.assertIn("notlar/x.md:1", bulgular[0])
+        self.assertIn("--prerelease", bulgular[0])
+
+    def test_on_surumlu_komut_temizdir(self):
+        self.assertEqual(self._tara(
+            **{"notlar__y.md": 'dotnet package search "Paket" --exact-match --prerelease --format json\n'}), [])
+
+    def test_satir_sonu_devam_eden_komutta_bayrak_sonraki_satirdaysa_temizdir(self):
+        self.assertEqual(self._tara(
+            **{"notlar__y.md": 'dotnet package search "Paket" \\\n  --exact-match --prerelease\n'}), [])
+
+    def test_satir_sonu_devam_eden_komutta_bayrak_yoksa_ilk_satiri_bildirir(self):
+        bulgular = self._tara(
+            **{"notlar__y.md": 'önce\ndotnet package search "Paket" \\\n  --exact-match\n'})
+
+        self.assertEqual(len(bulgular), 1, bulgular)
+        self.assertIn("notlar/y.md:2", bulgular[0])
+
+    def test_komut_olmayan_anma_atlanir(self):
+        """Gerekçe metni komuttan söz eder ama komut değildir: argüman almaz."""
+        self.assertEqual(self._tara(
+            **{"notlar__y.md": "### Ölçüm (`dotnet package search` + gerçek restore)\n"
+                             "`dotnet package search` `--prerelease` olmadan ön sürüm göstermez.\n"}), [])
+
+    def test_kosulsuz_komut_arsivde_atlanir(self):
+        self.assertEqual(self._tara(
+            **{"notlar__arsiv__eski.md": 'dotnet package search "Paket" --exact-match\n'}), [])
+
+    def test_skill_ve_betik_dosyalari_taranir(self):
+        bulgular = self._tara(
+            **{".agents__skills__s__SKILL.md": "dotnet package search X\n",
+               "scripts__ornek.sh": "dotnet package search X\n"})
+
+        self.assertEqual(len(bulgular), 2, bulgular)
+
+    def test_depodaki_komutlar_temizdir(self):
+        """Gerçek depo: skill'deki komut dahil hiçbir yerde `--prerelease`siz arama kalmaz."""
+        self.assertEqual(dokuman_bakim.paket_aramasinda_on_surum_eksik(), [])

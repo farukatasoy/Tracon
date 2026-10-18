@@ -319,13 +319,25 @@ repo'nun **zaten sevk ettiği** istisnadan zayıf değil, **güçlüdür**.
 
 | Ölçüm | Sonuç |
 |---|---|
-| `Microsoft.Agents.AI.Hyperlight` (MS dokümanının verdiği ad) | **NuGet'te YOK** — `--exact-match` boş döner |
+| `Microsoft.Agents.AI.Hyperlight` (MS dokümanının verdiği ad) | **NuGet'te YOK** — `--exact-match` boş döner *(yanlış; tablonun altındaki düzeltmeye bak)* |
 | `CodeAct` adlı paket | Yok; ilgisiz sonuçlar |
 | Gerçek paketler | `Hyperlight.HyperlightSandbox.{Api,PInvoke,Extensions.AI,Guest.Python,Guest.JavaScript}` — sahip `hyperlight-dev`, kaynak `github.com/hyperlight-dev/hyperlight-sandbox` |
 | Sürüm | **0.5.0** — pre-1.0, GA değil |
 | Geçişli grafik (`Extensions.AI`, net10.0, gerçek restore) | **9 paket** — hafif; K-212'nin 37-paket vakasıyla kıyaslanmaz |
 | MEAI sürüm hattı | Paket **9.5.0**'a karşı derlenmiş; repo **10.9.0**'da |
 | **Native RID kapsamı** | **yalnız `win-x64` ve `linux-x64`** |
+
+> **Düzeltme (2026-10-17, kusur-giderme):** § 9.2'nin ilk satırı yanlıştı. `--exact-match` araması
+> `--prerelease` içermiyordu; MAF ailesi paketi önce preview olarak yayınlar ve varsayılan arama onu
+> göstermez. `Microsoft.Agents.AI.Hyperlight` 2026-05-13'ten beri NuGet'tedir (ölçüm gününde en son
+> `1.19.0-preview.260822.1`; bugün `1.25.0-preview.261014.1`) ve `Hyperlight.HyperlightSandbox.Api`
+> paketini geçişli çeker (bugün 0.6.0). "Gerçek paketler" satırı bu yüzden bir alternatifi değil, MAF
+> paketinin **bağımlılığını** ölçmüştü. **§ 9.3'ün kararı veren ölçümü ayakta kalır:** 0.6.0 `PInvoke`
+> paketi de yalnız `win-x64` ve `linux-x64` native taşır (restore ile ölçüldü, 2026-10-17). F-169'un
+> eşiği değişmez. Değişen şey şudur: "MAF paketi yok" cümlesine dayanan her çıkarım geçersizdir.
+> MAF paketi `net8.0`, `net9.0` ve `net10.0` taşır; public yüzeyi altı tiptir
+> (`HyperlightCodeActProvider` + `Options`, `HyperlightExecuteCodeFunction`, `CodeActApprovalMode`,
+> `FileMount`, `AllowedDomain`). Bu yüzeyin davranışı ölçülmedi.
 
 ### 9.3 Kararı veren ölçüm
 
