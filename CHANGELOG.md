@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **`/v1/chat/completions` refuses tool-call history and unknown roles with `400`.** A `tool` or
+  `function` message, an assistant message with `tool_calls` or `function_call`, and a role other
+  than `system`, `developer`, `user` or `assistant` used to pass: the assistant turn was dropped,
+  the tool result went on as plain text without its call id, and an unknown role became `user`.
+  Tracon runs the agent's tools on the server, and `/v1/responses` refuses `function_call` items
+  the same way. A content part Tracon cannot hand to the model is refused by name, too.
+
+### Fixed
+
+- `/v1/chat/completions` hands image, audio and file parts to the model. It kept only the `text`
+  parts, so the model answered as if the user had sent no image, and a message with only an image
+  answered `400` "'messages' cannot be empty." Embedded data passes the attachment type check and
+  is stored as an attachment, as on `/v1/responses`.
+- An image's `detail` and a file's name now reach the model on `/v1/responses` and on
+  `POST /api/agents/{name}/run` attachments. The attachment reference dropped both.
+
 ## [1.0.0-preview.5] - 2026-10-17
 
 The public API gets smaller before it freezes, and every dependency moves to its

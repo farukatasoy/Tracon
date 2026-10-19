@@ -1796,7 +1796,12 @@ internal static class AgentEndpoints
             // call, BEFORE being sent to the provider (see AttachmentResolvingChatClient).
             foreach (var attachment in attachments)
             {
-                contents.Add(new UriContent(AttachmentUriReference.Create(prefix, attachment.Id), attachment.MediaType));
+                // The file's name travels with the reference; resolution hands it
+                // to the model as DataContent.Name (F-580 class scan).
+                contents.Add(new UriContent(AttachmentUriReference.Create(prefix, attachment.Id), attachment.MediaType)
+                {
+                    AdditionalProperties = new() { [AttachmentUriReference.NameProperty] = attachment.FileName },
+                });
             }
 
             if (contents.Count > 0)

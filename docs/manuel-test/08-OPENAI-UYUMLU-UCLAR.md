@@ -2107,3 +2107,33 @@ anahtar aynı oturumu paylaşırdı.
 **Beklenen sonuç**
 - (4) `tenant-a::shared` ve `tenant-b::shared` kimlikli iki oturum vardır; çıplak `shared` yoktur; üçüncü çağrı üçüncü bir
   oturum açmaz.
+
+---
+
+### MT-COMPAT-057 — Chat Completions görsel, ses ve dosya parçasını modele verir; tool geçmişini adıyla reddeder (kusur-giderme, 2026-10-19, F-580)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-1025 |
+| **Devir** | ➜ CI: `ChatCompletionsContentPartsTests`, `AttachmentRunTests.Run_referencing_an_attachment_sends_the_actual_content_to_the_model` |
+
+Regresyon. İstek ayrıştırıcısı yalnız `text` parçasını okuyordu: görsel ve ses sessizce düşüyor, model kullanıcı yalnız
+metin göndermiş gibi yanıtlıyordu. Yalnız görsel taşıyan mesaj `400` *"'messages' cannot be empty."* alıyordu.
+`tool_calls` taşıyan asistan mesajı düşüyor, `tool` mesajı `tool_call_id`'siz düz metin olarak gidiyordu.
+
+**Ön koşul** — Örnek uygulama; görsel okuyabilen bir modele bağlı bir agent.
+
+**Adımlar**
+1. `openai` SDK'sıyla `client.chat.completions.create(model="<agent>", messages=[{"role":"user","content":[{"type":"text","text":"Bu görselde ne var?"},{"type":"image_url","image_url":{"url":"data:image/png;base64,<küçük PNG>","detail":"low"}}]}])`.
+2. Aynı mesajı yalnız `image_url` parçasıyla gönder.
+3. Geçmişe `{"role":"tool","tool_call_id":"call_1","content":"..."}` ekleyip gönder.
+4. Bir parçayı `{"type":"video_url", ...}` yapıp gönder.
+
+**Beklenen sonuç**
+- Adım 1–2: `200`; yanıt görseli anlatır. `GET $APU/api/attachments` görseli kiracının eki olarak listeler.
+- Adım 3: `400`, mesaj `tool` rolünü adlandırır ve tool'ların sunucuda koştuğunu söyler.
+- Adım 4: `400`, mesaj `video_url`'ü adlandırır.
+- 🚨 Eski kusur: Adım 1 `200` ama yanıt görseli görmez; Adım 2 `400` "cannot be empty"; Adım 3 `200`.
