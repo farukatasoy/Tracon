@@ -50,6 +50,12 @@ public sealed class AttachmentRunTests
         // A reference (UriContent) that unrelated providers cannot read must NEVER
         // reach the model; everything must be resolved to DataContent.
         lastRequest.SelectMany(static message => message.Contents).OfType<UriContent>().ShouldBeEmpty();
+
+        // F-580 class scan: the uploaded file's name reached the model as nothing;
+        // a provider sends it with a file part (the OpenAI client invents one).
+        // The carrier property itself stays inside Tracon.
+        content.Name.ShouldBe("test.png");
+        (content.AdditionalProperties?.ContainsKey("tracon.attachment_name") ?? false).ShouldBeFalse();
     }
 
     [Fact]

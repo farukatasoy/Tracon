@@ -85,7 +85,7 @@ internal sealed class AttachmentResolvingChatClient(IChatClient inner, IAttachme
             var bytes = await ReadAllBytesAsync(attachmentId, cancellationToken).ConfigureAwait(false);
 
             resolvedContents ??= [.. message.Contents];
-            resolvedContents[i] = new DataContent(bytes, uriContent.MediaType);
+            resolvedContents[i] = AttachmentUriReference.Resolve(uriContent, bytes);
         }
 
         if (resolvedContents is null)

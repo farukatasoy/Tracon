@@ -11559,6 +11559,29 @@ print(completion.choices[0].message.content)
 Tracon does not open a server session for this endpoint. Send the full history on
 every call; otherwise the next turn has no previous context.
 
+A message's content can be a string or a list of parts. Tracon hands each part to the
+model or refuses the request with `400` and the part's location; it never drops a part:
+
+| Part | Reaches the model as |
+|---|---|
+| `text`, `refusal` | Text |
+| `image_url` with a `data:` URL | Image bytes; `detail` is kept |
+| `image_url` with an `http(s)` URL | A link the provider fetches; `detail` is kept |
+| `input_audio` (`wav`, `mp3`) | Audio bytes |
+| `file` with `file_data` | File bytes, with `filename` as the name |
+| `file` with `file_id`, or any other type | Refused: Tracon keeps no OpenAI file store |
+
+Embedded bytes go through the same check as an upload: the type is read from the bytes,
+not from the declared media type, must be listed in `Attachments:AllowedMediaTypes` and
+must fit in `Attachments:MaxBytes` ([configuration](/reference/configuration/)). The data is stored as an attachment of the tenant with no session, so
+retention removes it later. Whether a model can read a given image, audio clip or file
+depends on its provider.
+
+The roles are `system`, `developer` (read as `system`), `user` and `assistant`. A `tool`
+or `function` message, and an assistant message with `tool_calls` or `function_call`,
+answer `400`: Tracon runs the agent's tools on the server, so there is no client-side
+tool call to report.
+
 ## Calling these endpoints from a typed client
 
 Both endpoints answer with **either** JSON **or** SSE, and the `stream` flag in the
@@ -11631,6 +11654,8 @@ for await (const frame of readSse(response)) {
 | SSE streaming | yes | yes | Uses surface-specific OpenAI frame names |
 | Server conversation | `conversation` or `previous_response_id` | no | Maps to Tracon sessions |
 | Client-carried history | input items | `messages` | Resolved attachments reach the provider |
+| Image, audio and file input | `input_image`, `input_file` | `image_url`, `input_audio`, `file` | Embedded data passes the attachment type check and is stored as an attachment of the tenant |
+| Client tool-call history | no: `400` | no: `400` | Tools run on the server; send earlier turns as text |
 | Agent tool loop | yes | yes | Tools are defined and executed server-side |
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |

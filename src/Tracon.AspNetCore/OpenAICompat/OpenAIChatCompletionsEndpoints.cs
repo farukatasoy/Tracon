@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
@@ -26,9 +25,12 @@ namespace Tracon;
 /// <para>
 /// The <c>Microsoft.Agents.AI.Hosting.OpenAI</c> package offers a public
 /// writer helper (<c>OpenAIResponses</c>) for the Responses API, but not for
-/// Chat Completions — every model type on that path is internal. The wire
-/// format is therefore hand-produced here. The format is documented by OpenAI
-/// and stable.
+/// Chat Completions. Microsoft.Extensions.AI.OpenAI has converters
+/// (<c>AsOpenAIChatCompletion</c>, <c>AsOpenAIStreamingChatCompletionUpdatesAsync</c>,
+/// OPENAI001), measured and not used (2026-10-19): the streaming one writes
+/// <c>finish_reason: "stop"</c> on every chunk. The wire format is therefore
+/// hand-produced here, and <see cref="ChatCompletionsMessageReader"/> reads the
+/// request. The format is documented by OpenAI and stable.
 /// </para>
 /// <para>
 /// Tool calls are <strong>invisible</strong> in the response: the tool loop
@@ -57,10 +59,33 @@ internal static class OpenAIChatCompletionsEndpoints
     /// <summary>Connects the Chat Completions endpoint.</summary>
     /// <param name="builder">Endpoint group.</param>
     /// <param name="roles">Resolved role policies.</param>
+    /// <param name="prefix">The endpoint path prefix; an embedded file becomes an attachment reference under it.</param>
     /// <param name="idempotencyFilter">The filter that adds <c>Idempotency-Key</c> support.</param>
-    public static void Map(IEndpointRouteBuilder builder, TraconRolePolicies roles, IdempotencyFilter idempotencyFilter)
+    public static void Map(IEndpointRouteBuilder builder, TraconRolePolicies roles, string prefix, IdempotencyFilter idempotencyFilter)
     {
-        builder.MapPost("/v1/chat/completions", HandleAsync)
+        builder.MapPost("/v1/chat/completions", (
+                HttpContext httpContext,
+                IAgentCatalog catalog,
+                ITenantContext tenantContext,
+                IAttachmentStore attachmentStore,
+                AttachmentTypeGuard attachmentGuard,
+                IAuditActorResolver actorResolver,
+                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
+                [FromServices] IRunAttributionContext? attributionContext,
+                [FromServices] ITraconDrainState drainState,
+                CancellationToken cancellationToken)
+                => HandleAsync(
+                    httpContext,
+                    catalog,
+                    tenantContext,
+                    attachmentStore,
+                    attachmentGuard,
+                    actorResolver,
+                    runAuthorizationHandler,
+                    attributionContext,
+                    drainState,
+                    prefix,
+                    cancellationToken))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
             .AddEndpointFilter(idempotencyFilter)
@@ -108,9 +133,13 @@ internal static class OpenAIChatCompletionsEndpoints
         HttpContext httpContext,
         IAgentCatalog catalog,
         ITenantContext tenantContext,
-        [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
-        [FromServices] IRunAttributionContext? attributionContext,
-        [FromServices] ITraconDrainState drainState,
+        IAttachmentStore attachmentStore,
+        AttachmentTypeGuard attachmentGuard,
+        IAuditActorResolver actorResolver,
+        IRunAuthorizationHandler? runAuthorizationHandler,
+        IRunAttributionContext? attributionContext,
+        ITraconDrainState drainState,
+        string prefix,
         CancellationToken cancellationToken)
     {
         // 🚨 Checked BEFORE anything else, like the agent run endpoint (F-431).
@@ -192,9 +221,29 @@ internal static class OpenAIChatCompletionsEndpoints
                 type: "run_not_authorized");
         }
 
-        if (!TryReadMessages(body, out var messages, out var error))
+        // F-580: a part is handed to the model or refused by name, never dropped.
+        if (!ChatCompletionsMessageReader.TryRead(body, out var messages, out var error))
         {
             return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, error);
+        }
+
+        // 🚨 The same gate as /v1/responses (F-580 class scan): an embedded image,
+        // audio clip or file passes the attachment type guard (size limit, type
+        // sniffed from the bytes, allow list) and becomes an attachment reference
+        // before the agent sees it. Without it this surface would hand the model
+        // any bytes under any declared type. The endpoint is stateless, so the
+        // attachment has no session; retention removes it as an orphan.
+        if (await AttachmentIngestion.ReplaceEmbeddedDataAsync(
+                messages,
+                prefix,
+                tenantContext.TenantId,
+                sessionId: null,
+                actorResolver.Resolve(),
+                attachmentStore,
+                attachmentGuard,
+                cancellationToken).ConfigureAwait(false) is { } ingestionError)
+        {
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, ingestionError);
         }
 
         var completionId = OpenAICompatSupport.CreateId("chatcmpl-");
@@ -295,101 +344,6 @@ internal static class OpenAIChatCompletionsEndpoints
             DateTimeOffset.UtcNow,
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.OpenAICompat"),
             CancellationToken.None);
-
-    /// <summary>
-    /// Converts the <c>messages</c> array into a <see cref="ChatMessage"/> list.
-    /// </summary>
-    /// <remarks>
-    /// Content can be either plain text or an array of
-    /// <c>{"type":"text","text":"..."}</c> parts; OpenAI SDKs produce both.
-    /// </remarks>
-    private static bool TryReadMessages(
-        JsonElement body,
-        out List<ChatMessage> messages,
-        out string error)
-    {
-        messages = [];
-
-        if (body.ValueKind is not JsonValueKind.Object ||
-            !body.TryGetProperty("messages", out var raw) ||
-            raw.ValueKind is not JsonValueKind.Array)
-        {
-            error = "'messages' is required and must be an array.";
-            return false;
-        }
-
-        foreach (var item in raw.EnumerateArray())
-        {
-            if (item.ValueKind is not JsonValueKind.Object ||
-                !item.TryGetProperty("role", out var roleElement) ||
-                roleElement.ValueKind is not JsonValueKind.String)
-            {
-                error = "Every message must have a 'role' field.";
-                return false;
-            }
-
-            var role = roleElement.GetString()!;
-            var text = ReadContent(item);
-
-            if (text is null)
-            {
-                continue;
-            }
-
-            messages.Add(new ChatMessage(ToChatRole(role), text));
-        }
-
-        if (messages.Count == 0)
-        {
-            error = "'messages' cannot be empty.";
-            return false;
-        }
-
-        error = string.Empty;
-        return true;
-    }
-
-    private static string? ReadContent(JsonElement message)
-    {
-        if (!message.TryGetProperty("content", out var content))
-        {
-            return null;
-        }
-
-        if (content.ValueKind is JsonValueKind.String)
-        {
-            return content.GetString();
-        }
-
-        if (content.ValueKind is not JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        var builder = new StringBuilder();
-
-        foreach (var part in content.EnumerateArray())
-        {
-            if (part.ValueKind is JsonValueKind.Object &&
-                part.TryGetProperty("text", out var partText) &&
-                partText.ValueKind is JsonValueKind.String)
-            {
-                builder.Append(partText.GetString());
-            }
-        }
-
-        return builder.Length == 0 ? null : builder.ToString();
-    }
-
-    private static ChatRole ToChatRole(string role) => role switch
-    {
-        "system" => ChatRole.System,
-        // OpenAI uses the "developer" role as the new name replacing "system".
-        "developer" => ChatRole.System,
-        "assistant" => ChatRole.Assistant,
-        "tool" => ChatRole.Tool,
-        _ => ChatRole.User,
-    };
 
     private static ChatUsage? ToUsage(UsageDetails? usage)
         => usage is null

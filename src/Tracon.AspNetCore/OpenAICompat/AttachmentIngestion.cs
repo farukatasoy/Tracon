@@ -57,9 +57,15 @@ internal static class AttachmentIngestion
                     },
                     cancellationToken).ConfigureAwait(false);
 
+                // 🚨 The reference keeps what the part said about itself (F-580 class
+                // scan): an image's 'detail' and a file's name were dropped here and
+                // never reached the model. AttachmentResolvingChatClient restores both.
                 message.Contents[i] = new UriContent(
                     AttachmentUriReference.Create(prefix, descriptor.Id),
-                    validation.MediaType!);
+                    validation.MediaType!)
+                {
+                    AdditionalProperties = AttachmentUriReference.CarryProperties(data),
+                };
             }
         }
 
