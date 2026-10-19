@@ -18,6 +18,7 @@ SAMPLE_TEST_PROJECTS = (
     "Tracon.Samples.CustomAgentSource.Tests",
     "Tracon.Samples.CustomTool.Tests",
     "Tracon.Samples.CustomJobHandler.Tests",
+    "Tracon.Samples.MafFeatures.Tests",
 )
 
 # Deliberate, justified exclusions from SAMPLE_TEST_PROJECTS: a sample test

@@ -163,6 +163,10 @@ guards, the `chat` span) only when it builds its chat client with
 provider key and no egress policy, and the run records no model, so it has no cost.
 An agent source that returns its own agent can apply all three: it builds the client
 with `CreateChatClientAsync` and names the model in its `AgentDescriptor`.
+If the chat client of a factory agent does not come from that registry, Tracon writes
+one warning for the agent name. [Use any Microsoft Agent Framework
+feature](/guides/any-maf-feature/) compares this door with the decorator and the custom
+source.
 
 An application can add an `IAgentSource` for definitions stored outside Tracon or
 for agents owned by another runtime. Custom-source agents are visible in the console
