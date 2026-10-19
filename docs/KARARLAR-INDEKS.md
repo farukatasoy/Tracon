@@ -2,16 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 964 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 966 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1016 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1018 kalem)
 
 | K | Karar |
 |---|---|
-| K-975 | Düğüm listesinin ilk düğümü `object` alamaz: kayıt `400`, saklı tanım düğümden önce `Failed`; `TurnToken` her başlangıç ve cevapsız resume'da gider (F-398, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
-| K-976 | Para birimi karışık toplam tutar taşımaz: ağaç, istatistik, zaman serisi, deney kolu ve yargıç maliyetinde tutar `null`, public `CurrencyCount` sayar; kural `CurrencyTotals`'ta (F-419, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-977 | Cevaplanamayan onayda run beklemez: Chat Completions ve oturumsuz yerel run `409` (akışta error frame), MCP/A2A dahil run `Failed` (`approval_unanswerable`) (F-448, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-978 | Kurtarma açıkken işçi durunca `Canceled` kapanan workflow run'ı checkpoint'ini `KeepCheckpointsAfterCompletion=false` olsa da tutar; devam bitince temizler (F-433, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
 | K-979 | Kuyruklu turun onay yazımı kira penceresinde tekrarlanır, kimlikle önce okur; pencere biterse `tracon.job.approval-save-failed`, model tekrar çağrılmaz (F-391, kusur-giderme 2026-10-14) (ana oturum varsayılanı, K-903 emsali) |
@@ -62,3 +60,5 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1024 | `WorkflowRunRequest.DefinitionVersion` public; checkpoint'siz kurtarma yeniden başlatması zincirin ilk run'ının sürümünü sabitler (F-492) |
 | K-1025 | `/v1/chat/completions` görsel, ses ve dosyayı modele verir; tool geçmişi ve bilinmeyen rol `400` (F-580) (kullanıcı kararı) 👤 |
 | K-1026 | OpenAI ses istemcisi `OpenAIClient.Pipeline` üstündedir, `AudioClient`/MEAI adaptörü üstünde değil (F-579) |
+| K-1027 | `/v1/chat/completions` agent'ın istek ayarını `400` ile reddeder; `/v1/conversations` ilk `items`'ı reddeder (F-581) |
+| K-1028 | `RunRecordingAgent` iç agent'a düz `AgentRunOptions` verir, `TraconRunOptions` değil (G-07) |

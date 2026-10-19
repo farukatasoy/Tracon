@@ -265,6 +265,16 @@ class KapiTestleri(unittest.TestCase):
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
+    def test_openai_ortak_kaynagi_iki_saglayici_projesini_secer(self):
+        # F-584: src/Tracon.OpenAI.Shared paket degildir; OpenAI ve Azure
+        # paketlerine derlenir. Haritada olmasa her degisiklik tam kosuma duserdi.
+        projects, full = kapi.affected_test_projects(
+            ["src/Tracon.OpenAI.Shared/OpenAIPipelineImageGenerator.cs"])
+
+        self.assertIn("Tracon.OpenAI.UnitTests", projects)
+        self.assertIn("Tracon.Azure.UnitTests", projects)
+        self.assertFalse(full)
+
     def test_sozlesme_paketi_ve_sql_ortak_kaynagi_tam_kosuma_dusmez(self):
         # 2026-10-13 (Faz 196 ve 202): Tracon.Testing.Contracts.Xunit ve
         # Tracon.Sql.Shared haritada yoktu; iki faz da ic donguyu her

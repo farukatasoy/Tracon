@@ -160,6 +160,13 @@ internal static class OpenAIChatCompletionsEndpoints
             return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, $"Body could not be parsed: {ex.Message}");
         }
 
+        // F-581: a setting the agent definition owns is refused, never ignored;
+        // /v1/responses refuses the same kind through MAF's request mapping.
+        if (ChatCompletionsRequestSettings.FindRefused(body) is { Count: > 0 } refused)
+        {
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, ChatCompletionsRequestSettings.Describe(refused));
+        }
+
         var agentName = OpenAICompatSupport.ReadAgentName(body);
 
         if (string.IsNullOrEmpty(agentName))

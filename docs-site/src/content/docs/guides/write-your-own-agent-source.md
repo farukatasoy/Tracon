@@ -43,6 +43,26 @@ for the same type registers it once.
 For a definition source, let the compiler own dependency fingerprints and the BYOK
 cache bypass. Do not repeat that logic in your source.
 
+```mermaid
+flowchart LR
+    accTitle: The two source shapes
+    accDescr: A definition source hands an AgentDefinition to the compiler, which builds the agent with the model rings, the tenant key and the cost. An agent source builds its own agent; it gets the same model rings, tenant key and egress policy from CreateChatClientAsync, and the cost from the model named in its descriptor. The catalog applies Tracon's decorators to both.
+    DEF["Definition source<br/>AgentDefinition"] --> COMP["AgentDefinitionCompiler<br/>CompileCachedAsync"]
+    COMP --> CAT["Catalog decorators"]
+    OWN["Agent source<br/>your AIAgent"] --> CLIENT["CreateChatClientAsync<br/>rings · tenant key · egress"]
+    OWN --> DESC["AgentDescriptor.Model<br/>cost"]
+    CLIENT --> CAT
+    DESC --> CAT
+```
+
+For an agent source, the compiler does not run, so two things are yours. Build the
+chat client with `IModelProviderRegistry.CreateChatClientAsync` inside
+`ResolveAsync`: it applies the tenant's own provider key and egress policy, and it
+adds the same model rings a compiled agent gets. Set `AgentDescriptor.Model` in
+`ListAsync`: the run record reads the model from the descriptor, and without it the
+run has no cost. Do not cache an agent whose client carries a tenant's own key
+across tenants; `HasTenantProviderOverrideAsync` tells you when it does.
+
 ```csharp
 public async ValueTask<AIAgent?> ResolveAsync(string name, string? culture = null, CancellationToken ct = default)
 {

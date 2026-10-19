@@ -24,4 +24,13 @@
     <Compile Include="../Tracon.Providers.Shared/**/*.cs" LinkBase="Shared" />
   </ItemGroup>
 
+  <!--
+    Shared source for the two packages built on the OpenAI client library
+    (Tracon.OpenAI and Tracon.Azure). Not a package. Rules:
+    src/Tracon.OpenAI.Shared/README.md.
+  -->
+  <ItemGroup Label="Shared OpenAI client source">
+    <Compile Include="../Tracon.OpenAI.Shared/**/*.cs" LinkBase="OpenAIShared" />
+  </ItemGroup>
+
 </Project>

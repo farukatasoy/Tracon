@@ -22,7 +22,9 @@ builder.AddTracon()
         o.SynthesisModel = "tts-smoke";
         o.TranscriptionModel = "stt-smoke";
     })
+    .UseOpenAIImages(o => o.Model = "image-smoke")
     .UseAzureOpenAI(baseAddress, "smoke-key")
+    .UseAzureOpenAIImages()
     .UseVoice(o =>
     {
         o.ApiKey = "smoke-key";
@@ -78,6 +80,19 @@ using (var recording = new MemoryStream(FakeProviderServer.ExpectedAudio.ToArray
     Check(failures, "openai transcript", transcript.Text, FakeProviderServer.Transcript);
 }
 
+// Image generation through each provider's own path (F-584). The generator is the one the
+// generate_image tool resolves; a host that only registers it must still publish.
+#pragma warning disable MEAI001 // Microsoft.Extensions.AI marks its image generator experimental
+foreach (var providerName in new[] { OpenAIProviderNames.ChatCompletions, AzureOpenAIProviderNames.AzureOpenAI })
+{
+    var generator = host.Services.GetRequiredKeyedService<IImageGenerator>(providerName);
+    var images = await generator.GenerateAsync(new ImageGenerationRequest("a lighthouse"), new ImageGenerationOptions { Count = 1 });
+    var image = images.Contents.OfType<DataContent>().SingleOrDefault();
+    Check(failures, $"{providerName} image", image is null ? "none" : $"{image.MediaType}:{image.Data.Length}",
+        $"image/png:{FakeProviderServer.ExpectedImage.Length}");
+}
+#pragma warning restore MEAI001
+
 await host.StopAsync();
 
 // Each provider must have reached its own path, not another's.
@@ -87,6 +102,8 @@ RequireSeen(failures, server, "/v1/text-to-speech/");
 RequireSeen(failures, server, "/v2/voices");
 RequireSeen(failures, server, "/v1/audio/speech");
 RequireSeen(failures, server, "/v1/audio/transcriptions");
+RequireSeen(failures, server, "/v1/images/generations");
+RequireSeen(failures, server, "/openai/v1/images/generations");
 
 if (failures.Count > 0)
 {
@@ -98,7 +115,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("provider AOT smoke passed: openai azure-openai voice openai-speech");
+Console.WriteLine("provider AOT smoke passed: openai azure-openai voice openai-speech images");
 return 0;
 
 static void Check(List<string> failures, string what, string actual, string expected)

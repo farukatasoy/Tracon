@@ -212,7 +212,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     {
         if (!_options.Enabled)
         {
-            return await base.RunCoreAsync(messages, session, options, cancellationToken).ConfigureAwait(false);
+            return await base.RunCoreAsync(messages, session, ForInnerAgent(options), cancellationToken).ConfigureAwait(false);
         }
 
         // 🚨 The root span MUST be started IN THE BODY OF THIS METHOD. Activity.Current is
@@ -242,7 +242,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         {
             await WriteRunStartAsync(start, messages, cancellationToken).ConfigureAwait(false);
 
-            var response = await base.RunCoreAsync(messages, session, options, cancellationSource.Token).ConfigureAwait(false);
+            var response = await base.RunCoreAsync(messages, session, ForInnerAgent(options), cancellationSource.Token).ConfigureAwait(false);
 
             foreach (var message in response.Messages)
             {
@@ -343,7 +343,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     {
         if (!_options.Enabled)
         {
-            await foreach (var passthrough in base.RunCoreStreamingAsync(messages, session, options, cancellationToken).ConfigureAwait(false))
+            await foreach (var passthrough in base.RunCoreStreamingAsync(messages, session, ForInnerAgent(options), cancellationToken).ConfigureAwait(false))
             {
                 yield return passthrough;
             }
@@ -380,7 +380,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // they pass and handed over as ONE assistant message.
         List<AIContent>? approvalContents = null;
 
-        var enumerator = base.RunCoreStreamingAsync(messages, session, options, cancellationSource.Token)
+        var enumerator = base.RunCoreStreamingAsync(messages, session, ForInnerAgent(options), cancellationSource.Token)
             .GetAsyncEnumerator(cancellationSource.Token);
 
         // 🚨 HATA-S1-015: these two flags separate the case where the consumer calls

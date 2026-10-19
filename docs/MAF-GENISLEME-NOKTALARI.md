@@ -13,6 +13,7 @@
 >
 > Bir tipin gerçek imzasını doğrulamadan kullanma — `maf-api-kesfi` skill'i.
 > Tuzaklar: [`hafiza/maf-api.md`](hafiza/maf-api.md).
+> MAF'ın tamamına karşı kapsama (yetenek matrisi, dalgalar): [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md).
 
 ---
 

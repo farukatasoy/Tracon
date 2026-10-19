@@ -2,11 +2,13 @@
 
 > **Ölçüm:** 2026-10-18 · **Sürüm:** `Microsoft.Agents.AI` **1.25.0** (NuGet hattında en yeni; 2026-10-18'de yeniden doğrulandı) · MEAI 10.11.0 · MCP 2.2.0 · VectorData 10.10.0. Tracon pin'i aynıdır (Faz 214).
 > **Önceki sürüm:** 2026-10-17. Bu sürüm onun yerine geçer. Önceki sürümün hataları §0'dadır.
+> **Yer:** 2026-10-19'a kadar `claudedocs/maf-1.25.0-yetenek-matrisi.md` idi; D-20 ile buraya taşındı. Her MAF sürümünde yeniden ölçülür (§10).
 > **Dalga 1 ölçümü:** 2026-10-19. R-01…R-07'nin ölçüm şartları koşuldu; sonuçlar §6'da, düşen iddialar §0'da (#12–#16).
+> **Dalga 2 ölçümü:** 2026-10-19. G-01…G-06, C-01, C-10 ve R-05 kod, derleme probu ve çalışma anı probu ile ölçüldü; sonuçlar §7.0'da, düşen iddialar §0'da (#18–#23).
 > **Kitle:** Tracon bakımcısı ve faz planlayan oturumlar. Bu belge **plan girdisidir**, karar defteri değildir. Kararlar `K-*`'e, adaylar `ADAYLAR.md`'ye yalnız `aday-kesfi` ve `faz-planlama` ile girer.
 > **Yöntem özeti:** 40/40 MAF paketi `MetadataLoadContext` ile okundu (1.166 tip, iç içe tipler ve üyeler dahil). Tracon tarafında 2.326 `.cs` dosyası jeton indeksine çevrildi. MAF 1.16.0 (Tracon'un ilk pin'i) ile karşılaştırıldı. Ayrıntı §12.
 
-**Özet:** 143 yetenek satırı — ✅ 43 · 🟡 14 · ❌ 85 · ⛔ 1. MAF'ın 1.064 üst düzey public tipinin 231'i `src/`'de anılır (%22). En büyük bulgular: (1) değerlendirilmemiş her kalem MAF 1.16'da zaten vardı — takip açığı sürüm farkında değil, **başlangıç yüzeyindedir**; (2) her MAF özelliği için bir kaçış yolu vardır, ama yol **kayıplıdır** (fabrika agent'ı 12 model halkasını, BYOK'u, egress'i ve maliyeti kaybeder) ve **belgesizdir**; (3) 13 paralel uygulamanın 1'i hata (küçük), 1'i borçtur. Dalga 1 ölçümü (2026-10-19) iki "hata" hükmünü düşürdü ve Dalga 1'de kırıcı kalem bırakmadı (§6).
+**Özet:** 143 yetenek satırı — ✅ 43 · 🟡 14 · ❌ 85 · ⛔ 1. MAF'ın 1.064 üst düzey public tipinin 231'i `src/`'de anılır (%22). En büyük bulgular: (1) değerlendirilmemiş her kalem MAF 1.16'da zaten vardı — takip açığı sürüm farkında değil, **başlangıç yüzeyindedir**; (2) her MAF özelliği için bir kaçış yolu vardır, ama yol **kayıplıdır** (fabrika agent'ı 12 model halkasını, BYOK'u, egress'i ve maliyeti kaybeder) ve **belgesizdir**; (3) 13 paralel uygulamanın 1'i hata (küçük), 1'i borçtur. Dalga 1 ölçümü (2026-10-19) iki "hata" hükmünü düşürdü ve Dalga 1'de kırıcı kalem bırakmadı (§6). Dalga 2 ölçümü (2026-10-19) kaçış yolunu sanılandan geniş buldu (özel `IAgentSource` BYOK ve maliyeti geri kazanır; `IAgentDecorator` agent middleware'ini bugün taşır), R-05'i düşürdü ve yakalanmamış bir K0 buldu: `TraconRunOptions` MAF'ın tool middleware'ini kırar (G-07, §7.0).
 
 ---
 
@@ -31,6 +33,12 @@
 | 15 | R-04, R-05 Dalga 1'de | İkisinde de kırıcı ya da internal iş yok; değer ekleyici yüzeydedir | Dalga 2 (§6) |
 | 16 | R-07: "MIMARI ve K-019" | K-003 de aynı kaymayı taşıyordu ("`AddAIAgent` ile kodda tanımlananlar katalogda görünür") | üçü düzeltildi |
 | 17 | R-06: "builder'a geç" (tek adım) | Harness skill'i **kaynak** olarak alır (`HarnessAgentOptions.AgentSkillsSource`) ve provider'ı `options: null` ile kendisi kurar; builder yalnız provider üretir. Tek zincir için harness'ın yerleşik provider'ı kapanır, Tracon'unki `AIContextProviders`'a girer. Yan bulgu: harness bugün `AgentSkillsProviderOptions` alamaz (C-08) | Faz 219 planı (2026-10-19) |
+| 18 | §1.1-4: "agent middleware'i yalnız fabrika agent'ıyla gelir" | Public `IAgentDecorator` derlenmiş agent'ı da sarar; içinde `agent.AsBuilder().Use(…)` (run middleware) ve `UseAIContextProviders(MessageAIContextProvider…)` çalışır, 12 halka korunur. Agent'a özgü seçim `descriptor.Name` ile yapılır. Kapalı olanlar: tool middleware (#23), tam `AIContextProvider` (tool ve talimat ekleyen), MAF seçenekleri | §7.0 · G-05 kapı listesi |
+| 19 | G-02: "BYOK + egress ve maliyet bugün **hiçbir yolla** geri kazanılamaz" | Public `IAgentSource`'un `ResolveAsync`'i async'tir → `CreateChatClientAsync` BYOK ve egress uygular. Katalog dekoratöre descriptor'ı kaynağın `ListAsync`'inden verir (`CompositeAgentCatalog.cs:124-131`); `AgentDescriptor.Model` dolu ise maliyet hesaplanır. docs-site "Agent source" biçimini anlatır, kazanımı söylemez | G-02 "tek yol" değil "kolaylık" (§7.0) |
+| 20 | G-01: "deneysel MAF tipi kancanın parametresinde görünür → D-01" | Derleme probu (MAF 1.25): `ChatClientAgentOptions`, `HarnessAgentOptions`, `HarnessAgent`, `TodoProvider`, `AIAgentBuilder.Use`, `AIAgent.CurrentRunContext` tip düzeyinde deneysel değil. Kontrol: `HarnessAgentOptions.MaxContextWindowTokens` MAAI001 verir. `uyum-probu deneysel` tip düzeyini sayar | D-01 G-01'in ön koşulu değil |
+| 21 | §7.1: "DI'daki `AgentFileStore` öneksizdir → kiracılar arası sızıntı" | Yalnız bellek içi varsayılan (`InMemoryAgentFileStore`) öneksizdir. `SqlAgentFileStore` her sorguda `ITenantContext.TenantId` kullanır: kiracıya bağlıdır, agent'a bağlı değildir | §7.1 satırı düzeltildi |
+| 22 | R-05: "run kimliğini options'a yaz; ekleyici yetenek" | `TraconRunContext.Current`/`CurrentRunId` ve `TraconRunOptions` zaten public. MAF-yerli kod `AIAgent.CurrentRunContext?.RunOptions as TraconRunOptions` ile okur. Ek anahtar Tracon'u bilen koda yeni şey vermez | düştü |
+| 23 | — (yakalanmadı) | Çalışma anı probu: MAF fonksiyon middleware'i (`AIAgentBuilder.Use(…FunctionInvocationContext…)`) `options: null` ile çalışır, `TraconRunOptions` ile `NotSupportedException` atar. `ChatClientAgentRunOptions` `sealed`'dır. Tracon uçları hep `TraconRunOptions` geçer | G-07 ✅ (§7.0) |
 
 ---
 
@@ -43,7 +51,7 @@ Evet. Ölçülen en büyük açıklar (her biri §5'te bir satırdır):
 1. **Çalışan run'a mesaj eklenemez.** MAF `MessageInjectingChatClient` · `EnableMessageInjection` (1.16'dan beri) kullanılmaz.
 2. **Hosted tool'lar yok.** Code interpreter, file search, hosted MCP, image generation tanımda açılamaz. Açık olan tek hosted tool (web search) bile run kaydına girmez ve ücreti sayılmaz.
 3. **MCP istemcisi eksik.** Elicitation, sampling, roots ve task istemcisi yok. Elicitation isteyen bir MCP sunucusu Tracon altında çalışmaz.
-4. **Tüketici MAF'ı bildirimsel agent'a takamaz.** Kendi `AIContextProvider`'ı, agent middleware'i veya bir MAF seçeneği yalnız fabrika agent'ıyla gelir. O yol 12 model halkasını, BYOK'u, egress'i ve maliyeti kaybeder (§7.1).
+4. **Tüketici MAF'ı bildirimsel agent'a takamaz.** Kendi tam `AIContextProvider`'ı veya bir MAF seçeneği yalnız fabrika agent'ıyla gelir. O yol 12 model halkasını, BYOK'u, egress'i ve maliyeti kaybeder (§7.1). *Dalga 2 ölçümü (§0 #18, #23):* run middleware'i ve `MessageAIContextProvider` bugün `IAgentDecorator` ile halkalar korunarak gelir; MAF tool middleware'i ise her agent tipinde K0'dır (G-07).
 5. **Protokol ve entegrasyon yok.** AG-UI, A2A istemcisi, Purview, MAF YAML agent'ı, Foundry, Copilot Studio — hiçbiri yok.
 6. **Ses yalnız ElevenLabs.** MEAI'nin `ISpeechToTextClient`/`ITextToSpeechClient` sağlayıcıları (OpenAI dahil) bağlanamaz.
 
@@ -201,7 +209,7 @@ Katman paketleri: `Microsoft.Extensions.AI` (+`.Abstractions`, `.OpenAI`, `.Eval
 | ❌ | `RequirePerServiceCallChatHistoryPersistence` · `Clear/Warn/ThrowOnChatHistoryProviderConflict` · `UseProvidedChatClientAsIs` | MAF varsayılanı | Değerlendirilmedi | — | ✗ | K1: tool döngüsünün ortasında çökmede ara geçmiş kaybolabilir (ölçülmedi) | C-08 (önce probe) |
 | ❌ | `ChatClientAgentOptions.AllowConcurrentInvocation` | `FunctionInvokingChatClient`'a bağlı | K-553 | — | ✓ | K3 (eşi var) | Koru |
 | ❌ | `EnableInvocableFunctionBypassing` (MAAI001) · `DisableApproval*` · MEAI `UseInvocableFunctionBypassing`/`UseApproval*` | bilerek kapalı | kayıt ve yetki zinciri her çağrıyı görmeli | — | ✓ | — | Koru (ret) |
-| ❌ | `AgentRunContext` · `AIAgent.CurrentRunContext` | `TraconRunContext` (AsyncLocal, ağaç kapsamı) | Değerlendirilmedi | Haklı: MAF bağlamı run kimliği ve bütçe taşımaz; alt agent `options = null` ile çağrılır (ölçüldü) | ✗ | K1: MAF-yerli kod Tracon run kimliğini göremez | R-05 (Dalga 2) |
+| ❌ | `AgentRunContext` · `AIAgent.CurrentRunContext` | `TraconRunContext` (AsyncLocal, ağaç kapsamı) | Değerlendirilmedi | Haklı: MAF bağlamı run kimliği ve bütçe taşımaz; alt agent `options = null` ile çağrılır (ölçüldü) | ✗ | K1: MAF-yerli kod `CurrentRunContext.RunOptions as TraconRunOptions` ile run kimliğini okur (ölçüldü 2026-10-19) | R-05 düştü (§0 #22) |
 | ❌ | Background responses: `AllowBackgroundResponses` · `ContinuationToken` · MEAI `ResponseContinuationToken` | `Prefer: respond-async` iş kuyruğu | K-030 (`store=false`); OpenAI arka plan modu sunucu tarafı saklama ister (belgeye göre; Tracon'da ölçülmedi). Önceki sürüm K-778 diyordu; yanlış | Haklı: kuyruk aynı ihtiyacı işçi tarafında karşılar | ~ | K0→K2: saatler süren "deep research" çağrısı işçiyi meşgul eder | D-09 · C-25 |
 | ❌ | `AgentRequestMessageSourceAttribution`/`Type` · `WithAgentRequestMessageSource` | yalnız JSON bağlamında tip kaydı | Değerlendirilmedi | — | ✗ | K2 açığı: girdinin kaynağı (geçmiş, provider, dış) kayıtta ayrılmaz | C-10 |
 | ❌ | `LoggingAgent` · `UseLogging` | yalnız testte | run kaydı daha zengin | — | ✗ | K1 (decorator olarak takılır) | Koru |
@@ -434,7 +442,7 @@ Kod workflow'u (`AddWorkflow(name, Func<IServiceProvider, Workflow>)`) MAF grafi
 | **R-02** | `FallbackChatClient` (925 satır) | `FailoverChatClient` · `OrderedFailoverChatClient` | Borç; `OrderedFailoverChatClient`'tan türet | (1) `OrderedFailoverChatClient` **`sealed`** — türetilemez. (2) `FailoverChatClient` soyuttur, türetilebilir (`SelectClientAsync` + `OnRoutingUpdateAsync`); ikisi de `MEAI001`. (3) Davranış (decompile): iptal dışı her hatada sıradakine geçer; sınıflandırıcı kancası yok → `IProviderRetryClassifier` ancak `OnRoutingUpdateAsync`'ten atarak durdurur. Her denemeye aynı `ChatOptions` gider → bağlantı başına `ModelId` ve araç defteri için `SelectClientAsync` sarmalayıcı istemci döndürmelidir. İstek durumu (defter, ilk hata) `RoutingContext` anahtarlı yan tabloda tutulur. Zincir-tükendi istisnası terminal güncellemede atılarak korunur. (4) Akış kuralı aynıdır: ilk kareden sonra geçiş yok (`OutputCommitted`). (5) Kazanç: iki döngü gövdesi (~230 satır). Sınıflandırıcı, olay yükü ve tembel async kurulum kalır | **Koru; ertele.** Her model çağrısının sıcak yolu deneysel bir taban sınıfa bağlanmaz. Tracon'un bağımlılığı alt sınırdır (`>= 10.11`); tüketicinin MEAI yükseltmesi ikili uyumu kırabilir | Hayır | `FailoverChatClient` `MEAI001`'den çıkınca yeniden ölç. Gerekçe yazıldı ✅ (`MAF-GENISLEME-NOKTALARI.md`, MEAI 10.9.0 satırı) |
 | **R-03** | Chat Completions (579 satır) | `ChatResponse.AsOpenAIChatCompletion` · `AsOpenAIStreamingChatCompletionUpdatesAsync` · `AgentResponse.AsOpenAIChatCompletion` | Hata; dönüştürücü + `ModelReaderWriter` | (1) Üçü de `OPENAI001`. (2) AOT: `ModelReaderWriter.Write(x, Json, OpenAIContext.Default)` IL2026/IL3050 vermez. (3) Tel probu, akışsız: `refusal:null`, `tool_calls:[]`, `annotations:[]`, `logprobs:{content:[],refusal:[]}` ekler. `ToolCalls` → `"tool_calls"` (K-992 `"stop"` der). (4) **Akış: `FinishReason`'ı boş her chunk `finish_reason:"stop"` yazar** (ilk içerik chunk'ı dahil). `CreatedAt` boşsa `created:-62135596800` yazar. OpenAI akış sözleşmesi bozulur. (5) 579 satırın tel biçimi ~45 satır record'dur; gerisi run, onay, idempotency ve kiracı mantığıdır | **Haklı (ölçüldü). Ret.** K-036 notu düzeltilir: dönüştürücü vardır ama tel sözleşmesini bozar | — | Upstream akış kusuru düzelir ve OPENAI001 kalkarsa yeniden ölç |
 | **R-04** | `AgentDecoratorPipeline` (73 satır) | `AIAgentBuilder` | Haklı; içte `AIAgentBuilder.Use` | `AIAgentBuilder` deneysel değil. Boru hattının mantığı 30 satırdır: `Order` sırası, descriptor, hata normalizasyonu (K-840). Builder yalnız döngünün yerini alır | **Refaktör yok.** Tüketici değeri (lambda middleware) C-01'dedir | — | Dalga 2 (C-01) |
-| **R-05** | `TraconRunContext` | `AIAgent.CurrentRunContext` | Haklı; run kimliğini options'a da yaz | `CurrentRunContext` `AsyncLocal`'dır; setter erişilemez (CS0272). MAF onu her `RunAsync` katmanında aldığı options ile kurar → `AgentRunOptions.AdditionalProperties`'e yazılan run kimliği MAF-yerli koda görünür. Anahtar adı public sözleşmedir | Hüküm aynı; **ekleyici yetenek** | Hayır | Dalga 2 |
+| **R-05** | `TraconRunContext` | `AIAgent.CurrentRunContext` | Haklı; run kimliğini options'a da yaz | `CurrentRunContext` `AsyncLocal`'dır; setter erişilemez (CS0272). MAF onu her `RunAsync` katmanında aldığı options ile kurar → `AgentRunOptions.AdditionalProperties`'e yazılan run kimliği MAF-yerli koda görünür. Anahtar adı public sözleşmedir | Hüküm aynı; **ekleyici yetenek** | Hayır | **Düştü** (Dalga 2 ölçümü, §0 #22); asıl iş G-07 |
 | **R-06** | elle skill kaynağı zinciri | `AgentSkillsProviderBuilder` | Hata (küçük) | Deneysel değil. MAF sırası: Aggregate → Caching → Filtering → Dedup. Tracon: Aggregate → Filtering → Caching (kiracı anahtarı) → Dedup. `UseSource`, `UseFilter`, `UseCachingOptions(CacheIsolationKeySelector)` zinciri kurar; fark önbellek ile süzgecin yer değiştirmesidir. `UseMcpSkills` bu builder'ın uzantısıdır (MAF.Mcp alpha) → C-14 ön koşulu doğrulandı | Hüküm aynı; kapsam büyüdü (§0 #17): iki agent tipi tek zincirden geçer | Hayır (internal) | ✅ **Faz 219** (2026-10-19): zincir builder'dan geçer; harness'ta MAF'ın yerleşik provider'ı her zaman kapalı, Tracon'unki `AIContextProviders` başında. Ölçülen fark: skill + alt agent birlikteyken skill araçları ve talimat bölümü alt agent'tan sonra gelir |
 | **R-07** | `MIMARI.md:252`, K-019 | — | doküman kayması | Doğrulandı. Ek bulgu: **K-003** da "`AddAIAgent` ile kodda tanımlananlar katalogda görünür" diyordu | **Düzeltildi (2026-10-19):** üçü koda göre yazıldı. D-06 köprüyü açarsa metin o fazda yeniden yazılır | — | ✅ |
 
@@ -452,11 +460,28 @@ Gerekçesi yazılı, bu turda yeniden ölçülmeyen paralel uygulamalar:
 
 **Freeze ile ilişki (ölçümden sonra).** Dalga 1'de kırıcı kalem kalmadı. UR-012 = B (2026-10-19) ile "kırıcı mı" sütunu sıralama ölçütü değildir; ölçüt en iyi RC'dir. R-01 köprüsü ekleyicidir ve `rc.1`'den önce gelir. R-06 internal'dır, her zaman yapılabilir. R-02 ve R-03 kod işi değildir; gerekçe ve yeniden ölçüm koşulu yazılır. R-04 ve R-05 Dalga 2'ye taşındı.
 
-**Upstream'e bildirilebilir kusur.** `AsOpenAIStreamingChatCompletionUpdatesAsync`: `ChatResponseUpdate.FinishReason == null` → `StreamingChatCompletionUpdate.FinishReason == Stop` (probe: iki güncelleme, ilki `null`, ikincisi `Length`; çıktı `stop`, `length`).
+**Upstream'e bildirildi (2026-10-19): [dotnet/extensions#7863](https://github.com/dotnet/extensions/issues/7863).** `AsOpenAIStreamingChatCompletionUpdatesAsync`: `ChatResponseUpdate.FinishReason == null` → `StreamingChatCompletionUpdate.FinishReason == Stop` (probe: iki güncelleme, ilki `null`, ikincisi `Length`; çıktı `stop`, `length`).
 
 ---
 
 ## 7. Dalga 2 — kaçış kapısını ürünleştir
+
+### 7.0 Ölçüm (2026-10-19)
+
+> **Yöntem:** kod okuması (satır kanıtı), derleme probu (MAF 1.25, deneysel tanı hata düzeyinde; kontrol probu MAAI001'in çalıştığını gösterdi), `ilspycmd` ile MAF 1.25 davranış okuması, çalışma anı probu (`ChatClientAgent` + betikli `IChatClient` + MAF fonksiyon middleware'i + derlenmiş `Tracon.Abstractions`).
+> **Sonuç:** Dalga 2'de kırıcı kalem yok. Kaçış yolu sanılandan geniş (§0 #18, #19). R-05 düştü (#22). Yakalanmamış bir K0 bulundu: **G-07**, C-01'in ve C-03'ün ön koşulu (#23). D-01 Dalga 2'nin ön koşulu değil (#20).
+
+| # | İlk hüküm (2026-10-18) | Ölçüm (2026-10-19) | Yeni hüküm | Faz türü | Sıra |
+|---|---|---|---|---|---|
+| **G-07** *(yeni)* | — | MAF fonksiyon middleware'i `options` tipi `AgentRunOptions` ya da `ChatClientAgentRunOptions` değilse `NotSupportedException` atar (`FunctionInvocationDelegatingAgent.AgentRunOptionsWithFunctionMiddleware`). `ChatClientAgentRunOptions` `sealed` → `TraconRunOptions` ondan türeyemez. Uçlar (`AgentEndpoints`, `RunEndpoints`, `OpenAIChatCompletionsEndpoints`, `CatalogToolCallHandler`) ve 10 iç yol `TraconRunOptions` geçer; `RunRecordingAgent` onu içeri olduğu gibi iletir. `TraconRunOptions`'ı okuyan tek bileşen `RunRecordingAgent`'tır (`Lifecycle.cs:29`, `Completion.cs:37`); alanları zaten `TraconRunContext`'tedir. Aynı engel C-03'ün "run başına `ChatOptions`"ını da kapatır. `TraconRunOptions` remarks'ı "pratik bir kısıt değildir" der: bu artık yanlıştır | **K0.** Dönüşüm sınırı tektir: `RunRecordingAgent` içeri `ChatClientAgentRunOptions` geçirir (taban alanlar + `AdditionalProperties` kopyalanır). Dışta (`Order < 0`) fonksiyon middleware'i yine çalışmaz ve run alanlarını düşürür → belgelenir | hafif (public imza değişmez; iç dekoratörün gördüğü tip değişir → sürüm notu) | ✅ `kusur-giderme` (2026-10-19): `RunRecordingAgent.ForInnerAgent` içeri **düz** `AgentRunOptions` verir (`ChatClientAgentRunOptions` değil: her `AIAgent` düz tipi kabul eder, MAF middleware'i kendisi çevirir). Kapı: `MafFunctionMiddlewareTests` (önce kırmızı), `RunOptionsHandoffTests` (ratchet) |
+| **G-05** | rehber | `capabilities.md:39` ve `concepts/agents.md:155-158` doğrulandı. Örnek kodun tipleri derlenir (`ModelBinding`, `IToolRegistry.TryGet` → `AIFunctionDeclaration`, DI'da `ChatHistoryProvider` kayıtlı, `TodoProvider` deneysel değil). Kapı listesi eksikti: `IAgentDecorator` + `AIAgentBuilder` (#18) ve özel `IAgentSource` (#19). `conversation_items` görünümü hâlâ ölçülmedi → örnek projeyi koşan faz ölçer | Hüküm aynı; kapsam büyüdü | hafif | **Faz 221** (F-587) |
+| **G-06** | uyarı | Algılama mümkün: `ChatClientAgent.GetService(typeof(IChatClient))` istemciyi döndürür; MEAI `DelegatingChatClient.GetService` zinciri iner → registry halkası (`ProviderFailureNormalizingChatClient`) aranır. Fabrika her çözümlemede çağrılır → başlangıçta değil, ad başına ilk çözümlemede bir kez. `IChatClient` vermeyen agent "bilinmiyor"dur, uyarı vermez | Hüküm aynı | hafif (G-05 ile tek faz) | **Faz 221** (F-587) |
+| **G-01** | kanca; D-01'e bağlı | Seam yok; iki nokta: `AgentDefinitionCompiler.Agents.cs:20-62` (sohbet), `:249+` (harness). Parametre tipleri deneysel değil (#20). Kanca `CompileCachedAsync` içinde koşar → sonuç önbelleğe girer (anahtar: tanım, kiracı, kültür); parametreli run önbelleği atlar. Tam options nesnesi `ChatOptions.Tools`'u, `ChatHistoryProvider`'ı ve Tracon provider'larını değiştirebilir → `ToolWrapperChain` (yetki, onay) atlanabilir | Hüküm aynı; D-01 ön koşulu düştü. **Tasarım sorusu 👤:** tam options mı, daraltılmış bağlam mı | tam (public-api) | **Faz 222** (F-588); kanca kapsamı ölçümle C seçildi: tam MAF seçenek nesnesi + korunan üye tablosu + ratchet |
+| **C-01** | adlı kayıt | Ad-tabanlı desen var: `AddEvalCheck(kind, …)`, `AddLoopEvaluator(kind, …)`. `AgentDefinition`'da uzantı seçen alan yok (`Metadata` serbest sözlük). Tool middleware'i G-07 olmadan çalışmaz. MAF `UseAIContextProviders` yalnız `MessageAIContextProvider` alır; tam `AIContextProvider` derleme anında girer | Hüküm aynı; G-07'ye bağlı | tam (public-api + tanım alanı + doğrulayıcı + konsol + TS istemcisi) | **Faz 222** (F-588). `AddChatClientRing` dilimi faza girmedi, C-01'de kalır |
+| **G-04 / C-10** | kayıt genellemesi | `RunRecordingAgent.Persistence.cs:239` `default: break` ve `WorkflowEventMapper.cs:103` `_ => Unknown` doğrulandı. Hazır taşıyıcı var: `RunEventType.Custom = 29` + `RunEventCustomTypes.ReservedPrefix = "tracon."` (rezerve tipin yükü her zaman yazılır) | Hüküm aynı. **Tasarım soruları 👤:** rezerve tip adları (public sözleşme), büyük `DataContent` ve PII için yük politikası, tüketicinin kendi `WorkflowEvent` türevinin AOT'ta serileştirilmesi | tam (public-api) | **Faz 223** (F-589): `tracon.content` + `tracon.workflow.event`; atıf, OTel ve span'ler C-10'da kalır |
+| **G-02** | async overload + model beyanı; "tek yol" | #19: özel `IAgentSource` iki halkayı da geri kazanır. Eksik olan ergonomidir: `ListAsync` + `ResolveAsync` + kaynak sözleşmesi | **Kolaylık.** Rehber yolu yazar (G-05). Faz 222'ye girmedi; tüketici talebi gelirse ayrı kalem | — | — |
+| **G-03** | proxy'yi public yap | `ExternalAgentProxy` A2A'ya özgüdür: denetim izine `"a2a"` yazar, bekleyen onayı reddeder, her çağrıda kök run açar, `Tracon.AspNetCore`'dadır. Public yapmak genelleştirme ister: protokol adı, onay davranışı, paket yeri | Değer gerçek, tüketicisi Dalga 4'tür (C-15) | — | **Dalga 4'e taşındı** (C-15 ile) |
+| **R-05** | ekleyici yetenek | #22 | **Düştü** | — | — |
 
 ### 7.1 Fabrika agent'ı: neyi alır, neyi kaybeder (ölçüldü)
 
@@ -469,11 +494,11 @@ Gerekçesi yazılı, bu turda yeniden ölçülmeyen paralel uygulamalar:
 | Kalıcı otomatik onay kuralları | ✅ | ✅ Order 20 | — | — |
 | Oturum, `/v1/*`, A2A/MCP yayını, alt agent olarak çağrılma | ✅ | ✅ | — | — |
 | **Model halkaları (12):** hata etiketleme · eşzamanlılık sınırı · içerik guard'ı · tool döngüsü (`AllowConcurrentToolCalls`, iterasyon sınırı) · ağaç bütçesi · yanıt önbelleği · `chat` span · ek çözme · devre kesici · fallback · bitiş sebebi algılama · hata normalizasyonu | ✅ (`ModelProviderRegistry.cs:338-519`) | ❌ | `IModelProviderRegistry.CreateChatClient(binding)` | — |
-| Kiracı anahtarı (BYOK) + egress politikası | ✅ `CreateChatClientAsync` | ❌ | **yok:** fabrika senkrondur; senkron `CreateChatClient` BYOK ve egress uygulamaz (`IModelProviderRegistry.cs:26-34`) | G-02 |
-| Maliyet, model kırılımı, maliyet kotası | ✅ | ❌ descriptor'da model yok (`RunRecordingAgentDecorator.cs:136-143`) | **yok** | G-02 |
+| Kiracı anahtarı (BYOK) + egress politikası | ✅ `CreateChatClientAsync` | ❌ | `AddAgent(name, factory)` ile yok: fabrika senkrondur; senkron `CreateChatClient` BYOK ve egress uygulamaz (`IModelProviderRegistry.cs:26-34`). **Özel `IAgentSource` ile var** (ölçüldü 2026-10-19): async `ResolveAsync` içinde `CreateChatClientAsync` | G-02 (kolaylık) |
+| Maliyet, model kırılımı, maliyet kotası | ✅ | ❌ descriptor'da model yok (`RunRecordingAgentDecorator.cs:136-143`) | **Özel `IAgentSource` ile var:** `ListAsync`'in `AgentDescriptor.Model`'i dekoratöre gider (`CompositeAgentCatalog.cs:124-131`) | G-02 (kolaylık) |
 | Tool zinciri (yetki, doğrulama, zaman aşımı, kırpma, onay işareti, scope) | ✅ | ❌ (tüketicinin kendi `AIFunction`'ı) | `IToolRegistry.TryGet(name, out tool)` | — |
 | SQL geçmişi (`conversation_items`) | ✅ | ❌ geçmiş yalnız oturum `StateBag`'inde (konsol ve `/v1/conversations` görünümü ölçülmedi) | DI'dan `ChatHistoryProvider` | ölç |
-| Kiracı önekli dosya belleği ve metin araması | ✅ | ❌ | **yok:** `TenantPrefixingAgentFileStore` `internal`; DI'daki `AgentFileStore` öneksizdir → **kiracılar arası sızıntı riski** | G-01 |
+| Kiracı önekli dosya belleği ve metin araması | ✅ | ❌ | **yok:** `TenantPrefixingAgentFileStore` `internal`. DI'daki bellek içi varsayılan öneksizdir → **kiracılar arası sızıntı riski**; `SqlAgentFileStore` kiracıya bağlıdır ama agent'a bağlı değildir (ölçüldü 2026-10-19) | G-01 |
 | Skill + script kapıları · MCP tool/kaynak · compaction (+kayıt olayı) · loop kaydı · çağıran olarak alt agent ağaç bütçesi | ✅ | ❌ | **yok** (hepsi `internal` derleyici adımı) | G-01 |
 | Parametreli talimat · kültür · paylaşılan talimat · sürüm, deney, geri alma · kaydetme anı doğrulaması · konsoldan düzenleme | ✅ | ❌ | yok (kod agent'ının doğası) | — |
 
@@ -488,7 +513,8 @@ Gerekçesi yazılı, bu turda yeniden ölçülmeyen paralel uygulamalar:
 | **G-03** | Proxy agent'ı public yap: katalog adından lazy `AIAgent` (bugün `ExternalAgentProxy` `internal`) | İ6: tüketici Tracon agent'ını MAF'ın herhangi bir barındırma API'sine verir (AG-UI, DevUI, Durable, Purview) | C-15'in ön koşulu |
 | **G-04** | Kayıt genellemesi (İ3) | yeni MAF tipi otomatik K2 olur | C-10 ile aynı iş |
 | **G-05** | docs-site rehberi (§7.3) | risk belgesizlikten de doğar | G-01…G-03'ten **önce** "bugünkü durum" sürümüyle yayınlanabilir |
-| **G-06** | Tanılama: fabrika agent'ının `IChatClient`'ı registry'den gelmiyorsa başlangıçta uyarı; `capabilities.md` "Factory agents" satırının sınır hücresi kaybı söyler | tüketici kaybı kendisi fark etmez | algılama yöntemi ölçülmeli |
+| **G-06** | Tanılama: fabrika agent'ının `IChatClient`'ı registry'den gelmiyorsa ad başına ilk çözümlemede bir kez uyarı; `capabilities.md` "Factory agents" satırının sınır hücresi kaybı söyler | tüketici kaybı kendisi fark etmez | algılama yöntemi ölçüldü (§7.0) |
+| **G-07** | MAF run seçeneği uyumu: `RunRecordingAgent` içeri `ChatClientAgentRunOptions` geçirir; `TraconRunOptions` remarks'ı düzeltilir | MAF tool middleware'i bugün her Tracon run'ında atar (§0 #23); C-01 ve C-03 buna bağlıdır | public imza değişmez; iç dekoratörün gördüğü tip değişir |
 
 ### 7.3 docs-site rehber notu — "Use any MAF feature under Tracon"
 
@@ -498,7 +524,7 @@ Gerekçesi yazılı, bu turda yeniden ölçülmeyen paralel uygulamalar:
 - **Kitle:** MAF'ı bilen ve Tracon'un onu kısıtladığından şüphelenen .NET geliştiricisi.
 - **Bölümler:**
   1. *The coverage ladder* — K0–K3 (unavailable · runs · recorded · managed).
-  2. *Pick the lightest door* — (a) MEAI/MAF DI kayıtları Tracon'un okuduğu yerde (görsel, embedding, evaluator; R-01'den sonra ses) · (b) adlı uzantılar (C-01'den sonra) · (c) derleme kancası (G-01'den sonra) · (d) fabrika agent'ı · (e) kod workflow'u `AddWorkflow(name, factory)` · (f) MAF barındırma API'leri için proxy agent (G-03'ten sonra).
+  2. *Pick the lightest door* — (a) MEAI/MAF DI kayıtları Tracon'un okuduğu yerde (görsel, embedding, evaluator; R-01'den sonra ses) · (a2) `IAgentDecorator` içinde `AIAgentBuilder`: run middleware, `UseAIContextProviders`, `UseLogging`; halkalar korunur; tool middleware G-07'den sonra · (b) adlı uzantılar (C-01'den sonra) · (c) derleme kancası (G-01'den sonra) · (d) fabrika agent'ı · (d2) özel `IAgentSource` ("Agent source" biçimi): async çözümleme `CreateChatClientAsync` ile BYOK ve egress'i, `AgentDescriptor.Model` maliyeti geri kazanır · (e) kod workflow'u `AddWorkflow(name, factory)` · (f) MAF barındırma API'leri için proxy agent (G-03'ten sonra).
   3. *Factory agents: what you keep, what you lose* — §7.1 tablosunun İngilizcesi.
   4. *Win the links back* — aşağıdaki örnek.
   5. *What you cannot win back today* — BYOK/egress, maliyet, kiracı önekli dosya deposu, skill/compaction/MCP kaydı; her biri ilgili fazın bağlantısıyla. Dürüst liste; "yakında" yazılmaz.
@@ -533,7 +559,7 @@ builder.AddTracon()
     });
 ```
 
-- **Örneğin söylemesi gereken sınırlar:** run maliyeti hesaplanmaz (G-02'ye kadar); `AgentFileStore`'u DI'dan doğrudan alma (öneksizdir); fabrika her run'da çağrılır.
+- **Örneğin söylemesi gereken sınırlar:** `AddAgent(name, factory)` ile run maliyeti hesaplanmaz, BYOK ve egress uygulanmaz → gerekiyorsa özel `IAgentSource`; `AgentFileStore`'u DI'dan doğrudan alma (bellek içi varsayılan öneksizdir, SQL deposu agent'a bağlı değildir); fabrika her run'da çağrılır; MAF tool middleware'i yalnız `Order > 0` dekoratörde ve G-07'den sonra çalışır.
 - **Kapanış kuralı:** sayfa `tuketici-dokuman-senkronu` ile kapanır; örnek `samples/` altında derlenen bir projede yaşar, sayfa ondan alıntılar.
 
 ---
@@ -571,11 +597,11 @@ builder.AddTracon()
 
 ```mermaid
 flowchart LR
-    D0["Dalga 0<br/>kararlar · süreç<br/>D-01 D-02 D-19 D-20 · P-01…P-05"]
+    D0["Dalga 0<br/>kararlar · süreç<br/>D-01 D-19 · P-02…P-05<br/>D-02 ✅ D-20 ✅"]
     D1["Dalga 1<br/>refaktör (ölçüldü 2026-10-19)<br/>R-06 · R-01 köprüsü<br/>R-07 ✅ · R-02 R-03 ret/ertele"]
-    D2["Dalga 2<br/>çarpanlar<br/>G-01…G-06 · C-01 · C-10"]
+    D2["Dalga 2<br/>çarpanlar (ölçüldü 2026-10-19)<br/>G-07 ✅ → Faz 221 (G-05 G-06)<br/>→ Faz 222 (G-01 C-01) → Faz 223 (C-10)<br/>G-02 kolaylık · R-05 düştü"]
     D3["Dalga 3<br/>çekirdek K3<br/>C-03 C-04 C-07 C-08 C-09 C-11 C-12 C-17"]
-    D4["Dalga 4<br/>protokol · MCP · workflow<br/>C-14 C-15 C-18 C-26"]
+    D4["Dalga 4<br/>protokol · MCP · workflow<br/>G-03 C-14 C-15 C-18 C-26"]
     D5["Dalga 5<br/>uydu paketler<br/>C-13 C-19…C-25"]
     D0 --> D1
     D0 --> D2
@@ -614,7 +640,7 @@ Kullanıcı yönergesi: "geçmişte reddedilen yeni MAF yeteneği ekleme kararla
 | D-15 | K-222: ses Seçenek A | kayıt vaadi | `IRealtimeClient` + `FunctionInvokingRealtimeClient` var | A'yı koru; B'yi ek mod olarak planla (C-22) |
 | D-16 | Reddedilen iş "MAF tipleri sarmalanmadı" | — | — | Koru; bu stratejinin temelidir |
 | D-17 | K-553 | — | — | Koru |
-| **D-20** | Doküman yeri | bu matris `claudedocs/`'ta | `docs/MAF-GENISLEME-NOKTALARI.md` Faz 13'te kalmış; iki kaynak kayar | Bu matrisi `docs/MAF-KAPSAMA.md` olarak taşı; ölçülen sütunlar betikle üretilsin (P-02); GENISLEME-NOKTALARI yalnız imza defteri kalsın |
+| **D-20** | Doküman yeri | bu matris `claudedocs/`'ta | `docs/MAF-GENISLEME-NOKTALARI.md` Faz 13'te kalmış; iki kaynak kayar | Bu matrisi `docs/MAF-KAPSAMA.md` olarak taşı; ölçülen sütunlar betikle üretilsin (P-02); GENISLEME-NOKTALARI yalnız imza defteri kalsın **Karar verildi 👤 (2026-10-19): taşındı** (`claudedocs/maf-1.25.0-yetenek-matrisi.md` → bu dosya). P-02 betiği ve GENISLEME-NOKTALARI'nın daraltılması açık |
 
 ---
 
@@ -642,8 +668,8 @@ Kullanıcı yönergesi: "geçmişte reddedilen yeni MAF yeteneği ekleme kararla
 8. `search_knowledge` embedding çağrısında kullanım ve span raporu görülmedi (grep). Doğrulanmalı.
 9. Önceki matrisin hataları §0'dadır.
 10. K-003 de MAF Hosting köprüsünü var sayıyordu ("`AddAIAgent` ile kodda tanımlananlar katalogda görünür"); 2026-10-19'da K-019 ve `MIMARI.md:252` ile birlikte düzeltildi (R-07).
-11. `/v1/chat/completions` istek ayrıştırıcısı yalnız metin parçalarını okur (`ReadContent`): `image_url` ve `input_audio` sessizce düşer, `tool_calls` taşıyan asistan mesajı düşer, `tool` mesajı `tool_call_id` taşımaz. **Ölçüldü (2026-10-19, fonksiyonel probe) → kusur F-580, aynı gün kapandı** (K-1025). Sınıf taraması: ek alımı `detail`'i ve dosya adını düşürüyordu (düzeltildi); tanınmayan istek alanları F-581. Upstream: MAF `Hosting.OpenAI` `input_file`'ın `filename`'ini düşürür ve `file_data`'yı `application/octet-stream` yapar.
-12. MEAI.OpenAI akış dönüştürücüsü boş `FinishReason`'ı `stop` yazar (§6 R-03). Upstream'e bildirilebilir.
+11. `/v1/chat/completions` istek ayrıştırıcısı yalnız metin parçalarını okur (`ReadContent`): `image_url` ve `input_audio` sessizce düşer, `tool_calls` taşıyan asistan mesajı düşer, `tool` mesajı `tool_call_id` taşımaz. **Ölçüldü (2026-10-19, fonksiyonel probe) → kusur F-580, aynı gün kapandı** (K-1025). Sınıf taraması: ek alımı `detail`'i ve dosya adını düşürüyordu (düzeltildi); tanınmayan istek alanları F-581 → istek yönü 2026-10-19'da kapandı (K-1027: `/v1/chat/completions` MAF'ın `RejectRequestSettings` kuralını izler). Upstream: MAF `Hosting.OpenAI` `input_file`'ın `filename`'ini düşürür ve `file_data`'yı `application/octet-stream` yapar.
+12. MEAI.OpenAI akış dönüştürücüsü boş `FinishReason`'ı `stop` yazar (§6 R-03). Bildirildi: dotnet/extensions#7863 (2026-10-19).
 
 ---
 

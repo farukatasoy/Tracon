@@ -25,6 +25,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`/v1/chat/completions` refuses a model setting the agent owns with `400`.** `temperature`,
+  `top_p`, `max_tokens`, `max_completion_tokens`, `frequency_penalty`, `presence_penalty`,
+  `seed`, `stop`, `logit_bias`, `reasoning_effort`, `response_format`, `tools`, `tool_choice`,
+  `functions`, `function_call`, `n`, `logprobs`, `top_logprobs`, `modalities`, `audio`, and
+  `web_search_options` were read by nothing: a client that asked for JSON, three choices, or its
+  own tool got none of them and no error. A value that asks for the default passes. `/v1/responses`
+  already refused its own setting fields. `POST /v1/conversations` refuses initial `items`, which
+  it used to drop.
+- **Agents inside run recording receive a plain `AgentRunOptions`.** An `IAgentDecorator` with an
+  `Order` above 0 no longer sees `TraconRunOptions`; read the run through `TraconRunContext`.
+  Microsoft Agent Framework's function-invocation middleware (`AIAgentBuilder.Use` with a
+  `FunctionInvocationContext` callback) rejects any other options type, so it threw
+  `NotSupportedException` on every run started by a Tracon endpoint. It now runs.
 - **`/v1/chat/completions` refuses tool-call history and unknown roles with `400`.** A `tool` or
   `function` message, an assistant message with `tool_calls` or `function_call`, and a role other
   than `system`, `developer`, `user` or `assistant` used to pass: the assistant turn was dropped,
@@ -41,6 +54,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A harness agent completes the turn that answers a pending approval. The approved (or rejected)
+  tool ran, and then the next model call failed with `InvalidOperationException`: the harness
+  reloads the session history on every model call, and the history still held the approval
+  request while the response had been consumed. A plain agent was not affected.
+- `UseOpenAIImages` and `UseAzureOpenAIImages` publish with Native AOT. The image generator now
+  runs on the shared client's pipeline instead of `ImageClient`, whose members name a
+  `System.ClientModel` type that version 1.16 renamed; `ilc` stopped with "Failed to load type".
 - `/v1/chat/completions` hands image, audio and file parts to the model. It kept only the `text`
   parts, so the model answered as if the user had sent no image, and a message with only an image
   answered `400` "'messages' cannot be empty." Embedded data passes the attachment type check and

@@ -741,6 +741,9 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     # Faz 181: paket DEGIL, dort saglayici paketine derlenen paylasimli kaynak.
     # Haritada olmasa tam kosuma duserdi; oysa tam etki alani bu dort projedir.
     "Tracon.Providers.Shared": PROVIDER_TEST_PROJECTS,
+    # F-584: paket DEGIL; OpenAI istemci kutuphanesini kullanan iki pakete
+    # (Tracon.OpenAI, Tracon.Azure) derlenen paylasimli kaynak.
+    "Tracon.OpenAI.Shared": ("Tracon.OpenAI.UnitTests", "Tracon.Azure.UnitTests"),
     "Tracon.Voice": ("Tracon.Voice.UnitTests",),
     "Tracon.Mcp": ("Tracon.Mcp.UnitTests",),
     "Tracon.Workflows": ("Tracon.Workflows.UnitTests",),

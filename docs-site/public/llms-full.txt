@@ -47,7 +47,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Capability | What it gives you | Enable or define it | Boundary |
 |---|---|---|---|
 | Declarative agents | Instructions, model binding, tools, skills, callable agents, metadata, and runtime policy as data | `ITraconBuilder.AddAgent(AgentDefinition)` | A code definition wins a name collision with a database definition |
-| Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, factory)` | The catalog still applies Tracon decorators when it resolves the agent |
+| Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, factory)` | The catalog still applies Tracon decorators. The agent skips the compiler: model rings only through `IModelProviderRegistry.CreateChatClient`, and no tenant provider key, egress policy, or cost; a custom agent source can apply those three |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
 | Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
@@ -507,7 +507,14 @@ flowchart LR
 
 `AddAgent(name, factory)` is a code registration too — the factory returns a MAF
 `AIAgent` directly, built however you want, and the catalog still applies Tracon's
-decorators (recording, telemetry, approval) when it resolves the agent.
+decorators (recording, telemetry, approval) when it resolves the agent. The factory
+runs on every resolve, and its agent does not pass through the compiler. It keeps
+the model rings (run budget, circuit breaker, fallback, response cache, content
+guards, the `chat` span) only when it builds its chat client with
+`IModelProviderRegistry.CreateChatClient`. That synchronous call applies no tenant
+provider key and no egress policy, and the run records no model, so it has no cost.
+An agent source that returns its own agent can apply all three: it builds the client
+with `CreateChatClientAsync` and names the model in its `AgentDescriptor`.
 
 An application can add an `IAgentSource` for definitions stored outside Tracon or
 for agents owned by another runtime. Custom-source agents are visible in the console
@@ -11582,6 +11589,18 @@ or `function` message, and an assistant message with `tool_calls` or `function_c
 answer `400`: Tracon runs the agent's tools on the server, so there is no client-side
 tool call to report.
 
+The agent definition owns the model settings, so a request setting is never silently
+ignored. These fields answer `400` (`invalid_request_error`), and the message names every
+one the request sets: `temperature`, `top_p`, `max_tokens`, `max_completion_tokens`,
+`frequency_penalty`, `presence_penalty`, `seed`, `stop`, `logit_bias`, `reasoning_effort`,
+`response_format`, `tools`, `tool_choice`, `functions`, `function_call`, `n`, `logprobs`,
+`top_logprobs`, `modalities`, `audio`, and `web_search_options`. A value that asks for the
+default passes: `n: 1`, `response_format: {"type": "text"}`, `logprobs: false`, an empty
+`tools` list, `modalities: ["text"]`, or `null`. Fields that carry no setting the agent uses
+(`user`, `store`, `metadata`, `stream_options`) pass too. `/v1/responses` refuses its own
+setting fields (`temperature`, `top_p`, `max_output_tokens`, `instructions`, `tools`,
+`tool_choice`) the same way. To change a setting, change the agent.
+
 ## Calling these endpoints from a typed client
 
 Both endpoints answer with **either** JSON **or** SSE, and the `stream` flag in the
@@ -11660,6 +11679,7 @@ for await (const frame of readSse(response)) {
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
 | Cut-off answer | no: `status` stays `completed` | `finish_reason: "length"` | See below |
+| Request model settings (`temperature`, `tools`, `response_format`, …) | no: `400` | no: `400` | The agent definition sets them |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 
@@ -11681,10 +11701,11 @@ mark a cut-off answer `incomplete` yet: its `status` reads `completed`, and the 
 `tracon.output.truncated` event is the only signal there
 (see [Truncated output](/concepts/runs/#truncated-output)).
 
-Fields understood by the OpenAI parser can be accepted without becoming a
-Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service
-tier, or retrieval surface is forwarded to the agent's provider. The server-side
-definition is authoritative.
+A field that carries no model setting can be accepted without becoming a Tracon
+feature. Do not assume every OpenAI storage flag, service tier, or retrieval surface
+is forwarded to the agent's provider. The server-side definition is authoritative.
+`POST /v1/conversations` takes `metadata` only: a request with initial `items` answers
+`400`, and the first turn goes to `/v1/responses` with the conversation's id.
 
 ## Authentication and authorization
 
@@ -15268,6 +15289,44 @@ to the model call). Place a decorator that has to observe or veto everything
 below it at a low value; place one that has to sit close to the model call
 itself at a high value.
 
+A decorator can also add Microsoft Agent Framework middleware with
+`AIAgentBuilder`: run middleware, `UseAIContextProviders`, or
+function-invocation middleware that sees each tool call. The agent keeps every
+Tracon ring, because the decorator wraps the compiled agent.
+
+```mermaid
+flowchart LR
+    accTitle: Where a decorator wraps
+    accDescr: A run passes from the caller through run recording at Order 0, telemetry at 10, tool approval at 20 and structured-response validation at 30, then through a decorator with a higher Order, to the compiled agent. Run recording receives TraconRunOptions and passes a plain AgentRunOptions inward.
+    CALLER["Caller<br/>TraconRunOptions"] --> REC["Run recording<br/>Order 0"]
+    REC -->|"plain AgentRunOptions"| TEL["Telemetry<br/>Order 10"]
+    TEL --> APP["Tool approval<br/>Order 20"]
+    APP --> VAL["Structured response<br/>Order 30"]
+    VAL --> YOURS["Your decorator<br/>Order 100"]
+    YOURS --> AGENT["Compiled agent"]
+```
+
+```csharp
+public sealed class ToolCallLogDecorator(ILogger<ToolCallLogDecorator> logger) : IAgentDecorator
+{
+    public int Order => 100;
+
+    public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor)
+        => agent.AsBuilder()
+            .Use(async (innerAgent, context, next, cancellationToken) =>
+            {
+                logger.LogInformation("{Agent} calls {Tool}", descriptor.Name, context.Function.Name);
+                return await next(context, cancellationToken);
+            })
+            .Build();
+}
+```
+
+Give such a decorator an `Order` above `0`. Run recording (`Order` 0) hands the
+agents inside it a plain `AgentRunOptions`. A decorator outside it receives
+`TraconRunOptions`, and MAF's function-invocation middleware rejects that type
+with `NotSupportedException`.
+
 A decorator must be thread-safe — the catalog can decorate agents
 concurrently — and must not swallow a genuine `OperationCanceledException` (one
 thrown while the caller's token is cancelled). If `Decorate` throws anything else,
@@ -15378,6 +15437,26 @@ for the same type registers it once.
 
 For a definition source, let the compiler own dependency fingerprints and the BYOK
 cache bypass. Do not repeat that logic in your source.
+
+```mermaid
+flowchart LR
+    accTitle: The two source shapes
+    accDescr: A definition source hands an AgentDefinition to the compiler, which builds the agent with the model rings, the tenant key and the cost. An agent source builds its own agent; it gets the same model rings, tenant key and egress policy from CreateChatClientAsync, and the cost from the model named in its descriptor. The catalog applies Tracon's decorators to both.
+    DEF["Definition source<br/>AgentDefinition"] --> COMP["AgentDefinitionCompiler<br/>CompileCachedAsync"]
+    COMP --> CAT["Catalog decorators"]
+    OWN["Agent source<br/>your AIAgent"] --> CLIENT["CreateChatClientAsync<br/>rings · tenant key · egress"]
+    OWN --> DESC["AgentDescriptor.Model<br/>cost"]
+    CLIENT --> CAT
+    DESC --> CAT
+```
+
+For an agent source, the compiler does not run, so two things are yours. Build the
+chat client with `IModelProviderRegistry.CreateChatClientAsync` inside
+`ResolveAsync`: it applies the tenant's own provider key and egress policy, and it
+adds the same model rings a compiled agent gets. Set `AgentDescriptor.Model` in
+`ListAsync`: the run record reads the model from the descriptor, and without it the
+run has no cost. Do not cache an agent whose client carries a tenant's own key
+across tenants; `HasTenantProviderOverrideAsync` tells you when it does.
 
 ```csharp
 public async ValueTask<AIAgent?> ResolveAsync(string name, string? culture = null, CancellationToken ct = default)

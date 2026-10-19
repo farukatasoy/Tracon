@@ -155,7 +155,14 @@ flowchart LR
 
 `AddAgent(name, factory)` is a code registration too — the factory returns a MAF
 `AIAgent` directly, built however you want, and the catalog still applies Tracon's
-decorators (recording, telemetry, approval) when it resolves the agent.
+decorators (recording, telemetry, approval) when it resolves the agent. The factory
+runs on every resolve, and its agent does not pass through the compiler. It keeps
+the model rings (run budget, circuit breaker, fallback, response cache, content
+guards, the `chat` span) only when it builds its chat client with
+`IModelProviderRegistry.CreateChatClient`. That synchronous call applies no tenant
+provider key and no egress policy, and the run records no model, so it has no cost.
+An agent source that returns its own agent can apply all three: it builds the client
+with `CreateChatClientAsync` and names the model in its `AgentDescriptor`.
 
 An application can add an `IAgentSource` for definitions stored outside Tracon or
 for agents owned by another runtime. Custom-source agents are visible in the console

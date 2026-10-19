@@ -172,6 +172,6 @@ tazele.
 
 - **🚨 Köprülenmiş sağlayıcının egress adı `ProviderName`'dir, kayıt adı değil** (K-930): bağlamadan, yoksa istemci metadata'sından; ikisi de yoksa host AÇILMAZ (`SpeechClientBridgeValidator`). Test, iki ad FARKLIYKEN ayırt eder.
 - **🚨 Kimlik bilgisi MEAI seçeneklerine yazılmaz** (`LoggingTextToSpeechClient` Trace'te yazar). Kimlik testi `ProviderSettings` BOŞKEN de koşar: ayar varsa adaptör sözlüğü yeniden kurar ve sızıntı gizlenir (mutasyonla ölçüldü).
-- **🚨 `AudioClient` ve `AsITextToSpeechClient()` Native AOT'u kırar** (OpenAI 2.14.0 ↔ System.ClientModel 1.16.0; K-1026, F-584; ölçüm `OpenAIAudioTransport` başında). Sağlayıcı istemcisine dokunmadan önce on satırlık AOT probu yayımla; JIT ilk akışlı üyede sessizce kırılır.
+- **🚨 `AudioClient`, `ImageClient` ve `AsITextToSpeechClient()` Native AOT'u kırar** (OpenAI 2.14.0 ↔ System.ClientModel 1.16.0; K-1026, F-584 kapandı; ölçüm `OpenAIAudioTransport` başında). Sağlayıcı istemcisine dokunmadan önce on satırlık AOT probu yayımla; JIT ilk akışlı üyede sessizce kırılır.
 - OpenAI istemcileri **tek modele bağlıdır** (MEAI adaptörü yanıtta isteği modeli yazar, wire'da kendininkini kullanır). `OutputFormat` ElevenLabs adı gelir (`mp3_44100_128`): ilk `_`'a kadar okunur.
 - OpenAI SDK'sı 5xx'i **kendisi üç kez yeniden dener**: betikli sunucuda tek hata başarıya döner → `FailNext(500, times: 10)`. `ClientResultException` metni gövdeyi taşıyabilir (401 anahtarın parçasını alıntılar): uca durum ve makine kodu gider (`HTTP 403 (model_not_found)`), gövde `InnerException`'da kalır.
