@@ -11,6 +11,13 @@ Tracon.AgentDefinitionCompiler.CompileCachedAsync(Tracon.AgentDefinition! defini
 Tracon.AgentDefinitionCompiler.CompileParameterizedAsync(Tracon.AgentDefinition! definition, string? culture, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? values, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 Tracon.AgentDefinitionCompiler.ResolveCallableAgentsAsync(Tracon.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Tracon.ResolvedCallableAgents>
 Tracon.AgentDefinitionCompiler.UsesTenantProviderOverrideAsync(Tracon.ModelBinding! binding, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+Tracon.AgentExtensionContext
+Tracon.AgentExtensionContext.ChatAgentOptions.get -> Microsoft.Agents.AI.ChatClientAgentOptions?
+Tracon.AgentExtensionContext.Definition.get -> Tracon.AgentDefinition!
+Tracon.AgentExtensionContext.HarnessAgentOptions.get -> Microsoft.Agents.AI.HarnessAgentOptions?
+Tracon.AgentExtensionContext.Services.get -> System.IServiceProvider!
+Tracon.AgentExtensionContext.TenantId.get -> string!
+Tracon.AgentExtensionContext.Use(System.Func<Microsoft.Agents.AI.AIAgent!, Microsoft.Agents.AI.AIAgent!>! wrap) -> void
 Tracon.AgentParameterValidationError
 Tracon.AgentParameterValidationError.<Clone>$() -> Tracon.AgentParameterValidationError!
 Tracon.AgentParameterValidationError.AgentParameterValidationError() -> void
@@ -98,6 +105,10 @@ Tracon.DefaultRunErrorClassifier.DefaultRunErrorClassifier() -> void
 Tracon.FixedTenantContext
 Tracon.FixedTenantContext.FixedTenantContext(string! tenantId) -> void
 Tracon.FixedTenantContext.TenantId.get -> string!
+Tracon.IAgentExtension
+Tracon.IAgentExtension.Configure(Tracon.AgentExtensionContext! context) -> void
+Tracon.IAgentExtension.Description.get -> string?
+Tracon.IAgentExtension.Name.get -> string!
 Tracon.IEvalEvaluatorFactory
 Tracon.IEvalEvaluatorFactory.Create(System.Collections.Generic.IReadOnlyList<Microsoft.Agents.AI.EvalCheck!>! checks) -> Microsoft.Agents.AI.IAgentEvaluator!
 Tracon.ITraconBuilder
@@ -754,6 +765,9 @@ static Tracon.SpeechToTextClientBinding.operator !=(Tracon.SpeechToTextClientBin
 static Tracon.SpeechToTextClientBinding.operator ==(Tracon.SpeechToTextClientBinding? left, Tracon.SpeechToTextClientBinding? right) -> bool
 static Tracon.TextToSpeechClientBinding.operator !=(Tracon.TextToSpeechClientBinding? left, Tracon.TextToSpeechClientBinding? right) -> bool
 static Tracon.TextToSpeechClientBinding.operator ==(Tracon.TextToSpeechClientBinding? left, Tracon.TextToSpeechClientBinding? right) -> bool
+static Tracon.TraconBuilderExtensions.AddAgentExtension(this Tracon.ITraconBuilder! builder, Tracon.IAgentExtension! extension) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentExtension(this Tracon.ITraconBuilder! builder, string! name, System.Action<Tracon.AgentExtensionContext!>! configure, string? description = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentExtension<TExtension>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddSpeechSynthesizer(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ISpeechSynthesizer!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddSpeechSynthesizer(this Tracon.ITraconBuilder! builder, string! name, Tracon.TextToSpeechClientBinding! binding) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddSpeechTranscriber(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ISpeechTranscriber!>! factory) -> Tracon.ITraconBuilder!

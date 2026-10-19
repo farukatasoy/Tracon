@@ -4147,6 +4147,32 @@
         }
       }
     },
+    "/tracon/api/agent-extensions": {
+      "get": {
+        "tags": [
+          "Tracon",
+          "Agents"
+        ],
+        "summary": "Lists the agent extensions a definition can name.",
+        "description": "Extensions are defined only in code, with AddAgentExtension. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent. Listing the extensions runs none of them. The list is the same for every tenant, ordered by name, and an empty list is not an error.",
+        "operationId": "TraconListAgentExtensions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentExtensionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tracon/api/stats": {
       "get": {
         "tags": [
@@ -7857,6 +7883,13 @@
             },
             "description": "Gets the names of the skills this agent may load at run time. Every name must\nmatch an enabled skill found in code or in the skill store."
           },
+          "extensionNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the names of the agent extensions this agent is compiled with, in call\norder. Every name must match an extension registered in code with\n\u0060AddAgentExtension\u0060; otherwise building the agent fails."
+          },
           "callableAgentNames": {
             "type": "array",
             "items": {
@@ -8032,6 +8065,13 @@
             },
             "description": "Names of skills that can be loaded at runtime."
           },
+          "extensionNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Names of agent extensions to compile the agent with, in call order. Extensions\nare defined only in code; only the name of an already registered extension may\nbe given here. See \u0060AgentDefinition.ExtensionNames\u0060."
+          },
           "callableAgentNames": {
             "type": "array",
             "items": {
@@ -8179,6 +8219,13 @@
             },
             "description": "Gets the names of the skills this agent may load at run time."
           },
+          "extensionNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the names of the agent extensions this agent is compiled with, in call order."
+          },
           "callableAgentNames": {
             "type": "array",
             "items": {
@@ -8236,6 +8283,26 @@
           }
         },
         "description": "Detailed view of a single agent."
+      },
+      "AgentExtensionResponse": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Gets the name a definition writes in \u0060extensionNames\u0060."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets what the extension does, in the host\u0027s language, or \u0060null\u0060 when its\nregistration gave no description."
+          }
+        },
+        "description": "One agent extension registered in code. A definition selects it by \u0060name\u0060 in\n\u0060extensionNames\u0060. Listing the extensions runs none of them."
       },
       "AgentParameter": {
         "required": [

@@ -72,6 +72,7 @@ public sealed class CompiledAgentCacheKeyCoverageTests
         [typeof(TraconAgentGraphOptions)] = "process: from IOptions<TraconOptions>",
         [typeof(TimeProvider)] = "process",
         [typeof(IEnumerable<TraconLoopEvaluatorRegistration>)] = "process: criteria registered in code",
+        [typeof(IEnumerable<IAgentExtension>)] = "process: extensions registered in code; the names a definition selects are part of the definition, so they enter the key (Phase 222, AgentDefinitionCacheInvalidationTests)",
         [typeof(ModelRunJudgeOptions)] = "process: judge binding from IOptions",
     };
 

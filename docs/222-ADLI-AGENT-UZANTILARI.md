@@ -1,6 +1,6 @@
 # Faz 222 — Adlı Agent Uzantıları (MAF Seçenek Kancası)
 
-> **Durum:** 📋 Planlandı (2026-10-19)
+> **Durum:** ✅ Tamamlandı (2026-10-19)
 > **Kademe:** tam — güvenlik/kiracı sınırı: kanca MAF seçenek nesnesine dokunur; K-062 (harness dosya erişimi), K-892 (çalışma dizini taraması, ücretli web araması) ve kiracı geçmişi (`ChatHistoryProvider`) bu nesnedeki üyelerle korunur. Geri dönüşü pahalı karar: `rc.1` öncesi donacak bir public genişleme noktası
 > **Plan onayı:** Bakımcı, 2026-10-19 (sohbette: kanca kapsamı "ölçümle en makul seçenek" — §222.2 seçti: C)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-588** — MAF kapsama matrisi G-01 + C-01 ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §7.0, §8)
@@ -247,19 +247,19 @@ Beş soru: iptal — kanca senkron, token almaz; derleme iptali bugünkü gibi �
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Uzantı seçen bir sohbet agent'ı ve bir harness agent'ı `POST /api/agents/{name}/run` ile koşar; uzantının provider'ı modele bağlam ekler ve tool middleware'i tool çağrısını görür
-- [ ] Korunan her üyenin değişimi `TraconCompilationException` ile düşer; mesaj uzantı adını ve üyeyi taşır
-- [ ] Ratchet testi üç tipin her settable üyesini sınıflandırılmış bulur
-- [ ] `POST /api/agents/validate` bilinmeyen adı `extensionNames[i]` yoluyla reddeder; `GET /api/agent-extensions` kayıtlı adları döner
-- [ ] Konsolda seçim kaydedilir ve yenilemede kalır
-- [ ] `uyum-probu.cs -- deneysel` yeni public maruziyet göstermez
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case `docs/manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] Uzantı seçen bir sohbet agent'ı ve bir harness agent'ı `POST /api/agents/{name}/run` ile koşar; uzantının provider'ı modele bağlam ekler ve tool middleware'i tool çağrısını görür — `AgentExtensionRunTests.An_extensions_context_provider_reaches_the_model_and_its_tool_middleware_sees_the_tool_call` (`harness` false/true)
+- [x] Korunan her üyenin değişimi `TraconCompilationException` ile düşer; mesaj uzantı adını ve üyeyi taşır — `AgentOptionsGuardTests.Every_protected_row_catches_a_change_in_a_chat_agent/_harness_agent` (her tablo satırı) + `AgentExtensionCompilationTests` (mesaj)
+- [x] Ratchet testi üç tipin her settable üyesini sınıflandırılmış bulur — `AgentOptionsGuardTests.Every_settable_member_has_a_row` (altı tip; satır silinerek kırmızı olduğu ölçüldü)
+- [x] `POST /api/agents/validate` bilinmeyen adı `extensionNames[i]` yoluyla reddeder; `GET /api/agent-extensions` kayıtlı adları döner — `AgentExtensionValidationTests`; gerçek koşum: `{"code":"unknown_extension","path":"extensionNames[0]"}`
+- [x] Konsolda seçim kaydedilir ve yenilemede kalır — `MT-UIAG-063` (Playwright) + `agent-editor.test.tsx` + `full-replace-editors.test.tsx`
+- [x] `uyum-probu.cs -- deneysel`: `public_maruziyet=4` (hepsi `AddLoopEvaluator`, faz öncesi aynı); `AddAgentExtension` yeni maruziyet eklemedi
+- [x] Dört doğrulama kapısı sıfır uyarı verir — son `kapi.py kapanis` koşumu kapanış commit'inden önce yeşil (bkz. kapanış mesajı)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (dört boş ortam değişkeniyle; `Npgsql` günlük satırı 0): `house-style-demo` çıktısı `Echo [instructions: Answer the question.\nHOUSE-STYLE: answer in two short sentences.]: Where is my order?`; run `Completed`, `modelId=echo-instructions-1`
+- [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz (sentetik test değeri `LEAK-MARKER-7`)
+- [x] `🤖` case `docs/manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md` içinde (`MT-UIAG-063`) ve koşuldu (Playwright, echo kipi): seçim → kaydet → yenile → kutu işaretli, `definition.extensionNames` ve `descriptor.extensionNames` `["house-style"]`, sürüm 2; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (iki 🔴 de kapandı, aşağıda)
+- [x] `docs-site/` güncellendi; `npm run check` (içerik · derleme · bağlantı · ağırlık) temiz
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü: gzip **215,4 → 215,9 KB** (+0,5 KB; bütçe 250), gömülü brotli 182,1 → 182,6 KB
 
 ### Doğrulama komutları
 
@@ -292,6 +292,20 @@ curl -s -X POST http://localhost:5081/tracon/api/agents/validate -H 'Content-Typ
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **Dosya listesi bir dosyayı atlamıştı: `src/Tracon.Sql.Shared/Internal/AgentDefinitionPayload.cs`.** Plan "Migration: Yok — tanım JSON sütunundadır" diyordu; ama JSON'a hangi alanın yazıldığını bu açık alan eşlemesi belirler. `ExtensionNames` orada yoksa SQL depoda her kayıtta sessizce düşerdi (B01 sınıfı). Eklendi; ratchet `AgentDefinitionPayloadRoundTripTests` zaten yakalardı.
+2. **Gerçek `run` yeni bir kusur çıkardı (testler yakalamadı): eski satırda liste `null` okunuyordu.** `required` üyeli payload'da kaynak üreteçli okuyucu `= []` başlatıcısını atlar; `extensionNames` anahtarı olmayan her eski satır katalog listelemesini `ArgumentNullException` ile çökertti. `McpResourceUris` ve `Parameters` aynı kusuru taşıyordu (faz öncesinden). Payload alanları `?` oldu, `ToDefinition` `?? []` yazar, boş `ExtensionNames` yazılmaz (K-1031).
+3. **MAF üye sayıları planla uyuşmadı (ölçüm 2026-10-19, MAF 1.25.0):** `ChatClientAgentOptions` 16 (plan 17), `HarnessAgentOptions` 32 (plan 36), `ChatOptions` 20. `EnableMessageInjection`, `AllowConcurrentInvocation`, `UseProvidedChatClientAsIs`, `RequirePerServiceCallChatHistoryPersistence`, üç `…ChatHistoryProviderConflict` ve `EnableInvocableFunctionBypassing` **yalnız sohbet** seçeneğindedir; harness'ta yoktur. Tablo satırı iki tip için ayrı yazıldı.
+4. **Koruma iç içe seçenek nesnelerini üye üye karşılaştırır** (plan: yalnız `ChatOptions` açılır). `BackgroundAgentsProviderOptions` (`WaitTimeout`…), `LoopAgentOptions` (`MaxIterations`…) ve `FileAccessProviderOptions` referans eşitliğiyle korunsa yerinde değişiklik geçerdi. Ratchet altı tipe genişledi.
+5. **Açık Soru 2 (`AdditionalProperties`) ölçüldü:** registry bu sözlüğü okumaz (yalnız `AnthropicProviderSettingsChatClient` içeriğin sözlüğünden söz eder) → serbest (A). **Açık Soru 3:** tek nokta, `options` kurulduktan hemen sonra.
+6. **Açık Soru 4: plan "sohbet agent'ı da seam'den geçer" dedi; seam yalnız üye AÇIKKEN kurulur** (varsayılan yol değişmez). Ölçüm planın gerekçesini iki yönden değiştirdi: F-582 (onay devamı) sohbet agent'ında **doğmaz** (dış `FunctionInvokingChatClient` yok; `HarnessApprovalContinuationTests` seam'siz de geçer), ama F-315 sınıfı **doğar**: seam yokken akışlı tool turu `400 messages.[1].role` verir (`ScriptedChatCompletionsServer`, `AgentExtensionRunTests`). Seam gerekli, sebep başka (K-1032).
+7. **Replay (plan sessizdi):** `NoTools`/`ReplayTools` kipinde `ExtensionNames` boşaltılır; uzantının provider'ı tool ekleyebildiği için "hiçbir tool gerçekten koşmaz" sözü başka türlü bozulurdu (K-1033).
+8. **Doğrulama ve kayıt, adlandırılan uzantıyı KOŞAR** (tanımı derler). Plan yalnız "liste ucu hiçbir uzantıyı koşmaz" diyordu; o doğru ve test edilmiştir. Kayıt sırasında bir uzantı atarsa kayıt `400` ile düşer.
+9. **Liste ucu çıplak dizi döner** (`AgentExtensionResponse[]`: `name`, `description`); plan "ad + açıklama" demişti, sarmalayıcı nesne yok.
+10. **Sarmalayıcı sırası:** ilk eklenen en içte (plan "tanımdaki sıra"). Konsolda kayıtlı olmayan ad "Not registered" rozetiyle kalır ve kaldırılabilir (plan sessizdi; aksi hâlde kayıt `400` verir ve kullanıcı çıkamaz).
+11. **E2E testi eklenmedi;** konsol akışı `🤖` case ile koşuldu (`MT-UIAG-063`, Playwright, echo kipi) ve Vitest ile kapsandı.
+12. **Süreç hatası (kendi hatam, kayıt):** örnek uygulama ilk koşumlarda `faz-tamamlama` Adım 2'nin dört boş ortam değişkeni olmadan açıldı ve paylaşılan yerel PostgreSQL'e bağlandı. Yalnız `__migrations` için idempotent `CREATE ... IF NOT EXISTS` çalıştı; yeni migration uygulanmadı (son `applied_at` 2026-09-01). `house-style-demo` (3) ve `ext-demo` (1 koşum, silindi) satırları `runs` tablosunda kaldı. DoD koşumu doğru tarifle yeniden yapıldı (`Npgsql` satırı: 0).
+13. **Denetimden gelen sapmalar (bağımsız denetçi, 2026-10-19):** (a) 🔴 #1 gerçek — `RunContinuationJobHandler` uzantılı agent'ı reddetmiyordu; replay yolu K-1033 ile boşaltıyordu, kardeş yol atlanmıştı. Kapıya `ExtensionNames.Count > 0` eklendi, `RunContinuationTests.An_agent_with_an_extension_is_not_continued_and_its_extension_never_runs` eklendi. (b) 🟡 #3 gerçek — plan "önbellek tek kuruluşu garanti eder" diyordu; `CompiledAgentCache` "iki çağıran birlikte ıskalarsa fabrika birden çok koşabilir" diye belgeli ve tam test koşumunda `Configure` 8 kez koştu. Test ısınma isteğiyle yeniden yazıldı, `IAgentExtension` metni düzeltildi. Eşzamanlılık sorusunun cevabı: kayıt donar, ama derleme tekilliği garanti DEĞİLDİR; uzantı bunu varsaymaz. (c) 🟡 #4 — koruma seçenek nesnesini denetler, eklenen provider/sarmalayıcıyı denetlemez; site ve `///` metni bunu açıkça söyler. (d) 🟡 #5 — `ChatOptions.ConversationId` `Protected` yapıldı (servis geçmişi kiracı geçmişini kullanılmaz kılar); `…ChatHistoryProviderConflict` bayrakları yalnız çatışmanın nasıl bildirileceğini seçer ve `ChatHistoryProvider` ile `ConversationId` korunduğu için çatışma uzantıdan doğamaz; `UseProvidedChatClientAsIs`, `AdditionalProperties`, `RawRepresentationFactory` MAF/sağlayıcı özelliğidir, tüketicinin seçimi kalır (sağlayıcıya özgü ham ayar Tracon'un tablosunun göremediği bir yüzeydir). (e) 🔴 #2 **repro ile gerçek çıktı** (`AgentExtensionRunTests.An_extension_cannot_auto_approve_a_tool_that_asks_for_approval`, düzeltmeden önce `calls == 1`): harness'ın iç `ToolApprovalAgent`'ına `AutoApprovalRules = [_ => true]` veren uzantı onay isteyen tool'u Tracon'un dış kapısı görmeden koşturdu. `HarnessAgentOptions.ToolApprovalAgentOptions` ve iki tipte `DisableApprovalResponseBinding` `Protected` oldu (MAF belgesi: bağlama "insan onayı kontrollerini güçlendirir, kapatma önerilmez"). `ChatClientAgentOptions.EnableInvocableFunctionBypassing` da `Protected` oldu: MAF belgesine göre saklanan çağrıları "önceden onaylı yanıt" olarak yeniden enjekte eder; **ölçülmedi, yalnız belgeye dayanır**, tüketici kapanışa kadar MAF'ın bu özelliğini uzantıyla açamaz. (f) 🟢 #7 — "önbelleğe alınır" cümlesi `BypassCache` (kiracı kendi anahtarını tutarsa) durumunu da söyler hâle getirildi; aday açılmadı, tek cümlelik düzeltmeydi.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -299,14 +313,24 @@ curl -s -X POST http://localhost:5081/tracon/api/agents/validate -H 'Content-Typ
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
 
+- **K-1029** (public-api, güvenlik) tam seçenek nesnesi + korunan tablo + ratchet · **K-1030** (public-api, güvenlik) kod kaydeder / tanım adla seçer · **K-1031** (kalıcı-veri) payload liste alanı null okunabilir, boş yazılmaz · **K-1032** (public-api) sohbette üye serbest, açıkken seam · **K-1033** (güvenlik) replay'de oynatma kipinde uzantı boşaltılır.
+- Kategori dışı (kapanış commit mesajına): sarmalayıcı sırası (ilk eklenen en içte) · hata mesajı yalnız uzantı adı + istisna tipi taşır (ana bilgisayar istisna metni sızmasın) · liste ucu çıplak dizi · konsolda kayıtsız ad rozeti · `McpResourceUris`/`Parameters` okuma toleransı (K-1031'in yan etkisi).
+
+## Yüzey Envanteri (tuketici-dokuman-senkronu Adım 1)
+
+1. **`docs-site/`:** `concepts/agents.md` (yeni bölüm *Agent extensions*) · `guides/any-maf-feature.md` (dördüncü kapı, karar ağacı, "geri kazanılamaz" listesi) · `capabilities.md` (yeni satır) · `ui.md` (editör cümlesi). Üretilen `http-api/` ve `api/` elle yazılmadı.
+2. **Sevk edilen metin:** yeni public tiplerin `///` bloğu (`IAgentExtension`, `AgentExtensionContext`, `AddAgentExtension` ×3) · `src/Tracon.Core/README.md` (iki bölüm) · `CHANGELOG.md` (`Added`, `Fixed`).
+3. **Yerel referans ve agent haritası:** `capabilities.md` satırı eklendi (harita ondan üretilir). 🚨 Harita bütçesi 11 264 B ve faz öncesi 11 263 B idi: yeni satır için iki satırın ikinci kod aralığı düz metne çevrildi (`ISpeechDialogueSynthesizer`, `Microsoft.Extensions.AI.Evaluation`; bilgi sitede durur, haritadan çıktı). Bütçe 10 B boş kaldı; bir sonraki yetenek satırı haritayı yine kırar (üreteç bütçeyi ikinci kez yükseltmeyi yasaklar).
+4. **Kapı çıktıları:** `npm run check` yeşil (177 işlem / 139 yol, 596 public tip, ekran damgası). Ekran görüntüsü: 40 PNG yeniden üretildi, yalnız `agent-editor-loop` çifti (istek önizlemesinde `extensionNames` görünür) tutuldu; geri kalanı yalnız göreli zaman ve sürüm etiketi gürültüsü. `--site-denetle`: `kalicilik` → `getting-started/persistence.md` (eski satırın yeni alanı boş okuduğu paragraf eklendi); `paket-readme` → `packages.md` **gerekçe:** değişen README satırı yalnız işlem sayısıdır (176 → 177) ve `packages.md` işlem sayısı taşımaz.
+
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan değişmedi; 13 sapma kayıt altında) |
+| Düzeltme turu sayısı | 2 (kapı turu: örnek derlemesi + önbellek testi; denetim turu) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 1 (araştırılacak repro ile gerçek çıktı) |
+| Fazın ürettiği regresyon | 1 (eski satırda null liste, katalog listelemesi çöküyordu; commit öncesi gerçek koşumda yakalandı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -314,3 +338,13 @@ curl -s -X POST http://localhost:5081/tracon/api/agents/validate -H 'Content-Typ
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | `RunContinuationJobHandler` uzantılı agent'ı reddetmiyordu (K-1033'ün replay'deki kardeşi) | 🔴 | düzeltildi — kapıya `ExtensionNames` eklendi + `RunContinuationTests.An_agent_with_an_extension_is_not_continued_and_its_extension_never_runs`; triyaj: gerçek |
+| 2 | Uzantı `ToolApprovalAgentOptions` ile onay isteyen tool'u Tracon'un kapısından önce otomatik onaylayabilir | 🔴 | düzeltildi — repro `calls == 1` ile doğrulandı; `ToolApprovalAgentOptions`, `DisableApprovalResponseBinding`, `EnableInvocableFunctionBypassing` `Protected`; triyaj: araştırılacak → gerçek |
+| 3 | Önbellek paralel ıskalamada tek kuruluş garanti etmez; test ve plan cümlesi yanlıştı | 🟡 | düzeltildi — tam koşumda `Configure` 8 kez koştu (ölçüldü); test ısınma isteğiyle yeniden yazıldı, `///` metni düzeltildi |
+| 4 | Koruma eklenen provider/sarmalayıcıyı denetlemez; site "Tracon'da kalır" diyordu | 🟡 | düzeltildi — site, `///` ve K-1030 metni sınırı söyler |
+| 5 | `Free` bazı satırlar `Protected` kardeşi dolaylı etkisizleştirebilir | 🟡 | kısmen düzeltildi — `ConversationId` `Protected`; kalan `Free` satırlar (`…ConflictBayrakları`, `UseProvidedChatClientAsIs`, `AdditionalProperties`, `RawRepresentationFactory`) gerekçelendi (sapma 13d); repro denenmedi |
+| 6 | Bundle payı DoD'de ölçülmemişti | 🟡 | düzeltildi — 215,4 → 215,9 KB gzip |
+| 7 | "Yalnız parametreli run önbelleği atlar" metni `BypassCache`'i unutuyordu | 🟢 | düzeltildi (tek cümle; aday açılmadı) |

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (966 kalem)
+## Arşivlenen Kararlar (971 kalem)
 
 | K | Karar |
 |---|---|
@@ -975,3 +975,8 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-974 | Token dışı harcamanın kalıcı biçimi: `run_non_token_usage` tablosu (kalem anında yazılır), `runs` üzerinde dört snapshot sütunu (run kapanırken), `tool_invocations`'ta sağlayıcı/model; kapanıştan sonra gelen kalem yalnız detaya; kalem sayısı ve değer sınırları kabulde denetlenir (Faz 199) (kullanıcı kararı) 👤🔁 |
 | K-975 | Düğüm listesinin ilk düğümü `object` alamaz: kayıt `400`, saklı tanım düğümden önce `Failed`; `TurnToken` her başlangıç ve cevapsız resume'da gider (F-398, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-976 | Para birimi karışık toplam tutar taşımaz: ağaç, istatistik, zaman serisi, deney kolu ve yargıç maliyetinde tutar `null`, public `CurrencyCount` sayar; kural `CurrencyTotals`'ta (F-419, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
+| K-977 | Cevaplanamayan onayda run beklemez: Chat Completions ve oturumsuz yerel run `409` (akışta error frame), MCP/A2A dahil run `Failed` (`approval_unanswerable`) (F-448, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
+| K-978 | Kurtarma açıkken işçi durunca `Canceled` kapanan workflow run'ı checkpoint'ini `KeepCheckpointsAfterCompletion=false` olsa da tutar; devam bitince temizler (F-433, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
+| K-979 | Kuyruklu turun onay yazımı kira penceresinde tekrarlanır, kimlikle önce okur; pencere biterse `tracon.job.approval-save-failed`, model tekrar çağrılmaz (F-391, kusur-giderme 2026-10-14) (ana oturum varsayılanı, K-903 emsali) |
+| K-980 | Çağıranı bekleyen yanıt (onay isteği, sonuçsuz istemci tool çağrısı) yapılandırılmış doğrulamadan geçmez; doğrulayıcı çağrılmaz (F-350, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
+| K-981 | Katalog ve doğrulayıcı skill'i kod ve `store`'dan sonra `SkillRoots`'ta da arar; disk skill'i kurulum genelidir, içeriği önbellek parmak izine girer; grant pini diske bakmaz (F-481, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |

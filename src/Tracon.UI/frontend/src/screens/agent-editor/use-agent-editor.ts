@@ -4,6 +4,7 @@ import { client, unwrap } from '../../lib/api';
 import { useNavigate } from '../../lib/router';
 import type {
   AgentDefinition,
+  AgentExtensionResponse,
   AgentValidationReport,
   LoopCriterionCatalogResponse,
 } from '@tracon/client';
@@ -31,6 +32,8 @@ export interface UseAgentEditorResult {
   setForm: Dispatch<SetStateAction<FormState>>;
   tools: ReturnType<typeof useQuery<ToolDescriptor[]>>;
   skills: ReturnType<typeof useQuery<AgentSkillDefinition[]>>;
+  /** The agent extensions the host registered (`GET /api/agent-extensions`). */
+  extensions: ReturnType<typeof useQuery<AgentExtensionResponse[]>>;
   agents: ReturnType<typeof useQuery<AgentDescriptor[]>>;
   providers: ReturnType<typeof useQuery<ModelProviderDescriptor[]>>;
   /** The loop criterion kinds and the judge model (`GET /api/loop-criteria`). */
@@ -67,6 +70,10 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
   const skills = useQuery({
     queryKey: ['skills'],
     queryFn: () => unwrap(client.GET('/api/skills')) as Promise<AgentSkillDefinition[]>,
+  });
+  const extensions = useQuery({
+    queryKey: ['agent-extensions'],
+    queryFn: () => unwrap(client.GET('/api/agent-extensions')) as Promise<AgentExtensionResponse[]>,
   });
   const agents = useQuery({
     queryKey: ['agents'],
@@ -116,6 +123,7 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
         model: descriptor.model?.model ?? current.model,
         toolNames: [...descriptor.toolNames],
         skillNames: [...descriptor.skillNames],
+        extensionNames: [...descriptor.extensionNames],
         callableAgentNames: [...descriptor.callableAgentNames],
       }));
       setReady(true);
@@ -182,6 +190,7 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
     setForm,
     tools,
     skills,
+    extensions,
     agents,
     providers,
     loopCriteria,

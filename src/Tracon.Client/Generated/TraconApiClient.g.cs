@@ -9137,6 +9137,83 @@ namespace Tracon.Client.Generated
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <summary>
+        /// Lists the agent extensions a definition can name.
+        /// </summary>
+        /// <remarks>
+        /// Extensions are defined only in code, with AddAgentExtension. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent. Listing the extensions runs none of them. The list is the same for every tenant, ordered by name, and an empty list is not an error.
+        /// </remarks>
+        /// <returns>OK</returns>
+        /// <exception cref="TraconApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<System.Collections.Generic.ICollection<AgentExtensionResponse>> TraconListAgentExtensionsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/agent-extensions"
+                    urlBuilder_.Append("api/agent-extensions");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<System.Collections.Generic.ICollection<AgentExtensionResponse>>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new TraconApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <summary>
         /// Returns run counts, token totals, and the error rate.
         /// </summary>
         /// <remarks>
@@ -17351,6 +17428,14 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
+        /// Gets the names of the agent extensions this agent is compiled with, in call
+        /// <br/>order. Every name must match an extension registered in code with
+        /// <br/>`AddAgentExtension`; otherwise building the agent fails.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("extensionNames")]
+        public System.Collections.Generic.ICollection<string> ExtensionNames { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
         /// Gets the names of the other agents this agent may call.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
@@ -17518,6 +17603,14 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
+        /// Names of agent extensions to compile the agent with, in call order. Extensions
+        /// <br/>are defined only in code; only the name of an already registered extension may
+        /// <br/>be given here. See `AgentDefinition.ExtensionNames`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("extensionNames")]
+        public System.Collections.Generic.ICollection<string> ExtensionNames { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
         /// Names of other agents this agent may call.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
@@ -17641,6 +17734,12 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
+        /// Gets the names of the agent extensions this agent is compiled with, in call order.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("extensionNames")]
+        public System.Collections.Generic.ICollection<string> ExtensionNames { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
         /// Gets the names of the other agents this agent may call.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
@@ -17701,6 +17800,29 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("isEditable")]
         public bool IsEditable { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// One agent extension registered in code. A definition selects it by `name` in
+    /// <br/>`extensionNames`. Listing the extensions runs none of them.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AgentExtensionResponse
+    {
+
+        /// <summary>
+        /// Gets the name a definition writes in `extensionNames`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// Gets what the extension does, in the host's language, or `null` when its
+        /// <br/>registration gave no description.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; set; } = default!;
 
     }
 

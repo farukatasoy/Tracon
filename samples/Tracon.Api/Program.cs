@@ -684,6 +684,13 @@ tracon.AddLoopEvaluator(
     "The draft-reviewer agent approves the draft. A word count and a heading check are computed in code first.");
 #pragma warning restore MAAI001
 
+// An agent extension (Phase 222): code the host registers once and a definition
+// selects by name. The console lists it in the agent editor (GET
+// /api/agent-extensions), and "house-style-demo" below names it. The agent keeps
+// the model ring, the tenant's provider credential, egress and cost, because it
+// still goes through the definition compiler.
+tracon.AddAgentExtension<HouseStyleExtension>();
+
 tracon
     .AddAgent(new AgentDefinition
     {
@@ -1230,6 +1237,18 @@ if (!openAiEnabled)
                 new AgentParameter { Name = "voice", Kind = AgentParameterKind.Text, DefaultValue = "alloy" },
             ],
             Model = instructionsModel,
+        })
+
+        // The local echo model prints the instructions it received, so a run of this
+        // agent shows the rule the house-style extension added.
+        .AddAgent(new AgentDefinition
+        {
+            Name = "house-style-demo",
+            DisplayName = "House Style (extension demo)",
+            Description = "Answers with the house-style rule an agent extension adds.",
+            Instructions = "Answer the question.",
+            Model = instructionsModel,
+            ExtensionNames = [HouseStyleExtension.ExtensionName],
         });
 }
 

@@ -81,10 +81,34 @@ not configurable.
 
 ## Definitions are validated before they are stored
 
-Compiling a definition checks that its model, tools, skills, and callable agents all
-exist and that the call graph has no cycles. The same check runs on the save path, so
-a definition that could not run is rejected at write time rather than at the first
-run.
+Compiling a definition checks that its model, tools, skills, extensions, and callable
+agents all exist and that the call graph has no cycles. The same check runs on the save
+path, so a definition that could not run is rejected at write time rather than at the
+first run.
+
+## Agent extensions reach Microsoft Agent Framework options
+
+A Microsoft Agent Framework option that Tracon does not model, or an `AIContextProvider`
+of your own, reaches a compiled agent through an extension. Code registers it with
+`AddAgentExtension`, and a definition selects it by name in `ExtensionNames`:
+
+```csharp
+builder.AddTracon()
+       .AddAgentExtension(
+           "message-injection",
+           context =>
+           {
+               if (context.ChatAgentOptions is { } options)
+               {
+                   options.EnableMessageInjection = true;
+               }
+           });
+```
+
+The agent still goes through the compiler, so it keeps the model rings, the tenant's own
+provider key, the egress policy, and cost. An extension cannot change an option the
+definition or a tenant and security decision owns, such as the tool chain or the chat
+history provider; the compilation fails and names the extension and the option.
 
 ## Optional image generation
 

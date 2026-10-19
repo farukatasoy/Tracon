@@ -38,6 +38,7 @@ internal static class AgentDescriptorProjection
             Model = definition.Model,
             ToolNames = definition.ToolNames,
             SkillNames = definition.SkillNames,
+            ExtensionNames = definition.ExtensionNames,
             CallableAgentNames = definition.CallableAgentNames,
             UsesHarness = definition.Harness is not null,
             UpdatedAt = definition.UpdatedAt,

@@ -15,7 +15,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [222](222-ADLI-AGENT-UZANTILARI.md) | Adlı Agent Uzantıları (MAF Seçenek Kancası) | 📋 Planlandı |
+| [222](222-ADLI-AGENT-UZANTILARI.md) | Adlı Agent Uzantıları (MAF Seçenek Kancası) | 🚧 Uygulandı, denetimde (2026-10-19) |
 | [223](223-TANINMAYAN-ICERIK-KAYDI.md) | Tanınmayan MAF İçeriği ve Workflow Olayının Kaydı | 📋 Planlandı |
 
 Kapanan fazlar (221 kayıt; son: Faz 221 — MAF Kaçış Kapısı Rehberi ve Fabrika Agent Tanılaması): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).

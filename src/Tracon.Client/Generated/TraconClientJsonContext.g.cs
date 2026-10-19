@@ -112,6 +112,7 @@ namespace Tracon.Client.Generated;
 [JsonSerializable(typeof(SpeakResponse))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<AgentDefinition>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<AgentDescriptor>))]
+[JsonSerializable(typeof(System.Collections.Generic.ICollection<AgentExtensionResponse>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<AgentSkillDefinition>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<ApiKeyRecord>))]
 [JsonSerializable(typeof(System.Collections.Generic.ICollection<AttachmentDescriptor>))]

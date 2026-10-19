@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.AI;
 using Tracon.Testing;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -85,6 +86,58 @@ public sealed class AgentDefinitionCacheInvalidationTests
         await RunAsync(host, "caller-agent");
 
         provider.Requests[^1].Options!.Instructions!.ShouldContain("DESC-TWO");
+    }
+
+    /// <summary>
+    /// The extension list is part of the definition, so the cache key carries it: after the list
+    /// changes, the next run is the agent the new list describes, not the cached one.
+    /// </summary>
+    [Fact]
+    public async Task Changing_the_extension_list_reaches_the_next_run()
+    {
+        var provider = Provider();
+        var configured = 0;
+        await using var host = await Infrastructure.TraconTestHost.StartAsync(configureTracon: builder => builder
+            .AddModelProvider(provider)
+            .AddAgentExtension(
+                "marker",
+                context =>
+                {
+                    Interlocked.Increment(ref configured);
+                    context.ChatAgentOptions!.ChatOptions!.AdditionalProperties = new AdditionalPropertiesDictionary { ["marker"] = true };
+                }));
+
+        await CreateAsync(host, "plain");
+        await RunAsync(host);
+        await RunAsync(host);
+
+        provider.Requests[^1].Options!.AdditionalProperties?.ContainsKey("marker").ShouldNotBe(true);
+        configured.ShouldBe(0);
+
+        using (var updated = await host.Client.PutAsJsonAsync(
+            AgentUri,
+            new AgentDefinitionRequest
+            {
+                Name = AgentName,
+                Instructions = "plain",
+                ExtensionNames = ["marker"],
+                Model = new ModelBinding { Provider = "cache-provider", Model = ModelName },
+            },
+            TestContext.Current.CancellationToken))
+        {
+            updated.StatusCode.ShouldBe(HttpStatusCode.OK, await updated.Content.ReadAsStringAsync());
+        }
+
+        // Saving validates the definition, and validation compiles it with its extensions.
+        var afterSave = configured;
+
+        await RunAsync(host);
+        await RunAsync(host);
+
+        provider.Requests[^1].Options!.AdditionalProperties.ShouldNotBeNull().ContainsKey("marker").ShouldBeTrue();
+
+        // Two runs of the same definition share one compilation.
+        configured.ShouldBe(afterSave + 1);
     }
 
     private static async Task CreateAsync(

@@ -48,6 +48,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 |---|---|---|---|
 | Declarative agents | Instructions, model binding, tools, skills, callable agents, metadata, and runtime policy as data | `ITraconBuilder.AddAgent(AgentDefinition)` | A code definition wins a name collision with a database definition |
 | Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, factory)` | The catalog still applies Tracon decorators. The agent skips the compiler: model rings only through `IModelProviderRegistry.CreateChatClient` (one warning per agent name if the chat client skips it), and no tenant provider key, egress policy, or cost; a custom agent source can apply those three. See [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) |
+| Agent extensions | Code that sets a Microsoft Agent Framework option, adds an `AIContextProvider`, or wraps the compiled agent, while the agent keeps the model rings, the tenant's key, egress, and cost | `AddAgentExtension(name, configure)`; a definition selects it in AgentDefinition.ExtensionNames | Code defines, data selects. The compiler refuses a change to what the definition or the tenant owns (tool chain, chat history, file access, model settings). A tool a provider adds skips the tool chain |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
 | Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
@@ -139,7 +140,7 @@ claim to provide an operating-system sandbox.
 | Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `Tracon:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
 | Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy; per-request provider settings (`elevenlabs.*`) are refused, never ignored, when unknown |
 | Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host; a Microsoft.Extensions.AI speech client binds to a name with `TextToSpeechClientBinding` or `SpeechToTextClientBinding`, and `UseOpenAISpeech()` registers OpenAI speech as the provider `openai` |
-| Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and `ISpeechDialogueSynthesizer` | Several voices in one request and one audio result, with each turn's time range, from a workflow function node; the built-in ElevenLabs client implements it, and a request over the provider's voice or character limit is refused rather than split |
+| Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and ISpeechDialogueSynthesizer | Several voices in one request and one audio result, with each turn's time range, from a workflow function node; the built-in ElevenLabs client implements it, and a request over the provider's voice or character limit is refused rather than split |
 | Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
@@ -186,7 +187,7 @@ production behavior.
 | Built-in checks | Eval case configuration | Deterministic checks run without a judge model |
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
 | Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
-| Calibrated evaluator catalog | `AddEvaluatorJudge(name, evaluator)` with a `Microsoft.Extensions.AI.Evaluation` `IEvaluator` | Each metric the evaluator reports becomes its own `{judge}.{metric}` score row |
+| Calibrated evaluator catalog | `AddEvaluatorJudge(name, evaluator)` with a Microsoft.Extensions.AI.Evaluation IEvaluator | Each metric the evaluator reports becomes its own `{judge}.{metric}` score row |
 | Score provenance | `RunJudgment.EvaluatorVersion`, set automatically by `AddEvaluatorJudge` | Every score row records the version of the component that produced it, so a package upgrade is not read as a regression |
 | Suite grading seam | `AddEvalEvaluatorFactory<T>()` or an instance | Replaces the MAF `LocalEvaluator` an eval suite is graded with |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
@@ -268,7 +269,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-176-operation HTTP reference.
+177-operation HTTP reference.
 
 ## Embedding points
 
@@ -556,7 +557,7 @@ flowchart LR
     G --> A
 ```
 
-Every name must resolve. An unknown tool, skill, provider, or callable agent is a
+Every name must resolve. An unknown tool, skill, extension, provider, or callable agent is a
 compilation error, not a run-time surprise.
 
 The same check runs on the **save** path, so a definition that could not run is
@@ -590,6 +591,59 @@ so the model has to answer.
 Compiled agents are cached by name, version, and a fingerprint of their dependencies,
 so changing a skill, the tenant's egress policy, or an MCP server that serves one of
 the agent's tools invalidates the agents that use it. The next run compiles again.
+
+## Agent extensions
+
+How do you set a Microsoft Agent Framework option that Tracon does not model, or add your
+own `AIContextProvider`, on an agent that is stored as data? You register an agent
+extension in code, and the definition selects it by name in `ExtensionNames`. Code defines,
+data selects: the same boundary as tools.
+
+```csharp
+builder.AddTracon()
+    .AddAgentExtension(
+        "message-injection",
+        context =>
+        {
+            if (context.ChatAgentOptions is { } options)
+            {
+                options.EnableMessageInjection = true;
+            }
+        },
+        description: "Lets a caller inject a message into a running turn.");
+```
+
+The compiler runs the extensions a definition names, in the order the definition lists
+them, after it has set every option the definition decides. It runs them when it compiles
+the agent, not on every run. The compiled agent is cached for each tenant, agent name,
+and definition, so the runs that follow share it; a run with parameter values, and an agent
+of a tenant that holds its own provider key, is not cached and runs the extensions each time.
+The agent keeps the model rings, the tenant's own provider key, the egress
+policy, and cost, because it still goes through the compiler.
+
+The compiler compares the options before and after each extension. The definition or a
+tenant and security decision owns the tool chain, the tool approval settings, the
+instructions and sampling settings, the chat history provider, file access, the
+working-directory skill scan, file memory, web search, compaction, the loop, and the
+sub-agent tree. An extension that changes one of them
+fails the compilation with an error that names the extension and the option. The provider
+list is append-only, and every other option is the extension's to set. The check covers the
+options object only. It does not look inside a provider or a wrapper that an extension adds,
+so register extension code that you trust, as you do for a tool.
+
+Three rules complete the contract:
+
+- **A name must resolve.** `POST /api/agents/validate` and a save refuse an unknown or a
+  repeated name and report `extensionNames[i]`. Validation compiles the definition, so it
+  runs the extensions it names.
+- **Listing runs no code.** `GET /api/agent-extensions` returns the registered names and
+  descriptions. The agent editor offers them as a list.
+- **A provider can add tools, and they skip the tool chain.** A tool that an extension's
+  provider adds is not authorized, approved, or timed by Tracon. A replay that plays tools
+  back does not run extensions for this reason.
+
+[Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) compares this door
+with the decorator, the factory agent, and the custom agent source.
 
 ## Versions
 
@@ -5239,7 +5293,7 @@ pin the exact package version when reproducibility matters.
 |---|---|
 | **Definitions** | An agent as data: model, prompt, tools, skills, callable agents. Versioned, with rollback |
 | **Runs** | Default-on recording — status, timings, tokens, cost, tool calls, traces, and an ordered event stream |
-| **HTTP API** | 176 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
+| **HTTP API** | 177 generated operations, plus OpenAI-compatible Responses and Chat Completions surfaces |
 | **Console** | 30 screens embedded when you add `Tracon.UI` and call `UseUI()` |
 | **Workflows** | Multi-agent execution with checkpoints and human-in-the-loop |
 | **Evaluation** | Suites, cases, automatic judges, and A/B experiments between agent versions |
@@ -5595,6 +5649,10 @@ Run with the **new** version of the tool, it counts your stored rows by stamp,
 says which of them the new build understands, and decodes a sample of each. It
 writes nothing, so it is safe against the live database. See [the supported
 upgrade window](/reference/versioning/#the-supported-upgrade-window).
+
+An agent definition keeps its content in one JSON column. A field that a new version adds
+to the definition, such as the list of agent extensions, needs no migration: a row that
+was written before the field existed reads the field as empty, and it keeps running as it did.
 
 ## Keeping it from growing forever
 
@@ -6273,10 +6331,11 @@ question is what the agent loses on the way. This page puts the ways in order, l
 first, and says what each one keeps and loses.
 
 Every code block on this page comes from `samples/Tracon.Samples.MafFeatures`. That
-sample builds against the packed packages. Its test project checks four claims: the
+sample builds against the packed packages. Its test project checks five claims: the
 decorator sees the tool calls of every door, the custom source uses the tenant's own
-key, the custom source records cost, and the egress policy reaches the custom source and
-not the factory agent.
+key, the custom source records cost, the egress policy reaches the custom source and
+not the factory agent, and an agent extension adds a context provider to an agent defined
+as data without losing the tenant's key or cost.
 
 ## The coverage ladder
 
@@ -6301,14 +6360,16 @@ Start at the top of the diagram and stop at the first door that fits.
 ```mermaid
 flowchart TD
     accTitle: Which door reaches a framework feature
-    accDescr: A decision tree. A workflow graph goes to a code workflow. A Microsoft.Extensions.AI type that Tracon reads from the container is registered in the container. Agent middleware, tool middleware, or a message context provider goes in an agent decorator. Anything else needs an agent that code builds. If you need the tenant key, the egress policy, or cost, use a custom agent source. If you do not, use a factory agent.
+    accDescr: A decision tree. A workflow graph goes to a code workflow. A Microsoft.Extensions.AI type that Tracon reads from the container is registered in the container. Agent middleware, tool middleware, or a message context provider goes in an agent decorator. A framework option or a full context provider on an agent that a definition describes goes in an agent extension. Anything else needs an agent that code builds. If you need the tenant key, the egress policy, or cost, use a custom agent source. If you do not, use a factory agent.
     START["A framework feature you want to use"] --> GRAPH{"Is it a workflow graph?"}
     GRAPH -->|yes| WF["Code workflow<br/>AddWorkflow"]
     GRAPH -->|no| DI{"Does Tracon read the type<br/>from the container?"}
     DI -->|yes| REG["Register it<br/>in the container"]
     DI -->|no| MW{"Is it agent middleware, tool middleware,<br/>or a message context provider?"}
     MW -->|yes| DEC["Agent decorator"]
-    MW -->|no| KEY{"Do you need the tenant key,<br/>the egress policy, or cost?"}
+    MW -->|no| OPT{"Is it a framework option or a full context provider,<br/>on an agent that a definition describes?"}
+    OPT -->|yes| EXT["Agent extension"]
+    OPT -->|no| KEY{"Do you need the tenant key,<br/>the egress policy, or cost?"}
     KEY -->|yes| SRC["Custom agent source"]
     KEY -->|no| FAC["Factory agent"]
 ```
@@ -6317,6 +6378,7 @@ flowchart TD
 |---|---|---|---|
 | Container registration | Tracon reads the type from the container | Everything | Nothing |
 | Agent decorator | The feature is agent middleware, tool middleware, or a message context provider | Everything: the model rings, the tenant key, the egress policy, cost | A full context provider |
+| Agent extension | The feature is a framework option or a full context provider, and a definition describes the agent | Everything a decorator keeps, plus the definition: console editing, versions, validation | The options the definition owns are protected. A tool that your provider adds skips the tool chain |
 | Factory agent | Code builds the agent and you need none of the three below | The run record, the model rings (through the registry), the wrapped tools | The tenant key, the egress policy, cost |
 | Custom agent source | Code builds the agent and you need the tenant key, the egress policy, or cost | All of the above, plus the tenant key, the egress policy, and cost | Console editing and the features the compiler wires |
 | Code workflow | The feature is a graph | The graph, in full | Events that Tracon does not map |
@@ -6366,8 +6428,9 @@ sample tests run this decorator against three agents: one defined as data, one f
 factory, and one from a custom source. It sees the tool call of all three.
 
 A decorator cannot add a full context provider, one that adds tools or instructions.
-`UseAIContextProviders` takes only message providers. For a full provider, build the
-agent in code with one of the next two doors.
+`UseAIContextProviders` takes only message providers. For a full provider on an agent that
+a definition describes, use an agent extension. For an agent that code builds, use one of
+the doors after it.
 
 The sample registers the decorator together with the log it writes to:
 
@@ -6379,6 +6442,69 @@ return builder.AddAgentDecorator<ToolCallLogDecorator>();
 
 See [Write your own agent decorator](/guides/write-your-own-agent-decorator/) for the
 full contract.
+
+## Add an option or a provider with an agent extension
+
+An agent extension is code that you register once and a definition selects by name. It
+reaches the options that Tracon builds the agent from, so it can set a framework option or
+add a full `AIContextProvider`. The agent still goes through the definition compiler. It
+keeps the model rings, the tenant's own key, the egress policy, and cost, and the console
+can still edit and version it.
+
+The sample adds a provider that puts a policy notice into the instructions of every model
+call:
+
+```csharp
+return builder.AddAgentExtension(
+    ExtensionName,
+    context =>
+    {
+        // Add after the providers Tracon built; the compiler refuses a change to them.
+        var options = context.ChatAgentOptions!;
+        options.AIContextProviders = [.. options.AIContextProviders ?? [], new PolicyNoticeProvider()];
+    },
+    description: "Adds the refund policy to the instructions of every model call.");
+```
+
+```csharp
+private sealed class PolicyNoticeProvider : AIContextProvider
+{
+    protected override ValueTask<AIContext> ProvideAIContextAsync(InvokingContext context, CancellationToken cancellationToken = default)
+        => new(new AIContext { Instructions = Notice });
+}
+```
+
+The sample puts the name in the definition of the agent. A stored definition does the same
+with `extensionNames`, and the console offers the registered names in the agent editor:
+
+```csharp
+ExtensionNames = [PolicyNoticeExtensionRegistration.ExtensionName],
+```
+
+What to know about this door:
+
+- **`Configure` runs when the agent is compiled, not on every run.** The compiled agent is
+  cached for each tenant, agent name, and definition, so the runs that follow share it. Two
+  runs that start before the cache holds the agent can each compile it. A run with parameter
+  values, and an agent of a tenant that holds its own provider key, is not cached and runs
+  the extension each time.
+- **The extension gets one options object.** `ChatAgentOptions` is set for a chat agent and
+  `HarnessAgentOptions` for a harness agent. `context.Use` adds a wrapper around the
+  compiled agent, inside Tracon's own wrappers and decorators.
+- **Some options are protected.** A definition or a tenant and security decision owns the
+  tool chain, the tool approval settings, the instructions and sampling settings, the chat
+  history provider, file access, the working-directory skill scan, file memory, web search,
+  compaction, the loop, and the sub-agent tree. An extension that changes one of them fails the compilation with
+  an error that names the extension and the option. Tracon does not undo the change. The
+  provider list is append-only. The other options are yours, for example
+  `EnableMessageInjection`. The check covers the options object. It does not look inside a
+  provider or a wrapper that the extension adds, so a provider you add can still read files
+  or load skills by itself. Register only extension code that you trust, as you do for a tool.
+- **A provider can add tools, and Tracon does not run them through the tool chain.**
+  Authorization, approval, and the timeout apply to the tools that the tool registry gives
+  an agent. A tool that your own provider adds skips them. The run record still shows the
+  call.
+- **A replay that plays tools back does not run the extension**, for the same reason.
 
 ## Build the agent in a factory
 
@@ -6520,10 +6646,14 @@ model.
 
 These losses have no door that removes them:
 
-- **A full context provider on an agent defined as data.** A decorator accepts only
-  message providers. A provider that adds tools or instructions, and any
-  `ChatClientAgentOptions` setting, needs an agent that your code builds. That agent is
-  code, so the console cannot edit it.
+- **A protected option on an agent defined as data.** An agent extension can set any
+  framework option that the definition and the tenant do not own. The tool chain, the chat
+  history provider, the approval settings, the file access and skill-scan options, and the model
+  settings stay with Tracon as options. A feature that needs one of them needs an agent that your code builds. That agent is code, so the
+  console cannot edit it.
+- **The tool chain for a tool that your own provider adds.** An extension's provider can
+  add a tool, and that tool skips authorization, approval, and the timeout. Register the
+  tool in the tool registry instead, and name it in the definition.
 - **Tracon's managed skills, compaction, MCP resources, and loop recording on a
   code-built agent.** The definition compiler wires skills with their script gates,
   context compaction with its record, MCP tools and resources, loop recording, and the
@@ -6544,8 +6674,9 @@ These losses have no door that removes them:
 
 Answer these five questions before you write a factory agent:
 
-1. Can a decorator do the job? If the feature is middleware or a message provider, it
-   can, and you keep every ring.
+1. Can a decorator or an agent extension do the job? If the feature is middleware, a
+   message provider, a framework option, or a full context provider, one of them can, and
+   you keep every ring.
 2. Do you need the tenant's own key, the egress policy, or cost? If yes, use a custom
    agent source.
 3. Does the factory build its chat client with `IModelProviderRegistry`? If not, the
@@ -17132,7 +17263,7 @@ public void All_tool_contracts_are_covered()
 
 Source: https://tracon.dev/http-api/
 
-176 operations across 138 paths. This page is the shape they all share; the groups in
+177 operations across 139 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
 The OpenAPI document is published as
@@ -20603,7 +20734,7 @@ method exists to prevent.
 
 ## HTTP surface compatibility
 
-The generated HTTP reference contains 176 management and OpenAI-compatible
+The generated HTTP reference contains 177 management and OpenAI-compatible
 operations grouped under 23 domain tags.
 
 Being in the reference and being live in your process are different questions.
@@ -23206,7 +23337,9 @@ a database agent — the version history with a diff between any two versions an
 one-click rollback.
 
 The editor validates as you save, using the same rules the compiler applies. An
-unknown tool or skill name is refused at write time, not on the first run.
+unknown tool, skill, or extension name is refused at write time, not on the first run.
+The Extensions panel lists the extensions the host registered. It keeps a name the host
+no longer registers, with a mark, so you can remove it.
 
 <a class="ui-shot" href="/screenshots/agent-editor-loop.png"><img src="/screenshots/agent-editor-loop.png" alt="The agent editor's Loop panel with a marker criterion, a criterion registered in code, the iteration ceiling and the outcome selectors" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 

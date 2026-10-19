@@ -10,6 +10,8 @@ Tracon.AgentDefinitionRequest.Description.get -> string?
 Tracon.AgentDefinitionRequest.Description.init -> void
 Tracon.AgentDefinitionRequest.DisplayName.get -> string?
 Tracon.AgentDefinitionRequest.DisplayName.init -> void
+Tracon.AgentDefinitionRequest.ExtensionNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.AgentDefinitionRequest.ExtensionNames.init -> void
 Tracon.AgentDefinitionRequest.Equals(Tracon.AgentDefinitionRequest? other) -> bool
 Tracon.AgentDefinitionRequest.Harness.get -> Tracon.HarnessSettings?
 Tracon.AgentDefinitionRequest.Harness.init -> void

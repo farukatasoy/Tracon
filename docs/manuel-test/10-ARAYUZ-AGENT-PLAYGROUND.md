@@ -1995,3 +1995,33 @@ gerçek tanımı siler.
 **Adımlar** — Tavanı `3` → `4` yapıp kaydet; detayda son iki sürümü seç.
 
 **Beklenen sonuç** — "Loop" tablosunda "Iteration ceiling" `3` → `4` vurgulu, "Criteria" vurgusuz (`agent-detail.test.tsx`). 👤
+
+---
+
+### MT-UIAG-063 — Konsolda seçilen agent uzantısı kaydedilir, yenilemede kalır ve run'a işler (Faz 222)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 222 |
+| **İlgili karar** | K-1029, K-1030 |
+
+**Ön koşul** — Örnek uygulama OpenAI anahtarı **olmadan** (yerel `echo` kipi; `Tracon:Providers:OpenAI:ApiKey`
+boş) ve `house-style` uzantısı kayıtlı (`HouseStyleExtension`). API ile kaydedilmiş tanım:
+`{"name":"ext-demo","instructions":"Answer the question.","model":{"provider":"echo","model":"echo-instructions-1"}}`.
+Rol: administrator.
+
+**Adımlar** (🤖 Playwright)
+1. `agents/ext-demo/edit` aç; "Extensions" panelini bul.
+2. `house-style` kutusunu işaretle; "Save new version".
+3. Sayfayı yenile, düzenleme ekranını yeniden aç.
+4. `GET $BASE/api/agents/ext-demo` oku; `POST $BASE/api/agents/ext-demo/run` ile bir run koş.
+
+**Beklenen sonuç**
+- Adım 1: panel `house-style`'ı açıklamasıyla listeler; kutu boştur; istek önizlemesinde `"extensionNames": []`.
+- Adım 3: kutu işaretli; önizleme `"extensionNames": ["house-style"]` (`full-replace-editors.test.tsx`, `agent-editor.test.tsx`).
+- Adım 4: `definition.extensionNames` ve `descriptor.extensionNames` `["house-style"]` döner, sürüm `2`;
+  run `Completed` ve çıktı `HOUSE-STYLE: answer in two short sentences.` satırını taşır — uzantının provider'ı modele ulaşmıştır.
+- Kayıtlı olmayan bir ad (`retired`) tanımda kalmışsa panel onu "Not registered" rozetiyle gösterir ve kaldırılabilir bırakır
+  (`agent-editor.test.tsx`).

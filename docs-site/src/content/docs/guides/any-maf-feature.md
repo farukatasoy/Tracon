@@ -9,10 +9,11 @@ question is what the agent loses on the way. This page puts the ways in order, l
 first, and says what each one keeps and loses.
 
 Every code block on this page comes from `samples/Tracon.Samples.MafFeatures`. That
-sample builds against the packed packages. Its test project checks four claims: the
+sample builds against the packed packages. Its test project checks five claims: the
 decorator sees the tool calls of every door, the custom source uses the tenant's own
-key, the custom source records cost, and the egress policy reaches the custom source and
-not the factory agent.
+key, the custom source records cost, the egress policy reaches the custom source and
+not the factory agent, and an agent extension adds a context provider to an agent defined
+as data without losing the tenant's key or cost.
 
 ## The coverage ladder
 
@@ -37,14 +38,16 @@ Start at the top of the diagram and stop at the first door that fits.
 ```mermaid
 flowchart TD
     accTitle: Which door reaches a framework feature
-    accDescr: A decision tree. A workflow graph goes to a code workflow. A Microsoft.Extensions.AI type that Tracon reads from the container is registered in the container. Agent middleware, tool middleware, or a message context provider goes in an agent decorator. Anything else needs an agent that code builds. If you need the tenant key, the egress policy, or cost, use a custom agent source. If you do not, use a factory agent.
+    accDescr: A decision tree. A workflow graph goes to a code workflow. A Microsoft.Extensions.AI type that Tracon reads from the container is registered in the container. Agent middleware, tool middleware, or a message context provider goes in an agent decorator. A framework option or a full context provider on an agent that a definition describes goes in an agent extension. Anything else needs an agent that code builds. If you need the tenant key, the egress policy, or cost, use a custom agent source. If you do not, use a factory agent.
     START["A framework feature you want to use"] --> GRAPH{"Is it a workflow graph?"}
     GRAPH -->|yes| WF["Code workflow<br/>AddWorkflow"]
     GRAPH -->|no| DI{"Does Tracon read the type<br/>from the container?"}
     DI -->|yes| REG["Register it<br/>in the container"]
     DI -->|no| MW{"Is it agent middleware, tool middleware,<br/>or a message context provider?"}
     MW -->|yes| DEC["Agent decorator"]
-    MW -->|no| KEY{"Do you need the tenant key,<br/>the egress policy, or cost?"}
+    MW -->|no| OPT{"Is it a framework option or a full context provider,<br/>on an agent that a definition describes?"}
+    OPT -->|yes| EXT["Agent extension"]
+    OPT -->|no| KEY{"Do you need the tenant key,<br/>the egress policy, or cost?"}
     KEY -->|yes| SRC["Custom agent source"]
     KEY -->|no| FAC["Factory agent"]
 ```
@@ -53,6 +56,7 @@ flowchart TD
 |---|---|---|---|
 | Container registration | Tracon reads the type from the container | Everything | Nothing |
 | Agent decorator | The feature is agent middleware, tool middleware, or a message context provider | Everything: the model rings, the tenant key, the egress policy, cost | A full context provider |
+| Agent extension | The feature is a framework option or a full context provider, and a definition describes the agent | Everything a decorator keeps, plus the definition: console editing, versions, validation | The options the definition owns are protected. A tool that your provider adds skips the tool chain |
 | Factory agent | Code builds the agent and you need none of the three below | The run record, the model rings (through the registry), the wrapped tools | The tenant key, the egress policy, cost |
 | Custom agent source | Code builds the agent and you need the tenant key, the egress policy, or cost | All of the above, plus the tenant key, the egress policy, and cost | Console editing and the features the compiler wires |
 | Code workflow | The feature is a graph | The graph, in full | Events that Tracon does not map |
@@ -102,8 +106,9 @@ sample tests run this decorator against three agents: one defined as data, one f
 factory, and one from a custom source. It sees the tool call of all three.
 
 A decorator cannot add a full context provider, one that adds tools or instructions.
-`UseAIContextProviders` takes only message providers. For a full provider, build the
-agent in code with one of the next two doors.
+`UseAIContextProviders` takes only message providers. For a full provider on an agent that
+a definition describes, use an agent extension. For an agent that code builds, use one of
+the doors after it.
 
 The sample registers the decorator together with the log it writes to:
 
@@ -115,6 +120,69 @@ return builder.AddAgentDecorator<ToolCallLogDecorator>();
 
 See [Write your own agent decorator](/guides/write-your-own-agent-decorator/) for the
 full contract.
+
+## Add an option or a provider with an agent extension
+
+An agent extension is code that you register once and a definition selects by name. It
+reaches the options that Tracon builds the agent from, so it can set a framework option or
+add a full `AIContextProvider`. The agent still goes through the definition compiler. It
+keeps the model rings, the tenant's own key, the egress policy, and cost, and the console
+can still edit and version it.
+
+The sample adds a provider that puts a policy notice into the instructions of every model
+call:
+
+```csharp
+return builder.AddAgentExtension(
+    ExtensionName,
+    context =>
+    {
+        // Add after the providers Tracon built; the compiler refuses a change to them.
+        var options = context.ChatAgentOptions!;
+        options.AIContextProviders = [.. options.AIContextProviders ?? [], new PolicyNoticeProvider()];
+    },
+    description: "Adds the refund policy to the instructions of every model call.");
+```
+
+```csharp
+private sealed class PolicyNoticeProvider : AIContextProvider
+{
+    protected override ValueTask<AIContext> ProvideAIContextAsync(InvokingContext context, CancellationToken cancellationToken = default)
+        => new(new AIContext { Instructions = Notice });
+}
+```
+
+The sample puts the name in the definition of the agent. A stored definition does the same
+with `extensionNames`, and the console offers the registered names in the agent editor:
+
+```csharp
+ExtensionNames = [PolicyNoticeExtensionRegistration.ExtensionName],
+```
+
+What to know about this door:
+
+- **`Configure` runs when the agent is compiled, not on every run.** The compiled agent is
+  cached for each tenant, agent name, and definition, so the runs that follow share it. Two
+  runs that start before the cache holds the agent can each compile it. A run with parameter
+  values, and an agent of a tenant that holds its own provider key, is not cached and runs
+  the extension each time.
+- **The extension gets one options object.** `ChatAgentOptions` is set for a chat agent and
+  `HarnessAgentOptions` for a harness agent. `context.Use` adds a wrapper around the
+  compiled agent, inside Tracon's own wrappers and decorators.
+- **Some options are protected.** A definition or a tenant and security decision owns the
+  tool chain, the tool approval settings, the instructions and sampling settings, the chat
+  history provider, file access, the working-directory skill scan, file memory, web search,
+  compaction, the loop, and the sub-agent tree. An extension that changes one of them fails the compilation with
+  an error that names the extension and the option. Tracon does not undo the change. The
+  provider list is append-only. The other options are yours, for example
+  `EnableMessageInjection`. The check covers the options object. It does not look inside a
+  provider or a wrapper that the extension adds, so a provider you add can still read files
+  or load skills by itself. Register only extension code that you trust, as you do for a tool.
+- **A provider can add tools, and Tracon does not run them through the tool chain.**
+  Authorization, approval, and the timeout apply to the tools that the tool registry gives
+  an agent. A tool that your own provider adds skips them. The run record still shows the
+  call.
+- **A replay that plays tools back does not run the extension**, for the same reason.
 
 ## Build the agent in a factory
 
@@ -256,10 +324,14 @@ model.
 
 These losses have no door that removes them:
 
-- **A full context provider on an agent defined as data.** A decorator accepts only
-  message providers. A provider that adds tools or instructions, and any
-  `ChatClientAgentOptions` setting, needs an agent that your code builds. That agent is
-  code, so the console cannot edit it.
+- **A protected option on an agent defined as data.** An agent extension can set any
+  framework option that the definition and the tenant do not own. The tool chain, the chat
+  history provider, the approval settings, the file access and skill-scan options, and the model
+  settings stay with Tracon as options. A feature that needs one of them needs an agent that your code builds. That agent is code, so the
+  console cannot edit it.
+- **The tool chain for a tool that your own provider adds.** An extension's provider can
+  add a tool, and that tool skips authorization, approval, and the timeout. Register the
+  tool in the tool registry instead, and name it in the definition.
 - **Tracon's managed skills, compaction, MCP resources, and loop recording on a
   code-built agent.** The definition compiler wires skills with their script gates,
   context compaction with its record, MCP tools and resources, loop recording, and the
@@ -280,8 +352,9 @@ These losses have no door that removes them:
 
 Answer these five questions before you write a factory agent:
 
-1. Can a decorator do the job? If the feature is middleware or a message provider, it
-   can, and you keep every ring.
+1. Can a decorator or an agent extension do the job? If the feature is middleware, a
+   message provider, a framework option, or a full context provider, one of them can, and
+   you keep every ring.
 2. Do you need the tenant's own key, the egress policy, or cost? If yes, use a custom
    agent source.
 3. Does the factory build its chat client with `IModelProviderRegistry`? If not, the

@@ -30,6 +30,9 @@ internal sealed class CredentialRecordingProvider : ITenantCredentialModelProvid
 
     public IReadOnlyList<ModelDescriptor> Models => _inner.Models;
 
+    /// <summary>The instructions of the last model call, or <see langword="null"/> before any call.</summary>
+    public string? LastInstructions => _inner.Requests.Count == 0 ? null : _inner.Requests[^1].Options?.Instructions;
+
     /// <summary>One entry per chat client built: the tenant's key, or <see cref="SetupKey"/>.</summary>
     public IReadOnlyList<string> Keys
     {

@@ -2,19 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 966 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 971 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1018 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1023 kalem)
 
 | K | Karar |
 |---|---|
-| K-977 | Cevaplanamayan onayda run beklemez: Chat Completions ve oturumsuz yerel run `409` (akışta error frame), MCP/A2A dahil run `Failed` (`approval_unanswerable`) (F-448, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
-| K-978 | Kurtarma açıkken işçi durunca `Canceled` kapanan workflow run'ı checkpoint'ini `KeepCheckpointsAfterCompletion=false` olsa da tutar; devam bitince temizler (F-433, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
-| K-979 | Kuyruklu turun onay yazımı kira penceresinde tekrarlanır, kimlikle önce okur; pencere biterse `tracon.job.approval-save-failed`, model tekrar çağrılmaz (F-391, kusur-giderme 2026-10-14) (ana oturum varsayılanı, K-903 emsali) |
-| K-980 | Çağıranı bekleyen yanıt (onay isteği, sonuçsuz istemci tool çağrısı) yapılandırılmış doğrulamadan geçmez; doğrulayıcı çağrılmaz (F-350, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
-| K-981 | Katalog ve doğrulayıcı skill'i kod ve `store`'dan sonra `SkillRoots`'ta da arar; disk skill'i kurulum genelidir, içeriği önbellek parmak izine girer; grant pini diske bakmaz (F-481, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-982 | Tekrar aynı cevabı alacak hata işi o denemede düşürür: karar hatanın kararlı kimliğinden verilir (`output_truncated`, `tenant_provider_refused`, kalıcı 4xx `upstream_error`), metninden değil; işçi geneli, tüketicinin kendi ham hatası tekrar dener (F-429, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-983 | Kiracının sağlayıcı reddi tek public tiptir ve kendi sınıfını alır: `TraconTenantProviderRefusedException`, `tenant_provider_refused`, `RunErrorClass.TenantProviderRefused` (17); model, yedek, özetleyici, görsel, ses, embedding ve canlı ses aynı tipi atar, derleme tipi ajan adıyla korur (F-442, F-444, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-984 | Normalleştirilmiş sağlayıcı hatasının ikinci daraltması: `(HTTP 429)` ile biten `upstream_error` `RateLimited`'dır; durum `HttpRequestException.StatusCode`'dan da okunur (F-353, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
@@ -62,3 +57,8 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1026 | OpenAI ses istemcisi `OpenAIClient.Pipeline` üstündedir, `AudioClient`/MEAI adaptörü üstünde değil (F-579) |
 | K-1027 | `/v1/chat/completions` agent'ın istek ayarını `400` ile reddeder; `/v1/conversations` ilk `items`'ı reddeder (F-581) |
 | K-1028 | `RunRecordingAgent` iç agent'a düz `AgentRunOptions` verir, `TraconRunOptions` değil (G-07) |
+| K-1029 | Agent uzantısı MAF seçenek nesnesinin kendisini alır; korunan üye tablosu ve ratchet testi sınırı zorlar (F-588) |
+| K-1030 | Uzantıyı kod kaydeder, tanım yalnız adla seçer: `AddAgentExtension`, `ExtensionNames` (F-588) |
+| K-1031 | SQL payload'ında sonradan gelen liste alanı null okunabilir; boş liste yazılmaz (F-588) |
+| K-1032 | Sohbet agent'ında `RequirePerServiceCallChatHistoryPersistence` serbesttir; açıksa model istemcisi sınır seam'inden geçer (F-588) |
+| K-1033 | Tool oynatan yollar uzantıyı çalıştırmaz: replay `ExtensionNames`'i boşaltır, continuation reddeder (F-588) |

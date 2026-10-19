@@ -342,7 +342,11 @@ public static partial class TraconServiceCollectionExtensions
             // The SAME store the registry checks (F-304): its policy enters the
             // compiled-agent cache key, so a policy saved after an agent was
             // cached reaches the next resolve.
-            provider.GetService<ITenantEgressPolicyStore>()));
+            provider.GetService<ITenantEgressPolicyStore>(),
+            // Phase 222: the agent extensions a host added with AddAgentExtension.
+            // Empty when none was added, and a definition that names one then
+            // fails to compile.
+            provider.GetServices<IAgentExtension>()));
 #pragma warning restore MAAI001
 
         // Knowledge base management surface (Phase 51): document upload,

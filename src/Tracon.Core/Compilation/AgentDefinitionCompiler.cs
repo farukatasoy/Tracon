@@ -64,6 +64,7 @@ public sealed partial class AgentDefinitionCompiler
     private readonly TimeProvider? _timeProvider;
     private readonly LoopEvaluatorRegistry _loopEvaluators;
     private readonly ITenantEgressPolicyStore? _tenantEgressPolicies;
+    private readonly AgentExtensionRegistry _agentExtensions;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
     // purposes only". The suppression is kept in a single file (this file,
@@ -154,6 +155,12 @@ public sealed partial class AgentDefinitionCompiler
     /// reaches the next resolve. When <see langword="null"/>, the key carries no
     /// policy.
     /// </param>
+    /// <param name="agentExtensions">
+    /// The agent extensions registered in code with <c>ITraconBuilder.AddAgentExtension</c>.
+    /// A definition whose <see cref="AgentDefinition.ExtensionNames"/> names one that is
+    /// not registered here gets a compilation error. No extension runs until an agent that
+    /// names it is compiled.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     internal AgentDefinitionCompiler(
@@ -177,7 +184,8 @@ public sealed partial class AgentDefinitionCompiler
         TimeProvider? timeProvider = null,
         IEnumerable<TraconLoopEvaluatorRegistration>? loopEvaluators = null,
         ModelRunJudgeOptions? judgeOptions = null,
-        ITenantEgressPolicyStore? tenantEgressPolicies = null)
+        ITenantEgressPolicyStore? tenantEgressPolicies = null,
+        IEnumerable<IAgentExtension>? agentExtensions = null)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -206,6 +214,7 @@ public sealed partial class AgentDefinitionCompiler
         // chain, and a criterion that needs the catalog would close the cycle.
         _loopEvaluators = new LoopEvaluatorRegistry(loopEvaluators ?? [], models, judgeOptions, loggerFactory, services);
         _tenantEgressPolicies = tenantEgressPolicies;
+        _agentExtensions = agentExtensions is null ? AgentExtensionRegistry.Empty : new AgentExtensionRegistry(agentExtensions);
     }
 
     /// <summary>
@@ -214,6 +223,13 @@ public sealed partial class AgentDefinitionCompiler
     /// </summary>
     /// <returns>The registry this compiler builds loops with.</returns>
     internal LoopEvaluatorRegistry GetLoopEvaluators() => _loopEvaluators;
+
+    /// <summary>
+    /// Returns the agent extension registry: the names a definition can select, and the
+    /// one rule set the validator and <see cref="Compile(AgentDefinition)"/> share.
+    /// </summary>
+    /// <returns>The registry this compiler configures agents with.</returns>
+    internal AgentExtensionRegistry GetAgentExtensions() => _agentExtensions;
 
     /// <summary>Converts a definition into an executable agent.</summary>
     /// <param name="definition">The definition to compile.</param>
@@ -281,10 +297,10 @@ public sealed partial class AgentDefinitionCompiler
     /// </para>
     /// <para>
     /// The transform applies only to tools resolved from the
-    /// <see cref="IToolRegistry"/> registry. Tools opened by skills and
-    /// callable sub-agents come through an <c>AIContextProvider</c> and do not
-    /// pass through here; the caller must disable them <em>at the definition
-    /// level</em> instead.
+    /// <see cref="IToolRegistry"/> registry. Tools opened by skills,
+    /// callable sub-agents and agent extensions come through an
+    /// <c>AIContextProvider</c> and do not pass through here; the caller must
+    /// disable them <em>at the definition level</em> instead.
     /// </para>
     /// <para>
     /// The compiled agent cache (<see cref="CompiledAgentCache"/>) is

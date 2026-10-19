@@ -36,11 +36,12 @@ namespace Tracon;
 /// <para>
 /// A code-defined agent (no persistent <see cref="AgentDefinition"/>) cannot
 /// be continued: there is no definition to recompile with the playback
-/// wrapper. The same limit applies to an agent that uses skills or callable
-/// sub-agents — both run through an <c>AIContextProvider</c> that the tool
-/// wrapper never sees, so a completed skill or sub-agent call could not be
-/// told apart from one past the interruption point; continuation is refused
-/// rather than risk a silent repeat.
+/// wrapper. The same limit applies to an agent that uses skills, callable
+/// sub-agents or agent extensions — all three can run through an
+/// <c>AIContextProvider</c> that the tool wrapper never sees, so a completed
+/// skill, sub-agent or extension tool call could not be told apart from one
+/// past the interruption point; continuation is refused rather than risk a
+/// silent repeat.
 /// </para>
 /// <para>
 /// The continued turn runs under the user and labels of the interrupted run,
@@ -182,15 +183,23 @@ internal sealed class RunContinuationJobHandler(
                 parameterValues = recorded.Values;
             }
 
-            // Skills and callable sub-agents run through an AIContextProvider,
-            // not through the tool-calling pipeline RecordedToolPlayback wraps
-            // — see the class documentation.
+            // Skills, callable sub-agents and agent extensions can run through an
+            // AIContextProvider, not through the tool-calling pipeline
+            // RecordedToolPlayback wraps — see the class documentation.
             if (definition.SkillNames.Count > 0 || definition.CallableAgentNames.Count > 0)
             {
                 throw new TraconException(
                     $"Agent '{source.AgentName}' uses skills or callable sub-agents, which do not go " +
                     "through tool playback; continuing it could silently repeat a completed skill or " +
                     "sub-agent call. This run cannot be continued.");
+            }
+
+            if (definition.ExtensionNames.Count > 0)
+            {
+                throw new TraconException(
+                    $"Agent '{source.AgentName}' uses agent extensions, whose context providers can add tools " +
+                    "that do not go through tool playback; continuing it could silently repeat a completed " +
+                    "tool call. This run cannot be continued.");
             }
 
             var invocations = await runStore.ListToolInvocationsAsync(sourceRunId, cancellationToken).ConfigureAwait(false);
@@ -261,12 +270,13 @@ internal sealed class RunContinuationJobHandler(
     private Microsoft.Agents.AI.AIAgent Decorate(Microsoft.Agents.AI.AIAgent agent, AgentDescriptor descriptor)
         => AgentDecoratorPipeline.Apply(agent, descriptor, _decorators);
 
-    // Skills and callable agents are zeroed on purpose: a continuation
-    // compiles the definition without them.
+    // Skills, callable agents and extensions are zeroed on purpose: a continuation
+    // compiles the definition without them (the extension gate above refuses before that).
     private static AgentDescriptor ToDescriptor(AgentDefinition definition)
         => AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, "continuation") with
         {
             SkillNames = [],
+            ExtensionNames = [],
             CallableAgentNames = [],
         };
 

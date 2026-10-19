@@ -107,6 +107,9 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
   },
   toolNames: ['get_order_status'],
   skillNames: ['returns-policy'],
+  // Phase 222: 'retired' is a name the host no longer registers. The form keeps it, so an edit that
+  // does not touch it sends it back unchanged instead of dropping it.
+  extensionNames: ['audit', 'retired'],
   callableAgentNames: ['billing'],
   subAgents: { childDeadline: '00:00:10', waitTimeout: '00:00:30' },
   mcpResourceUris: ['docs:file:///handbook.md'],
@@ -225,6 +228,7 @@ const ROUND_TRIPS: RoundTrip[] = [
     routes: [
       fixture('GET', 'api/tools', []),
       fixture('GET', 'api/skills', []),
+      fixture('GET', 'api/agent-extensions', [{ name: 'audit', description: 'Records every model call.' }]),
       fixture('GET', 'api/agents', []),
       fixture('GET', 'api/models', providers),
       fixture('GET', 'api/loop-criteria', {

@@ -10,7 +10,7 @@ namespace Tracon;
 /// </summary>
 public sealed partial class AgentDefinitionCompiler
 {
-    private ChatClientAgent CompileChatAgent(
+    private AIAgent CompileChatAgent(
         AgentDefinition definition,
         IChatClient chatClient,
         SecondaryChatClients secondaryClients,
@@ -59,8 +59,25 @@ public sealed partial class AgentDefinitionCompiler
             options.AIContextProviders = providers;
         }
 
-        return chatClient.AsAIAgent(options, _loggerFactory, _services);
+        // Phase 222: the one point where an extension reaches the options, after
+        // Tracon has set every member the definition owns and before MAF reads them.
+        var wrappers = _agentExtensions.Configure(
+            definition, ResolveTenantId(definition), _services ?? NoServices.Instance, chatOptions: options, harnessOptions: null);
+
+        // MAF loads the session's history on every model call when an extension
+        // turns this on, and the loaded history can hold an approval request that
+        // is already answered (F-582). The seam removes it before Tracon's own
+        // tool-call loop sees it. Without the member the client is left alone.
+        var seamedClient = options.RequirePerServiceCallChatHistoryPersistence
+            ? new HarnessLoopBoundaryChatClient(chatClient)
+            : chatClient;
+
+        return AgentExtensionRegistry.Wrap(seamedClient.AsAIAgent(options, _loggerFactory, _services), wrappers, definition.Name);
     }
+
+    /// <summary>The tenant an agent is compiled for: the current tenant, then the definition's own, then the default.</summary>
+    private string ResolveTenantId(AgentDefinition definition)
+        => _tenantContext?.TenantId ?? definition.TenantId ?? FixedTenantContext.Default.TenantId;
 
     /// <summary>
     /// Builds the context provider for <see cref="AgentDefinition.McpResourceUris"/> (Mode A).
@@ -231,7 +248,7 @@ public sealed partial class AgentDefinitionCompiler
         return (childDeadline, waitTimeout);
     }
 
-    private HarnessAgent CompileHarnessAgent(
+    private AIAgent CompileHarnessAgent(
         AgentDefinition definition,
         IChatClient chatClient,
         SecondaryChatClients secondaryClients,
@@ -421,7 +438,15 @@ public sealed partial class AgentDefinitionCompiler
             options.LoopAgentOptions = loopOptions;
         }
 
-        return new HarnessLoopBoundaryChatClient(chatClient).AsHarnessAgent(options, _loggerFactory, _services);
+        // Phase 222: the one point where an extension reaches the options, after
+        // Tracon has set every member the definition owns and before MAF reads them.
+        var wrappers = _agentExtensions.Configure(
+            definition, ResolveTenantId(definition), _services ?? NoServices.Instance, chatOptions: null, harnessOptions: options);
+
+        return AgentExtensionRegistry.Wrap(
+            new HarnessLoopBoundaryChatClient(chatClient).AsHarnessAgent(options, _loggerFactory, _services),
+            wrappers,
+            definition.Name);
 #pragma warning restore MAAI001
     }
 }

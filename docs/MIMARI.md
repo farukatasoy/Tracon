@@ -345,17 +345,23 @@ flowchart LR
     D --> T["IToolRegistry<br/>→ AIFunction[]"]
     D --> S["AgentSkillCatalog<br/>→ TraconSkillsSource"]
     D --> G["CallableAgentResolver<br/>→ ChildAgentInvoker[]"]
+    D --> X["AgentExtensionRegistry<br/>Configure(options) · AgentOptionsGuard"]
     D --> H{"Harness var mı?"}
     T -.->|"bilinmeyen tool adı"| E["TraconCompilationException"]
+    X -.->|"bilinmeyen ad · korunan üye değişti"| E
     M -.->|"bilinmeyen sağlayıcı"| E
     S -->|"bilinmeyen skill"| E
     G -.->|"bilinmeyen agent adı"| E
     H -->|"evet"| HA["AsHarnessAgent<br/>+ AIContextProviders[skill] + BackgroundAgents"]
     H -->|"hayır"| CA["AsAIAgent<br/>+ AIContextProviders[skill, backgroundAgents]"]
+    X -->|"options değişir; sarmalayıcılar en içte"| HA
+    X --> CA
 
     classDef hata fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
     class E hata
 ```
+
+**Uzantı kancası (Faz 222, K-1029, K-1030).** `AgentDefinition.ExtensionNames` kodla kayıtlı uzantıları (`AddAgentExtension`) tanımdaki sırayla çağırır. Kanca, seçenek nesnesi (sohbet: `ChatClientAgentOptions`, harness: `HarnessAgentOptions`) tamamen kurulduktan sonra ve `AsAIAgent`/`AsHarnessAgent`'tan önce koşar; derleme önbelleğinin içindedir, sonuç `(kiracı, ad, tanım)` başına bir kez kurulur. `AgentOptionsGuard` korunan üyeleri (tool zinciri, `ChatHistoryProvider`, dosya erişimi, skill taraması, model ayarları, loop, alt-agent ağacı) her uzantıdan önce okur, sonra karşılaştırır; değişen üye `TraconCompilationException` verir. `AIContextProviders` yalnız sona eklenir. Doğrulama ve kayıt tanımı derler, yani uzantıyı koşar; replay `NoTools`/`ReplayTools` kipinde uzantıyı boşaltır (K-1033). Uzantının provider'ının eklediği tool Tracon'un tool zincirinden geçmez (bilinen sınır).
 
 Çalıştırma olayları, `RunEventWriter` tarafından boşluksuz sıra numarasıyla yazılır:
 

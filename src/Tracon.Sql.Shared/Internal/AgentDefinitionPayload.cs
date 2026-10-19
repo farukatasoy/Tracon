@@ -41,14 +41,24 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Gets the names of the skills that can be loaded at run time.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
+    /// <summary>Gets the names of the agent extensions the agent is compiled with, or <see langword="null"/> when there are none.</summary>
+    /// <remarks>
+    /// Nullable on purpose. A row written before this member existed has no such key, and the
+    /// source-generated reader leaves an absent list <see langword="null"/> instead of running the
+    /// initializer (measured: the type has a required member). A non-null property read back as
+    /// <see langword="null"/> and broke the catalog listing of every agent. An empty list is not
+    /// written, so a definition that uses no extension keeps the bytes it always had.
+    /// </remarks>
+    public IReadOnlyList<string>? ExtensionNames { get; init; }
+
     /// <summary>Gets the names of the other agents this agent can call.</summary>
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
     /// <summary>Gets how long this agent waits for the agents it calls.</summary>
     public SubAgentSettings? SubAgents { get; init; }
 
-    /// <summary>Gets the MCP resources added to the run context.</summary>
-    public IReadOnlyList<string> McpResourceUris { get; init; } = [];
+    /// <summary>Gets the MCP resources added to the run context, or <see langword="null"/> in a row that predates the member.</summary>
+    public IReadOnlyList<string>? McpResourceUris { get; init; }
 
     /// <summary>Gets the harness settings.</summary>
     public HarnessSettings? Harness { get; init; }
@@ -62,8 +72,8 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Gets the free-form application-specific metadata.</summary>
     public Dictionary<string, JsonElement>? Metadata { get; init; }
 
-    /// <summary>Gets the parameter schema.</summary>
-    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+    /// <summary>Gets the parameter schema, or <see langword="null"/> in a row that predates the member.</summary>
+    public IReadOnlyList<AgentParameter>? Parameters { get; init; }
 
     /// <summary>Gets the referenced shared instructions block.</summary>
     public string? SharedInstructionsName { get; init; }
@@ -83,6 +93,7 @@ internal sealed record AgentDefinitionPayload
             Model = definition.Model,
             ToolNames = definition.ToolNames,
             SkillNames = definition.SkillNames,
+            ExtensionNames = definition.ExtensionNames is { Count: > 0 } extensionNames ? extensionNames : null,
             CallableAgentNames = definition.CallableAgentNames,
             SubAgents = definition.SubAgents,
             McpResourceUris = definition.McpResourceUris,
@@ -113,9 +124,10 @@ internal sealed record AgentDefinitionPayload
             Model = Model,
             ToolNames = ToolNames,
             SkillNames = SkillNames,
+            ExtensionNames = ExtensionNames ?? [],
             CallableAgentNames = CallableAgentNames,
             SubAgents = SubAgents,
-            McpResourceUris = McpResourceUris,
+            McpResourceUris = McpResourceUris ?? [],
             Harness = Harness,
             Compaction = Compaction,
             Memory = Memory,
@@ -126,7 +138,7 @@ internal sealed record AgentDefinitionPayload
             Metadata = Metadata is null
                 ? new Dictionary<string, JsonElement>(StringComparer.Ordinal)
                 : new Dictionary<string, JsonElement>(Metadata, StringComparer.Ordinal),
-            Parameters = Parameters,
+            Parameters = Parameters ?? [],
             SharedInstructionsName = SharedInstructionsName,
         };
 }

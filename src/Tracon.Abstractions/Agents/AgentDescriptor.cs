@@ -37,6 +37,9 @@ public sealed record AgentDescriptor
     /// <summary>Gets the names of the skills this agent may load at run time.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
+    /// <summary>Gets the names of the agent extensions this agent is compiled with, in call order.</summary>
+    public IReadOnlyList<string> ExtensionNames { get; init; } = [];
+
     /// <summary>
     /// Gets the names of the other agents this agent may call.
     /// </summary>
