@@ -16,6 +16,12 @@
     -->
     <ProjectReference Include="../../src/Tracon.OpenAI/Tracon.OpenAI.csproj" />
     <!--
+      F-579: the speak and transcribe tools hand the voice options (an ElevenLabs-style output format
+      and model) to whatever the default engine is. OpenAI speech as that default is exercised through
+      the tools UseVoice registers, so the voice package is referenced here. Tracon.AspNetCore does not.
+    -->
+    <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
+    <!--
       Phase 26: this verifies that three providers registered in the SAME
       application appear together in the /api/models output. Name collision
       and registration-order errors only surface when they are set up together.

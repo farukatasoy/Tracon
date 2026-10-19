@@ -68,7 +68,9 @@ public sealed record SpeechRequest
     /// wrong type before it calls the service; it never ignores one. The message names the
     /// key, never the value. A synthesizer that supports no setting refuses every key
     /// (<see cref="ModelProviderSettings.Validate(IReadOnlyDictionary{string, JsonElement}, string, IReadOnlyCollection{string})"/>
-    /// with an empty list).
+    /// with an empty list). One exception: a synthesizer that serves a Microsoft.Extensions.AI client
+    /// through <c>AddSpeechSynthesizer(name, binding)</c> hands the keys to the client unchanged, because
+    /// Tracon cannot tell which keys the client reads.
     /// </para>
     /// <para>
     /// Code sets it; the <c>speak</c> tool and <c>POST /api/voice/speak</c> send none.

@@ -85,7 +85,8 @@ public sealed class SpeechProviderRegistrationTests
         var builder = new ServiceCollection().AddTracon();
 
         Should.Throw<ArgumentException>(() => builder.AddSpeechSynthesizer(null!, static _ => new NamedSynthesizer("x")));
-        Should.Throw<ArgumentNullException>(() => builder.AddSpeechSynthesizer("studio", null!))
+        Should.Throw<ArgumentNullException>(
+                () => builder.AddSpeechSynthesizer("studio", (Func<IServiceProvider, ISpeechSynthesizer>)null!))
             .ParamName.ShouldBe("factory");
     }
 

@@ -27,7 +27,11 @@ namespace Tracon;
 /// </remarks>
 internal sealed class OpenAIChatClientFactory
 {
+    /// <summary>The API base the official client uses when no endpoint is set.</summary>
+    private static readonly Uri DefaultEndpoint = new("https://api.openai.com/v1/");
+
     private readonly OpenAIClient _client;
+    private readonly Uri? _endpoint;
     private readonly string? _defaultModel;
     private readonly ILoggerFactory? _loggerFactory;
 
@@ -37,23 +41,25 @@ internal sealed class OpenAIChatClientFactory
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException"><see cref="OpenAIProviderOptions.ApiKey"/> is empty.</exception>
     public OpenAIChatClientFactory(OpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
-        : this(CreateClient(options), options.DefaultModel, loggerFactory)
+        : this(CreateClient(options), options.Endpoint ?? DefaultEndpoint, options.DefaultModel, loggerFactory)
     {
     }
 
     /// <summary>Initializes a new factory from an existing client.</summary>
     /// <param name="client">The OpenAI client to use.</param>
+    /// <param name="endpoint">The API base the client was built with, or <see langword="null"/> when it is not known.</param>
     /// <param name="defaultModel">The model to use when no model name is given.</param>
     /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
     /// <see cref="FromClient"/> calls this constructor.
     /// </remarks>
-    private OpenAIChatClientFactory(OpenAIClient client, string? defaultModel, ILoggerFactory? loggerFactory)
+    private OpenAIChatClientFactory(OpenAIClient client, Uri? endpoint, string? defaultModel, ILoggerFactory? loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(client);
 
         _client = client;
+        _endpoint = endpoint;
         _defaultModel = Trim(defaultModel);
         _loggerFactory = loggerFactory;
     }
@@ -70,7 +76,7 @@ internal sealed class OpenAIChatClientFactory
     /// endpoint), then wraps it here.
     /// </remarks>
     public static OpenAIChatClientFactory FromClient(OpenAIClient client, string? defaultModel = null, ILoggerFactory? loggerFactory = null)
-        => new(client, defaultModel, loggerFactory);
+        => new(client, endpoint: null, defaultModel, loggerFactory);
 
     /// <summary>Creates a chat client for the given binding.</summary>
     /// <param name="binding">The model binding.</param>
@@ -124,6 +130,39 @@ internal sealed class OpenAIChatClientFactory
         return _client.GetImageClient(model).AsIImageGenerator();
     }
 #pragma warning restore MEAI001
+
+    /// <summary>Creates a text-to-speech client that shares this factory's OpenAI client.</summary>
+    /// <param name="model">The speech model. The client is bound to it for its whole life.</param>
+    /// <returns>The text-to-speech client.</returns>
+    /// <remarks>
+    /// The speech surface is marked experimental by MEAI 10.11.0. Like the image surface
+    /// above, it stays in this factory so a future MEAI change does not spread through the package.
+    /// The client is Tracon's own, written over the shared pipeline: see
+    /// <see cref="OpenAITextToSpeechClient"/> and <see cref="OpenAIAudioTransport"/> for the measurements.
+    /// </remarks>
+#pragma warning disable MEAI001
+    internal ITextToSpeechClient CreateTextToSpeechClient(string model)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        return new OpenAITextToSpeechClient(AudioTransport(), model);
+    }
+
+    /// <summary>Creates a speech-to-text client that shares this factory's OpenAI client.</summary>
+    /// <param name="model">The transcription model. The client is bound to it for its whole life.</param>
+    /// <returns>The speech-to-text client.</returns>
+    internal ISpeechToTextClient CreateSpeechToTextClient(string model)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        return new OpenAISpeechToTextClient(AudioTransport(), model);
+    }
+#pragma warning restore MEAI001
+
+    private OpenAIAudioTransport AudioTransport()
+        => new(
+            _client,
+            _endpoint ?? throw new TraconException(
+                "OpenAI speech needs the setup-time OpenAI client, whose address is known. " +
+                "A client built from a tenant's own credential carries no speech registration."));
 
     /// <summary>Builds an OpenAI client from options.</summary>
     /// <param name="options">Provider options.</param>

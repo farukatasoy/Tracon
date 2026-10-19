@@ -19,6 +19,43 @@ tracon.UseOpenAIImages(options =>
 The generator key is `openai`. Configure `Tracon:Pricing:Images:openai` when
 cost reporting is required; Tracon never supplies an image price.
 
+## Speech (text-to-speech and speech-to-text)
+
+After `UseOpenAI(...)`, call `UseOpenAISpeech(...)` to register OpenAI speech as named
+Tracon speech providers. It shares the client of `UseOpenAI`; set at least one model.
+
+```csharp
+builder.AddTracon()
+       .UseOpenAI(apiKey)
+       .UseOpenAISpeech(options =>
+       {
+           options.SynthesisModel = "gpt-4o-mini-tts";
+           options.TranscriptionModel = "gpt-4o-mini-transcribe";
+       });
+```
+
+A caller selects the synthesizer with `"provider": "openai"` on `POST /api/voice/speak`. The
+provider name is `openai`, the name the chat provider uses, so one egress rule covers chat,
+images, and speech. A tenant that has its own OpenAI key is refused for speech.
+
+- A name is bound to **one model**. A request that names another model is refused; register a
+  second model under another `SynthesizerName` or `TranscriberName`.
+- `OutputFormat` is read as an OpenAI container: `mp3_44100_128` becomes `mp3`.
+- Streaming synthesis passes the audio on as the service sends it (chunked, not server-sent events), so
+  playback can start before the file is complete. Every speech model serves it.
+- A transcription has no duration, so it has no cost. Billing for synthesis is an estimate
+  (the length of the text).
+- `UseAsDefault = true` also registers the unnamed defaults, with `TryAdd`.
+
+```csharp
+tracon.UseOpenAISpeech(...)   // call before UseVoice() to make OpenAI the default
+```
+
+An OpenAI project without access to the model fails with
+`OpenAI speech request failed with HTTP 403 (model_not_found)`.
+
+## Providers
+
 ```csharp
 builder.AddTracon()
        .UseOpenAI(apiKey);

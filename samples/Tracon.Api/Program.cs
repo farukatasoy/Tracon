@@ -353,6 +353,22 @@ if (openAiEnabled)
         tracon.UseOpenAIImages();
     }
 
+    // OpenAI speech as NAMED speech providers, next to the default UseVoice() binds (F-579).
+    // A caller selects the synthesizer with "provider": "openai":
+    //
+    //   POST /tracon/api/voice/speak  {"text":"Merhaba","provider":"openai"}
+    //
+    // The transcriber is reached through ISpeechProviderResolver.GetTranscriberAsync("openai");
+    // there is no HTTP route for transcription. Every call passes the tenant's provider checks
+    // first, against the provider name "openai" the chat provider uses: a tenant whose egress
+    // policy does not name it gets 403, and a tenant with its own OpenAI key is refused for
+    // speech (the client was built with this application's key).
+    tracon.UseOpenAISpeech(options =>
+    {
+        options.SynthesisModel = "gpt-4o-mini-tts";
+        options.TranscriptionModel = "gpt-4o-mini-transcribe";
+    });
+
     // Knowledge base / semantic search. Tracon does NOT choose an
     // embedding model (the pattern behind K-032: model names change faster
     // than NuGet release cadence); the consumer registers their own provider.

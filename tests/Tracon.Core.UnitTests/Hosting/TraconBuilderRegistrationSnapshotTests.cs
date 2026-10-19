@@ -55,8 +55,12 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         { "RequireProductionProfile", "ProductionProfileRegistration|Singleton|instance:ProductionProfileRegistration ; ProductionProfileRegistration|Singleton|instance:ProductionProfileRegistration" },
         // A named speech provider is a keyed factory plus the name record the resolver
         // lists; each call below uses a new name, because a repeated name throws.
-        { "AddSpeechSynthesizer", "ISpeechSynthesizer|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; ISpeechSynthesizer|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration" },
-        { "AddSpeechTranscriber", "ISpeechTranscriber|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; ISpeechTranscriber|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration" },
+        { "AddSpeechSynthesizer(factory)", "ISpeechSynthesizer|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; ISpeechSynthesizer|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration" },
+        { "AddSpeechTranscriber(factory)", "ISpeechTranscriber|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; ISpeechTranscriber|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration" },
+        // A bound Microsoft.Extensions.AI client adds the startup check: one record per bound name, and
+        // once per host the validator plus the options type whose validation runs it at start.
+        { "AddSpeechSynthesizer(binding)", "ISpeechSynthesizer|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; SpeechClientBridgeCheck|Singleton|instance:SpeechClientBridgeCheck ; IValidateOptions`1|Singleton|type:SpeechClientBridgeValidator ; IConfigureOptions`1|Transient|factory ; ISpeechSynthesizer|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; SpeechClientBridgeCheck|Singleton|instance:SpeechClientBridgeCheck" },
+        { "AddSpeechTranscriber(binding)", "ISpeechTranscriber|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; SpeechClientBridgeCheck|Singleton|instance:SpeechClientBridgeCheck ; IValidateOptions`1|Singleton|type:SpeechClientBridgeValidator ; IConfigureOptions`1|Transient|factory ; ISpeechTranscriber|Singleton|keyed-factory ; SpeechProviderRegistration|Singleton|instance:SpeechProviderRegistration ; SpeechClientBridgeCheck|Singleton|instance:SpeechClientBridgeCheck" },
     };
 
     private static int _speechNames;
@@ -175,12 +179,18 @@ public sealed class TraconBuilderRegistrationSnapshotTests
 #pragma warning restore MAAI001
             "RequireCustomBinding<T>" => builder.RequireCustomBinding<ITenantContext>(),
             "RequireProductionProfile" => builder.RequireProductionProfile(),
-            "AddSpeechSynthesizer" => builder.AddSpeechSynthesizer(
+            "AddSpeechSynthesizer(factory)" => builder.AddSpeechSynthesizer(
                 $"snapshot-{Interlocked.Increment(ref _speechNames)}",
                 static _ => null!),
-            "AddSpeechTranscriber" => builder.AddSpeechTranscriber(
+            "AddSpeechTranscriber(factory)" => builder.AddSpeechTranscriber(
                 $"snapshot-{Interlocked.Increment(ref _speechNames)}",
                 static _ => null!),
+            "AddSpeechSynthesizer(binding)" => builder.AddSpeechSynthesizer(
+                $"snapshot-{Interlocked.Increment(ref _speechNames)}",
+                new TextToSpeechClientBinding { ProviderName = "snapshot", MaxCharactersPerRequest = 10 }),
+            "AddSpeechTranscriber(binding)" => builder.AddSpeechTranscriber(
+                $"snapshot-{Interlocked.Increment(ref _speechNames)}",
+                new SpeechToTextClientBinding { ProviderName = "snapshot" }),
             _ => throw new ArgumentOutOfRangeException(nameof(method), method, "No case for this method."),
         };
     }
