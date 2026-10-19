@@ -642,7 +642,7 @@ Kullanıcı yönergesi: "geçmişte reddedilen yeni MAF yeteneği ekleme kararla
 8. `search_knowledge` embedding çağrısında kullanım ve span raporu görülmedi (grep). Doğrulanmalı.
 9. Önceki matrisin hataları §0'dadır.
 10. K-003 de MAF Hosting köprüsünü var sayıyordu ("`AddAIAgent` ile kodda tanımlananlar katalogda görünür"); 2026-10-19'da K-019 ve `MIMARI.md:252` ile birlikte düzeltildi (R-07).
-11. `/v1/chat/completions` istek ayrıştırıcısı yalnız metin parçalarını okur (`ReadContent`); `image_url` parçası sessizce düşer, `tool` mesajı `tool_call_id` taşımaz. Kapsama adayıdır, R-03'ten bağımsızdır (kod okuması; davranış ölçülmedi).
+11. `/v1/chat/completions` istek ayrıştırıcısı yalnız metin parçalarını okur (`ReadContent`): `image_url` ve `input_audio` sessizce düşer, `tool_calls` taşıyan asistan mesajı düşer, `tool` mesajı `tool_call_id` taşımaz. **Ölçüldü (2026-10-19, fonksiyonel probe) → kusur F-580** (`ADAYLAR.md` § *Kusur giderme*). `/v1/responses` aynı görseli modele iletir. R-03'ten bağımsızdır.
 12. MEAI.OpenAI akış dönüştürücüsü boş `FinishReason`'ı `stop` yazar (§6 R-03). Upstream'e bildirilebilir.
 
 ---

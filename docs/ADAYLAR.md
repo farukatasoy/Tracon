@@ -268,6 +268,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
+| 🟠 | **F-580** · `/v1/chat/completions` metin dışı içerik parçalarını sessizce düşürür; tool geçmişi bozulur | Ölçüldü (2026-10-19, fonksiyonel probe; MAF kapsama matrisi §11): (1) metin + `image_url` → `200`, modele yalnız metin gider; (2) yalnız `image_url` → `400` *"'messages' cannot be empty."* (yanlış sebep); (3) `input_audio` sessizce düşer; (4) `tool_calls` taşıyan asistan mesajı tümüyle düşer, `tool` mesajı `tool_call_id`'siz düz metin olarak gider (gerçek sağlayıcının reddi ölçülmedi). Kaynak: `OpenAIChatCompletionsEndpoints` `TryReadMessages`/`ReadContent` yalnız `text` parçasını okur. Aynı görsel `/v1/responses`'ta (`input_image`) modele `DataContent(image/png)` olarak ulaşır | Karar: desteklenmeyen parça `400` ile mi reddedilsin, yoksa `image_url` → `UriContent`/`DataContent` ve `input_audio` → `DataContent` (Responses ile eş) mi eşlensin; `tool_calls`/`tool` geçmişi `FunctionCallContent`/`FunctionResultContent` olarak mı taşınsın, reddedilsin mi (tool döngüsü sunucudadır, K-992). Sınıf taraması: diğer giriş ayrıştırıcıları (Conversations, A2A, MCP) |
 | 🟢 | **F-526** · `kapi.py` sevk edilen sözleşme değişimini çözüm dışı örnek depoya bağlamıyor | Ölçüldü (2026-10-14, F-502): `RunStoreContract`'a case ekleyen değişiklik `samples/Tracon.Samples.FileRunStore`'u kırdı; çözümde olmadığı için yalnız `kapi.py yayin --kuru` gördü. `faz-tamamlama` bunu yazar, kapı hatırlatmaz | `src/Tracon.Testing.Contracts.Xunit/` dokunulduğunda `ic-dongu` ve `kapanis`, `samples/Tracon.Samples.*` uyarısının kardeşi olarak "yayın provası gerekir" bassın |
 | 🟢 | **F-527** · Yeniden denemeden sonra reddedilen düğümde ilk denemenin hatası kayıttan düşer | Faz 210 denetimi (🟢): ikinci deneme bütçe kapısında reddedilirse run satırı yalnız `Could not start function node …` der; ilk denemenin geçici hatası kayıtta yok. `WorkflowNodeRetry` başarısız denemeyi bütçeden bağımsız olarak da loglamaz | Retry döngüsü her başarısız denemeyi `Warning` olarak logla; ret mesajı gerekirse ilk denemenin hata tipini anar |
 | 🟢 | **F-496** · Kuyruklu workflow `respond`'unun `definitionVersion` zinciri uçtan uca sınanmıyor | Faz 200 denetimi (🟡2, kısmen): `resume` için tezgâh var (`WorkflowAsyncRunTests`); stored workflow'un insan girdisi bekleyen bir tezgâhı yok, `WorkflowEndpoints` respond satırı silinirse yalnız yük ve handler birim testleri parçalarını sınar | İnsan girdisi bekleyen stored workflow tezgâhı kur; adı konan sürüm ve olmayan sürüm (`400`, iş kuyruğa girmez) |
@@ -506,7 +507,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-580**.
+numara: **F-581**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
