@@ -44,6 +44,7 @@ namespace Tracon;
 internal sealed class AzureOpenAIChatClientFactory
 {
     private readonly OpenAIClient _client;
+    private readonly Uri? _endpoint;
     private readonly string? _defaultDeployment;
     private readonly ILoggerFactory? _loggerFactory;
 
@@ -58,6 +59,8 @@ internal sealed class AzureOpenAIChatClientFactory
     public AzureOpenAIChatClientFactory(AzureOpenAIProviderOptions options, ILoggerFactory? loggerFactory = null)
         : this(CreateClient(options), options.DefaultDeployment, loggerFactory)
     {
+        // CreateClient has already refused an empty endpoint.
+        _endpoint = V1Endpoint(options.Endpoint!);
     }
 
     /// <summary>Builds a new factory from a ready-made client.</summary>
@@ -266,7 +269,16 @@ internal sealed class AzureOpenAIChatClientFactory
     internal IImageGenerator CreateImageGenerator(string deploymentName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(deploymentName);
-        return _client.GetImageClient(deploymentName).AsIImageGenerator();
+
+        // Not GetImageClient(deploymentName).AsIImageGenerator(): a host that constructs an
+        // ImageClient cannot be published with Native AOT (see OpenAIPipelineImageGenerator).
+        return new OpenAIPipelineImageGenerator(
+            _client,
+            _endpoint ?? throw new TraconException(
+                "Azure OpenAI images need the setup-time client, whose address is known. " +
+                "A client built from a tenant's own credential carries no image registration."),
+            deploymentName,
+            AzureOpenAIProviderNames.AzureOpenAI);
     }
 #pragma warning restore MEAI001
 

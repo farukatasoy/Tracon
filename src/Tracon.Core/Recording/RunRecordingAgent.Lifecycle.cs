@@ -21,6 +21,53 @@ public sealed partial class RunRecordingAgent
     /// the inner wrappers and of the model calls become <em>siblings</em> of the root span
     /// instead of <em>children</em>, and the waterfall view draws a wrong hierarchy.
     /// </remarks>
+    /// <summary>
+    /// Returns the options to hand to the inner agent.
+    /// </summary>
+    /// <param name="options">The options the caller passed to this agent.</param>
+    /// <returns>
+    /// A plain <see cref="AgentRunOptions"/> with the base properties of
+    /// <paramref name="options"/> when it is a <see cref="TraconRunOptions"/>;
+    /// otherwise <paramref name="options"/> itself.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// Microsoft Agent Framework's function-invocation middleware
+    /// (<c>AIAgentBuilder.Use</c> with a <c>FunctionInvocationContext</c>
+    /// callback) accepts only <see langword="null"/>, a plain
+    /// <see cref="AgentRunOptions"/>, or the sealed <c>ChatClientAgentRunOptions</c>.
+    /// It throws <see cref="NotSupportedException"/> for any other type. Every
+    /// Tracon endpoint passes <see cref="TraconRunOptions"/>, so a consumer
+    /// decorator that added the middleware would fail every run.
+    /// </para>
+    /// <para>
+    /// This agent is the only reader of <see cref="TraconRunOptions"/>: its
+    /// fields reach the inner agents through <see cref="TraconRunContext"/>.
+    /// A plain type, not <c>ChatClientAgentRunOptions</c>, goes inward because
+    /// every <see cref="AIAgent"/> accepts it, and MAF's middleware converts it
+    /// itself. A decorator outside this one (<c>Order</c> below 0) still sees
+    /// <see cref="TraconRunOptions"/>.
+    /// </para>
+    /// </remarks>
+    // The copy names each base property by hand. RunOptionsHandoffTests fails
+    // when Microsoft Agent Framework adds one, so the copy cannot silently drop
+    // it (MAF capability matrix, G-07).
+    internal static AgentRunOptions? ForInnerAgent(AgentRunOptions? options)
+        => options is TraconRunOptions traconOptions
+            ? new AgentRunOptions
+            {
+                // MEAI001: Microsoft.Extensions.AI marks the continuation token
+                // experimental. It is copied, not read: dropping it would silently
+                // change what the caller asked for.
+#pragma warning disable MEAI001
+                ContinuationToken = traconOptions.ContinuationToken,
+#pragma warning restore MEAI001
+                AllowBackgroundResponses = traconOptions.AllowBackgroundResponses,
+                AdditionalProperties = traconOptions.AdditionalProperties?.Clone(),
+                ResponseFormat = traconOptions.ResponseFormat,
+            }
+            : options;
+
     private RunStart PrepareRun(AgentSession? session, AgentRunOptions? options, bool isStreaming)
     {
         // When the caller supplies the identifier, that one is used. A streaming endpoint

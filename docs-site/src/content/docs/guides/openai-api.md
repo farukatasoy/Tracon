@@ -189,6 +189,18 @@ or `function` message, and an assistant message with `tool_calls` or `function_c
 answer `400`: Tracon runs the agent's tools on the server, so there is no client-side
 tool call to report.
 
+The agent definition owns the model settings, so a request setting is never silently
+ignored. These fields answer `400` (`invalid_request_error`), and the message names every
+one the request sets: `temperature`, `top_p`, `max_tokens`, `max_completion_tokens`,
+`frequency_penalty`, `presence_penalty`, `seed`, `stop`, `logit_bias`, `reasoning_effort`,
+`response_format`, `tools`, `tool_choice`, `functions`, `function_call`, `n`, `logprobs`,
+`top_logprobs`, `modalities`, `audio`, and `web_search_options`. A value that asks for the
+default passes: `n: 1`, `response_format: {"type": "text"}`, `logprobs: false`, an empty
+`tools` list, `modalities: ["text"]`, or `null`. Fields that carry no setting the agent uses
+(`user`, `store`, `metadata`, `stream_options`) pass too. `/v1/responses` refuses its own
+setting fields (`temperature`, `top_p`, `max_output_tokens`, `instructions`, `tools`,
+`tool_choice`) the same way. To change a setting, change the agent.
+
 ## Calling these endpoints from a typed client
 
 Both endpoints answer with **either** JSON **or** SSE, and the `stream` flag in the
@@ -267,6 +279,7 @@ for await (const frame of readSse(response)) {
 | Pending approval | yes, in `output` | no: `409` | Chat Completions carries no session, so an approval can never be answered |
 | Usage | when provider reports it | when provider reports it | Missing usage remains unknown, not zero |
 | Cut-off answer | no: `status` stays `completed` | `finish_reason: "length"` | See below |
+| Request model settings (`temperature`, `tools`, `response_format`, …) | no: `400` | no: `400` | The agent definition sets them |
 | OpenAI hosted tools | not a pass-through | not a pass-through | Configure Tracon tools/MCP instead |
 | Background Responses mode | no | no | Use `Prefer: respond-async` on the management run endpoint |
 
@@ -288,10 +301,11 @@ mark a cut-off answer `incomplete` yet: its `status` reads `completed`, and the 
 `tracon.output.truncated` event is the only signal there
 (see [Truncated output](/concepts/runs/#truncated-output)).
 
-Fields understood by the OpenAI parser can be accepted without becoming a
-Tracon feature. Do not assume every OpenAI hosted tool, storage flag, service
-tier, or retrieval surface is forwarded to the agent's provider. The server-side
-definition is authoritative.
+A field that carries no model setting can be accepted without becoming a Tracon
+feature. Do not assume every OpenAI storage flag, service tier, or retrieval surface
+is forwarded to the agent's provider. The server-side definition is authoritative.
+`POST /v1/conversations` takes `metadata` only: a request with initial `items` answers
+`400`, and the first turn goes to `/v1/responses` with the conversation's id.
 
 ## Authentication and authorization
 

@@ -51,6 +51,44 @@ to the model call). Place a decorator that has to observe or veto everything
 below it at a low value; place one that has to sit close to the model call
 itself at a high value.
 
+A decorator can also add Microsoft Agent Framework middleware with
+`AIAgentBuilder`: run middleware, `UseAIContextProviders`, or
+function-invocation middleware that sees each tool call. The agent keeps every
+Tracon ring, because the decorator wraps the compiled agent.
+
+```mermaid
+flowchart LR
+    accTitle: Where a decorator wraps
+    accDescr: A run passes from the caller through run recording at Order 0, telemetry at 10, tool approval at 20 and structured-response validation at 30, then through a decorator with a higher Order, to the compiled agent. Run recording receives TraconRunOptions and passes a plain AgentRunOptions inward.
+    CALLER["Caller<br/>TraconRunOptions"] --> REC["Run recording<br/>Order 0"]
+    REC -->|"plain AgentRunOptions"| TEL["Telemetry<br/>Order 10"]
+    TEL --> APP["Tool approval<br/>Order 20"]
+    APP --> VAL["Structured response<br/>Order 30"]
+    VAL --> YOURS["Your decorator<br/>Order 100"]
+    YOURS --> AGENT["Compiled agent"]
+```
+
+```csharp
+public sealed class ToolCallLogDecorator(ILogger<ToolCallLogDecorator> logger) : IAgentDecorator
+{
+    public int Order => 100;
+
+    public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor)
+        => agent.AsBuilder()
+            .Use(async (innerAgent, context, next, cancellationToken) =>
+            {
+                logger.LogInformation("{Agent} calls {Tool}", descriptor.Name, context.Function.Name);
+                return await next(context, cancellationToken);
+            })
+            .Build();
+}
+```
+
+Give such a decorator an `Order` above `0`. Run recording (`Order` 0) hands the
+agents inside it a plain `AgentRunOptions`. A decorator outside it receives
+`TraconRunOptions`, and MAF's function-invocation middleware rejects that type
+with `NotSupportedException`.
+
 A decorator must be thread-safe — the catalog can decorate agents
 concurrently — and must not swallow a genuine `OperationCanceledException` (one
 thrown while the caller's token is cancelled). If `Decorate` throws anything else,

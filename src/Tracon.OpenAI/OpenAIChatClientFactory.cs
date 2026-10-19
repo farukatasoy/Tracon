@@ -127,7 +127,16 @@ internal sealed class OpenAIChatClientFactory
     internal IImageGenerator CreateImageGenerator(string model)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
-        return _client.GetImageClient(model).AsIImageGenerator();
+
+        // Not GetImageClient(model).AsIImageGenerator(): a host that constructs an ImageClient
+        // cannot be published with Native AOT (see OpenAIPipelineImageGenerator).
+        return new OpenAIPipelineImageGenerator(
+            _client,
+            _endpoint ?? throw new TraconException(
+                "OpenAI images need the setup-time OpenAI client, whose address is known. " +
+                "A client built from a tenant's own credential carries no image registration."),
+            model,
+            OpenAIProviderNames.ChatCompletions);
     }
 #pragma warning restore MEAI001
 

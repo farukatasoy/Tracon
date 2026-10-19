@@ -30,6 +30,14 @@ namespace Tracon;
 /// together. Tracon resolves sampling settings from the agent definition
 /// on its own endpoints, so this is not a practical constraint.
 /// </para>
+/// <para>
+/// Only the outermost run-recording wrapper reads this type. It hands the
+/// agents inside it a plain <see cref="AgentRunOptions"/> that carries the base
+/// properties, and the run's identity reaches them through
+/// <c>TraconRunContext</c>. Microsoft Agent Framework's function-invocation
+/// middleware rejects any other options type, so an <c>IAgentDecorator</c>
+/// that adds it must have an <c>Order</c> above 0.
+/// </para>
 /// </remarks>
 public sealed class TraconRunOptions : AgentRunOptions
 {

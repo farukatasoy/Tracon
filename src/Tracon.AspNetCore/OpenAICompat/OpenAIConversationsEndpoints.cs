@@ -139,6 +139,19 @@ internal static class OpenAIConversationsEndpoints
             }
         }
 
+        // F-581 class scan: OpenAI also accepts initial 'items'. Tracon does not
+        // seed a session from them, so a non-empty list is refused, not dropped.
+        if (body.ValueKind == JsonValueKind.Object &&
+            body.TryGetProperty("items", out var items) &&
+            items.ValueKind is not JsonValueKind.Null &&
+            !(items.ValueKind == JsonValueKind.Array && items.GetArrayLength() == 0))
+        {
+            return OpenAICompatSupport.Error(
+                StatusCodes.Status400BadRequest,
+                "Initial 'items' are not supported: a conversation starts empty. " +
+                "Send the first turn to /v1/responses with this conversation's id.");
+        }
+
         var metadata = ReadMetadata(body);
         var conversation = new ConversationResource(
             ConversationIdPrefix + TraconId.NewId().ToString("N"),

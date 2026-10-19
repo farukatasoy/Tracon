@@ -6,8 +6,8 @@ namespace Tracon.Samples.ProviderAotSmoke;
 
 /// <summary>
 /// A loopback HTTP server that answers the request shapes the provider
-/// packages send with one canned reply each. It stands in for OpenAI (chat and
-/// audio), Azure OpenAI and ElevenLabs so the smoke needs no network and no key.
+/// packages send with one canned reply each. It stands in for OpenAI (chat,
+/// audio and images), Azure OpenAI and ElevenLabs so the smoke needs no network and no key.
 /// </summary>
 /// <remarks>
 /// Built on <see cref="TcpListener"/> on purpose: a Kestrel host would pull the
@@ -21,6 +21,8 @@ internal sealed class FakeProviderServer : IDisposable
     public const string Transcript = "where is my order";
 
     private static readonly byte[] AudioBytes = "ID3-fake-audio"u8.ToArray();
+
+    private static readonly byte[] ImageBytes = "PNG-fake-image"u8.ToArray();
 
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
     private readonly CancellationTokenSource _stop = new();
@@ -39,6 +41,8 @@ internal sealed class FakeProviderServer : IDisposable
     public List<string> Requests { get; } = [];
 
     public static ReadOnlySpan<byte> ExpectedAudio => AudioBytes;
+
+    public static ReadOnlySpan<byte> ExpectedImage => ImageBytes;
 
     public void Dispose()
     {
@@ -191,6 +195,14 @@ internal sealed class FakeProviderServer : IDisposable
         if (target.StartsWith("/v1/audio/transcriptions", StringComparison.Ordinal))
         {
             return ("application/json", Encoding.UTF8.GetBytes($"{{\"text\":\"{Transcript}\"}}"));
+        }
+
+        // OpenAI and Azure OpenAI images (F-584): one image as base64, the shape gpt-image-1 answers.
+        if (target.Contains("/images/generations", StringComparison.Ordinal))
+        {
+            return ("application/json", Encoding.UTF8.GetBytes(
+                $"{{\"created\":1,\"data\":[{{\"b64_json\":\"{Convert.ToBase64String(ImageBytes)}\"}}],\"output_format\":\"png\"," +
+                "\"usage\":{\"input_tokens\":5,\"output_tokens\":10,\"total_tokens\":15}}"));
         }
 
         return ("application/json", "{}"u8.ToArray());
