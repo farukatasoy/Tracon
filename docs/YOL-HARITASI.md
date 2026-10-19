@@ -10,11 +10,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
 **Sıradaki boş faz numarası: 221.**
 
-## Açık fazlar (2 kalem)
+## Açık fazlar (1 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [220](220-MEAI-SES-KOPRUSU.md) | MEAI Ses İstemcisi Köprüsü ve OpenAI Sesi | 🚧 Uygulandı, kapanış kapısı koşuyor (2026-10-19) |
 
-Kapanan fazlar (219 kayıt; son: Faz 219 — Tek Skill Zinciri (`AgentSkillsProviderBuilder`)): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
+Kapanan fazlar (220 kayıt; son: Faz 220 — MEAI Ses İstemcisi Köprüsü ve OpenAI Sesi): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
