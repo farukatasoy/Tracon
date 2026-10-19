@@ -6,7 +6,7 @@
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-588** — MAF kapsama matrisi G-01 + C-01 ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §7.0, §8)
 > **Genellik:** MAF'ın agent seçeneklerine (`EnableMessageInjection`, `RequirePerServiceCallChatHistoryPersistence`, onay bayrakları) veya kendi `AIContextProvider`'ına ihtiyaç duyan her tüketici. Bugün tek yol fabrika agent'ıdır ve 12 model halkasını, BYOK'u, egress'i ve maliyeti kaybeder (matris §7.1). İkinci kanıt: matrisin C-07, C-08, C-13, C-24 kalemleri aynı kapıdan girer. İş tüketici kodunda kalamaz: seçenek nesnesi `internal` derleyici adımında kurulur
 > **Karşı görüş:** "Tracon'un seçenek nesnesini koda açmak, derleyicinin koruduğu sınırları tüketiciye bırakır; daraltılmış bir Tracon bağlamı daha güvenlidir." Cevap §222.2: daraltılmış bağlam her MAF sürümünde Tracon'u yeni seçeneği elle açmaya zorlar ve İ1'i (MAF önce) bozar. Seçilen tasarım nesneyi açar, korunan üyeleri sınıflandırılmış bir tabloyla zorlar ve tabloyu bir ratchet testine bağlar. Yeni MAF üyesi sınıflandırılmadan derleme kırmızıdır
-> **Önkoşul:** G-07 (kusur-giderme, 2026-10-19) — `RunRecordingAgent` iç agent'a düz `AgentRunOptions` verir; uzantının taktığı MAF tool middleware'i bu olmadan atardı. [Faz 221](221-MAF-KACIS-KAPISI-REHBERI.md) önerilir (rehber bu fazın kapısını "after phase 222" diye anar), zorunlu değildir
+> **Önkoşul:** G-07 (kusur-giderme, 2026-10-19) — `RunRecordingAgent` iç agent'a düz `AgentRunOptions` verir; uzantının taktığı MAF tool middleware'i bu olmadan atardı. Faz 221 önerilir (rehber bu fazın kapısını "after phase 222" diye anar), zorunlu değildir
 > **Paketler:** `Tracon.Abstractions` (tanım alanı), `Tracon.Core` (kayıt, kanca, koruma, doğrulayıcı), `Tracon.AspNetCore` (liste ucu, istek gövdesi), `Tracon.UI` (agent editörü), `Tracon.Client` (üretilen istemci)
 > **Yeni paket:** Yok · **Migration:** Yok — tanım `agent_definitions.definition` JSON sütunundadır (`src/Tracon.PostgreSql/Migrations/0001_initial.sql:39`)
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. `wc -l src/*/PublicAPI.Shipped.txt` → her dosya 0 satır (2026-10-19). Satır silinmez
@@ -14,6 +14,15 @@
 > **Manuel test alanı:** [`docs/manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md`](manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md) — `🤖` editör case'i
 
 ---
+
+## Önceki Fazdan Devir
+
+Faz 221 kapandı (rehber, `samples/Tracon.Samples.MafFeatures`, fabrika agent'ı uyarısı).
+
+- **Rehber bu fazın kapısını "cannot win back" olarak yazar.** `docs-site/src/content/docs/guides/any-maf-feature.md` § *What you cannot win back today* ilk maddesi ("a full context provider on an agent defined as data") ve "Pick the lightest door" tablosu bu faz teslim edilince bayatlar. Fazın site senkronu bu sayfayı günceller. Kural: rehberdeki her `csharp` bloğu sample'dan ardışık satır alıntısıdır; yeni kapıyı önce sample'a ekle, sonra alıntıla (kapı yok: F-591).
+- **Uyarı** `CodeAgentSource.WarnWhenModelRingsAreBypassed` zincirde `ProviderFailureNormalizingChatClient` arar. Kanca `ChatClientAgent`'ı registry istemcisiyle kurarsa uyarı vermez; kurmazsa kancanın kendisi uyarı sebebi olur. Davranış `FactoryAgentDiagnosticsTests`'te.
+- 🚨 **Dekoratörde MAF tool middleware'i `Order > 0` ister**; kanca da aynı sınırı taşır (`RunRecordingAgent` içeri düz `AgentRunOptions` verir).
+- 🚨 **SQL depoda fabrika agent'ı DI'daki `ChatHistoryProvider`'ı almazsa konsol ve `/v1/conversations` boş kalır** (`FactoryAgentHistoryTests`). Kanca agent'ı kendisi kuruyorsa sağlayıcıyı mutlaka bağlamalıdır.
 
 ## Bu Faza Başlarken
 

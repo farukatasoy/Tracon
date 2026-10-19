@@ -234,6 +234,7 @@
 | 218 | `AuthorizationConfigurationKey` Alanını Kaldırma | tam | ✅ | 2026-10-17 | F-290 | `2a8149ef:docs/arsiv/fazlar/218-YETKI-ANAHTARI-ALANINI-KALDIRMA.md` |
 | 219 | Tek Skill Zinciri (`AgentSkillsProviderBuilder`) | tam | ✅ | 2026-10-19 | F-578 | `c3b454d0:docs/219-TEK-SKILL-ZINCIRI.md` |
 | 220 | MEAI Ses İstemcisi Köprüsü ve OpenAI Sesi | tam | ✅ | 2026-10-19 | F-579 | `41295388:docs/220-MEAI-SES-KOPRUSU.md` |
+| 221 | MAF Kaçış Kapısı Rehberi ve Fabrika Agent Tanılaması | hafif | ✅ | 2026-10-19 | F-587 | `cee22aca:docs/221-MAF-KACIS-KAPISI-REHBERI.md` |
 
 ## Süreç Ölçümü
 
@@ -295,3 +296,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 218 | 0 | 3 | 0 / 0 / 0 | 2 | ölçülmedi |
 | 219 | 0 | 2 | 0 / 0 / 0 | 0 commit edilmiş | ölçülmedi |
 | 220 | 16 sapma | 2 | 0 / 0 / 0 | 0 bilinen | ölçülmedi |
+| 221 | 8 | 1 | 2 / 0 / 0 | 0 | ölçülmedi |
