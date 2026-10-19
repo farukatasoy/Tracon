@@ -249,7 +249,7 @@ flowchart TD
     H["<b>Tracon.AspNetCore</b> — erişim filtresi<br/>loopback / bearer / policy"]
     V1["/v1/* eşlemesi<br/>agent adı = model ?? metadata.entity_id<br/>oturum = conversation ?? previous_response_id ?? yeni yanıt kimliği<br/>güvenilmez kimlikte kiracı sahipliği doğrulanır"]
     R["IAgentCatalog.ResolveAsync(name, culture)<br/>culture = AgentRunRequest.Culture, Accept-Language OKUNMAZ (Faz 72)"]
-    SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → MAF köprüsü 10 → DefinitionStoreAgentSource 100"]
+    SRC["Kaynaklar önceliğe göre<br/>CodeAgentSource 0 → DefinitionStoreAgentSource 100"]
     COMP["CompiledAgentCache.GetOrAddAsync(name, version, bagimlilikParmakIzi, culture)<br/>AgentDefinitionCompiler.CompileAsync(definition, callableAgents, culture)<br/>InstructionCultureResolver: culture → ebeveyn alt etiket → varsayilan Instructions<br/>kiraci egress + BYOK kimlik bilgisi burada cozulur (Faz 65)"]
     DEC["IAgentDecorator[] — Order'a göre, KÜÇÜK olan dışta"]
     REC["<b>RunRecordingAgent</b> · Order 0<br/>kök span tracon.run burada açılır<br/>AgentRunScope burada yayımlanır<br/>RunEventWriter sıra numarasını üretir<br/>store hatası çalıştırmayı KESMEZ"]

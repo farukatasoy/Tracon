@@ -54,7 +54,7 @@ tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kes
 > | MAF 1.18.0 | `ChatClientAgentOptions.EnableInvocableFunctionBypassing` · `ChatClientBuilderExtensions.UseInvocableFunctionBypassing` (MEAI) | Kullanılmıyor. Model bir tool'u çağırmadan sonucunu üretmesine izin verir; Tracon'in kayıt ve yetkilendirme zinciri her çağrıyı görmek üzerine kuruludur |
 > | MAF 1.18.0 | `ToolApprovalAgentOptions.MaxAutoApprovalIterations` | Kullanılmıyor — Tracon onay döngüsünü kendi yürütür (K-541) |
 > | MAF 1.18.0 | `BackgroundAgentsProvider.ReleaseSessionAsync(session, cancelRunning, timeout, ct)` | Kullanılmıyor; arka plan agent'ları K-062 kapsamında kapalı |
-> | MEAI 10.9.0 | `RoutingChatClient` · `FailoverChatClient` · `OrderedFailoverChatClient` · `SemanticRoutingChatClient` · `RoutingContext` · `FailoverChatClientAttempt` · `ScoreAggregation` | 🚨 Yedek zinciri artık **MEAI'de var**. Tracon'inki Faz 62'de yazıldı ve devre kesici, ön uçuş denetimi ve atıf kaydıyla birleşiktir; değiştirmek bir karar işidir, bir yükseltme işi değil |
+> | MEAI 10.9.0 | `RoutingChatClient` · `FailoverChatClient` · `OrderedFailoverChatClient` · `SemanticRoutingChatClient` · `RoutingContext` · `FailoverChatClientAttempt` · `ScoreAggregation` | 🚨 Yedek zinciri artık **MEAI'de var**. Tracon'inki Faz 62'de yazıldı ve devre kesici, ön uçuş denetimi ve atıf kaydıyla birleşiktir; değiştirmek bir karar işidir, bir yükseltme işi değil. **Ölçüldü (2026-10-19, R-02): koru.** `OrderedFailoverChatClient` `sealed`; yalnız soyut `FailoverChatClient` türetilir, o da `MEAI001`. Taban sınıf iptal dışı her hatada geçer, sınıflandırıcı kancası yoktur, her denemeye aynı `ChatOptions`'ı verir. Tracon'un beş davranışı (sınıflandırıcı, bağlantı başına `ModelId`, araç defteri, tembel async kurulum, zincir-tükendi istisnası) override ve istek-durumu yan tablosuyla taşınır; kazanç iki döngü gövdesidir (~230 satır). Sıcak yol deneysel tabana bağlanmaz. **Yeniden ölç:** `FailoverChatClient` `MEAI001`'den çıkınca |
 > | MCP 2.2.0 | `McpServerHandlers.SubscriptionsListenHandler` | Kullanılmıyor — Tracon'in MCP sunucusu abonelik yayınlamıyor |
 > | MAF 1.20.0 | `WorkflowHostingExtensions.WithCheckpointing(AIAgent, CheckpointManager)` | 🚨 **Kullanılmıyor — ölçüldü ve tuzak çıktı.** Adı düz bir agent'a checkpoint takar gibi durur; probe (2026-09-05) bunun **sessiz passthrough** olduğunu gösterdi: `ChatClientAgent` ile çağrıldığında `ReferenceEquals(giren, çıkan)` **True**, store'a `Create=0 Retrieve=0 Index=0`, istisna **yok**. Yalnız workflow kökenli agent'lar için anlamlıdır. F-95'in (kesinti/devam) MAF yolunu **AgentHooks'tan bağımsız olarak** ikinci kez kapatır |
 > | MAF 1.20.0 | `WorkflowSessionCheckpointRecovery` · `WorkflowAgentMetadata` | Kullanılmıyor. `WithCheckpointing`'in workflow tarafındaki eşlikçileri; Tracon workflow checkpoint'ini kendi `TraconCheckpointStore`'u ile yürütür ([`WorkflowRunner.cs:925`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs#L925)) |
@@ -391,6 +391,20 @@ Microsoft.Agents.AI.Workflows                          → Faz 15 TAMAMLANDI (F-
   StreamingRun.SendResponseAsync                         → 🚨 yanit sonrasi akis YENIDEN acilmali
   MagenticWorkflowBuilder.RequirePlanSignoff(true)       → Faz 16 TAMAMLANDI (plan onayi)
 Microsoft.Agents.AI.Workflows.Declarative               → ALINMADI (K-129: +19 paket, Responses API sarti)
+
+// Microsoft.Extensions.AI — olculdu 2026-10-19 (MAF kapsama matrisi Dalga 1)
+FailoverChatClient · OrderedFailoverChatClient         → KORU: FallbackChatClient (yukaridaki MEAI 10.9.0 satiri, R-02)
+ImageGeneratingChatClient · HostedImageGenerationTool  → KORU: GenerateImageTool. MEAI'ninki (MEAI001)
+  HostedImageGenerationTool'u uc fonksiyona cevirir ve uretilen gorseli DataContent
+  olarak konusmaya geri koyar (varsayilan AllImages). Kiraciyi cozmez, adet sinirini
+  uygulamaz, kullanim ve maliyet raporlamaz. Tracon'unki ureticiyi kiraci icin cozer
+  (ResolveForTenantAsync), MaxImagesPerRequest'i uygular, ImagePricing ile
+  TraconToolUsage.Report yazar ve modele bayt degil ek kimligi doner (baglam penceresi)
+  Yeniden olc: MEAI001 kalkar VE kullanim raporu icin bir kanca gelirse
+ISpeechToTextClient · ITextToSpeechClient              → KOPRU — Faz 220 planlandi (R-01): MEAI001, public imzaya girmez;
+  DI'daki istemci ic adaptorle ISpeechSynthesizer/ISpeechTranscriber'a baglanir
+OpenAI.Chat.MicrosoftExtensionsAIChatExtensions        → ALINMADI (R-03, K-036 notu): OPENAI001;
+  AsOpenAIStreamingChatCompletionUpdatesAsync bos FinishReason'i her chunk'ta "stop" yazar
 ```
 
 **2026-08-02'de reflection ile doğrulanan ve ikinci faz planına giren bulgular:**

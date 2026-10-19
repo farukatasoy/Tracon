@@ -2,10 +2,11 @@
 
 > **Ölçüm:** 2026-10-18 · **Sürüm:** `Microsoft.Agents.AI` **1.25.0** (NuGet hattında en yeni; 2026-10-18'de yeniden doğrulandı) · MEAI 10.11.0 · MCP 2.2.0 · VectorData 10.10.0. Tracon pin'i aynıdır (Faz 214).
 > **Önceki sürüm:** 2026-10-17. Bu sürüm onun yerine geçer. Önceki sürümün hataları §0'dadır.
+> **Dalga 1 ölçümü:** 2026-10-19. R-01…R-07'nin ölçüm şartları koşuldu; sonuçlar §6'da, düşen iddialar §0'da (#12–#16).
 > **Kitle:** Tracon bakımcısı ve faz planlayan oturumlar. Bu belge **plan girdisidir**, karar defteri değildir. Kararlar `K-*`'e, adaylar `ADAYLAR.md`'ye yalnız `aday-kesfi` ve `faz-planlama` ile girer.
 > **Yöntem özeti:** 40/40 MAF paketi `MetadataLoadContext` ile okundu (1.166 tip, iç içe tipler ve üyeler dahil). Tracon tarafında 2.326 `.cs` dosyası jeton indeksine çevrildi. MAF 1.16.0 (Tracon'un ilk pin'i) ile karşılaştırıldı. Ayrıntı §12.
 
-**Özet:** 143 yetenek satırı — ✅ 43 · 🟡 14 · ❌ 85 · ⛔ 1. MAF'ın 1.064 üst düzey public tipinin 231'i `src/`'de anılır (%22). En büyük bulgular: (1) değerlendirilmemiş her kalem MAF 1.16'da zaten vardı — takip açığı sürüm farkında değil, **başlangıç yüzeyindedir**; (2) her MAF özelliği için bir kaçış yolu vardır, ama yol **kayıplıdır** (fabrika agent'ı 12 model halkasını, BYOK'u, egress'i ve maliyeti kaybeder) ve **belgesizdir**; (3) 13 paralel uygulamanın 3'ü hata, 1'i borçtur.
+**Özet:** 143 yetenek satırı — ✅ 43 · 🟡 14 · ❌ 85 · ⛔ 1. MAF'ın 1.064 üst düzey public tipinin 231'i `src/`'de anılır (%22). En büyük bulgular: (1) değerlendirilmemiş her kalem MAF 1.16'da zaten vardı — takip açığı sürüm farkında değil, **başlangıç yüzeyindedir**; (2) her MAF özelliği için bir kaçış yolu vardır, ama yol **kayıplıdır** (fabrika agent'ı 12 model halkasını, BYOK'u, egress'i ve maliyeti kaybeder) ve **belgesizdir**; (3) 13 paralel uygulamanın 1'i hata (küçük), 1'i borçtur. Dalga 1 ölçümü (2026-10-19) iki "hata" hükmünü düşürdü ve Dalga 1'de kırıcı kalem bırakmadı (§6).
 
 ---
 
@@ -24,6 +25,12 @@
 | 9 | K-036 notu: "Chat Completions için public yazıcı yoktur" | MEAI.OpenAI `AsOpenAIChatCompletion` · `AsOpenAIStreamingChatCompletionUpdatesAsync` ve MAF.OpenAI `AgentResponse.AsOpenAIChatCompletion` vardır (OPENAI001) | R-03 |
 | 10 | "Kayıt yok" satırları tarihsizdi | 1.16 yüzeyiyle karşılaştırıldı: değerlendirilmemiş kalemlerin hepsi 1.16.0'da vardı | §1.2 |
 | 11 | — (yakalanmadı) | `MIMARI.md:252` ve K-019 "MAF köprüsü (öncelik 10)" der. Kodda yok: `AgentSourcePriority` yalnız `Code = 0`, `Database = 100` | R-07, D-06 |
+| 12 | R-01: "Hata; ses yolu MEAI arayüzlerine geçer, kırıcı" | `ISpeechToTextClient`/`ITextToSpeechClient` 10.11'de hâlâ `MEAI001` (derleme probu); public imzaya giremez (GA ölçütü 5). MEAI sözleşmesi ses listesi, karakter sınırı, istek başına kiracı kimliği, hizalama, faturalı karakter ve diyalog taşımaz | Haklı; ekleyici köprü (§6) |
+| 13 | R-02: "`OrderedFailoverChatClient`'tan türet" | `OrderedFailoverChatClient` `sealed`'dır. Yalnız soyut `FailoverChatClient` türetilebilir; o da `MEAI001` | Koru, ertele (§6) |
+| 14 | R-03: "Hata; dönüştürücü + `ModelReaderWriter`" | Tel probu: akış dönüştürücüsü `FinishReason`'ı boş her chunk'a `finish_reason:"stop"` yazar; akışsız çıktı dört ek alan taşır ve `ToolCalls`'u K-992'ye aykırı eşler | Haklı, ret (§6) |
+| 15 | R-04, R-05 Dalga 1'de | İkisinde de kırıcı ya da internal iş yok; değer ekleyici yüzeydedir | Dalga 2 (§6) |
+| 16 | R-07: "MIMARI ve K-019" | K-003 de aynı kaymayı taşıyordu ("`AddAIAgent` ile kodda tanımlananlar katalogda görünür") | üçü düzeltildi |
+| 17 | R-06: "builder'a geç" (tek adım) | Harness skill'i **kaynak** olarak alır (`HarnessAgentOptions.AgentSkillsSource`) ve provider'ı `options: null` ile kendisi kurar; builder yalnız provider üretir. Tek zincir için harness'ın yerleşik provider'ı kapanır, Tracon'unki `AIContextProviders`'a girer. Yan bulgu: harness bugün `AgentSkillsProviderOptions` alamaz (C-08) | Faz 219 planı (2026-10-19) |
 
 ---
 
@@ -67,9 +74,9 @@ MAF bilen bir tüketici "Tracon'a girince MAF'ın X özelliğini ya da Tracon'un
 
 | Sınıf | Anlamı | Sayı | Örnek | Hüküm |
 |---|---|---|---|---|
-| **Hata** | MAF/MEAI'de vardı, değerlendirilmedi; Tracon'un ek ihtiyacı yok ya da taşınabilir | 3 | ses arayüzleri, Chat Completions yazıcısı, skill zinciri | Refaktör |
-| **Borç** | Tracon önce yazdı, MAF sonra getirdi | 1 | `FallbackChatClient` (Faz 62) ↔ MEAI 10.9 `FailoverChatClient` | Ölç, türet |
-| **Haklı** | MAF tipi Tracon sınırını (kiracı, run ağacı, bütçe, AOT, kayıt) taşımaz | 8 | `TraconRunContext`, `AgentDecoratorPipeline`, OpenAI Responses uçları, iş kuyruğu, `IVectorSearchStore`, canlı ses | Koru; MAF tipini içte kullan ya da köprüle |
+| **Hata** | MAF/MEAI'de vardı, değerlendirilmedi; Tracon'un ek ihtiyacı yok ya da taşınabilir | 1 | skill zinciri | Refaktör |
+| **Borç** | Tracon önce yazdı, MAF sonra getirdi | 1 | `FallbackChatClient` (Faz 62) ↔ MEAI 10.9 `FailoverChatClient` | Koru; `MEAI001` kalkınca yeniden ölç |
+| **Haklı** | MAF tipi Tracon sınırını (kiracı, run ağacı, bütçe, AOT, kayıt) taşımaz | 10 | `TraconRunContext`, `AgentDecoratorPipeline`, OpenAI Responses ve Chat Completions uçları, ses arayüzleri, iş kuyruğu, `IVectorSearchStore`, canlı ses | Koru; MAF tipini içte kullan ya da köprüle |
 | **Ürün farkı** | Tracon'un kendi ürünü; MAF'ın eşi başka iş yapar | 1 satır (4 eş) | `AgentDefinition` ↔ MAF YAML, konsol ↔ DevUI | Koru; MAF'ınkini **ek** olarak aç |
 
 "Hata" kelimesini yalnız ilk sınıf için kullanırım. Diğerleri bilinçli takastır. Ama takasın gerekçesi yazılı ve yeniden ölçülebilir olmalıdır. **Bugün 13'ün 7'sinde gerekçe yazılı değil ya da yanlış; 2'sinde kısmen yazılı.**
@@ -184,7 +191,7 @@ Katman paketleri: `Microsoft.Extensions.AI` (+`.Abstractions`, `.OpenAI`, `.Eval
 | ✅ | `AgentRunOptions` türetme | `TraconRunOptions` | — | — | ✓ | K3 | Koru |
 | ✅ | `AgentSession` · `StateBag` · Create/Serialize/Deserialize | `AgentSessionManager` | — | — | ✓ | K3 | Koru |
 | ✅ | `AgentSessionStore` · `AgentSessionStoreKey` (MAAI001) | internal köprü | — | — | ✓ K-1016 | K3 | Koru |
-| 🟡 | `AIAgentBuilder`: `Use(agent)`, `Use(runFunc, streamingFunc)`, `Use(sharedFunc)` · `AsBuilder` | `AgentDecoratorPipeline` (73 satır): `IAgentDecorator` + `Order` | Değerlendirilmedi | Haklı: sıra, descriptor ve hata normalizasyonu ekler; MAF builder'ı içte kullanabilirdi | ✗ | K1: tüketici MAF'ın lambda middleware'ini takamaz, sınıf yazmak zorunda | R-04 |
+| 🟡 | `AIAgentBuilder`: `Use(agent)`, `Use(runFunc, streamingFunc)`, `Use(sharedFunc)` · `AsBuilder` | `AgentDecoratorPipeline` (73 satır): `IAgentDecorator` + `Order` | Değerlendirilmedi | Haklı: sıra, descriptor ve hata normalizasyonu ekler; MAF builder'ı içte kullanabilirdi | ✗ | K1: tüketici MAF'ın lambda middleware'ini takamaz, sınıf yazmak zorunda | C-01 (R-04 ölçüldü: refaktör yok) |
 | ❌ | Agent düzeyi tool middleware: `AIAgentBuilder.Use(Func<AIAgent, FunctionInvocationContext, next, ct, …>)` | yok; tool başına `DelegatingAIFunction` halkaları | Değerlendirilmedi | — | ✗ | K1→K3: "her tool çağrısından önce/sonra" kodu yazılamaz; yalnız `IToolAuthorizationHandler` | C-01 |
 | 🟡 | Yapılandırılmış çıktı: `ChatOptions.ResponseFormat` ✔ · `RunAsync<T>`/`AgentResponse<T>` ✘ | şema veriden; onarım turu `StructuredResponseValidatingAgent` | `T` derleme anı tipidir; bildirimsel tanım bilemez | Ürün: onarım MAF'ta yok | ✓ | K1: kod tüketicisi katalog agent'ında `RunAsync<T>` çağırabilir (ölçülmedi) | G-05 rehber + test |
 | ❌ | `ChatClientAgentRunOptions` (run başına `ChatOptions`, `ChatClientFactory`) | **önceki sürüm ✅ diyordu; `src/` 0.** `/v1/responses` MAF'ın ürettiği seçenek nesnesini geçirir | Değerlendirilmedi | — | ~ | K1→K3: native run ucu run başına model ayarı almaz (ölçülmedi) | C-03 |
@@ -194,7 +201,7 @@ Katman paketleri: `Microsoft.Extensions.AI` (+`.Abstractions`, `.OpenAI`, `.Eval
 | ❌ | `RequirePerServiceCallChatHistoryPersistence` · `Clear/Warn/ThrowOnChatHistoryProviderConflict` · `UseProvidedChatClientAsIs` | MAF varsayılanı | Değerlendirilmedi | — | ✗ | K1: tool döngüsünün ortasında çökmede ara geçmiş kaybolabilir (ölçülmedi) | C-08 (önce probe) |
 | ❌ | `ChatClientAgentOptions.AllowConcurrentInvocation` | `FunctionInvokingChatClient`'a bağlı | K-553 | — | ✓ | K3 (eşi var) | Koru |
 | ❌ | `EnableInvocableFunctionBypassing` (MAAI001) · `DisableApproval*` · MEAI `UseInvocableFunctionBypassing`/`UseApproval*` | bilerek kapalı | kayıt ve yetki zinciri her çağrıyı görmeli | — | ✓ | — | Koru (ret) |
-| ❌ | `AgentRunContext` · `AIAgent.CurrentRunContext` | `TraconRunContext` (AsyncLocal, ağaç kapsamı) | Değerlendirilmedi | Haklı: MAF bağlamı run kimliği ve bütçe taşımaz; alt agent `options = null` ile çağrılır (ölçüldü) | ✗ | K1: MAF-yerli kod Tracon run kimliğini göremez | R-05 |
+| ❌ | `AgentRunContext` · `AIAgent.CurrentRunContext` | `TraconRunContext` (AsyncLocal, ağaç kapsamı) | Değerlendirilmedi | Haklı: MAF bağlamı run kimliği ve bütçe taşımaz; alt agent `options = null` ile çağrılır (ölçüldü) | ✗ | K1: MAF-yerli kod Tracon run kimliğini göremez | R-05 (Dalga 2) |
 | ❌ | Background responses: `AllowBackgroundResponses` · `ContinuationToken` · MEAI `ResponseContinuationToken` | `Prefer: respond-async` iş kuyruğu | K-030 (`store=false`); OpenAI arka plan modu sunucu tarafı saklama ister (belgeye göre; Tracon'da ölçülmedi). Önceki sürüm K-778 diyordu; yanlış | Haklı: kuyruk aynı ihtiyacı işçi tarafında karşılar | ~ | K0→K2: saatler süren "deep research" çağrısı işçiyi meşgul eder | D-09 · C-25 |
 | ❌ | `AgentRequestMessageSourceAttribution`/`Type` · `WithAgentRequestMessageSource` | yalnız JSON bağlamında tip kaydı | Değerlendirilmedi | — | ✗ | K2 açığı: girdinin kaynağı (geçmiş, provider, dış) kayıtta ayrılmaz | C-10 |
 | ❌ | `LoggingAgent` · `UseLogging` | yalnız testte | run kaydı daha zengin | — | ✗ | K1 (decorator olarak takılır) | Koru |
@@ -329,7 +336,7 @@ Kod workflow'u (`AddWorkflow(name, Func<IServiceProvider, Workflow>)`) MAF grafi
 |---|---|---|---|---|---|---|---|
 | ✅ | `OpenAIResponses` (`ToAgentRunRequest`, `WriteResponse`, `WriteResponseStreamAsync`, `CreateResponseId`, `GetSessionStoreId`) · `OpenAIResponsesRunRequest` | yalnız `Tracon.AspNetCore` (K-008) | — | — | ✓ | K3 | Koru |
 | ❌ | `MapOpenAIResponses` · `MapOpenAIConversations` · `OpenAIResponsesMapOptions` | Tracon uçları | K-036: depo arayüzleri `internal` (1.25'te yeniden ölçüldü, `OpenAIResponsesEndpoints.cs:26`) | Haklı | ✓ | K3 | Koru; her sürümde yeniden ölç |
-| ❌ | `MapOpenAIChatCompletions` · `OpenAIChatCompletionsMapOptions` · MEAI.OpenAI `AsOpenAIChatCompletion`/`AsOpenAIStreamingChatCompletionUpdatesAsync` · MAF.OpenAI `AgentResponse.AsOpenAIChatCompletion` (OPENAI001) | JSON elle yazılır (`OpenAIChatCompletionsEndpoints.cs`, 579 satır, kendi record'ları) | K-036 notu "public yazıcı yok" der; dönüştürücüler var — eksik ölçüm | **Hata** (tel biçimi elle bakımda) | ~ | K3 (uç var) | R-03 |
+| ❌ | `MapOpenAIChatCompletions` · `OpenAIChatCompletionsMapOptions` · MEAI.OpenAI `AsOpenAIChatCompletion`/`AsOpenAIStreamingChatCompletionUpdatesAsync` · MAF.OpenAI `AgentResponse.AsOpenAIChatCompletion` (OPENAI001) | JSON elle yazılır (`OpenAIChatCompletionsEndpoints.cs`, 579 satır; tel biçimi ~45 satır record) | dönüştürücüler var (OPENAI001), ama ölçüldü: akışta her chunk'a `finish_reason:"stop"` yazar (§6) | Haklı (ölçüldü 2026-10-19) | ✓ | K3 (uç var) | R-03: ret |
 | ✅ | A2A sunucu: `AddA2AServer` + `AgentRunMode.ReturnMessage` · `ExternalAgentProxy` | `Tracon.AspNetCore` | — | — | ✓ K-103 | K3 | Koru; İ6'nın kanıtı |
 | ❌ | A2A `ReturnTask`/`ReturnTaskWhen` · `A2ARunDecisionContext` · `IsolationKeyScopedTaskStore` | yok | K-103: görev = askıya alınmış run | — | ✓ | K0 | protokoller arası HITL ile (C-15) |
 | ❌ | `Hosting.A2A.AspNetCore`: `MapA2AJsonRpc` · `MapA2AHttpJson` | A2A SDK'nın `MapA2A`'sı | Değerlendirilmedi | — | ✗ | K3 (eşi var) | C-15: HTTP+JSON bağlaması farkını ölç |
@@ -378,10 +385,10 @@ Kod workflow'u (`AddWorkflow(name, Func<IServiceProvider, Workflow>)`) MAF grafi
 | 🟡 | `ChatOptions` alanları | `Instructions`, `ModelId`, `Temperature`, `TopP`, `MaxOutputTokens`, `Tools`, `Reasoning.Effort`, `ResponseFormat` | açılmayan: `TopK`, `Seed`, `FrequencyPenalty`, `PresencePenalty`, `StopSequences`, `AllowMultipleToolCalls`, `ToolMode`, `Reasoning.Output` — değerlendirilmedi | — | ✗ | K3 kısmen; `ProviderSettings` ham yol olarak kalır | C-03 |
 | ✅ | `DelegatingChatClient` halkaları (12) · `DistributedCachingChatClient` türetme | `ModelProviderRegistry` | — | — | ✓ | K3 | Koru (türetme İ1'in iyi örneği) |
 | ✅ | `IEmbeddingGenerator` · `IImageGenerator` (MEAI001, yalnız içte) | açık | — | — | ✓ | K3 | Koru (İ5'in kanıtı) |
-| ❌ | `ISpeechToTextClient` · `ITextToSpeechClient` (+Options, builder, OTel/Logging halkaları, OpenAI `AsISpeechToTextClient`/`AsITextToSpeechClient`) (MEAI001) | kendi public `ISpeechTranscriber`/`ISpeechSynthesizer` + ElevenLabs | **kayıt yok**; MEAI 10.8.0'da (ilk pin) vardı | **Hata** | ✗ | K0: MEAI ses sağlayıcısı (OpenAI dahil) bağlanamaz | R-01 |
+| ❌ | `ISpeechToTextClient` · `ITextToSpeechClient` (+Options, builder, OTel/Logging halkaları, OpenAI `AsISpeechToTextClient`/`AsITextToSpeechClient`) (MEAI001) | kendi public `ISpeechTranscriber`/`ISpeechSynthesizer` + ElevenLabs | MEAI 10.8.0'da (ilk pin) vardı; K-215 MEAI'yi anmaz. Ölçüldü (2026-10-19): `MEAI001`; ses listesi, karakter sınırı, kiracı kimliği, hizalama, faturalı karakter, diyalog yok | Haklı; köprü eksik | ~ | K0→K1: MEAI ses sağlayıcısı (OpenAI dahil) bağlanamaz | R-01: ekleyici köprü |
 | ❌ | `IRealtimeClient` · `IRealtimeClientSession` · `FunctionInvokingRealtimeClient` · `OpenAIRealtimeClient` (MEAI001) | canlı ses: OpenAI WebRTC SDP aktarımı (`OpenAILiveProvider`) | K-222 Seçenek A; `IRealtimeClient` hiç anılmaz | Haklı: aktarım farkı (tarayıcı-sağlayıcı WebRTC ↔ sunucu oturumu) — okumaya dayanır | ✗ | K0→K2: sunucu köprülü gerçek zamanlı mod yok | C-22 |
 | ❌ | `IHostedFileClient` (+OpenAI `AsIHostedFileClient`) (MEAI001) | ekler satır içi (`AttachmentResolvingChatClient`) | Değerlendirilmedi | — | ✗ | K0→K2: büyük dosya her turda yeniden gönderilir | C-23 |
-| ❌ | `FailoverChatClient` · `OrderedFailoverChatClient` · `RoutingChatClient` · `SemanticRoutingChatClient` (MEAI001, 10.9) | `FallbackChatClient` (925 satır, Faz 62) | sürüm tablosu: "değiştirmek karar işidir" | **Borç** | ✓ | K3 (davranış var) | R-02 |
+| ❌ | `FailoverChatClient` · `OrderedFailoverChatClient` · `RoutingChatClient` · `SemanticRoutingChatClient` (MEAI001, 10.9) | `FallbackChatClient` (925 satır, Faz 62) | sürüm tablosu: "değiştirmek karar işidir". Ölçüldü (2026-10-19): `OrderedFailoverChatClient` `sealed`; `FailoverChatClient` türetilebilir ama `MEAI001` | **Borç** | ✓ | K3 (davranış var) | R-02: koru, ertele |
 | ❌ | `ImageGeneratingChatClient` (MEAI001) · `HostedImageGenerationTool` | `GenerateImageTool` (AIFunction + `IImageGenerator` + kullanım raporu) | kayıt yok | Haklı (kullanım ve maliyet raporu) | ✗ | K3 | Koru; gerekçeyi yaz |
 | ❌ | Atıf ve hata içerikleri: `CitationAnnotation` · `TextSpanAnnotatedRegion` · `ErrorContent` · `InputRequestContent`/`InputResponseContent` | kayıt `default: break` | Değerlendirilmedi | — | ✗ | K2 açığı: sağlayıcı atıfları ve hata içerikleri kayıtta yok | C-10 |
 | ❌ | `ChatClientBuilder` halkaları (`UseLogging`, `UseDistributedCache`, `ConfigureOptions`, `UseChatReducer`) · `GetResponseAsync<T>` | yok | halka zinciri Tracon'un | — | ✗ | K0: tüketici kendi halkasını zincire koyamaz (fabrika hariç) | C-01 (adlı halka yuvası) |
@@ -418,24 +425,34 @@ Kod workflow'u (`AddWorkflow(name, Func<IServiceProvider, Workflow>)`) MAF grafi
 
 ## 6. Dalga 1 — refaktör: paralel uygulamalar
 
-| # | Tracon kodu | MAF/MEAI eşi | Sınıf | Gerekçe yazılı mı | Kırıcı mı | Öneri | Ölçüm şartı |
-|---|---|---|---|---|---|---|---|
-| **R-01** | `ISpeechTranscriber`/`ISpeechSynthesizer` (`Tracon.Abstractions/Voice`), `Tracon.Voice` (3.061 satır) | `ISpeechToTextClient`/`ITextToSpeechClient` (MEAI001) | Hata | Hayır | Evet (public) | Ses yolu MEAI arayüzlerini **DI'dan** okur (İ5). ElevenLabs bu arayüzleri uygular. Tracon'a özgü olanlar (ses listesi, diyalog, karakter sınırı, kiracı kimliği) ek arayüzde kalır | MEAI `*Metadata.ProviderName`, `AdditionalProperties`, `RawRepresentationFactory` kiracı kimliğini ve sağlayıcı adını taşıyor mu — probe |
-| **R-02** | `FallbackChatClient` (925 satır) | `OrderedFailoverChatClient` · `FailoverChatClient.OnRoutingUpdateAsync` (MEAI001) | Borç | Evet (sürüm tablosu) | Hayır (internal) | `OrderedFailoverChatClient`'tan türet; atıf ve devre `OnRoutingUpdateAsync`'te | akış başladıktan sonra hata (`OutputCommitted`), devre/egress/BYOK sırası, yeniden deneme sınıflandırıcısı — mevcut testler + eşdeğerlik probe'u |
-| **R-03** | Chat Completions JSON (579 satır, kendi record'ları) | `ChatResponse.AsOpenAIChatCompletion` · `AsOpenAIStreamingChatCompletionUpdatesAsync` (MEAI.OpenAI) · `AgentResponse.AsOpenAIChatCompletion` (MAF.OpenAI) — OPENAI001 | Hata | Yanlış (K-036 notu) | Hayır (tel biçimi aynı kalmalı) | dönüştürücü + `ModelReaderWriter`; K-992 `finish_reason` eşlemesi ve `openai` SDK uyum testleri korunur | AOT ve tel baytı karşılaştırması |
-| **R-04** | `AgentDecoratorPipeline` (73 satır) | `AIAgentBuilder` | Haklı | Hayır | Hayır (ekleyici) | içte `AIAgentBuilder.Use`; MAF lambda middleware girişi C-01'in parçasıdır | — |
-| **R-05** | `TraconRunContext` | `AIAgent.CurrentRunContext` | Haklı | Hayır | Hayır | run kimliğini `AgentRunOptions.AdditionalProperties`'e de yaz; MAF-yerli kod okur | — |
-| **R-06** | elle skill kaynağı zinciri | `AgentSkillsProviderBuilder` | Hata (küçük) | Hayır | Hayır | builder'a geç; C-14'teki `UseMcpSkills` için ön koşul | — |
-| **R-07** | `MIMARI.md:252`, K-019: "MAF köprüsü (öncelik 10)" | — | doküman kayması | — | — | D-06 kararına göre ya köprü gelir ya metin düzelir | — |
-| — | OpenAI Responses/Conversations uçları | `MapOpenAI*` | Haklı | Evet (K-036) | — | Koru; her sürümde `internal` depoyu yeniden ölç | — |
-| — | iş kuyruğu | DurableTask · background responses | Haklı | Evet (K-778, K-030) | — | Koru | — |
-| — | `IVectorSearchStore` | `VectorStore` + `ChatHistoryMemoryProvider` | Haklı (AOT) | Evet (K-342) | — | Koru; konuşma hafızası uydu pakette (C-24) | — |
-| — | canlı ses (WebRTC aktarımı) | `IRealtimeClient` | Haklı (aktarım) | Kısmen (K-222) | — | Koru; B modu ek (C-22) | — |
-| — | `GenerateImageTool` | `ImageGeneratingChatClient` | Haklı (kullanım raporu) | Hayır | — | Koru; gerekçeyi K-kaydına yaz | — |
-| — | `ToolApprovalRule` deposu | `AlwaysApproveToolApprovalResponseContent` | Haklı | Hayır | — | Koru + köprü (C-11) | — |
-| — | `AgentDefinition` · `WorkflowDefinition` · konsol · `IContentGuard` | MAF YAML agent · Workflows.Declarative · DevUI · Purview | Ürün | Kısmen (K-129, `MIMARI.md:35`) | — | Koru; MAF'ınkini ek olarak aç (C-20, C-21) | — |
+> **Ölçüm: 2026-10-19.** Her kalemin ölçüm şartı koşuldu. Yöntem: derleme probu (`TreatWarningsAsErrors`, `IsAotCompatible`), `maf-api-kesfi` imza dökümü, `ilspycmd` ile davranış okuması ve tel baytı probu. Sürümler: MEAI 10.11.0 · MAF 1.25.0 · OpenAI 2.14.0.
+> **Sonuç: Dalga 1'de kırıcı kalem kalmadı.** İki "Hata" hükmü (R-01, R-03) ölçümle düştü. R-04 ve R-05 Dalga 2'ye taşındı.
 
-**Freeze ile ilişki.** R-01 public API'yi kırar; `1.0.0-rc.1` dondurulmadan önce yapılmalıdır. UR-012 kırıcı kalemlere izin verir. R-02, R-03, R-06 internal'dır ve her zaman yapılabilir. R-04 ve R-05 ekleyicidir; Dalga 2 ile birlikte gider.
+| # | Tracon kodu | MAF/MEAI eşi | İlk hüküm (2026-10-18) | Ölçüm (2026-10-19) | Yeni hüküm | Kırıcı mı | Ne zaman |
+|---|---|---|---|---|---|---|---|
+| **R-01** | `ISpeechTranscriber`/`ISpeechSynthesizer` (`Tracon.Abstractions/Voice`), `Tracon.Voice` | `ISpeechToTextClient`/`ITextToSpeechClient` | Hata; ses yolu MEAI arayüzüne geçer; kırıcı | (1) İki arayüz, seçenek ve yanıt tipleri 10.11'de hâlâ `MEAI001` (derleme probu). Public imzaya giremez: GA ölçütü 5, UR-005. (2) MEAI sözleşmesi Tracon'un taşıdıklarını taşımaz: ses listesi, `MaxCharactersPerRequest`, istek başına kiracı kimliği (BYOK), hizalama, faturalı karakter ve `UsageSource`, diyalog (K-952), sağlık. (3) Kiracı kimliği için tek kanal `AdditionalProperties`'tir. `LoggingTextToSpeechClient` seçenekleri Trace düzeyinde JSON'a yazar → `secret` log'a sızar (K-059 sınıfı). (4) `ProviderName` metadata'dan okunur (`GetService<…ClientMetadata>`). (5) Tüketici yüzeyi public: `AddSpeechSynthesizer`/`AddSpeechTranscriber`; 1 örnek, 20+ test uygulaması, docs-site rehberi. (6) K-215'in gerekçesi paket yönüdür; MEAI alternatifini anmaz | **Haklı; köprü eksik.** Arayüz değişmez. Ek köprü: DI'daki (anahtarlı) MEAI istemcisini iç adaptörle `ISpeechSynthesizer`/`ISpeechTranscriber`'a bağla. Public kayıt yalnız ad ve servis anahtarı alır (İ5). Sınır dürüst yazılır: BYOK yok, ses listesi boş | Hayır (ekleyici) | `rc.1` öncesi (UR-012 B) · 📋 **Faz 220** planlandı (`docs/220-MEAI-SES-KOPRUSU.md`, tam kademe; genel köprü + `UseOpenAISpeech`) |
+| **R-02** | `FallbackChatClient` (925 satır) | `FailoverChatClient` · `OrderedFailoverChatClient` | Borç; `OrderedFailoverChatClient`'tan türet | (1) `OrderedFailoverChatClient` **`sealed`** — türetilemez. (2) `FailoverChatClient` soyuttur, türetilebilir (`SelectClientAsync` + `OnRoutingUpdateAsync`); ikisi de `MEAI001`. (3) Davranış (decompile): iptal dışı her hatada sıradakine geçer; sınıflandırıcı kancası yok → `IProviderRetryClassifier` ancak `OnRoutingUpdateAsync`'ten atarak durdurur. Her denemeye aynı `ChatOptions` gider → bağlantı başına `ModelId` ve araç defteri için `SelectClientAsync` sarmalayıcı istemci döndürmelidir. İstek durumu (defter, ilk hata) `RoutingContext` anahtarlı yan tabloda tutulur. Zincir-tükendi istisnası terminal güncellemede atılarak korunur. (4) Akış kuralı aynıdır: ilk kareden sonra geçiş yok (`OutputCommitted`). (5) Kazanç: iki döngü gövdesi (~230 satır). Sınıflandırıcı, olay yükü ve tembel async kurulum kalır | **Koru; ertele.** Her model çağrısının sıcak yolu deneysel bir taban sınıfa bağlanmaz. Tracon'un bağımlılığı alt sınırdır (`>= 10.11`); tüketicinin MEAI yükseltmesi ikili uyumu kırabilir | Hayır | `FailoverChatClient` `MEAI001`'den çıkınca yeniden ölç. Gerekçe yazıldı ✅ (`MAF-GENISLEME-NOKTALARI.md`, MEAI 10.9.0 satırı) |
+| **R-03** | Chat Completions (579 satır) | `ChatResponse.AsOpenAIChatCompletion` · `AsOpenAIStreamingChatCompletionUpdatesAsync` · `AgentResponse.AsOpenAIChatCompletion` | Hata; dönüştürücü + `ModelReaderWriter` | (1) Üçü de `OPENAI001`. (2) AOT: `ModelReaderWriter.Write(x, Json, OpenAIContext.Default)` IL2026/IL3050 vermez. (3) Tel probu, akışsız: `refusal:null`, `tool_calls:[]`, `annotations:[]`, `logprobs:{content:[],refusal:[]}` ekler. `ToolCalls` → `"tool_calls"` (K-992 `"stop"` der). (4) **Akış: `FinishReason`'ı boş her chunk `finish_reason:"stop"` yazar** (ilk içerik chunk'ı dahil). `CreatedAt` boşsa `created:-62135596800` yazar. OpenAI akış sözleşmesi bozulur. (5) 579 satırın tel biçimi ~45 satır record'dur; gerisi run, onay, idempotency ve kiracı mantığıdır | **Haklı (ölçüldü). Ret.** K-036 notu düzeltilir: dönüştürücü vardır ama tel sözleşmesini bozar | — | Upstream akış kusuru düzelir ve OPENAI001 kalkarsa yeniden ölç |
+| **R-04** | `AgentDecoratorPipeline` (73 satır) | `AIAgentBuilder` | Haklı; içte `AIAgentBuilder.Use` | `AIAgentBuilder` deneysel değil. Boru hattının mantığı 30 satırdır: `Order` sırası, descriptor, hata normalizasyonu (K-840). Builder yalnız döngünün yerini alır | **Refaktör yok.** Tüketici değeri (lambda middleware) C-01'dedir | — | Dalga 2 (C-01) |
+| **R-05** | `TraconRunContext` | `AIAgent.CurrentRunContext` | Haklı; run kimliğini options'a da yaz | `CurrentRunContext` `AsyncLocal`'dır; setter erişilemez (CS0272). MAF onu her `RunAsync` katmanında aldığı options ile kurar → `AgentRunOptions.AdditionalProperties`'e yazılan run kimliği MAF-yerli koda görünür. Anahtar adı public sözleşmedir | Hüküm aynı; **ekleyici yetenek** | Hayır | Dalga 2 |
+| **R-06** | elle skill kaynağı zinciri | `AgentSkillsProviderBuilder` | Hata (küçük) | Deneysel değil. MAF sırası: Aggregate → Caching → Filtering → Dedup. Tracon: Aggregate → Filtering → Caching (kiracı anahtarı) → Dedup. `UseSource`, `UseFilter`, `UseCachingOptions(CacheIsolationKeySelector)` zinciri kurar; fark önbellek ile süzgecin yer değiştirmesidir. `UseMcpSkills` bu builder'ın uzantısıdır (MAF.Mcp alpha) → C-14 ön koşulu doğrulandı | Hüküm aynı; kapsam büyüdü (§0 #17): iki agent tipi tek zincirden geçer | Hayır (internal) | 📋 **Faz 219** planlandı (`docs/219-TEK-SKILL-ZINCIRI.md`, tam kademe) |
+| **R-07** | `MIMARI.md:252`, K-019 | — | doküman kayması | Doğrulandı. Ek bulgu: **K-003** da "`AddAIAgent` ile kodda tanımlananlar katalogda görünür" diyordu | **Düzeltildi (2026-10-19):** üçü koda göre yazıldı. D-06 köprüyü açarsa metin o fazda yeniden yazılır | — | ✅ |
+
+Gerekçesi yazılı, bu turda yeniden ölçülmeyen paralel uygulamalar:
+
+| Tracon kodu | MAF/MEAI eşi | Sınıf | Gerekçe | Öneri |
+|---|---|---|---|---|
+| OpenAI Responses/Conversations uçları | `MapOpenAI*` | Haklı | K-036 | Koru; her sürümde `internal` depoyu yeniden ölç |
+| iş kuyruğu | DurableTask · background responses | Haklı | K-778, K-030 | Koru |
+| `IVectorSearchStore` | `VectorStore` + `ChatHistoryMemoryProvider` | Haklı (AOT) | K-342 | Koru; konuşma hafızası uydu pakette (C-24) |
+| canlı ses (WebRTC aktarımı) | `IRealtimeClient` | Haklı (aktarım) | kısmen K-222 | Koru; B modu ek (C-22) |
+| `GenerateImageTool` | `ImageGeneratingChatClient` | Haklı (ölçüldü 2026-10-19) | `MAF-GENISLEME-NOKTALARI.md` § *Hâlâ kullanılmayan*: MEAI'ninki görseli `DataContent` olarak konuşmaya koyar; kiracı, adet sınırı, maliyet raporu yok | Koru ✅ |
+| `ToolApprovalRule` deposu | `AlwaysApproveToolApprovalResponseContent` | Haklı | yok | Koru + köprü (C-11) |
+| `AgentDefinition` · `WorkflowDefinition` · konsol · `IContentGuard` | MAF YAML agent · Workflows.Declarative · DevUI · Purview | Ürün | kısmen (K-129, `MIMARI.md:35`) | Koru; MAF'ınkini ek olarak aç (C-20, C-21) |
+
+**Freeze ile ilişki (ölçümden sonra).** Dalga 1'de kırıcı kalem kalmadı. UR-012 = B (2026-10-19) ile "kırıcı mı" sütunu sıralama ölçütü değildir; ölçüt en iyi RC'dir. R-01 köprüsü ekleyicidir ve `rc.1`'den önce gelir. R-06 internal'dır, her zaman yapılabilir. R-02 ve R-03 kod işi değildir; gerekçe ve yeniden ölçüm koşulu yazılır. R-04 ve R-05 Dalga 2'ye taşındı.
+
+**Upstream'e bildirilebilir kusur.** `AsOpenAIStreamingChatCompletionUpdatesAsync`: `ChatResponseUpdate.FinishReason == null` → `StreamingChatCompletionUpdate.FinishReason == Stop` (probe: iki güncelleme, ilki `null`, ikincisi `Length`; çıktı `stop`, `length`).
 
 ---
 
@@ -555,7 +572,7 @@ builder.AddTracon()
 ```mermaid
 flowchart LR
     D0["Dalga 0<br/>kararlar · süreç<br/>D-01 D-02 D-19 D-20 · P-01…P-05"]
-    D1["Dalga 1<br/>refaktör<br/>R-01…R-07"]
+    D1["Dalga 1<br/>refaktör (ölçüldü 2026-10-19)<br/>R-06 · R-01 köprüsü<br/>R-07 ✅ · R-02 R-03 ret/ertele"]
     D2["Dalga 2<br/>çarpanlar<br/>G-01…G-06 · C-01 · C-10"]
     D3["Dalga 3<br/>çekirdek K3<br/>C-03 C-04 C-07 C-08 C-09 C-11 C-12 C-17"]
     D4["Dalga 4<br/>protokol · MCP · workflow<br/>C-14 C-15 C-18 C-26"]
@@ -569,7 +586,7 @@ flowchart LR
     D2 --> D5
 ```
 
-**Neden bu sıra.** Dalga 1 kırıcıdır ve dondurmadan önce bitmelidir. Dalga 2 sonraki her dalgayı ucuzlatır: adlı uzantılar birçok C kalemini "yalnız kayıt" işine çevirir; kayıt genellemesi K2'yi kendiliğinden getirir. Dalga 5'in kalemleri bağımsızdır ve tüketici talebine göre sıralanır.
+**Neden bu sıra.** Dalga 1 ölçümden sonra kırıcı kalem taşımaz (§6). UR-012 = B (2026-10-19) ile her dalganın RC'yi iyileştiren kalemi `rc.1`'den önce girer; sıra kırıcılığa göre değil, çarpana göre kurulur. Dalga 2 sonraki her dalgayı ucuzlatır: adlı uzantılar birçok C kalemini "yalnız kayıt" işine çevirir; kayıt genellemesi K2'yi kendiliğinden getirir. Dalga 5'in kalemleri bağımsızdır ve tüketici talebine göre sıralanır.
 
 ---
 
@@ -580,7 +597,7 @@ Kullanıcı yönergesi: "geçmişte reddedilen yeni MAF yeteneği ekleme kararla
 | Kimlik | Karar | Özgün gerekçe | Bugün ölçülen | Öneri |
 |---|---|---|---|---|
 | **D-01** | UR-005 + UR-013 (F-560): Tracon'un `[Experimental]` katmanı yok; deneysel upstream tip public imzaya girmez | tek kararlı katman | MAF yüzeyinin büyük kısmı MAAI001/MEAI001/OPENAI001 (harness, compaction, loop, session store, ses, realtime, failover, hosted file) | Çekirdekte kuralı **koru**. İ5 (DI'dan okuma) ve uydu paketlerin ön sürüm hattı (D-19) ile kapsamayı aç. Seçenekler: A koru · B Tracon `[Experimental]` katmanı · **C uydu paketler ön sürümde, çekirdek kararlı (öneri)** |
-| **D-02** | UR-012: freeze öncesi yeni yetenek yok | kırılma penceresi | `rc.1` upstream'e bağlı ve tarihsiz (ER-001). UR-012'nin kendi yeniden açılma ölçütü ("upstream GA uzun süre gelmezse") karşılanıyor | Dalga 1'i hemen başlat. Ekleyici dalgalar için seçenekler: A koru · B ekleyici serbest · **C yalnız uydu paketlerde serbest; çekirdek ekleri 1.x minor'a (öneri)** |
+| **D-02** | UR-012: freeze öncesi yeni yetenek yok | kırılma penceresi | `rc.1` upstream'e bağlı ve tarihsiz (ER-001). UR-012'nin kendi yeniden açılma ölçütü ("upstream GA uzun süre gelmezse") karşılanıyor. Dalga 1 ölçümü (2026-10-19): Dalga 1'de kırıcı kalem yok | **Karar verildi 👤 (2026-10-19): UR-012 = B.** Ölçüt en iyi RC'dir; `rc.1`'e kadar kırıcılık ölçüt değildir ve RC'yi iyileştiren ekleyici iş de girer. Ölçüt 7'nin sıfır kırılma penceresi yalnız son preview'da sayılır (`docs/YAYIN-HAZIRLIK.md`). Seçilmeyen: A koru · C yalnız uydu paketlerde serbest |
 | **D-19** | UR-002/K-602: tek sürüm hattı | basitlik | ön sürüm MAF paketine bağlı uydu paket kararlı çıkamaz (NU5104 — `Tracon.AspNetCore` ile aynı sınıf) | uydu paketlere ayrı ön sürüm hattı. Seçenekler: A tek hat (bütün aile bekler) · **B ayrı hat (öneri)** |
 | **D-03** | K-129: `Workflows.Declarative` alınmadı | +19 paket; `ResponseAgentProvider` şartı | +17 (taban 18 → 35); şart sürüyor; paket GA oldu | **Aç:** uydu paket; Tracon `ResponseAgentProvider` uygulaması yazılır. Sıra düşük (C-18'den sonra) |
 | **D-04** | K-062: harness dosya erişimi kapalı | dosya sistemi riski | MAF'ın `FileAccessStore`'u bir `AgentFileStore`'dur; Tracon'un SQL, kiracı önekli store'u var | **Aç:** kiracı önekli store ile; yazma araçları onaylı |
@@ -624,6 +641,9 @@ Kullanıcı yönergesi: "geçmişte reddedilen yeni MAF yeteneği ekleme kararla
 7. `Microsoft.Agents.AI.Anthropic` envanterde `degerlendirilmedi`dir; ölçüm: yalnız iki kısayol tipi. `karar` satırı yazılabilir.
 8. `search_knowledge` embedding çağrısında kullanım ve span raporu görülmedi (grep). Doğrulanmalı.
 9. Önceki matrisin hataları §0'dadır.
+10. K-003 de MAF Hosting köprüsünü var sayıyordu ("`AddAIAgent` ile kodda tanımlananlar katalogda görünür"); 2026-10-19'da K-019 ve `MIMARI.md:252` ile birlikte düzeltildi (R-07).
+11. `/v1/chat/completions` istek ayrıştırıcısı yalnız metin parçalarını okur (`ReadContent`); `image_url` parçası sessizce düşer, `tool` mesajı `tool_call_id` taşımaz. Kapsama adayıdır, R-03'ten bağımsızdır (kod okuması; davranış ölçülmedi).
+12. MEAI.OpenAI akış dönüştürücüsü boş `FinishReason`'ı `stop` yazar (§6 R-03). Upstream'e bildirilebilir.
 
 ---
 
