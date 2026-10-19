@@ -286,6 +286,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Persistence](https://tracon.dev/getting-started/persistence/) — Choose PostgreSQL, SQL Server, or SQLite and operate Tracon migrations safely from development to production.
 - [Securing the endpoints](https://tracon.dev/getting-started/security/) — Protect Tracon with network boundaries, bearer tokens, scoped API keys, roles, tenancy, and outbound guards.
 - [Adding a tool](https://tracon.dev/getting-started/tools/) — Register a tool so an agent can do something, and understand the one rule that trips people up.
+- [Use any Microsoft Agent Framework feature](https://tracon.dev/guides/any-maf-feature/) — Reach a Microsoft Agent Framework feature that Tracon does not model, and see which Tracon rings each way keeps and which it loses.
 - [Background work](https://tracon.dev/guides/background-work/) — Queue agent runs, schedule recurring work, operate workers, and understand leasing, retries, cancellation, and multi-instance behavior.
 - [Build diagnostics](https://tracon.dev/guides/build-diagnostics/) — What each TRC build diagnostic means, how to fix it or silence it, and how the same build writes the agent map that teaches a coding agent about Tracon.
 - [Typed client and CLI](https://tracon.dev/guides/cli/) — Call the management API from a typed client, and apply migrations, check health, or write the coding-agent gate skill without starting the application, using the tracon CLI.

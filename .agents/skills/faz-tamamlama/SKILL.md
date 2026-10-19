@@ -91,9 +91,17 @@ Hafif kademede yalnız çalışma anı kodu değiştiyse. Birim testi geçmesi y
 
 ```bash
 cd samples/Tracon.Api
-dotnet run --no-build -c Release --urls http://localhost:5081
+Tracon__PostgreSql__ConnectionString= Tracon__SqlServer__ConnectionString= \
+Tracon__Ui__AuthToken= Tracon__Providers__OpenAI__ApiKey= \
+  dotnet run --no-build -c Release --urls http://localhost:5081
 # başka bir terminalde: fazın DoD bölümündeki curl komutlarını çalıştır
 ```
+
+🚨 **Dört boş ortam değişkeni zorunludur.** Onlar olmadan `user-secrets` içindeki
+bağlantı dizesi uygulamayı paylaşılan yerel PostgreSQL'e bağlar ve
+`AutoApplyMigrations` orada migration uygular (Faz 200 ve Faz 221'de ikinci kez
+yaşandı). Koşumdan sonra günlükte `Npgsql` satırı sayısının 0 olduğunu doğrula.
+Ayrıntı: [`docs/hafiza/elle-kosum-ortami.md`](../../../docs/hafiza/elle-kosum-ortami.md).
 
 Sonucu DoD'ye **gerçek çıktı olarak** yaz; "çalışıyor" yetmez. 🚨 Bu adım
 testlerin yakalamadığını yakalar — Faz 6'da iki hata yalnız burada çıktı ve

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Tracon.Samples.MafFeatures</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      A NuGet PackageReference, not a project-to-project reference: the three doors this
+      sample shows - an agent decorator, a factory agent, and a custom agent source - are
+      all public Tracon.Core surface, so a consumer builds them from the published package
+      alone. See ../Tracon.Samples.CustomAgentSource for why VersionOverride and the local
+      feed in ../NuGet.config are used instead of a pinned version.
+    -->
+    <PackageReference Include="Tracon.Core" VersionOverride="$(TraconSamplePackageVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+</Project>

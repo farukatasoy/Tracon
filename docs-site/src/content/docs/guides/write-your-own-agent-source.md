@@ -62,6 +62,10 @@ adds the same model rings a compiled agent gets. Set `AgentDescriptor.Model` in
 `ListAsync`: the run record reads the model from the descriptor, and without it the
 run has no cost. Do not cache an agent whose client carries a tenant's own key
 across tenants; `HasTenantProviderOverrideAsync` tells you when it does.
+`samples/Tracon.Samples.MafFeatures` builds such a source, and its tests show the
+tenant's key reach the chat client and the cost reach the run record. [Use any
+Microsoft Agent Framework feature](/guides/any-maf-feature/) says when to choose this
+shape over a factory agent.
 
 ```csharp
 public async ValueTask<AIAgent?> ResolveAsync(string name, string? culture = null, CancellationToken ct = default)

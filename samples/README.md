@@ -11,6 +11,7 @@ a public Tracon seam.
 | [`Tracon.Samples.CustomAgentSource`](Tracon.Samples.CustomAgentSource/) | `IAgentSource` |
 | [`Tracon.Samples.CustomTool`](Tracon.Samples.CustomTool/) | generated and hand-built tools with scoped dependencies |
 | [`Tracon.Samples.CustomJobHandler`](Tracon.Samples.CustomJobHandler/) | keyed `IJobHandler` registration |
+| [`Tracon.Samples.MafFeatures`](Tracon.Samples.MafFeatures/) | three doors to a Microsoft Agent Framework feature: an `IAgentDecorator`, a factory agent, and an `IAgentSource` that builds its agent |
 
 Each extension sample has a sibling `.Tests` project. These projects use exact
 `PackageReference` versions against packed artifacts. They do not use
@@ -19,7 +20,7 @@ third-party consumer can compile and pass the same public contract suites withou
 access to Tracon source projects.
 
 The release gate packs Tracon, restores every sample into an isolated NuGet cache,
-runs all six test projects, publishes the AOT smoke sample, and runs the `net8.0`
+runs all seven test projects, publishes the AOT smoke sample, and runs the `net8.0`
 consumer on the .NET 8 runtime. See
 [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the current release-gate command.
 

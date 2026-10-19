@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Tracon.Core.UnitTests.Fakes;
 using Tracon.Testing.Contracts;
 using Tracon.Testing.Contracts.AgentSources;
@@ -18,7 +19,8 @@ public sealed class CodeAgentSourceContractTests : AgentSourceContract
             compiler,
             new CompiledAgentCache(),
             new ServiceCollection().BuildServiceProvider(),
-            new FixedTenantContext());
+            new FixedTenantContext(),
+            NullLogger<CodeAgentSource>.Instance);
         return new ValueTask<IAgentSource>(source);
     }
 }

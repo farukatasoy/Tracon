@@ -4,7 +4,7 @@
 > **Önceki sürüm:** 2026-10-17. Bu sürüm onun yerine geçer. Önceki sürümün hataları §0'dadır.
 > **Yer:** 2026-10-19'a kadar `claudedocs/maf-1.25.0-yetenek-matrisi.md` idi; D-20 ile buraya taşındı. Her MAF sürümünde yeniden ölçülür (§10).
 > **Dalga 1 ölçümü:** 2026-10-19. R-01…R-07'nin ölçüm şartları koşuldu; sonuçlar §6'da, düşen iddialar §0'da (#12–#16).
-> **Dalga 2 ölçümü:** 2026-10-19. G-01…G-06, C-01, C-10 ve R-05 kod, derleme probu ve çalışma anı probu ile ölçüldü; sonuçlar §7.0'da, düşen iddialar §0'da (#18–#23).
+> **Dalga 2 ölçümü:** 2026-10-19. G-01…G-06, C-01, C-10 ve R-05 kod, derleme probu ve çalışma anı probu ile ölçüldü; sonuçlar §7.0'da, düşen iddialar §0'da (#18–#24).
 > **Kitle:** Tracon bakımcısı ve faz planlayan oturumlar. Bu belge **plan girdisidir**, karar defteri değildir. Kararlar `K-*`'e, adaylar `ADAYLAR.md`'ye yalnız `aday-kesfi` ve `faz-planlama` ile girer.
 > **Yöntem özeti:** 40/40 MAF paketi `MetadataLoadContext` ile okundu (1.166 tip, iç içe tipler ve üyeler dahil). Tracon tarafında 2.326 `.cs` dosyası jeton indeksine çevrildi. MAF 1.16.0 (Tracon'un ilk pin'i) ile karşılaştırıldı. Ayrıntı §12.
 
@@ -39,6 +39,7 @@
 | 21 | §7.1: "DI'daki `AgentFileStore` öneksizdir → kiracılar arası sızıntı" | Yalnız bellek içi varsayılan (`InMemoryAgentFileStore`) öneksizdir. `SqlAgentFileStore` her sorguda `ITenantContext.TenantId` kullanır: kiracıya bağlıdır, agent'a bağlı değildir | §7.1 satırı düzeltildi |
 | 22 | R-05: "run kimliğini options'a yaz; ekleyici yetenek" | `TraconRunContext.Current`/`CurrentRunId` ve `TraconRunOptions` zaten public. MAF-yerli kod `AIAgent.CurrentRunContext?.RunOptions as TraconRunOptions` ile okur. Ek anahtar Tracon'u bilen koda yeni şey vermez | düştü |
 | 23 | — (yakalanmadı) | Çalışma anı probu: MAF fonksiyon middleware'i (`AIAgentBuilder.Use(…FunctionInvocationContext…)`) `options: null` ile çalışır, `TraconRunOptions` ile `NotSupportedException` atar. `ChatClientAgentRunOptions` `sealed`'dır. Tracon uçları hep `TraconRunOptions` geçer | G-07 ✅ (§7.0) |
+| 24 | §1 ve C-10: "alt workflow hatası ve uyarısı kaydedilmez" | Faz 221 denetimi (`monodis --typedef`, MAF 1.25.0): `SubworkflowErrorEvent` `WorkflowErrorEvent`'ten, `SubworkflowWarningEvent` `WorkflowWarningEvent`'ten türer. `WorkflowEventMapper` deseni alt tipi yakalar → `ExecutorFailed` yazılır; `WorkflowRunner` run'ı `Failed` yapar. Kayıpta kalan: Magentic plan/ledger olayları ve tüketicinin kendi `WorkflowEvent`'i | C-10 kapsamı daralır |
 
 ---
 
@@ -71,7 +72,7 @@ Süreç düzeltmesi §10'dadır.
 
 Risk gerçektir ve ölçülebilir. Bugün her MAF özelliği için bir kaçış yolu vardır: fabrika agent'ı, kod workflow'u, DI kaydı. Ama yol:
 
-- **Kayıplıdır.** Fabrika agent'ı run kaydını, span'i ve onay kurallarını alır. Model halkalarını (bütçe, devre, fallback, önbellek, guard), kiracı anahtarını, egress politikasını ve maliyeti kaybeder (§7.1). Kod workflow'u MAF grafiğinin tamamını koşar; ama tanınmayan olaylar (Magentic plan, alt workflow hatası, tüketicinin kendi olayı) yalnız log'a yazılır.
+- **Kayıplıdır.** Fabrika agent'ı run kaydını, span'i ve onay kurallarını alır. Model halkalarını (bütçe, devre, fallback, önbellek, guard), kiracı anahtarını, egress politikasını ve maliyeti kaybeder (§7.1). Kod workflow'u MAF grafiğinin tamamını koşar; ama tanınmayan olaylar (Magentic plan ve ledger, tüketicinin kendi olayı) yalnız log'a yazılır. Alt workflow hata ve uyarı olayları tanınır: MAF'ta `WorkflowErrorEvent`/`WorkflowWarningEvent` alt tipidir (Faz 221 denetimi, MAF 1.25.0).
 - **Belgesizdir.** docs-site fabrika agent'ı için yalnız "decorators still apply" der (`concepts/agents.md:156-158`). Kaybı yazmaz.
 
 MAF bilen bir tüketici "Tracon'a girince MAF'ın X özelliğini ya da Tracon'un Y halkasını kaybediyorum" sonucuna kısa sürede ulaşır. Bu riski en ucuz kapatan iş kaçış kapısını ürünleştirmektir (Dalga 2, §7).
@@ -322,9 +323,9 @@ Kod workflow'u (`AddWorkflow(name, Func<IServiceProvider, Workflow>)`) MAF grafi
 | ✅ | Checkpoint: `CheckpointManager.CreateJson` + `ICheckpointStore<JsonElement>` | `TraconCheckpointStore` | — | — | ✓ | K3 | Koru |
 | ✅ | HITL: `RequestPort` · `ExternalRequest/Response` · `RequestInfoEvent` · `MagenticPlanReviewRequest` | açık | — | — | ✓ | K3 | Koru |
 | ✅ | Görselleştirme: `WorkflowVisualizer.ToMermaidString` · `Workflow.Reflect*` | `WorkflowGraphReader` | — | — | ✓ | K3 | Koru (`ToDotString` gerek yok) |
-| 🟡 | Olaylar: 12 tip eşlenir (Started, Output, Error, Warning, SuperStep ×2, Executor ×3, RequestInfo, AgentResponse(Update)) | eşlenmeyen olay `_ => Unknown` → yalnız uyarı logu (`WorkflowEventMapper.cs:103`, `WorkflowRunner.cs:1488`) | Değerlendirilmedi | — | ✗ | **K2 açığı:** `MagenticPlanCreated`/`ProgressLedgerUpdated`/`Replanned`, `SubworkflowError`/`Warning`, tüketicinin kendi `WorkflowEvent`'i kaybolur | C-10 |
+| 🟡 | Olaylar: 12 tip eşlenir (Started, Output, Error, Warning, SuperStep ×2, Executor ×3, RequestInfo, AgentResponse(Update)) | eşlenmeyen olay `_ => Unknown` → yalnız uyarı logu (`WorkflowEventMapper.cs:103`, `WorkflowRunner.cs:1488`) | Değerlendirilmedi | — | ✗ | **K2 açığı:** `MagenticPlanCreated`/`ProgressLedgerUpdated`/`Replanned` ve tüketicinin kendi `WorkflowEvent`'i kaybolur (`SubworkflowErrorEvent`/`SubworkflowWarningEvent` alt tip olduğundan `WorkflowErrorEvent`/`WorkflowWarningEvent` dalına düşer ve kaydedilir) | C-10 |
 | ❌ | Graf topolojisi: `AddFanOutEdge` (+atayıcı) · `AddFanInBarrierEdge` · `AddSwitch`/`SwitchBuilder` · `AddChain` · `ForwardMessage`/`ForwardExcept` · `AddExternalCall` · koşullu `AddEdge<T>` | Tracon çağırmaz; kod workflow'unda tüketici kullanır | bildirimsel düğüm tipi yok | — | ✗ | K1→K3 | C-18 |
-| ❌ | Alt workflow: `ConfigureSubWorkflow` · `SubworkflowBinding` | kod workflow'unda K1 | aynı | — | ✗ | K1→K3; alt workflow olayları K2 açığı | C-18 |
+| ❌ | Alt workflow: `ConfigureSubWorkflow` · `SubworkflowBinding` | kod workflow'unda K1 | aynı | — | ✗ | K1→K3; alt workflow hata/uyarı olayları kaydedilir (alt tip) | C-18 |
 | ❌ | Paylaşılan durum: `IWorkflowContext.QueueStateUpdateAsync`/`ReadStateAsync`/`ReadOrInitStateAsync`/`QueueClearScopeAsync` · `StatefulExecutor<…>` · `IResettableExecutor` · `ScopeKey` | yalnız örnekte (`ReviewAndReviseWorkflow.cs:91`) | kod işidir | — | ✗ | K1→K2: durum checkpoint'te, kayıtta görünmez | C-18 (düşük) |
 | ❌ | Kaynak üretimli handler: `[MessageHandler]` · `[SendsMessage]` · `[YieldsOutput]` · `ProtocolBuilder` · `Workflows.Generators` (analyzer) | yok | tüketici paketi kendisi ekler | — | ✗ | K1 | G-05 rehberde örnek |
 | ❌ | Orkestrasyon ayarları: Handoff `WithHandoff(from, to, reason)`/`EnableReturnToPrevious`/`WithTerminationCondition`/`WithToolCallFilteringBehavior` · Magentic `WithMaxStalls`/`WithMaxResets`/`WithPromptOverrides`/`WithResponseLanguage` (MAAI001) · Concurrent `WithAggregator` · Sequential `WithChainOnlyAgentResponses` · özel `GroupChatManager` | bildirimsel desende yok; kodda K1 | Değerlendirilmedi | — | ✗ | K1→K3 | C-18 |
@@ -528,7 +529,7 @@ Gerekçesi yazılı, bu turda yeniden ölçülmeyen paralel uygulamalar:
   3. *Factory agents: what you keep, what you lose* — §7.1 tablosunun İngilizcesi.
   4. *Win the links back* — aşağıdaki örnek.
   5. *What you cannot win back today* — BYOK/egress, maliyet, kiracı önekli dosya deposu, skill/compaction/MCP kaydı; her biri ilgili fazın bağlantısıyla. Dürüst liste; "yakında" yazılmaz.
-  6. *Code workflows* — `WorkflowBuilder`'ın her özelliği koşar; tanınmayan olaylar loglanır, kaydedilmez (C-10'a kadar). `Workflows.Generators` analyzer'ının eklenişi.
+  6. *Code workflows* — `WorkflowBuilder`'ın her özelliği koşar; tanınmayan olaylar (Magentic plan/ledger, tüketicinin kendi olayı) loglanır, kaydedilmez (C-10'a kadar). `Workflows.Generators` analyzer'ının eklenişi.
   7. *Checklist* — fabrika agent'ı yazmadan önce beş soru.
 - **Örnek (rehbere girmeden önce derlenip koşularak doğrulanır):**
 

@@ -22,6 +22,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   names, `MaxCharactersPerRequest`, `Voices`, `UseAsDefault`). Each name is bound to one model.
   The clients run on the shared OpenAI client's pipeline and not on `AudioClient`, so a host
   publishes with Native AOT.
+- **A factory agent built outside the model registry logs one warning.** When the chat client
+  of an `AddAgent(name, factory)` agent did not come from `IModelProviderRegistry`, the catalog
+  writes a warning the first time it resolves that agent name, because its model calls skip
+  the model rings. An agent that exposes no chat client gets no warning, and a resolve never
+  fails because of the check. The guide "Use any Microsoft Agent Framework feature" compares
+  the decorator, the factory agent, and the custom agent source by what each keeps, and
+  `samples/Tracon.Samples.MafFeatures` builds all three.
 
 ### Changed
 
