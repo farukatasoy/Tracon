@@ -267,11 +267,16 @@ public sealed partial class AgentDefinitionCompiler
             // stores, retention and erasure; with no AgentSkillsSource it reads
             // SKILL.md files from the working directory, past the SkillNames
             // filter; and it adds the provider's paid hosted web search, which
-            // the Chat Completions surface refuses with a 400. Each one is on
-            // only when the definition turns it on.
+            // the Chat Completions surface refuses with a 400. File memory and
+            // web search are on only when the definition turns them on.
+            //
+            // F-578: MAF's own skill provider is never built. Tracon builds the
+            // provider for the named skills (CreateSkillsProvider) and passes it
+            // in AIContextProviders, as it does for a plain agent, so one chain
+            // serves both and the working directory is never scanned.
             DisableFileMemory = harness.DisableFileMemory || definition.Memory is not { EnableFileMemory: true },
             DisableWebSearch = !harness.EnableWebSearch,
-            DisableAgentSkillsProvider = harness.DisableAgentSkillsProvider || definition.SkillNames.Count == 0,
+            DisableAgentSkillsProvider = true,
             DisableToolAutoApproval = harness.DisableToolAutoApproval,
             DisableAgentModeProvider = harness.DisableAgentModeProvider,
 
@@ -290,10 +295,12 @@ public sealed partial class AgentDefinitionCompiler
             // name, and the feature is off.
         };
 
+        AgentSkillsProvider? skillsProvider = null;
+
         if (definition.SkillNames.Count > 0)
         {
-            // MAF ignores the source when the provider is off, so the named
-            // skills would be dropped without a word (K1 zero surprise).
+            // The setting turns the skills off, so the named skills would be
+            // dropped without a word (K1 zero surprise).
             if (harness.DisableAgentSkillsProvider)
             {
                 throw new TraconCompilationException(
@@ -304,7 +311,7 @@ public sealed partial class AgentDefinitionCompiler
                 };
             }
 
-            options.AgentSkillsSource = CreateSkillsSource(definition);
+            skillsProvider = CreateSkillsProvider(definition);
         }
 
         if (harness is { EnableWebSearch: true, DisableWebSearch: true })
@@ -374,7 +381,12 @@ public sealed partial class AgentDefinitionCompiler
         // When EnableTodo == true and DisableTodoProvider == false, nothing
         // extra is DONE: the harness already keeps todo tracking on by default.
 
-        var harnessProviders = new List<AIContextProvider>(2);
+        var harnessProviders = new List<AIContextProvider>(3);
+
+        if (skillsProvider is not null)
+        {
+            harnessProviders.Add(skillsProvider);
+        }
 
         if (CreateTextSearchProvider(definition) is { } textSearch)
         {

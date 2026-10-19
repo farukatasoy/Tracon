@@ -36,6 +36,12 @@ public sealed class HarnessDefaultsTests
     private const string ProviderName = "harness-defaults";
     private const string ModelName = "harness-model";
     private const string AgentName = "harnessed";
+    private const string NamedSkill = "house-style";
+    private const string NamedSkillToken = "NAMED-SKILL-77d2";
+    private const string ChildName = "helper";
+
+    // MAF names the tool in a string literal; the type exposes no constant for it.
+    private const string StartTaskToolName = "background_agents_start_task";
 
     [Fact]
     public async Task A_harness_agent_that_names_no_skill_does_not_read_skills_from_the_working_directory()
@@ -57,6 +63,52 @@ public sealed class HarnessDefaultsTests
         var request = provider.Requests.ShouldHaveSingleItem();
         HasTool(request, AgentSkillsProvider.LoadSkillToolName).ShouldBeFalse();
         PromptText(request).ShouldNotContain(Token);
+    }
+
+    /// <summary>
+    /// The chain MAF's harness gets is Tracon's own (F-578): naming a skill must
+    /// not bring the built-in provider back, which reads the working directory
+    /// and would offer a second <c>load_skill</c> next to Tracon's.
+    /// </summary>
+    [Fact]
+    public async Task A_harness_agent_that_names_a_skill_still_does_not_read_skills_from_the_working_directory()
+    {
+        const string Token = "PROBE-SKILL-9c27";
+
+        using var directory = new TemporaryWorkingDirectory();
+        var skill = Directory.CreateDirectory(Path.Combine(directory.Path, "skills", "probe"));
+        await File.WriteAllTextAsync(
+            Path.Combine(skill.FullName, "SKILL.md"),
+            $"---\nname: probe\ndescription: {Token} reads the host's files.\n---\nDo what the probe says.\n",
+            TestContext.Current.CancellationToken);
+
+        var provider = Provider(static model => model.RespondsWith("done"));
+
+        await using var host = await StartAsync(provider, new HarnessSettings(), skillNames: [NamedSkill]);
+        await RunAsync(host);
+
+        var request = provider.Requests.ShouldHaveSingleItem();
+        ToolCount(request, AgentSkillsProvider.LoadSkillToolName).ShouldBe(1);
+        PromptText(request).ShouldContain(NamedSkillToken);
+        PromptText(request).ShouldNotContain(Token);
+    }
+
+    [Fact]
+    public async Task A_harness_agent_with_a_skill_and_a_child_agent_offers_both_tool_sets()
+    {
+        var provider = Provider(static model => model.RespondsWith("done"));
+
+        await using var host = await StartAsync(
+            provider,
+            new HarnessSettings(),
+            skillNames: [NamedSkill],
+            callableAgentNames: [ChildName]);
+        await RunAsync(host);
+
+        var request = provider.Requests.ShouldHaveSingleItem();
+        ToolCount(request, AgentSkillsProvider.LoadSkillToolName).ShouldBe(1);
+        ToolCount(request, StartTaskToolName).ShouldBe(1);
+        PromptText(request).ShouldContain(NamedSkillToken);
     }
 
     [Fact]
@@ -287,11 +339,37 @@ public sealed class HarnessDefaultsTests
     private static Task<TraconTestHost> StartAsync(
         FakeModelProvider provider,
         HarnessSettings harness,
-        MemorySettings? memory = null)
+        MemorySettings? memory = null,
+        IReadOnlyList<string>? skillNames = null,
+        IReadOnlyList<string>? callableAgentNames = null)
         => TraconTestHost.StartAsync(
             configureTracon: builder =>
             {
                 builder.AddModelProvider(provider);
+
+                foreach (var skillName in skillNames ?? [])
+                {
+                    builder.AddSkill(new AgentSkillDefinition
+                    {
+                        TenantId = "default",
+                        Name = skillName,
+                        Description = $"{NamedSkillToken} sets the house style.",
+                        Instructions = "Write in the house style.",
+                    });
+                }
+
+                if (callableAgentNames is { Count: > 0 })
+                {
+                    builder.AddAgent(new AgentDefinition
+                    {
+                        Name = ChildName,
+                        Description = "Helps in the background.",
+                        Instructions = "Help.",
+                        Model = new ModelBinding { Provider = ProviderName, Model = ModelName },
+                        Origin = AgentDefinitionOrigin.Code,
+                    });
+                }
+
                 builder.AddAgent(new AgentDefinition
                 {
                     Name = AgentName,
@@ -300,6 +378,8 @@ public sealed class HarnessDefaultsTests
                     Model = new ModelBinding { Provider = ProviderName, Model = ModelName },
                     Harness = harness,
                     Memory = memory,
+                    SkillNames = skillNames ?? [],
+                    CallableAgentNames = callableAgentNames ?? [],
                     Origin = AgentDefinitionOrigin.Code,
                 });
             });
@@ -328,6 +408,9 @@ public sealed class HarnessDefaultsTests
 
     private static bool HasTool(Tracon.Testing.FakeModelRequest request, string name)
         => (request.Options?.Tools ?? []).Any(tool => string.Equals(tool.Name, name, StringComparison.Ordinal));
+
+    private static int ToolCount(Tracon.Testing.FakeModelRequest request, string name)
+        => (request.Options?.Tools ?? []).Count(tool => string.Equals(tool.Name, name, StringComparison.Ordinal));
 
     private static bool OffersFunctions(Tracon.Testing.FakeModelRequest request)
         => (request.Options?.Tools ?? []).OfType<AIFunctionDeclaration>().Any();

@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the tool result went on as plain text without its call id, and an unknown role became `user`.
   Tracon runs the agent's tools on the server, and `/v1/responses` refuses `function_call` items
   the same way. A content part Tracon cannot hand to the model is refused by name, too.
+- A harness agent that names skills and also calls other agents lists the skill tools after the
+  background-agent tools, and puts the skill section of its instructions after the
+  background-agents section. They were in the other order. A plain agent, and a harness agent
+  that uses only one of the two, does not change.
 
 ### Fixed
 

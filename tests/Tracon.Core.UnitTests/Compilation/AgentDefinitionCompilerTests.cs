@@ -35,8 +35,8 @@ public sealed class AgentDefinitionCompilerTests
     [Fact]
     public void Naming_skills_while_the_skills_provider_is_off_stops_compilation()
     {
-        // MAF ignores the skill source when its provider is off, so the named
-        // skills would vanish without a word (F-339, K-892).
+        // The setting turns the skills provider off, so the named skills would
+        // vanish without a word (F-339, K-892).
         var definition = TestData.Definition(harness: new HarnessSettings { DisableAgentSkillsProvider = true }) with
         {
             SkillNames = ["summarize"],
