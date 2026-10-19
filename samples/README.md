@@ -11,7 +11,7 @@ a public Tracon seam.
 | [`Tracon.Samples.CustomAgentSource`](Tracon.Samples.CustomAgentSource/) | `IAgentSource` |
 | [`Tracon.Samples.CustomTool`](Tracon.Samples.CustomTool/) | generated and hand-built tools with scoped dependencies |
 | [`Tracon.Samples.CustomJobHandler`](Tracon.Samples.CustomJobHandler/) | keyed `IJobHandler` registration |
-| [`Tracon.Samples.MafFeatures`](Tracon.Samples.MafFeatures/) | three doors to a Microsoft Agent Framework feature: an `IAgentDecorator`, a factory agent, and an `IAgentSource` that builds its agent |
+| [`Tracon.Samples.MafFeatures`](Tracon.Samples.MafFeatures/) | four doors to a Microsoft Agent Framework feature: an `IAgentDecorator`, an agent extension, a factory agent, and an `IAgentSource` that builds its agent |
 
 Each extension sample has a sibling `.Tests` project. These projects use exact
 `PackageReference` versions against packed artifacts. They do not use

@@ -292,6 +292,10 @@ says which of them the new build understands, and decodes a sample of each. It
 writes nothing, so it is safe against the live database. See [the supported
 upgrade window](/reference/versioning/#the-supported-upgrade-window).
 
+An agent definition keeps its content in one JSON column. A field that a new version adds
+to the definition, such as the list of agent extensions, needs no migration: a row that
+was written before the field existed reads the field as empty, and it keeps running as it did.
+
 ## Keeping it from growing forever
 
 A recorded run is data, and recorded runs accumulate. Retention policies set an age

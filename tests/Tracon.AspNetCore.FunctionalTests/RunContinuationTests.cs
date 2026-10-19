@@ -285,6 +285,48 @@ public sealed class RunContinuationTests
     }
 
     [Fact]
+    public async Task An_agent_with_an_extension_is_not_continued_and_its_extension_never_runs()
+    {
+        // An extension's context provider can add a tool of its own. That tool never passes
+        // through the playback wrapper, so a continuation could run an already completed call
+        // a second time. The handler refuses, as it does for skills and sub-agents.
+        ContinuationProbeTools.Reset();
+
+        var configured = 0;
+
+        await using var host = await StartHostAsync(
+            o =>
+            {
+                o.Enabled = true;
+                o.MaxAttempts = 1;
+            },
+            configureTracon: builder => builder.AddAgentExtension("adds-a-tool", _ => Interlocked.Increment(ref configured)));
+
+        var sourceRunId = await SeedCrashedRunAsync(
+            host,
+            new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Give a short answer.",
+                Model = new ModelBinding { Provider = "cont-model", Model = ModelId },
+                ToolNames = ["get_order_status"],
+                ExtensionNames = ["adds-a-tool"],
+            });
+
+        // Saving the seed definition compiles it once; the continuation must not add a compilation.
+        var afterSeed = configured;
+
+        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
+        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+
+        continuation.ShouldNotBeNull();
+        continuation.Status.ShouldBe(RunStatus.Failed);
+        continuation.Error.ShouldNotBeNull().Message.ShouldContain("agent extensions", Case.Sensitive);
+        configured.ShouldBe(afterSeed);
+        ContinuationProbeTools.Calls.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task A_parameterized_agent_is_continued_with_the_values_its_run_recorded()
     {
         // F-294: the interrupted run recorded the values it was bound with, and

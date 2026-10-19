@@ -55,6 +55,8 @@ describe('definition round trip', () => {
     },
     toolNames: ['diff-tool'],
     skillNames: [],
+    // The order is the order the extensions run: the round trip must keep it.
+    extensionNames: ['second-run', 'first-run'],
     callableAgentNames: [],
     subAgents: { waitTimeout: '00:00:30' },
     mcpResourceUris: ['docs:file:///handbook.md'],
@@ -82,6 +84,10 @@ describe('definition round trip', () => {
     expect(request.subAgents).toEqual(definition.subAgents);
     expect(request.mcpResourceUris).toEqual(definition.mcpResourceUris);
     expect(request.metadata).toEqual(definition.metadata);
+  });
+
+  it('keeps the extension names in the order they run', () => {
+    expect(request.extensionNames).toEqual(['second-run', 'first-run']);
   });
 
   it('keeps the model sub-fields the editor rebuilds around', () => {

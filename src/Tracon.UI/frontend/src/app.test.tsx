@@ -63,6 +63,7 @@ const codeAgentDetail = {
     model: null,
     toolNames: [],
     skillNames: [],
+    extensionNames: [],
     callableAgentNames: [],
     usesHarness: false,
   },

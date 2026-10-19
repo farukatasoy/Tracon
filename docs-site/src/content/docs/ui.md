@@ -89,7 +89,9 @@ a database agent — the version history with a diff between any two versions an
 one-click rollback.
 
 The editor validates as you save, using the same rules the compiler applies. An
-unknown tool or skill name is refused at write time, not on the first run.
+unknown tool, skill, or extension name is refused at write time, not on the first run.
+The Extensions panel lists the extensions the host registered. It keeps a name the host
+no longer registers, with a mark, so you can remove it.
 
 <a class="ui-shot" href="/screenshots/agent-editor-loop.png"><img src="/screenshots/agent-editor-loop.png" alt="The agent editor's Loop panel with a marker criterion, a criterion registered in code, the iteration ceiling and the outcome selectors" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 

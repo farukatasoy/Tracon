@@ -419,6 +419,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
                 },
             ToolNames = [.. descriptor.ToolNames],
             SkillNames = [.. descriptor.SkillNames],
+            ExtensionNames = [.. descriptor.ExtensionNames],
             CallableAgentNames = [.. descriptor.CallableAgentNames],
         };
 }

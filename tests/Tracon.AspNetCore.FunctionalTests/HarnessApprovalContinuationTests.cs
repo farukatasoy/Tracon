@@ -28,14 +28,15 @@ public sealed class HarnessApprovalContinuationTests
     private static readonly Uri RunUri = new($"/tracon/api/agents/{AgentName}/run", UriKind.Relative);
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task An_approved_tool_runs_and_the_harness_turn_completes(bool harness)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task An_approved_tool_runs_and_the_harness_turn_completes(bool harness, bool perServiceCallPersistence)
     {
         var calls = 0;
-        await using var host = await StartAsync(harness, () => Interlocked.Increment(ref calls));
+        await using var host = await StartAsync(harness, () => Interlocked.Increment(ref calls), perServiceCallPersistence);
 
-        var sessionId = $"harness-approval-{harness}";
+        var sessionId = $"harness-approval-{harness}-{perServiceCallPersistence}";
 
         using var pending = await host.Client.PostAsJsonAsync(
             RunUri,
@@ -87,8 +88,24 @@ public sealed class HarnessApprovalContinuationTests
             .ShouldBeEmpty();
     }
 
-    private static Task<TraconTestHost> StartAsync(bool harness, Action onCall)
+    /// <param name="harness">Whether the agent is a harness agent.</param>
+    /// <param name="onCall">Runs when the approved tool does.</param>
+    /// <param name="perServiceCallPersistence">
+    /// Whether an agent extension turns MAF's per-service-call history persistence on for a
+    /// plain agent (Phase 222). The member makes MAF load the history on every model call, the
+    /// way a harness agent always does, so an answered approval request comes back (F-582).
+    /// </param>
+    private static Task<TraconTestHost> StartAsync(bool harness, Action onCall, bool perServiceCallPersistence = false)
         => TraconTestHost.StartAsync(builder => builder
+            .AddAgentExtension(
+                "per-service-call",
+                static context =>
+                {
+                    if (context.ChatAgentOptions is { } options)
+                    {
+                        options.RequirePerServiceCallChatHistoryPersistence = true;
+                    }
+                })
             .AddModelProvider(new FakeModelProvider("harness-approval-model")
                 .CallsTool("cancel_order", new { orderId = "ORD-7" })
                 .EchoesLastToolResult())
@@ -107,6 +124,7 @@ public sealed class HarnessApprovalContinuationTests
                 Instructions = "Give a short answer.",
                 Model = new ModelBinding { Provider = "harness-approval-model", Model = "harness-approval-1" },
                 ToolNames = ["cancel_order"],
+                ExtensionNames = perServiceCallPersistence ? ["per-service-call"] : [],
                 Harness = harness ? new HarnessSettings() : null,
             }));
 

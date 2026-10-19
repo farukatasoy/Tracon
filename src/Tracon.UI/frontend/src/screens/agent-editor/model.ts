@@ -106,6 +106,7 @@ export interface FormState {
   fallbacks: ModelFallback[];
   toolNames: string[];
   skillNames: string[];
+  extensionNames: string[];
   callableAgentNames: string[];
   harnessEnabled: boolean;
   harness: HarnessSettings;
@@ -133,6 +134,7 @@ export const emptyForm: FormState = {
   fallbacks: [],
   toolNames: [],
   skillNames: [],
+  extensionNames: [],
   callableAgentNames: [],
   harnessEnabled: false,
   harness: {},
@@ -197,6 +199,7 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     model,
     toolNames: form.toolNames,
     skillNames: form.skillNames,
+    extensionNames: form.extensionNames,
     callableAgentNames: form.callableAgentNames,
     harness: form.harnessEnabled ? form.harness : null,
     compaction: form.compaction.strategy === 'None' ? null : form.compaction,
@@ -243,6 +246,7 @@ export function fromDefinition(definition: AgentDefinition): FormState {
     fallbacks: definition.model.fallbacks ?? [],
     toolNames: [...definition.toolNames],
     skillNames: [...definition.skillNames],
+    extensionNames: [...(definition.extensionNames ?? [])],
     callableAgentNames: [...(definition.callableAgentNames ?? [])],
     harnessEnabled: definition.harness !== null && definition.harness !== undefined,
     harness: definition.harness ?? {},

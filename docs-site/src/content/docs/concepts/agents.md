@@ -204,7 +204,7 @@ flowchart LR
     G --> A
 ```
 
-Every name must resolve. An unknown tool, skill, provider, or callable agent is a
+Every name must resolve. An unknown tool, skill, extension, provider, or callable agent is a
 compilation error, not a run-time surprise.
 
 The same check runs on the **save** path, so a definition that could not run is
@@ -238,6 +238,59 @@ so the model has to answer.
 Compiled agents are cached by name, version, and a fingerprint of their dependencies,
 so changing a skill, the tenant's egress policy, or an MCP server that serves one of
 the agent's tools invalidates the agents that use it. The next run compiles again.
+
+## Agent extensions
+
+How do you set a Microsoft Agent Framework option that Tracon does not model, or add your
+own `AIContextProvider`, on an agent that is stored as data? You register an agent
+extension in code, and the definition selects it by name in `ExtensionNames`. Code defines,
+data selects: the same boundary as tools.
+
+```csharp
+builder.AddTracon()
+    .AddAgentExtension(
+        "message-injection",
+        context =>
+        {
+            if (context.ChatAgentOptions is { } options)
+            {
+                options.EnableMessageInjection = true;
+            }
+        },
+        description: "Lets a caller inject a message into a running turn.");
+```
+
+The compiler runs the extensions a definition names, in the order the definition lists
+them, after it has set every option the definition decides. It runs them when it compiles
+the agent, not on every run. The compiled agent is cached for each tenant, agent name,
+and definition, so the runs that follow share it; a run with parameter values, and an agent
+of a tenant that holds its own provider key, is not cached and runs the extensions each time.
+The agent keeps the model rings, the tenant's own provider key, the egress
+policy, and cost, because it still goes through the compiler.
+
+The compiler compares the options before and after each extension. The definition or a
+tenant and security decision owns the tool chain, the tool approval settings, the
+instructions and sampling settings, the chat history provider, file access, the
+working-directory skill scan, file memory, web search, compaction, the loop, and the
+sub-agent tree. An extension that changes one of them
+fails the compilation with an error that names the extension and the option. The provider
+list is append-only, and every other option is the extension's to set. The check covers the
+options object only. It does not look inside a provider or a wrapper that an extension adds,
+so register extension code that you trust, as you do for a tool.
+
+Three rules complete the contract:
+
+- **A name must resolve.** `POST /api/agents/validate` and a save refuse an unknown or a
+  repeated name and report `extensionNames[i]`. Validation compiles the definition, so it
+  runs the extensions it names.
+- **Listing runs no code.** `GET /api/agent-extensions` returns the registered names and
+  descriptions. The agent editor offers them as a list.
+- **A provider can add tools, and they skip the tool chain.** A tool that an extension's
+  provider adds is not authorized, approved, or timed by Tracon. A replay that plays tools
+  back does not run extensions for this reason.
+
+[Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) compares this door
+with the decorator, the factory agent, and the custom agent source.
 
 ## Versions
 

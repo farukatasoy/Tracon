@@ -90,6 +90,34 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         // property would still pass the loop above.
         read.SubAgents!.WaitTimeout.ShouldBe(TimeSpan.FromSeconds(30));
         read.McpResourceUris.ShouldBe(["docs:file:///handbook.md"]);
+
+        // The list is ordered data: the order the extensions run is the order stored.
+        read.ExtensionNames.ShouldBe(["echo-extension", "second-extension"]);
+    }
+
+    /// <summary>
+    /// A row written before <c>ExtensionNames</c> existed has no such key. It must read back as an
+    /// empty list, not as <see langword="null"/>: a null list threw in the catalog and took the
+    /// listing of every agent with it. <c>McpResourceUris</c> and <c>Parameters</c> were added later
+    /// than the first rows and had the same defect.
+    /// </summary>
+    [Fact]
+    public void A_payload_written_before_a_list_member_existed_reads_back_with_an_empty_list()
+    {
+        const string legacy = """{"model":{"provider":"echo","model":"echo-1"},"toolNames":["echo-tool"]}""";
+
+        var payload = JsonSerializer.Deserialize(legacy, TraconJsonContext.Default.AgentDefinitionPayload);
+
+        payload.ShouldNotBeNull();
+
+        // The reader leaves every absent list null. The definition built from it never does:
+        // every consumer reads these lists without a null check.
+        var definition = payload.ToDefinition("legacy", 1, "default", DateTimeOffset.UtcNow);
+
+        definition.ExtensionNames.ShouldBeEmpty();
+        definition.McpResourceUris.ShouldBeEmpty();
+        definition.Parameters.ShouldBeEmpty();
+        definition.ToolNames.ShouldBe(["echo-tool"]);
     }
 
     private static ModelBinding Model() => new() { Provider = "echo", Model = "echo-1" };
@@ -117,6 +145,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
             },
             ToolNames = ["echo-tool"],
             SkillNames = ["echo-skill"],
+            ExtensionNames = ["echo-extension", "second-extension"],
             CallableAgentNames = ["child-agent"],
             SubAgents = new SubAgentSettings { WaitTimeout = TimeSpan.FromSeconds(30) },
             McpResourceUris = ["docs:file:///handbook.md"],

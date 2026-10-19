@@ -37,6 +37,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 |---|---|---|---|
 | Declarative agents | Instructions, model binding, tools, skills, callable agents, metadata, and runtime policy as data | `ITraconBuilder.AddAgent(AgentDefinition)` | A code definition wins a name collision with a database definition |
 | Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, factory)` | The catalog still applies Tracon decorators. The agent skips the compiler: model rings only through `IModelProviderRegistry.CreateChatClient` (one warning per agent name if the chat client skips it), and no tenant provider key, egress policy, or cost; a custom agent source can apply those three. See [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) |
+| Agent extensions | Code that sets a Microsoft Agent Framework option, adds an `AIContextProvider`, or wraps the compiled agent, while the agent keeps the model rings, the tenant's key, egress, and cost | `AddAgentExtension(name, configure)`; a definition selects it in AgentDefinition.ExtensionNames | Code defines, data selects. The compiler refuses a change to what the definition or the tenant owns (tool chain, chat history, file access, model settings). A tool a provider adds skips the tool chain |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
 | Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
@@ -128,7 +129,7 @@ claim to provide an operating-system sandbox.
 | Image generation | `UseOpenAIImages()`, `UseAzureOpenAIImages()`, or `UseGoogleImages()` plus `Tracon:Images` | Optional `generate_image` tool stores a verified attachment and records image or token usage |
 | Speech tools | `Tracon.Voice` and `UseVoice()` | ElevenLabs synthesis and transcription, or consumer implementations of the speech contracts; every speech call obeys the tenant's egress policy; per-request provider settings (`elevenlabs.*`) are refused, never ignored, when unknown |
 | Named speech providers | `AddSpeechSynthesizer()`, `AddSpeechTranscriber()`, and `ISpeechProviderResolver` | Several text-to-speech and speech-to-text engines in one process, selected by name from a workflow function node, `POST /api/voice/speak`, or `GET /api/voice/voices`; a tenant's own key reaches only an engine that supports it, otherwise the call is refused rather than billed to the host; a Microsoft.Extensions.AI speech client binds to a name with `TextToSpeechClientBinding` or `SpeechToTextClientBinding`, and `UseOpenAISpeech()` registers OpenAI speech as the provider `openai` |
-| Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and `ISpeechDialogueSynthesizer` | Several voices in one request and one audio result, with each turn's time range, from a workflow function node; the built-in ElevenLabs client implements it, and a request over the provider's voice or character limit is refused rather than split |
+| Multi-speaker dialogue | `ISpeechProviderResolver.GetDialogueSynthesizerAsync()` and ISpeechDialogueSynthesizer | Several voices in one request and one audio result, with each turn's time range, from a workflow function node; the built-in ElevenLabs client implements it, and a request over the provider's voice or character limit is refused rather than split |
 | Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
@@ -175,7 +176,7 @@ production behavior.
 | Built-in checks | Eval case configuration | Deterministic checks run without a judge model |
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
 | Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
-| Calibrated evaluator catalog | `AddEvaluatorJudge(name, evaluator)` with a `Microsoft.Extensions.AI.Evaluation` `IEvaluator` | Each metric the evaluator reports becomes its own `{judge}.{metric}` score row |
+| Calibrated evaluator catalog | `AddEvaluatorJudge(name, evaluator)` with a Microsoft.Extensions.AI.Evaluation IEvaluator | Each metric the evaluator reports becomes its own `{judge}.{metric}` score row |
 | Score provenance | `RunJudgment.EvaluatorVersion`, set automatically by `AddEvaluatorJudge` | Every score row records the version of the component that produced it, so a package upgrade is not read as a regression |
 | Suite grading seam | `AddEvalEvaluatorFactory<T>()` or an instance | Replaces the MAF `LocalEvaluator` an eval suite is graded with |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
@@ -257,7 +258,7 @@ graph instead of reporting it.
 `MapTracon()` exposes the documented management and OpenAI operations. The
 diagnostics endpoint, voice WebSocket, health route, MCP server, and A2A routes are
 conditional or separately mapped, so they are not all represented by the generated
-176-operation HTTP reference.
+177-operation HTTP reference.
 
 ## Embedding points
 

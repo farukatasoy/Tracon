@@ -18,6 +18,7 @@ const fullDefinition = {
   model: { provider: 'anthropic', model: 'claude', temperature: null, maxOutputTokens: null, topP: null, reasoningEffort: null, responseFormat: null, fallbacks: [] },
   toolNames: [],
   skillNames: [],
+  extensionNames: [],
   callableAgentNames: [],
   harness: null,
   compaction: null,
@@ -31,6 +32,7 @@ function baseOverrides() {
   return [
     fixture('GET', 'api/tools', []),
     fixture('GET', 'api/skills', []),
+    fixture('GET', 'api/agent-extensions', []),
     fixture('GET', 'api/agents', []),
     fixture('GET', 'api/models', providers),
   ];
@@ -165,6 +167,132 @@ describe('AgentEditorScreen', () => {
     await user.click(screen.getByTestId('agent-validate'));
 
     expect(await screen.findByText('Valid')).toBeTruthy();
+  });
+
+  describe('extensions section (Phase 222)', () => {
+    const registered = [
+      { name: 'audit', description: 'Records every model call.' },
+      { name: 'policy', description: null },
+    ];
+
+    function withExtensions(stored: string[]) {
+      return [
+        fixture('GET', 'api/tools', []),
+        fixture('GET', 'api/skills', []),
+        fixture('GET', 'api/agent-extensions', registered),
+        fixture('GET', 'api/agents', []),
+        fixture('GET', 'api/models', providers),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database', extensionNames: stored },
+          definition: { ...fullDefinition, extensionNames: stored },
+        }),
+      ];
+    }
+
+    function captureValidate(): { route: FixtureRoute; sent: () => { extensionNames?: string[] } } {
+      let body: { extensionNames?: string[] } = {};
+
+      return {
+        route: {
+          method: 'POST',
+          pattern: 'api/agents/validate',
+          handler: (_params, _url, sent) => {
+            body = sent as typeof body;
+
+            return { valid: true, inconclusive: false, messages: [] };
+          },
+        },
+        sent: () => body,
+      };
+    }
+
+    it('lists what the host registered, with the description when there is one', async () => {
+      restoreFetch = installApiMock(withExtensions([]));
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      expect(await screen.findByText('audit')).toBeTruthy();
+      expect(screen.getByText('Records every model call.')).toBeTruthy();
+      expect(screen.getByText('policy')).toBeTruthy();
+      expect(screen.queryAllByRole('checkbox', { checked: true })).toHaveLength(0);
+    });
+
+    it('sends the checked names in the order they were checked', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withExtensions([]), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await user.click(await screen.findByLabelText('policy'));
+      await user.click(screen.getByLabelText(/^audit/));
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(capture.sent().extensionNames).toEqual(['policy', 'audit']));
+    });
+
+    it('shows a name the host no longer registers and lets the user remove it', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withExtensions(['audit', 'retired']), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      expect(await screen.findByText('Not registered')).toBeTruthy();
+
+      await user.click(screen.getByLabelText(/^retired/));
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(capture.sent().extensionNames).toEqual(['audit']));
+      expect(screen.queryByText('Not registered')).toBeNull();
+    });
+
+    it('keeps the names of a code-defined agent, which has no stored definition', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([
+        fixture('GET', 'api/tools', []),
+        fixture('GET', 'api/skills', []),
+        fixture('GET', 'api/agent-extensions', registered),
+        fixture('GET', 'api/agents', []),
+        fixture('GET', 'api/models', providers),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: {
+            name: 'support',
+            origin: 'Code',
+            sourceName: 'code',
+            model: { provider: 'anthropic', model: 'claude' },
+            toolNames: [],
+            skillNames: [],
+            extensionNames: ['audit'],
+            callableAgentNames: [],
+          },
+          definition: null,
+        }),
+        capture.route,
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await waitFor(() => expect((screen.getByLabelText(/^audit/) as HTMLInputElement).checked).toBe(true));
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(capture.sent().extensionNames).toEqual(['audit']));
+    });
+
+    it('says how to add one when nothing is registered', async () => {
+      restoreFetch = installApiMock(baseOverrides());
+
+      renderScreen(<AgentEditorScreen />);
+
+      expect(await screen.findByText('AddAgentExtension(...)')).toBeTruthy();
+    });
   });
 
   describe('loop section (Phase 201)', () => {

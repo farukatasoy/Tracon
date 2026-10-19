@@ -85,6 +85,7 @@ const DEFAULT_COLLECTION_ROUTES = [
   'api/tools',
   'api/tools/usage',
   'api/skills',
+  'api/agent-extensions',
   'api/skill-script-grants',
   'api/models',
   'api/models/health',

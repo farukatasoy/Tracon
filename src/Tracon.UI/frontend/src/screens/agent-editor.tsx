@@ -3,6 +3,7 @@ import { useT } from '../lib/i18n';
 import { Button, ErrorNote, Loading, PageHeader } from '../components/ui';
 import { CallableAgentsSection } from './agent-editor/sections/callable-agents-section';
 import { ContextSection } from './agent-editor/sections/context-section';
+import { ExtensionsSection } from './agent-editor/sections/extensions-section';
 import { HarnessSection } from './agent-editor/sections/harness-section';
 import { IdentitySection } from './agent-editor/sections/identity-section';
 import { InstructionsSection } from './agent-editor/sections/instructions-section';
@@ -97,6 +98,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
           />
           <ToolsSection form={form} setForm={setForm} tools={editor.tools} />
           <SkillsSection form={form} setForm={setForm} skills={editor.skills} />
+          <ExtensionsSection form={form} setForm={setForm} extensions={editor.extensions} />
           <CallableAgentsSection form={form} setForm={setForm} agents={editor.agents} />
           <HarnessSection form={form} setForm={setForm} />
           {form.harnessEnabled && <LoopSection form={form} setForm={setForm} catalog={editor.loopCriteria} />}

@@ -1468,6 +1468,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent-extensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the agent extensions a definition can name.
+         * @description Extensions are defined only in code, with AddAgentExtension. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent. Listing the extensions runs none of them. The list is the same for every tenant, ordered by name, and an empty list is not an error.
+         */
+        get: operations["TraconListAgentExtensions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stats": {
         parameters: {
             query?: never;
@@ -2971,6 +2991,12 @@ export interface components {
              *     match an enabled skill found in code or in the skill store.
              */
             skillNames?: string[];
+            /**
+             * @description Gets the names of the agent extensions this agent is compiled with, in call
+             *     order. Every name must match an extension registered in code with
+             *     `AddAgentExtension`; otherwise building the agent fails.
+             */
+            extensionNames?: string[];
             /** @description Gets the names of the other agents this agent may call. */
             callableAgentNames?: string[];
             subAgents?: null | components["schemas"]["SubAgentSettings"];
@@ -3039,6 +3065,12 @@ export interface components {
             toolNames?: string[];
             /** @description Names of skills that can be loaded at runtime. */
             skillNames?: string[];
+            /**
+             * @description Names of agent extensions to compile the agent with, in call order. Extensions
+             *     are defined only in code; only the name of an already registered extension may
+             *     be given here. See `AgentDefinition.ExtensionNames`.
+             */
+            extensionNames?: string[];
             /** @description Names of other agents this agent may call. */
             callableAgentNames?: string[];
             subAgents?: null | components["schemas"]["SubAgentSettings"];
@@ -3086,6 +3118,8 @@ export interface components {
             toolNames?: string[];
             /** @description Gets the names of the skills this agent may load at run time. */
             skillNames?: string[];
+            /** @description Gets the names of the agent extensions this agent is compiled with, in call order. */
+            extensionNames?: string[];
             /** @description Gets the names of the other agents this agent may call. */
             callableAgentNames?: string[];
             /** @description Gets whether the harness capabilities are enabled. */
@@ -3114,6 +3148,19 @@ export interface components {
             factoryInstructions?: null | string;
             /** @description Whether this agent can be modified through the management API. */
             isEditable: boolean;
+        };
+        /**
+         * @description One agent extension registered in code. A definition selects it by `name` in
+         *     `extensionNames`. Listing the extensions runs none of them.
+         */
+        AgentExtensionResponse: {
+            /** @description Gets the name a definition writes in `extensionNames`. */
+            name: string;
+            /**
+             * @description Gets what the extension does, in the host's language, or `null` when its
+             *     registration gave no description.
+             */
+            description?: null | string;
         };
         /**
          * @description A single named placeholder an AgentDefinition's instructions can
@@ -8659,6 +8706,7 @@ export type AgentDefinitionOrigin = components['schemas']['AgentDefinitionOrigin
 export type AgentDefinitionRequest = components['schemas']['AgentDefinitionRequest'];
 export type AgentDescriptor = components['schemas']['AgentDescriptor'];
 export type AgentDetailResponse = components['schemas']['AgentDetailResponse'];
+export type AgentExtensionResponse = components['schemas']['AgentExtensionResponse'];
 export type AgentParameter = components['schemas']['AgentParameter'];
 export type AgentParameterKind = components['schemas']['AgentParameterKind'];
 export type AgentResponseFormat = components['schemas']['AgentResponseFormat'];
@@ -11637,6 +11685,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoopCriterionCatalogResponse"];
+                };
+            };
+        };
+    };
+    TraconListAgentExtensions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentExtensionResponse"][];
                 };
             };
         };

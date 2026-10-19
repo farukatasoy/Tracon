@@ -96,6 +96,7 @@ internal sealed partial class AgentDefinitionValidator
         await CheckSkillsAsync(definition, messages, cancellationToken).ConfigureAwait(false);
         await CheckCallGraphAsync(definition, messages, cancellationToken).ConfigureAwait(false);
         await CheckLoopAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        CheckExtensions(definition, messages);
 
         // Compilation is not useful while the outcome is inconclusive. A tool
         // behind an unreachable MCP server cannot resolve in real compilation

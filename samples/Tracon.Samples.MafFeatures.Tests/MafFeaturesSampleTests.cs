@@ -47,6 +47,34 @@ public sealed class MafFeaturesSampleTests
     }
 
     [Fact]
+    public async Task An_extension_adds_a_context_provider_to_a_data_agent_and_the_agent_keeps_the_tenants_key_and_cost()
+    {
+        var provider = new CredentialRecordingProvider("byok", PricedModel);
+        await using var host = BuildHost(
+            provider,
+            new ModelBinding { Provider = "byok", Model = "fake-model" },
+            withTenantKey: true);
+
+        await BindTenantKeyAsync(host, "byok");
+
+        var agent = await host.GetRequiredService<IAgentCatalog>()
+            .ResolveAsync(MafFeaturesRegistration.SupportAgentName, culture: null, TestContext.Current.CancellationToken);
+        agent.ShouldNotBeNull();
+
+        await agent.RunAsync("Can I refund 250?", cancellationToken: TestContext.Current.CancellationToken);
+
+        // The provider the extension added reached the model call...
+        provider.LastInstructions.ShouldNotBeNull().ShouldContain(PolicyNoticeExtensionRegistration.Notice);
+
+        // ...and the agent still went through the compiler: the tenant's key and a cost.
+        provider.Keys.ShouldBe([TenantKey]);
+
+        var run = await SingleRunAsync(host, MafFeaturesRegistration.SupportAgentName);
+        run.ModelId.ShouldBe("fake-model");
+        run.Cost.ShouldNotBeNull().InputCost.ShouldNotBeNull().ShouldBeGreaterThan(0m);
+    }
+
+    [Fact]
     public async Task A_custom_source_run_uses_the_tenants_own_key_and_records_cost()
     {
         var provider = new CredentialRecordingProvider("byok", PricedModel);

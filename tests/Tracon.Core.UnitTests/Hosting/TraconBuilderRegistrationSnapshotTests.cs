@@ -37,6 +37,9 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         { "AddAgentDecorator<T>", "IAgentDecorator|Singleton|type:SnapshotDecorator" },
         { "AddAgentDecorator(instance)", "IAgentDecorator|Singleton|instance:SnapshotDecorator ; IAgentDecorator|Singleton|instance:SnapshotDecorator" },
         { "AddAgentDecorator(factory)", "IAgentDecorator|Singleton|factory ; IAgentDecorator|Singleton|factory" },
+        { "AddAgentExtension<T>", "IAgentExtension|Singleton|type:SnapshotExtension" },
+        { "AddAgentExtension(instance)", "IAgentExtension|Singleton|instance:SnapshotExtension ; IAgentExtension|Singleton|instance:SnapshotExtension" },
+        { "AddAgentExtension(name, configure)", "IAgentExtension|Singleton|instance:DelegateAgentExtension ; IAgentExtension|Singleton|instance:DelegateAgentExtension" },
         { "AddRunJudge<T>", "IRunJudge|Singleton|type:SnapshotJudge" },
         { "AddRunJudge(instance)", "IRunJudge|Singleton|instance:SnapshotJudge ; IRunJudge|Singleton|instance:SnapshotJudge" },
         { "AddRunJudge(factory)", "IRunJudge|Singleton|factory ; IRunJudge|Singleton|factory" },
@@ -154,6 +157,9 @@ public sealed class TraconBuilderRegistrationSnapshotTests
             "AddAgentDecorator<T>" => builder.AddAgentDecorator<SnapshotDecorator>(),
             "AddAgentDecorator(instance)" => builder.AddAgentDecorator(new SnapshotDecorator()),
             "AddAgentDecorator(factory)" => builder.AddAgentDecorator(static _ => new SnapshotDecorator()),
+            "AddAgentExtension<T>" => builder.AddAgentExtension<SnapshotExtension>(),
+            "AddAgentExtension(instance)" => builder.AddAgentExtension(new SnapshotExtension()),
+            "AddAgentExtension(name, configure)" => builder.AddAgentExtension("snapshot-extension", static _ => { }, "Snapshot extension."),
             "AddRunJudge<T>" => builder.AddRunJudge<SnapshotJudge>(),
             "AddRunJudge(instance)" => builder.AddRunJudge(new SnapshotJudge()),
             "AddRunJudge(factory)" => builder.AddRunJudge(static _ => new SnapshotJudge()),
@@ -226,6 +232,17 @@ public sealed class TraconBuilderRegistrationSnapshotTests
         public int Order => 0;
 
         public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor) => agent;
+    }
+
+    private sealed class SnapshotExtension : IAgentExtension
+    {
+        public string Name => "snapshot-extension";
+
+        public string? Description => null;
+
+        public void Configure(AgentExtensionContext context)
+        {
+        }
     }
 
     private sealed class SnapshotJudge : IRunJudge

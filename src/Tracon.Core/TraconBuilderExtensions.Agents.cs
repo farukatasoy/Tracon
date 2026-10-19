@@ -205,4 +205,109 @@ public static partial class TraconBuilderExtensions
         builder.Services.AddSingleton(factory);
         return builder;
     }
+
+    /// <summary>Registers an agent extension as a singleton.</summary>
+    /// <typeparam name="TExtension">The extension implementation type.</typeparam>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para>
+    /// A definition selects the extension by <see cref="IAgentExtension.Name"/> in
+    /// <see cref="AgentDefinition.ExtensionNames"/>. Calling this method more than
+    /// once for the same type has no effect; two types that report the same name are
+    /// rejected when the compiler is first used.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddAgentExtension&lt;PolicyContextExtension&gt;();
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddAgentExtension<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TExtension>(this ITraconBuilder builder)
+        where TExtension : class, IAgentExtension
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentExtension, TExtension>());
+        return builder;
+    }
+
+    /// <summary>Registers a configured agent extension.</summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="extension">The extension instance.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="extension"/> is <see langword="null"/>.</exception>
+    public static ITraconBuilder AddAgentExtension(this ITraconBuilder builder, IAgentExtension extension)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(extension);
+
+        builder.Services.AddSingleton(extension);
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers an agent extension from a delegate. A definition selects it by
+    /// <paramref name="name"/> in <see cref="AgentDefinition.ExtensionNames"/>.
+    /// </summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">
+    /// The extension name: 1 to 128 characters of lowercase ASCII letters, digits, <c>.</c>,
+    /// <c>_</c> or <c>-</c>, unique among the registered extensions.
+    /// </param>
+    /// <param name="configure">
+    /// Changes the options of the agent that is being compiled, or adds a wrapper. It runs
+    /// when an agent that names the extension is compiled, not on every run.
+    /// </param>
+    /// <param name="description">
+    /// What the extension does, in one sentence. The console shows it next to the name and
+    /// <c>GET /api/agent-extensions</c> returns it to every reader, so it must not carry a
+    /// secret. <see langword="null"/> shows the name alone.
+    /// </param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/> or <paramref name="configure"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
+    /// <remarks>
+    /// <para>
+    /// The escape door for a Microsoft Agent Framework option Tracon does not model.
+    /// A hand-built agent in <c>AddAgent(name, factory)</c> bypasses the model ring, the
+    /// tenant's provider credential, egress and cost; an extension keeps all of them
+    /// because the agent still goes through the compiler. The compiler refuses a change
+    /// to a member the definition or a tenant and security decision owns (the tool chain,
+    /// the tool approval settings, the chat history provider, file access, the
+    /// working-directory skill scan and the model parameters among them). It does not look
+    /// inside a provider or a wrapper the extension adds.
+    /// </para>
+    /// <example>
+    /// Turns on Microsoft Agent Framework's message injection for the agents that select it:
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddAgentExtension(
+    ///            "message-injection",
+    ///            context =>
+    ///            {
+    ///                if (context.ChatAgentOptions is { } options)
+    ///                {
+    ///                    options.EnableMessageInjection = true;
+    ///                }
+    ///            },
+    ///            description: "Lets a caller inject a message into a running turn.");
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddAgentExtension(
+        this ITraconBuilder builder,
+        string name,
+        Action<AgentExtensionContext> configure,
+        string? description = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        builder.Services.AddSingleton<IAgentExtension>(new DelegateAgentExtension(name, configure, description));
+        return builder;
+    }
 }

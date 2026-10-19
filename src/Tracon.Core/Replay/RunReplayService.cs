@@ -411,9 +411,10 @@ internal sealed class RunReplayService
     /// </summary>
     /// <remarks>
     /// In <see cref="ReplayToolMode.NoTools"/> and
-    /// <see cref="ReplayToolMode.ReplayTools"/> modes, the skill and
-    /// callable-sub-agent surfaces are also <strong>disabled</strong>. Both
-    /// expose their tools through an <c>AIContextProvider</c> and do not go
+    /// <see cref="ReplayToolMode.ReplayTools"/> modes, the skill,
+    /// callable-sub-agent and agent-extension surfaces are also
+    /// <strong>disabled</strong>. All three can expose tools through an
+    /// <c>AIContextProvider</c> and do not go
     /// through the tool wrapping; if left open, a skill script would run and
     /// a sub-agent would spend a real model call (and real money) — breaking
     /// the "no tool actually runs" promise.
@@ -429,7 +430,7 @@ internal sealed class RunReplayService
 
         if (request.ToolMode != ReplayToolMode.LiveTools)
         {
-            effective = effective with { SkillNames = [], CallableAgentNames = [] };
+            effective = effective with { SkillNames = [], CallableAgentNames = [], ExtensionNames = [] };
         }
 
         if (request.ToolMode == ReplayToolMode.NoTools)

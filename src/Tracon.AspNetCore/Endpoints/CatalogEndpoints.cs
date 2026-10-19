@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace Tracon;
 
 /// <summary>
-/// Read-only catalog endpoints: tools, model providers, loop criteria, and run summaries.
+/// Read-only catalog endpoints: tools, model providers, loop criteria, agent extensions, and run summaries.
 /// </summary>
 internal static class CatalogEndpoints
 {
@@ -73,6 +73,21 @@ internal static class CatalogEndpoints
                 "calls, or null when the host bound none: such a criterion then does not compile, and it " +
                 "never falls back to the agent's own model. The list is the same for every tenant; " +
                 "whether the caller's egress policy allows the judge is reported by POST /api/agents/validate.");
+
+        // Root level for the same reason as /api/loop-criteria: an agent named
+        // "extensions" would otherwise be hidden from GET /api/agents/{name}.
+        builder.MapGet("/api/agent-extensions", Ok<IReadOnlyList<AgentExtensionResponse>> (AgentDefinitionCompiler compiler)
+                => TypedResults.Ok<IReadOnlyList<AgentExtensionResponse>>(DescribeAgentExtensions(compiler.GetAgentExtensions())))
+            .RequireRole(roles.Reader)
+            .RequireApiKeyScope(ApiKeyScope.AgentsRead)
+            .WithName("TraconListAgentExtensions")
+            .WithTags("Tracon", "Agents")
+            .WithSummary("Lists the agent extensions a definition can name.")
+            .WithDescription(
+                "Extensions are defined only in code, with AddAgentExtension. This endpoint does not " +
+                "offer a write path; the UI lets users pick from this list when defining an agent. " +
+                "Listing the extensions runs none of them. The list is the same for every tenant, ordered " +
+                "by name, and an empty list is not an error.");
 
         builder.MapGet("/api/stats", async Task<Ok<RunStatistics>> (
                 IRunStore runs,
@@ -254,6 +269,19 @@ internal static class CatalogEndpoints
                 "resolves by model name alone; if the same model name is defined for more " +
                 "than one provider, the first alphabetical match wins. Requires Admin; " +
                 "the call is written to the audit trail.");
+    }
+
+    /// <summary>Builds the agent extension list. Only names and descriptions leave the registry.</summary>
+    private static List<AgentExtensionResponse> DescribeAgentExtensions(AgentExtensionRegistry registry)
+    {
+        var extensions = new List<AgentExtensionResponse>(registry.Extensions.Count);
+
+        foreach (var extension in registry.Extensions)
+        {
+            extensions.Add(new AgentExtensionResponse { Name = extension.Name, Description = extension.Description });
+        }
+
+        return extensions;
     }
 
     /// <summary>

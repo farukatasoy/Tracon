@@ -56,6 +56,19 @@ public sealed record AgentDefinition
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
     /// <summary>
+    /// Gets the names of the agent extensions this agent is compiled with, in call
+    /// order. Every name must match an extension registered in code with
+    /// <c>AddAgentExtension</c>; otherwise building the agent fails.
+    /// </summary>
+    /// <remarks>
+    /// A list of <em>names</em> only, never code - the same boundary as
+    /// <see cref="ToolNames"/>. An extension reaches the Microsoft Agent Framework
+    /// options the compiler builds for this agent; it cannot change the members the
+    /// definition or Tracon's tenant and security decisions own.
+    /// </remarks>
+    public IReadOnlyList<string> ExtensionNames { get; init; } = [];
+
+    /// <summary>
     /// Gets the names of the other agents this agent may call.
     /// </summary>
     /// <remarks>

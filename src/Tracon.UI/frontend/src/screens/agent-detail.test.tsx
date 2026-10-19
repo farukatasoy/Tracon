@@ -54,6 +54,7 @@ describe('AgentDetailScreen read-only notice', () => {
       model: { provider: 'echo', model: 'echo-1' },
       toolNames: [],
       skillNames: [],
+      extensionNames: version === 1 ? ['audit'] : ['audit', 'policy'],
       callableAgentNames: [],
       harness: {
         loop: {
@@ -97,6 +98,11 @@ describe('AgentDetailScreen read-only notice', () => {
 
     expect(ceiling?.textContent).toBe('Iteration ceiling34');
     expect(ceiling?.className).toContain('bg-warn-soft');
+
+    // Phase 222: the extension list is part of the definition, so a version that adds one shows it.
+    expect(screen.getByText('Extensions')).toBeTruthy();
+    expect(screen.getByText('+ policy')).toBeTruthy();
+    expect(screen.getByText('audit')).toBeTruthy();
 
     const criteria = rows.find((row) => row.textContent?.startsWith('Criteria'));
 

@@ -10,6 +10,8 @@ Tracon.AgentDefinition.Description.get -> string?
 Tracon.AgentDefinition.Description.init -> void
 Tracon.AgentDefinition.DisplayName.get -> string?
 Tracon.AgentDefinition.DisplayName.init -> void
+Tracon.AgentDefinition.ExtensionNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.AgentDefinition.ExtensionNames.init -> void
 Tracon.AgentDefinition.Equals(Tracon.AgentDefinition? other) -> bool
 Tracon.AgentDefinition.Harness.get -> Tracon.HarnessSettings?
 Tracon.AgentDefinition.Harness.init -> void
@@ -58,6 +60,8 @@ Tracon.AgentDescriptor.Description.get -> string?
 Tracon.AgentDescriptor.Description.init -> void
 Tracon.AgentDescriptor.DisplayName.get -> string?
 Tracon.AgentDescriptor.DisplayName.init -> void
+Tracon.AgentDescriptor.ExtensionNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.AgentDescriptor.ExtensionNames.init -> void
 Tracon.AgentDescriptor.Equals(Tracon.AgentDescriptor? other) -> bool
 Tracon.AgentDescriptor.Model.get -> Tracon.ModelBinding?
 Tracon.AgentDescriptor.Model.init -> void

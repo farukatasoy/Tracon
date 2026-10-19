@@ -322,6 +322,7 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
 
           <SetDiff label={t('common.tools')} left={data.left.toolNames} right={data.right.toolNames} />
           <SetDiff label={t('nav.skills')} left={data.left.skillNames} right={data.right.skillNames} />
+          <SetDiff label={t('agentEditor.extensions')} left={data.left.extensionNames} right={data.right.extensionNames} />
           <SetDiff
             label={t('agentDetail.callableAgents')}
             left={data.left.callableAgentNames}

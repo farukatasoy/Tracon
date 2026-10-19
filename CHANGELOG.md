@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A named agent extension reaches Microsoft Agent Framework options on a compiled agent.**
+  `AddAgentExtension(name, configure)`, `AddAgentExtension<T>()`, and an instance overload
+  register code that sets a framework option, adds an `AIContextProvider`, or wraps the
+  agent with `context.Use`. A definition selects it with the new `ExtensionNames` list, in
+  call order, and the agent editor offers the registered names (`GET /api/agent-extensions`).
+  The agent still goes through the definition compiler, so it keeps the model rings, the
+  tenant's own provider key, the egress policy, and cost. The compiler refuses a change to
+  an option the definition or a tenant and security decision owns, and names the extension
+  and the option. `AgentDefinition`, `AgentDescriptor`, and `AgentDefinitionRequest` gain
+  `ExtensionNames`. A provider an extension adds can add tools, and those skip the tool
+  chain; a replay that plays tools back does not run extensions.
 - **Any `Microsoft.Extensions.AI` speech client serves a named Tracon speech provider.**
   `AddSpeechSynthesizer(name, TextToSpeechClientBinding)` and
   `AddSpeechTranscriber(name, SpeechToTextClientBinding)` take the client from the container,
@@ -61,6 +72,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A stored definition written before a list member existed no longer breaks the catalog.**
+  The SQL payload read `mcpResourceUris`, `parameters`, and the new `extensionNames` as
+  `null` when a row had no such key, and the catalog listing failed with
+  `ArgumentNullException` for every agent. The three lists now read as empty.
 - A harness agent completes the turn that answers a pending approval. The approved (or rejected)
   tool ran, and then the next model call failed with `InvalidOperationException`: the harness
   reloads the session history on every model call, and the history still held the approval

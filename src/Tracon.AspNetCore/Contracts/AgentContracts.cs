@@ -41,6 +41,13 @@ public sealed record AgentDefinitionRequest
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
     /// <summary>
+    /// Names of agent extensions to compile the agent with, in call order. Extensions
+    /// are defined only in code; only the name of an already registered extension may
+    /// be given here. See <c>AgentDefinition.ExtensionNames</c>.
+    /// </summary>
+    public IReadOnlyList<string> ExtensionNames { get; init; } = [];
+
+    /// <summary>
     /// Names of other agents this agent may call.
     /// </summary>
     /// <remarks>
@@ -101,6 +108,7 @@ public sealed record AgentDefinitionRequest
             Model = Model,
             ToolNames = ToolNames,
             SkillNames = SkillNames,
+            ExtensionNames = ExtensionNames,
             CallableAgentNames = CallableAgentNames,
             SubAgents = SubAgents,
             McpResourceUris = McpResourceUris,
