@@ -206,6 +206,53 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
     }
 
     /// <summary>
+    /// F-578: the filter that keeps an agent to the skills its definition names
+    /// sits above the cache of the skill list. A root with two skills must still
+    /// offer only the named one.
+    /// </summary>
+    [Fact]
+    public async Task An_agent_that_names_one_disk_skill_is_not_offered_the_others_under_the_same_root()
+    {
+        var root = WriteDiskSkill("echo named\n");
+        WriteDiskSkillFile(root, "unnamed-skill", "UNNAMED-DISK-SKILL-3e91 is not named by any agent.");
+        var provider = new Tracon.Testing.FakeModelProvider("filter-model").RespondsWith("done");
+
+        await using var host = await StartPromptHostAsync(root, provider);
+
+        await RunAsync(host, "prompt-agent");
+
+        var prompt = PromptOf(provider.Requests.ShouldHaveSingleItem());
+        prompt.ShouldContain("Disk skill for the routing tests.", Case.Sensitive);
+        prompt.ShouldNotContain("UNNAMED-DISK-SKILL-3e91", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// K-087: the database source comes before the disk source. When both carry a
+    /// skill of one name, the run is offered the stored one.
+    /// </summary>
+    [Fact]
+    public async Task A_stored_skill_shadows_a_disk_skill_of_the_same_name_in_a_run()
+    {
+        var root = WriteDiskSkill("echo disk\n");
+        var provider = new Tracon.Testing.FakeModelProvider("shadow-model").RespondsWith("done");
+
+        await using var host = await StartPromptHostAsync(root, provider);
+        await host.Services.GetRequiredService<IAgentSkillStore>().SaveAsync(new AgentSkillDefinition
+        {
+            TenantId = "default",
+            Name = DiskSkillName,
+            Description = "STORED-SHADOW-5b08 wins over the disk skill.",
+            Instructions = "Answer.",
+        });
+
+        await RunAsync(host, "prompt-agent");
+
+        var prompt = PromptOf(provider.Requests.ShouldHaveSingleItem());
+        prompt.ShouldContain("STORED-SHADOW-5b08", Case.Sensitive);
+        prompt.ShouldNotContain("Disk skill for the routing tests.", Case.Sensitive);
+    }
+
+    /// <summary>
     /// One content limit for every script: a file under a skill root larger than
     /// <c>MaxScriptContentLength</c> is denied before the executor and before the
     /// <c>script.run</c> entry, from MAF's own file source.
@@ -413,6 +460,39 @@ public sealed class SkillScriptExecutorRoutingTests : IDisposable
 
         return root;
     }
+
+    /// <summary>Writes a skill with no script next to the others under the root.</summary>
+    private static void WriteDiskSkillFile(string root, string name, string description)
+    {
+        var skill = Directory.CreateDirectory(Path.Combine(root, name));
+
+        File.WriteAllText(
+            Path.Combine(skill.FullName, "SKILL.md"),
+            $"---\nname: {name}\ndescription: {description}\n---\nAnswer when asked.\n");
+    }
+
+    /// <summary>A host whose one agent names <see cref="DiskSkillName"/> and answers from a script with no tool call.</summary>
+    private static Task<TraconTestHost> StartPromptHostAsync(string skillRoot, Tracon.Testing.FakeModelProvider provider)
+        => TraconTestHost.StartAsync(configureTracon: builder => builder
+            .UseSkillScripts(options =>
+            {
+                options.PlatformIsolationAcknowledged = true;
+                options.Interpreters["sh"] = "/bin/sh";
+                options.SkillRoots.Add(skillRoot);
+            })
+            .AddModelProvider(provider)
+            .AddAgent(new AgentDefinition
+            {
+                Name = "prompt-agent",
+                Instructions = "Answer.",
+                Model = new ModelBinding { Provider = provider.Name, Model = "prompt" },
+                SkillNames = [DiskSkillName],
+            }));
+
+    private static string PromptOf(Tracon.Testing.FakeModelRequest request)
+        => string.Join(
+            Environment.NewLine,
+            [request.Options?.Instructions ?? string.Empty, .. request.Messages.Select(static message => message.Text)]);
 
     private static async Task<TraconTestHost> StartAsync(
         RecordingScriptExecutor executor,

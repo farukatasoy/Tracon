@@ -1,6 +1,6 @@
 # Faz 219 — Tek Skill Zinciri (`AgentSkillsProviderBuilder`)
 
-> **Durum:** 📋 Planlandı (2026-10-19)
+> **Durum:** ✅ Tamamlandı (2026-10-19)
 > **Kademe:** tam — güvenlik/kiracı sınırı: zincir kiracı anahtarlı önbelleği taşır (`CacheIsolationKeySelector`); harness yolu çalışma dizini skill taramasını kapatan ayarı taşır (K-892). İkisinin anlamı değişmez, kod ikisine de dokunur
 > **Plan onayı:** Bakımcı, 2026-10-19 (sohbette: tasarım A — iki agent tipinde tek zincir; kademe tam)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-578** — MAF kapsama matrisi R-06 (`claudedocs/maf-1.25.0-yetenek-matrisi.md` §6)
@@ -211,19 +211,21 @@ DoD'deki `samples/Tracon.Api` `run`'ıdır.
 |---|---|---|---|
 | 1 | Harness'ta skill ve alt agent provider'larının sırası değişir. Kabul mü? | A: kabul et; skill + alt agent testindeki isteğin talimat sırası ölçülür ve `CHANGELOG.md` `Changed` satırına yazılır · B: harness'ta da Tracon `CreateBackgroundAgentsProvider`'ı kurar ve sırayı korur (kapsam büyür: `BackgroundAgentsProviderOptions` eşlemesi) | **A** — sıra yalnız ikisi birlikteyken değişir ve düz agent'ın sırası (skills → background) zaten budur |
 
+**Karar (1):** A uygulandı. Bu, planın önerisidir; sorunun bakımcıya ayrıca sorulduğu sohbette yoktur — uygulayan oturum önerilen seçeneği ölçüp uyguladı ve `CHANGELOG.md` `Changed` satırına yazdı (2026-10-19). Bakımcı B ister ya da sırayı korumak isterse kapsam büyür (`BackgroundAgentsProviderOptions` eşlemesi).
+
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `grep -rnE "new (Aggregating|Filtering|Caching|Deduplicating)AgentSkillsSource" src/` boş döner
-- [ ] `grep -n "AgentSkillsSource =" src/Tracon.Core/Compilation/` boş; harness `DisableAgentSkillsProvider = true` sabit atanır
-- [ ] Hata modu tablosundaki yeni testler uygulamadan sonra yeşil. Not: bu bir refaktördür; yeni kolların çoğu bugün de geçer ve **regresyon kilidi**dir. Kırmızıdan başlaması beklenen kol yoktur; her kol taban commit'te bir kez koşulur ve sonucu Plandan Sapmalar'a yazılır
-- [ ] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run`: bir düz agent ve bir harness agent, ikisi de bir skill'i `load_skill` ile yükler — çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Kabul case'i yok; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] Matris: §6 R-06 satırı ve §5.3 `AgentSkillsProviderBuilder` satırı "✅ Faz 219"; §5.3 `AgentSkillsProvider` satırına "harness artık seçenek alabilir (C-08)" notu
+- [x] `grep -rnE "new (Aggregating|Filtering|Caching|Deduplicating)AgentSkillsSource" src/` boş döner
+- [x] `grep -n "AgentSkillsSource =" src/Tracon.Core/Compilation/` boş; harness `DisableAgentSkillsProvider = true` sabit atanır
+- [x] Hata modu tablosundaki yeni testler uygulamadan sonra yeşil. Not: bu bir refaktördür; yeni kolların çoğu bugün de geçer ve **regresyon kilidi**dir. Kırmızıdan başlaması beklenen kol yoktur; her kol taban commit'te bir kez koşulur ve sonucu Plandan Sapmalar'a yazılır
+- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
+- `samples/Tracon.Api` ile gerçek `run` — **kısmen tutuldu.** Düz agent `load_skill` onayından sonra `done` verdi ve yanıt `PHASE219_SKILL_LOADED` oldu. Harness agent aynı onayı istedi ve skill'i yükledi (`functionResult` talimatı taşıdı), sonra onay devamında MEAI `InvalidOperationException` ile düştü: bu hata taban commit'te de var ve skill'siz harness agent'ta da çıkıyor (**F-582**). Harness'ta `done` ile biten uçtan uca koşum fazın dışındaki bu kusura bağlı; çıktı "Plandan Sapmalar" bölümünde
+- [x] `secret` taraması boş döndü
+- [x] Kabul case'i yok; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] Matris: §6 R-06 satırı ve §5.3 `AgentSkillsProviderBuilder` satırı "✅ Faz 219"; §5.3 `AgentSkillsProvider` satırına "harness artık seçenek alabilir (C-08)" notu
 
 ### Doğrulama komutları
 
@@ -256,6 +258,49 @@ grep -n "DisableAgentSkillsProvider" src/Tracon.Core/Compilation/AgentDefinition
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+- **Taban koşumu.** Yeni testlerin hepsi taban commit'te (`d1081361`) bir kez koşuldu ve
+  **yeşil** çıktı: `SkillChainTests` (4), `HarnessDefaultsTests` (13, ikisi yeni),
+  `SkillChainTenantIsolationTests` (2), `SkillScriptExecutorRoutingTests` (15, ikisi yeni).
+  Hepsi regresyon kilididir. Kiracı testinin gerçekten ölçtüğünün kanıtı: `UseCachingOptions`
+  satırı çıkarılınca `One_compiled_agent_lists_each_tenants_own_skill` iki koşulda da **kırmızı**
+  (`second` iddiası düştü); satır geri konuldu.
+- **Kiracı fonksiyonel testi skill açıklamasını ölçer, talimatı değil.** Plan "talimat" diyordu.
+  `load_skill` çağrısı MAF onayına bağlıdır (`ApprovalRequiredAIFunction`); talimatı okumak her
+  kiracı için kalıcı onay kuralı ister. Skill listesi (ad + açıklama) istemde zaten kiracının
+  metnini taşır ve aynı zincirden geçer; test onu okur.
+- **Süzgeç testi (`Y` görünmez) ve K-087 gölge testi yeni yazıldı.** Plan "mevcut test varsa o"
+  diyordu. `grep -rni "shadow\|gölge" tests/` yalnız `SkillScriptContentPinTests`'te (grant
+  pini; ilgisiz) buldu. İki yeni kol `SkillScriptExecutorRoutingTests`'e girdi.
+- **`UseLoggerFactory` koşullu çağrılır.** Builder parametresi `ILoggerFactory` (null
+  kabul etmez işaretli) ve `_loggerFactory` nullable; çağrı `is not null` kapısının arkasında.
+- **K1 istisnası sırası korundu.** Harness'ta `DisableAgentSkillsProvider` + `SkillNames` istisnası
+  provider kurulmadan **önce** atılır; provider eski `AgentSkillsSource` atamasıyla aynı noktada
+  kurulur ve listeye sonra eklenir. Kataloğun kayıtsız olması hatası böylece diğer çakışma
+  denetimlerine göre eski sırada kalır.
+- **Provider sırası farkı ölçüldü (Açık Soru 1, seçenek A).** Skill + alt agent birlikteyken
+  taban: tool'lar `… load_skill, read_skill_resource, run_skill_script, background_agents_*`,
+  talimat bölümleri Todo → Mode → `<available_skills>` → `## BackgroundAgents`. Sonra:
+  `… background_agents_*, load_skill, …`; talimat `## BackgroundAgents` → `<available_skills>`.
+  `CHANGELOG.md` `Changed` satırına yazıldı. Tek başına skill ya da tek başına alt agent'ta fark yok.
+- **Gerçek `run` (DoD):** `samples/Tracon.Api`, izole SQLite dosyası, `openai/gpt-5.4-mini`,
+  veritabanı skill'i `phase219-probe`. Düz agent: `load_skill` onayı → yanıt
+  `PHASE219_SKILL_LOADED`, `done`. Harness agent: aynı onay isteği çıktı ve skill yüklendi
+  (kalıcı kuralla `functionResult` talimatı taşıdı); **ardından hata**: MEAI
+  `FunctionInvokingChatClient.ProcessFunctionApprovalResponses` "ToolApprovalRequestContent found
+  … no matching ToolApprovalResponseContent". 🚨 **Fazdan bağımsız, taban commit'te de aynı**
+  (stash + yeniden derleme ile iki yolda — kalıcı kural ve oturumda onay — ölçüldü). Bulgu
+  `ADAYLAR.md`'ye gider (kapanışta).
+- **`main` CI'ı faza başlarken kırmızıydı** (`faz-baslangic` Adım 0): `Paketle` adımı
+  `NU1102 Tracon.Sqlite 1.0.0-preview.5 nuget.org'da yok` (etiket `v1.0.0-preview.5` var, etiket
+  CI'ı `WorkflowResponseOwnershipTests` kırılganlığıyla düştü ve yayın atlandı); Windows ayağında
+  `ERR_NO_BUFFER_SPACE` (Playwright) ve `Tracon.Cli.FunctionalTests` "Canceled". Faz koduyla ilgisiz.
+  Yeniden koşum yayın yapacağı için kullanıcıya bırakıldı.
+- **Taban ölçümü `git stash` ile yapıldı.** `.agents/ortak/kurtarma.md` taban ölçümü için `git worktree` önerir. İki koşumda stash geri alındı (`git stash list` boş) ve denetçi aynı sonucu bağımsız ölçtü; yöntem kurala uymuyor, sonuç etkilenmedi.
+- **Kapanış koşumunun ilk tam testi 1 kırmızı verdi, ikincisi temiz.** `kapanis`: 23634 testten 1'i düştü (`JobWorkerLeaseContractTests.A_cancelled_job_whose_handler_throws_stays_cancelled(maxAttempts: 1)`, 30 sn zaman aşımı, `Scheduling` — faza dokunmayan alan); izole koşumda geçti (kaynak çekişmesi sınıfı). Tam paket tekrar koşuldu: 23634 test, 0 kırmızı, 19 atlanan (mevcut koşul atlamaları).
+- **Mimari kapısı XML dokümanında faz/karar numarası reddetti.** `ShippedDocumentationSelfContainmentTests`
+  `AgentDefinitionCompiler.Skills.cs` `///` satırlarındaki `(F-578)` ve `(K-087)` için kırmızı verdi;
+  numaralar `///` satırlarından çıkarıldı.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -273,10 +318,10 @@ grep -n "DisableAgentSkillsProvider" src/Tracon.Core/Compilation/AgentDefinition
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 |
+| Düzeltme turu sayısı | 2 |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 commit edilmiş |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -284,3 +329,9 @@ grep -n "DisableAgentSkillsProvider" src/Tracon.Core/Compilation/AgentDefinition
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+- **🔴: yok.**
+- **🟡 `MIMARI.md:353` diyagram etiketi, `hafiza/maf-harness-ve-loop.md:21` ve `MAF-GENISLEME-NOKTALARI.md:421` harness'ın hâlâ `AgentSkillsSource` aldığını anlatıyordu; `AgentDefinitionCompilerTests` yorumu bayattı** — düzeltildi (üçü de koda göre yazıldı).
+- **🟡 Açık Soru 1 için karar izi yoktu** — gerekçelendi: "Açık Sorular" altına `Karar (1)` satırı yazıldı; seçenek A plan önerisidir, bakımcı onayı sohbette ayrıca alınmadı.
+- **🟢 F-582 kapsamı `load_skill`'den geniş** — denetçi skill'siz harness agent'ta `RequiresApproval` kod tool'uyla taban commit'te aynı hatayı üretti. `ADAYLAR.md` F-582 güncellendi (devredildi).
+- **🟢 `Each_tenant_sees_its_own_skill_instructions` adı açıklamayı değil talimatı iddia ediyordu; işlevsel test zincirin önbellek anahtarına duyarsız** (`CompiledAgentCache` kiracıyı zaten ayırır; yalnız birim test anahtarı ölçer) — test `Each_tenant_is_offered_its_own_skill` diye adlandırıldı ve sınıf notu sınırı yazıyor.

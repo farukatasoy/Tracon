@@ -350,7 +350,7 @@ flowchart LR
     M -.->|"bilinmeyen sağlayıcı"| E
     S -->|"bilinmeyen skill"| E
     G -.->|"bilinmeyen agent adı"| E
-    H -->|"evet"| HA["AsHarnessAgent<br/>+ AgentSkillsSource + BackgroundAgents"]
+    H -->|"evet"| HA["AsHarnessAgent<br/>+ AIContextProviders[skill] + BackgroundAgents"]
     H -->|"hayır"| CA["AsAIAgent<br/>+ AIContextProviders[skill, backgroundAgents]"]
 
     classDef hata fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
