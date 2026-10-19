@@ -1467,3 +1467,34 @@ Kural alan dosyasında kısa kaldı; tam metin aynen buradadır.
 - **Yonetilen kimlik `Azure.Identity` GEREKTIRMEZ** (K-210): `AzureOpenAIClient(Uri, TokenCredential, ...)` kurucusu vardir ve `TokenCredential` `Azure.Core`'dadir; Tracon yalniz `Azure.Core`'a baglanir, `Func<TokenCredential>` tuketiciden gelir. Token `scope`'u `AzureOpenAIAudience.AzurePublicCloud` = `https://cognitiveservices.azure.com/.default` — TAM metindir, `/.default` EKLENMEZ. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **`AzureOpenAIClientOptions.ServiceVersion` yalniz iki deger tasir** (`V2024_06_01`, `V2024_10_21`) ve parametresiz kurucu sonuncusunu secer. Yeni bir API surumu icin SDK yukseltilir; Tracon bu enum'u public yuzeyine almadi.
 - **`AzureOpenAIClient.GetResponsesClient()` Azure'a ozgu DEGILDIR.** `OpenAI.OpenAIClient+TopLevelResponsesClient` doner (karsilastirma: `GetChatClient()` → `Azure.AI.OpenAI.Chat.AzureChatClient`). Responses yuzeyi bu yuzden desteklenmiyor (K-213).
+
+## `docs/hafiza/ses-ve-konusma.md`'den — Faz 220 (köprü notuna yer açmak için)
+
+> Canlı ses ve konuşma paneli tuzakları, olduğu gibi. Kural bir satırla alan dosyasında kalır.
+
+- **🚨 Sentetik bir ses akışı WebRTC'de çalışır, `MediaRecorder`'da ÇALIŞMAZ**
+  (2026-09-19, manuel kapanış §5 turları 8-9): canlı ses (`live-test.html`,
+  `/api/voice/live/sessions`) parçayı WebRTC'ye doğrudan verir ve
+  `MediaStreamAudioDestinationNode` tabanlı sentetik bir akış sorunsuz taşınır
+  — sağlayıcı sentezlenmiş konuşmayı doğru transkript etti. Konuşma paneli
+  (`UseVoiceConversation`) ise `MediaRecorder` kullanır ve aynı akıştan **hiç
+  veri üretmez**: WebSocket'in `send` çağrısı sarıldığında giden çerçeve `2`
+  (yalnız `start` + `commit`), ses parçası `0` çıktı. ∴ konuşma panelinin
+  içerik isteyen case'leri gerçek mikrofon ister; içerik istemeyenleri
+  (rozet, i18n/tema, `idle` çerçevesi) sentetikle ölçülebilir.
+- **Canlı ses oturumunu tarayıcısız sürmenin yordamı** (aynı vaka): mikrofon
+  `getUserMedia` **oturum açılmadan önce** kendi `MediaStreamAudioDestinationNode`'a
+  bağlanır (parça oturum boyunca aynı kalmalı), sonra sorunun sesi sunucunun
+  kendi TTS'iyle üretilip (`POST /api/voice/speak` → ek → `decodeAudioData`)
+  o düğüme **çalınır**. ⚠️ `replaceTrack` kullanma — oturum `Abandoned` olur;
+  parçayı değiştirmek değil **içine çalmak** gerekir.
+- **🚨 Canlı ses ucunda token `Authorization` başlığıyla GİTMEZ** (aynı vaka,
+  `MT-SEC-162`): WebSocket subprotocol'ü kullanılır —
+  `Sec-WebSocket-Protocol: tracon.voice.v1, tracon.token.<token>`
+  (`VoiceConversationProtocol.cs:23,34`). Yanlış taşımayla gelen `401`
+  yetkilendirme reddi **değildir**; bunu ayırt etmeyen bir ölçüm case'i yanlış
+  sebeple "geçti" sanır.
+- **Kuyruklu bir onay `sessionId` ister** (aynı vaka): `Prefer: respond-async`
+  ile onay isteyen bir run `sessionId` verilmezse `Failed` olur ve kalıcı bir
+  `pending_approvals` satırı hiç oluşmaz. Senkron koşumda onay akışın içinde
+  taşınır ve tabloya **yazılmaz** — `/api/approvals/pending` boş görünür.

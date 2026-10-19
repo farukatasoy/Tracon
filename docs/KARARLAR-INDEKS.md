@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 963 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 964 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1015 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1016 kalem)
 
 | K | Karar |
 |---|---|
-| K-974 | Token dışı harcamanın kalıcı biçimi: `run_non_token_usage` tablosu (kalem anında yazılır), `runs` üzerinde dört snapshot sütunu (run kapanırken), `tool_invocations`'ta sağlayıcı/model; kapanıştan sonra gelen kalem yalnız detaya; kalem sayısı ve değer sınırları kabulde denetlenir (Faz 199) (kullanıcı kararı) 👤🔁 |
 | K-975 | Düğüm listesinin ilk düğümü `object` alamaz: kayıt `400`, saklı tanım düğümden önce `Failed`; `TurnToken` her başlangıç ve cevapsız resume'da gider (F-398, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-976 | Para birimi karışık toplam tutar taşımaz: ağaç, istatistik, zaman serisi, deney kolu ve yargıç maliyetinde tutar `null`, public `CurrencyCount` sayar; kural `CurrencyTotals`'ta (F-419, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-977 | Cevaplanamayan onayda run beklemez: Chat Completions ve oturumsuz yerel run `409` (akışta error frame), MCP/A2A dahil run `Failed` (`approval_unanswerable`) (F-448, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
@@ -62,3 +61,4 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1023 | Migration `authorization_configuration_key` değerini `header_configuration_keys["Authorization"]`'a taşır ve sütunu AYNI migration'da düşürür; geri dönüş yoktur (PostgreSQL `0062`, SQL Server `0050`, SQLite `0049`) (F-290, Faz 218) (kullanıcı kararı) 👤 |
 | K-1024 | `WorkflowRunRequest.DefinitionVersion` public; checkpoint'siz kurtarma yeniden başlatması zincirin ilk run'ının sürümünü sabitler (F-492) |
 | K-1025 | `/v1/chat/completions` görsel, ses ve dosyayı modele verir; tool geçmişi ve bilinmeyen rol `400` (F-580) (kullanıcı kararı) 👤 |
+| K-1026 | OpenAI ses istemcisi `OpenAIClient.Pipeline` üstündedir, `AudioClient`/MEAI adaptörü üstünde değil (F-579) |

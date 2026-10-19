@@ -1,6 +1,6 @@
 # 19 — Çok Modluluk: Ek, Ses Tool'ları ve Gerçek Zamanlı Konuşma (`MM`)
 
-> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198, 203, 213
+> **Alan kodu:** `MM` · **Faz:** 14, 28, 29, 72, 88, 198, 203, 213, 220
 > **Kaynak:** `src/Tracon.Abstractions/Attachments/` (tümü) ·
 > `src/Tracon.Core/Attachments/` (tümü) ·
 > `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs` ·
@@ -2822,7 +2822,8 @@ Otomatik karşılığı: `CustomVoiceProviderTests` · `VoiceEndpointTests` ·
 `{"text":"Merhaba","provider":"tone"}`. 3. Aynısı `"provider":"cloud"` ile.
 
 **Beklenen sonuç** (1) `tone`, `providerName` `"tone"` ile listelenir. (2) `200`;
-ek `audio/wav`. (3) `400`; mesaj kayıtlı adları (`tone`) sayar.
+ek `audio/wav`. (3) `400`; mesaj kayıtlı adları sayar (`tone`; OpenAI anahtarı
+varsa `openai, tone` — Faz 220).
 
 ---
 
@@ -3156,3 +3157,42 @@ canlı OpenAPI belgesiyle karşılaştırır.
 **Beklenen sonuç**
 - (1) `✅ 7 operasyon, 105 beyan canlı belgede geçerli`; çıkış `0`.
 - (2) `❌ ElevenLabs kaymasi` ve eklenen alanı adıyla basar; çıkış `1`.
+
+---
+
+### MT-MM-142 — OpenAI sesi adlı sağlayıcı olarak köprülenir; kiracı kapısından geçer (Faz 220, F-579)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 220 |
+| **İlgili karar** | K-215, K-930, K-1026 |
+| **İnsan gerekir** | Evet |
+| **Devir** | 👤 insan gerekir — örnek uygulama gerçek `Tracon:Providers:OpenAI:ApiKey` ile koşuldu: `gpt-4o-mini-tts` ve `tts-1` doğrudan `403 model_not_found` döndü, `GET /v1/models` yedi model verdi ve hiçbiri ses modeli değil · hesap yetkisi ürün sahibinindir. Kodla tekrarlanan her şey ➜ CI: `SpeechClientBridgeTests` · `OpenAISpeechTests` · `SpeechClientAdapterTests`; AOT yolu ➜ CI: `kapi.py yayin --kuru` (`ProviderAotSmoke`) |
+
+Bu case yalnız **gerçek OpenAI ses modeli** isteyen kısmı taşır: başarı yolu
+sahte sunucuyla kanıtlıdır, gerçek servisle değil. Gerçek serviste yalnız hata yolu
+(`403`) görüldü ve `502` metni anahtarı ya da servis metnini yazmadı.
+
+**Ön koşul**
+- `samples/Tracon.Api` ayakta; OpenAI projesi **ses modeline** erişebilir (`GET /v1/models`
+  `gpt-4o-mini-tts` ya da `tts-1` ve bir çözme modeli — `gpt-4o-mini-transcribe` ya da
+  `whisper-1` — gösterir). Anahtar yalnız user-secrets'tadır (K-059).
+- Örnek uygulamadaki iki model adı erişilen modellerle değiştirilmişse
+  `UseOpenAISpeech` çağrısında aynı adlar yazılıdır.
+
+**Adımlar**
+1. `GET /tracon/api/voice/providers`.
+2. `POST /tracon/api/voice/speak` `{"text":"Merhaba, siparişiniz yolda.","provider":"openai"}`.
+3. Çıkan ekle bir `dotnet run` probunda `ISpeechProviderResolver.GetTranscriberAsync("openai")` ile çöz
+   (HTTP'de çözüm ucu yoktur; `transcribe` tool'u yalnız varsayılan çözücüyü kullanır).
+4. `PUT /tracon/api/tenants/default/egress` ile yalnız `anthropic` izinli yap; 2. adımı tekrarla.
+
+**Beklenen sonuç**
+- (1) `openai` hem `Synthesizer` hem `Transcriber` olarak, `providerName` `"openai"`,
+  `supportsTenantCredentials` `false` ile listelenir; ElevenLabs varsayılan satırı değişmez.
+- (2) `200`; ek `audio/mpeg`; `isEstimated` `true`; `cost` `null` (`Tracon:Pricing:Voice:openai:<model>` yoksa).
+- (3) Çözüm metni girdi cümlesini taşır; `ModelId` çözme modelidir. Süre yoktur, bu yüzden maliyet `null`.
+- (4) `403`; mesaj `openai`yı adlandırır; OpenAI'ye istek **gitmez**.
+- `secret` taraması boş.

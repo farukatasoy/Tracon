@@ -1,6 +1,6 @@
 # Faz 220 — MEAI Ses İstemcisi Köprüsü ve OpenAI Sesi
 
-> **Durum:** 📋 Planlandı (2026-10-19)
+> **Durum:** ✅ Tamamlandı (2026-10-19)
 > **Kademe:** tam — güvenlik/kiracı sınırı: köprü kiracı egress politikasının (K-930) ve BYOK reddinin içinden geçer; egress'in eşleştiği `ProviderName` sürecin kendisinden gelmelidir
 > **Plan onayı:** Bakımcı, 2026-10-19 (sohbette: genel köprü + `Tracon.OpenAI` kısayolu · eksikler kayıt seçeneğiyle beyan · tam kademe)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-579** — MAF kapsama matrisi R-01 (`claudedocs/maf-1.25.0-yetenek-matrisi.md` §6)
@@ -254,18 +254,18 @@ Case `docs/manuel-test/19-COK-MODLULUK-VE-SES.md`'ye eklenir. Anahtar yoksa case
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `AddSpeechSynthesizer(name, TextToSpeechClientBinding)` ve `AddSpeechTranscriber(name, SpeechToTextClientBinding)` DI'daki MEAI istemcisini adla çözer; `/api/voice/speak` köprülenmiş adla, çözüm `ISpeechProviderResolver.GetTranscriberAsync(name)` ile çalışır (fonksiyonel test, host DI'ı üzerinden)
-- [ ] `UseOpenAISpeech` sahte sunucuya doğru gövdeyi gönderir; `samples/Tracon.Samples.ProviderAotSmoke` ses yolunu da koşar (`FakeProviderServer`'a `/v1/audio/speech` ve `/v1/audio/transcriptions` eklenir), AOT yayını sıfır uyarı (K-1019)
-- [ ] Egress ve BYOK fonksiyonel testleri yeşil; reddedilen çağrıda sahte sunucu istek görmez
-- [ ] `uyum-probu.cs -- deneysel`: yeni public maruziyet 0; MEAI001 bastırması yalnız iki dosyada (`grep -rln "disable MEAI001" src/Tracon.Core/Voice src/Tracon.OpenAI`)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run`: örnek uygulama `UseOpenAISpeech` ile açılır; `/api/voice/speak` (`provider = "openai"`) çıktısı ve bir çözüm sonucu belgeye yazıldı (anahtar yoksa sahte sunucuyla ve gerekçesiyle)
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case 1 `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`guides/voice.md`, `capabilities.md`); `npm run build` + `check-links.mjs` temiz; `src/Tracon.OpenAI/README.md` ve `CHANGELOG.md` `Added`
-- [ ] Kapanışta K-215 bu fazın kararıyla güncellenir *(kategori: public-api)* — alternatif adıyla: "Tracon arayüzlerini MEAI'ninkilerle değiştirmek (MEAI001; ses listesi, karakter sınırı, istek başına kiracı kimliği, hizalama, faturalı karakter, diyalog yok)"
-- [ ] Matris: §6 R-01 ve §5.13 ses satırı "✅ Faz 220"; `MAF-GENISLEME-NOKTALARI.md` § *Hâlâ kullanılmayan* ses satırı "KÖPRÜ — Faz 220"
+- [x] `AddSpeechSynthesizer(name, TextToSpeechClientBinding)` ve `AddSpeechTranscriber(name, SpeechToTextClientBinding)` DI'daki MEAI istemcisini adla çözer; `/api/voice/speak` köprülenmiş adla, çözüm `ISpeechProviderResolver.GetTranscriberAsync(name)` ile çalışır (fonksiyonel test, host DI'ı üzerinden: `SpeechClientBridgeTests`, 21 test)
+- [x] `UseOpenAISpeech` sahte sunucuya doğru gövdeyi gönderir (`model`, `voice`, `input`, `response_format`; çözümde çok parçalı gövde ve `model`); `samples/Tracon.Samples.ProviderAotSmoke` ses yolunu da koşar (`FakeProviderServer`'a `/v1/audio/speech` ve `/v1/audio/transcriptions` eklendi), AOT yayını sıfır uyarı (K-1019). Yerel kanıt: `ProjectReference` kopyasıyla `dotnet publish -r osx-arm64` sıfır uyarı, çıktı `provider AOT smoke passed: openai azure-openai voice openai-speech`. Paketlenmiş sürüm kanıtı: `kapi.py yayin --kuru` (aşağıda)
+- [x] Egress ve BYOK fonksiyonel testleri yeşil; reddedilen çağrıda sahte sunucu istek görmez (`Requests == 0`); kayıt adı ile sağlayıcı adı farklıyken egress sağlayıcı adına uygulanır
+- [x] `uyum-probu.cs -- deneysel`: `public_maruziyet=4`, dördü de önceden var olan `AddLoopEvaluator` (MAAI001); ses için yeni maruziyet **0**. MEAI001 bastırması bu fazda **iki yeni dosyada** (`SpeechClientAdapters.cs`, `OpenAISpeechClients.cs`); `grep -rln "disable MEAI001" src/Tracon.Core/Voice src/Tracon.OpenAI` bu iki dosyaya ek olarak zaten bastırma taşıyan `OpenAIChatClientFactory.cs` ve `OpenAIImageBuilderExtensions.cs`'i listeler (toplam dört)
+- [x] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban 201e14af`
+- [x] `samples/Tracon.Api` ile gerçek `run`: örnek uygulama `UseOpenAISpeech` ile açılır; `/api/voice/speak` (`provider = "openai"`) çıktısı belgeye yazıldı (aşağıda, § Denetim Bulguları); çözüm sonucu HTTP'de üretilemez (uç yok) — `ProviderAotSmoke` ve fonksiyonel testle kanıtlı. Sahte sunucuyla, çünkü gerçek hesapta ses modeli yok (sapma #13)
+- [x] `secret` taraması boş döndü (`kapi.py tarama`, `kapanis` içinde)
+- `🤖` case 1 `docs/manuel-test/19-COK-MODLULUK-VE-SES.md` içinde (`MT-MM-142`) ama **`👤` olarak**: ajan gerçek anahtarla denedi (`gpt-4o-mini-tts`, `tts-1` → `403 model_not_found`; `GET /v1/models` yedi model, hiçbiri ses değil); hesap yetkisi ürün sahibinindir. Hata yolu gerçek servisle görüldü, başarı yolu görülemedi
+- [x] `faz-denetim` koşuldu; 🔴 bulgu yok, 🟡 4 kapandı (§ Denetim Bulguları)
+- [x] `docs-site/` güncellendi (`guides/voice.md`, `capabilities.md`); `npm run check` (`kapanis` içinde) temiz; `src/Tracon.OpenAI/README.md` ve `CHANGELOG.md` `Added`
+- [x] Kapanışta K-215 bu fazın kararıyla güncellendi *(kategori: public-api)*, alternatifi adıyla; yeni **K-1026**
+- [x] Matris: §6 R-01 ve §5.13 ses satırı "✅ Faz 220"; `MAF-GENISLEME-NOKTALARI.md` § *Hâlâ kullanılmayan* ses satırı "KÖPRÜ — Faz 220 TAMAMLANDI"
 
 ### Doğrulama komutları
 
@@ -302,12 +302,40 @@ curl -s -X POST http://localhost:5080/tracon/api/voice/speak -H 'Content-Type: a
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **🚨 OpenAI ses istemcisi MEAI'nin `AsITextToSpeechClient()`/`AsISpeechToTextClient()` adaptörü değildir** (plan 220.2). Üç ölçüm (MEAI.OpenAI 10.11.0, OpenAI 2.14.0, System.ClientModel 1.16.0):
+   - Adaptörün **wire modeli hep `AudioClient`'ın modelidir**; `TextToSpeechOptions.ModelId` wire'a gitmez ama yanıt onu "kullanıldı" diye raporlar. Fiyat yanlış modelle aranırdı (Açık Soru 3).
+   - Adaptör akışı `stream_format: sse` ile ister; `tts-1`/`tts-1-hd` bu biçimi sunmaz.
+   - **`AudioClient` kuran bir host Native AOT ile yayımlanamaz.** OpenAI 2.14.0, System.ClientModel **1.15.0**'a karşı derlendi; 1.16.0 `AsyncStreamingClientResult<T>` tipini `AsyncStreamingResult<T>` olarak yeniden adlandırdı. `AudioClient`/`ImageClient` üye imzaları eski adı taşır; ILC `Failed to load type 'System.ClientModel.AsyncStreamingClientResult`1'` ile düşer. On satırlık bir programla yinelendi (1.16.0 → hata; 1.15.0 → temiz). Azure.Core 1.63.0 `System.ClientModel >= 1.16.0` ister, bu yüzden `Tracon.Azure` ile birlikte kullanılan her host 1.16.0 çözer.
+   - **Karşılık:** `OpenAITextToSpeechClient` ve `OpenAISpeechToTextClient` `OpenAIClient.Pipeline` üstünde yazıldı (`OpenAIAudioTransport`): kimlik doğrulama, yeniden deneme ve zaman aşımı aynı boru hattından gelir; gövde elle yazılır (JSON ve multipart). `ITextToSpeechClient` ve `ISpeechToTextClient` arayüzleri yine MEAI'nindir, köprü olduğu gibi kullanılır.
+   - **Plan 220.2'nin "egress soket koruması paylaşılan `OpenAIClient` ile gelir" cümlesi YANLIŞTI** (denetim 🟢9): kurulum zamanı istemcisi `egressGuard = null` ile kurulur; koruma yalnız kiracının kendi uç adresi için vardır (`OpenAIChatClientFactory.CreateClient`). Kurulum uç adresi operatörün kendi kararıdır, bu yüzden zarar yoktur; köprünün kiracı kapısı çözümleyicidedir, soket değil.
+   - Akış: servis varsayılan olarak **ham chunked ses** akıtır (`stream_format` verilmezse); SSE yalnız MEAI adaptörünün tercihidir. `OpenAIAudioTransport.PostStreamingAsync` yanıtı tamponlamadan okur (`RequestOptions.BufferResponse = false`; 🚨 `message.BufferResponse = false` `Apply` ile **ezilir**, ölçüldü) ve 16 KB'lık parçalar verir. İlk sürüm akışı "tek istek, tek parça" yapmıştı; denetim bunun gerekçesini (SSE ve AOT) çürüttü: AOT sorunu `AudioClient` imzasıdır, akış biçimi değil. Kanıt: kapılı sahte sunucu ilk parçayı sesin geri kalanı tutulurken verir (`Streaming_yields_the_first_chunk_before_the_service_has_finished_the_audio`).
+2. **Açık Soru 3 cevabı:** MEAI OpenAI adaptörü istek başına modeli **dikkate almaz**. Kayıt tek modele bağlıdır; başka model isteyen çağrı `TraconException` ile reddedilir (ad ve model beyanda). İkinci model için ikinci ad (`SynthesizerName`/`TranscriberName`). Model başına önbellek kurulmadı.
+3. **Açık Soru 4 cevabı:** `voice` boşken istemci `alloy` gönderir; servis `voice`'sız gövdeyi reddeder. `DefaultVoice` seçeneği eklenmedi; `alloy` sabittir (`OpenAITextToSpeechClient.DefaultVoice`).
+4. **Açık Soru 1 = A uygulandı:** `OpenAISpeechOptions.UseAsDefault` (varsayılan `false`). `TryAdd` ile; kaydı Core'un `internal` `SpeechProviderRegistration`'ı üstünden yapar (`InternalsVisibleTo Tracon.OpenAI` var) — Core'a yeni public üye girmedi. `UseVoice`'tan **önce** çağrılmalıdır. Plandaki taslak sınıfta bu alan yoktu.
+5. **Açık Soru 2 = A:** BYOK yok. Kendi anahtarı olan kiracı reddedilir. Görsel ve ses için ortak iş **F-583** olarak yazıldı.
+6. **`IncludeTimestamps` → `TraconException`, `NotSupportedException` değil** (plan 220.1 tablosu). K-502 deseni `TraconException`'dır (ElevenLabs böyle atar) ve `POST /api/voice/speak` yalnız onu `502`'ye çevirir; `NotSupportedException` yakalanmayan `500` olurdu.
+7. **Sağlayıcı hataları adaptörde `TraconException`'a sarılır.** Plan "uç 502 sınıfında yanıtlar — uygulamada doğrulanır" diyordu: uç yalnız `TraconException` yakalar. Metin türü ve (HTTP ise) durum kodunu taşır; istemcinin kendi metni `InnerException`'da kalır, çünkü isteği ya da yanıtın parçasını yankılayabilir. OpenAI taşıyıcısı ayrıca **durum kodu ve makine kodunu** (`HTTP 403 (model_not_found)`) yazar; servis metnini yazmaz (401 yanıtı anahtarın parçasını alıntılar).
+8. **Başlangıç denetimi eklendi** (`SpeechClientBridgeValidator`, `ValidateOnStart`): bağlanmış her sağlayıcı host açılırken kurulur; eksik istemci ya da adsız sağlayıcı host'u durdurur. Tüketicinin kendi fabrikasıyla kayıtlı sağlayıcıya dokunmaz (tembel kalır). Planın hata modu tablosundaki iki "başlangıç hatası" satırı bunu ister.
+9. **STT dosya adı baytlardan seçilir** (`OpenAIAudioModels.FileNameFor`): MEAI sözleşmesi akış verir, medya türü vermez; adaptör her akışı `audio.mp3` diye gönderirdi. Plan bu sınırı yazmamıştı. `mediaType` parametresi köprüde hâlâ iletilmez (genel köprü sınırı, belgelendi).
+10. **Plan dışı dosyalar:** `SpeechClientBridgeValidation.cs`, `OpenAIAudioTransport.cs`, `OpenAIAudioModels.cs`. `OpenAISpeechBuilderExtensions.cs` MEAI tipi taşımaz (pragma yok); MEAI001 bastırması yeni iki dosyadadır (`SpeechClientAdapters.cs`, `OpenAISpeechClients.cs`). DoD'deki `grep` komutu **dört** dosya listeler, çünkü `OpenAIChatClientFactory.cs` ve `OpenAIImageBuilderExtensions.cs` zaten bastırma taşıyordu; iki satırın yenisi bu fazındır.
+11. **`ProviderSettings` sözleşmesi:** genel köprü anahtarları `AdditionalProperties`'e olduğu gibi geçirir (plan böyle istiyor) — Tracon istemcinin hangi anahtarı okuduğunu bilemez, bu yüzden bilinmeyen anahtarı reddedemez. OpenAI istemcisi **her** anahtarı reddeder (anahtarı adlandırır, değeri yazmaz).
+12. **Ölçülemeyen:** `4096` karakter sınırı gerçek servisle doğrulanamadı — örnek uygulamanın OpenAI projesinin ses modeline erişimi yok (aşağıda). Değer OpenAI belgesinden alındı ve `MaxCharactersPerRequest` ile değiştirilebilir.
+13. **🤖 case 1 koşulamadı → `👤`.** `Tracon:Providers:OpenAI:ApiKey` ile `gpt-4o-mini-tts` ve `tts-1` doğrudan çağrıldı: iki model de `403 model_not_found` ("Project … does not have access to model"); `GET /v1/models` yedi model döner, hiçbiri ses modeli değil. Örnek uygulama gerçek anahtarla ayağa kalktı; `POST /api/voice/speak {"provider":"openai"}` gerçek servise ulaştı ve `502 "OpenAI speech request failed with HTTP 403 (model_not_found)."` döndü (anahtar sızmadı). Başarı yolu yalnız betikli sunucu ve AOT smoke ile kanıtlıdır.
+14. **Mevcut testte bir değişiklik:** `SpeechProviderRegistrationTests` `AddSpeechSynthesizer("studio", null!)` çağrısına tür dökümü ekledi — iki aşırı yükleme eklenince boş sabit belirsizdir (CS0121). Tüketici etkisi: yalnız `null` sabitiyle çağıran kod.
+15. **Çözüm maliyeti:** OpenAI yanıtı süre taşımaz (`json` biçimi), bu yüzden `SpeechTranscript.AudioDuration` boştur ve çözümün maliyeti `null`dır. Genel köprüde `StartTime`/`EndTime` ikisi de varsa süre hesaplanır.
+17. **Taban çizgileri ve kapı listeleri (kapanış kapısı yakaladı, kod yazarken değil):** `public-surface-baseline.txt` `Tracon.Core` 79→81, `Tracon.OpenAI` 8→10. Dört yeni tipin dördü de plandadır (`TextToSpeechClientBinding`, `SpeechToTextClientBinding`, `OpenAISpeechBuilderExtensions`, `OpenAISpeechOptions`); tavan bilerek yükseltildi, UR-012 B (`rc.1` öncesi ekleme ucuz). `CapabilityExampleTests.ForeignRegistrationMembers` listesine iki Microsoft üyesi eklendi (`AddKeyedTextToSpeechClient`, `AddKeyedSpeechToTextClient`): liste "bu ad bizim değil" diyen bir listedir, Tracon üyesi girmedi. `ExamplePrelude`'e iki kod saplaması (`StudioTextToSpeechClient`, `StudioSpeechToTextClient`) ve `TraconBuilderRegistrationSnapshotTests`'e iki vaka eklendi; ikincisi aşırı yüklemeleri yeniden adlandırdı (`AddSpeechSynthesizer(factory)` / `(binding)`). Köprü başlangıç denetimi kaydı artık host başına bir kez eklenir (ikinci çağrıda `ValidateOnStart` tekrarlanmaz). Hiçbir tavan ya da muafiyet düşürülmedi.
+16. **Komşu bulgu (bu faz değil):** `UseOpenAIImages` aynı `System.ClientModel` kaymasından etkilenir (`ImageClient` imzaları) ve `ProviderAotSmoke` onu çağırmadığı için gizli kalmıştır → **F-584**.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+- **K-215 güncellendi** *(kategori: public-api)* — köprü Tracon arayüzlerinin yerine geçmez, yanına bağlanır. Alternatif: `ISpeechSynthesizer`/`ISpeechTranscriber`'ı MEAI arayüzleriyle değiştirmek (MEAI001; ses listesi, karakter sınırı, istek başına kiracı kimliği, hizalama, faturalı karakter, diyalog yok).
+- **K-1026** *(kategori: public-api, geri-dönüşü-pahalı)* — OpenAI ses istemcisi `OpenAIClient.Pipeline` üstündedir, `AudioClient`/MEAI adaptörü üstünde değil; akış tamponlanmadan geçer. Alternatif: `AsITextToSpeechClient()` — Native AOT'u kırar (K-1019) ve modeli yanlış raporlar.
+- Kategori dışı (kapanış commit mesajına): `UseAsDefault` `TryAdd` ve `internal` kayıt anahtarıyla; `IncludeTimestamps` `TraconException`; sağlayıcı hatası sarılması; başlangıç denetimi; STT dosya adı.
 
 ## Süreç Ölçümü
 
@@ -319,10 +347,10 @@ curl -s -X POST http://localhost:5080/tracon/api/voice/speak -H 'Content-Type: a
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 16 sapma (§ Plandan Sapmalar); yapısal olan 1: OpenAI istemcisi `AudioClient`'siz, ölçümle |
+| Düzeltme turu sayısı | 2 (AOT ölçümü sırasında iki mimari dönüş: MEAI adaptörü → `AudioClient` → boru hattı; denetim turu: 4 🟡 + 5 🟢) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 bilinen (mevcut bir test değişti: `AddSpeechSynthesizer(name, null)` belirsizliği, derleme zamanı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -330,3 +358,20 @@ curl -s -X POST http://localhost:5080/tracon/api/voice/speak -H 'Content-Type: a
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+`faz-denetcisi` (taze bağlam, çalışma ağacı, 2026-10-19). **🔴 yok.** Kod, test ve public API denetlendi; docs o sırada yazılıyordu.
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | Sevk edilen XML `OpenAISpeechBuilderExtensions`'ta "dosya adı `audio.mp3`" diyordu; kod dosya adını baytlardan seçer. `OpenAISpeechOptions` voice remarks'ı eski MEAI adaptörünü anıyordu | 🟡 | düzeltildi: iki XML kodla hizalandı |
+| 2 | `UseAsDefault` + `speak`/`transcribe` tool yolu sınanmamıştı; tool'lar ElevenLabs model ayarını varsayılan motora yollar ve OpenAI kaydı onu reddeder | 🟡 | düzeltildi: `OpenAISpeechToolTests` (5 test, gerçek `UseVoice` tool'ları) + `UseAsDefault` remarks'ı "boş bırak ya da OpenAI modeline eşitle" der; hata iki modeli adlandırır |
+| 3 | "Akışlı sentez tek istektir — SSE ve AOT gerektirir" ölçülmemişti ve gerekçe izlemiyordu: servisin varsayılanı ham chunked ses, AOT sorunu `AudioClient` imzasıdır | 🟡 | düzeltildi: gerçek akış uygulandı (`PostStreamingAsync`, tamponsuz); kapılı sahte sunucu ilk parçayı sesin geri kalanı tutulurken verir. Sapma #1 ve K-1026 yeniden yazıldı. Bulgu geçerliydi; ilk sürümün gerekçesi yanlıştı |
+| 4 | DoD 6 yarım (yalnız hata yolu); DoD 4 komutu iki dosya diyordu, çıktı dört | 🟡 | düzeltildi: örnek uygulama sahte OpenAI sunucusuyla koşuldu (aşağıda); DoD 4 yeni iki dosya diye yazıldı |
+| 5 | Çözüm süresi `end < start` için korumasızdı (negatif maliyet) | 🟢 | düzeltildi (ucuzdu): `end > start` koşulu + test |
+| 6 | Akış yaratımı `try` dışındaydı; zaman aşımı OCE'si ve eşzamanlı fırlatan istemci testsizdi | 🟢 | düzeltildi: yaratım `try` içinde, iki test eklendi |
+| 7 | BYOK testi yalnız `403` ve "istek yok" diyordu | 🟢 | düzeltildi: `own credential` metni de doğrulanır |
+| 8 | `UseAsDefault` + `UseVoice` sonrası çağrıda `TryAdd` sessizce hiçbir şey yapmaz | 🟢 | devredildi: belgede yazılı (remarks, site, README); çalışma anı uyarısı **F-586** |
+| 9 | "Egress soket koruması paylaşılan istemciyle gelir" iddiası yanlış | 🟢 | düzeltildi: kod yorumu ve sapma #1; kurulum uç adresi operatörün kararıdır |
+| 10 | `SpeechRequest.ProviderSettings` sözleşme metni köprü istisnasını anmıyordu | 🟢 | düzeltildi: `SpeechModels.cs` XML'ine istisna cümlesi |
+
+**Örnek uygulama koşumu (DoD 6, 2026-10-19).** `samples/Tracon.Api`, `Tracon__Providers__OpenAI__Endpoint` yerel bir sahte OpenAI sunucusuna (`/v1/audio/speech`, `/v1/audio/transcriptions`) çevrilerek, bellek içi depoyla koşuldu; gerçek anahtar yerel sunucuya gönderilmedi (sahte anahtar). `GET /api/voice/providers`: `openai` hem `Synthesizer` hem `Transcriber`, `providerName` `"openai"`, `supportsTenantCredentials` `false`; ElevenLabs varsayılan satırları değişmedi. `POST /api/voice/speak {"text":"Merhaba, siparişiniz yolda.","provider":"openai","voiceId":"nova"}` → `200`, `characters` 27, `isEstimated` `true`, `cost` `null`, ek `audio/mpeg` (14 bayt); sahte sunucu `model=gpt-4o-mini-tts voice=nova` ve `Authorization` aldı. 4097 karakter → `400` (sahte sunucu ikinci istek görmedi). `GET /api/voice/voices?provider=openai` → `[]`. Egress politikası yalnız `tone` iken `speak` → `403` "Tenant 'default' is not allowed to call speech provider 'openai'. Allowed providers: tone." ve sahte sunucuya istek **gitmedi**. HTTP'de çözüm ucu yoktur: çözüm sonucu `ProviderAotSmoke` (Native AOT, `provider AOT smoke passed: … openai-speech`; transcript `where is my order`) ve `SpeechClientBridgeTests`/`OpenAISpeechToolTests` ile kanıtlıdır. Gerçek OpenAI hesabıyla: `403 model_not_found` (sapma #13).

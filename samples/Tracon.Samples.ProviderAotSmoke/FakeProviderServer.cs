@@ -6,8 +6,8 @@ namespace Tracon.Samples.ProviderAotSmoke;
 
 /// <summary>
 /// A loopback HTTP server that answers the request shapes the provider
-/// packages send with one canned reply each. It stands in for OpenAI, Azure
-/// OpenAI and ElevenLabs so the smoke needs no network and no key.
+/// packages send with one canned reply each. It stands in for OpenAI (chat and
+/// audio), Azure OpenAI and ElevenLabs so the smoke needs no network and no key.
 /// </summary>
 /// <remarks>
 /// Built on <see cref="TcpListener"/> on purpose: a Kestrel host would pull the
@@ -17,6 +17,8 @@ namespace Tracon.Samples.ProviderAotSmoke;
 internal sealed class FakeProviderServer : IDisposable
 {
     public const string Answer = "pong";
+
+    public const string Transcript = "where is my order";
 
     private static readonly byte[] AudioBytes = "ID3-fake-audio"u8.ToArray();
 
@@ -177,6 +179,18 @@ internal sealed class FakeProviderServer : IDisposable
         if (target.StartsWith("/v1/text-to-speech/", StringComparison.Ordinal))
         {
             return ("audio/mpeg", AudioBytes);
+        }
+
+        // OpenAI audio: the speech endpoint answers the audio bytes, the transcription
+        // endpoint answers {"text": ...}. The bridge's two paths reach these.
+        if (target.StartsWith("/v1/audio/speech", StringComparison.Ordinal))
+        {
+            return ("audio/mpeg", AudioBytes);
+        }
+
+        if (target.StartsWith("/v1/audio/transcriptions", StringComparison.Ordinal))
+        {
+            return ("application/json", Encoding.UTF8.GetBytes($"{{\"text\":\"{Transcript}\"}}"));
         }
 
         return ("application/json", "{}"u8.ToArray());

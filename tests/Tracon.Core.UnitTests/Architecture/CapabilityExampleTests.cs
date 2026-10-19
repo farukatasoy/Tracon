@@ -55,6 +55,10 @@ public sealed class CapabilityExampleTests
         "AddKeyedSingleton",
         "AddKeyedScoped",
         "AddKeyedTransient",
+
+        // Microsoft.Extensions.AI: the clients a speech binding names (experimental, MEAI001).
+        "AddKeyedTextToSpeechClient",
+        "AddKeyedSpeechToTextClient",
         "AddHostedService",
         "AddOpenApi",
         "AddHealthChecks",

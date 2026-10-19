@@ -32,6 +32,22 @@ Tracon.OpenAIProviderOptions.Organization.get -> string?
 Tracon.OpenAIProviderOptions.Organization.set -> void
 Tracon.OpenAIProviderOptions.Timeout.get -> System.TimeSpan?
 Tracon.OpenAIProviderOptions.Timeout.set -> void
+Tracon.OpenAISpeechBuilderExtensions
+Tracon.OpenAISpeechOptions
+Tracon.OpenAISpeechOptions.MaxCharactersPerRequest.get -> int
+Tracon.OpenAISpeechOptions.MaxCharactersPerRequest.set -> void
+Tracon.OpenAISpeechOptions.OpenAISpeechOptions() -> void
+Tracon.OpenAISpeechOptions.SynthesisModel.get -> string?
+Tracon.OpenAISpeechOptions.SynthesisModel.set -> void
+Tracon.OpenAISpeechOptions.SynthesizerName.get -> string!
+Tracon.OpenAISpeechOptions.SynthesizerName.set -> void
+Tracon.OpenAISpeechOptions.TranscriberName.get -> string!
+Tracon.OpenAISpeechOptions.TranscriberName.set -> void
+Tracon.OpenAISpeechOptions.TranscriptionModel.get -> string?
+Tracon.OpenAISpeechOptions.TranscriptionModel.set -> void
+Tracon.OpenAISpeechOptions.UseAsDefault.get -> bool
+Tracon.OpenAISpeechOptions.UseAsDefault.set -> void
+Tracon.OpenAISpeechOptions.Voices.get -> System.Collections.Generic.IList<Tracon.VoiceDescriptor!>!
 const Tracon.OpenAICompatibleProviderOptions.SectionName = "Tracon:Providers:OpenAICompatible" -> string!
 const Tracon.OpenAILiveOptions.ConservativeCharactersPerToken = 2 -> int
 const Tracon.OpenAILiveOptions.ProviderAppendTokenLimit = 500 -> int
@@ -50,3 +66,4 @@ static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! bui
 static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! builder, System.Action<Tracon.OpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.OpenAIProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.OpenAIProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static Tracon.OpenAISpeechBuilderExtensions.UseOpenAISpeech(this Tracon.ITraconBuilder! builder, System.Action<Tracon.OpenAISpeechOptions!>! configure) -> Tracon.ITraconBuilder!

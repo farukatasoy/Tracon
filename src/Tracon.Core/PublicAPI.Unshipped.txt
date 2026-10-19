@@ -207,6 +207,26 @@ Tracon.RunEventWriter.TenantId.get -> string?
 Tracon.RunRecordingAgent
 Tracon.SingleTenantContext
 Tracon.SingleTenantContext.TenantId.get -> string!
+Tracon.SpeechToTextClientBinding
+Tracon.SpeechToTextClientBinding.<Clone>$() -> Tracon.SpeechToTextClientBinding!
+Tracon.SpeechToTextClientBinding.Equals(Tracon.SpeechToTextClientBinding? other) -> bool
+Tracon.SpeechToTextClientBinding.ProviderName.get -> string?
+Tracon.SpeechToTextClientBinding.ProviderName.init -> void
+Tracon.SpeechToTextClientBinding.ServiceKey.get -> object?
+Tracon.SpeechToTextClientBinding.ServiceKey.init -> void
+Tracon.SpeechToTextClientBinding.SpeechToTextClientBinding() -> void
+Tracon.TextToSpeechClientBinding
+Tracon.TextToSpeechClientBinding.<Clone>$() -> Tracon.TextToSpeechClientBinding!
+Tracon.TextToSpeechClientBinding.Equals(Tracon.TextToSpeechClientBinding? other) -> bool
+Tracon.TextToSpeechClientBinding.MaxCharactersPerRequest.get -> int
+Tracon.TextToSpeechClientBinding.MaxCharactersPerRequest.init -> void
+Tracon.TextToSpeechClientBinding.ProviderName.get -> string?
+Tracon.TextToSpeechClientBinding.ProviderName.init -> void
+Tracon.TextToSpeechClientBinding.ServiceKey.get -> object?
+Tracon.TextToSpeechClientBinding.ServiceKey.init -> void
+Tracon.TextToSpeechClientBinding.TextToSpeechClientBinding() -> void
+Tracon.TextToSpeechClientBinding.Voices.get -> System.Collections.Generic.IReadOnlyList<Tracon.VoiceDescriptor!>!
+Tracon.TextToSpeechClientBinding.Voices.init -> void
 Tracon.TimeoutAIFunction
 Tracon.TraconAgentGraphOptions
 Tracon.TraconAgentGraphOptions.ChildDeadline.get -> System.TimeSpan
@@ -701,6 +721,12 @@ override Tracon.ChildAgentInvoker.Description.get -> string?
 override Tracon.ChildAgentInvoker.Name.get -> string!
 override Tracon.ResolvedCallableAgents.GetHashCode() -> int
 override Tracon.RunEventDraft.GetHashCode() -> int
+override Tracon.SpeechToTextClientBinding.Equals(object? obj) -> bool
+override Tracon.SpeechToTextClientBinding.GetHashCode() -> int
+override Tracon.SpeechToTextClientBinding.ToString() -> string!
+override Tracon.TextToSpeechClientBinding.Equals(object? obj) -> bool
+override Tracon.TextToSpeechClientBinding.GetHashCode() -> int
+override Tracon.TextToSpeechClientBinding.ToString() -> string!
 static Tracon.AgentDecoratorPipeline.Apply(Microsoft.Agents.AI.AIAgent! agent, Tracon.AgentDescriptor! descriptor, System.Collections.Generic.IEnumerable<Tracon.IAgentDecorator!>! decorators) -> Microsoft.Agents.AI.AIAgent!
 static Tracon.AgentDefinitionCompiler.CreateDefinitionFingerprint(Tracon.AgentDefinition! definition) -> string!
 static Tracon.AgentParameterValidationError.operator !=(Tracon.AgentParameterValidationError? left, Tracon.AgentParameterValidationError? right) -> bool
@@ -724,8 +750,14 @@ static Tracon.ResolvedCallableAgents.operator ==(Tracon.ResolvedCallableAgents l
 static Tracon.RunErrorFingerprint.Compute(string? message) -> string!
 static Tracon.RunEventDraft.operator !=(Tracon.RunEventDraft left, Tracon.RunEventDraft right) -> bool
 static Tracon.RunEventDraft.operator ==(Tracon.RunEventDraft left, Tracon.RunEventDraft right) -> bool
+static Tracon.SpeechToTextClientBinding.operator !=(Tracon.SpeechToTextClientBinding? left, Tracon.SpeechToTextClientBinding? right) -> bool
+static Tracon.SpeechToTextClientBinding.operator ==(Tracon.SpeechToTextClientBinding? left, Tracon.SpeechToTextClientBinding? right) -> bool
+static Tracon.TextToSpeechClientBinding.operator !=(Tracon.TextToSpeechClientBinding? left, Tracon.TextToSpeechClientBinding? right) -> bool
+static Tracon.TextToSpeechClientBinding.operator ==(Tracon.TextToSpeechClientBinding? left, Tracon.TextToSpeechClientBinding? right) -> bool
 static Tracon.TraconBuilderExtensions.AddSpeechSynthesizer(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ISpeechSynthesizer!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddSpeechSynthesizer(this Tracon.ITraconBuilder! builder, string! name, Tracon.TextToSpeechClientBinding! binding) -> Tracon.ITraconBuilder!
 static Tracon.TraconBuilderExtensions.AddSpeechTranscriber(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Tracon.ISpeechTranscriber!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddSpeechTranscriber(this Tracon.ITraconBuilder! builder, string! name, Tracon.SpeechToTextClientBinding! binding) -> Tracon.ITraconBuilder!
 static Tracon.TraconClientToolExtensions.AddClientTool(this Tracon.ITraconBuilder! builder, string! name, string! description, System.Text.Json.JsonElement jsonSchema) -> Tracon.ITraconBuilder!
 static Tracon.TraconContentGuardBuilderExtensions.AddContentGuard(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IContentGuard!>! factory) -> Tracon.ITraconBuilder!
 static Tracon.TraconContentGuardBuilderExtensions.AddContentGuard(this Tracon.ITraconBuilder! builder, Tracon.IContentGuard! guard) -> Tracon.ITraconBuilder!

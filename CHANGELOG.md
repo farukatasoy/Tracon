@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Any `Microsoft.Extensions.AI` speech client serves a named Tracon speech provider.**
+  `AddSpeechSynthesizer(name, TextToSpeechClientBinding)` and
+  `AddSpeechTranscriber(name, SpeechToTextClientBinding)` take the client from the container,
+  by service key or unkeyed. Every call passes the tenant's egress policy against the binding's
+  provider name; a tenant with its own key for that provider is refused; the host stops at
+  startup when the client is missing or has no provider name. The binding declares the
+  character limit and the voice list, which the client cannot report. Billing is an
+  estimate, character timing and dialogue are refused. No public member names a
+  `Microsoft.Extensions.AI` speech type.
+- **`UseOpenAISpeech` registers OpenAI text-to-speech and speech-to-text** as the named
+  providers `openai`, with `OpenAISpeechOptions` (`SynthesisModel`, `TranscriptionModel`,
+  names, `MaxCharactersPerRequest`, `Voices`, `UseAsDefault`). Each name is bound to one model.
+  The clients run on the shared OpenAI client's pipeline and not on `AudioClient`, so a host
+  publishes with Native AOT.
+
 ### Changed
 
 - **`/v1/chat/completions` refuses tool-call history and unknown roles with `400`.** A `tool` or
@@ -14,6 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the tool result went on as plain text without its call id, and an unknown role became `user`.
   Tracon runs the agent's tools on the server, and `/v1/responses` refuses `function_call` items
   the same way. A content part Tracon cannot hand to the model is refused by name, too.
+- `AddSpeechSynthesizer(name, null)` and `AddSpeechTranscriber(name, null)` with a literal `null`
+  no longer compile: the call is ambiguous between the factory and the binding overloads. Cast the
+  `null`, or pass the factory.
 - A harness agent that names skills and also calls other agents lists the skill tools after the
   background-agent tools, and puts the skill section of its instructions after the
   background-agents section. They were in the other order. A plain agent, and a harness agent

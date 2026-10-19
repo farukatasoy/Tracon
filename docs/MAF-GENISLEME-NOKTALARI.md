@@ -401,8 +401,13 @@ ImageGeneratingChatClient · HostedImageGenerationTool  → KORU: GenerateImageT
   (ResolveForTenantAsync), MaxImagesPerRequest'i uygular, ImagePricing ile
   TraconToolUsage.Report yazar ve modele bayt degil ek kimligi doner (baglam penceresi)
   Yeniden olc: MEAI001 kalkar VE kullanim raporu icin bir kanca gelirse
-ISpeechToTextClient · ITextToSpeechClient              → KOPRU — Faz 220 planlandi (R-01): MEAI001, public imzaya girmez;
-  DI'daki istemci ic adaptorle ISpeechSynthesizer/ISpeechTranscriber'a baglanir
+ISpeechToTextClient · ITextToSpeechClient              → KOPRU — Faz 220 TAMAMLANDI (R-01, F-579): MEAI001, public imzaya girmez;
+  DI'daki istemci ic adaptorle ISpeechSynthesizer/ISpeechTranscriber'a baglanir (AddSpeechSynthesizer/
+  AddSpeechTranscriber(name, binding)). Kiraci egress'i ve BYOK reddi cozumleyicide (K-930); kimlik bilgisi
+  MEAI seceneklerine HIC yazilmaz (LoggingTextToSpeechClient seceneklari Trace'te yazar)
+  OpenAI: AsITextToSpeechClient/AsISpeechToTextClient KULLANILMADI (K-1026) — OpenAIAudioTransport, OpenAIClient.Pipeline
+  ustunde. Sebep: model yanlis raporlanir, akis SSE, AudioClient Native AOT'ta derlenmez (OpenAI 2.14.0 ↔ System.ClientModel 1.16.0)
+  Yeniden olc: OpenAI SDK'si System.ClientModel 1.16'ya karsi derlenince on satirlik AudioClient AOT probu temiz yayimlanirsa
 OpenAI.Chat.MicrosoftExtensionsAIChatExtensions        → ALINMADI (R-03, K-036 notu): OPENAI001;
   AsOpenAIStreamingChatCompletionUpdatesAsync bos FinishReason'i her chunk'ta "stop" yazar
 ```

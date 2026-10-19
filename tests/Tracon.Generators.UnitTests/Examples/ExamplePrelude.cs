@@ -22,7 +22,7 @@ namespace Tracon.Generators.UnitTests.Examples;
 /// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>,
 /// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>,
 /// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>, <c>TtsSettings</c>,
-/// <c>StudioSpeechSynthesizer</c>, <c>OnPremiseTranscriber</c>, <c>NarrationSettings</c>): "a
+/// <c>StudioSpeechSynthesizer</c>, <c>OnPremiseTranscriber</c>, <c>StudioTextToSpeechClient</c>, <c>StudioSpeechToTextClient</c>, <c>NarrationSettings</c>): "a
 /// provider/tool/service/repository/handler/source/judge/decorator/authorization you wrote yourself". Those get a
 /// minimal stub here for the same reason - a real consumer would have written
 /// one, and the doc text stays untouched.
@@ -123,6 +123,43 @@ internal static class ExamplePrelude
             public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(CancellationToken cancellationToken = default)
                 => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>([]);
         }
+
+        // Stands in for "a Microsoft.Extensions.AI speech client you registered" (experimental, MEAI001).
+        #pragma warning disable MEAI001
+        internal sealed class StudioTextToSpeechClient(string? apiKey = null) : ITextToSpeechClient
+        {
+            public string? ApiKey => apiKey;
+
+            public Task<TextToSpeechResponse> GetAudioAsync(string text, TextToSpeechOptions? options = null, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public IAsyncEnumerable<TextToSpeechResponseUpdate> GetStreamingAudioAsync(string text, TextToSpeechOptions? options = null, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+            public void Dispose()
+            {
+            }
+        }
+
+        internal sealed class StudioSpeechToTextClient(string? apiKey = null) : ISpeechToTextClient
+        {
+            public string? ApiKey => apiKey;
+
+            public Task<SpeechToTextResponse> GetTextAsync(System.IO.Stream audioSpeechStream, SpeechToTextOptions? options = null, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public IAsyncEnumerable<SpeechToTextResponseUpdate> GetStreamingTextAsync(System.IO.Stream audioSpeechStream, SpeechToTextOptions? options = null, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+            public void Dispose()
+            {
+            }
+        }
+        #pragma warning restore MEAI001
 
         // Stands in for "a speech-to-text engine you run yourself".
         internal sealed class OnPremiseTranscriber(Uri endpoint) : ISpeechTranscriber

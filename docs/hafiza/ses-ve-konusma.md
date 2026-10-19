@@ -150,32 +150,7 @@ tazele.
   gorevi `Cut` cagirir. `MaxConcurrentDelegations` yukseltilecekse once kilit.
 - **🚨 Dış `CloseAsync` `_lifetime`'i pump bitmeden iptal edemez** (2026-09-19; F-257'nin transkript vakasının kök nedeni) — kapanış sırası `CloseCoreAsync`'tedir; tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
-- **🚨 Sentetik bir ses akışı WebRTC'de çalışır, `MediaRecorder`'da ÇALIŞMAZ**
-  (2026-09-19, manuel kapanış §5 turları 8-9): canlı ses (`live-test.html`,
-  `/api/voice/live/sessions`) parçayı WebRTC'ye doğrudan verir ve
-  `MediaStreamAudioDestinationNode` tabanlı sentetik bir akış sorunsuz taşınır
-  — sağlayıcı sentezlenmiş konuşmayı doğru transkript etti. Konuşma paneli
-  (`UseVoiceConversation`) ise `MediaRecorder` kullanır ve aynı akıştan **hiç
-  veri üretmez**: WebSocket'in `send` çağrısı sarıldığında giden çerçeve `2`
-  (yalnız `start` + `commit`), ses parçası `0` çıktı. ∴ konuşma panelinin
-  içerik isteyen case'leri gerçek mikrofon ister; içerik istemeyenleri
-  (rozet, i18n/tema, `idle` çerçevesi) sentetikle ölçülebilir.
-- **Canlı ses oturumunu tarayıcısız sürmenin yordamı** (aynı vaka): mikrofon
-  `getUserMedia` **oturum açılmadan önce** kendi `MediaStreamAudioDestinationNode`'a
-  bağlanır (parça oturum boyunca aynı kalmalı), sonra sorunun sesi sunucunun
-  kendi TTS'iyle üretilip (`POST /api/voice/speak` → ek → `decodeAudioData`)
-  o düğüme **çalınır**. ⚠️ `replaceTrack` kullanma — oturum `Abandoned` olur;
-  parçayı değiştirmek değil **içine çalmak** gerekir.
-- **🚨 Canlı ses ucunda token `Authorization` başlığıyla GİTMEZ** (aynı vaka,
-  `MT-SEC-162`): WebSocket subprotocol'ü kullanılır —
-  `Sec-WebSocket-Protocol: tracon.voice.v1, tracon.token.<token>`
-  (`VoiceConversationProtocol.cs:23,34`). Yanlış taşımayla gelen `401`
-  yetkilendirme reddi **değildir**; bunu ayırt etmeyen bir ölçüm case'i yanlış
-  sebeple "geçti" sanır.
-- **Kuyruklu bir onay `sessionId` ister** (aynı vaka): `Prefer: respond-async`
-  ile onay isteyen bir run `sessionId` verilmezse `Failed` olur ve kalıcı bir
-  `pending_approvals` satırı hiç oluşmaz. Senkron koşumda onay akışın içinde
-  taşınır ve tabloya **yazılmaz** — `/api/approvals/pending` boş görünür.
+- **🚨 Sentetik ses WebRTC'de çalışır, `MediaRecorder`'da ÇALIŞMAZ** (2026-09-19): konuşma paneli (`UseVoiceConversation`) içerik isteyen case'lerde gerçek mikrofon ister; canlı ses (`live-test.html`) sentetikle sürülür — `replaceTrack` kullanma (`Abandoned`), parçanın İÇİNE çal. Canlı ses ucu token'ı `Authorization` ile değil subprotocol ile alır (`401` ≠ yetki reddi); kuyruklu onay `sessionId` ister. Tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 ## Adlı konuşma sağlayıcısı ve kiracı kapısı (Faz 198)
 
@@ -192,3 +167,11 @@ tazele.
 - **"Ağ çağrısı yok" iddiası canlı uçta sayılamaz:** örneği `Tracon__Voice__Endpoint=http://127.0.0.1:<port>/` ile istek kaydeden yerel bir sahte uca yönelt (Faz 203 case 2–6).
 - **🚨 Diyalog düğümü sonucu TEK ses sonucu gibi raporlar** (2026-10-13, Faz 199): `SpeechDialogueAudio.Audio` (`CharactersBilled`, `UsageSource`, `ModelId`) bir `ReportUsageAsync` kalemi olur. `DialogueModelId` boşken `ModelId = null`; fiyat modelsiz aranır ve model anahtarlı fiyat BULUNMAZ → kalem **fiyatsız** listelenir, başka modelin fiyatıyla doldurulmaz (`samples/Tracon.Api` `dialogue` düğümü).
 - **ElevenLabs sözleşmesi YAZILI bir beyandır** (Faz 217, K-216 KEEP; resmî SDK yok): `tests/Tracon.Voice.UnitTests/Fixtures/elevenlabs-operations.json`. `ElevenLabsOperationDriftTests` onu KODLA eşitler (adlar + tipler); `scripts/elevenlabs-kayma.py` canlı OpenAPI'ye karşı koşar (ağ, CI'da değil).
+
+## MEAI ses köprüsü ve OpenAI sesi (Faz 220)
+
+- **🚨 Köprülenmiş sağlayıcının egress adı `ProviderName`'dir, kayıt adı değil** (K-930): bağlamadan, yoksa istemci metadata'sından; ikisi de yoksa host AÇILMAZ (`SpeechClientBridgeValidator`). Test, iki ad FARKLIYKEN ayırt eder.
+- **🚨 Kimlik bilgisi MEAI seçeneklerine yazılmaz** (`LoggingTextToSpeechClient` Trace'te yazar). Kimlik testi `ProviderSettings` BOŞKEN de koşar: ayar varsa adaptör sözlüğü yeniden kurar ve sızıntı gizlenir (mutasyonla ölçüldü).
+- **🚨 `AudioClient` ve `AsITextToSpeechClient()` Native AOT'u kırar** (OpenAI 2.14.0 ↔ System.ClientModel 1.16.0; K-1026, F-584; ölçüm `OpenAIAudioTransport` başında). Sağlayıcı istemcisine dokunmadan önce on satırlık AOT probu yayımla; JIT ilk akışlı üyede sessizce kırılır.
+- OpenAI istemcileri **tek modele bağlıdır** (MEAI adaptörü yanıtta isteği modeli yazar, wire'da kendininkini kullanır). `OutputFormat` ElevenLabs adı gelir (`mp3_44100_128`): ilk `_`'a kadar okunur.
+- OpenAI SDK'sı 5xx'i **kendisi üç kez yeniden dener**: betikli sunucuda tek hata başarıya döner → `FailNext(500, times: 10)`. `ClientResultException` metni gövdeyi taşıyabilir (401 anahtarın parçasını alıntılar): uca durum ve makine kodu gider (`HTTP 403 (model_not_found)`), gövde `InnerException`'da kalır.

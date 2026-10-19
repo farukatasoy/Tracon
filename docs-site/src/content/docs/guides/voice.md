@@ -204,6 +204,9 @@ Three behaviors follow the bound implementation, not the settings:
 With no model identifier set, your provider's cost stays `null`: Tracon does not
 borrow the built-in client's default model or its price.
 
+A provider that already ships a `Microsoft.Extensions.AI` speech client needs no
+hand-written adapter. See [Use any Microsoft.Extensions.AI speech client](#use-any-microsoftextensionsai-speech-client).
+
 ### Several speech providers in one host
 
 A host that picks the text-to-speech engine per pipeline or per customer — a hosted
@@ -289,6 +292,115 @@ Tracon cannot see what the node spent, so the node reports it with `ReportUsageA
 above. `IVoicePricingReader.ForSynthesis` prices the characters by the engine and model
 that did the work and returns `null` when no price is configured; the item is then
 listed as unpriced and left out of the run's total instead of counting as zero.
+
+### Use any Microsoft.Extensions.AI speech client
+
+A provider that already ships an `ITextToSpeechClient` or `ISpeechToTextClient` needs no
+hand-written adapter. Register the client in the container with the extension of its own
+package, then bind it to a name. Tracon serves it through its own speech contracts, so it
+passes the same tenant checks as every other engine:
+
+```csharp
+#pragma warning disable MEAI001 // Microsoft.Extensions.AI marks its speech clients experimental
+builder.Services.AddKeyedTextToSpeechClient("studio", provider =>
+    new StudioTextToSpeechClient(provider.GetRequiredService<IConfiguration>()["Studio:ApiKey"]));
+builder.Services.AddKeyedSpeechToTextClient("studio", provider =>
+    new StudioSpeechToTextClient(provider.GetRequiredService<IConfiguration>()["Studio:ApiKey"]));
+
+builder.AddTracon()
+    .AddSpeechSynthesizer("studio", new TextToSpeechClientBinding
+    {
+        ServiceKey = "studio",
+        ProviderName = "studio",
+        MaxCharactersPerRequest = 4000,
+        Voices = [new VoiceDescriptor { VoiceId = "river", Name = "River" }],
+    })
+    .AddSpeechTranscriber("studio", new SpeechToTextClientBinding
+    {
+        ServiceKey = "studio",
+        ProviderName = "studio",
+    });
+```
+
+The binding says what the client cannot say about itself:
+
+| Field | Meaning |
+|---|---|
+| `ServiceKey` | The key the client is registered under. Leave it out for the unkeyed registration. |
+| `ProviderName` | The name a tenant's egress policy and provider bindings use. Leave it out to read the name from the client's metadata. |
+| `MaxCharactersPerRequest` | Required, greater than zero. `speak` and `POST /api/voice/speak` refuse longer text before the client is called. |
+| `Voices` | The list `GET /api/voice/voices` returns. The client has no way to list its voices, so the list is a declaration. Empty by default. |
+
+What the bridge does and does not do:
+
+- **The host stops at startup** when the client is not registered, or when neither the binding nor
+  the client names a provider. A provider with no name would pass every egress policy.
+- **A tenant with its own key for the provider is refused** with `403`. The client was built with
+  your key and cannot take another.
+- **Billing is an estimate.** The client reports no billed characters, so Tracon records the length
+  of the text and marks it as estimated. A transcription has a duration only when the client reports
+  a start and an end time; without one it has no cost.
+- **Character timing and dialogue are refused.** `IncludeTimestamps` fails, and
+  `GetDialogueSynthesizerAsync` reports that the engine cannot voice a dialogue.
+- **The media type is not passed on.** The client takes a stream and no media type.
+- **A failure is a `502`** that carries the exception type and, for HTTP, the status code. The
+  client's own message can echo the request, so it stays in the log.
+- **Request settings reach the client unchanged,** as its `AdditionalProperties`. Tracon cannot tell
+  which keys the client reads, so it cannot refuse an unknown one. Put no secret there:
+  `LoggingTextToSpeechClient` writes its options to the log at Trace level.
+
+Microsoft.Extensions.AI marks its speech clients experimental, so registering one in your own code
+needs `#pragma warning disable MEAI001`, as the example shows. No Tracon public member names one: the
+bindings hold a key, a name, a limit, and a list.
+
+### OpenAI speech
+
+`UseOpenAISpeech` registers OpenAI text-to-speech and speech-to-text as named providers. It
+shares the client of `UseOpenAI`, so call that first:
+
+```csharp
+builder.AddTracon()
+    .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
+    .UseOpenAISpeech(options =>
+    {
+        options.SynthesisModel = "gpt-4o-mini-tts";
+        options.TranscriptionModel = "gpt-4o-mini-transcribe";
+    });
+```
+
+```http
+POST /tracon/api/voice/speak
+{ "text": "Your order is on its way.", "provider": "openai" }
+```
+
+Set at least one model on `OpenAISpeechOptions`. The provider name is `openai`, the name the chat provider uses, so
+one egress rule covers chat, images, and speech.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `SynthesisModel` | none | The text-to-speech model. A synthesizer is registered when it is set. |
+| `TranscriptionModel` | none | The speech-to-text model. A transcriber is registered when it is set. |
+| `SynthesizerName`, `TranscriberName` | `openai` | The registration names. Register a second model under another name. |
+| `MaxCharactersPerRequest` | `4096` | The limit `speak` enforces. |
+| `Voices` | empty | The voices `GET /api/voice/voices` lists. A call that names none is spoken in `alloy`. |
+| `UseAsDefault` | `false` | Also register the synthesizer and the transcriber as the unnamed defaults, with `TryAdd`. Call `UseOpenAISpeech` before `UseVoice` for it to take effect. |
+
+Rules that follow from the OpenAI service:
+
+- **One model for each name.** A request that names another model is refused instead of being
+  answered by one model and priced as another. Leave the model out of the request.
+- **Format names are read as containers.** `speak` sends the configured `OutputFormat`, an
+  ElevenLabs name such as `mp3_44100_128`. OpenAI names the container only, so the part before the
+  first underscore is the format: `mp3`, `opus`, `aac`, `flac`, `wav`, or `pcm`.
+- **Streaming passes the audio on as the service sends it,** chunked and not as server-sent events,
+  so playback can start early and every speech model serves it.
+- **Provider settings are refused.** OpenAI speech reads none.
+- **A transcription has no cost.** The answer carries no duration. The file name sent to the service
+  follows the audio bytes, so a WAV stream is sent as a WAV file.
+- **The project needs the model.** Without access the call fails with
+  `OpenAI speech request failed with HTTP 403 (model_not_found)`: status and error code, never the
+  service's text.
+- **Native AOT.** The package publishes with Native AOT, including this path.
 
 ### Voice a dialogue with several speakers
 
@@ -773,6 +885,12 @@ it has no key. The message names the contract it still serves. Set the key with
 `dotnet user-secrets set "Tracon:Voice:ApiKey" "..."`, or register your own
 `ISpeechSynthesizer` and `ISpeechTranscriber` **before** `UseVoice()`. A
 registration after `UseVoice()` is not seen, and the message is the same.
+
+### A speech call returns `502` with `HTTP 403 (model_not_found)`
+
+The OpenAI project behind your key cannot use the speech model. Open the project in the
+OpenAI dashboard, allow the model, or set a model the project can use in
+`SynthesisModel` or `TranscriptionModel`. `HTTP 401` means the key itself is refused.
 
 ### A speech call returns `403`
 

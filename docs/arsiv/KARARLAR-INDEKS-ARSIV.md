@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (963 kalem)
+## Arşivlenen Kararlar (964 kalem)
 
 | K | Karar |
 |---|---|
@@ -972,3 +972,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-971 | `SkillScriptExecutionRequest` ortam değeri taşımaz; script'e `TRACON_SKILL_NAME` ve çağrıya özel `TRACON_SKILL_TEMP` verilir; `ContentSha256` grant pini değil içeriğin UTF-8 SHA-256'sıdır; `ToString` `Content` ve `ArgumentsJson`'ı basmaz (Faz 202) |
 | K-972 | Token dışı tutar (düğüm kalemi, tool ölçümü) `RunNonTokenCost` adlı AYRI toplamdır ve `RunCost.Total()`'a girmez; token tutarıyla toplayan TEK yer `RunSpend.Total`'dır, para kararı veren beş yer yalnız onu kullanır; yalnız `Tracon:Pricing:Currency` cinsinden tutar toplanır, kalan kalem sayılır; K-219'u daraltır (Faz 199) (kullanıcı kararı) 👤 |
 | K-973 | `WebhookRunSummary.Cost` token ve bildirilen token dışı tutarı birlikte taşır, `NonTokenCost` yalnız bildirilen payı verir; `IRunStore` iki üye alır (GA öncesi kırılma); `GET /api/runs/{runId}/usage` run'ın kendi kalemlerini döner (Faz 199) (kullanıcı kararı) 👤 |
+| K-974 | Token dışı harcamanın kalıcı biçimi: `run_non_token_usage` tablosu (kalem anında yazılır), `runs` üzerinde dört snapshot sütunu (run kapanırken), `tool_invocations`'ta sağlayıcı/model; kapanıştan sonra gelen kalem yalnız detaya; kalem sayısı ve değer sınırları kabulde denetlenir (Faz 199) (kullanıcı kararı) 👤🔁 |
