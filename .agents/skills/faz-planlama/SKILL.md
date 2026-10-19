@@ -162,6 +162,12 @@ girdi. Düzeltme kapsamı daralttı (Faz 203).
 ama sürüm notunda adıyla anılır; yayın provası bunu zorlar (Faz 187). Plan, dokunduğu her public tip için şunu yazar: **"bugün eklemek
 bedava / sonradan eklemek kırıcı"**.
 
+🚨 **`rc.1`'e kadar "kırıcı mı?" bir seçim ölçütü değildir** (UR-012 B, kullanıcı
+kararı 2026-10-19). Ölçüt en iyi kalıcı tasarımdır. Kırmayan ama zayıf bir
+seçenek, kıran ama doğru bir seçeneğe tercih edilmez. Kademe tetiği (aşağıda) planın
+**derinliğini** belirler, işin yapılıp yapılmayacağını değil. Değişmeyen sınır:
+public imzaya upstream deneysel tip girmez (`YAYIN-HAZIRLIK.md` ölçüt 5).
+
 ---
 
 ## Adım 3 — Belirsizlikleri kullanıcıya sor — yazmadan **önce**

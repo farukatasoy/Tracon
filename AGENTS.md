@@ -64,7 +64,8 @@ Tracon, Microsoft Agent Framework (MAF) üzerine kurulu bir **NuGet paket
 ailesidir** — bir uygulama değil, başkalarının bağımlı olacağı bir kütüphane.
 Kalite eşiğini bu belirler:
 
-- Public API'de kırıcı değişiklik pahalıdır — tasarımı ilk seferde doğru yap
+- **`rc.1`'e kadar kırıcılık ölçüt değildir** (UR-012 B): ölçüt en iyi RC'dir.
+  Daha iyi tasarım kırıyorsa kır, sürüm notunda an. `rc.1`'den sonra pahalıdır
 - Her public üye XML dokümanına sahip olmalıdır (build bunu zorlar)
 - Tüketicinin bağımlılık grafiğini kirletme
 - `TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı

@@ -194,7 +194,7 @@ Tam kapsam sınırı listesi `faz-planlama` Adım 2'dedir. Aday turunda yalnız
 | **Yeni NuGet paketi** | Geçişli ağırlığı **sayılır**. Faz 27: 37 paket → ertelendi (K-212) |
 | **AOT** | `Abstractions`, `Core`, `PostgreSql`, `OpenAI` AOT uyumlu kalır. Yansımaya dayanan fikir bu paketlere giremez |
 | **Bundle** | Arayüz işi 250 KB gzip bütçesine girer |
-| **Public API** | Faz 60 public API takibini açtı. Public yüzeyi büyüten kalem artık bir sürüm kararıdır |
+| **Public API** | Faz 60 public API takibini açtı. `rc.1`'e kadar yüzeyi büyütmek ve kırmak kalemi **elemez** (UR-012 B, 2026-10-19): kalem en iyi RC'ye katkısıyla yargılanır. `rc.1`'den sonra her yüzey değişikliği sürüm kararıdır |
 
 ### 3.5 🚨 Karşı görüş satırı
 

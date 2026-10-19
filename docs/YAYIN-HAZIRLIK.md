@@ -5,12 +5,13 @@
 > kayıtlar burada durmaz; tam metinleri git'tedir (§7). İş kalemi buraya değil,
 > [`ADAYLAR.md`](ADAYLAR.md)'ye yazılır.
 >
-> **Son güncelleme:** 2026-10-17 (UR-004 = A; ölçümler satırında tarihli)  
+> **Son güncelleme:** 2026-10-19 (UR-012 = B; ölçümler satırında tarihli)  
 > **Çalışma modu:** `nuget-danismani` — public API freeze programı (UR-009 B)  
 > **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.4`. Freeze yolunun ilk üç
 > ölçütü bitti: küçültme (Faz 212–213), bağımlılık yükseltmesi (Faz 214–216)
-> ve modernizasyon (Faz 217); ölçüt 4 karar verildi (UR-012 = A: yeni yetenek
-> yok). Ölçüt 5'ten F-290 Faz 218'de kapandı (2026-10-17: son `[Obsolete]` üye ve sütun kalktı); sıradaki iş F-559; F-560 MAF GA'sını bekler (UR-013). Faz 212–218 `origin/main`'de yok; CI onları hiç koşmadı. GA
+> ve modernizasyon (Faz 217). **UR-012 = B (2026-10-19): ölçüt en iyi RC'dir;
+> `rc.1`'e kadar kırıcılık ölçüt değildir, RC'yi iyileştiren ekleyici yetenek de
+> girer.** Ölçüt 5'ten F-290 Faz 218'de kapandı (2026-10-17: son `[Obsolete]` üye ve sütun kalktı); sıradaki iş F-559; F-560 MAF GA'sını bekler (UR-013). Faz 212–218 `origin/main`'de yok; CI onları hiç koşmadı. GA
 > hâlâ ❌ (`NU5104`, ER-001). UR-004 = A (2026-10-17): `rc.1` de ER-001 kalkana kadar çıkmaz.
 
 ## 1. Canlı durum (ölçüldü 2026-10-16)
@@ -44,10 +45,10 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 | 1 | Küçültme | ✅ | Faz 212 (A-74) · Faz 213 (A-75, A-79) · A-78 · A-80 |
 | 2 | Her bağımlılık en yeni sürümde | ✅ | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
 | 3 | Modernizasyon | ✅ **Faz 217** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
-| 4 | Yeni yetenekler toplu girer | ✅ UR-012 = A 👤 (2026-10-17) | Freeze'den önce **yeni yetenek girmez**; yalnız sözleşmeyi değiştiren kırıcı kalemler girer: F-290 (`AuthorizationConfigurationKey` kaldırma + veri taşıma). F-466 (kanıtsız iki public istisna) ölçümle kapandı: A-80 ikisini belgeledi, kırıcı iş gerekmedi. Ekleyici yetenekler 1.x minor'a kalır; RC ile GA arasında yetenek eklenmez (UR-005 A) |
+| 4 | Yeni yetenekler toplu girer | ⏳ UR-012 = B 👤 (2026-10-19) | Ölçüt en iyi RC'dir: RC'yi iyileştiren iş, kırıcı ya da ekleyici, freeze'den **önce** girer. Kaynak MAF kapsama matrisinin dalgalarıdır; Dalga 1 ölçüldü (2026-10-19, kırıcı kalem kalmadı). F-290 ✅ Faz 218. RC ile GA arasında yetenek eklenmez. Önceki karar (A, 2026-10-17) UR-012 satırındadır |
 | 5 | Kırıcı kalemler kapandı · public imzada upstream deneysel tip yok · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 ✅ **Faz 218** (2026-10-17; `[Obsolete]` kalmadı, `git grep "\[Obsolete" src` boş) · F-559 (A-76, A-67, A-68) · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |
 | 6 | Faz 193 (`net8.0`/`net9.0` düşer) | 📋 planlandı | En erken 2026-11-10 (K-855) |
-| 7 | Bir preview aralığı kararlı katmanda **sıfır** kırılmayla geçer | ⏳ | 3–6'dan sonra. `kapi.py yayin` kırılma listesi boş olur. Her yeni yetenek pencereyi yeniden başlatır |
+| 7 | Bir preview aralığı kararlı katmanda **sıfır** kırılmayla geçer | ⏳ | **Yalnız son adımda sayılır** 👤 (2026-10-19, UR-012 B): 4–6 bittikten sonra, `rc.1`'den hemen önceki son preview sessiz geçer; `kapi.py yayin` kırılma listesi boş olur. Pencere o güne kadar sayılmaz; o aralıkta giren kırıcı değişiklik ya da yeni yetenek pencereyi yeniden başlatır |
 | 8 | Upstream kararlı (ER-001 kalktı) · `1.0.0-rc.1` provası yeşil | ⏳ dış | UR-004 A: Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alır. Sonra `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-rc.1` |
 
 ## 3. Açık kalemler
@@ -134,7 +135,7 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 | UR-005 | **A:** tek kararlı katman; Tracon'un kendi `[Experimental]` katmanı yok | — |
 | UR-006 | **A:** ön sürüm upstream bağımlılığı tam sürüm `[x]` yazılır (K-872) | Upstream kararlı olunca alt sınıra döner |
 | UR-009 | **B:** küçült → yükselt → modernize et → yetenekler → kurallar → RC'de dondur (§2). RC upstream kararlı olunca çıkar (UR-004 A) | — |
-| UR-012 | **A** 👤 (2026-10-17): freeze'den önce yeni yetenek yok; yalnız kırıcı kalemler (F-290; F-466 ölçümle kapandı). Ekleyici yetenekler 1.x minor; RC ile GA arasında yetenek eklenmez | Upstream GA uzun süre gelmezse ve RC'de bekleyen yetenek birikirse yeniden bakılır |
+| UR-012 | **B** 👤 (2026-10-19): **ölçüt Tracon'un en iyi tasarımla `rc.1`'e gitmesidir.** `rc.1`'e kadar kırıcı değişiklik bir maliyet ya da sıralama ölçütü değildir; daha iyi kalıcı tasarım kırıyorsa o seçilir ve sürüm notunda adıyla anılır (yayın provası zorlar). RC'yi iyileştiren ekleyici yetenek de freeze'den önce girer; kaynak MAF kapsama matrisinin dalgalarıdır (`claudedocs/maf-1.25.0-yetenek-matrisi.md`). Değişmeyen sınırlar: public imzada upstream deneysel tip yok (ölçüt 5, UR-005, UR-013); RC ile GA arasında yetenek eklenmez. A (2026-10-17: freeze'den önce yeni yetenek yok, yalnız kırıcı kalemler; ekleyici yetenek 1.x minor'a) seçilmedi: ER-001 ile `rc.1` tarihsizdir ve seam'ler donmadan şekillenmelidir | `rc.1` çıkınca biter; kırıcılık o andan sonra sürüm kararıdır |
 | UR-013 | **F-560: MAF'ın GA'sı beklenir** 👤 (2026-10-17). `AddLoopEvaluator` ×4 ve `AgentFileStoreContract` olduğu gibi kalır; Tracon kendi ölçüt tipini kurmaz, sözleşmeyi `internal`'a çekmez. Freeze (`rc.1`) bu tetiğe bağlıdır | `uyum-probu.cs -- deneysel` public maruziyeti 0 gösterince F-560 kapanır; MAF GA uzarsa freeze'in bu tetiğe bağlılığı yeniden tartılır |
 | OP-001 | Paket sahibi nuget.org organizasyonu `Tracon` (K-755) | — |
 | OP-005 | NuGet yayını OIDC trusted publishing: `Tracon` sahipliğinde policy, `Tracon*`, push-only; kalıcı API key yok (OP-004) | — |
