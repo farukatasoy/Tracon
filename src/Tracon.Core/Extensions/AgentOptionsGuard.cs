@@ -114,14 +114,21 @@ internal static class AgentOptionsGuard
         // invocable-function bypassing re-injects stored calls as pre-approved responses.
         .Protect(nameof(ChatClientAgentOptions.DisableApprovalResponseBinding), static options => options.DisableApprovalResponseBinding)
         .Protect(nameof(ChatClientAgentOptions.EnableInvocableFunctionBypassing), static options => options.EnableInvocableFunctionBypassing)
+
+        // MAF's default chat client stack holds the approval binding and the per-call history
+        // writer. Using the client as is skips the whole stack: a forged approval runs the tool,
+        // and with per-call persistence on, the tenant's history stays empty (measured).
+        .Protect(nameof(ChatClientAgentOptions.UseProvidedChatClientAsIs), static options => options.UseProvidedChatClientAsIs)
+
+        // ModelBinding.AllowConcurrentToolCalls sets the tool loop Tracon builds (K-553). MAF finds
+        // that same loop and turns it on when this member is set, over the definition (measured).
+        .Protect(nameof(ChatClientAgentOptions.AllowConcurrentInvocation), static options => options.AllowConcurrentInvocation)
         .Free(
-            nameof(ChatClientAgentOptions.AllowConcurrentInvocation),
             nameof(ChatClientAgentOptions.ClearOnChatHistoryProviderConflict),
             nameof(ChatClientAgentOptions.DisableApprovalNotRequiredFunctionBypassing),
             nameof(ChatClientAgentOptions.EnableMessageInjection),
             nameof(ChatClientAgentOptions.RequirePerServiceCallChatHistoryPersistence),
             nameof(ChatClientAgentOptions.ThrowOnChatHistoryProviderConflict),
-            nameof(ChatClientAgentOptions.UseProvidedChatClientAsIs),
             nameof(ChatClientAgentOptions.WarnOnChatHistoryProviderConflict));
 
     /// <summary>The rows of <see cref="HarnessAgentOptions"/>.</summary>

@@ -5,7 +5,7 @@
 > `MIMARI.md`'den ayrıldı çünkü her oturumda değil, **yalnız MAF'a dokunurken**
 > okunur.
 >
-> ⚠️ **EKSİK: bölümler Faz 13'te bitiyor** (son güncelleme 2026-08-07). Faz 15/16
+> ⚠️ **EKSİK: Faz 13 ile Faz 219 arası işlenmedi** (Faz 219–223 2026-10-20'de eklendi). Faz 15/16
 > (Workflows), 22 (MCP), 29 (gerçek zamanlı ses) ve 50 (MCP sunucusu · A2A) MAF
 > tipi kullandı ama buraya işlenmedi. Burada bulamadığın bir tip **kullanılmıyor
 > demek değildir** — `maf-api-kesfi` skill'i ile imzayı doğrula ve bulduğunu
@@ -63,7 +63,7 @@ tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kes
 > | MAF 1.20.0 | `HarnessAgent.RunCoreAsync` · `RunCoreStreamingAsync` (protected virtual) · `Hosting.AIHostAgent` aynı ikili | Kullanılmıyor. Türetip override etmeye açılmış; Tracon kaydı dıştan bir `DelegatingAIAgent` ile alır ve bu her agent tipinde aynı çalışır (§ *Reddedilen işler* L28) |
 > | MAF 1.20.0 | `FeatureUsage.ApplyToUserAgent` · `MarkUsed` | Kullanılmıyor — MAF'ın kendi telemetri işaretlemesi |
 > | MAF 1.20.0 | `BackgroundAgentsProviderOptions.WaitTimeout` | **Kullanılıyor (Faz 144)** — alt-agent çağrısının katman 2 (sert kesme) sınırı. Tracon nesneyi hem düz agent hem harness yolunda kendisi kurar (`ChildAgentInvoker` KENDİSİ de aynı değeri kullanarak ikinci, bağımsız bir yarış çalıştırır — MAF'ın kendi "wait" davranışına güvenilmez, ölçüldü: tek bir `wait_for_first_completion` çağrısı MAF'ın kendi `WaitTimeout`'u kadar beklemiyor, kısa bir yoklama gibi davranıyor). Önceki satır ("arka plan agent'ları K-062 kapsamında kapalı") **yanlıştı** — K-062 yalnız `HarnessAgentOptions.BackgroundAgents` ÜYESİNİN harness'ta atanmamasını anlatır; `BackgroundAgentsProvider` (bir `AIContextProvider`) alt-agent çağırma özelliği için K-097'den beri zaten AKTİFTİR |
-> | MAF 1.25.0 | `ChatClientAgentOptions` · `HarnessAgentOptions` · `ChatOptions` — her settable üye | **Kullanılıyor (Faz 222, K-1029)** — `AddAgentExtension` kancası seçenek nesnesinin kendisini verir. `AgentOptionsGuard` her üyeyi `Protected` / `Free` / `AppendOnly` sınıflar; sınıflanmamış üye `AgentOptionsGuardTests.Every_settable_member_has_a_row`'u kırar. Sohbet agent'ında 16, harness'ta 32, `ChatOptions`'ta 20 üye ölçüldü |
+> | MAF 1.25.0 | `ChatClientAgentOptions` · `HarnessAgentOptions` · `ChatOptions` — her settable üye | **Kullanılıyor (Faz 222, K-1029)** — `AddAgentExtension` kancası seçenek nesnesinin kendisini verir. `AgentOptionsGuard` her üyeyi `Protected` / `Free` / `AppendOnly` sınıflar; sınıflanmamış üye `AgentOptionsGuardTests.Every_settable_member_has_a_row`'u kırar. Sohbet agent'ında 16, harness'ta 32, `ChatOptions`'ta 20 üye ölçüldü. 🚨 `UseProvidedChatClientAsIs` ve `AllowConcurrentInvocation` 2026-10-20'de `Protected` oldu (K-1035): ilki MAF'ın varsayılan istemci yığınını (onay bağlaması dahil) atlar, ikincisi Tracon'un FIC'ini bulup açar |
 
 ### Faz 1'de kullanılanlar
 
@@ -283,9 +283,15 @@ public sealed class TraconRunOptions : AgentRunOptions
 
 `RunRecordingAgent` bu tipi `options as TraconRunOptions` ile okur; boşsa kimliği
 kendisi üretir. Tip `ChatOptions` **taşımaz** — örnekleme ayarları gerekiyorsa MAF'ın
-`ChatClientAgentRunOptions` tipi kullanılır ve ikisi birlikte kullanılamaz. Tracon
-kendi uçlarında örnekleme ayarlarını agent tanımından çözdüğü için pratikte kısıt
-oluşturmaz.
+`ChatClientAgentRunOptions` tipi kullanılır ve ikisi birlikte kullanılamaz
+(`ChatClientAgentRunOptions` `sealed`'dır). Tracon uçları örnekleme ayarını tanımdan
+çözer; run başına üst yazım C-03'tür (`MAF-KAPSAMA.md` §8).
+
+🚨 **G-07 (2026-10-19):** MAF'ın tool middleware'i (`AIAgentBuilder.Use(…FunctionInvocationContext…)`)
+yalnız `null`, düz `AgentRunOptions` ve `ChatClientAgentRunOptions` kabul eder; alt tip
+`NotSupportedException` atar. `RunRecordingAgent.ForInnerAgent` içeri **düz**
+`AgentRunOptions` verir; `TraconRunOptions`'ı yalnız en dıştaki kayıt sarmalayıcısı okur.
+`Order < 0` dekoratör hâlâ `TraconRunOptions` görür. Tuzak: [`hafiza/maf-api.md`](hafiza/maf-api.md).
 
 ### Faz 6'da kullanılanlar
 
@@ -365,6 +371,19 @@ IEnumerable<AIContextProvider> AIContextProviders;  // TextSearchProvider bu yol
 vektör tabanlı anlamsal arama, basit oturum-içi bellek değil. Karar K-105
 (kullanıcı onayladı): depoda somut bir `VectorStore` implementasyonu olmadan
 kapsam dışı.
+
+### Faz 219–223'te kullanılanlar
+
+Yalnız tip ve çağrı yeri (2026-10-20'de `src/`'den okundu; MAF 1.25.0 · MEAI 10.11.0). İmza ölçümü fazların kendi kaydındadır (`FAZ-DEFTERI.md` → `git show`).
+
+| Faz | MAF/MEAI tipi | Tracon'da yeri | Not |
+|---|---|---|---|
+| 219 | `AgentSkillsProviderBuilder` (`UseSource` · `UseFilter` · `UseCachingOptions` · `Build`) | `AgentDefinitionCompiler.Skills.cs` | Düz ve harness agent aynı zinciri kullanır; harness'ın yerleşik skill provider'ı kapalıdır (R-06) |
+| 220 | `ISpeechToTextClient` · `ITextToSpeechClient` (MEAI001) | iç adaptör, `AddSpeechSynthesizer`/`AddSpeechTranscriber(name, binding)` | Public imzaya girmez; § *Hâlâ kullanılmayan* bloğundaki KÖPRÜ satırı |
+| G-07 | `AgentRunOptions` (düz kopya) | `RunRecordingAgent.ForInnerAgent` | Taban üye eklenirse `RunOptionsHandoffTests` düşer |
+| 222 | `ChatClientAgentOptions` · `HarnessAgentOptions` (kanca parametresi) · `AIAgent` sarmalayıcısı (`AgentExtensionContext.Use`) | `AgentExtensionRegistry`, `AgentOptionsGuard` | Tüketici `AIAgentBuilder` ile run ve tool middleware'i takar; korunan üye tablosu K-1029, K-1035 |
+| 223 | `WebSearch`/`CodeInterpreter`/`ImageGeneration`/`McpServer` `ToolCall`/`ToolResultContent` · `ErrorContent` · `DataContent` · `UriContent` · `HostedFileContent` · `HostedVectorStoreContent` | `ContentEventPayload.Describe` → `tracon.content` | Yük gövdesizdir; `UriContent` adresi yazılmaz (K-1034) |
+| 223 | `WorkflowEvent` (tanınmayan alt tip) | `WorkflowEventMapper.DescribeUnrecognized` → `tracon.workflow.event` | `SubworkflowErrorEvent`/`WarningEvent` taban tip olarak zaten tanınır |
 
 ### Hâlâ kullanılmayan MAF genişleme noktaları
 

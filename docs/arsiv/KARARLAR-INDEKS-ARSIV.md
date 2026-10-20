@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (972 kalem)
+## Arşivlenen Kararlar (973 kalem)
 
 | K | Karar |
 |---|---|
@@ -981,3 +981,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-980 | Çağıranı bekleyen yanıt (onay isteği, sonuçsuz istemci tool çağrısı) yapılandırılmış doğrulamadan geçmez; doğrulayıcı çağrılmaz (F-350, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
 | K-981 | Katalog ve doğrulayıcı skill'i kod ve `store`'dan sonra `SkillRoots`'ta da arar; disk skill'i kurulum genelidir, içeriği önbellek parmak izine girer; grant pini diske bakmaz (F-481, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-982 | Tekrar aynı cevabı alacak hata işi o denemede düşürür: karar hatanın kararlı kimliğinden verilir (`output_truncated`, `tenant_provider_refused`, kalıcı 4xx `upstream_error`), metninden değil; işçi geneli, tüketicinin kendi ham hatası tekrar dener (F-429, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
+| K-983 | Kiracının sağlayıcı reddi tek public tiptir ve kendi sınıfını alır: `TraconTenantProviderRefusedException`, `tenant_provider_refused`, `RunErrorClass.TenantProviderRefused` (17); model, yedek, özetleyici, görsel, ses, embedding ve canlı ses aynı tipi atar, derleme tipi ajan adıyla korur (F-442, F-444, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |

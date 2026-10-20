@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 972 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 973 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1024 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1025 kalem)
 
 | K | Karar |
 |---|---|
-| K-983 | Kiracının sağlayıcı reddi tek public tiptir ve kendi sınıfını alır: `TraconTenantProviderRefusedException`, `tenant_provider_refused`, `RunErrorClass.TenantProviderRefused` (17); model, yedek, özetleyici, görsel, ses, embedding ve canlı ses aynı tipi atar, derleme tipi ajan adıyla korur (F-442, F-444, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-984 | Normalleştirilmiş sağlayıcı hatasının ikinci daraltması: `(HTTP 429)` ile biten `upstream_error` `RateLimited`'dır; durum `HttpRequestException.StatusCode`'dan da okunur (F-353, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
 | K-985 | Anthropic'in iki bitişi: bağlam penceresi kesilmesi public `TraconFinishReasons.ContextWindowExceeded` ile kesilmedir ve nedenini adlandırır; `pause_turn` blokları API'nin JSON'uyla geri gönderilerek en çok 5 kez sürdürülür, sonra çağrı `AnthropicTurnPausedException` ile düşer (F-426, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
 | K-986 | SQL deposunun işlemi tek sınırdan açılır (`SqlStoreContext.ExecuteInTransactionAsync`); deadlock kurbanı işlemin tamamıyla, yeni bağlantı ve işlemle, en çok 5 kez rastgele beklemeyle yeniden koşar (F-430, kusur-giderme 2026-10-14) (ana oturum varsayılanı, K-540 emsali) |
@@ -62,3 +61,4 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1032 | Sohbet agent'ında `RequirePerServiceCallChatHistoryPersistence` serbesttir; açıksa model istemcisi sınır seam'inden geçer (F-588) |
 | K-1033 | Tool oynatan yollar uzantıyı çalıştırmaz: replay `ExtensionNames`'i boşaltır, continuation reddeder (F-588) |
 | K-1034 | Tanınmayan içerik `tracon.content`, workflow olayı `tracon.workflow.event` olarak kaydedilir; yük gövdesizdir (F-589) |
+| K-1035 | `UseProvidedChatClientAsIs` ve `AllowConcurrentInvocation` korunur: ikisi korunan bir ayarı dolaylı değiştirir |

@@ -172,7 +172,12 @@ What to know about this door:
 - **Some options are protected.** A definition or a tenant and security decision owns the
   tool chain, the tool approval settings, the instructions and sampling settings, the chat
   history provider, file access, the working-directory skill scan, file memory, web search,
-  compaction, the loop, and the sub-agent tree. An extension that changes one of them fails the compilation with
+  compaction, the loop, and the sub-agent tree. Two chat agent options are protected because
+  they change a protected setting indirectly. `UseProvidedChatClientAsIs` removes the
+  framework's default chat client stack, and with it the approval binding and the per-call
+  history writer. `AllowConcurrentInvocation` turns on concurrent tool calls in the tool loop
+  that Tracon builds. For concurrent tool calls, set `AllowConcurrentToolCalls` in the model
+  binding of the definition. An extension that changes one of them fails the compilation with
   an error that names the extension and the option. Tracon does not undo the change. The
   provider list is append-only. The other options are yours, for example
   `EnableMessageInjection`. The check covers the options object. It does not look inside a

@@ -1498,3 +1498,9 @@ Kural alan dosyasında kısa kaldı; tam metin aynen buradadır.
   ile onay isteyen bir run `sessionId` verilmezse `Failed` olur ve kalıcı bir
   `pending_approvals` satırı hiç oluşmaz. Senkron koşumda onay akışın içinde
   taşınır ve tabloya **yazılmaz** — `/api/approvals/pending` boş görünür.
+
+## `docs/hafiza/maf-api.md`'den — 2026-10-20 (K-1035 notuna yer açmak için)
+
+> Olduğu gibi. Kural bir satırla alan dosyasında kalır.
+
+- **🚨 `dotnet package search` `--prerelease` olmadan ön sürüm paketi GÖRMEZ — "paket yok" sonucu yanlıştı** (2026-08-02 notu, düzeltme 2026-10-17): `Microsoft.Agents.AI.Mcp` 2026-05-28'den beri NuGet'te (alpha; 1.25.0'da yüzeyi `UseMcpSkills` ve MCP task istemcisi `ListAgentToolsWithTasksAsync`). Varsayılan arama boş, `--prerelease` 19 sürüm döndürdü. MCP tool bağlama yolu yine resmî `ModelContextProtocol.Core`'dır; `McpClientTool` doğrudan `AIFunction` türetir. Tam `ModelContextProtocol` paketi sunucu barındırma bağımlılıkları da çeker — `.Core` seçilmeli (K-057). Aynı hata `Microsoft.Agents.AI.Hyperlight` için de yapıldı (`docs/kesif/2026-08-26-yeni-feature-fikirleri.md` § 9.2). Yokluk iddiası yalnız `--prerelease` ile alınan boş sonuçla yazılır. Kapı: `dokuman-bakim.py --denetle` → *Paket aramasında ön sürüm bayrağı* (`--prerelease`siz `dotnet package search` komutu kırmızıdır). Aynı körlüğün ikinci yüzü: yükseltme diff'i referanssız paketleri görmez — `scripts/maf-paket-envanteri.py` ailenin tamamını tabanla karşılaştırır (`maf-api-kesfi` § *Üçüncü adım*).
