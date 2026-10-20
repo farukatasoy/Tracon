@@ -1,6 +1,6 @@
 # Faz 227 — Eval Vakasında Beklenen Tool Çağrısı ve Argümanı
 
-> **Durum:** 📋 Planlandı (2026-10-20)
+> **Durum:** ✅ Tamamlandı (2026-10-21)
 > **Kademe:** tam — migration (`eval_cases` yeni sütun, üç sağlayıcı) · public API'den silinen satır (`EvalCase.ExpectedTools` → `ExpectedToolCalls`) · kalıcı veri
 > **Plan onayı:** farukatasoy, 2026-10-20 (seçim: `ExpectedToolCalls` ile değiştir)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-605** (yalnız dilim a; çok turlu vaka ve workflow suite'i adayda kalır)
@@ -181,7 +181,7 @@ başka kiracı (suite kiracı kapsamlı; sözleşme dört koşumda) · alt siste
 - [x] `toolCallArgsMatch` sayı, metin, bool, iç içe nesne ve dizi argümanını anlamıyla eşler; birim tablosu yeşil — `ToolCallArgumentsCheckTests` 19 test. Sayı karşılaştırmasını metne çevirince 3 test düştü (mutasyon denemesi)
 - [x] Argümanlı vaka dört koşumda gidiş-dönüş yapar; eski satır ada çevrilir — `EvalStoreContract`: bellek içi, SQLite, PostgreSQL (1113 testin 1112'si koştu; biri kapsam dışı yük testi) ve SQL Server (1039/1039); `A_row_written_before_expected_tool_calls_existed_reads_back_its_names` üç SQL sağlayıcıda geçti
 - [x] Eski `expectedTools` HTTP anahtarı `400` alır — `EvalCaseLegacyFieldTests`
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 83b870e8` çıkış 0: build, pack, `docs-site` `npm run check`, `dotnet format --verify-no-changes` ve 25.646 test (38 modül, 0 düşen)
 - [x] `samples/Tracon.Api` ile gerçek eval koşuldu, sonuç belgeye yazıldı — `MT-EVAL-107`: `gpt-5.4-mini`; doğru argüman geçti, `ORD-9999` `args mismatch`, çağrılmayan tool `not called`; 2.241 girdi / 121 çıktı token'ı; günlükte `Npgsql` 0
 - [x] `secret` taraması boş döndü — `kapi.py tarama` temiz
 - [x] `🤖` case'ler `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içinde ve koşuldu — `MT-EVAL-107` (gerçek OpenAI + `curl`), `MT-EVAL-108` (Playwright)
