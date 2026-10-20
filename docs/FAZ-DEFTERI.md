@@ -236,6 +236,7 @@
 | 220 | MEAI Ses İstemcisi Köprüsü ve OpenAI Sesi | tam | ✅ | 2026-10-19 | F-579 | `41295388:docs/220-MEAI-SES-KOPRUSU.md` |
 | 221 | MAF Kaçış Kapısı Rehberi ve Fabrika Agent Tanılaması | hafif | ✅ | 2026-10-19 | F-587 | `cee22aca:docs/221-MAF-KACIS-KAPISI-REHBERI.md` |
 | 222 | Adlı Agent Uzantıları (MAF Seçenek Kancası) | tam | ✅ | 2026-10-19 | F-588 | `b55ede4e:docs/222-ADLI-AGENT-UZANTILARI.md` |
+| 223 | Tanınmayan MAF İçeriği ve Workflow Olayının Kaydı | tam | ✅ | 2026-10-20 | F-589 | `e1055f5d:docs/223-TANINMAYAN-ICERIK-KAYDI.md` |
 
 ## Süreç Ölçümü
 
@@ -299,3 +300,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 220 | 16 sapma | 2 | 0 / 0 / 0 | 0 bilinen | ölçülmedi |
 | 221 | 8 | 1 | 2 / 0 / 0 | 0 | ölçülmedi |
 | 222 | 0 | 2 | 1 / 0 / 1 | 1 | ölçülmedi |
+| 223 | 9 | 1 | 0 / 1 / 0 | 0 | ölçülmedi |

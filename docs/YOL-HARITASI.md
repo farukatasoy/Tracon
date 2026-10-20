@@ -10,11 +10,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
 **Sıradaki boş faz numarası: 224.**
 
-## Açık fazlar (2 kalem)
+## Açık fazlar (1 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [223](223-TANINMAYAN-ICERIK-KAYDI.md) | Tanınmayan MAF İçeriği ve Workflow Olayının Kaydı | 📋 Planlandı |
 
-Kapanan fazlar (222 kayıt; son: Faz 222 — Adlı Agent Uzantıları (MAF Seçenek Kancası)): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
+Kapanan fazlar (223 kayıt; son: Faz 223 — Tanınmayan MAF İçeriği ve Workflow Olayının Kaydı): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
