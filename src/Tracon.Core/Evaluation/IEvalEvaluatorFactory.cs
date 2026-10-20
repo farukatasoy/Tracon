@@ -26,6 +26,16 @@ namespace Tracon;
 /// thread-safe. Registering none keeps today's behaviour exactly.
 /// </para>
 /// <para>
+/// The built-in <c>toolCallArgsMatch</c> check reads a case's expected tool
+/// calls from the very <see cref="EvalItem"/> instance the run builds. The item's
+/// <c>ExpectedToolCalls</c> carries them too, in the form Microsoft Agent
+/// Framework reads, where an object or array value is its JSON text. An evaluator
+/// that copies the items before it hands them to the checks leaves that check with
+/// the second form only: an expected object then compares as text and does not
+/// equal the object a call carried. Pass the items through unchanged, or compare
+/// in a check of your own.
+/// </para>
+/// <para>
 /// <strong>Tenant mode:</strong> tenant-independent. The factory sees only the
 /// suite's checks, never a tenant identifier or tenant data; the run it grades
 /// carries the tenant, and the eval store applies it.

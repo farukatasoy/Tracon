@@ -111,27 +111,48 @@ public sealed class ExpectedToolCallsCodecTests
     }
 
     [Fact]
-    public void Damaged_text_falls_back_to_the_old_column_and_never_throws()
+    public void Damaged_text_reads_as_an_expectation_no_run_can_meet_and_never_throws()
     {
+        // The check passes a case that expects nothing, so damaged text read as an empty list
+        // would quietly turn a case that asserts something into one that asserts nothing.
         foreach (var damaged in new[] { "{not json", "{\"name\":\"a\"}", "\"text\"", "42", "[{\"name\":" })
         {
+            // The old column is not consulted: the new one is there and it is the one that is damaged.
             var calls = ExpectedToolCallsCodec.Deserialize(damaged, "legacy_tool");
 
-            calls.Select(static call => call.Name).ShouldBe(["legacy_tool"], damaged);
+            calls.Select(static call => call.Name).ShouldBe([ExpectedToolCallsCodec.UnreadableName], damaged);
         }
 
-        ExpectedToolCallsCodec.Deserialize("{not json", null).ShouldBeEmpty();
+        ExpectedToolCallsCodec.Deserialize("{not json", null).ShouldHaveSingleItem()
+            .Name.ShouldBe(ExpectedToolCallsCodec.UnreadableName);
     }
 
     [Fact]
-    public void An_entry_without_a_usable_name_is_skipped_and_arguments_that_are_not_an_object_are_dropped()
+    public void The_unreadable_name_is_not_a_name_a_tool_can_have()
+    {
+        // Tool names are letters, digits, underscores and dashes; the marker cannot be called.
+        ExpectedToolCallsCodec.UnreadableName.ShouldContain("<", Case.Sensitive);
+        ExpectedToolCallsCodec.UnreadableName.ShouldContain(" ", Case.Sensitive);
+    }
+
+    [Fact]
+    public void An_entry_that_cannot_be_read_costs_the_case_an_unreadable_marker_but_keeps_the_readable_ones()
     {
         var calls = ExpectedToolCallsCodec.Deserialize(
-            """[1, {"arguments":{"a":1}}, {"name":""}, {"name":7}, {"name":"keep","arguments":[1]}, {"name":"keep2","arguments":null}]""",
+            """[1, {"arguments":{"a":1}}, {"name":""}, {"name":7}, {"name":"keep","arguments":[1]}, {"name":"fine","arguments":{"a":1}}, {"name":"fine2","arguments":null}, {"name":"fine3"}]""",
             legacyNames: null);
 
-        calls.Select(static call => call.Name).ShouldBe(["keep", "keep2"]);
-        calls.ShouldAllBe(static call => call.Arguments == null);
+        calls.Select(static call => call.Name).ShouldBe(["fine", "fine2", "fine3", ExpectedToolCallsCodec.UnreadableName]);
+        calls[0].Arguments.ShouldNotBeNull().Keys.ShouldBe(["a"]);
+        calls[1].Arguments.ShouldBeNull();
+        calls[2].Arguments.ShouldBeNull();
+    }
+
+    [Fact]
+    public void A_well_formed_list_carries_no_unreadable_marker()
+    {
+        ExpectedToolCallsCodec.Deserialize("""[{"name":"a"},{"name":"b","arguments":{}}]""", null)
+            .Select(static call => call.Name).ShouldBe(["a", "b"]);
     }
 
     [Fact]

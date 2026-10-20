@@ -103,6 +103,47 @@ public sealed class EvalToolCallArgsTests
         result.GetProperty("passed").GetBoolean().ShouldBeTrue(result.GetRawText());
     }
 
+    [Fact]
+    public async Task A_two_megabyte_argument_is_stored_and_listed_whole_because_the_endpoint_sets_no_size_limit_of_its_own()
+    {
+        // Measured for the plan's "huge JSON" question: a case's query, context and parameters have no
+        // limit either, so the expected arguments get none; the host's request body limit applies.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using (var suite = await host.Client.PutAsJsonAsync(
+                   $"/tracon/api/evals/{Suite}",
+                   new EvalSuiteSaveRequest
+                   {
+                       AgentName = AgentName,
+                       Checks = JsonDocument.Parse("""[{"kind":"toolCallArgsMatch"}]""").RootElement,
+                   }))
+        {
+            suite.EnsureSuccessStatusCode();
+        }
+
+        var big = new string('x', 2 * 1024 * 1024);
+
+        using (var saved = await host.Client.PutAsync(
+                   new Uri($"/tracon/api/evals/{Suite}/cases", UriKind.Relative),
+                   JsonContent.Create(new object[]
+                   {
+                       new
+                       {
+                           query = "q",
+                           expectedToolCalls = new object[] { new { name = "t", arguments = new { blob = big } } },
+                       },
+                   })))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var listed = await host.Client.GetAsync(new Uri($"/tracon/api/evals/{Suite}/cases", UriKind.Relative));
+        var cases = await TraconTestHost.ReadJsonAsync(listed);
+
+        cases[0].GetProperty("expectedToolCalls")[0].GetProperty("arguments").GetProperty("blob").GetString()!.Length
+            .ShouldBe(big.Length);
+    }
+
     private static async Task<JsonElement> RunAsync(object modelArguments, string expectedToolCalls)
     {
         await using var host = await TraconTestHost.StartAsync(

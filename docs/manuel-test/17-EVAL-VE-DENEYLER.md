@@ -246,7 +246,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/evals/kirik-takim" -H "$APB
 **Beklenen sonuç**
 - `HTTP: 400`. Mesaj `"Unknown check kind: 'regexMatch'. Built-in kinds:
   nonEmpty, containsExpected, keywords, toolCalled, toolCallsPresent,
-  hasImageContent. If this is a custom check, it must be registered with
+  hasImageContent, toolCallArgsMatch. If this is a custom check, it must be registered with
   'ITraconBuilder.AddEvalCheck(\"regexMatch\", ...)'."` metnini içerir
   (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — spec Türkçe mesaj
   bekliyordu, kaynak İngilizce'dir, K-228).

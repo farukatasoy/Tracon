@@ -22,9 +22,23 @@ namespace Tracon;
 /// turns it into calls without arguments, so a case is never read as expecting
 /// nothing because of when it was written.
 /// </para>
+/// <para>
+/// 🚨 Text that is there and cannot be read never becomes "expects nothing":
+/// the <c>toolCallArgsMatch</c> check passes a case with no expected call, so a
+/// damaged cell read as an empty list would turn a case that asserts something
+/// into one that asserts nothing, and the suite would stay green. It reads as an
+/// entry named <see cref="UnreadableName"/>, which no run can call, so the case
+/// fails and says which expectation it could not read; the listing still works.
+/// </para>
 /// </remarks>
 internal static class ExpectedToolCallsCodec
 {
+    /// <summary>
+    /// The name of the entry that stands for text of the column that could not be
+    /// read. It is not a valid tool name, so no run calls it.
+    /// </summary>
+    internal const string UnreadableName = "<expected_tool_calls unreadable>";
+
     /// <summary>Serializes calls to JSON text.</summary>
     /// <param name="calls">The calls. <see langword="null"/> or empty produces <see langword="null"/>.</param>
     public static string? Serialize(IReadOnlyList<EvalExpectedToolCall>? calls)
@@ -82,25 +96,21 @@ internal static class ExpectedToolCallsCodec
     /// <param name="legacyNames">The <c>expected_tools</c> column of a row written before it existed.</param>
     /// <returns>The calls; an empty list when the row expects none.</returns>
     /// <remarks>
-    /// The new column wins when it holds readable JSON. Unreadable text falls
-    /// back to the legacy column instead of throwing: one damaged cell must not
-    /// fail the listing of a suite's cases. An entry that is not an object with a
-    /// non-empty <c>name</c> is skipped; an <c>arguments</c> that is not an object
-    /// is read as no arguments.
+    /// The new column wins whenever it holds text, even an empty list. Text that
+    /// is not JSON, is not an array, or holds an entry that is not an object with
+    /// a non-empty <c>name</c> and an <c>arguments</c> that is an object or
+    /// <c>null</c> does not throw: the readable entries are returned and one
+    /// <see cref="UnreadableName"/> entry is added, so the case fails instead of
+    /// asserting less than it was written to assert. The legacy column is read
+    /// only when the new one is empty.
     /// </remarks>
     public static IReadOnlyList<EvalExpectedToolCall> Deserialize(string? json, string? legacyNames)
-    {
-        if (json is { Length: > 0 } && TryParse(json, out var calls))
-        {
-            return calls;
-        }
+        => json is { Length: > 0 } ? Parse(json) : ReadLegacyNames(legacyNames);
 
-        return ReadLegacyNames(legacyNames);
-    }
-
-    private static bool TryParse(string json, out List<EvalExpectedToolCall> calls)
+    private static List<EvalExpectedToolCall> Parse(string json)
     {
-        calls = [];
+        var calls = new List<EvalExpectedToolCall>();
+        var damaged = false;
 
         try
         {
@@ -108,37 +118,65 @@ internal static class ExpectedToolCallsCodec
 
             if (document.RootElement.ValueKind != JsonValueKind.Array)
             {
-                return false;
+                damaged = true;
             }
-
-            foreach (var entry in document.RootElement.EnumerateArray())
+            else
             {
-                if (entry.ValueKind != JsonValueKind.Object ||
-                    !entry.TryGetProperty("name", out var name) ||
-                    name.ValueKind != JsonValueKind.String ||
-                    name.GetString() is not { Length: > 0 } toolName)
+                foreach (var entry in document.RootElement.EnumerateArray())
                 {
-                    continue;
+                    if (TryReadEntry(entry, out var call))
+                    {
+                        calls.Add(call);
+                    }
+                    else
+                    {
+                        damaged = true;
+                    }
                 }
-
-                calls.Add(new EvalExpectedToolCall { Name = toolName, Arguments = ReadArguments(entry) });
             }
-
-            return true;
         }
         catch (JsonException)
         {
-            return false;
+            damaged = true;
         }
+
+        if (damaged)
+        {
+            calls.Add(new EvalExpectedToolCall { Name = UnreadableName });
+        }
+
+        return calls;
     }
 
-    private static Dictionary<string, JsonElement>? ReadArguments(JsonElement entry)
+    private static bool TryReadEntry(JsonElement entry, out EvalExpectedToolCall call)
     {
-        if (!entry.TryGetProperty("arguments", out var arguments) || arguments.ValueKind != JsonValueKind.Object)
+        call = null!;
+
+        if (entry.ValueKind != JsonValueKind.Object ||
+            !entry.TryGetProperty("name", out var name) ||
+            name.ValueKind != JsonValueKind.String ||
+            name.GetString() is not { Length: > 0 } toolName)
         {
-            return null;
+            return false;
         }
 
+        if (!entry.TryGetProperty("arguments", out var arguments) || arguments.ValueKind == JsonValueKind.Null)
+        {
+            call = new EvalExpectedToolCall { Name = toolName };
+            return true;
+        }
+
+        if (arguments.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        call = new EvalExpectedToolCall { Name = toolName, Arguments = ReadArguments(arguments) };
+        return true;
+    }
+
+    private static Dictionary<string, JsonElement> ReadArguments(JsonElement arguments)
+    {
         // Clone: a JsonElement taken from a disposed JsonDocument is invalid, and
         // an invalid one makes the whole list that carries the case fail to serialize.
         var result = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
