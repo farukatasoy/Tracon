@@ -178,16 +178,16 @@ başka kiracı (suite kiracı kapsamlı; sözleşme dört koşumda) · alt siste
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `toolCallArgsMatch` sayı, metin, bool, iç içe nesne ve dizi argümanını anlamıyla eşler; birim tablosu yeşil
-- [ ] Argümanlı vaka dört koşumda gidiş-dönüş yapar; eski satır ada çevrilir
-- [ ] Eski `expectedTools` HTTP anahtarı `400` alır
+- [x] `toolCallArgsMatch` sayı, metin, bool, iç içe nesne ve dizi argümanını anlamıyla eşler; birim tablosu yeşil — `ToolCallArgumentsCheckTests` 19 test. Sayı karşılaştırmasını metne çevirince 3 test düştü (mutasyon denemesi)
+- [x] Argümanlı vaka dört koşumda gidiş-dönüş yapar; eski satır ada çevrilir — `EvalStoreContract`: bellek içi, SQLite, PostgreSQL (1113 testin 1112'si koştu; biri kapsam dışı yük testi) ve SQL Server (1039/1039); `A_row_written_before_expected_tool_calls_existed_reads_back_its_names` üç SQL sağlayıcıda geçti
+- [x] Eski `expectedTools` HTTP anahtarı `400` alır — `EvalCaseLegacyFieldTests`
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek eval koşuldu, sonuç belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] `samples/Tracon.Api` ile gerçek eval koşuldu, sonuç belgeye yazıldı — `MT-EVAL-107`: `gpt-5.4-mini`; doğru argüman geçti, `ORD-9999` `args mismatch`, çağrılmayan tool `not called`; 2.241 girdi / 121 çıktı token'ı; günlükte `Npgsql` 0
+- [x] `secret` taraması boş döndü — `kapi.py tarama` temiz
+- [x] `🤖` case'ler `docs/manuel-test/17-EVAL-VE-DENEYLER.md` içinde ve koşuldu — `MT-EVAL-107` (gerçek OpenAI + `curl`), `MT-EVAL-108` (Playwright)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 🔴 yok; 🟡 dört bulgunun dördü kapandı, 🟢 üçü F-611…F-613
+- [x] `docs-site/` güncellendi; `npm run check` temiz
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — gzip 219,5 → 220,1 KB (+0,6 KB), brotli 185,6 → 185,9 KB; bütçe 250 KB
 
 ---
 
@@ -209,20 +209,44 @@ başka kiracı (suite kiracı kapsamlı; sözleşme dört koşumda) · alt siste
 
 > Çalışırken dolar. Kapanışta kapanış commit mesajına taşınır.
 
+1. **Kontrol vakayı `EvalItem` örneği üzerinden okur (227.3).** Plan "parametresiz; vakadan okur" dedi ama bir `EvalCheck` yalnız `EvalItem` alır ve MAF biçimi (`ExpectedToolCall.Arguments`: `object`) iç içe nesne ile aynı metni taşıyan `string`'i, `null` ile boş metni ayırt edemez. Tam JSON beklentisi `ToolCallArgumentsCheck.Attach` ile `ConditionalWeakTable<EvalItem, …>`'a yazılır (`LocalEvaluator` aynı örneği kontrole verir, dekompile ile doğrulandı); MAF biçimi yanına doldurulur. Item'ı kopyalayan bir tüketici factory'si MAF biçimine düşer: `IEvalEvaluatorFactory` belgesi uyarır, zayıflık F-611.
+2. **Bozuk `expected_tool_calls` hücresi (Hata Modları tablosu).** Plan "vaka hatası, liste çökmez" dedi. İlk uygulama okunamayan metni eski sütuna ya da boş listeye düşürdü; denetim bunun beklentisiz vakayı **geçirdiğini** buldu (🟡2). Şimdi okunamayan metin `<expected_tool_calls unreadable>` adlı, hiçbir run'ın çağıramayacağı bir girdi olur: vaka düşer, liste çalışır, okunabilen girdiler kalır (K-1050).
+3. **`RemovedFieldFilter` liste gövdesi öğrendi (227.4).** K-1027 deseni nesne gövdesi içindi; vaka ucunun gövdesi bir liste. `[]` yol parçası ("dizinin her elemanı") eklendi (`[].expectedTools`). Mevcut uçlar (agents, MCP) tek parçalı yolla aynı davranır.
+4. **Plandaki dosya listesinde olmayanlar:** `ExpectedToolCallsCodec.cs` (Sql.Shared), `RemovedFieldFilter.cs`, `IEvalEvaluatorFactory.cs` (belge), konsolda `server-types.ts` ve iki sözlük, `public-surface-baseline.txt` (Abstractions 397 → 398: `EvalExpectedToolCall`).
+5. **`EvalStoreContract` büyüdü.** Eski satır testi ham SQL ister: `SupportsRawSql`, `ExecuteRawAsync`, `QualifiedEvalCasesTable`, `FormatIdForRawSql` (`AuditLogContract.SupportsRawTamper` deseni; sevk edilen `Tracon.Testing.Contracts.Xunit`'in `PublicAPI`'sine dört `virtual` üye ve üç test girdi). Bellek içi koşum bu testi erken döner (aynı desen).
+6. **Anlam kararları planda yoktu, XML doc ve site yazıyor:** boş `Arguments` sözlüğü yalnız çağrıyı denetler; `null` değer "yok ya da `null`" demektir (MAF çağrılan `null`'ı düşürür); argüman adı harf duyarsız (MAF gibi); iç içe nesne ve dizi tam eşleşir, alt küme kuralı yalnız üst düzey adlara uygulanır.
+7. **Konsolda sayı hassasiyeti (denetim 🟡1).** `fetch().json()` 2^53 üstü tam sayıyı yuvarlar ve kayıt yuvarlanmış değeri yazardı. 2^53'ü aşan tam sayı ya da sonlu olmayan sayı taşıyan argüman metni kaydedilemez; alan uyarı gösterir (`evals.toolCall.argumentsUnsafe`). Çağıran API ise sayıyı kayıpsız tutar.
+8. **Vaka boyut sınırı ölçüldü, sınır konmadı.** `query`, `context` ve `parameters` için de sınır yok; uç 2 MB'lık bir argümanı bütün saklar ve listeler (`EvalToolCallArgsTests.A_two_megabyte_argument_is_stored_and_listed_whole…`). Sınırı sunucunun istek gövdesi sınırı koyar.
+9. **Upstream bildirimi yapılmadı.** Plan "issue faz içinde açılır" dedi; kamuya açık bir MAF deposuna kullanıcı adına yazmak bakımcı onayı ister, açılmadı. Ölçüm (beklenen `2` `int` ve `JsonElement` eşleşmez, nesne anahtar sırasına bağlı) `K-1049` ve `docs/hafiza/altyapi-haritasi.md`'de.
+10. **Site ekran görüntüleri yeniden üretilmedi, damga tazelendi.** Eval vaka düzenleyicisinin görüntüsü yok; görüntülenen liste ekranı değişmedi.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Plan numara rezerve etmez.
+
+- **Açık Soru 1 → A:** terfi yalnız ad yazar (bir run'ın argümanı o run'a özgüdür).
+- **Açık Soru 2 → A:** eski `expected_tools` sütunu bu fazda kalır, yazılmaz, okunur (K-1050).
+- **K-1048** (`ExpectedToolCalls` ile değiştir; kullanıcı kararı 2026-10-20) · **K-1049** (Tracon'un kendi kontrolü, iki biçim) · **K-1050** (yeni sütun, eski sütun salt okunur, okunamayan metin vakayı düşürür).
+- **Kategori dışı:** konsol, güvenli olmayan sayıyı kaydetmez ve uyarır (sapma 7); kodlayıcı `<expected_tool_calls unreadable>` adını sabit tutar.
 
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan dosyası uygulama boyunca değişmedi; 10 sapma yukarıda) |
+| Düzeltme turu sayısı | 3 (denetim 🟡 düzeltmesi · site damgası tazeleme · kapı kırmızısı: XML dokümanda `🚨`) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 (denetimde 🔴 yok; 🟡 4 bulgu kapandı) |
+| Fazın ürettiği regresyon | 1 (`ShippedDocumentationSelfContainmentTests`: sevk edilen XML dokümanında `🚨`; kapanış kapısı yakaladı, commit'ten önce düzeldi) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
 > `faz-denetim` çıktısı.
+
+Taban `83b870e8..HEAD`, `faz-denetcisi` (salt-okunur): **🔴 yok.**
+
+- 🟡1 konsol 2^53 üstü sayıyı yuvarlar → **kapandı** (sayı güvenli değilse kayıt reddedilir; iki Vitest case).
+- 🟡2 bozuk `expected_tool_calls` sessizce "bir şey beklemiyor" olur → **kapandı** (`UnreadableName`; `DamagedExpectedToolCallsTests`, kodlayıcı testleri).
+- 🟡3 yerleşik tür listesi üç yerde altı tür sayıyor → **kapandı** (iki sözlük ipucu, `MT-EVAL-004`).
+- 🟡4 sapma ve açık plan maddeleri kayıtsız → **kapandı** (yukarıdaki sapma listesi; boyut ölçümü testle).
+- 🟢1 MAF biçimine düşme yolu → F-611 · 🟢2 TS yazma yönü tipi → F-612 · 🟢3 `default(JsonElement)` → F-613.

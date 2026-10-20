@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 985 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 988 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1037 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1040 kalem)
 
 | K | Karar |
 |---|---|
-| K-996 | Fail-closed denetim kümesi 6 → 7: cevap modu ne olursa olsun run başlatan her `POST /api/workflows/runs/{runId}/respond` `workflow.respond` olarak run satırından ve kayıttan ÖNCE `AuditRecorder.WriteOrThrowAsync` ile yazılır, yazılamazsa cevap `500` ile reddedilir; kayıt cevabın hash'ini taşır, cevabı değil; run başlatmayan cevap (izleme, `409`) yazılmaz; K-776'nın yayımlanmış kümesini değiştirir (F-319, Faz 208) (kullanıcı kararı) 👤 |
-| K-997 | Önce satır, sonra kayıt: cevabın run satırı (akışlıda `Running`, kuyrukluda `Queued`) her modda ve her yolda kayıttan/iddiadan önce açılır, bir kayıt hiçbir zaman var olmayan bir run'ı adlandırmaz; iddiayı kaybeden kendi run'ını olaysız `Canceled` + `request_already_answered` kapatır (run listesinde ve istatistikte görünür), kayıt yazılamazsa run `Failed` + `answer_not_recorded` kapanır ve cevap `500` alır; atıf karardan önce bir kez okunur, satırdan sonraki her yazım `CancellationToken.None` kullanır; kuyruk işi bitmemişse kapı izler; işi hiç yazılmamış kuyruklu run'ın işini aynı cevabın tekrarı yazar (F-319, Faz 208) (kullanıcı kararı, 2026-10-14) 👤 |
-| K-998 | `IJobStore.EnqueueAsync` kayıtlı bir iş kimliğini reddeder: çağrı hata verir, kayıtlı iş ve öğeleri değişmez; bellek içi depo işi değiştiriyordu, artık reddeder; `QueuedRunPlaceholder` reddedilen yazımdan sonra işi geri okur ve oradaysa onu döndürür, satırı kapatmaz; `JobStoreContract` yeni case'le dört depoda zorlar (Faz 208) |
 | K-999 | Fonksiyon düğümü, ağaç bütçesinin MALİYET veya SÜRE boyutu geçilmişse başlamaz; token ve run sayısı durdurmaz; ret, reddedilen agent adımıyla aynı kimliği taşır (`Failed`, `run_budget_exceeded`, `QuotaExceeded`); kapı her denemeden önce koşar ve reddi tekrar denenmez; muafiyet yalnız kodda: `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` (varsayılan `false`) (F-407, Faz 210) (kullanıcı kararı) 👤 |
 | K-1000 | Bekleyen insan istekleri için `workflow_requests` projeksiyonu açıldı; istek yükü (istem, form) olayda KALIR, satır olayı sırasıyla (`event_seq`) adlandırır ve istemi kopyalamaz; run `AwaitingInput` kapanırken `WorkflowRunner.CompleteAsync`'te yazılır, yazılamazsa run etkilenmez (uyarı) ve istek run'ın kendi listesinden hâlâ cevaplanır; üç sağlayıcıda tablo (`(run_id, request_id)` birincil anahtar, `run_id` → `runs` `ON DELETE CASCADE`), `IWorkflowRequestStore` + `WorkflowRequestStoreContract`, bellek içi varsayılan; Faz 209 öncesi bekleyen run'lar için doldurma yoktur (F-319, Faz 209) (kullanıcı kararı) 👤 |
 | K-1001 | Kiracı listesi `(oturum, requestId)` başına BİR mantıksal istektir: o isteği tutan en yeni AÇIK satır listelenir (yeniden yayınlayan devam run'ı), süzgeç (`state=pending|answered|all`, `workflowName`) sayfadan ÖNCE uygulanır, sıra `RequestedAt` eskiden yeniye; "yanıtlandı" işareti `IWorkflowRequestStore.MarkAnsweredAsync` ile `WorkflowResponseGate` kayıttan sonra (üç yolda) yazılır ve aynı oturum+istek kimliğindeki bütün açık satırları işaretler, yazılamazsa cevap etkilenmez (uyarı); `GET /api/workflows/runs/{runId}/requests` aynı beş alanı taşır ama okuma bu bağımlılıkta düşerse alansız döner (F-319, Faz 209) (kullanıcı kararı) 👤 |
@@ -62,3 +59,6 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1045 | Hosted tool desteğini sağlayıcı `IHostedToolSupport` ile bildirir; bildirmeyen tür derleme hatasıdır (F-603) |
 | K-1046 | Kayıtlı hosted çağrı `tracon.content` değil `ToolInvoking`/`ToolInvoked` olur; kayıtsız olan K-1034'te kalır (F-603) |
 | K-1047 | Hosted çağrı ücreti iç döngü halkasında, yanıt önbelleğinin içinde raporlanır; fiyatsız tür `null` kalır, `0` olmaz (F-603) |
+| K-1048 | `EvalCase.ExpectedTools` yerine `ExpectedToolCalls` (ad + isteğe bağlı argüman); eski HTTP anahtarı `400` alır (F-605) 👤 |
+| K-1049 | `toolCallArgsMatch` Tracon'un kendi kontrolüdür: değeri JSON anlamıyla karşılaştırır; beklenti `EvalItem`'a iki biçimde verilir (F-605) |
+| K-1050 | `eval_cases.expected_tool_calls` yeni sütun; eski `expected_tools` yazılmaz, okunur, düşürülmez; okunamayan metin vakayı düşürür (F-605) |

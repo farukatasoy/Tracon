@@ -23,7 +23,7 @@ namespace Tracon;
 /// nothing because of when it was written.
 /// </para>
 /// <para>
-/// 🚨 Text that is there and cannot be read never becomes "expects nothing":
+/// Text that is there and cannot be read never becomes "expects nothing":
 /// the <c>toolCallArgsMatch</c> check passes a case with no expected call, so a
 /// damaged cell read as an empty list would turn a case that asserts something
 /// into one that asserts nothing, and the suite would stay green. It reads as an
