@@ -361,6 +361,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-535** · Satırı olmayan bekleyen run listede yok ve dolmaz | Faz 209: satır yazımı best-effort; Faz 209 öncesi bekleyenler ve yazılamayan satırlar için doldurma yok (Açık Soru 7-B) | Karar: olaydan satır üreten uzlaştırma (SQL JSON ayrıştırma) |
 | 🟢 | **F-594** · Adlı model istemcisi halkası yuvası (`AddChatClientRing`) — C-01'in kalan dilimi | Ölçüldü (2026-10-20): Faz 222'nin `IAgentExtension`'ı seçenek nesnesini ve agent sarmalayıcısını verir, `IChatClient`'a ulaşmaz. Tüketici MEAI halkasını (`UseLogging`, `UseDistributedCache`, `UseChatReducer`, kendi `DelegatingChatClient`'ı) Tracon'un 12 halkalı zincirine koyamaz; `src/`'de 0 kullanım. Tek yol fabrika agent'ıdır ve o yol halkaları kaybeder ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §5.13, §8 C-01) | `ModelProviderRegistry.CreateChatClient` ayrı tasarım ister: yuva (döngü içi/dışı, K-320 sırası), kiracı/BYOK önbelleği, tanımda adla seçim (K-1030 deseni), `AgentOptionsGuard` eşi. Dalga 3'ün ön koşulu değil |
 | 🟢 | **F-595** · C-10'un kalanı: atıf, mesaj kaynağı, workflow OTel, embedding/ses/görsel span'leri | Ölçüldü (2026-10-20): Faz 223 tanınmayan içeriği ve workflow olayını kaydeder (K-1034). Kalan: `TextContent.Annotations` (atıf) kaydedilmez (`src/`'de 0) · `AgentRequestMessageSourceAttribution` yalnız JSON bağlamında · workflow `WithOpenTelemetry` 0 · `OpenTelemetryEmbeddingGenerator` ve ses/görsel OTel halkaları 0: Tracon tüketicinin `IEmbeddingGenerator`'ını doğrudan çağırır ve span açmaz (`VectorSearchToolFactory.cs:65`) ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §5.1, §5.7, §5.13) | Atıf için tip başına zengin olay K-1034'ün yeniden açılma koşuludur. Hosted tool ücreti C-12'dedir (Dalga 3). Dalga 3'ün ön koşulu değil |
+| 🟢 | **F-597** · MAF kapsama matrisinin özet sayımı elle yazılıyor | Faz 224 denetimi 🟢4: `MAF-KAPSAMA.md` özet satırındaki Durum sayımı (✅ 45 · 🟡 20 · ❌ 77 · ⛔ 1) elle yazılır; 2026-10-20'de 2026-10-18 özetinden sapmıştı (fazın kendi kanıt vakası). `scripts/maf-kapsama.py` satırları zaten okur ve sayıyı yargı katmadan üretebilir | `denetle`'ye özet satırı ile §5 sayımının eşitliği; ya da özet sayıyı TSV başlığından alır. Dokümanda yer tutucu deseni K-413 emsalini izler |
 
 ### Doğrudan
 
@@ -516,7 +517,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-596**.
+numara: **F-598**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

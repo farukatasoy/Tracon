@@ -1,0 +1,149 @@
+# MAF kapsama matrisinin (docs/MAF-KAPSAMA.md §5) ölçülen teması. ELLE DÜZENLEME.
+# Üretilir: python3 scripts/maf-kapsama.py temas --yaz (kapi.py uret); tazeliği dokuman-bakim.py --denetle denetler.
+# src/tests/samples: satırın MAF jetonlarından o alanın kaynağında geçenler (yorum ve dize hariç); "-" temas yok;
+# "?" ölçülmedi: satırın yetenek hücresinde ters tırnaklı jeton yok.
+# Bir alan değiştiyse satırın Durum sütununu matriste yeniden yargıla; Durum bilerek ölçülmez.
+bolum	durum	takip	yetenek	src	tests	samples
+5.1	✅	✓	`AIAgent` · `RunAsync`/`RunStreamingAsync` · `AgentResponse(Update)`	AIAgent AgentResponse RunAsync RunStreamingAsync Update	AIAgent AgentResponse RunAsync RunStreamingAsync	AIAgent RunAsync
+5.1	✅	✓	`ChatClientAgent` + `ChatClientAgentOptions` (Id, Name, ChatOptions, ChatHistoryProvider, AIContextProviders)	ChatClientAgent ChatClientAgentOptions	ChatClientAgent ChatClientAgentOptions	ChatClientAgentOptions
+5.1	✅	✓	`DelegatingAIAgent`	DelegatingAIAgent	DelegatingAIAgent	-
+5.1	✅	✓	`AgentRunOptions` türetme	AgentRunOptions	AgentRunOptions	-
+5.1	✅	✓	`AgentSession` · `StateBag` · Create/Serialize/Deserialize	AgentSession StateBag	AgentSession	-
+5.1	✅	✓ K-1016	`AgentSessionStore` · `AgentSessionStoreKey` (MAAI001)	AgentSessionStore AgentSessionStoreKey	AgentSessionStore AgentSessionStoreKey	-
+5.1	🟡	✗	`AIAgentBuilder`: `Use(agent)`, `Use(runFunc, streamingFunc)`, `Use(sharedFunc)` · `AsBuilder`	AsBuilder Func Use	AsBuilder Func Use	AsBuilder Func Use
+5.1	❌	✗	Agent düzeyi tool middleware: `AIAgentBuilder.Use(Func<AIAgent, FunctionInvocationContext, next, ct, …>)`	AIAgent Func Use	AIAgent Func Use	AIAgent Func Use
+5.1	🟡	✓	Yapılandırılmış çıktı: `ChatOptions.ResponseFormat` ✔ · `RunAsync<T>`/`AgentResponse<T>` ✘	AgentResponse ChatOptions ResponseFormat RunAsync	AgentResponse ChatOptions ResponseFormat RunAsync	ChatOptions ResponseFormat RunAsync
+5.1	❌	~	`ChatClientAgentRunOptions` (run başına `ChatOptions`, `ChatClientFactory`)	ChatOptions	ChatClientAgentRunOptions ChatOptions	ChatOptions
+5.1	❌	✗	`AIAgent.AsAIFunction` (agent = senkron tool)	AIAgent	AIAgent	AIAgent
+5.1	❌	✗⁺	`AIAgent.AsIChatClient(agent, session, …)` (MAAI001, 1.16'dan sonra geldi, 1.25'te genişledi)	AIAgent AsIChatClient	AIAgent	AIAgent
+5.1	🟡	✗	`EnableMessageInjection` · `MessageInjectingChatClient` (`EnqueueMessagesAsync`, `GetPendingMessagesAsync`) · `UseMessageInjection`	EnableMessageInjection	EnableMessageInjection	-
+5.1	🟡	✗	`RequirePerServiceCallChatHistoryPersistence` · `Clear/Warn/ThrowOnChatHistoryProviderConflict` · `UseProvidedChatClientAsIs`	Clear RequirePerServiceCallChatHistoryPersistence ThrowOnChatHistoryProviderConflict UseProvidedChatClientAsIs	Clear RequirePerServiceCallChatHistoryPersistence UseProvidedChatClientAsIs	-
+5.1	❌	✓	`ChatClientAgentOptions.AllowConcurrentInvocation`	AllowConcurrentInvocation ChatClientAgentOptions	AllowConcurrentInvocation ChatClientAgentOptions	ChatClientAgentOptions
+5.1	❌	✓	`EnableInvocableFunctionBypassing` (MAAI001) · `DisableApproval*` · MEAI `UseInvocableFunctionBypassing`/`UseApproval*`	EnableInvocableFunctionBypassing	-	-
+5.1	❌	✗	`AgentRunContext` · `AIAgent.CurrentRunContext`	AIAgent	AIAgent	AIAgent
+5.1	❌	~	Background responses: `AllowBackgroundResponses` · `ContinuationToken` · MEAI `ResponseContinuationToken`	AllowBackgroundResponses ContinuationToken	AllowBackgroundResponses	-
+5.1	❌	✗	`AgentRequestMessageSourceAttribution`/`Type` · `WithAgentRequestMessageSource`	AgentRequestMessageSourceAttribution Type	Type	Type
+5.1	❌	✗	`LoggingAgent` · `UseLogging`	-	-	-
+5.1	❌	✓	`FeatureUsage` · `AIAgentMetadata`	-	-	-
+5.1	❌	✓	`IsolationKeyScopedAgentSessionStore` · `AgentIsolationKeyProvider` · `ClaimsIdentityAgentIsolationKeyProvider` · `DelegatingAgentSessionStore` · `InMemory/NoopAgentSessionStore`	-	AgentIsolationKeyProvider IsolationKeyScopedAgentSessionStore	-
+5.1	❌	✗	`AdditionalPropertiesExtensions` · `AgentAbstractionsJsonUtilities` · `AgentSessionExtensions.{Set,TryGet}InMemoryChatHistory`	Set TryGet	Set TryGet	Set TryGet
+5.2	✅	✓	`ChatHistoryProvider` türetme + `ProviderSessionState<T>`	ChatHistoryProvider ProviderSessionState	ChatHistoryProvider	ChatHistoryProvider
+5.2	✅	✓	`InMemoryChatHistoryProvider` (+Options)	InMemoryChatHistoryProvider	InMemoryChatHistoryProvider	-
+5.2	✅	✓	`AIContextProvider` türetme	AIContextProvider	AIContextProvider	AIContextProvider
+5.2	🟡	✗	`MessageAIContextProvider` · `AIAgentBuilder.UseAIContextProviders` · MEAI `UseAIContextProviders`	-	-	-
+5.2	🟡	✗	`TextSearchProvider`	TextSearchProvider	-	-
+5.2	✅	✓ K-110 K-114	`FileMemoryProvider` + `AgentFileStore`	AgentFileStore FileMemoryProvider	AgentFileStore FileMemoryProvider	-
+5.2	✅	✓	`TodoProvider`	TodoProvider	-	TodoProvider
+5.2	🟡	✗	`CompactionProvider` + 6 strateji + 3 tetik (`TokensExceed`, `MessagesExceed`, `TurnsExceed`)	CompactionProvider MessagesExceed TokensExceed TurnsExceed	-	-
+5.2	❌	✓	`ChatReducerCompactionStrategy` · MEAI `IChatReducer`/`SummarizingChatReducer`/`MessageCountingChatReducer`/`ReducingChatClient`	-	-	-
+5.2	🟡	✗	`AgentModeProvider` + `AgentModeProviderOptions` (`Modes`, `DefaultMode`)	AgentModeProviderOptions Modes	AgentModeProviderOptions	-
+5.2	❌	✓	`ChatHistoryMemoryProvider` (+Options, Scope, `SearchBehavior`)	-	-	-
+5.2	❌	✓	`FileAccessProvider` (ls, grep, read, write, replace) + `FileSystemAgentFileStore`	-	-	-
+5.2	❌	✓	`CosmosChatHistoryProvider` · `ValkeyChatHistoryProvider`	-	-	-
+5.2	❌	✓	`FoundryMemoryProvider` (MAAI001)	-	-	-
+5.3	🟡	✗	`AgentSkillsProvider` (+Options)	AgentSkillsProvider	AgentSkillsProvider	-
+5.3	✅	✓	`AgentFileSkill` · `AgentFileSkillsSource` · `AgentFileSkillScript` + Tracon kapıları (`SandboxedSkillScriptRunner`)	AgentFileSkill AgentFileSkillScript AgentFileSkillsSource SandboxedSkillScriptRunner	AgentFileSkill SandboxedSkillScriptRunner	-
+5.3	✅	✓	`AgentInlineSkill`	AgentInlineSkill	-	-
+5.3	✅	✓	Aggregating · Caching · Deduplicating · Filtering kaynakları	?	?	?
+5.3	✅	✓	`AgentSkillsProviderBuilder`	AgentSkillsProviderBuilder	-	-
+5.3	❌	✗	`AgentClassSkill<T>` · `[AgentSkillResource]` · `[AgentSkillScript]`	-	-	-
+5.3	❌	✗	`AgentInMemorySkillsSource` · `DelegatingAgentSkillsSource`	-	-	-
+5.3	❌	✗	`UseMcpSkills` + `AgentMcpSkillsSourceOptions` (alpha)	-	-	-
+5.4	✅	✓	`AIFunctionFactory` · `AddTool`/`AddToolsFrom`	AIFunctionFactory AddTool AddToolsFrom	AIFunctionFactory AddTool AddToolsFrom	AIFunctionFactory
+5.4	✅	✓	`ApprovalRequiredAIFunction` · `ToolApprovalRequestContent`/`ResponseContent`	ApprovalRequiredAIFunction ToolApprovalRequestContent	ApprovalRequiredAIFunction ToolApprovalRequestContent	-
+5.4	✅	✓	`ToolApprovalAgent` + `AutoApprovalRules`	AutoApprovalRules ToolApprovalAgent	AutoApprovalRules	-
+5.4	❌	✓	`ToolApprovalAgentOptions.MaxAutoApprovalIterations`	ToolApprovalAgentOptions	ToolApprovalAgentOptions	-
+5.4	❌	✗	`AlwaysApproveToolApprovalResponseContent` · `CreateAlwaysApproveTool(WithArguments)Response`	AlwaysApproveToolApprovalResponseContent Response	Response	-
+5.4	🟡	✗	`FunctionInvokingChatClient`	FunctionInvokingChatClient	FunctionInvokingChatClient	-
+5.4	✅	✓	MCP tool'ları `McpClientTool : AIFunction`	AIFunction McpClientTool	AIFunction	AIFunction
+5.4	🟡	✓	`HostedWebSearchTool`	-	HostedWebSearchTool	-
+5.4	❌	✗	`HostedCodeInterpreterTool` · `HostedFileSearchTool` · `HostedImageGenerationTool` · `HostedMcpServerTool` (+`ApprovalMode`) · `HostedToolSearchTool` (MEAI001)	-	-	-
+5.4	🟡	✗	Hosted tool içerikleri: `CodeInterpreter`/`WebSearch`/`McpServer`/`ImageGeneration` `ToolCall/ResultContent`	ToolCall	McpServer ToolCall	-
+5.4	❌	✗	`Tools.Shell`: `DockerShellExecutor` · `LocalShellExecutor` · `ShellPolicy` · `ShellEnvironmentProvider`	Tools	Tools	Tools
+5.4	❌	✓	CodeAct: `HyperlightCodeActProvider` (win-x64, linux-x64) · `LocalCodeActProvider` (yerel Python)	-	-	-
+5.5	✅	✓ K-020	`HarnessAgent` · `AsHarnessAgent`	AsHarnessAgent	HarnessAgent	-
+5.5	✅	✓	`HarnessAgentOptions` atananlar: talimat, pencere ve çıktı sınırı, iterasyon, compaction, dosya belleği, todo, skill, web search, mod anahtarı, `DisableToolAutoApproval`, `OpenTelemetrySourceName`, `AIContextProviders`, `BackgroundAgents`, `LoopEvaluators`/`LoopAgentOptions`	AIContextProviders BackgroundAgents DisableToolAutoApproval HarnessAgentOptions LoopAgentOptions LoopEvaluators OpenTelemetrySourceName	AIContextProviders DisableToolAutoApproval HarnessAgentOptions LoopAgentOptions	AIContextProviders HarnessAgentOptions
+5.5	🟡	~	`HarnessAgentOptions` atanmayanlar: `FileAccessStore`/`FileAccessProviderOptions` · `AgentModeProviderOptions` · `ToolApprovalAgentOptions` · `DisableApproval*` · `DisableOpenTelemetry`	AgentModeProviderOptions DisableOpenTelemetry FileAccessProviderOptions FileAccessStore HarnessAgentOptions ToolApprovalAgentOptions	AgentModeProviderOptions FileAccessProviderOptions FileAccessStore HarnessAgentOptions ToolApprovalAgentOptions	HarnessAgentOptions
+5.5	✅	✓	`BackgroundAgentsProvider` + `WaitTimeout`	BackgroundAgentsProvider WaitTimeout	BackgroundAgentsProvider WaitTimeout	-
+5.5	✅	✓ K-704	`LoopAgent` + `LoopAgentOptions` (`MaxIterations`, `FreshContextPerIteration`, `NonStreamingReturnsLastResponseOnly`)	FreshContextPerIteration LoopAgent LoopAgentOptions MaxIterations NonStreamingReturnsLastResponseOnly	FreshContextPerIteration LoopAgent LoopAgentOptions MaxIterations NonStreamingReturnsLastResponseOnly	MaxIterations
+5.5	✅	✓	`LoopEvaluator`'lar: CompletionMarker, TodoCompletion, BackgroundTaskCompletion, AIJudge	LoopEvaluator	LoopEvaluator	LoopEvaluator
+5.5	❌	✓	`HarnessAgent.RunCoreAsync` override	RunCoreAsync	HarnessAgent RunCoreAsync	-
+5.5	❌	✓	`RoutePersistingRoutingChatClient` (MAAI001)	-	-	-
+5.5	❌	✓	`FunctionInvocationContextExtensions.WrapWithPendingMiddleware` (MAAI001, 1.25)	-	-	-
+5.6	✅	✓	`IAgentEvaluator` · `LocalEvaluator` · `EvalCheck`/`EvalChecks` · `EvalItem` · `ToolCalledMode`	EvalCheck EvalChecks EvalItem IAgentEvaluator LocalEvaluator ToolCalledMode	EvalCheck EvalChecks EvalItem IAgentEvaluator LocalEvaluator	-
+5.6	🟡	~	`FunctionEvaluator` · `AgentEvaluationResults`	-	AgentEvaluationResults FunctionEvaluator	-
+5.6	✅	✓ Faz 155	MEAI `IEvaluator` · `EvaluationResult` · `*Metric` (`EvaluatorRunJudge` köprüsü)	EvaluationResult EvaluatorRunJudge IEvaluator Metric	EvaluationResult EvaluatorRunJudge IEvaluator Metric	-
+5.6	❌	✗	`agent.EvaluateAsync(...)` · `Run.EvaluateAsync` (workflow)	EvaluateAsync Run	EvaluateAsync Run	EvaluateAsync Run
+5.6	❌	✗	`IConversationSplitter` · `ConversationSplitters.Full/LastTurn` · `EvalItem.Split`/`PerTurnItems` · `ExpectedToolCall`	EvalItem Split	EvalItem Full Split	Split
+5.6	❌	✓	`Evaluation.Quality` kataloğu	Evaluation	Evaluation Quality	Evaluation Quality
+5.6	❌	✓	`FoundryEvals` (20+ evaluator)	-	-	-
+5.7	✅	✓	`OpenTelemetryAgent` (+`EnableSensitiveData`)	EnableSensitiveData OpenTelemetryAgent	-	-
+5.7	✅	✓	`UseOpenTelemetry` (chat)	UseOpenTelemetry	-	-
+5.7	✅	✓	`HarnessAgentOptions.OpenTelemetrySourceName`	HarnessAgentOptions OpenTelemetrySourceName	HarnessAgentOptions	HarnessAgentOptions
+5.7	❌	✗	Workflow `WithOpenTelemetry` · `WorkflowTelemetryOptions`	-	-	-
+5.7	❌	✗	MEAI OTel halkaları: embedding, görsel, ses, hosted file (`OpenTelemetryEmbeddingGenerator`, `OpenTelemetryImageGenerator` …)	-	-	-
+5.7	❌	✗	MEAI `UseLogging` · `LoggingChatClient`	-	-	-
+5.8	✅	✓	`WorkflowBuilder` (`AddEdge`, `BindExecutor`, `WithOutputFrom`, `WithName`, `Build`) · `Executor` · `FunctionExecutor` · `ExecutorBinding`	AddEdge BindExecutor Build Executor ExecutorBinding FunctionExecutor WithName WithOutputFrom WorkflowBuilder	AddEdge BindExecutor Build Executor ExecutorBinding FunctionExecutor WithName WithOutputFrom WorkflowBuilder	AddEdge BindExecutor Build ExecutorBinding FunctionExecutor WithName WithOutputFrom WorkflowBuilder
+5.8	✅	✓	`AgentWorkflowBuilder`: Sequential · Concurrent · Handoff (`WithHandoffs`, `WithHandoffInstructions`, `WithAutonomousMode`) · GroupChat (`RoundRobin`) · Magentic (`RequirePlanSignoff`, `WithMaxRounds`)	AgentWorkflowBuilder RequirePlanSignoff WithAutonomousMode WithHandoffInstructions WithHandoffs WithMaxRounds	AgentWorkflowBuilder	AgentWorkflowBuilder
+5.8	✅	✓	Yürütme: `InProcessExecution.RunStreamingAsync`/`ResumeStreamingAsync` · `StreamingRun` (`WatchStreamAsync`, `TrySendMessageAsync(TurnToken)`, `SendResponseAsync`)	InProcessExecution ResumeStreamingAsync RunStreamingAsync SendResponseAsync StreamingRun TrySendMessageAsync TurnToken WatchStreamAsync	ResumeStreamingAsync RunStreamingAsync TurnToken	-
+5.8	✅	✓	Checkpoint: `CheckpointManager.CreateJson` + `ICheckpointStore<JsonElement>`	CheckpointManager CreateJson ICheckpointStore JsonElement	JsonElement	JsonElement
+5.8	✅	✓	HITL: `RequestPort` · `ExternalRequest/Response` · `RequestInfoEvent` · `MagenticPlanReviewRequest`	ExternalRequest MagenticPlanReviewRequest RequestInfoEvent RequestPort Response	ExternalRequest RequestPort Response	RequestPort
+5.8	✅	✓	Görselleştirme: `WorkflowVisualizer.ToMermaidString` · `Workflow.Reflect*`	ToMermaidString Workflow WorkflowVisualizer	Workflow	Workflow
+5.8	🟡	✗	Olaylar: 12 tip eşlenir (Started, Output, Error, Warning, SuperStep ×2, Executor ×3, RequestInfo, AgentResponse(Update))	?	?	?
+5.8	❌	✗	Graf topolojisi: `AddFanOutEdge` (+atayıcı) · `AddFanInBarrierEdge` · `AddSwitch`/`SwitchBuilder` · `AddChain` · `ForwardMessage`/`ForwardExcept` · `AddExternalCall` · koşullu `AddEdge<T>`	AddEdge	AddEdge	AddEdge
+5.8	❌	✗	Alt workflow: `ConfigureSubWorkflow` · `SubworkflowBinding`	-	-	-
+5.8	❌	✗	Paylaşılan durum: `IWorkflowContext.QueueStateUpdateAsync`/`ReadStateAsync`/`ReadOrInitStateAsync`/`QueueClearScopeAsync` · `StatefulExecutor<…>` · `IResettableExecutor` · `ScopeKey`	IWorkflowContext ReadStateAsync	IWorkflowContext QueueStateUpdateAsync ReadStateAsync	IWorkflowContext QueueStateUpdateAsync ReadStateAsync
+5.8	❌	✗	Kaynak üretimli handler: `[MessageHandler]` · `[SendsMessage]` · `[YieldsOutput]` · `ProtocolBuilder` · `Workflows.Generators` (analyzer)	Generators Workflows	Generators Workflows	Workflows
+5.8	❌	✗	Orkestrasyon ayarları: Handoff `WithHandoff(from, to, reason)`/`EnableReturnToPrevious`/`WithTerminationCondition`/`WithToolCallFilteringBehavior` · Magentic `WithMaxStalls`/`WithMaxResets`/`WithPromptOverrides`/`WithResponseLanguage` (MAAI001) · Concurrent `WithAggregator` · Sequential `WithChainOnlyAgentResponses` · özel `GroupChatManager`	-	-	-
+5.8	❌	✗	Çıktı etiketleri: `OutputTag` · `WithIntermediateOutputFrom` · `Futures.EnableAgentResponseOutputTaggingAndFiltering` · `StreamingAggregators` · `AggregatingExecutor`	-	-	-
+5.8	❌	✗	`AIAgentHostOptions` (`InterceptUserInputRequests`, `InterceptUnterminatedFunctionCalls`, `ReassignOtherAgentsAsUsers`, `Emit*`) · `ChatProtocolExecutor`/`ChatForwardingExecutor`	Emit	AIAgentHostOptions Emit	AIAgentHostOptions
+5.8	🟡	✓	`AIAgentBinding`	AIAgentBinding	AIAgentBinding	AIAgentBinding
+5.8	❌	✓	`Workflow.AsAIAgent` · `WithCheckpointing(agent)`	AsAIAgent Workflow	AsAIAgent Workflow	AsAIAgent Workflow
+5.8	❌	✗	Yürütme ortamı: `OpenStreamingAsync` · `RunAsync`/`ResumeAsync` (akışsız) · `Lockstep`/`Concurrent`/`OffThread`	Concurrent ResumeAsync RunAsync	Concurrent ResumeAsync RunAsync	Concurrent RunAsync
+5.8	❌	✓	Hazır checkpoint store'ları (`FileSystemJson`, `Cosmos`, `FoundryJson`) · `CheckpointManager.CreateInMemory` · `WorkflowSessionCheckpointRecovery`/`WorkflowAgentMetadata` (MAAI001)	CheckpointManager	-	-
+5.8	❌	✓	`Workflows.Declarative` (+`.Mcp`, `.Foundry`; eski `.AzureAI`): YAML + Power Fx	Workflows	Mcp Workflows	Workflows
+5.8	⛔	✓	`ReflectingExecutor` · `IMessageHandler` · `[StreamsMessage]` · `[YieldsMessage]` · `HandoffsWorkflowBuilder`	-	-	-
+5.9	✅	✓	`OpenAIResponses` (`ToAgentRunRequest`, `WriteResponse`, `WriteResponseStreamAsync`, `CreateResponseId`, `GetSessionStoreId`) · `OpenAIResponsesRunRequest`	CreateResponseId GetSessionStoreId OpenAIResponses OpenAIResponsesRunRequest ToAgentRunRequest WriteResponse WriteResponseStreamAsync	-	-
+5.9	❌	✓	`MapOpenAIResponses` · `MapOpenAIConversations` · `OpenAIResponsesMapOptions`	MapOpenAIConversations	MapOpenAIConversations	MapOpenAIConversations
+5.9	❌	✓	`MapOpenAIChatCompletions` · `OpenAIChatCompletionsMapOptions` · MEAI.OpenAI `AsOpenAIChatCompletion`/`AsOpenAIStreamingChatCompletionUpdatesAsync` · MAF.OpenAI `AgentResponse.AsOpenAIChatCompletion` (OPENAI001)	AgentResponse	AgentResponse	-
+5.9	✅	✓ K-103	A2A sunucu: `AddA2AServer` + `AgentRunMode.ReturnMessage` · `ExternalAgentProxy`	AddA2AServer AgentRunMode ExternalAgentProxy ReturnMessage	-	-
+5.9	❌	✓	A2A `ReturnTask`/`ReturnTaskWhen` · `A2ARunDecisionContext` · `IsolationKeyScopedTaskStore`	-	-	-
+5.9	❌	✗	`Hosting.A2A.AspNetCore`: `MapA2AJsonRpc` · `MapA2AHttpJson`	A2A AspNetCore Hosting	A2A AspNetCore Hosting	AspNetCore Hosting
+5.9	❌	~	Hosting DI: `AddAIAgent` · `AddWorkflow` · `IHostedAgentBuilder` (`WithAITool(s)`, `WithSessionStore`) · `AIHostAgent` · `HostedWorkflowState`	AddWorkflow	AddWorkflow	AddWorkflow
+5.9	❌	✗	A2A istemci: `A2AAgent` · `A2AClient/AgentCard.AsAIAgent` · `A2ACardResolver.GetAIAgentAsync`	AgentCard AsAIAgent	AsAIAgent	AsAIAgent
+5.9	❌	✗	AG-UI: `MapAGUIServer(pattern, AIAgent)` · `AddAGUIServer` · eski hat `AGUIChatClient` (1.13)	AIAgent	AIAgent	AIAgent
+5.9	❌	✓	DevUI (`MapDevUI`, `AddDevUI`)	-	-	-
+5.9	❌	✓	Durable Task (1.16 hattı, 25 tip) · Azure Functions (1.16, 7 tip)	?	?	?
+5.9	❌	✗⁺	`Hosting.AzureStorage` (Blob session store)	Hosting	Hosting	Hosting
+5.9	❌	✓	`Foundry.Hosting` (`AgentFrameworkResponseHandler`, toolbox, `FoundryResponses`, session store'ları)	Hosting	Hosting	Hosting
+5.10	✅	✓ K-030	OpenAI: `AsIChatClient` (Chat, Responses) · `AsIChatClientWithStoredOutputDisabled`	AsIChatClient AsIChatClientWithStoredOutputDisabled	-	-
+5.10	❌	✗	MAF.OpenAI kısayolları: `AsAIAgent` · `AIAgentWithOpenAIExtensions.RunAsync/RunStreamingAsync` · `AgentResponse.AsOpenAIResponse`	AgentResponse AsAIAgent RunAsync RunStreamingAsync	AgentResponse AsAIAgent RunAsync RunStreamingAsync	AsAIAgent RunAsync
+5.10	🟡	✓	Azure OpenAI	?	?	?
+5.10	🟡	✗	Anthropic	?	?	?
+5.10	❌	✓	Foundry: `FoundryChatClient` · `FoundryAgent` · `AIProjectClient.AsAIAgent` · `FoundryAITool` (17 hosted tool) · `HostedMcpToolboxAITool` · `ClientHeaders`	AsAIAgent	AsAIAgent	AsAIAgent
+5.10	❌	✓	Azure AI Persistent Agents (`PersistentAgentsClient.AsAIAgent`)	AsAIAgent	AsAIAgent	AsAIAgent
+5.10	❌	✗	GitHub Copilot: `GitHubCopilotAgent` · `CopilotClient.AsAIAgent` (GA)	AsAIAgent	AsAIAgent	AsAIAgent
+5.10	❌	✗	Copilot Studio: `CopilotStudioAgent`	-	-	-
+5.11	❌	✗	Purview: `PurviewAgentMiddleware` (`Func<AIAgent, AIAgent>`) · `PurviewChatMiddleware` · `WithPurview` · `PurviewSettings` (rc)	AIAgent Func	AIAgent Func	AIAgent Func
+5.11	❌	✓	AgentHooks (alpha)	?	?	?
+5.12	❌	✗	`PromptAgentFactory` · `ChatClientPromptAgentFactory` · `AggregatorPromptAgentFactory` · `CreateFromYamlAsync` · `PromptAgentExtensions.GetChatOptionsAsync`	-	-	-
+5.13	✅	✓	`IChatClient` · `ChatOptions` · temel içerikler (Text, Data, Uri, FunctionCall/Result, Usage, TextReasoning, HostedFile) · `ChatResponseFormat` · `ReasoningOptions`	ChatOptions ChatResponseFormat IChatClient ReasoningOptions	ChatOptions ChatResponseFormat IChatClient ReasoningOptions	ChatOptions IChatClient
+5.13	🟡	✗	`ChatOptions` alanları	ChatOptions	ChatOptions	ChatOptions
+5.13	✅	✓	`DelegatingChatClient` halkaları (12) · `DistributedCachingChatClient` türetme	DelegatingChatClient DistributedCachingChatClient	DelegatingChatClient	-
+5.13	✅	✓	`IEmbeddingGenerator` · `IImageGenerator` (MEAI001, yalnız içte)	IEmbeddingGenerator IImageGenerator	IEmbeddingGenerator IImageGenerator	IEmbeddingGenerator IImageGenerator
+5.13	✅	✓	`ISpeechToTextClient` · `ITextToSpeechClient` (+Options, builder, OTel/Logging halkaları, OpenAI `AsISpeechToTextClient`/`AsITextToSpeechClient`) (MEAI001)	ISpeechToTextClient ITextToSpeechClient	ISpeechToTextClient ITextToSpeechClient	-
+5.13	❌	✗	`IRealtimeClient` · `IRealtimeClientSession` · `FunctionInvokingRealtimeClient` · `OpenAIRealtimeClient` (MEAI001)	-	-	-
+5.13	❌	✗	`IHostedFileClient` (+OpenAI `AsIHostedFileClient`) (MEAI001)	-	-	-
+5.13	❌	✓	`FailoverChatClient` · `OrderedFailoverChatClient` · `RoutingChatClient` · `SemanticRoutingChatClient` (MEAI001, 10.9)	-	-	-
+5.13	❌	✓	`ImageGeneratingChatClient` (MEAI001) · `HostedImageGenerationTool`	-	-	-
+5.13	🟡	✗	Atıf ve hata içerikleri: `CitationAnnotation` · `TextSpanAnnotatedRegion` · `ErrorContent` · `InputRequestContent`/`InputResponseContent`	ErrorContent	ErrorContent	-
+5.13	❌	✗	`ChatClientBuilder` halkaları (`UseLogging`, `UseDistributedCache`, `ConfigureOptions`, `UseChatReducer`) · `GetResponseAsync<T>`	GetResponseAsync	GetResponseAsync	GetResponseAsync
+5.13	❌	~	`AIJsonSchemaCreateOptions` · `AIJsonSchemaTransformOptions`	-	-	-
+5.14	✅	✓	İstemci: `HttpClientTransport` · OAuth (`ClientOAuthOptions`)	ClientOAuthOptions HttpClientTransport	HttpClientTransport	-
+5.14	✅	✓	İstemci: tools · prompts · resources · kaynak aboneliği	?	?	?
+5.14	✅	✓ Faz 117	Sunucu: `AddMcpServer` · `WithHttpTransport` · `MapMcp` · tool handler'ları · Tasks (`IMcpTaskStore`, `WithTasks`)	AddMcpServer IMcpTaskStore MapMcp WithHttpTransport WithTasks	AddMcpServer MapMcp WithHttpTransport	-
+5.14	❌	✓	`StdioClientTransport`	-	-	-
+5.14	❌	✗	İstemci yetenekleri: Elicitation · Sampling · Roots · Logging · Progress · Completions	?	?	?
+5.14	❌	✗	Sunucu: prompts/resources sunma · `[McpServerTool]`	-	McpServerTool	-
+5.14	❌	✗⁺	OAuth: `DynamicClientRegistration` · `IdentityAssertionGrant`	-	-	-
+5.14	❌	✗	MAF.Mcp: `ListAgentToolsWithTasksAsync` + `McpTaskOptions` (uzun süren MCP tool'u, istemci tarafı; 1.16'da `ListAgentToolsWithTaskSupportAsync` adıyla)	-	-	-

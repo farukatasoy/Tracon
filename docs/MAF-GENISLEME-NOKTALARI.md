@@ -379,7 +379,7 @@ Yalnız tip ve çağrı yeri (2026-10-20'de `src/`'den okundu; MAF 1.25.0 · MEA
 | Faz | MAF/MEAI tipi | Tracon'da yeri | Not |
 |---|---|---|---|
 | 219 | `AgentSkillsProviderBuilder` (`UseSource` · `UseFilter` · `UseCachingOptions` · `Build`) | `AgentDefinitionCompiler.Skills.cs` | Düz ve harness agent aynı zinciri kullanır; harness'ın yerleşik skill provider'ı kapalıdır (R-06) |
-| 220 | `ISpeechToTextClient` · `ITextToSpeechClient` (MEAI001) | iç adaptör, `AddSpeechSynthesizer`/`AddSpeechTranscriber(name, binding)` | Public imzaya girmez; § *Hâlâ kullanılmayan* bloğundaki KÖPRÜ satırı |
+| 220 | `ISpeechToTextClient` · `ITextToSpeechClient` (MEAI001) | iç adaptör, `AddSpeechSynthesizer`/`AddSpeechTranscriber(name, binding)` | Public imzaya girmez; hüküm `MAF-KAPSAMA.md` §5.13, R-01, K-1026 |
 | G-07 | `AgentRunOptions` (düz kopya) | `RunRecordingAgent.ForInnerAgent` | Taban üye eklenirse `RunOptionsHandoffTests` düşer |
 | 222 | `ChatClientAgentOptions` · `HarnessAgentOptions` (kanca parametresi) · `AIAgent` sarmalayıcısı (`AgentExtensionContext.Use`) | `AgentExtensionRegistry`, `AgentOptionsGuard` | Tüketici `AIAgentBuilder` ile run ve tool middleware'i takar; korunan üye tablosu K-1029, K-1035 |
 | 223 | `WebSearch`/`CodeInterpreter`/`ImageGeneration`/`McpServer` `ToolCall`/`ToolResultContent` · `ErrorContent` · `DataContent` · `UriContent` · `HostedFileContent` · `HostedVectorStoreContent` | `ContentEventPayload.Describe` → `tracon.content` | Yük gövdesizdir; `UriContent` adresi yazılmaz (K-1034) |
@@ -387,51 +387,26 @@ Yalnız tip ve çağrı yeri (2026-10-20'de `src/`'den okundu; MAF 1.25.0 · MEA
 
 ### Hâlâ kullanılmayan MAF genişleme noktaları
 
-```csharp
-// Microsoft.Agents.AI.Hosting — cok kiracili oturum deposu
-IsolationKeyScopedAgentSessionStore · SessionIsolationKeyProvider
-// Faz 6 kiraciyi ITenantContext ile cozdu ve her sorguya filtre koydu; MAF'in
-// oturum deposu sarmalayicisi gerekmedi. Tuketici kendi AgentSessionStore'unu
-// MapTracon'den once kaydederse onunki kazanir.
+Bu dosya yalnız **kullandığımız** imzaları ve sürüm damgasını taşır (D-20,
+2026-10-20). Kullanılmayan bir tipin hükmü, gerekçesi ve yeniden ölçme koşulu
+[`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §5'tedir: Durum `❌`/`🟡` satırları, `Not`
+sütunundaki `R-`/`D-`/`C-` kimliği. Satırın ölçülen teması
+`scripts/maf-kapsama-temas.tsv`'dedir.
 
-// Microsoft.Agents.AI — degerlendirme, skill, arka plan agent'lari, vektor bellek
-AgentSkill · AgentSkillsProvider                       → Faz 10 (F-09)
-BackgroundAgentsProvider · HarnessAgentOptions.BackgroundAgents → Faz 12 (F-10, K-062)
-ChatHistoryMemoryProvider · VectorStore                → planlanmadi (K-105 — VectorStore karari verilince)
-EvalItem · EvalCheck · LocalEvaluator · IAgentEvaluator → Faz 18 (F-14)
-LoopAgent · LoopEvaluator (5 yerlesik)                 → Faz 151 TAMAMLANDI (F-192, K-704)
-  HarnessAgentOptions.{LoopEvaluators,LoopAgentOptions}  → HarnessSettings.Loop
-Microsoft.Agents.AI.Workflows                          → Faz 15 TAMAMLANDI (F-27, K-054)
-  AgentWorkflowBuilder.Build{Sequential,Concurrent}      → hazir desen fabrikalari
-  AgentWorkflowBuilder.Create{Handoff,GroupChat,Magentic}BuilderWith
-  InProcessExecution.{Run,Resume}StreamingAsync          → yurutme
-  StreamingRun.TrySendMessageAsync(TurnToken)            → 🚨 ZORUNLU, yoksa graf calismaz
-  CheckpointManager.CreateJson(ICheckpointStore<JsonElement>, opts)
-  WorkflowVisualizer.ToMermaidString · Workflow.Reflect* → Faz 16 TAMAMLANDI (graf cizimi)
-  RequestPort · ExternalRequest/Response                 → Faz 16 TAMAMLANDI (human-in-the-loop)
-  StreamingRun.SendResponseAsync                         → 🚨 yanit sonrasi akis YENIDEN acilmali
-  MagenticWorkflowBuilder.RequirePlanSignoff(true)       → Faz 16 TAMAMLANDI (plan onayi)
-Microsoft.Agents.AI.Workflows.Declarative               → ALINMADI (K-129: +19 paket, Responses API sarti)
+Burada önceden duran blok 2026-10-20'de matrise eşlendi; eşi olmayan iki hüküm
+taşındı:
 
-// Microsoft.Extensions.AI — olculdu 2026-10-19 (MAF kapsama matrisi Dalga 1)
-FailoverChatClient · OrderedFailoverChatClient         → KORU: FallbackChatClient (yukaridaki MEAI 10.9.0 satiri, R-02)
-ImageGeneratingChatClient · HostedImageGenerationTool  → KORU: GenerateImageTool. MEAI'ninki (MEAI001)
-  HostedImageGenerationTool'u uc fonksiyona cevirir ve uretilen gorseli DataContent
-  olarak konusmaya geri koyar (varsayilan AllImages). Kiraciyi cozmez, adet sinirini
-  uygulamaz, kullanim ve maliyet raporlamaz. Tracon'unki ureticiyi kiraci icin cozer
-  (ResolveForTenantAsync), MaxImagesPerRequest'i uygular, ImagePricing ile
-  TraconToolUsage.Report yazar ve modele bayt degil ek kimligi doner (baglam penceresi)
-  Yeniden olc: MEAI001 kalkar VE kullanim raporu icin bir kanca gelirse
-ISpeechToTextClient · ITextToSpeechClient              → KOPRU — Faz 220 TAMAMLANDI (R-01, F-579): MEAI001, public imzaya girmez;
-  DI'daki istemci ic adaptorle ISpeechSynthesizer/ISpeechTranscriber'a baglanir (AddSpeechSynthesizer/
-  AddSpeechTranscriber(name, binding)). Kiraci egress'i ve BYOK reddi cozumleyicide (K-930); kimlik bilgisi
-  MEAI seceneklerine HIC yazilmaz (LoggingTextToSpeechClient seceneklari Trace'te yazar)
-  OpenAI: AsITextToSpeechClient/AsISpeechToTextClient KULLANILMADI (K-1026) — OpenAIAudioTransport, OpenAIClient.Pipeline
-  ustunde. Sebep: model yanlis raporlanir, akis SSE, AudioClient Native AOT'ta derlenmez (OpenAI 2.14.0 ↔ System.ClientModel 1.16.0)
-  Yeniden olc: OpenAI SDK'si System.ClientModel 1.16'ya karsi derlenince on satirlik AudioClient AOT probu temiz yayimlanirsa
-OpenAI.Chat.MicrosoftExtensionsAIChatExtensions        → ALINMADI (R-03, K-036 notu): OPENAI001;
-  AsOpenAIStreamingChatCompletionUpdatesAsync bos FinishReason'i her chunk'ta "stop" yazar
-```
+| Eski satır | Bugünkü yeri |
+|---|---|
+| `IsolationKeyScopedAgentSessionStore` · `SessionIsolationKeyProvider` (1.25'te `AgentIsolationKeyProvider`) | §5.1 satırı; "tüketicinin `AgentSessionStore`'u kazanır" notu oraya taşındı |
+| `AgentSkill` · `AgentSkillsProvider` (Faz 10) · `BackgroundAgentsProvider` (Faz 12) · değerlendirme tipleri (Faz 18) · `LoopAgent` (Faz 151) | kullanılıyor — §5.3, §5.5, §5.6 |
+| `Microsoft.Agents.AI.Workflows` (Faz 15–16) ve iki tuzağı (`TurnToken` zorunlu, yanıttan sonra akış yeniden açılır) | §5.8 satırları; tuzaklar [`hafiza/workflows.md`](hafiza/workflows.md) |
+| `ChatHistoryMemoryProvider` · `VectorStore` (K-105) | §5.2, C-24, D-05 |
+| `Workflows.Declarative` (K-129) | §5.8, D-03 |
+| `FailoverChatClient` · `OrderedFailoverChatClient` | R-02 ve yukarıdaki MEAI 10.9.0 satırı |
+| `ImageGeneratingChatClient` · `HostedImageGenerationTool` | §5.13 satırı; KORU gerekçesi ve yeniden ölçme koşulu oraya taşındı |
+| `ISpeechToTextClient` · `ITextToSpeechClient` (Faz 220) | §5.13 satırı, R-01, K-1026 |
+| `OpenAI.Chat.MicrosoftExtensionsAIChatExtensions` | §5.9 `AsOpenAIChatCompletion` satırı, R-03 |
 
 **2026-08-02'de reflection ile doğrulanan ve ikinci faz planına giren bulgular:**
 

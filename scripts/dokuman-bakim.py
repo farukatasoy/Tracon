@@ -2,10 +2,11 @@
 """Doküman bakımı — faz kapanışında çalıştırılır.
 
 Üç iş yapar:
-  1. DÖRT dosyayı yeniden üretir: `docs/KARARLAR-INDEKS.md`,
+  1. BEŞ dosyayı yeniden üretir: `docs/KARARLAR-INDEKS.md`,
      `docs/arsiv/KARARLAR-INDEKS-ARSIV.md`, `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md`
-     (üçü `docs/KARARLAR.md`'den) ve `docs/YOL-HARITASI.md` (açık fazların
-     `> **Durum:**` satırından ve `docs/FAZ-DEFTERI.md`'den). Hiçbiri elle
+     (üçü `docs/KARARLAR.md`'den), `docs/YOL-HARITASI.md` (açık fazların
+     `> **Durum:**` satırından ve `docs/FAZ-DEFTERI.md`'den) ve
+     `scripts/maf-kapsama-temas.tsv` (`docs/MAF-KAPSAMA.md` §5 ve kaynaktan, Faz 224). Hiçbiri elle
      yazılmaz; böylece bayatlayamazlar.
   2. Doküman erişim katmanlarının bütçesini denetler: başlangıç bağlamı,
      gerektiğinde sorgulanan referanslar ve ledger.
@@ -28,6 +29,8 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import functools
+import importlib.util
 import os
 import pathlib
 import posixpath
@@ -2750,11 +2753,24 @@ def projeksiyon(faz_sayisi: int = 6) -> int:
     return 0
 
 
+@functools.cache
+def _maf_kapsama():
+    """`scripts/maf-kapsama.py` (Faz 224). Ad tire taşıdığı için `import` edilemez;
+    `maf_paket_envanteri_test.py` ile aynı yoldan yüklenir. CI iş akışı değişmez:
+    temas tablosu `_URETILEN`'e, `✗` cırcırı `denetle()`'ye katılır."""
+    spec = importlib.util.spec_from_file_location("maf_kapsama", ROOT / "scripts" / "maf-kapsama.py")
+    modul = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = modul
+    spec.loader.exec_module(modul)
+    return modul
+
+
 _URETILEN = (
     ("docs/KARARLAR-INDEKS.md", lambda: kararlar_indeksi_uret()),
     ("docs/arsiv/KARARLAR-INDEKS-ARSIV.md", lambda: kararlar_indeksi_arsiv_uret()),
     ("docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md", lambda: kararlar_reddedilen_uret()),
     ("docs/YOL-HARITASI.md", lambda: yol_haritasi_uret()),
+    ("scripts/maf-kapsama-temas.tsv", lambda: _maf_kapsama().temas_uret()),
 )
 
 
@@ -3395,7 +3411,7 @@ def komut_faz_kapat(a: argparse.Namespace) -> int:
 # CI'da kosarlar. Ucu de SADECE OKUR -- `--denetle`nin "yazmaz" sozu korunur.
 
 def tazelik_denetle(kok: pathlib.Path = ROOT) -> list[str]:
-    """Uretilen DORT dosya kaynagiyla ayni mi. Bellekte yeniden uretip diskle
+    """Uretilen dosyalar (`_URETILEN`) kaynaklariyla ayni mi. Bellekte yeniden uretip diskle
     karsilastirir; farkliysa bulgu. HICBIR SEY YAZMAZ.
 
     Bosluk (Faz 90'da olculdu): CI yalniz `--denetle` kosuyordu, URETIM modunu
@@ -3698,6 +3714,7 @@ def denetle() -> int:
         ("Koşum kaydı tam metni", tam_metin_denetle()),
         ("Faz defteri işaretçisi", defter_isaretci_denetle()),
         ("Bayat kod yolu (sıcak hafıza)", bayat_kod_yollari()),
+        ("MAF kapsama ✗ cırcırı", _maf_kapsama().carpi_denetle()),
     ):
         print(f"\n{ad}: {'✅ temiz' if not bulgular else f'{len(bulgular)} bulgu'}")
         for b in bulgular[:10]:

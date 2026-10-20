@@ -19,7 +19,7 @@ Microsoft.Agents.AI.CosmosNoSql	preview	degerlendirilmedi	Tracon'un SQL store'la
 Microsoft.Agents.AI.Declarative	rc	degerlendirilmedi	YAML prompt agent; K-129 yalnız workflow tarafını anar
 Microsoft.Agents.AI.DevUI	preview	karar	docs/MIMARI.md:35: Tracon'un kendi konsolu var
 Microsoft.Agents.AI.DurableTask	preview	karar	K-778: iş kuyruğu Tracon'un, workflow içi dayanıklılık MAF'ın
-Microsoft.Agents.AI.Foundry	preview	karar	K-212
+Microsoft.Agents.AI.Foundry	preview	karar	K-212: koşul doğrulanabilirlik (2026-10-20); tip düzeyinde karşılanıyor, D-08
 Microsoft.Agents.AI.Foundry.Hosting	preview	karar	K-212
 Microsoft.Agents.AI.FoundryMemory	preview	karar	K-212
 Microsoft.Agents.AI.GitHub.Copilot	ga	degerlendirilmedi	keşif 2026-08-26'da anıldı, karar yok
@@ -41,7 +41,7 @@ Microsoft.Agents.AI.Purview	rc	degerlendirilmedi
 Microsoft.Agents.AI.Tools.Shell	preview	degerlendirilmedi	skill script'leri için Tracon'un kendi sandbox'ı var (Faz 11)
 Microsoft.Agents.AI.Valkey	alpha	degerlendirilmedi	
 Microsoft.Agents.AI.Workflows	ga	kullaniliyor	
-Microsoft.Agents.AI.Workflows.Declarative	ga	karar	K-129: +19 paket, Responses API şartı (1.25.0 için yeniden ölçülmedi)
+Microsoft.Agents.AI.Workflows.Declarative	ga	karar	K-129: Responses API şartı sürüyor (1.25.0'da ölçüldü 2026-10-20: tek somut ResponseAgentProvider Azure'da)
 Microsoft.Agents.AI.Workflows.Declarative.AzureAI	rc	karar	K-129, K-212
 Microsoft.Agents.AI.Workflows.Declarative.Foundry	preview	karar	K-129, K-212
 Microsoft.Agents.AI.Workflows.Declarative.Mcp	ga	karar	K-129

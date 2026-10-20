@@ -11,7 +11,7 @@ Dördü de sıfır uyarı vermelidir. Bir tanesi kırmızıysa iş **bitmemişti
 ```bash
 python3 scripts/kapi.py ic-dongu [--taban <commit>]   # build + etkilenen test projeleri (hızlı iç döngü)
 python3 scripts/kapi.py tarama                    # sync kopyası · secret · migration bütünlüğü · bayat doküman referansı (saniyeler)
-python3 scripts/kapi.py uret                      # üretilen dosyaları yeniden yazar: agent haritası + llms + karar indeksleri + yol haritası
+python3 scripts/kapi.py uret                      # üretilen dosyaları yeniden yazar: agent haritası + llms + karar indeksleri + yol haritası + MAF temas tablosu
 python3 scripts/kapi.py kapanis --taban <faz öncesi commit>   # önce uret, sonra ucuzdan pahalıya; tam test EN SONDA
 python3 scripts/kapi.py test --proje <Proje> --sinif "*Ad*" [--tfm net8.0]   # MTP filtresi; çoklu TFM projesinde her bacak ya da tek bacak (Faz 183)
 python3 scripts/kapi.py performans                # tahsis kapısı - üç sıcak yol, bench/baseline.json'a karşı (`KR-12`)

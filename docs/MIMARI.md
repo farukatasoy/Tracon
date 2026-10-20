@@ -447,7 +447,9 @@ yerde korunur: (1) her Tracon→Tracon nuspec bağımlılığı tam aralıktır 
 (`PackageFamilyAlignmentService`, `IHostedLifecycleService.StartingAsync`,
 opt-out yok). İkinci katman, açık aralıkla yayınlanmış preview.1/preview.2'yi
 ve NU1608 ile geçen doğrudan başvuruyu yakalar. Host başlatmayan süreç
-(`BuildServiceProvider()`) kontrolü koşturmaz.
+(`BuildServiceProvider()`) kontrolü koşturmaz. Ön sürüm upstream'e bağlı **yeni**
+uydu paket bu hattın dışındadır ve kendi ön sürüm hattında çıkar (K-1037); aile
+listesine girmez ve upstream deneysel tipi public imzasında taşıyabilir (K-1036).
 
 ---
 

@@ -122,9 +122,16 @@ TMPDIR=$SP/t2 .agents/skills/maf-api-kesfi/scripts/dump-api.sh '*'              
 ```
 
 Düz `diff` **yanıltır**: aynı üye satırı başka bir tipe eklendiğinde "değişmedi"
-görünür. Karşılaştırma **tip kapsamlı** yapılır — her tipin üye kümesi ayrı ayrı
-(`>>> ` satırı tip, girintili satırlar üyedir; iki dosyayı bu yapıya göre ayrıştır
-ve tip tip küme farkı al).
+görünür. Karşılaştırma **tip kapsamlı** yapılır — her tipin üye kümesi ayrı ayrı.
+Bunu betik yapar (Faz 224). Kaldırma ya da tip başlığı değişimi (taban sınıf, `[abstract]`,
+`[sealed]`) varsa çıkış `1` olur; `!! yuklenemedi` satırı taşıyan eksik bir dump hata verir:
+
+```bash
+python3 scripts/maf-kapsama.py fark $SP/eski.txt $SP/yeni.txt
+```
+
+Ölçüm (2026-10-20): 1.24.0 → 1.25.0 çekirdek paketlerde **sıfır** fark verdi; 1.20.0 →
+1.25.0 sürüm damgası tablosundaki dört tipi ve sekiz üyeyi birebir verdi.
 
 **Kaldırma varsa yükseltme bir kusur işidir**, bir bakım işi değil. Ekleme varsa
 sonucu [`docs/MAF-GENISLEME-NOKTALARI.md`](../../../docs/MAF-GENISLEME-NOKTALARI.md)
@@ -160,6 +167,34 @@ tutarlılığı ise CI'da `maf_paket_envanteri_test.py` ile denetlenir: yeni bir
 referansı ekleyip tabanı güncellemeyen bir değişiklik orada kırmızı olur. macOS python.org
 kurulumunda `urllib` CA bulamaz; betik sertifika doğrulamasını kapatmaz, `curl` komutunu
 basar ve `--dosya` ile verilir (`docs/hafiza/tedarik-zinciri.md`).
+
+### Dördüncü adım — niyet: release notu ve örnek dizini
+
+Dump ve envanter bir tipin **var** olduğunu gösterir. Neden geldiğini ve bir davranışın
+değiştiğini göstermez. Bunu upstream'in kendi metni söyler. Her yükseltmede, eski pin ile
+yeni pin arasındaki **her** .NET sürümü için oku:
+
+```bash
+gh release list --repo microsoft/agent-framework --limit 40 | grep -E '^dotnet-'
+gh release view dotnet-<sürüm> --repo microsoft/agent-framework --json body --jq .body
+
+# Değişen örnekler yeni yeteneği adıyla gösterir. GitHub compare API'si 300 dosyada keser
+# (1.24.0 → 1.25.0: 435 dosya); yalnız ağaç çeken bir klon kesmez ve ~3 sn sürer:
+git clone --filter=blob:none --no-checkout --quiet https://github.com/microsoft/agent-framework "$SP/maf"
+git -C "$SP/maf" diff --name-only dotnet-<eski> dotnet-<yeni> -- dotnet/samples
+```
+
+Her satırı bir sınıfa koy:
+
+| Satır | Ne yapılır |
+|---|---|
+| `[BREAKING]` ya da davranış değişikliği (ör. 1.25.0 #9152: yanıtsız tool onay isteği otomatik reddedilir) | Tracon'un kullandığı bir tipe dokunuyorsa aşağıdaki 🚨 kuralıyla probe |
+| Yeni yetenek ya da yeni örnek | [`docs/MAF-KAPSAMA.md`](../../../docs/MAF-KAPSAMA.md) §5'e `✗⁺` satırı; `aday-kesfi` turunun girdisidir |
+| Tracon'a dokunmayan (Python, yalnız Foundry, Cosmos …) | Yok say |
+
+Sonucu `MAF-GENISLEME-NOKTALARI.md` § *Sürüm damgası*'ndaki tur notuna tek satır yaz:
+okunan sürümler ve her sınıftaki satır sayısı. Release notu yoksa ya da yalnız commit
+listesi varsa bunu da yaz — "okunmadı" ile "boştu" ayrı sonuçlardır.
 
 🚨 **Reflection davranışı görmez.** İmza aynı kalıp davranış değişebilir: 2026-08-21
 yükseltmesinde `OpenAIResponses.ToAgentRunRequest` aynı imzayla `JsonException`

@@ -5,7 +5,7 @@
 > kayıtlar burada durmaz; tam metinleri git'tedir (§7). İş kalemi buraya değil,
 > [`ADAYLAR.md`](ADAYLAR.md)'ye yazılır.
 >
-> **Son güncelleme:** 2026-10-19 (UR-012 = B; ölçümler satırında tarihli)  
+> **Son güncelleme:** 2026-10-20 (UR-002 ve UR-005 uydu paket için genişledi: K-1036, K-1037; ölçümler satırında tarihli)  
 > **Çalışma modu:** `nuget-danismani` — public API freeze programı (UR-009 B)  
 > **GÜNCEL DURUM:** Canlı sürüm `1.0.0-preview.4`. Freeze yolunun ilk üç
 > ölçütü bitti: küçültme (Faz 212–213), bağımlılık yükseltmesi (Faz 214–216)
@@ -46,7 +46,7 @@ Giriş ölçütleri, bakımcı sırasıyla (UR-009 B, 2026-10-16 👤):
 | 2 | Her bağımlılık en yeni sürümde | ✅ | Faz 214 (çalışma anı, MAF 1.25) · Faz 215 (test/derleme araçları) · Faz 216 (npm). Gerekçeli istisna: `Microsoft.OpenApi` 3 (ASP.NET Core 11 ister), `SQLitePCLRaw` 3 (`Data.Sqlite` 11'i izler), Roslyn (F-569, Faz 193'ten sonra) |
 | 3 | Modernizasyon | ✅ **Faz 217** (K-1019, K-1020, K-1021) | Azure → düz `OpenAI` + `/openai/v1/`; AOT vaadi = smoke + sıfır uyarı (`Anthropic` ve `Google` vaadi geri çekildi); ElevenLabs beyanı + kayma testi; Anthropic `ReasoningEffort` uyarlanabilir (canlı ölçüm). Canlı Azure kaynağı ile doğrulama `MT-PROV-091` 👤 |
 | 4 | Yeni yetenekler toplu girer | ⏳ UR-012 = B 👤 (2026-10-19) | Ölçüt en iyi RC'dir: RC'yi iyileştiren iş, kırıcı ya da ekleyici, freeze'den **önce** girer. Kaynak MAF kapsama matrisinin dalgalarıdır; Dalga 1 ölçüldü (2026-10-19, kırıcı kalem kalmadı). F-290 ✅ Faz 218. RC ile GA arasında yetenek eklenmez. Önceki karar (A, 2026-10-17) UR-012 satırındadır |
-| 5 | Kırıcı kalemler kapandı · public imzada upstream deneysel tip yok · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 ✅ **Faz 218** (2026-10-17; `[Obsolete]` kalmadı, `git grep "\[Obsolete" src` boş) · F-559 (A-76, A-67, A-68) · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |
+| 5 | Kırıcı kalemler kapandı · ailenin public imzasında upstream deneysel tip yok (uydu hattı hariç, K-1036) · 1.x evrim kuralları yazılı ve kapılı | ⏳ | F-290 ✅ **Faz 218** (2026-10-17; `[Obsolete]` kalmadı, `git grep "\[Obsolete" src` boş) · F-559 (A-76, A-67, A-68) · **F-560 upstream'e bağlı** (UR-013): `LoopEvaluator` ve `AgentFileStore` MAF'ta `[Experimental]`; GA'larını bekler. F-466 ✅ (ölçüm) |
 | 6 | Faz 193 (`net8.0`/`net9.0` düşer) | 📋 planlandı | En erken 2026-11-10 (K-855) |
 | 7 | Bir preview aralığı kararlı katmanda **sıfır** kırılmayla geçer | ⏳ | **Yalnız son adımda sayılır** 👤 (2026-10-19, UR-012 B): 4–6 bittikten sonra, `rc.1`'den hemen önceki son preview sessiz geçer; `kapi.py yayin` kırılma listesi boş olur. Pencere o güne kadar sayılmaz; o aralıkta giren kırıcı değişiklik ya da yeni yetenek pencereyi yeniden başlatır |
 | 8 | Upstream kararlı (ER-001 kalktı) · `1.0.0-rc.1` provası yeşil | ⏳ dış | UR-004 A: Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alır. Sonra `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-rc.1` |
@@ -130,9 +130,9 @@ Son ölçüm 2026-09-20; sonra kimse ölçmedi. GA turunda önce yeniden ölçü
 | Kimlik | Karar | Yeniden açılma ölçütü |
 |---|---|---|
 | UR-001 | Yayın türü `preview` | UR-009 ölçütleri sağlanınca **ve** ER-001 kalkınca `rc` (UR-004 A) |
-| UR-002 | Kapsam: paketlenen her proje (bugün 20) + `@tracon/client`, tek sürüm hattı (K-602) | — |
+| UR-002 | Kapsam: paketlenen her proje (bugün 20) + `@tracon/client`, tek sürüm hattı (K-602). **Genişletildi 👤 (2026-10-20, K-1037):** ön sürüm upstream'e bağlı **yeni** uydu paket ayrı ön sürüm hattında çıkar ve ailenin `rc.1`/GA'sını bekletmez. İlk uydu paketin fazı hattı kurar: `PackageFamilyAlignment` listesi dışı, `uyum-probu deneysel` sayımı dışı, ayrı yayın provası | Uydu paketin upstream'i GA olunca paket aileye katılır |
 | UR-004 | **A** 👤 (2026-10-17): upstream GA beklenir. Freeze (`1.0.0-rc.1`) de ER-001 kalkana kadar çıkmaz — Hosting ailesi ve `A2A.AspNetCore` kararlı sürüm alana kadar preview hattı sürer. B (Hosting'e bağlı yüzeyi ayrı ön sürüm pakete ayırmak) ve C (önce dondur, `rc.N` çık, yalnız GA upstream'i bekler) seçilmedi | Upstream kararlı sürüm takvimi uzar ve preview hattında bekleyen iş birikirse C yeniden tartılır |
-| UR-005 | **A:** tek kararlı katman; Tracon'un kendi `[Experimental]` katmanı yok | — |
+| UR-005 | **A:** tek kararlı katman; Tracon'un kendi `[Experimental]` katmanı yok. **Genişletildi 👤 (2026-10-20, K-1036):** kural aileye uygulanır; ayrı hattaki uydu paket upstream deneysel tipi public imzasında taşıyabilir | Uydu paket aileye katılınca kural ona da uygulanır |
 | UR-006 | **A:** ön sürüm upstream bağımlılığı tam sürüm `[x]` yazılır (K-872) | Upstream kararlı olunca alt sınıra döner |
 | UR-009 | **B:** küçült → yükselt → modernize et → yetenekler → kurallar → RC'de dondur (§2). RC upstream kararlı olunca çıkar (UR-004 A) | — |
 | UR-012 | **B** 👤 (2026-10-19): **ölçüt Tracon'un en iyi tasarımla `rc.1`'e gitmesidir.** `rc.1`'e kadar kırıcı değişiklik bir maliyet ya da sıralama ölçütü değildir; daha iyi kalıcı tasarım kırıyorsa o seçilir ve sürüm notunda adıyla anılır (yayın provası zorlar). RC'yi iyileştiren ekleyici yetenek de freeze'den önce girer; kaynak MAF kapsama matrisinin dalgalarıdır ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md)). Değişmeyen sınırlar: public imzada upstream deneysel tip yok (ölçüt 5, UR-005, UR-013); RC ile GA arasında yetenek eklenmez. A (2026-10-17: freeze'den önce yeni yetenek yok, yalnız kırıcı kalemler; ekleyici yetenek 1.x minor'a) seçilmedi: ER-001 ile `rc.1` tarihsizdir ve seam'ler donmadan şekillenmelidir | `rc.1` çıkınca biter; kırıcılık o andan sonra sürüm kararıdır |

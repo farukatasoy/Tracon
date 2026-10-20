@@ -141,8 +141,8 @@ olarak açıktır; derleyici plan dışı public API'yi **uyarır**.
 içindedir; denetçi onu okur ve şunları arar:
 
 - 🔴 **Bir muafiyet listesi veya taban çizgisi büyüdü mü?** `DIAGRAM_EXEMPT`,
-  `CLOSING_EXEMPT`, `SourceLanguageTests` taban çizgisi ve kontrast tabanları
-  **yalnız iyileşir**. Büyüten bir değişiklik gerekçeli olsa bile 🔴'dır —
+  `CLOSING_EXEMPT`, `SourceLanguageTests` taban çizgisi, kontrast tabanları ve
+  `scripts/maf-kapsama.py` içindeki `CARPI_TABANI` **yalnız iyileşir**. Büyüten bir değişiklik gerekçeli olsa bile 🔴'dır —
   gerekçe kararı faz dokümanına (dört kategoriden birine giriyorsa
   `docs/KARARLAR.md`'ye de) taşır, denetimi kapatmaz.
 - 🔴 **Ağırlık tavanı veya kontrast tabanı ölçümsüz mü değiştirildi?** Sayı

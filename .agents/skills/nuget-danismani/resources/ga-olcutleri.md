@@ -16,8 +16,8 @@ yazılmaz.
 
 | # | Boyut | GA ölçütü | Nereden ölçülür |
 |---|---|---|---|
-| 1 | Upstream hazırlığı | Doğrudan ön sürüm bağımlılığı **sıfır**; kararlı pack `NU5104` vermez | K-008 · K-602 · `kanit-komutlari.md` §8 |
-| 2 | Upstream uyumu | Public imzada upstream `[Experimental]` tipi yok **veya** Tracon üyesi kendi `[Experimental]` kimliğini taşıyor; en yeni upstream GA'ya karşı ileri probu temiz | `uyum-probu.cs deneysel` · `uyum-probu.cs ileri` |
+| 1 | Upstream hazırlığı | Doğrudan ön sürüm bağımlılığı **sıfır**; kararlı pack `NU5104` vermez. Ayrı ön sürüm hattındaki uydu paket bu ölçütün dışındadır (K-1037) | K-008 · K-602 · K-1037 · `kanit-komutlari.md` §8 |
+| 2 | Upstream uyumu | Public imzada upstream `[Experimental]` tipi yok **veya** Tracon üyesi kendi `[Experimental]` kimliğini taşıyor; en yeni upstream GA'ya karşı ileri probu temiz. Tracon'da yalnız ilk yol geçerlidir (UR-005 A); uydu hattı muaftır (K-1036) | `uyum-probu.cs deneysel` · `uyum-probu.cs ileri` |
 | 3 | Public API | Freeze taraması bitti (UR-003); kanıtsız tip gerekçeli (K-850); `Shipped` tek seferde dolduruldu (K-603); `[Obsolete]` üyeler kalktı (F-290) | `public-yuzey-envanteri.py` · `grep -rn "\[Obsolete" src` |
 | 4 | Kırılma kapısı | `kapi.py yayin` 1.x minor'unda kırılmayı **durdurur**, notla geçirmez | K-864 · Mercek 2 |
 | 5 | Sözleşme yüzeyleri | On dört yüzeyin her birinin 1.x kuralı yazılı; kapı boşlukları ya kapandı ya kabul edildi | `sozlesme-yuzeyleri.md` |

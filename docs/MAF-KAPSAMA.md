@@ -6,6 +6,7 @@
 > **Dalga 1 ölçümü:** 2026-10-19. R-01…R-07'nin ölçüm şartları koşuldu; sonuçlar §6'da, düşen iddialar §0'da (#12–#16).
 > **Dalga 2 ölçümü:** 2026-10-19. G-01…G-06, C-01, C-10 ve R-05 kod, derleme probu ve çalışma anı probu ile ölçüldü; sonuçlar §7.0'da, düşen iddialar §0'da (#18–#24).
 > **Dalga 1–2 kapanış ölçümü:** 2026-10-20. Planlı kalem kalmadı (Faz 219–223, G-07). Kalan iki kapsam dilimi F-594 ve F-595 oldu; Dalga 3'ün ön koşulu değiller. Ölçüm bir guard açığı buldu ve kapattı (§0 #25, K-1035). Tetiklerin hiçbiri ateşlenmedi: MAF 1.25.0, MEAI 10.11.0, MCP 2.2.0 ve OpenAI 2.14.0 NuGet'te en yeni sürümdür; dotnet/extensions#7863 açıktır.
+> **Dalga 0 kapanışı:** 2026-10-20. D-01 = C (K-1036) ve D-19 = B (K-1037) 👤; P-04 `maf-api-kesfi` § *Dördüncü adım*; P-05 K-129 ve K-212 koşulları ölçülebilir; P-02 ve P-03 Faz 224 (`scripts/maf-kapsama.py`).
 > **Kitle:** Tracon bakımcısı ve faz planlayan oturumlar. Bu belge **plan girdisidir**, karar defteri değildir. Kararlar `K-*`'e, adaylar `ADAYLAR.md`'ye yalnız `aday-kesfi` ve `faz-planlama` ile girer.
 > **Yöntem özeti:** 40/40 MAF paketi `MetadataLoadContext` ile okundu (1.166 tip, iç içe tipler ve üyeler dahil). Tracon tarafında 2.326 `.cs` dosyası jeton indeksine çevrildi. MAF 1.16.0 (Tracon'un ilk pin'i) ile karşılaştırıldı. Ayrıntı §12.
 
@@ -217,7 +218,7 @@ Katman paketleri: `Microsoft.Extensions.AI` (+`.Abstractions`, `.OpenAI`, `.Eval
 | ❌ | `AgentRequestMessageSourceAttribution`/`Type` · `WithAgentRequestMessageSource` | yalnız JSON bağlamında tip kaydı | Değerlendirilmedi | — | ✗ | K2 açığı: girdinin kaynağı (geçmiş, provider, dış) kayıtta ayrılmaz | F-595 |
 | ❌ | `LoggingAgent` · `UseLogging` | yalnız testte | run kaydı daha zengin | — | ✗ | K1 (decorator olarak takılır) | Koru |
 | ❌ | `FeatureUsage` · `AIAgentMetadata` | — | MAF'ın kendi telemetri işareti | — | ✓ | — | Koru |
-| ❌ | `IsolationKeyScopedAgentSessionStore` · `AgentIsolationKeyProvider` · `ClaimsIdentityAgentIsolationKeyProvider` · `DelegatingAgentSessionStore` · `InMemory/NoopAgentSessionStore` | kiracı `ITenantContext` | kiracı modeli daha geniş (rol, denetim) | Haklı | ✓ | K1 | MAF barındırma uçlarına proxy ile bağlanırken kiracı köprüsü (C-15) |
+| ❌ | `IsolationKeyScopedAgentSessionStore` · `AgentIsolationKeyProvider` · `ClaimsIdentityAgentIsolationKeyProvider` · `DelegatingAgentSessionStore` · `InMemory/NoopAgentSessionStore` | kiracı `ITenantContext` | kiracı modeli daha geniş (rol, denetim); DI'da kayıtlı bir `AgentSessionStore` Tracon'unkinin yerine geçer (`TraconEndpointRouteBuilderExtensions.cs:451`) | Haklı | ✓ | K1 | MAF barındırma uçlarına proxy ile bağlanırken kiracı köprüsü (C-15) |
 | ❌ | `AdditionalPropertiesExtensions` · `AgentAbstractionsJsonUtilities` · `AgentSessionExtensions.{Set,TryGet}InMemoryChatHistory` | — | yardımcı | — | ✗ | — | Gerek yok |
 
 ### 5.2 Geçmiş, bellek, bağlam
@@ -400,7 +401,7 @@ Kod workflow'u (`AddWorkflow(name, Func<IServiceProvider, Workflow>)`) MAF grafi
 | ❌ | `IRealtimeClient` · `IRealtimeClientSession` · `FunctionInvokingRealtimeClient` · `OpenAIRealtimeClient` (MEAI001) | canlı ses: OpenAI WebRTC SDP aktarımı (`OpenAILiveProvider`) | K-222 Seçenek A; `IRealtimeClient` hiç anılmaz | Haklı: aktarım farkı (tarayıcı-sağlayıcı WebRTC ↔ sunucu oturumu) — okumaya dayanır | ✗ | K0→K2: sunucu köprülü gerçek zamanlı mod yok | C-22 |
 | ❌ | `IHostedFileClient` (+OpenAI `AsIHostedFileClient`) (MEAI001) | ekler satır içi (`AttachmentResolvingChatClient`) | Değerlendirilmedi | — | ✗ | K0→K2: büyük dosya her turda yeniden gönderilir | C-23 |
 | ❌ | `FailoverChatClient` · `OrderedFailoverChatClient` · `RoutingChatClient` · `SemanticRoutingChatClient` (MEAI001, 10.9) | `FallbackChatClient` (925 satır, Faz 62) | sürüm tablosu: "değiştirmek karar işidir". Ölçüldü (2026-10-19): `OrderedFailoverChatClient` `sealed`; `FailoverChatClient` türetilebilir ama `MEAI001` | **Borç** | ✓ | K3 (davranış var) | R-02: koru, ertele |
-| ❌ | `ImageGeneratingChatClient` (MEAI001) · `HostedImageGenerationTool` | `GenerateImageTool` (AIFunction + `IImageGenerator` + kullanım raporu) | kayıt yok | Haklı (kullanım ve maliyet raporu) | ✗ | K3 | Koru; gerekçeyi yaz |
+| ❌ | `ImageGeneratingChatClient` (MEAI001) · `HostedImageGenerationTool` | `GenerateImageTool` (AIFunction + `IImageGenerator` + kullanım raporu) | Ölçüldü (2026-10-19, R-02 turu): MEAI'ninki `HostedImageGenerationTool`'u üç fonksiyona çevirir ve üretilen görseli `DataContent` olarak konuşmaya geri koyar (varsayılan `AllImages`). Kiracıyı çözmez, adet sınırı ve kullanım/maliyet raporu yoktur. Tracon'unki üreticiyi kiracı için çözer (`ResolveForTenantAsync`), `MaxImagesPerRequest`'i uygular, `ImagePricing` ile `TraconToolUsage.Report` yazar ve modele bayt değil ek kimliği döner (bağlam penceresi) | Haklı (kullanım ve maliyet raporu) | ✓ | K3 | Koru. Yeniden ölç: MEAI001 kalkar **ve** kullanım raporu için bir kanca gelirse |
 | 🟡 | Atıf ve hata içerikleri: `CitationAnnotation` · `TextSpanAnnotatedRegion` · `ErrorContent` · `InputRequestContent`/`InputResponseContent` | `ErrorContent` `tracon.content` olarak kaydedilir (Faz 223); atıf (`TextContent.Annotations`) ve `InputRequest/ResponseContent` taban sınıfları kaydedilmez/`unrecognized` kalır | Değerlendirilmedi | — | ✗ | K2 açığı: sağlayıcı atıfları kayıtta yok | F-595 |
 | ❌ | `ChatClientBuilder` halkaları (`UseLogging`, `UseDistributedCache`, `ConfigureOptions`, `UseChatReducer`) · `GetResponseAsync<T>` | yok | halka zinciri Tracon'un | — | ✗ | K0: tüketici kendi halkasını zincire koyamaz (fabrika hariç); Faz 222'nin uzantısı `IChatClient`'a ulaşmaz | F-594 (adlı halka yuvası) |
 | ❌ | `AIJsonSchemaCreateOptions` · `AIJsonSchemaTransformOptions` | yok | ADAYLAR'da strict şema kalemi var (`StrictKey`) | — | ~ | K3 kısmen | mevcut adayla birleştir |
@@ -457,7 +458,7 @@ Gerekçesi yazılı, bu turda yeniden ölçülmeyen paralel uygulamalar:
 | iş kuyruğu | DurableTask · background responses | Haklı | K-778, K-030 | Koru |
 | `IVectorSearchStore` | `VectorStore` + `ChatHistoryMemoryProvider` | Haklı (AOT) | K-342 | Koru; konuşma hafızası uydu pakette (C-24) |
 | canlı ses (WebRTC aktarımı) | `IRealtimeClient` | Haklı (aktarım) | kısmen K-222 | Koru; B modu ek (C-22) |
-| `GenerateImageTool` | `ImageGeneratingChatClient` | Haklı (ölçüldü 2026-10-19) | `MAF-GENISLEME-NOKTALARI.md` § *Hâlâ kullanılmayan*: MEAI'ninki görseli `DataContent` olarak konuşmaya koyar; kiracı, adet sınırı, maliyet raporu yok | Koru ✅ |
+| `GenerateImageTool` | `ImageGeneratingChatClient` | Haklı (ölçüldü 2026-10-19) | §5.13 `ImageGeneratingChatClient` satırı: MEAI'ninki görseli `DataContent` olarak konuşmaya koyar; kiracı, adet sınırı, maliyet raporu yok | Koru ✅ |
 | `ToolApprovalRule` deposu | `AlwaysApproveToolApprovalResponseContent` | Haklı | yok | Koru + köprü (C-11) |
 | `AgentDefinition` · `WorkflowDefinition` · konsol · `IContentGuard` | MAF YAML agent · Workflows.Declarative · DevUI · Purview | Ürün | kısmen (K-129, `MIMARI.md:35`) | Koru; MAF'ınkini ek olarak aç (C-20, C-21) |
 
@@ -602,7 +603,7 @@ builder.AddTracon()
 
 ```mermaid
 flowchart LR
-    D0["Dalga 0<br/>kararlar · süreç<br/>D-01 D-19 · P-02…P-05<br/>D-02 ✅ D-20 ✅"]
+    D0["Dalga 0 ✅<br/>kararlar D-01 D-02 D-19 D-20<br/>süreç P-02…P-05 (Faz 224)"]
     D1["Dalga 1 ✅<br/>R-06 Faz 219 · R-01 Faz 220 · R-07<br/>R-02 R-03 ret/ertele (tetik yok, 2026-10-20)"]
     D2["Dalga 2 ✅<br/>G-07 · Faz 221 (G-05 G-06)<br/>Faz 222 (G-01 C-01) · Faz 223 (C-10)<br/>kalan F-594 F-595 (ön koşul değil)<br/>G-02 kolaylık · R-05 düştü"]
     D3["Dalga 3<br/>çekirdek K3<br/>C-03 C-04 C-07 C-08 C-09 C-11 C-12 C-17"]
@@ -627,15 +628,15 @@ Kullanıcı yönergesi: "geçmişte reddedilen yeni MAF yeteneği ekleme kararla
 
 | Kimlik | Karar | Özgün gerekçe | Bugün ölçülen | Öneri |
 |---|---|---|---|---|
-| **D-01** | UR-005 + UR-013 (F-560): Tracon'un `[Experimental]` katmanı yok; deneysel upstream tip public imzaya girmez | tek kararlı katman | MAF yüzeyinin büyük kısmı MAAI001/MEAI001/OPENAI001 (harness, compaction, loop, session store, ses, realtime, failover, hosted file) | Çekirdekte kuralı **koru**. İ5 (DI'dan okuma) ve uydu paketlerin ön sürüm hattı (D-19) ile kapsamayı aç. Seçenekler: A koru · B Tracon `[Experimental]` katmanı · **C uydu paketler ön sürümde, çekirdek kararlı (öneri)** |
+| **D-01** | UR-005 + UR-013 (F-560): Tracon'un `[Experimental]` katmanı yok; deneysel upstream tip public imzaya girmez | tek kararlı katman | MAF yüzeyinin büyük kısmı MAAI001/MEAI001/OPENAI001 (harness, compaction, loop, session store, ses, realtime, failover, hosted file) | **Karar verildi 👤 (2026-10-20): C (K-1036).** Aile kararlı kalır (UR-005 A, UR-013 sürer); ayrı hattaki uydu paket deneysel upstream tipi public imzasında taşıyabilir. Seçilmeyen: A koru · B Tracon `[Experimental]` katmanı |
 | **D-02** | UR-012: freeze öncesi yeni yetenek yok | kırılma penceresi | `rc.1` upstream'e bağlı ve tarihsiz (ER-001). UR-012'nin kendi yeniden açılma ölçütü ("upstream GA uzun süre gelmezse") karşılanıyor. Dalga 1 ölçümü (2026-10-19): Dalga 1'de kırıcı kalem yok | **Karar verildi 👤 (2026-10-19): UR-012 = B.** Ölçüt en iyi RC'dir; `rc.1`'e kadar kırıcılık ölçüt değildir ve RC'yi iyileştiren ekleyici iş de girer. Ölçüt 7'nin sıfır kırılma penceresi yalnız son preview'da sayılır (`docs/YAYIN-HAZIRLIK.md`). Seçilmeyen: A koru · C yalnız uydu paketlerde serbest |
-| **D-19** | UR-002/K-602: tek sürüm hattı | basitlik | ön sürüm MAF paketine bağlı uydu paket kararlı çıkamaz (NU5104 — `Tracon.AspNetCore` ile aynı sınıf) | uydu paketlere ayrı ön sürüm hattı. Seçenekler: A tek hat (bütün aile bekler) · **B ayrı hat (öneri)** |
-| **D-03** | K-129: `Workflows.Declarative` alınmadı | +19 paket; `ResponseAgentProvider` şartı | +17 (taban 18 → 35); şart sürüyor; paket GA oldu | **Aç:** uydu paket; Tracon `ResponseAgentProvider` uygulaması yazılır. Sıra düşük (C-18'den sonra) |
+| **D-19** | UR-002/K-602: tek sürüm hattı | basitlik | ön sürüm MAF paketine bağlı uydu paket kararlı çıkamaz (NU5104 — `Tracon.AspNetCore` ile aynı sınıf) | **Karar verildi 👤 (2026-10-20): B (K-1037).** Mevcut aile tek hatta kalır (K-602, UR-004). Ön sürüm upstream'e bağlı yeni uydu paket ayrı ön sürüm hattında çıkar. İlk uydu paketin fazı hattı kurar: `PackageFamilyAlignment` listesi dışı, `uyum-probu deneysel` sayımı dışı, ayrı yayın provası. Seçilmeyen: A tek hat |
+| **D-03** | K-129: `Workflows.Declarative` alınmadı | +19 paket; `ResponseAgentProvider` şartı | +17 (taban 18 → 35); şart sürüyor; paket GA oldu. Koşul ölçülebilir oldu (P-05, 2026-10-20): XML cümlesi duruyor, tek somut alt tip `AzureAgentProvider` → koşul yok. Ağırlık uydu pakette kalır (K-1037) | **Aç:** uydu paket; Tracon `ResponseAgentProvider` uygulaması yazılır. Sıra düşük (C-18'den sonra) |
 | **D-04** | K-062: harness dosya erişimi kapalı | dosya sistemi riski | MAF'ın `FileAccessStore`'u bir `AgentFileStore`'dur; Tracon'un SQL, kiracı önekli store'u var | **Aç:** kiracı önekli store ile; yazma araçları onaylı |
 | **D-05** | K-105/K-342: vektör hafıza bağlanmadı | AOT (`Expression<>` filtre) | MEVD 10.10'da filtre hâlâ `Expression<>` | **Aç:** AOT dışı uydu paket (İ4) |
 | **D-06** | Reddedilen iş "Katalog `AddAIAgent` kayıtlarını okumadı" + K-019 köprüsü | Hosting ön sürüm; `Tracon.Core` bağlanamaz | `Tracon.AspNetCore` Hosting'e zaten bağlıdır; MIMARI ve K-019 köprüyü var sayar, kod yok | **Aç:** köprü `Tracon.AspNetCore`'da (C-26). Açılmazsa MIMARI ve K-019 düzeltilir (R-07) |
 | **D-07** | F-169: CodeAct eşikte | RID | Hyperlight: win-x64, linux-x64 (0.6.0). LocalCodeAct: yerel Python, sandbox yok | **Hyperlight koşullu aç** (uydu, platform listesi belgeli, onay zorunlu). **LocalCodeAct ret** |
-| **D-08** | K-212: Foundry ertelendi | 37 paket, doğrulanamazlık, uzak agent | +22 (taban 18 → 40); diğer iki gerekçe sürüyor | **Aç:** uydu paket; sahte sunucuya karşı sözleşme testi + gerçek kaynakta manuel case (👤 Azure) |
+| **D-08** | K-212: Foundry ertelendi | 37 paket, doğrulanamazlık, uzak agent | +22 (taban 18 → 40). Koşul yeniden yazıldı (P-05, 2026-10-20 👤): ağırlık düştü (K-1037), doğrulanabilirlik kaldı. Statik ölçüm: `FoundryAgent` uç adresi ve `AIProjectClientOptions.Transport`'u dışarıdan alır → **koşul tip düzeyinde karşılanıyor**; uzak agent sınırı sürüyor | **Aç:** uydu paket; sahte sunucuya karşı sözleşme testi + gerçek kaynakta manuel case (👤 Azure) |
 | **D-09** | K-030 sınırında background responses | `store=false` | ölçülmedi | **Probe:** bağlama başına `store=true` istisnası ve K-030 hatasıyla çakışma |
 | **D-10** | K-058: stdio MCP yok | arayüzden süreç başlatma | kodla kayıtlı sunucu K2'yi bozmaz (kod tanımlar) | **Koşullu aç:** yalnız kod kaydı; arayüzde salt okunur |
 | D-11 | F-141: AgentHooks elendi | üç ölçülmüş gerekçe | 1.25 alpha'da yeniden ölçülmedi | Koru; her sürümde yeniden ölç |
@@ -645,7 +646,7 @@ Kullanıcı yönergesi: "geçmişte reddedilen yeni MAF yeteneği ekleme kararla
 | D-15 | K-222: ses Seçenek A | kayıt vaadi | `IRealtimeClient` + `FunctionInvokingRealtimeClient` var | A'yı koru; B'yi ek mod olarak planla (C-22) |
 | D-16 | Reddedilen iş "MAF tipleri sarmalanmadı" | — | — | Koru; bu stratejinin temelidir |
 | D-17 | K-553 | — | — | Koru |
-| **D-20** | Doküman yeri | bu matris `claudedocs/`'ta | `docs/MAF-GENISLEME-NOKTALARI.md` Faz 13'te kalmış; iki kaynak kayar | Bu matrisi `docs/MAF-KAPSAMA.md` olarak taşı; ölçülen sütunlar betikle üretilsin (P-02); GENISLEME-NOKTALARI yalnız imza defteri kalsın **Karar verildi 👤 (2026-10-19): taşındı** (`claudedocs/maf-1.25.0-yetenek-matrisi.md` → bu dosya). P-02 betiği ve GENISLEME-NOKTALARI'nın daraltılması açık |
+| **D-20** | Doküman yeri | bu matris `claudedocs/`'ta | `docs/MAF-GENISLEME-NOKTALARI.md` Faz 13'te kalmış; iki kaynak kayar | Bu matrisi `docs/MAF-KAPSAMA.md` olarak taşı; ölçülen sütunlar betikle üretilsin (P-02); GENISLEME-NOKTALARI yalnız imza defteri kalsın **Karar verildi 👤 (2026-10-19): taşındı** (`claudedocs/maf-1.25.0-yetenek-matrisi.md` → bu dosya). ✅ Faz 224: P-02 betiği ve GENISLEME-NOKTALARI'nın daraltılması (§ *Hâlâ kullanılmayan* bloğu eşleme tablosuna indi) |
 
 ---
 
@@ -654,10 +655,10 @@ Kullanıcı yönergesi: "geçmişte reddedilen yeni MAF yeteneği ekleme kararla
 | Kimlik | Süreç işi | Gerekçe |
 |---|---|---|
 | P-01 | Başlangıç borcu bu matrisle kapandı: 1.25 yüzeyinin 40/40 paketi satıra bağlı | §1.2 |
-| P-02 | Ölçülen sütunları betik üretsin (`scripts/maf-kapsama.py` önerisi): (1) `MetadataLoadContext` dökümü, (2) `src/`/`tests/`/`samples/` jeton indeksi, (3) önceki sürümle tip ve üye farkı, (4) mevcut `maf-paket-envanteri.py`. Yargı sütunları elle kalır | bu ölçüm elle iki saat sürdü; her sürümde tekrar edilmeli |
-| P-03 | Kapı (ratchet): `✗` satır sayısı yalnız azalır. Yeni MAF tipi veya üyesi `✗⁺` satırı olarak girer ve sonraki `aday-kesfi` turunun girdisidir | takip açığı ölçülebilir olur |
-| P-04 | Davranış izleme: her MAF sürümünde release notları ve `dotnet/agent-framework` örnek dizini okunur; "yeni yetenek" bulgusu matrise satır olur | reflection niyeti göstermez |
-| P-05 | Ret kayıtları ölçülebilir yeniden açılma koşulu taşır; matris her sürümde koşulu ölçer (İ7). Bugün ölçülemeyen koşullar: K-212 ("ağırlık düşerse" — eşik yok), K-129 ("hazır `ResponseAgentProvider`" — yalnız Foundry'de var) | koşulsuz ret sonsuza kadar sürer |
+| P-02 | Ölçülen sütunları betik üretsin (`scripts/maf-kapsama.py` önerisi): (1) `MetadataLoadContext` dökümü, (2) `src/`/`tests/`/`samples/` jeton indeksi, (3) önceki sürümle tip ve üye farkı, (4) mevcut `maf-paket-envanteri.py`. Yargı sütunları elle kalır. ✅ **Faz 224** (F-596): (2) `maf-kapsama.py temas` → `scripts/maf-kapsama-temas.tsv` (`kapi.py uret`, tazeliği `--denetle`); (3) `fark` (1.20.0 → 1.25.0 sürüm damgasını birebir verdi); (1) ve (4) mevcut `dump-api.sh` ve envanter. Durum sütunu bilerek elle kaldı 👤: doğrudan kapı 143 satırın 39'unda yanlış alarm verirdi | bu ölçüm elle iki saat sürdü; her sürümde tekrar edilmeli |
+| P-03 | Kapı (ratchet): `✗` satır sayısı yalnız azalır. Yeni MAF tipi veya üyesi `✗⁺` satırı olarak girer ve sonraki `aday-kesfi` turunun girdisidir. ✅ **Faz 224**: `dokuman-bakim.py --denetle` → "MAF kapsama ✗ cırcırı"; taban 53 (`CARPI_TABANI`; `ImageGeneratingChatClient` satırı `✓` oldu) | takip açığı ölçülebilir olur |
+| P-04 | Davranış izleme: her MAF sürümünde release notları ve `microsoft/agent-framework` örnek dizini okunur; "yeni yetenek" bulgusu matrise satır olur. ✅ 2026-10-20: `maf-api-kesfi` § *Dördüncü adım* (compare API'si 300 dosyada keser; ağaç klonu kesmez) | reflection niyeti göstermez |
+| P-05 | Ret kayıtları ölçülebilir yeniden açılma koşulu taşır; matris her sürümde koşulu ölçer (İ7). ✅ 2026-10-20: K-129 (XML cümlesi + `ResponseAgentProvider` alt tipi) ve K-212 (doğrulanabilirlik; ağırlık K-1037 ile düştü 👤) yeniden yazıldı ve ölçüldü (§9 D-03, D-08) | koşulsuz ret sonsuza kadar sürer |
 
 ---
 
