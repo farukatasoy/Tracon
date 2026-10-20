@@ -2,7 +2,8 @@
 
 > **Alan kodu:** `UIAG` · **Faz:** 5 (agent kataloğu, editör, playground), 19 (sürüm
 > karşılaştırma — `agent-detail.tsx` içindeki `VersionCompare`), 142 (onay
-> kartında varlık adı sunumu ve katlanır ham argümanlar)
+> kartında varlık adı sunumu ve katlanır ham argümanlar), 225 (model bölümü:
+> örnekleme alanları ve tool döngüsü)
 > **Kaynak:** `src/Tracon.UI/frontend/src/screens/agents.tsx` (katalog) ·
 > `screens/agent-editor.tsx` (oluşturma/düzenleme) · `screens/agent-detail.tsx`
 > (özet, versiyon geçmişi, karşılaştırma, geri alma) · `screens/playground.tsx`
@@ -2025,3 +2026,28 @@ Rol: administrator.
   run `Completed` ve çıktı `HOUSE-STYLE: answer in two short sentences.` satırını taşır — uzantının provider'ı modele ulaşmıştır.
 - Kayıtlı olmayan bir ad (`retired`) tanımda kalmışsa panel onu "Not registered" rozetiyle gösterir ve kaldırılabilir bırakır
   (`agent-editor.test.tsx`).
+
+---
+
+### MT-UIAG-064 — `reasoningOutput: Summary` gerçek OpenAI Responses isteğine ulaşır ve `ReasoningDelta` olayı yazılır (Faz 225)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 225 |
+| **İlgili karar** | K-1040 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama + gerçek OpenAI anahtarı + `curl` |
+
+**Ön koşul** — Örnek uygulama Development'ta, OpenAI anahtarı gerçek (`Tracon:Providers:OpenAI:ApiKey`),
+`Tracon:RunRecording:RecordReasoningDeltas` açık. Rol: administrator.
+
+**Adımlar**
+1. `POST $BASE/api/agents` ile `{"name":"reason-demo","instructions":"Think step by step, then answer.","model":{"provider":"openai-responses","model":"gpt-5.4-mini","reasoningEffort":"Low","reasoningOutput":"Summary"}}` kaydet.
+2. `POST $BASE/api/agents/reason-demo/run` ile "What is 17 * 23?" sor.
+3. `GET $BASE/api/runs/{runId}/events` oku.
+
+**Beklenen sonuç**
+- Adım 1: `201`; `GET $BASE/api/agents/reason-demo` `model.reasoningOutput` = `Summary` döner.
+- Adım 2: run `Completed`.
+- Adım 3: olaylarda en az bir `ReasoningDelta` vardır. Aynı agent `reasoningOutput` olmadan kaydedilirse run'da `ReasoningDelta` yoktur.

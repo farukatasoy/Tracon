@@ -193,6 +193,8 @@ public sealed class AgentExtensionCompilationTests
         { "AddTool", "ChatClientAgentOptions.ChatOptions.Tools" },
         { "ModelId", "ChatClientAgentOptions.ChatOptions.ModelId" },
         { "Temperature", "ChatClientAgentOptions.ChatOptions.Temperature" },
+        { "Seed", "ChatClientAgentOptions.ChatOptions.Seed" },
+        { "ToolMode", "ChatClientAgentOptions.ChatOptions.ToolMode" },
         { "DropProviders", "ChatClientAgentOptions.AIContextProviders" },
         { "Name", "ChatClientAgentOptions.Name" },
     };
@@ -223,6 +225,12 @@ public sealed class AgentExtensionCompilationTests
                         break;
                     case "Temperature":
                         options.ChatOptions!.Temperature = 2f;
+                        break;
+                    case "Seed":
+                        options.ChatOptions!.Seed = 11;
+                        break;
+                    case "ToolMode":
+                        options.ChatOptions!.ToolMode = ChatToolMode.RequireAny;
                         break;
                     case "DropProviders":
                         options.AIContextProviders = null;
@@ -315,7 +323,7 @@ public sealed class AgentExtensionCompilationTests
         var compiler = Compiler(new DelegateAgentExtension("strict-history", context =>
         {
             context.ChatAgentOptions!.ThrowOnChatHistoryProviderConflict = true;
-            context.ChatAgentOptions.ChatOptions!.Seed = 11;
+            context.ChatAgentOptions.ChatOptions!.AllowBackgroundResponses = true;
             seen = context.ChatAgentOptions;
         }, null));
 

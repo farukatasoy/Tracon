@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -30,6 +31,16 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
 
     /// <summary>The Authorization header values received on requests to <c>/v1/chat/completions</c>.</summary>
     public List<string?> ReceivedAuthorizationHeaders { get; } = [];
+
+    /// <summary>The JSON body of every request to <c>/v1/chat/completions</c>, in order.</summary>
+    /// <remarks>
+    /// F-598: what a definition field puts on the wire is proven by the body the real SDK sends
+    /// through the whole host, not by the options object handed to it.
+    /// </remarks>
+    public List<JsonObject> ChatCompletionBodies { get; } = [];
+
+    /// <summary>The JSON body of every request to <c>/v1/responses</c>, in order.</summary>
+    public List<JsonObject> ResponsesBodies { get; } = [];
 
     /// <summary>How many times <c>/v1/chat/completions</c> was called.</summary>
     public int ChatCompletionCallCount { get; private set; }
@@ -79,9 +90,10 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
                 : Results.StatusCode(server.ModelsStatusCode);
         });
 
-        app.MapPost("/v1/chat/completions", (HttpContext context) =>
+        app.MapPost("/v1/chat/completions", async (HttpContext context) =>
         {
             server!.ChatCompletionCallCount++;
+            server.ChatCompletionBodies.Add(await ReadBodyAsync(context).ConfigureAwait(false));
             server.ReceivedAuthorizationHeaders.Add(
                 context.Request.Headers.Authorization is { Count: > 0 } values ? values.ToString() : null);
 
@@ -113,12 +125,52 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
             });
         });
 
+        app.MapPost("/v1/responses", async (HttpContext context) =>
+        {
+            server!.ResponsesBodies.Add(await ReadBodyAsync(context).ConfigureAwait(false));
+
+            return Results.Json(new
+            {
+                id = "resp_fake",
+                @object = "response",
+                created_at = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                status = "completed",
+                model = "fake-local-model",
+                output = new object[]
+                {
+                    new
+                    {
+                        type = "message",
+                        id = "msg_fake",
+                        status = "completed",
+                        role = "assistant",
+                        content = new object[] { new { type = "output_text", text = "hello from local", annotations = Array.Empty<object>() } },
+                    },
+                },
+                usage = new
+                {
+                    input_tokens = 5,
+                    output_tokens = 3,
+                    total_tokens = 8,
+                    input_tokens_details = new { cached_tokens = 0 },
+                    output_tokens_details = new { reasoning_tokens = 0 },
+                },
+            });
+        });
+
         await app.StartAsync().ConfigureAwait(false);
 
         var address = app.Urls.First();
         server = new FakeOpenAiCompatibleServer(app, new Uri($"{address}/v1"));
 
         return server;
+    }
+
+    private static async Task<JsonObject> ReadBodyAsync(HttpContext context)
+    {
+        using var reader = new StreamReader(context.Request.Body);
+
+        return JsonNode.Parse(await reader.ReadToEndAsync().ConfigureAwait(false))!.AsObject();
     }
 
     /// <inheritdoc />

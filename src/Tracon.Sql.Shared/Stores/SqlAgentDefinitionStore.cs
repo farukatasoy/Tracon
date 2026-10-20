@@ -177,8 +177,9 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
             throw await BuildRollbackFailureAsync(name, version, cancellationToken).ConfigureAwait(false);
         }
 
-        // A rollback does NOT delete the old version; it saves its content as a new version.
-        return await WriteVersionAsync(name, payload, cancellationToken).ConfigureAwait(false);
+        // A rollback does NOT delete the old version; it saves its content as a new version. A key the
+        // old row carries from before it moved is moved first, so the new row holds the current shape only.
+        return await WriteVersionAsync(name, AgentDefinitionPayload.UpgradeLegacyKeys(payload), cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask<AgentDefinition> WriteVersionAsync(
@@ -243,7 +244,7 @@ internal sealed class SqlAgentDefinitionStore : IAgentDefinitionStore
         string tenantId,
         DateTimeOffset updatedAt)
     {
-        var deserialized = JsonSerializer.Deserialize(payload, TraconJsonContext.Default.AgentDefinitionPayload)
+        var deserialized = AgentDefinitionPayload.Read(payload)
             ?? throw new TraconException($"Could not read the '{name}' agent definition: the JSON payload in the database is empty.");
 
         return deserialized.ToDefinition(name, version, tenantId, updatedAt);

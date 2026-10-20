@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 977 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 980 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1029 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1032 kalem)
 
 | K | Karar |
 |---|---|
-| K-988 | Workflow kök satırı derlediği sürümü `runs.agent_version`'a yazar; `resume`/`respond` kaynağın damgasını derler, `definitionVersion` başka sürüm seçer, olmayan sürüm kapalı düşer (F-300) |
-| K-989 | `WorkflowNodeReference.AgentVersion`: yalnız `nodes` biçiminde veritabanı agent'ı sabitlenir; kayıtta ve derlemede doğrulanır; sabit önbellek anahtarındadır, executor kimliğinde değil (F-300) |
-| K-990 | Kota girdisi ağaç başına değil harcayan run başına yazılır: kök (`Runs = 1`), alt agent run'ı (`Runs = 0`), workflow kökü ve kapanıştan sonra dönen tool kendi token ve tutarını, kapanırken, kökün kiracısı ve adı altında yazar; kimlik ortamdan değil ağacın bütçesindeki `TreeAccount`'tan okunur ve tek yazım yolu `TreeQuota.RecordAsync`'tir; `run.*` webhook'u kök kapanış anının görüntüsü olarak kalır; eşik bildirimi eşiği geçiren run'ın akışına yazılır; K-913'ün kota yarısını ve K-974'ün "yalnız detaya" kuralının kota yarısını değiştirir (F-418, F-482, Faz 205) (kullanıcı kararı) 👤 |
 | K-991 | Ajan run akışı run'ın kayıtlı ayrılmış bildirimlerini `done`'dan hemen önce `custom` çerçevesi olarak verir: kapalı liste (`tracon.output.truncated` her zaman, `tracon.quota.threshold` yalnız `PublishThresholdToRunStream` açıkken), veri `/events` ile bayt bayt aynı kayıttır (yeniden okunur, ikinci kopya kurulmaz); depo yalnız kota seçeneği açıksa ya da bir `update` kesilme sebebi taşıdıysa okunur; okuma hatası uyarı + `done`'dur; listeye tip eklemek sözleşme kararıdır (F-427, Faz 207) (kullanıcı kararı) 👤 |
 | K-992 | `/v1/chat/completions` `finish_reason` yanıtın son model çağrısının sebebinden gelir: `Length` ve `TraconFinishReasons.ContextWindowExceeded` → `"length"`, içerikli `ContentFilter` → `"content_filter"`, geri kalanı (`ToolCalls` dahil) → `"stop"`; iki kolda, run kaydından bağımsız (F-427, Faz 207) (kullanıcı kararı) 👤 |
 | K-993 | Okunamayan yapılandırma girdisi atlanmaz, açılışta hata verir: `Quotas:ThresholdPercents` ve `Webhooks:RetryDelays` girdisi sıfır, `ContentProtection:Columns` girdisi tanımsız değer, `MaskedPii` tanımsız bit olarak bağlanır, `ContentProtection:Keys` boş adı yazıldığı gibi kalır; ham metin `internal` taşıyıcıda durur ve mesaj onu alıntılar; hata bağlanmış değerden çıkar (bağlamadan sonra yazan kod kazanır); `Keys`/`Columns` denetimi `Enabled`'dan bağımsızdır; tanımsız `ProtectedColumn`/`PiiPatterns` kod yolundan da reddedilir; boş `MaskedPii` "yok"tur (F-247, Faz 206) (kullanıcı kararı) 👤 |
@@ -61,4 +58,7 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1036 | Deneysel upstream tip yalnız ön sürüm hattındaki uydu paketin public imzasına girer; çekirdek aile kararlı kalır (D-01) |
 | K-1037 | Ön sürüm upstream'e bağlı yeni uydu paket ayrı ön sürüm hattında çıkar; mevcut aile tek hatta kalır (D-19) |
 | K-1038 | `EnableMessageInjection`, `RequirePerServiceCallChatHistoryPersistence`, `RawRepresentationFactory` korunur: Tracon'da işlemez ya da tanımı ezer 👤 |
-| K-1039 | Run başına `ChatOptions` HTTP'de yoktur; kod ve MAF yolu tek kuraldan geçer: tanımın üyesi reddedilir, ek talimat ve tool beyanı geçer 👤 |
+| K-1039 | Run başına `ChatOptions` HTTP'de yoktur; kod ve MAF yolu tek kuraldan geçer: tanımın üyesi reddedilir, ek talimat ve tool beyanı geçer 👤🔁 |
+| K-1040 | Model istek alanları tanımdadır; sağlayıcı yüzeyi gönderdiğini `ISamplingSupport` ile bildirir, bildirmeyen alan derleme hatasıdır (F-598) |
+| K-1041 | `AllowConcurrentToolCalls` `ModelBinding.ToolLoop` altına taşındı; eski yük okumada çevrilir, eski HTTP anahtarı `400` alır (F-598) 👤 |
+| K-1042 | Run seçeneği `AllowMultipleToolCalls = false` geçer; `true` ve öteki korunan üyeler reddedilir (K-1039 daraltması) |

@@ -128,7 +128,7 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.11	❌	✓	AgentHooks (alpha)	?	?	?
 5.12	❌	✗	`PromptAgentFactory` · `ChatClientPromptAgentFactory` · `AggregatorPromptAgentFactory` · `CreateFromYamlAsync` · `PromptAgentExtensions.GetChatOptionsAsync`	-	-	-
 5.13	✅	✓	`IChatClient` · `ChatOptions` · temel içerikler (Text, Data, Uri, FunctionCall/Result, Usage, TextReasoning, HostedFile) · `ChatResponseFormat` · `ReasoningOptions`	ChatOptions ChatResponseFormat IChatClient ReasoningOptions	ChatOptions ChatResponseFormat IChatClient ReasoningOptions	ChatOptions IChatClient
-5.13	🟡	✗	`ChatOptions` alanları	ChatOptions	ChatOptions	ChatOptions
+5.13	✅	✓	`ChatOptions` alanları	ChatOptions	ChatOptions	ChatOptions
 5.13	✅	✓	`DelegatingChatClient` halkaları (12) · `DistributedCachingChatClient` türetme	DelegatingChatClient DistributedCachingChatClient	DelegatingChatClient	-
 5.13	✅	✓	`IEmbeddingGenerator` · `IImageGenerator` (MEAI001, yalnız içte)	IEmbeddingGenerator IImageGenerator	IEmbeddingGenerator IImageGenerator	IEmbeddingGenerator IImageGenerator
 5.13	✅	✓	`ISpeechToTextClient` · `ITextToSpeechClient` (+Options, builder, OTel/Logging halkaları, OpenAI `AsISpeechToTextClient`/`AsITextToSpeechClient`) (MEAI001)	ISpeechToTextClient ITextToSpeechClient	ISpeechToTextClient ITextToSpeechClient	-

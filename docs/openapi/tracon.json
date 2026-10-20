@@ -13498,9 +13498,87 @@
               }
             ]
           },
-          "allowConcurrentToolCalls": {
-            "type": "boolean",
-            "description": "Gets whether independent tool calls within one turn may run at the\nsame time."
+          "seed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the sampling seed. The provider default is used when it is \u0060null\u0060.",
+            "format": "int64"
+          },
+          "topK": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the top-k sampling limit. The provider default is used when it is \u0060null\u0060.",
+            "format": "int32"
+          },
+          "stopSequences": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the sequences that stop generation. Nothing is sent when it is\n\u0060null\u0060 or empty."
+          },
+          "frequencyPenalty": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the frequency penalty. The provider default is used when it is \u0060null\u0060.",
+            "format": "float"
+          },
+          "presencePenalty": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "description": "Gets the presence penalty. The provider default is used when it is \u0060null\u0060.",
+            "format": "float"
+          },
+          "toolMode": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets how the model may use the agent\u0027s tools. The provider default (the model decides)\nis used when it is \u0060null\u0060."
+          },
+          "allowMultipleToolCalls": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Gets whether the model may ask for several tool calls in one turn. The provider default\nis used when it is \u0060null\u0060."
+          },
+          "reasoningOutput": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets how much of the model\u0027s reasoning the response carries. The provider default is\nused when it is \u0060null\u0060."
+          },
+          "toolLoop": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the settings of the tool-call loop the model pipeline builds.",
+                "$ref": "#/components/schemas/ToolLoopSettings"
+              }
+            ]
           }
         },
         "description": "Determines the provider and the model an agent runs with. It carries\n\u003Cem\u003Eno\u003C/em\u003E credentials; the API key is resolved from configuration."
@@ -17882,6 +17960,33 @@
           }
         },
         "description": "The summary of a single completed tool call."
+      },
+      "ToolLoopSettings": {
+        "type": "object",
+        "properties": {
+          "allowConcurrentToolCalls": {
+            "type": "boolean",
+            "description": "Gets whether independent tool calls within one turn may run at the\nsame time."
+          },
+          "maximumConsecutiveErrors": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets how many tool-call iterations in a row may fail before the loop\nrethrows the error; the loop\u0027s default (3) is used when it is\n\u0060null\u0060.",
+            "format": "int32"
+          },
+          "terminateOnUnknownCalls": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Gets whether the loop ends when the model asks for a tool the agent does\nnot have; the loop\u0027s default (\u0060false\u0060) is used when it is\n\u0060null\u0060."
+          }
+        },
+        "description": "Tool-call loop settings for a ModelBinding."
       },
       "ToolUsage": {
         "required": [

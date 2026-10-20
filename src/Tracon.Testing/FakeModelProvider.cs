@@ -29,7 +29,7 @@ namespace Tracon.Testing;
 /// EchoesUserMessage();
 /// </code>
 /// </example>
-public sealed class FakeModelProvider : ITenantCredentialModelProvider, IDisposable
+public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplingSupport, IDisposable
 {
     private readonly Dictionary<string, FakeModelScript> _scripts = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ModelDescriptor> _models = [];
@@ -56,6 +56,20 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, IDisposa
     public IReadOnlyList<ModelDescriptor> Models => _models.Count > 0
         ? _models
         : [new ModelDescriptor { Name = "fake-model", ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 }];
+
+    /// <summary>
+    /// Gets every field: the fake sends no request, so it accepts what a definition sets and
+    /// <see cref="Requests"/> shows it.
+    /// </summary>
+    public SamplingFields SupportedSamplingFields =>
+        SamplingFields.Seed
+        | SamplingFields.TopK
+        | SamplingFields.StopSequences
+        | SamplingFields.FrequencyPenalty
+        | SamplingFields.PresencePenalty
+        | SamplingFields.ToolMode
+        | SamplingFields.AllowMultipleToolCalls
+        | SamplingFields.ReasoningOutput;
 
     /// <summary>Requests that reached this provider; the newest is last.</summary>
     public IReadOnlyList<FakeModelRequest> Requests

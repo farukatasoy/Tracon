@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace Tracon;
@@ -95,8 +96,11 @@ public sealed record ModelBinding
     /// A fallback link carries only a provider and a model, not a full
     /// <see cref="ModelBinding"/>. The fallback call receives the primary call's
     /// request options — <see cref="Temperature"/>, <see cref="TopP"/>,
-    /// <see cref="MaxOutputTokens"/>, <see cref="ResponseFormat"/> and the tools —
-    /// with only the model name replaced. <see cref="ProviderSettings"/> do not
+    /// <see cref="MaxOutputTokens"/>, <see cref="ResponseFormat"/>, the other sampling
+    /// fields (<see cref="Seed"/>, <see cref="TopK"/>, <see cref="StopSequences"/>, the penalties,
+    /// <see cref="ToolMode"/>, <see cref="AllowMultipleToolCalls"/>, <see cref="ReasoningOutput"/>)
+    /// and the tools — with only the model name replaced; the link also takes
+    /// <see cref="ToolLoop"/> as one object. <see cref="ProviderSettings"/> do not
     /// carry over: they configure the primary provider's client. A fallback model
     /// that needs its own settings is a separate configuration concern, not something
     /// this chain expresses.
@@ -134,30 +138,99 @@ public sealed record ModelBinding
     /// </remarks>
     public ResponseCacheSettings? ResponseCache { get; init; }
 
-    /// <summary>
-    /// Gets whether independent tool calls within one turn may run at the
-    /// same time.
-    /// </summary>
+    /// <summary>Gets the sampling seed. The provider default is used when it is <see langword="null"/>.</summary>
     /// <remarks>
-    /// <see langword="false"/> by default: with no change, tool calls within a
-    /// turn run one after another exactly as they do today. A tool body that
-    /// is not written to be thread-safe (a non-thread-safe field it shares
-    /// across calls, for example) is only safe to run concurrently with
-    /// itself once this is turned on for its agent.
+    /// Sent only by the API surfaces that support it (see <see cref="ISamplingSupport"/>); a
+    /// definition that sets it for a provider that does not is rejected while the agent is
+    /// built. The same holds for <see cref="TopK"/>, <see cref="StopSequences"/>,
+    /// <see cref="FrequencyPenalty"/>, <see cref="PresencePenalty"/>, <see cref="ToolMode"/>,
+    /// <see cref="AllowMultipleToolCalls"/> and <see cref="ReasoningOutput"/>, on the primary
+    /// provider and on every <see cref="Fallbacks"/> link.
     /// </remarks>
-    public bool AllowConcurrentToolCalls { get; init; }
+    public long? Seed { get; init; }
+
+    /// <summary>Gets the top-k sampling limit. The provider default is used when it is <see langword="null"/>.</summary>
+    /// <remarks>It must be greater than zero.</remarks>
+    public int? TopK { get; init; }
 
     /// <summary>
-    /// Gets the iteration limit of the tool-call loop the model pipeline builds
-    /// for this binding; <see langword="null"/> keeps the loop's own default.
+    /// Gets the sequences that stop generation. Nothing is sent when it is
+    /// <see langword="null"/> or empty.
     /// </summary>
     /// <remarks>
-    /// Not part of the stored or wire shape. The compiler sets it on a copy of
-    /// a harness agent's binding: the harness hands its model client to its
-    /// own tool-call loop, but the loop that runs the tools is the one the
-    /// model pipeline builds under it, so the harness's
-    /// <c>MaximumIterationsPerRequest</c> has to reach that loop — and every
-    /// fallback link's loop — through the binding.
+    /// An entry must not be empty. The providers limit how many sequences a request may carry;
+    /// the provider's own error is returned when the limit is exceeded.
     /// </remarks>
-    internal int? ToolLoopIterationLimit { get; init; }
+    public IReadOnlyList<string>? StopSequences { get; init; }
+
+    /// <summary>Gets the frequency penalty. The provider default is used when it is <see langword="null"/>.</summary>
+    public float? FrequencyPenalty { get; init; }
+
+    /// <summary>Gets the presence penalty. The provider default is used when it is <see langword="null"/>.</summary>
+    public float? PresencePenalty { get; init; }
+
+    /// <summary>
+    /// Gets how the model may use the agent's tools. The provider default (the model decides)
+    /// is used when it is <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The values are <c>auto</c>, <c>none</c>, <c>required</c> (the model must call a tool)
+    /// and <c>required:&lt;tool&gt;</c> (the model must call that tool). The comparison is case
+    /// insensitive. The tool in <c>required:&lt;tool&gt;</c> must be one of the definition's
+    /// <see cref="AgentDefinition.ToolNames"/>. An unrecognized value is rejected while the
+    /// agent is built, with <c>TraconCompilationException</c>.
+    /// </para>
+    /// <para>
+    /// <c>required</c> and <c>required:&lt;tool&gt;</c> force the first model call of a turn
+    /// only: the tool-call loop lifts the requirement for the calls that follow, or the model
+    /// could never answer.
+    /// </para>
+    /// </remarks>
+    public string? ToolMode { get; init; }
+
+    /// <summary>
+    /// Gets whether the model may ask for several tool calls in one turn. The provider default
+    /// is used when it is <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// It is not <see cref="ToolLoopSettings.AllowConcurrentToolCalls"/>: this one controls
+    /// what the model may ask for, that one controls whether Tracon runs the calls at the
+    /// same time.
+    /// </remarks>
+    public bool? AllowMultipleToolCalls { get; init; }
+
+    /// <summary>
+    /// Gets how much of the model's reasoning the response carries. The provider default is
+    /// used when it is <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// The valid values are the <c>Microsoft.Extensions.AI.ReasoningOutput</c> names:
+    /// <c>None</c>, <c>Summary</c>, <c>Full</c>. The comparison is case insensitive. An
+    /// unrecognized value is rejected while the agent is built, with
+    /// <c>TraconCompilationException</c>, in the same way as <see cref="ReasoningEffort"/>.
+    /// </remarks>
+    public string? ReasoningOutput { get; init; }
+
+    /// <summary>Gets the settings of the tool-call loop the model pipeline builds.</summary>
+    /// <remarks>
+    /// <para>
+    /// The defaults keep today's behavior: the loop runs tool calls one after another and uses
+    /// its own limits. A fallback link takes this object as it is.
+    /// </para>
+    /// <para>
+    /// It is never <see langword="null"/> when read, and it accepts <see langword="null"/> when set:
+    /// <see langword="null"/> becomes the default settings, so a client that sends
+    /// <c>"toolLoop": null</c> is not refused. A source-generated JSON reader assigns
+    /// <see langword="null"/> to a member that is absent from the JSON when the type has
+    /// <see langword="required"/> members (measured), which is what a definition stored before this
+    /// member existed looks like.
+    /// </para>
+    /// </remarks>
+    [AllowNull]
+    public ToolLoopSettings ToolLoop
+    {
+        get;
+        init => field = value ?? new ToolLoopSettings();
+    } = new();
 }

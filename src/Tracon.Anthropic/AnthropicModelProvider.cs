@@ -18,7 +18,7 @@ namespace Tracon;
 /// at the <c>ModelProviderRegistry</c> level; this package gets both for free.
 /// </para>
 /// </remarks>
-internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport
 {
     private readonly AnthropicChatClientFactory _chatClientFactory;
     private readonly ILogger<AnthropicModelProvider>? _logger;
@@ -78,6 +78,18 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
 
     /// <inheritdoc />
     public IReadOnlyList<ModelDescriptor> Models { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Measured from the Anthropic 12.58.0 chat client adapter (2026-10-20): it sends top-k, the
+    /// stop sequences, the tool mode and the parallel-tool-use flag, and maps the reasoning output
+    /// to the thinking display. It has no seed and no penalties.
+    /// </remarks>
+    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.TopK
+        | SamplingFields.StopSequences
+        | SamplingFields.ToolMode
+        | SamplingFields.AllowMultipleToolCalls
+        | SamplingFields.ReasoningOutput;
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

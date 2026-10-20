@@ -19,7 +19,6 @@ public sealed class RunChatOptionsRuleTests
             Instructions = "Hand off technical questions.",
             Tools = [AIFunctionFactory.CreateDeclaration("handoff_to_1", "Hands off.", AIJsonUtilities.CreateJsonSchema(typeof(string)))],
             AllowMultipleToolCalls = false,
-            Seed = 7,
         });
 
         Should.NotThrow(() => RunChatOptionsRule.Check(options));
@@ -44,6 +43,13 @@ public sealed class RunChatOptionsRuleTests
     [InlineData(nameof(ChatOptions.Reasoning))]
     [InlineData(nameof(ChatOptions.ConversationId))]
     [InlineData(nameof(ChatOptions.RawRepresentationFactory))]
+    [InlineData(nameof(ChatOptions.Seed))]
+    [InlineData(nameof(ChatOptions.TopK))]
+    [InlineData(nameof(ChatOptions.StopSequences))]
+    [InlineData(nameof(ChatOptions.FrequencyPenalty))]
+    [InlineData(nameof(ChatOptions.PresencePenalty))]
+    [InlineData(nameof(ChatOptions.ToolMode))]
+    [InlineData(nameof(ChatOptions.AllowMultipleToolCalls))]
     public void A_member_the_definition_owns_is_refused(string member)
     {
         var chat = member switch
@@ -55,12 +61,29 @@ public sealed class RunChatOptionsRuleTests
             nameof(ChatOptions.ResponseFormat) => new ChatOptions { ResponseFormat = ChatResponseFormat.Json },
             nameof(ChatOptions.Reasoning) => new ChatOptions { Reasoning = new ReasoningOptions { Output = ReasoningOutput.Summary } },
             nameof(ChatOptions.ConversationId) => new ChatOptions { ConversationId = "conv-1" },
+            nameof(ChatOptions.Seed) => new ChatOptions { Seed = 7 },
+            nameof(ChatOptions.TopK) => new ChatOptions { TopK = 40 },
+            nameof(ChatOptions.StopSequences) => new ChatOptions { StopSequences = ["END"] },
+            nameof(ChatOptions.FrequencyPenalty) => new ChatOptions { FrequencyPenalty = 0.5f },
+            nameof(ChatOptions.PresencePenalty) => new ChatOptions { PresencePenalty = 0.5f },
+            nameof(ChatOptions.ToolMode) => new ChatOptions { ToolMode = ChatToolMode.RequireAny },
+
+            // Turning parallel calls ON widens what the definition allowed; only turning them off passes.
+            nameof(ChatOptions.AllowMultipleToolCalls) => new ChatOptions { AllowMultipleToolCalls = true },
             _ => new ChatOptions { RawRepresentationFactory = static _ => null },
         };
 
         var exception = Should.Throw<ArgumentException>(() => RunChatOptionsRule.Check(new ChatClientAgentRunOptions(chat)));
 
         exception.Message.ShouldContain($"ChatOptions.{member}", Case.Sensitive);
+    }
+
+    /// <summary>A run may narrow parallel tool calls to one at a time, as a handoff step does.</summary>
+    [Fact]
+    public void Turning_parallel_tool_calls_off_passes_and_turning_them_on_does_not()
+    {
+        Should.NotThrow(() => RunChatOptionsRule.Check(new ChatClientAgentRunOptions(new ChatOptions { AllowMultipleToolCalls = false })));
+        Should.Throw<ArgumentException>(() => RunChatOptionsRule.Check(new ChatClientAgentRunOptions(new ChatOptions { AllowMultipleToolCalls = true })));
     }
 
     /// <summary>A function runs in the loop and a hosted tool at the provider; both would skip the tool chain.</summary>

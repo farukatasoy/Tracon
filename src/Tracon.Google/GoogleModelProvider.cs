@@ -18,7 +18,7 @@ namespace Tracon;
 /// an empty response, the run is recorded with a <c>content_filtered</c> error.
 /// </para>
 /// </remarks>
-internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport
 {
     private readonly GoogleChatClientFactory _chatClientFactory;
     private readonly ILogger<GoogleModelProvider>? _logger;
@@ -81,6 +81,20 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 
     /// <inheritdoc />
     public IReadOnlyList<ModelDescriptor> Models { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Measured from the Google.GenAI 1.26.1 chat client adapter (2026-10-20): it sends every field
+    /// but the parallel-tool-calls flag, which Gemini has no request member for. The reasoning
+    /// output becomes <c>includeThoughts</c>.
+    /// </remarks>
+    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.Seed
+        | SamplingFields.TopK
+        | SamplingFields.StopSequences
+        | SamplingFields.FrequencyPenalty
+        | SamplingFields.PresencePenalty
+        | SamplingFields.ToolMode
+        | SamplingFields.ReasoningOutput;
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

@@ -22662,11 +22662,62 @@ namespace Tracon.Client.Generated
         public ResponseCacheSettings? ResponseCache { get; set; } = default!;
 
         /// <summary>
-        /// Gets whether independent tool calls within one turn may run at the
-        /// <br/>same time.
+        /// Gets the sampling seed. The provider default is used when it is `null`.
         /// </summary>
-        [System.Text.Json.Serialization.JsonPropertyName("allowConcurrentToolCalls")]
-        public bool AllowConcurrentToolCalls { get; set; } = default!;
+        [System.Text.Json.Serialization.JsonPropertyName("seed")]
+        public long? Seed { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the top-k sampling limit. The provider default is used when it is `null`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("topK")]
+        public int? TopK { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the sequences that stop generation. Nothing is sent when it is
+        /// <br/>`null` or empty.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("stopSequences")]
+        public System.Collections.Generic.ICollection<string>? StopSequences { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the frequency penalty. The provider default is used when it is `null`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("frequencyPenalty")]
+        public float? FrequencyPenalty { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the presence penalty. The provider default is used when it is `null`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("presencePenalty")]
+        public float? PresencePenalty { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how the model may use the agent's tools. The provider default (the model decides)
+        /// <br/>is used when it is `null`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("toolMode")]
+        public string? ToolMode { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the model may ask for several tool calls in one turn. The provider default
+        /// <br/>is used when it is `null`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("allowMultipleToolCalls")]
+        public bool? AllowMultipleToolCalls { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how much of the model's reasoning the response carries. The provider default is
+        /// <br/>used when it is `null`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("reasoningOutput")]
+        public string? ReasoningOutput { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the settings of the tool-call loop the model pipeline builds.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("toolLoop")]
+        public ToolLoopSettings? ToolLoop { get; set; } = default!;
 
     }
 
@@ -26810,6 +26861,38 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("succeeded")]
         public bool Succeeded { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// Tool-call loop settings for a ModelBinding.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ToolLoopSettings
+    {
+
+        /// <summary>
+        /// Gets whether independent tool calls within one turn may run at the
+        /// <br/>same time.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("allowConcurrentToolCalls")]
+        public bool AllowConcurrentToolCalls { get; set; } = default!;
+
+        /// <summary>
+        /// Gets how many tool-call iterations in a row may fail before the loop
+        /// <br/>rethrows the error; the loop's default (3) is used when it is
+        /// <br/>`null`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("maximumConsecutiveErrors")]
+        public int? MaximumConsecutiveErrors { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the loop ends when the model asks for a tool the agent does
+        /// <br/>not have; the loop's default (`false`) is used when it is
+        /// <br/>`null`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("terminateOnUnknownCalls")]
+        public bool? TerminateOnUnknownCalls { get; set; } = default!;
 
     }
 

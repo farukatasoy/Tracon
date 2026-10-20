@@ -120,6 +120,97 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         definition.ToolNames.ShouldBe(["echo-tool"]);
     }
 
+    /// <summary>
+    /// A row written before <c>ToolLoop</c> existed has no such key. The source-generated reader does
+    /// not run the initializer of a type with <c>required</c> members for an absent key (measured on
+    /// the lists in K-1031), so the setting must still come back as an object.
+    /// </summary>
+    [Fact]
+    public void A_payload_written_before_the_tool_loop_existed_reads_back_with_default_loop_settings()
+    {
+        const string legacy = """{"model":{"provider":"echo","model":"echo-1"}}""";
+
+        var payload = JsonSerializer.Deserialize(legacy, TraconJsonContext.Default.AgentDefinitionPayload);
+
+        payload.ShouldNotBeNull("the payload itself must read");
+        (payload.Model.ToolLoop is null).ShouldBeFalse("the reader left the absent loop settings null");
+        payload.Model.ToolLoop!.AllowConcurrentToolCalls.ShouldBeFalse();
+    }
+
+    private const string LegacyModel = """{"provider":"echo","model":"echo-1","fallbacks":[],"providerSettings":{},"allowConcurrentToolCalls":true}""";
+
+    /// <summary>
+    /// <c>model.allowConcurrentToolCalls</c> moved to <c>model.toolLoop.allowConcurrentToolCalls</c>. A row written
+    /// before the move still carries the old key, and the reader drops an unknown key without a word: the agent
+    /// would have run its tool calls one after another from the day it was upgraded.
+    /// </summary>
+    [Fact]
+    public void A_payload_written_before_the_concurrency_setting_moved_keeps_its_value()
+    {
+        var payload = AgentDefinitionPayload.Read($$"""{"model":{{LegacyModel}},"toolNames":["echo-tool"]}""");
+
+        payload.ShouldNotBeNull();
+        payload.Model.ToolLoop.AllowConcurrentToolCalls.ShouldBeTrue();
+        payload.ToolNames.ShouldBe(["echo-tool"]);
+    }
+
+    /// <summary>A row that names <c>toolLoop</c> is current: the old key beside it is ignored, as any unknown key is.</summary>
+    [Fact]
+    public void A_row_that_holds_both_keys_keeps_the_new_place()
+    {
+        var payload = AgentDefinitionPayload.Read(
+            """{"model":{"provider":"echo","model":"echo-1","allowConcurrentToolCalls":true,"toolLoop":{"allowConcurrentToolCalls":false}}}""");
+
+        payload.ShouldNotBeNull();
+        payload.Model.ToolLoop.AllowConcurrentToolCalls.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_current_row_is_not_touched()
+    {
+        const string current = """{"model":{"provider":"echo","model":"echo-1","toolLoop":{"allowConcurrentToolCalls":true}}}""";
+
+        AgentDefinitionPayload.UpgradeLegacyKeys(current).ShouldBeSameAs(current);
+        AgentDefinitionPayload.Read(current)!.Model.ToolLoop.AllowConcurrentToolCalls.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// The row goes through the store, not only through the payload type: a reader that forgets to call the
+    /// upgrade passes every test of the type and loses the setting in production.
+    /// </summary>
+    [Fact]
+    public async Task A_stored_row_with_the_old_key_reads_back_through_every_store_read_with_its_value()
+    {
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition { Name = "legacy-row", Model = Model() });
+        await context.AgentDefinitions.SaveAsync(new AgentDefinition { Name = "legacy-row", Model = Model(), Description = "second" });
+
+        // Rewrite what the first version and the current row hold to the shape that was stored before the move.
+        var prefix = context.Options.TablePrefix;
+        var legacy = $$"""{"model":{{LegacyModel}},"description":"second"}""";
+
+        (await context.ExecuteAsync($"UPDATE {prefix}agent_definitions SET definition = '{legacy}' WHERE name = 'legacy-row';")).ShouldBe(1);
+        (await context.ExecuteAsync($"UPDATE {prefix}agent_definition_versions SET definition = '{legacy}';")).ShouldBe(2);
+
+        (await context.AgentDefinitions.GetAsync("legacy-row"))!.Model.ToolLoop.AllowConcurrentToolCalls.ShouldBeTrue();
+        (await context.AgentDefinitions.GetVersionAsync("legacy-row", 1))!.Model.ToolLoop.AllowConcurrentToolCalls.ShouldBeTrue();
+        (await context.AgentDefinitions.ListAsync()).ShouldHaveSingleItem().Model.ToolLoop.AllowConcurrentToolCalls.ShouldBeTrue();
+        (await context.AgentDefinitions.ListVersionsAsync("legacy-row")).ShouldAllBe(static version => version.Model.ToolLoop.AllowConcurrentToolCalls);
+
+        // A rollback writes the old version as a new one. The new row holds the new place only.
+        var rolledBack = await context.AgentDefinitions.RollbackAsync("legacy-row", 1);
+
+        rolledBack.Model.ToolLoop.AllowConcurrentToolCalls.ShouldBeTrue();
+        var stored = await context.ScalarAsync<string>($"SELECT definition FROM {prefix}agent_definitions WHERE name = 'legacy-row';");
+
+        using var document = JsonDocument.Parse(stored.ShouldNotBeNull());
+        var model = document.RootElement.GetProperty("model");
+
+        model.TryGetProperty("allowConcurrentToolCalls", out _).ShouldBeFalse("the rolled-back row must not carry the old key");
+        model.GetProperty("toolLoop").GetProperty("allowConcurrentToolCalls").GetBoolean().ShouldBeTrue();
+    }
+
     private static ModelBinding Model() => new() { Provider = "echo", Model = "echo-1" };
 
     /// <summary>
@@ -141,7 +232,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
                 {
                     ["anthropic.promptCaching"] = JsonSerializer.SerializeToElement(true),
                 },
-                AllowConcurrentToolCalls = true,
+                ToolLoop = new ToolLoopSettings { AllowConcurrentToolCalls = true },
             },
             ToolNames = ["echo-tool"],
             SkillNames = ["echo-skill"],

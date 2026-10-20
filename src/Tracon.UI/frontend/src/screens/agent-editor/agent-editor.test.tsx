@@ -97,6 +97,134 @@ describe('AgentEditorScreen', () => {
     });
   });
 
+  // F-598: the request fields and the tool-call loop are edited in the model section.
+  describe('request fields and tool-call loop', () => {
+    type Sent = { model?: Record<string, unknown> };
+
+    function validateInto(capture: (body: Sent) => void) {
+      return {
+        method: 'POST' as const,
+        pattern: 'api/agents/validate',
+        handler: (_params: unknown, _url: unknown, body: unknown) => {
+          capture(body as Sent);
+
+          return { valid: true, inconclusive: false, messages: [] };
+        },
+      };
+    }
+
+    it('keeps both groups closed for a definition that sets none and opens them for one that does', async () => {
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/agents/:name', { descriptor: { name: 'support', origin: 'Database', sourceName: 'database' }, definition: fullDefinition }),
+      ]);
+
+      const first = renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByTestId('agent-name');
+
+      expect((screen.getByTestId('sampling-settings') as HTMLDetailsElement).open).toBe(false);
+      expect((screen.getByTestId('tool-loop-settings') as HTMLDetailsElement).open).toBe(false);
+
+      first.unmount();
+      restoreFetch();
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: {
+            ...fullDefinition,
+            model: { ...fullDefinition.model, seed: 42, toolLoop: { allowConcurrentToolCalls: true, maximumConsecutiveErrors: null, terminateOnUnknownCalls: null } },
+          },
+        }),
+      ]);
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await waitFor(() => {
+        expect((screen.getByTestId('sampling-settings') as HTMLDetailsElement).open).toBe(true);
+        expect((screen.getByTestId('tool-loop-settings') as HTMLDetailsElement).open).toBe(true);
+      });
+      expect((screen.getByTestId('agent-seed') as HTMLInputElement).value).toBe('42');
+      expect((screen.getByTestId('tool-loop-concurrent') as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('sends what was typed and leaves the rest null', async () => {
+      let sent: Sent | undefined;
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/agents/:name', { descriptor: { name: 'support', origin: 'Database', sourceName: 'database' }, definition: { ...fullDefinition, toolNames: ['lookup'] } }),
+        fixture('GET', 'api/tools', [{ name: 'lookup', description: 'Looks it up.', effect: 'ReadOnly', requiresApproval: false, runsOnClient: false }]),
+        validateInto((body) => {
+          sent = body;
+        }),
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByTestId('agent-name');
+      await user.click(screen.getByText('Sampling and tool use'));
+      await user.type(screen.getByTestId('agent-seed'), '7');
+      await user.type(screen.getByTestId('agent-top-k'), '40');
+      await user.type(screen.getByTestId('agent-stop-sequences'), 'END{Enter}STOP');
+      await user.selectOptions(screen.getByTestId('agent-tool-mode'), 'required:lookup');
+      await user.selectOptions(screen.getByTestId('agent-allow-multiple-tool-calls'), 'false');
+      await user.selectOptions(screen.getByTestId('agent-reasoning-output'), 'Summary');
+      await user.click(screen.getByText('Tool-call loop'));
+      await user.click(screen.getByTestId('tool-loop-concurrent'));
+      await user.type(screen.getByTestId('tool-loop-max-errors'), '0');
+      await user.selectOptions(screen.getByTestId('tool-loop-terminate-unknown'), 'true');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(sent?.model).toMatchObject({
+          seed: 7,
+          topK: 40,
+          stopSequences: ['END', 'STOP'],
+          toolMode: 'required:lookup',
+          allowMultipleToolCalls: false,
+          reasoningOutput: 'Summary',
+          frequencyPenalty: null,
+          presencePenalty: null,
+          toolLoop: { allowConcurrentToolCalls: true, maximumConsecutiveErrors: 0, terminateOnUnknownCalls: true },
+        });
+      });
+    });
+
+    it('keeps a tool mode that names a tool the definition no longer lists', async () => {
+      let sent: Sent | undefined;
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: { ...fullDefinition, model: { ...fullDefinition.model, toolMode: 'required:retired' } },
+        }),
+        validateInto((body) => {
+          sent = body;
+        }),
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByTestId('agent-name');
+
+      expect((screen.getByTestId('agent-tool-mode') as HTMLSelectElement).value).toBe('required:retired');
+
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(sent?.model?.toolMode).toBe('required:retired');
+      });
+    });
+  });
+
   it('defaults the provider for a new agent once the catalogue loads (HATA-S4-009)', async () => {
     restoreFetch = installApiMock(baseOverrides());
 

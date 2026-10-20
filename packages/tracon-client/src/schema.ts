@@ -5458,10 +5458,46 @@ export interface components {
             fallbacks?: components["schemas"]["ModelFallback"][];
             responseCache?: null | components["schemas"]["ResponseCacheSettings"];
             /**
-             * @description Gets whether independent tool calls within one turn may run at the
-             *     same time.
+             * Format: int64
+             * @description Gets the sampling seed. The provider default is used when it is `null`.
              */
-            allowConcurrentToolCalls?: boolean;
+            seed?: null | number | string;
+            /**
+             * Format: int32
+             * @description Gets the top-k sampling limit. The provider default is used when it is `null`.
+             */
+            topK?: null | number | string;
+            /**
+             * @description Gets the sequences that stop generation. Nothing is sent when it is
+             *     `null` or empty.
+             */
+            stopSequences?: null | string[];
+            /**
+             * Format: float
+             * @description Gets the frequency penalty. The provider default is used when it is `null`.
+             */
+            frequencyPenalty?: null | number | string;
+            /**
+             * Format: float
+             * @description Gets the presence penalty. The provider default is used when it is `null`.
+             */
+            presencePenalty?: null | number | string;
+            /**
+             * @description Gets how the model may use the agent's tools. The provider default (the model decides)
+             *     is used when it is `null`.
+             */
+            toolMode?: null | string;
+            /**
+             * @description Gets whether the model may ask for several tool calls in one turn. The provider default
+             *     is used when it is `null`.
+             */
+            allowMultipleToolCalls?: null | boolean;
+            /**
+             * @description Gets how much of the model's reasoning the response carries. The provider default is
+             *     used when it is `null`.
+             */
+            reasoningOutput?: null | string;
+            toolLoop?: null | components["schemas"]["ToolLoopSettings"];
         };
         /** @description A model's capabilities and limits. */
         ModelDescriptor: {
@@ -7651,6 +7687,27 @@ export interface components {
             /** @description Whether the call finished successfully. */
             succeeded?: boolean;
         };
+        /** @description Tool-call loop settings for a ModelBinding. */
+        ToolLoopSettings: {
+            /**
+             * @description Gets whether independent tool calls within one turn may run at the
+             *     same time.
+             */
+            allowConcurrentToolCalls?: boolean;
+            /**
+             * Format: int32
+             * @description Gets how many tool-call iterations in a row may fail before the loop
+             *     rethrows the error; the loop's default (3) is used when it is
+             *     `null`.
+             */
+            maximumConsecutiveErrors?: null | number | string;
+            /**
+             * @description Gets whether the loop ends when the model asks for a tool the agent does
+             *     not have; the loop's default (`false`) is used when it is
+             *     `null`.
+             */
+            terminateOnUnknownCalls?: null | boolean;
+        };
         /** @description A tool's usage summary. Shown by the UI's Tools screen. */
         ToolUsage: {
             /** @description The tool name. */
@@ -8946,6 +9003,7 @@ export type ToolCallUsage = components['schemas']['ToolCallUsage'];
 export type ToolDescriptor = components['schemas']['ToolDescriptor'];
 export type ToolEffect = components['schemas']['ToolEffect'];
 export type ToolInvocationRecord = components['schemas']['ToolInvocationRecord'];
+export type ToolLoopSettings = components['schemas']['ToolLoopSettings'];
 export type ToolUsage = components['schemas']['ToolUsage'];
 export type TraceSpan = components['schemas']['TraceSpan'];
 export type TraceSpanKind = components['schemas']['TraceSpanKind'];

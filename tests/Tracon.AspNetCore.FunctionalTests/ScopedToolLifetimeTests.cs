@@ -176,7 +176,7 @@ public sealed class ScopedToolLifetimeTests
                         {
                             Provider = "scoped-model",
                             Model = "scoped-1",
-                            AllowConcurrentToolCalls = true,
+                            ToolLoop = new ToolLoopSettings { AllowConcurrentToolCalls = true },
                         },
                         ToolNames = ["tool_a", "tool_b"],
                     });

@@ -22,7 +22,7 @@ namespace Tracon;
 /// normal; in that case nothing is logged.
 /// </para>
 /// </remarks>
-internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport
 {
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;
@@ -108,6 +108,26 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
 
     /// <inheritdoc />
     public IReadOnlyList<ModelDescriptor> Models { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Measured from the Microsoft.Extensions.AI.OpenAI 10.11.0 adapters (2026-10-20): Chat
+    /// Completions sends the seed, the stop sequences and both penalties and has no top-k or
+    /// reasoning output; the Responses API sends none of the sampling fields and is the one that
+    /// carries the reasoning summary. Both send the tool mode and the parallel-tool-calls flag.
+    /// </remarks>
+    public SamplingFields SupportedSamplingFields => ApiSurface switch
+    {
+        OpenAIApiSurface.Responses => SamplingFields.ToolMode
+            | SamplingFields.AllowMultipleToolCalls
+            | SamplingFields.ReasoningOutput,
+        _ => SamplingFields.Seed
+            | SamplingFields.StopSequences
+            | SamplingFields.FrequencyPenalty
+            | SamplingFields.PresencePenalty
+            | SamplingFields.ToolMode
+            | SamplingFields.AllowMultipleToolCalls,
+    };
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

@@ -1,6 +1,6 @@
 # Faz 225 — Model Örneklemesi ve Tool Döngüsü Tanımda
 
-> **Durum:** 📋 Planlandı (2026-10-20)
+> **Durum:** ✅ Tamamlandı (2026-10-20)
 > **Kademe:** tam — public API'den silinen satır (`ModelBinding.AllowConcurrentToolCalls` → `ModelBinding.ToolLoop`) · kalıcı veri (saklanan tanım yükünün biçimi değişir)
 > **Plan onayı:** farukatasoy, 2026-10-20 (şekil: iç içe `ToolLoop`)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-598**
@@ -237,28 +237,30 @@ bugünkü normalizasyondan geçer).
 
 ## Açık Sorular
 
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | Destek bildirimi nerede durur? | A: `IModelProvider`'a yeni opsiyonel arayüz (`ISamplingSupport`) · B: `ModelDescriptor` model başına bayraklar | A: destek yüzeye bağlıdır, modele değil (`openai` ↔ `openai-responses` aynı modeli taşır) |
-| 2 | `ReasoningOutput` Chat Completions ve Anthropic'te ne yapar? | ölçülmeli | Faz başında decompile + gerçek tel; desteklemiyorsa `✗` |
-| 3 | `StopSequences` üst sınırı (OpenAI 4) doğrulayıcıda mı sağlayıcıda mı? | A: destek bildirimi sınır taşır · B: sağlayıcının `400`'ü | A, ölçülürse |
+Üçü de uygulamada kapandı (2026-10-20).
+
+| # | Soru | Karar |
+|---|---|---|
+| 1 | Destek bildirimi nerede durur? | **A** — `IModelProvider`'a dokunmayan opsiyonel `ISamplingSupport` (`SamplingFields` bayrakları). Registry `ModelProviderDescriptor.SupportedSamplingFields` (internal) olarak okur; `SamplingSupportCheck` derleyiciye ve doğrulayıcıya tek kuraldır. Bildirmeyen sağlayıcı hiçbir alanı göndermez |
+| 2 | `ReasoningOutput` Chat Completions ve Anthropic'te ne yapar? | Ölçüldü (decompile, MEAI.OpenAI 10.11 / Anthropic 12.58): Chat Completions `Reasoning.Output`'u hiç okumaz → `✗`; Anthropic `AdaptiveThinking(Output)` ile `thinking.display` (`omitted`/`summarized`) yazar → `✓`. Tablo §225.3 bu hâliyle koda girdi |
+| 3 | `StopSequences` üst sınırı nerede? | **B** — sağlayıcının `400`'ü. Gerçek OpenAI koşumunda `gpt-5.4-mini` `stop`'u **model düzeyinde** reddetti (`unsupported_parameter`): yüzey göndermesi modelin kabulü demek değildir; bu `SupportsSampling` benzeri bir katalog bayrağı işidir (aday) |
 
 ---
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Sekiz alan ve `ToolLoop` tanımdan sağlayıcı isteğine ulaşır (fonksiyonel test, her alan bir satır)
-- [ ] `FallbackChatClient` `ToolLoop`'u tek nesne olarak kopyalar; elle alan kopyası yok (`grep -n "AllowConcurrentToolCalls =" src/Tracon.Core/Models/FallbackChatClient.cs` boş)
-- [ ] Destek tablosundaki her `✗` derleme `400` verir; yedek halka dahil
-- [ ] Yedi üye `Protected`; uzantı değiştirirse derleme düşer; run kuralı reddeder
-- [ ] Eski yük okunur ve değer korunur (üç SQL); eski HTTP anahtarı `400` alır
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/10-ARAYUZ-AGENT-PLAYGROUND.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`tuketici-dokuman-senkronu`); `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] Sekiz alan ve `ToolLoop` tanımdan sağlayıcı isteğine ulaşır — `ModelSamplingFieldsTests` (HTTP → depo → derleyici → `FakeModelProvider.Requests`, sekiz alan + `reasoningEffort`), `ModelSamplingWireTests` (gerçek SDK gövdesi: OpenAI Chat, Responses, Anthropic), `ToolLoopSettingsEndpointTests` (`MaximumConsecutiveErrors`, `TerminateOnUnknownCalls`; eşzamanlılık `ConcurrentToolInvocationTests`)
+- [x] `FallbackChatClient` `ToolLoop`'u tek nesne olarak kopyalar; `grep -n "AllowConcurrentToolCalls =" src/Tracon.Core/Models/FallbackChatClient.cs` boş (`ToolLoopSettingsTests.Every_fallback_link_runs_its_loop_with_the_primarys_whole_settings`: `ShouldBeSameAs`)
+- [x] Destek tablosundaki her `✗` derleme `400` verir; yedek halka dahil — `ModelSamplingSupportTests` (yedi sağlayıcı adı × sekiz alan), `SamplingSupportTests` (yedek halka, bildirmeyen sağlayıcı). Tablo telden de doğrulandı (`ModelSamplingWireTests`); Google yalnız decompile'a dayanır (yerel sahte sunucu yok)
+- [x] Yedi üye `Protected`; uzantı değiştirirse derleme düşer; run kuralı reddeder (`AgentOptionsGuardTests`, `AgentExtensionCompilationTests`, `RunChatOptionsRuleTests`, `RunChatOptionsTests`); `false` istisnası K-1042
+- [x] Eski yük okunur ve değer korunur; eski HTTP anahtarı `400` alır. Yük çevirisi `Tracon.Sql.Shared`'dadır ve metin üzerinde çalışır (dialect'e özgü dal yok); repo SQLite'ı üç sağlayıcının temsilcisi sayar (`AgentDefinitionPayloadRoundTripTests` başlığı), bu yüzden eski-satır testi yalnız `Tracon.Sqlite.IntegrationTests`'te. PostgreSQL ve SQL Server projelerinde ayrı test yok (denetim 🟡5, gerekçeli)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban 7458209d` çıkış `0`: build, pack, `npm run check`, `dotnet format --verify-no-changes`, tam test `25079 geçti · 19 atlandı · 0 kaldı` (38 modül)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (2026-10-20, yalıtılmış SQLite dosyası, `Npgsql` log satırı `0`, gerçek OpenAI anahtarı): ① `POST /api/agents/validate` `openai-responses` + `seed:7` → `valid:false`, `sampling_field_unsupported`, `model.seed`, `'openai-responses' provider`; `openai` + `seed:7` → `valid:true` ② eski anahtar `model.allowConcurrentToolCalls` → `400 Removed field`, `model.toolLoop.allowConcurrentToolCalls` ③ `reason-demo` (`openai-responses`/`gpt-5.4-mini`, `reasoningOutput: Summary`) run `Completed`, olaylar `RunStarted · ReasoningDelta("**Seeking concise answer**") · MessageDelta · MessageCompleted · RunCompleted`; kontrol agent'ı (`reasoningOutput` yok) `ReasoningDelta` üretmedi ④ `tool-demo` (`openai`, `seed:7`, `toolMode:"required:get_order_status"`, `allowMultipleToolCalls:false`, `toolLoop`) run `Completed`, `get_order_status` bir kez koştu ⑤ aynı agent `stopSequences:["ZZZEND"]` ile `502`: `gpt-5.4-mini` `stop`'u model düzeyinde reddetti (Sapma 8, F-606)
+- [x] `secret` taraması boş döndü (`kapi.py tarama`, kapanışın içinde)
+- [x] `🤖` case'ler dosyada ve koşuldu: `MT-UIAG-064` yukarıdaki ③'te koşuldu. Kodla tekrarlanan case'ler (seed `400`, konsol) sete girmedi: `ModelSamplingSupportTests`, `AgentDefinitionLegacyFieldTests`, `AgentTests.Request_fields_and_tool_loop_set_in_the_console_are_saved_and_read_back` (E2E, `99/99` yeşil)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (aşağıda: 2 gerçek 🔴 kapandı)
+- [x] `docs-site/` güncellendi; `npm run check` temiz (kapanışın içinde, içerik · bağlantı · SEO · ağırlık). `docs-site`'ın canlıya yayını bu fazda yapılmadı (bakımcı kararı: deploy ayrı)
+- [x] `en.ts` ve `tr.ts` eksiksiz (`i18n.test.ts` yeşil); bundle payı ölçüldü: `215,9 → 218,1 KB` gzip (bütçe 250 KB), brotli gömülü `182,6 → 184,3 KB`
 
 ### Doğrulama komutları
 
@@ -289,20 +291,39 @@ curl -s -X POST http://localhost:5081/tracon/api/agents/validate -H 'Content-Typ
 
 > Çalışırken dolar. Kapanışta kapanış commit mesajına taşınır.
 
+1. **Destek tablosuna beşinci sütun: `azure-openai`.** Plan dört yüzey saydı; `Tracon.Azure` da üçüncü bir `IModelProvider`'dır ve OpenAI Chat Completions istemcisini kurar (`AsIChatClient`). Bildirimi `openai` sütunuyla aynıdır. `FakeModelProvider` (Tracon.Testing, public) ve birim testlerin sahtesi her alanı bildirir.
+2. **Açık Sorular 1–3 uygulamada kapandı** (belgenin Açık Sorular bölümü).
+3. **Korunan yedi üyeden biri run kuralında tek yönlü açık kaldı (K-1042).** Plan §225.4 "run kuralı otomatik izler" dedi; ilk koşumda `RunChatOptionsRuleTests.A_handoff_steps_options_pass` kırıldı: MAF handoff adımı `AllowMultipleToolCalls = false` yazar. Üyeyi tümden reddetmek handoff workflow'unu yeniden bozardı (K-1039'un onardığı kusur). `false` geçer, `true` ve öteki altı üye reddedilir.
+4. **`ModelBinding.ToolLoop` düz `= new()` değil, `init`'te `null` → varsayılan.** Eski satırın okunması planın tarif ettiği gibi çevrimle yapıldı, ama ölçüm kaynak üreteçli okuyucunun anahtar olmayan nesne üyesine `null` attığını gösterdi (`required` üyeli tip; K-1031'in nesne karşılığı). Yeni testle kilitli.
+5. **Eski yük çevrimi rollback'i de kapsar.** Plan yalnız okumayı saydı. `RollbackAsync` eski sürümün metnini yeni sürüm olarak yazar; çevrim orada da koşar, yoksa yeni satır eski anahtarla yazılırdı. Okuma yolları tek giriş noktasından geçer (`AgentDefinitionPayload.Read`).
+6. **Eski HTTP anahtarı için `RemovedFieldFilter` noktalı yol öğrendi** (`model.allowConcurrentToolCalls`). Üç uç (`POST /api/agents`, `PUT /api/agents/{name}`, `POST /api/agents/validate`) kullanır. İleti kalıbı filtreninkidir ("was removed in 1.0").
+7. **`Tracon:UtilityModel` ayrıca değiştirilmedi.** Bağlama yalnız `Temperature`, `MaxOutputTokens`, `TopP` ve `ReasoningEffort` okur; `AllowConcurrentToolCalls` hiç okunmadı, yeni alanlar da okunmaz (yardımcı model tool koşturmaz ve örnekleme alanlarını kullanmaz).
+8. **Gerçek OpenAI koşumu planın tablosunu tamamladı:** `gpt-5.4-mini` `stop`'u model düzeyinde reddeder (yüzey gönderir, model kabul etmez). Hata sağlayıcının `400`'üdür; `ModelDescriptor`'a alan başına bayrak eklemek aday (aşağıda).
+9. **Beklenmeyen kapı dokunuşları:** `PublicSurfaceBaselineTests` taban 389 → 392 (üç yeni public tip); `SeamContractDocumentationTests` `ISamplingSupport` için üç boyutu istedi (belge eklendi, taban büyümedi); `dokuman-bakim.py` `SURUM_DAMGASI_KAYDI`na üç sağlayıcı dosyası eklendi; `maf-kapsama.py` `CARPI_TABANI` 53 → 52 (`ChatOptions` alanları satırı ✅).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Plan numara rezerve etmez.
+
+- **K-1040** — istek alanları tanımdadır; destek `ISamplingSupport` ile bildirilir (public-api).
+- **K-1041** — `AllowConcurrentToolCalls` `ToolLoop` altına taşındı; eski yük okumada çevrilir, eski HTTP anahtarı `400` (public-api, kalıcı-veri; kullanıcı kararı: şekil iç içe `ToolLoop`).
+- **K-1042** — run seçeneğinde `AllowMultipleToolCalls = false` geçer (K-1039'u daraltır).
 
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan onaylı geldi; üç açık soru ve dokuz sapma uygulamada kapandı, plan metni yeniden yazılmadı) |
+| Düzeltme turu sayısı | 3 (kapanış kapısının `docs-site` adımı iki kez düştü: tip sayısı + ekran damgası; denetim iki 🔴 ve beş 🟡 üretti, bir tur) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
+| Fazın ürettiği regresyon | 1 (Anthropic `AllowMultipleToolCalls` sessiz düşme: kendi sözümüzü bozan tablo hücresi; denetim buldu, aynı fazda kapandı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı.
+> `faz-denetim` çıktısı (2026-10-20, taze bağlamlı denetçi, decompile ile doğruladı). Kapanış commit mesajına taşınır.
+
+- 🔴1 **Anthropic `AllowMultipleToolCalls` koşulludur**: adaptör bayrağı yalnız tool mode'dan `tool_choice` kurarken okur; tool mode'suz tanımda `valid:true` ve bayrak telde yok. Kapandı: `AnthropicProviderSettingsChatClient.CarryParallelToolUse` (tool varken ve mode yokken `auto`), `ModelSamplingWireTests` iki test (dekoratör çağrısı silinince düştü).
+- 🔴2 **Sürüm karşılaştırma ekranı yeni alanları göstermiyordu** (`agent-detail.tsx`). Kapandı: sekiz alan + `toolLoop` satırı, `agent-detail.test.tsx`.
+- 🟡3 stop sequences editörde dokunulmadan değişiyordu → yüklenen liste olduğu gibi gönderilir, satırlar kırpılmaz. 🟡4 `MaximumConsecutiveErrors`/`TerminateOnUnknownCalls` HTTP kanıtı → `ToolLoopSettingsEndpointTests`. 🟡5 yük testi yalnız SQLite → gerekçe DoD'de. 🟡6 manuel case 2/3 → kodla tekrarlandığı için sete girmedi (yeni case kuralı). 🟡7 site `stop` uyarısı → `model-providers.md`; aday F-606.
+- 🟢8 `UpgradeLegacyKeys` yorumu yanlıştı (her satır eşleşiyordu) → `toolLoop` adı geçen satır güncel sayılır. 🟢9 Google `Seed` `(int)` daralması · 🟢11 konsol `seed` JS `Number` → F-607. 🟢10 Anthropic `ReasoningOutput` etkileşimi → site cümlesi. 🟢11 UI ipucu "0 turu bitirir" → "run'ı düşürür". 🟢12 public tip tabanı 389 → 392 belgelendi (Sapma 9). 🟢13 ikincil bağlamalar → F-428 metnine eklendi. 🟢14 landing pin'leri → kırpımlara gözle bakıldı (approvals, run-detail, iki tema).

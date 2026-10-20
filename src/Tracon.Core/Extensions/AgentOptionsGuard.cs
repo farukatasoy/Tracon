@@ -69,6 +69,21 @@ internal static class AgentOptionsGuard
             ? new object?[] { reasoning.Effort, reasoning.Output }
             : null)
 
+        // The definition's remaining request fields (ModelBinding.Seed, TopK, StopSequences, the
+        // penalties, ToolMode, AllowMultipleToolCalls). The definition is the one source of a
+        // model setting: a version, an experiment variant and a replay read the model from it, and
+        // each provider states which of these it sends (ISamplingSupport). An extension that sets
+        // one would skip that check and the version history.
+        .Protect(nameof(ChatOptions.AllowMultipleToolCalls), static options => options.AllowMultipleToolCalls)
+        .Protect(nameof(ChatOptions.FrequencyPenalty), static options => options.FrequencyPenalty)
+        .Protect(nameof(ChatOptions.PresencePenalty), static options => options.PresencePenalty)
+        .Protect(nameof(ChatOptions.Seed), static options => options.Seed)
+        .Protect(nameof(ChatOptions.StopSequences), static options => options.StopSequences is { Count: > 0 } sequences
+            ? sequences.Cast<object?>().ToArray()
+            : null)
+        .Protect(nameof(ChatOptions.ToolMode), static options => ToolModeText(options.ToolMode))
+        .Protect(nameof(ChatOptions.TopK), static options => options.TopK)
+
         // The provider SDKs build the request from the raw representation first and fill only what
         // it leaves empty, so it wins over the model, temperature, token limit and reasoning above.
         // The Anthropic and Google rings also skip the definition's ProviderSettings when it is set.
@@ -76,14 +91,7 @@ internal static class AgentOptionsGuard
         .Free(
             nameof(ChatOptions.AdditionalProperties),
             nameof(ChatOptions.AllowBackgroundResponses),
-            nameof(ChatOptions.AllowMultipleToolCalls),
-            nameof(ChatOptions.ContinuationToken),
-            nameof(ChatOptions.FrequencyPenalty),
-            nameof(ChatOptions.PresencePenalty),
-            nameof(ChatOptions.Seed),
-            nameof(ChatOptions.StopSequences),
-            nameof(ChatOptions.ToolMode),
-            nameof(ChatOptions.TopK));
+            nameof(ChatOptions.ContinuationToken));
 
     /// <summary>The rows of <see cref="BackgroundAgentsProviderOptions"/>; the sub-agent tree owns all of it.</summary>
     internal static OptionRules<BackgroundAgentsProviderOptions> BackgroundAgentsOptions { get; } = new OptionRules<BackgroundAgentsProviderOptions>()
@@ -126,7 +134,7 @@ internal static class AgentOptionsGuard
         // and with per-call persistence on, the tenant's history stays empty (measured).
         .Protect(nameof(ChatClientAgentOptions.UseProvidedChatClientAsIs), static options => options.UseProvidedChatClientAsIs)
 
-        // ModelBinding.AllowConcurrentToolCalls sets the tool loop Tracon builds (K-553). MAF finds
+        // ModelBinding.ToolLoop.AllowConcurrentToolCalls sets the tool loop Tracon builds (K-553). MAF finds
         // that same loop and turns it on when this member is set, over the definition (measured).
         .Protect(nameof(ChatClientAgentOptions.AllowConcurrentInvocation), static options => options.AllowConcurrentInvocation)
 
@@ -204,6 +212,17 @@ internal static class AgentOptionsGuard
         var before = Harness.Capture(options);
         return new OptionsCheckpoint(() => Harness.Changes(before, options));
     }
+
+    /// <summary>Reads a tool mode as the text the definition writes, so equal modes compare equal.</summary>
+    private static object? ToolModeText(ChatToolMode? mode) => mode switch
+    {
+        null => null,
+        AutoChatToolMode => "auto",
+        NoneChatToolMode => "none",
+        RequiredChatToolMode { RequiredFunctionName: null } => "required",
+        RequiredChatToolMode required => $"required:{required.RequiredFunctionName}",
+        _ => Reference(mode),
+    };
 
     /// <summary>Wraps a reference so it is compared by identity.</summary>
     private static ReferenceToken? Reference(object? value) => value is null ? null : new ReferenceToken(value);

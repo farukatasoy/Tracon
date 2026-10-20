@@ -45,7 +45,7 @@ type Fix<T, K extends keyof T> = Omit<T, K> & {
   [P in K]-?: [Extract<T[P], number>] extends [never] ? T[P] : Exclude<T[P], string>;
 };
 
-// 93 schemas widened; 29 carry a nested-reference override (106 total exports)
+// 94 schemas widened; 29 carry a nested-reference override (107 total exports)
 
 export type AIContentCodeInterpreterToolCallContent = Fix<Generated.AiContentCodeInterpreterToolCallContent, 'additionalProperties' | 'annotations' | 'inputs'>;
 export type AIContentFunctionCallContent = Fix<Generated.AiContentFunctionCallContent, 'informationalOnly'>;
@@ -109,7 +109,7 @@ export type McpRefreshResponse = Fix<Generated.McpRefreshResponse, 'toolCount'>;
 export type McpResourceContent = Fix<Generated.McpResourceContent, 'byteSize' | 'isBinary' | 'truncated'>;
 export type McpServerDefinition = Fix<Generated.McpServerDefinition, 'createdAt' | 'enabled' | 'headerConfigurationKeys' | 'headers' | 'oauthAuthorizationMode' | 'oauthEnabled' | 'requiresApproval' | 'transport' | 'updatedAt'>;
 export type MemorySettings = Fix<Generated.MemorySettings, 'enableFileMemory' | 'enableTextSearch' | 'enableTodo' | 'enableVectorSearch'>;
-export type ModelBinding = Fix<Generated.ModelBinding, 'allowConcurrentToolCalls' | 'fallbacks' | 'maxOutputTokens' | 'providerSettings' | 'temperature' | 'topP'> & { responseCache: ResponseCacheSettings | null };
+export type ModelBinding = Fix<Generated.ModelBinding, 'allowMultipleToolCalls' | 'fallbacks' | 'frequencyPenalty' | 'maxOutputTokens' | 'presencePenalty' | 'providerSettings' | 'reasoningOutput' | 'seed' | 'stopSequences' | 'temperature' | 'toolMode' | 'topK' | 'topP'> & { responseCache: ResponseCacheSettings | null; toolLoop: ToolLoopSettings | null };
 export type ModelDescriptor = Fix<Generated.ModelDescriptor, 'cachedInputCostPerMillionTokens' | 'contextWindowTokens' | 'inputCostPerMillionTokens' | 'maxOutputTokens' | 'outputCostPerMillionTokens' | 'supportsReasoning' | 'supportsStreaming' | 'supportsStructuredOutput' | 'supportsTools'>;
 export type ModelProviderDescriptor = Fix<Generated.ModelProviderDescriptor, 'status'> & { models: ModelDescriptor[] };
 export type ModelProviderHealth = Fix<Generated.ModelProviderHealth, 'checkedAt' | 'models'>;
@@ -176,6 +176,7 @@ export type ToolCallContentFunctionCallContent = Fix<Generated.ToolCallContentFu
 export type ToolCallUsage = Fix<Generated.ToolCallUsage, 'cost' | 'isEstimated' | 'quantity'>;
 export type ToolDescriptor = Fix<Generated.ToolDescriptor, 'effect' | 'requiresApproval' | 'runsOnClient'>;
 export type ToolInvocationRecord = Fix<Generated.ToolInvocationRecord, 'authorizationDenied' | 'succeeded' | 'timedOut'> & { usage: ToolCallUsage | null };
+export type ToolLoopSettings = Fix<Generated.ToolLoopSettings, 'allowConcurrentToolCalls' | 'maximumConsecutiveErrors' | 'terminateOnUnknownCalls'>;
 export type ToolUsage = Fix<Generated.ToolUsage, 'averageDurationMs' | 'errorRate' | 'failedCalls' | 'totalCalls'>;
 export type TraceSpan = Fix<Generated.TraceSpan, 'attributes' | 'kind' | 'status'>;
 export type UploadDocumentResponse = Fix<Generated.UploadDocumentResponse, 'chunkCount'>;

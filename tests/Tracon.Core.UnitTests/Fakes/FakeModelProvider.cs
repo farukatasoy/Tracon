@@ -3,21 +3,39 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Fakes;
 
 /// <summary>A fake single-model provider used in tests.</summary>
-internal sealed class FakeModelProvider : ITenantCredentialModelProvider
+internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplingSupport
 {
     private readonly IChatClient _client;
 
-    public FakeModelProvider(IChatClient? client = null, string name = "fake", IReadOnlyList<ModelDescriptor>? models = null)
+    public FakeModelProvider(
+        IChatClient? client = null,
+        string name = "fake",
+        IReadOnlyList<ModelDescriptor>? models = null,
+        SamplingFields? supportedSamplingFields = null)
     {
         _client = client ?? new FakeChatClient();
         Name = name;
+        SupportedSamplingFields = supportedSamplingFields ?? AllSamplingFields;
         Models = models ??
         [
             new ModelDescriptor { Name = "fake-model", ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 },
         ];
     }
 
+    /// <summary>Every field: a fake sends nothing, so a test limits it only when it tests the limit.</summary>
+    public const SamplingFields AllSamplingFields =
+        SamplingFields.Seed
+        | SamplingFields.TopK
+        | SamplingFields.StopSequences
+        | SamplingFields.FrequencyPenalty
+        | SamplingFields.PresencePenalty
+        | SamplingFields.ToolMode
+        | SamplingFields.AllowMultipleToolCalls
+        | SamplingFields.ReasoningOutput;
+
     public string Name { get; }
+
+    public SamplingFields SupportedSamplingFields { get; }
 
     public IReadOnlyList<ModelDescriptor> Models { get; }
 

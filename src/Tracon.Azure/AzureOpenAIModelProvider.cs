@@ -20,7 +20,7 @@ namespace Tracon;
 /// — there is no extra code in this package for it.
 /// </para>
 /// </remarks>
-internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics
+internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport
 {
     private readonly AzureOpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<AzureOpenAIModelProvider>? _logger;
@@ -82,6 +82,19 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 
     /// <inheritdoc />
     public IReadOnlyList<ModelDescriptor> Models { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The provider builds the Chat Completions client of the OpenAI adapter, so it sends what the
+    /// <c>openai</c> provider's Chat Completions surface sends (measured 2026-10-20): the seed, the
+    /// stop sequences, both penalties, the tool mode and the parallel-tool-calls flag.
+    /// </remarks>
+    public SamplingFields SupportedSamplingFields { get; } = SamplingFields.Seed
+        | SamplingFields.StopSequences
+        | SamplingFields.FrequencyPenalty
+        | SamplingFields.PresencePenalty
+        | SamplingFields.ToolMode
+        | SamplingFields.AllowMultipleToolCalls;
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

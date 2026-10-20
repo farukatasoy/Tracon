@@ -665,7 +665,7 @@ tracon
         Model = model with
         {
             ResponseCache = new ResponseCacheSettings { Enabled = true, Lifetime = TimeSpan.FromMinutes(10) },
-            AllowConcurrentToolCalls = true,
+            ToolLoop = new ToolLoopSettings { AllowConcurrentToolCalls = true },
         },
         ToolNames = ["get_order_status", "list_recent_orders"],
     });

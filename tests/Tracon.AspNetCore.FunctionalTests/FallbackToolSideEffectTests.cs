@@ -206,7 +206,7 @@ public sealed class FallbackToolSideEffectTests
                 {
                     Provider = "primary-provider-3",
                     Model = "primary-model",
-                    AllowConcurrentToolCalls = true,
+                    ToolLoop = new ToolLoopSettings { AllowConcurrentToolCalls = true },
                     Fallbacks = [new ModelFallback { Provider = "fallback-provider-3", Model = "fallback-model" }],
                 },
                 ToolNames = ["charge_customer"],

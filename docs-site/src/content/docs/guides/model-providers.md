@@ -184,11 +184,92 @@ servers omit usage from streamed responses. In that case token count and cost st
 `null`; Tracon does not fabricate them.
 :::
 
+## Sampling and tool-use fields
+
+Beyond `Temperature`, `TopP`, `MaxOutputTokens`, `ReasoningEffort`, and
+`ResponseFormat`, a `ModelBinding` sets eight more request fields. They belong to the
+definition, so a stored version, an experiment variant, and a replay carry them. A field
+left empty sends nothing, and the provider default applies.
+
+| Field | Type | What it does |
+|---|---|---|
+| `Seed` | `long?` | Asks for repeatable sampling |
+| `TopK` | `int?` | Limits sampling to the `k` likeliest tokens; above zero |
+| `StopSequences` | `IReadOnlyList<string>?` | Ends the answer when one appears; no entry may be empty |
+| `FrequencyPenalty` | `float?` | Lowers the odds of a token that already appeared often |
+| `PresencePenalty` | `float?` | Lowers the odds of a token that already appeared |
+| `ToolMode` | `string?` | `auto`, `none`, `required`, or `required:<tool>` |
+| `AllowMultipleToolCalls` | `bool?` | Whether the model may ask for several tool calls in one turn |
+| `ReasoningOutput` | `string?` | `None`, `Summary`, or `Full`: how much reasoning the response carries |
+
+```csharp
+Model = new ModelBinding
+{
+    Provider = OpenAIProviderNames.ChatCompletions,
+    Model = "your-current-model-name",
+    Seed = 42,
+    StopSequences = ["END"],
+    ToolMode = "required:get_order_status",
+},
+ToolNames = ["get_order_status"],
+```
+
+**A provider sends only some of them.** The model adapters of each API surface drop the
+fields they have no wire member for, without an error. A field that never reaches the model
+looks exactly like a field that worked, so Tracon refuses it instead. A `v` marks a field the
+surface sends:
+
+| Field | `openai` | `openai-responses` | `anthropic` | `google` | `azure-openai` |
+|---|:-:|:-:|:-:|:-:|:-:|
+| `Seed` | v | | | v | v |
+| `TopK` | | | v | v | |
+| `StopSequences` | v | | v | v | v |
+| `FrequencyPenalty` | v | | | v | v |
+| `PresencePenalty` | v | | | v | v |
+| `ToolMode` | v | v | v | v | v |
+| `AllowMultipleToolCalls` | v | v | v | | v |
+| `ReasoningOutput` | | v | v | v | |
+
+- A `UseOpenAICompatible()` registration follows the same two columns: its Chat Completions
+  provider is the `openai` column, and its `{name}-responses` provider is the
+  `openai-responses` column.
+- The table is what the API surface sends, not what a model accepts. A model can still reject
+  a field its surface sends: some OpenAI reasoning models answer a request that carries `stop` with
+  `400 unsupported_parameter`. That error is the provider's own and comes back as the run's failure.
+- A definition that sets a field the provider does not send fails to compile. The error
+  names the field, the provider, and the providers that send it. `POST /api/agents/validate`
+  reports it as `sampling_field_unsupported` at the field's path (for example `model.seed`),
+  and saving the definition returns `400`. Nothing runs without the field.
+- A `Fallbacks` link gets the request options of the primary call, so it is held to the same
+  table: a fallback on a provider that drops `Seed` makes the definition invalid.
+- A provider you write sends none of these fields until it states them. Implement
+  `ISamplingSupport` next to `IModelProvider` and return the `SamplingFields` its surface sends.
+  The table above is what the shipped adapters send; Tracon measures it again when it upgrades
+  a provider SDK.
+- **`ToolMode`** `required` makes the model call a tool; `required:<tool>` makes it call that
+  one, and the tool must be in the definition's `ToolNames`. The requirement holds for the first
+  model call of a turn only. The tool-call loop lifts it for the calls that follow, because the
+  model could never answer otherwise. A request with no tools carries no tool mode. A value
+  other than the four above fails to compile.
+- **`ReasoningOutput`** goes with `ReasoningEffort`, and either stands alone. A value outside
+  `None`, `Summary`, and `Full` fails to compile, as an unknown effort does. On `anthropic` it sets
+  how the thinking is shown, and with no `ReasoningEffort` it turns adaptive thinking on by itself;
+  it is not sent when `ReasoningEffort` is `None` or when an `anthropic.thinking.*` provider setting
+  is set. On `openai-responses` it becomes the reasoning summary.
+- **`AllowMultipleToolCalls`** on `anthropic` travels in the request's `tool_choice`. A definition
+  that sets it with no `ToolMode` sends `auto` as the mode, which is what the provider does
+  without one.
+- **`StopSequences`** has a limit on the number of entries that depends on the provider.
+  Tracon does not check it; the provider's own error comes back when it is exceeded.
+- An agent extension and the options of one run cannot set these fields. See
+  [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/).
+
 ## Provider-specific settings
 
 Portable settings live directly on `ModelBinding`: `Temperature`, `TopP`,
-`MaxOutputTokens`, `ReasoningEffort`, and `ResponseFormat`. Vendor-only settings live
-in `ProviderSettings`. Unknown keys fail compilation instead of being ignored.
+`MaxOutputTokens`, `ReasoningEffort`, `ResponseFormat`, and the fields above.
+Vendor-only settings live in `ProviderSettings`. Unknown keys fail compilation instead of
+being ignored.
 
 ```csharp
 using System.Text.Json;
@@ -614,7 +695,20 @@ Nothing runs uncached silently. A store failure (a timeout, an oversized payload
 store rejects) is logged and treated as a miss on read, or simply dropped on write —
 a cache problem never fails a call that would otherwise have succeeded.
 
-## Concurrent tool calls
+## Tool-call loop
+
+`ModelBinding.ToolLoop` configures the loop that runs the tools the model asks for and
+sends their results back. Every member is optional and keeps the loop's own default when
+it is left unset, so an agent without it behaves as before. A `Fallbacks` link runs the
+same agent's tools, so it takes the whole `ToolLoop` of the primary model.
+
+| Member | Default | What it does |
+|---|---|---|
+| `AllowConcurrentToolCalls` | `false` | Runs the independent tool calls of one turn at the same time |
+| `MaximumConsecutiveErrors` | `3` | How many failed tool turns in a row the loop tolerates before it rethrows; `0` rethrows the first |
+| `TerminateOnUnknownCalls` | `false` | Ends the loop and hands the call back when the model asks for a tool the agent does not have; by default the model sees an error result |
+
+### Concurrent tool calls
 
 By default, independent tool calls returned in the same turn run one after another.
 Turn `AllowConcurrentToolCalls` on to run them at the same time instead — useful when
@@ -626,7 +720,7 @@ Model = new ModelBinding
 {
     Provider = AnthropicProviderNames.Anthropic,
     Model = "your-current-model-name",
-    AllowConcurrentToolCalls = true,
+    ToolLoop = new ToolLoopSettings { AllowConcurrentToolCalls = true },
 },
 ```
 
@@ -634,6 +728,17 @@ Off by default: with no change, calls still run one at a time exactly as they do
 today. Turn it on only for tools whose bodies are safe to run concurrently with
 themselves — a tool that shares mutable state across calls without its own
 synchronization should not opt in.
+
+It is not `AllowMultipleToolCalls`. That field decides whether the model may *ask* for
+several calls in one turn; `AllowConcurrentToolCalls` decides whether Tracon *runs* them at the
+same time.
+
+:::note[Upgrading from a build that had `ModelBinding.AllowConcurrentToolCalls`]
+The setting moved into `ToolLoop`. A definition stored before the move is read with the setting
+in its new place, and the next save writes the new place only. `POST /api/agents`,
+`PUT /api/agents/{name}`, and `POST /api/agents/validate` refuse the old key
+`model.allowConcurrentToolCalls` with `400` and name `model.toolLoop.allowConcurrentToolCalls`.
+:::
 
 ## Check a prompt against the context window before running it
 

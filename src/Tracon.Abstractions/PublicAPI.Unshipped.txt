@@ -1160,6 +1160,8 @@ Tracon.IRunStore.RecordToolInvocationAsync(Tracon.ToolInvocationRecord! invocati
 Tracon.IRunStore.StartRunAsync(Tracon.RunStartInfo! info, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunRecord!>
 Tracon.IRunStore.TouchHeartbeatAsync(System.Collections.Generic.IReadOnlyCollection<System.Guid>! runIds, System.DateTimeOffset at, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRunStore.UpdateRunCostAsync(System.Guid runId, Tracon.RunCost? cost, string? tenantId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.ISamplingSupport
+Tracon.ISamplingSupport.SupportedSamplingFields.get -> Tracon.SamplingFields
 Tracon.ISessionStore
 Tracon.ISessionStore.DeleteAsync(string! sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.ISessionStore.GetAsync(string! sessionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SessionRecord?>
@@ -1760,28 +1762,44 @@ Tracon.MemorySettings.VectorCollection.get -> string?
 Tracon.MemorySettings.VectorCollection.init -> void
 Tracon.ModelBinding
 Tracon.ModelBinding.<Clone>$() -> Tracon.ModelBinding!
-Tracon.ModelBinding.AllowConcurrentToolCalls.get -> bool
-Tracon.ModelBinding.AllowConcurrentToolCalls.init -> void
+Tracon.ModelBinding.AllowMultipleToolCalls.get -> bool?
+Tracon.ModelBinding.AllowMultipleToolCalls.init -> void
 Tracon.ModelBinding.Equals(Tracon.ModelBinding? other) -> bool
 Tracon.ModelBinding.Fallbacks.get -> System.Collections.Generic.IReadOnlyList<Tracon.ModelFallback!>!
 Tracon.ModelBinding.Fallbacks.init -> void
+Tracon.ModelBinding.FrequencyPenalty.get -> float?
+Tracon.ModelBinding.FrequencyPenalty.init -> void
 Tracon.ModelBinding.MaxOutputTokens.get -> int?
 Tracon.ModelBinding.MaxOutputTokens.init -> void
 Tracon.ModelBinding.Model.get -> string!
 Tracon.ModelBinding.Model.init -> void
 Tracon.ModelBinding.ModelBinding() -> void
+Tracon.ModelBinding.PresencePenalty.get -> float?
+Tracon.ModelBinding.PresencePenalty.init -> void
 Tracon.ModelBinding.Provider.get -> string!
 Tracon.ModelBinding.Provider.init -> void
 Tracon.ModelBinding.ProviderSettings.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
 Tracon.ModelBinding.ProviderSettings.init -> void
 Tracon.ModelBinding.ReasoningEffort.get -> string?
 Tracon.ModelBinding.ReasoningEffort.init -> void
+Tracon.ModelBinding.ReasoningOutput.get -> string?
+Tracon.ModelBinding.ReasoningOutput.init -> void
 Tracon.ModelBinding.ResponseCache.get -> Tracon.ResponseCacheSettings?
 Tracon.ModelBinding.ResponseCache.init -> void
 Tracon.ModelBinding.ResponseFormat.get -> Tracon.AgentResponseFormat?
 Tracon.ModelBinding.ResponseFormat.init -> void
+Tracon.ModelBinding.Seed.get -> long?
+Tracon.ModelBinding.Seed.init -> void
+Tracon.ModelBinding.StopSequences.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Tracon.ModelBinding.StopSequences.init -> void
 Tracon.ModelBinding.Temperature.get -> float?
 Tracon.ModelBinding.Temperature.init -> void
+Tracon.ModelBinding.ToolLoop.get -> Tracon.ToolLoopSettings!
+Tracon.ModelBinding.ToolLoop.init -> void
+Tracon.ModelBinding.ToolMode.get -> string?
+Tracon.ModelBinding.ToolMode.init -> void
+Tracon.ModelBinding.TopK.get -> int?
+Tracon.ModelBinding.TopK.init -> void
 Tracon.ModelBinding.TopP.get -> float?
 Tracon.ModelBinding.TopP.init -> void
 Tracon.ModelDescriptor
@@ -2840,6 +2858,16 @@ Tracon.RunVersionStatistics.TotalTokens.get -> long
 Tracon.RunVersionStatistics.TotalTokens.init -> void
 Tracon.RunVersionStatistics.Version.get -> int
 Tracon.RunVersionStatistics.Version.init -> void
+Tracon.SamplingFields
+Tracon.SamplingFields.AllowMultipleToolCalls = 64 -> Tracon.SamplingFields
+Tracon.SamplingFields.FrequencyPenalty = 8 -> Tracon.SamplingFields
+Tracon.SamplingFields.None = 0 -> Tracon.SamplingFields
+Tracon.SamplingFields.PresencePenalty = 16 -> Tracon.SamplingFields
+Tracon.SamplingFields.ReasoningOutput = 128 -> Tracon.SamplingFields
+Tracon.SamplingFields.Seed = 1 -> Tracon.SamplingFields
+Tracon.SamplingFields.StopSequences = 4 -> Tracon.SamplingFields
+Tracon.SamplingFields.ToolMode = 32 -> Tracon.SamplingFields
+Tracon.SamplingFields.TopK = 2 -> Tracon.SamplingFields
 Tracon.SessionAccess
 Tracon.SessionAccess.Branch = 3 -> Tracon.SessionAccess
 Tracon.SessionAccess.Delete = 2 -> Tracon.SessionAccess
@@ -3402,6 +3430,16 @@ Tracon.ToolInvocationRecord.ToolName.get -> string!
 Tracon.ToolInvocationRecord.ToolName.init -> void
 Tracon.ToolInvocationRecord.Usage.get -> Tracon.ToolCallUsage?
 Tracon.ToolInvocationRecord.Usage.init -> void
+Tracon.ToolLoopSettings
+Tracon.ToolLoopSettings.<Clone>$() -> Tracon.ToolLoopSettings!
+Tracon.ToolLoopSettings.AllowConcurrentToolCalls.get -> bool
+Tracon.ToolLoopSettings.AllowConcurrentToolCalls.init -> void
+Tracon.ToolLoopSettings.Equals(Tracon.ToolLoopSettings? other) -> bool
+Tracon.ToolLoopSettings.MaximumConsecutiveErrors.get -> int?
+Tracon.ToolLoopSettings.MaximumConsecutiveErrors.init -> void
+Tracon.ToolLoopSettings.TerminateOnUnknownCalls.get -> bool?
+Tracon.ToolLoopSettings.TerminateOnUnknownCalls.init -> void
+Tracon.ToolLoopSettings.ToolLoopSettings() -> void
 Tracon.ToolRegistrationOptions
 Tracon.ToolRegistrationOptions.Effect.get -> Tracon.ToolEffect
 Tracon.ToolRegistrationOptions.Effect.set -> void
@@ -4735,6 +4773,9 @@ override Tracon.ToolDescriptor.ToString() -> string!
 override Tracon.ToolInvocationRecord.Equals(object? obj) -> bool
 override Tracon.ToolInvocationRecord.GetHashCode() -> int
 override Tracon.ToolInvocationRecord.ToString() -> string!
+override Tracon.ToolLoopSettings.Equals(object? obj) -> bool
+override Tracon.ToolLoopSettings.GetHashCode() -> int
+override Tracon.ToolLoopSettings.ToString() -> string!
 override Tracon.ToolUsage.Equals(object? obj) -> bool
 override Tracon.ToolUsage.GetHashCode() -> int
 override Tracon.ToolUsage.ToString() -> string!
@@ -5183,6 +5224,8 @@ static Tracon.ToolDescriptor.operator !=(Tracon.ToolDescriptor? left, Tracon.Too
 static Tracon.ToolDescriptor.operator ==(Tracon.ToolDescriptor? left, Tracon.ToolDescriptor? right) -> bool
 static Tracon.ToolInvocationRecord.operator !=(Tracon.ToolInvocationRecord? left, Tracon.ToolInvocationRecord? right) -> bool
 static Tracon.ToolInvocationRecord.operator ==(Tracon.ToolInvocationRecord? left, Tracon.ToolInvocationRecord? right) -> bool
+static Tracon.ToolLoopSettings.operator !=(Tracon.ToolLoopSettings? left, Tracon.ToolLoopSettings? right) -> bool
+static Tracon.ToolLoopSettings.operator ==(Tracon.ToolLoopSettings? left, Tracon.ToolLoopSettings? right) -> bool
 static Tracon.ToolUsage.operator !=(Tracon.ToolUsage? left, Tracon.ToolUsage? right) -> bool
 static Tracon.ToolUsage.operator ==(Tracon.ToolUsage? left, Tracon.ToolUsage? right) -> bool
 static Tracon.ToolUsageQuery.operator !=(Tracon.ToolUsageQuery? left, Tracon.ToolUsageQuery? right) -> bool

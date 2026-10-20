@@ -408,12 +408,12 @@ public sealed class FallbackChatClientTests
         using var chatClient = new ModelProviderRegistry([primary, fallback]).CreateChatClient(
             Binding(primary: "primary", fallbackProvider: "fallback", fallbackModel: "fallback-model") with
             {
-                AllowConcurrentToolCalls = true,
+                ToolLoop = new ToolLoopSettings { AllowConcurrentToolCalls = true },
             });
 
         await chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken);
 
-        fallback.LastBinding.ShouldNotBeNull().AllowConcurrentToolCalls.ShouldBeTrue();
+        fallback.LastBinding.ShouldNotBeNull().ToolLoop.AllowConcurrentToolCalls.ShouldBeTrue();
     }
 
     private static IChatClient RegistryWithFallback(FakeChatClient primaryClient, FakeChatClient fallbackClient)

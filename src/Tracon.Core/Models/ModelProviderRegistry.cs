@@ -172,6 +172,9 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             {
                 Name = provider.Name,
                 Models = provider.Models,
+                SupportedSamplingFields = provider is ISamplingSupport sampling
+                    ? sampling.SupportedSamplingFields
+                    : SamplingFields.None,
             });
         }
 
@@ -335,6 +338,25 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         }
     }
 
+    /// <summary>
+    /// Reads the binding's loop settings and refuses a value the loop would reject with an
+    /// exception that is not a <see cref="TraconException"/>.
+    /// </summary>
+    private static ToolLoopSettings ValidToolLoop(ModelBinding binding)
+    {
+        var toolLoop = binding.ToolLoop;
+
+        if (toolLoop.MaximumConsecutiveErrors is < 0)
+        {
+            throw new TraconException(
+                $"Model '{binding.Provider}/{binding.Model}' sets {nameof(ModelBinding)}.{nameof(ModelBinding.ToolLoop)}." +
+                $"{nameof(ToolLoopSettings.MaximumConsecutiveErrors)} to {toolLoop.MaximumConsecutiveErrors}; " +
+                "it must be 0 or greater.");
+        }
+
+        return toolLoop;
+    }
+
     private ProviderFailureNormalizingChatClient BuildPipeline(
         ModelBinding binding,
         IModelProvider provider,
@@ -394,24 +416,37 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // be placed INSIDE the loop. Order: the loop is outermost, telemetry is
         // inside it, so every real model call gets its own 'chat' span.
         //
-        // binding.AllowConcurrentToolCalls configures THIS SAME
-        // FunctionInvokingChatClient instance - the one that actually drives
-        // the tool-call loop. false by default (K1): the loop runs one call
-        // at a time exactly as it does today (Phase 81, F-134).
+        // binding.ToolLoop configures THIS SAME FunctionInvokingChatClient
+        // instance - the one that actually drives the tool-call loop.
+        // AllowConcurrentToolCalls is false by default (K1): the loop runs one
+        // call at a time exactly as it does today (Phase 81, F-134). A member
+        // left null keeps the loop's own default.
         //
-        // ToolLoopIterationLimit is a harness agent's MaximumIterationsPerRequest
+        // IterationLimit is a harness agent's MaximumIterationsPerRequest
         // (F-315, K-892): MAF puts its own loop ABOVE this pipeline, but this
         // loop is the one that sees and runs the tool calls, so the limit is
         // only real here.
+        var toolLoop = ValidToolLoop(binding);
+
         var pipelineBuilder = chatClient
             .AsBuilder()
             .UseFunctionInvocation(
                 _loggerFactory,
                 fic =>
                 {
-                    fic.AllowConcurrentInvocation = binding.AllowConcurrentToolCalls;
+                    fic.AllowConcurrentInvocation = toolLoop.AllowConcurrentToolCalls;
 
-                    if (binding.ToolLoopIterationLimit is { } limit)
+                    if (toolLoop.MaximumConsecutiveErrors is { } errors)
+                    {
+                        fic.MaximumConsecutiveErrorsPerRequest = errors;
+                    }
+
+                    if (toolLoop.TerminateOnUnknownCalls is { } terminate)
+                    {
+                        fic.TerminateOnUnknownCalls = terminate;
+                    }
+
+                    if (toolLoop.IterationLimit is { } limit)
                     {
                         fic.MaximumIterationsPerRequest = limit;
                     }
