@@ -64,15 +64,10 @@ public sealed partial class AgentDefinitionCompiler
         var wrappers = _agentExtensions.Configure(
             definition, ResolveTenantId(definition), _services ?? NoServices.Instance, chatOptions: options, harnessOptions: null);
 
-        // MAF loads the session's history on every model call when an extension
-        // turns this on, and the loaded history can hold an approval request that
-        // is already answered (F-582). The seam removes it before Tracon's own
-        // tool-call loop sees it. Without the member the client is left alone.
-        var seamedClient = options.RequirePerServiceCallChatHistoryPersistence
-            ? new HarnessLoopBoundaryChatClient(chatClient)
-            : chatClient;
-
-        return AgentExtensionRegistry.Wrap(seamedClient.AsAIAgent(options, _loggerFactory, _services), wrappers, definition.Name);
+        return AgentExtensionRegistry.Wrap(
+            AgentExtensionRegistry.Build(() => chatClient.AsAIAgent(options, _loggerFactory, _services), definition),
+            wrappers,
+            definition.Name);
     }
 
     /// <summary>The tenant an agent is compiled for: the current tenant, then the definition's own, then the default.</summary>
@@ -444,7 +439,7 @@ public sealed partial class AgentDefinitionCompiler
             definition, ResolveTenantId(definition), _services ?? NoServices.Instance, chatOptions: null, harnessOptions: options);
 
         return AgentExtensionRegistry.Wrap(
-            new HarnessLoopBoundaryChatClient(chatClient).AsHarnessAgent(options, _loggerFactory, _services),
+            AgentExtensionRegistry.Build(() => new HarnessLoopBoundaryChatClient(chatClient).AsHarnessAgent(options, _loggerFactory, _services), definition),
             wrappers,
             definition.Name);
 #pragma warning restore MAAI001

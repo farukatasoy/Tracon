@@ -24,19 +24,20 @@ namespace Tracon;
 /// hand; if they are, the run is placed at the specified spot in the tree.
 /// </para>
 /// <para>
-/// This type <em>carries no</em> <c>ChatOptions</c>. If sampling settings need
-/// to change per run, Microsoft Agent Framework's
-/// <c>ChatClientAgentRunOptions</c> type is used; the two types cannot be used
-/// together. Tracon's own endpoints resolve sampling settings from the agent
-/// definition, so a run that starts at an endpoint cannot change them. Code
-/// that runs an agent directly can pass <c>ChatClientAgentRunOptions</c>
-/// instead; that run then has no identifier, tree position, or budget that the
-/// caller sets.
+/// This type <em>carries no</em> public <c>ChatOptions</c>. Tracon's own
+/// endpoints resolve the model options from the agent definition, so a run that
+/// starts at an endpoint cannot change them. Code that runs an agent directly can
+/// pass Microsoft Agent Framework's <c>ChatClientAgentRunOptions</c> instead; that
+/// run then has no identifier, tree position, or budget that the caller sets. The
+/// run-recording wrapper refuses such options when they set what the definition
+/// owns (the model, sampling, the response format, a chat client factory, or a
+/// tool that runs); it accepts added instructions and tool declarations.
 /// </para>
 /// <para>
 /// Only the outermost run-recording wrapper reads this type. It hands the
 /// agents inside it a plain <see cref="AgentRunOptions"/> that carries the base
-/// properties, and the run's identity reaches them through
+/// properties (a <c>ChatClientAgentRunOptions</c> when a workflow step was given
+/// model options for the run), and the run's identity reaches them through
 /// <c>TraconRunContext</c>. Microsoft Agent Framework's function-invocation
 /// middleware rejects any other options type, so an <c>IAgentDecorator</c>
 /// that adds it must have an <c>Order</c> above 0.
@@ -66,6 +67,7 @@ public sealed class TraconRunOptions : AgentRunOptions
         ContinuedFromRunId = other.ContinuedFromRunId;
         BeforePendingApprovalIsPublished = other.BeforePendingApprovalIsPublished;
         ParameterValues = other.ParameterValues;
+        ChatOptions = other.ChatOptions;
     }
 
     /// <summary>
@@ -230,6 +232,18 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// </para>
     /// </remarks>
     internal IReadOnlyDictionary<string, string>? ParameterValues { get; init; }
+
+    /// <summary>
+    /// Gets the model options a sub-run was given for this run only, passed on to the agent as
+    /// <c>ChatClientAgentRunOptions</c>.
+    /// </summary>
+    /// <remarks>
+    /// A workflow step is Tracon's sub-agent wrapper, and the wrapper builds these options itself.
+    /// Microsoft Agent Framework's handoff step gives its agent the handoff tools and instructions on
+    /// <c>ChatClientAgentRunOptions</c>; without this member the wrapper dropped them, and no workflow
+    /// handed off. The wrapper checks them with the same rule as a caller's own run options.
+    /// </remarks>
+    internal ChatOptions? ChatOptions { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

@@ -281,19 +281,19 @@ public static partial class TraconBuilderExtensions
     /// inside a provider or a wrapper the extension adds.
     /// </para>
     /// <example>
-    /// Turns on Microsoft Agent Framework's message injection for the agents that select it:
+    /// Adds your own context provider to the agents that select it:
     /// <code>
     /// builder.AddTracon()
     ///        .AddAgentExtension(
-    ///            "message-injection",
+    ///            "house-policy",
     ///            context =>
     ///            {
     ///                if (context.ChatAgentOptions is { } options)
     ///                {
-    ///                    options.EnableMessageInjection = true;
+    ///                    options.AIContextProviders = [.. options.AIContextProviders ?? [], new HousePolicyProvider()];
     ///                }
     ///            },
-    ///            description: "Lets a caller inject a message into a running turn.");
+    ///            description: "Adds the house policy to the instructions of every model call.");
     /// </code>
     /// </example>
     /// </remarks>

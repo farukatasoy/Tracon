@@ -172,15 +172,21 @@ What to know about this door:
 - **Some options are protected.** A definition or a tenant and security decision owns the
   tool chain, the tool approval settings, the instructions and sampling settings, the chat
   history provider, file access, the working-directory skill scan, file memory, web search,
-  compaction, the loop, and the sub-agent tree. Two chat agent options are protected because
+  compaction, the loop, and the sub-agent tree. Some other options are protected because
   they change a protected setting indirectly. `UseProvidedChatClientAsIs` removes the
   framework's default chat client stack, and with it the approval binding and the per-call
   history writer. `AllowConcurrentInvocation` turns on concurrent tool calls in the tool loop
   that Tracon builds. For concurrent tool calls, set `AllowConcurrentToolCalls` in the model
-  binding of the definition. An extension that changes one of them fails the compilation with
+  binding of the definition. `ChatOptions.RawRepresentationFactory` replaces the model,
+  sampling, and provider settings of the definition on the wire. Two options are protected
+  because they do not work under Tracon. `EnableMessageInjection` and
+  `RequirePerServiceCallChatHistoryPersistence` act on each model call only when they are under
+  the tool loop. Tracon's tool loop is inside the model client, so these layers are above it. An
+  injected message does not reach the running turn, and the history is written once per turn.
+  An extension that changes a protected option fails the compilation with
   an error that names the extension and the option. Tracon does not undo the change. The
   provider list is append-only. The other options are yours, for example
-  `EnableMessageInjection`. The check covers the options object. It does not look inside a
+  `ThrowOnChatHistoryProviderConflict`. The check covers the options object. It does not look inside a
   provider or a wrapper that the extension adds, so a provider you add can still read files
   or load skills by itself. Register only extension code that you trust, as you do for a tool.
 - **A provider can add tools, and Tracon does not run them through the tool chain.**
@@ -188,6 +194,12 @@ What to know about this door:
   an agent. A tool that your own provider adds skips them. The run record still shows the
   call.
 - **A replay that plays tools back does not run the extension**, for the same reason.
+- **Model options for one run follow the same rule.** Code can run a catalog agent with
+  `ChatClientAgentRunOptions`. The run may add instructions and tool declarations, and it may
+  set the options that the definition leaves open. A model id, a sampling setting, a response
+  format, a chat client factory, or a tool that runs throws `ArgumentException` before the
+  run starts. No HTTP endpoint takes model options for one run. To change a run, change the
+  definition, run an experiment, or declare a parameter.
 
 ## Build the agent in a factory
 

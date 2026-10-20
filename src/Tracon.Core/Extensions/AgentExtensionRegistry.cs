@@ -178,6 +178,45 @@ internal sealed class AgentExtensionRegistry
         return wrappers;
     }
 
+    /// <summary>
+    /// Builds the agent from options the definition's extensions changed, and names the extensions
+    /// when Microsoft Agent Framework refuses those options.
+    /// </summary>
+    /// <param name="build">Builds the agent from the options.</param>
+    /// <param name="definition">The definition being compiled.</param>
+    /// <returns>The agent <paramref name="build"/> returned.</returns>
+    /// <exception cref="TraconCompilationException">The definition names an extension and the build threw.</exception>
+    /// <remarks>
+    /// Microsoft Agent Framework checks the options when it builds the agent, after every extension
+    /// ran: a second provider with the state key of one Tracon built is refused there. Without this,
+    /// the refusal reached the caller as an agent source failure that named no extension. Only the
+    /// exception type reaches the message, for the reason <see cref="Configure"/> gives.
+    /// </remarks>
+    public static AIAgent Build(Func<AIAgent> build, AgentDefinition definition)
+    {
+        if (definition.ExtensionNames.Count == 0)
+        {
+            return build();
+        }
+
+        try
+        {
+            return build();
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException and not TraconException)
+        {
+            throw new TraconCompilationException(
+                $"Agent '{definition.Name}' could not be built after the agent extensions " +
+                $"{string.Join(", ", definition.ExtensionNames.Select(static name => $"'{name}'"))} ran " +
+                $"({exception.GetType().Name}). A provider that an extension adds must not repeat one that " +
+                "Tracon built, for example a second skill provider.",
+                exception)
+            {
+                AgentName = definition.Name,
+            };
+        }
+    }
+
     /// <summary>Puts the wrappers around a compiled agent, the first one innermost.</summary>
     /// <param name="agent">The compiled agent.</param>
     /// <param name="wrappers">The wrappers from <see cref="Configure"/>.</param>

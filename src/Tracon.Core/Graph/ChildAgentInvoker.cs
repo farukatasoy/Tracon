@@ -208,7 +208,7 @@ public sealed class ChildAgentInvoker : AIAgent
         }
 
         var (agent, stepValues) = await ResolveForRunAsync(scope!, cancellationToken).ConfigureAwait(false);
-        var childOptions = CreateChildOptions(scope!, stepValues);
+        var childOptions = CreateChildOptions(scope!, stepValues, options);
 
         await WriteStartedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
 
@@ -249,9 +249,13 @@ public sealed class ChildAgentInvoker : AIAgent
         {
             var response = await invocation.ConfigureAwait(false);
 
-            return ChildRunApproval.Describe(response.Messages) is { } pending
-                ? Refused(ApprovalRefusal(pending))
-                : response;
+            if (ChildRunApproval.Describe(response.Messages) is { } pending)
+            {
+                return Refused(ApprovalRefusal(pending));
+            }
+
+            response.AgentId = Id;
+            return response;
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
@@ -295,7 +299,7 @@ public sealed class ChildAgentInvoker : AIAgent
         }
 
         var (agent, stepValues) = await ResolveForRunAsync(scope!, cancellationToken).ConfigureAwait(false);
-        var childOptions = CreateChildOptions(scope!, stepValues);
+        var childOptions = CreateChildOptions(scope!, stepValues, options);
 
         await WriteStartedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
 
@@ -361,7 +365,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
                 yield return ChildRunApproval.Describe(step.Update!.Contents) is { } pending
                     ? RefusedUpdate(ApprovalRefusal(pending))
-                    : step.Update;
+                    : AsOwnUpdate(step.Update);
             }
         }
         finally
@@ -373,6 +377,22 @@ public sealed class ChildAgentInvoker : AIAgent
                 await WriteCompletedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>Marks a child's update as this wrapper's own.</summary>
+    /// <param name="update">The update the child produced.</param>
+    /// <returns>The same update, with this wrapper's id as its agent id.</returns>
+    /// <remarks>
+    /// A workflow step is this wrapper, and Microsoft Agent Framework's handoff step reads a handoff
+    /// call only from an update whose agent id is the step's own agent. The child's agent is resolved
+    /// for each call and has its own id, so the handoff call was taken for an outside tool call and
+    /// the workflow stopped to wait for its result (measured 2026-10-20). Only the agent id changes;
+    /// the child does not read the update again.
+    /// </remarks>
+    private AgentResponseUpdate AsOwnUpdate(AgentResponseUpdate update)
+    {
+        update.AgentId = Id;
+        return update;
     }
 
     /// <summary>Advances the child's streaming enumerator under the same two-layer race as the non-streaming path.</summary>
@@ -488,9 +508,18 @@ public sealed class ChildAgentInvoker : AIAgent
 
     private static TraconRunOptions CreateChildOptions(
         AgentRunScope scope,
-        IReadOnlyDictionary<string, string>? stepValues)
-        => new()
+        IReadOnlyDictionary<string, string>? stepValues,
+        AgentRunOptions? options)
+    {
+        // The caller's own options are not the child's: the tree fields come from the
+        // scope. Only the model options for this run pass on - a handoff step gives
+        // its agent the handoff tools and instructions this way, and dropping them
+        // meant no workflow ever handed off. They pass the caller's run rule first.
+        RunChatOptionsRule.Check(options);
+
+        return new()
         {
+            ChatOptions = (options as ChatClientAgentRunOptions)?.ChatOptions?.Clone(),
             RunId = TraconId.NewId(),
             ParentRunId = scope.RunId,
             RootRunId = scope.RootRunId,
@@ -511,6 +540,7 @@ public sealed class ChildAgentInvoker : AIAgent
             // bound none.
             ParameterValues = stepValues,
         };
+    }
 
     private ValueTask WriteStartedAsync(
         AgentRunScope scope,
