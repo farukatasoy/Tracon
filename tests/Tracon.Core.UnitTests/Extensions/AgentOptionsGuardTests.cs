@@ -124,7 +124,6 @@ public sealed class AgentOptionsGuardTests
         var chatCheckpoint = AgentOptionsGuard.Take(chat);
 
         chat.EnableMessageInjection = true;
-        chat.AllowConcurrentInvocation = true;
         chat.RequirePerServiceCallChatHistoryPersistence = true;
         chat.ChatOptions!.ToolMode = ChatToolMode.None;
         chat.ChatOptions.AdditionalProperties = new AdditionalPropertiesDictionary { ["k"] = "v" };

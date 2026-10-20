@@ -27,8 +27,11 @@ namespace Tracon;
 /// This type <em>carries no</em> <c>ChatOptions</c>. If sampling settings need
 /// to change per run, Microsoft Agent Framework's
 /// <c>ChatClientAgentRunOptions</c> type is used; the two types cannot be used
-/// together. Tracon resolves sampling settings from the agent definition
-/// on its own endpoints, so this is not a practical constraint.
+/// together. Tracon's own endpoints resolve sampling settings from the agent
+/// definition, so a run that starts at an endpoint cannot change them. Code
+/// that runs an agent directly can pass <c>ChatClientAgentRunOptions</c>
+/// instead; that run then has no identifier, tree position, or budget that the
+/// caller sets.
 /// </para>
 /// <para>
 /// Only the outermost run-recording wrapper reads this type. It hands the
