@@ -114,7 +114,7 @@ claim to provide an operating-system sandbox.
 |---|---|---|
 | Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events; a plain-text answer cut off at the output limit or the context window ends with a `custom` frame (`tracon.output.truncated`) before `done` |
 | Non-streaming runs | .NET or an idempotent HTTP request | A completed response can be stored and replayed safely |
-| Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; it can be disabled and store failure never breaks the run |
+| Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; content and workflow events Tracon has no type for are recorded as `tracon.content` and `tracon.workflow.event` (metadata only); it can be disabled and store failure never breaks the run |
 | Custom run events | `RunEventType.Custom` and `AgentRunScope.Writer` | A tool writes its own named event into the stream a consumer already carries; the console draws it with a generic card, no code change required |
 | Custom agent decorator | `AddAgentDecorator<T>()`, instance, or factory | Joins the built-in decorators; `Order` decides where |
 | Cancellation | Run API and cancellation registry | A caller can request cancellation by run id while preserving the final recorded state |

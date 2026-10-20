@@ -64,6 +64,15 @@ internal sealed class WorkflowTestHost
     /// </summary>
     public bool RecordsRunInput { get; set; } = true;
 
+    /// <summary>
+    /// The product options <see cref="CreateRunner(Action{TraconWorkflowOptions}?, IServiceProvider?, CodeWorkflowRegistration[])"/>
+    /// hands the runner it builds, for a test that changes what a run records.
+    /// </summary>
+    public TraconOptions TraconOptions { get; } = new();
+
+    /// <summary>The logger the runners of the main factory write to; a test replaces it to read the log back.</summary>
+    public Microsoft.Extensions.Logging.ILogger<WorkflowRunner> RunnerLogger { get; set; } = NullLogger<WorkflowRunner>.Instance;
+
     public InMemoryRunStore RunStore { get; }
 
     public InMemoryWorkflowDefinitionStore DefinitionStore { get; }
@@ -311,8 +320,8 @@ internal sealed class WorkflowTestHost
             CheckpointStore,
             TenantContext,
             Options.Create(settings),
-            Options.Create(new TraconOptions()),
-            NullLogger<WorkflowRunner>.Instance,
+            Options.Create(TraconOptions),
+            RunnerLogger,
             timeProvider: timeProvider,
             sinks: sinks,
             runInputStore: RecordsRunInput ? RunInputs : null);
