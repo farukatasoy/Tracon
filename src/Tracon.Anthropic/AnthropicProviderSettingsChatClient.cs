@@ -32,6 +32,15 @@ namespace Tracon;
 /// calls; writing over it would mix up concurrent runs.
 /// </para>
 /// <para>
+/// It also keeps <see cref="ModelBinding.AllowMultipleToolCalls"/> from being dropped
+/// without a word. Measured (Anthropic 12.58.0 adapter, decompiled): the adapter reads
+/// <see cref="ChatOptions.AllowMultipleToolCalls"/> only while it builds <c>tool_choice</c>
+/// from <see cref="ChatOptions.ToolMode"/>, so a request that sets the first and not the
+/// second goes out without <c>disable_parallel_tool_use</c>. When the request carries tools
+/// and no tool mode, the decorator sets <see cref="ChatToolMode.Auto"/>, which is what the
+/// provider does without a <c>tool_choice</c>, so the flag has a place to travel in.
+/// </para>
+/// <para>
 /// Every Anthropic client carries this decorator, also when no setting changes
 /// the request: it answers <see cref="ModelOutputLimit"/> through
 /// <see cref="GetService"/>, so the validation report knows the
@@ -80,6 +89,8 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        options = CarryParallelToolUse(options);
+
         if (!_settings.ChangesRequest)
         {
             return base.GetResponseAsync(messages, options, cancellationToken);
@@ -96,6 +107,8 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        options = CarryParallelToolUse(options);
+
         if (!_settings.ChangesRequest)
         {
             return base.GetStreamingResponseAsync(messages, options, cancellationToken);
@@ -104,6 +117,23 @@ internal sealed class AnthropicProviderSettingsChatClient : DelegatingChatClient
         var (requestMessages, requestOptions) = Apply(messages, options);
 
         return base.GetStreamingResponseAsync(requestMessages, requestOptions, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gives <see cref="ChatOptions.AllowMultipleToolCalls"/> a <c>tool_choice</c> to travel in; see the class remarks.
+    /// A new options object: the caller's is shared by every run of the compiled agent and is never written.
+    /// </summary>
+    private static ChatOptions? CarryParallelToolUse(ChatOptions? options)
+    {
+        if (options is not { AllowMultipleToolCalls: not null, ToolMode: null, Tools: { Count: > 0 } })
+        {
+            return options;
+        }
+
+        var copy = options.Clone();
+        copy.ToolMode = ChatToolMode.Auto;
+
+        return copy;
     }
 
     private (IEnumerable<ChatMessage> Messages, ChatOptions Options) Apply(IEnumerable<ChatMessage> messages, ChatOptions? options)

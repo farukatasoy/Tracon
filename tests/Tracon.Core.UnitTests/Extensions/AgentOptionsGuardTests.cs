@@ -125,9 +125,8 @@ public sealed class AgentOptionsGuardTests
 
         chat.ThrowOnChatHistoryProviderConflict = true;
         chat.DisableApprovalNotRequiredFunctionBypassing = true;
-        chat.ChatOptions!.ToolMode = ChatToolMode.None;
+        chat.ChatOptions!.AllowBackgroundResponses = true;
         chat.ChatOptions.AdditionalProperties = new AdditionalPropertiesDictionary { ["k"] = "v" };
-        chat.ChatOptions.Seed = 7;
 
         chatCheckpoint.Changes().ShouldBeEmpty();
 
@@ -211,6 +210,51 @@ public sealed class AgentOptionsGuardTests
         checkpoint.Changes().ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// The request fields the definition sets (<c>ModelBinding.Seed</c> and the others) are protected: an
+    /// extension that sets one would skip the provider support check and the version history.
+    /// </summary>
+    /// <param name="member">The request field.</param>
+    [Theory]
+    [InlineData(nameof(ChatOptions.Seed))]
+    [InlineData(nameof(ChatOptions.TopK))]
+    [InlineData(nameof(ChatOptions.StopSequences))]
+    [InlineData(nameof(ChatOptions.FrequencyPenalty))]
+    [InlineData(nameof(ChatOptions.PresencePenalty))]
+    [InlineData(nameof(ChatOptions.ToolMode))]
+    [InlineData(nameof(ChatOptions.AllowMultipleToolCalls))]
+    public void A_request_field_the_definition_sets_is_protected(string member)
+    {
+        AgentOptionsGuard.Chat.RuleOf(member).ShouldBe(AgentOptionsGuard.Rule.Protected);
+        AgentOptionsGuard.ChatAgent.RuleOf($"ChatOptions.{member}").ShouldBe(AgentOptionsGuard.Rule.Protected);
+        AgentOptionsGuard.Harness.RuleOf($"ChatOptions.{member}").ShouldBe(AgentOptionsGuard.Rule.Protected);
+    }
+
+    [Fact]
+    public void An_equal_tool_mode_and_stop_list_written_back_are_not_a_change()
+    {
+        var options = new ChatClientAgentOptions
+        {
+            ChatOptions = BaselineChatOptions(),
+        };
+        options.ChatOptions!.ToolMode = ChatToolMode.RequireSpecific("lookup");
+        options.ChatOptions.StopSequences = ["END", "STOP"];
+        var checkpoint = AgentOptionsGuard.Take(options);
+
+        // A new object with the same meaning, as an extension that rebuilds the value would write.
+        options.ChatOptions.ToolMode = ChatToolMode.RequireSpecific("lookup");
+        options.ChatOptions.StopSequences = new List<string> { "END", "STOP" };
+
+        checkpoint.Changes().ShouldBeEmpty();
+
+        options.ChatOptions.ToolMode = ChatToolMode.RequireAny;
+        checkpoint.Changes().ShouldBe(["ChatClientAgentOptions.ChatOptions.ToolMode"]);
+
+        options.ChatOptions.ToolMode = ChatToolMode.RequireSpecific("lookup");
+        options.ChatOptions.StopSequences = ["END"];
+        checkpoint.Changes().ShouldBe(["ChatClientAgentOptions.ChatOptions.StopSequences"]);
+    }
+
     private static ChatOptions BaselineChatOptions() => new()
     {
         Instructions = "Be brief.",
@@ -271,6 +315,16 @@ public sealed class AgentOptionsGuardTests
         if (underlying == typeof(int))
         {
             return (current as int? ?? 0) + 1;
+        }
+
+        if (underlying == typeof(long))
+        {
+            return (current as long? ?? 0L) + 1L;
+        }
+
+        if (underlying == typeof(IList<string>))
+        {
+            return new List<string> { "stop-changed" };
         }
 
         if (underlying == typeof(float))

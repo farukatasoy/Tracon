@@ -170,13 +170,14 @@ What to know about this door:
   `HarnessAgentOptions` for a harness agent. `context.Use` adds a wrapper around the
   compiled agent, inside Tracon's own wrappers and decorators.
 - **Some options are protected.** A definition or a tenant and security decision owns the
-  tool chain, the tool approval settings, the instructions and sampling settings, the chat
+  tool chain, the tool approval settings, the instructions and sampling settings (including the seed,
+  top-k, stop sequences, penalties, tool mode, and `AllowMultipleToolCalls`), the chat
   history provider, file access, the working-directory skill scan, file memory, web search,
   compaction, the loop, and the sub-agent tree. Some other options are protected because
   they change a protected setting indirectly. `UseProvidedChatClientAsIs` removes the
   framework's default chat client stack, and with it the approval binding and the per-call
   history writer. `AllowConcurrentInvocation` turns on concurrent tool calls in the tool loop
-  that Tracon builds. For concurrent tool calls, set `AllowConcurrentToolCalls` in the model
+  that Tracon builds. For concurrent tool calls, set `ToolLoop.AllowConcurrentToolCalls` in the model
   binding of the definition. `ChatOptions.RawRepresentationFactory` replaces the model,
   sampling, and provider settings of the definition on the wire. Two options are protected
   because they do not work under Tracon. `EnableMessageInjection` and
@@ -196,9 +197,9 @@ What to know about this door:
 - **A replay that plays tools back does not run the extension**, for the same reason.
 - **Model options for one run follow the same rule.** Code can run a catalog agent with
   `ChatClientAgentRunOptions`. The run may add instructions and tool declarations, and it may
-  set the options that the definition leaves open. A model id, a sampling setting, a response
-  format, a chat client factory, or a tool that runs throws `ArgumentException` before the
-  run starts. No HTTP endpoint takes model options for one run. To change a run, change the
+  turn parallel tool calls off (`AllowMultipleToolCalls = false`), which a handoff step does. A
+  model id, a sampling setting, a tool mode, a response format, a chat client factory, or a tool
+  that runs throws `ArgumentException` before the run starts. No HTTP endpoint takes model options for one run. To change a run, change the
   definition, run an experiment, or declare a parameter.
 
 ## Build the agent in a factory

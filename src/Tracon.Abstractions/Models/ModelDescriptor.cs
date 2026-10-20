@@ -91,4 +91,14 @@ public sealed record ModelProviderDescriptor
     /// <c>/api/models/health</c> for a live check.
     /// </remarks>
     public ModelProviderHealthStatus Status { get; init; }
+
+    /// <summary>
+    /// Gets the fields the provider's API surface sends to the model, as the provider stated
+    /// them through <see cref="ISamplingSupport"/>.
+    /// </summary>
+    /// <remarks>
+    /// Not part of the wire shape. The compiler and the validator read it to reject a
+    /// definition that sets a field the provider would drop.
+    /// </remarks>
+    internal SamplingFields SupportedSamplingFields { get; init; }
 }

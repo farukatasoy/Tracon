@@ -51,7 +51,15 @@ describe('definition round trip', () => {
       fallbacks: [],
       providerSettings: { 'anthropic.promptCaching': true } as never,
       responseCache: { enabled: true, lifetime: '00:05:00' },
-      allowConcurrentToolCalls: true,
+      seed: 42,
+      topK: 40,
+      stopSequences: ['END', 'STOP'],
+      frequencyPenalty: 0.25,
+      presencePenalty: 0.5,
+      toolMode: 'required:diff-tool',
+      allowMultipleToolCalls: false,
+      reasoningOutput: 'Summary',
+      toolLoop: { allowConcurrentToolCalls: true, maximumConsecutiveErrors: 1, terminateOnUnknownCalls: false },
     },
     toolNames: ['diff-tool'],
     skillNames: [],
@@ -93,7 +101,63 @@ describe('definition round trip', () => {
   it('keeps the model sub-fields the editor rebuilds around', () => {
     expect(request.model.providerSettings).toEqual(definition.model.providerSettings);
     expect(request.model.responseCache).toEqual(definition.model.responseCache);
-    expect(request.model.allowConcurrentToolCalls).toBe(true);
+  });
+
+  // F-598: the sampling fields and the tool-call loop are the editor's own controls now,
+  // so a definition that sets them must come back from the form as it went in.
+  it('keeps the request fields and the tool-call loop the editor now has controls for', () => {
+    expect(request.model.seed).toBe(42);
+    expect(request.model.topK).toBe(40);
+    expect(request.model.stopSequences).toEqual(['END', 'STOP']);
+    expect(request.model.frequencyPenalty).toBe(0.25);
+    expect(request.model.presencePenalty).toBe(0.5);
+    expect(request.model.toolMode).toBe('required:diff-tool');
+    expect(request.model.allowMultipleToolCalls).toBe(false);
+    expect(request.model.reasoningOutput).toBe('Summary');
+    expect(request.model.toolLoop).toEqual({
+      allowConcurrentToolCalls: true,
+      maximumConsecutiveErrors: 1,
+      terminateOnUnknownCalls: false,
+    });
+  });
+
+  it('sends the unset fields as null so the provider default applies', () => {
+    const bare = toRequest(fromDefinition({ ...definition, model: { ...definition.model, seed: null, topK: null, stopSequences: null, frequencyPenalty: null, presencePenalty: null, toolMode: null, allowMultipleToolCalls: null, reasoningOutput: null, toolLoop: null } }));
+
+    expect(bare.model.seed).toBeNull();
+    expect(bare.model.topK).toBeNull();
+    expect(bare.model.stopSequences).toBeNull();
+    expect(bare.model.frequencyPenalty).toBeNull();
+    expect(bare.model.presencePenalty).toBeNull();
+    expect(bare.model.toolMode).toBeNull();
+    expect(bare.model.allowMultipleToolCalls).toBeNull();
+    expect(bare.model.reasoningOutput).toBeNull();
+    expect(bare.model.toolLoop).toEqual({ allowConcurrentToolCalls: false, maximumConsecutiveErrors: null, terminateOnUnknownCalls: null });
+  });
+
+  it('writes one stop sequence per line and drops empty lines', () => {
+    const form = { ...fromDefinition(definition), stopSequences: 'END\n\nSTOP\r\n' };
+
+    expect(toRequest(form).model.stopSequences).toEqual(['END', 'STOP']);
+    expect(toRequest({ ...form, stopSequences: '\n' }).model.stopSequences).toBeNull();
+  });
+
+  it('keeps a stop sequence exactly as typed, spaces included', () => {
+    const form = { ...fromDefinition(definition), stopSequences: ' User:\nEND ' };
+
+    expect(toRequest(form).model.stopSequences).toEqual([' User:', 'END ']);
+  });
+
+  // The text box holds one sequence per line: a stored sequence with a line break, or one that is only
+  // whitespace, cannot be rebuilt from it. An edit of another field must not rewrite it.
+  it('sends an untouched stop list as loaded, even one the text box cannot hold', () => {
+    const awkward = ['\nUser:', '  ', 'a\r\nb'];
+    const loaded = fromDefinition({ ...definition, model: { ...definition.model, stopSequences: awkward } });
+
+    expect(toRequest({ ...loaded, description: 'edited elsewhere' }).model.stopSequences).toEqual(awkward);
+
+    // Typing into the box takes the text as the new list.
+    expect(toRequest({ ...loaded, stopSequences: 'END' }).model.stopSequences).toEqual(['END']);
   });
 
   // The old predicate asked only about file/todo/text search, so a definition

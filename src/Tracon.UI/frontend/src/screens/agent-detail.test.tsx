@@ -110,6 +110,73 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(criteria?.className ?? '').not.toContain('bg-warn-soft');
   });
 
+  it('shows the request fields and the tool-call loop of two versions and marks what changed (Phase 225)', async () => {
+    // The fields are part of the definition version; a version diff that omitted them would show two
+    // identical tables for a changed seed.
+    const definition = (version: number, seed: number, concurrent: boolean): unknown => ({
+      name: 'sampler',
+      instructions: 'Answer.',
+      instructionsByCulture: {},
+      model: {
+        provider: 'echo',
+        model: 'echo-1',
+        seed,
+        topK: 40,
+        stopSequences: ['END', 'STOP'],
+        toolMode: 'auto',
+        toolLoop: { allowConcurrentToolCalls: concurrent, maximumConsecutiveErrors: version === 1 ? null : 2, terminateOnUnknownCalls: null },
+      },
+      toolNames: [],
+      skillNames: [],
+      extensionNames: [],
+      callableAgentNames: [],
+      harness: null,
+      compaction: null,
+      memory: null,
+      origin: 'Database',
+      version,
+    });
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/agents/:name/versions/:a/diff/:b', { left: definition(1, 42, false), right: definition(2, 99, true) }),
+      fixture('GET', 'api/agents/:name/versions', [
+        { name: 'sampler', version: 1, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-13T09:00:00Z' },
+        { name: 'sampler', version: 2, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-13T10:00:00Z' },
+      ]),
+      fixture('GET', 'api/agents/:name', {
+        descriptor: { name: 'sampler', origin: 'Database', sourceName: 'database', version: 2, toolNames: [] },
+        definition: definition(2, 99, true),
+        factoryInstructions: null,
+        isEditable: true,
+      }),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<AgentDetailScreen name="sampler" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('version-checkbox-1'));
+    await user.click(screen.getByTestId('version-checkbox-2'));
+
+    const seedRow = (await screen.findByText('Seed')).closest('tr');
+
+    expect(seedRow?.textContent).toBe('Seed4299');
+    expect(seedRow?.className).toContain('bg-warn-soft');
+
+    const topK = screen.getByText('Top K').closest('tr');
+
+    expect(topK?.textContent).toBe('Top K4040');
+    expect(topK?.className ?? '').not.toContain('bg-warn-soft');
+
+    expect(screen.getByText('Stop sequences').closest('tr')?.textContent).toContain('END, STOP');
+
+    const loop = screen.getByText('Tool-call loop', { selector: 'td' }).closest('tr');
+
+    expect(loop?.className).toContain('bg-warn-soft');
+    expect(loop?.textContent).toContain('—');
+    expect(loop?.textContent).toContain('Failed tool turns tolerated in a row: 2');
+  });
+
   it('rolls an agent back through the shared version history, and shows the refusal in the screen slot', async () => {
     // Phase 200 moved the history into a component the workflow screen shares; the agent's own
     // columns, its rollback and its error slot must have come with it.

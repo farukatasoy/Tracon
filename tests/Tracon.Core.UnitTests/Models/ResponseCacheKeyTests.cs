@@ -125,6 +125,77 @@ public sealed class ResponseCacheKeyTests
         innerB.CallCount.ShouldBe(1);
     }
 
+    /// <summary>
+    /// A request field the definition sets changes the answer the model gives, so two requests that differ in
+    /// only that field must not share an entry (F-598). The base key summarizes the options as a whole
+    /// (measured, 2026-10-20); this row per field keeps it that way if the base key ever lists members.
+    /// </summary>
+    /// <param name="field">The member that differs.</param>
+    [Theory]
+    [InlineData(nameof(ChatOptions.Seed))]
+    [InlineData(nameof(ChatOptions.TopK))]
+    [InlineData(nameof(ChatOptions.StopSequences))]
+    [InlineData(nameof(ChatOptions.FrequencyPenalty))]
+    [InlineData(nameof(ChatOptions.PresencePenalty))]
+    [InlineData(nameof(ChatOptions.ToolMode))]
+    [InlineData(nameof(ChatOptions.AllowMultipleToolCalls))]
+    [InlineData(nameof(ChatOptions.Reasoning))]
+    public async Task A_different_request_field_does_not_share_a_cache_entry(string field)
+    {
+        var cache = new FakeDistributedCache();
+        var innerA = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "4")));
+        var innerB = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "4")));
+
+        using var clientA = new TraconResponseCachingChatClient(innerA, cache, "openai", "tenant-a", Settings);
+        using var clientB = new TraconResponseCachingChatClient(innerB, cache, "openai", "tenant-a", Settings);
+
+        var tools = new List<AITool> { Tool("calc") };
+        var optionsA = new ChatOptions { ModelId = "gpt-5", Tools = tools };
+        var optionsB = new ChatOptions { ModelId = "gpt-5", Tools = tools };
+
+        switch (field)
+        {
+            case nameof(ChatOptions.Seed):
+                optionsA.Seed = 1;
+                optionsB.Seed = 2;
+                break;
+            case nameof(ChatOptions.TopK):
+                optionsA.TopK = 10;
+                optionsB.TopK = 40;
+                break;
+            case nameof(ChatOptions.StopSequences):
+                optionsA.StopSequences = ["END"];
+                optionsB.StopSequences = ["STOP"];
+                break;
+            case nameof(ChatOptions.FrequencyPenalty):
+                optionsA.FrequencyPenalty = 0.1f;
+                optionsB.FrequencyPenalty = 0.9f;
+                break;
+            case nameof(ChatOptions.PresencePenalty):
+                optionsA.PresencePenalty = 0.1f;
+                optionsB.PresencePenalty = 0.9f;
+                break;
+            case nameof(ChatOptions.ToolMode):
+                optionsA.ToolMode = ChatToolMode.Auto;
+                optionsB.ToolMode = ChatToolMode.RequireAny;
+                break;
+            case nameof(ChatOptions.AllowMultipleToolCalls):
+                optionsA.AllowMultipleToolCalls = true;
+                optionsB.AllowMultipleToolCalls = false;
+                break;
+            default:
+                optionsA.Reasoning = new ReasoningOptions { Output = ReasoningOutput.None };
+                optionsB.Reasoning = new ReasoningOptions { Output = ReasoningOutput.Full };
+                break;
+        }
+
+        await clientA.GetResponseAsync(Messages, optionsA, TestContext.Current.CancellationToken);
+        await clientB.GetResponseAsync(Messages, optionsB, TestContext.Current.CancellationToken);
+
+        innerA.CallCount.ShouldBe(1);
+        innerB.CallCount.ShouldBe(1, $"a request that differs only in {field} must reach the model");
+    }
+
     [Fact]
     public async Task Empty_message_list_does_not_throw()
     {

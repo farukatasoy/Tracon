@@ -19,8 +19,10 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// The endpoints bind their body by hand (<see cref="RequestBodyBinding"/>), so
-/// the filter buffers the request, looks at the TOP-LEVEL property names only,
-/// and rewinds the stream for the binder. The name is matched case-insensitively
+/// the filter buffers the request, looks at the property names along the path
+/// it was given (a dotted path such as <c>model.allowConcurrentToolCalls</c>
+/// walks nested objects; a plain name is a top-level property), and rewinds the
+/// stream for the binder. A name is matched case-insensitively
 /// because the binder does the same: <c>AuthorizationConfigurationKey</c> was
 /// accepted before the field was removed. A body that is not valid JSON or not an
 /// object passes through untouched, so the binder gives its usual answer. The
@@ -37,7 +39,10 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
     private readonly string _replacement;
 
     /// <summary>Creates a filter for one removed field.</summary>
-    /// <param name="fieldName">The wire name of the removed field, for example <c>authorizationConfigurationKey</c>.</param>
+    /// <param name="fieldName">
+    /// The wire name of the removed field, for example <c>authorizationConfigurationKey</c>, or its dotted
+    /// path when it sits in a nested object, for example <c>model.allowConcurrentToolCalls</c>.
+    /// </param>
     /// <param name="replacement">What to send instead, as the sentence names it, for example <c>headerConfigurationKeys["Authorization"]</c>.</param>
     /// <exception cref="ArgumentException">A parameter is <see langword="null"/> or white space.</exception>
     public RemovedFieldFilter(string fieldName, string replacement)
@@ -69,6 +74,24 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
         return await next(context).ConfigureAwait(false);
     }
 
+    private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = property.Value;
+                    return true;
+                }
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
     private async ValueTask<bool> CarriesFieldAsync(HttpRequest request, CancellationToken cancellationToken)
     {
         request.EnableBuffering();
@@ -79,20 +102,17 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
                 .ParseAsync(request.Body, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                return false;
-            }
+            var element = document.RootElement;
 
-            foreach (var property in document.RootElement.EnumerateObject())
+            foreach (var name in _fieldName.Split('.'))
             {
-                if (string.Equals(property.Name, _fieldName, StringComparison.OrdinalIgnoreCase))
+                if (!TryGetProperty(element, name, out element))
                 {
-                    return true;
+                    return false;
                 }
             }
 
-            return false;
+            return true;
         }
         catch (JsonException)
         {

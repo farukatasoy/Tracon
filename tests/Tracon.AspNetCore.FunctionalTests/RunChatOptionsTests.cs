@@ -46,13 +46,42 @@ public sealed class RunChatOptionsTests
         await using var host = await StartAsync(provider);
         var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
 
-        await agent.RunAsync("hi", session: null, new ChatClientAgentRunOptions(new ChatOptions { Seed = 42, Instructions = "RUN-NOTE" }));
+        await agent.RunAsync(
+            "hi",
+            session: null,
+            new ChatClientAgentRunOptions(new ChatOptions
+            {
+                AdditionalProperties = new AdditionalPropertiesDictionary { ["run-note"] = "kept" },
+                Instructions = "RUN-NOTE",
+            }));
 
         var request = provider.Requests.ShouldHaveSingleItem().Options.ShouldNotBeNull();
-        request.Seed.ShouldBe(42);
+        request.AdditionalProperties.ShouldNotBeNull()["run-note"].ShouldBe("kept");
         request.ModelId.ShouldBe(ModelName);
         request.Instructions.ShouldNotBeNull().ShouldContain("Answer briefly.", Case.Sensitive);
         request.Instructions.ShouldContain("RUN-NOTE", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// A request field the definition can set is the definition's: a seed on the run would reach the provider
+    /// unchecked and unrecorded. A handoff step may turn parallel tool calls off, which only narrows them.
+    /// </summary>
+    [Fact]
+    public async Task A_run_cannot_set_a_request_field_but_may_turn_parallel_tool_calls_off()
+    {
+        var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, static cfg => cfg.EchoesUserMessage());
+        await using var host = await StartAsync(provider);
+        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
+
+        var exception = await Should.ThrowAsync<ArgumentException>(
+            () => agent.RunAsync("hi", session: null, new ChatClientAgentRunOptions(new ChatOptions { Seed = 42 })));
+
+        exception.Message.ShouldContain("ChatOptions.Seed", Case.Sensitive);
+        provider.Requests.ShouldBeEmpty();
+
+        await agent.RunAsync("hi", session: null, new ChatClientAgentRunOptions(new ChatOptions { AllowMultipleToolCalls = false }));
+
+        provider.Requests.ShouldHaveSingleItem().Options.ShouldNotBeNull().AllowMultipleToolCalls.ShouldBe(false);
     }
 
     private static Task<TraconTestHost> StartAsync(FakeModelProvider provider)

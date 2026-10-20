@@ -531,7 +531,7 @@ public sealed class AgentExtensionRunTests
             builder => builder.AddAgentExtension("parallel", static context => context.ChatAgentOptions!.AllowConcurrentInvocation = true),
             definition: Definition(["parallel"], harness: false) with
             {
-                Model = new ModelBinding { Provider = ProviderName, Model = ModelName, AllowConcurrentToolCalls = false },
+                Model = new ModelBinding { Provider = ProviderName, Model = ModelName, ToolLoop = new ToolLoopSettings { AllowConcurrentToolCalls = false } },
             });
 
         TraconCompilationException? failure = null;

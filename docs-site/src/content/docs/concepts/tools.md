@@ -62,7 +62,7 @@ instead of `AddTool` — see
 [scoped dependencies](/guides/write-your-own-tool/#scoped-dependencies).
 
 Because a tool is shared, the same tool can already run **concurrently across
-different runs** today, whether or not `AllowConcurrentToolCalls` is set —
+different runs** today, whether or not `ToolLoop.AllowConcurrentToolCalls` is set —
 that setting only governs whether one run's own turn calls its several tools
 one after another or at the same time. A tool body that keeps no mutable
 instance state handles both cases for free.
@@ -242,7 +242,7 @@ already fits is returned exactly as the tool produced it, never wrapped.
 ### Concurrent tool calls
 
 By default, when a model turn calls several independent tools at once, Tracon
-runs them one after another. Set `ModelBinding.AllowConcurrentToolCalls` to run them
+runs them one after another. Set `ModelBinding.ToolLoop.AllowConcurrentToolCalls` to run them
 at the same time instead — each call still gets its own authorization decision, its
 own recorded result, and its own entry in the tool-usage metrics; none of that mixes
 up between calls that happen to overlap.
@@ -251,8 +251,8 @@ Off by default: with no change, tool calls run one at a time exactly as they do
 today. Turn it on only for tools whose bodies are safe to run concurrently with
 themselves — a tool that shares mutable state across calls without its own
 synchronization should not opt in. See
-[Model providers](/guides/model-providers/#concurrent-tool-calls) for where this
-setting lives on `ModelBinding`.
+[Model providers](/guides/model-providers/#tool-call-loop) for where this
+setting lives on `ModelBinding`, and for the other settings of the loop.
 
 ### Built-in image generation
 

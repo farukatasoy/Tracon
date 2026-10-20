@@ -14,6 +14,47 @@ import type { AgentDefinition } from '../../lib/server-types';
 
 export const REASONING_EFFORTS = ['', 'None', 'Low', 'Medium', 'High', 'ExtraHigh'] as const;
 
+export const REASONING_OUTPUTS = ['', 'None', 'Summary', 'Full'] as const;
+
+/** The tool modes that take no tool name. `required:<tool>` is built from the definition's tool list. */
+export const TOOL_MODES = ['', 'auto', 'none', 'required'] as const;
+
+/** A setting that is on, off, or left to the provider (an unset `boolean | null`). */
+export const TRI_STATES = ['', 'true', 'false'] as const;
+export type TriState = (typeof TRI_STATES)[number];
+
+export function toTriState(value: boolean | null | undefined): TriState {
+  return value === true ? 'true' : value === false ? 'false' : '';
+}
+
+function fromTriState(value: TriState): boolean | null {
+  return value === 'true' ? true : value === 'false' ? false : null;
+}
+
+/**
+ * One stop sequence per line; empty lines are dropped and a form with none sends `null`. A line is
+ * kept exactly as typed: a stop sequence may start or end with a space.
+ */
+function toStopSequences(text: string): string[] | null {
+  const sequences = text
+    .split('\n')
+    .map((line) => line.replace(/\r$/, ''))
+    .filter((line) => line.length > 0);
+
+  return sequences.length > 0 ? sequences : null;
+}
+
+/**
+ * The stop sequences to send. A list the person did not touch is sent as it was loaded: the text box
+ * holds one sequence per line, so a stored sequence that contains a line break, or that is only
+ * whitespace, would come back changed if it were rebuilt from the text.
+ */
+function stopSequencesToSend(form: FormState): string[] | null {
+  const source = form.stopSequencesSource;
+
+  return source !== null && form.stopSequences === source.join('\n') ? source : toStopSequences(form.stopSequences);
+}
+
 export const RESPONSE_FORMAT_KINDS = ['', 'Text', 'Json', 'JsonSchema'] as const;
 export type ResponseFormatKindOption = (typeof RESPONSE_FORMAT_KINDS)[number];
 
@@ -73,7 +114,6 @@ export interface PreservedFields {
   sharedInstructionsName: AgentDefinitionRequest['sharedInstructionsName'];
   providerSettings: ModelBinding['providerSettings'];
   responseCache: ModelBinding['responseCache'];
-  allowConcurrentToolCalls: ModelBinding['allowConcurrentToolCalls'];
 }
 
 export const emptyPreserved: PreservedFields = {
@@ -84,7 +124,6 @@ export const emptyPreserved: PreservedFields = {
   sharedInstructionsName: null,
   providerSettings: {},
   responseCache: null,
-  allowConcurrentToolCalls: false,
 };
 
 export interface FormState {
@@ -99,6 +138,19 @@ export interface FormState {
   maxOutputTokens: string;
   topP: string;
   reasoningEffort: string;
+  reasoningOutput: string;
+  seed: string;
+  topK: string;
+  stopSequences: string;
+  /** The list as it was loaded; `null` for a new agent. See {@link stopSequencesToSend}. */
+  stopSequencesSource: string[] | null;
+  frequencyPenalty: string;
+  presencePenalty: string;
+  toolMode: string;
+  allowMultipleToolCalls: TriState;
+  toolLoopAllowConcurrentToolCalls: boolean;
+  toolLoopMaximumConsecutiveErrors: string;
+  toolLoopTerminateOnUnknownCalls: TriState;
   responseFormatKind: ResponseFormatKindOption;
   responseFormatSchema: string;
   responseFormatSchemaName: string;
@@ -127,6 +179,18 @@ export const emptyForm: FormState = {
   maxOutputTokens: '',
   topP: '',
   reasoningEffort: '',
+  reasoningOutput: '',
+  seed: '',
+  topK: '',
+  stopSequences: '',
+  stopSequencesSource: null,
+  frequencyPenalty: '',
+  presencePenalty: '',
+  toolMode: '',
+  allowMultipleToolCalls: '',
+  toolLoopAllowConcurrentToolCalls: false,
+  toolLoopMaximumConsecutiveErrors: '',
+  toolLoopTerminateOnUnknownCalls: '',
   responseFormatKind: '',
   responseFormatSchema: DEFAULT_SCHEMA_TEXT,
   responseFormatSchemaName: '',
@@ -181,13 +245,25 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     maxOutputTokens: toNumber(form.maxOutputTokens),
     topP: toNumber(form.topP),
     reasoningEffort: form.reasoningEffort.length > 0 ? form.reasoningEffort : null,
+    reasoningOutput: form.reasoningOutput.length > 0 ? form.reasoningOutput : null,
+    seed: toNumber(form.seed),
+    topK: toNumber(form.topK),
+    stopSequences: stopSequencesToSend(form),
+    frequencyPenalty: toNumber(form.frequencyPenalty),
+    presencePenalty: toNumber(form.presencePenalty),
+    toolMode: form.toolMode.length > 0 ? form.toolMode : null,
+    allowMultipleToolCalls: fromTriState(form.allowMultipleToolCalls),
+    toolLoop: {
+      allowConcurrentToolCalls: form.toolLoopAllowConcurrentToolCalls,
+      maximumConsecutiveErrors: toNumber(form.toolLoopMaximumConsecutiveErrors),
+      terminateOnUnknownCalls: fromTriState(form.toolLoopTerminateOnUnknownCalls),
+    },
     responseFormat: toResponseFormat(form),
     fallbacks: form.fallbacks.filter(
       (fallback) => fallback.provider.trim().length > 0 && fallback.model.trim().length > 0,
     ),
     providerSettings: form.preserved.providerSettings,
     responseCache: form.preserved.responseCache,
-    allowConcurrentToolCalls: form.preserved.allowConcurrentToolCalls,
   };
 
   return {
@@ -236,6 +312,18 @@ export function fromDefinition(definition: AgentDefinition): FormState {
     maxOutputTokens: definition.model.maxOutputTokens?.toString() ?? '',
     topP: definition.model.topP?.toString() ?? '',
     reasoningEffort: definition.model.reasoningEffort ?? '',
+    reasoningOutput: definition.model.reasoningOutput ?? '',
+    seed: definition.model.seed?.toString() ?? '',
+    topK: definition.model.topK?.toString() ?? '',
+    stopSequences: (definition.model.stopSequences ?? []).join('\n'),
+    stopSequencesSource: definition.model.stopSequences ?? null,
+    frequencyPenalty: definition.model.frequencyPenalty?.toString() ?? '',
+    presencePenalty: definition.model.presencePenalty?.toString() ?? '',
+    toolMode: definition.model.toolMode ?? '',
+    allowMultipleToolCalls: toTriState(definition.model.allowMultipleToolCalls),
+    toolLoopAllowConcurrentToolCalls: definition.model.toolLoop?.allowConcurrentToolCalls ?? false,
+    toolLoopMaximumConsecutiveErrors: definition.model.toolLoop?.maximumConsecutiveErrors?.toString() ?? '',
+    toolLoopTerminateOnUnknownCalls: toTriState(definition.model.toolLoop?.terminateOnUnknownCalls),
     responseFormatKind: definition.model.responseFormat?.kind ?? '',
     responseFormatSchema:
       definition.model.responseFormat?.schema !== undefined && definition.model.responseFormat?.schema !== null
@@ -260,7 +348,6 @@ export function fromDefinition(definition: AgentDefinition): FormState {
       sharedInstructionsName: definition.sharedInstructionsName ?? null,
       providerSettings: definition.model.providerSettings ?? {},
       responseCache: definition.model.responseCache ?? null,
-      allowConcurrentToolCalls: definition.model.allowConcurrentToolCalls ?? false,
     },
   };
 }

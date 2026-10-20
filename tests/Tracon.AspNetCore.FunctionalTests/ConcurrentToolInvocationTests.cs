@@ -44,7 +44,7 @@ public sealed class ConcurrentToolInvocationTests
         {
             Provider = "concurrent-model",
             Model = "concurrent-1",
-            AllowConcurrentToolCalls = allowConcurrentToolCalls,
+            ToolLoop = new ToolLoopSettings { AllowConcurrentToolCalls = allowConcurrentToolCalls },
         },
         ToolNames = ["tool_a", "tool_b", "tool_c"],
     };

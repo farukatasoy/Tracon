@@ -1,4 +1,5 @@
 #nullable enable
+Tracon.Testing.FakeModelProvider.SupportedSamplingFields.get -> Tracon.SamplingFields
 Tracon.Testing.TraconAssertionException
 Tracon.Testing.TraconAssertionException.TraconAssertionException() -> void
 Tracon.Testing.TraconAssertionException.TraconAssertionException(string! message) -> void

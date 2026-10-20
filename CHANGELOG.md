@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A definition sets the model's request fields and the tool-call loop.** `ModelBinding` gains
+  `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode` (`auto`,
+  `none`, `required` or `required:<tool>`), `AllowMultipleToolCalls` and `ReasoningOutput`
+  (`None`, `Summary` or `Full`), and `ToolLoop` (`ToolLoopSettings`: `AllowConcurrentToolCalls`,
+  `MaximumConsecutiveErrors`, `TerminateOnUnknownCalls`). They are part of the definition, so a
+  version, an experiment variant and a replay carry them; before, only an agent extension could
+  set most of them and `Reasoning.Output` could not be set at all. A provider states which of the
+  fields its API surface sends through the new `ISamplingSupport` (`SamplingFields`). A definition
+  that sets a field the provider would drop, on the primary model or on a fallback, is refused
+  when the agent is built and by `POST /api/agents/validate` (`sampling_field_unsupported`, with
+  the path of the field), instead of running without it. The shipped providers state what the
+  model adapters send; the table is in Model providers. `Tracon.Testing`'s `FakeModelProvider`
+  accepts every field, and the agent editor has controls for all of them.
 - **Model content and workflow events Tracon has no type for are recorded, not dropped.**
   A hosted tool call or result (web search, code interpreter, image generation, hosted MCP),
   a provider `ErrorContent`, generated or attached data, a file reference, and any content
@@ -59,6 +72,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`ModelBinding.AllowConcurrentToolCalls` moved to `ModelBinding.ToolLoop.AllowConcurrentToolCalls`.**
+  This breaks source and the JSON of a definition. A definition stored by an earlier build is read
+  with the old key moved, so no migration runs and the setting is kept; the next save writes the
+  new place only, and so does a rollback. `POST /api/agents`, `PUT /api/agents/{name}` and
+  `POST /api/agents/validate` refuse the old key with `400` (`Removed field`) and name the new
+  path. A fallback link now takes the whole `ToolLoop` of the primary model.
+- **An agent extension and the options of one run can no longer set `Seed`, `TopK`, `StopSequences`,
+  `FrequencyPenalty`, `PresencePenalty`, `ToolMode` or `AllowMultipleToolCalls`.** The definition
+  owns them now; an extension that changes one fails the compilation and names the option, and
+  `ChatClientAgentRunOptions` that sets one throws `ArgumentException`. One exception: a run may
+  set `AllowMultipleToolCalls` to `false`, which a handoff step does to hand off to one agent.
 - **`/v1/chat/completions` refuses a model setting the agent owns with `400`.** `temperature`,
   `top_p`, `max_tokens`, `max_completion_tokens`, `frequency_penalty`, `presence_penalty`,
   `seed`, `stop`, `logit_bias`, `reasoning_effort`, `response_format`, `tools`, `tool_choice`,

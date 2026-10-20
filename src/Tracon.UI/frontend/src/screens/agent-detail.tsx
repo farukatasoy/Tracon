@@ -22,7 +22,7 @@ import { DiffView, FieldDiffTable, SetDiff } from '../components/diff-view';
 import { CompareSection, ComparePanel, VersionHistory } from '../components/version-history';
 import { OriginBadge } from './agents';
 import type { LoopCriterion, TraconMetaResponse as Meta } from '@tracon/client';
-import type { AgentDefinition, AgentDetailResponse, AgentVersionDiffResponse } from '../lib/server-types';
+import type { AgentDefinition, AgentDetailResponse, AgentVersionDiffResponse, ToolLoopSettings } from '../lib/server-types';
 
 export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const t = useT();
@@ -312,6 +312,15 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
                 maxOutputTokens: { label: t('fields.maxOutputTokens') },
                 topP: { label: t('fields.topP') },
                 reasoningEffort: { label: t('fields.reasoningEffort') },
+                reasoningOutput: { label: t('fields.reasoningOutput') },
+                seed: { label: t('fields.seed') },
+                topK: { label: t('fields.topK') },
+                stopSequences: { label: t('fields.stopSequences'), format: (value) => (value as string[]).join(', ') },
+                frequencyPenalty: { label: t('fields.frequencyPenalty') },
+                presencePenalty: { label: t('fields.presencePenalty') },
+                toolMode: { label: t('fields.toolMode') },
+                allowMultipleToolCalls: { label: t('fields.allowMultipleToolCalls') },
+                toolLoop: { label: t('agentEditor.toolLoop'), format: (value) => describeToolLoop(value as ToolLoopSettings, t) },
                 responseFormat: {
                   label: t('fields.responseFormatKind'),
                   format: (value) => (value as { kind: string }).kind,
@@ -410,6 +419,28 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
  * table compares the formatted text, so a field left out here would hide a
  * change to it.
  */
+/**
+ * One cell for the tool-call loop settings of a version: only the members that differ from the loop's own
+ * default are listed, so a definition that sets none reads the same as one saved before the settings existed.
+ */
+function describeToolLoop(loop: ToolLoopSettings, t: ReturnType<typeof useT>): string {
+  const parts: string[] = [];
+
+  if (loop.allowConcurrentToolCalls) {
+    parts.push(t('fields.allowConcurrentToolCalls'));
+  }
+
+  if (loop.maximumConsecutiveErrors !== null && loop.maximumConsecutiveErrors !== undefined) {
+    parts.push(`${t('fields.maximumConsecutiveErrors')}: ${loop.maximumConsecutiveErrors}`);
+  }
+
+  if (loop.terminateOnUnknownCalls !== null && loop.terminateOnUnknownCalls !== undefined) {
+    parts.push(`${t('fields.terminateOnUnknownCalls')}: ${loop.terminateOnUnknownCalls}`);
+  }
+
+  return parts.length > 0 ? parts.join('; ') : '—';
+}
+
 function formatLoopCriteria(value: unknown): string {
   return (value as LoopCriterion[])
     .map((criterion, index) => {

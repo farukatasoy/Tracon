@@ -23,6 +23,11 @@ namespace Tracon;
 /// one runs, as a handoff tool is. A tool that runs is refused, because it would skip the tool
 /// chain. A chat client factory is refused, because it can replace the model client and its rings.
 /// </para>
+/// <para>
+/// A run may also turn parallel tool calls off (<see cref="ChatOptions.AllowMultipleToolCalls"/> set to
+/// <see langword="false"/>), which a handoff step does so that it hands off to one agent. It can only
+/// narrow what the definition allowed; turning them on is refused like any other member the definition owns.
+/// </para>
 /// </remarks>
 internal static class RunChatOptionsRule
 {
@@ -46,8 +51,15 @@ internal static class RunChatOptionsRule
         if (run.ChatOptions is { } chat)
         {
             problems.AddRange(AgentOptionsGuard.Chat
-                .SetProtectedMembers(chat, nameof(ChatOptions.Tools), nameof(ChatOptions.Instructions))
+                .SetProtectedMembers(chat, nameof(ChatOptions.Tools), nameof(ChatOptions.Instructions), nameof(ChatOptions.AllowMultipleToolCalls))
                 .Select(static member => $"{nameof(ChatOptions)}.{member}"));
+
+            // A handoff step turns parallel tool calls off so that it hands off to one agent. Narrowing is
+            // the only change the definition's setting can take from a run.
+            if (chat.AllowMultipleToolCalls is true)
+            {
+                problems.Add($"{nameof(ChatOptions)}.{nameof(ChatOptions.AllowMultipleToolCalls)}");
+            }
 
             // An AIFunction runs in the loop; a hosted tool runs at the provider. Only a bare
             // declaration comes back to the caller unrun.
@@ -61,7 +73,7 @@ internal static class RunChatOptionsRule
         {
             throw new ArgumentException(
                 $"The run options set {string.Join(", ", problems)}. The agent definition owns these: a run may add " +
-                "instructions and tool declarations, and set the other model options. Change the definition, or " +
+                "instructions and tool declarations, and turn parallel tool calls off. Change the definition, or " +
                 "register a tool in code and name it in the definition.",
                 nameof(options));
         }

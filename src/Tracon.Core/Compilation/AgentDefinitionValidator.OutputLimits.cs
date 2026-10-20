@@ -21,6 +21,11 @@ namespace Tracon;
 /// repeat it is skipped because the report already holds an error.
 /// </para>
 /// <para>
+/// <strong>A field the provider would drop is an error.</strong> The same holds for the
+/// other request fields (<see cref="SamplingSupportCheck"/>): a provider whose API surface
+/// does not send <see cref="ModelBinding.Seed"/> would run the agent without it.
+/// </para>
+/// <para>
 /// <strong>A low default output limit is a warning.</strong> It does not stop
 /// the definition: a short answer fits, and only the model can tell how long its
 /// answer will be. It is raised only when all of these hold: the binding sets no
@@ -35,6 +40,9 @@ internal sealed partial class AgentDefinitionValidator
 {
     /// <summary>The code of a sampling parameter a catalog model rejects.</summary>
     internal const string SamplingUnsupportedCode = "sampling_unsupported";
+
+    /// <summary>The code of a request field the provider's API surface would drop.</summary>
+    internal const string SamplingFieldUnsupportedCode = "sampling_field_unsupported";
 
     /// <summary>The code of the warning about a low default output limit.</summary>
     internal const string OutputTruncationRiskCode = "output_truncation_risk";
@@ -52,6 +60,7 @@ internal sealed partial class AgentDefinitionValidator
         }
 
         CheckSampling(definition, messages);
+        CheckSamplingSupport(definition, messages);
 
         await CheckOutputTruncationRiskAsync(definition, messages, cancellationToken).ConfigureAwait(false);
     }
@@ -75,6 +84,20 @@ internal sealed partial class AgentDefinitionValidator
         if (definition.Model.TopP is not null)
         {
             messages.Add(SamplingRejected(nameof(ModelBinding.TopP), "model.topP", models));
+        }
+    }
+
+    private void CheckSamplingSupport(AgentDefinition definition, List<ValidationMessage> messages)
+    {
+        foreach (var finding in SamplingSupportCheck.Unsupported(_models, definition.Model))
+        {
+            messages.Add(new ValidationMessage
+            {
+                Severity = ValidationSeverity.Error,
+                Code = SamplingFieldUnsupportedCode,
+                Message = finding.Describe(),
+                Path = finding.Path,
+            });
         }
     }
 

@@ -200,6 +200,70 @@ public sealed class AgentTests(BrowserFixture browsers)
             .ShouldBe(1);
     }
 
+    [Fact]
+    public async Task Request_fields_and_tool_loop_set_in_the_console_are_saved_and_read_back()
+    {
+        // Phase 225 (F-598): the model section edits the request fields and the tool-call loop.
+        // Both groups are closed while empty, open themselves once a value is stored, and the
+        // value the server returns is the value typed.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
+
+        await session.Page.GetByTestId("agent-name").FillAsync("sampling-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+
+        (await session.Page.GetByTestId("sampling-settings").GetAttributeAsync("open")).ShouldBeNull("the group stays closed while it holds nothing");
+        (await session.Page.GetByTestId("tool-loop-settings").GetAttributeAsync("open")).ShouldBeNull("the group stays closed while it holds nothing");
+
+        await session.Page.GetByText("Sampling and tool use", new() { Exact = true }).ClickAsync();
+        await session.Page.GetByTestId("agent-seed").FillAsync("7");
+        await session.Page.GetByTestId("agent-top-k").FillAsync("40");
+        await session.Page.GetByTestId("agent-stop-sequences").FillAsync("END\nSTOP");
+        await session.Page.GetByTestId("agent-tool-mode").SelectOptionAsync("required");
+        await session.Page.GetByTestId("agent-allow-multiple-tool-calls").SelectOptionAsync("false");
+        await session.Page.GetByTestId("agent-reasoning-output").SelectOptionAsync("Summary");
+
+        await session.Page.GetByText("Tool-call loop", new() { Exact = true }).ClickAsync();
+        await session.Page.GetByTestId("tool-loop-concurrent").CheckAsync();
+        await session.Page.GetByTestId("tool-loop-max-errors").FillAsync("1");
+        await session.Page.GetByTestId("tool-loop-terminate-unknown").SelectOptionAsync("true");
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "sampling-agent", Exact = true })).ToBeVisibleAsync();
+
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        var model = (await api.GetFromJsonAsync<JsonElement>("api/agents/sampling-agent")).GetProperty("definition").GetProperty("model");
+
+        model.GetProperty("seed").GetInt64().ShouldBe(7);
+        model.GetProperty("topK").GetInt32().ShouldBe(40);
+        model.GetProperty("stopSequences").EnumerateArray().Select(static item => item.GetString()).ShouldBe(["END", "STOP"]);
+        model.GetProperty("toolMode").GetString().ShouldBe("required");
+        model.GetProperty("allowMultipleToolCalls").GetBoolean().ShouldBeFalse();
+        model.GetProperty("reasoningOutput").GetString().ShouldBe("Summary");
+        model.GetProperty("toolLoop").GetProperty("allowConcurrentToolCalls").GetBoolean().ShouldBeTrue();
+        model.GetProperty("toolLoop").GetProperty("maximumConsecutiveErrors").GetInt32().ShouldBe(1);
+        model.GetProperty("toolLoop").GetProperty("terminateOnUnknownCalls").GetBoolean().ShouldBeTrue();
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit", Exact = true }).ClickAsync();
+        await Expect(session.Page.GetByTestId("agent-name")).ToHaveValueAsync("sampling-agent");
+
+        // A stored value opens its group by itself.
+        await Expect(session.Page.GetByTestId("agent-top-k")).ToBeVisibleAsync();
+        await Expect(session.Page.GetByTestId("agent-seed")).ToHaveValueAsync("7");
+        await Expect(session.Page.GetByTestId("agent-top-k")).ToHaveValueAsync("40");
+        await Expect(session.Page.GetByTestId("agent-stop-sequences")).ToHaveValueAsync("END\nSTOP");
+        await Expect(session.Page.GetByTestId("agent-tool-mode")).ToHaveValueAsync("required");
+        await Expect(session.Page.GetByTestId("agent-allow-multiple-tool-calls")).ToHaveValueAsync("false");
+        await Expect(session.Page.GetByTestId("agent-reasoning-output")).ToHaveValueAsync("Summary");
+        await Expect(session.Page.GetByTestId("tool-loop-concurrent")).ToBeCheckedAsync();
+        await Expect(session.Page.GetByTestId("tool-loop-max-errors")).ToHaveValueAsync("1");
+        await Expect(session.Page.GetByTestId("tool-loop-terminate-unknown")).ToHaveValueAsync("true");
+    }
+
     private static string? EventType(string data)
     {
         using var document = JsonDocument.Parse(data);

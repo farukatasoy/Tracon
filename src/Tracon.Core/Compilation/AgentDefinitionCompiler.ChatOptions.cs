@@ -53,7 +53,7 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
-        return definition.Model with { ToolLoopIterationLimit = limit };
+        return definition.Model with { ToolLoop = definition.Model.ToolLoop with { IterationLimit = limit } };
     }
 
     private async ValueTask<IChatClient> CreateChatClientAsync(AgentDefinition definition, ModelBinding binding, CancellationToken cancellationToken)
@@ -148,24 +148,40 @@ public sealed partial class AgentDefinitionCompiler
     private ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools, string? culture, string? sharedInstructions)
     {
         CheckSamplingCapability(definition);
+        CheckSamplingSupport(definition);
 
+        var model = definition.Model;
         var options = new ChatOptions
         {
             Instructions = CombineInstructions(sharedInstructions, InstructionCultureResolver.Resolve(definition, culture)),
-            ModelId = definition.Model.Model,
-            Temperature = definition.Model.Temperature,
-            TopP = definition.Model.TopP,
-            MaxOutputTokens = definition.Model.MaxOutputTokens,
+            ModelId = model.Model,
+            Temperature = model.Temperature,
+            TopP = model.TopP,
+            MaxOutputTokens = model.MaxOutputTokens,
+            Seed = model.Seed,
+            TopK = ParseTopK(definition),
+            FrequencyPenalty = model.FrequencyPenalty,
+            PresencePenalty = model.PresencePenalty,
+            AllowMultipleToolCalls = model.AllowMultipleToolCalls,
+            ToolMode = ParseToolMode(definition),
         };
+
+        if (ParseStopSequences(definition) is { } stopSequences)
+        {
+            options.StopSequences = stopSequences;
+        }
 
         if (tools.Count > 0)
         {
             options.Tools = tools;
         }
 
-        if (ParseReasoningEffort(definition) is { } effort)
+        var effort = ParseReasoningEffort(definition);
+        var output = ParseReasoningOutput(definition);
+
+        if (effort is not null || output is not null)
         {
-            options.Reasoning = new ReasoningOptions { Effort = effort };
+            options.Reasoning = new ReasoningOptions { Effort = effort, Output = output };
         }
 
         options.ResponseFormat = BuildResponseFormat(definition);
