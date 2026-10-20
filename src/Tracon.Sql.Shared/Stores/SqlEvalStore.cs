@@ -138,10 +138,10 @@ internal sealed class SqlEvalStore : IEvalStore
                     DbHelpers.Add(insert, "seq", candidate.Seq);
                     DbHelpers.Add(insert, "query", candidate.Query);
                     AddNullableText(insert, "expected_output", candidate.ExpectedOutput);
-                    AddNullableText(
-                        insert,
-                        "expected_tools",
-                        candidate.ExpectedTools.Count > 0 ? string.Join(',', candidate.ExpectedTools) : null);
+
+                    // expected_tools, the comma separated names of before
+                    // expected_tool_calls, is read for old rows and never written.
+                    Dialect.AddJsonb(insert, "expected_tool_calls", ExpectedToolCallsCodec.Serialize(candidate.ExpectedToolCalls));
                     AddNullableText(insert, "context", candidate.Context);
 
                     // A replace rewrites the row, so whatever the caller hands
@@ -206,10 +206,7 @@ internal sealed class SqlEvalStore : IEvalStore
             DbHelpers.Add(command, "suite_id", suiteId);
             DbHelpers.Add(command, "query", draft.Query);
             AddNullableText(command, "expected_output", draft.ExpectedOutput);
-            AddNullableText(
-                command,
-                "expected_tools",
-                draft.ExpectedTools.Count > 0 ? string.Join(',', draft.ExpectedTools) : null);
+            Dialect.AddJsonb(command, "expected_tool_calls", ExpectedToolCallsCodec.Serialize(draft.ExpectedToolCalls));
             AddNullableText(command, "context", draft.Context);
             AddNullableUuid(command, "source_run_id", draft.SourceRunId);
             Dialect.AddInt16(command, "source_kind", draft.SourceKind is { } kind ? (short)kind : null);
@@ -445,9 +442,9 @@ internal sealed class SqlEvalStore : IEvalStore
             Seq = reader.GetInt32(2),
             Query = reader.GetString(3),
             ExpectedOutput = DbHelpers.GetNullableString(reader, 4),
-            ExpectedTools = DbHelpers.GetNullableString(reader, 5) is { Length: > 0 } tools
-                ? tools.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                : [],
+            ExpectedToolCalls = ExpectedToolCallsCodec.Deserialize(
+                DbHelpers.GetNullableString(reader, 11),
+                DbHelpers.GetNullableString(reader, 5)),
             Context = DbHelpers.GetNullableString(reader, 6),
             SourceRunId = reader.IsDBNull(7) ? null : reader.GetGuid(7),
             SourceKind = reader.IsDBNull(8) ? null : (EvalCaseSource)reader.GetInt16(8),

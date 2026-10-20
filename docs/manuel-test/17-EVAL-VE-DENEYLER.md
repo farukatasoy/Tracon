@@ -1,6 +1,6 @@
 # 17 — Eval, Deneyler (A/B), Kanarya Yayını ve Geri Bildirim (`EVAL`)
 
-> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118, 152, 153, 155, 176
+> **Alan kodu:** `EVAL` · **Faz:** 18, 19, 31, 45, 49, 56, 100, 103, 118, 152, 153, 155, 176, 227
 > **Kaynak:** `src/Tracon.Abstractions/Evaluation/` (tümü) ·
 > `src/Tracon.Abstractions/Experiments/` (tümü — `Experiment.cs`,
 > `ExperimentVariant.cs`, `ExperimentStatus.cs`, `CanaryPolicy.cs`,
@@ -20,7 +20,8 @@
 > `src/Tracon.UI/frontend/src/components/promote-to-eval-case.tsx`,
 > `feedback-control.tsx` · Migration'lar: `0009_eval.sql`,
 > `0010_experiments.sql`, `0017_run_scores.sql`, `0022_eval_case_source.sql`,
-> `0028_experiment_canary.sql`, `0048_run_score_name_and_shape.sql`.
+> `0028_experiment_canary.sql`, `0048_run_score_name_and_shape.sql`,
+> `0063_eval_case_expected_tool_calls.sql` (PostgreSQL; SQL Server `0051`, SQLite `0050`).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -130,7 +131,7 @@ export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 
 | Kimlik | Değer |
 |---|---|
-| `FIX-EVAL-01` | Takım adı `destek-degerlendirme` · `agentName: "support"` · `checks: [{"kind":"nonEmpty","minLength":5},{"kind":"containsExpected","caseSensitive":false}]` · vaka: `query: "ORD-1001 siparisim nerede?"`, `expectedOutput: "ORD-1001"`, `expectedTools: ["get_order_status"]` |
+| `FIX-EVAL-01` | Takım adı `destek-degerlendirme` · `agentName: "support"` · `checks: [{"kind":"nonEmpty","minLength":5},{"kind":"containsExpected","caseSensitive":false}]` · vaka: `query: "ORD-1001 siparisim nerede?"`, `expectedOutput: "ORD-1001"`, `expectedToolCalls: [{"name":"get_order_status"}]` |
 | `FIX-EVAL-02` | Takım adı `tool-cagri-testi` · `agentName: "support"` · `checks: [{"kind":"toolCalled","tools":["get_order_status"],"mode":"all"}]` · vaka: `query: "ORD-1001 nerede?"` |
 | `FIX-EXP-01` | Deney adı `destek-talimat-testi` · `agentName: "manuel-destek"` (`FIX-AGENT-01`) · varyant `kisa-talimat` → `version: 1`, `weight: 50` · varyant `detayli-talimat` → `version: 2` (aşağıda oluşturulur), `weight: 50` |
 
@@ -350,13 +351,13 @@ SELECT count(*) FROM tracon.eval_suites WHERE name = 'denetimsiz-takim';
 ```bash
 curl -s -X PUT "$APU/api/evals/destek-degerlendirme/cases" -H "$APB" \
      -H "content-type: application/json" -d '[
-  { "query": "ORD-1001 siparisim nerede?", "expectedOutput": "ORD-1001", "expectedTools": ["get_order_status"] },
+  { "query": "ORD-1001 siparisim nerede?", "expectedOutput": "ORD-1001", "expectedToolCalls": [{ "name": "get_order_status" }] },
   { "query": "Merhaba", "expectedOutput": null }
 ]'
 
 curl -s -X PUT "$APU/api/evals/destek-degerlendirme/cases" -H "$APB" \
      -H "content-type: application/json" -d '[
-  { "query": "ORD-1001 siparisim nerede?", "expectedOutput": "ORD-1001", "expectedTools": ["get_order_status"] }
+  { "query": "ORD-1001 siparisim nerede?", "expectedOutput": "ORD-1001", "expectedToolCalls": [{ "name": "get_order_status" }] }
 ]'
 
 curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
@@ -2264,6 +2265,68 @@ parametre değerlerini düşürüyordu.
 - Adım 3: mesajlar aynıdır: önce iki belge, sonra sorgu.
 - Adım 4: `Context` çok satırlı alanda görünür.
 - 🚨 Eski kusur: sorgu 8192 karakterde kesildi, belgeler düştü; eval yalnız sorguyu gönderdi.
+
+---
+
+### MT-EVAL-107 — `toolCallArgsMatch`: gerçek model doğru argümanla çağırınca geçer, başka değerde `args mismatch` ile düşer (Faz 227)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 227 |
+| **İlgili karar** | — |
+| **Devir** | 🤖 ajan koşar — örnek uygulama + gerçek OpenAI anahtarı + `curl` |
+
+Kodla tekrarlanan kısım (karşılaştırma tablosu, gidiş-dönüş, eski anahtar) CI'dadır:
+`ToolCallArgumentsCheckTests` · `EvalToolCallArgsTests` · `EvalStoreContract` ·
+`EvalCaseLegacyFieldTests`. Bu case yalnız gerçek modelin gerçek `FunctionCallContent`
+argümanını (`JsonElement`) ölçer.
+
+**Ön koşul** — Örnek uygulama Development'ta, dört boş ortam değişkeniyle (`PostgreSql`, `SqlServer`, `Sqlite` bağlantı dizesi ve `Ui:AuthToken`; SQLite için geçici bir dosya ver), OpenAI anahtarı gerçek. `support` kod agent'ı ve `get_order_status` tool'u mevcut.
+
+**Adımlar**
+1. `PUT $BASE/api/evals/tool-args-227` ile `agentName: "support"`, `checks: [{"kind":"toolCallArgsMatch"}]` kaydet.
+2. `PUT $BASE/api/evals/tool-args-227/cases` ile üç vaka yaz; hepsinin `query`'si `Where is order ORD-1001?`: (a) `expectedToolCalls: [{"name":"get_order_status","arguments":{"orderId":"ORD-1001"}}]`; (b) aynısı, `orderId` `ORD-9999`; (c) `[{"name":"get_order_status"},{"name":"cancel_order"}]`.
+3. `POST $BASE/api/evals/tool-args-227/run`; koşum bitince `GET $BASE/api/evals/runs/{id}` oku.
+4. Eski anahtarı dene: `PUT …/cases` gövdesi `[{"query":"q","expectedTools":["get_order_status"]}]`.
+
+**Beklenen sonuç**
+- Adım 3: (a) geçer; (b) düşer ve `failureReason` `tool_call_args_match: Tool call args match: 0/1` ile `get_order_status: args mismatch` içerir; (c) düşer ve `1/2`, `get_order_status: called (args not checked)`, `cancel_order: not called` içerir. Koşum `Completed`, `passed` 1, `failed` 2.
+- `failureReason` modelin gönderdiği argüman değerlerini (`ORD-1001`) içermez.
+- Adım 4: `400`, `title` `Removed field`, `detail` `expectedToolCalls` adını söyler.
+- Günlükte `Npgsql` satırı 0.
+
+**Koşum (2026-10-21, ajan)** — SQLite geçici dosya, model `gpt-5.4-mini`; migration `0050` boş veritabanında uygulandı, `tracon_eval_cases` tablosunda `expected_tool_calls TEXT NULL` var. Adım 3: (a) `passed: true`; (b) `tool_call_args_match: Tool call args match: 0/1\n  get_order_status: args mismatch`; (c) `Tool call args match: 1/2\n  get_order_status: called (args not checked)\n  cancel_order: not called`; koşum `Completed`, 1 geçti 2 düştü, 2.241 girdi / 121 çıktı token'ı. `Npgsql` satırı 0, günlükte hata yok.
+
+---
+
+### MT-EVAL-108 — Konsol vaka düzenleyicisi tool adını ve JSON argümanını kaydeder, geçersiz JSON'u reddeder (Faz 227)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 227 |
+| **İlgili karar** | — |
+| **Devir** | 🤖 ajan koşar — Playwright MCP + örnek uygulama |
+
+Kodla tekrarlanan kısım `eval-detail.test.tsx`'tedir (jsdom). Bu case gömülü derlemedeki konsolu
+ve kaydın sunucuya gerçekten ulaştığını ölçer.
+
+**Ön koşul** — MT-EVAL-107 koşulmuş (`tool-args-227` suite'i ve üç vakası var). Rol: administrator.
+
+**Adımlar**
+1. Tarayıcıda `/tracon/evals/tool-args-227` aç. Üçüncü vakanın ilk tool çağrısının "Arguments (JSON object)" alanına `{"orderId": ` yaz.
+2. Alana `{"orderId": "ORD-1001", "address": {"zip": "35000", "city": "Izmir"}}` yaz ve "Save cases" ile kaydet.
+3. Sayfayı yenile; `GET $BASE/api/evals/tool-args-227/cases` oku.
+
+**Beklenen sonuç**
+- Adım 1: alan `Arguments must be a JSON object.` uyarısı gösterir ve "Save cases" devre dışıdır.
+- Adım 2: kayıt başarılıdır.
+- Adım 3: üçüncü vakada argüman iç içe nesneyle kalır (iki satırlı değil, girintili JSON olarak görünür); `GET` aynı `arguments` nesnesini döner; `cancel_order` çağrısı `arguments: null` taşır.
+
+**Koşum (2026-10-21, ajan)** — Adım 1: uyarı `Arguments must be a JSON object.`, `Save cases` `disabled: true`. Adım 2–3: yenilemeden sonra üç alanın üçü de girintili JSON gösterdi; `GET` `{"orderId":"ORD-1001","address":{"zip":"35000","city":"Izmir"}}` ve `cancel_order` için `arguments: null` döndü.
 
 ---
 

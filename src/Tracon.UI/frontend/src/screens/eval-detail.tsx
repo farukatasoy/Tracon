@@ -31,8 +31,91 @@ import type {
 } from '@tracon/client';
 import type { EvalCase, EvalRun, EvalSuite } from '../lib/server-types';
 
-function emptyCase(): EvalCaseInput {
-  return { query: '', expectedOutput: null, expectedTools: [], context: null };
+/**
+ * One expected tool call as the operator edits it. `arguments` is the JSON text
+ * of an object, kept as text so a half-typed value is not thrown away; empty
+ * means "check only that the tool was called".
+ */
+interface ToolCallDraft {
+  name: string;
+  arguments: string;
+}
+
+/**
+ * A case as the screen edits it. It is a case input with the expected tool
+ * calls held as text; `toInput` turns it back for the save.
+ */
+type CaseDraft = Omit<EvalCaseInput, 'expectedToolCalls'> & { toolCalls: ToolCallDraft[] };
+
+function emptyCase(): CaseDraft {
+  return { query: '', expectedOutput: null, toolCalls: [], context: null };
+}
+
+function argumentsText(value: unknown): string {
+  return value === null || value === undefined ? '' : JSON.stringify(value, null, 2);
+}
+
+/**
+ * The arguments the text stands for: `undefined` when it is empty, the object
+ * when it is a JSON object, and `false` when it is anything else (a half-typed
+ * value, an array, a number).
+ */
+function parseArguments(text: string): Record<string, unknown> | undefined | false {
+  if (text.trim().length === 0) return undefined;
+
+  try {
+    const parsed: unknown = JSON.parse(text);
+
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : false;
+  } catch {
+    return false;
+  }
+}
+
+function isSavable(item: CaseDraft): boolean {
+  return (
+    item.query.trim().length > 0 &&
+    item.toolCalls.every((call) => call.name.trim().length > 0 && parseArguments(call.arguments) !== false)
+  );
+}
+
+function toDraft(item: EvalCase): CaseDraft {
+  return {
+    // The id and the parameter values travel back with every case that is
+    // being kept. Dropping them here is not a cosmetic loss: the save
+    // would read as "every case removed, every case added" in the
+    // run-to-run diff, and a parameterized agent's cases would come back
+    // with no values to run against.
+    id: item.id,
+    query: item.query,
+    expectedOutput: item.expectedOutput ?? null,
+    toolCalls: (item.expectedToolCalls ?? []).map((call) => ({
+      name: call.name,
+      arguments: argumentsText(call.arguments),
+    })),
+    context: item.context ?? null,
+    parameters: item.parameters ?? null,
+  };
+}
+
+function toInput({ toolCalls, ...rest }: CaseDraft): EvalCaseInput {
+  return {
+    ...rest,
+    expectedToolCalls: toolCalls.map((call) => {
+      const parsed = parseArguments(call.arguments);
+
+      // The generated type calls the arguments `Record<string, never>`: the
+      // schema says "an object" without saying what is in it.
+      return {
+        name: call.name.trim(),
+        ...(parsed === undefined || parsed === false
+          ? {}
+          : { arguments: parsed as Record<string, never> }),
+      };
+    }),
+  };
 }
 
 function StatusBadge({ status }: { status: EvalRunStatus }): ReactNode {
@@ -57,11 +140,17 @@ function CaseEditor({
   onChange,
   onRemove,
 }: {
-  evalCase: EvalCaseInput;
-  onChange: (value: EvalCaseInput) => void;
+  evalCase: CaseDraft;
+  onChange: (value: CaseDraft) => void;
   onRemove: () => void;
 }): ReactNode {
   const t = useT();
+
+  const setToolCall = (index: number, value: ToolCallDraft): void =>
+    onChange({
+      ...evalCase,
+      toolCalls: evalCase.toolCalls.map((call, i) => (i === index ? value : call)),
+    });
 
   return (
     <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-2">
@@ -81,20 +170,60 @@ function CaseEditor({
           onChange={(event) => onChange({ ...evalCase, expectedOutput: event.target.value || null })}
         />
       </Field>
-      <Field label={t('evals.expectedTools')} hint={t('evals.expectedToolsHint')}>
-        <TextInput
-          value={(evalCase.expectedTools ?? []).join(', ')}
-          onChange={(event) =>
-            onChange({
-              ...evalCase,
-              expectedTools: event.target.value
-                .split(',')
-                .map((name) => name.trim())
-                .filter((name) => name.length > 0),
-            })
-          }
-        />
-      </Field>
+      <fieldset className="grid gap-2 sm:col-span-2">
+        <legend className="text-xs font-medium text-muted">{t('evals.expectedToolCalls')}</legend>
+        <p className="text-xs text-subtle">{t('evals.expectedToolCallsHint')}</p>
+        {evalCase.toolCalls.map((call, index) => (
+          <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]">
+            <Field label={t('evals.toolCall.name')} required>
+              <TextInput
+                value={call.name}
+                onChange={(event) => setToolCall(index, { ...call, name: event.target.value })}
+              />
+            </Field>
+            <Field
+              label={t('evals.toolCall.arguments')}
+              hint={t('evals.toolCall.argumentsHint')}
+              error={
+                parseArguments(call.arguments) === false
+                  ? t('evals.toolCall.argumentsInvalid')
+                  : undefined
+              }
+            >
+              <TextArea
+                // Tall enough for the pretty-printed object a stored call loads as.
+                rows={Math.min(8, Math.max(2, call.arguments.split('\n').length))}
+                spellCheck={false}
+                value={call.arguments}
+                placeholder={'{"orderId": "ORD-1001"}'}
+                onChange={(event) => setToolCall(index, { ...call, arguments: event.target.value })}
+              />
+            </Field>
+            <div className="sm:self-end">
+              <Button
+                tone="danger"
+                onClick={() =>
+                  onChange({
+                    ...evalCase,
+                    toolCalls: evalCase.toolCalls.filter((_, i) => i !== index),
+                  })
+                }
+              >
+                {t('evals.toolCall.remove')}
+              </Button>
+            </div>
+          </div>
+        ))}
+        <div>
+          <Button
+            onClick={() =>
+              onChange({ ...evalCase, toolCalls: [...evalCase.toolCalls, { name: '', arguments: '' }] })
+            }
+          >
+            {t('evals.toolCall.add')}
+          </Button>
+        </div>
+      </fieldset>
       <div className="sm:col-span-2">
         <Field label={t('agentEditor.context')} hint={t('evals.contextHint')}>
           {/* Multi-line on purpose: a promoted case keeps the run's documents
@@ -119,7 +248,7 @@ function CaseEditor({
 export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const t = useT();
   const queryClient = useQueryClient();
-  const [cases, setCases] = useState<EvalCaseInput[]>([]);
+  const [cases, setCases] = useState<CaseDraft[]>([]);
 
   const suite = useQuery({
     queryKey: ['evalSuite', name],
@@ -145,26 +274,17 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
   useEffect(() => {
     if (!existingCases.isSuccess) return;
 
-    setCases(
-      existingCases.data.map((item) => ({
-        // The id and the parameter values travel back with every case that is
-        // being kept. Dropping them here is not a cosmetic loss: the save
-        // would read as "every case removed, every case added" in the
-        // run-to-run diff, and a parameterized agent's cases would come back
-        // with no values to run against.
-        id: item.id,
-        query: item.query,
-        expectedOutput: item.expectedOutput ?? null,
-        expectedTools: item.expectedTools,
-        context: item.context ?? null,
-        parameters: item.parameters ?? null,
-      })),
-    );
+    setCases(existingCases.data.map(toDraft));
   }, [existingCases.isSuccess, existingCases.data]);
 
   const saveCases = useMutation({
     mutationFn: () =>
-      unwrap(client.PUT('/api/evals/{name}/cases', { params: { path: { name } }, body: cases })),
+      unwrap(
+        client.PUT('/api/evals/{name}/cases', {
+          params: { path: { name } },
+          body: cases.map(toInput),
+        }),
+      ),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['evalCases', name] }),
   });
 
@@ -293,7 +413,7 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
               <Button
                 tone="primary"
                 busy={saveCases.isPending}
-                disabled={existingCases.isPending || cases.some((item) => item.query.trim().length === 0)}
+                disabled={existingCases.isPending || !cases.every(isSavable)}
                 onClick={() => saveCases.mutate()}
               >
                 {t('evals.saveCases')}

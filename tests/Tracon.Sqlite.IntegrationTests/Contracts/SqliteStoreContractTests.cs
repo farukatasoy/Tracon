@@ -219,6 +219,19 @@ public sealed class SqliteEvalStoreContractTests(SqliteSchemaFixture schema)
         await schema.ResetAsync();
         return schema.Context.Evals;
     }
+
+    /// <inheritdoc />
+    protected override bool SupportsRawSql => true;
+
+    /// <inheritdoc />
+    protected override string QualifiedEvalCasesTable => $"{schema.Context.TablePrefix}eval_cases";
+
+    /// <inheritdoc />
+    protected override async ValueTask ExecuteRawAsync(string sql) => await schema.Context.ExecuteAsync(sql);
+
+    /// <inheritdoc />
+    protected override string FormatIdForRawSql(Guid id)
+        => id.ToString("D", System.Globalization.CultureInfo.InvariantCulture).ToUpperInvariant();
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />

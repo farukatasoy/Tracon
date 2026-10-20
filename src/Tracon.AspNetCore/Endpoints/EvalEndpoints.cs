@@ -91,6 +91,9 @@ internal static class EvalEndpoints
         builder.MapPut("/api/evals/{name}/cases", SaveCasesAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.EvalsAdmin)
+            .AddEndpointFilter(new RemovedFieldFilter(
+                "[].expectedTools",
+                "'expectedToolCalls', a list of {\"name\": ..., \"arguments\": {...}} objects"))
             .WithName("TraconSaveEvalCases")
             .WithTags("Tracon", "Evals")
             .WithSummary("Replaces all of a suite's cases with the given list.")
@@ -103,7 +106,10 @@ internal static class EvalEndpoints
                 "one removed and another added. An id that does not belong to this suite, or " +
                 "that appears twice, fails the whole request with 400. 'parameters' travels the " +
                 "same way: it is part of the case, and a parameterized agent's case sent " +
-                "without it then fails the missing-parameter check at run time. Promotion data " +
+                "without it then fails the missing-parameter check at run time. " +
+                "'expectedToolCalls' lists the tool calls the 'toolCallArgsMatch' check looks for, " +
+                "each a 'name' with optional 'arguments'; the old 'expectedTools' key is refused " +
+                "with 400. Promotion data " +
                 "is the server's own and follows the id: keep the case, keep its origin. " +
                 "Sequence numbers are assigned from the body's order, which means reordering " +
                 "the list re-numbers the cases. Every case needs a non-empty 'query'; one that " +
@@ -372,6 +378,11 @@ internal static class EvalEndpoints
             return InvalidSuite("Each case must have a non-empty 'query' field.");
         }
 
+        if (cases.Any(static input => input.ExpectedToolCalls.Any(static call => string.IsNullOrWhiteSpace(call.Name))))
+        {
+            return InvalidSuite("Each entry of 'expectedToolCalls' must have a non-empty 'name' field.");
+        }
+
         var existing = (await store.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false))
             .ToDictionary(static item => item.Id);
 
@@ -396,7 +407,7 @@ internal static class EvalEndpoints
                     Seq = seq,
                     Query = input.Query,
                     ExpectedOutput = input.ExpectedOutput,
-                    ExpectedTools = input.ExpectedTools,
+                    ExpectedToolCalls = input.ExpectedToolCalls,
                     Context = input.Context,
                     Parameters = input.Parameters,
                     SourceRunId = kept?.SourceRunId,

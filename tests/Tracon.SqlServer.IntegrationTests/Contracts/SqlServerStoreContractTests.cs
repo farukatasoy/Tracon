@@ -215,6 +215,15 @@ public sealed class SqlServerEvalStoreContractTests(SqlServerSchemaFixture schem
         await schema.ResetAsync();
         return schema.Context.Evals;
     }
+
+    /// <inheritdoc />
+    protected override bool SupportsRawSql => true;
+
+    /// <inheritdoc />
+    protected override string QualifiedEvalCasesTable => $"{schema.Context.SchemaName}.eval_cases";
+
+    /// <inheritdoc />
+    protected override async ValueTask ExecuteRawAsync(string sql) => await schema.Context.ExecuteAsync(sql);
 }
 
 /// <inheritdoc cref="SqlServerAgentDefinitionStoreContractTests" />

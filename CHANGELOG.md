@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **An eval case lists the tool calls it expects, with their arguments, and `toolCallArgsMatch` checks
+  them.** `EvalCase.ExpectedToolCalls` is a list of `EvalExpectedToolCall`: a tool `Name` and optional
+  `Arguments`. The new check kind `toolCallArgsMatch` passes a case when, for every entry, the agent
+  called a tool of that name and one such call carried every listed argument. The listed arguments are
+  a subset (the call may carry others) and a value compares by its JSON meaning: `2` equals `2.0`, an
+  object equals one with the same members in any order, and a `null` value means "absent or null".
+  Microsoft Agent Framework's own `ToolCallArgsMatch` compares a number by its .NET type and an object
+  by its text, so an expected `2` never matched; Tracon's check does not use it. The reason of a failed
+  case names each entry (`not called`, `args mismatch`) and never repeats an argument value. A custom
+  evaluator receives the same calls on `EvalItem.ExpectedToolCalls`, as Microsoft Agent Framework
+  reads them. The console's case editor takes a tool name and a JSON object of arguments for each call
+  and refuses an argument text that is not a JSON object. Promoting a reference run writes the names
+  of the tools the run called, without arguments. The change adds `eval_cases.expected_tool_calls`
+  (migration `0063` PostgreSQL, `0051` SQL Server, `0050` SQLite).
+
 - **A host registers a tool the model provider runs, and a definition selects it by name.**
   `AddHostedTool(name, kind, factory)` registers a web search, a code interpreter or a file search
   (`HostedToolKind`); the factory receives a `HostedToolContext` with the tenant, the provider of the
@@ -110,6 +125,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `samples/Tracon.Samples.MafFeatures` builds all three.
 
 ### Changed
+
+- **`EvalCase.ExpectedTools` and `EvalCaseDraft.ExpectedTools` are replaced by `ExpectedToolCalls`.**
+  This breaks source and the JSON of a case. The old field held tool names and no check read it, so a
+  case that filled it asserted nothing; a name-only entry of the new field is checked. `PUT
+  /api/evals/{name}/cases` answers `400` (`Removed field`) to a body that still carries
+  `expectedTools` and names `expectedToolCalls`; the `expectedTools` of the case list is gone. A case
+  stored by an earlier build keeps its names: they read back as entries without arguments, the old
+  column stays in the table and is never written, and the next save of the case writes the new
+  column. A custom check can no longer be registered under the name `toolCallArgsMatch`; it is a
+  built-in kind now.
 
 - **A call of a registered hosted tool is a pair of tool events, not a `tracon.content` event.**
   The calls of a tool added with `AddHostedTool` are `ToolInvoking` and `ToolInvoked` events under

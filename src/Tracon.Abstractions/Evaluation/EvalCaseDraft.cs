@@ -9,8 +9,8 @@ public sealed record EvalCaseDraft
     /// <summary>The expected output.</summary>
     public string? ExpectedOutput { get; init; }
 
-    /// <summary>The expected tool names.</summary>
-    public IReadOnlyList<string> ExpectedTools { get; init; } = [];
+    /// <summary>The expected tool calls. See <see cref="EvalCase.ExpectedToolCalls"/>.</summary>
+    public IReadOnlyList<EvalExpectedToolCall> ExpectedToolCalls { get; init; } = [];
 
     /// <summary>Text given to the model as extra context.</summary>
     /// <remarks>

@@ -7237,7 +7237,7 @@ namespace Tracon.Client.Generated
         /// Replaces all of a suite's cases with the given list.
         /// </summary>
         /// <remarks>
-        /// This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the 'id' it was listed with — a case holds that id for its whole life and the run-to-run diff behind '--baseline' is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. 'parameters' travels the same way: it is part of the case, and a parameterized agent's case sent without it then fails the missing-parameter check at run time. Promotion data is the server's own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body's order, which means reordering the list re-numbers the cases. Every case needs a non-empty 'query'; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.
+        /// This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the 'id' it was listed with — a case holds that id for its whole life and the run-to-run diff behind '--baseline' is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. 'parameters' travels the same way: it is part of the case, and a parameterized agent's case sent without it then fails the missing-parameter check at run time. 'expectedToolCalls' lists the tool calls the 'toolCallArgsMatch' check looks for, each a 'name' with optional 'arguments'; the old 'expectedTools' key is refused with 400. Promotion data is the server's own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body's order, which means reordering the list re-numbers the cases. Every case needs a non-empty 'query'; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -19981,10 +19981,10 @@ namespace Tracon.Client.Generated
         public string? ExpectedOutput { get; set; } = default!;
 
         /// <summary>
-        /// The tool names this case is expected to exercise, recorded for reference.
+        /// The tool calls this case expects, by name and optionally by arguments.
         /// </summary>
-        [System.Text.Json.Serialization.JsonPropertyName("expectedTools")]
-        public System.Collections.Generic.ICollection<string> ExpectedTools { get; set; } = new System.Collections.Generic.List<string>();
+        [System.Text.Json.Serialization.JsonPropertyName("expectedToolCalls")]
+        public System.Collections.Generic.ICollection<EvalExpectedToolCall> ExpectedToolCalls { get; set; } = new System.Collections.Generic.List<EvalExpectedToolCall>();
 
         /// <summary>
         /// Text given to the model as extra context.
@@ -20134,10 +20134,14 @@ namespace Tracon.Client.Generated
         public string? ExpectedOutput { get; set; } = default!;
 
         /// <summary>
-        /// Tool names looked for by the `toolCalled` check.
+        /// Tool calls the agent is expected to make, read by the `toolCallArgsMatch`
+        /// <br/>check. Each entry is `{"name": ..., "arguments": {...}}`; without
+        /// <br/>`arguments` the entry checks only that the tool was called. Listed
+        /// <br/>arguments must all be carried by one call to that tool, which may carry
+        /// <br/>others, and values compare by JSON meaning.
         /// </summary>
-        [System.Text.Json.Serialization.JsonPropertyName("expectedTools")]
-        public System.Collections.Generic.ICollection<string> ExpectedTools { get; set; } = new System.Collections.Generic.List<string>();
+        [System.Text.Json.Serialization.JsonPropertyName("expectedToolCalls")]
+        public System.Collections.Generic.ICollection<EvalExpectedToolCall> ExpectedToolCalls { get; set; } = new System.Collections.Generic.List<EvalExpectedToolCall>();
 
         /// <summary>
         /// Text to give the model as extra context.
@@ -20241,6 +20245,28 @@ namespace Tracon.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"ReferenceRun")]
         ReferenceRun = 2,
+
+    }
+
+    /// <summary>
+    /// A tool call an EvalCase expects the agent to make.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class EvalExpectedToolCall
+    {
+
+        /// <summary>
+        /// The tool name. Compared without regard to letter case.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        /// <summary>
+        /// The arguments the call must carry, or `null` to check only
+        /// <br/>that the tool was called.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("arguments")]
+        public object? Arguments { get; set; } = default!;
 
     }
 

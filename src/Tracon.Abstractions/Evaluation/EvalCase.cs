@@ -21,16 +21,15 @@ public sealed record EvalCase
     public string? ExpectedOutput { get; init; }
 
     /// <summary>
-    /// The tool names this case is expected to exercise, recorded for reference.
+    /// The tool calls this case expects, by name and optionally by arguments.
     /// </summary>
     /// <remarks>
-    /// <strong>Not read by any check.</strong> The <c>toolCalled</c> check takes
-    /// its tool names from its own <c>tools</c> field in the suite's
-    /// <c>checks</c> definition, so filling this in does not assert anything and
-    /// leaving it empty does not weaken a check. It exists so a case can carry
-    /// what it was written to cover.
+    /// Referenced by the <c>toolCallArgsMatch</c> check. An empty list expects
+    /// nothing, so that check passes. The <c>toolCalled</c> check does not read
+    /// this field: it takes its tool names from its own <c>tools</c> field in the
+    /// suite's <c>checks</c> definition.
     /// </remarks>
-    public IReadOnlyList<string> ExpectedTools { get; init; } = [];
+    public IReadOnlyList<EvalExpectedToolCall> ExpectedToolCalls { get; init; } = [];
 
     /// <summary>Text given to the model as extra context.</summary>
     /// <remarks>

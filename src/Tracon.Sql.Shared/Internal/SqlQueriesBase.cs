@@ -1281,7 +1281,7 @@ internal abstract class SqlQueriesBase
 
     protected const string EvalCaseColumns = """
             id, suite_id, seq, query, expected_output, expected_tools, context,
-            source_run_id, source_kind, promoted_at, parameters
+            source_run_id, source_kind, promoted_at, parameters, expected_tool_calls
             """;
 
     protected const string EvalRunColumns = """
@@ -1995,10 +1995,10 @@ internal abstract class SqlQueriesBase
         // run being promoted twice.
         InsertEvalCase = $"""
             INSERT INTO {Table("eval_cases")}
-                (id, suite_id, seq, query, expected_output, expected_tools, context,
+                (id, suite_id, seq, query, expected_output, expected_tool_calls, context,
                  source_run_id, source_kind, promoted_at, parameters)
             VALUES
-                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context,
+                (@id, @suite_id, @seq, @query, @expected_output, @expected_tool_calls, @context,
                  @source_run_id, @source_kind, @promoted_at, @parameters);
             """;
 

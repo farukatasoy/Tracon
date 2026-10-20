@@ -3254,7 +3254,7 @@
           "Evals"
         ],
         "summary": "Replaces all of a suite\u0027s cases with the given list.",
-        "description": "This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the \u0027id\u0027 it was listed with \u2014 a case holds that id for its whole life and the run-to-run diff behind \u0027--baseline\u0027 is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. \u0027parameters\u0027 travels the same way: it is part of the case, and a parameterized agent\u0027s case sent without it then fails the missing-parameter check at run time. Promotion data is the server\u0027s own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body\u0027s order, which means reordering the list re-numbers the cases. Every case needs a non-empty \u0027query\u0027; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.",
+        "description": "This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the \u0027id\u0027 it was listed with \u2014 a case holds that id for its whole life and the run-to-run diff behind \u0027--baseline\u0027 is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. \u0027parameters\u0027 travels the same way: it is part of the case, and a parameterized agent\u0027s case sent without it then fails the missing-parameter check at run time. \u0027expectedToolCalls\u0027 lists the tool calls the \u0027toolCallArgsMatch\u0027 check looks for, each a \u0027name\u0027 with optional \u0027arguments\u0027; the old \u0027expectedTools\u0027 key is refused with 400. Promotion data is the server\u0027s own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body\u0027s order, which means reordering the list re-numbers the cases. Every case needs a non-empty \u0027query\u0027; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.",
         "operationId": "TraconSaveEvalCases",
         "parameters": [
           {
@@ -10869,12 +10869,12 @@
             ],
             "description": "The expected output. Referenced by the \u0060containsExpected\u0060 check."
           },
-          "expectedTools": {
+          "expectedToolCalls": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EvalExpectedToolCall"
             },
-            "description": "The tool names this case is expected to exercise, recorded for reference."
+            "description": "The tool calls this case expects, by name and optionally by arguments."
           },
           "context": {
             "type": [
@@ -11022,12 +11022,12 @@
             ],
             "description": "Expected output."
           },
-          "expectedTools": {
+          "expectedToolCalls": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EvalExpectedToolCall"
             },
-            "description": "Tool names looked for by the \u0060toolCalled\u0060 check."
+            "description": "Tool calls the agent is expected to make, read by the \u0060toolCallArgsMatch\u0060\ncheck. Each entry is \u0060{\u0022name\u0022: ..., \u0022arguments\u0022: {...}}\u0060; without\n\u0060arguments\u0060 the entry checks only that the tool was called. Listed\narguments must all be carried by one call to that tool, which may carry\nothers, and values compare by JSON meaning."
           },
           "context": {
             "type": [
@@ -11129,6 +11129,26 @@
           "ReferenceRun",
           null
         ]
+      },
+      "EvalExpectedToolCall": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The tool name. Compared without regard to letter case."
+          },
+          "arguments": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "description": "The arguments the call must carry, or \u0060null\u0060 to check only\nthat the tool was called."
+          }
+        },
+        "description": "A tool call an EvalCase expects the agent to make."
       },
       "EvalRun": {
         "required": [

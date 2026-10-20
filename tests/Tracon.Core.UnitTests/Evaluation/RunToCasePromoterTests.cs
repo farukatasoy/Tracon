@@ -53,6 +53,68 @@ public sealed class RunToCasePromoterTests
         outcome.Case.Context.ShouldBeNull();
     }
 
+    /// <summary>
+    /// F-605 (phase 227) - a reference run stands for the tools it called, by name. The
+    /// arguments of one run belong to that run; a case that demanded them would fail on the
+    /// next run's own values.
+    /// </summary>
+    /// <returns>The test task.</returns>
+    [Fact]
+    public async Task A_reference_run_is_promoted_with_each_tool_it_called_once_and_without_arguments()
+    {
+        var harness = await Harness.CreateAsync();
+
+        var runId = await harness.SeedRunAsync("Where is order 4182?", [new ChatMessage(ChatRole.User, "Where is order 4182?")]);
+
+        foreach (var (name, arguments) in new[]
+                 {
+                     ("get_order_status", "orderId=4182"),
+                     ("get_shipping_status", "orderId=4182"),
+                     ("get_order_status", "orderId=4183"),
+                 })
+        {
+            await harness.Runs.RecordToolInvocationAsync(new ToolInvocationRecord
+            {
+                Id = TraconId.NewId(),
+                RunId = runId,
+                ToolName = name,
+                Arguments = arguments,
+                CreatedAt = DateTimeOffset.UtcNow,
+            });
+        }
+
+        var outcome = await harness.Promoter.PromoteAsync(Tenant, harness.Suite, runId, sourceKindOverride: EvalCaseSource.ReferenceRun);
+
+        outcome.Status.ShouldBe(RunPromotionStatus.Created);
+
+        var calls = outcome.Case!.ExpectedToolCalls;
+
+        calls.Select(static call => call.Name).OrderBy(static name => name, StringComparer.Ordinal)
+            .ShouldBe(["get_order_status", "get_shipping_status"]);
+        calls.ShouldAllBe(static call => call.Arguments == null);
+    }
+
+    [Fact]
+    public async Task A_failed_run_is_promoted_without_expected_tool_calls()
+    {
+        var harness = await Harness.CreateAsync();
+
+        var runId = await harness.SeedRunAsync("Where is order 4182?", [new ChatMessage(ChatRole.User, "Where is order 4182?")]);
+
+        await harness.Runs.RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = runId,
+            ToolName = "get_order_status",
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var outcome = await harness.Promoter.PromoteAsync(Tenant, harness.Suite, runId, sourceKindOverride: EvalCaseSource.FailedRun);
+
+        outcome.Status.ShouldBe(RunPromotionStatus.Created);
+        outcome.Case!.ExpectedToolCalls.ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task A_run_whose_input_carried_more_than_one_turn_is_refused()
     {
