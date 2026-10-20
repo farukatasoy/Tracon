@@ -239,6 +239,7 @@
 | 223 | Tanınmayan MAF İçeriği ve Workflow Olayının Kaydı | tam | ✅ | 2026-10-20 | F-589 | `e1055f5d:docs/223-TANINMAYAN-ICERIK-KAYDI.md` |
 | 224 | MAF Kapsama Ölçüm Aracı | hafif | ✅ | 2026-10-20 | F-596 | `941da3b0:docs/224-MAF-KAPSAMA-OLCUM-ARACI.md` |
 | 225 | Model Örneklemesi ve Tool Döngüsü Tanımda | tam | ✅ | 2026-10-20 | F-598 | `44866805:docs/225-MODEL-ORNEKLEME-VE-TOOL-DONGUSU.md` |
+| 226 | Adlı Hosted Tool'lar: Kayıt, Yüzey Doğrulaması, Ücret | tam | ✅ | 2026-10-21 | F-603 | `18f8d6a2:docs/226-ADLI-HOSTED-TOOLLAR.md` |
 | 228 | Alt Agent Tek Çağrı Modu | hafif | ✅ | 2026-10-20 | F-599 | `d26a33ca:docs/228-ALT-AGENT-TOOL-MODU.md` |
 
 ## Süreç Ölçümü
@@ -306,4 +307,5 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 223 | 9 | 1 | 0 / 1 / 0 | 0 | ölçülmedi |
 | 224 | 1 | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 225 | 0 | 3 | 2 / 0 / 0 | 1 | ölçülmedi |
+| 226 | 12 | 3 denetim sonrası | 1 / 0 / 0 | 0. Hiçbir şey denetimden önce commit edilmedi | ölçülmedi |
 | 228 | 8 sapma | 2 | 0 / 0 / 0 | 0 bilinen | ölçülmedi |
