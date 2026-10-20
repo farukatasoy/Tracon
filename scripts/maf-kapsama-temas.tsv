@@ -14,7 +14,7 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.1	❌	✗	Agent düzeyi tool middleware: `AIAgentBuilder.Use(Func<AIAgent, FunctionInvocationContext, next, ct, …>)`	AIAgent Func Use	AIAgent Func Use	AIAgent Func Use
 5.1	🟡	✓	Yapılandırılmış çıktı: `ChatOptions.ResponseFormat` ✔ · `RunAsync<T>`/`AgentResponse<T>` ✘	AgentResponse ChatOptions ResponseFormat RunAsync	AgentResponse ChatOptions ResponseFormat RunAsync	ChatOptions ResponseFormat RunAsync
 5.1	🟡	✓ K-1039	`ChatClientAgentRunOptions` (run başına `ChatOptions`, `ChatClientFactory`)	ChatClientAgentRunOptions ChatClientFactory ChatOptions	ChatClientAgentRunOptions ChatClientFactory ChatOptions	ChatOptions
-5.1	❌	✗	`AIAgent.AsAIFunction` (agent = senkron tool)	AIAgent	AIAgent	AIAgent
+5.1	✅	✓ K-1043	`AIAgent.AsAIFunction` (agent = senkron tool)	AIAgent AsAIFunction	AIAgent AsAIFunction	AIAgent
 5.1	❌	✗⁺	`AIAgent.AsIChatClient(agent, session, …)` (MAAI001, 1.16'dan sonra geldi, 1.25'te genişledi)	AIAgent AsIChatClient	AIAgent	AIAgent
 5.1	🟡	✗	`EnableMessageInjection` · `MessageInjectingChatClient` (`EnqueueMessagesAsync`, `GetPendingMessagesAsync`) · `UseMessageInjection`	EnableMessageInjection	EnableMessageInjection	-
 5.1	🟡	✗	`RequirePerServiceCallChatHistoryPersistence` · `Clear/Warn/ThrowOnChatHistoryProviderConflict` · `UseProvidedChatClientAsIs`	Clear RequirePerServiceCallChatHistoryPersistence ThrowOnChatHistoryProviderConflict UseProvidedChatClientAsIs	Clear RequirePerServiceCallChatHistoryPersistence ThrowOnChatHistoryProviderConflict UseProvidedChatClientAsIs	-

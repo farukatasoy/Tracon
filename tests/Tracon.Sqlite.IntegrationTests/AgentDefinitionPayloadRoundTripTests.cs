@@ -89,6 +89,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         // than by "is it non-default" — a mapper that assigned the wrong source
         // property would still pass the loop above.
         read.SubAgents!.WaitTimeout.ShouldBe(TimeSpan.FromSeconds(30));
+        read.SubAgents.CallMode.ShouldBe(SubAgentCallMode.Tool);
         read.McpResourceUris.ShouldBe(["docs:file:///handbook.md"]);
 
         // The list is ordered data: the order the extensions run is the order stored.
@@ -118,6 +119,25 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         definition.McpResourceUris.ShouldBeEmpty();
         definition.Parameters.ShouldBeEmpty();
         definition.ToolNames.ShouldBe(["echo-tool"]);
+    }
+
+    /// <summary>
+    /// A row written before <c>CallMode</c> existed has <c>subAgents</c> without that key. It must
+    /// keep running on background tasks, the only mode the row could have been written for.
+    /// </summary>
+    [Fact]
+    public void A_payload_written_before_the_call_mode_existed_reads_back_as_background()
+    {
+        const string legacy = """{"model":{"provider":"echo","model":"echo-1"},"subAgents":{"waitTimeout":"00:00:30"}}""";
+
+        var payload = JsonSerializer.Deserialize(legacy, TraconJsonContext.Default.AgentDefinitionPayload);
+
+        payload.ShouldNotBeNull();
+
+        var definition = payload.ToDefinition("legacy", 1, "default", DateTimeOffset.UtcNow);
+
+        definition.SubAgents!.CallMode.ShouldBe(SubAgentCallMode.Background);
+        definition.SubAgents.WaitTimeout.ShouldBe(TimeSpan.FromSeconds(30));
     }
 
     /// <summary>
@@ -238,7 +258,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
             SkillNames = ["echo-skill"],
             ExtensionNames = ["echo-extension", "second-extension"],
             CallableAgentNames = ["child-agent"],
-            SubAgents = new SubAgentSettings { WaitTimeout = TimeSpan.FromSeconds(30) },
+            SubAgents = new SubAgentSettings { WaitTimeout = TimeSpan.FromSeconds(30), CallMode = SubAgentCallMode.Tool },
             McpResourceUris = ["docs:file:///handbook.md"],
             Harness = new HarnessSettings(),
             Compaction = new CompactionSettings { Strategy = CompactionStrategyKind.Truncation },

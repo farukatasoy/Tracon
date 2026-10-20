@@ -241,3 +241,4 @@ görüntüsünü istedi. `computeUiSourceHash` artık `*.test.ts(x)` dosyaların
 son case). Damgayı tazelemeden önce son geçerli damgadan bu yana arayüzde
 yalnız test dosyası değiştiğini `git diff --stat <sha>..HEAD -- src/Tracon.UI/frontend`
 ile göster; ekran kaynağı değiştiyse görüntüler yeniden üretilir.
+- **Agent haritası bütçesi (11264 B) Faz 228'de 2 B boştu** (ölçüldü): `capabilities.md` satırının baştaki sütunları haritayı büyütür, 4. sütuna eklenen 63 B haritayı değiştirmedi. Yeni davranışın ayrıntısı son sütuna gider; baştaki sütunu uzatan satır `build-agent-map.mjs`'i kırar.

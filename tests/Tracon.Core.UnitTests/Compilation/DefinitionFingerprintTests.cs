@@ -42,6 +42,18 @@ public sealed class DefinitionFingerprintTests
     }
 
     [Fact]
+    public void A_changed_sub_agent_call_mode_changes_the_fingerprint()
+    {
+        // The mode decides which tools the compiled agent carries. A cache entry compiled for
+        // background tasks must not serve an agent whose definition now says Tool, and back.
+        var background = TestData.Definition("a") with { SubAgents = new SubAgentSettings() };
+        var tool = TestData.Definition("a") with { SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool } };
+
+        AgentDefinitionCompiler.CreateDefinitionFingerprint(tool)
+            .ShouldNotBe(AgentDefinitionCompiler.CreateDefinitionFingerprint(background), StringComparer.Ordinal);
+    }
+
+    [Fact]
     public void Every_field_of_the_record_reaches_the_fingerprint()
     {
         // Structural guard. The fingerprint hashes the serialized record rather

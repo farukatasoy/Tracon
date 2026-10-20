@@ -7259,10 +7259,20 @@ export interface components {
         /** Format: binary */
         Stream: string;
         /**
-         * @description Determines how long an agent waits for the agents it calls.
+         * @description How an agent calls the agents it may call (`CallableAgentNames`).
+         * @enum {unknown}
+         */
+        SubAgentCallMode: "Background" | "Tool";
+        /**
+         * @description Determines how an agent calls the agents it may call, and how long it waits for them.
          * @example null
          */
         SubAgentSettings: {
+            /**
+             * @description Gets how the agent calls every agent in `CallableAgentNames`.
+             *     Defaults to `Background`.
+             */
+            callMode?: components["schemas"]["SubAgentCallMode"];
             /** @description Gets the deadline applied to a single sub-agent run (the cooperative layer). */
             childDeadline?: null | string;
             /**
@@ -8977,6 +8987,7 @@ export type SpeechAlignment = components['schemas']['SpeechAlignment'];
 export type SpeechProviderDescriptor = components['schemas']['SpeechProviderDescriptor'];
 export type SpeechProviderKind = components['schemas']['SpeechProviderKind'];
 export type Stream = components['schemas']['Stream'];
+export type SubAgentCallMode = components['schemas']['SubAgentCallMode'];
 export type SubAgentSettings = components['schemas']['SubAgentSettings'];
 export type TenantDescriptor = components['schemas']['TenantDescriptor'];
 export type TenantEgressPolicyRequest = components['schemas']['TenantEgressPolicyRequest'];

@@ -16,10 +16,10 @@ import { join } from 'node:path';
 // here only after opening public/landing/<crop>*.avif and confirming the crop
 // still frames what CROPS says it frames.
 export const CAPTURE_PINS = {
-  'approvals.png': 'b130e3f6495f6862c9fc20815cdb5ab19d2190bee6d9d98e27a5e33f25469380',
-  'approvals-light.png': '7654ce37d88c5dc4695a47d10168a04eeab3bff96065b12cbfdb0bee5939a413',
-  'run-detail.png': 'bcd80802a2bf3b995a7f83eb4913845d314f05e40af41d513a44bd060560f5a9',
-  'run-detail-light.png': '8a03c5b79347b07516687fdef692413ccdbed7f5c08f297c1dab10701c52a990',
+  'approvals.png': 'e9beda847248bd82564a7a7959ca7374c33d5b26401ea85a8ad1d062ea95bd50',
+  'approvals-light.png': 'da3f5319484aa26f0f93bec337a92f4b475f85b96fc85faf6c3277a707c268c5',
+  'run-detail.png': '4f05dae2415c7e999dddc64039c4cfcd967c17609b84f284766d767341586241',
+  'run-detail-light.png': '70c2922f40c2fda6644eaeeb7a965f619d06092032c7c5345e4f9107a2db6753',
 };
 
 // Regions in source pixels (the captures are 2x). They start below the console's

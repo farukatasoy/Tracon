@@ -310,7 +310,11 @@ karar YENİ bir çalıştırma açar (K-368) — bkz. §7.
 Bir agent `CallableAgentNames` taşıyorsa derleyici her alt agent'ı bir
 `ChildAgentInvoker` ile sarar ve bunları MAF'ın `BackgroundAgentsProvider`'ına
 verir. Sağlayıcı modele altı tool açar; model önce görevi başlatır, sonra bekler,
-sonra sonucu okur.
+sonra sonucu okur. `SubAgentSettings.CallMode = Tool` (Faz 228, K-1043) bu sağlayıcıyı
+kurmaz: her sarmalayıcı `AsAIFunction` ile adı agent adından türeyen tek bir tool olur,
+bir çağrı çocuğu koşar ve cevabını döndürür. Aşağıdaki kurallar ve diyagramdaki
+`ChildAgentInvoker` her iki kipte aynıdır; tool kayıt defteri zincirinden
+(yetki, onay, tool zaman aşımı) geçmez, sınırı sarmalayıcı koyar.
 
 ```mermaid
 flowchart TD

@@ -88,6 +88,53 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
+    public async Task Tool_mode_callable_agent_whose_tool_name_is_taken_produces_a_conflict_naming_both()
+    {
+        var descriptors = new[]
+        {
+            new AgentDescriptor { Name = "support-agent", Origin = AgentDefinitionOrigin.Database, SourceName = "database" },
+        };
+        var (validator, _, _) = CreateValidator(
+            registry: TestData.Registry(TestData.Tool("support_agent")),
+            descriptors: descriptors);
+
+        var definition = TestData.Definition(toolNames: ["support_agent"]) with
+        {
+            CallableAgentNames = ["support-agent"],
+            SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
+        };
+        var report = await validator.ValidateAsync(definition);
+
+        report.Valid.ShouldBeFalse();
+        var message = report.Messages.ShouldHaveSingleItem();
+        message.Code.ShouldBe("sub_agent_tool_name_conflict");
+        message.Severity.ShouldBe(ValidationSeverity.Error);
+        message.Path.ShouldBe("callableAgentNames[0]");
+        message.Message.ShouldContain("'support-agent'");
+        message.Message.ShouldContain("'support_agent'");
+    }
+
+    [Fact]
+    public async Task The_same_names_report_no_tool_name_conflict_in_background_mode()
+    {
+        var descriptors = new[]
+        {
+            new AgentDescriptor { Name = "support-agent", Origin = AgentDefinitionOrigin.Database, SourceName = "database" },
+        };
+        var (validator, _, _) = CreateValidator(
+            registry: TestData.Registry(TestData.Tool("support_agent")),
+            descriptors: descriptors);
+
+        var definition = TestData.Definition(toolNames: ["support_agent"]) with { CallableAgentNames = ["support-agent"] };
+        var report = await validator.ValidateAsync(definition);
+
+        // Only the conflict is asserted: this validator's compiler has no tenant context, so the
+        // structural step that follows reports the missing sub-agent resolver for any callable agent.
+        report.Messages.Any(static message => string.Equals(message.Code, "sub_agent_tool_name_conflict", StringComparison.Ordinal))
+            .ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task Three_separate_errors_return_three_messages_does_not_stop_at_first()
     {
         var (validator, _, _) = CreateValidator();

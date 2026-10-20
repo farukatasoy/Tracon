@@ -58,6 +58,10 @@ function stopSequencesToSend(form: FormState): string[] | null {
 export const RESPONSE_FORMAT_KINDS = ['', 'Text', 'Json', 'JsonSchema'] as const;
 export type ResponseFormatKindOption = (typeof RESPONSE_FORMAT_KINDS)[number];
 
+/** How an agent calls its callable agents: framework background tasks, or one tool for each agent. */
+export const SUB_AGENT_CALL_MODES = ['Background', 'Tool'] as const;
+export type SubAgentCallModeOption = (typeof SUB_AGENT_CALL_MODES)[number];
+
 export const DEFAULT_SCHEMA_TEXT = '{\n  "type": "object",\n  "properties": {}\n}';
 
 export function isValidJson(text: string): boolean {
@@ -160,6 +164,7 @@ export interface FormState {
   skillNames: string[];
   extensionNames: string[];
   callableAgentNames: string[];
+  subAgentCallMode: SubAgentCallModeOption;
   harnessEnabled: boolean;
   harness: HarnessSettings;
   compaction: CompactionForm;
@@ -200,6 +205,7 @@ export const emptyForm: FormState = {
   skillNames: [],
   extensionNames: [],
   callableAgentNames: [],
+  subAgentCallMode: 'Background',
   harnessEnabled: false,
   harness: {},
   compaction: emptyCompaction,
@@ -280,7 +286,7 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     harness: form.harnessEnabled ? form.harness : null,
     compaction: form.compaction.strategy === 'None' ? null : form.compaction,
     memory: memoryHasAnything(form.memory) ? form.memory : null,
-    subAgents: form.preserved.subAgents,
+    subAgents: toSubAgents(form),
     mcpResourceUris: form.preserved.mcpResourceUris,
     metadata: form.preserved.metadata,
     parameters: form.preserved.parameters,
@@ -336,6 +342,7 @@ export function fromDefinition(definition: AgentDefinition): FormState {
     skillNames: [...definition.skillNames],
     extensionNames: [...(definition.extensionNames ?? [])],
     callableAgentNames: [...(definition.callableAgentNames ?? [])],
+    subAgentCallMode: definition.subAgents?.callMode ?? 'Background',
     harnessEnabled: definition.harness !== null && definition.harness !== undefined,
     harness: definition.harness ?? {},
     compaction: definition.compaction ?? emptyCompaction,
@@ -350,6 +357,31 @@ export function fromDefinition(definition: AgentDefinition): FormState {
       responseCache: definition.model.responseCache ?? null,
     },
   };
+}
+
+/**
+ * The sub-agent settings to send: the wait limits the console has no control for, plus the call mode
+ * it does. A mode the person did not change is sent as it was loaded, so a stored `Background` and an
+ * absent one both come back unchanged; a changed mode to `Background` drops the key, and the settings
+ * become `null` when nothing else is left.
+ */
+function toSubAgents(form: FormState): AgentDefinitionRequest['subAgents'] {
+  const stored = form.preserved.subAgents ?? null;
+
+  if ((stored?.callMode ?? 'Background') === form.subAgentCallMode) {
+    return stored;
+  }
+
+  if (form.subAgentCallMode === 'Tool') {
+    return { ...stored, callMode: 'Tool' };
+  }
+
+  // The server writes the unset wait limits as null, so a key with no value is not "something else".
+  const rest = Object.fromEntries(
+    Object.entries(stored ?? {}).filter(([key, value]) => key !== 'callMode' && value !== null && value !== undefined),
+  );
+
+  return Object.keys(rest).length > 0 ? rest : null;
 }
 
 /** Rows with an empty culture code or empty text are dropped; a later row wins on a duplicate code. */

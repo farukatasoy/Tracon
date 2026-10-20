@@ -89,10 +89,11 @@ public sealed record AgentDefinition
     public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
 
     /// <summary>
-    /// Gets how long this agent waits for the agents it calls. When
-    /// <see langword="null"/>, <c>TraconAgentGraphOptions.ChildDeadline</c>
-    /// and <c>WaitTimeout</c> apply instead. Ignored when
-    /// <see cref="CallableAgentNames"/> is empty.
+    /// Gets how this agent calls the agents it may call
+    /// (<c>SubAgentSettings.CallMode</c>) and how long it waits for them. When
+    /// <see langword="null"/>, the agent uses background tasks and
+    /// <c>TraconAgentGraphOptions.ChildDeadline</c> and <c>WaitTimeout</c> apply.
+    /// Ignored when <c>CallableAgentNames</c> is empty.
     /// </summary>
     public SubAgentSettings? SubAgents { get; init; }
 

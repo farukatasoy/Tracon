@@ -3,7 +3,8 @@
 > **Alan kodu:** `UIAG` · **Faz:** 5 (agent kataloğu, editör, playground), 19 (sürüm
 > karşılaştırma — `agent-detail.tsx` içindeki `VersionCompare`), 142 (onay
 > kartında varlık adı sunumu ve katlanır ham argümanlar), 225 (model bölümü:
-> örnekleme alanları ve tool döngüsü)
+> örnekleme alanları ve tool döngüsü), 228 (alt agent çağrı modu: çağrılabilir
+> agent bölümü)
 > **Kaynak:** `src/Tracon.UI/frontend/src/screens/agents.tsx` (katalog) ·
 > `screens/agent-editor.tsx` (oluşturma/düzenleme) · `screens/agent-detail.tsx`
 > (özet, versiyon geçmişi, karşılaştırma, geri alma) · `screens/playground.tsx`
@@ -2051,3 +2052,32 @@ Rol: administrator.
 - Adım 1: `201`; `GET $BASE/api/agents/reason-demo` `model.reasoningOutput` = `Summary` döner.
 - Adım 2: run `Completed`.
 - Adım 3: olaylarda en az bir `ReasoningDelta` vardır. Aynı agent `reasoningOutput` olmadan kaydedilirse run'da `ReasoningDelta` yoktur.
+
+---
+
+### MT-UIAG-065 — Alt agent çağrı modu: editör `Tool` kipini kaydeder, run ebeveyne tek tool verir ve model çağrısı 5'ten 2'ye iner (Faz 228)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 228 |
+| **İlgili karar** | K-1043 |
+| **Devir** | 🤖 ajan koşar — Playwright MCP + örnek uygulama + gerçek OpenAI anahtarı + `curl` |
+
+**Ön koşul** — Örnek uygulama Development'ta, dört boş ortam değişkeniyle (`PostgreSql`, `SqlServer`, `Sqlite` bağlantı dizesi ve `Ui:AuthToken`), `Tracon__Observability__SuccessSampleRatio=1`, OpenAI anahtarı gerçek. `support` kod agent'ı mevcut. Rol: administrator.
+
+**Adımlar**
+1. `POST $BASE/api/agents` ile `router-tool` kaydet: `callableAgentNames: ["support"]`, `subAgents: {"callMode":"Tool"}`, model `openai/gpt-5.4-mini`, talimat `router` ile aynı.
+2. Tarayıcıda `/tracon/agents/router-tool/edit` aç; "Call mode" seçimine bak. Seçimi "Background tasks" yap ve kaydet; `GET $BASE/api/agents/router-tool` oku.
+3. `/tracon/agents/router-tool` aç; sürüm 1 ve 2'yi karşılaştır.
+4. `router` (kod agent'ı, varsayılan kip) ve `router-tool` agent'ını ("What is the status of order ORD-7?") üçer kez koş. Her run için `GET $BASE/api/runs/{id}/trace` oku: ebeveynin `chat` span sayısını ve `gen_ai.tool.definitions` içindeki tool adlarını say.
+5. `POST $BASE/api/agents` ile `get-order-status` agent'ı kaydet; sonra `toolNames: ["get_order_status"]`, `callableAgentNames: ["get-order-status"]`, `subAgents: {"callMode":"Tool"}` taşıyan bir agent kaydetmeyi dene; aynısını `callMode` olmadan dene.
+
+**Beklenen sonuç**
+- Adım 2: seçim kayıtlı `Tool` değerini "One tool for each agent" olarak gösterir; kayıttan sonra `subAgents.callMode` = `Background`.
+- Adım 3: "Call mode" satırı iki sütunda farklı metin gösterir ("One tool for each agent" ↔ "Background tasks") ve vurgulanır.
+- Adım 4: `router-tool` ebeveyni 2 `chat` span'ı yazar ve yalnız `support` tool'unu görür; `router` ebeveyni 5 `chat` span'ı yazar ve altı `background_agents_*` tool'unu görür. Çocuk her iki kipte 2 model çağrısı yapar. Tüm run'lar `Completed`.
+- Adım 5: `get-order-status` agent'ı `201` alır. `Tool` kipi `400` verir ve ayrıntı `'get-order-status'` ile `'get_order_status'` adlarını ikisini de içerir; `callMode` olmadan kayıt `201` alır. `POST $BASE/api/agents/validate` aynı tanım için `sub_agent_tool_name_conflict` ve `callableAgentNames[0]` yolunu döner.
+
+**Koşum (2026-10-20, ajan)** — Adım 2: seçim `One tool for each agent` gösterdi, kayıttan sonra sürüm 2 `callMode: Background`. Adım 3: satır iki farklı değerle ve `bg-warn-soft` ile göründü. Adım 4 (`router` ↔ `router-tool`, üçer run): ebeveyn model çağrısı 5 ↔ 2; ebeveyn girdi token'ı 3.603–3.705 ↔ 409–412; çıktı token'ı 139–170 ↔ 48–53; süre 5,8–9,0 sn ↔ 3,1–3,3 sn. Adım 5: `400`, ayrıntı iki adı da içerdi; `callMode` olmadan `201`. Günlükte `Npgsql` satırı 0.

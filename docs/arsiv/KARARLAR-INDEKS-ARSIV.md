@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (980 kalem)
+## Arşivlenen Kararlar (981 kalem)
 
 | K | Karar |
 |---|---|
@@ -989,3 +989,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-988 | Workflow kök satırı derlediği sürümü `runs.agent_version`'a yazar; `resume`/`respond` kaynağın damgasını derler, `definitionVersion` başka sürüm seçer, olmayan sürüm kapalı düşer (F-300) |
 | K-989 | `WorkflowNodeReference.AgentVersion`: yalnız `nodes` biçiminde veritabanı agent'ı sabitlenir; kayıtta ve derlemede doğrulanır; sabit önbellek anahtarındadır, executor kimliğinde değil (F-300) |
 | K-990 | Kota girdisi ağaç başına değil harcayan run başına yazılır: kök (`Runs = 1`), alt agent run'ı (`Runs = 0`), workflow kökü ve kapanıştan sonra dönen tool kendi token ve tutarını, kapanırken, kökün kiracısı ve adı altında yazar; kimlik ortamdan değil ağacın bütçesindeki `TreeAccount`'tan okunur ve tek yazım yolu `TreeQuota.RecordAsync`'tir; `run.*` webhook'u kök kapanış anının görüntüsü olarak kalır; eşik bildirimi eşiği geçiren run'ın akışına yazılır; K-913'ün kota yarısını ve K-974'ün "yalnız detaya" kuralının kota yarısını değiştirir (F-418, F-482, Faz 205) (kullanıcı kararı) 👤 |
+| K-991 | Ajan run akışı run'ın kayıtlı ayrılmış bildirimlerini `done`'dan hemen önce `custom` çerçevesi olarak verir: kapalı liste (`tracon.output.truncated` her zaman, `tracon.quota.threshold` yalnız `PublishThresholdToRunStream` açıkken), veri `/events` ile bayt bayt aynı kayıttır (yeniden okunur, ikinci kopya kurulmaz); depo yalnız kota seçeneği açıksa ya da bir `update` kesilme sebebi taşıdıysa okunur; okuma hatası uyarı + `done`'dur; listeye tip eklemek sözleşme kararıdır (F-427, Faz 207) (kullanıcı kararı) 👤 |

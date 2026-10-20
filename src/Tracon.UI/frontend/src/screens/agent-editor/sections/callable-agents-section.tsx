@@ -1,9 +1,9 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { useT } from '../../../lib/i18n';
-import { ErrorNote, Loading, Mono, Panel } from '../../../components/ui';
+import { ErrorNote, Field, Loading, Mono, Panel, Select } from '../../../components/ui';
 import type { AgentDescriptor } from '../../../lib/server-types';
-import type { FormState } from '../model';
+import { SUB_AGENT_CALL_MODES, type FormState, type SubAgentCallModeOption } from '../model';
 
 export function CallableAgentsSection({
   form,
@@ -23,6 +23,21 @@ export function CallableAgentsSection({
         <p className="mb-3 text-sm text-muted">
           {t('agentEditor.callableNotice')} <Mono>Tracon:AgentGraph</Mono>.
         </p>
+
+        <Field label={t('fields.callMode')}>
+          <Select
+            testId="agent-call-mode"
+            value={form.subAgentCallMode}
+            onChange={(value) => setForm({ ...form, subAgentCallMode: value as SubAgentCallModeOption })}
+          >
+            {SUB_AGENT_CALL_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {t(`agentEditor.callMode.${mode}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <p className="mb-4 mt-1 text-sm text-muted">{t('agentEditor.callModeNotice')}</p>
 
         {agents.isPending && <Loading rows={3} />}
         {agents.isError && <ErrorNote error={agents.error} onRetry={() => void agents.refetch()} />}

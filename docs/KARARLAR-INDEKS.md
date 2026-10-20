@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 980 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 981 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1032 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1033 kalem)
 
 | K | Karar |
 |---|---|
-| K-991 | Ajan run akışı run'ın kayıtlı ayrılmış bildirimlerini `done`'dan hemen önce `custom` çerçevesi olarak verir: kapalı liste (`tracon.output.truncated` her zaman, `tracon.quota.threshold` yalnız `PublishThresholdToRunStream` açıkken), veri `/events` ile bayt bayt aynı kayıttır (yeniden okunur, ikinci kopya kurulmaz); depo yalnız kota seçeneği açıksa ya da bir `update` kesilme sebebi taşıdıysa okunur; okuma hatası uyarı + `done`'dur; listeye tip eklemek sözleşme kararıdır (F-427, Faz 207) (kullanıcı kararı) 👤 |
 | K-992 | `/v1/chat/completions` `finish_reason` yanıtın son model çağrısının sebebinden gelir: `Length` ve `TraconFinishReasons.ContextWindowExceeded` → `"length"`, içerikli `ContentFilter` → `"content_filter"`, geri kalanı (`ToolCalls` dahil) → `"stop"`; iki kolda, run kaydından bağımsız (F-427, Faz 207) (kullanıcı kararı) 👤 |
 | K-993 | Okunamayan yapılandırma girdisi atlanmaz, açılışta hata verir: `Quotas:ThresholdPercents` ve `Webhooks:RetryDelays` girdisi sıfır, `ContentProtection:Columns` girdisi tanımsız değer, `MaskedPii` tanımsız bit olarak bağlanır, `ContentProtection:Keys` boş adı yazıldığı gibi kalır; ham metin `internal` taşıyıcıda durur ve mesaj onu alıntılar; hata bağlanmış değerden çıkar (bağlamadan sonra yazan kod kazanır); `Keys`/`Columns` denetimi `Enabled`'dan bağımsızdır; tanımsız `ProtectedColumn`/`PiiPatterns` kod yolundan da reddedilir; boş `MaskedPii` "yok"tur (F-247, Faz 206) (kullanıcı kararı) 👤 |
 | K-994 | Workflow başına cevap modu: `WorkflowResponseMode.Branch` (varsayılan, K-130 korunur) ve `SingleAnswer`; tek cevapta iddia `(tenant, session, requestId)` kapsamındadır, iki cevap `approved`/`text`/`data` SHA-256'sı eşitse aynıdır (checkpoint ve tanım sürümü sayılmaz), aynı cevap ilkinin başlattığı işi izler (akışlı SSE depodan, kuyruklu aynı `202`), farklı cevap `409` alır ve ne run'ı ne öbür cevabı adlandırır; iş cevabı almadan durduysa (zincir `Failed`/`Canceled`, kuyruk işi bitmiş, kayıt `Accepted` ve tek run'lık zincir ya da zincirde checkpoint yok) aynı cevap işi yeniden başlatır; bekleyen run kaydettiği tanım sürümünün moduyla cevaplanır (F-319, Faz 208) (kullanıcı kararı) 👤 |
@@ -62,3 +61,4 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1040 | Model istek alanları tanımdadır; sağlayıcı yüzeyi gönderdiğini `ISamplingSupport` ile bildirir, bildirmeyen alan derleme hatasıdır (F-598) |
 | K-1041 | `AllowConcurrentToolCalls` `ModelBinding.ToolLoop` altına taşındı; eski yük okumada çevrilir, eski HTTP anahtarı `400` alır (F-598) 👤 |
 | K-1042 | Run seçeneği `AllowMultipleToolCalls = false` geçer; `true` ve öteki korunan üyeler reddedilir (K-1039 daraltması) |
+| K-1043 | Alt agent çağrı modu tanımdadır: `SubAgentSettings.CallMode` (`Background`, `Tool`); `Tool`'da ad çakışması reddedilir (F-599) |

@@ -338,6 +338,18 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
             right={data.right.callableAgentNames}
           />
 
+          {/* Phase 228: a version that changes how the agent calls its callable agents shows it. */}
+          {((data.left.subAgents?.callMode ?? 'Background') !== 'Background' ||
+            (data.right.subAgents?.callMode ?? 'Background') !== 'Background') && (
+            <CompareSection title={t('fields.callMode')}>
+              <FieldDiffTable
+                left={{ callMode: t(`agentEditor.callMode.${data.left.subAgents?.callMode ?? 'Background'}`) }}
+                right={{ callMode: t(`agentEditor.callMode.${data.right.subAgents?.callMode ?? 'Background'}`) }}
+                fields={{ callMode: { label: t('fields.callMode') } }}
+              />
+            </CompareSection>
+          )}
+
           {(data.left.harness ?? data.right.harness) !== undefined && (
             <CompareSection title={t('agentDetail.harness')}>
               <FieldDiffTable
