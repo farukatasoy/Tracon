@@ -48,8 +48,18 @@ internal sealed record EvalCaseInput
     [Description("Expected output.")]
     public string? ExpectedOutput { get; init; }
 
-    [Description("Tool names looked for by the `toolCalled` check.")]
-    public IReadOnlyList<string> ExpectedTools { get; init; } = [];
+    /// <remarks>
+    /// Read by the <c>toolCallArgsMatch</c> check. Replaces <c>expectedTools</c>,
+    /// which held tool names only and was not read by any check; the API refuses
+    /// a body that still carries it.
+    /// </remarks>
+    [Description(
+        "Tool calls the agent is expected to make, read by the `toolCallArgsMatch`\n" +
+        "check. Each entry is `{\"name\": ..., \"arguments\": {...}}`; without\n" +
+        "`arguments` the entry checks only that the tool was called. Listed\n" +
+        "arguments must all be carried by one call to that tool, which may carry\n" +
+        "others, and values compare by JSON meaning.")]
+    public IReadOnlyList<EvalExpectedToolCall> ExpectedToolCalls { get; init; } = [];
 
     /// <remarks>
     /// The agent receives it through the document channel, ahead of the query,

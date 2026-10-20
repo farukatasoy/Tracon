@@ -554,6 +554,11 @@ internal sealed class EvalJobHandler(
                 Context = evalCase.Context,
             };
 
+            // The expected tool calls reach the item in two forms: MAF's, for an
+            // evaluator a consumer registers, and the exact one the built-in
+            // toolCallArgsMatch check compares by JSON meaning.
+            ToolCallArgumentsCheck.Attach(evalItem, evalCase.ExpectedToolCalls);
+
             var results = await evaluator.EvaluateAsync([evalItem], evalName, cancellationToken).ConfigureAwait(false);
 
             // 🚨 AgentEvaluationResults.DetailedItems stays empty (populated only by

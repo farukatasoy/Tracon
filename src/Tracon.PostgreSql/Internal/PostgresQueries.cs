@@ -1277,12 +1277,12 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // existing case with SelectEvalCaseBySourceRun and returns it.
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}.eval_cases
-                (id, suite_id, seq, query, expected_output, expected_tools, context,
+                (id, suite_id, seq, query, expected_output, expected_tool_calls, context,
                  source_run_id, source_kind, promoted_at, parameters)
             VALUES
                 (@id, @suite_id,
                  COALESCE((SELECT MAX(seq) FROM {Schema}.eval_cases WHERE suite_id = @suite_id), -1) + 1,
-                 @query, @expected_output, @expected_tools, @context,
+                 @query, @expected_output, @expected_tool_calls, @context,
                  @source_run_id, @source_kind, @promoted_at, @parameters)
             RETURNING {EvalCaseColumns};
             """;

@@ -1442,15 +1442,16 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // (Phase 45, section 45.2); MERGE is not used (K-177).
         InsertEvalCaseWithComputedSeq = $"""
             INSERT INTO {Schema}.eval_cases
-                (id, suite_id, seq, query, expected_output, expected_tools, context,
+                (id, suite_id, seq, query, expected_output, expected_tool_calls, context,
                  source_run_id, source_kind, promoted_at, parameters)
             OUTPUT inserted.id, inserted.suite_id, inserted.seq, inserted.query,
                    inserted.expected_output, inserted.expected_tools, inserted.context,
-                   inserted.source_run_id, inserted.source_kind, inserted.promoted_at, inserted.parameters
+                   inserted.source_run_id, inserted.source_kind, inserted.promoted_at, inserted.parameters,
+                   inserted.expected_tool_calls
             VALUES
                 (@id, @suite_id,
                  ISNULL((SELECT MAX(seq) FROM {Schema}.eval_cases WHERE suite_id = @suite_id), -1) + 1,
-                 @query, @expected_output, @expected_tools, @context,
+                 @query, @expected_output, @expected_tool_calls, @context,
                  @source_run_id, @source_kind, @promoted_at, @parameters);
             """;
 

@@ -21,7 +21,9 @@ namespace Tracon;
 /// The endpoints bind their body by hand (<see cref="RequestBodyBinding"/>), so
 /// the filter buffers the request, looks at the property names along the path
 /// it was given (a dotted path such as <c>model.allowConcurrentToolCalls</c>
-/// walks nested objects; a plain name is a top-level property), and rewinds the
+/// walks nested objects; a plain name is a top-level property; a <c>[]</c>
+/// segment, as in <c>[].expectedTools</c>, stands for "every element of an
+/// array", for a body that is a list), and rewinds the
 /// stream for the binder. A name is matched case-insensitively
 /// because the binder does the same: <c>AuthorizationConfigurationKey</c> was
 /// accepted before the field was removed. A body that is not valid JSON or not an
@@ -35,13 +37,17 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
     /// <summary>The <c>title</c> of the refusal.</summary>
     internal const string ProblemTitle = "Removed field";
 
-    private readonly string _fieldName;
+    private const string EachElement = "[]";
+
+    private readonly string _displayName;
+    private readonly string[] _segments;
     private readonly string _replacement;
 
     /// <summary>Creates a filter for one removed field.</summary>
     /// <param name="fieldName">
     /// The wire name of the removed field, for example <c>authorizationConfigurationKey</c>, or its dotted
-    /// path when it sits in a nested object, for example <c>model.allowConcurrentToolCalls</c>.
+    /// path when it sits in a nested object, for example <c>model.allowConcurrentToolCalls</c>,
+    /// or <c>[].expectedTools</c> for a field of each element of a list body.
     /// </param>
     /// <param name="replacement">What to send instead, as the sentence names it, for example <c>headerConfigurationKeys["Authorization"]</c>.</param>
     /// <exception cref="ArgumentException">A parameter is <see langword="null"/> or white space.</exception>
@@ -50,7 +56,8 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
         ArgumentException.ThrowIfNullOrWhiteSpace(fieldName);
         ArgumentException.ThrowIfNullOrWhiteSpace(replacement);
 
-        _fieldName = fieldName;
+        _segments = fieldName.Split('.');
+        _displayName = string.Join('.', _segments.Where(static segment => !string.Equals(segment, EachElement, StringComparison.Ordinal)));
         _replacement = replacement;
     }
 
@@ -67,11 +74,39 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
         {
             return Results.Problem(
                 title: ProblemTitle,
-                detail: $"'{_fieldName}' was removed in 1.0. Use {_replacement}.",
+                detail: $"'{_displayName}' was removed in 1.0. Use {_replacement}.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
         return await next(context).ConfigureAwait(false);
+    }
+
+    private static bool Carries(JsonElement element, ReadOnlySpan<string> path)
+    {
+        if (path.IsEmpty)
+        {
+            return true;
+        }
+
+        if (string.Equals(path[0], EachElement, StringComparison.Ordinal))
+        {
+            if (element.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            foreach (var item in element.EnumerateArray())
+            {
+                if (Carries(item, path[1..]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return TryGetProperty(element, path[0], out var value) && Carries(value, path[1..]);
     }
 
     private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
@@ -102,17 +137,7 @@ internal sealed class RemovedFieldFilter : IEndpointFilter
                 .ParseAsync(request.Body, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            var element = document.RootElement;
-
-            foreach (var name in _fieldName.Split('.'))
-            {
-                if (!TryGetProperty(element, name, out element))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return Carries(document.RootElement, _segments);
         }
         catch (JsonException)
         {

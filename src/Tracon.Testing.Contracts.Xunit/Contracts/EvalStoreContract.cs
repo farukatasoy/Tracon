@@ -121,14 +121,18 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
-    public async Task ReplaceCasesAsync_stores_expected_tools_and_context()
+    public async Task ReplaceCasesAsync_stores_expected_tool_calls_and_context()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
 
         var input = TestData.EvalCase(suite.Id) with
         {
             ExpectedOutput = "expected",
-            ExpectedTools = ["get_order_status", "get_shipping_status"],
+            ExpectedToolCalls =
+            [
+                new EvalExpectedToolCall { Name = "get_order_status" },
+                new EvalExpectedToolCall { Name = "get_shipping_status" },
+            ],
             Context = "extra context",
         };
 
@@ -136,8 +140,172 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
         var loaded = (await Store.ListCasesAsync(suite.Id))[0];
 
         loaded.ExpectedOutput.ShouldBe("expected");
-        loaded.ExpectedTools.ShouldBe(["get_order_status", "get_shipping_status"]);
+        ShouldHaveExpectedCalls(loaded, ("get_order_status", null), ("get_shipping_status", null));
         loaded.Context.ShouldBe("extra context");
+    }
+
+    /// <summary>
+    /// An argument of every JSON kind survives the round trip, and a call
+    /// without arguments stays distinct from one with an empty set.
+    /// </summary>
+    /// <returns>The test task.</returns>
+    /// <remarks>
+    /// The column is <c>jsonb</c> in PostgreSQL and text elsewhere. <c>jsonb</c>
+    /// normalizes number spelling and object member order, so the comparison is
+    /// by JSON meaning; an argument that comes back as a different KIND (a
+    /// number as a string, a nested object as text) is the failure this guards.
+    /// </remarks>
+    [Fact]
+    public async Task ReplaceCasesAsync_round_trips_an_expected_argument_of_every_json_kind()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        var input = TestData.EvalCase(suite.Id) with
+        {
+            ExpectedToolCalls =
+            [
+                new EvalExpectedToolCall
+                {
+                    Name = "create_ticket",
+                    Arguments = Arguments(
+                        ("title", "\"Printer \\\"jam\\\" \u00fc\""),
+                        ("priority", "2"),
+                        ("ratio", "0.25"),
+                        ("urgent", "true"),
+                        ("resolved", "false"),
+                        ("assignee", "null"),
+                        ("tags", "[\"a\",[1,2],{\"k\":\"v\"}]"),
+                        ("address", "{\"city\":\"Izmir\",\"geo\":{\"lat\":38.4,\"lon\":27.1}}")),
+                },
+                new EvalExpectedToolCall { Name = "close_ticket" },
+                new EvalExpectedToolCall { Name = "ping", Arguments = Arguments() },
+            ],
+        };
+
+        await Store.ReplaceCasesAsync(suite.Id, [input]);
+        var calls = (await Store.ListCasesAsync(suite.Id)).ShouldHaveSingleItem().ExpectedToolCalls;
+
+        calls.Select(static call => call.Name).ShouldBe(["create_ticket", "close_ticket", "ping"]);
+
+        var arguments = calls[0].Arguments.ShouldNotBeNull();
+        arguments.Keys.ShouldBe(
+            ["title", "priority", "ratio", "urgent", "resolved", "assignee", "tags", "address"],
+            ignoreOrder: true);
+        arguments["title"].ValueKind.ShouldBe(System.Text.Json.JsonValueKind.String);
+        arguments["title"].GetString().ShouldBe("Printer \"jam\" \u00fc");
+        arguments["priority"].GetDecimal().ShouldBe(2m);
+        arguments["ratio"].GetDecimal().ShouldBe(0.25m);
+        arguments["urgent"].ValueKind.ShouldBe(System.Text.Json.JsonValueKind.True);
+        arguments["resolved"].ValueKind.ShouldBe(System.Text.Json.JsonValueKind.False);
+        arguments["assignee"].ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        arguments["tags"].GetArrayLength().ShouldBe(3);
+        arguments["tags"][1][1].GetInt32().ShouldBe(2);
+        arguments["tags"][2].GetProperty("k").GetString().ShouldBe("v");
+        arguments["address"].GetProperty("city").GetString().ShouldBe("Izmir");
+        arguments["address"].GetProperty("geo").GetProperty("lon").GetDecimal().ShouldBe(27.1m);
+
+        calls[1].Arguments.ShouldBeNull();
+        calls[2].Arguments.ShouldNotBeNull().ShouldBeEmpty();
+    }
+
+    /// <summary>A case that expects no tool call reads back an empty list, never <see langword="null"/>.</summary>
+    /// <returns>The test task.</returns>
+    [Fact]
+    public async Task ReplaceCasesAsync_reads_back_an_empty_list_for_a_case_that_expects_no_tool_call()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id)]);
+
+        (await Store.ListCasesAsync(suite.Id)).ShouldHaveSingleItem().ExpectedToolCalls.ShouldBeEmpty();
+    }
+
+    /// <summary>Whether this store's backing state can be written to directly (SQL providers only).</summary>
+    protected virtual bool SupportsRawSql => false;
+
+    /// <summary>Runs raw SQL against the backing store. Only called when <see cref="SupportsRawSql"/> is <see langword="true"/>.</summary>
+    /// <param name="sql">The statement.</param>
+    /// <returns>A task that completes when the statement has run.</returns>
+    protected virtual ValueTask ExecuteRawAsync(string sql) => throw new NotSupportedException();
+
+    /// <summary>The fully qualified <c>eval_cases</c> table reference this provider's raw SQL should use.</summary>
+    protected virtual string QualifiedEvalCasesTable => throw new NotSupportedException();
+
+    /// <summary>
+    /// Formats an id for embedding in raw SQL. A provider that stores a
+    /// <see cref="Guid"/> as text and compares case-sensitively (SQLite, in
+    /// uppercase) must override the default (lowercase
+    /// <see cref="Guid.ToString()"/>).
+    /// </summary>
+    /// <param name="id">The id.</param>
+    /// <returns>The id as the provider spells it.</returns>
+    protected virtual string FormatIdForRawSql(Guid id) => id.ToString();
+
+    /// <summary>
+    /// A row written before <c>expected_tool_calls</c> existed holds only the
+    /// comma separated names of <c>expected_tools</c>; it reads back as calls
+    /// without arguments.
+    /// </summary>
+    /// <returns>The test task.</returns>
+    [Fact]
+    public async Task A_row_written_before_expected_tool_calls_existed_reads_back_its_names()
+    {
+        if (!SupportsRawSql)
+        {
+            return;
+        }
+
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+        var saved = await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id)]);
+
+        await ExecuteRawAsync(
+            $"UPDATE {QualifiedEvalCasesTable} SET expected_tools = 'get_order_status, get_shipping_status', " +
+            $"expected_tool_calls = NULL WHERE id = '{FormatIdForRawSql(saved[0].Id)}';");
+
+        var legacy = (await Store.ListCasesAsync(suite.Id)).ShouldHaveSingleItem();
+
+        ShouldHaveExpectedCalls(legacy, ("get_order_status", null), ("get_shipping_status", null));
+
+        // Saving the case again writes the new column; the names survive in it.
+        await Store.ReplaceCasesAsync(suite.Id, [legacy]);
+        var rewritten = (await Store.ListCasesAsync(suite.Id)).ShouldHaveSingleItem();
+
+        ShouldHaveExpectedCalls(rewritten, ("get_order_status", null), ("get_shipping_status", null));
+    }
+
+    private static Dictionary<string, System.Text.Json.JsonElement> Arguments(params (string Name, string Json)[] values)
+        => values.ToDictionary(
+            static value => value.Name,
+            static value => System.Text.Json.JsonDocument.Parse(value.Json).RootElement.Clone(),
+            StringComparer.Ordinal);
+
+    /// <summary>Asserts the calls of <paramref name="evalCase"/>: the name and the arguments as compact JSON, or <see langword="null"/>.</summary>
+    private static void ShouldHaveExpectedCalls(EvalCase evalCase, params (string Name, string? ArgumentsJson)[] expected)
+    {
+        evalCase.ExpectedToolCalls.Count.ShouldBe(expected.Length);
+
+        for (var index = 0; index < expected.Length; index++)
+        {
+            var call = evalCase.ExpectedToolCalls[index];
+
+            call.Name.ShouldBe(expected[index].Name);
+
+            if (expected[index].ArgumentsJson is null)
+            {
+                call.Arguments.ShouldBeNull();
+                continue;
+            }
+
+            using var wanted = System.Text.Json.JsonDocument.Parse(expected[index].ArgumentsJson!);
+            var carried = call.Arguments.ShouldNotBeNull();
+
+            carried.Count.ShouldBe(wanted.RootElement.EnumerateObject().Count());
+
+            foreach (var property in wanted.RootElement.EnumerateObject())
+            {
+                carried[property.Name].GetRawText().ShouldBe(property.Value.GetRawText());
+            }
+        }
     }
 
     [Fact]
@@ -269,7 +437,11 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
             {
                 Query = "question",
                 ExpectedOutput = "expected",
-                ExpectedTools = ["get_order_status"],
+                ExpectedToolCalls =
+                [
+                    new EvalExpectedToolCall { Name = "get_order_status", Arguments = Arguments(("orderId", "\"ORD-1\"")) },
+                    new EvalExpectedToolCall { Name = "get_shipping_status" },
+                ],
                 Context = "context",
                 SourceRunId = runId,
                 SourceKind = EvalCaseSource.ReferenceRun,
@@ -278,11 +450,15 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
         added.Created.ShouldBeTrue();
         added.Case.Query.ShouldBe("question");
         added.Case.ExpectedOutput.ShouldBe("expected");
-        added.Case.ExpectedTools.ShouldBe(["get_order_status"]);
+        ShouldHaveExpectedCalls(added.Case, ("get_order_status", "{\"orderId\":\"ORD-1\"}"), ("get_shipping_status", null));
         added.Case.Context.ShouldBe("context");
         added.Case.SourceRunId.ShouldBe(runId);
         added.Case.SourceKind.ShouldBe(EvalCaseSource.ReferenceRun);
         added.Case.PromotedAt.ShouldNotBeNull();
+
+        // The row read back, not only the row the insert returned.
+        var stored = (await Store.ListCasesAsync(suite.Id)).ShouldHaveSingleItem();
+        ShouldHaveExpectedCalls(stored, ("get_order_status", "{\"orderId\":\"ORD-1\"}"), ("get_shipping_status", null));
     }
 
     /// <summary>

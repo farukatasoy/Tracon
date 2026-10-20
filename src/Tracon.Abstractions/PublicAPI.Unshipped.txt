@@ -554,8 +554,8 @@ Tracon.EvalCase.Equals(Tracon.EvalCase? other) -> bool
 Tracon.EvalCase.EvalCase() -> void
 Tracon.EvalCase.ExpectedOutput.get -> string?
 Tracon.EvalCase.ExpectedOutput.init -> void
-Tracon.EvalCase.ExpectedTools.get -> System.Collections.Generic.IReadOnlyList<string!>!
-Tracon.EvalCase.ExpectedTools.init -> void
+Tracon.EvalCase.ExpectedToolCalls.get -> System.Collections.Generic.IReadOnlyList<Tracon.EvalExpectedToolCall!>!
+Tracon.EvalCase.ExpectedToolCalls.init -> void
 Tracon.EvalCase.Id.get -> System.Guid
 Tracon.EvalCase.Id.init -> void
 Tracon.EvalCase.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
@@ -615,8 +615,8 @@ Tracon.EvalCaseDraft.Equals(Tracon.EvalCaseDraft? other) -> bool
 Tracon.EvalCaseDraft.EvalCaseDraft() -> void
 Tracon.EvalCaseDraft.ExpectedOutput.get -> string?
 Tracon.EvalCaseDraft.ExpectedOutput.init -> void
-Tracon.EvalCaseDraft.ExpectedTools.get -> System.Collections.Generic.IReadOnlyList<string!>!
-Tracon.EvalCaseDraft.ExpectedTools.init -> void
+Tracon.EvalCaseDraft.ExpectedToolCalls.get -> System.Collections.Generic.IReadOnlyList<Tracon.EvalExpectedToolCall!>!
+Tracon.EvalCaseDraft.ExpectedToolCalls.init -> void
 Tracon.EvalCaseDraft.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 Tracon.EvalCaseDraft.Parameters.init -> void
 Tracon.EvalCaseDraft.Query.get -> string!
@@ -649,6 +649,14 @@ Tracon.EvalCaseSource
 Tracon.EvalCaseSource.FailedRun = 0 -> Tracon.EvalCaseSource
 Tracon.EvalCaseSource.NegativeScore = 1 -> Tracon.EvalCaseSource
 Tracon.EvalCaseSource.ReferenceRun = 2 -> Tracon.EvalCaseSource
+Tracon.EvalExpectedToolCall
+Tracon.EvalExpectedToolCall.<Clone>$() -> Tracon.EvalExpectedToolCall!
+Tracon.EvalExpectedToolCall.Arguments.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>?
+Tracon.EvalExpectedToolCall.Arguments.init -> void
+Tracon.EvalExpectedToolCall.Equals(Tracon.EvalExpectedToolCall? other) -> bool
+Tracon.EvalExpectedToolCall.EvalExpectedToolCall() -> void
+Tracon.EvalExpectedToolCall.Name.get -> string!
+Tracon.EvalExpectedToolCall.Name.init -> void
 Tracon.EvalRun
 Tracon.EvalRun.<Clone>$() -> Tracon.EvalRun!
 Tracon.EvalRun.AgentVersion.get -> int?
@@ -4425,6 +4433,9 @@ override Tracon.EvalCaseDraft.ToString() -> string!
 override Tracon.EvalCaseResult.Equals(object? obj) -> bool
 override Tracon.EvalCaseResult.GetHashCode() -> int
 override Tracon.EvalCaseResult.ToString() -> string!
+override Tracon.EvalExpectedToolCall.Equals(object? obj) -> bool
+override Tracon.EvalExpectedToolCall.GetHashCode() -> int
+override Tracon.EvalExpectedToolCall.ToString() -> string!
 override Tracon.EvalRun.Equals(object? obj) -> bool
 override Tracon.EvalRun.GetHashCode() -> int
 override Tracon.EvalRun.ToString() -> string!
@@ -4956,6 +4967,8 @@ static Tracon.EvalCaseDraft.operator !=(Tracon.EvalCaseDraft? left, Tracon.EvalC
 static Tracon.EvalCaseDraft.operator ==(Tracon.EvalCaseDraft? left, Tracon.EvalCaseDraft? right) -> bool
 static Tracon.EvalCaseResult.operator !=(Tracon.EvalCaseResult? left, Tracon.EvalCaseResult? right) -> bool
 static Tracon.EvalCaseResult.operator ==(Tracon.EvalCaseResult? left, Tracon.EvalCaseResult? right) -> bool
+static Tracon.EvalExpectedToolCall.operator !=(Tracon.EvalExpectedToolCall? left, Tracon.EvalExpectedToolCall? right) -> bool
+static Tracon.EvalExpectedToolCall.operator ==(Tracon.EvalExpectedToolCall? left, Tracon.EvalExpectedToolCall? right) -> bool
 static Tracon.EvalRun.operator !=(Tracon.EvalRun? left, Tracon.EvalRun? right) -> bool
 static Tracon.EvalRun.operator ==(Tracon.EvalRun? left, Tracon.EvalRun? right) -> bool
 static Tracon.EvalRunCompletion.operator !=(Tracon.EvalRunCompletion? left, Tracon.EvalRunCompletion? right) -> bool

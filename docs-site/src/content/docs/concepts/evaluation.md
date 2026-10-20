@@ -31,8 +31,9 @@ curl -X PUT http://localhost:5081/tracon/api/evals/support \
 ```
 
 A suite needs at least one check before it can run — an empty `checks` array fails the
-run outright instead of reporting every case as passed. Six built-in kinds cover the
-common cases, matched directly to `Microsoft.Agents.AI.EvalChecks` factories:
+run outright instead of reporting every case as passed. Seven built-in kinds cover the
+common cases; six match `Microsoft.Agents.AI.EvalChecks` factories directly and
+`toolCallArgsMatch` is Tracon's own:
 
 | Kind | Checks | Fields |
 |---|---|---|
@@ -41,10 +42,11 @@ common cases, matched directly to `Microsoft.Agents.AI.EvalChecks` factories:
 | `keywords` | The response contains every string in `values` | `values`, `caseSensitive` |
 | `toolCalled` | The listed `tools` were called, `all` or `any` of them | `tools`, `mode` (default `all`) |
 | `toolCallsPresent` | At least one tool was called | — |
+| `toolCallArgsMatch` | Every tool call in the case's `expectedToolCalls` was made, with the listed arguments | — (reads the case) |
 | `hasImageContent` | The response carries image content | — |
 
 Application code can add more with `ITraconBuilder.AddEvalCheck(kind, check)` — a
-named MAF `EvalCheck` that becomes usable under a custom kind name alongside the six
+named MAF `EvalCheck` that becomes usable under a custom kind name alongside the seven
 built-in ones. A kind that matches neither fails the run with a clear error instead of
 being silently skipped.
 
@@ -68,9 +70,9 @@ design. An `id` that does not belong to this suite, or that appears twice, fails
 whole request with `400` and nothing is written. `parameters` travels back the same
 way: it is part of the case, not of the request. Sequence numbers come from the body's
 order, so reordering re-numbers the cases — but a sequence number is only display
-order and does not change which case is which. `expectedOutput` reaches `containsExpected`;
-a case also carries an `expectedTools` field for record-keeping, but the tool names a
-`toolCalled` check verifies come from the suite's own check definition, shown above.
+order and does not change which case is which. `expectedOutput` reaches `containsExpected`.
+The tool names a `toolCalled` check verifies come from the suite's own check definition,
+shown above; the calls a `toolCallArgsMatch` check verifies come from the case itself.
 
 A case's `context` is reference text for the agent. It reaches the agent through the
 [document channel](/concepts/governance/#the-document-channel), ahead of the query —
@@ -98,6 +100,54 @@ for a tool approval fails with a reason that says so, and its run is closed as
 curl -X POST http://localhost:5081/tracon/api/evals/support/run
 curl http://localhost:5081/tracon/api/evals/support/runs
 ```
+
+### Checking which tool was called with which arguments
+
+A case lists the tool calls it expects in `expectedToolCalls`. Each entry is a tool
+`name` and, optionally, the `arguments` that call must carry:
+
+```bash
+curl -X PUT http://localhost:5081/tracon/api/evals/support \
+     -H 'Content-Type: application/json' \
+     -d '{"agentName":"support","checks":[{"kind":"toolCallArgsMatch"}]}'
+
+curl -X PUT http://localhost:5081/tracon/api/evals/support/cases \
+     -H 'Content-Type: application/json' \
+     -d '[{"query":"Where is order ORD-1001?",
+          "expectedToolCalls":[
+            {"name":"get_order_status","arguments":{"orderId":"ORD-1001"}},
+            {"name":"get_shipping_status"}]}]'
+```
+
+The case passes the check when, for every entry, the agent called a tool of that name
+(letter case does not matter) and, when the entry lists `arguments`, one such call carried
+every listed argument with an equal value. An entry without `arguments` checks only that
+the tool was called. A failing result names each entry and what was wrong — `not called`
+or `args mismatch` — without repeating the argument values the model sent.
+
+- **The listed arguments are a subset.** The call may carry others, and an argument name
+  matches in any letter case.
+- **A value compares by its JSON meaning.** `2` equals `2.0`, an object equals an object
+  with the same properties in any order, and spacing between tokens does not matter. A
+  nested object or array must match exactly; the subset rule applies to the top-level
+  argument names only.
+- **A `null` value expects the argument to be absent or `null`.** The check cannot tell a
+  `null` argument from a missing one.
+- **A case with no `expectedToolCalls` passes this check.** It expects nothing.
+
+This check is not MAF's `EvalChecks.ToolCallArgsMatch`. MAF's compares a number by its
+.NET type and an object argument by its text, so an expected `2` never equals a called
+`2` and two objects with the same members in a different order do not match. A custom
+evaluator you register still receives the case's expected calls on
+`EvalItem.ExpectedToolCalls`, in the form MAF reads: text, `double` and `bool` values, and
+the JSON text of an object or array.
+
+Promoting a reference run to a case writes the names of the tools that run called, with no
+arguments: a run's arguments belong to that run. Add the arguments you want checked by
+editing the case. The `expectedTools` field of earlier versions, a list of names that no
+check read, is gone: the cases endpoint refuses a body that still carries it, with `400`
+and the name of the field that replaces it. A case saved by an earlier version keeps its
+names, and they now read as entries without arguments.
 
 ## Comparing two runs
 

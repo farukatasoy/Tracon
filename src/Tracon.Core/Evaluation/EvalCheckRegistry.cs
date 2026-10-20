@@ -9,19 +9,22 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The six built-in check kinds map directly to
+/// Six of the seven built-in check kinds map directly to
 /// <c>Microsoft.Agents.AI.EvalChecks</c> factories: <c>nonEmpty</c>,
 /// <c>containsExpected</c>, <c>keywords</c>, <c>toolCalled</c>,
-/// <c>toolCallsPresent</c>, <c>hasImageContent</c>. Any other kind name is
+/// <c>toolCallsPresent</c>, <c>hasImageContent</c>. The seventh,
+/// <c>toolCallArgsMatch</c>, is Tracon's own (<see cref="ToolCallArgumentsCheck"/>).
+/// Any other kind name is
 /// looked up among the custom checks registered with
 /// <c>ITraconBuilder.AddEvalCheck(...)</c>; if not found there either, a
 /// <see cref="TraconException"/> is thrown (the code-only tools rule - checks are declarative,
 /// never silently ignored).
 /// </para>
 /// <para>
-/// <c>toolCallArgsMatch</c> is intentionally not supported: <see cref="EvalCase"/>
-/// only carries the expected tool <em>names</em>, not the expected arguments
-/// needed for a full argument match.
+/// <c>toolCallArgsMatch</c> reads <see cref="EvalCase.ExpectedToolCalls"/>. It is
+/// not MAF's <c>EvalChecks.ToolCallArgsMatch</c>: that one compares a number or an
+/// object argument by its .NET type or its text, and this one compares JSON
+/// values by meaning.
 /// </para>
 /// </remarks>
 internal sealed class EvalCheckRegistry
@@ -32,6 +35,7 @@ internal sealed class EvalCheckRegistry
     private const string ToolCalledKind = "toolCalled";
     private const string ToolCallsPresentKind = "toolCallsPresent";
     private const string HasImageContentKind = "hasImageContent";
+    private const string ToolCallArgsMatchKind = "toolCallArgsMatch";
 
     private static readonly string[] BuiltInKinds =
     [
@@ -41,6 +45,7 @@ internal sealed class EvalCheckRegistry
         ToolCalledKind,
         ToolCallsPresentKind,
         HasImageContentKind,
+        ToolCallArgsMatchKind,
     ];
 
     /// <summary>
@@ -158,6 +163,9 @@ internal sealed class EvalCheckRegistry
 
             case HasImageContentKind:
                 return EvalChecks.HasImageContent();
+
+            case ToolCallArgsMatchKind:
+                return ToolCallArgumentsCheck.Create();
 
             default:
                 if (_custom.TryGetValue(kind, out var custom))

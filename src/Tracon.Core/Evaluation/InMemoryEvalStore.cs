@@ -170,7 +170,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
                 Seq = seq,
                 Query = draft.Query,
                 ExpectedOutput = draft.ExpectedOutput,
-                ExpectedTools = draft.ExpectedTools,
+                ExpectedToolCalls = draft.ExpectedToolCalls,
                 Context = draft.Context,
                 SourceRunId = draft.SourceRunId,
                 SourceKind = draft.SourceKind,

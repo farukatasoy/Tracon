@@ -1102,7 +1102,7 @@ export interface paths {
         get: operations["TraconListEvalCases"];
         /**
          * Replaces all of a suite's cases with the given list.
-         * @description This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the 'id' it was listed with — a case holds that id for its whole life and the run-to-run diff behind '--baseline' is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. 'parameters' travels the same way: it is part of the case, and a parameterized agent's case sent without it then fails the missing-parameter check at run time. Promotion data is the server's own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body's order, which means reordering the list re-numbers the cases. Every case needs a non-empty 'query'; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.
+         * @description This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the 'id' it was listed with — a case holds that id for its whole life and the run-to-run diff behind '--baseline' is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. 'parameters' travels the same way: it is part of the case, and a parameterized agent's case sent without it then fails the missing-parameter check at run time. 'expectedToolCalls' lists the tool calls the 'toolCallArgsMatch' check looks for, each a 'name' with optional 'arguments'; the old 'expectedTools' key is refused with 400. Promotion data is the server's own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body's order, which means reordering the list re-numbers the cases. Every case needs a non-empty 'query'; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.
          */
         put: operations["TraconSaveEvalCases"];
         post?: never;
@@ -4096,8 +4096,8 @@ export interface components {
             query: string;
             /** @description The expected output. Referenced by the `containsExpected` check. */
             expectedOutput?: null | string;
-            /** @description The tool names this case is expected to exercise, recorded for reference. */
-            expectedTools?: string[];
+            /** @description The tool calls this case expects, by name and optionally by arguments. */
+            expectedToolCalls?: components["schemas"]["EvalExpectedToolCall"][];
             /** @description Text given to the model as extra context. */
             context?: null | string;
             /**
@@ -4171,8 +4171,14 @@ export interface components {
             query: string;
             /** @description Expected output. */
             expectedOutput?: null | string;
-            /** @description Tool names looked for by the `toolCalled` check. */
-            expectedTools?: string[];
+            /**
+             * @description Tool calls the agent is expected to make, read by the `toolCallArgsMatch`
+             *     check. Each entry is `{"name": ..., "arguments": {...}}`; without
+             *     `arguments` the entry checks only that the tool was called. Listed
+             *     arguments must all be carried by one call to that tool, which may carry
+             *     others, and values compare by JSON meaning.
+             */
+            expectedToolCalls?: components["schemas"]["EvalExpectedToolCall"][];
             /** @description Text to give the model as extra context. */
             context?: null | string;
             /**
@@ -4221,6 +4227,16 @@ export interface components {
         };
         /** @enum {unknown} */
         EvalCaseSource: "FailedRun" | "NegativeScore" | "ReferenceRun" | null;
+        /** @description A tool call an EvalCase expects the agent to make. */
+        EvalExpectedToolCall: {
+            /** @description The tool name. Compared without regard to letter case. */
+            name: string;
+            /**
+             * @description The arguments the call must carry, or `null` to check only
+             *     that the tool was called.
+             */
+            arguments?: null | Record<string, never>;
+        };
         /** @description A single execution record and summary of an EvalSuite. */
         EvalRun: {
             /**
@@ -8859,6 +8875,7 @@ export type EvalCaseInput = components['schemas']['EvalCaseInput'];
 export type EvalCasePromotionRequest = components['schemas']['EvalCasePromotionRequest'];
 export type EvalCaseResult = components['schemas']['EvalCaseResult'];
 export type EvalCaseSource = components['schemas']['EvalCaseSource'];
+export type EvalExpectedToolCall = components['schemas']['EvalExpectedToolCall'];
 export type EvalRun = components['schemas']['EvalRun'];
 export type EvalRunDetailResponse = components['schemas']['EvalRunDetailResponse'];
 export type EvalRunDiff = components['schemas']['EvalRunDiff'];

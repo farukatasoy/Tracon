@@ -123,21 +123,31 @@ internal sealed class RunToCasePromoter
         }
 
         string? expectedOutput = null;
-        IReadOnlyList<string> expectedTools = [];
+        IReadOnlyList<EvalExpectedToolCall> expectedToolCalls = [];
 
         if (sourceKind == EvalCaseSource.ReferenceRun)
         {
             expectedOutput = ExtractOutputText(events);
 
             var invocations = await _runs.ListToolInvocationsAsync(runId, cancellationToken).ConfigureAwait(false);
-            expectedTools = [.. invocations.Select(static invocation => invocation.ToolName).Distinct(StringComparer.Ordinal)];
+
+            // Names only: the arguments of one run are specific to it, and a case
+            // that demands them would fail on the next run's own values. A
+            // reviewer who wants an argument checked adds it to the case.
+            expectedToolCalls =
+            [
+                .. invocations
+                    .Select(static invocation => invocation.ToolName)
+                    .Distinct(StringComparer.Ordinal)
+                    .Select(static name => new EvalExpectedToolCall { Name = name }),
+            ];
         }
 
         var draft = new EvalCaseDraft
         {
             Query = input.Query,
             ExpectedOutput = expectedOutput,
-            ExpectedTools = expectedTools,
+            ExpectedToolCalls = expectedToolCalls,
             Context = input.Context,
             Parameters = input.Parameters,
             SourceRunId = runId,

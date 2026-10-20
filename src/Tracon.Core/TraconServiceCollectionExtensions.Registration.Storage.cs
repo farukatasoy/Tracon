@@ -234,7 +234,7 @@ public static partial class TraconServiceCollectionExtensions
         // Evaluation (eval) infrastructure (Phase 18). The suite/case/run store
         // is always registered; runs execute through the same job queue
         // (JobHandlerKeys.Eval). The check registry is built from custom records
-        // (added via AddEvalCheck); the six built-in kinds are fixed inside EvalCheckRegistry.
+        // (added via AddEvalCheck); the built-in kinds are fixed inside EvalCheckRegistry.
         services.TryAddTraconDefault<IEvalStore, InMemoryEvalStore>();
         services.TryAddSingleton<EvalCheckRegistry>();
 

@@ -480,7 +480,7 @@ const ROUND_TRIPS: RoundTrip[] = [
           seq: 0,
           query: 'Where is my order?',
           expectedOutput: 'shipped',
-          expectedTools: ['get_order_status'],
+          expectedToolCalls: [{ name: 'get_order_status', arguments: { orderId: 'ORD-1001' } }],
           context: 'Order 4182 shipped yesterday.',
           parameters: { customer: 'Acme' },
           sourceRunId: null,
@@ -497,7 +497,10 @@ const ROUND_TRIPS: RoundTrip[] = [
         id: '11111111-1111-1111-1111-111111111111',
         query: 'Where is my order?',
         expectedOutput: 'shipped',
-        expectedTools: ['get_order_status'],
+        // The generated type says the arguments are an object without saying what is in it.
+        expectedToolCalls: [
+          { name: 'get_order_status', arguments: { orderId: 'ORD-1001' } as unknown as Record<string, never> },
+        ],
         context: 'Order 4182 shipped yesterday.',
         parameters: { customer: 'Acme' },
       },

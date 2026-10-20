@@ -89,14 +89,33 @@ public sealed class EvalEndpointTests
                    new object[]
                    {
                        new { query = "first question", expectedOutput = "expected" },
-                       new { query = "second question", expectedTools = new[] { "get_order_status" } },
+                       new
+                       {
+                           query = "second question",
+                           expectedToolCalls = new object[]
+                           {
+                               new { name = "get_order_status", arguments = new { orderId = "ORD-1001", expedite = true } },
+                               new { name = "get_shipping_status" },
+                           },
+                       },
                    }))
         {
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
             var body = await TraconTestHost.ReadJsonAsync(saved);
             body.GetArrayLength().ShouldBe(2);
             body[0].GetProperty("seq").GetInt32().ShouldBe(0);
-            body[1].GetProperty("expectedTools")[0].GetString().ShouldBe("get_order_status");
+
+            var calls = body[1].GetProperty("expectedToolCalls");
+            calls.GetArrayLength().ShouldBe(2);
+            calls[0].GetProperty("name").GetString().ShouldBe("get_order_status");
+            calls[0].GetProperty("arguments").GetProperty("orderId").GetString().ShouldBe("ORD-1001");
+            calls[0].GetProperty("arguments").GetProperty("expedite").GetBoolean().ShouldBeTrue();
+            calls[1].GetProperty("name").GetString().ShouldBe("get_shipping_status");
+            calls[1].TryGetProperty("arguments", out var noArguments).ShouldBeTrue();
+            noArguments.ValueKind.ShouldBe(JsonValueKind.Null);
+
+            // A case that expects no tool call lists an empty array, never a missing key.
+            body[0].GetProperty("expectedToolCalls").GetArrayLength().ShouldBe(0);
         }
 
         using (var listed = await host.Client.GetAsync(Cases))
