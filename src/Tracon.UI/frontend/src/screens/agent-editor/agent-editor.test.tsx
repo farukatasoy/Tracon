@@ -297,6 +297,88 @@ describe('AgentEditorScreen', () => {
     expect(await screen.findByText('Valid')).toBeTruthy();
   });
 
+  describe('callable agents section (Phase 228)', () => {
+    type Sent = { subAgents?: Record<string, unknown> | null };
+
+    function validateInto(capture: (body: Sent) => void) {
+      return {
+        method: 'POST' as const,
+        pattern: 'api/agents/validate',
+        handler: (_params: unknown, _url: unknown, body: unknown) => {
+          capture(body as Sent);
+
+          return { valid: true, inconclusive: false, messages: [] };
+        },
+      };
+    }
+
+    it('shows background tasks for a definition that sets no mode and sends none until it is changed', async () => {
+      let sent: Sent | undefined;
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/agents/:name', { descriptor: { name: 'support', origin: 'Database', sourceName: 'database' }, definition: fullDefinition }),
+        validateInto((body) => {
+          sent = body;
+        }),
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByTestId('agent-name');
+
+      expect((screen.getByTestId('agent-call-mode') as HTMLSelectElement).value).toBe('Background');
+
+      await user.click(screen.getByTestId('agent-validate'));
+      await waitFor(() => expect(sent).toBeDefined());
+
+      expect(sent?.subAgents ?? null).toBeNull();
+    });
+
+    it('sends the mode that was picked and keeps the wait limits the stored definition carries', async () => {
+      let sent: Sent | undefined;
+
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: { ...fullDefinition, subAgents: { waitTimeout: '00:00:30' } },
+        }),
+        validateInto((body) => {
+          sent = body;
+        }),
+      ]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByTestId('agent-name');
+      await user.selectOptions(screen.getByTestId('agent-call-mode'), 'Tool');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => expect(sent?.subAgents).toEqual({ waitTimeout: '00:00:30', callMode: 'Tool' }));
+    });
+
+    it('loads the stored tool mode into the select', async () => {
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: { ...fullDefinition, subAgents: { callMode: 'Tool' } },
+        }),
+      ]);
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await waitFor(() => {
+        expect((screen.getByTestId('agent-call-mode') as HTMLSelectElement).value).toBe('Tool');
+      });
+    });
+  });
+
   describe('extensions section (Phase 222)', () => {
     const registered = [
       { name: 'audit', description: 'Records every model call.' },

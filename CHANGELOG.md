@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **An agent calls a callable agent with one tool call.** `SubAgentSettings.CallMode`
+  (`SubAgentCallMode.Background`, the default, or `Tool`) picks what the model sees. With `Tool`,
+  each agent in `CallableAgentNames` is one tool named after the agent (each run of characters
+  other than letters and digits becomes one underscore), instead of Microsoft Agent Framework's
+  background task tools. The sample `router` agent asked one question took 5 model calls and about
+  3,600 input tokens with background tasks, and 2 model calls and about 410 input tokens with
+  `Tool` (real OpenAI `gpt-5.4-mini`, three runs each); for work that runs in parallel,
+  background tasks stay the better choice. The depth limit, the budget of the tree, the tenant
+  check, the wait limits and the refusal of a sub-agent that needs tool approval apply in both
+  modes. A callable agent whose tool name another tool of the agent already has (`ToolNames`, a
+  skill tool, `search_knowledge`, another callable agent) is refused by validation and save
+  (`sub_agent_tool_name_conflict`, `400`) and by the compiler. The agent editor has a control for
+  the mode and the version compare shows it. A sub-agent that fails because its model provider
+  is down, or because it no longer exists, answers the parent with the reason as the tool result,
+  as a background task does. A row saved before this setting reads as background tasks.
 - **A definition sets the model's request fields and the tool-call loop.** `ModelBinding` gains
   `Seed`, `TopK`, `StopSequences`, `FrequencyPenalty`, `PresencePenalty`, `ToolMode` (`auto`,
   `none`, `required` or `required:<tool>`), `AllowMultipleToolCalls` and `ReasoningOutput`

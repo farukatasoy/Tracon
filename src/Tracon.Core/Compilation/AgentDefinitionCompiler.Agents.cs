@@ -15,7 +15,7 @@ public sealed partial class AgentDefinitionCompiler
         IChatClient chatClient,
         SecondaryChatClients secondaryClients,
         ChatOptions chatOptions,
-        ResolvedCallableAgents callableAgents)
+        ChildAgentsBuild? backgroundAgents)
     {
         var options = new ChatClientAgentOptions
         {
@@ -33,9 +33,9 @@ public sealed partial class AgentDefinitionCompiler
             providers.Add(CreateSkillsProvider(definition));
         }
 
-        if (CreateBackgroundAgentsProvider(definition, callableAgents) is { } backgroundAgents)
+        if (CreateBackgroundAgentsProvider(backgroundAgents) is { } backgroundAgentsProvider)
         {
-            providers.Add(backgroundAgents);
+            providers.Add(backgroundAgentsProvider);
         }
 
         if (BuildCompactionStrategy(definition, secondaryClients.Summarization) is { } compactionStrategy)
@@ -128,13 +128,30 @@ public sealed partial class AgentDefinitionCompiler
     // as K-020: sub-agent setup is kept in a single method, only this file is
     // updated if MAF changes this API. Rationale: docs/KARARLAR.md, decision K-097.
 #pragma warning disable MAAI001
-    private BackgroundAgentsProvider? CreateBackgroundAgentsProvider(
-        AgentDefinition definition,
-        ResolvedCallableAgents callableAgents)
-        => CreateChildAgents(definition, callableAgents) is { } build
+    private static BackgroundAgentsProvider? CreateBackgroundAgentsProvider(ChildAgentsBuild? build)
+        => build is not null
             ? new BackgroundAgentsProvider(build.Children, new BackgroundAgentsProviderOptions { WaitTimeout = build.WaitTimeout })
             : null;
 #pragma warning restore MAAI001
+
+    /// <summary>Throws when two tools of a Tool mode agent would share a name.</summary>
+    /// <exception cref="TraconCompilationException">
+    /// A callable agent becomes a tool whose name another tool of the agent already has.
+    /// </exception>
+    private static void ThrowOnSubAgentToolConflict(AgentDefinition definition)
+    {
+        // The rule the validator reports with a path: a definition saved over HTTP passed it,
+        // and a definition written in code never met the validator.
+        if (SubAgentToolNames.FindProblems(definition) is { Count: > 0 } problems)
+        {
+            throw new TraconCompilationException(
+                $"Agent '{definition.Name}' has callable agents whose tool names collide: " +
+                string.Join(" ", problems.Select(static problem => problem.Message)))
+            {
+                AgentName = definition.Name,
+            };
+        }
+    }
 
     /// <summary>Builds callable sub-agents together with their wrappers.</summary>
     /// <returns>
@@ -248,7 +265,7 @@ public sealed partial class AgentDefinitionCompiler
         IChatClient chatClient,
         SecondaryChatClients secondaryClients,
         ChatOptions chatOptions,
-        ResolvedCallableAgents callableAgents)
+        ChildAgentsBuild? backgroundAgents)
     {
         var harness = definition.Harness!;
 
@@ -337,7 +354,7 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
-        if (CreateChildAgents(definition, callableAgents) is { } build)
+        if (backgroundAgents is { } build)
         {
             // 144.4: the option object is built by Tracon on BOTH compile
             // paths, so behavior never depends on what MAF's own null

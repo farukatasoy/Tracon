@@ -642,11 +642,27 @@ public sealed partial class AgentDefinitionCompiler
             }
         }
 
+        // Phase 228: the sub-agent wrappers are built once. In Tool mode each one is a tool of
+        // the options the extensions then see (so the guard's baseline holds it); otherwise the
+        // framework's background task provider takes them.
+        var childAgents = CreateChildAgents(definition, callableAgents);
+        ChildAgentsBuild? backgroundAgents = childAgents;
+
+        if (childAgents is not null && definition.SubAgents is { CallMode: SubAgentCallMode.Tool })
+        {
+            ThrowOnSubAgentToolConflict(definition);
+
+            // After toolTransform on purpose: the transform wraps registry tools, and an agent
+            // tool is not one. The wrapper owns the depth, budget, tenant and wait limits.
+            tools.AddRange(SubAgentToolNames.CreateFunctions(childAgents.Children));
+            backgroundAgents = null;
+        }
+
         var chatOptions = BuildChatOptions(definition, tools, culture, sharedInstructions);
 
         AIAgent agent = definition.Harness is null
-            ? CompileChatAgent(definition, chatClient, secondaryClients, chatOptions, callableAgents)
-            : CompileHarnessAgent(definition, chatClient, secondaryClients, chatOptions, callableAgents);
+            ? CompileChatAgent(definition, chatClient, secondaryClients, chatOptions, backgroundAgents)
+            : CompileHarnessAgent(definition, chatClient, secondaryClients, chatOptions, backgroundAgents);
 
         return unbound is null ? agent : new UnboundParameterGuard(agent, definition.Name, unbound);
     }

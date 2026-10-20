@@ -17442,10 +17442,11 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
-        /// Gets how long this agent waits for the agents it calls. When
-        /// <br/>`null`, `TraconAgentGraphOptions.ChildDeadline`
-        /// <br/>and `WaitTimeout` apply instead. Ignored when
-        /// <br/>IReadOnlyList&amp;lt;string&amp;gt; AgentDefinition.CallableAgentNames is empty.
+        /// Gets how this agent calls the agents it may call
+        /// <br/>(`SubAgentSettings.CallMode`) and how long it waits for them. When
+        /// <br/>`null`, the agent uses background tasks and
+        /// <br/>`TraconAgentGraphOptions.ChildDeadline` and `WaitTimeout` apply.
+        /// <br/>Ignored when `CallableAgentNames` is empty.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("subAgents")]
         public SubAgentSettings? SubAgents { get; set; } = default!;
@@ -25968,11 +25969,34 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
-    /// Determines how long an agent waits for the agents it calls.
+    /// How an agent calls the agents it may call (`CallableAgentNames`).
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SubAgentCallMode>))]
+    public enum SubAgentCallMode
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Background")]
+        Background = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"Tool")]
+        Tool = 1,
+
+    }
+
+    /// <summary>
+    /// Determines how an agent calls the agents it may call, and how long it waits for them.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class SubAgentSettings
     {
+
+        /// <summary>
+        /// Gets how the agent calls every agent in `CallableAgentNames`.
+        /// <br/>Defaults to `Background`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("callMode")]
+        public SubAgentCallMode CallMode { get; set; } = default!;
 
         /// <summary>
         /// Gets the deadline applied to a single sub-agent run (the cooperative layer).

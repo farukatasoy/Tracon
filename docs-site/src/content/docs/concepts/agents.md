@@ -372,6 +372,70 @@ Five rules hold across the tree:
 
 The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 
+### One tool for each agent
+
+Background tasks fit work that runs in parallel, but one delegation takes several model
+calls: the model starts the task, waits for it, reads the result, and clears it. The
+framework's instructions and six task tools go to the model on every turn. For a single call
+to one agent, set `SubAgentSettings.CallMode` to `Tool`. Each callable agent then becomes
+one tool, named after the agent, and one tool call runs the sub-agent and returns its answer:
+
+```csharp
+new AgentDefinition
+{
+    Name = "router",
+    CallableAgentNames = ["support"],
+    SubAgents = new SubAgentSettings { CallMode = SubAgentCallMode.Tool },
+    // ...
+};
+```
+
+The mode is part of the definition, so a version, a rollback, an experiment arm, and the
+agent editor in the console carry it. It applies to a chat agent and to a harness agent. The
+sample `router` agent, asked one question that needs its `support` agent (real OpenAI
+`gpt-5.4-mini`, Microsoft Agent Framework 1.25, three runs each, 2026-10-20):
+
+| The router agent | Background tasks (default) | `Tool` |
+|---|---|---|
+| Model calls | 5 | 2 |
+| Input tokens | 3,603–3,705 | 409–412 |
+| Output tokens | 139–170 | 48–53 |
+| Time of the whole run | 5.8–9.0 s | 3.1–3.3 s |
+| Tools the model sees | six `background_agents_*` tools | `support` |
+
+The sub-agent itself costs the same in both modes: two model calls and about 790 tokens.
+The measure is one question for one agent. It does not cover several agents that work in
+parallel; for that work, background tasks stay the better choice.
+
+The limits of the tree do not change. The depth limit, the budget of the tree, the tenant
+check, the two-layer wait limit, and the refusal of a child that needs tool approval apply in
+both modes, and each refusal comes back to the model as the tool result. The sub-agent keeps
+its own run row, linked to the caller with `ParentRunId`, and the caller's stream carries
+`child.started` and `child.completed`. Four things are different:
+
+- **The name must be free.** The tool name is the agent name with each run of characters
+  other than letters and digits replaced by one underscore, so `support-agent` becomes
+  `support_agent`. A name that another tool of the agent already has — a tool in
+  `ToolNames`, a skill tool, `search_knowledge` while semantic search is on, or the tool of
+  another callable agent — fails validation with `sub_agent_tool_name_conflict` and the path
+  `callableAgentNames[i]`. A save returns `400` and names both. A definition written in code
+  fails the compilation with the same message.
+- **The agent tool skips the tool chain.** It is not a registered tool, so Tracon does not
+  authorize, approve, or time it as one. The wait limits above bound it. The tools the
+  sub-agent runs keep their own authorization and approval. The run records the call as a
+  tool call of the caller.
+- **A failed sub-agent answers with its reason.** If the sub-agent's model provider is down
+  or the agent no longer exists, the tool result reads `Agent 'support' could not complete:`
+  and the reason, as a background task reports `Task failed:`. The reason names the provider
+  and the kind of fault and never the provider's own message. The failure does not count as a
+  failed tool turn, so a model that retries the agent does not end the parent's run. An
+  exception that is not Tracon's own keeps the framework's behavior: the model sees
+  `Error: Function failed.`
+- **The tool takes one `query` argument.** An empty query fails the tool call before the
+  sub-agent starts, and the model sees a generic tool error. If the model asks for two agent
+  tools in one turn, they run at the same time only when `ToolLoop.AllowConcurrentToolCalls`
+  is on.
+
 A child resolves the callable agent's **current** version. This is deliberate: a
 version or an [experiment](/concepts/evaluation/#experiments) arm applies to the agent
 it was set on, not to the agents it calls. A workflow step resolves its agent's current

@@ -3183,8 +3183,13 @@ Tracon.StructuredResponseValidationResult.<Clone>$() -> Tracon.StructuredRespons
 Tracon.StructuredResponseValidationResult.Equals(Tracon.StructuredResponseValidationResult? other) -> bool
 Tracon.StructuredResponseValidationResult.IsValid.get -> bool
 Tracon.StructuredResponseValidationResult.Reason.get -> string?
+Tracon.SubAgentCallMode
+Tracon.SubAgentCallMode.Background = 0 -> Tracon.SubAgentCallMode
+Tracon.SubAgentCallMode.Tool = 1 -> Tracon.SubAgentCallMode
 Tracon.SubAgentSettings
 Tracon.SubAgentSettings.<Clone>$() -> Tracon.SubAgentSettings!
+Tracon.SubAgentSettings.CallMode.get -> Tracon.SubAgentCallMode
+Tracon.SubAgentSettings.CallMode.init -> void
 Tracon.SubAgentSettings.ChildDeadline.get -> System.TimeSpan?
 Tracon.SubAgentSettings.ChildDeadline.init -> void
 Tracon.SubAgentSettings.Equals(Tracon.SubAgentSettings? other) -> bool

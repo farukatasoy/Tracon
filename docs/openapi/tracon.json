@@ -7903,7 +7903,7 @@
                 "type": "null"
               },
               {
-                "description": "Gets how long this agent waits for the agents it calls. When\n\u0060null\u0060, \u0060TraconAgentGraphOptions.ChildDeadline\u0060\nand \u0060WaitTimeout\u0060 apply instead. Ignored when\nIReadOnlyList\u0026lt;string\u0026gt; AgentDefinition.CallableAgentNames is empty.",
+                "description": "Gets how this agent calls the agents it may call\n(\u0060SubAgentSettings.CallMode\u0060) and how long it waits for them. When\n\u0060null\u0060, the agent uses background tasks and\n\u0060TraconAgentGraphOptions.ChildDeadline\u0060 and \u0060WaitTimeout\u0060 apply.\nIgnored when \u0060CallableAgentNames\u0060 is empty.",
                 "$ref": "#/components/schemas/SubAgentSettings"
               }
             ]
@@ -17038,12 +17038,23 @@
         "type": "string",
         "format": "binary"
       },
+      "SubAgentCallMode": {
+        "enum": [
+          "Background",
+          "Tool"
+        ],
+        "description": "How an agent calls the agents it may call (\u0060CallableAgentNames\u0060)."
+      },
       "SubAgentSettings": {
         "examples": [
           null
         ],
         "type": "object",
         "properties": {
+          "callMode": {
+            "description": "Gets how the agent calls every agent in \u0060CallableAgentNames\u0060.\nDefaults to \u0060Background\u0060.",
+            "$ref": "#/components/schemas/SubAgentCallMode"
+          },
           "childDeadline": {
             "pattern": "^-?(\\d\u002B\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
             "type": [
@@ -17061,7 +17072,7 @@
             "description": "Gets the hard wait cutoff handed to the framework (the hard-cutoff layer).\nMust be greater than \u0060ChildDeadline\u0060."
           }
         },
-        "description": "Determines how long an agent waits for the agents it calls."
+        "description": "Determines how an agent calls the agents it may call, and how long it waits for them."
       },
       "TenantDescriptor": {
         "required": [

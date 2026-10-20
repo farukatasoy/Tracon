@@ -13,6 +13,9 @@ namespace Tracon;
 /// </remarks>
 internal static class VectorSearchToolFactory
 {
+    /// <summary>The name of the tool the model calls.</summary>
+    public const string ToolName = "search_knowledge";
+
     /// <summary>Builds a <c>search_knowledge</c> tool that looks at a specific collection.</summary>
     /// <param name="store">The vector store.</param>
     /// <param name="embeddings">The embedding generator.</param>
@@ -39,7 +42,7 @@ internal static class VectorSearchToolFactory
 
         return AIFunctionFactory.Create(
             body.SearchKnowledgeAsync,
-            name: "search_knowledge",
+            name: ToolName,
             description: "Performs a semantic search over the knowledge base. Returns " +
                          "semantically close chunks even without a keyword match.");
     }

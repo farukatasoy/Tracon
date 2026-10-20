@@ -91,7 +91,9 @@ one-click rollback.
 The editor validates as you save, using the same rules the compiler applies. An
 unknown tool, skill, or extension name is refused at write time, not on the first run.
 The Extensions panel lists the extensions the host registered. It keeps a name the host
-no longer registers, with a mark, so you can remove it.
+no longer registers, with a mark, so you can remove it. The Callable agents panel picks the
+agents this one may call and the [call mode](/concepts/agents/#one-tool-for-each-agent):
+background tasks, or one tool for each agent. The version compare shows a change of mode.
 
 <a class="ui-shot" href="/screenshots/agent-editor-loop.png"><img src="/screenshots/agent-editor-loop.png" alt="The agent editor's Loop panel with a marker criterion, a criterion registered in code, the iteration ceiling and the outcome selectors" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 

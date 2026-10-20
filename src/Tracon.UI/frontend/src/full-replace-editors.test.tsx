@@ -119,7 +119,7 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
   // does not touch it sends it back unchanged instead of dropping it.
   extensionNames: ['audit', 'retired'],
   callableAgentNames: ['billing'],
-  subAgents: { childDeadline: '00:00:10', waitTimeout: '00:00:30' },
+  subAgents: { childDeadline: '00:00:10', waitTimeout: '00:00:30', callMode: 'Tool' },
   mcpResourceUris: ['docs:file:///handbook.md'],
   harness: {
     maxContextWindowTokens: 64000,

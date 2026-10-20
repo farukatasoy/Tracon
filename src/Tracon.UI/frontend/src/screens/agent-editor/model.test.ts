@@ -160,6 +160,43 @@ describe('definition round trip', () => {
     expect(toRequest({ ...loaded, stopSequences: 'END' }).model.stopSequences).toEqual(['END']);
   });
 
+  // Phase 228: the call mode is the editor's own control; the wait limits beside it still are not.
+  describe('sub-agent call mode', () => {
+    it('reads a definition without sub-agent settings as background tasks and sends none', () => {
+      const form = fromDefinition({ ...definition, subAgents: null });
+
+      expect(form.subAgentCallMode).toBe('Background');
+      expect(toRequest(form).subAgents).toBeNull();
+    });
+
+    it('sends the settings as loaded while the mode is not touched', () => {
+      const stored = { waitTimeout: '00:00:30', callMode: 'Background' as const };
+
+      expect(toRequest(fromDefinition({ ...definition, subAgents: stored })).subAgents).toEqual(stored);
+    });
+
+    it('turns tool mode on and keeps the wait limits the form has no control for', () => {
+      const form = { ...fromDefinition(definition), subAgentCallMode: 'Tool' as const };
+
+      expect(toRequest(form).subAgents).toEqual({ waitTimeout: '00:00:30', callMode: 'Tool' });
+      expect(toRequest({ ...fromDefinition({ ...definition, subAgents: null }), subAgentCallMode: 'Tool' }).subAgents)
+        .toEqual({ callMode: 'Tool' });
+    });
+
+    it('turns tool mode off by dropping the key, and the settings with it when nothing else is left', () => {
+      const tool = { waitTimeout: '00:00:30', callMode: 'Tool' as const };
+      const withLimits = { ...fromDefinition({ ...definition, subAgents: tool }), subAgentCallMode: 'Background' as const };
+      const alone = { ...fromDefinition({ ...definition, subAgents: { callMode: 'Tool' } }), subAgentCallMode: 'Background' as const };
+
+      // What the server sends back for a definition that set only the mode: the unset limits are null.
+      const echoed = { ...fromDefinition({ ...definition, subAgents: { callMode: 'Tool', childDeadline: null, waitTimeout: null } }), subAgentCallMode: 'Background' as const };
+
+      expect(toRequest(withLimits).subAgents).toEqual({ waitTimeout: '00:00:30' });
+      expect(toRequest(alone).subAgents).toBeNull();
+      expect(toRequest(echoed).subAgents).toBeNull();
+    });
+  });
+
   // The old predicate asked only about file/todo/text search, so a definition
   // whose sole memory feature was vector search serialized as `memory: null`.
   it('keeps a memory block that only has vector search turned on', () => {

@@ -177,6 +177,51 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(loop?.textContent).toContain('Failed tool turns tolerated in a row: 2');
   });
 
+  it('shows a change of the sub-agent call mode between two versions (Phase 228)', async () => {
+    const definition = (version: number, callMode: 'Background' | 'Tool'): unknown => ({
+      name: 'router',
+      instructions: 'Delegate.',
+      instructionsByCulture: {},
+      model: { provider: 'echo', model: 'echo-1' },
+      toolNames: [],
+      skillNames: [],
+      extensionNames: [],
+      callableAgentNames: ['support'],
+      subAgents: { callMode },
+      harness: null,
+      compaction: null,
+      memory: null,
+      origin: 'Database',
+      version,
+    });
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/agents/:name/versions/:a/diff/:b', { left: definition(1, 'Background'), right: definition(2, 'Tool') }),
+      fixture('GET', 'api/agents/:name/versions', [
+        { name: 'router', version: 1, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-13T09:00:00Z' },
+        { name: 'router', version: 2, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-13T10:00:00Z' },
+      ]),
+      fixture('GET', 'api/agents/:name', {
+        descriptor: { name: 'router', origin: 'Database', sourceName: 'database', version: 2, toolNames: [] },
+        definition: definition(2, 'Tool'),
+        factoryInstructions: null,
+        isEditable: true,
+      }),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<AgentDetailScreen name="router" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('version-checkbox-1'));
+    await user.click(screen.getByTestId('version-checkbox-2'));
+
+    const row = (await screen.findByText('Call mode', { selector: 'td' })).closest('tr');
+
+    expect(row?.textContent).toBe('Call modeBackground tasksOne tool for each agent');
+    expect(row?.className).toContain('bg-warn-soft');
+  });
+
   it('rolls an agent back through the shared version history, and shows the refusal in the screen slot', async () => {
     // Phase 200 moved the history into a component the workflow screen shares; the agent's own
     // columns, its rollback and its error slot must have come with it.
