@@ -6,12 +6,55 @@
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-603**
 > **Genellik:** OpenAI Responses, Anthropic ve Google kullanan her tüketici. Sağlayıcının yerleşik tool'u (web search, code interpreter, file search) bugün yalnız uzantı provider'ıyla ve denetimsiz girer; harness web search'ün ücreti bugün hiçbir yerde sayılmaz (K-892). İş tüketici kodunda kalamaz: ücret, bütçe ve yüzey doğrulaması kontrol düzleminindir.
 > **Karşı görüş:** "Code interpreter kiracı verisini sağlayıcının konteynerine çıkarır; tanımda adla açmak bir uyum kararıdır." Cevap: veri, modelin zaten gittiği sağlayıcıya gider (egress politikası sağlayıcıyı izinli saymıştır); yeni taraf yoktur. Tool kodda kaydedilir (K2), tanım yalnız adla seçer, varsayılan kapalıdır (K1); site sayfası sınırı yazar.
-> **Önkoşul:** [Faz 225](225-MODEL-ORNEKLEME-VE-TOOL-DONGUSU.md) — sağlayıcı destek bildirimi mekanizmasını kurar; bu faz ona hosted tool türlerini ekler
+> **Önkoşul:** Faz 225 (kapandı) — sağlayıcı destek bildirimi desenini kurar (`ISamplingSupport`, istek alanları için); bu faz aynı desenle hosted tool türleri için kardeş bir bildirim ekler. Gerçekleşen imza: aşağıda *Önceki Fazdan Devir*
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.OpenAI`, `.Anthropic`, `.Google`, `.AspNetCore`, `.Client`, `.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz
 > **Tüketici yüzeyi:** site: yeni `guides/hosted-tools.md`, `concepts/tools.md`, `capabilities.md`, `guides/context-and-memory.md` (harness web search ücreti), `concepts/runs.md` (olay) · sevk edilen: `AddHostedTool` XML `<example>`, `src/Tracon.Core/README.md`
 > **Manuel test alanı:** `docs/manuel-test/05-SAGLAYICI-OPENAI.md`, `06-SAGLAYICI-DIGER.md` (sağlayıcı başına tel) ve `12-GOZLEMLENEBILIRLIK-MALIYET.md` (ücret) — `🤖` (gerçek sağlayıcı)
+
+---
+
+## Önceki Fazdan Devir
+
+> Faz 225 (F-598, kapandı 2026-10-20). Tam metin: `git show 44866805:docs/225-MODEL-ORNEKLEME-VE-TOOL-DONGUSU.md`.
+
+**Devraldığı sözleşmeler — gerçekleşen imza (public, `Tracon.Abstractions`):**
+
+```csharp
+[Flags] public enum SamplingFields
+{ None = 0, Seed, TopK, StopSequences, FrequencyPenalty, PresencePenalty, ToolMode, AllowMultipleToolCalls, ReasoningOutput }
+
+public interface ISamplingSupport { SamplingFields SupportedSamplingFields { get; } }
+```
+
+`IModelProvider`'a **dokunulmaz** (kırıcı olurdu); sağlayıcı arayüzü opsiyonel uygular. Bildirmeyen
+sağlayıcı hiçbir alanı göndermez. `ModelProviderRegistry.List()` `provider is ISamplingSupport` ile okur
+ve `ModelProviderDescriptor.SupportedSamplingFields`'a (**internal**) yazar. Tek kural
+`SamplingSupportCheck.Unsupported(registry, binding)`'dir (birincil bağlama + her yedek halka); iki okuyucusu
+var: derleyici (`AgentDefinitionCompiler.RequestFields.cs` → `TraconCompilationException`) ve doğrulayıcı
+(`AgentDefinitionValidator.OutputLimits.cs` → kod `sampling_field_unsupported`, yol `model.<alan>`).
+Desteği bildiren dört dosya: `OpenAIModelProvider` (`ApiSurface`'e göre iki küme), `AnthropicModelProvider`,
+`GoogleModelProvider`, `AzureOpenAIModelProvider`; `FakeModelProvider` (Tracon.Testing) hepsini bildirir.
+
+**Bu faz için sonuç:** `SamplingFields` istek alanlarının bayraklarıdır; hosted tool türleri (`web_search`,
+`code_interpreter`, `file_search`) ona **bayrak olarak girmez** (ad ve anlam uyumsuz). Öneri: aynı desenle
+kardeş `IHostedToolSupport` + `HostedToolKinds` bayrakları, `ModelProviderDescriptor`'a ikinci internal alan,
+`SamplingSupportCheck`'in birebir kardeşi. Karar `faz-uygulama` Adım 1'de ölçülüp verilir.
+
+**Bilinen tuzaklar:**
+
+- 🚨 **Tablo telden doğrulanmadıkça bir kopyadır.** Denetim, Anthropic'in `AllowMultipleToolCalls` hücresinin
+  koşullu olduğunu (adaptör bayrağı yalnız `tool_choice` kurarken okur) ancak decompile ile buldu; testler sağlayıcı
+  sabitlerini aynalıyordu. `ModelSamplingWireTests` deseni: `FakeOpenAiCompatibleServer` artık gövdeleri
+  (`ChatCompletionBodies`, `ResponsesBodies`) tutar ve `/v1/responses` sunar; `FakeAnthropicServer.Bodies`.
+  Hosted türler için her `✓`/`✗` hücresi aynı yolla gövdeden okunur; Google'ın yerel sahte sunucusu yoktur.
+- 🚨 **Bir hücre `✓` iken model reddedebilir** (F-606): `gpt-5.4-mini` `stop`'u `400` ile reddetti. Hosted türde de
+  model düzeyi ret beklenir; `ModelDescriptor` bayrağı ayrı bir adaydır.
+- Destek **API yüzeyine** bağlıdır, modele değil (`openai` ↔ `openai-responses` aynı modeli taşır). `UseOpenAICompatible`
+  iki sağlayıcı adı kaydeder (`{ad}`, `{ad}-responses`); her biri kendi kümesini bildirir.
+- `SURUM_DAMGASI_KAYDI` (`scripts/dokuman-bakim.py`): bir sağlayıcı dosyasındaki "SDK X.Y.Z ölçüldü" yorumu kayıt ister.
+- Dekoratör bir adaptör davranışına dayanıyorsa (`AnthropicProviderSettingsChatClient`) tel testi onu kilitler.
 
 ---
 
@@ -25,7 +68,7 @@
    **K-030** (`store=false`), **K-059** (`secret` yazılmaz), **K-208** (desteklenmeyen ayar sessiz düşmez), **K-483** (toplama ifadesine terim eklemek), **K-892** (harness web search yalnız tanım isteyince), **K-1030** (provider'ın tool'u tool zincirinden geçmez), **K-1034** (tanınmayan içerik `tracon.content`), **K-1039** (run başına seçenek çalışan tool'u reddeder)
 3. Ölçüm kaynağı: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §8.0 C-12 satırı (OpenAI tel probu) ve bu dokümandaki Anthropic/Google tel probu
 4. Alan hafızası: [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) (maliyet terimi, `Total()`), [`hafiza/model-boru-hatti.md`](hafiza/model-boru-hatti.md) (bütçe halkasının yeri), [`hafiza/run-olay-sozlesmesi.md`](hafiza/run-olay-sozlesmesi.md)
-5. Faz 225'in kapanış notu (destek bildiriminin gerçekleşen imzası)
+5. Bu dokümandaki *Önceki Fazdan Devir* (Faz 225'in destek bildiriminin gerçekleşen imzası ve tuzakları)
 
 ---
 
@@ -80,7 +123,7 @@ builder.AddTracon()
 
 ## 226.2 — Yüzey doğrulaması
 
-Faz 225'in destek bildirimi hosted türleri taşır. Ölçülen başlangıç tablosu:
+Hosted türler için destek bildirimi gerekir; Faz 225'inki yalnız istek alanlarını taşır (*Önceki Fazdan Devir*). Ölçülen başlangıç tablosu:
 
 | Tür | `openai` | `openai-responses` | `anthropic` | `google` |
 |---|---|---|---|---|
@@ -157,7 +200,7 @@ public sealed class HostedToolPriceOverride { public decimal? PerCall { get; set
 ```
 
 `ToolDescriptor`'a hosted tür alanı (ad faz başında `RunsOnClient` ile birlikte seçilir).
-Faz 225'in destek bildirimi hosted türlerle genişler. **Doğrulanmadı — `maf-api-kesfi`
+Destek bildirimi hosted türler için kardeş bir arayüzle genişler (Faz 225 devri). **Doğrulanmadı — `maf-api-kesfi`
 ile ölçülmeli:** `HostedFileSearchTool.Inputs`/`HostedVectorStoreContent` (tel probunda
 kullanıldı, imza dökümü alınmadı).
 
