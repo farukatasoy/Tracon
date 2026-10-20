@@ -796,12 +796,13 @@ public sealed class TraconRunRecordingOptions
 ///   <item><c>Tracon:Pricing:{provider}:{model}:Input|Output</c></item>
 ///   <item><c>Tracon:Pricing:Voice:{provider}:{model}:PerMillionCharacters|PerMinute</c></item>
 ///   <item><c>Tracon:Pricing:Images:{provider}:{model}:PerImage|OutputCostPerMillionTokens</c></item>
+///   <item><c>Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall</c> (kind: <c>WebSearch</c>, <c>CodeInterpreter</c>, <c>FileSearch</c>)</item>
 /// </list>
 /// Wildcards are not supported.
 /// <para>
 /// The section is bound manually for AOT. Every child of <c>Pricing</c> is
-/// treated as a provider name, so the <c>Currency</c> and <c>Voice</c> keys are
-/// reserved and cannot be provider names. When adding a reserved key, also update
+/// treated as a provider name, so the <c>Currency</c>, <c>Voice</c>, <c>Images</c> and
+/// <c>HostedTools</c> keys are reserved and cannot be provider names. When adding a reserved key, also update
 /// the skip list in <c>BindPricing</c>.
 /// </para>
 /// </remarks>
@@ -835,6 +836,32 @@ public sealed class TraconPricingOptions
     /// </remarks>
     public IDictionary<string, IDictionary<string, ImagePriceOverride>> Images { get; }
         = new Dictionary<string, IDictionary<string, ImagePriceOverride>>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets hosted tool prices per kind, keyed by model provider name and then by the name of a
+    /// <see cref="HostedToolKind"/>.
+    /// </summary>
+    /// <remarks>
+    /// A hosted tool (<c>AddHostedTool</c>, or the web search of a harness agent) is billed by the
+    /// call, not by token, so it has a dictionary of its own. The provider is the one that ran the
+    /// call (<c>openai-responses</c>, <c>anthropic</c>), not a model: the providers bill a search per
+    /// call whatever the model. A kind with no price here adds nothing to the run's total and is counted
+    /// as an item the total does not cover; it is never priced at zero.
+    /// </remarks>
+    public IDictionary<string, IDictionary<string, HostedToolPriceOverride>> HostedTools { get; }
+        = new Dictionary<string, IDictionary<string, HostedToolPriceOverride>>(StringComparer.OrdinalIgnoreCase);
+}
+
+/// <summary>Defines the configured price of one hosted tool kind at one provider.</summary>
+public sealed class HostedToolPriceOverride
+{
+    /// <summary>Gets or sets the cost of one call of the tool.</summary>
+    /// <remarks>
+    /// One call is one search, one code interpreter call or one file search call the provider reports
+    /// in its response. A provider that bills a code interpreter by container session makes the amount an
+    /// estimate; the run's record says so.
+    /// </remarks>
+    public decimal? PerCall { get; set; }
 }
 
 /// <summary>Defines the configured price for one voice model.</summary>

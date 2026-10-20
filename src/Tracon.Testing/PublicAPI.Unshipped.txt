@@ -63,3 +63,4 @@ override Tracon.Testing.FakeModelRequest.ToString() -> string!
 static Tracon.Testing.TraconTestHost.StartAsync(System.Action<Tracon.Testing.TraconTestHostOptions!>? configure = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.Testing.TraconTestHost!>
 static Tracon.Testing.FakeModelRequest.operator !=(Tracon.Testing.FakeModelRequest? left, Tracon.Testing.FakeModelRequest? right) -> bool
 static Tracon.Testing.FakeModelRequest.operator ==(Tracon.Testing.FakeModelRequest? left, Tracon.Testing.FakeModelRequest? right) -> bool
+Tracon.Testing.FakeModelProvider.SupportedHostedTools.get -> Tracon.HostedToolKinds

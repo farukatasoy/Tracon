@@ -20,7 +20,7 @@ namespace Tracon;
 /// — there is no extra code in this package for it.
 /// </para>
 /// </remarks>
-internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport
+internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
 {
     private readonly AzureOpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<AzureOpenAIModelProvider>? _logger;
@@ -95,6 +95,13 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
         | SamplingFields.PresencePenalty
         | SamplingFields.ToolMode
         | SamplingFields.AllowMultipleToolCalls;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The provider builds the Chat Completions client, which runs no hosted tool Tracon reports (see
+    /// <c>OpenAIModelProvider</c>).
+    /// </remarks>
+    public HostedToolKinds SupportedHostedTools => HostedToolKinds.None;
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

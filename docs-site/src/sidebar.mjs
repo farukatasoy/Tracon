@@ -42,6 +42,7 @@ export const sidebar = [
       { label: 'Model providers', slug: 'guides/model-providers' },
       { label: 'Add a tool', slug: 'getting-started/tools' },
       { label: 'Tools, skills, and MCP', slug: 'concepts/tools' },
+      { label: 'Hosted tools', slug: 'guides/hosted-tools' },
       { label: 'Context and memory', slug: 'guides/context-and-memory' },
       { label: 'Structured output', slug: 'guides/structured-output' },
       { label: 'Attachments and multimodal', slug: 'guides/multimodal' },

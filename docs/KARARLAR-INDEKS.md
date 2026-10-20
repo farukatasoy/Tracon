@@ -2,18 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 981 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 985 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1033 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1037 kalem)
 
 | K | Karar |
 |---|---|
-| K-992 | `/v1/chat/completions` `finish_reason` yanıtın son model çağrısının sebebinden gelir: `Length` ve `TraconFinishReasons.ContextWindowExceeded` → `"length"`, içerikli `ContentFilter` → `"content_filter"`, geri kalanı (`ToolCalls` dahil) → `"stop"`; iki kolda, run kaydından bağımsız (F-427, Faz 207) (kullanıcı kararı) 👤 |
-| K-993 | Okunamayan yapılandırma girdisi atlanmaz, açılışta hata verir: `Quotas:ThresholdPercents` ve `Webhooks:RetryDelays` girdisi sıfır, `ContentProtection:Columns` girdisi tanımsız değer, `MaskedPii` tanımsız bit olarak bağlanır, `ContentProtection:Keys` boş adı yazıldığı gibi kalır; ham metin `internal` taşıyıcıda durur ve mesaj onu alıntılar; hata bağlanmış değerden çıkar (bağlamadan sonra yazan kod kazanır); `Keys`/`Columns` denetimi `Enabled`'dan bağımsızdır; tanımsız `ProtectedColumn`/`PiiPatterns` kod yolundan da reddedilir; boş `MaskedPii` "yok"tur (F-247, Faz 206) (kullanıcı kararı) 👤 |
-| K-994 | Workflow başına cevap modu: `WorkflowResponseMode.Branch` (varsayılan, K-130 korunur) ve `SingleAnswer`; tek cevapta iddia `(tenant, session, requestId)` kapsamındadır, iki cevap `approved`/`text`/`data` SHA-256'sı eşitse aynıdır (checkpoint ve tanım sürümü sayılmaz), aynı cevap ilkinin başlattığı işi izler (akışlı SSE depodan, kuyruklu aynı `202`), farklı cevap `409` alır ve ne run'ı ne öbür cevabı adlandırır; iş cevabı almadan durduysa (zincir `Failed`/`Canceled`, kuyruk işi bitmiş, kayıt `Accepted` ve tek run'lık zincir ya da zincirde checkpoint yok) aynı cevap işi yeniden başlatır; bekleyen run kaydettiği tanım sürümünün moduyla cevaplanır (F-319, Faz 208) (kullanıcı kararı) 👤 |
-| K-995 | Cevap kaydı ve kaynak bağı: `workflow_responses` tablosu (üç sağlayıcı; kısmi benzersiz indeks `(tenant_id, claim_scope, request_id) WHERE claim_scope IS NOT NULL AND status <> 2`; `source_run_id` → `runs` `ON DELETE CASCADE`), `IWorkflowResponseStore` + `WorkflowResponseStoreContract`, `GET /api/workflows/runs/{runId}/responses` (`Reader` + `RunAccess.Read`); devam run'ı `RunEventType.WorkflowResponseApplied` (33, `workflow.response-applied`) olayını `RecordToolPayloads` kapalıyken de yazar; kayıt yalnız veri sahibi silmesiyle kaynak run'la gider, hiçbir saklama hedefi silmez (F-319, Faz 208) (kullanıcı kararı) 👤 |
 | K-996 | Fail-closed denetim kümesi 6 → 7: cevap modu ne olursa olsun run başlatan her `POST /api/workflows/runs/{runId}/respond` `workflow.respond` olarak run satırından ve kayıttan ÖNCE `AuditRecorder.WriteOrThrowAsync` ile yazılır, yazılamazsa cevap `500` ile reddedilir; kayıt cevabın hash'ini taşır, cevabı değil; run başlatmayan cevap (izleme, `409`) yazılmaz; K-776'nın yayımlanmış kümesini değiştirir (F-319, Faz 208) (kullanıcı kararı) 👤 |
 | K-997 | Önce satır, sonra kayıt: cevabın run satırı (akışlıda `Running`, kuyrukluda `Queued`) her modda ve her yolda kayıttan/iddiadan önce açılır, bir kayıt hiçbir zaman var olmayan bir run'ı adlandırmaz; iddiayı kaybeden kendi run'ını olaysız `Canceled` + `request_already_answered` kapatır (run listesinde ve istatistikte görünür), kayıt yazılamazsa run `Failed` + `answer_not_recorded` kapanır ve cevap `500` alır; atıf karardan önce bir kez okunur, satırdan sonraki her yazım `CancellationToken.None` kullanır; kuyruk işi bitmemişse kapı izler; işi hiç yazılmamış kuyruklu run'ın işini aynı cevabın tekrarı yazar (F-319, Faz 208) (kullanıcı kararı, 2026-10-14) 👤 |
 | K-998 | `IJobStore.EnqueueAsync` kayıtlı bir iş kimliğini reddeder: çağrı hata verir, kayıtlı iş ve öğeleri değişmez; bellek içi depo işi değiştiriyordu, artık reddeder; `QueuedRunPlaceholder` reddedilen yazımdan sonra işi geri okur ve oradaysa onu döndürür, satırı kapatmaz; `JobStoreContract` yeni case'le dört depoda zorlar (Faz 208) |
@@ -62,3 +58,7 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1041 | `AllowConcurrentToolCalls` `ModelBinding.ToolLoop` altına taşındı; eski yük okumada çevrilir, eski HTTP anahtarı `400` alır (F-598) 👤 |
 | K-1042 | Run seçeneği `AllowMultipleToolCalls = false` geçer; `true` ve öteki korunan üyeler reddedilir (K-1039 daraltması) |
 | K-1043 | Alt agent çağrı modu tanımdadır: `SubAgentSettings.CallMode` (`Background`, `Tool`); `Tool`'da ad çakışması reddedilir (F-599) |
+| K-1044 | Hosted tool kodda kaydedilir, tanım adla seçer: `AddHostedTool`; tool zinciri yoktur, tür başına en çok bir tane (F-603) |
+| K-1045 | Hosted tool desteğini sağlayıcı `IHostedToolSupport` ile bildirir; bildirmeyen tür derleme hatasıdır (F-603) |
+| K-1046 | Kayıtlı hosted çağrı `tracon.content` değil `ToolInvoking`/`ToolInvoked` olur; kayıtsız olan K-1034'te kalır (F-603) |
+| K-1047 | Hosted çağrı ücreti iç döngü halkasında, yanıt önbelleğinin içinde raporlanır; fiyatsız tür `null` kalır, `0` olmaz (F-603) |

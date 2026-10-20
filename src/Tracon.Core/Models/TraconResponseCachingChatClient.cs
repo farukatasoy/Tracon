@@ -91,7 +91,7 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
         var baseKey = base.GetCacheKey(messages, options, additionalValues);
 
         var toolNames = options?.Tools is { Count: > 0 } tools
-            ? string.Join(' ', tools.Select(static tool => tool.Name).Order(StringComparer.Ordinal))
+            ? string.Join(' ', tools.Select(static tool => ToolKey(tool)).Order(StringComparer.Ordinal))
             : string.Empty;
 
         var scope = new CacheKeyScope(baseKey, _tenantId ?? DefaultTenantId, _provider, toolNames);
@@ -242,6 +242,22 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
         {
             _logger?.LogWarning(ex, "Response-cache write failed for provider '{Provider}'; the response was still returned.", _provider);
         }
+    }
+
+    // 🚨 A hosted tool's NAME says its kind, not what it searches: every file search is named "file_search", so
+    // two agents with different vector stores in one tenant would share an answer. A hosted tool is keyed by what
+    // it puts on the wire; one the description cannot compare gets a key that never repeats, so it never hits.
+    private static string ToolKey(AITool tool)
+    {
+        if (!HostedToolDescription.IsHosted(tool))
+        {
+            return tool.Name;
+        }
+
+        var description = HostedToolDescription.Of(tool);
+        var identity = description.Opaque ? Guid.NewGuid().ToString("N") : description.Text;
+
+        return $"{tool.Name}#{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))}";
     }
 
     private DistributedCacheEntryOptions BuildEntryOptions()

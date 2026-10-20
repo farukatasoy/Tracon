@@ -62,6 +62,7 @@ internal static class ContentEventPayload
             ImageGenerationToolResultContent result => HostedTool("image_generation", isCall: false, result.CallId),
             McpServerToolCallContent call => HostedTool("mcp_server", isCall: true, call.CallId),
             McpServerToolResultContent result => HostedTool("mcp_server", isCall: false, result.CallId),
+            ToolResultContent result when HostedToolContent.IsFileSearchResult(result) => HostedTool("file_search", isCall: false, result.CallId),
             ErrorContent error => DescribeError(error, maxPayloadLength),
             DataContent data => DescribeData(data),
             UriContent uri => DescribeUri(uri),

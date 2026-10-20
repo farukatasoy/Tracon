@@ -40,7 +40,8 @@ internal sealed class RunReconciliationService(
     IOptionsMonitor<TraconRunContinuationOptions> continuationOptionsMonitor,
     SchemaReadyGate schemaReadyGate,
     TimeProvider? timeProvider = null,
-    ILogger<RunReconciliationService>? logger = null) : BackgroundService
+    ILogger<RunReconciliationService>? logger = null,
+    HostedToolRegistry? hostedTools = null) : BackgroundService
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -228,7 +229,8 @@ internal sealed class RunReconciliationService(
     /// <remarks>
     /// A tool no longer in the registry (renamed or removed since the run)
     /// is treated as unsafe: its effect and <c>SafeToRepeat</c> declaration
-    /// can no longer be read, so safety cannot be verified.
+    /// can no longer be read, so safety cannot be verified. A hosted tool is the exception: the provider ran its call
+    /// inside a model turn that already answered, and a continuation does not run it again.
     /// </remarks>
     private async ValueTask<string?> FindUnsafeToolAsync(Guid runId, CancellationToken cancellationToken)
     {
@@ -243,6 +245,13 @@ internal sealed class RunReconciliationService(
 
         foreach (var invocation in invocations)
         {
+            // A hosted tool's call ran at the provider inside a model call that already answered: a continuation
+            // sends the history on and runs no hosted call again, so there is no effect to repeat.
+            if (hostedTools?.Contains(invocation.ToolName) == true)
+            {
+                continue;
+            }
+
             var descriptor = descriptors.FirstOrDefault(
                 candidate => string.Equals(candidate.Name, invocation.ToolName, StringComparison.Ordinal));
 

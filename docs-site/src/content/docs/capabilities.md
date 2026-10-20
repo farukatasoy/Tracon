@@ -89,11 +89,12 @@ decisions can be overridden or composed with your own rules — see
 | Generated tools | `[TraconTool]` and `AddGeneratedTools()` | Compile-time discovery without reflection or dynamic code; `minimum`/`maximum`/length/`pattern` constraints from standard `DataAnnotations` attributes reach the schema; a parameter may be a supported object (a public record or class with a single public constructor), up to 3 nested levels deep, bound through the tool's own `JsonSerializerContext` |
 | Direct tools | `AddTool(AIFunction, configure)` | Exact tool instance and its approval, effect, permission, timeout, repeatability, and output policy |
 | Delegate tools | `AddTool(delegate)` | Convenient reflection path; trimming and dynamic-code warnings reach the caller |
-| Scanned tools | `AddToolsFrom<T>()` or `AddToolsFrom(Type)` | Only attributed methods become tools; this path uses reflection |
+| Scanned tools | `AddToolsFrom<T>()`, or the overload that takes a type | Only attributed methods become tools; this path uses reflection |
 | Scoped tools | `AddScopedTool` | Every call gets its own DI scope, closed when the call ends |
 | Argument validation | `IToolArgumentsValidator` | Runs before every call, code-defined or MCP; a rejection skips the real body |
 | Tool approval | `RequiresApproval`, the registration flag, or `AddToolApprovalPolicy()` | A sensitive call cannot execute until a person or standing rule decides it |
 | Tool output size limit | `MaxOutputBytes` (per tool) or `Tools.DefaultMaxOutputBytes` (installation-wide) | A result over the byte limit is trimmed into a JSON envelope before the model sees it; unlimited by default |
+| Hosted tools | `AddHostedTool(...)` | A web search, code interpreter, or file search the model provider runs inside the model call; a definition selects it by name in `ToolNames`, and no approval, permission, or timeout applies. A provider states what its API surface runs (`IHostedToolSupport`); a kind it would drop fails to compile and validation. One tool per kind. Each call is priced with `Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall` and is a tool event. See [Hosted tools](/guides/hosted-tools/) |
 | Client-side tools | `AddClientTool(...)` | The declaration lives in code like every other tool; the server never runs the body. The model's call comes back to the caller, which answers it with `AgentRunRequest.ToolResults`. An agent carrying one cannot be replayed in any tool mode — its call was never recorded, so no mode can answer it |
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
@@ -178,7 +179,7 @@ production behavior.
 | Custom checks | `AddEvalCheck(kind, check)` | Application code adds a named MAF `EvalCheck` |
 | Run judges | `IRunJudge` via `AddRunJudge<T>()`, instance, or factory, or the built-in `AddModelRunJudge()` | Manual or automatic scores with named criteria |
 | Calibrated evaluator catalog | `AddEvaluatorJudge(name, evaluator)` with a Microsoft.Extensions.AI.Evaluation IEvaluator | Each metric the evaluator reports becomes its own `{judge}.{metric}` score row |
-| Score provenance | `RunJudgment.EvaluatorVersion`, set automatically by `AddEvaluatorJudge` | Every score row records the version of the component that produced it, so a package upgrade is not read as a regression |
+| Score provenance | `RunJudgment.EvaluatorVersion`, set automatically when you register an evaluator judge | Every score row records the version of the component that produced it, so a package upgrade is not read as a regression |
 | Suite grading seam | `AddEvalEvaluatorFactory<T>()` or an instance | Replaces the MAF `LocalEvaluator` an eval suite is graded with |
 | Online evaluation | Judge registration plus enabled sampling | A bounded sample of live runs is scored in the background |
 | Eval run comparison | `GET /api/evals/runs/{id}/diff` or `IEvalStore.DiffRunsAsync` | Two runs of a suite align case by case into six buckets; added and dropped cases are never counted as regressions |

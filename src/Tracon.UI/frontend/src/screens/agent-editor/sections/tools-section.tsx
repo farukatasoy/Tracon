@@ -20,6 +20,9 @@ export function ToolsSection({
     <Panel title={t('common.tools')}>
       <div className="p-4">
         <p className="mb-3 text-sm text-muted">{t('agentEditor.toolsNotice')}</p>
+        {(tools.data ?? []).some((tool) => tool.hostedKind != null) && (
+          <p className="mb-3 text-sm text-muted">{t('agentEditor.hostedNotice')}</p>
+        )}
 
         {tools.isPending && <Loading rows={4} />}
         {tools.isError && <ErrorNote error={tools.error} onRetry={() => void tools.refetch()} />}
@@ -62,6 +65,11 @@ export function ToolsSection({
                   {tool.runsOnClient && (
                     <Badge tone="accent" description={t('agentEditor.runsOnClientTitle')}>
                       {t('tools.runsOnClient')}
+                    </Badge>
+                  )}
+                  {tool.hostedKind != null && (
+                    <Badge tone="accent" description={t('tools.hostedTitle')}>
+                      {t(`tools.hostedKind.${tool.hostedKind}`)}
                     </Badge>
                   )}
                   {tool.description !== null && tool.description !== undefined && (

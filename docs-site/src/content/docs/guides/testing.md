@@ -153,6 +153,11 @@ Assert.Contains(firstRequest.Options?.Tools ?? [], tool =>
     tool.Name == "get_order_status");
 ```
 
+A [hosted tool](/guides/hosted-tools/) reaches the fake as its tool object, for example a
+`HostedWebSearchTool`, so a test can check the selection without a network call. The fake runs
+every hosted kind; the provider table in [Model providers](/guides/model-providers/#hosted-tools)
+applies to the shipped providers only.
+
 Inspect recorded requests when a test must prove prompt history, model options, or
 tool exposure. Assert run behavior for user-visible outcomes. Tests tied to every
 internal message can become brittle when the framework changes harmless formatting.

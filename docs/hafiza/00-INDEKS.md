@@ -16,7 +16,7 @@
 | `RunRecording` zinciri, `scope`/span, iptal | [cekirdek-calistirma](cekirdek-calistirma.md) |
 | Agent derleme, derleme kimliği, derlenmiş agent önbelleği | [agent-derleme-ve-onbellek](agent-derleme-ve-onbellek.md) |
 | `RunEventType`/`RunStatus` terminal durum sözleşmesi | [run-olay-sozlesmesi](run-olay-sozlesmesi.md) |
-| Tool onayı, yetkilendirme sırası, sunum seam'i | [tool-onay-ve-yetkilendirme](tool-onay-ve-yetkilendirme.md) |
+| Tool onayı, yetkilendirme, sunum seam'i · hosted tool | [onay](tool-onay-ve-yetkilendirme.md) · [hosted](hosted-tool.md) |
 | Metrik, maliyet, kota, rapor dürüstlüğü | [olcum-kota-ve-secenekler](olcum-kota-ve-secenekler.md) |
 | `Bind()` seçenek bağlama, `secret` süzgeci | [secenek-baglama-ve-gizlilik](secenek-baglama-ve-gizlilik.md) |
 | Genişleme noktası kaydı, denetim izi kapsamı | [genisleme-noktalari-ve-denetim](genisleme-noktalari-ve-denetim.md) |
@@ -37,7 +37,7 @@
 | `dotnet pack`, `buildTransitive/`, şablon, feed | [paketleme-ve-dagitim](paketleme-ve-dagitim.md) |
 | MinVer, repo dışı tüketici, tek derleme zinciri | [yayin-ve-surumleme](yayin-ve-surumleme.md) |
 | Etiket, push sırası, registry | [yayin-turu](yayin-turu.md) |
-| Üçüncü taraf lisans bildirimi, ön sürüm üst akış aralığı | [tedarik-zinciri](tedarik-zinciri.md) |
+| Üçüncü taraf lisans, ön sürüm üst akış aralığı | [tedarik-zinciri](tedarik-zinciri.md) |
 | NSwag ile üretilen istemci (`Tracon.Client`/`@tracon/client`) | [nswag-istemci-uretimi](nswag-istemci-uretimi.md) |
 | Test **yazımı** (xunit, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |
 | Test **koşumu** asılı/eksik (`dotnet test`) | [komut/MSBuild](test-kosum-tuzaklari.md) · [paralellik/zamanlama](test-paralellik-ve-zamanlama.md) |
@@ -48,7 +48,7 @@
 | Kapasite ölçümü aparatı (`bench/capacity/`) | [kapasite-olcumu](kapasite-olcumu.md) |
 | Arayüz (Vite, SPA rota, TS, ekran) | [frontend](frontend.md) |
 | Arayüz tasarım katmanı (token, tema, primitif) | [frontend-tasarim-katmani](frontend-tasarim-katmani.md) |
-| Arayüz modal katmanı (`Dialog`, doğrulama adımı, `window.confirm` yasağı) | [frontend-modal-katmani](frontend-modal-katmani.md) |
+| Arayüz modal katmanı (`Dialog`, `window.confirm` yasağı) | [frontend-modal-katmani](frontend-modal-katmani.md) |
 | Arayüz yerelleştirme (`useT`, `Messages`) | [frontend-yerellestirme](frontend-yerellestirme.md) |
 | Arayüz test altyapısı (Vitest, `openapi-fetch` stub) | [frontend-test-altyapisi](frontend-test-altyapisi.md) |
 | Model sağlayıcısı (OpenAI/Anthropic/Google) | [openai-saglayici](openai-saglayici.md) |

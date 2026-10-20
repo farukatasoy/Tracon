@@ -139,6 +139,84 @@ public sealed class TraconPricingBindingTests
         options.Pricing.Providers["echo"]["echo-1"].InputCostPerMillionTokens.ShouldBe(0.25m);
     }
 
+    // --- F-603: Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall ---
+
+    [Fact]
+    public void A_hosted_tool_price_is_bound_by_provider_and_kind_and_the_key_is_not_a_provider()
+    {
+        var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Pricing:HostedTools:openai-responses:WebSearch:PerCall"] = "0.01",
+            ["Pricing:HostedTools:openai-responses:CodeInterpreter:PerCall"] = "0.03",
+            ["Pricing:HostedTools:anthropic:WebSearch:PerCall"] = "0.01",
+        };
+
+        var options = BindOnly(configValues);
+
+        options.Pricing.HostedTools["openai-responses"]["WebSearch"].PerCall.ShouldBe(0.01m);
+        options.Pricing.HostedTools["openai-responses"]["CodeInterpreter"].PerCall.ShouldBe(0.03m);
+        options.Pricing.HostedTools["anthropic"]["websearch"].PerCall.ShouldBe(0.01m, "kind names compare without case");
+        options.Pricing.Providers.ShouldNotContainKey("HostedTools");
+    }
+
+    [Fact]
+    public void A_hosted_tool_price_for_a_kind_that_does_not_exist_is_rejected_at_startup()
+    {
+        var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:HostedTools:openai-responses:Websearch2:PerCall"] = "0.01",
+        };
+
+        using var provider = BuildTracon(configValues);
+
+        var message = Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IOptions<TraconOptions>>().Value).Message;
+
+        message.ShouldContain("'HostedTools:openai-responses:Websearch2' is not a hosted tool kind");
+        message.ShouldContain("WebSearch, CodeInterpreter, FileSearch");
+    }
+
+    [Fact]
+    public void A_hosted_tool_price_written_with_the_wrong_key_name_is_rejected_at_startup()
+    {
+        var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:HostedTools:openai-responses:WebSearch:Price"] = "0.01",
+        };
+
+        using var provider = BuildTracon(configValues);
+
+        Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IOptions<TraconOptions>>().Value)
+            .Message.ShouldContain("'HostedTools:openai-responses:WebSearch' does not contain 'PerCall'. Check the key name.");
+    }
+
+    [Fact]
+    public void A_negative_hosted_tool_price_is_rejected_at_startup()
+    {
+        var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:HostedTools:openai-responses:WebSearch:PerCall"] = "-0.01",
+        };
+
+        using var provider = BuildTracon(configValues);
+
+        Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IOptions<TraconOptions>>().Value)
+            .Message.ShouldContain("price for 'HostedTools:openai-responses:WebSearch' cannot be negative");
+    }
+
+    [Fact]
+    public void A_hosted_tool_price_written_correctly_is_accepted_at_startup()
+    {
+        var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:HostedTools:openai-responses:FileSearch:PerCall"] = "0.0025",
+        };
+
+        using var provider = BuildTracon(configValues);
+
+        provider.GetRequiredService<IOptions<TraconOptions>>().Value
+            .Pricing.HostedTools["openai-responses"]["FileSearch"].PerCall.ShouldBe(0.0025m);
+    }
+
     /// <summary>
     /// Calls <c>TraconServiceCollectionExtensions.Bind</c> (the private,
     /// manually written K-021 binder) directly, without DI or the validator

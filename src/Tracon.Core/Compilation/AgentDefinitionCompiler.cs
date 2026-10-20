@@ -65,6 +65,7 @@ public sealed partial class AgentDefinitionCompiler
     private readonly LoopEvaluatorRegistry _loopEvaluators;
     private readonly ITenantEgressPolicyStore? _tenantEgressPolicies;
     private readonly AgentExtensionRegistry _agentExtensions;
+    private readonly HostedToolRegistry _hostedTools;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
     // purposes only". The suppression is kept in a single file (this file,
@@ -161,6 +162,11 @@ public sealed partial class AgentDefinitionCompiler
     /// not registered here gets a compilation error. No extension runs until an agent that
     /// names it is compiled.
     /// </param>
+    /// <param name="hostedTools">
+    /// The hosted tools registered in code with <c>ITraconBuilder.AddHostedTool</c>. A definition that
+    /// selects one gets the tool its factory builds for the tenant; the factory runs only when such an
+    /// agent is compiled. When <see langword="null"/>, no hosted tool is registered.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     internal AgentDefinitionCompiler(
@@ -185,7 +191,8 @@ public sealed partial class AgentDefinitionCompiler
         IEnumerable<TraconLoopEvaluatorRegistration>? loopEvaluators = null,
         ModelRunJudgeOptions? judgeOptions = null,
         ITenantEgressPolicyStore? tenantEgressPolicies = null,
-        IEnumerable<IAgentExtension>? agentExtensions = null)
+        IEnumerable<IAgentExtension>? agentExtensions = null,
+        HostedToolRegistry? hostedTools = null)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -215,6 +222,7 @@ public sealed partial class AgentDefinitionCompiler
         _loopEvaluators = new LoopEvaluatorRegistry(loopEvaluators ?? [], models, judgeOptions, loggerFactory, services);
         _tenantEgressPolicies = tenantEgressPolicies;
         _agentExtensions = agentExtensions is null ? AgentExtensionRegistry.Empty : new AgentExtensionRegistry(agentExtensions);
+        _hostedTools = hostedTools ?? HostedToolRegistry.Empty;
     }
 
     /// <summary>
@@ -230,6 +238,13 @@ public sealed partial class AgentDefinitionCompiler
     /// </summary>
     /// <returns>The registry this compiler configures agents with.</returns>
     internal AgentExtensionRegistry GetAgentExtensions() => _agentExtensions;
+
+    /// <summary>
+    /// Returns the hosted tool registry: the names a definition can select beside the function tools,
+    /// and the one rule set the validator and <see cref="Compile(AgentDefinition)"/> share.
+    /// </summary>
+    /// <returns>The registry this compiler builds hosted tools with.</returns>
+    internal HostedToolRegistry GetHostedTools() => _hostedTools;
 
     /// <summary>Converts a definition into an executable agent.</summary>
     /// <param name="definition">The definition to compile.</param>

@@ -306,6 +306,16 @@ _ = TraconToolUsage.Report(new ToolCallUsage
   fill `Provider` and `Model` as well as the measurement. Prices come from
   `Tracon:Pricing`; with none configured the amount stays unknown.
 
+## Hosted tools
+
+`AddHostedTool(name, kind, factory)` registers a tool that the model provider runs inside the model call:
+a web search, a code interpreter, or a file search. The registration is code, like every tool, and a
+definition selects it by name in `ToolNames`. Tracon calls nothing, so no approval, permission, timeout, or
+output limit applies; the data goes to the provider the model call already uses. The provider's API surface
+decides which kinds run, each call is priced from configuration, and each call is a tool event under the
+registered name. See [Hosted tools](/guides/hosted-tools/) for the registration rules, the provider table, and
+the limits.
+
 ## Client-side tools
 
 `AddClientTool(name, description, jsonSchema)` registers a tool the SAME way — the

@@ -182,6 +182,7 @@ public sealed partial class RunRecordingAgent
             Writer = writer,
             ExtraUsage = new SideChannelUsageAccumulator(),
             ToolUsage = new ToolUsageAccumulator(),
+            HostedCalls = new HostedCallLedger(),
 
             // What the tools of this run measure beyond tokens adds up here and
             // reaches the tree's budget the moment it does (phase 199).
@@ -269,7 +270,8 @@ public sealed partial class RunRecordingAgent
             Kind: start.Kind,
             FallbackAttribution: start.Scope.FallbackAttribution,
             UserId: start.UserId,
-            NonTokenCost: start.Scope.NonTokenCost);
+            NonTokenCost: start.Scope.NonTokenCost,
+            HostedCalls: start.Scope.HostedCalls);
 
     /// <summary>
     /// Reads the run's attribution.
@@ -327,5 +329,6 @@ public sealed partial class RunRecordingAgent
         RunKind Kind,
         FallbackModelAttribution? FallbackAttribution,
         string? UserId,
-        NonTokenCostAccumulator? NonTokenCost);
+        NonTokenCostAccumulator? NonTokenCost,
+        HostedCallLedger? HostedCalls = null);
 }

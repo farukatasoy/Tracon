@@ -17,8 +17,8 @@ internal static class CatalogEndpoints
     /// <param name="roles">The resolved role policies.</param>
     public static void Map(IEndpointRouteBuilder builder, TraconRolePolicies roles)
     {
-        builder.MapGet("/api/tools", Ok<IReadOnlyList<ToolDescriptor>> (IToolRegistry tools)
-                => TypedResults.Ok(tools.List()))
+        builder.MapGet("/api/tools", Ok<IReadOnlyList<ToolDescriptor>> (IToolRegistry tools, HostedToolRegistry hostedTools)
+                => TypedResults.Ok(ListTools(tools, hostedTools)))
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("TraconListTools")
@@ -26,7 +26,10 @@ internal static class CatalogEndpoints
             .WithSummary("Lists registered tools and their JSON schemas.")
             .WithDescription(
                 "Tools are defined only in code. This endpoint does not offer a write path; " +
-                "the UI lets users pick from this list when defining an agent.");
+                "the UI lets users pick from this list when defining an agent. A hosted tool " +
+                "(a web search, a code interpreter or a file search the model provider runs) carries " +
+                "hostedKind and no JSON schema; whether the provider of an agent's model runs it is " +
+                "reported by POST /api/agents/validate. Listing runs no factory of the host.");
 
         builder.MapGet("/api/models", Ok<IReadOnlyList<ModelProviderDescriptor>> (
                 IModelProviderRegistry models,
@@ -269,6 +272,24 @@ internal static class CatalogEndpoints
                 "resolves by model name alone; if the same model name is defined for more " +
                 "than one provider, the first alphabetical match wins. Requires Admin; " +
                 "the call is written to the audit trail.");
+    }
+
+    // The function tools are already ordered by name, and so are the hosted ones; a merge keeps one list ordered.
+    private static IReadOnlyList<ToolDescriptor> ListTools(IToolRegistry tools, HostedToolRegistry hostedTools)
+    {
+        var functions = tools.List();
+
+        if (hostedTools.Descriptors.Count == 0)
+        {
+            return functions;
+        }
+
+        var all = new List<ToolDescriptor>(functions.Count + hostedTools.Descriptors.Count);
+        all.AddRange(functions);
+        all.AddRange(hostedTools.Descriptors);
+        all.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));
+
+        return all;
     }
 
     /// <summary>Builds the agent extension list. Only names and descriptions leave the registry.</summary>

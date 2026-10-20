@@ -163,6 +163,16 @@ public sealed record AgentRunScope
     internal ToolUsageAccumulator? ToolUsage { get; init; }
 
     /// <summary>
+    /// Gets the registered names of the run's hosted tool calls, keyed by call identity.
+    /// </summary>
+    /// <remarks>
+    /// The write surface is the cost ring of the model pipeline (<c>HostedToolUsageChatClient</c>); the read
+    /// side is the run recorder, which writes a registered tool's call as a tool event. Same
+    /// ambient-write/scoped-read pattern as <see cref="ToolUsage"/>.
+    /// </remarks>
+    internal HostedCallLedger? HostedCalls { get; init; }
+
+    /// <summary>
     /// Gets the accumulator that adds up the non-token amounts the run reported: what its
     /// workflow function nodes reported and what its tools measured.
     /// </summary>

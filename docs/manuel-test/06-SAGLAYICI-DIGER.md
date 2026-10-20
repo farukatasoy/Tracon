@@ -1,6 +1,6 @@
 # 06 — Sağlayıcı: Anthropic, Google, Azure OpenAI (`PROV`)
 
-> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214, 217
+> **Alan kodu:** `PROV` · **Faz:** 8, 26, 27, 203, 214, 217, 226
 > **Kaynak:** `src/Tracon.Anthropic` (tümü), `src/Tracon.Google` (tümü),
 > `src/Tracon.Azure` (tümü) — üç paket de `Tracon.OpenAI` ile **aynı**
 > iskeleti tekrarlar (`XxxProviderOptions*`, `XxxProviderExtensions`,
@@ -1966,3 +1966,49 @@ Faz 217 düşünme biçimini değiştirdi; akış, araç çağrısı ve önbelle
 **Beklenen sonuç**
 - (1) Delta'lar akar, araç çağrılır, run `Completed`.
 - (2) İkinci turda önbellekten okunan girdi token'ı `0`'dan büyüktür.
+
+---
+
+### MT-PROV-094 — Anthropic: web search ve code execution hosted tool olarak koşar; web search `0.01`, fiyatsız code execution listelenir (Faz 226, F-603)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 226 |
+| **İlgili karar** | K-1045 · K-1047 |
+| **Devir** | 🤖 ajan koşar — `samples/Tracon.Api` + gerçek Anthropic anahtarı (`curl`) |
+
+**Ön koşul** — MT-OAI-097'nin örnek uygulama kurulumu; `Tracon:Providers:Anthropic:ApiKey` user-secrets'ta; `Pricing:HostedTools:anthropic` yalnız `WebSearch`'i fiyatlar; agent `hosted-claude`.
+
+**Adımlar**
+1. `hosted-claude`'u çalıştır: "Search the web for the latest stable .NET version number, then use the code execution tool to compute 17*23."
+2. `GET /api/runs/{id}`, `/tools`, `/events` oku; konak günlüğünü `PerCall is not set` için tara.
+
+**Beklenen sonuç**
+- Run `Completed`; iki tool çifti (`web_search`, `code_interpreter`), tel kimlikleri `srvtoolu_…`. Web search `usage.cost` `0.01`; code interpreter `usage.cost` `null`.
+- `nonTokenCost.amount` `0.01`, `unsummedItemCount` `1`. Günlükte `CodeInterpreter … anthropic … PerCall is not set` uyarısı **bir** kez.
+- (2026-10-21 koşumu: `claude-haiku-4-5-20251001`, `Completed`, iki çift olay, `amount 0.01`, `unsummedItemCount 1`, uyarı bir kez.)
+
+---
+
+### MT-PROV-095 — Google: web search ve code execution hosted tool olarak koşar; fiyat yoksa iki kalem listelenir, sıfırla fiyatlanmaz (Faz 226, F-603)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 226 |
+| **İlgili karar** | K-1045 · K-1047 |
+| **Devir** | 🤖 ajan koşar — `samples/Tracon.Api` + gerçek Google anahtarı (`curl`) |
+
+**Ön koşul** — MT-OAI-097'nin örnek uygulama kurulumu; `Tracon:Providers:Google:ApiKey` user-secrets'ta; `Pricing:HostedTools:google` **yok**; agent `hosted-gemini`.
+
+**Adımlar**
+1. `hosted-gemini`'yi çalıştır: "Search the web for the latest stable .NET version number, then use code execution to compute 17*23."
+2. `GET /api/runs/{id}`, `/tools` ve konak günlüğünü oku.
+
+**Beklenen sonuç**
+- Run `Completed`; `code_interpreter` ve `web_search` tool olayları kayıtlı adlarla.
+- `nonTokenCost.amount` `null`, `unsummedItemCount` `2`; iki `usage.cost` `null`. Günlükte her tür için bir `PerCall is not set` uyarısı.
+- (2026-10-21 koşumu: `gemini-3.6-flash`, `Completed`, iki çift olay, `amount null`, `unsummedItemCount 2`, iki uyarı. Google `file_search` (`Retrieval`) ölçülmedi: kaynaksız, tür ✗ kalır.)

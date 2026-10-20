@@ -107,6 +107,10 @@ public static partial class TraconServiceCollectionExtensions
         // and IImageGenerator registrations only when the registry is first built.
         services.TryAddSingleton<IToolRegistry>(ToolRegistry.Create);
 
+        // The hosted tools a host added with AddHostedTool (F-603). A registry of their own: the
+        // contract above returns an AIFunctionDeclaration and a host may decorate it.
+        services.TryAddSingleton(static provider => new HostedToolRegistry(provider.GetServices<HostedToolRegistration>()));
+
         // The circuit breaker is registered BEFORE IModelProviderRegistry:
         // ModelProviderRegistry resolves it in its constructor and wraps every
         // IChatClient it produces with it. An explicit factory is used: the
@@ -346,7 +350,10 @@ public static partial class TraconServiceCollectionExtensions
             // Phase 222: the agent extensions a host added with AddAgentExtension.
             // Empty when none was added, and a definition that names one then
             // fails to compile.
-            provider.GetServices<IAgentExtension>()));
+            provider.GetServices<IAgentExtension>(),
+            // Phase 226: the hosted tools a host added with AddHostedTool. Empty when none was
+            // added, and a definition that selects a name then fails to compile as an unknown tool.
+            provider.GetRequiredService<HostedToolRegistry>()));
 #pragma warning restore MAAI001
 
         // Knowledge base management surface (Phase 51): document upload,

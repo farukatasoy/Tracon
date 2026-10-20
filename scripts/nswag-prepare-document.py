@@ -81,6 +81,26 @@ def hoist_nullable_descriptions(document: dict) -> int:
     return hoisted
 
 
+def strip_null_from_enums(document: dict) -> int:
+    """Removes `null` from the `enum` list of a component schema.
+
+    The document generator makes a nullable enum nullable by adding `null` to the SHARED component, and it wraps
+    every nullable property in `oneOf: [null, $ref]` as well. With both, NJsonSchema stops seeing an enum behind
+    the reference and writes a class named after the PROPERTY (`public HostedKind? HostedKind`, an empty class
+    with extension data) in place of the enum, so the client cannot read the value it is sent
+    (`The JSON value could not be converted to ...ErrorClass`, measured 2026-10-21). The `oneOf` null branch
+    already carries the nullability; the copy for NSwag drops the second one.
+    """
+    schemas = document.get("components", {}).get("schemas", {})
+    stripped = 0
+    for schema in schemas.values():
+        values = schema.get("enum")
+        if isinstance(values, list) and None in values:
+            schema["enum"] = [value for value in values if value is not None]
+            stripped += 1
+    return stripped
+
+
 def main() -> int:
     if len(sys.argv) not in (3, 4):
         print(f"Usage: {sys.argv[0]} <input.json> <output.json> [prefix]", file=sys.stderr)
@@ -95,6 +115,7 @@ def main() -> int:
     strip_prefix(document, prefix)
     closed = close_schemas(document)
     hoisted = hoist_nullable_descriptions(document)
+    stripped = strip_null_from_enums(document)
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(document, f, indent=2, ensure_ascii=False)
@@ -103,7 +124,7 @@ def main() -> int:
     paths = document["paths"]
     print(
         f"Stripped '{prefix}' from {len(paths)} paths, closed {closed} schemas, "
-        f"hoisted {hoisted} descriptions -> {output_path}"
+        f"hoisted {hoisted} descriptions, stripped null from {stripped} enums -> {output_path}"
     )
     return 0
 

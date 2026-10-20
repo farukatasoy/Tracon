@@ -171,6 +171,11 @@ export function ToolsScreen(): ReactNode {
                       {t('tools.runsOnClient')}
                     </Badge>
                   )}
+                  {tool.hostedKind != null && (
+                    <Badge tone="accent" description={t('tools.hostedTitle')}>
+                      {t(`tools.hostedKind.${tool.hostedKind}`)}
+                    </Badge>
+                  )}
                   {agentNames.length === 0 ? (
                     <Badge description={t('tools.unusedTitle')}>{t('tools.unused')}</Badge>
                   ) : (

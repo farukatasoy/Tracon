@@ -18,7 +18,7 @@ namespace Tracon;
 /// at the <c>ModelProviderRegistry</c> level; this package gets both for free.
 /// </para>
 /// </remarks>
-internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport
+internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
 {
     private readonly AnthropicChatClientFactory _chatClientFactory;
     private readonly ILogger<AnthropicModelProvider>? _logger;
@@ -90,6 +90,14 @@ internal sealed class AnthropicModelProvider : ITenantCredentialModelProvider, I
         | SamplingFields.ToolMode
         | SamplingFields.AllowMultipleToolCalls
         | SamplingFields.ReasoningOutput;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Measured with a real call (2026-10-20, <c>claude-haiku-4-5-20251001</c>): the adapter maps the web
+    /// search to the web search tool and the code interpreter to the code execution tool, and both run.
+    /// It has no file search.
+    /// </remarks>
+    public HostedToolKinds SupportedHostedTools => HostedToolKinds.WebSearch | HostedToolKinds.CodeInterpreter;
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

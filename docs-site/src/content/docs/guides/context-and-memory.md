@@ -116,6 +116,11 @@ needs `Memory.EnableFileMemory`, skills need `SkillNames`, and web search needs
 `Harness.EnableWebSearch`. The harness never reads skills from the server's working
 directory and never writes memory files there.
 
+The provider bills each call of the harness's web search. Set
+`Tracon:Pricing:HostedTools:{provider}:WebSearch:PerCall` and the calls join the run's cost, the budget,
+the quota, and the `run.completed` webhook, as the calls of a [hosted tool](/guides/hosted-tools/) do. An
+agent cannot also select a registered hosted web search: the model would receive two.
+
 ## Choose a compaction strategy
 
 | Strategy | What it does | Required input |

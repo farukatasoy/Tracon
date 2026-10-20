@@ -9,7 +9,8 @@ internal sealed class ToolRegistrationValidationService(
     IToolRegistry registry,
     IEnumerable<TraconToolRegistration> registrations,
     IOptions<TraconOptions> options,
-    ILogger<ToolRegistrationValidationService> logger) : IHostedService
+    ILogger<ToolRegistrationValidationService> logger,
+    HostedToolRegistry? hostedTools = null) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -23,6 +24,17 @@ internal sealed class ToolRegistrationValidationService(
             }
 
             logger.LogWarning("An unverified IToolRegistry is active. Authorizing, Timeout, ApprovalRequired, and Truncating wrappers are not guaranteed.");
+        }
+
+        // One name never means two tools: a definition selects a hosted tool and a function tool by the
+        // same list, and the compiler would have to pick one.
+        foreach (var descriptor in hostedTools?.Descriptors ?? [])
+        {
+            if (registry.TryGet(descriptor.Name, out _))
+            {
+                throw new TraconException(
+                    $"The name '{descriptor.Name}' is registered as a hosted tool and as a function tool. Tool names must be unique.");
+            }
         }
 
         foreach (var registration in registrations)

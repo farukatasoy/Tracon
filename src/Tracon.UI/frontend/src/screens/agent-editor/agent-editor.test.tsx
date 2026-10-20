@@ -195,6 +195,29 @@ describe('AgentEditorScreen', () => {
       });
     });
 
+    it('marks a hosted tool and does not offer it as a required tool', async () => {
+      // The first matching route wins, so the screen's own fixtures come before the empty defaults.
+      restoreFetch = installApiMock([
+        fixture('GET', 'api/agents/:name', { descriptor: { name: 'support', origin: 'Database', sourceName: 'database' }, definition: { ...fullDefinition, toolNames: ['lookup', 'search'] } }),
+        fixture('GET', 'api/tools', [
+          { name: 'lookup', description: 'Looks it up.', effect: 'Read', requiresApproval: false, runsOnClient: false },
+          { name: 'search', description: 'Searches the web.', effect: 'External', requiresApproval: false, runsOnClient: false, hostedKind: 'WebSearch' },
+        ]),
+        ...baseOverrides(),
+      ]);
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      expect(await screen.findByText('hosted web search')).toBeTruthy();
+      expect(screen.getByText(/A hosted tool runs on the model provider/)).toBeTruthy();
+
+      await screen.findByTestId('agent-name');
+      const options = Array.from((screen.getByTestId('agent-tool-mode') as HTMLSelectElement).options).map((option) => option.value);
+
+      expect(options).toContain('required:lookup');
+      expect(options).not.toContain('required:search');
+    });
+
     it('keeps a tool mode that names a tool the definition no longer lists', async () => {
       let sent: Sent | undefined;
 

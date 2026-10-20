@@ -837,3 +837,9 @@ static Tracon.WebhookSigner.Verify(string! body, System.DateTimeOffset timestamp
 ~override Tracon.RunEventDraft.Equals(object obj) -> bool
 ~override Tracon.RunEventDraft.ToString() -> string
 Tracon.TraconRetentionOptions.WorkflowRequests.get -> Tracon.RetentionTargetOptions!
+Tracon.HostedToolPriceOverride
+Tracon.HostedToolPriceOverride.HostedToolPriceOverride() -> void
+Tracon.HostedToolPriceOverride.PerCall.get -> decimal?
+Tracon.HostedToolPriceOverride.PerCall.set -> void
+Tracon.TraconPricingOptions.HostedTools.get -> System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IDictionary<string!, Tracon.HostedToolPriceOverride!>!>!
+static Tracon.TraconBuilderExtensions.AddHostedTool(this Tracon.ITraconBuilder! builder, string! name, Tracon.HostedToolKind kind, System.Func<Tracon.HostedToolContext!, Microsoft.Extensions.AI.AITool!>! factory, string? description = null) -> Tracon.ITraconBuilder!

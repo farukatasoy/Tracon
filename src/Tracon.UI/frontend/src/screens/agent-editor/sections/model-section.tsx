@@ -59,21 +59,25 @@ export function ModelSection({
   providers,
   models,
   schemaJsonValid,
+  hostedToolNames,
 }: {
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
   providers: readonly ModelProviderDescriptor[];
   models: ModelProviderDescriptor['models'];
   schemaJsonValid: boolean;
+  /** Hosted tools run when the model chooses them; a tool mode cannot require one. */
+  hostedToolNames: readonly string[];
 }): ReactNode {
   const t = useT();
   const [samplingOpen, setSamplingOpen] = useAutoOpen(samplingHasValue(form));
   const [toolLoopOpen, setToolLoopOpen] = useAutoOpen(toolLoopHasValue(form));
-  // `required:<tool>` is offered for each tool the definition lists; a stored value that names a
-  // tool no longer listed stays in the list so that opening the editor does not rewrite it.
+  // `required:<tool>` is offered for each tool the definition lists, except a hosted tool (the provider
+  // runs it when the model chooses it); a stored value that names a tool no longer listed stays in the
+  // list so that opening the editor does not rewrite it.
   const toolModes: string[] = [
     ...TOOL_MODES,
-    ...form.toolNames.map((name) => `required:${name}`),
+    ...form.toolNames.filter((name) => !hostedToolNames.includes(name)).map((name) => `required:${name}`),
     ...(form.toolMode.length > 0 && !TOOL_MODES.some((mode) => mode === form.toolMode) && !form.toolNames.some((name) => `required:${name}` === form.toolMode)
       ? [form.toolMode]
       : []),

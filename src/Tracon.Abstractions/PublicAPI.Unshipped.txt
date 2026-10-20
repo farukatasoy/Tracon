@@ -5570,3 +5570,25 @@ static Tracon.WorkflowRequestQuery.operator ==(Tracon.WorkflowRequestQuery? left
 static Tracon.WorkflowRequestRecord.operator !=(Tracon.WorkflowRequestRecord? left, Tracon.WorkflowRequestRecord? right) -> bool
 static Tracon.WorkflowRequestRecord.operator ==(Tracon.WorkflowRequestRecord? left, Tracon.WorkflowRequestRecord? right) -> bool
 Tracon.IWorkflowRequestStore.ListStrandedAsync(int max, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowRequestRecord!>!>
+Tracon.HostedToolContext
+Tracon.HostedToolContext.HostedToolContext() -> void
+Tracon.HostedToolContext.Provider.get -> string!
+Tracon.HostedToolContext.Provider.init -> void
+Tracon.HostedToolContext.Services.get -> System.IServiceProvider!
+Tracon.HostedToolContext.Services.init -> void
+Tracon.HostedToolContext.TenantId.get -> string!
+Tracon.HostedToolContext.TenantId.init -> void
+Tracon.HostedToolKind
+Tracon.HostedToolKind.CodeInterpreter = 1 -> Tracon.HostedToolKind
+Tracon.HostedToolKind.FileSearch = 2 -> Tracon.HostedToolKind
+Tracon.HostedToolKind.WebSearch = 0 -> Tracon.HostedToolKind
+Tracon.HostedToolKinds
+Tracon.HostedToolKinds.CodeInterpreter = 2 -> Tracon.HostedToolKinds
+Tracon.HostedToolKinds.FileSearch = 4 -> Tracon.HostedToolKinds
+Tracon.HostedToolKinds.None = 0 -> Tracon.HostedToolKinds
+Tracon.HostedToolKinds.WebSearch = 1 -> Tracon.HostedToolKinds
+Tracon.IHostedToolSupport
+Tracon.IHostedToolSupport.SupportedHostedTools.get -> Tracon.HostedToolKinds
+Tracon.ToolDescriptor.HostedKind.get -> Tracon.HostedToolKind?
+Tracon.ToolDescriptor.HostedKind.init -> void
+const Tracon.ToolUsageUnits.Calls = "calls" -> string!

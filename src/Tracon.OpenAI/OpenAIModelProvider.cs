@@ -22,7 +22,7 @@ namespace Tracon;
 /// normal; in that case nothing is logged.
 /// </para>
 /// </remarks>
-internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport
+internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
 {
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;
@@ -127,6 +127,22 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
             | SamplingFields.PresencePenalty
             | SamplingFields.ToolMode
             | SamplingFields.AllowMultipleToolCalls,
+    };
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Measured from the Microsoft.Extensions.AI.OpenAI 10.11.0 adapters (2026-10-20): the Responses
+    /// API runs a web search, a code interpreter and a file search. Chat Completions maps only the web
+    /// search, and Tracon does not report it (the surface answers <c>400</c> for a model that cannot
+    /// search); it drops the code interpreter without an error, so the model answers as if it
+    /// had none.
+    /// </remarks>
+    public HostedToolKinds SupportedHostedTools => ApiSurface switch
+    {
+        OpenAIApiSurface.Responses => HostedToolKinds.WebSearch
+            | HostedToolKinds.CodeInterpreter
+            | HostedToolKinds.FileSearch,
+        _ => HostedToolKinds.None,
     };
 
     /// <inheritdoc />

@@ -1437,6 +1437,81 @@ if (openAiEnabled)
     });
 }
 
+// Hosted tools (F-603): a web search and a code interpreter the model PROVIDER
+// runs inside the model call. They are code, as every tool is: a definition
+// selects them by name in ToolNames, and an agent that does not is not offered
+// them. Tracon puts no timeout, approval or permission in front of a hosted
+// tool, and the provider bills each call: the price comes from
+// Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall (sample figures in
+// appsettings.json), so a call reaches the run's cost, the budget, the quota
+// and the run.completed webhook.
+//
+// Whether a provider runs a kind depends on its API surface. "openai" (Chat
+// Completions) runs none of them and "openai-responses" runs all three;
+// POST /tracon/api/agents/validate says which agent asks a surface for a tool it
+// would drop.
+tracon
+    .AddHostedTool("web_search", HostedToolKind.WebSearch, static _ => new HostedWebSearchTool(), "Searches the web.")
+    .AddHostedTool(
+        "code_interpreter",
+        HostedToolKind.CodeInterpreter,
+        static _ => new HostedCodeInterpreterTool(),
+        "Runs code in the model provider's sandbox.");
+
+if (openAiEnabled)
+{
+    tracon.AddAgent(new AgentDefinition
+    {
+        Name = "hosted-openai",
+        DisplayName = "Hosted tools (OpenAI)",
+        Description = "A web search and a code interpreter the OpenAI Responses API runs.",
+        Instructions = "Answer briefly. Use the web search for anything recent and the code interpreter for arithmetic.",
+        Model = new ModelBinding
+        {
+            Provider = OpenAIProviderNames.Responses,
+            Model = openAi["DefaultModel"] ?? "gpt-5.4-mini",
+            MaxOutputTokens = 1024,
+        },
+        ToolNames = ["web_search", "code_interpreter"],
+    });
+}
+
+if (anthropicEnabled)
+{
+    tracon.AddAgent(new AgentDefinition
+    {
+        Name = "hosted-claude",
+        DisplayName = "Hosted tools (Claude)",
+        Description = "A web search and a code interpreter Anthropic runs.",
+        Instructions = "Answer briefly. Use the web search for anything recent and the code interpreter for arithmetic.",
+        Model = new ModelBinding
+        {
+            Provider = AnthropicProviderNames.Anthropic,
+            Model = anthropic["DefaultModel"] ?? "claude-haiku-4-5-20251001",
+            MaxOutputTokens = 1024,
+        },
+        ToolNames = ["web_search", "code_interpreter"],
+    });
+}
+
+if (googleEnabled)
+{
+    tracon.AddAgent(new AgentDefinition
+    {
+        Name = "hosted-gemini",
+        DisplayName = "Hosted tools (Gemini)",
+        Description = "A web search and a code interpreter Google runs. No price is configured for Google, so its calls are listed and not added to the cost.",
+        Instructions = "Answer briefly. Use the web search for anything recent and the code interpreter for arithmetic.",
+        Model = new ModelBinding
+        {
+            Provider = GoogleProviderNames.Google,
+            Model = google["DefaultModel"] ?? "gemini-3.6-flash",
+            MaxOutputTokens = 1024,
+        },
+        ToolNames = ["web_search", "code_interpreter"],
+    });
+}
+
 // Persistence is optional. Without a connection string, the app runs with
 // in-memory stores; nothing breaks, data simply ends with the process.
 //

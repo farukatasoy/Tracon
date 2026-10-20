@@ -1,6 +1,6 @@
 # 05 — Sağlayıcı: OpenAI (`OAI`)
 
-> **Alan kodu:** `OAI` · **Faz:** 3, 8
+> **Alan kodu:** `OAI` · **Faz:** 3, 8, 226
 > **Kaynak:** `src/Tracon.OpenAI` (tümü — `OpenAIProviderOptions*`,
 > `OpenAIProviderExtensions`, `OpenAICompatibleProviderExtensions`,
 > `OpenAIChatClientFactory`, `OpenAIModelProvider`, `OpenAIModelCatalog`,
@@ -1914,3 +1914,32 @@ arasında paylaşıldığı için bir kiracının `404`'leri herkesin çağrıs�
 - Adım 1: üçü de OpenAI'a gider ve `(HTTP 404)` ile düşer; üçüncüsü anında düşmez.
 - Adım 2: başarılı. Adım 3: `detail` `Circuit breaker is open` içermez.
 - 🚨 Eski kusur: ikinci `404`'ten sonra devre açıldı; `kiraci-beta` `502` "temporarily stopped by the circuit breaker" aldı.
+
+---
+
+### MT-OAI-097 — OpenAI Responses: kayıtlı web search ve code interpreter tool olayı olur, ücret run'ın `NonTokenCost`'una girer (Faz 226, F-603)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 226 |
+| **İlgili karar** | K-1044 · K-1046 · K-1047 |
+| **Devir** | 🤖 ajan koşar — `samples/Tracon.Api` + gerçek OpenAI anahtarı (`curl`) |
+
+Sağlayıcı hosted tool'u model çağrısının içinde koşar. Yanıt tool adı taşımaz; ad `ChatOptions.Tools` örneğinden okunur.
+
+**Ön koşul** — `samples/Tracon.Api` (Faz 200/221 notundaki dört boş ortam değişkeniyle, bellek içi depo); `Tracon:Providers:OpenAI:ApiKey` user-secrets'ta; `appsettings.json`'daki `Pricing:HostedTools:openai-responses` örnek fiyatları (`WebSearch` `0.01`, `CodeInterpreter` `0.03`); agent `hosted-openai`.
+
+**Adımlar**
+1. `POST /api/agents/validate` ile `openai` (Chat Completions) sağlayıcılı, `web_search` seçen bir tanım gönder.
+2. `hosted-openai`'ı arabelleğe alınmış (`Idempotency-Key`) çalıştır: "Search the web for the latest stable .NET version, then use the code interpreter to compute 17*23."
+3. Aynı agent'ı akışlı (`Idempotency-Key` yok) çalıştır; yalnız web araması iste.
+4. Her run için `GET /api/runs/{id}`, `/tools` ve `/events` oku.
+
+**Beklenen sonuç**
+- (1) `valid: false`; `hosted_tool_unsupported`, `path: toolNames[0]`, mesaj `'web_search' (WebSearch)` ve `'openai' provider` adlarını taşır.
+- (2) Run `Completed`. `/events`'te `ToolInvoking`/`ToolInvoked` çiftleri `web_search` ve `code_interpreter` adıyla, sağlayıcının çağrı kimliğiyle; `tracon.content` olayı yok. `/tools` iki kayıt, her birinin `usage`'ı `unit: calls`, `quantity: 1`, fiyat; code interpreter `isEstimated: true`. `nonTokenCost.amount` `0.04`, `unsummedItemCount` `0`.
+- (3) Akışlı run'da her çağrı **bir kez** yazılır (çift `ToolInvoking` yok); `nonTokenCost.amount` `0.01`.
+- 🚨 Eski davranış: çağrı `tracon.content` olurdu ve hiçbir yerde ücreti yoktu.
+- (2026-10-21 koşumu: (1) `valid:false` ve mesaj adları göründü. (2) `Completed`; iki çift olay; `0.04` USD, `isEstimated:true`, `unsummedItemCount:0`. (3) akışlı koşuda web araması iki ayrı içerikle geldi (başlangıç + bitiş), ilk koşuda her biri çift yazıldı — `TryClaimWrite` ile düzeltildi; sonra tek çift, `0.01`.)

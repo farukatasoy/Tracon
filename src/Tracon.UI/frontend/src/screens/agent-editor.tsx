@@ -95,6 +95,7 @@ export function AgentEditorScreen({ name }: { name?: string }): ReactNode {
             providers={editor.providers.data ?? []}
             models={editor.models}
             schemaJsonValid={editor.schemaJsonValid}
+            hostedToolNames={(editor.tools.data ?? []).filter((tool) => tool.hostedKind != null).map((tool) => tool.name)}
           />
           <ToolsSection form={form} setForm={setForm} tools={editor.tools} />
           <SkillsSection form={form} setForm={setForm} skills={editor.skills} />

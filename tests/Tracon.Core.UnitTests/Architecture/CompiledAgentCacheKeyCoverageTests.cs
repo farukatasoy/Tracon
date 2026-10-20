@@ -40,6 +40,7 @@ public sealed class CompiledAgentCacheKeyCoverageTests
         [typeof(IAgentDefinitionStore)] = "key: shared instructions text (K-812, AgentDefinitionCacheInvalidationTests)",
         [typeof(ITenantEgressPolicyStore)] = "key: egress policy content (F-304, DefinitionStoreAgentSourceEgressPolicyTests)",
         [typeof(IToolRegistry)] = "key: MCP connection binding (F-305, McpToolCacheTests)",
+        [typeof(HostedToolRegistry)] = "key: what the hosted tool factories build for the tenant (F-603, HostedToolRunTests.A_tenant_gets_the_tool_its_own_factory_context_builds_and_a_replaced_store_reaches_the_next_run)",
 
         // Bypassed: an agent built with this state is never cached.
         [typeof(ITenantProviderBindingStore)] = "bypass: tenant credential (K-471, K-874, DefinitionStoreAgentSourceTenantCredentialTests)",

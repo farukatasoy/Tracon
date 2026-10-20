@@ -98,6 +98,7 @@ internal sealed partial class AgentDefinitionValidator
         CheckSubAgentTools(definition, messages);
         await CheckLoopAsync(definition, messages, cancellationToken).ConfigureAwait(false);
         CheckExtensions(definition, messages);
+        CheckHostedTools(definition, messages);
 
         // Compilation is not useful while the outcome is inconclusive. A tool
         // behind an unreachable MCP server cannot resolve in real compilation
@@ -239,7 +240,7 @@ internal sealed partial class AgentDefinitionValidator
         {
             var name = definition.ToolNames[index];
 
-            if (!_tools.TryGet(name, out _))
+            if (!_compiler.GetHostedTools().Contains(name) && !_tools.TryGet(name, out _))
             {
                 (missing ??= []).Add((index, name));
             }

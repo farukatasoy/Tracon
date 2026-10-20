@@ -383,6 +383,7 @@ Yalnız tip ve çağrı yeri (2026-10-20'de `src/`'den okundu; MAF 1.25.0 · MEA
 | G-07 | `AgentRunOptions` (düz kopya) | `RunRecordingAgent.ForInnerAgent` | Taban üye eklenirse `RunOptionsHandoffTests` düşer |
 | 222 | `ChatClientAgentOptions` · `HarnessAgentOptions` (kanca parametresi) · `AIAgent` sarmalayıcısı (`AgentExtensionContext.Use`) | `AgentExtensionRegistry`, `AgentOptionsGuard` | Tüketici `AIAgentBuilder` ile run ve tool middleware'i takar; korunan üye tablosu K-1029, K-1035 |
 | 223 | `WebSearch`/`CodeInterpreter`/`ImageGeneration`/`McpServer` `ToolCall`/`ToolResultContent` · `ErrorContent` · `DataContent` · `UriContent` · `HostedFileContent` · `HostedVectorStoreContent` | `ContentEventPayload.Describe` → `tracon.content` | Yük gövdesizdir; `UriContent` adresi yazılmaz (K-1034) |
+| 226 | `HostedWebSearchTool` · `HostedCodeInterpreterTool` · `HostedFileSearchTool` · `HostedVectorStoreContent` · `WebSearch`/`CodeInterpreter` `ToolCall`/`ToolResultContent` · taban `ToolCallContent`/`ToolResultContent` (dosya arama) | `HostedToolRegistry`, `HostedToolUsageChatClient`, `HostedToolContent` | Çağrı taşıyıcısı `ChatOptions.Tools` örneğidir; dosya aramanın ham öğesi sonuçtadır (K-1044…K-1047) |
 | 223 | `WorkflowEvent` (tanınmayan alt tip) | `WorkflowEventMapper.DescribeUnrecognized` → `tracon.workflow.event` | `SubworkflowErrorEvent`/`WarningEvent` taban tip olarak zaten tanınır |
 
 ### Hâlâ kullanılmayan MAF genişleme noktaları

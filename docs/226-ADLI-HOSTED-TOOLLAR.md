@@ -1,6 +1,6 @@
 # Faz 226 — Adlı Hosted Tool'lar: Kayıt, Yüzey Doğrulaması, Ücret
 
-> **Durum:** 📋 Planlandı (2026-10-20)
+> **Durum:** ✅ Tamamlandı (2026-10-21)
 > **Kademe:** tam — maliyet ve kota bütünlüğü (yeni ücret terimi bütçeye girer) · run olay sözleşmesi değişir (tanınan hosted çağrı `tracon.content` yerine tool olayı olur) · geri dönüşü pahalı karar
 > **Plan onayı:** farukatasoy, 2026-10-20 (seçim: aynı `ToolNames`; kapsam: üç sağlayıcı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-603**
@@ -277,17 +277,17 @@ sistem hatası (fiyat yapılandırması okunamaz → run durmaz, loglanır).
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `AddHostedTool` ile kaydedilen üç tür, `ToolNames` ile seçilince modele ulaşır
-- [ ] Destek tablosundaki her `✗` derleme `400` verir; yedek halka dahil
-- [ ] Hosted çağrı run kaydında tool olayıdır; ücret `NonTokenCost`'a, bütçeye, kotaya ve webhook'a bir kez girer
-- [ ] Harness web search ücreti sayılır
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` (OpenAI Responses) yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler koşuldu (üç sağlayıcı)
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`tuketici-dokuman-senkronu`); `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] `AddHostedTool` ile kaydedilen üç tür, `ToolNames` ile seçilince modele ulaşır — `HostedToolRunTests` (modele giden tool nesneleri), `HostedToolWireTests` (gerçek istek gövdesi)
+- [x] Destek tablosundaki her `✗` derleme `400` verir; yedek halka dahil — `HostedToolSupportTableTests` (doğrulama raporu ölçülen tabloyla uyuşur; yedek halka ayrı case)
+- [x] Hosted çağrı run kaydında tool olayıdır; ücret `NonTokenCost`'a, bütçeye, kotaya ve webhook'a bir kez girer — `HostedToolRunTests`, `HostedToolUsageChatClientTests` (idempotent `callId`, akışta varışta bütçeye)
+- [x] Harness web search ücreti sayılır — kayıtsız hosted çağrı da toplama girer (`A_call_of_a_tool_nobody_registered_counts_toward_the_total_and_has_no_record`)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban cd35c934` yeşil: build, `dotnet format --verify-no-changes`, `docs-site` `npm run check`, 25 488 test geçti / 0 düştü / 19 atlandı (38 modül)
+- [x] `samples/Tracon.Api` ile gerçek `run` (OpenAI Responses) yapıldı, çıktı belgeye yazıldı — MT-OAI-097 koşum notu (2026-10-21): `Completed`, iki tool olay çifti, `0.04` USD, `isEstimated: true`, `unsummedItemCount: 0`; akışlı koşu tek çift, `0.01`
+- [x] `secret` taraması boş döndü — `kapi.py tarama` (kapanış kapısının içinde) temiz; örnek uygulamanın anahtarları yalnız `dotnet user-secrets`'tan okundu, dosyaya yazılmadı
+- [x] `🤖` case'ler koşuldu (üç sağlayıcı) — MT-OAI-097 (OpenAI), MT-PROV-094 (Anthropic), MT-PROV-095 (Google)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bağımsız denetçi: 1 🔴 (gerçek, kapandı), 7 🟡 (kapandı), 4 🟢; aşağıda *Denetim Bulguları*
+- [x] `docs-site/` güncellendi (`tuketici-dokuman-senkronu`); `npm run check` temiz — yeni `guides/hosted-tools.md` + beş mevcut sayfa; bağlantı, SEO, içerik ve ağırlık kapıları geçti; konsol ekran görüntüleri yeniden üretildi
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — çevrilmemiş etiket kalmadı (`i18n.test.ts` izin listesinden iki kayıt çıkarıldı). Bundle payı: konsol JS gzip `224 287 B → 224 758 B` (**+471 B**), toplam `219,5 KiB` / `250 KiB` bütçe (aynı `vite build`, faz öncesi `HEAD` ile karşılaştırıldı)
 
 ---
 
@@ -310,20 +310,70 @@ sistem hatası (fiyat yapılandırması okunamaz → run durmaz, loglanır).
 
 > Çalışırken dolar. Kapanışta kapanış commit mesajına taşınır.
 
+1. **226.1 örneği `context.Configuration` kullanıyordu; `HostedToolContext`'in böyle bir üyesi yok.** API bloğu üç alan
+   söyler (`TenantId`, `Provider`, `Services`) ve tip öyle yazıldı. Örnek `context.Services.GetRequiredService<IConfiguration>()`
+   ile düzeltildi (XML `<example>`, site, örnek uygulama).
+2. **Dosya arama içeriği plandan farklı çıktı (tel + decompile, MEAI.OpenAI 10.11).** Plan "ham tipi `FileSearchCallResponseItem` olan taban
+   `ToolCallContent`" diyordu. Gerçek: taban `ToolCallContent`'ın ham temsili **null**; ham öğeyi AYNI mesajda/güncellemede gelen taban
+   `ToolResultContent` taşır. Tanıma bu yüzden çifttir (`HostedToolContent.FileSearchCallIds`); `ContentEventPayload` yalnız dosya arama
+   **sonucunu** adlandırır. İlk tel testi bunu buldu (3 tür beklendi, 2 geldi).
+3. **Açık Soru 3: fiyatsız tür `0` değil `null`.** Plan "ücret `0`, run uyarısı" önerdi. `0` bilinmeyeni bedava gösterirdi (K-482); kalem listelenir,
+   run `UnsummedItemCount` sayar, halka başına bir uyarı yazar. "Model fiyatı yokken bugünkü davranış" ile aynıdır.
+4. **Açık Soru 2: tamponlu yanıtta sağlayıcı sayısı kazanır; akışta yalnız artış.** Tamponlu yanıtta sayı çağrılardan önce bilinir (faturalanmayan arama
+   ücretsiz listelenir, fazla fatura fark olarak eklenir). Akışta çağrılar sayıdan ÖNCE gelir, bütçe sayacı bir tutarı geri almaz
+   (`NonTokenCostAccumulator`): büyükse fark eklenir, küçükse fark loglanır.
+5. **Açık Soru 4: Google `file_search` ölçülmedi, `✗` kalır.** `Retrieval` kaynak ister ve Tracon bir kaynak adlandıramaz; anahtarla ölçülecek bir korpus yoktu.
+6. **Plan dışı: akışta bir çağrı çok içeriktir.** Gerçek akışlı OpenAI koşusu çift `ToolInvoking` gösterdi (web araması başlangıç + bitiş, kod yorumlayıcı parça başına
+   aynı kimlikle). Halka yanıt başına bir kez sayar, kaydedici `HostedCallLedger.TryClaimWrite` ile bir kez yazar. Birim ve fonksiyonel testler yakalamadı.
+7. **Plan dışı: replay.** `ReplayTools`/`NoTools` hosted adları `ToolNames`'ten düşürür; dönüştürücü yalnız `AIFunction`'a ulaşır, yoksa replay arar ve tekrar faturalardı.
+8. **Plan dışı: kural kapıları.** Harness `EnableWebSearch` + kayıtlı web arama (`hosted_tool_conflict`), `ToolMode = required:<hosted>`
+   (`hosted_tool_not_callable`), tür başına birden çok tool (`duplicate_hosted_tool_kind`). Konsol `required:` listesinden hosted'ı çıkarır.
+9. **Plan dışı public API.** `ToolUsageUnits.Calls` (Tracon'un kendi aracı bu birimi bildirir; birimi tüketici de okur) · `HostedToolKinds` bayrakları ve `IHostedToolSupport` (planın "kardeş
+   bildirim"i; adlar burada seçildi) · `FakeModelProvider.SupportedHostedTools` (`Tracon.Testing`, hepsini bildirir).
+10. **Önbellek anahtarları (plan dışı):** fabrikanın ürettiği (vector store kimliği, `AdditionalProperties`, kod yorumlayıcı girdi baytları) `HostedToolDescription` ile
+    hem derlenmiş-agent anahtarına hem yanıt-önbelleği anahtarına girer; bedeli fabrikanın her run'da çalışmasıdır. Kiracı kimliği tek başına yetmez: kiracı
+    store'unu değiştirir, tanım değişmez (F-304/F-305 sınıfı). Karşılaştırılamayan değer (sağlayıcı SDK nesnesi) agent'ı her run'da yeniden derletir ve yanıt önbelleğini kapatır.
+11. **Denetim sonrası (plan dışı):** .NET istemcinin nullable enum özellikleri boş sınıf üretiyordu (`HostedKind` ve sekiz eski özellik) — üretici hattı düzeltildi,
+    istemci testi eklendi (K-1044 kapsamı değil, kusur sınıfı); otomatik run devamı hosted çağrıda durmaz; `ConditionalWeakTable` kaydı atomik; konsol rozetleri çevrildi.
+12. **Manuel set:** plandaki dört case'ten dördüncüsü (Chat Completions `400`) otomatik teste gitti (`HostedToolSupportTableTests`) ve sete girmedi; üçü `🤖` olarak eklendi
+    (`MT-OAI-097`, `MT-PROV-094`, `095`) ve koşuldu. `12-GOZLEMLENEBILIRLIK-MALIYET` değişmedi: ücretin kota/webhook/bütçe yolları fonksiyonel testle kapalı.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Plan numara rezerve etmez.
+
+- **K-1044** hosted tool kodda kaydedilir, tanım adla seçer; tool zinciri yoktur; tür başına bir tane (public-api, güvenlik).
+- **K-1045** sağlayıcı `IHostedToolSupport` ile bildirir; bildirmeyen tür derleme hatasıdır (public-api).
+- **K-1046** kayıtlı hosted çağrı `ToolInvoking`/`ToolInvoked`; kayıtsız `tracon.content` (public-api, geri-dönüşü-pahalı).
+- **K-1047** ücret iç döngü halkasında, yanıt önbelleğinin içinde; fiyatsız tür `null` (geri-dönüşü-pahalı).
+- Açık Sorular (plan önerileri, kullanıcı itirazı yok): **1** A (döngü içi halka) · **2** A, kısmen (sapma 4) · **3** `null` (sapma 3) · **4** `✗` kalır (sapma 5).
+- Kategori dışı: `ToolUsageUnits.Calls` public sabit; kural kapıları (sapma 8); konsolun `required:` listesi hosted'ı dışlar.
 
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 12 (Plandan Sapmalar maddeleri) |
+| Düzeltme turu sayısı | 3 denetim sonrası (denetim bulguları · agent map bütçesi · kapanış kapısı içerik denetimi: README tip sayısı ve konsol ekran damgası); denetim öncesi turlar sayılmadı |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 0. Hiçbir şey denetimden önce commit edilmedi; 🔴 bulgu üreticinin eski kusurunu yeni `HostedKind` alanı üzerinden açığa çıkardı |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı.
+> `faz-denetim` çıktısı. Bağımsız denetçi, çalışma ağacı üzerinde: **1 🔴 · 7 🟡 · 4 🟢**.
+
+**🔴 .NET istemci, hosted tool'lu host'ta çöküyordu (gerçek, kapandı).** `ToolDescriptor.HostedKind` enum yerine boş bir sınıf olarak
+üretilmişti; `TraconListToolsAsync` ilk hosted tool'da `JsonException` atardı. Kök neden üretici hattıdır: nullable enum
+(`oneOf [null, $ref]` + bileşende `null`) boş sınıf veriyordu ve sekiz eski özellik de etkilenmişti (`RunComparisonSide.ErrorClass`, `RunError.Class`,
+`EvalCase.SourceKind`, `VoiceSession.EndReason` ve diğerleri). `scripts/nswag-prepare-document.py` `strip_null_from_enums` ekledi. Kapılar:
+`HostedToolClientTests` (gerçek host) ve `nswag_prepare_document_test.py`. İstemcinin public tipleri değişti
+(`WorkflowDefinition.Kind`, `WorkflowSaveRequest.Kind`, `RunErrorStatistics.Class` artık nullable değil); `CHANGELOG.md` "Fixed".
+
+**🟡 (hepsi kapandı):** yanıt önbelleği tool'u yalnız adıyla anahtarlıyordu (iki vector store aynı cevabı paylaşırdı → anahtar artık telde olanı
+hash'ler) · önbellek isabeti hosted çağrıyı `tracon.content` yazar ve ücret yazmaz (belgelendi, testlendi) · otomatik run devamı hosted çağrıda durmaz ·
+`ConditionalWeakTable` kaydı atomik (eşzamanlılık testi) · Anthropic `WebSearchRequests` sayısı tamponlu yanıtta önce okunur, akışta yalnız artış eklenir ·
+eksik testler yazıldı (iptal, okunamayan fiyat, yazamayan store, yedek halka ücreti, akışlı bütçe) · konsol rozetleri çevrildi.
+
+**🟢:** üçü yerinde düzeltildi (`Describe` metni, hata mesajındaki tool listesi, yanlış yerdeki özet yorumu). Biri faz dışı kaldı:
+harness web search'ün replay'de yeniden çalışması → `F-610` (`docs/ADAYLAR.md`).

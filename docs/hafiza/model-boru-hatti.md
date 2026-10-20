@@ -22,6 +22,8 @@ FinishReasonDetectingChatClient    (saglayici filtresi + cikti siniri tespiti, F
             -> saglayicinin HAM istemcisi
 ```
 
+Faz 226: `HostedToolUsageChatClient` FIC'in altında, yanıt önbelleğinin İÇİNDE, OTel'in üstündedir ([hosted-tool](hosted-tool.md)).
+
 Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor mu?** Gerekiyorsa dongunun ICINE (guard gibi), agent turu basina bir kez yetiyorsa DISINA (devre kesici, ek cozme gibi) konur. Devre kesici bilerek disarida: iceri alinsaydi sayim granulerligi agent turundan gercek ag cagrisina kayar ve `FailureThreshold`'un anlami degisirdi.
 
 ## Tuzaklar

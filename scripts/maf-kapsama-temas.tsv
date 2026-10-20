@@ -56,9 +56,10 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.4	❌	✗	`AlwaysApproveToolApprovalResponseContent` · `CreateAlwaysApproveTool(WithArguments)Response`	AlwaysApproveToolApprovalResponseContent Response	Response	-
 5.4	🟡	✗	`FunctionInvokingChatClient`	FunctionInvokingChatClient	FunctionInvokingChatClient	-
 5.4	✅	✓	MCP tool'ları `McpClientTool : AIFunction`	AIFunction McpClientTool	AIFunction	AIFunction
-5.4	🟡	✓	`HostedWebSearchTool`	-	HostedWebSearchTool	-
-5.4	❌	✗	`HostedCodeInterpreterTool` · `HostedFileSearchTool` · `HostedImageGenerationTool` · `HostedMcpServerTool` (+`ApprovalMode`) · `HostedToolSearchTool` (MEAI001)	-	-	-
-5.4	🟡	✗	Hosted tool içerikleri: `CodeInterpreter`/`WebSearch`/`McpServer`/`ImageGeneration` `ToolCall/ResultContent`	ToolCall	McpServer ToolCall	-
+5.4	✅	✓	`HostedWebSearchTool`	HostedWebSearchTool	HostedWebSearchTool	HostedWebSearchTool
+5.4	✅	✓	`HostedCodeInterpreterTool` · `HostedFileSearchTool`	HostedCodeInterpreterTool HostedFileSearchTool	HostedCodeInterpreterTool HostedFileSearchTool	HostedCodeInterpreterTool
+5.4	❌	✗	`HostedImageGenerationTool` · `HostedMcpServerTool` (+`ApprovalMode`) · `HostedToolSearchTool` (MEAI001)	-	-	-
+5.4	🟡	✗	Hosted tool içerikleri: `CodeInterpreter`/`WebSearch`/`McpServer`/`ImageGeneration` `ToolCall/ResultContent`	CodeInterpreter ToolCall WebSearch	CodeInterpreter McpServer ToolCall WebSearch	CodeInterpreter WebSearch
 5.4	❌	✗	`Tools.Shell`: `DockerShellExecutor` · `LocalShellExecutor` · `ShellPolicy` · `ShellEnvironmentProvider`	Tools	Tools	Tools
 5.4	❌	✓	CodeAct: `HyperlightCodeActProvider` (win-x64, linux-x64) · `LocalCodeActProvider` (yerel Python)	-	-	-
 5.5	✅	✓ K-020	`HarnessAgent` · `AsHarnessAgent`	AsHarnessAgent	HarnessAgent	-
