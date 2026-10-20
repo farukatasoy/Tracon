@@ -95,12 +95,12 @@ of your own, reaches a compiled agent through an extension. Code registers it wi
 ```csharp
 builder.AddTracon()
        .AddAgentExtension(
-           "message-injection",
+           "house-policy",
            context =>
            {
                if (context.ChatAgentOptions is { } options)
                {
-                   options.EnableMessageInjection = true;
+                   options.AIContextProviders = [.. options.AIContextProviders ?? [], new HousePolicyProvider()];
                }
            });
 ```

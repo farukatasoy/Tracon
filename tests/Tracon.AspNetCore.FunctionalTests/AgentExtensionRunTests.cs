@@ -298,57 +298,99 @@ public sealed class AgentExtensionRunTests
     }
 
     /// <summary>
-    /// Open Question 4 of the plan: with <c>RequirePerServiceCallChatHistoryPersistence</c> on, MAF
-    /// puts its history layer between the agent and the model for a plain agent as it does for a
-    /// harness agent. The harness failed with a 400 on the first tool call of a streamed run (F-315).
-    /// The scripted server enforces the request rule the real API enforces.
+    /// Three chat agent options do not do under Tracon what Microsoft Agent Framework documents, so
+    /// the definition owns them (measured 2026-10-20). MAF puts message injection and the per-call
+    /// history writer under the tool loop it builds. Tracon's tool loop is inside the model client,
+    /// so MAF builds none and both layers land above the loop: an injected message never reaches the
+    /// running turn, and the history is written once per turn. A raw representation replaces the
+    /// definition's model settings on the wire and turns its provider settings off.
     /// </summary>
+    /// <param name="member">The option the extension sets.</param>
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task A_chat_agent_with_per_service_call_history_persistence_finishes_a_tool_call_on_the_chat_completions_provider(bool streaming)
+    [InlineData(nameof(ChatClientAgentOptions.EnableMessageInjection))]
+    [InlineData(nameof(ChatClientAgentOptions.RequirePerServiceCallChatHistoryPersistence))]
+    [InlineData(nameof(ChatOptions.RawRepresentationFactory))]
+    public async Task An_extension_cannot_set_an_option_that_works_differently_under_Tracon(string member)
     {
-        await using var server = await ScriptedChatCompletionsServer.StartAsync();
-        server.ThenCalls("lookup").ThenAnswers("The answer is 42.");
+        var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, cfg => cfg.EchoesUserMessage());
 
-        await using var host = await TraconTestHost.StartAsync(builder =>
+        await using var host = await StartAsync(
+            provider,
+            builder => builder.AddAgentExtension("framework-option", context =>
+            {
+                var options = context.ChatAgentOptions!;
+
+                switch (member)
+                {
+                    case nameof(ChatClientAgentOptions.EnableMessageInjection):
+                        options.EnableMessageInjection = true;
+                        break;
+                    case nameof(ChatClientAgentOptions.RequirePerServiceCallChatHistoryPersistence):
+                        options.RequirePerServiceCallChatHistoryPersistence = true;
+                        break;
+                    default:
+                        options.ChatOptions!.RawRepresentationFactory = static _ => null;
+                        break;
+                }
+            }),
+            definition: Definition(["framework-option"], harness: false));
+
+        TraconCompilationException? failure = null;
+
+        try
         {
-            builder.UseOpenAI(options =>
-            {
-                options.ApiKey = "scripted-server-key";
-                options.Endpoint = server.BaseAddress;
-            });
-            builder.AddTool((Func<string>)(static () => "42"), name: "lookup", description: "Looks the answer up.");
-            builder.AddAgentExtension(
-                "per-service-call",
-                static context => context.ChatAgentOptions!.RequirePerServiceCallChatHistoryPersistence = true);
-            builder.AddAgent(Definition(["per-service-call"], harness: false) with
-            {
-                Model = new ModelBinding { Provider = "openai", Model = "gpt-test" },
-            });
-        });
-
-        var agent = (await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None)).ShouldNotBeNull();
-        var session = await agent.CreateSessionAsync();
-        List<ChatMessage> messages = [new(ChatRole.User, "What is the answer?")];
-
-        var text = new System.Text.StringBuilder();
-
-        if (streaming)
-        {
-            await foreach (var update in agent.RunStreamingAsync(messages, session).WithCancellation(TestContext.Current.CancellationToken))
-            {
-                text.Append(update.Text);
-            }
+            await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None);
         }
-        else
+        catch (TraconCompilationException exception)
         {
-            text.Append((await agent.RunAsync(messages, session).WaitAsync(TimeSpan.FromSeconds(30))).Text);
+            failure = exception;
         }
 
-        server.Rejections.ShouldBeEmpty();
-        text.ToString().ShouldContain("The answer is 42.");
-        server.Bodies.Count.ShouldBe(2);
+        var message = failure.ShouldNotBeNull($"an extension set {member} and the agent compiled").Message;
+        message.ShouldContain(member, Case.Sensitive);
+        message.ShouldContain("'framework-option'", Case.Sensitive);
+        provider.Requests.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// Microsoft Agent Framework checks the options only when it builds the agent, after the
+    /// extensions ran. A second skill provider repeats the state key of the one Tracon built, and the
+    /// refusal reached the caller as a bare "agent source failed" that named no extension
+    /// (measured 2026-10-20).
+    /// </summary>
+    [Fact]
+    public async Task A_framework_refusal_after_an_extension_ran_names_the_extension()
+    {
+        var provider = new FakeModelProvider(ProviderName).ForModel(ModelName, cfg => cfg.EchoesUserMessage());
+
+        await using var host = await StartAsync(
+            provider,
+            builder => builder
+                .AddSkill(new AgentSkillDefinition { TenantId = "default", Name = "house-skill", Description = "House rules.", Instructions = "Follow the house rules." })
+                .AddAgentExtension("second-skills", static context =>
+                {
+                    var options = context.ChatAgentOptions!;
+                    var skills = new AgentSkillsProviderBuilder()
+                        .UseSkill(new AgentInlineSkill("code-skill", "A code skill.", "Do code things."))
+                        .Build();
+                    options.AIContextProviders = [.. options.AIContextProviders ?? [], skills];
+                }),
+            definition: Definition(["second-skills"], harness: false) with { ToolNames = [], SkillNames = ["house-skill"] });
+
+        TraconCompilationException? failure = null;
+
+        try
+        {
+            await host.Services.GetRequiredService<IAgentCatalog>().ResolveAsync(AgentName, culture: null, CancellationToken.None);
+        }
+        catch (TraconCompilationException exception)
+        {
+            failure = exception;
+        }
+
+        var message = failure.ShouldNotBeNull("the refusal did not reach the caller as a compilation failure").Message;
+        message.ShouldContain("'second-skills'", Case.Sensitive);
+        message.ShouldContain(nameof(InvalidOperationException), Case.Sensitive);
     }
 
     /// <summary>

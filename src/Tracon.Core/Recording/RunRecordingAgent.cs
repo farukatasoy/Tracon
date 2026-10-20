@@ -210,6 +210,10 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         AgentRunOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        // Before the run starts: options that change what the definition owns are a
+        // caller's mistake, not a failed run.
+        RunChatOptionsRule.Check(options);
+
         if (!_options.Enabled)
         {
             return await base.RunCoreAsync(messages, session, ForInnerAgent(options), cancellationToken).ConfigureAwait(false);
@@ -341,6 +345,9 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         AgentRunOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        // The same check as RunCoreAsync; it throws on the first MoveNextAsync.
+        RunChatOptionsRule.Check(options);
+
         if (!_options.Enabled)
         {
             await foreach (var passthrough in base.RunCoreStreamingAsync(messages, session, ForInnerAgent(options), cancellationToken).ConfigureAwait(false))

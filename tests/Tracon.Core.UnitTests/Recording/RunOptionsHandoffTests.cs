@@ -36,6 +36,31 @@ public sealed class RunOptionsHandoffTests
         inner.AdditionalProperties.ShouldNotBeSameAs(options.AdditionalProperties);
     }
 
+    /// <summary>
+    /// A workflow step's model options for the run (a handoff step's tools and instructions) go
+    /// inward on the one type the agent reads them from, with the base properties beside them.
+    /// </summary>
+    [Fact]
+    public void A_steps_model_options_go_inward_as_chat_client_run_options()
+    {
+        var chatOptions = new ChatOptions { Instructions = "hand off when needed" };
+        var options = new TraconRunOptions
+        {
+            RunId = Guid.NewGuid(),
+            AllowBackgroundResponses = true,
+            AdditionalProperties = new AdditionalPropertiesDictionary { ["key"] = "value" },
+            ChatOptions = chatOptions,
+        };
+
+        var inner = RunRecordingAgent.ForInnerAgent(options).ShouldBeOfType<ChatClientAgentRunOptions>();
+
+        inner.ChatOptions.ShouldNotBeNull().Instructions.ShouldBe("hand off when needed");
+        inner.ChatOptions.ShouldNotBeSameAs(chatOptions);
+        inner.ChatClientFactory.ShouldBeNull();
+        inner.AllowBackgroundResponses.ShouldBe(true);
+        inner.AdditionalProperties.ShouldNotBeNull()["key"].ShouldBe("value");
+    }
+
     [Fact]
     public void Other_options_pass_through_unchanged()
     {

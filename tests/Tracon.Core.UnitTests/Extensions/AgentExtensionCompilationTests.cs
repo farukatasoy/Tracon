@@ -312,24 +312,24 @@ public sealed class AgentExtensionCompilationTests
     public void A_free_member_an_extension_changes_reaches_the_agent()
     {
         ChatClientAgentOptions? seen = null;
-        var compiler = Compiler(new DelegateAgentExtension("inject", context =>
+        var compiler = Compiler(new DelegateAgentExtension("strict-history", context =>
         {
-            context.ChatAgentOptions!.EnableMessageInjection = true;
+            context.ChatAgentOptions!.ThrowOnChatHistoryProviderConflict = true;
             context.ChatAgentOptions.ChatOptions!.Seed = 11;
             seen = context.ChatAgentOptions;
         }, null));
 
-        var agent = compiler.Compile(Named("inject"));
+        var agent = compiler.Compile(Named("strict-history"));
 
         agent.ShouldBeOfType<ChatClientAgent>();
-        seen!.EnableMessageInjection.ShouldBeTrue();
+        seen!.ThrowOnChatHistoryProviderConflict.ShouldBeTrue();
     }
 
     [Fact]
     public void The_second_extension_is_blamed_for_its_own_change_not_the_first()
     {
         var compiler = Compiler(
-            new DelegateAgentExtension("polite", static context => context.ChatAgentOptions!.EnableMessageInjection = true, null),
+            new DelegateAgentExtension("polite", static context => context.ChatAgentOptions!.ThrowOnChatHistoryProviderConflict = true, null),
             new DelegateAgentExtension("rude", static context => context.ChatAgentOptions!.ChatOptions!.ModelId = "other", null));
 
         var exception = Should.Throw<TraconCompilationException>(() => compiler.Compile(Named("polite", "rude")));

@@ -13,7 +13,9 @@ namespace Tracon;
 /// A member is <see cref="Rule.Protected"/> when the definition or one of Tracon's
 /// tenant and security decisions sets it: the tool chain, the tenant's chat history,
 /// the working-directory skill scan, file access, the model parameters, the loop and the
-/// sub-agent tree. The check reads those members before an extension runs and after it; a
+/// sub-agent tree. A member is also protected when it changes one of those indirectly, or when
+/// Microsoft Agent Framework puts its effect under a tool loop that Tracon's pipeline moves.
+/// The check reads those members before an extension runs and after it; a
 /// changed one fails the compilation. It never writes the old value back, because a
 /// silent fix would hide the mistake.
 /// </para>
@@ -66,6 +68,11 @@ internal static class AgentOptionsGuard
         .Protect(nameof(ChatOptions.Reasoning), static options => options.Reasoning is { } reasoning
             ? new object?[] { reasoning.Effort, reasoning.Output }
             : null)
+
+        // The provider SDKs build the request from the raw representation first and fill only what
+        // it leaves empty, so it wins over the model, temperature, token limit and reasoning above.
+        // The Anthropic and Google rings also skip the definition's ProviderSettings when it is set.
+        .Protect(nameof(ChatOptions.RawRepresentationFactory), static options => Reference(options.RawRepresentationFactory))
         .Free(
             nameof(ChatOptions.AdditionalProperties),
             nameof(ChatOptions.AllowBackgroundResponses),
@@ -73,7 +80,6 @@ internal static class AgentOptionsGuard
             nameof(ChatOptions.ContinuationToken),
             nameof(ChatOptions.FrequencyPenalty),
             nameof(ChatOptions.PresencePenalty),
-            nameof(ChatOptions.RawRepresentationFactory),
             nameof(ChatOptions.Seed),
             nameof(ChatOptions.StopSequences),
             nameof(ChatOptions.ToolMode),
@@ -123,11 +129,16 @@ internal static class AgentOptionsGuard
         // ModelBinding.AllowConcurrentToolCalls sets the tool loop Tracon builds (K-553). MAF finds
         // that same loop and turns it on when this member is set, over the definition (measured).
         .Protect(nameof(ChatClientAgentOptions.AllowConcurrentInvocation), static options => options.AllowConcurrentInvocation)
+
+        // MAF puts these two layers under the tool loop it builds, so they act on every model call.
+        // Tracon's tool loop is inside the model client, so MAF builds none and the layers land above
+        // it (measured): an injected message never reaches the running turn, and the history is
+        // written once per turn, not once per model call.
+        .Protect(nameof(ChatClientAgentOptions.EnableMessageInjection), static options => options.EnableMessageInjection)
+        .Protect(nameof(ChatClientAgentOptions.RequirePerServiceCallChatHistoryPersistence), static options => options.RequirePerServiceCallChatHistoryPersistence)
         .Free(
             nameof(ChatClientAgentOptions.ClearOnChatHistoryProviderConflict),
             nameof(ChatClientAgentOptions.DisableApprovalNotRequiredFunctionBypassing),
-            nameof(ChatClientAgentOptions.EnableMessageInjection),
-            nameof(ChatClientAgentOptions.RequirePerServiceCallChatHistoryPersistence),
             nameof(ChatClientAgentOptions.ThrowOnChatHistoryProviderConflict),
             nameof(ChatClientAgentOptions.WarnOnChatHistoryProviderConflict));
 
@@ -288,6 +299,20 @@ internal static class AgentOptionsGuard
 
             return this;
         }
+
+        /// <summary>Gets the protected top-level members that an options object sets, other than the allowed ones.</summary>
+        /// <param name="options">The options.</param>
+        /// <param name="allowed">The protected members that may be set.</param>
+        /// <returns>The member names, in row order.</returns>
+        /// <remarks>
+        /// A run's own options start empty, so a reading that is not empty is a member the caller set.
+        /// An empty sequence counts as not set.
+        /// </remarks>
+        public IReadOnlyList<string> SetProtectedMembers(T options, params string[] allowed)
+            => [.. _rows
+                .Where(row => row is { Rule: Rule.Protected, Parent: null, Read: not null } && !allowed.Contains(row.Name, StringComparer.Ordinal))
+                .Where(row => row.Read!(options) is { } reading && reading is not SequenceToken { Items.Length: 0 })
+                .Select(static row => row.Name)];
 
         /// <summary>Reads every checked member.</summary>
         /// <param name="options">The options.</param>

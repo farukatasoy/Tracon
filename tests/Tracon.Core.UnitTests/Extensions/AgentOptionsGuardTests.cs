@@ -123,8 +123,8 @@ public sealed class AgentOptionsGuardTests
         var chat = new ChatClientAgentOptions { ChatOptions = BaselineChatOptions() };
         var chatCheckpoint = AgentOptionsGuard.Take(chat);
 
-        chat.EnableMessageInjection = true;
-        chat.RequirePerServiceCallChatHistoryPersistence = true;
+        chat.ThrowOnChatHistoryProviderConflict = true;
+        chat.DisableApprovalNotRequiredFunctionBypassing = true;
         chat.ChatOptions!.ToolMode = ChatToolMode.None;
         chat.ChatOptions.AdditionalProperties = new AdditionalPropertiesDictionary { ["k"] = "v" };
         chat.ChatOptions.Seed = 7;

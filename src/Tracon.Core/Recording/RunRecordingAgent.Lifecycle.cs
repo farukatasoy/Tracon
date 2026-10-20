@@ -48,25 +48,38 @@ public sealed partial class RunRecordingAgent
     /// itself. A decorator outside this one (<c>Order</c> below 0) still sees
     /// <see cref="TraconRunOptions"/>.
     /// </para>
+    /// <para>
+    /// The one exception is a run that a workflow step was given model options for
+    /// (a handoff step's tools and instructions): those go inward on
+    /// <c>ChatClientAgentRunOptions</c>, the only type the agent reads them from.
+    /// </para>
     /// </remarks>
     // The copy names each base property by hand. RunOptionsHandoffTests fails
     // when Microsoft Agent Framework adds one, so the copy cannot silently drop
     // it (MAF capability matrix, G-07).
     internal static AgentRunOptions? ForInnerAgent(AgentRunOptions? options)
-        => options is TraconRunOptions traconOptions
-            ? new AgentRunOptions
-            {
-                // MEAI001: Microsoft.Extensions.AI marks the continuation token
-                // experimental. It is copied, not read: dropping it would silently
-                // change what the caller asked for.
+    {
+        if (options is not TraconRunOptions traconOptions)
+        {
+            return options;
+        }
+
+        AgentRunOptions inner = traconOptions.ChatOptions is { } chatOptions
+            ? new ChatClientAgentRunOptions(chatOptions.Clone())
+            : new AgentRunOptions();
+
+        // MEAI001: Microsoft.Extensions.AI marks the continuation token
+        // experimental. It is copied, not read: dropping it would silently
+        // change what the caller asked for.
 #pragma warning disable MEAI001
-                ContinuationToken = traconOptions.ContinuationToken,
+        inner.ContinuationToken = traconOptions.ContinuationToken;
 #pragma warning restore MEAI001
-                AllowBackgroundResponses = traconOptions.AllowBackgroundResponses,
-                AdditionalProperties = traconOptions.AdditionalProperties?.Clone(),
-                ResponseFormat = traconOptions.ResponseFormat,
-            }
-            : options;
+        inner.AllowBackgroundResponses = traconOptions.AllowBackgroundResponses;
+        inner.AdditionalProperties = traconOptions.AdditionalProperties?.Clone();
+        inner.ResponseFormat = traconOptions.ResponseFormat;
+
+        return inner;
+    }
 
     private RunStart PrepareRun(AgentSession? session, AgentRunOptions? options, bool isStreaming)
     {

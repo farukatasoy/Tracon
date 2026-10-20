@@ -13,11 +13,11 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.1	🟡	✗	`AIAgentBuilder`: `Use(agent)`, `Use(runFunc, streamingFunc)`, `Use(sharedFunc)` · `AsBuilder`	AsBuilder Func Use	AsBuilder Func Use	AsBuilder Func Use
 5.1	❌	✗	Agent düzeyi tool middleware: `AIAgentBuilder.Use(Func<AIAgent, FunctionInvocationContext, next, ct, …>)`	AIAgent Func Use	AIAgent Func Use	AIAgent Func Use
 5.1	🟡	✓	Yapılandırılmış çıktı: `ChatOptions.ResponseFormat` ✔ · `RunAsync<T>`/`AgentResponse<T>` ✘	AgentResponse ChatOptions ResponseFormat RunAsync	AgentResponse ChatOptions ResponseFormat RunAsync	ChatOptions ResponseFormat RunAsync
-5.1	❌	~	`ChatClientAgentRunOptions` (run başına `ChatOptions`, `ChatClientFactory`)	ChatOptions	ChatClientAgentRunOptions ChatOptions	ChatOptions
+5.1	🟡	✓ K-1039	`ChatClientAgentRunOptions` (run başına `ChatOptions`, `ChatClientFactory`)	ChatClientAgentRunOptions ChatClientFactory ChatOptions	ChatClientAgentRunOptions ChatClientFactory ChatOptions	ChatOptions
 5.1	❌	✗	`AIAgent.AsAIFunction` (agent = senkron tool)	AIAgent	AIAgent	AIAgent
 5.1	❌	✗⁺	`AIAgent.AsIChatClient(agent, session, …)` (MAAI001, 1.16'dan sonra geldi, 1.25'te genişledi)	AIAgent AsIChatClient	AIAgent	AIAgent
 5.1	🟡	✗	`EnableMessageInjection` · `MessageInjectingChatClient` (`EnqueueMessagesAsync`, `GetPendingMessagesAsync`) · `UseMessageInjection`	EnableMessageInjection	EnableMessageInjection	-
-5.1	🟡	✗	`RequirePerServiceCallChatHistoryPersistence` · `Clear/Warn/ThrowOnChatHistoryProviderConflict` · `UseProvidedChatClientAsIs`	Clear RequirePerServiceCallChatHistoryPersistence ThrowOnChatHistoryProviderConflict UseProvidedChatClientAsIs	Clear RequirePerServiceCallChatHistoryPersistence UseProvidedChatClientAsIs	-
+5.1	🟡	✗	`RequirePerServiceCallChatHistoryPersistence` · `Clear/Warn/ThrowOnChatHistoryProviderConflict` · `UseProvidedChatClientAsIs`	Clear RequirePerServiceCallChatHistoryPersistence ThrowOnChatHistoryProviderConflict UseProvidedChatClientAsIs	Clear RequirePerServiceCallChatHistoryPersistence ThrowOnChatHistoryProviderConflict UseProvidedChatClientAsIs	-
 5.1	❌	✓	`ChatClientAgentOptions.AllowConcurrentInvocation`	AllowConcurrentInvocation ChatClientAgentOptions	AllowConcurrentInvocation ChatClientAgentOptions	ChatClientAgentOptions
 5.1	❌	✓	`EnableInvocableFunctionBypassing` (MAAI001) · `DisableApproval*` · MEAI `UseInvocableFunctionBypassing`/`UseApproval*`	EnableInvocableFunctionBypassing	-	-
 5.1	❌	✗	`AgentRunContext` · `AIAgent.CurrentRunContext`	AIAgent	AIAgent	AIAgent
@@ -43,9 +43,9 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.2	❌	✓	`FoundryMemoryProvider` (MAAI001)	-	-	-
 5.3	🟡	✗	`AgentSkillsProvider` (+Options)	AgentSkillsProvider	AgentSkillsProvider	-
 5.3	✅	✓	`AgentFileSkill` · `AgentFileSkillsSource` · `AgentFileSkillScript` + Tracon kapıları (`SandboxedSkillScriptRunner`)	AgentFileSkill AgentFileSkillScript AgentFileSkillsSource SandboxedSkillScriptRunner	AgentFileSkill SandboxedSkillScriptRunner	-
-5.3	✅	✓	`AgentInlineSkill`	AgentInlineSkill	-	-
+5.3	✅	✓	`AgentInlineSkill`	AgentInlineSkill	AgentInlineSkill	-
 5.3	✅	✓	Aggregating · Caching · Deduplicating · Filtering kaynakları	?	?	?
-5.3	✅	✓	`AgentSkillsProviderBuilder`	AgentSkillsProviderBuilder	-	-
+5.3	✅	✓	`AgentSkillsProviderBuilder`	AgentSkillsProviderBuilder	AgentSkillsProviderBuilder	-
 5.3	❌	✗	`AgentClassSkill<T>` · `[AgentSkillResource]` · `[AgentSkillScript]`	-	-	-
 5.3	❌	✗	`AgentInMemorySkillsSource` · `DelegatingAgentSkillsSource`	-	-	-
 5.3	❌	✗	`UseMcpSkills` + `AgentMcpSkillsSourceOptions` (alpha)	-	-	-

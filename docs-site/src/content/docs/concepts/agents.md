@@ -249,16 +249,19 @@ data selects: the same boundary as tools.
 ```csharp
 builder.AddTracon()
     .AddAgentExtension(
-        "message-injection",
+        "house-policy",
         context =>
         {
+            // Add after the providers Tracon built; the compiler refuses a change to them.
             if (context.ChatAgentOptions is { } options)
             {
-                options.EnableMessageInjection = true;
+                options.AIContextProviders = [.. options.AIContextProviders ?? [], new HousePolicyProvider()];
             }
         },
-        description: "Lets a caller inject a message into a running turn.");
+        description: "Adds the house policy to the instructions of every model call.");
 ```
+
+`HousePolicyProvider` is your own `AIContextProvider`.
 
 The compiler runs the extensions a definition names, in the order the definition lists
 them, after it has set every option the definition decides. It runs them when it compiles
@@ -272,9 +275,11 @@ The compiler compares the options before and after each extension. The definitio
 tenant and security decision owns the tool chain, the tool approval settings, the
 instructions and sampling settings, the chat history provider, file access, the
 working-directory skill scan, file memory, web search, compaction, the loop, and the
-sub-agent tree. An extension that changes one of them
-fails the compilation with an error that names the extension and the option. The provider
-list is append-only, and every other option is the extension's to set. The check covers the
+sub-agent tree. Some framework options are protected too, because they change one of
+these settings indirectly or do not work under Tracon. An extension that changes a protected
+option fails the compilation with an error that names the extension and the option. The
+[guide](/guides/any-maf-feature/) lists them. The provider list is append-only, and every
+other option is the extension's to set. The check covers the
 options object only. It does not look inside a provider or a wrapper that an extension adds,
 so register extension code that you trust, as you do for a tool.
 

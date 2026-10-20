@@ -256,6 +256,13 @@ internal static class ExamplePrelude
             {
             }
         }
+
+        // Stands in for "your own context provider", named in one <example> block.
+        internal sealed class HousePolicyProvider : AIContextProvider
+        {
+            protected override ValueTask<AIContext> ProvideAIContextAsync(InvokingContext context, CancellationToken cancellationToken = default)
+                => new(new AIContext { Instructions = "House policy." });
+        }
         """;
 
     /// <summary>The running "order status" tool shown across several unrelated examples.</summary>

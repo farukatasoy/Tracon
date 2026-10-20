@@ -3925,3 +3925,31 @@ Otomatik karşılığı: `CodeWorkflowRegistrationValidationTests.A_run_timeout_
 **Beklenen sonuç**
 - Host `OptionsValidationException` ile başlamaz; mesaj `Workflow 'review-and-revise'`, `WorkflowRegistrationOptions.RunTimeout` ve `Tracon:Workflows:MaxRunTimeout` adlarını verir.
 - `MaxRunTimeout` 3 saat verilince uygulama açılır.
+
+---
+
+### MT-WF-182 — `Handoff` workflow'u gerçek modelle devreder (kusur-giderme 2026-10-20, K-1039)
+
+Otomatik karşılığı: `WorkflowHandoffTests.The_model_sees_the_handoff_tools_and_the_named_agent_answers`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 15 |
+| **İlgili karar** | K-1039 |
+
+**Ön koşul** — Örnek uygulama, gerçek OpenAI anahtarı. İki agent API ile kaydedilmiş:
+`triage` (`"instructions":"Route the question. Hand technical questions to the expert."`) ve
+`expert` (`"description":"Answers technical build questions."`, `"instructions":"Answer as the build expert. Start with EXPERT:"`).
+
+**Adımlar**
+1. `PUT $BASE/api/workflows/help-desk` — `{"kind":"Handoff","agentNames":["triage","expert"],"handoffInstructions":"Hand technical questions to the expert."}`.
+2. `POST $BASE/api/workflows/help-desk/run` — `{"message":"My dotnet build fails with CS0246."}`.
+3. Kök run'ın çocuk run'larını oku (`GET $BASE/api/runs?rootRunId=<id>`).
+
+**Beklenen sonuç**
+- Akış `RunCompleted` ile biter; `RunAwaitingInput` gelmez.
+- Çıktı `EXPERT:` ile başlayan bir cevap taşır.
+- Çocuk run'lar `triage` ve `expert` için ayrı satırdır; `triage` satırı `handoff_to_1` tool çağrısını gösterir.
+- Düzeltmeden önce (taban `b726ee70`): `triage` modeli handoff tool'unu görmez ve cevabı kendisi verir; tool'u görse bile çağrı dış tool sanılır ve run `AwaitingInput`'ta kalır.

@@ -2,16 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 975 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 977 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1027 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1029 kalem)
 
 | K | Karar |
 |---|---|
-| K-986 | SQL deposunun işlemi tek sınırdan açılır (`SqlStoreContext.ExecuteInTransactionAsync`); deadlock kurbanı işlemin tamamıyla, yeni bağlantı ve işlemle, en çok 5 kez rastgele beklemeyle yeniden koşar (F-430, kusur-giderme 2026-10-14) (ana oturum varsayılanı, K-540 emsali) |
-| K-987 | Workflow tanımı sürüm geçmişi tutar (K-126 açıldı): `workflow_definition_versions`, yabancı anahtarsız, numara kimliktir ve yeniden verilmez; kayıt iki satırı tek işlemde yazar; `IWorkflowDefinitionStore` üç soyut üye alır; geri alma yeni sürümdür (F-300) |
 | K-988 | Workflow kök satırı derlediği sürümü `runs.agent_version`'a yazar; `resume`/`respond` kaynağın damgasını derler, `definitionVersion` başka sürüm seçer, olmayan sürüm kapalı düşer (F-300) |
 | K-989 | `WorkflowNodeReference.AgentVersion`: yalnız `nodes` biçiminde veritabanı agent'ı sabitlenir; kayıtta ve derlemede doğrulanır; sabit önbellek anahtarındadır, executor kimliğinde değil (F-300) |
 | K-990 | Kota girdisi ağaç başına değil harcayan run başına yazılır: kök (`Runs = 1`), alt agent run'ı (`Runs = 0`), workflow kökü ve kapanıştan sonra dönen tool kendi token ve tutarını, kapanırken, kökün kiracısı ve adı altında yazar; kimlik ortamdan değil ağacın bütçesindeki `TreeAccount`'tan okunur ve tek yazım yolu `TreeQuota.RecordAsync`'tir; `run.*` webhook'u kök kapanış anının görüntüsü olarak kalır; eşik bildirimi eşiği geçiren run'ın akışına yazılır; K-913'ün kota yarısını ve K-974'ün "yalnız detaya" kuralının kota yarısını değiştirir (F-418, F-482, Faz 205) (kullanıcı kararı) 👤 |
@@ -56,9 +54,11 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1029 | Agent uzantısı MAF seçenek nesnesinin kendisini alır; korunan üye tablosu ve ratchet testi sınırı zorlar (F-588) |
 | K-1030 | Uzantıyı kod kaydeder, tanım yalnız adla seçer: `AddAgentExtension`, `ExtensionNames` (F-588) |
 | K-1031 | SQL payload'ında sonradan gelen liste alanı null okunabilir; boş liste yazılmaz (F-588) |
-| K-1032 | Sohbet agent'ında `RequirePerServiceCallChatHistoryPersistence` serbesttir; açıksa model istemcisi sınır seam'inden geçer (F-588) |
+| K-1032 | Sohbet agent'ında `RequirePerServiceCallChatHistoryPersistence` serbesttir; açıksa model istemcisi sınır seam'inden geçer (F-588) 🔁 |
 | K-1033 | Tool oynatan yollar uzantıyı çalıştırmaz: replay `ExtensionNames`'i boşaltır, continuation reddeder (F-588) |
 | K-1034 | Tanınmayan içerik `tracon.content`, workflow olayı `tracon.workflow.event` olarak kaydedilir; yük gövdesizdir (F-589) |
 | K-1035 | `UseProvidedChatClientAsIs` ve `AllowConcurrentInvocation` korunur: ikisi korunan bir ayarı dolaylı değiştirir |
 | K-1036 | Deneysel upstream tip yalnız ön sürüm hattındaki uydu paketin public imzasına girer; çekirdek aile kararlı kalır (D-01) |
 | K-1037 | Ön sürüm upstream'e bağlı yeni uydu paket ayrı ön sürüm hattında çıkar; mevcut aile tek hatta kalır (D-19) |
+| K-1038 | `EnableMessageInjection`, `RequirePerServiceCallChatHistoryPersistence`, `RawRepresentationFactory` korunur: Tracon'da işlemez ya da tanımı ezer 👤 |
+| K-1039 | Run başına `ChatOptions` HTTP'de yoktur; kod ve MAF yolu tek kuraldan geçer: tanımın üyesi reddedilir, ek talimat ve tool beyanı geçer 👤 |
