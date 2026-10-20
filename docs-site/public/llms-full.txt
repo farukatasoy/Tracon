@@ -24113,7 +24113,11 @@ too, and an empty field means no limit.
 
 Suites, their cases, and their past runs. A case can be promoted straight from a real
 run, which is the fastest path from "this conversation went wrong" to "this is a
-regression test".
+regression test". A case lists the tool calls it expects: each call takes a tool name and,
+optionally, a JSON object of the arguments it must carry (see
+[Checking which tool was called with which arguments](/concepts/evaluation/#checking-which-tool-was-called-with-which-arguments)).
+An argument text that is not a JSON object stays marked and the cases cannot be saved
+until it is fixed.
 
 <a class="ui-shot" href="/screenshots/experiments.png"><img src="/screenshots/experiments.png" alt="The experiment list with per-arm results" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 

@@ -264,6 +264,54 @@ describe('EvalSuiteDetailScreen', () => {
       await expect.poll(sent).toBeDefined();
     });
 
+    it('refuses to save a stored number the console cannot keep exact, and a save is possible again once the call is gone', async () => {
+      // `fetch().json()` reads 1234567890123456789 as 1234567890123456800, and a save would
+      // write the rounded value: the case would then expect an id the model never sends, and
+      // fail with a reason that names no argument.
+      const { sent } = arrange([
+        { name: 'get_tweet', arguments: { id: 1234567890123456789 } },
+        { name: 'refund', arguments: { amount: 12.5, count: 9007199254740991 } },
+      ]);
+
+      renderScreen(<EvalSuiteDetailScreen name="support-eval" meta={testMeta} />);
+
+      const save = await screen.findByRole('button', { name: 'Save cases' });
+      const alerts = screen.getAllByRole('alert');
+
+      // Only the first call holds an unsafe number: a safe integer and a fraction pass.
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0]!.textContent).toContain('cannot be kept exact');
+      expect(save).toHaveProperty('disabled', true);
+
+      await userEvent.click(screen.getAllByRole('button', { name: 'Remove tool call' })[0]!);
+
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(save).toHaveProperty('disabled', false);
+
+      await userEvent.click(save);
+      await expect.poll(sent).toBeDefined();
+
+      expect(sent()).toEqual([
+        expect.objectContaining({
+          expectedToolCalls: [{ name: 'refund', arguments: { amount: 12.5, count: 9007199254740991 } }],
+        }),
+      ]);
+    });
+
+    it('refuses an unsafe number the operator types', async () => {
+      arrange([{ name: 'get_tweet', arguments: null }]);
+
+      renderScreen(<EvalSuiteDetailScreen name="support-eval" meta={testMeta} />);
+
+      const save = await screen.findByRole('button', { name: 'Save cases' });
+
+      await userEvent.click(screen.getByRole('textbox', { name: /^Arguments/ }));
+      await userEvent.paste('{"id": 1e999}');
+
+      expect(await screen.findByRole('alert')).toBeDefined();
+      expect(save).toHaveProperty('disabled', true);
+    });
+
     it('does not save a call that has no name', async () => {
       arrange([]);
 

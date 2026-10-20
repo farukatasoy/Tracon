@@ -21,7 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   reads them. The console's case editor takes a tool name and a JSON object of arguments for each call
   and refuses an argument text that is not a JSON object. Promoting a reference run writes the names
   of the tools the run called, without arguments. The change adds `eval_cases.expected_tool_calls`
-  (migration `0063` PostgreSQL, `0051` SQL Server, `0050` SQLite).
+  (migration `0063` PostgreSQL, `0051` SQL Server, `0050` SQLite). A cell of that column that SQL
+  Server or SQLite holds as text and that is no longer the array Tracon writes reads as an entry no run
+  can call, so the case fails instead of passing with nothing to check, and the listing still works.
 
 - **A host registers a tool the model provider runs, and a definition selects it by name.**
   `AddHostedTool(name, kind, factory)` registers a web search, a code interpreter or a file search

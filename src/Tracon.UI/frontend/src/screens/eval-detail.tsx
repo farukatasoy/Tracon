@@ -56,28 +56,52 @@ function argumentsText(value: unknown): string {
 }
 
 /**
- * The arguments the text stands for: `undefined` when it is empty, the object
- * when it is a JSON object, and `false` when it is anything else (a half-typed
- * value, an array, a number).
+ * What an arguments text stands for. `unsafe` is a JSON object that holds a
+ * number JavaScript cannot keep exact: an integer past 2^53, or one too large
+ * to be finite. `JSON.parse` rounds it (`1234567890123456789` becomes
+ * `1234567890123456800`) and `JSON.stringify` writes the rounded value back, so
+ * a save would change what the case expects without a word.
  */
-function parseArguments(text: string): Record<string, unknown> | undefined | false {
-  if (text.trim().length === 0) return undefined;
+type ParsedArguments =
+  | { state: 'empty' }
+  | { state: 'object'; value: Record<string, unknown> }
+  | { state: 'invalid' }
+  | { state: 'unsafe' };
+
+function holdsUnsafeNumber(value: unknown): boolean {
+  if (typeof value === 'number') return !Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value));
+  if (Array.isArray(value)) return value.some(holdsUnsafeNumber);
+  if (typeof value === 'object' && value !== null) return Object.values(value).some(holdsUnsafeNumber);
+
+  return false;
+}
+
+function parseArguments(text: string): ParsedArguments {
+  if (text.trim().length === 0) return { state: 'empty' };
 
   try {
     const parsed: unknown = JSON.parse(text);
 
-    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : false;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { state: 'invalid' };
+    }
+
+    return holdsUnsafeNumber(parsed)
+      ? { state: 'unsafe' }
+      : { state: 'object', value: parsed as Record<string, unknown> };
   } catch {
-    return false;
+    return { state: 'invalid' };
   }
 }
 
 function isSavable(item: CaseDraft): boolean {
   return (
     item.query.trim().length > 0 &&
-    item.toolCalls.every((call) => call.name.trim().length > 0 && parseArguments(call.arguments) !== false)
+    item.toolCalls.every((call) => {
+      const { state } = parseArguments(call.arguments);
+
+      return call.name.trim().length > 0 && (state === 'empty' || state === 'object');
+    })
   );
 }
 
@@ -110,9 +134,7 @@ function toInput({ toolCalls, ...rest }: CaseDraft): EvalCaseInput {
       // schema says "an object" without saying what is in it.
       return {
         name: call.name.trim(),
-        ...(parsed === undefined || parsed === false
-          ? {}
-          : { arguments: parsed as Record<string, never> }),
+        ...(parsed.state === 'object' ? { arguments: parsed.value as Record<string, never> } : {}),
       };
     }),
   };
@@ -145,6 +167,17 @@ function CaseEditor({
   onRemove: () => void;
 }): ReactNode {
   const t = useT();
+
+  const argumentsError = (text: string): string | undefined => {
+    switch (parseArguments(text).state) {
+      case 'invalid':
+        return t('evals.toolCall.argumentsInvalid');
+      case 'unsafe':
+        return t('evals.toolCall.argumentsUnsafe');
+      default:
+        return undefined;
+    }
+  };
 
   const setToolCall = (index: number, value: ToolCallDraft): void =>
     onChange({
@@ -184,11 +217,7 @@ function CaseEditor({
             <Field
               label={t('evals.toolCall.arguments')}
               hint={t('evals.toolCall.argumentsHint')}
-              error={
-                parseArguments(call.arguments) === false
-                  ? t('evals.toolCall.argumentsInvalid')
-                  : undefined
-              }
+              error={argumentsError(call.arguments)}
             >
               <TextArea
                 // Tall enough for the pretty-printed object a stored call loads as.
