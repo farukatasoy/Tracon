@@ -279,6 +279,11 @@ v=$(grep -m1 -oE '^## \[[0-9][^]]*\]' CHANGELOG.md | sed -E 's/^## \[(.*)\]/\1/'
 git tag -l "v$v"                                          # boşsa push etme
 ```
 
+🚨 **Plan, önceki faz kapanmadan yazıldıysa** `faz-kapat` kademe denetimini dokümanın eklendiği
+commit'ten başlatır ve önceki fazın silinen `PublicAPI` satırlarını bu fazın sanır (Faz 228,
+ölçüldü): `python3 scripts/dokuman-bakim.py faz-kapat <NN> --taban <faz öncesi commit>` —
+`kapi.py kapanis`'te verdiğin tabanın aynısı. Taban denetimi gevşetmez; çözülemeyen taban kapanışı durdurur.
+
 `faz-kapat` temiz ağaç ister ve işaretçiyi `HEAD`'e yazar; bu yüzden birinci
 commit ondan önce gelir. Durum, kademe, DoD ya da süreç ölçümü eksikse ve hafif
 kademede tam faz tetiği varsa **durur**. Gelen bağlantıları düz metne (`Faz NN`),

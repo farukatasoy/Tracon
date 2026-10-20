@@ -1048,6 +1048,71 @@ class KademeTetikleriTestleri(unittest.TestCase):
         self.assertEqual(dokuman_bakim.kademe_tetikleri(fark), [])
 
 
+class FazFarkiTabaniTestleri(unittest.TestCase):
+    """Faz 228: plan önceki faz kapanmadan yazıldıysa varsayılan taban önceki fazın işini taşır."""
+
+    def _depo(self, kok: pathlib.Path) -> tuple[str, str]:
+        """İki commit'li depo: plan eklenirken API satırı siliniyor; sonra yalnız ekleme geliyor.
+
+        Döner: (önceki faz sonrası commit, HEAD)."""
+        def git(*a: str) -> str:
+            import subprocess
+            r = subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *a],
+                               cwd=kok, capture_output=True, text=True, check=True)
+            return r.stdout.strip()
+
+        git("init", "-q")
+        (kok / "src" / "Tracon.X").mkdir(parents=True)
+        (kok / "docs").mkdir()
+        api = kok / "src" / "Tracon.X" / "PublicAPI.Unshipped.txt"
+        api.write_text("Tracon.X.Eski() -> void\n", encoding="utf-8")
+        git("add", "-A"); git("commit", "-q", "-m", "temel")
+        # Plan, önceki fazın işiyle AYNI commit'te eklenir: silinen satır o fazın.
+        api.write_text("Tracon.X.Yeni() -> void\n", encoding="utf-8")
+        (kok / "plan-dokumani.md").write_text("# Faz 9\n", encoding="utf-8")
+        git("add", "-A"); git("commit", "-q", "-m", "onceki faz + plan")
+        taban = git("rev-parse", "HEAD")
+        api.write_text("Tracon.X.Yeni() -> void\nTracon.X.Ek() -> void\n", encoding="utf-8")
+        git("add", "-A"); git("commit", "-q", "-m", "faz 9 yalniz ekler")
+        return taban, git("rev-parse", "HEAD")
+
+    def test_varsayilan_taban_onceki_fazin_silinen_satirini_gorur(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            self._depo(kok)
+            with mock.patch.object(dokuman_bakim, "ROOT", kok):
+                fark = dokuman_bakim._faz_farki("plan-dokumani.md")
+            self.assertEqual(len(dokuman_bakim.kademe_tetikleri(fark)), 1)
+
+    def test_verilen_taban_yalniz_fazin_kendi_isini_denetler(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            taban, _ = self._depo(kok)
+            with mock.patch.object(dokuman_bakim, "ROOT", kok):
+                fark = dokuman_bakim._faz_farki("plan-dokumani.md", taban)
+            self.assertEqual(dokuman_bakim.kademe_tetikleri(fark), [])
+
+    def test_verilen_taban_faz_silerse_tetikler(self):
+        # Taban denetimi gevşetmez: fazın kendi silmesi hâlâ `tam` tetiğidir.
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            taban, _ = self._depo(kok)
+            (kok / "src" / "Tracon.X" / "PublicAPI.Unshipped.txt").write_text("Tracon.X.Ek() -> void\n", encoding="utf-8")
+            import subprocess
+            subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-am", "siler"],
+                           cwd=kok, check=True)
+            with mock.patch.object(dokuman_bakim, "ROOT", kok):
+                fark = dokuman_bakim._faz_farki("plan-dokumani.md", taban)
+            self.assertEqual(len(dokuman_bakim.kademe_tetikleri(fark)), 1)
+
+    def test_cozulemeyen_taban_sessizce_gecmez(self):
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            self._depo(kok)
+            with mock.patch.object(dokuman_bakim, "ROOT", kok):
+                self.assertIsNone(dokuman_bakim._faz_farki("plan-dokumani.md", "yok-boyle-bir-commit"))
+
+
 class DefterBicimiTestleri(unittest.TestCase):
     """Okuma başlığa göredir: sütun eklemek eski satırları bozmaz."""
 

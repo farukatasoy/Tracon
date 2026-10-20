@@ -3203,13 +3203,23 @@ def kademe_tetikleri(fark: str) -> list[str]:
     return [f"{y}: {n}" for y, n in sorted(tetik.items())]
 
 
-def _faz_farki(rel: str) -> str | None:
-    """Faz dokümanının eklendiği commit'ten (dahil) HEAD'e kadar `src/` ve kök
-    `Directory.Build.props` farkı. Git hatası `None`dur — kapı onu temiz saymaz."""
-    eklenen = _git("log", "--diff-filter=A", "--format=%H", "--", rel)
-    if not eklenen:
+def _faz_farki(rel: str, taban: str | None = None) -> str | None:
+    """Fazın `src/` ve kök `Directory.Build.props` farkı. Git hatası `None`dur — kapı onu
+    temiz saymaz.
+
+    Varsayılan taban faz dokümanının eklendiği commit'in ebeveynidir (dokümanın kendisi
+    dahil). Plan, önceki faz kapanmadan yazıldıysa o aralık önceki fazın işini de taşır
+    ve `hafif` bir faz yanlışlıkla `tam` tetiği alır (Faz 228: 44866805'in sildiği API
+    satırları). Bu durumda kapanış kapısıyla aynı `taban` verilir (`faz-kapat --taban`).
+    Verilen taban çözülemezse `None` döner: bilinmeyen bir taban sessizce geçmez."""
+    if taban is None:
+        eklenen = _git("log", "--diff-filter=A", "--format=%H", "--", rel)
+        if not eklenen:
+            return None
+        taban = f"{eklenen[-1]}~1"
+    elif not _git("rev-parse", "--verify", "--quiet", f"{taban}^{{commit}}"):
         return None
-    r = subprocess.run(["git", "diff", "--unified=0", f"{eklenen[-1]}~1", "HEAD", "--",
+    r = subprocess.run(["git", "diff", "--unified=0", taban, "HEAD", "--",
                         "src", "Directory.Build.props"],
                        cwd=ROOT, capture_output=True, text=True, check=False)
     return r.stdout if r.returncode == 0 else None
@@ -3355,7 +3365,7 @@ def komut_faz_kapat(a: argparse.Namespace) -> int:
     metin = adaylar[0].read_text(encoding="utf-8")
     eksik = faz_kapat_eksikleri(metin, no, rel)
     if _kademe(metin) == "hafif":
-        fark = _faz_farki(rel)
+        fark = _faz_farki(rel, a.taban)
         if fark is None:
             eksik.append(f"{rel}: fazın farkı alınamadı — kademe `hafif` kanıtlanamıyor")
         else:
@@ -3797,6 +3807,10 @@ def main(argv: list[str] | None = None) -> int:
     fk = alt.add_parser("faz-kapat", help="kapanan fazı sil, FAZ-DEFTERI.md'ye tek satır yaz")
     fk.add_argument("faz", help="faz numarası")
     fk.add_argument("--kuru", action="store_true", help="yazma, yalnız ne olacağını bas")
+    fk.add_argument("--taban", default=None,
+                    help="kademe denetiminin tabanı (varsayılan: faz dokümanının eklendiği commit'in "
+                         "ebeveyni); plan önceki faz kapanmadan yazıldıysa `kapi.py kapanis --taban` "
+                         "ile aynı commit")
     fk.set_defaults(_calistir=komut_faz_kapat)
 
     a = ap.parse_args(argv)
