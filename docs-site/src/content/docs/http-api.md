@@ -83,7 +83,8 @@ the same as `GET /api/runs/{runId}/events` serves it, in the order it was record
 | `tracon.quota.threshold` | Only with `Quotas:PublishThresholdToRunStream` turned on (off by default): the run crossed a [quota threshold](/concepts/governance/#quotas-and-rate-limits) |
 
 No other custom event reaches this stream; a tool's own `Custom` event stays on
-`/events`. A client that reads frames by name and ignores an unknown `customType`
+`/events`, and so do `tracon.content` and `tracon.workflow.event`
+(see [Content and events the run has no type for](/concepts/runs/#content-and-events-the-run-has-no-type-for)). A client that reads frames by name and ignores an unknown `customType`
 needs no change. If the run store cannot be read at that point, the stream still
 ends with `done`, without the notices, and the server logs a warning; the run's
 events keep them.

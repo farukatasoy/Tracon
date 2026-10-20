@@ -1480,17 +1480,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             failureText = SafeErrorText.ForPersistence(loggedFailure.Value.Exception, loggedFailure.Value.CorrelationId);
                         }
 
-                        var mapping = WorkflowEventMapper.Map(workflowEvent, failureText);
+                        var mapping = WorkflowEventMapper.Map(workflowEvent, failureText, recording.MaxPayloadLength);
 
-                        if (!mapping.IsKnown)
+                        // F-589: an unrecognized event is in the run record now
+                        // (tracon.workflow.event), so the log drops to Debug: it is no
+                        // longer the only trace of it.
+                        if (!mapping.IsKnown && _logger.IsEnabled(LogLevel.Debug))
                         {
-                            _logger.LogWarning(
-                                "Unknown workflow event '{EventType}' was skipped in run {RunId}. " +
-                                "Microsoft Agent Framework may have added a new event type.",
+                            _logger.LogDebug(
+                                "Unrecognized workflow event '{EventType}' was recorded in run {RunId}. " +
+                                "A code workflow raised its own event, or Microsoft Agent Framework added a new event type.",
                                 workflowEvent.GetType().Name,
                                 execution.RunId);
-
-                            continue;
                         }
 
                         if (mapping.Draft is not { } draft)
@@ -1507,7 +1508,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                         try
                         {
-                            appended = await writer.AppendAsync(draft, linked.Token).ConfigureAwait(false);
+                            // The reserved path only for the event no recognized type
+                            // covers: the public AppendAsync refuses a `tracon.` type.
+                            appended = mapping.IsKnown
+                                ? await writer.AppendAsync(draft, linked.Token).ConfigureAwait(false)
+                                : await writer.AppendReservedAsync(draft, linked.Token).ConfigureAwait(false);
                         }
                         // 🚨 F-550: the deadline or the caller can stop the run between
                         // reading this event and writing it. That is the run stopping, as at

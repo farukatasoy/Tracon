@@ -464,6 +464,12 @@ retry, budget gate and cost line, and `GetWorkflowAgentStep` binds an agent as a
 can return to. A registration also takes `RunTimeout` and `Parameters`.
 [A workflow that a person can send back](/guides/review-and-revise-workflow/) builds one.
 
+A graph built in code can also raise its own `WorkflowEvent` from an executor
+(`context.AddEventAsync`). Tracon has no event type for a type of your own, so it records the
+event as a `tracon.workflow.event` event on the workflow run, naming the event's type (and the
+executor, when the event derives from `ExecutorEvent`), instead of dropping it. See
+[Content and events the run has no type for](/concepts/runs/#content-and-events-the-run-has-no-type-for).
+
 ## Parameters
 
 A workflow declares run parameters, the same `AgentParameter` an agent declares. A run supplies the values, each agent

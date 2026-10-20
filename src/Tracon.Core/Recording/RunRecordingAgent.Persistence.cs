@@ -214,18 +214,29 @@ public sealed partial class RunRecordingAgent
         {
             switch (content)
             {
-                case TextContent text when _options.RecordMessageDeltas && !string.IsNullOrEmpty(text.Text):
-                    await scope.Writer.AppendAsync(
-                        new RunEventDraft(RunEventType.MessageDelta) { Text = text.Text },
-                        cancellationToken).ConfigureAwait(false);
+                // 🚨 The option and the empty check live INSIDE the case, not in a
+                // `when` clause: a clause that fails sends the content to `default`,
+                // and `default` records what Tracon does not recognize. Text with the
+                // option off is recognized and deliberately not recorded.
+                case TextContent text:
+                    if (_options.RecordMessageDeltas && !string.IsNullOrEmpty(text.Text))
+                    {
+                        await scope.Writer.AppendAsync(
+                            new RunEventDraft(RunEventType.MessageDelta) { Text = text.Text },
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
                     break;
 
                 // Separate event type — never merged into MessageDelta (docs/70).
-                case TextReasoningContent reasoning
-                    when _options.RecordReasoningDeltas && !string.IsNullOrEmpty(reasoning.Text):
-                    await scope.Writer.AppendAsync(
-                        new RunEventDraft(RunEventType.ReasoningDelta) { Text = reasoning.Text },
-                        cancellationToken).ConfigureAwait(false);
+                case TextReasoningContent reasoning:
+                    if (_options.RecordReasoningDeltas && !string.IsNullOrEmpty(reasoning.Text))
+                    {
+                        await scope.Writer.AppendAsync(
+                            new RunEventDraft(RunEventType.ReasoningDelta) { Text = reasoning.Text },
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
                     break;
 
                 case FunctionCallContent call:
@@ -236,10 +247,56 @@ public sealed partial class RunRecordingAgent
                     await WriteToolResultAsync(scope, result, cancellationToken).ConfigureAwait(false);
                     break;
 
+                // Recognized and accounted for elsewhere: usage is summed into the
+                // run's usage, and an approval is a pending request on the run
+                // (ChildRunApproval), not an event of its own. A second record here
+                // would count the same thing twice.
+                case UsageContent:
+                case ToolApprovalRequestContent:
+                case ToolApprovalResponseContent:
+                case AlwaysApproveToolApprovalResponseContent:
+                    break;
+
                 default:
+                    await WriteUnrecognizedContentAsync(scope, content, cancellationToken).ConfigureAwait(false);
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Records content no other event covers as a <see cref="RunEventCustomTypes.Content"/> event.
+    /// </summary>
+    /// <remarks>
+    /// The description is built from the content object itself, which a provider adapter or a
+    /// future content type controls, so a failure to describe it is observability's failure:
+    /// it is logged and the run goes on (the rule that observability does not break
+    /// functionality). A cancellation is not swallowed.
+    /// </remarks>
+    private async ValueTask WriteUnrecognizedContentAsync(
+        RunScope scope,
+        AIContent content,
+        CancellationToken cancellationToken)
+    {
+        RunEventDraft draft;
+
+        try
+        {
+            draft = ContentEventPayload.Describe(content, _options.MaxPayloadLength);
+        }
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to describe a {ContentType} for the Tracon run record. Run {RunId} continues normally " +
+                "but the record has no event for it.",
+                content.GetType().Name,
+                scope.Writer.RunId);
+
+            return;
+        }
+
+        await scope.Writer.AppendReservedAsync(draft, cancellationToken).ConfigureAwait(false);
     }
 
     private static async ValueTask WriteToolCallAsync(

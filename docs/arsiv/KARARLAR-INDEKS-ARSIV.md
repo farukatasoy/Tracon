@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (971 kalem)
+## Arşivlenen Kararlar (972 kalem)
 
 | K | Karar |
 |---|---|
@@ -980,3 +980,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-979 | Kuyruklu turun onay yazımı kira penceresinde tekrarlanır, kimlikle önce okur; pencere biterse `tracon.job.approval-save-failed`, model tekrar çağrılmaz (F-391, kusur-giderme 2026-10-14) (ana oturum varsayılanı, K-903 emsali) |
 | K-980 | Çağıranı bekleyen yanıt (onay isteği, sonuçsuz istemci tool çağrısı) yapılandırılmış doğrulamadan geçmez; doğrulayıcı çağrılmaz (F-350, kusur-giderme 2026-10-14) (ana oturum varsayılanı) |
 | K-981 | Katalog ve doğrulayıcı skill'i kod ve `store`'dan sonra `SkillRoots`'ta da arar; disk skill'i kurulum genelidir, içeriği önbellek parmak izine girer; grant pini diske bakmaz (F-481, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |
+| K-982 | Tekrar aynı cevabı alacak hata işi o denemede düşürür: karar hatanın kararlı kimliğinden verilir (`output_truncated`, `tenant_provider_refused`, kalıcı 4xx `upstream_error`), metninden değil; işçi geneli, tüketicinin kendi ham hatası tekrar dener (F-429, kusur-giderme 2026-10-14) (kullanıcı kararı) 👤 |

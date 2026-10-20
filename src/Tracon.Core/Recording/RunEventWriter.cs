@@ -296,10 +296,15 @@ public sealed class RunEventWriter
             // Phase 208: an answer's run names the run it answered only here
             // (WorkflowResponseApplied), so that link is the function too. It
             // carries two ids, never the answer itself.
+            //
+            // Phase 223: a reserved type is exempt only when it is named in
+            // KeepsPayloadWithPayloadsOff. The two content notices carry
+            // provider text and workflow data, which are observability
+            // details, so they follow the option.
             Payload = _options.RecordToolPayloads ||
                       draft.Type == RunEventType.WorkflowRequest ||
                       draft.Type == RunEventType.WorkflowResponseApplied ||
-                      (allowReserved && draft.Type == RunEventType.Custom)
+                      (allowReserved && draft.Type == RunEventType.Custom && KeepsPayloadWithPayloadsOff(draft.CustomType))
                 ? Truncate(draft.Payload)
                 : null,
 
@@ -326,6 +331,16 @@ public sealed class RunEventWriter
 
         return runEvent;
     }
+
+    /// <summary>
+    /// The reserved <c>Custom</c> types whose payload is written with
+    /// <c>RecordToolPayloads</c> off: the quota threshold notice (its
+    /// <c>NoticeId</c> is the dedup key a client acts on) and the output
+    /// truncation notice (provider, cause and limit, never the answer). A new
+    /// reserved type is NOT exempt until it is named here.
+    /// </summary>
+    private static bool KeepsPayloadWithPayloadsOff(string? customType)
+        => customType is RunEventCustomTypes.QuotaThreshold or RunEventCustomTypes.OutputTruncated;
 
     /// <summary>Fans the event out to every registered, not-yet-failed sink.</summary>
     private async ValueTask DispatchToSinksAsync(RunEvent runEvent, CancellationToken cancellationToken)

@@ -1,6 +1,6 @@
 # Faz 223 — Tanınmayan MAF İçeriği ve Workflow Olayının Kaydı
 
-> **Durum:** 📋 Planlandı (2026-10-19)
+> **Durum:** ✅ Tamamlandı (2026-10-20)
 > **Kademe:** tam — geri dönüşü pahalı karar: iki yeni ayrılmış olay tipi adı `run_events`'e kalıcı yazılır ve istemci onlara göre süzer; ad sonradan değişirse kayıtlı veri eski adla kalır. Güvenlik sınırı: yeni olayların yükü `RecordToolPayloads` kuralına bağlanır ve `secret` taşıyabilecek alan (URI sorgusu) yazılmaz (K-059)
 > **Plan onayı:** Bakımcı, 2026-10-19 (sohbette: Dalga 2 sırası; açık sorular uygulama başında sorulur)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-589** — MAF kapsama matrisi G-04 / C-10 ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §7.0, §8), İ3 "tanınmayan kaybolmaz"
@@ -159,16 +159,16 @@ Kabul case'i yok — davranış sahte sağlayıcı ile kodla tekrarlanır. Gerç
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Sahte sağlayıcı web search çağrısı, `ErrorContent` ve `DataContent` ürettiğinde `GET /api/runs/{id}/events` üç `tracon.content` olayı döner; `RecordToolPayloads` kapalıyken yükleri `null`'dır
-- [ ] `RecordMessageDeltas` kapalı run'da `tracon.content` olayı yoktur
-- [ ] Kod workflow'unun kendi olayı `tracon.workflow.event` olarak kayıttadır; `Warning` log'u kalmaz
-- [ ] `quota.threshold` ve `output.truncated` yükü `RecordToolPayloads` kapalıyken yazılmaya devam eder
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (hosted web search açık harness agent'ı), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Kabul case'i yok; davranış otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
+- [x] Sahte sağlayıcı web search çağrısı, `ErrorContent` ve `DataContent` ürettiğinde `GET /api/runs/{id}/events` üç `tracon.content` olayı döner; `RecordToolPayloads` kapalıyken yükleri `null`'dır (`UnrecognizedContentRecordingTests`, tamponlu ve akışlı yol)
+- [x] `RecordMessageDeltas` kapalı run'da `tracon.content` olayı yoktur (`ContentEventClassificationTests`, `UnrecognizedContentRecordingTests`)
+- [x] Kod workflow'unun kendi olayı `tracon.workflow.event` olarak kayıttadır; `Warning` log'u kalmaz (`UnknownWorkflowEventRecordingTests`, `UnknownWorkflowEventHttpTests`)
+- [x] `quota.threshold` ve `output.truncated` yükü `RecordToolPayloads` kapalıyken yazılmaya devam eder (`ReservedPayloadPolicyTests`; `output.truncated` ayrıca HTTP'de)
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis --taban 5e8941d3`: çıkış 0; tam test 576 sn)
+- `samples/Tracon.Api` ile **gerçek sağlayıcıda** hosted web search koşumu yapılmadı: gerçek bir OpenAI anahtarı (parayı ve veriyi dışarı götürür) ve web search açık bir harness agent'ı ister; örnek uygulamanın tek harness agent'ı `DisableWebSearch = true`'dur ve `faz-tamamlama` Adım 2'nin yalıtım komutu anahtarı boşaltır. Yerine örnek uygulama yalıtılmış (boş bağlantı dizeleri, geçici SQLite, `Npgsql` log satırı 0) ayağa kaldırıldı; `researcher` (echo) run'ı `run.started` → 7 × `message.delta` → `run.completed` ile `Completed` bitti. Hosted içerik üretmediği için yeni olay orada görünmez; yeni olayın kanıtı gerçek DI host'lu fonksiyonel testlerdedir
+- [x] `secret` taraması boş döndü (`kapi.py tarama`, `kapanis` içinde)
+- [x] Kabul case'i yok; davranış otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (tek 🔴 kullanıcı kararıyla gürültü, bkz. Denetim Bulguları)
+- [x] `docs-site/` güncellendi; `npm run check` (içerik · derleme · bağlantı · ağırlık) temiz
 
 ### Doğrulama komutları
 
@@ -198,6 +198,16 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/events | jq '.[] | select(
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **`AlwaysApproveToolApprovalResponseContent` tanınır, olay yok.** Plan yalnız MEAI'nin iki onay tipini adlandırdı. MAF'ın bu tipi `AIContent`'ten türer (`ToolApprovalResponseContent`'ten değil), tanınmasaydı her "her zaman onayla" yanıtı `unrecognized` yazılırdı. MEAI 10.11'in `InputRequestContent`/`InputResponseContent` taban sınıfları da var; **bilerek** tanınmadı — gelecekteki başka bir alt sınıf `unrecognized` olarak görünsün.
+2. **Serbest metin yük içinde kesilir, yükü yazıcının sınırına sığdırır** (`ContentEventPayload.BuildFitting`): `ErrorContent.Message` ve workflow olayının metin verisi, en çok 2048 karakter ve tüm yük `MaxPayloadLength`'e sığana dek (kaçışlı JSON uzunluğu, ASCII dışı karakter 6 karakter tutar); kesim surrogate çiftini bölmez. Plan yalnız `MaxPayloadLength` kesimini söylüyordu; yazıcı yükü şekline bakmadan keser ve JSON'u bozar. Her dize `Sanitize` ile geçer (yalnız duran surrogate → U+FFFD; ölçüldü: `Utf8JsonWriter` fırlatmaz, sessizce U+FFFD yazar — denetçinin "run düşer" repro'su çıkmadı, ama kesimde bölünen emoji bozuluyordu ve düzeltildi).
+3. **Ayrılmış `Custom` yük muafiyeti açık listeye döndü ve `RunEventType` önsözü düzeldi.** Plan listeyi yazıcıda söylüyordu; "`ReservedPrefix` altındaki her `Custom` muaftır" cümlesi hem tip önsözünde hem `Custom` üyesinde yazılıydı ve artık yanlıştı. İkisi `QuotaThreshold` ve `OutputTruncated`'ı adlandırır.
+4. **`WorkflowEventMapping.Unknown` kaldırıldı.** `Map` bilinmeyen olay için `IsKnown: false` ile **taslağı da** döndürür; koşucu `IsKnown` ile `AppendReservedAsync` / `AppendAsync` arasında seçer. `Warning` log'u `Debug`'a indi (CA1873 için `IsEnabled` kapısıyla).
+5. **Kod workflow'u testi iki seviyede**: gerçek koşucu + gerçek function node (`Workflows.UnitTests`) ve gerçek DI host + HTTP (`UnknownWorkflowEventHttpTests`). Plandaki "kod workflow'u" bir `WorkflowBuilder` grafiği idi; function node aynı `IWorkflowContext.AddEventAsync` yolunu koşar.
+6. **`WorkflowTestHost` iki ayar kazandı** (`TraconOptions`, `RunnerLogger`): `RecordToolPayloads` kapalı ve log seviyesi testleri için.
+7. **K-991 listesine tip eklenmedi** (plan böyle dedi). Canlı akış testi bunu `The_live_stream_does_not_carry_the_content_events` ile sabitler.
+8. **Plan "uygulama başında ölçülür" dediği üç şeyin sonucu:** (i) akışlı yolda tekrar eden içerik — **tekilleştirme yok**: `DataContent`/`ErrorContent`/hosted tool içeriğinin kararlı kimliği yoktur, her güncellemedeki her içerik nesnesi bir olaydır; gerçek bir sağlayıcıda parça parça gelen görüntü (image generation) birden çok olay üretebilir, **ölçülmedi** (gerçek sağlayıcı koşumu yapılmadı). (ii) Canlı workflow akışı olayı `event` çerçevesi olarak **verir** (`UnknownWorkflowEventHttpTests`); ajan akışı vermez. (iii) Konsol `Custom` olayını genel kartla gösterir (`run-detail.tsx:666`, etiket `customType`); kod okundu, görsel olarak ölçülmedi.
+9. **`executorId` yalnız `ExecutorEvent` türevlerinde yazılır.** Bir function node'un `AddEventAsync` ile verdiği düz `WorkflowEvent` türevinde anahtar yoktur; site ve XML bunu söyler.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -205,14 +215,16 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/events | jq '.[] | select(
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
 
+- Açık sorular (kullanıcı kararı, 2026-10-20, üçü de planın önerisi): `UriContent` adresi yazılmaz (1-A); `ErrorContent.Message` yükte yazılır, `RecordToolPayloads`'a bağlı (2-A); hosted tool çağrısı `tracon.content` olur, yeni enum üyesi açılmaz (3-A). → `K-1034`.
+
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 9 (Plandan Sapmalar) |
+| Düzeltme turu sayısı | 1 (denetim sonrası) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 1 / 0 |
+| Fazın ürettiği regresyon | 0 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -220,3 +232,17 @@ curl -s http://localhost:5081/tracon/api/runs/<runId>/events | jq '.[] | select(
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Denetçi: `faz-denetcisi` (taze bağlam, salt-okunur), 2026-10-20.
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | Workflow yolunda tanınmayan olayın tarifi `try/catch` dışında; 2048'de kesilen emoji `Utf8JsonWriter`'ı fırlatıp run'ı düşürür | 🔴 (öneri: araştırılacak) | **Gürültü** (kullanıcı kararı, 2026-10-20). Repro koşuldu: `Utf8JsonWriter` fırlatmaz, U+FFFD yazar; run düşmez. Gerçek kusur başkaydı — kesim emojiyi bölüp bozuyordu: kesim artık çifti bölmez, her dize `Sanitize`'dan geçer; testler mutasyonla kırmızıya döner. Kullanıcı verisinin kendi getter'ının fırlatması `DescribeOutput` ile aynı sınıf, bu fazın dışında |
+| 2 | Sabit 2048 cap yazıcının `MaxPayloadLength` sınırını bilmiyor; ASCII dışı metin kaçışta 6 katına çıkar, JSON kesilip bozulur | 🟡 | Düzeltildi: `BuildFitting` yükü sınıra sığdırır (iki yolda `maxPayloadLength` geçer); testler 1024/8192 sınırı ve Çince/Kiril/`"` metniyle |
+| 3a | `executorId` dokümanı davranışla örtüşmüyor (yalnız `ExecutorEvent` türevinde) | 🟡 | Düzeltildi: XML, site ve sapma 9 "`ExecutorEvent` türevinde" der |
+| 3b | "Metadata only" iddiası `message`/`data` metniyle çelişiyor | 🟡 | Düzeltildi: XML, site, CHANGELOG ve K-1034 başlığı |
+| 3c | Canlı akış cümlesi `tracon.workflow.event` için yanıltıcı | 🟡 | Düzeltildi: workflow akışı olayı `event` çerçevesiyle verir; `The_workflow_run_stream_sends_the_event_as_an_event_frame` |
+| 4 | "Uygulama başında ölçülür" üç ölçümün sonucu Plandan Sapmalar'da yok | 🟡 | Düzeltildi: sapma 8 (tekilleştirme yok · ölçülmedi, canlı akış verir, konsol genel kart · görsel ölçülmedi) |
+| 5 | `Text` sağlayıcı denetimli `ErrorCode`/`MediaType` taşır | 🟢 | F-592 |
+| 6 | K-640 cırcırı `ErrorContent.Message` yolunu görmez; muafiyet listesi ↔ önsöz kapısı tip adı saymaz | 🟢 | F-593 |
+| 7 | `docs/MAF-KAPSAMA.md` hâlâ `default: break` / `_ => Unknown` yazıyor | 🟢 | Düzeltildi (Adım 7): üç satır ve G-04/C-10 güncellendi |

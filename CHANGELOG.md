@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Model content and workflow events Tracon has no type for are recorded, not dropped.**
+  A hosted tool call or result (web search, code interpreter, image generation, hosted MCP),
+  a provider `ErrorContent`, generated or attached data, a file reference, and any content
+  type Tracon does not know yet are written as a `Custom` run event of type `tracon.content`
+  (`RunEventCustomTypes.Content`). A `WorkflowEvent` that the workflow stream does not map,
+  such as an event of your own that an executor of a code workflow raises, is written as
+  `tracon.workflow.event` (`RunEventCustomTypes.WorkflowEvent`); its warning in the log is
+  now a debug entry. The payload holds no data bytes, no URI, no tool inputs or outputs;
+  its free text is the provider's error message and the text of a string workflow payload,
+  cut at 2 048 characters, and any other workflow payload is named by its type only. Both
+  payloads follow `RecordToolPayloads`. Unlike the quota and truncation notices,
+  `tracon.content` is not sent on the live `POST /api/agents/{name}/run` stream; a workflow
+  run's stream sends `tracon.workflow.event` like every recorded event.
+  Plain text with `RecordMessageDeltas` off, reasoning with `RecordReasoningDeltas` off,
+  usage and approval content stay as they were. Read the events from
+  `GET /api/runs/{id}/events`.
 - **A named agent extension reaches Microsoft Agent Framework options on a compiled agent.**
   `AddAgentExtension(name, configure)`, `AddAgentExtension<T>()`, and an instance overload
   register code that sets a framework option, adds an `AIContextProvider`, or wraps the

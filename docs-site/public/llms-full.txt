@@ -125,7 +125,7 @@ claim to provide an operating-system sandbox.
 |---|---|---|
 | Streaming runs | .NET or `POST /api/agents/{name}/run` | Text and tool activity stream as SSE events; a plain-text answer cut off at the output limit or the context window ends with a `custom` frame (`tracon.output.truncated`) before `done` |
 | Non-streaming runs | .NET or an idempotent HTTP request | A completed response can be stored and replayed safely |
-| Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; it can be disabled and store failure never breaks the run |
+| Run recording | Core decorator pipeline | Default-on summaries, events, tool calls, usage, cost, errors, and optional input; content and workflow events Tracon has no type for are recorded as `tracon.content` and `tracon.workflow.event` (metadata only); it can be disabled and store failure never breaks the run |
 | Custom run events | `RunEventType.Custom` and `AgentRunScope.Writer` | A tool writes its own named event into the stream a consumer already carries; the console draws it with a generic card, no code change required |
 | Custom agent decorator | `AddAgentDecorator<T>()`, instance, or factory | Joins the built-in decorators; `Order` decides where |
 | Cancellation | Run API and cancellation registry | A caller can request cancellation by run id while preserving the final recorded state |
@@ -2602,12 +2602,14 @@ public static async Task<string> MarkPreviewReady(string orderId)
 digits, `.`, `_`, or `-`. It is required on a `Custom` event and rejected
 (`ArgumentException`) on every other type: a caller who sets it on a built-in
 event type gets told immediately, rather than having it silently dropped by
-every store. The `tracon.` prefix is reserved, so a future built-in
-custom type can never collide with your own — `tracon.quota.threshold`
-(the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits))
-is the one built-in use of it today; `AppendAsync` rejects any value under
-that prefix, so a `Custom` event carrying it can only have come from
-Tracon itself. `Payload` is yours too — Tracon makes no claim about
+every store. The `tracon.` prefix is reserved, so a built-in
+custom type can never collide with your own. Tracon writes four of them:
+`tracon.quota.threshold` (the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits)),
+`tracon.output.truncated` (see [Truncated output](#truncated-output)),
+`tracon.content` and `tracon.workflow.event` (see
+[Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)).
+`AppendAsync` rejects any value under that prefix, so a `Custom` event carrying it can
+only have come from Tracon itself. `Payload` is yours too — Tracon makes no claim about
 its shape and never reads it.
 
 The console draws an unrecognized `CustomType` with a single generic card —
@@ -2615,6 +2617,36 @@ its own name as the title, `Payload` pretty-printed as the body — so a new
 custom type never needs a console change to show up. When a built-in event
 type already fits what happened, use that instead; `Custom` is for events
 Tracon has no name for.
+
+### Content and events the run has no type for
+
+A model response carries more than text and tool calls, and a code workflow can raise
+events of its own. Anything Tracon has no event type for is **recorded, not dropped**, as a
+`Custom` event under a reserved type. Its `Text` is a short summary; its payload never
+carries the content itself, only metadata and, where noted, one bounded text.
+
+| `customType` | Written for | `Text` | Payload keys |
+|---|---|---|---|
+| `tracon.content` | A hosted tool call or result (web search, code interpreter, image generation, hosted MCP) | `web_search call`, `web_search result` | `type` (`hosted_tool_call` or `hosted_tool_result`), `tool`, `callId` |
+| `tracon.content` | An `ErrorContent` the provider returned inside a response | `error: <code>` | `type` (`error`), `errorCode`, `message` (cut at 2 048 characters) |
+| `tracon.content` | Generated or attached data | `data: <media type>` | `type` (`data`), `mediaType`, `length` in bytes — never the bytes |
+| `tracon.content` | A `UriContent` | `uri: <media type>` | `type` (`uri`), `mediaType` — never the address, because a signed URL can carry a credential |
+| `tracon.content` | A hosted file or vector store | `hosted file`, `hosted vector store` | `type`, `id` |
+| `tracon.content` | Any content type Tracon does not know yet | `unrecognized content: <type>` | `type` (`unrecognized`), `clrType` |
+| `tracon.workflow.event` | A `WorkflowEvent` that is not one of the types the workflow stream already maps | The event's type name | `eventType` (full name), `executorId` when the event derives from `ExecutorEvent`, `data` (cut at 2 048 characters) |
+
+Plain text and reasoning keep their own events (and their own options), tool calls and
+results keep the tool events, usage is part of the run's usage, and an approval request is
+the run's pending request, so none of those writes a `tracon.content` event. A workflow
+event's `data` is the text of a string or chat message, and only the type name of anything
+else — never the object's `ToString()`.
+
+Both types follow `RecordToolPayloads`: with it off the event and its `Text` stay and the
+payload is `null`. Unlike the [quota and truncation notices](/http-api/#streaming),
+`tracon.content` does not reach the live `POST /api/agents/{name}/run` stream; read it from
+`GET /api/runs/{runId}/events`. A workflow run only ever writes `tracon.workflow.event`, and
+its stream (`POST /api/workflows/{name}/run`) sends it as an `event` frame like every
+other recorded event.
 
 ## Observing events beyond the store
 
@@ -4605,6 +4637,12 @@ what a stored chain's steps have: `GetWorkflowFunction` binds a registered funct
 retry, budget gate and cost line, and `GetWorkflowAgentStep` binds an agent as a plain step that a message
 can return to. A registration also takes `RunTimeout` and `Parameters`.
 [A workflow that a person can send back](/guides/review-and-revise-workflow/) builds one.
+
+A graph built in code can also raise its own `WorkflowEvent` from an executor
+(`context.AddEventAsync`). Tracon has no event type for a type of your own, so it records the
+event as a `tracon.workflow.event` event on the workflow run, naming the event's type (and the
+executor, when the event derives from `ExecutorEvent`), instead of dropping it. See
+[Content and events the run has no type for](/concepts/runs/#content-and-events-the-run-has-no-type-for).
 
 ## Parameters
 
@@ -17340,7 +17378,8 @@ the same as `GET /api/runs/{runId}/events` serves it, in the order it was record
 | `tracon.quota.threshold` | Only with `Quotas:PublishThresholdToRunStream` turned on (off by default): the run crossed a [quota threshold](/concepts/governance/#quotas-and-rate-limits) |
 
 No other custom event reaches this stream; a tool's own `Custom` event stays on
-`/events`. A client that reads frames by name and ignores an unknown `customType`
+`/events`, and so do `tracon.content` and `tracon.workflow.event`
+(see [Content and events the run has no type for](/concepts/runs/#content-and-events-the-run-has-no-type-for)). A client that reads frames by name and ignores an unknown `customType`
 needs no change. If the run store cannot be read at that point, the stream still
 ends with `done`, without the notices, and the server logs a warning; the run's
 events keep them.

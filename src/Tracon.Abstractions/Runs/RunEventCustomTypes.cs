@@ -66,6 +66,55 @@ public static partial class RunEventCustomTypes
     public const string OutputTruncated = ReservedPrefix + "output.truncated";
 
     /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the event a run writes for model
+    /// content that no other event type covers: a hosted tool call or result, a provider
+    /// <c>ErrorContent</c>, generated or attached data, a file reference, and any content
+    /// type Tracon does not know yet.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>Text</c> is a short summary such as <c>web_search call</c> or <c>error: rate_limited</c>.
+    /// The payload is a JSON object with a <c>type</c> key and metadata, plus one bounded text:
+    /// <c>hosted_tool_call</c> and <c>hosted_tool_result</c> carry <c>tool</c>
+    /// (<c>web_search</c>, <c>code_interpreter</c>, <c>image_generation</c> or
+    /// <c>mcp_server</c>) and <c>callId</c>; <c>error</c> carries <c>errorCode</c> and
+    /// <c>message</c>; <c>data</c> carries <c>mediaType</c> and <c>length</c> in bytes;
+    /// <c>uri</c> carries <c>mediaType</c>; <c>hosted_file</c> and
+    /// <c>hosted_vector_store</c> carry <c>id</c>; <c>unrecognized</c> carries
+    /// <c>clrType</c>. It never carries the content itself: no data bytes, no address of
+    /// a <c>uri</c> (a signed URL can hold a credential), no tool inputs or outputs. The one
+    /// free text is the provider's <c>message</c> of an <c>error</c>, cut at 2 048 characters
+    /// (and shorter when <c>MaxPayloadLength</c> needs it) so the JSON stays whole.
+    /// </para>
+    /// <para>
+    /// Unlike <see cref="QuotaThreshold"/> and <see cref="OutputTruncated"/>, the payload
+    /// follows <c>TraconRunRecordingOptions.RecordToolPayloads</c>: with it off the event
+    /// stays and <c>Text</c> stays, but <c>Payload</c> is <see langword="null"/>. Plain
+    /// model text and reasoning, tool calls and results, and usage and approval content
+    /// keep their own events or accounting and never produce this event. The live stream
+    /// of an agent run does not carry it; read it from <c>GET /api/runs/{id}/events</c>.
+    /// </para>
+    /// </remarks>
+    public const string Content = ReservedPrefix + "content";
+
+    /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the event a workflow run writes for a
+    /// <c>WorkflowEvent</c> that Tracon has no event type for, such as a custom event type
+    /// an executor of a code workflow raises.
+    /// </summary>
+    /// <remarks>
+    /// <c>Text</c> is the CLR type name of the event. The payload is a JSON object with
+    /// <c>eventType</c> (the full type name), <c>executorId</c> when the event type derives
+    /// from the framework's executor event, and <c>data</c>: the text of a string or chat
+    /// message payload (cut at 2 048 characters), or only the type name of any other payload,
+    /// never its <c>ToString()</c>. The payload follows
+    /// <c>TraconRunRecordingOptions.RecordToolPayloads</c> like <see cref="Content"/>. A
+    /// workflow run's stream sends the event as an <c>event</c> frame like every recorded
+    /// event.
+    /// </remarks>
+    public const string WorkflowEvent = ReservedPrefix + "workflow.event";
+
+    /// <summary>
     /// Checks whether <paramref name="customType"/> is a valid custom event
     /// type: 1-128 characters, lowercase ASCII letters, digits, <c>.</c>,
     /// <c>_</c>, or <c>-</c>, starting with a letter or digit.

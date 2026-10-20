@@ -23,8 +23,11 @@ internal static class WorkflowEventMapper
     /// logged the exception under (<c>SafeErrorText</c>), never the
     /// exception's own message. Ignored for every other event.
     /// </param>
+    /// <param name="maxPayloadLength">
+    /// The writer's <c>MaxPayloadLength</c>, which an unrecognized event's payload is fitted to.
+    /// </param>
     /// <returns>The conversion result.</returns>
-    public static WorkflowEventMapping Map(WorkflowEvent workflowEvent, string? failureText = null)
+    public static WorkflowEventMapping Map(WorkflowEvent workflowEvent, string? failureText = null, int maxPayloadLength = 0)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
 
@@ -100,7 +103,57 @@ internal static class WorkflowEventMapper
                 Text = DescribeOutput(output),
             },
 
-            _ => WorkflowEventMapping.Unknown,
+            // F-589: an event Tracon has no type for is RECORDED, not dropped. A code
+            // workflow can raise its own WorkflowEvent, and a later MAF can add a type;
+            // either way the run record must show it happened.
+            _ => new WorkflowEventMapping(DescribeUnrecognized(workflowEvent, maxPayloadLength), IsKnown: false),
+        };
+    }
+
+    /// <summary>
+    /// Describes an event Tracon does not recognize as a reserved
+    /// <see cref="RunEventCustomTypes.WorkflowEvent"/> draft.
+    /// </summary>
+    /// <param name="workflowEvent">The unrecognized event.</param>
+    /// <param name="maxPayloadLength">
+    /// The writer's <c>MaxPayloadLength</c>, or zero or less for none; the text data is cut so the
+    /// whole payload fits it.
+    /// </param>
+    /// <returns>The draft to append with the writer's reserved path.</returns>
+    /// <remarks>
+    /// <c>Text</c> is the CLR type name. The payload names the full type, the executor when
+    /// the event derives from the framework's executor event, and the data by the same rule as
+    /// an output event: text for a string or chat message, the type name for anything else.
+    /// Never <c>ToString()</c>: an arbitrary payload object would bloat the event table or put a
+    /// field in it that was never meant to be stored.
+    /// </remarks>
+    public static RunEventDraft DescribeUnrecognized(WorkflowEvent workflowEvent, int maxPayloadLength = 0)
+    {
+        ArgumentNullException.ThrowIfNull(workflowEvent);
+
+        var type = workflowEvent.GetType();
+        var executorId = (workflowEvent as ExecutorEvent)?.ExecutorId;
+
+        var payload = ContentEventPayload.BuildFitting(
+            maxPayloadLength,
+            DescribeData(workflowEvent.Data),
+            data => ContentEventPayload.Build(writer =>
+            {
+                ContentEventPayload.WriteString(writer, "eventType", type.FullName ?? type.Name);
+
+                if (executorId is not null)
+                {
+                    ContentEventPayload.WriteString(writer, "executorId", executorId);
+                }
+
+                ContentEventPayload.WriteString(writer, "data", data);
+            }));
+
+        return new RunEventDraft(RunEventType.Custom)
+        {
+            CustomType = RunEventCustomTypes.WorkflowEvent,
+            Text = type.Name,
+            Payload = payload,
         };
     }
 
@@ -118,8 +171,11 @@ internal static class WorkflowEventMapper
     {
         ArgumentNullException.ThrowIfNull(output);
 
-        var data = output.Data;
+        return DescribeData(output.Data);
+    }
 
+    private static string? DescribeData(object? data)
+    {
         return data switch
         {
             null => null,
@@ -152,17 +208,15 @@ internal static class WorkflowEventMapper
 /// <param name="Draft">The event draft to write. <see langword="null"/> if the event was skipped.</param>
 /// <param name="IsKnown">
 /// Whether the event type is recognized. An event where this is
-/// <see langword="false"/> is <strong>not dropped silently</strong>; the
-/// caller logs it: if Microsoft Agent Framework adds a new event type one day,
-/// missing that would make debugging impossible.
+/// <see langword="false"/> is <strong>not dropped silently</strong>: its draft is a
+/// reserved <see cref="RunEventCustomTypes.WorkflowEvent"/> event, which the caller
+/// appends with the writer's reserved path. If Microsoft Agent Framework adds a new
+/// event type one day, missing that would make debugging impossible.
 /// </param>
 internal readonly record struct WorkflowEventMapping(RunEventDraft? Draft, bool IsKnown)
 {
     /// <summary>A recognized event that is not written to the event stream.</summary>
     public static WorkflowEventMapping Skipped { get; } = new(null, IsKnown: true);
-
-    /// <summary>An unrecognized event.</summary>
-    public static WorkflowEventMapping Unknown { get; } = new(null, IsKnown: false);
 
     /// <summary>Converts a draft into a recognized conversion result.</summary>
     /// <param name="draft">The event draft.</param>

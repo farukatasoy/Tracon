@@ -5300,6 +5300,8 @@ Tracon.TraconOutputTruncatedException.TraconOutputTruncatedException(string! mes
 const Tracon.TraconOutputTruncatedException.OutputTruncatedErrorType = "output_truncated" -> string!
 override Tracon.TraconOutputTruncatedException.ErrorType.get -> string!
 const Tracon.RunEventCustomTypes.OutputTruncated = "tracon.output.truncated" -> string!
+const Tracon.RunEventCustomTypes.Content = "tracon.content" -> string!
+const Tracon.RunEventCustomTypes.WorkflowEvent = "tracon.workflow.event" -> string!
 Tracon.ModelOutputLimit
 Tracon.ModelOutputLimit.<Clone>$() -> Tracon.ModelOutputLimit!
 Tracon.ModelOutputLimit.DefaultMaxOutputTokens.get -> int

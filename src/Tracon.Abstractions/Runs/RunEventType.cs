@@ -27,9 +27,11 @@ namespace Tracon;
 /// detail: <see cref="WorkflowRequest"/>, which is the only place a pending
 /// human request can be read from, <see cref="WorkflowResponseApplied"/>, which
 /// is the only link from an answer's run back to the run it answered, and
-/// <see cref="Custom"/> under <c>RunEventCustomTypes.ReservedPrefix</c>, whose
-/// payload carries the dedup key a client needs to act on the frame. A
-/// consumer's OWN <see cref="Custom"/> event is not exempt.
+/// <see cref="Custom"/> of the two notice types <c>RunEventCustomTypes.QuotaThreshold</c>
+/// and <c>RunEventCustomTypes.OutputTruncated</c>, whose payload carries the dedup
+/// key a client needs to act on the frame. A consumer's OWN <see cref="Custom"/>
+/// event is not exempt, and neither are the other reserved types
+/// (<c>RunEventCustomTypes.Content</c>, <c>RunEventCustomTypes.WorkflowEvent</c>).
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonStringEnumConverter<RunEventType>))]
@@ -289,7 +291,8 @@ public enum RunEventType
     /// follows the general rule in the type's remarks: with
     /// <c>TraconRunRecordingOptions.RecordToolPayloads</c> off it still
     /// appears in the stream but <c>Payload</c> is <see langword="null"/>. Only
-    /// a type under <see cref="RunEventCustomTypes.ReservedPrefix"/> is exempt.
+    /// <see cref="RunEventCustomTypes.QuotaThreshold"/> and
+    /// <see cref="RunEventCustomTypes.OutputTruncated"/> are exempt.
     /// </summary>
     /// <remarks>
     /// The escape hatch for the otherwise closed set of event types above.
