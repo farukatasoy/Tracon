@@ -258,10 +258,73 @@ public sealed partial class RunRecordingAgent
                     break;
 
                 default:
-                    await WriteUnrecognizedContentAsync(scope, content, cancellationToken).ConfigureAwait(false);
+                    await WriteHostedOrUnrecognizedContentAsync(scope, content, cancellationToken).ConfigureAwait(false);
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Writes the call of a registered hosted tool as that tool's call, and everything else no event covers
+    /// as a content event.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The cost ring learned the registered name from the options of the model call and left it in the run's
+    /// ledger; a call it did not name belongs to a tool Tracon did not register, such as the harness's
+    /// web search, and stays a content event. The result of a registered call is part of the same
+    /// call: the provider ran the tool inside the model call, so the call's own pair of events is written
+    /// when its content arrives and the result adds no event.
+    /// </para>
+    /// </remarks>
+    private async ValueTask WriteHostedOrUnrecognizedContentAsync(
+        RunScope scope,
+        AIContent content,
+        CancellationToken cancellationToken)
+    {
+        if (scope.HostedCalls is { } ledger)
+        {
+            // The ledger holds only calls of registered tools, by the identifier the provider assigned, so
+            // the content's own type does not matter here: a file search has no type of its own.
+            if (content is ToolCallContent call && ledger.TryGetName(call.CallId, out var toolName))
+            {
+                // One call, however many contents a stream shows it in.
+                if (ledger.TryClaimWrite(call.CallId))
+                {
+                    await WriteHostedToolCallAsync(scope, toolName, call.CallId, cancellationToken).ConfigureAwait(false);
+                }
+
+                return;
+            }
+
+            if (content is ToolResultContent result && ledger.TryGetName(result.CallId, out _))
+            {
+                return;
+            }
+        }
+
+        await WriteUnrecognizedContentAsync(scope, content, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask WriteHostedToolCallAsync(
+        RunScope scope,
+        string toolName,
+        string callId,
+        CancellationToken cancellationToken)
+    {
+        var record = scope.Tools.OnHostedCall(callId, toolName);
+
+        await scope.Writer.AppendAsync(
+            new RunEventDraft(RunEventType.ToolInvoking) { ToolName = toolName, ToolCallId = callId },
+            cancellationToken).ConfigureAwait(false);
+
+        await scope.Writer.AppendAsync(
+            new RunEventDraft(RunEventType.ToolInvoked) { ToolName = toolName, ToolCallId = callId },
+            cancellationToken).ConfigureAwait(false);
+
+        await scope.Writer.RecordToolInvocationAsync(record, cancellationToken).ConfigureAwait(false);
+
+        _metrics?.RecordToolInvocation(toolName, record.Succeeded, record.Duration);
     }
 
     /// <summary>

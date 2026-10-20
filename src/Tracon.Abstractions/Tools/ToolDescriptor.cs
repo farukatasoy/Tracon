@@ -49,6 +49,19 @@ public sealed record ToolDescriptor
     /// </remarks>
     public bool RunsOnClient { get; init; }
 
+    /// <summary>
+    /// The kind of a hosted tool, or <see langword="null"/> for a tool Tracon calls.
+    /// </summary>
+    /// <remarks>
+    /// A hosted tool (<c>AddHostedTool</c>) runs on the model provider's side inside the model
+    /// call. Tracon puts no timeout, approval or permission in front of it, so
+    /// <see cref="RequiresApproval"/>, <see cref="RequiredPermission"/> and <see cref="Timeout"/>
+    /// stay empty. The UI shows this field as a <em>separate badge</em>, and the provider's
+    /// API surface decides whether the kind runs (the agent validation names a surface that
+    /// does not).
+    /// </remarks>
+    public HostedToolKind? HostedKind { get; init; }
+
     /// <summary>The tool's effect class. Defaults to <see cref="ToolEffect.Read"/>.</summary>
     /// <remarks>
     /// Information, not a gate — see <see cref="ToolEffect"/>. An MCP-sourced

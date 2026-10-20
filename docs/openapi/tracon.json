@@ -4079,7 +4079,7 @@
           "Agents"
         ],
         "summary": "Lists registered tools and their JSON schemas.",
-        "description": "Tools are defined only in code. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent.",
+        "description": "Tools are defined only in code. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent. A hosted tool (a web search, a code interpreter or a file search the model provider runs) carries hostedKind and no JSON schema; whether the provider of an agent\u0027s model runs it is reported by POST /api/agents/validate. Listing runs no factory of the host.",
         "operationId": "TraconListTools",
         "responses": {
           "200": {
@@ -11935,6 +11935,15 @@
         },
         "description": "Settings for the harness capabilities. It mirrors a safe subset of the\n\u0060HarnessAgentOptions\u0060 structure of Microsoft Agent Framework."
       },
+      "HostedToolKind": {
+        "enum": [
+          "WebSearch",
+          "CodeInterpreter",
+          "FileSearch",
+          null
+        ],
+        "description": "The kind of a tool the model provider runs on its own side: a web search, a code interpreter or a file search."
+      },
       "IFormFile": {
         "type": "string",
         "format": "binary"
@@ -17821,6 +17830,17 @@
           "runsOnClient": {
             "type": "boolean",
             "description": "Whether the tool\u0027s body runs on the caller (typically a browser)\ninstead of on the server."
+          },
+          "hostedKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The kind of a hosted tool, or \u0060null\u0060 for a tool Tracon calls.",
+                "$ref": "#/components/schemas/HostedToolKind"
+              }
+            ]
           },
           "effect": {
             "description": "The tool\u0027s effect class. Defaults to ToolEffect.Read.",

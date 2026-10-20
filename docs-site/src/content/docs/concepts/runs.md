@@ -244,7 +244,7 @@ carries the content itself, only metadata and, where noted, one bounded text.
 
 | `customType` | Written for | `Text` | Payload keys |
 |---|---|---|---|
-| `tracon.content` | A hosted tool call or result (web search, code interpreter, image generation, hosted MCP) | `web_search call`, `web_search result` | `type` (`hosted_tool_call` or `hosted_tool_result`), `tool`, `callId` |
+| `tracon.content` | A hosted tool call or result that no registered hosted tool owns (the harness's web search, image generation, hosted MCP) | `web_search call`, `web_search result` | `type` (`hosted_tool_call` or `hosted_tool_result`), `tool`, `callId` |
 | `tracon.content` | An `ErrorContent` the provider returned inside a response | `error: <code>` | `type` (`error`), `errorCode`, `message` (cut at 2 048 characters) |
 | `tracon.content` | Generated or attached data | `data: <media type>` | `type` (`data`), `mediaType`, `length` in bytes — never the bytes |
 | `tracon.content` | A `UriContent` | `uri: <media type>` | `type` (`uri`), `mediaType` — never the address, because a signed URL can carry a credential |
@@ -253,7 +253,9 @@ carries the content itself, only metadata and, where noted, one bounded text.
 | `tracon.workflow.event` | A `WorkflowEvent` that is not one of the types the workflow stream already maps | The event's type name | `eventType` (full name), `executorId` when the event derives from `ExecutorEvent`, `data` (cut at 2 048 characters) |
 
 Plain text and reasoning keep their own events (and their own options), tool calls and
-results keep the tool events, usage is part of the run's usage, and an approval request is
+results keep the tool events, and so does a call of a [hosted tool](/guides/hosted-tools/) that the host
+registered: a `ToolInvoking` and a `ToolInvoked` event under the registered name, with the provider's call
+identifier and no payload (its cost is on the tool invocation record), usage is part of the run's usage, and an approval request is
 the run's pending request, so none of those writes a `tracon.content` event. A workflow
 event's `data` is the text of a string or chat message, and only the type name of anything
 else — never the object's `ToString()`.

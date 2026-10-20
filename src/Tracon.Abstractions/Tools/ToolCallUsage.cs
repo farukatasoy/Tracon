@@ -96,4 +96,7 @@ public static class ToolUsageUnits
 
     /// <summary>Output tokens. Used when an image provider bills image generation by tokens.</summary>
     public const string Tokens = "tokens";
+
+    /// <summary>Calls. Used when a provider bills a hosted tool, such as a web search, by the call.</summary>
+    public const string Calls = "calls";
 }

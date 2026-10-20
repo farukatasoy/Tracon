@@ -74,6 +74,13 @@ An agent created from the UI or the HTTP API can *select* from these tools, but 
 **code** can never be written through them. That is a security boundary, and it is
 not configurable.
 
+A web search, a code interpreter or a file search that the *model provider* runs is a hosted tool.
+`AddHostedTool(name, HostedToolKind.WebSearch, _ => new HostedWebSearchTool())` registers it in code, and a
+definition selects it by name in `ToolNames`. The provider runs it inside the model call, so no approval,
+permission or timeout applies. A provider's API surface decides which kinds run, and each call is priced
+with `Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall`. See
+[Hosted tools](https://tracon.dev/guides/hosted-tools/).
+
 > A tool receives an **empty** service provider from MAF, so it cannot resolve a
 > dependency at call time. Take dependencies at registration instead — register a
 > factory, or close over the instance you need. Instance-method tools registered by

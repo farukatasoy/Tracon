@@ -3,7 +3,7 @@ using Microsoft.Extensions.AI;
 namespace Tracon.Core.UnitTests.Fakes;
 
 /// <summary>A fake single-model provider used in tests.</summary>
-internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplingSupport
+internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplingSupport, IHostedToolSupport
 {
     private readonly IChatClient _client;
 
@@ -11,11 +11,13 @@ internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISampl
         IChatClient? client = null,
         string name = "fake",
         IReadOnlyList<ModelDescriptor>? models = null,
-        SamplingFields? supportedSamplingFields = null)
+        SamplingFields? supportedSamplingFields = null,
+        HostedToolKinds? supportedHostedTools = null)
     {
         _client = client ?? new FakeChatClient();
         Name = name;
         SupportedSamplingFields = supportedSamplingFields ?? AllSamplingFields;
+        SupportedHostedTools = supportedHostedTools ?? AllHostedTools;
         Models = models ??
         [
             new ModelDescriptor { Name = "fake-model", ContextWindowTokens = 8_192, MaxOutputTokens = 1_024 },
@@ -33,9 +35,15 @@ internal sealed class FakeModelProvider : ITenantCredentialModelProvider, ISampl
         | SamplingFields.AllowMultipleToolCalls
         | SamplingFields.ReasoningOutput;
 
+    /// <summary>Every kind: a fake runs no tool, so a test limits it only when it tests the limit.</summary>
+    public const HostedToolKinds AllHostedTools =
+        HostedToolKinds.WebSearch | HostedToolKinds.CodeInterpreter | HostedToolKinds.FileSearch;
+
     public string Name { get; }
 
     public SamplingFields SupportedSamplingFields { get; }
+
+    public HostedToolKinds SupportedHostedTools { get; }
 
     public IReadOnlyList<ModelDescriptor> Models { get; }
 

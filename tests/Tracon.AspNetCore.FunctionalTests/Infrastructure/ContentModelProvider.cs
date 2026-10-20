@@ -9,31 +9,75 @@ namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
 /// hosted tool, error and data content through the real run recording pipeline (F-589).
 /// </summary>
 /// <remarks>
+/// <para>
 /// The buffered path returns one message holding every content; the streaming path sends each content
 /// as its own update, the way a provider adapter does.
+/// </para>
+/// <para>
+/// F-603: it states which hosted tools its surface runs (every kind unless a test narrows it) and keeps the
+/// options of every call, so a test sees the tools that reached the model.
+/// </para>
 /// </remarks>
-internal sealed class ContentModelProvider(IReadOnlyList<AIContent> contents, string name = "scripted") : IModelProvider
+internal sealed class ContentModelProvider(
+    IReadOnlyList<AIContent> contents,
+    string name = "scripted",
+    HostedToolKinds supportedHostedTools = ContentModelProvider.AllHostedTools)
+    : IModelProvider, IHostedToolSupport
 {
+    /// <summary>Every kind a hosted tool can have.</summary>
+    public const HostedToolKinds AllHostedTools =
+        HostedToolKinds.WebSearch | HostedToolKinds.CodeInterpreter | HostedToolKinds.FileSearch;
+
+    private readonly List<ChatOptions?> _options = [];
+
     public string Name { get; } = name;
 
     public IReadOnlyList<ModelDescriptor> Models { get; } =
         [new ModelDescriptor { Name = $"{name}-1" }];
 
-    public IChatClient CreateChatClient(ModelBinding binding) => new Client(contents);
+    public HostedToolKinds SupportedHostedTools { get; } = supportedHostedTools;
 
-    private sealed class Client(IReadOnlyList<AIContent> contents) : IChatClient
+    /// <summary>The options of every model call, oldest first.</summary>
+    public IReadOnlyList<ChatOptions?> Options
+    {
+        get
+        {
+            lock (_options)
+            {
+                return [.. _options];
+            }
+        }
+    }
+
+    public IChatClient CreateChatClient(ModelBinding binding) => new Client(contents, Record);
+
+    private void Record(ChatOptions? options)
+    {
+        lock (_options)
+        {
+            _options.Add(options);
+        }
+    }
+
+    private sealed class Client(IReadOnlyList<AIContent> contents, Action<ChatOptions?> record) : IChatClient
     {
         public Task<ChatResponse> GetResponseAsync(
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, [.. contents])));
+        {
+            record(options);
+
+            return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, [.. contents])));
+        }
 
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            record(options);
+
             foreach (var content in contents)
             {
                 await Task.Yield();

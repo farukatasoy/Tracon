@@ -18,7 +18,7 @@ namespace Tracon;
 /// an empty response, the run is recorded with a <c>content_filtered</c> error.
 /// </para>
 /// </remarks>
-internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport
+internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IModelProviderHealthCheck, IModelProviderConfigurationDiagnostics, ISamplingSupport, IHostedToolSupport
 {
     private readonly GoogleChatClientFactory _chatClientFactory;
     private readonly ILogger<GoogleModelProvider>? _logger;
@@ -95,6 +95,14 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
         | SamplingFields.PresencePenalty
         | SamplingFields.ToolMode
         | SamplingFields.ReasoningOutput;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Measured with a real call (2026-10-20, <c>gemini-3.6-flash</c>): the web search and the code
+    /// execution run. The adapter maps a file search to Google's <c>Retrieval</c> tool, which needs a
+    /// retrieval source Tracon has no way to name, so it is not reported.
+    /// </remarks>
+    public HostedToolKinds SupportedHostedTools => HostedToolKinds.WebSearch | HostedToolKinds.CodeInterpreter;
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)

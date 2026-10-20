@@ -2,6 +2,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -175,6 +176,9 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 SupportedSamplingFields = provider is ISamplingSupport sampling
                     ? sampling.SupportedSamplingFields
                     : SamplingFields.None,
+                SupportedHostedTools = provider is IHostedToolSupport hostedTools
+                    ? hostedTools.SupportedHostedTools
+                    : HostedToolKinds.None,
             });
         }
 
@@ -497,6 +501,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
                 _metrics,
                 _loggerFactory?.CreateLogger<TraconResponseCachingChatClient>()));
         }
+
+        // 🚨 The hosted tool ring sits INSIDE the response cache, right above telemetry (F-603): it
+        // reads the calls of a response the provider really answered. Above the cache, a hit that
+        // replays a response with a web search in it would bill the search a second time.
+        pipelineBuilder = pipelineBuilder.Use(ringInner => new HostedToolUsageChatClient(
+            ringInner,
+            binding.Provider,
+            _services?.GetService<IOptionsMonitor<TraconOptions>>(),
+            _loggerFactory?.CreateLogger<HostedToolUsageChatClient>()));
 
         chatClient = pipelineBuilder
             .UseOpenTelemetry(_loggerFactory, TraconDiagnostics.ActivitySourceName)

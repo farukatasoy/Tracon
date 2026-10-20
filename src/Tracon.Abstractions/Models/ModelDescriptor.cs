@@ -101,4 +101,14 @@ public sealed record ModelProviderDescriptor
     /// definition that sets a field the provider would drop.
     /// </remarks>
     internal SamplingFields SupportedSamplingFields { get; init; }
+
+    /// <summary>
+    /// Gets the hosted tool kinds the provider's API surface runs, as the provider stated them
+    /// through <see cref="IHostedToolSupport"/>.
+    /// </summary>
+    /// <remarks>
+    /// Not part of the wire shape. The compiler and the validator read it to reject a
+    /// definition that selects a hosted tool the provider would drop.
+    /// </remarks>
+    internal HostedToolKinds SupportedHostedTools { get; init; }
 }

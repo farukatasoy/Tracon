@@ -464,6 +464,38 @@ public sealed class RunContinuationTests
     }
 
     [Fact]
+    public async Task A_hosted_tool_call_in_the_interrupted_run_does_not_block_continuation()
+    {
+        // F-603: the provider ran the hosted call inside a model turn that already answered. A continuation sends the
+        // history on and runs no hosted call again, so there is no effect to repeat. Before the phase a hosted call
+        // was a content event, wrote no tool record, and never met this check.
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(
+            o => o.Enabled = true,
+            configureTracon: static builder => builder.AddHostedTool(
+                "provider_search",
+                HostedToolKind.WebSearch,
+                static _ => new HostedWebSearchTool()));
+
+        var sourceRunId = await SeedCrashedRunAsync(host);
+
+        await host.Services.GetRequiredService<IRunStore>().RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = sourceRunId,
+            ToolName = "provider_search",
+            ToolCallId = "ws_1",
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
+        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+
+        continuation.ShouldNotBeNull().ContinuedFromRunId.ShouldBe(sourceRunId);
+    }
+
+    [Fact]
     public async Task A_sessionless_run_is_never_continued()
     {
         await using var host = await StartHostAsync(o => o.Enabled = true);

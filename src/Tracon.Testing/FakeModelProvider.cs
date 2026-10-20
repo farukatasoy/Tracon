@@ -29,7 +29,7 @@ namespace Tracon.Testing;
 /// EchoesUserMessage();
 /// </code>
 /// </example>
-public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplingSupport, IDisposable
+public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplingSupport, IHostedToolSupport, IDisposable
 {
     private readonly Dictionary<string, FakeModelScript> _scripts = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ModelDescriptor> _models = [];
@@ -70,6 +70,15 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, ISamplin
         | SamplingFields.ToolMode
         | SamplingFields.AllowMultipleToolCalls
         | SamplingFields.ReasoningOutput;
+
+    /// <summary>
+    /// Gets every kind: the fake runs no tool, so it accepts what a definition selects and
+    /// <see cref="Requests"/> shows the tools that reached it.
+    /// </summary>
+    public HostedToolKinds SupportedHostedTools =>
+        HostedToolKinds.WebSearch
+        | HostedToolKinds.CodeInterpreter
+        | HostedToolKinds.FileSearch;
 
     /// <summary>Requests that reached this provider; the newest is last.</summary>
     public IReadOnlyList<FakeModelRequest> Requests

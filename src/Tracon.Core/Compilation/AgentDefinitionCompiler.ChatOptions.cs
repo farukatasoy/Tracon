@@ -113,10 +113,19 @@ public sealed partial class AgentDefinitionCompiler
     {
         var tools = new List<AITool>(definition.ToolNames.Count);
         List<string>? missing = null;
+        HostedToolContext? hostedContext = null;
+
+        CheckHostedTools(definition);
 
         foreach (var toolName in definition.ToolNames)
         {
-            if (_tools.TryGet(toolName, out var tool))
+            // A hosted tool first: a name a host registered in code must not turn into a remote tool
+            // of the same name the day a server publishes one.
+            if (_hostedTools.TryGet(toolName, out var hosted))
+            {
+                tools.Add(HostedToolRegistry.Create(hosted, hostedContext ??= CreateHostedToolContext(definition), definition.Name));
+            }
+            else if (_tools.TryGet(toolName, out var tool))
             {
                 tools.Add(tool);
             }
@@ -128,7 +137,7 @@ public sealed partial class AgentDefinitionCompiler
 
         if (missing is not null)
         {
-            var registered = _tools.List();
+            var registered = _tools.List().Concat(_hostedTools.Descriptors).ToList();
             var available = registered.Count == 0
                 ? "no tools are registered"
                 : string.Join(", ", registered.Select(static descriptor => descriptor.Name));
@@ -143,6 +152,48 @@ public sealed partial class AgentDefinitionCompiler
         }
 
         return tools;
+    }
+
+    // What a hosted tool's factory may read: the tenant the agent is compiled for (the same one the
+    // agent extensions get), the provider of the primary binding, and the host's services.
+    private HostedToolContext CreateHostedToolContext(AgentDefinition definition)
+        => new()
+        {
+            TenantId = ResolveTenantId(definition),
+            Provider = definition.Model.Provider,
+            Services = _services ?? NoServices.Instance,
+        };
+
+    /// <summary>
+    /// Stops the compilation when the hosted tools a definition selects are not acceptable: two of a
+    /// kind, a second web search, a tool mode that requires one, or a provider that would drop one.
+    /// </summary>
+    /// <remarks>
+    /// The rules live in <see cref="HostedToolRegistry.FindProblems"/> and
+    /// <see cref="HostedToolSupportCheck"/>, which the validation report reads too. A definition saved over
+    /// HTTP passed them there, and a definition written in code never met the validator.
+    /// </remarks>
+    private void CheckHostedTools(AgentDefinition definition)
+    {
+        var selected = _hostedTools.Selected(definition);
+
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var messages = _hostedTools.FindProblems(definition).Select(static problem => problem.Message)
+            .Concat(HostedToolSupportCheck.Unsupported(_models, definition.Model, selected).Select(static finding => finding.Describe()))
+            .ToList();
+
+        if (messages.Count > 0)
+        {
+            throw new TraconCompilationException(
+                $"Agent '{definition.Name}' selects hosted tools that cannot run: {string.Join(" ", messages)}")
+            {
+                AgentName = definition.Name,
+            };
+        }
     }
 
     private ChatOptions BuildChatOptions(AgentDefinition definition, List<AITool> tools, string? culture, string? sharedInstructions)

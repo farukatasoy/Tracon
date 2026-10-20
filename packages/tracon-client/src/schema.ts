@@ -1417,7 +1417,7 @@ export interface paths {
         };
         /**
          * Lists registered tools and their JSON schemas.
-         * @description Tools are defined only in code. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent.
+         * @description Tools are defined only in code. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent. A hosted tool (a web search, a code interpreter or a file search the model provider runs) carries hostedKind and no JSON schema; whether the provider of an agent's model runs it is reported by POST /api/agents/validate. Listing runs no factory of the host.
          */
         get: operations["TraconListTools"];
         put?: never;
@@ -4639,6 +4639,11 @@ export interface components {
             disableAgentModeProvider?: boolean;
             loop?: null | components["schemas"]["LoopSettings"];
         };
+        /**
+         * @description The kind of a tool the model provider runs on its own side: a web search, a code interpreter or a file search.
+         * @enum {unknown}
+         */
+        HostedToolKind: "WebSearch" | "CodeInterpreter" | "FileSearch" | null;
         /** Format: binary */
         IFormFile: string;
         /** @description The request body for an operator image-generation action. */
@@ -7615,6 +7620,7 @@ export interface components {
              *     instead of on the server.
              */
             runsOnClient?: boolean;
+            hostedKind?: null | components["schemas"]["HostedToolKind"];
             /** @description The tool's effect class. Defaults to ToolEffect.Read. */
             effect?: components["schemas"]["ToolEffect"];
             /**
@@ -8869,6 +8875,7 @@ export type ExperimentVariant = components['schemas']['ExperimentVariant'];
 export type ExperimentVariantResult = components['schemas']['ExperimentVariantResult'];
 export type ExtensionPointDiagnostic = components['schemas']['ExtensionPointDiagnostic'];
 export type HarnessSettings = components['schemas']['HarnessSettings'];
+export type HostedToolKind = components['schemas']['HostedToolKind'];
 export type IFormFile = components['schemas']['IFormFile'];
 export type ImageGenerationOperatorRequest = components['schemas']['ImageGenerationOperatorRequest'];
 export type ImageGenerationOperatorResponse = components['schemas']['ImageGenerationOperatorResponse'];

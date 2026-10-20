@@ -61,7 +61,7 @@ public sealed partial class AgentDefinitionCompiler
         var callable = await ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
         var shared = await ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
         var egress = await ResolveEgressPolicyFingerprintAsync(cancellationToken).ConfigureAwait(false);
-        var toolBindings = ResolveToolBindingFingerprint(definition);
+        var (toolBindings, opaqueHostedTool) = ResolveToolBindingFingerprint(definition);
 
         return new AgentCompilationDependencies
         {
@@ -73,7 +73,10 @@ public sealed partial class AgentDefinitionCompiler
                         shared.Fingerprint),
                     egress),
                 toolBindings),
-            BypassCache = await HoldsTenantCredentialAsync(definition, cancellationToken).ConfigureAwait(false),
+
+            // A hosted tool the fingerprint cannot compare could differ with the same key: the agent is compiled
+            // for every run, as one that holds a tenant's own credential is.
+            BypassCache = opaqueHostedTool || await HoldsTenantCredentialAsync(definition, cancellationToken).ConfigureAwait(false),
         };
     }
 
@@ -94,10 +97,19 @@ public sealed partial class AgentDefinitionCompiler
     // changes the key and the next resolve compiles against the live one. A name
     // missing from the snapshot changes the key too: the cached path then fails the
     // way an uncached compile does.
-    private string ResolveToolBindingFingerprint(AgentDefinition definition)
-        => definition.ToolNames.Count > 0 && _tools is IToolBindingResolver bindings
-            ? bindings.GetBindingFingerprint(definition.ToolNames)
+    //
+    // F-603: a hosted tool is baked in too. Its factory reads state outside the definition (the identifier
+    // of a tenant's own vector store), so what the factory builds is hashed with the bindings.
+    private (string Fingerprint, bool OpaqueHostedTool) ResolveToolBindingFingerprint(AgentDefinition definition)
+    {
+        var bindings = definition.ToolNames.Count > 0 && _tools is IToolBindingResolver resolver
+            ? resolver.GetBindingFingerprint(definition.ToolNames)
             : string.Empty;
+
+        var hosted = _hostedTools.Fingerprint(definition, CreateHostedToolContext(definition));
+
+        return (hosted.Text.Length == 0 ? bindings : CompiledAgentCache.CombineFingerprints(bindings, hosted.Text), hosted.Opaque);
+    }
 
     /// <summary>Produces the cache fingerprint of the current tenant's egress policy.</summary>
     /// <returns>

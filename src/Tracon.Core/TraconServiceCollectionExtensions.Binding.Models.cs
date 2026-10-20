@@ -7,8 +7,8 @@ public static partial class TraconServiceCollectionExtensions
 {
     /// <summary>
     /// Binds the <c>Tracon:Pricing</c> section. The <c>Currency</c>,
-    /// <c>Voice</c>, and <c>Images</c> keys are reserved; every other child is
-    /// read as a provider name.
+    /// <c>Voice</c>, <c>Images</c>, and <c>HostedTools</c> keys are reserved;
+    /// every other child is read as a provider name.
     /// </summary>
     private static void BindPricing(IConfigurationSection section, TraconPricingOptions options)
     {
@@ -24,6 +24,7 @@ public static partial class TraconServiceCollectionExtensions
 
         BindVoicePricing(section.GetSection(nameof(TraconPricingOptions.Voice)), options);
         BindImagePricing(section.GetSection(nameof(TraconPricingOptions.Images)), options);
+        BindHostedToolPricing(section.GetSection(nameof(TraconPricingOptions.HostedTools)), options);
 
         foreach (var providerSection in section.GetChildren())
         {
@@ -40,6 +41,10 @@ public static partial class TraconServiceCollectionExtensions
                 string.Equals(
                     providerSection.Key,
                     nameof(TraconPricingOptions.Images),
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    providerSection.Key,
+                    nameof(TraconPricingOptions.HostedTools),
                     StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -119,6 +124,38 @@ public static partial class TraconServiceCollectionExtensions
             if (models.Count > 0)
             {
                 options.Voice[providerSection.Key] = models;
+            }
+        }
+    }
+
+    /// <summary>Binds the <c>Tracon:Pricing:HostedTools</c> section.</summary>
+    /// <remarks>
+    /// The record is added even when <c>PerCall</c> is missing, for the reason
+    /// <see cref="BindPricing"/> adds an empty model price: a misspelled key must reach
+    /// <c>TraconOptionsValidator</c> and fail the start, not vanish.
+    /// </remarks>
+    private static void BindHostedToolPricing(IConfigurationSection section, TraconPricingOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        foreach (var providerSection in section.GetChildren())
+        {
+            var kinds = new Dictionary<string, HostedToolPriceOverride>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kindSection in providerSection.GetChildren())
+            {
+                kinds[kindSection.Key] = new HostedToolPriceOverride
+                {
+                    PerCall = ReadDecimal(kindSection, nameof(HostedToolPriceOverride.PerCall)),
+                };
+            }
+
+            if (kinds.Count > 0)
+            {
+                options.HostedTools[providerSection.Key] = kinds;
             }
         }
     }

@@ -42,6 +42,16 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
     /// <summary>The JSON body of every request to <c>/v1/responses</c>, in order.</summary>
     public List<JsonObject> ResponsesBodies { get; } = [];
 
+    /// <summary>
+    /// The output items every <c>/v1/responses</c> answer carries BEFORE its message (a web search call, a code
+    /// interpreter call, a file search call), or <see langword="null"/> for the message alone.
+    /// </summary>
+    /// <remarks>
+    /// F-603: what a hosted tool call becomes in the run record depends on the content types the real adapter
+    /// builds from the provider's items, so the items are answered over the wire and parsed by the real SDK.
+    /// </remarks>
+    public JsonArray? ResponsesOutputBeforeMessage { get; set; }
+
     /// <summary>How many times <c>/v1/chat/completions</c> was called.</summary>
     public int ChatCompletionCallCount { get; private set; }
 
@@ -129,6 +139,19 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
         {
             server!.ResponsesBodies.Add(await ReadBodyAsync(context).ConfigureAwait(false));
 
+            var output = new JsonArray();
+
+            foreach (var item in server.ResponsesOutputBeforeMessage ?? [])
+            {
+                output.Add(item!.DeepClone());
+            }
+
+            output.Add(JsonNode.Parse(
+                """
+                {"type":"message","id":"msg_fake","status":"completed","role":"assistant",
+                 "content":[{"type":"output_text","text":"hello from local","annotations":[]}]}
+                """));
+
             return Results.Json(new
             {
                 id = "resp_fake",
@@ -136,17 +159,7 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
                 created_at = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 status = "completed",
                 model = "fake-local-model",
-                output = new object[]
-                {
-                    new
-                    {
-                        type = "message",
-                        id = "msg_fake",
-                        status = "completed",
-                        role = "assistant",
-                        content = new object[] { new { type = "output_text", text = "hello from local", annotations = Array.Empty<object>() } },
-                    },
-                },
+                output,
                 usage = new
                 {
                     input_tokens = 5,

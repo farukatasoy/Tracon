@@ -8909,7 +8909,7 @@ namespace Tracon.Client.Generated
         /// Lists registered tools and their JSON schemas.
         /// </summary>
         /// <remarks>
-        /// Tools are defined only in code. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent.
+        /// Tools are defined only in code. This endpoint does not offer a write path; the UI lets users pick from this list when defining an agent. A hosted tool (a web search, a code interpreter or a file search the model provider runs) carries hostedKind and no JSON schema; whether the provider of an agent's model runs it is reported by POST /api/agents/validate. Listing runs no factory of the host.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -20002,7 +20002,7 @@ namespace Tracon.Client.Generated
         /// The reason for promotion. `null` when hand-written.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("sourceKind")]
-        public SourceKind? SourceKind { get; set; } = default!;
+        public EvalCaseSource? SourceKind { get; set; } = default!;
 
         /// <summary>
         /// The promotion time. `null` when hand-written.
@@ -20166,7 +20166,7 @@ namespace Tracon.Client.Generated
         /// <br/>automatically from the run's status and score.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("sourceKind")]
-        public SourceKind2? SourceKind { get; set; } = default!;
+        public EvalCaseSource? SourceKind { get; set; } = default!;
 
     }
 
@@ -20996,6 +20996,25 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("loop")]
         public LoopSettings? Loop { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// The kind of a tool the model provider runs on its own side: a web search, a code interpreter or a file search.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<HostedToolKind>))]
+    public enum HostedToolKind
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"WebSearch")]
+        WebSearch = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"CodeInterpreter")]
+        CodeInterpreter = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"FileSearch")]
+        FileSearch = 2,
 
     }
 
@@ -23866,7 +23885,7 @@ namespace Tracon.Client.Generated
         /// Error class. `null` for a successful run.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("errorClass")]
-        public ErrorClass? ErrorClass { get; set; } = default!;
+        public RunErrorClass? ErrorClass { get; set; } = default!;
 
         /// <summary>
         /// Error message. `null` for a successful run.
@@ -24021,7 +24040,7 @@ namespace Tracon.Client.Generated
         /// <br/>the user interface shows in the `Unknown` bucket.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("class")]
-        public Class? Class { get; set; } = default!;
+        public RunErrorClass? Class { get; set; } = default!;
 
         /// <summary>
         /// Gets the digest of the normalized message, used to cluster repetitions of
@@ -24141,7 +24160,7 @@ namespace Tracon.Client.Generated
         /// The error class.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("class")]
-        public RunErrorClass? Class { get; set; } = default!;
+        public RunErrorClass Class { get; set; } = default!;
 
         /// <summary>
         /// The total number of runs falling into this class.
@@ -26725,6 +26744,12 @@ namespace Tracon.Client.Generated
         public bool RunsOnClient { get; set; } = default!;
 
         /// <summary>
+        /// The kind of a hosted tool, or `null` for a tool Tracon calls.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("hostedKind")]
+        public HostedToolKind? HostedKind { get; set; } = default!;
+
+        /// <summary>
         /// The tool's effect class. Defaults to ToolEffect.Read.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("effect")]
@@ -27684,7 +27709,7 @@ namespace Tracon.Client.Generated
         /// Why the connection closed.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("endReason")]
-        public EndReason? EndReason { get; set; } = default!;
+        public VoiceSessionEndReason? EndReason { get; set; } = default!;
 
         /// <summary>
         /// The actor who opened the connection.
@@ -28093,7 +28118,7 @@ namespace Tracon.Client.Generated
         /// Gets the built-in pattern to use.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
-        public WorkflowKind? Kind { get; set; } = default!;
+        public WorkflowKind Kind { get; set; } = default!;
 
         /// <summary>
         /// Gets the agent names to enter the graph. Order is meaningful for
@@ -28229,7 +28254,7 @@ namespace Tracon.Client.Generated
         /// <br/>to a pattern.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
-        public Kind? Kind { get; set; } = default!;
+        public WorkflowKind? Kind { get; set; } = default!;
 
         /// <summary>
         /// Gets the agent names entering the graph. Can be empty for code-defined workflows.
@@ -28914,7 +28939,7 @@ namespace Tracon.Client.Generated
         /// Built-in pattern to use.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
-        public WorkflowKind? Kind { get; set; } = default!;
+        public WorkflowKind Kind { get; set; } = default!;
 
         /// <summary>
         /// Names of agents to add to the graph.
@@ -29259,66 +29284,6 @@ namespace Tracon.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class SourceKind
-    {
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class SourceKind2
-    {
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class ErrorClass
-    {
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class Class
-    {
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ToolCallContentCodeInterpreterToolCallContentType>))]
     public enum ToolCallContentCodeInterpreterToolCallContentType
     {
@@ -29365,36 +29330,6 @@ namespace Tracon.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"webSearchToolCall")]
         WebSearchToolCall = 0,
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class EndReason
-    {
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class Kind
-    {
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
 
     }
 

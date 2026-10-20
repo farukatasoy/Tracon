@@ -205,4 +205,81 @@ public static partial class TraconBuilderExtensions
 
         return builder;
     }
+
+    /// <summary>Registers a tool the model provider runs on its own side: a web search, a code interpreter or a file search.</summary>
+    /// <param name="builder">The Tracon configuration chain.</param>
+    /// <param name="name">
+    /// The name an agent definition selects the tool by in <see cref="AgentDefinition.ToolNames"/>.
+    /// It is unique among function tools and hosted tools.
+    /// </param>
+    /// <param name="kind">The kind of tool the factory builds.</param>
+    /// <param name="factory">
+    /// Builds the tool for the agent being compiled. It must return the type that matches
+    /// <paramref name="kind"/> (<c>HostedWebSearchTool</c>, <c>HostedCodeInterpreterTool</c> or
+    /// <c>HostedFileSearchTool</c>) and a new instance on every call.
+    /// </param>
+    /// <param name="description">The description the agent editor shows, or <see langword="null"/>.</param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="builder"/>, <paramref name="name"/> or <paramref name="factory"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="kind"/> is not a defined kind.</exception>
+    /// <exception cref="TraconException">The tool name does not follow the tool naming rules.</exception>
+    /// <remarks>
+    /// <para>
+    /// A hosted tool is code, as every tool is: the definition selects it by name, and its default is
+    /// off. The provider runs the tool inside the model call, so Tracon puts no timeout, approval or
+    /// permission in front of it, and what the tool reads (the web, a vector store, the data a code
+    /// interpreter is given) goes to the provider the model call already goes to. Each call is billed by the
+    /// provider: set <c>Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall</c> so the cost reaches the run's
+    /// budget, the tenant's quota and the <c>run.completed</c> webhook.
+    /// </para>
+    /// <para>
+    /// The provider's API surface decides whether the kind runs. A definition that selects a kind the
+    /// surface drops does not compile; the agent validation names the tool and the provider.
+    /// An agent selects at most one hosted tool of each kind.
+    /// </para>
+    /// <para>
+    /// The factory runs on every run of an agent that selects the tool, for the tenant of the run; keep it cheap.
+    /// A value that belongs to the tenant, such as the identifier of the tenant's own vector store, is read
+    /// there. An identifier is not a <c>secret</c>; never put a credential into a hosted tool.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .AddHostedTool(
+    ///            "docs_search",
+    ///            HostedToolKind.FileSearch,
+    ///            context => new HostedFileSearchTool
+    ///            {
+    ///                Inputs = [new HostedVectorStoreContent(
+    ///                    context.Services.GetRequiredService&lt;IConfiguration&gt;()["VectorStores:Docs"]!)],
+    ///            },
+    ///            description: "Searches the product documentation.");
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public static ITraconBuilder AddHostedTool(
+        this ITraconBuilder builder,
+        string name,
+        HostedToolKind kind,
+        Func<HostedToolContext, AITool> factory,
+        string? description = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        if (!Enum.IsDefined(kind))
+        {
+            throw new ArgumentOutOfRangeException(nameof(kind), kind, "The hosted tool kind is not defined.");
+        }
+
+        if (!ToolNameRules.IsValid(name))
+        {
+            throw new TraconException($"Tool name '{name}' is invalid. {ToolNameRules.Description}");
+        }
+
+        builder.Services.AddSingleton(new HostedToolRegistration(name, kind, factory, description));
+
+        return builder;
+    }
 }

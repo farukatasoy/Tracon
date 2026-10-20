@@ -255,7 +255,13 @@ Tracon:Pricing:Voice:{provider}:{model}:PerMinute
 Tracon:Pricing:Images:{provider}:{model}:PerImage
 Tracon:Pricing:Images:{provider}:{model}:SizeMultipliers:{provider-size}
 Tracon:Pricing:Images:{provider}:{model}:OutputCostPerMillionTokens
+Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall
 ```
+
+`HostedTools` prices the calls of a [hosted tool](/guides/hosted-tools/). The `{provider}` is the one that ran
+the call (`openai-responses`, `anthropic`, `google`), and `{kind}` is `WebSearch`, `CodeInterpreter`, or
+`FileSearch`; a name that is none of them stops the host at start. A kind with no price is listed on the
+run and not added to its cost; Tracon never prices it at zero.
 
 Values label and calculate reports only. Tracon performs no currency conversion, so
 `Currency` also decides which reported amounts add up: an amount that a workflow function node or a

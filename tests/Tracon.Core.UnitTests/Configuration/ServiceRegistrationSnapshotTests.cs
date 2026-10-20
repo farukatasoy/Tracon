@@ -141,6 +141,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.IToolArgumentsValidator | Singleton | Instance:Tracon.NoOpToolArgumentsValidator",
         "Tracon.IStructuredResponseValidator | Singleton | Instance:Tracon.NoOpStructuredResponseValidator",
         "Tracon.IToolRegistry | Singleton | Factory",
+        "Tracon.HostedToolRegistry | Singleton | Factory",
         "Tracon.ModelProviderCircuitBreaker | Singleton | Factory",
         "Tracon.ProviderConcurrencyLimiter | Singleton | Factory",
         "Tracon.ContentGuardPipeline | Singleton | Factory",

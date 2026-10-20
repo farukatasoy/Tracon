@@ -433,6 +433,35 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             }
         }
 
+        foreach (var (providerName, kinds) in pricing.HostedTools)
+        {
+            foreach (var (kindName, price) in kinds)
+            {
+                if (!Enum.TryParse<HostedToolKind>(kindName, ignoreCase: true, out var kind) || !Enum.IsDefined(kind))
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(TraconPricingOptions)}: 'HostedTools:{providerName}:{kindName}' is not a hosted tool kind. " +
+                        $"Valid kinds: {string.Join(", ", Enum.GetNames<HostedToolKind>())}.");
+
+                    continue;
+                }
+
+                if (price.PerCall is < 0)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(TraconPricingOptions)}: price for 'HostedTools:{providerName}:{kindName}' cannot be negative.");
+                }
+
+                // Same rationale as the model prices (MT-CORE-065): a key other than PerCall must fail the start.
+                if (price.PerCall is null)
+                {
+                    (failures ??= []).Add(
+                        $"{nameof(TraconPricingOptions)}: 'HostedTools:{providerName}:{kindName}' does not contain " +
+                        $"'{nameof(HostedToolPriceOverride.PerCall)}'. Check the key name.");
+                }
+            }
+        }
+
         foreach (var (providerName, models) in pricing.Images)
         {
             foreach (var (modelName, price) in models)

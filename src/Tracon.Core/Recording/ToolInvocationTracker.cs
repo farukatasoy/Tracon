@@ -162,6 +162,37 @@ internal sealed class ToolInvocationTracker
     }
 
     /// <summary>
+    /// Produces the record of a hosted tool's call. The provider ran the tool inside the model call,
+    /// so the call is complete when its content arrives and nothing is left pending.
+    /// </summary>
+    /// <param name="callId">The call identity the provider assigned.</param>
+    /// <param name="toolName">The registered tool name.</param>
+    /// <returns>The persistent record. It carries the call's cost measurement when the cost ring reported one.</returns>
+    /// <remarks>
+    /// The duration is not measured: the call happened inside the model call, whose own span holds it. The
+    /// arguments are not recorded: a search query is the user's text, and the content event never carried it
+    /// either.
+    /// </remarks>
+    public ToolInvocationRecord OnHostedCall(string callId, string toolName)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(callId);
+        ArgumentException.ThrowIfNullOrEmpty(toolName);
+
+        return new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = _runId,
+            ToolName = toolName,
+            ToolCallId = callId,
+            CreatedAt = _timeProvider.GetUtcNow(),
+            Usage = _usage?.Take(callId),
+
+            // Expected tenant stamp (K-355).
+            TenantId = _tenantId,
+        };
+    }
+
+    /// <summary>
     /// Produces records for unfinished calls and drains the tracker.
     /// </summary>
     /// <remarks>

@@ -8,6 +8,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A host registers a tool the model provider runs, and a definition selects it by name.**
+  `AddHostedTool(name, kind, factory)` registers a web search, a code interpreter or a file search
+  (`HostedToolKind`); the factory receives a `HostedToolContext` with the tenant, the provider of the
+  agent's model and the services, and builds the Microsoft.Extensions.AI tool for that tenant. A
+  definition lists the name in `ToolNames`, the same list as a function tool. The provider runs the
+  tool inside the model call, so no approval, permission or timeout applies. A provider states which
+  kinds its API surface runs through the new `IHostedToolSupport` (`HostedToolKinds`); a definition
+  that selects a kind the provider would drop, on the primary model or on a fallback, is refused when
+  the agent is built and by `POST /api/agents/validate` (`hosted_tool_unsupported`, with the path of
+  the tool name), instead of running without the tool. Measured against the request each adapter
+  writes: `openai-responses` runs all three kinds, `anthropic` and `google` run the web search and
+  the code interpreter, `openai` (Chat Completions) and `azure-openai` run none. An agent selects at
+  most one hosted tool of each kind; the cached compiled agent follows what the factory builds, so a
+  tenant that replaces its vector store reaches the next run. `GET /api/tools` lists hosted tools with
+  `ToolDescriptor.HostedKind`, the console shows a badge, and the sample has `hosted-openai`,
+  `hosted-claude` and `hosted-gemini`.
+- **A hosted tool call is priced.** `Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall` sets the price
+  of one call. The amount joins the run's non-token cost, so the budget, the quota and the
+  `run.completed` webhook count it once, and a budget the call used up stops the next model turn. A
+  kind with no price is listed on the run and not added to its cost (the run's
+  `UnsummedItemCount`); it is never priced at zero, and the host logs one warning. The code
+  interpreter is billed by container and its price per call is an estimate. When Anthropic bills more
+  searches than the response shows, the difference is added. The harness's own web search is priced
+  the same way; before, no hosted call had a cost. `ToolUsageUnits.Calls` names the unit.
 - **An agent calls a callable agent with one tool call.** `SubAgentSettings.CallMode`
   (`SubAgentCallMode.Background`, the default, or `Tool`) picks what the model sees. With `Tool`,
   each agent in `CallableAgentNames` is one tool named after the agent (each run of characters
@@ -87,6 +111,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **A call of a registered hosted tool is a pair of tool events, not a `tracon.content` event.**
+  The calls of a tool added with `AddHostedTool` are `ToolInvoking` and `ToolInvoked` events under
+  the registered name, with the provider's call identifier and no payload, and a tool invocation
+  record that carries the call's measurement (unit `calls`, quantity `1`). A hosted call that no
+  registered tool owns, such as the harness's web search, stays a `tracon.content` event as before. A
+  streamed call that the provider shows in several pieces is written once. A replay that plays
+  tools back (`ReplayTools`) or runs none (`NoTools`) removes a hosted tool, so it does not search
+  and bill again.
 - **`ModelBinding.AllowConcurrentToolCalls` moved to `ModelBinding.ToolLoop.AllowConcurrentToolCalls`.**
   This breaks source and the JSON of a definition. A definition stored by an earlier build is read
   with the old key moved, so no migration runs and the setting is kept; the next save writes the
@@ -127,6 +159,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The .NET client reads a nullable enum property.** `ToolDescriptor.HostedKind`, `RunComparisonSide.ErrorClass`,
+  `RunError.Class`, `WorkflowDescriptor.Kind`, `EvalCase.SourceKind` and `VoiceSession.EndReason` were generated as an
+  empty class named after the property in place of the enum, so the client threw `JsonException` when the host sent a
+  value (`The JSON value could not be converted to ...ErrorClass`). They are the enum types now. A property the host
+  always sends (`WorkflowDefinition.Kind`, `WorkflowSaveRequest.Kind`, `RunErrorStatistics.Class`) is no longer
+  nullable in the client. The TypeScript client was not affected.
 - **A stored definition written before a list member existed no longer breaks the catalog.**
   The SQL payload read `mcpResourceUris`, `parameters`, and the new `extensionNames` as
   `null` when a row had no such key, and the catalog listing failed with

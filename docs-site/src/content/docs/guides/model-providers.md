@@ -264,6 +264,33 @@ surface sends:
 - An agent extension and the options of one run cannot set these fields. See
   [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/).
 
+## Hosted tools
+
+A web search, a code interpreter, or a file search can run on the provider's side, inside the
+model call. A host registers one with `AddHostedTool` and a definition selects it in `ToolNames`;
+see [Hosted tools](/guides/hosted-tools/). Each API surface runs only some kinds, and the adapter
+drops the others without an error, so a provider states what its surface runs. A `v` marks a kind
+the surface runs:
+
+| Kind | `openai` | `openai-responses` | `anthropic` | `google` | `azure-openai` |
+|---|:-:|:-:|:-:|:-:|:-:|
+| `WebSearch` | | v | v | v | |
+| `CodeInterpreter` | | v | v | v | |
+| `FileSearch` | | v | | | |
+
+- The table is the request body each adapter writes (2026-10-20), as the sampling table above is.
+  A model can still refuse a tool its surface sends.
+- A definition that selects a kind the provider does not run fails to compile, and
+  `POST /api/agents/validate` reports it as `hosted_tool_unsupported` at the path of the tool
+  name. A `Fallbacks` link is held to the same table.
+- Chat Completions maps only a web search, to a field that a model without search answers with
+  `400`. Tracon does not offer the kind on that surface.
+- A `UseOpenAICompatible()` registration follows the same two OpenAI columns. An endpoint that is
+  not OpenAI can still reject the tool.
+- A provider you write runs no kind until it states it. Implement `IHostedToolSupport` next to
+  `IModelProvider` and return the `HostedToolKinds` its surface runs.
+- Each call is billed by the provider. Set `Tracon:Pricing:HostedTools:{provider}:{kind}:PerCall`.
+
 ## Provider-specific settings
 
 Portable settings live directly on `ModelBinding`: `Temperature`, `TopP`,

@@ -417,9 +417,11 @@ internal sealed class RunReplayService
     /// <c>AIContextProvider</c> and do not go
     /// through the tool wrapping; if left open, a skill script would run and
     /// a sub-agent would spend a real model call (and real money) — breaking
-    /// the "no tool actually runs" promise.
+    /// the "no tool actually runs" promise. A hosted tool is the fourth: the provider runs
+    /// it inside the model call and the replay transform cannot reach it, so a web search would run
+    /// and bill again. Its name leaves the tool list in both modes.
     /// </remarks>
-    private static AgentDefinition ApplyOverrides(AgentDefinition definition, RunReplayRequest request)
+    private AgentDefinition ApplyOverrides(AgentDefinition definition, RunReplayRequest request)
     {
         var effective = definition;
 
@@ -431,6 +433,13 @@ internal sealed class RunReplayService
         if (request.ToolMode != ReplayToolMode.LiveTools)
         {
             effective = effective with { SkillNames = [], CallableAgentNames = [], ExtensionNames = [] };
+
+            var hostedTools = _compiler.GetHostedTools();
+
+            if (hostedTools.Selected(effective).Count > 0)
+            {
+                effective = effective with { ToolNames = [.. effective.ToolNames.Where(name => !hostedTools.Contains(name))] };
+            }
         }
 
         if (request.ToolMode == ReplayToolMode.NoTools)
