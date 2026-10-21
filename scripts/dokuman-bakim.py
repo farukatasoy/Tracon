@@ -203,7 +203,11 @@ YONETIM_BUTCESI = {
     # sayi drift'i) ~3 KB ekledi; kalemlerin hepsi YAPILACAK is (tamamlananlar zaten
     # ERTELENEN-ADAYLAR'a tasinir), bu yuzden damitilacak bir kayit yoktu. Ayni formul:
     # olculen deger (82_869) / 0.85. Ledger "yalniz aramada" katmanindadir.
-    "docs/ADAYLAR.md": 98_000,  # YENIDEN KALIBRE 2026-10-16; olculen 82_869
+    # 2026-10-21 (MAF Dalga 4 olcumu, kullanici karari): 98_000 -> 147_000 (%50). Sinir
+    # 96_612 B ile %1 bosluktaydi; Dalga 3'un yedi adayi kanitli kisa satirla girmis,
+    # yargi alanlari `kesif/` dosyasina tasinmisti. Dalga 4 adaylari icin yer acildi.
+    # Formul bilerek kullanilmadi: bakimci orani verdi.
+    "docs/ADAYLAR.md": 147_000,  # YENIDEN KALIBRE 2026-10-21 (kullanici karari); olculen 96_612
     # YAYIN-HAZIRLIK: `nuget-danismani`nin calisma dosyasi; her yayin turunda
     # buyur ve 2026-09-22'ye kadar hicbir freni yoktu (temizlik turu bulgusu).
     # Ledger gibi "yalniz aramada" okunur. ILK SINIR -- K-214'e girmez.
@@ -3733,6 +3737,7 @@ def denetle() -> int:
         ("Faz defteri işaretçisi", defter_isaretci_denetle()),
         ("Bayat kod yolu (sıcak hafıza)", bayat_kod_yollari()),
         ("MAF kapsama ✗ cırcırı", _maf_kapsama().carpi_denetle()),
+        ("MAF kapsama özet sayımı", _maf_kapsama().ozet_denetle()),
     ):
         print(f"\n{ad}: {'✅ temiz' if not bulgular else f'{len(bulgular)} bulgu'}")
         for b in bulgular[:10]:

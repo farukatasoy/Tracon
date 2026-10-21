@@ -75,7 +75,7 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.6	🟡	~	`FunctionEvaluator` · `AgentEvaluationResults`	-	AgentEvaluationResults FunctionEvaluator	-
 5.6	✅	✓ Faz 155	MEAI `IEvaluator` · `EvaluationResult` · `*Metric` (`EvaluatorRunJudge` köprüsü)	EvaluationResult EvaluatorRunJudge IEvaluator Metric	EvaluationResult EvaluatorRunJudge IEvaluator Metric	-
 5.6	❌	✗	`agent.EvaluateAsync(...)` · `Run.EvaluateAsync` (workflow)	EvaluateAsync Run	EvaluateAsync Run	EvaluateAsync Run
-5.6	❌	✗	`IConversationSplitter` · `ConversationSplitters.Full/LastTurn` · `EvalItem.Split`/`PerTurnItems` · `ExpectedToolCall`	EvalItem ExpectedToolCall Split	EvalItem ExpectedToolCall Full Split	Split
+5.6	🟡	✗	`IConversationSplitter` · `ConversationSplitters.Full/LastTurn` · `EvalItem.Split`/`PerTurnItems` · `ExpectedToolCall`	EvalItem ExpectedToolCall Split	EvalItem ExpectedToolCall Full Split	Split
 5.6	❌	✓	`Evaluation.Quality` kataloğu	Evaluation	Evaluation Quality	Evaluation Quality
 5.6	❌	✓	`FoundryEvals` (20+ evaluator)	-	-	-
 5.7	✅	✓	`OpenTelemetryAgent` (+`EnableSensitiveData`)	EnableSensitiveData OpenTelemetryAgent	-	-

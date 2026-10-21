@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (988 kalem)
+## Arşivlenen Kararlar (989 kalem)
 
 | K | Karar |
 |---|---|
@@ -111,7 +111,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-100 | `RunQuery.OnlyRootRuns` varsayılanı `true` 👤 |
 | K-101 | Varsayılan ağaç bütçesi: derinlik 3, 200.000 token, 25 alt çalıştırma 👤 |
 | K-102 | Alt çalıştırmalar kök akışa yalnız özet olay yazar 👤 |
-| K-103 | Alt agent onay isteyemez (v1); isteyen alt çalıştırma `Failed` olur |
+| K-103 | Alt agent onay isteyemez (v1); isteyen alt çalıştırma `Failed` olur 🔁 |
 | K-104 | Sıkıştırma bağımlılığı için yeni paket alınmadı |
 | K-105 | `ChatHistoryMemoryProvider` (vektör tabanlı bellek) bu fazın kapsamı dışında 👤 |
 | K-106 | Sıkıştırma varsayılan kapalıdır 👤 |
@@ -997,3 +997,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-996 | Fail-closed denetim kümesi 6 → 7: cevap modu ne olursa olsun run başlatan her `POST /api/workflows/runs/{runId}/respond` `workflow.respond` olarak run satırından ve kayıttan ÖNCE `AuditRecorder.WriteOrThrowAsync` ile yazılır, yazılamazsa cevap `500` ile reddedilir; kayıt cevabın hash'ini taşır, cevabı değil; run başlatmayan cevap (izleme, `409`) yazılmaz; K-776'nın yayımlanmış kümesini değiştirir (F-319, Faz 208) (kullanıcı kararı) 👤 |
 | K-997 | Önce satır, sonra kayıt: cevabın run satırı (akışlıda `Running`, kuyrukluda `Queued`) her modda ve her yolda kayıttan/iddiadan önce açılır, bir kayıt hiçbir zaman var olmayan bir run'ı adlandırmaz; iddiayı kaybeden kendi run'ını olaysız `Canceled` + `request_already_answered` kapatır (run listesinde ve istatistikte görünür), kayıt yazılamazsa run `Failed` + `answer_not_recorded` kapanır ve cevap `500` alır; atıf karardan önce bir kez okunur, satırdan sonraki her yazım `CancellationToken.None` kullanır; kuyruk işi bitmemişse kapı izler; işi hiç yazılmamış kuyruklu run'ın işini aynı cevabın tekrarı yazar (F-319, Faz 208) (kullanıcı kararı, 2026-10-14) 👤 |
 | K-998 | `IJobStore.EnqueueAsync` kayıtlı bir iş kimliğini reddeder: çağrı hata verir, kayıtlı iş ve öğeleri değişmez; bellek içi depo işi değiştiriyordu, artık reddeder; `QueuedRunPlaceholder` reddedilen yazımdan sonra işi geri okur ve oradaysa onu döndürür, satırı kapatmaz; `JobStoreContract` yeni case'le dört depoda zorlar (Faz 208) |
+| K-999 | Fonksiyon düğümü, ağaç bütçesinin MALİYET veya SÜRE boyutu geçilmişse başlamaz; token ve run sayısı durdurmaz; ret, reddedilen agent adımıyla aynı kimliği taşır (`Failed`, `run_budget_exceeded`, `QuotaExceeded`); kapı her denemeden önce koşar ve reddi tekrar denenmez; muafiyet yalnız kodda: `WorkflowFunctionOptions.StartsWhenBudgetIsSpent` (varsayılan `false`) (F-407, Faz 210) (kullanıcı kararı) 👤 |

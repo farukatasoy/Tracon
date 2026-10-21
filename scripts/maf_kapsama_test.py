@@ -235,6 +235,42 @@ class CarpiCirciriTests(unittest.TestCase):
         self.assertEqual(kapsama.carpi_denetle(), [])
 
 
+class OzetSayimiTests(unittest.TestCase):
+    """F-597: özet satırının Durum sayımı elle yazılır ve iki kez §5'ten kaydı."""
+
+    SATIRLAR = (satir("✅", "`Bir`"), satir("✅", "`Iki`"), satir("🟡", "`Uc`"), satir("❌", "`Dort`"))
+
+    def denetle(self, ozet: str | None) -> list[str]:
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            (kok / "docs").mkdir()
+            on_soz = "" if ozet is None else f"**Özet:** {ozet} (2026-10-21 sayımı).\n\n"
+            (kok / "docs" / "MAF-KAPSAMA.md").write_text(on_soz + matris(*self.SATIRLAR), encoding="utf-8")
+            return kapsama.ozet_denetle(kok)
+
+    def test_a_summary_equal_to_section_5_is_clean(self) -> None:
+        # `matris()` §6'ya bir ✅ satırı da koyar; özet onu saymaz.
+        self.assertEqual(self.denetle("4 yetenek satırı — ✅ 2 · 🟡 1 · ❌ 1 · ⛔ 0"), [])
+
+    def test_a_drifted_count_is_a_finding_that_names_the_right_count(self) -> None:
+        bulgular = self.denetle("4 yetenek satırı — ✅ 1 · 🟡 1 · ❌ 2 · ⛔ 0")
+
+        self.assertEqual(len(bulgular), 1)
+        self.assertIn("'4 yetenek satırı — ✅ 2 · 🟡 1 · ❌ 1 · ⛔ 0' sayıyor", bulgular[0])
+
+    def test_a_drifted_row_total_is_a_finding(self) -> None:
+        self.assertEqual(len(self.denetle("5 yetenek satırı — ✅ 2 · 🟡 1 · ❌ 1 · ⛔ 0")), 1)
+
+    def test_a_missing_summary_is_a_finding_not_a_pass(self) -> None:
+        bulgular = self.denetle(None)
+
+        self.assertEqual(len(bulgular), 1)
+        self.assertIn("okunamadı", bulgular[0])
+
+    def test_the_real_matrix_summary_matches_section_5(self) -> None:
+        self.assertEqual(kapsama.ozet_denetle(), [])
+
+
 DUMP_ESKI = """\
 ########## Microsoft.Agents.AI  (3 public tip) ##########
 

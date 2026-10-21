@@ -13,7 +13,8 @@ kalır. Ölçülen olgular bu betikten gelir:
              bir tipten ötekine taşınmasını "değişmedi" sayar; burada iki tipte de görünür.
     denetle  Tazelik + `✗` cırcırı: §5'te `Takip` sütunu `✗` olan satır sayısı tabandan
              büyükse ya da küçükse (taban bayat) bulgu. `✗⁺` sayılmaz: yeni MAF tipi onunla
-             girer (MAF-KAPSAMA §10 P-03).
+             girer (MAF-KAPSAMA §10 P-03). Ayrıca özet satırının Durum sayımı §5'in
+             sayımına eşit olmalıdır (F-597): sayım elle yazılır ve iki kez kaydı.
 
 Durum sütunu bilerek ölçülmez: genel jetonlar (`AIAgent`, `ChatOptions`) ve ad çakışmaları
 (`AsIChatClient`) yüzünden doğrudan bir uyuşmazlık kapısı 2026-10-20'de 143 satırın 39'unda
@@ -51,6 +52,7 @@ DURUMLAR = ("✅", "🟡", "❌", "⛔")
 _BOLUM_BASI = "## 5. Yetenek matrisi"
 _ATLANAN_DIZINLER = frozenset({"obj", "bin", "node_modules", "Generated"})
 
+_OZET = re.compile(r"^\*\*Özet:\*\* (\d+ yetenek satırı — ✅ \d+ · 🟡 \d+ · ❌ \d+ · ⛔ \d+)", re.MULTILINE)
 _TERS_TIRNAK = re.compile(r"`([^`]+)`")
 _MAF_JETONU = re.compile(r"[A-Z][A-Za-z0-9_]*")
 _ALT_BOLUM = re.compile(r"^###\s+(5\.\d+)\b")
@@ -315,6 +317,29 @@ def carpi_denetle(kok: pathlib.Path = ROOT, taban: int = CARPI_TABANI) -> list[s
     return []
 
 
+def ozet_sayimi(satirlar: list[Satir]) -> str:
+    """Özet satırının sayım parçası: `144 yetenek satırı — ✅ 49 · 🟡 20 · ❌ 74 · ⛔ 1`."""
+    sayilar = " · ".join(f"{d} {sum(1 for s in satirlar if s.durum == d)}" for d in DURUMLAR)
+    return f"{len(satirlar)} yetenek satırı — {sayilar}"
+
+
+def ozet_denetle(kok: pathlib.Path = ROOT) -> list[str]:
+    """Özet satırındaki sayım §5'in Durum sayımına eşit değilse bir bulgu döner (F-597).
+
+    Yalnız sayım denetlenir; satırın geri kalanı (tarih, önceki sayımlar) yargıdır ve elle
+    kalır. Okunamayan özet de bulgudur: biçim değişince kapı sessizce geçmemeli."""
+    metin = (kok / "docs" / "MAF-KAPSAMA.md").read_text(encoding="utf-8")
+    beklenen = ozet_sayimi(satirlari_oku(metin))
+    eslesme = _OZET.search(metin)
+    if eslesme is None:
+        return ["docs/MAF-KAPSAMA.md: özet satırı okunamadı; "
+                f"'**Özet:** {beklenen} (…)' biçimi bekleniyor"]
+    if eslesme.group(1) != beklenen:
+        return [f"docs/MAF-KAPSAMA.md özet satırı '{eslesme.group(1)}' diyor, §5 '{beklenen}' sayıyor — "
+                "özeti düzelt"]
+    return []
+
+
 def tazelik_denetle(kok: pathlib.Path = ROOT) -> list[str]:
     hedef = kok / "scripts" / "maf-kapsama-temas.tsv"
     diskteki = hedef.read_text(encoding="utf-8") if hedef.exists() else ""
@@ -394,7 +419,7 @@ def main(argv: list[str] | None = None) -> int:
     fark_komutu = alt.add_parser("fark", help="iki dump-api.sh çıktısını tip kapsamlı karşılaştır")
     fark_komutu.add_argument("eski", type=pathlib.Path)
     fark_komutu.add_argument("yeni", type=pathlib.Path)
-    alt.add_parser("denetle", help="temas tablosunun tazeliği + ✗ cırcırı")
+    alt.add_parser("denetle", help="temas tablosunun tazeliği + ✗ cırcırı + özet sayımı")
     args = parser.parse_args(argv)
 
     if args.komut == "temas":
@@ -412,11 +437,11 @@ def main(argv: list[str] | None = None) -> int:
         _fark_bas(sonuc)
         return 1 if sonuc.kirici_olabilir else 0
 
-    bulgular = tazelik_denetle() + carpi_denetle()
+    bulgular = tazelik_denetle() + carpi_denetle() + ozet_denetle()
     for b in bulgular:
         print(f"❌ {b}")
     if not bulgular:
-        print("✅ temas tablosu taze · ✗ cırcırı tabanda")
+        print("✅ temas tablosu taze · ✗ cırcırı tabanda · özet sayımı §5 ile aynı")
     return 1 if bulgular else 0
 
 

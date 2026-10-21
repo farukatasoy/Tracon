@@ -12,12 +12,12 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-14):** sıralanabilir kuyrukta **5** aday var (F-297, F-420
-podcast turu; F-322, F-324, F-347 video tüketicisi turu). Aynı turların on kalemi
-2026-10-12'de yedi faza dönüştü (Faz 196…202); 2026-10-13'te F-296 Faz 203'e,
-F-320 ve F-346 Faz 204'e, F-405 Faz 196'ya girdi (planlandı); 2026-10-14'te F-418 ve F-482 Faz 205'e dönüştü, F-319 Faz 208 ve 209'a dönüştü. Bugün
-yapılabilecek iş § *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar
-burada değil, üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
+**Durum (2026-10-21):** sıralanabilir kuyrukta **11** aday var (F-297, F-420
+podcast turu; F-322, F-324, F-347 video tüketicisi turu; F-616…F-621 MAF Dalga 4
+turu, [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md)). Aynı
+turun F-614 ve F-615'i aynı gün plana dönüştü. Bugün yapılabilecek iş
+§ *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar burada değil,
+üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 
 ---
 
@@ -256,6 +256,162 @@ tüketicisi turlarından gelir; kanal ve aciliyet
 
 **Karşı görüş:** Ölçülen pilotta pay ~%1'dir; migration'ın maliyeti değerden büyük olabilir. Ölçüm "hiç sayılmıyor" demedikçe beklemek savunulabilir.
 
+### F-616 · Tracon'un AG-UI ucu
+
+**Kanal:** faz planlama · 🟢
+
+**Sorun:** AG-UI ön yüzü (CopilotKit gibi) Tracon agent'ına bağlanamaz. MAF'ın `MapAGUIServer`'ı Tracon altında çalışmaz: istemci tool'unun devam turunu çalışan vekil tool ve SDK'nın ürettiği onay çiftiyle kurar; K-1039 kuralı vekili reddeder (`RunChatOptionsRule.cs:66`), girdide gelen onay çifti tool'u koşturmaz (probe, 2026-10-21; [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #37).
+
+**Kapsam:** `AGUI.Server`'ın olay dönüştürücüsü (`AsAGUIEventStreamAsync`) üzerinde Tracon ucu; girdi eşlemesi Tracon'un kendi mekanizmalarına: istemci tool sonucu → `toolResults` (kodda kayıtlı istemci tool'u, `AddClientTool`), onay resume → `ToolApprovalResolver` (sunucudaki bekleyen istekle eşleme, denetim satırı); oturum F-614'ün izolasyonlu deposundan.
+
+**Değer:** AG-UI ön yüzleri Tracon'un run kaydı, kiracı, onay ve maliyet sınırıyla çalışır.
+
+**Genellik:** AG-UI bir ekosistem standardıdır; MAF onu birinci sınıf entegrasyon olarak sunar. Tüketici kodunda kalamaz: ucu yazan Tracon'un onay ve istemci tool sözleşmesini yeniden kurmak zorunda kalır.
+
+**Mercek:** 1, 6.
+
+**Hazırlık:** `AGUI.Server` 1.0.1 kararlı (bağımlılık yalnız MEAI.Abstractions); Tracon'un istemci tool'u ve onay çözücüsü hazır.
+
+**Maliyet:** Yeni uç ve kayıt uzantısı; +2 paket; konsol yok.
+
+**Risk:** AG-UI istemcisi tool'u istek başına beyan eder, Tracon kodda beyan eder (K2 sınırının genişlemesi); karar: yalnız kodda kayıtlı istemci tool'uyla kesişim mi. `RunAgentInput.State` eşlemesi açık.
+
+**Bağımlılık:** F-614 (izolasyon sağlayıcısı ve anahtarlı oturum deposu).
+
+**Ekosistem (2026-10-21):** MS Learn AG-UI entegrasyonu yedi özelliği (onay, ön yüz tool'u, durum) kapsar; `AGUI.Server` yayıncısı "AG-UI Protocol"dür → `nuget-danismani` tedarik zinciri onayı.
+
+**Karşı görüş:** Tracon'un kendi gömülebilir sohbet aracı ve TS istemcisi aynı işi görür; AG-UI talebi ölçülmedi. Değer, ekosistemin AG-UI'yi standart kabul etmesine bağlıdır.
+
+### F-617 · MCP elicitation: MRTR ile askıya alınan tool çağrısı
+
+**Kanal:** faz planlama · 🟢
+
+**Sorun:** Tracon MCP istemcisini `clientOptions: null` ile kurar (`McpConnection.cs:174`, `McpShortLivedConnection.cs:63`, `McpOAuthAuthorizationCoordinator.cs:236`); elicitation yeteneği bildirilmez, kullanıcıdan bilgi isteyen sunucunun tool'u düşer.
+
+**Kapsam:** MCP 2026-07-28 MRTR yolu: sunucu `InputRequiredResult` döner; Tracon run'ı onay gibi askıya alır (bekleyen istek + run olayı); cevap sonraki turun girdisidir; tool çağrısı `RequestParams.InputResponses` ve `RequestState` ile yeniden gönderilir. Eski (doğrudan istek) sunucu: bilerek reddet ya da yalnız canlı yüzeyde zaman aşımlı bekle (karar). Alt agent K-103 ile reddeder.
+
+**Değer:** Kullanıcıdan onay veya bilgi isteyen MCP sunucuları Tracon altında çalışır.
+
+**Genellik:** MCP bir ekosistem standardıdır; elicitation spec'in çekirdek istemci yeteneğidir. Tüketici kodunda kalamaz: bağlantı Tracon'un.
+
+**Mercek:** 3, 6.
+
+**Hazırlık:** SDK 2.2 MRTR'yi taşır; `InputResponses`/`RequestState` public (decompile, 2026-10-21). Tracon'un onay askısı hazır.
+
+**Maliyet:** Bekleyen istek tipi, run olayı, HTTP cevap yolu, konsol formu, TS istemcisi.
+
+**Risk:** Bağlantı (kiracı, sunucu) başına paylaşılır; eski sunucunun doğrudan isteği çağıran run'ı bilmez (okuma). URL modu elicitation dış tarayıcı açar.
+
+**Bağımlılık:** —
+
+**Ekosistem (2026-10-21):** MCP spec 2026-07-28 changelog: MRTR sunucudan istemciye isteğin yerini alır; tasks uzantıya taşındı.
+
+**Karşı görüş:** Elicitation kullanan sunucu sayısı ölçülmedi; çoğu sunucu tool parametresiyle yetinir.
+
+### F-618 · MCP sunucusundan dağıtılan skill (`UseMcpSkills`)
+
+**Kanal:** faz planlama · 🟢
+
+**Sorun:** Skill'ler MCP sunucusundan dağıtılamaz. MAF `AgentSkillsProviderBuilder.UseMcpSkills(McpClient, AgentMcpSkillsSourceOptions?)` verir (`Microsoft.Agents.AI.Mcp` 1.25 alpha, decompile 2026-10-21); `src/`'de 0.
+
+**Kapsam:** Kiracının MCP bağlantısından skill kaynağı; tek provider kuralı (F-578) ve ad çakışması kuralı (kod ↔ veri ↔ MCP); katalog listesi.
+
+**Değer:** Ekip skill'lerini tek MCP sunucusundan yayınlar; agent'lar onları Tracon kapılarıyla alır.
+
+**Genellik:** MCP skill dağıtımı MAF'ın ekosistem yeteneğidir; tek tüketici sinyali yok, talep ölçülmedi.
+
+**Mercek:** 6.
+
+**Hazırlık:** MAF hazır; Faz 219 builder'ı hazır. `AgentMcpSkill` script taşımaz (içerik ve kaynak).
+
+**Maliyet:** Paket kararı: `Microsoft.Agents.AI.Mcp` alpha'dır ve `ModelContextProtocol` (tam) ile `Extensions.Tasks`'a bağlıdır → K-008 gereği `Tracon.Mcp` olamaz; `Tracon.AspNetCore` ya da K-1037 uydu hattı.
+
+**Risk:** Arşiv skill'i diske açılır (`ArchiveSkillsDirectory`); skill içeriği üçüncü taraf sunucudan gelen istemdir (güven sınırı).
+
+**Bağımlılık:** F-602 (aynı tek-provider ve ad kuralı).
+
+**Ekosistem (2026-10-21):** MAF.Mcp 1.25.0-alpha.
+
+**Karşı görüş:** Skill'i veri olarak saklamak (Tracon skill deposu) aynı işi kiracı yönetimiyle yapar; MCP dağıtımı ancak skill'i başka framework'lerle paylaşan ekip için değer taşır.
+
+### F-619 · A2A görev modu ve dış çağıranın onayı
+
+**Kanal:** faz planlama · 🟢
+
+**Sorun:** A2A her zaman mesaj döner (`TraconA2ABuilderExtensions.cs:72`, `ReturnMessage`); onay isteyen tool'u olan agent A2A'ya açılamaz (`A2AApprovalGuardFilter`). MAF işleyicisi onay isteğini `input-required` görev durumuna çevirmez (decompile 2026-10-21); seam: MAF adla anahtarlı `IAgentHandler`'ı kullanır.
+
+**Kapsam:** Tracon `IAgentHandler`: onay isteği → `input-required` görev; görev güncellemesi → `ToolApprovalResolver`; görev deposu kiracı ve çağıran izolasyonlu.
+
+**Değer:** Onaylı tool'u olan agent başka agent'lara açılır; insan onayı protokoller arası taşınır.
+
+**Genellik:** A2A görev yaşam döngüsü spec'tir. Karar sorusu: dış agent'ın (API anahtarı) onayı insan onayı sayılır mı (K-089 aktörü).
+
+**Mercek:** 3, 6.
+
+**Hazırlık:** MAF seam'i hazır; onay çözücüsü hazır.
+
+**Maliyet:** İşleyici, görev deposu, kart yetenekleri, belge.
+
+**Risk:** Dış çağıranın onay vermesi güvenlik kararıdır; varsayılan kapalı olmalıdır.
+
+**Bağımlılık:** F-614.
+
+**Ekosistem (2026-10-21):** A2A görev durumları (`input-required`).
+
+**Karşı görüş:** A2A çağıranı çoğunlukla insansız bir agent'tır; onayı insana götürecek ön yüzü yoktur. Talep ölçülmedi.
+
+### F-620 · Workflow'u agent olarak sunmak
+
+**Kanal:** faz planlama · 🟢
+
+**Sorun:** Saklanan workflow katalogda agent olarak görünmez; `/v1/*`, A2A ve alt agent çağrısı yalnız agent'a açıktır. MAF `Workflow.AsAIAgent(id, name, description, executionEnvironment, …)` verir (Workflows 1.25 decompile); `src/`'de 0. `WithCheckpointing(agent)` sessiz passthrough'tur (MAF-KAPSAMA §5.8).
+
+**Kapsam:** `WorkflowRunner` sarmalı agent (MAF `AsAIAgent` doğrudan değil: kayıt, bütçe, checkpoint Tracon'un); katalogda tür ayrımı; dış yüzeyler.
+
+**Değer:** Çok adımlı iş tek agent gibi dışarı açılır.
+
+**Genellik:** MAF ilk ilkesi (workflow = agent); talep ölçülmedi.
+
+**Mercek:** 1, 6.
+
+**Hazırlık:** MAF hazır; Tracon runner'ı hazır.
+
+**Maliyet:** Katalog modeli, run kaydı ilişkisi (workflow run ↔ agent run), insan isteği yüzeyi.
+
+**Risk:** Workflow insan isteği beklerken agent yüzeyi (A2A, `/v1`) cevabı taşıyamaz → F-615 ve F-619 ile birlikte tasarlanır.
+
+**Bağımlılık:** F-615; dış yüzey için F-614/F-619.
+
+**Ekosistem (2026-10-21):** MAF 1.25.
+
+**Karşı görüş:** Tüketici bugün workflow'u kendi HTTP ucundan çağırabilir; agent yüzeyi isteyen ölçülmedi.
+
+### F-621 · Workflow orkestrasyon ayarları tanımda
+
+**Kanal:** faz planlama · 🟢
+
+**Sorun:** Saklanan workflow MAF desenlerinin yalnız temel ayarlarını taşır (`WorkflowDefinitionCompiler.cs:93,235,240-257`: `BuildSequential`, `BuildConcurrent(aggregator: null)`, `WithHandoffs`, `WithHandoffInstructions`). Kodda K1 olan ayarlar tanımda yok: Handoff `WithHandoff(from, to, reason)`, `EnableReturnToPrevious`, `WithTerminationCondition`, `WithToolCallFilteringBehavior`; Magentic `WithMaxStalls`, `WithMaxResets`; Concurrent `WithAggregator`; Sequential `WithChainOnlyAgentResponses` (decompile 2026-10-21).
+
+**Kapsam:** Veri alanları (topoloji, sayılar, bayraklar); yürütülebilir parça (aggregator, sonlandırma koşulu, özel group chat yöneticisi) yalnız kodda kayıtlı **adla** seçilir (İ2, K2).
+
+**Değer:** Handoff topolojisi ve Magentic sınırları arayüzden yönetilir.
+
+**Genellik:** Workflow tanımlayan her tüketici; ilk ilke: desen ayarı tanımın işidir.
+
+**Mercek:** 2, 5.
+
+**Hazırlık:** MAF hazır; imzalar planlamada `maf-api-kesfi` ile doğrulanır (Magentic üyeleri deneysel olabilir).
+
+**Maliyet:** Tanım alanları, doğrulayıcı, konsol, TS istemcisi.
+
+**Risk:** Deneysel MAF üyesi public tanıma girmez (K-1036); yalnız veri alanı girer.
+
+**Bağımlılık:** —
+
+**Ekosistem (2026-10-21):** MAF 1.25.
+
+**Karşı görüş:** Ayarların çoğunu kimse istemedi; F-601 gibi torba kalemdir, planlamada en çok istenen ikisine indirilmeli.
+
 ## Bekleyen Kalemler
 
 Bir kalem buradan iki yolla çıkar: iş yapılır (kalem kapanır veya plana
@@ -361,7 +517,6 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-535** · Satırı olmayan bekleyen run listede yok ve dolmaz | Faz 209: satır yazımı best-effort; Faz 209 öncesi bekleyenler ve yazılamayan satırlar için doldurma yok (Açık Soru 7-B) | Karar: olaydan satır üreten uzlaştırma (SQL JSON ayrıştırma) |
 | 🟢 | **F-594** · Adlı model istemcisi halkası yuvası (`AddChatClientRing`) — C-01'in kalan dilimi | Ölçüldü (2026-10-20): Faz 222'nin `IAgentExtension`'ı seçenek nesnesini ve agent sarmalayıcısını verir, `IChatClient`'a ulaşmaz. Tüketici MEAI halkasını (`UseLogging`, `UseDistributedCache`, `UseChatReducer`, kendi `DelegatingChatClient`'ı) Tracon'un 12 halkalı zincirine koyamaz; `src/`'de 0 kullanım. Tek yol fabrika agent'ıdır ve o yol halkaları kaybeder ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §5.13, §8 C-01) | `ModelProviderRegistry.CreateChatClient` ayrı tasarım ister: yuva (döngü içi/dışı, K-320 sırası), kiracı/BYOK önbelleği, tanımda adla seçim (K-1030 deseni), `AgentOptionsGuard` eşi. Dalga 3 ölçümü (2026-10-20): C-07'nin ön koşuludur — MAF'ın döngü içi katmanları (`MessageInjectingChatClient`, servis çağrısı başına geçmiş yazıcısı) Tracon'da döngü dışında kalır ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #26–#27, #31) |
 | 🟢 | **F-595** · C-10'un kalanı: atıf, mesaj kaynağı, workflow OTel, embedding/ses/görsel span'leri | Ölçüldü (2026-10-20): Faz 223 tanınmayan içeriği ve workflow olayını kaydeder (K-1034). Kalan: `TextContent.Annotations` (atıf) kaydedilmez (`src/`'de 0) · `AgentRequestMessageSourceAttribution` yalnız JSON bağlamında · workflow `WithOpenTelemetry` 0 · `OpenTelemetryEmbeddingGenerator` ve ses/görsel OTel halkaları 0: Tracon tüketicinin `IEmbeddingGenerator`'ını doğrudan çağırır ve span açmaz (`VectorSearchToolFactory.cs:65`) ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §5.1, §5.7, §5.13) | Atıf için tip başına zengin olay K-1034'ün yeniden açılma koşuludur. Hosted tool ücreti C-12'dedir (Dalga 3). Dalga 3'ün ön koşulu değil |
-| 🟢 | **F-597** · MAF kapsama matrisinin özet sayımı elle yazılıyor | Faz 224 denetimi 🟢4: `MAF-KAPSAMA.md` özet satırındaki Durum sayımı (✅ 45 · 🟡 20 · ❌ 77 · ⛔ 1) elle yazılır; 2026-10-20'de 2026-10-18 özetinden sapmıştı (fazın kendi kanıt vakası). `scripts/maf-kapsama.py` satırları zaten okur ve sayıyı yargı katmadan üretebilir | `denetle`'ye özet satırı ile §5 sayımının eşitliği; ya da özet sayıyı TSV başlığından alır. Dokümanda yer tutucu deseni K-413 emsalini izler |
 | 🟢 | **F-600** · Çalışan run'a mesaj (steering) (C-07) | Ölçüldü (2026-10-20, gerçek host + MAF kontrolü): MAF katmanı Tracon'da tool döngüsünün üstüne düşer; seçenek korunur (K-1038) | Bağımlılık F-594 (döngü içi yuva); HTTP ucu, kiracı, rol, olay. Yargı: [`kesif/2026-10-20-maf-dalga-3.md`](kesif/2026-10-20-maf-dalga-3.md) § F-600 |
 | 🟢 | **F-601** · Bellek, bağlam ve skill seçenekleri tanımda (C-08) | Ölçüldü (okuma, 2026-10-20): `TextSearchProviderOptions`, `TodoProviderOptions`, `AgentSkillsProviderOptions` `new()` ile kurulur (`AgentDefinitionCompiler.Memory.cs:43,63-65`, `.Skills.cs:43-60`); compaction eşikleri korunan stratejide | Torba kalem: planlamada en çok istenen ikisine inilir. Yargı: [`kesif/2026-10-20-maf-dalga-3.md`](kesif/2026-10-20-maf-dalga-3.md) § F-601 |
 | 🟢 | **F-602** · Kod tanımlı MAF skill'i (C-09) | Ölçüldü (2026-10-20, gerçek host): uzantının ikinci skill provider'ı Tracon skill'iyle birlikte MAF tarafından reddedilir (aynı state key) | `CreateSkillsProvider`'a `UseSkill`; C# script'i süreç içinde koşar → kapı tasarımı. Yargı: [`kesif/2026-10-20-maf-dalga-3.md`](kesif/2026-10-20-maf-dalga-3.md) § F-602 |
@@ -369,6 +524,12 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | 🟢 | **F-605** · Değerlendirme: çok turlu vaka ve workflow suite'i (C-17 kalan) | Dilim (a) beklenen tool argümanı Faz 227 oldu. Kalan: vaka tek turdur (`EvalCase.cs:16`), suite yalnız agent hedefler (`EvalSuite.AgentName`); MAF `Run.EvaluateAsync` akışsız `Run` ister, Tracon `StreamingRun` kullanır (ölçüldü 2026-10-20) | Talep ölçülmeden planlanmaz. Yargı: [`kesif/2026-10-20-maf-dalga-3.md`](kesif/2026-10-20-maf-dalga-3.md) § F-605 |
 | 🟢 | **F-606** · Model başına istek alanı desteği (`ModelDescriptor`) | Faz 225 gerçek koşumu (2026-10-20): `openai` Chat Completions yüzeyi `stop`'u gönderir ama `gpt-5.4-mini` onu `400 unsupported_parameter` ile reddeder. `ISamplingSupport` yüzeye bağlıdır; model düzeyi yalnız `SupportsSampling` (Temperature/TopP) bayrağındadır | Alan başına `bool?` bayrak ya da `SamplingFields` kümesi katalogda; `null` = bilinmiyor, denetlenmez (K-032). Önce hangi modellerin hangi alanı reddettiği ölçülür |
 | 🟢 | **F-607** · İstek alanı değer aralığı denetimi | Faz 225 denetimi 🟢: Google adaptörü `Seed`'i `(int)` ile denetimsiz daraltır (`ModelBinding.Seed` `long?`; `2^31` üstü başka değere döner). Konsol `Seed`'i JS `Number` ile taşır (`2^53` üstü bozulur). `StopSequences` giriş sınırı sağlayıcıya göre değişir ve Tracon denetlemez | `ISamplingSupport`'a alan başına sınır ya da sağlayıcı bildirimi; konsolda `seed` metin olarak taşınır. Sınır için önce her sağlayıcının belgelenmiş değeri ölçülür |
+| 🟢 | F-616 · Tracon'un AG-UI ucu (C-15 b) | Ölçüldü (2026-10-21, decompile + probe): MAF `MapAGUIServer` Tracon altında çalışmaz ([`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #37) | Bağımlılık F-614. Gövde: § *F-616* |
+| 🟢 | F-617 · MCP elicitation: MRTR ile askıya alınan tool çağrısı (C-14 b) | Ölçüldü (2026-10-21): `clientOptions: null` üç yerde; SDK 2.2 MRTR taşır | Eski sunucu davranışı kararı. Gövde: § *F-617* |
+| 🟢 | F-618 · MCP sunucusundan dağıtılan skill (C-14 c) | Ölçüldü (2026-10-21, decompile): `UseMcpSkills` alpha pakette | Paket yeri kararı; F-602 ile tek kural. Gövde: § *F-618* |
+| 🟢 | F-619 · A2A görev modu ve dış çağıranın onayı (C-15 a2) | Ölçüldü (2026-10-21): A2A hep mesaj döner, MAF onayı `input-required`'a çevirmez | Bağımlılık F-614; dış onay kararı. Gövde: § *F-619* |
+| 🟢 | F-620 · Workflow'u agent olarak sunmak (C-18 c) | Ölçüldü (2026-10-21, decompile): `Workflow.AsAIAgent` `src/`'de 0 | Bağımlılık F-615. Gövde: § *F-620* |
+| 🟢 | F-621 · Workflow orkestrasyon ayarları tanımda (C-18 d) | Ölçüldü (2026-10-21): derleyici yalnız temel desen ayarlarını kurar | Torba: en çok istenen ikisine inilir. Gövde: § *F-621* |
 
 ### Doğrudan
 
@@ -530,7 +691,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-614**.
+numara: **F-622**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
