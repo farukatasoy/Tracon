@@ -12,8 +12,13 @@ namespace Tracon;
 /// <para>
 /// The hash is taken over a canonical JSON object of four members, <c>approved</c>,
 /// <c>data</c>, <c>requestId</c> and <c>text</c>, written in that (ordinal) order with no
-/// whitespace. <c>data</c> is rewritten by the same rule at every depth: object members in
-/// ordinal order, strings re-encoded from their value, numbers kept as they were written
+/// whitespace. A fifth, <c>remember</c>, is written between <c>data</c> and <c>requestId</c> only
+/// when it is <see langword="true"/>: an answer that saves a rule is another answer than one that does
+/// not, and every hash stored before the member existed stays what it was.
+/// </para>
+/// <para>
+/// <c>data</c> is rewritten by the same rule at every depth: object members in ordinal order,
+/// strings re-encoded from their value, numbers kept as they were written
 /// (<c>1.0</c> and <c>1</c> are different answers). <c>text</c> is taken as it is, never
 /// trimmed. The checkpoint and the definition version an answer names are not part of it:
 /// they say where the answer is applied, not what it is.
@@ -30,9 +35,10 @@ internal static class WorkflowAnswerDigest
     /// <param name="approved">The yes/no answer, when one was given.</param>
     /// <param name="text">The text answer, when one was given.</param>
     /// <param name="json">The JSON text of the free-form answer, when one was given.</param>
+    /// <param name="remember">Whether the answer also saves a tool approval as a rule.</param>
     /// <returns>The SHA-256 of the canonical answer, as 64 lowercase hexadecimal characters.</returns>
     /// <exception cref="ArgumentException"><paramref name="requestId"/> is empty.</exception>
-    public static string Compute(string requestId, bool? approved, string? text, string? json)
+    public static string Compute(string requestId, bool? approved, string? text, string? json, bool remember = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
 
@@ -53,6 +59,11 @@ internal static class WorkflowAnswerDigest
 
             writer.WritePropertyName("data");
             WriteData(writer, json);
+
+            if (remember)
+            {
+                writer.WriteBoolean("remember", true);
+            }
 
             writer.WriteString("requestId", requestId);
 

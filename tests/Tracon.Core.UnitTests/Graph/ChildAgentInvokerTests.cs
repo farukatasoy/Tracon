@@ -309,6 +309,65 @@ public sealed class ChildAgentInvokerTests
     }
 
     [Fact]
+    public async Task A_step_hosted_by_the_workflow_passes_a_tool_approval_on_and_its_row_waits_for_the_answer()
+    {
+        // K-1051: the host turns the request into a workflow request, so the wrapper neither throws nor
+        // rewrites the answer, and the step's row closes the way a root run's does.
+        var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
+        var client = new FakeChatClient(_ => new ChatResponse(
+            new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c1", "dangerous_task", null)])));
+
+        var (invoker, store) = CreateInvoker(ChildRefusalMode.Fail, client, tools: [approvalTool], hostsApproval: true);
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var response = await invoker.RunAsync("run");
+
+        response.Messages.SelectMany(static message => message.Contents).OfType<ToolApprovalRequestContent>()
+            .ShouldHaveSingleItem().ToolCall.ShouldBeOfType<FunctionCallContent>().Name.ShouldBe("dangerous_task");
+
+        var child = (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem();
+
+        child.Status.ShouldBe(RunStatus.AwaitingApproval);
+        child.Error.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_sub_agent_below_a_hosted_step_still_cannot_wait_for_an_approval()
+    {
+        // The hosted step's options are not the sub-agent's: its wrapper is in tool-result mode and builds its
+        // own, so below the step the refusal of K-103 holds.
+        var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
+        var client = new FakeChatClient(_ => new ChatResponse(
+            new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c1", "dangerous_task", null)])));
+
+        var (invoker, store) = CreateInvoker(ChildRefusalMode.ToolResult, client, tools: [approvalTool], hostsApproval: false);
+
+        SetScope(depth: 1, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var response = await invoker.RunAsync("run");
+
+        response.Text.ShouldContain("requires user approval", Case.Sensitive);
+        (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem().Status.ShouldBe(RunStatus.Failed);
+    }
+
+    [Fact]
+    public async Task A_step_that_is_a_plain_function_still_refuses_a_tool_approval_and_its_row_fails()
+    {
+        var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
+        var client = new FakeChatClient(_ => new ChatResponse(
+            new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c1", "dangerous_task", null)])));
+
+        var (invoker, store) = CreateInvoker(ChildRefusalMode.Fail, client, tools: [approvalTool], hostsApproval: false);
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        await Should.ThrowAsync<TraconException>(async () => await invoker.RunAsync("run"));
+
+        (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).ShouldHaveSingleItem().Status.ShouldBe(RunStatus.Failed);
+    }
+
+    [Fact]
     public async Task In_fail_mode_a_tool_waiting_for_approval_throws()
     {
         // Non-streaming only: FakeChatClient's stream ignores its responder, so
@@ -404,13 +463,14 @@ public sealed class ChildAgentInvokerTests
         TimeSpan? childDeadline = null,
         TimeSpan? waitTimeout = null,
         params AIFunction[] tools)
-        => CreateInvoker(ChildRefusalMode.ToolResult, client, childDeadline, waitTimeout, tools);
+        => CreateInvoker(ChildRefusalMode.ToolResult, client, childDeadline, waitTimeout, hostsApproval: false, tools);
 
     private static (ChildAgentInvoker Invoker, InMemoryRunStore Store) CreateInvoker(
         ChildRefusalMode refusalMode,
         IChatClient? client = null,
         TimeSpan? childDeadline = null,
         TimeSpan? waitTimeout = null,
+        bool hostsApproval = false,
         params AIFunction[] tools)
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
@@ -445,7 +505,8 @@ public sealed class ChildAgentInvokerTests
             new CallableAgentInfo("researcher", "Performs research.", 1),
             childDeadline: childDeadline ?? TimeSpan.FromSeconds(30),
             waitTimeout: waitTimeout ?? TimeSpan.FromSeconds(60),
-            refusalMode: refusalMode);
+            refusalMode: refusalMode,
+            hostsApproval: hostsApproval);
 
         return (invoker, store);
     }

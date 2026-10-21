@@ -47,6 +47,18 @@ internal static class WorkflowResponseFactory
 
         var portId = request.PortInfo.PortId;
 
+        // A tool approval is answered from the request the checkpoint holds: the answer names no tool
+        // call, so a caller cannot approve one the workflow never asked about (K-1051).
+        if (WorkflowRequestDescriptor.IsToolApproval(request))
+        {
+            return CreateToolApproval(request, answer);
+        }
+
+        if (answer.Remember is true)
+        {
+            throw new TraconException(RememberNotAllowed(portId));
+        }
+
         // Plan approval produces its own response type: MagenticPlanReviewResponse
         // only carries a ChatMessage list, and building it by hand would mean
         // repeating MAF's internal format.
@@ -92,6 +104,30 @@ internal static class WorkflowResponseFactory
         return request.CreateResponse(value ?? throw new TraconException(problem!));
     }
 
+    /// <summary>Builds the answer to a tool approval from the request the checkpoint republished.</summary>
+    /// <param name="request">The republished request; its data is a <see cref="ToolApprovalRequestContent"/>.</param>
+    /// <param name="answer">The answer given by the user.</param>
+    /// <returns>The response to send to execution.</returns>
+    /// <exception cref="TraconException">The answer does not fit a tool approval, or the request cannot be read.</exception>
+    private static ExternalResponse CreateToolApproval(ExternalRequest request, WorkflowAnswer answer)
+    {
+        var portId = request.PortInfo.PortId;
+
+        if (ToolApprovalProblem(portId, answer) is { } problem)
+        {
+            throw new TraconException(problem);
+        }
+
+        if (!request.TryGetDataAs<ToolApprovalRequestContent>(out var approval))
+        {
+            throw new TraconException(
+                $"Port '{portId}' waits for a tool approval, but the request the workflow recorded could not " +
+                "be read as one.");
+        }
+
+        return request.CreateResponse(approval.CreateResponse(answer.Approved!.Value, answer.Text ?? string.Empty));
+    }
+
     /// <summary>
     /// Checks an answer against a request as the waiting run recorded it, without
     /// starting a run.
@@ -114,8 +150,16 @@ internal static class WorkflowResponseFactory
 
         var portId = recorded.PortId;
 
+        if (answer.Remember is true && recorded.Form is not null and not WorkflowRequestForm.ToolApproval)
+        {
+            return RememberNotAllowed(portId);
+        }
+
         switch (recorded.Form)
         {
+            case WorkflowRequestForm.ToolApproval:
+                return ToolApprovalProblem(portId, answer);
+
             case WorkflowRequestForm.PlanReview:
                 return answer.Approved is false && answer.Text is not { Length: > 0 } ? RevisionMissing() : null;
 
@@ -169,6 +213,33 @@ internal static class WorkflowResponseFactory
         }
     }
 
+    /// <summary>
+    /// The refusal for an answer that does not fit a tool approval: no yes/no, a free-form
+    /// <c>data</c> value (the tool call comes from the recorded request, never from the answer), or
+    /// "remember" on a refusal.
+    /// </summary>
+    private static string? ToolApprovalProblem(string portId, WorkflowAnswer answer)
+    {
+        if (answer.Approved is null)
+        {
+            return ApprovedMissing(portId);
+        }
+
+        if (answer.Json is { Length: > 0 })
+        {
+            return $"Port '{portId}' waits for a tool approval, which takes no 'data' value. Send 'approved', and " +
+                   "'text' for a reason; the tool call comes from the request the workflow recorded.";
+        }
+
+        return answer.Remember is true && answer.Approved is not true
+            ? "A refusal cannot be remembered: 'remember' is only allowed together with 'approved: true'."
+            : null;
+    }
+
+    private static string RememberNotAllowed(string portId)
+        => $"Port '{portId}' does not wait for a tool approval, so 'remember' has nothing to save. It is only " +
+           "allowed on a tool approval answered with 'approved: true'.";
+
     private static string RevisionMissing()
         => "The plan was rejected but no revision text was given. The 'text' field is " +
            "required so the manager agent knows what to rebuild the plan against.";
@@ -189,4 +260,5 @@ internal static class WorkflowResponseFactory
 /// <param name="Approved">The yes/no answer.</param>
 /// <param name="Text">The text answer.</param>
 /// <param name="Json">The free-form JSON answer.</param>
-internal sealed record WorkflowAnswer(string RequestId, bool? Approved, string? Text, string? Json);
+/// <param name="Remember">Whether a tool approval is also saved as a rule; read only for a tool approval.</param>
+internal sealed record WorkflowAnswer(string RequestId, bool? Approved, string? Text, string? Json, bool? Remember = null);

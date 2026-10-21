@@ -52,6 +52,7 @@ public sealed class ChildAgentInvoker : AIAgent
     private readonly ParameterizedAgentFactory? _parameterFactory;
     private readonly string _deadlineSetting;
     private readonly int? _pinnedVersion;
+    private readonly bool _hostsApproval;
 
     /// <summary>Creates a new sub-agent wrapper.</summary>
     /// <param name="resolver">Resolver that resolves the sub-agent from the catalog.</param>
@@ -94,6 +95,12 @@ public sealed class ChildAgentInvoker : AIAgent
     /// resolves the current version on every call. The wrapper still resolves late, so a pinned
     /// step keeps its version across edits of the agent; the child run row records that version.
     /// </param>
+    /// <param name="hostsApproval">
+    /// Present only for a workflow step whose Microsoft Agent Framework host turns a tool approval into a workflow
+    /// request and waits for the answer (K-1051). The wrapper then passes the approval request on and its sub-run
+    /// closes <see cref="RunStatus.AwaitingApproval"/>. <see langword="false"/> (the default) refuses the approval: an agent
+    /// tree cannot wait in its middle (K-103), and neither can a step that is a plain function executor.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="childDeadline"/> or <paramref name="waitTimeout"/> is outside one
@@ -112,7 +119,8 @@ public sealed class ChildAgentInvoker : AIAgent
         ChildRefusalMode refusalMode = ChildRefusalMode.ToolResult,
         ParameterizedAgentFactory? parameterFactory = null,
         string? deadlineSetting = null,
-        int? pinnedVersion = null)
+        int? pinnedVersion = null,
+        bool hostsApproval = false)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -150,6 +158,7 @@ public sealed class ChildAgentInvoker : AIAgent
         _refusalMode = refusalMode;
         _parameterFactory = parameterFactory;
         _pinnedVersion = pinnedVersion;
+        _hostsApproval = hostsApproval;
         _deadlineSetting = deadlineSetting ?? "'Tracon:AgentGraph:ChildDeadline'";
     }
 
@@ -249,7 +258,9 @@ public sealed class ChildAgentInvoker : AIAgent
         {
             var response = await invocation.ConfigureAwait(false);
 
-            if (ChildRunApproval.Describe(response.Messages) is { } pending)
+            // A step whose host turns the approval into a workflow request passes it on and the workflow
+            // waits for the answer (K-1051). An agent tree (K-103) and a plain function step refuse it.
+            if (!_hostsApproval && ChildRunApproval.Describe(response.Messages) is { } pending)
             {
                 return Refused(ApprovalRefusal(pending));
             }
@@ -363,9 +374,10 @@ public sealed class ChildAgentInvoker : AIAgent
                     yield break;
                 }
 
-                yield return ChildRunApproval.Describe(step.Update!.Contents) is { } pending
+                yield return !_hostsApproval &&
+                             ChildRunApproval.Describe(step.Update!.Contents) is { } pending
                     ? RefusedUpdate(ApprovalRefusal(pending))
-                    : AsOwnUpdate(step.Update);
+                    : AsOwnUpdate(step.Update!);
             }
         }
         finally
@@ -506,7 +518,7 @@ public sealed class ChildAgentInvoker : AIAgent
         return null;
     }
 
-    private static TraconRunOptions CreateChildOptions(
+    private TraconRunOptions CreateChildOptions(
         AgentRunScope scope,
         IReadOnlyDictionary<string, string>? stepValues,
         AgentRunOptions? options)
@@ -539,6 +551,11 @@ public sealed class ChildAgentInvoker : AIAgent
             // (a replay of the step then repeats them). Null for a step that
             // bound none.
             ParameterValues = stepValues,
+
+            // A step's workflow waits for the answer to a tool approval (K-1051), so its row closes
+            // AwaitingApproval. The sub-agent a step's agent calls builds its OWN options and never gets
+            // this: below the step the approval is still refused (K-103).
+            SuspendsWorkflowOnApproval = _hostsApproval,
         };
     }
 

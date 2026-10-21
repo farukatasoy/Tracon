@@ -85,6 +85,28 @@ public sealed class WorkflowAnswerDigestTests
             .ShouldBe(WorkflowAnswerDigest.Compute("request-1", null, null, "\"not json\""));
     }
 
+    [Fact]
+    public void An_approval_that_also_saves_a_rule_is_another_answer_than_one_that_does_not()
+    {
+        var plain = WorkflowAnswerDigest.Compute("request-1", approved: true, null, null);
+
+        Different(plain, WorkflowAnswerDigest.Compute("request-1", approved: true, null, null, remember: true));
+
+        // Not asking to remember is the same answer as it always was: a hash stored before the member
+        // existed must still tell a repeat from a different answer.
+        plain.ShouldBe(WorkflowAnswerDigest.Compute("request-1", approved: true, null, null, remember: false));
+    }
+
+    [Fact]
+    public void The_digest_with_remember_is_the_sha256_of_the_documented_canonical_object()
+    {
+        var expected = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            """{"approved":true,"data":null,"remember":true,"requestId":"request-1","text":"go ahead"}""")));
+
+        WorkflowAnswerDigest.Compute("request-1", approved: true, text: "go ahead", json: null, remember: true)
+            .ShouldBe(expected, StringCompareShould.IgnoreCase);
+    }
+
     private static void Different(string first, string second)
         => string.Equals(first, second, StringComparison.Ordinal).ShouldBeFalse("two different answers share a digest");
 }

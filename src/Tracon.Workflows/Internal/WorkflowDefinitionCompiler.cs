@@ -73,7 +73,8 @@ internal sealed class WorkflowDefinitionCompiler
             return await BuildMixedSequentialAsync(definition, cancellationToken).ConfigureAwait(false);
         }
 
-        var participants = await BindAsync(definition.Name, definition.AgentNames, timeout: null, agentVersion: null, cancellationToken)
+        var participants = await BindAsync(
+                definition.Name, definition.AgentNames, timeout: null, agentVersion: null, hostsApproval: true, cancellationToken)
             .ConfigureAwait(false);
 
         return definition.Kind switch
@@ -180,7 +181,9 @@ internal sealed class WorkflowDefinitionCompiler
             // F-405: the node's timeout replaces ChildDeadline for this step. It is
             // NOT part of the executor id: the wrapper is cached per timeout, and every
             // instance gets the id of the (workflow, agent) pair.
-            var agent = await BindOneAsync(definition.Name, node.Name, node.Timeout, node.AgentVersion, cancellationToken).ConfigureAwait(false);
+            var agent = await BindOneAsync(
+                    definition.Name, node.Name, node.Timeout, node.AgentVersion, hostsApproval: false, cancellationToken)
+                .ConfigureAwait(false);
 
             bindings.Add(ExecutorBindingExtensions.BindExecutor(new WorkflowAgentStepExecutor(node.Name, agent)));
         }
@@ -290,7 +293,8 @@ internal sealed class WorkflowDefinitionCompiler
         IReadOnlyList<AIAgent> participants,
         CancellationToken cancellationToken)
     {
-        var manager = await BindOneAsync(definition.Name, definition.ManagerAgentName!, timeout: null, agentVersion: null, cancellationToken)
+        var manager = await BindOneAsync(
+                definition.Name, definition.ManagerAgentName!, timeout: null, agentVersion: null, hostsApproval: false, cancellationToken)
             .ConfigureAwait(false);
 
         var builder = AgentWorkflowBuilder
@@ -331,6 +335,7 @@ internal sealed class WorkflowDefinitionCompiler
         IReadOnlyList<string> agentNames,
         TimeSpan? timeout,
         int? agentVersion,
+        bool hostsApproval,
         CancellationToken cancellationToken)
     {
         var described = await _resolver.DescribeAsync(agentNames, cancellationToken).ConfigureAwait(false);
@@ -347,7 +352,7 @@ internal sealed class WorkflowDefinitionCompiler
                     "the catalog. Define the agent first, then register the workflow.");
             }
 
-            agents.Add(Wrap(workflowName, info, timeout, agentVersion));
+            agents.Add(Wrap(workflowName, info, timeout, agentVersion, hostsApproval));
         }
 
         return agents;
@@ -358,9 +363,11 @@ internal sealed class WorkflowDefinitionCompiler
         string agentName,
         TimeSpan? timeout,
         int? agentVersion,
+        bool hostsApproval,
         CancellationToken cancellationToken)
     {
-        var bound = await BindAsync(workflowName, [agentName], timeout, agentVersion, cancellationToken).ConfigureAwait(false);
+        var bound = await BindAsync(workflowName, [agentName], timeout, agentVersion, hostsApproval, cancellationToken)
+            .ConfigureAwait(false);
 
         return bound[0];
     }
@@ -369,6 +376,6 @@ internal sealed class WorkflowDefinitionCompiler
     /// Gets the agent from the cache, so the same workflow always produces the
     /// same executor id every time it is compiled, keeping checkpoints compatible.
     /// </summary>
-    private ChildAgentInvoker Wrap(string workflowName, CallableAgentInfo info, TimeSpan? timeout, int? agentVersion)
-        => _agents.Get(workflowName, info.Name, info.Description, timeout, agentVersion);
+    private ChildAgentInvoker Wrap(string workflowName, CallableAgentInfo info, TimeSpan? timeout, int? agentVersion, bool hostsApproval)
+        => _agents.Get(workflowName, info.Name, info.Description, timeout, agentVersion, hostsApproval);
 }

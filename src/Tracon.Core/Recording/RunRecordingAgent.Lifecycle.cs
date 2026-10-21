@@ -193,6 +193,7 @@ public sealed partial class RunRecordingAgent
             AgentVersion = agentVersion,
             ExperimentId = runOptions?.ExperimentId,
             Variant = runOptions?.Variant,
+            SuspendsWorkflowOnApproval = runOptions?.SuspendsWorkflowOnApproval ?? false,
         };
 
         return new RunStart(

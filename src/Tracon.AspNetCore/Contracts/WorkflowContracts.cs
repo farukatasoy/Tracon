@@ -194,14 +194,21 @@ internal sealed record WorkflowRespondHttpRequest
     [Description(
         "Yes/no response. In a plan approval, `true` approves\n" +
         "the plan; `false` sends it back with the correction in\n" +
-        "the `Text` field.")]
+        "the `Text` field. In a tool approval it approves or refuses the tool call.")]
     public bool? Approved { get; init; }
 
-    [Description("Text response; in a plan approval this is the correction instruction.")]
+    [Description(
+        "Text response; in a plan approval this is the correction instruction, in a tool approval the\n" +
+        "reason the model reads.")]
     public string? Text { get; init; }
 
-    [Description("Free-form response body. Resolved against the port's response type.")]
+    [Description("Free-form response body. Resolved against the port's response type. A tool approval takes none.")]
     public JsonElement? Data { get; init; }
+
+    [Description(
+        "Only for a tool approval answered with `approved: true`: also saves the approval as a rule, so the\n" +
+        "same agent is not asked again for this tool. Any other use is refused with `400`.")]
+    public bool? Remember { get; init; }
 
     [Description(
         "Identifier of the checkpoint to resume. If left empty, the run's most\n" +

@@ -413,7 +413,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             {
                 return WorkflowResponseFactory.Check(
                     recorded,
-                    new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json));
+                    new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json, request.Remember));
             }
         }
 
@@ -550,7 +550,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Message = null,
             ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
                 .ConfigureAwait(false),
-            Answers = [new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json)],
+            Answers = [new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json, request.Remember)],
             AnsweredRequest = new AnsweredRequest(request.RunId, request.RequestId),
             Parameters = await ReadRecordedParametersAsync(record, "answered", definitionVersion, cancellationToken)
                 .ConfigureAwait(false),
