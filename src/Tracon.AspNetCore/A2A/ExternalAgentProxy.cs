@@ -91,7 +91,11 @@ internal sealed class ExternalAgentProxy : AIAgent
         JsonSerializerOptions? jsonSerializerOptions = null,
         CancellationToken cancellationToken = default)
     {
-        var agent = await ResolveAsync(cancellationToken).ConfigureAwait(false);
+        // 🚨 Not drain-gated. The session is saved AFTER the run: a run that was
+        // in flight when the process began to drain must still hand its answer
+        // over and keep its conversation. Refusing here would throw away a
+        // finished turn (Phase 229).
+        var agent = await ResolveAsync(cancellationToken, refuseWhileDraining: false).ConfigureAwait(false);
 
         return await agent
             .SerializeSessionAsync(session, jsonSerializerOptions, cancellationToken)
@@ -194,7 +198,7 @@ internal sealed class ExternalAgentProxy : AIAgent
             },
         };
 
-    private async ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken)
+    private async ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken, bool refuseWhileDraining = true)
     {
         var services = _services ?? throw new InvalidOperationException(
             $"The A2A proxy for '{_agentName}' is not attached to a service provider. " +
@@ -203,7 +207,7 @@ internal sealed class ExternalAgentProxy : AIAgent
         // 🚨 Both run paths resolve through here, before a run starts: an A2A
         // message is refused while the process drains (F-431), with the same
         // call error an unknown agent gets.
-        if (services.GetRequiredService<ITraconDrainState>().IsDraining)
+        if (refuseWhileDraining && services.GetRequiredService<ITraconDrainState>().IsDraining)
         {
             throw new TraconExternalCallException(DrainGate.Detail)
             {

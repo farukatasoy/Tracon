@@ -26,15 +26,22 @@ internal sealed class AmbientAuditActorResolver : IAuditActorResolver
 
     /// <inheritdoc />
     public string? Resolve()
-    {
-        var user = AuditActorContext.Current;
+        => ReadActor(AuditActorContext.Current, _options.Value.Audit.ActorClaimType);
 
+    /// <summary>Reads the actor of a user by the resolver's rules.</summary>
+    /// <param name="user">The user; <see langword="null"/> or unauthenticated answers <see langword="null"/>.</param>
+    /// <param name="claimType">The configured actor claim type, or <see langword="null"/> for the default order.</param>
+    /// <returns>The actor, or <see langword="null"/> when the user has none.</returns>
+    /// <remarks>
+    /// Kept separate from the ambient read so a caller that holds the user itself
+    /// (the A2A isolation key) applies the same rules without the ambient value.
+    /// </remarks>
+    internal static string? ReadActor(ClaimsPrincipal? user, string? claimType)
+    {
         if (user?.Identity?.IsAuthenticated != true)
         {
             return null;
         }
-
-        var claimType = _options.Value.Audit.ActorClaimType;
 
         if (claimType is { Length: > 0 })
         {

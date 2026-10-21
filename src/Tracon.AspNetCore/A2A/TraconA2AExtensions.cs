@@ -165,6 +165,8 @@ public static class TraconA2AExtensions
                     "'external:invoke' scope is required — exposing an agent to other agents is a " +
                     "separate permission from running it from the console. The run is recorded " +
                     "like any other, so it appears in the run history with its tokens and cost. " +
+                    "A message with a contextId continues a conversation that belongs to the " +
+                    "caller; another caller that sends the same contextId starts a new one. " +
                     "A tool call that needs approval cannot be answered over this surface and " +
                     "ends the run instead of waiting.");
 
