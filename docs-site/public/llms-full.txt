@@ -4044,7 +4044,7 @@ one-answer request must stay answerable after a crash.
 
 An agent in a workflow can call a tool that
 [needs approval](/concepts/governance/#approvals). Where the pattern hosts the agent — a
-stored `Sequential`, `Concurrent`, `Handoff` or `GroupChat` workflow that lists `agentNames`,
+stored `Sequential`, `Concurrent`, `Handoff`, `GroupChat` or `Magentic` workflow that lists `agentNames`,
 and a code graph that binds the agent with `GetWorkflowAgent` — the workflow stops instead of
 failing. The step's run
 closes `AwaitingApproval`, the workflow run closes `AwaitingInput`, and the request has the
@@ -4441,8 +4441,8 @@ the provider never answered. Match the wait-limit type with
 A tool that asks for approval is not a refusal where the pattern hosts the agent: the
 workflow waits for a person ([A tool that asks for approval](#a-tool-that-asks-for-approval)).
 It is a refusal for an agent node of a `Sequential` node list, for `GetWorkflowAgentStep` and for
-the participants of a `Magentic` workflow. The first two run the agent in a plain function node
-that cannot wait, and the third has not been measured to raise the request:
+the manager of a `Magentic` workflow. The first two run the agent in a plain function node
+that cannot wait, and the manager plans the task rather than being hosted as a participant:
 the run ends `Failed` with the message *a workflow step cannot wait for a tool
 approval*, and the tool does not run. Give that agent a tool that needs no approval, or an
 [approval rule](/concepts/governance/#approvals) for the tool.

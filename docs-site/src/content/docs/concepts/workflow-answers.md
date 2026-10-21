@@ -72,7 +72,7 @@ one-answer request must stay answerable after a crash.
 
 An agent in a workflow can call a tool that
 [needs approval](/concepts/governance/#approvals). Where the pattern hosts the agent — a
-stored `Sequential`, `Concurrent`, `Handoff` or `GroupChat` workflow that lists `agentNames`,
+stored `Sequential`, `Concurrent`, `Handoff`, `GroupChat` or `Magentic` workflow that lists `agentNames`,
 and a code graph that binds the agent with `GetWorkflowAgent` — the workflow stops instead of
 failing. The step's run
 closes `AwaitingApproval`, the workflow run closes `AwaitingInput`, and the request has the

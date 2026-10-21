@@ -73,16 +73,17 @@ internal sealed class WorkflowDefinitionCompiler
             return await BuildMixedSequentialAsync(definition, cancellationToken).ConfigureAwait(false);
         }
 
-        // The patterns whose host turns a tool approval into a workflow request were measured to do so
-        // (Sequential, Concurrent, Handoff, GroupChat). Magentic was not, so its participants keep refusing
-        // the approval: a wrapper that passes a request on to a host that does not raise it would leave the step
-        // waiting for an answer nobody can give.
+        // Every pattern hosts its participants with the framework's host executor, which turns a tool approval into a
+        // workflow request; each was measured to do so (Sequential, Concurrent, Handoff, GroupChat in phase 230,
+        // Magentic on 2026-10-21, MAF-KAPSAMA #49). A wrapper must pass a request on only where a host raises it:
+        // otherwise the step waits for an answer nobody can give. The Magentic manager is not a participant and
+        // keeps refusing (BuildMagenticAsync).
         var participants = await BindAsync(
                 definition.Name,
                 definition.AgentNames,
                 timeout: null,
                 agentVersion: null,
-                hostsApproval: definition.Kind != WorkflowKind.Magentic,
+                hostsApproval: true,
                 cancellationToken)
             .ConfigureAwait(false);
 

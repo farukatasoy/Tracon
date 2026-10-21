@@ -96,7 +96,7 @@ without limit.
 ## A tool that needs approval
 
 An agent in a workflow can call a tool that needs approval. Where a ready-made pattern hosts the
-agent (a stored `Sequential`, `Concurrent`, `Handoff` or `GroupChat` definition with `agentNames`, or a
+agent (a stored `Sequential`, `Concurrent`, `Handoff`, `GroupChat` or `Magentic` definition with `agentNames`, or a
 code graph that binds the agent with `GetWorkflowAgent`), the workflow waits: the request has the form `ToolApproval`, and its prompt
 names the tool and adds what the registered `IToolApprovalPresenter` says about the call. Answer
 it on the same endpoint as any other request, with `approved`, an optional reason in `text`, and

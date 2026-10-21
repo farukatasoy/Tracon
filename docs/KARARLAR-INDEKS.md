@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 997 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 998 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1049 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1050 kalem)
 
 | K | Karar |
 |---|---|
-| K-1008 | Workflow agent adımı (saklanan karma zincir ve `GetWorkflowAgentStep`) agent'tan akışsız cevap ister (`agent.RunAsync`): yapılandırılmış yanıt onarımı adımda çalışır, adımın alt run satırı `IsStreaming = false` yazar ve `message.completed` olayı fazladır (F-537, Faz 211) (kullanıcı kararı) 👤 |
 | K-1009 | `WorkflowFunctionOptions.MaxConcurrency` (`int?`, en az 1) fonksiyon başına, SÜREÇ başına ve kiracılara ortak slot sayısıdır; sarmalayıcı sırası `scope(retry(limit(gate(timeout(handler)))))`: her deneme slotu yeniden alır, retry gecikmesinde slot bırakılır, bütçe kapısı slot alındıktan sonra okunur, bekleme run token'ına bağlıdır (iptal ve `RunTimeout` bekleyeni bırakır) ve düğüm `Timeout`'una sayılmaz; bekleme run olayı yazmaz, `Debug` loglanır (F-538, Faz 211) |
 | K-1010 | Kod kaydı `WorkflowRegistrationOptions.RunTimeout` ve `Parameters` taşır: `RunTimeout` K-960'ın kuralını izler, ama tavanı aşan değer HOST AÇILIŞINDA (`TraconWorkflowOptionsValidator`, `Enabled` iken) workflow adıyla düşer, tavan sonradan düşerse run tavana kesilir ve loglanır; `Parameters` K-897'nin kuralını izler (HTTP erken `400`); katılımcı kapsaması kod grafında YOKTUR, eksik zorunlu değeri adım koşarken düşürür (F-537, Faz 211) |
 | K-1011 | Süre dolumu servisi (`WorkflowRequestExpirationService`) kapattığı run `Failed` ise `run.failed` yayınlar; `Completed` kapanışta HİÇBİR olay yayınlamaz; yayın `CancellationToken.None` ile yapılır, hata loglanır ve kapanışı bozmaz (F-539, Faz 211) |
@@ -57,8 +56,9 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1052 | A2A oturum kimliği `a2a:` + SHA-256 özeti: kiracı, agent, çağıran, `contextId`; her parça uzunluk önekli (F-614, Faz 229) |
 | K-1053 | A2A çağıranı tür önekli kimlik: `user:` · `apikey:` · `static-token` · `anonymous`; okunamayan kullanıcı reddedilir (F-614, Faz 229) |
 | K-1054 | Sahiplik açıkken A2A mesajı, atıf kimliği yoksa ya da konuşma başka kullanıcınınsa model çağrılmadan reddedilir (F-614, Faz 229) |
-| K-1055 | Workflow adımı tool onayını yalnız MAF'ın host ettiği ve ölçülen düğümde bekler; fonksiyon adımı ve Magentic reddi sürdürür |
+| K-1055 | Workflow adımı tool onayını yalnız MAF'ın host ettiği ve ölçülen düğümde bekler; fonksiyon adımı ve Magentic reddi sürdürür 🔁 |
 | K-1056 | `ToolApproval` cevabı yalnız karar taşır; araç çağrısı kayıtlı istekten gelir, `data` reddedilir |
 | K-1057 | Onay kuralı ve denetim satırı tek `ToolApprovalDecisionRecorder`'dan; ajan adı executor kimliğinden çözülür |
 | K-1058 | Cevaplanmayan istek süresi dolunca bekleyen adım run'ı workflow'la `Failed` kapanır; cevaplanan `AwaitingApproval` kalır |
 | K-1059 | `ToolApproval` isteği workflow hangi cevap kipinde olursa olsun tek cevap alır; ikinci aynı karar ilkini izler, farklısı `409` (F-615, Faz 230) |
+| K-1060 | Magentic katılımcısı tool onayını workflow isteği olarak bekler; yöneticinin onayı reddi sürdürür (K-1055 daraltması) |

@@ -4028,3 +4028,30 @@ Otomatik karşılığı: `WorkflowHandoffTests.The_model_sees_the_handoff_tools_
 - Kural `agentName: "order-canceler"` (tireli, gerçek ad), `toolName: "cancel_order"` yazar; `argumentsHash` boştur.
 - 4. adımdaki akış `WorkflowRequest` yayınlamadan `RunCompleted` ile biter ve çıktı `Order ORD-2002 has been canceled.` içerir.
 - `remember: true` ile `approved: false` birlikte `400` verir (otomatik test: `Remembering_a_refusal_is_refused`).
+
+---
+
+### MT-WF-186 — `Magentic` katılımcısının onay isteyen tool'u workflow'u bekletir, onaylanınca bir kez koşar (2026-10-21, K-1060)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (Faz 230'un ölçülmemiş deseni; doğrudan iş) |
+| **İlgili karar** | K-1060, K-1055 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), gerçek OpenAI `gpt-5.4-mini`, `curl` · ➜ CI: `WorkflowToolApprovalPatternTests` (dört `Magentic` case'i) |
+
+**Ön koşul** — MT-WF-183'ün ortamı. `POST $BASE/api/agents` — `{"name":"mag-manager","instructions":"You coordinate a team to complete the user task. Follow the requested output formats exactly.","model":{"provider":"openai","model":"gpt-5.4-mini"}}` ve `{"name":"order-canceler","instructions":"You cancel orders. When asked to cancel an order, call cancel_order with the order id, then report the result in one sentence.","model":{"provider":"openai","model":"gpt-5.4-mini"},"toolNames":["cancel_order"]}`; `PUT $BASE/api/workflows/mag-cancel` — `{"kind":"Magentic","agentNames":["order-canceler"],"managerAgentName":"mag-manager","maxIterations":6}`.
+
+**Adımlar**
+1. `POST $BASE/api/workflows/mag-cancel/run` — `{"message":"Please cancel order ORD-1001."}`.
+2. `GET $BASE/api/workflows/runs/{runId}/requests`; `GET $BASE/api/approvals/pending`.
+3. `POST $BASE/api/workflows/runs/{runId}/respond` — `{"requestId":"…","approved":true,"text":"Checked with the customer."}`.
+4. `GET $BASE/api/audit?action=approval.decision`.
+
+**Beklenen sonuç**
+- (1) Run `AwaitingInput` biter; `RunFailed` gelmez.
+- (2) Tek istek: `form: "ToolApproval"`, `prompt` `cancel_order: Cancel order ORD-1001 for Priya Shah.`; bekleyen onay listesi boştur (K-372).
+- (3) Yeni run `Completed` biter; çıktı siparişin iptal edildiğini söyler.
+- (4) `tool:cancel_order` için bir `approval.decision` satırı (`approved: true`, gerekçe).
+- Ölçülen (2026-10-21, SQLite, `gpt-5.4-mini`): (1) `AwaitingInput` · (2) istek kimliği `order_canceler_…_UserInput:ficc_call_…`, prompt yukarıdaki gibi, liste `[]` · (3) `Completed`, `Your order **ORD-1001** has been canceled successfully.` · (4) `{"approved":true,"reason":"Checked with the customer."}`.

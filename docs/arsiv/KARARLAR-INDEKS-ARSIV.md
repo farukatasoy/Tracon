@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (997 kalem)
+## Arşivlenen Kararlar (998 kalem)
 
 | K | Karar |
 |---|---|
@@ -1006,3 +1006,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1005 | Kiracı listesi `GET /api/workflows/requests` `Reader` + `RunAccess.Read` ister; run okumayı reddeden `IRunAuthorizationHandler` listeyi `403` ile REDDEDER, süzmez (K-671); `requests` adı `functions` gibi ayrılmış workflow adıdır (rota `/api/workflows/{name}`'den önce eşleşir) (F-319, Faz 209) (kullanıcı kararı) 👤 |
 | K-1006 | Cevabı okuyan akışlı yüzey Loop'lu agent'tan yalnız son iterasyonu alır (`AgentAnswerStream`); native agent SSE'si her iterasyonu akıtır (F-536, K-889 uzantısı) |
 | K-1007 | Kod grafında düğüm yetenekleri iki public yardımcıyla verilir: `GetWorkflowFunction(ad[, Action<WorkflowFunctionStepOptions>])` kayıtlı fonksiyonun SAKLANAN ZİNCİRLE AYNI sarmalanmış executor'ını, `GetWorkflowAgentStep(workflow, agent[, Action<WorkflowAgentStepOptions>])` agent'ı düz bir `FunctionExecutor` adımı olarak döner; executor kimliği fonksiyon veya agent adıdır (bir grafta bir kez), `ExecutorBinding` sarmalanmaz; bilinmeyen fonksiyon ve okunamayan ayar run'ı ilk düğümden ÖNCE `Failed` bitirir; `AgentVersion` sabiti graf kurulurken değil adım koşarken, model çağrısından önce denetlenir; `GetWorkflowAgent` değişmez (F-537, Faz 211) (kullanıcı kararı) 👤 |
+| K-1008 | Workflow agent adımı (saklanan karma zincir ve `GetWorkflowAgentStep`) agent'tan akışsız cevap ister (`agent.RunAsync`): yapılandırılmış yanıt onarımı adımda çalışır, adımın alt run satırı `IsStreaming = false` yazar ve `message.completed` olayı fazladır (F-537, Faz 211) (kullanıcı kararı) 👤 |
