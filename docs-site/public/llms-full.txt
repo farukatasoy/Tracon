@@ -9970,7 +9970,10 @@ The endpoint inherits the loopback, bearer, and authorization settings from
 with the exact `ExternalInvoke` scope. A static bearer token alone is rejected at
 startup. Create the key before enabling remote access.
 
-An exposed agent cannot contain an approval-required tool. The application waits
+An exposed agent cannot contain an approval-required tool. A tool needs approval when its
+registration sets `RequiresApproval`, or when the function is already wrapped in
+`ApprovalRequiredAIFunction` — the default of Microsoft Agent Framework's
+`DockerShellExecutor.AsAIFunction()`. The application waits
 until the catalog is queryable, checks the selected agents, and prevents MCP requests
 from running if an approval boundary would be crossed. An external protocol caller
 cannot act as the missing human. A tool that gains approval after the agent was exposed

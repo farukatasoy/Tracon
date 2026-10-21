@@ -231,6 +231,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A tool that Microsoft Agent Framework already wrapped for approval reports that it needs approval.**
+  `AddTool(new ApprovalRequiredAIFunction(fn))` — the default shape of `DockerShellExecutor.AsAIFunction()` —
+  asked for approval at run time, but `/api/tools` said `requiresApproval: false`. The A2A and MCP exposure
+  check read that flag, so such an agent was exposed and every call failed with `-32603`. The startup check
+  now refuses it, and replay sees the approval.
 - **The .NET client reads a nullable enum property.** `ToolDescriptor.HostedKind`, `RunComparisonSide.ErrorClass`,
   `RunError.Class`, `WorkflowDescriptor.Kind`, `EvalCase.SourceKind` and `VoiceSession.EndReason` were generated as an
   empty class named after the property in place of the enum, so the client threw `JsonException` when the host sent a

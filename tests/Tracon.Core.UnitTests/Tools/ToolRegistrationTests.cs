@@ -57,6 +57,29 @@ public sealed class ToolRegistrationTests
         withApproval.List().ShouldHaveSingleItem().RequiresApproval.ShouldBeTrue();
     }
 
+    /// <summary>
+    /// A tool the framework already wrapped for approval asks for approval whatever the registration says:
+    /// <c>FunctionInvokingChatClient</c> finds the marker through every wrapper. Microsoft Agent Framework's
+    /// <c>DockerShellExecutor.AsAIFunction()</c> and <c>FileAccessProvider</c> tools wrap by default. The
+    /// descriptor said "no approval", so the external-surface guard and replay let the tool through.
+    /// </summary>
+    [Fact]
+    public void A_tool_already_wrapped_for_approval_reports_that_it_needs_approval()
+    {
+        var registry = TestData.Registry(new Microsoft.Extensions.AI.ApprovalRequiredAIFunction(TestData.Tool("run_shell")));
+
+        registry.List().ShouldHaveSingleItem().RequiresApproval.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void A_scoped_tool_already_wrapped_for_approval_reports_that_it_needs_approval()
+    {
+        var registry = BuildRegistry(builder => builder.AddScopedTool(
+            new Microsoft.Extensions.AI.ApprovalRequiredAIFunction(TestData.Tool("run_shell"))));
+
+        registry.List().ShouldHaveSingleItem().RequiresApproval.ShouldBeTrue();
+    }
+
     [Fact]
     public void Registering_the_same_name_twice_throws()
     {
