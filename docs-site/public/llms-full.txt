@@ -6984,10 +6984,11 @@ These losses have no door that removes them:
   budget of the agent tree. It does this only when it compiles a definition. A factory
   agent or a custom-source agent gets none of them from Tracon.
 - **A file store that is scoped to the tenant and the agent.** The agent file store in
-  the container is not scoped to an agent. The in-memory default has no tenant prefix
-  and no agent prefix. The SQL store is scoped to the tenant, but all agents share it.
-  Do not give the store from the container to an agent that serves more than one
-  tenant. Scope it yourself.
+  the container is not built for a provider of your own. The in-memory default has no
+  tenant prefix and no agent prefix: every tenant and agent of the process shares it. The
+  SQL stores scope every call to the tenant and to the agent of the current run, so a
+  provider of your own shares the space of that agent's file memory, and it fails outside
+  a run. Do not give the in-memory store to an agent that serves more than one tenant.
 - **Everything a definition gives.** A code-built agent cannot take parameterized,
   per-culture, or shared instructions. It has no versions, experiments, rollback, or
   validation when you save, and you cannot edit it in the console.
