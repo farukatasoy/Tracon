@@ -139,6 +139,29 @@ public sealed class A2AEndpointTests
         exception.Message.ShouldContain("approval", Case.Sensitive);
     }
 
+    /// <summary>
+    /// The same boundary for a tool the framework wrapped for approval itself, the way
+    /// <c>DockerShellExecutor.AsAIFunction()</c> does by default. The registration does not set
+    /// <c>RequiresApproval</c>; the guard read only that flag, so the agent was exposed and every call
+    /// failed at run time with an opaque <c>-32603</c>.
+    /// </summary>
+    [Fact]
+    public async Task An_agent_carrying_a_tool_the_framework_wrapped_for_approval_cannot_be_exposed_via_A2A()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddTool(new Microsoft.Extensions.AI.ApprovalRequiredAIFunction(
+                    Microsoft.Extensions.AI.AIFunctionFactory.Create((Func<string, string>)CancelOrder, "cancel_order", "Cancels an order.")))
+                .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconA2A());
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(() => host.Client.GetAsync(
+            new Uri("/tracon/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative)));
+
+        exception.Message.ShouldContain("cancel_order", Case.Sensitive);
+    }
+
     [Fact]
     public async Task MapTraconA2A_does_not_crash_on_an_empty_sqlite_database()
     {

@@ -424,6 +424,7 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
+| 🟡 | **F-626** · Skill'li agent A2A/MCP'ye açılır ama ilk `load_skill` run'ı düşürür | Ölçüldü (2026-10-21, probe, MAF-KAPSAMA #45 sınıf taraması): MAF 1.25'te `load_skill`, `read_skill_resource` ve `run_skill_script` varsayılan olarak `ApprovalRequiredAIFunction`'dır; Tracon `AgentSkillsProviderOptions`'ı `new()` ile kurar. Skill tool'ları kayıt defterinde olmadığı için `EnsureNoApprovalRequiredTools` onları görmez: host açılır, ilk skill yüklemesi run'ı `approval_unanswerable` ile düşürür, A2A `-32603` döner. Kalıcı "Hatırla" kuralı varsa çalışır | Karar 👤: (a) kapı skill'li agent'ı reddetsin ya da (b) tanım okuma skill tool'larının onayını kapatabilsin (F-601 dilimi; `run_skill_script` onaylı kalır) ve kapı etkin ayarı okusun. Öneri (b). Kanıt: `SkillExposure` fonksiyonel testi A2A ve MCP'de |
 | 🟢 | **F-581** · OpenAI uyumlu uçların kalan iki açığı: konuşma öğelerinde görsel/dosya listelenmez; MAF `input_file` adını düşürür | İstek yönü 2026-10-19'da kapandı (kusur-giderme, K-1027: `/v1/chat/completions` agent'ın istek ayarını `400` ile reddeder, `/v1/conversations` ilk `items`'ı reddeder). Kalan: (1) `GET /v1/conversations/{id}/items` görsel ve dosya içeriğini listelemez (`ToItems` yalnız metin ve tool; kod okuması, ölçülmedi). (2) MAF `Hosting.OpenAI` `input_file`'ın `filename`'ini düşürür ve `file_data`'yı `application/octet-stream` yapar (upstream, ölçüldü) | (1) Ölç; listelenmiyorsa ek referansını öğe olarak ver. (2) Upstream bildirimi bakımcının kararı |
 | 🟢 | **F-526** · `kapi.py` sevk edilen sözleşme değişimini çözüm dışı örnek depoya bağlamıyor | Ölçüldü (2026-10-14, F-502): `RunStoreContract`'a case ekleyen değişiklik `samples/Tracon.Samples.FileRunStore`'u kırdı; çözümde olmadığı için yalnız `kapi.py yayin --kuru` gördü. `faz-tamamlama` bunu yazar, kapı hatırlatmaz | `src/Tracon.Testing.Contracts.Xunit/` dokunulduğunda `ic-dongu` ve `kapanis`, `samples/Tracon.Samples.*` uyarısının kardeşi olarak "yayın provası gerekir" bassın |
 | 🟢 | **F-527** · Yeniden denemeden sonra reddedilen düğümde ilk denemenin hatası kayıttan düşer | Faz 210 denetimi (🟢): ikinci deneme bütçe kapısında reddedilirse run satırı yalnız `Could not start function node …` der; ilk denemenin geçici hatası kayıtta yok. `WorkflowNodeRetry` başarısız denemeyi bütçeden bağımsız olarak da loglamaz | Retry döngüsü her başarısız denemeyi `Warning` olarak logla; ret mesajı gerekirse ilk denemenin hata tipini anar |
@@ -695,7 +696,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-626**.
+numara: **F-627**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

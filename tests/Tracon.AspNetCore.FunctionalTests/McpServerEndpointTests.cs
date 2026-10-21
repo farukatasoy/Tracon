@@ -139,6 +139,28 @@ public sealed class McpServerEndpointTests
         exception.Message.ShouldContain("approval", Case.Sensitive);
     }
 
+    /// <summary>
+    /// The same boundary for a tool the framework wrapped for approval itself, the way
+    /// <c>DockerShellExecutor.AsAIFunction()</c> does by default, with no <c>RequiresApproval</c> on the
+    /// registration.
+    /// </summary>
+    [Fact]
+    public async Task Agent_carrying_a_tool_the_framework_wrapped_for_approval_cannot_be_exposed()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddTool(new Microsoft.Extensions.AI.ApprovalRequiredAIFunction(
+                    Microsoft.Extensions.AI.AIFunctionFactory.Create((Func<string, string>)CancelOrder, "cancel_order", "Cancels an order.")))
+                .AddAgent(TestData.Definition() with { ToolNames = ["cancel_order"] })
+                .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconMcpServer());
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => McpTestClient.SendAsync(host.Client, "/tracon/mcp", "tools/list"));
+
+        exception.Message.ShouldContain("cancel_order", Case.Sensitive);
+    }
+
     [Fact]
     public async Task MapTraconMcpServer_does_not_crash_on_an_empty_sqlite_database()
     {

@@ -2374,3 +2374,25 @@ send() { curl -s -X POST "$APU/a2a/summarizer/" -H "Authorization: Bearer $1" -H
 - (4) Yanıt (2)'deki soruyu anar: `K1` konuşması (3)'ten etkilenmedi.
 - `GET $APU/api/sessions`: iki satır (`K1` ve `K2` konuşması); her `id` `a2a:` ile başlar ve 68 karakterdir, `agentName` `summarizer`. `id` anahtarı ya da `contextId`'yi okunur biçimde taşımaz.
 - Ölçülen (2026-10-21, SQLite, `gpt-5.4-mini`): (1) `- The speaker says their name is Ada.` · (2) `- Your name is Ada.` · (3) `- I don’t have access to your name unless you tell me.` · (4) `- You asked: “What is my name?”` · iki oturum, ikisi 68 karakter, `agentName: summarizer`.
+
+### MT-MCP-091 — MAF'ın onaya sardığı tool taşıyan agent dışa açılamaz (kusur-giderme, 2026-10-21, MAF-KAPSAMA #45)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `A2AEndpointTests.An_agent_carrying_a_tool_the_framework_wrapped_for_approval_cannot_be_exposed_via_A2A` · `McpServerEndpointTests.Agent_carrying_a_tool_the_framework_wrapped_for_approval_cannot_be_exposed` · `ToolRegistrationTests.A_tool_already_wrapped_for_approval_reports_that_it_needs_approval` |
+
+Regresyon. Tool `RequiresApproval` olmadan, ama `new ApprovalRequiredAIFunction(fn)` (ya da
+`DockerShellExecutor.AsAIFunction()`) ile kaydedilince katalog `requiresApproval: false` diyordu; agent
+A2A'ya açılıyor ve her çağrı `-32603` ile düşüyordu.
+
+**Adımlar**
+1. Örnek uygulamada `cancel_order` tool'unu `AddTool(new ApprovalRequiredAIFunction(fn))` ile kaydet (kayıt seçeneği yok); `summarizer`'a ver ve A2A'ya aç.
+2. `GET $APU/api/tools`; sonra `GET $APU/a2a/summarizer/.well-known/agent-card.json`.
+
+**Beklenen sonuç**
+- (2) `cancel_order` satırında `requiresApproval: true`.
+- İlk istek `InvalidOperationException` ile reddedilir; mesaj `cancel_order`'ı ve onayı anar. Agent dışa açılmaz.

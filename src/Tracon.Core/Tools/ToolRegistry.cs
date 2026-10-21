@@ -117,7 +117,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
                 JsonSchema = registration.Function.JsonSchema.ValueKind == System.Text.Json.JsonValueKind.Undefined
                     ? null
                     : registration.Function.JsonSchema.GetRawText(),
-                RequiresApproval = registration.RequiresApproval,
+                RequiresApproval = RequiresApproval(registration),
                 Source = registration.Source,
                 RunsOnClient = registration.Function is not AIFunction,
                 Effect = registration.Effect,
@@ -160,4 +160,18 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
         ArgumentNullException.ThrowIfNull(name);
         return _tools.TryGetValue(name, out tool);
     }
+
+    /// <summary>Whether the tool asks for approval before it runs.</summary>
+    /// <param name="registration">The registration.</param>
+    /// <returns><see langword="true"/> when the registration says so or the tool is already wrapped for approval.</returns>
+    /// <remarks>
+    /// <see cref="FunctionInvokingChatClient"/> finds an <see cref="ApprovalRequiredAIFunction"/> through every
+    /// wrapper, so a tool the consumer or the framework wrapped asks for approval whatever the registration says.
+    /// Microsoft Agent Framework wraps by default (<c>DockerShellExecutor.AsAIFunction()</c>,
+    /// <c>FileAccessProvider</c>). The descriptor said "no approval" for such a tool, and the external-surface
+    /// guard and replay, which read the descriptor, let it through (MAF-KAPSAMA §0 #45).
+    /// </remarks>
+    private static bool RequiresApproval(TraconToolRegistration registration)
+        => registration.RequiresApproval
+            || registration.Function.GetService<ApprovalRequiredAIFunction>() is not null;
 }

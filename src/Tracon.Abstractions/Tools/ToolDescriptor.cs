@@ -22,7 +22,10 @@ public sealed record ToolDescriptor
     /// If <see langword="true"/>, the compiler wraps the tool with
     /// <c>ApprovalRequiredAIFunction</c>; Microsoft Agent Framework produces a
     /// <c>ToolApprovalRequestContent</c> instead of running the tool, and the
-    /// call waits for the user's approval.
+    /// call waits for the user's approval. A code tool also reports
+    /// <see langword="true"/> when its function is already wrapped in
+    /// <c>ApprovalRequiredAIFunction</c>, whatever its registration says: the
+    /// framework asks for approval either way.
     /// </remarks>
     public bool RequiresApproval { get; init; }
 
