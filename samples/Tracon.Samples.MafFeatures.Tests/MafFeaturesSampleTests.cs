@@ -10,10 +10,11 @@ namespace Tracon.Samples.MafFeatures.Tests;
 /// </summary>
 /// <remarks>
 /// The guide "Use any Microsoft Agent Framework feature" quotes this sample's code and
-/// makes claims about what each door keeps. These tests check four of them: the middleware
-/// sees every tool call of every door, and the door that is asynchronous and names its
-/// model gets the tenant's key, a cost, and the egress policy, while the synchronous
-/// factory door gets none of the three.
+/// makes claims about what each door keeps. These tests check them: the middleware sees
+/// every tool call of every door; an extension adds a context provider and a chat client
+/// ring to a data agent, and the ring sees every model call; and the door that is
+/// asynchronous and names its model gets the tenant's key, a cost, and the egress policy,
+/// while the synchronous factory door gets none of the three.
 /// </remarks>
 public sealed class MafFeaturesSampleTests
 {
@@ -72,6 +73,31 @@ public sealed class MafFeaturesSampleTests
         var run = await SingleRunAsync(host, MafFeaturesRegistration.SupportAgentName);
         run.ModelId.ShouldBe("fake-model");
         run.Cost.ShouldNotBeNull().InputCost.ShouldNotBeNull().ShouldBeGreaterThan(0m);
+    }
+
+    [Fact]
+    public async Task An_extensions_ring_sees_every_model_call_of_a_data_agent_including_the_tool_result()
+    {
+        var provider = new FakeModelProvider("fake")
+            .CallsTool(SearchOrdersToolRegistration.ToolName, new { customer = "acme" })
+            .EchoesLastToolResult();
+
+        await using var host = BuildHost(provider, new ModelBinding { Provider = "fake", Model = "fake-model" });
+
+        var agent = await host.GetRequiredService<IAgentCatalog>()
+            .ResolveAsync(MafFeaturesRegistration.SupportAgentName, culture: null, TestContext.Current.CancellationToken);
+        agent.ShouldNotBeNull();
+
+        var response = await agent.RunAsync("What does acme have open?", cancellationToken: TestContext.Current.CancellationToken);
+
+        // The ring is inside the tool-call loop: it saw the question and the call that took the
+        // tool result to the model.
+        host.GetRequiredService<ModelCallLog>().Calls.ShouldBe(
+        [
+            $"{MafFeaturesRegistration.SupportAgentName}:user",
+            $"{MafFeaturesRegistration.SupportAgentName}:tool",
+        ]);
+        response.Text.ShouldContain("1042");
     }
 
     [Fact]

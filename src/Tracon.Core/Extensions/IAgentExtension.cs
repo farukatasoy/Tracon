@@ -8,7 +8,8 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// This is the escape door for a Microsoft Agent Framework option Tracon does not
-/// model, or for an <c>AIContextProvider</c> of your own. The agent still goes
+/// model, for an <c>AIContextProvider</c> of your own, or for a chat client that must
+/// see every model call (<see cref="AgentExtensionContext.UseChatClient"/>). The agent still goes
 /// through the compiler, so it keeps the model ring, the tenant's provider
 /// credential, egress and cost; a hand-built agent in
 /// <c>AddAgent(name, factory)</c> loses them.
@@ -64,8 +65,8 @@ public interface IAgentExtension
     string? Description { get; }
 
     /// <summary>
-    /// Changes the options of the agent that is being compiled, or adds a wrapper
-    /// around it.
+    /// Changes the options of the agent that is being compiled, adds a wrapper
+    /// around it, or adds a chat client ring to its model pipeline.
     /// </summary>
     /// <param name="context">The agent being compiled.</param>
     /// <remarks>

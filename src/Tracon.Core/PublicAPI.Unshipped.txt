@@ -843,3 +843,7 @@ Tracon.HostedToolPriceOverride.PerCall.get -> decimal?
 Tracon.HostedToolPriceOverride.PerCall.set -> void
 Tracon.TraconPricingOptions.HostedTools.get -> System.Collections.Generic.IDictionary<string!, System.Collections.Generic.IDictionary<string!, Tracon.HostedToolPriceOverride!>!>!
 static Tracon.TraconBuilderExtensions.AddHostedTool(this Tracon.ITraconBuilder! builder, string! name, Tracon.HostedToolKind kind, System.Func<Tracon.HostedToolContext!, Microsoft.Extensions.AI.AITool!>! factory, string? description = null) -> Tracon.ITraconBuilder!
+Tracon.AgentExtensionContext.UseChatClient(Tracon.ChatClientSlot slot, System.Func<Microsoft.Extensions.AI.IChatClient!, Microsoft.Extensions.AI.IChatClient!>! ring) -> void
+Tracon.ChatClientSlot
+Tracon.ChatClientSlot.ModelCall = 0 -> Tracon.ChatClientSlot
+Tracon.ChatClientSlot.Turn = 1 -> Tracon.ChatClientSlot

@@ -20,7 +20,7 @@ namespace Tracon.Generators.UnitTests.Examples;
 /// A handful of blocks name a type that exists only to illustrate an extension
 /// point (<c>OnPremiseModelProvider</c>, <c>OrderTools</c>, <c>IOrderGateway</c>,
 /// <c>IOrderRepository</c>, <c>NightlyReportJobHandler</c>, <c>GitAgentSource</c>,
-/// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>, <c>PolicyContextExtension</c>,
+/// <c>ResponseQualityJudge</c>, <c>AuditingAgentDecorator</c>, <c>PolicyContextExtension</c>, <c>ModelCallLogChatClient</c>,
 /// <c>OrderDeskAuthorization</c>, <c>LoggingEvaluatorFactory</c>, <c>TtsSettings</c>,
 /// <c>StudioSpeechSynthesizer</c>, <c>OnPremiseTranscriber</c>, <c>StudioTextToSpeechClient</c>, <c>StudioSpeechToTextClient</c>, <c>NarrationSettings</c>): "a
 /// provider/tool/service/repository/handler/source/judge/decorator/authorization you wrote yourself". Those get a
@@ -263,6 +263,9 @@ internal static class ExamplePrelude
             protected override ValueTask<AIContext> ProvideAIContextAsync(InvokingContext context, CancellationToken cancellationToken = default)
                 => new(new AIContext { Instructions = "House policy." });
         }
+
+        // Stands in for "your own chat client ring", named in one <example> block.
+        internal sealed class ModelCallLogChatClient(IChatClient inner) : DelegatingChatClient(inner);
         """;
 
     /// <summary>The running "order status" tool shown across several unrelated examples.</summary>
