@@ -111,7 +111,7 @@ internal sealed class WorkflowAgentCache
     /// </param>
     /// <param name="hostsApproval">
     /// Whether a Microsoft Agent Framework host runs the agent and turns its tool approval into a workflow
-    /// request (K-1051): the five ready-made patterns' participants and <c>GetWorkflowAgent</c>. A plain function
+    /// request: the five ready-made patterns' participants and <c>GetWorkflowAgent</c>. A plain function
     /// step (a mixed chain's agent node, <c>GetWorkflowAgentStep</c>) and a Magentic manager do not, and
     /// their wrapper refuses the approval.
     /// </param>

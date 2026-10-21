@@ -330,8 +330,8 @@ internal sealed class WorkflowRequestExpirationService(
     /// </summary>
     /// <remarks>
     /// A step whose approval nobody answered would stay <see cref="RunStatus.AwaitingApproval"/> for good, though
-    /// the workflow that waited for it has failed (K-1051). A step whose approval WAS answered is left as it is: the
-    /// answer continued on a new run, and an answered run stays in its state (K-014).
+    /// the workflow that waited for it has failed. A step whose approval WAS answered is left as it is: the
+    /// answer continued on a new run, and an answered run stays in the state it closed with.
     /// <see cref="IRunStore.CompleteRunAsync"/> replaces the event count, the usage and the cost, so the row's own
     /// values are written back.
     /// </remarks>

@@ -139,7 +139,7 @@ public sealed record AgentRunScope
     /// </summary>
     /// <remarks>
     /// Read by <see cref="RunRecordingAgent"/> at the end of the run. It is never copied to a
-    /// sub-run: the sub-agent a step's agent calls still cannot wait for an approval (K-103).
+    /// sub-run: the sub-agent a step's agent calls still cannot wait for an approval.
     /// </remarks>
     internal bool SuspendsWorkflowOnApproval { get; init; }
 

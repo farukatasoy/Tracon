@@ -97,9 +97,9 @@ public sealed class ChildAgentInvoker : AIAgent
     /// </param>
     /// <param name="hostsApproval">
     /// Present only for a workflow step whose Microsoft Agent Framework host turns a tool approval into a workflow
-    /// request and waits for the answer (K-1051). The wrapper then passes the approval request on and its sub-run
+    /// request and waits for the answer. The wrapper then passes the approval request on and its sub-run
     /// closes <see cref="RunStatus.AwaitingApproval"/>. <see langword="false"/> (the default) refuses the approval: an agent
-    /// tree cannot wait in its middle (K-103), and neither can a step that is a plain function executor.
+    /// tree cannot wait in its middle, and neither can a step that is a plain function executor.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">

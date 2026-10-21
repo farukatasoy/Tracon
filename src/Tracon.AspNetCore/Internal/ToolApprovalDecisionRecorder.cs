@@ -10,9 +10,9 @@ namespace Tracon;
 /// <para>
 /// Two surfaces carry a decision to a tool call that waits for approval: the next run's request body
 /// (<see cref="ToolApprovalResolver"/>) and the answer to a workflow's pending request
-/// (<c>POST /api/workflows/runs/{runId}/respond</c>, phase 230). Both write the SAME audit row and the
+/// (<c>POST /api/workflows/runs/{runId}/respond</c>). Both write the SAME audit row and the
 /// SAME rule, so the two writes live here once; a decision does not mean something different because of the
-/// way it arrived (K-089, K-370).
+/// way it arrived.
 /// </para>
 /// <para>
 /// The audit row comes BEFORE the decision is applied and a failed write throws, so a decision that cannot be

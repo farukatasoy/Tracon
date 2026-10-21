@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209, 211
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194, 195, 196, 197, 200, 208, 209, 211, 230
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -3953,3 +3953,78 @@ Otomatik karşılığı: `WorkflowHandoffTests.The_model_sees_the_handoff_tools_
 - Çıktı `EXPERT:` ile başlayan bir cevap taşır.
 - Çocuk run'lar `triage` ve `expert` için ayrı satırdır; `triage` satırı `handoff_to_1` tool çağrısını gösterir.
 - Düzeltmeden önce (taban `b726ee70`): `triage` modeli handoff tool'unu görmez ve cevabı kendisi verir; tool'u görse bile çağrı dış tool sanılır ve run `AwaitingInput`'ta kalır.
+
+---
+
+### MT-WF-183 — Onay isteyen tool'u olan agent'lı workflow bekler, onaylanınca tool bir kez koşar (Faz 230, K-1051)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 230 |
+| **İlgili karar** | K-1051, K-1056 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), gerçek OpenAI `gpt-5.4-mini`, `curl` |
+
+**Ön koşul** — `samples/Tracon.Api`; `Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=` `Tracon__Ui__AuthToken=` boş, `Tracon__Sqlite__ConnectionString` geçici dosyada, `ASPNETCORE_ENVIRONMENT=Development`. `POST $BASE/api/agents` — `{"name":"order-canceler","instructions":"…cancel_order…","model":{"provider":"openai","model":"gpt-5.4-mini"},"toolNames":["cancel_order"]}`; `PUT $BASE/api/workflows/cancel-flow` — `{"kind":"Sequential","agentNames":["order-canceler"]}`.
+
+**Adımlar**
+1. `POST $BASE/api/workflows/cancel-flow/run` — `{"message":"Please cancel order ORD-1001."}`.
+2. `GET $BASE/api/workflows/runs/{runId}/requests`; `GET $BASE/api/approvals/pending`.
+3. `POST $BASE/api/workflows/runs/{runId}/respond` — `{"requestId":"…","approved":true,"text":"Checked with the customer."}`.
+4. `GET $BASE/api/audit?action=approval.decision`.
+
+**Beklenen sonuç**
+- Akış `RunAwaitingInput` ile biter; `RunFailed` gelmez. İstek `form: "ToolApproval"` taşır, `prompt` tool adını ve sunucunun sunumunu içerir (`cancel_order: Cancel order ORD-1001 for Priya Shah.`), argüman içermez.
+- `GET /api/approvals/pending` boş döner (K-372): karar yalnız workflow isteğinden verilir.
+- Cevap yeni bir run açar; çıktı `Order ORD-1001 has been canceled.` içerir ve run `Completed` biter.
+- Denetim izinde `tool:cancel_order` için bir `approval.decision` satırı (`approved: true`, gerekçe) ve bir `workflow.respond` satırı vardır.
+
+---
+
+### MT-WF-184 — Reddedilen tool koşmaz, agent gerekçeyi görür, workflow sürer (Faz 230, K-1056)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 230 |
+| **İlgili karar** | K-1056 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), gerçek OpenAI `gpt-5.4-mini`, `curl` |
+
+**Ön koşul** — MT-WF-183'ün ortamı. `order-refunder` agent'ı (`"toolNames":["refund_order"]`, talimat: ret edilirse nedenini söyle) ve `refund-flow` workflow'u (`agentNames: ["order-refunder"]`).
+
+**Adımlar**
+1. `POST $BASE/api/workflows/refund-flow/run` — `{"message":"Refund 40 to order ORD-3003."}`.
+2. `POST …/respond` — `{"requestId":"…","approved":false,"text":"The customer already got this refund."}`.
+3. `POST …/respond` aynı istek için — `{"requestId":"…","approved":true,"data":{"x":1}}`.
+4. `GET $BASE/api/approvals/rules`.
+
+**Beklenen sonuç**
+- Adım 2 sonrası run `Completed` biter; çıktı agent'ın reddi ve verilen gerekçeyi söylediği cümledir (`The refund was refused by the approver, but the customer already got this refund.`). `refund_order` koşmaz.
+- Adım 3 `400`, ayrıntı `'data'` der ve yeni run açmaz.
+- `approval.decision` satırı `approved: false` ve gerekçeyi taşır. Kural yazılmaz (ret hatırlanmaz).
+
+---
+
+### MT-WF-185 — "Hatırla" kuralı agent adıyla yazılır ve ikinci run sormadan geçer (Faz 230, K-1057)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 230 |
+| **İlgili karar** | K-1057 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama (SQLite), gerçek OpenAI `gpt-5.4-mini`, `curl` |
+
+**Ön koşul** — MT-WF-183'ün ortamı; agent adı **tire taşır** (`order-canceler`): MAF executor kimliğinde tireyi `_` yapar.
+
+**Adımlar**
+1. MT-WF-183'ün 1. adımı. 2. `…/respond` — `{"requestId":"…","approved":true,"remember":true}`.
+3. `GET $BASE/api/approvals/rules`.
+4. `POST $BASE/api/workflows/cancel-flow/run` — `{"message":"Please cancel order ORD-2002."}`.
+
+**Beklenen sonuç**
+- Kural `agentName: "order-canceler"` (tireli, gerçek ad), `toolName: "cancel_order"` yazar; `argumentsHash` boştur.
+- 4. adımdaki akış `WorkflowRequest` yayınlamadan `RunCompleted` ile biter ve çıktı `Order ORD-2002 has been canceled.` içerir.
+- `remember: true` ile `approved: false` birlikte `400` verir (otomatik test: `Remembering_a_refusal_is_refused`).

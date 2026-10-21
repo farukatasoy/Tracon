@@ -1,6 +1,6 @@
 # Faz 230 — Workflow Adımında Tool Onayı
 
-> **Durum:** 📋 Planlandı (2026-10-21)
+> **Durum:** 🔨 Uygulandı, denetimde (2026-10-21)
 > **Kademe:** tam — güvenlik sınırı (onay kararı, denetim izi, "Hatırla" kuralı) · public API (`WorkflowRequestForm.ToolApproval`, `WorkflowRespondRequest.Remember`) · geri dönüşü pahalı karar (K-103'ün workflow kapsamı, K-1051)
 > **Plan onayı:** farukatasoy, 2026-10-21 (seçim: karar workflow `/respond` ucundan; K-1051)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-615** (yargı alanları: [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md) §4)
@@ -309,9 +309,25 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 
 > Çalışırken dolar.
 
+1. **🚨 Plan "kod workflow'u (`GetWorkflowAgentStep`) aynı sarmalayıcı" diyordu; değil.** `GetWorkflowAgentStep` ve karma zincirin (`Nodes`) agent düğümü MAF'ın host executor'ı değil Tracon'un `WorkflowAgentStepExecutor`'ıdır (`FunctionExecutor`): `agent.RunAsync` çağırır ve onay içeriğini düşürür; run `Completed` biter. `AddPortHandler` internal, düz executor istek yayınlayamaz. 230.6 probu bunu ilk testin `Completed` dönmesiyle gösterdi. Karar: onayı yalnız MAF'ın host ettiği düğüm bekler (beş desen, `agentNames` biçimi, `GetWorkflowAgent`); fonksiyon adımı reddi sürdürür (`hostsApproval`, K-1055). Fonksiyon adımı için bekletme grafı değiştirir ve bekleyen run'ların checkpoint'ini bozar → F-625. **Kullanıcıya sorulacak:** kapsam bu hâliyle kabul mü?
+2. **Bayrak `AgentRunScope`'a değil `TraconRunOptions`'a eklendi** (`SuspendsWorkflowOnApproval`, internal): çocuk kapsamı `PrepareRun`'da options'tan kurulur; kapsama oradan kopyalanır. `RunRecordingAgent` `WaitsForApproval(scope)` / `FailsOnApproval(scope)` yardımcılarını kullanır.
+3. **Ajan adı executor kimliğinden okunamaz.** Plan "araç + ajan adı" diyordu; MAF kimlikte adı yeniden yazar (`approval-agent` → `approval_agent`). E2E tireli adla çıkardı: kural eşleşmeyecekti. Ad `WorkflowAgentCache.NameOf(identity)` ile çözülür (K-1057); çözülemeyen istek hatırlanamaz (400).
+4. **İstek yükü tool bilgisini taşır** (`toolName`, `agentName`, `toolArgumentsHash`; `WorkflowToolApprovalFacts`, Core): `/respond` Tracon.Workflows'a erişemez, audit ve kural için gereken veri olayda durur. Ham argüman yazılmaz.
+5. **`remember` cevap özetine girer** (`WorkflowAnswerDigest`, yalnız `true` iken): `SingleAnswer`'da `remember` farkı tekrar sayılmasın diye. Eski özetler değişmez. Planda yoktu.
+6. **Açık Soru 1 → A uygulandı:** süresi dolan cevapsız istekte bekleyen adım run'ı workflow'la birlikte `Failed` kapanır (K-1058); cevaplanan adım `AwaitingApproval` kalır (K-014). Plandaki "iptal" satırı geçersiz: `POST /api/runs/{id}/cancel` yalnız `Queued`/`Running` run'ı iptal eder, `AwaitingInput` run'ı iptal edilemez.
+7. **Denetim yardımcısı** `ToolApprovalDecisionRecorder` `ToolApprovalResolver`'ın denetim ve kural kodunu taşır; mimari testler (`AuditWritePolicyTests`, `AuditContentPolicyTests`) kayıt yerini yeni dosyaya çevirdi. Yeni fail-closed çağrı yeri doğmadı (10 kalır); yüzey sayısı üç oldu (docs-site governance sayfası güncellendi).
+8. **Test altyapısı:** `ToolApprovalWorkflowHost` (iki workflow, yardımcılar), `WorkflowToolApprovalPatternTests` (Concurrent, Handoff, alt agent, süre dolumu). GroupChat ve Magentic **ölçülmedi**.
+9. **Paket payı:** `index-*.js.br` 184.251 → 186.6 KB (+2.35 KB Brotli); gzip 220.8 KB (bütçe 250).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Beklenen: `ToolApproval` biçimi ve yanıtın kayıtlı istekten kurulması (`güvenlik`, `public-api`), Açık Soru 1.
+
+- **K-1055** — onayı yalnız host düğümü bekler; fonksiyon adımı reddi sürdürür (güvenlik). Plandan sapma 1; kullanıcı onayı bekler.
+- **K-1056** — cevap yalnız karar taşır, `data` reddedilir (güvenlik, public-api).
+- **K-1057** — kural ve denetim tek recorder'dan; ajan adı kimlikten çözülür (güvenlik).
+- **K-1058** — Açık Soru 1: cevaplanmayan istekte bekleyen adım workflow'la `Failed` kapanır (kalıcı-veri).
+- Kategori dışı: sunum metni 500 karakterle sınırlı (yük kesilirse tool bilgisi prompt'tan önce kalsın); `remember: false` ile `null` aynı sayılır (özet ve kural); `Remember` işi kuyruk yükünde (`WorkflowRunJobRequest`) taşınmaz — kural HTTP kapısında yazılır, işçi yalnız kararı uygular.
 
 ## Süreç Ölçümü
 

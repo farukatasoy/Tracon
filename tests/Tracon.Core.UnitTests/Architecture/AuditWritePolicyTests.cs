@@ -53,9 +53,11 @@ public sealed class AuditWritePolicyTests
             // The SAME operation reached through the run request body instead of the
             // approval inbox. It is listed separately because it is a separate call
             // site that has to be checked separately — it was best-effort until phase
-            // 171, silently contradicting the published guarantee.
-            "An approval decision (in band)",
-            "src/Tracon.AspNetCore/Internal/ToolApprovalResolver.cs",
+            // 171, silently contradicting the published guarantee. Since phase 230 the
+            // write lives in one recorder that the answer to a workflow's tool approval
+            // calls too, so a third surface cannot drift from the first two.
+            "An approval decision (in band, and the answer to a workflow request)",
+            "src/Tracon.AspNetCore/Internal/ToolApprovalDecisionRecorder.cs",
             ["approval.decision"]),
         (
             "Granting or revoking a skill script",

@@ -55,7 +55,10 @@ public sealed class AuditContentPolicyTests
 
         // AspNetCore internals — tool approval/result resolution, external call audit.
         "src/Tracon.AspNetCore/Internal/ClientToolResultResolver.cs",
-        "src/Tracon.AspNetCore/Internal/ToolApprovalResolver.cs",
+        // Reviewed (phase 230): approval.decision names the tool and the yes/no, and the reason the approver
+        // typed - the same record the approval inbox has always written. Two surfaces call this one file: the run
+        // request body (ToolApprovalResolver) and the answer to a workflow's tool approval (WorkflowResponseGate).
+        "src/Tracon.AspNetCore/Internal/ToolApprovalDecisionRecorder.cs",
         // Reviewed (phase 208): workflow.respond names the source run, the request id, the
         // run the answer starts, the mode and a SHA-256 of the answer - never the answer,
         // which can hold whatever the person typed (K-779: the trail is not protected at rest).
