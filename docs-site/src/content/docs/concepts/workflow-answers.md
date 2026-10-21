@@ -71,9 +71,10 @@ one-answer request must stay answerable after a crash.
 ## A tool that asks for approval
 
 An agent in a workflow can call a tool that
-[needs approval](/concepts/governance/#approvals). Where the pattern hosts the agent — all
-five stored patterns when the definition lists `agentNames`, and a code graph that binds
-the agent with `GetWorkflowAgent` — the workflow stops instead of failing. The step's run
+[needs approval](/concepts/governance/#approvals). Where the pattern hosts the agent — a
+stored `Sequential`, `Concurrent`, `Handoff` or `GroupChat` workflow that lists `agentNames`,
+and a code graph that binds the agent with `GetWorkflowAgent` — the workflow stops instead of
+failing. The step's run
 closes `AwaitingApproval`, the workflow run closes `AwaitingInput`, and the request has the
 form `ToolApproval`. Its `prompt` names the tool and adds what your
 [approval presenter](/concepts/governance/#approvals) says about the call; the arguments
@@ -103,9 +104,15 @@ curl -X POST "$TRACON/api/workflows/runs/$RUN/respond" \
 | `text` | Optional reason. The agent reads it |
 | `remember` | Optional. With `approved: true`, also saves a rule: this agent is not asked again for this tool |
 
+A tool approval is answered **once**, whatever the workflow's response mode: in the default mode
+every other answer opens a new run, but a second "approve" would run the tool a second time. The
+same decision again follows the run the first one started, and a different one is `409`.
+
 The answer carries a decision and nothing else. It cannot name a tool call, because the
 call comes from the request the workflow recorded: a `data` value is refused with `400`, and
 so is `remember` together with `approved: false`, or on a request of any other form. The
+request's record keeps the tool's name, the agent's name and a SHA-256 of the arguments, never
+the arguments; the hash lets a remembered rule bind to the exact call. The
 decision is written to the audit trail as `approval.decision` before the workflow
 continues, and an entry that cannot be written refuses the answer and leaves the
 workflow waiting. A rule saved with `remember` is the same rule the run-request path saves,

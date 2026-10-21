@@ -1392,15 +1392,29 @@ internal static class WorkflowEndpoints
         }
 
         // A tool approval is read from the request the workflow recorded, never from the answer: the answer
-        // names no tool call (K-1051). Read before the gate so its audit row can name the tool.
-        var toolApproval = await ReadToolApprovalAsync(runs, runId, request, cancellationToken).ConfigureAwait(false);
+        // names no tool call. Read before the gate so its audit row can name the tool.
+        var recordedApproval = await ReadToolApprovalAsync(runs, runId, request, cancellationToken).ConfigureAwait(false);
 
-        if (toolApproval is { Remember: true, Facts.AgentName: null })
+        if (recordedApproval.Unreadable)
+        {
+            // A decision that cannot be audited is not applied (K-089). The record was cut before it named the
+            // tool, so there is nothing to put in the audit row; answering anyway would run the tool unrecorded.
+            return TypedResults.Problem(
+                title: "Request cannot be audited",
+                detail: $"Request '{request.RequestId}' waits for a tool approval, but its record was cut by " +
+                        "'Tracon:RunRecording:MaxPayloadLength' before it named the tool, so the decision cannot be " +
+                        "recorded and was not applied. Raise the limit.",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        var toolApproval = recordedApproval.Answer;
+
+        if (toolApproval is { Remember: true } && (toolApproval.Facts.AgentName is null || toolApproval.Facts.ArgumentsHash is null))
         {
             return TypedResults.Problem(
                 title: "Response invalid",
-                detail: $"Request '{request.RequestId}' does not name the agent that asked, so an approval cannot be " +
-                        "remembered as a rule for that agent. Answer without 'remember'.",
+                detail: $"Request '{request.RequestId}' does not name the agent that asked, or the tool it asks for, " +
+                        "so an approval cannot be remembered as a rule. Answer without 'remember'.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -1422,9 +1436,14 @@ internal static class WorkflowEndpoints
         // for a SingleAnswer workflow, claimed - after every other check and before the stream or
         // the queue. A repeat of the same answer follows the run the first one started; a
         // different one conflicts.
-        var mode = await WorkflowResponseGate
-            .ResolveModeAsync(source, runner, definitions, tenants.TenantId, cancellationToken)
-            .ConfigureAwait(false);
+        // A tool approval is answered ONCE whatever the workflow's mode: in the default mode every answer opens a
+        // branch, and a second "approve" would run the tool a second time. An approval is a decision about one
+        // call, the same as the approval inbox, which refuses a second decision.
+        var mode = toolApproval is not null
+            ? WorkflowResponseMode.SingleAnswer
+            : await WorkflowResponseGate
+                .ResolveModeAsync(source, runner, definitions, tenants.TenantId, cancellationToken)
+                .ConfigureAwait(false);
 
         var decision = await WorkflowResponseGate
             .DecideAsync(
@@ -1559,10 +1578,10 @@ internal static class WorkflowEndpoints
     /// <param name="request">The answer.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// The decision the answer makes about the call; <see langword="null"/> when the request is not a tool
-    /// approval.
+    /// The decision the answer makes about the call; no decision when the request is not a tool approval, and
+    /// <c>Unreadable</c> when it is one whose record was cut before it named the tool.
     /// </returns>
-    private static async Task<WorkflowResponseGate.ToolApprovalAnswer?> ReadToolApprovalAsync(
+    private static async Task<RecordedApproval> ReadToolApprovalAsync(
         IRunStore runs,
         Guid runId,
         WorkflowRespondHttpRequest request,
@@ -1573,14 +1592,28 @@ internal static class WorkflowEndpoints
             if (runEvent.Type == RunEventType.WorkflowRequest &&
                 string.Equals(runEvent.Text, request.RequestId, StringComparison.Ordinal))
             {
-                return WorkflowToolApprovalFacts.TryRead(runEvent.Payload) is { } facts
-                    ? new WorkflowResponseGate.ToolApprovalAnswer(facts, request.Approved is true, request.Text, request.Remember is true)
-                    : null;
+                var (isToolApproval, facts) = WorkflowToolApprovalFacts.Read(runEvent.Payload);
+
+                if (!isToolApproval)
+                {
+                    return default;
+                }
+
+                return facts is null
+                    ? new RecordedApproval(null, Unreadable: true)
+                    : new RecordedApproval(
+                        new WorkflowResponseGate.ToolApprovalAnswer(facts, request.Approved is true, request.Text, request.Remember is true),
+                        Unreadable: false);
             }
         }
 
-        return null;
+        return default;
     }
+
+    /// <summary>What the waiting run recorded about the request being answered.</summary>
+    /// <param name="Answer">The decision; <see langword="null"/> for a request that is not a tool approval.</param>
+    /// <param name="Unreadable">Whether the request is a tool approval whose record names no tool.</param>
+    private readonly record struct RecordedApproval(WorkflowResponseGate.ToolApprovalAnswer? Answer, bool Unreadable);
 
     /// <summary>Saves an approved tool call as a standing rule for the agent that made it.</summary>
     /// <param name="services">The request's services.</param>

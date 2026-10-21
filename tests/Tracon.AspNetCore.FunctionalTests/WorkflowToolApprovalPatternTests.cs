@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -224,6 +225,122 @@ public sealed class WorkflowToolApprovalPatternTests
 
         late.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         calls[0].ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_run_with_one_answered_and_one_unanswered_approval_closes_only_the_step_nobody_answered()
+    {
+        // The answered step stays as it closed: its answer continued on a new run and the tool ran. The step whose
+        // request ran out closes with the workflow. Closing both would show a step as failed that did its work.
+        var limit = TimeSpan.FromMinutes(5);
+        var clock = new ManualTimeProvider();
+        var cancels = new int[1];
+        var refunds = new int[1];
+
+        var provider = new FakeModelProvider(Provider)
+            .WithModel(new ModelDescriptor { Name = Model })
+            .WithModel(new ModelDescriptor { Name = EditorModel })
+            .ForModel(Model, static cfg => cfg.CallsTool(Tool, new { orderId = "ORD-7" }).EchoesLastToolResult())
+            .ForModel(EditorModel, static cfg => cfg.CallsTool(RefundTool, new { orderId = "ORD-7" }).EchoesLastToolResult());
+
+        await using var host = await TraconTestHost.StartAsync(
+            builder =>
+            {
+                builder.AddModelProvider(provider);
+                builder.AddAgent(WriterAgent(format: null, Tool));
+                builder.AddAgent(new AgentDefinition
+                {
+                    Name = "editor",
+                    Instructions = "Edit.",
+                    Model = new ModelBinding { Provider = Provider, Model = EditorModel },
+                    ToolNames = [RefundTool],
+                    Origin = AgentDefinitionOrigin.Code,
+                });
+                AddApprovalTool(builder, Tool, cancels);
+                AddApprovalTool(builder, RefundTool, refunds);
+                builder.UseWorkflows(static options => options.RequestExpirationScanInterval = TimeSpan.FromMilliseconds(50));
+                builder.AddWorkflow(
+                    "timed-both",
+                    static services => AgentWorkflowBuilder.BuildConcurrent(
+                        "timed-both",
+                        [services.GetWorkflowAgent("timed-both", Agent), services.GetWorkflowAgent("timed-both", "editor")]),
+                    options => options.RequestTimeout = limit);
+            },
+            configureServices: services => services.AddSingleton<TimeProvider>(clock));
+
+        var waiting = await RunToApprovalAsync(host, "timed-both");
+
+        waiting.Requests.Count.ShouldBe(2);
+
+        var cancelRequest = waiting.Requests.Single(static request => request.Prompt.Contains(Tool, StringComparison.Ordinal));
+        using var answered = await RespondAsync(host, waiting.Run.Id, cancelRequest.Id, new { approved = true });
+
+        answered.StatusCode.ShouldBe(HttpStatusCode.OK, await answered.Content.ReadAsStringAsync());
+        cancels[0].ShouldBe(1);
+
+        clock.Advance(limit + TimeSpan.FromMinutes(1));
+        await host.WaitForRunStatusAsync(waiting.Run.Id, "Failed");
+
+        var steps = await StepRowsAsync(host, waiting.Run.Id);
+
+        steps.Single(static step => string.Equals(step.AgentName, Agent, StringComparison.Ordinal)).Status.ShouldBe(RunStatus.AwaitingApproval);
+
+        var unanswered = steps.Single(static step => string.Equals(step.AgentName, "editor", StringComparison.Ordinal));
+
+        unanswered.Status.ShouldBe(RunStatus.Failed);
+        unanswered.Error.ShouldNotBeNull().Type.ShouldBe("WorkflowRequestExpired");
+        refunds[0].ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Two_agents_of_a_group_chat_can_ask_and_the_chat_goes_on_after_the_answer()
+    {
+        // The pattern hosts its participants with the framework's host executor like the others; measured here
+        // because the behaviour was read from decompiled code (the group chat runs one participant at a time).
+        var cancels = new int[1];
+
+        var provider = new FakeModelProvider(Provider)
+            .WithModel(new ModelDescriptor { Name = Model })
+            .WithModel(new ModelDescriptor { Name = EditorModel })
+            .ForModel(Model, static cfg => cfg.CallsTool(Tool, new { orderId = "ORD-7" }).EchoesLastToolResult())
+            .ForModel(EditorModel, static cfg => cfg.RespondsWith("edited"));
+
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddModelProvider(provider);
+            builder.AddAgent(WriterAgent(format: null, Tool));
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = "editor",
+                Instructions = "Edit.",
+                Model = new ModelBinding { Provider = Provider, Model = EditorModel },
+                Origin = AgentDefinitionOrigin.Code,
+            });
+            AddApprovalTool(builder, Tool, cancels);
+            builder.UseWorkflows();
+        });
+
+        using (var saved = await host.Client.PutAsJsonAsync(
+                   "/tracon/api/workflows/chat",
+                   new WorkflowSaveRequest { Kind = WorkflowKind.GroupChat, AgentNames = [Agent, "editor"], MaxIterations = 2 }))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+        }
+
+        var waiting = await RunToApprovalAsync(host, "chat");
+
+        waiting.Run.Status.ShouldBe(RunStatus.AwaitingInput, waiting.Run.Error?.Message);
+        waiting.Form.ShouldBe("ToolApproval");
+        cancels[0].ShouldBe(0);
+
+        using var answer = await RespondAsync(host, waiting, new { approved = true });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.OK, await answer.Content.ReadAsStringAsync());
+
+        var resumed = (await ReadWaitingAsync(host, await ReadRunIdAsync(answer))).Run;
+
+        resumed.Status.ShouldBe(RunStatus.Completed, resumed.Error?.Message);
+        cancels[0].ShouldBe(1);
     }
 
     private static Task<TraconTestHost> StartTwoAgentsAsync(int[] cancels, int[] refunds)

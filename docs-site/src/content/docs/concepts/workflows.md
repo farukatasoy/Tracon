@@ -49,8 +49,9 @@ the provider never answered. Match the wait-limit type with
 
 A tool that asks for approval is not a refusal where the pattern hosts the agent: the
 workflow waits for a person ([A tool that asks for approval](#a-tool-that-asks-for-approval)).
-It is a refusal for an agent node of a `Sequential` node list and for
-`GetWorkflowAgentStep`, which run the agent in a plain function node that cannot wait:
+It is a refusal for an agent node of a `Sequential` node list, for `GetWorkflowAgentStep` and for
+the participants of a `Magentic` workflow. The first two run the agent in a plain function node
+that cannot wait, and the third has not been measured to raise the request:
 the run ends `Failed` with the message *a workflow step cannot wait for a tool
 approval*, and the tool does not run. Give that agent a tool that needs no approval, or an
 [approval rule](/concepts/governance/#approvals) for the tool.

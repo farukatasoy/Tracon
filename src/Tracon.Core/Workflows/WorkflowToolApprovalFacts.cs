@@ -36,7 +36,10 @@ internal sealed record WorkflowToolApprovalFacts(string ToolName, string? AgentN
     /// <summary>The payload member that holds <see cref="ArgumentsHash"/>.</summary>
     public const string ArgumentsHashMember = "toolArgumentsHash";
 
-    /// <summary>The name recorded for a call whose tool name the request does not carry.</summary>
+    /// <summary>
+    /// The name recorded for a call that is not a function call, so its tool has no name. The approval inbox
+    /// records the same name, and no rule is saved for it.
+    /// </summary>
     public const string UnknownTool = "unknown";
 
     /// <summary>Describes the call a request waits for.</summary>
@@ -52,48 +55,103 @@ internal sealed record WorkflowToolApprovalFacts(string ToolName, string? AgentN
                 call.Name,
                 agentName,
                 ToolApprovalRuleEvaluator.ComputeArgumentsHash(call.Arguments))
-            : new WorkflowToolApprovalFacts(request.ToolCall.CallId, agentName, ArgumentsHash: null);
+            : new WorkflowToolApprovalFacts(UnknownTool, agentName, ArgumentsHash: null);
     }
+
+    /// <summary>The payload member that holds the request's form.</summary>
+    private const string FormMember = "form";
+
+    /// <summary>The payload member that holds the type of the request's data.</summary>
+    private const string RequestTypeMember = "requestType";
+
+    /// <summary>The form of a request that waits for a tool approval, as the payload writes it.</summary>
+    private const string ToolApprovalForm = "ToolApproval";
 
     /// <summary>Reads the facts from a <see cref="RunEventType.WorkflowRequest"/> event's payload.</summary>
     /// <param name="payload">The event's payload.</param>
+    /// <returns>The facts; <see langword="null"/> when the payload names no tool (see <see cref="Read"/>).</returns>
+    public static WorkflowToolApprovalFacts? TryRead(string? payload) => Read(payload).Facts;
+
+    /// <summary>
+    /// Reads a request's payload far enough to tell whether it is a tool approval and, if so, what it names.
+    /// </summary>
+    /// <param name="payload">The event's payload; it may have been cut at the length limit.</param>
     /// <returns>
-    /// The facts; <see langword="null"/> when the payload does not parse or names no tool. A payload the
-    /// writer cut short is one that does not parse: the facts come before the prompt, so a cut costs the
-    /// prompt first, but the reader does not guess at a broken document.
+    /// Whether the request is a tool approval, and the facts when the tool is named. A tool approval whose
+    /// facts are <see langword="null"/> was cut before the tool: nothing can be audited for it, and a caller
+    /// refuses the answer rather than apply it unrecorded.
     /// </returns>
-    public static WorkflowToolApprovalFacts? TryRead(string? payload)
+    /// <remarks>
+    /// The writer cuts a payload at <c>MaxPayloadLength</c> and appends a marker, so the document may end inside a
+    /// string. The facts come before the prompt, so a cut costs the prompt first. The scan keeps a member only when
+    /// its whole value was read: a cut inside a name leaves the name unread, never half of it - a rule saved
+    /// under half an agent name would never match.
+    /// </remarks>
+    public static (bool IsToolApproval, WorkflowToolApprovalFacts? Facts) Read(string? payload)
     {
         if (payload is not { Length: > 0 })
         {
-            return null;
+            return (false, null);
         }
+
+        string? form = null;
+        string? requestType = null;
+        string? tool = null;
+        string? agent = null;
+        string? hash = null;
+
+        var reader = new Utf8JsonReader(System.Text.Encoding.UTF8.GetBytes(payload), isFinalBlock: false, state: default);
+        string? member = null;
 
         try
         {
-            using var document = JsonDocument.Parse(payload);
-
-            if (document.RootElement.ValueKind != JsonValueKind.Object ||
-                !document.RootElement.TryGetProperty(ToolNameMember, out var tool) ||
-                tool.ValueKind != JsonValueKind.String ||
-                tool.GetString() is not { Length: > 0 } toolName)
+            while (reader.Read())
             {
-                return null;
-            }
+                if (reader.CurrentDepth == 1 && reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    member = reader.GetString();
 
-            return new WorkflowToolApprovalFacts(
-                toolName,
-                ReadString(document.RootElement, AgentNameMember),
-                ReadString(document.RootElement, ArgumentsHashMember));
+                    continue;
+                }
+
+                if (reader.CurrentDepth == 1 && reader.TokenType == JsonTokenType.String)
+                {
+                    switch (member)
+                    {
+                        case FormMember:
+                            form = reader.GetString();
+                            break;
+                        case RequestTypeMember:
+                            requestType = reader.GetString();
+                            break;
+                        case ToolNameMember:
+                            tool = reader.GetString();
+                            break;
+                        case AgentNameMember:
+                            agent = reader.GetString();
+                            break;
+                        case ArgumentsHashMember:
+                            hash = reader.GetString();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+                member = null;
+            }
         }
         catch (JsonException)
         {
-            return null;
+            // The cut can land between tokens; what was read so far stands.
         }
+
+        // The request type comes first: a cut that loses the form and the tool still shows what the request is.
+        var isToolApproval = string.Equals(form, ToolApprovalForm, StringComparison.Ordinal) ||
+                             tool is { Length: > 0 } ||
+                             requestType?.Contains(nameof(ToolApprovalRequestContent), StringComparison.Ordinal) == true;
+
+        return (isToolApproval, tool is { Length: > 0 } ? new WorkflowToolApprovalFacts(tool, agent, hash) : null);
     }
 
-    private static string? ReadString(JsonElement element, string member)
-        => element.TryGetProperty(member, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
 }
