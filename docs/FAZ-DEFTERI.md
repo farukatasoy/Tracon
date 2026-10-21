@@ -245,6 +245,7 @@
 | 229 | A2A Çok Tur ve Çağıran İzolasyonu | tam | ✅ | 2026-10-21 | F-614 | `d76bbfa8:docs/229-A2A-COK-TUR.md` |
 | 230 | Workflow Adımında Tool Onayı | tam | ✅ | 2026-10-21 | F-615 | `a176a386:docs/230-WORKFLOW-ADIMINDA-TOOL-ONAYI.md` |
 | 231 | Skill Okuma Onayı Tanımda ve Dış Yüzey Kapısı | tam | ✅ | 2026-10-21 | F-626 | `73a6f249:docs/231-SKILL-ONAYI-VE-DIS-YUZEY.md` |
+| 232 | Adlı Model Halkası Yuvası | tam | ✅ | 2026-10-22 | F-594 | `487c811d:docs/232-ADLI-MODEL-HALKASI-YUVASI.md` |
 
 ## Süreç Ölçümü
 
@@ -317,3 +318,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 229 | 12 | 1 | 1 / 0 / 0 | 0 | ölçülmedi |
 | 230 | 10 | 3 | 2 / 0 / 0 | 12 test | ölçülmedi |
 | 231 | 0 yeniden yazım | 3 | 0 / 0 / 0 | 0 kullanıcıya ulaşan. Kapanıştan önce 3 ratchet düştü | ölçülmedi |
+| 232 | 0 | 1 | 2 / 0 / 0 | 3 | ölçülmedi |

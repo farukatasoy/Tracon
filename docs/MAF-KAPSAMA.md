@@ -729,7 +729,7 @@ flowchart LR
 | K5-7 | MAF YAML içe/dışa aktarma yeri (C-21 a) | #43: kararlı ObjectModel yeter; AOT ölçülmedi | Talep gelince `Tracon.Cli` komutu: kütüphane grafiğine girmez | Hayır (kütüphane yüzeyi değil) → **Karar verildi 👤 (2026-10-21): öneri kabul.** F-632 (tetik) |
 | K5-8 | Purview uydu paketi (C-20) | §8.3: tur katmanı F-594 ister; M365 kiracısı gerekir | Belge yeter (yapıldı). Uydu, F-594 ve talepten sonra | Hayır → **Karar verildi 👤 (2026-10-21): öneri kabul.** F-633 (tetik) |
 
-Seam önceliği: F-594 (adlı model halkası yuvası) Dalga 3'ten kalan public seam'dir; C-07 (steering) ve Purview'un tur katmanı ona bağlıdır → **[Faz 232](232-ADLI-MODEL-HALKASI-YUVASI.md)**. Plan sırası (👤 2026-10-21): 231 → 232 → 233 → 234. Öteki dilimler `ADAYLAR.md` § *Tetik bekleyenler*'dedir: F-629…F-638.
+Seam önceliği: F-594 (adlı model halkası yuvası) Dalga 3'ten kalan public seam'dir; C-07 (steering) ve Purview'un tur katmanı ona bağlıdır → **Faz 232**. Plan sırası (👤 2026-10-21): 231 → 232 → 233 → 234. Öteki dilimler `ADAYLAR.md` § *Tetik bekleyenler*'dedir: F-629…F-638.
 
 ---
 
