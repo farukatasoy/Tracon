@@ -113,6 +113,14 @@ public enum WorkflowRequestForm
     /// This is the plan-review flow of the <c>Magentic</c> pattern.
     /// </summary>
     PlanReview = 3,
+
+    /// <summary>
+    /// A tool call that waits for approval. Answer with <see cref="WorkflowRespondRequest.Approved"/>, an
+    /// optional reason in <see cref="WorkflowRespondRequest.Text"/>, and optionally
+    /// <see cref="WorkflowRespondRequest.Remember"/>. The tool call itself is never sent back: the
+    /// answer is built from the request the workflow recorded.
+    /// </summary>
+    ToolApproval = 4,
 }
 
 /// <summary>Represents a response to a pending request.</summary>
@@ -138,6 +146,15 @@ public sealed record WorkflowRespondRequest
 
     /// <summary>Gets the free-form JSON response. It is deserialized to the port response type.</summary>
     public string? Json { get; init; }
+
+    /// <summary>
+    /// Gets whether an approval is remembered as a rule ("do not ask again") for the agent and the tool.
+    /// </summary>
+    /// <remarks>
+    /// Only for a <see cref="WorkflowRequestForm.ToolApproval"/> request, and only together with
+    /// <see cref="Approved"/> set to <see langword="true"/>; any other use is refused.
+    /// </remarks>
+    public bool? Remember { get; init; }
 
     /// <summary>
     /// Gets the identifier of the checkpoint to resume. If null, the run's most

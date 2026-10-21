@@ -4202,6 +4202,7 @@ Tracon.WorkflowRequestForm.Boolean = 2 -> Tracon.WorkflowRequestForm
 Tracon.WorkflowRequestForm.Json = 0 -> Tracon.WorkflowRequestForm
 Tracon.WorkflowRequestForm.PlanReview = 3 -> Tracon.WorkflowRequestForm
 Tracon.WorkflowRequestForm.Text = 1 -> Tracon.WorkflowRequestForm
+Tracon.WorkflowRequestForm.ToolApproval = 4 -> Tracon.WorkflowRequestForm
 Tracon.WorkflowRespondRequest
 Tracon.WorkflowRespondRequest.<Clone>$() -> Tracon.WorkflowRespondRequest!
 Tracon.WorkflowRespondRequest.Approved.get -> bool?
@@ -4215,6 +4216,8 @@ Tracon.WorkflowRespondRequest.Json.get -> string?
 Tracon.WorkflowRespondRequest.Json.init -> void
 Tracon.WorkflowRespondRequest.NewRunId.get -> System.Guid?
 Tracon.WorkflowRespondRequest.NewRunId.init -> void
+Tracon.WorkflowRespondRequest.Remember.get -> bool?
+Tracon.WorkflowRespondRequest.Remember.init -> void
 Tracon.WorkflowRespondRequest.RequestId.get -> string!
 Tracon.WorkflowRespondRequest.RequestId.init -> void
 Tracon.WorkflowRespondRequest.RunId.get -> System.Guid

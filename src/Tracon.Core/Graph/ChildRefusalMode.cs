@@ -5,6 +5,11 @@ namespace Tracon;
 /// sub-agent's answer: the limit, the budget, a provider that never answered,
 /// or a tool that waits for approval.
 /// </summary>
+/// <remarks>
+/// A tool that waits for approval is a refusal in both modes, except for a workflow step whose host turns
+/// the request into a workflow request and waits for the answer (K-1051): that step is told so with
+/// <c>hostsApproval</c>, not by its mode.
+/// </remarks>
 internal enum ChildRefusalMode
 {
     /// <summary>

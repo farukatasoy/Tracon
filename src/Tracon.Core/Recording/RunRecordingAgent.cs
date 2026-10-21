@@ -261,7 +261,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
             // When a child run ends by requesting approval, the record must not look
             // successful: the model returned a question that cannot be answered, not a result.
-            if (start.Scope.Depth > 0 && ChildRunApproval.Describe(response.Messages) is { } pending)
+            if (FailsOnApproval(start.Scope) && ChildRunApproval.Describe(response.Messages) is { } pending)
             {
                 await CompleteAsync(scope, RunStatus.Failed, usage, ApprovalError(pending), cancellationToken)
                     .ConfigureAwait(false);
@@ -282,7 +282,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             // DID NOT CHANGE (K-372) - only the queue path writes it (the queued-run,
             // approval-resume and continuation handlers, through QueuedTurn, F-370);
             // this change does not reopen the risk of a double decision race.
-            if (start.Scope.Depth == 0 &&
+            if (WaitsForApproval(start.Scope) &&
                 ChildRunApproval.CollectRequests(response.Messages) is { Count: > 0 } pendingRequests)
             {
                 var presentations = await ResolvePresentationsAsync(pendingRequests, scope, cancellationToken)
@@ -378,9 +378,10 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
         // On a root run, a tool call that requests approval maps to AwaitingApproval
         // instead of Completed; the reason is in the SAME note inside RunCoreAsync
-        // (HATA-S2-004/MT-MCP-023 - the path/queue distinction was removed).
-        var isTopLevelRun = start.Scope.Depth == 0;
-        var topLevelPendingApproval = false;
+        // (HATA-S2-004/MT-MCP-023 - the path/queue distinction was removed). A workflow
+        // step whose workflow waits for the answer closes the same way (K-1051).
+        var waitsForApproval = WaitsForApproval(start.Scope);
+        var pendingApprovalWaits = false;
 
         // The buffered path hands the hook `response.Messages`; the streaming path
         // has no message list, so the approval-request contents are collected as
@@ -502,13 +503,13 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                     }
                 }
 
-                pendingApproval ??= start.Scope.Depth > 0
+                pendingApproval ??= FailsOnApproval(start.Scope)
                     ? ChildRunApproval.Describe(update.Contents)
                     : null;
 
-                if (isTopLevelRun && ChildRunApproval.Describe(update.Contents) is not null)
+                if (waitsForApproval && ChildRunApproval.Describe(update.Contents) is not null)
                 {
-                    topLevelPendingApproval = true;
+                    pendingApprovalWaits = true;
                     (approvalContents ??= []).AddRange(update.Contents);
                 }
 
@@ -534,7 +535,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
         var streamingStatus = pendingApproval is not null
             ? RunStatus.Failed
-            : topLevelPendingApproval
+            : pendingApprovalWaits
                 ? RunStatus.AwaitingApproval
                 : RunStatus.Completed;
 

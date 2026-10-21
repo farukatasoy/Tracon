@@ -1323,6 +1323,7 @@ internal static class WorkflowEndpoints
             RequestId = request.RequestId,
             Approved = request.Approved,
             Text = request.Text,
+            Remember = request.Remember,
 
             // The raw JSON text is carried: the response type is resolved by
             // the workflow engine, according to the type the port reports.
@@ -1385,6 +1386,19 @@ internal static class WorkflowEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        // A tool approval is read from the request the workflow recorded, never from the answer: the answer
+        // names no tool call (K-1051). Read before the gate so its audit row can name the tool.
+        var toolApproval = await ReadToolApprovalAsync(runs, runId, request, cancellationToken).ConfigureAwait(false);
+
+        if (toolApproval is { Remember: true, Facts.AgentName: null })
+        {
+            return TypedResults.Problem(
+                title: "Response invalid",
+                detail: $"Request '{request.RequestId}' does not name the agent that asked, so an approval cannot be " +
+                        "remembered as a rule for that agent. Answer without 'remember'.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var queued = RespondAsyncPreference.IsRequested(httpContext);
 
         // Phase 208: refused BEFORE the answer is decided. Deciding writes the audit entry, opens
@@ -1412,13 +1426,14 @@ internal static class WorkflowEndpoints
                 new WorkflowResponseGate.Answer(
                     source,
                     request.RequestId,
-                    WorkflowAnswerDigest.Compute(request.RequestId, request.Approved, request.Text, respondRequest.Json),
+                    WorkflowAnswerDigest.Compute(request.RequestId, request.Approved, request.Text, respondRequest.Json, request.Remember is true),
                     mode,
                     newRunId,
                     tenants.TenantId,
                     queued,
                     attribution.UserId,
-                    attribution.Labels),
+                    attribution.Labels,
+                    toolApproval),
                 httpContext.RequestServices,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -1489,6 +1504,13 @@ internal static class WorkflowEndpoints
         // The gate opened the run's row (Queued or Running) before it wrote the record that names it.
         var startedRunId = decision.RunId;
 
+        // The answer was accepted and its audit row written: only now is the approval saved as a rule. A
+        // repeat that follows, and a conflicting answer, returned above and save nothing.
+        if (toolApproval is { Approved: true, Remember: true } remembered)
+        {
+            await RememberToolApprovalAsync(httpContext.RequestServices, tenants, remembered.Facts).ConfigureAwait(false);
+        }
+
         if (queued)
         {
             // After the record: never on the request's token. A caller who goes away now must not
@@ -1523,6 +1545,58 @@ internal static class WorkflowEndpoints
             preOpened: runs,
             tenants.TenantId);
     }
+
+    /// <summary>
+    /// Reads what the waiting run recorded about the tool call the request waits for.
+    /// </summary>
+    /// <param name="runs">The run store.</param>
+    /// <param name="runId">The run that waits.</param>
+    /// <param name="request">The answer.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The decision the answer makes about the call; <see langword="null"/> when the request is not a tool
+    /// approval.
+    /// </returns>
+    private static async Task<WorkflowResponseGate.ToolApprovalAnswer?> ReadToolApprovalAsync(
+        IRunStore runs,
+        Guid runId,
+        WorkflowRespondHttpRequest request,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var runEvent in runs.ReadEventsAsync(runId, 0, cancellationToken).ConfigureAwait(false))
+        {
+            if (runEvent.Type == RunEventType.WorkflowRequest &&
+                string.Equals(runEvent.Text, request.RequestId, StringComparison.Ordinal))
+            {
+                return WorkflowToolApprovalFacts.TryRead(runEvent.Payload) is { } facts
+                    ? new WorkflowResponseGate.ToolApprovalAnswer(facts, request.Approved is true, request.Text, request.Remember is true)
+                    : null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Saves an approved tool call as a standing rule for the agent that made it.</summary>
+    /// <param name="services">The request's services.</param>
+    /// <param name="tenants">The tenant context.</param>
+    /// <param name="facts">The call, as the request recorded it; it names the agent.</param>
+    private static ValueTask RememberToolApprovalAsync(
+        IServiceProvider services,
+        ITenantContext tenants,
+        WorkflowToolApprovalFacts facts)
+        => ToolApprovalDecisionRecorder.RememberAsync(
+            services.GetRequiredService<IToolApprovalRuleStore>(),
+            tenants,
+            services.GetRequiredService<IToolRegistry>(),
+            services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.WorkflowEndpoints"),
+            facts.AgentName!,
+            facts.ToolName,
+            facts.ArgumentsHash,
+            rememberArgumentsOnly: false,
+
+            // After the answer is accepted: the caller going away must not leave the rule half written.
+            CancellationToken.None);
 
     /// <summary>
     /// Reads the caller's attribution once, through <c>RunAttributionReader</c>: a throwing or

@@ -99,18 +99,15 @@ internal static class ToolApprovalResolver
             // Throwing anywhere in this loop discards every decision, including ones
             // already added to `contents`: the message is only returned at the end, so
             // nothing has been applied yet. That is the intended all-or-nothing outcome.
-            await AuditRecorder.WriteOrThrowAsync(
+            await ToolApprovalDecisionRecorder.WriteAuditAsync(
                 auditLog,
                 actorResolver.Resolve(),
                 logger,
                 metrics,
                 tenantContext.TenantId,
-                action: "approval.decision",
-                entity: $"tool:{toolName}",
-                before: null,
-                after: JsonSerializer.Serialize(new { approved = decision.Approved, reason = decision.Reason }),
-                refusal: $"The approval decision for tool '{toolName}' was not applied",
-                timeProvider: null,
+                toolName,
+                decision.Approved,
+                decision.Reason,
                 cancellationToken).ConfigureAwait(false);
 
             contents.Add(request.CreateResponse(decision.Approved, decision.Reason ?? string.Empty));
@@ -164,26 +161,6 @@ internal static class ToolApprovalResolver
         return requests;
     }
 
-    /// <summary>
-    /// Microsoft Agent Framework's own script dispatcher. Every skill script call
-    /// arrives under this single tool name.
-    /// </summary>
-    private const string ScriptDispatcherToolName = "run_skill_script";
-
-    // 🚨 A remembered rule for this tool is ALWAYS bound to the arguments. Every
-    // script call shares this one tool name, so an argument-independent rule
-    // auto-approved the agent's every future script - a different skill and a
-    // different script included. Worse, that rule was reachable through the run
-    // endpoint with Operator plus runs:write, while writing the same rule
-    // directly requires Admin plus security:admin. "Do not ask again" now means
-    // "do not ask again for THIS script with THESE arguments".
-
-    /// <summary>Reports whether the tool call is a skill script execution.</summary>
-    /// <param name="toolName">The invoked tool's name.</param>
-    /// <returns><see langword="true"/> when the call runs a skill script.</returns>
-    private static bool IsScriptDispatcher(string toolName)
-        => string.Equals(toolName, ScriptDispatcherToolName, StringComparison.Ordinal);
-
     private static async ValueTask RememberAsync(
         ToolApprovalDecision decision,
         ToolApprovalRequestContent request,
@@ -203,47 +180,15 @@ internal static class ToolApprovalResolver
             return;
         }
 
-        var sourceFingerprint = ToolSourceFingerprint.Of(tools, tenantContext.TenantId, call.Name);
-
-        if (!ToolSourceFingerprint.IsRecordable(sourceFingerprint))
-        {
-            // The server's tools are not discovered right now, so there is no source
-            // to bind the rule to. This turn's approval stands; the next call asks again.
-            logger.LogWarning(
-                "The source of '{ToolName}' is not discovered right now; the persisted approval rule was not written.",
-                call.Name);
-
-            return;
-        }
-
-        try
-        {
-            await rules.AddAsync(
-                new ToolApprovalRule
-                {
-                    Id = TraconId.NewId(),
-                    TenantId = tenantContext.TenantId,
-                    AgentName = agentName,
-                    ToolName = call.Name,
-                    ArgumentsHash = decision.RememberArgumentsOnly || IsScriptDispatcher(call.Name)
-                        ? ToolApprovalRuleEvaluator.ComputeArgumentsHash(call.Arguments)
-                        : null,
-
-                    // The same source binding as an admin-written rule: "do not ask
-                    // again" holds for this tool of THIS endpoint only.
-                    SourceFingerprint = sourceFingerprint,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
-        {
-            // Failing to write the rule does not interrupt the run: this turn's
-            // approval was already given; only the next turn asks again.
-            logger.LogWarning(
-                ex,
-                "The persisted approval rule for '{ToolName}' could not be written; approval will be asked for again on the next call.",
-                call.Name);
-        }
+        await ToolApprovalDecisionRecorder.RememberAsync(
+            rules,
+            tenantContext,
+            tools,
+            logger,
+            agentName,
+            call.Name,
+            ToolApprovalRuleEvaluator.ComputeArgumentsHash(call.Arguments),
+            decision.RememberArgumentsOnly,
+            cancellationToken).ConfigureAwait(false);
     }
 }

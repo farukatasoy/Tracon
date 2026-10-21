@@ -109,6 +109,12 @@ internal sealed class WorkflowAgentCache
     /// The version of the agent the step runs (<see cref="WorkflowNodeReference.AgentVersion"/>).
     /// <see langword="null"/> runs the agent's current version on every call.
     /// </param>
+    /// <param name="hostsApproval">
+    /// Whether a Microsoft Agent Framework host runs the agent and turns its tool approval into a workflow
+    /// request (K-1051): the five ready-made patterns' participants and <c>GetWorkflowAgent</c>. A plain function
+    /// step (a mixed chain's agent node, <c>GetWorkflowAgentStep</c>) and a Magentic manager do not, and
+    /// their wrapper refuses the approval.
+    /// </param>
     /// <returns>An agent with a stable identity, ready to be placed in the graph.</returns>
     /// <remarks>
     /// The timeout and the version are part of the cache key, because
@@ -122,9 +128,10 @@ internal sealed class WorkflowAgentCache
         string agentName,
         string? description,
         TimeSpan? timeout = null,
-        int? agentVersion = null)
+        int? agentVersion = null,
+        bool hostsApproval = false)
         => _agents.GetOrAdd(
-            new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout, agentVersion),
+            new AgentKey(_tenantContext.TenantId, workflowName, agentName, timeout, agentVersion, hostsApproval),
             static (key, state) => Create(key, state),
             (
                 Resolver: _resolver,
@@ -171,7 +178,8 @@ internal sealed class WorkflowAgentCache
             // an agent called as a tool never does.
             state.ParameterFactory,
             limitName,
-            key.AgentVersion);
+            key.AgentVersion,
+            key.HostsApproval);
 
         // The identity is written on the instance BEFORE it enters the graph:
         // MAF reads the executor id at binding time, and changing it afterward
@@ -205,5 +213,6 @@ internal sealed class WorkflowAgentCache
         string WorkflowName,
         string AgentName,
         TimeSpan? Timeout,
-        int? AgentVersion);
+        int? AgentVersion,
+        bool HostsApproval);
 }

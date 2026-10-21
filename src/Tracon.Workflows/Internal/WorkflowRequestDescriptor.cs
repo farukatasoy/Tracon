@@ -41,6 +41,8 @@ internal static class WorkflowRequestDescriptor
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var facts = ToolApprovalFacts(request);
+
         var snapshot = new Snapshot
         {
             RequestId = request.RequestId,
@@ -50,6 +52,9 @@ internal static class WorkflowRequestDescriptor
             ResponseAssembly = request.PortInfo.ResponseType.AssemblyName,
             Prompt = Prompt(request),
             Form = Form(request),
+            ToolName = facts?.ToolName,
+            AgentName = facts?.AgentName,
+            ToolArgumentsHash = facts?.ArgumentsHash,
         };
 
         return JsonSerializer.Serialize(snapshot, Options);
@@ -265,6 +270,11 @@ internal static class WorkflowRequestDescriptor
             return WorkflowRequestForm.PlanReview;
         }
 
+        if (requestType?.Contains(nameof(ToolApprovalRequestContent), StringComparison.Ordinal) == true)
+        {
+            return WorkflowRequestForm.ToolApproval;
+        }
+
         if (responseType is null)
         {
             return WorkflowRequestForm.Json;
@@ -306,6 +316,20 @@ internal static class WorkflowRequestDescriptor
         return request.PortInfo.RequestType.IsMatch<MagenticPlanReviewRequest>();
     }
 
+    /// <summary>Reports whether the request is a tool call waiting for approval.</summary>
+    /// <param name="request">The Microsoft Agent Framework request.</param>
+    /// <returns><see langword="true"/> when the port declares the tool-approval request type.</returns>
+    /// <remarks>
+    /// Decided by the PORT'S declared request type, for the reason <see cref="IsPlanReview"/> gives: data that
+    /// came back from a checkpoint is JSON, and a read into a type answers by shape, not by what was published.
+    /// </remarks>
+    internal static bool IsToolApproval(ExternalRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return request.PortInfo.RequestType.IsMatch<ToolApprovalRequestContent>();
+    }
+
     /// <summary>Chooses the input form the UI should ask for, based on the port's response type.</summary>
     /// <param name="request">The Microsoft Agent Framework request.</param>
     /// <returns>The input form.</returns>
@@ -316,6 +340,11 @@ internal static class WorkflowRequestDescriptor
         if (IsPlanReview(request))
         {
             return WorkflowRequestForm.PlanReview;
+        }
+
+        if (IsToolApproval(request))
+        {
+            return WorkflowRequestForm.ToolApproval;
         }
 
         // Every request answered with a message list - including declarative
@@ -335,9 +364,67 @@ internal static class WorkflowRequestDescriptor
             : WorkflowRequestForm.Json;
     }
 
+    /// <summary>
+    /// Reads what a tool approval records about the call; <see langword="null"/> for any other request.
+    /// </summary>
+    private static WorkflowToolApprovalFacts? ToolApprovalFacts(ExternalRequest request)
+        => IsToolApproval(request) && request.TryGetDataAs<ToolApprovalRequestContent>(out var approval)
+            ? WorkflowToolApprovalFacts.Of(approval, AgentNameOf(request.PortInfo.PortId))
+            : null;
+
+    /// <summary>The suffix Microsoft Agent Framework gives the port of an agent host's tool approvals.</summary>
+    private const string UserInputPortSuffix = "_UserInput";
+
+    /// <summary>The length of the identity that follows the agent's name in an executor id: <c>_</c> and 32 hex digits.</summary>
+    private const int ExecutorIdentityLength = 33;
+
+    /// <summary>
+    /// Reads the name of the agent that asked from the port of its host. The port is
+    /// <c>{executor id}_UserInput</c> and the executor id is <c>{agent name}_{32 hex digits}</c>
+    /// (<see cref="WorkflowAgentIdentity"/>).
+    /// </summary>
+    /// <param name="portId">The port that published the request.</param>
+    /// <returns>The agent's name; <see langword="null"/> when the port does not have that form.</returns>
+    private static string? AgentNameOf(string portId)
+    {
+        if (!portId.EndsWith(UserInputPortSuffix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var executor = portId.AsSpan(0, portId.Length - UserInputPortSuffix.Length);
+
+        if (executor.Length <= ExecutorIdentityLength ||
+            executor[^ExecutorIdentityLength] != '_' ||
+            !IsHexadecimal(executor[^(ExecutorIdentityLength - 1)..]))
+        {
+            return null;
+        }
+
+        return executor[..^ExecutorIdentityLength].ToString();
+    }
+
+    private static bool IsHexadecimal(ReadOnlySpan<char> value)
+    {
+        foreach (var character in value)
+        {
+            if (!char.IsAsciiHexDigit(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>Extracts the request text to show the user.</summary>
     private static string? Prompt(ExternalRequest request)
     {
+        if (IsToolApproval(request) && request.TryGetDataAs<ToolApprovalRequestContent>(out var approval))
+        {
+            return WorkflowToolApprovalFacts.Of(approval, agentName: null).ToolName;
+        }
+
         if (IsPlanReview(request) && request.TryGetDataAs<MagenticPlanReviewRequest>(out var review))
         {
             var plan = review.Plan.Text;
@@ -398,6 +485,18 @@ internal static class WorkflowRequestDescriptor
         public WorkflowRequestForm? Form { get; init; }
 
         [JsonPropertyOrder(6)]
+        [JsonPropertyName(WorkflowToolApprovalFacts.ToolNameMember)]
+        public string? ToolName { get; init; }
+
+        [JsonPropertyOrder(7)]
+        [JsonPropertyName(WorkflowToolApprovalFacts.AgentNameMember)]
+        public string? AgentName { get; init; }
+
+        [JsonPropertyOrder(8)]
+        [JsonPropertyName(WorkflowToolApprovalFacts.ArgumentsHashMember)]
+        public string? ToolArgumentsHash { get; init; }
+
+        [JsonPropertyOrder(9)]
         public string? Prompt { get; init; }
     }
 }

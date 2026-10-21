@@ -517,14 +517,33 @@ internal static class WorkflowResponseGate
             TenantId = answer.TenantId,
         };
 
-    private static ValueTask AuditAsync(
+    private static async ValueTask AuditAsync(
         Answer answer,
         Guid responseRunId,
         bool redrive,
         string? actor,
         IServiceProvider services,
         CancellationToken cancellationToken)
-        => AuditRecorder.WriteOrThrowAsync(
+    {
+        // A tool approval is also an approval decision: the same row, the same guarantee, whichever
+        // surface carried it (K-089, K-370, K-1051). It comes first - the decision is what is applied -
+        // and a row that cannot be written refuses the whole answer.
+        if (answer.ToolApproval is { } approval)
+        {
+            await ToolApprovalDecisionRecorder.WriteAuditAsync(
+                    services.GetRequiredService<IAuditLog>(),
+                    actor,
+                    services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.WorkflowEndpoints"),
+                    services.GetService<TraconMetrics>(),
+                    answer.TenantId,
+                    approval.Facts.ToolName,
+                    approval.Approved,
+                    approval.Reason,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        await AuditRecorder.WriteOrThrowAsync(
             services.GetRequiredService<IAuditLog>(),
             actor,
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.WorkflowEndpoints"),
@@ -544,7 +563,8 @@ internal static class WorkflowResponseGate
             }),
             refusal: $"The answer to request '{answer.RequestId}' of run '{answer.Source.Id}' was not applied",
             timeProvider: null,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>One answer, as the gate needs it.</summary>
     /// <param name="Source">The run that waits; a workflow run with a session.</param>
@@ -556,6 +576,7 @@ internal static class WorkflowResponseGate
     /// <param name="Queued">Whether the answer is queued (<c>Prefer: respond-async</c>) or streamed.</param>
     /// <param name="UserId">The caller's user, read once through <c>RunAttributionReader</c>.</param>
     /// <param name="Labels">The caller's labels, read in the same read.</param>
+    /// <param name="ToolApproval">What the answer decides about a tool call; <see langword="null"/> for any other request.</param>
     public sealed record Answer(
         RunRecord Source,
         string RequestId,
@@ -565,7 +586,15 @@ internal static class WorkflowResponseGate
         string TenantId,
         bool Queued,
         string? UserId,
-        IReadOnlyDictionary<string, string>? Labels);
+        IReadOnlyDictionary<string, string>? Labels,
+        ToolApprovalAnswer? ToolApproval = null);
+
+    /// <summary>The decision an answer makes about the tool call a request waits for.</summary>
+    /// <param name="Facts">The call the request waits for, as the request recorded it.</param>
+    /// <param name="Approved">Whether the call is approved.</param>
+    /// <param name="Reason">The reason the answer gave; <see langword="null"/> when it gave none.</param>
+    /// <param name="Remember">Whether the approval is also saved as a rule.</param>
+    public sealed record ToolApprovalAnswer(WorkflowToolApprovalFacts Facts, bool Approved, string? Reason, bool Remember);
 
     /// <summary>What the gate decided.</summary>
     /// <param name="Outcome">What the answer does.</param>
