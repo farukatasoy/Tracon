@@ -150,8 +150,10 @@ is refused at the call, and the run closes `Failed` with the error type
 ### Long-running calls as MCP tasks
 
 By default, a `tools/call` for a published agent holds the connection open until the
-agent finishes. Set `EnableTasks` to serve long-running calls as MCP tasks instead: a
-task-aware client gets an immediate task id back, closes the connection, and polls
+agent finishes. A client that speaks the `2026-07-28` revision gets the response
+headers together with the result, not before it, so a proxy that times out while it
+waits for the first byte cuts a long call. Set `EnableTasks` to serve long-running calls
+as MCP tasks instead: a task-aware client gets an immediate task id back, closes the connection, and polls
 `tasks/get` for the result — useful when an agent's response can take longer than a
 client is willing to keep a connection open.
 

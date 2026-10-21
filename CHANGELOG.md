@@ -164,6 +164,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Model Context Protocol SDK `2.3.0`** (`ModelContextProtocol.Core`, `.AspNetCore`, `.Extensions.Tasks`).
+  No public member was removed. A published agent's `tools/call` from a client on the `2026-07-28`
+  revision now gets its response headers with the result: a proxy with a time-to-first-byte limit
+  cuts a long call. Use `EnableTasks` for long calls, or raise that limit.
 - **An A2A message is refused before the model is called when session ownership is strict and the
   caller has no identity to own the conversation.** With `Tracon:SessionOwnership:Enabled` and
   `RequireAuthenticatedOwner` on, a conversation needs an owner. A2A wrote no session until now, so the

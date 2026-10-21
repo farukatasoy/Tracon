@@ -22,7 +22,7 @@ tipi kullanacaksanız önce imzayı doğrulayın — `.agents/skills/maf-api-kes
 
 > **Sürüm damgası — 2026-10-16.** Bölüm başlıklarındaki damgalar imzanın **ilk**
 > ölçüldüğü sürümü söyler (MAF 1.16.0 · MEAI 10.8.3 · MCP 2.0.0). Pinlenmiş sürüm
-> bugün **MAF 1.25.0 · MEAI 10.11.0 · MCP 2.2.0**'dir. Her yükseltmede iki tam yüzey
+> bugün **MAF 1.25.0 · MEAI 10.11.0 · MCP 2.3.0**'dir (MCP 2.2.0 → 2.3.0, 2026-10-21: +1 üye `McpClientOptions.TimeProvider`, 0 kaldırma; `maf-kapsama.py fark`). Her yükseltmede iki tam yüzey
 > dump'ı alınıp tip kapsamlı diff'lendi: çekirdek yüzeyde **hiçbir tip ve hiçbir üye
 > kaldırılmadı** — değişimin tamamı eklemedir, yani aşağıdaki imzalar bugün de geçerlidir;
 > **tek istisna** `Hosting` ailesinin `AgentSessionStore`'udur ve Faz 4 bölümünde yeni
