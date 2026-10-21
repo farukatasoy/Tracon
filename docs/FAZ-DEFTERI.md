@@ -242,6 +242,7 @@
 | 226 | Adlı Hosted Tool'lar: Kayıt, Yüzey Doğrulaması, Ücret | tam | ✅ | 2026-10-21 | F-603 | `18f8d6a2:docs/226-ADLI-HOSTED-TOOLLAR.md` |
 | 227 | Eval Vakasında Beklenen Tool Çağrısı ve Argümanı | tam | ✅ | 2026-10-21 | F-605 | `11db7056:docs/227-EVAL-BEKLENEN-TOOL-CAGRISI.md` |
 | 228 | Alt Agent Tek Çağrı Modu | hafif | ✅ | 2026-10-20 | F-599 | `d26a33ca:docs/228-ALT-AGENT-TOOL-MODU.md` |
+| 229 | A2A Çok Tur ve Çağıran İzolasyonu | tam | ✅ | 2026-10-21 | F-614 | `d76bbfa8:docs/229-A2A-COK-TUR.md` |
 
 ## Süreç Ölçümü
 
@@ -311,3 +312,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 226 | 12 | 3 denetim sonrası | 1 / 0 / 0 | 0. Hiçbir şey denetimden önce commit edilmedi | ölçülmedi |
 | 227 | 0 | 3 | 0 / 0 / 0 | 1 | ölçülmedi |
 | 228 | 8 sapma | 2 | 0 / 0 / 0 | 0 bilinen | ölçülmedi |
+| 229 | 12 | 1 | 1 / 0 / 0 | 0 | ölçülmedi |
