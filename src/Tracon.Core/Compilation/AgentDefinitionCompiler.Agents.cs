@@ -12,7 +12,7 @@ public sealed partial class AgentDefinitionCompiler
 {
     private AIAgent CompileChatAgent(
         AgentDefinition definition,
-        IChatClient chatClient,
+        PendingChatClient pendingClient,
         SecondaryChatClients secondaryClients,
         ChatOptions chatOptions,
         ChildAgentsBuild? backgroundAgents)
@@ -61,12 +61,14 @@ public sealed partial class AgentDefinitionCompiler
 
         // Phase 222: the one point where an extension reaches the options, after
         // Tracon has set every member the definition owns and before MAF reads them.
-        var wrappers = _agentExtensions.Configure(
+        // Phase 232: the model client is built after it, with the extensions' rings.
+        var extensions = _agentExtensions.Configure(
             definition, ResolveTenantId(definition), _services ?? NoServices.Instance, chatOptions: options, harnessOptions: null);
+        var client = BuildChatClient(definition, pendingClient, extensions.Rings);
 
         return AgentExtensionRegistry.Wrap(
-            AgentExtensionRegistry.Build(() => chatClient.AsAIAgent(options, _loggerFactory, _services), definition),
-            wrappers,
+            AgentExtensionRegistry.Build(() => client.AsAIAgent(options, _loggerFactory, _services), definition),
+            extensions.Wrappers,
             definition.Name);
     }
 
@@ -262,7 +264,7 @@ public sealed partial class AgentDefinitionCompiler
 
     private AIAgent CompileHarnessAgent(
         AgentDefinition definition,
-        IChatClient chatClient,
+        PendingChatClient pendingClient,
         SecondaryChatClients secondaryClients,
         ChatOptions chatOptions,
         ChildAgentsBuild? backgroundAgents)
@@ -452,12 +454,14 @@ public sealed partial class AgentDefinitionCompiler
 
         // Phase 222: the one point where an extension reaches the options, after
         // Tracon has set every member the definition owns and before MAF reads them.
-        var wrappers = _agentExtensions.Configure(
+        // Phase 232: the model client is built after it, with the extensions' rings.
+        var extensions = _agentExtensions.Configure(
             definition, ResolveTenantId(definition), _services ?? NoServices.Instance, chatOptions: null, harnessOptions: options);
+        var client = BuildChatClient(definition, pendingClient, extensions.Rings);
 
         return AgentExtensionRegistry.Wrap(
-            AgentExtensionRegistry.Build(() => new HarnessLoopBoundaryChatClient(chatClient).AsHarnessAgent(options, _loggerFactory, _services), definition),
-            wrappers,
+            AgentExtensionRegistry.Build(() => new HarnessLoopBoundaryChatClient(client).AsHarnessAgent(options, _loggerFactory, _services), definition),
+            extensions.Wrappers,
             definition.Name);
 #pragma warning restore MAAI001
     }

@@ -106,12 +106,12 @@ internal sealed class AgentExtensionRegistry
     /// <param name="services">The root service provider.</param>
     /// <param name="chatOptions">The options of a chat agent, or <see langword="null"/>.</param>
     /// <param name="harnessOptions">The options of a harness agent, or <see langword="null"/>.</param>
-    /// <returns>The wrappers the extensions added, in the order they were added.</returns>
+    /// <returns>The wrappers and the chat client rings the extensions added, each in the order they were added.</returns>
     /// <exception cref="TraconCompilationException">
     /// A name is not registered or appears twice, an extension threw, or an extension changed a
     /// protected member.
     /// </exception>
-    public IReadOnlyList<ExtensionWrapper> Configure(
+    public ExtensionConfiguration Configure(
         AgentDefinition definition,
         string tenantId,
         IServiceProvider services,
@@ -120,7 +120,7 @@ internal sealed class AgentExtensionRegistry
     {
         if (definition.ExtensionNames.Count == 0)
         {
-            return [];
+            return ExtensionConfiguration.Empty;
         }
 
         // The same rules the validator reports with a path: a saved definition can carry a
@@ -135,6 +135,8 @@ internal sealed class AgentExtensionRegistry
         }
 
         var wrappers = new List<ExtensionWrapper>();
+        var modelCallRings = new List<ExtensionChatClientRing>();
+        var turnRings = new List<ExtensionChatClientRing>();
 
         foreach (var name in definition.ExtensionNames)
         {
@@ -173,9 +175,18 @@ internal sealed class AgentExtensionRegistry
             }
 
             wrappers.AddRange(context.Wrappers.Select(wrap => new ExtensionWrapper(name, wrap)));
+
+            foreach (var (slot, ring) in context.Rings)
+            {
+                (slot == ChatClientSlot.ModelCall ? modelCallRings : turnRings).Add(new ExtensionChatClientRing(name, ring));
+            }
         }
 
-        return wrappers;
+        return new ExtensionConfiguration(
+            wrappers,
+            modelCallRings.Count == 0 && turnRings.Count == 0
+                ? ChatClientRings.Empty
+                : new ChatClientRings(definition.Name, modelCallRings, turnRings));
     }
 
     /// <summary>
@@ -253,6 +264,15 @@ internal sealed class AgentExtensionRegistry
 
         return agent;
     }
+}
+
+/// <summary>What the extensions of one agent added besides their changes to the options object.</summary>
+/// <param name="Wrappers">The wrappers, in the order they were added.</param>
+/// <param name="Rings">The chat client rings, in the order they were added.</param>
+internal sealed record ExtensionConfiguration(IReadOnlyList<ExtensionWrapper> Wrappers, ChatClientRings Rings)
+{
+    /// <summary>Gets the result for an agent that names no extension.</summary>
+    public static ExtensionConfiguration Empty { get; } = new([], ChatClientRings.Empty);
 }
 
 /// <summary>A wrapper an extension added, with the extension's name for the error message.</summary>

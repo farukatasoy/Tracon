@@ -15,7 +15,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [232](232-ADLI-MODEL-HALKASI-YUVASI.md) | Adlı Model Halkası Yuvası | 📋 Planlandı |
+| [232](232-ADLI-MODEL-HALKASI-YUVASI.md) | Adlı Model Halkası Yuvası | 🚧 Uygulanıyor (2026-10-21) |
 | [233](233-KONUSMA-HAFIZASI.md) | Konuşma Hafızası | 📋 Planlandı |
 | [234](234-OTURUM-CALISMA-ALANI.md) | Oturum Çalışma Alanı (Dosya Erişimi) | 📋 Planlandı |
 

@@ -24,6 +24,8 @@ FinishReasonDetectingChatClient    (saglayici filtresi + cikti siniri tespiti, F
 
 Faz 226: `HostedToolUsageChatClient` FIC'in altında, yanıt önbelleğinin İÇİNDE, OTel'in üstündedir ([hosted-tool](hosted-tool.md)).
 
+Faz 232: uzantının iki yuvası (`ChatClientSlot`) — **`Turn`** ek çözümlemenin altında, FIC'in üstünde; **`ModelCall`** FIC'in hemen altında, bütçenin üstünde. Halkayı yalnız `ChatClientRings.Wrap` koyar (`BuildPipeline` iki satırı); yedek bağlantı aynı halkaları `PrepareChatClient(Async)` üzerinden alır, özetleyici ve yargıç almaz. `Turn` halkası FIC'i `GetService`'ten gizlerse derleme durur: MAF FIC bulamazsa kendi döngüsünü ekler. 🚨 Halkanın **kendi** istisnası etiketsizdir: devre saymaz, normalleştirme maskelemez, yedek zincir geçmez (`Use` sarmalayıcısıyla aynı); altından geçen sağlayıcı hatası etiketli kalır. 🚨 Koruma halkanın System mesajını ve `Instructions`'ı denetlemez (her agent'ta atlanır) ve halka yanıtı çıktı denetiminden sonra görür. Kapı: `ChatClientRing*Tests` (sıra mutasyonla ölçüldü: konum kaydırınca guard, önbellek, bütçe, span, devre ve yedek testleri düşer).
+
 Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor mu?** Gerekiyorsa dongunun ICINE (guard gibi), agent turu basina bir kez yetiyorsa DISINA (devre kesici, ek cozme gibi) konur. Devre kesici bilerek disarida: iceri alinsaydi sayim granulerligi agent turundan gercek ag cagrisina kayar ve `FailureThreshold`'un anlami degisirdi.
 
 ## Tuzaklar
@@ -46,30 +48,7 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
 
 ## `ChatOptions.ModelId` yedek bagliya SIZAR (Faz 113, canli kosumda bulundu)
 
-- **🚨 `AgentDefinitionCompiler.BuildChatOptions`, `ChatOptions.ModelId`'yi
-  BIRINCIL binding'in modeliyle DERLEME ANINDA sabitler ve o TEK nesne her
-  yeniden deneme cagrisinda TEKRAR kullanilir.** `FallbackChatClient` bir
-  yedek bagliya gecerken bu AYNI `options` nesnesini degistirmeden geciriyordu
-  — yedegin KENDI `ModelFallback.Model` adi (bilerek birincilden FARKLI
-  olabilir, bu tipin butun amaci budur) hic devreye girmiyordu. Gercek OpenAI
-  anahtariyla `samples/Tracon.Api`'de olculdu: birincili olu bir porta
-  isaret eden, modeli `flaky-model` olan bir agent, modeli `gpt-5.4-mini` olan
-  gercek `openai` yedegine dustu ama giden istek yine `flaky-model` adini
-  tasidi — sunucu `HTTP 404 (model_not_found)` dondurdu ve zincir TAMAMEN
-  tuketildi (`FallbackRetryClassifier` gorunusunun disinda, MAF'in OpenAI
-  adaptoru `ChatOptions.ModelId`'yi istemcinin KENDI SDK yapilandirmasi
-  yerine giden HTTP govdesine yazar). Birim testleri bunu YAKALAMIYORDU:
-  `FakeChatClient` `ChatOptions`'i tamamen yok sayiyor, yalniz `responder`
-  fonksiyonuna bakiyordu — farkli `primaryModel`/`fallbackModel` adlariyla
-  yazilmis testler bile gercek bir SDK'nin `ModelId` okumasini hic olcmuyordu.
-  Duzeltme: `FallbackChatClient.OptionsForLink` her yedek cagrisi icin
-  `options.Clone()` alip `ModelId`'yi o baglinin KENDI modeliyle degistirir;
-  birincil cagri (`index == 0`) `options`'i degistirmeden kullanmaya devam
-  eder. Regresyon: `FallbackChatClientTests.Fallback_link_is_called_with_its_own_ModelId_not_the_primarys`
-  (`FakeChatClient.LastOptions.ModelId` gercek SDK yerine dogrudan olcer).
-  **Kural: birden fazla FARKLI binding'e ait istemciyi cagiran her yeni kod
-  yolu, o binding'e ozgu her alani (ModelId dahil) YENIDEN insa etmelidir —
-  paylasilan bir `ChatOptions`/istek nesnesi taşımaz.**
+- **🚨 Birden fazla FARKLI binding'e ait istemciyi cagiran her kod yolu o binding'e ozgu her alani (ModelId dahil) YENIDEN kurar; paylasilan `ChatOptions` tasinmaz.** `FallbackChatClient.OptionsForLink` yedek cagrisi icin `options.Clone()` alip `ModelId`'yi baglinin modeliyle degistirir. Regresyon: `FallbackChatClientTests.Fallback_link_is_called_with_its_own_ModelId_not_the_primarys`. Olcumun tamami: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (Faz 232 bütçe turu).
 
 ## Dispose sahipligi ve cift sarmalamanin OLCULEN hasari (Faz 99)
 

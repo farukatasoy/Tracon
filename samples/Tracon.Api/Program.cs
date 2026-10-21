@@ -691,6 +691,10 @@ tracon.AddLoopEvaluator(
 // still goes through the definition compiler.
 tracon.AddAgentExtension<HouseStyleExtension>();
 
+// An agent extension with a chat client ring (Phase 232): the ring sits inside the
+// tool-call loop and logs every model call of "house-style-demo" below.
+tracon.AddAgentExtension<ModelCallLoggingExtension>();
+
 tracon
     .AddAgent(new AgentDefinition
     {
@@ -1248,7 +1252,7 @@ if (!openAiEnabled)
             Description = "Answers with the house-style rule an agent extension adds.",
             Instructions = "Answer the question.",
             Model = instructionsModel,
-            ExtensionNames = [HouseStyleExtension.ExtensionName],
+            ExtensionNames = [HouseStyleExtension.ExtensionName, ModelCallLoggingExtension.ExtensionName],
         });
 }
 

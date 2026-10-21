@@ -26,11 +26,24 @@
    grep -n "K-105 —\|K-342 —\|K-110 —\|K-114 —\|K-059 —" docs/KARARLAR.md
    ```
    **K-105** ve **K-342** (hafıza iki kez ertelendi; 2026-10-21'de yeniden açıldı), **K-110** ve **K-114** (dosya deposu; kalıcı depo agent adını run'ın ambient kapsamından **okur** — sağlayıcı kapsamı için aynı okuma deseni), **K-059** (`secret` yazılmaz)
-3. Önceki fazdan devir: yok
+3. Önceki fazdan devir: aşağıdaki "Önceki Fazdan Devir (Faz 232)" bölümü — teknik bağ yok, yalnız derleme sırası değişti
 4. Alan hafızası: [`hafiza/maf-api.md`](hafiza/maf-api.md) (`AIContextProvider`), [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md) (sağlayıcı oturum durumu), [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`TraconRunContext`, `AsyncLocal` okuma kuralı)
 5. Gerektiğinde: [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) kiracı ve gizlilik bölümü
 
 ---
+
+## Önceki Fazdan Devir (Faz 232)
+
+Faz 232 teknik bağ bırakmadı. Derleyiciye dokunacağın için bilmen gereken üç şey:
+
+- **Ana model istemcisi uzantılardan SONRA kurulur.** `CompileAsync` istemci değil
+  `PendingChatClient` alır (`PrepareChatClientAsync`: sağlayıcı + egress + kiracı anahtarı
+  önce çözülür). `CompileChatAgent`/`CompileHarnessAgent` içinde sıra: seçenek nesnesi (hafıza
+  sağlayıcıları dahil) → `_agentExtensions.Configure` → `BuildChatClient(definition, pending, rings)`
+  → `AsAIAgent`/`AsHarnessAgent`. Yeni bir sağlayıcı seçenek nesnesine istemciye bakmadan girer.
+- **`AgentExtensionRegistry.Configure` artık `ExtensionConfiguration(Wrappers, Rings)` döner.**
+- 🚨 **Yan kanal istemcisi halka almaz.** Hafıza sağlayıcısı kendi model ya da embedding çağrısını
+  yaparsa o çağrı uzantının `ChatClientSlot` halkasından geçmez (özetleyici ve yargıçla aynı kural, K-1063).
 
 ## Amaç
 

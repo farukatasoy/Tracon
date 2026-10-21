@@ -1514,3 +1514,53 @@ Kural alan dosyasında kısa kaldı; tam metin aynen buradadır.
 - **🚨 Kodda tanimli workflow'un `WorkflowDescriptor.Kind` alani NULL'dur** (2026-08-03, Faz 16): serbest graf bir desene karsilik gelmez. Arayuz tipini zorunlu varsaymak rozeti bos birakti; yalnizca ornek uygulamayi gercekten calistirmak ortaya cikardi — 22 E2E testi yesildi.
 - **🚨 `SendResponseAsync` sonrasi akis YENIDEN acilmalidir** (2026-08-03, Faz 16): yanit bir mesaj kuyruklar ama o sirada tuketilen `WatchStreamAsync` numaralandiricisi zaten bitmeye karar vermistir; devam eden super-step'leri yalnizca YENI bir numaralandirici gorur. `WorkflowRunner.PumpAsync` bu yuzden bir dis dongu tasir.
 - **🚨 Cikti tipi ISLEYICININ DONUS TIPINDEN bildirilir** (2026-08-03, Faz 16): govdesinde `ctx.YieldOutputAsync(...)` cagiran ama donusu olmayan bir `BindAsExecutor` isleyicisi hicbir cikti tipi beyan etmez ve calisma aninda `Cannot output object of type String. Expecting one of []` ile duser. Dogrusu `BindAsExecutor<TInput, TOutput>` + `WithOutputFrom(...)`.
+
+## `docs/hafiza/model-boru-hatti.md` ve `agent-derleme-ve-onbellek.md`'den — Faz 232 (halka yuvası notlarına yer açmak için)
+
+> Olduğu gibi. Kural bir satırla alan dosyasında kalır.
+
+### `ChatOptions.ModelId` yedek bagliya SIZAR (Faz 113, canli kosumda bulundu)
+
+- **🚨 `AgentDefinitionCompiler.BuildChatOptions`, `ChatOptions.ModelId`'yi
+  BIRINCIL binding'in modeliyle DERLEME ANINDA sabitler ve o TEK nesne her
+  yeniden deneme cagrisinda TEKRAR kullanilir.** `FallbackChatClient` bir
+  yedek bagliya gecerken bu AYNI `options` nesnesini degistirmeden geciriyordu
+  — yedegin KENDI `ModelFallback.Model` adi (bilerek birincilden FARKLI
+  olabilir, bu tipin butun amaci budur) hic devreye girmiyordu. Gercek OpenAI
+  anahtariyla `samples/Tracon.Api`'de olculdu: birincili olu bir porta
+  isaret eden, modeli `flaky-model` olan bir agent, modeli `gpt-5.4-mini` olan
+  gercek `openai` yedegine dustu ama giden istek yine `flaky-model` adini
+  tasidi — sunucu `HTTP 404 (model_not_found)` dondurdu ve zincir TAMAMEN
+  tuketildi (`FallbackRetryClassifier` gorunusunun disinda, MAF'in OpenAI
+  adaptoru `ChatOptions.ModelId`'yi istemcinin KENDI SDK yapilandirmasi
+  yerine giden HTTP govdesine yazar). Birim testleri bunu YAKALAMIYORDU:
+  `FakeChatClient` `ChatOptions`'i tamamen yok sayiyor, yalniz `responder`
+  fonksiyonuna bakiyordu — farkli `primaryModel`/`fallbackModel` adlariyla
+  yazilmis testler bile gercek bir SDK'nin `ModelId` okumasini hic olcmuyordu.
+  Duzeltme: `FallbackChatClient.OptionsForLink` her yedek cagrisi icin
+  `options.Clone()` alip `ModelId`'yi o baglinin KENDI modeliyle degistirir;
+  birincil cagri (`index == 0`) `options`'i degistirmeden kullanmaya devam
+  eder. Regresyon: `FallbackChatClientTests.Fallback_link_is_called_with_its_own_ModelId_not_the_primarys`
+  (`FakeChatClient.LastOptions.ModelId` gercek SDK yerine dogrudan olcer).
+  **Kural: birden fazla FARKLI binding'e ait istemciyi cagiran her yeni kod
+  yolu, o binding'e ozgu her alani (ModelId dahil) YENIDEN insa etmelidir —
+  paylasilan bir `ChatOptions`/istek nesnesi taşımaz.**
+
+- **🚨 Anahtar yalnız gömülen DEĞERİ değil, gömülen NESNENİN bağlı olduğu canlı
+  durumu da ölçmelidir** (2026-10-11, F-305). Derleyici MCP tool nesnesini
+  gömer; o nesne keşfedildiği `McpClient` üzerinden çağırır. Sunucu
+  düzenlenince veya silinince katalog bağlantıyı kapatır, ama anahtar
+  değişmiyordu: önbellekteki agent'ın her sonraki run'ı kapalı oturuma gitti
+  (HTTP `200`, `Completed`, `ToolFailed`/`TaskCanceledException`, model
+  "Error: Function failed." gördü). Onay yeniden açılınca agent onay
+  istemedi; tool'u yalnız kapalı bağlantı durdurdu. Ölçü bağlantı ÖRNEĞİNİN
+  kimliğidir (`McpConnection.Generation`), tanım parmak izi değil: sil +
+  aynı tanımla yeniden ekle aynı parmak izini ama yeni bir bağlantı üretir
+  (K-811 deseni). Anlık görüntüde olmayan ad `absent` yazar; refresh hatası
+  da bunu üretir ve önbellekli yol önbelleksiz derlemeyle aynı reddi verir.
+  **Test tuzağı:** `McpApprovalRuleSourceTests` her run'a ayrı agent veriyor
+  ya da tanımı değiştiriyordu, bu yüzden önbellek isabetini hiç görmedi.
+  Önbellek davranışını kanıtlayan test AYNI agent'ı AYNI tanımla iki kez
+  koşmalıdır; `FakeModelProvider` kuyruğu provider'da yaşar, ikinci run'dan
+  önce `CallsTool` yeniden kuyruğa konur. Kapı: `McpToolCacheTests` (beş case,
+  `{server}_read_resource` dahil). K-880.

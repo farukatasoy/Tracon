@@ -1,6 +1,6 @@
 # Faz 232 — Adlı Model Halkası Yuvası
 
-> **Durum:** 📋 Planlandı (2026-10-21)
+> **Durum:** ✅ Tamamlandı (2026-10-22)
 > **Kademe:** tam — geri dönüşü pahalı karar (`rc.1`'de donacak public seam: model istemcisi zincirine tüketici halkası) · güvenlik sınırı (halkanın Tracon'un içerik koruması, bütçe ve önbellek halkalarına göre yeri)
 > **Plan onayı:** farukatasoy, 2026-10-21 (seçim: agent uzantısı kancası; tanım `ExtensionNames` ile seçer)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-594** (ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §8 C-01, §0 #26–#27, #31; §8.4)
@@ -235,18 +235,36 @@ halkasıyla koşulur.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `UseChatClient(ChatClientSlot.ModelCall, …)` ile kurulan halka iki tool turlu bir run'da iki model çağrısını görür; `Turn` halkası bir çağrı görür (fonksiyonel test)
-- [ ] İçerik koruması, bütçe ve OTel halkanın altında; devre ve yedek zincir üstünde (sıra testi)
-- [ ] Yedek bağlantı aynı halkayı alır
-- [ ] Tüketici registry'sinde halka isteyen uzantı derlemeyi uzantı adıyla durdurur
-- [ ] `samples/Tracon.Samples.MafFeatures` halka örneği ve testi yeşil; rehberin kod bloğu örnekten alıntıdır
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı (kayıt halkasıyla), çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Kabul case'i yok (gerekçe yukarıda)
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run check` temiz
-- [ ] F-594 `ADAYLAR.md`'de yok; F-600 ve F-633 metni yuvayı Faz 232 diye anar; `MAF-KAPSAMA.md` §8 C-01 "kapandı" der
+- [x] `UseChatClient(ChatClientSlot.ModelCall, …)` ile kurulan halka iki tool turlu bir run'da iki model çağrısını görür; `Turn` halkası bir çağrı görür (fonksiyonel test) — `ChatClientRingTests` (sohbet + harness)
+- [x] İçerik koruması, bütçe ve OTel halkanın altında; devre ve yedek zincir üstünde (sıra testi) — `ChatClientRingOrderTests` (koruma, bütçe, önbellek, `chat` span), `ChatClientRingFallbackTests` (devre, yedek); koruma System mesajını denetlemez (sapma 7)
+- [x] Yedek bağlantı aynı halkayı alır — async yol fonksiyonel, eşzamanlı yol birim testi
+- [x] Tüketici registry'sinde halka isteyen uzantı derlemeyi uzantı adıyla durdurur
+- [x] `samples/Tracon.Samples.MafFeatures` halka örneği ve testi yeşil; rehberin kod bloğu örnekten alıntıdır — `Tracon.Samples.MafFeatures.Tests` 8/8, bu fazın paketlerine (`1.0.0-preview.5.54`) karşı, izole `NUGET_PACKAGES` ile. `kapi.py yayin --kuru` bu faza ulaşmadan taban restore'unda durdu: `v1.0.0-preview.5` etiketi var, paketleri nuget.org'da yok (faz dışı yayın sorunu, kullanıcı isteğiyle bakılmadı). Aynı koşumda `Tracon.Samples.CustomAgentSource.Tests` 5 case düştü: JSON'dan okunan tanımda `ExtensionNames` `null`, `AgentExtensionRegistry.Configure` NRE; satır Faz 222'den beri değişmedi
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 99a25b77`
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı (kayıt halkasıyla), çıktı belgeye yazıldı
+- [x] `secret` taraması boş döndü — `kapi.py tarama` (15 işaretli sentetik credential atlandı)
+- [x] Kabul case'i yok (gerekçe yukarıda)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — iki 🔴 gerçek, ikisi düzeltildi
+- [x] `docs-site/` güncellendi; `npm run check` temiz
+- [x] F-594 `ADAYLAR.md`'de yok; F-600 ve F-633 metni yuvayı Faz 232 diye anar; `MAF-KAPSAMA.md` §8 C-01 "kapandı" der
+
+### Gerçek run (2026-10-21)
+
+`samples/Tracon.Api`, dört boş ortam değişkeniyle (`Npgsql` satırı: 0), yerel echo modeli:
+
+```text
+GET  /tracon/api/agent-extensions
+  [{"name":"house-style",...},{"name":"model-call-logging","description":"Writes one log line for every model call, inside the tool-call loop."}]
+POST /tracon/api/agents/house-style-demo/run {"message":"What is the house style?"}
+  event: update ... "Echo [instructions: Answer the question.\nHOUSE-STYLE: ..."
+  GET /tracon/api/runs/01a16034-… → Completed house-style-demo echo-instructions-1
+log:
+  info: Tracon.Api.ModelCallLoggingExtension[1458130754]
+        Model call of agent house-style-demo: last message role user, 1 messages.
+POST /tracon/api/agents/validate {"extensionNames":["model-call-logging"],...} → {"valid":true,...}
+```
+
+Echo modeli tool çağırmaz; döngü içi iki çağrı fonksiyonel testte ve örnek testinde ölçülür.
 
 ### Doğrulama komutları
 
@@ -277,12 +295,56 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **232.3 ölçümü — sapma yok.** `grep -n "chatClient" src/Tracon.Core/Compilation/AgentDefinitionCompiler*.cs`:
+   istemci seçenek kurulumunda kullanılmıyor, yalnız `AsAIAgent` / `AsHarnessAgent`
+   çağrısında. 2. adım istemciye bağlı değil.
+2. **232.4 — registry yüzeyi iki adımlı oldu.** Plan `CreateChatClientAsync(ModelBinding, ChatClientRings, …)`
+   aşırı yüklemesini istiyordu; bu yüklemeyi uzantılardan sonra çağırmak egress ve kiracı
+   anahtarı okumasını uzantı kodundan sonraya iterdi ve `BuildAgent`'ı async yapardı (K-874).
+   Uygulanan: `ModelProviderRegistry.PrepareChatClient(Async)` sağlayıcıyı, egress'i ve kiracı
+   anahtarını uzantılardan **önce** çözer ve `PendingChatClient` döner; `BuildChatClient`
+   zinciri uzantılardan sonra halkalarla senkron kurar. Reddedilen sağlayıcı hiçbir uzantı
+   kodu koşmadan reddedilir. Bedel: `BuildPipeline` hataları (yanıt önbelleği var ama
+   `IDistributedCache` yok, sağlayıcı kurulum hatası, kiracı anahtarını desteklemeyen sağlayıcı)
+   uzantılardan sonra gelir; tip ve mesaj aynı.
+3. **232.1 — "devre ve yedek zincir halkanın hatasını görür; normalleştirme onu güvenli metne
+   çevirir" iddiası yalnız sağlayıcı hatası için doğru.** Ölçüldü: halkanın **kendi** istisnası
+   `ForeignProviderInvocationException` etiketi taşımaz; devre saymaz (F-354), normalleştirme
+   maskelemez, yedek zincir başka modele geçmez. Halkanın altından geçen sağlayıcı hatası
+   etiketli kalır: devre sayar, yedek geçer, mesaj maskelenir. Karar: `context.Use`
+   sarmalayıcısıyla aynı kural (host kodu); XML belgesi ve site yazar. Kapı:
+   `ChatClientRingFallbackTests` (üç case).
+4. **Planda olmayan koruma: `Turn` halkası tool döngüsünü gizleyemez.** MAF sohbet agent'ı
+   istemcide `FunctionInvokingChatClient` bulamazsa kendi döngüsünü ekler; K-1035'in
+   `AllowConcurrentInvocation` okuması da aynı aramaya dayanır. `GetService`'i ileri vermeyen
+   bir `Turn` halkası derlemeyi uzantıyı anarak durdurur. Kapı:
+   `ChatClientRingTests.A_Turn_ring_that_hides_the_tool_loop_fails_the_compilation_naming_the_extension`.
+5. **Bütçe testi run `Usage`'ını değil bütçeyi ölçer.** İlk taslak `run.Usage`'ı okudu ve
+   düştü (10 ≠ 20): run kullanımı agent'a ulaşan güncellemelerden okunur, halkanın attığı
+   ilk yanıtın kullanımı oraya ulaşmaz. Bütçe ise halkanın altında her çağrıyı sayar; test
+   `MaxTotalTokens = 15` ile ikinci çağrının reddini ölçer.
+6. **`samples/Tracon.Api`'ye `ModelCallLoggingExtension` eklendi** (DoD'nin gerçek run satırı
+   için); `house-style-demo` onu seçer.
+7. **"Karşı görüş" ve 232.1 "içerik koruması halkanın çıktısını denetler" iddiası daraldı**
+   (denetim 🔴1). Koruma her agent'ta `ChatRole.System` mesajını ve `ChatOptions.Instructions`'ı
+   atlar (`ContentGuardMessageMasker.cs:144`); halka korumanın üstünde olduğu için yanıtı
+   çıktı denetiminden sonra görür ve değiştirebilir. Halka korumadan kaçamaz ama yalnız
+   kullanıcı, asistan ve tool mesajları için. Belge (`ChatClientSlot`, `UseChatClient`, site)
+   bunu söyler; kapı `The_content_guard_does_not_inspect_a_system_message_that_a_ring_adds`.
+   Korumanın davranışı değişmedi (kullanıcı kararı, 2026-10-22).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+- **Açık Soru 1 → A:** özetleyici ve döngü yargıcı halka almaz (kapı: `ChatClientRingTests.The_compaction_summarizer_gets_no_ring`).
+- **Açık Soru 2 → A:** aynı yuvada ilk eklenen en içte, uzantılar arasında tanımın sırasıyla (kapı: `ChatClientRingOrderTests`, birim).
+- **Açık Soru 3 → A:** fabrika `Func<IChatClient, IChatClient>`. B sonradan **ek** bir aşırı yükleme olarak gelebilir (lambda parametre sayısı farklı, belirsizlik yok); bu yüzden `rc.1` öncesi zorunlu karar değildir.
+- **Açık Soru 4 → A:** `EnableMessageInjection` korunur; F-600 yuvayı kullanır.
+- K-1062 (public-api) ve K-1063 (güvenlik) — `docs/KARARLAR.md`.
 
 ## Süreç Ölçümü
 
@@ -294,10 +356,10 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 (plan değişmedi; 7 sapma kaydı) |
+| Düzeltme turu sayısı | 1 (denetim: 2 🔴 + 1 🟡) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
+| Fazın ürettiği regresyon | 3, hepsi commit'ten önce kapıda yakalandı: public tip tabanı, sevk edilen doküman tabanı, derlenmeyen XML `<example>` |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -305,3 +367,12 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Denetim 2026-10-21, `faz-denetcisi`, taban `99a25b77`, çalışma ağacı. Triyaj: kullanıcı, 2026-10-22.
+
+| # | Bulgu | Seviye | Triyaj | Sonuç |
+|---|---|---|---|---|
+| 1 | Belge "koruma halkanın gönderdiği her şeyi denetler" diyor; koruma System mesajını ve `Instructions`'ı denetlemez, halka yanıtı çıktı denetiminden sonra değiştirebilir | 🔴 | gerçek | Düzeltildi: metin daraldı (`ChatClientSlot`, `UseChatClient`, `any-maf-feature.md`); sınır testi `ChatClientRingOrderTests.The_content_guard_does_not_inspect_a_system_message_that_a_ring_adds`; sapma 7 |
+| 2 | DoD 2'nin OTel ve devre kısmı için sıra testi yok; "halkanın kendi hatası devreye sayılmaz" testsiz | 🔴 | gerçek | Düzeltildi: `ChatClientRingOrderTests.Each_call_that_a_ModelCall_ring_sends_gets_its_own_chat_span` (2 / 0 span) ve `ChatClientRingFallbackTests.Only_a_provider_failure_that_passed_up_through_a_ring_opens_the_circuit` (eşik 1). Mutasyon: OTel'i halkanın üstüne, `Turn`'ü devrenin üstüne taşımak üç case'i düşürdü |
+| 3 | Eşzamanlı derleme yolunda yedek bağlantının halkayı aldığını kanıtlayan test yok | 🟡 | — | Düzeltildi: birim `ChatClientRingOrderTests.The_synchronous_compile_path_gives_a_fallback_link_the_same_rings`; mutasyon (`Build(ChatClientRings.Empty)`) düşürdü |
+| 4 | `FallbackChatClient._fallbackClients` kilitsiz `Dictionary`; derlenmiş agent eşzamanlı run'lar arasında paylaşılır, halka fabrikası da bu yoldan koşar | 🟢 | — | F-641 olarak devredildi (faz öncesi kusur, repro yok) |

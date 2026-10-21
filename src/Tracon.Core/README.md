@@ -117,6 +117,21 @@ provider key, the egress policy, and cost. An extension cannot change an option 
 definition or a tenant and security decision owns, such as the tool chain or the chat
 history provider; the compilation fails and names the extension and the option.
 
+An extension can also put a chat client into the model pipeline with
+`context.UseChatClient`. In `ChatClientSlot.ModelCall` it sits inside the tool-call loop and
+sees every model call; in `ChatClientSlot.Turn` it sees one call for each agent turn. The
+content guard, the run budget, and the `chat` span stay below it, and the circuit breaker
+and the fallback chain stay above it. A fallback model gets the same ring:
+
+```csharp
+builder.AddTracon()
+       .AddAgentExtension(
+           "model-call-log",
+           context => context.UseChatClient(
+               ChatClientSlot.ModelCall,
+               inner => new ModelCallLogChatClient(inner)));
+```
+
 ## Optional image generation
 
 An image provider package can register the code-defined `generate_image` tool. The

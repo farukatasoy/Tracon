@@ -188,16 +188,62 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 
     /// <inheritdoc />
     public IChatClient CreateChatClient(ModelBinding binding)
-        => BuildPipeline(binding, ResolveProvider(binding), credential: null, resolveFallback: SyncFallbackResolver);
+        => PrepareChatClient(binding).Build(ChatClientRings.Empty);
 
     /// <inheritdoc />
     public async ValueTask<IChatClient> CreateChatClientAsync(ModelBinding binding, CancellationToken cancellationToken = default)
+        => (await PrepareChatClientAsync(binding, cancellationToken).ConfigureAwait(false)).Build(ChatClientRings.Empty);
+
+    /// <summary>
+    /// Resolves the provider of an agent's own model, and builds its pipeline once the agent's
+    /// extensions have added their rings. Resolves no tenant state, as <see cref="CreateChatClient"/>.
+    /// </summary>
+    /// <param name="binding">The agent's model binding.</param>
+    /// <returns>The client, waiting for the rings.</returns>
+    /// <exception cref="TraconException">No provider with the binding's name is registered.</exception>
+    internal PendingChatClient PrepareChatClient(ModelBinding binding)
+    {
+        var provider = ResolveProvider(binding);
+
+        return PendingChatClient.Deferred(rings => BuildPipeline(
+            binding,
+            provider,
+            credential: null,
+            rings,
+            resolveFallback: (fallback, _) => new(PrepareChatClient(fallback).Build(rings))));
+    }
+
+    /// <summary>
+    /// Resolves the provider of an agent's own model, the tenant's egress policy and the
+    /// tenant's own credential, as <see cref="CreateChatClientAsync"/>, and builds the pipeline
+    /// once the agent's extensions have added their rings.
+    /// </summary>
+    /// <param name="binding">The agent's model binding.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The client, waiting for the rings.</returns>
+    /// <exception cref="TraconException">No provider with the binding's name is registered.</exception>
+    /// <exception cref="TraconTenantProviderRefusedException">
+    /// The tenant's egress policy forbids a provider of the binding, or the tenant's binding has no value.
+    /// </exception>
+    /// <remarks>
+    /// A fallback link is built when the link is first used, through this same method and with
+    /// the same rings: a ring that must see every call of the agent sees the calls a fallback
+    /// model answers too.
+    /// </remarks>
+    internal async ValueTask<PendingChatClient> PrepareChatClientAsync(ModelBinding binding, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
         var provider = ResolveProvider(binding);
         var credential = await ResolveTenantCredentialAsync(binding, cancellationToken).ConfigureAwait(false);
-        return BuildPipeline(binding, provider, credential, resolveFallback: CreateChatClientAsync);
+
+        return PendingChatClient.Deferred(rings => BuildPipeline(
+            binding,
+            provider,
+            credential,
+            rings,
+            resolveFallback: async (fallback, token) =>
+                (await PrepareChatClientAsync(fallback, token).ConfigureAwait(false)).Build(rings)));
     }
 
     /// <inheritdoc />
@@ -221,11 +267,9 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             binding,
             provider,
             credential,
+            ChatClientRings.Empty,
             resolveFallback: CreateSetupChatClientAsync);
     }
-
-    private ValueTask<IChatClient> SyncFallbackResolver(ModelBinding binding, CancellationToken cancellationToken)
-        => new(CreateChatClient(binding));
 
     /// <inheritdoc />
     public async ValueTask<bool> HasTenantProviderOverrideAsync(ModelBinding binding, CancellationToken cancellationToken = default)
@@ -365,6 +409,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         ModelBinding binding,
         IModelProvider provider,
         ModelProviderCredential? credential,
+        ChatClientRings rings,
         Func<ModelBinding, CancellationToken, ValueTask<IChatClient>> resolveFallback)
     {
         // The provider returns the RAW client; the entire pipeline is assembled here.
@@ -415,47 +460,12 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             chatClient = new ContentGuardingChatClient(_contentGuards, binding.Model, chatClient);
         }
 
-        // The tool-call loop and telemetry. Both used to live inside the
-        // provider packages until Phase 48; they were moved out so a ring could
-        // be placed INSIDE the loop. Order: the loop is outermost, telemetry is
-        // inside it, so every real model call gets its own 'chat' span.
+        // The rings below run once per real model call, and the tool-call loop
+        // above them drives those calls. The loop and telemetry used to live
+        // inside the provider packages until Phase 48; they were moved out so a
+        // ring could be placed INSIDE the loop. Telemetry is the innermost of
+        // these rings, so every real model call gets its own 'chat' span.
         //
-        // binding.ToolLoop configures THIS SAME FunctionInvokingChatClient
-        // instance - the one that actually drives the tool-call loop.
-        // AllowConcurrentToolCalls is false by default (K1): the loop runs one
-        // call at a time exactly as it does today (Phase 81, F-134). A member
-        // left null keeps the loop's own default.
-        //
-        // IterationLimit is a harness agent's MaximumIterationsPerRequest
-        // (F-315, K-892): MAF puts its own loop ABOVE this pipeline, but this
-        // loop is the one that sees and runs the tool calls, so the limit is
-        // only real here.
-        var toolLoop = ValidToolLoop(binding);
-
-        var pipelineBuilder = chatClient
-            .AsBuilder()
-            .UseFunctionInvocation(
-                _loggerFactory,
-                fic =>
-                {
-                    fic.AllowConcurrentInvocation = toolLoop.AllowConcurrentToolCalls;
-
-                    if (toolLoop.MaximumConsecutiveErrors is { } errors)
-                    {
-                        fic.MaximumConsecutiveErrorsPerRequest = errors;
-                    }
-
-                    if (toolLoop.TerminateOnUnknownCalls is { } terminate)
-                    {
-                        fic.TerminateOnUnknownCalls = terminate;
-                    }
-
-                    if (toolLoop.IterationLimit is { } limit)
-                    {
-                        fic.MaximumIterationsPerRequest = limit;
-                    }
-                });
-
         // 🚨 The budget ring sits in the SAME slot as the response cache ring
         // below: INSIDE the tool-call loop, OUTSIDE the cache and telemetry
         // (phase 114). A turn the budget blocks never reaches the cache
@@ -466,7 +476,9 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         // calls this same method), must see it - that is what lets this ring
         // own 100% of the tree's usage accounting instead of splitting it with
         // RunRecordingAgent.CompleteAsync.
-        pipelineBuilder = pipelineBuilder.Use(ringInner => new RunBudgetChatClient(
+        var toolLoop = ValidToolLoop(binding);
+
+        var pipelineBuilder = chatClient.AsBuilder().Use(ringInner => new RunBudgetChatClient(
             ringInner,
             binding.Provider,
             binding.Model,
@@ -514,6 +526,56 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         chatClient = pipelineBuilder
             .UseOpenTelemetry(_loggerFactory, TraconDiagnostics.ActivitySourceName)
             .Build();
+
+        // 🚨 An extension's ModelCall ring (Phase 232) sits right under the loop and
+        // ABOVE the budget, the cache and telemetry: it sees every model call, the
+        // budget counts the request it sends, the cache key is built from that
+        // request, and the content guard further down inspects it. A ring that
+        // answers by itself and never calls inward spends nothing and leaves no
+        // 'chat' span.
+        chatClient = rings.Wrap(ChatClientSlot.ModelCall, chatClient);
+
+        // binding.ToolLoop configures THIS SAME FunctionInvokingChatClient
+        // instance - the one that actually drives the tool-call loop.
+        // AllowConcurrentToolCalls is false by default (K1): the loop runs one
+        // call at a time exactly as it does today (Phase 81, F-134). A member
+        // left null keeps the loop's own default.
+        //
+        // IterationLimit is a harness agent's MaximumIterationsPerRequest
+        // (F-315, K-892): MAF puts its own loop ABOVE this pipeline, but this
+        // loop is the one that sees and runs the tool calls, so the limit is
+        // only real here.
+        chatClient = chatClient
+            .AsBuilder()
+            .UseFunctionInvocation(
+                _loggerFactory,
+                fic =>
+                {
+                    fic.AllowConcurrentInvocation = toolLoop.AllowConcurrentToolCalls;
+
+                    if (toolLoop.MaximumConsecutiveErrors is { } errors)
+                    {
+                        fic.MaximumConsecutiveErrorsPerRequest = errors;
+                    }
+
+                    if (toolLoop.TerminateOnUnknownCalls is { } terminate)
+                    {
+                        fic.TerminateOnUnknownCalls = terminate;
+                    }
+
+                    if (toolLoop.IterationLimit is { } limit)
+                    {
+                        fic.MaximumIterationsPerRequest = limit;
+                    }
+                })
+            .Build();
+
+        // An extension's Turn ring sits right above the loop: one call per agent
+        // turn, with the loop inside it. Attachment resolution, the circuit, the
+        // fallback chain and normalization stay above it, so the ring receives
+        // resolved attachments and the circuit and fallback see a provider
+        // failure that passes up through it.
+        chatClient = rings.Wrap(ChatClientSlot.Turn, chatClient);
 
         // The attachment-resolving wrapper sits OUTSIDE the loop: attachments
         // are only found on the turn's first user message, and re-resolving on

@@ -48,7 +48,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 |---|---|---|---|
 | Declarative agents | Instructions, model binding, tools, skills, callable agents, metadata, and runtime policy as data | `ITraconBuilder.AddAgent(AgentDefinition)` | A code definition wins a name collision with a database definition |
 | Factory agents | A direct escape hatch that returns any MAF `AIAgent` | `AddAgent(name, factory)` | The catalog still applies Tracon decorators. The agent skips the compiler: model rings only through `IModelProviderRegistry.CreateChatClient` (one warning per agent name if the chat client skips it), and no tenant provider key, egress policy, or cost; a custom agent source can apply those three. See [Use any Microsoft Agent Framework feature](/guides/any-maf-feature/) |
-| Agent extensions | Code that sets a Microsoft Agent Framework option, adds an `AIContextProvider`, or wraps the compiled agent, while the agent keeps the model rings, the tenant's key, egress, and cost | `AddAgentExtension(name, configure)`; a definition selects it in AgentDefinition.ExtensionNames | Code defines, data selects. The compiler refuses a change to what the definition or the tenant owns (tool chain, chat history, file access, model settings). A tool a provider adds skips the tool chain |
+| Agent extensions | Code that sets a Microsoft Agent Framework option, adds an `AIContextProvider` or a chat client ring, or wraps the compiled agent, while the agent keeps the model rings, the tenant's key, egress, and cost | `AddAgentExtension(name, configure)`; a definition selects it in AgentDefinition.ExtensionNames | Code defines, data selects. The compiler refuses a change to what the definition or the tenant owns (tool chain, chat history, file access, model settings). A tool a provider adds skips the tool chain |
 | Database definitions | Create, validate, version, diff, roll back, and delete definitions at run time | HTTP API or console after `MapTracon()` | Code-defined agents are visible but read-only |
 | Custom agent source | Lists agents from a repository or external runtime | `AddAgentSource<T>()`, instance, or factory | Custom agents are visible but read-only in the management API |
 | Definition validation | Checks providers, tools, skills, callable agents, cycles, and policy before save | Compiler and `POST /api/agents/validate` | Validation does not call a model |
@@ -641,6 +641,15 @@ option fails the compilation with an error that names the extension and the opti
 other option is the extension's to set. The check covers the
 options object only. It does not look inside a provider or a wrapper that an extension adds,
 so register extension code that you trust, as you do for a tool.
+
+An extension can also put a chat client ring into the model pipeline with
+`context.UseChatClient`. A ring in `ChatClientSlot.ModelCall` sits inside the tool-call
+loop and sees every model call, including the call that takes a tool result to the model.
+A ring in `ChatClientSlot.Turn` sits above the loop and sees one call for each turn. The
+content guard, the run budget, the response cache, and the `chat` span stay below the ring;
+the circuit breaker, the fallback chain, and error normalization stay above it. A fallback
+model gets the same ring, and the compaction summarizer gets none. The
+[guide](/guides/any-maf-feature/#add-a-chat-client-ring) shows a ring and what each slot keeps.
 
 Three rules complete the contract:
 
@@ -6659,11 +6668,12 @@ question is what the agent loses on the way. This page puts the ways in order, l
 first, and says what each one keeps and loses.
 
 Every code block on this page comes from `samples/Tracon.Samples.MafFeatures`. That
-sample builds against the packed packages. Its test project checks five claims: the
+sample builds against the packed packages. Its test project checks six claims: the
 decorator sees the tool calls of every door, the custom source uses the tenant's own
 key, the custom source records cost, the egress policy reaches the custom source and
-not the factory agent, and an agent extension adds a context provider to an agent defined
-as data without losing the tenant's key or cost.
+not the factory agent, an agent extension adds a context provider to an agent defined
+as data without losing the tenant's key or cost, and a chat client ring that an extension
+adds sees every model call of that agent.
 
 ## The coverage ladder
 
@@ -6688,14 +6698,14 @@ Start at the top of the diagram and stop at the first door that fits.
 ```mermaid
 flowchart TD
     accTitle: Which door reaches a framework feature
-    accDescr: A decision tree. A workflow graph goes to a code workflow. A Microsoft.Extensions.AI type that Tracon reads from the container is registered in the container. Agent middleware, tool middleware, or a message context provider goes in an agent decorator. A framework option or a full context provider on an agent that a definition describes goes in an agent extension. Anything else needs an agent that code builds. If you need the tenant key, the egress policy, or cost, use a custom agent source. If you do not, use a factory agent.
+    accDescr: A decision tree. A workflow graph goes to a code workflow. A Microsoft.Extensions.AI type that Tracon reads from the container is registered in the container. Agent middleware, tool middleware, or a message context provider goes in an agent decorator. A framework option, a full context provider, or a chat client ring on an agent that a definition describes goes in an agent extension. Anything else needs an agent that code builds. If you need the tenant key, the egress policy, or cost, use a custom agent source. If you do not, use a factory agent.
     START["A framework feature you want to use"] --> GRAPH{"Is it a workflow graph?"}
     GRAPH -->|yes| WF["Code workflow<br/>AddWorkflow"]
     GRAPH -->|no| DI{"Does Tracon read the type<br/>from the container?"}
     DI -->|yes| REG["Register it<br/>in the container"]
     DI -->|no| MW{"Is it agent middleware, tool middleware,<br/>or a message context provider?"}
     MW -->|yes| DEC["Agent decorator"]
-    MW -->|no| OPT{"Is it a framework option or a full context provider,<br/>on an agent that a definition describes?"}
+    MW -->|no| OPT{"Is it a framework option, a full context provider,<br/>or a chat client ring, on an agent that a definition describes?"}
     OPT -->|yes| EXT["Agent extension"]
     OPT -->|no| KEY{"Do you need the tenant key,<br/>the egress policy, or cost?"}
     KEY -->|yes| SRC["Custom agent source"]
@@ -6706,7 +6716,7 @@ flowchart TD
 |---|---|---|---|
 | Container registration | Tracon reads the type from the container | Everything | Nothing |
 | Agent decorator | The feature is agent middleware, tool middleware, or a message context provider | Everything: the model rings, the tenant key, the egress policy, cost | A full context provider |
-| Agent extension | The feature is a framework option or a full context provider, and a definition describes the agent | Everything a decorator keeps, plus the definition: console editing, versions, validation | The options the definition owns are protected. A tool that your provider adds skips the tool chain |
+| Agent extension | The feature is a framework option, a full context provider, or a chat client ring, and a definition describes the agent | Everything a decorator keeps, plus the definition: console editing, versions, validation | The options the definition owns are protected. A tool that your provider adds skips the tool chain |
 | Factory agent | Code builds the agent and you need none of the three below | The run record, the model rings (through the registry), the wrapped tools | The tenant key, the egress policy, cost |
 | Custom agent source | Code builds the agent and you need the tenant key, the egress policy, or cost | All of the above, plus the tenant key, the egress policy, and cost | Console editing and the features the compiler wires |
 | Code workflow | The feature is a graph | The graph, in full | Events that Tracon does not map |
@@ -6771,13 +6781,14 @@ return builder.AddAgentDecorator<ToolCallLogDecorator>();
 See [Write your own agent decorator](/guides/write-your-own-agent-decorator/) for the
 full contract.
 
-## Add an option or a provider with an agent extension
+## Add an option, a provider, or a ring with an agent extension
 
 An agent extension is code that you register once and a definition selects by name. It
 reaches the options that Tracon builds the agent from, so it can set a framework option or
-add a full `AIContextProvider`. The agent still goes through the definition compiler. It
-keeps the model rings, the tenant's own key, the egress policy, and cost, and the console
-can still edit and version it.
+add a full `AIContextProvider`. It can also put a chat client ring into the model pipeline
+of the agent. The agent still goes through the definition compiler. It keeps the model
+rings, the tenant's own key, the egress policy, and cost, and the console can still edit and
+version it.
 
 The sample adds a provider that puts a policy notice into the instructions of every model
 call:
@@ -6809,6 +6820,95 @@ with `extensionNames`, and the console offers the registered names in the agent 
 ExtensionNames = [PolicyNoticeExtensionRegistration.ExtensionName],
 ```
 
+### Add a chat client ring
+
+`context.UseChatClient` puts a `Microsoft.Extensions.AI` chat client into one of two fixed
+places in the model pipeline that Tracon builds. A client that the framework documents as
+one that must see every model call belongs here: a check on each call, a log of each call,
+or a reducer of the request. The sample logs every model call:
+
+```csharp
+return builder.AddAgentExtension(
+    ExtensionName,
+    context =>
+    {
+        var log = context.Services.GetRequiredService<ModelCallLog>();
+        var agent = context.Definition.Name;
+
+        context.UseChatClient(ChatClientSlot.ModelCall, inner => new ModelCallLogChatClient(inner, log, agent));
+    },
+    description: "Logs the role of the last message of every model call.");
+```
+
+The ring derives from `DelegatingChatClient`. The sample's ring records the role of the last
+message and passes the call on:
+
+```csharp
+public override Task<ChatResponse> GetResponseAsync(
+    IEnumerable<ChatMessage> messages,
+    ChatOptions? options = null,
+    CancellationToken cancellationToken = default)
+{
+    var request = messages as IReadOnlyList<ChatMessage> ?? [.. messages];
+    Record(request);
+
+    return base.GetResponseAsync(request, options, cancellationToken);
+}
+```
+
+The sample test runs an agent that calls a tool. The ring sees two calls: the question, and
+the call that takes the tool result to the model.
+
+The two slots, from the outside of the pipeline in:
+
+```mermaid
+flowchart TB
+    accTitle: Where a chat client ring sits
+    accDescr: The model pipeline of a compiled agent from the outside in. Error normalization, finish-reason detection, the fallback chain, the circuit breaker, and attachment resolution are outermost. The Turn slot is next, above the tool-call loop. The ModelCall slot is right below the loop. The run budget, the response cache, hosted tool usage, the chat span, the content guard, and the concurrency limit are below it, and the provider's raw client is innermost.
+    N["Error normalization · finish reason"] --> FB["Fallback chain · circuit breaker"]
+    FB --> A["Attachment resolution"]
+    A --> T[["Turn slot"]]
+    T --> L["Tool-call loop"]
+    L --> M[["ModelCall slot"]]
+    M --> B["Run budget · response cache · hosted tool usage"]
+    B --> O["chat span"]
+    O --> G["Content guard · concurrency limit"]
+    G --> R["Provider client"]
+```
+
+| Slot | What the ring sees | Use it for |
+|---|---|---|
+| `ChatClientSlot.ModelCall` | Every model call of a turn, including the call that takes a tool result to the model | A check or a log of each call, a change to each request |
+| `ChatClientSlot.Turn` | One call for each agent turn. The tool-call loop runs inside it | A reducer of the conversation, a log of each turn |
+
+What follows from the order:
+
+- **The content guard inspects the messages that the ring sends.** A user, assistant, or
+  tool message that the ring adds reaches the guard before the model. The guard does not
+  inspect a system message or the instructions in `ChatOptions`, on any agent. Do not let a
+  ring put text that it did not write there, for example a retrieved document. The ring also
+  receives the answer after the guard has checked it.
+- **The budget counts the calls that the ring sends.** A ring that answers by itself and
+  does not call the client below it spends nothing and leaves no `chat` span.
+- **The response cache keys on the request after the ring.** Two requests that the ring
+  makes the same share one cache entry.
+- **The fallback chain gets the same ring.** When a fallback model answers in place of the
+  agent's model, the ring factory builds a ring for that model's pipeline too.
+- **A provider failure passes up through the ring.** The circuit breaker counts it, the
+  fallback chain moves on, and normalization masks it as before. An exception that the ring
+  throws by itself is your code's: it is not counted and not masked, the same as an exception
+  from a wrapper that `context.Use` adds.
+- **The compaction summarizer and the judge of a loop criterion get no ring.** They serve
+  their own call, not the agent's turn.
+
+The ring factory runs each time the pipeline is built: when the agent is compiled, and when
+a fallback model is first used. Keep it cheap and keep state that belongs to one run out of
+it. With several rings in one slot, the first one added is the innermost. Derive the ring
+from `DelegatingChatClient`. A `Turn` ring that hides the tool-call loop from `GetService`
+fails the compilation, because the framework would add a second loop above it. A host that
+replaces `IModelProviderRegistry` with its own cannot place a ring: an agent that selects a
+ring extension fails to compile on that host, with an error that names the extension.
+
 What to know about this door:
 
 - **`Configure` runs when the agent is compiled, not on every run.** The compiled agent is
@@ -6818,7 +6918,8 @@ What to know about this door:
   the extension each time.
 - **The extension gets one options object.** `ChatAgentOptions` is set for a chat agent and
   `HarnessAgentOptions` for a harness agent. `context.Use` adds a wrapper around the
-  compiled agent, inside Tracon's own wrappers and decorators.
+  compiled agent, inside Tracon's own wrappers and decorators. `context.UseChatClient` adds
+  a ring to the model pipeline of both kinds of agent.
 - **Some options are protected.** A definition or a tenant and security decision owns the
   tool chain, the tool approval settings, the instructions and sampling settings (including the seed,
   top-k, stop sequences, penalties, tool mode, and `AllowMultipleToolCalls`), the chat
@@ -6834,6 +6935,7 @@ What to know about this door:
   `RequirePerServiceCallChatHistoryPersistence` act on each model call only when they are under
   the tool loop. Tracon's tool loop is inside the model client, so these layers are above it. An
   injected message does not reach the running turn, and the history is written once per turn.
+  A layer of this kind belongs in the `ModelCall` slot of a chat client ring.
   An extension that changes a protected option fails the compilation with
   an error that names the extension and the option. Tracon does not undo the change. The
   provider list is append-only. The other options are yours, for example
@@ -7019,9 +7121,10 @@ Microsoft 365 tenant.
   an agent extension or a decorator. Build it once at startup, because each call builds its
   own cache, background queue, and HTTP client. Purview checks the input and the final
   answer of a run. When it blocks, it returns its message as an ordinary answer, so the run
-  closes `Completed`, not as blocked content. Its check of every model call sits below the
-  tool loop, and an agent defined as data has no seat there. Its calls to Microsoft Graph do
-  not go through Tracon's egress policy.
+  closes `Completed`, not as blocked content. Its check of every model call is a chat client
+  and needs a seat below the tool loop: the `ModelCall` slot of a chat client ring. That form
+  was not tried under Tracon. Its calls to Microsoft Graph do not go through Tracon's egress
+  policy.
 
 ## What you cannot win back today
 
@@ -7057,8 +7160,8 @@ These losses have no door that removes them:
 Answer these five questions before you write a factory agent:
 
 1. Can a decorator or an agent extension do the job? If the feature is middleware, a
-   message provider, a framework option, or a full context provider, one of them can, and
-   you keep every ring.
+   message provider, a framework option, a full context provider, or a chat client ring, one
+   of them can, and you keep every ring.
 2. Do you need the tenant's own key, the egress policy, or cost? If yes, use a custom
    agent source.
 3. Does the factory build its chat client with `IModelProviderRegistry`? If not, the

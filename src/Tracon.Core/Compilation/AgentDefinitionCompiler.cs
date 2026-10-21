@@ -339,7 +339,7 @@ public sealed partial class AgentDefinitionCompiler
             callableAgents,
             toolTransform,
             culture,
-            CreateChatClient(definition),
+            PrepareChatClient(definition),
             CreateSecondaryChatClients(definition),
             sharedInstructions: null);
     }
@@ -433,11 +433,11 @@ public sealed partial class AgentDefinitionCompiler
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        var chatClient = await CreateChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
+        var pendingClient = await PrepareChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
         var secondaryClients = await CreateSecondaryChatClientsAsync(definition, cancellationToken).ConfigureAwait(false);
         var sharedInstructions = await ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-        return BuildAgent(definition, callableAgents, toolTransform, culture, chatClient, secondaryClients, sharedInstructions.Text);
+        return BuildAgent(definition, callableAgents, toolTransform, culture, pendingClient, secondaryClients, sharedInstructions.Text);
     }
 
     /// <summary>
@@ -582,7 +582,7 @@ public sealed partial class AgentDefinitionCompiler
         ResolvedCallableAgents callableAgents,
         Func<AIFunction, AIFunction>? toolTransform,
         string? culture,
-        IChatClient chatClient,
+        PendingChatClient pendingClient,
         SecondaryChatClients secondaryClients,
         string? sharedInstructions)
     {
@@ -676,8 +676,8 @@ public sealed partial class AgentDefinitionCompiler
         var chatOptions = BuildChatOptions(definition, tools, culture, sharedInstructions);
 
         AIAgent agent = definition.Harness is null
-            ? CompileChatAgent(definition, chatClient, secondaryClients, chatOptions, backgroundAgents)
-            : CompileHarnessAgent(definition, chatClient, secondaryClients, chatOptions, backgroundAgents);
+            ? CompileChatAgent(definition, pendingClient, secondaryClients, chatOptions, backgroundAgents)
+            : CompileHarnessAgent(definition, pendingClient, secondaryClients, chatOptions, backgroundAgents);
 
         return unbound is null ? agent : new UnboundParameterGuard(agent, definition.Name, unbound);
     }

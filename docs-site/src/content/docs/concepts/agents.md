@@ -287,6 +287,15 @@ other option is the extension's to set. The check covers the
 options object only. It does not look inside a provider or a wrapper that an extension adds,
 so register extension code that you trust, as you do for a tool.
 
+An extension can also put a chat client ring into the model pipeline with
+`context.UseChatClient`. A ring in `ChatClientSlot.ModelCall` sits inside the tool-call
+loop and sees every model call, including the call that takes a tool result to the model.
+A ring in `ChatClientSlot.Turn` sits above the loop and sees one call for each turn. The
+content guard, the run budget, the response cache, and the `chat` span stay below the ring;
+the circuit breaker, the fallback chain, and error normalization stay above it. A fallback
+model gets the same ring, and the compaction summarizer gets none. The
+[guide](/guides/any-maf-feature/#add-a-chat-client-ring) shows a ring and what each slot keeps.
+
 Three rules complete the contract:
 
 - **A name must resolve.** `POST /api/agents/validate` and a save refuse an unknown or a

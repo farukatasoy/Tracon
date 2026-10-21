@@ -9,7 +9,78 @@ namespace Tracon;
 /// </summary>
 public sealed partial class AgentDefinitionCompiler
 {
-    private IChatClient CreateChatClient(AgentDefinition definition) => CreateChatClient(definition, AgentLoopBinding(definition));
+    // Phase 232: the agent's own model client is resolved here and built only after
+    // the extensions ran (BuildChatClient), because an extension can add a ring to
+    // it. The provider, the egress check and the tenant's credential are resolved
+    // first, so a refused provider is refused before any extension code runs and
+    // BuildAgent stays synchronous (K-874).
+    private PendingChatClient PrepareChatClient(AgentDefinition definition)
+    {
+        var binding = AgentLoopBinding(definition);
+
+        if (_models is not ModelProviderRegistry registry)
+        {
+            return PendingChatClient.Built(CreateChatClient(definition, binding));
+        }
+
+        try
+        {
+            return registry.PrepareChatClient(binding);
+        }
+        catch (TraconException ex)
+        {
+            throw CompilationFailure(definition, ex);
+        }
+    }
+
+    private async ValueTask<PendingChatClient> PrepareChatClientAsync(AgentDefinition definition, CancellationToken cancellationToken)
+    {
+        var binding = AgentLoopBinding(definition);
+
+        if (_models is not ModelProviderRegistry registry)
+        {
+            return PendingChatClient.Built(await CreateChatClientAsync(definition, binding, cancellationToken).ConfigureAwait(false));
+        }
+
+        // F-442: a tenant's refusal keeps its type, here and in BuildChatClient.
+        try
+        {
+            return await registry.PrepareChatClientAsync(binding, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconTenantProviderRefusedException ex)
+        {
+            throw new TraconTenantProviderRefusedException($"Agent '{definition.Name}' could not be compiled: {ex.Message}", ex);
+        }
+        catch (TraconException ex)
+        {
+            throw CompilationFailure(definition, ex);
+        }
+    }
+
+    /// <summary>Builds the agent's own model client with the rings its extensions added.</summary>
+    /// <exception cref="TraconCompilationException">A ring failed, or the pipeline cannot be built.</exception>
+    /// <exception cref="TraconTenantProviderRefusedException">The provider does not take the tenant's own credential.</exception>
+    private static IChatClient BuildChatClient(AgentDefinition definition, PendingChatClient pending, ChatClientRings rings)
+    {
+        try
+        {
+            return pending.Build(rings);
+        }
+        catch (TraconTenantProviderRefusedException ex)
+        {
+            throw new TraconTenantProviderRefusedException($"Agent '{definition.Name}' could not be compiled: {ex.Message}", ex);
+        }
+        catch (TraconException ex) when (ex is not TraconCompilationException)
+        {
+            throw CompilationFailure(definition, ex);
+        }
+    }
+
+    private static TraconCompilationException CompilationFailure(AgentDefinition definition, TraconException ex)
+        => new($"Agent '{definition.Name}' could not be compiled: {ex.Message}", ex)
+        {
+            AgentName = definition.Name,
+        };
 
     private IChatClient CreateChatClient(AgentDefinition definition, ModelBinding binding)
     {
@@ -19,17 +90,9 @@ public sealed partial class AgentDefinitionCompiler
         }
         catch (TraconException ex)
         {
-            throw new TraconCompilationException(
-                $"Agent '{definition.Name}' could not be compiled: {ex.Message}",
-                ex)
-            {
-                AgentName = definition.Name,
-            };
+            throw CompilationFailure(definition, ex);
         }
     }
-
-    private ValueTask<IChatClient> CreateChatClientAsync(AgentDefinition definition, CancellationToken cancellationToken)
-        => CreateChatClientAsync(definition, AgentLoopBinding(definition), cancellationToken);
 
     // F-315 (K-892): a harness agent's MaximumIterationsPerRequest goes to MAF's
     // own loop, which sits ABOVE the model pipeline and never sees a tool call
@@ -72,12 +135,7 @@ public sealed partial class AgentDefinitionCompiler
         }
         catch (TraconException ex)
         {
-            throw new TraconCompilationException(
-                $"Agent '{definition.Name}' could not be compiled: {ex.Message}",
-                ex)
-            {
-                AgentName = definition.Name,
-            };
+            throw CompilationFailure(definition, ex);
         }
     }
 
