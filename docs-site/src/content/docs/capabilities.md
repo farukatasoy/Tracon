@@ -253,7 +253,7 @@ graph instead of reporting it.
 | Embeddable chat widget | `Tracon.UI`'s `embed.js` asset (served once `UseUI()` is registered) | A page you embed the widget in, running under its own origin |
 | MCP client | `Tracon.Mcp` and `UseMcp()` | Agents that consume tools from remote MCP servers |
 | MCP server | `UseMcpServer()` and `MapTraconMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
-| A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents |
+| A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents; each message is a single turn |
 | Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients |
 | Live voice sessions | `UseLiveVoice()`, a live provider, and `MapTracon()` | Browsers that speak to a provider-hosted model over WebRTC while Tracon supervises the session |
 

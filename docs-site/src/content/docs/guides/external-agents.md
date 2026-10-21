@@ -212,6 +212,10 @@ Tracon declares streaming, push notifications, and background A2A runs as
 unsupported. The same `ExternalInvoke`, approval, tenant, and budget boundaries as
 the MCP server apply.
 
+Each A2A message is a single turn. The response echoes the caller's `contextId`, but
+Tracon keeps no conversation history for it: a second message in the same context
+does not see the first one. Put everything the agent needs into each message.
+
 Both surfaces are configured in code, never from the console:
 `TraconMcpServerOptions` for the MCP server and `TraconA2AOptions` for A2A.
 They do not carry the same settings.
@@ -227,6 +231,7 @@ there is no expose-all switch for it.
 ## Production checklist
 
 - [ ] Expose only names whose input contract is safe for another system.
+- [ ] Design A2A exposed agents for single-turn messages; no `contextId` history is kept.
 - [ ] Create a tenant-bound `ExternalInvoke` key and test revocation and expiry.
 - [ ] Keep approval-required and high-impact tools out of exposed definitions.
 - [ ] Set token, depth, and child-run budgets for externally initiated work.
