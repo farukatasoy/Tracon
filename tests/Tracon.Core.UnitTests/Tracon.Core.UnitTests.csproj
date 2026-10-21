@@ -14,6 +14,14 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      Test-only (phase 233): a REAL vector store connector, so the filters conversation memory builds
+      are translated by a connector and not only run by the test double.
+    -->
+    <PackageReference Include="CommunityToolkit.VectorData.InMemory" />
+  </ItemGroup>
+
   <!--
     The package set, read from src/*/*.csproj by the same helper the release
     artifact facts use (linked, not copied - K-411): the startup alignment check
@@ -24,6 +32,8 @@
     <Compile Include="../Shared/Infrastructure/PackableProjects.cs" Link="Infrastructure/Shared/PackableProjects.cs" />
     <!-- The due-time clock the job worker's poll and deadline tests advance (phase 196). -->
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />
+    <!-- A vector store that runs the filter it is given, for the conversation memory tests (phase 233). -->
+    <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
   </ItemGroup>
 
   <ItemGroup>

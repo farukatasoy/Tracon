@@ -299,6 +299,14 @@ Tracon.TraconContentGuardOptions.InspectInput.set -> void
 Tracon.TraconContentGuardOptions.InspectOutput.get -> bool
 Tracon.TraconContentGuardOptions.InspectOutput.set -> void
 Tracon.TraconContentGuardOptions.TraconContentGuardOptions() -> void
+Tracon.TraconBuilderConversationMemoryExtensions
+static Tracon.TraconBuilderConversationMemoryExtensions.UseConversationMemory(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconConversationMemoryOptions!>! configure) -> Tracon.ITraconBuilder!
+Tracon.TraconConversationMemoryOptions
+Tracon.TraconConversationMemoryOptions.CollectionName.get -> string!
+Tracon.TraconConversationMemoryOptions.CollectionName.set -> void
+Tracon.TraconConversationMemoryOptions.TraconConversationMemoryOptions() -> void
+Tracon.TraconConversationMemoryOptions.VectorDimensions.get -> int
+Tracon.TraconConversationMemoryOptions.VectorDimensions.set -> void
 Tracon.TraconContentProtectionExtensions
 Tracon.TraconContentProtectionOptions
 Tracon.TraconContentProtectionOptions.ActiveKeyId.get -> string?

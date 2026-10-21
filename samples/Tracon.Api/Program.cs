@@ -80,6 +80,8 @@ using Microsoft.Agents.AI.Workflows;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.AI.Evaluation.Quality;
+using CommunityToolkit.VectorData.PgVector;
+using Microsoft.Extensions.VectorData;
 using OpenAI;
 using Tracon;
 using Tracon.Api;
@@ -1438,6 +1440,34 @@ if (openAiEnabled)
                        "information the tool returns.",
         Model = model,
         Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection = "knowledge-base" },
+    });
+}
+
+// Conversation memory (F-627). The agent finds what the SAME user said to it in earlier sessions. The
+// records live in a vector store this host registers: here the PgVector connector over the same
+// PostgreSQL database, embedding with the embedding generator registered above (the store embeds; Tracon
+// does not see that call). Scope is tenant + agent + user: the demonstration identity (X-Demo-User)
+// decides who "the same user" is. A run with no user, or no session, remembers nothing.
+if (openAiEnabled && builder.Configuration["Tracon:PostgreSql:ConnectionString"] is { Length: > 0 } memoryConnection)
+{
+    tracon.UseConversationMemory(options => options.VectorDimensions = 1536);
+
+    builder.Services.AddSingleton<VectorStore>(provider => new PostgresVectorStore(
+        memoryConnection,
+        new PostgresVectorStoreOptions
+        {
+            Schema = builder.Configuration["Tracon:PostgreSql:SchemaName"],
+            EmbeddingGenerator = provider.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>(),
+        }));
+
+    tracon.AddAgent(new AgentDefinition
+    {
+        Name = "memory-assistant",
+        DisplayName = "Memory Assistant",
+        Description = "Remembers what the same user told it in earlier sessions.",
+        Instructions = "You are a personal assistant. Answer briefly. When a message under Memories answers the question, use it.",
+        Model = model,
+        Memory = new MemorySettings { EnableConversationMemory = true },
     });
 }
 

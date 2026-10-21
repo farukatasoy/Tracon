@@ -99,6 +99,7 @@ internal sealed partial class AgentDefinitionValidator
         CheckSubAgentTools(definition, messages);
         await CheckLoopAsync(definition, messages, cancellationToken).ConfigureAwait(false);
         CheckExtensions(definition, messages);
+        CheckConversationMemory(definition, messages);
         CheckHostedTools(definition, messages);
 
         // Compilation is not useful while the outcome is inconclusive. A tool

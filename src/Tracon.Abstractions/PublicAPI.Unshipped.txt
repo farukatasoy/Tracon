@@ -534,6 +534,9 @@ Tracon.ConversationBranch.CopiedItemCount.get -> int
 Tracon.ConversationBranch.CopiedItemCount.init -> void
 Tracon.ConversationBranch.Deconstruct(out System.Guid ConversationId, out long BranchFromSequence, out int CopiedItemCount) -> void
 Tracon.ConversationBranch.Equals(Tracon.ConversationBranch other) -> bool
+Tracon.ConversationMemorySearch
+Tracon.ConversationMemorySearch.BeforeEachTurn = 0 -> Tracon.ConversationMemorySearch
+Tracon.ConversationMemorySearch.OnDemand = 1 -> Tracon.ConversationMemorySearch
 Tracon.DataSubjectExport
 Tracon.DataSubjectExport.<Clone>$() -> Tracon.DataSubjectExport!
 Tracon.DataSubjectExport.DataSubjectExport() -> void
@@ -1760,6 +1763,12 @@ Tracon.McpTransportMode.Sse = 1 -> Tracon.McpTransportMode
 Tracon.McpTransportMode.StreamableHttp = 0 -> Tracon.McpTransportMode
 Tracon.MemorySettings
 Tracon.MemorySettings.<Clone>$() -> Tracon.MemorySettings!
+Tracon.MemorySettings.ConversationMemoryMaxResults.get -> int?
+Tracon.MemorySettings.ConversationMemoryMaxResults.init -> void
+Tracon.MemorySettings.ConversationMemorySearch.get -> Tracon.ConversationMemorySearch
+Tracon.MemorySettings.ConversationMemorySearch.init -> void
+Tracon.MemorySettings.EnableConversationMemory.get -> bool
+Tracon.MemorySettings.EnableConversationMemory.init -> void
 Tracon.MemorySettings.EnableFileMemory.get -> bool
 Tracon.MemorySettings.EnableFileMemory.init -> void
 Tracon.MemorySettings.EnableTextSearch.get -> bool

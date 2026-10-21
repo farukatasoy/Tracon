@@ -575,6 +575,11 @@ than once. If you write your own `IRetentionStore`, override `ArchiveBatchAsync`
 default reads and deletes in two separate calls, which can delete a row that was never
 archived. `RetentionStoreContract` in `Tracon.Testing.Contracts.Xunit` checks this.
 
+The `sessions` target also deletes the conversation memory of each expired session,
+when memory is set up. The batch is read first, the memory records of its sessions are
+deleted tenant by tenant, and only then are the session rows deleted. If the store cannot
+delete, the run fails with the rows still in place, and the next run reads the same sessions.
+
 The `attachments` target deletes only **orphaned** attachments: those with no
 session id, or whose session id has no owner in the same tenant. An owner is a
 session, or a [workflow](/concepts/workflows/#checkpoints) run with that session id
@@ -661,6 +666,14 @@ answerable, but an erasure deletes the run itself, together with its checkpoints
 is "who did what", not the subject's own data, and stays intact and verifiable after
 an erasure. The erasure itself **is** written there, with the row count per target; if
 that write fails, the whole erasure rolls back.
+
+If [conversation memory](/guides/context-and-memory/#remember-a-user-across-sessions)
+is set up, the copy of the subject's sessions that your vector store keeps goes too. It is deleted
+inside the erasure by the subject's session ids and the caller's tenant: after the rows are
+deleted, before the audit write and the commit. The preview counts it under
+`conversation_memory`, and the export lists it. If the store cannot delete, the erasure
+rolls back and the request fails; repeat it when the store is back. Records the store
+keeps for its own reasons, such as backups, are outside Tracon's reach.
 
 Attachment bytes held in a registered `IAttachmentStorage` go too. They are deleted
 inside the erasure: after the rows are deleted, before the audit write and the

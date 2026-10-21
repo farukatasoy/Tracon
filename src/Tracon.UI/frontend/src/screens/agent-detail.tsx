@@ -427,6 +427,8 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
                   enableFileMemory: { label: t('fields.enableFileMemory') },
                   enableTodo: { label: t('fields.enableTodo') },
                   enableTextSearch: { label: t('fields.enableTextSearch') },
+                  enableConversationMemory: { label: t('fields.enableConversationMemory') },
+                  conversationMemorySearch: { label: t('fields.conversationMemorySearch') },
                 }}
               />
             </CompareSection>

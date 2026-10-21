@@ -305,12 +305,51 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **Kapsam sarmalayıcısı oturum durumunu hiç kullanmaz** (233.2). Plan: oturumdaki kullanıcı ile run'ın kullanıcısı farklıysa iç sağlayıcıyı çağırma; `StateKeys` içtekini versin. Gerçek: MAF `State` kapsamı ilk çağrıda `StateBag`'e yazar ve dondurur; kullanıcı eşitliği kuralı bu yüzden yetmezdi. Sarmalayıcı içe `session: null` verir, kapsamı `TraconRunContext`'ten her çağrıda kurar, `StateKeys` boştur (K-1066). Kullanıcı eşitliği kuralı gerekmedi.
+2. **Hangi `InvokingAsync`** (233.2 "Doğrulanmadı"): ölçüldü. `ChatClientAgent` `AIContextProvider.InvokingAsync(AIContext)` çağırır; `MessageAIContextProvider` aşırı yükü çağrılmaz. Sarmalayıcı `AIContextProvider`'dan türer.
+3. **Silme kancasının adı ve yeri:** `ISubjectContentEraser` (`Tracon.Abstractions/Privacy`, `internal`; `Count`/`Erase`/`WriteExport`). Plan yalnız `SqlDataSubjectStore` ve "oturum silme" diyordu; kanca dört yerde: `SqlDataSubjectStore`, `SqlRetentionStore` (`sessions` hedefi, silme ve arşiv kipi), `AgentSessionManager.DeleteSessionAsync` ve — planda yok — `NullDataSubjectStore` (bellek içi oturum + vektör deposu da silinmeli). `DeleteArchivedKeysAsync` artık anahtar listesi alır.
+4. **Test bağlayıcısı (Açık Soru 3):** plan A (bellek içi bağlayıcı) ya da C (sahte). Gerçek: ikisi de. Sahte `tests/Shared/VectorStore/InMemoryVectorStore.cs` süzgeci ÇALIŞTIRIR; gerçek bağlayıcı `CommunityToolkit.VectorData.InMemory` 1.0.1 (`ConversationMemoryConnectorTests`). 🚨 **Ölçüm: `Microsoft.SemanticKernel.Connectors.*` hattı (11 paket, 1.74-preview) MEVD 10.10 ile ÇALIŞMAZ** — hepsi `VectorSearchOptions.OldFilter` çağırır, üye 10.7'de kalktı, NuGet uyarı vermez. İlk gerçek `run`da bulundu (arama `MissingMethodException`, MAF yutar, yanıt hafızasız). Örnek uygulama ve testler `CommunityToolkit.VectorData.*` 1.0.1 kullanır (`hafiza/konusma-hafizasi.md`).
+5. **Örnek uygulama koşumu** (`faz-tamamlama` Adım 2'nin "dört boş ortam değişkeni" kuralı bu faz için uygulanamadı): gerçek `run` pgvector'lü PostgreSQL ve OpenAI anahtarı ister, bu yüzden uygulama `user-secrets`'taki paylaşılan yerel veritabanına bağlandı. `AutoApplyMigrations` **bir bekleyen eski migration** uyguladı (`eval_cases.expected_tool_calls`, bu fazın değil). Fazın kendi migration'ı yoktur. Koşumdan sonra `tracon_conversation_memory` tablosu silindi ve kullanılan oturumlar API ile temizlendi.
+6. **Manuel case 3 (veri sahibi silme) örnek uygulamada koşulmadı:** örnekte `IDataSubjectResolver` yoktur ve `MT-DVR-006` örnekte `409` bekler. Gerçek depoda `DELETE /api/sessions/{id}` koşuldu; veri sahibi silme otomatik testlerde (`ConversationMemoryTests`, `SubjectContentEraserTests`, `ConversationMemoryEraserTests`).
+7. **Native AOT kanıtı** `Tracon.Samples.ExtensionAotSmoke`'a eklendi (plan: "smoke ya da yayın probu"). Bağlayıcı olarak sahte çift bağlandı: `CommunityToolkit.VectorData.InMemory` kendisi `IL2104`/`IL3053` verir. Çift, taban `GetCollection<TKey,TRecord>`'ın `RequiresDynamicCode`/`RequiresUnreferencedCode` işaretini taşımak zorunda kaldı.
+8. **Alt agent ve workflow adımı** (hata modları "önce ölç"): ikisi de `UserId` taşır (ölçüldü). Alt agent kök oturumu taşır. 🚨 Workflow adımı hafıza YAZAR, ama workflow'un oturum kimliğiyle: o kimliğin `sessions` satırı yoktur, bu yüzden oturum silme ve saklama süresi kayda ulaşmaz (F-643 adayı; site ve `hafiza/konusma-hafizasi.md` söyler). Planın "hafıza beklenmedik kapanır" korkusu gerçekleşmedi; tersi doğdu.
+9. **Plan dosya listesine eklenenler:** `ConversationMemorySchema.cs`, `TraconConversationMemoryOptionsValidator.cs`, `AgentDefinitionValidator.ConversationMemory.cs` (`ConversationMemoryMaxResults` 1–20, hata ve uyarı), `Abstractions.csproj` IVT (`Tracon.Sqlite.IntegrationTests`), `Directory.Packages.props` (`CommunityToolkit.VectorData.*`).
+10. **Plan dışı public API yok.** `MaxConversationMemoryResults` ve `DefaultCollectionName` önce public yazıldı, denetimden önce `internal`/gömülü yapıldı.
+11. **Tanımlardaki koleksiyon null kusuru** (kullanıcının oturum ortasında verdiği `CustomAgentSource` işi, faz dışı): ayrı commit `1c2d7a3e`, K-1064. Bu faz o commit'in üstündedir; `kapi.py kapanis --taban 1c2d7a3e`.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+- **K-1065** (public-api, güvenlik) — konuşma hafızası Core'da, kapsam kiracı + agent + kullanıcı. K-105 ve K-342'nin yerini aldı.
+- **K-1066** (güvenlik) — kapsam her çağrıda run'dan, MAF sağlayıcısına oturum verilmez.
+- **K-1067** (kalıcı-veri) — kopya oturumla birlikte silinir; önce kopya, sonra satır.
+- Açık Sorular, plan önerileriyle kapandı: (1) `OnDemand` tool'u Tracon zincirinden geçmez, yalnız kendi kapsamını okur; (2) dışa aktarma hafızayı taşır; (3) bkz. Sapma 4; (4) depo hatası aramayı ve yazmayı sessiz bırakır, run sürer (MAF sağlayıcısının kendi davranışı, günlüğe düşer); (5) yalnız `External` kullanıcı mesajı ve asistan metni saklanır. Kategori dışı kararlar (commit mesajına gider): `ConversationMemoryMaxResults` üst sınırı 20; arama kapsamı oturumsuz; dışa aktarma alanları `content`, `role`, `agent`, `sessionId`, `createdAt`.
+
+## Örnek Uygulama Koşumu — gerçek çıktı
+
+> 2026-10-22, `samples/Tracon.Api` (Development, `user-secrets`), gerçek `gpt-5.4-mini`, gerçek PostgreSQL 18 + pgvector (`ap-pg`), `CommunityToolkit.VectorData.PgVector` 1.0.1, kimlik `X-Demo-User`. `UseConversationMemory(o => o.VectorDimensions = 1536)`; `memory-assistant` agent'ı.
+
+| Adım | Girdi | Gerçek yanıt |
+|---|---|---|
+| ada · oturum 1 | `My favourite colour is teal.` | `Your favourite colour is teal.` |
+| ada · **yeni** oturum 2 | `What is my favourite colour?` | `Your favourite colour is teal.` |
+| grace · oturum 3 | aynı soru | `I don’t have that in memory.` |
+| ada'nın dört oturumu `DELETE /api/sessions/{id}` | — | `204` ×4; tabloda yalnız grace'in satırları kaldı |
+| ada · oturum 4 (silmeden sonra) | aynı soru | `I don’t know yet.` |
+| `OnDemand` agent (API'yle oluşturuldu), ada · oturum 2 | `What is my dog called?` | akışta `search_conversation_memory` çağrısı; `Your dog is called Rex.` |
+| `OnDemand`, grace | aynı soru | tool çağrıldı; `I don’t have that information in memory.` |
+
+Tablodaki satırlar (`SELECT "ApplicationId","AgentId","UserId","SessionId","Role" …`): kiracı `default`, agent `memory-assistant`, yalnız `user` ve `assistant` rolü (tool mesajı yok). Koşum sonunda satır sayısı 0, tablo silindi, agent ve oturumlar API ile silindi.
+
+🚨 **İlk koşum başarısız göründü:** `Microsoft.SemanticKernel.Connectors.PgVector` 1.74.0-preview ile ada'nın ikinci oturumu `I don't have that stored in memory` dedi; günlükte `MissingMethodException: VectorSearchOptions'1.get_OldFilter()`. Birim ve fonksiyonel testlerin hiçbiri bunu görmezdi (sahte depo). Sebep ve sınıf taraması: Sapma 4 ve `hafiza/konusma-hafizasi.md`.
+
+**Native AOT:** `Tracon.Samples.ExtensionAotSmoke` (`osx-arm64`) 0 yayın uyarısı; ikinci oturumda arama 2 kayıt döndürdü ve Contoso modelinin yankısı `teal` içerdi (`conversation-memory AOT host smoke passed`, çıkış 0).
+
+**Arayüz payı:** ana JS 221,7 KB gzip (bütçe 250 KB); gömülü varlık 187,2 KB brotli (plan günü 184,6 KB: +2,6 KB).
 
 ## Süreç Ölçümü
 

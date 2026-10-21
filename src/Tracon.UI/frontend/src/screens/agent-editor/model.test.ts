@@ -74,6 +74,8 @@ describe('definition round trip', () => {
       enableTextSearch: false,
       enableVectorSearch: true,
       vectorCollection: 'internal-documents',
+      enableConversationMemory: false,
+      conversationMemorySearch: 'BeforeEachTurn',
     },
     metadata: { owner: 'platform-team' } as never,
     parameters: [{ name: 'tone', kind: 'Text', required: false }],
@@ -232,10 +234,29 @@ describe('definition round trip', () => {
       enableTodo: false,
       enableTextSearch: false,
       enableVectorSearch: false,
+      // The server writes the default search mode into every block it returns.
+      enableConversationMemory: false,
+      conversationMemorySearch: 'BeforeEachTurn' as const,
     };
 
     const bare = toRequest(fromDefinition({ ...definition, memory: nothingOn }));
 
     expect(bare.memory).toBeNull();
+  });
+
+  it('keeps a memory block whose only setting is conversation memory', () => {
+    const remembering = {
+      enableFileMemory: false,
+      enableTodo: false,
+      enableTextSearch: false,
+      enableVectorSearch: false,
+      enableConversationMemory: true,
+      conversationMemorySearch: 'OnDemand' as const,
+      conversationMemoryMaxResults: 4,
+    };
+
+    const request = toRequest(fromDefinition({ ...definition, memory: remembering }));
+
+    expect(request.memory).toEqual(remembering);
   });
 });

@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206, 215
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206, 215, 233
 > **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
@@ -4227,3 +4227,59 @@ Sınır senaryosu. Otomatik karşılığı: `RunContinuationTests` ·
 - İlkinde açılmaz; mesaj `TraconOptions.UtilityModel.Temperature is 'abc', which is not a number` içerir (bağlanan `0`'ı değil, yazılan metni). Eski kusur: `Temperature = 0` ile açılıyordu ve bağlam özetleyicisi sıfır sıcaklıkta koşuyordu.
 - İkincisinde açılır; sağlayıcı varsayılanı kullanılır.
 - ➜ CI: `TraconUtilityModelBindingTests.An_unreadable_number_fails_at_startup` · `An_empty_number_means_the_provider_default`.
+
+---
+
+### MT-CORE-155 — Konuşma hafızası: kullanıcı yeni oturumda hatırlanır; başka kullanıcı ve silinen oturum hatırlanmaz (Faz 233, F-627)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 233 |
+| **İlgili karar** | K-1065, K-1066, K-1067 |
+
+**Devir** — 🤖 ajan koşar — örnek uygulama, `curl`, gerçek `openai` modeli ve gerçek PostgreSQL + pgvector (`CommunityToolkit.VectorData.PgVector`)
+
+**Ön koşul** — Örnek uygulama Development'ta, `Tracon:PostgreSql` ve `Tracon:Providers:OpenAI` ayarlı (`memory-assistant` agent'ı yalnız ikisi birlikte varken kaydolur). pgvector'lü PostgreSQL ayakta. 🚨 Uygulama paylaşılan yerel veritabanına bağlanır; `AutoApplyMigrations` bekleyen migration'ı oraya yazar (`hafiza/elle-kosum-ortami.md`). Kimlik: `X-Demo-User` başlığı.
+
+**Adımlar**
+1. `X-Demo-User: ada`, `sessionId: s1` ile `POST $BASE/api/agents/memory-assistant/run` `{"message":"My favourite colour is teal."}`.
+2. `X-Demo-User: ada`, **yeni** `sessionId: s2` ile `{"message":"What is my favourite colour?"}`.
+3. `X-Demo-User: grace`, `sessionId: s3` ile aynı soru.
+4. `DELETE $BASE/api/sessions/s1` ve `s2` (ada'nın bilgiyi taşıyan oturumları). Sonra `X-Demo-User: ada`, `sessionId: s4` ile aynı soru.
+5. Kayıtlar: tabloda `tracon_conversation_memory` satırlarını kullanıcı ve oturuma göre say.
+
+**Beklenen sonuç**
+- 2: yanıt "teal" der. Modele giden istek `## Memories` başlıklı bir mesaj taşır.
+- 3: yanıt bilmez ("I don't have that in memory").
+- 4: oturumlar `204` ile silinir; ada'nın satırı kalmaz, grace'in satırları kalır. `s4`'te yanıt bilmez.
+- 5: satırlar yalnız `user` ve `assistant` rolü taşır (tool mesajı yok); `ApplicationId` kiracı, `AgentId` agent adı, `UserId` kullanıcıdır.
+- ➜ CI: `ConversationMemoryTests` (fonksiyonel) · `ConversationMemoryConnectorTests` (gerçek bağlayıcı).
+
+---
+
+### MT-CORE-156 — Konuşma hafızası `OnDemand`: model aramayı tool olarak çağırır ve yalnız arayanın kapsamını okur (Faz 233, F-627)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 233 |
+| **İlgili karar** | K-1065 |
+
+**Devir** — 🤖 ajan koşar — örnek uygulama, `curl`, gerçek `openai` modeli
+
+**Ön koşul** — MT-CORE-155 ortamı. Yönetim API'siyle bir agent oluştur: `POST $BASE/api/agents` `{"name":"memory-ondemand","instructions":"…call the search_conversation_memory tool first when the user asks about something they told you before.","model":{"provider":"openai","model":"gpt-5.4-mini"},"memory":{"enableConversationMemory":true,"conversationMemorySearch":"OnDemand"}}`.
+
+**Adımlar**
+1. `X-Demo-User: ada`, `sessionId: o1` ile `{"message":"My dog is called Rex."}`.
+2. `X-Demo-User: ada`, yeni oturumla `{"message":"What is my dog called?"}`; akıştaki tool çağrılarına bak.
+3. `X-Demo-User: grace` ile aynı soru.
+4. Temizlik: oturumları ve agent'ı sil.
+
+**Beklenen sonuç**
+- 2: akışta `search_conversation_memory` tool çağrısı vardır; yanıt "Rex" der.
+- 3: tool çağrılır ama ada'nın kaydı dönmez; yanıt bilmez.
+- Tool adı `ToolNames`'te yer almaz ve onay istemez.
+- ➜ CI: `ConversationMemoryTests.An_on_demand_agent_offers_the_search_tool_and_the_tool_reads_only_the_callers_memory`.

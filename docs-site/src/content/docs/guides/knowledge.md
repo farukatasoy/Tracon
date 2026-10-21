@@ -140,8 +140,9 @@ The console does not currently provide a knowledge-management screen or vector-m
 fields in the agent editor. Use the knowledge HTTP API for ingestion and calibration,
 and use code or the agent management API to enable vector search.
 
-This feature is separate from session history, file memory, and MAF's
-`ChatHistoryMemoryProvider`. See
+This feature is separate from session history, file memory, and conversation memory
+(what one user told an agent in earlier sessions). Knowledge is what you loaded;
+conversation memory is what the user said. See
 [Context and memory](/guides/context-and-memory/).
 
 ## Ingest raw text

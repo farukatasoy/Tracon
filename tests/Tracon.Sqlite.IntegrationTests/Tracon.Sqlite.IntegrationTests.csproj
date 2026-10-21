@@ -19,4 +19,9 @@
     PostgreSQL/SQL Server contract runs.
   -->
 
+  <ItemGroup>
+    <!-- A vector store that runs the filter it is given, for the conversation memory tests (phase 233). -->
+    <Compile Include="../Shared/VectorStore/*.cs" LinkBase="Shared/VectorStore" />
+  </ItemGroup>
+
 </Project>

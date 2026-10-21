@@ -19884,6 +19884,22 @@ namespace Tracon.Client.Generated
 
     }
 
+    /// <summary>
+    /// When an agent searches its conversation memory (`EnableConversationMemory`).
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ConversationMemorySearch>))]
+    public enum ConversationMemorySearch
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"BeforeEachTurn")]
+        BeforeEachTurn = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"OnDemand")]
+        OnDemand = 1,
+
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ConversationResource
     {
@@ -22654,6 +22670,27 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("vectorCollection")]
         public string? VectorCollection { get; set; } = default!;
+
+        /// <summary>
+        /// Gets a value that turns on conversation memory: the agent finds what the same user said
+        /// <br/>to this agent in earlier sessions and gets it as context.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("enableConversationMemory")]
+        public bool EnableConversationMemory { get; set; } = default!;
+
+        /// <summary>
+        /// Gets when the agent searches its conversation memory. Read only while
+        /// <br/>`EnableConversationMemory` is on.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("conversationMemorySearch")]
+        public ConversationMemorySearch ConversationMemorySearch { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the most records one search returns. The framework's default (3) applies when it is
+        /// <br/>`null`. Must be between 1 and 20.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("conversationMemoryMaxResults")]
+        public int? ConversationMemoryMaxResults { get; set; } = default!;
 
     }
 

@@ -246,6 +246,7 @@ yazımı başarılıysa `COMMIT`) için kullanılır. Silme **içerik** verisind
 (oturum, çalıştırma, konuşma, ek, puan, ses, checkpoint); `audit_log`'a hiç dokunmaz — "kim ne
 yaptı" kişinin kendi verisi değildir, silme eylemi yeni bir denetim kaydıdır.
 FK'sız oturum/run tablosu kendi hedefini ister (F-371); K-888 muafiyeti silmede yok.
+Hafıza kopyası (tüketicinin `VectorStore`'u) commit'ten ÖNCE silinir (K-1067).
 
 ## Skill script çalıştırma
 

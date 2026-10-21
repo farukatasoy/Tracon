@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1002 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1005 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1054 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1057 kalem)
 
 | K | Karar |
 |---|---|
-| K-1013 | Seam, bir rehberin, sample'ın veya contract suite'in tüketiciye uygulatmayı anlattığı public arayüzdür; 12 tesisat arayüzü ve yalnız onların imzasında yaşayan 23 tip `internal` oldu, MIMARI K4 "belgelenmiş genişleme noktası" olarak daraldı (F-555, Faz 213) (kullanıcı kararı) 👤 |
-| K-1014 | DI'ın ve araç boru hattının kurduğu 5 tipin kurucusu `internal`, kaydı fabrika; somut sınıfın her public kurucusu `public-constructor-baseline.txt`'e gerekçeyle bağlı ve taban yalnız küçülür; `UpdateRunCostAsync` `tenantId` varsayılanı yok; `BackendModel` ×2 ve `QuotaUsageQuery.AsOf` silindi (F-556, Faz 213) (kullanıcı kararı) 👤 |
-| K-1015 | `LiveVoiceDelegationMode.Responses` silindi, enum yalnız `Client`; `Tracon:Voice:Live:DelegationMode` bilinmeyen adı başlangıçta reddeder (F-556, Faz 213) |
 | K-1016 | `TraconAgentSessionStore` `internal`; köprünün `GetSessionAsync`'i oturum AÇMAZ; anahtarın `isolation` bölümü eski önek biçimine (`kaçışlı-anahtar::kimlik`) katlanır, başka her bölüm `NotSupportedException` ile reddedilir; `MAAI001` bastırması yalnız köprü dosyasında ve onu kullanan iki yerde (`OpenAIResponsesEndpoints`, `ResolveSessionStore`) (F-557, Faz 214) |
 | K-1017 | Bağımlılık yükseltmesi istek davranışını değiştirmez: `Tracon.Anthropic` SDK adaptörünü `AnthropicThinkingMode.Extended` ile kurar (SDK varsayılanı `Adaptive`), önbellek işaretli talimat bloğu `system` dizisinde ilk system-olmayan mesajdan ÖNCE yerleşir (F-557, Faz 214) |
 | K-1018 | Sevk edilen `Tracon.Testing.Contracts.Xunit` paketi `xunit.v3.extensibility.core` ve `xunit.v3.assert` için `>= 3.2.2` alt sınırını korur; reponun kendi testleri xunit.v3 `4.0.2` + `Microsoft.Testing.Extensions.TrxReport` `2.5.1` üzerinde koşar (F-557, Faz 215, A-70) |
@@ -62,3 +59,6 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1062 | Uzantı model zincirine halkayı `UseChatClient(ChatClientSlot, Func<IChatClient, IChatClient>)` ile koyar; seçim `ExtensionNames` ile (F-594) |
 | K-1063 | Halka iki sabit yuvaya girer, içerik korumasının altına inemez; yerleştiremeyen registry derlemeyi durdurur (F-594) |
 | K-1064 | Tanımın koleksiyon üyeleri tipin `get`'inde `?? []` ile boş döner; okuyucuya onarım listesi yazdırılmaz |
+| K-1065 | Konuşma hafızası Core'dadır: kapsam kiracı + agent + kullanıcı; kullanıcısız ya da oturumsuz run hafıza kullanmaz (F-627) |
+| K-1066 | Hafıza kapsamı her çağrıda run'dan okunur; MAF sağlayıcısına oturum verilmez (F-627) |
+| K-1067 | Hafıza kaydı oturumun türetilmiş kopyasıdır: oturumla birlikte silinir, önce kopya sonra satır (F-627) |

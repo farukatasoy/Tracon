@@ -63,6 +63,10 @@ export type ResponseFormatKindOption = (typeof RESPONSE_FORMAT_KINDS)[number];
 export const SUB_AGENT_CALL_MODES = ['Background', 'Tool'] as const;
 export type SubAgentCallModeOption = (typeof SUB_AGENT_CALL_MODES)[number];
 
+/** When an agent searches its conversation memory: before every turn, or when the model asks. */
+export const CONVERSATION_MEMORY_SEARCHES = ['BeforeEachTurn', 'OnDemand'] as const;
+export type ConversationMemorySearchOption = (typeof CONVERSATION_MEMORY_SEARCHES)[number];
+
 export const DEFAULT_SCHEMA_TEXT = '{\n  "type": "object",\n  "properties": {}\n}';
 
 export function isValidJson(text: string): boolean {
@@ -290,7 +294,7 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     callableAgentNames: form.callableAgentNames,
     harness: form.harnessEnabled ? form.harness : null,
     compaction: form.compaction.strategy === 'None' ? null : form.compaction,
-    memory: anySettingOn(form.memory) ? form.memory : null,
+    memory: memoryIsOn(form.memory) ? form.memory : null,
     subAgents: toSubAgents(form),
     mcpResourceUris: form.preserved.mcpResourceUris,
     metadata: form.preserved.metadata,
@@ -415,6 +419,19 @@ function toInstructionsByCulture(rows: CultureInstructions[]): Record<string, st
 function anySettingOn(settings: object): boolean {
   return Object.values(settings).some((value) =>
     typeof value === 'string' ? value.trim().length > 0 : value !== null && value !== undefined && value !== false,
+  );
+}
+
+/**
+ * True when a memory block turns anything on. The search mode of conversation memory does not count
+ * while it holds its default: the server writes it into every block it returns, so a block with
+ * everything off would otherwise never be dropped.
+ */
+function memoryIsOn(memory: MemorySettings): boolean {
+  const { conversationMemorySearch, ...rest } = memory;
+
+  return anySettingOn(
+    conversationMemorySearch === undefined || conversationMemorySearch === 'BeforeEachTurn' ? rest : memory,
   );
 }
 

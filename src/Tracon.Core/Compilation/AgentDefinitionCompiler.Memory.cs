@@ -5,8 +5,8 @@ using Microsoft.Extensions.AI;
 namespace Tracon;
 
 /// <summary>
-/// Memory provider production: file memory, todo tracking, text search, and
-/// semantic (vector) search.
+/// Memory provider production: file memory, todo tracking, text search,
+/// conversation memory, and semantic (vector) search.
 /// </summary>
 // MAAI001: Microsoft.Agents.AI.AgentFileStore and the memory provider types
 // are marked "evaluation purposes only". Memory setup is kept in a single
@@ -20,6 +20,9 @@ public sealed partial class AgentDefinitionCompiler
     /// to count it as "meaningful" - excludes short filler words from the pattern.
     /// </summary>
     private const int MinKeywordLength = 3;
+
+    /// <summary>The most records one conversation memory search may return (<see cref="MemorySettings.ConversationMemoryMaxResults"/>).</summary>
+    internal const int MaxConversationMemoryResults = 20;
 
     /// <summary>Builds a list of <see cref="AIContextProvider"/> from a definition's memory settings.</summary>
     private List<AIContextProvider> CreateMemoryProviders(AgentDefinition definition)
@@ -48,7 +51,82 @@ public sealed partial class AgentDefinitionCompiler
             providers.Add(textSearch);
         }
 
+        if (memory.EnableConversationMemory)
+        {
+            providers.Add(CreateConversationMemoryProvider(definition, memory));
+        }
+
         return providers;
+    }
+
+    /// <summary>
+    /// Builds the provider that gives the agent the conversation memory of the user it runs for
+    /// (<see cref="MemorySettings.EnableConversationMemory"/>).
+    /// </summary>
+    /// <exception cref="TraconCompilationException">
+    /// <c>UseConversationMemory</c> was not called, or no <c>VectorStore</c> is registered.
+    /// </exception>
+    private ConversationMemoryScopeProvider CreateConversationMemoryProvider(AgentDefinition definition, MemorySettings memory)
+    {
+        var settings = _services?.GetService(typeof(Microsoft.Extensions.Options.IOptions<TraconConversationMemoryOptions>))
+            is Microsoft.Extensions.Options.IOptions<TraconConversationMemoryOptions> { Value: { VectorDimensions: > 0 } configured }
+            ? configured
+            : throw new TraconCompilationException(
+                $"Agent '{definition.Name}' wants conversation memory, but it is not set up: call " +
+                "UseConversationMemory(options => options.VectorDimensions = ...) on the Tracon builder.")
+            {
+                AgentName = definition.Name,
+            };
+
+        var store = _services?.GetService(typeof(Microsoft.Extensions.VectorData.VectorStore)) as Microsoft.Extensions.VectorData.VectorStore
+            ?? throw new TraconCompilationException(
+                $"Agent '{definition.Name}' wants conversation memory, but no Microsoft.Extensions.VectorData.VectorStore " +
+                "is registered in the service collection.")
+            {
+                AgentName = definition.Name,
+            };
+
+        if (memory.ConversationMemoryMaxResults is { } maxResults and (< 1 or > MaxConversationMemoryResults))
+        {
+            throw new TraconCompilationException(
+                $"Agent '{definition.Name}' sets ConversationMemoryMaxResults to {maxResults}; " +
+                $"it must be between 1 and {MaxConversationMemoryResults}.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        return new ConversationMemoryScopeProvider(
+            store,
+            settings,
+            ResolveTenantId(definition),
+            definition.Name,
+            memory.ConversationMemorySearch,
+            memory.ConversationMemoryMaxResults,
+            _loggerFactory);
+    }
+
+    /// <summary>
+    /// Throws when the search tool of <see cref="ConversationMemorySearch.OnDemand"/> would share its name with
+    /// a tool the agent already has.
+    /// </summary>
+    /// <exception cref="TraconCompilationException">A tool of the agent is named <c>search_conversation_memory</c>.</exception>
+    private static void ThrowOnConversationMemoryToolConflict(AgentDefinition definition, List<AITool> tools)
+    {
+        if (definition.Memory is not { EnableConversationMemory: true, ConversationMemorySearch: ConversationMemorySearch.OnDemand })
+        {
+            return;
+        }
+
+        if (tools.Any(static tool => string.Equals(tool.Name, ConversationMemoryScopeProvider.SearchToolName, StringComparison.Ordinal)))
+        {
+            throw new TraconCompilationException(
+                $"Agent '{definition.Name}' has a tool named '{ConversationMemoryScopeProvider.SearchToolName}', which is the name " +
+                "of the search tool of its on-demand conversation memory. Rename the tool, or search before each turn.")
+            {
+                AgentName = definition.Name,
+            };
+        }
     }
 
     private TextSearchProvider? CreateTextSearchProvider(AgentDefinition definition)

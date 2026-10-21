@@ -9,7 +9,7 @@
 |---|---|
 | Bir şeyin nerede yaşadığı | [kod-haritasi](kod-haritasi.md) |
 | Graph/Compaction/Eval/Quota/Webhook/MCP haritası | [altyapi-haritasi](altyapi-haritasi.md) |
-| MAF tipi, harness, `AIContextProvider` | [maf-api](maf-api.md) |
+| MAF tipi, harness, `AIContextProvider` · konuşma hafızası, `VectorStore` | [maf-api](maf-api.md) · [konusma-hafizasi](konusma-hafizasi.md) |
 | MAF Harness/`LoopAgent` bekleme tuzağı | [maf-harness-ve-loop](maf-harness-ve-loop.md) |
 | MAF oturumu, `ChatHistoryProvider`, Responses | [maf-oturum](maf-oturum.md) |
 | Workflow yürütme, executor kimliği, HITL | [workflows](workflows.md) · [cevap](workflow-cevaplari.md) |
@@ -40,15 +40,14 @@
 | Üçüncü taraf lisans, ön sürüm üst akış aralığı | [tedarik-zinciri](tedarik-zinciri.md) |
 | NSwag ile üretilen istemci (`Tracon.Client`/`@tracon/client`) | [nswag-istemci-uretimi](nswag-istemci-uretimi.md) |
 | Test **yazımı** (xunit, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |
-| Test **koşumu** asılı/eksik (`dotnet test`) | [komut/MSBuild](test-kosum-tuzaklari.md) · [paralellik/zamanlama](test-paralellik-ve-zamanlama.md) |
-| Örnek uygulamayı **elle** ayağa kaldırma (manuel tur, repro) | [elle-kosum-ortami](elle-kosum-ortami.md) |
+| Test **koşumu** asılı/eksik (`dotnet test`) | [komut/MSBuild](test-kosum-tuzaklari.md) · [paralellik](test-paralellik-ve-zamanlama.md) |
+| Örnek uygulamayı **elle** koşma (manuel tur, repro) | [elle-kosum-ortami](elle-kosum-ortami.md) |
 | Test tek başına geçip **tam koşumda** düşüyor | [test-yalitimi](test-yalitimi.md) |
-| Tam koşumda düşen testin **ölçülmüş vakaları** | [test-yalitimi-vakalari](test-yalitimi-vakalari.md) |
+| Tam koşumda düşen testin **vakaları** | [test-yalitimi-vakalari](test-yalitimi-vakalari.md) |
 | Kapanış kapısı taban ölçümü (wall-clock) | [test-kosum-olcumleri](test-kosum-olcumleri.md) |
 | Kapasite ölçümü aparatı (`bench/capacity/`) | [kapasite-olcumu](kapasite-olcumu.md) |
 | Arayüz (Vite, SPA rota, TS, ekran) | [frontend](frontend.md) |
-| Arayüz tasarım katmanı (token, tema, primitif) | [frontend-tasarim-katmani](frontend-tasarim-katmani.md) |
-| Arayüz modal katmanı (`Dialog`, `window.confirm` yasağı) | [frontend-modal-katmani](frontend-modal-katmani.md) |
+| Arayüz tasarım (token, tema, primitif) · modal (`Dialog`, `window.confirm` yasağı) | [tasarım](frontend-tasarim-katmani.md) · [modal](frontend-modal-katmani.md) |
 | Arayüz yerelleştirme (`useT`, `Messages`) | [frontend-yerellestirme](frontend-yerellestirme.md) |
 | Arayüz test altyapısı (Vitest, `openapi-fetch` stub) | [frontend-test-altyapisi](frontend-test-altyapisi.md) |
 | Model sağlayıcısı (OpenAI/Anthropic/Google) | [openai-saglayici](openai-saglayici.md) |

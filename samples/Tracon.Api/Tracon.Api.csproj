@@ -47,6 +47,13 @@
     <ProjectReference Include="../../src/Tracon.Azure/Tracon.Azure.csproj" />
     <!-- Voice tools. NOT included in the meta package; referenced explicitly. -->
     <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
+    <!--
+      Conversation memory (phase 233) keeps its records in a vector store the HOST registers. This sample
+      registers the PgVector connector over the same PostgreSQL database; any other connector of
+      Microsoft.Extensions.VectorData works the same way, if it is built against a version of
+      Microsoft.Extensions.VectorData.Abstractions that the Microsoft Agent Framework package accepts.
+    -->
+    <PackageReference Include="CommunityToolkit.VectorData.PgVector" />
   </ItemGroup>
 
   <ItemGroup>

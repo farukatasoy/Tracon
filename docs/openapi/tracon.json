@@ -10764,6 +10764,13 @@
         },
         "description": "The result of a pre-flight context-window check, computed without calling\nthe model provider."
       },
+      "ConversationMemorySearch": {
+        "enum": [
+          "BeforeEachTurn",
+          "OnDemand"
+        ],
+        "description": "When an agent searches its conversation memory (\u0060EnableConversationMemory\u0060)."
+      },
       "ConversationResource": {
         "required": [
           "id",
@@ -13471,6 +13478,24 @@
               "string"
             ],
             "description": "Gets the name of the collection to search. The agent name is used when it is empty."
+          },
+          "enableConversationMemory": {
+            "type": "boolean",
+            "description": "Gets a value that turns on conversation memory: the agent finds what the same user said\nto this agent in earlier sessions and gets it as context."
+          },
+          "conversationMemorySearch": {
+            "description": "Gets when the agent searches its conversation memory. Read only while\n\u0060EnableConversationMemory\u0060 is on.",
+            "$ref": "#/components/schemas/ConversationMemorySearch"
+          },
+          "conversationMemoryMaxResults": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Gets the most records one search returns. The framework\u0027s default (3) applies when it is\n\u0060null\u0060. Must be between 1 and 20.",
+            "format": "int32"
           }
         },
         "description": "Determines the memory providers bound to an agent."
