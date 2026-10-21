@@ -105,7 +105,7 @@ public sealed record LoopSettings
     /// <summary>
     /// Gets the stop criteria, evaluated in order. At least one is required.
     /// </summary>
-    public required IReadOnlyList<LoopCriterion> Criteria { get; init; }
+    public required IReadOnlyList<LoopCriterion> Criteria { get => field ?? []; init; }
 
     /// <summary>
     /// Gets the upper number of loop iterations. <see langword="null"/> takes

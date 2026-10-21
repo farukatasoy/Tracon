@@ -17,6 +17,12 @@ namespace Tracon;
 /// A definition never carries credentials such as an API key. Provider credentials come
 /// from configuration and are not written to the database.
 /// </para>
+/// <para>
+/// A collection member is never <see langword="null"/>. A serializer that builds the record
+/// without running its initializers (a source-generated context reading a file that leaves
+/// the member out, or writes <c>null</c> for it) still reads an empty collection, so a source
+/// that reads definitions from JSON does not restore the members itself.
+/// </para>
 /// </remarks>
 public sealed record AgentDefinition
 {
@@ -47,13 +53,13 @@ public sealed record AgentDefinition
     /// Gets the names of the tools this agent may use. Every name must match a tool
     /// registered in code; otherwise building the agent fails.
     /// </summary>
-    public IReadOnlyList<string> ToolNames { get; init; } = [];
+    public IReadOnlyList<string> ToolNames { get => field ?? []; init; }
 
     /// <summary>
     /// Gets the names of the skills this agent may load at run time. Every name must
     /// match an enabled skill found in code or in the skill store.
     /// </summary>
-    public IReadOnlyList<string> SkillNames { get; init; } = [];
+    public IReadOnlyList<string> SkillNames { get => field ?? []; init; }
 
     /// <summary>
     /// Gets how this agent uses its skills. When <see langword="null"/>, all three skill
@@ -76,7 +82,7 @@ public sealed record AgentDefinition
     /// options the compiler builds for this agent; it cannot change the members the
     /// definition or Tracon's tenant and security decisions own.
     /// </remarks>
-    public IReadOnlyList<string> ExtensionNames { get; init; } = [];
+    public IReadOnlyList<string> ExtensionNames { get => field ?? []; init; }
 
     /// <summary>
     /// Gets the names of the other agents this agent may call.
@@ -96,7 +102,7 @@ public sealed record AgentDefinition
     /// A child agent runs in the <strong>same tenant</strong> and cannot change the tenant.
     /// </para>
     /// </remarks>
-    public IReadOnlyList<string> CallableAgentNames { get; init; } = [];
+    public IReadOnlyList<string> CallableAgentNames { get => field ?? []; init; }
 
     /// <summary>
     /// Gets how this agent calls the agents it may call
@@ -117,7 +123,7 @@ public sealed record AgentDefinition
     /// (<c>UseMcp()</c>); otherwise building the agent fails. A size limit applies:
     /// 64 KB per resource, 256 KB in total.
     /// </remarks>
-    public IReadOnlyList<string> McpResourceUris { get; init; } = [];
+    public IReadOnlyList<string> McpResourceUris { get => field ?? []; init; }
 
     /// <summary>
     /// Gets the harness settings. When <see langword="null"/> a plain chat agent is
@@ -161,8 +167,11 @@ public sealed record AgentDefinition
     public DateTimeOffset? UpdatedAt { get; init; }
 
     /// <summary>Gets free-form, application-specific metadata.</summary>
-    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init; }
-        = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, JsonElement> Metadata
+    {
+        get => field ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        init;
+    }
 
     /// <summary>
     /// Gets the schema of named placeholders (<c>{{name}}</c>) this definition's
@@ -173,7 +182,7 @@ public sealed record AgentDefinition
     /// supplies concrete values through <c>AgentRunRequest.Parameters</c>; the
     /// definition itself carries only the schema, never a value.
     /// </remarks>
-    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+    public IReadOnlyList<AgentParameter> Parameters { get => field ?? []; init; }
 
     /// <summary>
     /// Gets the name of another definition whose <c>Instructions</c> text is

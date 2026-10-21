@@ -71,7 +71,7 @@ public sealed record LoopCriterion
     /// Gets the criteria the judge model scores the answer against. Read by
     /// <c>aiJudge</c> only, where at least one entry is required.
     /// </summary>
-    public IReadOnlyList<string> JudgeCriteria { get; init; } = [];
+    public IReadOnlyList<string> JudgeCriteria { get => field ?? []; init; }
 
     /// <summary>
     /// Gets the extra instructions handed to the judge model. Read by
@@ -88,5 +88,5 @@ public sealed record LoopCriterion
     /// definition has no mode names of its own to match. Leave this empty
     /// unless the agent's own instructions establish the modes.
     /// </remarks>
-    public IReadOnlyList<string> Modes { get; init; } = [];
+    public IReadOnlyList<string> Modes { get => field ?? []; init; }
 }
