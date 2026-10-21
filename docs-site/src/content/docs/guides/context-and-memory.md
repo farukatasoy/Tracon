@@ -249,7 +249,7 @@ field in the request body. Name a `sessionId` in the request; a request without 
 opens no session and remembers nothing.
 
 A sub-agent and a queued run remember for the same user and session as the run that
-started them. 🚨 An agent step of a [workflow](/concepts/workflows/) remembers too, under
+started them. **Important:** an agent step of a [workflow](/concepts/workflows/) remembers too, under
 the workflow run's own session id. No session record carries that id, so deleting a
 session and the sessions retention policy do not reach those records. A data subject
 erasure deletes them only if the scope you return from `IDataSubjectResolver` names that id
@@ -305,7 +305,7 @@ that.
 - Search quality, and whether the filter on tenant, agent, and user is applied at
   all, belong to the connector. Test that two users do not see each other's records
   before you rely on it.
-- 🚨 **Check the connector against the abstractions version.** The Microsoft Agent
+- **Check the connector against the abstractions version.** The Microsoft Agent
   Framework needs `Microsoft.Extensions.VectorData.Abstractions` 10.10 or newer.
   Connectors built against an older version, such as the
   `Microsoft.SemanticKernel.Connectors.*` packages (1.74 preview), call a member
