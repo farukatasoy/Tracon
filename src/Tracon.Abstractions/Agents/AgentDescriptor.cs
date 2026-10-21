@@ -37,6 +37,12 @@ public sealed record AgentDescriptor
     /// <summary>Gets the names of the skills this agent may load at run time.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
+    /// <summary>
+    /// Gets how this agent uses its skills. The external-surface check reads it: an agent whose
+    /// skill read approval is on cannot be exposed over A2A or MCP.
+    /// </summary>
+    public SkillSettings? Skills { get; init; }
+
     /// <summary>Gets the names of the agent extensions this agent is compiled with, in call order.</summary>
     public IReadOnlyList<string> ExtensionNames { get; init; } = [];
 

@@ -94,6 +94,7 @@ internal sealed partial class AgentDefinitionValidator
             cancellationToken).ConfigureAwait(false);
 
         await CheckSkillsAsync(definition, messages, cancellationToken).ConfigureAwait(false);
+        CheckSkillSettings(definition, messages);
         await CheckCallGraphAsync(definition, messages, cancellationToken).ConfigureAwait(false);
         CheckSubAgentTools(definition, messages);
         await CheckLoopAsync(definition, messages, cancellationToken).ConfigureAwait(false);

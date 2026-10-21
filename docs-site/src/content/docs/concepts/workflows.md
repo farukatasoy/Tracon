@@ -906,6 +906,11 @@ failing it: the request has the form `ToolApproval` and is answered with `approv
 reason, and optionally `remember`. [Answering a tool
 approval](/concepts/workflow-answers/#a-tool-that-asks-for-approval) has the rules.
 
+The skill tools are tools that ask. A step whose agent names skills stops for an approval at its
+first `load_skill` call, unless the agent's definition sets `Skills.DisableReadApproval`.
+`run_skill_script` always stops the step. See [Approval of the skill
+tools](/concepts/tools/#approval-of-the-skill-tools).
+
 ### One answer per request
 
 A workflow can take one answer per request instead (`WorkflowResponseMode.SingleAnswer`):

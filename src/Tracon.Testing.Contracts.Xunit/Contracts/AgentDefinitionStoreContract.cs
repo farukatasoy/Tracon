@@ -204,6 +204,8 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
                     SchemaDescription = "Schema of an invoice summary.",
                 },
             },
+            SkillNames = ["house-skill"],
+            Skills = new SkillSettings { DisableReadApproval = true },
             CallableAgentNames = ["researcher"],
             Harness = new HarnessSettings
             {
@@ -264,6 +266,8 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.Model.ResponseFormat.SchemaName.ShouldBe("invoice");
         loaded.Model.ResponseFormat.SchemaDescription.ShouldBe("Schema of an invoice summary.");
         loaded.ToolNames.ShouldBe(["alpha", "beta"]);
+        loaded.SkillNames.ShouldBe(["house-skill"]);
+        loaded.Skills.ShouldNotBeNull().DisableReadApproval.ShouldBeTrue();
         loaded.CallableAgentNames.ShouldBe(["researcher"]);
         loaded.Harness.ShouldNotBeNull();
         loaded.Harness.MaxContextWindowTokens.ShouldBe(4096);

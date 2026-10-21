@@ -160,6 +160,29 @@ describe('definition round trip', () => {
     expect(toRequest({ ...loaded, stopSequences: 'END' }).model.stopSequences).toEqual(['END']);
   });
 
+  // F-626: the read approval is the editor's own control. A definition that turned it off must come back
+  // from the form as it went in; one that never set it must not grow the block.
+  describe('skill settings', () => {
+    it('keeps the setting a stored definition turned on', () => {
+      const form = fromDefinition({ ...definition, skills: { disableReadApproval: true } });
+
+      expect(form.skills.disableReadApproval).toBe(true);
+      expect(toRequest(form).skills).toEqual({ disableReadApproval: true });
+    });
+
+    it('reads a definition without skill settings as the default and sends none', () => {
+      expect(fromDefinition(definition).skills.disableReadApproval).toBeUndefined();
+      expect(toRequest(fromDefinition(definition)).skills).toBeNull();
+      expect(toRequest(fromDefinition({ ...definition, skills: null })).skills).toBeNull();
+    });
+
+    it('sends no block once the box is cleared, so the default approval applies again', () => {
+      const form = { ...fromDefinition({ ...definition, skills: { disableReadApproval: true } }) };
+
+      expect(toRequest({ ...form, skills: { ...form.skills, disableReadApproval: false } }).skills).toBeNull();
+    });
+  });
+
   // Phase 228: the call mode is the editor's own control; the wait limits beside it still are not.
   describe('sub-agent call mode', () => {
     it('reads a definition without sub-agent settings as background tasks and sends none', () => {

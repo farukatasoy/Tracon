@@ -161,6 +161,64 @@ public sealed class McpServerEndpointTests
         exception.Message.ShouldContain("cancel_order", Case.Sensitive);
     }
 
+    /// <summary>
+    /// The skill tools are not in the tool registry: the framework adds them when it builds the agent and
+    /// wraps all three for approval. The guard reads the definition's skill settings instead (F-626).
+    /// </summary>
+    [Fact]
+    public async Task Agent_using_skills_with_the_read_approval_on_cannot_be_exposed()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition() with { SkillNames = ["house-style"] })
+                .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconMcpServer());
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => McpTestClient.SendAsync(host.Client, "/tracon/mcp", "tools/list"));
+
+        exception.Message.ShouldContain("kod-agent", Case.Sensitive);
+        exception.Message.ShouldContain("skills", Case.Sensitive);
+        exception.Message.ShouldContain("Skills.DisableReadApproval", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Agent_using_skills_with_the_read_approval_on_that_is_not_on_the_allow_list_does_not_stop_the_host()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition())
+                .AddAgent(TestData.Definition("skilled-agent") with { SkillNames = ["house-style"] })
+                .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconMcpServer());
+
+        var (response, body) = await McpTestClient.SendAsync(host.Client, "/tracon/mcp", "tools/list");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, body?.ToString());
+    }
+
+    [Fact]
+    public async Task Agent_using_skills_with_the_read_approval_off_is_exposed()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition() with
+                {
+                    SkillNames = ["house-style"],
+                    Skills = new SkillSettings { DisableReadApproval = true },
+                })
+                .UseMcpServer(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconMcpServer());
+
+        var (response, body) = await McpTestClient.SendAsync(host.Client, "/tracon/mcp", "tools/list");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, body?.ToString());
+        body!.Value.GetProperty("result").GetProperty("tools").EnumerateArray()
+            .Select(static tool => tool.GetProperty("name").GetString())
+            .Contains("tracon_kod-agent", StringComparer.Ordinal)
+            .ShouldBeTrue(body.ToString());
+    }
+
     [Fact]
     public async Task MapTraconMcpServer_does_not_crash_on_an_empty_sqlite_database()
     {

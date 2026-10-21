@@ -330,6 +330,12 @@ error type `approval_unanswerable` — `409` on a non-streaming run, an `error` 
 stream. The same holds for every surface that cannot carry an answer back: Chat
 Completions, an agent exposed over MCP or A2A, a batch item and an eval case.
 
+The skill tools ask like any other tool. A definition can turn the approval off for
+`load_skill` and `read_skill_resource` with `Skills.DisableReadApproval`, which is what an
+agent needs on those surfaces; the definition has no setting for `run_skill_script`. The host refuses to expose an agent over
+MCP or A2A while its skill read approval is on. [Approval of the skill
+tools](/concepts/tools/#approval-of-the-skill-tools) has the details.
+
 **The mailbox.** A queued run stops at `AwaitingApproval` and the request waits in
 `GET /api/approvals/pending`, with the tool's recorded arguments for the approver to
 read and an absolute expiry.

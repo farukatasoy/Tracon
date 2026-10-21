@@ -41,6 +41,12 @@ public sealed record AgentDefinitionRequest
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
     /// <summary>
+    /// How the agent uses its skills. See <c>AgentDefinition.Skills</c>. If left empty, all
+    /// three skill tools ask for approval.
+    /// </summary>
+    public SkillSettings? Skills { get; init; }
+
+    /// <summary>
     /// Names of agent extensions to compile the agent with, in call order. Extensions
     /// are defined only in code; only the name of an already registered extension may
     /// be given here. See <c>AgentDefinition.ExtensionNames</c>.
@@ -108,6 +114,7 @@ public sealed record AgentDefinitionRequest
             Model = Model,
             ToolNames = ToolNames,
             SkillNames = SkillNames,
+            Skills = Skills,
             ExtensionNames = ExtensionNames,
             CallableAgentNames = CallableAgentNames,
             SubAgents = SubAgents,

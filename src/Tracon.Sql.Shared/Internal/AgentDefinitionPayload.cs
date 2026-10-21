@@ -42,6 +42,9 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Gets the names of the skills that can be loaded at run time.</summary>
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
+    /// <summary>Gets the skill settings, or <see langword="null"/> in a row that predates the member.</summary>
+    public SkillSettings? Skills { get; init; }
+
     /// <summary>Gets the names of the agent extensions the agent is compiled with, or <see langword="null"/> when there are none.</summary>
     /// <remarks>
     /// Nullable on purpose. A row written before this member existed has no such key, and the
@@ -147,6 +150,7 @@ internal sealed record AgentDefinitionPayload
             Model = definition.Model,
             ToolNames = definition.ToolNames,
             SkillNames = definition.SkillNames,
+            Skills = definition.Skills,
             ExtensionNames = definition.ExtensionNames is { Count: > 0 } extensionNames ? extensionNames : null,
             CallableAgentNames = definition.CallableAgentNames,
             SubAgents = definition.SubAgents,
@@ -178,6 +182,7 @@ internal sealed record AgentDefinitionPayload
             Model = Model,
             ToolNames = ToolNames,
             SkillNames = SkillNames,
+            Skills = Skills,
             ExtensionNames = ExtensionNames ?? [],
             CallableAgentNames = CallableAgentNames,
             SubAgents = SubAgents,

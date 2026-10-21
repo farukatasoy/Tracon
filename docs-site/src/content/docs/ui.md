@@ -90,6 +90,9 @@ one-click rollback.
 
 The editor validates as you save, using the same rules the compiler applies. An
 unknown tool, skill, or extension name is refused at write time, not on the first run.
+The Skills panel has one box, *Read skills without approval*. Check it for an agent that runs where
+nobody can answer an approval, such as one you expose over A2A or MCP; a script
+keeps its approval ([approval of the skill tools](/concepts/tools/#approval-of-the-skill-tools)).
 The Extensions panel lists the extensions the host registered. It keeps a name the host
 no longer registers, with a mark, so you can remove it. The Callable agents panel picks the
 agents this one may call and the [call mode](/concepts/agents/#one-tool-for-each-agent):

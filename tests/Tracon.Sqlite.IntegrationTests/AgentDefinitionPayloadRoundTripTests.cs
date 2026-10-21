@@ -92,6 +92,9 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         read.SubAgents.CallMode.ShouldBe(SubAgentCallMode.Tool);
         read.McpResourceUris.ShouldBe(["docs:file:///handbook.md"]);
 
+        // A definition that turned the read approval off must not come back asking for it.
+        read.Skills.ShouldNotBeNull().DisableReadApproval.ShouldBeTrue();
+
         // The list is ordered data: the order the extensions run is the order stored.
         read.ExtensionNames.ShouldBe(["echo-extension", "second-extension"]);
     }
@@ -119,6 +122,26 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         definition.McpResourceUris.ShouldBeEmpty();
         definition.Parameters.ShouldBeEmpty();
         definition.ToolNames.ShouldBe(["echo-tool"]);
+    }
+
+    /// <summary>
+    /// A row written before <c>Skills</c> existed has no such key. It must read back as
+    /// <see langword="null"/>, which keeps the approval on for all three skill tools: a row that
+    /// silently turned the read approval off would widen what an agent may do without a person.
+    /// </summary>
+    [Fact]
+    public void A_payload_written_before_the_skill_settings_existed_reads_back_with_every_skill_approval_on()
+    {
+        const string legacy = """{"model":{"provider":"echo","model":"echo-1"},"skillNames":["echo-skill"]}""";
+
+        var payload = JsonSerializer.Deserialize(legacy, TraconJsonContext.Default.AgentDefinitionPayload);
+
+        payload.ShouldNotBeNull();
+
+        var definition = payload.ToDefinition("legacy", 1, "default", DateTimeOffset.UtcNow);
+
+        definition.Skills.ShouldBeNull();
+        definition.SkillNames.ShouldBe(["echo-skill"]);
     }
 
     /// <summary>
@@ -256,6 +279,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
             },
             ToolNames = ["echo-tool"],
             SkillNames = ["echo-skill"],
+            Skills = new SkillSettings { DisableReadApproval = true },
             ExtensionNames = ["echo-extension", "second-extension"],
             CallableAgentNames = ["child-agent"],
             SubAgents = new SubAgentSettings { WaitTimeout = TimeSpan.FromSeconds(30), CallMode = SubAgentCallMode.Tool },

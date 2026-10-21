@@ -25,6 +25,20 @@ export function SkillsSection({
           <p className="text-base text-subtle">{t('agentEditor.noSkills')}</p>
         )}
         <p className="mb-3 text-sm text-muted">{t('agentEditor.skillLimit')}</p>
+        <label className="mb-3 flex cursor-pointer items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5 accent-[var(--tracon-accent)]"
+            checked={form.skills.disableReadApproval === true}
+            onChange={(event) =>
+              setForm({ ...form, skills: { ...form.skills, disableReadApproval: event.target.checked } })
+            }
+          />
+          <span className="min-w-0">
+            {t('fields.disableSkillReadApproval')}
+            <span className="block text-muted">{t('agentEditor.skillReadApprovalHint')}</span>
+          </span>
+        </label>
         <div className="flex flex-col gap-1.5">
           {(skills.data ?? []).map((skill) => {
             const checked = form.skillNames.includes(skill.name);

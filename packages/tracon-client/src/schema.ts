@@ -2991,6 +2991,7 @@ export interface components {
              *     match an enabled skill found in code or in the skill store.
              */
             skillNames?: string[];
+            skills?: null | components["schemas"]["SkillSettings"];
             /**
              * @description Gets the names of the agent extensions this agent is compiled with, in call
              *     order. Every name must match an extension registered in code with
@@ -3065,6 +3066,7 @@ export interface components {
             toolNames?: string[];
             /** @description Names of skills that can be loaded at runtime. */
             skillNames?: string[];
+            skills?: null | components["schemas"]["SkillSettings"];
             /**
              * @description Names of agent extensions to compile the agent with, in call order. Extensions
              *     are defined only in code; only the name of an already registered extension may
@@ -3118,6 +3120,7 @@ export interface components {
             toolNames?: string[];
             /** @description Gets the names of the skills this agent may load at run time. */
             skillNames?: string[];
+            skills?: null | components["schemas"]["SkillSettings"];
             /** @description Gets the names of the agent extensions this agent is compiled with, in call order. */
             extensionNames?: string[];
             /** @description Gets the names of the other agents this agent may call. */
@@ -7206,6 +7209,17 @@ export interface components {
              */
             expectedContentHash?: null | string;
         };
+        /**
+         * @description Settings for how an agent uses the skills it names in `AgentDefinition.SkillNames`.
+         * @example null
+         */
+        SkillSettings: {
+            /**
+             * @description Gets a value that makes `load_skill` and `read_skill_resource` run without
+             *     asking for approval. `run_skill_script` keeps its approval.
+             */
+            disableReadApproval?: boolean;
+        };
         /** @description A speech synthesis request as an operator action. */
         SpeakRequest: {
             /** @description The text to speak. */
@@ -9013,6 +9027,7 @@ export type SessionDetailResponse = components['schemas']['SessionDetailResponse
 export type SessionRecord = components['schemas']['SessionRecord'];
 export type SkillScriptGrant = components['schemas']['SkillScriptGrant'];
 export type SkillScriptGrantRequest = components['schemas']['SkillScriptGrantRequest'];
+export type SkillSettings = components['schemas']['SkillSettings'];
 export type SpeakRequest = components['schemas']['SpeakRequest'];
 export type SpeakResponse = components['schemas']['SpeakResponse'];
 export type SpeechAlignment = components['schemas']['SpeechAlignment'];

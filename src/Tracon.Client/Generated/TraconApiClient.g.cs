@@ -17428,6 +17428,13 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
+        /// Gets how this agent uses its skills. When `null`, all three skill
+        /// <br/>tools ask for approval. Ignored when `SkillNames` is empty.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("skills")]
+        public SkillSettings? Skills { get; set; } = default!;
+
+        /// <summary>
         /// Gets the names of the agent extensions this agent is compiled with, in call
         /// <br/>order. Every name must match an extension registered in code with
         /// <br/>`AddAgentExtension`; otherwise building the agent fails.
@@ -17604,6 +17611,13 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
 
         /// <summary>
+        /// How the agent uses its skills. See `AgentDefinition.Skills`. If left empty, all
+        /// <br/>three skill tools ask for approval.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("skills")]
+        public SkillSettings? Skills { get; set; } = default!;
+
+        /// <summary>
         /// Names of agent extensions to compile the agent with, in call order. Extensions
         /// <br/>are defined only in code; only the name of an already registered extension may
         /// <br/>be given here. See `AgentDefinition.ExtensionNames`.
@@ -17733,6 +17747,13 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("skillNames")]
         public System.Collections.Generic.ICollection<string> SkillNames { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
+        /// Gets how this agent uses its skills. The external-surface check reads it: an agent whose
+        /// <br/>skill read approval is on cannot be exposed over A2A or MCP.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("skills")]
+        public SkillSettings? Skills { get; set; } = default!;
 
         /// <summary>
         /// Gets the names of the agent extensions this agent is compiled with, in call order.
@@ -25846,6 +25867,22 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("expectedContentHash")]
         public string? ExpectedContentHash { get; set; } = default!;
+
+    }
+
+    /// <summary>
+    /// Settings for how an agent uses the skills it names in `AgentDefinition.SkillNames`.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SkillSettings
+    {
+
+        /// <summary>
+        /// Gets a value that makes `load_skill` and `read_skill_resource` run without
+        /// <br/>asking for approval. `run_skill_script` keeps its approval.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("disableReadApproval")]
+        public bool DisableReadApproval { get; set; } = default!;
 
     }
 

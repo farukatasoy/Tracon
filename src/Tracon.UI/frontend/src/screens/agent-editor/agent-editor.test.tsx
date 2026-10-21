@@ -402,6 +402,100 @@ describe('AgentEditorScreen', () => {
     });
   });
 
+  describe('skill read approval (Phase 231)', () => {
+    function withSkills(stored: { disableReadApproval?: boolean } | null) {
+      return [
+        fixture('GET', 'api/tools', []),
+        fixture('GET', 'api/skills', [{ name: 'house-style', description: 'How replies are worded.', enabled: true }]),
+        fixture('GET', 'api/agent-extensions', []),
+        fixture('GET', 'api/agents', []),
+        fixture('GET', 'api/models', providers),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: { ...fullDefinition, skillNames: ['house-style'], skills: stored },
+        }),
+      ];
+    }
+
+    function captureValidate(): { route: FixtureRoute; sent: () => { skills?: { disableReadApproval?: boolean } | null } } {
+      let body: { skills?: { disableReadApproval?: boolean } | null } = {};
+
+      return {
+        route: {
+          method: 'POST',
+          pattern: 'api/agents/validate',
+          handler: (_params, _url, sent) => {
+            body = sent as typeof body;
+
+            return { valid: true, inconclusive: false, messages: [] };
+          },
+        },
+        sent: () => body,
+      };
+    }
+
+    it('shows the box checked for a definition that turned the approval off', async () => {
+      restoreFetch = installApiMock(withSkills({ disableReadApproval: true }));
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const box = await screen.findByLabelText(/Read skills without approval/);
+
+      await waitFor(() => expect((box as HTMLInputElement).checked).toBe(true));
+    });
+
+    it('shows the box checked for a code-defined agent, which has no stored definition', async () => {
+      restoreFetch = installApiMock([
+        fixture('GET', 'api/tools', []),
+        fixture('GET', 'api/skills', [{ name: 'house-style', description: 'How replies are worded.', enabled: true }]),
+        fixture('GET', 'api/agent-extensions', []),
+        fixture('GET', 'api/agents', []),
+        fixture('GET', 'api/models', providers),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: {
+            name: 'support',
+            origin: 'Code',
+            sourceName: 'code',
+            model: { provider: 'anthropic', model: 'claude' },
+            toolNames: [],
+            skillNames: ['house-style'],
+            skills: { disableReadApproval: true },
+            extensionNames: [],
+            callableAgentNames: [],
+          },
+          definition: null,
+        }),
+      ]);
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const box = await screen.findByLabelText(/Read skills without approval/);
+
+      await waitFor(() => expect((box as HTMLInputElement).checked).toBe(true));
+    });
+
+    it('writes the setting when the box is checked and none when it is not', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withSkills(null), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const box = await screen.findByLabelText(/Read skills without approval/);
+
+      expect((box as HTMLInputElement).checked).toBe(false);
+
+      await user.click(screen.getByTestId('agent-validate'));
+      await waitFor(() => expect(capture.sent().skills).toBeNull());
+
+      await user.click(box);
+      await user.click(screen.getByTestId('agent-validate'));
+      await waitFor(() => expect(capture.sent().skills).toEqual({ disableReadApproval: true }));
+    });
+  });
+
   describe('extensions section (Phase 222)', () => {
     const registered = [
       { name: 'audit', description: 'Records every model call.' },

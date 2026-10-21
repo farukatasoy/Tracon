@@ -242,7 +242,8 @@ public sealed class SessionlessApprovalTests
 
         await CreateExposedAgentAsync(host);
 
-        // The startup guard reads the catalog on the first request; the agent has no tool yet.
+        // The startup guard reads the catalog once, when the host starts. The agent is saved after
+        // that, so the guard never sees it, and it has no tool yet either.
         using (var card = await host.Client.GetAsync($"/tracon/a2a/{ExposedName}/.well-known/agent-card.json"))
         {
             card.StatusCode.ShouldBe(HttpStatusCode.OK);

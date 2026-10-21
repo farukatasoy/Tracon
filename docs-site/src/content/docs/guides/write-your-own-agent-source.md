@@ -91,6 +91,11 @@ catalog defensively copies each descriptor at its own boundary too, but that is
 belt-and-suspenders, not a license to violate the contract; a source that shares a
 mutable list with the catalog is still a bug the copy merely contains.
 
+If the source builds agents from an `AgentDefinition`, copy the fields the host reads off the
+descriptor: `SkillNames` and `Skills` for the A2A and MCP exposure check. A descriptor that names
+skills and leaves `Skills` empty reads as "the read approval is on", and the host refuses to
+expose the agent even when the definition turned the approval off.
+
 Honor the `CancellationToken` you are given — Tracon adds no timeout of its own, so
 an uncancellable source blocks its caller indefinitely. A genuine
 `OperationCanceledException` must propagate; do not catch and convert it into anything

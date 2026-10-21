@@ -56,6 +56,16 @@ public sealed record AgentDefinition
     public IReadOnlyList<string> SkillNames { get; init; } = [];
 
     /// <summary>
+    /// Gets how this agent uses its skills. When <see langword="null"/>, all three skill
+    /// tools ask for approval. Ignored when <c>SkillNames</c> is empty.
+    /// </summary>
+    /// <remarks>
+    /// An agent exposed over A2A or MCP must turn the read approval off, or the host
+    /// refuses to expose it. See <see cref="SkillSettings.DisableReadApproval"/>.
+    /// </remarks>
+    public SkillSettings? Skills { get; init; }
+
+    /// <summary>
     /// Gets the names of the agent extensions this agent is compiled with, in call
     /// order. Every name must match an extension registered in code with
     /// <c>AddAgentExtension</c>; otherwise building the agent fails.

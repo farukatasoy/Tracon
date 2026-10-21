@@ -147,6 +147,19 @@ cannot act as the missing human. A tool that gains approval after the agent was 
 is refused at the call, and the run closes `Failed` with the error type
 `approval_unanswerable`: nobody can ever answer it, so it does not wait.
 
+The skill tools follow the same rule. They are not in the tool registry: Microsoft Agent
+Framework adds them when it builds the agent, and it makes all three ask for approval. An
+exposed agent that names skills must set `Skills.DisableReadApproval` on its definition
+(see [Approval of the skill tools](/concepts/tools/#approval-of-the-skill-tools)). Without it,
+the host refuses to open the agent and the message names the agent and the setting. With it,
+`load_skill` and `read_skill_resource` run. `run_skill_script` keeps its approval, so the check does
+not count it; a model that calls it ends the run with `approval_unanswerable`, unless a standing
+approval rule covers the tool.
+
+The check reads the catalog once, when the host starts, with no request in scope. An agent that you
+save through the API after that is not checked, and neither is an agent that a callable agent
+reaches. The run-time refusal is the boundary for those agents.
+
 ### Long-running calls as MCP tasks
 
 By default, a `tools/call` for a published agent holds the connection open until the
@@ -288,6 +301,8 @@ there is no expose-all switch for it.
 - [ ] Expect token use to grow with each turn of a `contextId`; decide how a caller starts a new conversation.
 - [ ] Create a tenant-bound `ExternalInvoke` key and test revocation and expiry.
 - [ ] Keep approval-required and high-impact tools out of exposed definitions.
+- [ ] Set `Skills.DisableReadApproval` on every exposed agent that names skills, and keep script
+      skills off exposed agents.
 - [ ] Set token, depth, and child-run budgets for externally initiated work.
 - [ ] Terminate HTTPS at a trusted proxy and preserve the request path.
 - [ ] Alert on external run error rate, token use, latency, and rejected credentials.
