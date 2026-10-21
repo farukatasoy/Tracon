@@ -19,7 +19,7 @@ the *Workflow requests* panel of the Approvals screen. Each item is a
 [pending request](/http-api/schemas/workflowpendingrequest/) with five more fields. A request
 whose `form` is `ToolApproval` is an agent's tool call waiting for a person; the Approvals
 screen lists it here with the other requests, and the console answers it on the workflow's
-card ([A tool that asks for approval](/concepts/workflows/#a-tool-that-asks-for-approval)):
+card ([A tool that asks for approval](/concepts/workflow-answers/#a-tool-that-asks-for-approval)):
 
 | Field | Meaning |
 |---|---|

@@ -250,6 +250,14 @@ playground does — one field per parameter, Run disabled while a required one i
 and sends the values with the message. The editor keeps the schema across a save but does
 not change it yet; create or change it with `PUT /api/workflows/{name}`.
 
+When a run waits for a person, a card under the run panel asks for the answer the request
+needs: a yes or no, text, JSON, or a plan to approve or send back. A tool call that waits
+for approval shows the tool and what your approval presenter says about the call; the card
+has **Approve** and **Reject**, a reason the agent reads, and *Do not ask again for this
+agent and tool*, which saves a rule when you approve (see [A tool that asks for
+approval](/concepts/workflow-answers/#a-tool-that-asks-for-approval)). The tenant-wide list of
+waiting requests is the *Workflow requests* panel of the Approvals screen.
+
 <a class="ui-shot" href="/screenshots/workflow-editor.png"><img src="/screenshots/workflow-editor.png" alt="The workflow editor with an agent step, a function step and the function's settings field" width="2880" height="1800" loading="lazy" decoding="async" /></a>
 
 The editor builds the chain. *Add an agent* and *Add a function* pick from the agents in

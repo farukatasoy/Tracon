@@ -256,7 +256,7 @@ internal sealed class UiHost : IAsyncDisposable
                 static services => Microsoft.Agents.AI.Workflows.AgentWorkflowBuilder.BuildSequential(
                     "tool-approval-flow",
                     [services.GetWorkflowAgent("tool-approval-flow", "approval-agent")]),
-                "An agent whose tool waits for a person's approval (phase 230).")
+                "An agent whose tool waits for a person's approval.")
             .AddWorkflow(
                 "approval-flow",
                 static _ => ApprovalWorkflow.Build(),
