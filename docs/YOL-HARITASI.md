@@ -8,12 +8,16 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-**Sıradaki boş faz numarası: 231.**
+**Sıradaki boş faz numarası: 235.**
 
-## Açık fazlar (1 kalem)
+## Açık fazlar (5 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
+| [231](231-SKILL-ONAYI-VE-DIS-YUZEY.md) | Skill Okuma Onayı Tanımda ve Dış Yüzey Kapısı | 📋 Planlandı |
+| [232](232-ADLI-MODEL-HALKASI-YUVASI.md) | Adlı Model Halkası Yuvası | 📋 Planlandı |
+| [233](233-KONUSMA-HAFIZASI.md) | Konuşma Hafızası | 📋 Planlandı |
+| [234](234-OTURUM-CALISMA-ALANI.md) | Oturum Çalışma Alanı (Dosya Erişimi) | 📋 Planlandı |
 
 Kapanan fazlar (230 kayıt; son: Faz 230 — Workflow Adımında Tool Onayı): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).

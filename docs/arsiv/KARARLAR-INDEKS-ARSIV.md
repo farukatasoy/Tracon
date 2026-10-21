@@ -70,7 +70,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-059 | MCP kimlik doğrulama değeri veritabanında saklanmaz |
 | K-060 | MCP tool adları `{sunucu}_{tool}`; nokta kullanılmaz |
 | K-061 | "Bir daha sorma" MAF'ın biçimiyle değil Tracon deposunda tutulur |
-| K-062 | Harness'ta shell yoktur; dosya erişimi ve arka plan agent'ları kapalı bırakıldı |
+| K-062 | Harness'ta shell yoktur; dosya erişimi ve arka plan agent'ları kapalı bırakıldı 👤🔁 |
 | K-063 | `run_events` partition'ı açılmadı (kapandı → K-199) |
 | K-064 | İkinci faz önceliği: yetenek derinliği 👤 |
 | K-065 | Ses: hedef gerçek zamanlı konuşma katmanı 👤 |
@@ -113,7 +113,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-102 | Alt çalıştırmalar kök akışa yalnız özet olay yazar 👤 |
 | K-103 | Alt agent onay isteyemez (v1); isteyen alt çalıştırma `Failed` olur 🔁 |
 | K-104 | Sıkıştırma bağımlılığı için yeni paket alınmadı |
-| K-105 | `ChatHistoryMemoryProvider` (vektör tabanlı bellek) bu fazın kapsamı dışında 👤 |
+| K-105 | `ChatHistoryMemoryProvider` (vektör tabanlı bellek) bu fazın kapsamı dışında 👤🔁 |
 | K-106 | Sıkıştırma varsayılan kapalıdır 👤 |
 | K-107 | Özetlenen mesajlar `conversation_items`'ta saklanır, silinmez 👤 |
 | K-108 | Özet modeli çözümleme sırası: agent ayarı → yardımcı model → agent'ın kendi modeli; özet token'ları çalıştırma toplamına dâhildir |
@@ -350,7 +350,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-339 | `ChildRunApproval` public yapıldı: üçüncü tüketici MCP/A2A dış çağrı katmanıdır (Faz 50) |
 | K-340 | Dışa açılan bir agent'ın `AgentRunBudget.MaxDepth` değeri, kaç seviye TORUN çağrısına izin verildiğidir; "0" = hiç, "1" = bir seviye (Faz 50) |
 | K-341 | Vektör gömüsü metin biçiminde (`::vector` cast) yazılır, hiçbir vektör paketi alınmaz (Faz 51) |
-| K-342 | K-105 güncellenir: `ChatHistoryMemoryProvider` yine bağlanmadı, sebep artık ölçülmüş (Faz 51) |
+| K-342 | K-105 güncellenir: `ChatHistoryMemoryProvider` yine bağlanmadı, sebep artık ölçülmüş (Faz 51) 👤🔁 |
 | K-343 | Anlamsal arama yalnız PostgreSQL'de uygulanır (Faz 51) 👤 |
 | K-344 | Sql.Shared'in cross-provider katmanı `IVectorSearchStore` için kullanılmaz (Faz 51) |
 | K-345 | `document_embeddings.metadata` sütunu `jsonb`'dir, `json` değil (Faz 51) |
