@@ -16,14 +16,14 @@ public sealed partial class RunRecordingAgent
     /// <summary>
     /// Reports whether a run that ends by requesting approval closes
     /// <see cref="RunStatus.AwaitingApproval"/>: a root run, and a workflow step whose workflow waits for
-    /// the answer (K-1051).
+    /// the answer.
     /// </summary>
     private static bool WaitsForApproval(AgentRunScope scope)
         => scope.Depth == 0 || scope.SuspendsWorkflowOnApproval;
 
     /// <summary>
     /// Reports whether a run that ends by requesting approval is <see cref="RunStatus.Failed"/>: a sub-run
-    /// of an agent tree cannot wait in the middle of the tree (K-103).
+    /// of an agent tree cannot wait in the middle of the tree.
     /// </summary>
     private static bool FailsOnApproval(AgentRunScope scope) => !WaitsForApproval(scope);
 

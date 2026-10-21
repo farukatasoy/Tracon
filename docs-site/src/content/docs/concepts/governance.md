@@ -258,7 +258,7 @@ written *before* the change is applied, and a write failure aborts the change:
 
 | Operation | What a failed audit write refuses |
 |---|---|
-| An approval decision, [in band or out of band](#approvals) | The decision is not applied and the tool does not run |
+| An approval decision, [in band, out of band, or as the answer to a workflow request](#approvals) | The decision is not applied and the tool does not run |
 | Granting or revoking a skill script | The grant is not changed |
 | Running a skill script | The script does not run |
 | Saving or deleting an inbound trigger | The trigger is not changed |
@@ -317,9 +317,9 @@ at the first entry written after upgrading, not retroactively.
 
 ## Approvals
 
-Two shapes, matching how the run was started.
+Three shapes, matching how the run was started.
 
-Both surfaces carry the **same** guarantee: a decision that cannot be written to the
+Every surface carries the **same** guarantee: a decision that cannot be written to the
 audit trail is not applied, and the tool it approved does not run. See [what is
 guaranteed to be written](#what-is-guaranteed-to-be-written).
 
@@ -333,6 +333,13 @@ Completions, an agent exposed over MCP or A2A, a batch item and an eval case.
 **The mailbox.** A queued run stops at `AwaitingApproval` and the request waits in
 `GET /api/approvals/pending`, with the tool's recorded arguments for the approver to
 read and an absolute expiry.
+
+**In a workflow.** An agent in a workflow can ask too. The workflow waits and the request has
+the form `ToolApproval`; the answer goes to
+`POST /api/workflows/runs/{runId}/respond` with `approved`, an optional reason in `text`, and
+optionally `remember`. The decision is recorded as `approval.decision`, like the other two, and
+saved as a rule the same way. See [A tool that asks for
+approval](/concepts/workflows/#a-tool-that-asks-for-approval).
 
 Deciding either way **resumes** the run — the model has to see a result or a refusal
 and continue. And the decision opens a **new** run; the one that stopped is never

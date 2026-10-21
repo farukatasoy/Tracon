@@ -16,7 +16,10 @@ limit a workflow can give them. How a workflow asks, and how an answer resumes i
 `GET /api/workflows/requests` lists the human requests that the workflow runs of your
 tenant wait on, across every workflow, oldest first. The console shows the same list in
 the *Workflow requests* panel of the Approvals screen. Each item is a
-[pending request](/http-api/schemas/workflowpendingrequest/) with five more fields:
+[pending request](/http-api/schemas/workflowpendingrequest/) with five more fields. A request
+whose `form` is `ToolApproval` is an agent's tool call waiting for a person; the Approvals
+screen lists it here with the other requests, and the console answers it on the workflow's
+card ([A tool that asks for approval](/concepts/workflows/#a-tool-that-asks-for-approval)):
 
 | Field | Meaning |
 |---|---|

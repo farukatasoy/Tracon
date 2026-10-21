@@ -43,10 +43,17 @@ caller's model reads the refusal and can try another way. No model reads a
 workflow step's answer, so the refusal would reach the next node as its input. The
 run ends `Failed` and no later node runs: past the wait limit with error type
 `child_run_timeout` (class `Timeout`), refused by the call-tree budget with
-`run_budget_exceeded` (class `QuotaExceeded`), when a tool asks for approval, or
-with the provider's own error when the provider never answered. Match the wait-limit
-type with `TraconChildRunTimeoutException.ChildRunTimeoutErrorType` when you read a
-run's `error`.
+`run_budget_exceeded` (class `QuotaExceeded`), or with the provider's own error when
+the provider never answered. Match the wait-limit type with
+`TraconChildRunTimeoutException.ChildRunTimeoutErrorType` when you read a run's `error`.
+
+A tool that asks for approval is not a refusal where the pattern hosts the agent: the
+workflow waits for a person ([A tool that asks for approval](#a-tool-that-asks-for-approval)).
+It is a refusal for an agent node of a `Sequential` node list and for
+`GetWorkflowAgentStep`, which run the agent in a plain function node that cannot wait:
+the run ends `Failed` with the message *a workflow step cannot wait for a tool
+approval*, and the tool does not run. Give that agent a tool that needs no approval, or an
+[approval rule](/concepts/governance/#approvals) for the tool.
 
 ```csharp
 new WorkflowDefinition
@@ -877,7 +884,8 @@ the event payload limit (`RunRecording:MaxPayloadLength`) and marked
 
 The answer must fit the request's `form`: `approved` for `Boolean`, `text` for `Text`,
 `data` that reads into the port's response type for `Json`, and for `PlanReview`
-either an approval or `approved: false` with the revision in `text`. An answer that
+either an approval or `approved: false` with the revision in `text`, and for `ToolApproval`
+`approved`, an optional reason in `text` and an optional `remember`. An answer that
 does not fit is refused with `400` before anything runs, and no new run opens. The
 detail names the port and the missing or unreadable field. A request recorded by
 Tracon 1.0.0-preview.3 or earlier does not carry its response type's assembly: for it,
@@ -889,6 +897,52 @@ and the response opens a new one. The new run compiles the definition version th
 run recorded, so editing the workflow while a person decides does not change what continues
 (see [Versions, rollback and pinning an agent step](#versions-rollback-and-pinning-an-agent-step)).
 In the default response mode, a second answer to the same request opens a second new run.
+
+### A tool that asks for approval
+
+An agent in a workflow can call a tool that
+[needs approval](/concepts/governance/#approvals). Where the pattern hosts the agent — all
+five stored patterns when the definition lists `agentNames`, and a code graph that binds
+the agent with `GetWorkflowAgent` — the workflow stops instead of failing. The step's run
+closes `AwaitingApproval`, the workflow run closes `AwaitingInput`, and the request has the
+form `ToolApproval`. Its `prompt` names the tool and adds what your
+[approval presenter](/concepts/governance/#approvals) says about the call; the arguments
+are not copied into it.
+
+Answer it on the same endpoint as any other request:
+
+```bash
+curl -X POST "$TRACON/api/workflows/runs/$RUN/respond" \
+  -H "Content-Type: application/json" \
+  -d '{"requestId": "'"$REQUEST"'", "approved": true, "text": "checked with the customer", "remember": true}'
+```
+
+| Field | Meaning |
+|---|---|
+| `approved` | Required. `true` runs the tool; `false` refuses it, and the agent reads the refusal |
+| `text` | Optional reason. The agent reads it |
+| `remember` | Optional. With `approved: true`, also saves a rule: this agent is not asked again for this tool |
+
+The answer carries a decision and nothing else. It cannot name a tool call, because the
+call comes from the request the workflow recorded: a `data` value is refused with `400`, and
+so is `remember` together with `approved: false`, or on a request of any other form. The
+decision is written to the audit trail as `approval.decision` before the workflow
+continues, and an entry that cannot be written refuses the answer and leaves the
+workflow waiting. A rule saved with `remember` is the same rule the run-request path saves,
+for the agent that asked and the tool; a request that cannot name its agent (an agent
+Tracon did not wrap) cannot be remembered.
+
+The tool runs once, in the new run the answer opens, and it runs in whatever process takes
+the answer: the call is in the checkpoint, so a restart in between loses nothing. With
+`Concurrent`, two agents can ask at once: each approval is a request of its own, answered on
+its own, and the run that carries the first answer waits on the second. A request nobody
+answers runs out like any other ([Workflow requests and time
+limits](/concepts/workflow-requests/#giving-a-request-a-time-limit)); the step that waited
+closes `Failed` with the workflow.
+
+An agent that a step's agent calls as a sub-agent still cannot ask: its approval is a tool
+result the step's model reads, as in [Agents calling
+agents](/concepts/agents/#agents-calling-agents).
 
 ### One answer per request
 

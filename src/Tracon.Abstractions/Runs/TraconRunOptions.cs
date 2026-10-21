@@ -253,14 +253,14 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// <remarks>
     /// <para>
     /// Set only by a workflow step's sub-agent wrapper. A sub-run that ends by asking for approval
-    /// is <see cref="RunStatus.Failed"/>, because an agent tree cannot wait in its middle
-    /// (K-103). A workflow can: Microsoft Agent Framework turns the request into an external request, the
-    /// workflow stops at its checkpoint, and the answer continues it on a new run (K-1051). The
-    /// step's row then closes <see cref="RunStatus.AwaitingApproval"/>, the way a root run's does.
+    /// is <see cref="RunStatus.Failed"/>, because an agent tree cannot wait in its middle. A workflow can:
+    /// Microsoft Agent Framework turns the request into an external request, the workflow stops at its checkpoint,
+    /// and the answer continues it on a new run. The step's row then closes <see cref="RunStatus.AwaitingApproval"/>,
+    /// the way a root run's does.
     /// </para>
     /// <para>
     /// It is not inherited: the wrapper of a sub-agent the step's agent calls builds its own options
-    /// without it, so the refusal of K-103 still holds below the step.
+    /// without it, so a sub-agent's approval is still refused below the step.
     /// </para>
     /// </remarks>
     internal bool SuspendsWorkflowOnApproval { get; init; }
