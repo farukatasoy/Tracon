@@ -62,6 +62,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly ParameterizedAgentFactory? _parameterFactory;
     private readonly IWorkflowResponseStore? _responses;
     private readonly IWorkflowRequestStore? _requests;
+    private readonly ToolApprovalPresenterRunner? _approvalPresenter;
+    private readonly WorkflowAgentCache? _agentCache;
 
     /// <summary>Creates a new runner.</summary>
     /// <param name="catalog">The workflow catalog.</param>
@@ -115,6 +117,14 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// The inbox of the requests a run waits on. When <see langword="null"/> a run that waits writes no
     /// row: the tenant-wide list stays empty, no request expires, and a request carries no expiry.
     /// </param>
+    /// <param name="approvalPresenter">
+    /// Asks the registered <see cref="IToolApprovalPresenter"/> how to show a tool approval request. When
+    /// <see langword="null"/> a request names its tool and nothing more.
+    /// </param>
+    /// <param name="agentCache">
+    /// The agent wrappers of the workflows, which name the agent behind an executor id. When <see langword="null"/> a
+    /// tool approval request does not name the agent that asked, and an approval of it cannot be remembered.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -136,7 +146,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         IRunInputStore? runInputStore = null,
         ParameterizedAgentFactory? parameterFactory = null,
         IWorkflowResponseStore? responseStore = null,
-        IWorkflowRequestStore? requestStore = null)
+        IWorkflowRequestStore? requestStore = null,
+        ToolApprovalPresenterRunner? approvalPresenter = null,
+        WorkflowAgentCache? agentCache = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -167,6 +179,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _parameterFactory = parameterFactory;
         _responses = responseStore;
         _requests = requestStore;
+        _approvalPresenter = approvalPresenter;
+        _agentCache = agentCache;
     }
 
     /// <inheritdoc />
@@ -1480,7 +1494,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                             failureText = SafeErrorText.ForPersistence(loggedFailure.Value.Exception, loggedFailure.Value.CorrelationId);
                         }
 
-                        var mapping = WorkflowEventMapper.Map(workflowEvent, failureText, recording.MaxPayloadLength);
+                        var asked = await DescribeApprovalAsync(workflowEvent, linked.Token).ConfigureAwait(false);
+                        var mapping = WorkflowEventMapper.Map(
+                            workflowEvent, failureText, recording.MaxPayloadLength, asked.Presentation, asked.AgentName);
 
                         // F-589: an unrecognized event is in the run record now
                         // (tracon.workflow.event), so the log drops to Debug: it is no
@@ -1596,6 +1612,44 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     });
             }
         }
+    }
+
+    /// <summary>
+    /// Names the agent behind a tool approval request and asks the registered
+    /// <see cref="IToolApprovalPresenter"/> how to show it.
+    /// </summary>
+    /// <param name="workflowEvent">The event about to be recorded.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The agent and the presentation; both <see langword="null"/> for any other event. A presenter decorates and
+    /// never blocks (<see cref="ToolApprovalPresenterRunner"/>), and an agent whose wrapper is not known stays unnamed.
+    /// </returns>
+    private async ValueTask<(string? AgentName, ToolApprovalPresentation? Presentation)> DescribeApprovalAsync(
+        WorkflowEvent workflowEvent,
+        CancellationToken cancellationToken)
+    {
+        if (workflowEvent is not RequestInfoEvent { Request: var request } ||
+            !WorkflowRequestDescriptor.IsToolApproval(request) ||
+            !request.TryGetDataAs<ToolApprovalRequestContent>(out var approval))
+        {
+            return (null, null);
+        }
+
+        // The id carries the name only as the framework rewrote it; the wrapper knows the real one.
+        var agentName = WorkflowRequestDescriptor.ExecutorIdentityOf(request.PortInfo.PortId) is { } identity
+            ? _agentCache?.NameOf(identity)
+            : null;
+
+        if (_approvalPresenter is null)
+        {
+            return (agentName, null);
+        }
+
+        var presentations = await _approvalPresenter
+            .ResolveAllAsync([approval], _tenantContext.TenantId, agentName, cancellationToken)
+            .ConfigureAwait(false);
+
+        return (agentName, presentations.GetValueOrDefault(approval.RequestId));
     }
 
     /// <summary>

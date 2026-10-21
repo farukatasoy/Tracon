@@ -142,6 +142,33 @@ internal sealed class WorkflowAgentCache
                 TimeProvider: _timeProvider,
                 ParameterFactory: _parameterFactory));
 
+    /// <summary>
+    /// Finds the real name of the agent a Microsoft Agent Framework executor id stands for.
+    /// </summary>
+    /// <param name="identity">
+    /// The 32 hexadecimal digits that follow the agent's name in an executor id
+    /// (<see cref="WorkflowAgentIdentity"/>).
+    /// </param>
+    /// <returns>The agent's catalog name; <see langword="null"/> when no wrapper has that identity.</returns>
+    /// <remarks>
+    /// The framework builds the executor id from the agent's name with every character it dislikes replaced
+    /// (<c>approval-agent</c> becomes <c>approval_agent</c>), so the name cannot be read back from the id. The
+    /// identity is the key: every wrapper of one <c>(workflow, agent)</c> pair carries the same one, and it is
+    /// derived from the two names.
+    /// </remarks>
+    public string? NameOf(string identity)
+    {
+        foreach (var wrapper in _agents.Values)
+        {
+            if (string.Equals(wrapper.Id, identity, StringComparison.Ordinal))
+            {
+                return wrapper.Name;
+            }
+        }
+
+        return null;
+    }
+
     private static ChildAgentInvoker Create(
         AgentKey key,
         (CallableAgentResolver Resolver,

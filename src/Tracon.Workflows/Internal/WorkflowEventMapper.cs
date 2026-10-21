@@ -26,8 +26,17 @@ internal static class WorkflowEventMapper
     /// <param name="maxPayloadLength">
     /// The writer's <c>MaxPayloadLength</c>, which an unrecognized event's payload is fitted to.
     /// </param>
+    /// <param name="presentation">
+    /// How a <see cref="IToolApprovalPresenter"/> shows a tool approval request; ignored for every other event.
+    /// </param>
+    /// <param name="agentName">The agent that asked for a tool approval; ignored for every other event.</param>
     /// <returns>The conversion result.</returns>
-    public static WorkflowEventMapping Map(WorkflowEvent workflowEvent, string? failureText = null, int maxPayloadLength = 0)
+    public static WorkflowEventMapping Map(
+        WorkflowEvent workflowEvent,
+        string? failureText = null,
+        int maxPayloadLength = 0,
+        ToolApprovalPresentation? presentation = null,
+        string? agentName = null)
     {
         ArgumentNullException.ThrowIfNull(workflowEvent);
 
@@ -83,7 +92,7 @@ internal static class WorkflowEventMapper
             RequestInfoEvent request => new RunEventDraft(RunEventType.WorkflowRequest)
             {
                 Text = request.Request.RequestId,
-                Payload = WorkflowRequestDescriptor.Describe(request.Request),
+                Payload = WorkflowRequestDescriptor.Describe(request.Request, presentation, agentName),
             },
 
             WorkflowErrorEvent error => new RunEventDraft(RunEventType.ExecutorFailed)

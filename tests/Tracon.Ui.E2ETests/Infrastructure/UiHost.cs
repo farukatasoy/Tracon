@@ -252,6 +252,12 @@ internal sealed class UiHost : IAsyncDisposable
                     ]),
                 "Two-step chain.")
             .AddWorkflow(
+                "tool-approval-flow",
+                static services => Microsoft.Agents.AI.Workflows.AgentWorkflowBuilder.BuildSequential(
+                    "tool-approval-flow",
+                    [services.GetWorkflowAgent("tool-approval-flow", "approval-agent")]),
+                "An agent whose tool waits for a person's approval (phase 230).")
+            .AddWorkflow(
                 "approval-flow",
                 static _ => ApprovalWorkflow.Build(),
                 static options =>

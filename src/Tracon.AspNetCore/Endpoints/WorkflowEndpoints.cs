@@ -399,7 +399,12 @@ internal static class WorkflowEndpoints
                 "frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different " +
                 "answer is 409, which names neither the run nor the other answer. An answer whose run failed or " +
                 "was cancelled before the workflow received it can be given again and starts a new run. With " +
-                "'Branch', the default, every answer opens a new run.")
+                "'Branch', the default, every answer opens a new run. A request whose 'form' is 'ToolApproval' is " +
+                "an agent's tool call that waits for approval: answer it with 'approved', a reason in 'text' that " +
+                "the model reads, and 'remember' to also save the approval as a rule for that agent and tool. " +
+                "It takes no 'data': the tool call comes from the request the workflow recorded, so an answer " +
+                "cannot approve a different one. The decision is audited as 'approval.decision' before it is " +
+                "applied, and 'remember' with 'approved' false, or on any other form, is 400.")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
             .Produces<AcceptedRunResponse>(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status400BadRequest)

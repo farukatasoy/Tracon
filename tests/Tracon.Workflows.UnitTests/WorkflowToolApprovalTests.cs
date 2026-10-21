@@ -48,8 +48,10 @@ public sealed class WorkflowToolApprovalTests
 
         facts.ToolName.ShouldBe(Tool);
 
-        // The port is "{executor id}_UserInput" and the executor id is "{agent name}_{32 hex}".
-        facts.AgentName.ShouldBe("asker");
+        // The stand-in is not one of the runner's agent wrappers, so nothing can name it by its real name. The id
+        // carries the name only as the framework rewrote it, and a request that cannot say which agent asked
+        // says nothing rather than a name that would never match (the endpoint then refuses "remember").
+        facts.AgentName.ShouldBeNull();
         facts.ArgumentsHash.ShouldBe(
             ToolApprovalRuleEvaluator.ComputeArgumentsHash(new Dictionary<string, object?>(StringComparer.Ordinal) { ["orderId"] = "ORD-7" }));
         recorded.Payload.ShouldNotBeNull().ShouldNotContain("ORD-7", Case.Sensitive);
@@ -157,6 +159,32 @@ public sealed class WorkflowToolApprovalTests
                 new WorkflowAnswer("request-1", Approved: true, Text: null, Json: null, Remember: true))
             .ShouldBeNull();
     }
+
+    [Fact]
+    public void The_agents_real_name_is_found_by_its_identity_and_not_by_the_name_the_framework_gave_its_executor()
+    {
+        // The framework rewrites a character it dislikes: "approval-agent" is "approval_agent" in the executor id.
+        var host = new WorkflowTestHost("approval-agent");
+        var wrapper = host.AgentCache.Get("approval-flow", "approval-agent", description: null);
+        var portId = $"approval_agent_{wrapper.Id}_UserInput";
+
+        var identity = WorkflowRequestDescriptor.ExecutorIdentityOf(portId).ShouldNotBeNull();
+
+        identity.ShouldBe(wrapper.Id);
+        host.AgentCache.NameOf(identity).ShouldBe("approval-agent");
+        host.AgentCache.NameOf(new string('0', 32)).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("asker_0123456789abcdef0123456789abcdef_UserInput", "0123456789abcdef0123456789abcdef")]
+    [InlineData("a_b_0123456789ABCDEF0123456789abcdef_UserInput", "0123456789ABCDEF0123456789abcdef")]
+    [InlineData("asker_0123456789abcdef0123456789abcdef_FunctionCall", null)]
+    [InlineData("asker_0123456789abcdef0123456789abcdez_UserInput", null)]
+    [InlineData("0123456789abcdef0123456789abcdef_UserInput", null)]
+    [InlineData("_UserInput", null)]
+    [InlineData("approval-port", null)]
+    public void The_identity_is_read_from_the_port_of_an_agent_host_and_from_nothing_else(string portId, string? expected)
+        => WorkflowRequestDescriptor.ExecutorIdentityOf(portId).ShouldBe(expected);
 
     [Theory]
     [InlineData("""{"toolName":"cancel_order","agentName":"writer","toolArgumentsHash":"AB"}""", "cancel_order", "writer", "AB")]

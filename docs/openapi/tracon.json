@@ -2602,7 +2602,7 @@
           "Workflows"
         ],
         "summary": "Responds to a pending request and resumes the run, streamed or queued with \u0027Prefer: respond-async\u0027.",
-        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE \u2014 so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run\u0027s id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow\u0027s definition it recorded, or with the stored version \u0027definitionVersion\u0027 names (a version the workflow does not have is 400). With \u0027Prefer: respond-async\u0027 it is then queued: the reply is \u0027202 Accepted\u0027 and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027. Every answer that starts a run is written to the audit trail as \u0027workflow.respond\u0027 before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is \u0027SingleAnswer\u0027 takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with \u0027Prefer: respond-async\u0027 - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With \u0027Branch\u0027, the default, every answer opens a new run.",
+        "description": "The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE \u2014 so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run\u0027s id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow\u0027s definition it recorded, or with the stored version \u0027definitionVersion\u0027 names (a version the workflow does not have is 400). With \u0027Prefer: respond-async\u0027 it is then queued: the reply is \u0027202 Accepted\u0027 and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. \u0027Idempotency-Key\u0027 is accepted only together with \u0027Prefer: respond-async\u0027. Every answer that starts a run is written to the audit trail as \u0027workflow.respond\u0027 before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is \u0027SingleAnswer\u0027 takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with \u0027Prefer: respond-async\u0027 - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With \u0027Branch\u0027, the default, every answer opens a new run. A request whose \u0027form\u0027 is \u0027ToolApproval\u0027 is an agent\u0027s tool call that waits for approval: answer it with \u0027approved\u0027, a reason in \u0027text\u0027 that the model reads, and \u0027remember\u0027 to also save the approval as a rule for that agent and tool. It takes no \u0027data\u0027: the tool call comes from the request the workflow recorded, so an answer cannot approve a different one. The decision is audited as \u0027approval.decision\u0027 before it is applied, and \u0027remember\u0027 with \u0027approved\u0027 false, or on any other form, is 400.",
         "operationId": "TraconRespondWorkflowRequest",
         "parameters": [
           {
@@ -19750,7 +19750,8 @@
           "Json",
           "Text",
           "Boolean",
-          "PlanReview"
+          "PlanReview",
+          "ToolApproval"
         ],
         "description": "Defines how the UI presents a pending request."
       },
@@ -19769,14 +19770,14 @@
               "null",
               "boolean"
             ],
-            "description": "Yes/no response. In a plan approval, \u0060true\u0060 approves\nthe plan; \u0060false\u0060 sends it back with the correction in\nthe \u0060Text\u0060 field."
+            "description": "Yes/no response. In a plan approval, \u0060true\u0060 approves\nthe plan; \u0060false\u0060 sends it back with the correction in\nthe \u0060Text\u0060 field. In a tool approval it approves or refuses the tool call."
           },
           "text": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Text response; in a plan approval this is the correction instruction."
+            "description": "Text response; in a plan approval this is the correction instruction, in a tool approval the\nreason the model reads."
           },
           "data": {
             "oneOf": [
@@ -19784,10 +19785,17 @@
                 "type": "null"
               },
               {
-                "description": "Free-form response body. Resolved against the port\u0027s response type.",
+                "description": "Free-form response body. Resolved against the port\u0027s response type. A tool approval takes none.",
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
+          },
+          "remember": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Only for a tool approval answered with \u0060approved: true\u0060: also saves the approval as a rule, so the\nsame agent is not asked again for this tool. Any other use is refused with \u0060400\u0060."
           },
           "checkpointId": {
             "type": [

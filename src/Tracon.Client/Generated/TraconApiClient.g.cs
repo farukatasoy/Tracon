@@ -5666,7 +5666,7 @@ namespace Tracon.Client.Generated
         /// Responds to a pending request and resumes the run, streamed or queued with 'Prefer: respond-async'.
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'. Every answer that starts a run is written to the audit trail as 'workflow.respond' before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is 'SingleAnswer' takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With 'Branch', the default, every answer opens a new run.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'. Every answer that starts a run is written to the audit trail as 'workflow.respond' before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is 'SingleAnswer' takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With 'Branch', the default, every answer opens a new run. A request whose 'form' is 'ToolApproval' is an agent's tool call that waits for approval: answer it with 'approved', a reason in 'text' that the model reads, and 'remember' to also save the approval as a rule for that agent and tool. It takes no 'data': the tool call comes from the request the workflow recorded, so an answer cannot approve a different one. The decision is audited as 'approval.decision' before it is applied, and 'remember' with 'approved' false, or on any other form, is 400.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -5830,7 +5830,7 @@ namespace Tracon.Client.Generated
         /// content type - see the Tracon docs, "OpenAI-compatible API".
         /// </summary>
         /// <remarks>
-        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'. Every answer that starts a run is written to the audit trail as 'workflow.respond' before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is 'SingleAnswer' takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With 'Branch', the default, every answer opens a new run.
+        /// The response is matched to the request re-published with the same ID in the execution resumed from the checkpoint. Resuming opens a NEW runs row; events stream over SSE — so this STARTS a run, and a registered IRunAuthorizationHandler is asked with the source run's id; a denial returns 403 before any run row is opened. The answer is checked before the stream opens: a response of the wrong shape, a run that is not waiting and an unknown request id are all 400; an unknown run is 404. The run continues with the version of the workflow's definition it recorded, or with the stored version 'definitionVersion' names (a version the workflow does not have is 400). With 'Prefer: respond-async' it is then queued: the reply is '202 Accepted' and the run continues in the background worker, so a machine that answers a request does not have to keep a connection open. The queued answer is stored with the job until the job is removed; do not put a secret in it. 'Idempotency-Key' is accepted only together with 'Prefer: respond-async'. Every answer that starts a run is written to the audit trail as 'workflow.respond' before the run starts, with a SHA-256 of the answer and never the answer itself; when that entry cannot be written the answer is refused with 500 and nothing is started. A workflow whose responseMode is 'SingleAnswer' takes one answer per request: repeating the same answer (approved, text and data; the checkpoint and version do not count) starts nothing and follows the run the first one started - the same SSE frames read from the stored run, or the same 202 with 'Prefer: respond-async' - and a different answer is 409, which names neither the run nor the other answer. An answer whose run failed or was cancelled before the workflow received it can be given again and starts a new run. With 'Branch', the default, every answer opens a new run. A request whose 'form' is 'ToolApproval' is an agent's tool call that waits for approval: answer it with 'approved', a reason in 'text' that the model reads, and 'remember' to also save the approval as a rule for that agent and tool. It takes no 'data': the tool call comes from the request the workflow recorded, so an answer cannot approve a different one. The decision is audited as 'approval.decision' before it is applied, and 'remember' with 'approved' false, or on any other form, is 400.
         /// </remarks>
         /// <returns>The Server-Sent Events frames the server writes, one raw frame per element.</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -28721,6 +28721,9 @@ namespace Tracon.Client.Generated
         [System.Runtime.Serialization.EnumMember(Value = @"PlanReview")]
         PlanReview = 3,
 
+        [System.Runtime.Serialization.EnumMember(Value = @"ToolApproval")]
+        ToolApproval = 4,
+
     }
 
     /// <summary>
@@ -28739,22 +28742,30 @@ namespace Tracon.Client.Generated
         /// <summary>
         /// Yes/no response. In a plan approval, `true` approves
         /// <br/>the plan; `false` sends it back with the correction in
-        /// <br/>the `Text` field.
+        /// <br/>the `Text` field. In a tool approval it approves or refuses the tool call.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("approved")]
         public bool? Approved { get; set; } = default!;
 
         /// <summary>
-        /// Text response; in a plan approval this is the correction instruction.
+        /// Text response; in a plan approval this is the correction instruction, in a tool approval the
+        /// <br/>reason the model reads.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public string? Text { get; set; } = default!;
 
         /// <summary>
-        /// Free-form response body. Resolved against the port's response type.
+        /// Free-form response body. Resolved against the port's response type. A tool approval takes none.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("data")]
         public System.Text.Json.JsonElement? Data { get; set; } = default!;
+
+        /// <summary>
+        /// Only for a tool approval answered with `approved: true`: also saves the approval as a rule, so the
+        /// <br/>same agent is not asked again for this tool. Any other use is refused with `400`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("remember")]
+        public bool? Remember { get; set; } = default!;
 
         /// <summary>
         /// Identifier of the checkpoint to resume. If left empty, the run's most

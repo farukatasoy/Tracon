@@ -36,12 +36,19 @@ internal static class WorkflowRequestDescriptor
 
     /// <summary>Converts the request into an event payload.</summary>
     /// <param name="request">The Microsoft Agent Framework request.</param>
+    /// <param name="presentation">
+    /// How a tool approval request is shown, when a presenter gave one; ignored for any other request.
+    /// </param>
+    /// <param name="agentName">
+    /// The agent that asked, when the caller could tell (<see cref="ExecutorIdentityOf"/> names it only by its
+    /// identity); ignored for any other request.
+    /// </param>
     /// <returns>A JSON summary.</returns>
-    public static string Describe(ExternalRequest request)
+    public static string Describe(ExternalRequest request, ToolApprovalPresentation? presentation = null, string? agentName = null)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var facts = ToolApprovalFacts(request);
+        var facts = ToolApprovalFacts(request, agentName);
 
         var snapshot = new Snapshot
         {
@@ -50,7 +57,7 @@ internal static class WorkflowRequestDescriptor
             RequestType = request.PortInfo.RequestType.TypeName,
             ResponseType = request.PortInfo.ResponseType.TypeName,
             ResponseAssembly = request.PortInfo.ResponseType.AssemblyName,
-            Prompt = Prompt(request),
+            Prompt = Prompt(request, presentation),
             Form = Form(request),
             ToolName = facts?.ToolName,
             AgentName = facts?.AgentName,
@@ -291,6 +298,39 @@ internal static class WorkflowRequestDescriptor
             : WorkflowRequestForm.Json;
     }
 
+    /// <summary>The longest text a presenter adds to the prompt of a tool approval.</summary>
+    private const int PresentationLimit = 500;
+
+    /// <summary>
+    /// The text shown with a tool approval request: the tool's name, then what a presenter said about the
+    /// call. The arguments are never written; the presenter is the way to show the parts that matter.
+    /// </summary>
+    /// <param name="toolName">The tool.</param>
+    /// <param name="presentation">The presenter's answer, or <see langword="null"/>.</param>
+    /// <returns>The prompt.</returns>
+    /// <remarks>
+    /// A presenter's text is bounded: the prompt is the last member of the payload and a payload that outgrows
+    /// <c>MaxPayloadLength</c> is cut, and the facts the audit row needs come before it.
+    /// </remarks>
+    private static string ToolApprovalPrompt(string toolName, ToolApprovalPresentation? presentation)
+    {
+        var detail = presentation switch
+        {
+            { Message: { Length: > 0 } message } => message,
+            { EntityName: { Length: > 0 } name } => presentation.EntityType is { Length: > 0 } type ? $"{type} {name}" : name,
+            _ => null,
+        };
+
+        if (detail is null)
+        {
+            return toolName;
+        }
+
+        return detail.Length > PresentationLimit
+            ? $"{toolName}: {detail[..PresentationLimit]}…"
+            : $"{toolName}: {detail}";
+    }
+
     /// <summary>The marker <c>RunEventWriter</c> appends to a value it cut.</summary>
     private const string TruncationMarker = "…[truncated]";
 
@@ -367,9 +407,9 @@ internal static class WorkflowRequestDescriptor
     /// <summary>
     /// Reads what a tool approval records about the call; <see langword="null"/> for any other request.
     /// </summary>
-    private static WorkflowToolApprovalFacts? ToolApprovalFacts(ExternalRequest request)
+    private static WorkflowToolApprovalFacts? ToolApprovalFacts(ExternalRequest request, string? agentName)
         => IsToolApproval(request) && request.TryGetDataAs<ToolApprovalRequestContent>(out var approval)
-            ? WorkflowToolApprovalFacts.Of(approval, AgentNameOf(request.PortInfo.PortId))
+            ? WorkflowToolApprovalFacts.Of(approval, agentName)
             : null;
 
     /// <summary>The suffix Microsoft Agent Framework gives the port of an agent host's tool approvals.</summary>
@@ -379,13 +419,18 @@ internal static class WorkflowRequestDescriptor
     private const int ExecutorIdentityLength = 33;
 
     /// <summary>
-    /// Reads the name of the agent that asked from the port of its host. The port is
+    /// Reads the identity of the agent that asked from the port of its host. The port is
     /// <c>{executor id}_UserInput</c> and the executor id is <c>{agent name}_{32 hex digits}</c>
     /// (<see cref="WorkflowAgentIdentity"/>).
     /// </summary>
     /// <param name="portId">The port that published the request.</param>
-    /// <returns>The agent's name; <see langword="null"/> when the port does not have that form.</returns>
-    private static string? AgentNameOf(string portId)
+    /// <returns>The 32 hexadecimal digits; <see langword="null"/> when the port does not have that form.</returns>
+    /// <remarks>
+    /// Only the identity is read, never the name before it: the framework replaces the characters it dislikes in
+    /// the name, so <c>approval-agent</c> reads back as <c>approval_agent</c>. <see cref="WorkflowAgentCache.NameOf"/>
+    /// turns the identity into the real name.
+    /// </remarks>
+    internal static string? ExecutorIdentityOf(string portId)
     {
         if (!portId.EndsWith(UserInputPortSuffix, StringComparison.Ordinal))
         {
@@ -401,7 +446,7 @@ internal static class WorkflowRequestDescriptor
             return null;
         }
 
-        return executor[..^ExecutorIdentityLength].ToString();
+        return executor[^(ExecutorIdentityLength - 1)..].ToString();
     }
 
     private static bool IsHexadecimal(ReadOnlySpan<char> value)
@@ -418,11 +463,11 @@ internal static class WorkflowRequestDescriptor
     }
 
     /// <summary>Extracts the request text to show the user.</summary>
-    private static string? Prompt(ExternalRequest request)
+    private static string? Prompt(ExternalRequest request, ToolApprovalPresentation? presentation)
     {
         if (IsToolApproval(request) && request.TryGetDataAs<ToolApprovalRequestContent>(out var approval))
         {
-            return WorkflowToolApprovalFacts.Of(approval, agentName: null).ToolName;
+            return ToolApprovalPrompt(WorkflowToolApprovalFacts.Of(approval, agentName: null).ToolName, presentation);
         }
 
         if (IsPlanReview(request) && request.TryGetDataAs<MagenticPlanReviewRequest>(out var review))

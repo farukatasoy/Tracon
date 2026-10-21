@@ -301,6 +301,50 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     }
 
     /// <summary>
+    /// A tool that waits for approval inside a workflow is answered from the same card (phase 230).
+    /// </summary>
+    /// <remarks>
+    /// The card names the tool and what the approval presenter says about the call, takes a reason the
+    /// agent reads, and can save the approval as a rule. The rule is checked through the API: the card is only
+    /// proven if the rule it asked for exists.
+    /// </remarks>
+    [Fact]
+    public async Task A_tool_approval_card_approves_with_a_reason_and_remembers_the_rule()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/tool-approval-flow");
+
+        await Expect(session.Page.GetByTestId("workflow-graph")).ToBeVisibleAsync();
+
+        await session.Page.GetByTestId("workflow-message").FillAsync("cancel order 7");
+        await session.Page.GetByTestId("workflow-run").ClickAsync();
+
+        var card = session.Page.GetByTestId("workflow-pending-request");
+
+        await Expect(card).ToBeVisibleAsync();
+        await Expect(card).ToContainTextAsync("tool approval", new() { UseInnerText = true });
+        await Expect(card).ToContainTextAsync("cancel_order", new() { UseInnerText = true });
+        await Expect(card).ToContainTextAsync("Cancel order ORD-7 for Jordan Rivera.", new() { UseInnerText = true });
+
+        await session.Page.GetByTestId("workflow-tool-reason").FillAsync("verified with the customer");
+        await session.Page.GetByTestId("workflow-remember").CheckAsync();
+        await session.Page.GetByTestId("workflow-approve").ClickAsync();
+
+        // The answer opens a NEW run and the agent finishes the tool call.
+        await Expect(session.Page.GetByTestId("workflow-output"))
+            .ToContainTextAsync("has been canceled", new() { UseInnerText = true });
+
+        var rules = await api.GetFromJsonAsync<JsonElement>("api/approvals/rules");
+        var rule = rules.EnumerateArray().ShouldHaveSingleItem();
+
+        rule.GetProperty("toolName").GetString().ShouldBe("cancel_order");
+        rule.GetProperty("agentName").GetString().ShouldBe("approval-agent");
+    }
+
+    /// <summary>
     /// A run started outside the console is answered from its own run page.
     /// </summary>
     /// <remarks>
