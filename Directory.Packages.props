@@ -204,7 +204,7 @@
     NuGet bizimkini secer ve ek paket gelmez. Ayrinti: docs/KARARLAR.md, karar K-057.
   -->
   <ItemGroup Label="Model Context Protocol">
-    <PackageVersion Include="ModelContextProtocol.Core" Version="2.2.0" />
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.3.0" />
     <!--
       Faz 50: Tracon'i disa acan MCP sunucusu. K-057'nin kosulu degisti:
       "Tracon yalnizca istemcidir" artik dogru degil. Yalnizca
@@ -213,8 +213,11 @@
       ailesinden. 2.2.0'da yeniden okundu (2026-08-21): `.AspNetCore` sabit surumle
       `ModelContextProtocol` [2.2.0]'i, o da `.Core` [2.2.0] + Caching.Abstractions
       10.0.10 + Hosting.Abstractions 10.0.10 ceker. Yabanci bagimlilik yok.
+      2.3.0 (2026-10-21): ayni paket listesi, yalniz taban surumler yukseldi; Tracon.Mcp
+      grafigi net10.0/net9.0/net8.0'da 32/38/38 paket, degismedi. API farki: +1 uye
+      (`McpClientOptions.TimeProvider`), 0 kaldirma (maf-kapsama.py fark).
     -->
-    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
     <!--
       Faz 117: MCP Tasks uzantisi (2026-07-28 spec). Yalnizca
       Tracon.AspNetCore icine girer. Olculdu (2026-08-26, gercek restore,
@@ -223,7 +226,7 @@
       paketin tumu zaten .AspNetCore uzerinden grafikte. Tracon.Mcp
       (istemci) bu paketi hic gormez, K-057 bozulmaz.
     -->
-    <PackageVersion Include="ModelContextProtocol.Extensions.Tasks" Version="2.2.0" />
+    <PackageVersion Include="ModelContextProtocol.Extensions.Tasks" Version="2.3.0" />
   </ItemGroup>
 
   <ItemGroup Label="Analyzer'lar (PrivateAssets=all)">
