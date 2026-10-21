@@ -97,7 +97,7 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.8	❌	✗	Kaynak üretimli handler: `[MessageHandler]` · `[SendsMessage]` · `[YieldsOutput]` · `ProtocolBuilder` · `Workflows.Generators` (analyzer)	Generators Workflows	Generators Workflows	Workflows
 5.8	❌	✗	Orkestrasyon ayarları: Handoff `WithHandoff(from, to, reason)`/`EnableReturnToPrevious`/`WithTerminationCondition`/`WithToolCallFilteringBehavior` · Magentic `WithMaxStalls`/`WithMaxResets`/`WithPromptOverrides`/`WithResponseLanguage` (MAAI001) · Concurrent `WithAggregator` · Sequential `WithChainOnlyAgentResponses` · özel `GroupChatManager`	-	-	-
 5.8	❌	✗	Çıktı etiketleri: `OutputTag` · `WithIntermediateOutputFrom` · `Futures.EnableAgentResponseOutputTaggingAndFiltering` · `StreamingAggregators` · `AggregatingExecutor`	-	-	-
-5.8	❌	✗	`AIAgentHostOptions` (`InterceptUserInputRequests`, `InterceptUnterminatedFunctionCalls`, `ReassignOtherAgentsAsUsers`, `Emit*`) · `ChatProtocolExecutor`/`ChatForwardingExecutor`	Emit	AIAgentHostOptions Emit	AIAgentHostOptions
+5.8	❌	✓ K-1055	`AIAgentHostOptions` (`InterceptUserInputRequests`, `InterceptUnterminatedFunctionCalls`, `ReassignOtherAgentsAsUsers`, `Emit*`) · `ChatProtocolExecutor`/`ChatForwardingExecutor`	Emit	AIAgentHostOptions Emit	AIAgentHostOptions
 5.8	🟡	✓	`AIAgentBinding`	AIAgentBinding	AIAgentBinding	AIAgentBinding
 5.8	❌	✓	`Workflow.AsAIAgent` · `WithCheckpointing(agent)`	AsAIAgent Workflow	AsAIAgent Workflow	AsAIAgent Workflow
 5.8	❌	✗	Yürütme ortamı: `OpenStreamingAsync` · `RunAsync`/`ResumeAsync` (akışsız) · `Lockstep`/`Concurrent`/`OffThread`	Concurrent ResumeAsync RunAsync	Concurrent ResumeAsync RunAsync	Concurrent RunAsync
