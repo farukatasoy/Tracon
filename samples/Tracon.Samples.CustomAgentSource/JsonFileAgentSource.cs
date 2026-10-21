@@ -155,44 +155,10 @@ public sealed class JsonFileAgentSource : IAgentSource
 
             if (definition is not null)
             {
-                yield return Normalize(definition);
+                yield return definition;
             }
         }
     }
-
-    /// <summary>
-    /// Fills in the collections a hand-written JSON file can leave absent.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="AgentDefinition"/>'s <c>ToolNames</c>, <c>SkillNames</c>,
-    /// <c>CallableAgentNames</c>, <c>McpResourceUris</c>, and <c>Parameters</c> — and
-    /// <see cref="ModelBinding"/>'s <c>ProviderSettings</c> and <c>Fallbacks</c> — default
-    /// to an empty collection in C#. That default initializer does not run for a property
-    /// the JSON payload never mentions: <c>System.Text.Json</c>'s source generator has to
-    /// validate the <see langword="required"/> members (<c>Name</c>, <c>Model</c>), and to
-    /// do that it builds the object WITHOUT running the constructor, then sets only the
-    /// properties present in the JSON — every absent property (required or not) is left at
-    /// the CLR default, <see langword="null"/> for a reference type, not its C# initializer.
-    /// <see cref="AgentDefinitionCompiler"/> assumes the management database's own
-    /// invariant (never null, only possibly empty) and does not defend against a null
-    /// collection, so a source reading raw JSON has to restore it itself. A source backed
-    /// by a database — like Tracon's own — does not need this: the row it reads
-    /// already came from a save path that filled every column in.
-    /// </remarks>
-    private static AgentDefinition Normalize(AgentDefinition definition)
-        => definition with
-        {
-            ToolNames = definition.ToolNames ?? [],
-            SkillNames = definition.SkillNames ?? [],
-            CallableAgentNames = definition.CallableAgentNames ?? [],
-            McpResourceUris = definition.McpResourceUris ?? [],
-            Parameters = definition.Parameters ?? [],
-            Model = definition.Model with
-            {
-                ProviderSettings = definition.Model.ProviderSettings ?? new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase),
-                Fallbacks = definition.Model.Fallbacks ?? [],
-            },
-        };
 
     private static AgentDescriptor ToDescriptor(AgentDefinition definition)
         => new()

@@ -66,8 +66,11 @@ public sealed record ModelBinding
     /// </code>
     /// </example>
     /// </remarks>
-    public IReadOnlyDictionary<string, JsonElement> ProviderSettings { get; init; }
-        = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, JsonElement> ProviderSettings
+    {
+        get => field ?? new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        init;
+    }
 
     /// <summary>
     /// Gets the requested output format. When it is <see langword="null"/> today's
@@ -119,7 +122,7 @@ public sealed record ModelBinding
     /// at the model that answered, and the switch is logged.
     /// </para>
     /// </remarks>
-    public IReadOnlyList<ModelFallback> Fallbacks { get; init; } = [];
+    public IReadOnlyList<ModelFallback> Fallbacks { get => field ?? []; init; }
 
     /// <summary>
     /// Gets the response caching settings. Disabled when <see langword="null"/>.

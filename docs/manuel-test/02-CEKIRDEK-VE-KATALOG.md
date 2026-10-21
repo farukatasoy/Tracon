@@ -2756,6 +2756,9 @@ dotnet test samples/Tracon.Samples.CustomAgentSource.Tests -c Release --no-build
   kapsam testi. `TryAddEnumerable` sample kodunda hiç geçmez
   (`grep -c TryAddEnumerable samples/Tracon.Samples.CustomAgentSource*/*.cs` → `0`).
 
+> **Otomatik karşılığı:** `DefinitionReadFromJsonTests` — JSON okuyan bir kaynak koleksiyonu
+> yazmasa da tanım boş koleksiyonla derlenir (2026-10-22: `ExtensionNames` bu case'in beşini düşürdü).
+
 ---
 
 ### MT-CORE-097 — Complex tool sonucu canonical JSON ve output limiti taşır (Faz 102)

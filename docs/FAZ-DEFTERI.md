@@ -308,7 +308,7 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 219 | 0 | 2 | 0 / 0 / 0 | 0 commit edilmiş | ölçülmedi |
 | 220 | 16 sapma | 2 | 0 / 0 / 0 | 0 bilinen | ölçülmedi |
 | 221 | 8 | 1 | 2 / 0 / 0 | 0 | ölçülmedi |
-| 222 | 0 | 2 | 1 / 0 / 1 | 1 | 5 |
+| 222 | 0 | 2 | 1 / 0 / 1 | 1 | 6 |
 | 223 | 9 | 1 | 0 / 1 / 0 | 0 | ölçülmedi |
 | 224 | 1 | 1 | 0 / 0 / 0 | 0 | ölçülmedi |
 | 225 | 0 | 3 | 2 / 0 / 0 | 1 | ölçülmedi |
