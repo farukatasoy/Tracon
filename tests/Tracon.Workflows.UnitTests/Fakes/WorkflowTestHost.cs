@@ -324,7 +324,8 @@ internal sealed class WorkflowTestHost
             RunnerLogger,
             timeProvider: timeProvider,
             sinks: sinks,
-            runInputStore: RecordsRunInput ? RunInputs : null);
+            runInputStore: RecordsRunInput ? RunInputs : null,
+            agentCache: AgentCache);
     }
 
     /// <summary>

@@ -569,6 +569,9 @@ function PendingRequestCard({
 }): ReactNode {
   const t = useT();
   const [text, setText] = useState('');
+  // A tool approval keeps its reason apart from the text box above: it is optional, and the agent reads it.
+  const [reason, setReason] = useState('');
+  const [remember, setRemember] = useState(false);
 
   return (
     <div
@@ -576,9 +579,7 @@ function PendingRequestCard({
       data-testid="workflow-pending-request"
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <Badge tone="warn">
-          {t(request.form === 'PlanReview' ? 'workflowDetail.planApproval' : 'workflowDetail.waitingForInput')}
-        </Badge>
+        <Badge tone="warn">{t(requestBadge(request.form))}</Badge>
         <Mono className="text-xs text-subtle" copy={request.requestId}>
           {request.portId}
         </Mono>
@@ -616,7 +617,60 @@ function PendingRequestCard({
         />
       )}
 
-      <div className="flex flex-wrap gap-2">
+      {request.form === 'ToolApproval' && (
+        <TextArea
+          rows={2}
+          value={reason}
+          disabled={disabled}
+          data-testid="workflow-tool-reason"
+          placeholder={t('workflowDetail.toolReasonPlaceholder')}
+          className="mb-2.5"
+          onChange={(event) => setReason(event.target.value)}
+        />
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {request.form === 'ToolApproval' && (
+          <>
+            <Button
+              tone="primary"
+              testId="workflow-approve"
+              disabled={disabled}
+              onClick={() =>
+                onRespond({
+                  approved: true,
+                  ...(reason.trim().length > 0 ? { text: reason.trim() } : {}),
+                  ...(remember ? { remember: true } : {}),
+                })
+              }
+            >
+              {t('workflowDetail.approveTool')}
+            </Button>
+            <Button
+              testId="workflow-reject"
+              disabled={disabled}
+              onClick={() =>
+                onRespond({
+                  approved: false,
+                  ...(reason.trim().length > 0 ? { text: reason.trim() } : {}),
+                })
+              }
+            >
+              {t('workflowDetail.rejectTool')}
+            </Button>
+            <label className="flex items-center gap-1.5 text-xs text-muted">
+              <input
+                type="checkbox"
+                data-testid="workflow-remember"
+                checked={remember}
+                disabled={disabled}
+                onChange={(event) => setRemember(event.target.checked)}
+              />
+              {t('workflowDetail.rememberTool')}
+            </label>
+          </>
+        )}
+
         {request.form === 'PlanReview' && (
           <>
             <Button
@@ -688,6 +742,20 @@ function PendingRequestCard({
       </div>
     </div>
   );
+}
+
+/** The badge key of a request: what the person is being asked to do. */
+function requestBadge(
+  form: WorkflowPendingRequest['form'],
+): 'workflowDetail.planApproval' | 'workflowDetail.toolApproval' | 'workflowDetail.waitingForInput' {
+  switch (form) {
+    case 'PlanReview':
+      return 'workflowDetail.planApproval';
+    case 'ToolApproval':
+      return 'workflowDetail.toolApproval';
+    default:
+      return 'workflowDetail.waitingForInput';
+  }
 }
 
 /**

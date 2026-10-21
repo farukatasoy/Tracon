@@ -283,6 +283,14 @@ internal sealed class WorkflowRequestExpirationService(
             var status = unanswered is null ? RunStatus.Completed : RunStatus.Failed;
             var error = unanswered is null ? null : Classify(ExpiredError(unanswered));
 
+            // A step that waits for a tool approval is closed with the run, and BEFORE it: a close that fails
+            // here is tried again by the next scan, while the run is still waiting. After the run closed, the
+            // scan would find nothing to try again.
+            if (error is not null)
+            {
+                await CloseWaitingStepsAsync(tenantId, runId, now, error, cancellationToken).ConfigureAwait(false);
+            }
+
             await runStore.CompleteRunAsync(
                 new RunCompletion
                 {
@@ -316,6 +324,51 @@ internal sealed class WorkflowRequestExpirationService(
             return false;
         }
     }
+
+    /// <summary>
+    /// Closes the steps of an expired run that still wait for a tool approval, with the error the run closes with.
+    /// </summary>
+    /// <remarks>
+    /// A step whose approval nobody answered would stay <see cref="RunStatus.AwaitingApproval"/> for good, though
+    /// the workflow that waited for it has failed (K-1051). A step whose approval WAS answered is left as it is: the
+    /// answer continued on a new run, and an answered run stays in its state (K-014).
+    /// <see cref="IRunStore.CompleteRunAsync"/> replaces the event count, the usage and the cost, so the row's own
+    /// values are written back.
+    /// </remarks>
+    private async ValueTask CloseWaitingStepsAsync(
+        string tenantId,
+        Guid runId,
+        DateTimeOffset now,
+        RunError error,
+        CancellationToken cancellationToken)
+    {
+        var steps = await runStore
+            .QueryRunsAsync(
+                new RunQuery { ParentRunId = runId, Status = RunStatus.AwaitingApproval, Take = StepLimit },
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var step in steps)
+        {
+            await runStore.CompleteRunAsync(
+                new RunCompletion
+                {
+                    RunId = step.Id,
+                    Status = RunStatus.Failed,
+                    CompletedAt = now,
+                    EventCount = step.EventCount,
+                    Usage = step.Usage,
+                    Cost = step.Cost,
+                    NonTokenCost = step.NonTokenCost,
+                    Error = error,
+                    TenantId = tenantId,
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>The most steps of one run that are closed in a scan; a run holds a step for each agent of a pattern.</summary>
+    private const int StepLimit = 100;
 
     /// <summary>Publishes the event a run closed by this service owes its receiver.</summary>
     /// <remarks>

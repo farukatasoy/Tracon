@@ -484,3 +484,124 @@ describe('WorkflowDetailScreen answers (phase 208)', () => {
     ).toBeTruthy();
   });
 });
+
+describe('WorkflowDetailScreen tool approval (phase 230)', () => {
+  let restoreFetch: (() => void) | undefined;
+
+  afterEach(() => restoreFetch?.());
+
+  const runId = '01a12790-0000-7000-8000-0000000000c1';
+  const request = {
+    runId,
+    requestId: 'req-tool-1',
+    portId: 'writer_0123456789abcdef0123456789abcdef_UserInput',
+    form: 'ToolApproval',
+    prompt: 'cancel_order: Cancels the order of Ada Lovelace.',
+    requestedAt: '2026-10-21T12:00:00Z',
+  };
+
+  function routes(sent: unknown[]) {
+    return [
+      fixture('GET', 'api/workflows', [plain]),
+      fixture('GET', 'api/workflows/:name/graph', graph),
+      {
+        method: 'POST' as const,
+        pattern: 'api/workflows/:name/run',
+        handler: () =>
+          new Response(sseFrame('run', { runId }) + sseFrame('done', { runId }), {
+            status: 200,
+            headers: { 'Content-Type': 'text/event-stream' },
+          }),
+      },
+      fixture('GET', 'api/workflows/runs/:runId/requests', [request]),
+      fixture('GET', 'api/workflows/runs/:runId/responses', []),
+      {
+        method: 'POST' as const,
+        pattern: 'api/workflows/runs/:runId/respond',
+        handler: (_params: unknown, _url: unknown, body: unknown) => {
+          sent.push(body);
+
+          return new Response(
+            sseFrame('run', { runId: '01a12790-0000-7000-8000-0000000000c2' }) + sseFrame('done', {}),
+            { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+          );
+        },
+      },
+    ];
+  }
+
+  it('shows the tool and asks to approve or reject it, with a reason and a rule to remember', async () => {
+    restoreFetch = installApiMock(routes([]));
+
+    const user = userEvent.setup();
+
+    renderScreen(<WorkflowDetailScreen name="plain" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('workflow-run'));
+
+    const card = await screen.findByTestId('workflow-pending-request');
+
+    expect(within(card).getByText('tool approval')).toBeTruthy();
+    expect(within(card).getByText(/Cancels the order of Ada Lovelace\./)).toBeTruthy();
+    expect(within(card).getByTestId('workflow-approve')).toBeTruthy();
+    expect(within(card).getByTestId('workflow-reject')).toBeTruthy();
+    expect(within(card).getByTestId('workflow-tool-reason')).toBeTruthy();
+    expect((within(card).getByTestId('workflow-remember') as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('sends the decision, the reason and remember — and only what was filled in', async () => {
+    const sent: unknown[] = [];
+
+    restoreFetch = installApiMock(routes(sent));
+
+    const user = userEvent.setup();
+
+    renderScreen(<WorkflowDetailScreen name="plain" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('workflow-run'));
+    await user.click(await screen.findByTestId('workflow-approve'));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    // Nothing typed and nothing ticked: a bare yes. No empty reason, no remember.
+    expect(sent[0]).toEqual({ requestId: 'req-tool-1', approved: true });
+  });
+
+  it('sends a reason with a rejection and never remembers a rejection', async () => {
+    const sent: unknown[] = [];
+
+    restoreFetch = installApiMock(routes(sent));
+
+    const user = userEvent.setup();
+
+    renderScreen(<WorkflowDetailScreen name="plain" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('workflow-run'));
+    await user.type(await screen.findByTestId('workflow-tool-reason'), 'not this order');
+    await user.click(screen.getByTestId('workflow-remember'));
+    await user.click(screen.getByTestId('workflow-reject'));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    expect(sent[0]).toEqual({ requestId: 'req-tool-1', approved: false, text: 'not this order' });
+  });
+
+  it('sends remember with an approval when the box is ticked', async () => {
+    const sent: unknown[] = [];
+
+    restoreFetch = installApiMock(routes(sent));
+
+    const user = userEvent.setup();
+
+    renderScreen(<WorkflowDetailScreen name="plain" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('workflow-run'));
+    await user.type(await screen.findByTestId('workflow-tool-reason'), 'checked');
+    await user.click(screen.getByTestId('workflow-remember'));
+    await user.click(screen.getByTestId('workflow-approve'));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+
+    expect(sent[0]).toEqual({ requestId: 'req-tool-1', approved: true, text: 'checked', remember: true });
+  });
+});
