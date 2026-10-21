@@ -1,5 +1,7 @@
+using Microsoft.Agents.AI.Hosting;
 using Microsoft.Agents.AI.Hosting.A2A;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Tracon;
 
@@ -28,6 +30,16 @@ public static class TraconA2ABuilderExtensions
     /// WHICH names exist in A2A is frozen at registration time.
     /// </para>
     /// <para>By default no agent is exposed.</para>
+    /// <para>
+    /// A message that carries a <c>contextId</c> continues a conversation: the
+    /// session is stored, and the agent sees the earlier turns. A conversation
+    /// belongs to the caller (the signed-in user, the API key, or, with no
+    /// identity at all, the local operator); another caller that sends the same
+    /// <c>contextId</c> starts a new one. A consumer replaces the storage by
+    /// registering an <c>AgentSessionStore</c>, keyed by the agent name or
+    /// without a key, and the caller identification by registering an
+    /// <c>AgentIsolationKeyProvider</c>.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddTracon()
@@ -53,11 +65,18 @@ public static class TraconA2ABuilderExtensions
         // counterpart here.
         services.AddSingleton(options);
 
+        // A2A conversations are scoped to the caller (Phase 229). The provider
+        // is a TryAdd so a consumer's own AgentIsolationKeyProvider wins; it
+        // reads the request, so the accessor is registered with it.
+        services.AddHttpContextAccessor();
+        services.TryAddSingleton<AgentIsolationKeyProvider, TraconCallerIsolationKeyProvider>();
+
         foreach (var agentName in options.ExposedAgents)
         {
             var proxy = new ExternalAgentProxy(agentName) { BudgetTemplate = options.Budget };
 
             services.AddKeyedSingleton(agentName, proxy);
+            A2ASessionStore.Register(services, agentName);
 
             services.AddA2AServer(proxy, register =>
             {

@@ -1,6 +1,6 @@
 # Faz 229 — A2A Çok Tur ve Çağıran İzolasyonu
 
-> **Durum:** 📋 Planlandı (2026-10-21)
+> **Durum:** ✅ Tamamlandı (2026-10-21)
 > **Kademe:** tam — güvenlik/kiracı sınırı (kiracı içinde çağıranlar arası konuşma izolasyonu) · geri dönüşü pahalı karar (kalıcı oturum kimliği biçimi)
 > **Plan onayı:** farukatasoy, 2026-10-21 (seçim: izolasyon anahtarı çağıran kimliği; çok tur varsayılan açık)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-614** (yargı alanları: [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md) §4)
@@ -250,17 +250,17 @@ Beş soru: iptal ✓ · eşzamanlılık ✓ · boş/aşırı girdi (`contextId` 
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Aynı `contextId` ile ikinci A2A mesajında model ilk turu görür (`A2AConversationTests`, önce kırmızı)
-- [ ] Başka API anahtarı aynı `contextId` ile ilk turu görmez; iki ajan ve iki kiracı ayrı oturum alır
-- [ ] Oturum kimliği 68 karakter, `a2a:` önekli; ayırıcı hex dökümüyle doğrulandı
-- [ ] Tüketicinin `AgentSessionStore` ve `AgentIsolationKeyProvider` kaydı kazanır
-- [ ] Açık Soru 1 kararı uygulandı ve testte
-- [ ] Site: "single turn" notu kalktı; çok tur ve izolasyon anlatıldı; `npm run check` temiz
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek A2A konuşması (case 1–2) yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/18-MCP-VE-A2A.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] Aynı `contextId` ile ikinci A2A mesajında model ilk turu görür — `A2AConversationTests.A_second_message_with_the_same_context_id_sees_the_first_turn` (önce kırmızıydı: model `["What is my name?"]` gördü)
+- [x] Başka API anahtarı aynı `contextId` ile ilk turu görmez; iki agent ve iki kiracı ayrı oturum alır — `Another_api_key_…`, `Two_agents_…`, `One_user_in_two_tenants_…`
+- [x] Oturum kimliği 68 karakter, `a2a:` önekli; biçim bilinen değerlerle sabit — `A2ASessionStoreTests` (ayırıcı hex dökümü yerine uzunluk önekli özet, sapma 2)
+- [x] Tüketicinin `AgentSessionStore` (adla ya da anahtarsız) ve `AgentIsolationKeyProvider` kaydı kazanır — `A_session_store_the_consumer_registered_…` (üç test), `An_isolation_key_provider_the_consumer_registered_is_used`
+- [x] Açık Soru 1 kararı uygulandı ve testte — `Session_ownership_refuses_…`, `Session_ownership_gives_…`, `Session_ownership_keeps_one_end_users_conversation_…`
+- [x] Site: "single turn" notu kalktı; çok tur ve izolasyon anlatıldı — `guides/external-agents.md`, `concepts/sessions.md`, `capabilities.md`; `npm run check` çıkış 0 (1019 sayfa, kırık bağlantı yok, ağırlık tavanı içinde)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban b56994db` çıkış 0 (2026-10-21): restore, build 0 uyarı / 0 hata, pack, `npm run check`, `dotnet format --verify-no-changes`, 25689 test 0 başarısız (19 atlanan önceden vardı). Kapı, tamamlanmış faz dokümanı kökte kalamadığı için Durum satırı geçici olarak 🚧 iken koştu; `faz-kapat` sonrası `dokuman-bakim.py --denetle` yeniden koştu
+- [x] `samples/Tracon.Api` ile gerçek A2A konuşması (case 1–2) yapıldı — SQLite, `gpt-5.4-mini`, 2026-10-21: anahtar 1 ikinci turda `- Your name is Ada.`, anahtar 2 `- I don’t have access to your name unless you tell me.`; `GET /api/sessions` iki satır, 68 karakter, `agentName: summarizer`; günlükte `Npgsql` satırı 0
+- [x] `secret` taraması boş döndü — `kapi.py kapanis` içinde `tarama`
+- [x] `🤖` case `docs/manuel-test/18-MCP-VE-A2A.md` içinde (`MT-MCP-090`) ve koşuldu; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — bkz. *Denetim Bulguları*
 
 ### Doğrulama komutları
 
@@ -289,11 +289,29 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 
 ## Plandan Sapmalar
 
-> Çalışırken dolar.
+1. **Çağıran kimliği (229.2): plan "A2A anahtarı zorunlu, `null` dalı ulaşılmaz" diyordu; yanlıştı.** `RequireApiKeyScope(ExternalInvoke, mandatory: true)` yalnız `AllowRemoteAccess` iken zorlanır. Loopback'te anahtarsız, token'sız çağrı geçer ve mevcut `A2AEndpointTests`'in tamamı böyle çalışır. Plandaki sağlayıcı o çağrıya `null` dönerdi, MAF'ın strict deposu reddederdi. Çözüm: tür önekli kimlik — `user:` · `apikey:` · `static-token` · `anonymous` (K-1053). Sıra da değişti: plan "denetim aktörü, sonra API anahtarı" diyordu; `ActorClaimType` ayarlıyken anahtar aktörü boş okunur ve `apikey:x` değerli bir kullanıcı claim'i anahtarla çakışırdı. Kimliği doğrulanmış ama okunamayan kullanıcı `null` alır (reddedilir), `anonymous`'a düşmez.
+2. **Oturum kimliği (229.3): ayırıcı `U+001F` yerine uzunluk önekli parçalar** (K-1052). `contextId` çağıran girdisidir; ayırıcıyı taşıyıp parça sınırını kaydırabilir. Test, hex dökümü yerine bilinen değerleri sabitler (Python ile bağımsız hesaplandı).
+3. **Plan "oturum kimliği kiracıdan bağımsız birincil anahtardır" diyordu; üç dialect'te de yanlıştı.** `sessions` anahtarı (kiracı, kimlik)'tir: SQLite 0006, PostgreSQL 0018, SQL Server 0006. Kiracı özetin içinde kaldı ama nedeni değişti: kimlikle tek kiracı arayan yollar (`GetOwnerTenantIdAsync`). "Başka kiracıda aynı kullanıcı çakışma alır" hata modu yoktu; test kimliklerin farklı olduğunu sınar (özetten kiracıyı çıkaran mutasyon kırmızı verdi).
+4. **`A2ASessionStore` `DelegatingAgentSessionStore` türevidir ve iç depo `TraconAgentSessionStore`'dur** (plan: doğrudan `AgentSessionManager`). Kimliği yeniden damgalama ve sahiplik kuralları tek yerde kalır.
+5. **`ExternalAgentProxy.SerializeSessionCoreAsync` boşaltma kapısından çıkarıldı** (planda yoktu). Oturum turdan sonra yazıldığı için kapı, boşaltma başlarken biten turun yanıtını ve konuşmasını kaybettirirdi. Test: `A_turn_in_flight_when_the_process_starts_draining_is_answered_and_kept`.
+6. **Açık Soru 1 (229.4): açma yolu için ek kod gerekmedi, sürdürme yolu için gerekti.** `AgentSessionManager.GetOrCreateSessionAsync` sahipliği zaten model çağrısından önce çözer (`ClaimOwnerId`); A2A işleyicisi oturumu koşudan önce açtığı için ret doğal olarak öndedir. Planın "sahiplik ikinci kapıdır" cümlesi ise kendiliğinden gerçekleşmedi: bağımsız denetim (🔴1) şunu gösterdi — `AgentSessionManager` mevcut oturumu sahibini doğrulamadan geri yükler, kapı yalnız HTTP uçlarındadır (`SessionOwnershipGate`). Tek bir `ExternalInvoke` anahtarı ağ geçidi olarak U1 ve U2 adına konuşursa izolasyon anahtarı aynıdır ve U2, U1'in geçmişini modele taşırdı. `A2ASessionStore`, mevcut bir oturumu açmadan önce aynı kapıyı çalıştırır (ret model çağrılmadan; neden günlükte, çağıran opak `-32603`). A2A SDK hatayı opak `-32603`'e çevirir (K-1054).
+7. **Sağlayıcı kaydı genel** (`TryAddSingleton<AgentIsolationKeyProvider>`): MAF'ın `AddA2AServer` ile kurulan her sunucusu, sağlayıcı varsa deposunu ve görev deposunu `Strict` sarar; MAF'ın bellek içi Responses servisi (`AddOpenAIResponses`) de onu okur. Tracon o servisi kullanmaz (`src/`'de 0), bu yüzden `/v1/responses` değişmedi. Uygulama kendi MAF A2A ucunu `UseA2A` ile yan yana barındırıyorsa o uç da sağlayıcıyı kullanır: Tracon süzgeci koşmadığı için ambient denetim aktörü boştur, bu yüzden sağlayıcı kimliği doğrulanmış kullanıcıyı aynı kurallarla isteğin kendi `User`'ından da okur (denetim 🟡4; `AmbientAuditActorResolver.ReadActor`).
+8. **Açık Soru 2 (201 karakterlik `sessionId`) ölçülemedi:** ortamda SQL Server yok. `ADAYLAR.md`'ye F-622 olarak yazıldı.
+9. **Manuel case 3 (Konsol → Oturumlar) ayrı case olmadı:** davranış otomatik testte (`A_conversation_is_stored_under_an_a2a_identity_that_names_its_agent`); gerçek örnek uygulamada `GET /api/sessions` ile de görüldü (iki satır, 68 karakter, `a2a:` önekli). Konsol sayfasının kendisi açılmadı (örnek uygulama arayüzsüz derlendi).
+
+10. **Onay bekleyen tur oturuma yazılır** (denetim 🟡3, ölçüldü). Başlangıç denetiminden sonra kaydedilen bir tanım onay isteyen tool taşıyabilir. MAF işleyicisi oturumu tur hata verse de kaydeder; çağıran opak `-32603` alır, reddedilen tur konuşmada kalır. Sonraki mesaj sorunsuz geçer: MAF cevapsız onayı kendisi reddeder ve geçmişte aracın bir sonucu vardır (`tool` mesajı). Davranış testle sabitlendi, kod değişmedi.
+11. **`SendStreamingMessage` kenarı ölçülmedi** (denetim 🟢7): kopan bağlantıda yürütme ayrık sürerse `HttpContext` yoktur ve oturum yazımı sağlayıcı `null` döndüğü için düşebilir. `ADAYLAR.md` F-623.
+12. **Kapanış notu — site senkron kapısı:** `dokuman-bakim.py --site-denetle` `http-api` kuralını `A2ASessionStore.cs` tetikledi diye kırmızı yazar. A2A uçları OpenAPI belgesinde değildir (`docs-site/.../external-agents.md` son paragraf), bu yüzden `http-api/` sayfaları ve `docs/openapi/tracon.json` değişmez; kapı `--site-gerekce-yazildi` ile geçilir. `cekirdek-kavram` kuralı `concepts/sessions.md` (A2A bölümü) ile karşılandı. Davranış değişimi `guides/external-agents.md` ve `capabilities.md` ile de yazıldı.
 
 ## Bu Fazda Verilen Kararlar
 
-> Çalışırken dolar. Beklenen: oturum kimliği biçimi (`kalıcı-veri`), Açık Soru 1 (`güvenlik`).
+- **K-1052** (`kalıcı-veri`): oturum kimliği `a2a:` + SHA-256 özeti, uzunluk önekli parçalar.
+- **K-1053** (`güvenlik`): çağıran tür önekli kimlik; kimliksizler `anonymous` alanını paylaşır; okunamayan kullanıcı reddedilir.
+- **K-1054** (`güvenlik`): Açık Soru 1 → A (reddet, model çağrılmadan); sürdürmede de başkasının konuşması reddedilir.
+- Açık Soru 3 → A: A2A oturumu öbür oturumlar gibi `retention` hedefine girer. Kodla okundu (`RetentionTargets.Sessions` tabloyu kimlik önekine bakmadan temizler); `a2a:` satırıyla ayrıca koşulmadı.
+- Açık Soru 4 → A: sıra adla anahtarlı tüketici deposu → anahtarsız tüketici deposu → `A2ASessionStore`; üç yol da testte.
+
+Açık Soru 1, 3 ve 4 planın önerisiyle kapandı; kullanıcı ayrıca yanıtlamadı.
 
 ## Süreç Ölçümü
 
@@ -301,12 +319,25 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 12 (Plandan Sapmalar; plan metni ayrıca yeniden yazılmadı) |
+| Düzeltme turu sayısı | 1 (denetim sonrası) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (tam functional proje: 2493 testin 2493'ü geçti, denetimden önceki koşum) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı.
+Bağımsız denetçi (`faz-denetcisi`, taze bağlam) 1 🔴, 5 🟡, 4 🟢 buldu; sapma yargıları: 1, 2, 3, 4, 5, 8, 9 kabul; 6 ve 7 kısmen.
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🔴 | Mevcut oturum sürdürülürken sahiplik kapısı çalışmıyor; tek `ExternalInvoke` anahtarı ağ geçidi olarak iki kullanıcı adına konuşursa U2, U1'in geçmişini alır | **Kapandı:** `A2ASessionStore` mevcut oturumu açmadan önce `SessionOwnershipGate.CheckRunSessionAsync` çalıştırır; test `Session_ownership_keeps_one_end_users_conversation_…`; kapıyı kaldıran mutasyon kırmızı verdi. Sapma 6, K-1054, site, CHANGELOG, XML belgesi güncellendi |
+| 2 | 🟡 | Tür öneki ve `static-token` testsiz | **Kapandı:** `The_caller_is_named_by_kind_…` (kimliği `apikey:<id>` olan kullanıcı), `The_static_auth_token_is_its_own_caller_…`; önek ve statik token mutasyonları kırmızı verdi |
+| 3 | 🟡 | Onay bekleyen tur oturuma yazılır | **Ölçüldü, kapandı:** tur konuşmada kalır, MAF onayı reddeder, sonraki mesaj geçer. Test `A_turn_that_ends_for_a_pending_approval_…`, sapma 10, site notu |
+| 4 | 🟡 | Genel sağlayıcı MAF'ın kendi A2A uçlarında ambient aktöre bağlı | **Kapandı:** sağlayıcı kullanıcıyı isteğin `User`'ından da okur (`AmbientAuditActorResolver.ReadActor`); `TraconCallerIsolationKeyProviderTests`; sapma 7 |
+| 5 | 🟡 | `A2ASessionStore` XML belgesi yanlış kiracı gerekçesini taşıyor | **Kapandı:** belge koda göre yazıldı |
+| 6 | 🟡 | Sapma 8 `ADAYLAR.md`'ye yazıldı diyor, yazılmamıştı | **Kapandı:** F-622 |
+| 7 | 🟢 | `SendStreamingMessage` kopan bağlantı kenarı | `ADAYLAR.md` F-623 |
+| 8 | 🟢 | CHANGELOG her mesajın oturum bıraktığını söylemiyor | **Kapandı:** CHANGELOG cümlesi eklendi |
+| 9 | 🟢 | Ayırıcı testi uzunluk önekini ayırt etmiyor | **Kapandı:** `Parts_that_concatenate_to_the_same_text_stay_apart` |
+| 10 | 🟢 | A2A/MCP `IRunAuthorizationHandler` çağırmaz | `ADAYLAR.md` F-624 |

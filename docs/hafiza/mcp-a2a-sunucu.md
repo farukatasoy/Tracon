@@ -7,6 +7,9 @@
 >
 > MCP Tasks uzantisi (`ModelContextProtocol.Extensions.Tasks`, Faz 117)
 > tuzaklari AYRI dosyadadir: [`mcp-tasks.md`](mcp-tasks.md).
+>
+> A2A konusmasi (cok tur, cagiran izolasyonu, sahiplik; Faz 229) AYRI
+> dosyadadir: [`a2a-konusma.md`](a2a-konusma.md).
 
 - **🚨 `services.AddMcpServer()` tek basina yetmez; `.WithHttpTransport()` cagrilmadan `MapMcp()` acilista patlar** (2026-08-08): Hata: `InvalidOperationException: You must call WithHttpTransport(). Unable to find required services.` Plan taslagi bu ucuncu cagriyi bilmiyordu (yalniz `WithListToolsHandler`/`WithCallToolHandler` olcmustu); reflection dokum da bu extension metodunu (`Microsoft.Extensions.DependencyInjection.HttpMcpServerBuilderExtensions.WithHttpTransport`) kacirdi — yalniz gercek fonksiyonel test calistirinca ortaya cikti. Zincir: `services.AddMcpServer().WithHttpTransport().WithListToolsHandler(...).WithCallToolHandler(...)`.
 - **🚨 `AddA2AServer(services, AIAgent, ...)` KAYIT ZAMANI API'sidir; HTTP ucunu ACMAZ** (2026-08-08): SDK'nin kendi XML belgesi acikca soyluyor ("This method only registers the server; to expose it as an HTTP endpoint, call one of the MapA2AHttpJson or MapA2AJsonRpc endpoint mapping methods") ama bu metotlar `Microsoft.Agents.AI.Hosting.A2A` icinde DEGIL, AYRI bir NuGet paketi olan **`A2A.AspNetCore`**'dadir (gercek adlar `MapA2A`/`MapWellKnownAgentCard`/`MapHttpA2A`, ikisi de `A2A.AspNetCore.A2ARouteBuilderExtensions`). O paket de `Microsoft.Agents.AI.Hosting.AspNetCore`'u ister (`ClaimsIdentitySessionIsolationKeyProvider`). Plan taslaginin "+2 paket" olcumu bu yuzden yanlisti — gercek +4 (K-335).

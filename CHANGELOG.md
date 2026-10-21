@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **An A2A conversation keeps its history, and it belongs to the caller that started it.** A message
+  that carries a `contextId` now continues a conversation: Tracon stores the session and the agent sees
+  the earlier turns. Before, the reply carried the `contextId` back but the agent saw one message, so
+  a caller believed it was in a conversation that did not exist. A conversation is stored under the
+  tenant, the agent, the caller and the `contextId`, and a caller that sends the `contextId` of another
+  caller starts a new conversation. The caller is the signed-in user (`Tracon:Audit:ActorClaimType`
+  applies), the API key, the static `AuthToken`, or, with no identity at all, the local operator; all
+  callers without an identity share one conversation space, and a signed-in user whose identity cannot
+  be read is refused. The session identity is `a2a:` followed by a SHA-256 digest of the four parts, so
+  a `contextId` of any length fits the session identity column. Each turn re-sends the history to the
+  model, so the tokens per message grow with the conversation. `UseA2A()` registers the store for each
+  exposed agent and an `AgentIsolationKeyProvider`; a store or a provider the application registers
+  itself wins. A message without a `contextId` is still a single turn, but Tracon stores a session for it too (it makes up a `contextId` and the reply carries it), and session retention is off by default; set a maximum age for the `sessions` target to bound the table. The change adds no migration.
+
 - **An eval case lists the tool calls it expects, with their arguments, and `toolCallArgsMatch` checks
   them.** `EvalCase.ExpectedToolCalls` is a list of `EvalExpectedToolCall`: a tool `Name` and optional
   `Arguments`. The new check kind `toolCallArgsMatch` passes a case when, for every entry, the agent
@@ -127,6 +141,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `samples/Tracon.Samples.MafFeatures` builds all three.
 
 ### Changed
+
+- **An A2A message is refused before the model is called when session ownership is strict and the
+  caller has no identity to own the conversation.** With `Tracon:SessionOwnership:Enabled` and
+  `RequireAuthenticatedOwner` on, a conversation needs an owner. A2A wrote no session until now, so the
+  rule never reached it. The caller receives a JSON-RPC internal error (`-32603`) and the cause is in
+  the server log at `Error` level. A message that resumes a conversation another user owns is refused the
+  same way, which matters when one API key speaks for several users. Bind `IRunAttributionContext` to the
+  identity pipeline, or turn `RequireAuthenticatedOwner` off, before you upgrade an installation that
+  publishes an agent over A2A.
 
 - **`EvalCase.ExpectedTools` and `EvalCaseDraft.ExpectedTools` are replaced by `ExpectedToolCalls`.**
   This breaks source and the JSON of a case. The old field held tool names and no check read it, so a

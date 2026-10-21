@@ -141,6 +141,16 @@ conversation. The session screen reads stored items and can branch at any point.
 - `previous_response_id` and `conversation_id` are treated as untrusted input. Tenant
   ownership is verified on every use.
 
+## A2A conversations
+
+An agent published over A2A keeps a session for each `contextId`. The session identity
+is not the `contextId` the caller sends: it is `a2a:` followed by a digest of the
+tenant, the agent, the caller, and the `contextId`. The digest has a fixed length, so a
+`contextId` of any length is stored, and two callers that send the same value do not
+share a conversation. The Sessions page lists these conversations under the exposed
+agent. [Publish agents through A2A](/guides/external-agents/#a2a-conversations) states
+who counts as the caller and what a conversation costs.
+
 ## Who can access a session
 
 By default everything above is tenant-scoped: any caller with the

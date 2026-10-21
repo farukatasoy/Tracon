@@ -1,6 +1,6 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
-> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle), 214 (A2A yanıtı mesajdır), 218 (`authorizationConfigurationKey` kalktı)
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle), 214 (A2A yanıtı mesajdır), 218 (`authorizationConfigurationKey` kalktı), 229 (A2A çok tur ve çağıran izolasyonu)
 > **Kaynak:** `src/Tracon.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
 > tool/prompt/resource köprüsü, OAuth) · `src/Tracon.AspNetCore/McpServer/`
 > (tümü — Tracon'i MCP sunucusu olarak dışa açma) ·
@@ -2338,3 +2338,39 @@ curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/x" -H "$AP
 - (3) OAuth açılınca alan boşalır; kapatınca boş kalır (geri gelmez).
 - (4) `GET /api/mcp-servers`: harita hem `X-Api-Key` hem yeni `Authorization` girdisini taşır; form saklı anahtar
   adlarını kaybettirmez (sunucu dolu haritayı tam değiştirir, bu yüzden form saklı olanı taşır).
+
+### MT-MCP-090 — A2A: aynı `contextId` konuşmayı sürdürür, başka bir API anahtarı sürdüremez (Faz 229)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 229 |
+| **İlgili karar** | K-1052 · K-1053 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama, gerçek OpenAI, `curl` · ➜ CI: `A2AConversationTests` |
+
+**Ön koşul**
+- Örnek uygulama gerçek OpenAI anahtarıyla çalışır; `summarizer` A2A'ya açıktır (§ "Koşmadan önce" 3).
+- İki `ExternalInvoke` anahtarı (`K1`, `K2`):
+
+```bash
+mk() { curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
+  -d "{\"name\":\"$1\",\"scopes\":[\"ExternalInvoke\"]}" | python3 -c "import json,sys; print(json.load(sys.stdin)['plaintextKey'])"; }
+K1=$(mk a2a-key-1); K2=$(mk a2a-key-2)
+send() { curl -s -X POST "$APU/a2a/summarizer/" -H "Authorization: Bearer $1" -H "content-type: application/json" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"SendMessage\",\"params\":{\"message\":{\"role\":\"ROLE_USER\",\"messageId\":\"m-$RANDOM\",\"contextId\":\"$2\",\"parts\":[{\"text\":\"$3\"}]}}}"; }
+```
+
+**Adımlar**
+1. `send $K1 ctx-X "My name is Ada."`
+2. `send $K1 ctx-X "What is my name?"`
+3. `send $K2 ctx-X "What is my name?"`
+4. `send $K1 ctx-X "And what did I ask just before?"`
+
+**Beklenen sonuç**
+- (1) `result.message.contextId` `ctx-X` döner.
+- (2) Yanıt adı bilir ("Ada" geçer): model ilk turu gördü.
+- (3) Yanıt adı bilmez; hata yoktur, `result.message` döner. `K2` başka bir çağırandır.
+- (4) Yanıt (2)'deki soruyu anar: `K1` konuşması (3)'ten etkilenmedi.
+- `GET $APU/api/sessions`: iki satır (`K1` ve `K2` konuşması); her `id` `a2a:` ile başlar ve 68 karakterdir, `agentName` `summarizer`. `id` anahtarı ya da `contextId`'yi okunur biçimde taşımaz.
+- Ölçülen (2026-10-21, SQLite, `gpt-5.4-mini`): (1) `- The speaker says their name is Ada.` · (2) `- Your name is Ada.` · (3) `- I don’t have access to your name unless you tell me.` · (4) `- You asked: “What is my name?”` · iki oturum, ikisi 68 karakter, `agentName: summarizer`.

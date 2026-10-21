@@ -212,9 +212,58 @@ Tracon declares streaming, push notifications, and background A2A runs as
 unsupported. The same `ExternalInvoke`, approval, tenant, and budget boundaries as
 the MCP server apply.
 
-Each A2A message is a single turn. The response echoes the caller's `contextId`, but
-Tracon keeps no conversation history for it: a second message in the same context
-does not see the first one. Put everything the agent needs into each message.
+### A2A conversations
+
+A message that carries a `contextId` continues a conversation. Tracon stores the
+session of each conversation, so the agent sees the earlier turns of the same
+`contextId`. A message without a `contextId` is a single turn: the response carries
+a new `contextId` that the caller can send next.
+
+A conversation belongs to the caller. Tracon stores it under the tenant, the agent,
+the caller, and the `contextId`. A `contextId` is a handle, not a credential: a
+caller that sends the `contextId` of another caller starts a new conversation and
+cannot read or extend the first one.
+
+| The request carries | The caller is |
+|---|---|
+| A signed-in user | That user. The user is read the way the audit trail reads its actor, so `Tracon:Audit:ActorClaimType` applies |
+| An API key | That key |
+| The static `AuthToken` | The installation |
+| Nothing (loopback, no token) | The local operator. All such requests share one conversation space |
+
+A signed-in user whose identity cannot be read is refused. Tracon does not move that
+user into the local operator's space.
+
+Keep these effects in mind:
+
+- **Cost.** Each turn sends the whole history to the model, so the tokens per message
+  grow with the conversation. Send a new `contextId` to start over.
+- **Storage.** Every message Tracon answers leaves a session, also a message with no
+  `contextId`: Tracon makes one up and the reply carries it. Session retention is off by
+  default because a session is user data. Set a maximum age for the `sessions` target to
+  bound the table; see [Retention defaults](/reference/configuration/#retention-defaults).
+- **Parallel messages.** Two messages on one `contextId` at the same time cannot both
+  be stored. One succeeds. The other fails and the caller receives a JSON-RPC
+  internal error (`-32603`). Send the messages one after the other.
+- **Refusals.** A refusal reaches the caller as the same opaque `-32603` error. The
+  cause is in the server log at `Error` level.
+- **Session ownership.** When session ownership is on and
+  `RequireAuthenticatedOwner` is `true`, a message whose identity Tracon cannot
+  attribute is refused **before** the model is called, and so is a message that resumes
+  a conversation another user owns. This matters when one API key speaks for several
+  users: the key is one caller, the owner is the end user. Bind `IRunAttributionContext`
+  to the identity pipeline, or an A2A caller cannot open a conversation.
+- **A turn that needs an approval.** If a tool that needs approval reaches an exposed
+  agent after startup, the turn ends with the same error and stays in the conversation;
+  the call is recorded as declined, and the next message goes through.
+- **The console.** A conversation is a session. The Sessions page lists it under the
+  exposed agent, with an identity that starts with `a2a:`.
+
+To store conversations somewhere else, register an `AgentSessionStore` keyed by the
+agent name, or without a key; Tracon uses yours. To name the caller differently,
+register an `AgentIsolationKeyProvider`. Both types come from Microsoft Agent
+Framework and are marked experimental there. A store of your own receives the caller
+as the `isolation` partition of the key and must keep the callers apart.
 
 Both surfaces are configured in code, never from the console:
 `TraconMcpServerOptions` for the MCP server and `TraconA2AOptions` for A2A.
@@ -231,7 +280,7 @@ there is no expose-all switch for it.
 ## Production checklist
 
 - [ ] Expose only names whose input contract is safe for another system.
-- [ ] Design A2A exposed agents for single-turn messages; no `contextId` history is kept.
+- [ ] Expect token use to grow with each turn of a `contextId`; decide how a caller starts a new conversation.
 - [ ] Create a tenant-bound `ExternalInvoke` key and test revocation and expiry.
 - [ ] Keep approval-required and high-impact tools out of exposed definitions.
 - [ ] Set token, depth, and child-run budgets for externally initiated work.
