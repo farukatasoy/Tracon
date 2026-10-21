@@ -343,6 +343,187 @@ public sealed class WorkflowToolApprovalPatternTests
         cancels[0].ShouldBe(1);
     }
 
+    [Fact]
+    public async Task A_magentic_participant_waits_for_an_approval_and_the_task_goes_on_after_the_answer()
+    {
+        // Phase 230 left Magentic refusing because it was not measured. The orchestrator hosts its participants with
+        // the framework's host executor like the other patterns (MAF-KAPSAMA #49); this case is that measurement.
+        var cancels = new int[1];
+
+        await using var host = await StartMagenticAsync(cancels, ManagerScript());
+
+        await SaveMagenticAsync(host, requirePlanApproval: false);
+
+        var waiting = await RunToApprovalAsync(host, "orchestrated");
+
+        waiting.Run.Status.ShouldBe(RunStatus.AwaitingInput, waiting.Run.Error?.Message);
+        waiting.Form.ShouldBe("ToolApproval");
+        waiting.Prompt.ShouldContain(Tool, Case.Sensitive);
+        cancels[0].ShouldBe(0);
+
+        using var answer = await RespondAsync(host, waiting, new { approved = true });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.OK, await answer.Content.ReadAsStringAsync());
+
+        var resumed = (await ReadWaitingAsync(host, await ReadRunIdAsync(answer))).Run;
+
+        resumed.Status.ShouldBe(RunStatus.Completed, resumed.Error?.Message);
+        cancels[0].ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Refusing_a_magentic_participants_tool_runs_no_tool_and_the_task_goes_on()
+    {
+        var cancels = new int[1];
+
+        await using var host = await StartMagenticAsync(cancels, ManagerScript());
+
+        await SaveMagenticAsync(host, requirePlanApproval: false);
+
+        var waiting = await RunToApprovalAsync(host, "orchestrated");
+
+        using var answer = await RespondAsync(host, waiting, new { approved = false, text = "not today" });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.OK, await answer.Content.ReadAsStringAsync());
+
+        var resumed = (await ReadWaitingAsync(host, await ReadRunIdAsync(answer))).Run;
+
+        resumed.Status.ShouldBe(RunStatus.Completed, resumed.Error?.Message);
+        cancels[0].ShouldBe(0, "the refused tool must not run");
+    }
+
+    [Fact]
+    public async Task A_magentic_plan_review_and_a_participants_tool_approval_are_answered_one_after_the_other()
+    {
+        var cancels = new int[1];
+
+        await using var host = await StartMagenticAsync(cancels, ManagerScript());
+
+        await SaveMagenticAsync(host, requirePlanApproval: true);
+
+        var plan = await RunToApprovalAsync(host, "orchestrated");
+
+        plan.Run.Status.ShouldBe(RunStatus.AwaitingInput, plan.Run.Error?.Message);
+        plan.Form.ShouldBe("PlanReview");
+
+        using var planAnswer = await RespondAsync(host, plan, new { approved = true });
+
+        planAnswer.StatusCode.ShouldBe(HttpStatusCode.OK, await planAnswer.Content.ReadAsStringAsync());
+
+        var tool = await ReadWaitingAsync(host, await ReadRunIdAsync(planAnswer));
+
+        tool.Run.Status.ShouldBe(RunStatus.AwaitingInput, tool.Run.Error?.Message);
+        tool.Form.ShouldBe("ToolApproval");
+        cancels[0].ShouldBe(0);
+
+        using var toolAnswer = await RespondAsync(host, tool, new { approved = true });
+
+        toolAnswer.StatusCode.ShouldBe(HttpStatusCode.OK, await toolAnswer.Content.ReadAsStringAsync());
+
+        var finished = (await ReadWaitingAsync(host, await ReadRunIdAsync(toolAnswer))).Run;
+
+        finished.Status.ShouldBe(RunStatus.Completed, finished.Error?.Message);
+        cancels[0].ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_tool_of_the_magentic_manager_that_needs_approval_still_fails_the_workflow()
+    {
+        // The manager plans the task; the framework calls it directly, not through a host executor, so nothing
+        // would raise its request.
+        var cancels = new int[1];
+
+        var provider = new FakeModelProvider(Provider)
+            .WithModel(new ModelDescriptor { Name = Model })
+            .WithModel(new ModelDescriptor { Name = EditorModel })
+            .ForModel(Model, static cfg => cfg.RespondsWith("written"))
+            .ForModel(EditorModel, static cfg => cfg.CallsTool(Tool, new { orderId = "ORD-7" }).EchoesLastToolResult());
+
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddModelProvider(provider);
+            builder.AddAgent(WriterAgent(format: null));
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = "manager",
+                Instructions = "Manage.",
+                Model = new ModelBinding { Provider = Provider, Model = EditorModel },
+                ToolNames = [Tool],
+                Origin = AgentDefinitionOrigin.Code,
+            });
+            AddApprovalTool(builder, Tool, cancels);
+            builder.UseWorkflows();
+        });
+
+        await SaveMagenticAsync(host, requirePlanApproval: false);
+
+        var run = await RunToApprovalAsync(host, "orchestrated");
+
+        run.Run.Status.ShouldBe(RunStatus.Failed);
+        run.Run.Error.ShouldNotBeNull().Message.ShouldContain("cannot wait for a tool approval", Case.Sensitive);
+        run.Requests.ShouldBeEmpty();
+        cancels[0].ShouldBe(0);
+    }
+
+    /// <summary>The manager's five answers: facts, plan, a ledger that hands the task to the writer, a ledger that ends it, the final answer.</summary>
+    private static string[] ManagerScript() =>
+    [
+        "FACTS: an order must be canceled.",
+        "PLAN: the writer cancels ORD-7.",
+        Ledger(satisfied: false, instruction: "Cancel order ORD-7."),
+        Ledger(satisfied: true, instruction: "Nothing more."),
+        "FINAL: ORD-7 was handled.",
+    ];
+
+    private static string Ledger(bool satisfied, string instruction)
+        => $$$"""
+           {"is_request_satisfied":{"reason":"r","answer":{{{(satisfied ? "true" : "false")}}}},
+            "is_in_loop":{"reason":"r","answer":false},
+            "is_progress_being_made":{"reason":"r","answer":true},
+            "next_speaker":{"reason":"r","answer":"{{{Agent}}}"},
+            "instruction_or_question":{"reason":"r","answer":"{{{instruction}}}"}}
+           """;
+
+    private static Task<TraconTestHost> StartMagenticAsync(int[] cancels, string[] managerScript)
+    {
+        var provider = new FakeModelProvider(Provider)
+            .WithModel(new ModelDescriptor { Name = Model })
+            .WithModel(new ModelDescriptor { Name = EditorModel })
+            .ForModel(Model, static cfg => cfg.CallsTool(Tool, new { orderId = "ORD-7" }).EchoesLastToolResult())
+            .ForModel(EditorModel, cfg => cfg.RespondsWith(managerScript));
+
+        return TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddModelProvider(provider);
+            builder.AddAgent(WriterAgent(format: null, Tool));
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = "manager",
+                Instructions = "Manage.",
+                Model = new ModelBinding { Provider = Provider, Model = EditorModel },
+                Origin = AgentDefinitionOrigin.Code,
+            });
+            AddApprovalTool(builder, Tool, cancels);
+            builder.UseWorkflows();
+        });
+    }
+
+    private static async Task SaveMagenticAsync(TraconTestHost host, bool requirePlanApproval)
+    {
+        using var saved = await host.Client.PutAsJsonAsync(
+            "/tracon/api/workflows/orchestrated",
+            new WorkflowSaveRequest
+            {
+                Kind = WorkflowKind.Magentic,
+                ManagerAgentName = "manager",
+                AgentNames = [Agent],
+                MaxIterations = 5,
+                RequirePlanApproval = requirePlanApproval,
+            });
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+    }
+
     private static Task<TraconTestHost> StartTwoAgentsAsync(int[] cancels, int[] refunds)
     {
         var provider = new FakeModelProvider(Provider)
