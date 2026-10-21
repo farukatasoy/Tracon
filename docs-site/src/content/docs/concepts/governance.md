@@ -339,7 +339,7 @@ the form `ToolApproval`; the answer goes to
 `POST /api/workflows/runs/{runId}/respond` with `approved`, an optional reason in `text`, and
 optionally `remember`. The decision is recorded as `approval.decision`, like the other two, and
 saved as a rule the same way. See [A tool that asks for
-approval](/concepts/workflows/#a-tool-that-asks-for-approval).
+approval](/concepts/workflow-answers/#a-tool-that-asks-for-approval).
 
 Deciding either way **resumes** the run — the model has to see a result or a refusal
 and continue. And the decision opens a **new** run; the one that stopped is never

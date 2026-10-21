@@ -1,13 +1,14 @@
 ---
 title: Answering a workflow
-description: How an answer to a waiting workflow is audited and recorded, and how a one-answer workflow follows a repeated answer and refuses a different one.
+description: How an answer to a waiting workflow is audited and recorded, how a one-answer workflow treats a repeat, and how to answer a tool call that waits for approval.
 sidebar:
   order: 6
 ---
 
 What happens when a person answers a workflow that waits for input, and what happens when
 the same request gets a second answer? This page covers the two response modes, the audit
-entry and the record every answer leaves, and the cases where an answer can be given again.
+entry and the record every answer leaves, the cases where an answer can be given again, and
+the answer to an agent's tool call that waits for approval.
 How a workflow asks, and how an answer resumes it, is in
 [Asking a human](/concepts/workflows/#asking-a-human).
 
@@ -66,6 +67,62 @@ When a process stops while a streamed `SingleAnswer` run is going, that run stay
 `Running` run whose heartbeat stopped, and it reads no `Queued` run. Turn it on where a
 one-answer request must stay answerable after a crash.
 :::
+
+## A tool that asks for approval
+
+An agent in a workflow can call a tool that
+[needs approval](/concepts/governance/#approvals). Where the pattern hosts the agent — all
+five stored patterns when the definition lists `agentNames`, and a code graph that binds
+the agent with `GetWorkflowAgent` — the workflow stops instead of failing. The step's run
+closes `AwaitingApproval`, the workflow run closes `AwaitingInput`, and the request has the
+form `ToolApproval`. Its `prompt` names the tool and adds what your
+[approval presenter](/concepts/governance/#approvals) says about the call; the arguments
+are not copied into it.
+
+```mermaid
+flowchart LR
+    accTitle: A tool approval inside a workflow
+    accDescr: An agent in a workflow calls a tool that needs approval. The workflow closes as awaiting input with a ToolApproval request. The answer is audited, optionally saved as a rule, and the workflow continues on a new run that runs the tool once or hands the agent the refusal.
+    CALL["agent calls a tool<br/>that needs approval"] --> WAIT["workflow closes AwaitingInput<br/>request form: ToolApproval"]
+    WAIT --> ANS["POST .../respond<br/>approved, text, remember"]
+    ANS --> AUD["approval.decision audited<br/>rule saved when remembered"]
+    AUD --> NEW["a NEW run continues<br/>the tool runs once, or the agent reads the refusal"]
+```
+
+Answer it on the same endpoint as any other request:
+
+```bash
+curl -X POST "$TRACON/api/workflows/runs/$RUN/respond" \
+  -H "Content-Type: application/json" \
+  -d '{"requestId": "'"$REQUEST"'", "approved": true, "text": "checked with the customer", "remember": true}'
+```
+
+| Field | Meaning |
+|---|---|
+| `approved` | Required. `true` runs the tool; `false` refuses it, and the agent reads the refusal |
+| `text` | Optional reason. The agent reads it |
+| `remember` | Optional. With `approved: true`, also saves a rule: this agent is not asked again for this tool |
+
+The answer carries a decision and nothing else. It cannot name a tool call, because the
+call comes from the request the workflow recorded: a `data` value is refused with `400`, and
+so is `remember` together with `approved: false`, or on a request of any other form. The
+decision is written to the audit trail as `approval.decision` before the workflow
+continues, and an entry that cannot be written refuses the answer and leaves the
+workflow waiting. A rule saved with `remember` is the same rule the run-request path saves,
+for the agent that asked and the tool; a request that cannot name its agent (an agent
+Tracon did not wrap) cannot be remembered.
+
+The tool runs once, in the new run the answer opens, and it runs in whatever process takes
+the answer: the call is in the checkpoint, so a restart in between loses nothing. With
+`Concurrent`, two agents can ask at once: each approval is a request of its own, answered on
+its own, and the run that carries the first answer waits on the second. A request nobody
+answers runs out like any other ([Workflow requests and time
+limits](/concepts/workflow-requests/#giving-a-request-a-time-limit)); the step that waited
+closes `Failed` with the workflow.
+
+An agent that a step's agent calls as a sub-agent still cannot ask: its approval is a tool
+result the step's model reads, as in [Agents calling
+agents](/concepts/agents/#agents-calling-agents).
 
 ## What every answer leaves behind, in either mode
 
