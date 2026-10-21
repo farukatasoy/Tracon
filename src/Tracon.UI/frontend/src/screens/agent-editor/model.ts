@@ -7,6 +7,7 @@ import type {
   MemorySettings,
   ModelBinding,
   ModelFallback,
+  SkillSettings,
 } from '@tracon/client';
 // The definition READ back from the server, not the generated shape: the
 // generated one marks fields optional that a response always carries.
@@ -91,6 +92,7 @@ export type CompactionForm = Omit<CompactionSettings, 'strategy'> & { strategy: 
 
 export const emptyCompaction: CompactionForm = { strategy: 'None' };
 export const emptyMemory: MemorySettings = {};
+export const emptySkills: SkillSettings = {};
 
 export interface CultureInstructions {
   culture: string;
@@ -162,6 +164,7 @@ export interface FormState {
   fallbacks: ModelFallback[];
   toolNames: string[];
   skillNames: string[];
+  skills: SkillSettings;
   extensionNames: string[];
   callableAgentNames: string[];
   subAgentCallMode: SubAgentCallModeOption;
@@ -203,6 +206,7 @@ export const emptyForm: FormState = {
   fallbacks: [],
   toolNames: [],
   skillNames: [],
+  skills: emptySkills,
   extensionNames: [],
   callableAgentNames: [],
   subAgentCallMode: 'Background',
@@ -281,11 +285,12 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     model,
     toolNames: form.toolNames,
     skillNames: form.skillNames,
+    skills: anySettingOn(form.skills) ? form.skills : null,
     extensionNames: form.extensionNames,
     callableAgentNames: form.callableAgentNames,
     harness: form.harnessEnabled ? form.harness : null,
     compaction: form.compaction.strategy === 'None' ? null : form.compaction,
-    memory: memoryHasAnything(form.memory) ? form.memory : null,
+    memory: anySettingOn(form.memory) ? form.memory : null,
     subAgents: toSubAgents(form),
     mcpResourceUris: form.preserved.mcpResourceUris,
     metadata: form.preserved.metadata,
@@ -340,6 +345,7 @@ export function fromDefinition(definition: AgentDefinition): FormState {
     fallbacks: definition.model.fallbacks ?? [],
     toolNames: [...definition.toolNames],
     skillNames: [...definition.skillNames],
+    skills: definition.skills ?? emptySkills,
     extensionNames: [...(definition.extensionNames ?? [])],
     callableAgentNames: [...(definition.callableAgentNames ?? [])],
     subAgentCallMode: definition.subAgents?.callMode ?? 'Background',
@@ -398,7 +404,7 @@ function toInstructionsByCulture(rows: CultureInstructions[]): Record<string, st
 }
 
 /**
- * True when any memory setting is actually turned on.
+ * True when any setting of a settings block (memory, skills) is actually turned on.
  *
  * Deliberately generic rather than a list of the flags that existed when this
  * was written: the previous version named file/todo/text search only, so a
@@ -406,8 +412,8 @@ function toInstructionsByCulture(rows: CultureInstructions[]): Record<string, st
  * `memory: null` and lost the block on save. A predicate that enumerates
  * fields goes stale every time one is added; this one cannot.
  */
-function memoryHasAnything(memory: MemorySettings): boolean {
-  return Object.values(memory).some((value) =>
+function anySettingOn(settings: object): boolean {
+  return Object.values(settings).some((value) =>
     typeof value === 'string' ? value.trim().length > 0 : value !== null && value !== undefined && value !== false,
   );
 }

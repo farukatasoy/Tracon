@@ -66,6 +66,36 @@ public sealed class AgentDefinitionValidatorTests
     }
 
     [Fact]
+    public async Task Skill_settings_on_an_agent_that_names_no_skill_produce_a_warning_that_does_not_stop_the_definition()
+    {
+        var (validator, _, _) = CreateValidator();
+
+        var definition = TestData.Definition() with { Skills = new SkillSettings { DisableReadApproval = true } };
+        var report = await validator.ValidateAsync(definition);
+
+        report.Valid.ShouldBeTrue("a warning never stops the definition");
+        var message = report.Messages.ShouldHaveSingleItem();
+        message.Severity.ShouldBe(ValidationSeverity.Warning);
+        message.Code.ShouldBe(AgentDefinitionValidator.SkillSettingsWithoutSkillsCode);
+        message.Path.ShouldBe("skills");
+    }
+
+    [Fact]
+    public async Task Skill_settings_on_an_agent_that_names_a_skill_produce_no_such_warning()
+    {
+        var (validator, _, _) = CreateValidator();
+
+        var definition = TestData.Definition() with
+        {
+            SkillNames = ["no-such"],
+            Skills = new SkillSettings { DisableReadApproval = true },
+        };
+        var report = await validator.ValidateAsync(definition);
+
+        report.Messages.Select(static message => message.Code).ShouldBe(["unknown_skill"]);
+    }
+
+    [Fact]
     public async Task Self_referencing_definition_produces_cycle()
     {
         var descriptors = new[]

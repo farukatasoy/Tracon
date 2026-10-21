@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A definition can turn the approval of the two skill read tools off.** Microsoft Agent Framework asks for
+  approval before `load_skill`, `read_skill_resource` and `run_skill_script`, so an agent with skills could
+  not run where nobody can answer: an A2A or MCP call, a run with no session, a scheduled run. The new
+  `SkillSettings` record (`AgentDefinition.Skills`, `AgentDefinitionRequest.Skills`, `AgentDescriptor.Skills`,
+  and `skills` in the HTTP body) has one member, `DisableReadApproval`. With `true`, `load_skill` and
+  `read_skill_resource` run without approval. `run_skill_script` keeps its approval: it runs code, so no member
+  of the definition turns that off (a standing approval rule can still approve it). The default is unchanged, a definition stored before this release reads back with all three
+  tools asking, and the console's skills section has one box for it. A definition that sets `Skills` but
+  names no skill gets the validation warning `skill_settings_without_skills`. Skill text reaches the model as
+  instructions, so turn the box on only for skills that a tenant administrator writes.
+
 - **A workflow waits for a tool that needs approval, and a person answers it.** Before, an agent step
   whose tool needs approval failed the whole workflow unless an auto-approval rule existed. Where a
   Microsoft Agent Framework pattern hosts the agent (a stored `Sequential`, `Concurrent`, `Handoff`, `GroupChat` or `Magentic` workflow
@@ -234,6 +245,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that uses only one of the two, does not change.
 
 ### Fixed
+
+- **The A2A and MCP exposure check refuses an agent whose skill tools ask for approval.** The check read only
+  the tool registry, and the skill tools are not in it, so an agent with skills was exposed and its first
+  `load_skill` call closed the run `Failed` with `approval_unanswerable` (`-32603` over A2A). The host now
+  refuses the agent when it starts, names the agent and the way out (`Skills.DisableReadApproval`, or remove
+  the skills), and opens it when the definition turns the read approval off. A host that exposed such an
+  agent and relied on every call failing must set `Skills.DisableReadApproval` on the definition, or take the
+  agent off the allow list. The check reads the catalog once, when the host starts: an agent saved later is not
+  checked, and a model that calls `run_skill_script` still ends the run at the call unless a standing approval
+  rule covers it.
 
 - **A tool that Microsoft Agent Framework already wrapped for approval reports that it needs approval.**
   `AddTool(new ApprovalRequiredAIFunction(fn))` — the default shape of `DockerShellExecutor.AsAIFunction()` —

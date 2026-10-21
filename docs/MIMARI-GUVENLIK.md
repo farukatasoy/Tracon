@@ -77,7 +77,7 @@ Ek sınırlar:
 **Tool onayı.** `RequiresApproval = true` işaretli tool, `ToolRegistry` içinde
 `ApprovalRequiredAIFunction` ile sarılır. Sarmalama **defterde** yapılır: defter,
 "bir agent yalnızca kayıtlı bir tool'a işaret edebilir" kuralının zorlandığı tek
-yerdir, yani başka bir kod yolu sarmalamayı atlayamaz.
+yerdir, yani başka bir kod yolu sarmalamayı atlayamaz. Skill araçları defterde değildir: MAF üçünü de sarar; tanım yalnız ikisini (`Skills.DisableReadApproval`) kapatır (K-1061).
 
 **Asenkron onay kutusu (Faz 55).** Kuyruktan koşan bir çalıştırma onay isteyip
 `AwaitingApproval`'a düşerse `pending_approvals` üzerinden

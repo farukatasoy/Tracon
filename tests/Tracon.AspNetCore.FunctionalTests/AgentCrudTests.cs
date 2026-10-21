@@ -387,6 +387,73 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
+    public async Task Skill_settings_round_trip_and_an_update_without_them_clears_them()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static builder => builder.AddSkill(new AgentSkillDefinition
+            {
+                TenantId = "default",
+                Name = "house-style",
+                Description = "How every reply is worded.",
+                Instructions = "Answer in three words.",
+            }));
+
+        var request = TestData.Request() with
+        {
+            SkillNames = ["house-style"],
+            Skills = new SkillSettings { DisableReadApproval = true },
+        };
+
+        using (var created = await host.Client.PostAsJsonAsync(Agents, request))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
+        }
+
+        using (var response = await host.Client.GetAsync(new Uri("/tracon/api/agents/db-agent", UriKind.Relative)))
+        {
+            var definition = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("definition");
+
+            definition.GetProperty("skills").GetProperty("disableReadApproval").GetBoolean().ShouldBeTrue();
+        }
+
+        // The request is the whole definition: an update that leaves the settings out turns the approval back on.
+        using (var updated = await host.Client.PutAsJsonAsync(
+                   new Uri("/tracon/api/agents/db-agent", UriKind.Relative),
+                   request with { Skills = null }))
+        {
+            updated.EnsureSuccessStatusCode();
+        }
+
+        using (var response = await host.Client.GetAsync(new Uri("/tracon/api/agents/db-agent", UriKind.Relative)))
+        {
+            var definition = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("definition");
+
+            (!definition.TryGetProperty("skills", out var skills) || skills.ValueKind == System.Text.Json.JsonValueKind.Null)
+                .ShouldBeTrue(definition.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task Validation_warns_about_skill_settings_on_an_agent_that_names_no_skill()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents/validate", UriKind.Relative),
+            TestData.Request() with { Skills = new SkillSettings { DisableReadApproval = true } });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+
+        var report = await TraconTestHost.ReadJsonAsync(response);
+
+        report.GetProperty("valid").GetBoolean().ShouldBeTrue(report.ToString());
+        report.GetProperty("messages").EnumerateArray()
+            .Select(static message => message.GetProperty("code").GetString())
+            .Contains("skill_settings_without_skills", StringComparer.Ordinal)
+            .ShouldBeTrue(report.ToString());
+    }
+
+    [Fact]
     public async Task Cannot_roll_back_to_a_nonexistent_version()
     {
         await using var host = await TraconTestHost.StartAsync();

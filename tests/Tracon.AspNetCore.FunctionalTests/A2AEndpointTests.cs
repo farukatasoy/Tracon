@@ -162,6 +162,66 @@ public sealed class A2AEndpointTests
         exception.Message.ShouldContain("cancel_order", Case.Sensitive);
     }
 
+    /// <summary>
+    /// The skill tools are not in the tool registry: the framework adds them when it builds the agent and
+    /// wraps all three for approval. The guard reads the definition's skill settings instead (F-626).
+    /// </summary>
+    [Fact]
+    public async Task An_agent_using_skills_with_the_read_approval_on_cannot_be_exposed_via_A2A()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition() with { SkillNames = ["house-style"] })
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconA2A());
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(() => host.Client.GetAsync(
+            new Uri("/tracon/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative)));
+
+        exception.Message.ShouldContain("kod-agent", Case.Sensitive);
+        exception.Message.ShouldContain("skills", Case.Sensitive);
+        exception.Message.ShouldContain("Skills.DisableReadApproval", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// The skill rule applies to the agents the host exposes, not to every agent it holds. A host that publishes
+    /// one agent must start even when another, unpublished agent uses skills with the approval on.
+    /// </summary>
+    [Fact]
+    public async Task An_agent_using_skills_with_the_read_approval_on_that_is_not_on_the_allow_list_does_not_stop_the_host()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition())
+                .AddAgent(TestData.Definition("skilled-agent") with { SkillNames = ["house-style"] })
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconA2A());
+
+        using var response = await host.Client.GetAsync(
+            new Uri("/tracon/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task An_agent_using_skills_with_the_read_approval_off_is_exposed_via_A2A()
+    {
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddAgent(TestData.Definition() with
+                {
+                    SkillNames = ["house-style"],
+                    Skills = new SkillSettings { DisableReadApproval = true },
+                })
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconA2A());
+
+        using var response = await host.Client.GetAsync(
+            new Uri("/tracon/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     [Fact]
     public async Task MapTraconA2A_does_not_crash_on_an_empty_sqlite_database()
     {

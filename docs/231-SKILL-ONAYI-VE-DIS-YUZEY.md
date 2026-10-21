@@ -1,6 +1,6 @@
 # Faz 231 — Skill Okuma Onayı Tanımda ve Dış Yüzey Kapısı
 
-> **Durum:** 📋 Planlandı (2026-10-21)
+> **Durum:** ✅ Tamamlandı (2026-10-21)
 > **Kademe:** tam — güvenlik sınırı (tool onayı; A2A/MCP dış yüzey kapısı)
 > **Plan onayı:** farukatasoy, 2026-10-21 (seçim: okuma onayı varsayılan açık kalır, tanım kapatabilir; `run_skill_script` hep onaylı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-626** (ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #45, #50; §8.4 K5-1)
@@ -249,25 +249,40 @@ ayar tanımdadır, tanım kiracıya bağlıdır · **alt sistem hatası** — yo
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `skills.disableReadApproval: true` tanımlı agent'ta `load_skill` onaysız koşar; `run_skill_script` onay ister (fonksiyonel test)
-- [ ] Okuma onayı açık skill'li agent A2A ve MCP'de açılışta reddedilir; mesaj skill'i ve çareyi anar
-- [ ] Okuma onayı kapalı skill'li agent A2A'da `load_skill` ile `Completed` olur
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/14-SKILL-VE-SCRIPT.md` / `18-MCP-VE-A2A.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] F-626 `ADAYLAR.md`'de yok; `MAF-KAPSAMA.md` §0 #50 ve §8.4 K5-1 "kapandı" der
+- [x] `skills.disableReadApproval: true` tanımlı agent'ta `load_skill` onaysız koşar; `run_skill_script` onay ister (fonksiyonel test) — `SkillReadApprovalTests` (düz ve harness agent × bayrak), `SkillExposureTests` (oturumsuz run, script)
+- [x] Okuma onayı açık skill'li agent A2A ve MCP'de açılışta reddedilir; mesaj skill'i ve çareyi anar — `A2AEndpointTests`, `McpServerEndpointTests`, `SkillExposureTests` (veritabanı agent'ı)
+- [x] Okuma onayı kapalı skill'li agent A2A'da `load_skill` ile `Completed` olur — `SkillExposureTests` (kod agent'ı × harness, veritabanı agent'ı)
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis`
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıdaki "Örnek uygulama koşumu"
+- [x] `secret` taraması boş döndü — `kapi.py tarama` ("temiz")
+- [x] `🤖` case'ler `docs/manuel-test/14-SKILL-VE-SCRIPT.md` / `18-MCP-VE-A2A.md` içinde ve koşuldu — `MT-SKILL-085`, `086`, `MT-MCP-092`
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 🔴 yok; 🟡 ve 🟢 "Denetim Bulguları"nda
+- [x] `docs-site/` güncellendi; `npm run check` temiz — içerik, derleme, bağlantı, ağırlık kapıları yeşil
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — ana JS brotli 186,6 → 186,7 KB, gzip 220,8 → 221,1 KB (bütçe 250 KB)
+- [x] F-626 `ADAYLAR.md`'de yok; `MAF-KAPSAMA.md` §0 #50 ve §8.4 K5-1 "kapandı" der
+
+### Örnek uygulama koşumu (2026-10-21, gerçek `openai` / `gpt-5.4-mini`)
+
+Geçici SQLite dosyası; PostgreSQL ve SQL Server bağlantı dizeleri boş verildi (günlükte `Npgsql` satırı: 0).
+`PUT` yeni agent oluşturmadığı için agent'lar `POST /api/agents` ile yazıldı.
+
+| Adım | Gerçek çıktı |
+|---|---|
+| `GET /api/agents/manuel-skill-test` → `definition.skills` | `{'disableReadApproval': True}` |
+| `GET /api/agents/manuel-skill-default` → `definition.skills` | `None` |
+| Oturumsuz run, onay kapalı agent | `200`; `load_skill` çağrısı ve sonucu skill talimatını taşır; run `Completed` |
+| Oturumsuz run, varsayılan agent | `409`, `errorType: approval_unanswerable`, `detail`: "asked for approval to call 'load_skill'"; run `Failed` |
+| A2A, `manuel-skill-test` açık | kart `200`; `SendMessage` → `{"message":{"role":"ROLE_AGENT","parts":[{"text":"FATURA_SKILL_ACTIVE"}]…}}`; run `Completed` |
+| A2A, `manuel-skill-default` açık | `LogCritical` "The 'manuel-skill-default' agent cannot be exposed over A2A: it uses skills … Set Skills.DisableReadApproval on the definition, or remove the skills, or remove this agent from the allow list."; host kapandı |
+| Konsol (tarayıcı): kutuyu işaretle, "Save new version" | `version` 2, `definition.skills` `{'disableReadApproval': True}`; oturumsuz run `200` |
 
 ### Doğrulama komutları
 
 ```bash
 # Tanım alanı yazılır ve okunur
-curl -s -X PUT "$BASE/api/agents/skilled" -H "content-type: application/json" \
+curl -s -X POST "$BASE/api/agents" -H "content-type: application/json" \
   -d '{"name":"skilled","model":{"provider":"openai","model":"gpt-5.4-mini"},"skillNames":["house-skill"],"skills":{"disableReadApproval":true}}'
-curl -s "$BASE/api/agents/skilled" | python3 -c "import json,sys; print(json.load(sys.stdin)['skills'])"
+curl -s "$BASE/api/agents/skilled" | python3 -c "import json,sys; print(json.load(sys.stdin)['definition']['skills'])"
 ```
 
 ---
@@ -292,12 +307,38 @@ curl -s "$BASE/api/agents/skilled" | python3 -c "import json,sys; print(json.loa
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+- **231.3 projeksiyon:** `CompositeAgentCatalog.cs:421` (`Freeze`) bir `with` ifadesidir; `Skills` kendiliğinden
+  taşınır, satır yazılmadı. Elle yazılan iki yer `AgentDescriptorProjection` ve `CodeAgentSource`'tur
+  (`CompositeAgentCatalog.cs:305` yalnız "listelendi ama çözülmedi" yedeğidir).
+- **231.3 kapı:** `EnsureNoApprovalRequiredTools` onay isteyen tool yokken erken dönüyordu; skill kuralı o satırın
+  arkasında kalırdı. Erken dönüş kaldırıldı, skill kuralı tool kuralından sonra aynı döngüde koşar.
+- **231.3 kapı sınırı:** kapı katalogu host açılırken bir kez okur (arka plan görevi, her istek bekler). Açıldıktan
+  sonra HTTP ile kaydedilen veritabanı agent'ı denetlenmez; plan "DB agent" testini bu yüzden iki host ile yazar:
+  birincisi agent'ı geçici SQLite dosyasına yazar, ikincisi aynı dosyada A2A'yı açar. `SessionlessApprovalTests`
+  yorumundaki "kapı ilk istekte okur" ifadesi bu ölçümle çelişir; yorum düzeltilmedi (kapsam dışı).
+- **Doğrulama komutu:** `PUT /api/agents/{ad}` yeni agent oluşturmaz (`404`). DoD komutu `POST /api/agents` ve
+  `definition.skills` okuyacak biçimde düzeltildi.
+- **Açık Sorular:** 1 → **A** (ölçüldü: `ChatClientAgentOptions` ve `HarnessAgentOptions` `AgentSkillsProviderOptions`
+  taşımaz; uzantı provider'ın seçeneklerine ulaşamaz, korunan satır ve `AgentExtensionRunTests` case'i gerekmedi) ·
+  2 → **A** · 3 → **A** (planın önerileri).
+- **Testler:** `SkillReadApprovalTests` Core.UnitTests'tedir (derlenmiş agent'ın model tool listesi, iki agent tipi ×
+  bayrak); HTTP/A2A/oturumsuz run kanıtı `SkillExposureTests`'tedir. `skills-section.test.tsx` açılmadı: kutu
+  `agent-editor.test.tsx`, `model.test.ts` ve tam-değiştirme kapısı `full-replace-editors.test.tsx` içinde.
+  Doğrulayıcı uyarısının kodu `skill_settings_without_skills`.
+- **Bundle:** plandaki 184,6 KB bayattı. Aynı gün tabanı 186,6 KB brotli / 220,8 KB gzip; faz sonrası 186,7 / 221,1
+  (+0,1 / +0,3 KB; bütçe 250 KB gzip).
+- **Public tip tabanı:** `public-surface-baseline.txt` `Tracon.Abstractions` 398 → 399 (`SkillSettings`; planlı, tek tip). Taban yalnız küçülür kuralı bilinçli bir yüzey eklemesinde `TRACON_PUBLIC_SURFACE_REFRESH=1` ile yenilenir.
+- **Değişmeyen kayıt:** `TraconClientJsonContext.g.cs` yeniden üretildi, değişmedi (`SkillSettings` kökten erişilir).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+- **K-1061** (`public-api`, `güvenlik`, kullanıcı kararı): skill okuma onayını tanım kapatır; script onayını hiçbir
+  ayar kapatmaz; kapı tanımdaki ayarı okur. `docs/KARARLAR.md`'de.
 
 ## Süreç Ölçümü
 
@@ -309,10 +350,10 @@ curl -s "$BASE/api/agents/skilled" | python3 -c "import json,sys; print(json.loa
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 0 yeniden yazım; 9 sapma maddesi (kapı erken dönüşü, kapı okuma anı, `PUT` komutu, bayat bundle tabanı, üç Açık Soru) |
+| Düzeltme turu sayısı | 3 (denetim bulguları; `AgentDefinitionRoundTripTests` ratchet'i; kapanışta OpenAPI anlık görüntüsü ve public tip tabanı) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 kullanıcıya ulaşan. Kapanıştan önce 3 ratchet düştü, hepsi kapıda yakalandı: `AgentDefinitionRoundTripTests.ToDefinition_carries_every_field_the_consumer_owns` (`ic-dongu`; fixture yeni alanı taşımıyordu) · `OpenApiSnapshotTests` (denetim sonrası XML açıklaması daraltıldı, anlık görüntü yenilenmedi) · `PublicSurfaceBaselineTests` (`SkillSettings` +1) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -320,3 +361,20 @@ curl -s "$BASE/api/agents/skilled" | python3 -c "import json,sys; print(json.loa
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+**Denetim — Faz 231 (2026-10-21), `faz-denetcisi`: 🔴 yok.** Kapı yanlış kararda ya kapalı hata verir (güvenli agent'ı
+reddeder) ya da çalışma anı reddine düşer; onay açık bir tool onaysız koşmaz.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Elle yazılan üçüncü taraf descriptor'ı (`CustomAgentSource` örneği) `Skills`'i düşürür; kapı güvenli agent'ı çaresiz reddeder | 🟡 | Düzeltildi: örnek `Skills`'i kopyalar; `write-your-own-agent-source.md` kuralı yazar; `hafiza/mcp-a2a-sunucu.md` notu. Örneğin `ExtensionNames` kusuru F-640 |
+| Sürüm karşılaştırma ekranı `skills` farkını göstermez (kapıyı gevşeten değişiklik "fark yok" görünür) | 🟡 | Düzeltildi: `agent-detail.tsx` bölümü + `agent-detail.test.tsx` case'i |
+| Allow list dışındaki skill'li agent'ın host'u durdurmadığını kanıtlayan test yok | 🟡 | Düzeltildi: `A2AEndpointTests` ve `McpServerEndpointTests` case'leri |
+| Kapı katalogu açılışta ve bağlamsız okur; belge kapsamı yazmıyor | 🟡 | Belgelendi (`external-agents.md`, `CHANGELOG.md`, `ExternalSurfaceGuard` remarks). Çok kiracılı davranış **ölçülmedi**: F-639 |
+| "`run_skill_script` her zaman sorar" iddiası kalıcı onay kuralı varken doğru değil (`ToolApprovalRuleEvaluator`) | 🟡 | Düzeltildi: yedi metin ve K-1061 başlığı "tanımdaki hiçbir ayar" der; kural anılır. Kuralı yok sayma kararı K-1061'i genişletir, alınmadı |
+| Kod agent'ı için editör `skills`'i descriptor'dan tohumlamaz (kutu yanlış işaretsiz görünür) | 🟢 | Düzeltildi (bir satır) + `agent-editor.test.tsx` case'i; mutasyonla kırmızı doğrulandı |
+| Kapı çağrılabilir alt agent'ın skill'ini görmez | 🟢 | F-639 |
+| `RunContinuationJobHandler` yorumu `Skills`'in sıfırlandığını söylüyordu | 🟢 | Yorum düzeltildi (yalnız `SkillNames` sıfırlanır) |
+| `SessionlessApprovalTests` yorumu "kapı ilk istekte okur" diyordu | 🟢 | Yorum düzeltildi |
+| `MIMARI-GUVENLIK.md` "Tool onayı" paragrafı skill araçlarını anmıyordu | 🟢 | Bir cümle eklendi |
+| "Planlanan Public API" `AgentDefinitionRequest.Skills`'i anmıyordu | 🟢 | Doküman kapanışta silinir; imza kodda ve `PublicAPI.Unshipped.txt`'te |

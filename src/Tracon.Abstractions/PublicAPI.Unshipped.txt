@@ -37,6 +37,8 @@ Tracon.AgentDefinition.SharedInstructionsName.get -> string?
 Tracon.AgentDefinition.SharedInstructionsName.init -> void
 Tracon.AgentDefinition.SkillNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.AgentDefinition.SkillNames.init -> void
+Tracon.AgentDefinition.Skills.get -> Tracon.SkillSettings?
+Tracon.AgentDefinition.Skills.init -> void
 Tracon.AgentDefinition.SubAgents.get -> Tracon.SubAgentSettings?
 Tracon.AgentDefinition.SubAgents.init -> void
 Tracon.AgentDefinition.TenantId.get -> string?
@@ -71,6 +73,8 @@ Tracon.AgentDescriptor.Origin.get -> Tracon.AgentDefinitionOrigin
 Tracon.AgentDescriptor.Origin.init -> void
 Tracon.AgentDescriptor.SkillNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.AgentDescriptor.SkillNames.init -> void
+Tracon.AgentDescriptor.Skills.get -> Tracon.SkillSettings?
+Tracon.AgentDescriptor.Skills.init -> void
 Tracon.AgentDescriptor.SourceName.get -> string!
 Tracon.AgentDescriptor.SourceName.init -> void
 Tracon.AgentDescriptor.ToolNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
@@ -3011,6 +3015,12 @@ Tracon.SkillScriptGrant.TenantId.init -> void
 Tracon.SkillScriptOrigin
 Tracon.SkillScriptOrigin.File = 0 -> Tracon.SkillScriptOrigin
 Tracon.SkillScriptOrigin.Stored = 1 -> Tracon.SkillScriptOrigin
+Tracon.SkillSettings
+Tracon.SkillSettings.<Clone>$() -> Tracon.SkillSettings!
+Tracon.SkillSettings.DisableReadApproval.get -> bool
+Tracon.SkillSettings.DisableReadApproval.init -> void
+Tracon.SkillSettings.Equals(Tracon.SkillSettings? other) -> bool
+Tracon.SkillSettings.SkillSettings() -> void
 Tracon.SpeechAlignment
 Tracon.SpeechAlignment.<Clone>$() -> Tracon.SpeechAlignment!
 Tracon.SpeechAlignment.Character.get -> string!
@@ -4714,6 +4724,9 @@ override Tracon.SkillScriptExecutionResult.ToString() -> string!
 override Tracon.SkillScriptGrant.Equals(object? obj) -> bool
 override Tracon.SkillScriptGrant.GetHashCode() -> int
 override Tracon.SkillScriptGrant.ToString() -> string!
+override Tracon.SkillSettings.Equals(object? obj) -> bool
+override Tracon.SkillSettings.GetHashCode() -> int
+override Tracon.SkillSettings.ToString() -> string!
 override Tracon.SpeechAlignment.Equals(object? obj) -> bool
 override Tracon.SpeechAlignment.GetHashCode() -> int
 override Tracon.SpeechAlignment.ToString() -> string!
@@ -5186,6 +5199,8 @@ static Tracon.SkillScriptExecutionResult.operator !=(Tracon.SkillScriptExecution
 static Tracon.SkillScriptExecutionResult.operator ==(Tracon.SkillScriptExecutionResult? left, Tracon.SkillScriptExecutionResult? right) -> bool
 static Tracon.SkillScriptGrant.operator !=(Tracon.SkillScriptGrant? left, Tracon.SkillScriptGrant? right) -> bool
 static Tracon.SkillScriptGrant.operator ==(Tracon.SkillScriptGrant? left, Tracon.SkillScriptGrant? right) -> bool
+static Tracon.SkillSettings.operator !=(Tracon.SkillSettings? left, Tracon.SkillSettings? right) -> bool
+static Tracon.SkillSettings.operator ==(Tracon.SkillSettings? left, Tracon.SkillSettings? right) -> bool
 static Tracon.SpeechAlignment.operator !=(Tracon.SpeechAlignment? left, Tracon.SpeechAlignment? right) -> bool
 static Tracon.SpeechAlignment.operator ==(Tracon.SpeechAlignment? left, Tracon.SpeechAlignment? right) -> bool
 static Tracon.SpeechDialogueCapabilities.operator !=(Tracon.SpeechDialogueCapabilities? left, Tracon.SpeechDialogueCapabilities? right) -> bool

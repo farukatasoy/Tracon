@@ -183,6 +183,73 @@ public sealed class WorkflowToolApprovalPatternTests
         sub.Error.ShouldNotBeNull().Message.ShouldContain("A child agent cannot request approval", Case.Sensitive);
     }
 
+    /// <summary>
+    /// A skill tool is a tool that needs approval like any other (F-626, Phase 231): the step waits for the
+    /// answer when the definition leaves the read approval on, and does not when the definition turns it off.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_step_that_loads_a_skill_waits_for_an_approval_only_when_the_read_approval_is_on(bool disableReadApproval)
+    {
+        const string skill = "house-style";
+        const string skillText = "Answer every question in exactly three words.";
+
+        var provider = new FakeModelProvider(Provider)
+            .WithModel(new ModelDescriptor { Name = Model })
+            .CallsTool("load_skill", new { skillName = skill })
+            .EchoesLastToolResult();
+
+        await using var host = await TraconTestHost.StartAsync(builder =>
+        {
+            builder.AddModelProvider(provider);
+            builder.AddSkill(new AgentSkillDefinition
+            {
+                TenantId = "default",
+                Name = skill,
+                Description = "How every reply is worded.",
+                Instructions = skillText,
+            });
+            builder.AddAgent(new AgentDefinition
+            {
+                Name = Agent,
+                Instructions = "Use the skill.",
+                Model = new ModelBinding { Provider = Provider, Model = Model },
+                SkillNames = [skill],
+                Skills = disableReadApproval ? new SkillSettings { DisableReadApproval = true } : null,
+                Origin = AgentDefinitionOrigin.Code,
+            });
+            builder.UseWorkflows();
+        });
+
+        await SaveAsync(host, "skilled-chain", WorkflowKind.Sequential, [Agent]);
+
+        var run = await RunToApprovalAsync(host, "skilled-chain");
+
+        if (disableReadApproval)
+        {
+            run.Run.Status.ShouldBe(RunStatus.Completed, run.Run.Error?.Message);
+            run.Requests.ShouldBeEmpty("the definition turned the read approval off");
+
+            return;
+        }
+
+        run.Run.Status.ShouldBe(RunStatus.AwaitingInput, run.Run.Error?.Message);
+
+        var request = run.Requests.ShouldHaveSingleItem();
+
+        request.Form.ShouldBe("ToolApproval");
+        request.Prompt.ShouldContain("load_skill", Case.Sensitive);
+
+        using var answer = await RespondAsync(host, run, new { approved = true });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.OK, await answer.Content.ReadAsStringAsync());
+
+        var resumed = (await ReadWaitingAsync(host, await ReadRunIdAsync(answer))).Run;
+
+        resumed.Status.ShouldBe(RunStatus.Completed, resumed.Error?.Message);
+    }
+
     [Fact]
     public async Task A_request_nobody_answers_runs_out_of_time_and_the_step_that_waited_fails_with_the_workflow()
     {

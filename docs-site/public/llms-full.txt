@@ -580,6 +580,10 @@ features stay off until the definition asks for each one:
 | File memory | `Memory.EnableFileMemory`, on the registered `AgentFileStore` | Write files under the server's working directory |
 | Web search | `Harness.EnableWebSearch`, the provider's hosted search | Turn on because the harness has it |
 
+The skill tools ask for approval by default. `Skills.DisableReadApproval` turns that off for
+`load_skill` and `read_skill_resource`, and an agent that is exposed over A2A or MCP needs it
+([Approval of the skill tools](/concepts/tools/#approval-of-the-skill-tools)).
+
 A definition that turns a feature on and sets its `Disable*` switch is a
 compilation error. Hosted web search runs at the model provider, which bills it,
 and depends on the provider surface: OpenAI Chat Completions (`openai`) accepts it
@@ -1871,6 +1875,12 @@ run started without a `sessionId` can never be answered, so it closes `Failed` w
 error type `approval_unanswerable` — `409` on a non-streaming run, an `error` event on a
 stream. The same holds for every surface that cannot carry an answer back: Chat
 Completions, an agent exposed over MCP or A2A, a batch item and an eval case.
+
+The skill tools ask like any other tool. A definition can turn the approval off for
+`load_skill` and `read_skill_resource` with `Skills.DisableReadApproval`, which is what an
+agent needs on those surfaces; the definition has no setting for `run_skill_script`. The host refuses to expose an agent over
+MCP or A2A while its skill read approval is on. [Approval of the skill
+tools](/concepts/tools/#approval-of-the-skill-tools) has the details.
 
 **The mailbox.** A queued run stops at `AwaitingApproval` and the request waits in
 `GET /api/approvals/pending`, with the tool's recorded arguments for the approver to
@@ -3861,6 +3871,47 @@ An agent lists skills by name. Deleting a skill an agent still names is a real b
 compiling that agent then fails with "the skill was not found" until the reference is
 removed or the skill is recreated. Check which agents use a skill before deleting it.
 
+### Approval of the skill tools
+
+An agent that names skills gets three tools from Microsoft Agent Framework: `load_skill`,
+`read_skill_resource` and `run_skill_script`. All three ask for approval by default. That is
+a problem where nobody can answer: an agent exposed over A2A or MCP, a run with no `sessionId`,
+a scheduled run. Its first `load_skill` call closes the run `Failed` with the error type
+`approval_unanswerable`.
+
+A definition can turn the approval off for the two tools that only read text:
+
+```csharp
+new AgentDefinition
+{
+    Name = "support",
+    Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
+    SkillNames = ["house-style"],
+    Skills = new SkillSettings { DisableReadApproval = true },
+}
+```
+
+The same setting in the HTTP body of `POST /api/agents` and `PUT /api/agents/{name}`, and
+in the console's skills section, is `"skills": { "disableReadApproval": true }`. A request is
+the whole definition: a `PUT` that leaves `skills` out turns the approval on again.
+
+| Tool | Default | With `DisableReadApproval` |
+|---|---|---|
+| `load_skill` | Asks | Runs |
+| `read_skill_resource` | Asks | Runs |
+| `run_skill_script` | Asks | **Asks** |
+
+`run_skill_script` keeps its approval. It runs code, so the definition has no setting for it. A
+standing approval rule that an administrator writes for `run_skill_script` can still approve the
+call; a definition cannot. Where nobody can answer and no such rule exists, a model that calls it
+ends the run at the call.
+
+Skill text reaches the model as instructions. When the approval is off, no person reads that
+text before the model does. Turn it off only for skills that a tenant administrator writes.
+A workflow step treats a skill tool like any other tool: with the approval on, the step stops
+and waits for a person to answer ([a tool that asks for
+approval](/concepts/workflows/#a-tool-that-asks-for-approval)).
+
 ### Skill scripts — the strict exception
 
 A skill may also carry **scripts**, and this is the second deliberate exception to the
@@ -5297,6 +5348,11 @@ failing it: the request has the form `ToolApproval` and is answered with `approv
 reason, and optionally `remember`. [Answering a tool
 approval](/concepts/workflow-answers/#a-tool-that-asks-for-approval) has the rules.
 
+The skill tools are tools that ask. A step whose agent names skills stops for an approval at its
+first `load_skill` call, unless the agent's definition sets `Skills.DisableReadApproval`.
+`run_skill_script` always stops the step. See [Approval of the skill
+tools](/concepts/tools/#approval-of-the-skill-tools).
+
 ### One answer per request
 
 A workflow can take one answer per request instead (`WorkflowResponseMode.SingleAnswer`):
@@ -5924,6 +5980,7 @@ upgrade window](/reference/versioning/#the-supported-upgrade-window).
 An agent definition keeps its content in one JSON column. A field that a new version adds
 to the definition, such as the list of agent extensions, needs no migration: a row that
 was written before the field existed reads the field as empty, and it keeps running as it did.
+A row without `skills` reads back with the approval on for all three skill tools.
 
 ## Keeping it from growing forever
 
@@ -10016,6 +10073,19 @@ cannot act as the missing human. A tool that gains approval after the agent was 
 is refused at the call, and the run closes `Failed` with the error type
 `approval_unanswerable`: nobody can ever answer it, so it does not wait.
 
+The skill tools follow the same rule. They are not in the tool registry: Microsoft Agent
+Framework adds them when it builds the agent, and it makes all three ask for approval. An
+exposed agent that names skills must set `Skills.DisableReadApproval` on its definition
+(see [Approval of the skill tools](/concepts/tools/#approval-of-the-skill-tools)). Without it,
+the host refuses to open the agent and the message names the agent and the setting. With it,
+`load_skill` and `read_skill_resource` run. `run_skill_script` keeps its approval, so the check does
+not count it; a model that calls it ends the run with `approval_unanswerable`, unless a standing
+approval rule covers the tool.
+
+The check reads the catalog once, when the host starts, with no request in scope. An agent that you
+save through the API after that is not checked, and neither is an agent that a callable agent
+reaches. The run-time refusal is the boundary for those agents.
+
 ### Long-running calls as MCP tasks
 
 By default, a `tools/call` for a published agent holds the connection open until the
@@ -10157,6 +10227,8 @@ there is no expose-all switch for it.
 - [ ] Expect token use to grow with each turn of a `contextId`; decide how a caller starts a new conversation.
 - [ ] Create a tenant-bound `ExternalInvoke` key and test revocation and expiry.
 - [ ] Keep approval-required and high-impact tools out of exposed definitions.
+- [ ] Set `Skills.DisableReadApproval` on every exposed agent that names skills, and keep script
+      skills off exposed agents.
 - [ ] Set token, depth, and child-run budgets for externally initiated work.
 - [ ] Terminate HTTPS at a trusted proxy and preserve the request path.
 - [ ] Alert on external run error rate, token use, latency, and rejected credentials.
@@ -16642,6 +16714,11 @@ descriptors and never mutate one — or its nested collections — after returni
 catalog defensively copies each descriptor at its own boundary too, but that is
 belt-and-suspenders, not a license to violate the contract; a source that shares a
 mutable list with the catalog is still a bug the copy merely contains.
+
+If the source builds agents from an `AgentDefinition`, copy the fields the host reads off the
+descriptor: `SkillNames` and `Skills` for the A2A and MCP exposure check. A descriptor that names
+skills and leaves `Skills` empty reads as "the read approval is on", and the host refuses to
+expose the agent even when the definition turned the approval off.
 
 Honor the `CancellationToken` you are given — Tracon adds no timeout of its own, so
 an uncancellable source blocks its caller indefinitely. A genuine
@@ -24066,6 +24143,9 @@ one-click rollback.
 
 The editor validates as you save, using the same rules the compiler applies. An
 unknown tool, skill, or extension name is refused at write time, not on the first run.
+The Skills panel has one box, *Read skills without approval*. Check it for an agent that runs where
+nobody can answer an approval, such as one you expose over A2A or MCP; a script
+keeps its approval ([approval of the skill tools](/concepts/tools/#approval-of-the-skill-tools)).
 The Extensions panel lists the extensions the host registered. It keeps a name the host
 no longer registers, with a mark, so you can remove it. The Callable agents panel picks the
 agents this one may call and the [call mode](/concepts/agents/#one-tool-for-each-agent):

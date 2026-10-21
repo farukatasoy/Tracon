@@ -32,6 +32,38 @@
 
 ---
 
+## Önceki Fazdan Devir (Faz 231)
+
+**Devraldığı sözleşmeler.** `SkillSettings.DisableReadApproval` (`bool`, varsayılan `false`) · `AgentDefinition.Skills`,
+`AgentDefinitionRequest.Skills` ve `AgentDescriptor.Skills` (`SkillSettings?`) · kapı:
+`ExternalSurfaceGuard.EnsureNoApprovalRequiredTools(descriptors, exposedAgents, exposeAll, toolRegistry, protocol)`.
+Kapının erken dönüşü kalktı; her açılan descriptor için sırayla (1) kayıtlı tool'un onayı, (2) `SkillNames.Count > 0`
+ve `Skills is not { DisableReadApproval: true }` → `InvalidOperationException` (agent, protokol ve çare adıyla).
+`Workspace` kuralı bu döngüye üçüncü blok olarak girer ve **descriptor'dan** okur: `AgentDescriptor.Workspace` eklenir ve
+elle yazılan **iki** projeksiyon (`AgentDescriptorProjection.FromDefinition`, `CodeAgentSource.ListAsync`) onu taşır;
+`CompositeAgentCatalog.Freeze` `with` kullandığı için kendiliğinden taşır.
+
+**Davranış sözleşmeleri.** `SkillReadApprovalTests` (Core.UnitTests): derlenmiş agent'ın model tool listesinde
+`tool.GetService<ApprovalRequiredAIFunction>()` onayı gösterir; düz ve harness agent × bayrak. `SkillExposureTests`
+(FunctionalTests): A2A, oturumsuz run (`409 approval_unanswerable`), kod ve veritabanı kaynağı. Kapı ve projeksiyon
+testleri iki mutasyonla kırmızı doğrulandı: aynı yöntemi kullan.
+
+**Bilinen tuzaklar.**
+- 🚨 Kapı katalogu host açılırken **bir kez** okur. Açıldıktan sonra HTTP ile kaydedilen veritabanı agent'ı denetlenmez;
+  kapıyı veritabanı agent'ıyla sınamak iki host ister (birincisi geçici SQLite dosyasına yazar, ikincisi aynı dosyada açılır).
+- 🚨 Descriptor projeksiyonunun bir yerde alanı düşürmesi kapıyı **kapalı** hatayla bozar: güvenli agent reddedilir.
+- `PUT /api/agents/{ad}` yeni agent oluşturmaz (`404`); `POST /api/agents` gerekir.
+- XML `<summary>` içindeki `<see cref="Tip.Üye"/>` OpenAPI açıklamasına `IReadOnlyList<string> AgentDefinition.SkillNames`
+  gibi tür adıyla sızar; `<c>` kullan.
+- Yeni public kayıt tipi `PublicAPI.Unshipped.txt` satırlarını elle ister (`RS0016`; `<Clone>$`, `Equals`, operatörler dahil).
+- Arayüz: `full-replace-editors.test.tsx` `Complete<…Request>` yeni alanı zorlar; `anySettingOn` genel bir koşuldur, yeni
+  ayar bloğu için ayrı liste yazma. Ekran görüntüsü üretimi 44 PNG'nin hepsini yeniden yazar (başlıktaki sürüm soneki
+  değişir); panel hiçbir görüntüde yoksa PNG'leri `git checkout` ile geri al, yalnız `.ui-source.sha256` damgasını yenile.
+- Üretim zinciri: OpenAPI anlık görüntüsü → `packages/tracon-client` `generate` + `build` → NSwag zinciri
+  (`docs/hafiza/nswag-istemci-uretimi.md`).
+
+---
+
 ## Amaç
 
 Bir tanım oturum çalışma alanını açar. Agent, o konuşmaya ait bir dosya alanında

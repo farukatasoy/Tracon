@@ -348,6 +348,47 @@ An agent lists skills by name. Deleting a skill an agent still names is a real b
 compiling that agent then fails with "the skill was not found" until the reference is
 removed or the skill is recreated. Check which agents use a skill before deleting it.
 
+### Approval of the skill tools
+
+An agent that names skills gets three tools from Microsoft Agent Framework: `load_skill`,
+`read_skill_resource` and `run_skill_script`. All three ask for approval by default. That is
+a problem where nobody can answer: an agent exposed over A2A or MCP, a run with no `sessionId`,
+a scheduled run. Its first `load_skill` call closes the run `Failed` with the error type
+`approval_unanswerable`.
+
+A definition can turn the approval off for the two tools that only read text:
+
+```csharp
+new AgentDefinition
+{
+    Name = "support",
+    Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
+    SkillNames = ["house-style"],
+    Skills = new SkillSettings { DisableReadApproval = true },
+}
+```
+
+The same setting in the HTTP body of `POST /api/agents` and `PUT /api/agents/{name}`, and
+in the console's skills section, is `"skills": { "disableReadApproval": true }`. A request is
+the whole definition: a `PUT` that leaves `skills` out turns the approval on again.
+
+| Tool | Default | With `DisableReadApproval` |
+|---|---|---|
+| `load_skill` | Asks | Runs |
+| `read_skill_resource` | Asks | Runs |
+| `run_skill_script` | Asks | **Asks** |
+
+`run_skill_script` keeps its approval. It runs code, so the definition has no setting for it. A
+standing approval rule that an administrator writes for `run_skill_script` can still approve the
+call; a definition cannot. Where nobody can answer and no such rule exists, a model that calls it
+ends the run at the call.
+
+Skill text reaches the model as instructions. When the approval is off, no person reads that
+text before the model does. Turn it off only for skills that a tenant administrator writes.
+A workflow step treats a skill tool like any other tool: with the approval on, the step stops
+and waits for a person to answer ([a tool that asks for
+approval](/concepts/workflows/#a-tool-that-asks-for-approval)).
+
 ### Skill scripts — the strict exception
 
 A skill may also carry **scripts**, and this is the second deliberate exception to the

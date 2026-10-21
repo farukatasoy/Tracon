@@ -222,6 +222,52 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(row?.className).toContain('bg-warn-soft');
   });
 
+  it('shows a version that turns the skill read approval off (Phase 231)', async () => {
+    const definition = (version: number, skills: { disableReadApproval: boolean } | null): unknown => ({
+      name: 'support',
+      instructions: 'Help.',
+      instructionsByCulture: {},
+      model: { provider: 'echo', model: 'echo-1' },
+      toolNames: [],
+      skillNames: ['house-style'],
+      skills,
+      extensionNames: [],
+      callableAgentNames: [],
+      subAgents: null,
+      harness: null,
+      compaction: null,
+      memory: null,
+      origin: 'Database',
+      version,
+    });
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/agents/:name/versions/:a/diff/:b', { left: definition(1, null), right: definition(2, { disableReadApproval: true }) }),
+      fixture('GET', 'api/agents/:name/versions', [
+        { name: 'support', version: 1, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-21T09:00:00Z' },
+        { name: 'support', version: 2, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-21T10:00:00Z' },
+      ]),
+      fixture('GET', 'api/agents/:name', {
+        descriptor: { name: 'support', origin: 'Database', sourceName: 'database', version: 2, toolNames: [] },
+        definition: definition(2, { disableReadApproval: true }),
+        factoryInstructions: null,
+        isEditable: true,
+      }),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<AgentDetailScreen name="support" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('version-checkbox-1'));
+    await user.click(screen.getByTestId('version-checkbox-2'));
+
+    const row = (await screen.findByText('Read skills without approval', { selector: 'td' })).closest('tr');
+
+    expect(row?.textContent).toBe('Read skills without approvalfalsetrue');
+    expect(row?.className).toContain('bg-warn-soft');
+  });
+
   it('rolls an agent back through the shared version history, and shows the refusal in the screen slot', async () => {
     // Phase 200 moved the history into a component the workflow screen shares; the agent's own
     // columns, its rollback and its error slot must have come with it.

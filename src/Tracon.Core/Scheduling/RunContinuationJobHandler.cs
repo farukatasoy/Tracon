@@ -270,8 +270,9 @@ internal sealed class RunContinuationJobHandler(
     private Microsoft.Agents.AI.AIAgent Decorate(Microsoft.Agents.AI.AIAgent agent, AgentDescriptor descriptor)
         => AgentDecoratorPipeline.Apply(agent, descriptor, _decorators);
 
-    // Skills, callable agents and extensions are zeroed on purpose: a continuation
+    // Skill names, callable agents and extensions are zeroed on purpose: a continuation
     // compiles the definition without them (the extension gate above refuses before that).
+    // The skill settings stay: without skill names they change nothing.
     private static AgentDescriptor ToDescriptor(AgentDefinition definition)
         => AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, "continuation") with
         {

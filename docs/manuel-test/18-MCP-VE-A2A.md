@@ -2396,3 +2396,27 @@ A2A'ya açılıyor ve her çağrı `-32603` ile düşüyordu.
 **Beklenen sonuç**
 - (2) `cancel_order` satırında `requiresApproval: true`.
 - İlk istek `InvalidOperationException` ile reddedilir; mesaj `cancel_order`'ı ve onayı anar. Agent dışa açılmaz.
+
+### MT-MCP-092 — Skill kullanan agent A2A'ya yalnız okuma onayı kapalıyken açılır (Faz 231, F-626)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 231 |
+| **İlgili karar** | K-103 |
+| **Devir** | ➜ CI: `A2AEndpointTests.An_agent_using_skills_with_the_read_approval_on_cannot_be_exposed_via_A2A` · `McpServerEndpointTests.Agent_using_skills_with_the_read_approval_on_cannot_be_exposed` · `SkillExposureTests` (kod ve veritabanı agent'ı) |
+
+Regresyon. Skill araçları (`load_skill`…) tool kayıt defterinde değildir; kapı onları görmüyordu. Agent açılıyor,
+ilk `load_skill` çağrısı `-32603` ile düşüyordu.
+
+**Ön koşul** — MT-SKILL-085'in iki agent'ı (`manuel-skill-test`, `manuel-skill-default`) geçici SQLite dosyasında kayıtlı.
+Açılış, kod değişikliği olmadan `Tracon__Demo__ExposedAgents__A2A` ortam değişkeniyle seçilir. Gerçek model.
+
+**Adımlar**
+1. `Tracon__Demo__ExposedAgents__A2A=manuel-skill-default` ile başlat; `GET $APU/a2a/manuel-skill-default/.well-known/agent-card.json`.
+2. Uygulamayı durdur. `Tracon__Demo__ExposedAgents__A2A=manuel-skill-test` ile başlat; aynı kart isteği, sonra `SendMessage` (`Fatura kontrol kurallarini uygulayarak yardim et`).
+
+**Beklenen sonuç**
+- Adım 1: uygulama `LogCritical` yazar ve kapanır; mesaj `manuel-skill-default`'u, "uses skills" ifadesini ve `Skills.DisableReadApproval` çaresini anar. Kart isteği bağlantı hatası verir.
+- Adım 2: kart `200`; `SendMessage` yanıtı bir `message`, metni `FATURA_SKILL_ACTIVE`; run `Completed`.

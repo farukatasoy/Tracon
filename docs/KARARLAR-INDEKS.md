@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 998 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 999 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1050 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1051 kalem)
 
 | K | Karar |
 |---|---|
-| K-1009 | `WorkflowFunctionOptions.MaxConcurrency` (`int?`, en az 1) fonksiyon başına, SÜREÇ başına ve kiracılara ortak slot sayısıdır; sarmalayıcı sırası `scope(retry(limit(gate(timeout(handler)))))`: her deneme slotu yeniden alır, retry gecikmesinde slot bırakılır, bütçe kapısı slot alındıktan sonra okunur, bekleme run token'ına bağlıdır (iptal ve `RunTimeout` bekleyeni bırakır) ve düğüm `Timeout`'una sayılmaz; bekleme run olayı yazmaz, `Debug` loglanır (F-538, Faz 211) |
 | K-1010 | Kod kaydı `WorkflowRegistrationOptions.RunTimeout` ve `Parameters` taşır: `RunTimeout` K-960'ın kuralını izler, ama tavanı aşan değer HOST AÇILIŞINDA (`TraconWorkflowOptionsValidator`, `Enabled` iken) workflow adıyla düşer, tavan sonradan düşerse run tavana kesilir ve loglanır; `Parameters` K-897'nin kuralını izler (HTTP erken `400`); katılımcı kapsaması kod grafında YOKTUR, eksik zorunlu değeri adım koşarken düşürür (F-537, Faz 211) |
 | K-1011 | Süre dolumu servisi (`WorkflowRequestExpirationService`) kapattığı run `Failed` ise `run.failed` yayınlar; `Completed` kapanışta HİÇBİR olay yayınlamaz; yayın `CancellationToken.None` ile yapılır, hata loglanır ve kapanışı bozmaz (F-539, Faz 211) |
 | K-1012 | HTTP istek/yanıt DTO'su `internal` doğar ve açıklamasını `[Description]` taşır: 81 tip `internal` oldu; OpenAPI şeması artık public kalma kanıtı değildir, K-850'nin ikinci kuralı geçersiz (F-554, Faz 212) (kullanıcı kararı) 👤 |
@@ -62,3 +61,4 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1058 | Cevaplanmayan istek süresi dolunca bekleyen adım run'ı workflow'la `Failed` kapanır; cevaplanan `AwaitingApproval` kalır |
 | K-1059 | `ToolApproval` isteği workflow hangi cevap kipinde olursa olsun tek cevap alır; ikinci aynı karar ilkini izler, farklısı `409` (F-615, Faz 230) |
 | K-1060 | Magentic katılımcısı tool onayını workflow isteği olarak bekler; yöneticinin onayı reddi sürdürür (K-1055 daraltması) |
+| K-1061 | Skill okuma onayını tanım kapatır, script onayını tanımdaki hiçbir ayar kapatmaz; dış yüzey kapısı o ayarı okur (F-626) 👤 |

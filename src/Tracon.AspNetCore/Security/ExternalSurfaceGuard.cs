@@ -179,7 +179,8 @@ internal static class ExternalSurfaceGuard
     }
 
     /// <summary>
-    /// Verifies that none of the agents to be exposed carries a tool that requires approval.
+    /// Verifies that none of the agents to be exposed carries a tool that requires approval,
+    /// and that none uses skills whose read tools ask for approval.
     /// </summary>
     /// <param name="descriptors">The agent descriptors in the catalog.</param>
     /// <param name="exposedAgents">The allow list.</param>
@@ -187,11 +188,26 @@ internal static class ExternalSurfaceGuard
     /// <param name="toolRegistry">The tool registry that carries the approval flag.</param>
     /// <param name="protocol">The name of the external surface being exposed.</param>
     /// <exception cref="InvalidOperationException">
-    /// When an exposed agent carries a tool that requires approval.
+    /// When an exposed agent carries a tool that requires approval, or uses skills without
+    /// <see cref="SkillSettings.DisableReadApproval"/>.
     /// </exception>
     /// <remarks>
+    /// <para>
     /// Enforces the same boundary at startup: an external caller is not a human and
     /// cannot answer an approval request. Running silently without approval is unacceptable.
+    /// </para>
+    /// <para>
+    /// The skill tools are not in the tool registry: Microsoft Agent Framework adds them when it
+    /// builds the agent, and wraps all three for approval. The check reads the definition's own
+    /// setting instead. It does not count <c>run_skill_script</c>: every agent with a skill is
+    /// offered it, so counting it would refuse every such agent. A model that calls it anyway ends
+    /// the run at run time (<c>approval_unanswerable</c>) unless a standing approval rule covers it;
+    /// this check is a start-up check, and the run-time refusal is the boundary.
+    /// </para>
+    /// <para>
+    /// The catalog is read once, when the host starts, with no request in scope. An agent saved
+    /// later, and an agent that a callable agent reaches, is not checked.
+    /// </para>
     /// </remarks>
     public static void EnsureNoApprovalRequiredTools(
         IReadOnlyList<AgentDescriptor> descriptors,
@@ -205,11 +221,6 @@ internal static class ExternalSurfaceGuard
             .Select(static tool => tool.Name)
             .ToHashSet(StringComparer.Ordinal);
 
-        if (approvalRequiredToolNames.Count == 0)
-        {
-            return;
-        }
-
         foreach (var descriptor in descriptors)
         {
             if (!IsExposed(descriptor.Name, exposedAgents, exposeAll))
@@ -219,16 +230,24 @@ internal static class ExternalSurfaceGuard
 
             var offending = descriptor.ToolNames.Where(approvalRequiredToolNames.Contains).ToList();
 
-            if (offending.Count == 0)
+            if (offending.Count > 0)
             {
-                continue;
+                throw new InvalidOperationException(
+                    $"The '{descriptor.Name}' agent cannot be exposed over {protocol}: the " +
+                    $"'{string.Join(", ", offending)}' tools ask for user approval. An external " +
+                    "caller is not a human and cannot answer an approval request. Remove this " +
+                    "agent from the allow list, or limit it to tools that need no approval.");
             }
 
-            throw new InvalidOperationException(
-                $"The '{descriptor.Name}' agent cannot be exposed over {protocol}: the " +
-                $"'{string.Join(", ", offending)}' tools ask for user approval. An external " +
-                "caller is not a human and cannot answer an approval request. Remove this " +
-                "agent from the allow list, or limit it to tools that need no approval.");
+            if (descriptor.SkillNames.Count > 0 && descriptor.Skills is not { DisableReadApproval: true })
+            {
+                throw new InvalidOperationException(
+                    $"The '{descriptor.Name}' agent cannot be exposed over {protocol}: it uses skills, " +
+                    "and the load_skill and read_skill_resource tools ask for user approval. An external " +
+                    "caller is not a human and cannot answer an approval request. Set " +
+                    $"{nameof(AgentDefinition.Skills)}.{nameof(SkillSettings.DisableReadApproval)} on the " +
+                    "definition, or remove the skills, or remove this agent from the allow list.");
+            }
         }
     }
 }

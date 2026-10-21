@@ -225,6 +225,10 @@ features stay off until the definition asks for each one:
 | File memory | `Memory.EnableFileMemory`, on the registered `AgentFileStore` | Write files under the server's working directory |
 | Web search | `Harness.EnableWebSearch`, the provider's hosted search | Turn on because the harness has it |
 
+The skill tools ask for approval by default. `Skills.DisableReadApproval` turns that off for
+`load_skill` and `read_skill_resource`, and an agent that is exposed over A2A or MCP needs it
+([Approval of the skill tools](/concepts/tools/#approval-of-the-skill-tools)).
+
 A definition that turns a feature on and sets its `Disable*` switch is a
 compilation error. Hosted web search runs at the model provider, which bills it,
 and depends on the provider surface: OpenAI Chat Completions (`openai`) accepts it

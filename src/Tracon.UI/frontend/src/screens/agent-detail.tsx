@@ -350,6 +350,17 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
             </CompareSection>
           )}
 
+          {/* Phase 231: a version that turns the skill read approval on or off shows it, because it loosens a gate. */}
+          {((data.left.skills?.disableReadApproval ?? false) || (data.right.skills?.disableReadApproval ?? false)) && (
+            <CompareSection title={t('fields.disableSkillReadApproval')}>
+              <FieldDiffTable
+                left={{ disableReadApproval: data.left.skills?.disableReadApproval ?? false }}
+                right={{ disableReadApproval: data.right.skills?.disableReadApproval ?? false }}
+                fields={{ disableReadApproval: { label: t('fields.disableSkillReadApproval') } }}
+              />
+            </CompareSection>
+          )}
+
           {(data.left.harness ?? data.right.harness) !== undefined && (
             <CompareSection title={t('agentDetail.harness')}>
               <FieldDiffTable

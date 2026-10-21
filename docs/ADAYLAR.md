@@ -424,6 +424,8 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
+| 🟢 | **F-639** · Dış yüzey kapısı yalnız açılıştaki, bağlamsız katalogu okur: açıldıktan sonra kaydedilen agent, başka kiracının agent'ı ve çağrılabilir alt agent görünmez | Faz 231 denetimi (🟡4, 🟢2). Ölçüldü: açıldıktan sonra HTTP ile kaydedilen veritabanı agent'ı denetlenmez (`SkillExposureTests` iki host ister). Okuma, ölçülmedi: bağlam yoksa kiracı varsayılandır, çok kiracılı host'ta başka kiracının agent'ı listede yoktur; çağrılabilir alt agent'ın skill ve tool'u sayılmaz. Tool kuralıyla aynı sınıf (eski). Çalışma anı reddi tutar, sızıntı yok | Önce çok kiracılı host'ta ölç. Sonra kapıyı katalog değişince ya da agent çözülürken yeniden koştur; olmazsa sınırı belgede bırak (belgede açılış anı yazılı) |
+| 🟢 | **F-640** · `JsonFileAgentSource` örneği `ExtensionNames`'i descriptor'a kopyalamaz | Faz 231 denetimi (🟡1 yanında): `ToDescriptor` `SkillNames` ve `Skills`'i kopyalar, `ExtensionNames`'i kopyalamaz (Faz 222 sonrası eski kusur). Örneği kopyalayan kaynak uzantılı agent'ı katalogda uzantısız gösterir | Örneğe satırı ekle; `write-your-own-agent-source.md` descriptor paragrafına `ExtensionNames`'i yaz |
 | 🟢 | **F-581** · OpenAI uyumlu uçların kalan iki açığı: konuşma öğelerinde görsel/dosya listelenmez; MAF `input_file` adını düşürür | İstek yönü 2026-10-19'da kapandı (kusur-giderme, K-1027: `/v1/chat/completions` agent'ın istek ayarını `400` ile reddeder, `/v1/conversations` ilk `items`'ı reddeder). Kalan: (1) `GET /v1/conversations/{id}/items` görsel ve dosya içeriğini listelemez (`ToItems` yalnız metin ve tool; kod okuması, ölçülmedi). (2) MAF `Hosting.OpenAI` `input_file`'ın `filename`'ini düşürür ve `file_data`'yı `application/octet-stream` yapar (upstream, ölçüldü) | (1) Ölç; listelenmiyorsa ek referansını öğe olarak ver. (2) Upstream bildirimi bakımcının kararı |
 | 🟢 | **F-526** · `kapi.py` sevk edilen sözleşme değişimini çözüm dışı örnek depoya bağlamıyor | Ölçüldü (2026-10-14, F-502): `RunStoreContract`'a case ekleyen değişiklik `samples/Tracon.Samples.FileRunStore`'u kırdı; çözümde olmadığı için yalnız `kapi.py yayin --kuru` gördü. `faz-tamamlama` bunu yazar, kapı hatırlatmaz | `src/Tracon.Testing.Contracts.Xunit/` dokunulduğunda `ic-dongu` ve `kapanis`, `samples/Tracon.Samples.*` uyarısının kardeşi olarak "yayın provası gerekir" bassın |
 | 🟢 | **F-527** · Yeniden denemeden sonra reddedilen düğümde ilk denemenin hatası kayıttan düşer | Faz 210 denetimi (🟢): ikinci deneme bütçe kapısında reddedilirse run satırı yalnız `Could not start function node …` der; ilk denemenin geçici hatası kayıtta yok. `WorkflowNodeRetry` başarısız denemeyi bütçeden bağımsız olarak da loglamaz | Retry döngüsü her başarısız denemeyi `Warning` olarak logla; ret mesajı gerekirse ilk denemenin hata tipini anar |
@@ -704,7 +706,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-639**.
+numara: **F-641**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

@@ -35,6 +35,8 @@ Tracon.AgentDefinitionRequest.SharedInstructionsName.get -> string?
 Tracon.AgentDefinitionRequest.SharedInstructionsName.init -> void
 Tracon.AgentDefinitionRequest.SkillNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.AgentDefinitionRequest.SkillNames.init -> void
+Tracon.AgentDefinitionRequest.Skills.get -> Tracon.SkillSettings?
+Tracon.AgentDefinitionRequest.Skills.init -> void
 Tracon.AgentDefinitionRequest.SubAgents.get -> Tracon.SubAgentSettings?
 Tracon.AgentDefinitionRequest.SubAgents.init -> void
 Tracon.AgentDefinitionRequest.ToDefinition() -> Tracon.AgentDefinition!

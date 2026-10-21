@@ -84,6 +84,7 @@ public sealed class DefinitionFingerprintTests
         yield return (nameof(AgentDefinition.Model), baseline with { Model = new ModelBinding { Provider = "fake", Model = "other" } });
         yield return (nameof(AgentDefinition.ToolNames), baseline with { ToolNames = ["a_tool"] });
         yield return (nameof(AgentDefinition.SkillNames), baseline with { SkillNames = ["a_skill"] });
+        yield return (nameof(AgentDefinition.Skills), baseline with { Skills = new SkillSettings { DisableReadApproval = true } });
         yield return (nameof(AgentDefinition.CallableAgentNames), baseline with { CallableAgentNames = ["other-agent"] });
         yield return (nameof(AgentDefinition.SubAgents), baseline with { SubAgents = new SubAgentSettings { ChildDeadline = TimeSpan.FromSeconds(7) } });
         yield return (nameof(AgentDefinition.McpResourceUris), baseline with { McpResourceUris = ["server:res://a"] });

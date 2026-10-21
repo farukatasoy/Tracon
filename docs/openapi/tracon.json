@@ -7883,6 +7883,17 @@
             },
             "description": "Gets the names of the skills this agent may load at run time. Every name must\nmatch an enabled skill found in code or in the skill store."
           },
+          "skills": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets how this agent uses its skills. When \u0060null\u0060, all three skill\ntools ask for approval. Ignored when \u0060SkillNames\u0060 is empty.",
+                "$ref": "#/components/schemas/SkillSettings"
+              }
+            ]
+          },
           "extensionNames": {
             "type": "array",
             "items": {
@@ -8065,6 +8076,17 @@
             },
             "description": "Names of skills that can be loaded at runtime."
           },
+          "skills": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "How the agent uses its skills. See \u0060AgentDefinition.Skills\u0060. If left empty, all\nthree skill tools ask for approval.",
+                "$ref": "#/components/schemas/SkillSettings"
+              }
+            ]
+          },
           "extensionNames": {
             "type": "array",
             "items": {
@@ -8218,6 +8240,17 @@
               "type": "string"
             },
             "description": "Gets the names of the skills this agent may load at run time."
+          },
+          "skills": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets how this agent uses its skills. The external-surface check reads it: an agent whose\nskill read approval is on cannot be exposed over A2A or MCP.",
+                "$ref": "#/components/schemas/SkillSettings"
+              }
+            ]
           },
           "extensionNames": {
             "type": "array",
@@ -16907,6 +16940,19 @@
           }
         },
         "description": "Request to grant script execution permission."
+      },
+      "SkillSettings": {
+        "examples": [
+          null
+        ],
+        "type": "object",
+        "properties": {
+          "disableReadApproval": {
+            "type": "boolean",
+            "description": "Gets a value that makes \u0060load_skill\u0060 and \u0060read_skill_resource\u0060 run without\nasking for approval. \u0060run_skill_script\u0060 keeps its approval."
+          }
+        },
+        "description": "Settings for how an agent uses the skills it names in \u0060AgentDefinition.SkillNames\u0060."
       },
       "SpeakRequest": {
         "required": [

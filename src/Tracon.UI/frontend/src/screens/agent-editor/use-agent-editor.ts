@@ -15,7 +15,7 @@ import type {
   ModelProviderDescriptor,
   ToolDescriptor,
 } from '../../lib/server-types';
-import { emptyForm, fromDefinition, isValidJson, toRequest, withDefaultProvider, type FormState } from './model';
+import { emptyForm, emptySkills, fromDefinition, isValidJson, toRequest, withDefaultProvider, type FormState } from './model';
 
 export interface UseAgentEditorResult {
   editing: boolean;
@@ -123,6 +123,7 @@ export function useAgentEditor(name: string | undefined): UseAgentEditorResult {
         model: descriptor.model?.model ?? current.model,
         toolNames: [...descriptor.toolNames],
         skillNames: [...descriptor.skillNames],
+        skills: descriptor.skills ?? emptySkills,
         extensionNames: [...descriptor.extensionNames],
         callableAgentNames: [...descriptor.callableAgentNames],
       }));

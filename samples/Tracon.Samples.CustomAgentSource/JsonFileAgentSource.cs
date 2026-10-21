@@ -206,6 +206,7 @@ public sealed class JsonFileAgentSource : IAgentSource
             Model = definition.Model,
             ToolNames = definition.ToolNames,
             SkillNames = definition.SkillNames,
+            Skills = definition.Skills,
             CallableAgentNames = definition.CallableAgentNames,
             UsesHarness = definition.Harness is not null,
             UpdatedAt = definition.UpdatedAt,

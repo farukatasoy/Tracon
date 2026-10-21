@@ -55,6 +55,16 @@ public sealed partial class AgentDefinitionCompiler
         }
 
         return builder
+            .UseOptions(options =>
+            {
+                // Microsoft Agent Framework wraps all three skill tools for approval. The
+                // definition may turn off the two that only read text. The script tool
+                // runs code, so no member of the definition reaches it: it always asks.
+                var disableReadApproval = definition.Skills is { DisableReadApproval: true };
+                options.DisableLoadSkillApproval = disableReadApproval;
+                options.DisableReadSkillResourceApproval = disableReadApproval;
+                options.DisableRunSkillScriptApproval = false;
+            })
             .UseFilter((skill, _) => definition.SkillNames.Contains(skill.Frontmatter.Name, StringComparer.Ordinal))
             .UseCachingOptions(options => options.CacheIsolationKeySelector = _ => _skills.TenantId)
             .Build();

@@ -43,7 +43,7 @@ flowchart TD
     A["POST/PUT api/skills"] --> B["IAgentSkillStore<br/>tenant basina kayit"]
     B --> C["AgentSkillCatalog<br/>kod > store, MaxSkillsPerAgent"]
     C --> D["TraconSkillsSource<br/>AgentSkillDefinition -> AgentInlineSkill"]
-    D --> E["AgentSkillsProvider<br/>onaylar HEP ACIK"]
+    D --> E["AgentSkillsProvider<br/>onay varsayilan ACIK; tanim okuma onayini kapatabilir (Faz 231)"]
     E --> F["Model: load_skill / read_skill_resource / script"]
 
     G["PUT api/skills/name Scripts[]"] --> H{"Extension<br/>Interpreters'ta mi?"}
@@ -2327,3 +2327,49 @@ Regresyon. Katalog ve doğrulayıcı adı yalnız kodda ve `store`'da arıyordu;
 - Adım 2: script koşar (`script.run` denetim kaydı, `Origin: File`).
 - Adım 3: ikinci run'ın istemi yeni açıklamayı taşır (agent yeniden derlendi).
 - 🚨 Eski kusur: adım 1 `400`, adım 2 derlemede `400`.
+
+### MT-SKILL-085 — `skills.disableReadApproval` oturumsuz run'da `load_skill`'i onaysız koşturur; varsayılan `409` verir (Faz 231, F-626)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 231 |
+| **İlgili karar** | K-103, K-977 |
+| **Devir** | ➜ CI: `SkillExposureTests` (oturumsuz run, A2A, iki kaynak) · `SkillReadApprovalTests` (iki agent tipi) · `WorkflowToolApprovalPatternTests` (workflow adımı) |
+
+**Ön koşul** — `FIX-SKILL-FATURA` kayıtlı. Gerçek model (`openai` / `gpt-5.4-mini`). Örnek uygulama, geçici SQLite dosyası.
+
+**Adımlar**
+1. `POST $APU/api/agents` ile iki agent: `manuel-skill-test` (`skillNames:["fatura-kontrolu"]`, `skills:{"disableReadApproval":true}`) ve `manuel-skill-default` (aynısı, `skills` yok).
+2. `GET $APU/api/agents/manuel-skill-test` ve `GET $APU/api/agents/manuel-skill-default`: `definition.skills`.
+3. Her ikisini `POST $APU/api/agents/{ad}/run` ile `sessionId` OLMADAN ve `Idempotency-Key` başlığıyla koş (`FIX-SKILL-PROMPT`).
+
+**Beklenen sonuç**
+- Adım 1: ikisi de `201`.
+- Adım 2: `{"disableReadApproval": true}` ve `null`.
+- Adım 3: `manuel-skill-test` `200`; yanıtta `load_skill` çağrısı ve sonucu skill talimatını taşır; run `Completed`. `manuel-skill-default` `409`, `errorType: approval_unanswerable`, `detail` `load_skill`'i anar; run `Failed`.
+- 🚨 `run_skill_script` bu ayardan etkilenmez: onay ister (kanıt: `SkillExposureTests.The_script_tool_still_asks_for_approval_when_the_read_approval_is_off`).
+
+---
+
+### MT-SKILL-086 — Konsolda agent düzenleyicisinin skill bölümündeki kutu `skills.disableReadApproval` alanını yazar ve okur (Faz 231, F-626)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 231 |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `agent-editor.test.tsx` · `model.test.ts` · `full-replace-editors.test.tsx` |
+
+**Ön koşul** — MT-SKILL-085'in `manuel-skill-default` agent'ı (kutu işaretsiz).
+
+**Adımlar**
+1. Konsolda `/tracon/agents/manuel-skill-default/edit` aç, skill bölümünde "Read skills without approval" kutusuna bak.
+2. Kutuyu işaretle, "Save new version"a bas.
+3. `GET $APU/api/agents/manuel-skill-default`, sonra aynı agent'ı `sessionId` olmadan koş.
+
+**Beklenen sonuç**
+- Adım 1: kutu işaretsiz; altındaki metin `run_skill_script`'in her zaman onay istediğini söyler. Dil `tr` iken metin Türkçedir.
+- Adım 3: `version` `2`, `definition.skills` `{"disableReadApproval": true}`; run `200`.

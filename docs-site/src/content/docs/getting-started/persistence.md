@@ -295,6 +295,7 @@ upgrade window](/reference/versioning/#the-supported-upgrade-window).
 An agent definition keeps its content in one JSON column. A field that a new version adds
 to the definition, such as the list of agent extensions, needs no migration: a row that
 was written before the field existed reads the field as empty, and it keeps running as it did.
+A row without `skills` reads back with the approval on for all three skill tools.
 
 ## Keeping it from growing forever
 

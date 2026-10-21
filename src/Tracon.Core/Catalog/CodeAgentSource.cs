@@ -96,6 +96,7 @@ internal sealed partial class CodeAgentSource : IAgentSource
                 Model = registration.Definition?.Model,
                 ToolNames = registration.Definition?.ToolNames ?? [],
                 SkillNames = registration.Definition?.SkillNames ?? [],
+                Skills = registration.Definition?.Skills,
                 ExtensionNames = registration.Definition?.ExtensionNames ?? [],
                 CallableAgentNames = registration.Definition?.CallableAgentNames ?? [],
                 UsesHarness = registration.Definition?.Harness is not null,
