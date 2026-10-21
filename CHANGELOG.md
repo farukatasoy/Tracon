@@ -10,8 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A workflow waits for a tool that needs approval, and a person answers it.** Before, an agent step
   whose tool needs approval failed the whole workflow unless an auto-approval rule existed. Where a
-  Microsoft Agent Framework pattern hosts the agent (the five stored patterns defined with `agentNames`,
-  and a code graph that binds the agent with `GetWorkflowAgent`), the workflow now stops: the step's run
+  Microsoft Agent Framework pattern hosts the agent (a stored `Sequential`, `Concurrent`, `Handoff` or `GroupChat` workflow
+  defined with `agentNames`, and a code graph that binds the agent with `GetWorkflowAgent`), the workflow now stops: the step's run
   closes `AwaitingApproval`, the workflow run closes `AwaitingInput`, and the request has the new form
   `WorkflowRequestForm.ToolApproval`, whose prompt names the tool and adds what your
   `IToolApprovalPresenter` says about the call (the arguments are not copied). Answer it with
@@ -25,7 +25,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   waited with the workflow when its time limit passes. The console's workflow card asks for the
   decision, a reason and the rule. An agent node of a `Sequential` node list and a step bound with
   `GetWorkflowAgentStep` run the agent in a plain function node that cannot wait, so a tool that needs
-  approval still fails the run there; an agent that a step's agent calls as a sub-agent still cannot ask.
+  approval still fails the run there, and so do the participants of a `Magentic` workflow; an agent that a
+  step's agent calls as a sub-agent still cannot ask. A tool approval is answered once, whatever the
+  workflow's response mode: the same decision again follows the run the first one started, and a
+  different one is `409`.
 
 - **An A2A conversation keeps its history, and it belongs to the caller that started it.** A message
   that carries a `contextId` now continues a conversation: Tracon stores the session and the agent sees

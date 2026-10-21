@@ -333,10 +333,11 @@ public sealed class ChildAgentInvokerTests
     }
 
     [Fact]
-    public async Task A_sub_agent_below_a_hosted_step_still_cannot_wait_for_an_approval()
+    public async Task A_wrapper_in_tool_result_mode_still_refuses_an_approval_and_its_row_fails()
     {
-        // The hosted step's options are not the sub-agent's: its wrapper is in tool-result mode and builds its
-        // own, so below the step the refusal of K-103 holds.
+        // The wrapper of a sub-agent is in tool-result mode and builds its own options; it never gets the
+        // hosted step's flag, so below the step the refusal of K-103 holds. The tree below a real step is
+        // measured by WorkflowToolApprovalPatternTests.A_sub_agent_the_step_calls_is_still_refused_and_the_workflow_does_not_wait.
         var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
         var client = new FakeChatClient(_ => new ChatResponse(
             new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c1", "dangerous_task", null)])));

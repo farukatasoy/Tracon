@@ -4,7 +4,7 @@
 > **Kademe:** tam — güvenlik sınırı (onay kararı, denetim izi, "Hatırla" kuralı) · public API (`WorkflowRequestForm.ToolApproval`, `WorkflowRespondRequest.Remember`) · geri dönüşü pahalı karar (K-103'ün workflow kapsamı, K-1051)
 > **Plan onayı:** farukatasoy, 2026-10-21 (seçim: karar workflow `/respond` ucundan; K-1051)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-615** (yargı alanları: [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md) §4)
-> **Genellik:** Saklanan ya da kod workflow'u kullanan her tüketici. Bugün onay isteyen tool'u olan agent workflow'da çalışamaz; tek yol otomatik onay kuralıdır, yani insan onayı workflow'da yoktur. İlk ilkeden türer: MAF Workflows onay isteğini kendisi workflow dış isteğine çevirir ve Tracon'un dış istek deposu hazırdır. Tüketici kodunda kalamaz: ret Tracon'un `ChildAgentInvoker`'ındadır.
+> **Genellik:** MAF'ın host ettiği düğümde tool onayı isteyen agent'lı saklanan ya da kod workflow'u kullanan her tüketici (K-1055: fonksiyon adımı ve Magentic hariç). Bugün onay isteyen tool'u olan agent workflow'da çalışamaz; tek yol otomatik onay kuralıdır, yani insan onayı workflow'da yoktur. İlk ilkeden türer: MAF Workflows onay isteğini kendisi workflow dış isteğine çevirir ve Tracon'un dış istek deposu hazırdır. Tüketici kodunda kalamaz: ret Tracon'un `ChildAgentInvoker`'ındadır.
 > **Karşı görüş:** Aday "ciddi bir karşı gerekçe bulunamadı" der. Planın eklediği tek çekince: devam turu bugün ölçülmemiş bir yoldan geçer (229'a benzemez; 230.6). Faz o yolu ilk iş olarak ölçer; yol çalışmazsa durur ve K-1051 yeniden açılır.
 > **Önkoşul:** Yok (Faz 229'dan bağımsız)
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Client`, `.UI`
@@ -131,7 +131,9 @@ sequenceDiagram
 |---|---|---|
 | Sequential, Concurrent, GroupChat, Magentic | `AIAgentHostExecutor`, port | Concurrent'ta iki eşzamanlı istek ayrı ayrı cevaplanır |
 | Handoff | `HandoffAgentExecutor`, `intercepted: false` | K-1039 taşıyıcısıyla birlikte devam |
-| Kod workflow'u (`GetWorkflowAgentStep`) | aynı sarmalayıcı | saklanan workflow ile aynı davranış |
+| Kod workflow'u: `GetWorkflowAgent` | host executor | saklanan workflow ile aynı davranış (ölçüldü) |
+| **`GetWorkflowAgentStep`, karma zincirin agent düğümü** | **host değil** — `FunctionExecutor` | **bekleyemez; reddi sürer (K-1055, F-625)** |
+| Magentic | ölçülmedi | reddi sürer |
 
 ## 230.5 — Süre dolumu
 
@@ -316,7 +318,8 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 5. **`remember` cevap özetine girer** (`WorkflowAnswerDigest`, yalnız `true` iken): `SingleAnswer`'da `remember` farkı tekrar sayılmasın diye. Eski özetler değişmez. Planda yoktu.
 6. **Açık Soru 1 → A uygulandı:** süresi dolan cevapsız istekte bekleyen adım run'ı workflow'la birlikte `Failed` kapanır (K-1058); cevaplanan adım `AwaitingApproval` kalır (K-014). Plandaki "iptal" satırı geçersiz: `POST /api/runs/{id}/cancel` yalnız `Queued`/`Running` run'ı iptal eder, `AwaitingInput` run'ı iptal edilemez.
 7. **Denetim yardımcısı** `ToolApprovalDecisionRecorder` `ToolApprovalResolver`'ın denetim ve kural kodunu taşır; mimari testler (`AuditWritePolicyTests`, `AuditContentPolicyTests`) kayıt yerini yeni dosyaya çevirdi. Yeni fail-closed çağrı yeri doğmadı (10 kalır); yüzey sayısı üç oldu (docs-site governance sayfası güncellendi).
-8. **Test altyapısı:** `ToolApprovalWorkflowHost` (iki workflow, yardımcılar), `WorkflowToolApprovalPatternTests` (Concurrent, Handoff, alt agent, süre dolumu). GroupChat ve Magentic **ölçülmedi**.
+8. **Test altyapısı:** `ToolApprovalWorkflowHost` (iki workflow, yardımcılar), `WorkflowToolApprovalPatternTests` (Concurrent, Handoff, GroupChat, alt agent, süre dolumu). Magentic **ölçülmedi**: katılımcıları `hostsApproval: false` alır ve reddi sürdürür (fail-closed).
+10. **Denetim bulguları (🔴 iki, 🟡 iki) kapatıldı:** varsayılan `Branch` kipinde aynı onay her cevapta tool'u yeniden koşturuyordu → `ToolApproval` her kipte tek cevap (K-1059); `MaxPayloadLength` ile kesilen istek kaydı denetimi ve kuralı sessizce atlatıyordu → okuyucu kesik yükü okur, araç adını okuyamazsa cevap `500` ile reddedilir (K-089); süre dolumu cevaplanmış adımı da kapatıyordu → adım kendi isteğiyle eşlenir (K-1058); GroupChat ölçüldü, Magentic reddi sürdürür.
 9. **Paket payı:** `index-*.js.br` 184.251 → 186.6 KB (+2.35 KB Brotli); gzip 220.8 KB (bütçe 250).
 
 ## Bu Fazda Verilen Kararlar
@@ -326,7 +329,8 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 - **K-1055** — onayı yalnız host düğümü bekler; fonksiyon adımı reddi sürdürür (güvenlik). Plandan sapma 1; kullanıcı onayı bekler.
 - **K-1056** — cevap yalnız karar taşır, `data` reddedilir (güvenlik, public-api).
 - **K-1057** — kural ve denetim tek recorder'dan; ajan adı kimlikten çözülür (güvenlik).
-- **K-1058** — Açık Soru 1: cevaplanmayan istekte bekleyen adım workflow'la `Failed` kapanır (kalıcı-veri).
+- **K-1058** — Açık Soru 1: cevaplanmayan istekte bekleyen adım workflow'la `Failed` kapanır; cevaplanan adım kalır (kalıcı-veri).
+- **K-1059** — `ToolApproval` her cevap kipinde tek cevap alır (güvenlik); denetimin 🔴 1'i.
 - Kategori dışı: sunum metni 500 karakterle sınırlı (yük kesilirse tool bilgisi prompt'tan önce kalsın); `remember: false` ile `null` aynı sayılır (özet ve kural); `Remember` işi kuyruk yükünde (`WorkflowRunJobRequest`) taşınmaz — kural HTTP kapısında yazılır, işçi yalnız kararı uygular.
 
 ## Süreç Ölçümü

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -288,7 +289,7 @@ internal sealed class WorkflowRequestExpirationService(
             // scan would find nothing to try again.
             if (error is not null)
             {
-                await CloseWaitingStepsAsync(tenantId, runId, now, error, cancellationToken).ConfigureAwait(false);
+                await CloseWaitingStepsAsync(tenantId, runId, rows, now, error, cancellationToken).ConfigureAwait(false);
             }
 
             await runStore.CompleteRunAsync(
@@ -326,18 +327,22 @@ internal sealed class WorkflowRequestExpirationService(
     }
 
     /// <summary>
-    /// Closes the steps of an expired run that still wait for a tool approval, with the error the run closes with.
+    /// Closes the steps of an expired run whose tool approval nobody answered, with the error the run closes with.
     /// </summary>
     /// <remarks>
     /// A step whose approval nobody answered would stay <see cref="RunStatus.AwaitingApproval"/> for good, though
-    /// the workflow that waited for it has failed. A step whose approval WAS answered is left as it is: the
-    /// answer continued on a new run, and an answered run stays in the state it closed with.
+    /// the workflow that waited for it has failed. A step whose approval WAS answered is left as it is: the answer
+    /// continued on a new run, and an answered run stays in the state it closed with. A run can hold both - two
+    /// agents of a concurrent workflow ask at once and one of them is answered - so each step is matched to its
+    /// own request: the step's closing event names the tool call's request id, and the workflow's request id ends
+    /// with it. A step that cannot be matched is left alone, as it was before steps could wait.
     /// <see cref="IRunStore.CompleteRunAsync"/> replaces the event count, the usage and the cost, so the row's own
     /// values are written back.
     /// </remarks>
     private async ValueTask CloseWaitingStepsAsync(
         string tenantId,
         Guid runId,
+        IReadOnlyList<WorkflowRequestRecord> rows,
         DateTimeOffset now,
         RunError error,
         CancellationToken cancellationToken)
@@ -348,8 +353,15 @@ internal sealed class WorkflowRequestExpirationService(
                 cancellationToken)
             .ConfigureAwait(false);
 
+        var unanswered = rows.Where(static row => row.AnsweredAt is null).Select(static row => row.RequestId).ToList();
+
         foreach (var step in steps)
         {
+            if (!await WaitsOnAsync(step.Id, unanswered, cancellationToken).ConfigureAwait(false))
+            {
+                continue;
+            }
+
             await runStore.CompleteRunAsync(
                 new RunCompletion
                 {
@@ -365,6 +377,42 @@ internal sealed class WorkflowRequestExpirationService(
                 },
                 cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Reports whether the step waits on one of the workflow requests nobody answered: the request id its closing
+    /// event names ends the workflow request's id.
+    /// </summary>
+    private async ValueTask<bool> WaitsOnAsync(Guid stepId, List<string> unansweredRequestIds, CancellationToken cancellationToken)
+    {
+        await foreach (var runEvent in runStore.ReadEventsAsync(stepId, 0, cancellationToken).ConfigureAwait(false))
+        {
+            if (runEvent.Type != RunEventType.RunAwaitingInput || runEvent.Payload is not { Length: > 0 } payload)
+            {
+                continue;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(payload);
+
+                foreach (var item in document.RootElement.EnumerateArray())
+                {
+                    if (item.TryGetProperty("requestId", out var id) &&
+                        id.GetString() is { Length: > 0 } toolRequestId &&
+                        unansweredRequestIds.Exists(unanswered => unanswered.EndsWith(":" + toolRequestId, StringComparison.Ordinal)))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (Exception exception) when (exception is JsonException or InvalidOperationException)
+            {
+                // A closing event this service cannot read names no request: the step is left as it is.
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The most steps of one run that are closed in a scan; a run holds a step for each agent of a pattern.</summary>

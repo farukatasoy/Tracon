@@ -198,6 +198,41 @@ public sealed class WorkflowToolApprovalTests
         facts.ArgumentsHash.ShouldBe(hash);
     }
 
+    [Fact]
+    public void A_payload_cut_inside_a_name_keeps_what_was_read_whole_and_never_half_of_a_name()
+    {
+        // The writer cuts at the limit and appends its marker. A rule saved under half an agent name would never match.
+        var cut = "{\"requestType\":\"Microsoft.Extensions.AI.ToolApprovalRequestContent\",\"form\":\"ToolApproval\"," +
+                  "\"toolName\":\"cancel_order\",\"agentName\":\"order-can…[truncated]";
+
+        var (isToolApproval, facts) = WorkflowToolApprovalFacts.Read(cut);
+
+        isToolApproval.ShouldBeTrue();
+        facts.ShouldNotBeNull().ToolName.ShouldBe("cancel_order");
+        facts.AgentName.ShouldBeNull();
+        facts.ArgumentsHash.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("{\"requestId\":\"r\",\"requestType\":\"Microsoft.Extensions.AI.ToolApprovalRequestContent\",\"responseT…[truncated]")]
+    [InlineData("{\"requestType\":\"x\",\"form\":\"ToolApproval\",\"toolNa…[truncated]")]
+    public void A_tool_approval_cut_before_it_names_its_tool_is_still_known_to_be_one(string cut)
+    {
+        // Reading it as "not a tool approval" let an answer through with no audit row and no rule.
+        var (isToolApproval, facts) = WorkflowToolApprovalFacts.Read(cut);
+
+        isToolApproval.ShouldBeTrue();
+        facts.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("""{"requestType":"System.Boolean","form":"Boolean","prompt":"Publish?"}""")]
+    [InlineData("""{"requestType":"Tracon.ReviewDecision","form":"Json"}""")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void A_request_that_is_not_a_tool_approval_is_not_taken_for_one(string? payload)
+        => WorkflowToolApprovalFacts.Read(payload).IsToolApproval.ShouldBeFalse();
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

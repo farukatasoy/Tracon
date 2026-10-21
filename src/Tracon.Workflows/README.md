@@ -96,8 +96,8 @@ without limit.
 ## A tool that needs approval
 
 An agent in a workflow can call a tool that needs approval. Where a ready-made pattern hosts the
-agent (a stored definition with `agentNames`, or a code graph that binds the agent with
-`GetWorkflowAgent`), the workflow waits: the request has the form `ToolApproval`, and its prompt
+agent (a stored `Sequential`, `Concurrent`, `Handoff` or `GroupChat` definition with `agentNames`, or a
+code graph that binds the agent with `GetWorkflowAgent`), the workflow waits: the request has the form `ToolApproval`, and its prompt
 names the tool and adds what the registered `IToolApprovalPresenter` says about the call. Answer
 it on the same endpoint as any other request, with `approved`, an optional reason in `text`, and
 optionally `remember` to save a rule for that agent and tool:
@@ -111,7 +111,8 @@ curl -X POST "$TRACON/api/workflows/runs/$RUN/respond" \
 The answer carries a decision and nothing else: the tool call comes from the request the workflow
 recorded, so a `data` value is refused with `400`. The decision is written to the audit trail as
 `approval.decision` before the workflow continues. An agent node of a `Sequential` node list and a
-step bound with `GetWorkflowAgentStep` cannot wait: a tool that needs approval fails the run there.
+step bound with `GetWorkflowAgentStep` cannot wait, and neither can a `Magentic` participant: a tool that
+needs approval fails the run there. A tool approval is answered once whatever the workflow's response mode.
 
 ## Graphs built in code: the same node capabilities
 

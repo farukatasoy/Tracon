@@ -66,6 +66,13 @@ public static class WorkflowAgentBinding
     /// factory being synchronous causes no problem.
     /// </para>
     /// <para>
+    /// <strong>The agent is meant to be hosted</strong> by a ready-made pattern or an <c>AIAgentBinding</c>: when
+    /// its tool needs approval, the wrapper passes the request on and the host turns it into a workflow request
+    /// that waits for a person. Calling the returned agent yourself from a plain function node would drop the
+    /// request, so a step of that kind binds the agent with <see cref="GetWorkflowAgentStep(IServiceProvider, string, string)"/>
+    /// instead, which refuses the approval.
+    /// </para>
+    /// <para>
     /// The <strong>same instance</strong> is returned for the same
     /// <c>(workflowName, agentName)</c> pair. This is deliberate: Microsoft
     /// Agent Framework derives executor ids from the agent instance's

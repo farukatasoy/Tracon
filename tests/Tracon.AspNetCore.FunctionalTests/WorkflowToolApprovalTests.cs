@@ -170,6 +170,89 @@ public sealed class WorkflowToolApprovalTests
         calls[0].ShouldBe(1, "the approved tool must run exactly once, in the host that took the answer");
     }
 
+    [Theory]
+    [InlineData(StoredApproval)]
+    [InlineData(CodeApproval)]
+    public async Task An_approval_is_answered_once_even_in_the_default_mode_where_every_other_answer_opens_a_branch(string workflow)
+    {
+        // The default mode opens a new run for every answer. For a tool approval that would run the tool again for
+        // each "approve": a second click, a client that retries a dropped stream. The approval inbox refuses a second
+        // decision, and so does this.
+        var calls = new int[1];
+        await using var host = await StartApprovalHostAsync(calls);
+        var waiting = await RunToApprovalAsync(host, workflow);
+
+        using var first = await RespondAsync(host, waiting, new { approved = true });
+        var firstRun = await ReadRunIdAsync(first);
+
+        using var repeat = await RespondAsync(host, waiting, new { approved = true });
+
+        repeat.StatusCode.ShouldBe(HttpStatusCode.OK, await repeat.Content.ReadAsStringAsync());
+        (await ReadRunIdAsync(repeat)).ShouldBe(firstRun, "the same decision follows the run the first one started");
+
+        using var other = await RespondAsync(host, waiting, new { approved = false });
+
+        other.StatusCode.ShouldBe(HttpStatusCode.Conflict, await other.Content.ReadAsStringAsync());
+        calls[0].ShouldBe(1, "the approved tool must run exactly once");
+        (await host.Services.GetRequiredService<IAuditLog>().QueryAsync(new AuditQuery { Action = "approval.decision" }))
+            .ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task A_record_cut_inside_the_prompt_still_names_the_tool_so_the_decision_is_audited_and_remembered()
+    {
+        // The facts come before the prompt, so a payload cut at MaxPayloadLength loses the prompt's tail first.
+        var length = await FactsEndAsync();
+        var calls = new int[1];
+
+        await using var host = await StartApprovalHostAsync(
+            calls,
+            services => services.Configure<TraconOptions>(options => options.RunRecording.MaxPayloadLength = length + 10));
+
+        var waiting = await RunToApprovalAsync(host, StoredApproval);
+
+        waiting.Run.Status.ShouldBe(RunStatus.AwaitingInput, waiting.Run.Error?.Message);
+
+        using var answer = await RespondAsync(host, waiting, new { approved = true, remember = true });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.OK, await answer.Content.ReadAsStringAsync());
+        (await ReadWaitingAsync(host, await ReadRunIdAsync(answer))).Run.Status.ShouldBe(RunStatus.Completed);
+        calls[0].ShouldBe(1);
+        (await host.Services.GetRequiredService<IAuditLog>().QueryAsync(new AuditQuery { Action = "approval.decision" }))
+            .ShouldHaveSingleItem().Entity.ShouldBe($"tool:{Tool}");
+        (await host.Services.GetRequiredService<IToolApprovalRuleStore>().ListAsync(TenantId(host)))
+            .ShouldHaveSingleItem().AgentName.ShouldBe(Agent);
+    }
+
+    [Fact]
+    public async Task A_record_cut_before_it_names_the_tool_refuses_the_answer_instead_of_applying_it_unrecorded()
+    {
+        // K-089: a decision that cannot be audited is not applied. A cut that leaves nothing to audit used to read
+        // as "not a tool approval": the answer went through with no audit row and no rule, and the tool ran.
+        var calls = new int[1];
+
+        await using var host = await StartApprovalHostAsync(
+            calls,
+            services => services.Configure<TraconOptions>(options => options.RunRecording.MaxPayloadLength = 300));
+
+        var waiting = await RunToApprovalAsync(host, StoredApproval);
+
+        waiting.Run.Status.ShouldBe(RunStatus.AwaitingInput, waiting.Run.Error?.Message);
+
+        // The request is still listed and still has its form: the early check reads the part that survived.
+        waiting.Form.ShouldBe("ToolApproval");
+
+        var before = await CountRunsAsync(host);
+
+        using var answer = await RespondAsync(host, waiting, new { approved = true });
+
+        answer.StatusCode.ShouldBe(HttpStatusCode.InternalServerError, await answer.Content.ReadAsStringAsync());
+        (await TraconTestHost.ReadJsonAsync(answer)).GetProperty("detail").GetString()!.ShouldContain("MaxPayloadLength", Case.Sensitive);
+        calls[0].ShouldBe(0);
+        (await CountRunsAsync(host)).ShouldBe(before);
+        (await host.Services.GetRequiredService<IAuditLog>().QueryAsync(new AuditQuery { Action = "approval.decision" })).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task A_data_value_is_refused_and_opens_no_run_because_the_tool_call_comes_from_the_request()
     {
@@ -465,6 +548,31 @@ public sealed class WorkflowToolApprovalTests
 
         (await host.WaitForTerminalRunAsync(runId)).Status.ShouldBe(RunStatus.Completed);
         calls[0].ShouldBe(1);
+    }
+
+    /// <summary>
+    /// How long the part of a tool approval's request record is that comes before its prompt: the event payload
+    /// up to the prompt, as the default host writes it.
+    /// </summary>
+    private static async Task<int> FactsEndAsync()
+    {
+        await using var host = await StartApprovalHostAsync(new int[1]);
+        var waiting = await RunToApprovalAsync(host, StoredApproval);
+        var payload = string.Empty;
+
+        await foreach (var runEvent in host.Services.GetRequiredService<IRunStore>().ReadEventsAsync(waiting.Run.Id, 0))
+        {
+            if (runEvent.Type == RunEventType.WorkflowRequest)
+            {
+                payload = runEvent.Payload ?? string.Empty;
+            }
+        }
+
+        var end = payload.IndexOf(",\"prompt\"", StringComparison.Ordinal);
+
+        end.ShouldBeGreaterThan(0, "the payload carries no prompt member: " + payload);
+
+        return end;
     }
 
     private static Task<TraconTestHost> StartApprovalHostAsync(
