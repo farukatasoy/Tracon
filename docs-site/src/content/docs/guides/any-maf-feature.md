@@ -326,9 +326,10 @@ lifecycle, the priority, and the contract tests.
 `AddWorkflow(name, factory)` runs a MAF `WorkflowBuilder` graph. Every builder feature
 runs, and Tracon records a root run. Tracon maps the started, output, error, warning,
 super-step, executor, request, and agent-response-update events into the run record. It
-does not map the other events. Examples are the plan and ledger events of a Magentic
-workflow and an event class that you define. Tracon writes those to the log as a warning
-and does not record them in the run.
+records every other event — the plan and ledger events of a Magentic workflow, or an event
+class that you define — as a `tracon.workflow.event` with its type name and its data as
+text ([Runs and recording](/concepts/runs/)). Such an event has no card of its own in the
+console.
 
 If you write executors with MAF source-generated handlers (`[MessageHandler]`), add the
 `Microsoft.Agents.AI.Workflows.Generators` analyzer package to your own project.
@@ -337,6 +338,40 @@ Tracon does not reference it for you.
 See [Workflows](/concepts/workflows/) for the registration key, the helpers that give a
 code graph the time limit, retry, and budget of a stored one, and the full recording
 model.
+
+## Ready-made pieces from the framework
+
+Some framework packages ship a finished piece instead of a hook. Three of them were tried
+under Tracon on 2026-10-21 with Microsoft Agent Framework 1.25. The shell tool and the
+remote agent ran against a real host; Purview was read from its package, because it needs a
+Microsoft 365 tenant.
+
+- **A shell tool in a container** (`Microsoft.Agents.AI.Tools.Shell`, preview).
+  `DockerShellExecutor.AsAIFunction()` returns an ordinary tool. Register it with `AddTool`
+  and name it in the definition: authorization, approval, the timeout, and the audit trail
+  apply. Use `ShellMode.Stateless`, so every call runs in a new container and no tenant or
+  conversation sees another's files. The persistent mode keeps one shell for one
+  conversation, and a registered tool serves every run, so do not register a persistent
+  executor. The executor starts the `docker` command line on the Tracon host, and access
+  to a Docker socket is root access on that machine: point it at an engine that runs
+  nothing else. The executor asks for approval by default, and Tracon reports that tool as
+  one that needs approval. Do not use `LocalShellExecutor` on a shared host: it runs the
+  command on the host itself.
+- **A remote agent** (`Microsoft.Agents.AI.A2A`, preview). `A2AClient.AsAIAgent()` returns
+  an agent that sends each turn to another A2A server. Register it with
+  `AddAgent(name, factory)`. The run is recorded at the agent level, and the session keeps
+  the remote `contextId`, so the next turn on the same Tracon session continues the remote
+  conversation. The remote server runs its own model and tools: the record has no model,
+  usage, or cost, and the remote run is not a child of the run that called it. The HTTP
+  client that you give the agent does not go through Tracon's egress policy.
+- **Microsoft Purview** (`Microsoft.Agents.AI.Purview`, release candidate).
+  `PurviewExtensions.PurviewAgentMiddleware(...)` returns agent middleware: apply it with
+  an agent extension or a decorator. Build it once at startup, because each call builds its
+  own cache, background queue, and HTTP client. Purview checks the input and the final
+  answer of a run. When it blocks, it returns its message as an ordinary answer, so the run
+  closes `Completed`, not as blocked content. Its check of every model call sits below the
+  tool loop, and an agent defined as data has no seat there. Its calls to Microsoft Graph do
+  not go through Tracon's egress policy.
 
 ## What you cannot win back today
 
