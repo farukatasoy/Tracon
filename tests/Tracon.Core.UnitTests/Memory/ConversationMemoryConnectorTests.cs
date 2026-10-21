@@ -1,10 +1,10 @@
 using CommunityToolkit.VectorData.InMemory;
-using InMemoryVectorStore = CommunityToolkit.VectorData.InMemory.InMemoryVectorStore;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.VectorData;
 using Tracon.Core.UnitTests.Fakes;
+using InMemoryVectorStore = CommunityToolkit.VectorData.InMemory.InMemoryVectorStore;
 
 namespace Tracon.Core.UnitTests.Memory;
 

@@ -555,8 +555,9 @@ loaded, including the fields it has no control for. Saving without a change leav
 the record as it was.
 
 - The agent editor supports structured output, harness settings including the
-  loop, and compaction. It has no control for provider-specific `ProviderSettings`,
-  static `McpResourceUris`, a Knowledge vector binding, or a `todoCompletion`
+  loop, compaction, and conversation memory (one box and the search choice). It has no
+  control for provider-specific `ProviderSettings`, static `McpResourceUris`, a Knowledge
+  vector binding, the search limit of conversation memory, or a `todoCompletion`
   criterion's `modes`. It keeps them as they are; change them through code or the
   management HTTP API.
 - The workflow editor keeps a workflow's run parameter schema as it is and has no control

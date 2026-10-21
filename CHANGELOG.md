@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **An agent remembers what its user said in earlier sessions.** Set `MemorySettings.EnableConversationMemory`
+  on a definition, call `UseConversationMemory(options => options.VectorDimensions = …)` once, and register a
+  `Microsoft.Extensions.VectorData.VectorStore`. The agent then finds what the same user told it in an earlier
+  session and gets it as context, before each turn (`ConversationMemorySearch.BeforeEachTurn`, the default) or
+  through a `search_conversation_memory` tool the model calls (`OnDemand`). A record carries the tenant, the
+  agent, the user and the session; a search looks at tenant, agent and user, so a user is remembered across
+  sessions and never seen by another user, agent or tenant. A run with no user or no session neither reads nor
+  writes. Only user and assistant text is stored, not tool results. The records go with their session:
+  `DELETE /api/sessions/{id}`, a data subject erasure (its preview, export and delete include them under
+  `conversation_memory`) and the `sessions` retention target delete them first. The store embeds the text, so
+  that model call is not on the run's usage. The console has one box and one choice for it.
+  Check the connector first: the `Microsoft.SemanticKernel.Connectors.*` packages (1.74 preview) call a member that
+  `Microsoft.Extensions.VectorData.Abstractions` 10.7 removed, and fail at search time without a build warning;
+  `CommunityToolkit.VectorData.*` 1.0 works. The agent step of a workflow remembers under the workflow's own
+  session id, which no session record carries, so only a data subject erasure that names that id reaches it.
+
 - **A definition can turn the approval of the two skill read tools off.** Microsoft Agent Framework asks for
   approval before `load_skill`, `read_skill_resource` and `run_skill_script`, so an agent with skills could
   not run where nobody can answer: an A2A or MCP call, a run with no session, a scheduled run. The new
