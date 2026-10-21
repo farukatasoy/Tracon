@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A workflow waits for a tool that needs approval, and a person answers it.** Before, an agent step
+  whose tool needs approval failed the whole workflow unless an auto-approval rule existed. Where a
+  Microsoft Agent Framework pattern hosts the agent (the five stored patterns defined with `agentNames`,
+  and a code graph that binds the agent with `GetWorkflowAgent`), the workflow now stops: the step's run
+  closes `AwaitingApproval`, the workflow run closes `AwaitingInput`, and the request has the new form
+  `WorkflowRequestForm.ToolApproval`, whose prompt names the tool and adds what your
+  `IToolApprovalPresenter` says about the call (the arguments are not copied). Answer it with
+  `POST /api/workflows/runs/{runId}/respond`: `approved`, an optional reason in `text` that the agent
+  reads, and `remember` (new on `WorkflowRespondRequest`) to save a rule for that agent and tool. The
+  answer carries a decision only: the tool call comes from the request the workflow recorded, so a
+  `data` value is refused with `400`, and so is `remember` with `approved: false` or on any other
+  form. The decision is written to the audit trail as `approval.decision` before the workflow
+  continues; an entry that cannot be written refuses the answer. The tool runs once, in the new run the
+  answer opens, in whichever process takes the answer. A request nobody answers closes the step that
+  waited with the workflow when its time limit passes. The console's workflow card asks for the
+  decision, a reason and the rule. An agent node of a `Sequential` node list and a step bound with
+  `GetWorkflowAgentStep` run the agent in a plain function node that cannot wait, so a tool that needs
+  approval still fails the run there; an agent that a step's agent calls as a sub-agent still cannot ask.
+
 - **An A2A conversation keeps its history, and it belongs to the caller that started it.** A message
   that carries a `contextId` now continues a conversation: Tracon stores the session and the agent sees
   the earlier turns. Before, the reply carried the `contextId` back but the agent saw one message, so

@@ -93,6 +93,26 @@ event, checkpoints and run input row it kept can be deleted by retention. A run 
 way publishes `run.failed` to the webhooks subscribed to it. A request without a limit waits
 without limit.
 
+## A tool that needs approval
+
+An agent in a workflow can call a tool that needs approval. Where a ready-made pattern hosts the
+agent (a stored definition with `agentNames`, or a code graph that binds the agent with
+`GetWorkflowAgent`), the workflow waits: the request has the form `ToolApproval`, and its prompt
+names the tool and adds what the registered `IToolApprovalPresenter` says about the call. Answer
+it on the same endpoint as any other request, with `approved`, an optional reason in `text`, and
+optionally `remember` to save a rule for that agent and tool:
+
+```bash
+curl -X POST "$TRACON/api/workflows/runs/$RUN/respond" \
+  -H "Content-Type: application/json" \
+  -d '{"requestId": "'"$REQUEST"'", "approved": true, "text": "checked", "remember": true}'
+```
+
+The answer carries a decision and nothing else: the tool call comes from the request the workflow
+recorded, so a `data` value is refused with `400`. The decision is written to the audit trail as
+`approval.decision` before the workflow continues. An agent node of a `Sequential` node list and a
+step bound with `GetWorkflowAgentStep` cannot wait: a tool that needs approval fails the run there.
+
 ## Graphs built in code: the same node capabilities
 
 A graph with a way back (a rejected draft returns to its writer) or a human gate is built in
