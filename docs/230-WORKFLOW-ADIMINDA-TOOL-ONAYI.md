@@ -1,6 +1,6 @@
 # Faz 230 — Workflow Adımında Tool Onayı
 
-> **Durum:** 🔨 Uygulandı, denetimde (2026-10-21)
+> **Durum:** ✅ Tamamlandı (2026-10-21)
 > **Kademe:** tam — güvenlik sınırı (onay kararı, denetim izi, "Hatırla" kuralı) · public API (`WorkflowRequestForm.ToolApproval`, `WorkflowRespondRequest.Remember`) · geri dönüşü pahalı karar (K-103'ün workflow kapsamı, K-1051)
 > **Plan onayı:** farukatasoy, 2026-10-21 (seçim: karar workflow `/respond` ucundan; K-1051)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-615** (yargı alanları: [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md) §4)
@@ -266,20 +266,20 @@ Beş soru: iptal ✓ · eşzamanlılık ✓ · boş/aşırı girdi (`approved` y
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] 230.6 probu koşuldu; sonucu "Plandan Sapmalar"a yazıldı
-- [ ] Onay isteyen adım workflow'u `AwaitingInput`'a alır; istek biçimi `ToolApproval` (`WorkflowToolApprovalTests`, önce kırmızı)
-- [ ] Onay → tool bir kez koşar; ret → koşmaz, workflow sürer; süreç yeniden başladıktan sonra da
-- [ ] Yanıt kayıtlı istekten kurulur; `json` alanlı cevap `400`
-- [ ] Denetim satırı karardan önce; yazılamazsa karar uygulanmaz
-- [ ] "Hatırla" kuralı ajan yoluyla aynı yardımcıdan yazılır
-- [ ] Alt agent ağacında ret sürer (K-103)
-- [ ] Site: `concepts/workflows.md` ret cümlesi düzeldi, `workflow-requests.md` yeni biçim; `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek workflow run'ı (case 1) yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/15-WORKFLOWS.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] 230.6 probu koşuldu; sonucu "Plandan Sapmalar"a yazıldı (1. madde; ölçüm `MAF-KAPSAMA.md` §0 #38). Host düğümünde dört madde de geçti; fonksiyon adımında istek yayınlanmadı (K-1055)
+- [x] Onay isteyen adım workflow'u `AwaitingInput`'a alır; istek biçimi `ToolApproval` (`WorkflowToolApprovalTests.A_step_whose_tool_needs_approval_waits_…`; önce kırmızı: eski kodda `Failed`, ayrı worktree'de ölçüldü). **Kapsam: host düğümü** — karma zincir ve `GetWorkflowAgentStep` reddi sürdürür (K-1055, kullanıcı onayı bekliyor)
+- [x] Onay → tool bir kez koşar; ret → koşmaz, workflow sürer; süreç yeniden başladıktan sonra da (`Approving_…`, `Refusing_…`, `A_waiting_workflow_is_answered_by_a_host_started_after_…`: iki host, tek SQLite)
+- [x] Yanıt kayıtlı istekten kurulur; `json` alanlı cevap `400` (`A_data_value_is_refused_…`, `WorkflowResponseFactory.CreateToolApproval`)
+- [x] Denetim satırı karardan önce; yazılamazsa karar uygulanmaz (`A_decision_that_cannot_be_audited_…`; kesik kayıtta `500`: `A_record_cut_before_it_names_the_tool_…`)
+- [x] "Hatırla" kuralı ajan yoluyla aynı yardımcıdan yazılır (`ToolApprovalDecisionRecorder`; `Remembering_an_approval_saves_a_rule_…`, tireli ad: `A_rule_is_saved_under_the_agents_real_name_…`)
+- [x] Alt agent ağacında ret sürer (K-103) (`WorkflowToolApprovalPatternTests.A_sub_agent_the_step_calls_is_still_refused_…`, `ChildAgentInvokerTests`)
+- [x] Site: `concepts/workflows.md` ret cümlesi düzeldi, `workflow-requests.md` ve `workflow-answers.md` yeni biçim; `npm run check` temiz (kapanış koşumunda 43 sn)
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü: `index-*.js.br` 184.251 → 186.6 KB (+2.35 KB), gzip 220.8 KB (bütçe 250)
+- [x] Dört doğrulama kapısı sıfır uyarı verir: `kapi.py kapanis --taban ee7b0b14` çıkış 0 (25769 test, 0 kırık, 19 atlanmış; build, pack, format, site)
+- [x] `samples/Tracon.Api` ile gerçek workflow run'ı (case 1) yapıldı (SQLite, gerçek OpenAI `gpt-5.4-mini`, `Npgsql` log satırı 0). Çıktı: istek `form: ToolApproval`, prompt `cancel_order: Cancel order ORD-1001 for Priya Shah.`; `GET /api/approvals/pending` boş; onaydan sonra `WorkflowOutput` `Order ORD-1001 has been canceled.`, `RunCompleted`; `approval.decision` (`approved:true`, gerekçe) ve `workflow.respond` satırı var. Ret: `The refund was refused by the approver, but the customer already got this refund.`, kural yazılmadı, `data` ile cevap `400`. Hatırla: kural `order-canceler` (tireli) + `cancel_order`; ikinci run `WorkflowRequest` yayınlamadan `Completed`
+- [x] `secret` taraması boş döndü (`kapi.py tarama` kapanış koşumunda yeşil)
+- [x] `🤖` case'ler `docs/manuel-test/15-WORKFLOWS.md` içinde (`MT-WF-183`…`185`) ve koşuldu; gerisi otomatik testte
+- [x] `faz-denetim` koşuldu; 🔴 iki bulgu (varsayılan kipte çift onay; kesik kayıtta atlanan denetim) ve 🟡 iki bulgu kapandı, yeni testlerle ve kapanış koşumuyla doğrulandı. Düzeltmeler ikinci bir denetimden geçmedi
 
 ### Doğrulama komutları
 
@@ -339,12 +339,19 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 10 (Plandan Sapmalar) |
+| Düzeltme turu sayısı | 3 (ilk uygulama sonrası E2E: ajan adı · mimari/belge testleri · denetim bulguları) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
+| Fazın ürettiği regresyon | 12 test (Core: iki denetim politikası, bir belge tabanı; üç TFM'de dört test) — aynı oturumda düzeltildi |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı.
+> `faz-denetim` çıktısı (2026-10-21, `faz-denetcisi`, aralık `ee7b0b14...HEAD`).
+
+- 🔴 1 — Varsayılan `Branch` kipinde aynı onay her cevapta tool'u yeniden koşturuyordu → `ToolApproval` her kipte tek cevap (K-1059), testi `An_approval_is_answered_once_even_in_the_default_mode…`. Gerçek.
+- 🔴 2 — `MaxPayloadLength` ile kesilen istek kaydı "tool onayı değil" okunuyor, cevap denetim satırı ve kural olmadan uygulanıyordu → tolerant okuyucu + okunamayan kayıtta `500` (K-089). Gerçek.
+- 🟡 3 — K-1055 kapsam daraltması kullanıcı cevabı bekliyor; Amaç/Genellik/230.4 daraltıldı. **Açık.**
+- 🟡 4 — Ölçülmemiş desenler tüketiciye "beş desen" diye gidiyordu → GroupChat ölçüldü, Magentic reddi sürdürür, metinler ölçülen dörde çekildi.
+- 🟡 5 — Süre dolumu cevaplanmış adımı da kapatıyordu (kodu bozunca test kırmızı) → adım kendi isteğiyle eşlenir.
+- 🟢 6…9 — `GetWorkflowAgent` belge uyarısı, yanıltıcı birim test adı, `unknown` araç adı, argüman özetinin olayda kalması: aynı oturumda kapandı (hash notu sitede).
