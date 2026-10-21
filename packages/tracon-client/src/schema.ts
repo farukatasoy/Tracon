@@ -4039,6 +4039,11 @@ export interface components {
              */
             wouldBeRejected: boolean;
         };
+        /**
+         * @description When an agent searches its conversation memory (`EnableConversationMemory`).
+         * @enum {unknown}
+         */
+        ConversationMemorySearch: "BeforeEachTurn" | "OnDemand";
         ConversationResource: {
             id: string;
             object: string;
@@ -5442,6 +5447,22 @@ export interface components {
             enableVectorSearch?: boolean;
             /** @description Gets the name of the collection to search. The agent name is used when it is empty. */
             vectorCollection?: null | string;
+            /**
+             * @description Gets a value that turns on conversation memory: the agent finds what the same user said
+             *     to this agent in earlier sessions and gets it as context.
+             */
+            enableConversationMemory?: boolean;
+            /**
+             * @description Gets when the agent searches its conversation memory. Read only while
+             *     `EnableConversationMemory` is on.
+             */
+            conversationMemorySearch?: components["schemas"]["ConversationMemorySearch"];
+            /**
+             * Format: int32
+             * @description Gets the most records one search returns. The framework's default (3) applies when it is
+             *     `null`. Must be between 1 and 20.
+             */
+            conversationMemoryMaxResults?: null | number | string;
         };
         /**
          * @description Determines the provider and the model an agent runs with. It carries
@@ -8886,6 +8907,7 @@ export type CompactionSettings = components['schemas']['CompactionSettings'];
 export type CompactionStrategyKind = components['schemas']['CompactionStrategyKind'];
 export type ConfigurationDiagnostic = components['schemas']['ConfigurationDiagnostic'];
 export type ContextWindowEstimate = components['schemas']['ContextWindowEstimate'];
+export type ConversationMemorySearch = components['schemas']['ConversationMemorySearch'];
 export type ConversationResource = components['schemas']['ConversationResource'];
 export type CurrentTenantResponse = components['schemas']['CurrentTenantResponse'];
 export type DataSubjectErasureResult = components['schemas']['DataSubjectErasureResult'];

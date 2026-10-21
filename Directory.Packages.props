@@ -152,6 +152,18 @@
   <ItemGroup Label="Veri erisimi">
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <!--
+      Phase 233: vector store connectors for the sample host and the tests only. No shipped package
+      references one: the vector store is the host's own registration. CommunityToolkit.VectorData.* is
+      the maintained line of Microsoft.Extensions.VectorData connectors (1.0 GA, built against
+      Microsoft.Extensions.VectorData.Abstractions 10.8). 🚨 The Microsoft.SemanticKernel.Connectors.*
+      line (1.74.0-preview, the latest) is NOT usable here: every one of them calls
+      VectorSearchOptions.OldFilter, which Abstractions 10.7 removed, and declares 10.1.0 as its floor, so
+      NuGet raises no warning and a search fails with MissingMethodException at run time (measured on the
+      sample host, 2026-10-22).
+    -->
+    <PackageVersion Include="CommunityToolkit.VectorData.PgVector" Version="1.0.1" />
+    <PackageVersion Include="CommunityToolkit.VectorData.InMemory" Version="1.0.1" />
+    <!--
       SQL Server surucusu (Faz 23). Kirpma/AOT icin isaretli DEGILDIR; bu yuzden
       Tracon.SqlServer TraconAotCompatible=false yazar (K-181).
     -->

@@ -145,6 +145,34 @@ public sealed class AgentTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Conversation_memory_box_shows_the_search_choice_and_the_request_carries_both()
+    {
+        // Phase 233 (F-627): one box and one choice. The choice only exists while the box is checked.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+
+        await session.Page.GetByTestId("agent-name").FillAsync("memory-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+
+        await Expect(session.Page.GetByTestId("agent-conversation-memory-search")).ToHaveCountAsync(0);
+
+        await session.Page.GetByLabel("Remember the user across sessions", new() { Exact = true }).CheckAsync();
+        await session.Page.GetByTestId("agent-conversation-memory-search").SelectOptionAsync("OnDemand");
+
+        var preview = await session.Page.Locator("pre").First.TextContentAsync();
+
+        preview.ShouldNotBeNull();
+        preview.ShouldContain("\"enableConversationMemory\": true");
+        preview.ShouldContain("\"conversationMemorySearch\": \"OnDemand\"");
+
+        // Clearing the box drops the choice with it: no option is sent that changes nothing.
+        await session.Page.GetByLabel("Remember the user across sessions", new() { Exact = true }).UncheckAsync();
+        await Expect(session.Page.GetByTestId("agent-conversation-memory-search")).ToHaveCountAsync(0);
+    }
+
+    [Fact]
     public async Task Loop_built_in_the_console_is_saved_read_back_and_runs()
     {
         // Phase 201 (F-302): the console builds the loop, not only carries it. The

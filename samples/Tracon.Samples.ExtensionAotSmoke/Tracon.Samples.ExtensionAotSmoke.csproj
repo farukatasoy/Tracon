@@ -15,4 +15,15 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      The vector store conversation memory writes to and searches (phase 233): the host registers one.
+      The smoke uses the small in-memory double of the tests, not a published connector: the smoke
+      answers whether TRACON and the Microsoft Agent Framework provider run under Native AOT, and a
+      connector brings its own AOT verdict (the maintained in-memory connector is not AOT compatible:
+      IL2104/IL3053, measured 2026-10-22).
+    -->
+    <Compile Include="../../tests/Shared/VectorStore/InMemoryVectorStore.cs" Link="InMemoryVectorStore.cs" />
+  </ItemGroup>
+
 </Project>

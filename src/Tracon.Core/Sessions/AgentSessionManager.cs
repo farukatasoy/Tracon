@@ -58,6 +58,7 @@ public sealed class AgentSessionManager
     private readonly TimeProvider _timeProvider;
     private readonly IRunAttributionContext? _attributionContext;
     private readonly IOptionsMonitor<TraconSessionOwnershipOptions>? _ownershipOptions;
+    private readonly IReadOnlyList<ISubjectContentEraser> _contentErasers;
 
     /// <summary>
     /// Marks sessions that <see cref="GetOrCreateSessionAsync"/> found no record
@@ -120,13 +121,18 @@ public sealed class AgentSessionManager
     /// The ownership settings. <see langword="null"/> means ownership is off,
     /// which is also the default when the options ARE registered.
     /// </param>
+    /// <param name="contentErasers">
+    /// The stores that keep a copy of a session's content outside the session store (conversation
+    /// memory). A session's copy is erased before the session is deleted.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     internal AgentSessionManager(
         ISessionStore store,
         ITenantContext tenantContext,
         TimeProvider? timeProvider = null,
         IRunAttributionContext? attributionContext = null,
-        IOptionsMonitor<TraconSessionOwnershipOptions>? ownershipOptions = null)
+        IOptionsMonitor<TraconSessionOwnershipOptions>? ownershipOptions = null,
+        IEnumerable<ISubjectContentEraser>? contentErasers = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -136,6 +142,7 @@ public sealed class AgentSessionManager
         _timeProvider = timeProvider ?? TimeProvider.System;
         _attributionContext = attributionContext;
         _ownershipOptions = ownershipOptions;
+        _contentErasers = contentErasers is null ? [] : [.. contentErasers];
     }
 
     /// <summary>
@@ -600,15 +607,30 @@ public sealed class AgentSessionManager
         public string? OwnerId { get; } = ownerId;
     }
 
-    /// <summary>Deletes the session.</summary>
+    /// <summary>Deletes the session, and the copy of its content that conversation memory keeps.</summary>
     /// <param name="sessionId">The session identity.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> if a deletion occurred.</returns>
     /// <exception cref="ArgumentException"><paramref name="sessionId"/> is empty.</exception>
-    public ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// The copy goes FIRST and only for a session that exists: a copy that cannot be erased fails the
+    /// call with the session still in place, so a repeat call finds it and finishes the erasure. Erasing after
+    /// the delete would leave a copy no repeat call could reach.
+    /// </remarks>
+    public async ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-        return _store.DeleteAsync(sessionId, cancellationToken);
+
+        if (_contentErasers.Count > 0
+            && await _store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            foreach (var eraser in _contentErasers)
+            {
+                await eraser.EraseAsync(_tenantContext.TenantId, [sessionId], cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return await _store.DeleteAsync(sessionId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Lists sessions matching a filter.</summary>

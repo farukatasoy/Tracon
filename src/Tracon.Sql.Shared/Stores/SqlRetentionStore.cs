@@ -49,6 +49,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
     private readonly SqlDialect _dialect;
     private readonly IAttachmentStorage? _storage;
     private readonly ILogger<SqlRetentionStore> _logger;
+    private readonly IReadOnlyList<ISubjectContentEraser> _contentErasers;
 
     /// <summary>Creates a new retention data-plane store.</summary>
     /// <param name="context">The store context.</param>
@@ -57,11 +58,16 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// attachment content lives in the row and goes with it.
     /// </param>
     /// <param name="logger">The logger for a content delete that fails; optional.</param>
+    /// <param name="contentErasers">
+    /// The stores that keep a copy of a session's content outside SQL (conversation memory). A
+    /// session's copy is erased before the session goes. Empty when none is set up.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
     public SqlRetentionStore(
         SqlStoreContext context,
         IAttachmentStorage? storage = null,
-        ILogger<SqlRetentionStore>? logger = null)
+        ILogger<SqlRetentionStore>? logger = null,
+        IEnumerable<ISubjectContentEraser>? contentErasers = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -69,6 +75,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
         _dialect = context.Dialect;
         _storage = storage;
         _logger = logger ?? NullLogger<SqlRetentionStore>.Instance;
+        _contentErasers = contentErasers is null ? [] : [.. contentErasers];
     }
 
     /// <inheritdoc />
@@ -137,6 +144,11 @@ internal sealed class SqlRetentionStore : IRetentionStore
         {
             return await DeleteAttachmentBatchAsync(_storage, definition, tenantId, cutoff, batchSize, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        if (_contentErasers.Count > 0 && string.Equals(target, RetentionTargets.Sessions, StringComparison.Ordinal))
+        {
+            return await DeleteSessionBatchAsync(definition, tenantId, cutoff, batchSize, cancellationToken).ConfigureAwait(false);
         }
 
         var sql = _dialect.BuildRetentionDeleteBatchSql(definition.Table, Where(definition, tenantId));
@@ -217,9 +229,19 @@ internal sealed class SqlRetentionStore : IRetentionStore
                 .ConfigureAwait(false);
         }
 
+        if (_contentErasers.Count > 0 && string.Equals(target, RetentionTargets.Sessions, StringComparison.Ordinal))
+        {
+            // The archive has the rows; the copy of each session outside SQL goes before the row does.
+            var sessions = batch.ConvertAll(row => (
+                Id: Convert.ToString(row.Key[0], CultureInfo.InvariantCulture)!,
+                Tenant: row.Tenant ?? AmbientTenantScope.Normalize(tenantId!)));
+
+            return await EraseSessionContentThenDeleteAsync(definition, cutoff, sessions, cancellationToken).ConfigureAwait(false);
+        }
+
         if (!byTenant)
         {
-            return await DeleteArchivedKeysAsync(definition, where, tenantId, cutoff, batch, cancellationToken)
+            return await DeleteArchivedKeysAsync(definition, where, tenantId, cutoff, batch.ConvertAll(static row => row.Key), cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -232,7 +254,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
                     Where(definition, group.Key),
                     group.Key,
                     cutoff,
-                    [.. group],
+                    [.. group.Select(static row => row.Key)],
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -284,7 +306,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
     /// <param name="where">The target's condition, with the tenant filter.</param>
     /// <param name="tenantId">The tenant; nothing is bound when <see langword="null"/>.</param>
     /// <param name="cutoff">The cutoff date.</param>
-    /// <param name="batch">The archived rows.</param>
+    /// <param name="keys">The key of each row to delete, one value per key column.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The number of rows deleted.</returns>
     private async ValueTask<int> DeleteArchivedKeysAsync(
@@ -292,16 +314,16 @@ internal sealed class SqlRetentionStore : IRetentionStore
         string where,
         string? tenantId,
         DateTimeOffset cutoff,
-        IReadOnlyList<ArchivedRow> batch,
+        List<IReadOnlyList<object>> keys,
         CancellationToken cancellationToken)
     {
         var keyColumns = definition.KeyColumns;
         var rowsPerCommand = Math.Max(1, MaxKeyParametersPerDelete / keyColumns.Count);
         var deleted = 0;
 
-        for (var offset = 0; offset < batch.Count; offset += rowsPerCommand)
+        for (var offset = 0; offset < keys.Count; offset += rowsPerCommand)
         {
-            var rowCount = Math.Min(rowsPerCommand, batch.Count - offset);
+            var rowCount = Math.Min(rowsPerCommand, keys.Count - offset);
             var command = _context.CreateCommand(
                 _dialect.BuildRetentionDeleteKeysSql(definition.Table, where, keyColumns, rowCount));
             _dialect.AddTimestamp(command, "cutoff", cutoff);
@@ -309,7 +331,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
 
             for (var row = 0; row < rowCount; row++)
             {
-                var key = batch[offset + row].Key;
+                var key = keys[offset + row];
 
                 for (var column = 0; column < key.Count; column++)
                 {
@@ -318,6 +340,81 @@ internal sealed class SqlRetentionStore : IRetentionStore
             }
 
             deleted += await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        }
+
+        return deleted;
+    }
+
+    /// <summary>
+    /// Deletes one batch of expired sessions: the copy of each session's content that lives outside
+    /// SQL first, the row second.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A plain batch <c>DELETE</c> never reads the ids, so the copy a host's vector store keeps would
+    /// stay behind for good: nothing would name its session any more. So the batch is READ, the copies of
+    /// its sessions are erased, and only then are its rows deleted, by their keys.
+    /// </para>
+    /// <para>
+    /// A copy that cannot be erased fails the run with the rows still in place, so the next run reads
+    /// the same sessions again. The keys are deleted with the target's condition checked again: a session
+    /// that was used in between (and so no longer expired) stays. Its earlier turns are no longer
+    /// remembered, but the mistake runs in the safe direction: a copy never outlives its session's row.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<int> DeleteSessionBatchAsync(
+        RetentionTargetDefinition definition,
+        string? tenantId,
+        DateTimeOffset cutoff,
+        int batchSize,
+        CancellationToken cancellationToken)
+    {
+        var where = Where(definition, tenantId);
+        var select = _context.CreateCommand(_dialect.BuildRetentionSelectBatchSql(definition.Table, "id, tenant_id", where));
+        _dialect.AddTimestamp(select, "cutoff", cutoff);
+        AddTenant(select, tenantId);
+        DbHelpers.Add(select, "batchSize", Math.Max(1, batchSize));
+
+        var rows = await DbHelpers
+            .ReadListAsync(select, static reader => (Id: reader.GetString(0), Tenant: ReadTenant(reader)), cancellationToken)
+            .ConfigureAwait(false);
+
+        return await EraseSessionContentThenDeleteAsync(definition, cutoff, rows, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Erases the copies outside SQL of the given sessions, then deletes the sessions' rows by key.</summary>
+    /// <param name="definition">The sessions target.</param>
+    /// <param name="cutoff">The cutoff date.</param>
+    /// <param name="sessions">The sessions, each with its tenant in the form every tenant parameter is bound in.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of rows deleted.</returns>
+    private async ValueTask<int> EraseSessionContentThenDeleteAsync(
+        RetentionTargetDefinition definition,
+        DateTimeOffset cutoff,
+        IReadOnlyList<(string Id, string Tenant)> sessions,
+        CancellationToken cancellationToken)
+    {
+        var deleted = 0;
+
+        // 🚨 A session id is unique inside one tenant only: copies are erased, and rows deleted,
+        // tenant by tenant, each with the tenant in the filter.
+        foreach (var group in sessions.GroupBy(static session => session.Tenant, StringComparer.Ordinal))
+        {
+            var ids = group.Select(static session => session.Id).ToList();
+
+            foreach (var eraser in _contentErasers)
+            {
+                await eraser.EraseAsync(group.Key, ids, cancellationToken).ConfigureAwait(false);
+            }
+
+            deleted += await DeleteArchivedKeysAsync(
+                    definition,
+                    Where(definition, group.Key),
+                    group.Key,
+                    cutoff,
+                    [.. ids.Select(static id => (IReadOnlyList<object>)[id])],
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         return deleted;

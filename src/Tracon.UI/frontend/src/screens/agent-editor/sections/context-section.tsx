@@ -2,13 +2,32 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { CompactionStrategyKind } from '@tracon/client';
 import { useT } from '../../../lib/i18n';
 import { Field, Panel, Select, TextArea, TextInput } from '../../../components/ui';
-import { COMPACTION_STRATEGIES, toNumber, type FormState } from '../model';
+import {
+  COMPACTION_STRATEGIES,
+  CONVERSATION_MEMORY_SEARCHES,
+  toNumber,
+  type ConversationMemorySearchOption,
+  type FormState,
+} from '../model';
 
 const MEMORY_TOGGLES = [
   ['enableFileMemory', 'fields.enableFileMemory'],
   ['enableTodo', 'fields.enableTodo'],
   ['enableTextSearch', 'fields.enableTextSearch'],
+  ['enableConversationMemory', 'fields.enableConversationMemory'],
 ] as const;
+
+/**
+ * Turns one memory flag on or off. Turning conversation memory off also drops its search settings, so a
+ * definition that no longer remembers does not keep options that change nothing.
+ */
+function withToggle(memory: FormState['memory'], key: (typeof MEMORY_TOGGLES)[number][0], on: boolean): FormState['memory'] {
+  if (key === 'enableConversationMemory' && !on) {
+    return { ...memory, enableConversationMemory: false, conversationMemorySearch: undefined, conversationMemoryMaxResults: undefined };
+  }
+
+  return { ...memory, [key]: on };
+}
 
 export function ContextSection({
   form,
@@ -219,12 +238,36 @@ export function ContextSection({
                   type="checkbox"
                   className="accent-[var(--tracon-accent)]"
                   checked={form.memory[key] === true}
-                  onChange={(event) => setForm({ ...form, memory: { ...form.memory, [key]: event.target.checked } })}
+                  onChange={(event) => setForm({ ...form, memory: withToggle(form.memory, key, event.target.checked) })}
                 />
                 {t(label)}
               </label>
             ))}
           </div>
+
+          {form.memory.enableConversationMemory === true && (
+            <div className="mt-3">
+              <Field label={t('fields.conversationMemorySearch')}>
+                <Select
+                  testId="agent-conversation-memory-search"
+                  value={form.memory.conversationMemorySearch ?? 'BeforeEachTurn'}
+                  onChange={(value) =>
+                    setForm({
+                      ...form,
+                      memory: { ...form.memory, conversationMemorySearch: value as ConversationMemorySearchOption },
+                    })
+                  }
+                >
+                  {CONVERSATION_MEMORY_SEARCHES.map((search) => (
+                    <option key={search} value={search}>
+                      {t(`agentEditor.conversationMemorySearch.${search}`)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <p className="mt-1 text-sm text-muted">{t('agentEditor.conversationMemoryNotice')}</p>
+            </div>
+          )}
         </div>
       </div>
     </Panel>

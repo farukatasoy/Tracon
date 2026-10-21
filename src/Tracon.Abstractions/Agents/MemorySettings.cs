@@ -4,11 +4,9 @@ namespace Tracon;
 /// Determines the memory providers bound to an agent.
 /// </summary>
 /// <remarks>
-/// The <c>ChatHistoryMemoryProvider</c> of MAF (vector-based in-session memory) is
-/// deliberately absent here, and must not be confused with
-/// <see cref="EnableVectorSearch"/> — that one opens a semantic search tool over a
-/// persistent knowledge base and does not bind that particular MAF contract. Rationale
-/// and boundary:
+/// <see cref="EnableVectorSearch"/> and <see cref="EnableConversationMemory"/> are different
+/// things. The first opens a semantic search tool over a knowledge base a host loaded; the
+/// second remembers what one user said to this agent in earlier sessions.
 /// </remarks>
 public sealed record MemorySettings
 {
@@ -43,4 +41,36 @@ public sealed record MemorySettings
     /// Gets the name of the collection to search. The agent name is used when it is empty.
     /// </summary>
     public string? VectorCollection { get; init; }
+
+    /// <summary>
+    /// Gets a value that turns on conversation memory: the agent finds what the same user said
+    /// to this agent in earlier sessions and gets it as context.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It needs <c>UseConversationMemory</c> and a <c>VectorStore</c> in the service collection;
+    /// when either is missing, the build stops with <see cref="TraconCompilationException"/> and
+    /// names it. Records are scoped by tenant, agent and user. A run with no user, or no session,
+    /// neither reads nor writes memory. The records live in the host's vector store and go when
+    /// their session goes: an erasure of its data subject, <c>DELETE /api/sessions/{id}</c> or its
+    /// retention period.
+    /// </para>
+    /// <para>
+    /// The store embeds what it keeps; Tracon does not see that model call, so its tokens and cost
+    /// are not on the run.
+    /// </para>
+    /// </remarks>
+    public bool EnableConversationMemory { get; init; }
+
+    /// <summary>
+    /// Gets when the agent searches its conversation memory. Read only while
+    /// <c>EnableConversationMemory</c> is on.
+    /// </summary>
+    public ConversationMemorySearch ConversationMemorySearch { get; init; }
+
+    /// <summary>
+    /// Gets the most records one search returns. The framework's default (3) applies when it is
+    /// <see langword="null"/>. Must be between 1 and 20.
+    /// </summary>
+    public int? ConversationMemoryMaxResults { get; init; }
 }

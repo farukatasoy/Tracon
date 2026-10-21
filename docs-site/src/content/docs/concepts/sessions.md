@@ -301,7 +301,8 @@ Attachments are uploaded independently and referenced from messages; the bytes l
 storage and only a small reference travels with a message. The upload's type is
 decided by inspecting its magic bytes, not by the `Content-Type` the client claims.
 
-Deleting a session deletes the attachments it owns. You can also call
+Deleting a session deletes the attachments it owns, and the conversation memory records it produced
+(see [Context and memory](/guides/context-and-memory/#remember-a-user-across-sessions)). You can also call
 `DELETE /api/attachments/{id}` for one attachment, and the orphan-attachment retention
 target cleans uploads that never become part of a session. Individual deletion is a
 hard delete: an older message that still contains the reference will no longer be able

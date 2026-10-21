@@ -42,6 +42,7 @@
     <!-- SqlPersistenceRegistrationMarker: the health check, the SQL registration and the provider parity tests register or name it. -->
     <InternalsVisibleTo Include="Tracon.AspNetCore.FunctionalTests" />
     <InternalsVisibleTo Include="Tracon.PostgreSql.IntegrationTests" />
+    <InternalsVisibleTo Include="Tracon.Sqlite.IntegrationTests" />
     <InternalsVisibleTo Include="Tracon.Sql.Shared.UnitTests" />
   </ItemGroup>
 

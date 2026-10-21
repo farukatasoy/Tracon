@@ -2130,6 +2130,11 @@ than once. If you write your own `IRetentionStore`, override `ArchiveBatchAsync`
 default reads and deletes in two separate calls, which can delete a row that was never
 archived. `RetentionStoreContract` in `Tracon.Testing.Contracts.Xunit` checks this.
 
+The `sessions` target also deletes the conversation memory of each expired session,
+when memory is set up. The batch is read first, the memory records of its sessions are
+deleted tenant by tenant, and only then are the session rows deleted. If the store cannot
+delete, the run fails with the rows still in place, and the next run reads the same sessions.
+
 The `attachments` target deletes only **orphaned** attachments: those with no
 session id, or whose session id has no owner in the same tenant. An owner is a
 session, or a [workflow](/concepts/workflows/#checkpoints) run with that session id
@@ -2216,6 +2221,14 @@ answerable, but an erasure deletes the run itself, together with its checkpoints
 is "who did what", not the subject's own data, and stays intact and verifiable after
 an erasure. The erasure itself **is** written there, with the row count per target; if
 that write fails, the whole erasure rolls back.
+
+If [conversation memory](/guides/context-and-memory/#remember-a-user-across-sessions)
+is set up, the copy of the subject's sessions that your vector store keeps goes too. It is deleted
+inside the erasure by the subject's session ids and the caller's tenant: after the rows are
+deleted, before the audit write and the commit. The preview counts it under
+`conversation_memory`, and the export lists it. If the store cannot delete, the erasure
+rolls back and the request fails; repeat it when the store is back. Records the store
+keeps for its own reasons, such as backups, are outside Tracon's reach.
 
 Attachment bytes held in a registered `IAttachmentStorage` go too. They are deleted
 inside the erasure: after the rows are deleted, before the audit write and the
@@ -3514,7 +3527,8 @@ Attachments are uploaded independently and referenced from messages; the bytes l
 storage and only a small reference travels with a message. The upload's type is
 decided by inspecting its magic bytes, not by the `Content-Type` the client claims.
 
-Deleting a session deletes the attachments it owns. You can also call
+Deleting a session deletes the attachments it owns, and the conversation memory records it produced
+(see [Context and memory](/guides/context-and-memory/#remember-a-user-across-sessions)). You can also call
 `DELETE /api/attachments/{id}` for one attachment, and the orphan-attachment retention
 target cleans uploads that never become part of a session. Individual deletion is a
 hard delete: an older message that still contains the reference will no longer be able
@@ -9052,10 +9066,10 @@ written for the human making it.
 Source: https://tracon.dev/guides/context-and-memory/
 
 “Memory” is not one store. Tracon separates conversation continuity, context
-budgeting, working state, fixed resources, and semantic knowledge. Choose each layer
-for the question it answers.
+budgeting, working state, fixed resources, semantic knowledge, and what one user told
+an agent before. Choose each layer for the question it answers.
 
-## Mental model: five different jobs
+## Mental model: six different jobs
 
 | Layer | Question it answers | Main API |
 |---|---|---|
@@ -9064,16 +9078,18 @@ for the question it answers.
 | Working memory | What files, todos, or text should this agent manage during work? | `MemorySettings` |
 | MCP resources | Which fixed remote resources enter every run? | `AgentDefinition.McpResourceUris` |
 | Knowledge search | Which durable external facts are relevant to this question? | `MemorySettings.EnableVectorSearch` |
+| Conversation memory | What did this user tell this agent in an earlier session? | `MemorySettings.EnableConversationMemory` |
 
 ```mermaid
 flowchart LR
     accTitle: Agent context assembly
-    accDescr: Session history is compacted, then combined with working memory, fixed MCP resources, and knowledge results before the model request.
+    accDescr: Session history is compacted, then combined with working memory, fixed MCP resources, knowledge results, and the user's conversation memory before the model request.
     Q["Run request"] --> H["Session history"]
     H --> C["Compaction"]
     W["Working memory"] --> X["Model context and tools"]
     R["MCP resources"] --> X
     K["Knowledge search tool"] --> X
+    U["Conversation memory"] --> X
     C --> X
     X --> M["Provider model"]
 ```
@@ -9082,7 +9098,7 @@ A session preserves continuity. Compaction reduces what the model sees. It does 
 delete the persisted run record. File memory and knowledge search add capabilities; they
 do not replace session history.
 
-These five layers all shape what already made it into the conversation. A tool's
+These six layers all shape what already made it into the conversation. A tool's
 [output size limit](/concepts/tools/#output-size-limit) works earlier, at the source:
 it bounds a single tool result before that result ever becomes context to compact. The
 two are complementary, not competing — a tool limit caps one call's contribution,
@@ -9219,14 +9235,139 @@ tracking. A harness already keeps todo tracking on unless
 file store.
 
 `EnableVectorSearch` is different. It adds the code-defined `search_knowledge` tool
-over a persistent semantic knowledge base. It is not MAF's
-`ChatHistoryMemoryProvider`. See
-[Knowledge and RAG](/guides/knowledge/).
+over a persistent semantic knowledge base that you loaded. It does not remember
+conversations. See [Knowledge and RAG](/guides/knowledge/).
+
+`EnableConversationMemory` remembers what one user said to this agent in earlier
+sessions. It needs setup in code. See
+[Remember a user across sessions](#remember-a-user-across-sessions).
 
 The console agent editor exposes harness settings, all compaction strategies, file
-memory, todo tracking, and text search. It does not currently expose vector search or
-MCP resource URIs. Set vector memory through code or the management HTTP API. Set MCP
-resource URIs in code.
+memory, todo tracking, text search, and conversation memory (one box and the search
+choice). It does not currently expose vector search, the search limit of conversation
+memory, or MCP resource URIs. Set those through code or the management HTTP API. Set
+MCP resource URIs in code.
+
+## Remember a user across sessions
+
+A session keeps one conversation. Conversation memory keeps what a *user* said, and
+gives it to the same agent in a later session. Ada tells the agent her favourite
+colour in one session. In a new session, the agent finds that message and answers
+"teal".
+
+Two switches turn it on. Both are off by default.
+
+1. **Setup, once, in code.** Register a `Microsoft.Extensions.VectorData.VectorStore`
+   in the service collection, and call `UseConversationMemory`:
+
+   ```csharp
+   builder.Services.AddSingleton<VectorStore>(provider => new PostgresVectorStore(
+       connectionString,
+       new PostgresVectorStoreOptions
+       {
+           EmbeddingGenerator = provider.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>(),
+       }));
+
+   builder.AddTracon()
+       .UseConversationMemory(options => options.VectorDimensions = 1536);
+   ```
+
+   `VectorDimensions` is the vector size of your embedding model. `CollectionName`
+   defaults to `tracon_conversation_memory`. The store belongs to your application:
+   you choose the connector, and the store turns each message into a vector with its
+   own embedding generator. Tracon never creates a store and never calls the
+   embedding model.
+
+2. **A definition that asks for it.**
+
+   ```json
+   {
+     "memory": {
+       "enableConversationMemory": true,
+       "conversationMemorySearch": "BeforeEachTurn",
+       "conversationMemoryMaxResults": 3
+     }
+   }
+   ```
+
+If a definition asks for memory and the application has not done step 1, the agent
+does not compile. The error names the missing call or the missing `VectorStore`.
+
+### Who the memory belongs to
+
+A record carries the tenant, the agent, the user, and the session it came from. A
+search looks at the tenant, the agent, and the user, not the session. This is why a
+new session still finds the old one.
+
+| A run… | Memory |
+|---|---|
+| has a user and a session | reads and writes |
+| has no user (an anonymous run) | neither reads nor writes |
+| has no session id | neither reads nor writes — a record with no session could not be deleted with its session |
+| belongs to another tenant, agent, or user | never sees the record |
+
+The user is the one your [run attribution](/concepts/governance/) resolves, never a
+field in the request body. Name a `sessionId` in the request; a request without one
+opens no session and remembers nothing.
+
+A user with the same `sessionId` as another user keeps a separate memory. Tracon
+reads the scope from the run on every call, not from the session, so the first user
+to name a session does not decide the scope for the next one.
+
+### What is stored, and when it is searched
+
+Tracon stores the text of the user's messages and of the agent's answers. It does not
+store tool calls, tool results, or messages another provider added to the request.
+The agent's own earlier answers are stored too, so an answer such as "I do not know
+that yet" can come back in a later search.
+
+`conversationMemorySearch` decides when the search runs:
+
+| Value | Behavior |
+|---|---|
+| `BeforeEachTurn` (default) | Searches with the user's message before each turn, and adds what it finds as a message under a *Memories* heading. |
+| `OnDemand` | Offers the model a tool named `search_conversation_memory`. The model decides when to search and what to ask for. |
+
+`conversationMemoryMaxResults` limits one search to 1–20 records. The default is 3.
+The `OnDemand` tool is not part of the agent's `ToolNames`: it needs no approval, and
+it reads only the scope of the run that calls it. A tool of the agent with the same
+name fails the build.
+
+### Deleting memory
+
+The records are a copy of the session's content, so they go when their session goes:
+
+- `DELETE /api/sessions/{id}` deletes the records first, then the session. If the
+  store cannot delete, the request fails and the session stays, so a repeat request
+  finishes the work.
+- A [data subject erasure](/concepts/governance/#data-subject-rights) deletes the
+  records of the subject's sessions inside the erasure. A preview counts them under
+  `conversation_memory`, and an export lists them.
+- The [retention](/concepts/governance/#retention) policy for sessions deletes the
+  records of an expired session before the session row.
+
+The store can keep data for its own reasons, such as backups. Tracon cannot delete
+that.
+
+### Failures, cost, and limits
+
+- If the store is down when a run starts, the run goes on without memory and the
+  framework logs the error. If it is down when the run ends, the run's answer is
+  kept and the messages are not remembered. Memory is context, not the answer.
+- The store embeds each message. That model call is not on the run's usage and cost.
+  Check the cost with your embedding provider.
+- Search quality, and whether the filter on tenant, agent, and user is applied at
+  all, belong to the connector. Test that two users do not see each other's records
+  before you rely on it.
+- 🚨 **Check the connector against the abstractions version.** The Microsoft Agent
+  Framework needs `Microsoft.Extensions.VectorData.Abstractions` 10.10 or newer.
+  Connectors built against an older version, such as the
+  `Microsoft.SemanticKernel.Connectors.*` packages (1.74 preview), call a member
+  that no longer exists. NuGet raises no warning, and the failure is a
+  `MissingMethodException` in the log at run time, with the agent answering without
+  memory. `CommunityToolkit.VectorData.*` 1.0 connectors work.
+- The vector store is not AOT-analyzed by Tracon. Tracon's own code and the framework
+  provider publish with no Native AOT warning; your connector has its own result.
 
 ## Know the agent modes
 
@@ -9350,12 +9491,24 @@ budgets.
 `IEmbeddingGenerator<string, Embedding<float>>`. The built-in store comes from
 PostgreSQL.
 
+**The agent does not remember the user.** Check four things. The request names a
+`sessionId`. Your attribution resolves a user for the run. The earlier session was
+stored under the same tenant and agent. The log has no `ChatHistoryMemoryProvider`
+error — a `MissingMethodException` there means the connector is older than the
+abstractions (see the warning in
+[Remember a user across sessions](#remember-a-user-across-sessions)).
+
+**An agent with conversation memory does not compile.** It needs
+`UseConversationMemory` and a registered `VectorStore`. The message names the one
+that is missing.
+
 ## In the reference
 
 - [Agent management HTTP API](/http-api/agents/)
 - [`HarnessSettings` API](/api/tracon.harnesssettings/)
 - [`CompactionSettings` API](/api/tracon.compactionsettings/)
 - [`MemorySettings` API](/api/tracon.memorysettings/)
+- [`TraconConversationMemoryOptions` API](/api/tracon.traconconversationmemoryoptions/)
 - [`TraconMcpOptions` API](/api/tracon.traconmcpoptions/)
 
 ## Read next
@@ -10883,8 +11036,9 @@ The console does not currently provide a knowledge-management screen or vector-m
 fields in the agent editor. Use the knowledge HTTP API for ingestion and calibration,
 and use code or the agent management API to enable vector search.
 
-This feature is separate from session history, file memory, and MAF's
-`ChatHistoryMemoryProvider`. See
+This feature is separate from session history, file memory, and conversation memory
+(what one user told an agent in earlier sessions). Knowledge is what you loaded;
+conversation memory is what the user said. See
 [Context and memory](/guides/context-and-memory/).
 
 ## Ingest raw text

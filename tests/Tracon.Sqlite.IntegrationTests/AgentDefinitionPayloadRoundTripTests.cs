@@ -286,7 +286,14 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
             McpResourceUris = ["docs:file:///handbook.md"],
             Harness = new HarnessSettings(),
             Compaction = new CompactionSettings { Strategy = CompactionStrategyKind.Truncation },
-            Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection = "internal-documents" },
+            Memory = new MemorySettings
+            {
+                EnableVectorSearch = true,
+                VectorCollection = "internal-documents",
+                EnableConversationMemory = true,
+                ConversationMemorySearch = ConversationMemorySearch.OnDemand,
+                ConversationMemoryMaxResults = 4,
+            },
             Metadata = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
             {
                 ["owner"] = JsonSerializer.SerializeToElement("platform-team"),

@@ -18,12 +18,18 @@ namespace Tracon;
 /// the external content of every erased attachment, inside the transaction and
 /// before the commit. A content delete that fails rolls the erasure back.
 /// </para>
+/// <para>
+/// The same goes for a copy of the subject's sessions that lives outside SQL
+/// (<see cref="ISubjectContentEraser"/>, conversation memory in the host's vector store): the preview
+/// counts it, the erasure deletes it before the commit, and the export lists it.
+/// </para>
 /// </remarks>
 internal sealed class SqlDataSubjectStore : IDataSubjectStore
 {
     private readonly SqlStoreContext _context;
     private readonly SqlDialect _dialect;
     private readonly IAttachmentStorage? _storage;
+    private readonly IReadOnlyList<ISubjectContentEraser> _contentErasers;
 
     /// <summary>Creates a new data subject data-plane store.</summary>
     /// <param name="context">The store context.</param>
@@ -31,14 +37,21 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
     /// The external attachment content store, when registered. Without it the
     /// attachment content lives in the row and goes with it.
     /// </param>
+    /// <param name="contentErasers">
+    /// The stores that keep a copy of a session's content outside SQL. Empty when none is set up.
+    /// </param>
     /// <exception cref="ArgumentNullException"><paramref name="context"/> is <see langword="null"/>.</exception>
-    public SqlDataSubjectStore(SqlStoreContext context, IAttachmentStorage? storage = null)
+    public SqlDataSubjectStore(
+        SqlStoreContext context,
+        IAttachmentStorage? storage = null,
+        IEnumerable<ISubjectContentEraser>? contentErasers = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         _context = context;
         _dialect = context.Dialect;
         _storage = storage;
+        _contentErasers = contentErasers is null ? [] : [.. contentErasers];
     }
 
     /// <inheritdoc />
@@ -145,12 +158,27 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                 {
                     await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
 
+                    // A preview counts the copies outside SQL after the rollback: it deletes nothing there.
+                    foreach (var eraser in _contentErasers)
+                    {
+                        counts[eraser.Target] = await eraser.CountAsync(tenantId, scope.SessionIds, cancellationToken).ConfigureAwait(false);
+                    }
+
                     return counts;
                 }
 
                 try
                 {
                     await DeleteExternalContentAsync(externalUris, cancellationToken).ConfigureAwait(false);
+
+                    // The copy outside SQL goes before the commit and before the audit write, like the
+                    // attachment content: a failure here rolls the rows back, so a repeat call still finds
+                    // the sessions and finishes the erasure, and the audit trail never records one that failed.
+                    foreach (var eraser in _contentErasers)
+                    {
+                        counts[eraser.Target] = await eraser.EraseAsync(tenantId, scope.SessionIds, cancellationToken).ConfigureAwait(false);
+                    }
+
                     await beforeCommitAsync(counts, cancellationToken).ConfigureAwait(false);
                 }
                 catch
@@ -231,6 +259,11 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                 }
 
                 writer.WriteEndArray();
+            }
+
+            foreach (var eraser in _contentErasers)
+            {
+                await eraser.WriteExportAsync(tenantId, scope.SessionIds, writer, cancellationToken).ConfigureAwait(false);
             }
 
             writer.WriteEndObject();

@@ -97,6 +97,87 @@ describe('AgentEditorScreen', () => {
     });
   });
 
+  // F-627: conversation memory is one box and one choice in the context section.
+  describe('conversation memory', () => {
+    type Sent = { memory?: Record<string, unknown> | null };
+
+    function validateInto(capture: (body: Sent) => void) {
+      return {
+        method: 'POST' as const,
+        pattern: 'api/agents/validate',
+        handler: (_params: unknown, _url: unknown, body: unknown) => {
+          capture(body as Sent);
+
+          return { valid: true, inconclusive: false, messages: [] };
+        },
+      };
+    }
+
+    function loadSupport(memory: unknown, capture: (body: Sent) => void) {
+      restoreFetch = installApiMock([
+        ...baseOverrides(),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: { ...fullDefinition, memory },
+        }),
+        validateInto(capture),
+      ]);
+    }
+
+    it('shows the search choice only while the box is checked and sends the choice made', async () => {
+      let sent: Sent | undefined;
+      loadSupport(null, (body) => (sent = body));
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByLabelText('Remember the user across sessions');
+      expect(screen.queryByTestId('agent-conversation-memory-search')).toBeNull();
+
+      await user.click(screen.getByLabelText('Remember the user across sessions'));
+      await user.selectOptions(screen.getByTestId('agent-conversation-memory-search'), 'OnDemand');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(sent?.memory).toMatchObject({ enableConversationMemory: true, conversationMemorySearch: 'OnDemand' });
+      });
+    });
+
+    it('drops the search choice when the box is cleared, so no option is saved that changes nothing', async () => {
+      let sent: Sent | undefined;
+      loadSupport({ enableTodo: true, enableConversationMemory: true, conversationMemorySearch: 'OnDemand', conversationMemoryMaxResults: 4 }, (body) => (sent = body));
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await user.click(await screen.findByLabelText('Remember the user across sessions'));
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(sent?.memory).toBeDefined();
+      });
+
+      expect(sent?.memory).toMatchObject({ enableTodo: true, enableConversationMemory: false });
+      expect(sent?.memory).not.toHaveProperty('conversationMemorySearch');
+      expect(sent?.memory).not.toHaveProperty('conversationMemoryMaxResults');
+    });
+
+    it('keeps the search limit an API client set when the box stays checked', async () => {
+      let sent: Sent | undefined;
+      loadSupport({ enableConversationMemory: true, conversationMemorySearch: 'BeforeEachTurn', conversationMemoryMaxResults: 4 }, (body) => (sent = body));
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await screen.findByLabelText('Remember the user across sessions');
+      await user.click(screen.getByTestId('agent-validate'));
+
+      await waitFor(() => {
+        expect(sent?.memory).toMatchObject({ enableConversationMemory: true, conversationMemoryMaxResults: 4 });
+      });
+    });
+  });
+
   // F-598: the request fields and the tool-call loop are edited in the model section.
   describe('request fields and tool-call loop', () => {
     type Sent = { model?: Record<string, unknown> };

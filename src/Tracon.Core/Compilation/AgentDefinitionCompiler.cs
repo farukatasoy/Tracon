@@ -673,6 +673,8 @@ public sealed partial class AgentDefinitionCompiler
             backgroundAgents = null;
         }
 
+        ThrowOnConversationMemoryToolConflict(definition, tools);
+
         var chatOptions = BuildChatOptions(definition, tools, culture, sharedInstructions);
 
         AIAgent agent = definition.Harness is null

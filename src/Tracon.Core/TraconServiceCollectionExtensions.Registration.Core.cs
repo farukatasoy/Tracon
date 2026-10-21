@@ -462,7 +462,10 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<ITenantContext>(),
             provider.GetService<TimeProvider>(),
             provider.GetService<IRunAttributionContext>(),
-            provider.GetService<Microsoft.Extensions.Options.IOptionsMonitor<TraconSessionOwnershipOptions>>()));
+            provider.GetService<Microsoft.Extensions.Options.IOptionsMonitor<TraconSessionOwnershipOptions>>(),
+            // Phase 233: the copy of a session's content a host's vector store keeps (conversation
+            // memory). Empty unless UseConversationMemory was called.
+            provider.GetServices<ISubjectContentEraser>()));
 
         // Conversation branching (Phase 47). IConversationBranchStore is
         // registered only while a SQL provider is on; without it, the service
