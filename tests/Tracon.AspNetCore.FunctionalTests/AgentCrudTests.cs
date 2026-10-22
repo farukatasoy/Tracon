@@ -454,6 +454,86 @@ public sealed class AgentCrudTests
     }
 
     [Fact]
+    public async Task Workspace_settings_round_trip_and_an_update_without_them_clears_them()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        var request = TestData.Request() with
+        {
+            Workspace = new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true },
+        };
+
+        using (var created = await host.Client.PostAsJsonAsync(Agents, request))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
+        }
+
+        using (var response = await host.Client.GetAsync(new Uri("/tracon/api/agents/db-agent", UriKind.Relative)))
+        {
+            var workspace = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("definition").GetProperty("workspace");
+
+            workspace.GetProperty("enabled").GetBoolean().ShouldBeTrue();
+            workspace.GetProperty("readOnly").GetBoolean().ShouldBeTrue();
+            workspace.GetProperty("disableReadApproval").GetBoolean().ShouldBeTrue();
+        }
+
+        // The request is the whole definition: an update that leaves the settings out gives the agent no workspace.
+        using (var updated = await host.Client.PutAsJsonAsync(
+                   new Uri("/tracon/api/agents/db-agent", UriKind.Relative),
+                   request with { Workspace = null }))
+        {
+            updated.EnsureSuccessStatusCode();
+        }
+
+        using (var response = await host.Client.GetAsync(new Uri("/tracon/api/agents/db-agent", UriKind.Relative)))
+        {
+            var definition = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("definition");
+
+            (!definition.TryGetProperty("workspace", out var workspace) || workspace.ValueKind == System.Text.Json.JsonValueKind.Null)
+                .ShouldBeTrue(definition.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task A_stored_definition_shows_its_workspace_in_the_catalog_descriptor_the_external_check_reads()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using (var created = await host.Client.PostAsJsonAsync(
+                   Agents,
+                   TestData.Request() with { Workspace = new WorkspaceSettings { Enabled = true } }))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
+        }
+
+        using var response = await host.Client.GetAsync(Agents);
+        var listed = (await TraconTestHost.ReadJsonAsync(response)).EnumerateArray()
+            .Single(static agent => string.Equals(agent.GetProperty("name").GetString(), "db-agent", StringComparison.Ordinal));
+
+        listed.GetProperty("workspace").GetProperty("enabled").GetBoolean().ShouldBeTrue(listed.ToString());
+    }
+
+    [Fact]
+    public async Task Validation_warns_about_workspace_settings_on_an_agent_whose_workspace_is_off()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents/validate", UriKind.Relative),
+            TestData.Request() with { Workspace = new WorkspaceSettings { Enabled = false, ReadOnly = true } });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+
+        var report = await TraconTestHost.ReadJsonAsync(response);
+
+        report.GetProperty("valid").GetBoolean().ShouldBeTrue(report.ToString());
+        report.GetProperty("messages").EnumerateArray()
+            .Select(static message => message.GetProperty("code").GetString())
+            .Contains("workspace_settings_without_workspace", StringComparer.Ordinal)
+            .ShouldBeTrue(report.ToString());
+    }
+
+    [Fact]
     public async Task Cannot_roll_back_to_a_nonexistent_version()
     {
         await using var host = await TraconTestHost.StartAsync();

@@ -8,6 +8,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **An agent can keep files in a private workspace for each session.** Set `AgentDefinition.Workspace`
+  (`WorkspaceSettings`: `Enabled`, `ReadOnly`, `DisableReadApproval`; also `AgentDefinitionRequest.Workspace`,
+  `AgentDescriptor.Workspace` and `workspace` in the HTTP body). The agent then lists, reads, searches, writes,
+  edits and deletes files with the eight `file_access_*` tools of the Microsoft Agent Framework, in an area that
+  belongs to one session of one agent: another session does not see the files, and they are not the agent's file
+  memory. Tracon runs each tool through the same chain as a tool registered in code: your
+  `IToolAuthorizationHandler`, argument validation, the tool timeout and the approval step. The tools that change a
+  file (write, replace, replace lines, delete) always ask for approval; `DisableReadApproval` only reaches the
+  tools that read, and `ReadOnly` offers the tools that read and nothing else. `Tracon:Workspace`
+  (`TraconWorkspaceOptions`) limits a file (256 KiB), the files of a session (5 MiB) and the workspaces of a tenant
+  (500 MiB), and a file also counts 1 KiB for its row; a write past a limit is refused, the model reads "Workspace quota reached", and the run goes on. The
+  files go with their session: `DELETE /api/sessions/{id}`, a data subject erasure (its preview, export and delete
+  include them under `session_workspace`) and the `sessions` retention target delete them. A run with no session,
+  a workflow run and a replay have no workspace. A host that exposes an agent over A2A or MCP must make its
+  workspace read-only with `DisableReadApproval`, or the host refuses to open the agent. The console has three
+  boxes for it, and the sample has a `workspace-drafter` agent. A tool of your own cannot take the name of one of the eight file tools,
+  an agent that has a workspace cannot have a `/` in its name, and an agent with file memory cannot be named
+  `~workspace…`. The automatic continuation of an interrupted run refuses an agent that has a workspace. The
+  default file store is in memory and loses the files at a restart: use a SQL provider. SQL Server counts the
+  UTF-16 bytes it stores, so a limit there holds half as many ASCII characters. Migration `0064` (PostgreSQL),
+  `0052` (SQL Server) and `0051` (SQLite) add an index on `agent_files (tenant_id, path)`; the queries behind
+  the limits and the deletion would otherwise read the whole table.
+
 - **An agent remembers what its user said in earlier sessions.** Set `MemorySettings.EnableConversationMemory`
   on a definition, call `UseConversationMemory(options => options.VectorDimensions = …)` once, and register a
   `Microsoft.Extensions.VectorData.VectorStore`. The agent then finds what the same user told it in an earlier
@@ -192,6 +215,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **A data subject erasure deletes the copies of a session outside the SQL rows before it opens its
+  transaction.** The copies are the records of conversation memory in your vector store and the files of a session
+  workspace. They used to go after the rows were deleted and before the commit. The files live in the same
+  database, and SQLite lets one connection write at a time: a delete on a second connection, while the erasure
+  held its writes, waited for the busy timeout and failed. A copy that cannot be deleted still fails the call with
+  every row in place, and repeating the call finishes the work. If a later step fails after the copies are gone, the
+  repeat call deletes the rest and its audit entry counts only what was left. The `sessions` retention target now always reads the
+  expired batch and deletes the files of each session before the rows (an installation with no workspace deletes
+  nothing extra, and the delete is answered from the new index).
 - **Model Context Protocol SDK `2.3.0`** (`ModelContextProtocol.Core`, `.AspNetCore`, `.Extensions.Tasks`).
   No public member was removed. A published agent's `tools/call` from a client on the `2026-07-28`
   revision now gets its response headers with the result: a proxy with a time-to-first-byte limit

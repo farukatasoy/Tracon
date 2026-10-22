@@ -145,6 +145,36 @@ public sealed class AgentTests(BrowserFixture browsers)
     }
 
     [Fact]
+    public async Task Workspace_box_shows_its_two_options_and_the_request_carries_all_three()
+    {
+        // Phase 234 (F-628): one box and two options. The options only exist while the box is checked.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+
+        await session.Page.GetByTestId("agent-name").FillAsync("workspace-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+
+        await Expect(session.Page.GetByTestId("agent-workspace-read-only")).ToHaveCountAsync(0);
+
+        await session.Page.GetByTestId("agent-workspace-enabled").CheckAsync();
+        await session.Page.GetByTestId("agent-workspace-read-only").CheckAsync();
+        await session.Page.GetByTestId("agent-workspace-disable-read-approval").CheckAsync();
+
+        var preview = await session.Page.Locator("pre").First.TextContentAsync();
+
+        preview.ShouldNotBeNull();
+        preview.ShouldContain("\"enabled\": true");
+        preview.ShouldContain("\"readOnly\": true");
+        preview.ShouldContain("\"disableReadApproval\": true");
+
+        // Clearing the box drops the options with it: no setting is sent that changes nothing.
+        await session.Page.GetByTestId("agent-workspace-enabled").UncheckAsync();
+        await Expect(session.Page.GetByTestId("agent-workspace-read-only")).ToHaveCountAsync(0);
+    }
+
+    [Fact]
     public async Task Conversation_memory_box_shows_the_search_choice_and_the_request_carries_both()
     {
         // Phase 233 (F-627): one box and one choice. The choice only exists while the box is checked.

@@ -166,6 +166,11 @@ public static partial class TraconServiceCollectionExtensions
         // keeps today's behaviour exactly.
         services.AddOptions<TraconSessionOwnershipOptions>().ValidateOnStart();
 
+        // Session workspace limits (Phase 234). Same rationale: carries its own SectionName, requires no
+        // separate Use...() call. The workspace itself is off until a definition turns it on (K1); the
+        // limits apply only then.
+        services.AddOptions<TraconWorkspaceOptions>().ValidateOnStart();
+
         if (configurationSection is not null)
         {
             services.Configure<TraconQuotaOptions>(
@@ -210,6 +215,8 @@ public static partial class TraconServiceCollectionExtensions
                 options => BindStructuredResponse(configurationSection.GetSection("StructuredResponse"), options));
             services.Configure<TraconSessionOwnershipOptions>(
                 options => BindSessionOwnership(configurationSection.GetSection("SessionOwnership"), options));
+            services.Configure<TraconWorkspaceOptions>(
+                options => BindWorkspace(configurationSection.GetSection("Workspace"), options));
 
             var contentGuardSection = configurationSection.GetSection("ContentGuard");
 
@@ -261,5 +268,7 @@ public static partial class TraconServiceCollectionExtensions
             ServiceDescriptor.Singleton<IValidateOptions<TraconImageOptions>, TraconImageOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconStructuredResponseOptions>, TraconStructuredResponseOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconWorkspaceOptions>, TraconWorkspaceOptionsValidator>());
     }
 }

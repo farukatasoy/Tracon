@@ -45,6 +45,9 @@ internal sealed record AgentDefinitionPayload
     /// <summary>Gets the skill settings, or <see langword="null"/> in a row that predates the member.</summary>
     public SkillSettings? Skills { get; init; }
 
+    /// <summary>Gets the session workspace settings, or <see langword="null"/> in a row that predates the member.</summary>
+    public WorkspaceSettings? Workspace { get; init; }
+
     /// <summary>Gets the names of the agent extensions the agent is compiled with, or <see langword="null"/> when there are none.</summary>
     /// <remarks>
     /// Nullable on purpose. A row written before this member existed has no such key, and the
@@ -151,6 +154,7 @@ internal sealed record AgentDefinitionPayload
             ToolNames = definition.ToolNames,
             SkillNames = definition.SkillNames,
             Skills = definition.Skills,
+            Workspace = definition.Workspace,
             ExtensionNames = definition.ExtensionNames is { Count: > 0 } extensionNames ? extensionNames : null,
             CallableAgentNames = definition.CallableAgentNames,
             SubAgents = definition.SubAgents,
@@ -183,6 +187,7 @@ internal sealed record AgentDefinitionPayload
             ToolNames = ToolNames,
             SkillNames = SkillNames,
             Skills = Skills,
+            Workspace = Workspace,
             ExtensionNames = ExtensionNames ?? [],
             CallableAgentNames = CallableAgentNames,
             SubAgents = SubAgents,

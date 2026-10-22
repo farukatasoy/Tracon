@@ -47,6 +47,12 @@ public sealed record AgentDefinitionRequest
     public SkillSettings? Skills { get; init; }
 
     /// <summary>
+    /// The session workspace of the agent: a file area that belongs to one conversation. See
+    /// <c>AgentDefinition.Workspace</c>. If left empty, the agent has no workspace.
+    /// </summary>
+    public WorkspaceSettings? Workspace { get; init; }
+
+    /// <summary>
     /// Names of agent extensions to compile the agent with, in call order. Extensions
     /// are defined only in code; only the name of an already registered extension may
     /// be given here. See <c>AgentDefinition.ExtensionNames</c>.
@@ -115,6 +121,7 @@ public sealed record AgentDefinitionRequest
             ToolNames = ToolNames,
             SkillNames = SkillNames,
             Skills = Skills,
+            Workspace = Workspace,
             ExtensionNames = ExtensionNames,
             CallableAgentNames = CallableAgentNames,
             SubAgents = SubAgents,

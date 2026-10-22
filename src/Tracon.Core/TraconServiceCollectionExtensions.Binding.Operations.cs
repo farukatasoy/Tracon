@@ -432,6 +432,42 @@ public static partial class TraconServiceCollectionExtensions
         }
     }
 
+    /// <summary>Binds the <c>Tracon:Workspace</c> section.</summary>
+    private static void BindWorkspace(IConfigurationSection section, TraconWorkspaceOptions options)
+    {
+        if (!section.Exists())
+        {
+            return;
+        }
+
+        if (long.TryParse(
+                section[nameof(TraconWorkspaceOptions.MaxFileBytes)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxFileBytes))
+        {
+            options.MaxFileBytes = maxFileBytes;
+        }
+
+        if (long.TryParse(
+                section[nameof(TraconWorkspaceOptions.MaxSessionBytes)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxSessionBytes))
+        {
+            options.MaxSessionBytes = maxSessionBytes;
+        }
+
+        if (long.TryParse(
+                section[nameof(TraconWorkspaceOptions.MaxTenantBytes)],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var maxTenantBytes))
+        {
+            options.MaxTenantBytes = maxTenantBytes;
+        }
+    }
+
     /// <summary>Binds the <c>Tracon:Canary</c> section.</summary>
     private static void BindCanary(IConfigurationSection section, CanaryOptions options)
     {

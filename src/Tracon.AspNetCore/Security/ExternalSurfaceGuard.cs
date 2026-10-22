@@ -180,7 +180,8 @@ internal static class ExternalSurfaceGuard
 
     /// <summary>
     /// Verifies that none of the agents to be exposed carries a tool that requires approval,
-    /// and that none uses skills whose read tools ask for approval.
+    /// and that none uses skills whose read tools ask for approval, or has a session workspace that can
+    /// change a file or asks for approval to read one.
     /// </summary>
     /// <param name="descriptors">The agent descriptors in the catalog.</param>
     /// <param name="exposedAgents">The allow list.</param>
@@ -188,8 +189,9 @@ internal static class ExternalSurfaceGuard
     /// <param name="toolRegistry">The tool registry that carries the approval flag.</param>
     /// <param name="protocol">The name of the external surface being exposed.</param>
     /// <exception cref="InvalidOperationException">
-    /// When an exposed agent carries a tool that requires approval, or uses skills without
-    /// <see cref="SkillSettings.DisableReadApproval"/>.
+    /// When an exposed agent carries a tool that requires approval, uses skills without
+    /// <see cref="SkillSettings.DisableReadApproval"/>, or has a session workspace that is not
+    /// <see cref="WorkspaceSettings.ReadOnly"/> with <see cref="WorkspaceSettings.DisableReadApproval"/>.
     /// </exception>
     /// <remarks>
     /// <para>
@@ -203,6 +205,12 @@ internal static class ExternalSurfaceGuard
     /// offered it, so counting it would refuse every such agent. A model that calls it anyway ends
     /// the run at run time (<c>approval_unanswerable</c>) unless a standing approval rule covers it;
     /// this check is a start-up check, and the run-time refusal is the boundary.
+    /// </para>
+    /// <para>
+    /// The file tools of a session workspace are not in the tool registry either. The tools that change a
+    /// file always ask for approval, so only a workspace that cannot change a file can be exposed, and
+    /// only when its read tools do not ask either. A run with no session has no workspace at all, but an
+    /// A2A conversation has a session, so the check does not rely on that.
     /// </para>
     /// <para>
     /// The catalog is read once, when the host starts, with no request in scope. An agent saved
@@ -247,6 +255,17 @@ internal static class ExternalSurfaceGuard
                     "caller is not a human and cannot answer an approval request. Set " +
                     $"{nameof(AgentDefinition.Skills)}.{nameof(SkillSettings.DisableReadApproval)} on the " +
                     "definition, or remove the skills, or remove this agent from the allow list.");
+            }
+
+            if (descriptor.Workspace is { Enabled: true } workspace && !(workspace.ReadOnly && workspace.DisableReadApproval))
+            {
+                throw new InvalidOperationException(
+                    $"The '{descriptor.Name}' agent cannot be exposed over {protocol}: it has a session workspace, " +
+                    "and its file tools ask for user approval (the tools that change a file always do). An external " +
+                    "caller is not a human and cannot answer an approval request. Set " +
+                    $"{nameof(AgentDefinition.Workspace)}.{nameof(WorkspaceSettings.ReadOnly)} and " +
+                    $"{nameof(AgentDefinition.Workspace)}.{nameof(WorkspaceSettings.DisableReadApproval)} on the " +
+                    "definition, or turn the workspace off, or remove this agent from the allow list.");
             }
         }
     }

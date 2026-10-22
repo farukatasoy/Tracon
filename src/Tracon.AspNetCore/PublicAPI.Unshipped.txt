@@ -42,6 +42,8 @@ Tracon.AgentDefinitionRequest.SubAgents.init -> void
 Tracon.AgentDefinitionRequest.ToDefinition() -> Tracon.AgentDefinition!
 Tracon.AgentDefinitionRequest.ToolNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.AgentDefinitionRequest.ToolNames.init -> void
+Tracon.AgentDefinitionRequest.Workspace.get -> Tracon.WorkspaceSettings?
+Tracon.AgentDefinitionRequest.Workspace.init -> void
 Tracon.AgentRunRequest
 Tracon.AgentRunRequest.<Clone>$() -> Tracon.AgentRunRequest!
 Tracon.AgentRunRequest.AgentRunRequest() -> void

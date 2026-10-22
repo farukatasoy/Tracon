@@ -185,6 +185,30 @@ describe('definition round trip', () => {
     });
   });
 
+  // F-628: the workspace is the editor's own control. A definition that turned it on must come back from the form
+  // as it went in; one that never set it must not grow the block.
+  describe('workspace settings', () => {
+    it('keeps the settings a stored definition turned on', () => {
+      const stored = { enabled: true, readOnly: true, disableReadApproval: true };
+      const form = fromDefinition({ ...definition, workspace: stored });
+
+      expect(form.workspace).toEqual(stored);
+      expect(toRequest(form).workspace).toEqual(stored);
+    });
+
+    it('reads a definition without a workspace as off and sends none', () => {
+      expect(fromDefinition(definition).workspace.enabled).toBeUndefined();
+      expect(toRequest(fromDefinition(definition)).workspace).toBeNull();
+      expect(toRequest(fromDefinition({ ...definition, workspace: null })).workspace).toBeNull();
+    });
+
+    it('sends no block once every box is cleared, so the agent has no workspace again', () => {
+      const form = fromDefinition({ ...definition, workspace: { enabled: true } });
+
+      expect(toRequest({ ...form, workspace: { enabled: false, readOnly: false, disableReadApproval: false } }).workspace).toBeNull();
+    });
+  });
+
   // Phase 228: the call mode is the editor's own control; the wait limits beside it still are not.
   describe('sub-agent call mode', () => {
     it('reads a definition without sub-agent settings as background tasks and sends none', () => {

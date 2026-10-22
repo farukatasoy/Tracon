@@ -1092,6 +1092,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
             ORDER BY path;
             """;
 
+        // Phase 234: the session workspace is measured by the bytes the text takes (UTF-8).
+        SelectAgentFileTreeUsage = $"""
+            SELECT COUNT(*), COALESCE(SUM(octet_length(content)), 0)
+            FROM {Schema}.agent_files
+            WHERE tenant_id = @tenant_id AND path LIKE @prefix_like ESCAPE '\';
+            """;
+
         // --- Workflows (Phase 15) ---
 
         // A name with no current row (new, or deleted and saved again) continues from the

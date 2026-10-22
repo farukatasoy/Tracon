@@ -674,6 +674,7 @@ public sealed partial class AgentDefinitionCompiler
         }
 
         ThrowOnConversationMemoryToolConflict(definition, tools);
+        ThrowOnWorkspaceToolConflict(definition, tools);
 
         var chatOptions = BuildChatOptions(definition, tools, culture, sharedInstructions);
 

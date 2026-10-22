@@ -49,6 +49,11 @@ public sealed partial class AgentDefinitionCompiler
 
         providers.AddRange(CreateMemoryProviders(definition));
 
+        if (CreateWorkspaceProvider(definition) is { } workspace)
+        {
+            providers.Add(workspace);
+        }
+
         if (CreateMcpResourceProvider(definition) is { } mcpResources)
         {
             providers.Add(mcpResources);
@@ -318,8 +323,10 @@ public sealed partial class AgentDefinitionCompiler
             OpenTelemetrySourceName = TraconDiagnostics.ActivitySourceName,
 
             // FileAccessStore is INTENTIONALLY left unassigned: it activates
-            // only when a value is assigned; leaving it unassigned means file
-            // access is disabled. Rationale: docs/KARARLAR.md, decision K-062.
+            // only when a value is assigned, and the file tools it builds would
+            // run outside the Tracon tool chain. The session workspace (Phase
+            // 234) adds its own wrapped provider below instead.
+            // Rationale: docs/KARARLAR.md, decisions K-062 and K-1069.
             //
             // BackgroundAgents was opened in Phase 12 and follows the same
             // rule: no value is assigned when the definition carries no agent
@@ -422,6 +429,14 @@ public sealed partial class AgentDefinitionCompiler
         if (CreateTextSearchProvider(definition) is { } textSearch)
         {
             harnessProviders.Add(textSearch);
+        }
+
+        // Phase 234: the harness builds its own FileAccessProvider only when FileAccessStore is assigned
+        // (measured, MAF 1.25). Tracon leaves it unassigned and adds its own wrapped provider here, as
+        // it does for skills, so the file tools run through the Tracon tool chain.
+        if (CreateWorkspaceProvider(definition) is { } workspace)
+        {
+            harnessProviders.Add(workspace);
         }
 
         if (CreateMcpResourceProvider(definition) is { } mcpResources)

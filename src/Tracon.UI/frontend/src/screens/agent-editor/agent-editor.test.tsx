@@ -577,6 +577,116 @@ describe('AgentEditorScreen', () => {
     });
   });
 
+  describe('session workspace (Phase 234)', () => {
+    type Sent = { workspace?: { enabled?: boolean; readOnly?: boolean; disableReadApproval?: boolean } | null };
+
+    function withWorkspace(stored: NonNullable<Sent['workspace']> | null) {
+      return [
+        fixture('GET', 'api/tools', []),
+        fixture('GET', 'api/skills', []),
+        fixture('GET', 'api/agent-extensions', []),
+        fixture('GET', 'api/agents', []),
+        fixture('GET', 'api/models', providers),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: { name: 'support', origin: 'Database', sourceName: 'database' },
+          definition: { ...fullDefinition, workspace: stored },
+        }),
+      ];
+    }
+
+    function captureValidate(): { route: FixtureRoute; sent: () => Sent } {
+      let body: Sent = {};
+
+      return {
+        route: {
+          method: 'POST',
+          pattern: 'api/agents/validate',
+          handler: (_params, _url, sent) => {
+            body = sent as Sent;
+
+            return { valid: true, inconclusive: false, messages: [] };
+          },
+        },
+        sent: () => body,
+      };
+    }
+
+    it('shows the three boxes for a definition that has a read-only workspace with no read approval', async () => {
+      restoreFetch = installApiMock(withWorkspace({ enabled: true, readOnly: true, disableReadApproval: true }));
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await waitFor(() => expect((screen.getByTestId('agent-workspace-enabled') as HTMLInputElement).checked).toBe(true));
+      expect((screen.getByTestId('agent-workspace-read-only') as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByTestId('agent-workspace-disable-read-approval') as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('shows the workspace of a code-defined agent, which has no stored definition', async () => {
+      restoreFetch = installApiMock([
+        fixture('GET', 'api/tools', []),
+        fixture('GET', 'api/skills', []),
+        fixture('GET', 'api/agent-extensions', []),
+        fixture('GET', 'api/agents', []),
+        fixture('GET', 'api/models', providers),
+        fixture('GET', 'api/agents/:name', {
+          descriptor: {
+            name: 'support',
+            origin: 'Code',
+            sourceName: 'code',
+            model: { provider: 'anthropic', model: 'claude' },
+            toolNames: [],
+            skillNames: [],
+            workspace: { enabled: true, disableReadApproval: true },
+            extensionNames: [],
+            callableAgentNames: [],
+          },
+          definition: null,
+        }),
+      ]);
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await waitFor(() => expect((screen.getByTestId('agent-workspace-enabled') as HTMLInputElement).checked).toBe(true));
+      expect((screen.getByTestId('agent-workspace-disable-read-approval') as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('hides the two options while the workspace is off', async () => {
+      restoreFetch = installApiMock(withWorkspace(null));
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      const enabled = await screen.findByTestId('agent-workspace-enabled');
+
+      expect((enabled as HTMLInputElement).checked).toBe(false);
+      expect(screen.queryByTestId('agent-workspace-read-only')).toBeNull();
+      expect(screen.queryByTestId('agent-workspace-disable-read-approval')).toBeNull();
+    });
+
+    it('writes the settings that are on, and none once the workspace is turned off again', async () => {
+      const capture = captureValidate();
+
+      restoreFetch = installApiMock([...withWorkspace(null), capture.route]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<AgentEditorScreen name="support" />);
+
+      await user.click(await screen.findByTestId('agent-workspace-enabled'));
+      await user.click(screen.getByTestId('agent-workspace-read-only'));
+      await user.click(screen.getByTestId('agent-validate'));
+      await waitFor(() => expect(capture.sent().workspace).toEqual({ enabled: true, readOnly: true }));
+
+      await user.click(screen.getByTestId('agent-workspace-disable-read-approval'));
+      await user.click(screen.getByTestId('agent-validate'));
+      await waitFor(() => expect(capture.sent().workspace).toEqual({ enabled: true, readOnly: true, disableReadApproval: true }));
+
+      // Turning the workspace off drops the two options with it: they would change nothing.
+      await user.click(screen.getByTestId('agent-workspace-enabled'));
+      await user.click(screen.getByTestId('agent-validate'));
+      await waitFor(() => expect(capture.sent().workspace).toBeNull());
+    });
+  });
+
   describe('extensions section (Phase 222)', () => {
     const registered = [
       { name: 'audit', description: 'Records every model call.' },

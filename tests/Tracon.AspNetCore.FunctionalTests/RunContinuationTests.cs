@@ -327,6 +327,40 @@ public sealed class RunContinuationTests
     }
 
     [Fact]
+    public async Task An_agent_with_a_session_workspace_is_not_continued_and_writes_nothing()
+    {
+        // The file tools of a workspace come from a context provider. They never pass through the playback wrapper,
+        // so a continuation could write or delete a second time what the first run already wrote or deleted.
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(
+            o =>
+            {
+                o.Enabled = true;
+                o.MaxAttempts = 1;
+            });
+
+        var sourceRunId = await SeedCrashedRunAsync(
+            host,
+            new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Give a short answer.",
+                Model = new ModelBinding { Provider = "cont-model", Model = ModelId },
+                ToolNames = ["get_order_status"],
+                Workspace = new WorkspaceSettings { Enabled = true },
+            });
+
+        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
+        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+
+        continuation.ShouldNotBeNull();
+        continuation.Status.ShouldBe(RunStatus.Failed);
+        continuation.Error.ShouldNotBeNull().Message.ShouldContain("session workspace", Case.Sensitive);
+        ContinuationProbeTools.Calls.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task A_parameterized_agent_is_continued_with_the_values_its_run_recorded()
     {
         // F-294: the interrupted run recorded the values it was bound with, and

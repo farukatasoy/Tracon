@@ -1245,6 +1245,14 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             ORDER BY path;
             """;
 
+        // Phase 234: the session workspace is measured by the bytes the column stores. SQL Server keeps text
+        // as UTF-16, so DATALENGTH counts two bytes for an ASCII character.
+        SelectAgentFileTreeUsage = $"""
+            SELECT COUNT(*), COALESCE(SUM(CAST(DATALENGTH(content) AS bigint)), 0)
+            FROM {Schema}.agent_files
+            WHERE tenant_id = @tenant_id AND path LIKE @prefix_like ESCAPE '\';
+            """;
+
         // --- Workflow'lar ---
 
         UpsertWorkflow = $"""

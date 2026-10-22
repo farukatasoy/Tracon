@@ -202,6 +202,14 @@ internal sealed class RunContinuationJobHandler(
                     "tool call. This run cannot be continued.");
             }
 
+            if (definition.Workspace is { Enabled: true })
+            {
+                throw new TraconException(
+                    $"Agent '{source.AgentName}' has a session workspace, whose file tools come from a context " +
+                    "provider and do not go through tool playback; continuing it could silently repeat a " +
+                    "completed write or delete. This run cannot be continued.");
+            }
+
             var invocations = await runStore.ListToolInvocationsAsync(sourceRunId, cancellationToken).ConfigureAwait(false);
             var playback = new RecordedToolPlayback(invocations, ToolPlaybackMismatchPolicy.RunLive);
 

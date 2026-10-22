@@ -588,6 +588,14 @@ Tracon.TraconWebhookOptions.SignatureTolerance.set -> void
 Tracon.TraconWebhookOptions.Timeout.get -> System.TimeSpan
 Tracon.TraconWebhookOptions.Timeout.set -> void
 Tracon.TraconWebhookOptions.TraconWebhookOptions() -> void
+Tracon.TraconWorkspaceOptions
+Tracon.TraconWorkspaceOptions.MaxFileBytes.get -> long
+Tracon.TraconWorkspaceOptions.MaxFileBytes.set -> void
+Tracon.TraconWorkspaceOptions.MaxSessionBytes.get -> long
+Tracon.TraconWorkspaceOptions.MaxSessionBytes.set -> void
+Tracon.TraconWorkspaceOptions.MaxTenantBytes.get -> long
+Tracon.TraconWorkspaceOptions.MaxTenantBytes.set -> void
+Tracon.TraconWorkspaceOptions.TraconWorkspaceOptions() -> void
 Tracon.VoiceConversationBuilderExtensions
 Tracon.VoiceConversationOptions
 Tracon.VoiceConversationOptions.IdleTimeout.get -> System.TimeSpan
@@ -720,6 +728,7 @@ const Tracon.TraconRetentionOptions.SectionName = "Tracon:Retention" -> string!
 const Tracon.TraconRunContinuationOptions.SectionName = "Tracon:RunContinuation" -> string!
 const Tracon.TraconStructuredResponseOptions.SectionName = "Tracon:StructuredResponse" -> string!
 const Tracon.TraconWebhookOptions.SectionName = "Tracon:Webhooks" -> string!
+const Tracon.TraconWorkspaceOptions.SectionName = "Tracon:Workspace" -> string!
 const Tracon.VoiceConversationOptions.SectionName = "Tracon:Voice:Conversation" -> string!
 const Tracon.VoiceLiveOptions.SectionName = "Tracon:Voice:Live" -> string!
 const Tracon.WebhookSigner.DeliveryHeader = "X-Tracon-Delivery" -> string!

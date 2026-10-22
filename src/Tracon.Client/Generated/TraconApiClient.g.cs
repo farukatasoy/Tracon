@@ -17489,6 +17489,12 @@ namespace Tracon.Client.Generated
         public MemorySettings? Memory { get; set; } = default!;
 
         /// <summary>
+        /// Gets the session workspace settings. When `null` the agent has no workspace.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("workspace")]
+        public WorkspaceSettings? Workspace { get; set; } = default!;
+
+        /// <summary>
         /// Gets the origin of the definition: code or database.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("origin")]
@@ -17616,6 +17622,13 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("skills")]
         public SkillSettings? Skills { get; set; } = default!;
+
+        /// <summary>
+        /// The session workspace of the agent: a file area that belongs to one conversation. See
+        /// <br/>`AgentDefinition.Workspace`. If left empty, the agent has no workspace.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("workspace")]
+        public WorkspaceSettings? Workspace { get; set; } = default!;
 
         /// <summary>
         /// Names of agent extensions to compile the agent with, in call order. Extensions
@@ -17754,6 +17767,13 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("skills")]
         public SkillSettings? Skills { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the session workspace settings. The external-surface check reads them: an agent whose
+        /// <br/>workspace can change a file, or asks for approval to read one, cannot be exposed over A2A or MCP.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("workspace")]
+        public WorkspaceSettings? Workspace { get; set; } = default!;
 
         /// <summary>
         /// Gets the names of the agent extensions this agent is compiled with, in call order.
@@ -29141,6 +29161,38 @@ namespace Tracon.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("right")]
         public WorkflowDefinition Right { get; set; } = new WorkflowDefinition();
+
+    }
+
+    /// <summary>
+    /// Settings for the session workspace of an agent: a file area that belongs to one
+    /// <br/>conversation, where the agent lists, reads, searches, writes, edits and deletes files.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class WorkspaceSettings
+    {
+
+        /// <summary>
+        /// Gets a value that gives the agent a workspace in every session that has a record.
+        /// <br/>Defaults to `false`.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = default!;
+
+        /// <summary>
+        /// Gets a value that offers only the tools that read: `file_access_read`,
+        /// <br/>`file_access_read_lines`, `file_access_ls` and `file_access_grep`.
+        /// <br/>The tools that write, replace and delete are not offered at all.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("readOnly")]
+        public bool ReadOnly { get; set; } = default!;
+
+        /// <summary>
+        /// Gets a value that makes the tools that read run without asking for approval. The tools
+        /// <br/>that change a file keep their approval.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("disableReadApproval")]
+        public bool DisableReadApproval { get; set; } = default!;
 
     }
 

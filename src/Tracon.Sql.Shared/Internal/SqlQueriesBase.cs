@@ -443,6 +443,20 @@ internal abstract class SqlQueriesBase
     public string SelectAgentFilesFiltered { get; protected set; } = string.Empty;
 
     /// <summary>
+    /// Gets the query that counts the files of a tenant under a path prefix and adds up the size of their
+    /// content in bytes. It names no agent: the session workspace is one directory per session,
+    /// whichever agent wrote the files, and it is read outside any run. Set by each provider, because the byte
+    /// length function differs.
+    /// </summary>
+    public string SelectAgentFileTreeUsage { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that reads the path and content of every file of a tenant under a path prefix.</summary>
+    public string SelectAgentFileTree { get; protected set; } = string.Empty;
+
+    /// <summary>Gets the query that deletes every file of a tenant under a path prefix.</summary>
+    public string DeleteAgentFileTree { get; protected set; } = string.Empty;
+
+    /// <summary>
     /// Gets the query that saves a workflow definition and increments its version. A name that
     /// has no current row continues the numbering from the highest version in the history.
     /// </summary>
@@ -1775,6 +1789,18 @@ internal abstract class SqlQueriesBase
         DeleteAgentFile = $"""
             DELETE FROM {Table("agent_files")}
             WHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
+            """;
+
+        SelectAgentFileTree = $"""
+            SELECT path, content
+            FROM {Table("agent_files")}
+            WHERE tenant_id = @tenant_id AND path LIKE @prefix_like ESCAPE '\'
+            ORDER BY path;
+            """;
+
+        DeleteAgentFileTree = $"""
+            DELETE FROM {Table("agent_files")}
+            WHERE tenant_id = @tenant_id AND path LIKE @prefix_like ESCAPE '\';
             """;
 
         SelectWorkflow = $"""
