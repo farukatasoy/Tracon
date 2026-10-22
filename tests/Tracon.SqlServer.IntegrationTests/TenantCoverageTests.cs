@@ -38,8 +38,10 @@ public sealed class TenantCoverageTests
     {
         ["SqlAgentDefinitionStore"] =
             ["GetAsync", "GetVersionAsync", "ListAsync", "ListVersionsAsync", "SaveAsync", "DeleteAsync", "RollbackAsync"],
+        // MeasureAsync, and the tenant-and-directory overloads of ReadAsync and DeleteAsync (IAgentFileTree), name the tenant in
+        // every query: SessionWorkspaceFilesTests.A_delete_never_reaches_another_tenant_that_has_the_same_path.
         ["SqlAgentFileStore"] =
-            ["ReadAsync", "WriteAsync", "DeleteAsync", "FileExistsAsync", "ListChildrenAsync", "SearchAsync", "CreateDirectoryAsync"],
+            ["ReadAsync", "WriteAsync", "DeleteAsync", "FileExistsAsync", "ListChildrenAsync", "SearchAsync", "CreateDirectoryAsync", "MeasureAsync"],
         // Not an Sql* type, which is exactly why it used to sit outside this
         // gate. All four methods are asserted cross-tenant by
         // PgVectorSearchStoreTests.Tenant_does_not_see_the_others_collection.
