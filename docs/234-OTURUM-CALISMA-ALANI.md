@@ -1,6 +1,6 @@
 # Faz 234 — Oturum Çalışma Alanı (Dosya Erişimi)
 
-> **Durum:** 📋 Planlandı (2026-10-21)
+> **Durum:** ✅ Tamamlandı (2026-10-22)
 > **Kademe:** tam — güvenlik sınırı (K-062 yeniden açılır: agent'a dosya yazma ve silme tool'ları) · kalıcı veri (kota; oturum silmede alanın silinmesi) · geri dönüşü pahalı karar (alanın yol biçimi)
 > **Plan onayı:** farukatasoy, 2026-10-21 (seçim: alan oturum başına; K-062'nin iki şartı: kota ve Tracon tool zinciri)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-628** (ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #41, §8.3 C-13 (a), §8.4 K5-3)
@@ -249,19 +249,19 @@ Beş soru: **iptal** — tool zinciri zaman aşımı ve token · **eşzamanlıl�
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] İki oturum birbirinin dosyasını görmez; alan dosya belleğini görmez ve tersi (fonksiyonel)
-- [ ] Yazma ve silme onay ister; `ReadOnly` yazma tool'u sunmaz; tool'lar yetki işleyicisinden ve zaman aşımından geçer
-- [ ] Dosya, oturum ve kiracı kotası aşımı modele hata olarak döner; run sürer
-- [ ] Oturum silme, veri sahibi silme ve saklama süresi alanı siler
-- [ ] Yazılabilir alanlı agent A2A/MCP'de açılışta reddedilir
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] K-062'nin yerini alan karar `KARARLAR.md`'de; `MAF-KAPSAMA.md` §5.2 `FileAccessProvider` satırı ve §8.4 K5-3 güncel
+- [x] İki oturum birbirinin dosyasını görmez; alan dosya belleğini görmez ve tersi (fonksiyonel) — `SessionWorkspaceTests` (üç ayrım) ve gerçek SQL ile `SessionWorkspaceFilesTests` ×3
+- [x] Yazma ve silme onay ister; `ReadOnly` yazma tool'u sunmaz; tool'lar yetki işleyicisinden ve zaman aşımından geçer — `SessionWorkspaceApprovalTests`, `SessionWorkspaceGovernanceTests`
+- [x] Dosya, oturum ve kiracı kotası aşımı modele hata olarak döner; run sürer — `SessionWorkspaceGovernanceTests` (üç sınır, onay akışıyla)
+- [x] Oturum silme, veri sahibi silme ve saklama süresi alanı siler — `SessionWorkspaceErasureTests` (HTTP, SQLite) · `SessionWorkspaceFilesTests` ×3 (önizleme, dışa aktarma, silme, saklama)
+- [x] Yazılabilir alanlı agent A2A/MCP'de açılışta reddedilir — `SessionWorkspaceExposureTests`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 78af08c2`: 26 519 test, 0 kırmızı, 19 atlanmış (mevcut, bu fazın değil)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — "Örnek Uygulama Koşumu" bölümü
+- [x] `secret` taraması boş döndü — `kapi.py tarama`
+- [x] `🤖` case'ler `docs/manuel-test/` içinde ve koşuldu — `MT-CORE-157`…`159`
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 🔴 yok; 🟡 yedi bulgu kapandı ya da gerekçelendi
+- [x] `docs-site/` güncellendi; `npm run check` temiz
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — ana JS 222,3 KB gzip (bütçe 250), gömülü 187,6 KB brotli
+- [x] K-062'nin yerini alan karar `KARARLAR.md`'de; `MAF-KAPSAMA.md` §5.2 `FileAccessProvider` satırı ve §8.4 K5-3 güncel — K-1069
 
 ### Doğrulama komutları
 
@@ -347,10 +347,10 @@ Anahtar `7388dd2f…` bağımsız bir Python uygulamasıyla aynı (SHA-256, 4 ba
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 5 (Sapma 1, 2, 3, 6, 13b) |
+| Düzeltme turu sayısı | 2 (kapanış koşusunda iki kırmızı test; bağımsız denetimin yedi 🟡 bulgusu) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 2, ikisi de kapanıştan önce yakalandı (SQLite tek yazar kilidi: `AttachmentByteLifecycleTests`; SQLite indeks adı: `MigrationRunnerTests`); kullanıcıya ulaşan 0 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
