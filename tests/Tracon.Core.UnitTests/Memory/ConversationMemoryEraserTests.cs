@@ -42,6 +42,17 @@ public sealed class ConversationMemoryEraserTests : IDisposable
     }
 
     [Fact]
+    public async Task It_looks_under_the_normalized_tenant_whatever_form_the_caller_holds()
+    {
+        // The writer stores AmbientTenantScope.Normalize(tenant); a tenant context that does not normalize must still delete.
+        await SeedAsync("tenant-a", "session-1", "agent-a", "ada", "one");
+
+        (await Eraser().CountAsync("Tenant-A", ["session-1"], CancellationToken.None)).ShouldBe(1);
+        (await Eraser().EraseAsync("TENANT-A", ["session-1"], CancellationToken.None)).ShouldBe(1);
+        Contents().ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task It_deletes_the_records_of_every_agent_and_user_the_session_holds()
     {
         await SeedAsync("tenant-a", "session-1", "agent-a", "ada", "from-a");

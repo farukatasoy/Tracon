@@ -105,6 +105,21 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task A_run_whose_session_has_no_record_neither_writes_nor_reads()
+    {
+        // A workflow run's session id, and every run below it: nothing could delete what they kept.
+        var provider = Provider("agent-a");
+        await RememberAsync(provider, Run("tenant-a", "agent-a", "ada", "session-1"), "My favourite colour is teal.");
+        var before = _store.Records(Collection).Count;
+
+        await RememberAsync(provider, Run("tenant-a", "agent-a", "ada", "workflow-session", sessionHasNoRecord: true), "The workflow secret is plum.");
+        var found = await RecallAsync(provider, Run("tenant-a", "agent-a", "ada", "workflow-session", sessionHasNoRecord: true), "What is my favourite colour?");
+
+        _store.Records(Collection).Count.ShouldBe(before);
+        found.ShouldNotContain("teal");
+    }
+
+    [Fact]
     public async Task A_run_outside_any_run_scope_is_left_alone()
     {
         var provider = Provider("agent-a");
@@ -292,7 +307,7 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
             maxResults,
             loggerFactory: null);
 
-    private static AgentRunScope Run(string tenant, string agent, string? user, string? session)
+    private static AgentRunScope Run(string tenant, string agent, string? user, string? session, bool sessionHasNoRecord = false)
         => new()
         {
             RunId = Guid.NewGuid(),
@@ -301,13 +316,32 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
             TenantId = tenant,
             UserId = user,
             SessionId = session,
+            SessionHasNoRecord = sessionHasNoRecord,
         };
+
+    private readonly Dictionary<string, AgentSession> _sessions = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The session the framework would hand the provider: one object per session id, the same for both users that
+    /// name it. A wrapper that passed it on would freeze the first user's scope in its state bag.
+    /// </summary>
+    private async Task<AgentSession> SessionAsync(AgentRunScope run)
+    {
+        var key = run.SessionId ?? "(none)";
+
+        if (!_sessions.TryGetValue(key, out var session))
+        {
+            _sessions[key] = session = await _agent.CreateSessionAsync();
+        }
+
+        return session;
+    }
 
     private async Task RememberAsync(ConversationMemoryScopeProvider provider, AgentRunScope run, string said)
     {
         TraconRunContext.SetCurrent(run);
 
-        await provider.InvokedAsync(new AIContextProvider.InvokedContext(_agent, null, [new ChatMessage(ChatRole.User, said)], []));
+        await provider.InvokedAsync(new AIContextProvider.InvokedContext(_agent, await SessionAsync(run), [new ChatMessage(ChatRole.User, said)], []));
     }
 
     private async Task<string> RecallAsync(ConversationMemoryScopeProvider provider, AgentRunScope run, string asked)
@@ -315,7 +349,7 @@ public sealed class ConversationMemoryScopeProviderTests : IDisposable
         TraconRunContext.SetCurrent(run);
 
         var context = await provider.InvokingAsync(
-            new AIContextProvider.InvokingContext(_agent, null, new AIContext { Messages = [new ChatMessage(ChatRole.User, asked)] }));
+            new AIContextProvider.InvokingContext(_agent, await SessionAsync(run), new AIContext { Messages = [new ChatMessage(ChatRole.User, asked)] }));
 
         return string.Join("\n", (context.Messages ?? []).Select(static message => message.Text));
     }

@@ -144,6 +144,17 @@ public sealed record AgentRunScope
     internal bool SuspendsWorkflowOnApproval { get; init; }
 
     /// <summary>
+    /// Gets whether <see cref="SessionId"/> names a session with no <c>sessions</c> record: the id of a
+    /// workflow run, which the steps and sub-agents below it inherit.
+    /// </summary>
+    /// <remarks>
+    /// Read by conversation memory, which writes nothing for such a run because a record kept under an id
+    /// no session record carries cannot be deleted with its session (session delete, the sessions
+    /// retention target and session-keyed erasure all start from the record).
+    /// </remarks>
+    internal bool SessionHasNoRecord { get; init; }
+
+    /// <summary>
     /// Gets the event writer for this run. A sub-run writes its summary events here.
     /// </summary>
     /// <remarks>

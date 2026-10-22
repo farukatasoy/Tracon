@@ -18,7 +18,8 @@ namespace Tracon;
 /// and keeps no state between calls.
 /// </para>
 /// <para>
-/// Memory is off for a run that has no user or no session, and for a run of another tenant than the
+/// Memory is off for a run that has no user or no session, for a run whose session has no record (a workflow
+/// run and everything below it: nothing could delete what it kept), and for a run of another tenant than the
 /// one the agent was compiled for: the call goes through unchanged. The search scope is tenant, agent
 /// and user, so a user is remembered across sessions; the write scope also carries the session, which is
 /// what an erasure of the session deletes by.
@@ -126,7 +127,7 @@ internal sealed class ConversationMemoryScopeProvider : AIContextProvider, IDisp
     {
         var run = TraconRunContext.Current;
 
-        if (run is not { UserId: { Length: > 0 } userId, SessionId: { Length: > 0 } sessionId })
+        if (run is not { UserId: { Length: > 0 } userId, SessionId: { Length: > 0 } sessionId, SessionHasNoRecord: false })
         {
             return null;
         }

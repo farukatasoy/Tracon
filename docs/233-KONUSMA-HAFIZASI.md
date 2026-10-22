@@ -1,6 +1,6 @@
 # Faz 233 — Konuşma Hafızası
 
-> **Durum:** 📋 Planlandı (2026-10-21)
+> **Durum:** ✅ Tamamlandı (2026-10-22)
 > **Kademe:** tam — güvenlik/kiracı sınırı (hafıza kaydının kiracı, agent ve kullanıcı süzgeci) · kalıcı veri (tüketicinin vektör deposuna yazılan türetilmiş kayıt; veri sahibi silme ve saklama süresi) · geri dönüşü pahalı karar (kayıt alanlarının anlamı)
 > **Plan onayı:** farukatasoy, 2026-10-21 (seçim: kapsam kiracı + agent + kullanıcı; anonim run'da kapalı; K-105/K-342 yeniden açıldı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-627** (ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #42, §8.3 C-24, §8.4 K5-2)
@@ -262,19 +262,19 @@ Beş soru: **iptal** — arama ve yazma token'ı alır · **eşzamanlılık** �
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Kullanıcı A'nın oturum 1'deki bilgisi oturum 2'de bulunur; kullanıcı B, başka agent ve başka kiracı bulmaz (fonksiyonel)
-- [ ] Anonim run hafıza okumaz ve yazmaz
-- [ ] Veri sahibi silme, oturum silme ve saklama süresi hafıza kayıtlarını siler; hafıza silme hatası SQL silmesini geri alır
-- [ ] Tanım açık, kurulum eksik → derleme hatası eksik kaydı adıyla söyler
-- [ ] AOT smoke ya da yayın probu 0 uyarı
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run check` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] K-105/K-342'nin yerini alan karar `KARARLAR.md`'de; `MAF-KAPSAMA.md` §5.2 satırı ve §8.4 K5-2 güncel
+- [x] Kullanıcı A'nın oturum 1'deki bilgisi oturum 2'de bulunur; kullanıcı B, başka agent ve başka kiracı bulmaz (fonksiyonel) — `ConversationMemoryTests` (HTTP + DI + gerçek `ChatClientAgent`), `ConversationMemoryScopeProviderTests` (kapsam), `ConversationMemoryConnectorTests` (gerçek bağlayıcı); gerçek PostgreSQL + pgvector koşumu
+- [x] Anonim run hafıza okumaz ve yazmaz — `A_run_with_no_user_reads_and_writes_nothing`, `A_run_that_names_no_session_is_not_remembered`
+- [x] Veri sahibi silme, oturum silme ve saklama süresi hafıza kayıtlarını siler; hafıza silme hatası SQL silmesini geri alır — `ConversationMemorySqlTests` (SQLite host, DI'dan gelen mağazalar), `SubjectContentEraserTests`, `ConversationMemoryTests`. Kapsam sınırı: workflow koşusu ve altındaki run'lar hafıza YAZMAZ (silme yolu olmadığı için, Sapma 8, F-643); HTTP veri sahibi silme ucu SQLite'ta zaten tamamlanmıyordu (F-644, faz öncesi kusur)
+- [x] Tanım açık, kurulum eksik → derleme hatası eksik kaydı adıyla söyler — `ConversationMemoryCompileTests`, `An_agent_that_asks_for_memory_in_a_host_that_never_set_it_up…`
+- [x] AOT smoke ya da yayın probu 0 uyarı — `Tracon.Samples.ExtensionAotSmoke` (osx-arm64): 0 uyarı, çıkış 0
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 1c2d7a3e` (aşağıda)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — "Örnek Uygulama Koşumu" bölümü
+- [x] `secret` taraması boş döndü — `kapi.py tarama`
+- [x] `🤖` case'ler `docs/manuel-test/` içinde ve koşuldu — `MT-CORE-155`, `MT-CORE-156` (örnek uygulama, gerçek model). Plan case 3 (veri sahibi silme) örnekte koşulamaz: örnekte çözümleyici yok; kanıt otomatik testlerdedir (Sapma 6, 12)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — "Denetim Bulguları"
+- [x] `docs-site/` güncellendi; `npm run check` temiz
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — 221,7 KB gzip, 187,2 KB brotli (+2,6)
+- [x] K-105/K-342'nin yerini alan karar `KARARLAR.md`'de; `MAF-KAPSAMA.md` §5.2 satırı ve §8.4 K5-2 güncel — K-1065…K-1067
 
 ### Doğrulama komutları
 
@@ -312,9 +312,13 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "
 5. **Örnek uygulama koşumu** (`faz-tamamlama` Adım 2'nin "dört boş ortam değişkeni" kuralı bu faz için uygulanamadı): gerçek `run` pgvector'lü PostgreSQL ve OpenAI anahtarı ister, bu yüzden uygulama `user-secrets`'taki paylaşılan yerel veritabanına bağlandı. `AutoApplyMigrations` **bir bekleyen eski migration** uyguladı (`eval_cases.expected_tool_calls`, bu fazın değil). Fazın kendi migration'ı yoktur. Koşumdan sonra `tracon_conversation_memory` tablosu silindi ve kullanılan oturumlar API ile temizlendi.
 6. **Manuel case 3 (veri sahibi silme) örnek uygulamada koşulmadı:** örnekte `IDataSubjectResolver` yoktur ve `MT-DVR-006` örnekte `409` bekler. Gerçek depoda `DELETE /api/sessions/{id}` koşuldu; veri sahibi silme otomatik testlerde (`ConversationMemoryTests`, `SubjectContentEraserTests`, `ConversationMemoryEraserTests`).
 7. **Native AOT kanıtı** `Tracon.Samples.ExtensionAotSmoke`'a eklendi (plan: "smoke ya da yayın probu"). Bağlayıcı olarak sahte çift bağlandı: `CommunityToolkit.VectorData.InMemory` kendisi `IL2104`/`IL3053` verir. Çift, taban `GetCollection<TKey,TRecord>`'ın `RequiresDynamicCode`/`RequiresUnreferencedCode` işaretini taşımak zorunda kaldı.
-8. **Alt agent ve workflow adımı** (hata modları "önce ölç"): ikisi de `UserId` taşır (ölçüldü). Alt agent kök oturumu taşır. 🚨 Workflow adımı hafıza YAZAR, ama workflow'un oturum kimliğiyle: o kimliğin `sessions` satırı yoktur, bu yüzden oturum silme ve saklama süresi kayda ulaşmaz (F-643 adayı; site ve `hafiza/konusma-hafizasi.md` söyler). Planın "hafıza beklenmedik kapanır" korkusu gerçekleşmedi; tersi doğdu.
+8. **Alt agent ve workflow adımı** (hata modları "önce ölç"): ikisi de `UserId` taşır (ölçüldü). Alt agent kök oturumu taşır. 🚨 Workflow adımı ilk sürümde hafıza YAZIYORDU, ama workflow'un oturum kimliğiyle: o kimliğin `sessions` satırı yoktur (F-332), yani oturum silme ve saklama süresi kayda ulaşamaz. Bağımsız denetim bunu 🔴 buldu (DoD satır 3). Kapanış: `SessionHasNoRecord` işareti (workflow kök kapsamı → altındaki her run → sağlayıcı) workflow ve altındaki run'ları hafızadan çıkarır. Kaybedilen yetenek F-643'tür. Planın "hafıza beklenmedik kapanır" korkusu bu durumda DOĞRU çıktı: kapanması gereken yerde kapanıyor.
 9. **Plan dosya listesine eklenenler:** `ConversationMemorySchema.cs`, `TraconConversationMemoryOptionsValidator.cs`, `AgentDefinitionValidator.ConversationMemory.cs` (`ConversationMemoryMaxResults` 1–20, hata ve uyarı), `Abstractions.csproj` IVT (`Tracon.Sqlite.IntegrationTests`), `Directory.Packages.props` (`CommunityToolkit.VectorData.*`).
 10. **Plan dışı public API yok.** `MaxConversationMemoryResults` ve `DefaultCollectionName` önce public yazıldı, denetimden önce `internal`/gömülü yapıldı.
+12. **Test adları ve seviyeler (denetim 🟡1):** plan tablosu `ConversationMemoryScopeTests`, `…RecallTests`, `…ErasureTests`, `…FailureTests`, `…CompileTests` ve `ProviderAotSmoke` adlarını verdi; gerçekleşen adlar `ConversationMemoryScopeProviderTests`, `ConversationMemoryEraserTests`, `ConversationMemoryCompileTests`, `ConversationMemoryConnectorTests`, `SubjectContentEraserHookTests` (birim), `ConversationMemoryTests` ve `ConversationMemorySqlTests` (fonksiyonel), `SubjectContentEraserTests` (SQLite) ve `ExtensionAotSmoke`. SQL yolunun DI üzerinden (`ActivatorUtilities`) eraser'ı alması `ConversationMemorySqlTests`'te SQLite host ile sınanır: veri sahibi silme (önizleme, dışa aktarma, silme, geri alma), `sessions` saklama hedefi (silme ve arşiv kipi, kiracı kiracı). Plan: "SQL silme HTTP üzerinden". Gerçek: HTTP ucu SQLite'ta tamamlanmıyor (ölçüldü, Faz 233'ten önceki kusur, F-644), bu yüzden mağaza DI'dan alınıp boş callback ile sürülür. Plan case 3 (veri sahibi silme `🤖`) bu yüzden de bir MT case'e dönüşmedi; kanıt otomatik testlerdedir.
+13. **Kiracı biçimi (denetim 🟡2):** eraser kiracıyı yazan tarafla aynı biçime (`AmbientTenantScope.Normalize`) getirir; uyumsuz bir `ITenantContext` kayıtları bulamaz ve denetim izine `conversation_memory: 0` yazardı.
+14. **Düz metin (denetim 🟡3):** kayıtlar mesaj metnini mağazada düz metin tutar; içerik koruması bunu kapsamaz. Site (`security.md`, `context-and-memory.md`) söyler.
+
 11. **Tanımlardaki koleksiyon null kusuru** (kullanıcının oturum ortasında verdiği `CustomAgentSource` işi, faz dışı): ayrı commit `1c2d7a3e`, K-1064. Bu faz o commit'in üstündedir; `kapi.py kapanis --taban 1c2d7a3e`.
 
 ## Bu Fazda Verilen Kararlar
@@ -361,10 +365,10 @@ Tablodaki satırlar (`SELECT "ApplicationId","AgentId","UserId","SessionId","Rol
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 4 (Sapma 1, 3, 4, 8) |
+| Düzeltme turu sayısı | 2 (tam test koşumu: 9 mimari taban testi; bağımsız denetim) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -372,3 +376,12 @@ Tablodaki satırlar (`SELECT "ApplicationId","AgentId","UserId","SessionId","Rol
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Workflow adımındaki agent'ın hafıza kaydına hiçbir silme yolu ulaşmaz (DoD satır 3) | 🔴 | düzeltildi: `SessionHasNoRecord` işareti; workflow ve altı hafıza yazmaz. Kapı: fonksiyonel + birim test; işaret üç noktadan silinince kırmızı (mutasyonla doğrulandı). Yetenek kaybı F-643 |
+| SQL yolunda gerçek eraser DI'dan hiç koşmuyor; plan test adları gerçekleşmedi | 🟡 | düzeltildi: `ConversationMemorySqlTests` (SQLite host, DI'dan mağazalar); adlar Sapma 12'de. Sınamak HTTP silme ucunun SQLite'ta tamamlanmadığını buldu: F-644 |
+| Silme süzgeci kiracıyı normalize etmiyor | 🟡 | düzeltildi: `Canonical` + `It_looks_under_the_normalized_tenant…` (mutasyonla doğrulandı) |
+| İçerik koruması açıkken hafıza düz metin kopya yazar; site söylemiyor | 🟡 | düzeltildi: `security.md` ve `context-and-memory.md` |
+| Agent adıyla anahtarlı hafıza; agent silmede kopya silinmiyor | 🟢 | F-645 |
+| Birim test `Two_users_sharing_one_session_id` sarmalayıcıya kendisi `null` oturum veriyordu (not, denetçi) | — | güçlendirildi: gerçek `AgentSession`; sarmalayıcı oturumu içe geçirirse kırmızı (mutasyonla doğrulandı) |

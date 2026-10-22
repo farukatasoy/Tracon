@@ -224,8 +224,11 @@ public sealed class ConversationMemoryTests
     }
 
     [Fact]
-    public async Task A_workflow_agent_step_remembers_for_the_user_of_the_workflow_run()
+    public async Task A_workflow_agent_step_remembers_nothing_because_its_session_has_no_record_to_delete_it_with()
     {
+        // Measured (phase 233, F-643): the step runs under the workflow's own session id, and no sessions row
+        // carries it (F-332), so session delete, the sessions retention target and a session-keyed erasure could
+        // never reach what the step stored. The audit found the records written; they are not written now.
         var provider = new FakeModelProvider(ProviderName).ForModel("memory-1", static cfg => cfg.EchoesUserMessage());
         var store = new InMemoryVectorStore();
 
@@ -266,15 +269,13 @@ public sealed class ConversationMemoryTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
         _ = await response.Content.ReadAsStringAsync();
 
-        var records = store.Records(Collection);
-        records.ShouldNotBeEmpty("the workflow step's turn was not remembered");
-        records.Select(static record => (string?)record["UserId"]).Distinct(StringComparer.Ordinal).ShouldBe(["ada"]);
-        records.Select(static record => (string?)record["AgentId"]).Distinct(StringComparer.Ordinal).ShouldBe(["memory-agent"]);
+        // The step ran and the model saw the message; nothing was remembered.
+        provider.Requests.ShouldNotBeEmpty();
+        store.Records(Collection).ShouldBeEmpty();
 
-        // Measured (phase 233, F-643): the session id is the workflow's own, and no session row carries it,
-        // so deleting a session or the sessions retention policy cannot reach these records.
-        var sessionId = records.Select(static record => (string?)record["SessionId"]).Distinct(StringComparer.Ordinal).ShouldHaveSingleItem();
-        (await host.Services.GetRequiredService<ISessionStore>().GetAsync(sessionId!)).ShouldBeNull();
+        // The same agent, run directly with a session of its own, still remembers: it is the workflow, not the agent.
+        await RunAsync(host, "ada", "direct-session", "My favourite colour is teal.");
+        store.Records(Collection).ShouldNotBeEmpty();
 
         store.Dispose();
     }
