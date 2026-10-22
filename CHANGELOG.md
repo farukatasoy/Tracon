@@ -21,8 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   that model call is not on the run's usage. The console has one box and one choice for it.
   Check the connector first: the `Microsoft.SemanticKernel.Connectors.*` packages (1.74 preview) call a member that
   `Microsoft.Extensions.VectorData.Abstractions` 10.7 removed, and fail at search time without a build warning;
-  `CommunityToolkit.VectorData.*` 1.0 works. The agent step of a workflow remembers under the workflow's own
-  session id, which no session record carries, so only a data subject erasure that names that id reaches it.
+  `CommunityToolkit.VectorData.*` 1.0 works. A workflow run, and the agent steps below it, remember nothing: the
+  workflow's session id never gets a session record, so nothing could delete what they kept. The records hold the
+  message text in plain text, in your store, outside content protection.
 
 - **A definition can turn the approval of the two skill read tools off.** Microsoft Agent Framework asks for
   approval before `load_skill`, `read_skill_resource` and `run_skill_script`, so an agent with skills could

@@ -242,6 +242,7 @@ new session still finds the old one.
 | has a user and a session | reads and writes |
 | has no user (an anonymous run) | neither reads nor writes |
 | has no session id | neither reads nor writes — a record with no session could not be deleted with its session |
+| is a workflow run, or runs below one | neither reads nor writes — the workflow's session has no record to delete it with |
 | belongs to another tenant, agent, or user | never sees the record |
 
 The user is the one your [run attribution](/concepts/governance/) resolves, never a
@@ -249,12 +250,11 @@ field in the request body. Name a `sessionId` in the request; a request without 
 opens no session and remembers nothing.
 
 A sub-agent and a queued run remember for the same user and session as the run that
-started them. **Important:** an agent step of a [workflow](/concepts/workflows/) remembers too, under
-the workflow run's own session id. No session record carries that id, so deleting a
-session and the sessions retention policy do not reach those records. A data subject
-erasure deletes them only if the scope you return from `IDataSubjectResolver` names that id
-(it is `sessionId` in the run record). Keep conversation memory off for agents that
-workflows call, unless you accept this.
+started them. A [workflow](/concepts/workflows/) run remembers nothing, and neither does
+an agent step below it. The workflow's session id never gets a session record, so nothing
+could delete what the step kept: session delete, the sessions retention target and a
+session-keyed erasure all start from that record. Call the same agent directly, with a
+`sessionId` of its own, and it remembers.
 
 A user with the same `sessionId` as another user keeps a separate memory. Tracon
 reads the scope from the run on every call, not from the session, so the first user
@@ -300,6 +300,10 @@ that.
 - If the store is down when a run starts, the run goes on without memory and the
   framework logs the error. If it is down when the run ends, the run's answer is
   kept and the messages are not remembered. Memory is context, not the answer.
+- The records hold the text of the messages in plain text, in your store. The
+  [content protection](/getting-started/security/) that encrypts session tables does not
+  reach them. Protect the store, its backups and its table permissions the way you protect
+  the messages themselves.
 - The store embeds each message. That model call is not on the run's usage and cost.
   Check the cost with your embedding provider.
 - Search quality, and whether the filter on tenant, agent, and user is applied at

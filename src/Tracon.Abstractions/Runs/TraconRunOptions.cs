@@ -69,6 +69,7 @@ public sealed class TraconRunOptions : AgentRunOptions
         ParameterValues = other.ParameterValues;
         ChatOptions = other.ChatOptions;
         SuspendsWorkflowOnApproval = other.SuspendsWorkflowOnApproval;
+        SessionHasNoRecord = other.SessionHasNoRecord;
     }
 
     /// <summary>
@@ -264,6 +265,17 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// </para>
     /// </remarks>
     internal bool SuspendsWorkflowOnApproval { get; init; }
+
+    /// <summary>
+    /// Gets whether <see cref="SessionId"/> names a session that has no <c>sessions</c> record, so no
+    /// session delete, retention policy or session-keyed erasure can find what is stored under it.
+    /// </summary>
+    /// <remarks>
+    /// A workflow run's session id is its own and never gets a session record. Every run below the workflow
+    /// (an agent step, the sub-agents it calls) inherits the id and so inherits this flag. Conversation
+    /// memory writes nothing for such a run: a record it kept could not be deleted with its session.
+    /// </remarks>
+    internal bool SessionHasNoRecord { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

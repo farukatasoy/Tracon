@@ -832,6 +832,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             AgentName = execution.WorkflowName,
             TenantId = _tenantContext.TenantId,
             SessionId = execution.SessionId,
+
+            // A workflow's session id never gets a sessions record (F-332); everything below inherits that.
+            SessionHasNoRecord = true,
             UserId = attribution.UserId,
             Labels = attribution.Labels,
             Budget = budget,

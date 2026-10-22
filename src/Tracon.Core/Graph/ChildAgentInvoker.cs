@@ -547,6 +547,9 @@ public sealed class ChildAgentInvoker : AIAgent
             // retention policy would treat it as orphaned and delete it.
             SessionId = scope.SessionId,
 
+            // Inherited with the id: what names a session with no record below a workflow names one here too.
+            SessionHasNoRecord = scope.SessionHasNoRecord,
+
             // What this step was bound with, so its own row records the values
             // (a replay of the step then repeats them). Null for a step that
             // bound none.

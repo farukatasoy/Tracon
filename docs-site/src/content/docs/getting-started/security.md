@@ -348,7 +348,10 @@ Three limits are worth knowing before you rely on this:
   discarded disk, or a misconfigured table permission, not a compromised
   application server. What leaves the process is plaintext too: a data subject
   export, and the rows a retention policy hands to your `IArchiveSink`. Encrypt the
-  archive in the sink if it must stay encrypted at rest.
+  archive in the sink if it must stay encrypted at rest. The same holds for
+  [conversation memory](/guides/context-and-memory/#remember-a-user-across-sessions):
+  it stores the text of what a user and the agent said in your own vector store, in
+  plain text, whatever protects the session tables. Protect that store yourself.
 - **A protected column cannot be searched or filtered on the server.** Agent file
   search still returns correct results, but the server-side prefilter is skipped
   and every candidate file is decrypted and matched on the client instead.

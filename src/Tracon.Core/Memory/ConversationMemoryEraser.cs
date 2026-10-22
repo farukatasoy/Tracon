@@ -34,6 +34,7 @@ internal sealed class ConversationMemoryEraser(IServiceProvider services) : ISub
     /// <inheritdoc />
     public async ValueTask<int> CountAsync(string tenantId, IReadOnlyList<string> sessionIds, CancellationToken cancellationToken)
     {
+        tenantId = Canonical(tenantId);
         var count = 0;
 
         await ForEachSessionAsync(
@@ -54,6 +55,7 @@ internal sealed class ConversationMemoryEraser(IServiceProvider services) : ISub
     /// <inheritdoc />
     public async ValueTask<int> EraseAsync(string tenantId, IReadOnlyList<string> sessionIds, CancellationToken cancellationToken)
     {
+        tenantId = Canonical(tenantId);
         var deleted = 0;
 
         await ForEachSessionAsync(
@@ -73,6 +75,7 @@ internal sealed class ConversationMemoryEraser(IServiceProvider services) : ISub
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(writer);
+        tenantId = Canonical(tenantId);
 
         writer.WriteStartArray(Target);
 
@@ -96,6 +99,12 @@ internal sealed class ConversationMemoryEraser(IServiceProvider services) : ISub
 
         writer.WriteEndArray();
     }
+
+    /// <summary>
+    /// The tenant in the form the records were written in: the provider writes <c>AmbientTenantScope.Normalize</c>,
+    /// and a tenant context that does not normalize must still find them.
+    /// </summary>
+    private static string Canonical(string tenantId) => AmbientTenantScope.Normalize(tenantId);
 
     private static void WriteField(Utf8JsonWriter writer, string name, Dictionary<string, object?> record, string field)
         => writer.WriteString(name, record.TryGetValue(field, out var value) ? value as string : null);
@@ -180,7 +189,6 @@ internal sealed class ConversationMemoryEraser(IServiceProvider services) : ISub
         Func<VectorStoreCollection<object, Dictionary<string, object?>>, string, CancellationToken, ValueTask> action,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(sessionIds);
 
         if (sessionIds.Count == 0
