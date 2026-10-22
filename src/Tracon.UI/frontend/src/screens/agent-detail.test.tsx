@@ -268,6 +268,56 @@ describe('AgentDetailScreen read-only notice', () => {
     expect(row?.className).toContain('bg-warn-soft');
   });
 
+  it('shows a version that gives the agent a workspace (Phase 234)', async () => {
+    const definition = (version: number, workspace: { enabled: boolean; readOnly: boolean; disableReadApproval: boolean } | null): unknown => ({
+      name: 'support',
+      instructions: 'Help.',
+      instructionsByCulture: {},
+      model: { provider: 'echo', model: 'echo-1' },
+      toolNames: [],
+      skillNames: [],
+      workspace,
+      extensionNames: [],
+      callableAgentNames: [],
+      subAgents: null,
+      harness: null,
+      compaction: null,
+      memory: null,
+      origin: 'Database',
+      version,
+    });
+
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/agents/:name/versions/:a/diff/:b', {
+        left: definition(1, null),
+        right: definition(2, { enabled: true, readOnly: false, disableReadApproval: true }),
+      }),
+      fixture('GET', 'api/agents/:name/versions', [
+        { name: 'support', version: 1, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-21T09:00:00Z' },
+        { name: 'support', version: 2, model: { provider: 'echo', model: 'echo-1' }, toolNames: [], updatedAt: '2026-10-21T10:00:00Z' },
+      ]),
+      fixture('GET', 'api/agents/:name', {
+        descriptor: { name: 'support', origin: 'Database', sourceName: 'database', version: 2, toolNames: [] },
+        definition: definition(2, { enabled: true, readOnly: false, disableReadApproval: true }),
+        factoryInstructions: null,
+        isEditable: true,
+      }),
+    ]);
+
+    const user = userEvent.setup();
+
+    renderScreen(<AgentDetailScreen name="support" meta={testMeta} />);
+
+    await user.click(await screen.findByTestId('version-checkbox-1'));
+    await user.click(screen.getByTestId('version-checkbox-2'));
+
+    // The version that turns the approval for reads off shows it as a difference, among the rows of its section.
+    const row = (await screen.findByText('Read files without approval', { selector: 'td' })).closest('tr');
+
+    expect(row?.textContent).toContain('true');
+    expect(screen.getByText('Session workspace')).toBeTruthy();
+  });
+
   it('rolls an agent back through the shared version history, and shows the refusal in the screen slot', async () => {
     // Phase 200 moved the history into a component the workflow screen shares; the agent's own
     // columns, its rollback and its error slot must have come with it.

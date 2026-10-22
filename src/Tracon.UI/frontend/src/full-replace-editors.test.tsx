@@ -116,6 +116,7 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
   toolNames: ['get_order_status'],
   skillNames: ['returns-policy'],
   skills: { disableReadApproval: true },
+  workspace: { enabled: true, readOnly: true, disableReadApproval: true },
   // Phase 222: 'retired' is a name the host no longer registers. The form keeps it, so an edit that
   // does not touch it sends it back unchanged instead of dropping it.
   extensionNames: ['audit', 'retired'],

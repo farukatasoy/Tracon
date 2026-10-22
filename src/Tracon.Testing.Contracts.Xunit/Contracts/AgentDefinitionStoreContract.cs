@@ -206,6 +206,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
             },
             SkillNames = ["house-skill"],
             Skills = new SkillSettings { DisableReadApproval = true },
+            Workspace = new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true },
             CallableAgentNames = ["researcher"],
             Harness = new HarnessSettings
             {
@@ -268,6 +269,7 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.ToolNames.ShouldBe(["alpha", "beta"]);
         loaded.SkillNames.ShouldBe(["house-skill"]);
         loaded.Skills.ShouldNotBeNull().DisableReadApproval.ShouldBeTrue();
+        loaded.Workspace.ShouldBe(new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true });
         loaded.CallableAgentNames.ShouldBe(["researcher"]);
         loaded.Harness.ShouldNotBeNull();
         loaded.Harness.MaxContextWindowTokens.ShouldBe(4096);

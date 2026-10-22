@@ -7959,6 +7959,17 @@
               }
             ]
           },
+          "workspace": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the session workspace settings. When \u0060null\u0060 the agent has no workspace.",
+                "$ref": "#/components/schemas/WorkspaceSettings"
+              }
+            ]
+          },
           "origin": {
             "description": "Gets the origin of the definition: code or database.",
             "$ref": "#/components/schemas/AgentDefinitionOrigin"
@@ -8084,6 +8095,17 @@
               {
                 "description": "How the agent uses its skills. See \u0060AgentDefinition.Skills\u0060. If left empty, all\nthree skill tools ask for approval.",
                 "$ref": "#/components/schemas/SkillSettings"
+              }
+            ]
+          },
+          "workspace": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The session workspace of the agent: a file area that belongs to one conversation. See\n\u0060AgentDefinition.Workspace\u0060. If left empty, the agent has no workspace.",
+                "$ref": "#/components/schemas/WorkspaceSettings"
               }
             ]
           },
@@ -8249,6 +8271,17 @@
               {
                 "description": "Gets how this agent uses its skills. The external-surface check reads it: an agent whose\nskill read approval is on cannot be exposed over A2A or MCP.",
                 "$ref": "#/components/schemas/SkillSettings"
+              }
+            ]
+          },
+          "workspace": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the session workspace settings. The external-surface check reads them: an agent whose\nworkspace can change a file, or asks for approval to read one, cannot be exposed over A2A or MCP.",
+                "$ref": "#/components/schemas/WorkspaceSettings"
               }
             ]
           },
@@ -20152,6 +20185,27 @@
           }
         },
         "description": "Raw JSON response for comparing two workflow definition versions. The diff is not\ncomputed on the server; the client compares the two definitions field by field."
+      },
+      "WorkspaceSettings": {
+        "examples": [
+          null
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Gets a value that gives the agent a workspace in every session that has a record.\nDefaults to \u0060false\u0060."
+          },
+          "readOnly": {
+            "type": "boolean",
+            "description": "Gets a value that offers only the tools that read: \u0060file_access_read\u0060,\n\u0060file_access_read_lines\u0060, \u0060file_access_ls\u0060 and \u0060file_access_grep\u0060.\nThe tools that write, replace and delete are not offered at all."
+          },
+          "disableReadApproval": {
+            "type": "boolean",
+            "description": "Gets a value that makes the tools that read run without asking for approval. The tools\nthat change a file keep their approval."
+          }
+        },
+        "description": "Settings for the session workspace of an agent: a file area that belongs to one\nconversation, where the agent lists, reads, searches, writes, edits and deletes files."
       }
     },
     "securitySchemes": {

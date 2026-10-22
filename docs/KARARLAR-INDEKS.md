@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1005 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1008 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1057 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1060 kalem)
 
 | K | Karar |
 |---|---|
-| K-1016 | `TraconAgentSessionStore` `internal`; köprünün `GetSessionAsync`'i oturum AÇMAZ; anahtarın `isolation` bölümü eski önek biçimine (`kaçışlı-anahtar::kimlik`) katlanır, başka her bölüm `NotSupportedException` ile reddedilir; `MAAI001` bastırması yalnız köprü dosyasında ve onu kullanan iki yerde (`OpenAIResponsesEndpoints`, `ResolveSessionStore`) (F-557, Faz 214) |
-| K-1017 | Bağımlılık yükseltmesi istek davranışını değiştirmez: `Tracon.Anthropic` SDK adaptörünü `AnthropicThinkingMode.Extended` ile kurar (SDK varsayılanı `Adaptive`), önbellek işaretli talimat bloğu `system` dizisinde ilk system-olmayan mesajdan ÖNCE yerleşir (F-557, Faz 214) |
-| K-1018 | Sevk edilen `Tracon.Testing.Contracts.Xunit` paketi `xunit.v3.extensibility.core` ve `xunit.v3.assert` için `>= 3.2.2` alt sınırını korur; reponun kendi testleri xunit.v3 `4.0.2` + `Microsoft.Testing.Extensions.TrxReport` `2.5.1` üzerinde koşar (F-557, Faz 215, A-70) |
 | K-1019 | Bir sağlayıcı veya ses paketi "Native AOT: Yes" vaadini ancak bir tüketici yayınında kanıtlarsa verir: gerçek istek/yanıt yolu sahte sunucuya karşı AOT'ta koşar ve yayın sıfır trim/AOT uyarısı verir; `Anthropic` ve `Google` vaadi geri çekildi (F-558, Faz 217, A-83) |
 | K-1020 | `Tracon.Azure` Azure OpenAI'nın v1 ucuna (`{endpoint}/openai/v1/`) düz `OpenAI` istemcisiyle gider; `Azure.AI.OpenAI` bağımlılıktan çıktı; anahtar `Authorization: Bearer`, Entra kimliği `BearerTokenPolicy` ile yalnız HTTPS'te (F-558, Faz 217, A-83) |
 | K-1021 | `ModelBinding.ReasoningEffort` Anthropic'te uyarlanabilir düşünmeye (`thinking.type=adaptive` + `output_config.effort`) gider; K-1017'nin `Extended` sabiti kaldırıldı (F-558, Faz 217) |
@@ -62,3 +59,6 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1065 | Konuşma hafızası Core'dadır: kapsam kiracı + agent + kullanıcı; kullanıcısız ya da oturumsuz run hafıza kullanmaz (F-627) |
 | K-1066 | Hafıza kapsamı her çağrıda run'dan okunur; MAF sağlayıcısına oturum verilmez (F-627) |
 | K-1067 | Hafıza kaydı oturumun türetilmiş kopyasıdır: oturumla birlikte silinir, önce kopya sonra satır (F-627) |
+| K-1068 | Oturum alanının yol biçimi kalıcıdır: `{kiracı}/~workspace/{anahtar}/{agent}/…`, anahtar SHA-256(kiracı, oturum) ilk 32 hex (F-628) |
+| K-1069 | Agent oturum başına dosya alanı alır: tool'lar Tracon zincirinden geçer, yazma ve silme hep onay ister, kota var; K-062'nin yerini alır (F-628) |
+| K-1070 | Veri sahibi silmede oturum kopyaları SQL işlemi açılmadan ÖNCE silinir; K-1067'nin sırasını değiştirir (F-628) |

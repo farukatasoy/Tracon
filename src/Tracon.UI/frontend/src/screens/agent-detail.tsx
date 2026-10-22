@@ -418,6 +418,21 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
             </CompareSection>
           )}
 
+          {/* Phase 234: a version that turns the workspace on, or loosens its approval, shows it. */}
+          {(data.left.workspace ?? data.right.workspace) !== undefined && (
+            <CompareSection title={t('agentEditor.workspace')}>
+              <FieldDiffTable
+                left={data.left.workspace}
+                right={data.right.workspace}
+                fields={{
+                  enabled: { label: t('fields.enableWorkspace') },
+                  readOnly: { label: t('fields.workspaceReadOnly') },
+                  disableReadApproval: { label: t('fields.workspaceDisableReadApproval') },
+                }}
+              />
+            </CompareSection>
+          )}
+
           {(data.left.memory ?? data.right.memory) !== undefined && (
             <CompareSection title={t('agentDetail.memory')}>
               <FieldDiffTable

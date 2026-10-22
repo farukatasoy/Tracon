@@ -29,6 +29,14 @@ function withToggle(memory: FormState['memory'], key: (typeof MEMORY_TOGGLES)[nu
   return { ...memory, [key]: on };
 }
 
+/**
+ * Turns the workspace on or off. Turning it off also drops its other two settings, so a definition that has no
+ * workspace does not keep options that change nothing (the server warns about them).
+ */
+function withWorkspaceEnabled(on: boolean): FormState['workspace'] {
+  return on ? { enabled: true } : {};
+}
+
 export function ContextSection({
   form,
   setForm,
@@ -266,6 +274,48 @@ export function ContextSection({
                 </Select>
               </Field>
               <p className="mt-1 text-sm text-muted">{t('agentEditor.conversationMemoryNotice')}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 border-t border-line pt-4">
+          <p className="mb-2 text-sm font-medium text-muted">{t('agentEditor.workspace')}</p>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              data-testid="agent-workspace-enabled"
+              className="accent-[var(--tracon-accent)]"
+              checked={form.workspace.enabled === true}
+              onChange={(event) => setForm({ ...form, workspace: withWorkspaceEnabled(event.target.checked) })}
+            />
+            {t('fields.enableWorkspace')}
+          </label>
+
+          {form.workspace.enabled === true && (
+            <div className="mt-3 flex flex-col gap-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  data-testid="agent-workspace-read-only"
+                  className="accent-[var(--tracon-accent)]"
+                  checked={form.workspace.readOnly === true}
+                  onChange={(event) => setForm({ ...form, workspace: { ...form.workspace, readOnly: event.target.checked } })}
+                />
+                {t('fields.workspaceReadOnly')}
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  data-testid="agent-workspace-disable-read-approval"
+                  className="accent-[var(--tracon-accent)]"
+                  checked={form.workspace.disableReadApproval === true}
+                  onChange={(event) =>
+                    setForm({ ...form, workspace: { ...form.workspace, disableReadApproval: event.target.checked } })
+                  }
+                />
+                {t('fields.workspaceDisableReadApproval')}
+              </label>
+              <p className="mt-1 text-sm text-muted">{t('agentEditor.workspaceNotice')}</p>
             </div>
           )}
         </div>

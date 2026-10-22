@@ -1,0 +1,43 @@
+# Oturum Çalışma Alanı Tuzakları
+
+> `WorkspaceSettings`, `SessionWorkspaceProvider` (MAF `FileAccessProvider` sarmalayıcısı),
+> `SessionWorkspaceFileStore`, `IAgentFileTree`, `SessionWorkspaceEraser`, `WorkspaceToolGovernance`.
+> Faz 234 (F-628). Konuşma hafızası ayrı dosyadadır: [`konusma-hafizasi.md`](konusma-hafizasi.md).
+>
+> Bu dosya `MEMORY.md`'nin alan dosyasıdır. Yalnızca bu alana dokunurken
+> okunur. Yeni not buraya eklenir, `MEMORY.md`'ye değil.
+
+## Yol ve kapsam
+
+- **🚨 Yol biçimi KALICIDIR: `{kiracı}/~workspace/{anahtar}/{agent}/{yol}`** (K-1068). Depodaki bayt biçimi değişirse eski alanlar okunamaz; değişecekse dosyalar taşınır. `anahtar` = SHA-256 (kiracı, oturum; her parça 4 bayt **little-endian** uzunlukla, `BinaryPrimitives`: `BitConverter` makineye bağlıydı) ilk 32 onaltılık karakter, küçük harf. Değer test ile **sabitlenmiş** ve bağımsız bir uygulamayla (Python) doğrulanmıştır: `SessionWorkspacePathsTests.The_key_of_a_session_is_pinned`.
+- **Plandan sapma — anahtar oturumdur, agent değil; oturum agent'tan ÖNCE gelir.** Plan `…/~workspace/{agent}/{anahtar}/` yazıyordu ve anahtarı (kiracı, agent, oturum) üstünden alıyordu. Oturum silme, veri sahibi silme ve saklama süresi `ISubjectContentEraser`'a yalnız `(kiracı, oturum kimlikleri)` verir; agent'ı bilmez. Anahtar agent'ı taşısaydı silme hiçbir dizini bulamazdı. Şimdi bir oturumun sahip olduğu her şey (hangi agent yazmış olursa olsun) **tek dizindir**: `{kiracı}/~workspace/{anahtar}`.
+- **`~workspace` dosya belleğinin kardeşidir ve ayrılmış addır.** Dosya belleği kökü `{kiracı}/{agent}/`'dır. `~workspace` adlı (ya da onunla başlayan) bir agent'ın dosya belleği **tüm alanların kökü** olurdu ve hepsini okuyup yazardı; `RequireFileStore` böyle bir agent'ı derlemede reddeder. Agent adında `/` varsa `a/b` + `c` ile `a` + `b/c` aynı dosya olurdu; alanı olan agent'ın adı `/` taşıyamaz (derleme ve doğrulayıcı).
+- **Oturumsuz run'da, oturum satırı olmayan oturumda ve başka kiracının run'ında alan YOKTUR**: sağlayıcı tool da talimat da vermez, depo her çağrıda atar. Oturum satırı olmayan oturum workflow kökü ve altındaki her run'dır (`SessionHasNoRecord`, F-332): silme oradan başladığı için alanı bulamazdı. Replay her zaman oturumsuzdur, bu yüzden alansızdır.
+- **Run devamı (`RunContinuationJobHandler`) alanlı agent'ı REDDEDER**: dosya tool'ları `AIContextProvider`'dan gelir ve `RecordedToolPlayback` onları sarmaz; devam, tamamlanmış bir yazmayı ya da silmeyi sessizce tekrarlardı (beceri ve uzantıyla aynı sebep).
+- Kullanıcı kapsamda **yoktur**: oturum sahipliği kapalıyken aynı oturum kimliğini kullanan iki kullanıcı zaten aynı konuşma geçmişini paylaşır; alan da onunla aynı sınırdadır. Silme de kullanıcıyı bilmez.
+
+## Tool zinciri ve onay
+
+- **MAF `FileAccessProvider` sealed'dır; sarmalayıcı `ProvideAIContextAsync`'i geçersiz kılar** ve içe BOŞ bir `AIContext` verir (taban sınıf birleştirmeyi yapar). Yalnız oturumlu run'da çağırır. Sarılmış tool dizisi bir kez kurulur ve her run paylaşır; depo oturumu her çağrıda `TraconRunContext`'ten okur.
+- **MAF'ın kendi onay sarmalayıcısı KAPALIDIR** (`DisableReadOnlyToolApproval = DisableWriteToolApproval = true`). Onayı `WorkspaceToolGovernance.Govern` kurar: yazma, değiştirme, satır değiştirme ve silme **her zaman** onay ister; okuma onayı `WorkspaceSettings.DisableReadApproval` ile kapanır. Bu yüzden sıra her tool'unki gibidir (Authorizing → Validating → Timeout → ApprovalRequired → Truncating → gövde) ve `ToolRegistry.RequiresApproval`'ın MAF sarmalı okuma yolu (MAF-KAPSAMA §0 #45) bu tool'lara gerekmez. Etki: okuma `Read`, yazma/değiştirme `Write`, silme `Destructive`.
+- **Tool adı çakışması:** agent'ın kendi tool'u `file_access_*` adlarından birini taşıyamaz (MAF'ın "ad eşleşen tool otomatik onaylanır" notu: kullanıcının tool başına "hatırla" kuralı adla çalışır). Derleme reddeder; alt agent tool adları da aynı kümeyle çakışmaya bakar.
+- **🚨 Harness `FileAccessProvider`'ı YALNIZ `HarnessAgentOptions.FileAccessStore` atanınca kurar** (MAF 1.25 decompile, ölçüldü). Tracon atamaz (K-062/K-1029) ve sarmalı sağlayıcıyı `AIContextProviders`'a koyar, skill zinciri gibi. Çift tool yok: `A_harness_agent_gets_the_workspace_once…`.
+- **Yol temizliği iki katmanlıdır:** MAF tool'u `StorePaths.NormalizeRelativePath` ile `\`→`/`, `..` ve `.`, kök yol ve sürücü harfini reddeder; depo `SessionWorkspacePaths.Relative` ile yine reddeder (savunma). Toplam yol 400 karakteri aşamaz (`agent_files.path` SQL Server `nvarchar(400)`): tool modele kalan karakter sayısını söyler.
+- **🚨 SQL deposu aramada TAM saklı yolu döndürür (`/kiracı/...`), bellek içi depo dizine göre göreli döndürür.** MAF `grep` tool'u aranan dizini sonuca kendisi ekler; tam yol modele kiracıyı ve oturum anahtarını gösterirdi. `SessionWorkspaceFileStore.SearchAsync` `/` ile başlayan adı aranan dizine göre görelileştirir (`A_search_names_each_file_relative…`).
+
+## Kota
+
+- Dosya (≤ `MaxFileBytes`), oturum toplamı ve kiracı toplamı (yazımdan sonraki değer). **Her dosya içeriğine ek 1 KiB sayılır** (`FileOverheadBytes`, `internal`): boş içerikli yazım `added = 0` idi, ölçüm koşmuyordu ve 400 karakterlik yollarla sınırsız satır üretilebilirdi (denetim). Yeni dosya `içerik + 1 KiB` ekler, üzerine yazma yalnız farkı. Aşım `TraconException("Workspace quota reached: …")`: `ExplainedFailureAIFunction` onu modele sonuç olarak verir, run sürer. Üst üste yazma yalnız **farkı** ekler (yazmadan önce eski dosya okunur). Sınır yumuşaktır (iki eşzamanlı yazım bir dosya kadar aşabilir).
+- **Birim "deponun tuttuğu bayt"tır.** PostgreSQL `octet_length` (UTF-8), SQLite `length(CAST(content AS BLOB))` (UTF-8), **SQL Server `DATALENGTH` (UTF-16, ASCII için 2 bayt/karakter)** — gerçek SQL Server 2022 kapsayıcısında ölçüldü (`SessionWorkspaceFilesTests`: 11 karakter → 22 bayt). İçerik koruması açıksa saklanan şifreli metindir. Dosya sınırı her zaman UTF-8 baytıdır.
+- **Ölçüm (PostgreSQL 18, 200 000 satır × 2 KB, 2 000 oturum, sıcak önbellek):** bir oturumun boyutu 14,1 ms → 0,5 ms, bir oturumu silmek 13,9 ms → 0,03 ms, bir kiracının tüm alanları 12,9 → 7,2 ms (toplamın kendisi baskın). İndeks yoksa ilk ikisi **tüm tablo** ile büyür ve saklama toplu işi her süresi dolan oturum için bir silme koşar. Çare migration 0064 (PostgreSQL, `(tenant_id, path text_pattern_ops)`: veritabanı harmanı `LIKE 'önek%'`'e b-tree vermez) · 0051 (SQLite: `case_sensitive_like` açık + BINARY harman gerekir; `EXPLAIN QUERY PLAN` ile test edilir) · 0052 (SQL Server). **SQLite indeks adı veritabanı dosyası boyunca tekildir: `{schema}` öneki olmazsa ikinci önek indeksini kaybeder** (`MigrationRunnerTests.Two_prefixes_in_one_file…`).
+
+## Silme
+
+- 🚨 **Eraser her kurulumda kayıtlıdır; run kapsamı isteyen bir sarmalayıcı depo run dışında listeleyemez ve `DELETE /api/sessions/{id}` düşer** (kabul edilen risk, Sapma 14; bilerek sessiz sıfır yok). `IAgentFileTree` olmayan depolar dosya dosya gezilir.
+- Kanca `ISubjectContentEraser` (Hedef `session_workspace`); `AgentSessionManager`, `SqlDataSubjectStore`, `SqlRetentionStore` zaten çağırır (Faz 233). Eraser depoyu **ilk işte** çözer. `IAgentFileTree` (SQL depoları uygular) tek sorguyla ölçer/okur/siler ve **agent ya da run istemez**; başka depolar `GenericAgentFileTree` ile dosya dosya gezilir. Boş dizin SQL'de reddedilir (kiracının tüm dosya belleğini silerdi).
+- **🚨 SQLite: işlem açıkken İKİNCİ bağlantıdan yazmak bekler ve düşer** (ölçüldü: `AttachmentByteLifecycleTests.Erasure_deletes_the_external_bytes` 31 sn'de kırmızı). Alan `agent_files`'ta, yani aynı veritabanındadır; eraser veri sahibi silmede satır `DELETE`'lerinden SONRA koşunca işlemin tek yazar kilidine çarpar. Çözüm: `SqlDataSubjectStore` kopyaları işlem açılmadan ÖNCE siler. Kopya oturum kimliğinden bulunur (satırlar gerekmez); silinemezse hiçbir satır silinmemiştir, silindikten sonra düşen adım için tekrar çağrı kalanı bitirir. Not: F-644 (HTTP silme ucu SQLite'ta tamamlanmıyor) ayrı kusurdur ve sürer.
+- Eraser her kurulumda kayıtlıdır (DB'deki bir tanım alanı her an açabilir). Etki: veri sahibi silme sayımına/dışa aktarmaya `session_workspace` anahtarı girer, `sessions` saklama hedefi artık her kurulumda "oku → kopyayı sil → anahtarla sil" yolunu kullanır (indeksle ucuz).
+
+## Test kapıları
+
+`SessionWorkspaceTests` · `…ApprovalTests` (fonksiyonel, gerçek onay akışı) · Core.UnitTests: `SessionWorkspacePathsTests`, `…FileStoreTests`, `…ProviderTests` (yetki, zaman aşımı, iptal), `…EraserTests`, `…CompileTests` · `SessionWorkspaceFilesTests` ×3 (SQLite, PostgreSQL, SQL Server; gerçek motorlar). Bir modelin gördüğü tool listesini ve onay işaretini sınamak için `FakeModelRequest.Options.Tools` ve `tool.GetService<ApprovalRequiredAIFunction>()` kullan.

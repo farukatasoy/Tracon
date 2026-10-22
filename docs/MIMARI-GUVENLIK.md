@@ -77,7 +77,7 @@ Ek sınırlar:
 **Tool onayı.** `RequiresApproval = true` işaretli tool, `ToolRegistry` içinde
 `ApprovalRequiredAIFunction` ile sarılır. Sarmalama **defterde** yapılır: defter,
 "bir agent yalnızca kayıtlı bir tool'a işaret edebilir" kuralının zorlandığı tek
-yerdir, yani başka bir kod yolu sarmalamayı atlayamaz. Skill araçları defterde değildir: MAF üçünü de sarar; tanım yalnız ikisini (`Skills.DisableReadApproval`) kapatır (K-1061).
+yerdir, yani başka bir kod yolu sarmalamayı atlayamaz. Skill araçları ve alan dosya tool'ları defterde değildir; tanım yalnız okuyanların onayını kapatır (`Skills`/`Workspace`; K-1061, K-1069).
 
 **Asenkron onay kutusu (Faz 55).** Kuyruktan koşan bir çalıştırma onay isteyip
 `AwaitingApproval`'a düşerse `pending_approvals` üzerinden
@@ -246,7 +246,7 @@ yazımı başarılıysa `COMMIT`) için kullanılır. Silme **içerik** verisind
 (oturum, çalıştırma, konuşma, ek, puan, ses, checkpoint); `audit_log`'a hiç dokunmaz — "kim ne
 yaptı" kişinin kendi verisi değildir, silme eylemi yeni bir denetim kaydıdır.
 FK'sız oturum/run tablosu kendi hedefini ister (F-371); K-888 muafiyeti silmede yok.
-Hafıza kopyası (tüketicinin `VectorStore`'u) commit'ten ÖNCE silinir (K-1067).
+Hafıza kopyası ve alan dosyaları SQL işleminden ÖNCE silinir (K-1067, K-1070).
 
 ## Skill script çalıştırma
 

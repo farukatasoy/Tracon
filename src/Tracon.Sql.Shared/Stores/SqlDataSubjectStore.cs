@@ -89,13 +89,20 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The order is: every row <c>DELETE</c> (not committed), then the external
-    /// content of the erased attachments, then the audit callback, then the
-    /// commit. The content goes before the commit because the rows are the only
-    /// record of where it is: a content delete that fails rolls the rows back,
-    /// so a repeat call can still find it. The content goes before the audit
-    /// callback so that the audit trail never records an erasure that then
-    /// rolled back.
+    /// The order is: the copies of the sessions' content outside the rows (<see cref="ISubjectContentEraser"/>:
+    /// conversation memory, the files of a session workspace), then every row <c>DELETE</c> (not committed), then the
+    /// external content of the erased attachments, then the audit callback, then the commit. The content of an
+    /// attachment goes after its row because the row is the only record of where it is: a content delete that fails
+    /// rolls the rows back, so a repeat call can still find it. The audit callback comes last so that the audit
+    /// trail never records an erasure that then rolled back.
+    /// </para>
+    /// <para>
+    /// A copy is found by the id of its session, which the scope already holds, so it can go first; and it must
+    /// go first. The session workspace keeps its files in the same database (<c>agent_files</c>), and SQLite
+    /// lets one connection write at a time: a delete issued on another connection while this transaction holds
+    /// its writes waits for the busy timeout and fails. The copies are erased before the transaction takes its first
+    /// write. A copy that cannot be erased fails the call with every row in place, and a repeat call finds the
+    /// sessions; a copy that is gone when a later step fails is gone for good, and the repeat call erases the rest.
     /// </para>
     /// <para>
     /// If the audit callback or the commit fails after the content is gone, the
@@ -109,6 +116,18 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
         Func<IReadOnlyDictionary<string, int>, CancellationToken, ValueTask>? beforeCommitAsync,
         CancellationToken cancellationToken)
     {
+        // The copies outside the rows go before the transaction takes a write (see the remarks). A preview
+        // deletes nothing; it counts them after the rows are counted and rolled back.
+        var contentCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        if (beforeCommitAsync is not null)
+        {
+            foreach (var eraser in _contentErasers)
+            {
+                contentCounts[eraser.Target] = await eraser.EraseAsync(tenantId, scope.SessionIds, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         var connection = await _context.DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 
         await using (connection.ConfigureAwait(false))
@@ -167,17 +186,14 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
                     return counts;
                 }
 
+                foreach (var (target, count) in contentCounts)
+                {
+                    counts[target] = count;
+                }
+
                 try
                 {
                     await DeleteExternalContentAsync(externalUris, cancellationToken).ConfigureAwait(false);
-
-                    // The copy outside SQL goes before the commit and before the audit write, like the
-                    // attachment content: a failure here rolls the rows back, so a repeat call still finds
-                    // the sessions and finishes the erasure, and the audit trail never records one that failed.
-                    foreach (var eraser in _contentErasers)
-                    {
-                        counts[eraser.Target] = await eraser.EraseAsync(tenantId, scope.SessionIds, cancellationToken).ConfigureAwait(false);
-                    }
 
                     await beforeCommitAsync(counts, cancellationToken).ConfigureAwait(false);
                 }

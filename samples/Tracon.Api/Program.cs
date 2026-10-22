@@ -1443,6 +1443,25 @@ if (openAiEnabled)
     });
 }
 
+// Session workspace (F-628). The agent lists, reads, searches, writes, edits and deletes files in a private
+// area that belongs to ONE session: another session does not see them, they are not the agent's file memory,
+// and they are deleted with the session (DELETE /api/sessions/{id}, an erasure of the data subject, or the
+// retention period). A tool that changes a file always waits for a person to approve it; reading is allowed
+// here without asking. The size limits are in Tracon:Workspace. A run with no session has no workspace.
+if (openAiEnabled)
+{
+    tracon.AddAgent(new AgentDefinition
+    {
+        Name = "workspace-drafter",
+        DisplayName = "Workspace Drafter",
+        Description = "Drafts and edits files in a private workspace that belongs to the session.",
+        Instructions = "You are a drafting assistant. Keep drafts and notes in files of your workspace, " +
+                       "and read a file back before you change it. Answer briefly.",
+        Model = model,
+        Workspace = new WorkspaceSettings { Enabled = true, DisableReadApproval = true },
+    });
+}
+
 // Conversation memory (F-627). The agent finds what the SAME user said to it in earlier sessions. The
 // records live in a vector store this host registers: here the PgVector connector over the same
 // PostgreSQL database, embedding with the embedding generator registered above (the store embeds; Tracon

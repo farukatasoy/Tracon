@@ -59,7 +59,7 @@ public sealed class SubjectContentEraserTests(SqliteFixture fixture)
     }
 
     [Fact]
-    public async Task A_copy_that_cannot_be_erased_rolls_the_rows_back_and_writes_no_audit_entry()
+    public async Task A_copy_that_cannot_be_erased_fails_the_call_before_any_row_is_deleted_and_writes_no_audit_entry()
     {
         await using var context = await SqliteTestContext.CreateAsync(fixture);
         await SeedSessionAsync(context, "session-1", "tenant-a");
@@ -83,6 +83,31 @@ public sealed class SubjectContentEraserTests(SqliteFixture fixture)
         // The repeat call finds the session and finishes the erasure.
         eraser.FailWith = null;
         await store.EraseAsync("tenant-a", Scope("session-1"), static (_, _) => ValueTask.CompletedTask);
+        (await SessionExistsAsync(context, "session-1", "tenant-a")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_failure_after_the_copy_is_gone_leaves_every_row_in_place_and_a_repeat_call_finishes_the_erasure()
+    {
+        // The copies go before the transaction opens, so a failing audit write finds them already deleted. The rows roll
+        // back, the sessions are still there to be named, and the repeat call erases whatever the store still holds.
+        await using var context = await SqliteTestContext.CreateAsync(fixture);
+        await SeedSessionAsync(context, "session-1", "tenant-a");
+        var eraser = new RecordingEraser { Records = 2 };
+        var store = new SqlDataSubjectStore(context.StoreContext, contentErasers: [eraser]);
+
+        await Should.ThrowAsync<InvalidOperationException>(async () => await store.EraseAsync(
+            "tenant-a",
+            Scope("session-1"),
+            static (_, _) => throw new InvalidOperationException("the audit write failed")));
+
+        eraser.Erased.ShouldBe([("tenant-a", "session-1")], "the copy was erased before the callback ran");
+        (await SessionExistsAsync(context, "session-1", "tenant-a")).ShouldBeTrue("the rows rolled back");
+
+        var counts = await store.EraseAsync("tenant-a", Scope("session-1"), static (_, _) => ValueTask.CompletedTask);
+
+        eraser.Erased.Count.ShouldBe(2, "the repeat call asks the store again");
+        counts[RecordingEraser.TargetName].ShouldBe(2);
         (await SessionExistsAsync(context, "session-1", "tenant-a")).ShouldBeFalse();
     }
 

@@ -156,6 +156,12 @@ the host refuses to open the agent and the message names the agent and the setti
 not count it; a model that calls it ends the run with `approval_unanswerable`, unless a standing
 approval rule covers the tool.
 
+The file tools of a [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session)
+are not in the registry either. The tools that change a file always ask for approval, so an exposed
+agent may have a workspace only if it is read-only and asks for no approval to read:
+`Workspace.ReadOnly` and `Workspace.DisableReadApproval` together. Any other workspace on an
+exposed agent stops the host from opening it, and the message names the agent and the settings.
+
 The check reads the catalog once, when the host starts, with no request in scope. An agent that you
 save through the API after that is not checked, and neither is an agent that a callable agent
 reaches. The run-time refusal is the boundary for those agents.
@@ -303,6 +309,7 @@ there is no expose-all switch for it.
 - [ ] Keep approval-required and high-impact tools out of exposed definitions.
 - [ ] Set `Skills.DisableReadApproval` on every exposed agent that names skills, and keep script
       skills off exposed agents.
+- [ ] Give an exposed agent no session workspace, or a read-only one with `Workspace.DisableReadApproval`.
 - [ ] Set token, depth, and child-run budgets for externally initiated work.
 - [ ] Terminate HTTPS at a trusted proxy and preserve the request path.
 - [ ] Alert on external run error rate, token use, latency, and rejected credentials.

@@ -95,6 +95,67 @@ public sealed class AgentDefinitionValidatorTests
         report.Messages.Select(static message => message.Code).ShouldBe(["unknown_skill"]);
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Workspace_settings_on_an_agent_whose_workspace_is_off_produce_a_warning_that_does_not_stop_the_definition(bool readOnly, bool disableReadApproval)
+    {
+        var (validator, _, _) = CreateValidator();
+
+        var definition = TestData.Definition() with
+        {
+            Workspace = new WorkspaceSettings { Enabled = false, ReadOnly = readOnly, DisableReadApproval = disableReadApproval },
+        };
+        var report = await validator.ValidateAsync(definition);
+
+        report.Valid.ShouldBeTrue("a warning never stops the definition");
+        var message = report.Messages.ShouldHaveSingleItem();
+        message.Severity.ShouldBe(ValidationSeverity.Warning);
+        message.Code.ShouldBe(AgentDefinitionValidator.WorkspaceSettingsWithoutWorkspaceCode);
+        message.Path.ShouldBe("workspace");
+    }
+
+    [Fact]
+    public async Task A_workspace_that_is_off_with_no_other_setting_is_the_same_as_no_workspace_and_says_nothing()
+    {
+        var (validator, _, _) = CreateValidator();
+
+        var report = await validator.ValidateAsync(TestData.Definition() with { Workspace = new WorkspaceSettings() });
+
+        report.Messages.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_workspace_that_is_on_says_nothing_about_its_settings()
+    {
+        var (validator, _, _) = CreateValidator();
+
+        var report = await validator.ValidateAsync(TestData.Definition() with
+        {
+            Workspace = new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true },
+        });
+
+        report.Messages.Where(static message => message.Code.StartsWith("workspace", StringComparison.Ordinal)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_workspace_on_an_agent_whose_name_holds_a_slash_is_an_error_that_names_the_field()
+    {
+        var (validator, _, _) = CreateValidator();
+
+        var report = await validator.ValidateAsync(TestData.Definition() with
+        {
+            Name = "team/drafter",
+            Workspace = new WorkspaceSettings { Enabled = true },
+        });
+
+        report.Valid.ShouldBeFalse();
+        var message = report.Messages.Single(static message => string.Equals(message.Code, AgentDefinitionValidator.WorkspaceAgentNameCode, StringComparison.Ordinal));
+        message.Severity.ShouldBe(ValidationSeverity.Error);
+        message.Path.ShouldBe("name");
+    }
+
     [Fact]
     public async Task Self_referencing_definition_produces_cycle()
     {

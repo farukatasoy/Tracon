@@ -88,6 +88,14 @@ internal static class SubAgentToolNames
             }
         }
 
+        if (definition.Workspace is { Enabled: true })
+        {
+            foreach (var name in SessionWorkspaceProvider.ToolNames)
+            {
+                taken.TryAdd(name, $"the file tool '{name}' of the session workspace");
+            }
+        }
+
         if (definition.Memory is { EnableVectorSearch: true })
         {
             taken.TryAdd(VectorSearchToolFactory.ToolName, $"the tool '{VectorSearchToolFactory.ToolName}' of semantic search");

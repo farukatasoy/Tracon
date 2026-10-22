@@ -576,8 +576,9 @@ default reads and deletes in two separate calls, which can delete a row that was
 archived. `RetentionStoreContract` in `Tracon.Testing.Contracts.Xunit` checks this.
 
 The `sessions` target also deletes the conversation memory of each expired session,
-when memory is set up. The batch is read first, the memory records of its sessions are
-deleted tenant by tenant, and only then are the session rows deleted. If the store cannot
+when memory is set up, and the files of its [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session).
+The batch is read first, the memory records and the files of its sessions are
+deleted tenant by tenant, and only then are the session rows deleted. If a store cannot
 delete, the run fails with the rows still in place, and the next run reads the same sessions.
 
 The `attachments` target deletes only **orphaned** attachments: those with no
@@ -668,12 +669,14 @@ an erasure. The erasure itself **is** written there, with the row count per targ
 that write fails, the whole erasure rolls back.
 
 If [conversation memory](/guides/context-and-memory/#remember-a-user-across-sessions)
-is set up, the copy of the subject's sessions that your vector store keeps goes too. It is deleted
-inside the erasure by the subject's session ids and the caller's tenant: after the rows are
-deleted, before the audit write and the commit. The preview counts it under
-`conversation_memory`, and the export lists it. If the store cannot delete, the erasure
-rolls back and the request fails; repeat it when the store is back. Records the store
-keeps for its own reasons, such as backups, are outside Tracon's reach.
+is set up, the copy of the subject's sessions that your vector store keeps goes too, and so do the files of
+their [session workspaces](/guides/context-and-memory/#give-an-agent-files-in-each-session). Both are found by
+the subject's session ids and the caller's tenant, and both are deleted **first**, before the erasure
+opens its SQL transaction: a store that cannot delete fails the request with every row still in place, and
+you repeat it when the store is back. A copy that is already gone when a later step fails stays gone; repeating
+the request deletes the rest, and the audit entry of that second request counts only what was left. The preview counts them under `conversation_memory` and `session_workspace`, and the
+export lists them (for a workspace file: `sessionId`, `agent`, `path` and `content`). Records the store keeps for its
+own reasons, such as backups, are outside Tracon's reach.
 
 Attachment bytes held in a registered `IAttachmentStorage` go too. They are deleted
 inside the erasure: after the rows are deleted, before the audit write and the

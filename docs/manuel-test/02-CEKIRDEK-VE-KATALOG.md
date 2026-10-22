@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206, 215, 233
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194, 201, 206, 215, 233, 234
 > **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
@@ -4283,3 +4283,76 @@ Sınır senaryosu. Otomatik karşılığı: `RunContinuationTests` ·
 - 3: tool çağrılır ama ada'nın kaydı dönmez; yanıt bilmez.
 - Tool adı `ToolNames`'te yer almaz ve onay istemez.
 - ➜ CI: `ConversationMemoryTests.An_on_demand_agent_offers_the_search_tool_and_the_tool_reads_only_the_callers_memory`.
+
+---
+
+### MT-CORE-157 — Oturum çalışma alanı: yazma onay bekler, onaydan sonra dosya oluşur, okuma onaysız çalışır (Faz 234, F-628)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 234 |
+| **İlgili karar** | K-1068, K-1069 |
+
+**Devir** — 🤖 ajan koşar — örnek uygulama (SQLite, boş bir veritabanı dosyası), `curl`, gerçek `openai` modeli
+
+**Ön koşul** — Örnek uygulama Development'ta, `Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=` `Tracon__Ui__AuthToken=` boş, `Tracon__Sqlite__ConnectionString=Data Source=<geçici dosya>` ve `Tracon:Providers:OpenAI:ApiKey` ayarlı (`user-secrets`). `workspace-drafter` agent'ı yalnız OpenAI açıkken kaydolur. Satırları saymak için `agent_files` tablosunu `sqlite3` ya da Python ile oku.
+
+**Adımlar**
+1. `POST $BASE/api/agents/workspace-drafter/run` `Prefer: respond-async`, `{"message":"Create a file notes.md with exactly three short bullet points about tea. Then tell me it is done.","sessionId":"ws-s1"}`. Run `AwaitingApproval` olana dek bekle.
+2. `GET $BASE/api/approvals/pending`; `agent_files` satırlarını say.
+3. `POST $BASE/api/approvals/{id}/decide` `{"approved":true}`; devam run'ı `Completed` olana dek bekle; `agent_files` satırlarını say.
+4. Aynı oturumda (`ws-s1`) senkron: `{"message":"Show me the content of notes.md."}`; akıştaki tool çağrılarına bak.
+
+**Beklenen sonuç**
+- 2: bekleyen onay `file_access_write` tool'u içindir; `agent_files` boştur (yazma bir kişiyi bekler).
+- 3: tablo tek satır taşır; yol `/default/~workspace/{32 onaltılık karakter}/workspace-drafter/notes.md`'dir (oturum kimliği yolda yoktur).
+- 4: akışta `file_access_read` çağrısı vardır ve onay istenmez (`workspace-drafter` okumayı onaysız açar); yanıt üç maddeyi gösterir.
+- ➜ CI: `SessionWorkspaceApprovalTests` (onay akışı) · `SessionWorkspaceTests` (tool listesi, izolasyon).
+
+---
+
+### MT-CORE-158 — Oturum çalışma alanı: başka oturum boş bir alanla başlar (Faz 234, F-628)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 234 |
+| **İlgili karar** | K-1068 |
+
+**Devir** — 🤖 ajan koşar — MT-CORE-157 ortamı
+
+**Ön koşul** — MT-CORE-157 koşulmuş; `ws-s1` oturumunda `notes.md` vardır.
+
+**Adımlar**
+1. Senkron: `POST $BASE/api/agents/workspace-drafter/run` `{"message":"List my files.","sessionId":"ws-s2"}`; akıştaki tool çağrılarına bak.
+
+**Beklenen sonuç**
+- Akışta `file_access_ls` çağrısı vardır; yanıt çalışma alanının boş olduğunu söyler (`ws-s1`'in dosyası görünmez).
+- ➜ CI: `SessionWorkspaceTests.A_file_in_one_session_is_listed_in_that_session_and_not_in_another_session_of_the_same_agent`.
+
+---
+
+### MT-CORE-159 — Oturum çalışma alanı: oturum silinince dosyalar da silinir (Faz 234, F-628)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 234 |
+| **İlgili karar** | K-1068, K-1070 |
+
+**Devir** — 🤖 ajan koşar — MT-CORE-157 ortamı
+
+**Ön koşul** — MT-CORE-157 koşulmuş; `agent_files` `ws-s1`'in bir satırını taşır.
+
+**Adımlar**
+1. `DELETE $BASE/api/sessions/ws-s1`.
+2. `agent_files` satırlarını say.
+
+**Beklenen sonuç**
+- 1: `204`.
+- 2: tablo boştur. Başka bir oturumun dosyası olsaydı kalırdı.
+- ➜ CI: `SessionWorkspaceErasureTests` (SQLite, onay akışıyla yazılan dosya) · `SessionWorkspaceFilesTests` (SQLite, PostgreSQL, SQL Server: veri sahibi silme önizleme/dışa aktarma/silme ve saklama).

@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Agents.AI;
@@ -20,9 +21,14 @@ namespace Tracon;
 /// the file store can only be used within a run — calling it outside
 /// <c>RunRecordingAgent</c> throws an explicit error.
 /// </para>
+/// <para>
+/// It also implements <see cref="IAgentFileTree"/>: the session workspace is measured, read and
+/// erased by tenant and path prefix, with no agent and no run, because an erasure of a session runs outside
+/// any run.
+/// </para>
 /// </remarks>
 #pragma warning disable MAAI001 // AgentFileStore and its derivatives are "evaluation purposes only" — same rationale as AgentDefinitionCompiler.
-internal sealed class SqlAgentFileStore : AgentFileStore
+internal sealed class SqlAgentFileStore : AgentFileStore, IAgentFileTree
 {
     private readonly SqlStoreContext _context;
     private readonly SqlQueriesBase _sql;
@@ -226,6 +232,59 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         }
 
         return results;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<AgentFileTreeUsage> MeasureAsync(string tenantId, string directory, CancellationToken cancellationToken)
+    {
+        var command = CreateCommand(_sql.SelectAgentFileTreeUsage);
+        DbHelpers.AddTenant(command, tenantId);
+        Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
+
+        // An aggregate query returns exactly one row.
+        var rows = await DbHelpers.ReadListAsync(
+            command,
+            static reader => new AgentFileTreeUsage(
+                Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture)),
+            cancellationToken).ConfigureAwait(false);
+
+        return rows.Count == 0 ? default : rows[0];
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<AgentFileTreeEntry>> ReadAsync(string tenantId, string directory, CancellationToken cancellationToken)
+    {
+        var prefix = NormalizeDirectory(directory);
+        var command = CreateCommand(_sql.SelectAgentFileTree);
+        DbHelpers.AddTenant(command, tenantId);
+        Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
+
+        return await DbHelpers.ReadListAsync(
+            command,
+            reader => new AgentFileTreeEntry(reader.GetString(0)[prefix.Length..], ProtectedValue.Read(_context, reader.GetString(1))!),
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<int> DeleteAsync(string tenantId, string directory, CancellationToken cancellationToken)
+    {
+        var command = CreateCommand(_sql.DeleteAgentFileTree);
+        DbHelpers.AddTenant(command, tenantId);
+        Dialect.AddText(command, "prefix_like", TreePrefixLike(directory));
+
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The <c>LIKE</c> pattern that matches every file below a directory. A directory is never empty here: an
+    /// empty one would match every file of the tenant, and a delete would take file memory with it.
+    /// </summary>
+    private static string TreePrefixLike(string directory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        return EscapeLikeLiteral(NormalizeDirectory(directory)) + "%";
     }
 
     private static List<FileSearchMatch> CollectMatches(Regex regex, string content)

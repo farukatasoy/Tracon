@@ -490,6 +490,10 @@ These losses have no door that removes them:
   SQL stores scope every call to the tenant and to the agent of the current run, so a
   provider of your own shares the space of that agent's file memory, and it fails outside
   a run. Do not give the in-memory store to an agent that serves more than one tenant.
+  For files that belong to one conversation, use the
+  [session workspace](/guides/context-and-memory/#give-an-agent-files-in-each-session)
+  instead: it is scoped to the tenant, the agent and the session, its file tools run through
+  the tool chain, and its files go with the session.
 - **Everything a definition gives.** A code-built agent cannot take parameterized,
   per-culture, or shared instructions. It has no versions, experiments, rollback, or
   validation when you save, and you cannot edit it in the console.

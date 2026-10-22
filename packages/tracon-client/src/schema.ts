@@ -3010,6 +3010,7 @@ export interface components {
             harness?: null | components["schemas"]["HarnessSettings"];
             compaction?: null | components["schemas"]["CompactionSettings"];
             memory?: null | components["schemas"]["MemorySettings"];
+            workspace?: null | components["schemas"]["WorkspaceSettings"];
             /** @description Gets the origin of the definition: code or database. */
             origin?: components["schemas"]["AgentDefinitionOrigin"];
             /**
@@ -3067,6 +3068,7 @@ export interface components {
             /** @description Names of skills that can be loaded at runtime. */
             skillNames?: string[];
             skills?: null | components["schemas"]["SkillSettings"];
+            workspace?: null | components["schemas"]["WorkspaceSettings"];
             /**
              * @description Names of agent extensions to compile the agent with, in call order. Extensions
              *     are defined only in code; only the name of an already registered extension may
@@ -3121,6 +3123,7 @@ export interface components {
             /** @description Gets the names of the skills this agent may load at run time. */
             skillNames?: string[];
             skills?: null | components["schemas"]["SkillSettings"];
+            workspace?: null | components["schemas"]["WorkspaceSettings"];
             /** @description Gets the names of the agent extensions this agent is compiled with, in call order. */
             extensionNames?: string[];
             /** @description Gets the names of the other agents this agent may call. */
@@ -8825,6 +8828,29 @@ export interface components {
             /** @description Right (usually newer) side of the comparison. */
             right: components["schemas"]["WorkflowDefinition"];
         };
+        /**
+         * @description Settings for the session workspace of an agent: a file area that belongs to one
+         *     conversation, where the agent lists, reads, searches, writes, edits and deletes files.
+         * @example null
+         */
+        WorkspaceSettings: {
+            /**
+             * @description Gets a value that gives the agent a workspace in every session that has a record.
+             *     Defaults to `false`.
+             */
+            enabled?: boolean;
+            /**
+             * @description Gets a value that offers only the tools that read: `file_access_read`,
+             *     `file_access_read_lines`, `file_access_ls` and `file_access_grep`.
+             *     The tools that write, replace and delete are not offered at all.
+             */
+            readOnly?: boolean;
+            /**
+             * @description Gets a value that makes the tools that read run without asking for approval. The tools
+             *     that change a file keep their approval.
+             */
+            disableReadApproval?: boolean;
+        };
     };
     responses: never;
     parameters: never;
@@ -9131,6 +9157,7 @@ export type WorkflowRollbackRequest = components['schemas']['WorkflowRollbackReq
 export type WorkflowRunHttpRequest = components['schemas']['WorkflowRunHttpRequest'];
 export type WorkflowSaveRequest = components['schemas']['WorkflowSaveRequest'];
 export type WorkflowVersionDiffResponse = components['schemas']['WorkflowVersionDiffResponse'];
+export type WorkspaceSettings = components['schemas']['WorkspaceSettings'];
 export type $defs = Record<string, never>;
 export interface operations {
     TraconMeta: {

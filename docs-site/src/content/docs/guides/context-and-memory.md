@@ -4,10 +4,11 @@ description: Control conversation history, compaction, working memory, MCP resou
 ---
 
 “Memory” is not one store. Tracon separates conversation continuity, context
-budgeting, working state, fixed resources, semantic knowledge, and what one user told
-an agent before. Choose each layer for the question it answers.
+budgeting, working state, fixed resources, semantic knowledge, what one user told
+an agent before, and the files an agent keeps during one conversation. Choose each layer
+for the question it answers.
 
-## Mental model: six different jobs
+## Mental model: seven different jobs
 
 | Layer | Question it answers | Main API |
 |---|---|---|
@@ -17,17 +18,19 @@ an agent before. Choose each layer for the question it answers.
 | MCP resources | Which fixed remote resources enter every run? | `AgentDefinition.McpResourceUris` |
 | Knowledge search | Which durable external facts are relevant to this question? | `MemorySettings.EnableVectorSearch` |
 | Conversation memory | What did this user tell this agent in an earlier session? | `MemorySettings.EnableConversationMemory` |
+| Session workspace | Which files does this agent write and edit during this conversation? | `AgentDefinition.Workspace` |
 
 ```mermaid
 flowchart LR
     accTitle: Agent context assembly
-    accDescr: Session history is compacted, then combined with working memory, fixed MCP resources, knowledge results, and the user's conversation memory before the model request.
+    accDescr: Session history is compacted, then combined with working memory, fixed MCP resources, knowledge results, the user's conversation memory, and the file tools of the session workspace before the model request.
     Q["Run request"] --> H["Session history"]
     H --> C["Compaction"]
     W["Working memory"] --> X["Model context and tools"]
     R["MCP resources"] --> X
     K["Knowledge search tool"] --> X
     U["Conversation memory"] --> X
+    F["Session workspace"] --> X
     C --> X
     X --> M["Provider model"]
 ```
@@ -36,7 +39,7 @@ A session preserves continuity. Compaction reduces what the model sees. It does 
 delete the persisted run record. File memory and knowledge search add capabilities; they
 do not replace session history.
 
-These six layers all shape what already made it into the conversation. A tool's
+These layers all shape what already made it into the conversation. A tool's
 [output size limit](/concepts/tools/#output-size-limit) works earlier, at the source:
 it bounds a single tool result before that result ever becomes context to compact. The
 two are complementary, not competing — a tool limit caps one call's contribution,
@@ -181,8 +184,8 @@ sessions. It needs setup in code. See
 [Remember a user across sessions](#remember-a-user-across-sessions).
 
 The console agent editor exposes harness settings, all compaction strategies, file
-memory, todo tracking, text search, and conversation memory (one box and the search
-choice). It does not currently expose vector search, the search limit of conversation
+memory, todo tracking, text search, conversation memory (one box and the search
+choice), and the session workspace (three boxes). It does not currently expose vector search, the search limit of conversation
 memory, or MCP resource URIs. Set those through code or the management HTTP API. Set
 MCP resource URIs in code.
 
@@ -318,6 +321,126 @@ that.
   memory. `CommunityToolkit.VectorData.*` 1.0 connectors work.
 - The vector store is not AOT-analyzed by Tracon. Tracon's own code and the framework
   provider publish with no Native AOT warning; your connector has its own result.
+
+## Give an agent files in each session
+
+The agent file memory above belongs to the agent: every session of that agent shares it.
+A session workspace is the opposite. It is a private file area that belongs to **one
+session** of one agent. The agent lists, reads, searches, writes, edits and deletes
+files there, and when the session goes, the files go with it. Use it for a draft the
+user and the agent work on during one conversation, not for what the agent should know
+tomorrow.
+
+Turn it on in the definition. It is off by default.
+
+```json
+{
+  "workspace": {
+    "enabled": true,
+    "readOnly": false,
+    "disableReadApproval": false
+  }
+}
+```
+
+The agent gets the eight `file_access_*` tools of the Microsoft Agent Framework. The
+framework supplies them, and Tracon runs each one through the same chain as a tool you
+register in code: your authorization handler, argument validation, the tool timeout, and
+the approval step.
+
+| Tool | Does | Asks for approval |
+|---|---|---|
+| `file_access_ls`, `file_access_read`, `file_access_read_lines`, `file_access_grep` | list, read and search | yes, unless `disableReadApproval` is true |
+| `file_access_write`, `file_access_replace`, `file_access_replace_lines` | write and edit | always |
+| `file_access_delete` | delete | always |
+
+There is no setting that turns the approval of the tools that change a file off. With
+`readOnly` the four tools that change a file are not offered at all. A "remember this
+choice" approval rule works for one tool at a time, as it does for every tool.
+
+### Whose files they are
+
+A workspace is private to the tenant, the agent and the session. A second session of the
+same agent starts with an empty workspace. Another agent in the same session has a
+workspace of its own. The agent's [file memory](#understand-the-memory-flags) is a
+different area: a text search of the file memory does not find a workspace file, and
+the workspace tools do not see the file memory.
+
+| A run… | Workspace |
+|---|---|
+| names a `sessionId` | has one |
+| names no session | has none: the agent is offered no file tool |
+| is a workflow run, or runs below one | has none — the workflow's session has no record to delete the files with |
+| belongs to another tenant, agent or session | never sees the files |
+
+A path leaves the workspace through nothing: a path with `..`, a rooted path, or a path
+over 400 characters is refused, and the model reads the reason as the result of the
+call. The path in the store, which holds the tenant and a key made from the session, is
+never shown to the model.
+
+### Limits
+
+A write is refused when it would pass a limit. The model reads "Workspace quota
+reached" and the run goes on, so the agent can delete a file or write less.
+
+| Setting (`Tracon:Workspace`) | Default | Limits |
+|---|---|---|
+| `MaxFileBytes` | 256 KiB | one file |
+| `MaxSessionBytes` | 5 MiB | all the files of one session |
+| `MaxTenantBytes` | 500 MiB | all the workspaces of one tenant |
+
+A file counts its content and also 1 KiB for its row, in the limit of the session and of
+the tenant: a model that writes thousands of empty files reaches the limit instead of
+filling your table. The limits are soft: two writes at the same moment can pass a limit by
+one file. The sizes are what the store keeps. PostgreSQL and SQLite count the UTF-8 bytes. SQL Server
+keeps text as UTF-16, so it counts two bytes for each ASCII character and reaches a limit
+with half as many characters. The default store is in memory and loses the files when the
+process restarts; use a SQL provider for a workspace that must last. With a custom
+`AgentFileStore`, a size check reads every file under the prefix, and deleting a session lists the
+workspace directory outside any run: a store that only works inside a run (a wrapper around the SQL
+store, for example) makes `DELETE /api/sessions/{id}` fail, and the session stays. Tracon does not
+turn a failed listing into "nothing to delete", because the erasure would then tell the audit trail
+that files were deleted that were not.
+
+### Deleting a workspace
+
+The files go when their session goes:
+
+- `DELETE /api/sessions/{id}` deletes the files, then the session.
+- A [data subject erasure](/concepts/governance/#data-subject-rights) deletes the files
+  of the subject's sessions inside the erasure. A preview counts them under
+  `session_workspace`, and an export lists them with their path and content.
+- The [retention](/concepts/governance/#retention) policy for sessions deletes the files
+  of an expired session before the session row.
+
+What the agent wrote may hold personal data, in plain text in your file store (the
+[content protection](/getting-started/security/) of the SQL provider encrypts the file
+column when you turn it on). The content a tool wrote or read also appears in the run record
+and in a pending approval (`RecordToolPayloads`, on by default), and deleting a session does not
+delete its run records. Protect the store and its backups the way you protect the
+messages.
+
+### Expose an agent with a workspace
+
+An external caller of A2A or MCP cannot answer an approval request. The application
+refuses to start when it exposes an agent whose workspace can change a file, or asks for
+approval to read one. Set `readOnly` and `disableReadApproval` together, or turn the
+workspace off, or leave the agent off the allow list. See
+[External agents](/guides/external-agents/).
+
+### Things that do not work
+
+- **A tool of your own with the name of one of the eight file tools** (`file_access_read`,
+  `file_access_write` and the others). The build stops: an approval rule for the file tool
+  would cover your tool as well.
+- **An agent named `~workspace`, or with a `/` in its name.** The first cannot have file
+  memory, because its memory would be every workspace of the tenant. The second cannot
+  have a workspace.
+- **Run continuation after a crash.** The [run continuation](/capabilities/) that resumes an
+  orphaned run (`Tracon:RunContinuation`) refuses an agent with a workspace: the file tools do not go
+  through the recorded tool playback, and a continuation could repeat a write or a delete. The run stays closed
+  as it was.
+- **A replay with its recorded tools.** A replay has no session, so the agent has no workspace in it.
 
 ## Know the agent modes
 

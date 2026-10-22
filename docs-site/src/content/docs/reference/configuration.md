@@ -63,6 +63,7 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" "<value>"
 | `Tracon:StructuredResponse` | `TraconStructuredResponseOptions` | `AddTracon()` |
 | `Tracon:TenantProviders` | `TraconTenantProviderOptions` | `AddTracon()` |
 | `Tracon:Webhooks` | `TraconWebhookOptions` | `AddTracon()` |
+| `Tracon:Workspace` | `TraconWorkspaceOptions` | `AddTracon()` |
 | `Tracon:Egress` | `TraconEgressOptions` | `AddTracon()` |
 | `Tracon:Providers:OpenAI` | `OpenAIProviderOptions` | The configuration overload of `UseOpenAI()` |
 | `Tracon:Providers:OpenAICompatible:{name}` | `OpenAIProviderOptions` shape | The configuration overload of `UseOpenAICompatible()` |
@@ -222,6 +223,20 @@ run was bound with are recorded beside its input, and a replay, an automatic con
 a resume after a tool approval or a resume of a workflow that declares parameters is
 refused when `RecordRunInput` was off for the original run. A store failure is logged and never blocks the agent response, so
 recording is best-effort during a storage outage.
+
+### Session workspace limits
+
+| Key | Default |
+|---|---:|
+| `Workspace:MaxFileBytes` | `262144` (256 KiB) |
+| `Workspace:MaxSessionBytes` | `5242880` (5 MiB) |
+| `Workspace:MaxTenantBytes` | `524288000` (500 MiB) |
+
+The limits apply to an agent whose definition turns `workspace.enabled` on. A write that would
+pass one is refused and the model reads "Workspace quota reached". Each value is at least `1`, a session limit
+is not below the file limit, and a tenant limit is not below the session limit; the application refuses
+to start otherwise. A file counts 1 KiB more than its content in the limit of a session and of a tenant, for its row. The limits are soft, and a SQL Server store counts two bytes for each ASCII character.
+See [Give an agent files in each session](/guides/context-and-memory/#give-an-agent-files-in-each-session).
 
 ### Structured response validation
 

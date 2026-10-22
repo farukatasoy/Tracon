@@ -38,7 +38,7 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.2	❌	✓	`ChatReducerCompactionStrategy` · MEAI `IChatReducer`/`SummarizingChatReducer`/`MessageCountingChatReducer`/`ReducingChatClient`	-	-	-
 5.2	🟡	✗	`AgentModeProvider` + `AgentModeProviderOptions` (`Modes`, `DefaultMode`)	AgentModeProviderOptions Modes	AgentModeProviderOptions	-
 5.2	✅	✓ K-1065 K-1066 K-1067	`ChatHistoryMemoryProvider` (+Options, Scope, `SearchBehavior`)	ChatHistoryMemoryProvider SearchBehavior	-	-
-5.2	❌	✓	`FileAccessProvider` (ls, grep, read, write, replace) + `FileSystemAgentFileStore`	-	-	-
+5.2	✅	✓ K-1068 K-1069 K-1070	`FileAccessProvider` (ls, grep, read, write, replace) + `FileSystemAgentFileStore`	FileAccessProvider	-	-
 5.2	❌	✓	`CosmosChatHistoryProvider` · `ValkeyChatHistoryProvider`	-	-	-
 5.2	❌	✓	`FoundryMemoryProvider` (MAAI001)	-	-	-
 5.3	🟡	✗	`AgentSkillsProvider` (+Options)	AgentSkillsProvider	AgentSkillsProvider	-

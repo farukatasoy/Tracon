@@ -292,12 +292,50 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **Yol biçimi (234.2).** Plan `…/~workspace/{agent}/{anahtar}/…` ve anahtarı (kiracı, agent, oturum) üstünden yazıyordu. Gerçek: `{kiracı}/~workspace/{anahtar}/{agent}/…`, anahtar = SHA-256(kiracı, oturum). Sebep: oturum silme, veri sahibi silme ve saklama süresi `ISubjectContentEraser`'a `(kiracı, oturum kimlikleri)` verir; agent'ı bilmez. Planın biçimiyle silme hiçbir dizini bulamazdı (yapısal iddia, `faz-uygulama` Adım 1). Bir oturumun her şeyi artık tek dizindir (K-1068).
+2. **`IAgentFileStoreUsage` → `IAgentFileTree`** (`Tracon.Abstractions`, `internal`): plan yalnız ölçümü söylüyordu; silme ve okuma (dışa aktarma) da gerekti, hepsi agent'sız ve run'sız. SQL depoları uygular (tek sorgu); öteki depolar `GenericAgentFileTree` ile dosya dosya gezilir. Plan `Core/Workspace/IAgentFileStoreUsage.cs` diyordu; arayüz SQL katmanından görülmek için Abstractions'tadır (`ISubjectContentEraser` emsali).
+3. **Migration ölçüldü ve gerekti (234.4, Migration satırı).** PostgreSQL 18, 200 000 satır: oturum boyutu 14,1 ms, oturum silme 13,9 ms (tüm tablo taranır); indeksle 0,5 ve 0,03 ms. Sorgular her kurulumun saklama yoluna girdiği için indeks şarttır: PostgreSQL 0064 (`text_pattern_ops`), SQL Server 0052, SQLite 0051. SQLite indeks adı dosya boyunca tekildir (`{schema}` öneki zorunlu; `MigrationRunnerTests.Two_prefixes_in_one_file…` yakaladı).
+4. **Sarmalayıcının adı ve onay (234.3).** Plan `GovernedToolsContextProvider` ve "MAF sarmalı korunur" diyordu. Gerçek: `SessionWorkspaceProvider` (tool'ları `ProvideAIContextAsync`'te sarar) + `WorkspaceToolGovernance` (zincir bağımlılıkları). MAF'ın onay sarmalı **kapatılır** ve onayı Tracon kurar (`TraconToolRegistration.RequiresApproval`): sıra her tool'unki gibi olur, kayıt bayrağı sorunu (MAF-KAPSAMA §0 #45) doğmaz.
+5. **Kullanıcı kapsamda yok (234.2).** Plan "oturum ve kullanıcı her çağrıda run bağlamından okunur" diyordu. Gerçek: yalnız oturum. Oturum sahipliği kapalıyken aynı oturum kimliğini kullanan iki kullanıcı zaten aynı konuşma geçmişini paylaşır; silme de kullanıcıyı bilmez.
+6. **🚨 Veri sahibi silmede kopyalar SQL işleminden ÖNCE silinir (K-1070).** Plan "Faz 233'ün kancasını kullan" diyordu. Ölçüm: eraser `agent_files`'a ikinci bir bağlantıdan yazar; `SqlDataSubjectStore` işlemi satır silmelerinden sonra açık tutarken SQLite'ın tek yazar kilidine çarpar. `AttachmentByteLifecycleTests.Erasure_deletes_the_external_bytes` 31 sn'de kırmızı oldu. Faz 233'ün sırası (satırlar → kopya → denetim → commit) değişti. Kapı: `SessionWorkspaceFilesTests` (SQLite), eski sıraya mutasyonla kırmızı.
+7. **Eraser her kurulumda kayıtlı.** Plan bunu söylemiyordu. DB'deki bir tanım alanı her an açabilir; kayıt koşulsuz. Etki: veri sahibi silme çıktısına `session_workspace` anahtarı girer ve `sessions` saklama hedefi her kurulumda "oku → kopyayı sil → anahtarla sil" yolunu kullanır (indeksle ucuz).
+8. **Plan dışı kurallar** (çalışırken bulundu): agent adı `/` taşıyamaz (alanı olan agent); `~workspace…` adlı agent dosya belleği alamaz (kökü tüm alanlar olurdu); agent'ın tool'u `file_access_*` adı taşıyamaz (MAF: ad eşleşen tool otomatik onaylanır); `RunContinuationJobHandler` alanı olan agent'ı reddeder (tool'lar oynatma sarmalayıcısından geçmez, F-647); replay oturumsuzdur, alansızdır.
+9. **MAF ölçümleri.** (a) Harness `FileAccessProvider`'ı yalnız `FileAccessStore` atanınca kurar (1.25 decompile) → Doğrulanmadı satırı kapandı, çift tool yok. (b) MAF `StorePaths` yolu temizler ama SQL deposu aramada tam saklı yolu (`/kiracı/…`) döndürür ve MAF `grep` tool'u aranan dizini önüne kendisi ekler: depo adları dizine göre göreliler (aksi hâlde model kiracıyı ve oturum anahtarını görürdü). (c) MAF varsayılan talimatı "dosyalar oturumlar ve agent'lar arasında paylaşılır" der; yanlıştır, Tracon kendi talimatını verir.
+10. **Birim.** Kota "deponun tuttuğu bayt"tır: PostgreSQL ve SQLite UTF-8, SQL Server UTF-16 (`DATALENGTH`, gerçek SQL Server 2022'de ölçüldü: 11 karakter → 22 bayt). Dosya sınırı her zaman UTF-8'dir (F-648).
+11. **Test altyapısı.** `Tracon.SqlServer.IntegrationTests` Abstractions'a `InternalsVisibleTo` aldı (gerçek SQL Server kapsayıcısında `IAgentFileTree` sınanır). Plan test adları: `SessionWorkspaceQuotaTests` ve `SessionWorkspaceGovernanceTests` fonksiyonel sınıfı tek `SessionWorkspaceGovernanceTests`'te toplandı (kota onay akışıyla sınanır); depo sözleşmesine case yerine `SessionWorkspaceFilesTests` ×3 (SQLite, PostgreSQL, SQL Server) yazıldı.
+12. **Açık Sorular.** (1) Varsayılanlar 256 KiB / 5 MiB / 500 MiB kaldı; ölçüm sorgu maliyetidir (PostgreSQL: oturum 0,5 ms, kiracı 20 000 dosyada 7,2 ms). (2) A: yönetim ucu bu faz değil (F-649). (3) A: 32 onaltılık karakter; yol kalan karakter sayısını tool hatasında söyler. (4) A: bellek içi depo + çok kiracı derlemede uyarı loglar (`SessionWorkspaceTests`, iki test); tek kiracıda sessiz.
+13. **Denetimden gelen değişiklikler (kod).** (a) Oturum anahtarı bayt sırasından bağımsız: `BinaryPrimitives.WriteInt32LittleEndian` (`BitConverter` makineye bağlıydı; değer değişmedi, test aynı değeri sabitliyor). (b) **Kota satır maliyetini sayar**: her dosya içeriğine ek olarak sabit 1 KiB sayılır (`TraconWorkspaceOptions.FileOverheadBytes`, `internal`, test sıfırlar). Önce boş içerikli yazım `added = 0` olduğundan ölçüm hiç koşmuyordu ve "hatırla" kuralı varken model `file_access_write(<400 karakterlik yol>, "")` döngüsüyle sınırsız satır üretebilirdi; artık 5 MiB'lik oturum en çok ~5 000 dosya tutar. Plan "üç sınır" diyordu; dördüncü bir public ayar eklenmedi (`FileOverheadBytes` ayarlanamaz). (c) Bilinmeyen `file_access_*` adı `Write` sayılır (MAF yeni bir yazma tool'u eklerse okuma onayı kapalıyken onaysız koşmaz). (d) `~workspace` ayrılmış ad denetimi büyük/küçük harfe duyarsız (SQL Server harmanı `~Workspace`'i aynı `agent_name` yapar).
+14. **Denetimin gördüğü ve kabul edilen risk: eraser her kurulumda kayıtlı.** Alan hiç açılmamış kurulumda bile oturum silme ve saklama süresi host'un `AgentFileStore`'una dokunur. SQL depoları tek sorguyla cevaplar (kaydedilmemiş dizin = 0). Elle yazılmış bir depo dosya dosya gezilir; MAF'ın `FileSystemAgentFileStore`'u olmayan dizini boş döndürür (decompile), ama **çalıştırma kapsamı isteyen bir sarmalayıcı** (SQL deposunu saran) run dışında atar ve `DELETE /api/sessions/{id}` düşer. Bilerek sessiz sıfır yapılmadı: başarısız bir silmeyi "silindi" diye denetime yazmak daha kötüdür (`A_store_that_cannot_list_outside_a_run_fails_the_erasure…`). Çare: depoyu run dışında listeleyebilir yap ya da sarmalayıcıyı kaldır. Site söyler.
+15. **K-1070'in bedeli.** Kopyalar işlemden önce silindiği için denetim ya da commit düşerse kopya gitmiştir, satırlar yerindedir; tekrar çağrı kalanı bitirir ama denetim izi ilk denemede silinen sayıyı yazmaz (K-1070 gerekçesinde). Kapı: `SubjectContentEraserTests.A_failure_after_the_copy_is_gone_leaves_every_row_in_place…`.
+16. **Capabilities haritası bütçesi.** `Tracon.AgentMap.md` 11 264 B'ın 6 B altındaydı. Yeni satır (`Workspace: AgentDefinition.Workspace`, 39 B) için iki satırın harita metni kısaldı; site tablosunun başka bir cümlesi değişmedi: `Harness loop` `AddLoopEvaluator(kind, evaluator or factory)` → `AddLoopEvaluator()`, `Parameterized instructions` sondaki `parameters` alanı düştü. Satır adı `Session workspace` değil `Workspace` (8 B). Bütçe yükseltilmedi (üreteç yorumu: ikinci kez yükseltme yok).
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
 > `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer; girmeyen karar
 > kapanışta commit mesajına taşınır (`faz-tamamlama` Adım 8). Plan numara rezerve
 > etmez.
+
+- **K-1068** (kalıcı-veri, geri-dönüşü-pahalı) — yol biçimi `{kiracı}/~workspace/{anahtar}/{agent}/…`, anahtar SHA-256(kiracı, oturum) ilk 32 hex.
+- **K-1069** (güvenlik, public-api) — alan oturum başınadır; tool'lar Tracon zincirinden geçer; yazma ve silme hep onay ister; kota; dış yüzey kapısı. K-062'nin yerini alır.
+- **K-1070** (kalıcı-veri) — veri sahibi silmede kopyalar SQL işleminden önce silinir; K-1067'nin sırasını değiştirir.
+- Kategori dışı (commit mesajına gider): kota birimi deponun tuttuğu bayttır; kullanıcı kapsamda değildir; eraser koşulsuz kayıtlıdır; migration adları 0064 · 0052 · 0051.
+
+## Örnek Uygulama Koşumu — gerçek çıktı
+
+> 2026-10-22, `samples/Tracon.Api` (Development, `user-secrets` yalnız OpenAI anahtarı için; PostgreSQL ve SQL Server dizeleri boş verildi), gerçek `gpt-5.4-mini`, SQLite boş dosya, `workspace-drafter` agent'ı (`Enabled`, `DisableReadApproval`). Günlükte uyarı ve hata yok; `Npgsql` satırı 0.
+
+| Adım | Girdi | Gerçek sonuç |
+|---|---|---|
+| 1 · `ws-s1`, `Prefer: respond-async` | `Create a file notes.md with exactly three short bullet points about tea…` | `202`; run `AwaitingApproval`; bekleyen onay `file_access_write`; `agent_files` **boş** |
+| 1 · karar | `POST /api/approvals/{id}/decide {"approved":true}` | `200 Approved`; devam run'ı `Completed`; tek satır: `/default/~workspace/7388dd2f57804d0e6b5ba6dc13b858c0/workspace-drafter/notes.md` (237 bayt) |
+| 1b · `ws-s1` senkron | `Show me the content of notes.md.` | tool çağrısı `file_access_read` (onay istenmedi); yanıt: üç madde (`Tea can be enjoyed hot or iced.` …) |
+| 2 · `ws-s2` senkron | `List my files.` | tool çağrısı `file_access_ls`; yanıt: `Your workspace is empty.` |
+| 3 · `DELETE /api/sessions/ws-s1` | — | `204`; `agent_files` **boş** |
+
+Anahtar `7388dd2f…` bağımsız bir Python uygulamasıyla aynı (SHA-256, 4 bayt LE uzunluklu parçalar). Paket: ana JS 222,3 KB gzip (bütçe 250; Faz 233'te 221,7), gömülü varlık 187,6 KB brotli (+0,4).
+
+**Gerçek motorlar.** `SessionWorkspaceFilesTests`: SQLite, PostgreSQL 18 ve SQL Server 2022 (Testcontainers) üçünde 11'er test yeşil; migration'lar koşucuyla uygulandı. `MigrationRunnerTests` SQLite indeks adını yakaladı. Not: SQL Server'da `COUNT(*)` `int` döner; test yardımcısı `COUNT_BIG` kullanır.
 
 ## Süreç Ölçümü
 
@@ -320,3 +358,18 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif "
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| 🔴 yok | — | `faz-denetcisi` (taze bağlam): kiracı/oturum/agent izolasyonu, `LIKE` kaçışı, önek çakışması, boş dizin, onay atlama yolu, dış yüzey kuralı ve migration'lar temiz; oturum anahtarı Python ile yeniden hesaplandı |
+| Oturum anahtarı makinenin bayt sırasına bağlı (`BitConverter`) | 🟡 | düzeltildi: `BinaryPrimitives…LittleEndian` (Sapma 13a); değer aynı, test sabitler |
+| Kota boş içerikli yazımı saymıyor; satır yükü sınırsız | 🟡 | düzeltildi: dosya başına 1 KiB satır maliyeti (Sapma 13b); 3 birim + 3 fonksiyonel test |
+| Eraser her kurulumda kayıtlı; run kapsamlı depo oturum silmeyi düşürür | 🟡 | gerekçelendi: bilerek sessiz sıfır yok (Sapma 14); eraser testi + site notu |
+| `SessionWorkspaceFileStore` gerçek SQL deposuyla birleşik testte yok | 🟡 | düzeltildi: `SessionWorkspaceFilesTests` ×3'e iki oturum / iki kiracı / `ls` / `grep` testi; SQLite, PostgreSQL 18 ve SQL Server 2022'de yeşil |
+| "…past the session limit…" testi dosya sınırını sınıyordu | 🟡 | düzeltildi: ad düzeldi; gerçek oturum ve kiracı sınırı testleri eklendi |
+| K-1070'in hata yolu testsiz; test adı yanlış | 🟡 | düzeltildi: test eklendi, iki ad düzeldi; bedel K-1070'e yazıldı (Sapma 15) |
+| `capabilities.md`'de kapsam dışı üç hücre kısaldı | 🟡 | düzeltildi ve daraltıldı: `Tools.DefaultMaxOutputBytes` geri geldi; iki kısaltma bütçe yüzünden kaldı (Sapma 16) |
+| `///` içinde karar numarası · `~workspace` harf duyarlı · bilinmeyen tool `Read` · `DUMP` artığı · site "önek" cümlesi | 🟢 | düzeltildi (Sapma 13c, 13d; site metni sekiz adı söyler) |
+| `RecordToolPayloads` yazılan içeriği run kaydında tutar; site söylemiyordu | 🟢 | site notu eklendi |
+| SQL Server 0052 indeks planı ölçülmedi · kota varsayılanları ölçümsüz · dal (branch) alanı taşımaz | 🟢 | F-654 · F-655 · F-653 |
+| SQL Server büyük/küçük harfsiz oturum kimliği ile anahtar uyuşmazlığı · satırı olmayan oturumda yazılan dosya yetim kalır | KR-05 (repro yok) | F-651 · F-652 |

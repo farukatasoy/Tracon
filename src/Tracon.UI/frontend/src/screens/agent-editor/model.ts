@@ -8,6 +8,7 @@ import type {
   ModelBinding,
   ModelFallback,
   SkillSettings,
+  WorkspaceSettings,
 } from '@tracon/client';
 // The definition READ back from the server, not the generated shape: the
 // generated one marks fields optional that a response always carries.
@@ -97,6 +98,7 @@ export type CompactionForm = Omit<CompactionSettings, 'strategy'> & { strategy: 
 export const emptyCompaction: CompactionForm = { strategy: 'None' };
 export const emptyMemory: MemorySettings = {};
 export const emptySkills: SkillSettings = {};
+export const emptyWorkspace: WorkspaceSettings = {};
 
 export interface CultureInstructions {
   culture: string;
@@ -169,6 +171,7 @@ export interface FormState {
   toolNames: string[];
   skillNames: string[];
   skills: SkillSettings;
+  workspace: WorkspaceSettings;
   extensionNames: string[];
   callableAgentNames: string[];
   subAgentCallMode: SubAgentCallModeOption;
@@ -211,6 +214,7 @@ export const emptyForm: FormState = {
   toolNames: [],
   skillNames: [],
   skills: emptySkills,
+  workspace: emptyWorkspace,
   extensionNames: [],
   callableAgentNames: [],
   subAgentCallMode: 'Background',
@@ -290,6 +294,7 @@ export function toRequest(form: FormState): AgentDefinitionRequest {
     toolNames: form.toolNames,
     skillNames: form.skillNames,
     skills: anySettingOn(form.skills) ? form.skills : null,
+    workspace: anySettingOn(form.workspace) ? form.workspace : null,
     extensionNames: form.extensionNames,
     callableAgentNames: form.callableAgentNames,
     harness: form.harnessEnabled ? form.harness : null,
@@ -350,6 +355,7 @@ export function fromDefinition(definition: AgentDefinition): FormState {
     toolNames: [...definition.toolNames],
     skillNames: [...definition.skillNames],
     skills: definition.skills ?? emptySkills,
+    workspace: definition.workspace ?? emptyWorkspace,
     extensionNames: [...(definition.extensionNames ?? [])],
     callableAgentNames: [...(definition.callableAgentNames ?? [])],
     subAgentCallMode: definition.subAgents?.callMode ?? 'Background',
@@ -408,7 +414,7 @@ function toInstructionsByCulture(rows: CultureInstructions[]): Record<string, st
 }
 
 /**
- * True when any setting of a settings block (memory, skills) is actually turned on.
+ * True when any setting of a settings block (memory, skills, workspace) is actually turned on.
  *
  * Deliberately generic rather than a list of the flags that existed when this
  * was written: the previous version named file/todo/text search only, so a

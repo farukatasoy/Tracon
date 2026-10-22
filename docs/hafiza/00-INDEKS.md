@@ -9,7 +9,7 @@
 |---|---|
 | Bir şeyin nerede yaşadığı | [kod-haritasi](kod-haritasi.md) |
 | Graph/Compaction/Eval/Quota/Webhook/MCP haritası | [altyapi-haritasi](altyapi-haritasi.md) |
-| MAF tipi, harness, `AIContextProvider` · konuşma hafızası, `VectorStore` | [maf-api](maf-api.md) · [konusma-hafizasi](konusma-hafizasi.md) |
+| MAF tipi, harness, `AIContextProvider` · konuşma hafızası · oturum dosyaları | [maf-api](maf-api.md) · [hafıza](konusma-hafizasi.md) · [dosya](oturum-calisma-alani.md) |
 | MAF Harness/`LoopAgent` bekleme tuzağı | [maf-harness-ve-loop](maf-harness-ve-loop.md) |
 | MAF oturumu, `ChatHistoryProvider`, Responses | [maf-oturum](maf-oturum.md) |
 | Workflow yürütme, executor kimliği, HITL | [workflows](workflows.md) · [cevap](workflow-cevaplari.md) |
@@ -47,7 +47,7 @@
 | Kapanış kapısı taban ölçümü (wall-clock) | [test-kosum-olcumleri](test-kosum-olcumleri.md) |
 | Kapasite ölçümü aparatı (`bench/capacity/`) | [kapasite-olcumu](kapasite-olcumu.md) |
 | Arayüz (Vite, SPA rota, TS, ekran) | [frontend](frontend.md) |
-| Arayüz tasarım (token, tema, primitif) · modal (`Dialog`, `window.confirm` yasağı) | [tasarım](frontend-tasarim-katmani.md) · [modal](frontend-modal-katmani.md) |
+| Arayüz tasarım (token, tema) · modal (`Dialog`) | [tasarım](frontend-tasarim-katmani.md) · [modal](frontend-modal-katmani.md) |
 | Arayüz yerelleştirme (`useT`, `Messages`) | [frontend-yerellestirme](frontend-yerellestirme.md) |
 | Arayüz test altyapısı (Vitest, `openapi-fetch` stub) | [frontend-test-altyapisi](frontend-test-altyapisi.md) |
 | Model sağlayıcısı (OpenAI/Anthropic/Google) | [openai-saglayici](openai-saglayici.md) |

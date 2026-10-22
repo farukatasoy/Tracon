@@ -95,6 +95,9 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
         // A definition that turned the read approval off must not come back asking for it.
         read.Skills.ShouldNotBeNull().DisableReadApproval.ShouldBeTrue();
 
+        // A workspace that is read-only and asks for no read approval must not come back writable and asking.
+        read.Workspace.ShouldBe(new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true });
+
         // The list is ordered data: the order the extensions run is the order stored.
         read.ExtensionNames.ShouldBe(["echo-extension", "second-extension"]);
     }
@@ -142,6 +145,22 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
 
         definition.Skills.ShouldBeNull();
         definition.SkillNames.ShouldBe(["echo-skill"]);
+    }
+
+    /// <summary>
+    /// A row written before <c>Workspace</c> existed has no such key. It must read back as
+    /// <see langword="null"/>: an agent with no workspace, which is what the row was written for.
+    /// </summary>
+    [Fact]
+    public void A_payload_written_before_the_workspace_settings_existed_reads_back_with_no_workspace()
+    {
+        const string legacy = """{"model":{"provider":"echo","model":"echo-1"},"toolNames":["echo-tool"]}""";
+
+        var payload = JsonSerializer.Deserialize(legacy, TraconJsonContext.Default.AgentDefinitionPayload);
+
+        payload.ShouldNotBeNull();
+
+        payload.ToDefinition("legacy", 1, "default", DateTimeOffset.UtcNow).Workspace.ShouldBeNull();
     }
 
     /// <summary>
@@ -280,6 +299,7 @@ public sealed class AgentDefinitionPayloadRoundTripTests(SqliteFixture fixture)
             ToolNames = ["echo-tool"],
             SkillNames = ["echo-skill"],
             Skills = new SkillSettings { DisableReadApproval = true },
+            Workspace = new WorkspaceSettings { Enabled = true, ReadOnly = true, DisableReadApproval = true },
             ExtensionNames = ["echo-extension", "second-extension"],
             CallableAgentNames = ["child-agent"],
             SubAgents = new SubAgentSettings { WaitTimeout = TimeSpan.FromSeconds(30), CallMode = SubAgentCallMode.Tool },

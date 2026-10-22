@@ -15,6 +15,7 @@ CreateSchema	IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'tracon')\n 
 DecidePendingApproval	UPDATE tracon.pending_approvals\n   SET status = @status, decided_by = @decided_by, decided_at = @decided_at\n WHERE id = @id AND tenant_id = @tenant_id AND status = @status_pending;
 DeleteAgentDefinition	DELETE FROM tracon.agent_definitions WHERE tenant_id = @tenant_id AND name = @name;
 DeleteAgentFile	DELETE FROM tracon.agent_files\nWHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
+DeleteAgentFileTree	DELETE FROM tracon.agent_files\nWHERE tenant_id = @tenant_id AND path LIKE @prefix_like ESCAPE '\\';
 DeleteAgentSkill	DELETE FROM tracon.agent_skills WHERE tenant_id = @tenant_id AND name = @name;
 DeleteAgentSkillResources	DELETE FROM tracon.agent_skill_resources WHERE skill_id = @skill_id;
 DeleteAgentSkillScripts	DELETE FROM tracon.agent_skill_scripts WHERE skill_id = @skill_id;
@@ -94,6 +95,8 @@ SelectAgentDefinitionVersion	SELECT v.definition, v.created_at\nFROM tracon.agen
 SelectAgentDefinitionVersions	SELECT v.definition, v.version, v.created_at\nFROM tracon.agent_definition_versions v\nJOIN tracon.agent_definitions d ON d.id = v.agent_id\nWHERE d.tenant_id = @tenant_id AND d.name = @name\nORDER BY v.version DESC;
 SelectAgentDefinitions	SELECT name, definition, version, updated_at\nFROM tracon.agent_definitions\nWHERE tenant_id = @tenant_id\nORDER BY name;
 SelectAgentFile	SELECT content\nFROM tracon.agent_files\nWHERE tenant_id = @tenant_id AND agent_name = @agent_name AND path = @path;
+SelectAgentFileTree	SELECT path, content\nFROM tracon.agent_files\nWHERE tenant_id = @tenant_id AND path LIKE @prefix_like ESCAPE '\\'\nORDER BY path;
+SelectAgentFileTreeUsage	SELECT COUNT(*), COALESCE(SUM(CAST(DATALENGTH(content) AS bigint)), 0)\nFROM tracon.agent_files\nWHERE tenant_id = @tenant_id AND path LIKE @prefix_like ESCAPE '\\';
 SelectAgentFilesFiltered	SELECT path, content\nFROM tracon.agent_files\nWHERE tenant_id = @tenant_id AND agent_name = @agent_name\n  AND path LIKE @prefix_like ESCAPE '\\'\n  AND (@prefix_deep_like IS NULL OR path NOT LIKE @prefix_deep_like ESCAPE '\\')\n  AND (@name_like IS NULL OR path LIKE @name_like ESCAPE '\\')\nORDER BY path;
 SelectAgentSkill	SELECT id, tenant_id, name, description, instructions, compatibility, license,\nallowed_tools, metadata, enabled, version, created_at, updated_at\nFROM tracon.agent_skills\nWHERE tenant_id = @tenant_id AND name = @name;
 SelectAgentSkillResources	SELECT name, description, media_type, content\nFROM tracon.agent_skill_resources\nWHERE skill_id = @skill_id\nORDER BY name;

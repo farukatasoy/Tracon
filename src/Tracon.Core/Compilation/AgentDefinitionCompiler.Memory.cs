@@ -224,6 +224,19 @@ public sealed partial class AgentDefinitionCompiler
                 AgentName = definition.Name,
             };
 
+        // 🚨 The session workspaces (Phase 234) live in the directory "~workspace" below the tenant, next to
+        // the directory of each agent. The file memory of an agent with that name would be the directory of
+        // every workspace of the tenant, and it could read and write them all.
+        if (definition.Name.StartsWith(SessionWorkspacePaths.RootName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new TraconCompilationException(
+                $"Agent '{definition.Name}' wants a memory provider, but a name that starts with '{SessionWorkspacePaths.RootName}' " +
+                "is reserved for the session workspaces. Rename the agent.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
         // 🚨 The agent name is part of the prefix as well (defect F-105): the
         // tenant boundary alone let one agent's private file be found by
         // another agent's text search inside the SAME tenant. The name is known

@@ -43,6 +43,12 @@ public sealed record AgentDescriptor
     /// </summary>
     public SkillSettings? Skills { get; init; }
 
+    /// <summary>
+    /// Gets the session workspace settings. The external-surface check reads them: an agent whose
+    /// workspace can change a file, or asks for approval to read one, cannot be exposed over A2A or MCP.
+    /// </summary>
+    public WorkspaceSettings? Workspace { get; init; }
+
     /// <summary>Gets the names of the agent extensions this agent is compiled with, in call order.</summary>
     public IReadOnlyList<string> ExtensionNames { get; init; } = [];
 

@@ -144,6 +144,15 @@ public sealed record AgentDefinition
     /// </summary>
     public MemorySettings? Memory { get; init; }
 
+    /// <summary>
+    /// Gets the session workspace settings. When <see langword="null"/> the agent has no workspace.
+    /// </summary>
+    /// <remarks>
+    /// An agent exposed over A2A or MCP must make its workspace read-only and turn the read approval
+    /// off, or the host refuses to expose it. See <see cref="WorkspaceSettings"/>.
+    /// </remarks>
+    public WorkspaceSettings? Workspace { get; init; }
+
     /// <summary>Gets the origin of the definition: code or database.</summary>
     public AgentDefinitionOrigin Origin { get; init; } = AgentDefinitionOrigin.Database;
 

@@ -49,6 +49,8 @@ Tracon.AgentDefinition.UpdatedAt.get -> System.DateTimeOffset?
 Tracon.AgentDefinition.UpdatedAt.init -> void
 Tracon.AgentDefinition.Version.get -> int
 Tracon.AgentDefinition.Version.init -> void
+Tracon.AgentDefinition.Workspace.get -> Tracon.WorkspaceSettings?
+Tracon.AgentDefinition.Workspace.init -> void
 Tracon.AgentDefinitionOrigin
 Tracon.AgentDefinitionOrigin.Code = 0 -> Tracon.AgentDefinitionOrigin
 Tracon.AgentDefinitionOrigin.Custom = 2 -> Tracon.AgentDefinitionOrigin
@@ -85,6 +87,8 @@ Tracon.AgentDescriptor.UsesHarness.get -> bool
 Tracon.AgentDescriptor.UsesHarness.init -> void
 Tracon.AgentDescriptor.Version.get -> int
 Tracon.AgentDescriptor.Version.init -> void
+Tracon.AgentDescriptor.Workspace.get -> Tracon.WorkspaceSettings?
+Tracon.AgentDescriptor.Workspace.init -> void
 Tracon.AgentParameter
 Tracon.AgentParameter.<Clone>$() -> Tracon.AgentParameter!
 Tracon.AgentParameter.AgentParameter() -> void
@@ -5337,6 +5341,16 @@ static Tracon.WorkflowResumeRequest.operator ==(Tracon.WorkflowResumeRequest? le
 static Tracon.WorkflowRunRequest.operator !=(Tracon.WorkflowRunRequest? left, Tracon.WorkflowRunRequest? right) -> bool
 static Tracon.WorkflowRunRequest.operator ==(Tracon.WorkflowRunRequest? left, Tracon.WorkflowRunRequest? right) -> bool
 virtual Tracon.TraconException.ErrorType.get -> string!
+Tracon.WorkspaceSettings
+Tracon.WorkspaceSettings.<Clone>$() -> Tracon.WorkspaceSettings!
+Tracon.WorkspaceSettings.DisableReadApproval.get -> bool
+Tracon.WorkspaceSettings.DisableReadApproval.init -> void
+Tracon.WorkspaceSettings.Enabled.get -> bool
+Tracon.WorkspaceSettings.Enabled.init -> void
+Tracon.WorkspaceSettings.Equals(Tracon.WorkspaceSettings? other) -> bool
+Tracon.WorkspaceSettings.ReadOnly.get -> bool
+Tracon.WorkspaceSettings.ReadOnly.init -> void
+Tracon.WorkspaceSettings.WorkspaceSettings() -> void
 ~override Tracon.ConversationBranch.Equals(object obj) -> bool
 ~override Tracon.ConversationBranch.ToString() -> string
 Tracon.ILiveVoiceProvider.AttachSessionAsync(Tracon.LiveVoiceAttachRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ILiveVoiceSideband!>
@@ -5605,10 +5619,15 @@ override Tracon.WorkflowRequestQuery.ToString() -> string!
 override Tracon.WorkflowRequestRecord.Equals(object? obj) -> bool
 override Tracon.WorkflowRequestRecord.GetHashCode() -> int
 override Tracon.WorkflowRequestRecord.ToString() -> string!
+override Tracon.WorkspaceSettings.Equals(object? obj) -> bool
+override Tracon.WorkspaceSettings.GetHashCode() -> int
+override Tracon.WorkspaceSettings.ToString() -> string!
 static Tracon.WorkflowRequestQuery.operator !=(Tracon.WorkflowRequestQuery? left, Tracon.WorkflowRequestQuery? right) -> bool
 static Tracon.WorkflowRequestQuery.operator ==(Tracon.WorkflowRequestQuery? left, Tracon.WorkflowRequestQuery? right) -> bool
 static Tracon.WorkflowRequestRecord.operator !=(Tracon.WorkflowRequestRecord? left, Tracon.WorkflowRequestRecord? right) -> bool
 static Tracon.WorkflowRequestRecord.operator ==(Tracon.WorkflowRequestRecord? left, Tracon.WorkflowRequestRecord? right) -> bool
+static Tracon.WorkspaceSettings.operator !=(Tracon.WorkspaceSettings? left, Tracon.WorkspaceSettings? right) -> bool
+static Tracon.WorkspaceSettings.operator ==(Tracon.WorkspaceSettings? left, Tracon.WorkspaceSettings? right) -> bool
 Tracon.IWorkflowRequestStore.ListStrandedAsync(int max, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.WorkflowRequestRecord!>!>
 Tracon.HostedToolContext
 Tracon.HostedToolContext.HostedToolContext() -> void

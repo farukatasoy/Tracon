@@ -81,7 +81,7 @@ public sealed class ConversationMemorySqlTests
     }
 
     [Fact]
-    public async Task A_store_that_cannot_delete_rolls_the_SQL_erasure_back_and_writes_no_audit_entry()
+    public async Task A_store_that_cannot_delete_fails_the_SQL_erasure_before_any_row_is_deleted_and_writes_no_audit_entry()
     {
         using var database = new TempSqliteDatabase("memory-rollback");
         var memory = new InMemoryVectorStore();
