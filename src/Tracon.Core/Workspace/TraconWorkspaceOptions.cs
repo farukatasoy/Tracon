@@ -12,16 +12,15 @@ namespace Tracon;
 /// store does.
 /// </para>
 /// <para>
-/// The limits are soft. Two writes that run at the same moment can pass a limit together by the
-/// size of one file; the next write is refused.
+/// A file counts its content and also a fixed 1 KiB for its row in the limit of a session and of a tenant, so a model
+/// that writes thousands of empty files reaches the limit instead of filling the table. The limits are soft: two writes
+/// that run at the same moment can pass a limit together by the size of one file; the next write is refused.
 /// </para>
 /// </remarks>
 /// <example>
 /// <code language="json">
-/// {
-///   "Tracon": {
-///     "Workspace": { "MaxFileBytes": 524288, "MaxSessionBytes": 10485760 }
-///   }
+/// "Tracon": {
+///   "Workspace": { "MaxFileBytes": 524288, "MaxSessionBytes": 10485760 }
 /// }
 /// </code>
 /// </example>
