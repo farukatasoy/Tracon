@@ -39,6 +39,9 @@
     "src/Tracon.Sqlite/Migrations/0049_remove_authorization_configuration_key.sql": "3f0369d1f8147fa1c8f275d1c97b80f284855852",
     "src/Tracon.PostgreSql/Migrations/0063_eval_case_expected_tool_calls.sql": "deb1033517353c6654af0acf85b82215ce046934",
     "src/Tracon.SqlServer/Migrations/0051_eval_case_expected_tool_calls.sql": "deb1033517353c6654af0acf85b82215ce046934",
-    "src/Tracon.Sqlite/Migrations/0050_eval_case_expected_tool_calls.sql": "deb1033517353c6654af0acf85b82215ce046934"
+    "src/Tracon.Sqlite/Migrations/0050_eval_case_expected_tool_calls.sql": "deb1033517353c6654af0acf85b82215ce046934",
+    "src/Tracon.PostgreSql/Migrations/0064_agent_files_tenant_path_index.sql": "a21a23a7ea6fd9aece29476955cc7cec9e44d7cc",
+    "src/Tracon.SqlServer/Migrations/0052_agent_files_tenant_path_index.sql": "a21a23a7ea6fd9aece29476955cc7cec9e44d7cc",
+    "src/Tracon.Sqlite/Migrations/0051_agent_files_tenant_path_index.sql": "a21a23a7ea6fd9aece29476955cc7cec9e44d7cc"
   }
 }
