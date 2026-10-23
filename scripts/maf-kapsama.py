@@ -45,7 +45,7 @@ TEMAS = ROOT / "scripts" / "maf-kapsama-temas.tsv"
 
 # §5'te `Takip` sütunu `✗` olan satır sayısı. Yalnız aşağı iner: bir satır `✓` olunca
 # `denetle` "taban bayat" der ve bu sayı o gün düşürülür (MAF-KAPSAMA §10 P-03).
-CARPI_TABANI = 50
+CARPI_TABANI = 49
 
 ALANLAR = ("src", "tests", "samples")
 DURUMLAR = ("✅", "🟡", "❌", "⛔")

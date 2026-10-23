@@ -8,9 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A front end that speaks the AG-UI protocol can run a Tracon agent.** The new package `Tracon.AGUI` adds
+  `MapTraconAGUI()` (`POST /tracon/agui/{agentName}`, after `MapTracon()`): the body is an AG-UI `RunAgentInput`, the
+  answer is the AG-UI event stream. It is a Tracon run: recorded, tenant-scoped, role-, key-scope- and
+  session-owner-checked, counted against the quota and priced, with the same protection as `MapTracon`. The thread is the
+  session, and only the messages after the last assistant message are new input. A tool the front end declares never
+  becomes a tool the model can call: a client-side tool registered with `AddClientTool` and named in the agent runs on the
+  front end with the schema from the code, a carried client-side tool the request does not declare is `400`, and a
+  declared tool the agent does not carry is ignored and recorded on the run (`RunEventCustomTypes.AGUIToolsIgnored`). A
+  tool that waits for approval, and an MCP server's request for input, end the run with an interrupt; the answer is the
+  next request's `resume`. The approval is audited as `approval.decision` with `"surface": "ag-ui"`, before it is
+  applied. The first event after `RUN_STARTED` is a `CUSTOM` event named `tracon.run` that carries the Tracon run id. The
+  package takes the AG-UI SDK (`AGUI.Server`, `AGUI.Abstractions`) and is not part of the `Tracon` meta package. See
+  [AG-UI front ends](https://tracon.dev/guides/ag-ui/).
+
 - **A tool can ask the user for information in the middle of a call (MCP elicitation).** Tracon now tells
   every MCP server it connects to that it can answer such a request, with form fields only. In a run started with
-  `POST /api/agents/{name}/run` and a `sessionId`, the request stops the run as `AwaitingInput`: the stream sends an
+  `POST /api/agents/{name}/run` (or over the AG-UI endpoint) and a `sessionId`, the request stops the run as `AwaitingInput`: the stream sends an
   `inputs` event right before `done` (a response with `Idempotency-Key` carries `inputs` in its body), one entry per
   request with `requestId`, `toolName`, `serverName`, `message` and `requestedSchema`. Answer in the next request of the
   session with `AgentRunRequest.InputResponses` (`ToolInputResponse`: `RequestId`, `Action` of `ToolInputAction`

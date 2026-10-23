@@ -286,8 +286,8 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Set only by the management API's run endpoint, whose response carries the request and
-    /// whose next request carries the answer. Every other surface leaves it off, and an MCP
+    /// Set only by the management API's run endpoint and the AG-UI endpoint, whose responses carry the
+    /// request and whose next request carries the answer. Every other surface leaves it off, and an MCP
     /// server's request on such a run gets an explicit <c>decline</c>: an OpenAI-compatible
     /// call, an A2A task, an MCP tool call and a queued run have no channel for the answer.
     /// </para>

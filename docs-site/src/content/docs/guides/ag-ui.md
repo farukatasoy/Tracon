@@ -6,8 +6,9 @@ description: Run a Tracon agent from a front end that speaks AG-UI, such as Copi
 How does a front end built on the [AG-UI protocol](https://docs.ag-ui.com) — CopilotKit, or your own
 React code on `@ag-ui/client` — run a Tracon agent? Through one extra endpoint,
 `POST /tracon/agui/{agentName}`. The request is a Tracon run: it is recorded, the tenant is resolved,
-roles and session ownership are enforced, the quota is counted and the cost is written. Only the dialect
-on the wire is AG-UI.
+roles are enforced, the quota is counted and the cost is written. Session ownership applies when
+[`Tracon:SessionOwnership`](/concepts/sessions/#session-ownership) is on; it is off by default, and until then a thread
+is whatever the front end chooses and any operator of the tenant can continue it. Only the dialect on the wire is AG-UI.
 
 ## Map the endpoint
 
@@ -46,8 +47,13 @@ The body is an AG-UI `RunAgentInput` and the answer is `text/event-stream`, one 
 ```bash
 curl -N -X POST http://localhost:5081/tracon/agui/support \
   -H 'Content-Type: application/json' \
-  -d '{"threadId":"t1","runId":"r1","messages":[{"id":"m1","role":"user","content":"hello"}],"tools":[],"context":[]}'
+  -d '{"threadId":"t1","runId":"r1","messages":[{"id":"m1","role":"user","content":"hello"}],
+       "tools":[{"name":"read_shopping_cart","description":"Reads the cart in the browser.","parameters":{"type":"object","properties":{}}}],
+       "context":[]}'
 ```
+
+The agent carries a client-side tool, so the request declares it; an empty `tools` list would be refused (see
+[Front-end tools](#front-end-tools)).
 
 ## Connect a front end
 
@@ -86,7 +92,7 @@ flowchart LR
 
 | AG-UI field | What Tracon does |
 |---|---|
-| `threadId` | It is the session. At most 200 characters; a thread belongs to the user and the tenant that opened it |
+| `threadId` | It is the session. At most 200 characters; a thread belongs to the tenant that opened it, and with session ownership on also to the user |
 | `messages` | The server keeps the conversation. Only the messages after the **last assistant message** are new input: the user's text, and the results of the client-side tool calls that message made. Earlier messages are already in the session and are not added again. System and developer messages are not read — the instructions are the agent's |
 | `tools` | Must name every client-side tool the agent carries. The schema is always the one in code |
 | `resume` | Answers a tool approval or a request for user input |
@@ -128,10 +134,10 @@ input](/concepts/tools/#a-server-asks-the-user-for-input), end the run with an *
   "outcome": {
     "type": "interrupt",
     "interrupts": [{
-      "id": "01a16958-a46d-7f03-8fa7-b0010259802b",
+      "id": "ficc_call_YhKBs3eWkkfjxpTyfphRGAnV",
       "reason": "tool_call",
-      "message": "Cancel order for Priya Shah",
-      "toolCallId": "call_x1",
+      "message": "Cancel order ORD-1001 for Priya Shah.",
+      "toolCallId": "call_YhKBs3eWkkfjxpTyfphRGAnV",
       "responseSchema": {
         "type": "object",
         "properties": {
@@ -141,13 +147,15 @@ input](/concepts/tools/#a-server-asks-the-user-for-input), end the run with an *
           "rememberArgumentsOnly": { "type": "boolean" }
         },
         "required": ["approved"]
-      }
+      },
+      "metadata": { "toolName": "cancel_order", "entityType": "order", "entityId": "ORD-1001", "entityName": "Order ORD-1001" }
     }]
   }
 }
 ```
 
-The answer is the `resume` of the next request, on the same thread. For an approval, `remember: true` saves
+The `message` and `metadata` come from the tool's approval presenter when one is registered. The answer is the `resume`
+of the next request, on the same thread. For an approval, `remember: true` saves
 the decision as a standing rule, exactly as it does on the management API; without `rememberArgumentsOnly`
 the rule covers every call of the tool:
 
@@ -156,7 +164,7 @@ the rule covers every call of the tool:
   "threadId": "t1",
   "runId": "r2",
   "messages": [],
-  "resume": [{ "interruptId": "01a16958-a46d-7f03-8fa7-b0010259802b", "status": "resolved", "payload": { "approved": true } }]
+  "resume": [{ "interruptId": "ficc_call_YhKBs3eWkkfjxpTyfphRGAnV", "status": "resolved", "payload": { "approved": true } }]
 }
 ```
 
@@ -186,6 +194,9 @@ A front end that closes the connection mid-run stops the run, and the run is rec
 - One thread, one run at a time. Two overlapping runs of the same thread behave as on the management API: the
   second to save loses, and its stream ends with `RUN_ERROR`.
 - No `Idempotency-Key` and no `Prefer: respond-async`: an AG-UI run is always live.
+- No run parameters and no culture: an agent with a required [parameter](/concepts/agents/#parameters) cannot be started
+  from AG-UI, and instructions resolve in the agent's default culture.
+- Attachments are not read; only the text of a message is.
 - The package is not Native AOT compatible.
 
 ## Read next

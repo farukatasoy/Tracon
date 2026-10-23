@@ -47,6 +47,8 @@ flowchart TD
 
     UI["<b>Tracon.UI</b><br/>gömülü React SPA · Brotli varlıklar · iki dilli<br/>UseUI() → ITraconUiProvider"]
 
+    AG["<b>Tracon.AGUI</b><br/>MapTraconAGUI · AG-UI ucu<br/>AGUI.Server · AGUI.Abstractions (yalnız burada)"]
+
     HTTP["<b>Tracon.AspNetCore</b><br/>MapTracon · /api/* yönetim API'si<br/>/v1/responses · /v1/chat/completions · /v1/conversations<br/>loopback · bearer · policy · SSE"]
 
     PG["<b>Tracon.PostgreSql</b><br/>kalıcılık"]
@@ -69,6 +71,7 @@ flowchart TD
 
     T --> HTTP
     HTTP -->|"ITraconUiProvider · kayıtlıysa"| UI
+    AG -->|"AgentTurnService · kapılar (IVT)"| HTTP
     HTTP --> PG
     HTTP --> OA
     HTTP --> AN
@@ -91,7 +94,7 @@ flowchart TD
 ```
 
 **Bağımlılık yönü tek yönlüdür ve döngü içermez:** her sağlayıcı/kalıcılık paketi
-`Core`'a, `Core` `Abstractions`'a, `UI` `AspNetCore`'a bakar; ters yön yoktur.
+`Core`'a, `Core` `Abstractions`'a, `UI` ve `AGUI` `AspNetCore`'a bakar; ters yön yoktur.
 Kural `DependencyDirectionTests.AllowedReferences` ile zorlanır. AOT uyumluluk
 tablosu 9. bölümdedir (K-006).
 
@@ -100,6 +103,11 @@ tablosu 9. bölümdedir (K-006).
 > (public) soyutlamaları üzerinden tetikler. Böylece ikisi de isteğe bağlı paket
 > kalır. Workflow motoru kayıtlı
 > değilse yalnız çalıştırma uçları `501` döner; tanım yönetimi çalışır (K-118).
+
+> `Tracon.AGUI` (Faz 236) ikinci bir çalıştırma yüzeyidir: istek AG-UI biçiminde gelir, tur kurulumu
+> (`AgentTurnService`: kapılar, agent çözümü, bekleyen cevapların eşlemesi, çalıştırma seçenekleri)
+> yönetim API'siyle ortaktır ve çıktı AG-UI olaylarıdır. Meta pakete girmez; AG-UI SDK'sı yalnız
+> orada durur (K-1076). Ayrıntı ve tuzaklar: [`hafiza/a2a-konusma.md`](hafiza/a2a-konusma.md).
 
 > `Tracon.Client` **hiçbir Tracon paketini referanslamaz** (Faz 83,
 > K-565): DTO'ları OpenAPI belgesinden üretilir, `Abstractions`'ı yeniden
@@ -261,6 +269,7 @@ flowchart TD
 
     C -->|"POST /api/agents/{name}/run"| H
     C -->|"POST /v1/responses · /v1/chat/completions"| H
+    C -->|"POST /tracon/agui/{agent} — AG-UI, Tracon.AGUI"| H
     H --> V1 --> R --> SRC
     SRC -->|"bildirimsel tanım"| COMP --> DEC
     SRC -->|"fabrika agent'ı"| DEC

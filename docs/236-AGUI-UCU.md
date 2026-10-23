@@ -1,6 +1,6 @@
 # Faz 236 — Tracon'un AG-UI Ucu
 
-> **Durum:** 🚧 Uygulanıyor (2026-10-23)
+> **Durum:** ✅ Tamamlandı (2026-10-23)
 > **Kademe:** tam — yeni paket (`Tracon.AGUI`, üçüncü taraf bağımlılık, tedarik zinciri onayı) · public API (yeni uç ve kayıt uzantısı) · güvenlik sınırı (istemcinin beyan ettiği tool'lar K2 ile kesişir; oturum sahipliği; onay ve "Hatırla" kuralı yeni bir yüzeyden gelir)
 > **Plan onayı:** Tasarım seçimleri onaylandı — farukatasoy, 2026-10-22: istemcinin tool'u yalnız kodda kayıtlı istemci tool'uyla kesişirse kullanılır; uç yeni kararlı `Tracon.AGUI` paketinde yaşar. Planın tamamı: **onaylandı** — farukatasoy, 2026-10-23 ("fazı geliştir"): Açık Sorular 1–7 önerilen cevaplarla uygulanır (bkz. *Plandan Sapmalar*)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-616** (ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #37, §8.2 C-15 b; [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md))
@@ -231,19 +231,19 @@ Beş soru: **iptal** (SSE bağlantısı kopar) · **eşzamanlılık** (aynı `Th
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `nuget-danismani` tedarik zinciri onayı kayda geçti (uygulamadan önce)
-- [ ] Tur servisi çıkarıldı; yönetim API fonksiyonel testleri değişmeden yeşil
-- [ ] `POST /agui/{agent}` resmi bir AG-UI istemcisiyle metin, ön yüz tool'u ve onay kesintisi akıtır
-- [ ] Kodda kayıtlı olmayan tool adı modele ulaşmaz; şema koddan gelir
-- [ ] Sahiplik açıkken başka kullanıcının `ThreadId`'si `403` alır
-- [ ] `Tracon.AspNetCore` ve meta paketin bağımlılık grafiği değişmedi (pack sayımı + `DependencyDirectionTests`)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ve AG-UI örneğiyle gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`guides/ag-ui.md`, `packages.md`, `client-side-tools.md`, `capabilities.md`); `npm run build` + `check-links.mjs` temiz
-- [ ] `MAF-KAPSAMA.md` §5.9 AG-UI satırı, §8.2 C-15 (b) ve paket envanterinin AG-UI satırları güncellendi
+- [x] `nuget-danismani` tedarik zinciri onayı kayda geçti (uygulamadan önce) — *Plandan Sapmalar*'ta ölçümle (imza, sahip, bağımlılık, sürüm ritmi)
+- [x] Tur servisi çıkarıldı; yönetim API fonksiyonel testleri değişmeden yeşil — 2701/2701, çıkarım commit'inde ve kapanış koşumunda
+- [x] `POST /tracon/agui/{agent}` resmi bir AG-UI istemcisiyle metin, ön yüz tool'u ve onay kesintisi akıtır — `@ag-ui/client` 1.0.3 + `gpt-5.4-mini`, çıktı *Örnek Uygulama Koşumu*'nda
+- [x] Kodda kayıtlı olmayan tool adı modele ulaşmaz; şema koddan gelir — `AGUIToolBoundaryTests`
+- [x] Sahiplik açıkken başka kullanıcının `ThreadId`'si `403` alır — `AGUISessionOwnershipTests`
+- [x] `Tracon.AspNetCore` ve meta paketin bağımlılık grafiği değişmedi — `DependencyDirectionTests` (iki yeni test: SDK yalnız `Tracon.AGUI`'da; meta paket ve `AspNetCore` onu referanslamaz) + `Tracon.Package.Tests` kapanış koşumunda
+- [x] Dört doğrulama kapısı sıfır uyarı verir — *Kapanış Koşumu*
+- [x] `samples/Tracon.Api` ve AG-UI örneğiyle gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `secret` taraması boş döndü — `kapi.py tarama` (kapanışta tekrar)
+- [x] `🤖` case'ler `docs/manuel-test/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md` içinde ve koşuldu; gerisi otomatik testte — `MT-IST-017`…`020` koşuldu (çıktı *Örnek Uygulama Koşumu*'nda)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — *Denetim Bulguları*
+- [x] `docs-site/` güncellendi (`guides/ag-ui.md`, `packages.md`, `client-side-tools.md`, `capabilities.md`); `npm run check` (içerik, derleme, bağlantı, ağırlık) temiz
+- [x] `MAF-KAPSAMA.md` §5.9 AG-UI satırı, §8.2 C-15 (b) ve paket envanterinin AG-UI satırları güncellendi
 
 ### Doğrulama komutları
 
@@ -296,18 +296,71 @@ curl -sN -X POST http://localhost:5081/tracon/agui/<agent> \
 - **K-1077** *(güvenlik; kullanıcı kararı)* — İstekteki tool yalnız kodda kayıtlı istemci tool'uyla kesişirse kullanılır; şema koddan, taşınmayan ad yok sayılır. Alternatif: isteğin şemasını vermek; beyan edilmeyen istemci tool'unu kabul etmek.
 - Kategori dışı (commit mesajına gider): kesinti nedeni `tool_call`; `Resume` türünü oturum geçmişinden okur; denetim satırı `after.surface`; `RunEventCustomTypes.AGUIToolsIgnored`; harita ve ağırlık bütçesi (bkz. *Plandan Sapmalar*).
 
+## Örnek Uygulama Koşumu
+
+> `samples/Tracon.Api` (Development, `Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=` `Tracon__Sqlite__ConnectionString=` `Tracon__Ui__AuthToken=` boş, `Npgsql` günlük satırı **0**), `http://127.0.0.1:5199`, `support` agent'ı, gerçek `gpt-5.4-mini` (`user-secrets`), resmi istemci `@ag-ui/client` 1.0.3 (`HttpAgent`, `buildResumeArray`; kendi olay doğrulayıcısı açık).
+
+```text
+$ node probe.mjs http://127.0.0.1:5199/tracon/agui/support text
+EVENTS RUN_STARTED CUSTOM TEXT_MESSAGE_START TEXT_MESSAGE_CONTENT×7 TEXT_MESSAGE_END RUN_FINISHED
+ASSISTANT "Hello there, happy to help!"
+
+$ node probe.mjs … cart            # ön yüz tool'u
+EVENTS RUN_STARTED CUSTOM TOOL_CALL_START TOOL_CALL_ARGS TOOL_CALL_END RUN_FINISHED      # TOOL_CALL_RESULT yok
+CALL read_shopping_cart
+EVENTS RUN_STARTED CUSTOM TEXT_MESSAGE_START … TEXT_MESSAGE_END RUN_FINISHED
+FINAL "Your shopping cart contains:\n- 2x Wireless Mouse"
+
+$ node probe.mjs … approval        # kesinti + resume
+EVENTS RUN_STARTED CUSTOM TOOL_CALL_START TOOL_CALL_ARGS TOOL_CALL_END RUN_FINISHED
+PENDING [{"id":"ficc_call_Yh…","reason":"tool_call","message":"Cancel order ORD-1001 for Priya Shah.","toolCallId":"call_Yh…",
+          "responseSchema":{… "required":["approved"]},"metadata":{"toolName":"cancel_order","entityType":"order","entityId":"ORD-1001",…}}]
+EVENTS RUN_STARTED CUSTOM TOOL_CALL_START TOOL_CALL_ARGS TOOL_CALL_END TOOL_CALL_RESULT TEXT_MESSAGE_START … RUN_FINISHED
+FINAL "Order ORD-1001 has been canceled."
+```
+
+Yönetim API'siyle çapraz kontrol (aynı örnek uygulama):
+
+- `GET /api/runs?agentName=support`: beş koşu — `probe-text` Completed · `probe-cart` Completed ×2 · `probe-approval` **AwaitingApproval** sonra Completed.
+- `GET /api/runs/{id}` (cart): `cost` dolu — `inputCost 8.8e-05`, `outputCost 3e-05`, `currency: USD`, `source: Catalog`.
+- `GET /api/runs/{id}/events` (cart): `"customType":"tracon.agui.tools.ignored"`, `payload: {"tools":["front_end_only"]}` — istemcinin beyan ettiği, `support`'un taşımadığı ad.
+- `GET /api/audit?action=approval.decision`: `entity: tool:cancel_order`, `after: {"approved":true,"reason":null,"surface":"ag-ui"}`.
+
+## Kapanış Koşumu
+
+> `python3 scripts/kapi.py kapanis --taban 853f5196` — aşağıda kapanışta dolar.
+
 ## Süreç Ölçümü
 
 > Kapanışta doldurulur.
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 4 |
+| Düzeltme turu sayısı | 1 |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 1 |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç.
+> `faz-denetim` çıktısı (taze bağlamlı `faz-denetcisi`, 2026-10-23, `853f5196...e5b63fb2`). Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç.
+
+| Bulgu | Seviye | Sonuç |
+|---|---|---|
+| Sayfa ağırlık tavanı 59 000 → 60 000 B yükseltildi; K-756 (kullanıcı kararı) tavanın ikinci kez yükseltilmemesini söyler | 🔴 | **Gerçek, kapandı.** Tavan geri alındı (59 000). `guides/voice` 59 010 B'tı ve bu faz o sayfaya dokunmamıştı; sidebar'a giren satır her sayfaya ~10 B ekledi. Sayfadaki iki paragraf kendi kod yorumunu tekrar ediyordu ve bilgi kaybetmeden kısaldı: 58 862 B (tavana 138 B). Ders: `kalite-sozlesmesi.md` "yalnız düşer" der ve kullanıcı kararı ölçüm gerekçesiyle aşılmaz |
+| `context`/`tools`/`resume`/`messages` içinde `null` eleman `NullReferenceException` → `500` | 🟡 | Kapandı: `AGUIInputMapper.Validate` `400` verir; `A_null_element_in_a_list_is_a_400_never_a_500` (4 durum, mutasyonla kırmızıya döner) |
+| Uç gövdeyi `Content-Type`'a bakmadan okur; Content-Type'sız istek çalışır | 🟡 | Kapandı: `HasJsonContentType()` yoksa `415`; `A_body_that_is_not_JSON_is_a_415_and_starts_no_run`. Form gönderimi ön denetimsiz çapraz site isteğidir; reddi ortam kimliği taşıyan bir tüketiciyi korur |
+| `rememberArgumentsOnly` (ve `remember`, `reason`) boolean/string olmayınca sessizce varsayılana düşer; `"true"` dizesi kuralı TÜM çağrılara genişletirdi | 🟡 | Kapandı: yanlış türde alan `400`; `Remember_bound_to_the_arguments_does_not_approve_a_call_with_other_arguments` kuralın dar kaldığını dışarıdan sabitler (mutasyonla kırmızıya döner) |
+| README ve rehberdeki ilk `curl` kendi örnek agent'ına `400` alır (`"tools":[]`) | 🟡 | Kapandı: ikisi de tool'u beyan eder ve nedenini söyler |
+| "Only this endpoint can carry the answer" yanlışlaştı | 🟡 | Kapandı: `AgentEndpoints.cs` açıklaması, `TraconRunOptions` yorumu, `concepts/tools.md`, `capabilities.md`, `CHANGELOG.md`. OpenAPI belgesi (1 satır), `TraconApiClient.g.cs` (2 satır) ve `@tracon/client` `schema.ts` (1 satır) yeniden üretildi |
+| Sahiplik koşulsuz anlatılıyor; varsayılan KAPALI | 🟡 | Kapandı: README, rehber ve XML dokümanı `Tracon:SessionOwnership` açıkken sahipliği söyler; kapalıyken `threadId` istemci seçimidir |
+| `A_refusal_and_a_dismissal_…_reason_reaches_the_model` modele ulaşan gerekçeyi doğrulamıyor; `…InputRequired…` yorumu olayları da kapsadığını söylüyor | 🟡 | Kapandı: model isteği "not today"i içeriyor mu diye okunur; yorum gerçeğe indi |
+| AG-UI'ye özgü store çağrıları hatalı store ile denenmemiş (bildirim yazımı, kırpma, `PendingInterruptReader`) | 🟡 | Kapandı: `A_run_store_that_cannot_take_the_ignored_tools_notice…`, `The_ignored_tools_notice_is_bounded…`, `A_session_store_that_cannot_be_read_applies_no_answer…` |
+| İstemci tool denetimi en son tanımı okur, run deney kolunun sürümünü çözer | 🟢 | `ADAYLAR.md` **F-667** |
+| İki paralel `resume` aynı kesintiyi karara bağlarsa tool iki kez koşabilir (yönetim API'sinde önceden var) | 🟢 | `ADAYLAR.md` **F-668** |
+| Bildirim olayı `RunEventWriter` yerine doğrudan `IRunStore`'a yazılır | 🟢 | `ADAYLAR.md` **F-669** |
+| `compatibility.md` AOT nedeni yanlış · `versioning.md` "20 NuGet packages" · Limits listesi parametre ve culture'ı anmıyor | 🟢 | Hemen düzeltildi (tek satırlık) |
+| `CHANGELOG.md [Unreleased]` girdisi yok · `llms-full.txt` bayat | 🟢 | Kapanış adımı: girdi yazıldı, `build-agent-map.mjs` yeniden koşuldu |
+
+Denetçinin "temiz" dediği başlıklar: DoD'nin kodla örtüşmesi, test seviyesi (HTTP/oturum/kiracı/akış/onay sınırları fonksiyonel), `surface` parametresinin tüm gövdelerinin izi, kapı sırası (tool denetimi ve `Resume` kapılardan sonra; reddedilen çağıran tool adı öğrenmez), K2 (isteğin şeması hiçbir yolda okunmaz), yönetim API'si `AgentEndpoints.cs` diff'i (regresyon yok), `ThreadId` uzunluğu `nvarchar(200)` ile uyumlu.

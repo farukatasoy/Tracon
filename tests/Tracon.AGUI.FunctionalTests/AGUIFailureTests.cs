@@ -1,6 +1,9 @@
 using System.Net;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
 using AGUI.Abstractions;
 using Tracon.AGUI.FunctionalTests.Infrastructure;
+using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AGUI.FunctionalTests;
 
@@ -36,6 +39,101 @@ public sealed class AGUIFailureTests
         var record = await host.Services.GetRequiredService<IRunStore>()
             .QueryRunsAsync(new RunQuery { SessionId = "t-fail" }, TestContext.Current.CancellationToken);
         record.ShouldHaveSingleItem().Status.ShouldBe(RunStatus.Failed);
+    }
+
+    [Fact]
+    public async Task A_run_store_that_cannot_take_the_ignored_tools_notice_does_not_fail_the_run()
+    {
+        // Observability does not break functionality: the notice is written after the stream, best effort.
+        await using var host = await AGUITestHost.StartAsync(builder =>
+        {
+            TestAgents.AddEcho(builder);
+            builder.Services.ThrowFrom<IRunStore>(
+                "AppendEventAsync",
+                static () => new InvalidOperationException("run store unavailable"),
+                when: static arguments => arguments is [RunEvent { CustomType: RunEventCustomTypes.AGUIToolsIgnored }, ..]);
+        });
+
+        var response = await host.RunAsync(
+            TestAgents.Echo,
+            AGUIInputs.User("t-notice", "hi", "r1", AGUIInputs.Tool("not_carried")));
+
+        response.Status.ShouldBe(HttpStatusCode.OK, response.Body);
+        response.Types[^1].ShouldBe("RUN_FINISHED");
+        response.Events.OfType<RunErrorEvent>().ShouldBeEmpty();
+        response.Text.ShouldBe("Echo: hi");
+        host.Logs.Lines.ShouldContain(line => line.StartsWith("Warning", StringComparison.Ordinal) && line.Contains("could not be recorded", StringComparison.Ordinal));
+
+        var record = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(response.TraconRunId, TestContext.Current.CancellationToken);
+        record!.Status.ShouldBe(RunStatus.Completed);
+    }
+
+    [Fact]
+    public async Task The_ignored_tools_notice_is_bounded_in_count_and_in_name_length()
+    {
+        // The names come from a request body, so the notice that records them has a ceiling: 50 names of 128 characters.
+        await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);
+
+        var tools = Enumerable.Range(0, 60)
+            .Select(index => AGUIInputs.Tool($"t{index:D2}_" + new string('x', 200)))
+            .ToArray();
+
+        var response = await host.RunAsync(TestAgents.Echo, AGUIInputs.User("t-bound", "hi", "r1", tools));
+
+        response.Status.ShouldBe(HttpStatusCode.OK, response.Body);
+
+        string? payload = null;
+
+        await foreach (var runEvent in host.Services.GetRequiredService<IRunStore>().ReadEventsAsync(response.TraconRunId, 0, TestContext.Current.CancellationToken))
+        {
+            if (string.Equals(runEvent.CustomType, RunEventCustomTypes.AGUIToolsIgnored, StringComparison.Ordinal))
+            {
+                payload = runEvent.Payload;
+            }
+        }
+
+        var names = JsonDocument.Parse(payload!).RootElement.GetProperty("tools").EnumerateArray().Select(static name => name.GetString()!).ToList();
+
+        names.Count.ShouldBe(50);
+        names.ShouldAllBe(static name => name.Length <= 128);
+    }
+
+    [Fact]
+    public async Task A_session_store_that_cannot_be_read_applies_no_answer_and_the_same_answer_works_once_it_recovers()
+    {
+        // The answer is matched against the session's history, which the store holds. A store that cannot be read must not
+        // turn into "nothing pending" and must not apply the decision: the failure is the request's, and a retry succeeds.
+        var executions = new StrongBox<int>();
+        var failing = new StrongBox<bool>();
+
+        await using var host = await AGUITestHost.StartAsync(builder =>
+        {
+            TestAgents.AddApprovalTool(builder, executions);
+            builder.Services.ThrowFrom<ISessionStore>(
+                "GetAsync",
+                static () => new InvalidOperationException("session store unavailable"),
+                when: _ => failing.Value);
+        });
+
+        var first = await host.RunAsync(TestAgents.Approval, AGUIInputs.User("t-store", "cancel the order", "r1"));
+        var interruptId = first.Interrupts.ShouldHaveSingleItem().Id!;
+
+        failing.Value = true;
+
+        await Should.ThrowAsync<InvalidOperationException>(() => host.RunAsync(
+            TestAgents.Approval,
+            AGUIInputs.With("t-store", "r2", [], resume: [AGUIInputs.Resolved(interruptId, new { approved = true })])));
+
+        executions.Value.ShouldBe(0);
+
+        failing.Value = false;
+
+        var retried = await host.RunAsync(
+            TestAgents.Approval,
+            AGUIInputs.With("t-store", "r3", [], resume: [AGUIInputs.Resolved(interruptId, new { approved = true })]));
+
+        retried.Status.ShouldBe(HttpStatusCode.OK, retried.Body);
+        executions.Value.ShouldBe(1);
     }
 
     [Fact]

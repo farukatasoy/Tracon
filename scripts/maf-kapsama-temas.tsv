@@ -112,7 +112,7 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.9	❌	✗	`Hosting.A2A.AspNetCore`: `MapA2AJsonRpc` · `MapA2AHttpJson`	A2A AspNetCore Hosting	A2A AspNetCore Hosting	AspNetCore Hosting
 5.9	❌	~	Hosting DI: `AddAIAgent` · `AddWorkflow` · `IHostedAgentBuilder` (`WithAITool(s)`, `WithSessionStore`) · `AIHostAgent` · `HostedWorkflowState`	AddWorkflow	AddWorkflow	AddWorkflow
 5.9	❌	✗	A2A istemci: `A2AAgent` · `A2AClient/AgentCard.AsAIAgent` · `A2ACardResolver.GetAIAgentAsync`	AgentCard AsAIAgent	AsAIAgent	AsAIAgent
-5.9	❌	✗	AG-UI: `MapAGUIServer(pattern, AIAgent)` · `AddAGUIServer` · eski hat `AGUIChatClient` (1.13)	AIAgent	AIAgent	AIAgent
+5.9	✅	✓ K-1076, K-1077	AG-UI: `MapAGUIServer(pattern, AIAgent)` · `AddAGUIServer` · eski hat `AGUIChatClient` (1.13)	AIAgent	AIAgent	AIAgent
 5.9	❌	✓	DevUI (`MapDevUI`, `AddDevUI`)	-	-	-
 5.9	❌	✓	Durable Task (1.16 hattı, 25 tip) · Azure Functions (1.16, 7 tip)	?	?	?
 5.9	❌	✗⁺	`Hosting.AzureStorage` (Blob session store)	Hosting	Hosting	Hosting

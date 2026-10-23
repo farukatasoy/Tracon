@@ -86,7 +86,7 @@ public sealed class AGUIInputRequiredTests
         answered.Text.ShouldContain("hello Ada", Case.Sensitive);
         server.Seen.ShouldBe(["asked", "asked", "accept:Ada"], "the call ran again from its start and the answer reached the server");
 
-        // The value is the server's alone: it is in neither the audit trail nor the run's events.
+        // The audit entry names the fields and never carries a value.
         var audit = await host.Services.GetRequiredService<IAuditLog>()
             .QueryAsync(new AuditQuery { Action = "tool_input.answer" }, TestContext.Current.CancellationToken);
         audit.ShouldHaveSingleItem().After!.ShouldNotContain("Ada", Case.Sensitive);

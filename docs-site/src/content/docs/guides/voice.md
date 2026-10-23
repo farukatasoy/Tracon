@@ -285,13 +285,9 @@ builder.AddTracon()
 
 A named engine never receives the default's `SynthesisModelId` or `OutputFormat`: a
 model identifier of one engine sent to another is a wrong request. Set them on the
-request when the engine needs them.
-
-The tools measure themselves, but a function node that calls an engine directly does not:
-Tracon cannot see what the node spent, so the node reports it with `ReportUsageAsync`, as
-above. `IVoicePricingReader.ForSynthesis` prices the characters by the engine and model
-that did the work and returns `null` when no price is configured; the item is then
-listed as unpriced and left out of the run's total instead of counting as zero.
+request when the engine needs them. `IVoicePricingReader.ForSynthesis` returns `null`
+when no price is configured; the item is then listed as unpriced instead of counting as
+zero.
 
 ### Use any Microsoft.Extensions.AI speech client
 
@@ -349,9 +345,7 @@ What the bridge does and does not do:
   which keys the client reads, so it cannot refuse an unknown one. Put no secret there:
   `LoggingTextToSpeechClient` writes its options to the log at Trace level.
 
-Microsoft.Extensions.AI marks its speech clients experimental, so registering one in your own code
-needs `#pragma warning disable MEAI001`, as the example shows. No Tracon public member names one: the
-bindings hold a key, a name, a limit, and a list.
+No Tracon public member names an experimental type: the bindings hold a key, a name, a limit, and a list.
 
 ### OpenAI speech
 

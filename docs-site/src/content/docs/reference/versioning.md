@@ -11,7 +11,7 @@ pin the exact version for reproducible builds.
 Tracon is a pre-1.0 package family. Treat version selection as part of your
 application architecture, not as a restore detail.
 
-The release process produces 20 NuGet packages and one npm package (`@tracon/client`), all
+The release process produces 21 NuGet packages and one npm package (`@tracon/client`), all
 cut from the same `v*` tag and sharing one version line: there is no split between
 a stable subset and a preview subset. The public surface carries no compatibility
 promise for as long as that line stays pre-1.0 - a narrowing or a reshaped type is

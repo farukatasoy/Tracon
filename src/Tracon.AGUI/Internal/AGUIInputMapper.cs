@@ -37,9 +37,9 @@ internal static class AGUIInputMapper
     /// <summary>The reason an approval carries when the user dismissed the interrupt without deciding.</summary>
     internal const string DismissedReason = "The user dismissed the approval request.";
 
-    /// <summary>Refuses a request whose thread cannot be a session.</summary>
+    /// <summary>Refuses a request whose thread cannot be a session or whose lists carry a null element.</summary>
     /// <param name="input">The request body.</param>
-    /// <returns>The refusal, or <see langword="null"/> when the thread is usable.</returns>
+    /// <returns>The refusal, or <see langword="null"/> when the request can be mapped.</returns>
     public static IResult? Validate(RunAgentInput input)
     {
         if (string.IsNullOrWhiteSpace(input.ThreadId))
@@ -56,6 +56,25 @@ internal static class AGUIInputMapper
                 title: "Thread identity too long",
                 detail: $"'threadId' cannot exceed {MaxThreadIdLength} characters.",
                 statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // The protocol SDK's serializer does not reject a null list element, and the mapping below reads every element.
+        // The management API refuses a null where its contract has none (RespectNullableAnnotations); so does this.
+        foreach (var (name, hasNull) in new (string, bool)[]
+                 {
+                     ("messages", input.Messages?.Any(static message => message is null) == true),
+                     ("tools", input.Tools?.Any(static tool => tool is null) == true),
+                     ("context", input.Context?.Any(static context => context is null) == true),
+                     ("resume", input.Resume?.Any(static entry => entry is null) == true),
+                 })
+        {
+            if (hasNull)
+            {
+                return Results.Problem(
+                    title: RequestBodyBinding.ProblemTitle,
+                    detail: $"'{name}' cannot contain a null element.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
         }
 
         return null;
@@ -260,7 +279,8 @@ internal static class AGUIInputMapper
                 if (ReadApproval(entry) is not { } decision)
                 {
                     return ResumeMapping.Refused(
-                        $"The answer to the approval '{entry.InterruptId}' must be an object with a boolean 'approved'.");
+                        $"The answer to the approval '{entry.InterruptId}' must be an object with a boolean 'approved'; " +
+                        "'reason' must be a string, and 'remember' and 'rememberArgumentsOnly' must be booleans when given.");
                 }
 
                 approvals.Add(decision);
@@ -297,11 +317,22 @@ internal static class AGUIInputMapper
         return ResumeMapping.Mapped(approvals, answers);
     }
 
+    /// <summary>
+    /// Reads the answer to an approval; <see langword="null"/> when a field has the wrong type.
+    /// </summary>
+    /// <remarks>
+    /// A flag that is present and not a boolean is refused, never read as <see langword="false"/>: a
+    /// <c>"rememberArgumentsOnly": "true"</c> that became <see langword="false"/> would save a standing rule that covers
+    /// EVERY call of the tool, where the caller asked for one bound to these arguments.
+    /// </remarks>
     private static ToolApprovalDecision? ReadApproval(AGUIResume entry)
     {
         if (entry.Payload is not { ValueKind: JsonValueKind.Object } payload ||
             !payload.TryGetProperty("approved", out var approved) ||
-            approved.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            approved.ValueKind is not (JsonValueKind.True or JsonValueKind.False) ||
+            !TryReadText(payload, "reason", out var reason) ||
+            !TryReadFlag(payload, "remember", out var remember) ||
+            !TryReadFlag(payload, "rememberArgumentsOnly", out var rememberArgumentsOnly))
         {
             return null;
         }
@@ -310,9 +341,9 @@ internal static class AGUIInputMapper
         {
             RequestId = entry.InterruptId,
             Approved = approved.GetBoolean(),
-            Reason = ReadText(payload, "reason"),
-            Remember = ReadFlag(payload, "remember"),
-            RememberArgumentsOnly = ReadFlag(payload, "rememberArgumentsOnly"),
+            Reason = reason,
+            Remember = remember,
+            RememberArgumentsOnly = rememberArgumentsOnly,
         };
     }
 
@@ -333,11 +364,43 @@ internal static class AGUIInputMapper
         return content;
     }
 
-    private static string? ReadText(JsonElement payload, string name)
-        => payload.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static bool TryReadText(JsonElement payload, string name, out string? value)
+    {
+        value = null;
 
-    private static bool ReadFlag(JsonElement payload, string name)
-        => payload.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;
+        if (!payload.TryGetProperty(name, out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (element.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        value = element.GetString();
+
+        return true;
+    }
+
+    private static bool TryReadFlag(JsonElement payload, string name, out bool value)
+    {
+        value = false;
+
+        if (!payload.TryGetProperty(name, out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (element.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            return false;
+        }
+
+        value = element.GetBoolean();
+
+        return true;
+    }
 
     private static string? TextOf(AGUIContent content)
     {

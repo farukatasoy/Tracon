@@ -2,7 +2,9 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using AGUI.Abstractions;
+using Microsoft.Extensions.AI;
 using Tracon.AGUI.FunctionalTests.Infrastructure;
+using Tracon.Testing;
 
 namespace Tracon.AGUI.FunctionalTests;
 
@@ -20,11 +22,17 @@ public sealed class AGUIApprovalTests
     private static async Task<(AGUITestHost Host, StrongBox<int> Executions, AGUIResponse First)> StartPendingAsync(
         string thread,
         Action<IServiceCollection>? configureServices = null,
-        bool callsTwice = false)
+        bool callsTwice = false,
+        StrongBox<FakeModelProvider?>? model = null)
     {
         var executions = new StrongBox<int>();
         var host = await AGUITestHost.StartAsync(
-            builder => TestAgents.AddApprovalTool(builder, executions, callsTwice: callsTwice),
+            builder =>
+            {
+                var scripted = TestAgents.AddApprovalTool(builder, executions, callsTwice: callsTwice);
+
+                model?.Value = scripted;
+            },
             configureServices);
 
         var first = await host.RunAsync(TestAgents.Approval, AGUIInputs.User(thread, "cancel the order", "r1"));
@@ -88,7 +96,8 @@ public sealed class AGUIApprovalTests
     [Fact]
     public async Task A_refusal_and_a_dismissal_keep_the_tool_from_running_and_the_reason_reaches_the_model()
     {
-        var (host, executions, first) = await StartPendingAsync("t-refuse");
+        var model = new StrongBox<FakeModelProvider?>();
+        var (host, executions, first) = await StartPendingAsync("t-refuse", model: model);
         await using var _ = host;
 
         var refused = await ResumeAsync(
@@ -99,6 +108,19 @@ public sealed class AGUIApprovalTests
 
         refused.Status.ShouldBe(HttpStatusCode.OK, refused.Body);
         executions.Value.ShouldBe(0);
+
+        // The reason the user gave is what the model reads in place of the tool's result.
+        var seenByModel = string.Join(
+            '\n',
+            model.Value!.Requests[^1].Messages
+                .SelectMany(static message => message.Contents)
+                .Select(static content => content switch
+                {
+                    FunctionResultContent result => result.Result?.ToString(),
+                    TextContent text => text.Text,
+                    _ => null,
+                }));
+        seenByModel.ShouldContain("not today", Case.Sensitive);
 
         var (host2, executions2, first2) = await StartPendingAsync("t-dismiss");
         await using var __ = host2;
@@ -142,6 +164,33 @@ public sealed class AGUIApprovalTests
     }
 
     [Fact]
+    public async Task Remember_bound_to_the_arguments_does_not_approve_a_call_with_other_arguments()
+    {
+        // 🚨 The rule the caller asked for covers THIS call, not the tool. Reading "rememberArgumentsOnly" loosely once
+        // would have saved a rule for every call of the tool; the test pins the narrow rule from the outside: a second
+        // call with other arguments still asks.
+        var (host, executions, first) = await StartPendingAsync("t-narrow", callsTwice: true);
+        await using var _ = host;
+
+        await ResumeAsync(
+            host,
+            "t-narrow",
+            "r2",
+            AGUIInputs.Resolved(first.Interrupts[0].Id!, new { approved = true, remember = true, rememberArgumentsOnly = true }));
+
+        executions.Value.ShouldBe(1);
+
+        var rule = (await host.Services.GetRequiredService<IToolApprovalRuleStore>()
+            .ListAsync("default", TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        rule.ArgumentsHash.ShouldNotBeNullOrEmpty();
+
+        var other = await host.RunAsync(TestAgents.Approval, AGUIInputs.User("t-narrow-2", "cancel another order", "r3"));
+
+        other.Interrupts.ShouldHaveSingleItem("the second call has other arguments, so the rule does not cover it");
+        executions.Value.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task An_interrupt_that_does_not_exist_or_was_answered_already_is_a_400()
     {
         var (host, executions, first) = await StartPendingAsync("t-unknown");
@@ -164,6 +213,9 @@ public sealed class AGUIApprovalTests
     [Theory]
     [InlineData("{\"reason\":\"no verdict\"}")]
     [InlineData("{\"approved\":\"yes\"}")]
+    [InlineData("{\"approved\":true,\"rememberArgumentsOnly\":\"true\"}")]
+    [InlineData("{\"approved\":true,\"remember\":1}")]
+    [InlineData("{\"approved\":true,\"reason\":5}")]
     [InlineData("\"approved\"")]
     public async Task An_answer_without_a_boolean_verdict_is_a_400(string payload)
     {
