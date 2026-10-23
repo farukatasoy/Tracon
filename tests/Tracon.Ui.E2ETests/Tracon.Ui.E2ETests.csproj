@@ -17,6 +17,12 @@
     <ProjectReference Include="../../src/Tracon.Workflows/Tracon.Workflows.csproj" />
     <!-- Fake model provider (FakeModelProvider): Phase 39, K-007 rationale section 39.1. -->
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
+    <!-- Phase 235: the playground form for a tool's request for input needs a real MCP server to ask it. -->
+    <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../Shared/Infrastructure/ElicitingMcpServer.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <!--

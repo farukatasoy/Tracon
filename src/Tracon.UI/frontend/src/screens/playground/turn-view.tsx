@@ -4,7 +4,7 @@ import { count, shortId } from '../../lib/format';
 import { Link } from '../../lib/router';
 import { Badge, cx } from '../../components/ui';
 import { SpinnerIcon } from '../../components/icons';
-import { TranscriptView } from '../../components/transcript';
+import { TranscriptView, type InputAction } from '../../components/transcript';
 import { AttachmentChip } from './attachment-chip';
 import { SpeakButton } from './speak-button';
 import type { Turn } from './use-playground-run';
@@ -13,10 +13,12 @@ import { Tooltip } from '../../components/tooltip';
 export function TurnView({
   turn,
   onDecide,
+  onAnswer,
   sessionId,
 }: {
   turn: Turn;
   onDecide: (requestId: string, approved: boolean, remember: boolean) => void;
+  onAnswer: (requestId: string, action: InputAction, content: Record<string, unknown> | null) => void;
   sessionId: string | null;
 }): ReactNode {
   const t = useT();
@@ -46,7 +48,9 @@ export function TurnView({
           </p>
         </div>
       ) : (
-        <p className="mb-2.5 text-right text-xs text-subtle">{t('playground.approvalSent')}</p>
+        <p className="mb-2.5 text-right text-xs text-subtle">
+          {t(turn.carries === 'input' ? 'playground.inputSent' : 'playground.approvalSent')}
+        </p>
       )}
 
       <div className="flex items-center gap-2 pb-1.5 text-xs text-subtle">
@@ -69,6 +73,7 @@ export function TurnView({
           items={turn.transcript.items}
           streaming={turn.status === 'streaming'}
           onDecide={turn.status === 'done' ? onDecide : undefined}
+          onAnswer={turn.status === 'done' ? onAnswer : undefined}
         />
 
         {turn.transcript.items.length === 0 && turn.status === 'streaming' && (

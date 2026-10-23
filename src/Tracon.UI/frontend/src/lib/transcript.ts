@@ -67,6 +67,24 @@ export type TranscriptItem =
       message: string | null;
     }
   | {
+      /**
+       * A tool call an MCP server suspended to ask the user for input (elicitation).
+       *
+       * The run ended here, like it does for an approval: the answer is the input of
+       * the next turn, and the tool call then runs again with it. The card exists only
+       * on a live turn — the server announces the request in an `inputs` SSE frame
+       * right before `done`, and a recorded run has no turn to answer on.
+       */
+      kind: 'input';
+      id: string;
+      requestId: string;
+      toolName: string;
+      serverName: string;
+      message: string;
+      fields: InputField[];
+      answered: 'accepted' | 'declined' | 'cancelled' | null;
+    }
+  | {
       kind: 'tool';
       id: string;
       callId: string;
@@ -76,6 +94,28 @@ export type TranscriptItem =
       error: string | null;
       state: 'running' | 'ok' | 'failed';
     };
+
+/**
+ * One field of a tool input request, read from the flat JSON schema the MCP
+ * server sent.
+ *
+ * MCP elicitation schemas are flat on purpose: a string, a number, an integer, a
+ * boolean, a single choice (`enum`, or `oneOf`/`anyOf` of `const`) or a multiple
+ * choice (an array of those). Nothing nested ever reaches this type.
+ */
+export interface InputField {
+  name: string;
+  label: string;
+  description: string | null;
+  required: boolean;
+  kind: 'string' | 'number' | 'integer' | 'boolean' | 'choice' | 'choices';
+  /** The values a `choice` or `choices` field allows, with the text to show for each. */
+  options: { value: string; label: string }[];
+  minLength: number | null;
+  maxLength: number | null;
+  minimum: number | null;
+  maximum: number | null;
+}
 
 /** Token counts observed while folding. */
 export interface TranscriptUsage {
@@ -326,6 +366,129 @@ export function applyApprovalPresentations(
           };
     }),
   };
+}
+
+/**
+ * One entry of the `inputs` SSE frame — the shape
+ * `AgentEndpoints.PendingToolInputAnnouncement` serializes.
+ */
+export interface ToolInputAnnouncement {
+  requestId: string;
+  toolName: string;
+  serverName: string;
+  message: string;
+  requestedSchema: unknown;
+}
+
+/**
+ * Appends a card for every announced tool input request that has none yet.
+ *
+ * Unlike an approval, nothing in the `update` frames carries the request: the
+ * suspended call's result is plain JSON text. The `inputs` frame is the only
+ * source, so this CREATES items instead of filling them in.
+ */
+export function applyToolInputs(
+  state: TranscriptState,
+  announcements: readonly ToolInputAnnouncement[],
+): TranscriptState {
+  const known = new Set(state.items.filter((item) => item.kind === 'input').map((item) => item.requestId));
+  const added = announcements
+    .filter((announcement) => !known.has(announcement.requestId))
+    .map(
+      (announcement): TranscriptItem => ({
+        kind: 'input',
+        id: `input-${announcement.requestId}`,
+        requestId: announcement.requestId,
+        toolName: announcement.toolName,
+        serverName: announcement.serverName,
+        message: announcement.message,
+        fields: inputFields(announcement.requestedSchema),
+        answered: null,
+      }),
+    );
+
+  return added.length === 0 ? state : { ...state, items: [...state.items, ...added] };
+}
+
+/** Reads the fields out of a flat elicitation schema; anything it does not understand is a text field. */
+export function inputFields(schema: unknown): InputField[] {
+  if (typeof schema !== 'object' || schema === null) {
+    return [];
+  }
+
+  const root = schema as { properties?: unknown; required?: unknown };
+
+  if (typeof root.properties !== 'object' || root.properties === null) {
+    return [];
+  }
+
+  const required = new Set(Array.isArray(root.required) ? root.required.filter((name) => typeof name === 'string') : []);
+
+  return Object.entries(root.properties as Record<string, unknown>).map(([name, declaration]) => {
+    const property = (typeof declaration === 'object' && declaration !== null ? declaration : {}) as Record<string, unknown>;
+    const type = typeof property['type'] === 'string' ? property['type'] : 'string';
+    const items =
+      typeof property['items'] === 'object' && property['items'] !== null
+        ? (property['items'] as Record<string, unknown>)
+        : null;
+    const options = type === 'array' ? choiceOptions(items ?? {}) : choiceOptions(property);
+
+    const kind: InputField['kind'] =
+      type === 'array'
+        ? 'choices'
+        : type === 'boolean'
+          ? 'boolean'
+          : type === 'number'
+            ? 'number'
+            : type === 'integer'
+              ? 'integer'
+              : options.length > 0
+                ? 'choice'
+                : 'string';
+
+    return {
+      name,
+      label: typeof property['title'] === 'string' && property['title'].length > 0 ? property['title'] : name,
+      description: typeof property['description'] === 'string' ? property['description'] : null,
+      required: required.has(name),
+      kind,
+      options,
+      minLength: numberOrNull(property['minLength']),
+      maxLength: numberOrNull(property['maxLength']),
+      minimum: numberOrNull(property['minimum']),
+      maximum: numberOrNull(property['maximum']),
+    };
+  });
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** The values a choice allows, from an `enum` (with optional `enumNames`) or from `oneOf`/`anyOf` of `const`. */
+function choiceOptions(declaration: Record<string, unknown>): { value: string; label: string }[] {
+  if (Array.isArray(declaration['enum'])) {
+    const names = Array.isArray(declaration['enumNames']) ? declaration['enumNames'] : [];
+
+    return declaration['enum']
+      .filter((value): value is string => typeof value === 'string')
+      .map((value, index) => ({ value, label: typeof names[index] === 'string' ? names[index] : value }));
+  }
+
+  for (const key of ['oneOf', 'anyOf']) {
+    const choices = declaration[key];
+
+    if (Array.isArray(choices)) {
+      return choices
+        .filter(
+          (choice): choice is { const: string; title?: unknown } =>
+            typeof choice === 'object' && choice !== null && typeof (choice as { const?: unknown }).const === 'string',
+        )
+        .map((choice) => ({ value: choice.const, label: typeof choice.title === 'string' ? choice.title : choice.const }));
+    }
+  }
+
+  return [];
 }
 
 function findTool(items: TranscriptItem[], callId: string | null): Extract<TranscriptItem, { kind: 'tool' }> | null {

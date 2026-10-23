@@ -55,6 +55,14 @@
 
   <ItemGroup>
     <!--
+      Phase 235: a real MCP server whose tools ask the user for input. McpElicitationTests drives it through
+      the HTTP surface; the console's end-to-end tests drive the same server through the playground form.
+    -->
+    <Compile Include="../Shared/Infrastructure/ElicitingMcpServer.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       TestHost is used instead of Microsoft.AspNetCore.Mvc.Testing.
       WebApplicationFactory<T> requires an ENTRY POINT assembly; Tracon is
       a library and has no such assembly. Tying the tests to a sample app would

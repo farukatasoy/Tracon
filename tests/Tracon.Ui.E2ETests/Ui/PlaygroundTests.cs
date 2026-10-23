@@ -1,5 +1,7 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
+using Tracon.Tests.Shared;
 using Tracon.Ui.E2ETests.Infrastructure;
 using static Microsoft.Playwright.Assertions;
 using static Tracon.Ui.E2ETests.Infrastructure.UiTestHelpers;
@@ -69,6 +71,67 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
             })
             """);
         hadCspViolation.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Playground_asks_for_the_fields_an_mcp_server_requests_and_sends_the_answer()
+    {
+        // Phase 235: an MCP server asks the user for input in the middle of a tool call. The form is made
+        // from the schema the server sent, says where the answer goes, and its answer is the next turn.
+        await using var server = await ElicitingMcpServer.StartAsync();
+        await using var host = await UiHost.StartAsync(
+            configureServices: static services =>
+                services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true),
+            configureTracon: static tracon => tracon.UseMcp());
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        using (var saved = await api.PutAsJsonAsync("api/mcp-servers/elicit", new { endpoint = server.Endpoint.ToString(), requiresApproval = false }))
+        {
+            saved.EnsureSuccessStatusCode();
+        }
+
+        using (var refreshed = await api.PostAsync("api/mcp-servers/refresh", content: null))
+        {
+            refreshed.EnsureSuccessStatusCode();
+        }
+
+        using (var agent = await api.PostAsJsonAsync(
+                   "api/agents",
+                   new
+                   {
+                       name = "elicit-agent",
+                       instructions = "Greet the user.",
+                       model = new { provider = ScriptedModels.ProviderName, model = ScriptedModels.Elicit },
+                       toolNames = new[] { "elicit_ask_name" },
+                   }))
+        {
+            agent.EnsureSuccessStatusCode();
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/elicit-agent");
+
+        await session.Page.GetByTestId("playground-input").FillAsync("greet me");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        var card = session.Page.GetByTestId("input-card");
+        await Expect(card).ToBeVisibleAsync();
+        await Expect(card.GetByText(ElicitingMcpServer.Question)).ToBeVisibleAsync();
+        await Expect(card.GetByText("This information goes to the “elicit” server.")).ToBeVisibleAsync();
+
+        // The one field the server declared, and nothing else.
+        await Expect(card.GetByTestId("input-field-name")).ToBeVisibleAsync();
+        await Expect(card.Locator("input, select, textarea")).ToHaveCountAsync(1);
+
+        // A required field with no value cannot be sent.
+        await Expect(card.GetByTestId("input-submit")).ToBeDisabledAsync();
+
+        await card.GetByTestId("input-field-name").FillAsync("Ada");
+        await card.GetByTestId("input-submit").ClickAsync();
+
+        await Expect(session.Page.GetByText("hello Ada", new() { Exact = true })).ToBeVisibleAsync();
+        server.Seen.ShouldBe(["asked", "asked", "accept:Ada"]);
     }
 
     [Fact]

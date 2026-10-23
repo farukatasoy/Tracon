@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { applyApprovalPresentations, emptyTranscript, foldMessages, foldRunEvents, foldUpdate } from './transcript';
+import {
+  applyApprovalPresentations,
+  applyToolInputs,
+  emptyTranscript,
+  foldMessages,
+  foldRunEvents,
+  foldUpdate,
+  inputFields,
+} from './transcript';
 import type { ChatMessage } from '@tracon/client';
 import type { RunEvent } from './run-event';
 
@@ -277,5 +285,93 @@ describe('approval presentation', () => {
     const before = foldUpdate(emptyTranscript, { contents: [{ requestId: 'req-1', toolCall: { name: 'delete_skill' } }] });
 
     expect(applyApprovalPresentations(before, [])).toBe(before);
+  });
+});
+
+describe('inputFields', () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      name: { type: 'string', title: 'Full name', description: 'As on the card', minLength: 2, maxLength: 40 },
+      age: { type: 'integer', minimum: 0, maximum: 150 },
+      score: { type: 'number' },
+      agree: { type: 'boolean' },
+      color: { type: 'string', enum: ['red', 'green'], enumNames: ['Red', 'Green'] },
+      size: { type: 'string', oneOf: [{ const: 's', title: 'Small' }, { const: 'l', title: 'Large' }] },
+      tags: { type: 'array', items: { type: 'string', enum: ['a', 'b'] } },
+      extras: { type: 'array', items: { anyOf: [{ const: 'x' }, { const: 'y', title: 'Why' }] } },
+    },
+    required: ['name', 'agree'],
+  };
+
+  it('reads each declared kind', () => {
+    const byName = Object.fromEntries(inputFields(schema).map((field) => [field.name, field]));
+
+    expect(byName['name']).toMatchObject({ kind: 'string', label: 'Full name', description: 'As on the card', required: true, minLength: 2, maxLength: 40 });
+    expect(byName['age']).toMatchObject({ kind: 'integer', label: 'age', required: false, minimum: 0, maximum: 150 });
+    expect(byName['score']).toMatchObject({ kind: 'number' });
+    expect(byName['agree']).toMatchObject({ kind: 'boolean', required: true });
+    expect(byName['color']).toMatchObject({ kind: 'choice', options: [{ value: 'red', label: 'Red' }, { value: 'green', label: 'Green' }] });
+    expect(byName['size']).toMatchObject({ kind: 'choice', options: [{ value: 's', label: 'Small' }, { value: 'l', label: 'Large' }] });
+    expect(byName['tags']).toMatchObject({ kind: 'choices', options: [{ value: 'a', label: 'a' }, { value: 'b', label: 'b' }] });
+    expect(byName['extras']).toMatchObject({ kind: 'choices', options: [{ value: 'x', label: 'x' }, { value: 'y', label: 'Why' }] });
+  });
+
+  it('keeps the order the server declared', () => {
+    expect(inputFields(schema).map((field) => field.name)).toEqual(['name', 'age', 'score', 'agree', 'color', 'size', 'tags', 'extras']);
+  });
+
+  it('reads nothing it does not understand as a field', () => {
+    expect(inputFields(null)).toEqual([]);
+    expect(inputFields('x')).toEqual([]);
+    expect(inputFields({ type: 'object' })).toEqual([]);
+    expect(inputFields({ properties: [] })).toEqual([]);
+  });
+
+  it('shows a property it cannot classify as a text field instead of dropping it', () => {
+    expect(inputFields({ properties: { odd: {}, other: { type: 'object' } } }).map((field) => field.kind)).toEqual(['string', 'string']);
+  });
+});
+
+describe('applyToolInputs', () => {
+  const announcement = {
+    requestId: 'req-1',
+    toolName: 'srv_ask',
+    serverName: 'srv',
+    message: 'What is your name?',
+    requestedSchema: { properties: { name: { type: 'string' } }, required: ['name'] },
+  };
+
+  it('adds a card for the request with the fields read from its schema', () => {
+    const state = applyToolInputs(emptyTranscript, [announcement]);
+
+    expect(state.items).toHaveLength(1);
+    expect(state.items[0]).toMatchObject({
+      kind: 'input',
+      requestId: 'req-1',
+      serverName: 'srv',
+      toolName: 'srv_ask',
+      message: 'What is your name?',
+      answered: null,
+    });
+    expect(state.items[0]).toMatchObject({ fields: [{ name: 'name', required: true }] });
+  });
+
+  it('does not add the same request twice', () => {
+    const once = applyToolInputs(emptyTranscript, [announcement]);
+
+    expect(applyToolInputs(once, [announcement])).toBe(once);
+  });
+
+  it('adds nothing for an empty frame and returns the same state', () => {
+    expect(applyToolInputs(emptyTranscript, [])).toBe(emptyTranscript);
+  });
+
+  it('puts the card after what the turn already said', () => {
+    let state = foldUpdate(emptyTranscript, { contents: [{ $type: 'text', text: 'One moment' }] });
+
+    state = applyToolInputs(state, [announcement]);
+
+    expect(state.items.map((item) => item.kind)).toEqual(['text', 'input']);
   });
 });

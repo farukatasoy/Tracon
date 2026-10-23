@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { prettyJson } from '../lib/format';
 import { useT } from '../lib/i18n';
-import type { TranscriptItem } from '../lib/transcript';
-import { Badge, CodeBlock, cx } from './ui';
+import type { InputField, TranscriptItem } from '../lib/transcript';
+import { Badge, CodeBlock, cx, Field, Select, TextInput } from './ui';
 import { CheckIcon, ChevronIcon, CrossIcon, SpinnerIcon } from './icons';
 
 /**
@@ -15,6 +15,7 @@ export function TranscriptView({
   items,
   streaming,
   onDecide,
+  onAnswer,
 }: {
   items: readonly TranscriptItem[];
   streaming?: boolean;
@@ -24,6 +25,11 @@ export function TranscriptView({
    * turn can no longer be continued.
    */
   onDecide?: (requestId: string, approved: boolean, remember: boolean) => void;
+  /**
+   * Called when the user answers a tool's request for input. Absent for the same
+   * reason as `onDecide`.
+   */
+  onAnswer?: (requestId: string, action: InputAction, content: Record<string, unknown> | null) => void;
 }): ReactNode {
   return (
     <div className="flex flex-col gap-2.5">
@@ -76,6 +82,9 @@ export function TranscriptView({
 
           case 'approval':
             return <ApprovalCard key={item.id} item={item} onDecide={onDecide} />;
+
+          case 'input':
+            return <InputCard key={item.id} item={item} onAnswer={onAnswer} />;
 
           case 'tool':
             return <ToolCard key={item.id} item={item} />;
@@ -214,6 +223,271 @@ function ApprovalCard({
       </div>
     </div>
   );
+}
+
+/** What the user did with a tool's request for input; the words the server's API takes. */
+export type InputAction = 'Accept' | 'Decline' | 'Cancel';
+
+type FieldValue = string | boolean | string[];
+
+/**
+ * A tool's request for input.
+ *
+ * An MCP server asked the user for information in the middle of a tool call. The run
+ * has already ended: the answer is carried as the input of the next turn, and the
+ * tool call then runs again with it. The card says where the information goes, because
+ * the server belongs to a third party and the user is about to hand it something.
+ */
+function InputCard({
+  item,
+  onAnswer,
+}: {
+  item: Extract<TranscriptItem, { kind: 'input' }>;
+  onAnswer?: (requestId: string, action: InputAction, content: Record<string, unknown> | null) => void;
+}): ReactNode {
+  const t = useT();
+  const [values, setValues] = useState<Record<string, FieldValue>>({});
+  const open = item.answered === null && onAnswer !== undefined;
+
+  const set = (name: string, value: FieldValue): void => setValues((current) => ({ ...current, [name]: value }));
+
+  const missing = item.fields.some((field) => field.required && isBlank(field, values[field.name]));
+
+  const answer = (action: InputAction, content: Record<string, unknown> | null): void =>
+    onAnswer?.(item.requestId, action, content);
+
+  const submit = (): void => {
+    if (missing) {
+      return;
+    }
+
+    answer('Accept', contentOf(item.fields, values));
+  };
+
+  return (
+    <div
+      data-testid="input-card"
+      className="overflow-hidden rounded-md border border-line bg-panel"
+      style={{ borderLeft: '2px solid var(--tracon-warn)' }}
+    >
+      <div className="flex items-center gap-2 px-3 py-2">
+        <span className="flex flex-col">
+          <span className="text-sm font-medium">{item.serverName}</span>
+          <span className="font-mono text-2xs text-subtle">{item.toolName}</span>
+        </span>
+        {item.answered === null ? (
+          <Badge tone="warn">{t('transcript.inputRequested')}</Badge>
+        ) : item.answered === 'accepted' ? (
+          <Badge tone="success">
+            <CheckIcon className="size-3" />
+            {t('transcript.inputAccepted')}
+          </Badge>
+        ) : (
+          <Badge tone="danger">
+            <CrossIcon className="size-3" />
+            {item.answered === 'declined' ? t('transcript.inputDeclined') : t('transcript.inputCancelled')}
+          </Badge>
+        )}
+      </div>
+
+      <form
+        className="flex flex-col gap-2.5 border-t border-line px-3 py-2.5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <p className="text-sm whitespace-pre-wrap">{item.message}</p>
+        <p className="text-xs text-subtle">{t('transcript.inputGoesTo', { server: item.serverName })}</p>
+
+        {item.fields.length > 0 && (
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {item.fields.map((field) => (
+              <InputFieldControl
+                key={field.name}
+                field={field}
+                value={values[field.name]}
+                disabled={!open}
+                onChange={(value) => set(field.name, value)}
+              />
+            ))}
+          </div>
+        )}
+
+        {open && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="submit"
+              data-testid="input-submit"
+              disabled={missing}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-transparent bg-accent px-3 text-sm font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-50"
+            >
+              <CheckIcon className="size-3" />
+              {t('transcript.inputSubmit')}
+            </button>
+
+            <button
+              type="button"
+              data-testid="input-decline"
+              onClick={() => answer('Decline', null)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line px-3 text-sm font-medium text-danger hover:bg-danger-soft"
+            >
+              <CrossIcon className="size-3" />
+              {t('transcript.inputDecline')}
+            </button>
+
+            <button
+              type="button"
+              data-testid="input-cancel"
+              onClick={() => answer('Cancel', null)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line px-3 text-sm font-medium text-muted hover:bg-raised"
+            >
+              {t('transcript.inputCancel')}
+            </button>
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}
+
+function InputFieldControl({
+  field,
+  value,
+  disabled,
+  onChange,
+}: {
+  field: InputField;
+  value: FieldValue | undefined;
+  disabled: boolean;
+  onChange: (value: FieldValue) => void;
+}): ReactNode {
+  const t = useT();
+  const testId = `input-field-${field.name}`;
+
+  if (field.kind === 'boolean') {
+    return (
+      <Field label={field.label} hint={field.description ?? undefined}>
+        <input
+          type="checkbox"
+          data-testid={testId}
+          checked={value === true}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.checked)}
+          className="size-4"
+        />
+      </Field>
+    );
+  }
+
+  if (field.kind === 'choice') {
+    return (
+      <Field label={field.label} hint={field.description ?? undefined} required={field.required}>
+        {(ids) => (
+          <Select
+            {...ids}
+            testId={testId}
+            value={typeof value === 'string' ? value : ''}
+            disabled={disabled}
+            onChange={onChange}
+          >
+            <option value="">{t('transcript.inputChoose')}</option>
+            {field.options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+    );
+  }
+
+  if (field.kind === 'choices') {
+    const chosen = Array.isArray(value) ? value : [];
+
+    return (
+      <fieldset data-testid={testId} className="flex flex-col gap-1">
+        <legend className="mb-1 flex items-baseline gap-1.5 text-xs font-medium text-muted">
+          {field.label}
+          {field.required && <span className="text-danger">*</span>}
+        </legend>
+        {field.options.map((option) => (
+          <label key={option.value} className="flex items-center gap-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={chosen.includes(option.value)}
+              disabled={disabled}
+              onChange={(event) =>
+                onChange(event.target.checked ? [...chosen, option.value] : chosen.filter((entry) => entry !== option.value))
+              }
+            />
+            {option.label}
+          </label>
+        ))}
+        {field.description !== null && <span className="text-xs text-subtle">{field.description}</span>}
+      </fieldset>
+    );
+  }
+
+  const numeric = field.kind === 'number' || field.kind === 'integer';
+
+  return (
+    <Field label={field.label} hint={field.description ?? undefined} required={field.required}>
+      {(ids) => (
+        <TextInput
+          {...ids}
+          data-testid={testId}
+          type={numeric ? 'number' : 'text'}
+          step={field.kind === 'integer' ? 1 : numeric ? 'any' : undefined}
+          min={field.minimum ?? undefined}
+          max={field.maximum ?? undefined}
+          minLength={field.minLength ?? undefined}
+          maxLength={field.maxLength ?? undefined}
+          required={field.required}
+          disabled={disabled}
+          value={typeof value === 'string' ? value : ''}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+    </Field>
+  );
+}
+
+/** Whether a field still has nothing the server could read as a value. */
+function isBlank(field: InputField, value: FieldValue | undefined): boolean {
+  switch (field.kind) {
+    case 'boolean':
+      // An unchecked box is a value (false); a required boolean is never "missing".
+      return false;
+
+    case 'choices':
+      return !Array.isArray(value) || value.length === 0;
+
+    default:
+      return typeof value !== 'string' || value.trim().length === 0;
+  }
+}
+
+/**
+ * The values to send: only fields that have one, numbers as numbers, a checkbox as
+ * a boolean. An optional field left empty is left out, not sent empty.
+ */
+function contentOf(fields: readonly InputField[], values: Record<string, FieldValue>): Record<string, unknown> {
+  const content: Record<string, unknown> = {};
+
+  for (const field of fields) {
+    const value = values[field.name];
+
+    if (field.kind === 'boolean') {
+      content[field.name] = value === true;
+    } else if (!isBlank(field, value)) {
+      content[field.name] =
+        field.kind === 'number' || field.kind === 'integer' ? Number(value) : field.kind === 'choices' ? value : String(value).trim();
+    }
+  }
+
+  return content;
 }
 
 function ToolCard({ item }: { item: Extract<TranscriptItem, { kind: 'tool' }> }): ReactNode {

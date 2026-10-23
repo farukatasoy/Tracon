@@ -186,7 +186,13 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
           ) : (
             <div className="flex flex-col gap-6">
               {play.turns.map((turn) => (
-                <TurnView key={turn.id} turn={turn} onDecide={play.decide} sessionId={play.sessionId} />
+                <TurnView
+                  key={turn.id}
+                  turn={turn}
+                  onDecide={play.decide}
+                  onAnswer={play.answerInput}
+                  sessionId={play.sessionId}
+                />
               ))}
             </div>
           )}

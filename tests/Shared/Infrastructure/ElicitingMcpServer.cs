@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
+namespace Tracon.Tests.Shared;
 
 /// <summary>
 /// A real MCP server on loopback whose tools ask the user for input in the middle of a call
