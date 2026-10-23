@@ -7,42 +7,42 @@
 #   degerlendirilmedi  karar, aday veya keşif defterinde iz yok
 # Güncelleme: python3 scripts/maf-paket-envanteri.py --guncelle, sonra yeni satırı ELLE doldur.
 Microsoft.Agents.AI	ga	kullaniliyor	
-Microsoft.Agents.AI.A2A	preview	degerlendirilmedi	A2A istemci (A2AAgent); F-485 sunucu tarafıdır
+Microsoft.Agents.AI.A2A	preview	karar	C-19 a (MAF-KAPSAMA §8.3): A2AClient.AsAIAgent + AddAgent(name, factory) bugün K2, rehberde (2026-10-21); veriyle tanım F-631 tetik bekler (K5-6)
 Microsoft.Agents.AI.Abstractions	ga	kullaniliyor	
 Microsoft.Agents.AI.AgentHooks	alpha	karar	F-141: enforcement sözleşmesi; FunctionInvokingChatClient'lı client'ı reddeder; native FFI
-Microsoft.Agents.AI.AGUI	preview	degerlendirilmedi	
-Microsoft.Agents.AI.Anthropic	ga	degerlendirilmedi	Tracon.Anthropic Anthropic SDK'sını doğrudan kullanır
+Microsoft.Agents.AI.AGUI	preview	karar	C-15 b: Tracon sunucu tarafıdır; istemci (AGUIChatClient) tüketicinindir. Uç Faz 236 (F-616, Tracon.AGUI), MAF paketiyle değil kararlı AGUI.Server ile (§0 #37)
+Microsoft.Agents.AI.Anthropic	ga	karar	MAF-KAPSAMA §5.10 Koru: yalnız iki kısayol tipi; Tracon.Anthropic Anthropic SDK'sını doğrudan kullanır
 Microsoft.Agents.AI.AzureAI	rc	karar	K-212
 Microsoft.Agents.AI.AzureAI.Persistent	preview	karar	K-212 (Foundry ailesi; Persistent açıkça anılmadı)
-Microsoft.Agents.AI.CopilotStudio	preview	degerlendirilmedi	
-Microsoft.Agents.AI.CosmosNoSql	preview	degerlendirilmedi	Tracon'un SQL store'ları var
-Microsoft.Agents.AI.Declarative	rc	degerlendirilmedi	YAML prompt agent; K-129 yalnız workflow tarafını anar
+Microsoft.Agents.AI.CopilotStudio	preview	karar	C-19 c (§8.3): bir AIAgent'tır, fabrika agent'ı deseniyle takılır (okuma, ölçülmedi); ayrı iş talep ister
+Microsoft.Agents.AI.CosmosNoSql	preview	karar	MAF-KAPSAMA §5.2 Koru: Tracon'un SQL store'ları var; DI'daki ChatHistoryProvider ile K1
+Microsoft.Agents.AI.Declarative	rc	karar	C-21 a: YAML agent içe/dışa aktarma F-632 tetik bekler (K5-7: yeri Tracon.Cli komutu)
 Microsoft.Agents.AI.DevUI	preview	karar	docs/MIMARI.md:35: Tracon'un kendi konsolu var
 Microsoft.Agents.AI.DurableTask	preview	karar	K-778: iş kuyruğu Tracon'un, workflow içi dayanıklılık MAF'ın
 Microsoft.Agents.AI.Foundry	preview	karar	K-212: koşul doğrulanabilirlik (2026-10-20); tip düzeyinde karşılanıyor, D-08
 Microsoft.Agents.AI.Foundry.Hosting	preview	karar	K-212
 Microsoft.Agents.AI.FoundryMemory	preview	karar	K-212
-Microsoft.Agents.AI.GitHub.Copilot	ga	degerlendirilmedi	keşif 2026-08-26'da anıldı, karar yok
+Microsoft.Agents.AI.GitHub.Copilot	ga	karar	C-19 c (§8.3): fabrika agent'ı deseni (okuma, ölçülmedi); CopilotClient yerel süreç başlatır (K-058 sınıfı); talep
 Microsoft.Agents.AI.Harness	ga	kullaniliyor	
 Microsoft.Agents.AI.Hosting	preview	referans-yalniz	K-008; src/ tip çağırmaz
 Microsoft.Agents.AI.Hosting.A2A	preview	kullaniliyor	K-008, K-103
-Microsoft.Agents.AI.Hosting.A2A.AspNetCore	preview	degerlendirilmedi	Tracon uç haritalamayı A2A.AspNetCore SDK'sıyla yapar
-Microsoft.Agents.AI.Hosting.AGUI.AspNetCore	preview	degerlendirilmedi	
+Microsoft.Agents.AI.Hosting.A2A.AspNetCore	preview	karar	C-15 c (§8.2): MAF ucu değer katmaz; Tracon A2A SDK ile JSON-RPC bağlamasını sunar; HTTP+JSON F-660 tetik bekler
+Microsoft.Agents.AI.Hosting.AGUI.AspNetCore	preview	karar	C-15 b, MAF-KAPSAMA §0 #37: MapAGUIServer Tracon altında çalışmaz; Tracon ucu Faz 236 (F-616)
 Microsoft.Agents.AI.Hosting.AspNetCore	preview	referans-yalniz	K-008; src/ tip çağırmaz
 Microsoft.Agents.AI.Hosting.AzureFunctions	preview	karar	K-778
-Microsoft.Agents.AI.Hosting.AzureStorage	preview	degerlendirilmedi	
+Microsoft.Agents.AI.Hosting.AzureStorage	preview	karar	MAF-KAPSAMA §5.9 Koru: blob session store; Tracon'un session store'u var, talep yok
 Microsoft.Agents.AI.Hosting.OpenAI	alpha	kullaniliyor	K-008: ön sürüm yalnız Tracon.AspNetCore'da
 Microsoft.Agents.AI.Hyperlight	preview	karar	F-169: native RID yalnız win-x64 ve linux-x64 (0.6.0'da yeniden ölçüldü, 2026-10-17)
 Microsoft.Agents.AI.LocalCodeAct	preview	karar	F-169
-Microsoft.Agents.AI.Mcp	alpha	degerlendirilmedi	MCP skill kaynağı + task istemcisi; tool yolu ModelContextProtocol.Core (K-057)
+Microsoft.Agents.AI.Mcp	alpha	karar	C-14 c: MCP skill kaynağı F-618 (paket yeri 👤, K-008); task istemcisi F-658 tetik bekler; tool yolu ModelContextProtocol.Core (K-057)
 Microsoft.Agents.AI.OpenAI	ga	kullaniliyor	
-Microsoft.Agents.AI.ProjectTemplates	preview	degerlendirilmedi	dotnet new şablonu; Tracon kendi Tracon.Templates'ine sahip
-Microsoft.Agents.AI.Purview	rc	degerlendirilmedi	
-Microsoft.Agents.AI.Tools.Shell	preview	degerlendirilmedi	skill script'leri için Tracon'un kendi sandbox'ı var (Faz 11)
-Microsoft.Agents.AI.Valkey	alpha	degerlendirilmedi	
+Microsoft.Agents.AI.ProjectTemplates	preview	karar	dotnet new şablonu; Tracon'un kendi şablonu var (Tracon.Templates), MAF şablonu Tracon'a bağlanmaz
+Microsoft.Agents.AI.Purview	rc	karar	C-20: agent katmanı rehberde (2026-10-21); uydu Tracon.Purview F-633 tetik bekler (K5-8)
+Microsoft.Agents.AI.Tools.Shell	preview	karar	C-13 b: stateless DockerShellExecutor AddTool ile rehberde (2026-10-21); kalıcı mod F-636 tetik bekler; LocalShellExecutor ret
+Microsoft.Agents.AI.Valkey	alpha	karar	MAF-KAPSAMA §5.2 Koru: Tracon'un SQL store'ları var; DI'daki ChatHistoryProvider ile K1
 Microsoft.Agents.AI.Workflows	ga	kullaniliyor	
 Microsoft.Agents.AI.Workflows.Declarative	ga	karar	K-129: Responses API şartı sürüyor (1.25.0'da ölçüldü 2026-10-20: tek somut ResponseAgentProvider Azure'da)
 Microsoft.Agents.AI.Workflows.Declarative.AzureAI	rc	karar	K-129, K-212
 Microsoft.Agents.AI.Workflows.Declarative.Foundry	preview	karar	K-129, K-212
 Microsoft.Agents.AI.Workflows.Declarative.Mcp	ga	karar	K-129
-Microsoft.Agents.AI.Workflows.Generators	ga	degerlendirilmedi	analyzer; [MessageHandler] yolu için
+Microsoft.Agents.AI.Workflows.Generators	ga	karar	MAF-KAPSAMA §5.8: analyzer'ı tüketici paketi kendisi ekler ([MessageHandler] yolu); G-05 rehberde

@@ -22,7 +22,7 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.1	❌	✓	`EnableInvocableFunctionBypassing` (MAAI001) · `DisableApproval*` · MEAI `UseInvocableFunctionBypassing`/`UseApproval*`	EnableInvocableFunctionBypassing	-	-
 5.1	❌	✗	`AgentRunContext` · `AIAgent.CurrentRunContext`	AIAgent	AIAgent	AIAgent
 5.1	❌	~	Background responses: `AllowBackgroundResponses` · `ContinuationToken` · MEAI `ResponseContinuationToken`	AllowBackgroundResponses ContinuationToken	AllowBackgroundResponses	-
-5.1	❌	✗	`AgentRequestMessageSourceAttribution`/`Type` · `WithAgentRequestMessageSource`	AgentRequestMessageSourceAttribution Type	Type WithAgentRequestMessageSource	Type
+5.1	🟡	✗	`AgentRequestMessageSourceAttribution`/`Type` · `WithAgentRequestMessageSource` · `GetAgentRequestMessageSourceType`	AgentRequestMessageSourceAttribution GetAgentRequestMessageSourceType Type	Type WithAgentRequestMessageSource	Type
 5.1	❌	✗	`LoggingAgent` · `UseLogging`	-	-	-
 5.1	❌	✓	`FeatureUsage` · `AIAgentMetadata`	-	-	-
 5.1	🟡	✓	`IsolationKeyScopedAgentSessionStore` · `AgentIsolationKeyProvider` · `ClaimsIdentityAgentIsolationKeyProvider` · `DelegatingAgentSessionStore` · `InMemory/NoopAgentSessionStore`	AgentIsolationKeyProvider DelegatingAgentSessionStore	AgentIsolationKeyProvider DelegatingAgentSessionStore InMemory IsolationKeyScopedAgentSessionStore	-
