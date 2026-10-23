@@ -5,20 +5,25 @@ import { hasMissingRequiredParameter } from '../../components/parameter-inputs';
 import { readSse } from '@tracon/client';
 import {
   applyApprovalPresentations,
+  applyToolInputs,
   emptyTranscript,
   foldMessages,
   foldUpdate,
   type ApprovalPresentationAnnouncement,
+  type ToolInputAnnouncement,
   type TranscriptState,
 } from '../../lib/transcript';
+import type { InputAction } from '../../components/transcript';
 import { useNavigate, useSearchParams } from '../../lib/router';
 import type { ChatMessage, SessionDetailResponse } from '@tracon/client';
 import type { AgentDescriptor, AgentDetailResponse, AttachmentDescriptor, ConversationResource } from '../../lib/server-types';
 
 export interface Turn {
   id: string;
-  /** Null for a turn that only carries an approval decision. */
+  /** Null for a turn that only carries an approval decision or the answer to a tool's request for input. */
   prompt: string | null;
+  /** What a turn without a prompt carries; `null` for a turn that has one. */
+  carries: 'approval' | 'input' | null;
   attachments: AttachmentDescriptor[];
   runId: string | null;
   transcript: TranscriptState;
@@ -30,6 +35,13 @@ export interface Decision {
   requestId: string;
   approved: boolean;
   remember: boolean;
+}
+
+/** The user's answer to a tool's request for input (MCP elicitation). */
+export interface InputAnswer {
+  requestId: string;
+  action: InputAction;
+  content: Record<string, unknown> | null;
 }
 
 /**
@@ -161,8 +173,13 @@ export function usePlaygroundRun(
   }, [urlSessionId, navigate, selected, attachments, setSessionId]);
 
   const run = useCallback(
-    async (message: string | null, decision: Decision | null, runAttachments: AttachmentDescriptor[]) => {
-      if ((message === null && decision === null) || selected.length === 0 || busy) {
+    async (
+      message: string | null,
+      decision: Decision | null,
+      runAttachments: AttachmentDescriptor[],
+      answer: InputAnswer | null = null,
+    ) => {
+      if ((message === null && decision === null && answer === null) || selected.length === 0 || busy) {
         return;
       }
 
@@ -176,6 +193,7 @@ export function usePlaygroundRun(
         {
           id: turnId,
           prompt: message,
+          carries: message !== null ? null : answer !== null ? 'input' : 'approval',
           attachments: runAttachments,
           runId: null,
           transcript: emptyTranscript,
@@ -222,6 +240,18 @@ export function usePlaygroundRun(
               decision === null
                 ? []
                 : [{ requestId: decision.requestId, approved: decision.approved, remember: decision.remember }],
+            // The answer to a tool's request for input is the input of the next turn too:
+            // the tool call runs again from its start with it.
+            inputResponses:
+              answer === null
+                ? []
+                : [
+                    {
+                      requestId: answer.requestId,
+                      action: answer.action,
+                      ...(answer.content === null ? {} : { content: answer.content }),
+                    },
+                  ],
           }),
           signal: controller.signal,
         });
@@ -247,6 +277,14 @@ export function usePlaygroundRun(
             const payload = JSON.parse(frame.data) as ApprovalPresentationAnnouncement[];
 
             update((turn) => ({ ...turn, transcript: applyApprovalPresentations(turn.transcript, payload) }));
+
+            continue;
+          }
+
+          if (frame.event === 'inputs') {
+            const payload = JSON.parse(frame.data) as ToolInputAnnouncement[];
+
+            update((turn) => ({ ...turn, transcript: applyToolInputs(turn.transcript, payload) }));
 
             continue;
           }
@@ -338,6 +376,37 @@ export function usePlaygroundRun(
   );
 
   /**
+   * Answers a tool's request for input.
+   *
+   * Marked immediately, like an approval, so the same request cannot be answered twice;
+   * then a new turn is started carrying the answer.
+   */
+  const answerInput = useCallback(
+    (requestId: string, action: InputAction, content: Record<string, unknown> | null) => {
+      setTurns((current) =>
+        current.map((turn) => ({
+          ...turn,
+          transcript: {
+            ...turn.transcript,
+            items: turn.transcript.items.map((item) =>
+              item.kind === 'input' && item.requestId === requestId
+                ? {
+                    ...item,
+                    answered:
+                      action === 'Accept' ? ('accepted' as const) : action === 'Decline' ? ('declined' as const) : ('cancelled' as const),
+                  }
+                : item,
+            ),
+          },
+        })),
+      );
+
+      void run(null, null, [], { requestId, action, content });
+    },
+    [run],
+  );
+
+  /**
    * Turns conversation mode on.
    *
    * A session identifier is reserved first: the conversation socket runs
@@ -384,6 +453,7 @@ export function usePlaygroundRun(
     reset,
     send,
     decide,
+    answerInput,
     openConversation,
   };
 }

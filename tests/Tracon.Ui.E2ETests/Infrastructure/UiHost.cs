@@ -36,6 +36,9 @@ internal static class ScriptedModels
 
     /// <summary>Model for the "fulfilment" code agent: calls a tool that always throws, so a run really fails.</summary>
     public const string Failing = "scripted-failing";
+
+    /// <summary>Model of the agent a test saves for an MCP server that asks the user for input: calls the server's tool, then echoes its result (Phase 235).</summary>
+    public const string Elicit = "scripted-elicit";
 }
 
 /// <summary>
@@ -131,6 +134,9 @@ internal sealed class UiHost : IAsyncDisposable
                 .EchoesLastToolResult())
             .ForModel(ScriptedModels.Failing, cfg => cfg
                 .CallsTool("reserve_stock", new { orderId = "ORD-9" })
+                .EchoesLastToolResult())
+            .ForModel(ScriptedModels.Elicit, cfg => cfg
+                .CallsTool("elicit_ask_name")
                 .EchoesLastToolResult());
 
         // Voice endpoints need only these abstractions; there is NO reference

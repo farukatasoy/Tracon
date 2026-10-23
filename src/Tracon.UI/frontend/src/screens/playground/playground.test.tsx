@@ -151,6 +151,152 @@ describe('PlaygroundScreen', () => {
     expect(screen.getByText('delete_skill')).toBeTruthy();
   });
 
+  describe('a tool asks for input', () => {
+    const inputs = sseFrame('inputs', [
+      {
+        requestId: 'req-9',
+        toolName: 'srv_ask_name',
+        serverName: 'srv',
+        message: 'What is your name?',
+        requestedSchema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', title: 'Name', minLength: 1 },
+            age: { type: 'integer', title: 'Age' },
+            agree: { type: 'boolean', title: 'Agree' },
+            color: { type: 'string', title: 'Color', enum: ['red', 'green'], enumNames: ['Red', 'Green'] },
+          },
+          required: ['name'],
+        },
+      },
+    ]);
+
+    /** First run suspends at the request; the next one (the answer) replies. Records the body of each. */
+    function inputRun(bodies: unknown[]): ReturnType<typeof fixture> {
+      return {
+        method: 'POST',
+        pattern: 'api/agents/:name/run',
+        handler: (_params, _url, body) => {
+          bodies.push(body);
+
+          return sseResponse(
+            bodies.length === 1
+              ? sseFrame('run', { runId: 'run-1' }) +
+                  sseFrame('update', { contents: [{ $type: 'text', text: 'One moment' }] }) +
+                  inputs +
+                  sseFrame('done', {})
+              : sseFrame('run', { runId: 'run-2' }) +
+                  sseFrame('update', { contents: [{ $type: 'text', text: 'hello Ada' }] }) +
+                  sseFrame('done', {}),
+          );
+        },
+      };
+    }
+
+    it('shows a form made from the requested fields and says where the answer goes', async () => {
+      restoreFetch = installApiMock([...baseOverrides(), inputRun([])]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<PlaygroundScreen />);
+
+      await user.type(await screen.findByTestId('playground-input'), 'greet me');
+      await user.click(screen.getByTestId('playground-send'));
+
+      const card = await screen.findByTestId('input-card');
+
+      expect(card.textContent).toContain('What is your name?');
+      expect(card.textContent).toContain('This information goes to the “srv” server.');
+      expect(screen.getByTestId('input-field-name')).toBeTruthy();
+      expect(screen.getByTestId('input-field-age')).toBeTruthy();
+      expect(screen.getByTestId('input-field-agree')).toBeTruthy();
+      expect(screen.getByTestId('input-field-color').querySelectorAll('option')).toHaveLength(3);
+
+      // A required field with no value blocks the send, so a refusal never starts a round trip.
+      expect((screen.getByTestId('input-submit') as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('sends the values as the next turn of the same session and shows the reply', async () => {
+      const bodies: unknown[] = [];
+
+      restoreFetch = installApiMock([...baseOverrides(), inputRun(bodies)]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<PlaygroundScreen />);
+
+      await user.type(await screen.findByTestId('playground-input'), 'greet me');
+      await user.click(screen.getByTestId('playground-send'));
+
+      await user.type(await screen.findByTestId('input-field-name'), 'Ada');
+      await user.type(screen.getByTestId('input-field-age'), '36');
+      await user.click(screen.getByTestId('input-field-agree'));
+      await user.selectOptions(screen.getByTestId('input-field-color'), 'green');
+
+      expect((screen.getByTestId('input-submit') as HTMLButtonElement).disabled).toBe(false);
+
+      await user.click(screen.getByTestId('input-submit'));
+
+      expect(await screen.findByText('hello Ada')).toBeTruthy();
+
+      // The card marks itself answered at once, so it cannot be answered twice.
+      expect(screen.queryByTestId('input-submit')).toBeNull();
+
+      const answer = bodies[1] as { sessionId: string; message: unknown; inputResponses: unknown[] };
+
+      expect(answer.sessionId).toBe('session-1');
+      expect(answer.message).toBeNull();
+      expect(answer.inputResponses).toEqual([
+        { requestId: 'req-9', action: 'Accept', content: { name: 'Ada', age: 36, agree: true, color: 'green' } },
+      ]);
+    });
+
+    it('leaves an optional field out instead of sending it empty', async () => {
+      const bodies: unknown[] = [];
+
+      restoreFetch = installApiMock([...baseOverrides(), inputRun(bodies)]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<PlaygroundScreen />);
+
+      await user.type(await screen.findByTestId('playground-input'), 'greet me');
+      await user.click(screen.getByTestId('playground-send'));
+      await user.type(await screen.findByTestId('input-field-name'), 'Ada');
+      await user.click(screen.getByTestId('input-submit'));
+
+      await screen.findByText('hello Ada');
+
+      const answer = bodies[1] as { inputResponses: { content: Record<string, unknown> }[] };
+
+      // The unchecked box is a value (false); the empty number and the unset choice are not.
+      expect(answer.inputResponses[0]?.content).toEqual({ name: 'Ada', agree: false });
+    });
+
+    it.each([
+      ['input-decline', 'Decline'],
+      ['input-cancel', 'Cancel'],
+    ])('sends %s as a refusal with no fields', async (testId, action) => {
+      const bodies: unknown[] = [];
+
+      restoreFetch = installApiMock([...baseOverrides(), inputRun(bodies)]);
+
+      const user = userEvent.setup();
+
+      renderScreen(<PlaygroundScreen />);
+
+      await user.type(await screen.findByTestId('playground-input'), 'greet me');
+      await user.click(screen.getByTestId('playground-send'));
+      await user.click(await screen.findByTestId(testId));
+
+      await screen.findByText('hello Ada');
+
+      const answer = bodies[1] as { inputResponses: unknown[] };
+
+      expect(answer.inputResponses).toEqual([{ requestId: 'req-9', action }]);
+    });
+  });
+
   it('adds and then clears a pending attachment', async () => {
     restoreFetch = installApiMock([
       ...baseOverrides(),
