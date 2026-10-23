@@ -6,7 +6,7 @@
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-616** (ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #37, §8.2 C-15 b; [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md))
 > **Genellik:** AG-UI ön yüzü (CopilotKit gibi) kullanan her ekip. AG-UI bir ekosistem standardıdır ve MAF onu birinci sınıf entegrasyon olarak sunar (ikinci kanıt). Tüketici kodunda kalamaz: ucu yazan, Tracon'un onay, istemci tool'u, oturum sahipliği ve run kaydı sözleşmesini yeniden kurmak zorunda kalır; MAF'ın kendi ucu Tracon altında çalışmaz (§0 #37).
 > **Karşı görüş:** "Tracon'un gömülebilir sohbet aracı ve TS istemcisi aynı işi görür; AG-UI talebi ölçülmedi." Cevap: gömülebilir araç Tracon'un kendi ön yüzüdür; AG-UI ekibin **kendi** ön yüzünü (CopilotKit, özel React) Tracon'a bağlamasını sağlar. Değer ekosistem standardına bağlıdır ve bu fazın maliyeti ayrı pakette kalır: AG-UI kullanmayan tüketicinin grafiği değişmez.
-> **Önkoşul:** [Faz 235](235-MCP-ELICITATION.md) — yalnız `input_required` kesintisi dilimi için (§236.5). Geri kalan iş bağımsızdır; 235 kapanmadıysa o dilim F-ID olur
+> **Önkoşul:** Faz 235 — yalnız `input_required` kesintisi dilimi için (§236.5). Geri kalan iş bağımsızdır; 235 kapanmadıysa o dilim F-ID olur
 > **Paketler:** `Tracon.AGUI` (yeni) · `Tracon.AspNetCore` (iç tur servisi; `InternalsVisibleTo`) · `Tracon.Client` (değişmez; AG-UI istemcisi AG-UI'nin kendi SDK'sıdır)
 > **Yeni paket:** `Tracon.AGUI` — K-007 gerekçesi: `AGUI.Server` 1.0.1 (MIT, yayıncı "AG-UI Protocol", Microsoft değil) + `AGUI.Abstractions` 1.0.1 → **+2 paket**; ikinci bağımlılığı `Microsoft.Extensions.AI.Abstractions` ≥ 10.6.0 (Tracon 10.11.0'da). Ayrı paket: `Tracon.AspNetCore` tüketicisinin grafiği kirlenmez. Upstream kararlıdır → ailede tek hatta çıkar (K-602); uydu hattı (K-1037) gerekmez. Meta pakete (`src/Tracon/Tracon.csproj`) **girmez**: `Tracon.Voice` ve sağlayıcı paketleri gibi isteğe bağlıdır (`yeni-paket.md` kontrol listesinden bilerek sapma) · **Migration:** Yok
 > **Public API:** büyüyor — `Tracon.AGUI` paketinin uzantıları ve seçenek tipi. `Tracon.AspNetCore` public yüzeyi büyümez (iç servis). `1.0.0` GA'dan (K-603) önce ucuz: `PublicAPI.Shipped.txt` toplamı 17 satır (2026-10-22)
@@ -26,7 +26,7 @@
    grep -n "K-007 —\|K-602 —\|K-1039 —\|K-103 —\|K-061 —\|K-089 —\|K-370 —" docs/KARARLAR.md
    ```
    **K-007** (yeni NuGet bağımlılığı gerekçe ister), **K-602** (tek sürüm hattı), **K-1039** (run başına `ChatOptions` kuralı; çalışan vekil tool'u reddeder), **K-103** (onay = sonraki turun girdisi), **K-061** ("Hatırla" kuralı Tracon deposunda), **K-089** ve **K-370** (onay kararı denetim satırından önce uygulanmaz)
-3. Önceki fazdan devir: [Faz 235](235-MCP-ELICITATION.md) kapanış devri (`ToolInputResponse` sözleşmesi, `input_required` yükü)
+3. Önceki fazdan devir: Faz 235 kapanış devri (`ToolInputResponse` sözleşmesi, `input_required` yükü)
 4. Alan hafızası: [`hafiza/a2a-konusma.md`](hafiza/a2a-konusma.md) (Faz 229: protokol oturumu ↔ Tracon oturumu, çağıran izolasyonu), [`hafiza/http-uc-guvenlik-ve-sozlesme.md`](hafiza/http-uc-guvenlik-ve-sozlesme.md), [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) (yeni paket), [`hafiza/aspnetcore-json.md`](hafiza/aspnetcore-json.md) (olay serileştirme)
 5. Gerektiğinde: [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) oturum sahipliği bölümü; `nuget-danismani` skill'i (tedarik zinciri onayı, §236.6)
 
