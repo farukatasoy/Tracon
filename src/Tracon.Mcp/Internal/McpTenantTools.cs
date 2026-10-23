@@ -280,7 +280,10 @@ internal sealed class McpTenantTools
     /// </remarks>
     private static string DefinitionHash(AIFunctionDeclaration function)
     {
-        var definition = function is McpClientTool remote
+        // The elicitation wrapper (Phase 235) is not part of what the server said: hash the tool inside it.
+        var embedded = function is McpElicitingTool eliciting ? eliciting.Remote : function;
+
+        var definition = embedded is McpClientTool remote
             ? JsonSerializer.SerializeToUtf8Bytes(remote.ProtocolTool, McpJsonUtilities.DefaultOptions.GetTypeInfo(typeof(Tool)))
             : Encoding.UTF8.GetBytes(string.Join(
                 '\n',

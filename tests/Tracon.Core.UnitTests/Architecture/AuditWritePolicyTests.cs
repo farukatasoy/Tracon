@@ -34,9 +34,10 @@ public sealed class AuditWritePolicyTests
 
     /// <summary>
     /// The fail-closed operations: the file each one lives in, and every action name it
-    /// writes. This list IS the published contract of K-776 — seven operations refuse to
+    /// writes. This list IS the published contract of K-776 — eight operations refuse to
     /// apply when their audit entry cannot be written, and every other audit write is
-    /// best-effort. Phase 208 added the seventh: answering a workflow request.
+    /// best-effort. Phase 208 added the seventh: answering a workflow request. Phase 235 added
+    /// the eighth: answering a tool's request for user input.
     /// </summary>
     /// <remarks>
     /// Adding or removing an entry changes a published security guarantee, so it travels
@@ -86,18 +87,25 @@ public sealed class AuditWritePolicyTests
             "Answering a workflow request",
             "src/Tracon.AspNetCore/Internal/WorkflowResponseGate.cs",
             ["workflow.respond"]),
+        (
+            // Every answer to an MCP server's request for input, before the suspended tool call
+            // runs again: the answer releases what a third-party server asked for into a tool
+            // call. The entry names the request, the tool and the NAMES of the fields.
+            "Answering a tool's request for user input",
+            "src/Tracon.AspNetCore/Internal/ToolInputResolver.cs",
+            ["tool_input.answer"]),
     ];
 
     /// <summary>
     /// The expected number of <c>WriteOrThrowAsync</c> call sites across the whole tree.
     /// </summary>
     /// <remarks>
-    /// TEN, not seven: grant and revoke are two call sites of one operation, so are the
+    /// ELEVEN, not eight: grant and revoke are two call sites of one operation, so are the
     /// trigger upsert and the trigger delete, and an approval decision can arrive on two
     /// surfaces (the approval inbox and the run request body). Counting operations and
     /// counting call sites are different questions, and this test asks both.
     /// </remarks>
-    private const int ExpectedFailClosedCallSites = 10;
+    private const int ExpectedFailClosedCallSites = 11;
 
     /// <remarks>
     /// No <c>\b</c> before <c>auditLog</c> — a word boundary does not exist between
@@ -180,8 +188,8 @@ public sealed class AuditWritePolicyTests
             .Distinct(StringComparer.Ordinal)
             .Count()
             .ShouldBe(
-                7,
-                "The published guarantee names seven fail-closed operations. Changing that number "
+                8,
+                "The published guarantee names eight fail-closed operations. Changing that number "
                 + "changes what consumers were promised, not just this test.");
 
         foreach (var (operation, file, actions) in FailClosedOperations)
@@ -213,7 +221,7 @@ public sealed class AuditWritePolicyTests
 
         missing.ShouldBeEmpty(
             "A fail-closed operation no longer takes the fail-closed path, or moved file. Each "
-            + "of these seven operations refuses to apply when its audit entry cannot be written; "
+            + "of these eight operations refuses to apply when its audit entry cannot be written; "
             + "losing that is invisible until the audit store actually breaks in production.");
     }
 

@@ -337,7 +337,17 @@ internal static class AgentEndpoints
                 "stream sends a 'custom' event for each notice the run recorded from a fixed list, with the same " +
                 "data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the " +
                 "model cut off at its output token limit or its context window) always, and " +
-                "'tracon.quota.threshold' when the quota options publish it to the run stream.")
+                "'tracon.quota.threshold' when the quota options publish it to the run stream. " +
+                "When an MCP server asks the user for input in the middle of a tool call (elicitation), " +
+                "the run ends as 'AwaitingInput' and the stream sends an 'inputs' event right before " +
+                "'done' (the non-streaming response carries the same list as 'inputs'): one entry per " +
+                "request with 'requestId', 'toolName', 'serverName', 'message' and 'requestedSchema' " +
+                "(a flat JSON schema of the fields to fill in). The answer is the input of the next run of " +
+                "the same session ('inputResponses'); the tool call then runs again from its start with " +
+                "the answer. Only this endpoint can carry the answer, and only in a run with a 'sessionId': " +
+                "on every other surface and in an agent called by another agent, the server's request is " +
+                "answered with 'decline'. An answer for an unknown request or with values that do not fit " +
+                "the requested fields is refused with 400, one for a request already answered with 409.")
             // The success response is SSE by default (see AgentRunStream); but a
             // request carrying the 'Idempotency-Key' header gets a JSON body, and
             // one carrying 'Prefer: respond-async' gets a 202 body.
@@ -748,11 +758,12 @@ internal static class AgentEndpoints
         if (string.IsNullOrWhiteSpace(request.Message) &&
             request.Approvals.Count == 0 &&
             request.ToolResults.Count == 0 &&
+            request.InputResponses.Count == 0 &&
             request.AttachmentIds.Count == 0)
         {
             return Results.Problem(
                 title: "Empty request",
-                detail: "One of 'message', 'attachmentIds', 'approvals', or 'toolResults' is required.",
+                detail: "One of 'message', 'attachmentIds', 'approvals', 'toolResults', or 'inputResponses' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -769,6 +780,14 @@ internal static class AgentEndpoints
             return Results.Problem(
                 title: "Session required for tool result",
                 detail: "A pending client-side tool call lives in session history; 'sessionId' is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (request.InputResponses.Count > 0 && string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            return Results.Problem(
+                title: "Session required for tool input",
+                detail: "A pending tool input request lives in session history; 'sessionId' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -932,6 +951,58 @@ internal static class AgentEndpoints
             }
         }
 
+        // 🚨 Answers to a tool's request for input are matched BEFORE the stream starts, for the same
+        // reason as the client-side tool results above: a wrong answer is a 400/409 the caller can read
+        // only while the response has not begun. Running the tool again under a wrong request would repeat
+        // whatever the tool does, so no answer is skipped silently. BuildMessagesAsync matches again to
+        // build the message; matching has no side effects.
+        if (request.InputResponses.Count > 0)
+        {
+            var inputSession = await sessions
+                .GetOrCreateSessionAsync(agent, request.SessionId!, cancellationToken)
+                .ConfigureAwait(false);
+
+            var inputMatch = await ToolInputResolver
+                .MatchAsync(
+                    request.InputResponses,
+                    agent,
+                    inputSession,
+                    httpContext.RequestServices.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            switch (inputMatch.Kind)
+            {
+                case ToolInputMatchKind.UnknownRequestId:
+                    return Results.Problem(
+                        title: "Unknown tool input request",
+                        detail: $"There is no pending tool input request with id '{inputMatch.RequestId}' in this session.",
+                        statusCode: StatusCodes.Status400BadRequest);
+
+                case ToolInputMatchKind.DuplicateRequestId:
+                    return Results.Problem(
+                        title: "Duplicate tool input answer",
+                        detail: $"The tool input request '{inputMatch.RequestId}' is answered more than once in this request.",
+                        statusCode: StatusCodes.Status400BadRequest);
+
+                case ToolInputMatchKind.InvalidContent:
+                    return Results.Problem(
+                        title: "Invalid tool input answer",
+                        detail: $"The answer to the tool input request '{inputMatch.RequestId}' is not valid: {inputMatch.Detail}",
+                        statusCode: StatusCodes.Status400BadRequest);
+
+                case ToolInputMatchKind.AlreadyAnswered:
+                    return Results.Problem(
+                        title: "Tool input request already answered",
+                        detail: $"The tool input request '{inputMatch.RequestId}' already has an answer.",
+                        statusCode: StatusCodes.Status409Conflict);
+
+                case ToolInputMatchKind.Success:
+                default:
+                    break;
+            }
+        }
+
         // 🚨 Phase 43: a request carrying 'Idempotency-Key' runs non-streaming.
         // The stored response must be deduplicatable; storing an SSE body
         // (loss of timing information, unpredictable size) is out of scope for
@@ -956,9 +1027,9 @@ internal static class AgentEndpoints
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Approval decisions, client-side tool results, and attachments are not
-    /// supported in this version: all three assume a live client connection
-    /// (approval and tool result: input for the next turn; attachment: a
+    /// Approval decisions, client-side tool results, tool input answers, and attachments are not
+    /// supported in this version: all four assume a live client connection
+    /// (approval, tool result and tool input answer: input for the next turn; attachment: a
     /// <c>UriContent</c> reference that requires the path prefix), and a job
     /// running from the queue has no such context.
     /// </para>
@@ -1011,12 +1082,13 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (request.Approvals.Count > 0 || request.ToolResults.Count > 0 || request.AttachmentIds.Count > 0)
+        if (request.Approvals.Count > 0 || request.ToolResults.Count > 0 ||
+            request.InputResponses.Count > 0 || request.AttachmentIds.Count > 0)
         {
             return Results.Problem(
                 title: "Not supported",
                 detail: "A queued run ('Prefer: respond-async') does not support approval decisions, " +
-                        "client-side tool results, or attachments in this version.",
+                        "client-side tool results, tool input answers, or attachments in this version.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -1306,7 +1378,7 @@ internal static class AgentEndpoints
                         .ConfigureAwait(false);
                 }
 
-                var messages = await BuildMessagesAsync(httpContext, session, cancellationToken)
+                var (messages, inputAnswers) = await BuildMessagesAsync(httpContext, session, cancellationToken)
                     .ConfigureAwait(false);
 
                 await writer.WriteEventAsync(
@@ -1364,6 +1436,22 @@ internal static class AgentEndpoints
                                 sequence++,
                                 "approvals",
                                 JsonSerializer.Serialize(announcements, JsonOptions),
+                                hookCancellation).ConfigureAwait(false);
+                        },
+
+                        // Phase 235: a tool's MCP server asked the user for input. Only a run with a
+                        // session can be answered (the answer is the next turn of that session), so
+                        // only such a run offers it; every other run's request is declined.
+                        AcceptsToolInput = session is not null,
+                        ToolInputAnswers = inputAnswers,
+
+                        // The same slot as the 'approvals' frame: right before 'done'.
+                        BeforePendingToolInputIsPublished = async (pendingInputs, hookCancellation) =>
+                        {
+                            await writer.WriteEventAsync(
+                                sequence++,
+                                "inputs",
+                                JsonSerializer.Serialize(PendingToolInputAnnouncement.From(pendingInputs), JsonOptions),
                                 hookCancellation).ConfigureAwait(false);
                         },
                     },
@@ -1562,8 +1650,10 @@ internal static class AgentEndpoints
                         .ConfigureAwait(false);
                 }
 
-                var messages = await BuildMessagesAsync(httpContext, session, cancellationToken)
+                var (messages, inputAnswers) = await BuildMessagesAsync(httpContext, session, cancellationToken)
                     .ConfigureAwait(false);
+
+                IReadOnlyList<PendingToolInputAnnouncement>? inputs = null;
 
                 var response = await agent.RunAsync(
                     messages,
@@ -1575,6 +1665,17 @@ internal static class AgentEndpoints
                         ExperimentId = assignment?.ExperimentId,
                         Variant = assignment?.Variant,
                         ParameterValues = parameterValues,
+
+                        // Phase 235: see ExecuteStreamingAsync. The non-streaming body carries the
+                        // requests as 'inputs' instead of an SSE frame.
+                        AcceptsToolInput = session is not null,
+                        ToolInputAnswers = inputAnswers,
+                        BeforePendingToolInputIsPublished = (pendingInputs, _) =>
+                        {
+                            inputs = PendingToolInputAnnouncement.From(pendingInputs);
+
+                            return ValueTask.CompletedTask;
+                        },
                     },
                     cancellationToken).ConfigureAwait(false);
 
@@ -1604,7 +1705,7 @@ internal static class AgentEndpoints
                 }
 
                 await Results.Json(
-                        new AgentRunResult(runId, request.SessionId, response),
+                        new AgentRunResult(runId, request.SessionId, response, inputs),
                         AIJsonUtilities.DefaultOptions,
                         statusCode: StatusCodes.Status200OK)
                     .ExecuteAsync(httpContext).ConfigureAwait(false);
@@ -1707,13 +1808,14 @@ internal static class AgentEndpoints
         /// message without answering a pending call first; the reverse order
         /// would leave the model facing an unanswered call.
         /// </remarks>
-        private async ValueTask<List<ChatMessage>> BuildMessagesAsync(
+        private async ValueTask<(List<ChatMessage> Messages, IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? InputAnswers)> BuildMessagesAsync(
             HttpContext httpContext,
             Microsoft.Agents.AI.AgentSession? session,
             CancellationToken cancellationToken)
         {
             var messages = new List<ChatMessage>(2);
             var services = httpContext.RequestServices;
+            IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? inputAnswers = null;
 
             if (request.Approvals.Count > 0 && session is not null)
             {
@@ -1777,6 +1879,43 @@ internal static class AgentEndpoints
                 }
             }
 
+            // Answers to a tool's request for input (Phase 235) run the suspended tool call again; like
+            // the two blocks above they come BEFORE the user message. Matching again here, after the
+            // endpoint did, is side-effect free; a request answered in between is dropped like a tool
+            // result is, because the headers may already be on the wire.
+            if (request.InputResponses.Count > 0 && session is not null)
+            {
+                var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+
+                var inputMatch = await ToolInputResolver
+                    .MatchAsync(
+                        request.InputResponses,
+                        agent,
+                        session,
+                        services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (inputMatch.Kind == ToolInputMatchKind.Success)
+                {
+                    var continuation = await ToolInputResolver.BuildContinuationAsync(
+                        inputMatch.Matched,
+                        services.GetRequiredService<ITenantContext>(),
+                        services.GetRequiredService<IAuditLog>(),
+                        services.GetRequiredService<IAuditActorResolver>(),
+                        loggerFactory.CreateLogger(typeof(ToolInputResolver).FullName!),
+                        services.GetRequiredService<TraconMetrics>(),
+                        cancellationToken).ConfigureAwait(false);
+
+                    messages.AddRange(continuation.Messages);
+
+                    if (continuation.Answers.Count > 0)
+                    {
+                        inputAnswers = continuation.Answers;
+                    }
+                }
+            }
+
             // 🚨 Documents are their own messages, added BEFORE the user's
             // message: each is wrapped in a delimiter and marked through
             // AIContent.AdditionalProperties (DocumentChannelMessageBuilder)
@@ -1812,7 +1951,7 @@ internal static class AgentEndpoints
                 messages.Add(new ChatMessage(ChatRole.User, contents));
             }
 
-            return messages;
+            return (messages, inputAnswers);
         }
 
         private sealed record AgentRunAccepted(Guid RunId, string? SessionId);
@@ -1822,12 +1961,36 @@ internal static class AgentEndpoints
         private sealed record AgentRunFailed(string Type, string Message);
 
         /// <summary>The JSON response for a non-streaming (Idempotency-Key) run.</summary>
-        private sealed record AgentRunResult(Guid RunId, string? SessionId, Microsoft.Agents.AI.AgentResponse Response);
+        private sealed record AgentRunResult(
+            Guid RunId,
+            string? SessionId,
+            Microsoft.Agents.AI.AgentResponse Response,
+            IReadOnlyList<PendingToolInputAnnouncement>? Inputs);
 
         /// <summary>
         /// The <c>approvals</c> SSE frame: the presentation resolved for one pending
         /// tool-approval request, sent right before the stream's <c>done</c> frame.
         /// </summary>
+        /// <summary>
+        /// The <c>inputs</c> SSE frame (and the <c>inputs</c> member of the non-streaming body): one
+        /// request for user input that suspended a tool call, sent right before <c>done</c>.
+        /// </summary>
+        private sealed record PendingToolInputAnnouncement(
+            string RequestId,
+            string ToolName,
+            string ServerName,
+            string Message,
+            System.Text.Json.JsonElement RequestedSchema)
+        {
+            public static PendingToolInputAnnouncement[] From(IReadOnlyList<PendingToolInput> pending)
+                => [.. pending.Select(static input => new PendingToolInputAnnouncement(
+                    input.RequestId,
+                    input.ToolName,
+                    input.ServerName,
+                    input.Message,
+                    input.RequestedSchema))];
+        }
+
         private sealed record PendingApprovalAnnouncement(
             string RequestId,
             string ToolName,

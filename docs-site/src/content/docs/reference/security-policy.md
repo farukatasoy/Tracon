@@ -36,7 +36,7 @@ data, or unreviewed prompt and tool content.
 | Any path that writes a secret to storage, a log, or a response | |
 
 The audit trail is in scope as a security boundary, and that boundary has a documented
-shape: seven operations refuse to proceed without their audit entry, and every other
+shape: eight operations refuse to proceed without their audit entry, and every other
 audit write is best-effort. [What is guaranteed to be
 written](/concepts/governance/#what-is-guaranteed-to-be-written) is the division. A
 report that a best-effort record was lost on a store failure is expected behaviour, not

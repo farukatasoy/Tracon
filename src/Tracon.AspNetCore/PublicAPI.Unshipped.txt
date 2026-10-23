@@ -263,3 +263,24 @@ static Tracon.UploadDocumentChunk.operator !=(Tracon.UploadDocumentChunk? left, 
 static Tracon.UploadDocumentChunk.operator ==(Tracon.UploadDocumentChunk? left, Tracon.UploadDocumentChunk? right) -> bool
 static Tracon.UploadDocumentRequest.operator !=(Tracon.UploadDocumentRequest? left, Tracon.UploadDocumentRequest? right) -> bool
 static Tracon.UploadDocumentRequest.operator ==(Tracon.UploadDocumentRequest? left, Tracon.UploadDocumentRequest? right) -> bool
+Tracon.AgentRunRequest.InputResponses.get -> System.Collections.Generic.IReadOnlyList<Tracon.ToolInputResponse!>!
+Tracon.AgentRunRequest.InputResponses.init -> void
+Tracon.ToolInputAction
+Tracon.ToolInputAction.Accept = 0 -> Tracon.ToolInputAction
+Tracon.ToolInputAction.Cancel = 2 -> Tracon.ToolInputAction
+Tracon.ToolInputAction.Decline = 1 -> Tracon.ToolInputAction
+Tracon.ToolInputResponse
+Tracon.ToolInputResponse.<Clone>$() -> Tracon.ToolInputResponse!
+Tracon.ToolInputResponse.Action.get -> Tracon.ToolInputAction
+Tracon.ToolInputResponse.Action.init -> void
+Tracon.ToolInputResponse.Content.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>?
+Tracon.ToolInputResponse.Content.init -> void
+Tracon.ToolInputResponse.Equals(Tracon.ToolInputResponse? other) -> bool
+Tracon.ToolInputResponse.RequestId.get -> string!
+Tracon.ToolInputResponse.RequestId.init -> void
+Tracon.ToolInputResponse.ToolInputResponse() -> void
+override Tracon.ToolInputResponse.Equals(object? obj) -> bool
+override Tracon.ToolInputResponse.GetHashCode() -> int
+override Tracon.ToolInputResponse.ToString() -> string!
+static Tracon.ToolInputResponse.operator !=(Tracon.ToolInputResponse? left, Tracon.ToolInputResponse? right) -> bool
+static Tracon.ToolInputResponse.operator ==(Tracon.ToolInputResponse? left, Tracon.ToolInputResponse? right) -> bool

@@ -139,7 +139,7 @@ very different:
 
 - `swallowed` — the operation went ahead without its record. You have a gap in the
   audit trail and a working system.
-- `refused` — the operation did not happen. This is one of the seven fail-closed
+- `refused` — the operation did not happen. This is one of the eight fail-closed
   operations in [What is guaranteed to be
   written](/concepts/governance/#what-is-guaranteed-to-be-written), and your callers
   are seeing errors.

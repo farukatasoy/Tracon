@@ -155,6 +155,29 @@ public sealed record AgentRunScope
     internal bool SessionHasNoRecord { get; init; }
 
     /// <summary>
+    /// Gets whether a tool of this run may ask the user for input (MCP elicitation): the caller can
+    /// answer on the next turn of the session (<see cref="TraconRunOptions.AcceptsToolInput"/>).
+    /// </summary>
+    /// <remarks>Never copied to a sub-run; the MCP tool wrapper also refuses by <see cref="Depth"/>.</remarks>
+    internal bool AcceptsToolInput { get; init; }
+
+    /// <summary>
+    /// Gets the user's earlier answers to tool input requests, keyed by the call identity of the call
+    /// that replays the suspended tool call (<see cref="TraconRunOptions.ToolInputAnswers"/>).
+    /// </summary>
+    internal IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? ToolInputAnswers { get; init; }
+
+    /// <summary>
+    /// Gets the tool input requests that suspended a call of this run.
+    /// </summary>
+    /// <remarks>
+    /// The write surface is the MCP tool wrapper; the read side is the run recorder, which closes the
+    /// run <see cref="RunStatus.AwaitingInput"/> when the ledger holds a request. Same
+    /// ambient-write/scoped-read pattern as <see cref="ToolExplainedFailures"/>.
+    /// </remarks>
+    internal ToolInputLedger? ToolInputs { get; init; }
+
+    /// <summary>
     /// Gets the event writer for this run. A sub-run writes its summary events here.
     /// </summary>
     /// <remarks>

@@ -195,6 +195,9 @@ public sealed partial class RunRecordingAgent
             Variant = runOptions?.Variant,
             SuspendsWorkflowOnApproval = runOptions?.SuspendsWorkflowOnApproval ?? false,
             SessionHasNoRecord = runOptions?.SessionHasNoRecord ?? false,
+            AcceptsToolInput = depth == 0 && (runOptions?.AcceptsToolInput ?? false),
+            ToolInputAnswers = runOptions?.ToolInputAnswers,
+            ToolInputs = new ToolInputLedger(),
         };
 
         return new RunStart(

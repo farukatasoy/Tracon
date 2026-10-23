@@ -115,6 +115,28 @@ public static partial class RunEventCustomTypes
     public const string WorkflowEvent = ReservedPrefix + "workflow.event";
 
     /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the event a run writes when an MCP server asked
+    /// the user for input in the middle of a tool call and Tracon answered the server with
+    /// <c>decline</c> instead of asking the user.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The payload is a JSON object with <c>server</c> (the MCP server's name), <c>tool</c> (the
+    /// qualified tool name) and <c>reason</c>: <c>no_run</c> (the request reached the client
+    /// outside a tool call of a run), <c>url_mode</c> (the server asked to open an address; Tracon
+    /// asks only for form fields), <c>child_run</c> (an agent called by another agent cannot ask the
+    /// user, the same as for approvals), <c>no_session</c> (the run has no <c>sessionId</c>, so the
+    /// answer has nowhere to go), <c>no_channel</c> (the surface that started the run cannot carry
+    /// the answer: an OpenAI-compatible call, an A2A task, an MCP tool call, a queued run),
+    /// <c>no_termination</c> (the tool was not called by the function-invocation loop) or
+    /// <c>mismatch</c> (the replayed call asked something other than the user was asked). It never
+    /// carries the requested fields or any answer. Declining is a complete answer to the server; the
+    /// server decides what the tool does next.
+    /// </para>
+    /// </remarks>
+    public const string ToolInputDeclined = ReservedPrefix + "tool.input.declined";
+
+    /// <summary>
     /// Checks whether <paramref name="customType"/> is a valid custom event
     /// type: 1-128 characters, lowercase ASCII letters, digits, <c>.</c>,
     /// <c>_</c>, or <c>-</c>, starting with a letter or digit.
