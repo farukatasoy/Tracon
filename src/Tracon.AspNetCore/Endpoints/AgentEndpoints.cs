@@ -181,23 +181,15 @@ internal static class AgentEndpoints
                 string name,
                 IAgentCatalog catalog,
                 AgentSessionManager sessions,
-                IAttachmentStore attachmentStore,
                 IJobStore jobStore,
                 IRunStore runStore,
                 ITenantContext tenantContext,
                 ExperimentAssignmentResolver experimentAssignment,
                 IAgentDefinitionStore definitionStore,
-                AgentDefinitionCompiler compiler,
-                IEnumerable<IAgentDecorator> decorators,
                 IOptionsMonitor<TraconAsyncRunOptions> asyncRunOptions,
                 IOptionsMonitor<TraconOptions> optionsMonitor,
-                ContextWindowEstimator contextWindowEstimator,
                 ITraconDrainState drainState,
-                [FromServices] QuotaEnforcer? quotaEnforcer,
                 [FromServices] IRunAttributionContext? attributionContext,
-                [FromServices] ISessionStore sessionStore,
-                [FromServices] IOptionsMonitor<TraconSessionOwnershipOptions>? sessionOwnershipOptions,
-                [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
@@ -218,56 +210,14 @@ internal static class AgentEndpoints
                     return bindError;
                 }
 
-                // 🚨 Attribution is checked BEFORE the run starts, so an
-                // oversized label set is REJECTED rather than trimmed. The
-                // AgentRunRequest body is deliberately NOT a source of
-                // attribution: a userId field there would let any client write
-                // spend against another user's name.
-                if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
+                // The gates every run passes before it starts - attribution, authorization, session ownership, quota and
+                // the context-window pre-flight, in that order - live in AgentTurnService, so the AG-UI endpoint passes
+                // exactly the same ones.
+                if (await AgentTurnService
+                        .CheckRunGatesAsync(name, request!, httpContext, cancellationToken)
+                        .ConfigureAwait(false) is { } gateProblem)
                 {
-                    return attributionProblem;
-                }
-
-                // 🚨 Authorization runs AFTER attribution (it needs the resolved
-                // UserId) and BEFORE the quota check (an unauthorized call must
-                // not consume the tenant's quota) - phase 139, F-185.
-                if (await RunAuthorizationGate
-                        .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request!.SessionId, attributionContext, httpContext, cancellationToken)
-                        .ConfigureAwait(false) is { } authorizationProblem)
-                {
-                    return authorizationProblem;
-                }
-
-                // 🚨 Ownership guards the run surface too, not only the session
-                // endpoints (phase 148): continuing a conversation reads its
-                // whole history back into the model, so leaving this door open
-                // would make gating GET /api/sessions/{id} decorative. Inert
-                // while ownership is off, which is the default.
-                if (await SessionOwnershipGate
-                        .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessionStore, request!.SessionId, httpContext, cancellationToken)
-                        .ConfigureAwait(false) is { } ownershipProblem)
-                {
-                    return ownershipProblem;
-                }
-
-                // 🚨 The quota check happens BEFORE the run starts. An in-progress
-                // run is not cut off when the quota is exceeded (K-162); only a new
-                // run gets a 429. Queuing also counts as a new run.
-                if (await QuotaGate
-                        .CheckAsync(quotaEnforcer, tenantContext, name, httpContext, cancellationToken)
-                        .ConfigureAwait(false) is { } quotaProblem)
-                {
-                    return quotaProblem;
-                }
-
-                // Pre-flight context-window check (phase 62, F-59): disabled
-                // by default, and even when enabled it never touches a
-                // provider — only PreflightGate/ContextWindowEstimator run.
-                if (await PreflightGate
-                        .CheckAsync(optionsMonitor, contextWindowEstimator, catalog, name, request!.Message, cancellationToken)
-                        .ConfigureAwait(false) is { } preflightProblem)
-                {
-                    return preflightProblem;
+                    return gateProblem;
                 }
 
                 if (RespondAsyncPreference.IsRequested(httpContext))
@@ -292,15 +242,7 @@ internal static class AgentEndpoints
                 return await RunAsync(
                     name,
                     request!,
-                    catalog,
                     sessions,
-                    attachmentStore,
-                    tenantContext,
-                    experimentAssignment,
-                    definitionStore,
-                    compiler,
-                    decorators,
-                    optionsMonitor,
                     prefix,
                     httpContext,
                     cancellationToken).ConfigureAwait(false);
@@ -739,274 +681,18 @@ internal static class AgentEndpoints
     private static async Task<IResult> RunAsync(
         string name,
         AgentRunRequest request,
-        IAgentCatalog catalog,
         AgentSessionManager sessions,
-        IAttachmentStore attachmentStore,
-        ITenantContext tenantContext,
-        ExperimentAssignmentResolver experimentAssignment,
-        IAgentDefinitionStore definitionStore,
-        AgentDefinitionCompiler compiler,
-        IEnumerable<IAgentDecorator> decorators,
-        IOptionsMonitor<TraconOptions> optionsMonitor,
         string prefix,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        // Approval decisions and tool results are valid requests on their own:
-        // a user approving a pending call or answering a client-side tool call
-        // does not write a new message.
-        if (string.IsNullOrWhiteSpace(request.Message) &&
-            request.Approvals.Count == 0 &&
-            request.ToolResults.Count == 0 &&
-            request.InputResponses.Count == 0 &&
-            request.AttachmentIds.Count == 0)
-        {
-            return Results.Problem(
-                title: "Empty request",
-                detail: "One of 'message', 'attachmentIds', 'approvals', 'toolResults', or 'inputResponses' is required.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (request.Approvals.Count > 0 && string.IsNullOrWhiteSpace(request.SessionId))
-        {
-            return Results.Problem(
-                title: "Session required for approval",
-                detail: "A pending approval request lives in session history; 'sessionId' is required.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (request.ToolResults.Count > 0 && string.IsNullOrWhiteSpace(request.SessionId))
-        {
-            return Results.Problem(
-                title: "Session required for tool result",
-                detail: "A pending client-side tool call lives in session history; 'sessionId' is required.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (request.InputResponses.Count > 0 && string.IsNullOrWhiteSpace(request.SessionId))
-        {
-            return Results.Problem(
-                title: "Session required for tool input",
-                detail: "A pending tool input request lives in session history; 'sessionId' is required.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        // Attachment ownership is validated before the stream starts: once the
-        // response has begun, we cannot return a proper ProblemDetails.
-        var attachments = new List<AttachmentDescriptor>(request.AttachmentIds.Count);
-
-        foreach (var attachmentId in request.AttachmentIds)
-        {
-            if (await attachmentStore.GetAsync(tenantContext.TenantId, attachmentId, cancellationToken)
-                    .ConfigureAwait(false) is not { } descriptor)
-            {
-                return Results.Problem(
-                    title: "Attachment not found",
-                    detail: $"There is no attachment with id '{attachmentId}', or it does not belong to this tenant.",
-                    statusCode: StatusCodes.Status400BadRequest);
-            }
-
-            attachments.Add(descriptor);
-        }
-
-        // The id is generated here (not inside AgentRunStream.ExecuteAsync): the
-        // experiment assignment key (session id ?? run id) must be known before
-        // the stream starts.
-        var runId = TraconId.NewId();
-        var assignmentKey = request.SessionId ?? runId.ToString("D");
-
-        var assignment = await experimentAssignment
-            .ResolveAsync(tenantContext.TenantId, name, assignmentKey, cancellationToken)
+        var preparation = await AgentTurnService
+            .PrepareAsync(name, request, prefix, httpContext, cancellationToken)
             .ConfigureAwait(false);
 
-        // 🚨 Missing/unknown parameters are checked BEFORE the run starts, so
-        // the response is a proper ProblemDetails - this is not possible once
-        // the stream has started. The gate is a no-op (Definition null,
-        // Problem null) for the overwhelming majority of agents that declare
-        // no parameter schema at all.
-        var parameterGate = await AgentParameterGate
-            .CheckAsync(optionsMonitor, definitionStore, httpContext.RequestServices, name, assignment?.Version, request.Parameters, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (parameterGate.Problem is { } parameterProblem)
+        if (preparation.Turn is not { } turn)
         {
-            return parameterProblem;
-        }
-
-        Microsoft.Agents.AI.AIAgent? agent;
-
-        // Resolution compiles a declarative definition; an unknown tool or
-        // provider fails here. The response has not started yet, so we can
-        // still return a proper ProblemDetails - this is not possible once the
-        // stream has started.
-        try
-        {
-            if (parameterGate.Definition is { Parameters.Count: > 0 } sourceDefinition)
-            {
-                // 🚨 A parameterized run bypasses CompiledAgentCache entirely:
-                // two runs of the same agent with different parameter values
-                // must never share one compiled instance, and the cache has
-                // no notion of "value" in its key. Unlike a tenant-specific
-                // provider credential (BYOK), which only bypasses the cache
-                // while staying inside IAgentCatalog.ResolveAsync, THIS bypass
-                // skips the catalog entirely - so it must apply the SAME
-                // AgentDecoratorPipeline by hand, or the run goes out
-                // undecorated: no recording, no telemetry, no tool-approval gate.
-                agent = await compiler
-                    .CompileParameterizedAsync(sourceDefinition, request.Culture, request.Parameters, cancellationToken)
-                    .ConfigureAwait(false);
-
-                agent = AgentDecoratorPipeline.Apply(
-                    agent,
-                    AgentDescriptorProjection.FromDefinition(
-                        sourceDefinition,
-                        parameterGate.Origin,
-                        AgentDefinitionLookup.SourceName(parameterGate.Origin)),
-                    decorators);
-            }
-            else
-            {
-                agent = assignment is null
-                    ? await catalog.ResolveAsync(name, request.Culture, cancellationToken).ConfigureAwait(false)
-                    : await catalog.ResolveAsync(name, assignment.Version, request.Culture, cancellationToken).ConfigureAwait(false);
-            }
-        }
-        catch (TraconException ex)
-        {
-            // 🚨 A parameterized run bypasses IAgentCatalog entirely (see the
-            // remark above), so a decorator or source failure here never
-            // passes through CompositeAgentCatalog.HandleSourceFailure - the
-            // one place that already logs and records the
-            // tracon.agent_source.failures metric for the same
-            // exception type. Without this, the failure is silently
-            // swallowed into a 400 with no server-side trace at all.
-            if (ex is TraconAgentSourceException)
-            {
-                httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("Tracon.AgentEndpoints")
-                    .LogError(ex, "Decorating a parameterized run of agent '{AgentName}' failed.", name);
-            }
-
-            return Results.Problem(
-                title: "Agent compilation failed",
-                detail: ex.Message,
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (agent is null)
-        {
-            return Results.Problem(
-                title: "Agent not found",
-                detail: $"There is no agent named '{name}'.",
-                statusCode: StatusCodes.Status404NotFound);
-        }
-
-        // 🚨 Client-side tool results are matched against pending calls BEFORE
-        // the stream starts: the default streaming path sends the SSE headers
-        // (200, text/event-stream) before BuildMessagesAsync runs, so a 400/409
-        // ProblemDetails is no longer possible once execution reaches there
-        // (same physical constraint as decision K-324). BuildMessagesAsync
-        // matches again to build the actual message; matching has no side
-        // effects, so repeating it is safe.
-        if (request.ToolResults.Count > 0)
-        {
-            if (request.ToolResults.Any(static result =>
-                    (result.Result?.Length ?? 0) > ClientToolResultResolver.MaxResultLength ||
-                    (result.ErrorMessage?.Length ?? 0) > ClientToolResultResolver.MaxResultLength))
-            {
-                return Results.Problem(
-                    title: "Tool result too large",
-                    detail: $"'result' and 'errorMessage' cannot exceed {ClientToolResultResolver.MaxResultLength} " +
-                            "characters; an unbounded tool result would consume the model's context window.",
-                    statusCode: StatusCodes.Status400BadRequest);
-            }
-
-            var toolResultsSession = await sessions
-                .GetOrCreateSessionAsync(agent, request.SessionId!, cancellationToken)
-                .ConfigureAwait(false);
-
-            var chatHistory = httpContext.RequestServices.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>();
-
-            var match = await ClientToolResultResolver
-                .MatchAsync(
-                    request.ToolResults,
-                    agent,
-                    toolResultsSession,
-                    chatHistory,
-                    httpContext.RequestServices.GetRequiredService<IToolRegistry>(),
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            switch (match.Kind)
-            {
-                case ClientToolResultMatchKind.UnknownCallId:
-                    return Results.Problem(
-                        title: "Unknown tool call",
-                        detail: $"There is no pending client-side tool call with id '{match.CallId}' in this session.",
-                        statusCode: StatusCodes.Status400BadRequest);
-
-                case ClientToolResultMatchKind.AlreadyAnswered:
-                    return Results.Problem(
-                        title: "Tool call already answered",
-                        detail: $"The client-side tool call with id '{match.CallId}' already has a result.",
-                        statusCode: StatusCodes.Status409Conflict);
-
-                case ClientToolResultMatchKind.Success:
-                default:
-                    break;
-            }
-        }
-
-        // 🚨 Answers to a tool's request for input are matched BEFORE the stream starts, for the same
-        // reason as the client-side tool results above: a wrong answer is a 400/409 the caller can read
-        // only while the response has not begun. Running the tool again under a wrong request would repeat
-        // whatever the tool does, so no answer is skipped silently. BuildMessagesAsync matches again to
-        // build the message; matching has no side effects.
-        if (request.InputResponses.Count > 0)
-        {
-            var inputSession = await sessions
-                .GetOrCreateSessionAsync(agent, request.SessionId!, cancellationToken)
-                .ConfigureAwait(false);
-
-            var inputMatch = await ToolInputResolver
-                .MatchAsync(
-                    request.InputResponses,
-                    agent,
-                    inputSession,
-                    httpContext.RequestServices.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            switch (inputMatch.Kind)
-            {
-                case ToolInputMatchKind.UnknownRequestId:
-                    return Results.Problem(
-                        title: "Unknown tool input request",
-                        detail: $"There is no pending tool input request with id '{inputMatch.RequestId}' in this session.",
-                        statusCode: StatusCodes.Status400BadRequest);
-
-                case ToolInputMatchKind.DuplicateRequestId:
-                    return Results.Problem(
-                        title: "Duplicate tool input answer",
-                        detail: $"The tool input request '{inputMatch.RequestId}' is answered more than once in this request.",
-                        statusCode: StatusCodes.Status400BadRequest);
-
-                case ToolInputMatchKind.InvalidContent:
-                    return Results.Problem(
-                        title: "Invalid tool input answer",
-                        detail: $"The answer to the tool input request '{inputMatch.RequestId}' is not valid: {inputMatch.Detail}",
-                        statusCode: StatusCodes.Status400BadRequest);
-
-                case ToolInputMatchKind.AlreadyAnswered:
-                    return Results.Problem(
-                        title: "Tool input request already answered",
-                        detail: $"The tool input request '{inputMatch.RequestId}' already has an answer.",
-                        statusCode: StatusCodes.Status409Conflict);
-
-                case ToolInputMatchKind.Success:
-                default:
-                    break;
-            }
+            return preparation.Problem!;
         }
 
         // 🚨 Phase 43: a request carrying 'Idempotency-Key' runs non-streaming.
@@ -1018,14 +704,7 @@ internal static class AgentEndpoints
         // request, because a request carrying the header is already non-streaming.
         var streaming = !httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName);
 
-        // F-294: the run records the values it was bound with, defaults
-        // included, so a replay and a continuation repeat them. Only an agent
-        // that declares a schema has anything to record.
-        var recordedValues = parameterGate.Definition is { Parameters.Count: > 0 } declared
-            ? ParameterValueSet.Resolve(declared.Parameters, request.Parameters)
-            : null;
-
-        return new AgentRunStream(agent, name, request, sessions, attachments, prefix, runId, assignment, streaming, recordedValues);
+        return new AgentRunStream(turn, sessions, streaming);
     }
 
     /// <summary>
@@ -1340,16 +1019,9 @@ internal static class AgentEndpoints
     /// </para>
     /// </remarks>
     private sealed class AgentRunStream(
-        Microsoft.Agents.AI.AIAgent agent,
-        string agentName,
-        AgentRunRequest request,
+        PreparedTurn turn,
         AgentSessionManager sessions,
-        IReadOnlyList<AttachmentDescriptor> attachments,
-        string prefix,
-        Guid runId,
-        ExperimentAssignment? assignment,
-        bool streaming,
-        IReadOnlyDictionary<string, string>? parameterValues) : IResult
+        bool streaming) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -1377,90 +1049,44 @@ internal static class AgentEndpoints
 
             try
             {
-                if (!string.IsNullOrWhiteSpace(request.SessionId))
+                if (!string.IsNullOrWhiteSpace(turn.Request.SessionId))
                 {
                     session = await sessions
-                        .GetOrCreateSessionAsync(agent, request.SessionId, cancellationToken)
+                        .GetOrCreateSessionAsync(turn.Agent, turn.Request.SessionId, cancellationToken)
                         .ConfigureAwait(false);
                 }
 
-                var (messages, inputAnswers) = await BuildMessagesAsync(httpContext, session, cancellationToken)
+                var (messages, inputAnswers) = await turn.BuildMessagesAsync(httpContext, session, cancellationToken)
                     .ConfigureAwait(false);
 
                 await writer.WriteEventAsync(
                     sequence++,
                     "run",
-                    JsonSerializer.Serialize(new AgentRunAccepted(runId, request.SessionId), JsonOptions),
+                    JsonSerializer.Serialize(new AgentRunAccepted(turn.RunId, turn.Request.SessionId), JsonOptions),
                     cancellationToken).ConfigureAwait(false);
 
-                var updates = agent.RunStreamingAsync(
+                var updates = turn.Agent.RunStreamingAsync(
                     messages,
                     session,
-                    new TraconRunOptions
-                    {
-                        RunId = runId,
-                        AgentVersion = assignment?.Version,
-                        ExperimentId = assignment?.ExperimentId,
-                        Variant = assignment?.Variant,
-                        ParameterValues = parameterValues,
-
-                        // 🚨 Phase 142: this is the ONLY delivery path for a synchronous
-                        // run's tool-approval presentation — the queue path's mailbox
-                        // (GET /api/approvals/pending) does not exist for a run started
-                        // without 'Prefer: respond-async', and the 'update' frames above
-                        // carry MAF's own ToolApprovalRequestContent verbatim, which has
-                        // no field to carry a presentation. A separate 'approvals' frame,
-                        // sent right before the stream's own 'done' frame, is how the
-                        // console's approval card learns an entity's name.
-                        BeforePendingApprovalIsPublished = async (producedMessages, presentations, hookCancellation) =>
-                        {
-                            var requests = ChildRunApproval.CollectRequests(producedMessages);
-
-                            // F-448: without a session nobody can answer the approval; the
-                            // stream ends with an error frame below instead of an approval card.
-                            if (requests.Count == 0 || session is null)
-                            {
-                                return;
-                            }
-
-                            var announcements = requests
-                                .Select(request =>
-                                {
-                                    var presentation = presentations.GetValueOrDefault(request.RequestId);
-
-                                    return new PendingApprovalAnnouncement(
-                                        request.RequestId,
-                                        request.ToolCall is FunctionCallContent call ? call.Name : request.ToolCall.CallId,
-                                        presentation?.EntityType,
-                                        presentation?.EntityId,
-                                        presentation?.EntityName,
-                                        presentation?.Message);
-                                })
-                                .ToArray();
-
+                    turn.CreateRunOptions(
+                        session,
+                        inputAnswers,
+                        // A separate 'approvals' frame, sent right before the stream's own 'done' frame, is how the
+                        // console's approval card learns an entity's name (Phase 142, see CreateRunOptions).
+                        onPendingApprovals: async (announcements, hookCancellation) =>
                             await writer.WriteEventAsync(
                                 sequence++,
                                 "approvals",
                                 JsonSerializer.Serialize(announcements, JsonOptions),
-                                hookCancellation).ConfigureAwait(false);
-                        },
-
-                        // Phase 235: a tool's MCP server asked the user for input. Only a run with a
-                        // session can be answered (the answer is the next turn of that session), so
-                        // only such a run offers it; every other run's request is declined.
-                        AcceptsToolInput = session is not null,
-                        ToolInputAnswers = inputAnswers,
+                                hookCancellation).ConfigureAwait(false),
 
                         // The same slot as the 'approvals' frame: right before 'done'.
-                        BeforePendingToolInputIsPublished = async (pendingInputs, hookCancellation) =>
-                        {
+                        onPendingInputs: async (announcements, hookCancellation) =>
                             await writer.WriteEventAsync(
                                 sequence++,
                                 "inputs",
-                                JsonSerializer.Serialize(PendingToolInputAnnouncement.From(pendingInputs), JsonOptions),
-                                hookCancellation).ConfigureAwait(false);
-                        },
-                    },
+                                JsonSerializer.Serialize(announcements, JsonOptions),
+                                hookCancellation).ConfigureAwait(false)),
                     cancellationToken);
 
                 List<string>? pending = null;
@@ -1502,18 +1128,18 @@ internal static class AgentEndpoints
 
                 if (session is not null)
                 {
-                    await SaveSessionRecordingConflictAsync(
-                        httpContext, sessions, agent, session, runId, cancellationToken).ConfigureAwait(false);
+                    await AgentTurnService.SaveSessionRecordingConflictAsync(
+                        httpContext, sessions, turn.Agent, session, turn.RunId, cancellationToken).ConfigureAwait(false);
                 }
 
                 sequence = await RunNoticeMirror
-                    .WriteAsync(httpContext, runId, writer, sequence, sawTruncation, cancellationToken)
+                    .WriteAsync(httpContext, turn.RunId, writer, sequence, sawTruncation, cancellationToken)
                     .ConfigureAwait(false);
 
                 await writer.WriteEventAsync(
                     sequence,
                     "done",
-                    JsonSerializer.Serialize(new AgentRunCompleted(request.SessionId), JsonOptions),
+                    JsonSerializer.Serialize(new AgentRunCompleted(turn.Request.SessionId), JsonOptions),
                     cancellationToken).ConfigureAwait(false);
             }
             // 🚨 `when (httpContext.RequestAborted.IsCancellationRequested)`,
@@ -1538,7 +1164,7 @@ internal static class AgentEndpoints
                 // receives an 'error' frame.
                 var correlationId = SafeErrorText.NewCorrelationId();
                 var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints");
-                logger.LogError(ex, "Streaming agent run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+                logger.LogError(ex, "Streaming agent run {RunId} failed. (ref: {CorrelationId})", turn.RunId, correlationId);
 
                 await writer.WriteEventAsync(
                     sequence,
@@ -1550,81 +1176,11 @@ internal static class AgentEndpoints
             }
         }
 
-        /// <summary>
-        /// Saves the session and, when that write loses a race, records the
-        /// conflict on the run before letting the exception continue.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The run itself stays <see cref="RunStatus.Completed"/>, which is the
-        /// truthful status: the model was called, tokens were spent, an answer
-        /// was produced. What lost the race is the session write that happens
-        /// AFTER the run, and the caller is told about that with a 409.
-        /// </para>
-        /// <para>
-        /// Before this event the conflict left no trace in the
-        /// record at all. The operator saw two successful runs for the same
-        /// session, and the losing side existed only in a response the caller
-        /// had already consumed - so "my message went missing" could not be
-        /// answered from the control plane's own record.
-        /// </para>
-        /// <para>
-        /// The write is best effort and never replaces the 409: observability
-        /// does not break functionality. A store that cannot take the event
-        /// leaves the caller's answer unchanged.
-        /// </para>
-        /// </remarks>
-        private static async ValueTask SaveSessionRecordingConflictAsync(
-            HttpContext httpContext,
-            AgentSessionManager sessions,
-            Microsoft.Agents.AI.AIAgent agent,
-            Microsoft.Agents.AI.AgentSession session,
-            Guid runId,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
-            }
-            catch (TraconSessionConflictException conflict)
-            {
-                var runs = httpContext.RequestServices.GetRequiredService<IRunStore>();
-
-                try
-                {
-                    var lastSequence = await runs
-                        .GetLastEventSequenceAsync(runId, cancellationToken)
-                        .ConfigureAwait(false);
-
-                    await runs.AppendEventAsync(
-                        new RunEvent
-                        {
-                            RunId = runId,
-                            Sequence = (lastSequence ?? -1) + 1,
-                            Type = RunEventType.SessionWriteConflicted,
-                            Timestamp = DateTimeOffset.UtcNow,
-                            Text = conflict.SessionId,
-                            TenantId = httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId,
-                        },
-                        cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
-                {
-                    httpContext.RequestServices
-                        .GetRequiredService<ILoggerFactory>()
-                        .CreateLogger(typeof(AgentEndpoints))
-                        .LogWarning(ex, "The session conflict on run {RunId} could not be recorded.", runId);
-                }
-
-                throw;
-            }
-        }
-
         /// <summary>The text a caller gets when a run without a session stopped at a tool approval.</summary>
         /// <param name="pending">The names of the tools that wait for approval.</param>
         /// <returns>The error message.</returns>
         private string ApprovalNeedsSession(string pending)
-            => $"Agent '{agentName}' asked for approval to call '{pending}'. An approval is answered in the next turn " +
+            => $"Agent '{turn.AgentName}' asked for approval to call '{pending}'. An approval is answered in the next turn " +
                "of a session, and this run has no 'sessionId', so it can never be answered; the run was closed as " +
                "failed. Run the agent with a 'sessionId' to answer approvals.";
 
@@ -1635,7 +1191,7 @@ internal static class AgentEndpoints
         private ValueTask CloseUnanswerableRunAsync(HttpContext httpContext)
             => SessionlessApprovalRun.CloseAsFailedAsync(
                 httpContext.RequestServices.GetService<IRunStore>(),
-                runId,
+                turn.RunId,
                 httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId,
                 DateTimeOffset.UtcNow,
                 httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints"),
@@ -1649,40 +1205,33 @@ internal static class AgentEndpoints
 
             try
             {
-                if (!string.IsNullOrWhiteSpace(request.SessionId))
+                if (!string.IsNullOrWhiteSpace(turn.Request.SessionId))
                 {
                     session = await sessions
-                        .GetOrCreateSessionAsync(agent, request.SessionId, cancellationToken)
+                        .GetOrCreateSessionAsync(turn.Agent, turn.Request.SessionId, cancellationToken)
                         .ConfigureAwait(false);
                 }
 
-                var (messages, inputAnswers) = await BuildMessagesAsync(httpContext, session, cancellationToken)
+                var (messages, inputAnswers) = await turn.BuildMessagesAsync(httpContext, session, cancellationToken)
                     .ConfigureAwait(false);
 
                 IReadOnlyList<PendingToolInputAnnouncement>? inputs = null;
 
-                var response = await agent.RunAsync(
+                var response = await turn.Agent.RunAsync(
                     messages,
                     session,
-                    new TraconRunOptions
-                    {
-                        RunId = runId,
-                        AgentVersion = assignment?.Version,
-                        ExperimentId = assignment?.ExperimentId,
-                        Variant = assignment?.Variant,
-                        ParameterValues = parameterValues,
+                    turn.CreateRunOptions(
+                        session,
+                        inputAnswers,
+                        onPendingApprovals: null,
 
-                        // Phase 235: see ExecuteStreamingAsync. The non-streaming body carries the
-                        // requests as 'inputs' instead of an SSE frame.
-                        AcceptsToolInput = session is not null,
-                        ToolInputAnswers = inputAnswers,
-                        BeforePendingToolInputIsPublished = (pendingInputs, _) =>
+                        // The non-streaming body carries the requests as 'inputs' instead of an SSE frame.
+                        onPendingInputs: (announcements, _) =>
                         {
-                            inputs = PendingToolInputAnnouncement.From(pendingInputs);
+                            inputs = announcements;
 
                             return ValueTask.CompletedTask;
-                        },
-                    },
+                        }),
                     cancellationToken).ConfigureAwait(false);
 
                 // F-448: without a session nobody can ever answer the approval this run
@@ -1706,12 +1255,12 @@ internal static class AgentEndpoints
 
                 if (session is not null)
                 {
-                    await SaveSessionRecordingConflictAsync(
-                        httpContext, sessions, agent, session, runId, cancellationToken).ConfigureAwait(false);
+                    await AgentTurnService.SaveSessionRecordingConflictAsync(
+                        httpContext, sessions, turn.Agent, session, turn.RunId, cancellationToken).ConfigureAwait(false);
                 }
 
                 await Results.Json(
-                        new AgentRunResult(runId, request.SessionId, response, inputs),
+                        new AgentRunResult(turn.RunId, turn.Request.SessionId, response, inputs),
                         AIJsonUtilities.DefaultOptions,
                         statusCode: StatusCodes.Status200OK)
                     .ExecuteAsync(httpContext).ConfigureAwait(false);
@@ -1792,7 +1341,7 @@ internal static class AgentEndpoints
                 // Tracon exceptions already have their own catch blocks above.
                 var correlationId = SafeErrorText.NewCorrelationId();
                 var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints");
-                logger.LogError(ex, "Agent run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+                logger.LogError(ex, "Agent run {RunId} failed. (ref: {CorrelationId})", turn.RunId, correlationId);
 
                 await Results.Problem(
                         title: "Agent run failed",
@@ -1803,163 +1352,6 @@ internal static class AgentEndpoints
         }
 
         private static JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web);
-
-        /// <summary>
-        /// Builds the messages to send: approval responses, then client-side
-        /// tool results, then the user message — whichever of these apply.
-        /// </summary>
-        /// <remarks>
-        /// Both approval responses and tool results come BEFORE the user
-        /// message. Microsoft Agent Framework cannot process a new user
-        /// message without answering a pending call first; the reverse order
-        /// would leave the model facing an unanswered call.
-        /// </remarks>
-        private async ValueTask<(List<ChatMessage> Messages, IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? InputAnswers)> BuildMessagesAsync(
-            HttpContext httpContext,
-            Microsoft.Agents.AI.AgentSession? session,
-            CancellationToken cancellationToken)
-        {
-            var messages = new List<ChatMessage>(2);
-            var services = httpContext.RequestServices;
-            IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? inputAnswers = null;
-
-            if (request.Approvals.Count > 0 && session is not null)
-            {
-                var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-
-                var approvalMessage = await ToolApprovalResolver.BuildResponseMessageAsync(
-                    request.Approvals,
-                    agent,
-                    agentName,
-                    session,
-                    services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
-                    services.GetRequiredService<IToolApprovalRuleStore>(),
-                    services.GetRequiredService<ITenantContext>(),
-                    services.GetRequiredService<IToolRegistry>(),
-                    services.GetRequiredService<IAuditLog>(),
-                    services.GetRequiredService<IAuditActorResolver>(),
-                    loggerFactory.CreateLogger(typeof(ToolApprovalResolver).FullName!),
-                    services.GetRequiredService<TraconMetrics>(),
-                    cancellationToken).ConfigureAwait(false);
-
-                if (approvalMessage is not null)
-                {
-                    messages.Add(approvalMessage);
-                }
-            }
-
-            // Re-matches results against pending calls (RunAsync already
-            // validated this before the stream started — see the comment
-            // there). A mismatch here means the pending call was answered or
-            // removed between the two matches (a rare concurrent request);
-            // the result is silently dropped rather than failing a run whose
-            // headers may already be on the wire.
-            if (request.ToolResults.Count > 0 && session is not null)
-            {
-                var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-
-                var match = await ClientToolResultResolver
-                    .MatchAsync(
-                        request.ToolResults,
-                        agent,
-                        session,
-                        services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
-                        services.GetRequiredService<IToolRegistry>(),
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (match.Kind == ClientToolResultMatchKind.Success)
-                {
-                    var toolResultsMessage = await ClientToolResultResolver.BuildResponseMessageAsync(
-                        match.Matched,
-                        services.GetRequiredService<ITenantContext>(),
-                        services.GetRequiredService<IAuditLog>(),
-                        services.GetRequiredService<IAuditActorResolver>(),
-                        loggerFactory.CreateLogger(typeof(ClientToolResultResolver).FullName!),
-                        services.GetRequiredService<TraconMetrics>(),
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (toolResultsMessage is not null)
-                    {
-                        messages.Add(toolResultsMessage);
-                    }
-                }
-            }
-
-            // Answers to a tool's request for input (Phase 235) run the suspended tool call again; like
-            // the two blocks above they come BEFORE the user message. Matching again here, after the
-            // endpoint did, is side-effect free; a request answered in between is dropped like a tool
-            // result is, because the headers may already be on the wire.
-            if (request.InputResponses.Count > 0 && session is not null)
-            {
-                var loggerFactory = services.GetRequiredService<ILoggerFactory>();
-
-                var inputMatch = await ToolInputResolver
-                    .MatchAsync(
-                        request.InputResponses,
-                        agent,
-                        session,
-                        services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (inputMatch.Kind == ToolInputMatchKind.Success)
-                {
-                    var continuation = await ToolInputResolver.BuildContinuationAsync(
-                        inputMatch.Matched,
-                        services.GetRequiredService<ITenantContext>(),
-                        services.GetRequiredService<IAuditLog>(),
-                        services.GetRequiredService<IAuditActorResolver>(),
-                        loggerFactory.CreateLogger(typeof(ToolInputResolver).FullName!),
-                        services.GetRequiredService<TraconMetrics>(),
-                        cancellationToken).ConfigureAwait(false);
-
-                    messages.AddRange(continuation.Messages);
-
-                    if (continuation.Answers.Count > 0)
-                    {
-                        inputAnswers = continuation.Answers;
-                    }
-                }
-            }
-
-            // 🚨 Documents are their own messages, added BEFORE the user's
-            // message: each is wrapped in a delimiter and marked through
-            // AIContent.AdditionalProperties (DocumentChannelMessageBuilder)
-            // so the model - and the run record - can tell reference text
-            // apart from the instructions and from the actual request.
-            foreach (var document in request.Documents)
-            {
-                messages.Add(DocumentChannelMessageBuilder.Build(document));
-            }
-
-            var contents = new List<AIContent>();
-
-            if (!string.IsNullOrWhiteSpace(request.Message))
-            {
-                contents.Add(new TextContent(request.Message));
-            }
-
-            // Binary content is NOT carried here: only a small UriContent reference
-            // is added. The actual bytes are resolved right before the model
-            // call, BEFORE being sent to the provider (see AttachmentResolvingChatClient).
-            foreach (var attachment in attachments)
-            {
-                // The file's name travels with the reference; resolution hands it
-                // to the model as DataContent.Name (F-580 class scan).
-                contents.Add(new UriContent(AttachmentUriReference.Create(prefix, attachment.Id), attachment.MediaType)
-                {
-                    AdditionalProperties = new() { [AttachmentUriReference.NameProperty] = attachment.FileName },
-                });
-            }
-
-            if (contents.Count > 0)
-            {
-                messages.Add(new ChatMessage(ChatRole.User, contents));
-            }
-
-            return (messages, inputAnswers);
-        }
 
         private sealed record AgentRunAccepted(Guid RunId, string? SessionId);
 
@@ -1973,38 +1365,6 @@ internal static class AgentEndpoints
             string? SessionId,
             Microsoft.Agents.AI.AgentResponse Response,
             IReadOnlyList<PendingToolInputAnnouncement>? Inputs);
-
-        /// <summary>
-        /// The <c>inputs</c> SSE frame (and the <c>inputs</c> member of the non-streaming body): one
-        /// request for user input that suspended a tool call, sent right before <c>done</c>.
-        /// </summary>
-        private sealed record PendingToolInputAnnouncement(
-            string RequestId,
-            string ToolName,
-            string ServerName,
-            string Message,
-            System.Text.Json.JsonElement RequestedSchema)
-        {
-            public static PendingToolInputAnnouncement[] From(IReadOnlyList<PendingToolInput> pending)
-                => [.. pending.Select(static input => new PendingToolInputAnnouncement(
-                    input.RequestId,
-                    input.ToolName,
-                    input.ServerName,
-                    input.Message,
-                    input.RequestedSchema))];
-        }
-
-        /// <summary>
-        /// The <c>approvals</c> SSE frame: the presentation resolved for one pending
-        /// tool-approval request, sent right before the stream's <c>done</c> frame.
-        /// </summary>
-        private sealed record PendingApprovalAnnouncement(
-            string RequestId,
-            string ToolName,
-            string? EntityType,
-            string? EntityId,
-            string? EntityName,
-            string? Message);
     }
 
     internal static async ValueTask<AgentDescriptor?> FindDescriptorAsync(
