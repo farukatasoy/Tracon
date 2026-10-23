@@ -346,7 +346,7 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif M
 4. **Fail-closed denetim kümesi 7 → 8.** Plan "K-089/K-370 deseni" dedi, yayımlanmış kümeyi (K-776) anmadı. `tool_input.answer` `WriteOrThrowAsync`; `IAuditLog` belgesi, `governance.md`, `security-policy.md`, `capabilities.md`, `observability.md`, `AuditWritePolicyTests` (10 → 11 çağrı yeri, 7 → 8 işlem) ve `AuditContentPolicyTests` birlikte güncellendi. → K-1074.
 5. **`RunEventCustomTypes.ToolInputDeclined` public sabit.** Plan "run olayı" dedi, tür adı vermedi ve planlanan public API'de yok. Tüketici olayı adıyla süzebilsin diye (`tracon.tool.input.declined`; payload yalnız `server`, `tool`, `reason`).
 6. **Değerler oturuma girmez.** `ToolInputResponse.Content` XML belgesi başlangıçta "oturum geçmişinde kalır" diyordu; gerçek davranış: cevap yalnız bellekte (`run seçeneği → kapsam`), sunucuya gider. Belge düzeltildi.
-7. **A2A ve MCP sunucusu yüzeyi için ayrı `decline` testi yok.** Bayrağı yalnız `AgentEndpoints` kurar (grep); aynı karar tablosunu OpenAI-uyumlu uç, oturumsuz run, alt agent ve eski protokol testleri kapsar; `no_channel` birim testiyle sabit.
+7. **A2A ve MCP sunucusu yüzeyi için ayrı `decline` testi yok.** Bayrağı yalnız `AgentEndpoints` kurar (grep); aynı karar tablosunu OpenAI-uyumlu uç, oturumsuz run, alt agent ve eski protokol testleri kapsar. Neden kodları `McpElicitationHandlerTests`te yakalayan bir `Writer` ile ve `McpElicitationTests`te run olayından doğrulanır (denetim 🟡3 sonrası); `no_channel`ın kendisi birim testle sabit, uçtan uca yalnız Responses `conversation` ve A2A için yok.
 8. **Oyun alanı manuel case'i yazılmadı.** Form kodla tekrarlanır (Playwright `PlaygroundTests.Playground_asks_for_the_fields…` + Vitest); `manuel-case.md` bunu sete sokmaz. Sete girenler: `MT-MCP-093`, `094` (gerçek model).
 9. **Planda olmayan karar kodları ve sonuç sentezi.** `no_termination`, `no_run` nedenleri eklendi. Plan §235.4 paralel çağrıların `Terminate`'ten etkilenmesini ölçüme bırakmıştı: ölçüldü — seri FIC kalan çağrıları çalıştırmaz ve sonuçsuz bırakır, sağlayıcı sonuçsuz çağrılı geçmişi reddeder; `ToolInputResolver` aynı mesajdaki kardeş çağrılara `SkippedCallResult` yazar.
 10. **`SuppressFlow` yerine `Task.Run` + `SuppressFlow`.** Plan yalnız `SuppressFlow` yazdı; tüm `CreateAsync` zinciri temiz bağlamda koşsun diye iş `Task.Run` içinde kuruluyor. Tracon'da bir araç çağrısı içinde bağlantı açan yol yok → koruma savunmacıdır, sızıntı testi yazılamadı (yol yok).
@@ -354,6 +354,9 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif M
 12. **Form şeması planın dediğinden geniş.** Tek ve çok seçim (`enum`/`oneOf`/`anyOf`), tamsayı ve uzunluk/aralık kısıtları desteklendi (`inputFields`, `ToolInputSchemaValidator`).
 13. **Test sunucusu paylaşımlı.** `tests/Shared/Infrastructure/ElicitingMcpServer.cs` iki projeye bağlanır (`LookupMcpServer`'ı değiştirmek yerine).
 14. **Bundle payı:** brotli 185.716 → 187.281 B (+1.565 B); gzip 224,1 KB (bütçe 250 KB).
+15. **Sonuçsuz kalan kardeş çağrılar cevap turuna bağlı kapatılmıyor (denetim 🟡1).** İlk uygulama kardeşleri `ToolInputResolver` içinde yalnız cevap gelen turda kapatıyordu. Kullanıcı formu yok sayıp yazarsa, ya da onay isteyen sunucuda çağrılar birlikte onaylanırsa geçmişte sonuçsuz çağrı kalır ve sağlayıcı reddeder. Şimdi askıya alan koşu sonuçsuz çağrıları (`SkippedCallTracker`) oturuma işaretler; oturumun sonraki her koşusu kapatır (`ToolInputSessionBridge.CloseSkippedCalls`). `ToolInputResolver`'dan kardeş kapatma kodu silindi.
+16. **`toolResults` sunucu tool'unun çağrısını cevaplayamaz (denetim 🔴1).** `ClientToolResultResolver` sonuçsuz her çağrıyı istemci çağrısı sayıyordu; bu faz sunucu tool'u çağrılarını da turlar arasında sonuçsuz bırakınca arayan, sunucu tool'unun hiç üretmediği sonucu yazabilirdi. Çözüm: kayıt defteri `AIFunction` döndürüyorsa çağrı cevaplanamaz (`IToolRegistry` parametresi eklendi; internal). Faz öncesinde de açık bir sınıftı (istemci tool'u + sunucu tool'u aynı turda); o da kapandı.
+17. **Kapanış koşumu üç kusur buldu, üçü de faz kodunun kendisinden.** (a) `AgentRunRequest.InputResponses` özelliğine yazılan `<example>` C# kodu OpenAPI belgesine `"examples": [null]` olarak girdi (`OpenApiSnapshotTests`); örnek kaldırıldı, belgeli şekil `<remarks>`te ve sitede. (b) Genel tip sayısı `Tracon.AspNetCore` 21 → 23 (`ToolInputResponse`, `ToolInputAction`; planlı public API) — `public-surface-baseline.txt` yenilendi. (c) Oyun alanı E2E testindeki iki `GetByText` `Exact = true` almadan risky sayıldı (`PlaywrightLocatorTests`, taban 9, bulunan 11); `Exact = true` eklendi, taban aynı kaldı.
 
 ## Bu Fazda Verilen Kararlar
 
@@ -381,18 +384,42 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif M
 | `POST /v1/chat/completions` | `200`, yanıt `Hello!`; sunucu `inputResponses=0` sonra `=1` (decline) |
 | Oturumlu run + `Decline` cevabı | durumlar `AwaitingInput`, `Completed`; tool sonucu `declined` |
 
+## Kapanış Koşumu
+
+> `python3 scripts/kapi.py kapanis --taban 094c87ef`, 2026-10-23, denetim düzeltmelerinden sonra. İlk koşum üç kusurla kırmızı döndü (sapma 17); düzeltmeden sonra ikinci koşum **çıkış 0**.
+
+| Kapı | Sonuç |
+|---|---|
+| Üretim, `tarama` (`secret`), `dokuman-bakim.py --denetle`, `scripts` birim testleri, `denetim-paketi` | ✅ temiz |
+| `dotnet build` (Release, `-warnaserror` kapıları dahil) · `dotnet pack` · `dotnet format --verify-no-changes` | ✅ sıfır uyarı |
+| `docs-site` `npm run check` (içerik, bağlantı, SEO, ağırlık) | ✅ |
+| `kapi.py performans` | ✅ tahsis tabanları aynı |
+| Tam test (`net8.0`/`net9.0`/`net10.0`, SQLite, PostgreSQL ve SQL Server entegrasyon, E2E) | ✅ 26.599 test: 26.580 geçti, 0 düştü, 19 atlandı (fazdan önceki atlananlar) |
+
 ## Süreç Ölçümü
 
 > Kapanışta doldurulur.
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 3 (onay mekanizması A → köprü; bekleyen istek defterden okunur; cevap sıraya değil soruya bağlı) |
+| Düzeltme turu sayısı | 1 (bağımsız denetimden sonra: 🔴 1 + 🟡 4) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 1 (🔴 sunucu tool'u çağrısına `toolResults` ile sahte sonuç yazılabilmesi: faz askıyla sonuçsuz çağrı üretti, çözümleyici bunu istemci çağrısı sandı; denetim yakaladı, kapanmadan düzeltildi) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç.
+
+Bağımsız denetçi (`faz-denetcisi`, 2026-10-23, `094c87ef..HEAD`). Denetçi `Mcp.UnitTests` 23/23, `McpElicitation` 18/18 ve `*ToolInput*` 35/35 koştu; MAF, MEAI ve MCP SDK kaynaklarını decompile etti. Temiz çıkan başlıklar: 3.3, 3.5, 3.6, 3.7, 3.9; sapma 1, 3 ve 4 doğru bulundu.
+
+| # | Seviye | Bulgu | Sonuç |
+|---|---|---|---|
+| 1 | 🔴 | Askı sunucu tool'u çağrılarını turlar arasında sonuçsuz bırakır; `toolResults` bu çağrılara arayanın uydurduğu sonucu kabul eder | **Kapandı.** `ClientToolResultResolver` kayıt defterine bakar, yalnız `AIFunction` olmayan tool cevaplanır. Test: `A_caller_cannot_write_the_result_of_a_server_call_that_never_ran`; denetimi kaldıran mutasyon testi kırmızıya çevirdi (sapma 16) |
+| 2 | 🟡 | Sevk edilen metin ret yollarını yanlış anlatıyor (`no_session` / `no_channel`; bağlamsız ret olay değil log; iki bayat XML) | **Kapandı.** Neden tablosu koda göre düzeltildi (handler oturumu kanaldan önce denetler; karar: kod doğru, belge yanlış). `RunEventCustomTypes`, `TraconRunOptions`, `AgentEndpoints`, `tools.md`, `troubleshooting.md`, Mcp README, CHANGELOG, K-1072 |
+| 3 | 🟡 | Ret neden kodları testte doğrulanmıyor | **Kapandı.** Yakalayan sink ile her neden doğrulanır (sapma 7) |
+| 1 (🟡) | 🟡 | Sonuçsuz kardeş çağrı iki yolda geçmişte kalır (formu yok say; onay isteyen sunucu) | **Kapandı.** Sapma 15; `A_user_who_ignores_the_form_and_types_on_leaves_a_history_a_provider_accepts` ve `Calls_queued_behind_an_approved_and_suspended_call_get_a_result_too` (geçmişi doğrulayan model) |
+| 4 | 🟡 | DoD "denetim koşuldu" denetimden önce işaretli; Süreç Ölçümü ve bulgular boş | **Kapandı.** Bu bölüm ve Süreç Ölçümü dolduruldu; sıra: denetim → triyaj → tamamlama |
+| 🟢1 | 🟢 | Aynı isteğe eşzamanlı iki cevap iki yeniden çağrı koşturabilir | Aday: F-665 |
+| 🟢2 | 🟢 | Elicitation yeteneği her bağlantıda koşulsuz bildirilir | Aday: F-666 |

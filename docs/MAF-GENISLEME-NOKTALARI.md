@@ -129,6 +129,8 @@ void   SaveState(AgentSession session, TState state);
 JsonElement Serialize();
 void        SetValue<T>(string key, T value, JsonSerializerOptions? opts);
 bool        TryGetValue<T>(string key, out T value, JsonSerializerOptions? opts);
+// 🚨 Tracon `_pendingApprovalRequests` anahtarına YAZAR (public yüzey değil; `ToolInputSessionBridge`, Faz 235):
+// askıya alınan MCP tool çağrısının yeniden çağrısı, MAF'ın onay bağlama katmanının tanıdığı tek kayıttır.
 
 // AIAgent — oturum yaşam döngüsü
 ValueTask<AgentSession> CreateSessionAsync(CancellationToken ct = default);

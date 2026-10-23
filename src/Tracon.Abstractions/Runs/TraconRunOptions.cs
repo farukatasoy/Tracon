@@ -299,13 +299,14 @@ public sealed class TraconRunOptions : AgentRunOptions
     internal bool AcceptsToolInput { get; init; }
 
     /// <summary>
-    /// Gets the user's answers to earlier tool input requests, in the order the server asked
-    /// them, keyed by the call identity of the call that replays the suspended tool call.
+    /// Gets the user's answers to earlier tool input requests, keyed by the call identity of the call
+    /// that replays the suspended tool call.
     /// </summary>
     /// <remarks>
-    /// The call that was suspended runs again from its start: the tool wrapper
-    /// answers the server's requests with these, in order, instead of asking the user again.
-    /// A request beyond the last answer suspends the run again.
+    /// The call that was suspended runs again from its start: the tool wrapper answers the server's
+    /// request with the answer given to that very question (matched by the digest of its message and
+    /// fields) instead of asking the user again. A question the answer was not given to, and a second
+    /// request of the same call, are declined: a call is suspended at most once.
     /// </remarks>
     internal IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? ToolInputAnswers { get; init; }
 

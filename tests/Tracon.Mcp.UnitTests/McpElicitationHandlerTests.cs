@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 
 namespace Tracon.Mcp.UnitTests;
@@ -26,9 +26,11 @@ public sealed class McpElicitationHandlerTests
     public async Task A_request_outside_any_tool_call_is_declined()
     {
         // The older protocol delivers a request from the connection's receive loop; no call scope is open there.
-        var result = await Handler().HandleAsync(Form, CancellationToken.None);
+        var logger = new CapturingLogger();
+        var result = await Handler(logger).HandleAsync(Form, CancellationToken.None);
 
         result.Action.ShouldBe("decline");
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.NoRun]);
     }
 
     [Fact]
@@ -37,8 +39,11 @@ public sealed class McpElicitationHandlerTests
         var scope = OpenScope(Run());
         scope.Close();
 
-        (await Handler().HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
+        var logger = new CapturingLogger();
+
+        (await Handler(logger).HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
         scope.Pending.ShouldBeNull();
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.NoRun]);
     }
 
     [Fact]
@@ -54,8 +59,11 @@ public sealed class McpElicitationHandlerTests
             ElicitationId = "e1",
         };
 
-        (await Handler().HandleAsync(url, CancellationToken.None)).Action.ShouldBe("decline");
+        var logger = new CapturingLogger();
+
+        (await Handler(logger).HandleAsync(url, CancellationToken.None)).Action.ShouldBe("decline");
         scope.Pending.ShouldBeNull();
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.UrlMode]);
     }
 
     [Fact]
@@ -63,7 +71,10 @@ public sealed class McpElicitationHandlerTests
     {
         OpenScope(run: null);
 
-        (await Handler().HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
+        var logger = new CapturingLogger();
+
+        (await Handler(logger).HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.NoRun]);
     }
 
     [Fact]
@@ -71,9 +82,11 @@ public sealed class McpElicitationHandlerTests
     {
         // K-103: a sub-agent cannot wait in the middle of its parent's tree.
         var scope = OpenScope(Run(depth: 1));
+        var logger = new CapturingLogger();
 
-        (await Handler().HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
+        (await Handler(logger).HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
         scope.Pending.ShouldBeNull();
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.ChildRun]);
     }
 
     [Theory]
@@ -83,9 +96,11 @@ public sealed class McpElicitationHandlerTests
     public async Task A_run_without_a_session_has_nowhere_to_take_the_answer_from(string? session)
     {
         var scope = OpenScope(Run(session: session));
+        var logger = new CapturingLogger();
 
-        (await Handler().HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
+        (await Handler(logger).HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
         scope.Pending.ShouldBeNull();
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.NoSession]);
     }
 
     [Fact]
@@ -93,9 +108,11 @@ public sealed class McpElicitationHandlerTests
     {
         // An OpenAI-compatible call, an A2A task, an MCP tool call and a queued run leave the flag off.
         var scope = OpenScope(Run(acceptsToolInput: false));
+        var logger = new CapturingLogger();
 
-        (await Handler().HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
+        (await Handler(logger).HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
         scope.Pending.ShouldBeNull();
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.NoChannel]);
     }
 
     [Fact]
@@ -104,9 +121,11 @@ public sealed class McpElicitationHandlerTests
         // A suspended call ends the run by telling the function-invocation loop to stop. A tool that was not
         // called by the loop has no loop to tell, and suspending it would strand the run.
         var scope = OpenScope(Run(), canTerminate: false);
+        var logger = new CapturingLogger();
 
-        (await Handler().HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
+        (await Handler(logger).HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
         scope.Pending.ShouldBeNull();
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.NoTermination]);
     }
 
     [Fact]
@@ -181,13 +200,15 @@ public sealed class McpElicitationHandlerTests
             Run(),
             answers: [new ToolInputAnswer(FingerprintOf(Form), ToolInputActions.Accept, new Dictionary<string, JsonElement>(StringComparer.Ordinal) { ["name"] = JsonSerializer.SerializeToElement("Ada") })]);
 
-        var handler = Handler();
+        var logger = new CapturingLogger();
+        var handler = Handler(logger);
 
         (await handler.HandleAsync(Form, CancellationToken.None)).IsAccepted.ShouldBeTrue();
 
         // The same question again, with the answer spent: declined, never suspended, never given Ada twice.
         (await handler.HandleAsync(Form, CancellationToken.None)).Action.ShouldBe("decline");
         scope.Pending.ShouldBeNull();
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.Mismatch]);
     }
 
     [Fact]
@@ -207,11 +228,13 @@ public sealed class McpElicitationHandlerTests
             },
         };
 
-        var result = await Handler().HandleAsync(other, CancellationToken.None);
+        var logger = new CapturingLogger();
+        var result = await Handler(logger).HandleAsync(other, CancellationToken.None);
 
         result.Action.ShouldBe("decline");
         result.Content.ShouldBeNull();
         scope.Pending.ShouldBeNull("a replayed call is never suspended a second time");
+        logger.Reasons.ShouldBe([McpElicitationHandler.Reasons.Mismatch]);
     }
 
     [Fact]
@@ -235,7 +258,7 @@ public sealed class McpElicitationHandlerTests
 
     // ---- Harness ----------------------------------------------------------------
 
-    private static McpElicitationHandler Handler() => new("srv", NullLogger.Instance);
+    private static McpElicitationHandler Handler(CapturingLogger? logger = null) => new("srv", logger ?? new CapturingLogger());
 
     private static string FingerprintOf(ElicitRequestParams request)
         => McpElicitationHandler.Fingerprint(
@@ -273,5 +296,40 @@ public sealed class McpElicitationHandlerTests
         McpToolCallScope.Open(scope);
 
         return scope;
+    }
+
+    /// <summary>Keeps the reason code of every decline the handler logged.</summary>
+    private sealed class CapturingLogger : ILogger
+    {
+        private readonly List<string> _reasons = [];
+
+        public IReadOnlyList<string> Reasons
+        {
+            get
+            {
+                lock (_reasons)
+                {
+                    return [.. _reasons];
+                }
+            }
+        }
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+            => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (state is IEnumerable<KeyValuePair<string, object?>> values &&
+                values.FirstOrDefault(static pair => string.Equals(pair.Key, "Reason", StringComparison.Ordinal)).Value is string reason)
+            {
+                lock (_reasons)
+                {
+                    _reasons.Add(reason);
+                }
+            }
+        }
     }
 }

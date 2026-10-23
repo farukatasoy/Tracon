@@ -116,6 +116,7 @@ public sealed partial class RunRecordingAgent
         AgentSession? session,
         AgentRunOptions? options,
         IReadOnlyList<PendingToolInput> pending,
+        IReadOnlyList<string> skippedCalls,
         CancellationToken cancellationToken)
     {
         if (pending.Count == 0)
@@ -123,12 +124,27 @@ public sealed partial class RunRecordingAgent
             return;
         }
 
-        ToolInputSessionBridge.Record(session, pending);
+        ToolInputSessionBridge.Record(session, pending, skippedCalls);
 
         if (options is TraconRunOptions { BeforePendingToolInputIsPublished: { } hook })
         {
             await hook(pending, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Puts the results of the calls an earlier run of the session left without one in front of the run's messages.
+    /// </summary>
+    private static IEnumerable<ChatMessage> WithClosedSkippedCalls(IEnumerable<ChatMessage> messages, AgentSession? session)
+        => ToolInputSessionBridge.CloseSkippedCalls(session) is { } closing ? [closing, .. messages] : messages;
+
+    /// <summary>Reads the calls of a finished run that never got a result.</summary>
+    private static IReadOnlyList<string> SkippedCalls(IEnumerable<ChatMessage> produced)
+    {
+        var tracker = new SkippedCallTracker();
+        tracker.Observe(produced);
+
+        return tracker.Skipped();
     }
 
     /// <summary>Builds the <see cref="RunEventType.RunAwaitingInput"/> closing event's <c>Payload</c> for tool input.</summary>

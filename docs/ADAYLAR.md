@@ -598,6 +598,8 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | **F-662** · Kuyruklu run'da ve webhook'ta askıdaki tool girdisi | `Prefer: respond-async` run'ı bugün sunucunun isteğine `decline` verir ve run olayı yazar. Bekleyen isteğin posta kutusu (`pending_approvals`'ın eşi) migration ister; `input.pending` webhook'unun tüketicisi kuyruk yolu olmadan yoktur | Kuyruklu run'ında MCP elicitation isteyen tüketici. İki iş tek tablo ve tek webhook olarak planlanır |
 | **F-663** · Elicitation cevabı için dış yüzeyler: OpenAI uyumlu uçlar, A2A, MCP sunucusu | Telde cevap kanalı yok: üçü de `decline` verir. A2A'nın `input-required` durumu ve MCP görevinin `input-required` hâli aynı `ToolInputResponse` sözleşmesini kullanabilir (ad bu yüzden genel tutuldu) | F-619 (A2A görev modu) planlanınca, tek tasarım olarak |
 | **F-664** · MCP `url` modu elicitation | Sunucu kullanıcıyı bir adrese yollar (OAuth, ödeme). Ayrı güven modeli ister: adres kullanıcıya gösterilir, açılışı onaylanır, `secret` istemciye uğramaz. Bugün bildirilmez; istek `decline` alır | Adrese yönlendiren bir sunucu ve onu kullanan tüketici |
+| **F-665** · Aynı elicitation isteğine eşzamanlı iki cevap | Faz 235 denetimi: iki istek aynı `requestId` için cevap getirirse ikisi de eşleşmeden geçer, ikisi de denetlenir ve tool iki kez yeniden çağrılır. Oturum başına serileştirme yok; onay cevaplarında da aynı sınıf var | Bir oturumu iki sekmeden süren tüketici ya da otomatik yeniden deneme. Çözüm oturum kilidi ve bekleyen kaydın tek tüketimidir; onay yolunu da kapsar, tek tasarım olarak |
+| **F-666** · MCP elicitation yeteneği için kapatma anahtarı | Yetenek her bağlantıda koşulsuz bildirilir; bağlantı `(kiracı, sunucu)` başınadır, yüzeye göre değişmez. Yeteneği denetleyip yedek yola düşen sunucu, cevap kanalı olmayan yüzeylerde (OpenAI uyumlu uçlar, oturumsuz run) artık `decline` alır; bugünkü hâl tool'un düşmesiydi | Yeteneği denetleyip yedek yola düşen bir sunucu ve onu kullanan tüketici. Aday: `TraconMcpOptions` içinde sunucu başına kapatma; yüzeye göre bildirim bağlantı paylaşımını böler |
 
 ### F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı
 
@@ -676,7 +678,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-665**.
+numara: **F-667**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

@@ -4058,8 +4058,10 @@ address for a server. What the server gets depends on who can answer:
 | A request to open an address (`url` mode) | `decline` |
 
 `decline` is a complete answer. The server decides what the tool does next, and
-nothing is dropped without a word: each decline writes a `tracon.tool.input.declined`
-run event that names the server, the tool and the reason.
+nothing is dropped without a word: a decline inside a run writes a
+`tracon.tool.input.declined` run event that names the server, the tool and the reason.
+A request that reaches the connection outside any run (an older server sends one that
+way) has no run to hold an event; the application log records it instead.
 
 ```mermaid
 sequenceDiagram
@@ -24260,12 +24262,12 @@ events (`GET /api/runs/{id}/events`) for `tracon.tool.input.declined`; the paylo
 
 | Reason | Meaning and fix |
 |---|---|
-| `no_session` | The run has no `sessionId`. Run the agent with one |
-| `no_channel` | The surface cannot carry the answer: an OpenAI-compatible call, an A2A task, an MCP tool call or a queued run. Use `POST /api/agents/{name}/run` |
+| `no_session` | The run has no `sessionId`. Run the agent with one. A Chat Completions call and an MCP tool call never have one: use `POST /api/agents/{name}/run` |
+| `no_channel` | The run has a session, but the surface cannot carry the answer: an A2A task, a Responses call with a conversation, a queued run. Use `POST /api/agents/{name}/run` |
 | `child_run` | An agent called by another agent cannot ask the user. Move the tool to the agent the user talks to |
 | `url_mode` | The server asked to open an address. Tracon asks for form fields only |
 | `mismatch` | The server asked something other than what the user answered. A tool call stops for input once; the server must ask the same question twice or ask everything in one request |
-| `no_run`, `no_termination` | The request reached the connection outside a tool call of a run, or the tool was not called by an agent run. A server on the earlier protocol always lands here |
+| `no_run`, `no_termination` | The request reached the connection outside a tool call that is still running, or the tool was not called by an agent run. A server on the earlier protocol always lands here; it has no run, so no event is written and the warning is in the application log |
 
 An answer that returns `400` or `409` never started a run. See
 [A server asks the user for input](/concepts/tools/#a-server-asks-the-user-for-input)

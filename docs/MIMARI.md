@@ -305,6 +305,15 @@ tanım sürümünü derler; başka sürümü `definitionVersion` seçer (K-988).
 isteyerek biterse `AwaitingApproval` ile kapanır ve bir daha DEĞİŞMEZ (K-014);
 karar YENİ bir çalıştırma açar (K-368) — bkz. §7.
 
+Bir MCP tool'u çağrının ortasında kullanıcıdan bilgi isterse (elicitation) kök çalıştırma
+aynı biçimde `AwaitingInput` ile kapanır: istek `inputs` çerçevesiyle duyurulur, cevap sonraki
+turun `inputResponses` alanıdır ve tool çağrısı **baştan yeniden** yapılır (K-1071; yeniden
+çağrı MAF'ın bekleyen-istek kaydına koşu kapanırken yazılır, K-1075). İsteği ancak yönetim
+API'sinin oturumlu kök run'ı cevaplayabilir; oturumsuz run, alt agent, kanalsız yüzey, eski
+protokol ve `url` modu `decline` alır (K-1072). Cevap sorulan soruya bağlıdır ve çağrı en çok bir
+kez askıya alınır (K-1073); cevap `tool_input.answer` olarak fail-closed denetlenir ve değerini
+yalnız MCP sunucusu görür (K-1074). Ayrıntı: [`hafiza/mcp-elicitation.md`](hafiza/mcp-elicitation.md).
+
 ### Çalıştırma ağacı
 
 Bir agent `CallableAgentNames` taşıyorsa derleyici her alt agent'ı bir

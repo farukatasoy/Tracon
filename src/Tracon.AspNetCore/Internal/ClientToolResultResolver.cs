@@ -54,6 +54,10 @@ internal static class ClientToolResultResolver
     /// <param name="agent">The resolved agent.</param>
     /// <param name="session">The open session.</param>
     /// <param name="chatHistory">The chat history provider.</param>
+    /// <param name="tools">
+    /// The tool registry. A call to a tool that runs on the server is never answered by a caller, whatever the
+    /// history says about its result.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The match outcome.</returns>
     public static async ValueTask<ClientToolResultMatch> MatchAsync(
@@ -61,6 +65,7 @@ internal static class ClientToolResultResolver
         AIAgent agent,
         AgentSession session,
         ChatHistoryProvider chatHistory,
+        IToolRegistry tools,
         CancellationToken cancellationToken)
     {
         if (results.Count == 0)
@@ -72,7 +77,7 @@ internal static class ClientToolResultResolver
             .ReadAsync(agent, session, chatHistory, cancellationToken)
             .ConfigureAwait(false);
 
-        var (pending, answered) = CollectCalls(history);
+        var (pending, answered) = CollectCalls(history, tools);
         var matched = new List<(ClientToolResult Result, FunctionCallContent Call)>(results.Count);
 
         foreach (var result in results)
@@ -153,14 +158,18 @@ internal static class ClientToolResultResolver
     /// <c>FunctionCallContent</c> calls from the session history.
     /// </summary>
     /// <remarks>
-    /// A server-side tool call never appears here without its result — the
-    /// server invokes and answers it within the same turn. Only a
-    /// client-side (declaration-only) call can be left pending, so no
-    /// separate check against the tool registry's <c>RunsOnClient</c> flag
-    /// is needed.
+    /// <para>
+    /// A call to a tool that runs on the server is never pending for a caller. It usually has its result, but not
+    /// always: a turn that stops at an approval or at a tool's request for input leaves the calls queued behind
+    /// it without one until a later run closes them. Counting such a call as pending would let a caller write the
+    /// result the server's own tool never produced, so the registry decides: only a declaration-only tool (one
+    /// that runs on the client) can be answered here. A call to a name the registry no longer knows stays
+    /// pending, as it always was.
+    /// </para>
     /// </remarks>
     private static (Dictionary<string, FunctionCallContent> Pending, HashSet<string> Answered) CollectCalls(
-        IReadOnlyList<ChatMessage> history)
+        IReadOnlyList<ChatMessage> history,
+        IToolRegistry tools)
     {
         var calls = new Dictionary<string, FunctionCallContent>(StringComparer.Ordinal);
         var answered = new HashSet<string>(StringComparer.Ordinal);
@@ -189,7 +198,7 @@ internal static class ClientToolResultResolver
 
         foreach (var (callId, call) in calls)
         {
-            if (!answered.Contains(callId))
+            if (!answered.Contains(callId) && !RunsOnServer(tools, call.Name))
             {
                 pending[callId] = call;
             }
@@ -197,6 +206,10 @@ internal static class ClientToolResultResolver
 
         return (pending, answered);
     }
+
+    /// <summary>Whether the registry holds an invocable tool of this name, which only the server can run.</summary>
+    private static bool RunsOnServer(IToolRegistry tools, string name)
+        => tools.TryGet(name, out var tool) && tool is AIFunction;
 }
 
 /// <summary>The outcome of <see cref="ClientToolResultResolver.MatchAsync"/>.</summary>

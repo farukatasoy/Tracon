@@ -32,10 +32,6 @@ internal static class ToolInputResolver
     /// <summary>The audit action of an answer to a tool input request.</summary>
     public const string AuditAction = "tool_input.answer";
 
-    /// <summary>What a call that was skipped because the run paused answers the model.</summary>
-    internal const string SkippedCallResult =
-        "This call did not run: the run paused while the user answered a request from another tool.";
-
     /// <summary>Matches answers against the pending requests of the session history.</summary>
     /// <param name="responses">The answers coming from the caller.</param>
     /// <param name="agent">The resolved agent.</param>
@@ -140,7 +136,6 @@ internal static class ToolInputResolver
         }
 
         var actor = actorResolver.Resolve();
-        var skipped = new List<AIContent>();
         var responses = new List<AIContent>(matched.Count);
         var answers = new Dictionary<string, IReadOnlyList<ToolInputAnswer>>(matched.Count, StringComparer.Ordinal);
 
@@ -166,8 +161,6 @@ internal static class ToolInputResolver
                 timeProvider: null,
                 cancellationToken).ConfigureAwait(false);
 
-            skipped.AddRange(pending.SkippedSiblings());
-
             var replayId = pending.ReplayCallId;
             var arguments = pending.Call.Arguments is null
                 ? null
@@ -191,16 +184,7 @@ internal static class ToolInputResolver
             ];
         }
 
-        var messages = new List<ChatMessage>(2);
-
-        if (skipped.Count > 0)
-        {
-            messages.Add(new ChatMessage(ChatRole.Tool, skipped));
-        }
-
-        messages.Add(new ChatMessage(ChatRole.User, responses));
-
-        return new ToolInputContinuation(messages, answers);
+        return new ToolInputContinuation([new ChatMessage(ChatRole.User, responses)], answers);
     }
 
     /// <summary>Reads a request the tool wrapper wrote as a call's result, or reports that the result is not one.</summary>
@@ -248,10 +232,9 @@ internal static class ToolInputResolver
     private static (Dictionary<string, PendingInputRecord> Pending, HashSet<string> Answered) Collect(
         IReadOnlyList<ChatMessage> history)
     {
-        var calls = new Dictionary<string, (FunctionCallContent Call, ChatMessage Message)>(StringComparer.Ordinal);
+        var calls = new Dictionary<string, FunctionCallContent>(StringComparer.Ordinal);
         var results = new Dictionary<string, FunctionResultContent>(StringComparer.Ordinal);
         var answered = new HashSet<string>(StringComparer.Ordinal);
-        var approvalCalls = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var message in history)
         {
@@ -260,7 +243,7 @@ internal static class ToolInputResolver
                 switch (content)
                 {
                     case FunctionCallContent call:
-                        calls[call.CallId] = (call, message);
+                        calls[call.CallId] = call;
                         break;
 
                     case FunctionResultContent result:
@@ -269,10 +252,6 @@ internal static class ToolInputResolver
 
                     case ToolApprovalResponseContent response:
                         answered.Add(response.RequestId);
-                        break;
-
-                    case ToolApprovalRequestContent request:
-                        approvalCalls.Add(request.ToolCall.CallId);
                         break;
 
                     default:
@@ -297,22 +276,14 @@ internal static class ToolInputResolver
                 continue;
             }
 
-            var siblings = call.Message.Contents
-                .OfType<FunctionCallContent>()
-                .Where(sibling => !string.Equals(sibling.CallId, callId, StringComparison.Ordinal) &&
-                                  !results.ContainsKey(sibling.CallId) &&
-                                  !approvalCalls.Contains(sibling.CallId))
-                .ToList();
-
             pending[requestId] = new PendingInputRecord(
                 requestId,
                 replayCallId,
-                call.Call,
-                Text(payload, "tool") ?? call.Call.Name,
+                call,
+                Text(payload, "tool") ?? call.Name,
                 Text(payload, "server") ?? string.Empty,
                 fingerprint,
-                payload.TryGetProperty("requestedSchema", out var schema) ? schema.Clone() : default,
-                siblings);
+                payload.TryGetProperty("requestedSchema", out var schema) ? schema.Clone() : default);
         }
 
         foreach (var requestId in answered)
@@ -335,7 +306,6 @@ internal static class ToolInputResolver
 /// <param name="ServerName">The MCP server that asked.</param>
 /// <param name="Fingerprint">The digest of the message and the schema the server sent.</param>
 /// <param name="Schema">The flat schema of the fields the server asked for.</param>
-/// <param name="Siblings">The calls of the same turn that never ran because the run paused.</param>
 internal sealed record PendingInputRecord(
     string RequestId,
     string ReplayCallId,
@@ -343,13 +313,7 @@ internal sealed record PendingInputRecord(
     string ToolName,
     string ServerName,
     string Fingerprint,
-    JsonElement Schema,
-    IReadOnlyList<FunctionCallContent> Siblings)
-{
-    /// <summary>The results that close the calls the run skipped, so a provider sees a result for every call.</summary>
-    public IEnumerable<AIContent> SkippedSiblings()
-        => Siblings.Select(static sibling => (AIContent)new FunctionResultContent(sibling.CallId, ToolInputResolver.SkippedCallResult));
-}
+    JsonElement Schema);
 
 /// <summary>The outcome of <see cref="ToolInputResolver.MatchAsync"/>.</summary>
 internal sealed class ToolInputMatch

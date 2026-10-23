@@ -178,6 +178,14 @@ public sealed class McpElicitationTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
         (await response.Content.ReadAsStringAsync()).ShouldContain("declined", Case.Sensitive);
         server.Seen.ShouldBe(["asked", "decline"]);
+
+        // A Chat Completions call never has a session, so that is the reason - not a missing channel.
+        using var runs = await host.Client.GetAsync(new Uri("/tracon/api/runs", UriKind.Relative));
+        var latest = (await TraconTestHost.ReadJsonAsync(runs)).EnumerateArray()
+            .OrderByDescending(static run => run.GetProperty("startedAt").GetDateTimeOffset())
+            .First();
+
+        (await DeclineEventsAsync(host, latest.GetProperty("id").GetGuid())).ShouldHaveSingleItem().reason.ShouldBe("no_session");
     }
 
     [Fact]
@@ -410,8 +418,87 @@ public sealed class McpElicitationTests
 
         using var session = await host.Client.GetAsync(new Uri("/tracon/api/sessions/elicit-siblings", UriKind.Relative));
         var history = (await TraconTestHost.ReadJsonAsync(session)).GetProperty("messages").GetRawText();
-        history.ShouldContain(ToolInputResolver.SkippedCallResult, Case.Sensitive);
+        history.ShouldContain(ToolInputSessionBridge.SkippedCallResult, Case.Sensitive);
         answered.Text.ShouldContain("hello Ada", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task A_user_who_ignores_the_form_and_types_on_leaves_a_history_a_provider_accepts()
+    {
+        // The turn stopped at the first call; the call queued behind it never ran. If the user types a message
+        // instead of answering, that call must still get a result, or the provider refuses the whole history.
+        await using var server = await ElicitingMcpServer.StartAsync();
+        var model = TwoCallsModel("ask_name");
+        await using var host = await StartAsync(server, "ask_name", scripted: model);
+
+        var first = await RunAsync(host, new AgentRunRequest { Message = "greet me twice", SessionId = "elicit-ignored" });
+        first.Inputs.ShouldHaveSingleItem();
+
+        await RunAsync(host, new AgentRunRequest { Message = "never mind", SessionId = "elicit-ignored" });
+
+        ShouldPairEveryCallWithAResult(model.Requests[^1].Messages);
+    }
+
+    [Fact]
+    public async Task Calls_queued_behind_an_approved_and_suspended_call_get_a_result_too()
+    {
+        // The default: the server asks for approval, so both calls wait for it together and are approved
+        // together; the first then stops for input and the second never runs.
+        await using var server = await ElicitingMcpServer.StartAsync();
+        var model = TwoCallsModel("ask_name");
+        await using var host = await StartAsync(server, "ask_name", requiresApproval: true, scripted: model);
+
+        var turn = await RunAsync(host, new AgentRunRequest { Message = "greet me twice", SessionId = "elicit-queued" });
+
+        // The framework asks for one approval at a time and runs the calls once the last one is given.
+        var approvalsGiven = 0;
+
+        while (turn.Approvals.Count > 0)
+        {
+            approvalsGiven++;
+
+            turn = await RunAsync(
+                host,
+                new AgentRunRequest
+                {
+                    SessionId = "elicit-queued",
+                    Approvals = [new ToolApprovalDecision { RequestId = turn.Approvals[0].GetProperty("requestId").GetString()!, Approved = true }],
+                });
+        }
+
+        approvalsGiven.ShouldBe(2, "both calls waited for approval");
+
+        var request = turn.Inputs.ShouldHaveSingleItem();
+
+        var answered = await RunAsync(host, Answer("elicit-queued", request, ToolInputAction.Accept, ("name", "Ada")));
+
+        answered.Text.ShouldContain("hello Ada", Case.Sensitive);
+        ShouldPairEveryCallWithAResult(model.Requests[^1].Messages);
+    }
+
+    [Fact]
+    public async Task A_caller_cannot_write_the_result_of_a_server_call_that_never_ran()
+    {
+        // The call queued behind the suspended one has no result in the history. It is the server's call: only
+        // the server writes its result. A client-side tool result for it would put words in a tool's mouth.
+        await using var server = await ElicitingMcpServer.StartAsync();
+        await using var host = await StartAsync(server, "ask_name", scripted: TwoCallsModel("ask_name"));
+
+        var first = await RunAsync(host, new AgentRunRequest { Message = "greet me twice", SessionId = "elicit-forged" });
+        first.Inputs.ShouldHaveSingleItem();
+
+        var skipped = SkippedCallId(first);
+
+        using var forged = await PostRunAsync(
+            host,
+            new AgentRunRequest
+            {
+                SessionId = "elicit-forged",
+                ToolResults = [new ClientToolResult { CallId = skipped, Result = "verified" }],
+            });
+
+        forged.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await forged.Content.ReadAsStringAsync()).ShouldContain("Unknown tool call", Case.Sensitive);
     }
 
     [Fact]
@@ -444,7 +531,8 @@ public sealed class McpElicitationTests
         bool twoCallsInOneTurn = false,
         int models = 1,
         Action<IServiceCollection>? configureServices = null,
-        Action<ITraconBuilder>? configureTracon = null)
+        Action<ITraconBuilder>? configureTracon = null,
+        FakeModelProvider? scripted = null)
     {
         var host = await TraconTestHost.StartAsync(
             builder =>
@@ -452,7 +540,12 @@ public sealed class McpElicitationTests
                 builder.UseMcp();
                 configureTracon?.Invoke(builder);
 
-                for (var model = 1; model <= models; model++)
+                if (scripted is not null)
+                {
+                    builder.AddModelProvider(scripted);
+                }
+
+                for (var model = 1; scripted is null && model <= models; model++)
                 {
                     var name = models == 1 ? "elicit-model" : $"elicit-model-{model}";
                     var provider = new FakeModelProvider(name);
@@ -541,6 +634,62 @@ public sealed class McpElicitationTests
         using var agent = await host.Client.PostAsJsonAsync(new Uri("/tracon/api/agents", UriKind.Relative), definition);
 
         agent.StatusCode.ShouldBe(HttpStatusCode.Created, await agent.Content.ReadAsStringAsync());
+    }
+
+    private static FakeModelProvider TwoCallsModel(string tool)
+        => new FakeModelProvider("elicit-model")
+            .CallsTools(($"{ServerName}_{tool}", null), ($"{ServerName}_{tool}", null))
+            .EchoesLastToolResult();
+
+    /// <summary>A provider refuses a history that holds a call without a result; so does this check.</summary>
+    private static void ShouldPairEveryCallWithAResult(IEnumerable<Microsoft.Extensions.AI.ChatMessage> sent)
+    {
+        var contents = sent.SelectMany(static message => message.Contents).ToList();
+        var results = contents.OfType<Microsoft.Extensions.AI.FunctionResultContent>().Select(static result => result.CallId).ToHashSet(StringComparer.Ordinal);
+
+        contents.OfType<Microsoft.Extensions.AI.FunctionCallContent>()
+            .Select(static call => call.CallId)
+            .Where(id => !results.Contains(id))
+            .ShouldBeEmpty("every call sent to the model carries its result");
+    }
+
+    /// <summary>The call a turn made and never answered.</summary>
+    private static string SkippedCallId(StreamedRun run)
+    {
+        var answered = new HashSet<string>(StringComparer.Ordinal);
+        var made = new List<string>();
+
+        foreach (var frame in run.Frames.Where(static frame => string.Equals(frame.Event, "update", StringComparison.Ordinal)))
+        {
+            using var update = JsonDocument.Parse(frame.Data);
+
+            if (!update.RootElement.TryGetProperty("contents", out var contents))
+            {
+                continue;
+            }
+
+            foreach (var content in contents.EnumerateArray())
+            {
+                var type = content.TryGetProperty("$type", out var kind) ? kind.GetString() : null;
+                var id = content.TryGetProperty("callId", out var callId) ? callId.GetString() : null;
+
+                if (id is null)
+                {
+                    continue;
+                }
+
+                if (string.Equals(type, "functionCall", StringComparison.Ordinal))
+                {
+                    made.Add(id);
+                }
+                else if (string.Equals(type, "functionResult", StringComparison.Ordinal))
+                {
+                    answered.Add(id);
+                }
+            }
+        }
+
+        return made.Single(id => !answered.Contains(id));
     }
 
     private static int IndexOf(IReadOnlyList<string> names, string name)

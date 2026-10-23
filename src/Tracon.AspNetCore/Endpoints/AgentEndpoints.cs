@@ -928,7 +928,13 @@ internal static class AgentEndpoints
             var chatHistory = httpContext.RequestServices.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>();
 
             var match = await ClientToolResultResolver
-                .MatchAsync(request.ToolResults, agent, toolResultsSession, chatHistory, cancellationToken)
+                .MatchAsync(
+                    request.ToolResults,
+                    agent,
+                    toolResultsSession,
+                    chatHistory,
+                    httpContext.RequestServices.GetRequiredService<IToolRegistry>(),
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             switch (match.Kind)
@@ -1858,6 +1864,7 @@ internal static class AgentEndpoints
                         agent,
                         session,
                         services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
+                        services.GetRequiredService<IToolRegistry>(),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -1968,10 +1975,6 @@ internal static class AgentEndpoints
             IReadOnlyList<PendingToolInputAnnouncement>? Inputs);
 
         /// <summary>
-        /// The <c>approvals</c> SSE frame: the presentation resolved for one pending
-        /// tool-approval request, sent right before the stream's <c>done</c> frame.
-        /// </summary>
-        /// <summary>
         /// The <c>inputs</c> SSE frame (and the <c>inputs</c> member of the non-streaming body): one
         /// request for user input that suspended a tool call, sent right before <c>done</c>.
         /// </summary>
@@ -1991,6 +1994,10 @@ internal static class AgentEndpoints
                     input.RequestedSchema))];
         }
 
+        /// <summary>
+        /// The <c>approvals</c> SSE frame: the presentation resolved for one pending
+        /// tool-approval request, sent right before the stream's <c>done</c> frame.
+        /// </summary>
         private sealed record PendingApprovalAnnouncement(
             string RequestId,
             string ToolName,

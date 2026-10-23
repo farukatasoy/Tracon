@@ -246,7 +246,14 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         {
             await WriteRunStartAsync(start, messages, cancellationToken).ConfigureAwait(false);
 
-            var response = await base.RunCoreAsync(messages, session, ForInnerAgent(options), cancellationSource.Token).ConfigureAwait(false);
+            // Calls an earlier run of the session left without a result (the loop stopped at a tool that
+            // asked for user input) get theirs before anything else, whoever starts this run: a provider
+            // refuses a history that holds a call with none.
+            var response = await base.RunCoreAsync(
+                WithClosedSkippedCalls(messages, session),
+                session,
+                ForInnerAgent(options),
+                cancellationSource.Token).ConfigureAwait(false);
 
             foreach (var message in response.Messages)
             {
@@ -298,7 +305,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
                 // A turn that waits on an approval AND on a tool's input announces both; the
                 // status stays AwaitingApproval (Phase 235, open question 3).
-                await PublishPendingToolInputAsync(session, options, PendingToolInputs(start.Scope), cancellationToken)
+                await PublishPendingToolInputAsync(session, options, PendingToolInputs(start.Scope), SkippedCalls(response.Messages), cancellationToken)
                     .ConfigureAwait(false);
 
                 await CompleteAsync(
@@ -318,7 +325,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             // wrote, not from the tool results — a result that merely looks like a request is not one.
             if (PendingToolInputs(start.Scope) is { Count: > 0 } pendingInputs)
             {
-                await PublishPendingToolInputAsync(session, options, pendingInputs, cancellationToken)
+                await PublishPendingToolInputAsync(session, options, pendingInputs, SkippedCalls(response.Messages), cancellationToken)
                     .ConfigureAwait(false);
 
                 await CompleteAsync(
@@ -413,7 +420,14 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         // they pass and handed over as ONE assistant message.
         List<AIContent>? approvalContents = null;
 
-        var enumerator = base.RunCoreStreamingAsync(messages, session, ForInnerAgent(options), cancellationSource.Token)
+        // The calls of this run that get no result: see SkippedCallTracker.
+        var skippedCalls = new SkippedCallTracker();
+
+        var enumerator = base.RunCoreStreamingAsync(
+                WithClosedSkippedCalls(messages, session),
+                session,
+                ForInnerAgent(options),
+                cancellationSource.Token)
             .GetAsyncEnumerator(cancellationSource.Token);
 
         // 🚨 HATA-S1-015: these two flags separate the case where the consumer calls
@@ -514,6 +528,8 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
 
                 foreach (var content in update.Contents)
                 {
+                    skippedCalls.Observe(content);
+
                     if (content is UsageContent usageContent)
                     {
                         // 🚨 SUMMED, not overwritten (F-317). A stream carries one
@@ -583,14 +599,14 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                 .ConfigureAwait(false);
 
             // The same rule as the buffered path: both are announced, the status stays AwaitingApproval.
-            await PublishPendingToolInputAsync(session, options, pendingInputs, cancellationToken)
+            await PublishPendingToolInputAsync(session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
                 .ConfigureAwait(false);
         }
         else if (streamingStatus == RunStatus.AwaitingInput)
         {
             closingPayload = BuildAwaitingToolInputPayload(pendingInputs);
 
-            await PublishPendingToolInputAsync(session, options, pendingInputs, cancellationToken)
+            await PublishPendingToolInputAsync(session, options, pendingInputs, skippedCalls.Skipped(), cancellationToken)
                 .ConfigureAwait(false);
         }
 
