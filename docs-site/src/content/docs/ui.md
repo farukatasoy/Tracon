@@ -146,6 +146,14 @@ card instead of a result — the entity name and message from a registered
 [approval presenter](/concepts/governance/#approvals) when there is one, the raw
 call arguments otherwise. Approving or rejecting resumes the run as a new turn.
 
+An MCP server can also ask the user for information in the middle of a tool call. The
+stream stops and the playground renders an input card: the server's question, one field
+for each value it asks for (text, number, yes or no, or a choice), and a note that says
+which server the answer goes to. Send answers as a new turn and the tool call runs again
+with the values. Decline and Dismiss answer the server with a refusal. A required field
+that is empty keeps Send disabled. See
+[A server asks the user for input](/concepts/tools/#a-server-asks-the-user-for-input).
+
 ## Runs
 
 <a class="ui-shot" href="/screenshots/runs.png"><img src="/screenshots/runs.png" alt="The run list with status, duration, token counts, and event counts" width="2880" height="1800" loading="lazy" decoding="async" /></a>

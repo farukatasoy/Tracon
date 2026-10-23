@@ -1,6 +1,6 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
-> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle), 214 (A2A yanıtı mesajdır), 218 (`authorizationConfigurationKey` kalktı), 229 (A2A çok tur ve çağıran izolasyonu)
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla), 213 (tazeleme ucu `internal` arayüzle), 214 (A2A yanıtı mesajdır), 218 (`authorizationConfigurationKey` kalktı), 229 (A2A çok tur ve çağıran izolasyonu), 235 (MCP elicitation: askıya alınan tool çağrısı)
 > **Kaynak:** `src/Tracon.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
 > tool/prompt/resource köprüsü, OAuth) · `src/Tracon.AspNetCore/McpServer/`
 > (tümü — Tracon'i MCP sunucusu olarak dışa açma) ·
@@ -2420,3 +2420,65 @@ Açılış, kod değişikliği olmadan `Tracon__Demo__ExposedAgents__A2A` ortam 
 **Beklenen sonuç**
 - Adım 1: uygulama `LogCritical` yazar ve kapanır; mesaj `manuel-skill-default`'u, "uses skills" ifadesini ve `Skills.DisableReadApproval` çaresini anar. Kart isteği bağlantı hatası verir.
 - Adım 2: kart `200`; `SendMessage` yanıtı bir `message`, metni `FATURA_SKILL_ACTIVE`; run `Completed`.
+
+### MT-MCP-093 — Bir MCP sunucusunun kullanıcıdan bilgi istemesi run'ı askıya alır; cevap tool'u yeniden çağırır (Faz 235, F-617)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 235 |
+| **İlgili karar** | K-103 · K-776 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama, gerçek OpenAI, yerel MCP sunucusu, `curl` · ➜ CI: `McpElicitationTests` · `McpElicitationHandlerTests` · `McpElicitingToolTests` · `PlaygroundTests` (konsol formu) |
+
+Gerçek bir modelin bir MCP tool'unu çağırması ve sunucunun çağrının ortasında kullanıcıdan isim istemesi (MRTR,
+protokol `2026-07-28`). Testler sahte model kullanır; modelin tool'u gerçekten seçmesi yalnız burada görünür.
+
+**Ön koşul**
+- Örnek uygulama dört boş ortam değişkeniyle (§ `elle-kosum-ortami`) ve **geçici SQLite dosyasıyla** çalışır; OpenAI anahtarı `user-secrets`'te.
+  `Tracon__Egress__AllowPrivateNetworkTargets=true` (sunucu `127.0.0.1`'de).
+- Yerel MCP sunucusu: `ModelContextProtocol.AspNetCore` 2.3.0, durumsuz HTTP, `http://127.0.0.1:5391/mcp`. Tek tool `ask_name`: çağrıda
+  `InputResponses["name"]` yoksa `InputRequiredException` fırlatır (mesaj `What is your name?`, tek `string` alan `name`, `required`),
+  varsa `hello {name}` döner. Her çağrıyı `tools/call ask_name inputResponses=<n>` diye yazar.
+
+**Adımlar**
+1. Sunucuyu kaydet ve agent'ı oluştur:
+```bash
+curl -s -X PUT $APU/api/mcp-servers/elicit -H 'Content-Type: application/json' -d '{"endpoint":"http://127.0.0.1:5391/mcp","requiresApproval":false}'
+curl -s -X POST $APU/api/mcp-servers/refresh
+curl -s -X POST $APU/api/agents -H 'Content-Type: application/json' -d '{"name":"greeter","instructions":"You greet users. When asked to greet someone, call the elicit_ask_name tool once and report its result in one short sentence.","model":{"provider":"openai","model":"gpt-5.4-mini"},"toolNames":["elicit_ask_name"]}'
+```
+2. `curl -N -X POST $APU/api/agents/greeter/run -d '{"message":"Please greet me.","sessionId":"s1"}'` — akışı oku.
+3. `inputs` çerçevesindeki `requestId` ile cevapla: `-d '{"sessionId":"s1","inputResponses":[{"requestId":"<id>","action":"Accept","content":{"name":"Ada"}}]}'`.
+4. `GET $APU/api/runs?sessionId=s1` ve `GET $APU/api/audit?action=tool_input.answer`.
+
+**Beklenen sonuç**
+- (2) Akış `run`, birkaç `update`, **`inputs`**, `done` sırasıyla biter; `inputs` bir öğe taşır: `toolName: elicit_ask_name`, `serverName: elicit`, `message: What is your name?`, `requestedSchema.properties.name.type: string`, `required: ["name"]`. `error` çerçevesi yoktur.
+- (3) İkinci akışta tool sonucu `hello Ada`, model "Hello Ada." gibi bir cümle yazar; `inputs` çerçevesi yoktur.
+- (4) İki run: ilki `AwaitingInput`, ikincisi `Completed`. Denetim satırı: `action: tool_input.answer`, `entity: tool:elicit_ask_name`, `after`: `requestId`, `server`, `action: Accept`, `fields: ["name"]` — **`Ada` hiçbir yerde yoktur**.
+- Sunucu günlüğü üç çağrı yazar: `inputResponses=0` (askıya alan çağrı) · `inputResponses=0` (yeniden çağrı, ilk tur) · `inputResponses=1` (cevapla tekrar).
+- Günlükte `Npgsql` satırı yok.
+- Ölçülen (2026-10-23, geçici SQLite, `gpt-5.4-mini`): run `01a168c0-09e3` `AwaitingInput` (178 token), `01a168c0-4dac` `Completed` (397 token); araç sonucu `hello Ada`, model `Hello Ada.`; üç `tools/call` satırı yukarıdaki sırayla.
+
+### MT-MCP-094 — Cevap veremeyen yüzeyler sunucunun isteğine `decline` verir; `Decline` cevabı tool'a ulaşır (Faz 235, F-617)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 235 |
+| **İlgili karar** | K-103 |
+| **Devir** | 🤖 ajan koşar — örnek uygulama, gerçek OpenAI, yerel MCP sunucusu, `curl` · ➜ CI: `McpElicitationTests` (`A_run_without_a_session_declines…` · `An_openai_compatible_call_declines` · `Declining_or_cancelling…`) |
+
+**Ön koşul** — MT-MCP-093'ün uygulaması, sunucusu ve `greeter` agent'ı ayakta.
+
+**Adımlar**
+1. Oturumsuz: `curl -N -X POST $APU/api/agents/greeter/run -d '{"message":"Please greet me."}'`; sonra o run'ın olayları (`GET $APU/api/runs/<id>/events`).
+2. OpenAI uyumlu: `curl -X POST $APU/v1/chat/completions -d '{"model":"greeter","messages":[{"role":"user","content":"Please greet me."}]}'`.
+3. Oturumlu run (`sessionId: s2`) `inputs` verir; cevap `{"action":"Decline"}` (içerik yok).
+
+**Beklenen sonuç**
+- (1) Akışta `inputs` çerçevesi **yoktur**; tool sonucu `declined`; run `Completed`. Olay akışında `ToolInvoking` ile `ToolInvoked` arasında `Custom` olayı: `customType: tracon.tool.input.declined`, `payload`: `{"server":"elicit","tool":"elicit_ask_name","reason":"no_session"}`.
+- (2) `200`; model yanıtı verir. Sunucu günlüğünde bu çağrı `inputResponses=0` sonra `inputResponses=1` (decline) yazar.
+- (3) Run'lar `AwaitingInput` sonra `Completed`; tool sonucu `declined`; sunucu üçüncü çağrıyı `inputResponses=1` ile görür.
+- Ölçülen (2026-10-23, geçici SQLite, `gpt-5.4-mini`): (1) tool sonucu `declined`, olay `elicit: no_session` · (2) yanıt `Hello!` · (3) durumlar `AwaitingInput`, `Completed`; tool sonucu `declined`, ardından `Hello`.
