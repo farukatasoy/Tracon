@@ -12,11 +12,12 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-22):** sıralanabilir kuyrukta **9** aday var (F-297, F-420
-podcast turu; F-322, F-324, F-347 video tüketicisi turu; F-618…F-621 MAF Dalga 4
+**Durum (2026-10-23):** sıralanabilir kuyrukta **8** aday var (F-297, F-420
+podcast turu; F-324, F-347 video tüketicisi turu; F-618…F-621 MAF Dalga 4
 turu, [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md)). Aynı
 turun F-614 ve F-615'i aynı gün, F-616 ve F-617'si 2026-10-22'de plana dönüştü
-(Faz 236, Faz 235). Bugün yapılabilecek iş
+(Faz 236, Faz 235). 2026-10-23'te F-559, F-529 + F-531 ve F-322 plana dönüştü
+(Faz 237–240). Bugün yapılabilecek iş
 § *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar burada değil,
 üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 
@@ -154,30 +155,6 @@ tüketicisi turlarından gelir; kanal ve aciliyet
 **Ekosistem (2026-10-11):** Modeller `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview`, `gemini-2.5-pro-preview-tts`; .NET örneği yok.
 
 **Karşı görüş:** Faz 198 olmadan adaptör ElevenLabs'in yerine geçer, yanına gelmez; tek başına değeri düşük.
-
-### F-322 · Kiracı başına workflow eşzamanlılığı, görünür kuyruk ve adil kiralama
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** `MaxConcurrentRuns` süreç başına tek semafordur ve kiracılara ortaktır (`TraconWorkflowOptions.cs:27-35`, `WorkflowRunner.cs:120,404-418`). Bekleyen run'ın satırı yoktur; görünmez ve iptal edilemez. Job kiralama FIFO'dur (`PostgresQueries.cs:1165-1177`); bir kiracı diğerlerini aç bırakabilir.
-
-**Kapsam:** Kiracı başına sınır; bekleyen run'a `Queued` satırı ve sıra; `RunTimeout` slot alınınca başlar; `tracon.workflow` işlerinde kiracıya göre sıralı kiralama.
-
-**Değer:** Çok kiracılı SaaS'ta saatlik üretimler adil sıraya girer.
-
-**Mercek:** 2, 3.
-
-**Hazırlık:** Kiracı başına sınır deseni canlı ses ve skill script'te var; `RunStatus.Queued` agent yolunda var.
-
-**Maliyet:** Runner değişikliği; adil kiralama için üç SQL lehçesinde sorgu ve sözleşme testleri.
-
-**Risk:** Süreç içi sınır replika sayısıyla çoğalır; küme geneli sınır dağıtık sayaç ister.
-
-**Bağımlılık:** Yok. F-325 (2026-10-12) slot bekleyen run'ın satırını beklemenin başında açar ve `Running` gösterir; görünür kuyruk o satıra `Queued` benzeri bir durum ekler.
-
-**Ekosistem:** Taranmadı.
-
-**Karşı görüş:** Tüketici admission katmanında kiracı başına kabul sınırı koyabilir; Tracon sınırı ikinci katman olur.
 
 ### F-324 · Karışık zincirde agent adımının iletim modu
 
@@ -444,14 +421,10 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
-| 🟠 | **F-559** · 1.x evrim kuralları ve kapıları (freeze sırası 5) | Ölçüldü (2026-10-16, A-76/A-67/A-68): `versioning.md` arayüz, enum, `required` üye (833), `Tracon.Testing.Contracts.Xunit` (691 public test), `Tracon.Client` DTO adı (`SourceKind2`), HTTP/yapılandırma/telemetri/hata kodu ve rota varsayılanları için 1.x kuralı vermiyor. `tracon.tenant.id` metrik etiketi koşulsuz | Kural önce, kapı sonra: seam'e üye yalnız varsayılan gövdeyle; enum büyümesi; tarafsız kırılma kapısı HTTP için. Önkoşul: Faz 213 (hangi arayüz seam'dir). Kaynak: A-76, A-67, A-68 |
 | 🟡 | **F-544** · Native agent SSE'si Loop iterasyonlarının sınırını yazmaz | Ölçüldü (2026-10-15, F-536 taraması): `POST /api/agents/{name}/run` her iterasyonu ve geri bildirimi tek metin akıtır; sınır olayı yalnız run olayları ucunda. Gömülebilir sohbet ve TS istemcisi taslağı cevap sanar (K-1006) | Eklemeli `loop.iteration` frame'i; preview.4 dışı (bakımcı kararı) |
 | 🟡 | **F-545** · Kod grafında üretim başına agent sürüm sabiti yok | Kod okuması (2026-10-15, video raporu): `AgentVersion` graf kurulurken verilir, fabrika yalnız `IServiceProvider` alır; sabitsiz adım güncel sürümü çözer, template yayınından sonraki revizyon yeni sürümle koşar | Sürümü run parametresinden okuyan adım seçeneği |
-| 🟡 | **F-529** · Kiracı kotasıyla fonksiyon düğümü durdurma | Faz 210 ölçtü ve kapsam dışı bıraktı: kota sayacı koşan workflow'un kendi düğüm tutarını görmez (workflow kökü payını kapanırken yazar, K-990) ve `QuotaEnforcer.CheckAsync` her çağrıda iki depo okuması yapar | Tutarlı sürüm koşan ağacın bellekteki payını sayaçla birleştirir; ayrı tasarım. K-999'un kota eşi |
 | 🟡 | **F-530** · Ücretli tool çağrısının başlamadan reddi | Aynı model turunda istenen ikinci tool, ilki tavanı geçirse de koşar; sonraki model çağrısı reddedilir. Tool döngüsü MAF'tadır | Ayrı tasarım. K-999'un tool eşi |
-| 🟡 | **F-531** · Checkpoint'ten devam eden run'ın bütçesi sıfırdan başlar | Faz 210 planının kod okuması: `WorkflowRunner.RunGuardedAsync` her yürütmede yeni bütçe kurar; bütçe reddiyle düşen run checkpoint'ten devam ettirilirse reddedilen düğüm başlar. Model çağrısı kapısı için de bugün aynıdır | Harcanan bütçe checkpoint'e ya da run kaydına yazılmalı; yeniden ölç, sonra planla |
 | 🟡 | F-297 · Gemini konuşma adaptörü | Yeni bağımlılık istemez; Faz 203'ün sözleşmesini uygular | Gövde: § *F-297* |
-| 🟡 | F-322 · Kiracı başına workflow eşzamanlılığı | Semafor süreç başına, kiracılara ortak | Gövde: § *F-322* |
 | 🟡 | F-347 · OpenAI strict şema modu | Kiracı başka model seçer; strict istenemez | Gövde: § *F-347* |
 | 🟡 | **F-411** · Onay Loop ölçütü ve denetim izi | Bakımcı kararı (2026-10-12): video hattındaki insan onayı ileride agent onayına döner ve Loop ölçütüyle yapılır. Faz 201 Açık Soru 7-A ayırdı: `LoopIterationCompleted` ölçüt kararını, yargıç modelini ve agent sürümünü taşımaz. Ölçüt `AddLoopEvaluator(kind, factory)` ile servis alır; reviewer deseni (çocuk run, derinlik, `TryReserveRun`) `DraftReviewCriterion`'dadır | Tasarım onay ölçütüyle birlikte yapılır |
 | 🟢 | F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı | Bugün tek örnek elle tarandı; sonrakini kimse taramaz | Gövde: § *F-248* |

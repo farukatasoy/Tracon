@@ -22,6 +22,34 @@
 
 ---
 
+## 2026-10-23 — F-322 → Faz 240
+
+Taşındığı gün `docs/ADAYLAR.md`'den alınan gövde. Güncel plan: Faz 240. Aynı gün gövdesiz tablo satırları da plana dönüştü: F-559 → Faz 237 + Faz 238, F-529 + F-531 → Faz 239.
+
+### F-322 · Kiracı başına workflow eşzamanlılığı, görünür kuyruk ve adil kiralama
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** `MaxConcurrentRuns` süreç başına tek semafordur ve kiracılara ortaktır (`TraconWorkflowOptions.cs:27-35`, `WorkflowRunner.cs:120,404-418`). Bekleyen run'ın satırı yoktur; görünmez ve iptal edilemez. Job kiralama FIFO'dur (`PostgresQueries.cs:1165-1177`); bir kiracı diğerlerini aç bırakabilir.
+
+**Kapsam:** Kiracı başına sınır; bekleyen run'a `Queued` satırı ve sıra; `RunTimeout` slot alınınca başlar; `tracon.workflow` işlerinde kiracıya göre sıralı kiralama.
+
+**Değer:** Çok kiracılı SaaS'ta saatlik üretimler adil sıraya girer.
+
+**Mercek:** 2, 3.
+
+**Hazırlık:** Kiracı başına sınır deseni canlı ses ve skill script'te var; `RunStatus.Queued` agent yolunda var.
+
+**Maliyet:** Runner değişikliği; adil kiralama için üç SQL lehçesinde sorgu ve sözleşme testleri.
+
+**Risk:** Süreç içi sınır replika sayısıyla çoğalır; küme geneli sınır dağıtık sayaç ister.
+
+**Bağımlılık:** Yok. F-325 (2026-10-12) slot bekleyen run'ın satırını beklemenin başında açar ve `Running` gösterir; görünür kuyruk o satıra `Queued` benzeri bir durum ekler.
+
+**Ekosistem:** Taranmadı.
+
+**Karşı görüş:** Tüketici admission katmanında kiracı başına kabul sınırı koyabilir; Tracon sınırı ikinci katman olur.
+
 ## 2026-10-22 — F-617 → Faz 235, F-616 → Faz 236
 
 Taşındıkları gün `docs/ADAYLAR.md`'den alınan gövdeler. Güncel plan: Faz 235, Faz 236.
