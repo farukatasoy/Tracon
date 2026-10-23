@@ -36,6 +36,17 @@ internal static class AGUIRunEndpoint
             return drainProblem;
         }
 
+        // The management API's run endpoint answers 415 to a body that is not JSON; this one reads the body itself, so it
+        // asks. A browser form post cannot send application/json without a preflight, which is what keeps a cookie-carrying
+        // cross-site page from starting a run with an ambient identity.
+        if (!httpContext.Request.HasJsonContentType())
+        {
+            return Results.Problem(
+                title: "Unsupported media type",
+                detail: "The request body must be application/json: an AG-UI RunAgentInput.",
+                statusCode: StatusCodes.Status415UnsupportedMediaType);
+        }
+
         RunAgentInput? input;
 
         try

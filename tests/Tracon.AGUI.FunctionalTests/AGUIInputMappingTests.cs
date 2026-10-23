@@ -169,6 +169,49 @@ public sealed class AGUIInputMappingTests
         response.Problem.GetProperty("title").GetString().ShouldBe(title);
     }
 
+    [Theory]
+    [InlineData("messages")]
+    [InlineData("tools")]
+    [InlineData("context")]
+    [InlineData("resume")]
+    public async Task A_null_element_in_a_list_is_a_400_never_a_500(string list)
+    {
+        // The protocol SDK's serializer lets a null element through and the mapping reads every element. The management
+        // API refuses a null its contract does not have; so does this endpoint.
+        await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);
+
+        const string UserMessage = "{\"id\":\"m\",\"role\":\"user\",\"content\":\"hi\"}";
+        var messages = string.Equals(list, "messages", StringComparison.Ordinal) ? "[null]" : $"[{UserMessage}]";
+        var others = string.Equals(list, "messages", StringComparison.Ordinal) ? string.Empty : $",\"{list}\":[null]";
+
+        var response = await host.PostAsync(
+            TestAgents.Echo,
+            $"{{\"threadId\":\"t-null\",\"runId\":\"r\",\"messages\":{messages}{others}}}");
+
+        response.Status.ShouldBe(HttpStatusCode.BadRequest, response.Body);
+        response.Problem.GetProperty("detail").GetString()!.ShouldContain($"'{list}' cannot contain a null element", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("text/plain")]
+    [InlineData("application/x-www-form-urlencoded")]
+    public async Task A_body_that_is_not_JSON_is_a_415_and_starts_no_run(string? contentType)
+    {
+        // The endpoint reads the body itself, so it asks for the media type itself. A form post is the one cross-site request
+        // a browser sends without a preflight; refusing it keeps a page on another origin from starting a run with an
+        // identity the browser attaches on its own.
+        await using var host = await AGUITestHost.StartAsync(TestAgents.AddEcho);
+
+        var response = await host.PostAsync(
+            TestAgents.Echo,
+            "{\"threadId\":\"t-media\",\"runId\":\"r\",\"messages\":[{\"id\":\"m\",\"role\":\"user\",\"content\":\"hi\"}]}",
+            contentType: contentType);
+
+        response.Status.ShouldBe(HttpStatusCode.UnsupportedMediaType, response.Body);
+        (await host.Services.GetRequiredService<ISessionStore>().GetAsync("t-media", TestContext.Current.CancellationToken)).ShouldBeNull();
+    }
+
     [Fact]
     public async Task A_request_that_carries_nothing_new_is_a_400()
     {

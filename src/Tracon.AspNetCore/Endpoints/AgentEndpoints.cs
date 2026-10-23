@@ -284,7 +284,8 @@ internal static class AgentEndpoints
                 "request with 'requestId', 'toolName', 'serverName', 'message' and 'requestedSchema' " +
                 "(a flat JSON schema of the fields to fill in). The answer is the input of the next run of " +
                 "the same session ('inputResponses'); the tool call then runs again from its start with " +
-                "the answer. Only this endpoint can carry the answer, and only in a run with a 'sessionId': " +
+                "the answer. Only this endpoint and the AG-UI endpoint ('Tracon.AGUI', where the answer is a " +
+                "'resume' entry of the thread) can carry the answer, and only in a run with a 'sessionId': " +
                 "on every other surface and in an agent called by another agent, the server's request is " +
                 "answered with 'decline'. An answer for an unknown request or with values that do not fit " +
                 "the requested fields is refused with 400, one for a request already answered with 409.")

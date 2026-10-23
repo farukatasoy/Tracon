@@ -3,8 +3,10 @@
 The AG-UI endpoint for Tracon. It connects a front end that speaks the [AG-UI protocol](https://docs.ag-ui.com)
 (CopilotKit and others) to a Tracon agent.
 
-An AG-UI request is a Tracon run: it is recorded, the tenant is resolved, the roles and the session owner are
-enforced, the quota is counted and the cost is written. Only the dialect on the wire is different.
+An AG-UI request is a Tracon run: it is recorded, the tenant is resolved, the roles are enforced, the quota is counted
+and the cost is written. Session ownership applies when `Tracon:SessionOwnership` is on (it is off by default); until
+then a `threadId` is whatever the front end chooses, and any operator of the tenant can continue it. Only the dialect on
+the wire is different.
 
 ## Installation
 
@@ -37,14 +39,16 @@ The endpoint is `POST /tracon/agui/{agentName}`. The body is an AG-UI `RunAgentI
 ```bash
 curl -N -X POST http://localhost:5081/tracon/agui/assistant \
   -H 'Content-Type: application/json' \
-  -d '{"threadId":"t1","runId":"r1","messages":[{"id":"m1","role":"user","content":"hello"}],"tools":[],"context":[]}'
+  -d '{"threadId":"t1","runId":"r1","messages":[{"id":"m1","role":"user","content":"hello"}],
+       "tools":[{"name":"open_page","description":"Opens a page in the browser.","parameters":{"type":"object","properties":{"url":{"type":"string"}}}}],
+       "context":[]}'
 ```
 
 ## How a request is read
 
 | AG-UI field | What Tracon does |
 |---|---|
-| `threadId` | The session. At most 200 characters. |
+| `threadId` | The session. At most 200 characters. It belongs to the tenant that opened it, and with `Tracon:SessionOwnership` on also to the user. |
 | `messages` | Only the messages after the last assistant message are new. A user message is the run's message; a tool message answers a pending client-side tool call. Everything before is already in the session. System and developer messages are not read. |
 | `tools` | Must name every client-side tool the agent carries. The schema is always the code's. A tool the agent does not carry is ignored. |
 | `resume` | Answers a tool approval (`{ "approved": true, "reason": "...", "remember": false }`) or a request for user input (the requested fields). |

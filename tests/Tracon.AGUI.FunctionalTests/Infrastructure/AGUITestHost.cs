@@ -82,11 +82,21 @@ internal sealed class AGUITestHost : IAsyncDisposable
         => await PostAsync(agentName, JsonSerializer.Serialize(input, AGUIJsonSerializerContext.Default.RunAgentInput), configure);
 
     /// <summary>Posts a raw body, for the requests a typed input cannot express.</summary>
-    public async Task<AGUIResponse> PostAsync(string agentName, string body, Action<HttpRequestMessage>? configure = null)
+    /// <param name="agentName">The agent in the path.</param>
+    /// <param name="body">The raw body.</param>
+    /// <param name="configure">Changes the request before it is sent.</param>
+    /// <param name="contentType">The body's media type; <see langword="null"/> sends the body with no Content-Type header at all.</param>
+    public async Task<AGUIResponse> PostAsync(
+        string agentName,
+        string body,
+        Action<HttpRequestMessage>? configure = null,
+        string? contentType = "application/json")
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{_pattern}/{agentName}", UriKind.Relative))
         {
-            Content = new StringContent(body, Encoding.UTF8, new MediaTypeHeaderValue("application/json")),
+            Content = contentType is null
+                ? new ByteArrayContent(Encoding.UTF8.GetBytes(body))
+                : new StringContent(body, Encoding.UTF8, new MediaTypeHeaderValue(contentType)),
         };
 
         configure?.Invoke(request);

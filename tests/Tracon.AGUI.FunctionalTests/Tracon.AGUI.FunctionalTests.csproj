@@ -15,6 +15,8 @@
   <ItemGroup>
     <!-- A real MCP server whose tools ask the user for input (the same server McpElicitationTests drives). -->
     <Compile Include="../Shared/Infrastructure/ElicitingMcpServer.cs" LinkBase="Shared" />
+    <!-- Makes one member of a registered store throw while every other member keeps the real behavior (the management API's tests use it too). -->
+    <Compile Include="../Tracon.AspNetCore.FunctionalTests/Infrastructure/FaultInjection.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>

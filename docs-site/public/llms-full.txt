@@ -113,7 +113,7 @@ decisions can be overridden or composed with your own rules — see
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
 | Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, a content-pinned tenant grant (platform authority for a stored script in a multi-tenant host), one content size limit for stored and file scripts, timeout, output limit, and concurrency limits |
 | Script executor | `ISkillScriptExecutor` registration | Runs an approved script in a container or a remote runner instead of a local process; gates, audit, quota, wait limit, and output cap stay with Tracon. See [Write your own script executor](/guides/write-your-own-script-executor/) |
-| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication (credential headers by configuration key name), refresh, prompts, OAuth coordination, and a server's request for user input: the run stops as `AwaitingInput`, the answer in the next request runs the call again, every other surface gets `decline` ([how](/concepts/tools/#a-server-asks-the-user-for-input)) |
+| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication (credential headers by configuration key name), refresh, prompts, OAuth coordination, and a server's request for user input: the run stops as `AwaitingInput`, the answer in the next request runs the call again (management run endpoint and AG-UI endpoint; every other surface gets `decline`) ([how](/concepts/tools/#a-server-asks-the-user-for-input)) |
 | MCP resources | `AgentDefinition.McpResourceUris` | A bounded snapshot of selected server resources enters agent context |
 | Knowledge search | PostgreSQL, `IEmbeddingGenerator`, and memory settings | Chunking, embedding, HNSW cosine search, tenant isolation, and result limits |
 
@@ -4055,7 +4055,7 @@ address for a server. What the server gets depends on who can answer:
 
 | The call runs in | What the server gets |
 |---|---|
-| A run you start with `POST /api/agents/{name}/run` and a `sessionId` | The run stops and asks you. Your answer is the input of the next request |
+| A run you start with `POST /api/agents/{name}/run` and a `sessionId`, or over the [AG-UI endpoint](/guides/ag-ui/#approvals-and-requests-for-input) | The run stops and asks you. Your answer is the input of the next request |
 | A run without a `sessionId` | `decline`: an answer has nowhere to go |
 | An OpenAI-compatible call, an A2A task, an MCP tool call, a queued run | `decline`: these surfaces have no way to carry the answer |
 | An agent called by another agent | `decline`: a sub-agent cannot wait in the middle of its parent's tree, the same rule as for [approvals](/concepts/governance/#approvals) |
@@ -6799,8 +6799,9 @@ Source: https://tracon.dev/guides/ag-ui/
 How does a front end built on the [AG-UI protocol](https://docs.ag-ui.com) — CopilotKit, or your own
 React code on `@ag-ui/client` — run a Tracon agent? Through one extra endpoint,
 `POST /tracon/agui/{agentName}`. The request is a Tracon run: it is recorded, the tenant is resolved,
-roles and session ownership are enforced, the quota is counted and the cost is written. Only the dialect
-on the wire is AG-UI.
+roles are enforced, the quota is counted and the cost is written. Session ownership applies when
+[`Tracon:SessionOwnership`](/concepts/sessions/#session-ownership) is on; it is off by default, and until then a thread
+is whatever the front end chooses and any operator of the tenant can continue it. Only the dialect on the wire is AG-UI.
 
 ## Map the endpoint
 
@@ -6839,8 +6840,13 @@ The body is an AG-UI `RunAgentInput` and the answer is `text/event-stream`, one 
 ```bash
 curl -N -X POST http://localhost:5081/tracon/agui/support \
   -H 'Content-Type: application/json' \
-  -d '{"threadId":"t1","runId":"r1","messages":[{"id":"m1","role":"user","content":"hello"}],"tools":[],"context":[]}'
+  -d '{"threadId":"t1","runId":"r1","messages":[{"id":"m1","role":"user","content":"hello"}],
+       "tools":[{"name":"read_shopping_cart","description":"Reads the cart in the browser.","parameters":{"type":"object","properties":{}}}],
+       "context":[]}'
 ```
+
+The agent carries a client-side tool, so the request declares it; an empty `tools` list would be refused (see
+[Front-end tools](#front-end-tools)).
 
 ## Connect a front end
 
@@ -6879,7 +6885,7 @@ flowchart LR
 
 | AG-UI field | What Tracon does |
 |---|---|
-| `threadId` | It is the session. At most 200 characters; a thread belongs to the user and the tenant that opened it |
+| `threadId` | It is the session. At most 200 characters; a thread belongs to the tenant that opened it, and with session ownership on also to the user |
 | `messages` | The server keeps the conversation. Only the messages after the **last assistant message** are new input: the user's text, and the results of the client-side tool calls that message made. Earlier messages are already in the session and are not added again. System and developer messages are not read — the instructions are the agent's |
 | `tools` | Must name every client-side tool the agent carries. The schema is always the one in code |
 | `resume` | Answers a tool approval or a request for user input |
@@ -6921,10 +6927,10 @@ input](/concepts/tools/#a-server-asks-the-user-for-input), end the run with an *
   "outcome": {
     "type": "interrupt",
     "interrupts": [{
-      "id": "01a16958-a46d-7f03-8fa7-b0010259802b",
+      "id": "ficc_call_YhKBs3eWkkfjxpTyfphRGAnV",
       "reason": "tool_call",
-      "message": "Cancel order for Priya Shah",
-      "toolCallId": "call_x1",
+      "message": "Cancel order ORD-1001 for Priya Shah.",
+      "toolCallId": "call_YhKBs3eWkkfjxpTyfphRGAnV",
       "responseSchema": {
         "type": "object",
         "properties": {
@@ -6934,13 +6940,15 @@ input](/concepts/tools/#a-server-asks-the-user-for-input), end the run with an *
           "rememberArgumentsOnly": { "type": "boolean" }
         },
         "required": ["approved"]
-      }
+      },
+      "metadata": { "toolName": "cancel_order", "entityType": "order", "entityId": "ORD-1001", "entityName": "Order ORD-1001" }
     }]
   }
 }
 ```
 
-The answer is the `resume` of the next request, on the same thread. For an approval, `remember: true` saves
+The `message` and `metadata` come from the tool's approval presenter when one is registered. The answer is the `resume`
+of the next request, on the same thread. For an approval, `remember: true` saves
 the decision as a standing rule, exactly as it does on the management API; without `rememberArgumentsOnly`
 the rule covers every call of the tool:
 
@@ -6949,7 +6957,7 @@ the rule covers every call of the tool:
   "threadId": "t1",
   "runId": "r2",
   "messages": [],
-  "resume": [{ "interruptId": "01a16958-a46d-7f03-8fa7-b0010259802b", "status": "resolved", "payload": { "approved": true } }]
+  "resume": [{ "interruptId": "ficc_call_YhKBs3eWkkfjxpTyfphRGAnV", "status": "resolved", "payload": { "approved": true } }]
 }
 ```
 
@@ -6979,6 +6987,9 @@ A front end that closes the connection mid-run stops the run, and the run is rec
 - One thread, one run at a time. Two overlapping runs of the same thread behave as on the management API: the
   second to save loses, and its stream ends with `RUN_ERROR`.
 - No `Idempotency-Key` and no `Prefer: respond-async`: an AG-UI run is always live.
+- No run parameters and no culture: an agent with a required [parameter](/concepts/agents/#parameters) cannot be started
+  from AG-UI, and instructions resolve in the agent's default culture.
+- Attachments are not read; only the text of a message is.
 - The package is not Native AOT compatible.
 
 ## Read next
@@ -16546,13 +16557,9 @@ builder.AddTracon()
 
 A named engine never receives the default's `SynthesisModelId` or `OutputFormat`: a
 model identifier of one engine sent to another is a wrong request. Set them on the
-request when the engine needs them.
-
-The tools measure themselves, but a function node that calls an engine directly does not:
-Tracon cannot see what the node spent, so the node reports it with `ReportUsageAsync`, as
-above. `IVoicePricingReader.ForSynthesis` prices the characters by the engine and model
-that did the work and returns `null` when no price is configured; the item is then
-listed as unpriced and left out of the run's total instead of counting as zero.
+request when the engine needs them. `IVoicePricingReader.ForSynthesis` returns `null`
+when no price is configured; the item is then listed as unpriced instead of counting as
+zero.
 
 ### Use any Microsoft.Extensions.AI speech client
 
@@ -16610,9 +16617,7 @@ What the bridge does and does not do:
   which keys the client reads, so it cannot refuse an unknown one. Put no secret there:
   `LoggingTextToSpeechClient` writes its options to the log at Trace level.
 
-Microsoft.Extensions.AI marks its speech clients experimental, so registering one in your own code
-needs `#pragma warning disable MEAI001`, as the example shows. No Tracon public member names one: the
-bindings hold a key, a name, a limit, and a list.
+No Tracon public member names an experimental type: the bindings hold a key, a name, a limit, and a list.
 
 ### OpenAI speech
 
@@ -22073,7 +22078,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.Google` | No | net8/9/10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
 | `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected |
 | `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
-| `Tracon.AGUI` | No | net8/9/10 | No | The AG-UI endpoint; ASP.NET Core routing and the AG-UI SDK's event types use reflection-based JSON |
+| `Tracon.AGUI` | No | net8/9/10 | No | The AG-UI endpoint; it sits on `Tracon.AspNetCore`, whose minimal API routing uses reflection |
 | `Tracon.Testing` | No | net8/9/10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
 | `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for seven extension families — storage (`IRunStore` and 30 other store interfaces), model providers, run judges, agent sources, job handlers, skill script executors, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `Tracon.Templates` | No | net10 output | N/A | `dotnet new tracon-api` content package |
@@ -23948,7 +23953,7 @@ pin the exact version for reproducible builds.
 Tracon is a pre-1.0 package family. Treat version selection as part of your
 application architecture, not as a restore detail.
 
-The release process produces 20 NuGet packages and one npm package (`@tracon/client`), all
+The release process produces 21 NuGet packages and one npm package (`@tracon/client`), all
 cut from the same `v*` tag and sharing one version line: there is no split between
 a stable subset and a preview subset. The public surface carries no compatibility
 promise for as long as that line stays pre-1.0 - a narrowing or a reshaped type is

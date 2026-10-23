@@ -494,7 +494,7 @@ address for a server. What the server gets depends on who can answer:
 
 | The call runs in | What the server gets |
 |---|---|
-| A run you start with `POST /api/agents/{name}/run` and a `sessionId` | The run stops and asks you. Your answer is the input of the next request |
+| A run you start with `POST /api/agents/{name}/run` and a `sessionId`, or over the [AG-UI endpoint](/guides/ag-ui/#approvals-and-requests-for-input) | The run stops and asks you. Your answer is the input of the next request |
 | A run without a `sessionId` | `decline`: an answer has nowhere to go |
 | An OpenAI-compatible call, an A2A task, an MCP tool call, a queued run | `decline`: these surfaces have no way to carry the answer |
 | An agent called by another agent | `decline`: a sub-agent cannot wait in the middle of its parent's tree, the same rule as for [approvals](/concepts/governance/#approvals) |
