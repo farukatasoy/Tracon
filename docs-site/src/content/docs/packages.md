@@ -37,7 +37,7 @@ MCP, and the console — eight packages counting the two that come transitively.
 | `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `Tracon.AspNetCore` | The HTTP API and the access layers |
 | `Tracon.Workflows` | Multi-agent workflows, function nodes with typed settings, timeouts, a report of what they spent beyond tokens and a start gate on the call tree's cost and time budget, checkpoints, human input, run parameters, per-workflow run timeouts, a version history with rollback and agent version pins, a per-function concurrency limit, and the same step capabilities in graphs built in code (`GetWorkflowFunction`, `GetWorkflowAgentStep`) |
-| `Tracon.Mcp` | Tools discovered from remote MCP servers |
+| `Tracon.Mcp` | Tools discovered from remote MCP servers, and their requests for user input |
 | `Tracon.UI` | The embedded console |
 
 ## Not in the meta package
