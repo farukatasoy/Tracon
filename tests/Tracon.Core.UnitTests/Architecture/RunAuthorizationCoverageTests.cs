@@ -78,6 +78,20 @@ public sealed class RunAuthorizationCoverageTests
     /// calls for the same reason the authorization gate is — these endpoints
     /// share no route shape.
     /// </summary>
+    /// <summary>
+    /// The call a run-starting surface makes to pass the gates its turn shares with every other surface that runs an
+    /// agent: attribution, authorization, session ownership, quota and pre-flight (phase 236).
+    /// </summary>
+    /// <remarks>
+    /// 🚨 The gates themselves live ONCE, in <c>AgentTurnService.CheckRunGatesAsync</c>, and the markers below find them
+    /// there. What a surface must still prove is that it CALLS the shared method: a new surface that forgot the call
+    /// would be ungated, and the single copy of the gates would still be green.
+    /// </remarks>
+    private static readonly Regex TurnGatesMarker = new(
+        @"AgentTurnService\s*\.\s*CheckRunGatesAsync\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
     private static readonly Regex AttributionMarker = new(
         @"RunAttributionGate\s*\.\s*(Check|Validate)\s*\(",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
@@ -110,7 +124,10 @@ public sealed class RunAuthorizationCoverageTests
     /// </remarks>
     private static readonly (string Path, Regex Marker, int Calls)[] ExpectedRunStartingFiles =
     [
-        ("src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs", StartMarker, 1),
+        // The agent run endpoint and the AG-UI endpoint share one set of gates (AgentTurnService); each must call it.
+        ("src/Tracon.AspNetCore/Internal/AgentTurnService.cs", StartMarker, 1),
+        ("src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs", TurnGatesMarker, 1),
+        ("src/Tracon.AGUI/Internal/AGUIRunEndpoint.cs", TurnGatesMarker, 1),
         ("src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs", StartMarker, 1),
         ("src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs", ResourceStartMarker, 2),
         ("src/Tracon.AspNetCore/Endpoints/TriggerEndpoints.cs", StartMarker, 1),
@@ -176,7 +193,8 @@ public sealed class RunAuthorizationCoverageTests
     /// </remarks>
     private static readonly (string Path, Regex Marker, int Calls)[] ExpectedSessionOwnershipFiles =
     [
-        ("src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs", OwnershipRunMarker, 1),
+        // The shared turn holds the run ownership check for the agent run endpoint and the AG-UI endpoint (see TurnGatesMarker).
+        ("src/Tracon.AspNetCore/Internal/AgentTurnService.cs", OwnershipRunMarker, 1),
         ("src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs", OwnershipRunMarker, 1),
         ("src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs", OwnershipRunMarker, 1),
         ("src/Tracon.AspNetCore/Endpoints/SessionEndpoints.cs", OwnershipResourceMarker, 4),
@@ -221,6 +239,8 @@ public sealed class RunAuthorizationCoverageTests
         => AssertEveryFileMatches(
             [
                 .. ExpectedRunStartingFiles
+                    // The callers of the shared turn carry no attribution check of their own: AgentTurnService does, once.
+                    .Where(static file => file.Marker != TurnGatesMarker)
                     .GroupBy(static file => file.Path, StringComparer.Ordinal)
                     .Select(static group => (group.Key, AttributionMarker, group.Sum(static file => file.Calls))),
             ],
@@ -232,7 +252,7 @@ public sealed class RunAuthorizationCoverageTests
     /// counts one match per run it can start in this process.
     /// </summary>
     private static readonly Regex DrainMarker = new(
-        @"DrainGate\s*\.\s*Check\s*\(|OpenAICompatSupport\s*\.\s*DrainRefusal\s*\(|GetRequiredService<ITraconDrainState>\(\)\s*\.\s*IsDraining",
+        @"DrainGate\s*\.\s*Check\s*\(|AgentTurnService\s*\.\s*CheckDrain\s*\(|OpenAICompatSupport\s*\.\s*DrainRefusal\s*\(|GetRequiredService<ITraconDrainState>\(\)\s*\.\s*IsDraining",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -255,6 +275,7 @@ public sealed class RunAuthorizationCoverageTests
         => AssertEveryFileMatches(
             [
                 ("src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs", DrainMarker, 1),
+                ("src/Tracon.AGUI/Internal/AGUIRunEndpoint.cs", DrainMarker, 1),
                 ("src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs", DrainMarker, 3),
                 ("src/Tracon.AspNetCore/Endpoints/RunEndpoints.cs", DrainMarker, 1),
                 ("src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs", DrainMarker, 1),

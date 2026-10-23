@@ -328,7 +328,10 @@ Yönetim API'siyle çapraz kontrol (aynı örnek uygulama):
 
 ## Kapanış Koşumu
 
-> `python3 scripts/kapi.py kapanis --taban 853f5196` — aşağıda kapanışta dolar.
+> `python3 scripts/kapi.py kapanis --taban 853f5196` — 2026-10-23, üç koşum.
+
+- **Koşum 1 ve 2 kırmızı, ikisi de gerçekti.** (1) Doküman denetimi: `✅` işaretli doküman kökte kalamaz → kapı koşarken `Durum` `🚧` tutuldu, `faz-kapat` öncesi `✅` yapıldı (skill sırası bunu açıkça söylemiyor). (2) Betik testleri + tam test: yeni paket **dokuz** mimari teste çarptı — `PublicSurfaceBaselineTests` (taban satırı), `PackageFamilyAlignmentTests` (**gerçek açık:** `Tracon.AGUI` karışık-sürüm denetim listesinde yoktu), `RunAuthorizationCoverageTests` ×3 (kapılar `AgentTurnService`'e taşındı; liste artık gerçek konumu ve **iki çağıranı** sayar, AG-UI ucu drain listesine de girdi), `ExampleCompilationTests` ×2 (`Generators.UnitTests` yeni pakete `ProjectReference`), `PackageBaselineWiringTests` (kitaplık sayısı 17 → 18), `breaking_changes_test.test_depoda_bayrak…` (ilk yayın bayrağı `Tracon.AGUI`'de bilerek durur; test adıyla sabitlendi). Hepsi kapatıldı ve `references/yeni-paket.md` listesine yazıldı: aynı dokuzu bir sonraki yeni paket de yaşar.
+- **Koşum 3:** üretim, tarama, doküman denetimi, 780 betik testi, `dotnet build`, `dotnet pack`, `npm run check` (içerik · derleme · bağlantı · ağırlık), `dotnet format --verify-no-changes` yeşil. Tam test ilk denemede tek test düşürdü — `RetentionVolumeTests.An_uncommitted_large_delete_does_not_block_reads_or_unrelated_writes` (PostgreSQL, bu faza dokunmaz); izole geçti (kaynak çekişmesi sınıfı, `test-altyapisi.md`). Tam test adımı aynı komutla yeniden koşuldu: **26 665 test, 0 başarısız, 19 atlanan** (atlananlar önceden var).
 
 ## Süreç Ölçümü
 

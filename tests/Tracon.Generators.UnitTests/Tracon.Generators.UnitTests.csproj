@@ -36,6 +36,8 @@
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
     <ProjectReference Include="../../src/Tracon.Google/Tracon.Google.csproj" />
     <ProjectReference Include="../../src/Tracon.Voice/Tracon.Voice.csproj" />
+    <!-- Phase 236: MapTraconAGUI carries an <example>; it compiles against this project's reference set like every other. -->
+    <ProjectReference Include="../../src/Tracon.AGUI/Tracon.AGUI.csproj" />
     <!-- Phase 84: TraconClientServiceCollectionExtensions carries an <example> too; missed when Phase 83 added the package. -->
     <ProjectReference Include="../../src/Tracon.Client/Tracon.Client.csproj" />
   </ItemGroup>

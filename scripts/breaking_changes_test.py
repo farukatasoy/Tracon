@@ -286,11 +286,17 @@ class IlkYayinBayragiTestleri(unittest.TestCase):
         # Tracon.New did not exist in the tag; Tracon.Generators was not packable there.
         self.assertEqual(stale, ["Tracon.Voice"])
 
-    def test_depoda_bayrak_bugun_yok(self):
-        """21 csproj all existed in v1.0.0-preview.2 (measured 2026-09-23)."""
-        flagged = [path.name for path in (ROOT / "src").glob("*/*.csproj") if bc.FIRST_RELEASE_FLAG in path.read_text(encoding="utf-8")]
+    # Packages that have no published baseline yet. The flag is required for them (yeni-paket.md): nuget.org has nothing
+    # to restore for a rehearsal. `kapi.py yayin` calls the flag stale once the package is in the latest v* tag, and
+    # then the entry goes from here too. Tracon.AGUI: Phase 236, first release not cut.
+    NEW_SINCE_LAST_RELEASE = ["Tracon.AGUI.csproj"]
 
-        self.assertEqual(flagged, [])
+    def test_depoda_bayrak_yalniz_yayinlanmamis_pakette_var(self):
+        """Every other csproj existed in v1.0.0-preview.2 (measured 2026-09-23) and must not carry the flag."""
+        flagged = sorted(
+            path.name for path in (ROOT / "src").glob("*/*.csproj") if bc.FIRST_RELEASE_FLAG in path.read_text(encoding="utf-8"))
+
+        self.assertEqual(flagged, self.NEW_SINCE_LAST_RELEASE)
 
 
 class DogrulamaKanitiTestleri(unittest.TestCase):
