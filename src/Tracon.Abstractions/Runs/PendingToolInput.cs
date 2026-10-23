@@ -28,7 +28,7 @@ internal sealed record PendingToolInput
     /// <remarks>
     /// Tracon records it with the session as a pending request when the run closes, which is what lets
     /// Microsoft Agent Framework's function-invocation loop run it on the answering turn
-    /// (Phase 235, <c>ToolInputSessionBridge</c>).
+    /// (<c>ToolInputSessionBridge</c>).
     /// </remarks>
     public required FunctionCallContent ReplayCall { get; init; }
 

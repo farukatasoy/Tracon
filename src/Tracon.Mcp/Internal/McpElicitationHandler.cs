@@ -23,7 +23,7 @@ namespace Tracon;
 /// <item>No call scope, or the call ended (the older protocol's direct request, delivered from the connection's
 /// receive loop): <c>decline</c>.</item>
 /// <item>The server asked to open an address (<c>url</c> mode): <c>decline</c>; Tracon asks for form fields only.</item>
-/// <item>No run, an agent below the root of a tree (K-103), a run without a session, or a surface that cannot
+/// <item>No run, an agent below the root of a tree, a run without a session, or a surface that cannot
 /// carry the answer: <c>decline</c>.</item>
 /// <item>The replayed call holds the answer to this very request: the answer.</item>
 /// <item>The replayed call asked something else than the user was asked: <c>decline</c>.</item>

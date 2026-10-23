@@ -13,7 +13,7 @@ namespace Tracon;
 /// <para>
 /// <see cref="ToolApprovalResolver"/>'s and <see cref="ClientToolResultResolver"/>'s sibling. The suspended
 /// call lives in the session history as a call whose result is the <c>input_required</c> payload the tool
-/// wrapper returned; no table holds it (Phase 235). The answer is <strong>the next turn's input</strong>.
+/// wrapper returned; no table holds it. The answer is <strong>the next turn's input</strong>.
 /// </para>
 /// <para>
 /// An answer to a request nobody is waiting for is a <strong>hard error</strong>, not skipped as an approval
@@ -113,8 +113,8 @@ internal static class ToolInputResolver
     /// <remarks>
     /// <para>
     /// The audit entry names the request, the tool, the action and the NAMES of the fields: never a value.
-    /// A value can be personal data, and the audit log is kept far longer than a session (K-059's reason).
-    /// It is written like an approval decision's (K-089, K-370): an answer that cannot be recorded is not
+    /// A value can be personal data, and the audit log is kept far longer than a session.
+    /// It is written like an approval decision's: an answer that cannot be recorded is not
     /// carried out, because it releases what a server asked for into a tool call.
     /// </para>
     /// <para>

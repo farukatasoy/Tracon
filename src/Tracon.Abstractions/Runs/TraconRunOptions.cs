@@ -292,7 +292,7 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// call, an A2A task, an MCP tool call and a queued run have no channel for the answer.
     /// </para>
     /// <para>
-    /// Never inherited: a sub-agent cannot suspend its parent's tree (K-103), so the wrapper of
+    /// Never inherited: a sub-agent cannot suspend its parent's tree (the rule that governs approvals), so the wrapper of
     /// a sub-agent builds its own options without it.
     /// </para>
     /// </remarks>
@@ -303,7 +303,7 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// them, keyed by the call identity of the call that replays the suspended tool call.
     /// </summary>
     /// <remarks>
-    /// The call that was suspended runs again from its start (Phase 235): the tool wrapper
+    /// The call that was suspended runs again from its start: the tool wrapper
     /// answers the server's requests with these, in order, instead of asking the user again.
     /// A request beyond the last answer suspends the run again.
     /// </remarks>

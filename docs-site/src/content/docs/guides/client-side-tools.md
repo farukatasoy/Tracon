@@ -57,7 +57,9 @@ A few rules follow directly from this being an HTTP round trip, not a callback:
 - **`sessionId` is required.** The pending call lives in session history; a
   sessionless run has nowhere to look it up.
 - **A queued run (`Prefer: respond-async`) does not accept `toolResults`.** Nothing
-  is connected on the other end of a background job.
+  is connected on the other end of a background job. The same holds for the answer to
+  an MCP server's [request for input](/concepts/tools/#a-server-asks-the-user-for-input),
+  which also travels as the input of the next request.
 - **An unknown or already-answered `callId` is rejected** (`400`/`409`) before the
   response starts streaming, not silently ignored.
 - **A failure is still an answer.** If the browser could not fulfil the call — a

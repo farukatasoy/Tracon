@@ -9,7 +9,7 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 <strong>Measured, Phase 235.</strong> The loop does run a <c>ToolApprovalResponseContent</c>'s call without a
+/// <strong>Why it exists.</strong> The loop does run a <c>ToolApprovalResponseContent</c>'s call without a
 /// request in the messages, but <c>ApprovalResponseBindingChatClient</c> sits above it and drops every response
 /// that does not match a request the framework recorded in the session itself: a caller must not be able to
 /// authorize a call by sending its own. A response for a call Tracon replays is exactly such a response, so the
@@ -22,14 +22,14 @@ namespace Tracon;
 /// minted, for a call that is the suspended call with its own arguments.
 /// </para>
 /// <para>
-/// 🚨 It is written when the run CLOSES, not when the tool suspends. The binding client removes the session's
+/// It is written when the run CLOSES, not when the tool suspends. The binding client removes the session's
 /// whole pending set after an inner call that began with one, and an approval-required MCP server (the default)
 /// always begins with one: a write made from inside the tool call would be erased on the very turn it was made.
 /// </para>
 /// <para>
 /// The key and the shape (<c>List&lt;ToolApprovalRequestContent&gt;</c>) belong to the framework and are not part
 /// of its public surface. <c>McpElicitationTests</c> runs the whole turn against a real server and is what fails
-/// when an upgrade moves them; the upgrade procedure (<c>maf-api-kesfi</c>) names it.
+/// when an upgrade of the framework moves them.
 /// </para>
 /// </remarks>
 internal static class ToolInputSessionBridge

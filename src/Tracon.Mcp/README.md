@@ -70,6 +70,24 @@ mandatory: it is common for two different servers to have a tool with the
 same name. A dot is **not used** — OpenAI and compatible providers accept
 only `[a-zA-Z0-9_-]` in function names.
 
+## When a server asks the user for input
+
+A server can stop a tool call to ask the user for a value or a confirmation
+(*elicitation*). Tracon declares that it can answer, with form fields only.
+
+| Where the call runs | What the server gets |
+|---|---|
+| `POST {prefix}/api/agents/{name}/run` with a `sessionId` | The run closes `AwaitingInput` and the response carries the request (an `inputs` event). Send the answer as `inputResponses` in the next request of the session; the tool call then runs **again from its start** with the answer |
+| A run without a `sessionId`, an OpenAI-compatible call, an A2A task, an MCP tool call, a queued run | `decline` |
+| An agent called by another agent | `decline` |
+
+A declined request writes a `tracon.tool.input.declined` run event with the reason. The
+answer is audited by the names of its fields, never by a value, and the values go to the
+server and nowhere else. A tool call stops for input at most once; if the server asks
+something else the second time, it gets `decline`.
+
+Details: <https://tracon.dev/concepts/tools/#a-server-asks-the-user-for-input>
+
 ## Options
 
 | Option | Default | What it does |
