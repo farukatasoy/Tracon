@@ -398,25 +398,6 @@ public sealed record AgentRunRequest
     /// rejected with <c>400</c> before the run starts; a request that was answered already is rejected with <c>409</c>.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// The run response carried a request with the id <c>01a1…</c> for a <c>name</c> field. Answer it in the
-    /// next request of the same session:
-    /// <code>
-    /// var answer = new AgentRunRequest
-    /// {
-    ///     SessionId = "s-123",
-    ///     InputResponses =
-    ///     [
-    ///         new ToolInputResponse
-    ///         {
-    ///             RequestId = "01a1…",
-    ///             Action = ToolInputAction.Accept,
-    ///             Content = new Dictionary&lt;string, JsonElement&gt; { ["name"] = JsonSerializer.SerializeToElement("Ada") },
-    ///         },
-    ///     ],
-    /// };
-    /// </code>
-    /// </example>
     public IReadOnlyList<ToolInputResponse> InputResponses { get; init; } = [];
 
     /// <summary>

@@ -117,8 +117,8 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
 
         var card = session.Page.GetByTestId("input-card");
         await Expect(card).ToBeVisibleAsync();
-        await Expect(card.GetByText(ElicitingMcpServer.Question)).ToBeVisibleAsync();
-        await Expect(card.GetByText("This information goes to the “elicit” server.")).ToBeVisibleAsync();
+        await Expect(card.GetByText(ElicitingMcpServer.Question, new() { Exact = true })).ToBeVisibleAsync();
+        await Expect(card.GetByText("This information goes to the “elicit” server.", new() { Exact = true })).ToBeVisibleAsync();
 
         // The one field the server declared, and nothing else.
         await Expect(card.GetByTestId("input-field-name")).ToBeVisibleAsync();

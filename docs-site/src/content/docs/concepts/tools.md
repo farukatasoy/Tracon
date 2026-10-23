@@ -501,8 +501,10 @@ address for a server. What the server gets depends on who can answer:
 | A request to open an address (`url` mode) | `decline` |
 
 `decline` is a complete answer. The server decides what the tool does next, and
-nothing is dropped without a word: each decline writes a `tracon.tool.input.declined`
-run event that names the server, the tool and the reason.
+nothing is dropped without a word: a decline inside a run writes a
+`tracon.tool.input.declined` run event that names the server, the tool and the reason.
+A request that reaches the connection outside any run (an older server sends one that
+way) has no run to hold an event; the application log records it instead.
 
 ```mermaid
 sequenceDiagram

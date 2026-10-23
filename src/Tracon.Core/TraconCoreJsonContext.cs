@@ -45,6 +45,9 @@ namespace Tracon;
 // with RunStatus.AwaitingInput because a tool asked for user input.
 [JsonSerializable(typeof(IReadOnlyList<PendingToolInputEventItem>))]
 
+// Phase 235: the identities of the calls a suspended run left without a result, kept in the session.
+[JsonSerializable(typeof(List<string>))]
+
 // Phase 144: the ChildRunTimedOut run-event payload.
 [JsonSerializable(typeof(ChildRunTimedOutEventPayload))]
 

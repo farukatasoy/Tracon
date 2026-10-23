@@ -81,7 +81,7 @@ A server can stop a tool call to ask the user for a value or a confirmation
 | A run without a `sessionId`, an OpenAI-compatible call, an A2A task, an MCP tool call, a queued run | `decline` |
 | An agent called by another agent | `decline` |
 
-A declined request writes a `tracon.tool.input.declined` run event with the reason. The
+A declined request inside a run writes a `tracon.tool.input.declined` run event with the reason (outside any run, it is only logged). The
 answer is audited by the names of its fields, never by a value, and the values go to the
 server and nowhere else. A tool call stops for input at most once; if the server asks
 something else the second time, it gets `decline`.

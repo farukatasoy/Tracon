@@ -122,16 +122,19 @@ public static partial class RunEventCustomTypes
     /// <remarks>
     /// <para>
     /// The payload is a JSON object with <c>server</c> (the MCP server's name), <c>tool</c> (the
-    /// qualified tool name) and <c>reason</c>: <c>no_run</c> (the request reached the client
-    /// outside a tool call of a run), <c>url_mode</c> (the server asked to open an address; Tracon
-    /// asks only for form fields), <c>child_run</c> (an agent called by another agent cannot ask the
-    /// user, the same as for approvals), <c>no_session</c> (the run has no <c>sessionId</c>, so the
-    /// answer has nowhere to go), <c>no_channel</c> (the surface that started the run cannot carry
-    /// the answer: an OpenAI-compatible call, an A2A task, an MCP tool call, a queued run),
+    /// qualified tool name) and <c>reason</c>: <c>no_run</c> (the request reached the client outside
+    /// a tool call that is still running), <c>url_mode</c> (the server asked to open an address;
+    /// Tracon asks only for form fields), <c>child_run</c> (an agent called by another agent cannot
+    /// ask the user, the same as for approvals), <c>no_session</c> (the run has no <c>sessionId</c>,
+    /// so the answer has nowhere to go; an OpenAI-compatible Chat Completions call and an MCP tool
+    /// call never have one), <c>no_channel</c> (the run has a session, but the surface that started
+    /// it cannot carry the answer: an A2A task, a Responses call with a conversation, a queued run),
     /// <c>no_termination</c> (the tool was not called by the function-invocation loop) or
     /// <c>mismatch</c> (the replayed call asked something other than the user was asked). It never
     /// carries the requested fields or any answer. Declining is a complete answer to the server; the
-    /// server decides what the tool does next.
+    /// server decides what the tool does next. A request that reaches the client outside any run
+    /// (a server on the earlier protocol sends one that way) has no run to hold the event and is
+    /// only logged.
     /// </para>
     /// </remarks>
     public const string ToolInputDeclined = ReservedPrefix + "tool.input.declined";

@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A tool can ask the user for information in the middle of a call (MCP elicitation).** Tracon now tells
+  every MCP server it connects to that it can answer such a request, with form fields only. In a run started with
+  `POST /api/agents/{name}/run` and a `sessionId`, the request stops the run as `AwaitingInput`: the stream sends an
+  `inputs` event right before `done` (a response with `Idempotency-Key` carries `inputs` in its body), one entry per
+  request with `requestId`, `toolName`, `serverName`, `message` and `requestedSchema`. Answer in the next request of the
+  session with `AgentRunRequest.InputResponses` (`ToolInputResponse`: `RequestId`, `Action` of `ToolInputAction`
+  `Accept`, `Decline` or `Cancel`, and `Content` for `Accept`). The tool call then runs again from its start with the
+  answer, so a server must take the same call twice; the replay asks no second approval. Every other request gets
+  an explicit `decline` and, inside a run, a `tracon.tool.input.declined` run event (`RunEventCustomTypes.ToolInputDeclined`)
+  that names the reason: a run without a session, an OpenAI-compatible call, an A2A task, an MCP tool call, a queued run, an
+  agent called by another agent, a request to open an address (`url` mode), and a server on the earlier protocol. A tool
+  call stops for input at most once: if the server asks something else the second time, it gets `decline`, never the
+  old answer. A wrong answer is `400` (unknown or repeated `requestId`, a field the server did not ask for, a required
+  field left out, a value of the wrong type) or `409` (already answered); another user's session is `403`, as for every
+  run. The values go to the server and nowhere else. The audit entry `tool_input.answer` names the request, the server,
+  the tool, the action and the names of the fields, never a value, and it is written before the call runs again: it is the
+  **eighth fail-closed audit operation** (the published set of seven grows by one), so an answer that cannot be recorded
+  is not applied. The playground shows a form made from the requested schema and says which server the answer goes to.
+  `RunStatus.AwaitingInput` now also appears on the root agent run of a suspended call, and its `RunAwaitingInput` event
+  carries `requestId`, `toolName` and `serverName`.
+
 - **An agent can keep files in a private workspace for each session.** Set `AgentDefinition.Workspace`
   (`WorkspaceSettings`: `Enabled`, `ReadOnly`, `DisableReadApproval`; also `AgentDefinitionRequest.Workspace`,
   `AgentDescriptor.Workspace` and `workspace` in the HTTP body). The agent then lists, reads, searches, writes,
