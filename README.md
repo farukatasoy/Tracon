@@ -186,6 +186,7 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 | `Tracon.Workflows` | PolyForm | Workflow execution — five patterns, checkpoints, resume, HITL |
 | `Tracon.AspNetCore` | PolyForm | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
 | `Tracon.UI` | PolyForm | Embedded React console — 30 screens, 36 routes, zero JS dependencies |
+| `Tracon.AGUI` | PolyForm | The AG-UI endpoint — a front end that speaks the AG-UI protocol (CopilotKit and others) runs your agents, with client-side tools and tool approvals as interrupts. Takes the AG-UI SDK (MIT); **not in the meta package** |
 | `Tracon.Templates` | MIT | The `dotnet new tracon-api` template — not in the meta package |
 | `Tracon.Testing` | PolyForm | `FakeModelProvider`, `TraconTestHost`, `RunAssertions`; framework neutral, not in the meta package |
 | `Tracon.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource` or `IJobHandler`. Not in the meta package |
@@ -210,7 +211,7 @@ Terms and thresholds: [§ Licence](#licence) below.
 
 Six packages promise trimming and Native AOT compatibility:
 `Tracon.Abstractions`, `Core`, `PostgreSql`, `OpenAI`, `Azure`, and `Voice`. The other
-fourteen do not — including `Tracon.Anthropic` and `Tracon.Google`, whose SDKs use
+fifteen do not — including `Tracon.Anthropic` and `Tracon.Google`, whose SDKs use
 reflection-based JSON, and the **meta package `Tracon` itself**, which pulls in
 `Tracon.AspNetCore` and `Tracon.UI`. Reference the meta package expecting "the whole
 family is AOT-safe" and `PublishAot` fails on one of those two. Per-package reasons:

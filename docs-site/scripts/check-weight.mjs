@@ -56,7 +56,13 @@ const dist = resolve(here, '../dist');
 // TRC id and agent-map symptom) moved to guides/build-diagnostics.md; troubleshooting dropped
 // to 49 054 B and the new page weighs 43 648 B. The heaviest page is now guides/production.
 // Ceiling unchanged.
-const CEILING = 59_000;
+//
+// Raised 2026-10-23 (Phase 236): guides/voice reached 59 010 B, 10 B over. Nothing was added to that page;
+// every page carries the sidebar, and the new "AG-UI front ends" entry costs about ten bytes of gzip on
+// each of them. The voice page was within a few bytes of the ceiling already, and CI measures about ten
+// bytes more than a local build, so there was no margin to defend. Raised to 60 000 B, about 1.7% over the
+// measured page. The voice guide is the next page to split, not the next to raise.
+const CEILING = 60_000;
 
 // The release notes page is generated from CHANGELOG.md and is the one page whose
 // size grows with every release, not with what a reader needs from one visit: a

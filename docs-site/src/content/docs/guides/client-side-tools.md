@@ -80,6 +80,14 @@ Every result passes through the same [content guard](/concepts/governance/)
 pipeline as any other message before it reaches the model — nothing new to configure,
 but nothing exempted either.
 
+## A front end that speaks AG-UI
+
+An [AG-UI front end](/guides/ag-ui/) such as CopilotKit declares its tools on every request. That declaration does not
+create a tool: only a client-side tool registered with `AddClientTool` and named in the agent's definition reaches
+the model, with the schema from the code. The front end's declaration says which of them it can run. A client-side
+tool the front end does not declare is refused with `400`; a declared tool the agent does not carry is ignored. The
+result goes back as a `tool` message instead of `toolResults`.
+
 ## Client-side tools cannot be replayed
 
 An agent carrying a client-side tool cannot be [replayed](/concepts/runs/#replay-and-comparison) in any

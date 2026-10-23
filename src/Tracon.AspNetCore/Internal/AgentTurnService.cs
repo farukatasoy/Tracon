@@ -20,8 +20,8 @@ namespace Tracon;
 /// is written.
 /// </para>
 /// <para>
-/// 🚨 Everything in <see cref="PrepareAsync"/> happens BEFORE the response begins. Once the status line and the headers are
-/// on the wire a problem can no longer be a <c>ProblemDetails</c> the caller can read (same physical constraint as K-324).
+/// Everything in <see cref="PrepareAsync"/> happens BEFORE the response begins. Once the status line and the headers are
+/// on the wire a problem can no longer be a <c>ProblemDetails</c> the caller can read (the same physical limit every streaming endpoint has).
 /// </para>
 /// </remarks>
 internal static class AgentTurnService
@@ -39,10 +39,10 @@ internal static class AgentTurnService
     /// <para>
     /// The order is part of the contract. Authorization runs AFTER attribution (it needs the resolved user) and BEFORE the
     /// quota check (an unauthorized call must not consume the tenant's quota). The quota check happens BEFORE the run starts:
-    /// an in-progress run is not cut off when the quota is exceeded (K-162), only a new run gets a 429.
+    /// an in-progress run is not cut off when the quota is exceeded, only a new run gets a 429.
     /// </para>
     /// <para>
-    /// Ownership guards the run surface too, not only the session endpoints (phase 148): continuing a conversation reads its
+    /// Ownership guards the run surface too, not only the session endpoints: continuing a conversation reads its
     /// whole history back into the model, so leaving this door open would make gating <c>GET /api/sessions/{id}</c> decorative.
     /// Inert while ownership is off, which is the default.
     /// </para>
@@ -494,7 +494,7 @@ internal static class AgentTurnService
     /// <param name="httpContext">The request.</param>
     /// <returns>The refusal to answer with, or <see langword="null"/> when the run may start.</returns>
     /// <remarks>
-    /// 🚨 Checked BEFORE anything else: a run refused here never opens a <c>runs</c> row, so there is nothing to clean up.
+    /// Checked BEFORE anything else: a run refused here never opens a <c>runs</c> row, so there is nothing to clean up.
     /// See <c>TraconDrainService</c>.
     /// </remarks>
     public static IResult? CheckDrain(HttpContext httpContext)
@@ -513,7 +513,7 @@ internal static class AgentTurnService
     /// to fix, and a 502 would say "upstream is broken" and steer the client toward retrying.
     /// </para>
     /// <para>
-    /// 🚨 Nothing goes uncaught here (HATA-S2-003/HATA-S3-005): a narrow filter would let real provider SDK exceptions
+    /// Nothing goes uncaught here: a narrow filter would let real provider SDK exceptions
     /// leak into ASP.NET Core's generic handler and produce a bare 500. The exception's own message does not reach the
     /// caller unless it is one of the Tracon exceptions written for the caller; any other is logged with a correlation id
     /// and answered with the safe text.
@@ -584,7 +584,7 @@ internal static class AgentTurnService
     /// <param name="httpContext">The request, for the logger.</param>
     /// <returns>The exception type name and the safe text carrying a correlation id.</returns>
     /// <remarks>
-    /// 🚨 K-296: the status line and the headers are on the wire already, so the failure can only be told inside the
+    /// The status line and the headers are on the wire already, so the failure can only be told inside the
     /// stream. Nothing goes uncaught: a provider SDK exception that derives straight from <see cref="Exception"/> would
     /// otherwise close the connection WITHOUT telling the client, which would take it for a silent success.
     /// </remarks>

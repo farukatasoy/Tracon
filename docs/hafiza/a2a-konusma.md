@@ -1,4 +1,4 @@
-# A2A Konuşması ve Çağıran İzolasyonu Tuzakları (Faz 229)
+# A2A Konuşması, Çağıran İzolasyonu ve AG-UI Ucu Tuzakları (Faz 229, 236)
 
 > `contextId` ile çok turlu A2A: `A2ASessionStore`, `TraconCallerIsolationKeyProvider`,
 > sahiplik kapısı. Genel MCP/A2A sunucu tuzakları için:
@@ -14,3 +14,19 @@
 - **A2A SDK işleyici hatasını opak `-32603`'e çevirir ve nedeni `Error` düzeyinde loglar** (2026-10-21, Faz 229, ölçüldü): sahiplik reddi, okunamayan kimlik, depo yazma hatası ve aynı `contextId`'de eşzamanlı iki mesajın kaybeden tarafı arayana aynı görünür. Testler nedeni günlükten okur (`LoggedError`).
 - **🚨 İzolasyon anahtarı sahipliğin yerine geçmez** (2026-10-21, Faz 229, bağımsız denetim 🔴1): tek bir `ExternalInvoke` anahtarı ağ geçidi olup birçok son kullanıcı adına konuşabilir; anahtar tek çağırandır, sahip son kullanıcıdır. `AgentSessionManager` mevcut oturumu sahibini doğrulamadan geri yükler; kapı HTTP kenarındadır (`SessionOwnershipGate.CheckRunSessionAsync`), bu yüzden `A2ASessionStore` mevcut oturumu açmadan önce onu çalıştırır. Yeni bir A2A yolu oturum açıyorsa aynı kapıyı çağırmalıdır.
 - **Sağlayıcı kaydı genel olduğu için MAF'ın kendi A2A uçları da onu kullanır ve Tracon süzgeci orada koşmaz** (2026-10-21, Faz 229): ambient denetim aktörü boştur. `TraconCallerIsolationKeyProvider` kullanıcıyı isteğin `User`'ından da okur (`AmbientAuditActorResolver.ReadActor`, kurallar tek yerde). Kimlik okuma kuralını bir yere daha kopyalama.
+
+## AG-UI ucu (`Tracon.AGUI`, Faz 236)
+
+> Uç `POST {desen}/{agent}`; tur kurulumu yönetim API'siyle ortaktır (`AgentTurnService`, `PreparedTurn`, `OpenedTurn` — `src/Tracon.AspNetCore/Internal/`). AG-UI paketi yalnız eşleme, olay akışı ve SSE yazımıdır (`src/Tracon.AGUI/Internal/`). Resmi istemciyle doğrulandı: `@ag-ui/client` 1.0.3 `HttpAgent` + `buildResumeArray`.
+
+- **🚨 `AgentResponseUpdate.AsChatResponseUpdate()` PAYLAŞILAN nesne döndürür; akışı yerinde DEĞİŞTİRME** (2026-10-23, Faz 236, mutasyonla ölçüldü): agent oturum geçmişini, arayana verdiği aynı `ChatResponseUpdate` nesnelerinden kurar. Kesinti için `Contents`'i yerinde değiştirmek askıdaki girdi isteğinin kaydını düz cümleye çevirdi; cevap "bekleyen kesinti yok" ile `400` verdi ve tool geri gelmedi. Değiştireceksen `Clone()` ve kopyaya yaz (`AGUIInterruptCollector.Adapt`). Kapı: `AGUIInputRequiredTests.The_session_keeps_what_the_agent_produced…`.
+- **`AGUIStreamOptions.MapInterrupt` ne `ToolApprovalRequestContent` ne `InterruptRequestContent` için çağrılır** (AGUI.Server 1.0.1, probe). Onay kendiliğinden `reason: tool_call`, `{approved}` şemasıyla kesinti olur. Kesintinin metni içerik akıtıldığı anda okunur: sonradan değiştirilen `Message` RUN_FINISHED'e yansımaz. Bu yüzden onay isteği tool çağrısına çevrilir (ön yüz çağrıyı görür) ve `InterruptRequestContent` son güncellemede, sunum hazır olunca verilir.
+- **`InterruptRequestContent` için `AGUIJsonUtilities.RegisterInterruptContentTypes(options)` ŞARTTIR** (probe): seçenekler `ToChatRequestContext`'e geçer ve olayın `rawEvent`'i onlarla yazılır. Kayıtsızken akış `RUN_ERROR` (`StreamingError`, sabit metin) ile ölür ve sebep hiçbir yerde görünmez.
+- **Dönüştürücü kaynak istisnasını yutar ve sabit bir `RUN_ERROR` yazar.** Sebebi yakalamak için kaynak akış sarılır (`AGUIEventStream.AdaptAsync`: günlük + `SafeErrorText`), sonra `RunErrorEvent` düzeltilir. Çağıran iptali (`RequestAborted`) hata sayılmaz; sağlayıcının kendi `TaskCanceledException`'ı sayılır (Faz 157).
+- **Her olay `rawEvent` taşır** (ham `ChatResponseUpdate`, `additionalProperties` dahil). Yönetim API'sinin `update` çerçevesiyle aynı veri; kapatılamaz.
+- **`Resume` yalnız kesinti kimliği taşır; türü oturum geçmişi söyler** (`PendingInterruptReader`, onay ve girdi toplayıcılarıyla). Onay çözücüsü bilinmeyen kararı **sessizce** yok sayar (uyarı günlüğü); AG-UI kenarı önce sınıflar ve `400` verir. Cevaplanmış kesinti de bekleyen değildir → `400`.
+- **Kenar sırası güvenlik kararıdır:** kapılar (`CheckRunGatesAsync`) tool denetiminden ve `Resume` okumasından ÖNCE koşar; reddedilen çağıran agent'ın istemci tool adlarını öğrenmez. `OpenAsync` (oturum + mesaj + denetim satırı) SSE başlamadan koşar; denetim yazılamazsa `502`, tool koşmaz.
+- **`MapTraconAGUI` CORS'u kendi deseni için de kurar** (`TraconCorsMiddleware.Map`); varsayılan desende `MapTracon`'unki zaten yanıtlar, ikinci uygulama aynı sabit politikadır (idempotent).
+- **Denetim satırında "yüzey" alanı yoktu:** AG-UI kararı `after` içine `surface: "ag-ui"` ekler; `approval.decision` satırının diğer iki yüzü bayt bayt aynıdır.
+- **Yeni paketin kalıp listesi:** `Tracon.slnx` + iki `.slnf` · `DependencyDirectionTests.AllowedReferences` · `kapi.py` test haritası ve lisans matrisi · `README.md` · `PublicAPI.*` · `TraconPackageFirstRelease` · site sayısı (`index.mdx`, `packages.md`, `compatibility.md`, kök `README.md`). Ajan haritası bütçesi (11 264 B) 5 B kalmıştı: yeni paket iki satır ekler, bir kural cümlesi bölünerek yer açıldı.
+

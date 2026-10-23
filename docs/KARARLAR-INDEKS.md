@@ -2,16 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1013 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1015 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1065 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1067 kalem)
 
 | K | Karar |
 |---|---|
-| K-1024 | `WorkflowRunRequest.DefinitionVersion` public; checkpoint'siz kurtarma yeniden başlatması zincirin ilk run'ının sürümünü sabitler (F-492) |
-| K-1025 | `/v1/chat/completions` görsel, ses ve dosyayı modele verir; tool geçmişi ve bilinmeyen rol `400` (F-580) (kullanıcı kararı) 👤 |
 | K-1026 | OpenAI ses istemcisi `OpenAIClient.Pipeline` üstündedir, `AudioClient`/MEAI adaptörü üstünde değil (F-579) |
 | K-1027 | `/v1/chat/completions` agent'ın istek ayarını `400` ile reddeder; `/v1/conversations` ilk `items`'ı reddeder (F-581) |
 | K-1028 | `RunRecordingAgent` iç agent'a düz `AgentRunOptions` verir, `TraconRunOptions` değil (G-07) |
@@ -62,3 +60,5 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1073 | Elicitation cevabı sorulan soruya bağlıdır (message+schema parmak izi); başka soru sorulursa decline, çağrı en çok bir kez askıya alınır |
 | K-1074 | tool_input.answer fail-closed denetim kümesinin sekizinci işlemidir (7 → 8); satır alan adlarını taşır, değeri taşımaz |
 | K-1075 | Yeniden çağrı MAF'ın bekleyen-istek kaydına koşu KAPANIRKEN yazılır (_pendingApprovalRequests); anahtar MAF'ın public yüzeyi değildir |
+| K-1076 | AG-UI ucu ayrı `Tracon.AGUI` paketidir; AG-UI SDK'sı yalnız orada, meta pakete girmez 👤 |
+| K-1077 | AG-UI isteğindeki tool yalnız kodda kayıtlı istemci tool'uyla kesişirse kullanılır; şema koddan gelir 👤 |

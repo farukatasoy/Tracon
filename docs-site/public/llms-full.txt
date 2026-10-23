@@ -265,6 +265,7 @@ graph instead of reporting it.
 | Embeddable chat widget | `Tracon.UI`'s `embed.js` asset (served once `UseUI()` is registered) | A page you embed the widget in, running under its own origin |
 | MCP client | `Tracon.Mcp` and `UseMcp()` | Agents that consume tools from remote MCP servers |
 | MCP server | `UseMcpServer()` and `MapTraconMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
+| AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. See [AG-UI front ends](/guides/ag-ui/) |
 | A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents; a `contextId` continues a conversation scoped to the caller |
 | Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients |
 | Live voice sessions | `UseLiveVoice()`, a live provider, and `MapTracon()` | Browsers that speak to a provider-hosted model over WebRTC while Tracon supervises the session |
@@ -286,9 +287,9 @@ conditional or separately mapped, so they are not all represented by the generat
 | Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
 | Tool-approval presentation | Turns a pending approval's raw arguments into a resolved entity name | `IToolApprovalPresenter` | Best-effort: not registered, throws, or times out all publish the approval request unchanged |
 
-Each contract is registered with `TryAdd`, so a registration made before
-`AddTracon()` wins over Tracon's built-in default, and
-`GET /api/diagnostics` reports which of the seven are still built-in.
+A registration made before `AddTracon()` wins over the built-in default. Each
+contract is registered with `TryAdd`, and `GET /api/diagnostics` reports which of
+the seven are still built-in.
 `RequireCustomBinding<T>()` turns a missed binding into a failed startup. A tool body
 reads the same identity (including `UserId`) through `TraconRunContext`,
 since it cannot reach `AgentSession` directly.
@@ -2768,11 +2769,14 @@ digits, `.`, `_`, or `-`. It is required on a `Custom` event and rejected
 (`ArgumentException`) on every other type: a caller who sets it on a built-in
 event type gets told immediately, rather than having it silently dropped by
 every store. The `tracon.` prefix is reserved, so a built-in
-custom type can never collide with your own. Tracon writes four of them:
+custom type can never collide with your own. Tracon writes these:
 `tracon.quota.threshold` (the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits)),
 `tracon.output.truncated` (see [Truncated output](#truncated-output)),
 `tracon.content` and `tracon.workflow.event` (see
-[Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)).
+[Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)),
+`tracon.tool.input.declined` (a [server's request for input](/concepts/tools/#a-server-asks-the-user-for-input)
+that Tracon answered with `decline`) and `tracon.agui.tools.ignored` (tools an
+[AG-UI front end](/guides/ag-ui/#front-end-tools) declared that the agent does not carry).
 `AppendAsync` rejects any value under that prefix, so a `Custom` event carrying it can
 only have come from Tracon itself. `Payload` is yours too — Tracon makes no claim about
 its shape and never reads it.
@@ -6788,6 +6792,203 @@ its error if it had one.
 
 ---
 
+# AG-UI front ends
+
+Source: https://tracon.dev/guides/ag-ui/
+
+How does a front end built on the [AG-UI protocol](https://docs.ag-ui.com) — CopilotKit, or your own
+React code on `@ag-ui/client` — run a Tracon agent? Through one extra endpoint,
+`POST /tracon/agui/{agentName}`. The request is a Tracon run: it is recorded, the tenant is resolved,
+roles and session ownership are enforced, the quota is counted and the cost is written. Only the dialect
+on the wire is AG-UI.
+
+## Map the endpoint
+
+AG-UI lives in its own package, so an application whose front end does not speak it never carries the
+AG-UI SDK.
+
+```bash
+dotnet add package Tracon.AGUI --prerelease
+```
+
+```csharp
+builder.AddTracon()
+       .UseOpenAI(apiKey)
+       .AddClientTool(
+           "read_shopping_cart",
+           "Reads the items in the customer's shopping cart in the browser.",
+           JsonSerializer.Deserialize<JsonElement>("""{"type":"object","properties":{}}"""))
+       .AddAgent(new AgentDefinition
+       {
+           Name = "support",
+           Instructions = "You are a support assistant.",
+           Model = new ModelBinding { Provider = "openai", Model = "gpt-5.4-mini" },
+           ToolNames = ["read_shopping_cart"],
+       });
+
+app.MapTracon();
+app.MapTraconAGUI();
+```
+
+`MapTraconAGUI` must come after `MapTracon`. It inherits the same access protection from there: loopback
+by default, the bearer token, your authorization policy, the `Operator` role and the `runs:write` API key
+scope. The path is `/tracon/agui` unless you pass another prefix.
+
+The body is an AG-UI `RunAgentInput` and the answer is `text/event-stream`, one `data:` frame per event:
+
+```bash
+curl -N -X POST http://localhost:5081/tracon/agui/support \
+  -H 'Content-Type: application/json' \
+  -d '{"threadId":"t1","runId":"r1","messages":[{"id":"m1","role":"user","content":"hello"}],"tools":[],"context":[]}'
+```
+
+## Connect a front end
+
+CopilotKit's runtime reaches a remote AG-UI agent through `HttpAgent` from `@ag-ui/client`. Point it at
+the Tracon endpoint and pass the credential as a header:
+
+```ts
+import { HttpAgent } from "@ag-ui/client";
+import { CopilotRuntime } from "@copilotkit/runtime/v2";
+
+const runtime = new CopilotRuntime({
+  agents: {
+    support: new HttpAgent({
+      url: "https://your-host/tracon/agui/support",
+      headers: { Authorization: `Bearer ${process.env.TRACON_API_KEY}` },
+    }),
+  },
+});
+```
+
+When the browser itself calls the endpoint, add its origin to `AllowedOrigins`: the AG-UI path gets the
+same [CORS answer](/guides/client-side-tools/#cors) as the rest of Tracon, and nothing wider.
+
+## How a request is read
+
+```mermaid
+flowchart LR
+    accTitle: How an AG-UI request becomes a Tracon run
+    accDescr: The front end sends a RunAgentInput. Tracon reads only the new messages, checks the declared tools against the client-side tools in code, answers pending approvals and requests, runs the agent through the same gates as the management API, and streams AG-UI events back.
+    FE["Front end<br/>RunAgentInput"] --> MAP["Read the request<br/>new messages · tools · resume"]
+    MAP --> GATES["Same gates as<br/>POST /api/agents/{name}/run"]
+    GATES --> RUN["Tracon run<br/>recorded · priced"]
+    RUN --> EV["AG-UI events<br/>text · tool calls · interrupts"]
+    EV --> FE
+```
+
+| AG-UI field | What Tracon does |
+|---|---|
+| `threadId` | It is the session. At most 200 characters; a thread belongs to the user and the tenant that opened it |
+| `messages` | The server keeps the conversation. Only the messages after the **last assistant message** are new input: the user's text, and the results of the client-side tool calls that message made. Earlier messages are already in the session and are not added again. System and developer messages are not read — the instructions are the agent's |
+| `tools` | Must name every client-side tool the agent carries. The schema is always the one in code |
+| `resume` | Answers a tool approval or a request for user input |
+| `context` | Becomes run documents, kept apart from the instructions |
+| `state`, `forwardedProps` | Not used |
+
+Text is the only input kind read: image, audio, video and document parts of a message are ignored.
+
+## Front-end tools
+
+A tool that runs in the browser is a [client-side tool](/guides/client-side-tools/): its declaration lives
+in code, the server never runs it, and the result comes back with the next request. In AG-UI terms the model's
+call arrives as `TOOL_CALL_START`, `TOOL_CALL_ARGS` and `TOOL_CALL_END`, the run finishes, the front end runs
+the tool, and the next request carries the result as a `tool` message with the same `toolCallId`.
+
+An AG-UI front end declares its tools on every request. Tracon treats that as information, not as
+instruction:
+
+- A tool the request declares and the agent carries as a client-side tool is run by the front end. The model
+  sees the **code's** schema, never the request's.
+- A client-side tool the agent carries and the request does not declare is refused with `400`, and the
+  response names it. The model would call a tool nobody can run.
+- A tool the request declares and the agent does not carry is **ignored**. The model never sees it, and the
+  run records its name under the `tracon.agui.tools.ignored` event.
+
+A front end cannot add a tool or change a schema through this endpoint. Tools are defined only in code.
+
+## Approvals and requests for input
+
+A tool that [waits for approval](/concepts/governance/), and an MCP server that [asks the user for
+input](/concepts/tools/#a-server-asks-the-user-for-input), end the run with an **interrupt** in
+`RUN_FINISHED`. The run stays open on the Tracon side (`AwaitingApproval` or `AwaitingInput`).
+
+```json
+{
+  "type": "RUN_FINISHED",
+  "threadId": "t1",
+  "runId": "r1",
+  "outcome": {
+    "type": "interrupt",
+    "interrupts": [{
+      "id": "01a16958-a46d-7f03-8fa7-b0010259802b",
+      "reason": "tool_call",
+      "message": "Cancel order for Priya Shah",
+      "toolCallId": "call_x1",
+      "responseSchema": {
+        "type": "object",
+        "properties": {
+          "approved": { "type": "boolean" },
+          "reason": { "type": "string" },
+          "remember": { "type": "boolean" },
+          "rememberArgumentsOnly": { "type": "boolean" }
+        },
+        "required": ["approved"]
+      }
+    }]
+  }
+}
+```
+
+The answer is the `resume` of the next request, on the same thread. For an approval, `remember: true` saves
+the decision as a standing rule, exactly as it does on the management API; without `rememberArgumentsOnly`
+the rule covers every call of the tool:
+
+```json
+{
+  "threadId": "t1",
+  "runId": "r2",
+  "messages": [],
+  "resume": [{ "interruptId": "01a16958-a46d-7f03-8fa7-b0010259802b", "status": "resolved", "payload": { "approved": true } }]
+}
+```
+
+- A `cancelled` status is a refusal for an approval, and a cancellation for a request for input. It is never
+  an approval.
+- For a request for input (`reason: input_required`) the interrupt carries the server's own field schema, and
+  the `payload` is an object of those fields. A value that does not fit is refused with `400` before anything
+  runs again.
+- An interrupt id that is not pending in the thread — unknown, already answered, or another tenant's — is a `400`.
+- The decision is written to the audit trail before it is applied, with `"surface": "ag-ui"`. A decision that
+  cannot be recorded is not applied.
+
+## What comes back
+
+The first event after `RUN_STARTED` is a `CUSTOM` event named `tracon.run`. Its value carries the Tracon run
+id, which is how a front end finds the run in the console and in `GET /api/runs/{id}`.
+
+A failure after the stream began is a `RUN_ERROR` event: its `code` is the exception type and its message
+says what failed. The provider's address and the exception text never reach the front end; the server log
+holds them under a correlation reference, which an exception Tracon does not recognize also puts at the end
+of the message as `(ref: …)`.
+
+A front end that closes the connection mid-run stops the run, and the run is recorded as `Canceled`.
+
+## Limits
+
+- One thread, one run at a time. Two overlapping runs of the same thread behave as on the management API: the
+  second to save loses, and its stream ends with `RUN_ERROR`.
+- No `Idempotency-Key` and no `Prefer: respond-async`: an AG-UI run is always live.
+- The package is not Native AOT compatible.
+
+## Read next
+
+- [Client-side tools and the embeddable widget](/guides/client-side-tools/) — how the front-end tool mechanic works without AG-UI.
+- [Governance](/concepts/governance/) — what an approval is and where its rules and audit trail live.
+- [Security](/getting-started/security/) — the access layers `MapTraconAGUI` inherits.
+
+---
+
 # Use any Microsoft Agent Framework feature
 
 Source: https://tracon.dev/guides/any-maf-feature/
@@ -8795,6 +8996,14 @@ startup with a clear message.
 Every result passes through the same [content guard](/concepts/governance/)
 pipeline as any other message before it reaches the model — nothing new to configure,
 but nothing exempted either.
+
+## A front end that speaks AG-UI
+
+An [AG-UI front end](/guides/ag-ui/) such as CopilotKit declares its tools on every request. That declaration does not
+create a tool: only a client-side tool registered with `AddClientTool` and named in the agent's definition reaches
+the model, with the schema from the code. The front end's declaration says which of them it can run. A client-side
+tool the front end does not declare is refused with `400`; a declared tool the agent does not carry is ignored. The
+result goes back as a `tool` message instead of `toolResults`.
 
 ## Client-side tools cannot be replayed
 
@@ -18838,7 +19047,7 @@ reachable; they just stop appearing in your Swagger UI or generated document.
 
 Source: https://tracon.dev/packages/
 
-Twenty packages. Take the meta package for the common set, or pick individually
+Twenty-one packages. Take the meta package for the common set, or pick individually
 when you care about what enters your dependency graph.
 
 ## Licensing in one line
@@ -18886,6 +19095,7 @@ Add these when you need them.
 | `Tracon.Google` | You call Gemini models |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
+| `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents. It takes the AG-UI SDK, which the other packages never see |
 | `Tracon.Testing` | You write tests against agents — fakes, not mocks |
 | `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
 | `Tracon.Templates` | `dotnet new tracon-api` |
@@ -18925,7 +19135,7 @@ Same OpenAPI document, same version number as every package above — `@tracon/c
 and `Tracon.Client` are cut from the same `v*` git tag, so a matching pair always
 describes the identical set of operations. There is no separate npm version scheme.
 What differs is the ecosystem: it ships from a browser or Node.js process instead of
-a .NET one, and it is not part of the six AOT-compatible packages or the twenty
+a .NET one, and it is not part of the six AOT-compatible packages or the twenty-one
 NuGet packages counted above. See the [TypeScript client guide](/guides/typescript-client/)
 for setup, the error model, streaming, and what it deliberately does not cover.
 
@@ -21841,7 +22051,7 @@ both targets. An urgent security release may still carry them. Move an
 application that targets `net8.0` or `net9.0` to `net10.0` before you take that
 release.
 
-## The 20 packages
+## The 21 packages
 
 “Meta” shows whether `dotnet add package Tracon` brings the package into the
 dependency graph. `AOT` states the promise made by the package itself.
@@ -21863,6 +22073,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.Google` | No | net8/9/10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
 | `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected |
 | `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
+| `Tracon.AGUI` | No | net8/9/10 | No | The AG-UI endpoint; ASP.NET Core routing and the AG-UI SDK's event types use reflection-based JSON |
 | `Tracon.Testing` | No | net8/9/10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
 | `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for seven extension families — storage (`IRunStore` and 30 other store interfaces), model providers, run judges, agent sources, job handlers, skill script executors, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `Tracon.Templates` | No | net10 output | N/A | `dotnet new tracon-api` content package |

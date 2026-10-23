@@ -25,7 +25,7 @@ namespace Tracon;
 /// </remarks>
 internal static class AGUIInputMapper
 {
-    /// <summary>The longest thread identity accepted: the sessions table of SQL Server holds <c>nvarchar(200)</c> (F-622).</summary>
+    /// <summary>The longest thread identity accepted: the sessions table of SQL Server holds <c>nvarchar(200)</c>.</summary>
     internal const int MaxThreadIdLength = 200;
 
     /// <summary>The longest list of ignored tool names a run records.</summary>
@@ -141,10 +141,10 @@ internal static class AGUIInputMapper
     /// <remarks>
     /// <para>
     /// The model sees a client-side tool because the agent's definition names it and the code registered it
-    /// (<c>AddClientTool</c>), not because a request declared it: an AG-UI request cannot add a tool or change a schema (K2).
+    /// (<c>AddClientTool</c>), not because a request declared it: an AG-UI request cannot add a tool or change a schema.
     /// What the request decides is only whether this front end can RUN the tool. A tool the agent carries and the front end
     /// did not declare would reach the model and then wait for a result nobody can produce, and a run cannot hide a tool of
-    /// its definition from the model (K-1039), so the request is refused instead and names the missing tools.
+    /// its definition from the model, so the request is refused instead and names the missing tools.
     /// </para>
     /// <para>
     /// A declared tool the agent does not carry is ignored: a front end sends all of its tools with every request, and

@@ -1,6 +1,6 @@
 # 26 — İstemci Tool'ları ve Gömülebilir Sohbet (`IST`)
 
-> **Alan kodu:** `IST` · **Faz:** 61, 112
+> **Alan kodu:** `IST` · **Faz:** 61, 112, 236
 > **Kaynak:** `src/Tracon.Core/Tools/TraconClientToolExtensions.cs` ·
 > `src/Tracon.Core/Tools/ToolRegistry.cs` ·
 > `src/Tracon.AspNetCore/Internal/ClientToolResultResolver.cs` ·
@@ -9,7 +9,8 @@
 > handling) · `src/Tracon.AspNetCore/TraconEndpointOptions.cs`
 > (`AllowedOrigins`) · `src/Tracon.UI/frontend/src/embed/` (widget) ·
 > `samples/Tracon.Api/Program.cs` (`read_shopping_cart`) ·
-> `src/Tracon.Core/Replay/RunReplayService.cs` (`FindClientTool`, Faz 112).
+> `src/Tracon.Core/Replay/RunReplayService.cs` (`FindClientTool`, Faz 112) ·
+> `src/Tracon.AGUI/` (AG-UI ucu, Faz 236).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -362,7 +363,168 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 
 ---
 
+# 4 — AG-UI ucu (Faz 236)
+
+`Tracon.AGUI`, AG-UI protokolünü konuşan bir ön yüzün Tracon agent'ını koşmasını sağlar. Bu bölümün case'leri **resmi
+istemciyle** koşar: `@ag-ui/client` kendi olay doğrulayıcısını (`verifyEvents`) taşır, yani sıra ya da biçim hatası
+istemcide kırılır. Aynı davranışın HTTP seviyesindeki kanıtı `Tracon.AGUI.FunctionalTests` sınıflarındadır; burada
+yalnız gerçek istemci ve gerçek model gerekir.
+
+**Ön koşul (§4'ün dört case'i için)**
+1. Örnek uygulama Development'ta, izole depoyla ayakta (`Tracon__PostgreSql__ConnectionString=`
+   `Tracon__SqlServer__ConnectionString=` `Tracon__Sqlite__ConnectionString=` `Tracon__Ui__AuthToken=` boş;
+   `Tracon:Providers:OpenAI:ApiKey` `user-secrets`'ten). `support` agent'ı `read_shopping_cart` (istemci tool'u) ve
+   `cancel_order` (onay ister) taşır.
+2. Geçici bir dizinde resmi istemci kurulu: `npm install @ag-ui/client@1.0.3`.
+3. Aynı dizinde `probe.mjs`:
+
+```js
+import { HttpAgent, buildResumeArray } from "@ag-ui/client";
+
+const [url, scenario] = process.argv.slice(2);
+const agent = new HttpAgent({ url, threadId: `probe-${scenario}-${Date.now()}` });
+const events = [];
+const subscriber = {
+  onEvent: ({ event }) => events.push(event.type),
+  onRunErrorEvent: ({ event }) => console.log("RUN_ERROR", JSON.stringify(event)),
+};
+const tools = [
+  { name: "read_shopping_cart", description: "Reads the cart in the browser.", parameters: { type: "object", properties: {} } },
+  { name: "front_end_only", description: "x", parameters: { type: "object", properties: {} } },
+];
+async function run(extra = {}) {
+  events.length = 0;
+  await agent.runAgent({ tools, ...extra }, subscriber);
+  console.log("EVENTS", events.join(" "));
+}
+
+if (scenario === "text") {
+  agent.addMessage({ id: "u1", role: "user", content: "Say hello in five words." });
+  await run();
+  console.log("ASSISTANT", JSON.stringify(agent.messages.at(-1).content));
+} else if (scenario === "cart") {
+  agent.addMessage({ id: "u1", role: "user", content: "What is in my shopping cart? Use the tool." });
+  await run();
+  const call = agent.messages.at(-1).toolCalls?.[0];
+  console.log("CALL", call?.function.name);
+  agent.addMessage({ id: "t1", role: "tool", toolCallId: call.id, content: "2x Wireless Mouse" });
+  await run();
+  console.log("FINAL", JSON.stringify(agent.messages.at(-1).content));
+} else if (scenario === "approval") {
+  agent.addMessage({ id: "u1", role: "user", content: "Cancel order ORD-1001 now." });
+  await run();
+  const pending = agent.pendingInterrupts;
+  console.log("PENDING", JSON.stringify(pending));
+  const answers = Object.fromEntries(pending.map((i) => [i.id, { status: "resolved", payload: { approved: true } }]));
+  await run({ resume: buildResumeArray(pending, answers) });
+  console.log("FINAL", JSON.stringify(agent.messages.at(-1).content));
+}
+```
+
+Ortam değişkenleri: `export AGU="http://127.0.0.1:5199/tracon/agui/support"`.
+
+---
+
+### MT-IST-017 — Metin akar; run kaydedilir ve maliyeti yazılır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 236 |
+| **İlgili karar** | — |
+
+**Devir** — 🤖 ajan koşar — örnek uygulama, `@ag-ui/client` 1.0.3 (resmi AG-UI istemcisi, Node), gerçek `openai` modeli
+
+**Adımlar**
+```bash
+node probe.mjs "$AGU" text
+curl -s "$APU/api/runs?agentName=support" | jq '.[] | {id, status, sessionId, cost}'
+```
+
+**Beklenen sonuç**
+- `EVENTS` satırı `RUN_STARTED CUSTOM TEXT_MESSAGE_START TEXT_MESSAGE_CONTENT… TEXT_MESSAGE_END RUN_FINISHED` sırasındadır;
+  istemci hata vermez.
+- `ASSISTANT` satırında modelin cümlesi vardır.
+- Koşunun `sessionId`'si `probe-text-…` (thread kimliği), `status: "Completed"`, `cost.source: "Catalog"` ve sıfırdan büyük `inputCost`.
+
+---
+
+### MT-IST-018 — Ön yüz tool'u: çağrı döner, `tool` mesajı turu tamamlar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 236 |
+| **İlgili karar** | K2 (bkz. `MIMARI.md` §3) |
+
+**Devir** — 🤖 ajan koşar — örnek uygulama, `@ag-ui/client` 1.0.3, gerçek `openai` modeli
+
+**Adımlar**
+```bash
+node probe.mjs "$AGU" cart
+```
+
+**Beklenen sonuç**
+- İlk `EVENTS` satırı `TOOL_CALL_START TOOL_CALL_ARGS TOOL_CALL_END RUN_FINISHED` ile biter; `TOOL_CALL_RESULT` yoktur
+  (sunucu tool'u çalıştırmadı). `CALL read_shopping_cart` yazılır.
+- İkinci tur `tool` mesajıyla (`2x Wireless Mouse`) metin akıtır ve `FINAL` satırı sepet içeriğinden bahseder.
+
+---
+
+### MT-IST-019 — Onay: kesinti gelir, `resume` ile onaylanınca tool çalışır ve denetim satırı `ag-ui` yazar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 236 |
+| **İlgili karar** | K-089, K-370 |
+
+**Devir** — 🤖 ajan koşar — örnek uygulama, `@ag-ui/client` 1.0.3, gerçek `openai` modeli
+
+**Adımlar**
+```bash
+node probe.mjs "$AGU" approval
+curl -s "$APU/api/audit?action=approval.decision" | jq '.[-1] | {entity, after}'
+```
+
+**Beklenen sonuç**
+- İlk tur `RUN_FINISHED` ile biter ve istemcinin `pendingInterrupts` listesi tek kesinti taşır: `reason: "tool_call"`,
+  `toolCallId` dolu, `message: "Cancel order ORD-1001 for Priya Shah."`, `responseSchema.required: ["approved"]`.
+- `resume` ile gelen ikinci tur `TOOL_CALL_RESULT` içerir; `FINAL` siparişin iptal edildiğini söyler.
+- Denetim satırı: `entity: "tool:cancel_order"` ve `after` içinde `"surface":"ag-ui"`.
+- İlk koşu `AwaitingApproval`, ikincisi `Completed`.
+
+---
+
+### MT-IST-020 — Ön yüzün beyan ettiği ama agent'ın taşımadığı tool modele ulaşmaz; run adı yazar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 236 |
+| **İlgili karar** | K2 |
+
+**Devir** — 🤖 ajan koşar — örnek uygulama, `@ag-ui/client` 1.0.3
+
+**Ön koşul:** MT-IST-018 koşuldu. `probe.mjs` her istekte `front_end_only` adlı bir tool'u da beyan eder; `support` o adı taşımaz.
+
+**Adımlar**
+```bash
+RUN=$(curl -s "$APU/api/runs?agentName=support" | jq -r '[.[] | select(.sessionId | startswith("probe-cart"))][0].id')
+curl -s "$APU/api/runs/$RUN/events" | grep "tracon.agui.tools.ignored"
+```
+
+**Beklenen sonuç**
+- Olay satırı `"customType":"tracon.agui.tools.ignored"` ve `payload` içinde `["front_end_only"]` taşır; şema ya da açıklama taşımaz.
+- MT-IST-018 yine de tamamlanmıştır: bilinmeyen ad koşuyu kırmaz.
+
+---
+
 ## Bitiş ölçütü
 
-- [ ] MT-IST-001 … MT-IST-016 çalıştırıldı, sonuç `kosumlar/<tarih>/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`'ye yazıldı.
+- [ ] MT-IST-001 … MT-IST-020 çalıştırıldı, sonuç `kosumlar/<tarih>/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md`'ye yazıldı.
 - [ ] `Kaldı` işaretlenen her case için `00-INDEKS.md` §6 şablonuyla bir `HATA-NNN` açıldı.

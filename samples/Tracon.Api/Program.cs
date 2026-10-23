@@ -1811,6 +1811,12 @@ app.MapTracon("/tracon", options =>
 app.MapTraconMcpServer();
 app.MapTraconA2A();
 
+// The AG-UI endpoint (phase 236): POST /tracon/agui/{agent}. A front end that speaks the AG-UI protocol (CopilotKit and others)
+// runs a Tracon agent through it. Same protection, same run record, same approval audit as the management API's run
+// endpoint. `support` is the agent to try: it carries the client-side tool read_shopping_cart (the front end runs it) and
+// cancel_order (waits for approval, which arrives as an AG-UI interrupt). Like the two above it needs MapTracon first.
+app.MapTraconAGUI();
+
 app.Run();
 
 // The graph of the two approval workflows registered earlier. The workflow name is passed in:

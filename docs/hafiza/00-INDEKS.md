@@ -54,7 +54,7 @@
 | `IChatClient` dekoratörü, devre kesici | [model-boru-hatti](model-boru-hatti.md) |
 | `ContentGuard` fail-closed, DI döngüsü, sağlayıcı kaydı | [icerik-koruma-ve-saglayici-kayit](icerik-koruma-ve-saglayici-kayit.md) |
 | Ses tool'ları, konuşma katmanı | [ses-ve-konusma](ses-ve-konusma.md) |
-| Dışa açık MCP/A2A sunucusu | [mcp-a2a-sunucu](mcp-a2a-sunucu.md), [a2a](a2a-konusma.md) |
+| Dışa açık MCP/A2A sunucusu, AG-UI ucu | [mcp-a2a-sunucu](mcp-a2a-sunucu.md), [a2a](a2a-konusma.md) |
 | MCP Tasks uzantısı | [mcp-tasks](mcp-tasks.md) |
 | Marka hikayesi, metafor, ses ve ton; kullanıcı metni | [marka](marka.md) |
 | Sevk edilen doküman metni, metin kapısı, ekran | [dokumantasyon](dokumantasyon.md) |

@@ -70,7 +70,7 @@ internal sealed class AGUIInterruptCollector
     /// <returns>The update itself when nothing in it changes, otherwise a copy that does.</returns>
     /// <remarks>
     /// <para>
-    /// 🚨 The update is NEVER changed in place. The agent builds the session's history from the very same update objects it
+    /// The update is NEVER changed in place. The agent builds the session's history from the very same update objects it
     /// hands to the caller, so an edit here would be written into the session: the approval request would be missing from the
     /// history that has to answer it, and the suspended call's recorded request would read as a plain sentence. The copy is
     /// shallow; only its contents list is new.
