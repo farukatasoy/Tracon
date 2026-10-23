@@ -36,6 +36,7 @@ internal static class PackageFamilyAlignment
     /// <summary>The assembly names that make up the Tracon package family, in ordinal order.</summary>
     internal static IReadOnlyList<string> FamilyAssemblyNames { get; } =
     [
+        "Tracon.AGUI",
         "Tracon.Abstractions",
         "Tracon.Anthropic",
         "Tracon.AspNetCore",

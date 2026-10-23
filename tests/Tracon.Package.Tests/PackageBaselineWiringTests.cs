@@ -15,7 +15,7 @@ namespace Tracon.Package.Tests;
 /// MSBuild evaluation and a real <c>dotnet pack</c> are invisible to the Python
 /// unit tests (<c>scripts/breaking_changes_test.py</c>), which own the report
 /// parsing and the release-note matching. Every fact here evaluates the real
-/// <c>src/*/*.csproj</c>; the list of 20 packages and their profiles comes from
+/// <c>src/*/*.csproj</c>; the list of 21 packages and their profiles comes from
 /// <see cref="PackableProjects"/>, the same rule <c>kapi.py</c> applies.
 /// </remarks>
 [Collection(RepositoryTreeGate.Name)]
@@ -49,10 +49,10 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
     [Fact]
     public void EveryPackableProjectIsEvaluated()
     {
-        // 17 library packages, the meta package, the template package and the tool.
+        // 18 library packages, the meta package, the template package and the tool.
         evaluations.WithBaseline.Keys.Order(StringComparer.Ordinal)
             .ShouldBe(PackableProjects.Ids().Order(StringComparer.Ordinal));
-        LibraryIds.Count.ShouldBe(17);
+        LibraryIds.Count.ShouldBe(18);
     }
 
     [Fact]
