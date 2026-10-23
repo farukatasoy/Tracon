@@ -1,10 +1,10 @@
 ---
 title: Choosing packages
-description: What each of the 20 packages does, which come with the meta package, and what enters your dependency graph.
+description: What each of the 21 packages does, which come with the meta package, and what enters your dependency graph.
 slug: packages
 ---
 
-Twenty packages. Take the meta package for the common set, or pick individually
+Twenty-one packages. Take the meta package for the common set, or pick individually
 when you care about what enters your dependency graph.
 
 ## Licensing in one line
@@ -52,6 +52,7 @@ Add these when you need them.
 | `Tracon.Google` | You call Gemini models |
 | `Tracon.Azure` | You call Azure OpenAI deployments |
 | `Tracon.Voice` | You need speech synthesis, transcription, or live conversation |
+| `Tracon.AGUI` | A front end that speaks the [AG-UI protocol](/guides/ag-ui/) — CopilotKit and others — runs your agents. It takes the AG-UI SDK, which the other packages never see |
 | `Tracon.Testing` | You write tests against agents — fakes, not mocks |
 | `Tracon.Testing.Contracts.Xunit` | You write your own store (`IRunStore` or another), `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, `ISkillScriptExecutor`, a custom tool, or your own `IToolArgumentsValidator`/`IToolAuthorizationHandler`, and want the behavior contract the shipped implementations run |
 | `Tracon.Templates` | `dotnet new tracon-api` |
@@ -91,7 +92,7 @@ Same OpenAPI document, same version number as every package above — `@tracon/c
 and `Tracon.Client` are cut from the same `v*` git tag, so a matching pair always
 describes the identical set of operations. There is no separate npm version scheme.
 What differs is the ecosystem: it ships from a browser or Node.js process instead of
-a .NET one, and it is not part of the six AOT-compatible packages or the twenty
+a .NET one, and it is not part of the six AOT-compatible packages or the twenty-one
 NuGet packages counted above. See the [TypeScript client guide](/guides/typescript-client/)
 for setup, the error model, streaming, and what it deliberately does not cover.
 

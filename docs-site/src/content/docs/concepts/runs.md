@@ -220,11 +220,14 @@ digits, `.`, `_`, or `-`. It is required on a `Custom` event and rejected
 (`ArgumentException`) on every other type: a caller who sets it on a built-in
 event type gets told immediately, rather than having it silently dropped by
 every store. The `tracon.` prefix is reserved, so a built-in
-custom type can never collide with your own. Tracon writes four of them:
+custom type can never collide with your own. Tracon writes these:
 `tracon.quota.threshold` (the [quota threshold notice](/concepts/governance/#quotas-and-rate-limits)),
 `tracon.output.truncated` (see [Truncated output](#truncated-output)),
 `tracon.content` and `tracon.workflow.event` (see
-[Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)).
+[Content and events the run has no type for](#content-and-events-the-run-has-no-type-for)),
+`tracon.tool.input.declined` (a [server's request for input](/concepts/tools/#a-server-asks-the-user-for-input)
+that Tracon answered with `decline`) and `tracon.agui.tools.ignored` (tools an
+[AG-UI front end](/guides/ag-ui/#front-end-tools) declared that the agent does not carry).
 `AppendAsync` rejects any value under that prefix, so a `Custom` event carrying it can
 only have come from Tracon itself. `Payload` is yours too — Tracon makes no claim about
 its shape and never reads it.

@@ -90,14 +90,14 @@ public sealed class AGUIEndpointProtectionTests
     [Fact]
     public async Task The_operator_role_is_required()
     {
-        await using var denied = await AGUITestHost.StartAsync(
+        await using var withoutPolicies = await AGUITestHost.StartAsync(
             TestAgents.AddEcho,
             configureServices: static services => services
                 .AddAuthentication("Test")
                 .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", configureOptions: null));
 
         // No role policy is registered: the documented fallback adds no role check, so the run goes through.
-        (await denied.RunAsync(TestAgents.Echo, AGUIInputs.User("t-role", "hi"))).Status.ShouldBe(HttpStatusCode.OK);
+        (await withoutPolicies.RunAsync(TestAgents.Echo, AGUIInputs.User("t-role", "hi"))).Status.ShouldBe(HttpStatusCode.OK);
 
         await using var forbidden = await AGUITestHost.StartAsync(
             TestAgents.AddEcho,
@@ -135,6 +135,34 @@ public sealed class AGUIEndpointProtectionTests
             AGUIInputs.User("t-key", "hi"),
             request => request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", writer));
         allowed.Status.ShouldBe(HttpStatusCode.OK, allowed.Body);
+    }
+
+    [Theory]
+    [InlineData("/tracon/agui")]
+    [InlineData("/agui")]
+    public async Task A_browser_origin_in_the_allowed_list_is_answered_on_the_AG_UI_path_and_no_other_is(string pattern)
+    {
+        // A front end runs on another origin more often than not. The path gets the answer the management API gives,
+        // whether it sits under MapTracon's prefix or beside it, and never a wider one.
+        await using var host = await AGUITestHost.StartAsync(
+            TestAgents.AddEcho,
+            configureEndpoints: static options => options.AllowedOrigins.Add("https://shop.example.com"),
+            pattern: pattern);
+
+        using var allowed = new HttpRequestMessage(HttpMethod.Options, new Uri($"{pattern}/{TestAgents.Echo}", UriKind.Relative));
+        allowed.Headers.Add("Origin", "https://shop.example.com");
+        allowed.Headers.Add("Access-Control-Request-Method", "POST");
+        allowed.Headers.Add("Access-Control-Request-Headers", "content-type,authorization");
+
+        using var granted = await host.Client.SendAsync(allowed, TestContext.Current.CancellationToken);
+        granted.Headers.GetValues("Access-Control-Allow-Origin").ShouldBe(["https://shop.example.com"]);
+
+        using var other = new HttpRequestMessage(HttpMethod.Options, new Uri($"{pattern}/{TestAgents.Echo}", UriKind.Relative));
+        other.Headers.Add("Origin", "https://evil.example.com");
+        other.Headers.Add("Access-Control-Request-Method", "POST");
+
+        using var refused = await host.Client.SendAsync(other, TestContext.Current.CancellationToken);
+        refused.Headers.Contains("Access-Control-Allow-Origin").ShouldBeFalse();
     }
 
     private static async Task<string> CreateKeyAsync(AGUITestHost host, params string[] scopes)

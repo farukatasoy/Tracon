@@ -16,7 +16,7 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// Everything that can still be refused with a status code has been refused before this is built, so by the time it runs the
-/// status line is on the wire (K-324) and a failure can only be an event in the stream.
+/// status line is on the wire and a failure can only be an event in the stream.
 /// </para>
 /// </remarks>
 internal sealed class AGUIRunStream(

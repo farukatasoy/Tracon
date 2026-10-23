@@ -78,6 +78,7 @@ export const sidebar = [
       { label: 'OpenAI-compatible API', slug: 'guides/openai-api' },
       { label: 'MCP server and A2A', slug: 'guides/external-agents' },
       { label: 'Client-side tools and the embeddable widget', slug: 'guides/client-side-tools' },
+      { label: 'AG-UI front ends', slug: 'guides/ag-ui' },
       { label: 'Inbound triggers', slug: 'guides/inbound-triggers' },
       { label: 'HTTP API conventions', slug: 'http-api' },
       { label: 'Coding agent integration', slug: 'guides/coding-agents' },

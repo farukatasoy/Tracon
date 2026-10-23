@@ -254,6 +254,7 @@ graph instead of reporting it.
 | Embeddable chat widget | `Tracon.UI`'s `embed.js` asset (served once `UseUI()` is registered) | A page you embed the widget in, running under its own origin |
 | MCP client | `Tracon.Mcp` and `UseMcp()` | Agents that consume tools from remote MCP servers |
 | MCP server | `UseMcpServer()` and `MapTraconMcpServer()` | External MCP clients that invoke explicitly exposed agents as tools |
+| AG-UI endpoint | `Tracon.AGUI` and `MapTraconAGUI()` | A front end that speaks AG-UI (CopilotKit and others); tool approvals and requests for input are interrupts. See [AG-UI front ends](/guides/ag-ui/) |
 | A2A server | `UseA2A()` and `MapTraconA2A()` | External agents that invoke an explicit allowlist of Tracon agents; a `contextId` continues a conversation scoped to the caller |
 | Voice WebSocket | `UseVoiceConversation()` and `MapTracon()` | Browser or native real-time audio clients |
 | Live voice sessions | `UseLiveVoice()`, a live provider, and `MapTracon()` | Browsers that speak to a provider-hosted model over WebRTC while Tracon supervises the session |
@@ -275,9 +276,9 @@ conditional or separately mapped, so they are not all represented by the generat
 | Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
 | Tool-approval presentation | Turns a pending approval's raw arguments into a resolved entity name | `IToolApprovalPresenter` | Best-effort: not registered, throws, or times out all publish the approval request unchanged |
 
-Each contract is registered with `TryAdd`, so a registration made before
-`AddTracon()` wins over Tracon's built-in default, and
-`GET /api/diagnostics` reports which of the seven are still built-in.
+A registration made before `AddTracon()` wins over the built-in default. Each
+contract is registered with `TryAdd`, and `GET /api/diagnostics` reports which of
+the seven are still built-in.
 `RequireCustomBinding<T>()` turns a missed binding into a failed startup. A tool body
 reads the same identity (including `UserId`) through `TraconRunContext`,
 since it cannot reach `AgentSession` directly.

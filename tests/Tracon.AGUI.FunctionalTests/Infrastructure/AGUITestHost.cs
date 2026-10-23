@@ -25,11 +25,14 @@ internal sealed class AGUITestHost : IAsyncDisposable
 
     private readonly WebApplication _app;
 
-    private AGUITestHost(WebApplication app, HttpClient client, ListLoggerProvider logs)
+    private readonly string _pattern;
+
+    private AGUITestHost(WebApplication app, HttpClient client, ListLoggerProvider logs, string pattern)
     {
         _app = app;
         Client = client;
         Logs = logs;
+        _pattern = pattern;
     }
 
     public HttpClient Client { get; }
@@ -42,7 +45,8 @@ internal sealed class AGUITestHost : IAsyncDisposable
         Action<ITraconBuilder>? configureTracon = null,
         Action<IServiceCollection>? configureServices = null,
         Action<TraconEndpointOptions>? configureEndpoints = null,
-        Action<WebApplication>? configureApp = null)
+        Action<WebApplication>? configureApp = null,
+        string pattern = Pattern)
     {
         var logs = new ListLoggerProvider();
 
@@ -63,11 +67,11 @@ internal sealed class AGUITestHost : IAsyncDisposable
         configureApp?.Invoke(app);
 
         app.MapTracon("/tracon", configureEndpoints);
-        app.MapTraconAGUI();
+        app.MapTraconAGUI(pattern);
 
         await app.StartAsync();
 
-        return new AGUITestHost(app, app.GetTestClient(), logs);
+        return new AGUITestHost(app, app.GetTestClient(), logs, pattern);
     }
 
     /// <summary>Posts a run request and reads the whole answer.</summary>
@@ -80,7 +84,7 @@ internal sealed class AGUITestHost : IAsyncDisposable
     /// <summary>Posts a raw body, for the requests a typed input cannot express.</summary>
     public async Task<AGUIResponse> PostAsync(string agentName, string body, Action<HttpRequestMessage>? configure = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{Pattern}/{agentName}", UriKind.Relative))
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{_pattern}/{agentName}", UriKind.Relative))
         {
             Content = new StringContent(body, Encoding.UTF8, new MediaTypeHeaderValue("application/json")),
         };

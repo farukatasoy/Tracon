@@ -747,7 +747,9 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     "Tracon.Voice": ("Tracon.Voice.UnitTests",),
     "Tracon.Mcp": ("Tracon.Mcp.UnitTests",),
     "Tracon.Workflows": ("Tracon.Workflows.UnitTests",),
-    "Tracon.AspNetCore": ("Tracon.AspNetCore.FunctionalTests",),
+    # AG-UI paylasir: tur kurulumu (AgentTurnService) AspNetCore'dadir, bu yuzden onun degisikligi AG-UI testlerini de secer.
+    "Tracon.AspNetCore": ("Tracon.AspNetCore.FunctionalTests", "Tracon.AGUI.FunctionalTests"),
+    "Tracon.AGUI": ("Tracon.AGUI.FunctionalTests",),
     "Tracon.UI": ("Tracon.Ui.E2ETests",),
     "Tracon.Testing": ("Tracon.Testing.UnitTests",),
     # Sevk edilen sozlesme paketi: kendi birim testleri ve sozlesmeyi tureten
@@ -1409,6 +1411,7 @@ LICENSE_FILES = (POLYFORM_LICENSE_FILE, MIT_LICENSE_FILE)
 PACKAGE_LICENSES: dict[str, str] = {
     "Tracon": POLYFORM_LICENSE_FILE,
     "Tracon.Abstractions": MIT_LICENSE_FILE,
+    "Tracon.AGUI": POLYFORM_LICENSE_FILE,
     "Tracon.Anthropic": POLYFORM_LICENSE_FILE,
     "Tracon.AspNetCore": POLYFORM_LICENSE_FILE,
     "Tracon.Azure": POLYFORM_LICENSE_FILE,

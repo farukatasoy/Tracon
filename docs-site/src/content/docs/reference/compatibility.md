@@ -62,7 +62,7 @@ both targets. An urgent security release may still carry them. Move an
 application that targets `net8.0` or `net9.0` to `net10.0` before you take that
 release.
 
-## The 20 packages
+## The 21 packages
 
 “Meta” shows whether `dotnet add package Tracon` brings the package into the
 dependency graph. `AOT` states the promise made by the package itself.
@@ -84,6 +84,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.Google` | No | net8/9/10 | No | Gemini provider; its credential library (`Google.Apis.Auth`) uses reflection-based JSON and a Native AOT publish emits about 100 trim and AOT warnings |
 | `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider (v1 API); managed identity stays consumer-selected |
 | `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
+| `Tracon.AGUI` | No | net8/9/10 | No | The AG-UI endpoint; ASP.NET Core routing and the AG-UI SDK's event types use reflection-based JSON |
 | `Tracon.Testing` | No | net8/9/10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
 | `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for seven extension families — storage (`IRunStore` and 30 other store interfaces), model providers, run judges, agent sources, job handlers, skill script executors, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `Tracon.Templates` | No | net10 output | N/A | `dotnet new tracon-api` content package |
