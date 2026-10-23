@@ -113,7 +113,7 @@ decisions can be overridden or composed with your own rules — see
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
 | Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, a content-pinned tenant grant (platform authority for a stored script in a multi-tenant host), one content size limit for stored and file scripts, timeout, output limit, and concurrency limits |
 | Script executor | `ISkillScriptExecutor` registration | Runs an approved script in a container or a remote runner instead of a local process; gates, audit, quota, wait limit, and output cap stay with Tracon. See [Write your own script executor](/guides/write-your-own-script-executor/) |
-| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication (credential headers by configuration key name), refresh, prompts, and OAuth coordination |
+| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication (credential headers by configuration key name), refresh, prompts, OAuth coordination, and a server's request for user input: the run stops as `AwaitingInput`, the answer in the next request runs the call again, every other surface gets `decline` ([how](/concepts/tools/#a-server-asks-the-user-for-input)) |
 | MCP resources | `AgentDefinition.McpResourceUris` | A bounded snapshot of selected server resources enters agent context |
 | Knowledge search | PostgreSQL, `IEmbeddingGenerator`, and memory settings | Chunking, embedding, HNSW cosine search, tenant isolation, and result limits |
 
@@ -216,7 +216,7 @@ experiment, and automatic rollback is off until you configure it.
 | Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; every run of a call tree adds its own tokens and cost when it ends, a background child after its root included; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
-| Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [seven fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
+| Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [eight fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, credential headers by configuration key name, retry jobs, and failure disablement |
 | Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix; a credential-looking plain header is refused |
@@ -1821,6 +1821,7 @@ written *before* the change is applied, and a write failure aborts the change:
 | An automatic canary rollback | The rollback is not applied |
 | A data subject erasure | The erasure does not commit |
 | An answer to a workflow's pending request that starts a run, [in either response mode](/concepts/workflow-answers/) | The answer is refused with `500`; no run starts and nothing is recorded |
+| An answer to a tool's request for user input ([MCP elicitation](/concepts/tools/#a-server-asks-the-user-for-input)) | The answer is refused; the tool call does not run again. The entry names the fields, never a value |
 
 **Best-effort — the operation continues and the record can be missing.** Every other
 audit write takes this path: the failure is logged as a warning, and the call carries
@@ -1957,7 +1958,7 @@ approval card.
 
 :::note[The audit entry is written before the decision is applied]
 An approval decision that cannot be recorded is not applied at all. This is one of the
-seven fail-closed operations listed in
+eight fail-closed operations listed in
 [What is guaranteed to be written](#what-is-guaranteed-to-be-written); every other
 audit write is best-effort and is swallowed on failure.
 :::
@@ -3064,6 +3065,11 @@ opens a **new** run with the same session and a new run id. History is append-on
 so what you read a week later is what actually happened.
 :::
 
+A run can also stop for the user's input. When an MCP server asks for information in the
+middle of a tool call and the caller can answer, the run closes `AwaitingInput` and
+stays that way, for the same reason: the answer opens a **new** run in the same
+session. See [A server asks the user for input](/concepts/tools/#a-server-asks-the-user-for-input).
+
 The new run uses the agent version and the experiment arm of the run that asked for
 approval. A version saved while the approval waited does not change the turn. A code
 agent keeps no version history, so its new run uses the current definition.
@@ -4035,6 +4041,106 @@ server itself advertises; accepting arbitrary URIs would be an SSRF tool.
 
 OAuth tokens are held in memory per tenant and server and are **never written to the
 database**.
+
+### A server asks the user for input
+
+An MCP server can stop a tool call to ask the user for something: a value the tool
+lacks, or a confirmation. The protocol calls it *elicitation*. Tracon tells every
+server it connects to that it can answer, with form fields only: it never opens an
+address for a server. What the server gets depends on who can answer:
+
+| The call runs in | What the server gets |
+|---|---|
+| A run you start with `POST /api/agents/{name}/run` and a `sessionId` | The run stops and asks you. Your answer is the input of the next request |
+| A run without a `sessionId` | `decline`: an answer has nowhere to go |
+| An OpenAI-compatible call, an A2A task, an MCP tool call, a queued run | `decline`: these surfaces have no way to carry the answer |
+| An agent called by another agent | `decline`: a sub-agent cannot wait in the middle of its parent's tree, the same rule as for [approvals](/concepts/governance/#approvals) |
+| A request to open an address (`url` mode) | `decline` |
+
+`decline` is a complete answer. The server decides what the tool does next, and
+nothing is dropped without a word: each decline writes a `tracon.tool.input.declined`
+run event that names the server, the tool and the reason.
+
+```mermaid
+sequenceDiagram
+    accTitle: A tool call suspended for user input
+    accDescr: The caller starts a run, the MCP server asks for input and the run stops. The caller sends the answer as the next request of the session, and the tool call runs again from its start with the answer.
+    participant Caller
+    participant Tracon
+    participant Server as MCP server
+
+    Caller->>Tracon: POST /run (sessionId)
+    Tracon->>Server: tools/call
+    Server-->>Tracon: input required: "What is your name?"
+    Tracon-->>Caller: inputs frame · run is AwaitingInput
+    Caller->>Tracon: POST /run (sessionId, inputResponses)
+    Tracon->>Server: tools/call, from its start
+    Server-->>Tracon: input required: "What is your name?"
+    Tracon->>Server: tools/call with the answer
+    Server-->>Tracon: result
+    Tracon-->>Caller: the model goes on with the result
+```
+
+The streaming response sends an `inputs` event right before `done`; a response with
+`Idempotency-Key` carries the same list as `inputs` in its body. One entry per request:
+
+```json
+[{
+  "requestId": "01a16896-7da7-74c9-93a1-3b404320e32c",
+  "toolName": "crm_ask_name",
+  "serverName": "crm",
+  "message": "What is your name?",
+  "requestedSchema": {
+    "type": "object",
+    "properties": { "name": { "type": "string", "minLength": 1 } },
+    "required": ["name"]
+  }
+}]
+```
+
+`requestedSchema` is flat on purpose: text, numbers, integers, booleans, and single or
+multiple choices. The run closes `AwaitingInput`. Answer in the next request of the
+same session, by `requestId`:
+
+```bash
+curl -X POST https://your-host/tracon/api/agents/support/run \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "s-123",
+    "inputResponses": [
+      { "requestId": "01a16896-7da7-74c9-93a1-3b404320e32c", "action": "Accept", "content": { "name": "Ada" } }
+    ]
+  }'
+```
+
+`action` is `Accept`, `Decline` or `Cancel`. Only `Accept` carries `content`. The
+playground in the console shows the form and sends the answer for you.
+
+Rules that follow from the mechanism:
+
+- **The tool call runs again from its start.** Tracon cannot keep a call open while a
+  person thinks, so the answer comes with a second call of the same tool and the
+  same arguments. A server that asks first and acts after is safe. A server that acts
+  before it asks repeats that action.
+- **The replay asks no second approval.** The call was approved, or exempt, when it
+  first ran.
+- **An answer belongs to its question.** If the server asks something else the second
+  time, it gets `decline`, not your old answer. A tool call stops for input at most
+  once: a server that needs a second answer gets `decline` for it.
+- **A wrong answer is refused before the run starts.** An unknown or repeated
+  `requestId`, a field the server did not ask for, a required field left out, or a
+  value of the wrong type answers `400`. A request that was already answered answers
+  `409`. A request without a `sessionId` answers `400`. A run in a session that
+  belongs to another user answers `403`, as every run does.
+- **The values go to the server and nowhere else.** Tracon does not keep them in the
+  session. The audit entry `tool_input.answer` names the request, the server, the
+  tool, the action and the *names* of the fields, never a value. It is written before
+  the call runs again; if it cannot be written, the answer is not applied
+  ([what is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written)).
+- **An older server asks the older way.** A server that speaks only the earlier
+  protocol sends a request of its own while the call runs. It cannot be suspended, so
+  it gets `decline`.
 
 ## Knowledge
 
@@ -8665,7 +8771,9 @@ A few rules follow directly from this being an HTTP round trip, not a callback:
 - **`sessionId` is required.** The pending call lives in session history; a
   sessionless run has nowhere to look it up.
 - **A queued run (`Prefer: respond-async`) does not accept `toolResults`.** Nothing
-  is connected on the other end of a background job.
+  is connected on the other end of a background job. The same holds for the answer to
+  an MCP server's [request for input](/concepts/tools/#a-server-asks-the-user-for-input),
+  which also travels as the input of the next request.
 - **An unknown or already-answered `callId` is rejected** (`400`/`409`) before the
   response starts streaming, not silently ignored.
 - **A failure is still an answer.** If the browser could not fulfil the call — a
@@ -12683,7 +12791,7 @@ very different:
 
 - `swallowed` — the operation went ahead without its record. You have a gap in the
   audit trail and a working system.
-- `refused` — the operation did not happen. This is one of the seven fail-closed
+- `refused` — the operation did not happen. This is one of the eight fail-closed
   operations in [What is guaranteed to be
   written](/concepts/governance/#what-is-guaranteed-to-be-written), and your callers
   are seeing errors.
@@ -23400,7 +23508,7 @@ data, or unreviewed prompt and tool content.
 | Any path that writes a secret to storage, a log, or a response | |
 
 The audit trail is in scope as a security boundary, and that boundary has a documented
-shape: seven operations refuse to proceed without their audit entry, and every other
+shape: eight operations refuse to proceed without their audit entry, and every other
 audit write is best-effort. [What is guaranteed to be
 written](/concepts/governance/#what-is-guaranteed-to-be-written) is the division. A
 report that a best-effort record was lost on a store failure is expected behaviour, not
@@ -24143,6 +24251,25 @@ First distinguish the execution mode:
 For queued work, confirm the scheduling worker runs, the approval has not expired,
 and the tenant in the decision matches the request. A standing rule can prevent a
 future prompt, but it does not retroactively decide an existing request.
+
+### An MCP server's request for input was declined
+
+The server asked the user for something and its tool received `decline`. Read the run
+events (`GET /api/runs/{id}/events`) for `tracon.tool.input.declined`; the payload's
+`reason` says why:
+
+| Reason | Meaning and fix |
+|---|---|
+| `no_session` | The run has no `sessionId`. Run the agent with one |
+| `no_channel` | The surface cannot carry the answer: an OpenAI-compatible call, an A2A task, an MCP tool call or a queued run. Use `POST /api/agents/{name}/run` |
+| `child_run` | An agent called by another agent cannot ask the user. Move the tool to the agent the user talks to |
+| `url_mode` | The server asked to open an address. Tracon asks for form fields only |
+| `mismatch` | The server asked something other than what the user answered. A tool call stops for input once; the server must ask the same question twice or ask everything in one request |
+| `no_run`, `no_termination` | The request reached the connection outside a tool call of a run, or the tool was not called by an agent run. A server on the earlier protocol always lands here |
+
+An answer that returns `400` or `409` never started a run. See
+[A server asks the user for input](/concepts/tools/#a-server-asks-the-user-for-input)
+for what each status means.
 
 ### A content guard changed an SSE stream instead of the HTTP status
 

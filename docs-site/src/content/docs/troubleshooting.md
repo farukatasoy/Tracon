@@ -204,6 +204,25 @@ For queued work, confirm the scheduling worker runs, the approval has not expire
 and the tenant in the decision matches the request. A standing rule can prevent a
 future prompt, but it does not retroactively decide an existing request.
 
+### An MCP server's request for input was declined
+
+The server asked the user for something and its tool received `decline`. Read the run
+events (`GET /api/runs/{id}/events`) for `tracon.tool.input.declined`; the payload's
+`reason` says why:
+
+| Reason | Meaning and fix |
+|---|---|
+| `no_session` | The run has no `sessionId`. Run the agent with one |
+| `no_channel` | The surface cannot carry the answer: an OpenAI-compatible call, an A2A task, an MCP tool call or a queued run. Use `POST /api/agents/{name}/run` |
+| `child_run` | An agent called by another agent cannot ask the user. Move the tool to the agent the user talks to |
+| `url_mode` | The server asked to open an address. Tracon asks for form fields only |
+| `mismatch` | The server asked something other than what the user answered. A tool call stops for input once; the server must ask the same question twice or ask everything in one request |
+| `no_run`, `no_termination` | The request reached the connection outside a tool call of a run, or the tool was not called by an agent run. A server on the earlier protocol always lands here |
+
+An answer that returns `400` or `409` never started a run. See
+[A server asks the user for input](/concepts/tools/#a-server-asks-the-user-for-input)
+for what each status means.
+
 ### A content guard changed an SSE stream instead of the HTTP status
 
 After streaming headers are sent, the server cannot replace `200` with `422`. An

@@ -517,6 +517,11 @@ opens a **new** run with the same session and a new run id. History is append-on
 so what you read a week later is what actually happened.
 :::
 
+A run can also stop for the user's input. When an MCP server asks for information in the
+middle of a tool call and the caller can answer, the run closes `AwaitingInput` and
+stays that way, for the same reason: the answer opens a **new** run in the same
+session. See [A server asks the user for input](/concepts/tools/#a-server-asks-the-user-for-input).
+
 The new run uses the agent version and the experiment arm of the run that asked for
 approval. A version saved while the approval waited does not change the turn. A code
 agent keeps no version history, so its new run uses the current definition.

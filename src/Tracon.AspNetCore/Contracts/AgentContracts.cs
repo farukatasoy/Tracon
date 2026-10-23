@@ -395,9 +395,28 @@ public sealed record AgentRunRequest
     /// Answers are processed only when <see cref="SessionId"/> is given: the pending request lives in the
     /// session history and cannot be found in a sessionless run. An answer whose <c>requestId</c> is not a
     /// pending request of the session, and one whose <c>content</c> does not fit the requested fields, are
-    /// rejected with <c>400</c> before the run starts.
+    /// rejected with <c>400</c> before the run starts; a request that was answered already is rejected with <c>409</c>.
     /// </para>
     /// </remarks>
+    /// <example>
+    /// The run response carried a request with the id <c>01a1…</c> for a <c>name</c> field. Answer it in the
+    /// next request of the same session:
+    /// <code>
+    /// var answer = new AgentRunRequest
+    /// {
+    ///     SessionId = "s-123",
+    ///     InputResponses =
+    ///     [
+    ///         new ToolInputResponse
+    ///         {
+    ///             RequestId = "01a1…",
+    ///             Action = ToolInputAction.Accept,
+    ///             Content = new Dictionary&lt;string, JsonElement&gt; { ["name"] = JsonSerializer.SerializeToElement("Ada") },
+    ///         },
+    ///     ],
+    /// };
+    /// </code>
+    /// </example>
     public IReadOnlyList<ToolInputResponse> InputResponses { get; init; } = [];
 
     /// <summary>
@@ -506,9 +525,9 @@ public sealed record ToolInputResponse
     /// </summary>
     /// <remarks>
     /// Each value must fit the field the server declared: a string, a number, an integer, a boolean or
-    /// one of the declared options. A field the request marks as required must be present. A value is kept
-    /// in the session history like a message the user typed, and is never written to the audit log or to
-    /// the run's event stream.
+    /// one of the declared options. A field the request marks as required must be present. A value goes to the
+    /// MCP server that asked and nowhere else: it is not kept in the session, and it is never written to the
+    /// audit log or to the run's event stream.
     /// </remarks>
     public IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Content { get; init; }
 }

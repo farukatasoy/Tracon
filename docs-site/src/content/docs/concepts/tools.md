@@ -485,6 +485,106 @@ server itself advertises; accepting arbitrary URIs would be an SSRF tool.
 OAuth tokens are held in memory per tenant and server and are **never written to the
 database**.
 
+### A server asks the user for input
+
+An MCP server can stop a tool call to ask the user for something: a value the tool
+lacks, or a confirmation. The protocol calls it *elicitation*. Tracon tells every
+server it connects to that it can answer, with form fields only: it never opens an
+address for a server. What the server gets depends on who can answer:
+
+| The call runs in | What the server gets |
+|---|---|
+| A run you start with `POST /api/agents/{name}/run` and a `sessionId` | The run stops and asks you. Your answer is the input of the next request |
+| A run without a `sessionId` | `decline`: an answer has nowhere to go |
+| An OpenAI-compatible call, an A2A task, an MCP tool call, a queued run | `decline`: these surfaces have no way to carry the answer |
+| An agent called by another agent | `decline`: a sub-agent cannot wait in the middle of its parent's tree, the same rule as for [approvals](/concepts/governance/#approvals) |
+| A request to open an address (`url` mode) | `decline` |
+
+`decline` is a complete answer. The server decides what the tool does next, and
+nothing is dropped without a word: each decline writes a `tracon.tool.input.declined`
+run event that names the server, the tool and the reason.
+
+```mermaid
+sequenceDiagram
+    accTitle: A tool call suspended for user input
+    accDescr: The caller starts a run, the MCP server asks for input and the run stops. The caller sends the answer as the next request of the session, and the tool call runs again from its start with the answer.
+    participant Caller
+    participant Tracon
+    participant Server as MCP server
+
+    Caller->>Tracon: POST /run (sessionId)
+    Tracon->>Server: tools/call
+    Server-->>Tracon: input required: "What is your name?"
+    Tracon-->>Caller: inputs frame · run is AwaitingInput
+    Caller->>Tracon: POST /run (sessionId, inputResponses)
+    Tracon->>Server: tools/call, from its start
+    Server-->>Tracon: input required: "What is your name?"
+    Tracon->>Server: tools/call with the answer
+    Server-->>Tracon: result
+    Tracon-->>Caller: the model goes on with the result
+```
+
+The streaming response sends an `inputs` event right before `done`; a response with
+`Idempotency-Key` carries the same list as `inputs` in its body. One entry per request:
+
+```json
+[{
+  "requestId": "01a16896-7da7-74c9-93a1-3b404320e32c",
+  "toolName": "crm_ask_name",
+  "serverName": "crm",
+  "message": "What is your name?",
+  "requestedSchema": {
+    "type": "object",
+    "properties": { "name": { "type": "string", "minLength": 1 } },
+    "required": ["name"]
+  }
+}]
+```
+
+`requestedSchema` is flat on purpose: text, numbers, integers, booleans, and single or
+multiple choices. The run closes `AwaitingInput`. Answer in the next request of the
+same session, by `requestId`:
+
+```bash
+curl -X POST https://your-host/tracon/api/agents/support/run \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "s-123",
+    "inputResponses": [
+      { "requestId": "01a16896-7da7-74c9-93a1-3b404320e32c", "action": "Accept", "content": { "name": "Ada" } }
+    ]
+  }'
+```
+
+`action` is `Accept`, `Decline` or `Cancel`. Only `Accept` carries `content`. The
+playground in the console shows the form and sends the answer for you.
+
+Rules that follow from the mechanism:
+
+- **The tool call runs again from its start.** Tracon cannot keep a call open while a
+  person thinks, so the answer comes with a second call of the same tool and the
+  same arguments. A server that asks first and acts after is safe. A server that acts
+  before it asks repeats that action.
+- **The replay asks no second approval.** The call was approved, or exempt, when it
+  first ran.
+- **An answer belongs to its question.** If the server asks something else the second
+  time, it gets `decline`, not your old answer. A tool call stops for input at most
+  once: a server that needs a second answer gets `decline` for it.
+- **A wrong answer is refused before the run starts.** An unknown or repeated
+  `requestId`, a field the server did not ask for, a required field left out, or a
+  value of the wrong type answers `400`. A request that was already answered answers
+  `409`. A request without a `sessionId` answers `400`. A run in a session that
+  belongs to another user answers `403`, as every run does.
+- **The values go to the server and nowhere else.** Tracon does not keep them in the
+  session. The audit entry `tool_input.answer` names the request, the server, the
+  tool, the action and the *names* of the fields, never a value. It is written before
+  the call runs again; if it cannot be written, the answer is not applied
+  ([what is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written)).
+- **An older server asks the older way.** A server that speaks only the earlier
+  protocol sends a request of its own while the call runs. It cannot be suspended, so
+  it gets `decline`.
+
 ## Knowledge
 
 Separate from tools: documents are chunked, embedded, and searched by vector distance.

@@ -102,7 +102,7 @@ decisions can be overridden or composed with your own rules — see
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
 | Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, a content-pinned tenant grant (platform authority for a stored script in a multi-tenant host), one content size limit for stored and file scripts, timeout, output limit, and concurrency limits |
 | Script executor | `ISkillScriptExecutor` registration | Runs an approved script in a container or a remote runner instead of a local process; gates, audit, quota, wait limit, and output cap stay with Tracon. See [Write your own script executor](/guides/write-your-own-script-executor/) |
-| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication (credential headers by configuration key name), refresh, prompts, and OAuth coordination |
+| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication (credential headers by configuration key name), refresh, prompts, OAuth coordination, and a server's request for user input: the run stops as `AwaitingInput`, the answer in the next request runs the call again, every other surface gets `decline` ([how](/concepts/tools/#a-server-asks-the-user-for-input)) |
 | MCP resources | `AgentDefinition.McpResourceUris` | A bounded snapshot of selected server resources enters agent context |
 | Knowledge search | PostgreSQL, `IEmbeddingGenerator`, and memory settings | Chunking, embedding, HNSW cosine search, tenant isolation, and result limits |
 
