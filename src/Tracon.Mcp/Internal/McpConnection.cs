@@ -170,9 +170,33 @@ internal sealed class McpConnection : IAsyncDisposable
                 tokenCache,
                 logger);
             var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory);
-            var client = await McpClient
-                .CreateAsync(transport, clientOptions: null, loggerFactory, timeout.Token)
-                .ConfigureAwait(false);
+
+            // Declaring the handler is what makes the SDK announce the elicitation capability (form mode
+            // only: Tracon asks for fields, it does not open addresses). A server that never asks costs
+            // nothing; one that asks gets an answer instead of a dropped call (Phase 235).
+            var clientOptions = new McpClientOptions
+            {
+                Handlers = new McpClientHandlers
+                {
+                    ElicitationHandler = new McpElicitationHandler(server.Name, logger).HandleAsync,
+                },
+            };
+
+            // 🚨 The connection is created on a clean execution context. The SDK's receive loop keeps the
+            // context it was started in and delivers every request the server sends on its own, outside a
+            // tool call, from there. A connection opened inside a run would otherwise carry that run's
+            // ambient state into the loop of a connection that is shared by every run of the tenant, and an
+            // old server's direct request would be answered on behalf of the wrong run.
+            Task<McpClient> creating;
+
+            using (ExecutionContext.SuppressFlow())
+            {
+                creating = Task.Run(
+                    () => McpClient.CreateAsync(transport, clientOptions, loggerFactory, timeout.Token),
+                    CancellationToken.None);
+            }
+
+            var client = await creating.ConfigureAwait(false);
 
             var connection = new McpConnection(
                 client,
@@ -602,7 +626,10 @@ internal sealed class McpConnection : IAsyncDisposable
             // The remote tool definition lives on the server, not in code,
             // and the server can change it at any time. This is why
             // approval defaults to required.
-            registrations.Add(CreateRegistration(tool.WithName(qualified), _serverName, _requiresApproval));
+            registrations.Add(CreateRegistration(
+                new McpElicitingTool(tool.WithName(qualified), _serverName),
+                _serverName,
+                _requiresApproval));
         }
 
         return registrations;

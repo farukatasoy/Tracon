@@ -32,11 +32,20 @@ public enum RunStatus
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Seen only on <see cref="RunKind.Workflow"/> rows. When a workflow reaches an
+    /// Seen on <see cref="RunKind.Workflow"/> rows, and on the root agent run of a tool call an
+    /// MCP server suspended to ask the user for input (MCP elicitation). When a workflow reaches an
     /// <em>external request port</em> — Magentic plan approval, for example —
     /// execution stops, its state is written to a checkpoint and the stream closes.
     /// The answer arrives through <c>POST /api/workflows/runs/{runId}/respond</c>,
     /// which opens a <strong>new</strong> run that resumes from the checkpoint.
+    /// </para>
+    /// <para>
+    /// On an agent run the request is the next turn's input, the same as an approval: the caller
+    /// answers in the <c>inputResponses</c> of the next run request of the same session, and the
+    /// suspended tool call runs again from its start with the answer. Only a run started through the
+    /// management API's run endpoint can wait this way; on every other surface (an OpenAI-compatible
+    /// call, A2A, an MCP tool call, a queued run) and below the root of an agent tree the server's
+    /// request is declined.
     /// </para>
     /// <para>
     /// The value was appended at the end: statuses are stored as <c>smallint</c> in

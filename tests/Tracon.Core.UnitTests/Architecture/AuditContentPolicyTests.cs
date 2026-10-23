@@ -63,6 +63,10 @@ public sealed class AuditContentPolicyTests
         // run the answer starts, the mode and a SHA-256 of the answer - never the answer,
         // which can hold whatever the person typed (K-779: the trail is not protected at rest).
         "src/Tracon.AspNetCore/Internal/WorkflowResponseGate.cs",
+        // Reviewed (phase 235): tool_input.answer names the request, the server, the tool, the action and the
+        // NAMES of the fields the user filled in - never a value, which can hold whatever the user typed
+        // for a third-party server (the trail is not protected at rest, K-779).
+        "src/Tracon.AspNetCore/Internal/ToolInputResolver.cs",
         "src/Tracon.AspNetCore/Security/ExternalCallAudit.cs",
 
         // Core — the write helper itself, and store decorators (all administrator

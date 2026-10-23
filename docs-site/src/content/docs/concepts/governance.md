@@ -265,6 +265,7 @@ written *before* the change is applied, and a write failure aborts the change:
 | An automatic canary rollback | The rollback is not applied |
 | A data subject erasure | The erasure does not commit |
 | An answer to a workflow's pending request that starts a run, [in either response mode](/concepts/workflow-answers/) | The answer is refused with `500`; no run starts and nothing is recorded |
+| An answer to a tool's request for user input ([MCP elicitation](/concepts/tools/#a-server-asks-the-user-for-input)) | The answer is refused; the tool call does not run again. The entry names the fields, never a value |
 
 **Best-effort — the operation continues and the record can be missing.** Every other
 audit write takes this path: the failure is logged as a warning, and the call carries
@@ -401,7 +402,7 @@ approval card.
 
 :::note[The audit entry is written before the decision is applied]
 An approval decision that cannot be recorded is not applied at all. This is one of the
-seven fail-closed operations listed in
+eight fail-closed operations listed in
 [What is guaranteed to be written](#what-is-guaranteed-to-be-written); every other
 audit write is best-effort and is swallowed on failure.
 :::

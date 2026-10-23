@@ -70,6 +70,9 @@ public sealed class TraconRunOptions : AgentRunOptions
         ChatOptions = other.ChatOptions;
         SuspendsWorkflowOnApproval = other.SuspendsWorkflowOnApproval;
         SessionHasNoRecord = other.SessionHasNoRecord;
+        AcceptsToolInput = other.AcceptsToolInput;
+        ToolInputAnswers = other.ToolInputAnswers;
+        BeforePendingToolInputIsPublished = other.BeforePendingToolInputIsPublished;
     }
 
     /// <summary>
@@ -276,6 +279,46 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// memory writes nothing for such a run: a record it kept could not be deleted with its session.
     /// </remarks>
     internal bool SessionHasNoRecord { get; init; }
+
+    /// <summary>
+    /// Gets whether the caller of this run can answer a tool's request for user input
+    /// (MCP elicitation) on the next turn of the session.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set only by the management API's run endpoint, whose response carries the request and
+    /// whose next request carries the answer. Every other surface leaves it off, and an MCP
+    /// server's request on such a run gets an explicit <c>decline</c>: an OpenAI-compatible
+    /// call, an A2A task, an MCP tool call and a queued run have no channel for the answer.
+    /// </para>
+    /// <para>
+    /// Never inherited: a sub-agent cannot suspend its parent's tree (K-103), so the wrapper of
+    /// a sub-agent builds its own options without it.
+    /// </para>
+    /// </remarks>
+    internal bool AcceptsToolInput { get; init; }
+
+    /// <summary>
+    /// Gets the user's answers to earlier tool input requests, in the order the server asked
+    /// them, keyed by the call identity of the call that replays the suspended tool call.
+    /// </summary>
+    /// <remarks>
+    /// The call that was suspended runs again from its start (Phase 235): the tool wrapper
+    /// answers the server's requests with these, in order, instead of asking the user again.
+    /// A request beyond the last answer suspends the run again.
+    /// </remarks>
+    internal IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? ToolInputAnswers { get; init; }
+
+    /// <summary>
+    /// Gets the callback that runs immediately before a run closes
+    /// <see cref="RunStatus.AwaitingInput"/> because a tool asked for user input.
+    /// </summary>
+    /// <remarks>
+    /// The same moment and the same guarantee as <see cref="BeforePendingApprovalIsPublished"/>:
+    /// the request is announced to the caller before the terminal status is visible, and a
+    /// failure fails the run, because a published status whose request nobody saw cannot be answered.
+    /// </remarks>
+    internal Func<IReadOnlyList<PendingToolInput>, CancellationToken, ValueTask>? BeforePendingToolInputIsPublished { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

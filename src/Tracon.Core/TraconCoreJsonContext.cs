@@ -41,6 +41,10 @@ namespace Tracon;
 // with RunStatus.AwaitingApproval.
 [JsonSerializable(typeof(IReadOnlyList<PendingToolApprovalEventItem>))]
 
+// Phase 235: the RunAwaitingInput run-event payload for a root run closing
+// with RunStatus.AwaitingInput because a tool asked for user input.
+[JsonSerializable(typeof(IReadOnlyList<PendingToolInputEventItem>))]
+
 // Phase 144: the ChildRunTimedOut run-event payload.
 [JsonSerializable(typeof(ChildRunTimedOutEventPayload))]
 

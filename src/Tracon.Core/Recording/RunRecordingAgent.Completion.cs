@@ -95,6 +95,53 @@ public sealed partial class RunRecordingAgent
             TraconCoreJsonContext.Default.IReadOnlyListPendingToolApprovalEventItem);
     }
 
+    /// <summary>
+    /// Reads the tool input requests that suspended a call of the run the scope belongs to.
+    /// </summary>
+    /// <returns>The requests; empty when no call was suspended.</returns>
+    private static IReadOnlyList<PendingToolInput> PendingToolInputs(AgentRunScope scope)
+        => scope.ToolInputs is { HasPending: true } ledger ? ledger.Snapshot() : [];
+
+    /// <summary>
+    /// Records the pending tool input requests with the session and announces them to the caller, both
+    /// before the terminal status is published.
+    /// </summary>
+    /// <remarks>
+    /// Runs on BOTH the buffered and the streaming path, and when the run ends by waiting for approval
+    /// as well: a turn that waits on both announces both (the status stays
+    /// <see cref="RunStatus.AwaitingApproval"/>). Anything either step throws fails the run, as for approvals:
+    /// a request that could not be recorded is one nobody can answer.
+    /// </remarks>
+    private static async ValueTask PublishPendingToolInputAsync(
+        AgentSession? session,
+        AgentRunOptions? options,
+        IReadOnlyList<PendingToolInput> pending,
+        CancellationToken cancellationToken)
+    {
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        ToolInputSessionBridge.Record(session, pending);
+
+        if (options is TraconRunOptions { BeforePendingToolInputIsPublished: { } hook })
+        {
+            await hook(pending, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Builds the <see cref="RunEventType.RunAwaitingInput"/> closing event's <c>Payload</c> for tool input.</summary>
+    private static string BuildAwaitingToolInputPayload(IReadOnlyList<PendingToolInput> pending)
+        => JsonSerializer.Serialize(
+            (IReadOnlyList<PendingToolInputEventItem>)[.. pending.Select(static input => new PendingToolInputEventItem
+            {
+                RequestId = input.RequestId,
+                ToolName = input.ToolName,
+                ServerName = input.ServerName,
+            })],
+            TraconCoreJsonContext.Default.IReadOnlyListPendingToolInputEventItem);
+
     private async ValueTask CompleteAsync(
         RunScope scope,
         RunStatus status,

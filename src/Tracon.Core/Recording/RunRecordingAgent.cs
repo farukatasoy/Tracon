@@ -296,6 +296,11 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                 await InvokeBeforePendingApprovalAsync(options, response.Messages, presentations, cancellationToken)
                     .ConfigureAwait(false);
 
+                // A turn that waits on an approval AND on a tool's input announces both; the
+                // status stays AwaitingApproval (Phase 235, open question 3).
+                await PublishPendingToolInputAsync(session, options, PendingToolInputs(start.Scope), cancellationToken)
+                    .ConfigureAwait(false);
+
                 await CompleteAsync(
                     scope,
                     RunStatus.AwaitingApproval,
@@ -303,6 +308,26 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                     null,
                     cancellationToken,
                     closingEventPayload: BuildAwaitingApprovalPayload(pendingRequests, presentations))
+                    .ConfigureAwait(false);
+
+                return response;
+            }
+
+            // A tool's MCP server asked the user for input and the call was suspended (Phase 235):
+            // the run neither finished nor failed. The requests come from the ledger the tool wrapper
+            // wrote, not from the tool results — a result that merely looks like a request is not one.
+            if (PendingToolInputs(start.Scope) is { Count: > 0 } pendingInputs)
+            {
+                await PublishPendingToolInputAsync(session, options, pendingInputs, cancellationToken)
+                    .ConfigureAwait(false);
+
+                await CompleteAsync(
+                    scope,
+                    RunStatus.AwaitingInput,
+                    usage,
+                    null,
+                    cancellationToken,
+                    closingEventPayload: BuildAwaitingToolInputPayload(pendingInputs))
                     .ConfigureAwait(false);
 
                 return response;
@@ -533,13 +558,17 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             }
         }
 
+        var pendingInputs = PendingToolInputs(start.Scope);
+
         var streamingStatus = pendingApproval is not null
             ? RunStatus.Failed
             : pendingApprovalWaits
                 ? RunStatus.AwaitingApproval
-                : RunStatus.Completed;
+                : pendingInputs.Count > 0
+                    ? RunStatus.AwaitingInput
+                    : RunStatus.Completed;
 
-        string? awaitingApprovalPayload = null;
+        string? closingPayload = null;
 
         if (streamingStatus == RunStatus.AwaitingApproval)
         {
@@ -548,9 +577,20 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             var presentations = await ResolvePresentationsAsync(pendingRequests, scope, cancellationToken)
                 .ConfigureAwait(false);
 
-            awaitingApprovalPayload = BuildAwaitingApprovalPayload(pendingRequests, presentations);
+            closingPayload = BuildAwaitingApprovalPayload(pendingRequests, presentations);
 
             await InvokeBeforePendingApprovalAsync(options, approvalMessages, presentations, cancellationToken)
+                .ConfigureAwait(false);
+
+            // The same rule as the buffered path: both are announced, the status stays AwaitingApproval.
+            await PublishPendingToolInputAsync(session, options, pendingInputs, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else if (streamingStatus == RunStatus.AwaitingInput)
+        {
+            closingPayload = BuildAwaitingToolInputPayload(pendingInputs);
+
+            await PublishPendingToolInputAsync(session, options, pendingInputs, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -560,6 +600,6 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             ToRunUsage(usage),
             pendingApproval is null ? null : ApprovalError(pendingApproval),
             cancellationToken,
-            closingEventPayload: awaitingApprovalPayload).ConfigureAwait(false);
+            closingEventPayload: closingPayload).ConfigureAwait(false);
     }
 }

@@ -169,6 +169,12 @@ public enum RunEventType
     /// call's raw arguments; those are read from <see cref="PendingApproval.Arguments"/>
     /// or from the <c>ToolApprovalRequestContent</c> already present in the response.
     /// </para>
+    /// <para>
+    /// For a root agent run closing with <see cref="RunStatus.AwaitingInput"/> because an MCP server
+    /// asked the user for input in the middle of a tool call, <c>Payload</c> is a JSON array, one
+    /// entry per suspended call: <c>requestId</c>, <c>toolName</c> and <c>serverName</c>. It never
+    /// carries the requested fields or the call's arguments; the caller got them in the response.
+    /// </para>
     /// </remarks>
     RunAwaitingInput = 19,
 

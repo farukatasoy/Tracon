@@ -5651,3 +5651,4 @@ Tracon.IHostedToolSupport.SupportedHostedTools.get -> Tracon.HostedToolKinds
 Tracon.ToolDescriptor.HostedKind.get -> Tracon.HostedToolKind?
 Tracon.ToolDescriptor.HostedKind.init -> void
 const Tracon.ToolUsageUnits.Calls = "calls" -> string!
+const Tracon.RunEventCustomTypes.ToolInputDeclined = "tracon.tool.input.declined" -> string!

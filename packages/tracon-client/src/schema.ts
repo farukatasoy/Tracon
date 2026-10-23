@@ -167,7 +167,7 @@ export interface paths {
         put?: never;
         /**
          * Runs an agent for trial purposes and streams the response via SSE.
-         * @description If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota. When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'. Right before 'done', the stream sends a 'custom' event for each notice the run recorded from a fixed list, with the same data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the model cut off at its output token limit or its context window) always, and 'tracon.quota.threshold' when the quota options publish it to the run stream.
+         * @description If the quota is exceeded, the run does not start and a 429 is returned; the ProblemDetails carries which quota was exceeded and when the counter resets. When the pre-flight context-window check is enabled (disabled by default) and the prompt is estimated to exceed the model's window, the run does not start and a 400 is returned with the estimated and allowed token counts; no call reaches the provider. A request carrying the 'Idempotency-Key' header runs with a single JSON response (non-streaming) instead of SSE, because a replayed response cannot be reconstructed from a stream. A request carrying the 'Prefer: respond-async' header queues the run and returns '202 Accepted' with a 'Location' header. If a registered IContentGuard blocks the content, the non-streaming response returns '422' and the run's error type becomes 'content_blocked'; in the STREAMING response the status code has already been sent, so the block arrives as an SSE 'error' event instead. If a registered IRunAuthorizationHandler denies the caller, the run does not start and a 403 is returned; this check runs before the quota check, so a denied run never consumes the tenant's quota. When session ownership is turned on, naming another user's session in 'sessionId' is also refused with 403, and opening a NEW session is refused the same way when no authenticated identity can be resolved to own it ('errorType': 'session_owner_required'). A run without a 'sessionId' that stops at a tool approval can never be answered: it closes as Failed, the non-streaming response is 409 ('errorType': 'approval_unanswerable'), and the stream ends with an 'error' event of that type instead of 'done'. Right before 'done', the stream sends a 'custom' event for each notice the run recorded from a fixed list, with the same data GET /api/runs/{id}/events serves: 'tracon.output.truncated' (a plain-text answer the model cut off at its output token limit or its context window) always, and 'tracon.quota.threshold' when the quota options publish it to the run stream. When an MCP server asks the user for input in the middle of a tool call (elicitation), the run ends as 'AwaitingInput' and the stream sends an 'inputs' event right before 'done' (the non-streaming response carries the same list as 'inputs'): one entry per request with 'requestId', 'toolName', 'serverName', 'message' and 'requestedSchema' (a flat JSON schema of the fields to fill in). The answer is the input of the next run of the same session ('inputResponses'); the tool call then runs again from its start with the answer. Only this endpoint can carry the answer, and only in a run with a 'sessionId': on every other surface and in an agent called by another agent, the server's request is answered with 'decline'. An answer for an unknown request or with values that do not fit the requested fields is refused with 400, one for a request already answered with 409.
          */
         post: operations["TraconRunAgent"];
         delete?: never;
@@ -3255,6 +3255,8 @@ export interface components {
             approvals?: components["schemas"]["ToolApprovalDecision"][];
             /** @description Results of client-side tool calls. */
             toolResults?: components["schemas"]["ClientToolResult"][];
+            /** @description Answers to requests for user input that a tool raised in the previous turn (MCP elicitation). */
+            inputResponses?: components["schemas"]["ToolInputResponse"][];
             /** @description Identifiers of attachments previously uploaded via `POST /api/attachments`. */
             attachmentIds?: string[];
             /** @description Values for the target agent's IReadOnlyList&lt;AgentParameter&gt; AgentDefinition.Parameters schema. */
@@ -7705,6 +7707,23 @@ export interface components {
          * @enum {unknown}
          */
         ToolEffect: "Read" | "Write" | "Destructive" | "External";
+        /**
+         * @description What the user did with a request for input that suspended a tool call.
+         * @enum {unknown}
+         */
+        ToolInputAction: "Accept" | "Decline" | "Cancel";
+        /** @description The answer to one request for user input that suspended a tool call (MCP elicitation). */
+        ToolInputResponse: {
+            /** @description Identifier of the request this answers. Matches the `requestId` the run response carried. */
+            requestId: string;
+            /** @description What the user did with the request. */
+            action: components["schemas"]["ToolInputAction"];
+            /**
+             * @description The values of the requested fields, by field name. Meaningful only with
+             *     ToolInputAction.Accept; sending it with another action is rejected.
+             */
+            content?: null | Record<string, never>;
+        };
         /** @description The summary of a single completed tool call. */
         ToolInvocationRecord: {
             /**
@@ -9108,6 +9127,8 @@ export type ToolCallContentWebSearchToolCallContent = components['schemas']['Too
 export type ToolCallUsage = components['schemas']['ToolCallUsage'];
 export type ToolDescriptor = components['schemas']['ToolDescriptor'];
 export type ToolEffect = components['schemas']['ToolEffect'];
+export type ToolInputAction = components['schemas']['ToolInputAction'];
+export type ToolInputResponse = components['schemas']['ToolInputResponse'];
 export type ToolInvocationRecord = components['schemas']['ToolInvocationRecord'];
 export type ToolLoopSettings = components['schemas']['ToolLoopSettings'];
 export type ToolUsage = components['schemas']['ToolUsage'];

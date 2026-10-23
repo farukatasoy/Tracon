@@ -380,6 +380,27 @@ public sealed record AgentRunRequest
     public IReadOnlyList<ClientToolResult> ToolResults { get; init; } = [];
 
     /// <summary>
+    /// Answers to requests for user input that a tool raised in the previous turn (MCP elicitation).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An MCP server can ask the user for information, or for confirmation, in the middle of a tool call.
+    /// The run ends in <c>AwaitingInput</c> and its response carries the request (the streaming response
+    /// sends an <c>inputs</c> frame right before <c>done</c>); the answer is <strong>the next turn's
+    /// input</strong>, the same pattern <see cref="Approvals"/> and <see cref="ToolResults"/> use. There is
+    /// no separate "continue" endpoint. The tool call runs again from its start with the answer, so a server
+    /// must be able to be asked the same call twice.
+    /// </para>
+    /// <para>
+    /// Answers are processed only when <see cref="SessionId"/> is given: the pending request lives in the
+    /// session history and cannot be found in a sessionless run. An answer whose <c>requestId</c> is not a
+    /// pending request of the session, and one whose <c>content</c> does not fit the requested fields, are
+    /// rejected with <c>400</c> before the run starts.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<ToolInputResponse> InputResponses { get; init; } = [];
+
+    /// <summary>
     /// Identifiers of attachments previously uploaded via <c>POST /api/attachments</c>.
     /// </summary>
     /// <remarks>
@@ -460,6 +481,50 @@ public sealed record ClientToolResult
     /// explain, ask a follow-up).
     /// </remarks>
     public string? ErrorMessage { get; init; }
+}
+
+/// <summary>
+/// The answer to one request for user input that suspended a tool call (MCP elicitation).
+/// </summary>
+/// <remarks>
+/// <see cref="ToolApprovalDecision"/>'s sibling on the run request: the run response carried the request, and
+/// the caller sends the answer back through this contract in the next run of the same session.
+/// </remarks>
+public sealed record ToolInputResponse
+{
+    /// <summary>
+    /// Identifier of the request this answers. Matches the <c>requestId</c> the run response carried.
+    /// </summary>
+    public required string RequestId { get; init; }
+
+    /// <summary>What the user did with the request.</summary>
+    public required ToolInputAction Action { get; init; }
+
+    /// <summary>
+    /// The values of the requested fields, by field name. Meaningful only with
+    /// <see cref="ToolInputAction.Accept"/>; sending it with another action is rejected.
+    /// </summary>
+    /// <remarks>
+    /// Each value must fit the field the server declared: a string, a number, an integer, a boolean or
+    /// one of the declared options. A field the request marks as required must be present. A value is kept
+    /// in the session history like a message the user typed, and is never written to the audit log or to
+    /// the run's event stream.
+    /// </remarks>
+    public IReadOnlyDictionary<string, System.Text.Json.JsonElement>? Content { get; init; }
+}
+
+/// <summary>What the user did with a request for input that suspended a tool call.</summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ToolInputAction>))]
+public enum ToolInputAction
+{
+    /// <summary>The user filled in the requested fields.</summary>
+    Accept,
+
+    /// <summary>The user refused to answer. The server decides what the tool does next.</summary>
+    Decline,
+
+    /// <summary>The user dismissed the request without deciding. The server decides what the tool does next.</summary>
+    Cancel,
 }
 
 /// <remarks>
