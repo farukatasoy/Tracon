@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (1008 kalem)
+## Arşivlenen Kararlar (1013 kalem)
 
 | K | Karar |
 |---|---|
@@ -1017,3 +1017,8 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-1016 | `TraconAgentSessionStore` `internal`; köprünün `GetSessionAsync`'i oturum AÇMAZ; anahtarın `isolation` bölümü eski önek biçimine (`kaçışlı-anahtar::kimlik`) katlanır, başka her bölüm `NotSupportedException` ile reddedilir; `MAAI001` bastırması yalnız köprü dosyasında ve onu kullanan iki yerde (`OpenAIResponsesEndpoints`, `ResolveSessionStore`) (F-557, Faz 214) |
 | K-1017 | Bağımlılık yükseltmesi istek davranışını değiştirmez: `Tracon.Anthropic` SDK adaptörünü `AnthropicThinkingMode.Extended` ile kurar (SDK varsayılanı `Adaptive`), önbellek işaretli talimat bloğu `system` dizisinde ilk system-olmayan mesajdan ÖNCE yerleşir (F-557, Faz 214) |
 | K-1018 | Sevk edilen `Tracon.Testing.Contracts.Xunit` paketi `xunit.v3.extensibility.core` ve `xunit.v3.assert` için `>= 3.2.2` alt sınırını korur; reponun kendi testleri xunit.v3 `4.0.2` + `Microsoft.Testing.Extensions.TrxReport` `2.5.1` üzerinde koşar (F-557, Faz 215, A-70) |
+| K-1019 | Bir sağlayıcı veya ses paketi "Native AOT: Yes" vaadini ancak bir tüketici yayınında kanıtlarsa verir: gerçek istek/yanıt yolu sahte sunucuya karşı AOT'ta koşar ve yayın sıfır trim/AOT uyarısı verir; `Anthropic` ve `Google` vaadi geri çekildi (F-558, Faz 217, A-83) |
+| K-1020 | `Tracon.Azure` Azure OpenAI'nın v1 ucuna (`{endpoint}/openai/v1/`) düz `OpenAI` istemcisiyle gider; `Azure.AI.OpenAI` bağımlılıktan çıktı; anahtar `Authorization: Bearer`, Entra kimliği `BearerTokenPolicy` ile yalnız HTTPS'te (F-558, Faz 217, A-83) |
+| K-1021 | `ModelBinding.ReasoningEffort` Anthropic'te uyarlanabilir düşünmeye (`thinking.type=adaptive` + `output_config.effort`) gider; K-1017'nin `Extended` sabiti kaldırıldı (F-558, Faz 217) |
+| K-1022 | `AuthorizationConfigurationKey` kalktı; `PUT /api/mcp-servers/{name}` eski alanı taşıyan gövdeyi `400` (`Removed field`) ile reddeder ve yerine geçeni adıyla söyler; kural 1.x boyunca kalır (F-290, Faz 218) (kullanıcı kararı) 👤 |
+| K-1023 | Migration `authorization_configuration_key` değerini `header_configuration_keys["Authorization"]`'a taşır ve sütunu AYNI migration'da düşürür; geri dönüş yoktur (PostgreSQL `0062`, SQL Server `0050`, SQLite `0049`) (F-290, Faz 218) (kullanıcı kararı) 👤 |

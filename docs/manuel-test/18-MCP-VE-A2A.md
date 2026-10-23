@@ -2428,7 +2428,7 @@ Açılış, kod değişikliği olmadan `Tracon__Demo__ExposedAgents__A2A` ortam 
 | **İzlek** | B |
 | **Önem** | Kritik |
 | **İlgili faz** | Faz 235 |
-| **İlgili karar** | K-103 · K-776 |
+| **İlgili karar** | K-1071 · K-1072 · K-1074 |
 | **Devir** | 🤖 ajan koşar — örnek uygulama, gerçek OpenAI, yerel MCP sunucusu, `curl` · ➜ CI: `McpElicitationTests` · `McpElicitationHandlerTests` · `McpElicitingToolTests` · `PlaygroundTests` (konsol formu) |
 
 Gerçek bir modelin bir MCP tool'unu çağırması ve sunucunun çağrının ortasında kullanıcıdan isim istemesi (MRTR,
@@ -2467,7 +2467,7 @@ curl -s -X POST $APU/api/agents -H 'Content-Type: application/json' -d '{"name":
 | **İzlek** | B |
 | **Önem** | Kritik |
 | **İlgili faz** | Faz 235 |
-| **İlgili karar** | K-103 |
+| **İlgili karar** | K-1072 · K-103 |
 | **Devir** | 🤖 ajan koşar — örnek uygulama, gerçek OpenAI, yerel MCP sunucusu, `curl` · ➜ CI: `McpElicitationTests` (`A_run_without_a_session_declines…` · `An_openai_compatible_call_declines` · `Declining_or_cancelling…`) |
 
 **Ön koşul** — MT-MCP-093'ün uygulaması, sunucusu ve `greeter` agent'ı ayakta.

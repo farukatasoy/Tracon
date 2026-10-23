@@ -144,7 +144,8 @@ bolum	durum	takip	yetenek	src	tests	samples
 5.14	✅	✓	İstemci: tools · prompts · resources · kaynak aboneliği	?	?	?
 5.14	✅	✓ Faz 117	Sunucu: `AddMcpServer` · `WithHttpTransport` · `MapMcp` · tool handler'ları · Tasks (`IMcpTaskStore`, `WithTasks`)	AddMcpServer IMcpTaskStore MapMcp WithHttpTransport WithTasks	AddMcpServer MapMcp WithHttpTransport	-
 5.14	❌	✓	`StdioClientTransport`	-	-	-
-5.14	❌	✗	İstemci yetenekleri: Elicitation · Sampling · Roots · Logging · Progress · Completions	?	?	?
+5.14	✅	✓ Faz 235	İstemci yeteneği: Elicitation (form modu; MRTR `input_required` ve eski doğrudan istek)	?	?	?
+5.14	❌	✗	İstemci yetenekleri: Sampling · Roots · Logging · Progress · Completions	?	?	?
 5.14	❌	✗	Sunucu: prompts/resources sunma · `[McpServerTool]`	-	McpServerTool	-
 5.14	❌	✗⁺	OAuth: `DynamicClientRegistration` · `IdentityAssertionGrant`	-	-	-
 5.14	❌	✗	MAF.Mcp: `ListAgentToolsWithTasksAsync` + `McpTaskOptions` (uzun süren MCP tool'u, istemci tarafı; 1.16'da `ListAgentToolsWithTaskSupportAsync` adıyla)	-	-	-

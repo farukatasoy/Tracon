@@ -594,6 +594,10 @@ Kapanan tur geçmişi (2026-10-12…14: hangi turda hangi kalemlerin kapandığ�
 | **F-658** · MCP task istemcisi: uzun süren uzak tool (C-14 e) | Tracon MCP tool'unu run içinde eşzamanlı çağırır; uzun tool run'ı zaman aşımına kadar tutar. Sunucu tarafı vardır (`RunBackedMcpTaskStore`); `ModelContextProtocol.Extensions.Tasks` 2.3.0 yalnız `Tracon.AspNetCore`'dadır. Tasks MCP 2026-07-28 ile uzantıya taşındı (SEP-2663) ve istek başına katılım ister. Ekosistem (2026-10-22): sunucu uygulamaları erkendir | Task destekli bir MCP sunucusu ve onu çağıran tüketici. Görevi bekleyen run Faz 235'in askı desenini izler. Ölçüm: [`kesif/2026-10-22-maf-yetim-dilimler.md`](kesif/2026-10-22-maf-yetim-dilimler.md) |
 | **F-659** · Bildirimsel workflow topolojisi: dallanma ve alt workflow (C-18 b) | `WorkflowKind` bilerek kapalı listedir (`WorkflowKind.cs:9-15`: arayüz workflow'u yalnız katalog agent'larını bağlar); `Nodes` yalnız `Sequential` içindir (K-494). Kod workflow'u (`AddWorkflow(name, factory)`) bütün topolojiyi bugün Tracon altında koşar (K1). Dallanma koşulu ancak kodda kayıtlı adlı yüklem olabilir (K2) | Arayüzden dallanan workflow isteyen tüketici **ve** kapalı liste ilkesinin açılması (👤). Ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §8.2 C-18 |
 | **F-660** · A2A HTTP+JSON bağlaması (C-15 c) | Tracon A2A ucu yalnız JSON-RPC bağlamasını ilan eder (`TraconA2AExtensions.cs:201`). A2A v1.0 (2026-03, ikincil kaynaklar) üç bağlama tanımlar; en yaygını JSON-RPC'dir. A2A SDK HTTP+JSON'u taşır; MAF ucu değer katmaz (MAF-KAPSAMA §8.2) | Yalnız HTTP+JSON konuşan bir A2A istemcisi. Açılırsa kartta ikinci `AgentInterface`; kiracı, rol ve izolasyon filtreleri iki bağlamada aynı. Ölçüm: [`kesif/2026-10-22-maf-yetim-dilimler.md`](kesif/2026-10-22-maf-yetim-dilimler.md) |
+| **F-661** · Bir tool çağrısı ikinci kez kullanıcıdan bilgi isteyebilsin (çok turlu elicitation) | Faz 235'te bir çağrı **en çok bir kez** askıya alınır: yeniden çalışan çağrı başka bir soru sorarsa `decline` alır (`mismatch`). İkinci tur, önceki cevapların askılar arasında saklanmasını ister (yeniden çağrı sunucuyu baştan koşturur ve ilk soruyu yine sorar); cevap değeri oturuma ya da denetime girmemeli (K-059'un gerekçesi) | İkinci tur isteyen gerçek bir MRTR sunucusu ve onu kullanan tüketici. Emsal ölçüm: `McpElicitationTests.A_replayed_call_that_asks_something_else_is_declined_not_given_the_old_answer` |
+| **F-662** · Kuyruklu run'da ve webhook'ta askıdaki tool girdisi | `Prefer: respond-async` run'ı bugün sunucunun isteğine `decline` verir ve run olayı yazar. Bekleyen isteğin posta kutusu (`pending_approvals`'ın eşi) migration ister; `input.pending` webhook'unun tüketicisi kuyruk yolu olmadan yoktur | Kuyruklu run'ında MCP elicitation isteyen tüketici. İki iş tek tablo ve tek webhook olarak planlanır |
+| **F-663** · Elicitation cevabı için dış yüzeyler: OpenAI uyumlu uçlar, A2A, MCP sunucusu | Telde cevap kanalı yok: üçü de `decline` verir. A2A'nın `input-required` durumu ve MCP görevinin `input-required` hâli aynı `ToolInputResponse` sözleşmesini kullanabilir (ad bu yüzden genel tutuldu) | F-619 (A2A görev modu) planlanınca, tek tasarım olarak |
+| **F-664** · MCP `url` modu elicitation | Sunucu kullanıcıyı bir adrese yollar (OAuth, ödeme). Ayrı güven modeli ister: adres kullanıcıya gösterilir, açılışı onaylanır, `secret` istemciye uğramaz. Bugün bildirilmez; istek `decline` alır | Adrese yönlendiren bir sunucu ve onu kullanan tüketici |
 
 ### F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı
 
@@ -672,7 +676,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-661**.
+numara: **F-665**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

@@ -1,0 +1,18 @@
+# MCP Elicitation Tuzakları (Faz 235)
+
+> Bir MCP sunucusunun araç çağrısının ortasında kullanıcıdan bilgi istemesi
+> (elicitation): askıya alınan çağrı, cevabın sonraki turun girdisi olması ve
+> çağrının baştan yeniden yapılması. `Tracon.Mcp` (istemci) + `Tracon.Core` +
+> `Tracon.AspNetCore`.
+>
+> Bu dosya `MEMORY.md`'nin alan dosyasıdır. Yalnızca bu alana
+> dokunurken okunur. Yeni not buraya eklenir, `MEMORY.md`'ye değil. Dışa açık
+> MCP/A2A sunucusu tuzakları: [`mcp-a2a-sunucu.md`](mcp-a2a-sunucu.md).
+
+- **MCP elicitation altı dosyada** (2026-10-23, Faz 235): `Mcp/Internal/McpElicitingTool.cs` (sarmalayıcı: kapsam açar, askıyı sonuca çevirir, `Terminate`) · `McpElicitationHandler.cs` (karar tablosu, parmak izi) · `McpToolCallScope.cs` · `Core/Recording/ToolInputLedger.cs` + `ToolInputSessionBridge.cs` (kayıt defteri ve MAF'ın bekleyen-istek kaydı) · `AspNetCore/Internal/ToolInputResolver.cs` (cevabı eşler, yeniden çağrıyı kurar). Tam sıra: `McpElicitationTests`.
+- **🚨 MAF'ın onay bağlama katmanı, kendi kaydetmediği cevabı SESSİZCE düşürür** (2026-10-23, Faz 235, ölçüldü): `ApprovalResponseBindingChatClient` oturumun `_pendingApprovalRequests` kaydında eşi olmayan her `ToolApprovalResponseContent`'i atar (günlükte `Ignored a ToolApprovalResponseContent`). Planın ilk mekanizması (sentetik onay cevabıyla tool'u yeniden çağırmak) bu yüzden **hiçbir hata vermeden** tool'u çalıştırmadı; model eski `input_required` sonucunu eko yaptı. Çözüm: koşu **kapanırken** yeniden çağrıyı bu kayda yazmak (`ToolInputSessionBridge`). 🚨 Tool çağrısı sırasında yazmak **yetmez**: katman, bekleyen kayıtla başlayan bir iç çağrıdan sonra kümenin TAMAMINI siler ve onay isteyen MCP sunucusu (varsayılan) her zaman böyle başlar. Anahtar ve şekil MAF'ın public yüzeyi değildir; yükseltmede `McpElicitationTests` (özellikle `An_approval_required_server_asks_for_approval_once_and_for_input_once`) kırmızı döner.
+- **🚨 `Terminate` serideki kalan çağrıları ÇALIŞTIRMAZ ve sonuçsuz bırakır** (2026-10-23, Faz 235, MEAI 10.11 decompile): aynı turdaki sonraki çağrıların sonucu geçmişte yoktur; sağlayıcı sonuçsuz çağrılı geçmişi reddeder. `ToolInputResolver` aynı mesajdaki sonuçsuz kardeş çağrılara `SkippedCallResult` yazar (`A_call_that_ran_after_the_suspended_one…`). `FunctionInvokingChatClient.CurrentContext` Tracon zincirinin tüm sarmalarından görünür (`McpElicitingToolTests`).
+- **MCP bağlantısı temiz `ExecutionContext`'te kurulur** (2026-10-23, Faz 235): SDK'nın alma döngüsü kurulduğu bağlamı yakalar ve eski protokolün doğrudan `elicitation/create` isteğini oradan teslim eder. `McpConnection.ConnectAsync` `Task.Run` + `ExecutionContext.SuppressFlow` kullanır; böylece paylaşılan bağlantıdaki istek yanlış run'a bağlanmaz. SDK'nın MRTR yeniden denemesi handler'ı çağrının **kendi** akışında çağırır; kapsam `McpElicitingTool.InvokeCoreAsync` gövdesinde açılır (AsyncLocal yazımı yardımcı async metottan geri akmaz).
+- **Test sunucusu: eski protokol ve sunucudan istemciye istek** (2026-10-23, Faz 235): `McpServerOptions.ProtocolVersion = "2025-11-25"` istemciyi `initialize`'a düşürür; `server.ElicitAsync` için ayrıca `WithHttpTransport(o => o.Stateless = false)` gerekir, yoksa araç "Elicitation is not supported in stateless mode" ile düşer (ve model "error occurred invoking" görür). MRTR yolu durumsuz sunucuda çalışır.
+- **Cevap sorulan soruya bağlıdır** (2026-10-23, Faz 235): cevap `SHA-256(message + requestedSchema)` parmak iziyle eşlenir; yeniden çalışan çağrı başka soru sorarsa `decline` alır (`mismatch`) ve çağrı en çok bir kez askıya alınır. Sıra bazlı eşleme eski bir "evet"i yeni bir soruya verirdi. İkinci tur için önceki cevapların saklanması gerekir: F-ID.
+

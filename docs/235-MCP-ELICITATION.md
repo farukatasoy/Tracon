@@ -1,8 +1,8 @@
 # Faz 235 — MCP Elicitation: Askıya Alınan Tool Çağrısı
 
-> **Durum:** 📋 Planlandı (2026-10-22)
+> **Durum:** ✅ Tamamlandı (2026-10-23)
 > **Kademe:** tam — public API (run isteğine yeni alan, akışa yeni çerçeve, `RunStatus.AwaitingInput`'un anlamı agent run'ına genişler) · güvenlik sınırı (üçüncü taraf sunucu kullanıcıdan veri ister; cevap oturum sahibine ve kiracıya bağlı olmalı) · geri dönüşü pahalı karar (devam modeli: tool çağrısı baştan yeniden yapılır)
-> **Plan onayı:** Tasarım seçimi onaylandı — farukatasoy, 2026-10-22: run askıya alınır ve cevaptan sonra tool baştan çağrılır; run bağlamı görünmeyen istek `decline` alır. Planın tamamı: **onaylanmadı — uygulama başlamaz**
+> **Plan onayı:** Tasarım seçimi onaylandı — farukatasoy, 2026-10-22: run askıya alınır ve cevaptan sonra tool baştan çağrılır; run bağlamı görünmeyen istek `decline` alır. Planın tamamı: uygulama istendi — farukatasoy, 2026-10-23 ("fazı geliştir, commit atabilirsin"); onay kapısı bu emirle açıldı
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-617** (ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #40, §8.2 C-14 b; [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md))
 > **Genellik:** MCP sunucusu bağlayan her kiracı. Elicitation MCP spec'inin çekirdek istemci yeteneğidir (ekosistem standardı = ikinci kanıt). Tüketici kodunda kalamaz: MCP bağlantısını, tool zincirini ve run askısını Tracon kurar.
 > **Karşı görüş:** "Elicitation kullanan sunucu sayısı ölçülmedi; çoğu sunucu tool parametresiyle yetinir." Cevap: faz iki yarıdır. (1) Yeteneği bildirmek ve run'a bağlanamayan isteğe açık `decline` dönmek ucuzdur ve bugünkü sessiz düşmeyi kapatır. (2) Askı yolu yeni tablo istemez: bekleyen istek oturum geçmişinde durur, devam onay ve istemci tool'unun "sonraki turun girdisi" desenini izler. (2) beklenenden pahalı çıkarsa faz (1) ile kapanır ve (2) F-ID olur — bu sapma gizlenmez.
@@ -295,20 +295,20 @@ Beş soru: **iptal** (askı sırasında ve devamda) · **eşzamanlılık** (payl
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] Elicitation isteyen sunucuya bağlanan tool bağlantısı yeteneği bildirir (fonksiyonel test)
-- [ ] Yönetim API'sinde MRTR isteği run'ı `AwaitingInput` ile bitirir; akış `done`'dan önce `inputs` çerçevesi gönderir
-- [ ] `inputResponses` ile devam tool'u yeniden çağırır ve sonuç modele ulaşır
-- [ ] Alt agent, cevap kanalı olmayan yüzey, oturumsuz run ve eski sunucu `decline` alır; hiçbiri sessiz düşmez
-- [ ] Başka kullanıcının oturumuna cevap `403` alır (oturum sahipliği açıkken)
-- [ ] Denetim satırı cevaptan önce yazılır; değer taşımaz
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/18-MCP-VE-A2A.md` ve `10-ARAYUZ-AGENT-PLAYGROUND.md` içinde ve koşuldu; gerisi otomatik testte
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (§ başlık *Tüketici yüzeyi*); `npm run build` + `check-links.mjs` temiz
-- [ ] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
-- [ ] `MAF-KAPSAMA.md` §5.14 istemci yetenekleri satırı ve §8.2 C-14 (b) güncellendi
+- [x] Elicitation isteyen sunucuya bağlanan tool bağlantısı yeteneği bildirir (fonksiyonel test) — `McpConnection.cs` `ElicitationHandler` atanır, SDK `Form` yeteneğini kendiliğinden bildirir; kanıt: sunucu `InputRequiredException` fırlatabilir yalnız istemci yeteneği varsa → `McpElicitationTests.A_tool_that_asks_suspends_the_run_and_the_answer_runs_the_tool_again`
+- [x] Yönetim API'sinde MRTR isteği run'ı `AwaitingInput` ile bitirir; akış `done`'dan önce `inputs` çerçevesi gönderir — aynı test (`RunStatusesAsync` → `["AwaitingInput"]`, `inputs` sırası `done`'dan önce); tamponlu yanıt gövdesi `inputs`: `The_buffered_response_carries_the_request_in_its_body`
+- [x] `inputResponses` ile devam tool'u yeniden çağırır ve sonuç modele ulaşır — aynı test: `server.Seen == ["asked","asked","accept:Ada"]`, metin `hello Ada`; onay isteyen sunucuda: `An_approval_required_server_asks_for_approval_once_and_for_input_once`; SQLite oturum deposunda: `The_request_survives_a_session_store_that_serializes_the_session`
+- [x] Alt agent, cevap kanalı olmayan yüzey, oturumsuz run ve eski sunucu `decline` alır; hiçbiri sessiz düşmez — `A_child_agent_cannot_ask_the_user` (`child_run`) · `An_openai_compatible_call_declines` · `A_run_without_a_session_declines…` (`no_session` + olay) · `A_server_on_the_older_protocol_gets_a_decline_for_its_direct_request`; her `reason` için `McpElicitationHandlerTests`. A2A ve MCP sunucusu yüzeyi `AcceptsToolInput` bayrağını kurmaz (tek yazım yeri `AgentEndpoints.cs`, grep ile doğrulandı); ayrı bir A2A/MCP-sunucusu testi yazılmadı — **sapma 7**
+- [x] Başka kullanıcının oturumuna cevap `403` alır (oturum sahipliği açıkken) — `An_answer_from_another_user_is_refused`
+- [x] Denetim satırı cevaptan önce yazılır; değer taşımaz — `The_answer_is_audited_by_field_name_and_never_by_value` · `An_answer_that_cannot_be_audited_is_not_applied` (yazılamazsa tool yeniden çağrılmaz, aynı cevap depo dönünce uygulanır). Kümeye eklenmesi **sapma 4**
+- [x] Dört doğrulama kapısı sıfır uyarı verir — kapanış koşumu (aşağıda, **Kapanış koşumu**)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — aşağıda **Örnek uygulama koşumu**
+- [x] `secret` taraması boş döndü — `python3 scripts/kapi.py tarama` (kapanış koşumunun ilk adımı)
+- [x] `🤖` case'ler `docs/manuel-test/18-MCP-VE-A2A.md` içinde ve koşuldu; gerisi otomatik testte — `MT-MCP-093`, `MT-MCP-094` koşuldu (örnek uygulama, gerçek OpenAI). Plan `10-ARAYUZ-AGENT-PLAYGROUND.md`'ye de case istiyordu: oyun alanı formu **kodla tekrarlanır** (Playwright `PlaygroundTests.Playground_asks_for_the_fields…` + Vitest), bu yüzden sete **girmedi** (`manuel-case.md`: kodla tekrarlanan davranış sete girmez) — **sapma 8**
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — aşağıda **Denetim Bulguları**
+- [x] `docs-site/` güncellendi (§ başlık *Tüketici yüzeyi*); `npm run build` + `check-links.mjs` temiz — `concepts/tools.md` (yeni § *A server asks the user for input*) · `concepts/runs.md` · `concepts/governance.md` (fail-closed küme 8) · `guides/client-side-tools.md` · `troubleshooting.md` · `ui.md` · `packages.md` · `capabilities.md`; `npm run check` yeşil (içerik, bağlantı, SEO, ağırlık)
+- [x] `en.ts` ve `tr.ts` eksiksiz; bundle payı ölçüldü ve yazıldı — 11 anahtar iki dilde; `index-*.js.br` 185.716 B → **187.281 B** (+1.565 B, +%0,8); gzip **224,1 KB** (bütçe 250 KB)
+- [x] `MAF-KAPSAMA.md` §5.14 istemci yetenekleri satırı ve §8.2 C-14 (b) güncellendi — Elicitation satırı ❌ → ✅ (satır ikiye bölündü, özet 144 → 145); C-14 (b) ✅ kapandı
 
 ### Doğrulama komutları
 

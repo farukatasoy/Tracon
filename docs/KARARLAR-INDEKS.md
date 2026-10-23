@@ -2,19 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1008 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1013 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1060 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1065 kalem)
 
 | K | Karar |
 |---|---|
-| K-1019 | Bir sağlayıcı veya ses paketi "Native AOT: Yes" vaadini ancak bir tüketici yayınında kanıtlarsa verir: gerçek istek/yanıt yolu sahte sunucuya karşı AOT'ta koşar ve yayın sıfır trim/AOT uyarısı verir; `Anthropic` ve `Google` vaadi geri çekildi (F-558, Faz 217, A-83) |
-| K-1020 | `Tracon.Azure` Azure OpenAI'nın v1 ucuna (`{endpoint}/openai/v1/`) düz `OpenAI` istemcisiyle gider; `Azure.AI.OpenAI` bağımlılıktan çıktı; anahtar `Authorization: Bearer`, Entra kimliği `BearerTokenPolicy` ile yalnız HTTPS'te (F-558, Faz 217, A-83) |
-| K-1021 | `ModelBinding.ReasoningEffort` Anthropic'te uyarlanabilir düşünmeye (`thinking.type=adaptive` + `output_config.effort`) gider; K-1017'nin `Extended` sabiti kaldırıldı (F-558, Faz 217) |
-| K-1022 | `AuthorizationConfigurationKey` kalktı; `PUT /api/mcp-servers/{name}` eski alanı taşıyan gövdeyi `400` (`Removed field`) ile reddeder ve yerine geçeni adıyla söyler; kural 1.x boyunca kalır (F-290, Faz 218) (kullanıcı kararı) 👤 |
-| K-1023 | Migration `authorization_configuration_key` değerini `header_configuration_keys["Authorization"]`'a taşır ve sütunu AYNI migration'da düşürür; geri dönüş yoktur (PostgreSQL `0062`, SQL Server `0050`, SQLite `0049`) (F-290, Faz 218) (kullanıcı kararı) 👤 |
 | K-1024 | `WorkflowRunRequest.DefinitionVersion` public; checkpoint'siz kurtarma yeniden başlatması zincirin ilk run'ının sürümünü sabitler (F-492) |
 | K-1025 | `/v1/chat/completions` görsel, ses ve dosyayı modele verir; tool geçmişi ve bilinmeyen rol `400` (F-580) (kullanıcı kararı) 👤 |
 | K-1026 | OpenAI ses istemcisi `OpenAIClient.Pipeline` üstündedir, `AudioClient`/MEAI adaptörü üstünde değil (F-579) |
@@ -62,3 +57,8 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1068 | Oturum alanının yol biçimi kalıcıdır: `{kiracı}/~workspace/{anahtar}/{agent}/…`, anahtar SHA-256(kiracı, oturum) ilk 32 hex (F-628) |
 | K-1069 | Agent oturum başına dosya alanı alır: tool'lar Tracon zincirinden geçer, yazma ve silme hep onay ister, kota var; K-062'nin yerini alır (F-628) |
 | K-1070 | Veri sahibi silmede oturum kopyaları SQL işlemi açılmadan ÖNCE silinir; K-1067'nin sırasını değiştirir (F-628) |
+| K-1071 | MCP elicitation: araç çağrısı askıya alınır ve cevapla BAŞTAN yeniden çağrılır; çağrı açık bekletilmez 👤 |
+| K-1072 | Run bağlamı olmayan elicitation isteği (oturumsuz, alt agent, kanalsız yüzey, eski protokol, url modu) decline alır; sessiz düşme yok |
+| K-1073 | Elicitation cevabı sorulan soruya bağlıdır (message+schema parmak izi); başka soru sorulursa decline, çağrı en çok bir kez askıya alınır |
+| K-1074 | tool_input.answer fail-closed denetim kümesinin sekizinci işlemidir (7 → 8); satır alan adlarını taşır, değeri taşımaz |
+| K-1075 | Yeniden çağrı MAF'ın bekleyen-istek kaydına koşu KAPANIRKEN yazılır (_pendingApprovalRequests); anahtar MAF'ın public yüzeyi değildir |
