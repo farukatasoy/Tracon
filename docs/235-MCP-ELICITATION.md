@@ -340,9 +340,46 @@ python3 scripts/kapi.py test --proje Tracon.AspNetCore.FunctionalTests --sinif M
 
 > Çalışırken dolar. Kapanışta kapanış commit mesajına taşınır.
 
+1. **Yeniden çağırma mekanizması (Açık Soru 1) — A planlandığı gibi çalışmadı.** Plan sentetik `ToolApprovalResponseContent` ile FIC'in onaylı çağrı yolunu kullanacaktı. Ölçüldü (ilk koşum): MAF 1.25'in `ApprovalResponseBindingChatClient`'ı oturumda kendi kaydetmediği cevabı **sessizce atar**; tool hiç çalışmadı, model eski `input_required` sonucunu eko yaptı. Uygulanan: yeniden çağrı, koşu **kapanırken** oturumun `_pendingApprovalRequests` kaydına yazılır (`ToolInputSessionBridge`). Tool çağrısı sırasında yazmak yetmez — katman, bekleyen kayıtla başlayan bir iç çağrıdan sonra kümenin tamamını siler ve onay isteyen MCP sunucusu (varsayılan) hep böyle başlar (test: `An_approval_required_server_asks_for_approval_once_and_for_input_once`). B (FIC dışı çağrı) elendi: `Terminate`, `CurrentContext`, zincir ve kayıt kaybolur. Anahtar MAF'ın public yüzeyi değil → K-1075.
+2. **Bekleyen istek defterden okunur, sonuç metninden değil.** Plan (§235.4) kaydın üretilen mesajlarda yükü bulmasını söyledi. Sunucunun tool'u aynı biçimde metin dönebilir; sahte `input_required` run'ı kapatmamalı. Run kapsamında `ToolInputLedger`; `TraconRunOptions`'a üç **internal** üye (`AcceptsToolInput`, `ToolInputAnswers`, `BeforePendingToolInputIsPublished`) — public API büyümedi.
+3. **Cevap sıraya değil soruya bağlıdır; çağrı en çok bir kez askıya alınır.** Plan (§235.3) ikinci elicitation'da yeniden askı ve N=5 sınırı dedi (Açık Soru 2). Yeniden çağrıda ilk cevap kayıptır; sıra eşlemesi eski bir "evet"i yeni soruya verirdi. `message+requestedSchema` parmak izi eşleşmezse `decline` (`mismatch`). Açık Soru 2 anlamsızlaştı (N=1). Çok turlu → F-661. → K-1073.
+4. **Fail-closed denetim kümesi 7 → 8.** Plan "K-089/K-370 deseni" dedi, yayımlanmış kümeyi (K-776) anmadı. `tool_input.answer` `WriteOrThrowAsync`; `IAuditLog` belgesi, `governance.md`, `security-policy.md`, `capabilities.md`, `observability.md`, `AuditWritePolicyTests` (10 → 11 çağrı yeri, 7 → 8 işlem) ve `AuditContentPolicyTests` birlikte güncellendi. → K-1074.
+5. **`RunEventCustomTypes.ToolInputDeclined` public sabit.** Plan "run olayı" dedi, tür adı vermedi ve planlanan public API'de yok. Tüketici olayı adıyla süzebilsin diye (`tracon.tool.input.declined`; payload yalnız `server`, `tool`, `reason`).
+6. **Değerler oturuma girmez.** `ToolInputResponse.Content` XML belgesi başlangıçta "oturum geçmişinde kalır" diyordu; gerçek davranış: cevap yalnız bellekte (`run seçeneği → kapsam`), sunucuya gider. Belge düzeltildi.
+7. **A2A ve MCP sunucusu yüzeyi için ayrı `decline` testi yok.** Bayrağı yalnız `AgentEndpoints` kurar (grep); aynı karar tablosunu OpenAI-uyumlu uç, oturumsuz run, alt agent ve eski protokol testleri kapsar; `no_channel` birim testiyle sabit.
+8. **Oyun alanı manuel case'i yazılmadı.** Form kodla tekrarlanır (Playwright `PlaygroundTests.Playground_asks_for_the_fields…` + Vitest); `manuel-case.md` bunu sete sokmaz. Sete girenler: `MT-MCP-093`, `094` (gerçek model).
+9. **Planda olmayan karar kodları ve sonuç sentezi.** `no_termination`, `no_run` nedenleri eklendi. Plan §235.4 paralel çağrıların `Terminate`'ten etkilenmesini ölçüme bırakmıştı: ölçüldü — seri FIC kalan çağrıları çalıştırmaz ve sonuçsuz bırakır, sağlayıcı sonuçsuz çağrılı geçmişi reddeder; `ToolInputResolver` aynı mesajdaki kardeş çağrılara `SkippedCallResult` yazar.
+10. **`SuppressFlow` yerine `Task.Run` + `SuppressFlow`.** Plan yalnız `SuppressFlow` yazdı; tüm `CreateAsync` zinciri temiz bağlamda koşsun diye iş `Task.Run` içinde kuruluyor. Tracon'da bir araç çağrısı içinde bağlantı açan yol yok → koruma savunmacıdır, sızıntı testi yazılamadı (yol yok).
+11. **Protokol sürümü ölçüldü.** SDK 2.3 varsayılan olarak `server/discover` ile `2026-07-28` (MRTR) dener; sunucu `McpServerOptions.ProtocolVersion = "2025-11-25"` ile sabitlenince `initialize`'a düşer ve doğrudan istek gelir (`A_server_on_the_older_protocol…`).
+12. **Form şeması planın dediğinden geniş.** Tek ve çok seçim (`enum`/`oneOf`/`anyOf`), tamsayı ve uzunluk/aralık kısıtları desteklendi (`inputFields`, `ToolInputSchemaValidator`).
+13. **Test sunucusu paylaşımlı.** `tests/Shared/Infrastructure/ElicitingMcpServer.cs` iki projeye bağlanır (`LookupMcpServer`'ı değiştirmek yerine).
+14. **Bundle payı:** brotli 185.716 → 187.281 B (+1.565 B); gzip 224,1 KB (bütçe 250 KB).
+
 ## Bu Fazda Verilen Kararlar
 
-> Çalışırken dolar. Aday kategoriler: `public-api` (`ToolInputResponse` sözleşmesi, `AwaitingInput`'un agent run'ına genişlemesi) · `güvenlik` (run bağlamı görünmeyen isteğe `decline`; denetimde değer yok) · `geri-dönüşü-pahalı` (devam = baştan yeniden çağrı). Plan numara rezerve etmez.
+> Çalışırken dolar. Kapanışta commit mesajına taşınır. Dört kategoriden birine girenler `docs/KARARLAR.md`'ye yazıldı.
+
+- **K-1071** *(public-api, geri-dönüşü-pahalı · kullanıcı kararı)* — askı + baştan yeniden çağrı; açık bekleme yok.
+- **K-1072** *(güvenlik)* — run bağlamı görünmeyen istek `decline` alır.
+- **K-1073** *(güvenlik)* — cevap soruya bağlı; çağrı en çok bir kez askıya alınır.
+- **K-1074** *(güvenlik, public-api)* — `tool_input.answer` fail-closed kümenin sekizincisi.
+- **K-1075** *(geri-dönüşü-pahalı)* — yeniden çağrı MAF'ın bekleyen-istek kaydına koşu kapanırken yazılır.
+- Kategori dışı: tek `Content` değeri 8 KB, toplam 64 KB sınırı (`ToolInputSchemaValidator`; Açık Soru 5 önerisi); bilinmeyen `requestId` `400` (Açık Soru 4), onay+girdi aynı turda durum `AwaitingApproval` ve iki duyuru (Açık Soru 3), webhook kuyruk yoluna (Açık Soru 6, F-662).
+
+## Örnek Uygulama Koşumu
+
+> `samples/Tracon.Api`, geçici SQLite dosyası, dört boş ortam değişkeni (`Tracon__PostgreSql__ConnectionString`, `Tracon__SqlServer__ConnectionString`, `Tracon__Ui__AuthToken` boş; `Tracon__Sqlite__ConnectionString` geçici dosya), gerçek OpenAI (`gpt-5.4-mini`, `user-secrets`), yerel MRTR MCP sunucusu (`ModelContextProtocol.AspNetCore` 2.3.0, `http://127.0.0.1:5391/mcp`, tek tool `ask_name`). 2026-10-23. Günlükte `Npgsql` satırı: 0.
+
+| Adım | Gerçek çıktı |
+|---|---|
+| `POST /run` `{"message":"Please greet me.","sessionId":"sample-elicit-1"}` | akış: `run` · 6 × `update` · `inputs` · `done`; `inputs`: `[{"requestId":"01a168c0-1658-…","toolName":"elicit_ask_name","serverName":"elicit","message":"What is your name?","requestedSchema":{…"name":{"type":"string","minLength":1}…,"required":["name"]}}]` |
+| `POST /run` `inputResponses: [{requestId, action: Accept, content: {name: Ada}}]` | tool sonucu `hello Ada`; model `Hello Ada.`; `error` çerçevesi yok |
+| `GET /api/runs?sessionId=sample-elicit-1` | `AwaitingInput` (178 token) · `Completed` (397 token) |
+| `GET /api/audit?action=tool_input.answer` | `entity: tool:elicit_ask_name`, `after: {"requestId":"…","server":"elicit","action":"Accept","fields":["name"]}` — `Ada` yok |
+| MCP sunucu günlüğü | `tools/call ask_name inputResponses=0` · `=0` · `=1` |
+| Oturumsuz run | tool sonucu `declined`; olay `Custom` `tracon.tool.input.declined` `{"server":"elicit","tool":"elicit_ask_name","reason":"no_session"}` |
+| `POST /v1/chat/completions` | `200`, yanıt `Hello!`; sunucu `inputResponses=0` sonra `=1` (decline) |
+| Oturumlu run + `Decline` cevabı | durumlar `AwaitingInput`, `Completed`; tool sonucu `declined` |
 
 ## Süreç Ölçümü
 
