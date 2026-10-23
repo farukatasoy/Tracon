@@ -180,7 +180,6 @@ internal static class AgentEndpoints
         builder.MapPost("/api/agents/{name}/run", async (
                 string name,
                 IAgentCatalog catalog,
-                AgentSessionManager sessions,
                 IJobStore jobStore,
                 IRunStore runStore,
                 ITenantContext tenantContext,
@@ -242,7 +241,6 @@ internal static class AgentEndpoints
                 return await RunAsync(
                     name,
                     request!,
-                    sessions,
                     prefix,
                     httpContext,
                     cancellationToken).ConfigureAwait(false);
@@ -681,7 +679,6 @@ internal static class AgentEndpoints
     private static async Task<IResult> RunAsync(
         string name,
         AgentRunRequest request,
-        AgentSessionManager sessions,
         string prefix,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -704,7 +701,7 @@ internal static class AgentEndpoints
         // request, because a request carrying the header is already non-streaming.
         var streaming = !httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName);
 
-        return new AgentRunStream(turn, sessions, streaming);
+        return new AgentRunStream(turn, streaming);
     }
 
     /// <summary>
@@ -1020,7 +1017,6 @@ internal static class AgentEndpoints
     /// </remarks>
     private sealed class AgentRunStream(
         PreparedTurn turn,
-        AgentSessionManager sessions,
         bool streaming) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
@@ -1044,20 +1040,11 @@ internal static class AgentEndpoints
             // Stops the writer's keep-alive loop before the response ends (F-325).
             await using var writerScope = writer.ConfigureAwait(false);
 
-            Microsoft.Agents.AI.AgentSession? session = null;
             long sequence = 0;
 
             try
             {
-                if (!string.IsNullOrWhiteSpace(turn.Request.SessionId))
-                {
-                    session = await sessions
-                        .GetOrCreateSessionAsync(turn.Agent, turn.Request.SessionId, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-
-                var (messages, inputAnswers) = await turn.BuildMessagesAsync(httpContext, session, cancellationToken)
-                    .ConfigureAwait(false);
+                var opened = await turn.OpenAsync(httpContext, cancellationToken).ConfigureAwait(false);
 
                 await writer.WriteEventAsync(
                     sequence++,
@@ -1065,28 +1052,23 @@ internal static class AgentEndpoints
                     JsonSerializer.Serialize(new AgentRunAccepted(turn.RunId, turn.Request.SessionId), JsonOptions),
                     cancellationToken).ConfigureAwait(false);
 
-                var updates = turn.Agent.RunStreamingAsync(
-                    messages,
-                    session,
-                    turn.CreateRunOptions(
-                        session,
-                        inputAnswers,
-                        // A separate 'approvals' frame, sent right before the stream's own 'done' frame, is how the
-                        // console's approval card learns an entity's name (Phase 142, see CreateRunOptions).
-                        onPendingApprovals: async (announcements, hookCancellation) =>
-                            await writer.WriteEventAsync(
-                                sequence++,
-                                "approvals",
-                                JsonSerializer.Serialize(announcements, JsonOptions),
-                                hookCancellation).ConfigureAwait(false),
+                var updates = opened.RunStreamingAsync(
+                    // A separate 'approvals' frame, sent right before the stream's own 'done' frame, is how the
+                    // console's approval card learns an entity's name (Phase 142, see PreparedTurn.CreateRunOptions).
+                    onPendingApprovals: async (announcements, hookCancellation) =>
+                        await writer.WriteEventAsync(
+                            sequence++,
+                            "approvals",
+                            JsonSerializer.Serialize(announcements, JsonOptions),
+                            hookCancellation).ConfigureAwait(false),
 
-                        // The same slot as the 'approvals' frame: right before 'done'.
-                        onPendingInputs: async (announcements, hookCancellation) =>
-                            await writer.WriteEventAsync(
-                                sequence++,
-                                "inputs",
-                                JsonSerializer.Serialize(announcements, JsonOptions),
-                                hookCancellation).ConfigureAwait(false)),
+                    // The same slot as the 'approvals' frame: right before 'done'.
+                    onPendingInputs: async (announcements, hookCancellation) =>
+                        await writer.WriteEventAsync(
+                            sequence++,
+                            "inputs",
+                            JsonSerializer.Serialize(announcements, JsonOptions),
+                            hookCancellation).ConfigureAwait(false),
                     cancellationToken);
 
                 List<string>? pending = null;
@@ -1098,7 +1080,7 @@ internal static class AgentEndpoints
 
                 await foreach (var update in updates.ConfigureAwait(false))
                 {
-                    if (session is null && ChildRunApproval.Describe(update.Contents) is { } names)
+                    if (!opened.HasSession && ChildRunApproval.Describe(update.Contents) is { } names)
                     {
                         (pending ??= []).Add(names);
                     }
@@ -1126,11 +1108,7 @@ internal static class AgentEndpoints
                     return;
                 }
 
-                if (session is not null)
-                {
-                    await AgentTurnService.SaveSessionRecordingConflictAsync(
-                        httpContext, sessions, turn.Agent, session, turn.RunId, cancellationToken).ConfigureAwait(false);
-                }
+                await opened.SaveSessionAsync(httpContext, cancellationToken).ConfigureAwait(false);
 
                 sequence = await RunNoticeMirror
                     .WriteAsync(httpContext, turn.RunId, writer, sequence, sawTruncation, cancellationToken)
@@ -1162,16 +1140,12 @@ internal static class AgentEndpoints
                 // producing an 'error' frame, and the client would mistake this for
                 // silent success. Nothing goes uncaught here: the client ALWAYS
                 // receives an 'error' frame.
-                var correlationId = SafeErrorText.NewCorrelationId();
-                var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints");
-                logger.LogError(ex, "Streaming agent run {RunId} failed. (ref: {CorrelationId})", turn.RunId, correlationId);
+                var (failureType, failureMessage) = AgentTurnService.DescribeStreamFailure(ex, turn.RunId, httpContext);
 
                 await writer.WriteEventAsync(
                     sequence,
                     "error",
-                    JsonSerializer.Serialize(
-                        new AgentRunFailed(ex.GetType().Name, SafeErrorText.ForPersistence(ex, correlationId)),
-                        JsonOptions),
+                    JsonSerializer.Serialize(new AgentRunFailed(failureType, failureMessage), JsonOptions),
                     CancellationToken.None).ConfigureAwait(false);
             }
         }
@@ -1201,42 +1175,25 @@ internal static class AgentEndpoints
         {
             var cancellationToken = httpContext.RequestAborted;
 
-            Microsoft.Agents.AI.AgentSession? session = null;
-
             try
             {
-                if (!string.IsNullOrWhiteSpace(turn.Request.SessionId))
-                {
-                    session = await sessions
-                        .GetOrCreateSessionAsync(turn.Agent, turn.Request.SessionId, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-
-                var (messages, inputAnswers) = await turn.BuildMessagesAsync(httpContext, session, cancellationToken)
-                    .ConfigureAwait(false);
+                var opened = await turn.OpenAsync(httpContext, cancellationToken).ConfigureAwait(false);
 
                 IReadOnlyList<PendingToolInputAnnouncement>? inputs = null;
 
-                var response = await turn.Agent.RunAsync(
-                    messages,
-                    session,
-                    turn.CreateRunOptions(
-                        session,
-                        inputAnswers,
-                        onPendingApprovals: null,
+                var response = await opened.RunAsync(
+                    // The non-streaming body carries the requests as 'inputs' instead of an SSE frame.
+                    onPendingInputs: (announcements, _) =>
+                    {
+                        inputs = announcements;
 
-                        // The non-streaming body carries the requests as 'inputs' instead of an SSE frame.
-                        onPendingInputs: (announcements, _) =>
-                        {
-                            inputs = announcements;
-
-                            return ValueTask.CompletedTask;
-                        }),
+                        return ValueTask.CompletedTask;
+                    },
                     cancellationToken).ConfigureAwait(false);
 
                 // F-448: without a session nobody can ever answer the approval this run
                 // stopped at; a 200 left it waiting forever.
-                if (session is null && ChildRunApproval.Describe(response.Messages) is { } pending)
+                if (!opened.HasSession && ChildRunApproval.Describe(response.Messages) is { } pending)
                 {
                     await CloseUnanswerableRunAsync(httpContext).ConfigureAwait(false);
 
@@ -1253,11 +1210,7 @@ internal static class AgentEndpoints
                     return;
                 }
 
-                if (session is not null)
-                {
-                    await AgentTurnService.SaveSessionRecordingConflictAsync(
-                        httpContext, sessions, turn.Agent, session, turn.RunId, cancellationToken).ConfigureAwait(false);
-                }
+                await opened.SaveSessionAsync(httpContext, cancellationToken).ConfigureAwait(false);
 
                 await Results.Json(
                         new AgentRunResult(turn.RunId, turn.Request.SessionId, response, inputs),
@@ -1275,78 +1228,9 @@ internal static class AgentEndpoints
             {
                 // The client disconnected.
             }
-            catch (TraconContentBlockedException ex)
-            {
-                // 🚨 A block is a CLIENT error: the request was understood, but the
-                // policy did not let it through, and retrying would not help. A 502
-                // would say "upstream is broken" and steer the client toward
-                // retrying. The ProblemDetails carries the guard and rule name; it
-                // does NOT carry the blocked text (nor does ex.Message).
-                await Results.Problem(
-                        title: "Content blocked",
-                        detail: ex.Message,
-                        statusCode: StatusCodes.Status422UnprocessableEntity,
-                        extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
-                        {
-                            ["errorType"] = TraconContentBlockedException.ContentBlockedErrorType,
-                            ["guard"] = ex.GuardName,
-                            ["rule"] = ex.RuleName,
-                            ["direction"] = ex.Direction.ToString(),
-                        })
-                    .ExecuteAsync(httpContext).ConfigureAwait(false);
-            }
-            catch (TraconSessionOwnerRequiredException ex)
-            {
-                // 🚨 403, not 500: session ownership is on and the deployment
-                // asked for exactly this refusal, so it is a policy decision
-                // and not a fault. Not 401 either - the caller cleared the
-                // endpoint's own role policy and is authenticated as far as
-                // ASP.NET Core is concerned; what is missing is an identity the
-                // attribution pipeline can name as the session's owner.
-                await Results.Problem(
-                        title: "Session owner required",
-                        detail: ex.Message,
-                        statusCode: StatusCodes.Status403Forbidden,
-                        extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
-                        {
-                            ["errorType"] = TraconSessionOwnerRequiredException.SessionOwnerRequiredErrorType,
-                        })
-                    .ExecuteAsync(httpContext).ConfigureAwait(false);
-            }
-            catch (TraconSessionConflictException ex)
-            {
-                // 🚨 HATA-004: when two concurrent initial requests arrive for the
-                // same NEW session, the loser lands here. A 502 would say "upstream
-                // is broken"; the actual cause is a client-side race condition — a
-                // 409 and a short retry are the correct fix.
-                await Results.Problem(
-                        title: "Session conflict",
-                        detail: ex.Message,
-                        statusCode: StatusCodes.Status409Conflict,
-                        extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
-                        {
-                            ["errorType"] = TraconSessionConflictException.SessionConflictErrorType,
-                        })
-                    .ExecuteAsync(httpContext).ConfigureAwait(false);
-            }
             catch (Exception ex)
             {
-                // 🚨 HATA-S2-003/HATA-S3-005: K-296's fix covered only the streaming
-                // sibling path (ExecuteStreamingAsync above) and MISSED this
-                // non-streaming path. A narrow 'when' filter (only TraconException/
-                // InvalidOperationException/HttpRequestException) would let real
-                // provider SDK exceptions go uncaught, leaking into ASP.NET Core's
-                // generic handler and producing a bare 500. Nothing goes uncaught
-                // here — OperationCanceledException and the more specific
-                // Tracon exceptions already have their own catch blocks above.
-                var correlationId = SafeErrorText.NewCorrelationId();
-                var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints");
-                logger.LogError(ex, "Agent run {RunId} failed. (ref: {CorrelationId})", turn.RunId, correlationId);
-
-                await Results.Problem(
-                        title: "Agent run failed",
-                        detail: SafeErrorText.ForPersistence(ex, correlationId),
-                        statusCode: StatusCodes.Status502BadGateway)
+                await AgentTurnService.DescribeFailure(ex, turn.RunId, httpContext)
                     .ExecuteAsync(httpContext).ConfigureAwait(false);
             }
         }

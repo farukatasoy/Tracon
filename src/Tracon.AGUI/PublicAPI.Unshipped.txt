@@ -1,0 +1,4 @@
+#nullable enable
+Tracon.TraconAGUIEndpointRouteBuilderExtensions
+const Tracon.TraconAGUIEndpointRouteBuilderExtensions.DefaultPattern = "/tracon/agui" -> string!
+static Tracon.TraconAGUIEndpointRouteBuilderExtensions.MapTraconAGUI(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/agui") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!

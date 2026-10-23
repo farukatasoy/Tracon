@@ -140,6 +140,24 @@ public static partial class RunEventCustomTypes
     public const string ToolInputDeclined = ReservedPrefix + "tool.input.declined";
 
     /// <summary>
+    /// The <see cref="RunEventType.Custom"/> type of the notice a run records when the front end of an AG-UI request
+    /// declared tools the agent does not carry as client-side tools.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An AG-UI front end sends all of its tools with every request. Tracon runs only the client-side tools that
+    /// are registered in code and named in the agent's definition (<c>AddClientTool</c>); the schema comes from the
+    /// code, never from the request. A declared tool outside that set is ignored, and this event says so: the model
+    /// never saw it.
+    /// </para>
+    /// <para>
+    /// The payload is a JSON object with <c>tools</c>, the ignored names, capped at 50 names of at most 128
+    /// characters each. It never carries a schema or a description from the request.
+    /// </para>
+    /// </remarks>
+    public const string AGUIToolsIgnored = ReservedPrefix + "agui.tools.ignored";
+
+    /// <summary>
     /// Checks whether <paramref name="customType"/> is a valid custom event
     /// type: 1-128 characters, lowercase ASCII letters, digits, <c>.</c>,
     /// <c>_</c>, or <c>-</c>, starting with a letter or digit.

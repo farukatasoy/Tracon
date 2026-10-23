@@ -28,6 +28,16 @@
   </ItemGroup>
 
   <!--
+    Phase 236: Tracon.AGUI is a second run surface. It shares the run turn (the gates, the agent resolution, the
+    answer matching, the run options) with the management API through AgentTurnService instead of copying it, and
+    it maps through the same role, API key and session ownership rules. Those are internal on purpose: no
+    consumer is asked to write another surface, so the seam is not public.
+  -->
+  <ItemGroup Label="Internal visibility - AG-UI endpoint package">
+    <InternalsVisibleTo Include="Tracon.AGUI" />
+  </ItemGroup>
+
+  <!--
     Phase 74: the OpenAPI document travels with the package that serves the
     endpoints it describes, and Tracon.AspNetCore.targets hands its path to
     the local reference file. No dependency is added - this is a static JSON

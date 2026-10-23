@@ -17,6 +17,7 @@
       "src/Tracon.Workflows/Tracon.Workflows.csproj",
       "src/Tracon.AspNetCore/Tracon.AspNetCore.csproj",
       "src/Tracon.UI/Tracon.UI.csproj",
+      "src/Tracon.AGUI/Tracon.AGUI.csproj",
       "src/Tracon/Tracon.csproj",
       "src/Tracon.Templates/Tracon.Templates.csproj",
       "src/Tracon.Testing/Tracon.Testing.csproj",

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Tracon.AGUI/Tracon.AGUI.csproj" />
+    <!-- Fake model provider (FakeModelProvider): it records the requests that reach it, which is how a test sees the tools the model was given. -->
+    <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
+    <!-- AGUIInputRequiredTests: an MCP server's request for user input arrives through a real MCP client. -->
+    <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A real MCP server whose tools ask the user for input (the same server McpElicitationTests drives). -->
+    <Compile Include="../Shared/Infrastructure/ElicitingMcpServer.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      TestHost, not Microsoft.AspNetCore.Mvc.Testing: Tracon is a library and has no entry point assembly. Each test
+      builds its own host (same reasoning as Tracon.AspNetCore.FunctionalTests).
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
