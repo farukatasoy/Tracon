@@ -1,8 +1,8 @@
 # Faz 236 — Tracon'un AG-UI Ucu
 
-> **Durum:** 📋 Planlandı (2026-10-22)
+> **Durum:** 🚧 Uygulanıyor (2026-10-23)
 > **Kademe:** tam — yeni paket (`Tracon.AGUI`, üçüncü taraf bağımlılık, tedarik zinciri onayı) · public API (yeni uç ve kayıt uzantısı) · güvenlik sınırı (istemcinin beyan ettiği tool'lar K2 ile kesişir; oturum sahipliği; onay ve "Hatırla" kuralı yeni bir yüzeyden gelir)
-> **Plan onayı:** Tasarım seçimleri onaylandı — farukatasoy, 2026-10-22: istemcinin tool'u yalnız kodda kayıtlı istemci tool'uyla kesişirse kullanılır; uç yeni kararlı `Tracon.AGUI` paketinde yaşar. Planın tamamı: **onaylanmadı — uygulama başlamaz**
+> **Plan onayı:** Tasarım seçimleri onaylandı — farukatasoy, 2026-10-22: istemcinin tool'u yalnız kodda kayıtlı istemci tool'uyla kesişirse kullanılır; uç yeni kararlı `Tracon.AGUI` paketinde yaşar. Planın tamamı: **onaylandı** — farukatasoy, 2026-10-23 ("fazı geliştir"): Açık Sorular 1–7 önerilen cevaplarla uygulanır (bkz. *Plandan Sapmalar*)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-616** (ölçüm: [`MAF-KAPSAMA.md`](MAF-KAPSAMA.md) §0 #37, §8.2 C-15 b; [`kesif/2026-10-21-maf-dalga-4.md`](kesif/2026-10-21-maf-dalga-4.md))
 > **Genellik:** AG-UI ön yüzü (CopilotKit gibi) kullanan her ekip. AG-UI bir ekosistem standardıdır ve MAF onu birinci sınıf entegrasyon olarak sunar (ikinci kanıt). Tüketici kodunda kalamaz: ucu yazan, Tracon'un onay, istemci tool'u, oturum sahipliği ve run kaydı sözleşmesini yeniden kurmak zorunda kalır; MAF'ın kendi ucu Tracon altında çalışmaz (§0 #37).
 > **Karşı görüş:** "Tracon'un gömülebilir sohbet aracı ve TS istemcisi aynı işi görür; AG-UI talebi ölçülmedi." Cevap: gömülebilir araç Tracon'un kendi ön yüzüdür; AG-UI ekibin **kendi** ön yüzünü (CopilotKit, özel React) Tracon'a bağlamasını sağlar. Değer ekosistem standardına bağlıdır ve bu fazın maliyeti ayrı pakette kalır: AG-UI kullanmayan tüketicinin grafiği değişmez.
@@ -276,6 +276,10 @@ curl -sN -X POST http://localhost:5081/tracon/agui/<agent> \
 ## Plandan Sapmalar
 
 > Çalışırken dolar. Kapanışta kapanış commit mesajına taşınır.
+
+- **Açık Sorular 1–7: önerilen cevaplar uygulandı** (2026-10-23, kullanıcı "fazı geliştir" dedi, soruları ayrıca cevaplamadı): 1 yok say · 2 `State` yok say · 3 `CustomEvent` `tracon.run` · 4 kodda olmayan tool adı yok sayılır, seçenek tipi eklenmedi (bu yüzden `TraconAGUIOptions` ve `AGUIUnknownToolBehavior` **yok**) · 5 run başına daraltma yok → `400` + eksik adlar · 6 yönetim API kuralı · 7 yeni `Tracon.AGUI.FunctionalTests`.
+- **Tedarik zinciri onayı (DoD 1, 2026-10-23, `nuget-danismani` mercek 9; kanıt `dotnet nuget verify` ve nuget.org kayıt API'si):** `AGUI.Server` 1.0.1 ve `AGUI.Abstractions` 1.0.1 — MIT; nuget.org'da doğrulanmış sahip `ag-ui-protocol`; **yazar imzası geçerli** (`CN="Tawkit, Inc."`, 2026-07-15 → 2027-07-15; yayıncı adı "AG-UI Protocol" ile imzalayan tüzel kişi farklıdır — kayda geçti); depo imzası var; `repository commit` `9a7508f0` ile `github.com/ag-ui-protocol/ag-ui`; bağımlılık yalnız `Microsoft.Extensions.AI.Abstractions` ≥ 10.6.0 (net10.0'da başka yok; net8/net9'da `System.Text.Json` ek); 2026-07-02 → 2026-10-12 arası 13 sürüm (0.0.1 → 1.0.1, kararlı 1.0.0 2026-09-17); 250 bin / 357 bin indirme. Not: 1.0.1'in `releaseNotes` alanı hâlâ "Initial preview release" yazıyor. **Karar: onaylandı, sürüm sabit `1.0.1`.** Karar sahibi insan ise bu satırı geri çevirebilir; faz o durumda durur.
+- **Doküman koda göre düzeltildi:** (a) `MapTraconAGUI` varsayılan deseni `/tracon/agui` (planın imzası `/agui`, planın `curl` örneği `/tracon/agui`; `MapTraconA2A`/`MapTraconMcpServer` aynı biçimde `/tracon/...`). (b) Denetim satırında "yüzey" alanı **yok** (`approval.decision` satırı `tool:<ad>` ve `{approved, reason}` taşır): AG-UI'dan gelen karar `after` içine `surface: "ag-ui"` ekler; diğer yüzeylerin satırı değişmez. (c) `AGUIStreamOptions.MapInterrupt` ne `ToolApprovalRequestContent` ne `InterruptRequestContent` için çağrılır (probe, AGUI.Server 1.0.1); `ToolApprovalRequestContent` kendiliğinden `reason: "tool_call"` ve `{approved}` şemasıyla kesinti üretir. Ayrıca kesintinin metni içerik akıtıldığı anda yakalanır: sonradan değiştirilen `Message` RUN_FINISHED'e yansımaz. Bu yüzden onay ve girdi kesintisi `MapInterrupt` ile değil, akıştaki içeriği `InterruptRequestContent`'e çevirerek kurulur.
 
 ## Bu Fazda Verilen Kararlar
 

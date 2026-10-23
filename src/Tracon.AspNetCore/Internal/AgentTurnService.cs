@@ -126,13 +126,18 @@ internal static class AgentTurnService
     /// <param name="prefix">The path prefix attachment references are built with.</param>
     /// <param name="httpContext">The request.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="surface">
+    /// The surface the request came in on when it is not the management API's run endpoint (<c>ag-ui</c>); it is written
+    /// into the audit row of an approval decision so the two can be told apart.
+    /// </param>
     /// <returns>The turn that is ready to run, or the refusal to answer with.</returns>
     public static async ValueTask<TurnPreparation> PrepareAsync(
         string name,
         AgentRunRequest request,
         string prefix,
         HttpContext httpContext,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? surface = null)
     {
         var services = httpContext.RequestServices;
         var catalog = services.GetRequiredService<IAgentCatalog>();
@@ -409,7 +414,7 @@ internal static class AgentTurnService
             ? ParameterValueSet.Resolve(declared.Parameters, request.Parameters)
             : null;
 
-        return TurnPreparation.Ready(new PreparedTurn(agent, name, request, attachments, prefix, runId, assignment, recordedValues));
+        return TurnPreparation.Ready(new PreparedTurn(agent, name, request, attachments, prefix, runId, assignment, recordedValues, surface));
     }
 
     /// <summary>
@@ -482,6 +487,126 @@ internal static class AgentTurnService
         }
     }
 
+
+    /// <summary>
+    /// Refuses a new run while the application drains for shutdown.
+    /// </summary>
+    /// <param name="httpContext">The request.</param>
+    /// <returns>The refusal to answer with, or <see langword="null"/> when the run may start.</returns>
+    /// <remarks>
+    /// 🚨 Checked BEFORE anything else: a run refused here never opens a <c>runs</c> row, so there is nothing to clean up.
+    /// See <c>TraconDrainService</c>.
+    /// </remarks>
+    public static IResult? CheckDrain(HttpContext httpContext)
+        => DrainGate.Check(httpContext.RequestServices.GetRequiredService<ITraconDrainState>());
+
+    /// <summary>
+    /// Describes a failure of a run whose response has NOT begun, as the problem the caller is answered with.
+    /// </summary>
+    /// <param name="exception">What the run raised.</param>
+    /// <param name="runId">The run, for the log line.</param>
+    /// <param name="httpContext">The request, for the logger.</param>
+    /// <returns>The problem to write.</returns>
+    /// <remarks>
+    /// <para>
+    /// A client error is not a gateway error: a block, a refused session owner and a lost session race are the caller's
+    /// to fix, and a 502 would say "upstream is broken" and steer the client toward retrying.
+    /// </para>
+    /// <para>
+    /// 🚨 Nothing goes uncaught here (HATA-S2-003/HATA-S3-005): a narrow filter would let real provider SDK exceptions
+    /// leak into ASP.NET Core's generic handler and produce a bare 500. The exception's own message does not reach the
+    /// caller unless it is one of the Tracon exceptions written for the caller; any other is logged with a correlation id
+    /// and answered with the safe text.
+    /// </para>
+    /// </remarks>
+    public static IResult DescribeFailure(Exception exception, Guid runId, HttpContext httpContext)
+    {
+        switch (exception)
+        {
+            case TraconContentBlockedException blocked:
+                // 🚨 A block is a CLIENT error: the request was understood, but the policy did not let it through, and
+                // retrying would not help. The ProblemDetails carries the guard and rule name; it does NOT carry the
+                // blocked text (nor does the exception message).
+                return Results.Problem(
+                    title: "Content blocked",
+                    detail: blocked.Message,
+                    statusCode: StatusCodes.Status422UnprocessableEntity,
+                    extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["errorType"] = TraconContentBlockedException.ContentBlockedErrorType,
+                        ["guard"] = blocked.GuardName,
+                        ["rule"] = blocked.RuleName,
+                        ["direction"] = blocked.Direction.ToString(),
+                    });
+
+            case TraconSessionOwnerRequiredException ownerRequired:
+                // 🚨 403, not 500: session ownership is on and the deployment asked for exactly this refusal, so it is a
+                // policy decision and not a fault. Not 401 either - the caller cleared the endpoint's own role policy
+                // and is authenticated as far as ASP.NET Core is concerned; what is missing is an identity the
+                // attribution pipeline can name as the session's owner.
+                return Results.Problem(
+                    title: "Session owner required",
+                    detail: ownerRequired.Message,
+                    statusCode: StatusCodes.Status403Forbidden,
+                    extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["errorType"] = TraconSessionOwnerRequiredException.SessionOwnerRequiredErrorType,
+                    });
+
+            case TraconSessionConflictException conflict:
+                // 🚨 HATA-004: when two concurrent initial requests arrive for the same NEW session, the loser lands
+                // here. A 502 would say "upstream is broken"; the actual cause is a client-side race condition - a 409
+                // and a short retry are the correct fix.
+                return Results.Problem(
+                    title: "Session conflict",
+                    detail: conflict.Message,
+                    statusCode: StatusCodes.Status409Conflict,
+                    extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["errorType"] = TraconSessionConflictException.SessionConflictErrorType,
+                    });
+
+            default:
+                var failure = LogFailure(exception, runId, httpContext, streaming: false);
+
+                return Results.Problem(
+                    title: "Agent run failed",
+                    detail: failure.Message,
+                    statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
+
+    /// <summary>
+    /// Logs the failure of a run whose response has already begun and returns what the caller may be told.
+    /// </summary>
+    /// <param name="exception">What the run raised.</param>
+    /// <param name="runId">The run, for the log line.</param>
+    /// <param name="httpContext">The request, for the logger.</param>
+    /// <returns>The exception type name and the safe text carrying a correlation id.</returns>
+    /// <remarks>
+    /// 🚨 K-296: the status line and the headers are on the wire already, so the failure can only be told inside the
+    /// stream. Nothing goes uncaught: a provider SDK exception that derives straight from <see cref="Exception"/> would
+    /// otherwise close the connection WITHOUT telling the client, which would take it for a silent success.
+    /// </remarks>
+    public static (string Type, string Message) DescribeStreamFailure(Exception exception, Guid runId, HttpContext httpContext)
+        => LogFailure(exception, runId, httpContext, streaming: true);
+
+    private static (string Type, string Message) LogFailure(Exception exception, Guid runId, HttpContext httpContext, bool streaming)
+    {
+        var correlationId = SafeErrorText.NewCorrelationId();
+        var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Tracon.AgentEndpoints");
+
+        if (streaming)
+        {
+            logger.LogError(exception, "Streaming agent run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+        }
+        else
+        {
+            logger.LogError(exception, "Agent run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
+        }
+
+        return (exception.GetType().Name, SafeErrorText.ForPersistence(exception, correlationId));
+    }
 }
 
 /// <summary>The outcome of <see cref="AgentTurnService.PrepareAsync"/>.</summary>
@@ -567,6 +692,7 @@ internal sealed record PendingToolInputAnnouncement(
 /// <param name="runId">The identity the run is recorded under.</param>
 /// <param name="assignment">The experiment arm the run was assigned to, if any.</param>
 /// <param name="parameterValues">The agent parameter values the run records, defaults included.</param>
+/// <param name="surface">The surface the request came in on, when it is not the management API's run endpoint.</param>
 internal sealed class PreparedTurn(
     Microsoft.Agents.AI.AIAgent agent,
     string agentName,
@@ -575,7 +701,8 @@ internal sealed class PreparedTurn(
     string prefix,
     Guid runId,
     ExperimentAssignment? assignment,
-    IReadOnlyDictionary<string, string>? parameterValues)
+    IReadOnlyDictionary<string, string>? parameterValues,
+    string? surface)
 {
     /// <summary>Gets the resolved agent.</summary>
     public Microsoft.Agents.AI.AIAgent Agent => agent;
@@ -590,6 +717,36 @@ internal sealed class PreparedTurn(
     public Guid RunId => runId;
 
     /// <summary>
+    /// Opens the session the request names and builds the messages the run starts with.
+    /// </summary>
+    /// <param name="httpContext">The request.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The turn, ready to run.</returns>
+    /// <exception cref="TraconSessionOwnerRequiredException">Session ownership is on and no identity could own a new session.</exception>
+    /// <exception cref="TraconSessionConflictException">A concurrent request created the same new session first.</exception>
+    /// <exception cref="TraconException">An audit row of an answer could not be written; no answer was applied.</exception>
+    /// <remarks>
+    /// A request without a <c>sessionId</c> opens no session: the run is sessionless and carries no history.
+    /// </remarks>
+    public async ValueTask<OpenedTurn> OpenAsync(HttpContext httpContext, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+
+        Microsoft.Agents.AI.AgentSession? session = null;
+
+        if (!string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            session = await httpContext.RequestServices.GetRequiredService<AgentSessionManager>()
+                .GetOrCreateSessionAsync(agent, request.SessionId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var (messages, inputAnswers) = await BuildMessagesAsync(httpContext, session, cancellationToken).ConfigureAwait(false);
+
+        return new OpenedTurn(this, session, messages, inputAnswers);
+    }
+
+    /// <summary>
     /// Creates the options the run starts with: the run's identity, its experiment arm, its parameter values, and the
     /// hooks that publish what the run waits for.
     /// </summary>
@@ -601,7 +758,7 @@ internal sealed class PreparedTurn(
     /// </param>
     /// <param name="onPendingInputs">Called right before the run publishes the tool inputs it waits for.</param>
     /// <returns>The run options.</returns>
-    public TraconRunOptions CreateRunOptions(
+    internal TraconRunOptions CreateRunOptions(
         Microsoft.Agents.AI.AgentSession? session,
         IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? inputAnswers,
         Func<IReadOnlyList<PendingApprovalAnnouncement>, CancellationToken, ValueTask>? onPendingApprovals,
@@ -672,7 +829,7 @@ internal sealed class PreparedTurn(
     /// message without answering a pending call first; the reverse order
     /// would leave the model facing an unanswered call.
     /// </remarks>
-    public async ValueTask<(List<ChatMessage> Messages, IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? InputAnswers)> BuildMessagesAsync(
+    private async ValueTask<(List<ChatMessage> Messages, IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? InputAnswers)> BuildMessagesAsync(
         HttpContext httpContext,
         Microsoft.Agents.AI.AgentSession? session,
         CancellationToken cancellationToken)
@@ -698,7 +855,8 @@ internal sealed class PreparedTurn(
                 services.GetRequiredService<IAuditActorResolver>(),
                 loggerFactory.CreateLogger(typeof(ToolApprovalResolver).FullName!),
                 services.GetRequiredService<TraconMetrics>(),
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                surface).ConfigureAwait(false);
 
             if (approvalMessage is not null)
             {
@@ -818,4 +976,74 @@ internal sealed class PreparedTurn(
 
         return (messages, inputAnswers);
     }
+}
+
+/// <summary>
+/// A <see cref="PreparedTurn"/> whose session is open and whose messages are built: what is left is to run it.
+/// </summary>
+internal sealed class OpenedTurn
+{
+    private readonly PreparedTurn _turn;
+    private readonly Microsoft.Agents.AI.AgentSession? _session;
+    private readonly List<ChatMessage> _messages;
+    private readonly IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? _inputAnswers;
+
+    internal OpenedTurn(
+        PreparedTurn turn,
+        Microsoft.Agents.AI.AgentSession? session,
+        List<ChatMessage> messages,
+        IReadOnlyDictionary<string, IReadOnlyList<ToolInputAnswer>>? inputAnswers)
+    {
+        _turn = turn;
+        _session = session;
+        _messages = messages;
+        _inputAnswers = inputAnswers;
+    }
+
+    /// <summary>Gets whether the run has a session. A run without one can never be answered later.</summary>
+    public bool HasSession => _session is not null;
+
+    /// <summary>Runs the turn and streams the agent's updates.</summary>
+    /// <param name="onPendingApprovals">Called right before the run publishes the tool approvals it waits for; <see langword="null"/> when the surface does not announce them.</param>
+    /// <param name="onPendingInputs">Called right before the run publishes the tool inputs it waits for.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The updates.</returns>
+    public IAsyncEnumerable<Microsoft.Agents.AI.AgentResponseUpdate> RunStreamingAsync(
+        Func<IReadOnlyList<PendingApprovalAnnouncement>, CancellationToken, ValueTask>? onPendingApprovals,
+        Func<IReadOnlyList<PendingToolInputAnnouncement>, CancellationToken, ValueTask>? onPendingInputs,
+        CancellationToken cancellationToken)
+        => _turn.Agent.RunStreamingAsync(
+            _messages,
+            _session,
+            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals, onPendingInputs),
+            cancellationToken);
+
+    /// <summary>Runs the turn to its end.</summary>
+    /// <param name="onPendingInputs">Called right before the run publishes the tool inputs it waits for.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The agent's response.</returns>
+    public Task<Microsoft.Agents.AI.AgentResponse> RunAsync(
+        Func<IReadOnlyList<PendingToolInputAnnouncement>, CancellationToken, ValueTask>? onPendingInputs,
+        CancellationToken cancellationToken)
+        => _turn.Agent.RunAsync(
+            _messages,
+            _session,
+            _turn.CreateRunOptions(_session, _inputAnswers, onPendingApprovals: null, onPendingInputs),
+            cancellationToken);
+
+    /// <summary>Saves the session after the run, recording a lost write race on the run before the exception goes on.</summary>
+    /// <param name="httpContext">The request.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the session is saved; nothing happens for a run without a session.</returns>
+    /// <exception cref="TraconSessionConflictException">The write lost a race.</exception>
+    public ValueTask SaveSessionAsync(HttpContext httpContext, CancellationToken cancellationToken)
+        => _session is null
+            ? ValueTask.CompletedTask
+            : AgentTurnService.SaveSessionRecordingConflictAsync(
+                httpContext,
+                httpContext.RequestServices.GetRequiredService<AgentSessionManager>(),
+                _turn.Agent,
+                _session,
+                _turn.RunId,
+                cancellationToken);
 }

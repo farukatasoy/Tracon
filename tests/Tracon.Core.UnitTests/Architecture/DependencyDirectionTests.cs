@@ -64,6 +64,10 @@ public sealed class DependencyDirectionTests
         ["Tracon.Workflows"] = ["Tracon.Core", "Tracon.Generators"],
         ["Tracon.AspNetCore"] = ["Tracon.Core"],
         ["Tracon.UI"] = ["Tracon.AspNetCore"],
+        // AG-UI is a second run surface beside the management API (Phase 236). It depends on AspNetCore for the shared
+        // run turn and the access protection, and it is NOT referenced by the meta package: a consumer whose front end
+        // does not speak AG-UI keeps a dependency graph without the AG-UI SDK (K-007).
+        ["Tracon.AGUI"] = ["Tracon.AspNetCore"],
         // Testing is a test-helper package: it is NOT referenced by the meta
         // package (section 39.1). It references AspNetCore because the type
         // consumers ask for most is an in-memory host fixture, which requires
@@ -187,6 +191,28 @@ public sealed class DependencyDirectionTests
                 $"Tracon.Mcp must not take the '{name}' package; server dependencies " +
                 "must stay inside Tracon.AspNetCore only (K-057).");
         }
+    }
+
+    [Fact]
+    public void The_AGUI_sdk_is_taken_only_by_the_AGUI_package_and_the_meta_package_does_not_reach_it()
+    {
+        // Phase 236 (K-007): the AG-UI SDK is a third-party dependency of a protocol most applications do not speak. It lives
+        // in Tracon.AGUI alone, so Tracon.AspNetCore and the Tracon meta package keep a dependency graph without it. A consumer
+        // opts in by installing Tracon.AGUI.
+        var sourceDirectory = Path.Combine(RepositoryRoot, "src");
+
+        var takers = Directory.EnumerateFiles(sourceDirectory, "*.csproj", SearchOption.AllDirectories)
+            .Where(path => XDocument.Load(path)
+                .Descendants("PackageReference")
+                .Select(element => element.Attribute("Include")?.Value)
+                .Any(include => include is not null && include.StartsWith("AGUI.", StringComparison.Ordinal)))
+            .Select(static path => Path.GetFileNameWithoutExtension(path))
+            .ToList();
+
+        takers.ShouldBe(["Tracon.AGUI"]);
+
+        ReadTraconProjectReferences("Tracon").ShouldNotContain("Tracon.AGUI", StringComparer.Ordinal);
+        ReadTraconProjectReferences("Tracon.AspNetCore").ShouldNotContain("Tracon.AGUI", StringComparer.Ordinal);
     }
 
     [Fact]

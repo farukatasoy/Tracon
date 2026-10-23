@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>AG-UI endpoint for Tracon. Connects a front end that speaks the AG-UI protocol (CopilotKit and others) to a Tracon agent: text streams as AG-UI events, front-end tools run on the front end, tool approvals and requests for input are AG-UI interrupts. The run, the tenant, the roles, the session owner, the approval trail and the cost stay Tracon's.</Description>
+    <PackageTags>$(CommonPackageTags);ag-ui;agui;copilotkit;frontend;sse</PackageTags>
+    <!-- ASP.NET Core minimal API routing and Tracon.AspNetCore use reflection; AOT cannot be promised. -->
+    <TraconAotCompatible>false</TraconAotCompatible>
+    <!-- No published baseline exists on nuget.org yet; remove after the first release (Phase 187). -->
+    <TraconPackageFirstRelease>true</TraconPackageFirstRelease>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <!--
+    The AG-UI protocol SDK (K-007, rationale in Directory.Packages.props). AGUI.Server turns a Microsoft.Extensions.AI
+    update stream into AG-UI events; AGUI.Abstractions carries the event and input types. Both are named here because
+    this project uses types from both. The ASP.NET Core mapping and the SSE writing are NOT in the SDK: Tracon writes
+    them, so the endpoint passes the same protection as every other Tracon surface.
+  -->
+  <ItemGroup>
+    <PackageReference Include="AGUI.Server" />
+    <PackageReference Include="AGUI.Abstractions" />
+  </ItemGroup>
+
+</Project>

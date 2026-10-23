@@ -241,6 +241,19 @@
     <PackageVersion Include="ModelContextProtocol.Extensions.Tasks" Version="2.3.0" />
   </ItemGroup>
 
+  <!--
+    Faz 236: AG-UI ucu (Tracon.AGUI). K-007 gerekcesi: AG-UI, CopilotKit gibi on yuzlerin konustugu bir protokoldur ve
+    olay donusturucusunu (MEAI akisi -> AG-UI olaylari) bu iki paket tasir; ayni donusturucuyu elle yazmak protokolun
+    tel bicimini kopyalamak olurdu. Yayinci "AG-UI Protocol" (Microsoft degil), MIT, nuget.org'da dogrulanmis sahip,
+    yazar imzasi gecerli (`dotnet nuget verify`, 2026-10-23). Bagimlilik yalniz Microsoft.Extensions.AI.Abstractions
+    >= 10.6.0 (Tracon 10.11.0'da); net8.0 ve net9.0'da System.Text.Json de gelir. Yalnizca Tracon.AGUI icine girer;
+    Tracon.AspNetCore ve meta paketin grafigi degismez. Surum sabit; kararli oldugu icin ailede tek hatta cikar (K-602).
+  -->
+  <ItemGroup Label="AG-UI">
+    <PackageVersion Include="AGUI.Server" Version="1.0.1" />
+    <PackageVersion Include="AGUI.Abstractions" Version="1.0.1" />
+  </ItemGroup>
+
   <ItemGroup Label="Analyzer'lar (PrivateAssets=all)">
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.303" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />

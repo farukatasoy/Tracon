@@ -16,6 +16,7 @@
     <Project Path="src/Tracon.Workflows/Tracon.Workflows.csproj" />
     <Project Path="src/Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
     <Project Path="src/Tracon.UI/Tracon.UI.csproj" />
+    <Project Path="src/Tracon.AGUI/Tracon.AGUI.csproj" />
     <Project Path="src/Tracon/Tracon.csproj" />
     <Project Path="src/Tracon.Templates/Tracon.Templates.csproj" />
     <Project Path="src/Tracon.Testing/Tracon.Testing.csproj" />
@@ -40,6 +41,7 @@
     <Project Path="tests/Tracon.Google.UnitTests/Tracon.Google.UnitTests.csproj" />
     <Project Path="tests/Tracon.Azure.UnitTests/Tracon.Azure.UnitTests.csproj" />
     <Project Path="tests/Tracon.Voice.UnitTests/Tracon.Voice.UnitTests.csproj" />
+    <Project Path="tests/Tracon.AGUI.FunctionalTests/Tracon.AGUI.FunctionalTests.csproj" />
     <Project Path="tests/Tracon.PostgreSql.IntegrationTests/Tracon.PostgreSql.IntegrationTests.csproj" />
     <Project Path="tests/Tracon.SqlServer.IntegrationTests/Tracon.SqlServer.IntegrationTests.csproj" />
     <Project Path="tests/Tracon.Sqlite.IntegrationTests/Tracon.Sqlite.IntegrationTests.csproj" />

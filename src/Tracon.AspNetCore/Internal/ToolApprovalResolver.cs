@@ -45,6 +45,10 @@ internal static class ToolApprovalResolver
     /// <param name="logger">The logger.</param>
     /// <param name="metrics">The metric set that counts a failed audit write.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="surface">
+    /// The surface that carried the decisions, written into the audit row when it is not the management API's own
+    /// run endpoint; <see langword="null"/> writes the row as it always was.
+    /// </param>
     /// <returns>
     /// The message carrying the approval responses; <see langword="null"/> if no
     /// pending request matches.
@@ -62,7 +66,8 @@ internal static class ToolApprovalResolver
         IAuditActorResolver actorResolver,
         ILogger logger,
         TraconMetrics? metrics,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? surface = null)
     {
         var history = await ChatHistoryReader
             .ReadAsync(agent, session, chatHistory, cancellationToken)
@@ -108,7 +113,8 @@ internal static class ToolApprovalResolver
                 toolName,
                 decision.Approved,
                 decision.Reason,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                surface).ConfigureAwait(false);
 
             contents.Add(request.CreateResponse(decision.Approved, decision.Reason ?? string.Empty));
 
@@ -127,7 +133,7 @@ internal static class ToolApprovalResolver
     /// Answered requests are filtered out: sending a second response to the same
     /// request would give the model contradictory input.
     /// </remarks>
-    private static Dictionary<string, ToolApprovalRequestContent> CollectPendingRequests(
+    internal static Dictionary<string, ToolApprovalRequestContent> CollectPendingRequests(
         IReadOnlyList<ChatMessage> history)
     {
         var requests = new Dictionary<string, ToolApprovalRequestContent>(StringComparer.Ordinal);

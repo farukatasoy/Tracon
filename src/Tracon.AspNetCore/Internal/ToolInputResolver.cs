@@ -229,7 +229,7 @@ internal static class ToolInputResolver
     }
 
     /// <summary>Collects the unanswered requests and the answered request ids of the session history.</summary>
-    private static (Dictionary<string, PendingInputRecord> Pending, HashSet<string> Answered) Collect(
+    internal static (Dictionary<string, PendingInputRecord> Pending, HashSet<string> Answered) Collect(
         IReadOnlyList<ChatMessage> history)
     {
         var calls = new Dictionary<string, FunctionCallContent>(StringComparer.Ordinal);
