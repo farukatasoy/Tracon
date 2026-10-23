@@ -10,11 +10,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
 **Sıradaki boş faz numarası: 237.**
 
-## Açık fazlar (2 kalem)
+## Açık fazlar (1 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
-| [236](236-AGUI-UCU.md) | Tracon'un AG-UI Ucu | ✅ Tamamlandı |
 
-Kapanan fazlar (235 kayıt; son: Faz 235 — MCP Elicitation: Askıya Alınan Tool Çağrısı): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).
+Kapanan fazlar (236 kayıt; son: Faz 236 — Tracon'un AG-UI Ucu): [`FAZ-DEFTERI.md`](FAZ-DEFTERI.md). Kapanan faz dokümanı silinir; tam metne defterdeki `git show` işaretçisi götürür. Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md).

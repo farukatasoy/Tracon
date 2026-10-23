@@ -24,7 +24,7 @@
 
 ## 2026-10-22 — F-617 → Faz 235, F-616 → Faz 236
 
-Taşındıkları gün `docs/ADAYLAR.md`'den alınan gövdeler. Güncel plan: Faz 235, [`../236-AGUI-UCU.md`](../236-AGUI-UCU.md).
+Taşındıkları gün `docs/ADAYLAR.md`'den alınan gövdeler. Güncel plan: Faz 235, Faz 236.
 
 ### F-617 · MCP elicitation: MRTR ile askıya alınan tool çağrısı
 
