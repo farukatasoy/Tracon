@@ -14,8 +14,8 @@ application architecture, not as a restore detail.
 The release process produces 21 NuGet packages and one npm package (`@tracon/client`), all
 cut from the same `v*` tag and sharing one version line: there is no split between
 a stable subset and a preview subset. The public surface carries no compatibility
-promise for as long as that line stays pre-1.0 - a narrowing or a reshaped type is
-not treated as a breaking change until the family reaches `1.0.0`.
+promise for as long as that line stays below `1.0.0-rc.1` - a narrowing or a reshaped
+type is not treated as a breaking change until the family reaches that release.
 
 ## Release notes
 
@@ -29,7 +29,82 @@ changed since the previous published version, and every target framework a
 package no longer ships. The release process checks this against a
 machine-made list: it validates each package against the previous published
 package, and it does not publish when the notes leave out a name. A narrowing
-is still allowed before `1.0.0`; an unannounced one is not.
+is still allowed before `1.0.0-rc.1`; an unannounced one is not. From
+`1.0.0-rc.1` even an announced one is not: see [What 1.x promises for the .NET
+API](#what-1x-promises-for-the-net-api).
+
+## What 1.x promises for the .NET API
+
+Tracon freezes the public .NET API at `1.0.0-rc.1`. From that release on, each
+change to a public type or member belongs to one SemVer class. The release
+process reads the public API and rejects a release that puts such a change in a
+class that does not allow it. Behavior is a different matter: two rows of the
+table are a maintainer's review, and the release process only makes them visible
+(see below). Until `rc.1` the earlier rule holds: a break is allowed when the
+release notes name it.
+
+| Change | Patch | Minor | Major |
+|---|---|---|---|
+| A new public type | No | Yes | Yes |
+| A new public member on an existing type (optional, with a documented default) | No | Yes | Yes |
+| A new interface member **with a default body** | No | Yes | Yes |
+| A new interface member without a body | No | No | Yes |
+| A new abstract member on an abstract class | No | No | Yes |
+| A new `required` member on an existing type | No | No | Yes |
+| A `required` member becomes optional | No | Yes | Yes |
+| A new positional parameter on a record, or a new optional parameter on a method | No | No (a new overload: Yes) | Yes |
+| A new enum value | No | Yes | Yes |
+| An enum value removed, or its number changed | No | No | Yes |
+| A public type or member removed, renamed, or given another signature | No | No | Yes |
+| A target framework dropped | No | No | Yes |
+| A new test in `Tracon.Testing.Contracts.Xunit` that measures behavior the documentation already states | Yes (a defect fix) | Yes | Yes |
+| A new test in `Tracon.Testing.Contracts.Xunit` that asks for new behavior | No | No | Yes |
+| A change to behavior that the XML documentation states | No | No | Yes |
+
+How the release process holds each row:
+
+- **A frozen release rejects a break.** When the last published version is
+  `1.0.0-rc.1` or later and the new version has the same major version, a
+  removed type or member, a changed signature, a dropped target framework,
+  an interface member without a body, an abstract member, an enum value
+  that is gone or renumbered, and a `required` member that an existing type
+  gains all stop the release. The release notes do not change that. A new
+  major version is the one place where a break is allowed, and the notes
+  must name it.
+- **A patch release does not grow the surface.** It compares the public API
+  files with those of the last published version, and any added line stops
+  the release. The one exception is a new contract test (below). A `required`
+  member that becomes optional or goes away stops a patch as well.
+- **Between `1.0.0-rc.1` and `1.0.0` the surface only closes.** A release with
+  the same major and minor version as the last published one counts as a patch:
+  `1.0.0-rc.2` and `1.0.0` add no public member to `1.0.0-rc.1`.
+- **A `required` member is checked apart.** The compatibility check of the
+  .NET SDK does not report a `required` member added to an existing type. The
+  repository keeps a list of every public `required` member, a test keeps the
+  list true to the code, and the release process compares it with the list at
+  the last published version.
+- **Every run prints its rule.** The first line of the check says whether the
+  release is judged as a preview, a frozen release, or a new major version.
+- **Behavior is reviewed, not read.** The release process cannot tell whether a
+  new contract test asks for new behavior, or whether a change alters behavior
+  that the XML documentation states. It lists every new contract test and stops
+  when the release notes do not name one; the maintainer judges the rest.
+
+Three more rules complete the table:
+
+- **Your code handles an enum value it does not know.** A `switch` over a
+  Tracon enum has a `default` branch. Tracon adds a value in a minor release.
+- **One rule covers every public interface.** An interface that Tracon calls
+  and you never implement, such as `IToolRegistry` or `IWorkflowRunner`, follows
+  the same rule as one you implement. The release check does not tell them
+  apart, so the rule does not.
+- **A contract test only measures stated behavior.** When you upgrade, a new
+  test in `Tracon.Testing.Contracts.Xunit` runs against your store, provider,
+  or judge, and it can fail. Tracon adds one only when the XML documentation
+  or this site stated the behavior before the version that adds the test. The
+  release notes name each new test as `Class.Method`. If a new test fails
+  against your implementation, either the implementation or the documentation
+  is wrong. Report it as an issue.
 
 ## Package identity
 

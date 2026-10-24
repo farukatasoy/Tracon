@@ -16,6 +16,14 @@
 
   <ItemGroup>
     <!--
+      Test-only (phase 237): RequiredMemberScanner reads the `required` members out of the C# source, so the
+      snapshot the release rehearsal compares with the baseline tag can be checked against the code.
+    -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       Test-only (phase 233): a REAL vector store connector, so the filters conversation memory builds
       are translated by a connector and not only run by the test double.
     -->

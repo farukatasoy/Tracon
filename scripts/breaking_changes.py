@@ -8,7 +8,10 @@ into a list of broken public types and dropped target frameworks, and
 checks that the release notes name every one of them.
 
 K-602 still allows a breaking change in the preview line. The gate does not
-reject one; it rejects shipping one that the notes do not announce.
+reject one there; it rejects shipping one that the notes do not announce.
+From `1.0.0-rc.1` on (Faz 237) the line is frozen: a breaking change is red
+whatever the notes say, and a patch release may not grow the public surface.
+`release_line` decides which rule a release is judged by.
 
 Callable two ways:
 - from `kapi.py yayin` (the functions below; the rehearsal owns the pack);
@@ -131,6 +134,69 @@ def compare_versions(left: str, right: str) -> int:
 
 def version_is_above_baseline(version: str, baseline: str) -> bool:
     return compare_versions(version, baseline) > 0
+
+
+# -----------------------------------------------------------------------------
+# 237.2 - release line
+# -----------------------------------------------------------------------------
+
+FROZEN_FROM = "1.0.0-rc.1"
+UNRELEASED = "Unreleased"
+
+LINE_PREVIEW = "preview"
+LINE_MAJOR = "major"
+LINE_FROZEN = "frozen"
+
+
+@dataclasses.dataclass(frozen=True)
+class ReleaseLine:
+    """Which rule set a release is judged by.
+
+    `preview` - the baseline is below `1.0.0-rc.1`: K-602 allows a breaking
+    change if the notes announce it. `major` - the baseline is frozen but the
+    version raises the major: the same rule, because a major is where 1.x
+    allows a break. `frozen` - baseline `1.0.0-rc.1` or above and the same
+    major: a breaking change is red, and the notes cannot save it. `patch`
+    marks the frozen releases that also share the baseline's minor; the
+    surface is closed there, so an ADDED public member is red too."""
+
+    kind: str
+    major: int
+    patch: bool = False
+
+    @property
+    def frozen(self) -> bool:
+        return self.kind == LINE_FROZEN
+
+    def describe(self) -> str:
+        if self.kind == LINE_PREVIEW:
+            return "Hat: preview (K-602 — kırılma notta adıyla)"
+        if self.kind == LINE_MAJOR:
+            return "Hat: major artışı (kırılma notta adıyla)"
+        if self.patch:
+            return f"Hat: donmuş {self.major}.x yama (kırılma ve eklenen public üye reddedilir)"
+        return f"Hat: donmuş {self.major}.x (kırılma reddedilir)"
+
+
+def release_line(baseline: str, version: str | None) -> ReleaseLine:
+    """The one function that decides the line (Faz 237, §237.2). Faz 238 reuses
+    it for the HTTP and name-set gates; a second copy would drift.
+
+    `version` may be None only while the baseline is a preview: nothing below
+    `rc.1` depends on it, and the CLI has no version to give when it reads
+    `[Unreleased]`."""
+    if compare_versions(baseline, FROZEN_FROM) < 0:
+        return ReleaseLine(LINE_PREVIEW, major=0)
+    if version is None:
+        raise ValueError(f"sürüm gerekli: taban v{baseline} donmuş hatta, hat sürümsüz belirlenemez")
+    base_core = _parse_version(baseline)[0]
+    new_parsed = _parse_version(version)
+    if new_parsed is None:
+        raise ValueError(f"not a version: '{version}'")
+    new_core = new_parsed[0]
+    if new_core[0] != base_core[0]:
+        return ReleaseLine(LINE_MAJOR, major=new_core[0])
+    return ReleaseLine(LINE_FROZEN, major=base_core[0], patch=new_core[:2] == base_core[:2])
 
 
 # -----------------------------------------------------------------------------
@@ -324,6 +390,10 @@ class BreakingChanges:
     types: dict[str, set[str]] = dataclasses.field(default_factory=dict)
     dropped_frameworks: dict[str, set[str]] = dataclasses.field(default_factory=dict)
     errors: list[str] = dataclasses.field(default_factory=list)
+    # Types that gained a `required` member. Also in `types`: the report never
+    # lists them, the snapshot comparison does (§237.3), and from there on
+    # they are broken types like any other.
+    required: dict[str, set[str]] = dataclasses.field(default_factory=dict)
 
     @property
     def is_empty(self) -> bool:
@@ -515,7 +585,242 @@ def unnamed_changes(changes: BreakingChanges, notes: str | None) -> list[str]:
     return lines
 
 
-def write_result(path: pathlib.Path, *, baseline: str, notes_heading: str | None, changes: BreakingChanges) -> pathlib.Path:
+# -----------------------------------------------------------------------------
+# 237.3 / 237.4 - what the ApiCompat report cannot see
+# -----------------------------------------------------------------------------
+#
+# Measured 2026-10-24 (Faz 237, §237.3), SDK 10.0.402, baseline validation on:
+# an added `required` member is NOT reported (not even when an optional member
+# becomes `required`); an interface member without a body is CP0006, an
+# abstract member CP0005, an enum renumber CP0011, a removed enum value CP0002,
+# an optional parameter or a positional record parameter CP0002. So the gate
+# adds two readers of its own: the `required` snapshot and the PublicAPI files,
+# both compared with the files of the baseline tag.
+
+API_FILE = re.compile(r"^src/(?P<package>[^/]+)/PublicAPI\.(?:Shipped|Unshipped)\.txt$")
+REMOVED_PREFIX = "*REMOVED*"
+CONTRACT_PACKAGE = "Tracon.Testing.Contracts.Xunit"
+REQUIRED_SNAPSHOT = pathlib.PurePosixPath("docs", "sozlesme", "required-uyeler.txt")
+MAX_LISTED = 8
+
+
+class SurfaceError(Exception):
+    """The public surface or a contract snapshot could not be read."""
+
+
+def _strip_generics(name: str) -> str:
+    previous = None
+    while previous != name:
+        previous = name
+        name = _ANGLE.sub("", name)
+    return name
+
+
+def effective_api(shipped: str, unshipped: str) -> set[str]:
+    """The public surface the two PublicApiAnalyzers files describe together.
+
+    `Shipped` is the promise, `Unshipped` what is new since; an
+    `*REMOVED*` line in `Unshipped` takes a `Shipped` line out. At the `1.0.0`
+    fill (K-603) lines move from one file to the other, so only the union
+    says whether the surface changed."""
+    surface: set[str] = set()
+    removed: set[str] = set()
+    for text, is_unshipped in ((shipped, False), (unshipped, True)):
+        for raw in text.splitlines():
+            line = raw.strip().lstrip("\ufeff")
+            if not line or line.startswith("#"):
+                continue
+            if is_unshipped and line.startswith(REMOVED_PREFIX):
+                removed.add(line[len(REMOVED_PREFIX):].strip())
+            else:
+                surface.add(line)
+    return surface - removed
+
+
+def _show(root: pathlib.Path, tag: str, path: str) -> str | None:
+    """A file as it was at `tag`, None when the tag has no such path."""
+    shown = _git(root, "show", f"{tag}:{path}")
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def api_at_tag(root: pathlib.Path, tag: str) -> dict[str, set[str]]:
+    """Package -> its effective public surface at `tag`."""
+    listing = _git(root, "ls-tree", "-r", "--name-only", tag, "--", "src")
+    if listing.returncode:
+        reason = (listing.stderr or listing.stdout).strip() or f"çıkış {listing.returncode}"
+        raise BaselineError(f"'{tag}' ağacı listelenemedi ({reason})")
+    files: dict[str, dict[str, str]] = {}
+    for path in listing.stdout.splitlines():
+        match = API_FILE.fullmatch(path)
+        if match is not None:
+            files.setdefault(match.group("package"), {})[path.rpartition("/")[2]] = _show(root, tag, path) or ""
+    return {
+        package: effective_api(texts.get("PublicAPI.Shipped.txt", ""), texts.get("PublicAPI.Unshipped.txt", ""))
+        for package, texts in files.items()
+    }
+
+
+def api_now(root: pathlib.Path) -> dict[str, set[str]]:
+    """Package -> its effective public surface in the working tree."""
+    packages: dict[str, set[str]] = {}
+    src = root / "src"
+    names = sorted({path.parent.name for pattern in ("PublicAPI.Shipped.txt", "PublicAPI.Unshipped.txt")
+                    for path in src.glob(f"*/{pattern}")}) if src.is_dir() else []
+    for package in names:
+        texts = []
+        for file_name in ("PublicAPI.Shipped.txt", "PublicAPI.Unshipped.txt"):
+            path = src / package / file_name
+            texts.append(path.read_text(encoding="utf-8") if path.is_file() else "")
+        packages[package] = effective_api(*texts)
+    return packages
+
+
+def type_declarations(surface: Iterable[str]) -> set[str]:
+    """Type names in a PublicAPI surface, generic arguments removed. A line
+    declares a type when it names neither a member signature nor a member's
+    type (the filter `PublicSurfaceBaselineTests` uses)."""
+    return {_strip_generics(line) for line in surface if "(" not in line and " -> " not in line}
+
+
+_API_MEMBER = re.compile(
+    r"^(?P<modifiers>(?:(?:abstract|virtual|override|static|sealed|new|readonly)\s+|~)*)"
+    r"(?P<name>[^()]+?)\((?P<parameters>.*)\) -> (?P<returns>.+)$")
+_TEST_RETURNS = frozenset({"void", "System.Threading.Tasks.Task!", "System.Threading.Tasks.Task"})
+_LIFECYCLE = frozenset({"InitializeAsync", "DisposeAsync", "Dispose"})
+
+
+def contract_test_name(line: str) -> str | None:
+    """`Class.Method` when a PublicAPI line declares a contract test, else None.
+
+    A test is an instance method returning `Task` or `void` that is neither a
+    constructor nor a lifecycle hook. Hooks the consumer implements return
+    other types (`ValueTask`, `bool`) or are abstract, so the shape is enough;
+    the measured count is written in the phase document."""
+    match = _API_MEMBER.match(line)
+    if match is None:
+        return None
+    if set(match.group("modifiers").split()) & {"abstract", "static"}:
+        return None
+    if match.group("returns") not in _TEST_RETURNS:
+        return None
+    owner, _, method = _strip_generics(match.group("name")).rpartition(".")
+    type_name = owner.rpartition(".")[2]
+    if not type_name or method == type_name or method in _LIFECYCLE:
+        return None
+    return f"{type_name}.{method}"
+
+
+def contract_tests(surface: Iterable[str]) -> set[str]:
+    """`Class.Method` of every test method a contract surface declares."""
+    return {name for name in map(contract_test_name, surface) if name is not None}
+
+
+def _snapshot_lines(text: str) -> set[str]:
+    return {line.strip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")}
+
+
+def required_member_additions(
+    root: pathlib.Path, tag: str, tag_api: dict[str, set[str]], *, snapshot_required: bool = False,
+) -> tuple[dict[str, set[str]], list[str], list[str]]:
+    """Package -> types that existed at `tag` and gained a `required` member,
+    the snapshot lines the tree dropped, and the notes.
+
+    A line the snapshot gained for a type the baseline did not declare is a
+    new type, which breaks nobody. A dropped line is a `required` member that
+    became optional or went away; it matters to a frozen patch only.
+
+    When the baseline tag has no snapshot yet (the first record) the
+    comparison is skipped and a note says so - unless `snapshot_required`: a
+    frozen baseline was cut after the file existed, so a missing file there is
+    a hole in the gate, not a first record."""
+    previous = _show(root, tag, str(REQUIRED_SNAPSHOT))
+    if previous is None:
+        if snapshot_required:
+            raise SurfaceError(
+                f"{REQUIRED_SNAPSHOT} '{tag}' etiketinde yok; donmuş bir tabanda anlık görüntü zorunludur "
+                "(required üye eklemesi başka türlü görünmez)")
+        return {}, [], [f"{REQUIRED_SNAPSHOT} '{tag}' etiketinde yok (ilk kayıt): required üye karşılaştırması atlandı"]
+    try:
+        current = (root / REQUIRED_SNAPSHOT).read_text(encoding="utf-8")
+    except OSError as exception:
+        raise SurfaceError(f"{REQUIRED_SNAPSHOT} okunamadı ({exception})") from exception
+
+    declared_by: dict[str, str] = {}
+    for package, surface in sorted(tag_api.items()):
+        for declaration in type_declarations(surface):
+            declared_by.setdefault(declaration, package)
+
+    types: dict[str, set[str]] = {}
+    for line in sorted(_snapshot_lines(current) - _snapshot_lines(previous)):
+        type_name = line.rpartition(".")[0]
+        package = declared_by.get(type_name)
+        if package is not None:
+            types.setdefault(package, set()).add(type_name.rpartition(".")[2])
+    return types, sorted(_snapshot_lines(previous) - _snapshot_lines(current)), []
+
+
+@dataclasses.dataclass
+class SurfaceDelta:
+    """What changed since the baseline tag in the places ApiCompat does not look."""
+
+    tag: str
+    added_members: dict[str, list[str]] = dataclasses.field(default_factory=dict)
+    contract_tests: list[str] = dataclasses.field(default_factory=list)
+    required_types: dict[str, set[str]] = dataclasses.field(default_factory=dict)
+    required_dropped: list[str] = dataclasses.field(default_factory=list)
+    notes: list[str] = dataclasses.field(default_factory=list)
+
+
+def surface_delta(root: pathlib.Path, baseline: str) -> SurfaceDelta:
+    """Compares the working tree with the files of tag `v<baseline>`.
+
+    Raises BaselineError when the tag is missing: a gate that cannot read its
+    baseline must be red, never green. A package the tag does not know has no
+    baseline; all of its lines count as added members, but it adds no contract
+    test to an existing suite. A line that declares a NEW contract test is not
+    counted as an added member: the rule table lets a patch add a test that
+    measures documented behavior, and the notes must name it (`check`)."""
+    tag = f"{TAG_PREFIX}{baseline}"
+    if _git(root, "rev-parse", "--verify", "--quiet", f"{tag}^{{commit}}").returncode:
+        raise BaselineError(f"taban etiketi '{tag}' bu depoda yok; yüzey karşılaştırması yapılamaz")
+
+    before, after = api_at_tag(root, tag), api_now(root)
+    delta = SurfaceDelta(tag=tag)
+    if CONTRACT_PACKAGE in before:
+        delta.contract_tests = sorted(
+            contract_tests(after.get(CONTRACT_PACKAGE, set())) - contract_tests(before[CONTRACT_PACKAGE]))
+    new_tests = set(delta.contract_tests)
+    for package, surface in sorted(after.items()):
+        added = sorted(
+            line for line in surface - before.get(package, set())
+            if not (package == CONTRACT_PACKAGE and contract_test_name(line) in new_tests))
+        if added:
+            delta.added_members[package] = added
+    delta.required_types, delta.required_dropped, delta.notes = required_member_additions(
+        root, tag, before, snapshot_required=compare_versions(baseline, FROZEN_FROM) >= 0)
+    return delta
+
+
+def unnamed_contract_tests(tests: Iterable[str], notes: str | None) -> list[str]:
+    """Contract tests the notes do not name. `Class.Method` must stand in ONE
+    code span: method names repeat across contract classes, so a bare method
+    name or a class name elsewhere does not name the test."""
+    spans = [_type_parts(span) for span in _code_spans(notes or "")]
+    return sorted(
+        test for test in tests
+        if not any(set(test.split(".")) <= parts for parts in spans)
+    )
+
+
+def write_result(
+    path: pathlib.Path,
+    *,
+    baseline: str,
+    notes_heading: str | None,
+    changes: BreakingChanges,
+    line: ReleaseLine | None = None,
+    delta: SurfaceDelta | None = None,
+) -> pathlib.Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     result = {
         "baseline": baseline,
@@ -525,6 +830,10 @@ def write_result(path: pathlib.Path, *, baseline: str, notes_heading: str | None
             package: sorted(frameworks) for package, frameworks in sorted(changes.dropped_frameworks.items())
         },
     }
+    if line is not None:
+        result["line"] = line.kind
+    if delta is not None:
+        result["contractTests"] = list(delta.contract_tests)
     path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return path
 
@@ -534,6 +843,24 @@ def write_result(path: pathlib.Path, *, baseline: str, notes_heading: str | None
 # -----------------------------------------------------------------------------
 
 
+def _listed(items: Sequence[str]) -> str:
+    shown = ", ".join(items[:MAX_LISTED])
+    return shown + (f" … (+{len(items) - MAX_LISTED})" if len(items) > MAX_LISTED else "")
+
+
+def _describe_breaking(changes: BreakingChanges) -> list[str]:
+    lines = []
+    for package in sorted(set(changes.types) | set(changes.dropped_frameworks)):
+        parts = [
+            f"{name} (yeni required üye)" if name in changes.required.get(package, ()) else name
+            for name in sorted(changes.types.get(package, ()))
+        ]
+        if package in changes.dropped_frameworks:
+            parts.append("düşen TFM " + ", ".join(sorted(changes.dropped_frameworks[package])))
+        lines.append(f"{package}: {' · '.join(parts)}")
+    return lines
+
+
 def check(
     *,
     report_dir: pathlib.Path,
@@ -541,12 +868,28 @@ def check(
     version: str,
     changelog: pathlib.Path,
     result_path: pathlib.Path | None,
+    repo: pathlib.Path | None = None,
 ) -> int:
     """Reads the reports, matches them against the notes, prints the outcome.
 
-    Returns 0 when every broken type and dropped framework is named (an
-    empty list needs no notes), 1 otherwise. Writes `result_path` only when
-    green."""
+    The release line (§237.2) decides the rule. In a preview or a major
+    release a broken type or dropped framework passes when the notes name it
+    (K-602: the gate rejects the unannounced break, not the break). In a
+    frozen release it is red whatever the notes say, and a frozen patch also
+    rejects an added public member. A contract test added since the baseline
+    must be named in the notes on every line.
+
+    `repo` switches on the readers the report cannot replace: the PublicAPI
+    files, the `required` snapshot and the contract tests, all against the
+    baseline tag. Returns 0 when green, 1 otherwise. Writes `result_path`
+    only when green."""
+    try:
+        line = release_line(baseline, None if version == UNRELEASED else version)
+    except ValueError as exception:
+        print(f"❌ Hat belirlenemedi: {exception}")
+        return 1
+    print(line.describe())
+
     changes = read_breaking_changes(report_dir)
     if changes.errors:
         print(f"❌ Paket doğrulama raporu kapının tanımadığı kayıt taşıyor (taban v{baseline}):")
@@ -554,42 +897,104 @@ def check(
             print(f"  {error}")
         return 1
 
+    delta: SurfaceDelta | None = None
+    if repo is None:
+        print("ℹ️ Yüzey karşılaştırması yok (depo verilmedi): eklenen üye, required üye ve contract testi denetlenmedi")
+    else:
+        try:
+            delta = surface_delta(repo, baseline)
+        except (BaselineError, SurfaceError) as exception:
+            print(f"❌ {exception}")
+            return 1
+        for note in delta.notes:
+            print(f"ℹ️ {note}")
+        for package, names in delta.required_types.items():
+            changes.types.setdefault(package, set()).update(names)
+            changes.required.setdefault(package, set()).update(names)
+
+    failed = False
+    contract = delta.contract_tests if delta is not None else []
+
+    if line.frozen and not changes.is_empty:
+        print(f"❌ Donmuş hatta kırıcı değişiklik reddedilir (taban v{baseline}, sürüm {version}); sürüm notu bunu kurtarmaz:")
+        for entry in _describe_breaking(changes):
+            print(f"  {entry}")
+        failed = True
+    if line.frozen and line.patch and delta is not None and delta.added_members:
+        print(f"❌ Yama sürümünde public yüzey büyüyemez (taban v{baseline}, sürüm {version}); eklenen satırlar:")
+        for package, added in sorted(delta.added_members.items()):
+            print(f"  {package}: {len(added)} satır — {_listed(added)}")
+        failed = True
+    if line.frozen and line.patch and delta is not None and delta.required_dropped:
+        print(
+            f"❌ Yama sürümünde required üye opsiyonel olamaz ya da kalkamaz (taban v{baseline}, sürüm {version}); "
+            f"anlık görüntüden düşen satırlar: {_listed(delta.required_dropped)}")
+        failed = True
+
     notes, heading = (None, None)
-    if not changes.is_empty:
+    breaking_needs_notes = not line.frozen and not changes.is_empty
+    if breaking_needs_notes or contract:
         notes, heading = release_notes_for(changelog, version)
         if notes is None:
-            print(f"❌ Kırıcı değişiklik var ama '{version}' için sürüm notu yok (taban v{baseline}).")
+            subject = "Kırıcı değişiklik var" if breaking_needs_notes else "Contract testi eklendi"
+            print(f"❌ {subject} ama '{version}' için sürüm notu yok (taban v{baseline}).")
             cut = untagged_cut_hint(changelog, baseline)
             if cut:
                 print(
                     f"   '## [{cut}]' bölümü var ama etiketi yok: kesim commit'i ile etiketi birlikte itin "
                     f"(git push --atomic origin main v{cut}).")
+            failed = True
 
-        missing = unnamed_changes(changes, notes)
-        if missing:
-            print(
-                f"❌ Kırıcı değişiklik sürüm notunda adıyla geçmiyor "
-                f"(taban v{baseline}, not '{heading or 'yok'}'):")
-            for line in missing:
-                print(f"  {line}")
-            return 1
+        if breaking_needs_notes:
+            missing = unnamed_changes(changes, notes)
+            if missing:
+                print(
+                    f"❌ Kırıcı değişiklik sürüm notunda adıyla geçmiyor "
+                    f"(taban v{baseline}, not '{heading or 'yok'}'):")
+                for missing_line in missing:
+                    print(f"  {missing_line}")
+                failed = True
+        if contract:
+            missing_tests = unnamed_contract_tests(contract, notes)
+            if missing_tests:
+                print(
+                    f"❌ Contract testi eklemesi sürüm notunda adıyla geçmiyor "
+                    f"(taban v{baseline}, not '{heading or 'yok'}'):")
+                for test in missing_tests:
+                    print(f"  {test}")
+                print("   Her test aynı code span içinde `Sınıf.Metot` olarak anılır.")
+                failed = True
 
+    if failed:
+        return 1
+
+    breaking_heading = heading if not changes.is_empty else None
     print(
         f"✅ Kırıcı liste: {changes.type_count()} tip, {changes.framework_count()} TFM düşüşü, "
         f"{changes.package_count()} paket — "
-        + (f"hepsi '{heading}' notunda" if heading else "not gerekmiyor"))
+        + (f"hepsi '{breaking_heading}' notunda" if breaking_heading else "not gerekmiyor"))
+    if delta is not None:
+        print(
+            f"✅ Contract testi eklemesi (taban {delta.tag}'den beri): {len(contract)}"
+            + (f" — hepsi '{heading}' notunda" if contract else ""))
+        for test in contract:
+            print(f"  {test}")
     if result_path is not None:
-        written = write_result(result_path, baseline=baseline, notes_heading=heading, changes=changes)
+        written = write_result(
+            result_path, baseline=baseline, notes_heading=breaking_heading, changes=changes, line=line, delta=delta)
         print(f"📄 {written}")
     return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Kırıcı değişiklik raporunu sürüm notuna karşı denetler (Faz 187).")
+    parser = argparse.ArgumentParser(description="Kırıcı değişiklik raporunu sürüm notuna karşı denetler (Faz 187, 237).")
     parser.add_argument("--rapor-dizini", required=True, type=pathlib.Path, help="<paket>.xml bastırma raporlarının dizini")
     parser.add_argument("--taban", required=True, help="karşılaştırılan yayınlanmış sürüm, 'v'siz")
-    parser.add_argument("--surum", help="notu okunacak sürüm; verilmezse '## [Unreleased]'")
+    parser.add_argument("--surum", help="notu okunacak sürüm; verilmezse '## [Unreleased]' (donmuş hatta sürüm gerekir)")
     parser.add_argument("--changelog", type=pathlib.Path, default=ROOT / "CHANGELOG.md")
+    parser.add_argument(
+        "--depo", type=pathlib.Path,
+        help="verilirse PublicAPI dosyaları, required anlık görüntüsü ve contract testleri bu deponun taban etiketiyle karşılaştırılır")
     args = parser.parse_args(argv)
 
     if not args.rapor_dizini.is_dir():
@@ -598,9 +1003,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     return check(
         report_dir=args.rapor_dizini,
         baseline=args.taban,
-        version=args.surum or "Unreleased",
+        version=args.surum or UNRELEASED,
         changelog=args.changelog,
         result_path=None,
+        repo=args.depo,
     )
 
 

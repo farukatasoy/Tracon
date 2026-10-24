@@ -2223,6 +2223,7 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
         version=resolved_version,
         changelog=root / "CHANGELOG.md",
         result_path=root / breaking_changes.RESULT_FILE,
+        repo=root,
     )
 
 

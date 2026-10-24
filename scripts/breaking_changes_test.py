@@ -664,6 +664,577 @@ class KapiCagrisiTestleri(unittest.TestCase):
         self.assertEqual(green, 0)
 
 
+class HatTestleri(unittest.TestCase):
+    """§237.2: one function decides the line; Faz 238 reuses it."""
+
+    def test_surum_sirasi_preview_rc_ga(self):
+        ordered = ["1.0.0-preview.5", "1.0.0-preview.12", "1.0.0-rc.1", "1.0.0-rc.2", "1.0.0", "1.0.1", "1.1.0", "2.0.0"]
+
+        for lower, higher in zip(ordered, ordered[1:]):
+            self.assertEqual(bc.compare_versions(lower, higher), -1, f"{lower} < {higher}")
+
+    def test_preview_hatti(self):
+        for version in ("1.0.0-preview.6", "1.0.0-preview.5.47", "1.0.0-rc.1"):
+            line = bc.release_line("1.0.0-preview.5", version)
+
+            self.assertEqual(line.kind, bc.LINE_PREVIEW, version)
+            self.assertFalse(line.frozen, version)
+
+    def test_preview_tabani_rc1e_giderken_donmus_sayilmaz(self):
+        """`preview.5` -> `rc.1` is the step that FREEZES; judging it by the frozen rule would reject the freeze."""
+        line = bc.release_line("1.0.0-preview.5", "1.0.0-rc.1")
+
+        self.assertEqual(line.describe(), "Hat: preview (K-602 — kırılma notta adıyla)")
+
+    def test_rc1_tabani_donmustur(self):
+        for version in ("1.0.0-rc.2", "1.0.0", "1.0.1", "1.1.0", "1.9.0-preview.0.4"):
+            line = bc.release_line("1.0.0-rc.1", version)
+
+            self.assertEqual(line.kind, bc.LINE_FROZEN, version)
+            self.assertEqual(line.major, 1, version)
+
+    def test_yama_ayni_major_ve_minor_demektir(self):
+        self.assertTrue(bc.release_line("1.0.0-rc.1", "1.0.0-rc.2").patch)
+        self.assertTrue(bc.release_line("1.0.0-rc.1", "1.0.0").patch)
+        self.assertTrue(bc.release_line("1.0.0", "1.0.1").patch)
+        self.assertTrue(bc.release_line("1.0.0", "1.0.0-preview.0.4").patch)
+        self.assertFalse(bc.release_line("1.0.0", "1.1.0").patch)
+        self.assertFalse(bc.release_line("1.0.0", "1.1.0-preview.0.5").patch)
+
+    def test_major_artisi_donmus_degildir(self):
+        line = bc.release_line("1.4.0", "2.0.0")
+
+        self.assertEqual(line.kind, bc.LINE_MAJOR)
+        self.assertFalse(line.frozen)
+        self.assertEqual(line.describe(), "Hat: major artışı (kırılma notta adıyla)")
+
+    def test_hat_satirlari(self):
+        self.assertEqual(bc.release_line("1.0.0", "1.1.0").describe(), "Hat: donmuş 1.x (kırılma reddedilir)")
+        self.assertEqual(
+            bc.release_line("1.0.0", "1.0.1").describe(),
+            "Hat: donmuş 1.x yama (kırılma ve eklenen public üye reddedilir)")
+        self.assertEqual(bc.release_line("2.3.0", "2.4.0").describe(), "Hat: donmuş 2.x (kırılma reddedilir)")
+
+    def test_sürümsüz_preview_tabani_calisir_donmus_taban_calismaz(self):
+        self.assertEqual(bc.release_line("1.0.0-preview.5", None).kind, bc.LINE_PREVIEW)
+        with self.assertRaises(ValueError):
+            bc.release_line("1.0.0-rc.1", None)
+
+    def test_sürüm_degil_hata(self):
+        with self.assertRaises(ValueError):
+            bc.release_line("1.0.0", "next")
+
+
+class DonmusHatKapiTestleri(unittest.TestCase):
+    """§237.2: the same ApiCompat report is red in a frozen line and green in a preview or a major."""
+
+    BREAK = _baseline_record("CP0006", "M:Tracon.IThing.Added")
+
+    def _run(self, *, records: list[str], baseline: str, version: str, notes: str, repo=None):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _report(root / "reports", "Tracon.Abstractions", *records)
+            changelog = root / "CHANGELOG.md"
+            changelog.write_text(f"# Changelog\n\n## [Unreleased]\n\n{notes}\n", encoding="utf-8")
+            return _quiet(lambda: bc.check(
+                report_dir=root / "reports", baseline=baseline, version="Unreleased" if version is None else version,
+                changelog=changelog, result_path=None, repo=repo))
+
+    def test_donmus_hatta_notta_adi_gecen_kirilma_kirmizi(self):
+        code, output = self._run(
+            records=[self.BREAK], baseline="1.0.0", version="1.1.0", notes="- `IThing` gained a member.")
+
+        self.assertEqual(code, 1)
+        self.assertIn("Hat: donmuş 1.x (kırılma reddedilir)", output)
+        self.assertIn("sürüm notu bunu kurtarmaz", output)
+        self.assertIn("Tracon.Abstractions: IThing", output)
+
+    def test_ayni_rapor_major_artisinda_yesil(self):
+        code, output = self._run(
+            records=[self.BREAK], baseline="1.0.0", version="2.0.0", notes="- `IThing` gained a member.")
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("Hat: major artışı", output)
+
+    def test_major_artisinda_notta_olmayan_kirilma_kirmizi(self):
+        code, output = self._run(records=[self.BREAK], baseline="1.4.0", version="2.0.0", notes="- Other.")
+
+        self.assertEqual(code, 1)
+        self.assertIn("Tracon.Abstractions: IThing", output)
+
+    def test_rc1den_rc2ye_kirilma_kirmizi(self):
+        code, output = self._run(
+            records=[self.BREAK], baseline="1.0.0-rc.1", version="1.0.0-rc.2", notes="- `IThing` gained a member.")
+
+        self.assertEqual(code, 1)
+        self.assertIn("Hat: donmuş 1.x yama", output)
+
+    def test_donmus_hatta_dusen_tfm_kirmizi(self):
+        code, output = self._run(
+            records=[_framework_record("net8.0")], baseline="1.0.0", version="1.1.0",
+            notes="- `Tracon.Abstractions`: the `net8.0` target is removed.")
+
+        self.assertEqual(code, 1)
+        self.assertIn("düşen TFM net8.0", output)
+
+    def test_donmus_hatta_bos_liste_yesil(self):
+        code, output = self._run(records=[], baseline="1.0.0", version="1.1.0", notes="")
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("Hat: donmuş 1.x", output)
+        self.assertIn("0 tip, 0 TFM düşüşü, 0 paket — not gerekmiyor", output)
+
+    def test_preview_hatti_bugunku_davranisini_korur(self):
+        code, output = self._run(
+            records=[self.BREAK], baseline="1.0.0-preview.5", version="1.0.0-preview.6", notes="- `IThing` gained a member.")
+        red, red_output = self._run(
+            records=[self.BREAK], baseline="1.0.0-preview.5", version="1.0.0-preview.6", notes="- Other.")
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("Hat: preview (K-602 — kırılma notta adıyla)", output)
+        self.assertEqual(red, 1)
+        self.assertIn("Tracon.Abstractions: IThing", red_output)
+
+    def test_hat_her_kosumda_yazilir_kirmizi_rapor_dahil(self):
+        code, output = self._run(
+            records=["  <Suppression>\n    <DiagnosticId>CP0001</DiagnosticId>\n    <Target>T:Tracon.X</Target>\n  </Suppression>"],
+            baseline="1.0.0-preview.5", version="1.0.0-preview.6", notes="")
+
+        self.assertEqual(code, 1)
+        self.assertTrue(output.startswith("Hat: preview"), output)
+
+    def test_cli_donmus_hat_kirmizi_ayni_rapor_major_ile_yesil(self):
+        """Manuel case 3."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _report(root / "reports", "Tracon.Abstractions", self.BREAK)
+            changelog = root / "CHANGELOG.md"
+            changelog.write_text("## [Unreleased]\n\n- `IThing` gained a member.\n", encoding="utf-8")
+            argv = ["--rapor-dizini", str(root / "reports"), "--taban", "1.0.0", "--changelog", str(changelog)]
+
+            minor, minor_output = _quiet(lambda: bc.main([*argv, "--surum", "1.1.0"]))
+            major, major_output = _quiet(lambda: bc.main([*argv, "--surum", "2.0.0"]))
+            unknown, unknown_output = _quiet(lambda: bc.main(argv))
+
+        self.assertEqual(minor, 1)
+        self.assertIn("Hat: donmuş 1.x", minor_output)
+        self.assertEqual(major, 0, major_output)
+        self.assertEqual(unknown, 1)
+        self.assertIn("Hat belirlenemedi", unknown_output)
+
+
+def _write(repo: pathlib.Path, relative: str, text: str) -> None:
+    path = repo / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def _commit_all(repo: pathlib.Path, message: str) -> None:
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", message)
+
+
+CONTRACT = "src/Tracon.Testing.Contracts.Xunit"
+CORE_API = "src/Tracon.Abstractions"
+SNAPSHOT = "docs/sozlesme/required-uyeler.txt"
+
+CONTRACT_API_V1 = (
+    "#nullable enable\n"
+    "Tracon.Testing.Contracts.Storage.RunStoreContract\n"
+    "Tracon.Testing.Contracts.Storage.RunStoreContract.Existing_test() -> System.Threading.Tasks.Task!\n"
+    "Tracon.Testing.Contracts.Storage.RunStoreContract.RunStoreContract() -> void\n")
+
+
+def _baseline_repo(
+    directory: str, *, with_snapshot: str | None = "", contract_api: str | None = CONTRACT_API_V1, tag: str = "v1.0.0",
+) -> pathlib.Path:
+    """A repo whose baseline tag carries a PublicAPI surface and a `required` snapshot (None: no snapshot)."""
+    repo = _repo(directory)
+    _write(repo, f"{CORE_API}/PublicAPI.Shipped.txt", "#nullable enable\n")
+    _write(repo, f"{CORE_API}/PublicAPI.Unshipped.txt", "#nullable enable\nTracon.Options\nTracon.Options.Name.get -> string!\n")
+    if contract_api is not None:
+        _write(repo, f"{CONTRACT}/PublicAPI.Shipped.txt", "#nullable enable\n")
+        _write(repo, f"{CONTRACT}/PublicAPI.Unshipped.txt", contract_api)
+    if with_snapshot is not None:
+        _write(repo, SNAPSHOT, with_snapshot)
+    _commit_all(repo, "baseline")
+    _git(repo, "tag", tag)
+    return repo
+
+
+class YuzeyOkumaTestleri(unittest.TestCase):
+    """§237.3 / §237.4: the readers that stand where ApiCompat is blind."""
+
+    def test_etkin_yuzey_shipped_ile_unshipped_birlesimidir(self):
+        surface = bc.effective_api("#nullable enable\nA\nB\n", "#nullable enable\nC\n*REMOVED*B\n")
+
+        self.assertEqual(surface, {"A", "C"})
+
+    def test_ga_dolumu_yuzeyi_degistirmez(self):
+        """Lines that only change file (K-603) are not 'added'."""
+        before = bc.effective_api("", "#nullable enable\nA\nB\n")
+        after = bc.effective_api("#nullable enable\nA\nB\n", "#nullable enable\n")
+
+        self.assertEqual(before, after)
+
+    def test_contract_testi_bicimi(self):
+        surface = [
+            "N.RunStoreContract.Test_one() -> System.Threading.Tasks.Task!",
+            "N.RunStoreContract.Test_two(int x) -> void",
+            "N.RunStoreContract.RunStoreContract() -> void",
+            "N.RunStoreContract.InitializeAsync() -> System.Threading.Tasks.ValueTask",
+            "N.RunStoreContract.Source.get -> N.IRunStore!",
+            "N.RunStoreContract.Source.init -> void",
+            "abstract N.RunStoreContract.Seed() -> void",
+            "static N.RunStoreContract.Helper() -> void",
+            "virtual N.RunStoreContract.Hook() -> System.Threading.Tasks.ValueTask",
+            "override N.TenantIsolationContract<TStore>.Overridden_test() -> System.Threading.Tasks.Task!",
+            "N.TenantIsolationContract<TStore>.Generic_test() -> System.Threading.Tasks.Task!",
+            "N.TenantIsolationContract<TStore>.TenantIsolationContract() -> void",
+            "N.RunStoreContract.Value() -> int",
+        ]
+
+        self.assertEqual(
+            bc.contract_tests(surface),
+            {"RunStoreContract.Test_one", "RunStoreContract.Test_two",
+             "TenantIsolationContract.Overridden_test", "TenantIsolationContract.Generic_test"})
+
+    def test_gercek_contract_yuzeyi_696_testi_iki_yardimciyla_sayar(self):
+        """Measured 2026-10-24: 696 `[Fact]`/`[Theory]` plus two `protected void` helpers (`Enter`, `UseAmbientTenant`)."""
+        surface = bc.api_now(ROOT)[bc.CONTRACT_PACKAGE]
+        tests = bc.contract_tests(surface)
+
+        self.assertGreater(len(tests), 600)
+        self.assertIn("AgentFileStoreContract.Enter", tests)
+
+    def test_ilk_kayit_taban_etiketinde_anlik_goruntu_yoksa_not(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, with_snapshot=None, tag="v1.0.0-preview.5")
+
+            delta = bc.surface_delta(repo, "1.0.0-preview.5")
+
+        self.assertEqual(delta.required_types, {})
+        self.assertIn("ilk kayıt", delta.notes[0])
+
+    def test_donmus_tabanda_anlik_goruntu_yoksa_surface_error(self):
+        """A frozen baseline was cut after the file existed: a missing snapshot would let a `required` addition through."""
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, with_snapshot=None, tag="v1.0.0-rc.1")
+
+            with self.assertRaises(bc.SurfaceError) as raised:
+                bc.surface_delta(repo, "1.0.0-rc.1")
+
+        self.assertIn("donmuş bir tabanda anlık görüntü zorunludur", str(raised.exception))
+
+    def test_snapshot_dan_dusen_satir_listelenir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, with_snapshot="Tracon.Options.Name\nTracon.Options.Other\n")
+            _write(repo, SNAPSHOT, "Tracon.Options.Name\n")
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        self.assertEqual(delta.required_dropped, ["Tracon.Options.Other"])
+
+    def test_yeni_contract_testi_eklenen_uye_sayilmaz_baska_satir_sayilir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory)
+            _write(repo, f"{CONTRACT}/PublicAPI.Unshipped.txt", CONTRACT_API_V1 + (
+                "Tracon.Testing.Contracts.Storage.RunStoreContract.New_test() -> System.Threading.Tasks.Task!\n"
+                "Tracon.Testing.Contracts.Storage.RunStoreContract.Hook() -> System.Threading.Tasks.ValueTask\n"))
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        self.assertEqual(delta.contract_tests, ["RunStoreContract.New_test"])
+        self.assertEqual(
+            delta.added_members["Tracon.Testing.Contracts.Xunit"],
+            ["Tracon.Testing.Contracts.Storage.RunStoreContract.Hook() -> System.Threading.Tasks.ValueTask"])
+
+    def test_eklenen_test_ve_uye_listelenir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory)
+            _write(repo, f"{CONTRACT}/PublicAPI.Unshipped.txt", CONTRACT_API_V1 + (
+                "Tracon.Testing.Contracts.Storage.RunStoreContract.New_test() -> System.Threading.Tasks.Task!\n"))
+            _write(repo, f"{CORE_API}/PublicAPI.Unshipped.txt",
+                   "#nullable enable\nTracon.Options\nTracon.Options.Name.get -> string!\nTracon.Options.Extra.get -> string!\n")
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        self.assertEqual(delta.contract_tests, ["RunStoreContract.New_test"])
+        self.assertEqual(delta.added_members["Tracon.Abstractions"], ["Tracon.Options.Extra.get -> string!"])
+        # A new contract test is listed (and must be named) but is not an added member: a patch may carry one.
+        self.assertNotIn("Tracon.Testing.Contracts.Xunit", delta.added_members)
+
+    def test_ga_dolumu_listeyi_bos_birakir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory)
+            _write(repo, f"{CONTRACT}/PublicAPI.Shipped.txt", CONTRACT_API_V1)
+            _write(repo, f"{CONTRACT}/PublicAPI.Unshipped.txt", "#nullable enable\n")
+            _write(repo, f"{CORE_API}/PublicAPI.Shipped.txt", "#nullable enable\nTracon.Options\nTracon.Options.Name.get -> string!\n")
+            _write(repo, f"{CORE_API}/PublicAPI.Unshipped.txt", "#nullable enable\n")
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        self.assertEqual(delta.contract_tests, [])
+        self.assertEqual(delta.added_members, {})
+
+    def test_tabanda_publicapi_dosyasi_yoksa_liste_bos_hata_yok(self):
+        """`TraconPackageFirstRelease` precedent: a package the tag does not know has no suite to add a test to."""
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, contract_api=None)
+            _write(repo, f"{CONTRACT}/PublicAPI.Shipped.txt", "#nullable enable\n")
+            _write(repo, f"{CONTRACT}/PublicAPI.Unshipped.txt", CONTRACT_API_V1)
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        self.assertEqual(delta.contract_tests, [])
+        self.assertIn("Tracon.Testing.Contracts.Xunit", delta.added_members)
+
+    def test_taban_etiketi_yoksa_baseline_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory)
+
+            with self.assertRaises(bc.BaselineError) as raised:
+                bc.surface_delta(repo, "9.9.9")
+
+        self.assertIn("v9.9.9", str(raised.exception))
+
+    def test_mevcut_tipe_eklenen_required_uye_kirilmadir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, with_snapshot="Tracon.Options.Name\n")
+            _write(repo, SNAPSHOT, "Tracon.Options.Extra\nTracon.Options.Name\nTracon.NewType.Id\n")
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        # `Options` existed at the tag, `NewType` did not: only the first breaks a consumer.
+        self.assertEqual(delta.required_types, {"Tracon.Abstractions": {"Options"}})
+        self.assertEqual(delta.notes, [])
+
+    def test_ayni_tipte_required_uyenin_kalkmasi_kirilma_degildir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, with_snapshot="Tracon.Options.Name\nTracon.Options.Other\n")
+            _write(repo, SNAPSHOT, "Tracon.Options.Name\n")
+
+            delta = bc.surface_delta(repo, "1.0.0")
+
+        self.assertEqual(delta.required_types, {})
+
+    def test_anlik_goruntu_silinmisse_surface_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, with_snapshot="Tracon.Options.Name\n")
+            (repo / SNAPSHOT).unlink()
+
+            with self.assertRaises(bc.SurfaceError) as raised:
+                bc.surface_delta(repo, "1.0.0")
+
+        self.assertIn("required-uyeler.txt", str(raised.exception))
+
+    def test_jenerik_tip_adlari_eslesir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, with_snapshot="")
+            _write(repo, f"{CORE_API}/PublicAPI.Unshipped.txt", "#nullable enable\nTracon.Page<T>\nTracon.Page<T>.Items.get -> T\n")
+            _git(repo, "add", "-A")
+            _git(repo, "commit", "-q", "-m", "generic")
+            _git(repo, "tag", "v1.0.1")
+            _write(repo, SNAPSHOT, "Tracon.Page.Items\n")
+
+            delta = bc.surface_delta(repo, "1.0.1")
+
+        self.assertEqual(delta.required_types, {"Tracon.Abstractions": {"Page"}})
+
+    def test_adlandirma_ayni_code_span_ister(self):
+        tests = ["RunStoreContract.New_test", "SessionStoreContract.New_test"]
+
+        self.assertEqual(bc.unnamed_contract_tests(tests, "- `RunStoreContract.New_test` · `SessionStoreContract.New_test`."), [])
+        self.assertEqual(
+            bc.unnamed_contract_tests(tests, "- `RunStoreContract.New_test` is new; `New_test` too."),
+            ["SessionStoreContract.New_test"])
+        self.assertEqual(
+            bc.unnamed_contract_tests(tests, "- `RunStoreContract` and `SessionStoreContract` got `New_test`."), sorted(tests))
+        self.assertEqual(
+            bc.unnamed_contract_tests(
+                ["RunStoreContract.New_test"], "- `Tracon.Testing.Contracts.Storage.RunStoreContract.New_test()` is new."), [])
+        self.assertEqual(bc.unnamed_contract_tests(tests, None), sorted(tests))
+
+
+class YuzeyKapiTestleri(unittest.TestCase):
+    """`check` with a repo: the line decides what the surface readers may do."""
+
+    def _run(self, *, version: str, notes: str, baseline: str = "1.0.0", edit=None, snapshot: str | None = ""):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory, with_snapshot=snapshot, tag=f"v{baseline}")
+            if edit is not None:
+                edit(repo)
+            reports = pathlib.Path(directory) / "reports"
+            reports.mkdir()
+            changelog = pathlib.Path(directory) / "CHANGELOG.md"
+            changelog.write_text(f"# Changelog\n\n## [Unreleased]\n\n{notes}\n", encoding="utf-8")
+            return _quiet(lambda: bc.check(
+                report_dir=reports, baseline=baseline, version=version, changelog=changelog, result_path=None, repo=repo))
+
+    @staticmethod
+    def _add_test(repo: pathlib.Path) -> None:
+        _write(repo, f"{CONTRACT}/PublicAPI.Unshipped.txt", CONTRACT_API_V1 + (
+            "Tracon.Testing.Contracts.Storage.RunStoreContract.New_test() -> System.Threading.Tasks.Task!\n"))
+
+    @staticmethod
+    def _add_member(repo: pathlib.Path) -> None:
+        _write(repo, f"{CORE_API}/PublicAPI.Unshipped.txt",
+               "#nullable enable\nTracon.Options\nTracon.Options.Name.get -> string!\nTracon.Options.Extra.get -> string!\n")
+
+    def test_yama_surumunde_eklenen_uye_kirmizi(self):
+        code, output = self._run(version="1.0.1", notes="", edit=self._add_member)
+
+        self.assertEqual(code, 1)
+        self.assertIn("Hat: donmuş 1.x yama", output)
+        self.assertIn("Yama sürümünde public yüzey büyüyemez", output)
+        self.assertIn("Tracon.Abstractions: 1 satır", output)
+
+    def test_yama_surumunde_adli_contract_testi_yesil(self):
+        """The rule table: a patch may add a test that measures documented behavior (a defect fix), if the notes name it."""
+        code, output = self._run(version="1.0.1", notes="- Added `RunStoreContract.New_test`.", edit=self._add_test)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("Hat: donmuş 1.x yama", output)
+        self.assertIn("Contract testi eklemesi (taban v1.0.0'den beri): 1", output)
+
+    def test_yama_surumunde_adsiz_contract_testi_kirmizi(self):
+        code, output = self._run(version="1.0.1", notes="- Other.", edit=self._add_test)
+
+        self.assertEqual(code, 1)
+        self.assertIn("RunStoreContract.New_test", output)
+        self.assertNotIn("Yama sürümünde public yüzey büyüyemez", output)
+
+    def test_yama_surumunde_contract_testi_ile_baska_uye_kirmizi(self):
+        def edit(repo):
+            self._add_test(repo)
+            self._add_member(repo)
+
+        code, output = self._run(version="1.0.1", notes="- Added `RunStoreContract.New_test`.", edit=edit)
+
+        self.assertEqual(code, 1)
+        self.assertIn("Tracon.Abstractions: 1 satır", output)
+        self.assertNotIn("Testing.Contracts.Xunit: ", output)
+
+    def test_yama_surumunde_required_uyenin_opsiyonel_olmasi_kirmizi(self):
+        def edit(repo):
+            _write(repo, SNAPSHOT, "Tracon.Options.Name\n")
+
+        code, output = self._run(
+            version="1.0.1", notes="", edit=edit, snapshot="Tracon.Options.Name\nTracon.Options.Other\n")
+        minor, minor_output = self._run(
+            version="1.1.0", notes="", edit=edit, snapshot="Tracon.Options.Name\nTracon.Options.Other\n")
+
+        self.assertEqual(code, 1)
+        self.assertIn("required üye opsiyonel olamaz ya da kalkamaz", output)
+        self.assertIn("Tracon.Options.Other", output)
+        self.assertEqual(minor, 0, minor_output)
+
+    def test_minor_surumunde_eklenen_uye_yesil(self):
+        code, output = self._run(version="1.1.0", notes="", edit=self._add_member)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("Hat: donmuş 1.x (kırılma reddedilir)", output)
+
+    def test_preview_hattinda_eklenen_uye_yesil(self):
+        code, output = self._run(version="1.0.0-preview.6", baseline="1.0.0-preview.5", notes="", edit=self._add_member)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("Hat: preview", output)
+
+    def test_eklenen_contract_testi_notta_yoksa_kirmizi_eksik_adlarla(self):
+        code, output = self._run(version="1.1.0", notes="- Other.", edit=self._add_test)
+
+        self.assertEqual(code, 1)
+        self.assertIn("Contract testi eklemesi sürüm notunda adıyla geçmiyor", output)
+        self.assertIn("RunStoreContract.New_test", output)
+
+    def test_eklenen_contract_testi_adiyla_anilirsa_yesil(self):
+        code, output = self._run(version="1.1.0", notes="- Added `RunStoreContract.New_test`.", edit=self._add_test)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("Contract testi eklemesi (taban v1.0.0'den beri): 1", output)
+
+    def test_contract_kapisi_preview_hattinda_da_kosar(self):
+        """Açık Soru 1 = A: the first real run must not be GA day."""
+        code, output = self._run(version="1.0.0-preview.6", baseline="1.0.0-preview.5", notes="", edit=self._add_test)
+
+        self.assertEqual(code, 1)
+        self.assertIn("Hat: preview", output)
+        self.assertIn("RunStoreContract.New_test", output)
+
+    def test_surum_notu_hic_yoksa_kirmizi_ve_mesaj_contract_diyor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory)
+            self._add_test(repo)
+            reports = pathlib.Path(directory) / "reports"
+            reports.mkdir()
+            changelog = pathlib.Path(directory) / "CHANGELOG.md"
+            changelog.write_text("# Changelog\n", encoding="utf-8")
+
+            code, output = _quiet(lambda: bc.check(
+                report_dir=reports, baseline="1.0.0", version="1.1.0", changelog=changelog, result_path=None, repo=repo))
+
+        self.assertEqual(code, 1)
+        self.assertIn("Contract testi eklendi ama '1.1.0' için sürüm notu yok", output)
+
+    def test_taban_etiketi_yoksa_kapi_kirmizi_yesil_degil(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory)
+            reports = pathlib.Path(directory) / "reports"
+            reports.mkdir()
+            changelog = pathlib.Path(directory) / "CHANGELOG.md"
+            changelog.write_text("# Changelog\n", encoding="utf-8")
+
+            code, output = _quiet(lambda: bc.check(
+                report_dir=reports, baseline="9.9.9", version="9.9.10", changelog=changelog, result_path=None, repo=repo))
+
+        self.assertEqual(code, 1)
+        self.assertIn("taban etiketi 'v9.9.9'", output)
+
+    def test_required_uye_eklenmesi_preview_hattinda_notta_adiyla(self):
+        def edit(repo):
+            _write(repo, SNAPSHOT, "Tracon.Options.Extra\nTracon.Options.Name\n")
+
+        green, green_output = self._run(
+            version="1.0.0-preview.6", baseline="1.0.0-preview.5",
+            notes="- `Options` has a new `required` member `Extra`.", edit=edit, snapshot="Tracon.Options.Name\n")
+        red, red_output = self._run(
+            version="1.0.0-preview.6", baseline="1.0.0-preview.5", notes="- Other.", edit=edit, snapshot="Tracon.Options.Name\n")
+
+        self.assertEqual(green, 0, green_output)
+        self.assertEqual(red, 1)
+        self.assertIn("Tracon.Abstractions: Options", red_output)
+
+    def test_required_uye_eklenmesi_donmus_hatta_notla_da_kirmizi(self):
+        def edit(repo):
+            _write(repo, SNAPSHOT, "Tracon.Options.Extra\nTracon.Options.Name\n")
+
+        code, output = self._run(
+            version="1.1.0", notes="- `Options` has a new `required` member `Extra`.", edit=edit, snapshot="Tracon.Options.Name\n")
+
+        self.assertEqual(code, 1)
+        self.assertIn("Options (yeni required üye)", output)
+        self.assertIn("sürüm notu bunu kurtarmaz", output)
+
+    def test_sonuc_dosyasi_hat_ve_contract_listesini_tasir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = _baseline_repo(directory)
+            self._add_test(repo)
+            reports = pathlib.Path(directory) / "reports"
+            reports.mkdir()
+            changelog = pathlib.Path(directory) / "CHANGELOG.md"
+            changelog.write_text("## [Unreleased]\n\n- `RunStoreContract.New_test`.\n", encoding="utf-8")
+            result_path = pathlib.Path(directory) / "out" / "breaking-changes.json"
+
+            code, output = _quiet(lambda: bc.check(
+                report_dir=reports, baseline="1.0.0", version="1.1.0", changelog=changelog, result_path=result_path, repo=repo))
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(code, 0, output)
+        self.assertEqual(result["line"], "frozen")
+        self.assertEqual(result["contractTests"], ["RunStoreContract.New_test"])
+
+
 class DepoKorumaTestleri(unittest.TestCase):
     def test_depoda_compatibility_suppressions_dosyasi_yok(self):
         """A report written into the source tree is read back as a suppression

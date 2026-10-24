@@ -1655,6 +1655,19 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("tabandan (v1.0.0-preview.2) büyük değil", output.getvalue())
 
+    def test_kapi_depoyu_yuzey_okuyucularina_verir(self):
+        """Faz 237: the PublicAPI, `required` and contract readers need the repo whose tag is the baseline."""
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import breaking_changes
+
+        with mock.patch.object(breaking_changes, "check", return_value=0) as checked:
+            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.3")
+
+        self.assertEqual(result, 0)
+        self.assertEqual(checked.call_args.kwargs["repo"], ROOT)
+        self.assertEqual(checked.call_args.kwargs["version"], "1.0.0-preview.3")
+
 
 class TekDerlemeZinciriTestleri(unittest.TestCase):
     """Faz 191: `paketle` · `paket-dogrula` · `yayin --paket-dizini`.
