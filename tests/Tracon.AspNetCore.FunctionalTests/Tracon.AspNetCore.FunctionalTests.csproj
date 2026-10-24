@@ -62,6 +62,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The committed snapshots of the surfaces that are not .NET API (phase 238). -->
+    <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
+    <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!--
       TestHost is used instead of Microsoft.AspNetCore.Mvc.Testing.
       WebApplicationFactory<T> requires an ENTRY POINT assembly; Tracon is

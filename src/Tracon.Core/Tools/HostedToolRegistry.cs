@@ -162,7 +162,7 @@ internal sealed class HostedToolRegistry
             if (firstOfKind.TryGetValue(registration.Kind, out var first))
             {
                 problems.Add(new HostedToolProblem(
-                    "duplicate_hosted_tool_kind",
+                    ValidationCodes.DuplicateHostedToolKind,
                     $"The hosted tool '{registration.Name}' is a {registration.Kind} tool, and '{first}' already is. " +
                     "An agent selects at most one hosted tool of each kind: the provider's response names the kind, " +
                     "not the tool, so the run record could not tell the two apart.",
@@ -176,7 +176,7 @@ internal sealed class HostedToolRegistry
             if (registration.Kind == HostedToolKind.WebSearch && definition.Harness is { EnableWebSearch: true })
             {
                 problems.Add(new HostedToolProblem(
-                    "hosted_tool_conflict",
+                    ValidationCodes.HostedToolConflict,
                     $"The hosted tool '{registration.Name}' is a web search, and the harness already adds one " +
                     $"({nameof(HarnessSettings)}.{nameof(HarnessSettings.EnableWebSearch)}). Turn one of them off: " +
                     "the model would receive two web search tools.",
@@ -187,7 +187,7 @@ internal sealed class HostedToolRegistry
         if (RequiredToolName(definition.Model.ToolMode) is { } required && _byName.ContainsKey(required))
         {
             problems.Add(new HostedToolProblem(
-                "hosted_tool_not_callable",
+                ValidationCodes.HostedToolNotCallable,
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.ToolMode)} requires the tool '{required}', which is a hosted tool. " +
                 "The provider runs a hosted tool when the model chooses it; a tool mode can name only a tool Tracon calls.",
                 "model.toolMode"));

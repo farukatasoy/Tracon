@@ -65,7 +65,7 @@ public sealed class TraconContentFilteredException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string ContentFilteredErrorType = "content_filtered";
+    public const string ContentFilteredErrorType = TraconErrorTypes.ContentFiltered;
 
     /// <summary>Creates a new error.</summary>
     public TraconContentFilteredException()
@@ -122,7 +122,7 @@ public sealed class TraconContentBlockedException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string ContentBlockedErrorType = "content_blocked";
+    public const string ContentBlockedErrorType = TraconErrorTypes.ContentBlocked;
 
     /// <summary>Creates a new error.</summary>
     public TraconContentBlockedException()
@@ -170,7 +170,7 @@ public sealed class TraconCompilationException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string CompilationFailedErrorType = "compilation_failed";
+    public const string CompilationFailedErrorType = TraconErrorTypes.CompilationFailed;
 
     /// <summary>Creates a new compilation error.</summary>
     public TraconCompilationException()
@@ -214,7 +214,7 @@ public sealed class TraconProviderUnavailableException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string ProviderUnavailableErrorType = "provider_unavailable";
+    public const string ProviderUnavailableErrorType = TraconErrorTypes.ProviderUnavailable;
 
     /// <summary>Creates a new error.</summary>
     public TraconProviderUnavailableException()
@@ -270,7 +270,7 @@ public sealed class TraconToolTimeoutException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string ToolTimeoutErrorType = "tool_timeout";
+    public const string ToolTimeoutErrorType = TraconErrorTypes.ToolTimeout;
 
     /// <summary>Creates a new error.</summary>
     public TraconToolTimeoutException()
@@ -328,7 +328,7 @@ public sealed class TraconChildRunTimeoutException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string ChildRunTimeoutErrorType = "child_run_timeout";
+    public const string ChildRunTimeoutErrorType = TraconErrorTypes.ChildRunTimeout;
 
     /// <summary>Creates a new error.</summary>
     public TraconChildRunTimeoutException()
@@ -382,7 +382,7 @@ public sealed class TraconWorkflowFunctionTimeoutException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string WorkflowFunctionTimeoutErrorType = "workflow_function_timeout";
+    public const string WorkflowFunctionTimeoutErrorType = TraconErrorTypes.WorkflowFunctionTimeout;
 
     /// <summary>Creates a new error.</summary>
     public TraconWorkflowFunctionTimeoutException()
@@ -437,7 +437,7 @@ public sealed class TraconSessionConflictException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string SessionConflictErrorType = "session_conflict";
+    public const string SessionConflictErrorType = TraconErrorTypes.SessionConflict;
 
     /// <summary>Creates a new error.</summary>
     public TraconSessionConflictException()
@@ -480,7 +480,7 @@ public sealed class TraconExternalCallException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string ExternalCallRejectedErrorType = "external_call_rejected";
+    public const string ExternalCallRejectedErrorType = TraconErrorTypes.ExternalCallRejected;
 
     /// <summary>Creates a new error.</summary>
     public TraconExternalCallException()
@@ -535,7 +535,7 @@ public sealed class TraconStructuredResponseException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string StructuredResponseInvalidErrorType = "structured_response_invalid";
+    public const string StructuredResponseInvalidErrorType = TraconErrorTypes.StructuredResponseInvalid;
 
     /// <summary>Creates a new error.</summary>
     public TraconStructuredResponseException()
@@ -584,7 +584,7 @@ public sealed class TraconLoopUnsatisfiedException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string LoopUnsatisfiedErrorType = "loop_unsatisfied";
+    public const string LoopUnsatisfiedErrorType = TraconErrorTypes.LoopUnsatisfied;
 
     /// <summary>Creates a new error.</summary>
     public TraconLoopUnsatisfiedException()
@@ -647,7 +647,7 @@ public sealed class TraconOutputTruncatedException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string OutputTruncatedErrorType = "output_truncated";
+    public const string OutputTruncatedErrorType = TraconErrorTypes.OutputTruncated;
 
     /// <summary>Creates a new error.</summary>
     public TraconOutputTruncatedException()
@@ -717,7 +717,7 @@ public sealed class TraconSessionOwnerRequiredException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string SessionOwnerRequiredErrorType = "session_owner_required";
+    public const string SessionOwnerRequiredErrorType = TraconErrorTypes.SessionOwnerRequired;
 
     /// <summary>Creates a new error.</summary>
     public TraconSessionOwnerRequiredException()
@@ -775,7 +775,7 @@ public sealed class TraconTenantProviderRefusedException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string TenantProviderRefusedErrorType = "tenant_provider_refused";
+    public const string TenantProviderRefusedErrorType = TraconErrorTypes.TenantProviderRefused;
 
     /// <summary>Creates a new error.</summary>
     public TraconTenantProviderRefusedException()

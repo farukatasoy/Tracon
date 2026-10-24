@@ -85,7 +85,7 @@ internal sealed class WorkflowRecovery(
     ILogger? logger = null)
 {
     /// <summary>The error type an interrupted run is closed with.</summary>
-    public const string InterruptedErrorType = "interrupted";
+    public const string InterruptedErrorType = TraconErrorTypes.Interrupted;
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 

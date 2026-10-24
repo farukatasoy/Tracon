@@ -186,7 +186,7 @@ internal static class OpenAIResponsesEndpoints
                 StatusCodes.Status404NotFound,
                 $"There is no agent named '{agentName}'. " +
                 await KnownAgentsAsync(catalog, cancellationToken).ConfigureAwait(false),
-                type: "model_not_found");
+                type: TraconErrorTypes.ModelNotFound);
         }
 
         // F-330: this protocol carries no parameter values; an agent whose
@@ -220,7 +220,7 @@ internal static class OpenAIResponsesEndpoints
         // agent run endpoint; this protocol's own error shape carries it.
         if (RunAttributionGate.Validate(attributionContext) is { } attributionError)
         {
-            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, attributionError, type: "invalid_run_attribution");
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, attributionError, type: TraconErrorTypes.InvalidRunAttribution);
         }
 
         // 🚨 Checked BEFORE the tenant-ownership check below, same ordering
@@ -233,7 +233,7 @@ internal static class OpenAIResponsesEndpoints
             return OpenAICompatSupport.Error(
                 StatusCodes.Status403Forbidden,
                 authorizationProblem.ProblemDetails.Detail ?? "The registered IRunAuthorizationHandler denied this run.",
-                type: "run_not_authorized");
+                type: TraconErrorTypes.RunNotAuthorized);
         }
 
         // 🚨 Ownership guards this run surface too (phase 148): a Responses
@@ -258,7 +258,7 @@ internal static class OpenAIResponsesEndpoints
             return OpenAICompatSupport.Error(
                 StatusCodes.Status404NotFound,
                 $"'{loadId}' was not found.",
-                type: "not_found_error");
+                type: TraconErrorTypes.NotFoundError);
         }
 
         // 'data:' URIs embedded in the body (image_url, input_file) have
@@ -351,7 +351,7 @@ internal static class OpenAIResponsesEndpoints
             return OpenAICompatSupport.Error(
                 StatusCodes.Status502BadGateway,
                 SafeErrorText.ForPersistence(ex, correlationId),
-                type: "upstream_error");
+                type: TraconErrorTypes.UpstreamError);
         }
     }
 

@@ -31,7 +31,9 @@ machine-made list: it validates each package against the previous published
 package, and it does not publish when the notes leave out a name. A narrowing
 is still allowed before `1.0.0-rc.1`; an unannounced one is not. From
 `1.0.0-rc.1` even an announced one is not: see [What 1.x promises for the .NET
-API](#what-1x-promises-for-the-net-api).
+API](#what-1x-promises-for-the-net-api) and [What 1.x promises for HTTP,
+telemetry, configuration, error codes and the
+CLI](#what-1x-promises-for-http-telemetry-configuration-error-codes-and-the-cli).
 
 ## What 1.x promises for the .NET API
 
@@ -105,6 +107,79 @@ Three more rules complete the table:
   release notes name each new test as `Class.Method`. If a new test fails
   against your implementation, either the implementation or the documentation
   is wrong. Report it as an issue.
+
+## What 1.x promises for HTTP, telemetry, configuration, error codes and the CLI
+
+Your application depends on more than the .NET API. A client calls the HTTP
+endpoints and reads the SSE event names. A dashboard reads metric and attribute
+names. A deployment file holds configuration keys. Your code matches error
+codes. A CI script calls the `tracon` CLI. From `1.0.0-rc.1` each of these
+surfaces has the same rule as the .NET API: a change belongs to one SemVer class,
+and the release process rejects a release that puts it in the wrong one.
+
+| Surface | A minor release may | Only a major release may |
+|---|---|---|
+| **HTTP** | Add an endpoint. Add a field to a response. Add an optional field or parameter to a request. Add a value to a response enum. | Remove an endpoint or a method. Remove a response field, or change its type. Add a **required** field or parameter to a request. Make an optional one required. Remove a value from a request or a response enum. Make a field that could be null non-null in a request, or one that could not be null nullable in a response. Change a 2xx status code. Tighten the role an endpoint needs. |
+| **SSE** | Add an event name. Add a field to an event payload. | Remove or rename an event name. Remove a payload field. |
+| **Telemetry** | Add a source, an instrument or an attribute. Add an attribute that is off by default to an instrument. | Change the name, the unit or the kind of an instrument. Remove an attribute. Turn an attribute on or off by default. |
+| **Configuration** | Add a key with a documented default. Rename a key if Tracon still reads the old name. | Remove a key. Rename a key and stop reading the old name. Change a default so that behavior changes. |
+| **Error code** | Add a code. | Remove a code, rename it, or change its meaning. This covers the codes of a failed run, a failed job and an OpenAI-compatible error, and the codes of the findings that validating an agent definition returns. |
+| **CLI** | Add a command, an option or an exit code. | Remove a command or an option. Change what an exit code means. |
+
+When a minor release gives a configuration key a new name, Tracon reads the old
+name for the rest of the 1.x line and logs one warning. The old name is gone only
+in a major release.
+
+Three more rules complete the table:
+
+- **Your code handles a value it does not know.** A response enum value, an SSE
+  event name and an error code can all be new in a minor release. A `switch` over
+  them has a `default` branch. In the TypeScript client, this applies to the
+  `switch` over an event name too.
+- **The release process cannot see a role change.** A role that an endpoint
+  needs is not in the OpenAPI document. The rule above is written down, and the
+  maintainer reviews it.
+- **Text for people is not a contract.** The `detail` of a problem response, a log
+  message and the human output of a CLI command can change in any release. The
+  fields a program reads are the contract: the `errorType` code, the event name,
+  the key, the option.
+
+Match an error code with a constant. `TraconErrorTypes` holds the code of a failed
+run, of a failed job and of an OpenAI-compatible error as constants, for example
+`TraconErrorTypes.ToolTimeout`. The `ErrorType` of a Tracon exception and the
+`errorType` that the HTTP API returns carry the same value.
+
+How the release process holds each row:
+
+- **Every surface has a file in the repository.** One file lists the SSE event
+  names, one the telemetry names with the kind, unit and default attributes of
+  each instrument, one the configuration keys, one the error codes of runs, jobs
+  and OpenAI-compatible errors, one the codes of validation findings, and one the
+  CLI commands and options. A test keeps each file true to the code. The HTTP
+  surface is the OpenAPI document of the build.
+- **The release process compares each file with the one at the last published
+  version.** A line that is gone or changed is a break. A new line is an
+  addition. For HTTP it reads the OpenAPI document with the rules of the table.
+- **A change that the rules do not name is a break.** If the check cannot say
+  which row a change belongs to, it stops the release. It never lets such a change
+  pass. If it cannot read the file of the last published version, it stops too.
+- **A frozen release rejects a break.** When the last published version is
+  `1.0.0-rc.1` or later and the new version has the same major version, a break
+  on any of these surfaces stops the release. The release notes do not change
+  that. Before `1.0.0-rc.1`, and in a new major version, a break passes when the
+  release notes name it in a code span.
+- **A patch release does not add to a surface.** A new endpoint, field, event
+  name, key, code or option stops a patch release.
+- **The files hold names, not meaning.** The release process does not see a field
+  removed from an SSE event payload, a configuration default that changed, an exit
+  code that now means something else, an error code that is used for another
+  failure, or a role that an endpoint now needs. The rules above hold for them as
+  well. The maintainer reviews them.
+
+The telemetry row includes the default of an attribute. The `tracon.tenant.id`
+attribute is on spans and on the quota gauges, and it is **off by default** on the
+other metrics. Set `Tracon:Observability:IncludeTenantTag` to `true` to add it.
+Turning the default back on in a later release is a change of this row.
 
 ## Package identity
 

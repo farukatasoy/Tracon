@@ -24,7 +24,7 @@ public sealed class AuditRecorderTests
         var logger = new SpyLogger();
         using var meterFactory = new TestMeterFactory();
         using var collector = new MetricCollector(meterFactory.Meter);
-        var metrics = new TraconMetrics(meterFactory);
+        var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
 
         await AuditRecorder.WriteAsync(
             new ThrowingAuditLog(),
@@ -53,7 +53,7 @@ public sealed class AuditRecorderTests
         var logger = new SpyLogger();
         using var meterFactory = new TestMeterFactory();
         using var collector = new MetricCollector(meterFactory.Meter);
-        var metrics = new TraconMetrics(meterFactory);
+        var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
 
         var refusal = await Should.ThrowAsync<TraconException>(async () =>
             await AuditRecorder.WriteOrThrowAsync(
@@ -87,7 +87,7 @@ public sealed class AuditRecorderTests
     {
         using var meterFactory = new TestMeterFactory();
         using var collector = new MetricCollector(meterFactory.Meter);
-        var metrics = new TraconMetrics(meterFactory);
+        var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         var log = new CapturingAuditLog();
 
         await AuditRecorder.WriteAsync(
@@ -129,7 +129,7 @@ public sealed class AuditRecorderTests
         // "The caller going away" means the caller's token IS cancelled (K-840).
         using var meterFactory = new TestMeterFactory();
         using var collector = new MetricCollector(meterFactory.Meter);
-        var metrics = new TraconMetrics(meterFactory);
+        var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         using var caller = new CancellationTokenSource();
         await caller.CancelAsync();
         var log = new ThrowingAuditLog(new OperationCanceledException(caller.Token));
@@ -173,7 +173,7 @@ public sealed class AuditRecorderTests
         // the fail-closed path refuses and counts it - it is not a cancellation.
         using var meterFactory = new TestMeterFactory();
         using var collector = new MetricCollector(meterFactory.Meter);
-        var metrics = new TraconMetrics(meterFactory);
+        var metrics = new TraconMetrics(meterFactory, TenantTaggedMetricsOptions.Create());
         var log = new ThrowingAuditLog(new TaskCanceledException("the audit store timed out"));
 
         await AuditRecorder.WriteAsync(

@@ -2459,10 +2459,11 @@ OTel konsol exporter'ı `TraconDiagnostics.MeterName` metre'sini dinliyor.
 
 **Beklenen sonuç**
 - `tracon.job.executions` toplam **2** sayar; her ölçüm
-  `tracon.job.lane`, `tracon.job.kind`, `tracon.job.status`
-  ve `tracon.tenant.id` etiketlerini taşır.
+  `tracon.job.lane`, `tracon.job.handler_key` ve `tracon.job.status` etiketlerini
+  taşır. `tracon.tenant.id` etiketi **yoktur** (Faz 238: varsayılan kapalı);
+  `Tracon__Observability__IncludeTenantTag=true` ile aynı ölçümler onu da taşır.
 - `tracon.job.duration` saniye biriminde iki ölçüm taşır; `tenant`
-  etiketi **yoktur**.
+  etiketi **yoktur** (her iki ayarda da).
 - `tracon.job.queue.depth` çıktıda **hiç yoktur** — gauge varsayılan
   kapalıdır ve veritabanına gitmez.
 

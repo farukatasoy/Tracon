@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1018 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 1021 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (52 / 1070 kalem)
+## En Yeni Kalıcı Kararlar (52 / 1073 kalem)
 
 | K | Karar |
 |---|---|
-| K-1029 | Agent uzantısı MAF seçenek nesnesinin kendisini alır; korunan üye tablosu ve ratchet testi sınırı zorlar (F-588) |
-| K-1030 | Uzantıyı kod kaydeder, tanım yalnız adla seçer: `AddAgentExtension`, `ExtensionNames` (F-588) |
-| K-1031 | SQL payload'ında sonradan gelen liste alanı null okunabilir; boş liste yazılmaz (F-588) |
 | K-1032 | Sohbet agent'ında `RequirePerServiceCallChatHistoryPersistence` serbesttir; açıksa model istemcisi sınır seam'inden geçer (F-588) 🔁 |
 | K-1033 | Tool oynatan yollar uzantıyı çalıştırmaz: replay `ExtensionNames`'i boşaltır, continuation reddeder (F-588) |
 | K-1034 | Tanınmayan içerik `tracon.content`, workflow olayı `tracon.workflow.event` olarak kaydedilir; yük gövdesizdir (F-589) |
@@ -62,3 +59,6 @@ Bul ve oku (karar tek satırdır): `grep -n 'K-059 —' docs/KARARLAR.md`. Tarih
 | K-1078 | `rc.1` sonrası aynı major'da kırılma notla kurtarılmaz; yama (aynı major.minor, rc→GA dahil) yüzeyi büyütmez (F-559, Faz 237) 👤 |
 | K-1079 | Devam run'ı bütçeyi zincirden devralır: cevap, resume ve kurtarma aynı kuralı alır; süre yalnız aktif yürütmedir (F-531) 👤 |
 | K-1080 | Kiracı kotası çalışan ağaçta düğüm ve agent adımı başlamadan okunur: sayaç + ağacın yazılmamış payı (F-529) 👤 |
+| K-1081 | HTTP, SSE, telemetri, yapılandırma, hata kodu ve CLI sürümden sürüme kapıyla korunur: kendi betiğimiz, `oasdiff` değil (F-559, Faz 238) 👤 |
+| K-1082 | `IncludeTenantTag` varsayılan kapalı: `tracon.tenant.id` metrikte isteğe bağlı; span ve kota göstergesi her zaman taşır (F-559, A-68) 👤 |
+| K-1083 | Hata kodları iki katalogdadır: `TraconErrorTypes` (public), `ValidationCodes` (internal); değerler değişmez (F-559, Faz 238) 👤 |

@@ -1,6 +1,6 @@
 # Faz 238 — .NET Dışı Yüzeylerin 1.x Kuralları, Sözleşme Anlık Görüntüleri ve Kiracı Metrik Etiketi
 
-> **Durum:** 📋 Planlandı (2026-10-23)
+> **Durum:** ✅ Tamamlandı (2026-10-24)
 > **Kademe:** tam — geri dönüşü pahalı karar: HTTP, telemetri, yapılandırma, hata kodu ve CLI adları `rc.1`'de donar; varsayılan davranış değişir (`tracon.tenant.id` metrikten düşer)
 > **Plan onayı:** Bakımcı, 2026-10-23 (engelleyici kararlar sohbette alındı: HTTP kırılma kapısı kendi Python betiğidir — `oasdiff` değil; `IncludeTenantTag` varsayılanı `false`; kota göstergeleri kiracı etiketini korur; hata kodları merkezi kataloğa taşınır; anlık görüntüler `docs/sozlesme/` altında durur)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-559** (A-67 ve A-68 dilimi; A-76 dilimi Faz 237'dedir)
@@ -359,19 +359,19 @@ tabanı okuyamazsa kapı kırmızıdır, yeşil olmaz.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `reference/versioning.md` §238.1 tablosunu ve üç cümleyi taşır; `observability.md` ve `configuration.md` güncel; `npm run build` + `check-links.mjs` temiz
-- [ ] `docs/sozlesme/` beş dosyayı taşır; her anlık görüntü testi yalıtılmış kırılmada kırmızı görüldü
-- [ ] `TraconErrorTypes` her makine okur kodu taşır; `ErrorTypeLiteralTests` yeşil; `hata-kodlari.txt` dizeleri bugünkü dizelerle **aynı** (`git diff` dize değişikliği göstermez)
-- [ ] `TenantTagOptionTests` sekiz enstrüman × iki seçenek değeri + kota göstergesi + span'i kanıtlar
-- [ ] `sozlesme_kirilma_test.py` her HTTP kuralı ve ad kümesi kuralı için kırmızı/yeşil çiftini kanıtlar; `python3 -m unittest discover -s scripts -p "sozlesme_kirilma_test.py"` yeşil
-- [ ] `kapi.py yayin --kuru` yüzey satırlarını yazar (Manuel 2)
-- [ ] `CHANGELOG.md [Unreleased]` kiracı etiketi değişikliğini adıyla yazar
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, iki seçenek değerinde metrik çıktısı belgeye yazıldı (Manuel 1)
-- [ ] `secret` taraması boş döndü
-- [ ] `🤖` case'ler `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md` ve `01-KURULUM-VE-PAKETLEME.md` içinde ve koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `YAYIN-HAZIRLIK.md` §2 ölçüt 5: F-559 ✅ (Faz 237 + 238); §3.6 "SemVer sınıflandırması" maddesi kapanır
+- [x] `reference/versioning.md` §238.1 tablosunu ve üç cümleyi taşır; `observability.md` ve `configuration.md` güncel; `npm run build` + `check-links.mjs` temiz
+- [x] `docs/sozlesme/` altı ad kümesi taşır (beş planlı + doğrulama kodları, sapma 13); her anlık görüntü testi yalıtılmış kırılmada kırmızı görüldü (dosyadan satır silinince ve fazladan satır eklenince; istemci adı testi `SourceKind2` eklenince)
+- [x] `TraconErrorTypes` run, iş ve OpenAI kodlarını, `ValidationCodes` doğrulama bulgusu kodlarını taşır; `ErrorTypeLiteralTests` ikisini de okur ve yeşil; `hata-kodlari.txt` dizeleri HEAD'den çıkarılan dizelerle **aynı** (`diff` boş, 47/47)
+- [x] `TenantTagOptionTests` sekiz enstrüman × iki seçenek değeri + span'i kanıtlar; kota göstergesi `QuotaUsageObserverTests`'te etiket kapalıyken okunur (plan "aynı sınıf" demişti)
+- [x] `sozlesme_kirilma_test.py` her HTTP kuralı ve ad kümesi kuralı için kırmızı/yeşil çiftini kanıtlar; `python3 -m unittest discover -s scripts -p "sozlesme_kirilma_test.py"` yeşil (72 test)
+- ~~`kapi.py yayin --kuru` yüzey satırlarını yazar (Manuel 2)~~ Tutulmadı, gerekçeli: `v1.0.0-preview.5` paketleri nuget.org'da yok, komut taban restore'unda düşer ve yüzey satırlarına ulaşmaz (Faz 237 devri, `MT-PKG-169`; deploy sorununa bakılmadı, kullanıcı talimatı). Yerine: kapı gerçek etikete karşı tek başına koşuldu (`sozlesme_kirilma.py --taban 1.0.0-preview.5`, çıkış 0, dört HTTP kırılması notta) ve `kapi.py` bağlantısı `kapi_test.py`'de sırayla kanıtlandı (ApiCompat → yüzey, ApiCompat kırmızıysa yüzey koşmaz)
+- [x] `CHANGELOG.md [Unreleased]` kiracı etiketi değişikliğini adıyla yazar
+- [x] Dört doğrulama kapısı sıfır uyarı verir (`kapi.py kapanis --taban 20923b37`, çıkış 0)
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, iki seçenek değerinde metrik çıktısı belgeye yazıldı (Manuel 1; `MT-OBS-084`, `dotnet-counters`: birinci koşumda `tracon.runs[tracon.agent.name=researcher;tracon.agent.version=1;tracon.run.status=Completed]`, ikincide aynı seri `;tracon.tenant.id=default`; iz iki koşumda da kiracıyı taşır; `IncludeTenantTag=evet` çıkış 134)
+- [x] `secret` taraması boş döndü (`kapi.py tarama`)
+- [x] `🤖` case'ler `docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md` (`MT-OBS-084`) ve `01-KURULUM-VE-PAKETLEME.md` (`MT-PKG-171`, `172`) içinde ve koşuldu; `171` adım 3 ☐ (yukarıdaki engel)
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (iki 🔴 kapandı, aşağıda)
+- [x] `YAYIN-HAZIRLIK.md` §2 ölçüt 5: F-559 ✅ (Faz 237 + 238); §3.6 "SemVer sınıflandırması" maddesi kapanır
 
 ### Doğrulama komutları
 
@@ -405,6 +405,69 @@ git diff --stat docs/openapi/tracon.json     # boş olmalı
 > Çalışırken dolar. Plan ile gerçek arasındaki fark **gizlenmez**. Kapanışta
 > kapanış commit mesajına taşınır.
 
+1. **"ProblemDetails `type`" yoktu; kod sayısı yanlıştı** (§238.3, `git grep` ile ölçüldü). `TypedResults.Problem(` hiçbir uçta
+   `type:` vermez; `type: "…"` OpenAI uyumlu uçların `error.type` değeridir ve katalog onları da taşır. Planın "21 public sabit /
+   15 kod `TraconException.cs`'de / 4 iş kodu" sayımı da tutmadı: 14 sabit `TraconException.cs`'dedir, yedisi Abstractions'ın
+   başka dosyalarındadır (21), iş kodu 4 değil 9'dur (`NonRetryableJobException`'ın beşi `internal`: `QueuedTurn`,
+   `WorkflowRunJobHandler`), 7 OpenAI tipi ve 10 elle yazılan run tipi (`orphaned`, `ApprovalExpired`, …) vardır → **47 değer**.
+   Taşıma öncesi dizeler `git grep` ile HEAD'den çıkarıldı; `hata-kodlari.txt` ile birebir aynı (`diff` boş).
+2. **Katalog adı ve bağlama:** `JobErrorCodes`'un dört sabiti, exception `*ErrorType` sabitleri ve `internal` sabitler
+   (`UpstreamErrorType`, `InterruptedErrorType`, …) kataloğa **takma adla** bağlandı; silinmedi (Açık Soru 1 = A). Aynı değerin
+   iki adı olan tek yer `JobMaxDurationExceeded` (`job_max_duration_exceeded`, run tipi) ve `JobMaxDurationExceededCode`
+   (`tracon.job.max-duration-exceeded`, iş kodu)'dur.
+3. **Yapılandırma anahtar ağacı yansımayla değil `PublicAPI.*.txt` metninden okunur** (Açık Soru 3). `Tracon.Core.UnitTests`
+   sağlayıcı, ses, workflow ve veritabanı paketlerini referanslamaz; referanslamak SDK'larını çekerdi. Ölçüm: `TenantProviders`
+   ve `InboundTriggers` bölümlerinin tipi `SectionName` taşımaz → `RootsWithoutSectionName`; `Every_section_the_registration_
+   binds_has_keys_in_the_tree` kayıt kodundaki her `GetSection("X")` sözcüğünü ağaca bağlar. **Plan "kapalı" sandığı bir anahtar
+   bağlıydı:** `Skills:Scripts:EnvironmentAllowList` bağlanır (binder satır 242, site belgeler); kapalı olan üçüdür
+   (`AllowStoredScripts`, `SkillRoots`, `Interpreters`) ve `Keys_closed_on_purpose_stay_unbound` bunu DI ile kanıtlar.
+4. **SSE anlık görüntüsü iki sözlük taşır** (`run-events` · `agent-stream`). `RunEndpoints.EventName` private ve
+   `Tracon.AspNetCore.FunctionalTests`'e görünmez; olay adları her `RunEventType` taşıyan bir run'ın `GET /api/runs/{id}/events`
+   akışından HTTP ile okunur (34 ad). Planda olmayan ikinci sözlük (`run`, `update`, `done`, `error`, `event`, `inputs`,
+   `approvals`, `custom`) doğrudan run akışının sözleşmesidir; adlar `WriteEventAsync` çağrılarının sabit ikinci argümanından
+   okunur. Ad sabit değilse tarama onu görmez (`The_scan_finds_the_direct_stream_names_it_is_known_to_find` taramanın
+   körleşmesini önler).
+5. **Telemetri satırı ad değil enstrüman satırıdır:** tür (`Counter<long>`), birim ve **varsayılan** öznitelik kümesi satırın
+   parçasıdır. Aksi hâlde "varsayılanı çevirmek major" kuralı (§238.1) kapıdan görünmezdi. Öznitelik kümesi gerçek ölçümden
+   okunur; gösterge (gauge) öznitelikleri veritabanı okuduğu için listelenmez (`QuotaUsageObserverTests` /
+   `JobQueueDepthGaugeTests` sabitler).
+6. **§238.4 son madde tutmadı:** "ilk koşum `v1.0.0-preview.5`'e karşıdır ve kiracı etiketi değişikliği telemetri satırında görünür".
+   Taban etiketinde `docs/sozlesme/` yoktur; ad kümeleri `taban yok` der, yalnız HTTP koşar. Kiracı etiketinin düşmesinin kaydı
+   `CHANGELOG [Unreleased]` notudur. Kapı bir sonraki yayından itibaren telemetri satırını korur.
+7. **Tam `kapi.py yayin --kuru` yüzey satırlarına ulaşamadı** (Manuel 2). `v1.0.0-preview.5` paketleri nuget.org'da yoktur
+   (flat container yalnız `preview.1…4`, 2026-10-24), taban restore'u düşer (Faz 237 devri, `MT-PKG-169`). Kapı gerçek
+   etikete karşı `python3 scripts/sozlesme_kirilma.py --taban 1.0.0-preview.5` ile tek başına koşuldu: dört HTTP kırılması
+   (`ModelBinding.allowConcurrentToolCalls` yanıt/istek, `EvalCase.expectedTools`, `EvalCaseInput.expectedTools`), hepsi
+   `CHANGELOG`'da adıyla geçiyor → çıkış 0. `MT-PKG-171` adım 3 ☐. Bu engele **bakılmadı** (kullanıcı kararı: deploy sorunu).
+8. **K-993, `IncludeTenantTag` için bool'a genişletildi** ama kardeş bool'lara değil: `TryReadBool` okunamayan değeri sessizce
+   atlar ve `IncludeAgentVersionTag` gibi on kadar anahtar bunu yapar. Yalnız `IncludeTenantTag` açılışta adlandırılır
+   (`UnreadableIncludeTenantTag`, `ValidateTenantTag`); gerisi kapsam dışıdır.
+9. **Mevcut testler:** sekiz test dosyası kiracı serisini okuyordu (`RunRecordingFailureMetricTests`, `AuditRecorderTests`,
+   `RunCostMetricTests`, `JobMetricsTests`, `TelemetryTagTests`, `WorkflowRecordingFailureTests`, `MetricProbe`,
+   `JobMetricEndToEndTests`); etiketi açan seçenekle kuruldu (`TenantTaggedMetricsOptions`). `TraconMetrics` çağıranları
+   (`RecordCost`, `RecordJob`, `RecordRun`, …) **değişmedi**: karar `AddTenantTag`'dedir.
+10. **Paylaşılan yardımcı:** beş anlık görüntü testi için `tests/Shared/Infrastructure/ContractSnapshot.cs` (yenileme
+    `TRACON_SOZLESME_REFRESH=1`). Yol parametresi `docs/sozlesme/<dosya>` biçiminde tam yazılır: dosya adı tek başına
+    (`hata-kodlari.txt`) `SourceLanguageTests`'in Türkçe sözlüğüne takılır, tam yol maskelenir.
+11. **F-670 karara bağlanmadı** (donmuş hat eşiği her major için `rc.1`): 2.0 planlı değil, bu faz `release_line`'ı olduğu gibi kullandı.
+12. **OpenAPI karşılaştırıcısına eklenen, planda olmayan:** nullable kayması (`istek alanı artık null olamaz`, `yanıt alanı artık null
+    olabilir`), `operationId` değişimi (üretilen istemci yöntem adı), şemanın başka şemaya bağlanması (istemci tip adı), kısa ad
+    (`alt`) eşleşmesi: notta `ExpectedTools` (C#) ile `expectedTools` (JSON) aynı adı anar.
+13. **Hata kodu iki ailedir; ikincisini denetim buldu.** `POST /api/agents/validate` bulgularının `ValidationMessage.Code`
+    değerleri (35; OpenAPI "stable machine-readable code" der) planın katalog tanımında yoktu ve DoD "her makine okur kodu"
+    diyordu. Seçilen yol: `ValidationCodes` (`internal`, `Tracon.Core/Compilation/`), `docs/sozlesme/dogrulama-kodlari.txt`,
+    `ValidationCodeSnapshotTests`, kapıya altıncı ad kümesi. Public yüzey büyümedi (üç `AgentParameterValidator` sabiti
+    değerlerini kataloğa bağlar). `ErrorTypeLiteralTests` iki kataloğu da okur. Reddedilen: kapsamı daraltıp yalnız cümleleri
+    düzeltmek (35 kod 1.x boyunca korumasız kalırdı).
+14. **Denetimin kapattığı kenarlar:** (a) OpenAPI karşılaştırıcısı null olabilirliği adlandırılmış şemanın ikinci kullanım
+    yerinde kaçırıyordu — kontrol kısayoldan önceye alındı, gerçek belgede isteğe ulaşan her null olabilen `$ref` yeri çevrilip
+    kırmızı aranır (üç yer eskiden yeşildi); (b) belge düzeyi `security` karşılaştırılır, `servers`/`openapi`/`info` yazılı
+    gerekçeyle dışarıda; (c) yanıt enum değeri silmek kırılmadır (`Tracon.Client` PublicAPI dışında, K-566); (d) `git show`
+    hatası artık "dosya yok" sayılmaz (`ls-tree` ayrımı, `BaselineError`; F-671'in bu yarısı kapandı); (e) `Tracon:UtilityModel`
+    altında binder'ın okumadığı 18 anahtar anlık görüntüden çıktı (F-676); (f) gözlemlenebilirlik sayfasındaki "yapılandırma
+    yenilenince etkili olur" cümlesi doğrulanmadığı için silindi; (g) `versioning.md` tablosu ile açıklaması aynı hâle geldi ve
+    kapının görmediklerini adıyla yazar.
+
 ## Bu Fazda Verilen Kararlar
 
 > Çalışırken dolar. Dört kategoriden birine giren karar (AGENTS.md)
@@ -414,6 +477,10 @@ git diff --stat docs/openapi/tracon.json     # boş olmalı
 > geri-dönüşü-pahalı; alternatif: `oasdiff`)* · `IncludeTenantTag` varsayılan
 > kapalı *(public-api; alternatifler: varsayılan açık, koşulsuz)* · hata kodu
 > kataloğu *(public-api; alternatifler: kaynak taraması, yalnız kural)*.
+
+Yazıldı: **K-1081** (.NET dışı yüzeylerin sürümden sürüme kapısı, `oasdiff` değil) · **K-1082** (`IncludeTenantTag` varsayılan
+kapalı) · **K-1083** (hata kodları iki katalogda: `TraconErrorTypes` public, `ValidationCodes` internal). Kategori dışı, commit mesajına: yapılandırma anahtar ağacının
+`PublicAPI` metninden okunması, SSE'nin iki sözlüğü, telemetri satırının varsayılan öznitelik taşıması (sapma 3–5).
 
 ## Süreç Ölçümü
 
@@ -425,10 +492,10 @@ git diff --stat docs/openapi/tracon.json     # boş olmalı
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
+| Plan revizyonu sayısı | 14 (sapma olarak yazıldı; plan metni revize edilmedi) |
+| Düzeltme turu sayısı | 1 (denetim sonrası: iki 🔴 ve dokuz 🟡) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 (kapı commit'ten önce üç şeyi yakaladı: yayın sayfasında iç yol, `README` tip sayısı, sıcak hafıza bütçesi; hiçbiri commit'e girmedi) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
@@ -436,3 +503,24 @@ git diff --stat docs/openapi/tracon.json     # boş olmalı
 > `faz-denetim` çıktısı. Her satır: bulgu · seviye (🔴/🟡/🟢) · sonuç
 > (düzeltildi / gerekçelendi / F-NN olarak devredildi). 🟢 kapanışta
 > `ADAYLAR.md`'ye gider.
+
+Denetçi: `faz-denetcisi`, taze bağlam, çalışma ağacı (taban `20923b37`). **🔴 sayısı 2, ikisi de kapandı.**
+
+| # | Bulgu | Seviye | Sonuç |
+|---|---|---|---|
+| 1 | `TraconErrorTypes` "her makine okur kod"u taşımıyor: `validate` bulgusu kodları (35) katalogda ve anlık görüntüde yok | 🔴 | düzeltildi: `ValidationCodes` + `dogrulama-kodlari.txt` + `ValidationCodeSnapshotTests`; literal kapısı iki kataloğu okur (sapma 13) |
+| 2 | OpenAPI karşılaştırıcısı null olabilirlik kaymasını adlandırılmış şemanın ikinci kullanım yerinde kaçırıyor | 🔴 | düzeltildi: null kontrolü kısayoldan önce; sentetik iki test + gerçek belgede isteğe ulaşan her null olabilen `$ref` yeri (eski sırayla üç test kırmızı, düzeltmeyle yeşil) |
+| 3 | `security`, `servers`, `openapi` belge anahtarları "tanınmayan değişiklik" kapsamı dışında | 🟡 | düzeltildi: `security` karşılaştırılır; diğerleri yazılı gerekçeyle dışarıda; `components` altındaki bilinmeyen anahtar kırmızı |
+| 4 | Yanıt enum değeri silmek yeşil | 🟡 | düzeltildi: kırılma (üretilen .NET istemcisi bir üye kaybeder) |
+| 5 | Okunamayan taban blob'u "dosya yok" sayılıyor | 🟡 | düzeltildi: `ls-tree` ayrımı, `BaselineError`; iki test |
+| 6 | `yapilandirma.txt` binder'ın okumadığı 18 `UtilityModel` anahtarı taşıyor | 🟡 | düzeltildi: anlık görüntüden çıktı, DI ile kanıtlandı; bağlama kararı F-676 |
+| 7 | "Yapılandırma yenilenince etkili olur" doğrulanmamış | 🟡 | düzeltildi: cümle silindi (sayfa ve XML) |
+| 8 | `versioning.md` tablo ile açıklama çelişiyor, kapının görmediklerini söylemiyor | 🟡 | düzeltildi |
+| 9 | Enstrüman açıklamaları "tagged by tenant" diyor | 🟡 | düzeltildi |
+| 10 | `nuget-danismani` kaynakları eskidi | 🟡 | düzeltildi |
+| 11 | İki DoD satırı kanıtsız | 🟡 | gerekçelendi: `yayin --kuru` engeli (sapma 7); yalıtılmış kırmızı kayıtlı |
+| 12 | `agent-stream` taraması, çıkış kodları/ortam değişkenleri, `nameof(...)` run tipleri, `breaking-changes.json` | 🟢 | F-677 olarak devredildi |
+| 13 | Audit ve kayıt hatası sayaçları kiracısız hangi kiracıyı söylemez | 🟢 | F-678 olarak devredildi |
+| 14 | `UtilityModel` altı üyeyi okur | 🟢 | F-676 olarak devredildi |
+| 15 | `yayin-turu.md` "8 OpenAI tipi"; `MT-JOB-117` `tracon.job.kind` | 🟢 | düzeltildi (7; `handler_key`) |
+| 16 | `_request_body` `$ref` çözmüyor | 🟢 | düzeltildi (küçük) |

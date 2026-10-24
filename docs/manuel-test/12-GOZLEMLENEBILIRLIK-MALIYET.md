@@ -9,7 +9,8 @@
 > 132 (§ uygulanan fiyat snapshot'ı — birim fiyatlar, `runs.model_provider`,
 > yeniden hesaplamanın `Unknown`'a daralması),
 > 199 (§ fonksiyon düğümünün token dışı harcaması — kalemler, toplam, kota, bütçe, webhook),
-> 210 (§ bütçe tükenince fonksiyon düğümü başlamaz — maliyet ve süre kapısı, muafiyet)
+> 210 (§ bütçe tükenince fonksiyon düğümü başlamaz — maliyet ve süre kapısı, muafiyet),
+> 238 (§ kiracı metrik etiketi — `IncludeTenantTag`, varsayılan kapalı)
 > **Kaynak:** `src/Tracon.UI/frontend/src/screens/dashboard.tsx` (tüm dosya) ·
 > `components/charts.tsx` (`TimeSeriesChart`/`ModelBreakdownChart`/
 > `StatusDistributionChart`) · `components/waterfall.tsx` (iz/span görselleştirme,
@@ -1845,7 +1846,8 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 | **İlgili karar** | K-782 |
 
 **Ön koşul**
-- MT-OBS-061'in kurulumu.
+- MT-OBS-061'in kurulumu; `Tracon__Observability__IncludeTenantTag=true` (Faz 238: kiracı etiketi varsayılan **kapalı**,
+  bu case kiracı serisini okur).
 - 🚨 **Veritabanını tamamen durdurma.** `run` uca hiç ulaşmaz: akış
   başlamadan önceki okumalar (ek dosya sahipliği · deney ataması · parametre
   kapısı) **sesli** düşer ve uç `HTTP 500` döner — `RunEventWriter` kurulmaz
@@ -2423,3 +2425,44 @@ Otomatik karşılığı: `FunctionNodeBudgetGateTests.A_spent_token_budget_does_
 
 **Beklenen sonuç**
 - Run `Completed`; `speak` başladı ve kalemini yazdı. (2026-10-14 koşumu: `Completed`, `speak` kalemi var. Echo modeli kullanım bildirmediği için token bütçesi gerçekte tükenmedi; tükenmiş token bütçesinin düğümü durdurmadığını fiyatlı sahte sağlayıcılı iki otomatik test kanıtlar.)
+
+---
+
+### MT-OBS-084 — Kiracı metrik etiketi varsayılan kapalıdır; `IncludeTenantTag=true` açar; span ve kota göstergesi etiketi her zaman taşır (Faz 238, A-68)
+
+Otomatik karşılığı: `TenantTagOptionTests` (sekiz enstrüman × iki değer, değişimin sonraki ölçüme ulaşması, span, açılış hatası).
+Bu case aynı davranışı **gerçek örnek uygulamada** ve gerçek bir metrik toplayıcıyla (`dotnet-counters`) okur.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 238 |
+| **İlgili karar** | — |
+| **Devir** | 🤖 ajan koşar — `samples/Tracon.Api` + `dotnet-counters collect` ile iki koşum |
+
+**Ön koşul** — `dotnet-counters` kurulu. Örnek uygulama (echo modeli) dört boş ortam değişkeniyle
+(`Tracon__PostgreSql__ConnectionString=` `Tracon__SqlServer__ConnectionString=` `Tracon__Ui__AuthToken=`
+`Tracon__Providers__OpenAI__ApiKey=`) ve `Tracon__Observability__SuccessSampleRatio=1` ile. İki koşum:
+birincisi başka ayar olmadan, ikincisi `Tracon__Observability__IncludeTenantTag=true` ile.
+
+**Adımlar**
+1. Her koşumda `dotnet-counters collect -p <pid> --counters Tracon --refresh-interval 1 --format csv -o <dosya>` başlat.
+2. `POST /tracon/api/agents/researcher/run` ile iki `run` aç (`{"message":"Review order 1001."}`).
+3. CSV'de `tracon.runs` satırını oku.
+4. Son `run`'ın kimliğiyle `GET /tracon/api/runs/{id}/trace` oku; gövdede `tracon.tenant.id` ara.
+5. Üçüncü bir koşum: `Tracon__Observability__IncludeTenantTag=evet` ile başlat.
+
+**Beklenen sonuç**
+- (3) Birinci koşum: `tracon.runs[tracon.agent.name=researcher;tracon.agent.version=1;tracon.run.status=Completed]` —
+  `tracon.tenant.id` **yok**. İkinci koşum: aynı seri `…;tracon.tenant.id=default` ile.
+- (4) İki koşumda da iz `"tracon.tenant.id": "default"` taşır.
+- (5) Uygulama açılmaz; ileti `IncludeTenantTag is 'evet', which is not true or false` der.
+- Koşum günlüğünde `Npgsql` satırı **0**.
+
+2026-10-24 koşumu (örnek uygulama, SQLite, echo modeli): (3) birinci koşumda `tracon.runs[tracon.agent.name=researcher;
+tracon.agent.version=1;tracon.run.status=Completed]`, ikincide aynı seri `;tracon.tenant.id=default` ile; (4) iki izde de
+`"tracon.tenant.id": "default"`; `Npgsql` satırı 0; (5) süreç `Application started` demeden çıkış `134` ile düştü:
+`OptionsValidationException: TraconObservabilityOptions.IncludeTenantTag is 'evet', which is not true or false. Write true or
+false, or remove the key to keep the tenant tag off the metrics.` Aynı davranışı `A_value_that_is_not_true_or_false_stops_the_application_at_startup`
+testi `evet`, `1` ve `on` için sabitler.

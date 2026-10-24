@@ -29,8 +29,11 @@ namespace Tracon.AspNetCore.FunctionalTests;
 /// </remarks>
 public sealed class JobMetricEndToEndTests
 {
-    [Fact]
-    public async Task A_job_run_by_the_real_worker_publishes_the_counter_and_the_histogram()
+    // Phase 238: the tenant tag is off by default; the counter carries it only when the setting is on.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_job_run_by_the_real_worker_publishes_the_counter_and_the_histogram(bool includeTenantTag)
     {
         using var meterFactory = new TestMeterFactory();
         using var collector = new MeterInstanceCollector(meterFactory.Meter);
@@ -39,6 +42,7 @@ public sealed class JobMetricEndToEndTests
             configureServices: services =>
             {
                 services.AddSingleton<IMeterFactory>(meterFactory);
+                services.Configure<TraconOptions>(options => options.Observability.IncludeTenantTag = includeTenantTag);
                 services.UseScheduling(static options =>
                 {
                     options.RunWorker = true;
@@ -80,7 +84,7 @@ public sealed class JobMetricEndToEndTests
         // terminal status is Failed. What matters here is that a TERMINAL
         // status reached the counter through the real chain.
         counter.Tags.ShouldContainKey(TraconDiagnostics.Tags.JobStatus);
-        counter.Tags.ShouldContainKey(TraconDiagnostics.Tags.TenantId);
+        counter.Tags.ContainsKey(TraconDiagnostics.Tags.TenantId).ShouldBe(includeTenantTag);
 
         var duration = await collector.WaitForAsync(TraconDiagnostics.JobDurationName);
 

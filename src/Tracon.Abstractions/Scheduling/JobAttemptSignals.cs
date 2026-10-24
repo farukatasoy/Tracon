@@ -41,7 +41,7 @@ internal sealed class JobAttemptSignals
     /// The error type a run carries when the job running it reached its time limit and
     /// cancelled it. A recovery plan reads it: such a run is never continued.
     /// </summary>
-    public const string MaxDurationExceededRunErrorType = "job_max_duration_exceeded";
+    public const string MaxDurationExceededRunErrorType = TraconErrorTypes.JobMaxDurationExceeded;
 
     private readonly CancellationToken _cancelled;
     private readonly CancellationToken _deadline;

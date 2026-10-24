@@ -23,7 +23,7 @@ public static class JobErrorCodes
     /// in the UI. The raw key goes to the log only, tagged with the same
     /// correlation id the message carries.
     /// </remarks>
-    public const string UnknownHandlerKey = "tracon.job.unknown-handler-key";
+    public const string UnknownHandlerKey = TraconErrorTypes.JobUnknownHandlerKey;
 
     /// <summary>
     /// The handler registered for the job's
@@ -37,7 +37,7 @@ public static class JobErrorCodes
     /// than released, so it does not re-lease forever. The exception's own
     /// detail goes to the log, under the correlation id the message carries.
     /// </remarks>
-    public const string HandlerActivationFailed = "tracon.job.handler-activation-failed";
+    public const string HandlerActivationFailed = TraconErrorTypes.JobHandlerActivationFailed;
 
     /// <summary>
     /// The job was leased again after its lease ran out — the worker running
@@ -63,7 +63,7 @@ public static class JobErrorCodes
     /// change the job: a job that reached a final status keeps it.
     /// </para>
     /// </remarks>
-    public const string AttemptsExhausted = "tracon.job.attempts-exhausted";
+    public const string AttemptsExhausted = TraconErrorTypes.JobAttemptsExhausted;
 
     /// <summary>
     /// The attempt ran longer than the job's time limit
@@ -87,7 +87,7 @@ public static class JobErrorCodes
     /// stopped. Its row carries the error type <c>job_max_duration_exceeded</c>.
     /// </para>
     /// </remarks>
-    public const string MaxDurationExceeded = "tracon.job.max-duration-exceeded";
+    public const string MaxDurationExceeded = TraconErrorTypes.JobMaxDurationExceededCode;
 
     /// <summary>Formats the persisted message for <paramref name="code"/>.</summary>
     /// <param name="code">One of this class's constants.</param>

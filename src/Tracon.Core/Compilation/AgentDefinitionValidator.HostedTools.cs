@@ -35,7 +35,7 @@ internal sealed partial class AgentDefinitionValidator
             messages.Add(new ValidationMessage
             {
                 Severity = ValidationSeverity.Error,
-                Code = "hosted_tool_unsupported",
+                Code = ValidationCodes.HostedToolUnsupported,
                 Message = finding.Describe(),
                 Path = finding.Path,
             });

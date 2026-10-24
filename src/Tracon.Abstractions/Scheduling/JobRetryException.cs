@@ -21,7 +21,7 @@ public sealed class JobRetryException : TraconException
     /// <summary>
     /// The stable value written for <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string JobRetryErrorType = "job_retry";
+    public const string JobRetryErrorType = TraconErrorTypes.JobRetry;
 
     /// <summary>Creates a new retry request.</summary>
     public JobRetryException()

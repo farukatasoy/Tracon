@@ -39,7 +39,7 @@ internal static class SessionlessApprovalRun
     /// The MCP task store reads it: a poller sees such a run as the approval refusal, the same
     /// shape the tool call itself returned, not as a failure.
     /// </remarks>
-    public const string ErrorType = "approval_unanswerable";
+    public const string ErrorType = TraconErrorTypes.ApprovalUnanswerable;
 
     /// <summary>Says whether a response stopped at a tool approval.</summary>
     /// <param name="messages">The response's messages.</param>

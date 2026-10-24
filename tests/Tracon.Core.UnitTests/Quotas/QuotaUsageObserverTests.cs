@@ -259,6 +259,10 @@ public sealed class QuotaUsageObserverTests
                 {
                     EnableQuotaUsageGauge = enabled,
                     QuotaUsageRefreshInterval = TimeSpan.FromSeconds(30),
+
+                    // The metric tenant tag is off (Phase 238); the gauges carry the tenant regardless, and
+                    // Value_matches_the_quota_record_when_enabled reads it with the tag off.
+                    IncludeTenantTag = false,
                 },
             }),
             new StaticOptionsMonitor<TraconQuotaOptions>(new TraconQuotaOptions()),

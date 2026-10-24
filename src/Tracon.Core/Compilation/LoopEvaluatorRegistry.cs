@@ -40,28 +40,28 @@ namespace Tracon;
 internal sealed class LoopEvaluatorRegistry
 {
     /// <summary>The validation code of an empty <see cref="LoopSettings.Criteria"/> list.</summary>
-    internal const string CriteriaEmptyCode = "loop_criteria_empty";
+    internal const string CriteriaEmptyCode = ValidationCodes.LoopCriteriaEmpty;
 
     /// <summary>The validation code of a <see cref="LoopSettings.MaxIterations"/> that is not positive.</summary>
-    internal const string MaxIterationsInvalidCode = "loop_max_iterations_invalid";
+    internal const string MaxIterationsInvalidCode = ValidationCodes.LoopMaxIterationsInvalid;
 
     /// <summary>The validation code of a <see cref="LoopOutcome"/> value that is not a member.</summary>
-    internal const string OutcomeInvalidCode = "loop_outcome_invalid";
+    internal const string OutcomeInvalidCode = ValidationCodes.LoopOutcomeInvalid;
 
     /// <summary>The validation code of a criterion without a <see cref="LoopCriterion.Kind"/>.</summary>
-    internal const string CriterionKindMissingCode = "loop_criterion_kind_missing";
+    internal const string CriterionKindMissingCode = ValidationCodes.LoopCriterionKindMissing;
 
     /// <summary>The validation code of a kind that is neither built in nor registered in code.</summary>
-    internal const string CriterionUnknownCode = "loop_criterion_unknown";
+    internal const string CriterionUnknownCode = ValidationCodes.LoopCriterionUnknown;
 
     /// <summary>The validation code of a <c>completionMarker</c> criterion without a marker.</summary>
-    internal const string MarkerMissingCode = "loop_marker_missing";
+    internal const string MarkerMissingCode = ValidationCodes.LoopMarkerMissing;
 
     /// <summary>The validation code of an <c>aiJudge</c> criterion without judge criteria.</summary>
-    internal const string JudgeCriteriaMissingCode = "loop_judge_criteria_missing";
+    internal const string JudgeCriteriaMissingCode = ValidationCodes.LoopJudgeCriteriaMissing;
 
     /// <summary>The validation code of an <c>aiJudge</c> criterion on a host with no judge model.</summary>
-    internal const string JudgeUnconfiguredCode = "loop_judge_unconfigured";
+    internal const string JudgeUnconfiguredCode = ValidationCodes.LoopJudgeUnconfigured;
 
     private const string CompletionMarkerKind = "completionMarker";
     private const string TodoCompletionKind = "todoCompletion";

@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214, 237
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189, 213, 214, 237, 238
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -4655,3 +4655,65 @@ kapısının varsayımları (`scripts/breaking_changes.py`, `reference/versionin
 - (1) Çıkış `0`; 17 satırlık tablo `Measured` = `Expected`. `V_REQUIRED_NEW` ve `V_OPTIONAL_TO_REQUIRED` satırları `-` (kayıt yok).
 - (2) `RequiredMemberSnapshotTests` kırmızı; ileti `+ Tracon.AgentDefinition.Probe237` satırını ve yenileme komutunu söyler.
 - (3) Yenilemeden sonra yeşil; `docs/sozlesme/required-uyeler.txt` tek satır büyür.
+
+---
+
+### MT-PKG-171 — .NET dışı yüzeyler son sürümle karşılaştırılır: HTTP gerçek tabana karşı koşar, ad kümeleri "taban yok" der, adsız kırılma kırmızıdır (Faz 238)
+
+Otomatik karşılığı: `scripts/sozlesme_kirilma_test.py` (`HttpKirilmaKurallari`, `HttpEklemeKurallari`, `AdKumesiTestleri`, `KapiTestleri`).
+Bu case aynı kapıyı **gerçek depo, gerçek etiket ve gerçek belge** üzerinde okur.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 238 |
+| **İlgili karar** | — |
+| **Devir** | 🤖 ajan koşar — `python3 scripts/sozlesme_kirilma.py` gerçek `v1.0.0-preview.5` etiketine karşı; tam `kapi.py yayin --kuru` taban paketleri nuget.org'da olmadığı için `MT-PKG-169` ile aynı engelde ☐ |
+
+**Ön koşul** — Temiz ağaç; `git tag -l v1.0.0-preview.5` etiketi yerelde var. Ağ gerekmez.
+
+**Adımlar**
+1. `python3 scripts/sozlesme_kirilma.py --taban 1.0.0-preview.5`
+2. Hiçbir ad taşımayan bir sürüm notuyla: `python3 scripts/sozlesme_kirilma.py --taban 1.0.0-preview.5 --changelog <"## [Unreleased]" başlığı ve ilgisiz bir satır taşıyan dosya>`
+3. `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.6`
+
+**Beklenen sonuç**
+- (1) Çıkış `0`. İlk satır `Hat: preview (K-602 — kırılma notta adıyla)`. Altı ad kümesi için `ℹ️ <yüzey>: taban yok (… 'v1.0.0-preview.5' etiketinde yok; ilk kayıt)`.
+  Son satır: `Sözleşme yüzeyleri: HTTP: 4 kırılma (notta) · SSE: taban yok · telemetri: taban yok · yapılandırma: taban yok · hata kodu: taban yok · doğrulama kodu: taban yok · CLI: taban yok` ve `✅ .NET dışı yüzeylerdeki 4 kırılmanın hepsi 'Unreleased' notunda adıyla geçiyor`.
+- (2) Çıkış `1`; `❌ Kırılma sürüm notunda adıyla geçmiyor` ve dört satır: `ModelBinding.allowConcurrentToolCalls` (yanıt ve istek), `EvalCase.expectedTools` (yanıt), `EvalCaseInput.expectedTools` (istek).
+- (3) Taban `v1.0.0-preview.5` paketleri nuget.org'da yoktur (flat container yalnız `preview.1…4` listeler, 2026-10-24); komut taban restore adımında düşer ve
+  yüzey satırlarına ulaşmaz. Paketler yayınlanınca `ApiCompat` satırlarından sonra aynı `Hat:` ve `Sözleşme yüzeyleri:` satırları görünür.
+
+2026-10-24 koşumu: (1) ve (2) beklendiği gibi; dört HTTP kırılmasının dördü de `CHANGELOG.md` `[Unreleased]` içinde adıyla geçer (`ExpectedToolCalls` ve `ToolLoop` taşıma notları).
+
+---
+
+### MT-PKG-172 — Donmuş hatta .NET dışı kırılma, notta adı geçse de kırmızıdır; yamada eklenen yüzey de kırmızıdır (Faz 238)
+
+Otomatik karşılığı: `KapiTestleri.test_manuel_case_3_donmus_hatta_iki_kirilma_kirmizidir` · `test_yama_surumunde_eklenen_yuzey_kirmizidir`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 238 |
+| **İlgili karar** | — |
+| **Devir** | 🤖 ajan koşar — geçici bir git deposu ve `python3 scripts/sozlesme_kirilma.py` |
+
+**Ön koşul** — Boş bir dizinde `git init`; bu deponun `docs/sozlesme/*.txt` ve `docs/openapi/tracon.json` dosyaları kopyalanır, bir `CHANGELOG.md` (`## [Unreleased]`)
+eklenir, commit edilir ve `v1.0.0` etiketlenir.
+
+**Adımlar**
+1. `docs/sozlesme/sse-olaylari.txt` içinden `run-events run.started` satırını sil; `tracon.json` içinden `RunRecord.properties.agentName` anahtarını sil.
+2. `python3 scripts/sozlesme_kirilma.py --depo <dizin> --taban 1.0.0 --surum 1.1.0`
+3. Silinen şeyleri geri koy; `hata-kodlari.txt` sonuna `ghost_code` ekle. `--surum 1.0.1` ile koş.
+4. Aynı ekleme ile `--surum 1.1.0` koş.
+
+**Beklenen sonuç**
+- (2) Çıkış `1`; `Hat: donmuş 1.x (kırılma reddedilir)`; `HTTP: 1 kırılma · SSE: 1 kırılma`; `HTTP: GET /tracon/api/runs 200 RunRecord.agentName — yanıt alanı silindi` ve
+  `SSE: run-events run.started — satır kalktı ya da değişti`.
+- (3) Çıkış `1`; `Hat: donmuş 1.x yama …`; `Yama sürümünde .NET dışı yüzey büyüyemez` ve `hata kodu: ghost_code`.
+- (4) Çıkış `0`: minor sürümde ekleme serbesttir; son satır `✅ .NET dışı yüzeylerde kırılma yok (1 ekleme)`.
+
+2026-10-24 koşumu: (2) iki kırılma, çıkış `1`; (3) `Hat: donmuş 1.x yama …` ve `hata kodu: ghost_code — yeni satır`, çıkış `1`; (4) çıkış `0`.

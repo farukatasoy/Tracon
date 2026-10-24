@@ -91,7 +91,7 @@ metric names above.
 | `tracon.run.status` | `tracon.runs`, run span | `Completed`, `Failed`, `Canceled`, and the other run statuses |
 | `tracon.run.streaming` | Run signals | Whether the caller asked for a stream |
 | `tracon.model.id` | Run and cost signals | The model the run was bound to |
-| `tracon.tenant.id` | Every signal in a multi-tenant setup | The resolved tenant |
+| `tracon.tenant.id` | Run spans, and the quota gauges. On the other metrics only when `IncludeTenantTag` is `true` (see [the tenant tag](#the-tenant-tag-on-metrics)) | The resolved tenant |
 | `tracon.tool.name` | `tracon.tool.invocations`, `tracon.tool.duration` | The invoked tool |
 | `tracon.token.direction` | `tracon.tokens` | `input` or `output`, and nothing else |
 | `tracon.cost.currency` | `tracon.run.cost` | The currency the configured price is expressed in |
@@ -124,6 +124,42 @@ Four of these are **span attributes only** and are deliberately not metric tags:
 `tracon.run.id`, `tracon.session.id`, `tracon.run.parent_id`, and
 `tracon.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
 new time series per run. Use them to find a trace, not to group a chart.
+:::
+
+### The tenant tag on metrics
+
+`tracon.tenant.id` has three different states, because the three kinds of signal
+pay a different price for it:
+
+| Signal | Carries `tracon.tenant.id` |
+|---|---|
+| Run spans | Always. A trace is not aggregated, so a tag adds no series. |
+| `tracon.quota.usage` and `tracon.quota.limit` | Always. A quota is a fact about one tenant. A gauge without the tenant says nothing. |
+| `tracon.runs`, `tracon.run.cost`, `tracon.judge.cost`, `tracon.judge.score`, `tracon.model.cache`, `tracon.audit.write_failures`, `tracon.run.recording_failures`, `tracon.job.executions` | Only when `Tracon:Observability:IncludeTenantTag` is `true`. Off by default. |
+
+The tag multiplies every series of those eight metrics by the number of tenants.
+A metric backend slows down and bills by the series. Turn the tag on when the
+number of tenants is small and bounded, and a dashboard or an alert must split a
+metric by tenant. With the tag off, the series of all tenants add up, so a chart
+shows the total.
+
+```json
+{
+  "Tracon": {
+    "Observability": {
+      "IncludeTenantTag": true
+    }
+  }
+}
+```
+
+The value must be `true` or `false`. Any other text stops the application at
+startup.
+
+:::caution[Upgrading from a preview before 1.0.0-preview.6]
+Earlier previews put `tracon.tenant.id` on these metrics without a setting. A
+dashboard or an alert that filters or groups by that attribute now sees no series
+until you set `IncludeTenantTag` to `true`. The release notes list the change.
 :::
 
 ### What a failed audit write looks like
@@ -301,6 +337,7 @@ The internal trace store keeps a sampled copy for run-level inspection:
       "MaxSpansPerRun": 200,
       "RecordSensitiveData": false,
       "IncludeAgentVersionTag": true,
+      "IncludeTenantTag": false,
       "EnableQuotaUsageGauge": false,
       "QuotaUsageRefreshInterval": "00:00:30"
     }
@@ -340,6 +377,7 @@ Other useful views are `GET /api/runs/{runId}/tools` and
 | `MaxSpansPerRun` | `200` | Bounds the in-memory trace buffer; excess spans are dropped |
 | `RecordSensitiveData` | `false` | Excludes prompt, message, and completion text from span tags |
 | `IncludeAgentVersionTag` | `true` | Adds agent version to run spans and run metrics |
+| `IncludeTenantTag` | `false` | Adds the tenant to the run, cost, judge, cache, audit, recording and job metrics. Spans and the quota gauges always carry it |
 | `EnableQuotaUsageGauge` | `false` | Avoids background database reads until explicitly enabled |
 | `QuotaUsageRefreshInterval` | 30 seconds | How often a background refresh reads the quota gauge samples; a collection only reads the last result and never waits for the database |
 

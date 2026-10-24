@@ -429,7 +429,7 @@ internal static class OpenAIConversationsEndpoints
         => OpenAICompatSupport.Error(
             StatusCodes.Status404NotFound,
             $"'{conversationId}' was not found.",
-            type: "not_found_error");
+            type: TraconErrorTypes.NotFoundError);
 
     private static Dictionary<string, string>? ReadMetadata(JsonElement body)
     {

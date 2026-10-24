@@ -431,6 +431,22 @@ public static partial class TraconServiceCollectionExtensions
             options.IncludeAgentVersionTag = includeAgentVersionTag;
         }
 
+        // An unreadable value would leave the tag off without a word, and the dashboard that splits by tenant
+        // would stay empty. The text is kept for the startup message (K-993).
+        options.UnreadableIncludeTenantTag = null;
+
+        if (TryReadBool(
+                section,
+                nameof(TraconObservabilityOptions.IncludeTenantTag),
+                out var includeTenantTag))
+        {
+            options.IncludeTenantTag = includeTenantTag;
+        }
+        else if (section[nameof(TraconObservabilityOptions.IncludeTenantTag)] is { Length: > 0 } unreadableTenantTag)
+        {
+            options.UnreadableIncludeTenantTag = (options.IncludeTenantTag, unreadableTenantTag);
+        }
+
         if (TryReadBool(
                 section,
                 nameof(TraconObservabilityOptions.EnableQuotaUsageGauge),

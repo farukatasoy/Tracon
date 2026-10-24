@@ -35,7 +35,7 @@ public sealed class TraconRunBudgetExceededException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string RunBudgetExceededErrorType = "run_budget_exceeded";
+    public const string RunBudgetExceededErrorType = TraconErrorTypes.RunBudgetExceeded;
 
     /// <summary>Creates a new error.</summary>
     public TraconRunBudgetExceededException()

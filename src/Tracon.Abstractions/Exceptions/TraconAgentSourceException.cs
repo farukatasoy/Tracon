@@ -4,10 +4,10 @@ namespace Tracon;
 public sealed class TraconAgentSourceException : TraconException
 {
     /// <summary>The stable code for an ordinary source failure.</summary>
-    public const string SourceFailedErrorType = "agent_source_failed";
+    public const string SourceFailedErrorType = TraconErrorTypes.AgentSourceFailed;
 
     /// <summary>The stable code for a source contract violation.</summary>
-    public const string SourceContractErrorType = "agent_source_contract";
+    public const string SourceContractErrorType = TraconErrorTypes.AgentSourceContract;
 
     /// <summary>Creates a normalized agent-source exception.</summary>
     /// <param name="sourceName">The stable name of the source that failed.</param>

@@ -13008,7 +13008,7 @@ metric names above.
 | `tracon.run.status` | `tracon.runs`, run span | `Completed`, `Failed`, `Canceled`, and the other run statuses |
 | `tracon.run.streaming` | Run signals | Whether the caller asked for a stream |
 | `tracon.model.id` | Run and cost signals | The model the run was bound to |
-| `tracon.tenant.id` | Every signal in a multi-tenant setup | The resolved tenant |
+| `tracon.tenant.id` | Run spans, and the quota gauges. On the other metrics only when `IncludeTenantTag` is `true` (see [the tenant tag](#the-tenant-tag-on-metrics)) | The resolved tenant |
 | `tracon.tool.name` | `tracon.tool.invocations`, `tracon.tool.duration` | The invoked tool |
 | `tracon.token.direction` | `tracon.tokens` | `input` or `output`, and nothing else |
 | `tracon.cost.currency` | `tracon.run.cost` | The currency the configured price is expressed in |
@@ -13041,6 +13041,42 @@ Four of these are **span attributes only** and are deliberately not metric tags:
 `tracon.run.id`, `tracon.session.id`, `tracon.run.parent_id`, and
 `tracon.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
 new time series per run. Use them to find a trace, not to group a chart.
+:::
+
+### The tenant tag on metrics
+
+`tracon.tenant.id` has three different states, because the three kinds of signal
+pay a different price for it:
+
+| Signal | Carries `tracon.tenant.id` |
+|---|---|
+| Run spans | Always. A trace is not aggregated, so a tag adds no series. |
+| `tracon.quota.usage` and `tracon.quota.limit` | Always. A quota is a fact about one tenant. A gauge without the tenant says nothing. |
+| `tracon.runs`, `tracon.run.cost`, `tracon.judge.cost`, `tracon.judge.score`, `tracon.model.cache`, `tracon.audit.write_failures`, `tracon.run.recording_failures`, `tracon.job.executions` | Only when `Tracon:Observability:IncludeTenantTag` is `true`. Off by default. |
+
+The tag multiplies every series of those eight metrics by the number of tenants.
+A metric backend slows down and bills by the series. Turn the tag on when the
+number of tenants is small and bounded, and a dashboard or an alert must split a
+metric by tenant. With the tag off, the series of all tenants add up, so a chart
+shows the total.
+
+```json
+{
+  "Tracon": {
+    "Observability": {
+      "IncludeTenantTag": true
+    }
+  }
+}
+```
+
+The value must be `true` or `false`. Any other text stops the application at
+startup.
+
+:::caution[Upgrading from a preview before 1.0.0-preview.6]
+Earlier previews put `tracon.tenant.id` on these metrics without a setting. A
+dashboard or an alert that filters or groups by that attribute now sees no series
+until you set `IncludeTenantTag` to `true`. The release notes list the change.
 :::
 
 ### What a failed audit write looks like
@@ -13218,6 +13254,7 @@ The internal trace store keeps a sampled copy for run-level inspection:
       "MaxSpansPerRun": 200,
       "RecordSensitiveData": false,
       "IncludeAgentVersionTag": true,
+      "IncludeTenantTag": false,
       "EnableQuotaUsageGauge": false,
       "QuotaUsageRefreshInterval": "00:00:30"
     }
@@ -13257,6 +13294,7 @@ Other useful views are `GET /api/runs/{runId}/tools` and
 | `MaxSpansPerRun` | `200` | Bounds the in-memory trace buffer; excess spans are dropped |
 | `RecordSensitiveData` | `false` | Excludes prompt, message, and completion text from span tags |
 | `IncludeAgentVersionTag` | `true` | Adds agent version to run spans and run metrics |
+| `IncludeTenantTag` | `false` | Adds the tenant to the run, cost, judge, cache, audit, recording and job metrics. Spans and the quota gauges always carry it |
 | `EnableQuotaUsageGauge` | `false` | Avoids background database reads until explicitly enabled |
 | `QuotaUsageRefreshInterval` | 30 seconds | How often a background refresh reads the quota gauge samples; a collection only reads the last result and never waits for the database |
 
@@ -22600,6 +22638,7 @@ on the model binding, not a global setting. See
 | `Observability:MaxSpansPerRun` | `200` |
 | `Observability:RecordSensitiveData` | `false` |
 | `Observability:IncludeAgentVersionTag` | `true` |
+| `Observability:IncludeTenantTag` | `false` |
 | `Observability:EnableQuotaUsageGauge` | `false` |
 | `Observability:QuotaUsageRefreshInterval` | 30 seconds |
 | `Observability:EnableJobQueueDepthGauge` | `false` |
@@ -22608,6 +22647,12 @@ on the model binding, not a global setting. See
 
 These settings control Tracon span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
+
+`IncludeTenantTag` adds `tracon.tenant.id` to eight metrics (run, cost, judge,
+response cache, audit failures, recording failures and jobs). It is off by default,
+because it multiplies each series by the number of tenants. Spans and the quota
+gauges always carry the tenant. A value other than `true` or `false` stops startup.
+See [the tenant tag on metrics](/guides/observability/#the-tenant-tag-on-metrics).
 
 Both gauges are off by default because each one reads the database. When a gauge
 is on, a background refresh reads it at startup and then once per matching
@@ -24056,7 +24101,9 @@ machine-made list: it validates each package against the previous published
 package, and it does not publish when the notes leave out a name. A narrowing
 is still allowed before `1.0.0-rc.1`; an unannounced one is not. From
 `1.0.0-rc.1` even an announced one is not: see [What 1.x promises for the .NET
-API](#what-1x-promises-for-the-net-api).
+API](#what-1x-promises-for-the-net-api) and [What 1.x promises for HTTP,
+telemetry, configuration, error codes and the
+CLI](#what-1x-promises-for-http-telemetry-configuration-error-codes-and-the-cli).
 
 ## What 1.x promises for the .NET API
 
@@ -24130,6 +24177,79 @@ Three more rules complete the table:
   release notes name each new test as `Class.Method`. If a new test fails
   against your implementation, either the implementation or the documentation
   is wrong. Report it as an issue.
+
+## What 1.x promises for HTTP, telemetry, configuration, error codes and the CLI
+
+Your application depends on more than the .NET API. A client calls the HTTP
+endpoints and reads the SSE event names. A dashboard reads metric and attribute
+names. A deployment file holds configuration keys. Your code matches error
+codes. A CI script calls the `tracon` CLI. From `1.0.0-rc.1` each of these
+surfaces has the same rule as the .NET API: a change belongs to one SemVer class,
+and the release process rejects a release that puts it in the wrong one.
+
+| Surface | A minor release may | Only a major release may |
+|---|---|---|
+| **HTTP** | Add an endpoint. Add a field to a response. Add an optional field or parameter to a request. Add a value to a response enum. | Remove an endpoint or a method. Remove a response field, or change its type. Add a **required** field or parameter to a request. Make an optional one required. Remove a value from a request or a response enum. Make a field that could be null non-null in a request, or one that could not be null nullable in a response. Change a 2xx status code. Tighten the role an endpoint needs. |
+| **SSE** | Add an event name. Add a field to an event payload. | Remove or rename an event name. Remove a payload field. |
+| **Telemetry** | Add a source, an instrument or an attribute. Add an attribute that is off by default to an instrument. | Change the name, the unit or the kind of an instrument. Remove an attribute. Turn an attribute on or off by default. |
+| **Configuration** | Add a key with a documented default. Rename a key if Tracon still reads the old name. | Remove a key. Rename a key and stop reading the old name. Change a default so that behavior changes. |
+| **Error code** | Add a code. | Remove a code, rename it, or change its meaning. This covers the codes of a failed run, a failed job and an OpenAI-compatible error, and the codes of the findings that validating an agent definition returns. |
+| **CLI** | Add a command, an option or an exit code. | Remove a command or an option. Change what an exit code means. |
+
+When a minor release gives a configuration key a new name, Tracon reads the old
+name for the rest of the 1.x line and logs one warning. The old name is gone only
+in a major release.
+
+Three more rules complete the table:
+
+- **Your code handles a value it does not know.** A response enum value, an SSE
+  event name and an error code can all be new in a minor release. A `switch` over
+  them has a `default` branch. In the TypeScript client, this applies to the
+  `switch` over an event name too.
+- **The release process cannot see a role change.** A role that an endpoint
+  needs is not in the OpenAPI document. The rule above is written down, and the
+  maintainer reviews it.
+- **Text for people is not a contract.** The `detail` of a problem response, a log
+  message and the human output of a CLI command can change in any release. The
+  fields a program reads are the contract: the `errorType` code, the event name,
+  the key, the option.
+
+Match an error code with a constant. `TraconErrorTypes` holds the code of a failed
+run, of a failed job and of an OpenAI-compatible error as constants, for example
+`TraconErrorTypes.ToolTimeout`. The `ErrorType` of a Tracon exception and the
+`errorType` that the HTTP API returns carry the same value.
+
+How the release process holds each row:
+
+- **Every surface has a file in the repository.** One file lists the SSE event
+  names, one the telemetry names with the kind, unit and default attributes of
+  each instrument, one the configuration keys, one the error codes of runs, jobs
+  and OpenAI-compatible errors, one the codes of validation findings, and one the
+  CLI commands and options. A test keeps each file true to the code. The HTTP
+  surface is the OpenAPI document of the build.
+- **The release process compares each file with the one at the last published
+  version.** A line that is gone or changed is a break. A new line is an
+  addition. For HTTP it reads the OpenAPI document with the rules of the table.
+- **A change that the rules do not name is a break.** If the check cannot say
+  which row a change belongs to, it stops the release. It never lets such a change
+  pass. If it cannot read the file of the last published version, it stops too.
+- **A frozen release rejects a break.** When the last published version is
+  `1.0.0-rc.1` or later and the new version has the same major version, a break
+  on any of these surfaces stops the release. The release notes do not change
+  that. Before `1.0.0-rc.1`, and in a new major version, a break passes when the
+  release notes name it in a code span.
+- **A patch release does not add to a surface.** A new endpoint, field, event
+  name, key, code or option stops a patch release.
+- **The files hold names, not meaning.** The release process does not see a field
+  removed from an SSE event payload, a configuration default that changed, an exit
+  code that now means something else, an error code that is used for another
+  failure, or a role that an endpoint now needs. The rules above hold for them as
+  well. The maintainer reviews them.
+
+The telemetry row includes the default of an attribute. The `tracon.tenant.id`
+attribute is on spans and on the quota gauges, and it is **off by default** on the
+other metrics. Set `Tracon:Observability:IncludeTenantTag` to `true` to add it.
+Turning the default back on in a later release is a change of this row.
 
 ## Package identity
 

@@ -24,7 +24,7 @@ namespace Tracon;
 internal static class SubAgentToolNames
 {
     /// <summary>The validation code of a callable agent whose tool name is already taken.</summary>
-    internal const string ConflictCode = "sub_agent_tool_name_conflict";
+    internal const string ConflictCode = ValidationCodes.SubAgentToolNameConflict;
 
     // The framework's own names for the skill tools (AgentSkillsProvider). Tracon builds that
     // provider whenever the definition names a skill, so the three tools are always there then.

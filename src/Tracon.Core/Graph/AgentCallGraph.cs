@@ -91,7 +91,7 @@ internal static class AgentCallGraph
             if (string.Equals(target, agentName, StringComparison.Ordinal))
             {
                 return new AgentCallGraphProblem(
-                    "cycle",
+                    ValidationCodes.Cycle,
                     $"'{agentName}' cannot call itself. An agent calling itself is infinite " +
                     "recursion and generates cost until the depth counter runs out.");
             }
@@ -99,7 +99,7 @@ internal static class AgentCallGraph
             if (!known.Contains(target))
             {
                 return new AgentCallGraphProblem(
-                    "unknown_agent",
+                    ValidationCodes.UnknownAgent,
                     $"Agent '{agentName}' wants to call an agent named '{target}', but " +
                     "no such agent exists in the catalog. Create that agent first.");
             }
@@ -107,7 +107,7 @@ internal static class AgentCallGraph
 
         return FindCycle(agentName, edges) is { } cycle
             ? new AgentCallGraphProblem(
-                "cycle",
+                ValidationCodes.Cycle,
                 $"There is a cycle in the call graph: {string.Join(" -> ", cycle)}. " +
                 "A cyclic graph causes the run to continue until it hits the depth limit.")
             : null;

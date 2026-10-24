@@ -17,4 +17,10 @@
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The committed snapshots of the surfaces that are not .NET API (phase 238). -->
+    <Compile Include="../Shared/Infrastructure/RepoRoot.cs" LinkBase="Shared" />
+    <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

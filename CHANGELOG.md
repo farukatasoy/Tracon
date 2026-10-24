@@ -256,8 +256,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the decorator, the factory agent, and the custom agent source by what each keeps, and
   `samples/Tracon.Samples.MafFeatures` builds all three.
 
+- **`TraconErrorTypes` lists the error codes of runs, jobs and OpenAI-compatible errors.** One class holds them in one
+  place: the type of a failed run (`tool_timeout`, `content_blocked`, `run_budget_exceeded`, …), the codes of a job the
+  queue failed (`tracon.job.attempts-exhausted`, …) and the `error.type` of the OpenAI-compatible endpoints
+  (`model_not_found`, …). The `*ErrorType` constants of the exception classes
+  (`TraconToolTimeoutException.ToolTimeoutErrorType` and the others) and `JobErrorCodes` stay, and they carry the same
+  values; no value changed, so no stored run record and no client that matches a code is affected. The codes of the
+  findings that `POST /api/agents/validate` returns (`unknown_tool`, `cycle`, …) are listed the same way and are not
+  public members. A code never changes inside a major version.
+- **The release check compares HTTP, SSE, telemetry, configuration keys, error codes and the CLI with the last published
+  version.** Until now only the .NET API had a check against the last release. From `1.0.0-rc.1` a removed or renamed
+  endpoint, response field, event name, instrument, attribute, configuration key, error code, CLI command or option
+  stops the release, and so does a change that the rules do not name. A patch release does not add to any of them.
+  See [What 1.x promises for HTTP, telemetry, configuration, error codes and the
+  CLI](https://tracon.dev/reference/versioning/#what-1x-promises-for-http-telemetry-configuration-error-codes-and-the-cli).
+
 ### Changed
 
+- **`tracon.tenant.id` is no longer on metrics by default.** The metrics `tracon.runs`, `tracon.run.cost`,
+  `tracon.judge.cost`, `tracon.judge.score`, `tracon.model.cache`, `tracon.audit.write_failures`,
+  `tracon.run.recording_failures` and `tracon.job.executions` carried the tenant on every series, which multiplies each
+  series by the number of tenants. They now carry it only when `Tracon:Observability:IncludeTenantTag`
+  (`TraconObservabilityOptions.IncludeTenantTag`) is `true`; it is `false` by default. Spans and the quota gauges
+  (`tracon.quota.usage`, `tracon.quota.limit`) carry `tracon.tenant.id` as before. **A dashboard or an alert rule that
+  filters or groups one of the eight metrics by `tracon.tenant.id` shows no series until you set the key.** A value that
+  is not `true` or `false` stops the application at startup. See [the tenant tag on
+  metrics](https://tracon.dev/guides/observability/#the-tenant-tag-on-metrics).
 - **A workflow run that continues an earlier run no longer starts with a budget of zero.** A person's answer to a
   request, an operator's resume (`POST /api/workflows/runs/{runId}/resume`) and a recovery after an interruption each
   start a new run row, and each used to build a new call-tree budget: a workflow with an approval loop got the whole

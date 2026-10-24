@@ -59,13 +59,13 @@ internal sealed class QueuedTurn
     /// The code a job fails with when its turn ended but the session could not be
     /// saved. The run keeps the status the turn gave it.
     /// </summary>
-    internal const string SessionSaveFailedCode = "tracon.job.session-save-failed";
+    internal const string SessionSaveFailedCode = TraconErrorTypes.JobSessionSaveFailed;
 
     /// <summary>
     /// The code a job fails with when its turn ended at an approval but the approval
     /// could not be written. Nobody can list it, so the run closes as failed.
     /// </summary>
-    internal const string ApprovalSaveFailedCode = "tracon.job.approval-save-failed";
+    internal const string ApprovalSaveFailedCode = TraconErrorTypes.JobApprovalSaveFailed;
 
     /// <summary>The pause before a failed session save is tried again.</summary>
     private static readonly TimeSpan RetryFirstDelay = TimeSpan.FromMilliseconds(200);

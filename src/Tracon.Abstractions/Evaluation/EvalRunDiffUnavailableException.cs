@@ -21,7 +21,7 @@ public sealed class EvalRunDiffUnavailableException : TraconException
     /// <summary>
     /// The stable value written to <see cref="TraconException.ErrorType"/>.
     /// </summary>
-    public const string EvalRunDiffUnavailableErrorType = "eval_run_diff_unavailable";
+    public const string EvalRunDiffUnavailableErrorType = TraconErrorTypes.EvalRunDiffUnavailable;
 
     /// <summary>Creates a new error.</summary>
     public EvalRunDiffUnavailableException()

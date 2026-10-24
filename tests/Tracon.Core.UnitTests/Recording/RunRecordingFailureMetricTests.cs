@@ -24,7 +24,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var store = new FailingRunStore(FailAt.StartRun);
         var writer = NewWriter(store, metrics);
@@ -55,7 +55,7 @@ public sealed class RunRecordingFailureMetricTests
 
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         // 🚨 The race is forced, not hoped for. Every caller is held inside the store
         // until all eight have arrived, so all eight pass the IsDisabled check before
@@ -93,7 +93,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         // The run OPENS; only the event write fails. A start-stage tag here would
         // send an operator to the wrong query.
@@ -111,7 +111,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var writer = NewWriter(new FailingRunStore(FailAt.ToolInvocation), metrics);
 
@@ -135,7 +135,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var writer = NewWriter(new FailingRunStore(FailAt.CompleteRun), metrics);
 
@@ -152,7 +152,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext("tenant-a"));
         var failing = new ThrowingRunEventSink();
@@ -192,7 +192,7 @@ public sealed class RunRecordingFailureMetricTests
 
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         // The published sentence is "counted once per sink per run", and per-run
         // concurrency is real: AllowConcurrentToolCalls fans tool events out at
@@ -233,7 +233,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         // One sink object, two writers — which is the real topology: sinks are
         // registered once in DI and every concurrent run shares the instance.
@@ -270,7 +270,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var writer = NewWriter(new FailingRunStore(FailAt.StartRun), metrics);
 
@@ -289,7 +289,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var writer = NewWriter(new FailingRunStore(FailAt.Cancellation), metrics);
 
@@ -311,7 +311,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var writer = NewWriter(new FailingRunStore(FailAt.Cancellation), metrics);
 
@@ -329,7 +329,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         // The ambient tenant and the run's own tenant deliberately disagree — this is
         // how a workflow or a queued job runs (K-355). The counter must follow the
@@ -355,7 +355,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         // 🚨 Every other test on this class builds the writer BY HAND, which proves
         // the writer's arithmetic and nothing about production. The compiler forces
@@ -389,7 +389,7 @@ public sealed class RunRecordingFailureMetricTests
     {
         using var factory = new TestMeterFactory();
         using var collector = new MetricCollector(factory.Meter);
-        using var metrics = new TraconMetrics(factory);
+        using var metrics = new TraconMetrics(factory, TenantTaggedMetricsOptions.Create());
 
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext("tenant-a"));
 

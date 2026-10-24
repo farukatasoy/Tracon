@@ -37,6 +37,8 @@
   -->
   <ItemGroup>
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" Link="Infrastructure/Shared/RepoRoot.cs" />
+    <!-- The committed snapshots of the surfaces that are not .NET API (phase 238). -->
+    <Compile Include="../Shared/Infrastructure/ContractSnapshot.cs" Link="Infrastructure/Shared/ContractSnapshot.cs" />
     <Compile Include="../Shared/Infrastructure/PackableProjects.cs" Link="Infrastructure/Shared/PackableProjects.cs" />
     <!-- The due-time clock the job worker's poll and deadline tests advance (phase 196). -->
     <Compile Include="../Shared/Time/ManualClock.cs" Link="Shared/Time/ManualClock.cs" />

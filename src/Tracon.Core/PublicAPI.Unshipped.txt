@@ -373,6 +373,8 @@ Tracon.TraconObservabilityOptions.Enabled.get -> bool
 Tracon.TraconObservabilityOptions.Enabled.set -> void
 Tracon.TraconObservabilityOptions.IncludeAgentVersionTag.get -> bool
 Tracon.TraconObservabilityOptions.IncludeAgentVersionTag.set -> void
+Tracon.TraconObservabilityOptions.IncludeTenantTag.get -> bool
+Tracon.TraconObservabilityOptions.IncludeTenantTag.set -> void
 Tracon.TraconObservabilityOptions.JobQueueDepthRefreshInterval.get -> System.TimeSpan
 Tracon.TraconObservabilityOptions.JobQueueDepthRefreshInterval.set -> void
 Tracon.TraconObservabilityOptions.MaxJobLaneCardinality.get -> int

@@ -56,9 +56,11 @@ cevabı, dokümantasyonun da bilmediği anlamına gelir.
 Sütun 19 için ek not: metric/`span` **adı** ve etiket kümesi de bir public
 sözleşmedir. Yüksek cardinality'li bir etiket (kiracı kimliği, `run` kimliği)
 tüketicinin metric sisteminde maliyet üretir; yayından sonra kaldırmak
-tüketicinin dashboard'unu kırar. Ölçüldü (2026-09-24): `tracon.tenant.id`
-her `run` metriğinde koşulsuz taşınır; `tracon.agent.version` için bir kapatma
-seçeneği (`IncludeAgentVersionTag`) vardır, kiracı etiketi için yoktur.
+tüketicinin dashboard'unu kırar. Faz 238'den beri `tracon.tenant.id` sekiz
+metrikte varsayılan **kapalıdır** (`IncludeTenantTag`); span ve kota göstergesi
+her zaman taşır. `tracon.agent.version` varsayılan açıktır
+(`IncludeAgentVersionTag`, K-146). Bir etiketin varsayılanını çevirmek
+`telemetri.txt` satırını değiştirir ve kapıdan kırılma olarak geçer.
 
 ## Yayın-inceleme sezgileri
 

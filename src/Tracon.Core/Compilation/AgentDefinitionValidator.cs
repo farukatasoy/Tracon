@@ -155,7 +155,7 @@ internal sealed partial class AgentDefinitionValidator
             messages.Add(new ValidationMessage
             {
                 Severity = ValidationSeverity.Error,
-                Code = "unknown_model",
+                Code = ValidationCodes.UnknownModel,
                 Message = $"No model provider named '{definition.Model.Provider}' is registered. " +
                           $"Registered providers: {known}.",
                 Path = "model.provider",
@@ -176,7 +176,7 @@ internal sealed partial class AgentDefinitionValidator
             messages.Add(new ValidationMessage
             {
                 Severity = ValidationSeverity.Error,
-                Code = "invalid_setting",
+                Code = ValidationCodes.InvalidSetting,
                 Message = ex.Message,
                 Path = "model.providerSettings",
             });
@@ -213,7 +213,7 @@ internal sealed partial class AgentDefinitionValidator
                 messages.Add(new ValidationMessage
                 {
                     Severity = ValidationSeverity.Warning,
-                    Code = "mcp_unreachable",
+                    Code = ValidationCodes.McpUnreachable,
                     Message = "A fresh list could not be fetched from MCP servers for missing tool names " +
                               "(timeout or connection failure). The result is inconclusive.",
                 });
@@ -227,7 +227,7 @@ internal sealed partial class AgentDefinitionValidator
             messages.Add(new ValidationMessage
             {
                 Severity = ValidationSeverity.Error,
-                Code = "unknown_tool",
+                Code = ValidationCodes.UnknownTool,
                 Message = $"Agent '{definition.Name}' refers to tool '{name}', but it is not registered " +
                           "in this code.",
                 Path = $"toolNames[{index}]",
@@ -294,7 +294,7 @@ internal sealed partial class AgentDefinitionValidator
                 messages.Add(new ValidationMessage
                 {
                     Severity = ValidationSeverity.Error,
-                    Code = "unknown_skill",
+                    Code = ValidationCodes.UnknownSkill,
                     Message = $"Agent '{definition.Name}' refers to skill '{name}', but the skill was not found.",
                     Path = $"skillNames[{index}]",
                 });
@@ -342,7 +342,7 @@ internal sealed partial class AgentDefinitionValidator
             messages.Add(new ValidationMessage
             {
                 Severity = ValidationSeverity.Error,
-                Code = "compilation_error",
+                Code = ValidationCodes.CompilationError,
                 Message = ex.Message,
             });
         }

@@ -4,7 +4,7 @@ namespace Tracon;
 internal sealed partial class AgentDefinitionValidator
 {
     /// <summary>The code of the warning about skill settings on an agent that names no skill.</summary>
-    internal const string SkillSettingsWithoutSkillsCode = "skill_settings_without_skills";
+    internal const string SkillSettingsWithoutSkillsCode = ValidationCodes.SkillSettingsWithoutSkills;
 
     /// <summary>
     /// Warns when a definition carries <see cref="AgentDefinition.Skills"/> but names no skill, so

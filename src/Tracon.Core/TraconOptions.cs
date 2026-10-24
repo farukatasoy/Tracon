@@ -657,6 +657,35 @@ public sealed class TraconObservabilityOptions
     public bool IncludeAgentVersionTag { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets whether the <c>tracon.tenant.id</c> tag is added to the run, cost, judge, response-cache,
+    /// audit-write-failure, run-recording-failure and job metrics.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Disabled by default.</strong> A tag per tenant multiplies every series of those metrics by the
+    /// number of tenants, and a metric backend bills and slows down by series. Turn it on when the number of
+    /// tenants is small and bounded and a dashboard or an alert has to split a metric by tenant.
+    /// </para>
+    /// <para>
+    /// The setting leaves two things alone, because neither multiplies series: spans always carry
+    /// <c>tracon.tenant.id</c>, and so do the <c>tracon.quota.usage</c> and <c>tracon.quota.limit</c> gauges
+    /// (a quota is a per-tenant fact; a gauge without the tenant says nothing). The metrics read the value from
+    /// the options at every measurement.
+    /// </para>
+    /// </remarks>
+    public bool IncludeTenantTag { get; set; }
+
+    /// <summary>
+    /// The text of <see cref="IncludeTenantTag"/> the binder could not read as <c>true</c> or <c>false</c>, and
+    /// the value it left in place.
+    /// </summary>
+    /// <remarks>
+    /// For the startup message only: the failure holds while <see cref="IncludeTenantTag"/> still has that value,
+    /// so code that assigns the opposite value after binding clears it.
+    /// </remarks>
+    internal (bool Bound, string Text)? UnreadableIncludeTenantTag { get; set; }
+
+    /// <summary>
     /// Gets or sets whether the <c>tracon.quota.usage</c> and
     /// <c>tracon.quota.limit</c> observable gauges are enabled.
     /// </summary>
