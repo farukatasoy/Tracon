@@ -250,6 +250,7 @@
 | 234 | Oturum Çalışma Alanı (Dosya Erişimi) | tam | ✅ | 2026-10-22 | F-628 | `25b72146:docs/234-OTURUM-CALISMA-ALANI.md` |
 | 235 | MCP Elicitation: Askıya Alınan Tool Çağrısı | tam | ✅ | 2026-10-23 | F-617 | `e7cb8372:docs/235-MCP-ELICITATION.md` |
 | 236 | Tracon'un AG-UI Ucu | tam | ✅ | 2026-10-23 | F-616 | `daf35a77:docs/236-AGUI-UCU.md` |
+| 237 | .NET Yüzeyinin 1.x Evrim Kuralları ve Donmuş Hat Kapısı | tam | ✅ | 2026-10-24 | F-559 | `6b207110:docs/237-NET-YUZEYI-1X-EVRIM-KURALLARI.md` |
 
 ## Süreç Ölçümü
 
@@ -327,3 +328,4 @@ satırın VARLIĞINI denetler, doğruluğunu değil (K-766). Açıklama fazın t
 | 234 | 5 | 2 | 0 / 0 / 0 | 2 | ölçülmedi |
 | 235 | 3 | 1 | 1 / 0 / 0 | 1 | ölçülmedi |
 | 236 | 4 | 1 | 1 / 0 / 0 | 1 | ölçülmedi |
+| 237 | 0 | 2 | 1 / 0 / 0 | 1 | ölçülmedi |
