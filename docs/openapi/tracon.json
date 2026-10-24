@@ -12539,7 +12539,7 @@
               "integer",
               "string"
             ],
-            "description": "The number of lease attempts. Increments on every ValueTask\u0026lt;JobRecord?\u0026gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList\u0026lt;string\u0026gt;? lanes, CancellationToken cancellationToken = default(CancellationToken)) call.",
+            "description": "The number of lease attempts. Increments each time a worker leases the job.",
             "format": "int32"
           },
           "maxAttempts": {

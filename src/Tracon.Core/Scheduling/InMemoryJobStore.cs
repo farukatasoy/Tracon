@@ -92,18 +92,33 @@ internal sealed class InMemoryJobStore : IJobStore
 
     /// <inheritdoc />
     public ValueTask<JobRecord?> LeaseAsync(
-        string owner,
-        TimeSpan leaseDuration,
-        IReadOnlyList<string>? lanes,
+        JobLeaseRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.Owner, nameof(request));
+
+        var owner = request.Owner;
         cancellationToken.ThrowIfCancellationRequested();
+
+        var lanes = request.Lanes;
+        var cap = request.TenantCap;
+
+        if (cap is not null && (cap.HandlerKeys is not { Count: > 0 } || cap.MaxLeasedPerTenant < 1))
+        {
+            throw new ArgumentException(
+                "A tenant cap names at least one handler key and allows at least one leased job per tenant.",
+                nameof(request));
+        }
 
         var now = _clock.GetUtcNow();
 
         lock (_jobs)
         {
+            // The tenants at the ceiling, counted once per call: a lease that is still alive counts, an
+            // expired one does not (the same rule as the SQL stores' lease_until >= now).
+            var tenantsAtCap = cap is null ? null : TenantsAtCap(cap, now);
+
             JobRecord? candidate = null;
 
             foreach (var job in _jobs.Values)
@@ -128,6 +143,13 @@ internal sealed class InMemoryJobStore : IJobStore
                     continue;
                 }
 
+                if (tenantsAtCap is not null
+                    && cap!.HandlerKeys.Contains(job.HandlerKey, StringComparer.Ordinal)
+                    && tenantsAtCap.Contains(job.TenantId))
+                {
+                    continue;
+                }
+
                 if (candidate is null || job.ScheduledFor < candidate.ScheduledFor)
                 {
                     candidate = job;
@@ -143,7 +165,7 @@ internal sealed class InMemoryJobStore : IJobStore
             {
                 Status = JobStatus.Leased,
                 LeaseOwner = owner,
-                LeaseUntil = now + leaseDuration,
+                LeaseUntil = now + request.LeaseDuration,
                 Attempt = candidate.Attempt + 1,
                 StartedAt = candidate.StartedAt ?? now,
             };
@@ -152,6 +174,33 @@ internal sealed class InMemoryJobStore : IJobStore
 
             return new ValueTask<JobRecord?>(leased);
         }
+    }
+
+    private HashSet<string> TenantsAtCap(JobTenantCap cap, DateTimeOffset now)
+    {
+        // Tenant ids are compared the way the stores normalize them on write (AmbientTenantScope.Normalize
+        // lower-cases), so "Acme" and "acme" are one tenant here as they are in the SQL stores.
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var atCap = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var job in _jobs.Values)
+        {
+            if (job.Status is JobStatus.Leased or JobStatus.Running
+                && job.LeaseUntil is { } leaseUntil
+                && leaseUntil >= now
+                && cap.HandlerKeys.Contains(job.HandlerKey, StringComparer.Ordinal))
+            {
+                var count = counts.GetValueOrDefault(job.TenantId) + 1;
+                counts[job.TenantId] = count;
+
+                if (count >= cap.MaxLeasedPerTenant)
+                {
+                    atCap.Add(job.TenantId);
+                }
+            }
+        }
+
+        return atCap;
     }
 
     /// <inheritdoc />

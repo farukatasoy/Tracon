@@ -92,7 +92,9 @@ public interface IRunStore
     /// exists because a queued run is written twice — a placeholder row is
     /// written first (typically <see cref="RunStatus.Queued"/>), then
     /// rewritten once a worker actually starts it (typically
-    /// <see cref="RunStatus.Running"/>).
+    /// <see cref="RunStatus.Running"/>); a workflow run that waits in its process
+    /// for a concurrency slot is written the same way. The second call leaves the
+    /// run's heartbeat (<see cref="TouchHeartbeatAsync"/>) as it was.
     /// </para>
     /// <para>
     /// Every field is overwritten by the second call <strong>except</strong>
@@ -384,9 +386,10 @@ public interface IRunStore
     /// <returns>A task that completes when the marks are written.</returns>
     /// <remarks>
     /// <para>
-    /// Only <c>Running</c> rows are affected; an id that does not exist or is in
-    /// another status is skipped silently — this is a maintenance signal and must
-    /// not interrupt a run.
+    /// Only <c>Running</c> and <c>Queued</c> rows are affected (a workflow run that
+    /// waits in its process for a concurrency slot is <c>Queued</c> and still owned
+    /// by that process); an id that does not exist or is in another status is
+    /// skipped silently — this is a maintenance signal and must not interrupt a run.
     /// </para>
     /// <para>
     /// <c>[TenantAgnostic]</c>: the ids come from the calling process's OWN
@@ -402,12 +405,13 @@ public interface IRunStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Closes <c>Running</c> rows that have not sent a heartbeat for a long time as
-    /// <c>Failed</c> and records the reason.
+    /// Closes <c>Running</c> rows, and <c>Queued</c> rows that sent a heartbeat, that have
+    /// not sent one for a long time as <c>Failed</c> and records the reason.
     /// </summary>
     /// <param name="staleBefore">
     /// <c>Running</c> rows whose last heartbeat is older than this — or that never
-    /// sent one — count as orphaned (UTC).
+    /// sent one — count as orphaned, and so do <c>Queued</c> rows whose last heartbeat
+    /// is older than this (UTC).
     /// </param>
     /// <param name="max">The maximum number of rows to close in this round.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -419,8 +423,12 @@ public interface IRunStore
     /// the event itself. The sequence number is one past the current maximum.
     /// </para>
     /// <para>
-    /// Only <c>Running</c> rows are affected; <c>Queued</c> rows are owned by the
-    /// job queue and this method DOES NOT TOUCH them.
+    /// A <c>Queued</c> row is owned by the job queue and this method DOES NOT TOUCH
+    /// it — unless it has a heartbeat. A process writes a heartbeat for the runs it
+    /// executes, and for a workflow run that waits in it for a concurrency slot
+    /// (<c>Queued</c> until the slot is taken), so a <c>Queued</c> row with a stale
+    /// heartbeat is a run whose process is gone. A <c>Queued</c> row that never sent
+    /// one is a run still in the queue, however old.
     /// </para>
     /// <para>
     /// <c>[TenantAgnostic]</c>: this is maintenance work and scans the orphaned

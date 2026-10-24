@@ -70,6 +70,12 @@ internal sealed class WorkflowTestHost
     /// </summary>
     public TraconOptions TraconOptions { get; } = new();
 
+    /// <summary>
+    /// The run reconciliation settings the main factory hands the runner it builds; <see langword="null"/> (the
+    /// default) builds a runner with none, as a runner made by hand has.
+    /// </summary>
+    public RunReconciliationOptions? Reconciliation { get; set; }
+
     /// <summary>The logger the runners of the main factory write to; a test replaces it to read the log back.</summary>
     public Microsoft.Extensions.Logging.ILogger<WorkflowRunner> RunnerLogger { get; set; } = NullLogger<WorkflowRunner>.Instance;
 
@@ -356,7 +362,8 @@ internal sealed class WorkflowTestHost
             quotaEnforcer: quotaEnforcer,
             sinks: sinks,
             runInputStore: RecordsRunInput ? RunInputs : null,
-            agentCache: AgentCache);
+            agentCache: AgentCache,
+            reconciliationOptions: Reconciliation is null ? null : Options.Create(Reconciliation));
     }
 
     /// <summary>
@@ -435,7 +442,34 @@ internal sealed class WorkflowTestHost
 
     internal sealed class FixedTenantContext : ITenantContext
     {
-        public string TenantId { get; set; } = "test";
+        // The tenant of the current async flow, when a test opens one with Scope(). The ambient tenant of a
+        // real host is an AsyncLocal too, so a test that runs two tenants through ONE runner (its slots are
+        // per runner) has to do the same: a fixed value read after the run started would name whichever
+        // tenant the test set last.
+        private static readonly AsyncLocal<string?> Scoped = new();
+
+        /// <summary>Gets or sets the tenant of every flow that is not inside a <see cref="Scope"/>.</summary>
+        public string Default { get; set; } = "test";
+
+        public string TenantId
+        {
+            get => Scoped.Value ?? Default;
+            set => Default = value;
+        }
+
+        /// <summary>Makes <paramref name="tenantId"/> the tenant of every flow started inside the returned scope.</summary>
+        public static IDisposable Scope(string tenantId)
+        {
+            var previous = Scoped.Value;
+            Scoped.Value = tenantId;
+
+            return new Restore(previous);
+        }
+
+        private sealed class Restore(string? previous) : IDisposable
+        {
+            public void Dispose() => Scoped.Value = previous;
+        }
     }
 
     private sealed class EmptyServices : IServiceProvider

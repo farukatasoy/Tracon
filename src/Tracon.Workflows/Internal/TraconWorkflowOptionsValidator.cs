@@ -47,6 +47,21 @@ internal sealed class TraconWorkflowOptionsValidator(IEnumerable<CodeWorkflowReg
                 $" when {nameof(TraconWorkflowOptions.Enabled)} is on"));
         }
 
+        // Phase 240: the per-tenant limit is a share of the process limit, so it cannot be larger than it. The
+        // runner takes at least one shared slot (Math.Max), and the comparison reads it the same way.
+        if (options.MaxConcurrentRunsPerTenant is { } perTenant)
+        {
+            var shared = Math.Max(options.MaxConcurrentRuns, 1);
+
+            if (perTenant < 1 || perTenant > shared)
+            {
+                return ValidateOptionsResult.Fail(
+                    $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxConcurrentRunsPerTenant)} must be from 1 to " +
+                    $"{nameof(TraconWorkflowOptions)}.{nameof(TraconWorkflowOptions.MaxConcurrentRuns)} ({shared}). " +
+                    $"Actual value: {perTenant}. Leave it unset to set no per-tenant limit.");
+            }
+        }
+
         // Checked whether or not the engine is on: the cap guards a definition SAVE,
         // which does not need the engine.
         if (options.MaxNodeSettingsLength < 1)

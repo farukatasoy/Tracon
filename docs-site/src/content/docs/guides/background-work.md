@@ -284,6 +284,49 @@ The key holds a dot, which a POSIX shell cannot put in an exported variable name
 set it in `appsettings.json`, on the command line
 (`--Tracon:Scheduling:MaxDurationByHandlerKey:tracon.workflow=00:30:00`), or in code.
 
+## Limit workflow runs per tenant
+
+A process runs at most `Tracon:Workflows:MaxConcurrentRuns` workflows at the same
+time (4 by default), counted across every tenant. A workflow makes dozens of model
+calls, so the limit protects a provider quota. It also lets one tenant that starts
+many runs take every slot while the others wait.
+
+`Tracon:Workflows:MaxConcurrentRunsPerTenant` stops that. It is off by default; set it
+from `1` to `MaxConcurrentRuns`:
+
+```json
+{
+  "Tracon": {
+    "Workflows": {
+      "MaxConcurrentRuns": 4,
+      "MaxConcurrentRunsPerTenant": 2
+    }
+  }
+}
+```
+
+The one setting limits a tenant in two places, and they mean two different things.
+
+| Where | What it does | How exact it is |
+|---|---|---|
+| In each process | A run beyond the tenant's limit waits for a tenant slot **first**, then takes a shared slot. It holds no shared slot while it waits, so it never delays another tenant. | Exact: the process counts its own runs. |
+| In the job queue (`Prefer: respond-async`, a scheduled or resumed workflow) | A worker does not lease a queued workflow job of a tenant that already holds that many leased. It leases the oldest job of another tenant instead. The held-back jobs stay `Pending` in the queue. | The count covers every process that shares the store, but it is read, not locked. Workers that lease at the same moment can take a tenant past the limit by up to their own number. |
+
+A run that waits for a slot reads `Queued` in `GET /api/runs` and in the console, and
+`Running` once it has the slots it needs. It already has its run record while it waits.
+`POST /api/runs/{runId}/cancel` stops a waiting run: it ends `Canceled` and takes no
+slot. The wait counts toward `RunTimeout`. A run that finds a slot free opens `Running`
+at once.
+
+If the process stops while a run waits, the run does not stay `Queued` for good: with
+[run reconciliation](/guides/reliability/#reconcile-runs-left-behind-by-a-crash) on, the waiting
+row is closed as `Failed` with the error type `orphaned`, like a `Running` row. A
+`Queued` row that belongs to the job queue (a queued run no worker has picked up yet) is
+never closed this way.
+
+A value outside `1` to `MaxConcurrentRuns`, or one that is not a number, stops the host
+at startup. The limit is read once, when the process starts.
+
 ## Create a recurring schedule
 
 The schedule name is part of the URL. The body selects the handler key, target,

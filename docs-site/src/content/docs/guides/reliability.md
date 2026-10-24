@@ -264,8 +264,10 @@ cancellation token.
 
 The live cancellation registry is in-process by default. A request routed to another
 instance, or sent after the owner restarts, returns `409`. Unknown and cross-tenant
-runs return `404`; terminal runs return `409`. Queued-run cancellation uses the
-shared job store and can work across processes.
+runs return `404`; terminal runs return `409`. A `Queued` run that no process has
+picked up is canceled through the shared job store and can work across processes. A
+workflow run that waits for a concurrency slot in this process is canceled like a
+running one.
 
 Canceling a root run propagates to its child runs. Canceling one child does not cancel
 the root or its siblings.
@@ -277,8 +279,13 @@ by default. A periodic scan closes `Running` records that have not signaled for 
 minutes. The reconciler changes them to `Failed`, records the infrastructure error
 type `orphaned`, and appends a `RunFailed` event.
 
-Only `Running` records are reconciled. Queued work belongs to the job queue and its
-leases. Heartbeat-write failures are logged, and the next interval tries again.
+Only `Running` records are reconciled, and the `Queued` records that wrote a heartbeat.
+A workflow run that waits inside its process for a concurrency slot is `Queued` and
+writes a heartbeat from the moment its record opens, so when that process dies the
+waiting record closes as `orphaned` too instead of staying `Queued` for good. Any other
+`Queued` work belongs to the job queue and its leases: a record with no heartbeat is
+never closed by the scan, however old it is. Heartbeat-write failures are logged, and the
+next interval tries again.
 
 | Setting | Default | Validation or effect |
 |---|---:|---|

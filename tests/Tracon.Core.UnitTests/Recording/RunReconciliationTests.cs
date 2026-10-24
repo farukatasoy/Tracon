@@ -363,8 +363,8 @@ public sealed class RunReconciliationTests
         public ValueTask<JobRecord> EnqueueAsync(JobRecord job, IReadOnlyList<string> items, CancellationToken cancellationToken = default)
             => throw new TraconException("simulated queue outage");
 
-        public ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes, CancellationToken cancellationToken = default)
-            => _inner.LeaseAsync(owner, leaseDuration, lanes, cancellationToken);
+        public ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
+            => _inner.LeaseAsync(request, cancellationToken);
 
         public ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
             => _inner.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);

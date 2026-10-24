@@ -21578,7 +21578,7 @@ namespace Tracon.Client.Generated
         public int FailedItems { get; set; } = default!;
 
         /// <summary>
-        /// The number of lease attempts. Increments on every ValueTask&amp;lt;JobRecord?&amp;gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList&amp;lt;string&amp;gt;? lanes, CancellationToken cancellationToken = default(CancellationToken)) call.
+        /// The number of lease attempts. Increments each time a worker leases the job.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("attempt")]
         public int Attempt { get; set; } = default!;

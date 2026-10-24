@@ -58,14 +58,23 @@ public enum RunStatus
     AwaitingInput = 4,
 
     /// <summary>
-    /// The run is queued and a worker has not started it yet.
+    /// The run has not started its work: it waits for a worker, or for a concurrency slot.
     /// </summary>
     /// <remarks>
-    /// Seen only for runs started with <c>Prefer: respond-async</c>. The
+    /// <para>
+    /// Seen for runs started with <c>Prefer: respond-async</c>. The
     /// row is written as <c>Queued</c> at enqueue time; when the worker actually
     /// runs the job the same id is written again and moves to <see cref="Running"/>.
-    /// The value was appended at the end for the same reason as
-    /// <see cref="AwaitingInput"/>.
+    /// </para>
+    /// <para>
+    /// Seen too for a workflow run that waits, in the process that runs it, for a slot of
+    /// <c>Tracon:Workflows:MaxConcurrentRuns</c> or of <c>MaxConcurrentRunsPerTenant</c>. No job
+    /// holds that run; the process does, and writes a heartbeat for it, so run reconciliation closes
+    /// the row if the process is gone. The row moves to <see cref="Running"/> when the run has its slots.
+    /// </para>
+    /// <para>
+    /// The value was appended at the end for the same reason as <see cref="AwaitingInput"/>.
+    /// </para>
     /// </remarks>
     Queued = 5,
 

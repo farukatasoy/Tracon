@@ -271,8 +271,8 @@ raw call arguments, so it survives a restart the same way the arguments do.
 It is also what makes recovering from a crash possible at all: a run's recorded
 tool calls are what an [automatically continued run](/guides/reliability/#continue-an-interrupted-run-automatically)
 replays instead of repeating, and orphan reconciliation itself only has a stale
-`Running` row to find because that row, and every tool call it already made, outlived
-the process that opened it.
+`Running` row (or a `Queued` one that was waiting for a workflow slot) to find because
+that row, and every tool call it already made, outlived the process that opened it.
 
 Session and workflow checkpoint rows carry a version stamp of their own, separate
 from the schema migrations above: Tracon's envelope around the row, and the

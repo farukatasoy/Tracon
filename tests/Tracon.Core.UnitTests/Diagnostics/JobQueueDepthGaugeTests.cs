@@ -421,8 +421,8 @@ public sealed class JobQueueDepthGaugeTests
         public ValueTask<JobRecord> EnqueueAsync(JobRecord job, IReadOnlyList<string> items, CancellationToken cancellationToken = default)
             => Inner.EnqueueAsync(job, items, cancellationToken);
 
-        public ValueTask<JobRecord?> LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes, CancellationToken cancellationToken = default)
-            => Inner.LeaseAsync(owner, leaseDuration, lanes, cancellationToken);
+        public ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
+            => Inner.LeaseAsync(request, cancellationToken);
 
         public ValueTask RenewLeaseAsync(Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
             => Inner.RenewLeaseAsync(jobId, owner, leaseDuration, cancellationToken);

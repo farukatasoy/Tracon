@@ -426,6 +426,65 @@ public sealed class WorkflowResponseOwnershipTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
+    public async Task A_streamed_answer_that_waits_for_a_concurrency_slot_is_followed_by_its_repeat_and_given_no_second_job(bool queuedRepeat)
+    {
+        // A streamed answer whose run waits in its own process for a slot of MaxConcurrentRuns is Queued, and no
+        // job holds it. The rule "a Queued run with no job is a job nobody wrote" belongs to queued answers: read
+        // for this one, the repeat of the same answer (a retry after a dropped connection) wrote a job, a worker
+        // leased it, and the answer ran twice beside the first stream - a tool approved once ran twice.
+        var harness = new WorkflowResponseHarness();
+        await using var host = await harness.StartAsync(configureServices: services =>
+            services.Configure<TraconWorkflowOptions>(options => options.MaxConcurrentRuns = 1));
+
+        try
+        {
+            var (sourceId, requestId) = await RunToAwaitAsync(host, SingleFlow);
+            var (slowId, slowRequestId) = await RunToAwaitAsync(host, SlowFlow);
+
+            // The one slot is held by the other workflow's answer, parked in its last step.
+            using var holder = await RespondAsync(host, slowId, new { requestId = slowRequestId, approved = true });
+            var holding = FramesAsync(holder);
+
+            await harness.Parked.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+            using var first = await RespondAsync(host, sourceId, new { requestId, approved = true });
+            var firstReading = FramesAsync(first);
+            var answered = (await WorkflowRunsAsync(host)).Single(run => string.Equals(run.WorkflowName, SingleFlow, StringComparison.Ordinal) && run.Id != sourceId).Id;
+
+            (await host.WaitForRunStatusAsync(answered, nameof(RunStatus.Queued))).ShouldBe(nameof(RunStatus.Queued));
+
+            if (queuedRepeat)
+            {
+                using var repeat = await QueuedWorkflowHarness.PostAsync(host, $"/api/workflows/runs/{sourceId}/respond", new { requestId, approved = true });
+
+                (await QueuedWorkflowHarness.AcceptedRunIdAsync(repeat)).ShouldBe(answered);
+            }
+            else
+            {
+                using var repeat = await RespondAsync(host, sourceId, new { requestId, approved = true });
+
+                RunIdOf(await ReadHeadAsync(repeat)).ShouldBe(answered);
+            }
+
+            // Nothing queued a job for the run the first stream still owns.
+            (await QueuedWorkflowHarness.JobsAsync(host)).ShouldBeEmpty();
+
+            harness.Gate.TrySetResult();
+            await holding;
+            await firstReading;
+
+            (await host.WaitForTerminalRunAsync(answered)).Status.ShouldBe(RunStatus.Completed);
+            (await AppliedRunsAsync(host)).Count(id => id == answered).ShouldBe(1);
+        }
+        finally
+        {
+            harness.Gate.TrySetResult();
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
     public async Task A_queued_answer_whose_job_was_never_written_is_finished_by_the_same_answer(bool queuedRepeat)
     {
         // Second-round audit: the queued answer's row and record were written, its job was not.
@@ -707,6 +766,24 @@ public sealed class WorkflowResponseOwnershipTests
     }
 
     /// <summary>The runs that applied an answer: each carries the back-link event.</summary>
+    /// <summary>Reads a streamed answer up to the frame that names its run, and lets the stream go.</summary>
+    private static async Task<List<SseFrame>> ReadHeadAsync(HttpResponseMessage response)
+    {
+        var frames = new List<SseFrame>();
+
+        await foreach (var frame in SseReader.ReadAsync(await response.Content.ReadAsStreamAsync()))
+        {
+            frames.Add(frame);
+
+            if (string.Equals(frame.Event, "run", StringComparison.Ordinal))
+            {
+                break;
+            }
+        }
+
+        return frames;
+    }
+
     private static async Task<List<Guid>> AppliedRunsAsync(TraconTestHost host)
     {
         var runs = host.Services.GetRequiredService<IRunStore>();

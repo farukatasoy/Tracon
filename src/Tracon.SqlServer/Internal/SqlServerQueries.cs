@@ -420,19 +420,21 @@ internal sealed class SqlServerQueries : SqlQueriesBase
              WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Orphaned run reconciliation (Phase 54). Only affects Running rows;
-        // silently updates zero rows for an id that does not exist or is in
-        // a different status.
+        // Orphaned run reconciliation (Phase 54). Only affects Running and Queued
+        // rows (Phase 240: a run waiting in-process for a workflow slot is Queued
+        // and still owned by this process); silently updates zero rows for an id
+        // that does not exist or is in a different status.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}.runs
                SET heartbeat_at = @at
-             WHERE id = @id AND status = @status_running;
+             WHERE id = @id AND status IN (@status_running, @status_queued);
             """;
 
         // TOP (@n) = 0 does NOT raise an error (unlike SQL Server's FETCH
         // NEXT); no extra guard is needed. error_fingerprint is a FIXED
         // string ("orphaned") -- the rationale is the same as in the
-        // PostgreSQL version.
+        // PostgreSQL version, and so is the Queued rule (Phase 240): a Queued
+        // row is claimed only when it has a heartbeat.
         ClaimOrphanedRuns = $"""
             UPDATE r
                SET status            = @status_failed,
@@ -452,8 +454,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
               FROM {Schema}.runs AS r
              WHERE r.id IN (
                        SELECT TOP (@max) id FROM {Schema}.runs
-                        WHERE status = @status_running
-                          AND COALESCE(heartbeat_at, started_at) < @stale_before
+                        WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < @stale_before)
+                            OR (status = @status_queued AND heartbeat_at < @stale_before))
                      ORDER BY COALESCE(heartbeat_at, started_at) ASC
                    );
             """;
@@ -1385,6 +1387,49 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    OR (status IN (1, 2) AND lease_until < @now))
                   AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM OPENJSON(@lanes) WHERE value = lane))
                 ORDER BY scheduled_for
+            )
+            UPDATE next_job
+               SET status      = 1,
+                   lease_owner = @owner,
+                   lease_until = @lease_until,
+                   attempt     = attempt + 1,
+                   started_at  = COALESCE(started_at, @now)
+             OUTPUT {InsertedJobColumns};
+            """;
+
+        // The same statement with a per-tenant ceiling (Phase 240); the rule is the PostgreSQL text's. The
+        // tenants at the ceiling are collected into a table variable FIRST, then probed by key.
+        //
+        // 🚨 Measured on SQL Server 2022 with 100,000 ready jobs: the same set written as an uncorrelated
+        // `tenant_id IN (SELECT ... GROUP BY ... HAVING)` was NOT evaluated once. The optimizer ran it per
+        // candidate row (100,011 scans of `jobs`, 76.9 million reads, 177 s) where PostgreSQL hashes it.
+        // The table variable costs one pass over the live leases and a key seek per candidate (152 ms
+        // against 79 ms for the uncapped statement, which already sorts every ready job).
+        //
+        // The count reads the table under the default isolation, so it waits for a lease another worker is
+        // writing at that instant instead of skipping it (READPAST would undercount); only the row being
+        // leased takes the UPDLOCK/READPAST hints. The ceiling stays soft for the reason given there.
+        LeaseJobWithTenantCap = $"""
+            DECLARE @at_cap TABLE (tenant_id nvarchar(200) NOT NULL PRIMARY KEY);
+
+            INSERT INTO @at_cap (tenant_id)
+            SELECT held.tenant_id
+              FROM {Schema}.jobs AS held
+             WHERE held.status IN (1, 2)
+               AND held.lease_until >= @now
+               AND EXISTS (SELECT 1 FROM OPENJSON(@cap_keys) WHERE value = held.handler_key)
+             GROUP BY held.tenant_id
+            HAVING COUNT(*) >= @cap_max;
+
+            WITH next_job AS (
+                SELECT TOP (1) j.*
+                FROM {Schema}.jobs AS j WITH (UPDLOCK, READPAST, ROWLOCK)
+                WHERE ((j.status = 0 AND j.scheduled_for <= @now)
+                   OR (j.status IN (1, 2) AND j.lease_until < @now))
+                  AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM OPENJSON(@lanes) WHERE value = j.lane))
+                  AND NOT (EXISTS (SELECT 1 FROM OPENJSON(@cap_keys) WHERE value = j.handler_key)
+                       AND j.tenant_id IN (SELECT tenant_id FROM @at_cap))
+                ORDER BY j.scheduled_for
             )
             UPDATE next_job
                SET status      = 1,

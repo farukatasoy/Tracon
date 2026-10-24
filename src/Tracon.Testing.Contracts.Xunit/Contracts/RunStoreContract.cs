@@ -2889,7 +2889,7 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     [Fact]
-    public async Task ClaimOrphanedRunsAsync_never_touches_a_Queued_row()
+    public async Task ClaimOrphanedRunsAsync_never_touches_a_Queued_row_that_has_no_heartbeat()
     {
         AmbientTenant.TenantId = TenantA;
 
@@ -2903,6 +2903,76 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
 
         claimed.ShouldNotContain(record => record.Id == runId);
         (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Queued);
+    }
+
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_closes_a_Queued_row_whose_heartbeat_is_stale()
+    {
+        // A workflow run that waits in its process for a concurrency slot is Queued and writes a
+        // heartbeat; when that process is gone the heartbeat goes stale and nothing else would ever
+        // close the row (the job queue does not own it).
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10), Status = RunStatus.Queued });
+        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow.AddMinutes(-9));
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        var record = claimed.ShouldHaveSingleItem();
+        record.Id.ShouldBe(runId);
+        record.Status.ShouldBe(RunStatus.Failed);
+        record.Error!.Type.ShouldBe("orphaned");
+
+        var events = new List<RunEvent>();
+
+        await foreach (var runEvent in Store.ReadEventsAsync(runId))
+        {
+            events.Add(runEvent);
+        }
+
+        events[^1].Type.ShouldBe(RunEventType.RunFailed);
+    }
+
+    [Fact]
+    public async Task ClaimOrphanedRunsAsync_does_not_touch_a_Queued_row_with_a_fresh_heartbeat()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10), Status = RunStatus.Queued });
+        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        claimed.ShouldNotContain(record => record.Id == runId);
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Queued);
+    }
+
+    [Fact]
+    public async Task A_run_promoted_from_Queued_to_Running_keeps_the_heartbeat_it_sent_while_it_waited()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        var queued = TestData.Run(runId) with { StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10), Status = RunStatus.Queued };
+        await Store.StartRunAsync(queued);
+        await Store.TouchHeartbeatAsync([runId], DateTimeOffset.UtcNow);
+
+        // The second write of the same run (StartRunAsync is an upsert) must not undo the heartbeat: were
+        // it reset, the row would fall back to its ten-minute-old start and be closed under a live run.
+        await Store.StartRunAsync(queued with { Status = RunStatus.Running });
+
+        var claimed = await Store.ClaimOrphanedRunsAsync(
+            staleBefore: DateTimeOffset.UtcNow.AddMinutes(-5),
+            max: 10);
+
+        claimed.ShouldNotContain(record => record.Id == runId);
+        (await Store.GetRunAsync(runId))!.Status.ShouldBe(RunStatus.Running);
     }
 
     [Fact]

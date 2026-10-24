@@ -296,6 +296,17 @@ Tracon.Testing.Contracts.Storage.JobStoreContract.Queue_depth_separates_the_open
 Tracon.Testing.Contracts.Storage.JobStoreContract.ReleaseForRetryAsync_returns_to_pending_without_resetting_the_attempt() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.ReportItemAsync_counts_successful_and_failed_items_separately() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.ReportItemAsync_is_idempotent() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_skips_a_tenant_at_the_cap_and_leases_the_oldest_job_of_another() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_without_a_tenant_cap_gives_one_tenant_the_whole_queue_in_age_order() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_leases_up_to_the_cap_for_one_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_counts_both_workflow_handler_keys_together() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_still_leases_a_job_of_another_handler_key_of_a_tenant_at_the_cap() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_does_not_count_a_job_of_another_handler_key() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_counts_a_running_job() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_does_not_count_a_lease_that_has_expired() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_does_not_count_the_leases_of_another_tenant() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_still_honors_the_lane_filter() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.JobStoreContract.Lease_with_a_tenant_cap_that_names_no_handler_key_or_no_room_is_refused() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.JobStoreContract.Retry_preserves_the_jobs_lane() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Deleting_a_nonexistent_record_returns_false() -> System.Threading.Tasks.Task!
@@ -439,7 +450,10 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Attribution_round_trips() -> S
 Tracon.Testing.Contracts.Storage.RunStoreContract.Canceled_token_throws_on_the_first_step_of_the_event_stream() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_does_not_touch_a_Running_row_within_the_threshold() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_marks_a_stale_Running_row_as_Failed() -> System.Threading.Tasks.Task!
-Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_never_touches_a_Queued_row() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_never_touches_a_Queued_row_that_has_no_heartbeat() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_closes_a_Queued_row_whose_heartbeat_is_stale() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_does_not_touch_a_Queued_row_with_a_fresh_heartbeat() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_promoted_from_Queued_to_Running_keeps_the_heartbeat_it_sent_while_it_waited() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_reports_ContinuedFromRunId_on_the_claimed_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.ClaimOrphanedRunsAsync_reports_the_kind_and_the_tree_position_on_the_claimed_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.CompleteRunAsync_does_not_close_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!

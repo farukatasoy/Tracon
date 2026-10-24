@@ -109,20 +109,38 @@ internal sealed class SqlJobStore : IJobStore
     [TenantAgnostic(
         "The worker pool picks up jobs in order from EVERY tenant's queue; the tenant is carried on the leased job's record, and execution happens within that tenant's scope (AmbientTenantScope).")]
     public async ValueTask<JobRecord?> LeaseAsync(
-        string owner,
-        TimeSpan leaseDuration,
-        IReadOnlyList<string>? lanes,
+        JobLeaseRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.Owner, nameof(request));
+
+        var owner = request.Owner;
+
+        var cap = request.TenantCap;
+
+        if (cap is not null && (cap.HandlerKeys is not { Count: > 0 } || cap.MaxLeasedPerTenant < 1))
+        {
+            throw new ArgumentException(
+                "A tenant cap names at least one handler key and allows at least one leased job per tenant.",
+                nameof(request));
+        }
 
         var now = DateTimeOffset.UtcNow;
 
-        var command = CreateCommand(_sql.LeaseJob);
+        // Without a cap the statement is the one that has always run; the capped statement is a
+        // separate text, so the common path pays nothing for the count.
+        var command = CreateCommand(cap is null ? _sql.LeaseJob : _sql.LeaseJobWithTenantCap);
         DbHelpers.Add(command, "owner", owner);
-        Dialect.AddTimestamp(command, "lease_until", (now + leaseDuration));
+        Dialect.AddTimestamp(command, "lease_until", (now + request.LeaseDuration));
         Dialect.AddTimestamp(command, "now", now);
-        Dialect.AddTextArray(command, "lanes", lanes is { Count: > 0 } ? lanes : null);
+        Dialect.AddTextArray(command, "lanes", request.Lanes is { Count: > 0 } ? request.Lanes : null);
+
+        if (cap is not null)
+        {
+            Dialect.AddTextArray(command, "cap_keys", cap.HandlerKeys);
+            DbHelpers.Add(command, "cap_max", cap.MaxLeasedPerTenant);
+        }
 
         return await DbHelpers.ReadSingleAsync(command, ReadJob, cancellationToken).ConfigureAwait(false);
     }

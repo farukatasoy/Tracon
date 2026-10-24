@@ -353,20 +353,23 @@ internal sealed class SqliteQueries : SqlQueriesBase
             WHERE id = @id AND (@tenant_id IS NULL OR tenant_id = @tenant_id);
             """;
 
-        // Orphaned run reconciliation (Phase 54). Affects only Running rows;
-        // for a nonexistent id or one in a different status it silently
-        // updates zero rows.
+        // Orphaned run reconciliation (Phase 54). Affects only Running and Queued
+        // rows (Phase 240: a run waiting in-process for a workflow slot is Queued
+        // and still owned by this process); for a nonexistent id or one in a
+        // different status it silently updates zero rows.
         TouchRunHeartbeat = $"""
             UPDATE {Schema}runs
             SET heartbeat_at = @at
-            WHERE id = @id AND status = @status_running;
+            WHERE id = @id AND status IN (@status_running, @status_queued);
             """;
 
         // heartbeat_at/started_at are already ISO 8601 TEXT (K-191's adjacent
         // rule: timestamps are written by hand), so they can be concatenated
         // directly with `||` -- no need for the `::text` cast used in
         // PostgreSQL. error_fingerprint is a CONSTANT string ("orphaned") --
-        // the rationale is the same as in the PostgreSQL version.
+        // the rationale is the same as in the PostgreSQL version, and so is the
+        // Queued rule (Phase 240): a Queued row is claimed only when it has a
+        // heartbeat.
         ClaimOrphanedRuns = $"""
             UPDATE {Schema}runs
             SET status            = @status_failed,
@@ -379,8 +382,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                 event_count       = event_count + 1
             WHERE id IN (
                 SELECT id FROM {Schema}runs
-                WHERE status = @status_running
-                  AND COALESCE(heartbeat_at, started_at) < @stale_before
+                WHERE ((status = @status_running AND COALESCE(heartbeat_at, started_at) < @stale_before)
+                    OR (status = @status_queued AND heartbeat_at < @stale_before))
                 ORDER BY COALESCE(heartbeat_at, started_at) ASC
                 LIMIT @max
             )
@@ -1209,6 +1212,33 @@ internal sealed class SqliteQueries : SqlQueriesBase
                        OR (status IN (1, 2) AND lease_until < @now))
                       AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM json_each(@lanes) WHERE value = lane))
                     ORDER BY scheduled_for
+                    LIMIT 1)
+            RETURNING {JobColumns};
+            """;
+
+        // The same statement with a per-tenant ceiling (Phase 240); the rule, and the single uncorrelated
+        // subquery that finds the tenants at the ceiling, are the PostgreSQL text's. SQLite is a single
+        // writer, so the count and the lease cannot interleave with another worker's: the ceiling holds
+        // exactly here.
+        LeaseJobWithTenantCap = $"""
+            UPDATE {Schema}jobs
+               SET status = 1, lease_owner = @owner, lease_until = @lease_until, attempt = attempt + 1,
+                   started_at = COALESCE(started_at, @now)
+             WHERE id = (
+                   SELECT j.id FROM {Schema}jobs AS j
+                    WHERE ((j.status = 0 AND j.scheduled_for <= @now)
+                       OR (j.status IN (1, 2) AND j.lease_until < @now))
+                      AND (@lanes IS NULL OR EXISTS (SELECT 1 FROM json_each(@lanes) WHERE value = j.lane))
+                      AND NOT (EXISTS (SELECT 1 FROM json_each(@cap_keys) WHERE value = j.handler_key)
+                           AND j.tenant_id IN (
+                                SELECT held.tenant_id
+                                  FROM {Schema}jobs AS held
+                                 WHERE held.status IN (1, 2)
+                                   AND held.lease_until >= @now
+                                   AND EXISTS (SELECT 1 FROM json_each(@cap_keys) WHERE value = held.handler_key)
+                                 GROUP BY held.tenant_id
+                                HAVING COUNT(*) >= @cap_max))
+                    ORDER BY j.scheduled_for
                     LIMIT 1)
             RETURNING {JobColumns};
             """;

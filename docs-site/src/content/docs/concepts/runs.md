@@ -48,6 +48,12 @@ deliberate exception, described in [governance](/concepts/governance/).
 The summary — `GET /api/runs/{runId}` — has status, timings, token counts, error
 class, and cost when pricing is configured. It does not carry the conversation.
 
+`Queued` means the run has not started its work. A queued run (`Prefer: respond-async`)
+waits for a worker, and a workflow run waits for a concurrency slot when
+`MaxConcurrentRuns` or `MaxConcurrentRunsPerTenant` workflows are already going (see
+[How many runs go at once](/guides/background-work/#limit-workflow-runs-per-tenant)). The record
+reads `Running` once the run has what it waited for.
+
 `modelProvider` names the provider that actually answered — the same provider
 `modelId`'s model came from. `cost` is a **price snapshot**: it also carries the
 unit price (per million tokens) that was applied for input, output, and any

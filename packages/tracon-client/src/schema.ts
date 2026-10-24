@@ -4882,7 +4882,7 @@ export interface components {
             failedItems?: number | string;
             /**
              * Format: int32
-             * @description The number of lease attempts. Increments on every ValueTask&lt;JobRecord?&gt; IJobStore.LeaseAsync(string owner, TimeSpan leaseDuration, IReadOnlyList&lt;string&gt;? lanes, CancellationToken cancellationToken = default(CancellationToken)) call.
+             * @description The number of lease attempts. Increments each time a worker leases the job.
              */
             attempt?: number | string;
             /**

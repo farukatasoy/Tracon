@@ -279,7 +279,8 @@ public sealed record RunStartInfo
     /// <remarks>
     /// A queued run opens as <see cref="RunStatus.Queued"/>. When
     /// <c>StartRunAsync</c> is called a SECOND time with the same
-    /// <see cref="RunId"/> — once the worker actually runs the job — the store
+    /// <see cref="RunId"/> — once the worker actually runs the job, or once a workflow run that
+    /// waited in its process for a concurrency slot has its slots — the store
     /// treats it as an upsert: no new row is opened, the existing row is updated
     /// with this field, normally to <see cref="RunStatus.Running"/>.
     /// </remarks>

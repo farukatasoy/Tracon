@@ -97,6 +97,11 @@ public static class TraconWorkflowsBuilderExtensions
         // ceiling through this seam, for the same reason.
         services.TryAddSingleton<IWorkflowRunTimeoutPolicy, TraconWorkflowRunTimeoutPolicy>();
 
+        // Phase 240: the job worker (Tracon.Core) leases queued workflow jobs under a per-tenant ceiling it
+        // cannot read from this package's options, so it asks through this seam. Registered here and nowhere
+        // else: a host without the engine leases with no ceiling.
+        services.TryAddSingleton<IJobTenantCapSource, WorkflowJobTenantCapSource>();
+
         // Phase 209: closes the runs whose human request expired, so retention can release
         // what a waiting run keeps (K-888). Scans nothing while no workflow sets a limit.
         services.TryAddEnumerable(

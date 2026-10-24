@@ -164,10 +164,8 @@ public sealed class ApprovalResumeHandoffTests
                     ? throw new InvalidOperationException("Injected: the queue is unavailable.")
                     : inner.EnqueueAsync(job, items, cancellationToken);
 
-            public ValueTask<JobRecord?> LeaseAsync(
-                string owner, TimeSpan leaseDuration, IReadOnlyList<string>? lanes,
-                CancellationToken cancellationToken = default)
-                => inner.LeaseAsync(owner, leaseDuration, lanes, cancellationToken);
+            public ValueTask<JobRecord?> LeaseAsync(JobLeaseRequest request, CancellationToken cancellationToken = default)
+                => inner.LeaseAsync(request, cancellationToken);
 
             public ValueTask RenewLeaseAsync(
                 Guid jobId, string owner, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
